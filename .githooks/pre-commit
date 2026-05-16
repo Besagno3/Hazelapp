@@ -1,0 +1,33 @@
+#!/bin/sh
+# Pre-commit hook — enforces the doc ritual for Hazel Quest.
+# Blocks any commit that changes app code (hazel-game/src/) without staging
+# updates to all three project docs. See hazel-game/CLAUDE.md.
+#
+# Intentional bypass (use sparingly): git commit --no-verify
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Only enforce when app source code is part of this commit.
+code_changed=$(printf '%s\n' "$staged" | grep -E '^hazel-game/src/')
+[ -z "$code_changed" ] && exit 0
+
+docs="hazel-game/CLAUDE.md hazel-game/docs/ISSUES.md hazel-game/docs/TEST-CASES.md"
+
+missing=""
+for doc in $docs; do
+  printf '%s\n' "$staged" | grep -qx "$doc" || missing="$missing  - $doc\n"
+done
+
+if [ -n "$missing" ]; then
+  printf '\n\033[31m✖ Commit blocked — the doc ritual was not followed.\033[0m\n'
+  printf 'App code under hazel-game/src/ changed, but these docs are not staged:\n'
+  printf "$missing"
+  printf '\nUpdate them (see hazel-game/CLAUDE.md → Pre-commit ritual):\n'
+  printf '  • CLAUDE.md          — add a Feature Log entry\n'
+  printf '  • docs/ISSUES.md     — log bugs / shortcuts / things to revisit\n'
+  printf '  • docs/TEST-CASES.md — write test cases for the change\n'
+  printf '\nThen re-commit. To bypass intentionally: git commit --no-verify\n\n'
+  exit 1
+fi
+
+exit 0

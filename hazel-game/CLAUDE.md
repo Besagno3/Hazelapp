@@ -1,0 +1,102 @@
+# Hazel Quest — Project Context
+
+> Educational quiz-battle game. Players answer questions across topics, unlock an
+> open world, pick a fighter avatar, and battle NPCs by answering correctly.
+
+This file is loaded automatically by Claude Code. Keep it accurate — it is the
+shared source of truth for how this project works.
+
+---
+
+## Stack
+
+| Layer       | Choice                                              |
+|-------------|-----------------------------------------------------|
+| Build       | Vite 5.4                                            |
+| UI          | React 18.3 + TypeScript 5.8                         |
+| Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
+| State       | Zustand 5 (`gameStore` persisted to localStorage, `authStore`) |
+| Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
+| Animation   | Framer Motion 12, canvas-confetti                   |
+| Testing     | Vitest 3 + Testing Library + jsdom *(not yet wired)* |
+
+Many dependencies in `package.json` are installed but **not yet used**
+(react-router-dom, xstate, react-query, react-hook-form, zod, recharts, howler,
+katex, vite-plugin-pwa, etc.). Treat them as "approved to adopt" — not as
+existing architecture.
+
+## Decisions
+
+- **Audience:** general kids' educational game (difficulty tiers, not tuned to
+  one child).
+- **Question source:** external trivia API (not hardcoded, not a Supabase
+  questions table). See ISSUES.md #7.
+- **Routing:** stay phase-based for now; **do not adopt react-router** (URLs /
+  browser-back are a liability for a guided kids' game flow). Plan to migrate
+  the game flow to **xstate** (already installed) once guarded transitions
+  multiply. See ISSUES.md #11. react-router may still be added later *only* for
+  standalone non-game pages (parent dashboard, settings, leaderboard).
+
+## Architecture
+
+- **Routing is state-based, not URL-based.** `App.tsx` renders a screen based on
+  `gameStore.phase` (`auth → topic-select → quiz → world → battle`). No
+  react-router. xstate migration planned — see Decisions above.
+- **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
+- **`gameStore`** (`src/store/gameStore.ts`) is persisted to localStorage under
+  key `hazel-game` — phase and progress survive reloads.
+- **`authStore`** holds the Supabase user/session but is currently **never
+  populated** — auth is cosmetic (see ISSUES.md #1).
+- Quiz and battle questions are **hardcoded sample data**, not from Supabase.
+
+## Commands
+
+```bash
+npm install      # install deps (node_modules is gitignored)
+npm run dev      # Vite dev server
+npm run build    # tsc -b && vite build
+npm run lint     # eslint
+# npm test       # NOT yet configured — see ISSUES.md
+```
+
+## Conventions
+
+- TypeScript strict mode; `noUnusedLocals`/`noUnusedParameters` are on.
+- Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
+  for conditional class merging.
+- Game tuning constants live in `src/lib/utils.ts` (`PASS_THRESHOLD`,
+  `ROUNDS_TO_UNLOCK`, `calcAttackDamage`).
+- Shared types live in `src/types/index.ts`.
+
+---
+
+## ⚠️ Pre-commit ritual (REQUIRED before every commit)
+
+Before staging a commit, update all three docs:
+
+1. **`CLAUDE.md`** (this file) — add to the Feature Log below what changed.
+2. **`docs/ISSUES.md`** — log any bug, shortcut, or thing to revisit.
+3. **`docs/TEST-CASES.md`** — write test cases for the new/changed behavior.
+
+**This is enforced.** A git hook (`.githooks/pre-commit`) blocks any commit that
+stages files under `hazel-game/src/` unless all three docs are staged too.
+Doc-only and config-only commits are not blocked.
+
+- Intentional bypass (use sparingly): `git commit --no-verify`
+- **Fresh clones must activate the hook once:** `git config core.hooksPath .githooks`
+  (`core.hooksPath` is local config and is not cloned automatically.)
+
+---
+
+## Feature Log
+
+Newest first. One entry per commit (or per logical change).
+
+### 2026-05-16 — Initial scaffold
+- Vite + React + TS + Tailwind project structure.
+- Five screens: Auth, Topic Select, Quiz Round, Avatar Select, World Map,
+  Battle Arena, wired via `gameStore.phase`.
+- Supabase email/password auth on the Auth screen.
+- Quiz: 5 questions/round, 4 topics, pass at `PASS_THRESHOLD`, confetti on pass.
+- Battle: 3-question attack/defend rounds, HP bars, damage from `calcAttackDamage`.
+- Project docs created: `CLAUDE.md`, `docs/ISSUES.md`, `docs/TEST-CASES.md`.
