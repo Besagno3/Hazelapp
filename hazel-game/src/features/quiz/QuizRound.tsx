@@ -6,6 +6,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { PASS_THRESHOLD } from '../../lib/utils';
 import { nextSkillLevel } from '../../lib/age';
+import { XP_PER_CORRECT } from '../../lib/level';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 
 const QUESTIONS_PER_ROUND = 5;
@@ -14,6 +15,7 @@ export default function QuizRound() {
   const { progress, completeRound, setPhase } = useGameStore();
   const topic = progress.currentTopic!;
   const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
+  const addXp = useProfileStore((s) => s.addXp);
   const { questions, loading, error, skillLevel, reload } = useGeneratedQuestions(
     topic,
     QUESTIONS_PER_ROUND,
@@ -49,15 +51,17 @@ export default function QuizRound() {
         setAnswers(newAnswers);
       } else {
         setAnswers(newAnswers);
-        const finalScore = newAnswers.filter(Boolean).length / total;
+        const correctCount = newAnswers.filter(Boolean).length;
+        const finalScore = correctCount / total;
         const finalPassed = finalScore >= PASS_THRESHOLD;
         if (finalPassed) {
           confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
         }
         setDone(true);
         completeRound({ topic, questions, score: finalScore, passed: finalPassed });
-        // Persist the skill ramp for this topic.
+        // Persist the skill ramp for this topic and award XP for correct answers.
         void setSkillLevel(topic, nextSkillLevel(skillLevel, newAnswers));
+        void addXp(correctCount * XP_PER_CORRECT);
       }
     }, 1400);
   }

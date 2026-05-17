@@ -66,6 +66,12 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-54 | C | ⬜ | TopicSelect | unlock copy reflects PASS_THRESHOLD / ROUNDS_TO_UNLOCK |
 | TC-55 | C | ✅ | StatusScreens | `LoadingScreen` renders the given label |
 | TC-56 | C | ✅ | StatusScreens | `ErrorScreen` shows message; omits actions when no handler |
+| TC-57 | U | ✅ | level | `playerLevel` is 1 at 0 XP and advances every 100 XP |
+| TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction for the level |
+| TC-59 | U | ✅ | level | `npcDefeatXp` rewards more for higher-level NPCs |
+| TC-60 | U | ✅ | npc | `generateNpcs` produces the requested count |
+| TC-61 | U | ✅ | npc | generated NPCs have valid level (1-10), topic, and HP |
+| TC-62 | U | ✅ | npc | NPC level scales up with player age |
 
 ## Regression cases (tied to ISSUES.md)
 

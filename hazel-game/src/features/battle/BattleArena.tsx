@@ -5,7 +5,7 @@ import { useGameStore } from '../../store/gameStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { calcAttackDamage } from '../../lib/utils';
-import { nextSkillLevel } from '../../lib/age';
+import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 
 // A batch large enough to cycle through several attack/defend rounds.
@@ -18,10 +18,12 @@ export default function BattleArena() {
   const { battle, updateBattleHp, endBattle, avatar, setPhase: setGamePhase } = useGameStore();
   const npc = battle.npc!;
   const topic = npc.topic;
-  const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
-  const { questions, loading, error, skillLevel, reload } = useGeneratedQuestions(
+  const addXp = useProfileStore((s) => s.addXp);
+  // Battle question difficulty is the NPC's level, not the player's skill ramp.
+  const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
     BATTLE_QUESTION_COUNT,
+    npc.level,
   );
 
   const [phase, setPhase] = useState<Phase>('player-attack');
@@ -59,8 +61,10 @@ export default function BattleArena() {
   }
 
   function finishBattle(result: 'win' | 'lose') {
-    // Persist the skill ramp for this topic before leaving the battle.
-    void setSkillLevel(topic, nextSkillLevel(skillLevel, allAnswers.current));
+    // Award XP for correct answers, plus a bonus for defeating the NPC.
+    const correct = allAnswers.current.filter(Boolean).length;
+    const reward = correct * XP_PER_CORRECT + (result === 'win' ? npcDefeatXp(npc.level) : 0);
+    void addXp(reward);
     endBattle(result);
   }
 
@@ -149,7 +153,7 @@ export default function BattleArena() {
           : 'Defend! — Correct answers block NPC damage!'}
       </p>
       <p className="text-xs text-gray-400 mb-4">
-        Question {roundAnswers.length + 1}/{QUESTIONS_PER_ROUND} · {topic} Lvl {skillLevel}
+        Question {roundAnswers.length + 1}/{QUESTIONS_PER_ROUND} · {topic} Lvl {npc.level}
       </p>
 
       {/* Question */}

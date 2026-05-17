@@ -3,6 +3,7 @@ import { useAuthStore } from './store/authStore';
 import { useGameStore } from './store/gameStore';
 import AuthPage from './features/auth/AuthPage';
 import SignOutButton from './features/auth/SignOutButton';
+import LevelBadge from './components/LevelBadge';
 import TopicSelect from './features/quiz/TopicSelect';
 import QuizRound from './features/quiz/QuizRound';
 import AvatarSelect from './features/battle/AvatarSelect';
@@ -53,6 +54,7 @@ export default function App() {
 
   return (
     <>
+      <LevelBadge />
       <SignOutButton />
       <GameScreen phase={phase} progress={progress} avatar={avatar} />
     </>

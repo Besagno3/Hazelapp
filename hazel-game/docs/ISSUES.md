@@ -21,8 +21,10 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #12 | 🔴 | Med    | Game progress in localStorage is not tied to user identity |
 | #13 | 🟢 | Med    | Consider upgrading the build toolchain Vite 5 → 8 |
 | #14 | 🟢 | Low    | 2 moderate npm audit vulnerabilities (dev-only) |
-| #15 | 🔴 | High   | `profiles` migration must be applied in Supabase or profiles fail to load |
-| #16 | 🔴 | High   | `generate-questions` edge function must be deployed before it can be called |
+| #15 | 🟢 | High   | `profiles` migration must be applied in Supabase or profiles fail to load |
+| #16 | 🟢 | High   | `generate-questions` edge function must be deployed before it can be called |
+| #17 | 🔴 | High   | Migration `0002_add_xp.sql` must be applied or profile load fails |
+| #18 | 🔴 | Med    | Generic error messages hide the real cause (esp. edge-function errors) |
 
 ---
 
@@ -121,19 +123,26 @@ Lint, build, and dev server all verified green.
 The 2 moderate advisories (esbuild dev-server, via Vite 5's toolchain) were
 cleared by the Vite 8 upgrade (#13). `npm audit` now reports 0 vulnerabilities.
 
-### #15 — profiles migration must be applied 🔴 High
-`supabase/migrations/0001_create_profiles.sql` defines the `profiles` table +
-the `handle_new_user` trigger. Until it is applied to the Supabase project,
-`profileStore.loadProfile` errors ("relation does not exist") and no profile
-loads — the app still runs (gating is on session, not profile), but age-based
-features can't work. **Action:** run the migration in the Supabase SQL Editor
-(or `supabase db push`). Existing users created before the trigger exists will
-have no profile row and need one backfilled.
+### #15 — profiles migration must be applied 🟢 High — RESOLVED (2026-05-17)
+`0001_create_profiles.sql` applied to the Supabase project (`profiles` table +
+`handle_new_user` trigger). Note: any users created before the trigger existed
+have no profile row and would need one backfilled.
 
-### #16 — generate-questions edge function must be deployed 🔴 High
-`supabase/functions/generate-questions/` calls the Claude API server-side.
-Until it is deployed, `fetchQuestions` (`lib/questions.ts`) fails. The
-`ANTHROPIC_API_KEY` secret is already set in Supabase. **Action:**
-`supabase link --project-ref <ref>` then
-`supabase functions deploy generate-questions`. JWT verification is on by
-default, so only signed-in players can call it.
+### #16 — generate-questions edge function must be deployed 🟢 High — RESOLVED (2026-05-17)
+The `generate-questions` edge function is deployed; the `ANTHROPIC_API_KEY`
+secret is set. JWT verification is on by default, so only signed-in players
+can call it. (Runtime errors from the function are now surfaced in full — see #18.)
+
+### #17 — Migration 0002 must be applied 🔴 High
+`0002_add_xp.sql` adds the `profiles.xp` column. Until applied,
+`profileStore.loadProfile` (which now selects `xp`) errors and no profile
+loads. **Action:** run `0002_add_xp.sql` in the Supabase SQL Editor (or
+`supabase db push`).
+
+### #18 — Generic errors hide the real cause 🔴 Med
+`supabase.functions.invoke` returns a generic `FunctionsHttpError` ("Edge
+Function returned a non-2xx status code") — the edge function's actual
+`{error, detail}` response body is dropped, so the user sees a useless message
+and the real failure (Anthropic API error, bad JSON, etc.) is hidden.
+**Fix:** an app-wide error utility that extracts the real message — including
+reading the `FunctionsHttpError` response body — used wherever errors surface.

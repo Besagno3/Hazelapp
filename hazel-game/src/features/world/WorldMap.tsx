@@ -1,13 +1,13 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../../store/gameStore';
+import { useProfileStore } from '../../store/profileStore';
+import { calcAge } from '../../lib/age';
+import { generateNpcs } from '../../lib/npc';
 import type { NPC, Topic } from '../../types';
 
-const NPCS: NPC[] = [
-  { id: 'npc1', name: 'Count Calculus', sprite: '🧙', level: 1, topic: 'math', maxHp: 80 },
-  { id: 'npc2', name: 'Dr. Molecule', sprite: '🤖', level: 2, topic: 'science', maxHp: 100 },
-  { id: 'npc3', name: 'Gear Master', sprite: '⚔️', level: 3, topic: 'engineering', maxHp: 120 },
-  { id: 'npc4', name: 'Muse Maxine', sprite: '🧚', level: 4, topic: 'creativity', maxHp: 150 },
-];
+/** Age used when no profile is loaded yet. */
+const DEFAULT_AGE = 10;
 
 const TOPIC_COLORS: Record<Topic, string> = {
   math: 'bg-blue-100 border-blue-400',
@@ -18,6 +18,10 @@ const TOPIC_COLORS: Record<Topic, string> = {
 
 export default function WorldMap() {
   const { startBattle, avatar } = useGameStore();
+  const profile = useProfileStore((s) => s.profile);
+  const age = profile ? calcAge(profile.birthYear, profile.birthMonth) : DEFAULT_AGE;
+  // A fresh random set of NPCs each time the world is entered.
+  const [npcs] = useState(() => generateNpcs(age, 4));
 
   function handleChallenge(npc: NPC) {
     if (!avatar) return;
@@ -37,7 +41,7 @@ export default function WorldMap() {
       <p className="text-center text-emerald-100 mb-8">Choose an NPC to battle!</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
-        {NPCS.map((npc, i) => (
+        {npcs.map((npc, i) => (
           <motion.div
             key={npc.id}
             initial={{ scale: 0.8, opacity: 0 }}

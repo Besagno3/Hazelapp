@@ -8,6 +8,7 @@ interface ProfileRow {
   birth_year: number;
   birth_month: number;
   skill_levels: SkillLevels | null;
+  xp: number | null;
 }
 
 function fromRow(row: ProfileRow): Profile {
@@ -16,6 +17,7 @@ function fromRow(row: ProfileRow): Profile {
     birthYear: row.birth_year,
     birthMonth: row.birth_month,
     skillLevels: row.skill_levels ?? {},
+    xp: row.xp ?? 0,
   };
 }
 
@@ -27,6 +29,8 @@ interface ProfileStore {
   loadProfile: (userId: string) => Promise<void>;
   /** Persist a new skill level for one topic (optimistic update). */
   setSkillLevel: (topic: Topic, level: number) => Promise<void>;
+  /** Add experience points (optimistic update). */
+  addXp: (amount: number) => Promise<void>;
   clearProfile: () => void;
 }
 
@@ -39,7 +43,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ loading: true, error: null });
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, birth_year, birth_month, skill_levels')
+      .select('id, birth_year, birth_month, skill_levels, xp')
       .eq('id', userId)
       .single();
     if (error) {
@@ -57,6 +61,18 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const { error } = await supabase
       .from('profiles')
       .update({ skill_levels: skillLevels, updated_at: new Date().toISOString() })
+      .eq('id', profile.id);
+    if (error) set({ error: error.message });
+  },
+
+  addXp: async (amount) => {
+    const profile = get().profile;
+    if (!profile || amount <= 0) return;
+    const xp = profile.xp + amount;
+    set({ profile: { ...profile, xp } }); // optimistic
+    const { error } = await supabase
+      .from('profiles')
+      .update({ xp, updated_at: new Date().toISOString() })
       .eq('id', profile.id);
     if (error) set({ error: error.message });
   },

@@ -15,14 +15,15 @@ interface Result {
 }
 
 /**
- * Loads AI-generated questions for a topic, sized to the player's age and
- * persistent skill level. `loading` is derived (the latest result hasn't
- * caught up to the current request) rather than set inside the effect.
+ * Loads AI-generated questions for a topic. Difficulty is the player's
+ * per-topic skill level by default, or `levelOverride` when given (e.g. an
+ * NPC's level in a battle). `loading` is derived from a request/result key
+ * mismatch rather than set inside the effect.
  */
-export function useGeneratedQuestions(topic: Topic, count: number) {
+export function useGeneratedQuestions(topic: Topic, count: number, levelOverride?: number) {
   const profile = useProfileStore((s) => s.profile);
   const age = profile ? calcAge(profile.birthYear, profile.birthMonth) : DEFAULT_AGE;
-  const skillLevel = skillLevelFor(profile?.skillLevels ?? {}, topic, age);
+  const skillLevel = levelOverride ?? skillLevelFor(profile?.skillLevels ?? {}, topic, age);
 
   const [attempt, setAttempt] = useState(0);
   const requestKey = `${topic}|${age}|${skillLevel}|${count}|${attempt}`;

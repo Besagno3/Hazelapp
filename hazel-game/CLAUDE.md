@@ -67,8 +67,12 @@ existing architecture.
 - Quiz and battle screens load **AI-generated questions** via the
   `useGeneratedQuestions` hook (age + per-topic skill level → `fetchQuestions`),
   with loading and error/retry states.
-- Difficulty ramps: `nextSkillLevel` (`lib/age.ts`) adjusts the per-topic skill
-  level after each round/battle; persisted via `profileStore.setSkillLevel`.
+- Two progression systems: (1) per-topic **skill ramp** — `nextSkillLevel`
+  (`lib/age.ts`) tunes quiz difficulty after each quiz round, persisted via
+  `profileStore.setSkillLevel`; (2) overall **player level** — derived from XP
+  (`lib/level.ts`), earned from correct answers + NPC defeats, in `profiles.xp`.
+- World-map NPCs are randomly generated per visit (`lib/npc.ts`) with
+  age-scaled levels; an NPC's level sets its battle question difficulty + HP.
 
 ## Commands
 
@@ -112,6 +116,16 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — Random NPCs + player level system
+- `lib/npc.ts` `generateNpcs(age)`: `WorldMap` shows a fresh random NPC set
+  each visit; levels randomise around the age-appropriate level, HP scales.
+- Battle question difficulty is now the NPC's level (`useGeneratedQuestions`
+  gained a `levelOverride` param); battles no longer touch the skill ramp.
+- Player level system: `lib/level.ts` derives level from XP; XP comes from
+  correct answers (quiz + battle) and NPC defeats, stored in `profiles.xp`
+  (migration `0002_add_xp.sql`). `LevelBadge` shows level + XP on game screens.
+- ⚠️ Deploy required: apply `0002_add_xp.sql` — see ISSUES.md #17.
 
 ### 2026-05-17 — Test runner + battle/dead-code cleanup (ISSUES #4, #8, #9)
 - Vitest wired: `test` block in `vite.config.ts` (jsdom), `src/test/setup.ts`
