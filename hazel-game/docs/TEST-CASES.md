@@ -52,6 +52,15 @@ Type: U = unit · C = component · E = end-to-end · M = manual
 | TC-42 | E | ⬜ | generate-questions | returns N valid 4-option questions for a topic+age+level |
 | TC-43 | E | ⬜ | generate-questions | rejects an invalid topic / out-of-range age with 400 |
 | TC-44 | E | ⬜ | generate-questions | drops malformed questions (not exactly 4 options) |
+| TC-45 | U | ⬜ | age | `nextSkillLevel` raises by 2 on a flawless run |
+| TC-46 | U | ⬜ | age | `nextSkillLevel` raises by 1 on a strong consecutive run |
+| TC-47 | U | ⬜ | age | `nextSkillLevel` lowers by at most 1 on a weak round |
+| TC-48 | U | ⬜ | age | `nextSkillLevel` stays clamped within MIN/MAX |
+| TC-49 | C | ⬜ | useGeneratedQuestions | shows loading until questions resolve |
+| TC-50 | C | ⬜ | QuizRound | a fetch error shows ErrorScreen with retry + back |
+| TC-51 | C | ⬜ | QuizRound | completing a round persists the new skill level |
+| TC-52 | C | ⬜ | QuizRound | answering reveals the question explanation |
+| TC-53 | C | ⬜ | BattleArena | a battle result persists the new skill level for the topic |
 
 ## Regression cases (tied to ISSUES.md)
 

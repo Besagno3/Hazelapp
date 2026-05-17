@@ -64,8 +64,11 @@ existing architecture.
   `supabase/functions/generate-questions/` — it calls the Claude API
   server-side (API key never reaches the browser). `lib/questions.ts`
   (`fetchQuestions`) invokes it from the client.
-- Quiz and battle screens still use **hardcoded sample data** — Phase 3 wires
-  `fetchQuestions` into gameplay (ISSUES.md #7).
+- Quiz and battle screens load **AI-generated questions** via the
+  `useGeneratedQuestions` hook (age + per-topic skill level → `fetchQuestions`),
+  with loading and error/retry states.
+- Difficulty ramps: `nextSkillLevel` (`lib/age.ts`) adjusts the per-topic skill
+  level after each round/battle; persisted via `profileStore.setSkillLevel`.
 
 ## Commands
 
@@ -109,6 +112,17 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — AI questions in gameplay + skill ramp (Phase 3)
+- `QuizRound` & `BattleArena` now fetch AI-generated questions via the new
+  `useGeneratedQuestions` hook — the hardcoded `SAMPLE_QUESTIONS` /
+  `BATTLE_QUESTIONS` literals are gone. Loading + error/retry screens added
+  (`components/StatusScreens.tsx`).
+- Persistent per-topic skill ramp: `nextSkillLevel` (`lib/age.ts`) — a
+  flawless run climbs fast, a weak round eases off slowly — applied after
+  each round/battle and saved with `profileStore.setSkillLevel`.
+- Quiz reveals the per-question explanation; dead `'result'` battle phase removed.
+- Resolves ISSUES.md #7.
 
 ### 2026-05-17 — AI question generation (Phase 2 of age-based questions)
 - `supabase/functions/generate-questions/`: Deno edge function calling the

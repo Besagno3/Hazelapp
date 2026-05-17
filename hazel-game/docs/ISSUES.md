@@ -13,9 +13,9 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #4  | 🔴 | Med    | Test infrastructure (Vitest) installed but not wired |
 | #5  | 🔴 | Med    | `vite-plugin-pwa` installed but not configured |
 | #6  | 🟢 | Med    | Sign-up proceeds even when email confirmation is pending |
-| #7  | 🟡 | Med    | Quiz/battle questions are hardcoded — generation built, not yet wired |
+| #7  | 🟢 | Med    | Quiz/battle questions are hardcoded — replaced by AI generation |
 | #8  | 🔴 | Low    | Battle damage and avatar HP do not persist between battles |
-| #9  | 🟡 | Low    | Dead code: `'result'` battle phase + `NPC.questions` unused |
+| #9  | 🟡 | Low    | Dead code: `NPC.questions` field unused |
 | #10 | 🟢 | Low    | Two React Vite plugins installed (`-react` and `-react-swc`) |
 | #11 | 🔴 | Med    | Migrate game flow to xstate once guarded transitions multiply |
 | #12 | 🔴 | Med    | Game progress in localStorage is not tied to user identity |
@@ -63,13 +63,11 @@ sign-in view instead of entering the game. Regression test: TC-R4.
 **Note:** whether confirmation is required depends on the Supabase project's
 Auth settings (Authentication → Providers → Email → "Confirm email").
 
-### #7 — Hardcoded questions 🟡 Med — PARTIALLY RESOLVED
-`QuizRound.tsx` and `BattleArena.tsx` still contain `SAMPLE_QUESTIONS` /
-`BATTLE_QUESTIONS` literals; `NPC.questions` is always `[]`.
-**Done (Phase 2):** AI question generation exists — `lib/questions.ts`
-`fetchQuestions()` calls the `generate-questions` edge function.
-**Still open (Phase 3):** swap the hardcoded literals in `QuizRound` /
-`BattleArena` for `fetchQuestions`, with loading/error states.
+### #7 — Hardcoded questions 🟢 Med — RESOLVED (2026-05-17)
+The `SAMPLE_QUESTIONS` / `BATTLE_QUESTIONS` literals are gone. `QuizRound` and
+`BattleArena` load AI-generated questions via `useGeneratedQuestions` →
+`fetchQuestions` → the `generate-questions` edge function, with loading and
+error/retry states. Requires the function to be deployed (#16).
 
 ### #8 — Battle state not persisted 🔴 Low
 `WorldMap` passes `avatar.hp` (always full) into each battle; damage taken is
@@ -79,9 +77,10 @@ this is intended.
 ### #9 — Dead code 🟡 Low — PARTIALLY RESOLVED
 - ~~`gameStore.reset()` defined but no UI calls it~~ — now called by
   `SignOutButton` (2026-05-17).
-- Still open: `type Phase` in `BattleArena` includes `'result'`, never used
-  (win/lose jumps straight to WorldMap with no result screen).
-- Still open: `NPC.questions` field unused.
+- ~~`type Phase` in `BattleArena` includes `'result'`~~ — removed in Phase 3.
+- Still open: `NPC.questions` field unused — battle questions come from
+  `fetchQuestions(npc.topic, …)`, not the NPC object. Either populate it or
+  drop the field from the `NPC` type.
 
 ### #10 — Duplicate React plugin 🟢 Low — RESOLVED (2026-05-17)
 Both `@vitejs/plugin-react` and `@vitejs/plugin-react-swc` were dependencies.

@@ -32,3 +32,33 @@ export function skillLevelFor(
 ): number {
   return skillLevels[topic] ?? ageToStartLevel(age);
 }
+
+/** Longest run of consecutive correct answers. */
+function longestCorrectStreak(answers: boolean[]): number {
+  let max = 0;
+  let run = 0;
+  for (const ok of answers) {
+    run = ok ? run + 1 : 0;
+    if (run > max) max = run;
+  }
+  return max;
+}
+
+/**
+ * The persistent skill level after a round. Consecutive correct answers raise
+ * it — a flawless run climbs fast; a strong run climbs by one. A weak round
+ * lowers it slowly (never more than one level per round). Clamped to range.
+ */
+export function nextSkillLevel(current: number, answers: boolean[]): number {
+  if (answers.length === 0) return clampLevel(current);
+  const total = answers.length;
+  const correct = answers.filter(Boolean).length;
+  const streak = longestCorrectStreak(answers);
+
+  let delta: number;
+  if (streak === total) delta = 2; // flawless — climb fast
+  else if (streak >= Math.ceil(total * 0.6)) delta = 1; // strong consecutive run
+  else if (correct * 2 < total) delta = -1; // struggled — ease off, slowly
+  else delta = 0; // holding steady
+  return clampLevel(current + delta);
+}
