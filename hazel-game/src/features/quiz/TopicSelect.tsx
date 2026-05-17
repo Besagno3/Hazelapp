@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useGameStore } from '../../store/gameStore';
+import { PASS_THRESHOLD, ROUNDS_TO_UNLOCK } from '../../lib/utils';
 import type { Topic } from '../../types';
 
 const TOPICS: { id: Topic; label: string; emoji: string; color: string }[] = [
@@ -28,7 +29,8 @@ export default function TopicSelect() {
         Choose Your Topic
       </motion.h1>
       <p className="text-indigo-200 mb-8">
-        Rounds passed: <strong>{passedCount}/3</strong> — pass 3 at 82%+ to unlock the world!
+        Rounds passed: <strong>{passedCount}/{ROUNDS_TO_UNLOCK}</strong> — pass{' '}
+        {ROUNDS_TO_UNLOCK} at {Math.round(PASS_THRESHOLD * 100)}%+ to unlock the world!
       </p>
 
       <div className="grid grid-cols-2 gap-4 w-full max-w-md">

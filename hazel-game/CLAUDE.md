@@ -113,6 +113,11 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Fix pass-threshold bug (ISSUES #2)
+- `PASS_THRESHOLD` 0.82 → 0.8 (4 of 5) — 0.82 silently required a perfect 5/5.
+- `TopicSelect` copy now derives from `PASS_THRESHOLD` / `ROUNDS_TO_UNLOCK`
+  rather than hardcoded "3" / "82%", preventing future drift.
+
 ### 2026-05-17 — AI questions in gameplay + skill ramp (Phase 3)
 - `QuizRound` & `BattleArena` now fetch AI-generated questions via the new
   `useGeneratedQuestions` hook — the hardcoded `SAMPLE_QUESTIONS` /

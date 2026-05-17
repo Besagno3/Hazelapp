@@ -8,7 +8,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | ID  | Status | Severity | Summary |
 |-----|--------|----------|---------|
 | #1  | 🟢 | High   | Auth is cosmetic — game state not gated on a real session |
-| #2  | 🔴 | High   | `PASS_THRESHOLD` (0.82) vs 5 questions requires a perfect score |
+| #2  | 🟢 | High   | `PASS_THRESHOLD` (0.82) vs 5 questions requires a perfect score |
 | #3  | 🟢 | High   | App crashes on boot if Supabase env vars are missing |
 | #4  | 🔴 | Med    | Test infrastructure (Vitest) installed but not wired |
 | #5  | 🔴 | Med    | `vite-plugin-pwa` installed but not configured |
@@ -34,10 +34,12 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 gates on `authStore.session` — no session means only `AuthPage` renders,
 regardless of the persisted game phase. Regression test: TC-R1.
 
-### #2 — Pass threshold math 🔴 High
-`PASS_THRESHOLD = 0.82` with `QUESTIONS_PER_ROUND = 5`: 4/5 = 0.80 < 0.82, so a
-player must score 5/5 to pass. The UI advertises "82%+". **Fix:** decide the
-intended pass bar (e.g. 0.8 = 4/5) and align copy + constant.
+### #2 — Pass threshold math 🟢 High — RESOLVED (2026-05-17)
+`PASS_THRESHOLD` was `0.82`, so 4/5 (0.80) failed — a perfect 5/5 was required
+despite the UI saying "82%+". **Fixed:** threshold lowered to `0.8` (4 of 5),
+and `TopicSelect` copy now derives its numbers from `PASS_THRESHOLD` /
+`ROUNDS_TO_UNLOCK` instead of hardcoding "3" and "82%", so it can't drift again.
+Regression test: TC-R2.
 
 ### #3 — Boots crash without env 🟢 High — RESOLVED (2026-05-17)
 `src/lib/supabase.ts` now checks for `VITE_SUPABASE_URL` /

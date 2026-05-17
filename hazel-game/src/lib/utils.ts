@@ -5,7 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const PASS_THRESHOLD = 0.82;
+// Fraction of a round's questions needed to pass — 0.8 = 4 of 5.
+// (Was 0.82, which silently required a perfect 5/5; see ISSUES #2.)
+export const PASS_THRESHOLD = 0.8;
 export const ROUNDS_TO_UNLOCK = 3;
 
 export function calcAttackDamage(correct: number, total: number, base = 30): number {

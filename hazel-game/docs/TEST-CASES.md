@@ -61,6 +61,7 @@ Type: U = unit · C = component · E = end-to-end · M = manual
 | TC-51 | C | ⬜ | QuizRound | completing a round persists the new skill level |
 | TC-52 | C | ⬜ | QuizRound | answering reveals the question explanation |
 | TC-53 | C | ⬜ | BattleArena | a battle result persists the new skill level for the topic |
+| TC-54 | C | ⬜ | TopicSelect | unlock copy reflects PASS_THRESHOLD / ROUNDS_TO_UNLOCK (no hardcoded numbers) |
 
 ## Regression cases (tied to ISSUES.md)
 
