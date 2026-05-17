@@ -129,6 +129,10 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Level medallion
+- `LevelBadge` upgraded from a text chip to a circular level medallion
+  (level number + XP progress bar), top-left on every game screen.
+
 ### 2026-05-17 — Question cache + prefetch
 - Migration `0003_questions_cache.sql`: a `questions` table (level-tagged,
   `times_asked` counter) and an `increment_question_usage` RPC.

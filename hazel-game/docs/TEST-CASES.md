@@ -81,6 +81,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-69 | E | ⬜ | generate-questions | reuses cached questions within ±2 levels of the player |
 | TC-70 | E | ⬜ | generate-questions | caches freshly generated questions for later reuse |
 | TC-71 | E | ⬜ | generate-questions | bumps `times_asked` on every question returned |
+| TC-72 | C | ✅ | LevelBadge | renders nothing when no profile is loaded |
+| TC-73 | C | ✅ | LevelBadge | shows the level + XP progress derived from profile XP |
 
 ## Regression cases (tied to ISSUES.md)
 
