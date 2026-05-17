@@ -32,6 +32,13 @@ Type: U = unit · C = component · E = end-to-end · M = manual
 | TC-22 | C | ⬜ | BattleArena | NPC HP reaching 0 ends the battle as a win |
 | TC-23 | C | ⬜ | BattleArena | player HP reaching 0 ends the battle as a loss |
 | TC-24 | E | ⬜ | flow | full path: auth → 3 rounds → avatar → battle → win |
+| TC-25 | U | ⬜ | authStore | `setSession` populates `user`; `clearSession` nulls both |
+| TC-26 | C | ⬜ | App | loading state shows until the session check resolves |
+| TC-27 | C | ⬜ | App | a valid session renders the game, not the auth screen |
+| TC-28 | E | ⬜ | App | reload with a valid session stays in the game |
+| TC-29 | C | ⬜ | AuthPage | sign-up with no session shows the confirm-email notice |
+| TC-30 | C | ⬜ | SignOutButton | sign-out clears session + progress, returns to auth |
+| TC-31 | C | ⬜ | AuthPage | toggling sign-in/sign-up clears any error/notice |
 
 ## Regression cases (tied to ISSUES.md)
 

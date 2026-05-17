@@ -36,7 +36,7 @@ const defaultProgress: GameProgress = {
 
 export const useGameStore = create<GameStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       phase: 'auth',
       progress: defaultProgress,
       battle: defaultBattle,

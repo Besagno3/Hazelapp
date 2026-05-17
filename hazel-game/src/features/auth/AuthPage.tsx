@@ -1,29 +1,42 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useGameStore } from '../../store/gameStore';
 
 export default function AuthPage() {
-  const setPhase = useGameStore((s) => s.setPhase);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setNotice(null);
 
-    const { error: authError } = isSignUp
-      ? await supabase.auth.signUp({ email, password })
-      : await supabase.auth.signInWithPassword({ email, password });
-
-    setLoading(false);
-    if (authError) {
-      setError(authError.message);
+    if (isSignUp) {
+      const { data, error: authError } = await supabase.auth.signUp({ email, password });
+      setLoading(false);
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+      // No session means email confirmation is required before sign-in.
+      if (!data.session) {
+        setNotice('Account created — check your email to confirm it, then sign in.');
+        setIsSignUp(false);
+        return;
+      }
+      // Session present → useAuthInit's listener advances the app.
     } else {
-      setPhase('topic-select');
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(false);
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+      // Success → useAuthInit's listener advances the app.
     }
   }
 
@@ -51,6 +64,7 @@ export default function AuthPage() {
             className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
           {error && <p className="text-red-500 text-sm">{error}</p>}
+          {notice && <p className="text-green-600 text-sm">{notice}</p>}
           <button
             type="submit"
             disabled={loading}
@@ -61,7 +75,11 @@ export default function AuthPage() {
         </form>
 
         <button
-          onClick={() => setIsSignUp(!isSignUp)}
+          onClick={() => {
+            setIsSignUp(!isSignUp);
+            setError(null);
+            setNotice(null);
+          }}
           className="mt-4 w-full text-center text-sm text-purple-600 hover:underline"
         >
           {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}

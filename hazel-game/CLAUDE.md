@@ -39,14 +39,17 @@ existing architecture.
 
 ## Architecture
 
-- **Routing is state-based, not URL-based.** `App.tsx` renders a screen based on
-  `gameStore.phase` (`auth → topic-select → quiz → world → battle`). No
-  react-router. xstate migration planned — see Decisions above.
+- **Auth gates the app.** `App.tsx` calls `useAuthInit()` (loads the Supabase
+  session + subscribes to auth changes). No valid session → only `AuthPage` is
+  reachable, regardless of any persisted game phase.
+- **Routing is state-based, not URL-based.** When authenticated, `App.tsx`
+  renders a screen based on `gameStore.phase` (`topic-select → quiz → world →
+  battle`). No react-router. xstate migration planned — see Decisions above.
 - **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
 - **`gameStore`** (`src/store/gameStore.ts`) is persisted to localStorage under
-  key `hazel-game` — phase and progress survive reloads.
-- **`authStore`** holds the Supabase user/session but is currently **never
-  populated** — auth is cosmetic (see ISSUES.md #1).
+  key `hazel-game` — phase and progress survive reloads. `reset()` clears it
+  (called on sign-out).
+- **`authStore`** holds the Supabase user/session, populated by `useAuthInit`.
 - Quiz and battle questions are **hardcoded sample data**, not from Supabase.
 
 ## Commands
@@ -91,6 +94,19 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — Real auth gating + dependency install
+- `useAuthInit` hook loads the Supabase session and subscribes to auth changes;
+  `authStore` gains an `initialized` flag.
+- `App.tsx` now gates on a real session — shows a loading state until the
+  session check resolves, then `AuthPage` or the game.
+- `AuthPage` handles sign-up email confirmation (shows a notice instead of
+  entering the game when no session is returned).
+- `SignOutButton` added (floating, all screens) — signs out + resets progress.
+- `supabase.ts` throws a clear, actionable error when env vars are missing.
+- Removed unused `@vitejs/plugin-react` (vite 8 peer conflict); aligned
+  `@vitest/ui` to v3 to match `vitest`. Dependencies now install cleanly.
+- Fixed pre-existing unused-variable build errors in `QuizRound`/`gameStore`.
 
 ### 2026-05-16 — Initial scaffold
 - Vite + React + TS + Tailwind project structure.

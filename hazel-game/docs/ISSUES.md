@@ -7,38 +7,42 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 
 | ID  | Status | Severity | Summary |
 |-----|--------|----------|---------|
-| #1  | 🔴 | High   | Auth is cosmetic — game state not gated on a real session |
+| #1  | 🟢 | High   | Auth is cosmetic — game state not gated on a real session |
 | #2  | 🔴 | High   | `PASS_THRESHOLD` (0.82) vs 5 questions requires a perfect score |
-| #3  | 🔴 | High   | App crashes on boot if Supabase env vars are missing |
+| #3  | 🟢 | High   | App crashes on boot if Supabase env vars are missing |
 | #4  | 🔴 | Med    | Test infrastructure (Vitest) installed but not wired |
 | #5  | 🔴 | Med    | `vite-plugin-pwa` installed but not configured |
-| #6  | 🔴 | Med    | Sign-up proceeds even when email confirmation is pending |
+| #6  | 🟢 | Med    | Sign-up proceeds even when email confirmation is pending |
 | #7  | 🔴 | Med    | Quiz/battle questions are hardcoded, not from Supabase |
 | #8  | 🔴 | Low    | Battle damage and avatar HP do not persist between battles |
-| #9  | 🔴 | Low    | Dead code: `'result'` battle phase, `NPC.questions`, `reset()` unused |
-| #10 | 🔴 | Low    | Two React Vite plugins installed (`-react` and `-react-swc`) |
+| #9  | 🟡 | Low    | Dead code: `'result'` battle phase + `NPC.questions` unused |
+| #10 | 🟢 | Low    | Two React Vite plugins installed (`-react` and `-react-swc`) |
 | #11 | 🔴 | Med    | Migrate game flow to xstate once guarded transitions multiply |
+| #12 | 🔴 | Med    | Game progress in localStorage is not tied to user identity |
+| #13 | 🔴 | Med    | Consider upgrading the build toolchain Vite 5 → 8 |
+| #14 | 🔴 | Low    | 2 moderate npm audit vulnerabilities (dev-only) |
 
 ---
 
 ## Details
 
-### #1 — Auth is cosmetic 🔴 High
-`authStore` is never populated. Nothing calls `supabase.auth.getSession()` or
-`onAuthStateChange()`. `AuthPage` just sets `phase = 'topic-select'` on success,
-and `gameStore` persists `phase` to localStorage — so after one login, reloads
-skip auth entirely with no valid session. **Fix:** drive an auth gate from a
-real session listener; don't persist past `auth` without one.
+### #1 — Auth is cosmetic 🟢 High — RESOLVED (2026-05-17)
+`authStore` was never populated; nothing checked a real session. **Fixed:**
+`useAuthInit` calls `getSession()` + subscribes to `onAuthStateChange`; `App.tsx`
+gates on `authStore.session` — no session means only `AuthPage` renders,
+regardless of the persisted game phase. Regression test: TC-R1.
 
 ### #2 — Pass threshold math 🔴 High
 `PASS_THRESHOLD = 0.82` with `QUESTIONS_PER_ROUND = 5`: 4/5 = 0.80 < 0.82, so a
 player must score 5/5 to pass. The UI advertises "82%+". **Fix:** decide the
 intended pass bar (e.g. 0.8 = 4/5) and align copy + constant.
 
-### #3 — Boots crash without env 🔴 High
-`src/lib/supabase.ts` calls `createClient(url, key)` with values from
-`import.meta.env`. No `.env` exists (only `.env.example`). **Fix:** create
-`.env`, and/or guard with a clear error message.
+### #3 — Boots crash without env 🟢 High — RESOLVED (2026-05-17)
+`src/lib/supabase.ts` now checks for `VITE_SUPABASE_URL` /
+`VITE_SUPABASE_ANON_KEY` and throws a clear, actionable error pointing to
+`.env.example` when they are missing — instead of a cryptic `createClient`
+crash. A real `hazel-game/.env` (gitignored) holds the project credentials.
+Regression test: TC-R3.
 
 ### #4 — Tests not wired 🔴 Med
 Vitest, Testing Library, jsdom are in `devDependencies`, but: no `test` script
@@ -49,10 +53,13 @@ in `package.json`, no `test` block in `vite.config.ts`, no jest-dom setup file.
 `vite-plugin-pwa` is installed but `vite.config.ts` only registers the React
 plugin. No manifest, no service worker. **Fix:** wire the plugin or drop the dep.
 
-### #6 — Sign-up confirmation 🔴 Med
-`AuthPage` advances to `topic-select` whenever `signUp` returns no error, but
-Supabase may return a null session pending email confirmation. **Fix:** check
-for a session / handle the confirmation flow.
+### #6 — Sign-up confirmation 🟢 Med — RESOLVED (2026-05-17)
+`AuthPage` now inspects `data.session` after `signUp`. A null session (email
+confirmation required) shows a "check your email" notice and switches to the
+sign-in view instead of entering the game. Regression test: TC-R4.
+
+**Note:** whether confirmation is required depends on the Supabase project's
+Auth settings (Authentication → Providers → Email → "Confirm email").
 
 ### #7 — Hardcoded questions 🔴 Med
 `QuizRound.tsx` and `BattleArena.tsx` contain `SAMPLE_QUESTIONS` /
@@ -64,15 +71,19 @@ questions to Supabase (or a chosen content source) once the data model is set.
 never written back to the avatar. Every battle starts fresh. Confirm whether
 this is intended.
 
-### #9 — Dead code 🔴 Low
-- `type Phase` in `BattleArena` includes `'result'`, never used (win/lose jumps
-  straight to WorldMap with no result screen).
-- `NPC.questions` field unused.
-- `gameStore.reset()` defined but no UI calls it (no logout/restart).
+### #9 — Dead code 🟡 Low — PARTIALLY RESOLVED
+- ~~`gameStore.reset()` defined but no UI calls it~~ — now called by
+  `SignOutButton` (2026-05-17).
+- Still open: `type Phase` in `BattleArena` includes `'result'`, never used
+  (win/lose jumps straight to WorldMap with no result screen).
+- Still open: `NPC.questions` field unused.
 
-### #10 — Duplicate React plugin 🔴 Low
-Both `@vitejs/plugin-react` and `@vitejs/plugin-react-swc` are dependencies.
-`vite.config.ts` uses `-swc`. Remove the unused one.
+### #10 — Duplicate React plugin 🟢 Low — RESOLVED (2026-05-17)
+Both `@vitejs/plugin-react` and `@vitejs/plugin-react-swc` were dependencies.
+`@vitejs/plugin-react@6` also peer-required `vite@^8`, which broke `npm install`
+against the pinned `vite@5.4`. **Fixed:** removed the unused `@vitejs/plugin-react`
+(`vite.config.ts` uses `-swc`). Also aligned `@vitest/ui` from `^4` to `^3` to
+match `vitest@3`. Dependencies now install cleanly.
 
 ### #11 — Migrate game flow to xstate 🔴 Med
 **Decision:** routing stays phase-based now; react-router is rejected for the
@@ -83,3 +94,25 @@ transition leaking into render logic. **Trigger to act:** when the 2nd–3rd
 guarded transition appears (lives, level progression, save/resume, battle
 result screen). At that point move the flow into an xstate machine (`xstate` +
 `@xstate/react` are already installed) and keep Zustand for data only.
+
+### #12 — Progress not tied to user identity 🔴 Med
+`gameStore` persists progress to localStorage under a fixed key (`hazel-game`),
+not per Supabase user. Sign-out calls `reset()`, but if a player just closes
+the tab without signing out, the next player on that browser inherits their
+progress. **Fix:** key persistence by user id, or sync progress to a Supabase
+table once the data model is set (relates to #7).
+
+### #13 — Consider upgrading Vite 5 → 8 🔴 Med
+The scaffold pins `vite@5.4`. The toolchain works and builds cleanly, but Vite 8
+is current. **Decision:** deferred — a Vite 8 bump is a coordinated upgrade
+(`vite`, `@vitejs/plugin-react-swc`, `vitest`, `@vitest/ui`, `vite-plugin-pwa`
+must move together) and should be its own focused, tested change, not mixed
+into feature work. Do it before the test infra (#4) and PWA (#5) work so those
+are configured against the final toolchain. Note: clearing #14 may also depend
+on this.
+
+### #14 — npm audit vulnerabilities 🔴 Low
+`npm install` reports 2 moderate-severity advisories (dev-dependency / dev-only
+— e.g. esbuild's dev-server advisory, not a production risk). **Fix:** review
+with `npm audit`; likely cleared by the Vite 8 upgrade (#13). Do not run
+`npm audit fix --force` blindly — it can introduce breaking major bumps.
