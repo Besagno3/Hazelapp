@@ -179,9 +179,14 @@ Deno.serve(async (req) => {
   } catch (err) {
     if (err instanceof Anthropic.APIError) {
       console.error(`Anthropic API error ${err.status}:`, err.message);
-      return json({ error: 'Question generation failed', detail: err.message }, 502);
+      return json(
+        { error: 'Question generation failed', detail: `Anthropic ${err.status}: ${err.message}` },
+        502,
+      );
     }
+    // Always include the real message so the client can surface it.
+    const detail = err instanceof Error ? err.message : String(err);
     console.error('Unexpected error generating questions:', err);
-    return json({ error: 'Unexpected server error' }, 500);
+    return json({ error: 'Unexpected server error', detail }, 500);
   }
 });

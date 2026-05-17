@@ -24,7 +24,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #15 | 🟢 | High   | `profiles` migration must be applied in Supabase or profiles fail to load |
 | #16 | 🟢 | High   | `generate-questions` edge function must be deployed before it can be called |
 | #17 | 🔴 | High   | Migration `0002_add_xp.sql` must be applied or profile load fails |
-| #18 | 🔴 | Med    | Generic error messages hide the real cause (esp. edge-function errors) |
+| #18 | 🟢 | Med    | Generic error messages hide the real cause (esp. edge-function errors) |
 
 ---
 
@@ -139,10 +139,13 @@ can call it. (Runtime errors from the function are now surfaced in full — see 
 loads. **Action:** run `0002_add_xp.sql` in the Supabase SQL Editor (or
 `supabase db push`).
 
-### #18 — Generic errors hide the real cause 🔴 Med
-`supabase.functions.invoke` returns a generic `FunctionsHttpError` ("Edge
-Function returned a non-2xx status code") — the edge function's actual
-`{error, detail}` response body is dropped, so the user sees a useless message
-and the real failure (Anthropic API error, bad JSON, etc.) is hidden.
-**Fix:** an app-wide error utility that extracts the real message — including
-reading the `FunctionsHttpError` response body — used wherever errors surface.
+### #18 — Generic errors hide the real cause 🟢 Med — RESOLVED (2026-05-17)
+`lib/errors.ts` added: `errorMessage` (sync — any error value → its real
+message, including a Supabase error's `code`/`details`/`hint`) and
+`resolveErrorMessage` (async — unwraps a `FunctionsHttpError` by reading the
+edge function's response body, so the function's real `{error, detail}` is
+shown instead of "non-2xx status code"). Wired into `fetchQuestions`,
+`useGeneratedQuestions`, `profileStore`, and `AuthPage`. An `ErrorBoundary`
+wraps the app — uncaught render errors show the real message (+ stack in dev)
+instead of a blank screen. The edge function's catch-all always returns a
+`detail` now.

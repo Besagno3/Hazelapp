@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { errorMessage } from '../../lib/errors';
 
 const CURRENT_YEAR = new Date().getFullYear();
 // Birth years offered at sign-up: a few years back through ~100 years.
@@ -41,7 +42,7 @@ export default function AuthPage() {
       });
       setLoading(false);
       if (authError) {
-        setError(authError.message);
+        setError(errorMessage(authError));
         return;
       }
       // No session means email confirmation is required before sign-in.
@@ -56,7 +57,7 @@ export default function AuthPage() {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
       if (authError) {
-        setError(authError.message);
+        setError(errorMessage(authError));
         return;
       }
       // Success → useAuthInit's listener advances the app.

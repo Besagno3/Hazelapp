@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { errorMessage } from '../lib/errors';
 import type { Profile, SkillLevels, Topic } from '../types';
 
 /** Shape of a row in the Supabase `profiles` table (snake_case). */
@@ -47,7 +48,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       .eq('id', userId)
       .single();
     if (error) {
-      set({ loading: false, error: error.message });
+      set({ loading: false, error: errorMessage(error) });
       return;
     }
     set({ profile: fromRow(data as ProfileRow), loading: false });
@@ -62,7 +63,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       .from('profiles')
       .update({ skill_levels: skillLevels, updated_at: new Date().toISOString() })
       .eq('id', profile.id);
-    if (error) set({ error: error.message });
+    if (error) set({ error: errorMessage(error) });
   },
 
   addXp: async (amount) => {
@@ -74,7 +75,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       .from('profiles')
       .update({ xp, updated_at: new Date().toISOString() })
       .eq('id', profile.id);
-    if (error) set({ error: error.message });
+    if (error) set({ error: errorMessage(error) });
   },
 
   clearProfile: () => set({ profile: null, loading: false, error: null }),

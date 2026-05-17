@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchQuestions } from '../lib/questions';
+import { errorMessage } from '../lib/errors';
 import { calcAge, skillLevelFor } from '../lib/age';
 import { useProfileStore } from '../store/profileStore';
 import type { Question, Topic } from '../types';
@@ -44,11 +45,8 @@ export function useGeneratedQuestions(topic: Topic, count: number, levelOverride
       })
       .catch((e) => {
         if (!active) return;
-        setResult({
-          key: requestKey,
-          questions: [],
-          error: e instanceof Error ? e.message : 'Could not load questions.',
-        });
+        console.error('Question generation failed:', e);
+        setResult({ key: requestKey, questions: [], error: errorMessage(e) });
       });
     return () => {
       active = false;

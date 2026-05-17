@@ -84,6 +84,14 @@ npm run lint     # eslint
 npm test         # Vitest suite (test:watch / test:ui also available)
 ```
 
+## Error handling
+
+- Use `errorMessage(err)` (`src/lib/errors.ts`) anywhere a caught error is
+  shown or logged — never a hardcoded "something went wrong".
+- For `supabase.functions.invoke` failures, use `resolveErrorMessage` (async)
+  so the edge function's real `{error, detail}` body surfaces.
+- `ErrorBoundary` (`src/components/`) catches uncaught render errors.
+
 ## Conventions
 
 - TypeScript strict mode; `noUnusedLocals`/`noUnusedParameters` are on.
@@ -116,6 +124,14 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — App-wide error surfacing (ISSUES #18)
+- `lib/errors.ts`: `errorMessage` (sync) and `resolveErrorMessage` (async,
+  unwraps a Supabase `FunctionsHttpError` to the function's real body).
+- Wired into `fetchQuestions`, `useGeneratedQuestions`, `profileStore`,
+  `AuthPage` — real errors instead of generic messages.
+- `ErrorBoundary` wraps the app; the edge function's catch-all always
+  returns a `detail`.
 
 ### 2026-05-17 — Random NPCs + player level system
 - `lib/npc.ts` `generateNpcs(age)`: `WorldMap` shows a fresh random NPC set

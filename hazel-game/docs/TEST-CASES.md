@@ -72,6 +72,10 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-60 | U | ✅ | npc | `generateNpcs` produces the requested count |
 | TC-61 | U | ✅ | npc | generated NPCs have valid level (1-10), topic, and HP |
 | TC-62 | U | ✅ | npc | NPC level scales up with player age |
+| TC-63 | U | ✅ | errors | `errorMessage` returns strings / Error messages intact |
+| TC-64 | U | ✅ | errors | `errorMessage` includes Supabase code / details / hint |
+| TC-65 | U | ✅ | errors | `errorMessage` handles null and serialises opaque objects |
+| TC-66 | C | ⬜ | ErrorBoundary | an uncaught render error shows the real message |
 
 ## Regression cases (tied to ISSUES.md)
 

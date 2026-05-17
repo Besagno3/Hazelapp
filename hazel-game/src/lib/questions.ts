@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { resolveErrorMessage } from './errors';
 import type { Question, Topic } from '../types';
 
 /** Raw shape returned by the generate-questions edge function. */
@@ -23,7 +24,9 @@ export async function fetchQuestions(
   const { data, error } = await supabase.functions.invoke('generate-questions', {
     body: { topic, age, skillLevel, count },
   });
-  if (error) throw new Error(`Question generation failed: ${error.message}`);
+  // Surface the edge function's real {error, detail} body, not the generic
+  // "non-2xx status code" message (see lib/errors.ts).
+  if (error) throw new Error(`Question generation failed — ${await resolveErrorMessage(error)}`);
 
   const generated = (data?.questions ?? []) as GeneratedQuestion[];
   return generated.map((q, i) => ({
