@@ -11,10 +11,6 @@ import { xpBonusPerCorrect } from '../../lib/powerups';
 import { prefetchQuestions, QUIZ_QUESTION_COUNT } from '../../lib/questions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 
-// How long the answer result + explanation stays on screen before advancing —
-// long enough to read the one-sentence explanation.
-const ANSWER_REVEAL_MS = 4000;
-
 export default function QuizRound() {
   const { progress, completeRound, setPhase } = useGameStore();
   const topic = progress.currentTopic!;
@@ -42,36 +38,39 @@ export default function QuizRound() {
   const q = questions[current];
   const score = total > 0 ? answers.filter(Boolean).length / total : 0;
   const passed = score >= PASS_THRESHOLD;
+  const isLastQuestion = current + 1 >= total;
 
+  /** Reveal the result — the player then advances at their own pace via Next. */
   function handleAnswer(idx: number) {
     if (selected !== null) return;
     setSelected(idx);
-    const correct = idx === q.correctIndex;
-    const newAnswers = [...answers, correct];
+    setAnswers((a) => [...a, idx === q.correctIndex]);
+  }
 
-    setTimeout(() => {
-      if (current + 1 < total) {
-        setCurrent((c) => c + 1);
-        setSelected(null);
-        setAnswers(newAnswers);
-      } else {
-        setAnswers(newAnswers);
-        const correctCount = newAnswers.filter(Boolean).length;
-        const finalScore = correctCount / total;
-        const finalPassed = finalScore >= PASS_THRESHOLD;
-        if (finalPassed) {
-          confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-        }
-        setDone(true);
-        completeRound({ topic, questions, score: finalScore, passed: finalPassed });
-        // Persist the skill ramp for this topic and award XP for correct answers.
-        const newLevel = nextSkillLevel(skillLevel, newAnswers);
-        void setSkillLevel(topic, newLevel);
-        void addXp(correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
-        // Warm the next same-topic round so a replay starts instantly.
-        prefetchQuestions(topic, age, newLevel, QUIZ_QUESTION_COUNT);
-      }
-    }, ANSWER_REVEAL_MS);
+  function finishRound() {
+    const correctCount = answers.filter(Boolean).length;
+    const finalScore = correctCount / total;
+    const finalPassed = finalScore >= PASS_THRESHOLD;
+    if (finalPassed) {
+      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    }
+    setDone(true);
+    completeRound({ topic, questions, score: finalScore, passed: finalPassed });
+    // Persist the skill ramp for this topic and award XP for correct answers.
+    const newLevel = nextSkillLevel(skillLevel, answers);
+    void setSkillLevel(topic, newLevel);
+    void addXp(correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
+    // Warm the next same-topic round so a replay starts instantly.
+    prefetchQuestions(topic, age, newLevel, QUIZ_QUESTION_COUNT);
+  }
+
+  function goNext() {
+    if (isLastQuestion) {
+      finishRound();
+    } else {
+      setCurrent((c) => c + 1);
+      setSelected(null);
+    }
   }
 
   if (done) {
@@ -125,7 +124,12 @@ export default function QuizRound() {
                 else cls += 'border-gray-200 opacity-50';
 
                 return (
-                  <button key={idx} onClick={() => handleAnswer(idx)} className={cls}>
+                  <button
+                    key={idx}
+                    onClick={() => handleAnswer(idx)}
+                    disabled={selected !== null}
+                    className={cls}
+                  >
                     {opt}
                   </button>
                 );
@@ -140,6 +144,17 @@ export default function QuizRound() {
               >
                 💡 {q.explanation}
               </motion.p>
+            )}
+
+            {selected !== null && (
+              <motion.button
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={goNext}
+                className="mt-5 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition"
+              >
+                {isLastQuestion ? 'See Results' : 'Next Question'}
+              </motion.button>
             )}
           </motion.div>
         </AnimatePresence>
