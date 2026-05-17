@@ -76,6 +76,11 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-64 | U | ✅ | errors | `errorMessage` includes Supabase code / details / hint |
 | TC-65 | U | ✅ | errors | `errorMessage` handles null and serialises opaque objects |
 | TC-66 | C | ⬜ | ErrorBoundary | an uncaught render error shows the real message |
+| TC-67 | U | ⬜ | questions | `prefetchQuestions` then `fetchQuestions` consumes the prefetched batch |
+| TC-68 | U | ⬜ | questions | `fetchQuestions` without a prefetch requests fresh |
+| TC-69 | E | ⬜ | generate-questions | reuses cached questions within ±2 levels of the player |
+| TC-70 | E | ⬜ | generate-questions | caches freshly generated questions for later reuse |
+| TC-71 | E | ⬜ | generate-questions | bumps `times_asked` on every question returned |
 
 ## Regression cases (tied to ISSUES.md)
 

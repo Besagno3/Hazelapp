@@ -7,18 +7,17 @@ import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { PASS_THRESHOLD } from '../../lib/utils';
 import { nextSkillLevel } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
+import { prefetchQuestions, QUIZ_QUESTION_COUNT } from '../../lib/questions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
-
-const QUESTIONS_PER_ROUND = 5;
 
 export default function QuizRound() {
   const { progress, completeRound, setPhase } = useGameStore();
   const topic = progress.currentTopic!;
   const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
   const addXp = useProfileStore((s) => s.addXp);
-  const { questions, loading, error, skillLevel, reload } = useGeneratedQuestions(
+  const { questions, loading, error, age, skillLevel, reload } = useGeneratedQuestions(
     topic,
-    QUESTIONS_PER_ROUND,
+    QUIZ_QUESTION_COUNT,
   );
 
   const [current, setCurrent] = useState(0);
@@ -60,8 +59,11 @@ export default function QuizRound() {
         setDone(true);
         completeRound({ topic, questions, score: finalScore, passed: finalPassed });
         // Persist the skill ramp for this topic and award XP for correct answers.
-        void setSkillLevel(topic, nextSkillLevel(skillLevel, newAnswers));
+        const newLevel = nextSkillLevel(skillLevel, newAnswers);
+        void setSkillLevel(topic, newLevel);
         void addXp(correctCount * XP_PER_CORRECT);
+        // Warm the next same-topic round so a replay starts instantly.
+        prefetchQuestions(topic, age, newLevel, QUIZ_QUESTION_COUNT);
       }
     }, 1400);
   }

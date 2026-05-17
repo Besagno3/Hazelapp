@@ -25,6 +25,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #16 | 🟢 | High   | `generate-questions` edge function must be deployed before it can be called |
 | #17 | 🔴 | High   | Migration `0002_add_xp.sql` must be applied or profile load fails |
 | #18 | 🟢 | Med    | Generic error messages hide the real cause (esp. edge-function errors) |
+| #19 | 🔴 | High   | Apply migration 0003 + redeploy the edge function (cache + error detail) |
 
 ---
 
@@ -138,6 +139,14 @@ can call it. (Runtime errors from the function are now surfaced in full — see 
 `profileStore.loadProfile` (which now selects `xp`) errors and no profile
 loads. **Action:** run `0002_add_xp.sql` in the Supabase SQL Editor (or
 `supabase db push`).
+
+### #19 — Apply migration 0003 + redeploy the edge function 🔴 High
+The question cache needs `0003_questions_cache.sql` applied (the `questions`
+table + `increment_question_usage` RPC) and the rewritten `generate-questions`
+edge function redeployed. The same redeploy also ships the always-include-a-
+`detail` error fix from #18. **Action:** run `0003_questions_cache.sql` in the
+Supabase SQL Editor, then `supabase functions deploy generate-questions`.
+`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are auto-injected — nothing to set.
 
 ### #18 — Generic errors hide the real cause 🟢 Med — RESOLVED (2026-05-17)
 `lib/errors.ts` added: `errorMessage` (sync — any error value → its real

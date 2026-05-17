@@ -73,6 +73,10 @@ existing architecture.
   (`lib/level.ts`), earned from correct answers + NPC defeats, in `profiles.xp`.
 - World-map NPCs are randomly generated per visit (`lib/npc.ts`) with
   age-scaled levels; an NPC's level sets its battle question difficulty + HP.
+- **Question cache:** generated questions are stored in a Supabase `questions`
+  table (level-tagged, `times_asked` counter). The edge function randomly
+  mixes cached questions (reused from a ±2 level band) with fresh ones.
+  `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need.
 
 ## Commands
 
@@ -124,6 +128,19 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — Question cache + prefetch
+- Migration `0003_questions_cache.sql`: a `questions` table (level-tagged,
+  `times_asked` counter) and an `increment_question_usage` RPC.
+- The `generate-questions` edge function now randomly mixes cached questions
+  (reused from a ±2 level band around the player) with freshly generated
+  ones, caches the fresh ones, bumps the counter, and shuffles the result —
+  reuse-vs-API is fully random.
+- `lib/questions.ts`: `prefetchQuestions` (consume-once promise cache).
+  `WorldMap` prefetches each NPC's battle questions; `QuizRound` prefetches
+  the next same-topic round.
+- ⚠️ Deploy required: apply `0003_questions_cache.sql` AND redeploy the
+  edge function — see ISSUES.md #19.
 
 ### 2026-05-17 — App-wide error surfacing (ISSUES #18)
 - `lib/errors.ts`: `errorMessage` (sync) and `resolveErrorMessage` (async,

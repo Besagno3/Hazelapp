@@ -1,32 +1,31 @@
 // Supabase Edge Function: generate-questions
 // ----------------------------------------------------------------------------
-// Generates age-appropriate quiz questions with the Claude API.
-// The Anthropic API key stays server-side — it is NEVER exposed to the browser.
+// Returns N age/level-appropriate quiz questions, mixing CACHED questions with
+// freshly Claude-generated ones. The reuse split is random: each call randomly
+// reuses 0..min(count, available) cached questions and generates the rest.
+//
+// - Cached questions are reused from a ±2 level band around the requested
+//   skill level (a level-5 player may see level 3-7 questions).
+// - Fresh questions are generated at the exact skill level and inserted into
+//   the cache, then available for future reuse.
+// - Every question returned has its `times_asked` counter bumped.
+// - The combined set is shuffled, so cache + fresh are randomly sprinkled.
+//
+// The Anthropic API key stays server-side (ANTHROPIC_API_KEY secret).
+// SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase.
 //
 // Deploy:  supabase functions deploy generate-questions
-// Secret:  supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-//
-// JWT verification is on by default, so only signed-in Hazel Quest players can
-// call this. The client invokes it via supabase.functions.invoke (see
-// src/lib/questions.ts).
 // ----------------------------------------------------------------------------
 
-// Pin a specific version for production reproducibility, e.g.
-// 'npm:@anthropic-ai/sdk@0.69.0' — left unpinned here to resolve the latest.
 import Anthropic from 'npm:@anthropic-ai/sdk';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js';
 
-// Haiku 4.5 — chosen for low cost/latency. Generating kids' quiz questions is
-// structured generation, not hard reasoning, so the smallest model is the
-// right fit. Switch to 'claude-sonnet-4-6' if distractor quality at the top
-// difficulty levels needs a bump (Sonnet also supports output_config.effort).
 const MODEL = 'claude-haiku-4-5';
-
 const TOPICS = ['math', 'science', 'engineering', 'creativity'] as const;
+const CACHE_LOOKUP_LIMIT = 200;
+/** Cached questions may be up to this many levels above/below the player. */
+const LEVEL_BAND = 2;
 
-// Stable instruction prefix — kept byte-identical across requests so it can be
-// prompt-cached. Caching only engages once this prefix exceeds the model's
-// minimum cacheable size; structuring it stably costs nothing and pays off as
-// the prompt grows. Volatile inputs (topic/age/level) go in the user message.
 const SYSTEM_PROMPT = `You are a question writer for "Hazel Quest", an educational quiz-battle game for children.
 
 Generate multiple-choice questions that are:
@@ -49,9 +48,6 @@ Difficulty guidance: level 1-3 = simple recall for young children; 4-6 = applied
 understanding; 7-10 = multi-step reasoning and harder concepts. A question must
 always stay answerable by a child of the given age at that level.`;
 
-// JSON Schema for structured output. Note: structured-output schemas do not
-// support array length constraints, so "exactly 4 options" is enforced by the
-// prompt and re-checked below.
 const QUESTION_SCHEMA = {
   type: 'object',
   properties: {
@@ -98,6 +94,94 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = randInt(0, i);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+interface FreshQuestion {
+  text: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
+interface CacheRow {
+  id: string;
+  level: number;
+  text: string;
+  options: string[];
+  correct_index: number;
+  explanation: string | null;
+  times_asked: number;
+}
+
+interface OutQuestion extends FreshQuestion {
+  id: string;
+  level: number;
+  timesAsked: number;
+}
+
+function rowToOut(r: CacheRow): OutQuestion {
+  return {
+    id: r.id,
+    level: r.level,
+    text: r.text,
+    options: r.options,
+    correctIndex: r.correct_index,
+    explanation: r.explanation ?? '',
+    timesAsked: r.times_asked,
+  };
+}
+
+/** Generates fresh questions with Claude and keeps only well-formed ones. */
+async function generateFresh(
+  anthropic: Anthropic,
+  topic: string,
+  age: number,
+  level: number,
+  n: number,
+): Promise<FreshQuestion[]> {
+  const message = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+    output_config: { format: { type: 'json_schema', schema: QUESTION_SCHEMA } },
+    messages: [
+      {
+        role: 'user',
+        content:
+          `Generate ${n} "${topic}" questions for a ${age}-year-old ` +
+          `at difficulty level ${level} of 10.`,
+      },
+    ],
+  });
+
+  const textBlock = message.content.find((b) => b.type === 'text');
+  if (!textBlock || textBlock.type !== 'text') {
+    throw new Error('No content returned from the model');
+  }
+
+  const parsed = JSON.parse(textBlock.text) as { questions: FreshQuestion[] };
+  return parsed.questions.filter(
+    (q) =>
+      typeof q.text === 'string' &&
+      Array.isArray(q.options) &&
+      q.options.length === 4 &&
+      Number.isInteger(q.correctIndex) &&
+      q.correctIndex >= 0 &&
+      q.correctIndex < 4,
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -125,57 +209,92 @@ Deno.serve(async (req) => {
     return json({ error: 'skillLevel must be a number between 1 and 10' }, 400);
   }
 
-  const anthropic = new Anthropic({ apiKey });
+  // Service-role client for the question cache (bypasses RLS).
+  const dbUrl = Deno.env.get('SUPABASE_URL');
+  const dbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const db: SupabaseClient | null = dbUrl && dbKey ? createClient(dbUrl, dbKey) : null;
 
   try {
-    const message = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      system: [
-        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-      ],
-      // Structured output guarantees parseable, schema-valid questions.
-      // output_config.effort is intentionally omitted — it is not supported on
-      // Haiku 4.5 and would 400.
-      output_config: {
-        format: { type: 'json_schema', schema: QUESTION_SCHEMA },
-      },
-      messages: [
-        {
-          role: 'user',
-          content:
-            `Generate ${count} "${topic}" questions for a ${age}-year-old ` +
-            `at difficulty level ${skillLevel} of 10.`,
-        },
-      ],
-    });
-
-    const textBlock = message.content.find((b) => b.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') {
-      return json({ error: 'No content returned from the model' }, 502);
+    // 1. Read cached questions for this topic, within ±LEVEL_BAND of the player.
+    let cached: CacheRow[] = [];
+    if (db) {
+      const { data, error } = await db
+        .from('questions')
+        .select('id, level, text, options, correct_index, explanation, times_asked')
+        .eq('topic', topic)
+        .gte('level', skillLevel - LEVEL_BAND)
+        .lte('level', skillLevel + LEVEL_BAND)
+        .limit(CACHE_LOOKUP_LIMIT);
+      if (error) console.error('cache read failed:', error.message);
+      else cached = (data ?? []) as CacheRow[];
     }
 
-    const parsed = JSON.parse(textBlock.text) as {
-      questions: Array<{
-        text: string;
-        options: string[];
-        correctIndex: number;
-        explanation: string;
-      }>;
-    };
+    // 2. Randomly split the batch between reuse and fresh generation.
+    const reuseCount = randInt(0, Math.min(count, cached.length));
+    const freshCount = count - reuseCount;
+    const reused = shuffle(cached).slice(0, reuseCount);
 
-    // Keep only well-formed 4-option questions with a valid answer index.
-    const questions = parsed.questions.filter(
-      (q) =>
-        typeof q.text === 'string' &&
-        Array.isArray(q.options) &&
-        q.options.length === 4 &&
-        Number.isInteger(q.correctIndex) &&
-        q.correctIndex >= 0 &&
-        q.correctIndex < 4,
-    );
+    // 3. Generate the fresh questions (at the exact level) and cache them.
+    let fresh: OutQuestion[] = [];
+    if (freshCount > 0) {
+      const anthropic = new Anthropic({ apiKey });
+      const generated = await generateFresh(anthropic, topic, age, skillLevel, freshCount);
 
-    return json({ topic, age, skillLevel, questions });
+      if (db && generated.length > 0) {
+        const rows = generated.map((q) => ({
+          topic,
+          level: skillLevel,
+          text: q.text,
+          options: q.options,
+          correct_index: q.correctIndex,
+          explanation: q.explanation,
+          times_asked: 1,
+        }));
+        const { data: inserted, error: insErr } = await db
+          .from('questions')
+          .insert(rows)
+          .select('id, level, text, options, correct_index, explanation, times_asked');
+        if (insErr || !inserted) {
+          console.error('cache insert failed:', insErr?.message);
+          fresh = generated.map((q, i) => ({
+            ...q,
+            id: `fresh-${Date.now()}-${i}`,
+            level: skillLevel,
+            timesAsked: 1,
+          }));
+        } else {
+          fresh = (inserted as CacheRow[]).map(rowToOut);
+        }
+      } else {
+        fresh = generated.map((q, i) => ({
+          ...q,
+          id: `fresh-${Date.now()}-${i}`,
+          level: skillLevel,
+          timesAsked: 0,
+        }));
+      }
+    }
+
+    // 4. Bump the ask-counter on every reused question.
+    if (db && reused.length > 0) {
+      const { error: rpcErr } = await db.rpc('increment_question_usage', {
+        ids: reused.map((r) => r.id),
+      });
+      if (rpcErr) console.error('counter update failed:', rpcErr.message);
+    }
+
+    // 5. Sprinkle reused + fresh together randomly.
+    const reusedOut = reused.map((r) => ({ ...rowToOut(r), timesAsked: r.times_asked + 1 }));
+    const questions = shuffle([...reusedOut, ...fresh]);
+
+    return json({
+      topic,
+      age,
+      skillLevel,
+      reused: reused.length,
+      generated: fresh.length,
+      questions,
+    });
   } catch (err) {
     if (err instanceof Anthropic.APIError) {
       console.error(`Anthropic API error ${err.status}:`, err.message);
@@ -184,7 +303,6 @@ Deno.serve(async (req) => {
         502,
       );
     }
-    // Always include the real message so the client can surface it.
     const detail = err instanceof Error ? err.message : String(err);
     console.error('Unexpected error generating questions:', err);
     return json({ error: 'Unexpected server error', detail }, 500);

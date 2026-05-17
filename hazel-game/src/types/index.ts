@@ -9,6 +9,8 @@ export interface Question {
   correctIndex: number;
   /** Kid-friendly one-line explanation (set for AI-generated questions). */
   explanation?: string;
+  /** How many times this question has been served (cached questions only). */
+  timesAsked?: number;
 }
 
 export interface QuizRound {

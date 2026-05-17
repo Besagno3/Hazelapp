@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../../store/gameStore';
 import { useProfileStore } from '../../store/profileStore';
 import { calcAge } from '../../lib/age';
 import { generateNpcs } from '../../lib/npc';
+import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import type { NPC, Topic } from '../../types';
 
 /** Age used when no profile is loaded yet. */
@@ -22,6 +23,14 @@ export default function WorldMap() {
   const age = profile ? calcAge(profile.birthYear, profile.birthMonth) : DEFAULT_AGE;
   // A fresh random set of NPCs each time the world is entered.
   const [npcs] = useState(() => generateNpcs(age, 4));
+
+  // Warm each NPC's battle questions while the player browses the map, so
+  // clicking "Challenge!" starts the battle without a wait.
+  useEffect(() => {
+    for (const npc of npcs) {
+      prefetchQuestions(npc.topic, age, npc.level, BATTLE_QUESTION_COUNT);
+    }
+  }, [npcs, age]);
 
   function handleChallenge(npc: NPC) {
     if (!avatar) return;

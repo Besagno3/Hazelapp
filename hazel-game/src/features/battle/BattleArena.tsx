@@ -6,10 +6,9 @@ import { useProfileStore } from '../../store/profileStore';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { calcAttackDamage } from '../../lib/utils';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
+import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 
-// A batch large enough to cycle through several attack/defend rounds.
-const BATTLE_QUESTION_COUNT = 9;
 const QUESTIONS_PER_ROUND = 3;
 
 type Phase = 'player-attack' | 'npc-attack';
