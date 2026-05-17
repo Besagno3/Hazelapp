@@ -112,8 +112,9 @@ Newest first. One entry per commit (or per logical change).
 
 ### 2026-05-17 — AI question generation (Phase 2 of age-based questions)
 - `supabase/functions/generate-questions/`: Deno edge function calling the
-  Claude API (`claude-opus-4-7`, structured JSON output, adaptive thinking).
-  The API key lives only as the Supabase secret `ANTHROPIC_API_KEY`.
+  Claude API (`claude-haiku-4-5`, structured JSON output) — Haiku chosen for
+  low cost/latency. The API key lives only as the Supabase secret
+  `ANTHROPIC_API_KEY`.
 - `lib/questions.ts`: `fetchQuestions(topic, age, skillLevel, count)` invokes
   the function via `supabase.functions.invoke`.
 - `Question` gains an optional `explanation` field.

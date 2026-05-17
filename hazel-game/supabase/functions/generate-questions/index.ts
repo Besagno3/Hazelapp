@@ -15,10 +15,11 @@
 // 'npm:@anthropic-ai/sdk@0.69.0' — left unpinned here to resolve the latest.
 import Anthropic from 'npm:@anthropic-ai/sdk';
 
-// Per the claude-api guidance: default to the most capable model. For lower
-// cost/latency you may switch to 'claude-haiku-4-5' — that is a deliberate
-// downgrade, so it's left as the strong default.
-const MODEL = 'claude-opus-4-7';
+// Haiku 4.5 — chosen for low cost/latency. Generating kids' quiz questions is
+// structured generation, not hard reasoning, so the smallest model is the
+// right fit. Switch to 'claude-sonnet-4-6' if distractor quality at the top
+// difficulty levels needs a bump (Sonnet also supports output_config.effort).
+const MODEL = 'claude-haiku-4-5';
 
 const TOPICS = ['math', 'science', 'engineering', 'creativity'] as const;
 
@@ -129,13 +130,14 @@ Deno.serve(async (req) => {
   try {
     const message = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 8000,
-      thinking: { type: 'adaptive' },
+      max_tokens: 4096,
       system: [
         { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
       ],
+      // Structured output guarantees parseable, schema-valid questions.
+      // output_config.effort is intentionally omitted — it is not supported on
+      // Haiku 4.5 and would 400.
       output_config: {
-        effort: 'medium',
         format: { type: 'json_schema', schema: QUESTION_SCHEMA },
       },
       messages: [
