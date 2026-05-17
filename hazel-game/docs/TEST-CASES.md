@@ -39,6 +39,14 @@ Type: U = unit · C = component · E = end-to-end · M = manual
 | TC-29 | C | ⬜ | AuthPage | sign-up with no session shows the confirm-email notice |
 | TC-30 | C | ⬜ | SignOutButton | sign-out clears session + progress, returns to auth |
 | TC-31 | C | ⬜ | AuthPage | toggling sign-in/sign-up clears any error/notice |
+| TC-32 | U | ⬜ | age | `calcAge` returns whole years; subtracts 1 before birth month |
+| TC-33 | U | ⬜ | age | `ageToStartLevel` clamps to MIN/MAX skill level |
+| TC-34 | U | ⬜ | age | `skillLevelFor` falls back to age start level when topic unset |
+| TC-35 | C | ⬜ | AuthPage | sign-up shows birth month/year selects; sign-in hides them |
+| TC-36 | C | ⬜ | AuthPage | sign-up without birth date shows a validation error |
+| TC-37 | U | ⬜ | profileStore | `loadProfile` maps a snake_case row to a `Profile` |
+| TC-38 | U | ⬜ | profileStore | `setSkillLevel` updates one topic, leaves others intact |
+| TC-39 | U | ⬜ | profileStore | `clearProfile` resets profile/loading/error |
 
 ## Regression cases (tied to ISSUES.md)
 

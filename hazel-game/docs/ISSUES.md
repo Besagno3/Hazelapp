@@ -21,6 +21,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #12 | 🔴 | Med    | Game progress in localStorage is not tied to user identity |
 | #13 | 🟢 | Med    | Consider upgrading the build toolchain Vite 5 → 8 |
 | #14 | 🟢 | Low    | 2 moderate npm audit vulnerabilities (dev-only) |
+| #15 | 🔴 | High   | `profiles` migration must be applied in Supabase or profiles fail to load |
 
 ---
 
@@ -112,3 +113,12 @@ Lint, build, and dev server all verified green.
 ### #14 — npm audit vulnerabilities 🟢 Low — RESOLVED (2026-05-17)
 The 2 moderate advisories (esbuild dev-server, via Vite 5's toolchain) were
 cleared by the Vite 8 upgrade (#13). `npm audit` now reports 0 vulnerabilities.
+
+### #15 — profiles migration must be applied 🔴 High
+`supabase/migrations/0001_create_profiles.sql` defines the `profiles` table +
+the `handle_new_user` trigger. Until it is applied to the Supabase project,
+`profileStore.loadProfile` errors ("relation does not exist") and no profile
+loads — the app still runs (gating is on session, not profile), but age-based
+features can't work. **Action:** run the migration in the Supabase SQL Editor
+(or `supabase db push`). Existing users created before the trigger exists will
+have no profile row and need one backfilled.

@@ -29,8 +29,14 @@ existing architecture.
 
 - **Audience:** general kids' educational game (difficulty tiers, not tuned to
   one child).
-- **Question source:** external trivia API (not hardcoded, not a Supabase
-  questions table). See ISSUES.md #7.
+- **Question source:** AI-generated via the Claude API, called from a Supabase
+  Edge Function (the API key must stay server-side). Revises an earlier
+  "external trivia API" choice — trivia APIs can't do age-graded content. See
+  ISSUES.md #7.
+- **Player profiles:** a Supabase `profiles` table (birth year/month + per-topic
+  skill levels) backs age-based difficulty. Difficulty model: a **persistent
+  per-topic skill level** that rises on consecutive correct answers and falls
+  slowly on wrong ones; the starting level is derived from age.
 - **Routing:** stay phase-based for now; **do not adopt react-router** (URLs /
   browser-back are a liability for a guided kids' game flow). Plan to migrate
   the game flow to **xstate** (already installed) once guarded transitions
@@ -50,7 +56,12 @@ existing architecture.
   key `hazel-game` — phase and progress survive reloads. `reset()` clears it
   (called on sign-out).
 - **`authStore`** holds the Supabase user/session, populated by `useAuthInit`.
-- Quiz and battle questions are **hardcoded sample data**, not from Supabase.
+- **`profileStore`** holds the player's `profiles` row (birth date, skill
+  levels); `useAuthInit` loads it when a session appears, clears it on sign-out.
+- DB schema lives in `supabase/migrations/` — apply via the Supabase SQL Editor
+  or `supabase db push`.
+- Quiz and battle questions are **hardcoded sample data** — being replaced by
+  AI generation (see Decisions, ISSUES.md #7).
 
 ## Commands
 
@@ -94,6 +105,16 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — Player profiles & age (Phase 1 of age-based questions)
+- `supabase/migrations/0001_create_profiles.sql`: `profiles` table (birth
+  year/month, per-topic skill levels), RLS policies, and a trigger that
+  auto-creates the row from sign-up metadata.
+- Sign-up form now collects birth month + year.
+- `lib/age.ts`: age derivation + age→skill-level helpers.
+- `profileStore`: loads/updates the profile; `useAuthInit` syncs it.
+- ⚠️ The migration must be applied in Supabase or profiles won't load — #15.
+- Phases 2 (Claude-API edge function) and 3 (skill ramp in gameplay) pending.
 
 ### 2026-05-17 — Vite 8 upgrade
 - Build toolchain bumped together: `vite` 5.4 → 8, `vitest` 3 → 4,

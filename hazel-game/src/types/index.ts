@@ -61,3 +61,14 @@ export interface GameProgress {
   worldUnlocked: boolean;
   currentTopic: Topic | null;
 }
+
+/** Per-topic skill level (integers, see lib/age.ts MIN/MAX_SKILL_LEVEL). */
+export type SkillLevels = Partial<Record<Topic, number>>;
+
+/** A player's Supabase profile (see supabase/migrations/0001_create_profiles.sql). */
+export interface Profile {
+  id: string;
+  birthYear: number;
+  birthMonth: number;
+  skillLevels: SkillLevels;
+}
