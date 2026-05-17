@@ -83,6 +83,10 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-71 | E | ⬜ | generate-questions | bumps `times_asked` on every question returned |
 | TC-72 | C | ✅ | LevelBadge | renders nothing when no profile is loaded |
 | TC-73 | C | ✅ | LevelBadge | shows the level + XP progress derived from profile XP |
+| TC-74 | U | ✅ | powerups | bonuses are zero with none, and scale with stack count |
+| TC-75 | U | ✅ | powerups | `totalPowerUps` sums every stack |
+| TC-76 | C | ⬜ | LevelUpModal | appears when a power-up is owed (level > chosen + 1) |
+| TC-77 | C | ⬜ | LevelUpModal | choosing a power-up records it and closes / advances |
 
 ## Regression cases (tied to ISSUES.md)
 

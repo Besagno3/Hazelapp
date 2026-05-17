@@ -129,6 +129,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Level-up celebration + power-ups
+- On level-up, `LevelUpModal` celebrates (confetti) and the player chooses a
+  power-up: ⚔️ Power Strike, 🛡️ Iron Guard, ❤️ Vitality, 📖 Scholar
+  (`lib/powerups.ts`). Power-ups stack on `profiles.power_ups` (migration
+  `0004`); owed choices derive from `playerLevel − 1 − chosen`, so they
+  survive reloads and multi-level jumps (one celebration per level).
+- Effects wired in: battle attack/defense damage, battle HP (`BattleState`
+  gains `playerMaxHp`), and XP per correct answer.
+- ⚠️ Deploy required: apply `0004_power_ups.sql` — see ISSUES.md #21.
+
 ### 2026-05-17 — Level medallion
 - `LevelBadge` upgraded from a text chip to a circular level medallion
   (level number + XP progress bar), top-left on every game screen.

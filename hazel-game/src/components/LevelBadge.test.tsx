@@ -15,7 +15,7 @@ describe('LevelBadge', () => {
 
   it('shows the level derived from the profile XP', () => {
     useProfileStore.setState({
-      profile: { id: 'u1', birthYear: 2014, birthMonth: 6, skillLevels: {}, xp: 250 },
+      profile: { id: 'u1', birthYear: 2014, birthMonth: 6, skillLevels: {}, xp: 250, powerUps: {} },
     });
     render(<LevelBadge />);
     // 250 XP → floor(250/100) + 1 = level 3

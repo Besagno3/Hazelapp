@@ -6,6 +6,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { calcAttackDamage } from '../../lib/utils';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
+import { attackBonus, defenseBonus, xpBonusPerCorrect } from '../../lib/powerups';
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 
@@ -18,6 +19,7 @@ export default function BattleArena() {
   const npc = battle.npc!;
   const topic = npc.topic;
   const addXp = useProfileStore((s) => s.addXp);
+  const powerUps = useProfileStore((s) => s.profile?.powerUps) ?? {};
   // Battle question difficulty is the NPC's level, not the player's skill ramp.
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
@@ -31,7 +33,7 @@ export default function BattleArena() {
   const [roundAnswers, setRoundAnswers] = useState<boolean[]>([]);
   const [shakeNpc, setShakeNpc] = useState(false);
   const [shakePlayer, setShakePlayer] = useState(false);
-  // Every answer across the whole battle — feeds the skill ramp on the result.
+  // Every answer across the whole battle — feeds the XP reward on the result.
   const allAnswers = useRef<boolean[]>([]);
 
   if (loading) return <LoadingScreen label="Summoning your challenge…" />;
@@ -60,9 +62,11 @@ export default function BattleArena() {
   }
 
   function finishBattle(result: 'win' | 'lose') {
-    // Award XP for correct answers, plus a bonus for defeating the NPC.
+    // Award XP for correct answers (+ Scholar bonus), plus an NPC-defeat bonus.
     const correct = allAnswers.current.filter(Boolean).length;
-    const reward = correct * XP_PER_CORRECT + (result === 'win' ? npcDefeatXp(npc.level) : 0);
+    const reward =
+      correct * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)) +
+      (result === 'win' ? npcDefeatXp(npc.level) : 0);
     void addXp(reward);
     endBattle(result);
   }
@@ -71,7 +75,8 @@ export default function BattleArena() {
     const correct = answers.filter(Boolean).length;
 
     if (phase === 'player-attack') {
-      const dmg = calcAttackDamage(correct, QUESTIONS_PER_ROUND, avatar?.fightStyle === 'aggressive' ? 40 : 30);
+      const base = (avatar?.fightStyle === 'aggressive' ? 40 : 30) + attackBonus(powerUps);
+      const dmg = calcAttackDamage(correct, QUESTIONS_PER_ROUND, base);
       const newNpcHp = Math.max(0, battle.npcHp - dmg);
       setShakeNpc(true);
       setTimeout(() => setShakeNpc(false), 500);
@@ -84,7 +89,8 @@ export default function BattleArena() {
       }
       setPhase('npc-attack');
     } else {
-      const blocked = calcAttackDamage(correct, QUESTIONS_PER_ROUND, avatar?.fightStyle === 'defensive' ? 35 : 25);
+      const base = (avatar?.fightStyle === 'defensive' ? 35 : 25) + defenseBonus(powerUps);
+      const blocked = calcAttackDamage(correct, QUESTIONS_PER_ROUND, base);
       const npcDmg = Math.max(0, 30 - blocked);
       const newPlayerHp = Math.max(0, battle.playerHp - npcDmg);
       setShakePlayer(true);
@@ -122,9 +128,9 @@ export default function BattleArena() {
         <div>
           <div className="flex justify-between text-sm mb-1">
             <span>{avatar?.name ?? 'You'} {avatar?.sprite}</span>
-            <span>{battle.playerHp}/{avatar?.maxHp}</span>
+            <span>{battle.playerHp}/{battle.playerMaxHp}</span>
           </div>
-          {hpBar(battle.playerHp, avatar?.maxHp ?? 100, 'bg-green-400')}
+          {hpBar(battle.playerHp, battle.playerMaxHp, 'bg-green-400')}
         </div>
         <div>
           <div className="flex justify-between text-sm mb-1">

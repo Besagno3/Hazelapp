@@ -49,6 +49,8 @@ export interface BattleAction {
 export interface BattleState {
   npc: NPC | null;
   playerHp: number;
+  /** The player's HP at the start of this battle (the HP-bar maximum). */
+  playerMaxHp: number;
   npcHp: number;
   round: number;
   log: BattleAction[];
@@ -66,6 +68,12 @@ export interface GameProgress {
 /** Per-topic skill level (integers, see lib/age.ts MIN/MAX_SKILL_LEVEL). */
 export type SkillLevels = Partial<Record<Topic, number>>;
 
+/** Power-ups a player can choose on level-up (see lib/powerups.ts). */
+export type PowerUpId = 'attack' | 'defense' | 'vitality' | 'scholar';
+
+/** How many of each power-up the player has chosen. */
+export type PowerUps = Partial<Record<PowerUpId, number>>;
+
 /** A player's Supabase profile (see supabase/migrations/). */
 export interface Profile {
   id: string;
@@ -74,4 +82,6 @@ export interface Profile {
   skillLevels: SkillLevels;
   /** Total experience points; player level is derived from this (lib/level.ts). */
   xp: number;
+  /** Power-ups chosen on level-ups. */
+  powerUps: PowerUps;
 }

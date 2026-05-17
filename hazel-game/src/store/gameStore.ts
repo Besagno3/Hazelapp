@@ -22,6 +22,7 @@ interface GameStore {
 const defaultBattle: BattleState = {
   npc: null,
   playerHp: 100,
+  playerMaxHp: 100,
   npcHp: 100,
   round: 0,
   log: [],
@@ -62,7 +63,7 @@ export const useGameStore = create<GameStore>()(
 
       startBattle: (npc, playerHp) =>
         set({
-          battle: { ...defaultBattle, npc, playerHp, npcHp: npc.maxHp },
+          battle: { ...defaultBattle, npc, playerHp, playerMaxHp: playerHp, npcHp: npc.maxHp },
           phase: 'battle',
         }),
 

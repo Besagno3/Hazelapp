@@ -4,6 +4,7 @@ import { useGameStore } from './store/gameStore';
 import AuthPage from './features/auth/AuthPage';
 import SignOutButton from './features/auth/SignOutButton';
 import LevelBadge from './components/LevelBadge';
+import LevelUpModal from './components/LevelUpModal';
 import TopicSelect from './features/quiz/TopicSelect';
 import QuizRound from './features/quiz/QuizRound';
 import AvatarSelect from './features/battle/AvatarSelect';
@@ -57,6 +58,7 @@ export default function App() {
       <LevelBadge />
       <SignOutButton />
       <GameScreen phase={phase} progress={progress} avatar={avatar} />
+      <LevelUpModal />
     </>
   );
 }

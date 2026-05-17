@@ -26,7 +26,8 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #17 | 🔴 | High   | Migration `0002_add_xp.sql` must be applied or profile load fails |
 | #18 | 🟢 | Med    | Generic error messages hide the real cause (esp. edge-function errors) |
 | #19 | 🔴 | High   | Apply migration 0003 + redeploy the edge function (cache + error detail) |
-| #20 | 🔴 | Low    | No visual feedback (pop / celebration) when the player levels up |
+| #20 | 🟢 | Low    | No visual feedback (pop / celebration) when the player levels up |
+| #21 | 🔴 | High   | Migration `0004_power_ups.sql` must be applied or profile load fails |
 
 ---
 
@@ -141,11 +142,16 @@ can call it. (Runtime errors from the function are now surfaced in full — see 
 loads. **Action:** run `0002_add_xp.sql` in the Supabase SQL Editor (or
 `supabase db push`).
 
-### #20 — No level-up feedback 🔴 Low
-The `LevelBadge` XP bar fills and the number ticks up silently. Crossing a
-level boundary deserves a moment — a medallion pop, confetti, or a toast.
-**Fix:** detect a level increase (compare previous vs current `playerLevel`)
-and animate it.
+### #20 — No level-up feedback 🟢 Low — RESOLVED (2026-05-17)
+`LevelUpModal` celebrates each level-up with confetti and a power-up choice.
+"Owed" celebrations are derived from `playerLevel − 1 − powerUpsChosen`, so a
+level-up can't be missed (survives reloads, handles multi-level jumps).
+
+### #21 — Migration 0004 must be applied 🔴 High
+`0004_power_ups.sql` adds the `profiles.power_ups` column. Until applied,
+`profileStore.loadProfile` (which now selects `power_ups`) errors and no
+profile loads. **Action:** run `0004_power_ups.sql` in the Supabase SQL
+Editor (or `supabase db push`).
 
 ### #19 — Apply migration 0003 + redeploy the edge function 🔴 High
 The question cache needs `0003_questions_cache.sql` applied (the `questions`

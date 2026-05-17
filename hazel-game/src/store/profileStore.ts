@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { errorMessage } from '../lib/errors';
-import type { Profile, SkillLevels, Topic } from '../types';
+import type { PowerUpId, PowerUps, Profile, SkillLevels, Topic } from '../types';
 
 /** Shape of a row in the Supabase `profiles` table (snake_case). */
 interface ProfileRow {
@@ -10,6 +10,7 @@ interface ProfileRow {
   birth_month: number;
   skill_levels: SkillLevels | null;
   xp: number | null;
+  power_ups: PowerUps | null;
 }
 
 function fromRow(row: ProfileRow): Profile {
@@ -19,6 +20,7 @@ function fromRow(row: ProfileRow): Profile {
     birthMonth: row.birth_month,
     skillLevels: row.skill_levels ?? {},
     xp: row.xp ?? 0,
+    powerUps: row.power_ups ?? {},
   };
 }
 
@@ -32,6 +34,8 @@ interface ProfileStore {
   setSkillLevel: (topic: Topic, level: number) => Promise<void>;
   /** Add experience points (optimistic update). */
   addXp: (amount: number) => Promise<void>;
+  /** Record a power-up chosen on level-up (optimistic update). */
+  addPowerUp: (id: PowerUpId) => Promise<void>;
   clearProfile: () => void;
 }
 
@@ -44,7 +48,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ loading: true, error: null });
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, birth_year, birth_month, skill_levels, xp')
+      .select('id, birth_year, birth_month, skill_levels, xp, power_ups')
       .eq('id', userId)
       .single();
     if (error) {
@@ -74,6 +78,18 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const { error } = await supabase
       .from('profiles')
       .update({ xp, updated_at: new Date().toISOString() })
+      .eq('id', profile.id);
+    if (error) set({ error: errorMessage(error) });
+  },
+
+  addPowerUp: async (id) => {
+    const profile = get().profile;
+    if (!profile) return;
+    const powerUps = { ...profile.powerUps, [id]: (profile.powerUps[id] ?? 0) + 1 };
+    set({ profile: { ...profile, powerUps } }); // optimistic
+    const { error } = await supabase
+      .from('profiles')
+      .update({ power_ups: powerUps, updated_at: new Date().toISOString() })
       .eq('id', profile.id);
     if (error) set({ error: errorMessage(error) });
   },

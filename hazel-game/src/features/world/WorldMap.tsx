@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore';
 import { useProfileStore } from '../../store/profileStore';
 import { calcAge } from '../../lib/age';
 import { generateNpcs } from '../../lib/npc';
+import { hpBonus } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import type { NPC, Topic } from '../../types';
 
@@ -34,8 +35,8 @@ export default function WorldMap() {
 
   function handleChallenge(npc: NPC) {
     if (!avatar) return;
-    // Each battle starts the player at full HP — battles are independent.
-    startBattle(npc, avatar.maxHp);
+    // Each battle starts the player at full HP — avatar max plus any Vitality.
+    startBattle(npc, avatar.maxHp + hpBonus(profile?.powerUps ?? {}));
   }
 
   return (
