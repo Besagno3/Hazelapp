@@ -25,7 +25,6 @@ export interface Avatar {
   name: string;
   sprite: string;
   fightStyle: FightStyle;
-  hp: number;
   maxHp: number;
 }
 
@@ -35,9 +34,7 @@ export interface NPC {
   sprite: string;
   level: number;
   topic: Topic;
-  hp: number;
   maxHp: number;
-  questions: Question[];
 }
 
 export interface BattleAction {

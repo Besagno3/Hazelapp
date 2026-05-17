@@ -3,10 +3,10 @@ import { useGameStore } from '../../store/gameStore';
 import type { NPC, Topic } from '../../types';
 
 const NPCS: NPC[] = [
-  { id: 'npc1', name: 'Count Calculus', sprite: '🧙', level: 1, topic: 'math', hp: 80, maxHp: 80, questions: [] },
-  { id: 'npc2', name: 'Dr. Molecule', sprite: '🤖', level: 2, topic: 'science', hp: 100, maxHp: 100, questions: [] },
-  { id: 'npc3', name: 'Gear Master', sprite: '⚔️', level: 3, topic: 'engineering', hp: 120, maxHp: 120, questions: [] },
-  { id: 'npc4', name: 'Muse Maxine', sprite: '🧚', level: 4, topic: 'creativity', hp: 150, maxHp: 150, questions: [] },
+  { id: 'npc1', name: 'Count Calculus', sprite: '🧙', level: 1, topic: 'math', maxHp: 80 },
+  { id: 'npc2', name: 'Dr. Molecule', sprite: '🤖', level: 2, topic: 'science', maxHp: 100 },
+  { id: 'npc3', name: 'Gear Master', sprite: '⚔️', level: 3, topic: 'engineering', maxHp: 120 },
+  { id: 'npc4', name: 'Muse Maxine', sprite: '🧚', level: 4, topic: 'creativity', maxHp: 150 },
 ];
 
 const TOPIC_COLORS: Record<Topic, string> = {
@@ -21,7 +21,8 @@ export default function WorldMap() {
 
   function handleChallenge(npc: NPC) {
     if (!avatar) return;
-    startBattle(npc, avatar.hp);
+    // Each battle starts the player at full HP — battles are independent.
+    startBattle(npc, avatar.maxHp);
   }
 
   return (

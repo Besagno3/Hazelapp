@@ -18,7 +18,7 @@ shared source of truth for how this project works.
 | State       | Zustand 5 (`gameStore` persisted to localStorage, `authStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
-| Testing     | Vitest 4 + Testing Library + jsdom *(not yet wired)* |
+| Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
 
 Many dependencies in `package.json` are installed but **not yet used**
 (react-router-dom, xstate, react-query, react-hook-form, zod, recharts, howler,
@@ -77,7 +77,7 @@ npm install      # install deps (node_modules is gitignored)
 npm run dev      # Vite dev server
 npm run build    # tsc -b && vite build
 npm run lint     # eslint
-# npm test       # NOT yet configured — see ISSUES.md
+npm test         # Vitest suite (test:watch / test:ui also available)
 ```
 
 ## Conventions
@@ -112,6 +112,14 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — Test runner + battle/dead-code cleanup (ISSUES #4, #8, #9)
+- Vitest wired: `test` block in `vite.config.ts` (jsdom), `src/test/setup.ts`
+  (jest-dom + RTL cleanup), `test` / `test:watch` / `test:ui` scripts. 21
+  cases automated (`utils`, `age`, `gameStore`, `StatusScreens`) — `npm test`.
+- #8: battles are independent — `WorldMap` starts the player at
+  `avatar.maxHp`. Removed the redundant `hp` field from `Avatar` / `NPC`.
+- #9: removed the unused `NPC.questions` field — all flagged dead code is gone.
 
 ### 2026-05-17 — Fix pass-threshold bug (ISSUES #2)
 - `PASS_THRESHOLD` 0.82 → 0.8 (4 of 5) — 0.82 silently required a perfect 5/5.

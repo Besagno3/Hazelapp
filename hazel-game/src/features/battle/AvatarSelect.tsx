@@ -3,9 +3,9 @@ import { useGameStore } from '../../store/gameStore';
 import type { Avatar, FightStyle } from '../../types';
 
 const AVATARS: Avatar[] = [
-  { id: 'a1', name: 'Blaze', sprite: '🦁', fightStyle: 'aggressive', hp: 100, maxHp: 100 },
-  { id: 'a2', name: 'Shield', sprite: '🐢', fightStyle: 'defensive', hp: 140, maxHp: 140 },
-  { id: 'a3', name: 'Nova', sprite: '🦅', fightStyle: 'balanced', hp: 120, maxHp: 120 },
+  { id: 'a1', name: 'Blaze', sprite: '🦁', fightStyle: 'aggressive', maxHp: 100 },
+  { id: 'a2', name: 'Shield', sprite: '🐢', fightStyle: 'defensive', maxHp: 140 },
+  { id: 'a3', name: 'Nova', sprite: '🦅', fightStyle: 'balanced', maxHp: 120 },
 ];
 
 const STYLE_DESC: Record<FightStyle, string> = {

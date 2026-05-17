@@ -10,12 +10,12 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #1  | 🟢 | High   | Auth is cosmetic — game state not gated on a real session |
 | #2  | 🟢 | High   | `PASS_THRESHOLD` (0.82) vs 5 questions requires a perfect score |
 | #3  | 🟢 | High   | App crashes on boot if Supabase env vars are missing |
-| #4  | 🔴 | Med    | Test infrastructure (Vitest) installed but not wired |
+| #4  | 🟢 | Med    | Test infrastructure (Vitest) installed but not wired |
 | #5  | 🔴 | Med    | `vite-plugin-pwa` installed but not configured |
 | #6  | 🟢 | Med    | Sign-up proceeds even when email confirmation is pending |
 | #7  | 🟢 | Med    | Quiz/battle questions are hardcoded — replaced by AI generation |
-| #8  | 🔴 | Low    | Battle damage and avatar HP do not persist between battles |
-| #9  | 🟡 | Low    | Dead code: `NPC.questions` field unused |
+| #8  | 🟢 | Low    | Battle damage and avatar HP do not persist between battles |
+| #9  | 🟢 | Low    | Dead code: `NPC.questions` field unused |
 | #10 | 🟢 | Low    | Two React Vite plugins installed (`-react` and `-react-swc`) |
 | #11 | 🔴 | Med    | Migrate game flow to xstate once guarded transitions multiply |
 | #12 | 🔴 | Med    | Game progress in localStorage is not tied to user identity |
@@ -48,10 +48,11 @@ Regression test: TC-R2.
 crash. A real `hazel-game/.env` (gitignored) holds the project credentials.
 Regression test: TC-R3.
 
-### #4 — Tests not wired 🔴 Med
-Vitest, Testing Library, jsdom are in `devDependencies`, but: no `test` script
-in `package.json`, no `test` block in `vite.config.ts`, no jest-dom setup file.
-**Fix:** add config + setup file + `npm test` script.
+### #4 — Tests not wired 🟢 Med — RESOLVED (2026-05-17)
+Vitest is wired: `test` block in `vite.config.ts` (jsdom), setup file
+`src/test/setup.ts` (jest-dom matchers + RTL cleanup), and `test` /
+`test:watch` / `test:ui` scripts. 21 cases automated across `utils`, `age`,
+`gameStore`, and `StatusScreens` — `npm test` is green.
 
 ### #5 — PWA not configured 🔴 Med
 `vite-plugin-pwa` is installed but `vite.config.ts` only registers the React
@@ -71,18 +72,19 @@ The `SAMPLE_QUESTIONS` / `BATTLE_QUESTIONS` literals are gone. `QuizRound` and
 `fetchQuestions` → the `generate-questions` edge function, with loading and
 error/retry states. Requires the function to be deployed (#16).
 
-### #8 — Battle state not persisted 🔴 Low
-`WorldMap` passes `avatar.hp` (always full) into each battle; damage taken is
-never written back to the avatar. Every battle starts fresh. Confirm whether
-this is intended.
+### #8 — Battle state not persisted 🟢 Low — RESOLVED (2026-05-17)
+**Resolved by decision:** battles are independent — the player starts at full
+HP every battle. Carrying damage across battles would need a healing mechanic
+to avoid a death spiral, which is unfriendly for a kids' game. `WorldMap` now
+calls `startBattle(npc, avatar.maxHp)` explicitly, and the redundant `hp`
+fields (always equal to `maxHp`) were removed from the `Avatar` and `NPC`
+types — `maxHp` is the single source of truth.
 
-### #9 — Dead code 🟡 Low — PARTIALLY RESOLVED
-- ~~`gameStore.reset()` defined but no UI calls it~~ — now called by
-  `SignOutButton` (2026-05-17).
+### #9 — Dead code 🟢 Low — RESOLVED (2026-05-17)
+- ~~`gameStore.reset()` defined but no UI calls it~~ — called by `SignOutButton`.
 - ~~`type Phase` in `BattleArena` includes `'result'`~~ — removed in Phase 3.
-- Still open: `NPC.questions` field unused — battle questions come from
-  `fetchQuestions(npc.topic, …)`, not the NPC object. Either populate it or
-  drop the field from the `NPC` type.
+- ~~`NPC.questions` field unused~~ — removed; battle questions come from
+  `fetchQuestions(npc.topic, …)`.
 
 ### #10 — Duplicate React plugin 🟢 Low — RESOLVED (2026-05-17)
 Both `@vitejs/plugin-react` and `@vitejs/plugin-react-swc` were dependencies.
