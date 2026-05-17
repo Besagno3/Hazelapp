@@ -19,8 +19,8 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #10 | 🟢 | Low    | Two React Vite plugins installed (`-react` and `-react-swc`) |
 | #11 | 🔴 | Med    | Migrate game flow to xstate once guarded transitions multiply |
 | #12 | 🔴 | Med    | Game progress in localStorage is not tied to user identity |
-| #13 | 🔴 | Med    | Consider upgrading the build toolchain Vite 5 → 8 |
-| #14 | 🔴 | Low    | 2 moderate npm audit vulnerabilities (dev-only) |
+| #13 | 🟢 | Med    | Consider upgrading the build toolchain Vite 5 → 8 |
+| #14 | 🟢 | Low    | 2 moderate npm audit vulnerabilities (dev-only) |
 
 ---
 
@@ -102,17 +102,13 @@ the tab without signing out, the next player on that browser inherits their
 progress. **Fix:** key persistence by user id, or sync progress to a Supabase
 table once the data model is set (relates to #7).
 
-### #13 — Consider upgrading Vite 5 → 8 🔴 Med
-The scaffold pins `vite@5.4`. The toolchain works and builds cleanly, but Vite 8
-is current. **Decision:** deferred — a Vite 8 bump is a coordinated upgrade
-(`vite`, `@vitejs/plugin-react-swc`, `vitest`, `@vitest/ui`, `vite-plugin-pwa`
-must move together) and should be its own focused, tested change, not mixed
-into feature work. Do it before the test infra (#4) and PWA (#5) work so those
-are configured against the final toolchain. Note: clearing #14 may also depend
-on this.
+### #13 — Upgrade Vite 5 → 8 🟢 Med — RESOLVED (2026-05-17)
+Coordinated toolchain bump: `vite` 5.4 → 8.0.13, `vitest` 3 → 4.1.6,
+`@vitest/ui` → 4.1.6, `vite-plugin-pwa` → 1.3.0. Also swapped
+`@vitejs/plugin-react-swc` → `@vitejs/plugin-react@6` — Vite 8 recommends the
+Oxc-based plugin when no SWC plugins are used — and updated `vite.config.ts`.
+Lint, build, and dev server all verified green.
 
-### #14 — npm audit vulnerabilities 🔴 Low
-`npm install` reports 2 moderate-severity advisories (dev-dependency / dev-only
-— e.g. esbuild's dev-server advisory, not a production risk). **Fix:** review
-with `npm audit`; likely cleared by the Vite 8 upgrade (#13). Do not run
-`npm audit fix --force` blindly — it can introduce breaking major bumps.
+### #14 — npm audit vulnerabilities 🟢 Low — RESOLVED (2026-05-17)
+The 2 moderate advisories (esbuild dev-server, via Vite 5's toolchain) were
+cleared by the Vite 8 upgrade (#13). `npm audit` now reports 0 vulnerabilities.

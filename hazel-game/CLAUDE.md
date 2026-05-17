@@ -12,13 +12,13 @@ shared source of truth for how this project works.
 
 | Layer       | Choice                                              |
 |-------------|-----------------------------------------------------|
-| Build       | Vite 5.4                                            |
+| Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
 | State       | Zustand 5 (`gameStore` persisted to localStorage, `authStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
-| Testing     | Vitest 3 + Testing Library + jsdom *(not yet wired)* |
+| Testing     | Vitest 4 + Testing Library + jsdom *(not yet wired)* |
 
 Many dependencies in `package.json` are installed but **not yet used**
 (react-router-dom, xstate, react-query, react-hook-form, zod, recharts, howler,
@@ -94,6 +94,14 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — Vite 8 upgrade
+- Build toolchain bumped together: `vite` 5.4 → 8, `vitest` 3 → 4,
+  `@vitest/ui` → 4, `vite-plugin-pwa` → 1.3.
+- Swapped `@vitejs/plugin-react-swc` → `@vitejs/plugin-react` (Vite 8's
+  Oxc-based recommended plugin) and updated `vite.config.ts`.
+- `npm audit` now reports 0 vulnerabilities (was 2 moderate).
+- Resolves ISSUES.md #13; #14 cleared as a side effect.
 
 ### 2026-05-17 — Real auth gating + dependency install
 - `useAuthInit` hook loads the Supabase session and subscribes to auth changes;
