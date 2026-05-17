@@ -13,7 +13,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #4  | 🔴 | Med    | Test infrastructure (Vitest) installed but not wired |
 | #5  | 🔴 | Med    | `vite-plugin-pwa` installed but not configured |
 | #6  | 🟢 | Med    | Sign-up proceeds even when email confirmation is pending |
-| #7  | 🔴 | Med    | Quiz/battle questions are hardcoded, not from Supabase |
+| #7  | 🟡 | Med    | Quiz/battle questions are hardcoded — generation built, not yet wired |
 | #8  | 🔴 | Low    | Battle damage and avatar HP do not persist between battles |
 | #9  | 🟡 | Low    | Dead code: `'result'` battle phase + `NPC.questions` unused |
 | #10 | 🟢 | Low    | Two React Vite plugins installed (`-react` and `-react-swc`) |
@@ -22,6 +22,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #13 | 🟢 | Med    | Consider upgrading the build toolchain Vite 5 → 8 |
 | #14 | 🟢 | Low    | 2 moderate npm audit vulnerabilities (dev-only) |
 | #15 | 🔴 | High   | `profiles` migration must be applied in Supabase or profiles fail to load |
+| #16 | 🔴 | High   | `generate-questions` edge function must be deployed before it can be called |
 
 ---
 
@@ -62,10 +63,13 @@ sign-in view instead of entering the game. Regression test: TC-R4.
 **Note:** whether confirmation is required depends on the Supabase project's
 Auth settings (Authentication → Providers → Email → "Confirm email").
 
-### #7 — Hardcoded questions 🔴 Med
-`QuizRound.tsx` and `BattleArena.tsx` contain `SAMPLE_QUESTIONS` /
-`BATTLE_QUESTIONS` literals. `NPC.questions` is always `[]`. **Fix:** move
-questions to Supabase (or a chosen content source) once the data model is set.
+### #7 — Hardcoded questions 🟡 Med — PARTIALLY RESOLVED
+`QuizRound.tsx` and `BattleArena.tsx` still contain `SAMPLE_QUESTIONS` /
+`BATTLE_QUESTIONS` literals; `NPC.questions` is always `[]`.
+**Done (Phase 2):** AI question generation exists — `lib/questions.ts`
+`fetchQuestions()` calls the `generate-questions` edge function.
+**Still open (Phase 3):** swap the hardcoded literals in `QuizRound` /
+`BattleArena` for `fetchQuestions`, with loading/error states.
 
 ### #8 — Battle state not persisted 🔴 Low
 `WorldMap` passes `avatar.hp` (always full) into each battle; damage taken is
@@ -122,3 +126,11 @@ loads — the app still runs (gating is on session, not profile), but age-based
 features can't work. **Action:** run the migration in the Supabase SQL Editor
 (or `supabase db push`). Existing users created before the trigger exists will
 have no profile row and need one backfilled.
+
+### #16 — generate-questions edge function must be deployed 🔴 High
+`supabase/functions/generate-questions/` calls the Claude API server-side.
+Until it is deployed, `fetchQuestions` (`lib/questions.ts`) fails. The
+`ANTHROPIC_API_KEY` secret is already set in Supabase. **Action:**
+`supabase link --project-ref <ref>` then
+`supabase functions deploy generate-questions`. JWT verification is on by
+default, so only signed-in players can call it.

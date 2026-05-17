@@ -47,6 +47,11 @@ Type: U = unit · C = component · E = end-to-end · M = manual
 | TC-37 | U | ⬜ | profileStore | `loadProfile` maps a snake_case row to a `Profile` |
 | TC-38 | U | ⬜ | profileStore | `setSkillLevel` updates one topic, leaves others intact |
 | TC-39 | U | ⬜ | profileStore | `clearProfile` resets profile/loading/error |
+| TC-40 | U | ⬜ | questions | `fetchQuestions` maps generated items to `Question[]` with ids |
+| TC-41 | U | ⬜ | questions | `fetchQuestions` throws when the edge function returns an error |
+| TC-42 | E | ⬜ | generate-questions | returns N valid 4-option questions for a topic+age+level |
+| TC-43 | E | ⬜ | generate-questions | rejects an invalid topic / out-of-range age with 400 |
+| TC-44 | E | ⬜ | generate-questions | drops malformed questions (not exactly 4 options) |
 
 ## Regression cases (tied to ISSUES.md)
 

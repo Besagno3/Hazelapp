@@ -7,6 +7,8 @@ export interface Question {
   text: string;
   options: string[];
   correctIndex: number;
+  /** Kid-friendly one-line explanation (set for AI-generated questions). */
+  explanation?: string;
 }
 
 export interface QuizRound {

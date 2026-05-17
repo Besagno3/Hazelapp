@@ -60,8 +60,12 @@ existing architecture.
   levels); `useAuthInit` loads it when a session appears, clears it on sign-out.
 - DB schema lives in `supabase/migrations/` — apply via the Supabase SQL Editor
   or `supabase db push`.
-- Quiz and battle questions are **hardcoded sample data** — being replaced by
-  AI generation (see Decisions, ISSUES.md #7).
+- **Question generation** is a Deno edge function in
+  `supabase/functions/generate-questions/` — it calls the Claude API
+  server-side (API key never reaches the browser). `lib/questions.ts`
+  (`fetchQuestions`) invokes it from the client.
+- Quiz and battle screens still use **hardcoded sample data** — Phase 3 wires
+  `fetchQuestions` into gameplay (ISSUES.md #7).
 
 ## Commands
 
@@ -105,6 +109,17 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — AI question generation (Phase 2 of age-based questions)
+- `supabase/functions/generate-questions/`: Deno edge function calling the
+  Claude API (`claude-opus-4-7`, structured JSON output, adaptive thinking).
+  The API key lives only as the Supabase secret `ANTHROPIC_API_KEY`.
+- `lib/questions.ts`: `fetchQuestions(topic, age, skillLevel, count)` invokes
+  the function via `supabase.functions.invoke`.
+- `Question` gains an optional `explanation` field.
+- ESLint ignores `supabase/functions/` (Deno runtime, not the Vite build).
+- ⚠️ Deploy required: `supabase functions deploy generate-questions` — #16.
+- Phase 3 (wire `fetchQuestions` into quiz/battle, skill ramp) pending.
 
 ### 2026-05-17 — Player profiles & age (Phase 1 of age-based questions)
 - `supabase/migrations/0001_create_profiles.sql`: `profiles` table (birth
