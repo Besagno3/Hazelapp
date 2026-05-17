@@ -61,7 +61,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-49 | C | ⬜ | useGeneratedQuestions | shows loading until questions resolve |
 | TC-50 | C | ⬜ | QuizRound | a fetch error shows ErrorScreen with retry + back |
 | TC-51 | C | ⬜ | QuizRound | completing a round persists the new skill level |
-| TC-52 | C | ⬜ | QuizRound | answering reveals the question explanation |
+| TC-52 | C | ⬜ | QuizRound | answering reveals the explanation and holds it ~4s before advancing |
 | TC-53 | C | ⬜ | BattleArena | a battle result persists the new skill level for the topic |
 | TC-54 | C | ⬜ | TopicSelect | unlock copy reflects PASS_THRESHOLD / ROUNDS_TO_UNLOCK |
 | TC-55 | C | ✅ | StatusScreens | `LoadingScreen` renders the given label |

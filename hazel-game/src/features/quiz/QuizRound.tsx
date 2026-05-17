@@ -11,6 +11,10 @@ import { xpBonusPerCorrect } from '../../lib/powerups';
 import { prefetchQuestions, QUIZ_QUESTION_COUNT } from '../../lib/questions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 
+// How long the answer result + explanation stays on screen before advancing —
+// long enough to read the one-sentence explanation.
+const ANSWER_REVEAL_MS = 4000;
+
 export default function QuizRound() {
   const { progress, completeRound, setPhase } = useGameStore();
   const topic = progress.currentTopic!;
@@ -67,7 +71,7 @@ export default function QuizRound() {
         // Warm the next same-topic round so a replay starts instantly.
         prefetchQuestions(topic, age, newLevel, QUIZ_QUESTION_COUNT);
       }
-    }, 1400);
+    }, ANSWER_REVEAL_MS);
   }
 
   if (done) {

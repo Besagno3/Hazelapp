@@ -28,6 +28,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #19 | 🔴 | High   | Apply migration 0003 + redeploy the edge function (cache + error detail) |
 | #20 | 🟢 | Low    | No visual feedback (pop / celebration) when the player levels up |
 | #21 | 🔴 | High   | Migration `0004_power_ups.sql` must be applied or profile load fails |
+| #22 | 🔴 | Low    | Quiz auto-advances on a fixed timer — a Next button would suit all readers |
 
 ---
 
@@ -146,6 +147,12 @@ loads. **Action:** run `0002_add_xp.sql` in the Supabase SQL Editor (or
 `LevelUpModal` celebrates each level-up with confetti and a power-up choice.
 "Owed" celebrations are derived from `playerLevel − 1 − powerUpsChosen`, so a
 level-up can't be missed (survives reloads, handles multi-level jumps).
+
+### #22 — Quiz advances on a fixed timer 🔴 Low
+After answering, `QuizRound` waits `ANSWER_REVEAL_MS` (4s) then auto-advances.
+A fixed delay is always a compromise — too slow for fast readers, too fast for
+slower ones. **Fix:** replace the timer with a player-controlled "Next" button
+once the answer is revealed, so each player advances at their own pace.
 
 ### #21 — Migration 0004 must be applied 🔴 High
 `0004_power_ups.sql` adds the `profiles.power_ups` column. Until applied,

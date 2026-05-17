@@ -129,6 +129,10 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Longer answer-explanation dwell
+- `QuizRound` keeps the answer result + explanation on screen for 4s
+  (`ANSWER_REVEAL_MS`, was 1.4s) — long enough to actually read it.
+
 ### 2026-05-17 — Level-up celebration + power-ups
 - On level-up, `LevelUpModal` celebrates (confetti) and the player chooses a
   power-up: ⚔️ Power Strike, 🛡️ Iron Guard, ❤️ Vitality, 📖 Scholar
