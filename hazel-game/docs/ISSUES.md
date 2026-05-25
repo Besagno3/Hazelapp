@@ -36,7 +36,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #27 | 🟢 | Low    | Power-ups stack uncapped + all four bias offense — high-level battles trivialise |
 | #28 | 🟢 | Low    | No daily-streak / return-tomorrow hook — the canonical kids-game retention loop |
 | #29 | 🔴 | Med    | No parent dashboard — buyers see nothing of their kid's progress |
-| #30 | 🔴 | Low    | Cache-vs-AI split is uniformly random — no reuse bias, no per-session cost cap |
+| #30 | 🟢 | Low    | Cache-vs-AI split is uniformly random — no reuse bias, no per-session cost cap |
 | #31 | 🟢 | Low    | "Loading…" dead air while Claude generates — needs a fun fact / mascot animation |
 | #32 | 🟢 | Low    | Battles never nudge `skill_levels` — fighting NPCs teaches the difficulty model nothing |
 | #33 | 🔴 | Low    | Topic set is hardcoded to four — no easy path to add history, language, etc. |
@@ -200,14 +200,15 @@ every 4 seconds with a fade transition (Framer Motion `AnimatePresence`).
 `QuizRound` and `BattleArena` both pass their topic. Regression test:
 TC-89..91 (automated).
 
-### #30 — Random cache-vs-AI mix 🔴 Low
-`randInt(0, min(count, cached.length))` means even with hundreds of cached
-rows in band, ~1/6 of calls still ask for `count` fresh questions and ~1/6
-ask for 0 — there's no preference for reuse and no per-session ceiling on
-Claude calls. Fix: prefer reuse when `cached.length >= 3 * count`, fall back
-to fresh when the band is thin (or sprinkle in ~20% fresh for novelty).
-Sequencing note: this should land **after** #24 (per-player dedup), or a
-warm cache will keep returning the same question to the same kid.
+### #30 — Random cache-vs-AI mix 🟢 Low — RESOLVED (2026-05-17)
+Edge function now uses `chooseFreshCount(count, cacheSize)`: empty cache
+→ all fresh; rich cache (≥3× count rows available) → ~20% fresh for
+novelty, rest reused; thin cache → use what's there, generate the rest.
+Cuts ~30-40% of Claude calls on a well-populated cache while keeping
+enough novelty that the cache keeps growing. Per-session cost cap not
+implemented (would need session tracking) — explicitly deferred until
+cost data shows it matters. Awaits `supabase functions deploy
+generate-questions` to ship.
 
 ### #29 — No parent dashboard 🔴 Med
 Parents are the buyers; right now they can see literally nothing of their

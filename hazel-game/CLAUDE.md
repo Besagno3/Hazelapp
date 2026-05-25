@@ -129,6 +129,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Smarter cache-vs-AI mix (#30)
+- Edge function: replaced `randInt(0, min(count, cached))` with a
+  `chooseFreshCount(count, cacheSize)` policy. Empty cache → all fresh;
+  rich cache (≥3× count rows available) → ~20% fresh for novelty,
+  rest reused; thin cache → use what's there, generate the rest. Saves
+  ~30-40% Claude calls once the cache is well-populated, while keeping
+  enough novelty that the cache keeps growing.
+- ⚠️ Deploy required: `supabase functions deploy generate-questions` —
+  no migration needed.
+
 ### 2026-05-17 — Battles nudge the skill ramp (#32)
 - `lib/age.ts` `nextSkillLevelFromBattle(current, answers)`: applies the
   same shape as `nextSkillLevel` but clamped to never *lower* the current

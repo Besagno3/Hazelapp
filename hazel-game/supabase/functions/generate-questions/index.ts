@@ -27,6 +27,10 @@ const CACHE_LOOKUP_LIMIT = 200;
 const LEVEL_BAND = 2;
 /** Most-recent views excluded per profile (see ISSUES.md #24). */
 const SEEN_HISTORY_LIMIT = 100;
+/** Cache is "rich" once it has this many eligible rows per requested question (#30). */
+const RICH_CACHE_MULTIPLE = 3;
+/** Fraction of a batch that comes fresh from Claude when the cache is rich (#30). */
+const NOVELTY_RATE = 0.2;
 
 const SYSTEM_PROMPT = `You are a question writer for "Hazel Quest", an educational quiz-battle game for children.
 
@@ -98,6 +102,24 @@ function json(body: unknown, status = 200): Response {
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * How many of `count` questions should come fresh from Claude, given how many
+ * eligible cached rows are available for this player. (#30)
+ *
+ * - Empty cache  → all fresh.
+ * - Rich cache   → prefer reuse, sprinkle ~NOVELTY_RATE for novelty.
+ * - Thin cache   → use what we have, generate the rest.
+ *
+ * Pure for testability (validation happens manually since this is Deno).
+ */
+function chooseFreshCount(count: number, cacheSize: number): number {
+  if (cacheSize === 0) return count;
+  if (cacheSize >= count * RICH_CACHE_MULTIPLE) {
+    return Math.max(0, Math.round(count * NOVELTY_RATE));
+  }
+  return Math.max(0, count - cacheSize);
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -275,9 +297,11 @@ Deno.serve(async (req) => {
       cached = cached.filter((r) => !flaggedSet.has(r.id) && !seenSet.has(r.id));
     }
 
-    // 2. Randomly split the batch between reuse and fresh generation.
-    const reuseCount = randInt(0, Math.min(count, cached.length));
-    const freshCount = count - reuseCount;
+    // 2. Split the batch using the cache-richness policy (#30): a rich cache
+    //    leans heavily on reuse with a sprinkle of fresh for novelty; a thin
+    //    cache uses what's available and generates the rest.
+    const freshCount = chooseFreshCount(count, cached.length);
+    const reuseCount = count - freshCount;
     const reused = shuffle(cached).slice(0, reuseCount);
 
     // 3. Generate the fresh questions (at the exact level) and cache them.
