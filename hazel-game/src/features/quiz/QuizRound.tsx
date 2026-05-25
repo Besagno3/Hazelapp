@@ -17,6 +17,7 @@ export default function QuizRound() {
   const topic = progress.currentTopic!;
   const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
   const addXp = useProfileStore((s) => s.addXp);
+  const recordActivity = useProfileStore((s) => s.recordActivity);
   const powerUps = useProfileStore((s) => s.profile?.powerUps) ?? {};
   const { questions, loading, error, age, skillLevel, reload } = useGeneratedQuestions(
     topic,
@@ -64,6 +65,7 @@ export default function QuizRound() {
     const newLevel = nextSkillLevel(skillLevel, answers);
     void setSkillLevel(topic, newLevel);
     void addXp(correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
+    void recordActivity();
     // Warm the next same-topic round so a replay starts instantly.
     prefetchQuestions(topic, age, newLevel, QUIZ_QUESTION_COUNT);
   }

@@ -84,4 +84,10 @@ export interface Profile {
   xp: number;
   /** Power-ups chosen on level-ups. */
   powerUps: PowerUps;
+  /** Consecutive days played (#28). */
+  currentStreak: number;
+  /** High-water mark of `currentStreak`. */
+  longestStreak: number;
+  /** YYYY-MM-DD (local) of the player's last activity, or null if never played. */
+  lastPlayedOn: string | null;
 }

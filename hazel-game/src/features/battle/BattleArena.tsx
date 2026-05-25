@@ -19,6 +19,7 @@ export default function BattleArena() {
   const npc = battle.npc!;
   const topic = npc.topic;
   const addXp = useProfileStore((s) => s.addXp);
+  const recordActivity = useProfileStore((s) => s.recordActivity);
   const powerUps = useProfileStore((s) => s.profile?.powerUps) ?? {};
   // Battle question difficulty is the NPC's level, not the player's skill ramp.
   const { questions, loading, error, reload } = useGeneratedQuestions(
@@ -68,6 +69,7 @@ export default function BattleArena() {
       correct * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)) +
       (result === 'win' ? npcDefeatXp(npc.level) : 0);
     void addXp(reward);
+    void recordActivity();
     endBattle(result);
   }
 

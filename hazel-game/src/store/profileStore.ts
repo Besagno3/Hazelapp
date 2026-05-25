@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { errorMessage } from '../lib/errors';
+import { nextStreak, todayIso } from '../lib/streak';
 import type { PowerUpId, PowerUps, Profile, SkillLevels, Topic } from '../types';
 
 /** Shape of a row in the Supabase `profiles` table (snake_case). */
@@ -11,6 +12,9 @@ interface ProfileRow {
   skill_levels: SkillLevels | null;
   xp: number | null;
   power_ups: PowerUps | null;
+  current_streak: number | null;
+  longest_streak: number | null;
+  last_played_on: string | null;
 }
 
 function fromRow(row: ProfileRow): Profile {
@@ -21,6 +25,9 @@ function fromRow(row: ProfileRow): Profile {
     skillLevels: row.skill_levels ?? {},
     xp: row.xp ?? 0,
     powerUps: row.power_ups ?? {},
+    currentStreak: row.current_streak ?? 0,
+    longestStreak: row.longest_streak ?? 0,
+    lastPlayedOn: row.last_played_on ?? null,
   };
 }
 
@@ -36,6 +43,8 @@ interface ProfileStore {
   addXp: (amount: number) => Promise<void>;
   /** Record a power-up chosen on level-up (optimistic update). */
   addPowerUp: (id: PowerUpId) => Promise<void>;
+  /** Advance the daily streak after a round / battle (#28). */
+  recordActivity: () => Promise<void>;
   clearProfile: () => void;
 }
 
@@ -48,7 +57,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ loading: true, error: null });
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, birth_year, birth_month, skill_levels, xp, power_ups')
+      .select(
+        'id, birth_year, birth_month, skill_levels, xp, power_ups, current_streak, longest_streak, last_played_on',
+      )
       .eq('id', userId)
       .single();
     if (error) {
@@ -90,6 +101,34 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const { error } = await supabase
       .from('profiles')
       .update({ power_ups: powerUps, updated_at: new Date().toISOString() })
+      .eq('id', profile.id);
+    if (error) set({ error: errorMessage(error) });
+  },
+
+  recordActivity: async () => {
+    const profile = get().profile;
+    if (!profile) return;
+    const today = todayIso();
+    // Same-day no-op — don't write or even nudge the streak.
+    if (profile.lastPlayedOn === today) return;
+    const newCurrent = nextStreak(profile.currentStreak, profile.lastPlayedOn, today);
+    const newLongest = Math.max(profile.longestStreak, newCurrent);
+    set({
+      profile: {
+        ...profile,
+        currentStreak: newCurrent,
+        longestStreak: newLongest,
+        lastPlayedOn: today,
+      },
+    });
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        current_streak: newCurrent,
+        longest_streak: newLongest,
+        last_played_on: today,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', profile.id);
     if (error) set({ error: errorMessage(error) });
   },

@@ -129,6 +129,22 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Daily-streak hook (#28)
+- Migration `0007_add_streak.sql`: adds `current_streak`, `longest_streak`,
+  `last_played_on` to `profiles`. Defaults to 0 / 0 / null.
+- `lib/streak.ts`: pure date math — `todayIso` (local YYYY-MM-DD),
+  `isoOffset`, `nextStreak(prev, lastPlayed, today)`. Same-day → unchanged,
+  yesterday → +1, older or null → 1. No timezone surprises (uses local
+  calendar day, so a kid's day is whatever day it is on their wall clock).
+- `profileStore.recordActivity()`: optimistic update + Supabase write.
+  Skips the write entirely on same-day replay.
+- Wired into `QuizRound.finishRound` and `BattleArena.finishBattle` —
+  every round / battle advances the streak.
+- `components/StreakBadge.tsx`: 🔥 + day count, fixed top-16 left-3
+  (below `LevelBadge`). Calls out a tie with `longestStreak` as "Best
+  streak!". Renders nothing on day zero.
+- ⚠️ Deploy required: apply `0007_add_streak.sql` — see ISSUES.md #35.
+
 ### 2026-05-17 — Topic-aware loading screen with rotating fun facts
 - `lib/funFacts.ts`: 4-topic pool (math / science / engineering / creativity)
   with 5 facts each, plus a `GENERIC_FACTS` fallback for context-free loads.

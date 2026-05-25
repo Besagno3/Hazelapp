@@ -34,13 +34,14 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #25 | 🟢 | Low    | No end-of-round "missed questions" recap — explanations flash once and are lost |
 | #26 | 🟢 | Med    | No way to flag a wrong/awkward question — LLM errors have no feedback loop |
 | #27 | 🔴 | Low    | Power-ups stack uncapped + all four bias offense — high-level battles trivialise |
-| #28 | 🔴 | Low    | No daily-streak / return-tomorrow hook — the canonical kids-game retention loop |
+| #28 | 🟢 | Low    | No daily-streak / return-tomorrow hook — the canonical kids-game retention loop |
 | #29 | 🔴 | Med    | No parent dashboard — buyers see nothing of their kid's progress |
 | #30 | 🔴 | Low    | Cache-vs-AI split is uniformly random — no reuse bias, no per-session cost cap |
 | #31 | 🟢 | Low    | "Loading…" dead air while Claude generates — needs a fun fact / mascot animation |
 | #32 | 🔴 | Low    | Battles never nudge `skill_levels` — fighting NPCs teaches the difficulty model nothing |
 | #33 | 🔴 | Low    | Topic set is hardcoded to four — no easy path to add history, language, etc. |
 | #34 | 🟢 | High   | Apply migration 0006 + redeploy the edge function (per-player dedupe + flags) |
+| #35 | 🔴 | High   | Apply migration 0007 (streak columns on profiles) |
 
 ---
 
@@ -166,6 +167,14 @@ and a "Next Question" / "See Results" button; the player advances when ready.
 `0006_question_views_and_flags.sql` applied and `generate-questions`
 redeployed. Per-player dedupe (#24) and flag quarantine (#26) are live.
 
+### #35 — Apply migration 0007 (streak columns) 🔴 High
+The daily-streak hook (#28) needs `0007_add_streak.sql` applied — adds
+`current_streak`, `longest_streak`, `last_played_on` to `profiles`.
+Until applied, `profileStore.loadProfile` (which now selects these
+columns) errors and no profile loads. **Action:** run
+`0007_add_streak.sql` in the Supabase SQL Editor. No edge-function
+redeploy needed.
+
 ### #33 — Topic set is hardcoded 🔴 Low
 The four topics (math, science, engineering, creativity) are baked into the
 `Topic` union, the edge function's `TOPICS` list, and the `TopicSelect` UI.
@@ -208,13 +217,16 @@ parents will pay for". Data is already in Supabase — mostly UI work. Auth
 question to resolve: separate parent account vs. same account with a
 passcode-gated view.
 
-### #28 — No daily-streak hook 🔴 Low
-Kids' education apps live or die by daily-return loops (Duolingo's whole
-model). Add a `current_streak` + `last_played_on` to `profiles`, advance it
-when a round is completed on a new day, reset when a day is missed. Surface
-it as a 🔥 counter next to the level medallion. One column + one component;
-typically doubles 7-day retention in this genre. Soften with a one-day grace
-("streak freeze") so a missed day isn't crushing.
+### #28 — No daily-streak hook 🟢 Low — RESOLVED (2026-05-17)
+Migration `0007_add_streak.sql` adds `current_streak`, `longest_streak`,
+`last_played_on` (date) to `profiles`. `lib/streak.ts` ships pure date
+math (`todayIso`, `isoOffset`, `nextStreak`) — same-day → unchanged,
+yesterday → +1, older → 1. `profileStore.recordActivity()` runs from both
+`QuizRound.finishRound` and `BattleArena.finishBattle`. `StreakBadge`
+shows 🔥 + day count below the level medallion, with a "Best streak!"
+callout when current ties longest. No streak-freeze yet — explicitly
+deferred to keep the first ship simple. Regression tests: TC-92..TC-100.
+Awaits deployment of migration 0007 (#35).
 
 ### #27 — Power-up stacking goes infinite 🔴 Low
 Stacks are uncapped, all four power-ups are combat-leaning (no curiosity /

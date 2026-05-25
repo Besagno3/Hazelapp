@@ -102,6 +102,15 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-89 | C | ✅ | LoadingScreen | shows a topic-specific fact when a topic is provided |
 | TC-90 | C | ✅ | LoadingScreen | falls back to a generic fact when no topic is provided |
 | TC-91 | U | ✅ | funFacts | every topic pool has at least 3 facts; `pickFact` is seed-deterministic |
+| TC-92 | U | ✅ | streak | `todayIso` formats YYYY-MM-DD in local time |
+| TC-93 | U | ✅ | streak | `todayIso` zero-pads single-digit months and days |
+| TC-94 | U | ✅ | streak | `isoOffset` returns the prior day |
+| TC-95 | U | ✅ | streak | `isoOffset` handles month / year rollovers |
+| TC-96 | U | ✅ | streak | `nextStreak` is unchanged on same-day replay |
+| TC-97 | U | ✅ | streak | `nextStreak` increments after yesterday |
+| TC-98 | U | ✅ | streak | `nextStreak` resets to 1 after a gap |
+| TC-99 | U | ✅ | streak | `nextStreak` starts at 1 from null |
+| TC-100 | C | ✅ | StreakBadge | renders nothing at 0; pluralises days; flags "Best streak!" on tie |
 
 ## Regression cases (tied to ISSUES.md)
 
