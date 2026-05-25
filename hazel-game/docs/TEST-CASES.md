@@ -111,6 +111,13 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-98 | U | ✅ | streak | `nextStreak` resets to 1 after a gap |
 | TC-99 | U | ✅ | streak | `nextStreak` starts at 1 from null |
 | TC-100 | C | ✅ | StreakBadge | renders nothing at 0; pluralises days; flags "Best streak!" on tie |
+| TC-101 | U | ✅ | powerups | `effectiveStacks` is identity for 0-5 |
+| TC-102 | U | ✅ | powerups | `effectiveStacks` adds 0.5 per stack between 6 and 10 |
+| TC-103 | U | ✅ | powerups | `effectiveStacks` adds 0.25 per stack past 10 |
+| TC-104 | U | ✅ | powerups | bonuses soft-cap past 5 stacks (attack/vitality) |
+| TC-105 | U | ✅ | powerups | `choicesForLevel` returns the requested count from the catalogue |
+| TC-106 | U | ✅ | powerups | `choicesForLevel` is deterministic per level (no refresh-reroll) |
+| TC-107 | U | ✅ | powerups | `choicesForLevel` rotates across consecutive levels |
 
 ## Regression cases (tied to ISSUES.md)
 

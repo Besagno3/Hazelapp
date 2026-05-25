@@ -33,7 +33,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #24 | 🟢 | Med    | Cache has no per-player dedupe — the same kid can see the same question twice |
 | #25 | 🟢 | Low    | No end-of-round "missed questions" recap — explanations flash once and are lost |
 | #26 | 🟢 | Med    | No way to flag a wrong/awkward question — LLM errors have no feedback loop |
-| #27 | 🔴 | Low    | Power-ups stack uncapped + all four bias offense — high-level battles trivialise |
+| #27 | 🟢 | Low    | Power-ups stack uncapped + all four bias offense — high-level battles trivialise |
 | #28 | 🟢 | Low    | No daily-streak / return-tomorrow hook — the canonical kids-game retention loop |
 | #29 | 🔴 | Med    | No parent dashboard — buyers see nothing of their kid's progress |
 | #30 | 🔴 | Low    | Cache-vs-AI split is uniformly random — no reuse bias, no per-session cost cap |
@@ -228,14 +228,15 @@ callout when current ties longest. No streak-freeze yet — explicitly
 deferred to keep the first ship simple. Regression tests: TC-92..TC-100.
 Awaits deployment of migration 0007 (#35).
 
-### #27 — Power-up stacking goes infinite 🔴 Low
-Stacks are uncapped, all four power-ups are combat-leaning (no curiosity /
-utility), and Scholar self-amplifies XP gain (more Scholar → more XP → more
-level-ups → more Scholar). A high-level player one-shots every NPC and
-battles stop being interesting. Two non-exclusive fixes: (a) diminishing
-returns past 5 stacks per power-up; (b) offer 2 of 4 randomly per level-up,
-forcing real choice. Sequencing: only matters once players actually reach
-high levels — pairs naturally with #28.
+### #27 — Power-up stacking goes infinite 🟢 Low — RESOLVED (2026-05-17)
+Both fixes shipped: `effectiveStacks` in `lib/powerups.ts` gives full
+credit through stack 5, half through 10, quarter past 10 — bonuses
+asymptote instead of growing linearly. `choicesForLevel(level, 2)`
+deterministically offers 2 of 4 power-ups per level (seeded by level so
+refresh can't reroll), and `LevelUpModal` uses it. Combat-bias is now
+the player's deliberate choice within the available pair rather than an
+auto-stack. Regression tests: TC-101..TC-107. Pure code change; no
+migration or redeploy needed.
 
 ### #26 — No flag-a-question feedback loop 🟢 Med — RESOLVED (2026-05-17)
 Migration `0006_question_views_and_flags.sql` adds `question_flags`

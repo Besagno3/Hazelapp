@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useProfileStore } from '../store/profileStore';
 import { playerLevel } from '../lib/level';
-import { POWER_UPS, totalPowerUps } from '../lib/powerups';
+import { choicesForLevel, totalPowerUps } from '../lib/powerups';
 import type { PowerUpId } from '../types';
 
 /**
@@ -48,7 +48,7 @@ export default function LevelUpModal() {
         </p>
 
         <div className="grid grid-cols-2 gap-3">
-          {POWER_UPS.map((pu) => {
+          {choicesForLevel(celebrating, 2).map((pu) => {
             const have = profile.powerUps[pu.id] ?? 0;
             return (
               <button

@@ -129,6 +129,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Power-up scaling: soft cap + 2-of-4 random offer (#27)
+- `lib/powerups.ts` `effectiveStacks(n)`: full credit through 5, half
+  credit 6-10, quarter credit 11+. All four bonus functions multiply by
+  `effectiveStacks` instead of raw `stacks`, then `Math.round` for clean
+  integer HP / damage / XP. At 10 stacks you get 75% of linear; at 20,
+  50%. Late-game battles stay interesting.
+- `lib/powerups.ts` `choicesForLevel(level, count=2)`: deterministic
+  Fisher-Yates seeded by `level` returns 2 of 4 power-ups. Same level
+  always offers the same choices (refresh-proof). `LevelUpModal` calls
+  it instead of mapping all 4 — kids actually have to choose.
+- No migration needed (pure code change). Existing power-up stacks
+  smoothly reinterpreted under the new formula.
+
 ### 2026-05-17 — Daily-streak hook (#28)
 - Migration `0007_add_streak.sql`: adds `current_streak`, `longest_streak`,
   `last_played_on` to `profiles`. Defaults to 0 / 0 / null.
