@@ -129,6 +129,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Battles nudge the skill ramp (#32)
+- `lib/age.ts` `nextSkillLevelFromBattle(current, answers)`: applies the
+  same shape as `nextSkillLevel` but clamped to never *lower* the current
+  skill — NPCs scale to age, not skill, so a tough loss shouldn't punish
+  the kid twice (lost battle + easier next quiz).
+- `BattleArena.finishBattle` calls `setSkillLevel(npc.topic, …)` with
+  the new value when it actually moved. First-time topic battles
+  establish a skill level (via `skillLevelFor` fallback to age start).
+
 ### 2026-05-17 — Power-up scaling: soft cap + 2-of-4 random offer (#27)
 - `lib/powerups.ts` `effectiveStacks(n)`: full credit through 5, half
   credit 6-10, quarter credit 11+. All four bonus functions multiply by

@@ -5,6 +5,7 @@ import {
   clampLevel,
   skillLevelFor,
   nextSkillLevel,
+  nextSkillLevelFromBattle,
   MIN_SKILL_LEVEL,
   MAX_SKILL_LEVEL,
 } from './age';
@@ -71,5 +72,23 @@ describe('nextSkillLevel', () => {
     expect(nextSkillLevel(MIN_SKILL_LEVEL, [false, false, false, false, false])).toBe(
       MIN_SKILL_LEVEL,
     );
+  });
+});
+
+describe('nextSkillLevelFromBattle', () => {
+  it('matches nextSkillLevel when the player performed well', () => {
+    expect(nextSkillLevelFromBattle(5, [true, true, true, true, true])).toBe(
+      nextSkillLevel(5, [true, true, true, true, true]),
+    );
+  });
+
+  it('never lowers the skill — a weak battle holds steady', () => {
+    expect(nextSkillLevelFromBattle(5, [false, false, false, false, false])).toBe(5);
+  });
+
+  it('still respects the [1, 10] clamp on raises', () => {
+    expect(
+      nextSkillLevelFromBattle(MAX_SKILL_LEVEL, [true, true, true, true, true]),
+    ).toBe(MAX_SKILL_LEVEL);
   });
 });

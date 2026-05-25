@@ -62,3 +62,13 @@ export function nextSkillLevel(current: number, answers: boolean[]): number {
   else delta = 0; // holding steady
   return clampLevel(current + delta);
 }
+
+/**
+ * Skill level after a battle — same logic as `nextSkillLevel`, but battles
+ * never *lower* the player's skill. NPCs scale to the player's age, not
+ * their skill, so a tough loss shouldn't make the next quiz round easier
+ * (that would punish the kid twice). Strong play still raises it. (#32)
+ */
+export function nextSkillLevelFromBattle(current: number, answers: boolean[]): number {
+  return Math.max(clampLevel(current), nextSkillLevel(current, answers));
+}

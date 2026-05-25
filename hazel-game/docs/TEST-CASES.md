@@ -118,6 +118,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-105 | U | ✅ | powerups | `choicesForLevel` returns the requested count from the catalogue |
 | TC-106 | U | ✅ | powerups | `choicesForLevel` is deterministic per level (no refresh-reroll) |
 | TC-107 | U | ✅ | powerups | `choicesForLevel` rotates across consecutive levels |
+| TC-108 | U | ✅ | age | `nextSkillLevelFromBattle` matches `nextSkillLevel` when raising |
+| TC-109 | U | ✅ | age | `nextSkillLevelFromBattle` never lowers on a weak battle |
+| TC-110 | U | ✅ | age | `nextSkillLevelFromBattle` still respects the [1, 10] clamp |
 
 ## Regression cases (tied to ISSUES.md)
 

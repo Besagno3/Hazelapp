@@ -38,7 +38,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #29 | 🔴 | Med    | No parent dashboard — buyers see nothing of their kid's progress |
 | #30 | 🔴 | Low    | Cache-vs-AI split is uniformly random — no reuse bias, no per-session cost cap |
 | #31 | 🟢 | Low    | "Loading…" dead air while Claude generates — needs a fun fact / mascot animation |
-| #32 | 🔴 | Low    | Battles never nudge `skill_levels` — fighting NPCs teaches the difficulty model nothing |
+| #32 | 🟢 | Low    | Battles never nudge `skill_levels` — fighting NPCs teaches the difficulty model nothing |
 | #33 | 🔴 | Low    | Topic set is hardcoded to four — no easy path to add history, language, etc. |
 | #34 | 🟢 | High   | Apply migration 0006 + redeploy the edge function (per-player dedupe + flags) |
 | #35 | 🔴 | High   | Apply migration 0007 (streak columns on profiles) |
@@ -183,13 +183,14 @@ edits in 3-4 places + system-prompt tuning per topic. Worth a tiny abstraction
 (`TOPIC_REGISTRY` with `id`, `label`, `icon`, `claude_persona_hint`) so future
 topics are a one-file add.
 
-### #32 — Battles don't move the skill ramp 🔴 Low
-`QuizRound.finishRound` calls `nextSkillLevel`; `BattleArena` does not. Result:
-a kid can fight 50 NPCs and the per-topic difficulty never adjusts. Easiest
-fix: after each battle, call a lighter version of `nextSkillLevel` (smaller
-deltas, since battle answers cycle a 9-question pool across multiple rounds).
-Tradeoff: muddies the "battles use NPC level, not skill level" boundary —
-needs a clear rule for which signal wins on the next quiz round.
+### #32 — Battles don't move the skill ramp 🟢 Low — RESOLVED (2026-05-17)
+`lib/age.ts` ships `nextSkillLevelFromBattle(current, answers)` — same
+shape as `nextSkillLevel` but clamped to never lower the current skill
+(NPCs scale to age, not skill, so a tough loss shouldn't make the next
+quiz easier and punish the kid twice). `BattleArena.finishBattle` reads
+the player's current topic skill (`skillLevelFor` falls back to age start
+for never-played topics) and writes the new value via `setSkillLevel`
+only when it changed. Regression tests: TC-108..TC-110. No deploy needed.
 
 ### #31 — Loading screen dead air 🟢 Low — RESOLVED (2026-05-17)
 `lib/funFacts.ts` ships a per-topic pool (5 facts each for math, science,

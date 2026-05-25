@@ -8,6 +8,7 @@ import { calcAttackDamage } from '../../lib/utils';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { attackBonus, defenseBonus, xpBonusPerCorrect } from '../../lib/powerups';
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
+import { calcAge, nextSkillLevelFromBattle, skillLevelFor } from '../../lib/age';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 
 const QUESTIONS_PER_ROUND = 3;
@@ -19,8 +20,10 @@ export default function BattleArena() {
   const npc = battle.npc!;
   const topic = npc.topic;
   const addXp = useProfileStore((s) => s.addXp);
+  const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
   const recordActivity = useProfileStore((s) => s.recordActivity);
-  const powerUps = useProfileStore((s) => s.profile?.powerUps) ?? {};
+  const profile = useProfileStore((s) => s.profile);
+  const powerUps = profile?.powerUps ?? {};
   // Battle question difficulty is the NPC's level, not the player's skill ramp.
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
@@ -70,6 +73,13 @@ export default function BattleArena() {
       (result === 'win' ? npcDefeatXp(npc.level) : 0);
     void addXp(reward);
     void recordActivity();
+    // Battles nudge the topic's skill ramp upward only — they never lower it. (#32)
+    if (profile) {
+      const age = calcAge(profile.birthYear, profile.birthMonth);
+      const currentSkill = skillLevelFor(profile.skillLevels, npc.topic, age);
+      const newSkill = nextSkillLevelFromBattle(currentSkill, allAnswers.current);
+      if (newSkill !== currentSkill) void setSkillLevel(npc.topic, newSkill);
+    }
     endBattle(result);
   }
 
