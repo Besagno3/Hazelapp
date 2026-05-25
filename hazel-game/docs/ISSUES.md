@@ -41,7 +41,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #32 | 🟢 | Low    | Battles never nudge `skill_levels` — fighting NPCs teaches the difficulty model nothing |
 | #33 | 🔴 | Low    | Topic set is hardcoded to four — no easy path to add history, language, etc. |
 | #34 | 🟢 | High   | Apply migration 0006 + redeploy the edge function (per-player dedupe + flags) |
-| #35 | 🔴 | High   | Apply migration 0007 (streak columns on profiles) |
+| #35 | 🟢 | High   | Apply migration 0007 (streak columns on profiles) |
 
 ---
 
@@ -167,13 +167,10 @@ and a "Next Question" / "See Results" button; the player advances when ready.
 `0006_question_views_and_flags.sql` applied and `generate-questions`
 redeployed. Per-player dedupe (#24) and flag quarantine (#26) are live.
 
-### #35 — Apply migration 0007 (streak columns) 🔴 High
-The daily-streak hook (#28) needs `0007_add_streak.sql` applied — adds
-`current_streak`, `longest_streak`, `last_played_on` to `profiles`.
-Until applied, `profileStore.loadProfile` (which now selects these
-columns) errors and no profile loads. **Action:** run
-`0007_add_streak.sql` in the Supabase SQL Editor. No edge-function
-redeploy needed.
+### #35 — Apply migration 0007 (streak columns) 🟢 High — RESOLVED (2026-05-17)
+`0007_add_streak.sql` applied and `generate-questions` redeployed
+(also picks up #30's smarter cache mix). The daily-streak hook (#28)
+is live end-to-end.
 
 ### #33 — Topic set is hardcoded 🔴 Low
 The four topics (math, science, engineering, creativity) are baked into the
