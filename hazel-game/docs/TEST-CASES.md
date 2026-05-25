@@ -88,6 +88,17 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-75 | U | ✅ | powerups | `totalPowerUps` sums every stack |
 | TC-76 | C | ⬜ | LevelUpModal | appears when a power-up is owed (level > chosen + 1) |
 | TC-77 | C | ⬜ | LevelUpModal | choosing a power-up records it and closes / advances |
+| TC-78 | U | ✅ | questions | `flagQuestion` inserts profile_id + question_id + chosen reason |
+| TC-79 | U | ✅ | questions | `flagQuestion` defaults reason to null when not provided |
+| TC-80 | U | ✅ | questions | `flagQuestion` no-ops on synthetic `fresh-…` IDs (FK would fail) |
+| TC-81 | U | ✅ | questions | `flagQuestion` throws "sign in" message when no session |
+| TC-82 | U | ✅ | questions | `flagQuestion` wraps auth errors with a flag-context prefix |
+| TC-83 | U | ✅ | questions | `flagQuestion` wraps DB insert errors with a flag-context prefix |
+| TC-84 | C | ✅ | FlagButton | starts with a "Report this question" button |
+| TC-85 | C | ✅ | FlagButton | clicking opens the reason picker; Cancel closes it |
+| TC-86 | C | ✅ | FlagButton | choosing a reason calls `flagQuestion` and shows "Reported" |
+| TC-87 | C | ✅ | FlagButton | a failed flag surfaces the underlying error |
+| TC-88 | M | ⬜ | QuizRound | result screen shows wrong questions + correct answers + explanations |
 
 ## Regression cases (tied to ISSUES.md)
 
@@ -97,6 +108,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-R2 | U | ✅ | #2 | 4/5 correct passes a round at the intended threshold |
 | TC-R3 | U | ⬜ | #3 | missing Supabase env produces a clear error, not a crash |
 | TC-R4 | C | ⬜ | #6 | sign-up pending confirmation does NOT enter the game |
+| TC-R5 | M | ⬜ | #23 | after 0005, a quiz round increases `select count(*) from questions` |
+| TC-R6 | M | ⬜ | #24 | after 0006, two back-to-back rounds return non-overlapping question IDs |
+| TC-R7 | M | ⬜ | #26 | flagging a question removes it from the next call's cache pool |
 
 ---
 

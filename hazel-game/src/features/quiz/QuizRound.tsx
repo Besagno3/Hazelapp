@@ -10,6 +10,7 @@ import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { prefetchQuestions, QUIZ_QUESTION_COUNT } from '../../lib/questions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
+import FlagButton from '../../components/FlagButton';
 
 export default function QuizRound() {
   const { progress, completeRound, setPhase } = useGameStore();
@@ -25,6 +26,8 @@ export default function QuizRound() {
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<boolean[]>([]);
+  /** The option index the player picked, per question — for the missed-questions recap (#25). */
+  const [picks, setPicks] = useState<number[]>([]);
   const [done, setDone] = useState(false);
 
   if (loading) return <LoadingScreen label="Building your questions…" />;
@@ -45,6 +48,7 @@ export default function QuizRound() {
     if (selected !== null) return;
     setSelected(idx);
     setAnswers((a) => [...a, idx === q.correctIndex]);
+    setPicks((p) => [...p, idx]);
   }
 
   function finishRound() {
@@ -74,22 +78,65 @@ export default function QuizRound() {
   }
 
   if (done) {
+    const missed = questions
+      .map((question, i) => ({ question, picked: picks[i], correct: answers[i] }))
+      .filter((m) => m.correct === false);
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6">
         <motion.div
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-2xl p-10 text-center shadow-2xl max-w-sm w-full"
+          className="bg-white rounded-2xl p-8 shadow-2xl max-w-lg w-full"
         >
-          <div className="text-6xl mb-4">{passed ? '🏆' : '😅'}</div>
-          <h2 className="text-2xl font-bold mb-2">{passed ? 'Round Passed!' : 'Keep Trying!'}</h2>
-          <p className="text-gray-500 mb-6">Score: {Math.round(score * 100)}%</p>
-          <button
-            onClick={() => setPhase('topic-select')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-6 py-2 transition"
-          >
-            Back to Topics
-          </button>
+          <div className="text-center">
+            <div className="text-6xl mb-4">{passed ? '🏆' : '😅'}</div>
+            <h2 className="text-2xl font-bold mb-2">
+              {passed ? 'Round Passed!' : 'Keep Trying!'}
+            </h2>
+            <p className="text-gray-500 mb-6">Score: {Math.round(score * 100)}%</p>
+          </div>
+
+          {missed.length > 0 && (
+            <div className="mb-6 text-left">
+              <h3 className="text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide">
+                What you missed
+              </h3>
+              <ul className="space-y-3">
+                {missed.map(({ question, picked }) => (
+                  <li
+                    key={question.id}
+                    className="border border-gray-200 rounded-lg p-3 text-sm"
+                  >
+                    <p className="font-medium text-gray-800 mb-2">{question.text}</p>
+                    {picked !== undefined && (
+                      <p className="text-red-600 mb-1">
+                        Your answer: <span className="font-medium">{question.options[picked]}</span>
+                      </p>
+                    )}
+                    <p className="text-green-700 mb-1">
+                      Correct:{' '}
+                      <span className="font-medium">
+                        {question.options[question.correctIndex]}
+                      </span>
+                    </p>
+                    {question.explanation && (
+                      <p className="text-gray-500 mt-1">💡 {question.explanation}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="text-center">
+            <button
+              onClick={() => setPhase('topic-select')}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-6 py-2 transition"
+            >
+              Back to Topics
+            </button>
+          </div>
         </motion.div>
       </div>
     );
@@ -144,6 +191,12 @@ export default function QuizRound() {
               >
                 💡 {q.explanation}
               </motion.p>
+            )}
+
+            {selected !== null && (
+              <div className="mt-3">
+                <FlagButton questionId={q.id} />
+              </div>
             )}
 
             {selected !== null && (

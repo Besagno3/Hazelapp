@@ -25,6 +25,8 @@ const TOPICS = ['math', 'science', 'engineering', 'creativity'] as const;
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
 const LEVEL_BAND = 2;
+/** Most-recent views excluded per profile (see ISSUES.md #24). */
+const SEEN_HISTORY_LIMIT = 100;
 
 const SYSTEM_PROMPT = `You are a question writer for "Hazel Quest", an educational quiz-battle game for children.
 
@@ -212,7 +214,25 @@ Deno.serve(async (req) => {
   // Service-role client for the question cache (bypasses RLS).
   const dbUrl = Deno.env.get('SUPABASE_URL');
   const dbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const db: SupabaseClient | null = dbUrl && dbKey ? createClient(dbUrl, dbKey) : null;
+
+  // Identify the caller (for per-player dedupe, #24). Anonymous calls skip dedupe.
+  let profileId: string | null = null;
+  if (dbUrl && anonKey) {
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
+      try {
+        const userClient = createClient(dbUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: userData } = await userClient.auth.getUser();
+        profileId = userData?.user?.id ?? null;
+      } catch (e) {
+        console.error('auth lookup failed:', e instanceof Error ? e.message : String(e));
+      }
+    }
+  }
 
   try {
     // 1. Read cached questions for this topic, within ±LEVEL_BAND of the player.
@@ -227,6 +247,32 @@ Deno.serve(async (req) => {
         .limit(CACHE_LOOKUP_LIMIT);
       if (error) console.error('cache read failed:', error.message);
       else cached = (data ?? []) as CacheRow[];
+    }
+
+    // 1a. Exclude flagged questions (#26) and the player's recently-seen ones (#24).
+    if (db && cached.length > 0) {
+      const cachedIds = cached.map((r) => r.id);
+
+      const { data: flagRows, error: flagErr } = await db
+        .from('question_flags')
+        .select('question_id')
+        .in('question_id', cachedIds);
+      if (flagErr) console.error('flag read failed:', flagErr.message);
+      const flaggedSet = new Set((flagRows ?? []).map((r) => r.question_id as string));
+
+      let seenSet = new Set<string>();
+      if (profileId) {
+        const { data: viewRows, error: viewErr } = await db
+          .from('question_views')
+          .select('question_id')
+          .eq('profile_id', profileId)
+          .order('seen_at', { ascending: false })
+          .limit(SEEN_HISTORY_LIMIT);
+        if (viewErr) console.error('view read failed:', viewErr.message);
+        seenSet = new Set((viewRows ?? []).map((r) => r.question_id as string));
+      }
+
+      cached = cached.filter((r) => !flaggedSet.has(r.id) && !seenSet.has(r.id));
     }
 
     // 2. Randomly split the batch between reuse and fresh generation.
@@ -286,6 +332,21 @@ Deno.serve(async (req) => {
     // 5. Sprinkle reused + fresh together randomly.
     const reusedOut = reused.map((r) => ({ ...rowToOut(r), timesAsked: r.times_asked + 1 }));
     const questions = shuffle([...reusedOut, ...fresh]);
+
+    // 6. Record this delivery in question_views so the player won't see the
+    // same ones for the next SEEN_HISTORY_LIMIT views (#24). Best-effort —
+    // a write failure is logged but does not break the response.
+    if (db && profileId && questions.length > 0) {
+      // Synthetic IDs (fresh-…) only appear when the cache insert failed and
+      // the question isn't in the questions table — skip those so the FK holds.
+      const viewRows = questions
+        .filter((q) => !q.id.startsWith('fresh-'))
+        .map((q) => ({ profile_id: profileId, question_id: q.id }));
+      if (viewRows.length > 0) {
+        const { error: viewInsErr } = await db.from('question_views').insert(viewRows);
+        if (viewInsErr) console.error('view insert failed:', viewInsErr.message);
+      }
+    }
 
     return json({
       topic,

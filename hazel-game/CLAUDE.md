@@ -129,6 +129,46 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Per-player dedupe + flag-a-question + missed-questions recap
+- Migration `0006_question_views_and_flags.sql`: `question_views` (per-profile
+  history of every question served) and `question_flags` (any single flag
+  quarantines a question from the cache pool). RLS on; explicit grants to
+  `service_role` (and `INSERT` to `authenticated` on flags so kids can
+  report directly via RLS, no edge function needed).
+- `generate-questions` edge function: pulls `auth.uid()` from the caller's
+  JWT, excludes flagged + most-recent-100-seen rows from the cache pool,
+  then writes a `question_views` row per question returned. Synthetic
+  `fresh-…` IDs are skipped on the view insert (FK would fail). Resolves #24.
+- `lib/questions.ts` `flagQuestion(id, reason?)`: direct RLS-protected
+  insert. New `FlagReason` type covers the three reasons offered in the UI.
+- `components/FlagButton.tsx`: small 🚩 affordance inline with the
+  post-answer explanation in `QuizRound`. Click opens a 3-reason picker
+  (wrong answer / confusing / difficulty) + cancel; on submit shows
+  "🚩 Reported — thanks!". Resolves #26.
+- `QuizRound` round-result screen now shows a "What you missed" recap —
+  each wrong question with the player's pick, the correct answer, and the
+  explanation. Tracks the picked option per question (new `picks` state).
+  Resolves #25.
+- ⚠️ Deploy required: apply `0006_question_views_and_flags.sql` AND redeploy
+  the edge function — see ISSUES.md #34.
+
+### 2026-05-17 — Logged 10 UX improvement candidates (#24-#33)
+- Logged a batch of player-experience improvements as ISSUES #24-#33: cache
+  per-player dedupe, missed-questions recap, flag-a-question, power-up
+  scaling, daily streak, parent dashboard, smarter cache mix, loading-screen
+  polish, battle skill ramp, topic-registry abstraction.
+- Recommended sequencing (in chat): Trust → Engagement → Polish → Growth.
+
+### 2026-05-17 — Question cache grants fix
+- Migration `0005_questions_grants.sql`: explicitly grants `select, insert,
+  update` on `public.questions` and `execute` on `increment_question_usage`
+  to `service_role`. Edge-function logs were showing
+  `cache insert failed: permission denied for table questions` — RLS is
+  bypassed for the service role, but it still needs the underlying GRANTs
+  when a project's public-schema default privileges have been tightened.
+  Without this, every batch is generated fresh and nothing is ever cached.
+- ⚠️ Deploy required: apply `0005_questions_grants.sql` — see ISSUES.md #23.
+
 ### 2026-05-17 — Player-controlled Next button
 - `QuizRound` no longer auto-advances on a timer. After answering, the result
   + explanation stay on screen until the player clicks "Next Question" /

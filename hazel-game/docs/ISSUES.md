@@ -29,6 +29,18 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #20 | 🟢 | Low    | No visual feedback (pop / celebration) when the player levels up |
 | #21 | 🔴 | High   | Migration `0004_power_ups.sql` must be applied or profile load fails |
 | #22 | 🟢 | Low    | Quiz auto-advances on a fixed timer — a Next button would suit all readers |
+| #23 | 🔴 | High   | Question cache inserts fail — `service_role` lacks INSERT on `questions` |
+| #24 | 🟢 | Med    | Cache has no per-player dedupe — the same kid can see the same question twice |
+| #25 | 🟢 | Low    | No end-of-round "missed questions" recap — explanations flash once and are lost |
+| #26 | 🟢 | Med    | No way to flag a wrong/awkward question — LLM errors have no feedback loop |
+| #27 | 🔴 | Low    | Power-ups stack uncapped + all four bias offense — high-level battles trivialise |
+| #28 | 🔴 | Low    | No daily-streak / return-tomorrow hook — the canonical kids-game retention loop |
+| #29 | 🔴 | Med    | No parent dashboard — buyers see nothing of their kid's progress |
+| #30 | 🔴 | Low    | Cache-vs-AI split is uniformly random — no reuse bias, no per-session cost cap |
+| #31 | 🔴 | Low    | "Loading…" dead air while Claude generates — needs a fun fact / mascot animation |
+| #32 | 🔴 | Low    | Battles never nudge `skill_levels` — fighting NPCs teaches the difficulty model nothing |
+| #33 | 🔴 | Low    | Topic set is hardcoded to four — no easy path to add history, language, etc. |
+| #34 | 🔴 | High   | Apply migration 0006 + redeploy the edge function (per-player dedupe + flags) |
 
 ---
 
@@ -151,6 +163,113 @@ level-up can't be missed (survives reloads, handles multi-level jumps).
 ### #22 — Quiz advances on a fixed timer 🟢 Low — RESOLVED (2026-05-17)
 The timer is gone. After answering, `QuizRound` shows the result + explanation
 and a "Next Question" / "See Results" button; the player advances when ready.
+
+### #34 — Apply migration 0006 + redeploy the edge function 🔴 High
+The per-player dedupe (#24) and flag quarantine (#26) need
+`0006_question_views_and_flags.sql` applied (creates `question_views` +
+`question_flags` with RLS + grants) and the rewritten `generate-questions`
+edge function redeployed. **Action:** run `0006_question_views_and_flags.sql`
+in the Supabase SQL Editor, then `supabase functions deploy
+generate-questions`. The function needs `SUPABASE_ANON_KEY` available
+(auto-injected by Supabase) to verify the caller's JWT.
+
+### #33 — Topic set is hardcoded 🔴 Low
+The four topics (math, science, engineering, creativity) are baked into the
+`Topic` union, the edge function's `TOPICS` list, and the `TopicSelect` UI.
+Adding history, language, geography, etc. is a low-risk change but requires
+edits in 3-4 places + system-prompt tuning per topic. Worth a tiny abstraction
+(`TOPIC_REGISTRY` with `id`, `label`, `icon`, `claude_persona_hint`) so future
+topics are a one-file add.
+
+### #32 — Battles don't move the skill ramp 🔴 Low
+`QuizRound.finishRound` calls `nextSkillLevel`; `BattleArena` does not. Result:
+a kid can fight 50 NPCs and the per-topic difficulty never adjusts. Easiest
+fix: after each battle, call a lighter version of `nextSkillLevel` (smaller
+deltas, since battle answers cycle a 9-question pool across multiple rounds).
+Tradeoff: muddies the "battles use NPC level, not skill level" boundary —
+needs a clear rule for which signal wins on the next quiz round.
+
+### #31 — Loading screen dead air 🔴 Low
+`StatusScreens` shows a generic spinner while the edge function generates
+fresh questions — often 3-5 seconds, which is a long time for a 7-year-old.
+Show one of: a rotating educational "did you know?" fact, an animated mascot,
+or a tip for the upcoming topic. Cheap to add (component-level), and turns a
+latency wart into a brand moment.
+
+### #30 — Random cache-vs-AI mix 🔴 Low
+`randInt(0, min(count, cached.length))` means even with hundreds of cached
+rows in band, ~1/6 of calls still ask for `count` fresh questions and ~1/6
+ask for 0 — there's no preference for reuse and no per-session ceiling on
+Claude calls. Fix: prefer reuse when `cached.length >= 3 * count`, fall back
+to fresh when the band is thin (or sprinkle in ~20% fresh for novelty).
+Sequencing note: this should land **after** #24 (per-player dedup), or a
+warm cache will keep returning the same question to the same kid.
+
+### #29 — No parent dashboard 🔴 Med
+Parents are the buyers; right now they can see literally nothing of their
+kid's progress, missed questions, or topic strengths. A single read-only
+`/parent` page (XP timeline, per-topic skill levels, recent missed questions,
+last-7-days streak) converts the product from "kids' game" to "kids' game
+parents will pay for". Data is already in Supabase — mostly UI work. Auth
+question to resolve: separate parent account vs. same account with a
+passcode-gated view.
+
+### #28 — No daily-streak hook 🔴 Low
+Kids' education apps live or die by daily-return loops (Duolingo's whole
+model). Add a `current_streak` + `last_played_on` to `profiles`, advance it
+when a round is completed on a new day, reset when a day is missed. Surface
+it as a 🔥 counter next to the level medallion. One column + one component;
+typically doubles 7-day retention in this genre. Soften with a one-day grace
+("streak freeze") so a missed day isn't crushing.
+
+### #27 — Power-up stacking goes infinite 🔴 Low
+Stacks are uncapped, all four power-ups are combat-leaning (no curiosity /
+utility), and Scholar self-amplifies XP gain (more Scholar → more XP → more
+level-ups → more Scholar). A high-level player one-shots every NPC and
+battles stop being interesting. Two non-exclusive fixes: (a) diminishing
+returns past 5 stacks per power-up; (b) offer 2 of 4 randomly per level-up,
+forcing real choice. Sequencing: only matters once players actually reach
+high levels — pairs naturally with #28.
+
+### #26 — No flag-a-question feedback loop 🟢 Med — RESOLVED (2026-05-17)
+Migration `0006_question_views_and_flags.sql` adds `question_flags`
+(`question_id`, `profile_id`, optional `reason`, `created_at`); RLS limits
+`INSERT` to `auth.uid() = profile_id`. `lib/questions.ts` `flagQuestion(id,
+reason?)` does the direct RLS-protected insert — no edge function needed.
+`components/FlagButton.tsx` is a 3-reason picker (wrong / confusing /
+difficulty) inline with the post-answer explanation in `QuizRound`. The
+edge function reads `question_flags` and excludes flagged rows from the
+cache pool (single-strike quarantine — easy to relax later). Regression
+test: TC-R7. Awaits deployment of migration 0006 (#34).
+
+### #25 — No "missed questions" recap 🟢 Low — RESOLVED (2026-05-17)
+`QuizRound`'s round-result screen now shows a "What you missed" section:
+each wrong question with the player's pick (now tracked in a new `picks`
+state), the correct answer, and the explanation. Section is omitted when
+the round was perfect. Regression test: TC-88 (manual). No backend
+dependency — ships with the next build.
+
+### #24 — Question cache has no per-player dedupe 🟢 Med — RESOLVED (2026-05-17)
+Migration `0006_question_views_and_flags.sql` adds `question_views`
+(`profile_id`, `question_id`, `seen_at`) with a `(profile_id, seen_at desc)`
+index. The edge function now extracts `auth.uid()` from the caller's JWT,
+reads the most recent 100 view rows for that profile (`SEEN_HISTORY_LIMIT`),
+excludes those IDs from the cache pool, and writes a view row per question
+returned. Synthetic `fresh-…` IDs are skipped on the view insert so a
+failed cache insert doesn't FK-violate the view insert. Soft cap chosen
+over hard-never-repeat to keep the cache pool viable. Regression test:
+TC-R6. Awaits deployment of migration 0006 (#34).
+
+### #23 — Question cache insert denied 🔴 High
+The edge function's Supabase logs show
+`cache insert failed: permission denied for table questions`. Migration 0003
+creates the `questions` table and enables RLS but does not GRANT table
+privileges to `service_role`; on projects where the public-schema default
+privileges have been tightened, the service role can read but not write, so
+every batch is generated fresh and nothing is ever cached. **Action:** apply
+`0005_questions_grants.sql` in the Supabase SQL Editor (no edge-function
+redeploy needed). Verify with `select count(*) from public.questions;` —
+the count should climb after the next quiz round. Regression test: TC-R5.
 
 ### #21 — Migration 0004 must be applied 🔴 High
 `0004_power_ups.sql` adds the `profiles.power_ups` column. Until applied,

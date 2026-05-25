@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { resolveErrorMessage } from './errors';
+import { errorMessage, resolveErrorMessage } from './errors';
 import type { Question, Topic } from '../types';
 
 /** Questions per quiz round. */
@@ -91,4 +91,28 @@ export async function fetchQuestions(
     return pre;
   }
   return invokeGenerate(topic, age, skillLevel, count);
+}
+
+/** Reasons surfaced in the flag UI; free-form `reason` strings are also accepted. */
+export type FlagReason = 'wrong_answer' | 'confusing' | 'difficulty';
+
+/**
+ * Flags a question for review. Any single flag quarantines the question from
+ * the cache pool (see edge function). Requires an authenticated session — the
+ * `question_flags` RLS policy enforces `profile_id = auth.uid()`.
+ */
+export async function flagQuestion(questionId: string, reason?: FlagReason): Promise<void> {
+  // Synthetic IDs ("fresh-…") come from a question that failed to cache; it
+  // doesn't exist server-side, so the FK insert would fail. Treat as no-op.
+  if (questionId.startsWith('fresh-')) return;
+
+  const { data: userData, error: authErr } = await supabase.auth.getUser();
+  if (authErr) throw new Error(`Couldn't flag question — ${errorMessage(authErr)}`);
+  const profile_id = userData?.user?.id;
+  if (!profile_id) throw new Error('Please sign in to flag a question.');
+
+  const { error } = await supabase
+    .from('question_flags')
+    .insert({ question_id: questionId, profile_id, reason: reason ?? null });
+  if (error) throw new Error(`Couldn't flag question — ${errorMessage(error)}`);
 }
