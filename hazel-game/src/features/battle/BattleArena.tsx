@@ -36,7 +36,7 @@ export default function BattleArena() {
   // Every answer across the whole battle — feeds the XP reward on the result.
   const allAnswers = useRef<boolean[]>([]);
 
-  if (loading) return <LoadingScreen label="Summoning your challenge…" />;
+  if (loading) return <LoadingScreen label="Summoning your challenge…" topic={topic} />;
   if (error) {
     return <ErrorScreen message={error} onRetry={reload} onBack={() => setGamePhase('world')} />;
   }

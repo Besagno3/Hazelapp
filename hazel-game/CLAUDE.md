@@ -129,6 +129,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-17 — Topic-aware loading screen with rotating fun facts
+- `lib/funFacts.ts`: 4-topic pool (math / science / engineering / creativity)
+  with 5 facts each, plus a `GENERIC_FACTS` fallback for context-free loads.
+- `LoadingScreen` now accepts an optional `topic` prop, picks a random
+  starting index, and rotates a fact every 4s with a fade transition.
+  `QuizRound` and `BattleArena` pass their topic. Turns the AI-generation
+  wait from dead air into a brand moment. Resolves #31.
+
+### 2026-05-17 — Closed 5 deploy issues
+- #17, #19, #21, #23, #34 all marked 🟢 — migrations 0002 through 0006
+  applied to the live Supabase project + `generate-questions` redeployed.
+  All question-cache and per-player dedupe features are now live.
+
 ### 2026-05-17 — Per-player dedupe + flag-a-question + missed-questions recap
 - Migration `0006_question_views_and_flags.sql`: `question_views` (per-profile
   history of every question served) and `question_flags` (any single flag

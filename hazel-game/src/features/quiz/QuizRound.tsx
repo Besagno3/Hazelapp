@@ -30,7 +30,7 @@ export default function QuizRound() {
   const [picks, setPicks] = useState<number[]>([]);
   const [done, setDone] = useState(false);
 
-  if (loading) return <LoadingScreen label="Building your questions…" />;
+  if (loading) return <LoadingScreen label="Building your questions…" topic={topic} />;
   if (error) {
     return (
       <ErrorScreen message={error} onRetry={reload} onBack={() => setPhase('topic-select')} />

@@ -99,6 +99,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-86 | C | ✅ | FlagButton | choosing a reason calls `flagQuestion` and shows "Reported" |
 | TC-87 | C | ✅ | FlagButton | a failed flag surfaces the underlying error |
 | TC-88 | M | ⬜ | QuizRound | result screen shows wrong questions + correct answers + explanations |
+| TC-89 | C | ✅ | LoadingScreen | shows a topic-specific fact when a topic is provided |
+| TC-90 | C | ✅ | LoadingScreen | falls back to a generic fact when no topic is provided |
+| TC-91 | U | ✅ | funFacts | every topic pool has at least 3 facts; `pickFact` is seed-deterministic |
 
 ## Regression cases (tied to ISSUES.md)
 

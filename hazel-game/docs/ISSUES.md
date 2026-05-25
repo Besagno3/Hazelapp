@@ -23,13 +23,13 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #14 | 🟢 | Low    | 2 moderate npm audit vulnerabilities (dev-only) |
 | #15 | 🟢 | High   | `profiles` migration must be applied in Supabase or profiles fail to load |
 | #16 | 🟢 | High   | `generate-questions` edge function must be deployed before it can be called |
-| #17 | 🔴 | High   | Migration `0002_add_xp.sql` must be applied or profile load fails |
+| #17 | 🟢 | High   | Migration `0002_add_xp.sql` must be applied or profile load fails |
 | #18 | 🟢 | Med    | Generic error messages hide the real cause (esp. edge-function errors) |
-| #19 | 🔴 | High   | Apply migration 0003 + redeploy the edge function (cache + error detail) |
+| #19 | 🟢 | High   | Apply migration 0003 + redeploy the edge function (cache + error detail) |
 | #20 | 🟢 | Low    | No visual feedback (pop / celebration) when the player levels up |
-| #21 | 🔴 | High   | Migration `0004_power_ups.sql` must be applied or profile load fails |
+| #21 | 🟢 | High   | Migration `0004_power_ups.sql` must be applied or profile load fails |
 | #22 | 🟢 | Low    | Quiz auto-advances on a fixed timer — a Next button would suit all readers |
-| #23 | 🔴 | High   | Question cache inserts fail — `service_role` lacks INSERT on `questions` |
+| #23 | 🟢 | High   | Question cache inserts fail — `service_role` lacks INSERT on `questions` |
 | #24 | 🟢 | Med    | Cache has no per-player dedupe — the same kid can see the same question twice |
 | #25 | 🟢 | Low    | No end-of-round "missed questions" recap — explanations flash once and are lost |
 | #26 | 🟢 | Med    | No way to flag a wrong/awkward question — LLM errors have no feedback loop |
@@ -37,10 +37,10 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #28 | 🔴 | Low    | No daily-streak / return-tomorrow hook — the canonical kids-game retention loop |
 | #29 | 🔴 | Med    | No parent dashboard — buyers see nothing of their kid's progress |
 | #30 | 🔴 | Low    | Cache-vs-AI split is uniformly random — no reuse bias, no per-session cost cap |
-| #31 | 🔴 | Low    | "Loading…" dead air while Claude generates — needs a fun fact / mascot animation |
+| #31 | 🟢 | Low    | "Loading…" dead air while Claude generates — needs a fun fact / mascot animation |
 | #32 | 🔴 | Low    | Battles never nudge `skill_levels` — fighting NPCs teaches the difficulty model nothing |
 | #33 | 🔴 | Low    | Topic set is hardcoded to four — no easy path to add history, language, etc. |
-| #34 | 🔴 | High   | Apply migration 0006 + redeploy the edge function (per-player dedupe + flags) |
+| #34 | 🟢 | High   | Apply migration 0006 + redeploy the edge function (per-player dedupe + flags) |
 
 ---
 
@@ -149,11 +149,9 @@ The `generate-questions` edge function is deployed; the `ANTHROPIC_API_KEY`
 secret is set. JWT verification is on by default, so only signed-in players
 can call it. (Runtime errors from the function are now surfaced in full — see #18.)
 
-### #17 — Migration 0002 must be applied 🔴 High
-`0002_add_xp.sql` adds the `profiles.xp` column. Until applied,
-`profileStore.loadProfile` (which now selects `xp`) errors and no profile
-loads. **Action:** run `0002_add_xp.sql` in the Supabase SQL Editor (or
-`supabase db push`).
+### #17 — Migration 0002 must be applied 🟢 High — RESOLVED (2026-05-17)
+`0002_add_xp.sql` applied to the live Supabase project. `profiles.xp`
+exists; profile load + XP/level systems are working end-to-end.
 
 ### #20 — No level-up feedback 🟢 Low — RESOLVED (2026-05-17)
 `LevelUpModal` celebrates each level-up with confetti and a power-up choice.
@@ -164,14 +162,9 @@ level-up can't be missed (survives reloads, handles multi-level jumps).
 The timer is gone. After answering, `QuizRound` shows the result + explanation
 and a "Next Question" / "See Results" button; the player advances when ready.
 
-### #34 — Apply migration 0006 + redeploy the edge function 🔴 High
-The per-player dedupe (#24) and flag quarantine (#26) need
-`0006_question_views_and_flags.sql` applied (creates `question_views` +
-`question_flags` with RLS + grants) and the rewritten `generate-questions`
-edge function redeployed. **Action:** run `0006_question_views_and_flags.sql`
-in the Supabase SQL Editor, then `supabase functions deploy
-generate-questions`. The function needs `SUPABASE_ANON_KEY` available
-(auto-injected by Supabase) to verify the caller's JWT.
+### #34 — Apply migration 0006 + redeploy the edge function 🟢 High — RESOLVED (2026-05-17)
+`0006_question_views_and_flags.sql` applied and `generate-questions`
+redeployed. Per-player dedupe (#24) and flag quarantine (#26) are live.
 
 ### #33 — Topic set is hardcoded 🔴 Low
 The four topics (math, science, engineering, creativity) are baked into the
@@ -189,12 +182,13 @@ deltas, since battle answers cycle a 9-question pool across multiple rounds).
 Tradeoff: muddies the "battles use NPC level, not skill level" boundary —
 needs a clear rule for which signal wins on the next quiz round.
 
-### #31 — Loading screen dead air 🔴 Low
-`StatusScreens` shows a generic spinner while the edge function generates
-fresh questions — often 3-5 seconds, which is a long time for a 7-year-old.
-Show one of: a rotating educational "did you know?" fact, an animated mascot,
-or a tip for the upcoming topic. Cheap to add (component-level), and turns a
-latency wart into a brand moment.
+### #31 — Loading screen dead air 🟢 Low — RESOLVED (2026-05-17)
+`lib/funFacts.ts` ships a per-topic pool (5 facts each for math, science,
+engineering, creativity) plus generic fallbacks. `LoadingScreen` now takes
+an optional `topic` prop, starts on a random index, and rotates a fact
+every 4 seconds with a fade transition (Framer Motion `AnimatePresence`).
+`QuizRound` and `BattleArena` both pass their topic. Regression test:
+TC-89..91 (automated).
 
 ### #30 — Random cache-vs-AI mix 🔴 Low
 `randInt(0, min(count, cached.length))` means even with hundreds of cached
@@ -260,30 +254,21 @@ failed cache insert doesn't FK-violate the view insert. Soft cap chosen
 over hard-never-repeat to keep the cache pool viable. Regression test:
 TC-R6. Awaits deployment of migration 0006 (#34).
 
-### #23 — Question cache insert denied 🔴 High
-The edge function's Supabase logs show
-`cache insert failed: permission denied for table questions`. Migration 0003
-creates the `questions` table and enables RLS but does not GRANT table
-privileges to `service_role`; on projects where the public-schema default
-privileges have been tightened, the service role can read but not write, so
-every batch is generated fresh and nothing is ever cached. **Action:** apply
-`0005_questions_grants.sql` in the Supabase SQL Editor (no edge-function
-redeploy needed). Verify with `select count(*) from public.questions;` —
-the count should climb after the next quiz round. Regression test: TC-R5.
+### #23 — Question cache insert denied 🟢 High — RESOLVED (2026-05-17)
+`0005_questions_grants.sql` applied. `service_role` now has explicit
+`SELECT/INSERT/UPDATE` on `questions` and `EXECUTE` on
+`increment_question_usage`. Cache writes succeed; `questions` row count
+climbs after each new-question round.
 
-### #21 — Migration 0004 must be applied 🔴 High
-`0004_power_ups.sql` adds the `profiles.power_ups` column. Until applied,
-`profileStore.loadProfile` (which now selects `power_ups`) errors and no
-profile loads. **Action:** run `0004_power_ups.sql` in the Supabase SQL
-Editor (or `supabase db push`).
+### #21 — Migration 0004 must be applied 🟢 High — RESOLVED (2026-05-17)
+`0004_power_ups.sql` applied. `profiles.power_ups` column exists; profile
+load + power-up stack tracking work end-to-end.
 
-### #19 — Apply migration 0003 + redeploy the edge function 🔴 High
-The question cache needs `0003_questions_cache.sql` applied (the `questions`
-table + `increment_question_usage` RPC) and the rewritten `generate-questions`
-edge function redeployed. The same redeploy also ships the always-include-a-
-`detail` error fix from #18. **Action:** run `0003_questions_cache.sql` in the
-Supabase SQL Editor, then `supabase functions deploy generate-questions`.
-`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are auto-injected — nothing to set.
+### #19 — Apply migration 0003 + redeploy the edge function 🟢 High — RESOLVED (2026-05-17)
+`0003_questions_cache.sql` applied and `generate-questions` redeployed.
+The `questions` cache table + `increment_question_usage` RPC are live;
+the rewritten edge function (cache + always-include-detail errors) is
+serving traffic.
 
 ### #18 — Generic errors hide the real cause 🟢 Med — RESOLVED (2026-05-17)
 `lib/errors.ts` added: `errorMessage` (sync — any error value → its real

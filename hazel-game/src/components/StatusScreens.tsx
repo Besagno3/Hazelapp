@@ -1,15 +1,57 @@
-import { motion } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FUN_FACTS, GENERIC_FACTS } from '../lib/funFacts';
+import type { Topic } from '../types';
 
-/** Full-screen loading state with an animated spinner. */
-export function LoadingScreen({ label = 'Loading…' }: { label?: string }) {
+const FACT_ROTATION_MS = 4000;
+
+/**
+ * Full-screen loading state. When a `topic` is provided, rotates a kid-friendly
+ * fact about that topic while the request is in flight — turns the AI-generation
+ * wait (3-5s, sometimes longer) from dead air into a brand moment (#31).
+ */
+export function LoadingScreen({
+  label = 'Loading…',
+  topic,
+}: {
+  label?: string;
+  topic?: Topic;
+}) {
+  const pool = useMemo(() => (topic ? FUN_FACTS[topic] : GENERIC_FACTS), [topic]);
+  // Start at a random fact each mount so consecutive loads don't repeat the same one.
+  const [start] = useState(() => Math.floor(Math.random() * pool.length));
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setStep((s) => s + 1), FACT_ROTATION_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  const fact = pool[(start + step) % pool.length];
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-6">
       <motion.div
         className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full"
         animate={{ rotate: 360 }}
         transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
       />
       <p className="mt-5 text-lg font-medium">{label}</p>
+
+      <div className="mt-8 max-w-md min-h-[4.5rem] text-center">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={fact}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.35 }}
+            className="text-sm text-white/80 leading-relaxed"
+          >
+            {fact}
+          </motion.p>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
