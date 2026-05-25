@@ -42,6 +42,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #33 | 🔴 | Low    | Topic set is hardcoded to four — no easy path to add history, language, etc. |
 | #34 | 🟢 | High   | Apply migration 0006 + redeploy the edge function (per-player dedupe + flags) |
 | #35 | 🟢 | High   | Apply migration 0007 (streak columns on profiles) |
+| #36 | 🟡 | Med    | "Open World" is just a 4-card NPC picker — MVP shipped, sprites/multi-screen pending |
 
 ---
 
@@ -171,6 +172,28 @@ redeployed. Per-player dedupe (#24) and flag quarantine (#26) are live.
 `0007_add_streak.sql` applied and `generate-questions` redeployed
 (also picks up #30's smarter cache mix). The daily-streak hook (#28)
 is live end-to-end.
+
+### #36 — "Open World" is a card picker, not a world 🟡 Med — MVP SHIPPED (2026-05-17)
+**MVP done:** KaPlay 3001 added (lazy-loaded). `WorldMap.tsx` is now a
+single 640×480 canvas screen — player avatar walks with arrow keys /
+WASD, bumping into an NPC triggers the existing `startBattle()` flow.
+Manual position update + clamp + overlap detection (no physics body).
+Placeholder graphics (colored rounded rects with emoji labels). Bundle
+impact: +70 KB gzip, isolated to the world chunk via `React.lazy`.
+
+**Follow-ups (kept in this issue, status stays 🟡 until they land):**
+- Real sprite sheets — Kenney / OpenGameArt CC0 tilesets and a 4-dir
+  walk animation for the player.
+- Tilemap background — author with the Tiled editor, load via KaPlay
+  `loadSprite`/`addLevel`. Today's background is a solid green fill.
+- On-screen d-pad for mobile / tablet (keyboard-only right now).
+- Multiple screens — walk to the edge → next "room". Zelda-1 mechanic.
+- Static obstacles — trees, rocks, water — once the tilemap exists.
+- Persist player position across battle round-trips (the kid currently
+  respawns at center after each battle).
+- Beaten-NPC tracking — defeated NPCs should disappear from the map
+  until the next session.
+- Optional: distinct biomes per topic (library / lab / studio / workshop).
 
 ### #33 — Topic set is hardcoded 🔴 Low
 The four topics (math, science, engineering, creativity) are baked into the

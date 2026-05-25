@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { useAuthInit } from './features/auth/useAuthInit';
 import { useAuthStore } from './store/authStore';
 import { useGameStore } from './store/gameStore';
@@ -6,12 +7,16 @@ import SignOutButton from './features/auth/SignOutButton';
 import LevelBadge from './components/LevelBadge';
 import StreakBadge from './components/StreakBadge';
 import LevelUpModal from './components/LevelUpModal';
+import { LoadingScreen } from './components/StatusScreens';
 import TopicSelect from './features/quiz/TopicSelect';
 import QuizRound from './features/quiz/QuizRound';
 import AvatarSelect from './features/battle/AvatarSelect';
 import BattleArena from './features/battle/BattleArena';
-import WorldMap from './features/world/WorldMap';
 import type { GameProgress, GamePhase, Avatar } from './types';
+
+// Lazy-load the canvas-based open world — pulls in KaPlay (~200 KB), which
+// the auth / quiz / battle screens never need. (#36)
+const WorldMap = lazy(() => import('./features/world/WorldMap'));
 
 function GameScreen({
   phase,
@@ -27,7 +32,13 @@ function GameScreen({
   // After the world unlocks, force avatar selection before entering it.
   if (progress.worldUnlocked && !avatar) return <AvatarSelect />;
 
-  if (phase === 'world') return <WorldMap />;
+  if (phase === 'world') {
+    return (
+      <Suspense fallback={<LoadingScreen label="Entering the open world…" />}>
+        <WorldMap />
+      </Suspense>
+    );
+  }
   if (phase === 'battle') return <BattleArena />;
 
   // 'auth' and 'topic-select' both land here — the player is authenticated,

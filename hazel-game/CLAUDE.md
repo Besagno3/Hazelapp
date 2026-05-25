@@ -18,6 +18,7 @@ shared source of truth for how this project works.
 | State       | Zustand 5 (`gameStore` persisted to localStorage, `authStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
+| Game canvas | KaPlay 3001 (open world, lazy-loaded on `phase=world`) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
 
 Many dependencies in `package.json` are installed but **not yet used**
@@ -128,6 +129,21 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-05-17 — Open-world MVP: walkable Zelda-style map (#36)
+- New dep: **KaPlay 3001** (`kaplay` on npm) — small canvas-based 2D
+  arcade lib. ~190 KB raw / 70 KB gzip.
+- `features/world/WorldMap.tsx`: rewritten as a single Zelda-1-style
+  640×480 screen. Player avatar walks with arrow keys / WASD; bumping
+  into an NPC triggers `startBattle()`. Manual position update + clamp
+  + overlap check (no physics body). KaPlay context is `quit()`-ed on
+  unmount so it doesn't leak between phases.
+- Placeholder graphics (colored rounded rects with emoji labels) —
+  real sprite sheets + tilemap are deferred follow-ups.
+- `App.tsx`: WorldMap is now `React.lazy` + `Suspense` so the KaPlay
+  chunk only loads when the kid enters the world. Auth / quiz / battle
+  initial bundle is unchanged (150 KB gzip).
+- Stack table updated to reflect KaPlay.
 
 ### 2026-05-17 — Smarter cache-vs-AI mix (#30)
 - Edge function: replaced `randInt(0, min(count, cached))` with a
