@@ -16,6 +16,8 @@ interface GameStore {
   startBattle: (npc: NPC, playerHp: number) => void;
   updateBattleHp: (playerHp: number, npcHp: number) => void;
   endBattle: (result: 'win' | 'lose') => void;
+  /** Dev-only: jump straight to the world, bypassing the 3-round gate. */
+  devUnlockWorld: () => void;
   reset: () => void;
 }
 
@@ -72,6 +74,12 @@ export const useGameStore = create<GameStore>()(
 
       endBattle: (result) =>
         set((s) => ({ battle: { ...s.battle, result }, phase: 'world' })),
+
+      devUnlockWorld: () =>
+        set((s) => ({
+          progress: { ...s.progress, worldUnlocked: true },
+          phase: 'world',
+        })),
 
       reset: () =>
         set({ phase: 'auth', progress: defaultProgress, battle: defaultBattle, avatar: null }),

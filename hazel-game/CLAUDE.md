@@ -130,6 +130,24 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-05-26 — Open-world MVP fixes + dev shortcut
+Three problems surfaced after the initial #36 ship.
+- **StrictMode double-init**: KaPlay maintains internal singleton state that
+  survives `quit()`, so React StrictMode's double-effect-run logged
+  `KAPLAY already initialized, calling kaplay() multiple times` and
+  corrupted the WebGL context (blank / broken canvas). Removed `<StrictMode>`
+  in `main.tsx` — standard workaround for canvas game libraries.
+- **Container-vs-canvas init**: switched `WorldMap` from a `canvas` ref to a
+  `<div>` ref passed as KaPlay's `root` option. KaPlay creates its own
+  canvas inside the container each mount, instead of trying to reuse a
+  React-owned canvas element across cycles.
+- **Loading splash artifact**: KaPlay's built-in "Ka" mascot splash can
+  render a broken-image placeholder under Vite lazy chunks. Added
+  `loadingScreen: false, debug: false, focus: false` to suppress.
+- **Dev shortcut**: `gameStore.devUnlockWorld()` + a `🔧 DEV: skip to world`
+  button on `TopicSelect`, gated by `import.meta.env.DEV`. Tree-shaken out
+  of production builds.
+
 ### 2026-05-17 — Open-world MVP: walkable Zelda-style map (#36)
 - New dep: **KaPlay 3001** (`kaplay` on npm) — small canvas-based 2D
   arcade lib. ~190 KB raw / 70 KB gzip.

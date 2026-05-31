@@ -11,7 +11,7 @@ const TOPICS: { id: Topic; label: string; emoji: string; color: string }[] = [
 ];
 
 export default function TopicSelect() {
-  const { setTopic, setPhase, progress } = useGameStore();
+  const { setTopic, setPhase, progress, devUnlockWorld } = useGameStore();
   const passedCount = progress.completedRounds.filter((r) => r.passed).length;
 
   function handlePick(topic: Topic) {
@@ -50,6 +50,17 @@ export default function TopicSelect() {
           </motion.button>
         ))}
       </div>
+
+      {/* Stripped from production by Vite's import.meta.env constant folding. */}
+      {import.meta.env.DEV && (
+        <button
+          onClick={devUnlockWorld}
+          className="mt-10 text-xs text-white/60 hover:text-white border border-dashed border-white/30 hover:border-white/60 px-3 py-1.5 rounded-md transition"
+          title="Dev-only shortcut — invisible in production builds"
+        >
+          🔧 DEV: skip to world
+        </button>
+      )}
     </div>
   );
 }

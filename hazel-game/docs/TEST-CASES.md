@@ -123,6 +123,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-110 | U | ✅ | age | `nextSkillLevelFromBattle` still respects the [1, 10] clamp |
 | TC-111 | M | ⬜ | WorldMap | arrow keys / WASD move the player; bumping an NPC starts a battle |
 | TC-112 | M | ⬜ | WorldMap | KaPlay chunk is lazy-loaded (`/dist/assets/WorldMap-*.js`) |
+| TC-113 | M | ⬜ | TopicSelect | `DEV: skip to world` button appears only in `bun run dev`, not production |
+| TC-114 | M | ⬜ | WorldMap | no `KAPLAY already initialized` console warning after StrictMode removal |
 
 ## Regression cases (tied to ISSUES.md)
 

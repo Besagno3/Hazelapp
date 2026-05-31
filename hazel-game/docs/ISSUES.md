@@ -181,6 +181,13 @@ Manual position update + clamp + overlap detection (no physics body).
 Placeholder graphics (colored rounded rects with emoji labels). Bundle
 impact: +70 KB gzip, isolated to the world chunk via `React.lazy`.
 
+**2026-05-26 follow-up fixes:** Removed React `<StrictMode>` (KaPlay's
+internal singleton survives `quit()`, so the double-effect-run corrupted
+the WebGL context). Switched WorldMap from a `canvas` ref to a `<div>`
+ref + KaPlay's `root` option so a fresh canvas is created each mount.
+Added `loadingScreen: false, debug: false, focus: false` to suppress
+the built-in mascot splash (broken-image artifact under lazy chunks).
+
 **Follow-ups (kept in this issue, status stays 🟡 until they land):**
 - Real sprite sheets — Kenney / OpenGameArt CC0 tilesets and a 4-dir
   walk animation for the player.

@@ -42,7 +42,9 @@ const SPAWN_CORNERS: [number, number][] = [
  * `quit()`-ed on unmount so it doesn't leak between phase switches.
  */
 export default function WorldMap() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Container div, not a canvas ref — KaPlay creates the canvas inside it so
+  // React StrictMode's double-effect-run gets a fresh canvas each cycle.
+  const containerRef = useRef<HTMLDivElement>(null);
   const startBattle = useGameStore((s) => s.startBattle);
   const setPhase = useGameStore((s) => s.setPhase);
   const avatar = useGameStore((s) => s.avatar);
@@ -58,16 +60,21 @@ export default function WorldMap() {
   }, [npcs, age]);
 
   useEffect(() => {
-    if (!canvasRef.current || !avatar) return;
+    if (!containerRef.current || !avatar) return;
 
     const k = kaplay({
-      canvas: canvasRef.current,
+      root: containerRef.current,
       width: W,
       height: H,
       background: [80, 160, 100],
       global: false,
       crisp: true,
-      letterbox: true,
+      focus: false,
+      // Suppress KaPlay's built-in "Ka" mascot splash — its bundled-asset URL
+      // resolves wrong under Vite's lazy chunks and shows a broken-image
+      // placeholder. We have no async assets of our own to wait for.
+      loadingScreen: false,
+      debug: false,
     });
 
     // Player — yellow rounded square with the avatar's emoji on top.
@@ -168,10 +175,10 @@ export default function WorldMap() {
       <p className="text-emerald-100 mb-3 text-sm">
         Walk to an NPC to challenge them · arrow keys / WASD
       </p>
-      <canvas
-        ref={canvasRef}
-        className="rounded-lg shadow-2xl border-2 border-emerald-300/30 max-w-full"
-        style={{ imageRendering: 'pixelated' }}
+      <div
+        ref={containerRef}
+        className="rounded-lg shadow-2xl border-2 border-emerald-300/30 overflow-hidden max-w-full"
+        style={{ width: W, height: H, imageRendering: 'pixelated' }}
       />
     </div>
   );
