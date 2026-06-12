@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
-import { calcAge, skillLevelFor } from '../../lib/age';
+import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { CHEST_COINS } from '../../content/items';
 import { gateFlag } from '../../content/zones';
@@ -13,8 +13,6 @@ import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 import type { PathTarget, Question } from '../../types';
-
-const DEFAULT_AGE = 10;
 
 /**
  * "Questions along the path" (#37): a gatekeeper's challenge or a question-
@@ -26,12 +24,13 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const profile = useProfileStore((s) => s.profile);
   const addXp = useProfileStore((s) => s.addXp);
   const update = useSaveStore((s) => s.update);
+  const spendHint = useSaveStore((s) => s.spendHint);
   const hints = useSaveStore((s) => s.save?.items.hint ?? 0);
 
-  const age = profile ? calcAge(profile.birthYear, profile.birthMonth) : DEFAULT_AGE;
+  const age = playerAge(profile);
   const level = skillLevelFor(profile?.skillLevels ?? {}, target.topic, age);
 
-  const [result, setResult] = useState<'correct' | 'wrong' | null>(null);
+  const [solved, setSolved] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   const zoneName = topicInfo(target.topic).label;
@@ -70,11 +69,8 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
 
   const onAnswered = useCallback(
     (correct: boolean) => {
-      if (!correct) {
-        setResult('wrong');
-        return;
-      }
-      setResult('correct');
+      if (!correct) return;
+      setSolved(true);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
       void addXp(XP_PER_CORRECT);
       if (target.kind === 'gate') {
@@ -135,15 +131,12 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
 
       {question && (
         <QuestionCard
+          key={question.id}
           question={question}
           hints={hints}
-          onUseHint={() =>
-            update((s) => ({ ...s, items: { ...s.items, hint: Math.max(0, s.items.hint - 1) } }))
-          }
+          onUseHint={spendHint}
           onAnswered={onAnswered}
-          continueLabel={
-            result === 'correct' ? `✨ ${successText}` : 'Hmm… I’ll come back!'
-          }
+          continueLabel={solved ? `✨ ${successText}` : 'Hmm… I’ll come back!'}
           onContinue={() => sendFlow({ type: 'CLOSE' })}
         />
       )}

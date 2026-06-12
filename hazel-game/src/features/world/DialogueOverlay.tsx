@@ -24,6 +24,7 @@ function visibleLines(lines: DialogueLine[], flags: Record<string, boolean>): Di
  */
 export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const update = useSaveStore((s) => s.update);
+  const setFlag = useSaveStore((s) => s.setFlag);
   const npc = NPC_DEFS[npcId];
   // Freeze the conversation at open — quest completion or a line that sets
   // its own filter flag must not reshuffle lines mid-conversation.
@@ -47,14 +48,14 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const line = lines[Math.min(index, lines.length - 1)];
   const text = typeof line === 'string' ? line : line.text;
   const isLast = index >= lines.length - 1;
-  // Quest conversations don't double as service menus.
-  const service = quest ? undefined : ROLE_SERVICE[npc.role];
+  // Giver conversations don't double as service menus, but a service NPC who
+  // is merely a quest STEP target (Sage Cog polishing, Sage Muse singing)
+  // must still offer their service — a sage's "Learn" can't be quest-locked.
+  const service =
+    quest && quest.finishKind !== 'step' ? undefined : ROLE_SERVICE[npc.role];
 
   function applyLineFlag() {
-    if (typeof line !== 'string' && line.setFlag) {
-      const flag = line.setFlag;
-      update((s) => ({ ...s, flags: { ...s.flags, [flag]: true } }));
-    }
+    if (typeof line !== 'string' && line.setFlag) setFlag(line.setFlag);
   }
 
   function advance() {
@@ -71,6 +72,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
 
   function openService() {
     applyLineFlag();
+    // Leaving via the service button must still advance the quest step —
+    // otherwise "Learn" would strand a delivery mid-step.
+    if (quest?.finish) update(quest.finish);
     if (service) sendFlow({ type: 'OPEN_SERVICE', service, npcId });
   }
 

@@ -1,4 +1,5 @@
 import type { Topic } from '../types';
+import { TOPIC_REGISTRY, crystalFlag } from './topics';
 
 /**
  * The story layer (#37 story pass — see docs/STORY.md for the full bible).
@@ -53,6 +54,18 @@ export function emberStage(crystals: number, flags: Record<string, boolean>): Em
   if (crystals >= 4) return 'dragon';
   if (crystals >= 2) return 'whelp';
   return 'hatchling';
+}
+
+/**
+ * Crystal count + Ember stage derived from the save flags — the single
+ * derivation every screen (HUD, menu, battle) shares.
+ */
+export function emberStatus(flags: Record<string, boolean>): {
+  crystals: number;
+  stage: EmberStage;
+} {
+  const crystals = TOPIC_REGISTRY.filter((t) => flags[crystalFlag(t.id)]).length;
+  return { crystals, stage: emberStage(crystals, flags) };
 }
 
 // --- Cutscenes ----------------------------------------------------------------

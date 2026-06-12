@@ -13,13 +13,6 @@ export interface Question {
   timesAsked?: number;
 }
 
-export interface QuizRound {
-  topic: Topic;
-  questions: Question[];
-  score: number;
-  passed: boolean;
-}
-
 export type FightStyle = 'aggressive' | 'defensive' | 'balanced';
 
 export interface Avatar {

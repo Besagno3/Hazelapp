@@ -130,8 +130,9 @@ npm test         # Vitest suite (test:watch / test:ui also available)
 - TypeScript strict mode; `noUnusedLocals`/`noUnusedParameters` are on.
 - Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
   for conditional class merging.
-- Game tuning constants live in `src/lib/utils.ts` (`PASS_THRESHOLD`,
-  `ROUNDS_TO_UNLOCK`, `calcAttackDamage`).
+- Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
+  `ROUNDS_TO_UNLOCK`); battle math in `src/lib/battleMath.ts`; economy in
+  `src/content/items.ts`.
 - Shared types live in `src/types/index.ts`.
 
 ---
@@ -157,6 +158,34 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-06-12 — Bug-hunt review pass: 7-angle audit + fixes (#43)
+Full-codebase review (7 finder angles + verification) of the JRPG build.
+Correctness fixes:
+- `QuestionCard`: a fast double-tap on Continue could resolve a battle turn
+  twice (double damage / double enemy hit). Continue now fires once, passes
+  `correct` to `onContinue` (the `lastAnswer` ref dual-channel in
+  BattleArena is gone), and the hint-feather option hiding uses a fair
+  Fisher-Yates instead of biased `.sort(random)`.
+- `saveStore.load`: the pre-JRPG `hazel-game` localStorage key is now
+  consumed (removed) after the one-time migration — previously the NEXT
+  account signing in on the same browser could inherit it via
+  `migrateLegacy` (#12 edge case).
+- `DialogueOverlay`: service NPCs who are quest STEP targets (Sage Cog,
+  Sage Muse) keep their service button during the step conversation, and
+  taking the service path also applies the step's finish (previously
+  "Learn" was hidden mid-quest, and would have stranded the step).
+- `gameFlow`: RESET clears machine context (topic/npcId/service/pathTarget)
+  so one player's context can't leak into the next session.
+- New zones invariant test: no-topic zones must not contain gates/chests —
+  it immediately caught a chest in the hub map (silently falling back to
+  math questions); the chest was removed.
+- Durability: explicit `flush()` after battle end and avatar choice (boss
+  victories / hatches no longer rely on the 2s debounce surviving).
+Cleanups: shared `playerAge` (replaces 4 duplicated DEFAULT_AGE fallbacks),
+`heroMaxHp`, `emberStatus` (replaces the crystal-count/stage triplication),
+`saveStore.setFlag`/`spendHint` helpers; dead `calcAttackDamage` and dead
+legacy types (`QuizRound`, etc.) removed. 137 tests green.
 
 ### 2026-06-12 — Quest variety: steps, defeats, deliveries (#42)
 Quests (`content/quests.ts`) rebuilt as **ordered steps** over the save:

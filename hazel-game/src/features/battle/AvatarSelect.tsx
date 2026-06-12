@@ -9,8 +9,11 @@ export default function AvatarSelect() {
 
   function handlePick(avatar: Avatar) {
     // Write the choice into the save first — the machine's CHOOSE_AVATAR
-    // guard reads it before letting the player into the world.
+    // guard reads it before letting the player into the world. Flush right
+    // away so the choice reaches other devices even if this tab dies before
+    // the debounce fires.
     update((s) => ({ ...s, avatarId: avatar.id }));
+    void useSaveStore.getState().flush();
     sendFlow({ type: 'CHOOSE_AVATAR' });
   }
 

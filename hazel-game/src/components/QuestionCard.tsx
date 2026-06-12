@@ -23,10 +23,12 @@ export default function QuestionCard({
   /** Fires once, as soon as an option is picked. */
   onAnswered: (correct: boolean, picked: number) => void;
   continueLabel?: string;
-  onContinue: () => void;
+  /** Fires once with whether the pick was correct — guarded against double-clicks. */
+  onContinue: (correct: boolean) => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [hidden, setHidden] = useState<number[]>([]);
+  const [continued, setContinued] = useState(false);
 
   function pick(idx: number) {
     if (selected !== null) return;
@@ -34,14 +36,24 @@ export default function QuestionCard({
     onAnswered(idx === question.correctIndex, idx);
   }
 
+  function handleContinue() {
+    // A fast double-tap must not resolve the turn twice (double damage!).
+    if (continued || selected === null) return;
+    setContinued(true);
+    onContinue(selected === question.correctIndex);
+  }
+
   function useHint() {
     if (selected !== null || hidden.length > 0 || !onUseHint) return;
     const wrong = question.options
       .map((_, i) => i)
       .filter((i) => i !== question.correctIndex);
-    // Hide two of the wrong options (random pair).
-    const shuffled = [...wrong].sort(() => Math.random() - 0.5);
-    setHidden(shuffled.slice(0, 2));
+    // Hide two of the wrong options, picked uniformly (Fisher-Yates).
+    for (let i = wrong.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [wrong[i], wrong[j]] = [wrong[j], wrong[i]];
+    }
+    setHidden(wrong.slice(0, 2));
     onUseHint();
   }
 
@@ -100,8 +112,9 @@ export default function QuestionCard({
         <motion.button
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          onClick={onContinue}
-          className="mt-4 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition"
+          onClick={handleContinue}
+          disabled={continued}
+          className="mt-4 w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold rounded-lg py-2.5 transition"
         >
           {continueLabel}
         </motion.button>

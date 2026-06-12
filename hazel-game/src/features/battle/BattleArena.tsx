@@ -5,7 +5,7 @@ import QuestionCard from '../../components/QuestionCard';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { fetchQuestions } from '../../lib/questions';
-import { calcAge, clampLevel, nextSkillLevelFromBattle, skillLevelFor } from '../../lib/age';
+import { playerAge, clampLevel, nextSkillLevelFromBattle, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import {
@@ -19,8 +19,8 @@ import {
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { SAGES, CHARGE_MAX, SPECIAL_LEVEL_BONUS } from '../../content/abilities';
 import { POTION_HEAL } from '../../content/items';
-import { topicInfo, crystalFlag, TOPIC_REGISTRY } from '../../content/topics';
-import { BOSS_LINES, emberStage, EMBER_SPRITES, EMBER_HATCHED } from '../../content/story';
+import { topicInfo, crystalFlag } from '../../content/topics';
+import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_HATCHED } from '../../content/story';
 import { avatarById } from '../../content/avatars';
 import { HUB_ZONE } from '../../content/zones';
 import { useBattleStore } from '../../store/battleStore';
@@ -29,8 +29,6 @@ import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary } from '../../lib/save';
 import type { LibraryEntry, Question } from '../../types';
-
-const DEFAULT_AGE = 10;
 
 type Turn =
   | { kind: 'command' }
@@ -61,12 +59,11 @@ export default function BattleArena() {
   const powerUps = profile?.powerUps ?? {};
   const avatar = avatarById(save?.avatarId ?? null);
   const style = avatar?.fightStyle ?? 'balanced';
-  const age = profile ? calcAge(profile.birthYear, profile.birthMonth) : DEFAULT_AGE;
+  const age = playerAge(profile);
   const topic = enemy?.topic ?? 'math';
   const info = topicInfo(topic);
   const sage = save?.sageEquipped ? SAGES[save.sageEquipped] : null;
-  const crystals = TOPIC_REGISTRY.filter((t) => save?.flags[crystalFlag(t.id)]).length;
-  const ember = emberStage(crystals, save?.flags ?? {});
+  const { stage: ember } = emberStatus(save?.flags ?? {});
 
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
@@ -89,7 +86,6 @@ export default function BattleArena() {
   const [answers, setAnswers] = useState<boolean[]>([]);
   const misses = useRef<LibraryEntry[]>([]);
   const lastPhase = useRef(0);
-  const lastAnswer = useRef<{ correct: boolean } | null>(null);
 
   // Warm the Special-tier pool (level +2) once a Sage is equipped.
   useEffect(() => {
@@ -192,10 +188,7 @@ export default function BattleArena() {
 
   // --- Turn resolution --------------------------------------------------------
 
-  function resolvePlayerQuestion(mode: 'attack' | 'special' | 'guard') {
-    const wasCorrect = lastAnswer.current?.correct ?? false;
-    lastAnswer.current = null;
-
+  function resolvePlayerQuestion(mode: 'attack' | 'special' | 'guard', wasCorrect: boolean) {
     if (mode === 'guard') {
       if (wasCorrect) {
         setGuarded(true);
@@ -254,10 +247,7 @@ export default function BattleArena() {
     setTurn({ kind: 'enemy-question', question: nextQuestion() });
   }
 
-  function resolveEnemyQuestion() {
-    const wasCorrect = lastAnswer.current?.correct ?? false;
-    lastAnswer.current = null;
-
+  function resolveEnemyQuestion(wasCorrect: boolean) {
     const raw = enemyAttack(enemy!.level, enemy!.isBoss, phase);
     let dmg: number;
     if (guarded) {
@@ -340,6 +330,9 @@ export default function BattleArena() {
   }
 
   function leave(result: 'win' | 'lose') {
+    // Battle outcomes are precious (crystals, coins, Ember's hatch) — push
+    // them to Supabase now instead of trusting the debounce to get a chance.
+    void useSaveStore.getState().flush();
     // Transition first, then clear the session — clearing first would
     // re-render this screen enemy-less while still in the battle state.
     sendFlow({ type: 'BATTLE_END', result });
@@ -544,18 +537,13 @@ export default function BattleArena() {
               key={turn.question.id + qIndex + specialIdx}
               question={turn.question}
               hints={save.items.hint}
-              onUseHint={() =>
-                updateSave((s) => ({ ...s, items: { ...s.items, hint: Math.max(0, s.items.hint - 1) } }))
-              }
-              onAnswered={(correct, picked) => {
-                lastAnswer.current = { correct };
-                recordAnswer(correct, turn.question, picked);
-              }}
+              onUseHint={useSaveStore.getState().spendHint}
+              onAnswered={(correct, picked) => recordAnswer(correct, turn.question, picked)}
               continueLabel="▶ Go!"
-              onContinue={() =>
+              onContinue={(correct) =>
                 turn.kind === 'enemy-question'
-                  ? resolveEnemyQuestion()
-                  : resolvePlayerQuestion(turn.mode)
+                  ? resolveEnemyQuestion(correct)
+                  : resolvePlayerQuestion(turn.mode, correct)
               }
             />
           </div>

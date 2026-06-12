@@ -53,6 +53,13 @@ export const gameFlowMachine = setup({
     },
   },
   actions: {
+    // RESET (sign-out) must not leak one player's context into the next.
+    clearContext: assign({
+      topic: null,
+      npcId: null,
+      service: null,
+      pathTarget: null,
+    }),
     assignTopic: assign({
       topic: ({ event }) => (event.type === 'PICK_TOPIC' ? event.topic : null),
     }),
@@ -73,7 +80,7 @@ export const gameFlowMachine = setup({
   initial: 'boot',
   context: { topic: null, npcId: null, service: null, pathTarget: null },
   on: {
-    RESET: { target: '.boot' },
+    RESET: { target: '.boot', actions: 'clearContext' },
   },
   states: {
     boot: {

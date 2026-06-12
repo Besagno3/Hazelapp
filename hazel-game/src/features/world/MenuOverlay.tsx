@@ -3,10 +3,9 @@ import { motion } from 'framer-motion';
 import { SAGES } from '../../content/abilities';
 import { SHOP_CATALOG } from '../../content/items';
 import { avatarById } from '../../content/avatars';
-import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
-import { emberStage, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
+import { emberStatus, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
 import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
-import { hpBonus } from '../../lib/powerups';
+import { heroMaxHp } from '../../lib/powerups';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
@@ -24,10 +23,9 @@ export default function MenuOverlay() {
   if (!save) return null;
 
   const avatar = avatarById(save.avatarId);
-  const maxHp = (avatar?.maxHp ?? 100) + hpBonus(profile?.powerUps ?? {});
+  const maxHp = heroMaxHp(avatar, profile?.powerUps ?? {});
   const hp = save.hp ?? maxHp;
-  const crystals = TOPIC_REGISTRY.filter((t) => save.flags[crystalFlag(t.id)]).length;
-  const ember = emberStage(crystals, save.flags);
+  const { stage: ember } = emberStatus(save.flags);
   const quests = activeQuests(save);
 
   async function doSave() {

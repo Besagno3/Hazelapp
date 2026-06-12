@@ -39,6 +39,10 @@ interface SaveStore {
   flush: () => Promise<void>;
   /** Records a finished training-grounds round (#37 quiz gate + library). */
   recordQuizRound: (passed: boolean, misses: LibraryEntry[]) => void;
+  /** Sets a story/world flag — the most common save mutation. */
+  setFlag: (flag: string) => void;
+  /** Consumes one Hint Feather (no-op at zero). */
+  spendHint: () => void;
   clear: () => void;
 }
 
@@ -82,7 +86,17 @@ export const useSaveStore = create<SaveStore>((set, get) => ({
     }
 
     if (!save) save = readLocal(userId);
-    if (!save) save = migrateLegacy(localStorage.getItem(LEGACY_KEY));
+    if (!save) {
+      save = migrateLegacy(localStorage.getItem(LEGACY_KEY));
+      // Consume the pre-JRPG key either way: it belongs to whoever played
+      // before per-user saves existed, and must not seed the NEXT account
+      // that signs in on this browser (#12).
+      try {
+        localStorage.removeItem(LEGACY_KEY);
+      } catch {
+        /* non-fatal */
+      }
+    }
     if (!save) save = defaultSave();
 
     writeLocal(userId, save);
@@ -124,6 +138,14 @@ export const useSaveStore = create<SaveStore>((set, get) => ({
         library: pushLibrary(s.library, misses),
       };
     });
+  },
+
+  setFlag: (flag) => {
+    get().update((s) => ({ ...s, flags: { ...s.flags, [flag]: true } }));
+  },
+
+  spendHint: () => {
+    get().update((s) => ({ ...s, items: { ...s.items, hint: Math.max(0, s.items.hint - 1) } }));
   },
 
   clear: () => {

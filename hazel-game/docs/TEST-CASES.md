@@ -10,9 +10,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-01 | U | ✅ | utils | `calcAttackDamage(3,3,30)` returns 30 (all correct) |
-| TC-02 | U | ✅ | utils | `calcAttackDamage(0,3,30)` returns 0 (none correct) |
-| TC-03 | U | ✅ | utils | `calcAttackDamage` rounds partial results (e.g. 2/3) |
+| TC-01 | U | ✅ | utils | RETIRED (#43) — `calcAttackDamage` deleted; battle math covered by TC-124/125 |
+| TC-02 | U | ✅ | utils | RETIRED (#43) — see TC-124/125 |
+| TC-03 | U | ✅ | utils | RETIRED (#43) — see TC-124/125 |
 | TC-04 | U | ✅ | utils | `cn()` merges + dedupes conflicting Tailwind classes |
 | TC-05 | U | ✅ | gameFlow | RETIRED with gameStore (#37) — topic now in machine context, see TC-117 |
 | TC-06 | U | ✅ | saveStore | RETIRED with gameStore (#37) — rounds counted in the save, see TC-126 |
@@ -169,6 +169,10 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-151 | U | ✅ | save | normalize repairs kills (drops junk/negative) and questItems |
 | TC-152 | C | ⬜ | MenuOverlay | quest log lists active quests with live hints; carried items row shows the seed |
 | TC-153 | M | ⬜ | quests | beating an enemy updates a defeat-quest hint on next talk without re-entering the zone |
+| TC-154 | U | ✅ | zones | no-topic zones (hub) contain no gates or chests (#43 — caught a real hub chest) |
+| TC-155 | C | ⬜ | QuestionCard | double-tapping Continue resolves a battle turn exactly once (#43) |
+| TC-156 | M | ⬜ | saves | after sign-out, a different account on the same browser starts fresh (legacy key consumed, #43) |
+| TC-157 | M | ⬜ | quests | during Sage Cog/Muse step conversations, the Learn button still works AND the step advances (#43) |
 
 ## Regression cases (tied to ISSUES.md)
 

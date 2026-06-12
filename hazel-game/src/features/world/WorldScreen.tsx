@@ -13,7 +13,7 @@ import { spawnEnemy } from '../../content/enemies';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
 import {
-  emberStage,
+  emberStatus,
   endingPanels,
   EMBER_SPRITES,
   EMBER_STAGE_LABEL,
@@ -24,15 +24,13 @@ import {
   INTRO_SEEN,
   ENDING_SEEN,
 } from '../../content/story';
-import { calcAge } from '../../lib/age';
-import { hpBonus } from '../../lib/powerups';
+import { playerAge } from '../../lib/age';
+import { heroMaxHp } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useBattleStore } from '../../store/battleStore';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
-
-const DEFAULT_AGE = 10;
 
 /**
  * The world of Lumina (#37): KaPlay canvas + JRPG HUD + DOM overlays
@@ -43,6 +41,7 @@ const DEFAULT_AGE = 10;
 export default function WorldScreen() {
   const save = useSaveStore((s) => s.save);
   const update = useSaveStore((s) => s.update);
+  const setFlag = useSaveStore((s) => s.setFlag);
   const flush = useSaveStore((s) => s.flush);
   const profile = useProfileStore((s) => s.profile);
   const defeatedIds = useBattleStore((s) => s.defeatedIds);
@@ -69,15 +68,14 @@ export default function WorldScreen() {
   }, []);
   const [toast, setToast] = useState<string | null>(null);
 
-  const age = profile ? calcAge(profile.birthYear, profile.birthMonth) : DEFAULT_AGE;
+  const age = playerAge(profile);
   const zoneId = save?.zoneId ?? 'lumina-field';
   const z = zone(zoneId);
   const avatar = avatarById(save?.avatarId ?? null);
-  const maxHp = (avatar?.maxHp ?? 100) + hpBonus(profile?.powerUps ?? {});
+  const maxHp = heroMaxHp(avatar, profile?.powerUps ?? {});
   const hp = Math.min(save?.hp ?? maxHp, maxHp);
   const flags = save?.flags ?? {};
-  const crystals = TOPIC_REGISTRY.filter((t) => flags[crystalFlag(t.id)]).length;
-  const ember = emberStage(crystals, flags);
+  const { crystals, stage: ember } = emberStatus(flags);
 
   // Story moments (#37 story pass) — priority: intro, hatch, then ending.
   const introDue = !flags[INTRO_SEEN];
@@ -213,21 +211,21 @@ export default function WorldScreen() {
         <StoryPanels
           panels={INTRO_PANELS}
           doneLabel="🐲 Begin the adventure!"
-          onDone={() => update((s) => ({ ...s, flags: { ...s.flags, [INTRO_SEEN]: true } }))}
+          onDone={() => setFlag(INTRO_SEEN)}
         />
       )}
       {hatchDue && (
         <StoryPanels
           panels={HATCH_PANELS}
           doneLabel="🐲 Hello, Ember!"
-          onDone={() => update((s) => ({ ...s, flags: { ...s.flags, [EMBER_HATCH_SEEN]: true } }))}
+          onDone={() => setFlag(EMBER_HATCH_SEEN)}
         />
       )}
       {endingDue && (
         <StoryPanels
           panels={endingPanels(avatar.name)}
           doneLabel="🌟 The adventure continues!"
-          onDone={() => update((s) => ({ ...s, flags: { ...s.flags, [ENDING_SEEN]: true } }))}
+          onDone={() => setFlag(ENDING_SEEN)}
         />
       )}
     </div>

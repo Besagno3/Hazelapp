@@ -85,6 +85,16 @@ describe('zone maps', () => {
     }
   });
 
+  it('gates and chests only exist in topic zones (their questions need a topic)', () => {
+    for (const z of allZones) {
+      if (z.topic) continue;
+      for (const row of z.map) {
+        expect(row.includes('G'), `${z.id} must not contain gates`).toBe(false);
+        expect(row.includes('C'), `${z.id} must not contain chests`).toBe(false);
+      }
+    }
+  });
+
   it('the hub is safe (no enemies) and links to all four topic zones', () => {
     const hub = ZONES[HUB_ZONE];
     expect(hub.enemies).toHaveLength(0);

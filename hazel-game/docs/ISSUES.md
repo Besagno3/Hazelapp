@@ -49,6 +49,8 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #40 | 🔴 | Low    | Boss question difficulty doesn't ramp per enrage phase (damage does) |
 | #41 | 🔴 | Low    | No audio — howler installed, needs CC0 chiptune/SFX packs (phase 4) |
 | #42 | 🟢 | Low    | All four mini-quests share the riddle-chest pattern — add variety later |
+| #43 | 🟢 | Med    | Review-pass fixes: double-tap turn resolve, legacy-key leak, sage/step lock, hub chest |
+| #44 | 🔴 | Low    | Battle turn flow + world cutscenes live in component state, not machine substates |
 
 ---
 
@@ -258,6 +260,33 @@ phase. Revisit after observing real boss-fight pacing with kids.
 howler is installed and unused. Needs CC0 packs (zone themes, battle theme,
 victory fanfare, SFX for hits/heals/saves) and a small `lib/audio.ts` with a
 mute toggle in the menu. Asset sourcing is the blocker, not code.
+
+### #43 — Review-pass fixes 🟢 Med — RESOLVED (2026-06-12)
+A 7-angle bug hunt over the whole JRPG build. Fixed: QuestionCard double-tap
+double-resolving battle turns (+ biased hint shuffle, + `correct` passed via
+`onContinue` replacing the BattleArena ref channel); legacy `hazel-game` key
+consumed after migration so the next account on a shared browser can't
+inherit it; quest-step conversations no longer hide a sage's service button
+(and the service path applies the step finish); machine RESET clears context;
+explicit save flushes after battle end / avatar choice; new content
+invariant (no gates/chests in no-topic zones) which caught and removed a
+mis-placed hub chest; dead code removed (`calcAttackDamage`, legacy types);
+shared helpers `playerAge` / `heroMaxHp` / `emberStatus` / `setFlag` /
+`spendHint` replace 12+ duplicated derivations.
+
+Reviewed and explicitly NOT changed (with reasons): per-frame gate/chest
+sprite sync in WorldCanvas (required — gates open while the canvas stays
+mounted under overlays); Special-tier question prefetch per battle (prefetch
+is the point; server cache absorbs cost); path-question refetch on retry
+(fresh question per attempt is a design feature); hand-rolled normalizeSave
+vs zod (tested, working; revisit if schema churn grows).
+
+### #44 — Battle turns + cutscenes as machine substates 🔴 Low
+The design doc sketches battle substates inside the flow machine; the build
+keeps turn flow in BattleArena component state and cutscenes as WorldScreen
+local overlays (pausedRef union). Fine at current scale, but each new
+cutscene/turn-phase adds boilerplate. When phase 4 lands (companions, more
+story moments), promote both into the gameFlow machine.
 
 ### #42 — Mini-quest pattern is uniform 🟢 Low — RESOLVED (2026-06-12)
 Quests are now ordered steps with three mechanics: chest steps, **defeat
