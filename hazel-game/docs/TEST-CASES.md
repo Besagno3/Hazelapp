@@ -150,6 +150,16 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-132 | M | ⬜ | WorldCanvas | zone exits round-trip (hub ⇄ each topic zone) and position persists across battles and reloads |
 | TC-133 | M | ⬜ | WorldScreen | restoring all four crystals shows the ending exactly once |
 | TC-134 | M | ⬜ | saves | with 0008 applied, progress follows the account across two browsers |
+| TC-135 | U | ✅ | story | `emberStage`: egg until first victory; hatchling→whelp→dragon by crystals |
+| TC-136 | U | ✅ | story | intro/hatch panels are non-empty; ending panels include the hero's name |
+| TC-137 | U | ✅ | story | every topic's Fiend has intro lines + last words |
+| TC-138 | U | ✅ | quests | each topic zone has exactly one quest, given by an NPC placed in that zone |
+| TC-139 | U | ✅ | quests | dialogue flow: offer → in-progress → complete (chest) → reward + retire |
+| TC-140 | U | ✅ | quests | completion works even when the chest was opened before the offer |
+| TC-141 | C | ⬜ | DialogueOverlay | quest title chip shows; reward granted on the closing line exactly once |
+| TC-142 | M | ⬜ | story | opening cutscene plays once on first world entry; hatch plays once after first victory |
+| TC-143 | M | ⬜ | story | boss fights open with the Fiend's monologue; victory panel shows last words |
+| TC-144 | M | ⬜ | story | Ember trails the hero on the map and grows after the 2nd and 4th crystals |
 
 ## Regression cases (tied to ISSUES.md)
 

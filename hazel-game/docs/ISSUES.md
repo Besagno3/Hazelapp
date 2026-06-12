@@ -48,6 +48,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #39 | 🔴 | Med    | Replace placeholder programmer art with CC0 tilesets/sprite sheets |
 | #40 | 🔴 | Low    | Boss question difficulty doesn't ramp per enrage phase (damage does) |
 | #41 | 🔴 | Low    | No audio — howler installed, needs CC0 chiptune/SFX packs (phase 4) |
+| #42 | 🔴 | Low    | All four mini-quests share the riddle-chest pattern — add variety later |
 
 ---
 
@@ -224,8 +225,13 @@ command battles with Sages/Specials/charge gauge/boss phases, shop + inn +
 library services, coins/badges economy, crystal-restoration arc + ending.
 Deploy steps tracked as #38; placeholder-art swap as #39.
 
+**Story pass shipped 2026-06-12:** `docs/STORY.md` bible, opening/hatch/
+ending cutscenes, Ember the dragon companion (hatches on first victory,
+grows with crystals), Fiend battle dialogue, one mini-quest per zone (#42
+tracks quest variety).
+
 **Remaining (phase 4):** audio (#41), PWA (#5), parent dashboard (#29),
-friends leaderboard, companions, New Game+.
+friends leaderboard, companions (incl. Ember battle actions), New Game+.
 
 ### #38 — Apply migration 0008 + redeploy the edge function 🔴 High
 The JRPG build needs `0008_saves.sql` applied (the `saves` table — without it
@@ -252,6 +258,15 @@ phase. Revisit after observing real boss-fight pacing with kids.
 howler is installed and unused. Needs CC0 packs (zone themes, battle theme,
 victory fanfare, SFX for hits/heals/saves) and a small `lib/audio.ts` with a
 mute toggle in the menu. Asset sourcing is the blocker, not code.
+
+### #42 — Mini-quest pattern is uniform 🔴 Low
+All four zone quests are "open the riddle-chest, return to the giver" (a
+deliberate first ship — see STORY.md §6). Add variety when content grows:
+defeat-an-enemy quests need persistent (not session-only) defeat tracking;
+multi-step quests need ordered flags; escort/delivery quests need a carried-
+item slot. The quest data shape (`content/quests.ts`) already supports
+arbitrary `isComplete(save)` predicates, so this is content + small save
+additions, not a rework.
 
 ### #33 — Topic set is hardcoded 🟢 Low — RESOLVED (2026-06-12)
 `src/content/topics.ts` ships `TOPIC_REGISTRY` (id, label, emoji, colors,

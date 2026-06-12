@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { NPC_DEFS, ROLE_SERVICE, type DialogueLine } from '../../content/npcs';
+import { questDialogue, applyQuestFinish, type QuestDialogue } from '../../content/quests';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 
@@ -15,18 +16,24 @@ function visibleLines(lines: DialogueLine[], flags: Record<string, boolean>): Di
 }
 
 /**
- * Classic JRPG text box (#37) — one line at a time, player-paced. Service
- * NPCs (merchant/innkeeper/librarian/sage) offer their service on the last
- * line. Lines can set story flags as they're read.
+ * Classic JRPG text box (#37) — one line at a time, player-paced. Quest
+ * givers speak their quest conversation (offer / in-progress / completion
+ * with rewards, see content/quests.ts) before falling back to their normal
+ * lines. Service NPCs offer their service on the last line; lines can set
+ * story flags as they're read.
  */
 export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const update = useSaveStore((s) => s.update);
   const npc = NPC_DEFS[npcId];
-  // Freeze the visible lines at open — a line that sets its own filter flag
-  // (e.g. the Elder's one-time greeting) must not reshuffle mid-conversation.
-  const [lines] = useState(() =>
-    visibleLines(npc?.lines ?? [], useSaveStore.getState().save?.flags ?? {}),
-  );
+  // Freeze the conversation at open — quest completion or a line that sets
+  // its own filter flag must not reshuffle lines mid-conversation.
+  const [conversation] = useState<{ lines: DialogueLine[]; quest: QuestDialogue | null }>(() => {
+    const save = useSaveStore.getState().save;
+    const quest = save ? questDialogue(npcId, save) : null;
+    if (quest) return { lines: quest.lines, quest };
+    return { lines: visibleLines(npc?.lines ?? [], save?.flags ?? {}), quest: null };
+  });
+  const { lines, quest } = conversation;
   const [index, setIndex] = useState(0);
 
   const invalid = !npc || lines.length === 0;
@@ -38,22 +45,30 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const line = lines[Math.min(index, lines.length - 1)];
   const text = typeof line === 'string' ? line : line.text;
   const isLast = index >= lines.length - 1;
-  const service = ROLE_SERVICE[npc.role];
+  // Quest conversations don't double as service menus.
+  const service = quest ? undefined : ROLE_SERVICE[npc.role];
 
-  function advance() {
+  function applyLineFlag() {
     if (typeof line !== 'string' && line.setFlag) {
       const flag = line.setFlag;
       update((s) => ({ ...s, flags: { ...s.flags, [flag]: true } }));
     }
-    if (isLast) sendFlow({ type: 'CLOSE' });
-    else setIndex((i) => i + 1);
+  }
+
+  function advance() {
+    applyLineFlag();
+    if (!isLast) {
+      setIndex((i) => i + 1);
+      return;
+    }
+    if (quest && quest.finish) {
+      update((s) => applyQuestFinish(s, quest));
+    }
+    sendFlow({ type: 'CLOSE' });
   }
 
   function openService() {
-    if (typeof line !== 'string' && line.setFlag) {
-      const flag = line.setFlag;
-      update((s) => ({ ...s, flags: { ...s.flags, [flag]: true } }));
-    }
+    applyLineFlag();
     if (service) sendFlow({ type: 'OPEN_SERVICE', service, npcId });
   }
 
@@ -67,6 +82,11 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
         <div className="flex items-center gap-2 mb-2">
           <span className="text-3xl">{npc.sprite}</span>
           <span className="font-bold text-amber-300">{npc.name}</span>
+          {quest && (
+            <span className="ml-auto text-[10px] uppercase tracking-wider bg-amber-400/20 text-amber-300 rounded px-2 py-0.5">
+              ❗ {quest.quest.title}
+            </span>
+          )}
         </div>
         <p className="leading-relaxed min-h-[3rem]">{text}</p>
         <div className="flex justify-end gap-3 mt-3">
@@ -85,7 +105,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
             onClick={advance}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
           >
-            {isLast ? 'Bye!' : '▼ Next'}
+            {!isLast ? '▼ Next' : quest?.finish === 'complete' ? '🎉 Thanks!' : quest?.finish === 'offer' ? "I'm on it!" : 'Bye!'}
           </button>
         </div>
       </motion.div>

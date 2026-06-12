@@ -7,6 +7,12 @@
 
 Status: **phases 0–3 BUILT (2026-06-12)** · Author: Claude · Date: 2026-06-12
 
+> **Story pass (2026-06-12):** full narrative layer shipped — see
+> **`docs/STORY.md`** (story bible). Opening/hatch/ending cutscenes, Fiend
+> battle dialogue, one mini-quest per zone, and **Ember the dragon** — the
+> hero carries the last dragon egg, it hatches on the first battle victory,
+> follows the hero on the map, and grows as crystals are restored.
+>
 > **Build status:** all §6 decisions resolved; phases 0–3 shipped in one build
 > (xstate flow, per-user saves, topic registry, 5-zone tile world, dialogue,
 > gates/chests, FF-style command battles with Sages/Specials, shop/inn/library,

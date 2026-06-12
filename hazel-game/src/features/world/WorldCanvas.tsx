@@ -4,6 +4,7 @@ import type { MutableRefObject } from 'react';
 import { TILE, WALKABLE_CHARS, pathTargetId, gateFlag, zone } from '../../content/zones';
 import { NPC_DEFS } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
+import { EMBER_SPRITES, EMBER_MAP_SIZE, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
 
 /** Player hitbox half-size (smaller than a tile so corridors feel forgiving). */
@@ -34,6 +35,7 @@ export default function WorldCanvas({
   zoneId,
   avatar,
   age,
+  emberStage,
   startPos,
   flags,
   openedChests,
@@ -45,6 +47,8 @@ export default function WorldCanvas({
   zoneId: ZoneId;
   avatar: Avatar;
   age: number;
+  /** Ember the dragon's growth stage — drawn trailing the hero. */
+  emberStage: EmberStage;
   /** Pixel position to spawn at, or null for the zone default. */
   startPos: { x: number; y: number } | null;
   flags: Record<string, boolean>;
@@ -218,6 +222,15 @@ export default function WorldCanvas({
     ]);
     player.add([k.text(avatar.sprite, { size: 20 }), k.anchor('center')]);
 
+    // Ember trails the hero (no collision — dragons walk where they please).
+    const ember = k.add([
+      k.text(EMBER_SPRITES[emberStage], { size: EMBER_MAP_SIZE[emberStage] }),
+      k.pos(spawn.x - 24, spawn.y + 8),
+      k.anchor('center'),
+      k.z(9),
+    ]);
+    let lastDir = { x: 1, y: 0 };
+
     // --- Collision ---------------------------------------------------------
     const isOpenGate = (x: number, y: number) =>
       flagsRef.current[gateFlag(pathTargetId(zoneId, 'gate', x, y))] === true;
@@ -277,6 +290,8 @@ export default function WorldCanvas({
         dy *= inv;
       }
 
+      if (dx !== 0 || dy !== 0) lastDir = { x: dx, y: dy };
+
       // Axis-separated movement for wall sliding; remember what we bumped.
       let bumped: { ch: string; x: number; y: number } | null = null;
       if (dx !== 0) {
@@ -333,6 +348,13 @@ export default function WorldCanvas({
           }
         }
       }
+
+      // Ember pads along behind the hero with a friendly bounce.
+      const trail = k.vec2(
+        player.pos.x - lastDir.x * 26,
+        player.pos.y - lastDir.y * 26 + 8 + Math.sin(k.time() * 4) * 2,
+      );
+      ember.pos = ember.pos.lerp(trail, Math.min(1, dt * 5));
 
       // Open gates / opened chests update live (flag set while overlay open).
       for (const [id, sprite] of gateSprites) {

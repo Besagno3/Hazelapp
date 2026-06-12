@@ -19,7 +19,8 @@ import {
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { SAGES, CHARGE_MAX, SPECIAL_LEVEL_BONUS } from '../../content/abilities';
 import { POTION_HEAL } from '../../content/items';
-import { topicInfo, crystalFlag } from '../../content/topics';
+import { topicInfo, crystalFlag, TOPIC_REGISTRY } from '../../content/topics';
+import { BOSS_LINES, emberStage, EMBER_SPRITES, EMBER_HATCHED } from '../../content/story';
 import { avatarById } from '../../content/avatars';
 import { HUB_ZONE } from '../../content/zones';
 import { useBattleStore } from '../../store/battleStore';
@@ -64,6 +65,8 @@ export default function BattleArena() {
   const topic = enemy?.topic ?? 'math';
   const info = topicInfo(topic);
   const sage = save?.sageEquipped ? SAGES[save.sageEquipped] : null;
+  const crystals = TOPIC_REGISTRY.filter((t) => save?.flags[crystalFlag(t.id)]).length;
+  const ember = emberStage(crystals, save?.flags ?? {});
 
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
@@ -114,6 +117,19 @@ export default function BattleArena() {
     setFloats((f) => [...f, { id, text, side, color }]);
     setTimeout(() => setFloats((f) => f.filter((x) => x.id !== id)), 1100);
   }, []);
+
+  // Fiends monologue before the first command (#37 story pass).
+  const bossIntroDone = useRef(false);
+  useEffect(() => {
+    if (loading || !enemy?.isBoss || bossIntroDone.current) return;
+    bossIntroDone.current = true;
+    const lines = BOSS_LINES[enemy.topic].intro;
+    const chain = lines.reduceRight<() => void>(
+      (next, line) => () => setTurn({ kind: 'message', text: line, next }),
+      () => setTurn({ kind: 'command' }),
+    );
+    chain();
+  }, [loading, enemy]);
 
   // Battle entered without an encounter (e.g. stale reload) — bail out.
   const invalid = !enemy || !save || !avatar;
@@ -197,7 +213,10 @@ export default function BattleArena() {
       if (wasCorrect && sage) {
         dmg = specialDamage(style, powerUps);
         setCharge(0);
-        text = `${sage.specialEmoji} ${sage.specialName}! A brilliant answer erupts!`;
+        text =
+          ember !== 'egg'
+            ? `${sage.specialEmoji} ${sage.specialName}! Ember roars as your answer blazes!`
+            : `${sage.specialEmoji} ${sage.specialName}! A brilliant answer erupts!`;
         confetti({ particleCount: 90, spread: 100, origin: { y: 0.4 } });
       } else {
         setTurn({ kind: 'message', text: 'The Special fizzles… the charge is safe. Try again!', next: enemyTurn });
@@ -293,7 +312,13 @@ export default function BattleArena() {
       hp: playerHp,
       coins: s.coins + enemy!.coins,
       library: pushLibrary(s.library, misses.current),
-      flags: enemy!.isBoss ? { ...s.flags, [crystalFlag(topic)]: true } : s.flags,
+      flags: {
+        ...s.flags,
+        // The first victory warms the egg — the hatch scene plays back in
+        // the world (#37 story pass).
+        [EMBER_HATCHED]: true,
+        ...(enemy!.isBoss ? { [crystalFlag(topic)]: true } : {}),
+      },
     }));
     setTurn({ kind: 'victory' });
   }
@@ -436,6 +461,15 @@ export default function BattleArena() {
             </motion.div>
           </motion.div>
           {guarded && <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl">🛡️</span>}
+          <motion.span
+            animate={{ y: [0, -4, 0] }}
+            transition={{ repeat: Infinity, duration: 1.4 }}
+            className={`absolute -right-10 bottom-0 ${ember === 'egg' ? 'text-2xl' : ember === 'dragon' ? 'text-5xl' : 'text-3xl'}`}
+            title="Ember"
+            style={{ filter: 'drop-shadow(0 8px 6px rgba(0,0,0,0.4))' }}
+          >
+            {EMBER_SPRITES[ember]}
+          </motion.span>
           {floats
             .filter((f) => f.side === 'hero')
             .map((f) => (
@@ -548,9 +582,14 @@ export default function BattleArena() {
                 <div className="text-5xl mb-2">🏆</div>
                 <h2 className="text-xl font-extrabold text-amber-300 mb-1">Victory!</h2>
                 {enemy.isBoss && (
-                  <p className="text-emerald-300 font-bold mb-1">
-                    💎 The {info.crystalName} shines again!
-                  </p>
+                  <>
+                    <p className="text-white/60 italic text-sm mb-1">
+                      "{BOSS_LINES[topic].defeat}"
+                    </p>
+                    <p className="text-emerald-300 font-bold mb-1">
+                      💎 The {info.crystalName} shines again!
+                    </p>
+                  </>
                 )}
                 <p className="text-sm text-white/80">
                   {correctCount} correct answers · 🪙 +{enemy.coins} ·{' '}

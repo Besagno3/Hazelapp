@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { SAGES } from '../../content/abilities';
 import { SHOP_CATALOG } from '../../content/items';
 import { avatarById } from '../../content/avatars';
+import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
+import { emberStage, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
 import { hpBonus } from '../../lib/powerups';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
@@ -23,6 +25,8 @@ export default function MenuOverlay() {
   const avatar = avatarById(save.avatarId);
   const maxHp = (avatar?.maxHp ?? 100) + hpBonus(profile?.powerUps ?? {});
   const hp = save.hp ?? maxHp;
+  const crystals = TOPIC_REGISTRY.filter((t) => save.flags[crystalFlag(t.id)]).length;
+  const ember = emberStage(crystals, save.flags);
 
   async function doSave() {
     await flush();
@@ -45,6 +49,18 @@ export default function MenuOverlay() {
             <div className="font-bold text-sm">{avatar?.name ?? 'Hero'}</div>
             <div className="text-xs text-white/70">
               ❤️ {hp}/{maxHp} · 🪙 {save.coins} · 🧪 ×{save.items.potion} · 🪶 ×{save.items.hint}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 bg-white/10 rounded-xl p-3 mb-3">
+          <span className="text-3xl">{EMBER_SPRITES[ember]}</span>
+          <div className="flex-1">
+            <div className="font-bold text-sm">Ember</div>
+            <div className="text-xs text-white/70">
+              {ember === 'egg'
+                ? 'A warm egg — win a battle to hatch it!'
+                : `The last dragon of Lumina — ${EMBER_STAGE_LABEL[ember]}. Grows with each crystal!`}
             </div>
           </div>
         </div>

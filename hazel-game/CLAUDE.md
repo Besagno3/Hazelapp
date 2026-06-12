@@ -158,6 +158,31 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-12 — Story pass + Ember the dragon (#37)
+Narrative layer on top of the phases 0–3 build. **`docs/STORY.md`** is the
+story bible (tone rules, cast, structure, flag glossary).
+- **Ember, the last dragon of Lumina** (`content/story.ts`): the hero finds
+  the last dragon egg in the opening; it hatches on the **first battle
+  victory** (flag `ember-hatched`, hatch cutscene plays back in the world)
+  and grows with restored crystals (hatchling → whelp → dragon). Ember
+  trails the hero on the map (lag-follow in `WorldCanvas`), bounces beside
+  them in battle, roars in landed Specials, and appears on the HUD + menu.
+  Story-only for now — no battle mechanics (companions are phase 4).
+- **Cutscenes**: `components/StoryPanels.tsx` (storybook panels, player-
+  paced) drives the opening (`INTRO_PANELS`, first world entry), the hatch,
+  and a personalized 5-panel ending (`endingPanels(heroName)`) that replaces
+  the old single-modal ending. Cutscenes pause the world canvas.
+- **Fiend dialogue** (`BOSS_LINES`): 2-box villain monologue before the
+  first command of every boss fight + last words on the victory panel.
+- **Zone mini-quests** (`content/quests.ts`): one per zone (Tally's
+  Counting Stones, Fern's Glow-Moss, Rivet's Golden Gear, Doodle's Color
+  Seed) — villager offers → open the zone's riddle-chest → return for
+  reward (25 coins + potion/hint). Pure dialogue+flags; `questDialogue` /
+  `applyQuestFinish` are pure and unit-tested. `DialogueOverlay` shows a
+  quest title chip and grants rewards on the closing line.
+- Elder Lumen + Pip dialogue now reacts to the egg/Ember.
+- Tests: 134 green (story stage/panels/boss-lines + quest content/flow).
+
 ### 2026-06-12 — Educational JRPG end-to-end build (#37, phases 0–3)
 The design doc's phases 0–3, shipped as one build. Highlights:
 - **Phase 0 foundations:** `machines/gameFlow.ts` (xstate v5) replaces

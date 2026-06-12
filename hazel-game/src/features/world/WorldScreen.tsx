@@ -7,10 +7,23 @@ import DialogueOverlay from './DialogueOverlay';
 import ServiceOverlay from './ServiceOverlay';
 import PathQuestionOverlay from './PathQuestionOverlay';
 import MenuOverlay from './MenuOverlay';
+import StoryPanels from '../../components/StoryPanels';
 import { zone, TILE } from '../../content/zones';
 import { spawnEnemy } from '../../content/enemies';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
+import {
+  emberStage,
+  endingPanels,
+  EMBER_SPRITES,
+  EMBER_STAGE_LABEL,
+  EMBER_HATCHED,
+  EMBER_HATCH_SEEN,
+  HATCH_PANELS,
+  INTRO_PANELS,
+  INTRO_SEEN,
+  ENDING_SEEN,
+} from '../../content/story';
 import { calcAge } from '../../lib/age';
 import { hpBonus } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
@@ -50,10 +63,6 @@ export default function WorldScreen() {
   const service = useFlow((s) => s.context.service);
   const pathTarget = useFlow((s) => s.context.pathTarget);
 
-  const pausedRef = useRef(false);
-  useEffect(() => {
-    pausedRef.current = overlay !== null;
-  }, [overlay]);
   const touchDirRef = useRef({ dx: 0, dy: 0 });
   const onDirChange = useCallback((dx: number, dy: number) => {
     touchDirRef.current = { dx, dy };
@@ -66,8 +75,21 @@ export default function WorldScreen() {
   const avatar = avatarById(save?.avatarId ?? null);
   const maxHp = (avatar?.maxHp ?? 100) + hpBonus(profile?.powerUps ?? {});
   const hp = Math.min(save?.hp ?? maxHp, maxHp);
-  const crystals = TOPIC_REGISTRY.filter((t) => save?.flags[crystalFlag(t.id)]).length;
-  const endingDue = crystals === TOPIC_REGISTRY.length && !save?.flags['ending-seen'];
+  const flags = save?.flags ?? {};
+  const crystals = TOPIC_REGISTRY.filter((t) => flags[crystalFlag(t.id)]).length;
+  const ember = emberStage(crystals, flags);
+
+  // Story moments (#37 story pass) — priority: intro, hatch, then ending.
+  const introDue = !flags[INTRO_SEEN];
+  const hatchDue = !introDue && flags[EMBER_HATCHED] === true && !flags[EMBER_HATCH_SEEN];
+  const endingDue =
+    !introDue && !hatchDue && crystals === TOPIC_REGISTRY.length && !flags[ENDING_SEEN];
+  const cutscene = introDue || hatchDue || endingDue;
+
+  const pausedRef = useRef(false);
+  useEffect(() => {
+    pausedRef.current = overlay !== null || cutscene;
+  }, [overlay, cutscene]);
 
   // Warm each living enemy's battle questions while the player explores.
   useEffect(() => {
@@ -116,6 +138,7 @@ export default function WorldScreen() {
           </p>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>{EMBER_SPRITES[ember]}</span>
           <span title="HP">
             ❤️ {hp}/{maxHp}
           </span>
@@ -131,10 +154,11 @@ export default function WorldScreen() {
       </div>
 
       <WorldCanvas
-        key={zoneId}
+        key={`${zoneId}|${ember}`}
         zoneId={zoneId}
         avatar={avatar}
         age={age}
+        emberStage={ember}
         startPos={save.pos}
         flags={save.flags}
         openedChests={save.openedChests}
@@ -184,34 +208,27 @@ export default function WorldScreen() {
       {overlay === 'path' && pathTarget && <PathQuestionOverlay target={pathTarget} />}
       {overlay === 'menu' && <MenuOverlay />}
 
-      {/* Ending (all four crystals restored) */}
+      {/* Story cutscenes (#37 story pass) */}
+      {introDue && (
+        <StoryPanels
+          panels={INTRO_PANELS}
+          doneLabel="🐲 Begin the adventure!"
+          onDone={() => update((s) => ({ ...s, flags: { ...s.flags, [INTRO_SEEN]: true } }))}
+        />
+      )}
+      {hatchDue && (
+        <StoryPanels
+          panels={HATCH_PANELS}
+          doneLabel="🐲 Hello, Ember!"
+          onDone={() => update((s) => ({ ...s, flags: { ...s.flags, [EMBER_HATCH_SEEN]: true } }))}
+        />
+      )}
       {endingDue && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-6">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-gradient-to-br from-indigo-900 to-purple-900 border-4 border-amber-300 rounded-3xl p-8 max-w-lg text-center text-white shadow-2xl"
-          >
-            <div className="text-6xl mb-3">💎✨💎</div>
-            <h2 className="text-2xl font-extrabold text-amber-300 mb-3">
-              The Crystals of Knowing shine again!
-            </h2>
-            <p className="text-sm text-white/85 leading-relaxed mb-5">
-              The fog of Forgetting melts away. Numbers dance in the rivers, the skies remember
-              their stars, the great engines hum, and color floods back into the world.
-              <br />
-              <br />
-              Lumina is bright because <span className="font-bold">you kept learning</span>. The
-              Fiends may stir again one day… and you'll be even smarter when they do. 🌟
-            </p>
-            <button
-              onClick={() => update((s) => ({ ...s, flags: { ...s.flags, 'ending-seen': true } }))}
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-3"
-            >
-              The adventure continues!
-            </button>
-          </motion.div>
-        </div>
+        <StoryPanels
+          panels={endingPanels(avatar.name)}
+          doneLabel="🌟 The adventure continues!"
+          onDone={() => update((s) => ({ ...s, flags: { ...s.flags, [ENDING_SEEN]: true } }))}
+        />
       )}
     </div>
   );

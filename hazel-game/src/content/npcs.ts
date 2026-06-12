@@ -54,6 +54,14 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Four Fiends hoard the crystal light — one beyond each path from this field.',
       'Every question you answer returns a spark of light. Learning is our magic!',
       {
+        text: 'That egg you carry… the last dragon of Lumina chose YOU. Keep answering bravely, and it will hatch.',
+        unlessFlag: 'ember-hatched',
+      },
+      {
+        text: 'Little Ember is growing fast! Crystal light is dragon food, you know.',
+        ifFlag: 'ember-hatched',
+      },
+      {
         text: 'All four crystals shine again… you truly are the Hero of Lumina!',
         ifFlag: 'crystal-math-restored',
       },
@@ -67,6 +75,14 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'I saw a gatekeeper on the path! They only let you through if you answer their question.',
       'Treasure chests ask questions too. Smart chests, huh?',
+      {
+        text: 'Is that a DRAGON EGG?! When it hatches, can I pet it? Please please please?',
+        unlessFlag: 'ember-hatched',
+      },
+      {
+        text: 'EMBER IS SO COOL. I gave them a snack. Dragons like crackers, who knew!',
+        ifFlag: 'ember-hatched',
+      },
     ],
   },
   'hub-innkeeper': {
