@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { NPC_DEFS, ROLE_SERVICE, type DialogueLine } from '../../content/npcs';
-import { questDialogue, applyQuestFinish, type QuestDialogue } from '../../content/quests';
+import { questConversation, type QuestConversation } from '../../content/quests';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 
@@ -27,12 +27,14 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const npc = NPC_DEFS[npcId];
   // Freeze the conversation at open — quest completion or a line that sets
   // its own filter flag must not reshuffle lines mid-conversation.
-  const [conversation] = useState<{ lines: DialogueLine[]; quest: QuestDialogue | null }>(() => {
-    const save = useSaveStore.getState().save;
-    const quest = save ? questDialogue(npcId, save) : null;
-    if (quest) return { lines: quest.lines, quest };
-    return { lines: visibleLines(npc?.lines ?? [], save?.flags ?? {}), quest: null };
-  });
+  const [conversation] = useState<{ lines: DialogueLine[]; quest: QuestConversation | null }>(
+    () => {
+      const save = useSaveStore.getState().save;
+      const quest = save ? questConversation(npcId, save) : null;
+      if (quest) return { lines: quest.lines, quest };
+      return { lines: visibleLines(npc?.lines ?? [], save?.flags ?? {}), quest: null };
+    },
+  );
   const { lines, quest } = conversation;
   const [index, setIndex] = useState(0);
 
@@ -61,8 +63,8 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
       setIndex((i) => i + 1);
       return;
     }
-    if (quest && quest.finish) {
-      update((s) => applyQuestFinish(s, quest));
+    if (quest?.finish) {
+      update(quest.finish);
     }
     sendFlow({ type: 'CLOSE' });
   }
@@ -84,7 +86,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           <span className="font-bold text-amber-300">{npc.name}</span>
           {quest && (
             <span className="ml-auto text-[10px] uppercase tracking-wider bg-amber-400/20 text-amber-300 rounded px-2 py-0.5">
-              ❗ {quest.quest.title}
+              ❗ {quest.badge}
             </span>
           )}
         </div>
@@ -105,7 +107,15 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
             onClick={advance}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
           >
-            {!isLast ? '▼ Next' : quest?.finish === 'complete' ? '🎉 Thanks!' : quest?.finish === 'offer' ? "I'm on it!" : 'Bye!'}
+            {!isLast
+              ? '▼ Next'
+              : quest?.finishKind === 'complete'
+                ? '🎉 Thanks!'
+                : quest?.finishKind === 'offer'
+                  ? "I'm on it!"
+                  : quest?.finishKind === 'step'
+                    ? '✨ Got it!'
+                    : 'Bye!'}
           </button>
         </div>
       </motion.div>

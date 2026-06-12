@@ -26,6 +26,8 @@ export function defaultSave(): SaveData {
     sageEquipped: null,
     flags: {},
     openedChests: [],
+    kills: {},
+    questItems: [],
     passedRounds: 0,
     worldUnlocked: false,
     library: [],
@@ -71,6 +73,8 @@ export function normalizeSave(raw: unknown): SaveData {
     sageEquipped: typeof r.sageEquipped === 'string' ? (r.sageEquipped as Topic) : null,
     flags: typeof r.flags === 'object' && r.flags !== null ? (r.flags as Record<string, boolean>) : {},
     openedChests: stringArray(r.openedChests),
+    kills: killCounts(r.kills),
+    questItems: stringArray(r.questItems),
     passedRounds: numberOr(r.passedRounds, 0),
     worldUnlocked: r.worldUnlocked === true,
     library: Array.isArray(r.library) ? (r.library as LibraryEntry[]).slice(0, LIBRARY_MAX) : [],
@@ -83,6 +87,15 @@ function numberOr(v: unknown, fallback: number): number {
 
 function stringArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
+}
+
+function killCounts(v: unknown): Record<string, number> {
+  if (typeof v !== 'object' || v === null) return {};
+  const out: Record<string, number> = {};
+  for (const [key, n] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof n === 'number' && Number.isFinite(n) && n > 0) out[key] = Math.floor(n);
+  }
+  return out;
 }
 
 /**

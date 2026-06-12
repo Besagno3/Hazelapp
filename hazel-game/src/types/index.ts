@@ -119,6 +119,10 @@ export interface SaveData {
   /** Story + world flags: crystal-<topic>-restored, gate:<id>, ending-seen… */
   flags: Record<string, boolean>;
   openedChests: string[];
+  /** Lifetime victories per enemy def id — drives defeat quests (#42). */
+  kills: Record<string, number>;
+  /** Carried quest items (delivery quests, #42) — see content/quests.ts. */
+  questItems: string[];
   /** Quiz rounds passed at the training grounds (world unlock gate). */
   passedRounds: number;
   worldUnlocked: boolean;

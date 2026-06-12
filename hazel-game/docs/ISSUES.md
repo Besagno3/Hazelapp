@@ -48,7 +48,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #39 | 🔴 | Med    | Replace placeholder programmer art with CC0 tilesets/sprite sheets |
 | #40 | 🔴 | Low    | Boss question difficulty doesn't ramp per enrage phase (damage does) |
 | #41 | 🔴 | Low    | No audio — howler installed, needs CC0 chiptune/SFX packs (phase 4) |
-| #42 | 🔴 | Low    | All four mini-quests share the riddle-chest pattern — add variety later |
+| #42 | 🟢 | Low    | All four mini-quests share the riddle-chest pattern — add variety later |
 
 ---
 
@@ -259,14 +259,16 @@ howler is installed and unused. Needs CC0 packs (zone themes, battle theme,
 victory fanfare, SFX for hits/heals/saves) and a small `lib/audio.ts` with a
 mute toggle in the menu. Asset sourcing is the blocker, not code.
 
-### #42 — Mini-quest pattern is uniform 🔴 Low
-All four zone quests are "open the riddle-chest, return to the giver" (a
-deliberate first ship — see STORY.md §6). Add variety when content grows:
-defeat-an-enemy quests need persistent (not session-only) defeat tracking;
-multi-step quests need ordered flags; escort/delivery quests need a carried-
-item slot. The quest data shape (`content/quests.ts`) already supports
-arbitrary `isComplete(save)` predicates, so this is content + small save
-additions, not a rework.
+### #42 — Mini-quest pattern is uniform 🟢 Low — RESOLVED (2026-06-12)
+Quests are now ordered steps with three mechanics: chest steps, **defeat
+steps** (lifetime per-enemy kill counts in `save.kills`, written on battle
+victory), and **talk steps** (a step-target NPC speaks its own lines and
+advances the quest — used for deliveries via the new `save.questItems`
+carried-item slot). The five quests use every mechanic: chest fetch
+(Numbria), 3-critter defeat with a remaining-targets hint (Verdara),
+chest→polish→report multi-step (Gearfall), seed delivery (Chromaria), and
+a cross-zone hub defeat quest from Pip. The menu gained a quest log +
+carried-items row. See STORY.md §6.
 
 ### #33 — Topic set is hardcoded 🟢 Low — RESOLVED (2026-06-12)
 `src/content/topics.ts` ships `TOPIC_REGISTRY` (id, label, emoji, colors,

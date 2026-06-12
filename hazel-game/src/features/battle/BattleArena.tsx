@@ -311,6 +311,8 @@ export default function BattleArena() {
       ...s,
       hp: playerHp,
       coins: s.coins + enemy!.coins,
+      // Lifetime kill counts drive defeat quests (#42).
+      kills: { ...s.kills, [enemy!.id]: (s.kills[enemy!.id] ?? 0) + 1 },
       library: pushLibrary(s.library, misses.current),
       flags: {
         ...s.flags,

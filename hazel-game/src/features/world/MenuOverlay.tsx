@@ -5,6 +5,7 @@ import { SHOP_CATALOG } from '../../content/items';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
 import { emberStage, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
+import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
 import { hpBonus } from '../../lib/powerups';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
@@ -27,6 +28,7 @@ export default function MenuOverlay() {
   const hp = save.hp ?? maxHp;
   const crystals = TOPIC_REGISTRY.filter((t) => save.flags[crystalFlag(t.id)]).length;
   const ember = emberStage(crystals, save.flags);
+  const quests = activeQuests(save);
 
   async function doSave() {
     await flush();
@@ -69,6 +71,36 @@ export default function MenuOverlay() {
           <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
             <span className="font-bold mr-2">Badges:</span>
             {save.badges.map((b) => SHOP_CATALOG.find((i) => i.id === b)?.emoji ?? '🏅').join(' ')}
+          </div>
+        )}
+
+        {save.questItems.length > 0 && (
+          <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
+            <span className="font-bold mr-2">Carrying:</span>
+            {save.questItems
+              .map((id) => QUEST_ITEMS[id])
+              .filter(Boolean)
+              .map((item) => `${item.emoji} ${item.name}`)
+              .join(' · ')}
+          </div>
+        )}
+
+        {quests.length > 0 && (
+          <div className="bg-white/10 rounded-xl p-3 mb-3">
+            <div className="font-bold text-sm mb-2">❗ Quests</div>
+            <div className="space-y-2">
+              {quests.map((q) => {
+                const step = activeStep(q, save);
+                return (
+                  <div key={q.id} className="text-xs">
+                    <div className="font-semibold text-amber-300">{q.title}</div>
+                    <div className="text-white/70">
+                      {step ? resolveHint(step, save) : 'Done — go collect your reward!'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

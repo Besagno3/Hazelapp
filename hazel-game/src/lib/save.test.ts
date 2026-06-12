@@ -47,6 +47,17 @@ describe('normalizeSave', () => {
   it('rejects an unknown zone id', () => {
     expect(normalizeSave({ zoneId: 'narnia' }).zoneId).toBe('lumina-field');
   });
+
+  it('repairs kill counts and quest items (#42)', () => {
+    const s = normalizeSave({
+      kills: { 'count-bat': 2, 'sum-slime': -1, junk: 'nope', half: 1.9 },
+      questItems: ['color-seed', 42],
+    });
+    expect(s.kills).toEqual({ 'count-bat': 2, half: 1 });
+    expect(s.questItems).toEqual(['color-seed']);
+    expect(normalizeSave({}).kills).toEqual({});
+    expect(normalizeSave({ kills: 'junk' }).kills).toEqual({});
+  });
 });
 
 describe('migrateLegacy', () => {

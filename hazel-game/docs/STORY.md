@@ -88,14 +88,25 @@ then last words on defeat that *concede the theme* ("your answers… counted").
   callbacks (Tally counts shooting stars…) → Ember full-grown → the hero
   named as the reason → open door to New Game+ ("trickier riddles").
 
-## 6. Mini-quests (one per zone)
+## 6. Quests (one per zone + one in the hub)
 
-Pattern (all in `quests.ts`, resolved through dialogue + the zone's
-riddle-chest): the Fiend locked something precious in the chest → villager
-asks for help → opening the chest completes the quest on next talk →
-reward (25 coins + a potion/hint) + a thank-you beat. Completion works even
-if the kid opens the chest before hearing the offer ("You found them
-already?!" energy). Flags: `quest:<id>:offered`, `quest:<id>:done`.
+Quests are ordered **steps** over the save file (`quests.ts`, #42) — three
+mechanics, each used at least once so every zone plays differently:
+
+| Quest | Giver | Mechanic |
+|---|---|---|
+| Tally's Counting Stones (Numbria) | Tally 👧 | classic riddle-chest fetch |
+| The Firefly Defenders (Verdara) | Fern 👦 | **defeat quest** — beat all three zone critters, any order; the hint names whoever's left |
+| Rivet's Golden Gear (Gearfall) | Rivet 👷 | **multi-step** — chest → Sage Cog polishes it → report back |
+| Doodle's Color Seed (Chromaria) | Doodle 🧑‍🎨 | **delivery** — carry the seed (shown in the menu) to Sage Muse, return |
+| Pip's Lucky Marble (hub) | Pip 🧒 | **cross-zone defeat** — beat the Count Bat in Numbria |
+
+Conversation shape: giver offers → giver reminds with the current step's
+hint → step-target NPCs (Sage Cog, Sage Muse) speak their own step lines →
+giver celebrates + reward. Completion works even if the kid did the deed
+before hearing the offer. The menu shows a quest log (active quests +
+current hint) and carried items. Flags: `quest:<id>:offered`,
+`quest:<id>:done`, `quest-step:<stepId>`; kill counts live in `save.kills`.
 
 ## 7. Flag glossary
 

@@ -158,6 +158,22 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-12 — Quest variety: steps, defeats, deliveries (#42)
+Quests (`content/quests.ts`) rebuilt as **ordered steps** over the save:
+- New save fields: `kills` (lifetime victories per enemy def, written by
+  `BattleArena.victory`) and `questItems` (carried delivery items).
+- Step builders: `chestStep` (riddle-chest), `defeatStep` (beat each listed
+  enemy once, any order — the hint names whoever's left), `talkStep` (a
+  step-target NPC speaks its own lines and advances the quest).
+- `questConversation(npcId, save)` resolves giver offers/hints/completions
+  AND step-target NPC conversations; `DialogueOverlay` consumes it.
+- Five quests now span all mechanics: Tally's chest fetch, Fern's 3-critter
+  Firefly Defenders, Rivet's chest→Sage-Cog-polish→report multi-step,
+  Doodle's Color Seed delivery to Sage Muse, and Pip's cross-zone Lucky
+  Marble hunt (hub → Numbria's Count Bat).
+- Menu gains a quest log (active quests + live step hint) and a
+  carried-items row. Tests: 138 green (full per-mechanic quest flows).
+
 ### 2026-06-12 — Story pass + Ember the dragon (#37)
 Narrative layer on top of the phases 0–3 build. **`docs/STORY.md`** is the
 story bible (tone rules, cast, structure, flag glossary).

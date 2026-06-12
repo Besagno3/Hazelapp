@@ -160,6 +160,15 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-142 | M | ⬜ | story | opening cutscene plays once on first world entry; hatch plays once after first victory |
 | TC-143 | M | ⬜ | story | boss fights open with the Fiend's monologue; victory panel shows last words |
 | TC-144 | M | ⬜ | story | Ember trails the hero on the map and grows after the 2nd and 4th crystals |
+| TC-145 | U | ✅ | quests | content sanity: givers placed in their zones, step NPCs/items exist, all three mechanics used |
+| TC-146 | U | ✅ | quests | chest quest: offer → hint → complete with reward, then retires |
+| TC-147 | U | ✅ | quests | defeat quest: needs all three critters; hint lists only remaining targets |
+| TC-148 | U | ✅ | quests | multi-step: Sage Cog says nothing before the chest, advances the quest after |
+| TC-149 | U | ✅ | quests | delivery: seed granted at offer, awakened by Sage Muse, removed on completion |
+| TC-150 | U | ✅ | quests | cross-zone: Pip's marble completes via count-bat kills, even pre-offer |
+| TC-151 | U | ✅ | save | normalize repairs kills (drops junk/negative) and questItems |
+| TC-152 | C | ⬜ | MenuOverlay | quest log lists active quests with live hints; carried items row shows the seed |
+| TC-153 | M | ⬜ | quests | beating an enemy updates a defeat-quest hint on next talk without re-entering the zone |
 
 ## Regression cases (tied to ISSUES.md)
 
