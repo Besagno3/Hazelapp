@@ -420,9 +420,11 @@ whatever exists.
 
 ## 6. Open questions (for the product owner)
 
-1. **Party fantasy:** one hero (daughter's avatar) with NPC companions, or
-   should friends' avatars appear as the party? (Affects phase 4 scope; the
-   doc assumes hero + story companions.)
+1. ~~**Party fantasy:**~~ **DECIDED (2026-06-12): hero + story companions.**
+   One hero (the player's avatar); companions are recruited story NPCs
+   (FF6-style ensemble, AI-controlled in battle per §3.5). Friends each play
+   their own save/hero; the "friends" social layer stays leaderboard/async
+   (phase 4), not a shared party.
 2. **Reading level for dialogue:** should NPC dialogue text adapt to age the
    way questions do, or is one kid-friendly register fine? (Doc assumes one
    register; adaptive dialogue is possible via the same edge function later.)
