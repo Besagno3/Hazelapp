@@ -130,6 +130,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-12 — JRPG design doc (#37)
+- `docs/DESIGN-JRPG.md`: full design for evolving the app into a classic
+  NES/SNES-style educational JRPG (FF1/2/4/6 + Dragon Warrior references).
+  Covers a review of the current app, target architecture (KaPlay tile-based
+  overworld + DOM/Framer side-profile 2.5D battles, xstate game-flow machine,
+  Supabase save files, data-driven `src/content/` layer), the question-powered
+  battle/encounter design, a 5-phase roadmap, and an explicit can/can't-build
+  list. Phase 0 of the roadmap subsumes existing issues #11, #12, #33;
+  phase 1 subsumes the #36 follow-ups; phase 4 subsumes #5 and #29.
+
 ### 2026-05-26 — Open-world MVP fixes + dev shortcut
 Three problems surfaced after the initial #36 ship.
 - **StrictMode double-init**: KaPlay maintains internal singleton state that

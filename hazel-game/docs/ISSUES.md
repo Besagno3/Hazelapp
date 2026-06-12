@@ -43,6 +43,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #34 | 🟢 | High   | Apply migration 0006 + redeploy the edge function (per-player dedupe + flags) |
 | #35 | 🟢 | High   | Apply migration 0007 (streak columns on profiles) |
 | #36 | 🟡 | Med    | "Open World" is just a 4-card NPC picker — MVP shipped, sprites/multi-screen pending |
+| #37 | 🔴 | Epic   | Evolve into an educational JRPG — see `docs/DESIGN-JRPG.md` |
 
 ---
 
@@ -201,6 +202,16 @@ the built-in mascot splash (broken-image artifact under lazy chunks).
 - Beaten-NPC tracking — defeated NPCs should disappear from the map
   until the next session.
 - Optional: distinct biomes per topic (library / lab / studio / workshop).
+
+### #37 — Educational JRPG epic 🔴 Epic
+The product vision is a classic NES/SNES-style JRPG (FF1/2/4/6, Dragon
+Warrior) where the 2D open world and side-profile battles are powered by the
+existing AI question pipeline. Full design, architecture, 5-phase roadmap, and
+build-scope (what Claude can/can't deliver) live in **`docs/DESIGN-JRPG.md`**.
+Phase 0 of that roadmap resolves #11 (xstate flow), #12 (per-user saves), and
+#33 (topic registry); phase 1 absorbs the #36 follow-up list; phase 4 absorbs
+#5 (PWA) and #29 (parent dashboard). Track per-phase work as child issues as
+each phase starts.
 
 ### #33 — Topic set is hardcoded 🔴 Low
 The four topics (math, science, engineering, creativity) are baked into the
