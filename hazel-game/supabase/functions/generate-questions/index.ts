@@ -173,7 +173,15 @@ async function generateFresh(
   age: number,
   level: number,
   n: number,
+  context?: string,
 ): Promise<FreshQuestion[]> {
+  // Optional flavor hint from the game (#37): lightly themes fresh questions
+  // (gatekeeper riddles, boss battles…). Questions must stay self-contained —
+  // the flavor is tone, not content — so cached reuse elsewhere still works.
+  const flavor = context
+    ? ` Give the questions a light, fun adventure-story tone fitting this moment: ${context}. ` +
+      'The questions must still stand alone and test the topic.'
+    : '';
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 4096,
@@ -184,7 +192,8 @@ async function generateFresh(
         role: 'user',
         content:
           `Generate ${n} "${topic}" questions for a ${age}-year-old ` +
-          `at difficulty level ${level} of 10.`,
+          `at difficulty level ${level} of 10.` +
+          flavor,
       },
     ],
   });
@@ -213,7 +222,13 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) return json({ error: 'Server is missing ANTHROPIC_API_KEY' }, 500);
 
-  let body: { topic?: string; age?: number; skillLevel?: number; count?: number };
+  let body: {
+    topic?: string;
+    age?: number;
+    skillLevel?: number;
+    count?: number;
+    context?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -222,6 +237,11 @@ Deno.serve(async (req) => {
 
   const { topic, age, skillLevel } = body;
   const count = Math.min(Math.max(body.count ?? 5, 1), 15);
+  // Optional flavor hint (#37) — clamp length so it can't bloat the prompt.
+  const context =
+    typeof body.context === 'string' && body.context.trim()
+      ? body.context.trim().slice(0, 300)
+      : undefined;
 
   if (!topic || !TOPICS.includes(topic as (typeof TOPICS)[number])) {
     return json({ error: `topic must be one of: ${TOPICS.join(', ')}` }, 400);
@@ -308,7 +328,7 @@ Deno.serve(async (req) => {
     let fresh: OutQuestion[] = [];
     if (freshCount > 0) {
       const anthropic = new Anthropic({ apiKey });
-      const generated = await generateFresh(anthropic, topic, age, skillLevel, freshCount);
+      const generated = await generateFresh(anthropic, topic, age, skillLevel, freshCount, context);
 
       if (db && generated.length > 0) {
         const rows = generated.map((q) => ({

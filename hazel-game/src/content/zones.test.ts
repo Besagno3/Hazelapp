@@ -1,0 +1,94 @@
+import { describe, it, expect } from 'vitest';
+import { ZONES, LEGEND_CHARS, WALKABLE_CHARS, HUB_ZONE, tileAt } from './zones';
+import { NPC_DEFS } from './npcs';
+import { ENEMY_DEFS, fiendFor } from './enemies';
+import { TOPIC_REGISTRY } from './topics';
+import type { ZoneDef } from './zones';
+
+const allZones = Object.values(ZONES);
+
+function isWalkable(z: ZoneDef, x: number, y: number): boolean {
+  return WALKABLE_CHARS.has(tileAt(z, x, y));
+}
+
+describe('zone maps', () => {
+  it('every row has the same width and only legend characters', () => {
+    for (const z of allZones) {
+      const width = z.map[0].length;
+      for (const row of z.map) {
+        expect(row.length, `${z.id} row width`).toBe(width);
+        for (const ch of row) {
+          expect(LEGEND_CHARS.has(ch), `${z.id} unknown tile '${ch}'`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('default spawns are walkable', () => {
+    for (const z of allZones) {
+      expect(isWalkable(z, z.spawn.x, z.spawn.y), `${z.id} spawn`).toBe(true);
+    }
+  });
+
+  it("every 'E' tile has an exit entry and every exit lands on a walkable tile", () => {
+    for (const z of allZones) {
+      for (let y = 0; y < z.map.length; y++) {
+        for (let x = 0; x < z.map[y].length; x++) {
+          if (z.map[y][x] === 'E') {
+            const exit = z.exits.find((e) => e.x === x && e.y === y);
+            expect(exit, `${z.id} E at ${x},${y} missing exit def`).toBeDefined();
+          }
+        }
+      }
+      for (const exit of z.exits) {
+        expect(tileAt(z, exit.x, exit.y), `${z.id} exit tile ${exit.x},${exit.y}`).toBe('E');
+        const target = ZONES[exit.to];
+        expect(target, `${z.id} exit target ${exit.to}`).toBeDefined();
+        expect(
+          isWalkable(target, exit.spawnX, exit.spawnY),
+          `${z.id} → ${exit.to} spawn ${exit.spawnX},${exit.spawnY}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('NPC and enemy placements reference known defs on walkable tiles', () => {
+    for (const z of allZones) {
+      for (const p of z.npcs) {
+        expect(NPC_DEFS[p.defId], `${z.id} npc ${p.defId}`).toBeDefined();
+        expect(isWalkable(z, p.x, p.y), `${z.id} npc ${p.defId} at ${p.x},${p.y}`).toBe(true);
+      }
+      for (const p of z.enemies) {
+        expect(ENEMY_DEFS[p.defId], `${z.id} enemy ${p.defId}`).toBeDefined();
+        expect(isWalkable(z, p.x, p.y), `${z.id} enemy ${p.defId} at ${p.x},${p.y}`).toBe(true);
+      }
+    }
+  });
+
+  it('every topic has a zone with its fiend placed in it', () => {
+    for (const t of TOPIC_REGISTRY) {
+      const z = ZONES[t.zoneId];
+      expect(z.topic).toBe(t.id);
+      const fiend = fiendFor(t.id);
+      expect(
+        z.enemies.some((e) => e.defId === fiend.id),
+        `${z.id} must place ${fiend.id}`,
+      ).toBe(true);
+    }
+  });
+
+  it('zone enemies match the zone topic', () => {
+    for (const z of allZones) {
+      for (const p of z.enemies) {
+        expect(ENEMY_DEFS[p.defId].topic, `${z.id} enemy ${p.defId} topic`).toBe(z.topic);
+      }
+    }
+  });
+
+  it('the hub is safe (no enemies) and links to all four topic zones', () => {
+    const hub = ZONES[HUB_ZONE];
+    expect(hub.enemies).toHaveLength(0);
+    const targets = new Set(hub.exits.map((e) => e.to));
+    for (const t of TOPIC_REGISTRY) expect(targets.has(t.zoneId), `hub → ${t.zoneId}`).toBe(true);
+  });
+});

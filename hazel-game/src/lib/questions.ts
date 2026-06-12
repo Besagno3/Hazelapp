@@ -24,9 +24,10 @@ async function invokeGenerate(
   age: number,
   skillLevel: number,
   count: number,
+  context?: string,
 ): Promise<Question[]> {
   const { data, error } = await supabase.functions.invoke('generate-questions', {
-    body: { topic, age, skillLevel, count },
+    body: { topic, age, skillLevel, count, ...(context ? { context } : {}) },
   });
   // Surface the edge function's real {error, detail} body, not the generic
   // "non-2xx status code" message (see lib/errors.ts).
@@ -54,8 +55,8 @@ async function invokeGenerate(
 
 const prefetched = new Map<string, Promise<Question[]>>();
 
-function cacheKey(topic: Topic, skillLevel: number, count: number): string {
-  return `${topic}|${skillLevel}|${count}`;
+function cacheKey(topic: Topic, skillLevel: number, count: number, context?: string): string {
+  return `${topic}|${skillLevel}|${count}|${context ?? ''}`;
 }
 
 /** Warms a question request so it is ready before the screen needs it. */
@@ -64,10 +65,11 @@ export function prefetchQuestions(
   age: number,
   skillLevel: number,
   count: number,
+  context?: string,
 ): void {
-  const key = cacheKey(topic, skillLevel, count);
+  const key = cacheKey(topic, skillLevel, count, context);
   if (prefetched.has(key)) return;
-  const promise = invokeGenerate(topic, age, skillLevel, count);
+  const promise = invokeGenerate(topic, age, skillLevel, count, context);
   prefetched.set(key, promise);
   // Drop a failed prefetch so a real request retries cleanly; this also marks
   // the rejection handled if the prefetch is never consumed.
@@ -76,21 +78,24 @@ export function prefetchQuestions(
 
 /**
  * Gets questions for a topic — consuming a prefetched batch if one is waiting,
- * otherwise requesting fresh.
+ * otherwise requesting fresh. `context` is an optional flavor hint forwarded
+ * to the edge function (e.g. "a gatekeeper's challenge on a fantasy path") —
+ * it shapes freshly-generated questions only; cached reuse is unaffected (#37).
  */
 export async function fetchQuestions(
   topic: Topic,
   age: number,
   skillLevel: number,
   count = QUIZ_QUESTION_COUNT,
+  context?: string,
 ): Promise<Question[]> {
-  const key = cacheKey(topic, skillLevel, count);
+  const key = cacheKey(topic, skillLevel, count, context);
   const pre = prefetched.get(key);
   if (pre) {
     prefetched.delete(key); // consume once
     return pre;
   }
-  return invokeGenerate(topic, age, skillLevel, count);
+  return invokeGenerate(topic, age, skillLevel, count, context);
 }
 
 /** Reasons surfaced in the flag UI; free-form `reason` strings are also accepted. */

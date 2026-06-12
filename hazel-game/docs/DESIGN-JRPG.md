@@ -5,7 +5,18 @@
 > world and fighting side-profile battles is powered by answering educational
 > questions. Learning is the magic system.
 
-Status: **draft for review** · Author: Claude (design pass) · Date: 2026-06-12
+Status: **phases 0–3 BUILT (2026-06-12)** · Author: Claude · Date: 2026-06-12
+
+> **Build status:** all §6 decisions resolved; phases 0–3 shipped in one build
+> (xstate flow, per-user saves, topic registry, 5-zone tile world, dialogue,
+> gates/chests, FF-style command battles with Sages/Specials, shop/inn/library,
+> fiends + crystal arc + ending). 123 tests green. Placeholder programmer art
+> throughout (swap plan: ISSUES #39). Deploy steps: ISSUES #38. Phase 4
+> (audio, PWA, parent dashboard, leaderboard, companions, NG+) remains.
+> Known build simplification: boss *question* difficulty doesn't ramp per
+> enrage phase — damage and dialogue do (ISSUES #40). Guard questions draw
+> from the standard pool rather than a separate −1-level pool (one fetch per
+> battle instead of two; the mercy lives in the block math instead).
 
 This document covers: (1) a review of the app as it stands, (2) the target
 architecture, (3) the game/systems design referencing FF1/2/4/6, (4) a phased
@@ -425,10 +436,19 @@ whatever exists.
    (FF6-style ensemble, AI-controlled in battle per §3.5). Friends each play
    their own save/hero; the "friends" social layer stays leaderboard/async
    (phase 4), not a shared party.
-2. **Reading level for dialogue:** should NPC dialogue text adapt to age the
-   way questions do, or is one kid-friendly register fine? (Doc assumes one
-   register; adaptive dialogue is possible via the same edge function later.)
-3. **Coins/shop economy:** include (more JRPG-authentic, more to balance) or
-   defer behind badges-only? (Doc includes a *simple* shop in phase 3.)
-4. **"Friends" mode:** is leaderboard/async enough, or is same-screen co-op a
-   real wish? (Co-op is a major scope add; not in this doc's phases.)
+2. ~~**Reading level for dialogue:**~~ **DECIDED (2026-06-12): one register.**
+   All dialogue is authored once in a simple, playful kid-friendly voice
+   (~ages 7–11). Adaptive dialogue via the edge function stays a possible
+   later layer, not part of this build.
+3. ~~**Coins/shop economy:**~~ **DECIDED (2026-06-12): simple shop.** Coins
+   drop from battles/chests; one shop per zone sells a deliberately small
+   catalog (potion, hint token, badges). Tuning constants in one file.
+4. ~~**"Friends" mode:**~~ **DECIDED (2026-06-12): async only.** Each kid has
+   their own hero/save; leaderboard + streak comparison in phase 4. Same-screen
+   co-op is explicitly out of scope.
+5. **Art (build logistics, decided 2026-06-12): placeholder programmer art
+   now.** The end-to-end build ships with programmatically generated /
+   emoji-based placeholder sprites and tiles, fully playable. Loading code and
+   docs point at the CC0 packs (Kenney / OpenGameArt) to drop in later.
+
+All product questions are resolved — the build is unblocked end to end.

@@ -1,14 +1,13 @@
 import { supabase } from '../../lib/supabase';
-import { useGameStore } from '../../store/gameStore';
+import { useSaveStore } from '../../store/saveStore';
 
 /** Floating sign-out control, shown on every screen while authenticated. */
 export default function SignOutButton() {
-  const reset = useGameStore((s) => s.reset);
-
   async function handleSignOut() {
+    // Push any pending save before the session goes away.
+    await useSaveStore.getState().flush();
     await supabase.auth.signOut();
-    // Clear local game progress so the next player starts fresh.
-    reset();
+    // useAuthInit's auth listener clears the stores and resets the flow.
   }
 
   return (

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { useGameStore } from '../../store/gameStore';
+import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
+import { sendFlow, useFlow } from '../../machines/gameFlow';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { PASS_THRESHOLD } from '../../lib/utils';
 import { nextSkillLevel } from '../../lib/age';
@@ -13,8 +14,9 @@ import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import FlagButton from '../../components/FlagButton';
 
 export default function QuizRound() {
-  const { progress, completeRound, setPhase } = useGameStore();
-  const topic = progress.currentTopic!;
+  const topic = useFlow((s) => s.context.topic) ?? 'math';
+  const worldUnlocked = useSaveStore((s) => s.save?.worldUnlocked ?? false);
+  const recordQuizRound = useSaveStore((s) => s.recordQuizRound);
   const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
   const addXp = useProfileStore((s) => s.addXp);
   const recordActivity = useProfileStore((s) => s.recordActivity);
@@ -34,7 +36,7 @@ export default function QuizRound() {
   if (loading) return <LoadingScreen label="Building your questions…" topic={topic} />;
   if (error) {
     return (
-      <ErrorScreen message={error} onRetry={reload} onBack={() => setPhase('topic-select')} />
+      <ErrorScreen message={error} onRetry={reload} onBack={() => sendFlow({ type: 'EXIT_QUIZ' })} />
     );
   }
 
@@ -60,7 +62,11 @@ export default function QuizRound() {
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     }
     setDone(true);
-    completeRound({ topic, questions, score: finalScore, passed: finalPassed });
+    // Misses feed the Library in town (#37) on top of the on-screen recap.
+    const misses = questions
+      .map((question, i) => ({ question, picked: picks[i] }))
+      .filter((_, i) => answers[i] === false);
+    recordQuizRound(finalPassed, misses);
     // Persist the skill ramp for this topic and award XP for correct answers.
     const newLevel = nextSkillLevel(skillLevel, answers);
     void setSkillLevel(topic, newLevel);
@@ -131,10 +137,18 @@ export default function QuizRound() {
             </div>
           )}
 
-          <div className="text-center">
+          <div className="flex flex-col gap-2 items-center">
+            {worldUnlocked && (
+              <button
+                onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
+                className="w-full bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-6 py-2.5 transition"
+              >
+                🗺️ Enter the world of Lumina
+              </button>
+            )}
             <button
-              onClick={() => setPhase('topic-select')}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-6 py-2 transition"
+              onClick={() => sendFlow({ type: 'EXIT_QUIZ' })}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-6 py-2 transition"
             >
               Back to Topics
             </button>

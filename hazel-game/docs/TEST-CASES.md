@@ -14,13 +14,13 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-02 | U | ✅ | utils | `calcAttackDamage(0,3,30)` returns 0 (none correct) |
 | TC-03 | U | ✅ | utils | `calcAttackDamage` rounds partial results (e.g. 2/3) |
 | TC-04 | U | ✅ | utils | `cn()` merges + dedupes conflicting Tailwind classes |
-| TC-05 | U | ✅ | gameStore | `setTopic` updates `progress.currentTopic` |
-| TC-06 | U | ✅ | gameStore | `completeRound` appends round to `completedRounds` |
-| TC-07 | U | ✅ | gameStore | world unlocks after `ROUNDS_TO_UNLOCK` passed rounds |
-| TC-08 | U | ✅ | gameStore | failed rounds do NOT count toward unlock |
-| TC-09 | U | ✅ | gameStore | `startBattle` sets phase `battle` and NPC HP |
-| TC-10 | U | ✅ | gameStore | `endBattle` records result and returns to `world` |
-| TC-11 | U | ✅ | gameStore | `reset` restores all defaults |
+| TC-05 | U | ✅ | gameFlow | RETIRED with gameStore (#37) — topic now in machine context, see TC-117 |
+| TC-06 | U | ✅ | saveStore | RETIRED with gameStore (#37) — rounds counted in the save, see TC-126 |
+| TC-07 | U | ✅ | saveStore | world unlocks after `ROUNDS_TO_UNLOCK` passed rounds (saveStore.test) |
+| TC-08 | U | ✅ | saveStore | failed rounds do NOT count toward unlock (saveStore.test) |
+| TC-09 | U | ✅ | gameFlow | ENCOUNTER enters `battle` (gameFlow.test; HP lives in battleStore now) |
+| TC-10 | U | ✅ | gameFlow | BATTLE_END returns to `world.exploring` (gameFlow.test) |
+| TC-11 | U | ✅ | gameFlow | RESET returns to `boot` from anywhere (gameFlow.test) |
 | TC-12 | C | ⬜ | AuthPage | invalid credentials show the error message |
 | TC-13 | C | ⬜ | AuthPage | toggle switches between Sign In / Create Account |
 | TC-14 | C | ⬜ | AuthPage | submit button disabled while `loading` |
@@ -70,9 +70,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-57 | U | ✅ | level | `playerLevel` is 1 at 0 XP and advances every 100 XP |
 | TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction for the level |
 | TC-59 | U | ✅ | level | `npcDefeatXp` rewards more for higher-level NPCs |
-| TC-60 | U | ✅ | npc | `generateNpcs` produces the requested count |
-| TC-61 | U | ✅ | npc | generated NPCs have valid level (1-10), topic, and HP |
-| TC-62 | U | ✅ | npc | NPC level scales up with player age |
+| TC-60 | U | ✅ | enemies | RETIRED with lib/npc (#37) — authored placements now, see TC-119/120 |
+| TC-61 | U | ✅ | enemies | RETIRED with lib/npc (#37) — see TC-119/120 |
+| TC-62 | U | ✅ | enemies | RETIRED with lib/npc (#37) — age scaling covered by zone tests |
 | TC-63 | U | ✅ | errors | `errorMessage` returns strings / Error messages intact |
 | TC-64 | U | ✅ | errors | `errorMessage` includes Supabase code / details / hint |
 | TC-65 | U | ✅ | errors | `errorMessage` handles null and serialises opaque objects |
@@ -121,10 +121,35 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-108 | U | ✅ | age | `nextSkillLevelFromBattle` matches `nextSkillLevel` when raising |
 | TC-109 | U | ✅ | age | `nextSkillLevelFromBattle` never lowers on a weak battle |
 | TC-110 | U | ✅ | age | `nextSkillLevelFromBattle` still respects the [1, 10] clamp |
-| TC-111 | M | ⬜ | WorldMap | arrow keys / WASD move the player; bumping an NPC starts a battle |
-| TC-112 | M | ⬜ | WorldMap | KaPlay chunk is lazy-loaded (`/dist/assets/WorldMap-*.js`) |
-| TC-113 | M | ⬜ | TopicSelect | `DEV: skip to world` button appears only in `bun run dev`, not production |
-| TC-114 | M | ⬜ | WorldMap | no `KAPLAY already initialized` console warning after StrictMode removal |
+| TC-111 | M | ⬜ | WorldCanvas | arrow keys / WASD move the player; bumping an enemy starts a battle |
+| TC-112 | M | ⬜ | WorldScreen | KaPlay chunk is lazy-loaded (`/dist/assets/WorldScreen-*.js`) |
+| TC-113 | M | ⬜ | TopicSelect | `DEV: skip to world` button appears only in dev, not production |
+| TC-114 | M | ⬜ | WorldCanvas | no `KAPLAY already initialized` console warning after StrictMode removal |
+
+## JRPG build (#37, phases 0–3)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-115 | U | ✅ | gameFlow | boots to `topicSelect` on a fresh save; straight to `world` when unlocked + avatar |
+| TC-116 | U | ✅ | gameFlow | PICK_TOPIC enters quiz with topic in context; EXIT_QUIZ returns |
+| TC-117 | U | ✅ | gameFlow | ENTER_WORLD is guard-blocked while locked; routes via avatarSelect without an avatar; CHOOSE_AVATAR guarded on the save |
+| TC-118 | U | ✅ | gameFlow | world overlays (dialogue/service/path/menu) open and CLOSE back to exploring |
+| TC-119 | U | ✅ | zones | every map row is uniform width with only legend chars; spawns/exits/placements land on walkable tiles |
+| TC-120 | U | ✅ | zones | each topic has a zone containing its Fiend; zone enemies match the zone topic; hub is safe and links to all four |
+| TC-121 | U | ✅ | save | `normalizeSave` repairs junk/partial payloads; unknown zone falls back to hub |
+| TC-122 | U | ✅ | save | `migrateLegacy` carries world unlock / passed rounds / avatar from the old `hazel-game` key |
+| TC-123 | U | ✅ | save | `pushLibrary` dedupes by question id and caps at LIBRARY_MAX (oldest out) |
+| TC-124 | U | ✅ | battleMath | correct answers outdamage glancing blows; wrong answers never deal zero |
+| TC-125 | U | ✅ | battleMath | Specials > 2× basic; bosses hit harder and enrage by phase; defend blocks scale with style + Iron Guard |
+| TC-126 | U | ✅ | saveStore | recordQuizRound counts passes, unlocks at threshold, queues misses to the library |
+| TC-127 | C | ⬜ | DialogueOverlay | lines advance one at a time; service NPCs offer their service on the last line |
+| TC-128 | C | ⬜ | PathQuestionOverlay | correct answer opens the gate / pops the chest (+coins); a miss closes gently and a retry fetches a new question |
+| TC-129 | C | ⬜ | BattleArena | Special needs Sage + full charge; landing it deals 2.5× and resets charge; a miss fizzles without resetting |
+| TC-130 | C | ⬜ | BattleArena | defeat relocates to Lumina Field with full HP (no game over); victory persists HP/coins and boss victories set the crystal flag |
+| TC-131 | C | ⬜ | ServiceOverlay | shop blocks purchases over budget; inn restores HP; library re-answer removes the entry and grants XP; sage grants + equips |
+| TC-132 | M | ⬜ | WorldCanvas | zone exits round-trip (hub ⇄ each topic zone) and position persists across battles and reloads |
+| TC-133 | M | ⬜ | WorldScreen | restoring all four crystals shows the ending exactly once |
+| TC-134 | M | ⬜ | saves | with 0008 applied, progress follows the account across two browsers |
 
 ## Regression cases (tied to ISSUES.md)
 

@@ -1,7 +1,9 @@
 # Hazel Quest — Project Context
 
-> Educational quiz-battle game. Players answer questions across topics, unlock an
-> open world, pick a fighter avatar, and battle NPCs by answering correctly.
+> Educational JRPG (#37, see `docs/DESIGN-JRPG.md`). Players train at quiz
+> rounds to unlock the world of Lumina, then explore a tile-based 2D world,
+> talk to NPCs, and fight FF-style side-profile command battles — every
+> attack, special, and block is powered by answering AI-generated questions.
 
 This file is loaded automatically by Claude Code. Keep it accurate — it is the
 shared source of truth for how this project works.
@@ -15,10 +17,10 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | Zustand 5 (`gameStore` persisted to localStorage, `authStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `profileStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
-| Game canvas | KaPlay 3001 (open world, lazy-loaded on `phase=world`) |
+| Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
 
 Many dependencies in `package.json` are installed but **not yet used**
@@ -38,33 +40,61 @@ existing architecture.
   skill levels) backs age-based difficulty. Difficulty model: a **persistent
   per-topic skill level** that rises on consecutive correct answers and falls
   slowly on wrong ones; the starting level is derived from age.
-- **Routing:** stay phase-based for now; **do not adopt react-router** (URLs /
-  browser-back are a liability for a guided kids' game flow). Plan to migrate
-  the game flow to **xstate** (already installed) once guarded transitions
-  multiply. See ISSUES.md #11. react-router may still be added later *only* for
-  standalone non-game pages (parent dashboard, settings, leaderboard).
+- **Routing:** the game flow is an **xstate machine** (`src/machines/gameFlow.ts`,
+  shipped 2026-06-12, resolved #11). **Do not adopt react-router** for the game
+  flow (URLs / browser-back are a liability for a guided kids' game).
+  react-router may still be added later *only* for standalone non-game pages
+  (parent dashboard, settings, leaderboard).
+- **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
+  dialogue register; simple coin/shop economy; async-only friends features;
+  placeholder programmer art now, CC0 packs later. See `docs/DESIGN-JRPG.md` §6.
 
 ## Architecture
 
 - **Auth gates the app.** `App.tsx` calls `useAuthInit()` (loads the Supabase
   session + subscribes to auth changes). No valid session → only `AuthPage` is
-  reachable, regardless of any persisted game phase.
-- **Routing is state-based, not URL-based.** When authenticated, `App.tsx`
-  renders a screen based on `gameStore.phase` (`topic-select → quiz → world →
-  battle`). No react-router. xstate migration planned — see Decisions above.
+  reachable.
+- **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
+  `boot → topicSelect ⇄ quiz → avatarSelect → world ⇄ battle`, with world
+  substates `exploring / dialogue / service / path / menu` driving DOM
+  overlays. App sends `READY` once session + save are loaded; sign-out sends
+  `RESET`. Guards (world unlock, avatar chosen) read the save store. The
+  machine owns *where the player is*; Zustand stores own *what they have*.
 - **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
-- **`gameStore`** (`src/store/gameStore.ts`) is persisted to localStorage under
-  key `hazel-game` — phase and progress survive reloads. `reset()` clears it
-  (called on sign-out).
-- **`authStore`** holds the Supabase user/session, populated by `useAuthInit`.
-- **`profileStore`** holds the player's `profiles` row (birth date, skill
-  levels); `useAuthInit` loads it when a session appears, clears it on sign-out.
+- **Content layer** (`src/content/`): `topics.ts` (TOPIC_REGISTRY — single
+  source of truth, #33), `zones.ts` (5 ASCII tile maps: Lumina Field hub + 4
+  topic zones, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
+  `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
+  (Sages/Specials), `items.ts` (shop + economy tuning), `avatars.ts`.
+- **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
+  zone, position, HP, coins, items, badges, sages, story flags, opened chests,
+  quiz progress, Library queue. Write-through: localStorage immediately
+  (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
+  `flush()` on save crystals / sign-out. Supabase errors degrade to
+  local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration).
+- **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
+  instance ids) — deliberately not persisted.
+- **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
+  `profiles` row (birth date, skill levels, xp, power-ups, streak).
+- **World** (`features/world/`): `WorldScreen` (HUD + overlays + ending) wraps
+  `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
+  remounted per zone, paused under overlays via ref). Overlays: dialogue,
+  services (shop/inn/library/sage), path questions (gates/chests), menu.
+  `TouchPad` is the mobile d-pad.
+- **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
+  battle — Attack / Special / Guard / Potion / Flee, every command resolved by
+  a question; enemy counterattacks are blocked by defend questions. Specials
+  (equipped Sage + 3-correct charge) ask level+2 questions for 2.5× damage and
+  fizzle harmlessly on a miss. Fiends (bosses) have enrage phases and restore
+  their crystal on defeat. Pure math in `lib/battleMath.ts`. No game over —
+  defeat returns the player to the hub, healed.
 - DB schema lives in `supabase/migrations/` — apply via the Supabase SQL Editor
   or `supabase db push`.
 - **Question generation** is a Deno edge function in
   `supabase/functions/generate-questions/` — it calls the Claude API
   server-side (API key never reaches the browser). `lib/questions.ts`
-  (`fetchQuestions`) invokes it from the client.
+  (`fetchQuestions`) invokes it from the client; the optional `context` arg
+  adds adventure flavor to fresh generations (#37).
 - Quiz and battle screens load **AI-generated questions** via the
   `useGeneratedQuestions` hook (age + per-topic skill level → `fetchQuestions`),
   with loading and error/retry states.
@@ -72,8 +102,6 @@ existing architecture.
   (`lib/age.ts`) tunes quiz difficulty after each quiz round, persisted via
   `profileStore.setSkillLevel`; (2) overall **player level** — derived from XP
   (`lib/level.ts`), earned from correct answers + NPC defeats, in `profiles.xp`.
-- World-map NPCs are randomly generated per visit (`lib/npc.ts`) with
-  age-scaled levels; an NPC's level sets its battle question difficulty + HP.
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter). The edge function randomly
   mixes cached questions (reused from a ±2 level band) with fresh ones.
@@ -129,6 +157,37 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-06-12 — Educational JRPG end-to-end build (#37, phases 0–3)
+The design doc's phases 0–3, shipped as one build. Highlights:
+- **Phase 0 foundations:** `machines/gameFlow.ts` (xstate v5) replaces
+  `gameStore.phase` (#11 resolved; `gameStore` deleted, battle session moved
+  to a non-persisted `battleStore`). Per-user save files: migration
+  `0008_saves.sql` + `saveStore` (localStorage write-through keyed by user id,
+  debounced Supabase upsert, legacy `hazel-game` key migrated) — #12 resolved.
+  `content/topics.ts` TOPIC_REGISTRY — #33 resolved.
+- **Phase 1 overworld:** 5-zone tile world (`content/zones.ts`, ASCII maps +
+  invariants test), `WorldCanvas` rewrite (grid collision, bump-to-interact,
+  zone exits, position persistence, session defeat-tracking), dialogue trees
+  (`content/npcs.ts` + `DialogueOverlay`), gates & question-locked chests
+  (`PathQuestionOverlay`), save crystals, mobile `TouchPad`. Old random-NPC
+  `lib/npc.ts` deleted in favor of authored, age-scaled `content/enemies.ts`.
+- **Phase 2 battles:** `BattleArena` rewritten as an FF-style side-profile
+  command battle (Attack/Special/Guard/Potion/Flee; defend questions block
+  enemy hits; charge gauge; Sage Specials at level+2 for 2.5×, fizzle on
+  miss; boss enrage phases; victory/defeat panels; no game over). Pure math
+  in `lib/battleMath.ts`. Shared `components/QuestionCard.tsx` (hint-feather
+  support).
+- **Phase 3 content:** four Sages, four Fiends + crystal-restoration flags,
+  shop/inn/library services, coins + badges economy (`content/items.ts`),
+  Library re-answer loop fed by quiz + battle misses, ending celebration.
+- **Pipeline:** `fetchQuestions`/edge function gain an optional `context`
+  flavor hint (fresh generations only; cache semantics unchanged).
+- **Testing:** 123 tests green (was 82); vitest env-stubs Supabase config so
+  suites run without a local `.env`. New suites: gameFlow machine, save
+  normalization/migration, saveStore, battleMath, zone-map invariants.
+- ⚠️ Deploy required: apply `0008_saves.sql` AND redeploy
+  `generate-questions` — see ISSUES.md #38.
 
 ### 2026-06-12 — JRPG design doc (#37)
 - `docs/DESIGN-JRPG.md`: full design for evolving the app into a classic
