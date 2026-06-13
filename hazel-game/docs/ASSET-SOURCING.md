@@ -77,6 +77,29 @@ identify -format "%w x %h\n" world.png    # width should == frames * frameW
 
 ---
 
+## 3b. Does the source tool/engine matter?
+
+The engine an asset was authored for (RPG Maker, Godot, Unity, GameMaker,
+Aseprite, …) does **not** affect compatibility — our renderer (KaPlay + DOM)
+just consumes PNG pixels. But three things do matter:
+
+1. **Get the raw PNGs, not a locked bundle.** Download the exported `.png`
+   sheets/frames. Skip assets distributed *only* as engine-bound files you
+   can't open (Unity `.unitypackage`, Godot `.tres`/atlas, GameMaker `.yy`).
+   Included `.aseprite`/`.ase` source files are a **bonus** — Aseprite exports a
+   horizontal strip in one click.
+2. **Re-slice engine-specific layouts to our single horizontal row.** RPG Maker
+   character sheets are a 3×4 grid per character; RPG Maker side-view battlers
+   and LPC use their own grids; Unity/Godot atlases pack frames arbitrarily. All
+   fine as *source* — just re-pack to a one-row strip (§3).
+3. **Watch engine-locked licenses.** RPG Maker's bundled/official resources are
+   often licensed *only for use inside an RPG Maker game* — not free to lift.
+   Confirm CC0 / free-for-commercial independently of the target engine.
+
+"For RPG Maker / for Godot" on an itch page describes the layout + intended
+engine, not a blocker — just verify: raw PNGs available, re-sliceable to a
+horizontal strip, and a free license regardless of engine.
+
 ## 4. Numbers to record for the manifest
 
 For each view you add to `src/content/sprites.ts`, you need:
