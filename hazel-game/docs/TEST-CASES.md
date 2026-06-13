@@ -178,6 +178,31 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-160 | M | ⬜ | WorldCanvas | with the cursor anywhere in the window (no canvas click), arrows/WASD move the hero (#45) |
 | TC-161 | M | ⬜ | WorldCanvas | the world fills the viewport responsively, keeping the 11:7 zone ratio and crisp pixels (#45) |
 
+## Pixel-art sprite system (Tasks 1–7)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-162 | U | ✅ | spriteAnim | `frameAt` wraps correctly at loop boundary (looping clip) |
+| TC-163 | U | ✅ | spriteAnim | `frameAt` clamps to `to` when loop is false and time exceeds `cycleMs` |
+| TC-164 | U | ✅ | spriteAnim | `bgPosX` returns `-(frame * frameWidth)px` for a given frame index |
+| TC-165 | U | ✅ | spriteAnim | `cycleMs` = frameCount × frameDuration; `frameCount` = to − from + 1 |
+| TC-166 | U | ✅ | sprites | manifest validation: every registered sprite has at least an `idle` anim; `to` ≥ `from` for every anim |
+| TC-167 | U | ✅ | sprites | `resolveSprite` returns `undefined` when `spriteId` is `undefined` |
+| TC-168 | U | ✅ | sprites | `resolveSprite` returns `undefined` for an unknown/unregistered `spriteId` (emoji fallback path) |
+| TC-169 | C | ✅ | SpriteSheet | renders the emoji fallback when no `SpriteView` is resolved |
+| TC-170 | C | ✅ | SpriteSheet | renders a `<div>` with background-image when a `SpriteView` is resolved |
+| TC-171 | C | ✅ | SpriteSheet | applies the `scale` prop as a CSS transform |
+| TC-172 | C | ✅ | SpriteSheet | falls back to the `idle` anim when the requested `animName` is missing from the view |
+| TC-173 | U | ✅ | worldSprites | `toKaplayAnims` maps each `SpriteDef` anim to the correct KaPlay `{ from, to, loop }` shape |
+| TC-174 | M | ⬜ | WorldCanvas | NPC/enemy/player/Ember all display their emoji while no sprite is registered (no regression) |
+| TC-175 | M | ⬜ | WorldCanvas | once a sprite is registered, the character shows idle/walk/flip animations; single-frame sprites hop |
+| TC-176 | M | ⬜ | BattleArena | enemy/hero/Ember show emoji fallback while no sprite registered; attack/hurt lunge visible via CSS transform |
+| TC-177 | M | ⬜ | BattleArena | once a sprite is registered, idle/attack/hurt animations play; non-slice characters still show emoji |
+| TC-178 | C | ✅ | LevelBadge | falls back to Level 1 / 0 XP when no profile is loaded (always visible, incl. overworld) |
+| TC-179 | C | ✅ | LevelBadge | `placement="top-center"` positions the medallion centered (battle screen); default is top-left |
+| TC-180 | U | ⬜ | profileStore | `loadProfile` with no `profiles` row sets a working fallback profile (birth date from auth metadata) and upserts it, so XP accrues |
+| TC-181 | M | ⬜ | App | sign-out button hidden on the battle screen; level medallion centered top in battle |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

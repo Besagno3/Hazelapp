@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { errorMessage } from '../lib/errors';
 import { nextStreak, todayIso } from '../lib/streak';
+import { useAuthStore } from './authStore';
 import type { PowerUpId, PowerUps, Profile, SkillLevels, Topic } from '../types';
 
 /** Shape of a row in the Supabase `profiles` table (snake_case). */
@@ -28,6 +29,45 @@ function fromRow(row: ProfileRow): Profile {
     currentStreak: row.current_streak ?? 0,
     longestStreak: row.longest_streak ?? 0,
     lastPlayedOn: row.last_played_on ?? null,
+  };
+}
+
+function toRow(p: Profile): ProfileRow {
+  return {
+    id: p.id,
+    birth_year: p.birthYear,
+    birth_month: p.birthMonth,
+    skill_levels: p.skillLevels,
+    xp: p.xp,
+    power_ups: p.powerUps,
+    current_streak: p.currentStreak,
+    longest_streak: p.longestStreak,
+    last_played_on: p.lastPlayedOn,
+  };
+}
+
+/**
+ * A working profile to use when the Supabase `profiles` row is missing (the
+ * auto-create trigger never ran, the migration isn't applied, or we're
+ * offline). Birth date comes from the auth user's sign-up metadata so age-based
+ * difficulty stays correct; everything else starts fresh. Without this, a
+ * missing row left `profile` null and silently dropped all XP — the level gauge
+ * never moved.
+ */
+function defaultProfile(userId: string): Profile {
+  const meta = useAuthStore.getState().session?.user?.user_metadata as
+    | { birth_year?: number; birth_month?: number }
+    | undefined;
+  return {
+    id: userId,
+    birthYear: meta?.birth_year ?? new Date().getFullYear() - 10,
+    birthMonth: meta?.birth_month ?? 1,
+    skillLevels: {},
+    xp: 0,
+    powerUps: {},
+    currentStreak: 0,
+    longestStreak: 0,
+    lastPlayedOn: null,
   };
 }
 
@@ -61,12 +101,23 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         'id, birth_year, birth_month, skill_levels, xp, power_ups, current_streak, longest_streak, last_played_on',
       )
       .eq('id', userId)
-      .single();
-    if (error) {
-      set({ loading: false, error: errorMessage(error) });
+      .maybeSingle();
+    if (data) {
+      set({ profile: fromRow(data as ProfileRow), loading: false });
       return;
     }
-    set({ profile: fromRow(data as ProfileRow), loading: false });
+    // No row (trigger/migration not applied) or the read failed: fall back to a
+    // working local profile so XP / level / power-ups function this session, and
+    // best-effort create the row so progress persists going forward. Mirrors
+    // saveStore's local-degradation behavior.
+    const fallback = defaultProfile(userId);
+    set({ profile: fallback, loading: false, error: error ? errorMessage(error) : null });
+    void supabase
+      .from('profiles')
+      .upsert(toRow(fallback), { onConflict: 'id' })
+      .then(({ error: upsertError }) => {
+        if (upsertError) set({ error: errorMessage(upsertError) });
+      });
   },
 
   setSkillLevel: async (topic, level) => {

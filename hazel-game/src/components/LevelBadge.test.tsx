@@ -8,9 +8,17 @@ describe('LevelBadge', () => {
     useProfileStore.getState().clearProfile();
   });
 
-  it('renders nothing when no profile is loaded', () => {
-    const { container } = render(<LevelBadge />);
-    expect(container).toBeEmptyDOMElement();
+  it('falls back to level 1 / 0 XP when no profile is loaded', () => {
+    render(<LevelBadge />);
+    expect(screen.getByText('Level 1')).toBeInTheDocument();
+    expect(screen.getByText('0/100 XP')).toBeInTheDocument();
+  });
+
+  it('uses a top-center placement in battle (clears the combatant panels)', () => {
+    const { container } = render(<LevelBadge placement="top-center" />);
+    const badge = container.firstElementChild as HTMLElement;
+    expect(badge.className).toContain('left-1/2');
+    expect(badge.className).not.toContain('left-3');
   });
 
   it('shows the level derived from the profile XP', () => {

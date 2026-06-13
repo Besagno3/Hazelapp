@@ -13,6 +13,8 @@ export interface EnemyDef {
   id: string;
   name: string;
   sprite: string;
+  /** key into src/content/sprites.ts SPRITES; falls back to `sprite` (emoji) when absent */
+  spriteId?: string;
   topic: Topic;
   /** Question level = ageToStartLevel(age) + levelOffset, clamped 1-10. */
   levelOffset: number;
@@ -76,6 +78,7 @@ export function spawnEnemy(
     instanceId: `${zoneId}:${placementKey}`,
     name,
     sprite: def.sprite,
+    spriteId: def.spriteId,
     topic: def.topic,
     level,
     maxHp: (def.isBoss ? BOSS_HP_BASE : HP_BASE) + level * def.hpPerLevel,

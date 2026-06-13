@@ -64,9 +64,11 @@ export default function App() {
 
   return (
     <>
-      <LevelBadge />
+      <LevelBadge placement={screen === 'battle' ? 'top-center' : 'top-left'} />
       <StreakBadge />
-      <SignOutButton />
+      {/* Sign-out floats top-right; hide it in battle where it overlaps the
+          hero status panel. */}
+      {screen !== 'battle' && <SignOutButton />}
       {screen === 'topics' && <TopicSelect />}
       {screen === 'quiz' && <QuizRound />}
       {screen === 'avatar' && <AvatarSelect />}

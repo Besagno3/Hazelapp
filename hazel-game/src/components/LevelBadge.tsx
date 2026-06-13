@@ -1,19 +1,31 @@
 import { useProfileStore } from '../store/profileStore';
 import { playerLevel, xpProgress } from '../lib/level';
 
-/**
- * Floating level medallion + XP progress bar, shown on every game screen.
- * Renders nothing until the player's profile has loaded.
- */
-export default function LevelBadge() {
-  const profile = useProfileStore((s) => s.profile);
-  if (!profile) return null;
+/** Where the floating medallion sits. Battle uses top-center to clear the
+ * combatant status panels; everywhere else it sits top-left. */
+type Placement = 'top-left' | 'top-center';
 
-  const level = playerLevel(profile.xp);
-  const { into, needed, fraction } = xpProgress(profile.xp);
+const PLACEMENT: Record<Placement, string> = {
+  'top-left': 'top-3 left-3',
+  'top-center': 'top-3 left-1/2 -translate-x-1/2',
+};
+
+/**
+ * Floating level medallion + XP progress bar, shown on every game screen
+ * (including the overworld). Falls back to level 1 / 0 XP while the player's
+ * profile is still loading or unavailable, so the medallion is always visible.
+ */
+export default function LevelBadge({ placement = 'top-left' }: { placement?: Placement }) {
+  const profile = useProfileStore((s) => s.profile);
+  const xp = profile?.xp ?? 0;
+
+  const level = playerLevel(xp);
+  const { into, needed, fraction } = xpProgress(xp);
 
   return (
-    <div className="fixed top-3 left-3 z-50 flex items-center gap-2 bg-black/35 backdrop-blur rounded-full pl-1.5 pr-3 py-1.5 text-white shadow-lg">
+    <div
+      className={`fixed ${PLACEMENT[placement]} z-50 flex items-center gap-2 bg-black/35 backdrop-blur rounded-full pl-1.5 pr-3 py-1.5 text-white shadow-lg`}
+    >
       {/* Circular level medallion */}
       <div className="grid place-items-center w-10 h-10 rounded-full bg-gradient-to-br from-amber-300 to-yellow-600 ring-2 ring-yellow-200 shadow-inner">
         <span className="text-base font-extrabold leading-none text-yellow-950">{level}</span>

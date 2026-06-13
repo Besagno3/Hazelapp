@@ -19,6 +19,8 @@ export interface Avatar {
   id: string;
   name: string;
   sprite: string;
+  /** key into src/content/sprites.ts SPRITES; falls back to `sprite` (emoji) when absent */
+  spriteId?: string;
   fightStyle: FightStyle;
   maxHp: number;
 }
@@ -27,6 +29,8 @@ export interface NPC {
   id: string;
   name: string;
   sprite: string;
+  /** key into src/content/sprites.ts SPRITES; falls back to `sprite` (emoji) when absent */
+  spriteId?: string;
   level: number;
   topic: Topic;
   maxHp: number;
