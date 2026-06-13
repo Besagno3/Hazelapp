@@ -87,6 +87,9 @@ export default function BattleArena() {
   // One-shot animation triggers (remount keys).
   const [heroLunge, setHeroLunge] = useState(0);
   const [enemyLunge, setEnemyLunge] = useState(0);
+  // Transient flags: true only for the ~520ms of the lunge animation.
+  const [enemyActing, setEnemyActing] = useState(false);
+  const [heroActing, setHeroActing] = useState(false);
   const [floats, setFloats] = useState<{ id: number; text: string; side: 'hero' | 'enemy'; color: string }[]>([]);
   const floatId = useRef(0);
   const [answers, setAnswers] = useState<boolean[]>([]);
@@ -132,6 +135,21 @@ export default function BattleArena() {
     );
     chain();
   }, [loading, enemy]);
+
+  // Flip acting flags on for the lunge duration (0.5s transition → clear at 520ms).
+  useEffect(() => {
+    if (!enemyLunge) return;
+    setEnemyActing(true);
+    const t = setTimeout(() => setEnemyActing(false), 520);
+    return () => clearTimeout(t);
+  }, [enemyLunge]);
+
+  useEffect(() => {
+    if (!heroLunge) return;
+    setHeroActing(true);
+    const t = setTimeout(() => setHeroActing(false), 520);
+    return () => clearTimeout(t);
+  }, [heroLunge]);
 
   // Battle entered without an encounter (e.g. stale reload) — bail out.
   const invalid = !enemy || !save || !avatar;
@@ -433,7 +451,7 @@ export default function BattleArena() {
             <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 2.2 }}>
               <SpriteSheet
                 view={enemySprite.def?.battle ?? null}
-                anim={enemyLunge ? 'attack' : heroLunge ? 'hurt' : 'idle'}
+                anim={enemyActing ? 'attack' : heroActing ? 'hurt' : 'idle'}
                 emoji={enemySprite.emoji}
                 scale={enemy.isBoss ? 3 : 2.5}
                 className="leading-none"
@@ -466,7 +484,7 @@ export default function BattleArena() {
             <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 1.8 }}>
               <SpriteSheet
                 view={heroSprite.def?.battle ?? null}
-                anim={heroLunge ? 'attack' : enemyLunge ? 'hurt' : 'idle'}
+                anim={heroActing ? 'attack' : enemyActing ? 'hurt' : 'idle'}
                 emoji={heroSprite.emoji}
                 scale={2.5}
                 className="leading-none scale-x-[-1]"
