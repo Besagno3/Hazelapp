@@ -173,6 +173,10 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-155 | C | ⬜ | QuestionCard | double-tapping Continue resolves a battle turn exactly once (#43) |
 | TC-156 | M | ⬜ | saves | after sign-out, a different account on the same browser starts fresh (legacy key consumed, #43) |
 | TC-157 | M | ⬜ | quests | during Sage Cog/Muse step conversations, the Learn button still works AND the step advances (#43) |
+| TC-158 | M | ⬜ | WorldCanvas | walking zone→zone renders cleanly — no black lines / canvas corruption (#45) |
+| TC-159 | M | ⬜ | WorldCanvas | `world → battle → world` re-entry renders cleanly — no black lines (#45, the recurrence) |
+| TC-160 | M | ⬜ | WorldCanvas | with the cursor anywhere in the window (no canvas click), arrows/WASD move the hero (#45) |
+| TC-161 | M | ⬜ | WorldCanvas | the world fills the viewport responsively, keeping the 11:7 zone ratio and crisp pixels (#45) |
 
 ## Regression cases (tied to ISSUES.md)
 

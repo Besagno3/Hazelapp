@@ -44,13 +44,14 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #35 | 🟢 | High   | Apply migration 0007 (streak columns on profiles) |
 | #36 | 🟢 | Med    | "Open World" is just a 4-card NPC picker — superseded by the #37 build |
 | #37 | 🟡 | Epic   | Evolve into an educational JRPG — phases 0–3 SHIPPED; phase 4 open |
-| #38 | 🔴 | High   | Apply migration 0008 (saves) + redeploy the edge function (context flavor) |
+| #38 | 🟢 | High   | Apply migration 0008 (saves) + redeploy the edge function (context flavor) |
 | #39 | 🔴 | Med    | Replace placeholder programmer art with CC0 tilesets/sprite sheets |
 | #40 | 🔴 | Low    | Boss question difficulty doesn't ramp per enrage phase (damage does) |
 | #41 | 🔴 | Low    | No audio — howler installed, needs CC0 chiptune/SFX packs (phase 4) |
 | #42 | 🟢 | Low    | All four mini-quests share the riddle-chest pattern — add variety later |
 | #43 | 🟢 | Med    | Review-pass fixes: double-tap turn resolve, legacy-key leak, sage/step lock, hub chest |
 | #44 | 🔴 | Low    | Battle turn flow + world cutscenes live in component state, not machine substates |
+| #45 | 🟢 | High   | World canvas: black lines on screen change, keys need a click, canvas too small |
 
 ---
 
@@ -287,6 +288,32 @@ keeps turn flow in BattleArena component state and cutscenes as WorldScreen
 local overlays (pausedRef union). Fine at current scale, but each new
 cutscene/turn-phase adds boilerplate. When phase 4 lands (companions, more
 story moments), promote both into the gameFlow machine.
+
+### #45 — World canvas: black lines, click-to-focus, too small 🟢 High — RESOLVED (2026-06-13)
+Three problems with the KaPlay overworld surfaced in live play:
+- **Black lines through everything on a screen change.** Root cause is
+  KaPlay's app state (`a`) being a *module-global singleton* whose `quit()`
+  is deferred to frame-end and never clears `a.k`. `WorldCanvas` was keyed
+  `${zoneId}|${ember}` (remount per zone) and re-`kaplay()`-ed on every world
+  mount, so a previous instance's pending `quit()` tore down the *new* canvas.
+  This is the same singleton trap as the 2026-05-26 StrictMode fix (#36),
+  re-triggered first by zone changes and then by `world → battle → world`
+  re-entry. **Fix:** call `kaplay()` exactly ONCE per session
+  (module-level `sharedKaplay`), drop the remount `key`, rebuild the scene
+  per zone with `destroyAll('*')`, and re-parent the cached canvas on every
+  later mount. No code path calls `kaplay()` twice anymore.
+- **Had to click the canvas before the keys moved the hero.** KaPlay binds
+  keys to its canvas (run with `focus:false`), so they only fired once the
+  canvas had focus. **Fix:** window-level `keydown`/`keyup` listeners drive
+  movement (works whenever the window is focused), `preventDefault` on the
+  arrows (no page scroll), clear-on-blur (no stuck keys after alt-tab).
+- **Canvas felt small.** It rendered at a fixed 704×448. **Fix:** the stage is
+  now responsive — `min(96vw, (100dvh − 220px) × 11/7)`, aspect-locked to the
+  zone's 11:7, the canvas upscaled crisply (`image-rendering: pixelated`) from
+  the unchanged internal resolution.
+
+Lesson (third time KaPlay's singleton has bitten): **never construct a second
+KaPlay instance in the same page — one per session, reuse it.**
 
 ### #42 — Mini-quest pattern is uniform 🟢 Low — RESOLVED (2026-06-12)
 Quests are now ordered steps with three mechanics: chest steps, **defeat

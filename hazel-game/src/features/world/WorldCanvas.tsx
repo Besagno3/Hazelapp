@@ -12,6 +12,27 @@ const HALF = 11;
 const SPEED = 170;
 /** Seconds after closing an overlay before bumps can trigger again. */
 const TRIGGER_COOLDOWN = 0.8;
+/** Movement keys we own at the window level (see the keyboard effect). */
+const MOVE_KEYS = new Set([
+  'arrowleft',
+  'arrowright',
+  'arrowup',
+  'arrowdown',
+  'a',
+  'd',
+  'w',
+  's',
+]);
+
+/**
+ * KaPlay's app state (`a`) is a process-wide singleton and `quit()` is deferred
+ * to frame-end while never clearing the singleton. So calling `kaplay()` a
+ * second time — e.g. when the world screen remounts after a battle — makes the
+ * *previous* instance's pending quit() tear down the *new* canvas (the "black
+ * line / dead canvas"). The cure is to call `kaplay()` exactly ONCE per session
+ * and re-parent its canvas on every world mount. (#43 follow-up.)
+ */
+let sharedKaplay: { k: ReturnType<typeof kaplay>; canvas: HTMLCanvasElement } | null = null;
 
 export interface WorldCanvasCallbacks {
   onTalk: (npcId: string) => void;
@@ -28,7 +49,12 @@ export interface WorldCanvasCallbacks {
  * chests/crystals, walk-into enemies to battle, edge exits between zones.
  * Placeholder "programmer art": colored tiles + emoji decorations.
  *
- * The component must be remounted (keyed) on zone change; `pausedRef`
+ * KaPlay teardown is fragile: its app state (`a`) is a module-level singleton,
+ * and `quit()` is deferred to frame-end and never clears the singleton. So
+ * remounting the instance per zone made the *outgoing* zone's deferred quit()
+ * tear down the *incoming* zone's canvas — the "black line / dead canvas" on a
+ * screen change (#43 follow-up). Instead we init KaPlay ONCE (every zone is the
+ * same 704×448 size) and rebuild the scene on zone/ember change; `pausedRef`
  * freezes the simulation while a DOM overlay is open above it.
  */
 export default function WorldCanvas({
@@ -59,7 +85,8 @@ export default function WorldCanvas({
   callbacks: WorldCanvasCallbacks;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  // Re-running the KaPlay effect for every prop change would rebuild the
+  const kRef = useRef<ReturnType<typeof kaplay> | null>(null);
+  // Re-running the scene effect for every prop change would rebuild the
   // world mid-walk; the latest callbacks/flags are read through refs instead.
   const cbRef = useRef(callbacks);
   const flagsRef = useRef(flags);
@@ -70,25 +97,83 @@ export default function WorldCanvas({
     chestsRef.current = openedChests;
   });
 
+  // Held movement keys, tracked at the window level so the player moves
+  // whenever the browser window has focus — no need to click the canvas first
+  // (KaPlay binds keys to the canvas element, which we run with focus:false).
+  const keysRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      if (!MOVE_KEYS.has(key)) return;
+      e.preventDefault(); // stop arrow keys from scrolling the page
+      keysRef.current.add(key);
+    };
+    const up = (e: KeyboardEvent) => {
+      keysRef.current.delete(e.key.toLowerCase());
+    };
+    // Releasing focus (alt-tab, devtools) could otherwise leave a key "stuck".
+    const clear = () => keysRef.current.clear();
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', clear);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', clear);
+    };
+  }, []);
+
   const z = zone(zoneId);
   const cols = z.map[0].length;
   const rows = z.map.length;
   const W = cols * TILE;
   const H = rows * TILE;
 
+  // --- Adopt the one shared KaPlay instance ----------------------------------
+  // Created once for the whole session (all zones are the same 704×448 size);
+  // on later mounts we just re-parent the existing canvas. Never re-init — see
+  // the `sharedKaplay` note above. The scene effect repaints the ground.
   useEffect(() => {
-    if (!containerRef.current) return;
-    const k = kaplay({
-      root: containerRef.current,
-      width: W,
-      height: H,
-      background: z.ground,
-      global: false,
-      crisp: true,
-      focus: false,
-      loadingScreen: false,
-      debug: false,
-    });
+    const host = containerRef.current;
+    if (!host) return;
+    if (!sharedKaplay) {
+      const k = kaplay({
+        root: host,
+        width: W,
+        height: H,
+        background: z.ground,
+        global: false,
+        crisp: true,
+        focus: false,
+        loadingScreen: false,
+        debug: false,
+      });
+      const canvas = host.querySelector('canvas');
+      if (!canvas) return; // should never happen — kaplay() just made it
+      sharedKaplay = { k, canvas };
+    } else {
+      // Reuse the live instance: move its canvas into this mount's container.
+      host.appendChild(sharedKaplay.canvas);
+    }
+    kRef.current = sharedKaplay.k;
+    return () => {
+      // Detach (don't quit) so the next world entry can re-adopt the canvas.
+      sharedKaplay?.canvas.remove();
+      kRef.current = null;
+    };
+    // One instance per session; zone size never changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --- Build (and rebuild) the scene per zone / ember stage -------------------
+  useEffect(() => {
+    const k = kRef.current;
+    if (!k) return;
+    // Clear the previous zone's objects before drawing this one ("*" = all).
+    k.destroyAll('*');
+
+    // Repaint the ground for this zone (init only set the first zone's color).
+    k.add([k.rect(W, H), k.pos(0, 0), k.color(...z.ground), k.z(-100)]);
 
     // --- Tiles -------------------------------------------------------------
     const chestSprites = new Map<string, ReturnType<typeof k.add>>();
@@ -263,7 +348,7 @@ export default function WorldCanvas({
     let triggered = false;
     let moveSaveTimer = 0;
 
-    k.onUpdate(() => {
+    const loop = k.onUpdate(() => {
       if (triggered) return;
       if (pausedRef.current) {
         wasPaused = true;
@@ -276,12 +361,13 @@ export default function WorldCanvas({
       const dt = k.dt();
       cooldown = Math.max(0, cooldown - dt);
 
+      const keys = keysRef.current;
       let dx = touchDirRef.current.dx;
       let dy = touchDirRef.current.dy;
-      if (k.isKeyDown('left') || k.isKeyDown('a')) dx -= 1;
-      if (k.isKeyDown('right') || k.isKeyDown('d')) dx += 1;
-      if (k.isKeyDown('up') || k.isKeyDown('w')) dy -= 1;
-      if (k.isKeyDown('down') || k.isKeyDown('s')) dy += 1;
+      if (keys.has('arrowleft') || keys.has('a')) dx -= 1;
+      if (keys.has('arrowright') || keys.has('d')) dx += 1;
+      if (keys.has('arrowup') || keys.has('w')) dy -= 1;
+      if (keys.has('arrowdown') || keys.has('s')) dy += 1;
       dx = Math.max(-1, Math.min(1, dx));
       dy = Math.max(-1, Math.min(1, dy));
       if (dx !== 0 && dy !== 0) {
@@ -391,17 +477,22 @@ export default function WorldCanvas({
     });
 
     return () => {
-      k.quit();
+      // Drop this zone's update loop; the next build calls destroyAll().
+      loop.cancel();
     };
-    // Remounted via key={zoneId}; the rest is read through refs.
+    // Rebuild only on zone / ember change; the rest is read through refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoneId]);
+  }, [zoneId, emberStage]);
 
   return (
+    // Fills the parent's width; the 11:7 box keeps the zone's aspect ratio.
+    // KaPlay sizes its <canvas> to a fixed 704×448 — `!w-full/!h-full` (with
+    // `!`, since KaPlay uses inline styles) upscales it to fill, kept crisp by
+    // `imageRendering: pixelated`. Internal render resolution is unchanged.
     <div
       ref={containerRef}
-      className="rounded-lg shadow-2xl border-2 border-white/20 overflow-hidden max-w-full"
-      style={{ width: W, height: H, imageRendering: 'pixelated' }}
+      className="w-full rounded-lg shadow-2xl border-2 border-white/20 overflow-hidden [&>canvas]:!block [&>canvas]:!w-full [&>canvas]:!h-full"
+      style={{ aspectRatio: `${W} / ${H}`, imageRendering: 'pixelated' }}
     />
   );
 }

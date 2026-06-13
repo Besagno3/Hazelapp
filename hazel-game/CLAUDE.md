@@ -159,6 +159,26 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-13 — World canvas: kill black lines, window-focus keys, bigger stage (#45)
+Three live-play fixes to the KaPlay overworld (`WorldCanvas` + `WorldScreen`):
+- **Black lines on screen change (and again after battles).** KaPlay's app
+  state is a module-global singleton and its `quit()` is deferred + never
+  clears the singleton, so a second `kaplay()` call lets the old instance's
+  pending quit tear down the new canvas. We now construct **one KaPlay
+  instance per session** (`sharedKaplay`), removed the `${zoneId}|${ember}`
+  remount key, rebuild the scene per zone with `destroyAll('*')`, and
+  **re-parent the cached canvas** on every later world mount. No path calls
+  `kaplay()` twice — fixes both zone→zone and `world → battle → world`.
+  (Third time the singleton has bitten — see #36's StrictMode fix.)
+- **Keys needed a canvas click first.** Replaced KaPlay's canvas-focused
+  `isKeyDown` with **window-level `keydown`/`keyup`** listeners, so the hero
+  moves whenever the browser window is focused; arrows `preventDefault`
+  (no page scroll) and keys clear on blur.
+- **Bigger world.** The stage is responsive — `min(96vw, (100dvh−220px)×11/7)`,
+  aspect-locked 11:7, canvas upscaled crisply (`image-rendering: pixelated`)
+  from the unchanged 704×448 internal resolution.
+137 tests green; lint + build clean.
+
 ### 2026-06-12 — Bug-hunt review pass: 7-angle audit + fixes (#43)
 Full-codebase review (7 finder angles + verification) of the JRPG build.
 Correctness fixes:

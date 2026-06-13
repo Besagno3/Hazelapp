@@ -127,8 +127,14 @@ export default function WorldScreen() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-16">
+      {/* Responsive stage: as wide as the viewport allows while keeping the
+          11:7 zone fully on screen (cap leaves room for top bar + footer). */}
+      <div
+        className="flex flex-col items-center"
+        style={{ width: 'min(96vw, calc((100dvh - 220px) * 11 / 7))' }}
+      >
       {/* HUD */}
-      <div className="w-full max-w-[704px] flex items-center justify-between text-white mb-2 px-1">
+      <div className="w-full flex items-center justify-between text-white mb-2 px-1">
         <div>
           <h1 className="text-lg font-extrabold leading-tight">{z.name}</h1>
           <p className="text-[11px] text-white/60">
@@ -152,7 +158,6 @@ export default function WorldScreen() {
       </div>
 
       <WorldCanvas
-        key={`${zoneId}|${ember}`}
         zoneId={zoneId}
         avatar={avatar}
         age={age}
@@ -187,6 +192,7 @@ export default function WorldScreen() {
       <p className="text-white/50 text-xs mt-2">
         Walk: arrow keys / WASD · bump into friends to talk, foes to battle!
       </p>
+      </div>
       <TouchPad onDirChange={onDirChange} />
 
       {/* Toast */}
