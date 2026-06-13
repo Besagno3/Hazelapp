@@ -18,7 +18,7 @@ Raise the visual quality of character graphics in both the open world and battle
 | Identity vs cohesion | **Hybrid** | Iconic characters (3 heroes + Ember) stay faithful; minor enemies/NPCs may flex to fit a base pack. |
 | Animation level | **Full** | World: idle + 4-directional walk. Battle: idle + attack + hurt. |
 | First-pass scope | **Vertical slice** | Build the full pipeline; apply to Verdara cast + heroes + Ember. Roll out the rest later. |
-| Licensing | **Any free-for-commercial** | CC0 / CC-BY / OGA-BY / itch "free for commercial". Track attribution where required. |
+| Licensing | **All-CC0** | Public-domain-equivalent only (Kenney + LuizMelo + generated mascots). No attribution or share-alike obligations. LPC (CC-BY-SA) rejected to avoid copyleft. |
 | Iconic characters | **Generate to match** | Free packs lack animal heroes/dragon/slime; generate (or commission) those mascots to match the base style. |
 
 ## 3. Current state (baseline)
@@ -41,17 +41,19 @@ Raise the visual quality of character graphics in both the open world and battle
 
 Hub-zone NPCs and the other three zones remain on emoji via fallback until a follow-up rollout. Mixed rendering is acceptable because every character degrades gracefully to its emoji.
 
-## 5. Art sourcing
+## 5. Art sourcing (all-CC0)
 
-- **Battle (side-view):** LuizMelo CC0 packs (idle/attack/hurt/death) for the humanoid hero base and generic monsters; their Mushroom maps to Spore Puff. URL: https://luizmelo.itch.io/ (Hero Knight 2, Monsters Creatures Fantasy).
-- **World (top-down):** LPC Universal Spritesheet (full idle + 4-directional walk; CC-BY-SA 3.0/GPL — share-alike + attribution) for NPCs/humanoids, or Kenney Tiny Town/Dungeon (CC0, minimal animation) as the all-CC0 alternative.
-- **Generated mascots:** 3 heroes + Ember's 4 stages + the slime (Static Jelly), drawn to match the chosen base style in **both** perspectives and animated. Tooling: a pixel-art-specialized generator (Retro Diffusion / PixelLab) plus Aseprite cleanup, or a commission.
-- **Attribution:** maintain `CREDITS.md` and an in-game credits entry listing pack, author, license, and URL per asset.
+All sourced art must be CC0 (public-domain-equivalent). No CC-BY/share-alike packs.
+
+- **Battle (side-view):** LuizMelo CC0 packs (idle/attack/hurt/death) for the humanoid hero base and generic monsters; their Mushroom maps to Spore Puff. URL: https://luizmelo.itch.io/ (Hero Knight 2, Monsters Creatures Fantasy). Confirm CC0 in each pack's readme on download.
+- **World (top-down):** Kenney Tiny Town / Tiny Dungeon (CC0) for NPCs/humanoids and generic enemy tokens. URL: https://kenney.nl/assets/tiny-town, https://kenney.nl/assets/tiny-dungeon. Kenney sprites are largely single-frame, so **overworld movement animation is driven in code** (e.g., a hop/squash-stretch on the static sprite, or a 2-frame bob) rather than a full walk cycle. LPC is explicitly **not** used (CC-BY-SA copyleft).
+- **Generated mascots:** 3 heroes + Ember's 4 stages + the slime (Static Jelly), drawn to match the chosen base style in **both** perspectives and animated. Generated/commissioned art is original work and inherently free of pack-license constraints. Tooling: a pixel-art-specialized generator (Retro Diffusion / PixelLab) plus Aseprite cleanup, or a commission.
+- **Attribution:** none required under CC0. Still maintain `CREDITS.md` listing pack, author, source URL, and license per asset as good practice and provenance tracking.
 
 ### Risks (called out, not blockers)
 - **Mascot animation quality** is the primary risk: a consistent animated mascot across idle/walk/attack/hurt in two perspectives is hard to generate. The slice deliberately validates **one** mascot (Blaze) end-to-end before committing to the rest.
-- **Style mismatch:** top-down (cute ~32px) vs side-view (detailed) will look somewhat different. Acceptable and common in JRPGs (Pokémon, Octopath); flagged so it's a conscious choice.
-- **LPC share-alike:** if LPC art is used, the share-alike obligation attaches to derived art assets (not the game code), and all LPC authors must be credited. The all-CC0 path (Kenney + LuizMelo + generated) avoids this.
+- **Style mismatch:** top-down (cute ~16/32px Kenney) vs side-view (detailed LuizMelo) will look somewhat different. Acceptable and common in JRPGs (Pokémon, Octopath); flagged so it's a conscious choice.
+- **No free top-down walk cycles:** Kenney sprites are largely single-frame, so overworld walk must be faked in code (hop / squash-stretch / 2-frame bob). This is a deliberate cost of staying all-CC0 (LPC, which has true walk cycles, is excluded for its copyleft).
 - **Two perspectives = two sheets per character**, roughly doubling per-character art effort.
 
 ## 6. Technical architecture
@@ -73,7 +75,7 @@ Keep `sprite: string` as the **emoji fallback** (no churn to ~20 existing consum
 ### 6c. World (KaPlay)
 - Add an asset-load phase at init: `k.loadSprite(id, url, { sliceX, sliceY, anims })` for each slice `spriteId`, before scene build.
 - New helper `addCharacter(k, { spriteId, emoji, pos, ... })`: if the sprite loaded → `k.sprite(id)` + `k.play('idle')`; else `k.text(emoji)`. Replaces the four `k.text(...)` character call sites (NPC ~L247, enemy ~L273, avatar ~L308, Ember ~L312).
-- Drive walk anims from movement: play `walk<Dir>` while moving, `idle` when stopped.
+- Drive movement animation from velocity: for sprites that ship walk frames (generated mascots), play `walk<Dir>` while moving and `idle` when stopped; for single-frame Kenney sprites, apply a code-driven hop/squash-stretch while moving. The `addCharacter` helper abstracts this so call sites don't care which.
 
 ### 6d. Battle (DOM / Framer Motion)
 - New `<SpriteSheet spriteId state />` component: steps frames via CSS `steps()` background-position animation, driven by `state` (`idle` default → `attack` on lunge → `hurt` on damage). Falls back to rendering the emoji when no sheet exists.
