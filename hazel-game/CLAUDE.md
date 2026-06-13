@@ -159,6 +159,25 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-13 — Fix leveling (XP gauge / medallion) + battle HUD tidy
+Player progression was invisible: a missing Supabase `profiles` row left
+`profileStore.profile` null, so `LevelBadge` rendered nothing and `addXp`
+silently dropped all XP (the gauge never moved after battles/quizzes).
+- **`profileStore.loadProfile`** now self-heals (mirrors `saveStore`'s
+  local-degradation): switched `.single()` → `.maybeSingle()`; when no row
+  exists it builds a working `defaultProfile` (birth date pulled from the auth
+  user's sign-up metadata so age-based difficulty stays right) and best-effort
+  `upsert`s it so progress persists going forward. XP now accrues even if the
+  remote write fails (optimistic in-memory update).
+- **`LevelBadge`** no longer returns null without a profile — falls back to
+  Lv 1 / 0 XP so the medallion is always visible (fixes "no medallion on the
+  overworld"). New `placement` prop: top-center on the battle screen, top-left
+  elsewhere.
+- **`App.tsx`**: sign-out button hidden in battle (it overlapped the hero
+  status panel); medallion placement wired by screen.
+- Resolves ISSUES #47/#48. 156 tests green; lint + build clean.
+- Also logged the sprite-system review backlog (#49, `docs/SPRITE-REVIEW-FINDINGS.md`).
+
 ### 2026-06-13 — Pixel-art character sprite system (emoji fallback)
 Data-driven pipeline for swapping emoji placeholders with CC0 sprite sheets —
 zero visual change until art assets land:

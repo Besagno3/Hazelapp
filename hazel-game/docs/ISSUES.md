@@ -53,6 +53,9 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #44 | 🔴 | Low    | Battle turn flow + world cutscenes live in component state, not machine substates |
 | #45 | 🟢 | High   | World canvas: black lines on screen change, keys need a click, canvas too small |
 | #46 | 🔴 | Med    | Pixel-art assets still to be produced — heroes, Ember, Verdara first; hub NPCs + Numbria/Gearfall/Chromaria zones after (depends on Task 8 asset production; see `docs/ASSET-SOURCING.md`) |
+| #47 | 🟢 | High   | XP gauge never moved / no level medallion — a missing `profiles` row left `profile` null so `addXp` silently dropped all XP. `loadProfile` now self-heals: falls back to a working local profile and best-effort upserts the row (`profileStore.ts`). `LevelBadge` shows Lv 1 / 0 XP instead of nothing. |
+| #48 | 🟢 | Low    | Sign-out button (top-right) overlapped the battle hero panel; hidden in battle. Level medallion moved to top-center in battle to clear the combatant panels (`App.tsx`, `LevelBadge.tsx`). |
+| #49 | 🔴 | Med    | Sprite system review backlog — bugs/gaps/edge cases to fix (mostly when art lands). See `docs/SPRITE-REVIEW-FINDINGS.md`. |
 
 ---
 

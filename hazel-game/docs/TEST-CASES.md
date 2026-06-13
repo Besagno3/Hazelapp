@@ -198,6 +198,10 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-175 | M | ⬜ | WorldCanvas | once a sprite is registered, the character shows idle/walk/flip animations; single-frame sprites hop |
 | TC-176 | M | ⬜ | BattleArena | enemy/hero/Ember show emoji fallback while no sprite registered; attack/hurt lunge visible via CSS transform |
 | TC-177 | M | ⬜ | BattleArena | once a sprite is registered, idle/attack/hurt animations play; non-slice characters still show emoji |
+| TC-178 | C | ✅ | LevelBadge | falls back to Level 1 / 0 XP when no profile is loaded (always visible, incl. overworld) |
+| TC-179 | C | ✅ | LevelBadge | `placement="top-center"` positions the medallion centered (battle screen); default is top-left |
+| TC-180 | U | ⬜ | profileStore | `loadProfile` with no `profiles` row sets a working fallback profile (birth date from auth metadata) and upserts it, so XP accrues |
+| TC-181 | M | ⬜ | App | sign-out button hidden on the battle screen; level medallion centered top in battle |
 
 ## Regression cases (tied to ISSUES.md)
 
