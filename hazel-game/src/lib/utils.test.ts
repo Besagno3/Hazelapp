@@ -1,19 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcAttackDamage, cn, PASS_THRESHOLD, ROUNDS_TO_UNLOCK } from './utils';
-
-describe('calcAttackDamage', () => {
-  it('returns the full base when all answers are correct', () => {
-    expect(calcAttackDamage(3, 3, 30)).toBe(30);
-  });
-
-  it('returns 0 when no answers are correct', () => {
-    expect(calcAttackDamage(0, 3, 30)).toBe(0);
-  });
-
-  it('rounds a partial result', () => {
-    expect(calcAttackDamage(2, 3, 30)).toBe(20); // 30 * 2/3
-  });
-});
+import { cn, PASS_THRESHOLD, ROUNDS_TO_UNLOCK } from './utils';
 
 describe('cn', () => {
   it('merges conflicting Tailwind classes, last wins', () => {

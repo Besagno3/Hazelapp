@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchQuestions } from '../lib/questions';
 import { errorMessage } from '../lib/errors';
-import { calcAge, skillLevelFor } from '../lib/age';
+import { playerAge, skillLevelFor } from '../lib/age';
 import { useProfileStore } from '../store/profileStore';
 import type { Question, Topic } from '../types';
-
-/** Age used when no profile is loaded (e.g. the migration isn't applied yet). */
-const DEFAULT_AGE = 10;
 
 /** A fetch result tagged with the request it belongs to. */
 interface Result {
@@ -23,7 +20,7 @@ interface Result {
  */
 export function useGeneratedQuestions(topic: Topic, count: number, levelOverride?: number) {
   const profile = useProfileStore((s) => s.profile);
-  const age = profile ? calcAge(profile.birthYear, profile.birthMonth) : DEFAULT_AGE;
+  const age = playerAge(profile);
   const skillLevel = levelOverride ?? skillLevelFor(profile?.skillLevels ?? {}, topic, age);
 
   const [attempt, setAttempt] = useState(0);

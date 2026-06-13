@@ -13,13 +13,6 @@ export interface Question {
   timesAsked?: number;
 }
 
-export interface QuizRound {
-  topic: Topic;
-  questions: Question[];
-  score: number;
-  passed: boolean;
-}
-
 export type FightStyle = 'aggressive' | 'defensive' | 'balanced';
 
 export interface Avatar {
@@ -39,30 +32,29 @@ export interface NPC {
   maxHp: number;
 }
 
-export interface BattleAction {
-  type: 'attack' | 'defense';
-  questionsAnswered: number;
-  correctAnswers: number;
-  damage: number;
+/** The world zones of Lumina (see src/content/zones.ts). */
+export type ZoneId = 'lumina-field' | 'numbria' | 'verdara' | 'gearfall' | 'chromaria';
+
+/** An enemy instance the player bumped into on the map. */
+export interface BattleEnemy extends NPC {
+  /** Unique per placement — used to keep defeated enemies off the map this session. */
+  instanceId: string;
+  zoneId: ZoneId;
+  isBoss: boolean;
+  /** Coins dropped on victory. */
+  coins: number;
 }
 
-export interface BattleState {
-  npc: NPC | null;
-  playerHp: number;
-  /** The player's HP at the start of this battle (the HP-bar maximum). */
-  playerMaxHp: number;
-  npcHp: number;
-  round: number;
-  log: BattleAction[];
-  result: 'win' | 'lose' | null;
-}
+/** Town/zone services opened by talking to the matching NPC. */
+export type ServiceType = 'inn' | 'shop' | 'library' | 'sage';
 
-export type GamePhase = 'auth' | 'topic-select' | 'quiz' | 'world' | 'battle';
-
-export interface GameProgress {
-  completedRounds: QuizRound[];
-  worldUnlocked: boolean;
-  currentTopic: Topic | null;
+/** A question-locked obstacle on the path: a gate or a treasure chest. */
+export interface PathTarget {
+  kind: 'gate' | 'chest';
+  /** Stable id, e.g. "numbria:gate:12,4" — flags/openedChests key on it. */
+  id: string;
+  topic: Topic;
+  zoneId: ZoneId;
 }
 
 /** Per-topic skill level (integers, see lib/age.ts MIN/MAX_SKILL_LEVEL). */
@@ -90,4 +82,43 @@ export interface Profile {
   longestStreak: number;
   /** YYYY-MM-DD (local) of the player's last activity, or null if never played. */
   lastPlayedOn: string | null;
+}
+
+/** A missed question queued for re-answering at the Library. */
+export interface LibraryEntry {
+  question: Question;
+  /** The option index the player picked when they missed it. */
+  picked: number;
+}
+
+/**
+ * The per-player save file (#37). Stored as JSONB in the Supabase `saves`
+ * table with a localStorage write-through cache keyed by user id (#12).
+ */
+export interface SaveData {
+  version: 1;
+  avatarId: string | null;
+  zoneId: ZoneId;
+  /** Pixel position in the current zone; null → the zone's default spawn. */
+  pos: { x: number; y: number } | null;
+  /** Current HP; null → full (max derives from avatar + power-ups). */
+  hp: number | null;
+  coins: number;
+  items: { potion: number; hint: number };
+  badges: string[];
+  /** Topics whose Sage the player has met (each grants that topic's Special). */
+  sages: Topic[];
+  sageEquipped: Topic | null;
+  /** Story + world flags: crystal-<topic>-restored, gate:<id>, ending-seen… */
+  flags: Record<string, boolean>;
+  openedChests: string[];
+  /** Lifetime victories per enemy def id — drives defeat quests (#42). */
+  kills: Record<string, number>;
+  /** Carried quest items (delivery quests, #42) — see content/quests.ts. */
+  questItems: string[];
+  /** Quiz rounds passed at the training grounds (world unlock gate). */
+  passedRounds: number;
+  worldUnlocked: boolean;
+  /** Missed questions awaiting re-answer at the Library (FIFO, capped). */
+  library: LibraryEntry[];
 }

@@ -1,4 +1,4 @@
-import type { PowerUpId, PowerUps } from '../types';
+import type { Avatar, PowerUpId, PowerUps } from '../types';
 
 export interface PowerUpInfo {
   id: PowerUpId;
@@ -54,6 +54,11 @@ export function hpBonus(p: PowerUps): number {
 /** Extra XP per correct answer from the player's Scholar stacks. */
 export function xpBonusPerCorrect(p: PowerUps): number {
   return Math.round(effectiveStacks(p.scholar ?? 0) * SCHOLAR_PER);
+}
+
+/** The hero's max battle HP: avatar base + Vitality stacks (#37). */
+export function heroMaxHp(avatar: Avatar | null, p: PowerUps): number {
+  return (avatar?.maxHp ?? 100) + hpBonus(p);
 }
 
 /** Total power-ups chosen — one per level-up acknowledged. */

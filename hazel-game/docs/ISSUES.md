@@ -17,8 +17,8 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #8  | 🟢 | Low    | Battle damage and avatar HP do not persist between battles |
 | #9  | 🟢 | Low    | Dead code: `NPC.questions` field unused |
 | #10 | 🟢 | Low    | Two React Vite plugins installed (`-react` and `-react-swc`) |
-| #11 | 🔴 | Med    | Migrate game flow to xstate once guarded transitions multiply |
-| #12 | 🔴 | Med    | Game progress in localStorage is not tied to user identity |
+| #11 | 🟢 | Med    | Migrate game flow to xstate once guarded transitions multiply |
+| #12 | 🟢 | Med    | Game progress in localStorage is not tied to user identity |
 | #13 | 🟢 | Med    | Consider upgrading the build toolchain Vite 5 → 8 |
 | #14 | 🟢 | Low    | 2 moderate npm audit vulnerabilities (dev-only) |
 | #15 | 🟢 | High   | `profiles` migration must be applied in Supabase or profiles fail to load |
@@ -39,10 +39,18 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #30 | 🟢 | Low    | Cache-vs-AI split is uniformly random — no reuse bias, no per-session cost cap |
 | #31 | 🟢 | Low    | "Loading…" dead air while Claude generates — needs a fun fact / mascot animation |
 | #32 | 🟢 | Low    | Battles never nudge `skill_levels` — fighting NPCs teaches the difficulty model nothing |
-| #33 | 🔴 | Low    | Topic set is hardcoded to four — no easy path to add history, language, etc. |
+| #33 | 🟢 | Low    | Topic set is hardcoded to four — no easy path to add history, language, etc. |
 | #34 | 🟢 | High   | Apply migration 0006 + redeploy the edge function (per-player dedupe + flags) |
 | #35 | 🟢 | High   | Apply migration 0007 (streak columns on profiles) |
-| #36 | 🟡 | Med    | "Open World" is just a 4-card NPC picker — MVP shipped, sprites/multi-screen pending |
+| #36 | 🟢 | Med    | "Open World" is just a 4-card NPC picker — superseded by the #37 build |
+| #37 | 🟡 | Epic   | Evolve into an educational JRPG — phases 0–3 SHIPPED; phase 4 open |
+| #38 | 🔴 | High   | Apply migration 0008 (saves) + redeploy the edge function (context flavor) |
+| #39 | 🔴 | Med    | Replace placeholder programmer art with CC0 tilesets/sprite sheets |
+| #40 | 🔴 | Low    | Boss question difficulty doesn't ramp per enrage phase (damage does) |
+| #41 | 🔴 | Low    | No audio — howler installed, needs CC0 chiptune/SFX packs (phase 4) |
+| #42 | 🟢 | Low    | All four mini-quests share the riddle-chest pattern — add variety later |
+| #43 | 🟢 | Med    | Review-pass fixes: double-tap turn resolve, legacy-key leak, sage/step lock, hub chest |
+| #44 | 🔴 | Low    | Battle turn flow + world cutscenes live in component state, not machine substates |
 
 ---
 
@@ -113,22 +121,19 @@ against the pinned `vite@5.4`. **Fixed:** removed the unused `@vitejs/plugin-rea
 (`vite.config.ts` uses `-swc`). Also aligned `@vitest/ui` from `^4` to `^3` to
 match `vitest@3`. Dependencies now install cleanly.
 
-### #11 — Migrate game flow to xstate 🔴 Med
-**Decision:** routing stays phase-based now; react-router is rejected for the
-game flow (URLs / browser-back are a liability for a guided kids' game).
-The flow is genuinely a state machine and already strains — e.g. `App.tsx`:
-`if (progress.worldUnlocked && !avatar) return <AvatarSelect />` is a guarded
-transition leaking into render logic. **Trigger to act:** when the 2nd–3rd
-guarded transition appears (lives, level progression, save/resume, battle
-result screen). At that point move the flow into an xstate machine (`xstate` +
-`@xstate/react` are already installed) and keep Zustand for data only.
+### #11 — Migrate game flow to xstate 🟢 Med — RESOLVED (2026-06-12)
+`src/machines/gameFlow.ts` (xstate v5 `setup()`): `boot → topicSelect ⇄ quiz
+→ avatarSelect → world ⇄ battle` with world overlay substates. Guards
+(`worldUnlocked`, `hasAvatar`) read the save store at transition time —
+the guarded transitions that used to leak into `App.tsx` render logic live
+in the machine now. Zustand keeps data only. Covered by `gameFlow.test.ts`.
 
-### #12 — Progress not tied to user identity 🔴 Med
-`gameStore` persists progress to localStorage under a fixed key (`hazel-game`),
-not per Supabase user. Sign-out calls `reset()`, but if a player just closes
-the tab without signing out, the next player on that browser inherits their
-progress. **Fix:** key persistence by user id, or sync progress to a Supabase
-table once the data model is set (relates to #7).
+### #12 — Progress not tied to user identity 🟢 Med — RESOLVED (2026-06-12)
+Progress lives in the per-player save file: Supabase `saves` row (migration
+0008, #38) + localStorage write-through keyed `hazel-save-<userId>`. The old
+fixed-key `hazel-game` payload is migrated once (world unlock, passed rounds,
+avatar) and ignored thereafter. Shared-tablet players no longer inherit each
+other's progress; saves follow the player across devices once 0008 is live.
 
 ### #13 — Upgrade Vite 5 → 8 🟢 Med — RESOLVED (2026-05-17)
 Coordinated toolchain bump: `vite` 5.4 → 8.0.13, `vitest` 3 → 4.1.6,
@@ -173,7 +178,14 @@ redeployed. Per-player dedupe (#24) and flag quarantine (#26) are live.
 (also picks up #30's smarter cache mix). The daily-streak hook (#28)
 is live end-to-end.
 
-### #36 — "Open World" is a card picker, not a world 🟡 Med — MVP SHIPPED (2026-05-17)
+### #36 — "Open World" is a card picker, not a world 🟢 Med — SUPERSEDED by #37 (2026-06-12)
+The #37 JRPG build replaced the single-screen MVP with a 5-zone tile world:
+multi-screen exits ✅, static obstacles ✅, on-screen d-pad ✅, position
+persistence across battles ✅, beaten-enemy tracking ✅, per-topic biomes ✅.
+The one surviving follow-up — real sprite sheets/tilesets — moved to #39.
+Original MVP notes kept below for the KaPlay integration lessons.
+
+#### Original entry (historical)
 **MVP done:** KaPlay 3001 added (lazy-loaded). `WorldMap.tsx` is now a
 single 640×480 canvas screen — player avatar walks with arrow keys /
 WASD, bumping into an NPC triggers the existing `startBattle()` flow.
@@ -202,13 +214,97 @@ the built-in mascot splash (broken-image artifact under lazy chunks).
   until the next session.
 - Optional: distinct biomes per topic (library / lab / studio / workshop).
 
-### #33 — Topic set is hardcoded 🔴 Low
-The four topics (math, science, engineering, creativity) are baked into the
-`Topic` union, the edge function's `TOPICS` list, and the `TopicSelect` UI.
-Adding history, language, geography, etc. is a low-risk change but requires
-edits in 3-4 places + system-prompt tuning per topic. Worth a tiny abstraction
-(`TOPIC_REGISTRY` with `id`, `label`, `icon`, `claude_persona_hint`) so future
-topics are a one-file add.
+### #37 — Educational JRPG epic 🟡 Epic — PHASES 0–3 SHIPPED (2026-06-12)
+The product vision is a classic NES/SNES-style JRPG (FF1/2/4/6, Dragon
+Warrior) where the 2D open world and side-profile battles are powered by the
+existing AI question pipeline. Full design, architecture, 5-phase roadmap, and
+build-scope live in **`docs/DESIGN-JRPG.md`**.
+
+**Shipped 2026-06-12 (phases 0–3):** xstate game-flow machine (#11), per-user
+Supabase save files (#12), topic registry (#33), 5-zone tile overworld with
+dialogue/gates/chests/save-crystals/mobile d-pad (supersedes #36), FF-style
+command battles with Sages/Specials/charge gauge/boss phases, shop + inn +
+library services, coins/badges economy, crystal-restoration arc + ending.
+Deploy steps tracked as #38; placeholder-art swap as #39.
+
+**Story pass shipped 2026-06-12:** `docs/STORY.md` bible, opening/hatch/
+ending cutscenes, Ember the dragon companion (hatches on first victory,
+grows with crystals), Fiend battle dialogue, one mini-quest per zone (#42
+tracks quest variety).
+
+**Remaining (phase 4):** audio (#41), PWA (#5), parent dashboard (#29),
+friends leaderboard, companions (incl. Ember battle actions), New Game+.
+
+### #38 — Apply migration 0008 + redeploy the edge function 🔴 High
+The JRPG build needs `0008_saves.sql` applied (the `saves` table — without it
+cloud saves degrade to local-only and the menu shows a warning) and
+`supabase functions deploy generate-questions` re-run (optional `context`
+flavor hint). Same runbook as #34/#35.
+
+### #39 — Placeholder art → CC0 asset packs 🔴 Med
+Everything renders as colored tiles + emoji ("programmer art", decided
+2026-06-12). Swap in CC0 packs: Kenney "Tiny Town"/"Pixel Platformer" or
+OpenGameArt Zelda-like tilesets for `WorldCanvas` tiles, 4-dir character
+sheets for the player, side-profile poses for battle actors, painted
+backdrops per topic for `BattleArena`. Wire via KaPlay `loadSprite` +
+`<img>` in battle; add a `docs/CREDITS.md` with licenses. Human asset
+review/picks needed — see DESIGN-JRPG.md §5.
+
+### #40 — Boss questions don't ramp per phase 🔴 Low
+Design says Fiend question difficulty rises each enrage phase; shipped build
+ramps damage + dialogue only (questions stay at the boss's level, +1 over
+zone mobs). Ramping would need per-phase question pools — an extra fetch per
+phase. Revisit after observing real boss-fight pacing with kids.
+
+### #41 — No audio 🔴 Low
+howler is installed and unused. Needs CC0 packs (zone themes, battle theme,
+victory fanfare, SFX for hits/heals/saves) and a small `lib/audio.ts` with a
+mute toggle in the menu. Asset sourcing is the blocker, not code.
+
+### #43 — Review-pass fixes 🟢 Med — RESOLVED (2026-06-12)
+A 7-angle bug hunt over the whole JRPG build. Fixed: QuestionCard double-tap
+double-resolving battle turns (+ biased hint shuffle, + `correct` passed via
+`onContinue` replacing the BattleArena ref channel); legacy `hazel-game` key
+consumed after migration so the next account on a shared browser can't
+inherit it; quest-step conversations no longer hide a sage's service button
+(and the service path applies the step finish); machine RESET clears context;
+explicit save flushes after battle end / avatar choice; new content
+invariant (no gates/chests in no-topic zones) which caught and removed a
+mis-placed hub chest; dead code removed (`calcAttackDamage`, legacy types);
+shared helpers `playerAge` / `heroMaxHp` / `emberStatus` / `setFlag` /
+`spendHint` replace 12+ duplicated derivations.
+
+Reviewed and explicitly NOT changed (with reasons): per-frame gate/chest
+sprite sync in WorldCanvas (required — gates open while the canvas stays
+mounted under overlays); Special-tier question prefetch per battle (prefetch
+is the point; server cache absorbs cost); path-question refetch on retry
+(fresh question per attempt is a design feature); hand-rolled normalizeSave
+vs zod (tested, working; revisit if schema churn grows).
+
+### #44 — Battle turns + cutscenes as machine substates 🔴 Low
+The design doc sketches battle substates inside the flow machine; the build
+keeps turn flow in BattleArena component state and cutscenes as WorldScreen
+local overlays (pausedRef union). Fine at current scale, but each new
+cutscene/turn-phase adds boilerplate. When phase 4 lands (companions, more
+story moments), promote both into the gameFlow machine.
+
+### #42 — Mini-quest pattern is uniform 🟢 Low — RESOLVED (2026-06-12)
+Quests are now ordered steps with three mechanics: chest steps, **defeat
+steps** (lifetime per-enemy kill counts in `save.kills`, written on battle
+victory), and **talk steps** (a step-target NPC speaks its own lines and
+advances the quest — used for deliveries via the new `save.questItems`
+carried-item slot). The five quests use every mechanic: chest fetch
+(Numbria), 3-critter defeat with a remaining-targets hint (Verdara),
+chest→polish→report multi-step (Gearfall), seed delivery (Chromaria), and
+a cross-zone hub defeat quest from Pip. The menu gained a quest log +
+carried-items row. See STORY.md §6.
+
+### #33 — Topic set is hardcoded 🟢 Low — RESOLVED (2026-06-12)
+`src/content/topics.ts` ships `TOPIC_REGISTRY` (id, label, emoji, colors,
+crystal/fiend fiction, zone id) — UI and world content derive from it.
+Adding a topic = one registry entry + a zone in `zones.ts` + a persona line
+in the edge function's system prompt (the `Topic` union and the function's
+`TOPICS` list still need their one-line additions; acceptable).
 
 ### #32 — Battles don't move the skill ramp 🟢 Low — RESOLVED (2026-05-17)
 `lib/age.ts` ships `nextSkillLevelFromBattle(current, answers)` — same

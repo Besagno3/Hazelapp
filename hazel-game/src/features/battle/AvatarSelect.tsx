@@ -1,25 +1,20 @@
 import { motion } from 'framer-motion';
-import { useGameStore } from '../../store/gameStore';
-import type { Avatar, FightStyle } from '../../types';
-
-const AVATARS: Avatar[] = [
-  { id: 'a1', name: 'Blaze', sprite: '🦁', fightStyle: 'aggressive', maxHp: 100 },
-  { id: 'a2', name: 'Shield', sprite: '🐢', fightStyle: 'defensive', maxHp: 140 },
-  { id: 'a3', name: 'Nova', sprite: '🦅', fightStyle: 'balanced', maxHp: 120 },
-];
-
-const STYLE_DESC: Record<FightStyle, string> = {
-  aggressive: 'High attack damage, lower HP',
-  defensive: 'High HP, lower attack',
-  balanced: 'Well-rounded stats',
-};
+import { AVATARS, STYLE_DESC } from '../../content/avatars';
+import { useSaveStore } from '../../store/saveStore';
+import { sendFlow } from '../../machines/gameFlow';
+import type { Avatar } from '../../types';
 
 export default function AvatarSelect() {
-  const { setAvatar, setPhase } = useGameStore();
+  const update = useSaveStore((s) => s.update);
 
   function handlePick(avatar: Avatar) {
-    setAvatar(avatar);
-    setPhase('world');
+    // Write the choice into the save first — the machine's CHOOSE_AVATAR
+    // guard reads it before letting the player into the world. Flush right
+    // away so the choice reaches other devices even if this tab dies before
+    // the debounce fires.
+    update((s) => ({ ...s, avatarId: avatar.id }));
+    void useSaveStore.getState().flush();
+    sendFlow({ type: 'CHOOSE_AVATAR' });
   }
 
   return (
@@ -29,9 +24,9 @@ export default function AvatarSelect() {
         animate={{ y: 0, opacity: 1 }}
         className="text-4xl font-extrabold text-white mb-2"
       >
-        Pick Your Fighter
+        Pick Your Hero
       </motion.h1>
-      <p className="text-fuchsia-200 mb-8">Choose wisely — your style defines your battle.</p>
+      <p className="text-fuchsia-200 mb-8">Choose wisely — your style defines your battles in Lumina.</p>
 
       <div className="flex flex-col sm:flex-row gap-4">
         {AVATARS.map((a, i) => (

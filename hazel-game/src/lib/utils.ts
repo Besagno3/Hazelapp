@@ -9,7 +9,3 @@ export function cn(...inputs: ClassValue[]) {
 // (Was 0.82, which silently required a perfect 5/5; see ISSUES #2.)
 export const PASS_THRESHOLD = 0.8;
 export const ROUNDS_TO_UNLOCK = 3;
-
-export function calcAttackDamage(correct: number, total: number, base = 30): number {
-  return Math.round(base * (correct / total));
-}
