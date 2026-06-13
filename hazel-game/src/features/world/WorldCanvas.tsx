@@ -4,8 +4,10 @@ import type { MutableRefObject } from 'react';
 import { TILE, WALKABLE_CHARS, pathTargetId, gateFlag, zone } from '../../content/zones';
 import { NPC_DEFS } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
-import { EMBER_SPRITES, EMBER_MAP_SIZE, type EmberStage } from '../../content/story';
+import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
+import { loadWorldSprites, worldFace } from './worldSprites';
+import { resolveSprite } from '../../content/sprites';
 
 /** Player hitbox half-size (smaller than a tile so corridors feel forgiving). */
 const HALF = 11;
@@ -151,6 +153,7 @@ export default function WorldCanvas({
       const canvas = host.querySelector('canvas');
       if (!canvas) return; // should never happen — kaplay() just made it
       sharedKaplay = { k, canvas };
+      loadWorldSprites(k);
     } else {
       // Reuse the live instance: move its canvas into this mount's container.
       host.appendChild(sharedKaplay.canvas);
@@ -237,14 +240,16 @@ export default function WorldCanvas({
       const def = NPC_DEFS[p.defId];
       const px = p.x * TILE + TILE / 2;
       const py = p.y * TILE + TILE / 2;
-      k.add([
-        k.rect(30, 30, { radius: 6 }),
-        k.color(255, 245, 215),
-        k.outline(2, k.rgb(120, 90, 40)),
-        k.pos(px, py),
-        k.anchor('center'),
-      ]);
-      k.add([k.text(def.sprite, { size: 22 }), k.pos(px, py), k.anchor('center')]);
+      if (!resolveSprite(def.spriteId, def.sprite).def?.world) {
+        k.add([
+          k.rect(30, 30, { radius: 6 }),
+          k.color(255, 245, 215),
+          k.outline(2, k.rgb(120, 90, 40)),
+          k.pos(px, py),
+          k.anchor('center'),
+        ]);
+      }
+      worldFace(k, { spriteId: def.spriteId, emoji: def.sprite, x: px, y: py, size: 22 });
       k.add([
         k.text(def.name, { size: 10 }),
         k.pos(px, py + 24),
@@ -262,18 +267,25 @@ export default function WorldCanvas({
       if (defeatedIds.includes(enemy.instanceId)) continue;
       const px = p.x * TILE + TILE / 2;
       const py = p.y * TILE + TILE / 2;
-      const body = k.add([
-        k.rect(enemy.isBoss ? 42 : 32, enemy.isBoss ? 42 : 32, { radius: 8 }),
-        k.color(60, 30, 50),
-        k.outline(2, k.rgb(255, 120, 120)),
-        k.pos(px, py),
-        k.anchor('center'),
-      ]);
-      const face = k.add([
-        k.text(enemy.sprite, { size: enemy.isBoss ? 30 : 24 }),
-        k.pos(px, py),
-        k.anchor('center'),
-      ]);
+      const enemyHasSprite = !!resolveSprite(enemy.spriteId, enemy.sprite).def?.world;
+      const body = enemyHasSprite
+        ? null
+        : k.add([
+            k.rect(enemy.isBoss ? 42 : 32, enemy.isBoss ? 42 : 32, { radius: 8 }),
+            k.color(60, 30, 50),
+            k.outline(2, k.rgb(255, 120, 120)),
+            k.pos(px, py),
+            k.anchor('center'),
+          ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const face: any = worldFace(k, {
+        spriteId: enemy.spriteId,
+        emoji: enemy.sprite,
+        x: px,
+        y: py,
+        size: enemy.isBoss ? 30 : 24,
+        z: 6,
+      }).obj;
       k.add([
         k.text(`${enemy.isBoss ? '👑 ' : ''}Lv ${enemy.level}`, { size: 10 }),
         k.pos(px, py + (enemy.isBoss ? 32 : 26)),
@@ -282,11 +294,11 @@ export default function WorldCanvas({
       ]);
       // Idle hover — visual only; the collision point stays at the spawn.
       let t = Math.random() * Math.PI * 2;
-      body.onUpdate(() => {
+      face.onUpdate(() => {
         if (pausedRef.current) return;
         t += k.dt() * 2.4;
         const dy = Math.sin(t) * 3;
-        body.pos.y = py + dy;
+        if (body) body.pos.y = py + dy;
         face.pos.y = py + dy;
       });
       actors.push({ x: px, y: py, kind: 'enemy', enemy });
@@ -297,23 +309,40 @@ export default function WorldCanvas({
       x: z.spawn.x * TILE + TILE / 2,
       y: z.spawn.y * TILE + TILE / 2,
     };
-    const player = k.add([
-      k.rect(28, 28, { radius: 8 }),
-      k.color(255, 220, 100),
-      k.outline(2, k.rgb(120, 80, 0)),
-      k.pos(spawn.x, spawn.y),
-      k.anchor('center'),
-      k.z(10),
-    ]);
-    player.add([k.text(avatar.sprite, { size: 20 }), k.anchor('center')]);
+    const heroView = resolveSprite(avatar.spriteId, avatar.sprite).def?.world ?? null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let player: any;
+    if (heroView && avatar.spriteId) {
+      player = k.add([
+        k.sprite(`w_${avatar.spriteId}`),
+        k.pos(spawn.x, spawn.y),
+        k.anchor('center'),
+        k.z(10),
+      ]);
+      (player as unknown as { play: (n: string) => void }).play('idle');
+    } else {
+      player = k.add([
+        k.rect(28, 28, { radius: 8 }),
+        k.color(255, 220, 100),
+        k.outline(2, k.rgb(120, 80, 0)),
+        k.pos(spawn.x, spawn.y),
+        k.anchor('center'),
+        k.z(10),
+      ]);
+      player.add([k.text(avatar.sprite, { size: 20 }), k.anchor('center')]);
+    }
+    let curAnim = 'idle';
 
     // Ember trails the hero (no collision — dragons walk where they please).
-    const ember = k.add([
-      k.text(EMBER_SPRITES[emberStage], { size: EMBER_MAP_SIZE[emberStage] }),
-      k.pos(spawn.x - 24, spawn.y + 8),
-      k.anchor('center'),
-      k.z(9),
-    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ember: any = worldFace(k, {
+      spriteId: EMBER_SPRITE_IDS[emberStage],
+      emoji: EMBER_SPRITES[emberStage],
+      x: spawn.x - 24,
+      y: spawn.y + 8,
+      size: EMBER_MAP_SIZE[emberStage],
+      z: 9,
+    }).obj;
     let lastDir = { x: 1, y: 0 };
 
     // --- Collision ---------------------------------------------------------
@@ -377,6 +406,25 @@ export default function WorldCanvas({
       }
 
       if (dx !== 0 || dy !== 0) lastDir = { x: dx, y: dy };
+
+      const moving = dx !== 0 || dy !== 0;
+      if (heroView) {
+        const want = moving && heroView.anims.walk ? 'walk' : 'idle';
+        if (want !== curAnim) {
+          curAnim = want;
+          (player as unknown as { play: (n: string) => void }).play(want);
+        }
+        // Single-frame sprites (no 'walk' anim): a small squash-stretch hop.
+        if (moving && !heroView.anims.walk) {
+          const hop = 1 + Math.sin(k.time() * 16) * 0.06;
+          (player as unknown as { scale: ReturnType<typeof k.vec2> }).scale = k.vec2(1, hop);
+        } else if (!heroView.anims.walk) {
+          (player as unknown as { scale: ReturnType<typeof k.vec2> }).scale = k.vec2(1, 1);
+        }
+        if (dx !== 0) {
+          (player as unknown as { flipX: boolean }).flipX = dx < 0;
+        }
+      }
 
       // Axis-separated movement for wall sliding; remember what we bumped.
       let bumped: { ch: string; x: number; y: number } | null = null;
