@@ -20,7 +20,9 @@ import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { SAGES, CHARGE_MAX, SPECIAL_LEVEL_BONUS } from '../../content/abilities';
 import { POTION_HEAL } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
-import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_HATCHED } from '../../content/story';
+import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
+import { SpriteSheet } from './SpriteSheet';
+import { resolveSprite } from '../../content/sprites';
 import { avatarById } from '../../content/avatars';
 import { HUB_ZONE } from '../../content/zones';
 import { useBattleStore } from '../../store/battleStore';
@@ -64,6 +66,10 @@ export default function BattleArena() {
   const info = topicInfo(topic);
   const sage = save?.sageEquipped ? SAGES[save.sageEquipped] : null;
   const { stage: ember } = emberStatus(save?.flags ?? {});
+
+  const enemySprite = resolveSprite(enemy?.spriteId, enemy?.sprite ?? '❓');
+  const heroSprite = resolveSprite(avatar?.spriteId, avatar?.sprite ?? '❓');
+  const emberSprite = resolveSprite(EMBER_SPRITE_IDS[ember], EMBER_SPRITES[ember]);
 
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
@@ -425,7 +431,13 @@ export default function BattleArena() {
             style={{ filter: 'drop-shadow(0 14px 10px rgba(0,0,0,0.45))' }}
           >
             <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 2.2 }}>
-              {enemy.sprite}
+              <SpriteSheet
+                view={enemySprite.def?.battle ?? null}
+                anim={enemyLunge ? 'attack' : heroLunge ? 'hurt' : 'idle'}
+                emoji={enemySprite.emoji}
+                scale={enemy.isBoss ? 3 : 2.5}
+                className="leading-none"
+              />
             </motion.div>
           </motion.div>
           {floats
@@ -448,11 +460,17 @@ export default function BattleArena() {
             key={`hl${heroLunge}`}
             animate={heroLunge ? { x: [0, -70, 0] } : {}}
             transition={{ duration: 0.5 }}
-            className="text-8xl leading-none scale-x-[-1]"
+            className="text-8xl leading-none"
             style={{ filter: 'drop-shadow(0 14px 10px rgba(0,0,0,0.45))' }}
           >
             <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 1.8 }}>
-              {avatar.sprite}
+              <SpriteSheet
+                view={heroSprite.def?.battle ?? null}
+                anim={heroLunge ? 'attack' : enemyLunge ? 'hurt' : 'idle'}
+                emoji={heroSprite.emoji}
+                scale={2.5}
+                className="leading-none scale-x-[-1]"
+              />
             </motion.div>
           </motion.div>
           {guarded && <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl">🛡️</span>}
@@ -463,7 +481,12 @@ export default function BattleArena() {
             title="Ember"
             style={{ filter: 'drop-shadow(0 8px 6px rgba(0,0,0,0.4))' }}
           >
-            {EMBER_SPRITES[ember]}
+            <SpriteSheet
+              view={emberSprite.def?.battle ?? null}
+              anim="idle"
+              emoji={emberSprite.emoji}
+              scale={ember === 'egg' ? 1.5 : ember === 'dragon' ? 3 : 2}
+            />
           </motion.span>
           {floats
             .filter((f) => f.side === 'hero')
