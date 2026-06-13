@@ -48,6 +48,9 @@ Legend: `[ ]` open · `[x]` done · Sev = Critical / Important / Minor
 - [ ] **C4 · Minor · Accessibility.** `SpriteSheet` `aria-label={emoji}` reads `❓` as "question mark"; consider an optional semantic `label` prop.
 - [ ] **C5 · Minor · Test gaps.** `resolveSprite`'s known-id path is uncovered (SPRITES empty); `worldFace`/`loadWorldSprites` untested; `frameAt` negative-tMs / `loop:false` boundary / `bgPosX` negative-index / `cycleMs(fps=0)` untested.
   **Fix:** add tests (temporarily mutate `SPRITES` for the known-id path; mock KaPlay for worldFace).
+- [ ] **C6 · Minor · `SpriteSheet` assumes a stable `view` reference.** The rAF effect deps include `view`; safe today because `resolveSprite` returns the stable manifest object, but any future wrapper that reconstructs the `SpriteView` per render would restart the animation every render.
+  **Fix:** document the stable-reference assumption (or `useMemo` the view at the call site if it ever becomes dynamic).
+- [ ] **C7 · Trivial · `spawnEnemy` lists fields explicitly (no spread).** Correct today, but a new `EnemyDef` field that should reach `BattleEnemy` must be added manually. **Fix:** add a comment; no code change needed.
 
 ---
 
