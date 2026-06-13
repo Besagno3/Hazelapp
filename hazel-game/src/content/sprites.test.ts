@@ -37,3 +37,29 @@ describe('resolveSprite', () => {
     expect(r.emoji).toBe('🐢');
   });
 });
+
+import { AVATARS } from './avatars';
+import { ENEMY_DEFS } from './enemies';
+import { EMBER_SPRITE_IDS, EMBER_SPRITES } from './story';
+
+describe('character → sprite resolution (pre-asset: all emoji)', () => {
+  it('avatars resolve (to emoji until a spriteId is assigned)', () => {
+    for (const a of AVATARS) {
+      const r = resolveSprite(a.spriteId, a.sprite);
+      expect(r.emoji).toBeTruthy();
+    }
+  });
+  it('enemy defs resolve', () => {
+    for (const e of Object.values(ENEMY_DEFS)) {
+      const r = resolveSprite(e.spriteId, e.sprite);
+      expect(r.emoji).toBeTruthy();
+    }
+  });
+  it('every Ember stage has an id-map entry and an emoji fallback', () => {
+    for (const stage of ['egg', 'hatchling', 'whelp', 'dragon'] as const) {
+      expect(EMBER_SPRITE_IDS[stage]).toBeTruthy();
+      const r = resolveSprite(EMBER_SPRITE_IDS[stage], EMBER_SPRITES[stage]);
+      expect(r.emoji).toBeTruthy();
+    }
+  });
+});

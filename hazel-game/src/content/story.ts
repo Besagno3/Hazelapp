@@ -24,6 +24,17 @@ export const EMBER_SPRITES: Record<EmberStage, string> = {
   dragon: '🐉',
 };
 
+/**
+ * Sprite-manifest ids per Ember growth stage. Unmapped in SPRITES until the
+ * asset task, so each resolves to its EMBER_SPRITES emoji until real art lands.
+ */
+export const EMBER_SPRITE_IDS: Record<EmberStage, string> = {
+  egg: 'ember-egg',
+  hatchling: 'ember-hatchling',
+  whelp: 'ember-whelp',
+  dragon: 'ember-dragon',
+};
+
 export const EMBER_STAGE_LABEL: Record<EmberStage, string> = {
   egg: 'a warm egg',
   hatchling: 'hatchling',

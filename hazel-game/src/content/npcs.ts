@@ -24,6 +24,8 @@ export interface WorldNpcDef {
   id: string;
   name: string;
   sprite: string;
+  /** key into src/content/sprites.ts SPRITES; falls back to `sprite` (emoji) when absent */
+  spriteId?: string;
   role: NpcRole;
   /** Sages belong to a topic; opens that topic's Sage screen. */
   topic?: Topic;
