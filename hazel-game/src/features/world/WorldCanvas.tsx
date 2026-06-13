@@ -226,6 +226,22 @@ export default function WorldCanvas({
       }
     }
 
+    // KaPlay's add()/worldFace() return a generic GameObj that erases component
+    // types, so we declare the minimal shapes the world actors actually use. This
+    // keeps the movement loop's .pos math type-checked instead of falling back to `any`.
+    type WorldVec = ReturnType<typeof k.vec2>;
+    type WorldActor = {
+      pos: WorldVec;
+      onUpdate: (cb: () => void) => void;
+      add: (comps: unknown[]) => unknown;
+      destroy: () => void;
+    };
+    type HeroActor = WorldActor & {
+      play: (n: string) => void;
+      flipX: boolean;
+      scale: WorldVec;
+    };
+
     // --- Actors ------------------------------------------------------------
     interface Actor {
       x: number;
@@ -277,15 +293,14 @@ export default function WorldCanvas({
             k.pos(px, py),
             k.anchor('center'),
           ]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const face: any = worldFace(k, {
+      const face = worldFace(k, {
         spriteId: enemy.spriteId,
         emoji: enemy.sprite,
         x: px,
         y: py,
         size: enemy.isBoss ? 30 : 24,
         z: 6,
-      }).obj;
+      }).obj as unknown as WorldActor;
       k.add([
         k.text(`${enemy.isBoss ? '👑 ' : ''}Lv ${enemy.level}`, { size: 10 }),
         k.pos(px, py + (enemy.isBoss ? 32 : 26)),
@@ -310,16 +325,15 @@ export default function WorldCanvas({
       y: z.spawn.y * TILE + TILE / 2,
     };
     const heroView = resolveSprite(avatar.spriteId, avatar.sprite).def?.world ?? null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let player: any;
+    let player: HeroActor;
     if (heroView && avatar.spriteId) {
       player = k.add([
         k.sprite(`w_${avatar.spriteId}`),
         k.pos(spawn.x, spawn.y),
         k.anchor('center'),
         k.z(10),
-      ]);
-      (player as unknown as { play: (n: string) => void }).play('idle');
+      ]) as unknown as HeroActor;
+      player.play('idle');
     } else {
       player = k.add([
         k.rect(28, 28, { radius: 8 }),
@@ -328,21 +342,20 @@ export default function WorldCanvas({
         k.pos(spawn.x, spawn.y),
         k.anchor('center'),
         k.z(10),
-      ]);
+      ]) as unknown as HeroActor;
       player.add([k.text(avatar.sprite, { size: 20 }), k.anchor('center')]);
     }
     let curAnim = 'idle';
 
     // Ember trails the hero (no collision — dragons walk where they please).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ember: any = worldFace(k, {
+    const ember = worldFace(k, {
       spriteId: EMBER_SPRITE_IDS[emberStage],
       emoji: EMBER_SPRITES[emberStage],
       x: spawn.x - 24,
       y: spawn.y + 8,
       size: EMBER_MAP_SIZE[emberStage],
       z: 9,
-    }).obj;
+    }).obj as unknown as WorldActor;
     let lastDir = { x: 1, y: 0 };
 
     // --- Collision ---------------------------------------------------------
@@ -412,17 +425,17 @@ export default function WorldCanvas({
         const want = moving && heroView.anims.walk ? 'walk' : 'idle';
         if (want !== curAnim) {
           curAnim = want;
-          (player as unknown as { play: (n: string) => void }).play(want);
+          player.play(want);
         }
         // Single-frame sprites (no 'walk' anim): a small squash-stretch hop.
         if (moving && !heroView.anims.walk) {
           const hop = 1 + Math.sin(k.time() * 16) * 0.06;
-          (player as unknown as { scale: ReturnType<typeof k.vec2> }).scale = k.vec2(1, hop);
+          player.scale = k.vec2(1, hop);
         } else if (!heroView.anims.walk) {
-          (player as unknown as { scale: ReturnType<typeof k.vec2> }).scale = k.vec2(1, 1);
+          player.scale = k.vec2(1, 1);
         }
         if (dx !== 0) {
-          (player as unknown as { flipX: boolean }).flipX = dx < 0;
+          player.flipX = dx < 0;
         }
       }
 
