@@ -159,6 +159,20 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-13 — Pixel-art character sprite system (emoji fallback)
+Data-driven pipeline for swapping emoji placeholders with CC0 sprite sheets —
+zero visual change until art assets land:
+- **`src/content/sprites.ts`**: `SPRITES` manifest (currently empty) + `resolveSprite(spriteId, emoji)` resolver; `SpriteView`/`SpriteDef` types. Idle anim is required; others fall back to idle automatically.
+- **`src/lib/spriteAnim.ts`**: pure math (`frameAt`, `bgPosX`, `frameCount`, `cycleMs`, `SpriteAnim`) — no React, fully unit-tested.
+- **`src/features/battle/SpriteSheet.tsx`**: React component (rAF frame stepping) that renders a sprite strip or falls back to the emoji when no sprite is registered for the id.
+- **`src/features/world/worldSprites.ts`**: KaPlay helpers `loadWorldSprites` + `worldFace` + pure `toKaplayAnims`. World drives walk/idle/flip per direction and adds a single-frame hop for sprites with only one frame.
+- Optional `spriteId?: string` on `Avatar`/`NPC`/`EnemyDef`/`WorldNpcDef`; carried through `spawnEnemy`. `EMBER_SPRITE_IDS` stage→id map in `story.ts`.
+- **`BattleArena.tsx`**: renders enemy/hero/Ember via `<SpriteSheet>`; attack/hurt driven by transient `enemyActing`/`heroActing` flags (±520ms lunge window).
+- **`WorldCanvas.tsx`**: loads sprites once via `loadWorldSprites`, renders NPC/enemy/player/Ember via `worldFace`; player walk/idle/flip + hop for single-frame sprites.
+- All characters without a registered spriteId continue to display their emoji — no regression.
+- **Art production** (sourcing CC0 packs + generating Verdara-slice mascots) is the remaining step. First slice: heroes, Ember all stages, Verdara boss. Hub NPCs + Numbria/Gearfall/Chromaria zones come after. See `docs/ASSET-SOURCING.md` and the plan/design under `docs/superpowers/`.
+155 tests green; lint + build clean.
+
 ### 2026-06-13 — World canvas: kill black lines, window-focus keys, bigger stage (#45)
 Three live-play fixes to the KaPlay overworld (`WorldCanvas` + `WorldScreen`):
 - **Black lines on screen change (and again after battles).** KaPlay's app

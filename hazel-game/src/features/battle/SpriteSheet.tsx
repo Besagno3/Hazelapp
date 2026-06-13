@@ -33,6 +33,7 @@ export function SpriteSheet({ view, anim = 'idle', emoji, scale = 1, className }
     if (!view) return;
     const def = view.anims[animName];
     if (!def) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset to the new animation's first frame when the clip changes
     setFrame(def.from); // show the new animation's first frame immediately
     if (typeof requestAnimationFrame !== 'function') return; // jsdom / SSR: hold the first frame
     startRef.current = performance.now();

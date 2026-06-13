@@ -52,6 +52,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #43 | 🟢 | Med    | Review-pass fixes: double-tap turn resolve, legacy-key leak, sage/step lock, hub chest |
 | #44 | 🔴 | Low    | Battle turn flow + world cutscenes live in component state, not machine substates |
 | #45 | 🟢 | High   | World canvas: black lines on screen change, keys need a click, canvas too small |
+| #46 | 🔴 | Med    | Pixel-art assets still to be produced — heroes, Ember, Verdara first; hub NPCs + Numbria/Gearfall/Chromaria zones after (depends on Task 8 asset production; see `docs/ASSET-SOURCING.md`) |
 
 ---
 

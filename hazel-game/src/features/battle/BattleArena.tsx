@@ -139,6 +139,7 @@ export default function BattleArena() {
   // Flip acting flags on for the lunge duration (0.5s transition → clear at 520ms).
   useEffect(() => {
     if (!enemyLunge) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack/hurt flag for the lunge animation window
     setEnemyActing(true);
     const t = setTimeout(() => setEnemyActing(false), 520);
     return () => clearTimeout(t);
@@ -146,6 +147,7 @@ export default function BattleArena() {
 
   useEffect(() => {
     if (!heroLunge) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack/hurt flag for the lunge animation window
     setHeroActing(true);
     const t = setTimeout(() => setHeroActing(false), 520);
     return () => clearTimeout(t);
