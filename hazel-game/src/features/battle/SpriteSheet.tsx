@@ -21,25 +21,31 @@ interface SpriteSheetProps {
  * sit *inside* the existing Framer Motion lunge/bob wrappers in BattleArena.
  */
 export function SpriteSheet({ view, anim = 'idle', emoji, scale = 1, className }: SpriteSheetProps) {
-  const animDef = view ? (view.anims[anim] ?? view.anims.idle) : undefined;
+  // Resolve to a STABLE anim name so the effect restarts only when the animation
+  // actually changes — not on every incidental parent re-render (the battle
+  // screen re-renders often). Unknown names fall back to 'idle' (always present).
+  const animName = view && view.anims[anim] ? anim : 'idle';
+  const animDef = view ? view.anims[animName] : undefined;
   const [frame, setFrame] = useState(animDef ? animDef.from : 0);
   const startRef = useRef(0);
 
   useEffect(() => {
-    if (!view || !animDef) return;
-    if (typeof requestAnimationFrame !== 'function') {
-      setFrame(animDef.from);
-      return; // jsdom / SSR: hold the first frame
-    }
+    if (!view) return;
+    const def = view.anims[animName];
+    if (!def) return;
+    setFrame(def.from); // show the new animation's first frame immediately
+    if (typeof requestAnimationFrame !== 'function') return; // jsdom / SSR: hold the first frame
     startRef.current = performance.now();
     let raf = 0;
     const tick = (now: number) => {
-      setFrame(frameAt(animDef, now - startRef.current));
+      const f = frameAt(def, now - startRef.current);
+      setFrame((prev) => (prev === f ? prev : f)); // re-render only when the frame changes
+      if (def.loop === false && f === def.to) return; // non-looping clip finished — stop scheduling
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [view, animDef]);
+  }, [view, animName]);
 
   if (!view || !animDef) {
     return <span className={className}>{emoji}</span>;
