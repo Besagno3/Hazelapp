@@ -202,6 +202,15 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-179 | C | ✅ | LevelBadge | `placement="top-center"` positions the medallion centered (battle screen); default is top-left |
 | TC-180 | U | ⬜ | profileStore | `loadProfile` with no `profiles` row sets a working fallback profile (birth date from auth metadata) and upserts it, so XP accrues |
 | TC-181 | M | ⬜ | App | sign-out button hidden on the battle screen; level medallion centered top in battle |
+| TC-182 | U | ✅ | zones | every zone is reachable from the hub by walking exits (BFS) — no stranded screens (#50) |
+| TC-183 | U | ✅ | zones | every exit has a return exit — no one-way traps (#50) |
+| TC-184 | U | ✅ | spells | a fresh hero knows only Mend; meeting a Sage adds that topic's signature spell (#51) |
+| TC-185 | U | ✅ | spells | Aegis unlocks at the first crystal; Ember's Breath only when Ember is full-grown (4 crystals, hatched) (#51) |
+| TC-186 | U | ✅ | spells | every known spell costs ≤ `CHARGE_MAX` and the spell question is super-hard (`SPELL_LEVEL_BONUS` ≥ 2) (#51) |
+| TC-187 | U | ✅ | story | every topic has a crystal-restored cutscene; the Spire-awakens scene is present (#50) |
+| TC-188 | M | ⬜ | BattleArena | 📖 Spells opens the Spellbook; picking a spell asks one super-hard question; correct casts the effect (damage/heal/shield), a miss fizzles and refunds charge (#51) |
+| TC-189 | M | ⬜ | WorldScreen | beating a Fiend plays that topic's crystal cutscene; the first crystal also triggers the Spire-awakens scene; both play once (#50) |
+| TC-190 | M | ⬜ | World | the five expansion zones (Village, Woods, Coast, Depths, Spire) are walkable from the hub via the village and back again (#50) |
 
 ## Regression cases (tied to ISSUES.md)
 

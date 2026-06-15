@@ -34,6 +34,14 @@ export function specialDamage(style: FightStyle, powerUps: PowerUps): number {
   return Math.round((STYLE_ATTACK[style] + attackBonus(powerUps)) * SPECIAL_MULTIPLIER);
 }
 
+/**
+ * Damage of a landed offensive spell — the hero's basic attack power scaled by
+ * the spell's own multiplier (see `src/content/spells.ts`).
+ */
+export function spellDamage(style: FightStyle, powerUps: PowerUps, multiplier: number): number {
+  return Math.round((STYLE_ATTACK[style] + attackBonus(powerUps)) * multiplier);
+}
+
 /** Raw enemy attack power; bosses hit harder and enrage by phase. */
 export function enemyAttack(level: number, isBoss: boolean, phase: number): number {
   return Math.round((16 + level * 3) * (isBoss ? 1.3 : 1) * (1 + phase * 0.15));

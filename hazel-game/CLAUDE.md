@@ -62,10 +62,12 @@ existing architecture.
   machine owns *where the player is*; Zustand stores own *what they have*.
 - **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
 - **Content layer** (`src/content/`): `topics.ts` (TOPIC_REGISTRY — single
-  source of truth, #33), `zones.ts` (5 ASCII tile maps: Lumina Field hub + 4
-  topic zones, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
-  `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
-  (Sages/Specials), `items.ts` (shop + economy tuning), `avatars.ts`.
+  source of truth, #33), `zones.ts` (10 ASCII tile maps: Lumina Field hub + 4
+  topic zones + 5 expansion story zones reached through Lumina Village,
+  validated by `zones.test.ts`), `npcs.ts` (dialogue trees), `enemies.ts`
+  (archetypes + fiends, age-scaled at spawn), `abilities.ts` (Sage personas +
+  charge tuning), `spells.ts` (the Spellbook — castable abilities derived from
+  the save), `items.ts` (shop + economy tuning), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue. Write-through: localStorage immediately
@@ -82,12 +84,15 @@ existing architecture.
   services (shop/inn/library/sage), path questions (gates/chests), menu.
   `TouchPad` is the mobile d-pad.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
-  battle — Attack / Special / Guard / Potion / Flee, every command resolved by
-  a question; enemy counterattacks are blocked by defend questions. Specials
-  (equipped Sage + 3-correct charge) ask level+2 questions for 2.5× damage and
-  fizzle harmlessly on a miss. Fiends (bosses) have enrage phases and restore
-  their crystal on defeat. Pure math in `lib/battleMath.ts`. No game over —
-  defeat returns the player to the hub, healed.
+  battle — Attack / Spells / Guard / Potion / Flee, every command resolved by
+  a question; enemy counterattacks are blocked by defend questions. **Spells**
+  (the Spellbook, `content/spells.ts`): the hero casts any learned spell
+  (Mend / Aegis / Sage strikes / Ember's Breath) by answering one *super-hard*
+  question (`SPELL_LEVEL_BONUS` = 3 levels up); each spends charge (◆, the mana
+  gauge filled by correct answers, `CHARGE_MAX` = 4) and a miss fizzles +
+  refunds the charge. Fiends (bosses) have enrage phases and restore their
+  crystal on defeat. Pure math in `lib/battleMath.ts`. No game over — defeat
+  returns the player to the hub, healed.
 - DB schema lives in `supabase/migrations/` — apply via the Supabase SQL Editor
   or `supabase db push`.
 - **Question generation** is a Deno edge function in
@@ -158,6 +163,31 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-06-15 — World x2 + story x2 + Spellbook battle magic (#50, #51)
+Three-part expansion of the JRPG.
+- **More screens (5 → 10 zones, #50):** five new topic-less story/exploration
+  zones in `content/zones.ts`, reached through a new **Lumina Village**
+  crossroads: Village ↔ Whispering Woods ↔ Clockwork Depths, Village ↔
+  Starfall Coast, Village ↔ The Crystal Spire. The hub gains a single new exit
+  (top, cols 2-3) to the Village; the rest branch off the new zones, so edits
+  to existing maps are minimal. All maps stay 22×14 (the shared KaPlay canvas
+  is sized once). 11 new flag-reactive NPCs in `content/npcs.ts`. New tests:
+  every zone reachable from the hub (BFS) + no one-way exits.
+- **Story doubled (#50):** `content/story.ts` gains `CRYSTAL_PANELS` (a
+  victory cutscene per Fiend), `SPIRE_PANELS` (the Spire wakes after the first
+  crystal), and longer `INTRO_PANELS` / `endingPanels`. `WorldScreen` now
+  selects exactly one due cutscene per render: intro → hatch → crystal → spire
+  → ending. New flags: `crystal-<topic>-scene-seen`, `spire-awake-seen`.
+- **Spellbook (#51):** the single equipped-Sage Special becomes a cast-any
+  system. `content/spells.ts` defines spells (damage / heal / shield) with a
+  charge cost; `spellsKnown(save)` derives the list from the save (Mend always;
+  each Sage's strike; Aegis at 1 crystal; Ember's Breath at full-grown Ember) —
+  no new save field. In battle, **📖 Spells** opens a menu; casting asks one
+  super-hard question (`SPELL_LEVEL_BONUS` = 3 up), spends charge, and fizzles
+  + refunds on a miss. `CHARGE_MAX` 3 → 4; `lib/battleMath.spellDamage` added.
+  `MenuOverlay` shows the Spellbook; Sage service copy updated.
+- 164 tests green (was 156); lint + build clean.
 
 ### 2026-06-13 — Fix leveling (XP gauge / medallion) + battle HUD tidy
 Player progression was invisible: a missing Supabase `profiles` row left

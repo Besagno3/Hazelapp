@@ -55,6 +55,13 @@ export const EMBER_HATCHED = 'ember-hatched';
 export const EMBER_HATCH_SEEN = 'ember-hatch-seen';
 export const INTRO_SEEN = 'intro-seen';
 export const ENDING_SEEN = 'ending-seen';
+/** Plays once after the FIRST crystal is restored — the Spire wakes and calls. */
+export const SPIRE_AWAKE_SEEN = 'spire-awake-seen';
+
+/** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
+export function crystalSceneFlag(topic: Topic): string {
+  return `crystal-${topic}-scene-seen`;
+}
 
 /**
  * Ember grows on the player's deeds: the egg hatches after the first battle
@@ -107,6 +114,18 @@ export const INTRO_PANELS: StoryPanel[] = [
       'could not touch: the last dragon egg of Lumina — warm as a good idea.',
   },
   {
+    emoji: '🏡',
+    text:
+      'You grew up in a little village at the edge of Lumina Field, raised on Grandmother ' +
+      "Wick's bedtime stories about the crystals. You never dreamed you'd live one.",
+  },
+  {
+    emoji: '🏛️',
+    text:
+      'At the heart of the world stands the Crystal Spire — dark and silent now. They say ' +
+      'when all four crystals shine again, their light will gather there and burn the fog away.',
+  },
+  {
     emoji: '🐲',
     text:
       'Dragons grow on bravery and bright answers. Restore the four crystals, raise ' +
@@ -125,21 +144,119 @@ export const HATCH_PANELS: StoryPanel[] = [
       'CRACK! A tiny dragon tumbles out and blinks up at you. "Ember" feels like the ' +
       'right name. Ember will follow you everywhere — and grow with every crystal you restore!',
   },
+  {
+    emoji: '🔥',
+    text:
+      'Ember sneezes a tiny puff of sparks and grins. Raise this dragon to full size, and ' +
+      "one day you'll cast its very own fire in battle. For now — onward, together!",
+  },
 ];
+
+/**
+ * The Spire awakens after the FIRST crystal is restored — introduces the
+ * Crystal Spire (the new endgame zone) and its Keeper.
+ */
+export const SPIRE_PANELS: StoryPanel[] = [
+  {
+    emoji: '🏛️',
+    text:
+      'Far across the world, the dark Crystal Spire shivers. A single restored crystal ' +
+      'has woken something that slept through the whole long fog.',
+  },
+  {
+    emoji: '🔮',
+    text:
+      '"At last," whispers Keeper Aurora from the top of the Spire. "A bright heart walks ' +
+      'Lumina again. Bring the crystals home, little hero — the Spire has waited so long for morning."',
+  },
+];
+
+/**
+ * A short victory cutscene per Fiend — plays back in the world after the boss
+ * falls and that topic's crystal is restored.
+ */
+export const CRYSTAL_PANELS: Record<Topic, StoryPanel[]> = {
+  math: [
+    {
+      emoji: '💠',
+      text:
+        'The Null Fiend scatters into a drift of zeroes, and the Crystal of Numbers blazes ' +
+        'back to life. Far off in Numbria, the counting river starts to count again — one, two, three…',
+    },
+    {
+      emoji: '🐲',
+      text: 'Ember gulps down the fresh crystal-light and grows a little bigger. Three crystals to go!',
+    },
+  ],
+  science: [
+    {
+      emoji: '🌟',
+      text:
+        'The Smog Fiend coughs once and clears away like morning mist. The Crystal of Nature ' +
+        'shines, and high over Verdara the stars quietly remember their own names.',
+    },
+    {
+      emoji: '🐲',
+      text: 'Ember chases a firefly in pure delight, then nibbles the crystal-light and grows. Onward!',
+    },
+  ],
+  engineering: [
+    {
+      emoji: '🌀',
+      text:
+        'The Rust Fiend seizes up and flakes away to nothing. The Crystal of Gears spins bright, ' +
+        'and deep below, every sleeping machine in the Clockwork Depths turns over with a happy clank.',
+    },
+    {
+      emoji: '🐲',
+      text: 'Ember warms its claws on the glowing crystal and stretches, just a touch taller. Keep going!',
+    },
+  ],
+  creativity: [
+    {
+      emoji: '🌈',
+      text:
+        'The Gray Fiend dissolves into a splash of every color it ever stole. The Crystal of Wonder ' +
+        'sings, and all of Chromaria bursts into a paintbox of light and music at once.',
+    },
+    {
+      emoji: '🐲',
+      text: 'Ember rolls in the rainbow and roars a tiny, joyful roar. Such a brave little dragon!',
+    },
+  ],
+};
 
 export function endingPanels(heroName: string): StoryPanel[] {
   return [
     {
       emoji: '💎',
       text:
-        'The four Crystals of Knowing blaze like little suns. The fog of Forgetting ' +
-        'thins, curls… and gives up.',
+        'The four Crystals of Knowing rise from the corners of the world and stream toward ' +
+        'the Crystal Spire, four ribbons of light braiding together across the sky.',
+    },
+    {
+      emoji: '🏛️',
+      text:
+        'At the top of the Spire, Keeper Aurora lifts her hands and the crystals settle into ' +
+        'place. The Spire blazes like a second sun. The fog of Forgetting thins, curls… and gives up.',
     },
     {
       emoji: '🏘️',
       text:
         'Tally counts shooting stars. Fern\'s fireflies spell words in the dark. ' +
         'Rivet\'s great engine purrs. And Doodle is painting EVERYTHING — including you.',
+    },
+    {
+      emoji: '🏡',
+      text:
+        'Back home, Grandmother Wick\'s lanterns burn bright enough to read by. "I always knew," ' +
+        'she says, and Bramble swears the village bread has never once burned since.',
+    },
+    {
+      emoji: '🔭',
+      text:
+        'On Starfall Coast, the stars come down to rest on the water again. Vela names a brand-new ' +
+        `one — bright and low in the west — after a curious kid who would not stop asking why.`,
     },
     {
       emoji: '🐉',

@@ -23,6 +23,10 @@ import {
   INTRO_PANELS,
   INTRO_SEEN,
   ENDING_SEEN,
+  CRYSTAL_PANELS,
+  SPIRE_PANELS,
+  SPIRE_AWAKE_SEEN,
+  crystalSceneFlag,
 } from '../../content/story';
 import { playerAge } from '../../lib/age';
 import { heroMaxHp } from '../../lib/powerups';
@@ -77,12 +81,28 @@ export default function WorldScreen() {
   const flags = save?.flags ?? {};
   const { crystals, stage: ember } = emberStatus(flags);
 
-  // Story moments (#37 story pass) — priority: intro, hatch, then ending.
+  // Story moments (#37 story pass + expansion). Exactly one plays at a time;
+  // priority: intro → hatch → crystal-restored → Spire awakens → ending.
   const introDue = !flags[INTRO_SEEN];
-  const hatchDue = !introDue && flags[EMBER_HATCHED] === true && !flags[EMBER_HATCH_SEEN];
-  const endingDue =
-    !introDue && !hatchDue && crystals === TOPIC_REGISTRY.length && !flags[ENDING_SEEN];
-  const cutscene = introDue || hatchDue || endingDue;
+  const hatchDue = flags[EMBER_HATCHED] === true && !flags[EMBER_HATCH_SEEN];
+  const crystalSceneTopic =
+    TOPIC_REGISTRY.find((t) => flags[crystalFlag(t.id)] && !flags[crystalSceneFlag(t.id)])?.id ??
+    null;
+  const spireAwakeDue = crystals >= 1 && !flags[SPIRE_AWAKE_SEEN];
+  const endingDue = crystals === TOPIC_REGISTRY.length && !flags[ENDING_SEEN];
+
+  const activeScene: 'intro' | 'hatch' | 'crystal' | 'spire' | 'ending' | null = introDue
+    ? 'intro'
+    : hatchDue
+      ? 'hatch'
+      : crystalSceneTopic
+        ? 'crystal'
+        : spireAwakeDue
+          ? 'spire'
+          : endingDue
+            ? 'ending'
+            : null;
+  const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
   useEffect(() => {
@@ -103,8 +123,9 @@ export default function WorldScreen() {
   }, [zoneId]);
 
   useEffect(() => {
-    if (endingDue) confetti({ particleCount: 300, spread: 120, origin: { y: 0.4 } });
-  }, [endingDue]);
+    if (activeScene === 'ending') confetti({ particleCount: 300, spread: 120, origin: { y: 0.4 } });
+    else if (activeScene === 'crystal') confetti({ particleCount: 160, spread: 100, origin: { y: 0.4 } });
+  }, [activeScene]);
 
   if (!save || !avatar) {
     return (
@@ -212,22 +233,36 @@ export default function WorldScreen() {
       {overlay === 'path' && pathTarget && <PathQuestionOverlay target={pathTarget} />}
       {overlay === 'menu' && <MenuOverlay />}
 
-      {/* Story cutscenes (#37 story pass) */}
-      {introDue && (
+      {/* Story cutscenes (#37 story pass + expansion) — one at a time. */}
+      {activeScene === 'intro' && (
         <StoryPanels
           panels={INTRO_PANELS}
           doneLabel="🐲 Begin the adventure!"
           onDone={() => setFlag(INTRO_SEEN)}
         />
       )}
-      {hatchDue && (
+      {activeScene === 'hatch' && (
         <StoryPanels
           panels={HATCH_PANELS}
           doneLabel="🐲 Hello, Ember!"
           onDone={() => setFlag(EMBER_HATCH_SEEN)}
         />
       )}
-      {endingDue && (
+      {activeScene === 'crystal' && crystalSceneTopic && (
+        <StoryPanels
+          panels={CRYSTAL_PANELS[crystalSceneTopic]}
+          doneLabel="💎 A crystal restored!"
+          onDone={() => setFlag(crystalSceneFlag(crystalSceneTopic))}
+        />
+      )}
+      {activeScene === 'spire' && (
+        <StoryPanels
+          panels={SPIRE_PANELS}
+          doneLabel="🏛️ Onward!"
+          onDone={() => setFlag(SPIRE_AWAKE_SEEN)}
+        />
+      )}
+      {activeScene === 'ending' && (
         <StoryPanels
           panels={endingPanels(avatar.name)}
           doneLabel="🌟 The adventure continues!"

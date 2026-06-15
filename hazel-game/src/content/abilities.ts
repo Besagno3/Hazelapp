@@ -51,9 +51,11 @@ export const SAGES: Record<Topic, SageInfo> = {
   },
 };
 
-/** Damage multiplier for a landed Special vs a basic attack. */
+/** Damage multiplier for a landed Sage spell vs a basic attack. */
 export const SPECIAL_MULTIPLIER = 2.5;
-/** Specials ask a question this many levels above the enemy. */
-export const SPECIAL_LEVEL_BONUS = 2;
-/** Correct answers needed to fill the Special charge gauge. */
-export const CHARGE_MAX = 3;
+/**
+ * The spell "mana" gauge: correct answers in battle fill it (◆), and casting a
+ * spell spends its cost. Sized to the priciest spell (Ember's Breath, see
+ * `src/content/spells.ts`).
+ */
+export const CHARGE_MAX = 4;

@@ -5,6 +5,8 @@ import {
   BOSS_LINES,
   INTRO_PANELS,
   HATCH_PANELS,
+  CRYSTAL_PANELS,
+  SPIRE_PANELS,
   EMBER_SPRITES,
   EMBER_MAP_SIZE,
   EMBER_HATCHED,
@@ -48,6 +50,19 @@ describe('cutscene panels', () => {
     const panels = endingPanels('Blaze');
     expect(panels.length).toBeGreaterThanOrEqual(3);
     expect(panels.some((p) => p.text.includes('Blaze'))).toBe(true);
+  });
+
+  it('every topic has a crystal-restored cutscene and the Spire scene is present', () => {
+    for (const topic of TOPICS) {
+      const panels = CRYSTAL_PANELS[topic];
+      expect(panels.length).toBeGreaterThanOrEqual(1);
+      for (const p of panels) {
+        expect(p.emoji).toBeTruthy();
+        expect(p.text.length).toBeGreaterThan(20);
+      }
+    }
+    expect(SPIRE_PANELS.length).toBeGreaterThanOrEqual(1);
+    for (const p of SPIRE_PANELS) expect(p.text.length).toBeGreaterThan(20);
   });
 });
 

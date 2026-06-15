@@ -13,7 +13,15 @@ Gears, and Wonder. A **fog of Forgetting** rolled in; four **Fiends** drank
 the crystal light and hid at the corners of the world. A kid from Lumina
 Field — carrying **the last dragon egg** — sets out to restore the crystals.
 Learning is literally the magic system: every answered question returns a
-spark of light, and dragons grow on bravery and bright answers.
+spark of light, and dragons grow on bravery and bright answers. When all four
+crystals shine, their light gathers at the **Crystal Spire** at the heart of
+the world and burns the fog away for good.
+
+The world is **10 zones**: the Lumina Field hub, the four topic regions, and
+five quieter **story zones** reached through the hero's home, **Lumina
+Village** (Whispering Woods → Clockwork Depths, Starfall Coast, and the Crystal
+Spire). The story zones have no Fiends — they carry the narrative, hold save
+crystals, and let the world breathe between battles.
 
 ## 2. Tone & voice rules
 
@@ -67,6 +75,16 @@ Merchant Maple 🦝.
 | Gearfall (engineering) | Sage Cog 🧑‍🔧 — *Gear Storm* | Rivet 👷 — *Rivet's Golden Gear* | **The Rust Fiend** 🤖 — nothing turns, nothing gets fixed |
 | Chromaria (creativity) | Sage Muse 🧚 — *Rainbow Riff* | Doodle 🧑‍🎨 — *Doodle's Color Seed* | **The Gray Fiend** 🌑 — drank the colors, hushed the songs |
 
+**Expansion story zones (no Fiends — atmosphere + lore + reactivity):**
+
+| Zone | Cast |
+|---|---|
+| Lumina Village (home) | Grandmother Wick 👵 (the hero's gran, dragon lore), Bramble 🧑 (childhood friend, burns the bread), Lantern-Keeper Sol 🧓 (lanterns brighten per crystal) |
+| Whispering Woods | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook — "a spell is a hard question you were brave enough to answer"), Wisp 🧚 (made of unanswered questions) |
+| Starfall Coast | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name) |
+| Clockwork Depths | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times) |
+| The Crystal Spire | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals restored) |
+
 **Fiend voice formula** (`story.ts BOSS_LINES`): 2 intro boxes — (1) a sneer
 that name-drops the egg/curiosity, (2) "I am the X Fiend!" + their crime —
 then last words on defeat that *concede the theme* ("your answers… counted").
@@ -82,11 +100,23 @@ then last words on defeat that *concede the theme* ("your answers… counted").
   Elder comments on the egg/Ember.
 - **Acts 2–5, any order (FF1-style open structure):** each zone = gate
   (question lock) → villager mini-quest (riddle-chest fetch) → Sage
-  (Special unlocked) → Fiend (boss + crystal flag). Villager dialogue
-  flips to a gratitude line after the crystal is restored.
-- **Finale** (`endingPanels(heroName)`): crystals blaze → villagers'
-  callbacks (Tally counts shooting stars…) → Ember full-grown → the hero
-  named as the reason → open door to New Game+ ("trickier riddles").
+  (spell added to the Spellbook) → Fiend (boss + crystal flag). Beating a
+  Fiend plays a short **crystal-restored cutscene** (`CRYSTAL_PANELS[topic]`)
+  back in the world; villager dialogue flips to a gratitude line.
+- **The Spire wakes** (`SPIRE_PANELS`, after the FIRST crystal): introduces the
+  Crystal Spire and Keeper Aurora — the convergence point and the new endgame
+  destination, reached through Lumina Village.
+- **Finale** (`endingPanels(heroName)`): the four crystals stream to the Spire
+  → Keeper Aurora sets them → villagers' callbacks (Tally counts shooting
+  stars, Gran's lanterns, Vela's new star) → Ember full-grown → the hero named
+  as the reason → open door to New Game+ ("trickier riddles").
+
+**Magic — the Spellbook:** in battle the hero casts learned spells by
+answering one *super-hard* question (3 levels above the enemy). Every hero
+knows **Mend** (heal); each Sage adds a signature strike; **Aegis** (shield +
+heal) unlocks at the first crystal; **Ember's Breath** (huge damage) unlocks
+when Ember is full-grown. Spells cost charge (◆) filled by correct answers; a
+miss fizzles harmlessly and refunds the charge — effort is never punished.
 
 ## 6. Quests (one per zone + one in the hub)
 
@@ -113,10 +143,12 @@ current hint) and carried items. Flags: `quest:<id>:offered`,
 | Flag | Set by |
 |---|---|
 | `intro-seen` | finishing the opening cutscene |
-| `met-elder` | Elder Lumen's first greeting line |
+| `met-elder` / `met-wick` / `met-hazel` / `met-aurora` | those NPCs' first greeting lines |
 | `ember-hatched` | first battle victory |
 | `ember-hatch-seen` | finishing the hatch cutscene |
 | `crystal-<topic>-restored` | beating that topic's Fiend |
+| `crystal-<topic>-scene-seen` | finishing that crystal's restored cutscene |
+| `spire-awake-seen` | finishing the Spire-awakens cutscene (after 1st crystal) |
 | `gate:<zone>:gate:<x>,<y>` | answering that gatekeeper |
 | `quest:<id>:offered` / `:done` | quest dialogue |
 | `ending-seen` | finishing the ending cutscene |

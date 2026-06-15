@@ -10,14 +10,15 @@ import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import {
   attackDamage,
-  specialDamage,
+  spellDamage,
   enemyAttack,
   defendReduction,
   bossPhase,
   BOSS_XP_BONUS,
 } from '../../lib/battleMath';
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
-import { SAGES, CHARGE_MAX, SPECIAL_LEVEL_BONUS } from '../../content/abilities';
+import { CHARGE_MAX } from '../../content/abilities';
+import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells';
 import { POTION_HEAL } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
@@ -34,7 +35,9 @@ import type { LibraryEntry, Question } from '../../types';
 
 type Turn =
   | { kind: 'command' }
-  | { kind: 'question'; mode: 'attack' | 'special' | 'guard'; question: Question }
+  | { kind: 'cast' }
+  | { kind: 'question'; mode: 'attack' | 'guard'; question: Question }
+  | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question }
   | { kind: 'enemy-question'; question: Question }
   | { kind: 'message'; text: string; next: () => void }
   | { kind: 'victory' }
@@ -42,11 +45,13 @@ type Turn =
 
 /**
  * FF-style side-profile command battle (#37). Enemy left, hero right, on a
- * pseudo-3D ground plane. Commands: Attack / Special / Guard / Potion /
+ * pseudo-3D ground plane. Commands: Attack / Spells / Guard / Potion /
  * Flee — every command resolves through a question (the educational core),
  * and the enemy's counterattack is blocked by answering a defend question.
- * Specials (FF6 Esper homage) need an equipped Sage, a full charge gauge,
- * and a question two levels up; a miss fizzles harmlessly.
+ * Spells (the Spellbook) let the hero pick from a growing set of abilities —
+ * heal, shield, Sage strikes, Ember's Breath — each cast by answering one
+ * *super-hard* question (SPELL_LEVEL_BONUS levels up); a miss fizzles
+ * harmlessly and the spell's charge is refunded.
  */
 export default function BattleArena() {
   const { enemy, playerHp, playerMaxHp, enemyHp, setHp, markDefeated, endBattle } =
@@ -64,7 +69,7 @@ export default function BattleArena() {
   const age = playerAge(profile);
   const topic = enemy?.topic ?? 'math';
   const info = topicInfo(topic);
-  const sage = save?.sageEquipped ? SAGES[save.sageEquipped] : null;
+  const spells = save ? spellsKnown(save) : [];
   const { stage: ember } = emberStatus(save?.flags ?? {});
 
   const enemySprite = resolveSprite(enemy?.spriteId, enemy?.sprite ?? '❓');
@@ -81,8 +86,9 @@ export default function BattleArena() {
   const [charge, setCharge] = useState(0);
   const [guarded, setGuarded] = useState(false);
   const [qIndex, setQIndex] = useState(0);
-  const [specialQs, setSpecialQs] = useState<Question[]>([]);
-  const [specialIdx, setSpecialIdx] = useState(0);
+  // Super-hard question pool (level + SPELL_LEVEL_BONUS) shared by every spell.
+  const [spellQs, setSpellQs] = useState<Question[]>([]);
+  const [spellIdx, setSpellIdx] = useState(0);
   const [phaseBanner, setPhaseBanner] = useState<string | null>(null);
   // One-shot animation triggers (remount keys).
   const [heroLunge, setHeroLunge] = useState(0);
@@ -96,26 +102,27 @@ export default function BattleArena() {
   const misses = useRef<LibraryEntry[]>([]);
   const lastPhase = useRef(0);
 
-  // Warm the Special-tier pool (level +2) once a Sage is equipped.
+  // Warm the super-hard spell-tier pool (level + SPELL_LEVEL_BONUS). Every
+  // hero knows at least Mend, so this always loads; spells stay castable.
   useEffect(() => {
-    if (!sage || !enemy) return;
+    if (!enemy) return;
     let active = true;
     fetchQuestions(
       topic,
       age,
-      clampLevel(enemy.level + SPECIAL_LEVEL_BONUS),
-      3,
-      `a hero unleashing the special attack "${sage.specialName}" on ${enemy.name}`,
+      clampLevel(enemy.level + SPELL_LEVEL_BONUS),
+      4,
+      `a hero casting a powerful spell against ${enemy.name}`,
     )
-      .then((qs) => active && setSpecialQs(qs))
+      .then((qs) => active && setSpellQs(qs))
       .catch(() => {
-        /* Special stays unavailable; basic commands are unaffected. */
+        /* Spells stay unavailable; basic commands are unaffected. */
       });
     return () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sage?.topic, enemy?.instanceId]);
+  }, [enemy?.instanceId]);
 
   const float = useCallback((text: string, side: 'hero' | 'enemy', color: string) => {
     const id = ++floatId.current;
@@ -174,6 +181,7 @@ export default function BattleArena() {
   }
 
   const phase = enemy.isBoss ? bossPhase(enemyHp, enemy.maxHp) : 0;
+  const canCastAny = spellQs.length > 0 && spells.some((s) => charge >= s.cost);
   const nextQuestion = () => {
     const q = questions[qIndex % questions.length];
     setQIndex((i) => i + 1);
@@ -194,10 +202,14 @@ export default function BattleArena() {
   function commandGuard() {
     setTurn({ kind: 'question', mode: 'guard', question: nextQuestion() });
   }
-  function commandSpecial() {
-    const q = specialQs[specialIdx % specialQs.length];
-    setSpecialIdx((i) => i + 1);
-    setTurn({ kind: 'question', mode: 'special', question: q });
+  function commandCast() {
+    setTurn({ kind: 'cast' });
+  }
+  function castSpell(spell: Spell) {
+    if (charge < spell.cost || spellQs.length === 0) return;
+    const q = spellQs[spellIdx % spellQs.length];
+    setSpellIdx((i) => i + 1);
+    setTurn({ kind: 'question', mode: 'spell', spell, question: q });
   }
   function commandPotion() {
     updateSave((s) => ({ ...s, items: { ...s.items, potion: Math.max(0, s.items.potion - 1) } }));
@@ -214,7 +226,7 @@ export default function BattleArena() {
 
   // --- Turn resolution --------------------------------------------------------
 
-  function resolvePlayerQuestion(mode: 'attack' | 'special' | 'guard', wasCorrect: boolean) {
+  function resolvePlayerQuestion(mode: 'attack' | 'guard', wasCorrect: boolean) {
     if (mode === 'guard') {
       if (wasCorrect) {
         setGuarded(true);
@@ -226,30 +238,54 @@ export default function BattleArena() {
       return;
     }
 
-    let dmg: number;
-    let text: string;
-    if (mode === 'special') {
-      if (wasCorrect && sage) {
-        dmg = specialDamage(style, powerUps);
-        setCharge(0);
-        text =
-          ember !== 'egg'
-            ? `${sage.specialEmoji} ${sage.specialName}! Ember roars as your answer blazes!`
-            : `${sage.specialEmoji} ${sage.specialName}! A brilliant answer erupts!`;
-        confetti({ particleCount: 90, spread: 100, origin: { y: 0.4 } });
-      } else {
-        setTurn({ kind: 'message', text: 'The Special fizzles… the charge is safe. Try again!', next: enemyTurn });
-        return;
-      }
-    } else {
-      dmg = attackDamage(wasCorrect, style, powerUps);
-      text = wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…';
-    }
+    const dmg = attackDamage(wasCorrect, style, powerUps);
+    const text = wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…';
+    dealHeroDamage(dmg, text, 'text-red-300');
+  }
 
+  /** Cast the chosen spell once its super-hard question resolves. */
+  function resolveSpell(spell: Spell, wasCorrect: boolean) {
+    if (!wasCorrect) {
+      // A miss never punishes effort: the charge is safe, the spell just fizzles.
+      setTurn({ kind: 'message', text: `${spell.emoji} ${spell.name} fizzles… the charge is safe. Try again!`, next: enemyTurn });
+      return;
+    }
+    setCharge((c) => Math.max(0, c - spell.cost));
+    confetti({ particleCount: 90, spread: 100, origin: { y: 0.4 } });
+
+    if (spell.effect.kind === 'heal') {
+      const healed = Math.min(playerMaxHp, playerHp + spell.effect.amount);
+      setHp(healed, enemyHp);
+      setHeroLunge((n) => n + 1);
+      setTimeout(() => float(`+${healed - playerHp}`, 'hero', spell.color), 260);
+      setTurn({ kind: 'message', text: `${spell.emoji} ${spell.name}! Bright knowing knits your wounds.`, next: enemyTurn });
+      return;
+    }
+    if (spell.effect.kind === 'shield') {
+      setGuarded(true);
+      const healed = Math.min(playerMaxHp, playerHp + spell.effect.heal);
+      setHp(healed, enemyHp);
+      float('🛡️', 'hero', spell.color);
+      setTurn({ kind: 'message', text: `${spell.emoji} ${spell.name}! A shield of knowing rises — the next hit will glance away.`, next: enemyTurn });
+      return;
+    }
+    // Offensive spell.
+    const dmg = spellDamage(style, powerUps, spell.effect.multiplier);
+    const text =
+      ember !== 'egg' && spell.id === 'ember-breath'
+        ? `${spell.emoji} ${spell.name}! Ember rears back and breathes dragonfire!`
+        : ember !== 'egg'
+          ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
+          : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;
+    dealHeroDamage(dmg, text, spell.color);
+  }
+
+  /** Shared damage-dealing path for Attack and offensive spells. */
+  function dealHeroDamage(dmg: number, text: string, floatColor: string) {
     setHeroLunge((n) => n + 1);
     const newEnemyHp = Math.max(0, enemyHp - dmg);
     setTimeout(() => {
-      float(`-${dmg}`, 'enemy', mode === 'special' ? 'text-amber-300' : 'text-red-300');
+      float(`-${dmg}`, 'enemy', floatColor);
       setHp(playerHp, newEnemyHp);
     }, 260);
 
@@ -534,17 +570,17 @@ export default function BattleArena() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <CommandButton emoji="⚔️" label="Attack" onClick={commandAttack} />
               <CommandButton
-                emoji={sage?.specialEmoji ?? '✨'}
-                label={sage ? sage.specialName : 'Special'}
-                disabled={!sage || charge < CHARGE_MAX || specialQs.length === 0}
+                emoji="📖"
+                label="Spells"
+                disabled={!canCastAny}
                 hint={
-                  !sage
-                    ? 'Find a Sage!'
-                    : charge < CHARGE_MAX
-                      ? `Charge ${charge}/${CHARGE_MAX}`
-                      : 'Ready!'
+                  spellQs.length === 0
+                    ? 'Loading…'
+                    : canCastAny
+                      ? `◆ ${charge}/${CHARGE_MAX}`
+                      : `Charge ◆ ${charge}/${CHARGE_MAX}`
                 }
-                onClick={commandSpecial}
+                onClick={commandCast}
               />
               <CommandButton emoji="🛡️" label="Guard" onClick={commandGuard} />
               <CommandButton
@@ -565,19 +601,63 @@ export default function BattleArena() {
           </div>
         )}
 
+        {turn.kind === 'cast' && (
+          <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
+            <p className="text-xs text-white/60 mb-1 uppercase tracking-widest">
+              📖 Spellbook — each spell needs one super-hard answer!
+            </p>
+            <p className="text-[11px] text-white/50 mb-3">
+              Charge:{' '}
+              {Array.from({ length: CHARGE_MAX }).map((_, i) => (
+                <span key={i} className={i < charge ? 'text-amber-300' : 'text-white/25'}>
+                  ◆
+                </span>
+              ))}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {spells.map((spell) => {
+                const affordable = charge >= spell.cost && spellQs.length > 0;
+                return (
+                  <button
+                    key={spell.id}
+                    onClick={() => castSpell(spell)}
+                    disabled={!affordable}
+                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 rounded-xl px-3 py-2 text-left transition"
+                  >
+                    <span className="font-bold text-sm">
+                      <span className="mr-1.5">{spell.emoji}</span>
+                      {spell.name}
+                      <span className={`ml-1.5 text-xs ${affordable ? 'text-amber-300' : 'text-white/40'}`}>
+                        ◆{spell.cost}
+                      </span>
+                    </span>
+                    <span className="block text-[10px] text-white/50 mt-0.5">{spell.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setTurn({ kind: 'command' })}
+              className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-2 text-xs font-semibold"
+            >
+              ← Back
+            </button>
+          </div>
+        )}
+
         {(turn.kind === 'question' || turn.kind === 'enemy-question') && (
           <div className="w-full max-w-xl">
             <p className="text-center text-white font-bold mb-2 text-sm uppercase tracking-widest">
               {turn.kind === 'enemy-question'
                 ? `🛡️ ${enemy.name} attacks — answer to block!`
-                : turn.mode === 'special'
-                  ? `${sage?.specialEmoji} Extra-hard question — unleash ${sage?.specialName}!`
+                : turn.mode === 'spell'
+                  ? `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`
                   : turn.mode === 'guard'
                     ? '🛡️ Answer to raise your guard!'
                     : '⚔️ Answer to strike!'}
             </p>
             <QuestionCard
-              key={turn.question.id + qIndex + specialIdx}
+              key={turn.question.id + qIndex + spellIdx}
               question={turn.question}
               hints={save.items.hint}
               onUseHint={useSaveStore.getState().spendHint}
@@ -586,7 +666,9 @@ export default function BattleArena() {
               onContinue={(correct) =>
                 turn.kind === 'enemy-question'
                   ? resolveEnemyQuestion(correct)
-                  : resolvePlayerQuestion(turn.mode, correct)
+                  : turn.mode === 'spell'
+                    ? resolveSpell(turn.spell, correct)
+                    : resolvePlayerQuestion(turn.mode, correct)
               }
             />
           </div>

@@ -37,7 +37,19 @@ export interface NPC {
 }
 
 /** The world zones of Lumina (see src/content/zones.ts). */
-export type ZoneId = 'lumina-field' | 'numbria' | 'verdara' | 'gearfall' | 'chromaria';
+export type ZoneId =
+  // Original five (hub + four topic regions)
+  | 'lumina-field'
+  | 'numbria'
+  | 'verdara'
+  | 'gearfall'
+  | 'chromaria'
+  // Expansion: story / exploration regions reached through the village
+  | 'lumina-village'
+  | 'whispering-woods'
+  | 'starfall-coast'
+  | 'clockwork-depths'
+  | 'crystal-spire';
 
 /** An enemy instance the player bumped into on the map. */
 export interface BattleEnemy extends NPC {
