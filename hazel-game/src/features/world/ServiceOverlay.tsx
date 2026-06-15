@@ -8,7 +8,7 @@ import { NPC_DEFS } from '../../content/npcs';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
-import type { LibraryEntry, ServiceType, Topic } from '../../types';
+import type { CrystalTopic, LibraryEntry, ServiceType } from '../../types';
 
 /**
  * Town services (#37): Shop (coins → potions/hints/badges), Inn (free full
@@ -194,7 +194,8 @@ function Library() {
 function Sage({ npcId }: { npcId: string | null }) {
   const save = useSaveStore((s) => s.save);
   const update = useSaveStore((s) => s.update);
-  const topic: Topic | undefined = npcId ? NPC_DEFS[npcId]?.topic : undefined;
+  // Sage NPCs always carry a crystal topic (the four main-quest topics).
+  const topic = (npcId ? NPC_DEFS[npcId]?.topic : undefined) as CrystalTopic | undefined;
   if (!save || !topic) return null;
   const sage = SAGES[topic];
   const known = save.sages.includes(topic);

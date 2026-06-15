@@ -1,4 +1,4 @@
-import type { Topic } from '../types';
+import type { CrystalTopic, Topic } from '../types';
 import { TOPIC_REGISTRY, crystalFlag } from './topics';
 
 /**
@@ -57,6 +57,10 @@ export const INTRO_SEEN = 'intro-seen';
 export const ENDING_SEEN = 'ending-seen';
 /** Plays once after the FIRST crystal is restored — the Spire wakes and calls. */
 export const SPIRE_AWAKE_SEEN = 'spire-awake-seen';
+/** Set when the hero clears the Spire climb and beats the hidden villain (#55). */
+export const SPIRE_CLEARED = 'spire-cleared';
+/** Set when the true-finale (post-Spire) cutscene has played. */
+export const SPIRE_VICTORY_SEEN = 'spire-victory-seen';
 
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
@@ -175,7 +179,7 @@ export const SPIRE_PANELS: StoryPanel[] = [
  * A short victory cutscene per Fiend — plays back in the world after the boss
  * falls and that topic's crystal is restored.
  */
-export const CRYSTAL_PANELS: Record<Topic, StoryPanel[]> = {
+export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
   math: [
     {
       emoji: '💠',
@@ -186,6 +190,12 @@ export const CRYSTAL_PANELS: Record<Topic, StoryPanel[]> = {
     {
       emoji: '🐲',
       text: 'Ember gulps down the fresh crystal-light and grows a little bigger. Three crystals to go!',
+    },
+    {
+      emoji: '🌑',
+      text:
+        'But as the crystal shines, a cold shadow flickers atop the far-off Crystal Spire — ' +
+        'and a voice you almost recognize sighs: "…so the little spark found the FIRST one. No matter."',
     },
   ],
   science: [
@@ -199,6 +209,12 @@ export const CRYSTAL_PANELS: Record<Topic, StoryPanel[]> = {
       emoji: '🐲',
       text: 'Ember chases a firefly in pure delight, then nibbles the crystal-light and grows. Onward!',
     },
+    {
+      emoji: '🌑',
+      text:
+        'On the wind comes that voice again, thin and tired and old: "You think you are saving them? ' +
+        'I was the one who FED them to the fog. Climb my Spire, child, and I will show you why."',
+    },
   ],
   engineering: [
     {
@@ -210,6 +226,12 @@ export const CRYSTAL_PANELS: Record<Topic, StoryPanel[]> = {
     {
       emoji: '🐲',
       text: 'Ember warms its claws on the glowing crystal and stretches, just a touch taller. Keep going!',
+    },
+    {
+      emoji: '🌑',
+      text:
+        'The shadow on the Spire grows a shape now — a hooded figure, watching. "The Fiends were only ' +
+        'my hands," it murmurs. "I am what was left when the world chose to FORGET me. Hurry. I am lonely."',
     },
   ],
   creativity: [
@@ -223,9 +245,23 @@ export const CRYSTAL_PANELS: Record<Topic, StoryPanel[]> = {
       emoji: '🐲',
       text: 'Ember rolls in the rainbow and roars a tiny, joyful roar. Such a brave little dragon!',
     },
+    {
+      emoji: '🌑',
+      text:
+        'Four crystals. The shadow on the Spire stops whispering and simply… waits. "Come up, then," ' +
+        'says the Forgotten One. "All the way to the top. Let us see whose answers last longer."',
+    },
   ],
 };
 
+/** The name of the hidden villain atop the Spire — revealed across the crystals. */
+export const VILLAIN_NAME = 'Umbra, the Forgotten One';
+
+/**
+ * The "all four crystals" cutscene — NOT the finale anymore (#55). The crystals
+ * return, the fog thins… but the Spire darkens and the Forgotten One calls the
+ * hero up. This is the call to the final dungeon (the Spire climb).
+ */
 export function endingPanels(heroName: string): StoryPanel[] {
   return [
     {
@@ -235,46 +271,64 @@ export function endingPanels(heroName: string): StoryPanel[] {
         'the Crystal Spire, four ribbons of light braiding together across the sky.',
     },
     {
-      emoji: '🏛️',
-      text:
-        'At the top of the Spire, Keeper Aurora lifts her hands and the crystals settle into ' +
-        'place. The Spire blazes like a second sun. The fog of Forgetting thins, curls… and gives up.',
-    },
-    {
       emoji: '🏘️',
       text:
         'Tally counts shooting stars. Fern\'s fireflies spell words in the dark. ' +
         'Rivet\'s great engine purrs. And Doodle is painting EVERYTHING — including you.',
     },
     {
-      emoji: '🏡',
+      emoji: '🌫️',
       text:
-        'Back home, Grandmother Wick\'s lanterns burn bright enough to read by. "I always knew," ' +
-        'she says, and Bramble swears the village bread has never once burned since.',
+        'The fog of Forgetting thins and curls… but it does not give up. It pulls back, all of it, ' +
+        'into one last dark knot coiled around the very top of the Crystal Spire.',
     },
     {
-      emoji: '🔭',
+      emoji: '🌑',
       text:
-        'On Starfall Coast, the stars come down to rest on the water again. Vela names a brand-new ' +
-        `one — bright and low in the west — after a curious kid who would not stop asking why.`,
+        `"Four crystals, ${heroName}. Bravo." The Forgotten One's voice fills the whole sky now. ` +
+        '"But the crystals were never the prize. I am still HERE. Climb my Spire — if your answers dare."',
+    },
+    {
+      emoji: '🏛️',
+      text:
+        'Keeper Aurora meets you at the Spire\'s door, which now stands open. "The one who hid behind ' +
+        'the Fiends waits at the top. Climb carefully, hero — each floor is harder than the last."',
+    },
+  ];
+}
+
+/** The TRUE finale (#55) — after the hero climbs the Spire and beats Umbra. */
+export function spireVictoryPanels(heroName: string): StoryPanel[] {
+  return [
+    {
+      emoji: '🌑',
+      text:
+        `"How…?" The Forgotten One unravels like old smoke. "I drank a whole WORLD of forgetting… ` +
+        'and one curious child out-remembered me." Even fading, it sounds almost relieved.',
     },
     {
       emoji: '🐉',
       text:
-        'Ember spreads wings wide enough to shade the village square. The last dragon ' +
-        'of Lumina is full-grown — raised on every brave answer you ever gave.',
+        'Ember spreads wings wide enough to shade the whole Spire and ROARS — a real, full-grown ' +
+        'dragon\'s roar — and the last knot of fog is gone for good.',
+    },
+    {
+      emoji: '🏛️',
+      text:
+        'Keeper Aurora bows. "Lumina will remember THIS. The day a kid from a little village climbed ' +
+        'the Spire and taught the dark how to be brave." The crystals blaze like four small suns.',
     },
     {
       emoji: '🌟',
       text:
-        `Lumina is bright again because ${heroName} kept asking "why?" — and never ` +
-        'stopped, even when the questions got hard. That is what heroes are made of.',
+        `Lumina is truly bright again because ${heroName} kept asking "why?" — all the way to the top, ` +
+        'even when the questions got terribly hard. That is what heroes are made of.',
     },
     {
       emoji: '🗺️',
       text:
-        'The Fiends may stir again one day, with trickier riddles than before. ' +
-        'Ember will be ready. Will you? …Of course you will. The adventure continues!',
+        'Somewhere, someday, something may try to make the world forget again — with trickier riddles ' +
+        'than ever. Ember will be ready. So will you. The adventure continues!',
     },
   ];
 }
@@ -288,7 +342,7 @@ export interface BossScript {
   defeat: string;
 }
 
-export const BOSS_LINES: Record<Topic, BossScript> = {
+export const BOSS_LINES: Record<CrystalTopic, BossScript> = {
   math: {
     intro: [
       'So… the egg-carrier found my lair. How many heroes have I beaten? You would not know — I turned every number to ZERO.',

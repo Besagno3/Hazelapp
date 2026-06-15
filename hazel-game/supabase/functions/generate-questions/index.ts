@@ -21,7 +21,15 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js';
 
 const MODEL = 'claude-haiku-4-5';
-const TOPICS = ['math', 'science', 'engineering', 'creativity'] as const;
+const TOPICS = [
+  'math',
+  'science',
+  'engineering',
+  'creativity',
+  'nature',
+  'space',
+  'history',
+] as const;
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
 const LEVEL_BAND = 2;
@@ -49,6 +57,9 @@ Topics:
 - science: nature, biology, physics, space, chemistry basics.
 - engineering: how things work, computers, materials, structures, simple logic.
 - creativity: art, music, colour, writing, design, imagination.
+- nature: animals, plants, habitats, weather, the human body, the living world.
+- space: planets, stars, moons, the solar system, astronauts, rockets, the night sky.
+- history: world history, ancient civilizations, famous inventions, important people, the measurement of time.
 
 Difficulty guidance: level 1-3 = simple recall for young children; 4-6 = applied
 understanding; 7-10 = multi-step reasoning and harder concepts. A question must

@@ -7,6 +7,8 @@ import {
   HATCH_PANELS,
   CRYSTAL_PANELS,
   SPIRE_PANELS,
+  spireVictoryPanels,
+  VILLAIN_NAME,
   EMBER_SPRITES,
   EMBER_MAP_SIZE,
   EMBER_HATCHED,
@@ -63,6 +65,18 @@ describe('cutscene panels', () => {
     }
     expect(SPIRE_PANELS.length).toBeGreaterThanOrEqual(1);
     for (const p of SPIRE_PANELS) expect(p.text.length).toBeGreaterThan(20);
+  });
+
+  it('the villain is foreshadowed in the crystal scenes and named in the finale', () => {
+    expect(VILLAIN_NAME.length).toBeGreaterThan(3);
+    // Every crystal scene ends on a shadow/omen panel pointing at the Spire.
+    for (const topic of TOPICS) {
+      const last = CRYSTAL_PANELS[topic][CRYSTAL_PANELS[topic].length - 1];
+      expect(last.emoji).toBe('🌑');
+    }
+    const finale = spireVictoryPanels('Nova');
+    expect(finale.length).toBeGreaterThanOrEqual(3);
+    expect(finale.some((p) => p.text.includes('Nova'))).toBe(true);
   });
 });
 

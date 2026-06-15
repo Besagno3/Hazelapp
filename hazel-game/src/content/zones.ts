@@ -60,6 +60,11 @@ export interface ZoneDef {
   npcs: NpcPlacement[];
   enemies: EnemyPlacement[];
   exits: ZoneExit[];
+  /**
+   * The Spire entrance icon (#55) — only the Crystal Spire zone has one. Bump
+   * it to attempt the endgame climb (sealed until all crystals are restored).
+   */
+  spire?: { x: number; y: number };
 }
 
 export const HUB_ZONE: ZoneId = 'lumina-field';
@@ -329,20 +334,23 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   'whispering-woods': {
     id: 'whispering-woods',
     name: 'Whispering Woods',
+    topic: 'nature',
+    // A gated chest alcove (cols 1-7, behind the col-8 wall) holds the treasure;
+    // critters roam the open right half where the spawn and both exits live.
     map: [
       '######################',
-      '#....,..........,....#',
-      '#....................#',
-      '#..##..........##....#',
-      '#.S..................#',
-      '#.........,,.........#',
-      '#....................E',
-      '#....................E',
-      '#.........,,.........#',
-      '#..##..........##....#',
-      '#....................#',
-      '#....,..........,....#',
-      '#....................#',
+      '#..C....#............#',
+      '#.......#.........S..#',
+      '#...,...#....##......#',
+      '#.......#..,.........#',
+      '#..,....#............#',
+      '#.......G............E',
+      '#.......#............E',
+      '#.......#....,.......#',
+      '#.......#...##.......#',
+      '#.......#............#',
+      '#...,...#......,.....#',
+      '#.......#............#',
       '##########EE##########',
     ],
     ground: [70, 110, 78],
@@ -354,7 +362,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'woods-hermit', x: 10, y: 2 },
       { defId: 'woods-sprite', x: 15, y: 10 },
     ],
-    enemies: [],
+    enemies: [
+      { defId: 'mossback-cub', x: 12, y: 4 },
+      { defId: 'thornhare', x: 15, y: 8 },
+      { defId: 'grumblebee', x: 12, y: 11 },
+    ],
     exits: [
       { x: 21, y: 6, to: 'lumina-village', spawnX: 1, spawnY: 6 },
       { x: 21, y: 7, to: 'lumina-village', spawnX: 1, spawnY: 6 },
@@ -366,19 +378,22 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   'starfall-coast': {
     id: 'starfall-coast',
     name: 'Starfall Coast',
+    topic: 'space',
+    // A gated tide-pool nook (cols 17-20, behind the col-16 wall) holds the
+    // chest; star-critters roam the open sand; the sea (water) fills the south.
     map: [
       '######################',
-      '#....,..........,....#',
-      '#....................#',
-      '#...,............,...#',
-      '#.S..................#',
-      '#....................#',
-      'E....................#',
-      'E....................#',
-      '#..........~~~.......#',
-      '#.......~~~~~~~~~....#',
-      '#....~~~~~~~~~~~~~~..#',
-      '#..~~~~~~~~~~~~~~~~~.#',
+      '#....,..........#.C..#',
+      '#...............#....#',
+      '#...##..........#....#',
+      '#.S.............G....#',
+      '#.....,.........#....#',
+      'E...............#....#',
+      'E...............#....#',
+      '#.........~~~~~~~~~~~#',
+      '#.......~~~~~~~~~~~~~#',
+      '#....~~~~~~~~~~~~~~~~#',
+      '#..~~~~~~~~~~~~~~~~~~#',
       '#~~~~~~~~~~~~~~~~~~~~#',
       '######################',
     ],
@@ -391,7 +406,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'coast-fisher', x: 5, y: 8 },
       { defId: 'coast-stargazer', x: 15, y: 3 },
     ],
-    enemies: [],
+    enemies: [
+      { defId: 'tide-sprite', x: 8, y: 2 },
+      { defId: 'meteor-mite', x: 11, y: 5 },
+      { defId: 'moon-moth', x: 5, y: 7 },
+    ],
     exits: [
       { x: 0, y: 6, to: 'lumina-village', spawnX: 20, spawnY: 6 },
       { x: 0, y: 7, to: 'lumina-village', spawnX: 20, spawnY: 6 },
@@ -401,6 +420,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   'clockwork-depths': {
     id: 'clockwork-depths',
     name: 'Clockwork Depths',
+    topic: 'history',
+    // A gated vault (the bottom half, behind the row-8 wall) holds the chest;
+    // old-machine critters wind through the open upper galleries.
     map: [
       '##########EE##########',
       '#....................#',
@@ -410,10 +432,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#....,..........,....#',
       '#....................#',
       '#.........,,.........#',
-      '#....................#',
+      '##########G###########',
       '#..##..........##....#',
       '#..##..........##....#',
-      '#....,..........,....#',
+      '#....,....C.....,....#',
       '#....................#',
       '######################',
     ],
@@ -426,7 +448,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'depths-tinker', x: 8, y: 7 },
       { defId: 'depths-echo', x: 14, y: 5 },
     ],
-    enemies: [],
+    enemies: [
+      { defId: 'cog-sprite', x: 6, y: 5 },
+      { defId: 'hourglass-imp', x: 14, y: 6 },
+      { defId: 'relic-golem', x: 8, y: 2 },
+    ],
     exits: [
       { x: 10, y: 0, to: 'whispering-woods', spawnX: 10, spawnY: 11 },
       { x: 11, y: 0, to: 'whispering-woods', spawnX: 10, spawnY: 11 },
@@ -457,12 +483,14 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     solidEmoji: '🏛️',
     decoEmoji: '✨',
     spawn: { x: 10, y: 2 },
-    npcs: [{ defId: 'spire-keeper', x: 10, y: 7 }],
+    npcs: [{ defId: 'spire-keeper', x: 16, y: 6 }],
     enemies: [],
     exits: [
       { x: 10, y: 0, to: 'lumina-village', spawnX: 8, spawnY: 12 },
       { x: 11, y: 0, to: 'lumina-village', spawnX: 8, spawnY: 12 },
     ],
+    // The Spire itself stands in the central shrine — the endgame entrance.
+    spire: { x: 10, y: 6 },
   },
 };
 

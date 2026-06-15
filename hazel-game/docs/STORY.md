@@ -75,15 +75,26 @@ Merchant Maple 🦝.
 | Gearfall (engineering) | Sage Cog 🧑‍🔧 — *Gear Storm* | Rivet 👷 — *Rivet's Golden Gear* | **The Rust Fiend** 🤖 — nothing turns, nothing gets fixed |
 | Chromaria (creativity) | Sage Muse 🧚 — *Rainbow Riff* | Doodle 🧑‍🎨 — *Doodle's Color Seed* | **The Gray Fiend** 🌑 — drank the colors, hushed the songs |
 
-**Expansion story zones (no Fiends — atmosphere + lore + reactivity):**
+**Expansion zones** — Lumina Village is combat-free; the three themed zones
+(#55) have their own **question topic**, three roaming critters, a gatekeeper
+gate and a riddle-chest (no Fiend/crystal/Sage — crystals stay the core four);
+the Crystal Spire holds the endgame:
 
-| Zone | Cast |
-|---|---|
-| Lumina Village (home) | Grandmother Wick 👵 (the hero's gran, dragon lore), Bramble 🧑 (childhood friend, burns the bread), Lantern-Keeper Sol 🧓 (lanterns brighten per crystal) |
-| Whispering Woods | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook — "a spell is a hard question you were brave enough to answer"), Wisp 🧚 (made of unanswered questions) |
-| Starfall Coast | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name) |
-| Clockwork Depths | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times) |
-| The Crystal Spire | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals restored) |
+| Zone | Topic | Cast |
+|---|---|---|
+| Lumina Village (home) | — (safe) | Grandmother Wick 👵 (gran, dragon lore), Bramble 🧑 (childhood friend, burns the bread), Lantern-Keeper Sol 🧓 (lanterns brighten per crystal) |
+| Whispering Woods | 🦋 Nature & Animals | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook), Wisp 🧚 (made of unanswered questions) |
+| Starfall Coast | 🪐 Space | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name) |
+| Clockwork Depths | ⏳ Time & History | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times) |
+| The Crystal Spire | endgame climb | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals) + the Spire icon 🗼 |
+
+**The hidden villain (#55):** **Umbra, the Forgotten One** — what was left when
+the world chose to forget it. The four Fiends were only its hands. It is
+revealed gradually: each crystal cutscene ends on a 🌑 omen panel (escalating
+taunts from the Spire), and after all four crystals the "ending" becomes the
+*call to climb the Spire*. Umbra is the final boss at the top of the climb.
+Voice: ancient, tired, theatrical, oddly lonely — never cruel to the player;
+on defeat it concedes the theme ("out-remembered… by a child…").
 
 **Fiend voice formula** (`story.ts BOSS_LINES`): 2 intro boxes — (1) a sneer
 that name-drops the egg/curiosity, (2) "I am the X Fiend!" + their crime —
@@ -106,10 +117,16 @@ then last words on defeat that *concede the theme* ("your answers… counted").
 - **The Spire wakes** (`SPIRE_PANELS`, after the FIRST crystal): introduces the
   Crystal Spire and Keeper Aurora — the convergence point and the new endgame
   destination, reached through Lumina Village.
-- **Finale** (`endingPanels(heroName)`): the four crystals stream to the Spire
-  → Keeper Aurora sets them → villagers' callbacks (Tally counts shooting
-  stars, Gran's lanterns, Vela's new star) → Ember full-grown → the hero named
-  as the reason → open door to New Game+ ("trickier riddles").
+- **Call to the Spire** (`endingPanels(heroName)`, at four crystals): the
+  crystals return and the fog thins… but it pulls into one dark knot atop the
+  Spire and Umbra calls the hero up. The Spire door (icon 🗼) opens.
+- **The Spire climb** (`content/spire.ts`, `SpireOverlay`): a multi-floor
+  question gauntlet, each floor harder and on different topics, candle-lights
+  for mistakes, ending in the **Umbra** boss floor. Lose → cast back to the
+  hub, healed (climb again any time). Win → the true finale.
+- **True finale** (`spireVictoryPanels(heroName)`): Umbra unravels, Ember roars
+  full-grown, Aurora bows, the hero is named as the reason — open door to New
+  Game+ ("trickier riddles than ever").
 
 **Magic — the Spellbook:** in battle the hero casts learned spells by
 answering one *super-hard* question (3 levels above the enemy). Every hero
@@ -151,7 +168,9 @@ current hint) and carried items. Flags: `quest:<id>:offered`,
 | `spire-awake-seen` | finishing the Spire-awakens cutscene (after 1st crystal) |
 | `gate:<zone>:gate:<x>,<y>` | answering that gatekeeper |
 | `quest:<id>:offered` / `:done` | quest dialogue |
-| `ending-seen` | finishing the ending cutscene |
+| `ending-seen` | finishing the four-crystal "call to the Spire" cutscene |
+| `spire-cleared` | beating Umbra at the top of the Spire climb |
+| `spire-victory-seen` | finishing the true-finale cutscene |
 
 ## 8. Future story hooks (phase 4+)
 

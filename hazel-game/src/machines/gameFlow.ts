@@ -34,6 +34,7 @@ export type FlowEvent =
   | { type: 'OPEN_SERVICE'; service: ServiceType; npcId: string }
   | { type: 'OPEN_PATH'; target: PathTarget }
   | { type: 'OPEN_MENU' }
+  | { type: 'OPEN_SPIRE' }
   | { type: 'CLOSE' }
   | { type: 'ENCOUNTER' }
   | { type: 'BATTLE_END'; result: 'win' | 'lose' }
@@ -123,6 +124,7 @@ export const gameFlowMachine = setup({
             OPEN_SERVICE: { target: 'service', actions: 'assignService' },
             OPEN_PATH: { target: 'path', actions: 'assignPath' },
             OPEN_MENU: 'menu',
+            OPEN_SPIRE: 'spire',
             ENCOUNTER: '#game.battle',
           },
         },
@@ -136,6 +138,8 @@ export const gameFlowMachine = setup({
         service: { on: { CLOSE: 'exploring' } },
         path: { on: { CLOSE: 'exploring' } },
         menu: { on: { CLOSE: 'exploring' } },
+        // The endgame Spire climb (#55) — a self-contained overlay.
+        spire: { on: { CLOSE: 'exploring' } },
       },
     },
     battle: {

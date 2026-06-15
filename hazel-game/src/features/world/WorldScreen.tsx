@@ -7,6 +7,7 @@ import DialogueOverlay from './DialogueOverlay';
 import ServiceOverlay from './ServiceOverlay';
 import PathQuestionOverlay from './PathQuestionOverlay';
 import MenuOverlay from './MenuOverlay';
+import SpireOverlay from './SpireOverlay';
 import StoryPanels from '../../components/StoryPanels';
 import { zone, TILE } from '../../content/zones';
 import { spawnEnemy } from '../../content/enemies';
@@ -26,6 +27,9 @@ import {
   CRYSTAL_PANELS,
   SPIRE_PANELS,
   SPIRE_AWAKE_SEEN,
+  SPIRE_CLEARED,
+  SPIRE_VICTORY_SEEN,
+  spireVictoryPanels,
   crystalSceneFlag,
 } from '../../content/story';
 import { playerAge } from '../../lib/age';
@@ -60,7 +64,9 @@ export default function WorldScreen() {
           ? 'path'
           : s.matches({ world: 'menu' })
             ? 'menu'
-            : null,
+            : s.matches({ world: 'spire' })
+              ? 'spire'
+              : null,
   );
   const npcId = useFlow((s) => s.context.npcId);
   const service = useFlow((s) => s.context.service);
@@ -81,8 +87,10 @@ export default function WorldScreen() {
   const flags = save?.flags ?? {};
   const { crystals, stage: ember } = emberStatus(flags);
 
-  // Story moments (#37 story pass + expansion). Exactly one plays at a time;
-  // priority: intro → hatch → crystal-restored → Spire awakens → ending.
+  // Story moments (#37 story pass + expansion + #55 Spire finale). Exactly one
+  // plays at a time; priority: Spire victory (true finale) → intro → hatch →
+  // crystal-restored → Spire awakens → ending (the call to climb the Spire).
+  const spireVictoryDue = flags[SPIRE_CLEARED] === true && !flags[SPIRE_VICTORY_SEEN];
   const introDue = !flags[INTRO_SEEN];
   const hatchDue = flags[EMBER_HATCHED] === true && !flags[EMBER_HATCH_SEEN];
   const crystalSceneTopic =
@@ -91,17 +99,20 @@ export default function WorldScreen() {
   const spireAwakeDue = crystals >= 1 && !flags[SPIRE_AWAKE_SEEN];
   const endingDue = crystals === TOPIC_REGISTRY.length && !flags[ENDING_SEEN];
 
-  const activeScene: 'intro' | 'hatch' | 'crystal' | 'spire' | 'ending' | null = introDue
-    ? 'intro'
-    : hatchDue
-      ? 'hatch'
-      : crystalSceneTopic
-        ? 'crystal'
-        : spireAwakeDue
-          ? 'spire'
-          : endingDue
-            ? 'ending'
-            : null;
+  const activeScene: 'spireVictory' | 'intro' | 'hatch' | 'crystal' | 'spire' | 'ending' | null =
+    spireVictoryDue
+      ? 'spireVictory'
+      : introDue
+        ? 'intro'
+        : hatchDue
+          ? 'hatch'
+          : crystalSceneTopic
+            ? 'crystal'
+            : spireAwakeDue
+              ? 'spire'
+              : endingDue
+                ? 'ending'
+                : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
@@ -123,7 +134,8 @@ export default function WorldScreen() {
   }, [zoneId]);
 
   useEffect(() => {
-    if (activeScene === 'ending') confetti({ particleCount: 300, spread: 120, origin: { y: 0.4 } });
+    if (activeScene === 'ending' || activeScene === 'spireVictory')
+      confetti({ particleCount: 320, spread: 130, origin: { y: 0.4 } });
     else if (activeScene === 'crystal') confetti({ particleCount: 160, spread: 100, origin: { y: 0.4 } });
   }, [activeScene]);
 
@@ -207,6 +219,7 @@ export default function WorldScreen() {
             startBattle(enemy, hp, maxHp);
             sendFlow({ type: 'ENCOUNTER' });
           },
+          onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),
         }}
       />
 
@@ -232,6 +245,7 @@ export default function WorldScreen() {
       {overlay === 'service' && service && <ServiceOverlay service={service} npcId={npcId} />}
       {overlay === 'path' && pathTarget && <PathQuestionOverlay target={pathTarget} />}
       {overlay === 'menu' && <MenuOverlay />}
+      {overlay === 'spire' && <SpireOverlay />}
 
       {/* Story cutscenes (#37 story pass + expansion) — one at a time. */}
       {activeScene === 'intro' && (
@@ -265,8 +279,15 @@ export default function WorldScreen() {
       {activeScene === 'ending' && (
         <StoryPanels
           panels={endingPanels(avatar.name)}
-          doneLabel="🌟 The adventure continues!"
+          doneLabel="🗼 To the Spire!"
           onDone={() => setFlag(ENDING_SEEN)}
+        />
+      )}
+      {activeScene === 'spireVictory' && (
+        <StoryPanels
+          panels={spireVictoryPanels(avatar.name)}
+          doneLabel="🌟 The adventure continues!"
+          onDone={() => setFlag(SPIRE_VICTORY_SEEN)}
         />
       )}
     </div>

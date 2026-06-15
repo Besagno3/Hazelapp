@@ -1,4 +1,4 @@
-import type { SaveData, Topic } from '../types';
+import type { CrystalTopic, SaveData } from '../types';
 import { SAGES } from './abilities';
 import { emberStatus } from './story';
 
@@ -74,7 +74,7 @@ export const EMBER_BREATH: Spell = {
 };
 
 /** A Sage's signature spell (the FF6-Esper homage), learned by meeting them. */
-export function sageSpell(topic: Topic): Spell {
+export function sageSpell(topic: CrystalTopic): Spell {
   const s = SAGES[topic];
   return {
     id: `sage-${topic}`,

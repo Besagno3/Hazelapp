@@ -43,6 +43,8 @@ export interface WorldCanvasCallbacks {
   onExit: (to: ZoneId, spawnX: number, spawnY: number) => void;
   onSaveCrystal: () => void;
   onMove: (x: number, y: number) => void;
+  /** Bumped the Spire entrance icon (Crystal Spire zone only, #55). */
+  onSpire: () => void;
 }
 
 /**
@@ -246,11 +248,34 @@ export default function WorldCanvas({
     interface Actor {
       x: number;
       y: number;
-      kind: 'npc' | 'enemy';
+      kind: 'npc' | 'enemy' | 'spire';
       npcId?: string;
       enemy?: BattleEnemy;
     }
     const actors: Actor[] = [];
+
+    // The Spire entrance icon (#55) — a tall glowing tower; bump it to climb.
+    if (z.spire) {
+      const px = z.spire.x * TILE + TILE / 2;
+      const py = z.spire.y * TILE + TILE / 2;
+      const tower = k.add([
+        k.text('🗼', { size: 40 }),
+        k.pos(px, py - 6),
+        k.anchor('center'),
+        k.z(7),
+      ]);
+      tower.onUpdate(() => {
+        if (pausedRef.current) return;
+        (tower as unknown as { pos: { y: number } }).pos.y = py - 6 + Math.sin(k.time() * 2) * 2;
+      });
+      k.add([
+        k.text('The Spire', { size: 10 }),
+        k.pos(px, py + 22),
+        k.anchor('center'),
+        k.color(255, 240, 200),
+      ]);
+      actors.push({ x: px, y: py, kind: 'spire' });
+    }
 
     for (const p of z.npcs) {
       const def = NPC_DEFS[p.defId];
@@ -486,6 +511,12 @@ export default function WorldCanvas({
               cooldown = TRIGGER_COOLDOWN;
               cbRef.current.onMove(player.pos.x, player.pos.y);
               cbRef.current.onTalk(a.npcId);
+            } else if (a.kind === 'spire') {
+              player.pos.x -= dx * 10;
+              player.pos.y -= dy * 10;
+              cooldown = TRIGGER_COOLDOWN;
+              cbRef.current.onMove(player.pos.x, player.pos.y);
+              cbRef.current.onSpire();
             } else if (a.kind === 'enemy' && a.enemy) {
               triggered = true;
               cbRef.current.onMove(player.pos.x - dx * 14, player.pos.y - dy * 14);

@@ -60,7 +60,10 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #51 | 🟢 | Med    | Spellbook battle system — cast any learned spell by answering a super-hard question (replaces single equipped Special) |
 | #52 | 🔴 | Low    | The new zones are story/exploration only (no enemies/gates/chests — those need a topic). Consider giving them light optional content (Ember snack micro-quests, secret save spots) later. |
 | #53 | 🔴 | Low    | Spellbook unlocks are derived from the save (sages/crystals/Ember stage); `sageEquipped` is now vestigial. Drop it on the next save-schema bump. |
-| #54 | 🔴 | Low    | Edge-function persona prompt has no entry for the new zones; spell-tier ("super-hard") questions reuse the topic of the current enemy — fine, but a `context` hint per spell could add flavor later. |
+| #54 | 🟢 | Low    | Edge-function persona prompt has no entry for the new zones — RESOLVED by #55 (nature/space/history personas added). |
+| #55 | 🟢 | High   | Themed topics for the new zones (nature/space/history) + the Crystal Spire endgame climb + the hidden villain (Umbra) story arc |
+| #56 | 🔴 | Low    | The Spire is replayable after clearing (bump the icon again to climb). Intentional for now (endless practice); could add a "champion" variant or a cleared-state greeting later. |
+| #57 | 🔴 | High   | ⚠️ Deploy: redeploy `generate-questions` so nature/space/history questions generate — the function whitelists topics, so the new zones' gates/chests/battles 400 until it ships. |
 
 ---
 
@@ -492,3 +495,29 @@ growing set of spells and casts ANY of them in battle by answering one
   says "added to your Spellbook" and drops the vestigial Equip button.
 - `sageEquipped` is kept for save compatibility but no longer read for casting
   (see #53).
+
+### #55 — Themed zones + Spire endgame + villain 🟢 High — RESOLVED (2026-06-15)
+The expansion zones got question topics, and the world got a true finale.
+- **Topic decoupling:** `Topic` splits into `CrystalTopic` (math/science/
+  engineering/creativity — crystal/Fiend/Sage/ending logic) and the wider
+  `Topic` (+nature/space/history). `topics.ts`: `TOPIC_REGISTRY` (crystal four,
+  with crystal fields) + `EXTRA_TOPICS` (styling-only); `topicInfo` resolves
+  all seven, `crystalInfo` the four. `SAGES`/`BOSS_LINES`/`CRYSTAL_PANELS` and
+  `save.sages`/`sageEquipped` are `CrystalTopic`-typed (normalizeSave casts;
+  older saves unaffected — no DB migration, saves are JSONB).
+- **Themed combat zones:** Whispering Woods (nature), Starfall Coast (space),
+  Clockwork Depths (history) each got `topic` + 3 roaming critters + a gate +
+  a riddle-chest, laid out so the gate/chest is an optional alcove and the
+  spawn + exits stay reachable (zones.test enforces this). New fun-facts +
+  edge-function personas for the three topics.
+- **The Crystal Spire:** `ZoneDef.spire` marks an icon (rendered + bump-handled
+  in `WorldCanvas`, new `onSpire` callback). Bumping opens `SpireOverlay`,
+  sealed until 4 crystals. The climb (`content/spire.ts`): escalating floors
+  (level + rotating topics), candle-lights (`SPIRE_LIVES`) for wrong answers,
+  and a final boss — Umbra. Clear → `SPIRE_CLEARED` (+XP, healed); lose → cast
+  back to the hub, healed. New machine substate `world.spire` (`OPEN_SPIRE`).
+- **Villain arc:** crystal cutscenes end on 🌑 omen panels revealing Umbra; the
+  four-crystal `endingPanels` became the call to climb; `spireVictoryPanels`
+  is the post-boss true finale. Flags `spire-cleared` / `spire-victory-seen`.
+- Tuning lives in `content/spire.ts` (floors, lives, XP); 8 new tests
+  (topics decoupling, Spire floors, villain arc). See #57 (deploy) and #56.

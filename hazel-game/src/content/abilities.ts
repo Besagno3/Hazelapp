@@ -1,4 +1,4 @@
-import type { Topic } from '../types';
+import type { CrystalTopic } from '../types';
 
 /**
  * Sages and the Special Attacks they grant (#37, FF6 Esper homage).
@@ -7,7 +7,7 @@ import type { Topic } from '../types';
  * the enemy and deals SPECIAL_MULTIPLIER × damage — a miss fizzles harmlessly.
  */
 export interface SageInfo {
-  topic: Topic;
+  topic: CrystalTopic;
   name: string;
   sprite: string;
   specialName: string;
@@ -16,7 +16,7 @@ export interface SageInfo {
   flashColor: string;
 }
 
-export const SAGES: Record<Topic, SageInfo> = {
+export const SAGES: Record<CrystalTopic, SageInfo> = {
   math: {
     topic: 'math',
     name: 'Sage Abacus',

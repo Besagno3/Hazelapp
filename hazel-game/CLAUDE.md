@@ -61,13 +61,16 @@ existing architecture.
   `RESET`. Guards (world unlock, avatar chosen) read the save store. The
   machine owns *where the player is*; Zustand stores own *what they have*.
 - **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
-- **Content layer** (`src/content/`): `topics.ts` (TOPIC_REGISTRY — single
-  source of truth, #33), `zones.ts` (10 ASCII tile maps: Lumina Field hub + 4
-  topic zones + 5 expansion story zones reached through Lumina Village,
-  validated by `zones.test.ts`), `npcs.ts` (dialogue trees), `enemies.ts`
-  (archetypes + fiends, age-scaled at spawn), `abilities.ts` (Sage personas +
-  charge tuning), `spells.ts` (the Spellbook — castable abilities derived from
-  the save), `items.ts` (shop + economy tuning), `avatars.ts`.
+- **Content layer** (`src/content/`): `topics.ts` (the topic registries —
+  `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
+  `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
+  resolves all seven, #33/#55), `zones.ts` (10 ASCII tile maps: Lumina Field
+  hub + 4 crystal zones + Village (safe) + 3 themed combat zones + the Crystal
+  Spire, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
+  `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
+  (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
+  abilities derived from the save), `spire.ts` (the endgame climb floors +
+  villain), `items.ts` (shop + economy tuning), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue. Write-through: localStorage immediately
@@ -78,11 +81,13 @@ existing architecture.
   instance ids) — deliberately not persisted.
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, power-ups, streak).
-- **World** (`features/world/`): `WorldScreen` (HUD + overlays + ending) wraps
-  `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
-  remounted per zone, paused under overlays via ref). Overlays: dialogue,
-  services (shop/inn/library/sage), path questions (gates/chests), menu.
-  `TouchPad` is the mobile d-pad.
+- **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
+  wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
+  the Spire icon, remounted per zone, paused under overlays via ref). Overlays:
+  dialogue, services (shop/inn/library/sage), path questions (gates/chests),
+  menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
+  opened by bumping the Spire icon — the all-crystals-gated endgame). `TouchPad`
+  is the mobile d-pad.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Guard / Potion / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -163,6 +168,35 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-06-15 — Themed expansion zones + the Spire endgame & villain (#55)
+The new zones got question topics, and the game got a real finale.
+- **Topic decoupling:** `Topic` now splits into `CrystalTopic` (the core four —
+  crystal/Fiend/Sage/ending logic keys off these) and the wider `Topic` (adds
+  `nature`, `space`, `history`). `topics.ts` keeps `TOPIC_REGISTRY` = the four
+  crystal topics and adds `EXTRA_TOPICS` (styling only); `topicInfo` resolves
+  all seven, `crystalInfo` the crystal four. `SAGES`/`BOSS_LINES`/
+  `CRYSTAL_PANELS` and `save.sages` are now `CrystalTopic`-typed.
+- **Themed combat zones:** Whispering Woods (nature/animals), Starfall Coast
+  (space), Clockwork Depths (time/history) each gained a `topic`, three roaming
+  critters (`enemies.ts`), a gatekeeper gate and a riddle-chest — full mini
+  regions, minus the Fiend/crystal/Sage. Lumina Village stays combat-free.
+  Fun-facts + the edge-function persona prompt cover the three new topics.
+- **The Crystal Spire endgame:** a `spire` icon (`ZoneDef.spire`, rendered +
+  bump-handled in `WorldCanvas` → `onSpire`) stands in the Spire zone, sealed
+  until all four crystals are restored. Bumping it opens `SpireOverlay` — a
+  multi-floor climb (`content/spire.ts` `SPIRE_FLOORS`): each floor escalates
+  in level and rotates topics, wrong answers snuff candle-lights
+  (`SPIRE_LIVES`), and the top floor is the final boss, **Umbra, the Forgotten
+  One**. Clearing it sets `SPIRE_CLEARED`; losing casts you back to the hub,
+  healed. New machine substate `world.spire` (`OPEN_SPIRE`).
+- **Villain arc:** each crystal cutscene now ends on a 🌑 omen panel revealing
+  Umbra; the four-crystal "ending" became the *call to climb the Spire*
+  (`endingPanels`), and `spireVictoryPanels` is the true finale after Umbra
+  falls. Flags: `spire-cleared`, `spire-victory-seen`.
+- ⚠️ **Deploy required:** redeploy `generate-questions` so nature/space/history
+  questions generate (the function whitelists topics). See ISSUES.md #57.
+- 172 tests green (was 164); lint + build clean.
 
 ### 2026-06-15 — World x2 + story x2 + Spellbook battle magic (#50, #51)
 Three-part expansion of the JRPG.

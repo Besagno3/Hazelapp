@@ -1,4 +1,15 @@
-export type Topic = 'math' | 'science' | 'engineering' | 'creativity';
+/**
+ * The four main-quest topics — each has a crystal, a Fiend, a Sage, and a
+ * topic zone. Crystal/ending logic keys off these.
+ */
+export type CrystalTopic = 'math' | 'science' | 'engineering' | 'creativity';
+
+/**
+ * Every question category the game can generate. The four `CrystalTopic`s plus
+ * the expansion themes that flavour the new zones (nature/animals, space,
+ * time/history). Only `CrystalTopic`s bear crystals.
+ */
+export type Topic = CrystalTopic | 'nature' | 'space' | 'history';
 
 export interface Question {
   id: string;
@@ -122,9 +133,9 @@ export interface SaveData {
   coins: number;
   items: { potion: number; hint: number };
   badges: string[];
-  /** Topics whose Sage the player has met (each grants that topic's Special). */
-  sages: Topic[];
-  sageEquipped: Topic | null;
+  /** Topics whose Sage the player has met (each grants that topic's spell). */
+  sages: CrystalTopic[];
+  sageEquipped: CrystalTopic | null;
   /** Story + world flags: crystal-<topic>-restored, gate:<id>, ending-seen… */
   flags: Record<string, boolean>;
   openedChests: string[];
