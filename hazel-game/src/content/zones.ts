@@ -13,7 +13,8 @@ import type { Topic, ZoneId } from '../types';
  *   '='  walkable path
  *   'S'  save crystal (solid; interact to save)
  *   'C'  treasure chest (solid; bump → question lock)
- *   'G'  gate (solid until its flag is set; bump → gatekeeper question)
+ *   'G'  gate (solid until its flag is set; bump → gatekeeper question, or a
+ *        warden's key check when the zone marks it as a `keyGate`, #58)
  *   'E'  zone exit (walkable; must have a matching entry in `exits`)
  *
  * zones.test.ts validates every invariant (row lengths, legend chars, exits,
@@ -65,6 +66,12 @@ export interface ZoneDef {
    * it to attempt the endgame climb (sealed until all crystals are restored).
    */
   spire?: { x: number; y: number };
+  /**
+   * A Fiend gate locked by a warden's key (#58) instead of a gatekeeper
+   * question. The `G` tile at this position checks `keyForZone(id)`: bump it
+   * with the key to open it, or get told which warden boss holds it.
+   */
+  keyGate?: { x: number; y: number };
 }
 
 export const HUB_ZONE: ZoneId = 'lumina-field';
@@ -199,6 +206,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 9, y: 13, to: 'lumina-field', spawnX: 10, spawnY: 2 },
       { x: 10, y: 13, to: 'lumina-field', spawnX: 10, spawnY: 2 },
     ],
+    // The Smog Fiend's gate opens to the Thornroot Key (Whispering Woods, #58).
+    keyGate: { x: 10, y: 7 },
   },
 
   gearfall: {
@@ -241,6 +250,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 0, y: 6, to: 'lumina-field', spawnX: 19, spawnY: 5 },
       { x: 0, y: 7, to: 'lumina-field', spawnX: 19, spawnY: 5 },
     ],
+    // The Rust Fiend's gate opens to the Mainspring Key (Clockwork Depths, #58).
+    keyGate: { x: 10, y: 6 },
   },
 
   chromaria: {
@@ -283,6 +294,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 9, y: 0, to: 'lumina-field', spawnX: 10, spawnY: 11 },
       { x: 10, y: 0, to: 'lumina-field', spawnX: 10, spawnY: 11 },
     ],
+    // The Gray Fiend's gate opens to the Starlight Prism (Starfall Coast, #58).
+    keyGate: { x: 11, y: 7 },
   },
 
   // --- Expansion: the homeward regions (story zones, no topic) ----------------
@@ -366,6 +379,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'mossback-cub', x: 12, y: 4 },
       { defId: 'thornhare', x: 15, y: 8 },
       { defId: 'grumblebee', x: 12, y: 11 },
+      { defId: 'thicket-warden', x: 16, y: 4 },
     ],
     exits: [
       { x: 21, y: 6, to: 'lumina-village', spawnX: 1, spawnY: 6 },
@@ -410,6 +424,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'tide-sprite', x: 8, y: 2 },
       { defId: 'meteor-mite', x: 11, y: 5 },
       { defId: 'moon-moth', x: 5, y: 7 },
+      { defId: 'tide-colossus', x: 12, y: 3 },
     ],
     exits: [
       { x: 0, y: 6, to: 'lumina-village', spawnX: 20, spawnY: 6 },
@@ -452,6 +467,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'cog-sprite', x: 6, y: 5 },
       { defId: 'hourglass-imp', x: 14, y: 6 },
       { defId: 'relic-golem', x: 8, y: 2 },
+      { defId: 'clockwork-titan', x: 10, y: 5 },
     ],
     exits: [
       { x: 10, y: 0, to: 'whispering-woods', spawnX: 10, spawnY: 11 },

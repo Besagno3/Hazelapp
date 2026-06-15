@@ -70,7 +70,8 @@ existing architecture.
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
   (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
-  villain), `items.ts` (shop + economy tuning), `avatars.ts`.
+  villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
+  Fiends, #58), `items.ts` (shop + economy tuning), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue. Write-through: localStorage immediately
@@ -85,6 +86,7 @@ existing architecture.
   wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
   the Spire icon, remounted per zone, paused under overlays via ref). Overlays:
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
+  key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
   opened by bumping the Spire icon — the all-crystals-gated endgame). `TouchPad`
   is the mobile d-pad.
@@ -168,6 +170,26 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-06-15 — Warden bosses + gate keys gate the Fiends (#58)
+The three themed zones became real prerequisites for the crystals.
+- **Warden bosses:** each themed zone now holds a boss (`enemies.ts`) — the
+  Thicket Warden (Woods/nature), Tide Colossus (Coast/space), Clockwork Titan
+  (Depths/history). Same difficulty band as the Fiends (`levelOffset +1`).
+- **Gate keys (`content/keys.ts`):** beating a warden drops a key that **opens
+  one Fiend's gate** — Woods→Verdara, Depths→Gearfall, Coast→Chromaria. Math/
+  Numbria stays question-gated as the guaranteed first crystal. A crystal zone
+  marks its Fiend gate `ZoneDef.keyGate`; bumping it routes to `KeyGateOverlay`
+  (a new `PathTarget.kind: 'keygate'`), which opens the gate if the key is held
+  or names the warden to go beat. Key possession is a flag (`keyFlag`); the key
+  is also pushed to `save.badges` as a trophy (shown in `MenuOverlay`).
+- **Reward:** key + trophy badge + the usual boss XP. `BattleArena` branches its
+  boss intro/victory on `keyForBoss(enemy.id)` — wardens grant a key (not a
+  crystal) and have their own dialogue (`keys.ts`).
+- **Stay-dead fix:** new `bossDefeated()` helper unifies despawn — Fiends key
+  off the crystal flag, wardens off the key flag — used by both the canvas
+  spawn loop and the world prefetch so beaten wardens don't respawn.
+- 176 tests green (was 172); lint + build clean. No new deploy step beyond #57.
 
 ### 2026-06-15 — Themed expansion zones + the Spire endgame & villain (#55)
 The new zones got question topics, and the game got a real finale.

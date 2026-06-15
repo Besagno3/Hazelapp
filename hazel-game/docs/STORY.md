@@ -80,13 +80,20 @@ Merchant Maple 🦝.
 gate and a riddle-chest (no Fiend/crystal/Sage — crystals stay the core four);
 the Crystal Spire holds the endgame:
 
-| Zone | Topic | Cast |
-|---|---|---|
-| Lumina Village (home) | — (safe) | Grandmother Wick 👵 (gran, dragon lore), Bramble 🧑 (childhood friend, burns the bread), Lantern-Keeper Sol 🧓 (lanterns brighten per crystal) |
-| Whispering Woods | 🦋 Nature & Animals | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook), Wisp 🧚 (made of unanswered questions) |
-| Starfall Coast | 🪐 Space | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name) |
-| Clockwork Depths | ⏳ Time & History | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times) |
-| The Crystal Spire | endgame climb | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals) + the Spire icon 🗼 |
+| Zone | Topic | Warden boss → unlocks | Cast |
+|---|---|---|---|
+| Lumina Village (home) | — (safe) | — | Grandmother Wick 👵 (gran, dragon lore), Bramble 🧑 (childhood friend, burns the bread), Lantern-Keeper Sol 🧓 (lanterns brighten per crystal) |
+| Whispering Woods | 🦋 Nature & Animals | Thicket Warden 🦌 → Verdara | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook), Wisp 🧚 (made of unanswered questions) |
+| Starfall Coast | 🪐 Space | Tide Colossus 🐳 → Chromaria | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name) |
+| Clockwork Depths | ⏳ Time & History | Clockwork Titan 🦾 → Gearfall | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times) |
+| The Crystal Spire | endgame climb | — | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals) + the Spire icon 🗼 |
+
+**Warden keys (#58):** each themed zone's **warden boss** drops a **key** that
+opens one Fiend's gate (Woods→Verdara, Coast→Chromaria, Depths→Gearfall). So
+three of the four Fiends are locked behind a themed-zone challenge; **Math/
+Numbria stays open** as the guaranteed first crystal. Bump a keyed Fiend gate
+without the key and it names the warden to beat; with the key it grinds open.
+Beating a warden gives the key + a trophy badge + boss XP.
 
 **The hidden villain (#55):** **Umbra, the Forgotten One** — what was left when
 the world chose to forget it. The four Fiends were only its hands. It is
@@ -166,7 +173,8 @@ current hint) and carried items. Flags: `quest:<id>:offered`,
 | `crystal-<topic>-restored` | beating that topic's Fiend |
 | `crystal-<topic>-scene-seen` | finishing that crystal's restored cutscene |
 | `spire-awake-seen` | finishing the Spire-awakens cutscene (after 1st crystal) |
-| `gate:<zone>:gate:<x>,<y>` | answering that gatekeeper |
+| `gate:<zone>:gate:<x>,<y>` | answering that gatekeeper (or using a key on it) |
+| `key-<id>` | holding a warden's gate key (#58) |
 | `quest:<id>:offered` / `:done` | quest dialogue |
 | `ending-seen` | finishing the four-crystal "call to the Spire" cutscene |
 | `spire-cleared` | beating Umbra at the top of the Spire climb |

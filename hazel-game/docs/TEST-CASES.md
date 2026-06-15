@@ -219,6 +219,11 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-196 | U | ✅ | zones | the three themed zones carry a topic + enemies + a gate + a chest; invariants still hold (covered by zones.test, #55) |
 | TC-197 | M | ⬜ | SpireOverlay | the Spire icon is sealed under 4 crystals; with all four it opens the climb; clearing it plays the true finale, losing returns to the hub healed (#55) |
 | TC-198 | M | ⬜ | World | nature/space/history gates/chests/battles ask themed questions once the edge function is redeployed (#57) |
+| TC-199 | U | ✅ | keys | each warden key maps to a real boss placed in its themed zone and a crystal zone whose keyGate sits on a `G` tile (#58) |
+| TC-200 | U | ✅ | keys | keyForBoss/keyForZone round-trip; Numbria has no keyGate; exactly 3 of 4 Fiends are key-gated (#58) |
+| TC-201 | U | ✅ | keys | bossDefeated keys Fiends off the crystal flag and wardens off the key flag (#58) |
+| TC-202 | M | ⬜ | World | bumping a key-gated Fiend gate without the key names the warden; beating the warden then opens it; the warden stays gone afterward (#58) |
+| TC-203 | M | ⬜ | BattleArena | beating a warden shows the key reward (not a crystal), adds a trophy badge, and grants boss XP (#58) |
 
 ## Regression cases (tied to ISSUES.md)
 

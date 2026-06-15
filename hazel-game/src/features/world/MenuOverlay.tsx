@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { spellsKnown } from '../../content/spells';
 import { SHOP_CATALOG } from '../../content/items';
+import { GATE_KEYS } from '../../content/keys';
 import { avatarById } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
 import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
@@ -68,7 +69,14 @@ export default function MenuOverlay() {
         {save.badges.length > 0 && (
           <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
             <span className="font-bold mr-2">Badges:</span>
-            {save.badges.map((b) => SHOP_CATALOG.find((i) => i.id === b)?.emoji ?? '🏅').join(' ')}
+            {save.badges
+              .map(
+                (b) =>
+                  SHOP_CATALOG.find((i) => i.id === b)?.emoji ??
+                  GATE_KEYS.find((k) => k.id === b)?.emoji ??
+                  '🏅',
+              )
+              .join(' ')}
           </div>
         )}
 

@@ -22,6 +22,7 @@ import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells
 import { POTION_HEAL } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
+import { keyForBoss, keyFlag } from '../../content/keys';
 import { SpriteSheet } from './SpriteSheet';
 import { resolveSprite } from '../../content/sprites';
 import { avatarById } from '../../content/avatars';
@@ -69,6 +70,8 @@ export default function BattleArena() {
   const age = playerAge(profile);
   const topic = enemy?.topic ?? 'math';
   const info = topicInfo(topic);
+  // Warden bosses (#58) drop a gate key instead of restoring a crystal.
+  const keyBoss = enemy ? keyForBoss(enemy.id) : undefined;
   const spells = save ? spellsKnown(save) : [];
   const { stage: ember } = emberStatus(save?.flags ?? {});
 
@@ -135,13 +138,13 @@ export default function BattleArena() {
   useEffect(() => {
     if (loading || !enemy?.isBoss || bossIntroDone.current) return;
     bossIntroDone.current = true;
-    const lines = BOSS_LINES[enemy.topic].intro;
+    const lines = keyBoss ? keyBoss.bossIntro : BOSS_LINES[enemy.topic as keyof typeof BOSS_LINES].intro;
     const chain = lines.reduceRight<() => void>(
       (next, line) => () => setTurn({ kind: 'message', text: line, next }),
       () => setTurn({ kind: 'command' }),
     );
     chain();
-  }, [loading, enemy]);
+  }, [loading, enemy, keyBoss]);
 
   // Flip acting flags on for the lunge duration (0.5s transition → clear at 520ms).
   useEffect(() => {
@@ -366,12 +369,16 @@ export default function BattleArena() {
       // Lifetime kill counts drive defeat quests (#42).
       kills: { ...s.kills, [enemy!.id]: (s.kills[enemy!.id] ?? 0) + 1 },
       library: pushLibrary(s.library, misses.current),
+      // A warden boss (#58) awards its gate key as a trophy badge too.
+      badges: keyBoss ? [...new Set([...s.badges, keyBoss.id])] : s.badges,
       flags: {
         ...s.flags,
         // The first victory warms the egg — the hatch scene plays back in
         // the world (#37 story pass).
         [EMBER_HATCHED]: true,
-        ...(enemy!.isBoss ? { [crystalFlag(topic)]: true } : {}),
+        // Crystal Fiends restore a crystal; wardens grant a gate key instead.
+        ...(enemy!.isBoss && !keyBoss ? { [crystalFlag(topic)]: true } : {}),
+        ...(keyBoss ? { [keyFlag(keyBoss.id)]: true } : {}),
       },
     }));
     setTurn({ kind: 'victory' });
@@ -696,10 +703,18 @@ export default function BattleArena() {
               <>
                 <div className="text-5xl mb-2">🏆</div>
                 <h2 className="text-xl font-extrabold text-amber-300 mb-1">Victory!</h2>
-                {enemy.isBoss && (
+                {enemy.isBoss && keyBoss && (
+                  <>
+                    <p className="text-white/60 italic text-sm mb-1">"{keyBoss.bossDefeat}"</p>
+                    <p className="text-amber-300 font-bold mb-1">
+                      {keyBoss.emoji} You won the {keyBoss.name}! It unlocks {keyBoss.fiendName}'s gate.
+                    </p>
+                  </>
+                )}
+                {enemy.isBoss && !keyBoss && (
                   <>
                     <p className="text-white/60 italic text-sm mb-1">
-                      "{BOSS_LINES[topic].defeat}"
+                      "{BOSS_LINES[topic as keyof typeof BOSS_LINES].defeat}"
                     </p>
                     <p className="text-emerald-300 font-bold mb-1">
                       💎 The {info.crystalName} shines again!

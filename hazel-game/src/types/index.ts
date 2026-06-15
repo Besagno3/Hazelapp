@@ -77,7 +77,7 @@ export type ServiceType = 'inn' | 'shop' | 'library' | 'sage';
 
 /** A question-locked obstacle on the path: a gate or a treasure chest. */
 export interface PathTarget {
-  kind: 'gate' | 'chest';
+  kind: 'gate' | 'chest' | 'keygate';
   /** Stable id, e.g. "numbria:gate:12,4" — flags/openedChests key on it. */
   id: string;
   topic: Topic;

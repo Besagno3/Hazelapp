@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import kaplay from 'kaplay';
 import type { MutableRefObject } from 'react';
 import { TILE, WALKABLE_CHARS, pathTargetId, gateFlag, zone } from '../../content/zones';
+import { bossDefeated } from '../../content/keys';
 import { NPC_DEFS } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
@@ -302,9 +303,9 @@ export default function WorldCanvas({
 
     for (const p of z.enemies) {
       const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age);
-      // Bosses stay gone once their crystal is restored; regular enemies
-      // stay gone for the session once beaten (they respawn next visit).
-      if (enemy.isBoss && flagsRef.current[`crystal-${enemy.topic}-restored`]) continue;
+      // Bosses stay gone once beaten (crystal restored / warden's key held);
+      // regular enemies stay gone for the session (they respawn next visit).
+      if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, flagsRef.current)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       const px = p.x * TILE + TILE / 2;
       const py = p.y * TILE + TILE / 2;
@@ -484,7 +485,9 @@ export default function WorldCanvas({
         if (bumped.ch === 'G') {
           const id = pathTargetId(zoneId, 'gate', bumped.x, bumped.y);
           cooldown = TRIGGER_COOLDOWN;
-          cbRef.current.onPath({ kind: 'gate', id, topic: z.topic ?? 'math', zoneId });
+          // A warden-keyed Fiend gate checks a key instead of asking a question (#58).
+          const keyed = z.keyGate && z.keyGate.x === bumped.x && z.keyGate.y === bumped.y;
+          cbRef.current.onPath({ kind: keyed ? 'keygate' : 'gate', id, topic: z.topic ?? 'math', zoneId });
         } else if (bumped.ch === 'C') {
           const id = pathTargetId(zoneId, 'chest', bumped.x, bumped.y);
           if (!chestsRef.current.includes(id)) {

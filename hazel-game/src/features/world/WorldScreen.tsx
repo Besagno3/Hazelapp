@@ -6,6 +6,7 @@ import TouchPad from './TouchPad';
 import DialogueOverlay from './DialogueOverlay';
 import ServiceOverlay from './ServiceOverlay';
 import PathQuestionOverlay from './PathQuestionOverlay';
+import KeyGateOverlay from './KeyGateOverlay';
 import MenuOverlay from './MenuOverlay';
 import SpireOverlay from './SpireOverlay';
 import StoryPanels from '../../components/StoryPanels';
@@ -13,6 +14,7 @@ import { zone, TILE } from '../../content/zones';
 import { spawnEnemy } from '../../content/enemies';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
+import { bossDefeated } from '../../content/keys';
 import {
   emberStatus,
   endingPanels,
@@ -125,7 +127,7 @@ export default function WorldScreen() {
     if (!save) return;
     for (const p of z.enemies) {
       const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age);
-      if (enemy.isBoss && save.flags[crystalFlag(enemy.topic)]) continue;
+      if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, save.flags)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT);
     }
@@ -243,7 +245,13 @@ export default function WorldScreen() {
       {/* Overlays (machine substates) */}
       {overlay === 'dialogue' && npcId && <DialogueOverlay npcId={npcId} />}
       {overlay === 'service' && service && <ServiceOverlay service={service} npcId={npcId} />}
-      {overlay === 'path' && pathTarget && <PathQuestionOverlay target={pathTarget} />}
+      {overlay === 'path' &&
+        pathTarget &&
+        (pathTarget.kind === 'keygate' ? (
+          <KeyGateOverlay target={pathTarget} />
+        ) : (
+          <PathQuestionOverlay target={pathTarget} />
+        ))}
       {overlay === 'menu' && <MenuOverlay />}
       {overlay === 'spire' && <SpireOverlay />}
 
