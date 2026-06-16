@@ -1,4 +1,15 @@
-export type Topic = 'math' | 'science' | 'engineering' | 'creativity';
+/**
+ * The four main-quest topics — each has a crystal, a Fiend, a Sage, and a
+ * topic zone. Crystal/ending logic keys off these.
+ */
+export type CrystalTopic = 'math' | 'science' | 'engineering' | 'creativity';
+
+/**
+ * Every question category the game can generate. The four `CrystalTopic`s plus
+ * the expansion themes that flavour the new zones (nature/animals, space,
+ * time/history). Only `CrystalTopic`s bear crystals.
+ */
+export type Topic = CrystalTopic | 'nature' | 'space' | 'history';
 
 export interface Question {
   id: string;
@@ -37,7 +48,19 @@ export interface NPC {
 }
 
 /** The world zones of Lumina (see src/content/zones.ts). */
-export type ZoneId = 'lumina-field' | 'numbria' | 'verdara' | 'gearfall' | 'chromaria';
+export type ZoneId =
+  // Original five (hub + four topic regions)
+  | 'lumina-field'
+  | 'numbria'
+  | 'verdara'
+  | 'gearfall'
+  | 'chromaria'
+  // Expansion: story / exploration regions reached through the village
+  | 'lumina-village'
+  | 'whispering-woods'
+  | 'starfall-coast'
+  | 'clockwork-depths'
+  | 'crystal-spire';
 
 /** An enemy instance the player bumped into on the map. */
 export interface BattleEnemy extends NPC {
@@ -54,7 +77,7 @@ export type ServiceType = 'inn' | 'shop' | 'library' | 'sage';
 
 /** A question-locked obstacle on the path: a gate or a treasure chest. */
 export interface PathTarget {
-  kind: 'gate' | 'chest';
+  kind: 'gate' | 'chest' | 'keygate';
   /** Stable id, e.g. "numbria:gate:12,4" — flags/openedChests key on it. */
   id: string;
   topic: Topic;
@@ -110,9 +133,9 @@ export interface SaveData {
   coins: number;
   items: { potion: number; hint: number };
   badges: string[];
-  /** Topics whose Sage the player has met (each grants that topic's Special). */
-  sages: Topic[];
-  sageEquipped: Topic | null;
+  /** Topics whose Sage the player has met (each grants that topic's spell). */
+  sages: CrystalTopic[];
+  sageEquipped: CrystalTopic | null;
   /** Story + world flags: crystal-<topic>-restored, gate:<id>, ending-seen… */
   flags: Record<string, boolean>;
   openedChests: string[];

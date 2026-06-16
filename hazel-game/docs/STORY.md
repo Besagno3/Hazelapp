@@ -13,7 +13,16 @@ Gears, and Wonder. A **fog of Forgetting** rolled in; four **Fiends** drank
 the crystal light and hid at the corners of the world. A kid from Lumina
 Field — carrying **the last dragon egg** — sets out to restore the crystals.
 Learning is literally the magic system: every answered question returns a
-spark of light, and dragons grow on bravery and bright answers.
+spark of light, and dragons grow on bravery and bright answers. When all four
+crystals shine, their light gathers at the **Crystal Spire** at the heart of
+the world and burns the fog away for good.
+
+The world is **10 zones**: the Lumina Field hub, the four topic regions, and
+five quieter **story zones** reached through the hero's home, **Lumina
+Village** (Whispering Woods → Clockwork Depths, Starfall Coast, and the Crystal
+Spire). The themed story zones have no Fiends of their own, but each holds a
+**warden boss** guarding a gate key (#58) — they carry the narrative, hold save
+crystals, and let the world breathe between Fiend battles.
 
 ## 2. Tone & voice rules
 
@@ -67,6 +76,38 @@ Merchant Maple 🦝.
 | Gearfall (engineering) | Sage Cog 🧑‍🔧 — *Gear Storm* | Rivet 👷 — *Rivet's Golden Gear* | **The Rust Fiend** 🤖 — nothing turns, nothing gets fixed |
 | Chromaria (creativity) | Sage Muse 🧚 — *Rainbow Riff* | Doodle 🧑‍🎨 — *Doodle's Color Seed* | **The Gray Fiend** 🌑 — drank the colors, hushed the songs |
 
+**Expansion zones** — Lumina Village is combat-free; the three themed zones
+(#55) have their own **question topic**, three roaming critters, a gatekeeper
+gate and a riddle-chest (no Fiend/crystal/Sage — crystals stay the core four);
+the Crystal Spire holds the endgame:
+
+| Zone | Topic | Warden boss → unlocks | Cast |
+|---|---|---|---|
+| Lumina Village (home) | — (safe) | — | Grandmother Wick 👵 (gran, dragon lore), Bramble 🧑 (childhood friend, burns the bread), Lantern-Keeper Sol 🧓 (lanterns brighten per crystal) |
+| Whispering Woods | 🦋 Nature & Animals | Thicket Warden 🦌 → Verdant Key (Verdara) | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook), Wisp 🧚 (made of unanswered questions), Old Bracken 🦡 (warns of the Warden) |
+| Starfall Coast | 🪐 Space | Tide Colossus 🐳 → Prism Key (Chromaria) | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name), Castaway Pell 🦭 (warns of the Colossus) |
+| Clockwork Depths | ⏳ Time & History | Clockwork Titan 🦾 → Gearwright Key (Gearfall) | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times), Ratchet the Wind-Up 🔧 (warns of the Titan) |
+| The Crystal Spire | endgame climb | — | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals) + the Spire icon 🗼 |
+
+**Warden keys (#58):** each themed zone's **warden boss** drops a **key**, and
+each key is **named for the crystal zone it unlocks** (its destination — the
+zone that actually awards a crystal), never the keyless warden zone: Woods→
+Verdant Key (opens Verdara), Coast→Prism Key (opens Chromaria), Depths→
+Gearwright Key (opens Gearfall). So three of the four Fiends are locked behind a
+themed-zone challenge; **Math/Numbria stays open** as the guaranteed first
+crystal. Bump a keyed Fiend gate without the key and it names the warden to
+beat; with the key it grinds open. Beating a warden gives the key + a trophy
+badge + boss XP, and a **signpost NPC** near each warden warns the player first
+(#59).
+
+**The hidden villain (#55):** **Umbra, the Forgotten One** — what was left when
+the world chose to forget it. The four Fiends were only its hands. It is
+revealed gradually: each crystal cutscene ends on a 🌑 omen panel (escalating
+taunts from the Spire), and after all four crystals the "ending" becomes the
+*call to climb the Spire*. Umbra is the final boss at the top of the climb.
+Voice: ancient, tired, theatrical, oddly lonely — never cruel to the player;
+on defeat it concedes the theme ("out-remembered… by a child…").
+
 **Fiend voice formula** (`story.ts BOSS_LINES`): 2 intro boxes — (1) a sneer
 that name-drops the egg/curiosity, (2) "I am the X Fiend!" + their crime —
 then last words on defeat that *concede the theme* ("your answers… counted").
@@ -82,11 +123,29 @@ then last words on defeat that *concede the theme* ("your answers… counted").
   Elder comments on the egg/Ember.
 - **Acts 2–5, any order (FF1-style open structure):** each zone = gate
   (question lock) → villager mini-quest (riddle-chest fetch) → Sage
-  (Special unlocked) → Fiend (boss + crystal flag). Villager dialogue
-  flips to a gratitude line after the crystal is restored.
-- **Finale** (`endingPanels(heroName)`): crystals blaze → villagers'
-  callbacks (Tally counts shooting stars…) → Ember full-grown → the hero
-  named as the reason → open door to New Game+ ("trickier riddles").
+  (spell added to the Spellbook) → Fiend (boss + crystal flag). Beating a
+  Fiend plays a short **crystal-restored cutscene** (`CRYSTAL_PANELS[topic]`)
+  back in the world; villager dialogue flips to a gratitude line.
+- **The Spire wakes** (`SPIRE_PANELS`, after the FIRST crystal): introduces the
+  Crystal Spire and Keeper Aurora — the convergence point and the new endgame
+  destination, reached through Lumina Village.
+- **Call to the Spire** (`endingPanels(heroName)`, at four crystals): the
+  crystals return and the fog thins… but it pulls into one dark knot atop the
+  Spire and Umbra calls the hero up. The Spire door (icon 🗼) opens.
+- **The Spire climb** (`content/spire.ts`, `SpireOverlay`): a multi-floor
+  question gauntlet, each floor harder and on different topics, candle-lights
+  for mistakes, ending in the **Umbra** boss floor. Lose → cast back to the
+  hub, healed (climb again any time). Win → the true finale.
+- **True finale** (`spireVictoryPanels(heroName)`): Umbra unravels, Ember roars
+  full-grown, Aurora bows, the hero is named as the reason — open door to New
+  Game+ ("trickier riddles than ever").
+
+**Magic — the Spellbook:** in battle the hero casts learned spells by
+answering one *super-hard* question (3 levels above the enemy). Every hero
+knows **Mend** (heal); each Sage adds a signature strike; **Aegis** (shield +
+heal) unlocks at the first crystal; **Ember's Breath** (huge damage) unlocks
+when Ember is full-grown. Spells cost charge (◆) filled by correct answers; a
+miss fizzles harmlessly and refunds the charge — effort is never punished.
 
 ## 6. Quests (one per zone + one in the hub)
 
@@ -113,13 +172,18 @@ current hint) and carried items. Flags: `quest:<id>:offered`,
 | Flag | Set by |
 |---|---|
 | `intro-seen` | finishing the opening cutscene |
-| `met-elder` | Elder Lumen's first greeting line |
+| `met-elder` / `met-wick` / `met-hazel` / `met-aurora` | those NPCs' first greeting lines |
 | `ember-hatched` | first battle victory |
 | `ember-hatch-seen` | finishing the hatch cutscene |
 | `crystal-<topic>-restored` | beating that topic's Fiend |
-| `gate:<zone>:gate:<x>,<y>` | answering that gatekeeper |
+| `crystal-<topic>-scene-seen` | finishing that crystal's restored cutscene |
+| `spire-awake-seen` | finishing the Spire-awakens cutscene (after 1st crystal) |
+| `gate:<zone>:gate:<x>,<y>` | answering that gatekeeper (or using a key on it) |
+| `key-<id>` | holding a warden's gate key (#58) |
 | `quest:<id>:offered` / `:done` | quest dialogue |
-| `ending-seen` | finishing the ending cutscene |
+| `ending-seen` | finishing the four-crystal "call to the Spire" cutscene |
+| `spire-cleared` | beating Umbra at the top of the Spire climb |
+| `spire-victory-seen` | finishing the true-finale cutscene |
 
 ## 8. Future story hooks (phase 4+)
 

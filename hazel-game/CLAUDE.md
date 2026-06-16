@@ -61,11 +61,17 @@ existing architecture.
   `RESET`. Guards (world unlock, avatar chosen) read the save store. The
   machine owns *where the player is*; Zustand stores own *what they have*.
 - **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
-- **Content layer** (`src/content/`): `topics.ts` (TOPIC_REGISTRY — single
-  source of truth, #33), `zones.ts` (5 ASCII tile maps: Lumina Field hub + 4
-  topic zones, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
+- **Content layer** (`src/content/`): `topics.ts` (the topic registries —
+  `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
+  `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
+  resolves all seven, #33/#55), `zones.ts` (10 ASCII tile maps: Lumina Field
+  hub + 4 crystal zones + Village (safe) + 3 themed combat zones + the Crystal
+  Spire, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
-  (Sages/Specials), `items.ts` (shop + economy tuning), `avatars.ts`.
+  (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
+  abilities derived from the save), `spire.ts` (the endgame climb floors +
+  villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
+  Fiends, #58), `items.ts` (shop + economy tuning), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue. Write-through: localStorage immediately
@@ -76,18 +82,24 @@ existing architecture.
   instance ids) — deliberately not persisted.
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, power-ups, streak).
-- **World** (`features/world/`): `WorldScreen` (HUD + overlays + ending) wraps
-  `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
-  remounted per zone, paused under overlays via ref). Overlays: dialogue,
-  services (shop/inn/library/sage), path questions (gates/chests), menu.
-  `TouchPad` is the mobile d-pad.
+- **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
+  wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
+  the Spire icon, remounted per zone, paused under overlays via ref). Overlays:
+  dialogue, services (shop/inn/library/sage), path questions (gates/chests),
+  key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
+  menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
+  opened by bumping the Spire icon — the all-crystals-gated endgame). `TouchPad`
+  is the mobile d-pad.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
-  battle — Attack / Special / Guard / Potion / Flee, every command resolved by
-  a question; enemy counterattacks are blocked by defend questions. Specials
-  (equipped Sage + 3-correct charge) ask level+2 questions for 2.5× damage and
-  fizzle harmlessly on a miss. Fiends (bosses) have enrage phases and restore
-  their crystal on defeat. Pure math in `lib/battleMath.ts`. No game over —
-  defeat returns the player to the hub, healed.
+  battle — Attack / Spells / Guard / Potion / Flee, every command resolved by
+  a question; enemy counterattacks are blocked by defend questions. **Spells**
+  (the Spellbook, `content/spells.ts`): the hero casts any learned spell
+  (Mend / Aegis / Sage strikes / Ember's Breath) by answering one *super-hard*
+  question (`SPELL_LEVEL_BONUS` = 3 levels up); each spends charge (◆, the mana
+  gauge filled by correct answers, `CHARGE_MAX` = 4) and a miss fizzles +
+  refunds the charge. Fiends (bosses) have enrage phases and restore their
+  crystal on defeat. Pure math in `lib/battleMath.ts`. No game over — defeat
+  returns the player to the hub, healed.
 - DB schema lives in `supabase/migrations/` — apply via the Supabase SQL Editor
   or `supabase db push`.
 - **Question generation** is a Deno edge function in
@@ -158,6 +170,89 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-06-16 — Warden signposts + keys themed to their destination (#59)
+Follow-up to #58. Keys are now named for the **crystal zone they unlock** (the
+destination that awards a crystal), not the warden's keyless home zone:
+Verdant Key→Verdara, Gearwright Key→Gearfall, Prism Key→Chromaria (ids +
+dialogue updated in `keys.ts`). Added a signpost NPC beside each warden
+(`*-warden-sign` in `npcs.ts`, placed in `zones.ts`) that warns of the boss and
+points the reward home, flipping to a congratulations line once the key flag is
+set. No mechanic change — `keyForBoss`/`keyForZone`/`bossDefeated` untouched.
+
+### 2026-06-15 — Warden bosses + gate keys gate the Fiends (#58)
+The three themed zones became real prerequisites for the crystals.
+- **Warden bosses:** each themed zone now holds a boss (`enemies.ts`) — the
+  Thicket Warden (Woods/nature), Tide Colossus (Coast/space), Clockwork Titan
+  (Depths/history). Same difficulty band as the Fiends (`levelOffset +1`).
+- **Gate keys (`content/keys.ts`):** beating a warden drops a key that **opens
+  one Fiend's gate** — Woods→Verdara, Depths→Gearfall, Coast→Chromaria. Math/
+  Numbria stays question-gated as the guaranteed first crystal. A crystal zone
+  marks its Fiend gate `ZoneDef.keyGate`; bumping it routes to `KeyGateOverlay`
+  (a new `PathTarget.kind: 'keygate'`), which opens the gate if the key is held
+  or names the warden to go beat. Key possession is a flag (`keyFlag`); the key
+  is also pushed to `save.badges` as a trophy (shown in `MenuOverlay`).
+- **Reward:** key + trophy badge + the usual boss XP. `BattleArena` branches its
+  boss intro/victory on `keyForBoss(enemy.id)` — wardens grant a key (not a
+  crystal) and have their own dialogue (`keys.ts`).
+- **Stay-dead fix:** new `bossDefeated()` helper unifies despawn — Fiends key
+  off the crystal flag, wardens off the key flag — used by both the canvas
+  spawn loop and the world prefetch so beaten wardens don't respawn.
+- 176 tests green (was 172); lint + build clean. No new deploy step beyond #57.
+
+### 2026-06-15 — Themed expansion zones + the Spire endgame & villain (#55)
+The new zones got question topics, and the game got a real finale.
+- **Topic decoupling:** `Topic` now splits into `CrystalTopic` (the core four —
+  crystal/Fiend/Sage/ending logic keys off these) and the wider `Topic` (adds
+  `nature`, `space`, `history`). `topics.ts` keeps `TOPIC_REGISTRY` = the four
+  crystal topics and adds `EXTRA_TOPICS` (styling only); `topicInfo` resolves
+  all seven, `crystalInfo` the crystal four. `SAGES`/`BOSS_LINES`/
+  `CRYSTAL_PANELS` and `save.sages` are now `CrystalTopic`-typed.
+- **Themed combat zones:** Whispering Woods (nature/animals), Starfall Coast
+  (space), Clockwork Depths (time/history) each gained a `topic`, three roaming
+  critters (`enemies.ts`), a gatekeeper gate and a riddle-chest — full mini
+  regions, minus the Fiend/crystal/Sage. Lumina Village stays combat-free.
+  Fun-facts + the edge-function persona prompt cover the three new topics.
+- **The Crystal Spire endgame:** a `spire` icon (`ZoneDef.spire`, rendered +
+  bump-handled in `WorldCanvas` → `onSpire`) stands in the Spire zone, sealed
+  until all four crystals are restored. Bumping it opens `SpireOverlay` — a
+  multi-floor climb (`content/spire.ts` `SPIRE_FLOORS`): each floor escalates
+  in level and rotates topics, wrong answers snuff candle-lights
+  (`SPIRE_LIVES`), and the top floor is the final boss, **Umbra, the Forgotten
+  One**. Clearing it sets `SPIRE_CLEARED`; losing casts you back to the hub,
+  healed. New machine substate `world.spire` (`OPEN_SPIRE`).
+- **Villain arc:** each crystal cutscene now ends on a 🌑 omen panel revealing
+  Umbra; the four-crystal "ending" became the *call to climb the Spire*
+  (`endingPanels`), and `spireVictoryPanels` is the true finale after Umbra
+  falls. Flags: `spire-cleared`, `spire-victory-seen`.
+- ⚠️ **Deploy required:** redeploy `generate-questions` so nature/space/history
+  questions generate (the function whitelists topics). See ISSUES.md #57.
+- 172 tests green (was 164); lint + build clean.
+
+### 2026-06-15 — World x2 + story x2 + Spellbook battle magic (#50, #51)
+Three-part expansion of the JRPG.
+- **More screens (5 → 10 zones, #50):** five new topic-less story/exploration
+  zones in `content/zones.ts`, reached through a new **Lumina Village**
+  crossroads: Village ↔ Whispering Woods ↔ Clockwork Depths, Village ↔
+  Starfall Coast, Village ↔ The Crystal Spire. The hub gains a single new exit
+  (top, cols 2-3) to the Village; the rest branch off the new zones, so edits
+  to existing maps are minimal. All maps stay 22×14 (the shared KaPlay canvas
+  is sized once). 11 new flag-reactive NPCs in `content/npcs.ts`. New tests:
+  every zone reachable from the hub (BFS) + no one-way exits.
+- **Story doubled (#50):** `content/story.ts` gains `CRYSTAL_PANELS` (a
+  victory cutscene per Fiend), `SPIRE_PANELS` (the Spire wakes after the first
+  crystal), and longer `INTRO_PANELS` / `endingPanels`. `WorldScreen` now
+  selects exactly one due cutscene per render: intro → hatch → crystal → spire
+  → ending. New flags: `crystal-<topic>-scene-seen`, `spire-awake-seen`.
+- **Spellbook (#51):** the single equipped-Sage Special becomes a cast-any
+  system. `content/spells.ts` defines spells (damage / heal / shield) with a
+  charge cost; `spellsKnown(save)` derives the list from the save (Mend always;
+  each Sage's strike; Aegis at 1 crystal; Ember's Breath at full-grown Ember) —
+  no new save field. In battle, **📖 Spells** opens a menu; casting asks one
+  super-hard question (`SPELL_LEVEL_BONUS` = 3 up), spends charge, and fizzles
+  + refunds on a miss. `CHARGE_MAX` 3 → 4; `lib/battleMath.spellDamage` added.
+  `MenuOverlay` shows the Spellbook; Sage service copy updated.
+- 164 tests green (was 156); lint + build clean.
 
 ### 2026-06-13 — Fix leveling (XP gauge / medallion) + battle HUD tidy
 Player progression was invisible: a missing Supabase `profiles` row left

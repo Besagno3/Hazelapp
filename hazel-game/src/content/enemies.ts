@@ -50,6 +50,24 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'off-key-bird': { id: 'off-key-bird', name: 'Off-Key Bird', sprite: '🐦', topic: 'creativity', levelOffset: 0, hpPerLevel: 12 },
   'pixel-witch': { id: 'pixel-witch', name: 'Pixel Witch', sprite: '🦹', topic: 'creativity', levelOffset: 1, hpPerLevel: 14 },
   'gray-fiend': { id: 'gray-fiend', name: 'The Gray Fiend', sprite: '🌑', topic: 'creativity', levelOffset: 1, hpPerLevel: 20, isBoss: true },
+
+  // --- Whispering Woods (nature & animals) — critters + the warden boss (#58) ---
+  'mossback-cub': { id: 'mossback-cub', name: 'Mossback Cub', sprite: '🐻', topic: 'nature', levelOffset: -1, hpPerLevel: 10 },
+  'thornhare': { id: 'thornhare', name: 'Thornhare', sprite: '🐰', topic: 'nature', levelOffset: 0, hpPerLevel: 12 },
+  'grumblebee': { id: 'grumblebee', name: 'Grumblebee', sprite: '🐝', topic: 'nature', levelOffset: 1, hpPerLevel: 13 },
+  'thicket-warden': { id: 'thicket-warden', name: 'The Thicket Warden', sprite: '🦌', topic: 'nature', levelOffset: 1, hpPerLevel: 16, isBoss: true },
+
+  // --- Starfall Coast (space) — critters + the warden boss (#58) ---
+  'tide-sprite': { id: 'tide-sprite', name: 'Tide Sprite', sprite: '🌊', topic: 'space', levelOffset: -1, hpPerLevel: 10 },
+  'meteor-mite': { id: 'meteor-mite', name: 'Meteor Mite', sprite: '☄️', topic: 'space', levelOffset: 0, hpPerLevel: 12 },
+  'moon-moth': { id: 'moon-moth', name: 'Moon Moth', sprite: '🌙', topic: 'space', levelOffset: 1, hpPerLevel: 13 },
+  'tide-colossus': { id: 'tide-colossus', name: 'The Tide Colossus', sprite: '🐳', topic: 'space', levelOffset: 1, hpPerLevel: 16, isBoss: true },
+
+  // --- Clockwork Depths (time & history) — critters + the warden boss (#58) ---
+  'cog-sprite': { id: 'cog-sprite', name: 'Cog Sprite', sprite: '⚙️', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
+  'hourglass-imp': { id: 'hourglass-imp', name: 'Hourglass Imp', sprite: '⏳', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
+  'relic-golem': { id: 'relic-golem', name: 'Relic Golem', sprite: '🗿', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
+  'clockwork-titan': { id: 'clockwork-titan', name: 'The Clockwork Titan', sprite: '🦾', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 };
 
 /** The boss enemy id for a topic's zone. */
@@ -72,7 +90,9 @@ export function spawnEnemy(
   const def = ENEMY_DEFS[defId];
   if (!def) throw new Error(`Unknown enemy def: ${defId}`);
   const level = clampLevel(ageToStartLevel(age) + def.levelOffset);
-  const name = def.isBoss ? topicInfo(def.topic).fiendName : def.name;
+  // Bosses live only in crystal topics, so fiendName is always set there; the
+  // fallback keeps non-crystal enemies (and any future boss) safe.
+  const name = def.isBoss ? (topicInfo(def.topic).fiendName ?? def.name) : def.name;
   return {
     id: def.id,
     instanceId: `${zoneId}:${placementKey}`,

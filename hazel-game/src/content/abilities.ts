@@ -1,4 +1,4 @@
-import type { Topic } from '../types';
+import type { CrystalTopic } from '../types';
 
 /**
  * Sages and the Special Attacks they grant (#37, FF6 Esper homage).
@@ -7,7 +7,7 @@ import type { Topic } from '../types';
  * the enemy and deals SPECIAL_MULTIPLIER × damage — a miss fizzles harmlessly.
  */
 export interface SageInfo {
-  topic: Topic;
+  topic: CrystalTopic;
   name: string;
   sprite: string;
   specialName: string;
@@ -16,7 +16,7 @@ export interface SageInfo {
   flashColor: string;
 }
 
-export const SAGES: Record<Topic, SageInfo> = {
+export const SAGES: Record<CrystalTopic, SageInfo> = {
   math: {
     topic: 'math',
     name: 'Sage Abacus',
@@ -51,9 +51,11 @@ export const SAGES: Record<Topic, SageInfo> = {
   },
 };
 
-/** Damage multiplier for a landed Special vs a basic attack. */
+/** Damage multiplier for a landed Sage spell vs a basic attack. */
 export const SPECIAL_MULTIPLIER = 2.5;
-/** Specials ask a question this many levels above the enemy. */
-export const SPECIAL_LEVEL_BONUS = 2;
-/** Correct answers needed to fill the Special charge gauge. */
-export const CHARGE_MAX = 3;
+/**
+ * The spell "mana" gauge: correct answers in battle fill it (◆), and casting a
+ * spell spends its cost. Sized to the priciest spell (Ember's Breath, see
+ * `src/content/spells.ts`).
+ */
+export const CHARGE_MAX = 4;

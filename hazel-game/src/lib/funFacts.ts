@@ -34,6 +34,27 @@ export const FUN_FACTS: Record<Topic, string[]> = {
     'Mozart wrote his first symphony when he was 8 years old.',
     'A new shade of blue called YInMn was discovered by accident in 2009.',
   ],
+  nature: [
+    'Did you know? A hummingbird’s heart can beat over 1,200 times a minute.',
+    'Wombats make cube-shaped poop so it won’t roll away.',
+    'Some trees can “talk” to each other through underground fungus networks.',
+    'A snail can sleep for up to three years if the weather is too dry.',
+    'Sea otters hold hands while they sleep so they don’t drift apart.',
+  ],
+  space: [
+    'Did you know? A day on Venus is longer than a year on Venus.',
+    'There are more stars in the universe than grains of sand on every beach on Earth.',
+    'Saturn is so light it would float in a (very, very big) bathtub of water.',
+    'Footprints left on the Moon could last for millions of years — there’s no wind.',
+    'The Sun makes up about 99.8% of all the mass in our solar system.',
+  ],
+  history: [
+    'Did you know? The Great Pyramid is older to Cleopatra than Cleopatra is to us.',
+    'Oxford University is older than the Aztec Empire.',
+    'People in ancient Rome used crushed charcoal and salt as toothpaste.',
+    'The first alarm clocks could only ring at one set time — 4 a.m.',
+    'Ketchup was once sold in the 1830s as medicine.',
+  ],
 };
 
 /** Shown when the loading screen doesn’t know which topic is loading. */

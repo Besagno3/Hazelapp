@@ -1,4 +1,4 @@
-import type { LibraryEntry, SaveData, Topic, ZoneId } from '../types';
+import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
 import { HUB_ZONE, ZONES } from '../content/zones';
 import { LIBRARY_MAX } from '../content/items';
 
@@ -69,8 +69,8 @@ export function normalizeSave(raw: unknown): SaveData {
     coins: numberOr(r.coins, 0),
     items,
     badges: stringArray(r.badges),
-    sages: stringArray(r.sages) as Topic[],
-    sageEquipped: typeof r.sageEquipped === 'string' ? (r.sageEquipped as Topic) : null,
+    sages: stringArray(r.sages) as CrystalTopic[],
+    sageEquipped: typeof r.sageEquipped === 'string' ? (r.sageEquipped as CrystalTopic) : null,
     flags: typeof r.flags === 'object' && r.flags !== null ? (r.flags as Record<string, boolean>) : {},
     openedChests: stringArray(r.openedChests),
     kills: killCounts(r.kills),

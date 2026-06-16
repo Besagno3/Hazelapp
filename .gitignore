@@ -69,3 +69,7 @@ desktop.ini
 # ─── Claude Code ────────────────────────────────────────────
 # settings.json is shared (committed); settings.local.json is personal.
 .claude/settings.local.json
+
+# ─── Local tooling / temp ───────────────────────────────────
+.superpowers/
+hazel-game/supabase/.temp/

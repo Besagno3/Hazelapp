@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { SAGES } from '../../content/abilities';
+import { spellsKnown } from '../../content/spells';
 import { SHOP_CATALOG } from '../../content/items';
+import { GATE_KEYS } from '../../content/keys';
 import { avatarById } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
 import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
@@ -68,7 +69,14 @@ export default function MenuOverlay() {
         {save.badges.length > 0 && (
           <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
             <span className="font-bold mr-2">Badges:</span>
-            {save.badges.map((b) => SHOP_CATALOG.find((i) => i.id === b)?.emoji ?? '🏅').join(' ')}
+            {save.badges
+              .map(
+                (b) =>
+                  SHOP_CATALOG.find((i) => i.id === b)?.emoji ??
+                  GATE_KEYS.find((k) => k.id === b)?.emoji ??
+                  '🏅',
+              )
+              .join(' ')}
           </div>
         )}
 
@@ -103,37 +111,22 @@ export default function MenuOverlay() {
         )}
 
         <div className="bg-white/10 rounded-xl p-3 mb-3">
-          <div className="font-bold text-sm mb-2">✨ Specials</div>
-          {save.sages.length === 0 ? (
-            <p className="text-xs text-white/60">Find a Sage in the world to learn a Special Attack!</p>
-          ) : (
-            <div className="space-y-1.5">
-              {save.sages.map((topic) => {
-                const sage = SAGES[topic];
-                const equipped = save.sageEquipped === topic;
-                return (
-                  <div key={topic} className="flex items-center justify-between text-sm">
-                    <span>
-                      {sage.specialEmoji} {sage.specialName}
-                      <span className="text-white/50 text-xs"> · {sage.name}</span>
-                    </span>
-                    {equipped ? (
-                      <span className="text-xs text-emerald-300 font-bold">Equipped</span>
-                    ) : (
-                      <button
-                        onClick={() =>
-                          useSaveStore.getState().update((s) => ({ ...s, sageEquipped: topic }))
-                        }
-                        className="text-xs bg-white/15 hover:bg-white/25 rounded px-2 py-1"
-                      >
-                        Equip
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="font-bold text-sm mb-2">📖 Spellbook</div>
+          <p className="text-[11px] text-white/50 mb-2">
+            Cast any of these in battle by answering one super-hard question. Find Sages and
+            restore crystals to learn more!
+          </p>
+          <div className="space-y-1.5">
+            {spellsKnown(save).map((spell) => (
+              <div key={spell.id} className="flex items-center justify-between text-sm gap-2">
+                <span>
+                  <span className={spell.color}>{spell.emoji} {spell.name}</span>
+                  <span className="block text-[10px] text-white/50">{spell.description}</span>
+                </span>
+                <span className="text-xs text-amber-300 whitespace-nowrap">◆{spell.cost}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-2">

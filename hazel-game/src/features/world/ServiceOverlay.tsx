@@ -8,7 +8,7 @@ import { NPC_DEFS } from '../../content/npcs';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
-import type { LibraryEntry, ServiceType, Topic } from '../../types';
+import type { CrystalTopic, LibraryEntry, ServiceType } from '../../types';
 
 /**
  * Town services (#37): Shop (coins → potions/hints/badges), Inn (free full
@@ -194,16 +194,17 @@ function Library() {
 function Sage({ npcId }: { npcId: string | null }) {
   const save = useSaveStore((s) => s.save);
   const update = useSaveStore((s) => s.update);
-  const topic: Topic | undefined = npcId ? NPC_DEFS[npcId]?.topic : undefined;
+  // Sage NPCs always carry a crystal topic (the four main-quest topics).
+  const topic = (npcId ? NPC_DEFS[npcId]?.topic : undefined) as CrystalTopic | undefined;
   if (!save || !topic) return null;
   const sage = SAGES[topic];
   const known = save.sages.includes(topic);
-  const equipped = save.sageEquipped === topic;
 
   function learn() {
     update((s) => ({
       ...s,
       sages: s.sages.includes(topic!) ? s.sages : [...s.sages, topic!],
+      // Kept for older saves; the Spellbook reads `sages`, not the equipped slot.
       sageEquipped: s.sageEquipped ?? topic!,
     }));
     confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
@@ -216,11 +217,11 @@ function Sage({ npcId }: { npcId: string | null }) {
       {!known ? (
         <>
           <p className="text-sm text-white/80 mb-5">
-            "Prove your curiosity, and I will teach you{' '}
+            "Prove your curiosity, and I will add{' '}
             <span className={`font-bold ${sage.flashColor}`}>
               {sage.specialEmoji} {sage.specialName}
             </span>{' '}
-            — a Special Attack powered by tough questions!"
+            to your Spellbook — a mighty spell powered by tough questions!"
           </p>
           <button
             onClick={learn}
@@ -230,21 +231,11 @@ function Sage({ npcId }: { npcId: string | null }) {
           </button>
         </>
       ) : (
-        <>
-          <p className="text-sm text-emerald-300 mb-4">
-            You know {sage.specialEmoji} {sage.specialName}! Charge it in battle with 3 correct
-            answers, then answer one extra-hard question to unleash it.
-          </p>
-          {!equipped && (
-            <button
-              onClick={() => update((s) => ({ ...s, sageEquipped: topic! }))}
-              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-5 py-2 text-sm"
-            >
-              Equip {sage.specialName}
-            </button>
-          )}
-          {equipped && <p className="text-xs text-white/60">(Equipped)</p>}
-        </>
+        <p className="text-sm text-emerald-300 mb-4">
+          {sage.specialEmoji} {sage.specialName} is in your Spellbook! In battle, open
+          <span className="font-bold"> 📖 Spells</span>, spend your charge (◆), and answer one
+          super-hard question to cast it.
+        </p>
       )}
     </div>
   );

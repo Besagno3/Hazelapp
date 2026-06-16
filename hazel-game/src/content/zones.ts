@@ -13,7 +13,8 @@ import type { Topic, ZoneId } from '../types';
  *   '='  walkable path
  *   'S'  save crystal (solid; interact to save)
  *   'C'  treasure chest (solid; bump → question lock)
- *   'G'  gate (solid until its flag is set; bump → gatekeeper question)
+ *   'G'  gate (solid until its flag is set; bump → gatekeeper question, or a
+ *        warden's key check when the zone marks it as a `keyGate`, #58)
  *   'E'  zone exit (walkable; must have a matching entry in `exits`)
  *
  * zones.test.ts validates every invariant (row lengths, legend chars, exits,
@@ -60,6 +61,17 @@ export interface ZoneDef {
   npcs: NpcPlacement[];
   enemies: EnemyPlacement[];
   exits: ZoneExit[];
+  /**
+   * The Spire entrance icon (#55) — only the Crystal Spire zone has one. Bump
+   * it to attempt the endgame climb (sealed until all crystals are restored).
+   */
+  spire?: { x: number; y: number };
+  /**
+   * A Fiend gate locked by a warden's key (#58) instead of a gatekeeper
+   * question. The `G` tile at this position checks `keyForZone(id)`: bump it
+   * with the key to open it, or get told which warden boss holds it.
+   */
+  keyGate?: { x: number; y: number };
 }
 
 export const HUB_ZONE: ZoneId = 'lumina-field';
@@ -69,7 +81,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'lumina-field',
     name: 'Lumina Field',
     map: [
-      '#########EE###########',
+      // Top edge: the village path (cols 2-3) and the Verdara gate (cols 9-10).
+      '##EE#####EE###########',
       '#....,....==....,....#',
       '#..S......==......,..#',
       '#.........==.........#',
@@ -98,6 +111,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [],
     exits: [
+      { x: 2, y: 0, to: 'lumina-village', spawnX: 10, spawnY: 1 },
+      { x: 3, y: 0, to: 'lumina-village', spawnX: 10, spawnY: 1 },
       { x: 9, y: 0, to: 'verdara', spawnX: 10, spawnY: 12 },
       { x: 10, y: 0, to: 'verdara', spawnX: 10, spawnY: 12 },
       { x: 0, y: 5, to: 'numbria', spawnX: 19, spawnY: 6 },
@@ -191,6 +206,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 9, y: 13, to: 'lumina-field', spawnX: 10, spawnY: 2 },
       { x: 10, y: 13, to: 'lumina-field', spawnX: 10, spawnY: 2 },
     ],
+    // The Smog Fiend's gate opens to the Thornroot Key (Whispering Woods, #58).
+    keyGate: { x: 10, y: 7 },
   },
 
   gearfall: {
@@ -233,6 +250,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 0, y: 6, to: 'lumina-field', spawnX: 19, spawnY: 5 },
       { x: 0, y: 7, to: 'lumina-field', spawnX: 19, spawnY: 5 },
     ],
+    // The Rust Fiend's gate opens to the Mainspring Key (Clockwork Depths, #58).
+    keyGate: { x: 10, y: 6 },
   },
 
   chromaria: {
@@ -275,6 +294,222 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 9, y: 0, to: 'lumina-field', spawnX: 10, spawnY: 11 },
       { x: 10, y: 0, to: 'lumina-field', spawnX: 10, spawnY: 11 },
     ],
+    // The Gray Fiend's gate opens to the Starlight Prism (Starfall Coast, #58).
+    keyGate: { x: 11, y: 7 },
+  },
+
+  // --- Expansion: the homeward regions (story zones, no topic) ----------------
+  // These are safe exploration screens reached through the village — no fiends,
+  // gates, or chests (those need a topic). They carry the expanded narrative.
+
+  'lumina-village': {
+    id: 'lumina-village',
+    name: 'Lumina Village',
+    map: [
+      '##########EE##########',
+      '#....,..........,....#',
+      '#..##..........##....#',
+      '#..##....,,....##....#',
+      '#....................#',
+      '#.S..................#',
+      'E....................E',
+      'E....................E',
+      '#.........,,.........#',
+      '#..##..........##....#',
+      '#..##..........##....#',
+      '#....,..........,....#',
+      '#.........,,.........#',
+      '##########EE##########',
+    ],
+    ground: [120, 160, 110],
+    path: [196, 178, 128],
+    solidEmoji: '🏡',
+    decoEmoji: '🌷',
+    spawn: { x: 10, y: 2 },
+    npcs: [
+      { defId: 'village-elder', x: 10, y: 3 },
+      { defId: 'village-friend', x: 6, y: 5 },
+      { defId: 'village-keeper', x: 14, y: 10 },
+    ],
+    enemies: [],
+    exits: [
+      { x: 10, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
+      { x: 11, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
+      { x: 0, y: 6, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
+      { x: 0, y: 7, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
+      { x: 21, y: 6, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
+      { x: 21, y: 7, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
+      { x: 10, y: 13, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
+      { x: 11, y: 13, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
+    ],
+  },
+
+  'whispering-woods': {
+    id: 'whispering-woods',
+    name: 'Whispering Woods',
+    topic: 'nature',
+    // A gated chest alcove (cols 1-7, behind the col-8 wall) holds the treasure;
+    // critters roam the open right half where the spawn and both exits live.
+    map: [
+      '######################',
+      '#..C....#............#',
+      '#.......#.........S..#',
+      '#...,...#....##......#',
+      '#.......#..,.........#',
+      '#..,....#............#',
+      '#.......G............E',
+      '#.......#............E',
+      '#.......#....,.......#',
+      '#.......#...##.......#',
+      '#.......#............#',
+      '#...,...#......,.....#',
+      '#.......#............#',
+      '##########EE##########',
+    ],
+    ground: [70, 110, 78],
+    path: [120, 150, 110],
+    solidEmoji: '🌲',
+    decoEmoji: '🍂',
+    spawn: { x: 20, y: 6 },
+    npcs: [
+      { defId: 'woods-hermit', x: 10, y: 2 },
+      { defId: 'woods-sprite', x: 15, y: 10 },
+      { defId: 'woods-warden-sign', x: 19, y: 5 },
+    ],
+    enemies: [
+      { defId: 'mossback-cub', x: 12, y: 4 },
+      { defId: 'thornhare', x: 15, y: 8 },
+      { defId: 'grumblebee', x: 12, y: 11 },
+      { defId: 'thicket-warden', x: 16, y: 4 },
+    ],
+    exits: [
+      { x: 21, y: 6, to: 'lumina-village', spawnX: 1, spawnY: 6 },
+      { x: 21, y: 7, to: 'lumina-village', spawnX: 1, spawnY: 6 },
+      { x: 10, y: 13, to: 'clockwork-depths', spawnX: 10, spawnY: 2 },
+      { x: 11, y: 13, to: 'clockwork-depths', spawnX: 10, spawnY: 2 },
+    ],
+  },
+
+  'starfall-coast': {
+    id: 'starfall-coast',
+    name: 'Starfall Coast',
+    topic: 'space',
+    // A gated tide-pool nook (cols 17-20, behind the col-16 wall) holds the
+    // chest; star-critters roam the open sand; the sea (water) fills the south.
+    map: [
+      '######################',
+      '#....,..........#.C..#',
+      '#...............#....#',
+      '#...##..........#....#',
+      '#.S.............G....#',
+      '#.....,.........#....#',
+      'E...............#....#',
+      'E...............#....#',
+      '#.........~~~~~~~~~~~#',
+      '#.......~~~~~~~~~~~~~#',
+      '#....~~~~~~~~~~~~~~~~#',
+      '#..~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~~~#',
+      '######################',
+    ],
+    ground: [210, 195, 140],
+    path: [225, 210, 160],
+    solidEmoji: '🪨',
+    decoEmoji: '🐚',
+    spawn: { x: 1, y: 6 },
+    npcs: [
+      { defId: 'coast-fisher', x: 5, y: 8 },
+      { defId: 'coast-stargazer', x: 15, y: 3 },
+      { defId: 'coast-warden-sign', x: 4, y: 6 },
+    ],
+    enemies: [
+      { defId: 'tide-sprite', x: 8, y: 2 },
+      { defId: 'meteor-mite', x: 11, y: 5 },
+      { defId: 'moon-moth', x: 5, y: 7 },
+      { defId: 'tide-colossus', x: 12, y: 3 },
+    ],
+    exits: [
+      { x: 0, y: 6, to: 'lumina-village', spawnX: 20, spawnY: 6 },
+      { x: 0, y: 7, to: 'lumina-village', spawnX: 20, spawnY: 6 },
+    ],
+  },
+
+  'clockwork-depths': {
+    id: 'clockwork-depths',
+    name: 'Clockwork Depths',
+    topic: 'history',
+    // A gated vault (the bottom half, behind the row-8 wall) holds the chest;
+    // old-machine critters wind through the open upper galleries.
+    map: [
+      '##########EE##########',
+      '#....................#',
+      '#..##..........##....#',
+      '#..##..........##....#',
+      '#.S..................#',
+      '#....,..........,....#',
+      '#....................#',
+      '#.........,,.........#',
+      '##########G###########',
+      '#..##..........##....#',
+      '#..##..........##....#',
+      '#....,....C.....,....#',
+      '#....................#',
+      '######################',
+    ],
+    ground: [90, 84, 110],
+    path: [130, 120, 150],
+    solidEmoji: '⛰️',
+    decoEmoji: '⚙️',
+    spawn: { x: 10, y: 2 },
+    npcs: [
+      { defId: 'depths-tinker', x: 8, y: 7 },
+      { defId: 'depths-echo', x: 14, y: 5 },
+      { defId: 'depths-warden-sign', x: 10, y: 3 },
+    ],
+    enemies: [
+      { defId: 'cog-sprite', x: 6, y: 5 },
+      { defId: 'hourglass-imp', x: 14, y: 6 },
+      { defId: 'relic-golem', x: 8, y: 2 },
+      { defId: 'clockwork-titan', x: 10, y: 5 },
+    ],
+    exits: [
+      { x: 10, y: 0, to: 'whispering-woods', spawnX: 10, spawnY: 11 },
+      { x: 11, y: 0, to: 'whispering-woods', spawnX: 10, spawnY: 11 },
+    ],
+  },
+
+  'crystal-spire': {
+    id: 'crystal-spire',
+    name: 'The Crystal Spire',
+    map: [
+      '##########EE##########',
+      '#....................#',
+      '#........,..,........#',
+      '#..................,.#',
+      '#.S..................#',
+      '#......##....##......#',
+      '#......#......#......#',
+      '#......#......#......#',
+      '#......##....##......#',
+      '#....................#',
+      '#.........,,.........#',
+      '#....................#',
+      '#....,..........,....#',
+      '######################',
+    ],
+    ground: [120, 110, 180],
+    path: [180, 170, 220],
+    solidEmoji: '🏛️',
+    decoEmoji: '✨',
+    spawn: { x: 10, y: 2 },
+    npcs: [{ defId: 'spire-keeper', x: 16, y: 6 }],
+    enemies: [],
+    exits: [
+      { x: 10, y: 0, to: 'lumina-village', spawnX: 8, spawnY: 12 },
+      { x: 11, y: 0, to: 'lumina-village', spawnX: 8, spawnY: 12 },
+    ],
+    // The Spire itself stands in the central shrine — the endgame entrance.
+    spire: { x: 10, y: 6 },
   },
 };
 

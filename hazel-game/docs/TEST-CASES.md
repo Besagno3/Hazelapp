@@ -202,6 +202,31 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-179 | C | ✅ | LevelBadge | `placement="top-center"` positions the medallion centered (battle screen); default is top-left |
 | TC-180 | U | ⬜ | profileStore | `loadProfile` with no `profiles` row sets a working fallback profile (birth date from auth metadata) and upserts it, so XP accrues |
 | TC-181 | M | ⬜ | App | sign-out button hidden on the battle screen; level medallion centered top in battle |
+| TC-182 | U | ✅ | zones | every zone is reachable from the hub by walking exits (BFS) — no stranded screens (#50) |
+| TC-183 | U | ✅ | zones | every exit has a return exit — no one-way traps (#50) |
+| TC-184 | U | ✅ | spells | a fresh hero knows only Mend; meeting a Sage adds that topic's signature spell (#51) |
+| TC-185 | U | ✅ | spells | Aegis unlocks at the first crystal; Ember's Breath only when Ember is full-grown (4 crystals, hatched) (#51) |
+| TC-186 | U | ✅ | spells | every known spell costs ≤ `CHARGE_MAX` and the spell question is super-hard (`SPELL_LEVEL_BONUS` ≥ 2) (#51) |
+| TC-187 | U | ✅ | story | every topic has a crystal-restored cutscene; the Spire-awakens scene is present (#50) |
+| TC-188 | M | ⬜ | BattleArena | 📖 Spells opens the Spellbook; picking a spell asks one super-hard question; correct casts the effect (damage/heal/shield), a miss fizzles and refunds charge (#51) |
+| TC-189 | M | ⬜ | WorldScreen | beating a Fiend plays that topic's crystal cutscene; the first crystal also triggers the Spire-awakens scene; both play once (#50) |
+| TC-190 | M | ⬜ | World | the five expansion zones (Village, Woods, Coast, Depths, Spire) are walkable from the hub via the village and back again (#50) |
+| TC-191 | U | ✅ | topics | the four crystal topics carry crystal/fiend/zone fields; nature/space/history are styling-only; `topicInfo` resolves all seven (#55) |
+| TC-192 | U | ✅ | topics | `TOPICS` = the four crystal topics; `crystalInfo` returns their crystal fields (#55) |
+| TC-193 | U | ✅ | spire | Spire floors escalate (non-decreasing level) and end in exactly one boss floor — the hardest (#55) |
+| TC-194 | U | ✅ | spire | every Spire floor draws from real question topics; intro/lives/reward present (#55) |
+| TC-195 | U | ✅ | story | each crystal scene ends on a 🌑 villain-omen panel; the finale (`spireVictoryPanels`) names the hero (#55) |
+| TC-196 | U | ✅ | zones | the three themed zones carry a topic + enemies + a gate + a chest; invariants still hold (covered by zones.test, #55) |
+| TC-197 | M | ⬜ | SpireOverlay | the Spire icon is sealed under 4 crystals; with all four it opens the climb; clearing it plays the true finale, losing returns to the hub healed (#55) |
+| TC-198 | M | ⬜ | World | nature/space/history gates/chests/battles ask themed questions once the edge function is redeployed (#57) |
+| TC-199 | U | ✅ | keys | each warden key maps to a real boss placed in its themed zone and a crystal zone whose keyGate sits on a `G` tile (#58) |
+| TC-200 | U | ✅ | keys | keyForBoss/keyForZone round-trip; Numbria has no keyGate; exactly 3 of 4 Fiends are key-gated (#58) |
+| TC-201 | U | ✅ | keys | bossDefeated keys Fiends off the crystal flag and wardens off the key flag (#58) |
+| TC-202 | M | ⬜ | World | bumping a key-gated Fiend gate without the key names the warden; beating the warden then opens it; the warden stays gone afterward (#58) |
+| TC-203 | M | ⬜ | BattleArena | beating a warden shows the key reward (not a crystal), adds a trophy badge, and grants boss XP (#58) |
+| TC-204 | U | ✅ | keys | each key is themed to its destination crystal zone (`<zone>-key`), and the warden's home zone topic differs from the destination's (#59) |
+| TC-205 | U | ✅ | keys | each warden home zone places exactly one `*-warden-sign` signpost NPC (#59) |
+| TC-206 | M | ⬜ | World | the warden signpost warns before the fight, then flips to a "you won it" line once the key is held (#59) |
 
 ## Regression cases (tied to ISSUES.md)
 

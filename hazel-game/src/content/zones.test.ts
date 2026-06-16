@@ -101,4 +101,30 @@ describe('zone maps', () => {
     const targets = new Set(hub.exits.map((e) => e.to));
     for (const t of TOPIC_REGISTRY) expect(targets.has(t.zoneId), `hub → ${t.zoneId}`).toBe(true);
   });
+
+  it('every zone is reachable from the hub by walking exits', () => {
+    const seen = new Set<string>([HUB_ZONE]);
+    const queue: string[] = [HUB_ZONE];
+    while (queue.length) {
+      const id = queue.shift()!;
+      for (const exit of ZONES[id as keyof typeof ZONES].exits) {
+        if (!seen.has(exit.to)) {
+          seen.add(exit.to);
+          queue.push(exit.to);
+        }
+      }
+    }
+    for (const id of Object.keys(ZONES)) {
+      expect(seen.has(id), `${id} unreachable from hub`).toBe(true);
+    }
+  });
+
+  it('every exit can be walked back (zones are not one-way traps)', () => {
+    for (const z of allZones) {
+      for (const exit of z.exits) {
+        const back = ZONES[exit.to].exits.some((e) => e.to === z.id);
+        expect(back, `${z.id} → ${exit.to} has no return exit`).toBe(true);
+      }
+    }
+  });
 });

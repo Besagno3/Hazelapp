@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import kaplay from 'kaplay';
 import type { MutableRefObject } from 'react';
 import { TILE, WALKABLE_CHARS, pathTargetId, gateFlag, zone } from '../../content/zones';
+import { bossDefeated } from '../../content/keys';
 import { NPC_DEFS } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
@@ -43,6 +44,8 @@ export interface WorldCanvasCallbacks {
   onExit: (to: ZoneId, spawnX: number, spawnY: number) => void;
   onSaveCrystal: () => void;
   onMove: (x: number, y: number) => void;
+  /** Bumped the Spire entrance icon (Crystal Spire zone only, #55). */
+  onSpire: () => void;
 }
 
 /**
@@ -246,11 +249,34 @@ export default function WorldCanvas({
     interface Actor {
       x: number;
       y: number;
-      kind: 'npc' | 'enemy';
+      kind: 'npc' | 'enemy' | 'spire';
       npcId?: string;
       enemy?: BattleEnemy;
     }
     const actors: Actor[] = [];
+
+    // The Spire entrance icon (#55) — a tall glowing tower; bump it to climb.
+    if (z.spire) {
+      const px = z.spire.x * TILE + TILE / 2;
+      const py = z.spire.y * TILE + TILE / 2;
+      const tower = k.add([
+        k.text('🗼', { size: 40 }),
+        k.pos(px, py - 6),
+        k.anchor('center'),
+        k.z(7),
+      ]);
+      tower.onUpdate(() => {
+        if (pausedRef.current) return;
+        (tower as unknown as { pos: { y: number } }).pos.y = py - 6 + Math.sin(k.time() * 2) * 2;
+      });
+      k.add([
+        k.text('The Spire', { size: 10 }),
+        k.pos(px, py + 22),
+        k.anchor('center'),
+        k.color(255, 240, 200),
+      ]);
+      actors.push({ x: px, y: py, kind: 'spire' });
+    }
 
     for (const p of z.npcs) {
       const def = NPC_DEFS[p.defId];
@@ -277,9 +303,9 @@ export default function WorldCanvas({
 
     for (const p of z.enemies) {
       const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age);
-      // Bosses stay gone once their crystal is restored; regular enemies
-      // stay gone for the session once beaten (they respawn next visit).
-      if (enemy.isBoss && flagsRef.current[`crystal-${enemy.topic}-restored`]) continue;
+      // Bosses stay gone once beaten (crystal restored / warden's key held);
+      // regular enemies stay gone for the session (they respawn next visit).
+      if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, flagsRef.current)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       const px = p.x * TILE + TILE / 2;
       const py = p.y * TILE + TILE / 2;
@@ -459,7 +485,9 @@ export default function WorldCanvas({
         if (bumped.ch === 'G') {
           const id = pathTargetId(zoneId, 'gate', bumped.x, bumped.y);
           cooldown = TRIGGER_COOLDOWN;
-          cbRef.current.onPath({ kind: 'gate', id, topic: z.topic ?? 'math', zoneId });
+          // A warden-keyed Fiend gate checks a key instead of asking a question (#58).
+          const keyed = z.keyGate && z.keyGate.x === bumped.x && z.keyGate.y === bumped.y;
+          cbRef.current.onPath({ kind: keyed ? 'keygate' : 'gate', id, topic: z.topic ?? 'math', zoneId });
         } else if (bumped.ch === 'C') {
           const id = pathTargetId(zoneId, 'chest', bumped.x, bumped.y);
           if (!chestsRef.current.includes(id)) {
@@ -486,6 +514,12 @@ export default function WorldCanvas({
               cooldown = TRIGGER_COOLDOWN;
               cbRef.current.onMove(player.pos.x, player.pos.y);
               cbRef.current.onTalk(a.npcId);
+            } else if (a.kind === 'spire') {
+              player.pos.x -= dx * 10;
+              player.pos.y -= dy * 10;
+              cooldown = TRIGGER_COOLDOWN;
+              cbRef.current.onMove(player.pos.x, player.pos.y);
+              cbRef.current.onSpire();
             } else if (a.kind === 'enemy' && a.enemy) {
               triggered = true;
               cbRef.current.onMove(player.pos.x - dx * 14, player.pos.y - dy * 14);

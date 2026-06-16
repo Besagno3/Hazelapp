@@ -56,6 +56,16 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #47 | 🟢 | High   | XP gauge never moved / no level medallion — a missing `profiles` row left `profile` null so `addXp` silently dropped all XP. `loadProfile` now self-heals: falls back to a working local profile and best-effort upserts the row (`profileStore.ts`). `LevelBadge` shows Lv 1 / 0 XP instead of nothing. |
 | #48 | 🟢 | Low    | Sign-out button (top-right) overlapped the battle hero panel; hidden in battle. Level medallion moved to top-center in battle to clear the combatant panels (`App.tsx`, `LevelBadge.tsx`). |
 | #49 | 🔴 | Med    | Sprite system review backlog — bugs/gaps/edge cases to fix (mostly when art lands). See `docs/SPRITE-REVIEW-FINDINGS.md`. |
+| #50 | 🟢 | Med    | World expansion: 5 → 10 zones + story doubled (new-zone NPCs, per-crystal + Spire cutscenes, longer intro/ending) |
+| #51 | 🟢 | Med    | Spellbook battle system — cast any learned spell by answering a super-hard question (replaces single equipped Special) |
+| #52 | 🔴 | Low    | The new zones are story/exploration only (no enemies/gates/chests — those need a topic). Consider giving them light optional content (Ember snack micro-quests, secret save spots) later. |
+| #53 | 🔴 | Low    | Spellbook unlocks are derived from the save (sages/crystals/Ember stage); `sageEquipped` is now vestigial. Drop it on the next save-schema bump. |
+| #54 | 🟢 | Low    | Edge-function persona prompt has no entry for the new zones — RESOLVED by #55 (nature/space/history personas added). |
+| #55 | 🟢 | High   | Themed topics for the new zones (nature/space/history) + the Crystal Spire endgame climb + the hidden villain (Umbra) story arc |
+| #56 | 🔴 | Low    | The Spire is replayable after clearing (bump the icon again to climb). Intentional for now (endless practice); could add a "champion" variant or a cleared-state greeting later. |
+| #57 | 🔴 | High   | ⚠️ Deploy: redeploy `generate-questions` so nature/space/history questions generate — the function whitelists topics, so the new zones' gates/chests/battles 400 until it ships. |
+| #58 | 🟢 | High   | Warden bosses in the 3 themed zones drop keys that gate-unlock 3 of the 4 Fiends (Numbria stays open). Reward: key + trophy badge + boss XP. |
+| #59 | 🟢 | Low    | Warden bosses sit in the open roaming area. Added a signpost NPC near each warden that warns of it and points the reward home; keys retheme to their destination crystal zone (Verdant/Prism/Gearwright). |
 
 ---
 
@@ -449,3 +459,90 @@ shown instead of "non-2xx status code"). Wired into `fetchQuestions`,
 wraps the app — uncaught render errors show the real message (+ stack in dev)
 instead of a blank screen. The edge function's catch-all always returns a
 `detail` now.
+
+### #50 — World + story expansion 🟢 Med — RESOLVED (2026-06-15)
+The world grew from 5 zones to 10 and the narrative roughly doubled.
+- **5 new zones** (`content/zones.ts`), all topic-less story/exploration
+  screens (no enemies/gates/chests — those need a topic), reached through a
+  new **Lumina Village** crossroads: Village ↔ Whispering Woods ↔ Clockwork
+  Depths, Village ↔ Starfall Coast, Village ↔ The Crystal Spire. The hub gains
+  ONE new exit (top edge, cols 2-3) to the Village; everything else branches
+  off zones I authored fresh, so the change to existing maps is minimal. All
+  maps stay 22×14 (the shared KaPlay canvas is sized once from the first zone).
+- **11 new NPCs** (`content/npcs.ts`) with multi-line, flag-reactive dialogue.
+- **New cutscenes** (`content/story.ts`): a per-Fiend `CRYSTAL_PANELS`
+  (plays when each crystal is restored), `SPIRE_PANELS` (the Spire wakes after
+  the first crystal), a longer `INTRO_PANELS` (village + Spire setup) and
+  `endingPanels` (Spire convergence + village/coast callbacks). `WorldScreen`
+  picks exactly one due cutscene per render: intro → hatch → crystal → spire →
+  ending. New flags: `crystal-<topic>-scene-seen`, `spire-awake-seen`.
+- New zone-graph tests (reachable-from-hub BFS + no one-way traps) guard the
+  topology. See #52 for the (intentional) lack of combat in the new zones.
+
+### #51 — Spellbook (cast-any-spell) battle system 🟢 Med — RESOLVED (2026-06-15)
+The single equipped-Sage "Special" became a **Spellbook**: the hero learns a
+growing set of spells and casts ANY of them in battle by answering one
+*super-hard* question (`SPELL_LEVEL_BONUS = 3` levels above the enemy).
+- `content/spells.ts`: a `Spell` type (`damage` / `heal` / `shield` effects),
+  a charge (◆) cost per spell, and `spellsKnown(save)` — derived from the save
+  (always Mend; each met Sage's signature strike; Aegis at the first crystal;
+  Ember's Breath when Ember is full-grown). No new save field, so older saves
+  light up automatically.
+- `BattleArena`: the **Spells** command opens a spell-select menu; choosing a
+  spell asks one super-hard question (pool warmed at `level + SPELL_LEVEL_BONUS`).
+  Correct → effect + spend charge; a miss fizzles and **refunds the charge**.
+  `CHARGE_MAX` raised 3 → 4 to fit Ember's Breath. `lib/battleMath.spellDamage`
+  scales basic attack by the spell's multiplier.
+- `MenuOverlay` shows the Spellbook (read-only); the Sage service copy now
+  says "added to your Spellbook" and drops the vestigial Equip button.
+- `sageEquipped` is kept for save compatibility but no longer read for casting
+  (see #53).
+
+### #55 — Themed zones + Spire endgame + villain 🟢 High — RESOLVED (2026-06-15)
+The expansion zones got question topics, and the world got a true finale.
+- **Topic decoupling:** `Topic` splits into `CrystalTopic` (math/science/
+  engineering/creativity — crystal/Fiend/Sage/ending logic) and the wider
+  `Topic` (+nature/space/history). `topics.ts`: `TOPIC_REGISTRY` (crystal four,
+  with crystal fields) + `EXTRA_TOPICS` (styling-only); `topicInfo` resolves
+  all seven, `crystalInfo` the four. `SAGES`/`BOSS_LINES`/`CRYSTAL_PANELS` and
+  `save.sages`/`sageEquipped` are `CrystalTopic`-typed (normalizeSave casts;
+  older saves unaffected — no DB migration, saves are JSONB).
+- **Themed combat zones:** Whispering Woods (nature), Starfall Coast (space),
+  Clockwork Depths (history) each got `topic` + 3 roaming critters + a gate +
+  a riddle-chest, laid out so the gate/chest is an optional alcove and the
+  spawn + exits stay reachable (zones.test enforces this). New fun-facts +
+  edge-function personas for the three topics.
+- **The Crystal Spire:** `ZoneDef.spire` marks an icon (rendered + bump-handled
+  in `WorldCanvas`, new `onSpire` callback). Bumping opens `SpireOverlay`,
+  sealed until 4 crystals. The climb (`content/spire.ts`): escalating floors
+  (level + rotating topics), candle-lights (`SPIRE_LIVES`) for wrong answers,
+  and a final boss — Umbra. Clear → `SPIRE_CLEARED` (+XP, healed); lose → cast
+  back to the hub, healed. New machine substate `world.spire` (`OPEN_SPIRE`).
+- **Villain arc:** crystal cutscenes end on 🌑 omen panels revealing Umbra; the
+  four-crystal `endingPanels` became the call to climb; `spireVictoryPanels`
+  is the post-boss true finale. Flags `spire-cleared` / `spire-victory-seen`.
+- Tuning lives in `content/spire.ts` (floors, lives, XP); 8 new tests
+  (topics decoupling, Spire floors, villain arc). See #57 (deploy) and #56.
+
+### #58 — Warden bosses + gate keys 🟢 High — RESOLVED (2026-06-15)
+The 3 themed zones became prerequisites for 3 of the 4 crystals.
+- **Wardens:** one boss per themed zone (`enemies.ts`, `levelOffset +1`, same
+  band as the Fiends) — Thicket Warden, Tide Colossus, Clockwork Titan.
+- **Keys (`content/keys.ts`):** beating a warden sets `keyFlag(id)` and adds the
+  key to `save.badges`. `GATE_KEYS` maps boss→key→Fiend gate (woods→verdara,
+  depths→gearfall, coast→chromaria); `keyForBoss`/`keyForZone`/`bossDefeated`.
+- **Gating:** the crystal zone's Fiend gate is marked `ZoneDef.keyGate`;
+  `WorldCanvas` routes a bump there to `PathTarget.kind:'keygate'` →
+  `KeyGateOverlay` (opens with the key, or names the warden to beat). The gate
+  uses the same `gateFlag` so existing passability logic is unchanged. Numbria's
+  Fiend stays a question gate (the guaranteed first crystal — no soft-lock since
+  themed zones are reachable from the start via the village).
+- **BattleArena:** boss intro + victory branch on `keyForBoss(enemy.id)` —
+  wardens grant the key (not a crystal) with their own dialogue.
+- **Despawn:** `bossDefeated()` unifies "boss stays gone" for both Fiends
+  (crystal flag) and wardens (key flag), used by the canvas + world prefetch.
+- 4 new tests (`keys.test.ts`). Follow-up #59 done: keys retheme to their
+  **destination** crystal zone (Verdant/Gearwright/Prism — a warden's home zone
+  has no crystal, so it never brands the key), and a signpost NPC
+  (`*-warden-sign`) near each warden warns the player and flips to a "you won
+  it" line once the key flag is set.
