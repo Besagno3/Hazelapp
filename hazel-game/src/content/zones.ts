@@ -374,6 +374,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [
       { defId: 'woods-hermit', x: 10, y: 2 },
       { defId: 'woods-sprite', x: 15, y: 10 },
+      { defId: 'woods-warden-sign', x: 19, y: 5 },
     ],
     enemies: [
       { defId: 'mossback-cub', x: 12, y: 4 },
@@ -419,6 +420,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [
       { defId: 'coast-fisher', x: 5, y: 8 },
       { defId: 'coast-stargazer', x: 15, y: 3 },
+      { defId: 'coast-warden-sign', x: 4, y: 6 },
     ],
     enemies: [
       { defId: 'tide-sprite', x: 8, y: 2 },
@@ -462,6 +464,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [
       { defId: 'depths-tinker', x: 8, y: 7 },
       { defId: 'depths-echo', x: 14, y: 5 },
+      { defId: 'depths-warden-sign', x: 10, y: 3 },
     ],
     enemies: [
       { defId: 'cog-sprite', x: 6, y: 5 },

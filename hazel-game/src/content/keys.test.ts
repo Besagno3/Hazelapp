@@ -28,6 +28,22 @@ describe('warden keys (#58)', () => {
     }
   });
 
+  it('keys are themed to their destination crystal zone, not the keyless warden zone (#59)', () => {
+    for (const k of GATE_KEYS) {
+      // The key id belongs to the zone it opens (which awards a crystal)…
+      expect(k.id, `${k.id} keyed to destination`).toBe(`${k.unlocksZone}-key`);
+      // …and never to the warden's home zone, which has no crystal of its own.
+      expect(ZONES[k.fromZone].topic).not.toBe(ZONES[k.unlocksZone].topic);
+    }
+  });
+
+  it('each warden has a signpost NPC placed in its home zone (#59)', () => {
+    for (const k of GATE_KEYS) {
+      const signs = ZONES[k.fromZone].npcs.filter((n) => n.defId.endsWith('-warden-sign'));
+      expect(signs, `${k.fromZone} warden signpost`).toHaveLength(1);
+    }
+  });
+
   it('keyForBoss / keyForZone round-trip, and Numbria stays open (no key)', () => {
     for (const k of GATE_KEYS) {
       expect(keyForBoss(k.bossId)?.id).toBe(k.id);

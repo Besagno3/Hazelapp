@@ -20,8 +20,9 @@ the world and burns the fog away for good.
 The world is **10 zones**: the Lumina Field hub, the four topic regions, and
 five quieter **story zones** reached through the hero's home, **Lumina
 Village** (Whispering Woods → Clockwork Depths, Starfall Coast, and the Crystal
-Spire). The story zones have no Fiends — they carry the narrative, hold save
-crystals, and let the world breathe between battles.
+Spire). The themed story zones have no Fiends of their own, but each holds a
+**warden boss** guarding a gate key (#58) — they carry the narrative, hold save
+crystals, and let the world breathe between Fiend battles.
 
 ## 2. Tone & voice rules
 
@@ -83,17 +84,21 @@ the Crystal Spire holds the endgame:
 | Zone | Topic | Warden boss → unlocks | Cast |
 |---|---|---|---|
 | Lumina Village (home) | — (safe) | — | Grandmother Wick 👵 (gran, dragon lore), Bramble 🧑 (childhood friend, burns the bread), Lantern-Keeper Sol 🧓 (lanterns brighten per crystal) |
-| Whispering Woods | 🦋 Nature & Animals | Thicket Warden 🦌 → Verdara | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook), Wisp 🧚 (made of unanswered questions) |
-| Starfall Coast | 🪐 Space | Tide Colossus 🐳 → Chromaria | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name) |
-| Clockwork Depths | ⏳ Time & History | Clockwork Titan 🦾 → Gearfall | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times) |
+| Whispering Woods | 🦋 Nature & Animals | Thicket Warden 🦌 → Verdant Key (Verdara) | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook), Wisp 🧚 (made of unanswered questions), Old Bracken 🦡 (warns of the Warden) |
+| Starfall Coast | 🪐 Space | Tide Colossus 🐳 → Prism Key (Chromaria) | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name), Castaway Pell 🦭 (warns of the Colossus) |
+| Clockwork Depths | ⏳ Time & History | Clockwork Titan 🦾 → Gearwright Key (Gearfall) | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times), Ratchet the Wind-Up 🔧 (warns of the Titan) |
 | The Crystal Spire | endgame climb | — | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals) + the Spire icon 🗼 |
 
-**Warden keys (#58):** each themed zone's **warden boss** drops a **key** that
-opens one Fiend's gate (Woods→Verdara, Coast→Chromaria, Depths→Gearfall). So
-three of the four Fiends are locked behind a themed-zone challenge; **Math/
-Numbria stays open** as the guaranteed first crystal. Bump a keyed Fiend gate
-without the key and it names the warden to beat; with the key it grinds open.
-Beating a warden gives the key + a trophy badge + boss XP.
+**Warden keys (#58):** each themed zone's **warden boss** drops a **key**, and
+each key is **named for the crystal zone it unlocks** (its destination — the
+zone that actually awards a crystal), never the keyless warden zone: Woods→
+Verdant Key (opens Verdara), Coast→Prism Key (opens Chromaria), Depths→
+Gearwright Key (opens Gearfall). So three of the four Fiends are locked behind a
+themed-zone challenge; **Math/Numbria stays open** as the guaranteed first
+crystal. Bump a keyed Fiend gate without the key and it names the warden to
+beat; with the key it grinds open. Beating a warden gives the key + a trophy
+badge + boss XP, and a **signpost NPC** near each warden warns the player first
+(#59).
 
 **The hidden villain (#55):** **Umbra, the Forgotten One** — what was left when
 the world chose to forget it. The four Fiends were only its hands. It is

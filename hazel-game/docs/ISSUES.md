@@ -65,7 +65,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #56 | 🔴 | Low    | The Spire is replayable after clearing (bump the icon again to climb). Intentional for now (endless practice); could add a "champion" variant or a cleared-state greeting later. |
 | #57 | 🔴 | High   | ⚠️ Deploy: redeploy `generate-questions` so nature/space/history questions generate — the function whitelists topics, so the new zones' gates/chests/battles 400 until it ships. |
 | #58 | 🟢 | High   | Warden bosses in the 3 themed zones drop keys that gate-unlock 3 of the 4 Fiends (Numbria stays open). Reward: key + trophy badge + boss XP. |
-| #59 | 🔴 | Low    | Warden bosses sit in the open roaming area — a new player can bump a `+1` boss before grinding. Intentional (optional order; Numbria is the safe start), but a "this one looks tough" warning NPC near each warden could help. |
+| #59 | 🟢 | Low    | Warden bosses sit in the open roaming area. Added a signpost NPC near each warden that warns of it and points the reward home; keys retheme to their destination crystal zone (Verdant/Prism/Gearwright). |
 
 ---
 
@@ -541,4 +541,8 @@ The 3 themed zones became prerequisites for 3 of the 4 crystals.
   wardens grant the key (not a crystal) with their own dialogue.
 - **Despawn:** `bossDefeated()` unifies "boss stays gone" for both Fiends
   (crystal flag) and wardens (key flag), used by the canvas + world prefetch.
-- 4 new tests (`keys.test.ts`). Follow-up: #59 (open-area boss placement).
+- 4 new tests (`keys.test.ts`). Follow-up #59 done: keys retheme to their
+  **destination** crystal zone (Verdant/Gearwright/Prism — a warden's home zone
+  has no crystal, so it never brands the key), and a signpost NPC
+  (`*-warden-sign`) near each warden warns the player and flips to a "you won
+  it" line once the key flag is set.

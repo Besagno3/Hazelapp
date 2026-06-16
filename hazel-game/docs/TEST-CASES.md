@@ -224,6 +224,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-201 | U | ✅ | keys | bossDefeated keys Fiends off the crystal flag and wardens off the key flag (#58) |
 | TC-202 | M | ⬜ | World | bumping a key-gated Fiend gate without the key names the warden; beating the warden then opens it; the warden stays gone afterward (#58) |
 | TC-203 | M | ⬜ | BattleArena | beating a warden shows the key reward (not a crystal), adds a trophy badge, and grants boss XP (#58) |
+| TC-204 | U | ✅ | keys | each key is themed to its destination crystal zone (`<zone>-key`), and the warden's home zone topic differs from the destination's (#59) |
+| TC-205 | U | ✅ | keys | each warden home zone places exactly one `*-warden-sign` signpost NPC (#59) |
+| TC-206 | M | ⬜ | World | the warden signpost warns before the fight, then flips to a "you won it" line once the key is held (#59) |
 
 ## Regression cases (tied to ISSUES.md)
 

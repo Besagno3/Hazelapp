@@ -171,6 +171,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-16 — Warden signposts + keys themed to their destination (#59)
+Follow-up to #58. Keys are now named for the **crystal zone they unlock** (the
+destination that awards a crystal), not the warden's keyless home zone:
+Verdant Key→Verdara, Gearwright Key→Gearfall, Prism Key→Chromaria (ids +
+dialogue updated in `keys.ts`). Added a signpost NPC beside each warden
+(`*-warden-sign` in `npcs.ts`, placed in `zones.ts`) that warns of the boss and
+points the reward home, flipping to a congratulations line once the key flag is
+set. No mechanic change — `keyForBoss`/`keyForZone`/`bossDefeated` untouched.
+
 ### 2026-06-15 — Warden bosses + gate keys gate the Fiends (#58)
 The three themed zones became real prerequisites for the crystals.
 - **Warden bosses:** each themed zone now holds a boss (`enemies.ts`) — the

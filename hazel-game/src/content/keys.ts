@@ -11,8 +11,10 @@ import { crystalFlag } from './topics';
  * `save.badges` as a trophy. The crystal zone's Fiend gate (`ZoneDef.keyGate`)
  * checks the key instead of asking a gatekeeper question.
  *
- * Thematic pairing: woods→Nature crystal, clockwork→Gears crystal,
- * starfall→Wonder crystal.
+ * Each key is named for the **crystal zone it unlocks** (its destination, which
+ * is the zone that awards the crystal) — not the warden's home zone, which has
+ * no crystal of its own: woods warden→Verdant Key (Verdara), clockwork
+ * warden→Gearwright Key (Gearfall), starfall warden→Prism Key (Chromaria).
  */
 export interface GateKey {
   id: string;
@@ -37,8 +39,8 @@ export interface GateKey {
 
 export const GATE_KEYS: GateKey[] = [
   {
-    id: 'thornroot-key',
-    name: 'Thornroot Key',
+    id: 'verdara-key',
+    name: 'Verdant Key',
     emoji: '🌿',
     bossId: 'thicket-warden',
     bossName: 'The Thicket Warden',
@@ -46,37 +48,37 @@ export const GATE_KEYS: GateKey[] = [
       'A wall of living bramble heaves itself upright. The Thicket Warden has guarded this grove since before the fog.',
       '"You smell of crystals, little one. The road to Verdara is MINE to give. Answer my thorns — or turn back."',
     ],
-    bossDefeat: '"Heh… roots that bend… do not break. The grove is yours. Take the key, and go free my cousin from the smog."',
+    bossDefeat: '"Heh… roots that bend… do not break. Take the Verdant Key, and go free Verdara from the smog."',
     fromZone: 'whispering-woods',
     unlocksZone: 'verdara',
     fiendName: 'the Smog Fiend',
   },
   {
-    id: 'mainspring-key',
-    name: 'Mainspring Key',
-    emoji: '🔑',
+    id: 'gearfall-key',
+    name: 'Gearwright Key',
+    emoji: '⚙️',
     bossId: 'clockwork-titan',
     bossName: 'The Clockwork Titan',
     bossIntro: [
       'Gears the size of windmills grind awake. The Clockwork Titan was wound up long ago and never told to stop.',
-      '"DEFINITION: intruder. The mainspring to Gearfall stays locked until you prove your cogs turn true. Compute, child."',
+      '"DEFINITION: intruder. The way to Gearfall stays locked until you prove your cogs turn true. Compute, child."',
     ],
-    bossDefeat: '"Re…calculating… you were the missing piece all along. Mainspring released. Wind the Rust Fiend down for me."',
+    bossDefeat: '"Re…calculating… you were the missing piece all along. Take the Gearwright Key and wind the Rust Fiend down for me."',
     fromZone: 'clockwork-depths',
     unlocksZone: 'gearfall',
     fiendName: 'the Rust Fiend',
   },
   {
-    id: 'starlight-prism',
-    name: 'Starlight Prism',
-    emoji: '🌟',
+    id: 'chromaria-key',
+    name: 'Prism Key',
+    emoji: '🌈',
     bossId: 'tide-colossus',
     bossName: 'The Tide Colossus',
     bossIntro: [
       'The sea stands up. The Tide Colossus has carried a fallen star on its back for a thousand quiet years.',
       '"The way to Chromaria runs through ME, stargazer. Show me the colors of a clever mind, or sink back to the sand."',
     ],
-    bossDefeat: '"…bright. So bright. Take the prism, and give the Gray Fiend back the colors it forgot."',
+    bossDefeat: '"…bright. So bright. Take the Prism Key, and give the Gray Fiend back the colors it forgot."',
     fromZone: 'starfall-coast',
     unlocksZone: 'chromaria',
     fiendName: 'the Gray Fiend',

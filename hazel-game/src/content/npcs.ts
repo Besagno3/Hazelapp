@@ -308,6 +308,27 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'I am made of leftover questions, you know. The ones nobody answered. When you answer yours, a little of me lights up. Thank you for that.',
     ],
   },
+  // Warns the player before the Thicket Warden — and points the reward home (#59).
+  'woods-warden-sign': {
+    id: 'woods-warden-sign',
+    name: 'Old Bracken',
+    sprite: '🦡',
+    role: 'villager',
+    lines: [
+      {
+        text: 'Careful, sprout — that great stag deeper in is the Thicket Warden, no cuddly critter. It carries the Verdant Key on its antlers.',
+        unlessFlag: 'key-verdara-key',
+      },
+      {
+        text: 'Best it and the Verdant Key is yours — it opens the Smog Fiend\'s gate over in Verdara. Bring your sharpest answers, little one.',
+        unlessFlag: 'key-verdara-key',
+      },
+      {
+        text: 'You bested the Warden! The Verdant Key glows in your pack now — Verdara\'s gate will swing wide for it. Off you go.',
+        ifFlag: 'key-verdara-key',
+      },
+    ],
+  },
 
   // --- Starfall Coast ---
   'coast-fisher': {
@@ -334,6 +355,27 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'See that bright one low in the west? I named it after a kid who would not stop asking why. …It does not have to be you. But it could be.',
     ],
   },
+  // Warns the player before the Tide Colossus — and points the reward home (#59).
+  'coast-warden-sign': {
+    id: 'coast-warden-sign',
+    name: 'Castaway Pell',
+    sprite: '🦭',
+    role: 'villager',
+    lines: [
+      {
+        text: 'Psst — that swell out on the sand is no wave. It is the Tide Colossus, and it keeps the Prism Key on its back.',
+        unlessFlag: 'key-chromaria-key',
+      },
+      {
+        text: 'Climb it and take the Prism Key — it unlocks the Gray Fiend\'s gate all the way over in Chromaria. Mind its big questions!',
+        unlessFlag: 'key-chromaria-key',
+      },
+      {
+        text: 'You rode the Colossus down and won! The Prism Key is yours — Chromaria\'s gate is waiting on you now.',
+        ifFlag: 'key-chromaria-key',
+      },
+    ],
+  },
 
   // --- Clockwork Depths ---
   'depths-tinker': {
@@ -358,6 +400,27 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'HELLO hello hello… sorry. Down here every word comes back three times. I have been alone with my own voice a very long while.',
       'I am the last lantern-bot of the deep. I keep one light burning for the crystals\' sake. Tell me a bright answer and I will keep it glowing.',
+    ],
+  },
+  // Warns the player before the Clockwork Titan — and points the reward home (#59).
+  'depths-warden-sign': {
+    id: 'depths-warden-sign',
+    name: 'Ratchet the Wind-Up',
+    sprite: '🔧',
+    role: 'villager',
+    lines: [
+      {
+        text: 'HALT— halt. The Clockwork Titan still turns just ahead. It holds the Gearwright Key behind its chestplate.',
+        unlessFlag: 'key-gearfall-key',
+      },
+      {
+        text: 'Wind it down and the Gearwright Key drops free — it opens the Rust Fiend\'s gate up in Gearfall. Count true, friend!',
+        unlessFlag: 'key-gearfall-key',
+      },
+      {
+        text: 'The Titan sleeps and the Gearwright Key is yours! Gearfall\'s gate will turn open for it now.',
+        ifFlag: 'key-gearfall-key',
+      },
     ],
   },
 
