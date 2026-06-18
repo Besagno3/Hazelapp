@@ -119,14 +119,58 @@ export function sfx(name: SfxName): void {
 }
 
 let currentTrack: MusicTrack | null = null;
+let unlockArmed = false;
+
+/**
+ * Browsers block audio until the page receives a user gesture. On a fresh load
+ * (e.g. a refresh) music settings are already "on", so `playMusic` runs before
+ * any gesture and the browser silently blocks `play()` — and nothing retries it.
+ * This arms a one-time gesture listener that re-asserts the intended track the
+ * moment the player next clicks/taps/keys, so music starts as soon as it's
+ * allowed. No-ops if the track is already playing.
+ */
+function armUnlock(): void {
+  if (unlockArmed || typeof window === 'undefined') return;
+  unlockArmed = true;
+  const resume = () => {
+    window.removeEventListener('pointerdown', resume);
+    window.removeEventListener('keydown', resume);
+    window.removeEventListener('touchstart', resume);
+    unlockArmed = false;
+    if (currentTrack) startTrack(currentTrack);
+  };
+  window.addEventListener('pointerdown', resume);
+  window.addEventListener('keydown', resume);
+  window.addEventListener('touchstart', resume);
+}
+
+/** Play the current track at the settings volume; retry on a gesture if blocked. */
+function startTrack(track: MusicTrack): void {
+  const s = useSettingsStore.getState();
+  const howl = getMusic(track);
+  if (!howl || !s.music) return;
+  if (howl.playing()) {
+    howl.volume(s.musicVolume);
+    return;
+  }
+  try {
+    howl.play();
+    howl.fade(0, s.musicVolume, FADE_MS);
+  } catch {
+    /* blocked — the unlock listener below recovers it */
+  }
+  // Autoplay blocks are reported asynchronously, so don't trust playing() right
+  // now — always arm a gesture retry. It no-ops if the track is already playing.
+  armUnlock();
+}
 
 /** Switch background music to `track` (or stop, when null), respecting settings. */
 export function playMusic(track: MusicTrack | null): void {
   const s = useSettingsStore.getState();
   const target = s.music ? track : null;
   if (target === currentTrack) {
-    // Same track — just keep the live volume in sync with the settings.
-    if (target) getMusic(target)?.volume(s.musicVolume);
+    // Same track — sync volume, and (re)start it if autoplay blocked it earlier.
+    if (target) startTrack(target);
     return;
   }
 
@@ -148,17 +192,7 @@ export function playMusic(track: MusicTrack | null): void {
   }
 
   currentTrack = target;
-  if (!target) return;
-
-  const next = getMusic(target);
-  if (!next) return;
-  try {
-    next.play();
-    next.fade(0, s.musicVolume, FADE_MS);
-  } catch {
-    // Browsers block audio until the first user gesture; enabling music in the
-    // menu IS a gesture, so the next screen change starts it cleanly.
-  }
+  if (target) startTrack(target);
 }
 
 export function stopMusic(): void {
