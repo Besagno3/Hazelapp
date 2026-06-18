@@ -21,6 +21,7 @@ export default function MenuOverlay() {
   const flush = useSaveStore((s) => s.flush);
   const remoteError = useSaveStore((s) => s.remoteError);
   const profile = useProfileStore((s) => s.profile);
+  const profileError = useProfileStore((s) => s.remoteError);
   const music = useSettingsStore((s) => s.music);
   const sfxOn = useSettingsStore((s) => s.sfx);
   const setMusic = useSettingsStore((s) => s.setMusic);
@@ -168,6 +169,12 @@ export default function MenuOverlay() {
           {remoteError && (
             <p className="text-[11px] text-orange-300">
               Cloud save unavailable ({remoteError}) — progress is kept on this device.
+            </p>
+          )}
+          {profileError && (
+            <p className="text-[11px] text-orange-300">
+              ⚠️ XP / level isn't saving to the cloud ({profileError}) — kept on this device
+              for now. Apply the latest database migrations to fix it.
             </p>
           )}
           <button

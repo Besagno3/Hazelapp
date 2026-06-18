@@ -234,6 +234,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-211 | U | ✅ | audio | `trackForScreen` maps screens→music; boss theme only for boss battles (audio.test) |
 | TC-212 | M | ⬜ | audio | with files in `public/audio/`: Music/Sound toggles persist across reload; SFX fire on wrong-answer/hit/levelup/victory; music follows the screen (overworld ⇄ battle ⇄ boss) |
 | TC-213 | M | ⬜ | audio | Spire music plays while climbing; switches to the Final Battle track only once the Umbra (boss-floor) fight is underway, then back to overworld on exit |
+| TC-214 | U | ✅ | profile | local profile cache round-trips; `mergeProfiles` keeps higher xp/skill/power-up/streak, ignores other-user cache, null local → remote (profile.test) |
+| TC-215 | M | ⬜ | profile | earning XP then refreshing keeps the level (no reset to 1) even when the Supabase write fails; MenuOverlay shows the "XP isn't saving" warning on remote-write failure |
 
 ## Regression cases (tied to ISSUES.md)
 

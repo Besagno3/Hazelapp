@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { errorMessage } from '../lib/errors';
 import { nextStreak, todayIso } from '../lib/streak';
+import { mergeProfiles, readLocalProfile, writeLocalProfile } from '../lib/profile';
 import { useAuthStore } from './authStore';
 import type { PowerUpId, PowerUps, Profile, SkillLevels, Topic } from '../types';
 
@@ -75,6 +76,8 @@ interface ProfileStore {
   profile: Profile | null;
   loading: boolean;
   error: string | null;
+  /** Set when remote persistence is failing (local progress still works). */
+  remoteError: string | null;
   /** Fetch the signed-in user's profile row. */
   loadProfile: (userId: string) => Promise<void>;
   /** Persist a new skill level for one topic (optimistic update). */
@@ -92,9 +95,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   profile: null,
   loading: false,
   error: null,
+  remoteError: null,
 
   loadProfile: async (userId) => {
     set({ loading: true, error: null });
+    const local = readLocalProfile(userId);
     const { data, error } = await supabase
       .from('profiles')
       .select(
@@ -102,21 +107,48 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       )
       .eq('id', userId)
       .maybeSingle();
+
     if (data) {
-      set({ profile: fromRow(data as ProfileRow), loading: false });
+      // Reconcile the remote row with any local progress, keeping the higher of
+      // each — this protects a player whose remote writes are silently failing
+      // (e.g. an RLS policy not applied on the live DB) from being reset to
+      // Level 1 by a remote row stuck at 0.
+      const merged = mergeProfiles(fromRow(data as ProfileRow), local);
+      set({ profile: merged, loading: false, remoteError: null });
+      writeLocalProfile(merged);
+      // If the local cache was ahead, best-effort push the merge back up.
+      if (local && merged.xp > (fromRow(data as ProfileRow).xp ?? 0)) {
+        void supabase
+          .from('profiles')
+          .update({ ...toRow(merged), updated_at: new Date().toISOString() })
+          .eq('id', userId)
+          .then(({ error: e }) => {
+            if (e) set({ remoteError: errorMessage(e) });
+          });
+      }
       return;
     }
-    // No row (trigger/migration not applied) or the read failed: fall back to a
-    // working local profile so XP / level / power-ups function this session, and
-    // best-effort create the row so progress persists going forward. Mirrors
-    // saveStore's local-degradation behavior.
-    const fallback = defaultProfile(userId);
-    set({ profile: fallback, loading: false, error: error ? errorMessage(error) : null });
+
+    if (error) {
+      // The read FAILED — never overwrite the remote row with a zeroed default
+      // (the old bug that destroyed XP). Fall back to the local cache if we have
+      // one, else an in-memory default; surface the failure.
+      const profile = local ?? defaultProfile(userId);
+      set({ profile, loading: false, remoteError: errorMessage(error) });
+      writeLocalProfile(profile);
+      return;
+    }
+
+    // Genuinely no row. Seed from local progress if we have any, and create it
+    // with DO-NOTHING-on-conflict so a racing/existing row is never clobbered.
+    const seed = local ?? defaultProfile(userId);
+    set({ profile: seed, loading: false, remoteError: null });
+    writeLocalProfile(seed);
     void supabase
       .from('profiles')
-      .upsert(toRow(fallback), { onConflict: 'id' })
+      .upsert(toRow(seed), { onConflict: 'id', ignoreDuplicates: true })
       .then(({ error: upsertError }) => {
-        if (upsertError) set({ error: errorMessage(upsertError) });
+        if (upsertError) set({ remoteError: errorMessage(upsertError) });
       });
   },
 
@@ -124,36 +156,41 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const profile = get().profile;
     if (!profile) return;
     const skillLevels = { ...profile.skillLevels, [topic]: level };
-    set({ profile: { ...profile, skillLevels } }); // optimistic
+    const updated = { ...profile, skillLevels };
+    set({ profile: updated }); // optimistic
+    writeLocalProfile(updated); // durable locally even if the remote write fails
     const { error } = await supabase
       .from('profiles')
       .update({ skill_levels: skillLevels, updated_at: new Date().toISOString() })
       .eq('id', profile.id);
-    if (error) set({ error: errorMessage(error) });
+    if (error) set({ remoteError: errorMessage(error) });
   },
 
   addXp: async (amount) => {
     const profile = get().profile;
     if (!profile || amount <= 0) return;
-    const xp = profile.xp + amount;
-    set({ profile: { ...profile, xp } }); // optimistic
+    const updated = { ...profile, xp: profile.xp + amount };
+    set({ profile: updated }); // optimistic
+    writeLocalProfile(updated);
     const { error } = await supabase
       .from('profiles')
-      .update({ xp, updated_at: new Date().toISOString() })
+      .update({ xp: updated.xp, updated_at: new Date().toISOString() })
       .eq('id', profile.id);
-    if (error) set({ error: errorMessage(error) });
+    if (error) set({ remoteError: errorMessage(error) });
   },
 
   addPowerUp: async (id) => {
     const profile = get().profile;
     if (!profile) return;
     const powerUps = { ...profile.powerUps, [id]: (profile.powerUps[id] ?? 0) + 1 };
-    set({ profile: { ...profile, powerUps } }); // optimistic
+    const updated = { ...profile, powerUps };
+    set({ profile: updated }); // optimistic
+    writeLocalProfile(updated);
     const { error } = await supabase
       .from('profiles')
       .update({ power_ups: powerUps, updated_at: new Date().toISOString() })
       .eq('id', profile.id);
-    if (error) set({ error: errorMessage(error) });
+    if (error) set({ remoteError: errorMessage(error) });
   },
 
   recordActivity: async () => {
@@ -164,14 +201,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     if (profile.lastPlayedOn === today) return;
     const newCurrent = nextStreak(profile.currentStreak, profile.lastPlayedOn, today);
     const newLongest = Math.max(profile.longestStreak, newCurrent);
-    set({
-      profile: {
-        ...profile,
-        currentStreak: newCurrent,
-        longestStreak: newLongest,
-        lastPlayedOn: today,
-      },
-    });
+    const updated = {
+      ...profile,
+      currentStreak: newCurrent,
+      longestStreak: newLongest,
+      lastPlayedOn: today,
+    };
+    set({ profile: updated });
+    writeLocalProfile(updated);
     const { error } = await supabase
       .from('profiles')
       .update({
@@ -181,8 +218,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         updated_at: new Date().toISOString(),
       })
       .eq('id', profile.id);
-    if (error) set({ error: errorMessage(error) });
+    if (error) set({ remoteError: errorMessage(error) });
   },
 
-  clearProfile: () => set({ profile: null, loading: false, error: null }),
+  clearProfile: () => set({ profile: null, loading: false, error: null, remoteError: null }),
 }));
