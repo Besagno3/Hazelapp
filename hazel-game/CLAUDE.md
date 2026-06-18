@@ -172,6 +172,26 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-18 — Fix XP/level reset on refresh; profile now durable (#61)
+The profile (XP→level, skill levels, power-ups, streak) lived **only** in
+Supabase with no local backup, so a failed write or an empty read on reload
+reset the player to Level 1 — and worse, `loadProfile`'s fallback **upserted a
+zeroed default over the real row**, permanently destroying XP.
+- **Non-destructive load** (`profileStore.loadProfile`): a read *error* no longer
+  writes anything (was the data-loss path); a genuinely-missing row is created
+  with `ignoreDuplicates` (ON CONFLICT DO NOTHING) so an existing row is never
+  clobbered.
+- **localStorage write-through** (`lib/profile.ts`, mirrors `saveStore`): every
+  change is cached locally; on load the remote row is reconciled with the local
+  cache keeping the higher progress (`mergeProfiles`), so a remote row stuck at
+  0 (e.g. an RLS policy not applied on the live DB) can't wipe a real Level 23.
+- **Surfaced failures**: new `profileStore.remoteError`, shown in `MenuOverlay`
+  — XP writes no longer fail silently.
+- ⚠️ Root DB cause is separate: the production Supabase is missing profile
+  migrations (the `update` RLS policy and/or the 0002/0004/0007 columns), so
+  writes silently affect 0 rows. Apply 0001–0008 to prod. See ISSUES #61.
+- 194 tests green (was 187); lint + build clean.
+
 ### 2026-06-18 — Wire real audio files into the scaffold (#60)
 Player-supplied mp3s dropped into `public/audio/` and mapped in `lib/audio.ts`.
 - **Music:** `Overworld` (map), `Battle_Music` (regular battles), `Boss_Battle`
