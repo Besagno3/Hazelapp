@@ -5,6 +5,7 @@ import QuestionCard from '../../components/QuestionCard';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { fetchQuestions } from '../../lib/questions';
+import { sfx, stopMusic } from '../../lib/audio';
 import { playerAge, clampLevel, nextSkillLevelFromBattle, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
@@ -326,6 +327,7 @@ export default function BattleArena() {
     const newPlayerHp = Math.max(0, playerHp - dmg);
     setTimeout(() => {
       float(dmg === 0 ? 'Blocked!' : `-${dmg}`, 'hero', dmg === 0 ? 'text-sky-300' : 'text-red-300');
+      if (dmg > 0) sfx('hit');
       setHp(newPlayerHp, enemyHp);
     }, 260);
 
@@ -359,6 +361,8 @@ export default function BattleArena() {
 
   function victory() {
     confetti({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
+    stopMusic(); // silence the battle loop under the victory jingle
+    sfx('victory');
     const xp = settleCommon() + npcDefeatXp(enemy!.level) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
     void addXp(xp);
     markDefeated(enemy!.instanceId);

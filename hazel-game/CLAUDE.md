@@ -172,6 +172,22 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-18 — Wire real audio files into the scaffold (#60)
+Player-supplied mp3s dropped into `public/audio/` and mapped in `lib/audio.ts`.
+- **Music:** `Overworld` (map), `Battle_Music` (regular battles), `Boss_Battle`
+  (area bosses — Fiends/wardens, via `enemy.isBoss`), `Spire_Music` (the Spire
+  climb), and `Boss_Battle - Final Battle` (the Umbra fight).
+- **SFX:** `Character_Grunt` (player takes damage — `BattleArena`), `Wrong_Answer`
+  (wrong pick — `QuestionCard`), `Level_Up` (`LevelUpModal`), `Victory-jingle`
+  (battle won — `victory()` stops the battle loop, plays the jingle).
+- **Spire owns its own music:** `SpireOverlay` plays the Spire theme while
+  climbing and switches to the Final Battle track only once the **Umbra fight is
+  underway** (boss floor + question phase), not on arrival. `App.useScreenMusic`
+  steps aside while the Spire is open (`inSpire` guard) so the two never fight
+  over the track. New `MusicTrack` `finalBoss`; the spaced filename is URL-encoded.
+- Still silent (no file): correct / gate / chest / attack / select SFX; title
+  music. Still off by default. Lint + audio tests + tsc build green.
+
 ### 2026-06-18 — Audio scaffold: music + SFX (Howler), off by default (#60)
 Adopted Howler (was "installed, not yet used") for game audio. Off by default —
 sound is opt-in via the menu (kid-friendly / classroom-safe).

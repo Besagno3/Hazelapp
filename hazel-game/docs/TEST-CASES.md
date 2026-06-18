@@ -232,7 +232,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-209 | M | ⬜ | World | an open gate (question or key) is 2 tiles wide and the hero can walk through either tile |
 | TC-210 | U | ✅ | settings | audio is off by default; `normalizeSettings` coerces only literal `true`, clamps volumes 0..1, falls back on garbage (settings.test) |
 | TC-211 | U | ✅ | audio | `trackForScreen` maps screens→music; boss theme only for boss battles (audio.test) |
-| TC-212 | M | ⬜ | audio | with files in `public/audio/`: Music/Sound toggles persist across reload; SFX fire on correct/wrong; music follows the screen (overworld ⇄ battle ⇄ boss) |
+| TC-212 | M | ⬜ | audio | with files in `public/audio/`: Music/Sound toggles persist across reload; SFX fire on wrong-answer/hit/levelup/victory; music follows the screen (overworld ⇄ battle ⇄ boss) |
+| TC-213 | M | ⬜ | audio | Spire music plays while climbing; switches to the Final Battle track only once the Umbra (boss-floor) fight is underway, then back to overworld on exit |
 
 ## Regression cases (tied to ISSUES.md)
 

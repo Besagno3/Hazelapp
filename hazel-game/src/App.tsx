@@ -43,9 +43,10 @@ export default function App() {
             : 'topics',
   );
   const isBoss = useBattleStore((s) => s.enemy?.isBoss ?? false);
+  const inSpire = useFlow((s) => s.matches({ world: 'spire' }));
 
   // Background music follows the screen (silent until enabled in the menu).
-  useScreenMusic(screen, isBoss);
+  useScreenMusic(screen, isBoss, inSpire);
 
   // Wake the machine once auth + save have loaded (guards read the save).
   useEffect(() => {

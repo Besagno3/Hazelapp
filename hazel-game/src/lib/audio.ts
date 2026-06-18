@@ -25,27 +25,40 @@ export type SfxName =
   | 'victory'
   | 'select';
 
-export type MusicTrack = 'title' | 'overworld' | 'battle' | 'boss' | 'victory';
+export type MusicTrack =
+  | 'title'
+  | 'overworld'
+  | 'spire'
+  | 'finalBoss'
+  | 'battle'
+  | 'boss'
+  | 'victory';
 
-/** Expected files. Any Howler-supported format works; swap the extension here. */
+/**
+ * Expected files. Entries with a real file in `public/audio/` play today;
+ * the rest point at not-yet-added files and stay silent (load fails harmlessly).
+ * Any Howler-supported format works — just change the path here.
+ */
 const SFX_SOURCES: Record<SfxName, string> = {
+  hit: '/audio/Character_Grunt.mp3', // player takes damage in battle
+  wrong: '/audio/Wrong_Answer.mp3', // a question answered incorrectly
+  victory: '/audio/Victory-jingle.mp3', // a battle is won
+  levelup: '/audio/Level_Up.mp3', // the level-up / choose-a-perk modal
   correct: '/audio/sfx/correct.mp3',
-  wrong: '/audio/sfx/wrong.mp3',
   attack: '/audio/sfx/attack.mp3',
-  hit: '/audio/sfx/hit.mp3',
   gate: '/audio/sfx/gate.mp3',
   chest: '/audio/sfx/chest.mp3',
-  levelup: '/audio/sfx/levelup.mp3',
-  victory: '/audio/sfx/victory.mp3',
   select: '/audio/sfx/select.mp3',
 };
 
 const MUSIC_SOURCES: Record<MusicTrack, string> = {
-  title: '/audio/music/title.mp3',
-  overworld: '/audio/music/overworld.mp3',
-  battle: '/audio/music/battle.mp3',
-  boss: '/audio/music/boss.mp3',
-  victory: '/audio/music/victory.mp3',
+  overworld: '/audio/Overworld.mp3', // the tile map
+  spire: '/audio/Spire_Music.mp3', // climbing the Crystal Spire floors
+  finalBoss: '/audio/Boss_Battle%20-%20Final%20Battle.mp3', // the Umbra fight (Spire boss floor)
+  battle: '/audio/Battle_Music.mp3', // regular battles
+  boss: '/audio/Boss_Battle.mp3', // area bosses (Fiends, wardens)
+  title: '/audio/title.mp3', // menu screens — no file yet (silent)
+  victory: '/audio/victory.mp3', // looping victory theme — unused; the win uses the sfx jingle
 };
 
 const FADE_MS = 600;
@@ -152,11 +165,10 @@ export function stopMusic(): void {
   playMusic(null);
 }
 
-/** Which track suits a given top-level screen. Pure — unit-tested. */
-export function trackForScreen(
-  screen: 'topics' | 'quiz' | 'avatar' | 'world' | 'battle',
-  isBoss = false,
-): MusicTrack | null {
+type Screen = 'topics' | 'quiz' | 'avatar' | 'world' | 'battle';
+
+/** Which track suits the current screen. Pure — unit-tested. */
+export function trackForScreen(screen: Screen, isBoss = false): MusicTrack | null {
   switch (screen) {
     case 'topics':
     case 'quiz':
@@ -173,16 +185,17 @@ export function trackForScreen(
 
 /**
  * Drive background music from the current screen. Re-runs whenever the screen,
- * boss flag, or the music on/off + volume settings change, so toggling music in
- * the menu starts/stops it immediately.
+ * boss flag, or the music on/off + volume settings change.
+ *
+ * While inside the Spire, music is owned by `SpireOverlay` (it alone knows the
+ * floor and so chooses spire vs final-boss music) — this hook steps aside so the
+ * two never fight over the same track.
  */
-export function useScreenMusic(
-  screen: 'topics' | 'quiz' | 'avatar' | 'world' | 'battle',
-  isBoss = false,
-): void {
+export function useScreenMusic(screen: Screen, isBoss = false, inSpire = false): void {
   const music = useSettingsStore((s) => s.music);
   const musicVolume = useSettingsStore((s) => s.musicVolume);
   useEffect(() => {
+    if (inSpire) return; // SpireOverlay drives music while the climb is open
     playMusic(trackForScreen(screen, isBoss));
-  }, [screen, isBoss, music, musicVolume]);
+  }, [screen, isBoss, inSpire, music, musicVolume]);
 }
