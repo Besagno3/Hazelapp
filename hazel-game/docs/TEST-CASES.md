@@ -236,6 +236,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-213 | M | ⬜ | audio | Spire music plays while climbing; switches to the Final Battle track only once the Umbra (boss-floor) fight is underway, then back to overworld on exit |
 | TC-214 | U | ✅ | profile | local profile cache round-trips; `mergeProfiles` keeps higher xp/skill/power-up/streak, ignores other-user cache, null local → remote (profile.test) |
 | TC-215 | M | ⬜ | profile | earning XP then refreshing keeps the level (no reset to 1) even when the Supabase write fails; MenuOverlay shows the "XP isn't saving" warning on remote-write failure |
+| TC-216 | M | ⬜ | audio | with Music enabled, refresh the page: music stays silent until the first click/tap/key, then starts automatically (autoplay-unlock recovery) and follows the screen thereafter |
 
 ## Regression cases (tied to ISSUES.md)
 

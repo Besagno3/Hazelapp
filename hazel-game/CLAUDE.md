@@ -172,6 +172,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-18 — Fix music not restarting after a page refresh (#62)
+Music played when first enabled (the menu toggle is a user gesture) but went
+silent after a refresh: on reload the setting is already "on", so `playMusic`
+runs before any new gesture and the browser blocks `play()` — and the engine,
+thinking that track was already current, never retried. `lib/audio.ts` now
+`armUnlock()`s a one-time `pointerdown`/`keydown`/`touchstart` listener whenever
+it tries to start a track; the first interaction re-asserts the intended track
+(no-op if already playing). The "same track" branch also re-checks and restarts
+a track that autoplay had blocked. SFX were unaffected (they fire on gestures).
+
 ### 2026-06-18 — Fix XP/level reset on refresh; profile now durable (#61)
 The profile (XP→level, skill levels, power-ups, streak) lived **only** in
 Supabase with no local backup, so a failed write or an empty read on reload
