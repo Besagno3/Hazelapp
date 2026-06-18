@@ -17,14 +17,15 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `profileStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
+| Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
 
 Many dependencies in `package.json` are installed but **not yet used**
-(react-router-dom, xstate, react-query, react-hook-form, zod, recharts, howler,
+(react-router-dom, xstate, react-query, react-hook-form, zod, recharts,
 katex, vite-plugin-pwa, etc.). Treat them as "approved to adopt" — not as
 existing architecture.
 
@@ -170,6 +171,36 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-06-18 — Audio scaffold: music + SFX (Howler), off by default (#60)
+Adopted Howler (was "installed, not yet used") for game audio. Off by default —
+sound is opt-in via the menu (kid-friendly / classroom-safe).
+- **`lib/settings.ts` + `store/settingsStore.ts`:** device-level audio settings
+  (music/sfx booleans + volumes), localStorage write-through, NOT per-user or
+  synced. `normalizeSettings` defaults everything off and clamps volumes.
+- **`lib/audio.ts`:** the engine. `sfx(name)` fires one-shot effects;
+  `useScreenMusic(screen, isBoss)` loops background music that follows the
+  top-level screen (`trackForScreen` — title / overworld / battle / boss);
+  both honour settings, so every call is a silent no-op until enabled. Lazy
+  Howls; load/play errors are swallowed so **missing files never break play**.
+- **Wired hooks:** `QuestionCard` (correct/wrong — covers quiz, battle, gates,
+  chests, Library), `LevelUpModal` (levelup, beside the confetti),
+  `PathQuestionOverlay` + `KeyGateOverlay` (gate/chest open), `App` (screen
+  music). Reserved/unwired: battle attack/hit/victory, select, volume sliders.
+- **Assets:** drop CC0 files into `public/audio/{sfx,music}/` (see its README +
+  ISSUES #60); the engine already references the exact paths.
+- 187 tests green (was 180); lint + build clean.
+
+### 2026-06-18 — Gates are double-wide openings (easier to walk through)
+Every gate went from a 1-tile gap to a **2-tile opening** along its wall, so the
+player no longer has to pixel-align to pass when it's open. Two adjacent `G`
+tiles now act as ONE gate: new `gateIdAt()` (`zones.ts`) flood-fills each
+connected `G` run and keys its flag / question / key-check / open-state off the
+run's canonical (top-left) cell — so one question opens both tiles and both
+sprites clear together. Widened toward the original tile, so existing saves'
+opened-gate flags still match; `keyGate` matching now compares gate groups.
+`WorldCanvas` tracks a sprite list per gate. 2 new zone tests (every gate spans
+2 adjacent tiles sharing an id; keyGate cells resolve to a group).
 
 ### 2026-06-16 — Warden signposts + keys themed to their destination (#59)
 Follow-up to #58. Keys are now named for the **crystal zone they unlock** (the

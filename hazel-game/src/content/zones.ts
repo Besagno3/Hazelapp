@@ -136,7 +136,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#...##.....#...##....#',
       '#..........#.........#',
       '#..........G.........E',
-      '#..........#.........E',
+      '#..........G.........E',
       '#...##.....#...##....#',
       '#..........#.........#',
       '#,.........#......,..#',
@@ -178,7 +178,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#....................#',
       '#..~~................#',
       '#....................#',
-      '##########G###########',
+      '##########GG##########',
       '#....................#',
       '#...,...........,....#',
       '#....................#',
@@ -222,7 +222,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#...##....#..........#',
       '#.........#..........#',
       'E.........G..........#',
-      'E.........#..........#',
+      'E.........G..........#',
       '#...##....#...##.....#',
       '#.........#..........#',
       '#....,....#.......,..#',
@@ -266,7 +266,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#....................#',
       '#......,.............#',
       '#....................#',
-      '###########G##########',
+      '###########GG#########',
       '#....................#',
       '#...,...........,....#',
       '#..........~~........#',
@@ -358,7 +358,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#.......#..,.........#',
       '#..,....#............#',
       '#.......G............E',
-      '#.......#............E',
+      '#.......G............E',
       '#.......#....,.......#',
       '#.......#...##.......#',
       '#.......#............#',
@@ -402,7 +402,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#...............#....#',
       '#...##..........#....#',
       '#.S.............G....#',
-      '#.....,.........#....#',
+      '#.....,.........G....#',
       'E...............#....#',
       'E...............#....#',
       '#.........~~~~~~~~~~~#',
@@ -449,7 +449,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#....,..........,....#',
       '#....................#',
       '#.........,,.........#',
-      '##########G###########',
+      '##########GG##########',
       '#..##..........##....#',
       '#..##..........##....#',
       '#....,....C.....,....#',
@@ -528,4 +528,31 @@ export function pathTargetId(zoneId: ZoneId, kind: 'gate' | 'chest', x: number, 
 
 export function gateFlag(id: string): string {
   return `gate:${id}`;
+}
+
+/**
+ * A gate may span two tiles (a double-wide opening — easier to walk through
+ * when open). Every 'G' in one orthogonally-connected run shares a single
+ * identity: its flag, its gatekeeper question / key check, and its open state
+ * all key off the run's canonical (top-left, i.e. min-y then min-x) cell, so
+ * bumping any tile opens the whole gate at once. Single-tile gates are just a
+ * run of one, so their id is unchanged.
+ */
+export function gateIdAt(zoneId: ZoneId, map: string[], x: number, y: number): string {
+  const seen = new Set<string>();
+  const stack: [number, number][] = [[x, y]];
+  let cx = x;
+  let cy = y;
+  while (stack.length) {
+    const [gx, gy] = stack.pop()!;
+    const key = `${gx},${gy}`;
+    if (seen.has(key) || (map[gy]?.[gx] ?? '') !== 'G') continue;
+    seen.add(key);
+    if (gy < cy || (gy === cy && gx < cx)) {
+      cx = gx;
+      cy = gy;
+    }
+    stack.push([gx + 1, gy], [gx - 1, gy], [gx, gy + 1], [gx, gy - 1]);
+  }
+  return pathTargetId(zoneId, 'gate', cx, cy);
 }

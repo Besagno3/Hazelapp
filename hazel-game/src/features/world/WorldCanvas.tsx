@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import kaplay from 'kaplay';
 import type { MutableRefObject } from 'react';
-import { TILE, WALKABLE_CHARS, pathTargetId, gateFlag, zone } from '../../content/zones';
+import { TILE, WALKABLE_CHARS, pathTargetId, gateFlag, gateIdAt, zone } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
 import { NPC_DEFS } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
@@ -183,7 +183,7 @@ export default function WorldCanvas({
 
     // --- Tiles -------------------------------------------------------------
     const chestSprites = new Map<string, ReturnType<typeof k.add>>();
-    const gateSprites = new Map<string, ReturnType<typeof k.add>>();
+    const gateSprites = new Map<string, ReturnType<typeof k.add>[]>();
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const ch = z.map[y][x];
@@ -209,14 +209,16 @@ export default function WorldCanvas({
           ]);
           chestSprites.set(id, sprite);
         } else if (ch === 'G') {
-          const id = pathTargetId(zoneId, 'gate', x, y);
+          const id = gateIdAt(zoneId, z.map, x, y);
           if (!flagsRef.current[gateFlag(id)]) {
             const sprite = k.add([
               k.text('🚧', { size: 26 }),
               k.pos(px + TILE / 2, py + TILE / 2),
               k.anchor('center'),
             ]);
-            gateSprites.set(id, sprite);
+            const group = gateSprites.get(id);
+            if (group) group.push(sprite);
+            else gateSprites.set(id, [sprite]);
           }
         } else if (ch === 'E') {
           k.add([k.rect(TILE, TILE), k.pos(px, py), k.color(...z.path)]);
@@ -386,7 +388,7 @@ export default function WorldCanvas({
 
     // --- Collision ---------------------------------------------------------
     const isOpenGate = (x: number, y: number) =>
-      flagsRef.current[gateFlag(pathTargetId(zoneId, 'gate', x, y))] === true;
+      flagsRef.current[gateFlag(gateIdAt(zoneId, z.map, x, y))] === true;
 
     /** What blocks the cell, if anything. */
     function blockerAt(cx: number, cy: number): { ch: string; x: number; y: number } | null {
@@ -483,10 +485,11 @@ export default function WorldCanvas({
       // Bump interactions (gate / chest / save crystal).
       if (bumped && cooldown === 0) {
         if (bumped.ch === 'G') {
-          const id = pathTargetId(zoneId, 'gate', bumped.x, bumped.y);
+          const id = gateIdAt(zoneId, z.map, bumped.x, bumped.y);
           cooldown = TRIGGER_COOLDOWN;
           // A warden-keyed Fiend gate checks a key instead of asking a question (#58).
-          const keyed = z.keyGate && z.keyGate.x === bumped.x && z.keyGate.y === bumped.y;
+          // Match on the gate group so either tile of a double-wide gate counts.
+          const keyed = z.keyGate && gateIdAt(zoneId, z.map, z.keyGate.x, z.keyGate.y) === id;
           cbRef.current.onPath({ kind: keyed ? 'keygate' : 'gate', id, topic: z.topic ?? 'math', zoneId });
         } else if (bumped.ch === 'C') {
           const id = pathTargetId(zoneId, 'chest', bumped.x, bumped.y);
@@ -538,9 +541,9 @@ export default function WorldCanvas({
       ember.pos = ember.pos.lerp(trail, Math.min(1, dt * 5));
 
       // Open gates / opened chests update live (flag set while overlay open).
-      for (const [id, sprite] of gateSprites) {
+      for (const [id, sprites] of gateSprites) {
         if (flagsRef.current[gateFlag(id)]) {
-          sprite.destroy();
+          for (const sprite of sprites) sprite.destroy();
           gateSprites.delete(id);
         }
       }

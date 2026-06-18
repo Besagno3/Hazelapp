@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { gateFlag, ZONES } from '../../content/zones';
 import { keyForZone, keyFlag } from '../../content/keys';
 import { useSaveStore } from '../../store/saveStore';
+import { sfx } from '../../lib/audio';
 import { sendFlow } from '../../machines/gameFlow';
 import type { PathTarget } from '../../types';
 
@@ -23,6 +24,7 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
 
   function open() {
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+    sfx('gate');
     update((s) => ({ ...s, flags: { ...s.flags, [gateFlag(target.id)]: true } }));
     sendFlow({ type: 'CLOSE' });
   }

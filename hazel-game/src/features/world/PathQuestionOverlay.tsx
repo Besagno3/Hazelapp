@@ -8,6 +8,7 @@ import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { CHEST_COINS } from '../../content/items';
 import { gateFlag } from '../../content/zones';
+import { sfx } from '../../lib/audio';
 import { topicInfo } from '../../content/topics';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
@@ -74,8 +75,10 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
       void addXp(XP_PER_CORRECT);
       if (target.kind === 'gate') {
+        sfx('gate');
         update((s) => ({ ...s, flags: { ...s.flags, [gateFlag(target.id)]: true } }));
       } else {
+        sfx('chest');
         update((s) => ({
           ...s,
           openedChests: [...s.openedChests, target.id],

@@ -63,9 +63,10 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #54 | 🟢 | Low    | Edge-function persona prompt has no entry for the new zones — RESOLVED by #55 (nature/space/history personas added). |
 | #55 | 🟢 | High   | Themed topics for the new zones (nature/space/history) + the Crystal Spire endgame climb + the hidden villain (Umbra) story arc |
 | #56 | 🔴 | Low    | The Spire is replayable after clearing (bump the icon again to climb). Intentional for now (endless practice); could add a "champion" variant or a cleared-state greeting later. |
-| #57 | 🔴 | High   | ⚠️ Deploy: redeploy `generate-questions` so nature/space/history questions generate — the function whitelists topics, so the new zones' gates/chests/battles 400 until it ships. |
+| #57 | 🟢 | High   | ⚠️ Deploy: redeploy `generate-questions` so nature/space/history questions generate — the function whitelists topics, so the new zones' gates/chests/battles 400 until it ships. Redeployed 2026-06-18 (fixed the Clockwork Depths "topic must be one of…" error). |
 | #58 | 🟢 | High   | Warden bosses in the 3 themed zones drop keys that gate-unlock 3 of the 4 Fiends (Numbria stays open). Reward: key + trophy badge + boss XP. |
 | #59 | 🟢 | Low    | Warden bosses sit in the open roaming area. Added a signpost NPC near each warden that warns of it and points the reward home; keys retheme to their destination crystal zone (Verdant/Prism/Gearwright). |
+| #60 | 🟡 | Low    | Audio scaffold shipped (Howler engine + settings store + menu toggles, off by default), but no audio files exist yet — every track/SFX is silent until CC0 files land in `public/audio/{sfx,music}/`. Reserved-but-unwired hooks: battle `attack`/`hit`/`victory` and `select` SFX, plus per-track volume sliders. See `public/audio/README.md`. |
 
 ---
 

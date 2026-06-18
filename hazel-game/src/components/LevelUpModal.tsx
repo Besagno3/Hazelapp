@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import { useProfileStore } from '../store/profileStore';
 import { playerLevel } from '../lib/level';
 import { choicesForLevel, totalPowerUps } from '../lib/powerups';
+import { sfx } from '../lib/audio';
 import type { PowerUpId } from '../types';
 
 /**
@@ -24,6 +25,7 @@ export default function LevelUpModal() {
   useEffect(() => {
     if (celebrating !== null) {
       confetti({ particleCount: 220, spread: 100, origin: { y: 0.45 } });
+      sfx('levelup');
     }
   }, [celebrating]);
 

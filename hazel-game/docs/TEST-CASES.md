@@ -227,6 +227,12 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-204 | U | ✅ | keys | each key is themed to its destination crystal zone (`<zone>-key`), and the warden's home zone topic differs from the destination's (#59) |
 | TC-205 | U | ✅ | keys | each warden home zone places exactly one `*-warden-sign` signpost NPC (#59) |
 | TC-206 | M | ⬜ | World | the warden signpost warns before the fight, then flips to a "you won it" line once the key is held (#59) |
+| TC-207 | U | ✅ | zones | every gate is a double-wide opening — 2 orthogonally-adjacent `G` tiles share one canonical id via `gateIdAt` (zones.test) |
+| TC-208 | U | ✅ | zones | each `keyGate` cell sits on a `G` and resolves to a real gate group id (zones.test) |
+| TC-209 | M | ⬜ | World | an open gate (question or key) is 2 tiles wide and the hero can walk through either tile |
+| TC-210 | U | ✅ | settings | audio is off by default; `normalizeSettings` coerces only literal `true`, clamps volumes 0..1, falls back on garbage (settings.test) |
+| TC-211 | U | ✅ | audio | `trackForScreen` maps screens→music; boss theme only for boss battles (audio.test) |
+| TC-212 | M | ⬜ | audio | with files in `public/audio/`: Music/Sound toggles persist across reload; SFX fire on correct/wrong; music follows the screen (overworld ⇄ battle ⇄ boss) |
 
 ## Regression cases (tied to ISSUES.md)
 
