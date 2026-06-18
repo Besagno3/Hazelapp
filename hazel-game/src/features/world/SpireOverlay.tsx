@@ -8,6 +8,7 @@ import { playerAge, ageToStartLevel, clampLevel } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { pushLibrary } from '../../lib/save';
+import { playMusic } from '../../lib/audio';
 import { emberStatus, SPIRE_CLEARED } from '../../content/story';
 import { TOPIC_REGISTRY } from '../../content/topics';
 import {
@@ -20,6 +21,7 @@ import {
 import { HUB_ZONE } from '../../content/zones';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { sendFlow } from '../../machines/gameFlow';
 import type { LibraryEntry, Question } from '../../types';
 
@@ -64,6 +66,17 @@ export default function SpireOverlay() {
   const started = useRef(false);
 
   const floor = SPIRE_FLOORS[floorIndex];
+
+  // Spire music: the climb plays the Spire theme; the Final Battle track kicks
+  // in only once the Umbra fight is actually underway (the boss floor's
+  // question phase), not merely on arrival. App.useScreenMusic steps aside
+  // while the Spire is open, so this is the sole controller here.
+  const music = useSettingsStore((s) => s.music);
+  const musicVolume = useSettingsStore((s) => s.musicVolume);
+  const fightingUmbra = phase.kind === 'question' && floor?.isBoss === true;
+  useEffect(() => {
+    playMusic(fightingUmbra ? 'finalBoss' : 'spire');
+  }, [fightingUmbra, music, musicVolume]);
 
   // Kick off the climb (intro → floor 1) once, when unlocked.
   useEffect(() => {

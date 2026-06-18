@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { sfx } from '../lib/audio';
 import type { Question } from '../types';
 
 /**
@@ -33,7 +34,9 @@ export default function QuestionCard({
   function pick(idx: number) {
     if (selected !== null) return;
     setSelected(idx);
-    onAnswered(idx === question.correctIndex, idx);
+    const correct = idx === question.correctIndex;
+    sfx(correct ? 'correct' : 'wrong');
+    onAnswered(correct, idx);
   }
 
   function handleContinue() {

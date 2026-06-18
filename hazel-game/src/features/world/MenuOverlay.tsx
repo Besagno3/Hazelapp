@@ -9,6 +9,7 @@ import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../conten
 import { heroMaxHp } from '../../lib/powerups';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { sendFlow } from '../../machines/gameFlow';
 
 /**
@@ -20,6 +21,10 @@ export default function MenuOverlay() {
   const flush = useSaveStore((s) => s.flush);
   const remoteError = useSaveStore((s) => s.remoteError);
   const profile = useProfileStore((s) => s.profile);
+  const music = useSettingsStore((s) => s.music);
+  const sfxOn = useSettingsStore((s) => s.sfx);
+  const setMusic = useSettingsStore((s) => s.setMusic);
+  const setSfx = useSettingsStore((s) => s.setSfx);
   const [saved, setSaved] = useState(false);
   if (!save) return null;
 
@@ -126,6 +131,30 @@ export default function MenuOverlay() {
                 <span className="text-xs text-amber-300 whitespace-nowrap">◆{spell.cost}</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="bg-white/10 rounded-xl p-3 mb-3">
+          <div className="font-bold text-sm mb-2">🔊 Audio</div>
+          <div className="space-y-2">
+            <button
+              onClick={() => setMusic(!music)}
+              className="w-full flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm"
+            >
+              <span>🎵 Music</span>
+              <span className={music ? 'text-emerald-300 font-bold' : 'text-white/50'}>
+                {music ? 'On' : 'Off'}
+              </span>
+            </button>
+            <button
+              onClick={() => setSfx(!sfxOn)}
+              className="w-full flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm"
+            >
+              <span>🔔 Sound effects</span>
+              <span className={sfxOn ? 'text-emerald-300 font-bold' : 'text-white/50'}>
+                {sfxOn ? 'On' : 'Off'}
+              </span>
+            </button>
           </div>
         </div>
 

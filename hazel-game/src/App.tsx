@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect } from 'react';
 import { useAuthInit } from './features/auth/useAuthInit';
 import { useAuthStore } from './store/authStore';
 import { useSaveStore } from './store/saveStore';
+import { useBattleStore } from './store/battleStore';
+import { useScreenMusic } from './lib/audio';
 import { sendFlow, useFlow } from './machines/gameFlow';
 import AuthPage from './features/auth/AuthPage';
 import SignOutButton from './features/auth/SignOutButton';
@@ -40,6 +42,11 @@ export default function App() {
             ? 'battle'
             : 'topics',
   );
+  const isBoss = useBattleStore((s) => s.enemy?.isBoss ?? false);
+  const inSpire = useFlow((s) => s.matches({ world: 'spire' }));
+
+  // Background music follows the screen (silent until enabled in the menu).
+  useScreenMusic(screen, isBoss, inSpire);
 
   // Wake the machine once auth + save have loaded (guards read the save).
   useEffect(() => {

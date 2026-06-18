@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ZONES, LEGEND_CHARS, WALKABLE_CHARS, HUB_ZONE, tileAt } from './zones';
+import { ZONES, LEGEND_CHARS, WALKABLE_CHARS, HUB_ZONE, tileAt, gateIdAt } from './zones';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
@@ -92,6 +92,36 @@ describe('zone maps', () => {
         expect(row.includes('G'), `${z.id} must not contain gates`).toBe(false);
         expect(row.includes('C'), `${z.id} must not contain chests`).toBe(false);
       }
+    }
+  });
+
+  it('every gate is a double-wide opening sharing one identity', () => {
+    for (const z of allZones) {
+      // Group every 'G' tile by its canonical gate id.
+      const groups = new Map<string, Array<{ x: number; y: number }>>();
+      for (let y = 0; y < z.map.length; y++) {
+        for (let x = 0; x < z.map[y].length; x++) {
+          if (z.map[y][x] !== 'G') continue;
+          const id = gateIdAt(z.id, z.map, x, y);
+          (groups.get(id) ?? groups.set(id, []).get(id)!).push({ x, y });
+        }
+      }
+      for (const [id, cells] of groups) {
+        expect(cells.length, `${z.id} gate ${id} should span 2 tiles`).toBe(2);
+        const [a, b] = cells;
+        const adjacent = Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
+        expect(adjacent, `${z.id} gate ${id} tiles must be adjacent`).toBe(true);
+      }
+    }
+  });
+
+  it('keyGate cells resolve to a real gate group', () => {
+    for (const z of allZones) {
+      if (!z.keyGate) continue;
+      expect(tileAt(z, z.keyGate.x, z.keyGate.y), `${z.id} keyGate must sit on a 'G'`).toBe('G');
+      // The whole gate (both tiles) shares the keyGate's identity.
+      const id = gateIdAt(z.id, z.map, z.keyGate.x, z.keyGate.y);
+      expect(id, `${z.id} keyGate id`).toContain(':gate:');
     }
   });
 
