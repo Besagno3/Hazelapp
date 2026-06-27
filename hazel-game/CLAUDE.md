@@ -197,6 +197,11 @@ Made the overworld feel alive and grew the world by one region.
   one-cutscene-at-a-time selection. Reuses the `nature` topic → **no edge
   function redeploy**.
 - **Richer reactive dialogue:** Elder Lumen + Pip now react to `spire-cleared`.
+- **Self-review fixes (#63):** on talk, a wandering NPC is now pushed clear of
+  the contact radius so it can't re-open dialogue on a standing player (the old
+  player-only nudge was a no-op when the NPC walked into a motionless hero);
+  wander collision is tested on the leash-clamped target so a steer-home
+  correction can't seat a sprite in a wall.
 - 211 tests green (was 194); lint + tsc build clean. No deploy step.
 
 ### 2026-06-18 — Fix music not restarting after a page refresh (#62)

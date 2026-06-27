@@ -255,6 +255,8 @@ export default function WorldCanvas({
       kind: 'npc' | 'enemy' | 'spire';
       npcId?: string;
       enemy?: BattleEnemy;
+      /** Sprite pieces — moved together when a wanderer is pushed off the player. */
+      parts?: { pos: WorldVec }[];
     }
     const actors: Actor[] = [];
 
@@ -296,12 +298,14 @@ export default function WorldCanvas({
         if (!dir.x && !dir.y) return;
         const nx = o.actor.x + dir.x * o.speed * dt;
         const ny = o.actor.y + dir.y * o.speed * dt;
-        if (hitAt(nx, ny)) {
+        // Clamp to the leash first, then collision-test the *final* cell so a
+        // steer-home/leash correction can never seat the sprite inside a wall.
+        const c = clampToLeash(nx, ny, o.homeX, o.homeY, o.leash);
+        if (hitAt(c.x, c.y)) {
           dir = { x: 0, y: 0 };
           timer = 0.2 + Math.random() * 0.5;
           return;
         }
-        const c = clampToLeash(nx, ny, o.homeX, o.homeY, o.leash);
         const ddx = c.x - o.actor.x;
         const ddy = c.y - o.actor.y;
         o.actor.x = c.x;
@@ -392,7 +396,7 @@ export default function WorldCanvas({
         k.color(255, 255, 255),
       ]);
       parts.push(label as unknown as Part);
-      const actor: Actor = { x: px, y: py, kind: 'npc', npcId: def.id };
+      const actor: Actor = { x: px, y: py, kind: 'npc', npcId: def.id, parts };
       actors.push(actor);
       // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
       if (npcWanders(def)) {
@@ -437,7 +441,7 @@ export default function WorldCanvas({
         k.color(255, 200, 200),
       ]);
       parts.push(label as unknown as Part);
-      const actor: Actor = { x: px, y: py, kind: 'enemy', enemy };
+      const actor: Actor = { x: px, y: py, kind: 'enemy', enemy, parts };
       actors.push(actor);
       if (enemy.isBoss) {
         // Bosses hold their ground — gentle idle hover only (collision fixed).
@@ -618,6 +622,24 @@ export default function WorldCanvas({
           const dya = player.pos.y - a.y;
           if (dxa * dxa + dya * dya < r * r) {
             if (a.kind === 'npc' && a.npcId) {
+              // Push a *wandering* NPC clear of the contact radius (along the
+              // player→NPC axis) so it can't re-open dialogue on a standing
+              // player after the cooldown; the player nudge alone is a no-op
+              // when the NPC walked into a motionless hero (dx/dy = 0).
+              const dist = Math.sqrt(dxa * dxa + dya * dya) || 1;
+              const need = r + 8 - dist;
+              if (need > 0 && a.parts) {
+                const ax = a.x - (dxa / dist) * need;
+                const ay = a.y - (dya / dist) * need;
+                if (!hitAt(ax, ay)) {
+                  for (const part of a.parts) {
+                    part.pos.x += ax - a.x;
+                    part.pos.y += ay - a.y;
+                  }
+                  a.x = ax;
+                  a.y = ay;
+                }
+              }
               // Nudge back so closing the dialogue doesn't instantly re-bump.
               player.pos.x -= dx * 10;
               player.pos.y -= dy * 10;
