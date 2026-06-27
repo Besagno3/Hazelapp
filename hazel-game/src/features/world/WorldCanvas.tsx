@@ -9,6 +9,7 @@ import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from
 import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
 import { loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
+import { npcWanders, pickWanderDir, clampToLeash, withinLeash, pickAmbientLine } from '../../lib/wander';
 
 /** Player hitbox half-size (smaller than a tile so corridors feel forgiving). */
 const HALF = 11;
@@ -257,6 +258,91 @@ export default function WorldCanvas({
     }
     const actors: Actor[] = [];
 
+    // Set true once a battle/exit fires; freezes all ambient motion too.
+    // Declared here (not by the main loop) so wander controllers can read it.
+    let triggered = false;
+
+    // --- Ambient life: wandering actors + idle speech bubbles --------------
+    // Contact/collision reads each actor's live x/y every frame (see the main
+    // loop below), so a wanderer only has to keep its x/y in lockstep with its
+    // sprites. Pure decision math lives in `lib/wander.ts`; this closure wires
+    // it to KaPlay (collision via the hoisted `hitAt`, freeze via `pausedRef`).
+    type Part = { pos: WorldVec };
+    interface WanderOpts {
+      actor: Actor;
+      parts: Part[];
+      homeX: number;
+      homeY: number;
+      leash: number;
+      speed: number;
+    }
+    function attachWander(anchor: WorldActor, o: WanderOpts) {
+      let dir = { x: 0, y: 0 };
+      let timer = 0.3 + Math.random() * 1.2;
+      anchor.onUpdate(() => {
+        if (pausedRef.current || triggered) return;
+        const dt = k.dt();
+        timer -= dt;
+        if (timer <= 0) {
+          // Steer back when near the leash edge; otherwise wander freely.
+          if (!withinLeash(o.actor.x, o.actor.y, o.homeX, o.homeY, o.leash * 0.85)) {
+            const len = Math.hypot(o.homeX - o.actor.x, o.homeY - o.actor.y) || 1;
+            dir = { x: (o.homeX - o.actor.x) / len, y: (o.homeY - o.actor.y) / len };
+          } else {
+            dir = pickWanderDir(Math.random);
+          }
+          timer = dir.x || dir.y ? 0.6 + Math.random() : 0.7 + Math.random() * 1.6;
+        }
+        if (!dir.x && !dir.y) return;
+        const nx = o.actor.x + dir.x * o.speed * dt;
+        const ny = o.actor.y + dir.y * o.speed * dt;
+        if (hitAt(nx, ny)) {
+          dir = { x: 0, y: 0 };
+          timer = 0.2 + Math.random() * 0.5;
+          return;
+        }
+        const c = clampToLeash(nx, ny, o.homeX, o.homeY, o.leash);
+        const ddx = c.x - o.actor.x;
+        const ddy = c.y - o.actor.y;
+        o.actor.x = c.x;
+        o.actor.y = c.y;
+        for (const part of o.parts) {
+          part.pos.x += ddx;
+          part.pos.y += ddy;
+        }
+      });
+    }
+
+    type Bubble = WorldActor & { opacity: number; exists: () => boolean };
+    function attachAmbient(parent: WorldActor, lines: string[]) {
+      let timer = 3 + Math.random() * 8;
+      parent.onUpdate(() => {
+        if (pausedRef.current || triggered) return;
+        timer -= k.dt();
+        if (timer > 0) return;
+        timer = 6 + Math.random() * 7;
+        const line = pickAmbientLine(lines, Math.random);
+        if (!line) return;
+        // Child of the NPC so it rides along as the NPC moves; fades + rises.
+        const bubble = parent.add([
+          k.text(line, { size: 9 }),
+          k.pos(0, -22),
+          k.anchor('center'),
+          k.color(50, 45, 75),
+          k.opacity(1),
+          k.z(20),
+        ]) as unknown as Bubble;
+        let life = 2.5;
+        bubble.onUpdate(() => {
+          if (pausedRef.current) return;
+          life -= k.dt();
+          bubble.pos.y -= k.dt() * 6;
+          bubble.opacity = Math.max(0, life / 2.5);
+          if (life <= 0 && bubble.exists()) bubble.destroy();
+        });
+      });
+    }
+
     // The Spire entrance icon (#55) — a tall glowing tower; bump it to climb.
     if (z.spire) {
       const px = z.spire.x * TILE + TILE / 2;
@@ -284,23 +370,35 @@ export default function WorldCanvas({
       const def = NPC_DEFS[p.defId];
       const px = p.x * TILE + TILE / 2;
       const py = p.y * TILE + TILE / 2;
+      // All visual pieces move together when the NPC wanders.
+      const parts: Part[] = [];
       if (!resolveSprite(def.spriteId, def.sprite).def?.world) {
-        k.add([
+        const token = k.add([
           k.rect(30, 30, { radius: 6 }),
           k.color(255, 245, 215),
           k.outline(2, k.rgb(120, 90, 40)),
           k.pos(px, py),
           k.anchor('center'),
         ]);
+        parts.push(token as unknown as Part);
       }
-      worldFace(k, { spriteId: def.spriteId, emoji: def.sprite, x: px, y: py, size: 22 });
-      k.add([
+      const face = worldFace(k, { spriteId: def.spriteId, emoji: def.sprite, x: px, y: py, size: 22 })
+        .obj as unknown as WorldActor;
+      parts.push(face);
+      const label = k.add([
         k.text(def.name, { size: 10 }),
         k.pos(px, py + 24),
         k.anchor('center'),
         k.color(255, 255, 255),
       ]);
-      actors.push({ x: px, y: py, kind: 'npc', npcId: def.id });
+      parts.push(label as unknown as Part);
+      const actor: Actor = { x: px, y: py, kind: 'npc', npcId: def.id };
+      actors.push(actor);
+      // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
+      if (npcWanders(def)) {
+        attachWander(face, { actor, parts, homeX: px, homeY: py, leash: TILE * 1.5, speed: 40 });
+      }
+      if (def.ambient?.length) attachAmbient(face, def.ambient);
     }
 
     for (const p of z.enemies) {
@@ -312,6 +410,7 @@ export default function WorldCanvas({
       const px = p.x * TILE + TILE / 2;
       const py = p.y * TILE + TILE / 2;
       const enemyHasSprite = !!resolveSprite(enemy.spriteId, enemy.sprite).def?.world;
+      const parts: Part[] = [];
       const body = enemyHasSprite
         ? null
         : k.add([
@@ -321,6 +420,7 @@ export default function WorldCanvas({
             k.pos(px, py),
             k.anchor('center'),
           ]);
+      if (body) parts.push(body as unknown as Part);
       const face = worldFace(k, {
         spriteId: enemy.spriteId,
         emoji: enemy.sprite,
@@ -329,22 +429,30 @@ export default function WorldCanvas({
         size: enemy.isBoss ? 30 : 24,
         z: 6,
       }).obj as unknown as WorldActor;
-      k.add([
+      parts.push(face);
+      const label = k.add([
         k.text(`${enemy.isBoss ? '👑 ' : ''}Lv ${enemy.level}`, { size: 10 }),
         k.pos(px, py + (enemy.isBoss ? 32 : 26)),
         k.anchor('center'),
         k.color(255, 200, 200),
       ]);
-      // Idle hover — visual only; the collision point stays at the spawn.
-      let t = Math.random() * Math.PI * 2;
-      face.onUpdate(() => {
-        if (pausedRef.current) return;
-        t += k.dt() * 2.4;
-        const dy = Math.sin(t) * 3;
-        if (body) body.pos.y = py + dy;
-        face.pos.y = py + dy;
-      });
-      actors.push({ x: px, y: py, kind: 'enemy', enemy });
+      parts.push(label as unknown as Part);
+      const actor: Actor = { x: px, y: py, kind: 'enemy', enemy };
+      actors.push(actor);
+      if (enemy.isBoss) {
+        // Bosses hold their ground — gentle idle hover only (collision fixed).
+        let t = Math.random() * Math.PI * 2;
+        face.onUpdate(() => {
+          if (pausedRef.current) return;
+          t += k.dt() * 2.4;
+          const dy = Math.sin(t) * 3;
+          if (body) (body as unknown as Part).pos.y = py + dy;
+          face.pos.y = py + dy;
+        });
+      } else {
+        // Regular critters roam their patch (slightly wider leash than NPCs).
+        attachWander(face, { actor, parts, homeX: px, homeY: py, leash: TILE * 2, speed: 55 });
+      }
     }
 
     // --- Player ------------------------------------------------------------
@@ -415,7 +523,6 @@ export default function WorldCanvas({
     // --- Main loop ---------------------------------------------------------
     let wasPaused = false;
     let cooldown = 0;
-    let triggered = false;
     let moveSaveTimer = 0;
 
     const loop = k.onUpdate(() => {

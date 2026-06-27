@@ -228,6 +228,37 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { coins: 20, potion: 1 },
   },
+
+  // Grove side-quest: relight the Moonwell (crack its chest + clear the moths).
+  {
+    id: 'grove-moonwell',
+    zoneId: 'moonwell-grove',
+    giverNpcId: 'grove-guardian',
+    title: 'The Darkened Moonwell',
+    offer: [
+      'The Moonwell has shown nothing but dark water since the fog came. A well that forgets how to reflect is a sad thing indeed.',
+      'Its old riddle-chest holds the moon-token that wakes the water — find it and crack the riddle.',
+      'And shoo the dim-winged critters nesting at the water\'s edge, won\'t you? They love the dark a little too much.',
+    ],
+    steps: [
+      chestStep('moonwell-grove', 'The moon-token sleeps in the riddle-chest 🎁 past the gate, in the south of the grove.'),
+      defeatStep(
+        'grove-critters',
+        [
+          { defId: 'mossback-cub', label: 'Mossback Cub 🐻' },
+          { defId: 'thornhare', label: 'Thornhare 🐰' },
+          { defId: 'grumblebee', label: 'Grumblebee 🐝' },
+        ],
+        'A few critters still crowd the dark water.',
+      ),
+    ],
+    complete: [
+      'The moon-token… and the water is calm again. Look — the Moonwell is catching the light!',
+      'It remembers your face first of all. So will the whole grove, now. Thank you, little light.',
+      '✨ Reward: 35 coins and a Berry Potion!',
+    ],
+    reward: { coins: 35, potion: 1 },
+  },
 ];
 
 // --- Resolution -----------------------------------------------------------------

@@ -319,7 +319,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#..##..........##....#',
       '#....,..........,....#',
       '#.........,,.........#',
-      '##########EE##########',
+      '##EE######EE##########',
     ],
     ground: [120, 160, 110],
     path: [196, 178, 128],
@@ -339,6 +339,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 0, y: 7, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
       { x: 21, y: 6, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
       { x: 21, y: 7, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
+      // Hidden grove tucked away in the village's south-west corner (#grove).
+      { x: 2, y: 13, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
+      { x: 3, y: 13, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
       { x: 10, y: 13, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
       { x: 11, y: 13, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
     ],
@@ -475,6 +478,49 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     exits: [
       { x: 10, y: 0, to: 'whispering-woods', spawnX: 10, spawnY: 11 },
       { x: 11, y: 0, to: 'whispering-woods', spawnX: 10, spawnY: 11 },
+    ],
+  },
+
+  // A hidden nature-themed side-region off Lumina Village (#grove). A dark
+  // Moonwell sits at its heart; a gated south chamber holds the riddle-chest.
+  'moonwell-grove': {
+    id: 'moonwell-grove',
+    name: 'Moonwell Grove',
+    topic: 'nature',
+    map: [
+      '##########EE##########',
+      '#....................#',
+      '#....................#',
+      '#......,......,......#',
+      '#.......~~~~~~.......#',
+      '#......~~~~~~~~......#',
+      '#......~~~~~~~~......#',
+      '#.......~~~~~~.......#',
+      '#......,......,......#',
+      '#....................#',
+      '##########GG##########',
+      '#.........C..........#',
+      '#....................#',
+      '######################',
+    ],
+    ground: [60, 78, 110],
+    path: [120, 140, 180],
+    solidEmoji: '🌲',
+    decoEmoji: '🪻',
+    spawn: { x: 10, y: 2 },
+    npcs: [
+      { defId: 'grove-guardian', x: 6, y: 2 },
+      { defId: 'grove-firefly', x: 15, y: 3 },
+      { defId: 'grove-otter', x: 6, y: 8 },
+    ],
+    enemies: [
+      { defId: 'mossback-cub', x: 4, y: 9 },
+      { defId: 'thornhare', x: 16, y: 8 },
+      { defId: 'grumblebee', x: 16, y: 9 },
+    ],
+    exits: [
+      { x: 10, y: 0, to: 'lumina-village', spawnX: 2, spawnY: 12 },
+      { x: 11, y: 0, to: 'lumina-village', spawnX: 2, spawnY: 12 },
     ],
   },
 

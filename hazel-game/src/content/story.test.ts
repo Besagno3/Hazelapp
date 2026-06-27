@@ -7,6 +7,7 @@ import {
   HATCH_PANELS,
   CRYSTAL_PANELS,
   SPIRE_PANELS,
+  GROVE_PANELS,
   spireVictoryPanels,
   VILLAIN_NAME,
   EMBER_SPRITES,
@@ -65,6 +66,14 @@ describe('cutscene panels', () => {
     }
     expect(SPIRE_PANELS.length).toBeGreaterThanOrEqual(1);
     for (const p of SPIRE_PANELS) expect(p.text.length).toBeGreaterThan(20);
+  });
+
+  it('the Moonwell Grove has an entry cutscene', () => {
+    expect(GROVE_PANELS.length).toBeGreaterThanOrEqual(2);
+    for (const p of GROVE_PANELS) {
+      expect(p.emoji).toBeTruthy();
+      expect(p.text.length).toBeGreaterThan(20);
+    }
   });
 
   it('the villain is foreshadowed in the crystal scenes and named in the finale', () => {

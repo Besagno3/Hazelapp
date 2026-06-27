@@ -172,6 +172,33 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-06-27 — Wandering NPCs/enemies + ambient life + Moonwell Grove
+Made the overworld feel alive and grew the world by one region.
+- **Wandering actors (`lib/wander.ts` + `WorldCanvas`):** every non-boss enemy
+  and every pure-flavor villager now roams a slow, leashed random walk; bosses
+  and "key ally" NPCs stay put. The rule is `npcWanders(def)` — villagers roam
+  unless `stationary`, and **service roles never roam**. New optional
+  `WorldNpcDef.stationary` marks quest-givers (Pip/Tally/Fern/Rivet/Doodle),
+  key story NPCs (Elder Lumen, Grandmother Wick, Keeper Aurora) and the warden
+  signposts as fixed. Pure decision math (`npcWanders`, `pickWanderDir`,
+  `clampToLeash`, `withinLeash`, `pickAmbientLine`) is unit-tested; the canvas
+  closure wires it to `k.dt()`, the existing `hitAt` collision, and `pausedRef`.
+  Each wanderer keeps its `actor.x/y` (the contact point) in lockstep with all
+  its sprite pieces, so bump-to-talk / walk-into-battle still work unchanged.
+- **Idle speech bubbles:** new optional `WorldNpcDef.ambient` (short one-liners)
+  occasionally float above an NPC and fade — seeded on flavor villagers + the
+  new grove critters. Bubbles are children of the NPC sprite so they ride along.
+- **Moonwell Grove (`zones.ts`, new `ZoneId`):** a hidden nature-themed region
+  off Lumina Village (south-west exit) — a dark Moonwell, a gated south chamber
+  with the riddle-chest, three nature critters. New NPCs (`npcs.ts`): Lune the
+  Moonkeeper (quest-giver) + Glim/Ripple flavor critters. New quest
+  `grove-moonwell` (`quests.ts`, chest → defeat-3) and an entry cutscene
+  `GROVE_PANELS` (`story.ts`, flag `grove-seen`), slotted into `WorldScreen`'s
+  one-cutscene-at-a-time selection. Reuses the `nature` topic → **no edge
+  function redeploy**.
+- **Richer reactive dialogue:** Elder Lumen + Pip now react to `spire-cleared`.
+- 211 tests green (was 194); lint + tsc build clean. No deploy step.
+
 ### 2026-06-18 — Fix music not restarting after a page refresh (#62)
 Music played when first enabled (the menu toggle is a user gesture) but went
 silent after a refresh: on reload the setting is already "on", so `playMusic`

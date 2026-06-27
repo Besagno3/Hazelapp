@@ -60,6 +60,7 @@ export type ZoneId =
   | 'whispering-woods'
   | 'starfall-coast'
   | 'clockwork-depths'
+  | 'moonwell-grove'
   | 'crystal-spire';
 
 /** An enemy instance the player bumped into on the map. */

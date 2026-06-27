@@ -33,6 +33,8 @@ import {
   SPIRE_VICTORY_SEEN,
   spireVictoryPanels,
   crystalSceneFlag,
+  GROVE_PANELS,
+  GROVE_SEEN,
 } from '../../content/story';
 import { playerAge } from '../../lib/age';
 import { heroMaxHp } from '../../lib/powerups';
@@ -100,20 +102,31 @@ export default function WorldScreen() {
     null;
   const spireAwakeDue = crystals >= 1 && !flags[SPIRE_AWAKE_SEEN];
   const endingDue = crystals === TOPIC_REGISTRY.length && !flags[ENDING_SEEN];
+  // Location-triggered: plays once on first stepping into the hidden grove.
+  const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
 
-  const activeScene: 'spireVictory' | 'intro' | 'hatch' | 'crystal' | 'spire' | 'ending' | null =
-    spireVictoryDue
-      ? 'spireVictory'
-      : introDue
-        ? 'intro'
-        : hatchDue
-          ? 'hatch'
-          : crystalSceneTopic
-            ? 'crystal'
-            : spireAwakeDue
-              ? 'spire'
-              : endingDue
-                ? 'ending'
+  const activeScene:
+    | 'spireVictory'
+    | 'intro'
+    | 'hatch'
+    | 'crystal'
+    | 'spire'
+    | 'ending'
+    | 'grove'
+    | null = spireVictoryDue
+    ? 'spireVictory'
+    : introDue
+      ? 'intro'
+      : hatchDue
+        ? 'hatch'
+        : crystalSceneTopic
+          ? 'crystal'
+          : spireAwakeDue
+            ? 'spire'
+            : endingDue
+              ? 'ending'
+              : groveDue
+                ? 'grove'
                 : null;
   const cutscene = activeScene !== null;
 
@@ -296,6 +309,13 @@ export default function WorldScreen() {
           panels={spireVictoryPanels(avatar.name)}
           doneLabel="🌟 The adventure continues!"
           onDone={() => setFlag(SPIRE_VICTORY_SEEN)}
+        />
+      )}
+      {activeScene === 'grove' && (
+        <StoryPanels
+          panels={GROVE_PANELS}
+          doneLabel="🌙 Explore the grove"
+          onDone={() => setFlag(GROVE_SEEN)}
         />
       )}
     </div>

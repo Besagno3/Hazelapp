@@ -30,6 +30,18 @@ export interface WorldNpcDef {
   /** Sages belong to a topic; opens that topic's Sage screen. */
   topic?: Topic;
   lines: DialogueLine[];
+  /**
+   * Force a villager to stay put even though villagers normally roam — for
+   * quest-givers, key story figures, and warden signposts the player must be
+   * able to find reliably. Service roles are always stationary regardless.
+   * See `lib/wander.ts` `npcWanders`.
+   */
+  stationary?: boolean;
+  /**
+   * Short throwaway one-liners that occasionally float above the NPC on the map
+   * for ambient life (wandering-NPC pass). Distinct from `lines` (conversation).
+   */
+  ambient?: string[];
 }
 
 /** Which service overlay (if any) talking to this role opens after dialogue. */
@@ -47,6 +59,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Elder Lumen',
     sprite: '👴',
     role: 'villager',
+    stationary: true,
     lines: [
       {
         text: 'Welcome, brave one! A fog of Forgetting has dimmed our four Crystals of Knowing.',
@@ -67,6 +80,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'All four crystals shine again… you truly are the Hero of Lumina!',
         ifFlag: 'crystal-math-restored',
       },
+      {
+        text: 'You climbed the Spire and faced Umbra itself. Lumina will tell your story for a thousand years, brave one.',
+        ifFlag: 'spire-cleared',
+      },
     ],
   },
   'hub-kid': {
@@ -74,6 +91,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Pip',
     sprite: '🧒',
     role: 'villager',
+    stationary: true,
     lines: [
       'I saw a gatekeeper on the path! They only let you through if you answer their question.',
       'Treasure chests ask questions too. Smart chests, huh?',
@@ -84,6 +102,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'EMBER IS SO COOL. I gave them a snack. Dragons like crackers, who knew!',
         ifFlag: 'ember-hatched',
+      },
+      {
+        text: 'You beat the SPIRE?! You are the bravest kid EVER. Teach me everything someday, okay?',
+        ifFlag: 'spire-cleared',
       },
     ],
   },
@@ -127,6 +149,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Tally',
     sprite: '👧',
     role: 'villager',
+    stationary: true,
     lines: [
       'The Null Fiend turned our counting river to zeroes! It hides past the far gate.',
       { text: 'You restored the Crystal of Numbers! I can count the stars again!', ifFlag: 'crystal-math-restored' },
@@ -154,6 +177,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Fern',
     sprite: '👦',
     role: 'villager',
+    stationary: true,
     lines: [
       'The Smog Fiend choked our skies. The fireflies forgot how to glow…',
       { text: 'The skies are clear! The fireflies remember everything now!', ifFlag: 'crystal-science-restored' },
@@ -181,6 +205,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Rivet',
     sprite: '👷',
     role: 'villager',
+    stationary: true,
     lines: [
       'The Rust Fiend jammed the great canyon engine. Nothing turns like it used to.',
       { text: 'The great engine hums again — you fixed more than gears!', ifFlag: 'crystal-engineering-restored' },
@@ -208,6 +233,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Doodle',
     sprite: '🧑‍🎨',
     role: 'villager',
+    stationary: true,
     lines: [
       'The Gray Fiend drank all our colors. My paintings just sigh now.',
       { text: 'Color is back! I am going to paint EVERYTHING!', ifFlag: 'crystal-creativity-restored' },
@@ -227,6 +253,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Grandmother Wick',
     sprite: '👵',
     role: 'villager',
+    stationary: true,
     lines: [
       {
         text: 'Oh, my brave grandchild! This is the village where you grew up. The fog took the warmth from our lanterns, but never from our hearts.',
@@ -261,6 +288,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: 'ember-hatched',
       },
     ],
+    ambient: ['*kneads bread*', 'Off racing again?', 'Mind the burnt loaf!'],
   },
   'village-keeper': {
     id: 'village-keeper',
@@ -275,6 +303,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: 'crystal-creativity-restored',
       },
     ],
+    ambient: ['*trims a wick*', 'A little more light…', 'The lanterns sputter.'],
   },
 
   // --- Whispering Woods ---
@@ -307,6 +336,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Down past the roots there is a stair, and past the stair, the Clockwork Depths. Old machines sleep there. Be gentle, they dream of working again.',
       'I am made of leftover questions, you know. The ones nobody answered. When you answer yours, a little of me lights up. Thank you for that.',
     ],
+    ambient: ['*flickers softly*', 'Ooh, a riddle!', '✨', 'The trees whisper.'],
   },
   // Warns the player before the Thicket Warden — and points the reward home (#59).
   'woods-warden-sign': {
@@ -314,6 +344,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Old Bracken',
     sprite: '🦡',
     role: 'villager',
+    stationary: true,
     lines: [
       {
         text: 'Careful, sprout — that great stag deeper in is the Thicket Warden, no cuddly critter. It carries the Verdant Key on its antlers.',
@@ -344,6 +375,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: 'crystal-science-restored',
       },
     ],
+    ambient: ['*casts a line*', 'Caught a boot.', 'Tide is turning…'],
   },
   'coast-stargazer': {
     id: 'coast-stargazer',
@@ -354,6 +386,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Every star has a question for a name. The fog made us forget them. Each brave answer you give writes one back into the sky.',
       'See that bright one low in the west? I named it after a kid who would not stop asking why. …It does not have to be you. But it could be.',
     ],
+    ambient: ['*peers skyward*', 'So many stars…', 'What is that one called?'],
   },
   // Warns the player before the Tide Colossus — and points the reward home (#59).
   'coast-warden-sign': {
@@ -361,6 +394,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Castaway Pell',
     sprite: '🦭',
     role: 'villager',
+    stationary: true,
     lines: [
       {
         text: 'Psst — that swell out on the sand is no wave. It is the Tide Colossus, and it keeps the Prism Key on its back.',
@@ -391,6 +425,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: 'crystal-engineering-restored',
       },
     ],
+    ambient: ['*taps a gear*', 'Tick… tock…', 'Mind that one, it bites!'],
   },
   'depths-echo': {
     id: 'depths-echo',
@@ -401,6 +436,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'HELLO hello hello… sorry. Down here every word comes back three times. I have been alone with my own voice a very long while.',
       'I am the last lantern-bot of the deep. I keep one light burning for the crystals\' sake. Tell me a bright answer and I will keep it glowing.',
     ],
+    ambient: ['hello… hello… hello…', '*hums an echo*', 'Anyone… anyone…?'],
   },
   // Warns the player before the Clockwork Titan — and points the reward home (#59).
   'depths-warden-sign': {
@@ -408,6 +444,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Ratchet the Wind-Up',
     sprite: '🔧',
     role: 'villager',
+    stationary: true,
     lines: [
       {
         text: 'HALT— halt. The Clockwork Titan still turns just ahead. It holds the Gearwright Key behind its chestplate.',
@@ -430,6 +467,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Keeper Aurora',
     sprite: '🔮',
     role: 'villager',
+    stationary: true,
     lines: [
       {
         text: 'So. The egg-bearer climbs the Spire at last. I am Aurora — I have kept this place since before the fog, waiting for a heart bright enough to fill it.',
@@ -447,5 +485,55 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: 'crystal-creativity-restored',
       },
     ],
+  },
+
+  // --- Moonwell Grove (hidden side-region off Lumina Village) ---
+  'grove-guardian': {
+    id: 'grove-guardian',
+    name: 'Lune the Moonkeeper',
+    sprite: '🌙',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      {
+        text: 'Hush now — you found it. Moonwell Grove. I am Lune, keeper of the well that once mirrored every bright memory in Lumina.',
+        unlessFlag: 'met-lune',
+        setFlag: 'met-lune',
+      },
+      'The fog of Forgetting drank the well\'s reflection dark. Now it shows nothing at all — not the moon, not the stars, not even your own brave face.',
+      {
+        text: 'Help me wake it, little light: the old chest by the water keeps a riddle, and dim-winged moths nest where the moon should shine. Answer the one, shoo the others.',
+        unlessFlag: 'quest:grove-moonwell:done',
+      },
+      {
+        text: 'Look — the Moonwell shines again, and it remembers YOUR face first of all. Come back whenever you need to see something bright.',
+        ifFlag: 'quest:grove-moonwell:done',
+      },
+    ],
+  },
+  'grove-firefly': {
+    id: 'grove-firefly',
+    name: 'Glim',
+    sprite: '🦋',
+    role: 'villager',
+    lines: [
+      'I dance on the dark water so it does not feel so lonely. One little light is still a light!',
+      {
+        text: 'The well glows now and we dance in its reflection — a hundred Glims where there was only me. Come dance!',
+        ifFlag: 'quest:grove-moonwell:done',
+      },
+    ],
+    ambient: ['*flutters*', 'One little light…', '✨'],
+  },
+  'grove-otter': {
+    id: 'grove-otter',
+    name: 'Ripple',
+    sprite: '🦦',
+    role: 'villager',
+    lines: [
+      'The water used to tell me stories when I floated on my back. Lately it just… holds its breath. Spooky, right?',
+      'Lune says memories live in the Moonwell. I hope mine are in there — the good ones, with my whole raft of cousins.',
+    ],
+    ambient: ['*splash!*', '*floats on its back*', 'The water is so still…'],
   },
 };

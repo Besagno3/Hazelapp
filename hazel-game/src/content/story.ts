@@ -61,6 +61,8 @@ export const SPIRE_AWAKE_SEEN = 'spire-awake-seen';
 export const SPIRE_CLEARED = 'spire-cleared';
 /** Set when the true-finale (post-Spire) cutscene has played. */
 export const SPIRE_VICTORY_SEEN = 'spire-victory-seen';
+/** Plays once the first time the hero enters the hidden Moonwell Grove (#grove). */
+export const GROVE_SEEN = 'grove-seen';
 
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
@@ -172,6 +174,31 @@ export const SPIRE_PANELS: StoryPanel[] = [
     text:
       '"At last," whispers Keeper Aurora from the top of the Spire. "A bright heart walks ' +
       'Lumina again. Bring the crystals home, little hero — the Spire has waited so long for morning."',
+  },
+];
+
+/**
+ * Entry cutscene for the hidden Moonwell Grove (#grove) — plays once the first
+ * time the hero steps into the grove from Lumina Village.
+ */
+export const GROVE_PANELS: StoryPanel[] = [
+  {
+    emoji: '🌙',
+    text:
+      'A hush, a hidden path, and then — the Moonwell Grove. Silver trees lean over a wide ' +
+      'dark pool that should brim with stars, and holds none at all.',
+  },
+  {
+    emoji: '🌑',
+    text:
+      'The water remembers nothing: not the moon, not the trees, not the small brave face ' +
+      'leaning over it. The fog of Forgetting drank its reflection long ago.',
+  },
+  {
+    emoji: '🌟',
+    text:
+      'Yet one firefly still dances on the dark, refusing to let the last light go out. ' +
+      '"One little light," it hums, "is still a light." Perhaps two would shine brighter.',
   },
 ];
 

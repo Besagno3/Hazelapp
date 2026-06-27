@@ -237,6 +237,15 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-214 | U | ✅ | profile | local profile cache round-trips; `mergeProfiles` keeps higher xp/skill/power-up/streak, ignores other-user cache, null local → remote (profile.test) |
 | TC-215 | M | ⬜ | profile | earning XP then refreshing keeps the level (no reset to 1) even when the Supabase write fails; MenuOverlay shows the "XP isn't saving" warning on remote-write failure |
 | TC-216 | M | ⬜ | audio | with Music enabled, refresh the page: music stays silent until the first click/tap/key, then starts automatically (autoplay-unlock recovery) and follows the screen thereafter |
+| TC-217 | U | ✅ | wander | `npcWanders`: pure-flavor villagers roam; every service role + any villager marked `stationary` stays put (wander.test) |
+| TC-218 | U | ✅ | wander | over the real roster: every quest-giver and every non-villager NPC is stationary; some flavor villagers (e.g. Bramble) still roam (wander.test) |
+| TC-219 | U | ✅ | wander | `pickWanderDir` idles at low rng, returns unit-length steps otherwise, never indexes out of range at rng→1 (wander.test) |
+| TC-220 | U | ✅ | wander | `withinLeash` / `clampToLeash`: in-leash points pass through; strayed points are pulled back onto the leash edge; `pickAmbientLine` picks by rng / null when empty (wander.test) |
+| TC-221 | U | ✅ | zones | Moonwell Grove satisfies every zone invariant (width/legend, walkable spawn, reciprocal village exit, double-wide gate, nature-topic enemies, reachable from the hub) (zones.test) |
+| TC-222 | U | ✅ | quests | grove-moonwell: stationary guardian giver; offer → open grove chest → beat all three nature critters → complete grants the reward + done flag (quests.test) |
+| TC-223 | U | ✅ | story | `GROVE_PANELS` is a non-empty entry cutscene (emoji + ≥20-char pages) (story.test) |
+| TC-224 | M | ⬜ | world | non-boss enemies + flavor villagers wander near their spawn and freeze under overlays; bosses, Sages, shops, quest-givers and signposts stay put; walking into a wanderer still talks / battles |
+| TC-225 | M | ⬜ | world | from Lumina Village's SW exit, the grove entry cutscene plays once; idle speech bubbles pop and fade over NPCs |
 
 ## Regression cases (tied to ISSUES.md)
 

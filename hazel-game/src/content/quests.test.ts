@@ -174,3 +174,34 @@ describe('cross-zone quest (pips-marble)', () => {
     expect(questConversation(quest.giverNpcId, save)?.finishKind).toBe('complete');
   });
 });
+
+describe('grove side-quest (grove-moonwell)', () => {
+  const quest = byId('grove-moonwell');
+
+  it('lives in the hidden grove with a stationary guardian giver', () => {
+    expect(quest.zoneId).toBe('moonwell-grove');
+    expect(NPC_DEFS[quest.giverNpcId].stationary).toBe(true);
+  });
+
+  it('runs chest → clear all three critters → complete with reward', () => {
+    let save = defaultSave();
+    expect(questConversation(quest.giverNpcId, save)?.finishKind).toBe('offer');
+    save = converse(quest.giverNpcId, save);
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+
+    // Step 1: crack the grove riddle-chest; the next step is the critters.
+    save = { ...save, openedChests: [chestOf('moonwell-grove')] };
+    const step = activeStep(quest, save);
+    expect(step?.id).toBe('grove-critters');
+    expect(resolveHint(step!, save)).toContain('Mossback');
+
+    // Step 2: beat all three nature critters, any order.
+    save = { ...save, kills: { 'mossback-cub': 1, thornhare: 1, grumblebee: 1 } };
+    expect(activeStep(quest, save)).toBeNull();
+    const complete = questConversation(quest.giverNpcId, save);
+    expect(complete?.finishKind).toBe('complete');
+    const done = converse(quest.giverNpcId, save);
+    expect(done.coins).toBe(save.coins + quest.reward.coins);
+    expect(done.flags[questDoneFlag(quest)]).toBe(true);
+  });
+});
