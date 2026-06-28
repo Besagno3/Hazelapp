@@ -9,6 +9,29 @@ import type { WorldNpcDef } from '../content/npcs';
 
 export type Dir = { x: number; y: number };
 
+/**
+ * Overworld wander tuning. Speed is px/s (well under the player's 170); leash is
+ * in tiles (the canvas multiplies by `TILE`). Kept here, beside the wander
+ * logic, so movement feel is adjustable in one place (cf. `battleMath` tuning).
+ */
+export const WANDER_TUNING = {
+  npc: { speed: 40, leashTiles: 1.5 },
+  enemy: { speed: 55, leashTiles: 2 },
+} as const;
+
+/**
+ * Idle speech-bubble timing, in seconds: `first*` is the delay before an NPC's
+ * first bubble, `gap*` the spacing between bubbles (each = min + random*span),
+ * `life` how long a bubble stays up.
+ */
+export const AMBIENT_TUNING = {
+  firstMin: 3,
+  firstSpan: 8,
+  gapMin: 6,
+  gapSpan: 7,
+  life: 2.5,
+} as const;
+
 /** The 8 compass directions a wanderer can step in. */
 const DIRS: Dir[] = [
   { x: 1, y: 0 },

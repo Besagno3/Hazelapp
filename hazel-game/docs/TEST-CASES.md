@@ -247,6 +247,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-224 | M | ⬜ | world | non-boss enemies + flavor villagers wander near their spawn and freeze under overlays; bosses, Sages, shops, quest-givers and signposts stay put; walking into a wanderer still talks / battles |
 | TC-225 | M | ⬜ | world | from Lumina Village's SW exit, the grove entry cutscene plays once; idle speech bubbles pop and fade over NPCs |
 | TC-226 | M | ⬜ | world | stand still and let a wandering NPC walk into you: dialogue opens once and does NOT immediately re-open after closing (the NPC is pushed clear); wanderers never end up standing inside a wall/tree |
+| TC-227 | U | ✅ | wander | `WANDER_TUNING` / `AMBIENT_TUNING` are sane: positive speeds under the player's 170, enemy leash ≥ NPC leash, positive bubble life, non-negative spans (wander.test) |
+| TC-228 | M | ⬜ | world | idle speech bubbles render dark text on a light outlined pill, legible over dark-ground zones (Moonwell Grove / Clockwork Depths); pill + text rise, fade, and disappear together |
 
 ## Regression cases (tied to ISSUES.md)
 

@@ -9,7 +9,15 @@ import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from
 import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
 import { loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
-import { npcWanders, pickWanderDir, clampToLeash, withinLeash, pickAmbientLine } from '../../lib/wander';
+import {
+  npcWanders,
+  pickWanderDir,
+  clampToLeash,
+  withinLeash,
+  pickAmbientLine,
+  WANDER_TUNING,
+  AMBIENT_TUNING,
+} from '../../lib/wander';
 
 /** Player hitbox half-size (smaller than a tile so corridors feel forgiving). */
 const HALF = 11;
@@ -317,32 +325,57 @@ export default function WorldCanvas({
       });
     }
 
-    type Bubble = WorldActor & { opacity: number; exists: () => boolean };
+    type Bubble = WorldActor & {
+      opacity: number;
+      width?: number;
+      height?: number;
+      exists: () => boolean;
+    };
     function attachAmbient(parent: WorldActor, lines: string[]) {
-      let timer = 3 + Math.random() * 8;
+      let timer = AMBIENT_TUNING.firstMin + Math.random() * AMBIENT_TUNING.firstSpan;
       parent.onUpdate(() => {
         if (pausedRef.current || triggered) return;
         timer -= k.dt();
         if (timer > 0) return;
-        timer = 6 + Math.random() * 7;
+        timer = AMBIENT_TUNING.gapMin + Math.random() * AMBIENT_TUNING.gapSpan;
         const line = pickAmbientLine(lines, Math.random);
         if (!line) return;
-        // Child of the NPC so it rides along as the NPC moves; fades + rises.
-        const bubble = parent.add([
+        // A light pill behind dark text so bubbles read on any ground; both are
+        // children of the NPC so they ride along as it moves, fade + rise, and
+        // die together. The text is added first so KaPlay measures it.
+        const label = parent.add([
           k.text(line, { size: 9 }),
           k.pos(0, -22),
           k.anchor('center'),
-          k.color(50, 45, 75),
+          k.color(45, 35, 65),
           k.opacity(1),
+          k.z(21),
+        ]) as unknown as Bubble;
+        const w = (label.width ?? line.length * 6) + 8;
+        const h = (label.height ?? 11) + 5;
+        const pill = parent.add([
+          k.rect(w, h, { radius: 4 }),
+          k.pos(0, -22),
+          k.anchor('center'),
+          k.color(248, 245, 255),
+          k.outline(1, k.rgb(130, 120, 150)),
+          k.opacity(0.9),
           k.z(20),
         ]) as unknown as Bubble;
-        let life = 2.5;
-        bubble.onUpdate(() => {
+        let life = AMBIENT_TUNING.life;
+        label.onUpdate(() => {
           if (pausedRef.current) return;
           life -= k.dt();
-          bubble.pos.y -= k.dt() * 6;
-          bubble.opacity = Math.max(0, life / 2.5);
-          if (life <= 0 && bubble.exists()) bubble.destroy();
+          const o = Math.max(0, life / AMBIENT_TUNING.life);
+          const rise = k.dt() * 6;
+          label.pos.y -= rise;
+          pill.pos.y -= rise;
+          label.opacity = o;
+          pill.opacity = o * 0.9;
+          if (life <= 0) {
+            if (pill.exists()) pill.destroy();
+            if (label.exists()) label.destroy();
+          }
         });
       });
     }
@@ -400,7 +433,14 @@ export default function WorldCanvas({
       actors.push(actor);
       // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
       if (npcWanders(def)) {
-        attachWander(face, { actor, parts, homeX: px, homeY: py, leash: TILE * 1.5, speed: 40 });
+        attachWander(face, {
+          actor,
+          parts,
+          homeX: px,
+          homeY: py,
+          leash: TILE * WANDER_TUNING.npc.leashTiles,
+          speed: WANDER_TUNING.npc.speed,
+        });
       }
       if (def.ambient?.length) attachAmbient(face, def.ambient);
     }
@@ -455,7 +495,14 @@ export default function WorldCanvas({
         });
       } else {
         // Regular critters roam their patch (slightly wider leash than NPCs).
-        attachWander(face, { actor, parts, homeX: px, homeY: py, leash: TILE * 2, speed: 55 });
+        attachWander(face, {
+          actor,
+          parts,
+          homeX: px,
+          homeY: py,
+          leash: TILE * WANDER_TUNING.enemy.leashTiles,
+          speed: WANDER_TUNING.enemy.speed,
+        });
       }
     }
 

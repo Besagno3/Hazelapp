@@ -202,7 +202,11 @@ Made the overworld feel alive and grew the world by one region.
   player-only nudge was a no-op when the NPC walked into a motionless hero);
   wander collision is tested on the leash-clamped target so a steer-home
   correction can't seat a sprite in a wall.
-- 211 tests green (was 194); lint + tsc build clean. No deploy step.
+- **Polish (#63):** wander speed/leash + ambient timing now live in
+  `WANDER_TUNING` / `AMBIENT_TUNING` (`lib/wander.ts`), not inline in the
+  canvas; idle speech bubbles render dark text on a light, outlined pill so they
+  read on any ground (e.g. the dark Grove/Depths zones).
+- 213 tests green (was 194); lint + tsc build clean. No deploy step.
 
 ### 2026-06-18 — Fix music not restarting after a page refresh (#62)
 Music played when first enabled (the menu toggle is a user gesture) but went

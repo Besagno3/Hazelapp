@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { npcWanders, pickWanderDir, withinLeash, clampToLeash, pickAmbientLine } from './wander';
+import {
+  npcWanders,
+  pickWanderDir,
+  withinLeash,
+  clampToLeash,
+  pickAmbientLine,
+  WANDER_TUNING,
+  AMBIENT_TUNING,
+} from './wander';
 import { NPC_DEFS } from '../content/npcs';
 import { QUESTS } from '../content/quests';
 
@@ -74,6 +82,24 @@ describe('npcWanders over the real roster', () => {
   it('still lets pure-flavor villagers roam (the world feels alive)', () => {
     expect(npcWanders(NPC_DEFS['village-friend'])).toBe(true); // Bramble
     expect(Object.values(NPC_DEFS).some((d) => npcWanders(d))).toBe(true);
+  });
+});
+
+describe('tuning constants', () => {
+  it('wander speeds stay well under the player (170) and enemies roam wider', () => {
+    expect(WANDER_TUNING.npc.speed).toBeGreaterThan(0);
+    expect(WANDER_TUNING.enemy.speed).toBeGreaterThan(0);
+    expect(WANDER_TUNING.npc.speed).toBeLessThan(170);
+    expect(WANDER_TUNING.enemy.speed).toBeLessThan(170);
+    expect(WANDER_TUNING.enemy.leashTiles).toBeGreaterThanOrEqual(WANDER_TUNING.npc.leashTiles);
+  });
+
+  it('ambient timing is sane (positive life, non-negative spans)', () => {
+    expect(AMBIENT_TUNING.life).toBeGreaterThan(0);
+    expect(AMBIENT_TUNING.firstMin).toBeGreaterThanOrEqual(0);
+    expect(AMBIENT_TUNING.firstSpan).toBeGreaterThanOrEqual(0);
+    expect(AMBIENT_TUNING.gapMin).toBeGreaterThan(0);
+    expect(AMBIENT_TUNING.gapSpan).toBeGreaterThanOrEqual(0);
   });
 });
 
