@@ -32,6 +32,46 @@ export const AMBIENT_TUNING = {
   life: 2.5,
 } as const;
 
+/**
+ * Footprint radii (px) used to keep characters from overlapping each other. The
+ * minimum gap between two actors' centers is the sum of their radii.
+ */
+export const ACTOR_RADIUS = {
+  npc: 15,
+  enemy: 16,
+  boss: 21,
+  spire: 18,
+} as const;
+
+/**
+ * Half-size of a wanderer's box for the wall check — a touch wider than the
+ * player's hitbox so the fuller sprite stays off walls, but still under a 32px
+ * tile so wanderers never wedge in a one-tile corridor.
+ */
+export const WANDER_WALL_HALF = 14;
+
+/**
+ * Should a wanderer at (curX,curY) be blocked from stepping to (nx,ny) because
+ * it would come within `minDist` of another actor at (ox,oy)? Only blocks when
+ * the step lands inside `minDist` AND closer than it already is — so two actors
+ * that start out overlapping (adjacent spawns) can still drift apart instead of
+ * freezing. Pure; the canvas calls it per other-actor each frame.
+ */
+export function approachBlocked(
+  curX: number,
+  curY: number,
+  nx: number,
+  ny: number,
+  ox: number,
+  oy: number,
+  minDist: number,
+): boolean {
+  const newD2 = (nx - ox) ** 2 + (ny - oy) ** 2;
+  if (newD2 >= minDist * minDist) return false;
+  const curD2 = (curX - ox) ** 2 + (curY - oy) ** 2;
+  return newD2 < curD2;
+}
+
 /** The 8 compass directions a wanderer can step in. */
 const DIRS: Dir[] = [
   { x: 1, y: 0 },

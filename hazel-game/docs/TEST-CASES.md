@@ -249,6 +249,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-226 | M | ⬜ | world | stand still and let a wandering NPC walk into you: dialogue opens once and does NOT immediately re-open after closing (the NPC is pushed clear); wanderers never end up standing inside a wall/tree |
 | TC-227 | U | ✅ | wander | `WANDER_TUNING` / `AMBIENT_TUNING` are sane: positive speeds under the player's 170, enemy leash ≥ NPC leash, positive bubble life, non-negative spans (wander.test) |
 | TC-228 | M | ⬜ | world | idle speech bubbles render dark text on a light outlined pill, legible over dark-ground zones (Moonwell Grove / Clockwork Depths); pill + text rise, fade, and disappear together |
+| TC-229 | U | ✅ | wander | `approachBlocked`: blocks a step that moves within minDist & closer; allows steps that stay outside min, that separate already-overlapping actors, and that ignore far actors; `ACTOR_RADIUS` positive + `WANDER_WALL_HALF*2 < 32` (wander.test) |
+| TC-230 | M | ⬜ | world | wandering characters never overlap each other, stationary NPCs, the boss, or the Spire, and don't clip walls/trees; the player can still walk into NPCs to talk and enemies to battle (player/Ember are not avoided) |
 
 ## Regression cases (tied to ISSUES.md)
 

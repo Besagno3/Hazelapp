@@ -206,7 +206,13 @@ Made the overworld feel alive and grew the world by one region.
   `WANDER_TUNING` / `AMBIENT_TUNING` (`lib/wander.ts`), not inline in the
   canvas; idle speech bubbles render dark text on a light, outlined pill so they
   read on any ground (e.g. the dark Grove/Depths zones).
-- 213 tests green (was 194); lint + tsc build clean. No deploy step.
+- **No-overlap (#63):** wanderers now steer around every other character (other
+  wanderers, stationary NPCs, the boss, the Spire) — pure `approachBlocked`
+  (`lib/wander.ts`) + per-actor `ACTOR_RADIUS`, checked against the live
+  `actors` list each step; the wall check uses the sprite footprint
+  (`WANDER_WALL_HALF`) via a generalized `hitBox`. The player and Ember are
+  intentionally excluded, so bump-to-talk / walk-into-battle is unchanged.
+- 218 tests green (was 194); lint + tsc build clean. No deploy step.
 
 ### 2026-06-18 — Fix music not restarting after a page refresh (#62)
 Music played when first enabled (the menu toggle is a user gesture) but went

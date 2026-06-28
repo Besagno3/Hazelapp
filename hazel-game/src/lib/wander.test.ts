@@ -5,8 +5,11 @@ import {
   withinLeash,
   clampToLeash,
   pickAmbientLine,
+  approachBlocked,
   WANDER_TUNING,
   AMBIENT_TUNING,
+  ACTOR_RADIUS,
+  WANDER_WALL_HALF,
 } from './wander';
 import { NPC_DEFS } from '../content/npcs';
 import { QUESTS } from '../content/quests';
@@ -100,6 +103,35 @@ describe('tuning constants', () => {
     expect(AMBIENT_TUNING.firstSpan).toBeGreaterThanOrEqual(0);
     expect(AMBIENT_TUNING.gapMin).toBeGreaterThan(0);
     expect(AMBIENT_TUNING.gapSpan).toBeGreaterThanOrEqual(0);
+  });
+
+  it('actor footprints are positive and the wall margin fits a 32px tile', () => {
+    for (const r of Object.values(ACTOR_RADIUS)) expect(r).toBeGreaterThan(0);
+    expect(WANDER_WALL_HALF).toBeGreaterThan(0);
+    expect(WANDER_WALL_HALF * 2).toBeLessThan(32); // never wedges in a 1-tile corridor
+  });
+});
+
+describe('approachBlocked (actor↔actor overlap avoidance)', () => {
+  const min = 30; // e.g. two NPCs (15 + 15)
+
+  it('blocks a step that moves within minDist and closer than before', () => {
+    // self at (0,0) heading toward an actor at (40,0); step lands at (15,0).
+    expect(approachBlocked(0, 0, 15, 0, 40, 0, min)).toBe(true);
+  });
+
+  it('allows a step that stays outside minDist', () => {
+    expect(approachBlocked(0, 0, 5, 0, 40, 0, min)).toBe(false);
+  });
+
+  it('lets overlapping actors separate (within min but moving apart)', () => {
+    // self at (10,0) on top of an actor at (0,0); stepping to (14,0) is still
+    // within min but increases distance, so it must be allowed.
+    expect(approachBlocked(10, 0, 14, 0, 0, 0, min)).toBe(false);
+  });
+
+  it('ignores far-away actors', () => {
+    expect(approachBlocked(0, 0, 2, 0, 500, 500, min)).toBe(false);
   });
 });
 

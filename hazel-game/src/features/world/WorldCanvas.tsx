@@ -15,8 +15,11 @@ import {
   clampToLeash,
   withinLeash,
   pickAmbientLine,
+  approachBlocked,
   WANDER_TUNING,
   AMBIENT_TUNING,
+  ACTOR_RADIUS,
+  WANDER_WALL_HALF,
 } from '../../lib/wander';
 
 /** Player hitbox half-size (smaller than a tile so corridors feel forgiving). */
@@ -265,6 +268,8 @@ export default function WorldCanvas({
       enemy?: BattleEnemy;
       /** Sprite pieces — moved together when a wanderer is pushed off the player. */
       parts?: { pos: WorldVec }[];
+      /** Footprint radius (px) for actor↔actor overlap avoidance. */
+      radius: number;
     }
     const actors: Actor[] = [];
 
@@ -309,7 +314,17 @@ export default function WorldCanvas({
         // Clamp to the leash first, then collision-test the *final* cell so a
         // steer-home/leash correction can never seat the sprite inside a wall.
         const c = clampToLeash(nx, ny, o.homeX, o.homeY, o.leash);
-        if (hitAt(c.x, c.y)) {
+        // Walls (full sprite footprint) and every *other* character (other
+        // wanderers, stationary NPCs, the boss, the Spire — not the player or
+        // Ember) block the step; on a bump, stop and repick a direction.
+        if (
+          hitBox(c.x, c.y, WANDER_WALL_HALF) ||
+          actors.some(
+            (other) =>
+              other !== o.actor &&
+              approachBlocked(o.actor.x, o.actor.y, c.x, c.y, other.x, other.y, o.actor.radius + other.radius),
+          )
+        ) {
           dir = { x: 0, y: 0 };
           timer = 0.2 + Math.random() * 0.5;
           return;
@@ -400,7 +415,7 @@ export default function WorldCanvas({
         k.anchor('center'),
         k.color(255, 240, 200),
       ]);
-      actors.push({ x: px, y: py, kind: 'spire' });
+      actors.push({ x: px, y: py, kind: 'spire', radius: ACTOR_RADIUS.spire });
     }
 
     for (const p of z.npcs) {
@@ -429,7 +444,14 @@ export default function WorldCanvas({
         k.color(255, 255, 255),
       ]);
       parts.push(label as unknown as Part);
-      const actor: Actor = { x: px, y: py, kind: 'npc', npcId: def.id, parts };
+      const actor: Actor = {
+        x: px,
+        y: py,
+        kind: 'npc',
+        npcId: def.id,
+        parts,
+        radius: ACTOR_RADIUS.npc,
+      };
       actors.push(actor);
       // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
       if (npcWanders(def)) {
@@ -481,7 +503,14 @@ export default function WorldCanvas({
         k.color(255, 200, 200),
       ]);
       parts.push(label as unknown as Part);
-      const actor: Actor = { x: px, y: py, kind: 'enemy', enemy, parts };
+      const actor: Actor = {
+        x: px,
+        y: py,
+        kind: 'enemy',
+        enemy,
+        parts,
+        radius: enemy.isBoss ? ACTOR_RADIUS.boss : ACTOR_RADIUS.enemy,
+      };
       actors.push(actor);
       if (enemy.isBoss) {
         // Bosses hold their ground — gentle idle hover only (collision fixed).
@@ -557,12 +586,13 @@ export default function WorldCanvas({
       return { ch, x: cx, y: cy };
     }
 
-    function hitAt(px: number, py: number): { ch: string; x: number; y: number } | null {
+    /** Does a `half`-sized box centered at (px,py) overlap any blocked tile? */
+    function hitBox(px: number, py: number, half: number): { ch: string; x: number; y: number } | null {
       const corners: [number, number][] = [
-        [px - HALF, py - HALF],
-        [px + HALF, py - HALF],
-        [px - HALF, py + HALF],
-        [px + HALF, py + HALF],
+        [px - half, py - half],
+        [px + half, py - half],
+        [px - half, py + half],
+        [px + half, py + half],
       ];
       for (const [cx, cy] of corners) {
         const b = blockerAt(Math.floor(cx / TILE), Math.floor(cy / TILE));
@@ -570,6 +600,8 @@ export default function WorldCanvas({
       }
       return null;
     }
+
+    const hitAt = (px: number, py: number) => hitBox(px, py, HALF);
 
     // --- Main loop ---------------------------------------------------------
     let wasPaused = false;
