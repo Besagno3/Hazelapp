@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `profileStore`, `settingsStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `quizSessionStore`, `authStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
@@ -81,6 +81,9 @@ existing architecture.
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration).
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
   instance ids) — deliberately not persisted.
+- **`quizSessionStore`** holds the ephemeral Training-Grounds session — the
+  topics passed (80%+) this session, so `TopicSelect` greys them out and stops
+  re-picking. Not persisted; reset on sign-out (#64).
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
@@ -171,6 +174,29 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-07-03 — All 7 topics on the Training Grounds + per-session completion (#64)
+The topic-selection gate players hit after login now offers every topic and
+tracks what's been cleared this session.
+- **All topics selectable:** `TopicSelect` maps over `ALL_TOPIC_INFO` (now
+  exported from `content/topics.ts`) instead of just `TOPIC_REGISTRY`, so the
+  three `EXTRA_TOPICS` (Nature 🦋 / Space 🪐 / Time & History ⏳) join the four
+  crystal topics — seven total. They were already fully styled and
+  question-generable (#55/#57), just never shown here → **no edge-function
+  redeploy**.
+- **Per-session completion (`store/quizSessionStore.ts`):** a new **ephemeral,
+  non-persisted** Zustand store (mirrors `battleStore`) holding
+  `completedTopics`. `QuizRound.finishRound` calls `markCompleted(topic)` only
+  when the round is **passed** (80%+, reuses `PASS_THRESHOLD`). `TopicSelect`
+  greys a completed topic out with a ✓ + "Completed" and disables it (drops the
+  hover/tap motion + `onClick`) for the rest of the session. A failed attempt
+  stays selectable.
+- **Scope:** "session" = the in-memory play session — a reload starts fresh,
+  and sign-out clears it (`useAuthInit` resets the store alongside
+  `battleStore`) so one player's completed set can't leak into the next.
+- The world stays reachable throughout: only 3 passes unlock it, so the "🗺️
+  Enter the world" button appears well before all 7 could be cleared.
+- 222 tests green (was 218; `quizSessionStore.test`); lint + build clean.
 
 ### 2026-06-27 — Wandering NPCs/enemies + ambient life + Moonwell Grove
 Made the overworld feel alive and grew the world by one region.

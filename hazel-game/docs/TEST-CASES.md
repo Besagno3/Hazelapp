@@ -251,6 +251,11 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-228 | M | ⬜ | world | idle speech bubbles render dark text on a light outlined pill, legible over dark-ground zones (Moonwell Grove / Clockwork Depths); pill + text rise, fade, and disappear together |
 | TC-229 | U | ✅ | wander | `approachBlocked`: blocks a step that moves within minDist & closer; allows steps that stay outside min, that separate already-overlapping actors, and that ignore far actors; `ACTOR_RADIUS` positive + `WANDER_WALL_HALF*2 < 32` (wander.test) |
 | TC-230 | M | ⬜ | world | wandering characters never overlap each other, stationary NPCs, the boss, or the Spire, and don't clip walls/trees; the player can still walk into NPCs to talk and enemies to battle (player/Ember are not avoided) |
+| TC-231 | U | ✅ | quizSessionStore | `markCompleted` adds a topic; is idempotent (never listed twice); accumulates distinct topics in order (quizSessionStore.test) |
+| TC-232 | U | ✅ | quizSessionStore | `reset` clears the completed set so it cannot leak into the next session (quizSessionStore.test) |
+| TC-233 | M | ⬜ | TopicSelect | the Training Grounds shows all 7 topics (4 crystal + nature/space/history), not just the crystal four |
+| TC-234 | M | ⬜ | TopicSelect | passing a topic round (80%+) greys it out with a ✓ + "Completed" and makes it unclickable for the rest of the session; failing leaves it selectable |
+| TC-235 | M | ⬜ | TopicSelect | sign out and back in (or reload) → every topic is selectable again (the completed set is ephemeral, cleared on sign-out via `useAuthInit`) |
 
 ## Regression cases (tied to ISSUES.md)
 
