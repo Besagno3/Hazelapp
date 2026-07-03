@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import LevelBadge from './LevelBadge';
 import { useProfileStore } from '../store/profileStore';
+import { playerLevel, xpProgress } from '../lib/level';
 
 describe('LevelBadge', () => {
   beforeEach(() => {
@@ -36,8 +37,13 @@ describe('LevelBadge', () => {
       },
     });
     render(<LevelBadge />);
-    // 250 XP → floor(250/100) + 1 = level 3
-    expect(screen.getByText('Level 3')).toBeInTheDocument();
-    expect(screen.getByText('50/100 XP')).toBeInTheDocument();
+    // Level is derived from the (now level-scaling) XP curve — assert against
+    // the same functions the badge uses so this can't drift when the curve is
+    // tuned. At 250 XP the growing per-level cost lands the player in level 2.
+    const level = playerLevel(250);
+    const { into, needed } = xpProgress(250);
+    expect(level).toBe(2);
+    expect(screen.getByText(`Level ${level}`)).toBeInTheDocument();
+    expect(screen.getByText(`${into}/${needed} XP`)).toBeInTheDocument();
   });
 });

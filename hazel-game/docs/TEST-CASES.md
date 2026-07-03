@@ -67,8 +67,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-54 | C | ⬜ | TopicSelect | unlock copy reflects PASS_THRESHOLD / ROUNDS_TO_UNLOCK |
 | TC-55 | C | ✅ | StatusScreens | `LoadingScreen` renders the given label |
 | TC-56 | C | ✅ | StatusScreens | `ErrorScreen` shows message; omits actions when no handler |
-| TC-57 | U | ✅ | level | `playerLevel` is 1 at 0 XP and advances every 100 XP |
-| TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction for the level |
+| TC-57 | U | ✅ | level | `playerLevel` is 1 at 0 XP and reaches level 2 after the first level's `XP_BASE` (#64) |
+| TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction; `needed` is the current level's span, which widens as levels rise (#64) |
 | TC-59 | U | ✅ | level | `npcDefeatXp` rewards more for higher-level NPCs |
 | TC-60 | U | ✅ | enemies | RETIRED with lib/npc (#37) — authored placements now, see TC-119/120 |
 | TC-61 | U | ✅ | enemies | RETIRED with lib/npc (#37) — see TC-119/120 |
@@ -251,6 +251,10 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-228 | M | ⬜ | world | idle speech bubbles render dark text on a light outlined pill, legible over dark-ground zones (Moonwell Grove / Clockwork Depths); pill + text rise, fade, and disappear together |
 | TC-229 | U | ✅ | wander | `approachBlocked`: blocks a step that moves within minDist & closer; allows steps that stay outside min, that separate already-overlapping actors, and that ignore far actors; `ACTOR_RADIUS` positive + `WANDER_WALL_HALF*2 < 32` (wander.test) |
 | TC-230 | M | ⬜ | world | wandering characters never overlap each other, stationary NPCs, the boss, or the Spire, and don't clip walls/trees; the player can still walk into NPCs to talk and enemies to battle (player/Ember are not avoided) |
+| TC-231 | U | ✅ | level | `xpToAdvance` is strictly increasing — each successive level costs more XP than the last (#64) (level.test) |
+| TC-232 | U | ✅ | level | growth tapers: `growthPct(1) > growthPct(12)` and the early cost ratio exceeds the late one (big jumps early, gentle later) (#64) (level.test) |
+| TC-233 | U | ✅ | level | curve is deterministic/refresh-proof — `xpToAdvance`/`growthPct`/`playerLevel` return the same value on repeated calls; `totalXpForLevel` is the running sum of `xpToAdvance` (#64) (level.test) |
+| TC-234 | C | ✅ | LevelBadge | at 250 XP the growing curve renders level 2 with the level-2 span (asserts against `playerLevel`/`xpProgress`, not hardcoded 100s) (#64) (LevelBadge.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

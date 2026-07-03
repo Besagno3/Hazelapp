@@ -172,6 +172,28 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-07-03 — Level-up XP cost now scales as you level up (#64)
+The XP needed to reach the next level was a flat `XP_PER_LEVEL = 100` for every
+level — leveling never got harder. Now it **grows by a tapering, randomized
+percentage** per level (`lib/level.ts`).
+- **Curve:** each level's cost is the previous cost grown by `growthPct(level)`,
+  which starts high (~`MAX_GROWTH_PCT` 60%) and decays (`GROWTH_DECAY`) toward a
+  floor (~`MIN_GROWTH_PCT` 8%) as levels climb, with ±`GROWTH_JITTER` wobble —
+  big jumps early, gentle later (e.g. costs 100 → 161 → 246 → 358 → …).
+- **Refresh-proof randomness:** level is still derived purely from total XP
+  (nothing but `profiles.xp` is stored), so the per-level growth is seeded by the
+  **level index** via the same tiny LCG trick as `choicesForLevel`
+  (`lib/powerups.ts`) — the same level always yields the same threshold, so the
+  medallion / progress bar never jump on reload.
+- **New exports** `growthPct`, `xpToAdvance`, `totalXpForLevel`; `playerLevel` /
+  `xpProgress` now walk the curve (bounded by `MAX_LEVEL`). Removed the flat
+  `XP_PER_LEVEL`. `LevelBadge` needed no change — it already renders the dynamic
+  `needed`/`fraction` from `xpProgress`; `LevelUpModal` still awards one power-up
+  per level.
+- **Side effect:** the same total XP now maps to a **lower displayed level** past
+  level 2 (later levels cost more) — expected, no data migration.
+- 223 tests green (updated `level.test` + `LevelBadge.test`); lint + build clean.
+
 ### 2026-06-27 — Wandering NPCs/enemies + ambient life + Moonwell Grove
 Made the overworld feel alive and grew the world by one region.
 - **Wandering actors (`lib/wander.ts` + `WorldCanvas`):** every non-boss enemy
