@@ -65,9 +65,10 @@ existing architecture.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
-  resolves all seven, #33/#55), `zones.ts` (10 ASCII tile maps: Lumina Field
-  hub + 4 crystal zones + Village (safe) + 3 themed combat zones + the Crystal
-  Spire, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
+  resolves all seven, #33/#55), `zones.ts` (11 ASCII tile maps: Lumina Field
+  hub + 4 crystal zones + Village (safe) + 3 themed combat zones + the hidden
+  Moonwell Grove + the Crystal Spire; `ZONE_IDS` is the zone-id source of
+  truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
   (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
@@ -172,6 +173,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-07-07 — Wave 0.7: story-doc sync (Moonwell Grove into the bible)
+STORY.md caught up with the code: 11 zones (was "10" — the Grove was
+uncounted), the Grove's cast (Lune/Glim/Ripple) and quest (The Darkened
+Moonwell) added to the cast/quest tables, `grove-seen` added to the flag
+glossary, and §8's future hooks now point at their full specs in
+`STORY-4X.md` (Acts II–IV) / `ROADMAP-4X.md` (delivery waves). CLAUDE.md's
+content-layer description updated to match (11 maps, `ZONE_IDS`). Doc-only.
+
 ### 2026-07-07 — Wave 0.5: enemy behavior archetypes (#69, ROADMAP-4X)
 Zones can now differ in play, not just palette. `EnemyBehavior`
 (`types/index.ts`): **shielded** — the first landed hit (even a glancing
@@ -185,7 +194,7 @@ never a gotcha. `EnemyDef.behavior` carries through `spawnEnemy`; first
 users: Relic Golem (shielded), Pixel Witch (trickster), Moon Moth (healer).
 Bosses stay archetype-free (their twist is the enrage formula; test-
 enforced). "Swift"/timed deferred pending the STORY-4X §12 timer decision.
-239 tests green; lint + build clean.
+238 tests green; lint + build clean.
 
 ### 2026-07-07 — Wave 0.4: shared topic config for generate-questions (#67, #68)
 The edge function's topic whitelist + persona lines moved to
