@@ -1,4 +1,29 @@
-import type { Topic, ZoneId } from '../types';
+import type { Topic } from '../types';
+
+/**
+ * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
+ * zone means adding its id here + its `ZONES` entry below; the compiler
+ * enforces both directions (`ZONES` is a `Record<ZoneId, ZoneDef>`), and
+ * `types/index.ts` re-exports the derived `ZoneId` so save/battle types stay
+ * in sync automatically.
+ */
+export const ZONE_IDS = [
+  // Original five (hub + four topic regions)
+  'lumina-field',
+  'numbria',
+  'verdara',
+  'gearfall',
+  'chromaria',
+  // Expansion: story / exploration regions reached through the village
+  'lumina-village',
+  'whispering-woods',
+  'starfall-coast',
+  'clockwork-depths',
+  'moonwell-grove',
+  'crystal-spire',
+] as const;
+
+export type ZoneId = (typeof ZONE_IDS)[number];
 
 /**
  * The world of Lumina (#37): a hub field with four topic zones off its edges

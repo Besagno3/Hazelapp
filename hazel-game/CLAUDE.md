@@ -172,6 +172,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-07-07 — Wave 0.3: ZoneId derives from the zone registry (#66, ROADMAP-4X)
+`ZONE_IDS` (`content/zones.ts`) is now the single source of truth for the
+`ZoneId` union; `types/index.ts` re-exports it type-only (the types↔zones
+circular import is erased at compile time). Adding a zone = one id + one
+`ZONES` entry in zones.ts — the `Record<ZoneId, ZoneDef>` shape errors on a
+missing or extra entry, and a new zones.test asserts key/id consistency.
+Lazy zone loading deliberately deferred to Wave 3 (see ISSUES #66). No
+behavior change. 227 tests green; lint + build clean.
+
 ### 2026-07-07 — Wave 0.2: versioned save-migration ladder (#65, ROADMAP-4X)
 `lib/save.ts` gains `runMigrations` + a `MIGRATIONS` ladder (v N → N+1 steps
 over raw payloads), run inside `normalizeSave` so every load path upgrades

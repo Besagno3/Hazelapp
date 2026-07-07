@@ -66,21 +66,14 @@ export interface NPC {
   maxHp: number;
 }
 
-/** The world zones of Lumina (see src/content/zones.ts). */
-export type ZoneId =
-  // Original five (hub + four topic regions)
-  | 'lumina-field'
-  | 'numbria'
-  | 'verdara'
-  | 'gearfall'
-  | 'chromaria'
-  // Expansion: story / exploration regions reached through the village
-  | 'lumina-village'
-  | 'whispering-woods'
-  | 'starfall-coast'
-  | 'clockwork-depths'
-  | 'moonwell-grove'
-  | 'crystal-spire';
+/**
+ * The world zones of Lumina — derived from `ZONE_IDS` in content/zones.ts
+ * (Wave 0.3), re-exported here so shared types keep a single import surface.
+ * (Type-only circularity with zones.ts is fine — both directions are erased
+ * at compile time.)
+ */
+import type { ZoneId } from '../content/zones';
+export type { ZoneId };
 
 /** An enemy instance the player bumped into on the map. */
 export interface BattleEnemy extends NPC {

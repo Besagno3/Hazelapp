@@ -257,6 +257,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-234 | U | ✅ | save | Wave 0.2: `runMigrations` walks a payload up a fake ladder stamping each version; starts mid-ladder for a v2 payload without rerunning the v1 step (save.test) |
 | TC-235 | U | ✅ | save | Wave 0.2: missing version treated as v1; missing step stops the walk (normalizeSave defaults the rest); null/non-object passthrough; version ≥ target untouched — no downgrade (save.test) |
 | TC-236 | U | ✅ | save | Wave 0.2: the real `MIGRATIONS` ladder is empty while `SAVE_VERSION` is 1, and a v1 payload round-trips `runMigrations` unchanged (save.test) |
+| TC-237 | U | ✅ | zones | Wave 0.3: `ZONES` keys exactly equal `ZONE_IDS` (order included) and every `ZoneDef.id` matches its record key (zones.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ZONES, LEGEND_CHARS, WALKABLE_CHARS, HUB_ZONE, tileAt, gateIdAt } from './zones';
+import { ZONES, ZONE_IDS, LEGEND_CHARS, WALKABLE_CHARS, HUB_ZONE, tileAt, gateIdAt } from './zones';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
@@ -10,6 +10,15 @@ const allZones = Object.values(ZONES);
 function isWalkable(z: ZoneDef, x: number, y: number): boolean {
   return WALKABLE_CHARS.has(tileAt(z, x, y));
 }
+
+describe('zone registry (Wave 0.3)', () => {
+  it('ZONES keys exactly match ZONE_IDS, each entry self-identifying', () => {
+    expect(Object.keys(ZONES)).toEqual([...ZONE_IDS]);
+    for (const [key, z] of Object.entries(ZONES)) {
+      expect(z.id, `${key} id mismatch`).toBe(key);
+    }
+  });
+});
 
 describe('zone maps', () => {
   it('every row has the same width and only legend characters', () => {
