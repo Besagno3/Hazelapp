@@ -254,6 +254,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-231 | U | ✅ | topics | Wave 0.1: `TOPIC_REGISTRY` ids exactly equal `CRYSTAL_TOPIC_IDS` and `TOTAL_CRYSTALS === TOPIC_REGISTRY.length` — adding a crystal id without its registry entry fails (topics.test) |
 | TC-232 | U | ✅ | topics | `EXTRA_TOPICS` ids exactly equal `EXTRA_TOPIC_IDS`; `ALL_TOPICS` has no duplicates and covers crystal + extra (topics.test) |
 | TC-233 | U | ✅ | story | Wave 0.1: `EMBER_STAGE_AT` derives from `TOTAL_CRYSTALS` (dragon = all, whelp = half); `emberStage` respects the table boundaries (story.test) |
+| TC-234 | U | ✅ | save | Wave 0.2: `runMigrations` walks a payload up a fake ladder stamping each version; starts mid-ladder for a v2 payload without rerunning the v1 step (save.test) |
+| TC-235 | U | ✅ | save | Wave 0.2: missing version treated as v1; missing step stops the walk (normalizeSave defaults the rest); null/non-object passthrough; version ≥ target untouched — no downgrade (save.test) |
+| TC-236 | U | ✅ | save | Wave 0.2: the real `MIGRATIONS` ladder is empty while `SAVE_VERSION` is 1, and a v1 payload round-trips `runMigrations` unchanged (save.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

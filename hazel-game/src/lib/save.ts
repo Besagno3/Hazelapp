@@ -4,6 +4,48 @@ import { LIBRARY_MAX } from '../content/items';
 
 export const SAVE_VERSION = 1 as const;
 
+/**
+ * Versioned save-migration ladder (Wave 0.2, ROADMAP-4X). Each step upgrades
+ * a raw persisted payload from version N to N+1 and runs BEFORE field-level
+ * normalization (steps see raw unknown-shaped data — the old shape no longer
+ * typechecks). To change the save shape:
+ *   1. bump `SAVE_VERSION`,
+ *   2. add `MIGRATIONS[oldVersion]` returning the upgraded raw payload,
+ *   3. update `SaveData` / `defaultSave` / `normalizeSave` to the new shape,
+ *   4. add a fixture test in save.test.ts feeding a real old-version payload.
+ * Old saves then upgrade step-by-step on every load path (Supabase and
+ * localStorage both come through `normalizeSave`).
+ */
+export type RawSave = Record<string, unknown>;
+export type MigrationLadder = Record<number, (raw: RawSave) => RawSave>;
+
+export const MIGRATIONS: MigrationLadder = {
+  // 1: (raw) => ({ ...raw, party: [] }),   ← example: v1 → v2
+};
+
+/**
+ * Walks `raw` up the ladder to `targetVersion`. A payload without a numeric
+ * version is treated as v1 (the first JRPG shape). Stops early if a step is
+ * missing — `normalizeSave`'s field defaulting is the safety net. Pure and
+ * ladder-injectable for tests.
+ */
+export function runMigrations(
+  raw: unknown,
+  ladder: MigrationLadder = MIGRATIONS,
+  targetVersion: number = SAVE_VERSION,
+): unknown {
+  if (typeof raw !== 'object' || raw === null) return raw;
+  let data = raw as RawSave;
+  let version = typeof data.version === 'number' ? data.version : 1;
+  while (version < targetVersion) {
+    const step = ladder[version];
+    if (!step) break;
+    version += 1;
+    data = { ...step(data), version };
+  }
+  return data;
+}
+
 /** localStorage key for a user's save (per-user — fixes #12). */
 export function saveKey(userId: string): string {
   return `hazel-save-${userId}`;
@@ -41,8 +83,9 @@ export function defaultSave(): SaveData {
  */
 export function normalizeSave(raw: unknown): SaveData {
   const d = defaultSave();
-  if (typeof raw !== 'object' || raw === null) return d;
-  const r = raw as Record<string, unknown>;
+  const migrated = runMigrations(raw);
+  if (typeof migrated !== 'object' || migrated === null) return d;
+  const r = migrated as Record<string, unknown>;
 
   const zoneId =
     typeof r.zoneId === 'string' && r.zoneId in ZONES ? (r.zoneId as ZoneId) : d.zoneId;

@@ -172,6 +172,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-07-07 — Wave 0.2: versioned save-migration ladder (#65, ROADMAP-4X)
+`lib/save.ts` gains `runMigrations` + a `MIGRATIONS` ladder (v N → N+1 steps
+over raw payloads), run inside `normalizeSave` so every load path upgrades
+old saves before field coercion. Ladder is empty at `SAVE_VERSION` 1 — the
+mechanism + tests land ahead of the first real shape change (Wave 2 party
+state), which must bump the version, add a step + real-v1 fixture test, and
+drop the vestigial `sageEquipped` (#53). Missing steps stop the walk safely
+(normalize field-defaults the rest); payloads at/above target are never
+touched. 226 tests green; lint + build clean.
+
 ### 2026-07-07 — Wave 0.1: crystal count registry-derived (#64, ROADMAP-4X)
 First foundation refactor for the 4× expansion (`docs/ROADMAP-4X.md`,
 `docs/STORY-4X.md`). Adding a crystal topic is now: add its id to
