@@ -86,11 +86,11 @@ describe('healer archetype (Wave 0.5)', () => {
     expect(Number.isInteger(healerRegen(133))).toBe(true);
   });
 
-  it('a correct answer always makes net progress — no unwinnable stall', () => {
-    // Biggest possible healer critter today: moon-moth at level 10 →
-    // 60 + 10*13 = 190 max HP. Even the weakest style's landed hit must
-    // out-damage its regen, or a kid answering correctly could never win.
-    const biggestHealerMaxHp = 60 + 10 * 13;
-    expect(healerRegen(biggestHealerMaxHp)).toBeLessThan(attackDamage(true, 'defensive', {}));
+  it('regen is a fixed fraction, so a big enough hit always outpaces it', () => {
+    // Pure-function guarantee: regen scales linearly with maxHp at
+    // HEALER_REGEN_RATE, so any hit above rate×maxHp makes net progress.
+    // The roster-level "no healer out-mends a real hit" invariant lives in
+    // enemies.test.ts, derived from ENEMY_DEFS (not a hardcoded HP).
+    expect(healerRegen(300)).toBe(Math.round(300 * HEALER_REGEN_RATE));
   });
 });

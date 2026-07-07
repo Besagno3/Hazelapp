@@ -79,6 +79,21 @@ describe('runMigrations (Wave 0.2 versioned ladder)', () => {
     const v1 = { version: 1, coins: 12 };
     expect(runMigrations(v1)).toEqual(v1);
   });
+
+  it('TRIPWIRE: the ladder has a step for every version below SAVE_VERSION', () => {
+    // runMigrations stops silently at a missing step and normalizeSave then
+    // stamps the payload as fully current — a gap would permanently mask a
+    // never-run migration (see the MIGRATIONS doc comment). This must hold
+    // for every version, and the first bump must also add the stale-client
+    // downgrade guard described there.
+    for (let v = 1; v < SAVE_VERSION; v++) {
+      expect(MIGRATIONS[v], `missing migration step ${v} → ${v + 1}`).toBeTypeOf('function');
+    }
+    // No orphan steps at/above the current version either.
+    for (const key of Object.keys(MIGRATIONS)) {
+      expect(Number(key)).toBeLessThan(SAVE_VERSION);
+    }
+  });
 });
 
 describe('normalizeSave', () => {

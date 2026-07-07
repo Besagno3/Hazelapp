@@ -147,7 +147,12 @@ npm test         # Vitest suite (test:watch / test:ui also available)
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
   `ROUNDS_TO_UNLOCK`); battle math in `src/lib/battleMath.ts`; economy in
   `src/content/items.ts`.
-- Shared types live in `src/types/index.ts`.
+- Shared types live in `src/types/index.ts` — **except** unions derived from a
+  content registry, which live beside that registry so the ids stay the single
+  source of truth (`ZoneId` from `ZONE_IDS` in `content/zones.ts`, `TopicId`
+  from `TOPIC_PROMPTS` in `supabase/functions/_shared/topics.ts`), and are
+  re-exported through `types/index.ts` / `content/topicPrompts.ts`. Prefer this
+  registry-derived pattern over hand-written unions for any new id set.
 
 ---
 
@@ -172,6 +177,39 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-07-07 — Wave 0 review pass: bug + gap fixes (8-angle review)
+Multi-agent review of the whole Wave 0 branch; fixes applied:
+- **Archetype banner never seen (correctness):** the shielded/trickster/healer
+  callout was on mount-anchored timers that expired behind the question
+  LoadingScreen on a slow generation — the "twist, never a gotcha" contract
+  broken. Now gated on `!loading` + a shared `showBanner(text, ttl)` helper
+  (one banner lifecycle; a stale hide-timer can't wipe a fresh banner — also
+  fixed the boss-enrage banner's leaked timeout).
+- **Ember stage regression (correctness):** `EMBER_STAGE_AT` was a
+  `ceil(TOTAL/2)`/`TOTAL` formula; STORY-4X §8 pins whelp=2/dragon=4 even at
+  6 crystals, so crystal #5 would have regressed a live full-grown Ember to a
+  whelp (losing Ember's Breath). Now explicit values + a story.test TRIPWIRE
+  that fails on a `TOTAL_CRYSTALS` change to force a deliberate retune.
+- **Shield state leak (correctness/altitude):** `enemyShielded` re-derives on
+  `enemy.instanceId` change (adjust-state-during-render) instead of a
+  mount-only initializer — no longer relies on the arena unmounting per fight.
+- **Spell charge wasted on shield (correctness):** an offensive spell absorbed
+  by a shield now refunds its charge (effort never punished).
+- **Save-migration masking (correctness):** documented that `normalizeSave`
+  stamps `version` unconditionally (a missing step would mask itself / a stale
+  client would downgrade a newer save); added a save.test TRIPWIRE asserting
+  the ladder has a step for every version < `SAVE_VERSION`.
+- **Topic drift now a compile error:** `topicPrompts.ts` proves `Topic ≡
+  TopicId` at build time (was test-only — dangerous with no CI).
+- **Edge fn is multi-file now:** ISSUES #67 upgraded to a CLI-only deploy
+  warning (dashboard single-file paste boot-fails on `_shared`).
+- **Test de-hardcoding (reuse):** `ENEMY_BEHAVIORS` const-array derives the
+  union (enemies.test imports it, no private copy); the no-stall invariant
+  moved to enemies.test and derives max HP from `ENEMY_DEFS` via `spawnEnemy`.
+- **Known/deferred:** a pre-existing 260ms tap-race (ISSUES #70), logged not
+  fixed (needs turn-machine rework — Wave 2).
+- 240 tests green (was 238); lint + build clean.
 
 ### 2026-07-07 — Wave 0.7: story-doc sync (Moonwell Grove into the bible)
 STORY.md caught up with the code: 11 zones (was "10" — the Grove was

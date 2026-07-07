@@ -82,7 +82,8 @@ export type { ZoneId };
  * healer: mends itself at the end of its turn while below half HP.
  * ("swift"/timed is an open decision — STORY-4X.md §12.)
  */
-export type EnemyBehavior = 'shielded' | 'trickster' | 'healer';
+export const ENEMY_BEHAVIORS = ['shielded', 'trickster', 'healer'] as const;
+export type EnemyBehavior = (typeof ENEMY_BEHAVIORS)[number];
 
 /** An enemy instance the player bumped into on the map. */
 export interface BattleEnemy extends NPC {

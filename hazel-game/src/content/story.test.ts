@@ -33,11 +33,15 @@ describe('emberStage', () => {
     expect(emberStage(4, hatched)).toBe('dragon');
   });
 
-  it('stage thresholds derive from the crystal registry, not literals (Wave 0.1)', () => {
-    expect(EMBER_STAGE_AT.dragon).toBe(TOTAL_CRYSTALS);
-    expect(EMBER_STAGE_AT.whelp).toBe(Math.ceil(TOTAL_CRYSTALS / 2));
+  it('TRIPWIRE: retune EMBER_STAGE_AT deliberately when the crystal count changes', () => {
+    // EMBER_STAGE_AT holds explicit narrative beats (STORY-4X.md §8: whelp 2,
+    // dragon 4 — even at 6 crystals). This assertion is meant to FAIL when a
+    // new act changes TOTAL_CRYSTALS: do not "fix" it by deriving the stages —
+    // decide them against the spec (a live player's dragon must not regress),
+    // then update this pin.
+    expect(TOTAL_CRYSTALS).toBe(4);
+    expect(EMBER_STAGE_AT).toEqual({ whelp: 2, dragon: 4 });
     const hatched = { [EMBER_HATCHED]: true };
-    expect(emberStage(EMBER_STAGE_AT.whelp - 1, hatched)).toBe('hatchling');
     expect(emberStage(EMBER_STAGE_AT.whelp, hatched)).toBe('whelp');
     expect(emberStage(EMBER_STAGE_AT.dragon, hatched)).toBe('dragon');
   });

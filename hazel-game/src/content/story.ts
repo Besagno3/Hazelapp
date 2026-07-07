@@ -1,4 +1,4 @@
-import { TOTAL_CRYSTALS, type CrystalTopic, type Topic } from '../types';
+import type { CrystalTopic, Topic } from '../types';
 import { TOPIC_REGISTRY, crystalFlag } from './topics';
 
 /**
@@ -70,13 +70,16 @@ export function crystalSceneFlag(topic: Topic): string {
 }
 
 /**
- * Crystal counts at which Ember grows — derived from the crystal registry,
- * never literal counts (Wave 0.1). Today (4 crystals): whelp at 2, dragon at
- * all 4. This table is the ONE place a future act retunes Ember's growth.
+ * Crystal counts at which Ember grows. These are EXPLICIT narrative beats,
+ * not proportions — STORY-4X.md §8 keeps whelp at 2 and dragon at 4 even
+ * once more crystals exist (a live player's full-grown Ember must never
+ * regress when a new act raises TOTAL_CRYSTALS). story.test.ts trips when
+ * TOTAL_CRYSTALS moves so the values here are retuned deliberately, in one
+ * place, against the spec.
  */
 export const EMBER_STAGE_AT = {
-  whelp: Math.ceil(TOTAL_CRYSTALS / 2),
-  dragon: TOTAL_CRYSTALS,
+  whelp: 2,
+  dragon: 4,
 } as const;
 
 /**

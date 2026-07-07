@@ -15,6 +15,14 @@ export const SAVE_VERSION = 1 as const;
  *   4. add a fixture test in save.test.ts feeding a real old-version payload.
  * Old saves then upgrade step-by-step on every load path (Supabase and
  * localStorage both come through `normalizeSave`).
+ *
+ * ⚠️ The FIRST version bump must also add a stale-client guard: today
+ * `normalizeSave` stamps `version: SAVE_VERSION` unconditionally, so once v2
+ * exists, a cached v1 client opening a v2 save would field-strip it and
+ * re-persist it as v1 (the #61 silent-data-loss class). Harmless while only
+ * v1 exists — treat "refuse to load versions above SAVE_VERSION" as step 5
+ * of the checklist above. save.test.ts's ladder tripwire separately catches
+ * a bumped version with a missing step.
  */
 export type RawSave = Record<string, unknown>;
 export type MigrationLadder = Record<number, (raw: RawSave) => RawSave>;
