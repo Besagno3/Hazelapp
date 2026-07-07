@@ -11,8 +11,11 @@ import { CRYSTAL_TOPIC_IDS, type CrystalTopic, type Topic, type ZoneId } from '.
  * - `EXTRA_TOPICS` — the expansion question themes (nature, space, history)
  *   that flavour the new zones. Styling only — no crystal/fiend.
  *
- * `topicInfo(id)` resolves either tier. Adding a topic means an entry here, a
- * zone in zones.ts, and a persona hint in the edge function's system prompt.
+ * `topicInfo(id)` resolves either tier. Adding a topic: an id in
+ * `CRYSTAL_TOPIC_IDS`/`EXTRA_TOPIC_IDS` (types), an entry here, a persona line
+ * in supabase/functions/_shared/topics.ts (shared with the edge function —
+ * topicPrompts.test.ts locks the two lists together), usually a zone in
+ * zones.ts, then redeploy generate-questions.
  */
 export interface TopicInfo {
   id: Topic;

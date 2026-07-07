@@ -258,6 +258,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-235 | U | ✅ | save | Wave 0.2: missing version treated as v1; missing step stops the walk (normalizeSave defaults the rest); null/non-object passthrough; version ≥ target untouched — no downgrade (save.test) |
 | TC-236 | U | ✅ | save | Wave 0.2: the real `MIGRATIONS` ladder is empty while `SAVE_VERSION` is 1, and a v1 payload round-trips `runMigrations` unchanged (save.test) |
 | TC-237 | U | ✅ | zones | Wave 0.3: `ZONES` keys exactly equal `ZONE_IDS` (order included) and every `ZoneDef.id` matches its record key (zones.test) |
+| TC-238 | U | ✅ | topics | Wave 0.4: shared `TOPIC_IDS` (edge-function whitelist) exactly equals the game's `ALL_TOPICS`; every topic has a >10-char persona line with no school words (test/grade/exam/homework) (topicPrompts.test) |
+| TC-239 | U | ✅ | topics | Wave 0.4: `topicPromptBlock()` emits exactly one `- id: …` line per topic (topicPrompts.test) |
+| TC-240 | M | ⬜ | edge fn | after redeploying generate-questions, all 7 topics still generate (spot-check one crystal + one extra topic); an unknown topic still 400s with the whitelist message |
 
 ## Regression cases (tied to ISSUES.md)
 

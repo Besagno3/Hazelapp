@@ -172,6 +172,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-07-07 — Wave 0.4: shared topic config for generate-questions (#67, #68)
+The edge function's topic whitelist + persona lines moved to
+`supabase/functions/_shared/topics.ts` — imported by the function (bundled at
+deploy) and re-exported to the app as `src/content/topicPrompts.ts`.
+`topicPrompts.test.ts` locks the shared `TOPIC_IDS` to the game's
+`ALL_TOPICS`, so a topic added on one side fails the suite. Adding a topic no
+longer edits function internals (see the checklist in _shared/topics.ts);
+a redeploy is still required. Question-table pruning deliberately deferred
+with a concrete plan (#68) — no new migration while prod drift (#61) is the
+live risk. ⚠️ Deploy: redeploy `generate-questions` once for the module
+layout (identical behavior). 231 tests green; lint + build clean.
+
 ### 2026-07-07 — Wave 0.3: ZoneId derives from the zone registry (#66, ROADMAP-4X)
 `ZONE_IDS` (`content/zones.ts`) is now the single source of truth for the
 `ZoneId` union; `types/index.ts` re-exports it type-only (the types↔zones
