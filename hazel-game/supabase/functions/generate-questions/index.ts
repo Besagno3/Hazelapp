@@ -19,11 +19,27 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js';
-import { TOPIC_IDS, topicPromptBlock } from '../_shared/topics.ts';
 
 const MODEL = 'claude-haiku-4-5';
-/** Whitelist + persona lines live in _shared/topics.ts (Wave 0.4, #67). */
-const TOPICS = TOPIC_IDS;
+
+// Topic whitelist + question-writer persona lines. Kept INLINE so this
+// function is a single self-contained file that deploys via any path (CLI,
+// dashboard, or API) — a sibling `_shared/` import silently fails to bundle
+// on non-CLI deploys (#67). The canonical copy for the app lives in
+// `_shared/topics.ts`; `topicPrompts.test.ts` reads THIS file's text and
+// fails if the two ever drift, so adding a topic still can't diverge silently.
+const TOPIC_PROMPTS: Record<string, string> = {
+  math: 'arithmetic, geometry, fractions, word problems.',
+  science: 'nature, biology, physics, space, chemistry basics.',
+  engineering: 'how things work, computers, materials, structures, simple logic.',
+  creativity: 'art, music, colour, writing, design, imagination.',
+  nature: 'animals, plants, habitats, weather, the human body, the living world.',
+  space: 'planets, stars, moons, the solar system, astronauts, rockets, the night sky.',
+  history:
+    'world history, ancient civilizations, famous inventions, important people, the measurement of time.',
+};
+const TOPICS = Object.keys(TOPIC_PROMPTS);
+const TOPIC_PROMPT_BLOCK = TOPICS.map((id) => `- ${id}: ${TOPIC_PROMPTS[id]}`).join('\n');
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
 const LEVEL_BAND = 2;
@@ -47,7 +63,7 @@ Each question has exactly 4 options. "correctIndex" is the 0-based index of the 
 "explanation" is one short, encouraging, kid-friendly sentence explaining the answer.
 
 Topics:
-${topicPromptBlock()}
+${TOPIC_PROMPT_BLOCK}
 
 Difficulty guidance: level 1-3 = simple recall for young children; 4-6 = applied
 understanding; 7-10 = multi-step reasoning and harder concepts. A question must

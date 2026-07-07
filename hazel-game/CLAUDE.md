@@ -153,6 +153,11 @@ npm test         # Vitest suite (test:watch / test:ui also available)
   from `TOPIC_PROMPTS` in `supabase/functions/_shared/topics.ts`), and are
   re-exported through `types/index.ts` / `content/topicPrompts.ts`. Prefer this
   registry-derived pattern over hand-written unions for any new id set.
+- **Edge functions must stay single-file.** `generate-questions/index.ts` keeps
+  its topic table inline rather than importing `../_shared/topics.ts` — a
+  sibling import fails to bundle on dashboard/API deploys (#67). The `_shared`
+  copy is canonical for the app; `topicPrompts.test.ts` (`?raw`) fails if the
+  function's inline copy drifts from it.
 
 ---
 
@@ -177,6 +182,16 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-07-07 — Fix edge-function deploy: self-contained again (#67)
+A live deploy failed with `Module not found "_shared/topics.ts"` — the
+Wave 0.4 `../_shared` import doesn't bundle on dashboard/API deploys (only the
+CLI uploads siblings). Reverted the function to inline its own topic table so
+`generate-questions/index.ts` is a single self-contained file that deploys any
+way. `_shared/topics.ts` stays canonical for the app (compile-lock + tests
+unchanged); a new `topicPrompts.test.ts` case reads the function source via
+Vite `?raw` and fails if the inline copy drifts from canonical. 241 tests
+green; lint + build clean.
 
 ### 2026-07-07 — Wave 0 review pass: bug + gap fixes (8-angle review)
 Multi-agent review of the whole Wave 0 branch; fixes applied:
