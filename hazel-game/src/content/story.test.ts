@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { TOTAL_CRYSTALS } from '../types';
 import {
   emberStage,
+  EMBER_STAGE_AT,
   endingPanels,
   BOSS_LINES,
   INTRO_PANELS,
@@ -29,6 +31,15 @@ describe('emberStage', () => {
     expect(emberStage(2, hatched)).toBe('whelp');
     expect(emberStage(3, hatched)).toBe('whelp');
     expect(emberStage(4, hatched)).toBe('dragon');
+  });
+
+  it('stage thresholds derive from the crystal registry, not literals (Wave 0.1)', () => {
+    expect(EMBER_STAGE_AT.dragon).toBe(TOTAL_CRYSTALS);
+    expect(EMBER_STAGE_AT.whelp).toBe(Math.ceil(TOTAL_CRYSTALS / 2));
+    const hatched = { [EMBER_HATCHED]: true };
+    expect(emberStage(EMBER_STAGE_AT.whelp - 1, hatched)).toBe('hatchling');
+    expect(emberStage(EMBER_STAGE_AT.whelp, hatched)).toBe('whelp');
+    expect(emberStage(EMBER_STAGE_AT.dragon, hatched)).toBe('dragon');
   });
 
   it('every stage has a sprite and a map size', () => {

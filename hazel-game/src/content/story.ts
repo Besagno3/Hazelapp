@@ -1,4 +1,4 @@
-import type { CrystalTopic, Topic } from '../types';
+import { TOTAL_CRYSTALS, type CrystalTopic, type Topic } from '../types';
 import { TOPIC_REGISTRY, crystalFlag } from './topics';
 
 /**
@@ -70,13 +70,23 @@ export function crystalSceneFlag(topic: Topic): string {
 }
 
 /**
+ * Crystal counts at which Ember grows — derived from the crystal registry,
+ * never literal counts (Wave 0.1). Today (4 crystals): whelp at 2, dragon at
+ * all 4. This table is the ONE place a future act retunes Ember's growth.
+ */
+export const EMBER_STAGE_AT = {
+  whelp: Math.ceil(TOTAL_CRYSTALS / 2),
+  dragon: TOTAL_CRYSTALS,
+} as const;
+
+/**
  * Ember grows on the player's deeds: the egg hatches after the first battle
  * victory, and each restored crystal feeds the little dragon.
  */
 export function emberStage(crystals: number, flags: Record<string, boolean>): EmberStage {
   if (!flags[EMBER_HATCHED]) return 'egg';
-  if (crystals >= 4) return 'dragon';
-  if (crystals >= 2) return 'whelp';
+  if (crystals >= EMBER_STAGE_AT.dragon) return 'dragon';
+  if (crystals >= EMBER_STAGE_AT.whelp) return 'whelp';
   return 'hatchling';
 }
 

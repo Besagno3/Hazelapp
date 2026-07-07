@@ -172,6 +172,21 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-07-07 — Wave 0.1: crystal count registry-derived (#64, ROADMAP-4X)
+First foundation refactor for the 4× expansion (`docs/ROADMAP-4X.md`,
+`docs/STORY-4X.md`). Adding a crystal topic is now: add its id to
+`CRYSTAL_TOPIC_IDS` (`types/index.ts` — the new single source of truth for
+the `CrystalTopic` union) and let the compiler + tests walk you through the
+rest (exhaustive `Record<CrystalTopic,…>`s error; `topics.test.ts` enforces
+the `TOPIC_REGISTRY` entry). `TOTAL_CRYSTALS` is derived — never hardcode 4.
+`EMBER_STAGE_AT` (`story.ts`) replaces the literal `>=2`/`>=4` Ember growth
+thresholds (whelp = half, dragon = all; re-tune explicitly when crystal #5
+ships, see ISSUES #64). `EXTRA_TOPIC_IDS` likewise anchors the extra-topic
+union; topic tests are consistency checks against the id registries instead
+of hardcoded 4s and 7s. Stale "all four crystals" comments updated
+(`spells.ts`, `SpireOverlay.tsx`). No behavior change. 220 tests green
+(was 218); lint + build clean.
+
 ### 2026-06-27 — Wandering NPCs/enemies + ambient life + Moonwell Grove
 Made the overworld feel alive and grew the world by one region.
 - **Wandering actors (`lib/wander.ts` + `WorldCanvas`):** every non-boss enemy

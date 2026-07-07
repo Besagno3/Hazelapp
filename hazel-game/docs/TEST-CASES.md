@@ -251,6 +251,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-228 | M | ⬜ | world | idle speech bubbles render dark text on a light outlined pill, legible over dark-ground zones (Moonwell Grove / Clockwork Depths); pill + text rise, fade, and disappear together |
 | TC-229 | U | ✅ | wander | `approachBlocked`: blocks a step that moves within minDist & closer; allows steps that stay outside min, that separate already-overlapping actors, and that ignore far actors; `ACTOR_RADIUS` positive + `WANDER_WALL_HALF*2 < 32` (wander.test) |
 | TC-230 | M | ⬜ | world | wandering characters never overlap each other, stationary NPCs, the boss, or the Spire, and don't clip walls/trees; the player can still walk into NPCs to talk and enemies to battle (player/Ember are not avoided) |
+| TC-231 | U | ✅ | topics | Wave 0.1: `TOPIC_REGISTRY` ids exactly equal `CRYSTAL_TOPIC_IDS` and `TOTAL_CRYSTALS === TOPIC_REGISTRY.length` — adding a crystal id without its registry entry fails (topics.test) |
+| TC-232 | U | ✅ | topics | `EXTRA_TOPICS` ids exactly equal `EXTRA_TOPIC_IDS`; `ALL_TOPICS` has no duplicates and covers crystal + extra (topics.test) |
+| TC-233 | U | ✅ | story | Wave 0.1: `EMBER_STAGE_AT` derives from `TOTAL_CRYSTALS` (dragon = all, whelp = half); `emberStage` respects the table boundaries (story.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

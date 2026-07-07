@@ -1,4 +1,4 @@
-import type { CrystalTopic, Topic, ZoneId } from '../types';
+import { CRYSTAL_TOPIC_IDS, type CrystalTopic, type Topic, type ZoneId } from '../types';
 
 /**
  * The single source of truth for topics (#33). UI labels, world fiction
@@ -117,8 +117,8 @@ export const EXTRA_TOPICS: TopicInfo[] = [
 
 const ALL_TOPIC_INFO: TopicInfo[] = [...TOPIC_REGISTRY, ...EXTRA_TOPICS];
 
-/** The four crystal topics (BOSS_LINES / SAGES / crystal logic iterate this). */
-export const TOPICS: CrystalTopic[] = TOPIC_REGISTRY.map((t) => t.id);
+/** The crystal topics (BOSS_LINES / SAGES / crystal logic iterate this). */
+export const TOPICS: CrystalTopic[] = [...CRYSTAL_TOPIC_IDS];
 
 /** Every question topic id (all seven). */
 export const ALL_TOPICS: Topic[] = ALL_TOPIC_INFO.map((t) => t.id);

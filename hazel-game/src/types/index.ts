@@ -1,15 +1,34 @@
 /**
- * The four main-quest topics — each has a crystal, a Fiend, a Sage, and a
- * topic zone. Crystal/ending logic keys off these.
+ * The crystal main-quest topic ids — each has a crystal, a Fiend, a Sage, and
+ * a topic zone. Crystal/ending logic keys off these. THE single source of
+ * truth for the crystal count: adding a crystal topic means adding its id
+ * here, and the compiler then walks you through every exhaustive
+ * `Record<CrystalTopic, …>` (SAGES, BOSS_LINES, CRYSTAL_PANELS) while
+ * `topics.test.ts` enforces the registry entry.
  */
-export type CrystalTopic = 'math' | 'science' | 'engineering' | 'creativity';
+export const CRYSTAL_TOPIC_IDS = [
+  'math',
+  'science',
+  'engineering',
+  'creativity',
+] as const;
+
+export type CrystalTopic = (typeof CRYSTAL_TOPIC_IDS)[number];
+
+/** How many Crystals of Knowing exist — derived, never hardcode `4`. */
+export const TOTAL_CRYSTALS = CRYSTAL_TOPIC_IDS.length;
 
 /**
- * Every question category the game can generate. The four `CrystalTopic`s plus
- * the expansion themes that flavour the new zones (nature/animals, space,
- * time/history). Only `CrystalTopic`s bear crystals.
+ * The expansion question-theme ids (#55) — styling only, no crystal/Fiend.
  */
-export type Topic = CrystalTopic | 'nature' | 'space' | 'history';
+export const EXTRA_TOPIC_IDS = ['nature', 'space', 'history'] as const;
+
+/**
+ * Every question category the game can generate: the `CrystalTopic`s plus the
+ * expansion themes that flavour the new zones. Only `CrystalTopic`s bear
+ * crystals.
+ */
+export type Topic = CrystalTopic | (typeof EXTRA_TOPIC_IDS)[number];
 
 export interface Question {
   id: string;
