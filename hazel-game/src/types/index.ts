@@ -75,6 +75,15 @@ export interface NPC {
 import type { ZoneId } from '../content/zones';
 export type { ZoneId };
 
+/**
+ * Mechanical enemy archetypes (Wave 0.5, ROADMAP-4X) — zones differ in play,
+ * not just palette. shielded: the first landed hit shatters its shield
+ * instead of dealing damage. trickster: too slippery for Hint Feathers.
+ * healer: mends itself at the end of its turn while below half HP.
+ * ("swift"/timed is an open decision — STORY-4X.md §12.)
+ */
+export type EnemyBehavior = 'shielded' | 'trickster' | 'healer';
+
 /** An enemy instance the player bumped into on the map. */
 export interface BattleEnemy extends NPC {
   /** Unique per placement — used to keep defeated enemies off the map this session. */
@@ -83,6 +92,7 @@ export interface BattleEnemy extends NPC {
   isBoss: boolean;
   /** Coins dropped on victory. */
   coins: number;
+  behavior?: EnemyBehavior;
 }
 
 /** Town/zone services opened by talking to the matching NPC. */

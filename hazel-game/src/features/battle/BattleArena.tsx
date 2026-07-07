@@ -15,6 +15,8 @@ import {
   enemyAttack,
   defendReduction,
   bossPhase,
+  healerMends,
+  healerRegen,
   BOSS_XP_BONUS,
 } from '../../lib/battleMath';
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
@@ -105,6 +107,8 @@ export default function BattleArena() {
   const [answers, setAnswers] = useState<boolean[]>([]);
   const misses = useRef<LibraryEntry[]>([]);
   const lastPhase = useRef(0);
+  // Shielded archetype (Wave 0.5): the first landed hit shatters the shield.
+  const [enemyShielded, setEnemyShielded] = useState(() => enemy?.behavior === 'shielded');
 
   // Warm the super-hard spell-tier pool (level + SPELL_LEVEL_BONUS). Every
   // hero knows at least Mend, so this always loads; spells stay castable.
@@ -124,6 +128,23 @@ export default function BattleArena() {
       });
     return () => {
       active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enemy?.instanceId]);
+
+  // Archetype callout (Wave 0.5) so the twist is announced, never a gotcha.
+  useEffect(() => {
+    if (!enemy?.behavior) return;
+    const callout = {
+      shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
+      trickster: `${enemy.name} is too slippery for Hint Feathers!`,
+      healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
+    }[enemy.behavior];
+    const show = setTimeout(() => setPhaseBanner(callout), 400);
+    const hide = setTimeout(() => setPhaseBanner(null), 3400);
+    return () => {
+      clearTimeout(show);
+      clearTimeout(hide);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId]);
@@ -286,6 +307,19 @@ export default function BattleArena() {
 
   /** Shared damage-dealing path for Attack and offensive spells. */
   function dealHeroDamage(dmg: number, text: string, floatColor: string) {
+    // Shielded archetype: the shield absorbs the first landed hit (any hit —
+    // even a glancing blow shatters it), then the enemy fights unprotected.
+    if (enemyShielded && dmg > 0) {
+      setEnemyShielded(false);
+      setHeroLunge((n) => n + 1);
+      setTimeout(() => float('Shield shattered!', 'enemy', 'text-amber-300'), 260);
+      setTurn({
+        kind: 'message',
+        text: `${text} The stony shield takes the blow — and SHATTERS! ${enemy!.name} is wide open now!`,
+        next: enemyTurn,
+      });
+      return;
+    }
     setHeroLunge((n) => n + 1);
     const newEnemyHp = Math.max(0, enemyHp - dmg);
     setTimeout(() => {
@@ -323,20 +357,30 @@ export default function BattleArena() {
       dmg = Math.max(0, raw - defendReduction(wasCorrect, style, powerUps));
     }
 
+    // Healer archetype (Wave 0.5): mends itself at the end of its turn while
+    // below half HP — rewards pressing the attack over turtling.
+    let newEnemyHp = enemyHp;
+    let healNote = '';
+    if (enemy!.behavior === 'healer' && healerMends(enemyHp, enemy!.maxHp)) {
+      newEnemyHp = Math.min(enemy!.maxHp, enemyHp + healerRegen(enemy!.maxHp));
+      healNote = ` It glows softly and mends ${newEnemyHp - enemyHp} HP!`;
+    }
+
     setEnemyLunge((n) => n + 1);
     const newPlayerHp = Math.max(0, playerHp - dmg);
     setTimeout(() => {
       float(dmg === 0 ? 'Blocked!' : `-${dmg}`, 'hero', dmg === 0 ? 'text-sky-300' : 'text-red-300');
+      if (newEnemyHp > enemyHp) float(`+${newEnemyHp - enemyHp}`, 'enemy', 'text-emerald-300');
       if (dmg > 0) sfx('hit');
-      setHp(newPlayerHp, enemyHp);
+      setHp(newPlayerHp, newEnemyHp);
     }, 260);
 
     const text =
-      dmg === 0
+      (dmg === 0
         ? `${enemy!.name} attacks — completely blocked!`
         : wasCorrect
           ? `${enemy!.name} attacks — you soften the hit!`
-          : `${enemy!.name} lands a hit!`;
+          : `${enemy!.name} lands a hit!`) + healNote;
 
     if (newPlayerHp <= 0) {
       setTurn({ kind: 'message', text, next: () => defeat() });
@@ -440,6 +484,7 @@ export default function BattleArena() {
           <div className="flex justify-between text-sm font-bold">
             <span>
               {enemy.isBoss && '👑 '}
+              {enemyShielded && '🛡️ '}
               {enemy.name}
             </span>
             <span className="text-white/70">Lv {enemy.level}</span>
@@ -670,7 +715,7 @@ export default function BattleArena() {
             <QuestionCard
               key={turn.question.id + qIndex + spellIdx}
               question={turn.question}
-              hints={save.items.hint}
+              hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
               onUseHint={useSaveStore.getState().spendHint}
               onAnswered={(correct, picked) => recordAnswer(correct, turn.question, picked)}
               continueLabel="▶ Go!"

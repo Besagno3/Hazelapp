@@ -172,6 +172,21 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-07-07 — Wave 0.5: enemy behavior archetypes (#69, ROADMAP-4X)
+Zones can now differ in play, not just palette. `EnemyBehavior`
+(`types/index.ts`): **shielded** — the first landed hit (even a glancing
+blow) shatters its shield for 0 damage, then it fights unprotected (🛡️ shows
+by its name); **trickster** — Hint Feathers don't work in that fight (button
+hidden, no feather consumed); **healer** — mends `healerRegen(maxHp)` (10%)
+at the end of its turn while below half HP (`healerMends`/`healerRegen` in
+`battleMath.ts`; test-guarded so a landed hit always out-damages the mend).
+Every archetype is announced by the phase banner at battle start — a twist,
+never a gotcha. `EnemyDef.behavior` carries through `spawnEnemy`; first
+users: Relic Golem (shielded), Pixel Witch (trickster), Moon Moth (healer).
+Bosses stay archetype-free (their twist is the enrage formula; test-
+enforced). "Swift"/timed deferred pending the STORY-4X §12 timer decision.
+239 tests green; lint + build clean.
+
 ### 2026-07-07 — Wave 0.4: shared topic config for generate-questions (#67, #68)
 The edge function's topic whitelist + persona lines moved to
 `supabase/functions/_shared/topics.ts` — imported by the function (bundled at

@@ -56,6 +56,19 @@ export function defendReduction(correct: boolean, style: FightStyle, powerUps: P
   return Math.round(defenseBonus(powerUps) / 2);
 }
 
+/** Healer archetype (Wave 0.5): fraction of max HP mended per enemy turn. */
+export const HEALER_REGEN_RATE = 0.1;
+
+/** HP a healer-archetype enemy recovers at the end of its turn (below half HP). */
+export function healerRegen(maxHp: number): number {
+  return Math.round(maxHp * HEALER_REGEN_RATE);
+}
+
+/** Whether a healer-archetype enemy mends this turn (hurt below half, alive). */
+export function healerMends(hp: number, maxHp: number): boolean {
+  return hp > 0 && hp < maxHp / 2;
+}
+
 /** Boss enrage phase from remaining HP: 0 (calm) → 2 (furious). */
 export function bossPhase(hp: number, maxHp: number): 0 | 1 | 2 {
   if (hp > (2 / 3) * maxHp) return 0;

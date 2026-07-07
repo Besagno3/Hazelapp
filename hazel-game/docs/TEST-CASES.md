@@ -261,6 +261,11 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-238 | U | ✅ | topics | Wave 0.4: shared `TOPIC_IDS` (edge-function whitelist) exactly equals the game's `ALL_TOPICS`; every topic has a >10-char persona line with no school words (test/grade/exam/homework) (topicPrompts.test) |
 | TC-239 | U | ✅ | topics | Wave 0.4: `topicPromptBlock()` emits exactly one `- id: …` line per topic (topicPrompts.test) |
 | TC-240 | M | ⬜ | edge fn | after redeploying generate-questions, all 7 topics still generate (spot-check one crystal + one extra topic); an unknown topic still 400s with the whitelist message |
+| TC-241 | U | ✅ | enemies | Wave 0.5: declared behaviors are known archetypes; each archetype used by ≥1 enemy; bosses have none; `spawnEnemy` carries `behavior` (enemies.test) |
+| TC-242 | U | ✅ | battleMath | Wave 0.5: `healerMends` only below half HP and alive; `healerRegen` is integer `HEALER_REGEN_RATE`×maxHp; biggest healer's regen < weakest style's landed hit — no unwinnable stall (battleMath.test) |
+| TC-243 | M | ⬜ | battle | vs Relic Golem (shielded): banner announces the shield; 🛡️ shows by its name; the FIRST landed hit (attack, glancing blow, or offensive spell) deals 0 and shatters the shield with a message; subsequent hits damage normally |
+| TC-244 | M | ⬜ | battle | vs Pixel Witch (trickster): banner announces it; the Hint Feather button never appears on attack/guard/spell/defend questions in that fight; feather count is not consumed and works again in the next battle |
+| TC-245 | M | ⬜ | battle | vs Moon Moth (healer): banner announces it; once below half HP it mends +N (green float) at the end of each of its turns, never above half-triggered ceiling of max HP; a correctly-answered attack still visibly out-damages the mend |
 
 ## Regression cases (tied to ISSUES.md)
 

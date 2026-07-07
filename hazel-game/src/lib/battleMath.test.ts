@@ -5,6 +5,9 @@ import {
   enemyAttack,
   defendReduction,
   bossPhase,
+  healerMends,
+  healerRegen,
+  HEALER_REGEN_RATE,
 } from './battleMath';
 
 describe('attackDamage', () => {
@@ -67,5 +70,27 @@ describe('bossPhase', () => {
     expect(bossPhase(100, 100)).toBe(0);
     expect(bossPhase(60, 100)).toBe(1);
     expect(bossPhase(20, 100)).toBe(2);
+  });
+});
+
+describe('healer archetype (Wave 0.5)', () => {
+  it('mends only while hurt below half and still alive', () => {
+    expect(healerMends(100, 100)).toBe(false); // unhurt
+    expect(healerMends(50, 100)).toBe(false); // exactly half — not yet
+    expect(healerMends(49, 100)).toBe(true);
+    expect(healerMends(0, 100)).toBe(false); // defeated mid-resolution
+  });
+
+  it('regen is a whole-number fraction of max HP', () => {
+    expect(healerRegen(120)).toBe(Math.round(120 * HEALER_REGEN_RATE));
+    expect(Number.isInteger(healerRegen(133))).toBe(true);
+  });
+
+  it('a correct answer always makes net progress — no unwinnable stall', () => {
+    // Biggest possible healer critter today: moon-moth at level 10 →
+    // 60 + 10*13 = 190 max HP. Even the weakest style's landed hit must
+    // out-damage its regen, or a kid answering correctly could never win.
+    const biggestHealerMaxHp = 60 + 10 * 13;
+    expect(healerRegen(biggestHealerMaxHp)).toBeLessThan(attackDamage(true, 'defensive', {}));
   });
 });
