@@ -17,12 +17,18 @@ spark of light, and dragons grow on bravery and bright answers. When all four
 crystals shine, their light gathers at the **Crystal Spire** at the heart of
 the world and burns the fog away for good.
 
-The world is **10 zones**: the Lumina Field hub, the four topic regions, and
-five quieter **story zones** reached through the hero's home, **Lumina
-Village** (Whispering Woods → Clockwork Depths, Starfall Coast, and the Crystal
-Spire). The themed story zones have no Fiends of their own, but each holds a
-**warden boss** guarding a gate key (#58) — they carry the narrative, hold save
-crystals, and let the world breathe between Fiend battles.
+The world is **11 zones**: the Lumina Field hub, the four topic regions, and
+six quieter **story zones** reached through the hero's home, **Lumina
+Village** (Whispering Woods → Clockwork Depths, Starfall Coast, the hidden
+Moonwell Grove, and the Crystal Spire). The themed story zones have no Fiends
+of their own, but each of the three warden zones holds a **warden boss**
+guarding a gate key (#58) — they carry the narrative, hold save crystals, and
+let the world breathe between Fiend battles. The Grove (#grove) is a secret
+pocket region: no warden, just a darkened Moonwell, a quest, and critters.
+
+**The story continues past this bible:** the 4× expansion (Acts II–IV — the
+Crystal of Memory, the Starfall Sea, and the Name of the Forgotten One) is
+specified in `STORY-4X.md`, with delivery order in `ROADMAP-4X.md`.
 
 ## 2. Tone & voice rules
 
@@ -87,6 +93,7 @@ the Crystal Spire holds the endgame:
 | Whispering Woods | 🦋 Nature & Animals | Thicket Warden 🦌 → Verdant Key (Verdara) | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook), Wisp 🧚 (made of unanswered questions), Old Bracken 🦡 (warns of the Warden) |
 | Starfall Coast | 🪐 Space | Tide Colossus 🐳 → Prism Key (Chromaria) | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name), Castaway Pell 🦭 (warns of the Colossus) |
 | Clockwork Depths | ⏳ Time & History | Clockwork Titan 🦾 → Gearwright Key (Gearfall) | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times), Ratchet the Wind-Up 🔧 (warns of the Titan) |
+| Moonwell Grove (hidden, #grove) | 🦋 Nature (reused) | — (no warden; riddle-chest + defeat quest) | Lune the Moonkeeper 🌙 (quest-giver, tends the darkened well), Glim ✨ (flavor critter), Ripple 💧 (flavor critter) |
 | The Crystal Spire | endgame climb | — | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals) + the Spire icon 🗼 |
 
 **Warden keys (#58):** each themed zone's **warden boss** drops a **key**, and
@@ -147,7 +154,7 @@ heal) unlocks at the first crystal; **Ember's Breath** (huge damage) unlocks
 when Ember is full-grown. Spells cost charge (◆) filled by correct answers; a
 miss fizzles harmlessly and refunds the charge — effort is never punished.
 
-## 6. Quests (one per zone + one in the hub)
+## 6. Quests (one per crystal zone + the hub + the Grove)
 
 Quests are ordered **steps** over the save file (`quests.ts`, #42) — three
 mechanics, each used at least once so every zone plays differently:
@@ -159,6 +166,7 @@ mechanics, each used at least once so every zone plays differently:
 | Rivet's Golden Gear (Gearfall) | Rivet 👷 | **multi-step** — chest → Sage Cog polishes it → report back |
 | Doodle's Color Seed (Chromaria) | Doodle 🧑‍🎨 | **delivery** — carry the seed (shown in the menu) to Sage Muse, return |
 | Pip's Lucky Marble (hub) | Pip 🧒 | **cross-zone defeat** — beat the Count Bat in Numbria |
+| The Darkened Moonwell (Grove) | Lune 🌙 | **chest + defeat-3** — open the gated chest, then clear the grove critters |
 
 Conversation shape: giver offers → giver reminds with the current step's
 hint → step-target NPCs (Sage Cog, Sage Muse) speak their own step lines →
@@ -172,6 +180,7 @@ current hint) and carried items. Flags: `quest:<id>:offered`,
 | Flag | Set by |
 |---|---|
 | `intro-seen` | finishing the opening cutscene |
+| `grove-seen` | finishing the Moonwell Grove entry cutscene (#grove) |
 | `met-elder` / `met-wick` / `met-hazel` / `met-aurora` | those NPCs' first greeting lines |
 | `ember-hatched` | first battle victory |
 | `ember-hatch-seen` | finishing the hatch cutscene |
@@ -187,10 +196,13 @@ current hint) and carried items. Flags: `quest:<id>:offered`,
 
 ## 8. Future story hooks (phase 4+)
 
+These hooks are now fully specified in **`STORY-4X.md`** (the expansion
+bible: Acts II–IV, every zone/NPC/enemy/quest/spell named):
+
 - **Companions:** recruitable story NPCs (Pip wants to come SO badly);
-  Ember gains a battle action when companions land.
+  Ember gains a battle action when companions land. → STORY-4X §7.
 - **New Game+:** the Fiends return "with trickier riddles" — higher skill
-  levels, remixed dialogue.
+  levels, remixed dialogue. → STORY-4X Act IV epilogue.
 - **Ember side-moments:** snack-finding micro-beats in each zone.
-- **A fifth crystal** if a fifth topic ships (History → "Crystal of
-  Memory" pairs naturally with the fog).
+- **A fifth crystal** — History → the "Crystal of Memory," exactly as this
+  hook predicted. → STORY-4X Act II.

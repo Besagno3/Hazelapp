@@ -1,4 +1,4 @@
-import type { BattleEnemy, Topic, ZoneId } from '../types';
+import type { BattleEnemy, EnemyBehavior, Topic, ZoneId } from '../types';
 import { ageToStartLevel, clampLevel } from '../lib/age';
 import { topicInfo } from './topics';
 import { bossCoinDrop, enemyCoinDrop } from './items';
@@ -21,6 +21,8 @@ export interface EnemyDef {
   /** maxHp = HP_BASE + level * hpPerLevel. */
   hpPerLevel: number;
   isBoss?: boolean;
+  /** Mechanical archetype (Wave 0.5) — see EnemyBehavior in types. */
+  behavior?: EnemyBehavior;
 }
 
 const HP_BASE = 60;
@@ -48,7 +50,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   // --- Chromaria (creativity) ---
   'doodle-imp': { id: 'doodle-imp', name: 'Doodle Imp', sprite: '👻', topic: 'creativity', levelOffset: -1, hpPerLevel: 10 },
   'off-key-bird': { id: 'off-key-bird', name: 'Off-Key Bird', sprite: '🐦', topic: 'creativity', levelOffset: 0, hpPerLevel: 12 },
-  'pixel-witch': { id: 'pixel-witch', name: 'Pixel Witch', sprite: '🦹', topic: 'creativity', levelOffset: 1, hpPerLevel: 14 },
+  'pixel-witch': { id: 'pixel-witch', name: 'Pixel Witch', sprite: '🦹', topic: 'creativity', levelOffset: 1, hpPerLevel: 14, behavior: 'trickster' },
   'gray-fiend': { id: 'gray-fiend', name: 'The Gray Fiend', sprite: '🌑', topic: 'creativity', levelOffset: 1, hpPerLevel: 20, isBoss: true },
 
   // --- Whispering Woods (nature & animals) — critters + the warden boss (#58) ---
@@ -60,13 +62,13 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   // --- Starfall Coast (space) — critters + the warden boss (#58) ---
   'tide-sprite': { id: 'tide-sprite', name: 'Tide Sprite', sprite: '🌊', topic: 'space', levelOffset: -1, hpPerLevel: 10 },
   'meteor-mite': { id: 'meteor-mite', name: 'Meteor Mite', sprite: '☄️', topic: 'space', levelOffset: 0, hpPerLevel: 12 },
-  'moon-moth': { id: 'moon-moth', name: 'Moon Moth', sprite: '🌙', topic: 'space', levelOffset: 1, hpPerLevel: 13 },
+  'moon-moth': { id: 'moon-moth', name: 'Moon Moth', sprite: '🌙', topic: 'space', levelOffset: 1, hpPerLevel: 13, behavior: 'healer' },
   'tide-colossus': { id: 'tide-colossus', name: 'The Tide Colossus', sprite: '🐳', topic: 'space', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 
   // --- Clockwork Depths (time & history) — critters + the warden boss (#58) ---
   'cog-sprite': { id: 'cog-sprite', name: 'Cog Sprite', sprite: '⚙️', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
   'hourglass-imp': { id: 'hourglass-imp', name: 'Hourglass Imp', sprite: '⏳', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
-  'relic-golem': { id: 'relic-golem', name: 'Relic Golem', sprite: '🗿', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
+  'relic-golem': { id: 'relic-golem', name: 'Relic Golem', sprite: '🗿', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
   'clockwork-titan': { id: 'clockwork-titan', name: 'The Clockwork Titan', sprite: '🦾', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 };
 
@@ -105,5 +107,6 @@ export function spawnEnemy(
     zoneId,
     isBoss: def.isBoss ?? false,
     coins: def.isBoss ? bossCoinDrop(level) : enemyCoinDrop(level),
+    behavior: def.behavior,
   };
 }

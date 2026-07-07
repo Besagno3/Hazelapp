@@ -251,6 +251,28 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-228 | M | ⬜ | world | idle speech bubbles render dark text on a light outlined pill, legible over dark-ground zones (Moonwell Grove / Clockwork Depths); pill + text rise, fade, and disappear together |
 | TC-229 | U | ✅ | wander | `approachBlocked`: blocks a step that moves within minDist & closer; allows steps that stay outside min, that separate already-overlapping actors, and that ignore far actors; `ACTOR_RADIUS` positive + `WANDER_WALL_HALF*2 < 32` (wander.test) |
 | TC-230 | M | ⬜ | world | wandering characters never overlap each other, stationary NPCs, the boss, or the Spire, and don't clip walls/trees; the player can still walk into NPCs to talk and enemies to battle (player/Ember are not avoided) |
+| TC-231 | U | ✅ | topics | Wave 0.1: `TOPIC_REGISTRY` ids exactly equal `CRYSTAL_TOPIC_IDS` and `TOTAL_CRYSTALS === TOPIC_REGISTRY.length` — adding a crystal id without its registry entry fails (topics.test) |
+| TC-232 | U | ✅ | topics | `EXTRA_TOPICS` ids exactly equal `EXTRA_TOPIC_IDS`; `ALL_TOPICS` has no duplicates and covers crystal + extra (topics.test) |
+| TC-233 | U | ✅ | story | `EMBER_STAGE_AT` holds explicit spec values (whelp 2, dragon 4); TRIPWIRE fails if `TOTAL_CRYSTALS` moves so the stages are retuned deliberately, not silently derived (story.test) |
+| TC-234 | U | ✅ | save | Wave 0.2: `runMigrations` walks a payload up a fake ladder stamping each version; starts mid-ladder for a v2 payload without rerunning the v1 step (save.test) |
+| TC-235 | U | ✅ | save | Wave 0.2: missing version treated as v1; missing step stops the walk (normalizeSave defaults the rest); null/non-object passthrough; version ≥ target untouched — no downgrade (save.test) |
+| TC-236 | U | ✅ | save | Wave 0.2: the real `MIGRATIONS` ladder is empty while `SAVE_VERSION` is 1, and a v1 payload round-trips `runMigrations` unchanged (save.test) |
+| TC-237 | U | ✅ | zones | Wave 0.3: `ZONES` keys exactly equal `ZONE_IDS` (order included) and every `ZoneDef.id` matches its record key (zones.test) |
+| TC-238 | U | ✅ | topics | Wave 0.4: shared `TOPIC_IDS` (edge-function whitelist) exactly equals the game's `ALL_TOPICS`; every topic has a >10-char persona line with no school words (test/grade/exam/homework) (topicPrompts.test) |
+| TC-239 | U | ✅ | topics | Wave 0.4: `topicPromptBlock()` emits exactly one `- id: …` line per topic (topicPrompts.test) |
+| TC-240 | M | ⬜ | edge fn | after redeploying generate-questions, all 7 topics still generate (spot-check one crystal + one extra topic); an unknown topic still 400s with the whitelist message |
+| TC-241 | U | ✅ | enemies | Wave 0.5: declared behaviors are known archetypes; each archetype used by ≥1 enemy; bosses have none; `spawnEnemy` carries `behavior` (enemies.test) |
+| TC-242 | U | ✅ | battleMath | Wave 0.5: `healerMends` only below half HP and alive; `healerRegen` is integer `HEALER_REGEN_RATE`×maxHp; biggest healer's regen < weakest style's landed hit — no unwinnable stall (battleMath.test) |
+| TC-243 | M | ⬜ | battle | vs Relic Golem (shielded): banner announces the shield; 🛡️ shows by its name; the FIRST landed hit (attack, glancing blow, or offensive spell) deals 0 and shatters the shield with a message; subsequent hits damage normally |
+| TC-244 | M | ⬜ | battle | vs Pixel Witch (trickster): banner announces it; the Hint Feather button never appears on attack/guard/spell/defend questions in that fight; feather count is not consumed and works again in the next battle |
+| TC-245 | M | ⬜ | battle | vs Moon Moth (healer): banner announces it; once below half HP it mends +N (green float) at the end of each of its turns, never above half-triggered ceiling of max HP; a correctly-answered attack still visibly out-damages the mend |
+| TC-246 | U | ✅ | save | TRIPWIRE: `MIGRATIONS` has a step for every version below `SAVE_VERSION` and no orphan steps at/above it — a bumped version with a missing step fails here, not silently at load (save.test) |
+| TC-247 | U | ✅ | enemies | no `behavior:'healer'` enemy at max age can out-mend the weakest correctly-answered hit; derived from `ENEMY_DEFS` via `spawnEnemy` so retuning HP re-checks automatically (enemies.test) |
+| TC-248 | U | ✅ | topics | `ENEMY_BEHAVIORS` const array is the single source for the `EnemyBehavior` union; enemies.test imports it rather than a private copy (enemies.test) |
+| TC-249 | U | ✅ | topics | compile-time lock: `topicPrompts.ts` `_topicSetsMatch` proves `Topic ≡ TopicId`; a one-sided topic add fails `tsc`/`vite build`, not just vitest (build step) |
+| TC-250 | M | ⬜ | battle | archetype callout banner appears only AFTER the question LoadingScreen clears (slow generation): enter a trickster/shielded/healer fight with a cold cache and confirm the banner is still shown once the battle UI renders |
+| TC-251 | M | ⬜ | battle | cast an offensive spell as the first hit on a shielded enemy: the shield shatters, 0 damage, and the spell's charge is refunded (message says so) — a correct super-hard answer never costs more than a free glancing blow |
+| TC-252 | M | ⬜ | battle | shatter a shielded enemy's shield, Flee, re-engage the same enemy: shield state resets correctly on the fresh instance (no phantom shield, no pre-shattered start) |
 
 ## Regression cases (tied to ISSUES.md)
 

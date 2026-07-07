@@ -1,15 +1,34 @@
 /**
- * The four main-quest topics — each has a crystal, a Fiend, a Sage, and a
- * topic zone. Crystal/ending logic keys off these.
+ * The crystal main-quest topic ids — each has a crystal, a Fiend, a Sage, and
+ * a topic zone. Crystal/ending logic keys off these. THE single source of
+ * truth for the crystal count: adding a crystal topic means adding its id
+ * here, and the compiler then walks you through every exhaustive
+ * `Record<CrystalTopic, …>` (SAGES, BOSS_LINES, CRYSTAL_PANELS) while
+ * `topics.test.ts` enforces the registry entry.
  */
-export type CrystalTopic = 'math' | 'science' | 'engineering' | 'creativity';
+export const CRYSTAL_TOPIC_IDS = [
+  'math',
+  'science',
+  'engineering',
+  'creativity',
+] as const;
+
+export type CrystalTopic = (typeof CRYSTAL_TOPIC_IDS)[number];
+
+/** How many Crystals of Knowing exist — derived, never hardcode `4`. */
+export const TOTAL_CRYSTALS = CRYSTAL_TOPIC_IDS.length;
 
 /**
- * Every question category the game can generate. The four `CrystalTopic`s plus
- * the expansion themes that flavour the new zones (nature/animals, space,
- * time/history). Only `CrystalTopic`s bear crystals.
+ * The expansion question-theme ids (#55) — styling only, no crystal/Fiend.
  */
-export type Topic = CrystalTopic | 'nature' | 'space' | 'history';
+export const EXTRA_TOPIC_IDS = ['nature', 'space', 'history'] as const;
+
+/**
+ * Every question category the game can generate: the `CrystalTopic`s plus the
+ * expansion themes that flavour the new zones. Only `CrystalTopic`s bear
+ * crystals.
+ */
+export type Topic = CrystalTopic | (typeof EXTRA_TOPIC_IDS)[number];
 
 export interface Question {
   id: string;
@@ -47,21 +66,24 @@ export interface NPC {
   maxHp: number;
 }
 
-/** The world zones of Lumina (see src/content/zones.ts). */
-export type ZoneId =
-  // Original five (hub + four topic regions)
-  | 'lumina-field'
-  | 'numbria'
-  | 'verdara'
-  | 'gearfall'
-  | 'chromaria'
-  // Expansion: story / exploration regions reached through the village
-  | 'lumina-village'
-  | 'whispering-woods'
-  | 'starfall-coast'
-  | 'clockwork-depths'
-  | 'moonwell-grove'
-  | 'crystal-spire';
+/**
+ * The world zones of Lumina — derived from `ZONE_IDS` in content/zones.ts
+ * (Wave 0.3), re-exported here so shared types keep a single import surface.
+ * (Type-only circularity with zones.ts is fine — both directions are erased
+ * at compile time.)
+ */
+import type { ZoneId } from '../content/zones';
+export type { ZoneId };
+
+/**
+ * Mechanical enemy archetypes (Wave 0.5, ROADMAP-4X) — zones differ in play,
+ * not just palette. shielded: the first landed hit shatters its shield
+ * instead of dealing damage. trickster: too slippery for Hint Feathers.
+ * healer: mends itself at the end of its turn while below half HP.
+ * ("swift"/timed is an open decision — STORY-4X.md §12.)
+ */
+export const ENEMY_BEHAVIORS = ['shielded', 'trickster', 'healer'] as const;
+export type EnemyBehavior = (typeof ENEMY_BEHAVIORS)[number];
 
 /** An enemy instance the player bumped into on the map. */
 export interface BattleEnemy extends NPC {
@@ -71,6 +93,7 @@ export interface BattleEnemy extends NPC {
   isBoss: boolean;
   /** Coins dropped on victory. */
   coins: number;
+  behavior?: EnemyBehavior;
 }
 
 /** Town/zone services opened by talking to the matching NPC. */

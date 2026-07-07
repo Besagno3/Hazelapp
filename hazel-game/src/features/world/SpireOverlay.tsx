@@ -26,7 +26,7 @@ import { sendFlow } from '../../machines/gameFlow';
 import type { LibraryEntry, Question } from '../../types';
 
 /**
- * The Crystal Spire endgame climb (#55). Sealed until all four crystals are
+ * The Crystal Spire endgame climb (#55). Sealed until every crystal is
  * restored; once open, the hero ascends `SPIRE_FLOORS` — each floor a set of
  * escalating, topic-varied questions — toward the final boss, Umbra. Wrong
  * answers snuff candle-lights (`SPIRE_LIVES`); running out casts the hero back

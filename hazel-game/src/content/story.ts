@@ -70,13 +70,26 @@ export function crystalSceneFlag(topic: Topic): string {
 }
 
 /**
+ * Crystal counts at which Ember grows. These are EXPLICIT narrative beats,
+ * not proportions — STORY-4X.md §8 keeps whelp at 2 and dragon at 4 even
+ * once more crystals exist (a live player's full-grown Ember must never
+ * regress when a new act raises TOTAL_CRYSTALS). story.test.ts trips when
+ * TOTAL_CRYSTALS moves so the values here are retuned deliberately, in one
+ * place, against the spec.
+ */
+export const EMBER_STAGE_AT = {
+  whelp: 2,
+  dragon: 4,
+} as const;
+
+/**
  * Ember grows on the player's deeds: the egg hatches after the first battle
  * victory, and each restored crystal feeds the little dragon.
  */
 export function emberStage(crystals: number, flags: Record<string, boolean>): EmberStage {
   if (!flags[EMBER_HATCHED]) return 'egg';
-  if (crystals >= 4) return 'dragon';
-  if (crystals >= 2) return 'whelp';
+  if (crystals >= EMBER_STAGE_AT.dragon) return 'dragon';
+  if (crystals >= EMBER_STAGE_AT.whelp) return 'whelp';
   return 'hatchling';
 }
 

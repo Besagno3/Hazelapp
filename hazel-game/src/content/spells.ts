@@ -62,7 +62,7 @@ export const AEGIS: Spell = {
   color: 'text-sky-300',
 };
 
-/** Unlocked when Ember reaches full-grown (all four crystals) — the capstone. */
+/** Unlocked when Ember reaches full-grown (every crystal restored) — the capstone. */
 export const EMBER_BREATH: Spell = {
   id: 'ember-breath',
   name: "Ember's Breath",

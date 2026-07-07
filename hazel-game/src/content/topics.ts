@@ -1,4 +1,4 @@
-import type { CrystalTopic, Topic, ZoneId } from '../types';
+import { CRYSTAL_TOPIC_IDS, type CrystalTopic, type Topic, type ZoneId } from '../types';
 
 /**
  * The single source of truth for topics (#33). UI labels, world fiction
@@ -11,8 +11,11 @@ import type { CrystalTopic, Topic, ZoneId } from '../types';
  * - `EXTRA_TOPICS` — the expansion question themes (nature, space, history)
  *   that flavour the new zones. Styling only — no crystal/fiend.
  *
- * `topicInfo(id)` resolves either tier. Adding a topic means an entry here, a
- * zone in zones.ts, and a persona hint in the edge function's system prompt.
+ * `topicInfo(id)` resolves either tier. Adding a topic: an id in
+ * `CRYSTAL_TOPIC_IDS`/`EXTRA_TOPIC_IDS` (types), an entry here, a persona line
+ * in supabase/functions/_shared/topics.ts (shared with the edge function —
+ * topicPrompts.test.ts locks the two lists together), usually a zone in
+ * zones.ts, then redeploy generate-questions.
  */
 export interface TopicInfo {
   id: Topic;
@@ -117,8 +120,8 @@ export const EXTRA_TOPICS: TopicInfo[] = [
 
 const ALL_TOPIC_INFO: TopicInfo[] = [...TOPIC_REGISTRY, ...EXTRA_TOPICS];
 
-/** The four crystal topics (BOSS_LINES / SAGES / crystal logic iterate this). */
-export const TOPICS: CrystalTopic[] = TOPIC_REGISTRY.map((t) => t.id);
+/** The crystal topics (BOSS_LINES / SAGES / crystal logic iterate this). */
+export const TOPICS: CrystalTopic[] = [...CRYSTAL_TOPIC_IDS];
 
 /** Every question topic id (all seven). */
 export const ALL_TOPICS: Topic[] = ALL_TOPIC_INFO.map((t) => t.id);

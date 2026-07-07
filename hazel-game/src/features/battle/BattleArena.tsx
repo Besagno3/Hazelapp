@@ -15,6 +15,8 @@ import {
   enemyAttack,
   defendReduction,
   bossPhase,
+  healerMends,
+  healerRegen,
   BOSS_XP_BONUS,
 } from '../../lib/battleMath';
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
@@ -105,6 +107,16 @@ export default function BattleArena() {
   const [answers, setAnswers] = useState<boolean[]>([]);
   const misses = useRef<LibraryEntry[]>([]);
   const lastPhase = useRef(0);
+  // Shielded archetype (Wave 0.5): the first landed hit shatters the shield.
+  // Re-derived whenever the enemy changes (React's adjust-state-during-render
+  // pattern) — a mount-only initializer would leak shield state into the next
+  // fight if a future flow ever swaps enemies without unmounting the arena.
+  const [enemyShielded, setEnemyShielded] = useState(() => enemy?.behavior === 'shielded');
+  const [shieldedFor, setShieldedFor] = useState(enemy?.instanceId);
+  if (enemy && shieldedFor !== enemy.instanceId) {
+    setShieldedFor(enemy.instanceId);
+    setEnemyShielded(enemy.behavior === 'shielded');
+  }
 
   // Warm the super-hard spell-tier pool (level + SPELL_LEVEL_BONUS). Every
   // hero knows at least Mend, so this always loads; spells stay castable.
@@ -127,6 +139,37 @@ export default function BattleArena() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId]);
+
+  // One banner lifecycle for every caller (archetype callouts, boss enrage):
+  // showing a new banner cancels the previous hide timer, so a stale timeout
+  // can never wipe a banner another path just raised.
+  const bannerTimer = useRef<number | null>(null);
+  const showBanner = useCallback((text: string, ttl = 2500) => {
+    if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
+    setPhaseBanner(text);
+    bannerTimer.current = window.setTimeout(() => setPhaseBanner(null), ttl);
+  }, []);
+  useEffect(() => () => {
+    if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
+  }, []);
+
+  // Archetype callout (Wave 0.5) so the twist is announced, never a gotcha.
+  // Waits for the question LoadingScreen to clear — the banner only renders in
+  // the battle UI, so a mount-anchored timer would expire unseen on a slow
+  // generation (the exact gotcha this callout exists to prevent).
+  const calloutShownFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (loading || !enemy?.behavior || calloutShownFor.current === enemy.instanceId) return;
+    calloutShownFor.current = enemy.instanceId;
+    const callout = {
+      shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
+      trickster: `${enemy.name} is too slippery for Hint Feathers!`,
+      healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
+    }[enemy.behavior];
+    const show = setTimeout(() => showBanner(callout, 3000), 250);
+    return () => clearTimeout(show);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enemy?.instanceId, loading]);
 
   const float = useCallback((text: string, side: 'hero' | 'enemy', color: string) => {
     const id = ++floatId.current;
@@ -281,11 +324,32 @@ export default function BattleArena() {
         : ember !== 'egg'
           ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
           : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;
-    dealHeroDamage(dmg, text, spell.color);
+    dealHeroDamage(dmg, text, spell.color, spell.cost);
   }
 
-  /** Shared damage-dealing path for Attack and offensive spells. */
-  function dealHeroDamage(dmg: number, text: string, floatColor: string) {
+  /**
+   * Shared damage-dealing path for Attack and offensive spells. Offensive
+   * spells pass `refundCharge` so a shield-absorbed cast gives the charge
+   * back — a correct super-hard answer must never buy less than a free
+   * glancing blow would (effort is never punished).
+   */
+  function dealHeroDamage(dmg: number, text: string, floatColor: string, refundCharge = 0) {
+    // Shielded archetype: the shield absorbs the first landed hit (any hit —
+    // even a glancing blow shatters it), then the enemy fights unprotected.
+    if (enemyShielded && dmg > 0) {
+      setEnemyShielded(false);
+      setHeroLunge((n) => n + 1);
+      setTimeout(() => float('Shield shattered!', 'enemy', 'text-amber-300'), 260);
+      if (refundCharge > 0) setCharge((c) => Math.min(CHARGE_MAX, c + refundCharge));
+      setTurn({
+        kind: 'message',
+        text:
+          `${text} The stony shield takes the blow — and SHATTERS! ${enemy!.name} is wide open now!` +
+          (refundCharge > 0 ? ' The spell-light flows back to you — charge refunded!' : ''),
+        next: enemyTurn,
+      });
+      return;
+    }
     setHeroLunge((n) => n + 1);
     const newEnemyHp = Math.max(0, enemyHp - dmg);
     setTimeout(() => {
@@ -302,8 +366,7 @@ export default function BattleArena() {
       const p = bossPhase(newEnemyHp, enemy!.maxHp);
       if (p > lastPhase.current) {
         lastPhase.current = p;
-        setPhaseBanner(p === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
-        setTimeout(() => setPhaseBanner(null), 2500);
+        showBanner(p === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
       }
     }
     setTurn({ kind: 'message', text, next: enemyTurn });
@@ -323,20 +386,30 @@ export default function BattleArena() {
       dmg = Math.max(0, raw - defendReduction(wasCorrect, style, powerUps));
     }
 
+    // Healer archetype (Wave 0.5): mends itself at the end of its turn while
+    // below half HP — rewards pressing the attack over turtling.
+    let newEnemyHp = enemyHp;
+    let healNote = '';
+    if (enemy!.behavior === 'healer' && healerMends(enemyHp, enemy!.maxHp)) {
+      newEnemyHp = Math.min(enemy!.maxHp, enemyHp + healerRegen(enemy!.maxHp));
+      healNote = ` It glows softly and mends ${newEnemyHp - enemyHp} HP!`;
+    }
+
     setEnemyLunge((n) => n + 1);
     const newPlayerHp = Math.max(0, playerHp - dmg);
     setTimeout(() => {
       float(dmg === 0 ? 'Blocked!' : `-${dmg}`, 'hero', dmg === 0 ? 'text-sky-300' : 'text-red-300');
+      if (newEnemyHp > enemyHp) float(`+${newEnemyHp - enemyHp}`, 'enemy', 'text-emerald-300');
       if (dmg > 0) sfx('hit');
-      setHp(newPlayerHp, enemyHp);
+      setHp(newPlayerHp, newEnemyHp);
     }, 260);
 
     const text =
-      dmg === 0
+      (dmg === 0
         ? `${enemy!.name} attacks — completely blocked!`
         : wasCorrect
           ? `${enemy!.name} attacks — you soften the hit!`
-          : `${enemy!.name} lands a hit!`;
+          : `${enemy!.name} lands a hit!`) + healNote;
 
     if (newPlayerHp <= 0) {
       setTurn({ kind: 'message', text, next: () => defeat() });
@@ -440,6 +513,7 @@ export default function BattleArena() {
           <div className="flex justify-between text-sm font-bold">
             <span>
               {enemy.isBoss && '👑 '}
+              {enemyShielded && '🛡️ '}
               {enemy.name}
             </span>
             <span className="text-white/70">Lv {enemy.level}</span>
@@ -670,7 +744,7 @@ export default function BattleArena() {
             <QuestionCard
               key={turn.question.id + qIndex + spellIdx}
               question={turn.question}
-              hints={save.items.hint}
+              hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
               onUseHint={useSaveStore.getState().spendHint}
               onAnswered={(correct, picked) => recordAnswer(correct, turn.question, picked)}
               continueLabel="▶ Go!"

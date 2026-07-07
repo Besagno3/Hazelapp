@@ -19,17 +19,11 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js';
+import { TOPIC_IDS, topicPromptBlock } from '../_shared/topics.ts';
 
 const MODEL = 'claude-haiku-4-5';
-const TOPICS = [
-  'math',
-  'science',
-  'engineering',
-  'creativity',
-  'nature',
-  'space',
-  'history',
-] as const;
+/** Whitelist + persona lines live in _shared/topics.ts (Wave 0.4, #67). */
+const TOPICS = TOPIC_IDS;
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
 const LEVEL_BAND = 2;
@@ -53,13 +47,7 @@ Each question has exactly 4 options. "correctIndex" is the 0-based index of the 
 "explanation" is one short, encouraging, kid-friendly sentence explaining the answer.
 
 Topics:
-- math: arithmetic, geometry, fractions, word problems.
-- science: nature, biology, physics, space, chemistry basics.
-- engineering: how things work, computers, materials, structures, simple logic.
-- creativity: art, music, colour, writing, design, imagination.
-- nature: animals, plants, habitats, weather, the human body, the living world.
-- space: planets, stars, moons, the solar system, astronauts, rockets, the night sky.
-- history: world history, ancient civilizations, famous inventions, important people, the measurement of time.
+${topicPromptBlock()}
 
 Difficulty guidance: level 1-3 = simple recall for young children; 4-6 = applied
 understanding; 7-10 = multi-step reasoning and harder concepts. A question must

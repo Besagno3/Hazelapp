@@ -65,9 +65,10 @@ existing architecture.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
-  resolves all seven, #33/#55), `zones.ts` (10 ASCII tile maps: Lumina Field
-  hub + 4 crystal zones + Village (safe) + 3 themed combat zones + the Crystal
-  Spire, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
+  resolves all seven, #33/#55), `zones.ts` (11 ASCII tile maps: Lumina Field
+  hub + 4 crystal zones + Village (safe) + 3 themed combat zones + the hidden
+  Moonwell Grove + the Crystal Spire; `ZONE_IDS` is the zone-id source of
+  truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
   (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
@@ -146,7 +147,12 @@ npm test         # Vitest suite (test:watch / test:ui also available)
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
   `ROUNDS_TO_UNLOCK`); battle math in `src/lib/battleMath.ts`; economy in
   `src/content/items.ts`.
-- Shared types live in `src/types/index.ts`.
+- Shared types live in `src/types/index.ts` — **except** unions derived from a
+  content registry, which live beside that registry so the ids stay the single
+  source of truth (`ZoneId` from `ZONE_IDS` in `content/zones.ts`, `TopicId`
+  from `TOPIC_PROMPTS` in `supabase/functions/_shared/topics.ts`), and are
+  re-exported through `types/index.ts` / `content/topicPrompts.ts`. Prefer this
+  registry-derived pattern over hand-written unions for any new id set.
 
 ---
 
@@ -171,6 +177,108 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-07-07 — Wave 0 review pass: bug + gap fixes (8-angle review)
+Multi-agent review of the whole Wave 0 branch; fixes applied:
+- **Archetype banner never seen (correctness):** the shielded/trickster/healer
+  callout was on mount-anchored timers that expired behind the question
+  LoadingScreen on a slow generation — the "twist, never a gotcha" contract
+  broken. Now gated on `!loading` + a shared `showBanner(text, ttl)` helper
+  (one banner lifecycle; a stale hide-timer can't wipe a fresh banner — also
+  fixed the boss-enrage banner's leaked timeout).
+- **Ember stage regression (correctness):** `EMBER_STAGE_AT` was a
+  `ceil(TOTAL/2)`/`TOTAL` formula; STORY-4X §8 pins whelp=2/dragon=4 even at
+  6 crystals, so crystal #5 would have regressed a live full-grown Ember to a
+  whelp (losing Ember's Breath). Now explicit values + a story.test TRIPWIRE
+  that fails on a `TOTAL_CRYSTALS` change to force a deliberate retune.
+- **Shield state leak (correctness/altitude):** `enemyShielded` re-derives on
+  `enemy.instanceId` change (adjust-state-during-render) instead of a
+  mount-only initializer — no longer relies on the arena unmounting per fight.
+- **Spell charge wasted on shield (correctness):** an offensive spell absorbed
+  by a shield now refunds its charge (effort never punished).
+- **Save-migration masking (correctness):** documented that `normalizeSave`
+  stamps `version` unconditionally (a missing step would mask itself / a stale
+  client would downgrade a newer save); added a save.test TRIPWIRE asserting
+  the ladder has a step for every version < `SAVE_VERSION`.
+- **Topic drift now a compile error:** `topicPrompts.ts` proves `Topic ≡
+  TopicId` at build time (was test-only — dangerous with no CI).
+- **Edge fn is multi-file now:** ISSUES #67 upgraded to a CLI-only deploy
+  warning (dashboard single-file paste boot-fails on `_shared`).
+- **Test de-hardcoding (reuse):** `ENEMY_BEHAVIORS` const-array derives the
+  union (enemies.test imports it, no private copy); the no-stall invariant
+  moved to enemies.test and derives max HP from `ENEMY_DEFS` via `spawnEnemy`.
+- **Known/deferred:** a pre-existing 260ms tap-race (ISSUES #70), logged not
+  fixed (needs turn-machine rework — Wave 2).
+- 240 tests green (was 238); lint + build clean.
+
+### 2026-07-07 — Wave 0.7: story-doc sync (Moonwell Grove into the bible)
+STORY.md caught up with the code: 11 zones (was "10" — the Grove was
+uncounted), the Grove's cast (Lune/Glim/Ripple) and quest (The Darkened
+Moonwell) added to the cast/quest tables, `grove-seen` added to the flag
+glossary, and §8's future hooks now point at their full specs in
+`STORY-4X.md` (Acts II–IV) / `ROADMAP-4X.md` (delivery waves). CLAUDE.md's
+content-layer description updated to match (11 maps, `ZONE_IDS`). Doc-only.
+
+### 2026-07-07 — Wave 0.5: enemy behavior archetypes (#69, ROADMAP-4X)
+Zones can now differ in play, not just palette. `EnemyBehavior`
+(`types/index.ts`): **shielded** — the first landed hit (even a glancing
+blow) shatters its shield for 0 damage, then it fights unprotected (🛡️ shows
+by its name); **trickster** — Hint Feathers don't work in that fight (button
+hidden, no feather consumed); **healer** — mends `healerRegen(maxHp)` (10%)
+at the end of its turn while below half HP (`healerMends`/`healerRegen` in
+`battleMath.ts`; test-guarded so a landed hit always out-damages the mend).
+Every archetype is announced by the phase banner at battle start — a twist,
+never a gotcha. `EnemyDef.behavior` carries through `spawnEnemy`; first
+users: Relic Golem (shielded), Pixel Witch (trickster), Moon Moth (healer).
+Bosses stay archetype-free (their twist is the enrage formula; test-
+enforced). "Swift"/timed deferred pending the STORY-4X §12 timer decision.
+238 tests green; lint + build clean.
+
+### 2026-07-07 — Wave 0.4: shared topic config for generate-questions (#67, #68)
+The edge function's topic whitelist + persona lines moved to
+`supabase/functions/_shared/topics.ts` — imported by the function (bundled at
+deploy) and re-exported to the app as `src/content/topicPrompts.ts`.
+`topicPrompts.test.ts` locks the shared `TOPIC_IDS` to the game's
+`ALL_TOPICS`, so a topic added on one side fails the suite. Adding a topic no
+longer edits function internals (see the checklist in _shared/topics.ts);
+a redeploy is still required. Question-table pruning deliberately deferred
+with a concrete plan (#68) — no new migration while prod drift (#61) is the
+live risk. ⚠️ Deploy: redeploy `generate-questions` once for the module
+layout (identical behavior). 231 tests green; lint + build clean.
+
+### 2026-07-07 — Wave 0.3: ZoneId derives from the zone registry (#66, ROADMAP-4X)
+`ZONE_IDS` (`content/zones.ts`) is now the single source of truth for the
+`ZoneId` union; `types/index.ts` re-exports it type-only (the types↔zones
+circular import is erased at compile time). Adding a zone = one id + one
+`ZONES` entry in zones.ts — the `Record<ZoneId, ZoneDef>` shape errors on a
+missing or extra entry, and a new zones.test asserts key/id consistency.
+Lazy zone loading deliberately deferred to Wave 3 (see ISSUES #66). No
+behavior change. 227 tests green; lint + build clean.
+
+### 2026-07-07 — Wave 0.2: versioned save-migration ladder (#65, ROADMAP-4X)
+`lib/save.ts` gains `runMigrations` + a `MIGRATIONS` ladder (v N → N+1 steps
+over raw payloads), run inside `normalizeSave` so every load path upgrades
+old saves before field coercion. Ladder is empty at `SAVE_VERSION` 1 — the
+mechanism + tests land ahead of the first real shape change (Wave 2 party
+state), which must bump the version, add a step + real-v1 fixture test, and
+drop the vestigial `sageEquipped` (#53). Missing steps stop the walk safely
+(normalize field-defaults the rest); payloads at/above target are never
+touched. 226 tests green; lint + build clean.
+
+### 2026-07-07 — Wave 0.1: crystal count registry-derived (#64, ROADMAP-4X)
+First foundation refactor for the 4× expansion (`docs/ROADMAP-4X.md`,
+`docs/STORY-4X.md`). Adding a crystal topic is now: add its id to
+`CRYSTAL_TOPIC_IDS` (`types/index.ts` — the new single source of truth for
+the `CrystalTopic` union) and let the compiler + tests walk you through the
+rest (exhaustive `Record<CrystalTopic,…>`s error; `topics.test.ts` enforces
+the `TOPIC_REGISTRY` entry). `TOTAL_CRYSTALS` is derived — never hardcode 4.
+`EMBER_STAGE_AT` (`story.ts`) replaces the literal `>=2`/`>=4` Ember growth
+thresholds (whelp = half, dragon = all; re-tune explicitly when crystal #5
+ships, see ISSUES #64). `EXTRA_TOPIC_IDS` likewise anchors the extra-topic
+union; topic tests are consistency checks against the id registries instead
+of hardcoded 4s and 7s. Stale "all four crystals" comments updated
+(`spells.ts`, `SpireOverlay.tsx`). No behavior change. 220 tests green
+(was 218); lint + build clean.
 
 ### 2026-06-27 — Wandering NPCs/enemies + ambient life + Moonwell Grove
 Made the overworld feel alive and grew the world by one region.
