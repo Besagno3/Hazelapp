@@ -15,6 +15,7 @@ import {
   buildingInside,
   safeSpawn,
 } from './zones';
+import { exitSide } from '../lib/transition';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
@@ -290,5 +291,15 @@ describe('safeSpawn', () => {
     expect(safeSpawn(z, { x: 4 * TILE + 5, y: 3 * TILE + 5 })).toEqual(spawnPx); // a wall
     expect(safeSpawn(z, { x: -50, y: 9999 })).toEqual(spawnPx);
     expect(safeSpawn(z, null)).toEqual(spawnPx);
+  });
+});
+
+describe('zone exits slide (Zelda-style transition)', () => {
+  it('every exit sits on a map edge, so it has a slide direction', () => {
+    for (const z of allZones) {
+      for (const e of z.exits) {
+        expect(exitSide(e.x, e.y, z.map[0].length, z.map.length), `${z.id} exit ${e.x},${e.y}`).not.toBeNull();
+      }
+    }
   });
 });

@@ -313,6 +313,16 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-280 | M | ⬜ | WorldScreen | full flow in the real app: enter each building, use shop/inn/library, walk back out (roof returns), leave by each of the 5 town exits and come back |
 | TC-281 | M | ⬜ | save | a pre-#72 save standing in the old village loads at a walkable spot (not inside a wall) |
 
+## Zone slide transition
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-282 | U | ✅ | transition | `exitSide` names the edge (north/south/east/west) and is null for interior cells; `slideFrom` gives the entry vector per side (transition.test) |
+| TC-283 | U | ✅ | zones | every zone exit sits on a map edge, so every exit has a slide direction (zones.test) |
+| TC-284 | M | ✅ | WorldCanvas | leaving west / north / into the town: old screen and new zone slide together, no black gap, snapshot removed after ~0.5s (headless Chromium) |
+| TC-285 | M | ⬜ | WorldCanvas | holding a direction key through the slide doesn't move the hero until it settles, and doesn't instantly re-trigger the exit back |
+| TC-286 | M | ⬜ | a11y | with OS "reduce motion" on, zone changes are an instant cut |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

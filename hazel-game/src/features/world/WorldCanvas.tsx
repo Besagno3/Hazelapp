@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import kaplay from 'kaplay';
 import type { MutableRefObject } from 'react';
 import {
@@ -24,6 +24,7 @@ import { loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis } from '../../lib/camera';
+import { SLIDE_MS, exitSide, slideFrom, type ExitSide } from '../../lib/transition';
 import {
   PROPS_KEY,
   PROP_FRAME,
@@ -143,6 +144,40 @@ export default function WorldCanvas({
   callbacks: WorldCanvasCallbacks;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // --- Zelda-style screen slide between zones --------------------------------
+  // On an edge exit we snapshot the outgoing screen; the new zone builds in the
+  // (hidden, off-screen) canvas, then both slide together and the hero stays
+  // frozen until the new screen has settled.
+  const [slide, setSlide] = useState<{ src: string; side: ExitSide; from: ZoneId; running: boolean } | null>(null);
+  const slidingRef = useRef(false);
+  useEffect(() => {
+    if (!slide || slide.running || slide.from === zoneId) return;
+    // The new zone was built on this render; give it a frame to draw, then go.
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setSlide((s) => (s ? { ...s, running: true } : s)));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [slide, zoneId]);
+  // Safety net: if the zone never changes (or a frame never comes), drop the
+  // snapshot and unfreeze rather than leave the hero stuck mid-slide.
+  const slideStarted = !!slide;
+  useEffect(() => {
+    if (!slideStarted) return;
+    const t = setTimeout(() => {
+      slidingRef.current = false;
+      setSlide(null);
+    }, SLIDE_MS + 1000);
+    return () => clearTimeout(t);
+  }, [slideStarted]);
+  useEffect(() => {
+    if (!slide?.running) return;
+    const t = setTimeout(() => {
+      slidingRef.current = false;
+      setSlide(null);
+    }, SLIDE_MS + 30);
+    return () => clearTimeout(t);
+  }, [slide?.running]);
   const kRef = useRef<ReturnType<typeof kaplay> | null>(null);
   // Re-running the scene effect for every prop change would rebuild the
   // world mid-walk; the latest callbacks/flags are read through refs instead.
@@ -734,7 +769,7 @@ export default function WorldCanvas({
 
     const loop = k.onUpdate(() => {
       if (triggered) return;
-      if (pausedRef.current) {
+      if (pausedRef.current || slidingRef.current) {
         wasPaused = true;
         return;
       }
@@ -932,6 +967,15 @@ export default function WorldCanvas({
       const exit = z.exits.find((e) => e.x === cellX && e.y === cellY);
       if (exit) {
         triggered = true;
+        const side = exitSide(exit.x, exit.y, cols, rows);
+        const reduceMotion =
+          typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        if (side && !reduceMotion) {
+          // Snapshot the outgoing screen (the canvas keeps its last frame) for
+          // the slide, then switch zones underneath it.
+          slidingRef.current = true;
+          setSlide({ src: k.screenshot(), side, from: zoneId, running: false });
+        }
         cbRef.current.onExit(exit.to, exit.spawnX, exit.spawnY);
         return;
       }
@@ -954,15 +998,39 @@ export default function WorldCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoneId, emberStage]);
 
+  // Slide transforms: the new screen starts one viewport away (`slideFrom`)
+  // and the snapshot of the old one leaves by the same amount the other way.
+  const v = slide ? slideFrom(slide.side) : { x: 0, y: 0 };
+  const shift = (f: number) => `translate(${v.x * f * 100}%, ${v.y * f * 100}%)`;
+  const motion = slide?.running ? `transform ${SLIDE_MS}ms linear` : 'none';
+
   return (
-    // Fills the parent's width; the 11:7 box keeps the zone's aspect ratio.
+    // Fills the parent's width; the 11:7 box keeps the viewport's aspect ratio.
     // KaPlay sizes its <canvas> to a fixed 704×448 — `!w-full/!h-full` (with
     // `!`, since KaPlay uses inline styles) upscales it to fill, kept crisp by
     // `imageRendering: pixelated`. Internal render resolution is unchanged.
     <div
-      ref={containerRef}
-      className="w-full rounded-lg shadow-2xl border-2 border-white/20 overflow-hidden [&>canvas]:!block [&>canvas]:!w-full [&>canvas]:!h-full"
-      style={{ aspectRatio: `${W} / ${H}`, imageRendering: 'pixelated' }}
-    />
+      className="relative w-full rounded-lg shadow-2xl border-2 border-white/20 overflow-hidden"
+      style={{ aspectRatio: `${VIEW_W} / ${VIEW_H}`, imageRendering: 'pixelated' }}
+    >
+      <div
+        ref={containerRef}
+        className="absolute inset-0 [&>canvas]:!block [&>canvas]:!w-full [&>canvas]:!h-full"
+        style={{ transform: slide && !slide.running ? shift(1) : 'none', transition: motion }}
+      />
+      {slide && (
+        <img
+          src={slide.src}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{
+            transform: slide.running ? shift(-1) : 'none',
+            transition: motion,
+            imageRendering: 'pixelated',
+          }}
+        />
+      )}
+    </div>
   );
 }

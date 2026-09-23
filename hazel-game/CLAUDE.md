@@ -184,6 +184,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-23 — Zelda-style screen slide between zones
+Leaving a zone by an edge exit now slides screens instead of hard-cutting:
+`WorldCanvas` snapshots the outgoing frame (`k.screenshot()`), the new zone
+builds in the canvas shifted one viewport away, then both move together
+(`SLIDE_MS` = 480ms, linear) — heading east the old screen leaves left and the
+new one arrives from the right, etc. The hero's update loop is frozen for the
+slide (`slidingRef`, which also re-arms the trigger cooldown on arrival);
+wanderers keep moving. Pure `lib/transition.ts`: `exitSide` (which map edge an
+exit is on) + `slideFrom` (entry vector). Respects `prefers-reduced-motion`
+(instant cut). A safety timeout clears the slide if the zone never changes.
+New zones.test invariant: every exit sits on a map edge. 275 tests green;
+lint + build clean; verified in headless Chromium (west, north, into the town).
+
 ### 2026-09-23 — Lumina Village becomes a scrolling town with enterable buildings (#72)
 - **Town map:** the village is now 44×28 (2×2 screens) — avenues, a plaza
   with the save crystal and fountain, hedges, and four buildings: Item Shop
