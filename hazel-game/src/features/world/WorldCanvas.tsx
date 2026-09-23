@@ -32,10 +32,10 @@ import {
   SPIRE_KEY,
   TILE_FRAME,
   TOWN_FRAME,
-  TOWN_KEY,
   groundVariant,
   roofFrame,
   tilesetKey,
+  townKey,
 } from '../../content/tiles';
 import {
   npcWanders,
@@ -286,9 +286,12 @@ export default function WorldCanvas({
         const ch = z.map[y][x];
         const px = x * TILE;
         const py = y * TILE;
+        const home = buildingAt(z, x, y);
+        // Building tiles draw in that building's architecture style (#73).
+        const townTiles = townKey(home?.style ?? 'timber');
         if (ch === 'W') {
           // Facade (a building's street-facing bottom row) vs. wall tops.
-          const b = buildingAt(z, x, y);
+          const b = home;
           const facade = b && y === b.y + b.h - 1;
           const nearDoor = z.map[y][x - 1] === 'D' || z.map[y][x + 1] === 'D';
           const frame = !facade
@@ -296,10 +299,10 @@ export default function WorldCanvas({
             : (x - (b?.x ?? 0)) % 2 === 1 && !nearDoor
               ? TOWN_FRAME.facadeWindow
               : TOWN_FRAME.facade;
-          k.add([k.sprite(TOWN_KEY, { frame }), k.pos(px, py), k.z(-50)]);
+          k.add([k.sprite(townTiles, { frame }), k.pos(px, py), k.z(-50)]);
           continue;
         } else if (ch in TOWN_TILE) {
-          k.add([k.sprite(TOWN_KEY, { frame: TOWN_TILE[ch] }), k.pos(px, py), k.z(-50)]);
+          k.add([k.sprite(townTiles, { frame: TOWN_TILE[ch] }), k.pos(px, py), k.z(-50)]);
           continue;
         } else if (ch === '=' || ch === 'E') {
           tile(TILE_FRAME.path, px, py);
@@ -370,7 +373,7 @@ export default function WorldCanvas({
         const fy = b.y + b.h - 1;
         const door = z.map[fy].indexOf('D', b.x);
         const sx = door + 1 < b.x + b.w - 1 ? door + 1 : door - 1;
-        k.add([k.sprite(TOWN_KEY, { frame: TOWN_FRAME.sign[b.sign] }), k.pos(sx * TILE, fy * TILE), k.z(-40)]);
+        k.add([k.sprite(townKey(b.style), { frame: TOWN_FRAME.sign[b.sign] }), k.pos(sx * TILE, fy * TILE), k.z(-40)]);
       }
     }
 

@@ -1493,8 +1493,6 @@ NPCS: list[Char] = [
     Char('chromaria-villager', '🧑‍🎨', 'humanoid', H(hair='short', hair_color='#2a2a3a', hat='beret', hat_color='#d03a5a', outfit='#4ab0c0', apron='#f4ecd8', item='brush')),
     Char('chromaria-merchant', '🐙', 'octopus', H(color='#e0609a', hat='#3a2a5a')),
     Char('village-shopkeeper', '🧑‍💼', 'humanoid', H(hair='short', hair_color='#4a2a1a', hat='cap', hat_color='#3a8a5a', outfit='#e0c060', apron='#3a8a5a', trim='#8a5a30')),
-    Char('village-innkeeper', '👩‍🦰', 'humanoid', H(hair='bun', hair_color='#c8502a', outfit='#5a8ad0', apron='#f4ecd8', trim='#ffffff')),
-    Char('village-librarian', '🦔', 'humanoid', H(skin='#a07a5a', hair='spiky', hair_color='#5a3a2a', ears='round', snout='pointy', muzzle='#e8d0b0', outfit='#7a5ab0', robe=True, glasses=True, item='book', blush=False)),
     Char('village-elder', '👵', 'humanoid', H(hair='bun', hair_color='#e8e8f0', outfit='#9a5a8a', robe=True, glasses=True, item='staff', item_color='#ffb0d0')),
     Char('village-friend', '🧑', 'humanoid', H(hair='short', hair_color='#b05a2a', outfit='#5a8ad0', scarf='#ffd24a')),
     Char('village-keeper', '🧓', 'humanoid', H(hair='fringe', hair_color='#d0d0d0', beard='#e0e0e0', outfit='#6a5a3a', item='lantern')),

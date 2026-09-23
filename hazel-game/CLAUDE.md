@@ -184,6 +184,44 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-23 — Every place unique: one of each service, own shops, own architecture (#73)
+No more duplicated services — each place has its own layout, buildings and stores.
+- **One of each service:** the only Inn is the Sleepy Sheep Inn in Lumina
+  Village (Innkeeper Poppy moved in; id `hub-innkeeper` kept); the only
+  Library is the Lumina Library on Lumina Field (Librarian Sage). The
+  duplicate village innkeeper/librarian were removed; the town's library
+  became Lantern-Keeper Sol's Lantern Workshop.
+- **Unique stores (`content/items.ts`):** `SHOP_CATALOG` → `SHOPS` keyed by
+  merchant id; every item is sold in exactly one shop. Maple's Trading Post
+  (field): Berry Potion · Plus's Quill & Count (Numbria): Hint Feather ·
+  Tadpole's Tonics (Verdara): Honey Elixir · Volt's Gadgets (Gearfall): Spark
+  Cell · Swirl's Paint & Charms (Chromaria): Rainbow Ward · Clove's Curios
+  (village): collectible badges — plus a signature badge in each.
+- **New battle items:** Honey Elixir (full heal), Spark Cell (+2 ◆ charge),
+  Rainbow Ward (blocks the next enemy hit). `CONSUMABLE_IDS` drives the save
+  (`SaveData.items` is now `Record<ConsumableId, number>`; older saves
+  default new slots to 0 — no version bump needed). Battle **Potion** command
+  → **🎒 Items** menu (`BATTLE_ITEMS`; each use spends the turn, with
+  "HP is full" / "Charge is full" / "Already warded" guards).
+- **Unique layouts + buildings:** Lumina Field redrawn around the Library and
+  Trading Post; Numbria + Chromaria gained an east district, Verdara +
+  Gearfall a south district (each: a Sage hall + the merchant's shop, Numbria
+  also a Counting House); the Woods (Spellwright's Hut), Coast (Vela's
+  Observatory) and Depths (Cricket's Tinkery) each gained a signature
+  building. All chest / gate / key-gate / save-crystal coordinates are
+  unchanged (saves + quests stay valid); moved exits and inbound spawns
+  updated. Every merchant, sage, innkeeper and librarian now works indoors.
+- **Architecture styles:** `BuildingDef.style` — cottage (field), timber
+  (town), stone (Numbria), leaf (Verdara), brass (Gearfall), paint
+  (Chromaria), log (Woods), driftwood (Coast), cave (Depths); one tile sheet
+  each (`/tiles/town-<style>.png`), 12 roof colours, new sage/tools/star
+  signs.
+- New tests: items.test (each item sold once, every merchant has a shop,
+  save slots), zones.test (one Inn + one Library, service NPCs indoors, one
+  style per place, unique building names), tiles.test (every style sheet).
+  288 tests green; lint + build clean. Verified in headless Chromium (all 9
+  places, a shop interior, two shop screens).
+
 ### 2026-09-23 — Zelda-style screen slide between zones
 Leaving a zone by an edge exit now slides screens instead of hard-cutting:
 `WorldCanvas` snapshots the outgoing frame (`k.screenshot()`), the new zone

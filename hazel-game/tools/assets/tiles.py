@@ -256,91 +256,164 @@ def spire():
     return out.image().crop((8, 0, 24, 32))
 
 
-# ─── Towns: building interiors, facades, signs and roofs (#72) ───────────────
-# Keep in sync with TOWN_FRAME / ROOF_* in src/content/tiles.ts.
+# ─── Towns: building interiors, facades, signs and roofs (#72, #73) ─────────
+# Keep in sync with TOWN_FRAME / ROOF_COLORS / BUILDING_STYLES in src/content.
+# One town sheet per architecture style: every place builds differently.
 
-WALL = '#e8d8b0'
+STYLES = {
+    #            wall        trim       pattern    window    floor      floor colours
+    'cottage':   ('#f4f0e6', '#4a7ab0', 'plaster', 'square', 'planks', ('#d8b48a',)),
+    'timber':    ('#e8d8b0', '#7a4a2a', 'timber',  'square', 'planks', ('#c49662',)),
+    'stone':     ('#8a9ab8', '#4a5a78', 'bricks',  'arch',   'tiles',  ('#9aa4b8', '#7a849a')),
+    'leaf':      ('#9a7040', '#3f8a3a', 'vines',   'round',  'planks', ('#8a9a50',)),
+    'brass':     ('#c8a060', '#7a5a2a', 'panels',  'round',  'grate',  ('#8a8e98', '#6a6e78')),
+    'paint':     ('#ffd6ea', '#e0609a', 'stripes', 'arch',   'checker', ('#fff0f6', '#f0b8d8')),
+    'log':       ('#7a5030', '#4a3020', 'logs',    'square', 'planks', ('#9a6a40',)),
+    'driftwood': ('#a8b4b4', '#4a6a7a', 'planks',  'round',  'planks', ('#d8c49a',)),
+    'cave':      ('#5a5470', '#2e2a40', 'bricks',  'arch',   'tiles',  ('#6a6480', '#545068')),
+}
+
+
 WOOD = '#b07840'
-FLOOR = (196, 150, 98)
 
 
-def _floor():
+def _floor(kind='planks', cols=('#c49662',)):
     c = _c()
-    c.a[:, :, :3] = FLOOR
+    base = hexc(cols[0])
+    c.a[:, :, :3] = base
     c.a[:, :, 3] = 255
-    for y in range(0, T, 4):
-        c.a[y, :, :3] = dark(FLOOR, 0.08)  # plank seams
-        off = 5 if (y // 4) % 2 else 11
-        c.a[y:y + 4, off, :3] = dark(FLOOR, 0.1)
-    c.a[1::4, :, :3] = light(FLOOR, 0.04)
+    if kind == 'planks':
+        for y in range(0, T, 4):
+            c.a[y, :, :3] = dark(base, 0.08)  # plank seams
+            off = 5 if (y // 4) % 2 else 11
+            c.a[y:y + 4, off, :3] = dark(base, 0.1)
+        c.a[1::4, :, :3] = light(base, 0.04)
+    elif kind in ('tiles', 'checker'):
+        alt = hexc(cols[1])
+        for ty in range(2):
+            for tx in range(2):
+                if (tx + ty) % 2:
+                    c.a[ty * 8:(ty + 1) * 8, tx * 8:(tx + 1) * 8, :3] = alt
+        if kind == 'tiles':
+            c.a[::8, :, :3] = dark(base, 0.2)
+            c.a[:, ::8, :3] = dark(base, 0.2)
+    elif kind == 'grate':
+        alt = hexc(cols[1])
+        c.a[::3, :, :3] = alt
+        c.a[:, ::3, :3] = alt
+        c.dot(1, 1, '#c8ccd4')
+        c.dot(14, 14, '#c8ccd4')
     return c
 
 
-def town_tiles():
+def _wall_face(style, window=False, door=False):
+    wall, trim, pattern, win, floor, fcols = STYLES[style]
+    base = hexc(wall)
+    c = _c()
+    c.a[:, :, :3] = base
+    c.a[:, :, 3] = 255
+    if pattern == 'bricks':
+        for y in range(0, T, 4):
+            c.a[y, :, :3] = dark(base, 0.18)
+            off = 0 if (y // 4) % 2 else 4
+            for x in range(off, T, 8):
+                c.a[y:y + 4, x, :3] = dark(base, 0.18)
+        c.a[1::4, :, :3] = light(base, 0.05)
+    elif pattern in ('planks', 'logs'):
+        step = 4 if pattern == 'planks' else 5
+        for y in range(0, T, step):
+            c.a[y, :, :3] = dark(base, 0.22)
+            if pattern == 'logs' and y + 1 < T:
+                c.a[y + 1, :, :3] = light(base, 0.08)
+                c.dot(1 + (y % 3), y + 2, dark(base, 0.3))
+    elif pattern == 'panels':
+        c.rect(0, 0, 16, 16, base)
+        for (x, y) in ((1, 1), (14, 1), (1, 14), (14, 14)):
+            c.dot(x, y, '#f0e0a0')
+        c.a[:, 8, :3] = dark(base, 0.2)
+    elif pattern == 'stripes':
+        for x in range(0, T, 4):
+            if (x // 4) % 2:
+                c.a[:, x:x + 2, :3] = hexc('#c8e8ff')
+    elif pattern == 'vines':
+        for y in range(0, T, 4):
+            c.a[y, :, :3] = dark(base, 0.2)
+        for (x, y) in ((2, 1), (3, 2), (2, 3), (3, 4), (12, 9), (13, 10), (12, 11), (13, 12)):
+            c.dot(x, y, trim)
+        c.dot(4, 3, '#ff8fb8')
+    elif pattern == 'timber':
+        c.rect(0, 0, 1.5, 16, trim, shade=False)
+    # every facade gets a top beam + base course in the trim colour
+    c.rect(0, 0, 16, 2, trim, shade=False)
+    c.rect(0, 14, 16, 16, dark(base, 0.3), shade=False)
+    if window:
+        glass = '#8ad0ff' if style != 'cave' else '#ffd86a'  # lantern-lit in the depths
+        if win == 'square':
+            c.rect(4, 4, 12, 11, trim, shade=False)
+            c.rect(5, 5, 11, 10, glass, shade=False)
+            c.rect(7.5, 5, 8.5, 10, trim, shade=False)
+        elif win == 'arch':
+            c.rect(4, 6, 12, 12, trim, shade=False)
+            c.ellipse(8, 6.5, 4, 3, trim, shade=False)
+            c.rect(5, 6.5, 11, 11, glass, shade=False)
+            c.ellipse(8, 6.8, 3, 2.2, glass, shade=False)
+        else:
+            c.ellipse(8, 8, 4.5, 4.5, trim, shade=False)
+            c.ellipse(8, 8, 3.2, 3.2, glass, shade=False)
+        c.dot(6, 6, '#ffffff')
+    if door:
+        fl = hexc(fcols[0])
+        c.rect(3, 3, 13, 16, trim, shade=False)
+        c.rect(4, 4, 12, 16, fl, shade=False)
+        c.rect(4, 4, 12, 6, dark(fl, 0.2), shade=False)
+        c.rect(2, 14.5, 14, 16, '#c8a070', shade=False)  # doormat
+    return c
+
+
+def town_tiles(style):
+    wall, trim, pattern, win, floor, fcols = STYLES[style]
+    fl = lambda: _floor(floor, fcols)
     frames = []
-    # 0 wall top (seen from above: thick timber beam)
+    # 0 wall top (seen from above: a thick beam in the style's trim colour)
     c = _c()
-    c.a[:, :, :3] = hexc('#7a4a2a')
+    c.a[:, :, :3] = hexc(trim)
     c.a[:, :, 3] = 255
-    c.rect(0, 0, 16, 3, '#9a6a3a', shade=False)
-    c.rect(0, 13, 16, 16, '#5a3420', shade=False)
+    c.rect(0, 0, 16, 3, light(hexc(trim), 0.12), shade=False)
+    c.rect(0, 13, 16, 16, dark(hexc(trim), 0.15), shade=False)
     frames.append(c)
-    # 1 facade (plaster + timber frame) · 2 facade with a window
-    for window in (False, True):
-        c = _c()
-        c.a[:, :, :3] = hexc(WALL)
-        c.a[:, :, 3] = 255
-        c.rect(0, 0, 16, 2, '#7a4a2a', shade=False)
-        c.rect(0, 14, 16, 16, '#8a7a6a', shade=False)
-        c.rect(0, 0, 1.5, 16, '#7a4a2a', shade=False)
-        if window:
-            c.rect(4, 4, 12, 11, '#5a3420', shade=False)
-            c.rect(5, 5, 11, 10, '#8ad0ff', shade=False)
-            c.rect(7.5, 5, 8.5, 10, '#5a3420', shade=False)
-            c.dot(5, 5, '#ffffff', w=2, h=1)
-            c.rect(3.5, 11, 12.5, 12, '#9a6a3a', shade=False)
-        frames.append(c)
-    # 3 door (open doorway into a warm room)
-    c = _c()
-    c.a[:, :, :3] = hexc(WALL)
-    c.a[:, :, 3] = 255
-    c.rect(0, 0, 16, 2, '#7a4a2a', shade=False)
-    c.rect(3, 3, 13, 16, '#5a3420', shade=False)
-    c.rect(4, 4, 12, 16, FLOOR, shade=False)
-    c.rect(4, 4, 12, 6, dark(FLOOR, 0.15), shade=False)
-    c.rect(2, 14.5, 14, 16, '#c8a070', shade=False)  # doormat
-    frames.append(c)
-    # 4 floor
-    frames.append(_floor())
-    # 5 counter
-    c = _floor()
+    frames.append(_wall_face(style))               # 1 facade
+    frames.append(_wall_face(style, window=True))  # 2 facade with window
+    frames.append(_wall_face(style, door=True))    # 3 door
+    frames.append(fl())                            # 4 floor
+    c = fl()                                       # 5 counter
     c.rect(0, 4, 16, 13, WOOD)
     c.rect(0, 4, 16, 6, '#d8a060', shade=False)
-    c.dot(4, 7, '#ffe066', w=2, h=2)  # a coin on the counter
+    c.dot(4, 7, '#ffe066', w=2, h=2)
     frames.append(c)
-    # 6 bookshelf
-    c = _floor()
-    c.rect(1, 0, 15, 15, '#6a3a20')
+    c = fl()                                       # 6 shelf (books / jars / parts by style)
+    c.rect(1, 0, 15, 15, '#6a3a20' if style not in ('brass', 'cave') else '#4a4a58')
+    goods = {'leaf': ('#6fcf5a', '#e04848', '#f0e0a0', '#8a5ab0', '#4aa0e0'),
+             'brass': ('#c8a040', '#8c96a4', '#e07030', '#c8a040', '#8c96a4'),
+             'paint': ('#ff5a9a', '#5ac8ff', '#ffe066', '#9aff7a', '#b07cff')}.get(
+        style, ('#d04040', '#4070d0', '#40a060', '#e0b040', '#9050c0'))
     for y0 in (2, 7):
         c.rect(2, y0, 14, y0 + 4, '#3a2014', shade=False)
-        for i, col in enumerate(('#d04040', '#4070d0', '#40a060', '#e0b040', '#9050c0')):
+        for i, col in enumerate(goods):
             c.rect(2.5 + i * 2.3, y0 + 0.5 + (i % 2), 4.3 + i * 2.3, y0 + 4, col, shade=False)
     frames.append(c)
-    # 7 table
-    c = _floor()
+    c = fl()                                       # 7 table
     c.ellipse(8, 8, 6.5, 5, '#a86a3a')
     c.ellipse(8, 7, 5.5, 3.8, '#c8884a')
     c.ellipse(6, 6.5, 1.5, 1.2, '#ffffff', shade=False)
     frames.append(c)
-    # 8 bed
-    c = _floor()
+    c = fl()                                       # 8 bed
     c.rect(2, 1, 14, 15.5, '#7a4a2a')
     c.rect(3, 2, 13, 6, '#ffffff')
-    c.rect(3, 6, 13, 15, '#d05a5a')
+    c.rect(3, 6, 13, 15, {'leaf': '#5aa04a', 'cave': '#6a5ab0', 'log': '#c05a3a'}.get(style, '#d05a5a'))
     c.rect(3, 6, 13, 7, '#f0c0a0', shade=False)
     frames.append(c)
-    # 9-12 hanging signs (transparent overlays on the facade)
-    for icon in ('shop', 'inn', 'library', 'house'):
+    # 9-15 hanging signs (transparent overlays on the facade)
+    for icon in ('shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'):
         c = _c()
         c.rect(3, 1, 13, 2, '#5a3420', shade=False)
         c.rect(3, 3, 13, 11, '#e8c88a')
@@ -353,32 +426,49 @@ def town_tiles():
         elif icon == 'library':
             c.rect(5, 4.5, 11, 9.5, '#4070d0', shade=False)
             c.rect(7.8, 4.5, 8.2, 9.5, '#ffffff', shade=False)
-        else:
+        elif icon == 'house':
             c.poly([(4.5, 7), (8, 4), (11.5, 7)], '#d04040')
             c.rect(5.5, 7, 10.5, 10, '#fff4d0', shade=False)
+        elif icon == 'sage':
+            c.poly([(8, 3.5), (9.2, 6.2), (12, 6.5), (9.8, 8.3), (10.5, 11), (8, 9.5), (5.5, 11), (6.2, 8.3), (4, 6.5), (6.8, 6.2)], '#8a5ae0')
+        elif icon == 'tools':
+            c.line(5, 10, 10, 5, '#8c96a4', w=1.4)
+            c.rect(9, 3.5, 12, 6, '#8c96a4')
+            c.line(6, 5, 11, 10, '#a86a3a', w=1.2)
+        elif icon == 'star':
+            c.ellipse(8, 7, 3, 3, '#3a3a8a', shade=False)
+            c.dot(7, 6, '#fff4b0')
+            c.dot(9, 8, '#ffffff')
         frames.append(_outlined(c))
     return frames
 
 
-ROOFS = {'red': '#c0503a', 'blue': '#3a6ab0', 'green': '#4a8a4a', 'purple': '#7a4ab0'}
+# Order must match ROOF_COLORS in src/content/zones.ts.
+ROOFS = {'red': '#c0503a', 'blue': '#3a6ab0', 'green': '#4a8a4a', 'purple': '#7a4ab0',
+         'slate': '#5a6478', 'leaf': '#6aa83a', 'copper': '#b0703a', 'pink': '#e070a8',
+         'teal': '#3aa0a0', 'thatch': '#c8a050', 'sea': '#4a8ab8', 'dusk': '#4a3a6a'}
 
 
 def roof_tiles():
     """Nine-slice roof per colour: TL T TR / L M R / BL B BR (9 frames each)."""
     frames = []
-    for col in ROOFS.values():
+    for name, col in ROOFS.items():
         base = hexc(col)
         for sy in range(3):
             for sx in range(3):
                 c = _c()
                 c.a[:, :, :3] = base
                 c.a[:, :, 3] = 255
-                # overlapping shingle rows
-                for y in range(0, T, 4):
-                    c.a[y + 3, :, :3] = dark(base, 0.14)
-                    for x in range((y // 4 % 2) * 4, T, 8):
-                        c.a[y:y + 3, x, :3] = dark(base, 0.08)
-                c.a[0::4, :, :3] = light(base, 0.06)
+                if name == 'thatch':  # straw bundles instead of shingles
+                    for x in range(0, T, 2):
+                        c.a[:, x, :3] = dark(base, 0.1)
+                    c.a[::5, :, :3] = light(base, 0.1)
+                else:
+                    for y in range(0, T, 4):
+                        c.a[y + 3, :, :3] = dark(base, 0.14)
+                        for x in range((y // 4 % 2) * 4, T, 8):
+                            c.a[y:y + 3, x, :3] = dark(base, 0.08)
+                    c.a[0::4, :, :3] = light(base, 0.06)
                 if sy == 0:  # ridge
                     c.rect(0, 0, 16, 3, light(base, 0.18), shade=False)
                     c.rect(0, 3, 16, 4, dark(base, 0.2), shade=False)
@@ -515,7 +605,8 @@ def build(public: Path) -> list[str]:
         strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'{zid}.png', optimize=True)
         upscale(backdrop(z, 100 + i), 1).save(bdir / f'{zid}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in props()]).save(tdir / 'props.png', optimize=True)
-    strip([upscale(f.image(), 2) for f in town_tiles()]).save(tdir / 'town.png', optimize=True)
+    for style in STYLES:
+        strip([upscale(f.image(), 2) for f in town_tiles(style)]).save(tdir / f'town-{style}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in roof_tiles()]).save(tdir / 'roofs.png', optimize=True)
     upscale(spire(), 2).save(tdir / 'spire.png', optimize=True)
     return list(ZONES)

@@ -9,7 +9,7 @@
 import kaplay from 'kaplay';
 import type { SpriteAnim } from '../../lib/spriteAnim';
 import { SPRITES, resolveSprite } from '../../content/sprites';
-import { ZONE_IDS } from '../../content/zones';
+import { BUILDING_STYLES, ZONE_IDS } from '../../content/zones';
 import {
   PROPS_FRAMES,
   PROPS_KEY,
@@ -23,9 +23,9 @@ import {
   TILESET_FRAMES,
   TILE_FRAME,
   TOWN_FRAMES,
-  TOWN_KEY,
-  TOWN_SHEET,
   tilesetKey,
+  townKey,
+  townSheet,
   tilesetSheet,
 } from '../../content/tiles';
 
@@ -84,7 +84,9 @@ export function loadWorldSprites(k: KaplayCtx): void {
     anims: { glow: { from: PROP_FRAME.crystal[0], to: PROP_FRAME.crystal[1], loop: true, speed: 2 } },
   });
   k.loadSprite(SPIRE_KEY, SPIRE_SHEET);
-  k.loadSprite(TOWN_KEY, TOWN_SHEET, { sliceX: TOWN_FRAMES, sliceY: 1 });
+  for (const style of BUILDING_STYLES) {
+    k.loadSprite(townKey(style), townSheet(style), { sliceX: TOWN_FRAMES, sliceY: 1 });
+  }
   k.loadSprite(ROOF_KEY, ROOF_SHEET, { sliceX: ROOF_FRAMES, sliceY: 1 });
 }
 

@@ -323,6 +323,23 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-285 | M | ⬜ | WorldCanvas | holding a direction key through the slide doesn't move the hero until it settles, and doesn't instantly re-trigger the exit back |
 | TC-286 | M | ⬜ | a11y | with OS "reduce motion" on, zone changes are an instant cut |
 
+## Unique places, shops and items (#73)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-287 | U | ✅ | items | every shop item id is sold in exactly one shop; every consumable is for sale somewhere; shop names distinct (items.test) |
+| TC-288 | U | ✅ | items | `SHOPS` keys == the set of merchant NPCs; `shopFor` null for non-merchants (items.test) |
+| TC-289 | U | ✅ | save | an old `{potion, hint}` save normalizes with elixir/spark/ward = 0; new counts round-trip (items.test) |
+| TC-290 | U | ✅ | zones | exactly one innkeeper and one librarian defined and placed; no NPC placed twice (zones.test) |
+| TC-291 | U | ✅ | zones | every merchant / sage / innkeeper / librarian stands inside a building (zones.test) |
+| TC-292 | U | ✅ | zones | each place uses one architecture style and no two places share one; building ids + names unique (zones.test) |
+| TC-293 | U | ✅ | tiles | every style has a 16-frame town sheet; roof strip = 9 frames × colour (tiles.test) |
+| TC-294 | M | ✅ | world | all 9 built-up places render their own style + roof colours; walking into Plus's Quill & Count clears the roof (headless Chromium) |
+| TC-295 | M | ✅ | shop | Tadpole's Tonics and Clove's Curios show their own name + stock (headless Chromium, seeded save) |
+| TC-296 | M | ⬜ | battle | 🎒 Items: Berry Potion heals 50, Honey Elixir heals to full, Spark Cell +2 ◆ (capped), Rainbow Ward blocks the next enemy hit; each spends the turn; disabled reasons show; button disabled with no battle items |
+| TC-297 | M | ⬜ | world | from a pre-#73 save standing in Numbria/Verdara/Gearfall/Chromaria: loads at a walkable spot; chests/gates already opened stay opened |
+| TC-298 | M | ⬜ | world | leave + re-enter each extended zone by every exit (moved exits land correctly, slide direction correct) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

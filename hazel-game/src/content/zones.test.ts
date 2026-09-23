@@ -303,3 +303,45 @@ describe('zone exits slide (Zelda-style transition)', () => {
     }
   });
 });
+
+describe('every place is unique (#73)', () => {
+  const placed = allZones.flatMap((z) => z.npcs.map((p) => ({ z, p, def: NPC_DEFS[p.defId] })));
+
+  it('there is exactly one Inn and one Library in the world', () => {
+    for (const role of ['innkeeper', 'librarian'] as const) {
+      const defs = Object.values(NPC_DEFS).filter((n) => n.role === role);
+      expect(defs.length, `${role} defs`).toBe(1);
+      expect(placed.filter((x) => x.def.role === role).length, `${role} placements`).toBe(1);
+    }
+  });
+
+  it('no NPC is placed twice', () => {
+    const ids = placed.map((x) => x.p.defId);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('every merchant, sage, innkeeper and librarian works inside a building', () => {
+    for (const { z, p, def } of placed) {
+      if (def.role === 'villager') continue;
+      expect(buildingInside(z, p.x, p.y), `${def.id} in ${z.id}`).not.toBeNull();
+    }
+  });
+
+  it('each place builds in its own architecture style', () => {
+    const styleOwner = new Map<string, string>();
+    for (const z of allZones) {
+      const styles = new Set((z.buildings ?? []).map((b) => b.style));
+      expect(styles.size, `${z.id} mixes styles`).toBeLessThanOrEqual(1);
+      for (const st of styles) {
+        expect(styleOwner.get(st) ?? z.id, `style ${st} reused`).toBe(z.id);
+        styleOwner.set(st, z.id);
+      }
+    }
+  });
+
+  it('building names and ids are unique across the world', () => {
+    const bs = allZones.flatMap((z) => z.buildings ?? []);
+    expect(new Set(bs.map((b) => b.id)).size).toBe(bs.length);
+    expect(new Set(bs.map((b) => b.name)).size).toBe(bs.length);
+  });
+});

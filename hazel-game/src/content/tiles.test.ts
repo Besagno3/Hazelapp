@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ZONE_IDS } from './zones';
+import { BUILDING_STYLES, ROOF_COLORS, ZONE_IDS } from './zones';
 import {
   PROPS_FRAMES,
   PROPS_SHEET,
@@ -12,7 +12,7 @@ import {
   ROOF_FRAMES,
   ROOF_SHEET,
   TOWN_FRAMES,
-  TOWN_SHEET,
+  townSheet,
   battleBackdrop,
   roofFrame,
   groundVariant,
@@ -55,8 +55,11 @@ describe('16-bit tilesets', () => {
 });
 
 describe('town tiles + roofs (#72)', () => {
-  it('town and roof strips are the expected sizes', () => {
-    expect(pngSize(TOWN_SHEET)).toEqual({ w: TOWN_FRAMES * 32, h: 32 });
+  it('every architecture style has a town sheet; the roof strip has 9 frames per colour', () => {
+    for (const style of BUILDING_STYLES) {
+      expect(pngSize(townSheet(style)), style).toEqual({ w: TOWN_FRAMES * 32, h: 32 });
+    }
+    expect(ROOF_FRAMES).toBe(ROOF_COLORS.length * 9);
     expect(pngSize(ROOF_SHEET)).toEqual({ w: ROOF_FRAMES * 32, h: 32 });
   });
   it('roofFrame picks nine-slice pieces per colour', () => {
@@ -64,6 +67,6 @@ describe('town tiles + roofs (#72)', () => {
     expect(roofFrame('red', 4, 3, 9, 6)).toBe(4); // middle
     expect(roofFrame('red', 8, 5, 9, 6)).toBe(8); // bottom-right
     expect(roofFrame('blue', 0, 0, 9, 6)).toBe(9);
-    expect(roofFrame('purple', 8, 5, 9, 6)).toBe(ROOF_FRAMES - 1);
+    expect(roofFrame(ROOF_COLORS[ROOF_COLORS.length - 1], 8, 5, 9, 6)).toBe(ROOF_FRAMES - 1);
   });
 });

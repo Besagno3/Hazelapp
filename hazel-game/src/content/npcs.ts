@@ -119,11 +119,13 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
   },
   'hub-innkeeper': {
+    // Id kept from when Poppy stood in the hub; she now runs Lumina's one Inn
+    // in the village (#73 — one of each service in the world).
     id: 'hub-innkeeper',
     name: 'Innkeeper Poppy',
     sprite: '👩‍🍳',
     role: 'innkeeper',
-    lines: ['Tired, traveler? Rest here and your HP comes right back. On the house!'],
+    lines: ['Welcome to the Sleepy Sheep Inn! Rest here and your HP comes right back. On the house!'],
   },
   'hub-librarian': {
     id: 'hub-librarian',
@@ -316,30 +318,14 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
 
   // --- Whispering Woods ---
-  // --- Lumina Village shops (#72) — each works behind its own counter/room ---
+  // --- Lumina Village (#72/#73) — Clove's Curios; Poppy runs the only Inn ---
   'village-shopkeeper': {
     id: 'village-shopkeeper',
     name: 'Shopkeep Clove',
     sprite: '🧑‍💼',
     role: 'merchant',
     lines: [
-      'Welcome to the Item Shop! Potions, feathers, the works — all fresh off the shelf.',
-    ],
-  },
-  'village-innkeeper': {
-    id: 'village-innkeeper',
-    name: 'Innkeeper Bess',
-    sprite: '👩‍🦰',
-    role: 'innkeeper',
-    lines: ['Long road? Kick off your boots — a nap here puts every bit of your HP back.'],
-  },
-  'village-librarian': {
-    id: 'village-librarian',
-    name: 'Archivist Quill',
-    sprite: '🦔',
-    role: 'librarian',
-    lines: [
-      'Shhh… the books remember every question that tripped you up. Want another try at them?',
+      "Welcome to Clove's Curios! Nothing useful, everything wonderful — badges from every corner of Lumina.",
     ],
   },
   'woods-hermit': {
