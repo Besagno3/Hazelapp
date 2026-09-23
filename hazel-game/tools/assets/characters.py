@@ -12,7 +12,7 @@ Coordinates are in a 32-unit design grid: feet on y≈30, centred on x≈16.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from pix import Canvas, hexc, dark, light, mix
 
@@ -31,9 +31,10 @@ class Pose:
     blink: bool = False
     flash: str | None = None  # 'white' | 'red'
     frame: int = 0  # raw frame index (for cyclic effects)
+    facing: str = 'side'  # side (facing right) · down (toward camera) · up (away)
 
 
-WORLD_POSES = [
+_WORLD_SIDE = [
     Pose(frame=0),
     Pose(bob=1, blink=True, wing=2, squash=1, frame=1),
     Pose(step=1, arm='swingb', wing=0, squash=-1, frame=2),
@@ -41,9 +42,16 @@ WORLD_POSES = [
     Pose(step=-1, arm='swingf', wing=2, squash=-1, frame=4),
     Pose(step=0, bob=-1, wing=1, squash=1, frame=5),
 ]
+# 18 frames: side 0-5, down 6-11, up 12-17 (each: idle ×2, walk ×4).
+# Keep in sync with FACING_ANIMS in src/lib/facing.ts.
+WORLD_POSES = [replace(p, facing=f) for f in ('side', 'down', 'up') for p in _WORLD_SIDE]
 WORLD_ANIMS = {
     'idle': {'from': 0, 'to': 1, 'fps': 3},
     'walk': {'from': 2, 'to': 5, 'fps': 8},
+    'idleDown': {'from': 6, 'to': 7, 'fps': 3},
+    'walkDown': {'from': 8, 'to': 11, 'fps': 8},
+    'idleUp': {'from': 12, 'to': 13, 'fps': 3},
+    'walkUp': {'from': 14, 'to': 17, 'fps': 8},
 }
 
 BATTLE_POSES = [
@@ -99,6 +107,11 @@ class D:
                 if shine and self.sep and h >= 2:
                     L.dot(x, y, WHITE, w=1, h=1)
                     L.dot(x, y + 1, color, w=1, h=h - 1)
+
+
+def face_x(p: Pose, side_x: list[float], front_x: list[float]):
+    """Eye x-positions for the pose's facing; [] (no face) when facing away."""
+    return {'side': side_x, 'down': front_x, 'up': []}[p.facing]
 
 
 def finish(c: Canvas, d: D, shadow=None):
@@ -200,6 +213,8 @@ def draw_item(L: Canvas, item: str, hx: float, hy: float, arm: str, col=None):
 
 
 def humanoid(c: Canvas, p: Pose, s: dict):
+    if p.facing != 'side':
+        return humanoid_fb(c, p, s)
     d = D(c, p)
     skin = hexc(s.get('skin', '#f5c9a0'))
     outfit = hexc(s.get('outfit', '#4a7bd0'))
@@ -425,6 +440,247 @@ def humanoid(c: Canvas, p: Pose, s: dict):
     finish(c, d)
 
 
+def humanoid_fb(c: Canvas, p: Pose, s: dict):
+    """Front (facing down) and back (facing up) views of a humanoid."""
+    d = D(c, p)
+    front = p.facing == 'down'
+    skin = hexc(s.get('skin', '#f5c9a0'))
+    outfit = hexc(s.get('outfit', '#4a7bd0'))
+    trim = hexc(s.get('trim', '#f0d060'))
+    pants = hexc(s.get('pants', mix(outfit, (40, 30, 50), 0.45)))
+    boots = hexc(s.get('boots', '#5a3a2a'))
+    hair = s.get('hair')
+    hair_c = hexc(s.get('hair_color', '#6b3f22'))
+    robe = s.get('robe', False)
+    item = s.get('item')
+    bob = d.bob
+    ecol = hexc(s.get('eye', '#1e1628'))
+
+    def tail_layer(L):
+        tail = s.get('tail')
+        if tail == 'lion':
+            L.line(16, 24, 15, 28, skin, w=1.4)
+            L.ellipse(15, 28.5, 1.8, 1.8, hair_c)
+        elif tail in ('fox', 'ringed'):
+            L.ellipse(16, 26.5, 2.8, 3.5, skin)
+            L.ellipse(16, 29, 1.6, 1.2, WHITE if tail == 'fox' else dark(skin, 0.3))
+        elif tail == 'long':
+            L.line(16, 25, 18, 30, skin, w=1.0)
+        elif tail == 'flat':
+            L.ellipse(16, 28, 2.4, 2.0, skin)
+
+    def wings_layer(L):
+        wings = s.get('wings')
+        if not wings:
+            return
+        wc = hexc(s.get('wing_color', '#d8f4ff'))
+        spread = {0: 1.0, 1: 0.8, 2: 0.6}[p.wing]
+        for side in (-1, 1):
+            if wings == 'feather':
+                L.ellipse(16 + side * (8 + 2 * spread), 17, 3.5 * spread + 1, 6.5, wc, rot=side * 0.3)
+            else:
+                L.ellipse(16 + side * (8 + 2 * spread), 14, 3.2 * spread + 1, 4.8, wc, rot=side * 0.4)
+                L.ellipse(16 + side * (7 + spread), 21, 2.4 * spread + 0.8, 2.8, wc)
+
+    # --- behind the body
+    back = d.part(0, bob)
+    if front:
+        wings_layer(back)
+        if s.get('shell'):
+            back.ellipse(16, 20, 8.2, 6.5, s['shell'])
+        if s.get('cape'):
+            back.poly([(9.5, 17), (22.5, 17), (24, 29), (8, 29)], s['cape'])
+    d.put(back)
+
+    # --- legs (alternate lifting; no forward stride in these views)
+    legs = d.part(0, 0)
+    for i, lx in enumerate((13.6, 18.4)):
+        lift = 1 if (p.step == 1 and i == 0) or (p.step == -1 and i == 1) else 0
+        col = pants if (i == 1) == front else dark(pants, 0.08)
+        if robe:
+            legs.rect(lx - 1.8, 28 - lift, lx + 1.8, 30.5 - lift, boots)
+        else:
+            legs.rect(lx - 1.8, 24.5, lx + 1.8, 29 - lift, col)
+            legs.rect(lx - 2.0, 28 - lift, lx + 2.0, 30.5 - lift, boots)
+    d.put(legs)
+
+    # --- arms (swing opposite the lifted leg)
+    arms = d.part(0, bob)
+    for side in (-1, 1):
+        sw = (p.step * side) * 1.0
+        hx, hy = 16 + side * 7.2, 23 + sw
+        arms.line(16 + side * 5, 18, hx, hy, outfit if front else dark(outfit, 0.05), w=2.6)
+        arms.ellipse(hx, hy + 0.5, 1.5, 1.5, skin)
+    d.put(arms)
+
+    # --- torso
+    body = d.part(0, bob)
+    if robe:
+        body.poly([(10.5, 16.5), (21.5, 16.5), (23.5, 29.5), (8.5, 29.5)], outfit)
+        body.rect(9.5, 22, 22.5, 23, trim, shade=False)
+        if front:
+            body.rect(15.5, 17, 16.5, 29.5, trim, shade=False)
+    else:
+        body.ellipse(16, 21.5, 6.2, 4.8, outfit)
+        body.rect(10, 23.2, 22, 24.2, trim, shade=False)
+        if front:
+            body.dot(15.5, 23.2, light(trim, 0.2), w=2, h=1)
+    if front and s.get('apron'):
+        body.rect(12.5, 19, 19.5, 27, s['apron'])
+    if s.get('scarf'):
+        body.ellipse(16, 17.5, 5.5, 1.6, s['scarf'])
+    d.put(body)
+
+    # --- back-view extras that sit in front of the torso
+    if not front:
+        over = d.part(0, bob)
+        tail_layer(over)
+        if s.get('shell'):
+            sc = hexc(s['shell'])
+            over.ellipse(16, 20.5, 7.2, 7.0, sc)
+            for (x, y) in ((13, 18), (17, 17), (14.5, 22), (18.5, 21.5)):
+                over.dot(x, y, light(sc, 0.2), w=2, h=2)
+        if s.get('pack'):
+            over.rect(11.5, 16, 20.5, 25.5, s['pack'])
+            over.rect(11.5, 19, 20.5, 20, dark(hexc(s['pack']), 0.2), shade=False)
+        if s.get('cape'):
+            over.poly([(10, 16.5), (22, 16.5), (24, 29), (8, 29)], s['cape'])
+        wings_layer(over)
+        d.put(over)
+
+    # --- head
+    head = d.part(0, bob)
+    ears = s.get('ears')
+    for side in (-1, 1):
+        if ears == 'round':
+            head.ellipse(16 + side * 6.5, 6, 2.6, 2.6, skin)
+            if front:
+                head.dot(16 + side * 6.5 - 0.5, 5.5, BLUSH if d.sep else skin)
+        elif ears == 'pointed':
+            head.poly([(16 + side * 3.5, 6), (16 + side * 6.5, 0.5), (16 + side * 8.5, 8)], skin)
+        elif ears == 'long':
+            head.ellipse(16 + side * 3, 1.5, 1.8, 5.0, skin, rot=side * 0.15)
+        elif ears == 'elf':
+            head.poly([(16 + side * 8, 11), (16 + side * 12, 8), (16 + side * 8, 13.5)], skin)
+        elif ears == 'tufts':
+            head.poly([(16 + side * 4, 6), (16 + side * 6.5, 1.5), (16 + side * 8, 7.5)], skin)
+    if hair == 'mane':
+        for ang in range(0, 360, 36):
+            r = math.radians(ang)
+            head.ellipse(16 + math.cos(r) * 8.2, 12.5 + math.sin(r) * 7.3, 3.6, 3.6, hair_c)
+    if hair == 'long':
+        head.ellipse(16, 15, 9.5, 7.5, hair_c)
+    head.ellipse(16, 12.5, 8.5, 7.5, skin)
+    has_hair = hair in ('short', 'long', 'bob', 'spiky', 'bun', 'crest', 'ponytail')
+    if front:
+        if has_hair:
+            head.ellipse(16, 8.2, 9, 4.6, hair_c)
+            head.ellipse(8.6, 12, 2.4, 4.8, hair_c)
+            head.ellipse(23.4, 12, 2.4, 4.8, hair_c)
+            head.ellipse(13, 9.5, 3, 1.6, hair_c)
+        if hair == 'bob':
+            head.ellipse(8.5, 15.5, 2.5, 3.5, hair_c)
+            head.ellipse(23.5, 15.5, 2.5, 3.5, hair_c)
+        if hair == 'fringe':
+            head.ellipse(8.5, 13, 2.2, 3.5, hair_c)
+            head.ellipse(23.5, 13, 2.2, 3.5, hair_c)
+    else:
+        if has_hair:
+            head.ellipse(16, 11.5, 9, 7.2, hair_c)
+        if hair == 'fringe':
+            head.ellipse(16, 14.5, 8.2, 3.2, hair_c)
+        if hair == 'long':
+            head.rect(8, 12, 24, 20, hair_c)
+        if hair == 'ponytail':
+            head.ellipse(16, 18.5, 2.4, 4.2, hair_c)
+    if hair == 'spiky':
+        head.poly([(7, 10), (6, 3), (10.5, 5), (13, 0), (16, 4), (19, 0), (21.5, 5), (26, 3), (25, 10)], hair_c)
+    if hair == 'bun':
+        head.ellipse(16, 3.8, 3.0, 3.0, hair_c)
+    if hair == 'crest':
+        head.poly([(13.5, 5), (16, -1), (18.5, 5)], hair_c)
+    if front:
+        if s.get('mask'):
+            head.rect(9.5, 10.3, 22.5, 14, s['mask'])
+        snout = s.get('snout')
+        if snout == 'muzzle':
+            head.ellipse(16, 15.6, 3.6, 2.5, hexc(s.get('muzzle', '#f4e2c8')))
+            head.dot(15, 14.3, (50, 30, 40), w=2, h=1)
+        elif snout == 'beak':
+            head.poly([(13.8, 13.5), (18.2, 13.5), (16, 18)], s.get('beak', '#ffc23a'))
+        elif snout == 'pointy':
+            head.poly([(12.5, 13.5), (19.5, 13.5), (16, 19)], hexc(s.get('muzzle', '#f4e2c8')))
+            head.dot(15.5, 17.8, (40, 25, 35), w=1, h=1)
+        elif snout == 'wide':
+            head.rect(12.5, 16.5, 19.5, 17.5, dark(skin, 0.25), shade=False)
+        if s.get('beard'):
+            head.ellipse(16, 17.5, 4.8, 3.6, s['beard'])
+        if s.get('glasses'):
+            head.dot(12, 10.8, '#e0e8f0', w=2, h=2)
+            head.dot(18.5, 10.8, '#e0e8f0', w=2, h=2)
+            d.eyes(head, [(12.5, 11.3), (19, 11.3)], color=ecol, h=1, shine=False)
+        else:
+            d.eyes(head, [(12.5, 11.3), (19, 11.3)], color=ecol)
+        if d.sep and not snout and not s.get('beard'):
+            head.dot(15.5, 15.8, dark(skin, 0.35), w=2, h=1)
+        if d.sep and s.get('blush', True) and not s.get('beard') and snout != 'beak':
+            head.dot(10.5, 14.4, BLUSH)
+            head.dot(21, 14.4, BLUSH)
+    hat = s.get('hat')
+    hc = s.get('hat_color', '#5a3fa0')
+    if hat in ('wizard', 'witch'):
+        head.poly([(7, 7.5), (25, 7.5), (16, -3)], hc)
+        head.ellipse(16, 7.4, 12, 2.0, hc)
+        if hat == 'witch':
+            head.rect(8, 5, 24, 6.5, '#9aff7a', shade=False)
+        else:
+            head.dot(15, 2.5, '#ffe066', w=2, h=2)
+    elif hat == 'cap':
+        head.ellipse(16, 6.5, 8.8, 3.8, hc)
+        if front:
+            head.ellipse(16, 9, 5.5, 1.3, hc)
+    elif hat == 'hood':
+        head.ellipse(16, 10, 10, 8, hc)
+        if front:
+            head.ellipse(16, 13, 6, 5, skin)
+            d.eyes(head, [(13.5, 12.3), (18.5, 12.3)], color=ecol)
+    elif hat == 'hardhat':
+        head.ellipse(16, 6.5, 8.8, 4.0, hc)
+        head.rect(6.5, 7.5, 25.5, 9, hc)
+    elif hat == 'beret':
+        head.ellipse(15, 5.5, 8.5, 3.0, hc)
+    elif hat == 'chef':
+        head.ellipse(16, 3.5, 6.5, 4.0, '#ffffff')
+        head.rect(10, 5, 22, 8, '#ffffff')
+    elif hat == 'helmet':
+        head.ellipse(16, 8.0, 9.2, 5.5, hc)
+    elif hat == 'straw':
+        head.ellipse(16, 6.5, 12.5, 2.2, '#e8c86a')
+        head.ellipse(16, 4.5, 6.5, 3.2, '#e8c86a')
+        head.rect(9.5, 5.5, 22.5, 6.5, '#d04040', shade=False)
+    elif hat == 'band':
+        head.rect(7.5, 7.5, 24.5, 9.5, hc, shade=False)
+    elif hat == 'crown':
+        head.poly([(10, 6), (10, 1.5), (13, 4), (16, 0.5), (19, 4), (22, 1.5), (22, 6)], '#ffd24a')
+    elif hat == 'flower':
+        head.ellipse(11, 5, 2.2, 2.2, '#ff8fb8')
+        head.dot(10.5, 4.5, '#ffe066')
+    d.put(head)
+
+    # --- held item (viewer's right hand in front view; hidden-ish behind in back view)
+    if item:
+        it = d.part(0, bob)
+        hx, hy = 16 + 7.2, 23 + p.step * 1.0
+        if item == 'shield':
+            sx = 16 - 7.5 if front else 16 + 7.5
+            it.ellipse(sx, 21.5, 3.8, 4.8, s.get('item_color') or '#c8d2e0')
+            it.ellipse(sx, 21.5, 2.2, 3.0, '#e0b040')
+        else:
+            draw_item(it, item, hx, hy, 'rest', s.get('item_color'))
+        d.put(it)
+    finish(c, d)
+
+
 # ─── Quadruped beasts (bear, hare, mouse, stag) ──────────────────────────────
 
 
@@ -530,9 +786,10 @@ def blob(c: Canvas, p: Pose, s: dict):
     if s.get('symbol') == 'plus':
         L.rect(12.5, cy + 1, 15.5, cy + 2, WHITE, shade=False)
         L.rect(13.5, cy, 14.5, cy + 3, WHITE, shade=False)
-    d.eyes(L, [(18, cy - 2), (21.5, cy - 2)])
-    if d.sep:
-        L.dot(19.5, cy + 1.5, dark(col, 0.4), w=2, h=1)
+    ex = face_x(p, [18, 21.5], [13.5, 18])
+    d.eyes(L, [(x, cy - 2) for x in ex])
+    if d.sep and ex:
+        L.dot(ex[0] + 1.5, cy + 1.5, dark(col, 0.4), w=2, h=1)
     d.put(L)
     finish(c, d)
 
@@ -552,7 +809,7 @@ def jelly(c: Canvas, p: Pose, s: dict):
     L.ellipse(12.5, 10, 2.5, 1.6, light(col, 0.3), shade=False)
     if s.get('zap'):
         L.poly([(24, 6), (27, 10), (25.5, 10), (28, 14), (23.5, 9.5), (25, 9.5)], '#ffe23a')
-    d.eyes(L, [(17, 13), (20.5, 13)])
+    d.eyes(L, [(x, 13) for x in face_x(p, [17, 20.5], [13.5, 17.5])])
     d.put(L)
     finish(c, d, shadow=(16, 30, 6, 1.5))
 
@@ -667,6 +924,8 @@ def crab(c: Canvas, p: Pose, s: dict):
 
 
 def dragon(c: Canvas, p: Pose, s: dict):
+    if p.facing != 'side':
+        return dragon_fb(c, p, s)
     d = D(c, p)
     col = hexc(s['color'])
     belly = hexc(s.get('belly', '#ffd98a'))
@@ -728,6 +987,74 @@ def dragon(c: Canvas, p: Pose, s: dict):
         a = ARM_HAND[p.arm]
         draw_item(it, 'spear', a[0] - 1, a[1] + 1, p.arm)
         d.put(it)
+    finish(c, d)
+
+
+def dragon_fb(c: Canvas, p: Pose, s: dict):
+    """Front / back views of a dragon (Ember stages, Sir Sumsalot)."""
+    d = D(c, p)
+    front = p.facing == 'down'
+    col = hexc(s['color'])
+    belly = hexc(s.get('belly', '#ffd98a'))
+    stage = s.get('stage', 'dragon')
+    size = {'hatchling': 0.72, 'whelp': 0.86, 'dragon': 1.0}[stage]
+    horn = s.get('horn', '#fff0c8')
+    bob = d.bob
+
+    def S(x, y):
+        return 16 + (x - 16) * size, 30 + (y - 30) * size
+
+    def wings(L):
+        if stage == 'hatchling':
+            return
+        flap = {0: -3, 1: 0, 2: 3}[p.wing]
+        for side in (-1, 1):
+            L.poly([S(16 + side * 4, 18), S(16 + side * 14, 8 + flap), S(16 + side * 12, 16 + flap * 0.5),
+                    S(16 + side * 7, 21)], s.get('wing', '#ffb05a'))
+
+    back = d.part(0, bob)
+    if front:
+        wings(back)
+        back.line(*S(19, 26), *S(25, 29), col, w=2.4 * size)  # tail peeking out
+    d.put(back)
+    legs = d.part(0, 0)
+    for i, lx in enumerate((12.5, 19.5)):
+        lift = 1 if (p.step == 1 and i == 0) or (p.step == -1 and i == 1) else 0
+        x0, y0 = S(lx - 2, 25)
+        x1, y1 = S(lx + 2, 30.3 - lift)
+        legs.rect(x0, y0, x1, y1, col if i else dark(col, 0.1))
+    d.put(legs)
+    body = d.part(0, bob)
+    bx, by = S(16, 22)
+    body.ellipse(bx, by, 6.8 * size, 6.0 * size, col)
+    if front:
+        body.ellipse(bx, by + 1 * size, 3.8 * size, 4.4 * size, belly)
+    else:
+        for k in range(3):
+            sx, sy = S(16, 17 + k * 3)
+            body.poly([(sx - 1.2, sy + 1), (sx, sy - 2 * size), (sx + 1.2, sy + 1)], light(col, 0.15))
+    d.put(body)
+    if not front:
+        over = d.part(0, bob)
+        over.line(*S(16, 26), *S(16, 31), col, w=3.0 * size)
+        wings(over)
+        d.put(over)
+    head = d.part(0, bob)
+    hx, hy = S(16, 12.5)
+    hr = 6.4 * size * (1.15 if stage == 'hatchling' else 1)
+    for side in (-1, 1):
+        head.poly([(hx + side * 2.5 * size, hy - 4 * size), (hx + side * 5 * size, hy - 10 * size),
+                   (hx + side * 5.5 * size, hy - 3 * size)], horn)
+    head.ellipse(hx, hy, hr, hr * 0.9, col)
+    if front:
+        head.ellipse(hx, hy + 3 * size, 3.4 * size, 2.4 * size, light(col, 0.08))
+        head.dot(hx - 1.5 * size, hy + 2.6 * size, dark(col, 0.4))
+        head.dot(hx + 1.2 * size, hy + 2.6 * size, dark(col, 0.4))
+        d.eyes(head, [(hx - 3 * size, hy - 1.5 * size), (hx + 2.2 * size, hy - 1.5 * size)])
+    if s.get('helmet'):
+        head.ellipse(hx, hy - 3, hr + 0.5, 4, '#c0c8d4')
+        head.poly([(hx - 1, hy - 6), (hx, hy - 12), (hx + 1, hy - 6)], '#e84040')
+    d.put(head)
     finish(c, d)
 
 
@@ -817,12 +1144,15 @@ def golem(c: Canvas, p: Pose, s: dict):
         head.ellipse(17, 1.8, 1.3, 1.3, '#ff5050')
     if s.get('crown'):
         head.poly([(11, 6), (11, 2), (14, 4.5), (17, 1), (20, 4.5), (23, 2), (23, 6)], '#ffd24a')
-    if p.hurt:
-        d.eyes(head, [(17, 9), (20.5, 9)], color=glow)
+    vx = {'side': 15.5, 'down': 12.5, 'up': None}[p.facing]
+    if vx is None:
+        head.rect(12, 8.5, 22, 9.5, dark(col, 0.1), shade=False)  # back plate seam
+    elif p.hurt:
+        d.eyes(head, [(vx + 1.5, 9), (vx + 5, 9)], color=glow)
     else:
-        head.rect(15.5, 8.5, 22.5, 10.5, glow, shade=False)
+        head.rect(vx, 8.5, vx + 7, 10.5, glow, shade=False)
         if d.sep:
-            head.dot(21, 8.5, WHITE)
+            head.dot(vx + 5.5, 8.5, WHITE)
     d.put(head)
     front = d.part(lean, bob)
     ax = {'raise': (18, 6), 'strike': (28, 15), 'follow': (25, 21)}.get(p.arm, (23.5, 23))
@@ -845,9 +1175,10 @@ def gear_creature(c: Canvas, p: Pose, s: dict):
         L.ellipse(16 + math.cos(a) * 8.5, 20 + math.sin(a) * 8.5, 2.2, 2.2, col, shade=False)
     L.ellipse(16, 20, 8.0, 8.0, col)
     L.ellipse(16, 20, 5.2, 5.2, light(col, 0.12))
-    d.eyes(L, [(14.5, 18.5), (18, 18.5)])
-    if d.sep:
-        L.dot(15.5, 22, dark(col, 0.4), w=3, h=1)
+    if p.facing != 'up':
+        d.eyes(L, [(14.5, 18.5), (18, 18.5)])
+        if d.sep:
+            L.dot(15.5, 22, dark(col, 0.4), w=3, h=1)
     d.put(L)
     finish(c, d, shadow=(16, 30.5, 6, 1.2))
 
@@ -868,7 +1199,8 @@ def hourglass(c: Canvas, p: Pose, s: dict):
     L.poly([(13, 27.5), (19, 27.5), (16, 23)], sand)
     if p.frame % 2:
         L.dot(15.7, 19, sand, w=1, h=3)
-    d.eyes(L, [(14, 12.5), (18, 12.5)])
+    if p.facing != 'up':
+        d.eyes(L, [(14, 12.5), (18, 12.5)])
     d.put(L)
     finish(c, d)
 
@@ -892,9 +1224,10 @@ def ghost(c: Canvas, p: Pose, s: dict):
         L.line(12, 20, 15, 19, '#ffd24a', w=0.7)
     arm_x = {'strike': 27, 'follow': 25}.get(p.arm, 23)
     L.ellipse(arm_x, 17, 2.6, 2.0, col)
-    d.eyes(L, [(17, 12), (20.5, 12)], color=hexc(s.get('eye', '#1e1628')))
-    if d.sep:
-        L.ellipse(19, 17, 1.4, 1.1, dark(col, 0.45), shade=False)
+    ex = face_x(p, [17, 20.5], [13.5, 18])
+    d.eyes(L, [(x, 12) for x in ex], color=hexc(s.get('eye', '#1e1628')))
+    if d.sep and ex:
+        L.ellipse(ex[0] + 2, 17, 1.4, 1.1, dark(col, 0.45), shade=False)
     d.put(L)
     if s.get('moon'):
         m = d.part(d.lean, d.bob + hover - 1)

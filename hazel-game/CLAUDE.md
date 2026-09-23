@@ -183,6 +183,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-23 — 4-way facing for world characters (#71 follow-up)
+World sheets now carry three views (18 frames): side (0-5, drawn facing
+right, `flipX` for left), down/toward camera (6-11) and up/away (12-17),
+each idle ×2 + walk ×4 — anims `idle/walk`, `idleDown/walkDown`,
+`idleUp/walkUp`. Generator: new `humanoid_fb` / `dragon_fb` front+back
+drawers; blobs, jellies, ghosts, golems, gears and hourglasses re-aim or hide
+their faces; other creatures reuse their side art. New pure `lib/facing.ts`
+(`facingFor` — dominant axis wins, diagonals favour side, standing still
+keeps the last facing; `animFor` — falls back to side anims, then `idle`,
+for sheets without a view). `WorldCanvas` drives the hero (spawns facing
+down), wanderers and Ember with it. 258 tests green; lint + build clean.
+
 ### 2026-09-23 — 16-bit asset set: sprites, tiles, backdrops, chiptune audio (#71)
 The placeholder emoji and flat-colour tiles are gone: a deterministic
 generator in **`tools/assets/`** (Python: Pillow + NumPy + lameenc;

@@ -9,7 +9,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/blaze/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -19,6 +19,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -55,7 +75,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/shield/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -65,6 +85,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -101,7 +141,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/nova/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -111,6 +151,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -147,7 +207,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-egg/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -157,6 +217,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -193,7 +273,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-hatchling/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -203,6 +283,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -239,7 +339,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-whelp/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -249,6 +349,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -285,7 +405,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-dragon/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -295,6 +415,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -331,7 +471,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/sum-slime/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -341,6 +481,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -377,7 +537,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/count-bat/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -387,6 +547,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -423,7 +603,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/sir-sumsalot/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -433,6 +613,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -469,7 +669,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/null-fiend/world.png",
       "frameW": 48,
       "frameH": 48,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -479,6 +679,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -515,7 +735,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/spore-puff/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -525,6 +745,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -561,7 +801,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/static-jelly/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -571,6 +811,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -607,7 +867,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/comet-crab/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -617,6 +877,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -653,7 +933,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/smog-fiend/world.png",
       "frameW": 48,
       "frameH": 48,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -663,6 +943,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -699,7 +999,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/bolt-mouse/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -709,6 +1009,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -745,7 +1065,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/scrap-golem/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -755,6 +1075,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -791,7 +1131,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/gear-wyrm/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -801,6 +1141,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -837,7 +1197,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/rust-fiend/world.png",
       "frameW": 48,
       "frameH": 48,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -847,6 +1207,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -883,7 +1263,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/doodle-imp/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -893,6 +1273,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -929,7 +1329,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/off-key-bird/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -939,6 +1339,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -975,7 +1395,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/pixel-witch/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -985,6 +1405,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1021,7 +1461,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/gray-fiend/world.png",
       "frameW": 48,
       "frameH": 48,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1031,6 +1471,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1067,7 +1527,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/mossback-cub/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1077,6 +1537,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1113,7 +1593,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/thornhare/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1123,6 +1603,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1159,7 +1659,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/grumblebee/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1169,6 +1669,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1205,7 +1725,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/thicket-warden/world.png",
       "frameW": 48,
       "frameH": 48,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1215,6 +1735,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1251,7 +1791,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/tide-sprite/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1261,6 +1801,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1297,7 +1857,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/meteor-mite/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1307,6 +1867,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1343,7 +1923,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/moon-moth/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1353,6 +1933,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1389,7 +1989,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/tide-colossus/world.png",
       "frameW": 48,
       "frameH": 48,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1399,6 +1999,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1435,7 +2055,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/cog-sprite/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1445,6 +2065,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1481,7 +2121,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/hourglass-imp/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1491,6 +2131,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1527,7 +2187,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/relic-golem/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1537,6 +2197,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1573,7 +2253,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/clockwork-titan/world.png",
       "frameW": 48,
       "frameH": 48,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1583,6 +2263,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1619,7 +2319,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/elder-lumen/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1629,6 +2329,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1640,7 +2360,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/hub-kid/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1650,6 +2370,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1661,7 +2401,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/hub-innkeeper/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1671,6 +2411,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1682,7 +2442,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/hub-librarian/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1692,6 +2452,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1703,7 +2483,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/hub-merchant/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1713,6 +2493,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1724,7 +2524,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/sage-abacus/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1734,6 +2534,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1745,7 +2565,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/numbria-villager/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1755,6 +2575,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1766,7 +2606,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/numbria-merchant/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1776,6 +2616,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1787,7 +2647,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/sage-flora/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1797,6 +2657,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1808,7 +2688,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/verdara-villager/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1818,6 +2698,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1829,7 +2729,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/verdara-merchant/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1839,6 +2739,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1850,7 +2770,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/sage-cog/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1860,6 +2780,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1871,7 +2811,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/gearfall-villager/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1881,6 +2821,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1892,7 +2852,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/gearfall-merchant/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1902,6 +2862,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1913,7 +2893,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/sage-muse/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1923,6 +2903,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1934,7 +2934,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/chromaria-villager/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1944,6 +2944,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1955,7 +2975,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/chromaria-merchant/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1965,6 +2985,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1976,7 +3016,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/village-elder/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -1986,6 +3026,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -1997,7 +3057,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/village-friend/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2007,6 +3067,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2018,7 +3098,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/village-keeper/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2028,6 +3108,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2039,7 +3139,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/woods-hermit/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2049,6 +3149,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2060,7 +3180,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/woods-sprite/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2070,6 +3190,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2081,7 +3221,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/woods-warden-sign/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2091,6 +3231,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2102,7 +3262,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/coast-fisher/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2112,6 +3272,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2123,7 +3303,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/coast-stargazer/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2133,6 +3313,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2144,7 +3344,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/coast-warden-sign/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2154,6 +3354,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2165,7 +3385,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/depths-tinker/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2175,6 +3395,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2186,7 +3426,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/depths-echo/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2196,6 +3436,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2207,7 +3467,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/depths-warden-sign/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2217,6 +3477,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2228,7 +3508,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/spire-keeper/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2238,6 +3518,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2249,7 +3549,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/grove-guardian/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2259,6 +3559,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2270,7 +3590,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/grove-firefly/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2280,6 +3600,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }
@@ -2291,7 +3631,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/grove-otter/world.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 6,
+      "frames": 18,
       "anims": {
         "idle": {
           "from": 0,
@@ -2301,6 +3641,26 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         "walk": {
           "from": 2,
           "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
           "fps": 8
         }
       }

@@ -20,7 +20,8 @@ python3 tools/assets/build.py sprites tiles   # or just some parts
 
 ## Conventions
 - **World sprites** are 16px art upscaled 2× (bosses are 24px, so 48px on
-  screen). Frames: idle 0–1, walk 2–5.
+  screen). 18 frames: side 0–5, down 6–11, up 12–17 (each idle ×2 + walk ×4),
+  matching `FACING_ANIMS` in `src/lib/facing.ts`.
 - **Battle sprites** are 32px (bosses 48px), and the game scales them 2.5–3×
   in CSS. Frames: idle 0–1, attack 2–4, hurt 5–6.
 - All characters face **right**.

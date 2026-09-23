@@ -9,6 +9,7 @@ import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from
 import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
 import { loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
+import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { PROPS_KEY, PROP_FRAME, SPIRE_KEY, TILE_FRAME, groundVariant, tilesetKey } from '../../content/tiles';
 import {
   npcWanders,
@@ -290,20 +291,24 @@ export default function WorldCanvas({
       homeY: number;
       leash: number;
       speed: number;
-      /** The anchor is a sprite with idle/walk anims (not an emoji). */
-      sprite?: boolean;
+      /** The anchor's sprite anims (omit for emoji faces — no animation). */
+      anims?: Record<string, unknown>;
     }
     function attachWander(anchor: WorldActor, o: WanderOpts) {
       let dir = { x: 0, y: 0 };
       let timer = 0.3 + Math.random() * 1.2;
-      // Sprite wanderers play their walk cycle and face their heading.
-      const spr = o.sprite ? (anchor as unknown as { play: (n: string) => void; flipX: boolean }) : null;
-      let walking = false;
-      const setWalking = (w: boolean) => {
-        if (!spr || w === walking) return;
-        walking = w;
-        spr.play(w ? 'walk' : 'idle');
+      // Sprite wanderers play their walk cycle and face their heading (4-way).
+      const spr = o.anims ? (anchor as unknown as { play: (n: string) => void; flipX: boolean }) : null;
+      let facing: Facing = 'down';
+      let curAnim = '';
+      const animate = (moving: boolean) => {
+        if (!spr || !o.anims) return;
+        const want = animFor(facing, moving, o.anims);
+        if (want === curAnim) return;
+        curAnim = want;
+        spr.play(want);
       };
+      animate(false);
       anchor.onUpdate(() => {
         if (pausedRef.current || triggered) return;
         const dt = k.dt();
@@ -317,8 +322,9 @@ export default function WorldCanvas({
             dir = pickWanderDir(Math.random);
           }
           timer = dir.x || dir.y ? 0.6 + Math.random() : 0.7 + Math.random() * 1.6;
-          if (spr && dir.x) spr.flipX = dir.x < 0;
-          setWalking(!!(dir.x || dir.y));
+          facing = facingFor(dir.x, dir.y, facing);
+          if (spr && facing === 'side') spr.flipX = dir.x < 0;
+          animate(!!(dir.x || dir.y));
         }
         if (!dir.x && !dir.y) return;
         const nx = o.actor.x + dir.x * o.speed * dt;
@@ -339,7 +345,7 @@ export default function WorldCanvas({
         ) {
           dir = { x: 0, y: 0 };
           timer = 0.2 + Math.random() * 0.5;
-          setWalking(false);
+          animate(false);
           return;
         }
         const ddx = c.x - o.actor.x;
@@ -434,8 +440,8 @@ export default function WorldCanvas({
       // All visual pieces move together when the NPC wanders.
       const parts: Part[] = [];
       const spriteId = npcSpriteId(def);
-      const npcHasSprite = !!resolveSprite(spriteId, def.sprite).def?.world;
-      if (!npcHasSprite) {
+      const npcView = resolveSprite(spriteId, def.sprite).def?.world;
+      if (!npcView) {
         const token = k.add([
           k.rect(30, 30, { radius: 6 }),
           k.color(255, 245, 215),
@@ -473,7 +479,7 @@ export default function WorldCanvas({
           homeY: py,
           leash: TILE * WANDER_TUNING.npc.leashTiles,
           speed: WANDER_TUNING.npc.speed,
-          sprite: npcHasSprite,
+          anims: npcView?.anims,
         });
       }
       if (def.ambient?.length) attachAmbient(face, def.ambient);
@@ -487,7 +493,8 @@ export default function WorldCanvas({
       if (defeatedIds.includes(enemy.instanceId)) continue;
       const px = p.x * TILE + TILE / 2;
       const py = p.y * TILE + TILE / 2;
-      const enemyHasSprite = !!resolveSprite(enemy.spriteId, enemy.sprite).def?.world;
+      const enemyView = resolveSprite(enemy.spriteId, enemy.sprite).def?.world;
+      const enemyHasSprite = !!enemyView;
       const parts: Part[] = [];
       const body = enemyHasSprite
         ? null
@@ -543,7 +550,7 @@ export default function WorldCanvas({
           homeY: py,
           leash: TILE * WANDER_TUNING.enemy.leashTiles,
           speed: WANDER_TUNING.enemy.speed,
-          sprite: enemyHasSprite,
+          anims: enemyView?.anims,
         });
       }
     }
@@ -562,7 +569,7 @@ export default function WorldCanvas({
         k.anchor('center'),
         k.z(10),
       ]) as unknown as HeroActor;
-      player.play('idle');
+      player.play(animFor('down', false, heroView.anims)); // spawn facing the camera
     } else {
       player = k.add([
         k.rect(28, 28, { radius: 8 }),
@@ -574,7 +581,8 @@ export default function WorldCanvas({
       ]) as unknown as HeroActor;
       player.add([k.text(avatar.sprite, { size: 20 }), k.anchor('center')]);
     }
-    let curAnim = 'idle';
+    let curAnim = heroView ? animFor('down', false, heroView.anims) : 'idle';
+    let heroFacing: Facing = 'down';
 
     // Ember trails the hero (no collision — dragons walk where they please).
     const ember = worldFace(k, {
@@ -585,7 +593,10 @@ export default function WorldCanvas({
       size: EMBER_MAP_SIZE[emberStage],
       z: 9,
     }).obj as unknown as WorldActor;
-    let lastDir = { x: 1, y: 0 };
+    const emberView = resolveSprite(EMBER_SPRITE_IDS[emberStage], EMBER_SPRITES[emberStage]).def?.world ?? null;
+    const emberSprite = ember as unknown as { play: (n: string) => void; flipX: boolean };
+    let emberAnim = '';
+    let lastDir = { x: 0, y: 1 };
 
     // --- Collision ---------------------------------------------------------
     const isOpenGate = (x: number, y: number) =>
@@ -653,7 +664,8 @@ export default function WorldCanvas({
 
       const moving = dx !== 0 || dy !== 0;
       if (heroView) {
-        const want = moving && heroView.anims.walk ? 'walk' : 'idle';
+        heroFacing = facingFor(dx, dy, heroFacing);
+        const want = animFor(heroFacing, moving, heroView.anims);
         if (want !== curAnim) {
           curAnim = want;
           player.play(want);
@@ -665,7 +677,8 @@ export default function WorldCanvas({
         } else if (!heroView.anims.walk) {
           player.scale = k.vec2(1, 1);
         }
-        if (dx !== 0) {
+        // Side frames face right; mirror for left. Up/down views are symmetric.
+        if (heroFacing === 'side' && dx !== 0) {
           player.flipX = dx < 0;
         }
       }
@@ -759,7 +772,18 @@ export default function WorldCanvas({
         player.pos.x - lastDir.x * 26,
         player.pos.y - lastDir.y * 26 + 8 + Math.sin(k.time() * 4) * 2,
       );
+      const emberGap = Math.hypot(trail.x - ember.pos.x, trail.y - ember.pos.y);
       ember.pos = ember.pos.lerp(trail, Math.min(1, dt * 5));
+      if (emberView) {
+        // Ember faces the way the hero is heading and walks while catching up.
+        const f = facingFor(lastDir.x, lastDir.y, 'down');
+        const want = animFor(f, emberGap > 4, emberView.anims);
+        if (want !== emberAnim) {
+          emberAnim = want;
+          emberSprite.play(want);
+        }
+        if (f === 'side') emberSprite.flipX = lastDir.x < 0;
+      }
 
       // Open gates / opened chests update live (flag set while overlay open).
       for (const [id, sprites] of gateSprites) {

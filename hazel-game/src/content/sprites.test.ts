@@ -45,6 +45,7 @@ import { AVATARS } from './avatars';
 import { ENEMY_DEFS, spawnEnemy } from './enemies';
 import { NPC_DEFS, npcSpriteId } from './npcs';
 import { EMBER_SPRITE_IDS, EMBER_SPRITES } from './story';
+import { FACING_ANIMS } from '../lib/facing';
 
 /** Width/height from a PNG's IHDR chunk (bytes 16-23). */
 function pngSize(publicPath: string): { w: number; h: number } {
@@ -70,6 +71,14 @@ describe('generated 16-bit sprite set', () => {
       expect(def?.world?.anims.walk, `${a.name} walk`).toBeDefined();
       expect(def?.battle?.anims.attack, `${a.name} attack`).toBeDefined();
       expect(def?.battle?.anims.hurt, `${a.name} hurt`).toBeDefined();
+    }
+  });
+  it('every world sheet has side, down and up views (4-way facing)', () => {
+    for (const [id, def] of Object.entries(SPRITES)) {
+      if (!def.world) continue;
+      for (const name of Object.values(FACING_ANIMS).flatMap((f) => [f.idle, f.walk])) {
+        expect(def.world.anims[name], `${id}.world.${name}`).toBeDefined();
+      }
     }
   });
   it('every enemy resolves to world + battle art through spawnEnemy', () => {

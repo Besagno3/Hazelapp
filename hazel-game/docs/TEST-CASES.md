@@ -291,6 +291,10 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-263 | M | ⬜ | WorldCanvas | wandering NPCs/enemies play their walk cycle and face their heading; idle when stopped |
 | TC-264 | M | ✅ | BattleArena | battle shows the zone's pixel backdrop behind the combatants; enemy + hero sprites animate (verified in a harness) |
 | TC-265 | M | ⬜ | audio | with Music + Sound on: title/overworld/battle/boss/spire/final-boss tracks loop; correct/wrong/attack/hit/gate/chest/levelup/victory/select SFX fire at sensible relative volumes |
+| TC-267 | U | ✅ | facing | `facingFor`: dominant axis wins, diagonals → side, no movement keeps prior facing; `animFor` picks idle/walk per facing and falls back to side then `idle` (facing.test) |
+| TC-268 | U | ✅ | sprites | every world sheet defines idle/walk for side, down and up (sprites.test) |
+| TC-269 | M | ✅ | WorldCanvas | hero spawns facing down; walking down shows the front view, up shows the back view, left mirrors the side view; Ember follows with matching facing (verified in headless Chromium) |
+| TC-270 | M | ⬜ | WorldCanvas | wandering NPCs/enemies switch to front/back views when their heading is mostly vertical |
 | TC-266 | M | ⬜ | AvatarSelect | hero cards show the animated battle sprite; picking a hero plays `select` |
 
 ## Regression cases (tied to ISSUES.md)
