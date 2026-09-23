@@ -86,10 +86,20 @@ export default function SpireOverlay() {
     return () => spire().reset();
   }, [spire]);
 
-  // The hero may walk only while no panel is open.
+  // The hero may walk only while no panel is open. Keyed on the phase object
+  // (not just its kind): a bump pauses exploring, and a bump that resolves
+  // straight back to 'explore' must still re-enable it.
+  const msgShownAt = useRef(0);
   useEffect(() => {
     spire().setExploring(phase.kind === 'explore');
-  }, [phase.kind, spire]);
+    msgShownAt.current = performance.now();
+  }, [phase, spire]);
+
+  /** Ignore the tail of a double-tap that would skip the panel that just opened. */
+  function advance(next: () => void) {
+    if (performance.now() - msgShownAt.current < 250) return;
+    next();
+  }
 
   // Spooky music (#74): each floor has its own loop; the Final Battle track
   // takes over only once the Umbra fight is actually underway. App's screen
@@ -177,7 +187,11 @@ export default function SpireOverlay() {
     )
       .then((batches) => {
         const pool = shuffle(batches.flat());
-        if (pool.length === 0) throw new Error('No questions came back for the Spire.');
+        // Every seal (and every step of Umbra's challenge) needs a question —
+        // a short batch would leave a seal that can never break.
+        if (pool.length < f.questions) {
+          throw new Error(`only ${pool.length} of ${f.questions} riddles came back for this floor.`);
+        }
         setQuestions(pool.slice(0, f.questions));
         setPhase(
           f.isBoss
@@ -201,8 +215,8 @@ export default function SpireOverlay() {
     else misses.current.push({ question: q, picked });
   }
 
-  /** A wrong answer snuffs a candle; returns false if that was the last one. */
-  function loseCandle(then: () => void): boolean {
+  /** A wrong answer snuffs a candle; the last one ends the climb. */
+  function loseCandle(then: () => void) {
     const remaining = spire().lives - 1;
     spire().setLives(remaining);
     if (remaining <= 0) {
@@ -211,14 +225,13 @@ export default function SpireOverlay() {
         text: 'Your last candle gutters out. The dark gently sweeps you back down the stairs…',
         next: lose,
       });
-      return false;
+      return;
     }
     setPhase({
       kind: 'message',
       text: `A candle snuffs out — the dark creeps closer. ${remaining} light${remaining === 1 ? '' : 's'} left!`,
       next: then,
     });
-    return true;
   }
 
   function resolveWard(correct: boolean, wardId: string) {
@@ -271,6 +284,19 @@ export default function SpireOverlay() {
     setPhase({ kind: 'lose' });
   }
 
+  /** Stop climbing: back to the Spire door, keeping the XP earned so far. */
+  function leave() {
+    void addXp(correctCount.current * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
+    updateSave((s) => ({ ...s, library: pushLibrary(s.library, misses.current) }));
+    correctCount.current = 0;
+    misses.current = [];
+    setPhase({
+      kind: 'message',
+      text: 'You slip back down the winding stairs to the Spire door. The climb will wait — come back whenever you are ready.',
+      next: close,
+    });
+  }
+
   function close() {
     void useSaveStore.getState().flush();
     spire().reset();
@@ -292,7 +318,7 @@ export default function SpireOverlay() {
   // Exploring: just a slim HUD over the map — the world stays playable.
   if (phase.kind === 'explore' && floor) {
     return (
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex items-center gap-2">
         <div className="bg-slate-950/85 border-2 border-violet-400/60 rounded-xl px-4 py-2 text-white shadow-xl flex items-center gap-4 whitespace-nowrap">
           <span className="text-xs font-bold text-violet-200">{floor.name}</span>
           <span className="text-xs text-white/80">
@@ -304,6 +330,12 @@ export default function SpireOverlay() {
           </span>
           {candles}
         </div>
+        <button
+          onClick={leave}
+          className="pointer-events-auto bg-slate-950/85 hover:bg-slate-800 border-2 border-white/30 rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-xl whitespace-nowrap"
+        >
+          🚪 Leave the Spire
+        </button>
       </div>
     );
   }
@@ -374,7 +406,7 @@ export default function SpireOverlay() {
             key={phase.text}
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            onClick={phase.next}
+            onClick={() => advance(phase.next)}
             className="w-full text-left"
           >
             <p className="font-semibold whitespace-pre-line">{phase.text}</p>

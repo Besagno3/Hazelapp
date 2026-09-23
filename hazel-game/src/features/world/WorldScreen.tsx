@@ -210,12 +210,16 @@ export default function WorldScreen() {
           </span>
           <span title="Coins">🪙 {save.coins}</span>
           <span title="Potions">🧪 {save.items.potion}</span>
-          <button
-            onClick={() => sendFlow({ type: 'OPEN_MENU' })}
-            className="bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
-          >
-            📜 Menu
-          </button>
+          {/* The machine's Spire state ignores OPEN_MENU, so don't offer it
+              mid-climb — the Spire HUD has its own "Leave the Spire". */}
+          {overlay !== 'spire' && (
+            <button
+              onClick={() => sendFlow({ type: 'OPEN_MENU' })}
+              className="bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
+            >
+              📜 Menu
+            </button>
+          )}
         </div>
       </div>
 

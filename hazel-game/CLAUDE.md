@@ -186,6 +186,23 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-23 — Spire review fixes: softlock, leave button, double-tap (#74)
+Code review of the Spire climb; all four findings fixed:
+- **Softlock (high):** a short question batch (the edge function can return
+  fewer than asked) left a seal with no question — the bump paused the hero
+  and resolved straight back to 'explore', and `setExploring` only re-ran on a
+  phase-*kind* change, so the hero froze and the stairs could never open.
+  `loadFloor` now treats `pool < floor.questions` as the retryable error
+  ("only N of M riddles…"), and exploring follows every phase change.
+- **Dead Menu / no way out (medium):** the world HUD's Menu button was live
+  mid-climb but `world.spire` ignores `OPEN_MENU`. It's hidden during the
+  climb, and the Spire HUD gains **🚪 Leave the Spire** — back to the door,
+  keeping XP earned so far and queueing misses for the Library.
+- **Double-tap skip (low):** message panels ignore clicks for 250ms after
+  opening, so a double-tap can't skip the next panel (e.g. a floor's taunt).
+- `loseCandle` no longer returns an unused boolean.
+301 tests green; lint + build clean; each fix verified in headless Chromium.
+
 ### 2026-09-23 — The Spire becomes five walkable, spooky floors (#74)
 Each Spire floor is now a themed map the hero explores instead of a bare list
 of questions.

@@ -358,6 +358,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-310 | M | ⬜ | audio | with Music on: each floor plays its own spooky loop; the Final Battle track starts only when Umbra's challenge begins |
 | TC-311 | M | ⬜ | Spire | lose every candle mid-climb → cast back to Lumina Field healed; reopening the Spire starts a fresh climb from floor 1 |
 | TC-312 | M | ⬜ | Spire | refresh mid-climb → you're back outside the Spire door (floor positions are never saved) |
+| TC-313 | M | ✅ | Spire | a floor's question batch comes back short → "The Spire shudders: only N of M riddles…" with Try again; retry recovers and the hero can explore (headless Chromium, mocked short batch) |
+| TC-314 | M | ✅ | Spire | the world Menu button is hidden during the climb; 🚪 Leave the Spire returns to the Spire door (world.exploring), Menu returns, and standing by the tower doesn't instantly reopen it (headless Chromium) |
+| TC-315 | M | ✅ | Spire | a fast double-click on a story panel advances exactly one panel (headless Chromium) |
 
 ## Regression cases (tied to ISSUES.md)
 
