@@ -27,8 +27,9 @@ export type ZoneId = (typeof ZONE_IDS)[number];
 
 /**
  * The world of Lumina (#37): a hub field with four topic zones off its edges
- * (FF1's four-regions structure). Maps are ASCII grids — placeholder
- * "programmer art" rendered as colored tiles + emoji until CC0 tilesets land.
+ * (FF1's four-regions structure). Maps are ASCII grids rendered with the
+ * generated 16-bit tilesets (`content/tiles.ts`). Most zones are one 22×14
+ * screen; larger maps (the town) scroll with a camera that follows the hero.
  *
  * Legend:
  *   '#'  solid scenery (trees / rocks / walls — per-zone emoji)
@@ -42,13 +43,46 @@ export type ZoneId = (typeof ZONE_IDS)[number];
  *        warden's key check when the zone marks it as a `keyGate`, #58)
  *   'E'  zone exit (walkable; must have a matching entry in `exits`)
  *
+ * Buildings (towns, #72) — each must sit inside a `buildings` rect:
+ *   'W'  building wall (solid; the bottom row is the street-facing facade)
+ *   'D'  door (walkable; exactly one, in the facade row)
+ *   'F'  interior floor (walkable)
+ *   'K'  shop counter (solid; bump it to talk to whoever stands behind it)
+ *   'B'  bookshelf · 'T' table · 'Z' bed (solid furniture)
+ *
  * zones.test.ts validates every invariant (row lengths, legend chars, exits,
  * actor placements on walkable tiles, one fiend per topic zone…).
  */
 
 export const TILE = 32;
-export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E']);
-export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E']);
+/** One screen of map — the world canvas viewport (maps may be larger and scroll). */
+export const VIEW_COLS = 22;
+export const VIEW_ROWS = 14;
+export const BUILDING_CHARS = new Set(['W', 'D', 'F', 'K', 'B', 'T', 'Z']);
+export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', ...BUILDING_CHARS]);
+export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'D', 'F']);
+
+export type RoofColor = 'red' | 'blue' | 'green' | 'purple';
+export const ROOF_COLORS: readonly RoofColor[] = ['red', 'blue', 'green', 'purple'];
+
+/**
+ * An enterable building (#72): a rectangle of 'W' walls around an interior,
+ * with one 'D' door in its bottom (facade) row. Outside, a roof covers every
+ * row except the facade, so the building reads as enclosed; once the hero
+ * steps inside, the roof fades away to reveal the room.
+ */
+export interface BuildingDef {
+  id: string;
+  /** Shown on the roof (e.g. "Item Shop"). */
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  roof: RoofColor;
+  /** Hanging sign beside the door. */
+  sign?: 'shop' | 'inn' | 'library' | 'house';
+}
 
 export interface ZoneExit {
   /** Grid cell of the 'E' tile. */
@@ -97,6 +131,8 @@ export interface ZoneDef {
    * with the key to open it, or get told which warden boss holds it.
    */
   keyGate?: { x: number; y: number };
+  /** Enterable buildings (#72) — see `BuildingDef`. */
+  buildings?: BuildingDef[];
 }
 
 export const HUB_ZONE: ZoneId = 'lumina-field';
@@ -136,8 +172,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [],
     exits: [
-      { x: 2, y: 0, to: 'lumina-village', spawnX: 10, spawnY: 1 },
-      { x: 3, y: 0, to: 'lumina-village', spawnX: 10, spawnY: 1 },
+      { x: 2, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 1 },
+      { x: 3, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 1 },
       { x: 9, y: 0, to: 'verdara', spawnX: 10, spawnY: 12 },
       { x: 10, y: 0, to: 'verdara', spawnX: 10, spawnY: 12 },
       { x: 0, y: 5, to: 'numbria', spawnX: 19, spawnY: 6 },
@@ -330,45 +366,71 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   'lumina-village': {
     id: 'lumina-village',
     name: 'Lumina Village',
+    // A two-by-two-screen market town (#72): the camera scrolls with the hero.
+    // Four enterable buildings — Item Shop (NW), Inn (NE), Library (SW) and
+    // Grandmother Wick's house (SE) — around a plaza with the save crystal.
     map: [
-      '##########EE##########',
-      '#....,..........,....#',
-      '#..##..........##....#',
-      '#..##....,,....##....#',
-      '#....................#',
-      '#.S..................#',
-      'E....................E',
-      'E....................E',
-      '#.........,,.........#',
-      '#..##..........##....#',
-      '#..##..........##....#',
-      '#....,..........,....#',
-      '#.........,,.........#',
-      '##EE######EE##########',
+      '#####################EE#####################',
+      '#....................==....................#',
+      '#.#..................==....................#',
+      '#...WWWWWWWWW..##....==....##..WWWWWWWWW...#',
+      '#...WBBFFFBBW..#....,==,....#..WZFZFZFZW...#',
+      '#...WFFFFFFFW........==........WFFFFFFFW...#',
+      '#...WKKKKKKKW........==........WFFFFFFFW...#',
+      '#...WFTFFFTFW........==........WTFFFFFTW...#',
+      '#...WFFFFFFFW...#...,==,.......WFFFFFFFW...#',
+      '#...WWWWDWWWW........==.....#..WWWWDWWWW...#',
+      '#.#.....=........==========........=.....#.#',
+      '#.#..,,.=...,....=S========...,,...=..,..#.#',
+      '#.......=........==========........=.......#',
+      'E==========================================E',
+      'E==========================================E',
+      '#..............,.=======~~=.,..............#',
+      '#.....,....,.....=======~~=.........,..,...#',
+      '#.#..............==========................#',
+      '#...WWWWWWWWWWW......==.......WWWWWWWWW....#',
+      '#...WBBBBFBBBBW......==.......WZFFFFBBW....#',
+      '#...WFFFFFFFFFW.##...==...##..WFFFFFFFW..#.#',
+      '#...WBBFTTTFBBW......==.......WFFTTFFFW..#.#',
+      '#...WFFFFFFFFFW....#.==.#.....WFFFFFFFW....#',
+      '#...WBBFFFFFBBW...,..==..,....WFFFFFFFW....#',
+      '#...WFFFFFFFFFW......==.......WWWWDWWWW....#',
+      '#...WWWWWDWWWWW......==...........=........#',
+      '#.========================================.#',
+      '###EE################EE#####################',
     ],
     ground: [120, 160, 110],
     path: [196, 178, 128],
-    solidEmoji: '🏡',
+    solidEmoji: '🌳',
     decoEmoji: '🌷',
-    spawn: { x: 10, y: 2 },
+    spawn: { x: 21, y: 2 },
+    buildings: [
+      { id: 'village-shop', name: 'Item Shop', x: 4, y: 3, w: 9, h: 7, roof: 'red', sign: 'shop' },
+      { id: 'village-inn', name: 'Inn', x: 31, y: 3, w: 9, h: 7, roof: 'blue', sign: 'inn' },
+      { id: 'village-library', name: 'Library', x: 4, y: 18, w: 11, h: 8, roof: 'purple', sign: 'library' },
+      { id: 'wick-house', name: "Wick's House", x: 30, y: 18, w: 9, h: 7, roof: 'green', sign: 'house' },
+    ],
     npcs: [
-      { defId: 'village-elder', x: 10, y: 3 },
-      { defId: 'village-friend', x: 6, y: 5 },
-      { defId: 'village-keeper', x: 14, y: 10 },
+      { defId: 'village-shopkeeper', x: 8, y: 5 },
+      { defId: 'village-innkeeper', x: 36, y: 6 },
+      { defId: 'village-librarian', x: 11, y: 20 },
+      { defId: 'village-elder', x: 35, y: 22 },
+      { defId: 'village-friend', x: 19, y: 15 },
+      { defId: 'village-keeper', x: 26, y: 12 },
     ],
     enemies: [],
     exits: [
-      { x: 10, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
-      { x: 11, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
-      { x: 0, y: 6, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
-      { x: 0, y: 7, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
-      { x: 21, y: 6, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
-      { x: 21, y: 7, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
-      // Hidden grove tucked away in the village's south-west corner (#grove).
-      { x: 2, y: 13, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
-      { x: 3, y: 13, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
-      { x: 10, y: 13, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
-      { x: 11, y: 13, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
+      { x: 21, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
+      { x: 22, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
+      { x: 0, y: 13, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
+      { x: 0, y: 14, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
+      { x: 43, y: 13, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
+      { x: 43, y: 14, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
+      // Hidden grove tucked away in the town's south-west corner (#grove).
+      { x: 3, y: 27, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
+      { x: 4, y: 27, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
+      { x: 21, y: 27, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
+      { x: 22, y: 27, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
     ],
   },
 
@@ -411,8 +473,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'thicket-warden', x: 16, y: 4 },
     ],
     exits: [
-      { x: 21, y: 6, to: 'lumina-village', spawnX: 1, spawnY: 6 },
-      { x: 21, y: 7, to: 'lumina-village', spawnX: 1, spawnY: 6 },
+      { x: 21, y: 6, to: 'lumina-village', spawnX: 1, spawnY: 13 },
+      { x: 21, y: 7, to: 'lumina-village', spawnX: 1, spawnY: 13 },
       { x: 10, y: 13, to: 'clockwork-depths', spawnX: 10, spawnY: 2 },
       { x: 11, y: 13, to: 'clockwork-depths', spawnX: 10, spawnY: 2 },
     ],
@@ -457,8 +519,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'tide-colossus', x: 12, y: 3 },
     ],
     exits: [
-      { x: 0, y: 6, to: 'lumina-village', spawnX: 20, spawnY: 6 },
-      { x: 0, y: 7, to: 'lumina-village', spawnX: 20, spawnY: 6 },
+      { x: 0, y: 6, to: 'lumina-village', spawnX: 42, spawnY: 13 },
+      { x: 0, y: 7, to: 'lumina-village', spawnX: 42, spawnY: 13 },
     ],
   },
 
@@ -544,8 +606,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'grumblebee', x: 16, y: 9 },
     ],
     exits: [
-      { x: 10, y: 0, to: 'lumina-village', spawnX: 2, spawnY: 12 },
-      { x: 11, y: 0, to: 'lumina-village', spawnX: 2, spawnY: 12 },
+      { x: 10, y: 0, to: 'lumina-village', spawnX: 3, spawnY: 26 },
+      { x: 11, y: 0, to: 'lumina-village', spawnX: 3, spawnY: 26 },
     ],
   },
 
@@ -576,8 +638,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [{ defId: 'spire-keeper', x: 16, y: 6 }],
     enemies: [],
     exits: [
-      { x: 10, y: 0, to: 'lumina-village', spawnX: 8, spawnY: 12 },
-      { x: 11, y: 0, to: 'lumina-village', spawnX: 8, spawnY: 12 },
+      { x: 10, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 26 },
+      { x: 11, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 26 },
     ],
     // The Spire itself stands in the central shrine — the endgame entrance.
     spire: { x: 10, y: 6 },
@@ -626,4 +688,27 @@ export function gateIdAt(zoneId: ZoneId, map: string[], x: number, y: number): s
     stack.push([gx + 1, gy], [gx - 1, gy], [gx, gy + 1], [gx, gy - 1]);
   }
   return pathTargetId(zoneId, 'gate', cx, cy);
+}
+
+/** The building whose footprint (walls included) holds this cell, if any. */
+export function buildingAt(z: ZoneDef, x: number, y: number): BuildingDef | null {
+  return z.buildings?.find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) ?? null;
+}
+
+/**
+ * The building whose *interior* (inside the walls) holds this cell — the hero
+ * standing here is "indoors", so that building's roof is cleared.
+ */
+export function buildingInside(z: ZoneDef, x: number, y: number): BuildingDef | null {
+  return (
+    z.buildings?.find((b) => x > b.x && x < b.x + b.w - 1 && y > b.y && y < b.y + b.h - 1) ?? null
+  );
+}
+
+/** A position (pixels) the hero can safely stand on, else the zone spawn. */
+export function safeSpawn(z: ZoneDef, pos: { x: number; y: number } | null): { x: number; y: number } {
+  const fallback = { x: z.spawn.x * TILE + TILE / 2, y: z.spawn.y * TILE + TILE / 2 };
+  if (!pos) return fallback;
+  const ch = tileAt(z, Math.floor(pos.x / TILE), Math.floor(pos.y / TILE));
+  return WALKABLE_CHARS.has(ch) ? pos : fallback;
 }

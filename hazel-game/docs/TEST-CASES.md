@@ -297,6 +297,22 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-270 | M | ⬜ | WorldCanvas | wandering NPCs/enemies switch to front/back views when their heading is mostly vertical |
 | TC-266 | M | ⬜ | AvatarSelect | hero cards show the animated battle sprite; picking a hero plays `select` |
 
+## Town + enterable buildings (#72)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-271 | U | ✅ | zones | every building is a closed `W` rect with exactly one facade `D` (not a corner) and only F/K/B/T/Z inside; building chars never appear outside a building (zones.test) |
+| TC-272 | U | ✅ | zones | every door is reachable from the spawn and every indoor NPC is reachable or talkable across a counter (zones.test) |
+| TC-273 | U | ✅ | zones | `buildingInside` = interior only, `buildingAt` includes walls; every map is ≥ one screen (zones.test) |
+| TC-274 | U | ✅ | zones | `safeSpawn` keeps walkable saved positions and falls back to the zone spawn for walls / off-map / null (zones.test) |
+| TC-275 | U | ✅ | camera | `camAxis` centres single-screen maps, follows on larger ones, clamps at both edges (camera.test) |
+| TC-276 | U | ✅ | tiles | town + roof strips sized correctly; `roofFrame` picks nine-slice pieces per colour (tiles.test) |
+| TC-277 | M | ✅ | WorldCanvas | outside a building the roof + name cover it (facade, door, sign visible); walking through the door fades the roof and shows the room (headless Chromium: Item Shop, Wick's House) |
+| TC-278 | M | ✅ | WorldCanvas | bumping the Item Shop counter opens Shopkeep Clove's dialogue (headless Chromium) |
+| TC-279 | M | ✅ | WorldCanvas | camera follows the hero around the 2×2 town and stops at the map edges |
+| TC-280 | M | ⬜ | WorldScreen | full flow in the real app: enter each building, use shop/inn/library, walk back out (roof returns), leave by each of the 5 town exits and come back |
+| TC-281 | M | ⬜ | save | a pre-#72 save standing in the old village loads at a walkable spot (not inside a wall) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

@@ -66,7 +66,8 @@ existing architecture.
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
   resolves all seven, #33/#55), `zones.ts` (11 ASCII tile maps: Lumina Field
-  hub + 4 crystal zones + Village (safe) + 3 themed combat zones + the hidden
+  hub + 4 crystal zones + Village (safe, a scrolling 2×2-screen town with
+  enterable buildings) + 3 themed combat zones + the hidden
   Moonwell Grove + the Crystal Spire; `ZONE_IDS` is the zone-id source of
   truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
@@ -182,6 +183,32 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-23 — Lumina Village becomes a scrolling town with enterable buildings (#72)
+- **Town map:** the village is now 44×28 (2×2 screens) — avenues, a plaza
+  with the save crystal and fountain, hedges, and four buildings: Item Shop
+  (Shopkeep Clove, merchant), Inn (Innkeeper Bess), Library (Archivist
+  Quill) and Grandmother Wick's house. Inbound exits in the field / woods /
+  coast / grove / spire now land on the new town coordinates.
+- **Buildings (`zones.ts`):** new legend chars `W` wall, `D` door, `F` floor,
+  `K` counter, `B` shelf, `T` table, `Z` bed, and `ZoneDef.buildings`
+  (`BuildingDef` rect + roof colour + sign). Helpers `buildingAt` (footprint)
+  and `buildingInside` (interior). Outside, a nine-slice roof + name label
+  covers every row but the facade; stepping inside fades that roof away
+  (`ROOF_FADE`). Bumping a counter talks to the NPC behind it. Wanderers
+  never cross a building wall (townsfolk stay outside, clerks inside).
+- **Camera:** the KaPlay canvas is a fixed one-screen viewport (`VIEW_COLS`
+  × `VIEW_ROWS`); maps larger than that scroll with `setCamPos` via pure
+  `lib/camera.ts` `camAxis` (clamped to the map; single-screen zones don't
+  move).
+- **Old saves:** `safeSpawn` drops a saved position that's no longer walkable
+  (e.g. inside a new wall) back to the zone spawn.
+- **Art:** `tools/assets/tiles.py` adds `public/tiles/town.png` (walls,
+  facades with windows, door, floor, counter, shelf, table, bed, 4 signs) and
+  `roofs.png` (4 colours × 9-slice); a hedge border for the town; 3 new NPC
+  sprites.
+- 271 tests green (was 258); lint + build clean. Verified in headless
+  Chromium: roof on/off at the shop + house, camera scroll, counter talk.
 
 ### 2026-09-23 — 4-way facing for world characters (#71 follow-up)
 World sheets now carry three views (18 frames): side (0-5, drawn facing

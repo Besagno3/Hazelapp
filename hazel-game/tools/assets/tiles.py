@@ -33,7 +33,7 @@ ZONES = {
                      sky=('#d08a4a', '#ffd8a0'), far='#a0704a', mid='gears', water='#4a7ab0'),
     'chromaria': dict(ground=(172, 122, 168), path=(206, 162, 200), solid='statue', deco='flower', deco_c='#ff8fc8',
                       sky=('#b060c0', '#ffc8f0'), far='#9a5aa0', mid='crystals', water='#5a7ae0'),
-    'lumina-village': dict(ground=(120, 160, 110), path=(196, 178, 128), solid='house', deco='tulip', deco_c='#ff5a7a',
+    'lumina-village': dict(ground=(120, 160, 110), path=(196, 178, 128), solid='hedge', deco='tulip', deco_c='#ff5a7a',
                            sky=('#6ab8ff', '#dff0ff'), far='#8ab0c8', mid='houses', water='#3a7ad0'),
     'whispering-woods': dict(ground=(70, 110, 78), path=(120, 150, 110), solid='pine', deco='leaves', deco_c='#e0883a',
                              sky=('#2a5a4a', '#8ac0a0'), far='#2a4a3a', mid='pine', water='#2a6a8a'),
@@ -115,6 +115,12 @@ def solid(kind, zone):
     elif kind == 'rock':
         c.ellipse(8, 10, 7, 5.5, '#9a8a7a')
         c.ellipse(6, 8, 3, 2, '#b8a898')
+    elif kind == 'hedge':
+        c.ellipse(8, 9, 7.5, 6.5, '#3a8a4a')
+        c.ellipse(5, 7, 3, 2.5, '#4aa05a')
+        c.ellipse(11, 7.5, 3, 2.5, '#4aa05a')
+        c.dot(6, 11, '#ff8fb8')
+        c.dot(11, 10, '#fff4b0')
     elif kind == 'darkrock':
         c.poly([(1, 15.5), (4, 3), (9, 1), (14, 6), (15, 15.5)], '#4a4458')
         c.dot(6, 5, '#8a7aa0', w=2, h=1)
@@ -250,6 +256,143 @@ def spire():
     return out.image().crop((8, 0, 24, 32))
 
 
+# ─── Towns: building interiors, facades, signs and roofs (#72) ───────────────
+# Keep in sync with TOWN_FRAME / ROOF_* in src/content/tiles.ts.
+
+WALL = '#e8d8b0'
+WOOD = '#b07840'
+FLOOR = (196, 150, 98)
+
+
+def _floor():
+    c = _c()
+    c.a[:, :, :3] = FLOOR
+    c.a[:, :, 3] = 255
+    for y in range(0, T, 4):
+        c.a[y, :, :3] = dark(FLOOR, 0.08)  # plank seams
+        off = 5 if (y // 4) % 2 else 11
+        c.a[y:y + 4, off, :3] = dark(FLOOR, 0.1)
+    c.a[1::4, :, :3] = light(FLOOR, 0.04)
+    return c
+
+
+def town_tiles():
+    frames = []
+    # 0 wall top (seen from above: thick timber beam)
+    c = _c()
+    c.a[:, :, :3] = hexc('#7a4a2a')
+    c.a[:, :, 3] = 255
+    c.rect(0, 0, 16, 3, '#9a6a3a', shade=False)
+    c.rect(0, 13, 16, 16, '#5a3420', shade=False)
+    frames.append(c)
+    # 1 facade (plaster + timber frame) · 2 facade with a window
+    for window in (False, True):
+        c = _c()
+        c.a[:, :, :3] = hexc(WALL)
+        c.a[:, :, 3] = 255
+        c.rect(0, 0, 16, 2, '#7a4a2a', shade=False)
+        c.rect(0, 14, 16, 16, '#8a7a6a', shade=False)
+        c.rect(0, 0, 1.5, 16, '#7a4a2a', shade=False)
+        if window:
+            c.rect(4, 4, 12, 11, '#5a3420', shade=False)
+            c.rect(5, 5, 11, 10, '#8ad0ff', shade=False)
+            c.rect(7.5, 5, 8.5, 10, '#5a3420', shade=False)
+            c.dot(5, 5, '#ffffff', w=2, h=1)
+            c.rect(3.5, 11, 12.5, 12, '#9a6a3a', shade=False)
+        frames.append(c)
+    # 3 door (open doorway into a warm room)
+    c = _c()
+    c.a[:, :, :3] = hexc(WALL)
+    c.a[:, :, 3] = 255
+    c.rect(0, 0, 16, 2, '#7a4a2a', shade=False)
+    c.rect(3, 3, 13, 16, '#5a3420', shade=False)
+    c.rect(4, 4, 12, 16, FLOOR, shade=False)
+    c.rect(4, 4, 12, 6, dark(FLOOR, 0.15), shade=False)
+    c.rect(2, 14.5, 14, 16, '#c8a070', shade=False)  # doormat
+    frames.append(c)
+    # 4 floor
+    frames.append(_floor())
+    # 5 counter
+    c = _floor()
+    c.rect(0, 4, 16, 13, WOOD)
+    c.rect(0, 4, 16, 6, '#d8a060', shade=False)
+    c.dot(4, 7, '#ffe066', w=2, h=2)  # a coin on the counter
+    frames.append(c)
+    # 6 bookshelf
+    c = _floor()
+    c.rect(1, 0, 15, 15, '#6a3a20')
+    for y0 in (2, 7):
+        c.rect(2, y0, 14, y0 + 4, '#3a2014', shade=False)
+        for i, col in enumerate(('#d04040', '#4070d0', '#40a060', '#e0b040', '#9050c0')):
+            c.rect(2.5 + i * 2.3, y0 + 0.5 + (i % 2), 4.3 + i * 2.3, y0 + 4, col, shade=False)
+    frames.append(c)
+    # 7 table
+    c = _floor()
+    c.ellipse(8, 8, 6.5, 5, '#a86a3a')
+    c.ellipse(8, 7, 5.5, 3.8, '#c8884a')
+    c.ellipse(6, 6.5, 1.5, 1.2, '#ffffff', shade=False)
+    frames.append(c)
+    # 8 bed
+    c = _floor()
+    c.rect(2, 1, 14, 15.5, '#7a4a2a')
+    c.rect(3, 2, 13, 6, '#ffffff')
+    c.rect(3, 6, 13, 15, '#d05a5a')
+    c.rect(3, 6, 13, 7, '#f0c0a0', shade=False)
+    frames.append(c)
+    # 9-12 hanging signs (transparent overlays on the facade)
+    for icon in ('shop', 'inn', 'library', 'house'):
+        c = _c()
+        c.rect(3, 1, 13, 2, '#5a3420', shade=False)
+        c.rect(3, 3, 13, 11, '#e8c88a')
+        if icon == 'shop':
+            c.ellipse(8, 7.5, 2.5, 2.5, '#d04060')
+            c.rect(7, 3.5, 9, 5, '#8ad0ff', shade=False)
+        elif icon == 'inn':
+            c.rect(4.5, 6, 11.5, 9, '#d05a5a', shade=False)
+            c.rect(4.5, 5, 7, 6.5, '#ffffff', shade=False)
+        elif icon == 'library':
+            c.rect(5, 4.5, 11, 9.5, '#4070d0', shade=False)
+            c.rect(7.8, 4.5, 8.2, 9.5, '#ffffff', shade=False)
+        else:
+            c.poly([(4.5, 7), (8, 4), (11.5, 7)], '#d04040')
+            c.rect(5.5, 7, 10.5, 10, '#fff4d0', shade=False)
+        frames.append(_outlined(c))
+    return frames
+
+
+ROOFS = {'red': '#c0503a', 'blue': '#3a6ab0', 'green': '#4a8a4a', 'purple': '#7a4ab0'}
+
+
+def roof_tiles():
+    """Nine-slice roof per colour: TL T TR / L M R / BL B BR (9 frames each)."""
+    frames = []
+    for col in ROOFS.values():
+        base = hexc(col)
+        for sy in range(3):
+            for sx in range(3):
+                c = _c()
+                c.a[:, :, :3] = base
+                c.a[:, :, 3] = 255
+                # overlapping shingle rows
+                for y in range(0, T, 4):
+                    c.a[y + 3, :, :3] = dark(base, 0.14)
+                    for x in range((y // 4 % 2) * 4, T, 8):
+                        c.a[y:y + 3, x, :3] = dark(base, 0.08)
+                c.a[0::4, :, :3] = light(base, 0.06)
+                if sy == 0:  # ridge
+                    c.rect(0, 0, 16, 3, light(base, 0.18), shade=False)
+                    c.rect(0, 3, 16, 4, dark(base, 0.2), shade=False)
+                if sy == 2:  # eave with its shadow line
+                    c.rect(0, 12, 16, 14, dark(base, 0.22), shade=False)
+                    c.rect(0, 14, 16, 16, (40, 26, 30), shade=False)
+                if sx == 0:
+                    c.rect(0, 0, 2, 16, dark(base, 0.25), shade=False)
+                if sx == 2:
+                    c.rect(14, 0, 16, 16, dark(base, 0.25), shade=False)
+                frames.append(c)
+    return frames
+
+
 # ─── Battle backdrops ────────────────────────────────────────────────────────
 
 BW, BH = 256, 144
@@ -372,6 +515,8 @@ def build(public: Path) -> list[str]:
         strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'{zid}.png', optimize=True)
         upscale(backdrop(z, 100 + i), 1).save(bdir / f'{zid}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in props()]).save(tdir / 'props.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles()]).save(tdir / 'town.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in roof_tiles()]).save(tdir / 'roofs.png', optimize=True)
     upscale(spire(), 2).save(tdir / 'spire.png', optimize=True)
     return list(ZONES)
 

@@ -1,7 +1,20 @@
 import { useEffect, useRef } from 'react';
 import kaplay from 'kaplay';
 import type { MutableRefObject } from 'react';
-import { TILE, WALKABLE_CHARS, pathTargetId, gateFlag, gateIdAt, zone } from '../../content/zones';
+import {
+  TILE,
+  VIEW_COLS,
+  VIEW_ROWS,
+  WALKABLE_CHARS,
+  buildingAt,
+  buildingInside,
+  pathTargetId,
+  gateFlag,
+  gateIdAt,
+  safeSpawn,
+  zone,
+  type BuildingDef,
+} from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
@@ -10,7 +23,19 @@ import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
 import { loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
-import { PROPS_KEY, PROP_FRAME, SPIRE_KEY, TILE_FRAME, groundVariant, tilesetKey } from '../../content/tiles';
+import { camAxis } from '../../lib/camera';
+import {
+  PROPS_KEY,
+  PROP_FRAME,
+  ROOF_KEY,
+  SPIRE_KEY,
+  TILE_FRAME,
+  TOWN_FRAME,
+  TOWN_KEY,
+  groundVariant,
+  roofFrame,
+  tilesetKey,
+} from '../../content/tiles';
 import {
   npcWanders,
   pickWanderDir,
@@ -27,6 +52,20 @@ import {
 /** Player hitbox half-size (smaller than a tile so corridors feel forgiving). */
 const HALF = 11;
 const SPEED = 170;
+/** The canvas is one screen; larger maps scroll under a following camera. */
+const VIEW_W = VIEW_COLS * TILE;
+const VIEW_H = VIEW_ROWS * TILE;
+/** Roof fade speed (per second) when the hero steps in / out of a building. */
+const ROOF_FADE = 10;
+/** Building-interior chars → town tile frame. */
+const TOWN_TILE: Record<string, number> = {
+  D: TOWN_FRAME.door,
+  F: TOWN_FRAME.floor,
+  K: TOWN_FRAME.counter,
+  B: TOWN_FRAME.shelf,
+  T: TOWN_FRAME.table,
+  Z: TOWN_FRAME.bed,
+};
 /** Seconds after closing an overlay before bumps can trigger again. */
 const TRIGGER_COOLDOWN = 0.8;
 /** Movement keys we own at the window level (see the keyboard effect). */
@@ -149,7 +188,8 @@ export default function WorldCanvas({
   const H = rows * TILE;
 
   // --- Adopt the one shared KaPlay instance ----------------------------------
-  // Created once for the whole session (all zones are the same 704×448 size);
+  // Created once for the whole session at a fixed one-screen viewport (bigger
+  // maps scroll under the camera instead of resizing the canvas);
   // on later mounts we just re-parent the existing canvas. Never re-init — see
   // the `sharedKaplay` note above. The scene effect repaints the ground.
   useEffect(() => {
@@ -158,8 +198,8 @@ export default function WorldCanvas({
     if (!sharedKaplay) {
       const k = kaplay({
         root: host,
-        width: W,
-        height: H,
+        width: VIEW_W,
+        height: VIEW_H,
         background: z.ground,
         global: false,
         crisp: true,
@@ -211,7 +251,22 @@ export default function WorldCanvas({
         const ch = z.map[y][x];
         const px = x * TILE;
         const py = y * TILE;
-        if (ch === '=' || ch === 'E') {
+        if (ch === 'W') {
+          // Facade (a building's street-facing bottom row) vs. wall tops.
+          const b = buildingAt(z, x, y);
+          const facade = b && y === b.y + b.h - 1;
+          const nearDoor = z.map[y][x - 1] === 'D' || z.map[y][x + 1] === 'D';
+          const frame = !facade
+            ? TOWN_FRAME.wallTop
+            : (x - (b?.x ?? 0)) % 2 === 1 && !nearDoor
+              ? TOWN_FRAME.facadeWindow
+              : TOWN_FRAME.facade;
+          k.add([k.sprite(TOWN_KEY, { frame }), k.pos(px, py), k.z(-50)]);
+          continue;
+        } else if (ch in TOWN_TILE) {
+          k.add([k.sprite(TOWN_KEY, { frame: TOWN_TILE[ch] }), k.pos(px, py), k.z(-50)]);
+          continue;
+        } else if (ch === '=' || ch === 'E') {
           tile(TILE_FRAME.path, px, py);
         } else if (ch === '~') {
           const water = tile(TILE_FRAME.water[0], px, py);
@@ -241,6 +296,46 @@ export default function WorldCanvas({
             else gateSprites.set(id, [sprite]);
           }
         }
+      }
+    }
+
+    // --- Buildings (#72): signs + roofs ---------------------------------
+    // Outside, a roof hides every row but the facade so the building reads as
+    // enclosed; stepping inside fades that building's roof (and name) away.
+    type Fader = { opacity: number };
+    const roofs: { b: BuildingDef; parts: Fader[]; opacity: number }[] = [];
+    for (const b of z.buildings ?? []) {
+      const parts: Fader[] = [];
+      const roofRows = b.h - 1; // the facade row stays visible
+      for (let ry = 0; ry < roofRows; ry++) {
+        for (let rx = 0; rx < b.w; rx++) {
+          parts.push(
+            k.add([
+              k.sprite(ROOF_KEY, { frame: roofFrame(b.roof, rx, ry, b.w, roofRows) }),
+              k.pos((b.x + rx) * TILE, (b.y + ry) * TILE),
+              k.opacity(1),
+              k.z(15),
+            ]) as unknown as Fader,
+          );
+        }
+      }
+      parts.push(
+        k.add([
+          k.text(b.name, { size: 11 }),
+          k.pos((b.x + b.w / 2) * TILE, (b.y + roofRows / 2) * TILE),
+          k.anchor('center'),
+          k.color(255, 248, 225),
+          k.opacity(1),
+          k.z(16),
+        ]) as unknown as Fader,
+      );
+      roofs.push({ b, parts, opacity: 1 });
+      if (b.sign) {
+        // Hang the sign on the facade beside the door (right side if free).
+        const fy = b.y + b.h - 1;
+        const door = z.map[fy].indexOf('D', b.x);
+        const sx = door + 1 < b.x + b.w - 1 ? door + 1 : door - 1;
+        k.add([k.sprite(TOWN_KEY, { frame: TOWN_FRAME.sign[b.sign] }), k.pos(sx * TILE, fy * TILE), k.z(-40)]);
       }
     }
 
@@ -301,6 +396,7 @@ export default function WorldCanvas({
       const spr = o.anims ? (anchor as unknown as { play: (n: string) => void; flipX: boolean }) : null;
       let facing: Facing = 'down';
       let curAnim = '';
+      const homeBuilding = buildingAt(z, Math.floor(o.homeX / TILE), Math.floor(o.homeY / TILE));
       const animate = (moving: boolean) => {
         if (!spr || !o.anims) return;
         const want = animFor(facing, moving, o.anims);
@@ -337,6 +433,9 @@ export default function WorldCanvas({
         // Ember) block the step; on a bump, stop and repick a direction.
         if (
           hitBox(c.x, c.y, WANDER_WALL_HALF) ||
+          // Townsfolk stay on their side of a building wall (no strolling in
+          // or out of shops through the door).
+          buildingAt(z, Math.floor(c.x / TILE), Math.floor(c.y / TILE)) !== homeBuilding ||
           actors.some(
             (other) =>
               other !== o.actor &&
@@ -556,10 +655,11 @@ export default function WorldCanvas({
     }
 
     // --- Player ------------------------------------------------------------
-    const spawn = startPos ?? {
-      x: z.spawn.x * TILE + TILE / 2,
-      y: z.spawn.y * TILE + TILE / 2,
-    };
+    // A saved position that no longer fits the map (e.g. a save from before a
+    // zone was redrawn) falls back to the zone spawn instead of a wall.
+    const spawn = safeSpawn(z, startPos);
+    const followCam = (x: number, y: number) => k.setCamPos(camAxis(x, W, VIEW_W), camAxis(y, H, VIEW_H));
+    followCam(spawn.x, spawn.y);
     const heroView = resolveSprite(avatar.spriteId, avatar.sprite).def?.world ?? null;
     let player: HeroActor;
     if (heroView && avatar.spriteId) {
@@ -716,6 +816,20 @@ export default function WorldCanvas({
         } else if (bumped.ch === 'S') {
           cooldown = 2;
           cbRef.current.onSaveCrystal();
+        } else if (bumped.ch === 'K') {
+          // Talk across a shop counter to whoever stands behind it (#72).
+          const cx = bumped.x * TILE + TILE / 2;
+          const cy = bumped.y * TILE + TILE / 2;
+          const clerk = actors.find(
+            (a) => a.kind === 'npc' && a.npcId && Math.hypot(a.x - cx, a.y - cy) < TILE * 1.6,
+          );
+          if (clerk?.npcId) {
+            player.pos.x -= dx * 10;
+            player.pos.y -= dy * 10;
+            cooldown = TRIGGER_COOLDOWN;
+            cbRef.current.onMove(player.pos.x, player.pos.y);
+            cbRef.current.onTalk(clerk.npcId);
+          }
         }
       }
 
@@ -765,6 +879,19 @@ export default function WorldCanvas({
             break;
           }
         }
+      }
+
+      // Camera follows the hero on maps bigger than one screen.
+      followCam(player.pos.x, player.pos.y);
+
+      // Roofs: clear the one over the building the hero is standing in.
+      const indoors = buildingInside(z, Math.floor(player.pos.x / TILE), Math.floor(player.pos.y / TILE));
+      for (const r of roofs) {
+        const target = indoors?.id === r.b.id ? 0 : 1;
+        if (r.opacity === target) continue;
+        const step = Math.min(1, dt * ROOF_FADE);
+        r.opacity = Math.abs(target - r.opacity) < 0.02 ? target : r.opacity + (target - r.opacity) * step;
+        for (const part of r.parts) part.opacity = r.opacity;
       }
 
       // Ember pads along behind the hero with a friendly bounce.

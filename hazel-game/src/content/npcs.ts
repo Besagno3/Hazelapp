@@ -316,6 +316,32 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
 
   // --- Whispering Woods ---
+  // --- Lumina Village shops (#72) — each works behind its own counter/room ---
+  'village-shopkeeper': {
+    id: 'village-shopkeeper',
+    name: 'Shopkeep Clove',
+    sprite: '🧑‍💼',
+    role: 'merchant',
+    lines: [
+      'Welcome to the Item Shop! Potions, feathers, the works — all fresh off the shelf.',
+    ],
+  },
+  'village-innkeeper': {
+    id: 'village-innkeeper',
+    name: 'Innkeeper Bess',
+    sprite: '👩‍🦰',
+    role: 'innkeeper',
+    lines: ['Long road? Kick off your boots — a nap here puts every bit of your HP back.'],
+  },
+  'village-librarian': {
+    id: 'village-librarian',
+    name: 'Archivist Quill',
+    sprite: '🦔',
+    role: 'librarian',
+    lines: [
+      'Shhh… the books remember every question that tripped you up. Want another try at them?',
+    ],
+  },
   'woods-hermit': {
     id: 'woods-hermit',
     name: 'Hazel the Spellwright',

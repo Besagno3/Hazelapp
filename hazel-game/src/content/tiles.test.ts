@@ -9,7 +9,12 @@ import {
   SPIRE_SHEET,
   TILESET_FRAMES,
   TILE_FRAME,
+  ROOF_FRAMES,
+  ROOF_SHEET,
+  TOWN_FRAMES,
+  TOWN_SHEET,
   battleBackdrop,
+  roofFrame,
   groundVariant,
   tilesetSheet,
 } from './tiles';
@@ -46,5 +51,19 @@ describe('16-bit tilesets', () => {
         expect(groundVariant(x, y)).toBe(v);
       }
     }
+  });
+});
+
+describe('town tiles + roofs (#72)', () => {
+  it('town and roof strips are the expected sizes', () => {
+    expect(pngSize(TOWN_SHEET)).toEqual({ w: TOWN_FRAMES * 32, h: 32 });
+    expect(pngSize(ROOF_SHEET)).toEqual({ w: ROOF_FRAMES * 32, h: 32 });
+  });
+  it('roofFrame picks nine-slice pieces per colour', () => {
+    expect(roofFrame('red', 0, 0, 9, 6)).toBe(0); // top-left
+    expect(roofFrame('red', 4, 3, 9, 6)).toBe(4); // middle
+    expect(roofFrame('red', 8, 5, 9, 6)).toBe(8); // bottom-right
+    expect(roofFrame('blue', 0, 0, 9, 6)).toBe(9);
+    expect(roofFrame('purple', 8, 5, 9, 6)).toBe(ROOF_FRAMES - 1);
   });
 });
