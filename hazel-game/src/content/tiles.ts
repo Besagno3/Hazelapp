@@ -35,6 +35,24 @@ export const SPIRE_SHEET = '/tiles/spire.png';
 
 /** KaPlay asset keys (namespaced away from character sprites). */
 export const tilesetKey = (zoneId: ZoneId) => `t_${zoneId}`;
+/** Key/sheet for any named tileset (zones, or a Spire floor's `spire-<theme>`). */
+export const namedTilesetKey = (name: string) => `t_${name}`;
+export const namedTilesetSheet = (name: string) => `/tiles/${name}.png`;
+
+/**
+ * Spire floor props (#74): rune seals (glowing ×2 / broken), the stairs
+ * (sealed / open) and Umbra's two-tile throne.
+ */
+export const SPIRE_PROPS_FRAMES = 7;
+export const SPIRE_PROP_FRAME = {
+  ward: [0, 1],
+  wardBroken: 2,
+  stairsSealed: 3,
+  stairsOpen: 4,
+  throne: [5, 6],
+} as const;
+export const SPIRE_PROPS_SHEET = '/tiles/spire-props.png';
+export const SPIRE_PROPS_KEY = 't_spire_props';
 export const PROPS_KEY = 't_props';
 export const SPIRE_KEY = 't_spire';
 

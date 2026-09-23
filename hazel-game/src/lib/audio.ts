@@ -28,6 +28,10 @@ export type MusicTrack =
   | 'title'
   | 'overworld'
   | 'spire'
+  | 'spireArchive'
+  | 'spireThicket'
+  | 'spireStars'
+  | 'spireEngine'
   | 'finalBoss'
   | 'battle'
   | 'boss'
@@ -53,7 +57,12 @@ export const SFX_SOURCES: Record<SfxName, string> = {
 
 export const MUSIC_SOURCES: Record<MusicTrack, string> = {
   overworld: '/audio/16bit/music/overworld.mp3', // the tile map
-  spire: '/audio/16bit/music/spire.mp3', // climbing the Crystal Spire floors
+  spire: '/audio/16bit/music/spire.mp3', // the Spire's entrance + intro
+  // One spooky loop per Spire floor (#74); the throne floor uses finalBoss.
+  spireArchive: '/audio/16bit/music/spireArchive.mp3',
+  spireThicket: '/audio/16bit/music/spireThicket.mp3',
+  spireStars: '/audio/16bit/music/spireStars.mp3',
+  spireEngine: '/audio/16bit/music/spireEngine.mp3',
   finalBoss: '/audio/16bit/music/finalBoss.mp3', // the Umbra fight (Spire boss floor)
   battle: '/audio/16bit/music/battle.mp3', // regular battles
   boss: '/audio/16bit/music/boss.mp3', // area bosses (Fiends, wardens)

@@ -327,7 +327,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-287 | U | ✅ | items | every shop item id is sold in exactly one shop; every consumable is for sale somewhere; shop names distinct (items.test) |
+| TC-287 | U | ✅ | items | every shop item is sold in exactly one shop except `SHARED_STOCK`; every consumable is for sale somewhere; shop names distinct (items.test) |
+| TC-299 | U | ✅ | items | Berry Potion has exactly two sellers — Maple's Trading Post + Tadpole's Tonics — at the same price; `ALL_SHOP_ITEMS` lists each item once (items.test) |
+| TC-300 | M | ⬜ | shop | Tadpole's Tonics lists Berry Potion (🪙30) above Honey Elixir; buying one increments the potion count |
 | TC-288 | U | ✅ | items | `SHOPS` keys == the set of merchant NPCs; `shopFor` null for non-merchants (items.test) |
 | TC-289 | U | ✅ | save | an old `{potion, hint}` save normalizes with elixir/spark/ward = 0; new counts round-trip (items.test) |
 | TC-290 | U | ✅ | zones | exactly one innkeeper and one librarian defined and placed; no NPC placed twice (zones.test) |
@@ -339,6 +341,23 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-296 | M | ⬜ | battle | 🎒 Items: Berry Potion heals 50, Honey Elixir heals to full, Spark Cell +2 ◆ (capped), Rainbow Ward blocks the next enemy hit; each spends the turn; disabled reasons show; button disabled with no battle items |
 | TC-297 | M | ⬜ | world | from a pre-#73 save standing in Numbria/Verdara/Gearfall/Chromaria: loads at a walkable spot; chests/gates already opened stay opened |
 | TC-298 | M | ⬜ | world | leave + re-enter each extended zone by every exit (moved exits land correctly, slide direction correct) |
+
+## Spire floors (#74)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-301 | U | ✅ | spire | every floor has a unique theme and music; maps are 22×14 and legend-only; arrival tile walkable (spire.test) |
+| TC-302 | U | ✅ | spire | climbing floors have exactly one `Q` seal per question, every seal + the stairs reachable on foot; the throne floor has no seals/stairs and Umbra is reachable (spire.test) |
+| TC-303 | U | ✅ | spireStore | bumps register only while exploring and one at a time; broken seals can't be re-bumped; entering a floor resets seals (spireStore.test) |
+| TC-304 | U | ✅ | tiles | a tileset per Spire theme + the Spire props strip exist at the right sizes (tiles.test) |
+| TC-305 | M | ✅ | Spire | open the Spire with 4 crystals → intro → floor 1 map with HUD (seals 0/3, 4 candles) and candle-light darkness (headless Chromium, mocked questions) |
+| TC-306 | M | ✅ | Spire | walking into a rune seal opens its question; answering breaks the seal (HUD updates) (headless Chromium) |
+| TC-307 | M | ✅ | Spire | bumping sealed stairs explains how many runes remain; with all seals broken the stairs lead to the next floor; floors 1→5 all load (headless Chromium) |
+| TC-308 | M | ✅ | Spire | a wrong answer snuffs a candle and the circle of light narrows (headless Chromium) |
+| TC-309 | M | ✅ | Spire | on the throne floor, walking up the carpet to Umbra starts "Umbra's challenge 1/5" (headless Chromium) |
+| TC-310 | M | ⬜ | audio | with Music on: each floor plays its own spooky loop; the Final Battle track starts only when Umbra's challenge begins |
+| TC-311 | M | ⬜ | Spire | lose every candle mid-climb → cast back to Lumina Field healed; reopening the Spire starts a fresh climb from floor 1 |
+| TC-312 | M | ⬜ | Spire | refresh mid-climb → you're back outside the Spire door (floor positions are never saved) |
 
 ## Regression cases (tied to ISSUES.md)
 

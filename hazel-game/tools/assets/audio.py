@@ -357,6 +357,99 @@ def compose(spec):
     return wet + lowpass(bass[:n], 0.6) + drums[:n]
 
 
+# ─── Spooky Spire music (#74) ────────────────────────────────────────────────
+# A separate composer for the Crystal Spire: slow minor progressions, a
+# detuned organ drone, a music-box melody with long echo, a heartbeat bass,
+# tritone bell tolls — plus one flavour per floor (ticking clocks, wind,
+# glittering stars, clanking gears). Seeded, so rebuilds are byte-identical.
+
+SPOOKY = {
+    # the Spire's entrance / intro and Umbra's throne hall
+    'spire': dict(bpm=66, key='D', chords='Dm Bb Gm A7 Dm Bb Edim A7', seed=81, flavour='bells'),
+    'spireArchive': dict(bpm=72, key='E', chords='Em C Am B7 Em C F#dim B7', seed=83, flavour='clock'),
+    'spireThicket': dict(bpm=62, key='G', chords='Gm Eb Cm D7 Gm Eb Adim D7', seed=87, flavour='wind'),
+    'spireStars': dict(bpm=58, key='B', chords='Bm G Em F#7 Bm G C#dim F#7', seed=89, flavour='stars'),
+    'spireEngine': dict(bpm=84, key='C', chords='Cm Ab Fm G7 Cm Ab Ddim G7', seed=91, flavour='gears'),
+}
+
+
+def compose_spooky(spec):
+    rnd = random.Random(spec['seed'])
+    chords = spec['chords'].split() * 2  # 16 bars
+    beat = 60 / spec['bpm']
+    bar = beat * 4
+    total = bar * len(chords)
+    n = int(total * SR)
+    melody = np.zeros(n + SR)
+    organ = np.zeros_like(melody)
+    bass = np.zeros_like(melody)
+    fx = np.zeros_like(melody)
+    key = NOTE_IDX[spec['key']]
+    scale = [(key + s) % 12 for s in (0, 2, 3, 5, 7, 8, 11)]  # harmonic minor
+    prev = 72 + key
+    motif = [rnd.choice((2, 1, 1, 2, 3, 1)) for _ in range(6)]
+    flav = spec['flavour']
+    for bi, ch in enumerate(chords):
+        root, tones = chord_notes(ch)
+        t0 = bi * bar
+        # organ drone: two slightly detuned thin pulses, slow swell
+        for j, p in enumerate(tones[:3]):
+            for det in (0.0, 0.07):
+                sig = pulse(hz(48 + p + det), bar * 0.98, 0.125)
+                mixin(organ, sig * env(len(sig), 0.35, 0.3, 0.55, 0.3), t0 + j * 0.02, 0.05)
+        # music-box melody: sparse, high, triangle — leaves space for the echo
+        t = t0
+        for length in motif if bi % 4 != 3 else (4, 4):
+            if rnd.random() < 0.8:
+                pool = tones if rnd.random() < 0.65 else scale
+                cands = sorted((72 + p + o for p in pool for o in (-12, 0, 12) if 66 <= 72 + p + o <= 90),
+                               key=lambda c: abs(c - prev) + rnd.random() * 4)
+                m = cands[0]
+                prev = m
+                dur = length * beat / 2
+                sig = tri(hz(m), dur * 0.9)
+                mixin(melody, sig * env(len(sig), 0.002, 0.15, 0.25, 0.2), t, 0.34)
+            t += length * beat / 2
+            if t >= t0 + bar:
+                break
+        # heartbeat bass: lub-dub on beat 1
+        for off, g in ((0, 0.7), (beat * 0.35, 0.45)):
+            k = tri(hz(36 + root), 0.18, slide=-0.3)
+            mixin(bass, k * env(len(k), 0.002, 0.05, 0.4, 0.08), t0 + off, g)
+        sig = tri(hz(36 + root), bar * 0.9)
+        mixin(bass, sig * env(len(sig), 0.1, 0.2, 0.35, 0.2), t0, 0.22)
+        # tritone bell toll every other bar
+        if bi % 2 == 1:
+            for iv, g in ((0, 0.16), (6, 0.1)):
+                sig = pulse(hz(84 + root + iv), beat * 2, 0.5)
+                mixin(fx, sig * env(len(sig), 0.001, 0.4, 0.05, 0.6), t0 + beat * 2, g)
+        # floor flavour
+        if flav == 'clock':
+            for b in range(8):
+                tick = noise(0.02, 6, 300 + b) * env(int(0.02 * SR), 0.001, 0.005, 0.3, 0.01)
+                mixin(fx, tick, t0 + b * beat / 2, 0.12 if b % 2 == 0 else 0.07)
+        elif flav == 'wind' and bi % 2 == 0:
+            w = lowpass(noise(bar * 1.6, 0.3, 400 + bi), 0.05)
+            mixin(fx, w * env(len(w), 0.8, 0.3, 0.6, 0.8), t0, 0.5)
+        elif flav == 'stars':
+            for b in range(8):
+                p = tones[b % len(tones)]
+                sig = pulse(hz(96 + p), beat / 4, 0.25)
+                mixin(fx, sig * env(len(sig), 0.001, 0.05, 0.2, 0.05), t0 + b * beat / 2, 0.05)
+        elif flav == 'gears':
+            for b in range(4):
+                clank = noise(0.05, 1.2, 500 + b) * env(int(0.05 * SR), 0.001, 0.02, 0.3, 0.02)
+                mixin(fx, lowpass(clank, 0.3), t0 + b * beat, 0.25)
+                tick = noise(0.015, 6, 600 + b) * env(int(0.015 * SR), 0.001, 0.004, 0.3, 0.01)
+                mixin(fx, tick, t0 + b * beat + beat / 2, 0.08)
+        elif flav == 'bells' and bi % 4 == 0:
+            sig = pulse(hz(60 + root), beat * 4, 0.5)
+            mixin(fx, sig * env(len(sig), 0.001, 0.6, 0.05, 1.0), t0, 0.12)
+    wet = echo(lowpass(melody[:n], 0.6), delay=beat * 0.75, fb=0.45, wet=0.35, wrap=True)
+    pad = echo(lowpass(organ[:n], 0.3), delay=beat * 1.5, fb=0.3, wet=0.2, wrap=True)
+    return wet + pad + lowpass(bass[:n], 0.5) + echo(fx[:n], delay=beat, fb=0.35, wet=0.3, wrap=True)
+
+
 def build(public: Path):
     sdir = public / 'audio' / '16bit' / 'sfx'
     mdir = public / 'audio' / '16bit' / 'music'
@@ -365,4 +458,8 @@ def build(public: Path):
     for name, sig in sfx_bank().items():
         encode(sig, sdir / f'{name}.mp3', kbps=96, peak=None)
     for name, spec in TRACKS.items():
+        if name in SPOOKY:
+            continue  # the Spire's tracks come from the spooky composer below
         encode(compose(spec), mdir / f'{name}.mp3', kbps=96, peak=0.8)
+    for name, spec in SPOOKY.items():
+        encode(compose_spooky(spec), mdir / f'{name}.mp3', kbps=96, peak=0.8)

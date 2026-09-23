@@ -1,7 +1,9 @@
 /**
  * The coin economy + shops (#37; per-shop stock since #73). Every merchant
  * runs their own store, and every item is sold in exactly ONE place — so each
- * town is worth visiting (items.test enforces it). All tuning numbers live here.
+ * town is worth visiting — except the `SHARED_STOCK` staples, which have a
+ * second seller so a hero far from Lumina Field can restock (items.test
+ * enforces both rules). All tuning numbers live here.
  */
 
 /** Carried consumables. The save stores a count for each id. */
@@ -20,6 +22,12 @@ export interface ShopItem {
 export const POTION_HEAL = 50;
 /** Charge (◆) granted by a Spark Cell in battle. */
 export const SPARK_CHARGE = 2;
+
+/**
+ * Staples deliberately sold in exactly TWO shops (everything else: one).
+ * Berry Potions: Maple's Trading Post (Lumina Field) + Tadpole's Tonics (Verdara).
+ */
+export const SHARED_STOCK: readonly ConsumableId[] = ['potion'];
 
 /** Display info for each consumable (inventory, battle Items menu). */
 export const CONSUMABLES: Record<ConsumableId, { name: string; emoji: string; description: string }> = {
@@ -66,6 +74,7 @@ export const SHOPS: Record<string, ShopDef> = {
     name: "Tadpole's Tonics",
     emoji: '🐸',
     items: [
+      stock('potion', 30), // second potion seller (SHARED_STOCK)
       stock('elixir', 70),
       { id: 'badge:leaf', name: 'Leaf Badge', emoji: '🍃', description: 'Grown, not made. Probably.', price: 90 },
     ],
@@ -97,8 +106,10 @@ export const SHOPS: Record<string, ShopDef> = {
   },
 };
 
-/** Every item sold anywhere (badge emoji lookups etc.). */
-export const ALL_SHOP_ITEMS: ShopItem[] = Object.values(SHOPS).flatMap((s) => s.items);
+/** Every item sold anywhere, once each (badge emoji lookups etc.). */
+export const ALL_SHOP_ITEMS: ShopItem[] = [
+  ...new Map(Object.values(SHOPS).flatMap((s) => s.items).map((i) => [i.id, i])).values(),
+];
 
 /** The store a merchant runs (null for a non-merchant). */
 export function shopFor(npcId: string | null): ShopDef | null {

@@ -91,7 +91,9 @@ existing architecture.
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
   key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
-  opened by bumping the Spire icon — the all-crystals-gated endgame). `TouchPad`
+  opened by bumping the Spire icon — the all-crystals-gated endgame; its five
+  floors are walkable themed maps drawn by `WorldCanvas`, state in
+  `spireStore`, #74). `TouchPad`
   is the mobile d-pad.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Guard / Potion / Flee, every command resolved by
@@ -184,6 +186,52 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-23 — The Spire becomes five walkable, spooky floors (#74)
+Each Spire floor is now a themed map the hero explores instead of a bare list
+of questions.
+- **Floors (`content/spire.ts`):** `SPIRE_FLOOR_MAPS` — 22×14 maps per theme:
+  the Whispering Stair (dusty archive: shelf stacks, cobwebs, a pit of lost
+  pages), the Overgrown Landing (dead trees, glow-shrooms, a murky pool), the
+  Star Gallery (void pits full of stars, broken telescopes), the Engine Vault
+  (gear walls, conveyor belts, oil pits) and the Forgotten Throne (obsidian
+  hall, purple carpet, Umbra on his throne). New map chars: `Q` rune seal
+  (bump → one of the floor's questions), `U` stairs (open once every seal is
+  broken), `Y` throne. `floorZone()` renders a floor through `WorldCanvas`
+  (borrowing the `crystal-spire` id, own `tileset`); `floorWards` /
+  `floorSpawnPx` helpers. Each floor names its `theme` + `music`.
+- **Climb engine:** new `store/spireStore.ts` bridges the canvas and the
+  overlay (floor, broken seals, candles, pending bump). `WorldCanvas` draws
+  seals/stairs/throne props, Umbra (new boss sprite) and a candle-light
+  darkness layer whose circle narrows per lost candle; it reports bumps via
+  `onWard` / `onStairs` / `onUmbra`. `WorldScreen` shows the floor map,
+  unpauses the world only while exploring, and never saves floor positions.
+  `SpireOverlay` is now a slim HUD while exploring and opens question /
+  story panels on bumps (bump handling via a store subscription). Rules are
+  unchanged: wrong answers snuff candles, running out casts you back to the
+  field; the throne floor's Umbra gauntlet keeps the 5-question boss run.
+- **Spooky music (`tools/assets/audio.py` `compose_spooky`):** detuned organ
+  drone, music-box melody with long echo, heartbeat bass, tritone bells, plus a
+  per-floor flavour (clock ticks / wind / star glitter / clanking gears) —
+  `spireArchive` / `spireThicket` / `spireStars` / `spireEngine`, and the
+  `spire` theme (intro + throne hall) regenerated spooky. `finalBoss` still
+  takes over once the Umbra fight starts.
+- **Art:** `/tiles/spire-<theme>.png` ×5, `/tiles/spire-props.png` (glowing /
+  broken seals, sealed / open stairs, throne), Umbra sprite (world + battle).
+- Tests: spire.test (themes + music unique, maps one screen + legend-only,
+  one seal per question, seals/stairs/Umbra reachable), spireStore.test,
+  tiles.test (Spire sheets). 301 tests green; lint + build clean. Played
+  through in headless Chromium with mocked questions (real seal bump, a lost
+  candle, all five floors, Umbra's challenge).
+
+### 2026-09-23 — Second place to buy Berry Potions (#73 follow-up)
+Berry Potions are now also sold at Tadpole's Tonics in Verdara (same 30-coin
+price as Maple's Trading Post on Lumina Field), so heroes away from the field
+can restock. The one-seller rule stays for everything else: new
+`SHARED_STOCK` (items.ts) lists the staples allowed exactly two sellers, and
+items.test enforces both rules plus equal pricing. `ALL_SHOP_ITEMS` is now
+de-duplicated. Trader Tadpole's greeting updated to match his stock. 290 tests
+green; lint + build clean.
+
 ### 2026-09-23 — Every place unique: one of each service, own shops, own architecture (#73)
 No more duplicated services — each place has its own layout, buildings and stores.
 - **One of each service:** the only Inn is the Sleepy Sheep Inn in Lumina
@@ -196,7 +244,8 @@ No more duplicated services — each place has its own layout, buildings and sto
   (field): Berry Potion · Plus's Quill & Count (Numbria): Hint Feather ·
   Tadpole's Tonics (Verdara): Honey Elixir · Volt's Gadgets (Gearfall): Spark
   Cell · Swirl's Paint & Charms (Chromaria): Rainbow Ward · Clove's Curios
-  (village): collectible badges — plus a signature badge in each.
+  (village): collectible badges — plus a signature badge in each. (Berry
+  Potions later gained a second seller — see the follow-up entry above.)
 - **New battle items:** Honey Elixir (full heal), Spark Cell (+2 ◆ charge),
   Rainbow Ward (blocks the next enemy hit). `CONSUMABLE_IDS` drives the save
   (`SaveData.items` is now `Record<ConsumableId, number>`; older saves

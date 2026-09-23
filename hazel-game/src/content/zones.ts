@@ -161,6 +161,11 @@ export interface ZoneDef {
   keyGate?: { x: number; y: number };
   /** Enterable buildings (#72) — see `BuildingDef`. */
   buildings?: BuildingDef[];
+  /**
+   * Tileset key override (default: the zone id). The Spire's floor maps
+   * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
+   */
+  tileset?: string;
 }
 
 export const HUB_ZONE: ZoneId = 'lumina-field';

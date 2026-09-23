@@ -24,15 +24,19 @@ import { loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis } from '../../lib/camera';
+import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
 import { SLIDE_MS, exitSide, slideFrom, type ExitSide } from '../../lib/transition';
 import {
   PROPS_KEY,
   PROP_FRAME,
   ROOF_KEY,
   SPIRE_KEY,
+  SPIRE_PROPS_KEY,
+  SPIRE_PROP_FRAME,
   TILE_FRAME,
   TOWN_FRAME,
   groundVariant,
+  namedTilesetKey,
   roofFrame,
   tilesetKey,
   townKey,
@@ -100,6 +104,10 @@ export interface WorldCanvasCallbacks {
   onMove: (x: number, y: number) => void;
   /** Bumped the Spire entrance icon (Crystal Spire zone only, #55). */
   onSpire: () => void;
+  /** Spire floors (#74): bumped an unbroken rune seal / the stairs / Umbra. */
+  onWard?: (id: string) => void;
+  onStairs?: () => void;
+  onUmbra?: () => void;
 }
 
 /**
@@ -128,6 +136,9 @@ export default function WorldCanvas({
   pausedRef,
   touchDirRef,
   callbacks,
+  spireFloor = null,
+  spireBroken = [],
+  spireLight = null,
 }: {
   zoneId: ZoneId;
   avatar: Avatar;
@@ -142,6 +153,12 @@ export default function WorldCanvas({
   pausedRef: MutableRefObject<boolean>;
   touchDirRef: MutableRefObject<{ dx: number; dy: number }>;
   callbacks: WorldCanvasCallbacks;
+  /** Spire climb (#74): draw this floor's map instead of the zone. */
+  spireFloor?: SpireTheme | null;
+  /** Rune seals already broken on the floor (read live through a ref). */
+  spireBroken?: string[];
+  /** Candle-lights left — the hero's circle of light shrinks as they go out. */
+  spireLight?: { lives: number; max: number } | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -184,10 +201,15 @@ export default function WorldCanvas({
   const cbRef = useRef(callbacks);
   const flagsRef = useRef(flags);
   const chestsRef = useRef(openedChests);
+  const brokenRef = useRef(spireBroken);
+  const lightRef = useRef(spireLight);
+  const darkRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     cbRef.current = callbacks;
     flagsRef.current = flags;
     chestsRef.current = openedChests;
+    brokenRef.current = spireBroken;
+    lightRef.current = spireLight;
   });
 
   // Held movement keys, tracked at the window level so the player moves
@@ -216,7 +238,8 @@ export default function WorldCanvas({
     };
   }, []);
 
-  const z = zone(zoneId);
+  // A Spire floor (#74) borrows the Spire zone's id but brings its own map.
+  const z = spireFloor ? floorZone(spireFloor) : zone(zoneId);
   const cols = z.map[0].length;
   const rows = z.map.length;
   const W = cols * TILE;
@@ -274,12 +297,17 @@ export default function WorldCanvas({
     // Every cell gets an opaque base (ground / path / water), then overlays
     // (scenery, flowers, exits, props) are layered on top. Frame indices come
     // from `TILE_FRAME` / `PROP_FRAME` so the generator and renderer agree.
-    const tiles = tilesetKey(zoneId);
+    const tiles = z.tileset ? namedTilesetKey(z.tileset) : tilesetKey(zoneId);
     const tile = (frame: number, px: number, py: number, z = -50) =>
       k.add([k.sprite(tiles, { frame }), k.pos(px, py), k.z(z)]);
     const prop = (frame: number, px: number, py: number) =>
       k.add([k.sprite(PROPS_KEY, { frame }), k.pos(px, py), k.z(-10)]);
     const chestSprites = new Map<string, ReturnType<typeof k.add>>();
+    // Spire floors (#74): live seal sprites (by id) + the stairs up.
+    const wardSprites = new Map<string, ReturnType<typeof k.add>>();
+    const stairSprites: ReturnType<typeof k.add>[] = [];
+    const spireProp = (frame: number, px: number, py: number) =>
+      k.add([k.sprite(SPIRE_PROPS_KEY, { frame }), k.pos(px, py), k.z(-10)]);
     const gateSprites = new Map<string, ReturnType<typeof k.add>[]>();
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
@@ -325,6 +353,20 @@ export default function WorldCanvas({
           const id = pathTargetId(zoneId, 'chest', x, y);
           const sprite = prop(chestsRef.current.includes(id) ? PROP_FRAME.chestOpen : PROP_FRAME.chestClosed, px, py);
           chestSprites.set(id, sprite);
+        } else if (ch === 'Q') {
+          const id = `${x},${y}`;
+          if (brokenRef.current.includes(id)) {
+            spireProp(SPIRE_PROP_FRAME.wardBroken, px, py);
+          } else {
+            const ward = spireProp(SPIRE_PROP_FRAME.ward[0], px, py);
+            (ward as unknown as { play: (n: string) => void }).play('glow');
+            wardSprites.set(id, ward);
+          }
+        } else if (ch === 'U') {
+          stairSprites.push(spireProp(SPIRE_PROP_FRAME.stairsSealed, px, py));
+        } else if (ch === 'Y') {
+          const left = z.map[y][x - 1] !== 'Y';
+          spireProp(left ? SPIRE_PROP_FRAME.throne[0] : SPIRE_PROP_FRAME.throne[1], px, py);
         } else if (ch === 'G') {
           const id = gateIdAt(zoneId, z.map, x, y);
           if (!flagsRef.current[gateFlag(id)]) {
@@ -397,7 +439,7 @@ export default function WorldCanvas({
     interface Actor {
       x: number;
       y: number;
-      kind: 'npc' | 'enemy' | 'spire';
+      kind: 'npc' | 'enemy' | 'spire' | 'umbra';
       npcId?: string;
       enemy?: BattleEnemy;
       /** Sprite pieces — moved together when a wanderer is pushed off the player. */
@@ -692,6 +734,22 @@ export default function WorldCanvas({
       }
     }
 
+    // Umbra, the Forgotten One, waits on the throne floor (#74).
+    const umbraAt = spireFloor ? SPIRE_FLOOR_MAPS[spireFloor].umbra : undefined;
+    if (umbraAt) {
+      const ux = (umbraAt.x + 1) * TILE; // centred on the two-tile carpet
+      const uy = umbraAt.y * TILE + TILE / 2;
+      const face = worldFace(k, { spriteId: 'umbra', emoji: '🌑', x: ux, y: uy, size: 34, z: 6 })
+        .obj as unknown as WorldActor;
+      let t = 0;
+      face.onUpdate(() => {
+        if (pausedRef.current) return;
+        t += k.dt() * 2;
+        face.pos.y = uy + Math.sin(t) * 3; // a slow, menacing hover
+      });
+      actors.push({ x: ux, y: uy, kind: 'umbra', radius: ACTOR_RADIUS.boss });
+    }
+
     // --- Player ------------------------------------------------------------
     // A saved position that no longer fits the map (e.g. a save from before a
     // zone was redrawn) falls back to the zone spawn instead of a wall.
@@ -854,6 +912,16 @@ export default function WorldCanvas({
         } else if (bumped.ch === 'S') {
           cooldown = 2;
           cbRef.current.onSaveCrystal();
+        } else if (bumped.ch === 'Q') {
+          // A rune seal on a Spire floor (#74): face its question.
+          const id = `${bumped.x},${bumped.y}`;
+          if (!brokenRef.current.includes(id)) {
+            cooldown = TRIGGER_COOLDOWN;
+            cbRef.current.onWard?.(id);
+          }
+        } else if (bumped.ch === 'U') {
+          cooldown = TRIGGER_COOLDOWN;
+          cbRef.current.onStairs?.();
         } else if (bumped.ch === 'K') {
           // Talk across a shop counter to whoever stands behind it (#72).
           const cx = bumped.x * TILE + TILE / 2;
@@ -909,6 +977,11 @@ export default function WorldCanvas({
               cooldown = TRIGGER_COOLDOWN;
               cbRef.current.onMove(player.pos.x, player.pos.y);
               cbRef.current.onSpire();
+            } else if (a.kind === 'umbra') {
+              player.pos.x -= dx * 10;
+              player.pos.y -= dy * 10;
+              cooldown = TRIGGER_COOLDOWN;
+              cbRef.current.onUmbra?.();
             } else if (a.kind === 'enemy' && a.enemy) {
               triggered = true;
               cbRef.current.onMove(player.pos.x - dx * 14, player.pos.y - dy * 14);
@@ -921,6 +994,36 @@ export default function WorldCanvas({
 
       // Camera follows the hero on maps bigger than one screen.
       followCam(player.pos.x, player.pos.y);
+
+      // Spire floors: seals dim as they break; the stairs open once all are.
+      if (wardSprites.size) {
+        for (const [id, sprite] of wardSprites) {
+          if (brokenRef.current.includes(id)) {
+            (sprite as unknown as { frame: number; stop?: () => void }).stop?.();
+            (sprite as unknown as { frame: number }).frame = SPIRE_PROP_FRAME.wardBroken;
+            wardSprites.delete(id);
+          }
+        }
+        if (wardSprites.size === 0) {
+          for (const s of stairSprites) (s as unknown as { frame: number }).frame = SPIRE_PROP_FRAME.stairsOpen;
+        }
+      }
+
+      // Candle-light: darkness everywhere but a flickering circle round the hero.
+      const light = lightRef.current;
+      const dark = darkRef.current;
+      if (dark) {
+        if (light) {
+          // Spooky but readable for kids: a wide glow that narrows per lost candle.
+          const r = 150 + 45 * Math.max(0, light.lives) + Math.sin(k.time() * 7) * 3 + Math.sin(k.time() * 13) * 2;
+          const cx = (player.pos.x / VIEW_W) * 100;
+          const cy = (player.pos.y / VIEW_H) * 100;
+          dark.style.background = `radial-gradient(ellipse ${(r / VIEW_W) * 100}% ${(r / VIEW_H) * 100}% at ${cx}% ${cy}%, rgba(8,4,20,0) 0%, rgba(8,4,20,0.15) 50%, rgba(8,4,20,0.72) 100%)`;
+          dark.style.opacity = '1';
+        } else {
+          dark.style.opacity = '0';
+        }
+      }
 
       // Roofs: clear the one over the building the hero is standing in.
       const indoors = buildingInside(z, Math.floor(player.pos.x / TILE), Math.floor(player.pos.y / TILE));
@@ -997,9 +1100,10 @@ export default function WorldCanvas({
       // Drop this zone's update loop; the next build calls destroyAll().
       loop.cancel();
     };
-    // Rebuild only on zone / ember change; the rest is read through refs.
+    // Rebuild only on zone / ember / Spire-floor change; the rest is read
+    // through refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoneId, emberStage]);
+  }, [zoneId, emberStage, spireFloor]);
 
   // Slide transforms: the new screen starts one viewport away (`slideFrom`)
   // and the snapshot of the old one leaves by the same amount the other way.
@@ -1021,6 +1125,8 @@ export default function WorldCanvas({
         className="absolute inset-0 [&>canvas]:!block [&>canvas]:!w-full [&>canvas]:!h-full"
         style={{ transform: slide && !slide.running ? shift(1) : 'none', transition: motion }}
       />
+      {/* Spire candle-light (#74): updated per frame from the game loop. */}
+      <div ref={darkRef} aria-hidden className="absolute inset-0 pointer-events-none" style={{ opacity: 0 }} />
       {slide && (
         <img
           src={slide.src}

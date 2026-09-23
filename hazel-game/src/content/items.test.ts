@@ -1,10 +1,27 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_SHOP_ITEMS, BATTLE_ITEMS, CONSUMABLE_IDS, SHOPS, shopFor } from './items';
+import { ALL_SHOP_ITEMS, BATTLE_ITEMS, CONSUMABLE_IDS, SHARED_STOCK, SHOPS, shopFor } from './items';
 import { NPC_DEFS } from './npcs';
 import { normalizeSave } from '../lib/save';
 
 describe('shops (#73: every store is unique)', () => {
-  it('every item is sold in exactly one shop', () => {
+  const sellers = (id: string) => Object.values(SHOPS).filter((s) => s.items.some((i) => i.id === id));
+
+  it('every item is sold in exactly one shop — except the shared staples', () => {
+    for (const item of ALL_SHOP_ITEMS) {
+      if ((SHARED_STOCK as readonly string[]).includes(item.id)) continue;
+      expect(sellers(item.id).length, `${item.id} sellers`).toBe(1);
+    }
+  });
+  it('each shared staple (Berry Potion) has exactly two sellers, at the same price', () => {
+    for (const id of SHARED_STOCK) {
+      const shops = sellers(id);
+      expect(shops.length, `${id} sellers`).toBe(2);
+      const prices = shops.map((s) => s.items.find((i) => i.id === id)!.price);
+      expect(new Set(prices).size, `${id} priced the same everywhere`).toBe(1);
+    }
+    expect(sellers('potion').map((s) => s.name).sort()).toEqual(["Maple's Trading Post", "Tadpole's Tonics"]);
+  });
+  it('ALL_SHOP_ITEMS lists each item once', () => {
     const ids = ALL_SHOP_ITEMS.map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);
   });

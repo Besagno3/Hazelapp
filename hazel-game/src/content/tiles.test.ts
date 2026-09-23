@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { BUILDING_STYLES, ROOF_COLORS, ZONE_IDS } from './zones';
+import { SPIRE_THEMES } from './spire';
 import {
   PROPS_FRAMES,
   PROPS_SHEET,
@@ -15,6 +16,9 @@ import {
   townSheet,
   battleBackdrop,
   roofFrame,
+  namedTilesetSheet,
+  SPIRE_PROPS_FRAMES,
+  SPIRE_PROPS_SHEET,
   groundVariant,
   tilesetSheet,
 } from './tiles';
@@ -68,5 +72,14 @@ describe('town tiles + roofs (#72)', () => {
     expect(roofFrame('red', 8, 5, 9, 6)).toBe(8); // bottom-right
     expect(roofFrame('blue', 0, 0, 9, 6)).toBe(9);
     expect(roofFrame(ROOF_COLORS[ROOF_COLORS.length - 1], 8, 5, 9, 6)).toBe(ROOF_FRAMES - 1);
+  });
+});
+
+describe('Spire floor art (#74)', () => {
+  it('every floor theme has a tileset and the props strip is sized', () => {
+    for (const theme of SPIRE_THEMES) {
+      expect(pngSize(namedTilesetSheet(`spire-${theme}`)), theme).toEqual({ w: TILESET_FRAMES * 32, h: 32 });
+    }
+    expect(pngSize(SPIRE_PROPS_SHEET)).toEqual({ w: SPIRE_PROPS_FRAMES * 32, h: 32 });
   });
 });

@@ -199,7 +199,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Trader Tadpole',
     sprite: '🐸',
     role: 'merchant',
-    lines: ['Fresh from the lab-lily pads: potions and hints!'],
+    lines: ['Fresh from the lab-lily pads: Berry Potions and my famous Honey Elixir!'],
   },
 
   // --- Gearfall (engineering) ---

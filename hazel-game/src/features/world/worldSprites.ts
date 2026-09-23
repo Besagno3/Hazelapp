@@ -10,11 +10,18 @@ import kaplay from 'kaplay';
 import type { SpriteAnim } from '../../lib/spriteAnim';
 import { SPRITES, resolveSprite } from '../../content/sprites';
 import { BUILDING_STYLES, ZONE_IDS } from '../../content/zones';
+import { SPIRE_THEMES } from '../../content/spire';
 import {
   PROPS_FRAMES,
   PROPS_KEY,
   PROPS_SHEET,
   PROP_FRAME,
+  SPIRE_PROPS_FRAMES,
+  SPIRE_PROPS_KEY,
+  SPIRE_PROPS_SHEET,
+  SPIRE_PROP_FRAME,
+  namedTilesetKey,
+  namedTilesetSheet,
   ROOF_FRAMES,
   ROOF_KEY,
   ROOF_SHEET,
@@ -84,6 +91,20 @@ export function loadWorldSprites(k: KaplayCtx): void {
     anims: { glow: { from: PROP_FRAME.crystal[0], to: PROP_FRAME.crystal[1], loop: true, speed: 2 } },
   });
   k.loadSprite(SPIRE_KEY, SPIRE_SHEET);
+  // The Spire's floor maps (#74): one tileset per floor theme + shared props.
+  for (const theme of SPIRE_THEMES) {
+    const name = `spire-${theme}`;
+    k.loadSprite(namedTilesetKey(name), namedTilesetSheet(name), {
+      sliceX: TILESET_FRAMES,
+      sliceY: 1,
+      anims: { water: { from: TILE_FRAME.water[0], to: TILE_FRAME.water[1], loop: true, speed: 2 } },
+    });
+  }
+  k.loadSprite(SPIRE_PROPS_KEY, SPIRE_PROPS_SHEET, {
+    sliceX: SPIRE_PROPS_FRAMES,
+    sliceY: 1,
+    anims: { glow: { from: SPIRE_PROP_FRAME.ward[0], to: SPIRE_PROP_FRAME.ward[1], loop: true, speed: 3 } },
+  });
   for (const style of BUILDING_STYLES) {
     k.loadSprite(townKey(style), townSheet(style), { sliceX: TOWN_FRAMES, sliceY: 1 });
   }

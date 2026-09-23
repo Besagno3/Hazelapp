@@ -1383,6 +1383,41 @@ def seal(c: Canvas, p: Pose, s: dict):
     finish(c, d)
 
 
+def umbra(c: Canvas, p: Pose, s: dict):
+    """Umbra, the Forgotten One (#74): a hovering hooded shadow-king."""
+    d = D(c, p)
+    robe = hexc('#2a1a40')
+    hover = (-1 if p.frame % 2 else 0) * d.u
+    L = d.part(d.lean * 0.5, d.bob + hover)
+    flare = {'raise': 2.5, 'strike': 3.5}.get(p.arm, 0)
+    for side in (-1, 1):  # sleeves + violet flame hands
+        hx = 16 + side * (10 + flare * 0.6)
+        hy = 18 - flare
+        L.line(16 + side * 4, 13, hx, hy, dark(robe, 0.05), w=3.2)
+        L.poly([(hx - 2, hy + 1), (hx, hy - 4 - flare * 0.5), (hx + 2, hy + 1)], '#9a4aff')
+        L.poly([(hx - 1, hy + 1), (hx, hy - 2), (hx + 1, hy + 1)], '#e0b0ff')
+    # tattered robe
+    pts = [(9, 12), (23, 12), (26, 27)]
+    for i, x in enumerate(range(26, 5, -3)):
+        pts.append((x, 30 if (i + p.frame) % 2 else 27.5))
+    pts.append((6, 27))
+    L.poly(pts, robe)
+    L.rect(14.5, 14, 17.5, 26, dark(robe, 0.2), shade=False)  # robe seam
+    # hood with a void for a face
+    L.ellipse(16, 10, 7.5, 7, dark(robe, 0.08))
+    L.ellipse(16, 11.5, 4.8, 4.4, (6, 4, 14), shade=False)
+    ec = (255, 255, 255) if p.hurt else hexc('#c8a8ff')
+    L.dot(14, 11, ec, w=2, h=1)
+    L.dot(17, 11, ec, w=2, h=1)
+    d.put(L)
+    crown = d.part(d.lean * 0.5, d.bob + hover)  # crown of shadow spikes
+    for x, h in ((10, 4), (13, 6), (16, 8), (19, 6), (22, 4)):
+        crown.poly([(x - 1.5, 5), (x, 5 - h), (x + 1.5, 5)], '#5a2a8a')
+    crown.dot(16, 1, '#e0b0ff')
+    d.put(crown)
+    finish(c, d, shadow=(16, 30.5, 8, 1.5))
+
+
 # ─── Roster ──────────────────────────────────────────────────────────────────
 
 DRAWERS = {
@@ -1405,6 +1440,7 @@ DRAWERS = {
     'whale': whale,
     'octopus': octopus,
     'seal': seal,
+    'umbra': umbra,
 }
 
 
@@ -1471,6 +1507,8 @@ ROSTER: list[Char] = [
     Char('cog-sprite', '⚙️', 'gear', H(color='#c8a040')),
     Char('hourglass-imp', '⏳', 'hourglass'),
     Char('relic-golem', '🗿', 'golem', H(color='#9a8a70', accent='#6ad0c0', glow='#6affe0', runes=True, shield=True)),
+    # ── The Crystal Spire ──
+    Char('umbra', '🌑', 'umbra', boss=True),
     Char('clockwork-titan', '🦾', 'golem', H(color='#c89040', accent='#ff6a3a', glow='#ffe066', bolts=True, crown=True), boss=True),
 ]
 

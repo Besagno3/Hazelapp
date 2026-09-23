@@ -483,6 +483,198 @@ def roof_tiles():
     return frames
 
 
+# ─── The Crystal Spire's floors (#74) ────────────────────────────────────────
+# One 9-frame tileset per floor theme (same layout as zone tilesets) plus a
+# shared props strip. Keep in sync with SPIRE_THEMES / SPIRE_PROP_FRAME.
+
+SPIRE_THEMES = {
+    #           ground           path (carpet/belt)  pit kind  pit colour   solid        deco
+    'archive': ((70, 62, 58),   (120, 36, 48),      'pit',    '#120c10',   'bookstack', 'cobweb'),
+    'thicket': ((46, 62, 50),   (84, 72, 52),       'murk',   '#2a3a2a',   'deadtree',  'glowshroom'),
+    'stars':   ((26, 24, 48),   (62, 56, 100),      'void',   '#06061a',   'telescope', 'mote'),
+    'engine':  ((64, 60, 66),   (96, 90, 70),       'oil',    '#141018',   'gearwall',  'steam'),
+    'throne':  ((30, 20, 40),   (96, 36, 130),      'void',   '#0a0612',   'shadowpillar', 'brazier'),
+}
+
+
+def spire_ground(base, seed, theme):
+    c = _c()
+    _speckle(c, base, seed, density=0.2, tufts=theme == 'thicket')
+    if theme in ('archive', 'throne'):  # flagstone seams
+        c.a[::8, :, :3] = dark(base, 0.12)
+        for y in range(0, T, 8):
+            off = 0 if (y // 8) % 2 else 4
+            c.a[y:y + 8, off::8, :3] = dark(base, 0.12)
+    elif theme == 'engine':  # riveted plates
+        c.a[::8, :, :3] = dark(base, 0.15)
+        c.a[:, ::8, :3] = dark(base, 0.15)
+        for (x, y) in ((2, 2), (10, 2), (2, 10), (10, 10)):
+            c.dot(x, y, light(base, 0.2))
+    elif theme == 'stars':
+        rnd = random.Random(seed * 7)
+        for _ in range(3):
+            c.dot(rnd.randrange(T), rnd.randrange(T), (200, 200, 255) if rnd.random() < 0.5 else (140, 120, 220))
+    return c
+
+
+def spire_path(base, theme):
+    c = _c()
+    c.a[:, :, :3] = base
+    c.a[:, :, 3] = 255
+    if theme in ('archive', 'throne'):  # a worn carpet runner with a gold hem
+        c.a[:, 0:2, :3] = hexc('#c8a040')
+        c.a[:, 14:16, :3] = hexc('#c8a040')
+        for y in range(2, T, 6):
+            c.dot(7, y, light(base, 0.15), w=2, h=2)
+    elif theme == 'engine':  # conveyor belt
+        for y in range(0, T, 3):
+            c.a[y, :, :3] = dark(base, 0.25)
+        c.a[:, 0, :3] = hexc('#3a3a44')
+        c.a[:, 15, :3] = hexc('#3a3a44')
+    elif theme == 'thicket':  # root-tangled dirt
+        _speckle(c, base, 11, density=0.15, tufts=False)
+        c.line(1, 4, 12, 7, dark(base, 0.2), w=0.8)
+        c.line(4, 13, 15, 10, dark(base, 0.2), w=0.8)
+    else:  # stars: a glowing walkway
+        c.a[::4, :, :3] = light(base, 0.08)
+        c.dot(3, 3, (220, 220, 255))
+        c.dot(12, 10, (220, 220, 255))
+    return c
+
+
+def spire_pit(kind, col, frame):
+    col = hexc(col)
+    c = _c()
+    c.a[:, :, :3] = col
+    c.a[:, :, 3] = 255
+    rnd = random.Random(3 + frame)
+    if kind == 'void':
+        for _ in range(6):
+            x, y = rnd.randrange(T), rnd.randrange(T)
+            c.dot(x, y, (255, 255, 230) if rnd.random() < 0.6 else (150, 160, 255))
+    elif kind == 'pit':  # drifting lost pages in the dark
+        for _ in range(2):
+            x, y = rnd.randrange(1, T - 3), rnd.randrange(1, T - 2)
+            c.rect(x, y, x + 3, y + 2, '#8a7a60', shade=False)
+    else:  # murk / oil: slow sheen bands
+        for y in range(0, T, 4):
+            for x in range(T):
+                if math.sin((x + frame * 3 + y) * 0.7) > 0.8:
+                    c.a[(y + 1) % T, x, :3] = light(col, 0.18)
+    return c
+
+
+def spire_solid(kind):
+    c = _c()
+    if kind == 'bookstack':
+        c.rect(1, 1, 15, 15.5, '#4a2a1a')
+        for y0 in (2, 7, 11.5):
+            c.rect(2, y0, 14, y0 + 3.5, '#1e1210', shade=False)
+            for i, col in enumerate(('#7a2a2a', '#2a4a7a', '#4a6a2a', '#7a6a2a', '#5a3a6a')):
+                c.rect(2.3 + i * 2.35, y0 + 0.3 + (i % 2) * 0.6, 4.1 + i * 2.35, y0 + 3.5, col, shade=False)
+        c.line(1, 1, 5, 5, '#d8d8e0', w=0.4)  # cobweb strand
+    elif kind == 'deadtree':
+        c.rect(7, 7, 9, 16, '#3a2a22')
+        c.line(8, 8, 3, 3, '#3a2a22', w=1.2)
+        c.line(8, 7, 13, 2, '#3a2a22', w=1.2)
+        c.line(4, 4, 2, 5, '#3a2a22', w=0.8)
+        c.line(12, 3, 14, 5, '#3a2a22', w=0.8)
+        c.dot(5, 9, '#7a3aff')  # a watching eye in the bark
+        c.dot(10, 10, '#7a3aff')
+    elif kind == 'telescope':
+        c.rect(6, 12, 10, 16, '#5a5a70')
+        c.line(8, 12, 4, 15.5, '#5a5a70', w=1)
+        c.line(8, 12, 12, 15.5, '#5a5a70', w=1)
+        c.line(5, 11, 13, 3, '#8a7a9a', w=3)
+        c.line(11, 5, 14, 2, '#b0a0c0', w=3.5)
+        c.dot(9, 7, '#2a2040', w=2, h=1)  # the crack
+    elif kind == 'gearwall':
+        c.rect(0, 0, 16, 16, '#4a4650')
+        for (cx, cy, r) in ((5, 5, 4), (11, 11, 4)):
+            for t in range(6):
+                a = t * math.pi / 3
+                c.dot(cx + math.cos(a) * r, cy + math.sin(a) * r, '#8a7a5a', w=2, h=2)
+            c.ellipse(cx, cy, r - 1, r - 1, '#a08a5a')
+            c.dot(cx, cy, '#2a2630', w=2, h=2)
+    elif kind == 'shadowpillar':
+        c.rect(3, 1, 13, 16, '#2a1e3a')
+        c.rect(2, 0, 14, 2.5, '#3a2a50')
+        c.rect(2, 13.5, 14, 16, '#3a2a50')
+        for x in (5.5, 8, 10.5):
+            c.rect(x, 3, x + 0.8, 13, '#1a1228', shade=False)
+        c.dot(8, 7, '#b07cff')
+    return _outlined(c)
+
+
+def spire_deco(kind):
+    c = _c()
+    if kind == 'cobweb':
+        for (a, b) in (((0, 0), (8, 8)), ((0, 5), (6, 3)), ((3, 0), (5, 6)), ((0, 9), (9, 0))):
+            c.line(a[0], a[1], b[0], b[1], (220, 220, 230), w=0.35)
+        c.dot(6, 6, '#2a2a2a', w=2, h=2)  # a small spider
+    elif kind == 'glowshroom':
+        for (x, y, col) in ((5, 10, '#6affd0'), (10, 8, '#b07cff'), (11, 12, '#6affd0')):
+            c.rect(x - 0.5, y, x + 0.5, y + 3, '#d8d0c0', shade=False)
+            c.ellipse(x, y, 2, 1.4, col, shade=False)
+    elif kind == 'mote':
+        for (x, y) in ((4, 4), (11, 9), (7, 13)):
+            c.dot(x, y - 1, '#fff4b0', h=3)
+            c.dot(x - 1, y, '#fff4b0', w=3)
+    elif kind == 'steam':
+        c.rect(5, 12, 11, 15, '#4a4650')
+        for (x, y, r) in ((8, 9, 2.5), (6, 6, 2), (9, 3, 1.6)):
+            c.ellipse(x, y, r, r, (200, 200, 210), shade=False)
+    elif kind == 'brazier':
+        c.rect(6, 10, 10, 15, '#3a2a50')
+        c.rect(5, 9, 11, 10.5, '#5a4a70', shade=False)
+        c.poly([(5.5, 9), (8, 2), (10.5, 9)], '#9a4aff')
+        c.poly([(6.8, 9), (8, 5), (9.2, 9)], '#e0b0ff')
+    return c if kind in ('cobweb', 'mote', 'steam') else _outlined(c)
+
+
+def spire_props():
+    frames = []
+    for glow in (0, 1):  # rune seal, glowing
+        c = _c()
+        c.rect(3, 10, 13, 15, '#3a3448')
+        c.rect(4, 3, 12, 11, '#4a4460')
+        col = '#b07cff' if not glow else '#e0c8ff'
+        c.poly([(8, 4), (11, 7), (8, 10), (5, 7)], col)
+        c.dot(8, 7, '#ffffff' if glow else '#e0c8ff')
+        c.dot(4, 2, col)
+        c.dot(12, 2, col)
+        frames.append(_outlined(c))
+    c = _c()  # broken seal
+    c.rect(3, 10, 13, 15, '#3a3448')
+    c.poly([(4, 10), (6, 4), (9, 6), (7, 10)], '#4a4460')
+    c.poly([(9, 10), (10, 5), (12, 7), (12, 10)], '#4a4460')
+    c.dot(7, 12, '#6a6480', w=2, h=1)
+    frames.append(_outlined(c))
+    for opened in (False, True):  # stairs up
+        c = _c()
+        for i in range(4):
+            c.rect(2 + i, 2 + i * 3, 14 - i, 5 + i * 3, '#6a6080' if i % 2 else '#5a5070')
+        if not opened:
+            for x in range(2, 15, 3):
+                c.line(x, 1, x, 15, '#b07cff', w=0.6)
+            c.ellipse(8, 8, 2.2, 2.2, '#b07cff')
+        else:
+            c.rect(5, 0, 11, 3, '#fff4b0', shade=False)  # light from above
+        frames.append(_outlined(c))
+    for side in (0, 1):  # Umbra's throne (two tiles)
+        c = _c()
+        if side == 0:
+            c.rect(4, 1, 16, 15, '#2a1a3a')
+            c.rect(6, 4, 16, 12, '#5a2a7a')
+            c.poly([(4, 1), (6, -2), (8, 1)], '#b07cff')
+        else:
+            c.rect(0, 1, 12, 15, '#2a1a3a')
+            c.rect(0, 4, 10, 12, '#5a2a7a')
+            c.poly([(8, 1), (10, -2), (12, 1)], '#b07cff')
+        frames.append(_outlined(c))
+    return frames
+
+
 # ─── Battle backdrops ────────────────────────────────────────────────────────
 
 BW, BH = 256, 144
@@ -605,6 +797,12 @@ def build(public: Path) -> list[str]:
         strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'{zid}.png', optimize=True)
         upscale(backdrop(z, 100 + i), 1).save(bdir / f'{zid}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in props()]).save(tdir / 'props.png', optimize=True)
+    for i, (theme, (g, pc, pit, pitc, solid_kind, deco_kind)) in enumerate(SPIRE_THEMES.items()):
+        frames = [spire_ground(g, 40 + i * 5, theme), spire_ground(g, 41 + i * 5, theme), spire_ground(g, 42 + i * 5, theme),
+                  spire_path(pc, theme), spire_pit(pit, pitc, 0), spire_pit(pit, pitc, 1),
+                  spire_solid(solid_kind), spire_deco(deco_kind), exit_marker()]
+        strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'spire-{theme}.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in spire_props()]).save(tdir / 'spire-props.png', optimize=True)
     for style in STYLES:
         strip([upscale(f.image(), 2) for f in town_tiles(style)]).save(tdir / f'town-{style}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in roof_tiles()]).save(tdir / 'roofs.png', optimize=True)
