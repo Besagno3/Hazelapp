@@ -24,7 +24,11 @@ export interface WorldNpcDef {
   id: string;
   name: string;
   sprite: string;
-  /** key into src/content/sprites.ts SPRITES; falls back to `sprite` (emoji) when absent */
+  /**
+   * key into src/content/sprites.ts SPRITES. Defaults to the NPC `id` (the
+   * generated art is keyed by id — see `npcSpriteId`); falls back to `sprite`
+   * (emoji) when neither resolves.
+   */
   spriteId?: string;
   role: NpcRole;
   /** Sages belong to a topic; opens that topic's Sage screen. */
@@ -42,6 +46,11 @@ export interface WorldNpcDef {
    * for ambient life (wandering-NPC pass). Distinct from `lines` (conversation).
    */
   ambient?: string[];
+}
+
+/** The sprite-manifest key for an NPC (explicit `spriteId`, else its id). */
+export function npcSpriteId(def: WorldNpcDef): string {
+  return def.spriteId ?? def.id;
 }
 
 /** Which service overlay (if any) talking to this role opens after dialogue. */

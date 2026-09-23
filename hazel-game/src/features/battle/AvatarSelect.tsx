@@ -1,13 +1,17 @@
 import { motion } from 'framer-motion';
 import { AVATARS, STYLE_DESC } from '../../content/avatars';
+import { resolveSprite } from '../../content/sprites';
+import { SpriteSheet } from './SpriteSheet';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 import type { Avatar } from '../../types';
+import { sfx } from '../../lib/audio';
 
 export default function AvatarSelect() {
   const update = useSaveStore((s) => s.update);
 
   function handlePick(avatar: Avatar) {
+    sfx('select');
     // Write the choice into the save first — the machine's CHOOSE_AVATAR
     // guard reads it before letting the player into the world. Flush right
     // away so the choice reaches other devices even if this tab dies before
@@ -40,7 +44,13 @@ export default function AvatarSelect() {
             onClick={() => handlePick(a)}
             className="bg-white rounded-2xl p-6 shadow-xl text-center w-44"
           >
-            <div className="text-6xl mb-3">{a.sprite}</div>
+            <div className="text-6xl mb-3 flex justify-center">
+              <SpriteSheet
+                view={resolveSprite(a.spriteId, a.sprite).def?.battle ?? null}
+                emoji={a.sprite}
+                scale={3}
+              />
+            </div>
             <h3 className="font-bold text-lg text-violet-700">{a.name}</h3>
             <p className="text-xs text-gray-400 mt-1 capitalize">{a.fightStyle}</p>
             <p className="text-xs text-gray-500 mt-2">{STYLE_DESC[a.fightStyle]}</p>

@@ -28,6 +28,7 @@ import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { SpriteSheet } from './SpriteSheet';
 import { resolveSprite } from '../../content/sprites';
+import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
 import { HUB_ZONE } from '../../content/zones';
 import { useBattleStore } from '../../store/battleStore';
@@ -203,6 +204,7 @@ export default function BattleArena() {
     if (!heroLunge) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack/hurt flag for the lunge animation window
     setHeroActing(true);
+    sfx('attack'); // every hero lunge (attack / spell) gets the swoosh
     const t = setTimeout(() => setHeroActing(false), 520);
     return () => clearTimeout(t);
   }, [heroLunge]);
@@ -492,6 +494,19 @@ export default function BattleArena() {
 
   return (
     <div className={`min-h-screen flex flex-col bg-gradient-to-b ${info.skyGradient} overflow-hidden relative`}>
+      {/* 16-bit zone backdrop (the sky gradient stays underneath as a fallback) */}
+      {enemy && (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${battleBackdrop(enemy.zoneId)})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center bottom',
+            imageRendering: 'pixelated',
+          }}
+        />
+      )}
       {/* Parallax backdrop + pseudo-3D ground plane */}
       <div className="absolute inset-x-0 bottom-0 h-[46%] pointer-events-none">
         <div className="absolute -top-10 left-[8%] w-52 h-24 bg-black/20 rounded-full blur-md" />

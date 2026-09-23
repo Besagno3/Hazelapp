@@ -48,7 +48,7 @@ existing architecture.
   (parent dashboard, settings, leaderboard).
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
-  placeholder programmer art now, CC0 packs later. See `docs/DESIGN-JRPG.md` §6.
+  generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
 
 ## Architecture
 
@@ -182,6 +182,35 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-23 — 16-bit asset set: sprites, tiles, backdrops, chiptune audio (#71)
+The placeholder emoji and flat-colour tiles are gone: a deterministic
+generator in **`tools/assets/`** (Python: Pillow + NumPy + lameenc;
+`python3 tools/assets/build.py`) produces a cohesive SNES-style set.
+- **Characters** (`characters.py`): parametric pixel drawers (humanoid,
+  beast, blob, flyer, golem, dragon, spirit…) with auto 3-tone hue-shifted
+  shading + selective outlines. Every hero, Ember stage, enemy (incl. bosses
+  at 1.5×) and NPC gets `public/sprites/<id>/world.png` (16px art at 2×:
+  idle + 4-frame walk) and combatants also `battle.png` (32px: idle / attack
+  / hurt). All face right (world flips, battle mirrors the hero via CSS).
+  The manifest is written to `src/content/sprites.generated.ts` and spread
+  into `SPRITES`. `spawnEnemy` and new `npcSpriteId()` default `spriteId` to
+  the def id; avatars got `blaze` / `shield` / `nova`.
+- **Environment** (`tiles.py`, `src/content/tiles.ts`): one 9-frame tileset
+  per zone (ground ×3, path, animated water ×2, solid, deco, exit), a props
+  strip (glowing save crystal, chest closed/open, gate), a 32×64 Spire tower,
+  and a 256×144 battle backdrop per zone. `WorldCanvas` now draws tiles from
+  these sprites (`TILE_FRAME` / `PROP_FRAME` keep generator ↔ renderer in
+  sync); `loadWorldSprites` registers them. `BattleArena` layers the zone
+  backdrop over the sky gradient.
+- **Audio** (`audio.py`): chiptune synth (pulse / 4-bit triangle / noise,
+  SNES-ish echo) → `public/audio/16bit/{sfx,music}/*.mp3` (32 kHz mono).
+  All 9 SFX + 7 seamless music loops; `lib/audio.ts` points at them (old
+  mp3s stay in `public/audio/` for easy swap-back). `attack` (hero lunge) and
+  `select` (hero pick) are now wired.
+- Wanderers play walk/idle and face their heading; hero cards on
+  `AvatarSelect` show the animated battle sprite.
+- 252 tests green (was 241); lint + build clean. Follow-ups in ISSUES #71.
 
 ### 2026-07-07 — Fix edge-function deploy: self-contained again (#67)
 A live deploy failed with `Module not found "_shared/topics.ts"` — the

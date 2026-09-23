@@ -3,12 +3,13 @@ import kaplay from 'kaplay';
 import type { MutableRefObject } from 'react';
 import { TILE, WALKABLE_CHARS, pathTargetId, gateFlag, gateIdAt, zone } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
-import { NPC_DEFS } from '../../content/npcs';
+import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
 import { loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
+import { PROPS_KEY, PROP_FRAME, SPIRE_KEY, TILE_FRAME, groundVariant, tilesetKey } from '../../content/tiles';
 import {
   npcWanders,
   pickWanderDir,
@@ -64,7 +65,7 @@ export interface WorldCanvasCallbacks {
  * Renders one zone of Lumina on a KaPlay canvas (#37, supersedes the #36
  * single-screen MVP). Tile-grid collision, bump-to-interact NPCs/gates/
  * chests/crystals, walk-into enemies to battle, edge exits between zones.
- * Placeholder "programmer art": colored tiles + emoji decorations.
+ * 16-bit tile art from the zone's generated tileset (`content/tiles.ts`).
  *
  * KaPlay teardown is fragile: its app state (`a`) is a module-level singleton,
  * and `quit()` is deferred to frame-end and never clears the singleton. So
@@ -190,10 +191,18 @@ export default function WorldCanvas({
     // Clear the previous zone's objects before drawing this one ("*" = all).
     k.destroyAll('*');
 
-    // Repaint the ground for this zone (init only set the first zone's color).
+    // Ground fill under everything (also covers any sub-pixel canvas edge).
     k.add([k.rect(W, H), k.pos(0, 0), k.color(...z.ground), k.z(-100)]);
 
     // --- Tiles -------------------------------------------------------------
+    // Every cell gets an opaque base (ground / path / water), then overlays
+    // (scenery, flowers, exits, props) are layered on top. Frame indices come
+    // from `TILE_FRAME` / `PROP_FRAME` so the generator and renderer agree.
+    const tiles = tilesetKey(zoneId);
+    const tile = (frame: number, px: number, py: number, z = -50) =>
+      k.add([k.sprite(tiles, { frame }), k.pos(px, py), k.z(z)]);
+    const prop = (frame: number, px: number, py: number) =>
+      k.add([k.sprite(PROPS_KEY, { frame }), k.pos(px, py), k.z(-10)]);
     const chestSprites = new Map<string, ReturnType<typeof k.add>>();
     const gateSprites = new Map<string, ReturnType<typeof k.add>[]>();
     for (let y = 0; y < rows; y++) {
@@ -201,44 +210,35 @@ export default function WorldCanvas({
         const ch = z.map[y][x];
         const px = x * TILE;
         const py = y * TILE;
-        if (ch === '=') {
-          k.add([k.rect(TILE, TILE), k.pos(px, py), k.color(...z.path)]);
+        if (ch === '=' || ch === 'E') {
+          tile(TILE_FRAME.path, px, py);
         } else if (ch === '~') {
-          k.add([k.rect(TILE, TILE), k.pos(px, py), k.color(70, 120, 200)]);
-        } else if (ch === '#') {
-          k.add([k.rect(TILE, TILE), k.pos(px, py), k.color(...z.ground)]);
-          k.add([k.text(z.solidEmoji, { size: 26 }), k.pos(px + TILE / 2, py + TILE / 2), k.anchor('center')]);
+          const water = tile(TILE_FRAME.water[0], px, py);
+          (water as unknown as { play: (n: string) => void }).play('water');
+        } else {
+          tile(groundVariant(x, y), px, py);
+        }
+        if (ch === '#') {
+          tile(TILE_FRAME.solid, px, py, -40);
         } else if (ch === ',') {
-          k.add([k.text(z.decoEmoji, { size: 14 }), k.pos(px + TILE / 2, py + TILE / 2), k.anchor('center')]);
+          tile(TILE_FRAME.deco, px, py, -40);
+        } else if (ch === 'E') {
+          tile(TILE_FRAME.exit, px, py, -40);
         } else if (ch === 'S') {
-          k.add([k.text('💎', { size: 24 }), k.pos(px + TILE / 2, py + TILE / 2), k.anchor('center')]);
+          const crystal = prop(PROP_FRAME.crystal[0], px, py);
+          (crystal as unknown as { play: (n: string) => void }).play('glow');
         } else if (ch === 'C') {
           const id = pathTargetId(zoneId, 'chest', x, y);
-          const sprite = k.add([
-            k.text(chestsRef.current.includes(id) ? '🎉' : '🎁', { size: 24 }),
-            k.pos(px + TILE / 2, py + TILE / 2),
-            k.anchor('center'),
-          ]);
+          const sprite = prop(chestsRef.current.includes(id) ? PROP_FRAME.chestOpen : PROP_FRAME.chestClosed, px, py);
           chestSprites.set(id, sprite);
         } else if (ch === 'G') {
           const id = gateIdAt(zoneId, z.map, x, y);
           if (!flagsRef.current[gateFlag(id)]) {
-            const sprite = k.add([
-              k.text('🚧', { size: 26 }),
-              k.pos(px + TILE / 2, py + TILE / 2),
-              k.anchor('center'),
-            ]);
+            const sprite = prop(PROP_FRAME.gate, px, py);
             const group = gateSprites.get(id);
             if (group) group.push(sprite);
             else gateSprites.set(id, [sprite]);
           }
-        } else if (ch === 'E') {
-          k.add([k.rect(TILE, TILE), k.pos(px, py), k.color(...z.path)]);
-          k.add([
-            k.text('✨', { size: 18 }),
-            k.pos(px + TILE / 2, py + TILE / 2),
-            k.anchor('center'),
-          ]);
         }
       }
     }
@@ -290,10 +290,20 @@ export default function WorldCanvas({
       homeY: number;
       leash: number;
       speed: number;
+      /** The anchor is a sprite with idle/walk anims (not an emoji). */
+      sprite?: boolean;
     }
     function attachWander(anchor: WorldActor, o: WanderOpts) {
       let dir = { x: 0, y: 0 };
       let timer = 0.3 + Math.random() * 1.2;
+      // Sprite wanderers play their walk cycle and face their heading.
+      const spr = o.sprite ? (anchor as unknown as { play: (n: string) => void; flipX: boolean }) : null;
+      let walking = false;
+      const setWalking = (w: boolean) => {
+        if (!spr || w === walking) return;
+        walking = w;
+        spr.play(w ? 'walk' : 'idle');
+      };
       anchor.onUpdate(() => {
         if (pausedRef.current || triggered) return;
         const dt = k.dt();
@@ -307,6 +317,8 @@ export default function WorldCanvas({
             dir = pickWanderDir(Math.random);
           }
           timer = dir.x || dir.y ? 0.6 + Math.random() : 0.7 + Math.random() * 1.6;
+          if (spr && dir.x) spr.flipX = dir.x < 0;
+          setWalking(!!(dir.x || dir.y));
         }
         if (!dir.x && !dir.y) return;
         const nx = o.actor.x + dir.x * o.speed * dt;
@@ -327,6 +339,7 @@ export default function WorldCanvas({
         ) {
           dir = { x: 0, y: 0 };
           timer = 0.2 + Math.random() * 0.5;
+          setWalking(false);
           return;
         }
         const ddx = c.x - o.actor.x;
@@ -399,15 +412,11 @@ export default function WorldCanvas({
     if (z.spire) {
       const px = z.spire.x * TILE + TILE / 2;
       const py = z.spire.y * TILE + TILE / 2;
-      const tower = k.add([
-        k.text('🗼', { size: 40 }),
-        k.pos(px, py - 6),
-        k.anchor('center'),
-        k.z(7),
-      ]);
+      // 32×64 tower sprite: its base sits on the Spire tile, the crystal floats.
+      const tower = k.add([k.sprite(SPIRE_KEY), k.pos(px, py - 16), k.anchor('center'), k.z(7)]);
       tower.onUpdate(() => {
         if (pausedRef.current) return;
-        (tower as unknown as { pos: { y: number } }).pos.y = py - 6 + Math.sin(k.time() * 2) * 2;
+        (tower as unknown as { pos: { y: number } }).pos.y = py - 16 + Math.sin(k.time() * 2) * 1.5;
       });
       k.add([
         k.text('The Spire', { size: 10 }),
@@ -424,7 +433,9 @@ export default function WorldCanvas({
       const py = p.y * TILE + TILE / 2;
       // All visual pieces move together when the NPC wanders.
       const parts: Part[] = [];
-      if (!resolveSprite(def.spriteId, def.sprite).def?.world) {
+      const spriteId = npcSpriteId(def);
+      const npcHasSprite = !!resolveSprite(spriteId, def.sprite).def?.world;
+      if (!npcHasSprite) {
         const token = k.add([
           k.rect(30, 30, { radius: 6 }),
           k.color(255, 245, 215),
@@ -434,7 +445,7 @@ export default function WorldCanvas({
         ]);
         parts.push(token as unknown as Part);
       }
-      const face = worldFace(k, { spriteId: def.spriteId, emoji: def.sprite, x: px, y: py, size: 22 })
+      const face = worldFace(k, { spriteId, emoji: def.sprite, x: px, y: py, size: 22 })
         .obj as unknown as WorldActor;
       parts.push(face);
       const label = k.add([
@@ -462,6 +473,7 @@ export default function WorldCanvas({
           homeY: py,
           leash: TILE * WANDER_TUNING.npc.leashTiles,
           speed: WANDER_TUNING.npc.speed,
+          sprite: npcHasSprite,
         });
       }
       if (def.ambient?.length) attachAmbient(face, def.ambient);
@@ -531,6 +543,7 @@ export default function WorldCanvas({
           homeY: py,
           leash: TILE * WANDER_TUNING.enemy.leashTiles,
           speed: WANDER_TUNING.enemy.speed,
+          sprite: enemyHasSprite,
         });
       }
     }
@@ -757,7 +770,7 @@ export default function WorldCanvas({
       }
       for (const [id, sprite] of chestSprites) {
         if (chestsRef.current.includes(id) && sprite.exists()) {
-          (sprite as unknown as { text: string }).text = '🎉';
+          (sprite as unknown as { frame: number }).frame = PROP_FRAME.chestOpen;
           chestSprites.delete(id);
         }
       }

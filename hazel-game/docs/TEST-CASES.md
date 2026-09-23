@@ -275,6 +275,24 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-251 | M | ⬜ | battle | cast an offensive spell as the first hit on a shielded enemy: the shield shatters, 0 damage, and the spell's charge is refunded (message says so) — a correct super-hard answer never costs more than a free glancing blow |
 | TC-252 | M | ⬜ | battle | shatter a shielded enemy's shield, Flee, re-engage the same enemy: shield state resets correctly on the fresh instance (no phantom shield, no pre-shattered start) |
 
+## 16-bit asset set (#71)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-254 | U | ✅ | sprites | every manifest sheet exists in `public/` and its PNG is exactly `frames × frameW` wide and `frameH` tall (sprites.test) |
+| TC-255 | U | ✅ | sprites | every hero resolves world (idle+walk) and battle (idle+attack+hurt) art (sprites.test) |
+| TC-256 | U | ✅ | sprites | every enemy def resolves world + battle art via `spawnEnemy` (`spriteId` defaults to the def id) (sprites.test) |
+| TC-257 | U | ✅ | sprites | every NPC resolves world art via `npcSpriteId`; every Ember stage has world + battle art (sprites.test) |
+| TC-258 | U | ✅ | tiles | every zone has a `TILESET_FRAMES`×32px tileset strip and a battle backdrop; props strip + 32×64 Spire tower sizes (tiles.test) |
+| TC-259 | U | ✅ | tiles | `TILE_FRAME` indices stay inside the strip; `groundVariant` is deterministic and always a ground frame (tiles.test) |
+| TC-260 | U | ✅ | audio | every `SFX_SOURCES` / `MUSIC_SOURCES` path points at a shipped file (audio.test) |
+| TC-261 | M | ✅ | WorldCanvas | zones render from tilesets (ground/path/water/scenery/deco/exit), save crystal glows, chests + gates are prop sprites, Spire is the tower sprite (verified in headless Chromium: Verdara, Lumina Field, Crystal Spire, Starfall Coast) |
+| TC-262 | M | ⬜ | WorldCanvas | open a chest → it swaps to the open-chest frame; answer a gate → both gate tiles vanish |
+| TC-263 | M | ⬜ | WorldCanvas | wandering NPCs/enemies play their walk cycle and face their heading; idle when stopped |
+| TC-264 | M | ✅ | BattleArena | battle shows the zone's pixel backdrop behind the combatants; enemy + hero sprites animate (verified in a harness) |
+| TC-265 | M | ⬜ | audio | with Music + Sound on: title/overworld/battle/boss/spire/final-boss tracks loop; correct/wrong/attack/hit/gate/chest/levelup/victory/select SFX fire at sensible relative volumes |
+| TC-266 | M | ⬜ | AvatarSelect | hero cards show the animated battle sprite; picking a hero plays `select` |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

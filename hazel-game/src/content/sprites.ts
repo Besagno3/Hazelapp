@@ -1,4 +1,5 @@
 import type { SpriteAnim } from '../lib/spriteAnim';
+import { GENERATED_SPRITES } from './sprites.generated';
 
 /**
  * One rendered view of a character. Convention: a single PNG whose frames are
@@ -27,9 +28,10 @@ export interface SpriteDef {
 
 /**
  * Sprite manifest — the single source of truth for character art.
- * Empty until the asset-production task populates the Verdara slice.
+ * Populated from the generated 16-bit set (`tools/assets/build.py` writes
+ * `sprites.generated.ts`); hand-sourced art can override an id here.
  */
-export const SPRITES: Record<string, SpriteDef> = {};
+export const SPRITES: Record<string, SpriteDef> = { ...GENERATED_SPRITES };
 
 /** Look up a character's sprite def, with an emoji fallback. */
 export function resolveSprite(

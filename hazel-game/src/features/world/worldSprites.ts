@@ -9,6 +9,19 @@
 import kaplay from 'kaplay';
 import type { SpriteAnim } from '../../lib/spriteAnim';
 import { SPRITES, resolveSprite } from '../../content/sprites';
+import { ZONE_IDS } from '../../content/zones';
+import {
+  PROPS_FRAMES,
+  PROPS_KEY,
+  PROPS_SHEET,
+  PROP_FRAME,
+  SPIRE_KEY,
+  SPIRE_SHEET,
+  TILESET_FRAMES,
+  TILE_FRAME,
+  tilesetKey,
+  tilesetSheet,
+} from '../../content/tiles';
 
 /** Derive KaPlay context / object types without relying on named exports. */
 type KaplayCtx = ReturnType<typeof kaplay>;
@@ -37,7 +50,8 @@ export function toKaplayAnims(
 // ─── KaPlay wrappers ──────────────────────────────────────────────────────────
 
 /**
- * Register every sprite sheet in the SPRITES manifest with KaPlay.
+ * Register every sprite sheet in the SPRITES manifest, plus the zone
+ * tilesets / props / Spire tower, with KaPlay.
  * Call this exactly once, immediately after `kaplay()` is created, before any
  * scene is drawn.
  */
@@ -50,6 +64,20 @@ export function loadWorldSprites(k: KaplayCtx): void {
       anims: toKaplayAnims(def.world.anims),
     });
   }
+  // 16-bit environment art: one tileset strip per zone + shared props.
+  for (const id of ZONE_IDS) {
+    k.loadSprite(tilesetKey(id), tilesetSheet(id), {
+      sliceX: TILESET_FRAMES,
+      sliceY: 1,
+      anims: { water: { from: TILE_FRAME.water[0], to: TILE_FRAME.water[1], loop: true, speed: 2 } },
+    });
+  }
+  k.loadSprite(PROPS_KEY, PROPS_SHEET, {
+    sliceX: PROPS_FRAMES,
+    sliceY: 1,
+    anims: { glow: { from: PROP_FRAME.crystal[0], to: PROP_FRAME.crystal[1], loop: true, speed: 2 } },
+  });
+  k.loadSprite(SPIRE_KEY, SPIRE_SHEET);
 }
 
 /** Options for `worldFace`. */

@@ -100,7 +100,8 @@ export function spawnEnemy(
     instanceId: `${zoneId}:${placementKey}`,
     name,
     sprite: def.sprite,
-    spriteId: def.spriteId,
+    // Generated art is keyed by the def id; an explicit spriteId overrides.
+    spriteId: def.spriteId ?? def.id,
     topic: def.topic,
     level,
     maxHp: (def.isBoss ? BOSS_HP_BASE : HP_BASE) + level * def.hpPerLevel,
