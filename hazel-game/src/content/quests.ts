@@ -314,7 +314,7 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
           return {
             ...s,
             coins: s.coins + coins,
-            items: { potion: s.items.potion + potion, hint: s.items.hint + hint },
+            items: { ...s.items, potion: s.items.potion + potion, hint: s.items.hint + hint },
             questItems: quest.givesItem
               ? s.questItems.filter((i) => i !== quest.givesItem)
               : s.questItems,

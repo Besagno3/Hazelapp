@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
-import { SHOP_CATALOG, LIBRARY_XP, type ShopItem } from '../../content/items';
+import { CONSUMABLE_IDS, LIBRARY_XP, shopFor, type ConsumableId, type ShopItem } from '../../content/items';
 import { SAGES } from '../../content/abilities';
 import { NPC_DEFS } from '../../content/npcs';
 import { useSaveStore } from '../../store/saveStore';
@@ -30,7 +30,7 @@ export default function ServiceOverlay({
         animate={{ scale: 1, opacity: 1 }}
         className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-6 w-full max-w-xl text-white shadow-2xl max-h-[85vh] overflow-y-auto"
       >
-        {service === 'shop' && <Shop />}
+        {service === 'shop' && <Shop npcId={npcId} />}
         {service === 'inn' && <Inn />}
         {service === 'library' && <Library />}
         {service === 'sage' && <Sage npcId={npcId} />}
@@ -45,16 +45,22 @@ export default function ServiceOverlay({
   );
 }
 
-function Shop() {
+const isConsumable = (id: ShopItem['id']): id is ConsumableId =>
+  (CONSUMABLE_IDS as readonly string[]).includes(id);
+
+/** Each merchant runs their own store (content/items.ts `SHOPS`, #73). */
+function Shop({ npcId }: { npcId: string | null }) {
   const save = useSaveStore((s) => s.save);
   const update = useSaveStore((s) => s.update);
-  if (!save) return null;
+  const shop = shopFor(npcId);
+  if (!save || !shop) return null;
 
   function buy(item: ShopItem) {
     update((s) => {
       if (s.coins < item.price) return s;
-      if (item.id === 'potion') return { ...s, coins: s.coins - item.price, items: { ...s.items, potion: s.items.potion + 1 } };
-      if (item.id === 'hint') return { ...s, coins: s.coins - item.price, items: { ...s.items, hint: s.items.hint + 1 } };
+      if (isConsumable(item.id)) {
+        return { ...s, coins: s.coins - item.price, items: { ...s.items, [item.id]: s.items[item.id] + 1 } };
+      }
       if (s.badges.includes(item.id)) return s;
       return { ...s, coins: s.coins - item.price, badges: [...s.badges, item.id] };
     });
@@ -62,13 +68,14 @@ function Shop() {
 
   return (
     <div>
-      <h2 className="text-xl font-extrabold mb-1">🛒 Shop</h2>
+      <h2 className="text-xl font-extrabold mb-1">
+        {shop.emoji} {shop.name}
+      </h2>
       <p className="text-sm text-amber-300 mb-4">Your coins: 🪙 {save.coins}</p>
       <div className="space-y-2">
-        {SHOP_CATALOG.map((item) => {
+        {shop.items.map((item) => {
           const owned = item.id.startsWith('badge:') && save.badges.includes(item.id);
-          const count =
-            item.id === 'potion' ? save.items.potion : item.id === 'hint' ? save.items.hint : null;
+          const count = isConsumable(item.id) ? save.items[item.id] : null;
           const affordable = save.coins >= item.price;
           return (
             <div key={item.id} className="flex items-center gap-3 bg-white/10 rounded-xl p-3">

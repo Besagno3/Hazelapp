@@ -48,7 +48,7 @@ existing architecture.
   (parent dashboard, settings, leaderboard).
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
-  placeholder programmer art now, CC0 packs later. See `docs/DESIGN-JRPG.md` §6.
+  generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
 
 ## Architecture
 
@@ -66,7 +66,8 @@ existing architecture.
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
   resolves all seven, #33/#55), `zones.ts` (11 ASCII tile maps: Lumina Field
-  hub + 4 crystal zones + Village (safe) + 3 themed combat zones + the hidden
+  hub + 4 crystal zones + Village (safe, a scrolling 2×2-screen town with
+  enterable buildings) + 3 themed combat zones + the hidden
   Moonwell Grove + the Crystal Spire; `ZONE_IDS` is the zone-id source of
   truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
@@ -90,7 +91,9 @@ existing architecture.
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
   key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
-  opened by bumping the Spire icon — the all-crystals-gated endgame). `TouchPad`
+  opened by bumping the Spire icon — the all-crystals-gated endgame; its five
+  floors are walkable themed maps drawn by `WorldCanvas`, state in
+  `spireStore`, #74). `TouchPad`
   is the mobile d-pad.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Guard / Potion / Flee, every command resolved by
@@ -182,6 +185,188 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-23 — Spire review fixes: softlock, leave button, double-tap (#74)
+Code review of the Spire climb; all four findings fixed:
+- **Softlock (high):** a short question batch (the edge function can return
+  fewer than asked) left a seal with no question — the bump paused the hero
+  and resolved straight back to 'explore', and `setExploring` only re-ran on a
+  phase-*kind* change, so the hero froze and the stairs could never open.
+  `loadFloor` now treats `pool < floor.questions` as the retryable error
+  ("only N of M riddles…"), and exploring follows every phase change.
+- **Dead Menu / no way out (medium):** the world HUD's Menu button was live
+  mid-climb but `world.spire` ignores `OPEN_MENU`. It's hidden during the
+  climb, and the Spire HUD gains **🚪 Leave the Spire** — back to the door,
+  keeping XP earned so far and queueing misses for the Library.
+- **Double-tap skip (low):** message panels ignore clicks for 250ms after
+  opening, so a double-tap can't skip the next panel (e.g. a floor's taunt).
+- `loseCandle` no longer returns an unused boolean.
+301 tests green; lint + build clean; each fix verified in headless Chromium.
+
+### 2026-09-23 — The Spire becomes five walkable, spooky floors (#74)
+Each Spire floor is now a themed map the hero explores instead of a bare list
+of questions.
+- **Floors (`content/spire.ts`):** `SPIRE_FLOOR_MAPS` — 22×14 maps per theme:
+  the Whispering Stair (dusty archive: shelf stacks, cobwebs, a pit of lost
+  pages), the Overgrown Landing (dead trees, glow-shrooms, a murky pool), the
+  Star Gallery (void pits full of stars, broken telescopes), the Engine Vault
+  (gear walls, conveyor belts, oil pits) and the Forgotten Throne (obsidian
+  hall, purple carpet, Umbra on his throne). New map chars: `Q` rune seal
+  (bump → one of the floor's questions), `U` stairs (open once every seal is
+  broken), `Y` throne. `floorZone()` renders a floor through `WorldCanvas`
+  (borrowing the `crystal-spire` id, own `tileset`); `floorWards` /
+  `floorSpawnPx` helpers. Each floor names its `theme` + `music`.
+- **Climb engine:** new `store/spireStore.ts` bridges the canvas and the
+  overlay (floor, broken seals, candles, pending bump). `WorldCanvas` draws
+  seals/stairs/throne props, Umbra (new boss sprite) and a candle-light
+  darkness layer whose circle narrows per lost candle; it reports bumps via
+  `onWard` / `onStairs` / `onUmbra`. `WorldScreen` shows the floor map,
+  unpauses the world only while exploring, and never saves floor positions.
+  `SpireOverlay` is now a slim HUD while exploring and opens question /
+  story panels on bumps (bump handling via a store subscription). Rules are
+  unchanged: wrong answers snuff candles, running out casts you back to the
+  field; the throne floor's Umbra gauntlet keeps the 5-question boss run.
+- **Spooky music (`tools/assets/audio.py` `compose_spooky`):** detuned organ
+  drone, music-box melody with long echo, heartbeat bass, tritone bells, plus a
+  per-floor flavour (clock ticks / wind / star glitter / clanking gears) —
+  `spireArchive` / `spireThicket` / `spireStars` / `spireEngine`, and the
+  `spire` theme (intro + throne hall) regenerated spooky. `finalBoss` still
+  takes over once the Umbra fight starts.
+- **Art:** `/tiles/spire-<theme>.png` ×5, `/tiles/spire-props.png` (glowing /
+  broken seals, sealed / open stairs, throne), Umbra sprite (world + battle).
+- Tests: spire.test (themes + music unique, maps one screen + legend-only,
+  one seal per question, seals/stairs/Umbra reachable), spireStore.test,
+  tiles.test (Spire sheets). 301 tests green; lint + build clean. Played
+  through in headless Chromium with mocked questions (real seal bump, a lost
+  candle, all five floors, Umbra's challenge).
+
+### 2026-09-23 — Second place to buy Berry Potions (#73 follow-up)
+Berry Potions are now also sold at Tadpole's Tonics in Verdara (same 30-coin
+price as Maple's Trading Post on Lumina Field), so heroes away from the field
+can restock. The one-seller rule stays for everything else: new
+`SHARED_STOCK` (items.ts) lists the staples allowed exactly two sellers, and
+items.test enforces both rules plus equal pricing. `ALL_SHOP_ITEMS` is now
+de-duplicated. Trader Tadpole's greeting updated to match his stock. 290 tests
+green; lint + build clean.
+
+### 2026-09-23 — Every place unique: one of each service, own shops, own architecture (#73)
+No more duplicated services — each place has its own layout, buildings and stores.
+- **One of each service:** the only Inn is the Sleepy Sheep Inn in Lumina
+  Village (Innkeeper Poppy moved in; id `hub-innkeeper` kept); the only
+  Library is the Lumina Library on Lumina Field (Librarian Sage). The
+  duplicate village innkeeper/librarian were removed; the town's library
+  became Lantern-Keeper Sol's Lantern Workshop.
+- **Unique stores (`content/items.ts`):** `SHOP_CATALOG` → `SHOPS` keyed by
+  merchant id; every item is sold in exactly one shop. Maple's Trading Post
+  (field): Berry Potion · Plus's Quill & Count (Numbria): Hint Feather ·
+  Tadpole's Tonics (Verdara): Honey Elixir · Volt's Gadgets (Gearfall): Spark
+  Cell · Swirl's Paint & Charms (Chromaria): Rainbow Ward · Clove's Curios
+  (village): collectible badges — plus a signature badge in each. (Berry
+  Potions later gained a second seller — see the follow-up entry above.)
+- **New battle items:** Honey Elixir (full heal), Spark Cell (+2 ◆ charge),
+  Rainbow Ward (blocks the next enemy hit). `CONSUMABLE_IDS` drives the save
+  (`SaveData.items` is now `Record<ConsumableId, number>`; older saves
+  default new slots to 0 — no version bump needed). Battle **Potion** command
+  → **🎒 Items** menu (`BATTLE_ITEMS`; each use spends the turn, with
+  "HP is full" / "Charge is full" / "Already warded" guards).
+- **Unique layouts + buildings:** Lumina Field redrawn around the Library and
+  Trading Post; Numbria + Chromaria gained an east district, Verdara +
+  Gearfall a south district (each: a Sage hall + the merchant's shop, Numbria
+  also a Counting House); the Woods (Spellwright's Hut), Coast (Vela's
+  Observatory) and Depths (Cricket's Tinkery) each gained a signature
+  building. All chest / gate / key-gate / save-crystal coordinates are
+  unchanged (saves + quests stay valid); moved exits and inbound spawns
+  updated. Every merchant, sage, innkeeper and librarian now works indoors.
+- **Architecture styles:** `BuildingDef.style` — cottage (field), timber
+  (town), stone (Numbria), leaf (Verdara), brass (Gearfall), paint
+  (Chromaria), log (Woods), driftwood (Coast), cave (Depths); one tile sheet
+  each (`/tiles/town-<style>.png`), 12 roof colours, new sage/tools/star
+  signs.
+- New tests: items.test (each item sold once, every merchant has a shop,
+  save slots), zones.test (one Inn + one Library, service NPCs indoors, one
+  style per place, unique building names), tiles.test (every style sheet).
+  288 tests green; lint + build clean. Verified in headless Chromium (all 9
+  places, a shop interior, two shop screens).
+
+### 2026-09-23 — Zelda-style screen slide between zones
+Leaving a zone by an edge exit now slides screens instead of hard-cutting:
+`WorldCanvas` snapshots the outgoing frame (`k.screenshot()`), the new zone
+builds in the canvas shifted one viewport away, then both move together
+(`SLIDE_MS` = 480ms, linear) — heading east the old screen leaves left and the
+new one arrives from the right, etc. The hero's update loop is frozen for the
+slide (`slidingRef`, which also re-arms the trigger cooldown on arrival);
+wanderers keep moving. Pure `lib/transition.ts`: `exitSide` (which map edge an
+exit is on) + `slideFrom` (entry vector). Respects `prefers-reduced-motion`
+(instant cut). A safety timeout clears the slide if the zone never changes.
+New zones.test invariant: every exit sits on a map edge. 275 tests green;
+lint + build clean; verified in headless Chromium (west, north, into the town).
+
+### 2026-09-23 — Lumina Village becomes a scrolling town with enterable buildings (#72)
+- **Town map:** the village is now 44×28 (2×2 screens) — avenues, a plaza
+  with the save crystal and fountain, hedges, and four buildings: Item Shop
+  (Shopkeep Clove, merchant), Inn (Innkeeper Bess), Library (Archivist
+  Quill) and Grandmother Wick's house. Inbound exits in the field / woods /
+  coast / grove / spire now land on the new town coordinates.
+- **Buildings (`zones.ts`):** new legend chars `W` wall, `D` door, `F` floor,
+  `K` counter, `B` shelf, `T` table, `Z` bed, and `ZoneDef.buildings`
+  (`BuildingDef` rect + roof colour + sign). Helpers `buildingAt` (footprint)
+  and `buildingInside` (interior). Outside, a nine-slice roof + name label
+  covers every row but the facade; stepping inside fades that roof away
+  (`ROOF_FADE`). Bumping a counter talks to the NPC behind it. Wanderers
+  never cross a building wall (townsfolk stay outside, clerks inside).
+- **Camera:** the KaPlay canvas is a fixed one-screen viewport (`VIEW_COLS`
+  × `VIEW_ROWS`); maps larger than that scroll with `setCamPos` via pure
+  `lib/camera.ts` `camAxis` (clamped to the map; single-screen zones don't
+  move).
+- **Old saves:** `safeSpawn` drops a saved position that's no longer walkable
+  (e.g. inside a new wall) back to the zone spawn.
+- **Art:** `tools/assets/tiles.py` adds `public/tiles/town.png` (walls,
+  facades with windows, door, floor, counter, shelf, table, bed, 4 signs) and
+  `roofs.png` (4 colours × 9-slice); a hedge border for the town; 3 new NPC
+  sprites.
+- 271 tests green (was 258); lint + build clean. Verified in headless
+  Chromium: roof on/off at the shop + house, camera scroll, counter talk.
+
+### 2026-09-23 — 4-way facing for world characters (#71 follow-up)
+World sheets now carry three views (18 frames): side (0-5, drawn facing
+right, `flipX` for left), down/toward camera (6-11) and up/away (12-17),
+each idle ×2 + walk ×4 — anims `idle/walk`, `idleDown/walkDown`,
+`idleUp/walkUp`. Generator: new `humanoid_fb` / `dragon_fb` front+back
+drawers; blobs, jellies, ghosts, golems, gears and hourglasses re-aim or hide
+their faces; other creatures reuse their side art. New pure `lib/facing.ts`
+(`facingFor` — dominant axis wins, diagonals favour side, standing still
+keeps the last facing; `animFor` — falls back to side anims, then `idle`,
+for sheets without a view). `WorldCanvas` drives the hero (spawns facing
+down), wanderers and Ember with it. 258 tests green; lint + build clean.
+
+### 2026-09-23 — 16-bit asset set: sprites, tiles, backdrops, chiptune audio (#71)
+The placeholder emoji and flat-colour tiles are gone: a deterministic
+generator in **`tools/assets/`** (Python: Pillow + NumPy + lameenc;
+`python3 tools/assets/build.py`) produces a cohesive SNES-style set.
+- **Characters** (`characters.py`): parametric pixel drawers (humanoid,
+  beast, blob, flyer, golem, dragon, spirit…) with auto 3-tone hue-shifted
+  shading + selective outlines. Every hero, Ember stage, enemy (incl. bosses
+  at 1.5×) and NPC gets `public/sprites/<id>/world.png` (16px art at 2×:
+  idle + 4-frame walk) and combatants also `battle.png` (32px: idle / attack
+  / hurt). All face right (world flips, battle mirrors the hero via CSS).
+  The manifest is written to `src/content/sprites.generated.ts` and spread
+  into `SPRITES`. `spawnEnemy` and new `npcSpriteId()` default `spriteId` to
+  the def id; avatars got `blaze` / `shield` / `nova`.
+- **Environment** (`tiles.py`, `src/content/tiles.ts`): one 9-frame tileset
+  per zone (ground ×3, path, animated water ×2, solid, deco, exit), a props
+  strip (glowing save crystal, chest closed/open, gate), a 32×64 Spire tower,
+  and a 256×144 battle backdrop per zone. `WorldCanvas` now draws tiles from
+  these sprites (`TILE_FRAME` / `PROP_FRAME` keep generator ↔ renderer in
+  sync); `loadWorldSprites` registers them. `BattleArena` layers the zone
+  backdrop over the sky gradient.
+- **Audio** (`audio.py`): chiptune synth (pulse / 4-bit triangle / noise,
+  SNES-ish echo) → `public/audio/16bit/{sfx,music}/*.mp3` (32 kHz mono).
+  All 9 SFX + 7 seamless music loops; `lib/audio.ts` points at them (old
+  mp3s stay in `public/audio/` for easy swap-back). `attack` (hero lunge) and
+  `select` (hero pick) are now wired.
+- Wanderers play walk/idle and face their heading; hero cards on
+  `AvatarSelect` show the animated battle sprite.
+- 252 tests green (was 241); lint + build clean. Follow-ups in ISSUES #71.
 
 ### 2026-07-07 — Fix edge-function deploy: self-contained again (#67)
 A live deploy failed with `Module not found "_shared/topics.ts"` — the

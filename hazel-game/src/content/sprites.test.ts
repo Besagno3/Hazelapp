@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { describe, it, expect } from 'vitest';
 import { SPRITES, resolveSprite, type SpriteView } from './sprites';
 
@@ -38,12 +39,71 @@ describe('resolveSprite', () => {
   });
 });
 
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { AVATARS } from './avatars';
-import { ENEMY_DEFS } from './enemies';
+import { ENEMY_DEFS, spawnEnemy } from './enemies';
+import { NPC_DEFS, npcSpriteId } from './npcs';
 import { EMBER_SPRITE_IDS, EMBER_SPRITES } from './story';
+import { FACING_ANIMS } from '../lib/facing';
 
-describe('character → sprite resolution (pre-asset: all emoji)', () => {
-  it('avatars resolve (to emoji until a spriteId is assigned)', () => {
+/** Width/height from a PNG's IHDR chunk (bytes 16-23). */
+function pngSize(publicPath: string): { w: number; h: number } {
+  const buf = readFileSync(join(process.cwd(), 'public', publicPath));
+  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+}
+
+describe('generated 16-bit sprite set', () => {
+  it('every manifest sheet exists and is exactly frames × frameW wide', () => {
+    for (const [id, def] of Object.entries(SPRITES)) {
+      for (const view of [def.world, def.battle]) {
+        if (!view) continue;
+        expect(existsSync(join(process.cwd(), 'public', view.sheet)), `${id} ${view.sheet}`).toBe(true);
+        const { w, h } = pngSize(view.sheet);
+        expect(w, `${id} sheet width`).toBe(view.frames * view.frameW);
+        expect(h, `${id} sheet height`).toBe(view.frameH);
+      }
+    }
+  });
+  it('every hero has world (idle+walk) and battle (idle+attack+hurt) art', () => {
+    for (const a of AVATARS) {
+      const def = resolveSprite(a.spriteId, a.sprite).def;
+      expect(def?.world?.anims.walk, `${a.name} walk`).toBeDefined();
+      expect(def?.battle?.anims.attack, `${a.name} attack`).toBeDefined();
+      expect(def?.battle?.anims.hurt, `${a.name} hurt`).toBeDefined();
+    }
+  });
+  it('every world sheet has side, down and up views (4-way facing)', () => {
+    for (const [id, def] of Object.entries(SPRITES)) {
+      if (!def.world) continue;
+      for (const name of Object.values(FACING_ANIMS).flatMap((f) => [f.idle, f.walk])) {
+        expect(def.world.anims[name], `${id}.world.${name}`).toBeDefined();
+      }
+    }
+  });
+  it('every enemy resolves to world + battle art through spawnEnemy', () => {
+    for (const id of Object.keys(ENEMY_DEFS)) {
+      const e = spawnEnemy(id, 'lumina-field', 'test', 9);
+      const def = resolveSprite(e.spriteId, e.sprite).def;
+      expect(def?.world, `${id} world`).toBeDefined();
+      expect(def?.battle, `${id} battle`).toBeDefined();
+    }
+  });
+  it('every NPC resolves to world art', () => {
+    for (const def of Object.values(NPC_DEFS)) {
+      expect(resolveSprite(npcSpriteId(def), def.sprite).def?.world, def.id).toBeDefined();
+    }
+  });
+  it('every Ember stage has world + battle art', () => {
+    for (const stage of ['egg', 'hatchling', 'whelp', 'dragon'] as const) {
+      const def = resolveSprite(EMBER_SPRITE_IDS[stage], EMBER_SPRITES[stage]).def;
+      expect(def?.world && def?.battle, stage).toBeTruthy();
+    }
+  });
+});
+
+describe('character → sprite resolution', () => {
+  it('avatars resolve', () => {
     for (const a of AVATARS) {
       const r = resolveSprite(a.spriteId, a.sprite);
       expect(r.emoji).toBeTruthy();

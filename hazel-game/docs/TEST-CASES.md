@@ -275,6 +275,93 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-251 | M | ⬜ | battle | cast an offensive spell as the first hit on a shielded enemy: the shield shatters, 0 damage, and the spell's charge is refunded (message says so) — a correct super-hard answer never costs more than a free glancing blow |
 | TC-252 | M | ⬜ | battle | shatter a shielded enemy's shield, Flee, re-engage the same enemy: shield state resets correctly on the fresh instance (no phantom shield, no pre-shattered start) |
 
+## 16-bit asset set (#71)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-254 | U | ✅ | sprites | every manifest sheet exists in `public/` and its PNG is exactly `frames × frameW` wide and `frameH` tall (sprites.test) |
+| TC-255 | U | ✅ | sprites | every hero resolves world (idle+walk) and battle (idle+attack+hurt) art (sprites.test) |
+| TC-256 | U | ✅ | sprites | every enemy def resolves world + battle art via `spawnEnemy` (`spriteId` defaults to the def id) (sprites.test) |
+| TC-257 | U | ✅ | sprites | every NPC resolves world art via `npcSpriteId`; every Ember stage has world + battle art (sprites.test) |
+| TC-258 | U | ✅ | tiles | every zone has a `TILESET_FRAMES`×32px tileset strip and a battle backdrop; props strip + 32×64 Spire tower sizes (tiles.test) |
+| TC-259 | U | ✅ | tiles | `TILE_FRAME` indices stay inside the strip; `groundVariant` is deterministic and always a ground frame (tiles.test) |
+| TC-260 | U | ✅ | audio | every `SFX_SOURCES` / `MUSIC_SOURCES` path points at a shipped file (audio.test) |
+| TC-261 | M | ✅ | WorldCanvas | zones render from tilesets (ground/path/water/scenery/deco/exit), save crystal glows, chests + gates are prop sprites, Spire is the tower sprite (verified in headless Chromium: Verdara, Lumina Field, Crystal Spire, Starfall Coast) |
+| TC-262 | M | ⬜ | WorldCanvas | open a chest → it swaps to the open-chest frame; answer a gate → both gate tiles vanish |
+| TC-263 | M | ⬜ | WorldCanvas | wandering NPCs/enemies play their walk cycle and face their heading; idle when stopped |
+| TC-264 | M | ✅ | BattleArena | battle shows the zone's pixel backdrop behind the combatants; enemy + hero sprites animate (verified in a harness) |
+| TC-265 | M | ⬜ | audio | with Music + Sound on: title/overworld/battle/boss/spire/final-boss tracks loop; correct/wrong/attack/hit/gate/chest/levelup/victory/select SFX fire at sensible relative volumes |
+| TC-267 | U | ✅ | facing | `facingFor`: dominant axis wins, diagonals → side, no movement keeps prior facing; `animFor` picks idle/walk per facing and falls back to side then `idle` (facing.test) |
+| TC-268 | U | ✅ | sprites | every world sheet defines idle/walk for side, down and up (sprites.test) |
+| TC-269 | M | ✅ | WorldCanvas | hero spawns facing down; walking down shows the front view, up shows the back view, left mirrors the side view; Ember follows with matching facing (verified in headless Chromium) |
+| TC-270 | M | ⬜ | WorldCanvas | wandering NPCs/enemies switch to front/back views when their heading is mostly vertical |
+| TC-266 | M | ⬜ | AvatarSelect | hero cards show the animated battle sprite; picking a hero plays `select` |
+
+## Town + enterable buildings (#72)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-271 | U | ✅ | zones | every building is a closed `W` rect with exactly one facade `D` (not a corner) and only F/K/B/T/Z inside; building chars never appear outside a building (zones.test) |
+| TC-272 | U | ✅ | zones | every door is reachable from the spawn and every indoor NPC is reachable or talkable across a counter (zones.test) |
+| TC-273 | U | ✅ | zones | `buildingInside` = interior only, `buildingAt` includes walls; every map is ≥ one screen (zones.test) |
+| TC-274 | U | ✅ | zones | `safeSpawn` keeps walkable saved positions and falls back to the zone spawn for walls / off-map / null (zones.test) |
+| TC-275 | U | ✅ | camera | `camAxis` centres single-screen maps, follows on larger ones, clamps at both edges (camera.test) |
+| TC-276 | U | ✅ | tiles | town + roof strips sized correctly; `roofFrame` picks nine-slice pieces per colour (tiles.test) |
+| TC-277 | M | ✅ | WorldCanvas | outside a building the roof + name cover it (facade, door, sign visible); walking through the door fades the roof and shows the room (headless Chromium: Item Shop, Wick's House) |
+| TC-278 | M | ✅ | WorldCanvas | bumping the Item Shop counter opens Shopkeep Clove's dialogue (headless Chromium) |
+| TC-279 | M | ✅ | WorldCanvas | camera follows the hero around the 2×2 town and stops at the map edges |
+| TC-280 | M | ⬜ | WorldScreen | full flow in the real app: enter each building, use shop/inn/library, walk back out (roof returns), leave by each of the 5 town exits and come back |
+| TC-281 | M | ⬜ | save | a pre-#72 save standing in the old village loads at a walkable spot (not inside a wall) |
+
+## Zone slide transition
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-282 | U | ✅ | transition | `exitSide` names the edge (north/south/east/west) and is null for interior cells; `slideFrom` gives the entry vector per side (transition.test) |
+| TC-283 | U | ✅ | zones | every zone exit sits on a map edge, so every exit has a slide direction (zones.test) |
+| TC-284 | M | ✅ | WorldCanvas | leaving west / north / into the town: old screen and new zone slide together, no black gap, snapshot removed after ~0.5s (headless Chromium) |
+| TC-285 | M | ⬜ | WorldCanvas | holding a direction key through the slide doesn't move the hero until it settles, and doesn't instantly re-trigger the exit back |
+| TC-286 | M | ⬜ | a11y | with OS "reduce motion" on, zone changes are an instant cut |
+
+## Unique places, shops and items (#73)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-287 | U | ✅ | items | every shop item is sold in exactly one shop except `SHARED_STOCK`; every consumable is for sale somewhere; shop names distinct (items.test) |
+| TC-299 | U | ✅ | items | Berry Potion has exactly two sellers — Maple's Trading Post + Tadpole's Tonics — at the same price; `ALL_SHOP_ITEMS` lists each item once (items.test) |
+| TC-300 | M | ⬜ | shop | Tadpole's Tonics lists Berry Potion (🪙30) above Honey Elixir; buying one increments the potion count |
+| TC-288 | U | ✅ | items | `SHOPS` keys == the set of merchant NPCs; `shopFor` null for non-merchants (items.test) |
+| TC-289 | U | ✅ | save | an old `{potion, hint}` save normalizes with elixir/spark/ward = 0; new counts round-trip (items.test) |
+| TC-290 | U | ✅ | zones | exactly one innkeeper and one librarian defined and placed; no NPC placed twice (zones.test) |
+| TC-291 | U | ✅ | zones | every merchant / sage / innkeeper / librarian stands inside a building (zones.test) |
+| TC-292 | U | ✅ | zones | each place uses one architecture style and no two places share one; building ids + names unique (zones.test) |
+| TC-293 | U | ✅ | tiles | every style has a 16-frame town sheet; roof strip = 9 frames × colour (tiles.test) |
+| TC-294 | M | ✅ | world | all 9 built-up places render their own style + roof colours; walking into Plus's Quill & Count clears the roof (headless Chromium) |
+| TC-295 | M | ✅ | shop | Tadpole's Tonics and Clove's Curios show their own name + stock (headless Chromium, seeded save) |
+| TC-296 | M | ⬜ | battle | 🎒 Items: Berry Potion heals 50, Honey Elixir heals to full, Spark Cell +2 ◆ (capped), Rainbow Ward blocks the next enemy hit; each spends the turn; disabled reasons show; button disabled with no battle items |
+| TC-297 | M | ⬜ | world | from a pre-#73 save standing in Numbria/Verdara/Gearfall/Chromaria: loads at a walkable spot; chests/gates already opened stay opened |
+| TC-298 | M | ⬜ | world | leave + re-enter each extended zone by every exit (moved exits land correctly, slide direction correct) |
+
+## Spire floors (#74)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-301 | U | ✅ | spire | every floor has a unique theme and music; maps are 22×14 and legend-only; arrival tile walkable (spire.test) |
+| TC-302 | U | ✅ | spire | climbing floors have exactly one `Q` seal per question, every seal + the stairs reachable on foot; the throne floor has no seals/stairs and Umbra is reachable (spire.test) |
+| TC-303 | U | ✅ | spireStore | bumps register only while exploring and one at a time; broken seals can't be re-bumped; entering a floor resets seals (spireStore.test) |
+| TC-304 | U | ✅ | tiles | a tileset per Spire theme + the Spire props strip exist at the right sizes (tiles.test) |
+| TC-305 | M | ✅ | Spire | open the Spire with 4 crystals → intro → floor 1 map with HUD (seals 0/3, 4 candles) and candle-light darkness (headless Chromium, mocked questions) |
+| TC-306 | M | ✅ | Spire | walking into a rune seal opens its question; answering breaks the seal (HUD updates) (headless Chromium) |
+| TC-307 | M | ✅ | Spire | bumping sealed stairs explains how many runes remain; with all seals broken the stairs lead to the next floor; floors 1→5 all load (headless Chromium) |
+| TC-308 | M | ✅ | Spire | a wrong answer snuffs a candle and the circle of light narrows (headless Chromium) |
+| TC-309 | M | ✅ | Spire | on the throne floor, walking up the carpet to Umbra starts "Umbra's challenge 1/5" (headless Chromium) |
+| TC-310 | M | ⬜ | audio | with Music on: each floor plays its own spooky loop; the Final Battle track starts only when Umbra's challenge begins |
+| TC-311 | M | ⬜ | Spire | lose every candle mid-climb → cast back to Lumina Field healed; reopening the Spire starts a fresh climb from floor 1 |
+| TC-312 | M | ⬜ | Spire | refresh mid-climb → you're back outside the Spire door (floor positions are never saved) |
+| TC-313 | M | ✅ | Spire | a floor's question batch comes back short → "The Spire shudders: only N of M riddles…" with Try again; retry recovers and the hero can explore (headless Chromium, mocked short batch) |
+| TC-314 | M | ✅ | Spire | the world Menu button is hidden during the climb; 🚪 Leave the Spire returns to the Spire door (world.exploring), Menu returns, and standing by the tower doesn't instantly reopen it (headless Chromium) |
+| TC-315 | M | ✅ | Spire | a fast double-click on a story panel advances exactly one panel (headless Chromium) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

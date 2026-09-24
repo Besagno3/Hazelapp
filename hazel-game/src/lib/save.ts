@@ -1,6 +1,6 @@
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
 import { HUB_ZONE, ZONES } from '../content/zones';
-import { LIBRARY_MAX } from '../content/items';
+import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
 
 export const SAVE_VERSION = 1 as const;
 
@@ -70,7 +70,7 @@ export function defaultSave(): SaveData {
     pos: null,
     hp: null,
     coins: 0,
-    items: { potion: 1, hint: 1 },
+    items: { potion: 1, hint: 1, elixir: 0, spark: 0, ward: 0 },
     badges: [],
     sages: [],
     sageEquipped: null,
@@ -103,13 +103,12 @@ export function normalizeSave(raw: unknown): SaveData {
     typeof (r.pos as { y?: unknown }).y === 'number'
       ? { x: (r.pos as { x: number }).x, y: (r.pos as { y: number }).y }
       : null;
-  const items =
-    typeof r.items === 'object' && r.items !== null
-      ? {
-          potion: numberOr((r.items as Record<string, unknown>).potion, d.items.potion),
-          hint: numberOr((r.items as Record<string, unknown>).hint, d.items.hint),
-        }
-      : d.items;
+  // Every known consumable gets a count; ids added later (#73: elixir, spark,
+  // ward) simply default in for older saves.
+  const rawItems = typeof r.items === 'object' && r.items !== null ? (r.items as Record<string, unknown>) : {};
+  const items = Object.fromEntries(
+    CONSUMABLE_IDS.map((id) => [id, numberOr(rawItems[id], d.items[id])]),
+  ) as Record<ConsumableId, number>;
 
   return {
     version: SAVE_VERSION,

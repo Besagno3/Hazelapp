@@ -24,7 +24,11 @@ export interface WorldNpcDef {
   id: string;
   name: string;
   sprite: string;
-  /** key into src/content/sprites.ts SPRITES; falls back to `sprite` (emoji) when absent */
+  /**
+   * key into src/content/sprites.ts SPRITES. Defaults to the NPC `id` (the
+   * generated art is keyed by id — see `npcSpriteId`); falls back to `sprite`
+   * (emoji) when neither resolves.
+   */
   spriteId?: string;
   role: NpcRole;
   /** Sages belong to a topic; opens that topic's Sage screen. */
@@ -42,6 +46,11 @@ export interface WorldNpcDef {
    * for ambient life (wandering-NPC pass). Distinct from `lines` (conversation).
    */
   ambient?: string[];
+}
+
+/** The sprite-manifest key for an NPC (explicit `spriteId`, else its id). */
+export function npcSpriteId(def: WorldNpcDef): string {
+  return def.spriteId ?? def.id;
 }
 
 /** Which service overlay (if any) talking to this role opens after dialogue. */
@@ -110,11 +119,13 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
   },
   'hub-innkeeper': {
+    // Id kept from when Poppy stood in the hub; she now runs Lumina's one Inn
+    // in the village (#73 — one of each service in the world).
     id: 'hub-innkeeper',
     name: 'Innkeeper Poppy',
     sprite: '👩‍🍳',
     role: 'innkeeper',
-    lines: ['Tired, traveler? Rest here and your HP comes right back. On the house!'],
+    lines: ['Welcome to the Sleepy Sheep Inn! Rest here and your HP comes right back. On the house!'],
   },
   'hub-librarian': {
     id: 'hub-librarian',
@@ -188,7 +199,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Trader Tadpole',
     sprite: '🐸',
     role: 'merchant',
-    lines: ['Fresh from the lab-lily pads: potions and hints!'],
+    lines: ['Fresh from the lab-lily pads: Berry Potions and my famous Honey Elixir!'],
   },
 
   // --- Gearfall (engineering) ---
@@ -307,6 +318,16 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
 
   // --- Whispering Woods ---
+  // --- Lumina Village (#72/#73) — Clove's Curios; Poppy runs the only Inn ---
+  'village-shopkeeper': {
+    id: 'village-shopkeeper',
+    name: 'Shopkeep Clove',
+    sprite: '🧑‍💼',
+    role: 'merchant',
+    lines: [
+      "Welcome to Clove's Curios! Nothing useful, everything wonderful — badges from every corner of Lumina.",
+    ],
+  },
   'woods-hermit': {
     id: 'woods-hermit',
     name: 'Hazel the Spellwright',

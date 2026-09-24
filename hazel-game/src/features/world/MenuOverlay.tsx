@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { spellsKnown } from '../../content/spells';
-import { SHOP_CATALOG } from '../../content/items';
+import { ALL_SHOP_ITEMS, CONSUMABLES, CONSUMABLE_IDS } from '../../content/items';
 import { GATE_KEYS } from '../../content/keys';
 import { avatarById } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
@@ -55,7 +55,13 @@ export default function MenuOverlay() {
           <div className="flex-1">
             <div className="font-bold text-sm">{avatar?.name ?? 'Hero'}</div>
             <div className="text-xs text-white/70">
-              ❤️ {hp}/{maxHp} · 🪙 {save.coins} · 🧪 ×{save.items.potion} · 🪶 ×{save.items.hint}
+              ❤️ {hp}/{maxHp} · 🪙 {save.coins}
+              {CONSUMABLE_IDS.filter((id) => id === 'potion' || id === 'hint' || save.items[id] > 0).map((id) => (
+                <span key={id} title={CONSUMABLES[id].name}>
+                  {' · '}
+                  {CONSUMABLES[id].emoji} ×{save.items[id]}
+                </span>
+              ))}
             </div>
           </div>
         </div>
@@ -78,7 +84,7 @@ export default function MenuOverlay() {
             {save.badges
               .map(
                 (b) =>
-                  SHOP_CATALOG.find((i) => i.id === b)?.emoji ??
+                  ALL_SHOP_ITEMS.find((i) => i.id === b)?.emoji ??
                   GATE_KEYS.find((k) => k.id === b)?.emoji ??
                   '🏅',
               )

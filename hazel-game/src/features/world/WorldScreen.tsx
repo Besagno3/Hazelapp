@@ -11,6 +11,8 @@ import MenuOverlay from './MenuOverlay';
 import SpireOverlay from './SpireOverlay';
 import StoryPanels from '../../components/StoryPanels';
 import { zone, TILE } from '../../content/zones';
+import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx } from '../../content/spire';
+import { useSpireStore } from '../../store/spireStore';
 import { spawnEnemy } from '../../content/enemies';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
@@ -76,6 +78,15 @@ export default function WorldScreen() {
   const service = useFlow((s) => s.context.service);
   const pathTarget = useFlow((s) => s.context.pathTarget);
 
+  // Spire climb (#74): while on a floor, the canvas shows that floor's map and
+  // the world runs only while the hero is free to explore (no panel open).
+  const spireFloorIndex = useSpireStore((s) => s.floor);
+  const spireExploring = useSpireStore((s) => s.exploring);
+  const spireLives = useSpireStore((s) => s.lives);
+  const spireBroken = useSpireStore((s) => s.broken);
+  const spireBump = useSpireStore((s) => s.bump);
+  const onSpireFloor = overlay === 'spire' && spireFloorIndex !== null;
+  const spireTheme = onSpireFloor ? SPIRE_FLOORS[spireFloorIndex].theme : null;
   const touchDirRef = useRef({ dx: 0, dy: 0 });
   const onDirChange = useCallback((dx: number, dy: number) => {
     touchDirRef.current = { dx, dy };
@@ -132,8 +143,9 @@ export default function WorldScreen() {
 
   const pausedRef = useRef(false);
   useEffect(() => {
-    pausedRef.current = overlay !== null || cutscene;
-  }, [overlay, cutscene]);
+    const spireFree = overlay === 'spire' && spireExploring;
+    pausedRef.current = (overlay !== null && !spireFree) || cutscene;
+  }, [overlay, cutscene, spireExploring]);
 
   // Warm each living enemy's battle questions while the player explores.
   useEffect(() => {
@@ -184,7 +196,9 @@ export default function WorldScreen() {
       {/* HUD */}
       <div className="w-full flex items-center justify-between text-white mb-2 px-1">
         <div>
-          <h1 className="text-lg font-extrabold leading-tight">{z.name}</h1>
+          <h1 className="text-lg font-extrabold leading-tight">
+            {spireTheme ? SPIRE_FLOORS[spireFloorIndex!].name : z.name}
+          </h1>
           <p className="text-[11px] text-white/60">
             💎 {crystals}/{TOPIC_REGISTRY.length} crystals restored
           </p>
@@ -196,12 +210,16 @@ export default function WorldScreen() {
           </span>
           <span title="Coins">🪙 {save.coins}</span>
           <span title="Potions">🧪 {save.items.potion}</span>
-          <button
-            onClick={() => sendFlow({ type: 'OPEN_MENU' })}
-            className="bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
-          >
-            📜 Menu
-          </button>
+          {/* The machine's Spire state ignores OPEN_MENU, so don't offer it
+              mid-climb — the Spire HUD has its own "Leave the Spire". */}
+          {overlay !== 'spire' && (
+            <button
+              onClick={() => sendFlow({ type: 'OPEN_MENU' })}
+              className="bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
+            >
+              📜 Menu
+            </button>
+          )}
         </div>
       </div>
 
@@ -210,14 +228,17 @@ export default function WorldScreen() {
         avatar={avatar}
         age={age}
         emberStage={ember}
-        startPos={save.pos}
+        startPos={spireTheme ? floorSpawnPx(spireTheme, TILE) : save.pos}
         flags={save.flags}
         openedChests={save.openedChests}
         defeatedIds={defeatedIds}
         pausedRef={pausedRef}
         touchDirRef={touchDirRef}
         callbacks={{
-          onMove: (x, y) => update((s) => ({ ...s, pos: { x, y } })),
+          // Floor positions are never saved — a reload lands back at the Spire door.
+          onMove: (x, y) => {
+            if (!spireTheme) update((s) => ({ ...s, pos: { x, y } }));
+          },
           onTalk: (id) => sendFlow({ type: 'TALK', npcId: id }),
           onPath: (target) => sendFlow({ type: 'OPEN_PATH', target }),
           onSaveCrystal: () => {
@@ -235,7 +256,13 @@ export default function WorldScreen() {
             sendFlow({ type: 'ENCOUNTER' });
           },
           onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),
+          onWard: (id) => spireBump({ kind: 'ward', id }),
+          onStairs: () => spireBump({ kind: 'stairs' }),
+          onUmbra: () => spireBump({ kind: 'umbra' }),
         }}
+        spireFloor={spireTheme}
+        spireBroken={spireBroken}
+        spireLight={spireTheme ? { lives: spireLives, max: SPIRE_LIVES } : null}
       />
 
       <p className="text-white/50 text-xs mt-2">

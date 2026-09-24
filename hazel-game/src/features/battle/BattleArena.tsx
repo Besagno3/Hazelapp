@@ -22,12 +22,13 @@ import {
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { CHARGE_MAX } from '../../content/abilities';
 import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells';
-import { POTION_HEAL } from '../../content/items';
+import { BATTLE_ITEMS, CONSUMABLES, POTION_HEAL, SPARK_CHARGE, type ConsumableId } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { SpriteSheet } from './SpriteSheet';
 import { resolveSprite } from '../../content/sprites';
+import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
 import { HUB_ZONE } from '../../content/zones';
 import { useBattleStore } from '../../store/battleStore';
@@ -40,6 +41,7 @@ import type { LibraryEntry, Question } from '../../types';
 type Turn =
   | { kind: 'command' }
   | { kind: 'cast' }
+  | { kind: 'items' }
   | { kind: 'question'; mode: 'attack' | 'guard'; question: Question }
   | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question }
   | { kind: 'enemy-question'; question: Question }
@@ -49,7 +51,7 @@ type Turn =
 
 /**
  * FF-style side-profile command battle (#37). Enemy left, hero right, on a
- * pseudo-3D ground plane. Commands: Attack / Spells / Guard / Potion /
+ * pseudo-3D ground plane. Commands: Attack / Spells / Guard / Items /
  * Flee — every command resolves through a question (the educational core),
  * and the enemy's counterattack is blocked by answering a defend question.
  * Spells (the Spellbook) let the hero pick from a growing set of abilities —
@@ -203,6 +205,7 @@ export default function BattleArena() {
     if (!heroLunge) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack/hurt flag for the lunge animation window
     setHeroActing(true);
+    sfx('attack'); // every hero lunge (attack / spell) gets the swoosh
     const t = setTimeout(() => setHeroActing(false), 520);
     return () => clearTimeout(t);
   }, [heroLunge]);
@@ -258,12 +261,31 @@ export default function BattleArena() {
     setSpellIdx((i) => i + 1);
     setTurn({ kind: 'question', mode: 'spell', spell, question: q });
   }
-  function commandPotion() {
-    updateSave((s) => ({ ...s, items: { ...s.items, potion: Math.max(0, s.items.potion - 1) } }));
-    const healed = Math.min(playerMaxHp, playerHp + POTION_HEAL);
-    setHp(healed, enemyHp);
-    float(`+${healed - playerHp}`, 'hero', 'text-emerald-300');
-    setTurn({ kind: 'message', text: `${avatar!.name} drinks a Berry Potion! 🧪`, next: enemyTurn });
+  /** Why a battle item can't be used right now (null = usable). */
+  function itemBlocked(id: ConsumableId): string | null {
+    if (!save || save.items[id] <= 0) return 'None left';
+    if ((id === 'potion' || id === 'elixir') && playerHp >= playerMaxHp) return 'HP is full';
+    if (id === 'spark' && charge >= CHARGE_MAX) return 'Charge is full';
+    if (id === 'ward' && guarded) return 'Already warded';
+    return null;
+  }
+  /** Use a battle item (#73). Like any command, it spends the hero's turn. */
+  function applyItem(id: ConsumableId) {
+    if (itemBlocked(id)) return;
+    updateSave((s) => ({ ...s, items: { ...s.items, [id]: Math.max(0, s.items[id] - 1) } }));
+    const { name, emoji } = CONSUMABLES[id];
+    if (id === 'potion' || id === 'elixir') {
+      const healed = id === 'elixir' ? playerMaxHp : Math.min(playerMaxHp, playerHp + POTION_HEAL);
+      setHp(healed, enemyHp);
+      float(`+${healed - playerHp}`, 'hero', 'text-emerald-300');
+    } else if (id === 'spark') {
+      setCharge((c) => Math.min(CHARGE_MAX, c + SPARK_CHARGE));
+      float(`+${SPARK_CHARGE}◆`, 'hero', 'text-amber-300');
+    } else if (id === 'ward') {
+      setGuarded(true);
+      float('🌈', 'hero', 'text-sky-300');
+    }
+    setTurn({ kind: 'message', text: `${avatar!.name} uses a ${name}! ${emoji}`, next: enemyTurn });
   }
   function commandFlee() {
     updateSave((s) => ({ ...s, hp: playerHp }));
@@ -492,6 +514,19 @@ export default function BattleArena() {
 
   return (
     <div className={`min-h-screen flex flex-col bg-gradient-to-b ${info.skyGradient} overflow-hidden relative`}>
+      {/* 16-bit zone backdrop (the sky gradient stays underneath as a fallback) */}
+      {enemy && (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${battleBackdrop(enemy.zoneId)})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center bottom',
+            imageRendering: 'pixelated',
+          }}
+        />
+      )}
       {/* Parallax backdrop + pseudo-3D ground plane */}
       <div className="absolute inset-x-0 bottom-0 h-[46%] pointer-events-none">
         <div className="absolute -top-10 left-[8%] w-52 h-24 bg-black/20 rounded-full blur-md" />
@@ -669,11 +704,13 @@ export default function BattleArena() {
               />
               <CommandButton emoji="🛡️" label="Guard" onClick={commandGuard} />
               <CommandButton
-                emoji="🧪"
-                label="Potion"
-                disabled={save.items.potion === 0 || playerHp === playerMaxHp}
-                hint={`×${save.items.potion}`}
-                onClick={commandPotion}
+                emoji="🎒"
+                label="Items"
+                disabled={BATTLE_ITEMS.every((id) => save.items[id] === 0)}
+                hint={BATTLE_ITEMS.filter((id) => save.items[id] > 0)
+                  .map((id) => `${CONSUMABLES[id].emoji}×${save.items[id]}`)
+                  .join(' ') || 'Empty'}
+                onClick={() => setTurn({ kind: 'items' })}
               />
               <CommandButton
                 emoji="🏃"
@@ -683,6 +720,40 @@ export default function BattleArena() {
                 onClick={commandFlee}
               />
             </div>
+          </div>
+        )}
+
+        {turn.kind === 'items' && (
+          <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
+            <p className="text-xs text-white/60 mb-3 uppercase tracking-widest">🎒 Items — using one takes your turn</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {BATTLE_ITEMS.filter((id) => save.items[id] > 0).map((id) => {
+                const blocked = itemBlocked(id);
+                return (
+                  <button
+                    key={id}
+                    onClick={() => applyItem(id)}
+                    disabled={!!blocked}
+                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 rounded-xl px-3 py-2 text-left transition"
+                  >
+                    <span className="font-bold text-sm">
+                      <span className="mr-1.5">{CONSUMABLES[id].emoji}</span>
+                      {CONSUMABLES[id].name}
+                      <span className="ml-1.5 text-xs text-white/60">×{save.items[id]}</span>
+                    </span>
+                    <span className="block text-[10px] text-white/50 mt-0.5">
+                      {blocked ?? CONSUMABLES[id].description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setTurn({ kind: 'command' })}
+              className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-2 text-xs font-semibold"
+            >
+              ← Back
+            </button>
           </div>
         )}
 

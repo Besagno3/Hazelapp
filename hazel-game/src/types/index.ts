@@ -68,11 +68,13 @@ export interface NPC {
 
 /**
  * The world zones of Lumina — derived from `ZONE_IDS` in content/zones.ts
- * (Wave 0.3), re-exported here so shared types keep a single import surface.
+ * (Wave 0.3), re-exported here so shared types keep a single
+ * import surface.
  * (Type-only circularity with zones.ts is fine — both directions are erased
  * at compile time.)
  */
 import type { ZoneId } from '../content/zones';
+import type { ConsumableId } from '../content/items';
 export type { ZoneId };
 
 /**
@@ -155,7 +157,8 @@ export interface SaveData {
   /** Current HP; null → full (max derives from avatar + power-ups). */
   hp: number | null;
   coins: number;
-  items: { potion: number; hint: number };
+  /** Carried consumables — one count per `CONSUMABLE_IDS` entry (content/items.ts). */
+  items: Record<ConsumableId, number>;
   badges: string[];
   /** Topics whose Sage the player has met (each grants that topic's spell). */
   sages: CrystalTopic[];
