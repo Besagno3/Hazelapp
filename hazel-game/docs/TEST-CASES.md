@@ -437,6 +437,19 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-364 | M | ✅ | battle | status panels keep each name on one line ("The Null Fi… Lv 5"); nothing slides the arena sideways (overflow: clip) (headless Chromium) |
 | TC-365 | M | ⬜ | battle | on a real phone (iOS Safari + Android Chrome): no scrolling needed to answer and continue; tap targets feel comfortable; hint text readable in sunlight |
 
+## Timed defend questions (#78)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-366 | U | ✅ | battleTurn | `defendTimeMs`: never under 15s, longer questions get more time up to 30s, mercy adds 5s |
+| TC-367 | M | ✅ | battle | a defend question shows "⏳ Ns" + a bar that counts down; attack questions show no countdown (headless Chromium, fake clock) |
+| TC-368 | M | ✅ | battle | letting it run out: three ticks in the last 3s, then "⏰ Time's up! … lands a hit!", HP drops, wrong + hit sounds (headless Chromium) |
+| TC-369 | M | ✅ | battle | picking an answer freezes it on "✓ In time!"; waiting 40s more never times out (headless Chromium) |
+| TC-370 | M | ✅ | battle | the countdown pauses while the page is hidden (10s hidden → no time lost) (headless Chromium) |
+| TC-371 | M | ✅ | battle | 360×640: countdown and all four answers on screen (headless Chromium) |
+| TC-372 | M | ⬜ | battle | with a Guard up, letting the clock run out still blocks the blow completely; the timed-out question appears in the Library |
+| TC-373 | M | ⬜ | battle | playtest: does the clock feel fair for a young reader on a long word problem? |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

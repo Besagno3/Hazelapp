@@ -20,6 +20,7 @@ import {
 import {
   STREAK_MAX,
   STREAK_START,
+  defendTimeMs,
   SUPER_EFFECTIVE,
   mercyFor,
   nextIntent,
@@ -55,6 +56,7 @@ import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { SpriteSheet } from './SpriteSheet';
+import { DefendTimer } from './DefendTimer';
 import {
   EMBER_BREATH,
   COMPANION_CLIP,
@@ -207,6 +209,9 @@ export default function BattleArena() {
   const [intent, setIntent] = useState<EnemyIntent>('attack');
   const enemyTurnNo = useRef(0);
   const [reward, setReward] = useState<Reward | null>(null);
+  // The question (by card key) the player has picked an answer for — stops
+  // the defend countdown.
+  const [answeredKey, setAnsweredKey] = useState<string | null>(null);
 
   // Displayed HP while a blow is still in the air (null = show the store's).
   const [shownHp, setShownHp] = useState<{ p: number; e: number } | null>(null);
@@ -811,7 +816,20 @@ export default function BattleArena() {
     ask({ kind: 'enemy-question', question: nextQuestion() });
   }
 
-  function resolveEnemyQuestion(wasCorrect: boolean) {
+  /**
+   * The defend countdown ran out before an answer was picked: the blow lands
+   * exactly as for a wrong answer (the streak breaks, the question goes to the
+   * Library), with a "Time's up!" message.
+   */
+  function defendTimedOut(q: Question) {
+    sfx('wrong');
+    setAnswers((a) => [...a, false]);
+    setStreak(0);
+    misses.current.push({ question: q, picked: -1 }); // no pick — the Library never shows it
+    resolveEnemyQuestion(false, true);
+  }
+
+  function resolveEnemyQuestion(wasCorrect: boolean, timedOut = false) {
     const blow = intent === 'power' ? 'power' : 'attack';
     const r = resolveEnemyAttack({
       level: enemy!.level,
@@ -843,6 +861,7 @@ export default function BattleArena() {
 
     const who = blow === 'power' ? `${enemy!.name} unleashes ${powerMove}` : `${enemy!.name} attacks`;
     const text =
+      (timedOut ? "⏰ Time's up! " : '') +
       (r.dmg === 0 ? `${who} — completely blocked!` : wasCorrect ? `${who} — you soften the hit!` : `${who} and lands a hit!`) +
       (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '');
 
@@ -948,6 +967,8 @@ export default function BattleArena() {
         : 'idle';
   const perkLabel = { charge: `+${EMBER_BONUS_CHARGE}◆`, peek: '👀 peek', mend: `+${WISP_MEND} HP` }[companion.perk];
   const charging = intent === 'power';
+  // Identifies the current question card (remounts QuestionCard + DefendTimer).
+  const qKey = turn.kind === 'question' || turn.kind === 'enemy-question' ? turn.question.id + qIndex + spellIdx : '';
 
   return (
     // overflow-clip (not hidden): a hidden-overflow box is still programmatically
@@ -1048,7 +1069,7 @@ export default function BattleArena() {
       {/* Combatants on the ground plane */}
       {/* Phones: a smaller floor for the arena so menus + question cards fit on
           screen; flex-1 still grows it into any spare height (e.g. messages). */}
-      <div className="relative z-10 flex-1 flex items-end justify-between px-[12%] min-h-[112px] pb-3 sm:min-h-[220px] sm:pb-[8%]">
+      <div className="relative z-10 flex-1 flex items-end justify-between px-[12%] min-h-[112px] pb-1 sm:min-h-[220px] sm:pb-[8%]">
         <div className="relative" ref={enemyRef}>
           <motion.div
             key={`el${enemyLunge}`}
@@ -1400,29 +1421,44 @@ export default function BattleArena() {
 
         {(turn.kind === 'question' || turn.kind === 'enemy-question') && (
           <div className="w-full max-w-xl">
-            <p className="text-center text-white font-bold mb-2 text-sm uppercase tracking-widest">
-              {turn.kind === 'enemy-question'
-                ? charging
-                  ? `💢 ${enemy.name} unleashes ${powerMove} — answer to soften it!`
-                  : `🛡️ ${enemy.name} attacks — answer to block!`
-                : {
+            {turn.kind === 'enemy-question' ? (
+              <DefendTimer
+                key={qKey}
+                durationMs={defendTimeMs(turn.question, mercy.levelDrop > 0)}
+                stopped={answeredKey === qKey}
+                onExpire={() => defendTimedOut(turn.question)}
+                label={
+                  charging
+                    ? `💢 ${powerMove} — answer to soften it!`
+                    : `🛡️ ${enemy.name} attacks — answer to block!`
+                }
+              />
+            ) : (
+              <p className="text-center text-white font-bold mb-2 text-sm uppercase tracking-widest">
+                {
+                  {
                     spell: turn.mode === 'spell' && `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`,
                     pair: turn.mode === 'pair' && `${turn.pair.emoji} Super-hard question — ${turn.pair.name} with ${companion.name}!`,
                     companion: `${cMove.emoji} Answer to help ${companion.name} strike!`,
                     guard: '🛡️ Answer to raise your guard!',
                     attack: '⚔️ Answer to strike!',
-                  }[turn.mode]}
-            </p>
+                  }[turn.mode]
+                }
+              </p>
+            )}
             {!!turn.hide && (
               <p className="text-center text-sky-200 text-xs font-semibold mb-2">👀 Pip crossed out a wrong answer for you!</p>
             )}
             <QuestionCard
-              key={turn.question.id + qIndex + spellIdx}
+              key={qKey}
               question={turn.question}
               hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
               preHidden={turn.hide ?? 0}
               onUseHint={useSaveStore.getState().spendHint}
-              onAnswered={(correct, picked) => recordAnswer(correct, turn.question, picked)}
+              onAnswered={(correct, picked) => {
+                setAnsweredKey(qKey);
+                recordAnswer(correct, turn.question, picked);
+              }}
               continueLabel="▶ Go!"
               onContinue={(correct) =>
                 turn.kind === 'enemy-question'

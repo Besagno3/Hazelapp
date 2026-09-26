@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
+  DEFEND_MAX_MS,
+  DEFEND_MERCY_BONUS_MS,
+  DEFEND_MIN_MS,
+  defendTimeMs,
   MERCY_AFTER,
   POWER_MULTIPLIER,
   STREAK_MAX,
@@ -117,5 +121,27 @@ describe('streaks, mercy, rewards', () => {
     const seen = new Set([0, 0.1, 0.2, 0.3, 0.5, 0.99].map((r) => rollDrop(false, r)));
     expect(seen.has(null)).toBe(true);
     for (const d of seen) if (d) expect(CONSUMABLE_IDS).toContain(d);
+  });
+});
+
+describe('defendTimeMs', () => {
+  const short = { text: '2 + 2?', options: ['4', '5', '3', '22'] };
+  const long = {
+    text: Array.from({ length: 60 }, () => 'word').join(' '),
+    options: ['one two three', 'four five six', 'seven eight', 'nine ten'],
+  };
+
+  it('never gives less than the minimum, even for a tiny question', () => {
+    expect(defendTimeMs(short)).toBe(DEFEND_MIN_MS);
+  });
+
+  it('gives longer questions more time, up to the maximum', () => {
+    const mid = { text: 'A train leaves at 3:15 and the trip takes 2 hours 50 minutes. What time does it arrive?', options: ['6:05', '5:65', '6:15', '5:55'] };
+    expect(defendTimeMs(mid)).toBeGreaterThan(defendTimeMs(short));
+    expect(defendTimeMs(long)).toBe(DEFEND_MAX_MS);
+  });
+
+  it('mercy adds a few seconds on top', () => {
+    expect(defendTimeMs(short, true)).toBe(DEFEND_MIN_MS + DEFEND_MERCY_BONUS_MS);
   });
 });

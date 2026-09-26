@@ -75,7 +75,7 @@ export default function QuestionCard({
     <motion.div
       initial={{ y: 24, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="bg-white text-gray-800 rounded-2xl p-5 w-full max-w-lg shadow-2xl"
+      className="bg-white text-gray-800 rounded-2xl p-4 sm:p-5 w-full max-w-lg shadow-2xl"
     >
       <h2 className="font-semibold text-lg mb-4">{question.text}</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

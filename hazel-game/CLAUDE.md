@@ -113,7 +113,10 @@ existing architecture.
   **telegraph a power move** (charge turn → 2× blow; Guard blocks it), Sage
   spells are **super effective** vs their topic, **answer streaks** power up
   hits, and after two losses to the same enemy its questions get easier
-  (**mercy** — session-only, no change to damage). Fiends (bosses) have enrage phases and restore their
+  (**mercy** — session-only, no change to damage). **Defend questions are
+  timed** (`DefendTimer`, `defendTimeMs`: 15–30s by reading length, +5s under
+  mercy, paused while the tab is hidden); running out lands the blow as a
+  wrong answer. Fiends (bosses) have enrage phases and restore their
   crystal on defeat. Pure math in `lib/battleMath.ts`, turn rules in
   `lib/battleTurn.ts`, motion in `features/battle/choreography.ts`. No game over — defeat
   returns the player to the hub, healed.
@@ -197,6 +200,30 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-26 — Timed defend questions (#78)
+Resolves the STORY-4X §12 "timer" decision for defending: the enemy's blow
+now comes on a clock.
+- **`DefendTimer`** (`features/battle/`): replaces the defend header with the
+  same prompt plus a "⏳ 16s" pill and a shrinking bar — amber, then red and
+  pulsing for the last 5s, a soft `select` tick for the last 3; freezes on
+  "✓ In time!" the moment an answer is picked. Time only runs while the page
+  is visible (switching tabs / locking the phone pauses it). `onExpire` fires
+  once.
+- **Timing (`lib/battleTurn.ts` `defendTimeMs`):** 8s + 350ms per word of the
+  question and options, clamped 15–30s, +5s under mercy.
+- **Running out** (`defendTimedOut`): the blow lands exactly as for a wrong
+  answer — wrong SFX, streak broken, the question queued for the Library
+  (`picked: -1`; the Library never displays the pick) — with "⏰ Time's up!"
+  in front of the result. Guard / Rainbow Ward still block a timed-out blow.
+  Attack, spell, companion and pair questions stay untimed.
+- Layout: the timer bar fits on a 360×640 phone (arena padding and the
+  QuestionCard padding trimmed on phones to make room).
+- 339 tests green (3 new `defendTimeMs` tests); lint + build clean. Verified
+  in headless Chromium with a fake clock: countdown shown only on defend
+  questions and counting down, timeout → "⏰ Time's up!" + HP loss, 3 ticks
+  then wrong/hit sounds, answering freezes it (40s later still waiting on
+  Go!), paused while hidden (10s hidden = 0s lost), fits at 360×640.
 
 ### 2026-09-26 — Battle UX pass: fits on phones, bigger touch targets, readable hints (#77)
 From a UX review at phone widths (measured in headless Chromium). Before: on a
