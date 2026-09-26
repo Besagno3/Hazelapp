@@ -24,10 +24,10 @@ shared source of truth for how this project works.
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
 
-Many dependencies in `package.json` are installed but **not yet used**
-(react-router-dom, xstate, react-query, react-hook-form, zod, recharts,
-katex, vite-plugin-pwa, etc.). Treat them as "approved to adopt" — not as
-existing architecture.
+`package.json` lists only packages the app actually imports (unused ones
+were removed in #75). Still "approved to adopt" when a feature needs them:
+react-router-dom + recharts (parent dashboard), vite-plugin-pwa (PWA, #5),
+zod, react-query. Add the package in the same change that first uses it.
 
 ## Decisions
 
@@ -104,7 +104,13 @@ existing architecture.
   gauge filled by correct answers, `CHARGE_MAX` = 4) and a miss fizzles +
   refunds the charge. Fiends (bosses) have enrage phases and restore their
   crystal on defeat. Pure math in `lib/battleMath.ts`. No game over — defeat
-  returns the player to the hub, healed.
+  returns the player to the hub, healed. **Structure (#75):** the rules of a
+  turn are pure resolvers in `lib/battleTurn.ts`; the fight's live numbers
+  (HP, charge, guard, shield, enrage phase) live in `battleStore` and are read
+  with `combatState()` *at the moment a command resolves* and written back at
+  once with `applyCombat` — never write HP from a timer or a render-captured
+  value (#70). `useBattleFx` owns cosmetic timers (floats, lunges, banner);
+  `BattleHud` / `BattleStage` / `BattleMenus` / `BattleResult` are the view.
 - DB schema lives in `supabase/migrations/` — apply via the Supabase SQL Editor
   or `supabase db push`.
 - **Question generation** is a Deno edge function in
@@ -185,6 +191,27 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-26 — Tech-debt pass: battle refactor, tap-race fix, README, deps (#75)
+- **Tap-race fixed (#70):** the battle's numbers moved into `battleStore`
+  (`charge`, `guarded`, `enemyShielded`, `lastPhase` joined HP; `start()`
+  resets them and derives the shield from the archetype). Every command reads
+  `combatState()` at resolve time and writes via `applyCombat` immediately —
+  the old 260ms delayed `setHp` could drop a potion heal or healer mend. Only
+  floats/SFX are still delayed (`IMPACT_MS`).
+- **Battle refactor (#44, #69b):** `BattleArena` went from 926 to ~590 lines.
+  New pure `lib/battleTurn.ts` (`resolveHeroHit`, `resolveEnemyTurn`,
+  `resolveSpell`, `resolveItem`, `itemBlocked`, `chargeAfterAnswer`); new
+  `features/battle/useBattleFx.ts` (all cosmetic timers, cleared on unmount);
+  view split into `BattleHud`, `BattleStage`, `BattleMenus`, `BattleResult`.
+  `resolveSprite` now returns a named `ResolvedSprite` type.
+- **Question bank is never pruned** (product decision): #68 closed won't-do.
+- **Deps:** 22 unused packages removed (see ISSUES #75); `package-lock.json`
+  and `bun.lock` regenerated. JS bundle unchanged in behavior.
+- **README:** replaced the Vite template with real setup/deploy/layout docs;
+  root README points at it.
+- 324 tests green (was 301 on main + 23 new: `battleTurn.test`,
+  `BattleArena.test`); lint + build clean.
 
 ### 2026-09-23 — Spire review fixes: softlock, leave button, double-tap (#74)
 Code review of the Spire climb; all four findings fixed:
