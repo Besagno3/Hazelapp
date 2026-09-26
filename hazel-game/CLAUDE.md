@@ -37,6 +37,13 @@ existing architecture.
   Edge Function (the API key must stay server-side). Revises an earlier
   "external trivia API" choice — trivia APIs can't do age-graded content. See
   ISSUES.md #7.
+- **Growth rule (2026-09-26):** the child's **age is the baseline** for
+  everything (from the birth year/month given at sign-up — `playerAge`
+  recomputes it, so it rises on each birthday) and their **player level**
+  (XP) nudges it up as they play: `lib/growth.ts` (`challengeLevel`,
+  `growthSteps` — +1 per 5 player levels, max +3). Enemies, battle
+  questions, the Spire and the defend countdown all use it; quiz rounds,
+  gates and chests also follow each topic's skill level (which starts from age).
 - **Player profiles:** a Supabase `profiles` table (birth year/month + per-topic
   skill levels) backs age-based difficulty. Difficulty model: a **persistent
   per-topic skill level** that rises on consecutive correct answers and falls
@@ -78,7 +85,8 @@ existing architecture.
   Fiends, #58), `items.ts` (shop + economy tuning), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
-  quiz progress, Library queue, the active battle companion. Write-through: localStorage immediately
+  quiz progress, Library queue, the active battle companion, the defend-timer
+  setting. Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
   `flush()` on save crystals / sign-out. Supabase errors degrade to
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration).
@@ -114,8 +122,9 @@ existing architecture.
   spells are **super effective** vs their topic, **answer streaks** power up
   hits, and after two losses to the same enemy its questions get easier
   (**mercy** — session-only, no change to damage). **Defend questions are
-  timed** (`DefendTimer`, `defendTimeMs`: a flat 15s, +5s under mercy,
-  paused while the tab is hidden); running out lands the blow as a
+  timed** (`DefendTimer`, `defendTimeMs(age, level)`: 25s at age 5, 1.5s
+  less per year, 1s less per growth step, 10–25s, +5s under mercy, paused
+  while the tab is hidden; switch off per player in 📜 → ⚔️ Battle); running out lands the blow as a
   wrong answer. Fiends (bosses) have enrage phases and restore their
   crystal on defeat. Pure math in `lib/battleMath.ts`, turn rules in
   `lib/battleTurn.ts`, motion in `features/battle/choreography.ts`. No game over — defeat
@@ -200,6 +209,31 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-26 — Age-based growth rule, age-based countdown, timer setting (#79)
+- **One growth rule (`lib/growth.ts`, tested):** age (from the sign-up birth
+  date, recomputed so it rises each birthday) is the baseline;
+  `growthSteps(level)` adds +1 per 5 player levels (max +3) as the kid levels
+  up; `challengeLevel(age, level)` = `ageToStartLevel(age)` + steps, 1–10;
+  `playerStanding(profile)` → `{ age, level }`.
+- **Enemies + battle questions now grow with the player:** `spawnEnemy(…,
+  age, playerLevel)` uses `challengeLevel` (was age only — revises #32's
+  "battles scale to age, not progress"). `WorldScreen` (prefetch) and
+  `WorldCanvas` (spawn) pass the same level so prefetched pools match. The
+  Spire's floor level uses it too. Quiz / gates / chests keep their per-topic
+  skill ramp (also age-based).
+- **Countdown by age + level:** `defendTimeMs(age, level, mercy)` — 25s at 5,
+  −1.5s per year (≈24s at 6, 19s at 9, 15s at 12), −1s per growth step,
+  clamped 10–25s, +5s under mercy. Replaces the flat 15s.
+- **Timer setting:** `SaveData.defendTimer` (per player, synced with the save;
+  default on; older saves default on) toggled in 📜 Menu → ⚔️ Battle ("Take
+  as long as you need" when off). Off → defend questions show the plain
+  header and never time out.
+- 349 tests green (growth.test, enemies scaling, save field, age-based
+  `defendTimeMs`); lint + build clean. Verified in headless Chromium: 6y/9y/12y
+  start at 24/19/15s; a 9y at Lv 16 gets 16s and meets Lv 7 enemies/questions
+  (Lv 4 at Lv 1); timer off = no countdown and no timeout after 60s; the menu
+  toggle flips it.
 
 ### 2026-09-26 — Defend countdown is a flat 15 seconds (#78 follow-up)
 The defend clock no longer scales with question length: every defend

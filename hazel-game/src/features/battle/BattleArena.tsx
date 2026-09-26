@@ -7,7 +7,7 @@ import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { fetchQuestions } from '../../lib/questions';
 import { sfx, stopMusic, type SfxName } from '../../lib/audio';
 import { playerAge, clampLevel, nextSkillLevelFromBattle, skillLevelFor } from '../../lib/age';
-import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
+import { npcDefeatXp, playerLevel, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import {
   attackDamage,
@@ -1421,10 +1421,10 @@ export default function BattleArena() {
 
         {(turn.kind === 'question' || turn.kind === 'enemy-question') && (
           <div className="w-full max-w-xl">
-            {turn.kind === 'enemy-question' ? (
+            {turn.kind === 'enemy-question' && save.defendTimer ? (
               <DefendTimer
                 key={qKey}
-                durationMs={defendTimeMs(mercy.levelDrop > 0)}
+                durationMs={defendTimeMs(age, playerLevel(profile?.xp ?? 0), mercy.levelDrop > 0)}
                 stopped={answeredKey === qKey}
                 onExpire={() => defendTimedOut(turn.question)}
                 label={
@@ -1435,7 +1435,13 @@ export default function BattleArena() {
               />
             ) : (
               <p className="text-center text-white font-bold mb-2 text-sm uppercase tracking-widest">
-                {
+                {turn.kind === 'enemy-question' ? (
+                  charging ? (
+                    `💢 ${powerMove} — answer to soften it!`
+                  ) : (
+                    `🛡️ ${enemy.name} attacks — answer to block!`
+                  )
+                ) : (
                   {
                     spell: turn.mode === 'spell' && `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`,
                     pair: turn.mode === 'pair' && `${turn.pair.emoji} Super-hard question — ${turn.pair.name} with ${companion.name}!`,
@@ -1443,7 +1449,7 @@ export default function BattleArena() {
                     guard: '🛡️ Answer to raise your guard!',
                     attack: '⚔️ Answer to strike!',
                   }[turn.mode]
-                }
+                )}
               </p>
             )}
             {!!turn.hide && (

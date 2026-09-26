@@ -47,3 +47,20 @@ describe('enemy behavior archetypes (Wave 0.5)', () => {
     }
   });
 });
+
+describe('enemy scaling: age baseline + player level growth', () => {
+  it('a new player meets enemies at their age level', () => {
+    expect(spawnEnemy('count-bat', 'numbria', 'a', 8, 1).level).toBe(spawnEnemy('count-bat', 'numbria', 'a', 8).level);
+  });
+
+  it('enemies grow as the player levels up (one step per 5 levels)', () => {
+    const lv1 = spawnEnemy('count-bat', 'numbria', 'a', 8, 1);
+    const lv6 = spawnEnemy('count-bat', 'numbria', 'a', 8, 6);
+    expect(lv6.level).toBe(lv1.level + 1);
+    expect(lv6.maxHp).toBeGreaterThan(lv1.maxHp);
+  });
+
+  it('enemies grow as the player gets older', () => {
+    expect(spawnEnemy('count-bat', 'numbria', 'a', 9, 1).level).toBeGreaterThan(spawnEnemy('count-bat', 'numbria', 'a', 8, 1).level);
+  });
+});

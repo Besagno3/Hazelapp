@@ -83,6 +83,7 @@ export function defaultSave(): SaveData {
     worldUnlocked: false,
     library: [],
     companionId: 'ember',
+    defendTimer: true,
   };
 }
 
@@ -134,6 +135,8 @@ export function normalizeSave(raw: unknown): SaveData {
     companionId: (COMPANION_IDS as readonly string[]).includes(r.companionId as string)
       ? (r.companionId as CompanionId)
       : d.companionId,
+    // Added after v1 shipped: only an explicit `false` turns the countdown off.
+    defendTimer: r.defendTimer !== false,
   };
 }
 

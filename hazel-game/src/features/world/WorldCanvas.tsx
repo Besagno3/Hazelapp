@@ -128,6 +128,7 @@ export default function WorldCanvas({
   zoneId,
   avatar,
   age,
+  playerLevel,
   emberStage,
   startPos,
   flags,
@@ -143,6 +144,8 @@ export default function WorldCanvas({
   zoneId: ZoneId;
   avatar: Avatar;
   age: number;
+  /** Player level (from XP) — with age, scales the enemies (lib/growth.ts). */
+  playerLevel: number;
   /** Ember the dragon's growth stage — drawn trailing the hero. */
   emberStage: EmberStage;
   /** Pixel position to spawn at, or null for the zone default. */
@@ -665,7 +668,7 @@ export default function WorldCanvas({
     }
 
     for (const p of z.enemies) {
-      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age);
+      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, playerLevel);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
       // regular enemies stay gone for the session (they respawn next visit).
       if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, flagsRef.current)) continue;

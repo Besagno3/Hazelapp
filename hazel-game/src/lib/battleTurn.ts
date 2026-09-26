@@ -1,6 +1,7 @@
 import type { EnemyBehavior, FightStyle, PowerUps } from '../types';
 import type { ConsumableId } from '../content/items';
 import { bossPhase, defendReduction, enemyAttack, healerMends, healerRegen } from './battleMath';
+import { growthSteps } from './growth';
 
 /**
  * Pure battle-turn resolution (#75 follow-up). BattleArena decides WHAT the
@@ -187,15 +188,21 @@ export function rollDrop(isBoss: boolean, roll: number = Math.random()): Consuma
 
 // --- Defend countdown ------------------------------------------------------------
 
-/**
- * Time to answer a defend question before the blow lands: a flat 15s — long
- * enough for young kids who are still learning to read (10s was too fast).
- */
-export const DEFEND_MS = 15_000;
+/** The countdown never goes below / above these, in ms. */
+export const DEFEND_MIN_MS = 10_000;
+export const DEFEND_MAX_MS = 25_000;
 /** Mercy (a couple of losses to this enemy) also buys extra time. */
 export const DEFEND_MERCY_BONUS_MS = 5_000;
 
-/** How long the player has to answer a defend question (+ a bonus under mercy). */
-export function defendTimeMs(mercy = false): number {
-  return DEFEND_MS + (mercy ? DEFEND_MERCY_BONUS_MS : 0);
+/**
+ * Time to answer a defend question before the blow lands, from the child's
+ * age (the baseline) and player level (growth — see lib/growth.ts):
+ * 25s at age 5, 1.5s less per year (≈18s at 10, 10s at 15), then 1s less per
+ * growth step as they level up. Clamped to 10–25s, rounded to whole seconds,
+ * plus a bonus under mercy.
+ */
+export function defendTimeMs(age: number, level: number, mercy = false): number {
+  const seconds = Math.round(25 - 1.5 * (age - 5) - growthSteps(level));
+  const ms = Math.min(DEFEND_MAX_MS, Math.max(DEFEND_MIN_MS, seconds * 1000));
+  return ms + (mercy ? DEFEND_MERCY_BONUS_MS : 0);
 }

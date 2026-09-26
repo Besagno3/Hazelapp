@@ -179,4 +179,6 @@ export interface SaveData {
   library: LibraryEntry[];
   /** The companion fighting beside the hero (🔄 Swap in battle) — kept across reloads. */
   companionId: CompanionId;
+  /** Countdown on defend questions (⏳). A per-player setting in the 📜 menu; on by default. */
+  defendTimer: boolean;
 }

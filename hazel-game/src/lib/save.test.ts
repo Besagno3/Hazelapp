@@ -103,6 +103,13 @@ describe('normalizeSave', () => {
     expect(normalizeSave(42)).toEqual(defaultSave());
   });
 
+  it('the defend timer is on by default; only an explicit false turns it off', () => {
+    expect(defaultSave().defendTimer).toBe(true);
+    expect(normalizeSave({}).defendTimer).toBe(true);
+    expect(normalizeSave({ defendTimer: false }).defendTimer).toBe(false);
+    expect(normalizeSave({ defendTimer: 'nope' }).defendTimer).toBe(true);
+  });
+
   it('keeps the chosen battle companion; older saves and unknown ids default to Ember', () => {
     expect(normalizeSave({ companionId: 'pip' }).companionId).toBe('pip');
     expect(normalizeSave({}).companionId).toBe('ember');

@@ -20,6 +20,7 @@ import { sendFlow } from '../../machines/gameFlow';
 export default function MenuOverlay() {
   const save = useSaveStore((s) => s.save);
   const flush = useSaveStore((s) => s.flush);
+  const update = useSaveStore((s) => s.update);
   const remoteError = useSaveStore((s) => s.remoteError);
   const profile = useProfileStore((s) => s.profile);
   const profileError = useProfileStore((s) => s.remoteError);
@@ -154,6 +155,25 @@ export default function MenuOverlay() {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="bg-white/10 rounded-xl p-3 mb-3">
+          <div className="font-bold text-sm mb-2">⚔️ Battle</div>
+          <button
+            onClick={() => update((s) => ({ ...s, defendTimer: !s.defendTimer }))}
+            className="w-full min-h-[44px] flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm"
+            aria-pressed={save.defendTimer}
+          >
+            <span className="text-left">
+              ⏳ Defend timer
+              <span className="block text-xs text-white/70">
+                {save.defendTimer ? 'Answer before the countdown ends to block' : 'Take as long as you need'}
+              </span>
+            </span>
+            <span className={save.defendTimer ? 'text-emerald-300 font-bold' : 'text-white/70'}>
+              {save.defendTimer ? 'On' : 'Off'}
+            </span>
+          </button>
         </div>
 
         <div className="bg-white/10 rounded-xl p-3 mb-3">

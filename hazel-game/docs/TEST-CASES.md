@@ -450,6 +450,19 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-372 | M | ⬜ | battle | with a Guard up, letting the clock run out still blocks the blow completely; the timed-out question appears in the Library |
 | TC-373 | M | ⬜ | battle | playtest: does the clock feel fair for a young reader on a long word problem? |
 
+## Growth rule + countdown by age + timer setting (#79)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-374 | U | ✅ | growth | a new player starts at their age level; +1 step per 5 player levels, capped at +3; a birthday raises the baseline; stays within 1–10; age comes from the sign-up birth date and level from XP (growth.test) |
+| TC-375 | U | ✅ | enemies | spawnEnemy at Lv 1 = age baseline; at Lv 6 one level (and more HP) higher; an older player meets higher-level enemies (enemies.test) |
+| TC-376 | U | ✅ | battleTurn | `defendTimeMs`: younger → more time; 5–8 year-olds never get ≤15s; leveling trims ≤3s; clamped 10–25s; mercy +5s |
+| TC-377 | U | ✅ | save | `defendTimer` defaults on (new and older saves); only an explicit `false` turns it off (save.test) |
+| TC-378 | M | ✅ | battle | countdown starts at 24s (age 6), 19s (age 9), 15s (age 12); a 9-year-old at Lv 16 gets 16s; enemies/battle questions Lv 4 → 7 (headless Chromium) |
+| TC-379 | M | ✅ | battle | with the timer off: no countdown, and 60s later the defend question is still waiting (headless Chromium) |
+| TC-380 | M | ✅ | menu | 📜 Menu → ⚔️ Battle → Defend timer toggles On ↔ Off ("Take as long as you need") and writes the save (headless Chromium) |
+| TC-381 | M | ⬜ | world | real account: turn the timer off, reload on another device → still off; level up past Lv 5, re-enter a zone → enemies one level higher |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

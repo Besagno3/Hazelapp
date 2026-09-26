@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  DEFEND_MAX_MS,
   DEFEND_MERCY_BONUS_MS,
-  DEFEND_MS,
+  DEFEND_MIN_MS,
   defendTimeMs,
   MERCY_AFTER,
   POWER_MULTIPLIER,
@@ -124,12 +125,23 @@ describe('streaks, mercy, rewards', () => {
 });
 
 describe('defendTimeMs', () => {
-  it('is a flat 15 seconds', () => {
-    expect(DEFEND_MS).toBe(15_000);
-    expect(defendTimeMs()).toBe(15_000);
+  it('younger kids get more time', () => {
+    expect(defendTimeMs(6, 1)).toBeGreaterThan(defendTimeMs(9, 1));
+    expect(defendTimeMs(9, 1)).toBeGreaterThan(defendTimeMs(13, 1));
+  });
+
+  it('a young reader never gets as little as 15s', () => {
+    for (const age of [5, 6, 7, 8]) expect(defendTimeMs(age, 99)).toBeGreaterThan(15_000);
+  });
+
+  it('leveling up trims it a little, never below the minimum', () => {
+    expect(defendTimeMs(9, 20)).toBeLessThan(defendTimeMs(9, 1));
+    expect(defendTimeMs(9, 1) - defendTimeMs(9, 20)).toBeLessThanOrEqual(3_000);
+    expect(defendTimeMs(18, 99)).toBe(DEFEND_MIN_MS);
+    expect(defendTimeMs(3, 1)).toBe(DEFEND_MAX_MS);
   });
 
   it('mercy adds a few seconds on top', () => {
-    expect(defendTimeMs(true)).toBe(DEFEND_MS + DEFEND_MERCY_BONUS_MS);
+    expect(defendTimeMs(10, 1, true)).toBe(defendTimeMs(10, 1) + DEFEND_MERCY_BONUS_MS);
   });
 });

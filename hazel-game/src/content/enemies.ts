@@ -1,5 +1,6 @@
 import type { BattleEnemy, EnemyBehavior, Topic, ZoneId } from '../types';
-import { ageToStartLevel, clampLevel } from '../lib/age';
+import { clampLevel } from '../lib/age';
+import { challengeLevel } from '../lib/growth';
 import { topicInfo } from './topics';
 import { bossCoinDrop, enemyCoinDrop } from './items';
 
@@ -16,7 +17,7 @@ export interface EnemyDef {
   /** key into src/content/sprites.ts SPRITES; falls back to `sprite` (emoji) when absent */
   spriteId?: string;
   topic: Topic;
-  /** Question level = ageToStartLevel(age) + levelOffset, clamped 1-10. */
+  /** Question level = challengeLevel(age, playerLevel) + levelOffset, clamped 1-10. */
   levelOffset: number;
   /** maxHp = HP_BASE + level * hpPerLevel. */
   hpPerLevel: number;
@@ -80,18 +81,20 @@ export function fiendFor(topic: Topic): EnemyDef {
 }
 
 /**
- * Resolves a placed enemy into a battle-ready instance, scaled to the
- * player's age. `instanceId` keys session defeat-tracking.
+ * Resolves a placed enemy into a battle-ready instance, scaled to the player:
+ * their age is the baseline and their player level nudges it up as they grow
+ * (lib/growth.ts). `instanceId` keys session defeat-tracking.
  */
 export function spawnEnemy(
   defId: string,
   zoneId: ZoneId,
   placementKey: string,
   age: number,
+  playerLevel = 1,
 ): BattleEnemy {
   const def = ENEMY_DEFS[defId];
   if (!def) throw new Error(`Unknown enemy def: ${defId}`);
-  const level = clampLevel(ageToStartLevel(age) + def.levelOffset);
+  const level = clampLevel(challengeLevel(age, playerLevel) + def.levelOffset);
   // Bosses live only in crystal topics, so fiendName is always set there; the
   // fallback keeps non-crystal enemies (and any future boss) safe.
   const name = def.isBoss ? (topicInfo(def.topic).fiendName ?? def.name) : def.name;

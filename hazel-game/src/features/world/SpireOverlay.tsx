@@ -4,7 +4,8 @@ import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
-import { playerAge, ageToStartLevel, clampLevel } from '../../lib/age';
+import { clampLevel } from '../../lib/age';
+import { challengeLevel, playerStanding } from '../../lib/growth';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { pushLibrary } from '../../lib/save';
@@ -66,7 +67,7 @@ export default function SpireOverlay() {
   const broken = useSpireStore((s) => s.broken);
   const spire = useSpireStore.getState;
 
-  const age = playerAge(profile);
+  const { age, level: heroLevel } = playerStanding(profile);
   const powerUps = profile?.powerUps ?? {};
   const crystals = save ? emberStatus(save.flags).crystals : 0;
   const unlocked = crystals >= TOPIC_REGISTRY.length;
@@ -178,7 +179,7 @@ export default function SpireOverlay() {
   function loadFloor(i: number) {
     const f = SPIRE_FLOORS[i];
     setPhase({ kind: 'loading' });
-    const level = clampLevel(ageToStartLevel(age) + f.levelBonus + 1);
+    const level = clampLevel(challengeLevel(age, heroLevel) + f.levelBonus + 1);
     const perTopic = Math.ceil(f.questions / f.topics.length);
     Promise.all(
       f.topics.map((t) =>
