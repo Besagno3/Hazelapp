@@ -22,7 +22,17 @@ export type SfxName =
   | 'chest'
   | 'levelup'
   | 'victory'
-  | 'select';
+  | 'select'
+  // Battle (spells, defending, damage, Ember)
+  | 'impact'
+  | 'enemyAttack'
+  | 'spell'
+  | 'heal'
+  | 'guard'
+  | 'block'
+  | 'shatter'
+  | 'roar'
+  | 'pair';
 
 export type MusicTrack =
   | 'title'
@@ -53,6 +63,15 @@ export const SFX_SOURCES: Record<SfxName, string> = {
   gate: '/audio/16bit/sfx/gate.mp3',
   chest: '/audio/16bit/sfx/chest.mp3',
   select: '/audio/16bit/sfx/select.mp3',
+  impact: '/audio/16bit/sfx/impact.mp3', // an enemy takes damage
+  enemyAttack: '/audio/16bit/sfx/enemyAttack.mp3', // the enemy lunges
+  spell: '/audio/16bit/sfx/spell.mp3', // a spell is cast (landed)
+  heal: '/audio/16bit/sfx/heal.mp3', // HP restored (Mend, potion, a healer enemy)
+  guard: '/audio/16bit/sfx/guard.mp3', // a guard / shield is raised
+  block: '/audio/16bit/sfx/block.mp3', // an enemy hit is fully blocked
+  shatter: '/audio/16bit/sfx/shatter.mp3', // a shielded enemy's shield breaks
+  roar: '/audio/16bit/sfx/roar.mp3', // Ember attacks
+  pair: '/audio/16bit/sfx/pair.mp3', // a hero + Ember Pair Attack
 };
 
 export const MUSIC_SOURCES: Record<MusicTrack, string> = {

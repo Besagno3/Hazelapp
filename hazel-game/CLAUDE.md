@@ -71,7 +71,8 @@ existing architecture.
   Moonwell Grove + the Crystal Spire; `ZONE_IDS` is the zone-id source of
   truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
-  (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
+  (Sage personas + charge tuning), `companion.ts` (Ember's battle moves +
+  Pair Attacks), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
   Fiends, #58), `items.ts` (shop + economy tuning), `avatars.ts`.
@@ -96,13 +97,16 @@ existing architecture.
   `spireStore`, #74). `TouchPad`
   is the mobile d-pad.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
-  battle — Attack / Spells / Guard / Potion / Flee, every command resolved by
+  battle — Attack / Spells / Ember / Guard / Items / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
   (the Spellbook, `content/spells.ts`): the hero casts any learned spell
   (Mend / Aegis / Sage strikes / Ember's Breath) by answering one *super-hard*
   question (`SPELL_LEVEL_BONUS` = 3 levels up); each spends charge (◆, the mana
   gauge filled by correct answers, `CHARGE_MAX` = 4) and a miss fizzles +
-  refunds the charge. Fiends (bosses) have enrage phases and restore their
+  refunds the charge. **Ember** (`content/companion.ts`, once hatched) has its
+  own strike (+1 bonus ◆ on a correct answer) and stage-gated **Pair Attacks**
+  — hero + Ember power combined, super-hard question, charge cost, fizzle on a
+  miss. Fiends (bosses) have enrage phases and restore their
   crystal on defeat. Pure math in `lib/battleMath.ts`. No game over — defeat
   returns the player to the hub, healed.
 - DB schema lives in `supabase/migrations/` — apply via the Supabase SQL Editor
@@ -185,6 +189,37 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-26 — Ember fights + Pair Attacks + battle sound effects (#75)
+Ember, the companion dragon, now fights beside the hero instead of just
+bouncing in the background, and battles got a full set of sound effects.
+- **🐉 Ember command** (`BattleArena`): disabled while Ember is an egg. Opens a
+  menu with **Ember Attack** (stage-named: Ember Nip / Flame Claw / Dragon Tail)
+  — a normal question like Attack, a bit softer than the hero
+  (`EMBER_POWER` 18/26/36), but a correct answer stokes an extra ◆
+  (`EMBER_BONUS_CHARGE`), so it's the move that sets up a combo. A wrong answer
+  is a glancing puff (effort never zero).
+- **Pair Attacks** (`content/companion.ts` `PAIR_ATTACKS`): Twin Strike
+  (hatchling, 2◆, ×1.6), Blazing Comet (whelp, 3◆, ×2.0), Dragon Duet (dragon,
+  4◆, ×2.4). Like spells they use the super-hard pool and fizzle harmlessly on
+  a miss; damage is `pairDamage` = (hero power + Ember power) × multiplier
+  (`lib/battleMath.ts`), so a Pair Attack always beats a solo spell of the same
+  cost (test-enforced). Hero and Ember lunge together, with a pair-attack
+  banner + fire-coloured confetti. A shield-absorbed combo refunds its charge.
+- **Battle SFX** (`tools/assets/audio.py`, `lib/audio.ts`): 9 new generated
+  sounds — `impact` (enemy takes damage), `enemyAttack` (enemy lunges),
+  `spell` (spell cast), `heal`, `guard` (guard/Aegis/Rainbow Ward raised),
+  `block` (hit fully blocked), `shatter` (enemy shield breaks), `roar` (Ember),
+  `pair` (the combo, with its own impacts). The `attack` swoosh moved out of the
+  hero-lunge effect into explicit calls so heals no longer swoosh. Existing SFX
+  re-render byte-identical.
+- `dealHeroDamage` now takes `{ refundCharge, actor, sound }` so every
+  damage-dealing move (Attack, spells, Ember, Pair) shares the shield/boss-phase
+  logic. The phase banner takes an icon (⚠️ for warnings, the combo's emoji for
+  Pair Attacks).
+- 310 tests green (was 301); lint + build clean. Played in headless Chromium
+  with a seeded save + mocked questions (egg / hatchling / dragon, shielded
+  enemy, fizzle) with a Howl.play spy confirming sound order. See ISSUES #75.
 
 ### 2026-09-23 — Spire review fixes: softlock, leave button, double-tap (#74)
 Code review of the Spire climb; all four findings fixed:

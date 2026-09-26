@@ -1,6 +1,8 @@
 import type { FightStyle, PowerUps } from '../types';
 import { attackBonus, defenseBonus } from './powerups';
 import { SPECIAL_MULTIPLIER } from '../content/abilities';
+import { EMBER_POWER } from '../content/companion';
+import type { EmberStage } from '../content/story';
 
 /**
  * Battle math for the JRPG command battles (#37). Pure functions — all
@@ -40,6 +42,29 @@ export function specialDamage(style: FightStyle, powerUps: PowerUps): number {
  */
 export function spellDamage(style: FightStyle, powerUps: PowerUps, multiplier: number): number {
   return Math.round((STYLE_ATTACK[style] + attackBonus(powerUps)) * multiplier);
+}
+
+/**
+ * Ember's strike (companion command). Like Attack, a wrong answer still lands
+ * a glancing blow; an egg can't fight (0).
+ */
+export function emberAttackDamage(correct: boolean, stage: EmberStage): number {
+  const base = EMBER_POWER[stage];
+  return correct ? base : Math.round(base * GLANCING);
+}
+
+/**
+ * Damage of a landed Pair Attack: the hero's AND Ember's power combined, then
+ * scaled by the combo's multiplier — so it always beats a solo spell of the
+ * same cost.
+ */
+export function pairDamage(
+  style: FightStyle,
+  powerUps: PowerUps,
+  stage: EmberStage,
+  multiplier: number,
+): number {
+  return Math.round((STYLE_ATTACK[style] + attackBonus(powerUps) + EMBER_POWER[stage]) * multiplier);
 }
 
 /** Raw enemy attack power; bosses hit harder and enrage by phase. */

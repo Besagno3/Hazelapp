@@ -13,13 +13,22 @@ in-game menu (📜 → 🔊 Audio).
 |------|------------|
 | `correct.mp3` | a question is answered correctly |
 | `wrong.mp3` | a question is answered wrong |
-| `attack.mp3` | the hero lunges (attack / spell) |
+| `attack.mp3` | the hero's Attack swoosh |
 | `hit.mp3` | the hero takes damage |
 | `gate.mp3` | a gate opens (question or key) |
 | `chest.mp3` | a treasure chest is opened |
 | `levelup.mp3` | the level-up celebration |
 | `victory.mp3` | a battle is won |
 | `select.mp3` | a hero is picked |
+| `impact.mp3` | an enemy takes damage in battle |
+| `enemyAttack.mp3` | the enemy lunges |
+| `spell.mp3` | a spell is cast (landed) |
+| `heal.mp3` | HP restored (Mend, potions, a healer enemy mending) |
+| `guard.mp3` | a guard / shield is raised (Guard, Aegis, Rainbow Ward) |
+| `block.mp3` | an enemy hit is fully blocked |
+| `shatter.mp3` | a shielded enemy's shield breaks |
+| `roar.mp3` | Ember attacks |
+| `pair.mp3` | a hero + Ember Pair Attack |
 
 ## `16bit/music/` — seamless loops
 `title`, `overworld`, `battle`, `boss`, `spire`, `finalBoss`, `victory`

@@ -362,6 +362,22 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-314 | M | ✅ | Spire | the world Menu button is hidden during the climb; 🚪 Leave the Spire returns to the Spire door (world.exploring), Menu returns, and standing by the tower doesn't instantly reopen it (headless Chromium) |
 | TC-315 | M | ✅ | Spire | a fast double-click on a story panel advances exactly one panel (headless Chromium) |
 
+## Ember companion + battle SFX (#75)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-316 | U | ✅ | companion | Ember can't fight as an egg; Pair Attacks unlock hatchling → whelp → dragon (1/2/3); every cost fits `CHARGE_MAX` (companion.test) |
+| TC-317 | U | ✅ | battleMath | `emberAttackDamage`: 0 for an egg, grows per stage, wrong answer is a non-zero glancing blow; `pairDamage` = (hero + Ember power) × multiplier and beats any solo damage spell of the same or lower cost (battleMath.test, companion.test) |
+| TC-318 | U | ✅ | audio | every new SFX (impact, enemyAttack, spell, heal, guard, block, shatter, roar, pair) points at a shipped file (audio.test) |
+| TC-319 | M | ✅ | battle | with Ember still an egg the 🐉 Ember command is disabled ("Still an egg…") (headless Chromium, seeded save) |
+| TC-320 | M | ✅ | battle | hatchling: Ember → Ember Nip → correct answer → Ember lunges, enemy −18, charge +2 (+1 answer, +1 Ember bonus) (headless Chromium, mocked questions) |
+| TC-321 | M | ✅ | battle | Pair Attacks are disabled below their cost; Twin Strike at 3◆ asks a super-hard question, both hero and Ember lunge, banner "⚔️ PAIR ATTACK — TWIN STRIKE!", enemy −77, charge −2 (headless Chromium) |
+| TC-322 | M | ✅ | battle | a missed Pair Attack fizzles ("falls out of step… the charge is safe") and spends no charge (headless Chromium) |
+| TC-323 | M | ✅ | battle | Ember's first hit on a shielded enemy (Relic Golem) shatters the shield for 0 damage and plays `shatter` (headless Chromium) |
+| TC-324 | M | ✅ | audio | sound order in play (Howl.play spy): Attack → attack, impact · Ember → roar, impact · Pair → pair · Mend → spell, heal · Guard → guard · enemy turn → enemyAttack then block (0 dmg) or hit (headless Chromium) |
+| TC-325 | M | ⬜ | audio | by ear with Sound on: new SFX sit at a comfortable level next to the old ones; the pair combo doesn't clip; a healer enemy's mend chime follows (not overlaps) the hit |
+| TC-326 | M | ⬜ | battle | dragon-stage Ember: Dragon Tail, Blazing Comet and Dragon Duet all selectable at their cost; Dragon Duet vs a Fiend feels strong but not a guaranteed one-shot |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

@@ -5,13 +5,15 @@ import QuestionCard from '../../components/QuestionCard';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { fetchQuestions } from '../../lib/questions';
-import { sfx, stopMusic } from '../../lib/audio';
+import { sfx, stopMusic, type SfxName } from '../../lib/audio';
 import { playerAge, clampLevel, nextSkillLevelFromBattle, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import {
   attackDamage,
   spellDamage,
+  emberAttackDamage,
+  pairDamage,
   enemyAttack,
   defendReduction,
   bossPhase,
@@ -22,6 +24,14 @@ import {
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { CHARGE_MAX } from '../../content/abilities';
 import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells';
+import {
+  EMBER_BONUS_CHARGE,
+  EMBER_MOVE,
+  emberCanFight,
+  pairAttacksKnown,
+  PAIR_ATTACKS,
+  type PairAttack,
+} from '../../content/companion';
 import { BATTLE_ITEMS, CONSUMABLES, POTION_HEAL, SPARK_CHARGE, type ConsumableId } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
@@ -42,8 +52,10 @@ type Turn =
   | { kind: 'command' }
   | { kind: 'cast' }
   | { kind: 'items' }
-  | { kind: 'question'; mode: 'attack' | 'guard'; question: Question }
+  | { kind: 'companion' }
+  | { kind: 'question'; mode: 'attack' | 'guard' | 'ember'; question: Question }
   | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question }
+  | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question }
   | { kind: 'enemy-question'; question: Question }
   | { kind: 'message'; text: string; next: () => void }
   | { kind: 'victory' }
@@ -58,6 +70,11 @@ type Turn =
  * heal, shield, Sage strikes, Ember's Breath — each cast by answering one
  * *super-hard* question (SPELL_LEVEL_BONUS levels up); a miss fizzles
  * harmlessly and the spell's charge is refunded.
+ *
+ * Once hatched, Ember fights too (🐉 Ember, `content/companion.ts`): Ember
+ * Attack is a question-powered strike that also stokes an extra ◆, and Pair
+ * Attacks combine hero + Ember power into a super-hard-question combo that
+ * outdamages any solo spell of the same cost.
  */
 export default function BattleArena() {
   const { enemy, playerHp, playerMaxHp, enemyHp, setHp, markDefeated, endBattle } =
@@ -79,6 +96,8 @@ export default function BattleArena() {
   const keyBoss = enemy ? keyForBoss(enemy.id) : undefined;
   const spells = save ? spellsKnown(save) : [];
   const { stage: ember } = emberStatus(save?.flags ?? {});
+  const emberMove = EMBER_MOVE[ember];
+  const pairs = pairAttacksKnown(ember);
 
   const enemySprite = resolveSprite(enemy?.spriteId, enemy?.sprite ?? '❓');
   const heroSprite = resolveSprite(avatar?.spriteId, avatar?.sprite ?? '❓');
@@ -101,9 +120,11 @@ export default function BattleArena() {
   // One-shot animation triggers (remount keys).
   const [heroLunge, setHeroLunge] = useState(0);
   const [enemyLunge, setEnemyLunge] = useState(0);
+  const [emberLunge, setEmberLunge] = useState(0);
   // Transient flags: true only for the ~520ms of the lunge animation.
   const [enemyActing, setEnemyActing] = useState(false);
   const [heroActing, setHeroActing] = useState(false);
+  const [emberActing, setEmberActing] = useState(false);
   const [floats, setFloats] = useState<{ id: number; text: string; side: 'hero' | 'enemy'; color: string }[]>([]);
   const floatId = useRef(0);
   const [answers, setAnswers] = useState<boolean[]>([]);
@@ -146,9 +167,10 @@ export default function BattleArena() {
   // showing a new banner cancels the previous hide timer, so a stale timeout
   // can never wipe a banner another path just raised.
   const bannerTimer = useRef<number | null>(null);
-  const showBanner = useCallback((text: string, ttl = 2500) => {
+  // Warnings (archetypes, enrage) default to ⚠️; a Pair Attack brings its own emoji.
+  const showBanner = useCallback((text: string, ttl = 2500, icon = '⚠️') => {
     if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
-    setPhaseBanner(text);
+    setPhaseBanner(`${icon} ${text}`);
     bannerTimer.current = window.setTimeout(() => setPhaseBanner(null), ttl);
   }, []);
   useEffect(() => () => {
@@ -205,10 +227,17 @@ export default function BattleArena() {
     if (!heroLunge) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack/hurt flag for the lunge animation window
     setHeroActing(true);
-    sfx('attack'); // every hero lunge (attack / spell) gets the swoosh
     const t = setTimeout(() => setHeroActing(false), 520);
     return () => clearTimeout(t);
   }, [heroLunge]);
+
+  useEffect(() => {
+    if (!emberLunge) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack flag for Ember's lunge window
+    setEmberActing(true);
+    const t = setTimeout(() => setEmberActing(false), 520);
+    return () => clearTimeout(t);
+  }, [emberLunge]);
 
   // Battle entered without an encounter (e.g. stale reload) — bail out.
   const invalid = !enemy || !save || !avatar;
@@ -232,6 +261,7 @@ export default function BattleArena() {
 
   const phase = enemy.isBoss ? bossPhase(enemyHp, enemy.maxHp) : 0;
   const canCastAny = spellQs.length > 0 && spells.some((s) => charge >= s.cost);
+  const emberReady = emberCanFight(ember);
   const nextQuestion = () => {
     const q = questions[qIndex % questions.length];
     setQIndex((i) => i + 1);
@@ -255,6 +285,18 @@ export default function BattleArena() {
   function commandCast() {
     setTurn({ kind: 'cast' });
   }
+  function commandCompanion() {
+    if (emberReady) setTurn({ kind: 'companion' });
+  }
+  function commandEmberAttack() {
+    setTurn({ kind: 'question', mode: 'ember', question: nextQuestion() });
+  }
+  function startPair(pair: PairAttack) {
+    if (charge < pair.cost || spellQs.length === 0) return;
+    const q = spellQs[spellIdx % spellQs.length];
+    setSpellIdx((i) => i + 1);
+    setTurn({ kind: 'question', mode: 'pair', pair, question: q });
+  }
   function castSpell(spell: Spell) {
     if (charge < spell.cost || spellQs.length === 0) return;
     const q = spellQs[spellIdx % spellQs.length];
@@ -277,12 +319,15 @@ export default function BattleArena() {
     if (id === 'potion' || id === 'elixir') {
       const healed = id === 'elixir' ? playerMaxHp : Math.min(playerMaxHp, playerHp + POTION_HEAL);
       setHp(healed, enemyHp);
+      sfx('heal');
       float(`+${healed - playerHp}`, 'hero', 'text-emerald-300');
     } else if (id === 'spark') {
       setCharge((c) => Math.min(CHARGE_MAX, c + SPARK_CHARGE));
+      sfx('spell');
       float(`+${SPARK_CHARGE}◆`, 'hero', 'text-amber-300');
     } else if (id === 'ward') {
       setGuarded(true);
+      sfx('guard');
       float('🌈', 'hero', 'text-sky-300');
     }
     setTurn({ kind: 'message', text: `${avatar!.name} uses a ${name}! ${emoji}`, next: enemyTurn });
@@ -299,6 +344,7 @@ export default function BattleArena() {
     if (mode === 'guard') {
       if (wasCorrect) {
         setGuarded(true);
+        sfx('guard');
         float('🛡️', 'hero', 'text-sky-300');
         setTurn({ kind: 'message', text: `${avatar!.name} braces behind a wall of knowing!`, next: enemyTurn });
       } else {
@@ -309,7 +355,46 @@ export default function BattleArena() {
 
     const dmg = attackDamage(wasCorrect, style, powerUps);
     const text = wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…';
-    dealHeroDamage(dmg, text, 'text-red-300');
+    dealHeroDamage(dmg, text, 'text-red-300', { sound: 'attack' });
+  }
+
+  /**
+   * Ember's own strike. A correct answer also stokes the spell gauge with an
+   * extra ◆ (on top of the usual +1), setting up a Pair Attack; a wrong
+   * answer is a glancing puff — effort is never worth zero.
+   */
+  function resolveEmberAttack(wasCorrect: boolean) {
+    const dmg = emberAttackDamage(wasCorrect, ember);
+    if (wasCorrect) {
+      setCharge((c) => Math.min(CHARGE_MAX, c + EMBER_BONUS_CHARGE));
+      setTimeout(() => float(`+${EMBER_BONUS_CHARGE}◆`, 'hero', 'text-amber-300'), 260);
+    }
+    const text = wasCorrect
+      ? `${emberMove.emoji} Ember uses ${emberMove.name}! The fire stokes your spell charge!`
+      : `${emberMove.emoji} Ember puffs a little smoke… a glancing blow.`;
+    dealHeroDamage(dmg, text, 'text-orange-300', { actor: 'ember', sound: 'roar' });
+  }
+
+  /** Fire a Pair Attack once its super-hard question resolves. */
+  function resolvePair(pair: PairAttack, wasCorrect: boolean) {
+    if (!wasCorrect) {
+      // Same promise as spells: a miss fizzles and the charge is safe.
+      setTurn({
+        kind: 'message',
+        text: `${pair.emoji} ${pair.name} falls out of step… the charge is safe. Try again together!`,
+        next: enemyTurn,
+      });
+      return;
+    }
+    setCharge((c) => Math.max(0, c - pair.cost));
+    confetti({ particleCount: 140, spread: 120, origin: { y: 0.4 }, colors: ['#fb923c', '#fbbf24', '#f87171', '#fde68a'] });
+    showBanner(`PAIR ATTACK — ${pair.name.toUpperCase()}!`, 1800, pair.emoji);
+    const dmg = pairDamage(style, powerUps, ember, pair.multiplier);
+    dealHeroDamage(dmg, `${pair.emoji} ${avatar!.name} and Ember unleash ${pair.name}!`, pair.color, {
+      refundCharge: pair.cost,
+      actor: 'pair',
+      sound: 'pair',
+    });
   }
 
   /** Cast the chosen spell once its super-hard question resolves. */
@@ -326,7 +411,11 @@ export default function BattleArena() {
       const healed = Math.min(playerMaxHp, playerHp + spell.effect.amount);
       setHp(healed, enemyHp);
       setHeroLunge((n) => n + 1);
-      setTimeout(() => float(`+${healed - playerHp}`, 'hero', spell.color), 260);
+      sfx('spell');
+      setTimeout(() => {
+        sfx('heal');
+        float(`+${healed - playerHp}`, 'hero', spell.color);
+      }, 260);
       setTurn({ kind: 'message', text: `${spell.emoji} ${spell.name}! Bright knowing knits your wounds.`, next: enemyTurn });
       return;
     }
@@ -334,6 +423,8 @@ export default function BattleArena() {
       setGuarded(true);
       const healed = Math.min(playerMaxHp, playerHp + spell.effect.heal);
       setHp(healed, enemyHp);
+      sfx('spell');
+      setTimeout(() => sfx('guard'), 260);
       float('🛡️', 'hero', spell.color);
       setTurn({ kind: 'message', text: `${spell.emoji} ${spell.name}! A shield of knowing rises — the next hit will glance away.`, next: enemyTurn });
       return;
@@ -346,22 +437,38 @@ export default function BattleArena() {
         : ember !== 'egg'
           ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
           : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;
-    dealHeroDamage(dmg, text, spell.color, spell.cost);
+    dealHeroDamage(dmg, text, spell.color, { refundCharge: spell.cost, sound: 'spell' });
   }
 
   /**
-   * Shared damage-dealing path for Attack and offensive spells. Offensive
-   * spells pass `refundCharge` so a shield-absorbed cast gives the charge
-   * back — a correct super-hard answer must never buy less than a free
-   * glancing blow would (effort is never punished).
+   * Shared damage-dealing path for Attack, Ember, Pair Attacks and offensive
+   * spells. Charge-spending moves pass `refundCharge` so a shield-absorbed
+   * cast gives the charge back — a correct super-hard answer must never buy
+   * less than a free glancing blow would (effort is never punished).
+   * `actor` picks who lunges; `sound` is the wind-up SFX (the 'pair' sound
+   * carries its own impacts, every other hit adds an 'impact' as it lands).
    */
-  function dealHeroDamage(dmg: number, text: string, floatColor: string, refundCharge = 0) {
+  function dealHeroDamage(
+    dmg: number,
+    text: string,
+    floatColor: string,
+    {
+      refundCharge = 0,
+      actor = 'hero',
+      sound,
+    }: { refundCharge?: number; actor?: 'hero' | 'ember' | 'pair'; sound: SfxName },
+  ) {
+    if (actor !== 'ember') setHeroLunge((n) => n + 1);
+    if (actor !== 'hero') setEmberLunge((n) => n + 1);
+    sfx(sound);
     // Shielded archetype: the shield absorbs the first landed hit (any hit —
     // even a glancing blow shatters it), then the enemy fights unprotected.
     if (enemyShielded && dmg > 0) {
       setEnemyShielded(false);
-      setHeroLunge((n) => n + 1);
-      setTimeout(() => float('Shield shattered!', 'enemy', 'text-amber-300'), 260);
+      setTimeout(() => {
+        sfx('shatter');
+        float('Shield shattered!', 'enemy', 'text-amber-300');
+      }, 260);
       if (refundCharge > 0) setCharge((c) => Math.min(CHARGE_MAX, c + refundCharge));
       setTurn({
         kind: 'message',
@@ -372,9 +479,9 @@ export default function BattleArena() {
       });
       return;
     }
-    setHeroLunge((n) => n + 1);
     const newEnemyHp = Math.max(0, enemyHp - dmg);
     setTimeout(() => {
+      if (sound !== 'pair') sfx('impact');
       float(`-${dmg}`, 'enemy', floatColor);
       setHp(playerHp, newEnemyHp);
     }, 260);
@@ -418,13 +525,16 @@ export default function BattleArena() {
     }
 
     setEnemyLunge((n) => n + 1);
+    sfx('enemyAttack');
     const newPlayerHp = Math.max(0, playerHp - dmg);
     setTimeout(() => {
       float(dmg === 0 ? 'Blocked!' : `-${dmg}`, 'hero', dmg === 0 ? 'text-sky-300' : 'text-red-300');
       if (newEnemyHp > enemyHp) float(`+${newEnemyHp - enemyHp}`, 'enemy', 'text-emerald-300');
-      if (dmg > 0) sfx('hit');
+      sfx(dmg === 0 ? 'block' : 'hit');
       setHp(newPlayerHp, newEnemyHp);
     }, 260);
+    // A healer's mend chimes just after the hit lands, so the two don't blur.
+    if (newEnemyHp > enemyHp) setTimeout(() => sfx('heal'), 600);
 
     const text =
       (dmg === 0
@@ -591,7 +701,7 @@ export default function BattleArena() {
             exit={{ opacity: 0 }}
             className="relative z-10 text-center text-amber-300 font-extrabold tracking-wide"
           >
-            ⚠️ {phaseBanner}
+            {phaseBanner}
           </motion.p>
         )}
       </AnimatePresence>
@@ -609,7 +719,7 @@ export default function BattleArena() {
             <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 2.2 }}>
               <SpriteSheet
                 view={enemySprite.def?.battle ?? null}
-                anim={enemyActing ? 'attack' : heroActing ? 'hurt' : 'idle'}
+                anim={enemyActing ? 'attack' : heroActing || emberActing ? 'hurt' : 'idle'}
                 emoji={enemySprite.emoji}
                 scale={enemy.isBoss ? 3 : 2.5}
                 className="leading-none"
@@ -650,20 +760,27 @@ export default function BattleArena() {
             </motion.div>
           </motion.div>
           {guarded && <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl">🛡️</span>}
-          <motion.span
-            animate={{ y: [0, -4, 0] }}
-            transition={{ repeat: Infinity, duration: 1.4 }}
-            className={`absolute -right-10 bottom-0 ${ember === 'egg' ? 'text-2xl' : ember === 'dragon' ? 'text-5xl' : 'text-3xl'}`}
-            title="Ember"
-            style={{ filter: 'drop-shadow(0 8px 6px rgba(0,0,0,0.4))' }}
+          <motion.div
+            key={`ml${emberLunge}`}
+            animate={emberLunge ? { x: [0, -110, 0] } : {}}
+            transition={{ duration: 0.5 }}
+            className="absolute -right-10 bottom-0"
           >
-            <SpriteSheet
-              view={emberSprite.def?.battle ?? null}
-              anim="idle"
-              emoji={emberSprite.emoji}
-              scale={ember === 'egg' ? 1.5 : ember === 'dragon' ? 3 : 2}
-            />
-          </motion.span>
+            <motion.span
+              animate={{ y: [0, -4, 0] }}
+              transition={{ repeat: Infinity, duration: 1.4 }}
+              className={`block ${ember === 'egg' ? 'text-2xl' : ember === 'dragon' ? 'text-5xl' : 'text-3xl'}`}
+              title="Ember"
+              style={{ filter: 'drop-shadow(0 8px 6px rgba(0,0,0,0.4))' }}
+            >
+              <SpriteSheet
+                view={emberSprite.def?.battle ?? null}
+                anim={emberActing ? 'attack' : enemyActing ? 'hurt' : 'idle'}
+                emoji={emberSprite.emoji}
+                scale={ember === 'egg' ? 1.5 : ember === 'dragon' ? 3 : 2}
+              />
+            </motion.span>
+          </motion.div>
           {floats
             .filter((f) => f.side === 'hero')
             .map((f) => (
@@ -701,6 +818,13 @@ export default function BattleArena() {
                       : `Charge ◆ ${charge}/${CHARGE_MAX}`
                 }
                 onClick={commandCast}
+              />
+              <CommandButton
+                emoji="🐉"
+                label="Ember"
+                disabled={!emberReady}
+                hint={emberReady ? `${emberMove.name} · Pair Attacks` : 'Still an egg…'}
+                onClick={commandCompanion}
               />
               <CommandButton emoji="🛡️" label="Guard" onClick={commandGuard} />
               <CommandButton
@@ -748,6 +872,69 @@ export default function BattleArena() {
                 );
               })}
             </div>
+            <button
+              onClick={() => setTurn({ kind: 'command' })}
+              className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-2 text-xs font-semibold"
+            >
+              ← Back
+            </button>
+          </div>
+        )}
+
+        {turn.kind === 'companion' && (
+          <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
+            <p className="text-xs text-white/60 mb-1 uppercase tracking-widest">🐉 Ember — fight side by side!</p>
+            <p className="text-[11px] text-white/50 mb-3">
+              Charge:{' '}
+              {Array.from({ length: CHARGE_MAX }).map((_, i) => (
+                <span key={i} className={i < charge ? 'text-amber-300' : 'text-white/25'}>
+                  ◆
+                </span>
+              ))}
+            </p>
+            <button
+              onClick={commandEmberAttack}
+              className="w-full mb-2 bg-white/10 hover:bg-white/20 rounded-xl px-3 py-2 text-left transition"
+            >
+              <span className="font-bold text-sm">
+                <span className="mr-1.5">{emberMove.emoji}</span>
+                {emberMove.name}
+                <span className="ml-1.5 text-xs text-amber-300">+{EMBER_BONUS_CHARGE}◆</span>
+              </span>
+              <span className="block text-[10px] text-white/50 mt-0.5">
+                Ember attacks! A right answer also adds an extra ◆ of charge.
+              </span>
+            </button>
+            <p className="text-[10px] text-white/50 mb-1.5 uppercase tracking-widest">
+              Pair Attacks — one super-hard answer, double the power
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {pairs.map((pair) => {
+                const affordable = charge >= pair.cost && spellQs.length > 0;
+                return (
+                  <button
+                    key={pair.id}
+                    onClick={() => startPair(pair)}
+                    disabled={!affordable}
+                    className="bg-gradient-to-r from-orange-500/20 to-amber-400/10 hover:from-orange-500/30 disabled:opacity-40 rounded-xl px-3 py-2 text-left transition border border-orange-300/30"
+                  >
+                    <span className="font-bold text-sm">
+                      <span className="mr-1.5">{pair.emoji}</span>
+                      {pair.name}
+                      <span className={`ml-1.5 text-xs ${affordable ? 'text-amber-300' : 'text-white/40'}`}>
+                        ◆{pair.cost}
+                      </span>
+                    </span>
+                    <span className="block text-[10px] text-white/50 mt-0.5">{pair.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {pairs.length < PAIR_ATTACKS.length && (
+              <p className="text-[10px] text-white/40 mt-2 italic">
+                Restore crystals to help Ember grow — bigger Ember, bigger combos!
+              </p>
+            )}
             <button
               onClick={() => setTurn({ kind: 'command' })}
               className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-2 text-xs font-semibold"
@@ -806,11 +993,13 @@ export default function BattleArena() {
             <p className="text-center text-white font-bold mb-2 text-sm uppercase tracking-widest">
               {turn.kind === 'enemy-question'
                 ? `🛡️ ${enemy.name} attacks — answer to block!`
-                : turn.mode === 'spell'
-                  ? `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`
-                  : turn.mode === 'guard'
-                    ? '🛡️ Answer to raise your guard!'
-                    : '⚔️ Answer to strike!'}
+                : {
+                    spell: turn.mode === 'spell' && `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`,
+                    pair: turn.mode === 'pair' && `${turn.pair.emoji} Super-hard question — ${turn.pair.name} with Ember!`,
+                    ember: `${emberMove.emoji} Answer to help Ember strike!`,
+                    guard: '🛡️ Answer to raise your guard!',
+                    attack: '⚔️ Answer to strike!',
+                  }[turn.mode]}
             </p>
             <QuestionCard
               key={turn.question.id + qIndex + spellIdx}
@@ -824,7 +1013,11 @@ export default function BattleArena() {
                   ? resolveEnemyQuestion(correct)
                   : turn.mode === 'spell'
                     ? resolveSpell(turn.spell, correct)
-                    : resolvePlayerQuestion(turn.mode, correct)
+                    : turn.mode === 'pair'
+                      ? resolvePair(turn.pair, correct)
+                      : turn.mode === 'ember'
+                        ? resolveEmberAttack(correct)
+                        : resolvePlayerQuestion(turn.mode, correct)
               }
             />
           </div>

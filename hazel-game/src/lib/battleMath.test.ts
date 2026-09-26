@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   attackDamage,
   specialDamage,
+  spellDamage,
+  emberAttackDamage,
+  pairDamage,
   enemyAttack,
   defendReduction,
   bossPhase,
@@ -92,5 +95,33 @@ describe('healer archetype (Wave 0.5)', () => {
     // The roster-level "no healer out-mends a real hit" invariant lives in
     // enemies.test.ts, derived from ENEMY_DEFS (not a hardcoded HP).
     expect(healerRegen(300)).toBe(Math.round(300 * HEALER_REGEN_RATE));
+  });
+});
+
+describe('emberAttackDamage', () => {
+  it('an egg cannot fight', () => {
+    expect(emberAttackDamage(true, 'egg')).toBe(0);
+  });
+
+  it('grows with Ember', () => {
+    expect(emberAttackDamage(true, 'dragon')).toBeGreaterThan(emberAttackDamage(true, 'whelp'));
+    expect(emberAttackDamage(true, 'whelp')).toBeGreaterThan(emberAttackDamage(true, 'hatchling'));
+  });
+
+  it('a wrong answer is a glancing blow, never zero once hatched', () => {
+    expect(emberAttackDamage(false, 'hatchling')).toBeGreaterThan(0);
+    expect(emberAttackDamage(false, 'hatchling')).toBeLessThan(emberAttackDamage(true, 'hatchling'));
+  });
+});
+
+describe('pairDamage', () => {
+  it('combines hero and Ember power', () => {
+    expect(pairDamage('balanced', {}, 'dragon', 1)).toBe(
+      attackDamage(true, 'balanced', {}) + emberAttackDamage(true, 'dragon'),
+    );
+  });
+
+  it('outdamages a solo spell of the same multiplier', () => {
+    expect(pairDamage('balanced', {}, 'hatchling', 2.5)).toBeGreaterThan(spellDamage('balanced', {}, 2.5));
   });
 });
