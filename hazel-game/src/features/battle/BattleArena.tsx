@@ -950,7 +950,12 @@ export default function BattleArena() {
   const charging = intent === 'power';
 
   return (
-    <div className={`min-h-screen flex flex-col bg-gradient-to-b ${info.skyGradient} overflow-hidden relative`}>
+    // overflow-clip (not hidden): a hidden-overflow box is still programmatically
+    // scrollable, so focusing/scrolling to a button could slide the whole arena
+    // sideways; clip can't scroll. overflow-hidden stays as the fallback.
+    <div
+      className={`min-h-screen flex flex-col bg-gradient-to-b ${info.skyGradient} overflow-hidden supports-[overflow:clip]:overflow-clip relative`}
+    >
       {/* 16-bit zone backdrop (the sky gradient stays underneath as a fallback) */}
       {enemy && (
         <div
@@ -979,32 +984,32 @@ export default function BattleArena() {
       </div>
 
       {/* Status panels (FF-style boxes) */}
-      <div className="relative z-10 flex justify-between p-4 gap-4">
-        <div className="bg-indigo-950/90 border-2 border-white/70 rounded-xl px-4 py-2 text-white w-60">
-          <div className="flex justify-between text-sm font-bold">
-            <span>
+      <div className="relative z-10 flex justify-between gap-2 p-2 sm:gap-4 sm:p-4">
+        <div className="bg-indigo-950/90 border-2 border-white/70 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-white w-60 min-w-0">
+          <div className="flex justify-between items-baseline gap-2 text-[13px] sm:text-sm font-bold">
+            <span className="min-w-0 truncate" title={enemy.name}>
               {enemy.isBoss && '👑 '}
               {enemyShielded && '🛡️ '}
               {enemy.name}
             </span>
-            <span className="text-white/70">Lv {enemy.level}</span>
+            <span className="shrink-0 whitespace-nowrap text-white/70">Lv {enemy.level}</span>
           </div>
           <div className="w-full bg-white/15 rounded-full h-3 mt-1 overflow-hidden">
             <motion.div className="h-full bg-red-400 rounded-full" animate={{ width: hpPct(viewEnemyHp, enemy.maxHp) }} />
           </div>
-          <div className="flex justify-between text-[11px] mt-0.5">
+          <div className="flex justify-between gap-2 text-xs mt-0.5">
             <span className="text-amber-300 font-bold animate-pulse">{charging && `💢 ${powerMove} next!`}</span>
             <span className="text-white/60">
               {viewEnemyHp}/{enemy.maxHp}
             </span>
           </div>
         </div>
-        <div className="bg-indigo-950/90 border-2 border-white/70 rounded-xl px-4 py-2 text-white w-60">
-          <div className="flex justify-between text-sm font-bold">
-            <span>
+        <div className="bg-indigo-950/90 border-2 border-white/70 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-white w-60 min-w-0">
+          <div className="flex justify-between items-baseline gap-2 text-[13px] sm:text-sm font-bold">
+            <span className="min-w-0 truncate">
               {avatar.sprite} {avatar.name}
             </span>
-            <span className="flex gap-0.5 items-center" title="Special charge">
+            <span className="shrink-0 flex gap-0.5 items-center" title="Special charge">
               {Array.from({ length: CHARGE_MAX }).map((_, i) => (
                 <span key={i} className={i < charge ? 'text-amber-300' : 'text-white/25'}>
                   ◆
@@ -1015,7 +1020,7 @@ export default function BattleArena() {
           <div className="w-full bg-white/15 rounded-full h-3 mt-1 overflow-hidden">
             <motion.div className="h-full bg-green-400 rounded-full" animate={{ width: hpPct(viewPlayerHp, playerMaxHp) }} />
           </div>
-          <div className="flex justify-between text-[11px] mt-0.5">
+          <div className="flex justify-between gap-2 text-xs mt-0.5">
             <span className="text-orange-300 font-bold" title="Answers in a row">
               {streak >= STREAK_START && `🔥×${streak} streak`}
             </span>
@@ -1041,7 +1046,9 @@ export default function BattleArena() {
       </AnimatePresence>
 
       {/* Combatants on the ground plane */}
-      <div className="relative z-10 flex-1 flex items-end justify-between px-[12%] pb-[8%] min-h-[220px]">
+      {/* Phones: a smaller floor for the arena so menus + question cards fit on
+          screen; flex-1 still grows it into any spare height (e.g. messages). */}
+      <div className="relative z-10 flex-1 flex items-end justify-between px-[12%] min-h-[112px] pb-3 sm:min-h-[220px] sm:pb-[8%]">
         <div className="relative" ref={enemyRef}>
           <motion.div
             key={`el${enemyLunge}`}
@@ -1176,11 +1183,18 @@ export default function BattleArena() {
       </div>
 
       {/* Bottom box: commands / question / message / results */}
-      <div className="relative z-20 p-4 pb-6 flex justify-center">
+      <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6">
         {turn.kind === 'command' && (
           <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
             <p className="text-xs text-white/60 mb-3 uppercase tracking-widest">
-              {charging ? `💢 ${powerMove} is coming — Guard to block it!` : 'Your move — every command is a question!'}
+              {charging ? (
+                `💢 ${powerMove} is coming — Guard to block it!`
+              ) : (
+                <>
+                  <span className="sm:hidden">Your move!</span>
+                  <span className="hidden sm:inline">Your move — every command is a question!</span>
+                </>
+              )}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <CommandButton emoji="⚔️" label="Attack" onClick={commandAttack} />
@@ -1240,7 +1254,7 @@ export default function BattleArena() {
         )}
 
         {turn.kind === 'swap' && (
-          <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
+          <div className={SUBMENU}>
             <p className="text-xs text-white/60 mb-3 uppercase tracking-widest">🔄 Swap — free, you still get your move!</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {COMPANION_IDS.map((id) => {
@@ -1254,14 +1268,14 @@ export default function BattleArena() {
                     disabled={!joined}
                     className={`rounded-xl px-3 py-2 text-left transition border ${
                       active ? 'bg-sky-500/25 border-sky-300/70' : 'bg-white/10 hover:bg-white/20 border-transparent'
-                    } disabled:opacity-40 disabled:hover:bg-white/10`}
+                    } disabled:opacity-60 disabled:hover:bg-white/10`}
                   >
                     <span className="font-bold text-sm">
                       <span className="mr-1.5">{c.emoji}</span>
                       {c.name}
-                      <span className="ml-1.5 text-[10px] uppercase tracking-wider text-white/50">{c.role}</span>
+                      <span className="ml-1.5 text-xs uppercase tracking-wider text-white/70">{c.role}</span>
                     </span>
-                    <span className="block text-[10px] text-white/60 mt-0.5">
+                    <span className="block text-xs text-white/75 mt-0.5">
                       {!joined ? `🔒 ${c.joinHint}` : active ? '✓ Fighting now' : c.blurb}
                     </span>
                   </button>
@@ -1273,7 +1287,7 @@ export default function BattleArena() {
         )}
 
         {turn.kind === 'items' && (
-          <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
+          <div className={SUBMENU}>
             <p className="text-xs text-white/60 mb-3 uppercase tracking-widest">🎒 Items — using one takes your turn</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {BATTLE_ITEMS.filter((id) => save.items[id] > 0).map((id) => {
@@ -1283,14 +1297,14 @@ export default function BattleArena() {
                     key={id}
                     onClick={() => applyItem(id)}
                     disabled={!!blocked}
-                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 rounded-xl px-3 py-2 text-left transition"
+                    className="bg-white/10 hover:bg-white/20 disabled:opacity-60 disabled:hover:bg-white/10 rounded-xl px-3 py-2 text-left transition"
                   >
                     <span className="font-bold text-sm">
                       <span className="mr-1.5">{CONSUMABLES[id].emoji}</span>
                       {CONSUMABLES[id].name}
                       <span className="ml-1.5 text-xs text-white/60">×{save.items[id]}</span>
                     </span>
-                    <span className="block text-[10px] text-white/50 mt-0.5">{blocked ?? CONSUMABLES[id].description}</span>
+                    <span className="block text-xs text-white/70 mt-0.5">{blocked ?? CONSUMABLES[id].description}</span>
                   </button>
                 );
               })}
@@ -1300,7 +1314,7 @@ export default function BattleArena() {
         )}
 
         {turn.kind === 'companion' && (
-          <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
+          <div className={SUBMENU}>
             <p className="text-xs text-white/60 mb-1 uppercase tracking-widest">
               {companion.emoji} {companion.name} — fight side by side!
             </p>
@@ -1314,11 +1328,11 @@ export default function BattleArena() {
                 {cMove.name}
                 <span className="ml-1.5 text-xs text-amber-300">{perkLabel}</span>
               </span>
-              <span className="block text-[10px] text-white/50 mt-0.5">
-                {companion.name} attacks! A right answer also: {companion.blurb.charAt(0).toLowerCase() + companion.blurb.slice(1)}
+              <span className="block text-xs text-white/70 mt-0.5">
+                {companion.name} attacks! {companion.perkLine}
               </span>
             </button>
-            <p className="text-[10px] text-white/50 mb-1.5 uppercase tracking-widest">
+            <p className="text-xs text-white/70 mb-1.5 uppercase tracking-widest">
               Pair Attacks — one super-hard answer, double the power
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1329,20 +1343,21 @@ export default function BattleArena() {
                     key={pair.id}
                     onClick={() => startPair(pair)}
                     disabled={!affordable}
-                    className="bg-gradient-to-r from-orange-500/20 to-amber-400/10 hover:from-orange-500/30 disabled:opacity-40 rounded-xl px-3 py-2 text-left transition border border-orange-300/30"
+                    className="bg-gradient-to-r from-orange-500/20 to-amber-400/10 hover:from-orange-500/30 disabled:opacity-60 rounded-xl px-3 py-2 text-left transition border border-orange-300/30"
                   >
                     <span className="font-bold text-sm">
                       <span className="mr-1.5">{pair.emoji}</span>
                       {pair.name}
                       <span className={`ml-1.5 text-xs ${affordable ? 'text-amber-300' : 'text-white/40'}`}>◆{pair.cost}</span>
                     </span>
-                    <span className="block text-[10px] text-white/50 mt-0.5">{pair.description}</span>
+                    <span className="block text-xs text-white/70 mt-0.5">{pair.description}</span>
+                    <NeedMore cost={pair.cost} charge={charge} loading={spellQs.length === 0} />
                   </button>
                 );
               })}
             </div>
             {companionId === 'ember' && pairs.length < PAIR_ATTACKS.filter((p) => p.companion === 'ember').length && (
-              <p className="text-[10px] text-white/40 mt-2 italic">
+              <p className="text-xs text-white/60 mt-2 italic">
                 Restore crystals to help Ember grow — bigger Ember, bigger combos!
               </p>
             )}
@@ -1351,7 +1366,7 @@ export default function BattleArena() {
         )}
 
         {turn.kind === 'cast' && (
-          <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
+          <div className={SUBMENU}>
             <p className="text-xs text-white/60 mb-1 uppercase tracking-widest">
               📖 Spellbook — each spell needs one super-hard answer!
             </p>
@@ -1365,15 +1380,16 @@ export default function BattleArena() {
                     key={spell.id}
                     onClick={() => castSpell(spell)}
                     disabled={!affordable}
-                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 rounded-xl px-3 py-2 text-left transition"
+                    className="bg-white/10 hover:bg-white/20 disabled:opacity-60 disabled:hover:bg-white/10 rounded-xl px-3 py-2 text-left transition"
                   >
                     <span className="font-bold text-sm">
                       <span className="mr-1.5">{spell.emoji}</span>
                       {spell.name}
                       <span className={`ml-1.5 text-xs ${affordable ? 'text-amber-300' : 'text-white/40'}`}>◆{spell.cost}</span>
                     </span>
-                    {weak && <span className="block text-[10px] font-bold text-yellow-200">✨ Super effective here!</span>}
-                    <span className="block text-[10px] text-white/50 mt-0.5">{spell.description}</span>
+                    {weak && <span className="block text-xs font-bold text-yellow-200">✨ Super effective here!</span>}
+                    <span className="block text-xs text-white/70 mt-0.5">{spell.description}</span>
+                    <NeedMore cost={spell.cost} charge={charge} loading={spellQs.length === 0} />
                   </button>
                 );
               })}
@@ -1509,7 +1525,7 @@ function motionProps(k: Keyframes | null, reduceMotion: boolean) {
 
 function ChargeRow({ charge }: { charge: number }) {
   return (
-    <p className="text-[11px] text-white/50 mb-3">
+    <p className="text-xs text-white/70 mb-3">
       Charge:{' '}
       {Array.from({ length: CHARGE_MAX }).map((_, i) => (
         <span key={i} className={i < charge ? 'text-amber-300' : 'text-white/25'}>
@@ -1520,9 +1536,26 @@ function ChargeRow({ charge }: { charge: number }) {
   );
 }
 
+/**
+ * Sub-menus (Swap / Items / Companion / Spells): on phones a long list scrolls
+ * inside the panel and ← Back stays pinned, instead of pushing past the screen.
+ */
+const SUBMENU =
+  'bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl max-h-[64dvh] overflow-y-auto overscroll-contain sm:max-h-none sm:overflow-visible';
+
+/** Why a charge move is greyed out — "not yet", not "broken". */
+function NeedMore({ cost, charge, loading }: { cost: number; charge: number; loading: boolean }) {
+  if (loading) return <span className="block text-xs font-semibold text-amber-200/90 mt-0.5">Getting ready…</span>;
+  if (charge >= cost) return null;
+  return <span className="block text-xs font-semibold text-amber-200/90 mt-0.5">Need {cost - charge} more ◆</span>;
+}
+
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-2 text-xs font-semibold">
+    <button
+      onClick={onClick}
+      className="sticky bottom-0 mt-3 w-full min-h-[44px] bg-indigo-800 hover:bg-indigo-700 rounded-lg py-2.5 text-sm font-semibold shadow-[0_-8px_12px_rgba(30,27,75,0.9)] sm:static sm:shadow-none"
+    >
       ← Back
     </button>
   );
@@ -1550,11 +1583,11 @@ function CommandButton({
       disabled={disabled}
       className={`${
         highlight ? 'bg-amber-400/25 ring-2 ring-amber-300 animate-pulse' : 'bg-white/10'
-      } hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 rounded-xl px-3 py-2.5 text-left transition`}
+      } hover:bg-white/20 disabled:opacity-60 disabled:hover:bg-white/10 rounded-xl px-3 py-2.5 text-left transition`}
     >
       <span className="text-lg mr-1.5">{emoji}</span>
       <span className="font-bold text-sm">{label}</span>
-      {hint && <span className="block text-[10px] text-white/50 mt-0.5">{hint}</span>}
+      {hint && <span className="block text-xs text-white/70 mt-0.5">{hint}</span>}
     </button>
   );
 }

@@ -34,6 +34,8 @@ export interface CompanionDef {
   role: string;
   /** Kid-friendly line for the swap menu. */
   blurb: string;
+  /** What a correct strike adds — shown under the strike in the companion menu. */
+  perkLine: string;
   perk: CompanionPerk;
   /** Wind-up SFX for the companion's strike. */
   sound: 'roar' | 'attack' | 'spell';
@@ -43,6 +45,15 @@ export interface CompanionDef {
   joinHint: string;
 }
 
+// --- Perk tuning --------------------------------------------------------------------
+
+/** Extra ◆ a correct Ember strike adds on top of the usual +1 per correct answer. */
+export const EMBER_BONUS_CHARGE = 1;
+/** Wrong options Pip crosses out on the next question after a correct strike. */
+export const PIP_PEEK_HIDES = 1;
+/** HP Wisp mends after a correct strike. */
+export const WISP_MEND = 20;
+
 export const COMPANIONS: Record<CompanionId, CompanionDef> = {
   ember: {
     id: 'ember',
@@ -50,6 +61,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = {
     emoji: '🐉',
     role: 'Striker',
     blurb: 'Hits hard and stokes an extra ◆ for combos.',
+    perkLine: `Right answer: +${EMBER_BONUS_CHARGE}◆ toward a Pair Attack.`,
     perk: 'charge',
     sound: 'roar',
     joinFlag: null,
@@ -61,6 +73,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = {
     emoji: '🧒',
     role: 'Helper',
     blurb: 'Peeks at the next question and crosses out a wrong answer.',
+    perkLine: 'Right answer: Pip crosses out a wrong answer on your next question.',
     perk: 'peek',
     sound: 'attack',
     // Must match questDoneFlag() for "Pip's Lucky Marble" (companion.test checks).
@@ -73,6 +86,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = {
     emoji: '🧚',
     role: 'Healer',
     blurb: 'A glimmer of light that mends your wounds.',
+    perkLine: `Right answer: Wisp heals you ${WISP_MEND} HP.`,
     perk: 'mend',
     sound: 'spell',
     // Must match questDoneFlag() for "The Darkened Moonwell".
@@ -98,15 +112,6 @@ export const EMBER_MOVE: Record<EmberStage, { name: string; emoji: string }> = {
   whelp: { name: 'Flame Claw', emoji: '🔥' },
   dragon: { name: 'Dragon Tail', emoji: '🐲' },
 };
-
-// --- Perk tuning --------------------------------------------------------------------
-
-/** Extra ◆ a correct Ember strike adds on top of the usual +1 per correct answer. */
-export const EMBER_BONUS_CHARGE = 1;
-/** Wrong options Pip crosses out on the next question after a correct strike. */
-export const PIP_PEEK_HIDES = 1;
-/** HP Wisp mends after a correct strike. */
-export const WISP_MEND = 20;
 
 const PIP_POWER = 16;
 const WISP_POWER = 12;

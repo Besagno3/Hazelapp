@@ -426,6 +426,17 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-359 | M | ✅ | battle | leaving the arena before an attack lands (unmount within 260ms) plays no impact sound and logs no errors (headless Chromium) |
 | TC-357 | M | ⬜ | battle | real reload: swap to Wisp, refresh the page, walk into a battle → Wisp is fighting; lose twice, refresh → no mercy banner (fresh start) |
 
+## Battle UX on phones (#77)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-360 | M | ✅ | battle | at 360×640, 390×667, 390×844 and 900×760 the whole command menu is on screen (headless Chromium) |
+| TC-361 | M | ✅ | battle | a 3-line question: all four answers are on screen before answering, and after answering (with the explanation) Go! is on screen — at all four sizes (headless Chromium) |
+| TC-362 | M | ✅ | battle | answer options, the Hint Feather button and ← Back are ≥ 44px tall (headless Chromium) |
+| TC-363 | M | ✅ | battle | the companion / spell menus fit or scroll inside the panel with ← Back visible; charge moves you can't afford say "Need N more ◆" (headless Chromium) |
+| TC-364 | M | ✅ | battle | status panels keep each name on one line ("The Null Fi… Lv 5"); nothing slides the arena sideways (overflow: clip) (headless Chromium) |
+| TC-365 | M | ⬜ | battle | on a real phone (iOS Safari + Android Chrome): no scrolling needed to answer and continue; tap targets feel comfortable; hint text readable in sunlight |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

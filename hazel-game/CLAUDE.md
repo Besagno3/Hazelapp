@@ -198,6 +198,32 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-26 — Battle UX pass: fits on phones, bigger touch targets, readable hints (#77)
+From a UX review at phone widths (measured in headless Chromium). Before: on a
+390×844 phone "Go!" sat below the fold after every answer; on 390×667 answers
+3–4 were hidden before answering; the command menu cut off Flee.
+- **Fits on phones:** the arena's floor shrinks on phones (`min-h-[112px]`,
+  tighter padding — `flex-1` still grows it into spare height); sub-menus
+  (Swap / Items / Companion / Spells, `SUBMENU`) scroll inside the panel on
+  phones with a sticky ← Back; `QuestionCard` scrolls Continue into view
+  (`block: 'nearest'`) once an answer is picked. The root uses
+  `overflow: clip` (hidden as fallback) so focusing/scrolling to a button can
+  never slide the arena sideways.
+- **Touch targets ≥ 44px:** answer options, crossed-out slots, the Hint
+  Feather button (was 16px tall) and ← Back.
+- **Readable hints:** every 10–11px / 50%-opacity hint is now 12px at 70%;
+  disabled buttons fade to 60% (not 40%) and say why — "Need N more ◆" /
+  "Getting ready…" (`NeedMore`).
+- **Status panels:** tighter on phones; names truncate instead of wrapping
+  "Lv 5" onto two lines.
+- **Copy:** companions gain `perkLine` ("Right answer: +1◆ toward a Pair
+  Attack.") replacing the stitched "A right answer also: …"; the command
+  header is "Your move!" on phones.
+- 336 tests green; lint + build clean. 36 layout checks pass in headless
+  Chromium at 360×640, 390×667, 390×844 and 900×760 (command menu + all
+  answers on screen, Go! on screen after answering, ≥44px targets, one-line
+  names, Back visible, no sideways shift).
+
 ### 2026-09-26 — Review fixes: saved HP after a healing finisher, timers cancelled on exit (#76)
 From a SaaS code review of the companion/mercy commit (security came up clean:
 `saves` RLS limits every row to its owner; `companionId` is re-validated on load).

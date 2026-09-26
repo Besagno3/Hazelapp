@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { sfx } from '../lib/audio';
 import type { Question } from '../types';
@@ -34,6 +34,19 @@ export default function QuestionCard({
   const [selected, setSelected] = useState<number | null>(null);
   const [hidden, setHidden] = useState<number[]>(() => pickWrong(question, [], preHidden));
   const [hintUsed, setHintUsed] = useState(false);
+  const continueRef = useRef<HTMLButtonElement>(null);
+
+  // On a phone the explanation can push Continue below the fold — bring it
+  // into view once an answer is picked ('nearest' = no scroll if it fits).
+  useEffect(() => {
+    if (selected === null || typeof continueRef.current?.scrollIntoView !== 'function') return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // Wait a frame so the explanation + button have laid out.
+    const raf = requestAnimationFrame(() =>
+      continueRef.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [selected]);
   const [continued, setContinued] = useState(false);
 
   function pick(idx: number) {
@@ -71,13 +84,13 @@ export default function QuestionCard({
             return (
               <div
                 key={idx}
-                className="border-2 border-dashed border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-300 text-center"
+                className="min-h-[44px] flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-300"
               >
                 🪶
               </div>
             );
           }
-          let cls = 'border-2 rounded-lg px-3 py-2 text-sm font-medium transition text-left ';
+          let cls = 'min-h-[44px] border-2 rounded-lg px-3 py-2 text-sm font-medium transition text-left ';
           if (selected === null) cls += 'border-gray-200 hover:border-purple-400';
           else if (idx === question.correctIndex) cls += 'border-green-500 bg-green-50 text-green-700';
           else if (idx === selected) cls += 'border-red-400 bg-red-50 text-red-600';
@@ -93,7 +106,7 @@ export default function QuestionCard({
       {selected === null && hints > 0 && onUseHint && !hintUsed && canHideMore(question, hidden) && (
         <button
           onClick={useHint}
-          className="mt-3 text-xs text-purple-600 hover:text-purple-800 font-semibold"
+          className="mt-2 -ml-2 min-h-[44px] px-2 inline-flex items-center rounded-lg text-sm text-purple-600 hover:text-purple-800 hover:bg-purple-50 font-semibold"
         >
           🪶 Use a Hint Feather ({hints} left)
         </button>
@@ -126,6 +139,7 @@ export default function QuestionCard({
 
       {selected !== null && (
         <motion.button
+          ref={continueRef}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={handleContinue}
