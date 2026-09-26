@@ -190,6 +190,33 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-26 — Ember animations: attack, fire breath, pair choreography, cheer (#75 follow-up)
+- **Ember's own battle sheet** (`tools/assets/characters.py`): new `Pose`
+  fields `mouth` (open / puff / breath), `rear` (head lift) and `happy` (^ ^
+  eyes) drive `EMBER_BATTLE_POSES` — a clear wind-up → open-mouthed lunge
+  attack, a `breath` clip (inhale → fire cone ×2) and a `cheer` hop.
+  `Char.battle_poses` / `battle_anims` let one character override the shared
+  battle sheet. New FX sprite `fx-fireball` (4-frame flicker). Every other
+  sprite re-renders byte-identical.
+- **Choreography** (`features/battle/choreography.ts`, pure + tested): per-move
+  Framer keyframes for hero (`lunge` / `comet` / `duet`) and Ember (`lunge` /
+  `breath` / `toss` / `duet`), when each blow lands (`hitMs`), fireball volleys
+  timed so the last one lands on the hit, and `fitReach` — comet/duet dives are
+  rescaled to the measured hero↔enemy gap so they reach the enemy on any screen.
+  `dealHeroDamage` takes a `Choreo` (replacing `actor`); `perform()` starts it.
+- **In the arena:** Ember now faces the enemy (was facing away); Ember's
+  Breath is performed by Ember (inhale + 3 fireballs); Twin Strike = joint
+  lunge, Blazing Comet = Ember tosses the hero who crashes down in a fireball,
+  Dragon Duet = both rise and dive behind a volley. The enemy flinches and is
+  knocked back when a blow *lands* (`enemyHit`), not when the attacker sets off.
+  On victory Ember cheers (the egg wobbles).
+- **Fix:** Ember's stage is locked per fight — a first win used to hatch the
+  egg on the victory panel (and a Fiend win grew Ember there), spoiling the
+  world cutscene that reveals it.
+- 316 tests green (was 310); lint + build clean. Verified in headless Chromium
+  (frame captures at each stage, dive distance measured per frame at 390 / 900
+  / 1280px).
+
 ### 2026-09-26 — Ember fights + Pair Attacks + battle sound effects (#75)
 Ember, the companion dragon, now fights beside the hero instead of just
 bouncing in the background, and battles got a full set of sound effects.

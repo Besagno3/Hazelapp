@@ -378,6 +378,21 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-325 | M | ⬜ | audio | by ear with Sound on: new SFX sit at a comfortable level next to the old ones; the pair combo doesn't clip; a healer enemy's mend chime follows (not overlaps) the hit |
 | TC-326 | M | ⬜ | battle | dragon-stage Ember: Dragon Tail, Blazing Comet and Dragon Duet all selectable at their cost; Dragon Duet vs a Fiend feels strong but not a guaranteed one-shot |
 
+## Ember animations (#75 follow-up)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-327 | U | ✅ | choreography | every Pair Attack has a choreography moving both actors; every motion starts/ends at rest and heads toward the enemy; the blow lands within 60ms of the mover reaching the enemy; a volley's last fireball arrives exactly on the hit (choreography.test) |
+| TC-328 | U | ✅ | choreography | `fitReach` rescales comet/duet dives to 85% of the measured gap, never overshoots on a narrow screen, and leaves lunges alone (choreography.test) |
+| TC-329 | U | ✅ | sprites | hatchling/whelp/dragon battle sheets carry idle/attack/hurt/breath/cheer; the fireball FX sheet exists (choreography.test) |
+| TC-330 | M | ✅ | battle | Ember faces the enemy (mirrored like the hero) (headless Chromium) |
+| TC-331 | M | ✅ | battle | Ember Attack: wind-up → open-mouthed lunge; the enemy flinches + knocks back when the blow lands (headless Chromium) |
+| TC-332 | M | ✅ | battle | Ember's Breath (dragon): Ember inhales and breathes, a 3-fireball volley crosses the arena, damage lands with the last fireball (headless Chromium) |
+| TC-333 | M | ✅ | battle | Blazing Comet: Ember heaves, the hero arcs up wrapped in fire and crashes toward the enemy; Dragon Duet: hero + Ember rise and dive together behind a fireball volley (headless Chromium) |
+| TC-334 | M | ✅ | battle | comet dive stops just short of the enemy at 390 / 900 / 1280px wide (closest gap 20 / 83 / 128px, measured per frame) |
+| TC-335 | M | ✅ | battle | victory: a hatched Ember does its cheer hop; an egg wobbles — and a first win no longer hatches the egg on the victory panel (stage locked per fight) (headless Chromium) |
+| TC-336 | M | ⬜ | battle | on a real phone: animations feel smooth, the fire trail/fireballs don't cover the question box, and nothing jitters |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

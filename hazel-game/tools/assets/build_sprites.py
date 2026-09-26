@@ -28,7 +28,7 @@ def world_frames(ch: Char) -> list[Image.Image]:
 
 def battle_frames(ch: Char) -> list[Image.Image]:
     n = 48 if ch.boss else 32
-    return render(ch, n, BATTLE_POSES)
+    return render(ch, n, ch.battle_poses or BATTLE_POSES)
 
 
 def build(public: Path) -> dict:
@@ -56,7 +56,7 @@ def build(public: Path) -> dict:
                 'frameW': fr[0].width,
                 'frameH': fr[0].height,
                 'frames': len(fr),
-                'anims': BATTLE_ANIMS,
+                'anims': ch.battle_anims or BATTLE_ANIMS,
             }
         manifest[ch.id] = entry
     return manifest

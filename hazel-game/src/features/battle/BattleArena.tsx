@@ -37,6 +37,23 @@ import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { SpriteSheet } from './SpriteSheet';
+import {
+  EMBER_BREATH,
+  EMBER_CLIP,
+  EMBER_MOTION,
+  EMBER_STRIKE,
+  FIREBALL_FLIGHT_MS,
+  HERO_MOTION,
+  HERO_STRIKE,
+  actingMs,
+  fireballLaunchMs,
+  fitReach,
+  pairChoreo,
+  type Choreo,
+  type Keyframes,
+  type EmberMove,
+  type HeroMove,
+} from './choreography';
 import { resolveSprite } from '../../content/sprites';
 import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
@@ -95,13 +112,23 @@ export default function BattleArena() {
   // Warden bosses (#58) drop a gate key instead of restoring a crystal.
   const keyBoss = enemy ? keyForBoss(enemy.id) : undefined;
   const spells = save ? spellsKnown(save) : [];
-  const { stage: ember } = emberStatus(save?.flags ?? {});
+  // Ember's stage is locked for the whole fight: a win can hatch the egg or
+  // grow Ember (new flags), but that reveal belongs to the world cutscene —
+  // not a sprite swap on the victory panel. Re-locked per encounter.
+  const liveEmber = emberStatus(save?.flags ?? {}).stage;
+  const [ember, setEmber] = useState(liveEmber);
+  const [emberFor, setEmberFor] = useState(enemy?.instanceId);
+  if (enemy && emberFor !== enemy.instanceId) {
+    setEmberFor(enemy.instanceId);
+    setEmber(liveEmber);
+  }
   const emberMove = EMBER_MOVE[ember];
   const pairs = pairAttacksKnown(ember);
 
   const enemySprite = resolveSprite(enemy?.spriteId, enemy?.sprite ?? '❓');
   const heroSprite = resolveSprite(avatar?.spriteId, avatar?.sprite ?? '❓');
   const emberSprite = resolveSprite(EMBER_SPRITE_IDS[ember], EMBER_SPRITES[ember]);
+  const fireballSprite = resolveSprite('fx-fireball', '🔥');
 
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
@@ -117,10 +144,23 @@ export default function BattleArena() {
   const [spellQs, setSpellQs] = useState<Question[]>([]);
   const [spellIdx, setSpellIdx] = useState(0);
   const [phaseBanner, setPhaseBanner] = useState<string | null>(null);
-  // One-shot animation triggers (remount keys).
+  // One-shot animation triggers (remount keys) + which motion each plays
+  // (see ./choreography). The move is set together with the counter bump.
   const [heroLunge, setHeroLunge] = useState(0);
+  const [heroMotion, setHeroMotion] = useState<HeroMove>('lunge');
   const [enemyLunge, setEnemyLunge] = useState(0);
   const [emberLunge, setEmberLunge] = useState(0);
+  const [emberMotion, setEmberMotion] = useState<EmberMove>('lunge');
+  // The enemy flinches when a blow LANDS (not when the attacker sets off —
+  // slower combos land ~570ms in).
+  const [enemyHit, setEnemyHit] = useState(0);
+  const [enemyHurt, setEnemyHurt] = useState(false);
+  // Measured px gap between hero and enemy, so dives reach the enemy on any screen.
+  const [reachGap, setReachGap] = useState<number | null>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const enemyRef = useRef<HTMLDivElement>(null);
+  // Fireballs in flight, from Ember to the enemy.
+  const [fireballs, setFireballs] = useState<{ id: number; delayMs: number; big: boolean }[]>([]);
   // Transient flags: true only for the ~520ms of the lunge animation.
   const [enemyActing, setEnemyActing] = useState(false);
   const [heroActing, setHeroActing] = useState(false);
@@ -227,17 +267,27 @@ export default function BattleArena() {
     if (!heroLunge) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack/hurt flag for the lunge animation window
     setHeroActing(true);
-    const t = setTimeout(() => setHeroActing(false), 520);
+    const t = setTimeout(() => setHeroActing(false), actingMs(HERO_MOTION[heroMotion]));
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- heroMotion is set in the same batch as the counter
   }, [heroLunge]);
 
   useEffect(() => {
     if (!emberLunge) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack flag for Ember's lunge window
     setEmberActing(true);
-    const t = setTimeout(() => setEmberActing(false), 520);
+    const t = setTimeout(() => setEmberActing(false), actingMs(EMBER_MOTION[emberMotion]));
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- emberMotion is set in the same batch as the counter
   }, [emberLunge]);
+
+  useEffect(() => {
+    if (!enemyHit) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient hurt flag while the enemy flinches
+    setEnemyHurt(true);
+    const t = setTimeout(() => setEnemyHurt(false), 420);
+    return () => clearTimeout(t);
+  }, [enemyHit]);
 
   // Battle entered without an encounter (e.g. stale reload) — bail out.
   const invalid = !enemy || !save || !avatar;
@@ -372,7 +422,7 @@ export default function BattleArena() {
     const text = wasCorrect
       ? `${emberMove.emoji} Ember uses ${emberMove.name}! The fire stokes your spell charge!`
       : `${emberMove.emoji} Ember puffs a little smoke… a glancing blow.`;
-    dealHeroDamage(dmg, text, 'text-orange-300', { actor: 'ember', sound: 'roar' });
+    dealHeroDamage(dmg, text, 'text-orange-300', { choreo: EMBER_STRIKE, sound: 'roar' });
   }
 
   /** Fire a Pair Attack once its super-hard question resolves. */
@@ -392,7 +442,7 @@ export default function BattleArena() {
     const dmg = pairDamage(style, powerUps, ember, pair.multiplier);
     dealHeroDamage(dmg, `${pair.emoji} ${avatar!.name} and Ember unleash ${pair.name}!`, pair.color, {
       refundCharge: pair.cost,
-      actor: 'pair',
+      choreo: pairChoreo(pair.id),
       sound: 'pair',
     });
   }
@@ -410,6 +460,7 @@ export default function BattleArena() {
     if (spell.effect.kind === 'heal') {
       const healed = Math.min(playerMaxHp, playerHp + spell.effect.amount);
       setHp(healed, enemyHp);
+      setHeroMotion('lunge');
       setHeroLunge((n) => n + 1);
       sfx('spell');
       setTimeout(() => {
@@ -437,7 +488,9 @@ export default function BattleArena() {
         : ember !== 'egg'
           ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
           : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;
-    dealHeroDamage(dmg, text, spell.color, { refundCharge: spell.cost, sound: 'spell' });
+    // Ember's Breath is Ember's own move once hatched: inhale, then a fireball volley.
+    const choreo = ember !== 'egg' && spell.id === 'ember-breath' ? EMBER_BREATH : HERO_STRIKE;
+    dealHeroDamage(dmg, text, spell.color, { refundCharge: spell.cost, choreo, sound: 'spell' });
   }
 
   /**
@@ -445,8 +498,9 @@ export default function BattleArena() {
    * spells. Charge-spending moves pass `refundCharge` so a shield-absorbed
    * cast gives the charge back — a correct super-hard answer must never buy
    * less than a free glancing blow would (effort is never punished).
-   * `actor` picks who lunges; `sound` is the wind-up SFX (the 'pair' sound
-   * carries its own impacts, every other hit adds an 'impact' as it lands).
+   * `choreo` says who moves and when the blow lands (./choreography); `sound`
+   * is the wind-up SFX (the 'pair' sound carries its own impacts, every other
+   * hit adds an 'impact' as it lands).
    */
   function dealHeroDamage(
     dmg: number,
@@ -454,21 +508,24 @@ export default function BattleArena() {
     floatColor: string,
     {
       refundCharge = 0,
-      actor = 'hero',
+      choreo = HERO_STRIKE,
       sound,
-    }: { refundCharge?: number; actor?: 'hero' | 'ember' | 'pair'; sound: SfxName },
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName },
   ) {
-    if (actor !== 'ember') setHeroLunge((n) => n + 1);
-    if (actor !== 'hero') setEmberLunge((n) => n + 1);
-    sfx(sound);
+    perform(choreo, sound);
+    const land = (fn: () => void) =>
+      setTimeout(() => {
+        setEnemyHit((n) => n + 1);
+        fn();
+      }, choreo.hitMs);
     // Shielded archetype: the shield absorbs the first landed hit (any hit —
     // even a glancing blow shatters it), then the enemy fights unprotected.
     if (enemyShielded && dmg > 0) {
       setEnemyShielded(false);
-      setTimeout(() => {
+      land(() => {
         sfx('shatter');
         float('Shield shattered!', 'enemy', 'text-amber-300');
-      }, 260);
+      });
       if (refundCharge > 0) setCharge((c) => Math.min(CHARGE_MAX, c + refundCharge));
       setTurn({
         kind: 'message',
@@ -480,11 +537,11 @@ export default function BattleArena() {
       return;
     }
     const newEnemyHp = Math.max(0, enemyHp - dmg);
-    setTimeout(() => {
+    land(() => {
       if (sound !== 'pair') sfx('impact');
       float(`-${dmg}`, 'enemy', floatColor);
       setHp(playerHp, newEnemyHp);
-    }, 260);
+    });
 
     if (newEnemyHp <= 0) {
       setTurn({ kind: 'message', text, next: () => victory() });
@@ -499,6 +556,34 @@ export default function BattleArena() {
       }
     }
     setTurn({ kind: 'message', text, next: enemyTurn });
+  }
+
+  /** Start a move's motions, fireball volley and wind-up sound. */
+  function perform(c: Choreo, sound: SfxName) {
+    const h = heroRef.current?.getBoundingClientRect();
+    const e = enemyRef.current?.getBoundingClientRect();
+    if (h && e && h.width > 0) setReachGap(h.left - e.right);
+    if (c.hero) {
+      setHeroMotion(c.hero);
+      setHeroLunge((n) => n + 1);
+    }
+    if (c.ember) {
+      setEmberMotion(c.ember);
+      setEmberLunge((n) => n + 1);
+    }
+    if (c.fireballs > 0) {
+      const big = c.ember === 'breath' || ember === 'dragon';
+      const volley = Array.from({ length: c.fireballs }, (_, i) => ({
+        id: ++floatId.current,
+        delayMs: fireballLaunchMs(c, i),
+        big,
+      }));
+      setFireballs((f) => [...f, ...volley]);
+      const ids = new Set(volley.map((v) => v.id));
+      setTimeout(() => setFireballs((f) => f.filter((x) => !ids.has(x.id))), c.hitMs + 200);
+    }
+    if (c.soundMs > 0) setTimeout(() => sfx(sound), c.soundMs);
+    else sfx(sound);
   }
 
   function enemyTurn() {
@@ -620,6 +705,7 @@ export default function BattleArena() {
   // --- Render -------------------------------------------------------------------
 
   const correctCount = answers.filter(Boolean).length;
+  const won = turn.kind === 'victory';
   const hpPct = (hp: number, max: number) => `${Math.max(0, (hp / max) * 100)}%`;
 
   return (
@@ -708,7 +794,7 @@ export default function BattleArena() {
 
       {/* Combatants on the ground plane */}
       <div className="relative z-10 flex-1 flex items-end justify-between px-[12%] pb-[8%] min-h-[220px]">
-        <div className="relative">
+        <div className="relative" ref={enemyRef}>
           <motion.div
             key={`el${enemyLunge}`}
             animate={enemyLunge ? { x: [0, 70, 0] } : {}}
@@ -716,14 +802,21 @@ export default function BattleArena() {
             className={enemy.isBoss ? 'text-[7rem] leading-none' : 'text-8xl leading-none'}
             style={{ filter: 'drop-shadow(0 14px 10px rgba(0,0,0,0.45))' }}
           >
-            <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 2.2 }}>
-              <SpriteSheet
-                view={enemySprite.def?.battle ?? null}
-                anim={enemyActing ? 'attack' : heroActing || emberActing ? 'hurt' : 'idle'}
-                emoji={enemySprite.emoji}
-                scale={enemy.isBoss ? 3 : 2.5}
-                className="leading-none"
-              />
+            {/* knocked back a step whenever a blow lands */}
+            <motion.div
+              key={`eh${enemyHit}`}
+              animate={enemyHit ? { x: [0, -14, 6, 0] } : {}}
+              transition={{ duration: 0.35 }}
+            >
+              <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 2.2 }}>
+                <SpriteSheet
+                  view={enemySprite.def?.battle ?? null}
+                  anim={enemyActing ? 'attack' : enemyHurt ? 'hurt' : 'idle'}
+                  emoji={enemySprite.emoji}
+                  scale={enemy.isBoss ? 3 : 2.5}
+                  className="leading-none"
+                />
+              </motion.div>
             </motion.div>
           </motion.div>
           {floats
@@ -741,14 +834,19 @@ export default function BattleArena() {
             ))}
         </div>
 
-        <div className="relative">
+        <div className="relative" ref={heroRef}>
           <motion.div
             key={`hl${heroLunge}`}
-            animate={heroLunge ? { x: [0, -70, 0] } : {}}
-            transition={{ duration: 0.5 }}
-            className="text-8xl leading-none"
+            {...motionProps(heroLunge ? fitReach(HERO_MOTION[heroMotion], reachGap) : null)}
+            className="relative text-8xl leading-none"
             style={{ filter: 'drop-shadow(0 14px 10px rgba(0,0,0,0.45))' }}
           >
+            {/* Blazing Comet: the hero streaks down wrapped in fire */}
+            {heroActing && heroMotion === 'comet' && fireballSprite.def?.battle && (
+              <div className="absolute left-[35%] top-1/2 -translate-y-1/2 scale-x-[-1] opacity-90 pointer-events-none">
+                <SpriteSheet view={fireballSprite.def.battle} emoji="🔥" scale={4.5} />
+              </div>
+            )}
             <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 1.8 }}>
               <SpriteSheet
                 view={heroSprite.def?.battle ?? null}
@@ -762,22 +860,24 @@ export default function BattleArena() {
           {guarded && <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl">🛡️</span>}
           <motion.div
             key={`ml${emberLunge}`}
-            animate={emberLunge ? { x: [0, -110, 0] } : {}}
-            transition={{ duration: 0.5 }}
+            {...motionProps(emberLunge ? fitReach(EMBER_MOTION[emberMotion], reachGap) : null)}
             className="absolute -right-10 bottom-0"
           >
             <motion.span
-              animate={{ y: [0, -4, 0] }}
-              transition={{ repeat: Infinity, duration: 1.4 }}
+              // The egg wobbles with joy on a win; a hatched Ember cheers (sprite clip).
+              animate={won && ember === 'egg' ? { rotate: [0, -12, 12, -8, 0], y: 0 } : { y: [0, -4, 0] }}
+              transition={{ repeat: Infinity, duration: won && ember === 'egg' ? 0.8 : 1.4 }}
               className={`block ${ember === 'egg' ? 'text-2xl' : ember === 'dragon' ? 'text-5xl' : 'text-3xl'}`}
               title="Ember"
               style={{ filter: 'drop-shadow(0 8px 6px rgba(0,0,0,0.4))' }}
             >
               <SpriteSheet
                 view={emberSprite.def?.battle ?? null}
-                anim={emberActing ? 'attack' : enemyActing ? 'hurt' : 'idle'}
+                anim={emberActing ? EMBER_CLIP[emberMotion] : won ? 'cheer' : enemyActing ? 'hurt' : 'idle'}
                 emoji={emberSprite.emoji}
                 scale={ember === 'egg' ? 1.5 : ember === 'dragon' ? 3 : 2}
+                // Sheets face right; Ember stands on the hero's side, so face the enemy.
+                className="scale-x-[-1]"
               />
             </motion.span>
           </motion.div>
@@ -795,6 +895,23 @@ export default function BattleArena() {
               </motion.span>
             ))}
         </div>
+
+        {/* Ember's fireballs, flying right → left from Ember to the enemy */}
+        {fireballSprite.def?.battle &&
+          fireballs.map((f) => (
+            <motion.div
+              key={f.id}
+              initial={{ right: '14%', opacity: 0 }}
+              animate={{ right: ['14%', '72%'], opacity: [1, 1, 0] }}
+              transition={{
+                right: { delay: f.delayMs / 1000, duration: FIREBALL_FLIGHT_MS / 1000, ease: 'easeIn' },
+                opacity: { delay: f.delayMs / 1000, duration: FIREBALL_FLIGHT_MS / 1000 + 0.05, times: [0, 0.85, 1] },
+              }}
+              className="absolute bottom-[22%] pointer-events-none scale-x-[-1]"
+            >
+              <SpriteSheet view={fireballSprite.def.battle} emoji="🔥" scale={f.big ? 3 : 2} />
+            </motion.div>
+          ))}
       </div>
 
       {/* Bottom box: commands / question / message / results */}
@@ -1090,6 +1207,15 @@ export default function BattleArena() {
       </div>
     </div>
   );
+}
+
+/** Framer props for a choreography motion (null = at rest). */
+function motionProps(k: Keyframes | null) {
+  if (!k) return { animate: {} };
+  return {
+    animate: { x: k.x, y: k.y ?? 0 },
+    transition: { duration: k.duration, times: k.times },
+  };
 }
 
 function CommandButton({

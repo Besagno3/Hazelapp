@@ -311,7 +311,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-hatchling/battle.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 7,
+      "frames": 12,
       "anims": {
         "idle": {
           "from": 0,
@@ -329,6 +329,17 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "to": 6,
           "fps": 7,
           "loop": false
+        },
+        "breath": {
+          "from": 7,
+          "to": 9,
+          "fps": 8,
+          "loop": false
+        },
+        "cheer": {
+          "from": 10,
+          "to": 11,
+          "fps": 5
         }
       }
     }
@@ -377,7 +388,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-whelp/battle.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 7,
+      "frames": 12,
       "anims": {
         "idle": {
           "from": 0,
@@ -395,6 +406,17 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "to": 6,
           "fps": 7,
           "loop": false
+        },
+        "breath": {
+          "from": 7,
+          "to": 9,
+          "fps": 8,
+          "loop": false
+        },
+        "cheer": {
+          "from": 10,
+          "to": 11,
+          "fps": 5
         }
       }
     }
@@ -443,7 +465,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-dragon/battle.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 7,
+      "frames": 12,
       "anims": {
         "idle": {
           "from": 0,
@@ -461,6 +483,33 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "to": 6,
           "fps": 7,
           "loop": false
+        },
+        "breath": {
+          "from": 7,
+          "to": 9,
+          "fps": 8,
+          "loop": false
+        },
+        "cheer": {
+          "from": 10,
+          "to": 11,
+          "fps": 5
+        }
+      }
+    }
+  },
+  "fx-fireball": {
+    "emoji": "🔥",
+    "battle": {
+      "sheet": "/sprites/fx-fireball/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 4,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 3,
+          "fps": 12
         }
       }
     }
