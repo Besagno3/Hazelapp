@@ -198,6 +198,21 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-26 — Review fixes: saved HP after a healing finisher, timers cancelled on exit (#76)
+From a SaaS code review of the companion/mercy commit (security came up clean:
+`saves` RLS limits every row to its owner; `companionId` is re-validated on load).
+- **Medium:** `victory()` saved the render-captured `playerHp`, so when Wisp's
+  Glimmer / Starlight Chorus landed the killing blow its heal (already in the
+  store) was dropped from the saved HP. `victory()` and Flee now read
+  `useBattleStore.getState().playerHp`.
+- **Low:** fire-and-forget battle timers (hit landings, pop-ups, delayed SFX,
+  fireball cleanup) now go through a tracked `later()` that is cleared on
+  unmount — no stray impact/heal sound after the arena closes. Effect-owned
+  and banner timers already cleaned up.
+- 336 tests green; lint + build clean. Verified in headless Chromium: a Wisp
+  finisher heals 92 → 112 and the save records 112; unmounting mid-attack
+  plays no landing sound and logs no errors.
+
 ### 2026-09-26 — Companion pick survives reloads; mercy = easier questions only (#76 follow-up)
 - **Companion persists:** the 🔄 Swap pick moved from `battleStore` into the
   save (`SaveData.companionId`, default `'ember'`). Additive + defaulted in

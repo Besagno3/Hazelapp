@@ -422,6 +422,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 |-------|------|--------|---------|------|
 | TC-355 | U | ✅ | save | `normalizeSave` keeps `companionId: 'pip'`; a save without it, or with an unknown id, gets Ember (save.test) |
 | TC-356 | M | ✅ | battle | 🔄 Swap writes the pick into the save; a battle started from that save (JSON round-trip + normalize) opens with Pip (headless Chromium) |
+| TC-358 | M | ✅ | battle | Wisp's Glimmer lands the killing blow after the hero took damage: HP 92 → 112 and the saved HP after victory is 112, not 92 (headless Chromium) |
+| TC-359 | M | ✅ | battle | leaving the arena before an attack lands (unmount within 260ms) plays no impact sound and logs no errors (headless Chromium) |
 | TC-357 | M | ⬜ | battle | real reload: swap to Wisp, refresh the page, walk into a battle → Wisp is fighting; lose twice, refresh → no mercy banner (fresh start) |
 
 ## Regression cases (tied to ISSUES.md)

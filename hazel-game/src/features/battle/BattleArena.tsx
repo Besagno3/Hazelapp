@@ -320,11 +320,33 @@ export default function BattleArena() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId, loading]);
 
-  const float = useCallback((text: string, side: 'hero' | 'enemy', color: string) => {
-    const id = ++floatId.current;
-    setFloats((f) => [...f, { id, text, side, color }]);
-    setTimeout(() => setFloats((f) => f.filter((x) => x.id !== id)), 1100);
+  // Every one-shot battle timer (hit landings, pop-ups, delayed sounds) goes
+  // through `later`, so leaving the battle cancels whatever is still pending —
+  // no stray impact/heal sound or state update after the arena is gone.
+  const pendingTimers = useRef(new Set<number>());
+  const later = useCallback((fn: () => void, ms: number) => {
+    const id = window.setTimeout(() => {
+      pendingTimers.current.delete(id);
+      fn();
+    }, ms);
+    pendingTimers.current.add(id);
   }, []);
+  useEffect(() => {
+    const timers = pendingTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
+
+  const float = useCallback(
+    (text: string, side: 'hero' | 'enemy', color: string) => {
+      const id = ++floatId.current;
+      setFloats((f) => [...f, { id, text, side, color }]);
+      later(() => setFloats((f) => f.filter((x) => x.id !== id)), 1100);
+    },
+    [later],
+  );
 
   // Fiends monologue before the first command (#37 story pass).
   const bossIntroDone = useRef(false);
@@ -430,7 +452,7 @@ export default function BattleArena() {
     const seq = ++shownSeq.current;
     if (revealMs > 0) {
       setShownHp({ p: viewPlayerHp, e: viewEnemyHp });
-      setTimeout(() => {
+      later(() => {
         if (shownSeq.current === seq) setShownHp(null);
       }, revealMs);
     } else {
@@ -523,7 +545,7 @@ export default function BattleArena() {
     setTurn({ kind: 'message', text: `${avatar!.name} uses a ${name}! ${emoji}`, next: enemyTurn });
   }
   function commandFlee() {
-    updateSave((s) => ({ ...s, hp: playerHp }));
+    updateSave((s) => ({ ...s, hp: useBattleStore.getState().playerHp }));
     sendFlow({ type: 'BATTLE_END', result: 'lose' });
     endBattle();
   }
@@ -559,7 +581,7 @@ export default function BattleArena() {
     let heroHp = playerHp;
     if (wasCorrect && companion.perk === 'charge') {
       setCharge((c) => Math.min(CHARGE_MAX, c + EMBER_BONUS_CHARGE));
-      setTimeout(() => float(`+${EMBER_BONUS_CHARGE}◆`, 'hero', 'text-amber-300'), 260);
+      later(() => float(`+${EMBER_BONUS_CHARGE}◆`, 'hero', 'text-amber-300'), 260);
       note = ' The fire stokes your spell charge!';
     } else if (wasCorrect && companion.perk === 'peek') {
       peek.current = PIP_PEEK_HIDES;
@@ -567,7 +589,7 @@ export default function BattleArena() {
     } else if (wasCorrect && companion.perk === 'mend') {
       heroHp = Math.min(playerMaxHp, playerHp + WISP_MEND);
       if (heroHp > playerHp) {
-        setTimeout(() => {
+        later(() => {
           sfx('heal');
           float(`+${heroHp - playerHp}`, 'hero', 'text-emerald-300');
         }, 260);
@@ -601,7 +623,7 @@ export default function BattleArena() {
     const dmg = boost(pairDamage(style, powerUps, cPower, pair.multiplier));
     const heroHp = pair.heal ? Math.min(playerMaxHp, playerHp + pair.heal) : playerHp;
     if (heroHp > playerHp) {
-      setTimeout(() => {
+      later(() => {
         sfx('heal');
         float(`+${heroHp - playerHp}`, 'hero', 'text-emerald-300');
       }, 400);
@@ -631,7 +653,7 @@ export default function BattleArena() {
       setHeroMotion('lunge');
       setHeroLunge((n) => n + 1);
       sfx('spell');
-      setTimeout(() => {
+      later(() => {
         sfx('heal');
         float(`+${healed - playerHp}`, 'hero', spell.color);
       }, 260);
@@ -643,7 +665,7 @@ export default function BattleArena() {
       const healed = Math.min(playerMaxHp, playerHp + spell.effect.heal);
       commitHp(healed, enemyHp, 0);
       sfx('spell');
-      setTimeout(() => sfx('guard'), 260);
+      later(() => sfx('guard'), 260);
       float('🛡️', 'hero', spell.color);
       setTurn({ kind: 'message', text: `${spell.emoji} ${spell.name}! A shield of knowing rises — the next hit will glance away.`, next: enemyTurn });
       return;
@@ -701,7 +723,7 @@ export default function BattleArena() {
       lastPhase: lastPhase.current,
     });
     commitHp(playerHpAfter, hit.newEnemyHp, choreo.hitMs);
-    setTimeout(() => {
+    later(() => {
       setEnemyHit((n) => n + 1);
       if (hit.shieldBroke) {
         sfx('shatter');
@@ -761,9 +783,9 @@ export default function BattleArena() {
       }));
       setFireballs((f) => [...f, ...volley]);
       const ids = new Set(volley.map((v) => v.id));
-      setTimeout(() => setFireballs((f) => f.filter((x) => !ids.has(x.id))), c.hitMs + 200);
+      later(() => setFireballs((f) => f.filter((x) => !ids.has(x.id))), c.hitMs + 200);
     }
-    if (c.soundMs > 0) setTimeout(() => sfx(sound), c.soundMs);
+    if (c.soundMs > 0) later(() => sfx(sound), c.soundMs);
     else sfx(sound);
   }
 
@@ -811,13 +833,13 @@ export default function BattleArena() {
     setEnemyLunge((n) => n + 1);
     sfx('enemyAttack');
     commitHp(r.newPlayerHp, r.newEnemyHp, 260);
-    setTimeout(() => {
+    later(() => {
       float(r.dmg === 0 ? 'Blocked!' : `-${r.dmg}`, 'hero', r.dmg === 0 ? 'text-sky-300' : 'text-red-300');
       if (r.mended > 0) float(`+${r.mended}`, 'enemy', 'text-emerald-300');
       sfx(r.dmg === 0 ? 'block' : 'hit');
     }, 260);
     // A healer's mend chimes just after the hit lands, so the two don't blur.
-    if (r.mended > 0) setTimeout(() => sfx('heal'), 600);
+    if (r.mended > 0) later(() => sfx('heal'), 600);
 
     const who = blow === 'power' ? `${enemy!.name} unleashes ${powerMove}` : `${enemy!.name} attacks`;
     const text =
@@ -856,9 +878,12 @@ export default function BattleArena() {
     const coins = victoryCoins(enemy!.coins, killsBefore);
     const drop = rollDrop(enemy!.isBoss);
     setReward({ coins, firstWin: killsBefore === 0, drop });
+    // Read HP from the store, not this render: victory() runs from a message
+    // callback created before a finishing move's heal (Wisp) was committed.
+    const finalHp = useBattleStore.getState().playerHp;
     updateSave((s) => ({
       ...s,
-      hp: playerHp,
+      hp: finalHp,
       coins: s.coins + coins,
       items: drop ? { ...s.items, [drop]: s.items[drop] + 1 } : s.items,
       // Lifetime kill counts drive defeat quests (#42).
