@@ -60,14 +60,17 @@ updating `CLAUDE.md`, `docs/ISSUES.md`, and `docs/TEST-CASES.md` (see
 | `npm test` | Run the Vitest suite once |
 | `npm run test:watch` / `test:ui` | Watch mode / browser UI for tests |
 
-Before merging, run `npm run lint && npm test && npm run build`. The repo has
-no CI yet, so this is the only gate.
+CI (`.github/workflows/ci.yml`) runs on every push to `main` and every pull
+request: lint + tests + build, a Deno type-check of the edge function, and a
+job that applies every migration to a fresh Postgres and runs
+`supabase/ci/*.test.sql`. Run `npm run lint && npm test && npm run build`
+locally before pushing.
 
 ## Supabase setup
 
 1. **Create a project**, then copy its URL and anon key into `.env.local`
    (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
-2. **Apply the migrations** in `supabase/migrations/` in order (0001 → 0008),
+2. **Apply the migrations** in `supabase/migrations/` in order (0001 → 0009),
    either with `supabase db push` or by pasting each one into the SQL Editor.
    If players' XP resets on refresh, the production DB is missing migrations;
    see `docs/PRODUCTION-DB-SETUP.md`.
@@ -81,6 +84,15 @@ no CI yet, so this is the only gate.
    The function is one self-contained file on purpose, so it also deploys from
    the dashboard (see `CLAUDE.md` → Conventions). Redeploy it whenever a topic
    is added.
+
+   It only answers signed-in players, and migration 0009 adds a per-player
+   rate limit plus daily budgets for brand-new Claude questions (once spent,
+   players are served from the saved question bank). Optional secrets tune
+   the limits: `QUESTION_RATE_PER_MINUTE` (default 20),
+   `FRESH_PER_PLAYER_PER_DAY` (200), `FRESH_GLOBAL_PER_DAY` (5000).
+4. **Password reset:** in Authentication → URL Configuration, add your site
+   URL (and `http://localhost:5173` for dev) to **Redirect URLs** so reset
+   emails can link back to the game.
 
 The `questions` table is a shared, growing question bank. Every generated
 question is cached and reused across players (with per-player dedupe), so

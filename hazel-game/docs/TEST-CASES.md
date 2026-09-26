@@ -376,6 +376,22 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-323 | C | ✅ | BattleArena | smoke: Attack → correct answer → Go! shows "strikes true", lowers enemy HP and fills one ◆ (BattleArena.test) |
 | TC-324 | M | ⬜ | BattleArena | play a full fight on a phone: lunges, damage numbers, SFX, enrage banner and victory panel look the same as before the refactor |
 
+## Critical fixes (#76)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-325 | U | ✅ | quota SQL | 3 calls/min pass and the 4th is refused; a player over the daily fresh budget gets 0; the global budget caps a fresh player; budgets reset after a day (supabase/ci/quota.test.sql) |
+| TC-326 | U | ✅ | quota SQL | anon and authenticated cannot EXECUTE `begin_question_request`; service_role can (quota.test.sql) |
+| TC-327 | U | ✅ | migrations | every migration 0001→0009 applies in order to a fresh Postgres + the Supabase stub (CI migrations job) |
+| TC-328 | U | ✅ | edge function | `deno check` passes for generate-questions (CI edge-function job) |
+| TC-329 | M | ⬜ | edge function | after deploy: a request with no Authorization (or only the anon key) → 401 "Please sign in to play." |
+| TC-330 | M | ⬜ | edge function | after deploy: 21 rapid calls from one player → the 21st returns 429 and the game shows the retry screen with the "short rest" message |
+| TC-331 | M | ⬜ | edge function | with `FRESH_PER_PLAYER_PER_DAY=0`: a battle still loads (served from the cache) and `question_requests.fresh_count` stays 0 |
+| TC-332 | U | ✅ | auth | `isRecoveryUrl` spots `type=recovery` in the hash or query and ignores other links (PasswordReset.test) |
+| TC-333 | C | ✅ | AuthPage | Forgot password hides the password field, calls `resetPasswordForEmail` with this page as the redirect, and shows a neutral notice; errors are shown (PasswordReset.test) |
+| TC-334 | C | ✅ | ResetPasswordPage | too-short / mismatched passwords are rejected without a server call; success saves and leaves recovery mode; a server error keeps recovery mode (PasswordReset.test) |
+| TC-335 | M | ⬜ | auth | end to end: request a reset email, open the link → "Choose a new password" → save → the game loads; sign out and sign in with the new password |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

@@ -41,15 +41,30 @@ export function useAuthInit() {
       }
     }
 
+    // A reset-email link lands with `type=recovery` in the URL. supabase-js
+    // also emits PASSWORD_RECOVERY below; checking the URL too covers the
+    // event firing before this listener is attached.
+    if (isRecoveryUrl(window.location)) useAuthStore.getState().setPasswordRecovery(true);
+
     supabase.auth.getSession().then(({ data }) => {
       sync(data.session);
       setInitialized(true);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') useAuthStore.getState().setPasswordRecovery(true);
+      // A normal sign-in (e.g. after an expired reset link) is not a recovery.
+      if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
+        useAuthStore.getState().setPasswordRecovery(false);
+      }
       sync(session);
     });
 
     return () => sub.subscription.unsubscribe();
   }, [setSession, setInitialized, loadProfile, clearProfile, loadSave, clearSave]);
+}
+
+/** Whether the page was opened from a Supabase password-reset email link. */
+export function isRecoveryUrl(loc: Pick<Location, 'hash' | 'search'>): boolean {
+  return /(^|[#&?])type=recovery(&|$)/.test(loc.hash) || /[?&]type=recovery(&|$)/.test(loc.search);
 }

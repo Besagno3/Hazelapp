@@ -113,6 +113,21 @@ zod, react-query. Add the package in the same change that first uses it.
   `BattleHud` / `BattleStage` / `BattleMenus` / `BattleResult` are the view.
 - DB schema lives in `supabase/migrations/` — apply via the Supabase SQL Editor
   or `supabase db push`.
+- **CI** (`.github/workflows/ci.yml`, #76): lint + tests + build, `deno check`
+  of the edge function, and a job that applies every migration to a plain
+  Postgres (after `supabase/ci/supabase-stub.sql`) and runs
+  `supabase/ci/*.test.sql`. A new migration must apply cleanly there; put
+  SQL-level tests for it in `supabase/ci/`.
+- **Question-generator access (#76):** `generate-questions` requires a signed-in
+  caller (401 otherwise) and calls `begin_question_request` (migration 0009):
+  per-player calls/minute (429 over it) + per-player and project-wide daily
+  budgets of *fresh* Claude questions. Over budget it serves the cache
+  (seen questions as a last resort). Fails OPEN with a loud log if 0009 isn't
+  applied. Limits: `QUOTA_DEFAULTS` in the function, overridable by secrets.
+- **Password reset (#76):** `AuthPage` "Forgot password?" →
+  `resetPasswordForEmail` (redirects back to the app). A recovery link sets
+  `authStore.passwordRecovery` (PASSWORD_RECOVERY event or `type=recovery` in
+  the URL), and `App` shows `ResetPasswordPage` before the game.
 - **Question generation** is a Deno edge function in
   `supabase/functions/generate-questions/` — it calls the Claude API
   server-side (API key never reaches the browser). `lib/questions.ts`
@@ -191,6 +206,25 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-26 — Critical fixes: locked-down question generator, CI, password reset (#76)
+- **Question generator (security/cost):** `generate-questions` now rejects
+  callers who aren't signed in (the anon key ships in the bundle, so before
+  this anyone could spend the Claude budget). New migration
+  `0009_question_quota.sql`: `question_requests` log + `begin_question_request`
+  RPC (advisory-locked per player; EXECUTE revoked from anon/authenticated).
+  Defaults: 20 calls/min/player, 200 fresh questions/day/player, 5000 fresh/day
+  overall. Over budget → served from the cache so play continues; the
+  question bank is still never pruned.
+- **CI:** first GitHub Actions workflow (app, edge-function type-check,
+  migrations + SQL tests). `supabase/ci/` holds the Supabase stub and
+  `quota.test.sql`.
+- **Password reset:** "Forgot password?" on the sign-in screen and a
+  `ResetPasswordPage` for the reset-email link.
+- ⚠️ Deploy: apply `0009_question_quota.sql`, redeploy `generate-questions`,
+  and add the site URL to Supabase Auth → Redirect URLs. See ISSUES #76.
+- Verified: vitest + lint + build; `deno check` of the function; all 9
+  migrations applied to a fresh Postgres 16 and `quota.test.sql` passing.
 
 ### 2026-09-26 — Review fixes on the battle refactor (#75)
 - The #70 regression test now uses fake timers and advances past every

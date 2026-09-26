@@ -66,6 +66,8 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #57 | 🟢 | High   | ⚠️ Deploy: redeploy `generate-questions` so nature/space/history questions generate — the function whitelists topics, so the new zones' gates/chests/battles 400 until it ships. Redeployed 2026-06-18 (fixed the Clockwork Depths "topic must be one of…" error). |
 | #58 | 🟢 | High   | Warden bosses in the 3 themed zones drop keys that gate-unlock 3 of the 4 Fiends (Numbria stays open). Reward: key + trophy badge + boss XP. |
 | #59 | 🟢 | Low    | Warden bosses sit in the open roaming area. Added a signpost NPC near each warden that warns of it and points the reward home; keys retheme to their destination crystal zone (Verdant/Prism/Gearwright). |
+| #76 | 🟡 | High   | ⚠️ Deploy: apply `0009_question_quota.sql`, redeploy `generate-questions`, add the site URL to Auth → Redirect URLs. Code shipped: sign-in required + rate limit/budget on the question generator, CI workflow, password reset. Until 0009 is applied the quota fails OPEN (logged) |
+| #77 | 🔴 | High   | Children sign up directly with email + password and a birth date — no parent involvement. Needs a parent-account / verifiable-consent design before shipping to other families (COPPA / GDPR-K). Product + legal decision |
 | #75 | 🟢 | Low    | Tech-debt pass: battle refactor (#44), tap-race fix (#70), real README, 22 unused packages removed. Note: `npm audit` still reports 13 pre-existing advisories (vite/vitest/postcss chain, was 17) — handle with a toolchain bump |
 | #74 | 🟡 | Low    | Review fixes applied: short-batch softlock → retryable error, exploring re-enabled on every phase change, Menu hidden mid-climb + new 🚪 Leave the Spire, 250ms double-tap guard on panels. Original: The Spire is five walkable, spooky floors (rune seals, stairs, candle-light, per-floor music, Umbra on the throne). Follow-ups: (a) the spooky tracks were checked by measurement, not by ear; (b) the hero has no corner-assist, so 2-tile corridors next to shelves/walls need the player to line up (seen while scripting the playthrough); (c) a wrong answer still breaks the seal (kept the old "every question advances" rule) — revisit if the climb feels too easy; (d) no transition between floors beyond the taunt panel (a fade would be nice); (e) floors don't show Ember's facing / wanderers — they are deliberately empty and quiet. |
 | #73 | 🟡 | Med    | Every place unique: one Inn (village), one Library (field), six distinct shops (each item sold once), 3 new battle items, per-place layouts + architecture styles. Follow-ups: (a) ~~potions only on Lumina Field~~ — Tadpole's Tonics (Verdara) now also sells them (`SHARED_STOCK`); (b) the battle 🎒 Items menu is covered by typecheck + logic only, not yet played in-browser; (c) Rainbow Ward/Spark Cell/Honey Elixir prices are first guesses; (d) Moonwell Grove and the Crystal Spire deliberately have no buildings (wild grove / the tower); (e) the Spire climb doesn't offer battle items. |
@@ -329,6 +331,34 @@ sequences the `Turn` union. That gives companions (Wave 2) a pure place to add
 actions without growing the component. Promoting the `Turn` union into an
 xstate machine is still possible later if companion turn order gets complex.
 World cutscenes are unchanged and remain open.
+
+### #76 — Question-generator lockdown, CI, password reset 🟡 High
+**Why:** `generate-questions` accepted any caller holding the public anon key
+(it's in the web bundle) and called Claude with no limit — a cost/abuse hole.
+**Shipped:**
+- 401 unless signed in; `begin_question_request` (migration 0009) logs every
+  call and enforces a per-player rate (429) plus per-player and global daily
+  budgets of fresh questions. Over budget the batch comes from the cache, then
+  already-seen cached questions; only an empty cache returns 429.
+- Known limits: the per-player lock serializes the check, but `fresh_count`
+  is written after generation, so a burst inside one minute can overshoot the
+  daily budget by at most (calls/min × batch size). The global budget isn't
+  locked across players (can overshoot slightly under heavy parallel load).
+  New accounts can still be created freely, which is why the global budget is
+  the real ceiling. The `question_requests` log grows by one row per call;
+  it's tiny, but it's the one table that may need a cleanup job later (unlike
+  `questions`, which is never pruned).
+- CI workflow + `supabase/ci/` (Supabase stub, `quota.test.sql`).
+- Password reset (AuthPage + ResetPasswordPage + recovery detection).
+**To finish (manual):** apply 0009 to production, redeploy the function, add
+Redirect URLs, then confirm a signed-out `curl` to the function returns 401.
+Also still open from #61: apply 0001–0008 to production if not done.
+
+### #77 — Parent accounts / consent 🔴 High
+Kids create their own email/password accounts and enter a birth date. For a
+product used by other families this needs a parent-first model (parent
+account → child profiles, PIN or picture login for kids) and a consent flow.
+Needs a product/legal decision before building.
 
 ### #75 — Tech-debt pass 🟢 Low — RESOLVED (2026-09-26)
 - **#70 tap-race fixed.** Root cause: `BattleArena` applied the enemy's hit in
