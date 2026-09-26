@@ -6,6 +6,7 @@ import { useBattleStore } from './store/battleStore';
 import { useScreenMusic } from './lib/audio';
 import { sendFlow, useFlow } from './machines/gameFlow';
 import AuthPage from './features/auth/AuthPage';
+import ResetPasswordPage from './features/auth/ResetPasswordPage';
 import SignOutButton from './features/auth/SignOutButton';
 import LevelBadge from './components/LevelBadge';
 import StreakBadge from './components/StreakBadge';
@@ -29,6 +30,7 @@ export default function App() {
   useAuthInit();
   const initialized = useAuthStore((s) => s.initialized);
   const session = useAuthStore((s) => s.session);
+  const passwordRecovery = useAuthStore((s) => s.passwordRecovery);
   const saveStatus = useSaveStore((s) => s.status);
   const booting = useFlow((s) => s.matches('boot'));
   const screen = useFlow((s) =>
@@ -64,6 +66,8 @@ export default function App() {
 
   // No valid session → auth is the only reachable screen.
   if (!session) return <AuthPage />;
+  // Arrived from a reset-email link → choose a new password before playing.
+  if (passwordRecovery) return <ResetPasswordPage />;
 
   if (saveStatus !== 'ready' || booting) {
     return <LoadingScreen label="Preparing your adventure…" />;

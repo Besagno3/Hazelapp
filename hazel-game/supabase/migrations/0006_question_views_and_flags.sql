@@ -38,6 +38,7 @@ alter table public.question_flags enable row level security;
 
 -- Authenticated users may insert flags only for themselves. They cannot read
 -- flags from the client; the edge function uses the service role to quarantine.
+drop policy if exists "users insert their own flags" on public.question_flags;
 create policy "users insert their own flags"
   on public.question_flags
   for insert

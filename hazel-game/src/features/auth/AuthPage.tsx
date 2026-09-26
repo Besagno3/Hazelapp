@@ -16,6 +16,8 @@ export default function AuthPage() {
   const [birthYear, setBirthYear] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  // "Forgot password?" mode: email only, sends a reset link (#76).
+  const [isForgot, setIsForgot] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,6 +26,24 @@ export default function AuthPage() {
     e.preventDefault();
     setError(null);
     setNotice(null);
+
+    if (isForgot) {
+      setLoading(true);
+      // The link returns here; useAuthInit spots the recovery session and App
+      // shows ResetPasswordPage. The URL must be in Supabase's redirect list.
+      const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname,
+      });
+      setLoading(false);
+      if (authError) {
+        setError(errorMessage(authError));
+        return;
+      }
+      // Same message whether or not the account exists (no account probing).
+      setNotice('If that email has an account, a reset link is on its way. Check your inbox!');
+      setIsForgot(false);
+      return;
+    }
 
     if (isSignUp) {
       if (!birthYear || !birthMonth) {
@@ -82,14 +102,17 @@ export default function AuthPage() {
             required
             className={fieldClass}
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className={fieldClass}
-          />
+          {!isForgot && (
+            <input
+              type="password"
+              placeholder="Password"
+              autoComplete={isSignUp ? 'new-password' : 'current-password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className={fieldClass}
+            />
+          )}
 
           {isSignUp && (
             <div>
@@ -134,13 +157,27 @@ export default function AuthPage() {
             disabled={loading}
             className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
           >
-            {loading ? 'Loading…' : isSignUp ? 'Create Account' : 'Sign In'}
+            {loading ? 'Loading…' : isForgot ? 'Send reset link' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+
+        {!isSignUp && (
+          <button
+            onClick={() => {
+              setIsForgot(!isForgot);
+              setError(null);
+              setNotice(null);
+            }}
+            className="mt-3 w-full text-center text-sm text-gray-500 hover:underline"
+          >
+            {isForgot ? 'Back to sign in' : 'Forgot password?'}
+          </button>
+        )}
 
         <button
           onClick={() => {
             setIsSignUp(!isSignUp);
+            setIsForgot(false);
             setError(null);
             setNotice(null);
           }}

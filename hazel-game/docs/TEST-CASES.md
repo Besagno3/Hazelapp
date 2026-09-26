@@ -362,6 +362,42 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-314 | M | ✅ | Spire | the world Menu button is hidden during the climb; 🚪 Leave the Spire returns to the Spire door (world.exploring), Menu returns, and standing by the tower doesn't instantly reopen it (headless Chromium) |
 | TC-315 | M | ✅ | Spire | a fast double-click on a story panel advances exactly one panel (headless Chromium) |
 
+## Battle tech-debt pass (#75)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-316 | U | ✅ | battleTurn | a correct answer fills one ◆, capped at `CHARGE_MAX`; a wrong one leaves charge alone (battleTurn.test) |
+| TC-317 | U | ✅ | battleTurn | hero hit: deals damage, floors enemy HP at 0 and reports defeat; a shield absorbs the first landed hit then is gone; a shield-absorbed spell refunds its charge (battleTurn.test) |
+| TC-318 | U | ✅ | battleTurn | boss enrage phases 1 and 2 are each announced exactly once; regular enemies never announce (battleTurn.test) |
+| TC-319 | U | ✅ | battleTurn | enemy turn: a standing guard blocks fully and is spent; a correct defend softens; HP floors at 0 → hero down; a hurt healer mends, a healthy one doesn't; boss damage uses the current phase (battleTurn.test) |
+| TC-320 | U | ✅ | battleTurn | spells: a miss fizzles and keeps charge; Mend heals (capped); Aegis raises the guard; offensive spells spend their cost (battleTurn.test) |
+| TC-321 | U | ✅ | battleTurn | items: blocked reasons (none left / HP full / charge full / already warded); potion, elixir, spark and ward effects (battleTurn.test) |
+| TC-322 | U | ✅ | battleStore | `start()` resets combat and derives the shield from the enemy archetype, so shield state never leaks between fights (battleTurn.test) |
+| TC-323 | C | ✅ | BattleArena | smoke: Attack → correct answer → Go! shows "strikes true", lowers enemy HP and fills one ◆ (BattleArena.test) |
+| TC-324 | M | ⬜ | BattleArena | play a full fight on a phone: lunges, damage numbers, SFX, enrage banner and victory panel look the same as before the refactor |
+
+## Critical fixes (#76)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-325 | U | ✅ | quota SQL | 3 calls/min pass and the 4th is refused; a player over the daily fresh budget gets 0; the global budget caps a fresh player; budgets reset after a day (supabase/ci/quota.test.sql) |
+| TC-326 | U | ✅ | quota SQL | anon and authenticated cannot EXECUTE `begin_question_request`; service_role can (quota.test.sql) |
+| TC-327 | U | ✅ | migrations | every migration 0001→0009 applies in order to a fresh Postgres + the Supabase stub (CI migrations job) |
+| TC-328 | U | ✅ | edge function | `deno check` passes for generate-questions (CI edge-function job) |
+| TC-329 | M | ⬜ | edge function | after deploy: a request with no Authorization (or only the anon key) → 401 "Please sign in to play." |
+| TC-330 | M | ⬜ | edge function | after deploy: 21 rapid calls from one player → the 21st returns 429 and the game shows the retry screen with the "short rest" message |
+| TC-331 | M | ⬜ | edge function | with `FRESH_PER_PLAYER_PER_DAY=0`: a battle still loads (served from the cache) and `question_requests.fresh_count` stays 0 |
+| TC-332 | U | ✅ | auth | `isRecoveryUrl` spots `type=recovery` in the hash or query and ignores other links (PasswordReset.test) |
+| TC-333 | C | ✅ | AuthPage | Forgot password hides the password field, calls `resetPasswordForEmail` with this page as the redirect, and shows a neutral notice; errors are shown (PasswordReset.test) |
+| TC-334 | C | ✅ | ResetPasswordPage | too-short / mismatched passwords are rejected without a server call; success saves and leaves recovery mode; a server error keeps recovery mode (PasswordReset.test) |
+| TC-336 | U | ✅ | migrations | `apply_all_migrations.sql` is regenerated from `supabase/migrations/` and matches (CI `--check`) |
+| TC-337 | U | ✅ | migrations | the bundle applies to a fresh DB, applies again without error, and records one row per migration (CI apply-twice job) |
+| TC-338 | M | ✅ | migrations | on a drifted DB (old 0001 without the UPDATE policy, CLI history table with extra columns, existing player + question): the bundle restores the policy, adds columns, keeps data, records all 9 (local Postgres 16) |
+| TC-339 | U | ✅ | migrations | a user created without (or with invalid) birth-date metadata does not fail sign-up and gets no trigger-made profile; valid metadata still seeds one (supabase/ci/access.test.sql) |
+| TC-340 | U | ✅ | migrations | authenticated has select/insert/update on `profiles`; anon can't update it; only service_role can execute `increment_question_usage` (access.test.sql) |
+| TC-341 | U | ✅ | db:bundle | the generator rejects a migration with BEGIN/COMMIT, CREATE TABLE/INDEX or ADD COLUMN without IF NOT EXISTS, CREATE FUNCTION without OR REPLACE, or CREATE POLICY/TRIGGER without a prior DROP IF EXISTS (verified by hand with throwaway files) |
+| TC-335 | M | ⬜ | auth | end to end: request a reset email, open the link → "Choose a new password" → save → the game loads; sign out and sign in with the new password |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
@@ -373,6 +409,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-R5 | M | ⬜ | #23 | after 0005, a quiz round increases `select count(*) from questions` |
 | TC-R6 | M | ⬜ | #24 | after 0006, two back-to-back rounds return non-overlapping question IDs |
 | TC-R7 | M | ⬜ | #26 | flagging a question removes it from the next call's cache pool |
+| TC-R8 | C | ✅ | #70 | enemy hit then an immediate potion (tapping through before the 260ms impact) keeps both the damage and the heal, and HP stays put after all pending timers fire (fake timers; BattleArena.test + battleTurn.test) |
 
 ---
 
