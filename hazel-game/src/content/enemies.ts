@@ -1,6 +1,5 @@
 import type { BattleEnemy, EnemyBehavior, Topic, ZoneId } from '../types';
-import { clampLevel } from '../lib/age';
-import { challengeLevel } from '../lib/growth';
+import { clampLevel, skillLevelFor } from '../lib/age';
 import { topicInfo } from './topics';
 import { bossCoinDrop, enemyCoinDrop } from './items';
 
@@ -17,7 +16,7 @@ export interface EnemyDef {
   /** key into src/content/sprites.ts SPRITES; falls back to `sprite` (emoji) when absent */
   spriteId?: string;
   topic: Topic;
-  /** Question level = challengeLevel(age, playerLevel) + levelOffset, clamped 1-10. */
+  /** Question level = the player's question level for this topic + levelOffset, clamped 1-10. */
   levelOffset: number;
   /** maxHp = HP_BASE + level * hpPerLevel. */
   hpPerLevel: number;
@@ -81,20 +80,22 @@ export function fiendFor(topic: Topic): EnemyDef {
 }
 
 /**
- * Resolves a placed enemy into a battle-ready instance, scaled to the player:
- * their age is the baseline and their player level nudges it up as they grow
- * (lib/growth.ts). `instanceId` keys session defeat-tracking.
+ * Resolves a placed enemy into a battle-ready instance, scaled to the player's
+ * **question level** for the enemy's topic (`skillLevels`, 1–10) — it starts
+ * from their sign-up age and moves with how well (and how fast) they answer.
+ * XP / player level never changes it. A player with no level for the topic
+ * yet gets the age baseline. `instanceId` keys session defeat-tracking.
  */
 export function spawnEnemy(
   defId: string,
   zoneId: ZoneId,
   placementKey: string,
   age: number,
-  playerLevel = 1,
+  skillLevels: Partial<Record<Topic, number>> = {},
 ): BattleEnemy {
   const def = ENEMY_DEFS[defId];
   if (!def) throw new Error(`Unknown enemy def: ${defId}`);
-  const level = clampLevel(challengeLevel(age, playerLevel) + def.levelOffset);
+  const level = clampLevel(skillLevelFor(skillLevels, def.topic, age) + def.levelOffset);
   // Bosses live only in crystal topics, so fiendName is always set there; the
   // fallback keeps non-crystal enemies (and any future boss) safe.
   const name = def.isBoss ? (topicInfo(def.topic).fiendName ?? def.name) : def.name;

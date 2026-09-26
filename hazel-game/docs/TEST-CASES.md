@@ -454,14 +454,26 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-374 | U | ✅ | growth | a new player starts at their age level; +1 step per 5 player levels, capped at +3; a birthday raises the baseline; stays within 1–10; age comes from the sign-up birth date and level from XP (growth.test) |
-| TC-375 | U | ✅ | enemies | spawnEnemy at Lv 1 = age baseline; at Lv 6 one level (and more HP) higher; an older player meets higher-level enemies (enemies.test) |
-| TC-376 | U | ✅ | battleTurn | `defendTimeMs`: younger → more time; 5–8 year-olds never get ≤15s; leveling trims ≤3s; clamped 10–25s; mercy +5s |
+| TC-374 | — | ❌ | growth | *(removed by #80 — XP no longer scales difficulty)* |
+| TC-375 | — | ❌ | enemies | *(replaced by TC-383)* |
+| TC-376 | U | ✅ | battleTurn | `defendTimeMs(age)`: younger → more time; 5–8 year-olds always > 15s; clamped 10–25s; mercy +5s (level no longer affects it) |
 | TC-377 | U | ✅ | save | `defendTimer` defaults on (new and older saves); only an explicit `false` turns it off (save.test) |
-| TC-378 | M | ✅ | battle | countdown starts at 24s (age 6), 19s (age 9), 15s (age 12); a 9-year-old at Lv 16 gets 16s; enemies/battle questions Lv 4 → 7 (headless Chromium) |
+| TC-378 | M | ✅ | battle | countdown starts at 24s (age 6), 19s (age 9), 15s (age 12) (headless Chromium; the Lv-16 part is superseded by #80) |
 | TC-379 | M | ✅ | battle | with the timer off: no countdown, and 60s later the defend question is still waiting (headless Chromium) |
 | TC-380 | M | ✅ | menu | 📜 Menu → ⚔️ Battle → Defend timer toggles On ↔ Off ("Take as long as you need") and writes the save (headless Chromium) |
 | TC-381 | M | ⬜ | world | real account: turn the timer off, reload on another device → still off; level up past Lv 5, re-enter a zone → enemies one level higher |
+
+## Question level + speed trigger (#80)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-382 | U | ✅ | battleTurn | `fastAnswerMs` = half the age countdown; 5 quick correct in a row → boost and the run restarts; slow / wrong / hinted (Infinity) resets; never more than +2 per battle; `skillAfterBattle` keeps the boost and never lowers |
+| TC-383 | U | ✅ | enemies | a player new to a topic meets the age baseline; a math level of 7 raises a math enemy (and its HP); a level in another topic doesn't carry over (enemies.test) |
+| TC-384 | M | ✅ | battle | age 9: 5 correct answers at 3s each → "⚡ So quick! … level 4 → 5", ⚡+1 by the enemy level, a level-5 pool is fetched and the following questions are level 5 (headless Chromium, fake clock) |
+| TC-385 | M | ✅ | battle | winning that battle saves the math question level above where it started (4 → 6) (headless Chromium) |
+| TC-386 | M | ✅ | battle | 6 correct answers at 12s each (slower than 9.5s) → no raise; 4 quick + 1 with a Hint Feather → no raise (headless Chromium) |
+| TC-387 | M | ✅ | battle | 9000 XP meets the same enemy level as 0 XP; a math level of 7 → Count Bat Lv 7 and level-7 battle questions (headless Chromium) |
+| TC-388 | M | ⬜ | battle | playtest: does "quick" (half the countdown) feel right for 6-, 9- and 12-year-olds? |
 
 ## Regression cases (tied to ISSUES.md)
 

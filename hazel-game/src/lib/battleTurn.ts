@@ -1,7 +1,7 @@
 import type { EnemyBehavior, FightStyle, PowerUps } from '../types';
 import type { ConsumableId } from '../content/items';
 import { bossPhase, defendReduction, enemyAttack, healerMends, healerRegen } from './battleMath';
-import { growthSteps } from './growth';
+import { clampLevel, nextSkillLevelFromBattle } from './age';
 
 /**
  * Pure battle-turn resolution (#75 follow-up). BattleArena decides WHAT the
@@ -196,13 +196,59 @@ export const DEFEND_MERCY_BONUS_MS = 5_000;
 
 /**
  * Time to answer a defend question before the blow lands, from the child's
- * age (the baseline) and player level (growth — see lib/growth.ts):
- * 25s at age 5, 1.5s less per year (≈18s at 10, 10s at 15), then 1s less per
- * growth step as they level up. Clamped to 10–25s, rounded to whole seconds,
- * plus a bonus under mercy.
+ * age (from the sign-up birth date, so it shortens a little each birthday):
+ * 25s at age 5, 1.5s less per year (≈19s at 9, 15s at 12), clamped 10–25s,
+ * rounded to whole seconds, plus a bonus under mercy. Leveling up (XP) never
+ * changes it.
  */
-export function defendTimeMs(age: number, level: number, mercy = false): number {
-  const seconds = Math.round(25 - 1.5 * (age - 5) - growthSteps(level));
+export function defendTimeMs(age: number, mercy = false): number {
+  const seconds = Math.round(25 - 1.5 * (age - 5));
   const ms = Math.min(DEFEND_MAX_MS, Math.max(DEFEND_MIN_MS, seconds * 1000));
   return ms + (mercy ? DEFEND_MERCY_BONUS_MS : 0);
+}
+
+// --- Speed trigger: fast + correct raises the question level --------------------
+
+/**
+ * Two separate tracks per player: the **question level** per topic
+ * (`profiles.skill_levels`, 1–10 — starts from the sign-up age, moves with
+ * performance) is what sets difficulty; **XP / player level** only tracks
+ * progress and power-ups. In battle, answering quickly AND correctly
+ * FAST_STREAK times in a row raises the question level on the spot.
+ */
+export const FAST_STREAK = 5;
+/** A battle can raise the question level by at most this much. */
+export const MAX_SPEED_BOOST = 2;
+
+/** An answer counts as quick within half the child's defend countdown (≈9.5s at 9). */
+export function fastAnswerMs(age: number): number {
+  return Math.round(defendTimeMs(age) / 2);
+}
+
+/**
+ * Advance the run of quick correct answers. `ms` = time from the question
+ * appearing to the pick (pass Infinity when a Hint Feather was used — a hinted
+ * answer isn't evidence the questions are too easy). When the run reaches
+ * FAST_STREAK (and the battle's boost isn't maxed) it `boosted`, and the run
+ * starts over so the next step needs another full streak.
+ */
+export function speedStep(
+  run: number,
+  correct: boolean,
+  ms: number,
+  age: number,
+  boost: number,
+): { run: number; boosted: boolean } {
+  if (!correct || ms > fastAnswerMs(age)) return { run: 0, boosted: false };
+  const next = run + 1;
+  if (next >= FAST_STREAK && boost < MAX_SPEED_BOOST) return { run: 0, boosted: true };
+  return { run: Math.min(next, FAST_STREAK), boosted: false };
+}
+
+/**
+ * The topic's question level after a battle: the usual battle ramp (never
+ * lowers it — #32), but never below what the speed trigger already earned.
+ */
+export function skillAfterBattle(current: number, answers: boolean[], speedBoost: number): number {
+  return Math.max(nextSkillLevelFromBattle(current, answers), clampLevel(current + speedBoost));
 }

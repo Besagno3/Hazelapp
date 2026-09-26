@@ -48,19 +48,18 @@ describe('enemy behavior archetypes (Wave 0.5)', () => {
   });
 });
 
-describe('enemy scaling: age baseline + player level growth', () => {
-  it('a new player meets enemies at their age level', () => {
-    expect(spawnEnemy('count-bat', 'numbria', 'a', 8, 1).level).toBe(spawnEnemy('count-bat', 'numbria', 'a', 8).level);
+describe('enemy scaling: the player\'s question level for the topic', () => {
+  it('a player new to the topic meets enemies at their age baseline', () => {
+    expect(spawnEnemy('count-bat', 'numbria', 'a', 8, {}).level).toBe(spawnEnemy('count-bat', 'numbria', 'a', 8).level);
+    expect(spawnEnemy('count-bat', 'numbria', 'a', 9).level).toBeGreaterThan(spawnEnemy('count-bat', 'numbria', 'a', 8).level);
   });
 
-  it('enemies grow as the player levels up (one step per 5 levels)', () => {
-    const lv1 = spawnEnemy('count-bat', 'numbria', 'a', 8, 1);
-    const lv6 = spawnEnemy('count-bat', 'numbria', 'a', 8, 6);
-    expect(lv6.level).toBe(lv1.level + 1);
-    expect(lv6.maxHp).toBeGreaterThan(lv1.maxHp);
-  });
-
-  it('enemies grow as the player gets older', () => {
-    expect(spawnEnemy('count-bat', 'numbria', 'a', 9, 1).level).toBeGreaterThan(spawnEnemy('count-bat', 'numbria', 'a', 8, 1).level);
+  it('follows the question level for the enemy\'s own topic', () => {
+    const base = spawnEnemy('count-bat', 'numbria', 'a', 8); // a math enemy
+    const better = spawnEnemy('count-bat', 'numbria', 'a', 8, { math: 7 });
+    expect(better.level).toBeGreaterThan(base.level);
+    expect(better.maxHp).toBeGreaterThan(base.maxHp);
+    // a level earned in another topic doesn't carry over
+    expect(spawnEnemy('count-bat', 'numbria', 'a', 8, { science: 9 }).level).toBe(base.level);
   });
 });

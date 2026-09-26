@@ -4,6 +4,11 @@ import {
   DEFEND_MERCY_BONUS_MS,
   DEFEND_MIN_MS,
   defendTimeMs,
+  fastAnswerMs,
+  FAST_STREAK,
+  MAX_SPEED_BOOST,
+  speedStep,
+  skillAfterBattle,
   MERCY_AFTER,
   POWER_MULTIPLIER,
   STREAK_MAX,
@@ -126,22 +131,55 @@ describe('streaks, mercy, rewards', () => {
 
 describe('defendTimeMs', () => {
   it('younger kids get more time', () => {
-    expect(defendTimeMs(6, 1)).toBeGreaterThan(defendTimeMs(9, 1));
-    expect(defendTimeMs(9, 1)).toBeGreaterThan(defendTimeMs(13, 1));
+    expect(defendTimeMs(6)).toBeGreaterThan(defendTimeMs(9));
+    expect(defendTimeMs(9)).toBeGreaterThan(defendTimeMs(13));
   });
 
-  it('a young reader never gets as little as 15s', () => {
-    for (const age of [5, 6, 7, 8]) expect(defendTimeMs(age, 99)).toBeGreaterThan(15_000);
+  it('a young reader (5–8) always gets more than 15s', () => {
+    for (const age of [5, 6, 7, 8]) expect(defendTimeMs(age)).toBeGreaterThan(15_000);
   });
 
-  it('leveling up trims it a little, never below the minimum', () => {
-    expect(defendTimeMs(9, 20)).toBeLessThan(defendTimeMs(9, 1));
-    expect(defendTimeMs(9, 1) - defendTimeMs(9, 20)).toBeLessThanOrEqual(3_000);
-    expect(defendTimeMs(18, 99)).toBe(DEFEND_MIN_MS);
-    expect(defendTimeMs(3, 1)).toBe(DEFEND_MAX_MS);
+  it('is clamped to 10–25s', () => {
+    expect(defendTimeMs(18)).toBe(DEFEND_MIN_MS);
+    expect(defendTimeMs(3)).toBe(DEFEND_MAX_MS);
   });
 
   it('mercy adds a few seconds on top', () => {
-    expect(defendTimeMs(10, 1, true)).toBe(defendTimeMs(10, 1) + DEFEND_MERCY_BONUS_MS);
+    expect(defendTimeMs(10, true)).toBe(defendTimeMs(10) + DEFEND_MERCY_BONUS_MS);
+  });
+});
+
+describe('speed trigger', () => {
+  const age = 9;
+  const quick = fastAnswerMs(age) - 1;
+
+  it('"quick" is half the age countdown — more time for younger kids', () => {
+    expect(fastAnswerMs(age)).toBe(defendTimeMs(age) / 2);
+    expect(fastAnswerMs(6)).toBeGreaterThan(fastAnswerMs(12));
+  });
+
+  it(`${FAST_STREAK} quick correct answers in a row raise the level`, () => {
+    let run = 0;
+    let boosted = false;
+    for (let i = 0; i < FAST_STREAK; i++) ({ run, boosted } = speedStep(run, true, quick, age, 0));
+    expect(boosted).toBe(true);
+    expect(run).toBe(0); // the next step needs another full streak
+  });
+
+  it('a slow answer, a wrong answer, or a hinted answer (Infinity) breaks the run', () => {
+    expect(speedStep(4, true, fastAnswerMs(age) + 1, age, 0)).toEqual({ run: 0, boosted: false });
+    expect(speedStep(4, false, quick, age, 0)).toEqual({ run: 0, boosted: false });
+    expect(speedStep(4, true, Infinity, age, 0)).toEqual({ run: 0, boosted: false });
+  });
+
+  it(`never raises more than ${MAX_SPEED_BOOST} in one battle`, () => {
+    expect(speedStep(FAST_STREAK - 1, true, quick, age, MAX_SPEED_BOOST).boosted).toBe(false);
+  });
+
+  it('the saved level after a battle keeps what speed earned, and never drops', () => {
+    expect(skillAfterBattle(4, [true, false, false, false], 1)).toBe(5);
+    expect(skillAfterBattle(4, [false, false], 0)).toBe(4);
+    expect(skillAfterBattle(4, Array(6).fill(true), 1)).toBeGreaterThanOrEqual(5);
+    expect(skillAfterBattle(10, Array(6).fill(true), 2)).toBe(10);
   });
 });

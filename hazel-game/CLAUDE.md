@@ -37,13 +37,16 @@ existing architecture.
   Edge Function (the API key must stay server-side). Revises an earlier
   "external trivia API" choice — trivia APIs can't do age-graded content. See
   ISSUES.md #7.
-- **Growth rule (2026-09-26):** the child's **age is the baseline** for
-  everything (from the birth year/month given at sign-up — `playerAge`
-  recomputes it, so it rises on each birthday) and their **player level**
-  (XP) nudges it up as they play: `lib/growth.ts` (`challengeLevel`,
-  `growthSteps` — +1 per 5 player levels, max +3). Enemies, battle
-  questions, the Spire and the defend countdown all use it; quiz rounds,
-  gates and chests also follow each topic's skill level (which starts from age).
+- **Difficulty = the question level, not XP (2026-09-26):** two separate
+  tracks per player. The **question level** per topic
+  (`profiles.skill_levels`, 1–10) starts from the child's **sign-up age**
+  (`ageToStartLevel(playerAge)` — age recomputes from the birth date, so new
+  topics start higher each birthday) and then moves with **performance**
+  (quiz ramp, battle ramp, and the battle **speed trigger**: 5 quick correct
+  answers in a row → +1 mid-battle). It sets quiz, gate, chest, Spire and
+  battle questions and enemy levels. **XP / player level** only tracks
+  progress and grants power-ups — leveling up never makes anything harder.
+  The defend countdown is age-based only.
 - **Player profiles:** a Supabase `profiles` table (birth year/month + per-topic
   skill levels) backs age-based difficulty. Difficulty model: a **persistent
   per-topic skill level** that rises on consecutive correct answers and falls
@@ -122,9 +125,11 @@ existing architecture.
   spells are **super effective** vs their topic, **answer streaks** power up
   hits, and after two losses to the same enemy its questions get easier
   (**mercy** — session-only, no change to damage). **Defend questions are
-  timed** (`DefendTimer`, `defendTimeMs(age, level)`: 25s at age 5, 1.5s
-  less per year, 1s less per growth step, 10–25s, +5s under mercy, paused
-  while the tab is hidden; switch off per player in 📜 → ⚔️ Battle); running out lands the blow as a
+  timed** (`DefendTimer`, `defendTimeMs(age)`: 25s at age 5, 1.5s less per
+  year, 10–25s, +5s under mercy, paused while the tab is hidden; switch off
+  per player in 📜 → ⚔️ Battle). **Speed trigger:** 5 quick (within half the
+  age countdown, no Hint Feather) correct answers in a row raise the battle's
+  question level by 1 on the spot (max +2 per battle, saved at the end).; running out lands the blow as a
   wrong answer. Fiends (bosses) have enrage phases and restore their
   crystal on defeat. Pure math in `lib/battleMath.ts`, turn rules in
   `lib/battleTurn.ts`, motion in `features/battle/choreography.ts`. No game over — defeat
@@ -210,7 +215,35 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-26 — Difficulty follows the question level + a speed trigger; XP no longer scales anything (#80)
+Revises #79: leveling up (XP) should not make the game harder — answering
+well and fast should.
+- **Removed** `lib/growth.ts` (XP-based `growthSteps` / `challengeLevel`).
+  XP / player level is back to progress + power-ups only.
+- **Battles use the question level:** `spawnEnemy(…, age, skillLevels)` sets
+  the enemy (and so its battle questions, HP, coins) from the player's
+  question level for the enemy's topic (`skillLevelFor` — the age baseline
+  if they've never played it). `WorldScreen` + `WorldCanvas` pass
+  `profile.skillLevels`. The Spire asks each topic at the player's level for
+  that topic. (Before #79 battles used age only, per #32.)
+- **Speed trigger (`lib/battleTurn.ts`, tested):** answers are timed from the
+  question appearing; `fastAnswerMs(age)` = half the age countdown (≈9.5s at
+  9, 12s at 6). `speedStep` counts quick correct answers in a row — a slow,
+  wrong or Hint-Feathered answer resets it; `FAST_STREAK` = 5 → the battle's
+  question level rises by 1 at once (`MAX_SPEED_BOOST` = 2 per battle): a
+  "⚡ So quick! The questions just got harder — level 4 → 5" banner, a ⚡+1
+  badge by the enemy's level, and a harder pool fetched and served for the
+  rest of the fight. `skillAfterBattle` saves it: the usual battle ramp
+  (never lowers), but never below `current + boost`.
+- **Countdown:** `defendTimeMs(age, mercy)` — age only again.
+- 348 tests green; lint + build clean. Verified in headless Chromium (fake
+  clock): 5 quick correct → banner + ⚡+1 + level-5 pool requested and served
+  (L4 ×5 → L5 after); battle end saves math 4 → 6; slow (12s) answers and a
+  hinted answer don't trigger it; 9000 XP meets the same enemy as 0 XP; math
+  level 7 → Count Bat Lv 7 with level-7 questions.
+
 ### 2026-09-26 — Age-based growth rule, age-based countdown, timer setting (#79)
+*(The XP-based growth part was reverted by #80 above.)*
 - **One growth rule (`lib/growth.ts`, tested):** age (from the sign-up birth
   date, recomputed so it rises each birthday) is the baseline;
   `growthSteps(level)` adds +1 per 5 player levels (max +3) as the kid levels

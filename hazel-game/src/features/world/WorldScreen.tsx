@@ -38,7 +38,7 @@ import {
   GROVE_PANELS,
   GROVE_SEEN,
 } from '../../content/story';
-import { playerStanding } from '../../lib/growth';
+import { playerAge } from '../../lib/age';
 import { heroMaxHp } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { useSaveStore } from '../../store/saveStore';
@@ -93,7 +93,8 @@ export default function WorldScreen() {
   }, []);
   const [toast, setToast] = useState<string | null>(null);
 
-  const { age, level: heroLevel } = playerStanding(profile);
+  const age = playerAge(profile);
+  const skillLevels = profile?.skillLevels ?? {};
   const zoneId = save?.zoneId ?? 'lumina-field';
   const z = zone(zoneId);
   const avatar = avatarById(save?.avatarId ?? null);
@@ -151,7 +152,7 @@ export default function WorldScreen() {
   useEffect(() => {
     if (!save) return;
     for (const p of z.enemies) {
-      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, heroLevel);
+      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels);
       if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, save.flags)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT);
@@ -227,7 +228,7 @@ export default function WorldScreen() {
         zoneId={zoneId}
         avatar={avatar}
         age={age}
-        playerLevel={heroLevel}
+        skillLevels={skillLevels}
         emberStage={ember}
         startPos={spireTheme ? floorSpawnPx(spireTheme, TILE) : save.pos}
         flags={save.flags}

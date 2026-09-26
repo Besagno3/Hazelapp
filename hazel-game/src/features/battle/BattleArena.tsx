@@ -6,8 +6,8 @@ import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { fetchQuestions } from '../../lib/questions';
 import { sfx, stopMusic, type SfxName } from '../../lib/audio';
-import { playerAge, clampLevel, nextSkillLevelFromBattle, skillLevelFor } from '../../lib/age';
-import { npcDefeatXp, playerLevel, XP_PER_CORRECT } from '../../lib/level';
+import { playerAge, clampLevel, skillLevelFor } from '../../lib/age';
+import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import {
   attackDamage,
@@ -21,6 +21,8 @@ import {
   STREAK_MAX,
   STREAK_START,
   defendTimeMs,
+  skillAfterBattle,
+  speedStep,
   SUPER_EFFECTIVE,
   mercyFor,
   nextIntent,
@@ -84,6 +86,9 @@ import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary } from '../../lib/save';
 import type { LibraryEntry, Question } from '../../types';
+
+/** Wall-clock ms for answer timing (module-level so it's never called during render). */
+const nowMs = () => performance.now();
 
 /** `hide` = wrong options crossed out before the player starts (Pip's peek). */
 type Turn =
@@ -209,6 +214,15 @@ export default function BattleArena() {
   const [intent, setIntent] = useState<EnemyIntent>('attack');
   const enemyTurnNo = useRef(0);
   const [reward, setReward] = useState<Reward | null>(null);
+  // Speed trigger (lib/battleTurn speedStep): quick correct answers in a row
+  // raise this battle's question level. Refs, not state — the next question is
+  // often posed by a callback created a render earlier and must see the boost.
+  const askedAt = useRef(0);
+  const hinted = useRef(false);
+  const speedRun = useRef(0);
+  const speedBoost = useRef(0);
+  const boostPool = useRef<{ qs: Question[]; i: number }>({ qs: [], i: 0 });
+  const [boostShown, setBoostShown] = useState(0);
   // The question (by card key) the player has picked an answer for — stops
   // the defend countdown.
   const [answeredKey, setAnsweredKey] = useState<string | null>(null);
@@ -435,14 +449,21 @@ export default function BattleArena() {
   const canCastAny = spellQs.length > 0 && spells.some((s) => charge >= s.cost);
   const powerMove = powerMoveName(enemy.id);
   const nextQuestion = () => {
+    // After a speed boost, draw from the harder pool once it has arrived.
+    const bp = boostPool.current;
+    if (bp.qs.length > 0) return bp.qs[bp.i++ % bp.qs.length];
     const q = questions[qIndex % questions.length];
     setQIndex((i) => i + 1);
     return q;
   };
+  /** The level this battle's regular questions are asked at (before any speed boost). */
+  const baseQLevel = clampLevel(enemy.level - mercy.levelDrop);
   /** Pose a question turn, spending Pip's peek on it if one is waiting. */
   const ask = (t: QuestionTurn) => {
     setTurn({ ...t, hide: peek.current });
     peek.current = 0;
+    askedAt.current = nowMs();
+    hinted.current = false;
   };
   /** Streak bonus applied to every hero-side hit. */
   const boost = (dmg: number) => Math.round(dmg * streakMultiplier(streak));
@@ -468,6 +489,11 @@ export default function BattleArena() {
 
   function recordAnswer(correct: boolean, q: Question, picked: number) {
     setAnswers((a) => [...a, correct]);
+    // A hinted answer isn't evidence the questions are too easy.
+    const ms = hinted.current ? Infinity : nowMs() - askedAt.current;
+    const step = speedStep(speedRun.current, correct, ms, age, speedBoost.current);
+    speedRun.current = step.run;
+    if (step.boosted) raiseQuestionLevel();
     if (correct) {
       setCharge((c) => Math.min(CHARGE_MAX, c + 1));
       const next = streak + 1;
@@ -823,6 +849,7 @@ export default function BattleArena() {
    */
   function defendTimedOut(q: Question) {
     sfx('wrong');
+    speedRun.current = 0;
     setAnswers((a) => [...a, false]);
     setStreak(0);
     misses.current.push({ question: q, picked: -1 }); // no pick — the Library never shows it
@@ -872,6 +899,28 @@ export default function BattleArena() {
     }
   }
 
+  /**
+   * The speed trigger fired: FAST_STREAK quick correct answers in a row. Ask
+   * the rest of this battle one level harder (fetched now; the current pool
+   * keeps serving until it arrives) and save it at the end (skillAfterBattle).
+   */
+  function raiseQuestionLevel() {
+    const from = clampLevel(baseQLevel + speedBoost.current);
+    const to = clampLevel(from + 1);
+    if (to === from) return; // already at the top level
+    speedBoost.current += 1;
+    setBoostShown(speedBoost.current);
+    sfx('streak');
+    showBanner(`So quick! The questions just got harder — level ${from} → ${to}`, 3200, '⚡');
+    fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, `a quick-thinking hero battling ${enemy!.name}`)
+      .then((qs) => {
+        if (qs.length > 0) boostPool.current = { qs, i: 0 };
+      })
+      .catch(() => {
+        /* keep asking from the current pool — the level still saves at the end */
+      });
+  }
+
   // --- Battle end --------------------------------------------------------------
 
   function settleCommon() {
@@ -880,7 +929,8 @@ export default function BattleArena() {
     void recordActivity();
     if (profile) {
       const current = skillLevelFor(profile.skillLevels, topic, age);
-      const next = nextSkillLevelFromBattle(current, answers);
+      // The usual battle ramp (never lowers), but never below what speed earned.
+      const next = skillAfterBattle(current, answers, speedBoost.current);
       if (next !== current) void setSkillLevel(topic, next);
     }
     return xp;
@@ -1013,7 +1063,14 @@ export default function BattleArena() {
               {enemyShielded && '🛡️ '}
               {enemy.name}
             </span>
-            <span className="shrink-0 whitespace-nowrap text-white/70">Lv {enemy.level}</span>
+            <span className="shrink-0 whitespace-nowrap text-white/70">
+              Lv {enemy.level}
+              {boostShown > 0 && (
+                <span className="ml-1 text-yellow-300" title="Questions raised by quick answers">
+                  ⚡+{boostShown}
+                </span>
+              )}
+            </span>
           </div>
           <div className="w-full bg-white/15 rounded-full h-3 mt-1 overflow-hidden">
             <motion.div className="h-full bg-red-400 rounded-full" animate={{ width: hpPct(viewEnemyHp, enemy.maxHp) }} />
@@ -1424,7 +1481,7 @@ export default function BattleArena() {
             {turn.kind === 'enemy-question' && save.defendTimer ? (
               <DefendTimer
                 key={qKey}
-                durationMs={defendTimeMs(age, playerLevel(profile?.xp ?? 0), mercy.levelDrop > 0)}
+                durationMs={defendTimeMs(age, mercy.levelDrop > 0)}
                 stopped={answeredKey === qKey}
                 onExpire={() => defendTimedOut(turn.question)}
                 label={
@@ -1460,7 +1517,10 @@ export default function BattleArena() {
               question={turn.question}
               hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
               preHidden={turn.hide ?? 0}
-              onUseHint={useSaveStore.getState().spendHint}
+              onUseHint={() => {
+                hinted.current = true;
+                useSaveStore.getState().spendHint();
+              }}
               onAnswered={(correct, picked) => {
                 setAnsweredKey(qKey);
                 recordAnswer(correct, turn.question, picked);
