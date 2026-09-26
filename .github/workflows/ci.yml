@@ -27,6 +27,8 @@ jobs:
           cache-dependency-path: hazel-game/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - name: apply_all_migrations.sql matches supabase/migrations
+        run: node scripts/build-apply-all.mjs --check
       - run: npm test
       - run: npm run build
 
@@ -74,6 +76,13 @@ jobs:
             psql -v ON_ERROR_STOP=1 -q -f "$f"
             echo "::endgroup::"
           done
+      - name: apply_all_migrations.sql is re-runnable (fresh DB, applied twice)
+        run: |
+          psql -v ON_ERROR_STOP=1 -q -c 'create database apply_all'
+          psql -d apply_all -v ON_ERROR_STOP=1 -q -f ci/supabase-stub.sql
+          psql -d apply_all -v ON_ERROR_STOP=1 -q -f apply_all_migrations.sql
+          psql -d apply_all -v ON_ERROR_STOP=1 -q -f apply_all_migrations.sql
+          test "$(psql -d apply_all -tAc 'select count(*) from supabase_migrations.schema_migrations')" = "$(ls migrations/*.sql | wc -l)"
       - name: SQL tests
         run: |
           for f in ci/*.test.sql; do

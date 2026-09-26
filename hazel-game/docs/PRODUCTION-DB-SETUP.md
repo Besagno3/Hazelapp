@@ -61,7 +61,17 @@ order by table_name;
 
 ## Step 2 — Apply the missing migrations
 
-### Option A (recommended): Supabase CLI
+### Option A (easiest): one script, no CLI
+Open `hazel-game/supabase/apply_all_migrations.sql`, paste the **whole file**
+into the SQL Editor, and click **Run**. It applies every migration in order in
+one transaction and records each one in `supabase_migrations.schema_migrations`.
+It never fails on things that already exist — every statement is idempotent —
+so it is safe whatever state the project is in, and it also re-creates a
+missing or wrong RLS policy (the XP-reset cause). The last result lists the
+recorded migrations; you should see every file from `0001` to the newest.
+Skip Step 1's diagnosis if you like — this fixes all of it.
+
+### Option A2: Supabase CLI
 From `hazel-game/`:
 
 ```bash

@@ -70,7 +70,10 @@ locally before pushing.
 
 1. **Create a project**, then copy its URL and anon key into `.env.local`
    (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
-2. **Apply the migrations** in `supabase/migrations/` in order (0001 → 0009),
+2. **Apply the migrations.** Easiest: paste `supabase/apply_all_migrations.sql`
+   into the SQL Editor and Run. It applies and records every migration, and is
+   safe to re-run on a project that already has some or all of them. Or apply
+   the files in `supabase/migrations/` in order (0001 → 0009)
    either with `supabase db push` or by pasting each one into the SQL Editor.
    If players' XP resets on refresh, the production DB is missing migrations;
    see `docs/PRODUCTION-DB-SETUP.md`.

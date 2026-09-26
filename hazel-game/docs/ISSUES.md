@@ -350,6 +350,8 @@ World cutscenes are unchanged and remain open.
   `questions`, which is never pruned).
 - CI workflow + `supabase/ci/` (Supabase stub, `quota.test.sql`).
 - Password reset (AuthPage + ResetPasswordPage + recovery detection).
+**Easiest path:** paste `supabase/apply_all_migrations.sql` into the SQL
+Editor (applies + records 0001–0009, safe to re-run).
 **To finish (manual):** apply 0009 to production, redeploy the function, add
 Redirect URLs, then confirm a signed-out `curl` to the function returns 401.
 Also still open from #61: apply 0001–0008 to production if not done.
