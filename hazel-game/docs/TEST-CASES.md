@@ -441,7 +441,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-366 | U | ✅ | battleTurn | `defendTimeMs`: never under 15s, longer questions get more time up to 30s, mercy adds 5s |
+| TC-366 | U | ✅ | battleTurn | `defendTimeMs`: a flat 15s for every defend question; mercy adds 5s |
 | TC-367 | M | ✅ | battle | a defend question shows "⏳ Ns" + a bar that counts down; attack questions show no countdown (headless Chromium, fake clock) |
 | TC-368 | M | ✅ | battle | letting it run out: three ticks in the last 3s, then "⏰ Time's up! … lands a hit!", HP drops, wrong + hit sounds (headless Chromium) |
 | TC-369 | M | ✅ | battle | picking an answer freezes it on "✓ In time!"; waiting 40s more never times out (headless Chromium) |

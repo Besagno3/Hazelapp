@@ -187,23 +187,15 @@ export function rollDrop(isBoss: boolean, roll: number = Math.random()): Consuma
 
 // --- Defend countdown ------------------------------------------------------------
 
-/** Shortest / longest time a defend question allows, in ms. */
-export const DEFEND_MIN_MS = 15_000;
-export const DEFEND_MAX_MS = 30_000;
-/** Base time plus reading time per word of the question and its options. */
-const DEFEND_BASE_MS = 8_000;
-const DEFEND_MS_PER_WORD = 350;
+/**
+ * Time to answer a defend question before the blow lands: a flat 15s — long
+ * enough for young kids who are still learning to read (10s was too fast).
+ */
+export const DEFEND_MS = 15_000;
 /** Mercy (a couple of losses to this enemy) also buys extra time. */
 export const DEFEND_MERCY_BONUS_MS = 5_000;
 
-/**
- * How long the player has to answer a defend question before the blow lands.
- * Scales with how much there is to read (question + options), so a long word
- * problem never gets the same clock as "2 + 2", clamped to 15–30s — plus a
- * few seconds more under mercy.
- */
-export function defendTimeMs(q: { text: string; options: string[] }, mercy = false): number {
-  const words = [q.text, ...q.options].join(' ').split(/\s+/).filter(Boolean).length;
-  const ms = Math.min(DEFEND_MAX_MS, Math.max(DEFEND_MIN_MS, DEFEND_BASE_MS + words * DEFEND_MS_PER_WORD));
-  return ms + (mercy ? DEFEND_MERCY_BONUS_MS : 0);
+/** How long the player has to answer a defend question (+ a bonus under mercy). */
+export function defendTimeMs(mercy = false): number {
+  return DEFEND_MS + (mercy ? DEFEND_MERCY_BONUS_MS : 0);
 }

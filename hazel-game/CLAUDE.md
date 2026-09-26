@@ -114,8 +114,8 @@ existing architecture.
   spells are **super effective** vs their topic, **answer streaks** power up
   hits, and after two losses to the same enemy its questions get easier
   (**mercy** — session-only, no change to damage). **Defend questions are
-  timed** (`DefendTimer`, `defendTimeMs`: 15–30s by reading length, +5s under
-  mercy, paused while the tab is hidden); running out lands the blow as a
+  timed** (`DefendTimer`, `defendTimeMs`: a flat 15s, +5s under mercy,
+  paused while the tab is hidden); running out lands the blow as a
   wrong answer. Fiends (bosses) have enrage phases and restore their
   crystal on defeat. Pure math in `lib/battleMath.ts`, turn rules in
   `lib/battleTurn.ts`, motion in `features/battle/choreography.ts`. No game over — defeat
@@ -200,6 +200,14 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-26 — Defend countdown is a flat 15 seconds (#78 follow-up)
+The defend clock no longer scales with question length: every defend
+question gets `DEFEND_MS` = 15s (10s was considered and rejected — too fast
+for young kids still learning to read), still +5s under mercy and paused while
+the page is hidden. `defendTimeMs(mercy)` lost its question argument. 338
+tests green; lint + build clean; the countdown starts at 15s in headless
+Chromium.
 
 ### 2026-09-26 — Timed defend questions (#78)
 Resolves the STORY-4X §12 "timer" decision for defending: the enemy's blow

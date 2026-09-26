@@ -1424,7 +1424,7 @@ export default function BattleArena() {
             {turn.kind === 'enemy-question' ? (
               <DefendTimer
                 key={qKey}
-                durationMs={defendTimeMs(turn.question, mercy.levelDrop > 0)}
+                durationMs={defendTimeMs(mercy.levelDrop > 0)}
                 stopped={answeredKey === qKey}
                 onExpire={() => defendTimedOut(turn.question)}
                 label={
