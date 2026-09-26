@@ -103,6 +103,13 @@ describe('normalizeSave', () => {
     expect(normalizeSave(42)).toEqual(defaultSave());
   });
 
+  it('keeps the chosen battle companion; older saves and unknown ids default to Ember', () => {
+    expect(normalizeSave({ companionId: 'pip' }).companionId).toBe('pip');
+    expect(normalizeSave({}).companionId).toBe('ember');
+    expect(normalizeSave({ companionId: 'dragonzilla' }).companionId).toBe('ember');
+    expect(defaultSave().companionId).toBe('ember');
+  });
+
   it('keeps valid fields and repairs invalid ones', () => {
     const s = normalizeSave({
       zoneId: 'numbria',

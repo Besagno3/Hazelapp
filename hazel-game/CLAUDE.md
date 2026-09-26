@@ -78,13 +78,13 @@ existing architecture.
   Fiends, #58), `items.ts` (shop + economy tuning), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
-  quiz progress, Library queue. Write-through: localStorage immediately
+  quiz progress, Library queue, the active battle companion. Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
   `flush()` on save crystals / sign-out. Supabase errors degrade to
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration).
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
-  instance ids, the active companion, losses per enemy for mercy) —
-  deliberately not persisted.
+  instance ids, losses per enemy for mercy) — deliberately not persisted, so
+  a reload is a fresh start for mercy.
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
@@ -112,7 +112,8 @@ existing architecture.
   miss). **🔄 Swap** changes companion as a free action. Enemies sometimes
   **telegraph a power move** (charge turn → 2× blow; Guard blocks it), Sage
   spells are **super effective** vs their topic, **answer streaks** power up
-  hits, and after two losses an enemy shows **mercy**. Fiends (bosses) have enrage phases and restore their
+  hits, and after two losses to the same enemy its questions get easier
+  (**mercy** — session-only, no change to damage). Fiends (bosses) have enrage phases and restore their
   crystal on defeat. Pure math in `lib/battleMath.ts`, turn rules in
   `lib/battleTurn.ts`, motion in `features/battle/choreography.ts`. No game over — defeat
   returns the player to the hub, healed.
@@ -196,6 +197,21 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-26 — Companion pick survives reloads; mercy = easier questions only (#76 follow-up)
+- **Companion persists:** the 🔄 Swap pick moved from `battleStore` into the
+  save (`SaveData.companionId`, default `'ember'`). Additive + defaulted in
+  `normalizeSave` (older saves and unknown ids → Ember), like #73's item
+  slots — no `SAVE_VERSION` bump. Syncs to Supabase with the rest of the save.
+- **Mercy reworked:** still session-only (a reload resets it) and still
+  kicks in after 2 losses to the same enemy, but it now ONLY makes the
+  questions one level easier — the ×0.75 enemy-damage reduction is gone
+  (`mercyFor` → `{ levelDrop }`; `resolveEnemyAttack` lost `attackScale`).
+  Banner: "Tough one last time? …'s questions will be a little easier now."
+- 336 tests green (new save.test for the companion field; the softer-hits
+  test removed); lint + build clean. Verified in headless Chromium: swap is
+  written to the save, a save round-tripped through JSON + `normalizeSave`
+  starts with Pip, mercy drops the question level with identical damage.
 
 ### 2026-09-26 — Battle round 3: party + free swap, power moves, streaks, mercy, rewards (#76)
 - **Companions (`content/companion.ts`, rewritten as a registry):** Ember

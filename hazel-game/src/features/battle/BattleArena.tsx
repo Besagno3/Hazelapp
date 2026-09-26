@@ -132,8 +132,6 @@ interface Reward {
  */
 export default function BattleArena() {
   const { enemy, playerHp, playerMaxHp, enemyHp, setHp, markDefeated, endBattle } = useBattleStore();
-  const storeCompanion = useBattleStore((s) => s.companionId);
-  const setCompanion = useBattleStore((s) => s.setCompanion);
   const recordLoss = useBattleStore((s) => s.recordLoss);
   const lossesSoFar = useBattleStore((s) => (enemy ? (s.losses[enemy.id] ?? 0) : 0));
   const save = useSaveStore((s) => s.save);
@@ -157,7 +155,7 @@ export default function BattleArena() {
   // Locked for the whole fight, re-locked per encounter:
   // - Ember's stage — a win can hatch the egg or grow Ember, but that reveal
   //   belongs to the world cutscene, not a sprite swap on the victory panel.
-  // - The loss count behind mercy — recording this fight's loss must not
+  // - The loss count behind mercy (easier questions) — recording this fight's loss must not
   //   re-key the question pool (and flash a loading screen over the defeat).
   const liveEmber = emberStatus(save?.flags ?? {}).stage;
   const [locked, setLocked] = useState(() => ({ for: enemy?.instanceId, ember: liveEmber, losses: lossesSoFar }));
@@ -167,10 +165,11 @@ export default function BattleArena() {
   const ember = locked.ember;
   const mercy = mercyFor(locked.losses);
 
-  // The active companion (🔄 Swap), falling back to Ember if the stored pick
-  // isn't in this save's party.
+  // The active companion (🔄 Swap) lives in the save, so it survives reloads;
+  // fall back to Ember if the saved pick isn't in this save's party.
   const party = save ? companionsInParty(save) : (['ember'] as CompanionId[]);
-  const companionId: CompanionId = party.includes(storeCompanion) ? storeCompanion : 'ember';
+  const savedCompanion = save?.companionId ?? 'ember';
+  const companionId: CompanionId = party.includes(savedCompanion) ? savedCompanion : 'ember';
   const companion = COMPANIONS[companionId];
   const cMove = companionMove(companionId, ember);
   const cPower = companionPower(companionId, ember);
@@ -312,7 +311,7 @@ export default function BattleArena() {
     if (mercy.levelDrop > 0) {
       timers.push(
         window.setTimeout(
-          () => showBanner(`${enemy.name} remembers your last battles — it will go a little easier this time.`, 3500, '💛'),
+          () => showBanner(`Tough one last time? ${enemy.name}'s questions will be a little easier now.`, 3500, '💛'),
           at,
         ),
       );
@@ -487,7 +486,7 @@ export default function BattleArena() {
   function swapTo(id: CompanionId) {
     if (id !== companionId && party.includes(id)) {
       const c = COMPANIONS[id];
-      setCompanion(id);
+      updateSave((s) => ({ ...s, companionId: id }));
       setSwapIn((n) => n + 1);
       sfx('swap');
       showBanner(`${c.name} tags in — still your move!`, 1800, c.emoji);
@@ -805,7 +804,6 @@ export default function BattleArena() {
       playerHp,
       enemyHp,
       enemyMaxHp: enemy!.maxHp,
-      attackScale: mercy.attackScale,
     });
     if (guarded) setGuarded(false);
     advanceIntent(blow);

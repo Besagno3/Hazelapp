@@ -66,7 +66,7 @@ describe('nextIntent', () => {
 describe('resolveEnemyAttack', () => {
   const base: EnemyAttackInput = {
     level: 5, isBoss: false, phase: 0, intent: 'attack', guarded: false, wasCorrect: false,
-    style: 'balanced', powerUps: {}, playerHp: 100, enemyHp: 50, enemyMaxHp: 100, attackScale: 1,
+    style: 'balanced', powerUps: {}, playerHp: 100, enemyHp: 50, enemyMaxHp: 100,
   };
 
   it('a power blow hits POWER_MULTIPLIER× as hard', () => {
@@ -80,10 +80,6 @@ describe('resolveEnemyAttack', () => {
 
   it('a correct defend answer softens the blow', () => {
     expect(resolveEnemyAttack({ ...base, wasCorrect: true }).dmg).toBeLessThan(resolveEnemyAttack(base).dmg);
-  });
-
-  it('mercy scaling softens the blow', () => {
-    expect(resolveEnemyAttack({ ...base, attackScale: 0.75 }).dmg).toBeLessThan(resolveEnemyAttack(base).dmg);
   });
 
   it('a healer below half HP mends at the end of its turn', () => {
@@ -106,10 +102,9 @@ describe('streaks, mercy, rewards', () => {
     expect(streakMultiplier(STREAK_MAX + 10)).toBe(streakMultiplier(STREAK_MAX));
   });
 
-  it('mercy kicks in after MERCY_AFTER losses', () => {
-    expect(mercyFor(MERCY_AFTER - 1)).toEqual({ attackScale: 1, levelDrop: 0 });
-    expect(mercyFor(MERCY_AFTER).attackScale).toBeLessThan(1);
-    expect(mercyFor(MERCY_AFTER).levelDrop).toBe(1);
+  it('mercy makes questions easier after MERCY_AFTER losses — and nothing else', () => {
+    expect(mercyFor(MERCY_AFTER - 1)).toEqual({ levelDrop: 0 });
+    expect(mercyFor(MERCY_AFTER)).toEqual({ levelDrop: 1 });
   });
 
   it('the first win over an enemy kind pays a coin bonus', () => {

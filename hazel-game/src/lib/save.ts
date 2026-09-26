@@ -1,3 +1,4 @@
+import { COMPANION_IDS, type CompanionId } from '../content/companion';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
 import { HUB_ZONE, ZONES } from '../content/zones';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
@@ -81,6 +82,7 @@ export function defaultSave(): SaveData {
     passedRounds: 0,
     worldUnlocked: false,
     library: [],
+    companionId: 'ember',
   };
 }
 
@@ -128,6 +130,10 @@ export function normalizeSave(raw: unknown): SaveData {
     passedRounds: numberOr(r.passedRounds, 0),
     worldUnlocked: r.worldUnlocked === true,
     library: Array.isArray(r.library) ? (r.library as LibraryEntry[]).slice(0, LIBRARY_MAX) : [],
+    // Added after v1 shipped: older saves (and unknown ids) default to Ember.
+    companionId: (COMPANION_IDS as readonly string[]).includes(r.companionId as string)
+      ? (r.companionId as CompanionId)
+      : d.companionId,
   };
 }
 

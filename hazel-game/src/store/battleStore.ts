@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { BattleEnemy } from '../types';
-import type { CompanionId } from '../content/companion';
 
 /**
  * Ephemeral battle-session state (#37). Deliberately NOT persisted — a
@@ -14,15 +13,15 @@ interface BattleStore {
   enemyHp: number;
   /** Enemy instances beaten this session — kept off the map until reload. */
   defeatedIds: string[];
-  /** The companion fighting beside the hero (🔄 Swap); kept between fights this session. */
-  companionId: CompanionId;
-  /** Losses per enemy def this session — after a couple, that enemy eases off (mercy). */
+  /**
+   * Losses per enemy def this session — after a couple, that enemy's questions
+   * get easier (mercy). Deliberately session-only: a reload is a fresh start.
+   */
   losses: Record<string, number>;
 
   start: (enemy: BattleEnemy, playerHp: number, playerMaxHp: number) => void;
   setHp: (playerHp: number, enemyHp: number) => void;
   markDefeated: (instanceId: string) => void;
-  setCompanion: (id: CompanionId) => void;
   recordLoss: (defId: string) => void;
   endBattle: () => void;
   reset: () => void;
@@ -34,7 +33,6 @@ export const useBattleStore = create<BattleStore>((set) => ({
   playerMaxHp: 0,
   enemyHp: 0,
   defeatedIds: [],
-  companionId: 'ember',
   losses: {},
 
   start: (enemy, playerHp, playerMaxHp) =>
@@ -44,8 +42,6 @@ export const useBattleStore = create<BattleStore>((set) => ({
 
   markDefeated: (instanceId) =>
     set((s) => ({ defeatedIds: [...s.defeatedIds, instanceId] })),
-
-  setCompanion: (companionId) => set({ companionId }),
 
   recordLoss: (defId) => set((s) => ({ losses: { ...s.losses, [defId]: (s.losses[defId] ?? 0) + 1 } })),
 
@@ -58,7 +54,6 @@ export const useBattleStore = create<BattleStore>((set) => ({
       playerMaxHp: 0,
       enemyHp: 0,
       defeatedIds: [],
-      companionId: 'ember',
       losses: {},
     }),
 }));

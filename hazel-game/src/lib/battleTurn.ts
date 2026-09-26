@@ -108,8 +108,6 @@ export interface EnemyAttackInput {
   playerHp: number;
   enemyHp: number;
   enemyMaxHp: number;
-  /** Mercy scaling after repeated losses (1 = none). */
-  attackScale: number;
 }
 
 export interface EnemyAttackResult {
@@ -123,7 +121,7 @@ export interface EnemyAttackResult {
 
 export function resolveEnemyAttack(i: EnemyAttackInput): EnemyAttackResult {
   const raw = Math.round(
-    enemyAttack(i.level, i.isBoss, i.phase) * (i.intent === 'power' ? POWER_MULTIPLIER : 1) * i.attackScale,
+    enemyAttack(i.level, i.isBoss, i.phase) * (i.intent === 'power' ? POWER_MULTIPLIER : 1),
   );
   const dmg = i.guarded ? 0 : Math.max(0, raw - defendReduction(i.wasCorrect, i.style, i.powerUps));
   const newPlayerHp = Math.max(0, i.playerHp - dmg);
@@ -158,11 +156,12 @@ export const SUPER_EFFECTIVE = 1.5;
 export const MERCY_AFTER = 2;
 
 /**
- * After MERCY_AFTER losses to the same kind of enemy it hits softer and asks
- * questions one level easier — no game over, and no wall either.
+ * After MERCY_AFTER losses to the same kind of enemy its questions are one
+ * level easier — no game over, and no wall either. The enemy still hits just
+ * as hard: mercy helps with the learning, not the fight.
  */
-export function mercyFor(losses: number): { attackScale: number; levelDrop: number } {
-  return losses >= MERCY_AFTER ? { attackScale: 0.75, levelDrop: 1 } : { attackScale: 1, levelDrop: 0 };
+export function mercyFor(losses: number): { levelDrop: number } {
+  return { levelDrop: losses >= MERCY_AFTER ? 1 : 0 };
 }
 
 // --- Victory rewards ----------------------------------------------------------------------

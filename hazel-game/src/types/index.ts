@@ -1,3 +1,5 @@
+import type { CompanionId } from '../content/companion';
+
 /**
  * The crystal main-quest topic ids — each has a crystal, a Fiend, a Sage, and
  * a topic zone. Crystal/ending logic keys off these. THE single source of
@@ -175,4 +177,6 @@ export interface SaveData {
   worldUnlocked: boolean;
   /** Missed questions awaiting re-answer at the Library (FIFO, capped). */
   library: LibraryEntry[];
+  /** The companion fighting beside the hero (🔄 Swap in battle) — kept across reloads. */
+  companionId: CompanionId;
 }
