@@ -3,7 +3,7 @@ import {
   attackDamage,
   specialDamage,
   spellDamage,
-  emberAttackDamage,
+  companionAttackDamage,
   pairDamage,
   enemyAttack,
   defendReduction,
@@ -12,6 +12,7 @@ import {
   healerRegen,
   HEALER_REGEN_RATE,
 } from './battleMath';
+import { EMBER_POWER } from '../content/companion';
 
 describe('attackDamage', () => {
   it('a correct answer outdamages a glancing blow', () => {
@@ -98,30 +99,30 @@ describe('healer archetype (Wave 0.5)', () => {
   });
 });
 
-describe('emberAttackDamage', () => {
-  it('an egg cannot fight', () => {
-    expect(emberAttackDamage(true, 'egg')).toBe(0);
+describe('companionAttackDamage', () => {
+  it('power 0 (an egg) cannot fight', () => {
+    expect(companionAttackDamage(true, EMBER_POWER.egg)).toBe(0);
   });
 
-  it('grows with Ember', () => {
-    expect(emberAttackDamage(true, 'dragon')).toBeGreaterThan(emberAttackDamage(true, 'whelp'));
-    expect(emberAttackDamage(true, 'whelp')).toBeGreaterThan(emberAttackDamage(true, 'hatchling'));
+  it('Ember grows stronger with each stage', () => {
+    expect(EMBER_POWER.dragon).toBeGreaterThan(EMBER_POWER.whelp);
+    expect(EMBER_POWER.whelp).toBeGreaterThan(EMBER_POWER.hatchling);
   });
 
-  it('a wrong answer is a glancing blow, never zero once hatched', () => {
-    expect(emberAttackDamage(false, 'hatchling')).toBeGreaterThan(0);
-    expect(emberAttackDamage(false, 'hatchling')).toBeLessThan(emberAttackDamage(true, 'hatchling'));
+  it('a wrong answer is a glancing blow, never zero with any power', () => {
+    expect(companionAttackDamage(false, 12)).toBeGreaterThan(0);
+    expect(companionAttackDamage(false, 12)).toBeLessThan(companionAttackDamage(true, 12));
   });
 });
 
 describe('pairDamage', () => {
-  it('combines hero and Ember power', () => {
-    expect(pairDamage('balanced', {}, 'dragon', 1)).toBe(
-      attackDamage(true, 'balanced', {}) + emberAttackDamage(true, 'dragon'),
+  it('combines hero and companion power', () => {
+    expect(pairDamage('balanced', {}, EMBER_POWER.dragon, 1)).toBe(
+      attackDamage(true, 'balanced', {}) + EMBER_POWER.dragon,
     );
   });
 
   it('outdamages a solo spell of the same multiplier', () => {
-    expect(pairDamage('balanced', {}, 'hatchling', 2.5)).toBeGreaterThan(spellDamage('balanced', {}, 2.5));
+    expect(pairDamage('balanced', {}, EMBER_POWER.hatchling, 2.5)).toBeGreaterThan(spellDamage('balanced', {}, 2.5));
   });
 });

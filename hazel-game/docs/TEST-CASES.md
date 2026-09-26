@@ -393,6 +393,29 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-335 | M | ✅ | battle | victory: a hatched Ember does its cheer hop; an egg wobbles — and a first win no longer hatches the egg on the victory panel (stage locked per fight) (headless Chromium) |
 | TC-336 | M | ⬜ | battle | on a real phone: animations feel smooth, the fire trail/fireballs don't cover the question box, and nothing jitters |
 
+## Battle round 3 — party, power moves, streaks, mercy (#76)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-337 | U | ✅ | battleTurn | `resolveHeroHit`: damage, defeat at 0, a shield absorbs the first landed hit (even glancing), a boss phase crossing is reported once and never on the killing blow |
+| TC-338 | U | ✅ | battleTurn | `nextIntent`: never charges on the first enemy turn; charge → power → attack; regular enemies charge on a low roll, bosses every 3rd turn; every boss has a unique signature move name |
+| TC-339 | U | ✅ | battleTurn | `resolveEnemyAttack`: power = 2×, Guard blocks even a power blow, a correct defend softens, mercy softens, healer mends below half, knockout reported |
+| TC-340 | U | ✅ | battleTurn | streak bonus starts at 3 and caps at 5; mercy after 2 losses; first-win coin bonus only when kills = 0; bosses always drop an elixir, regular drops are real consumables or nothing |
+| TC-341 | U | ✅ | companion | Ember always in the party, Pip/Wisp join on their quest's done flag (flags checked against `questDoneFlag`); every companion has a battle sheet, power and a Pair Attack; pair ids unique and within `CHARGE_MAX` |
+| TC-342 | M | ✅ | battle | 🔄 Swap lists Ember / Pip / Wisp (locked ones show how to recruit); picking one swaps the sprite in and returns to the command menu — the turn is NOT spent (headless Chromium) |
+| TC-343 | M | ✅ | battle | Pip's Slingshot (correct) → the next question (even the enemy's defend question) shows 3 options, one crossed out, with "Pip crossed out a wrong answer" (headless Chromium) |
+| TC-344 | M | ✅ | battle | Wisp's Glimmer (correct) mends 20 HP (headless Chromium) |
+| TC-345 | M | ✅ | battle | 3 correct in a row → "🔥 3 in a row!" + streak badge + chime; a wrong answer clears it (headless Chromium) |
+| TC-346 | M | ✅ | battle | #70: after an enemy hit the store HP drops at once while the bar still shows the old value; tapping through and drinking a potion within 260ms heals from the real HP (headless Chromium) |
+| TC-347 | M | ✅ | battle | boss: the 3rd enemy turn is "gathering power for Zero Crush" (charge SFX, glowing enemy, "💢 Zero Crush next!", Guard pulses); the next enemy turn unleashes it and a Guard blocks it completely (headless Chromium) |
+| TC-348 | M | ✅ | battle | a Sage spell matching the enemy topic is tagged "✨ Super effective here!" in the Spellbook and its hit says "It's super effective!" (headless Chromium) |
+| TC-349 | M | ✅ | battle | after 2 session losses to Count Bat: questions requested 1 level lower and a 💛 "remembers your last battles" banner shows (headless Chromium) |
+| TC-350 | M | ✅ | battle | first win over a Fiend: "First time beating…" + 1.5× coins and a Honey Elixir drop added to the bag; a repeat win has no bonus (headless Chromium) |
+| TC-351 | M | ✅ | battle | with prefers-reduced-motion: Dragon Duet resolves with the hero never moving and no fireballs (headless Chromium, emulated media) |
+| TC-352 | M | ⬜ | world | finish "Pip's Lucky Marble" / "The Darkened Moonwell" → the completion lines announce the new battle friend; the 📜 menu lists them under "Battle friends" |
+| TC-353 | M | ⬜ | battle | a wrong answer shows "✅ The answer is: …" and the explanation under "Here's why:" in an amber box |
+| TC-354 | M | ⬜ | audio | by ear: swap / charge / streak SFX feel right next to the existing set |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

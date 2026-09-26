@@ -5,6 +5,7 @@ import { ALL_SHOP_ITEMS, CONSUMABLES, CONSUMABLE_IDS } from '../../content/items
 import { GATE_KEYS } from '../../content/keys';
 import { avatarById } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
+import { COMPANIONS, COMPANION_IDS, companionsInParty } from '../../content/companion';
 import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
 import { heroMaxHp } from '../../lib/powerups';
 import { useSaveStore } from '../../store/saveStore';
@@ -76,6 +77,20 @@ export default function MenuOverlay() {
                 : `The last dragon of Lumina — ${EMBER_STAGE_LABEL[ember]}. Grows with each crystal!`}
             </div>
           </div>
+        </div>
+
+        {/* Battle party: who can be swapped in (🔄 Swap in battle — a free action) */}
+        <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
+          <span className="font-bold mr-2">Battle friends:</span>
+          {COMPANION_IDS.filter((id) => id !== 'ember').map((id) => {
+            const c = COMPANIONS[id];
+            const joined = companionsInParty(save).includes(id);
+            return (
+              <span key={id} className={`mr-3 ${joined ? '' : 'text-white/40'}`} title={joined ? c.blurb : c.joinHint}>
+                {c.emoji} {c.name} {joined ? `(${c.role})` : `🔒 ${c.joinHint}`}
+              </span>
+            );
+          })}
         </div>
 
         {save.badges.length > 0 && (

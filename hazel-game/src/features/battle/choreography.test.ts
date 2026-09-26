@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   EMBER_BREATH,
-  EMBER_MOTION,
-  EMBER_STRIKE,
+  COMPANION_MOTION,
+  COMPANION_STRIKE,
   HERO_MOTION,
   HERO_STRIKE,
   PAIR_CHOREO,
@@ -17,19 +17,19 @@ import {
 import { PAIR_ATTACKS } from '../../content/companion';
 import { GENERATED_SPRITES } from '../../content/sprites.generated';
 
-const ALL: Choreo[] = [HERO_STRIKE, EMBER_STRIKE, EMBER_BREATH, ...Object.values(PAIR_CHOREO)];
+const ALL: Choreo[] = [HERO_STRIKE, COMPANION_STRIKE, EMBER_BREATH, ...Object.values(PAIR_CHOREO)];
 
 describe('battle choreography', () => {
   it('every Pair Attack has its own choreography, with both actors moving', () => {
     for (const p of PAIR_ATTACKS) {
       expect(PAIR_CHOREO[p.id], p.id).toBeDefined();
-      expect(PAIR_CHOREO[p.id].hero && PAIR_CHOREO[p.id].ember, p.id).toBeTruthy();
+      expect(PAIR_CHOREO[p.id].hero && PAIR_CHOREO[p.id].companion, p.id).toBeTruthy();
     }
     expect(pairChoreo('nope')).toBe(PAIR_CHOREO['twin-strike']);
   });
 
   it('every motion starts and ends at rest, moving toward the enemy (−x)', () => {
-    for (const k of [...Object.values(HERO_MOTION), ...Object.values(EMBER_MOTION)]) {
+    for (const k of [...Object.values(HERO_MOTION), ...Object.values(COMPANION_MOTION)]) {
       expect(k.x[0]).toBe(0);
       expect(k.x.at(-1)).toBe(0);
       expect(Math.min(...k.x)).toBeLessThan(0);
@@ -40,7 +40,7 @@ describe('battle choreography', () => {
 
   it('the blow lands when the moving actor reaches the enemy (±60ms)', () => {
     for (const c of ALL) {
-      const mover = c.hero ? HERO_MOTION[c.hero] : EMBER_MOTION[c.ember!];
+      const mover = c.hero ? HERO_MOTION[c.hero] : COMPANION_MOTION[c.companion!];
       if (c.fireballs > 0 && !c.hero) continue; // fireball volleys land by flight time instead
       const contactMs = contactFraction(mover) * mover.duration * 1000;
       expect(Math.abs(contactMs - c.hitMs), JSON.stringify(c)).toBeLessThanOrEqual(60);

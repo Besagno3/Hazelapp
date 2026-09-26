@@ -71,8 +71,8 @@ existing architecture.
   Moonwell Grove + the Crystal Spire; `ZONE_IDS` is the zone-id source of
   truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
-  (Sage personas + charge tuning), `companion.ts` (Ember's battle moves +
-  Pair Attacks), `spells.ts` (the Spellbook — castable
+  (Sage personas + charge tuning), `companion.ts` (battle companions — Ember /
+  Pip / Wisp — their strikes, perks + Pair Attacks), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
   Fiends, #58), `items.ts` (shop + economy tuning), `avatars.ts`.
@@ -83,7 +83,8 @@ existing architecture.
   `flush()` on save crystals / sign-out. Supabase errors degrade to
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration).
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
-  instance ids) — deliberately not persisted.
+  instance ids, the active companion, losses per enemy for mercy) —
+  deliberately not persisted.
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
@@ -97,17 +98,23 @@ existing architecture.
   `spireStore`, #74). `TouchPad`
   is the mobile d-pad.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
-  battle — Attack / Spells / Ember / Guard / Items / Flee, every command resolved by
+  battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
   (the Spellbook, `content/spells.ts`): the hero casts any learned spell
   (Mend / Aegis / Sage strikes / Ember's Breath) by answering one *super-hard*
   question (`SPELL_LEVEL_BONUS` = 3 levels up); each spends charge (◆, the mana
   gauge filled by correct answers, `CHARGE_MAX` = 4) and a miss fizzles +
-  refunds the charge. **Ember** (`content/companion.ts`, once hatched) has its
-  own strike (+1 bonus ◆ on a correct answer) and stage-gated **Pair Attacks**
-  — hero + Ember power combined, super-hard question, charge cost, fizzle on a
-  miss. Fiends (bosses) have enrage phases and restore their
-  crystal on defeat. Pure math in `lib/battleMath.ts`. No game over — defeat
+  refunds the charge. **Companions** (`content/companion.ts`): Ember (always;
+  fights once hatched), Pip and Wisp (join when their quests are done) — one
+  fights beside the hero: a strike with a perk (Ember +◆, Pip crosses out a
+  wrong answer on the next question, Wisp mends) and **Pair Attacks** (hero +
+  companion power combined, super-hard question, charge cost, fizzle on a
+  miss). **🔄 Swap** changes companion as a free action. Enemies sometimes
+  **telegraph a power move** (charge turn → 2× blow; Guard blocks it), Sage
+  spells are **super effective** vs their topic, **answer streaks** power up
+  hits, and after two losses an enemy shows **mercy**. Fiends (bosses) have enrage phases and restore their
+  crystal on defeat. Pure math in `lib/battleMath.ts`, turn rules in
+  `lib/battleTurn.ts`, motion in `features/battle/choreography.ts`. No game over — defeat
   returns the player to the hub, healed.
 - DB schema lives in `supabase/migrations/` — apply via the Supabase SQL Editor
   or `supabase db push`.
@@ -189,6 +196,51 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-26 — Battle round 3: party + free swap, power moves, streaks, mercy, rewards (#76)
+- **Companions (`content/companion.ts`, rewritten as a registry):** Ember
+  (Striker, +1◆), **Pip** (Helper — Slingshot; a correct strike crosses out a
+  wrong answer on the *next* question) and **Wisp** (Healer — Glimmer mends 20
+  HP). Pip joins on finishing "Pip's Lucky Marble", Wisp on "The Darkened
+  Moonwell" (derived from quest flags — no save change; those quests now end
+  with a recruit line). New Pair Attacks: Marble Volley (Pip, 2◆ ×1.8) and
+  Starlight Chorus (Wisp, 2◆ ×1.6 + heals 30). Pip/Wisp got battle sheets
+  (`BATTLE_COMPANIONS` in characters.py). `battleMath` generalised to
+  `companionAttackDamage(correct, power)` / `pairDamage(…, companionPower, …)`.
+- **🔄 Swap** — a free action: pick a companion, they drop in, and it's still
+  your move. Locked companions show how to recruit them. The pick persists
+  across fights this session (`battleStore.companionId`). The 📜 menu lists
+  "Battle friends".
+- **Pure turn rules (`lib/battleTurn.ts`, tested):** `resolveHeroHit`,
+  `resolveEnemyAttack`, `nextIntent`, `powerMoveName`, `streakMultiplier`,
+  `mercyFor`, `victoryCoins`, `rollDrop`.
+- **#70 fixed:** HP is written to the store immediately; only the displayed
+  HP waits for the blow to land (`commitHp`), so fast taps act on true HP.
+- **Telegraphed power moves:** enemies sometimes spend a turn gathering power
+  (bosses every 3rd turn, others 20%) — banner, glow, "💢 Zero Crush next!",
+  a pulsing Guard button — then hit 2× next turn unless guarded. Every boss
+  has a named signature move.
+- **Weakness:** a Sage spell whose topic matches the enemy's is ×1.5 ("Super
+  effective!", tagged in the Spellbook).
+- **Streaks:** correct answers in a row (any question) — ×1.2 damage at 3,
+  ×1.4 at 5, with a float, chime, 🔥 badge and a companion cheer.
+- **Mercy:** after 2 losses to the same enemy (this session) it hits ×0.75 and
+  asks questions one level easier, with a 💛 banner. Locked per encounter so
+  recording a loss can't re-key the question pool mid-defeat.
+- **Rewards:** first win over an enemy kind pays +50% coins; enemies may drop
+  a potion / hint / spark, bosses always a Honey Elixir.
+- **Misses teach:** a wrong answer now shows "✅ The answer is: …" and the
+  explanation under "Here's why:" (explanations already showed — now clearer).
+  `QuestionCard` gains `preHidden` (Pip's peek); a Hint Feather still works
+  after a peek and always leaves one wrong option.
+- **Reduced motion:** with prefers-reduced-motion, no lunges/dives/knockback/
+  idle bobbing/fireballs, confetti off, floats fade in place.
+- **SFX:** `swap`, `charge`, `streak` (generated, `tools/assets/audio.py`).
+- 336 tests green (was 316); lint + build clean. 23 scripted checks in
+  headless Chromium (swap keeps the turn, peek, Wisp mend, streak, the #70
+  race, boss charge → Guard block, super effective, mercy level drop, first-win
+  + drop, reduced motion). The run caught and fixed a stale-closure bug in
+  Pip's peek and screen-reader-visible hidden labels. See ISSUES #76.
 
 ### 2026-09-26 — Ember animations: attack, fire breath, pair choreography, cheer (#75 follow-up)
 - **Ember's own battle sheet** (`tools/assets/characters.py`): new `Pose`

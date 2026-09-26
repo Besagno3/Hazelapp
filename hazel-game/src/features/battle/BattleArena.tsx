@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
@@ -12,36 +12,54 @@ import { xpBonusPerCorrect } from '../../lib/powerups';
 import {
   attackDamage,
   spellDamage,
-  emberAttackDamage,
+  companionAttackDamage,
   pairDamage,
-  enemyAttack,
-  defendReduction,
   bossPhase,
-  healerMends,
-  healerRegen,
   BOSS_XP_BONUS,
 } from '../../lib/battleMath';
+import {
+  STREAK_MAX,
+  STREAK_START,
+  SUPER_EFFECTIVE,
+  mercyFor,
+  nextIntent,
+  powerMoveName,
+  resolveEnemyAttack,
+  resolveHeroHit,
+  rollDrop,
+  streakMultiplier,
+  victoryCoins,
+  type EnemyIntent,
+} from '../../lib/battleTurn';
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { CHARGE_MAX } from '../../content/abilities';
 import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells';
 import {
+  COMPANIONS,
+  COMPANION_IDS,
   EMBER_BONUS_CHARGE,
-  EMBER_MOVE,
-  emberCanFight,
-  pairAttacksKnown,
+  PIP_PEEK_HIDES,
+  WISP_MEND,
+  companionCanFight,
+  companionMove,
+  companionPower,
+  companionSprite,
+  companionsInParty,
+  pairAttacksFor,
   PAIR_ATTACKS,
+  type CompanionId,
   type PairAttack,
 } from '../../content/companion';
 import { BATTLE_ITEMS, CONSUMABLES, POTION_HEAL, SPARK_CHARGE, type ConsumableId } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
-import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
+import { BOSS_LINES, emberStatus, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { SpriteSheet } from './SpriteSheet';
 import {
   EMBER_BREATH,
-  EMBER_CLIP,
-  EMBER_MOTION,
-  EMBER_STRIKE,
+  COMPANION_CLIP,
+  COMPANION_MOTION,
+  COMPANION_STRIKE,
   FIREBALL_FLIGHT_MS,
   HERO_MOTION,
   HERO_STRIKE,
@@ -50,9 +68,9 @@ import {
   fitReach,
   pairChoreo,
   type Choreo,
-  type Keyframes,
-  type EmberMove,
+  type CompanionMotion,
   type HeroMove,
+  type Keyframes,
 } from './choreography';
 import { resolveSprite } from '../../content/sprites';
 import { battleBackdrop } from '../../content/tiles';
@@ -65,43 +83,66 @@ import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary } from '../../lib/save';
 import type { LibraryEntry, Question } from '../../types';
 
+/** `hide` = wrong options crossed out before the player starts (Pip's peek). */
 type Turn =
   | { kind: 'command' }
   | { kind: 'cast' }
   | { kind: 'items' }
   | { kind: 'companion' }
-  | { kind: 'question'; mode: 'attack' | 'guard' | 'ember'; question: Question }
-  | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question }
-  | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question }
-  | { kind: 'enemy-question'; question: Question }
+  | { kind: 'swap' }
+  | { kind: 'question'; mode: 'attack' | 'guard' | 'companion'; question: Question; hide?: number }
+  | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question; hide?: number }
+  | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number }
+  | { kind: 'enemy-question'; question: Question; hide?: number }
   | { kind: 'message'; text: string; next: () => void }
   | { kind: 'victory' }
   | { kind: 'defeat' };
 
+type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
+
+/** What a win paid out, for the victory panel. */
+interface Reward {
+  coins: number;
+  firstWin: boolean;
+  drop: ConsumableId | null;
+}
+
 /**
  * FF-style side-profile command battle (#37). Enemy left, hero right, on a
- * pseudo-3D ground plane. Commands: Attack / Spells / Guard / Items /
- * Flee — every command resolves through a question (the educational core),
- * and the enemy's counterattack is blocked by answering a defend question.
- * Spells (the Spellbook) let the hero pick from a growing set of abilities —
- * heal, shield, Sage strikes, Ember's Breath — each cast by answering one
- * *super-hard* question (SPELL_LEVEL_BONUS levels up); a miss fizzles
- * harmlessly and the spell's charge is refunded.
+ * pseudo-3D ground plane. Commands: Attack / Spells / Companion / Guard /
+ * Items / Swap / Flee — every command resolves through a question (the
+ * educational core), and the enemy's counterattack is blocked by answering a
+ * defend question.
  *
- * Once hatched, Ember fights too (🐉 Ember, `content/companion.ts`): Ember
- * Attack is a question-powered strike that also stokes an extra ◆, and Pair
- * Attacks combine hero + Ember power into a super-hard-question combo that
- * outdamages any solo spell of the same cost.
+ * - **Spells** (the Spellbook): cast by answering one *super-hard* question
+ *   (SPELL_LEVEL_BONUS levels up); a miss fizzles and the charge is safe. A
+ *   Sage spell matching the enemy's topic is super effective.
+ * - **Companions** (`content/companion.ts`): one fights beside the hero — a
+ *   question-powered strike with a perk, plus Pair Attacks. 🔄 Swap brings in
+ *   another companion **without spending the turn**.
+ * - **Enemy intents** (`lib/battleTurn.ts`): enemies sometimes gather power
+ *   (announced), then land a double-strength blow next turn unless guarded.
+ * - **Streaks**: correct answers in a row power up every hit.
+ * - **Mercy**: after a couple of losses to the same enemy, it eases off.
+ *
+ * Rules live in pure modules (`lib/battleMath.ts`, `lib/battleTurn.ts`,
+ * `./choreography.ts`); this component plays them back. HP is written to the
+ * store the moment a move resolves — only the *displayed* HP waits for the
+ * blow to land (#70), so a fast tap can never act on stale HP.
  */
 export default function BattleArena() {
-  const { enemy, playerHp, playerMaxHp, enemyHp, setHp, markDefeated, endBattle } =
-    useBattleStore();
+  const { enemy, playerHp, playerMaxHp, enemyHp, setHp, markDefeated, endBattle } = useBattleStore();
+  const storeCompanion = useBattleStore((s) => s.companionId);
+  const setCompanion = useBattleStore((s) => s.setCompanion);
+  const recordLoss = useBattleStore((s) => s.recordLoss);
+  const lossesSoFar = useBattleStore((s) => (enemy ? (s.losses[enemy.id] ?? 0) : 0));
   const save = useSaveStore((s) => s.save);
   const updateSave = useSaveStore((s) => s.update);
   const profile = useProfileStore((s) => s.profile);
   const addXp = useProfileStore((s) => s.addXp);
   const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
   const recordActivity = useProfileStore((s) => s.recordActivity);
+  const reduceMotion = useReducedMotion() ?? false;
 
   const powerUps = profile?.powerUps ?? {};
   const avatar = avatarById(save?.avatarId ?? null);
@@ -112,47 +153,77 @@ export default function BattleArena() {
   // Warden bosses (#58) drop a gate key instead of restoring a crystal.
   const keyBoss = enemy ? keyForBoss(enemy.id) : undefined;
   const spells = save ? spellsKnown(save) : [];
-  // Ember's stage is locked for the whole fight: a win can hatch the egg or
-  // grow Ember (new flags), but that reveal belongs to the world cutscene —
-  // not a sprite swap on the victory panel. Re-locked per encounter.
+
+  // Locked for the whole fight, re-locked per encounter:
+  // - Ember's stage — a win can hatch the egg or grow Ember, but that reveal
+  //   belongs to the world cutscene, not a sprite swap on the victory panel.
+  // - The loss count behind mercy — recording this fight's loss must not
+  //   re-key the question pool (and flash a loading screen over the defeat).
   const liveEmber = emberStatus(save?.flags ?? {}).stage;
-  const [ember, setEmber] = useState(liveEmber);
-  const [emberFor, setEmberFor] = useState(enemy?.instanceId);
-  if (enemy && emberFor !== enemy.instanceId) {
-    setEmberFor(enemy.instanceId);
-    setEmber(liveEmber);
+  const [locked, setLocked] = useState(() => ({ for: enemy?.instanceId, ember: liveEmber, losses: lossesSoFar }));
+  if (enemy && locked.for !== enemy.instanceId) {
+    setLocked({ for: enemy.instanceId, ember: liveEmber, losses: lossesSoFar });
   }
-  const emberMove = EMBER_MOVE[ember];
-  const pairs = pairAttacksKnown(ember);
+  const ember = locked.ember;
+  const mercy = mercyFor(locked.losses);
+
+  // The active companion (🔄 Swap), falling back to Ember if the stored pick
+  // isn't in this save's party.
+  const party = save ? companionsInParty(save) : (['ember'] as CompanionId[]);
+  const companionId: CompanionId = party.includes(storeCompanion) ? storeCompanion : 'ember';
+  const companion = COMPANIONS[companionId];
+  const cMove = companionMove(companionId, ember);
+  const cPower = companionPower(companionId, ember);
+  const cReady = companionCanFight(companionId, ember);
+  const pairs = pairAttacksFor(companionId, ember);
+  const emberActive = companionId === 'ember' && ember !== 'egg';
 
   const enemySprite = resolveSprite(enemy?.spriteId, enemy?.sprite ?? '❓');
   const heroSprite = resolveSprite(avatar?.spriteId, avatar?.sprite ?? '❓');
-  const emberSprite = resolveSprite(EMBER_SPRITE_IDS[ember], EMBER_SPRITES[ember]);
+  const cSpriteIds = companionSprite(companionId, ember);
+  const cSprite = resolveSprite(cSpriteIds.spriteId, cSpriteIds.emoji);
   const fireballSprite = resolveSprite('fx-fireball', '🔥');
 
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
     BATTLE_QUESTION_COUNT,
-    enemy?.level,
+    enemy ? clampLevel(enemy.level - mercy.levelDrop) : undefined,
   );
 
   const [turn, setTurn] = useState<Turn>({ kind: 'command' });
   const [charge, setCharge] = useState(0);
   const [guarded, setGuarded] = useState(false);
   const [qIndex, setQIndex] = useState(0);
-  // Super-hard question pool (level + SPELL_LEVEL_BONUS) shared by every spell.
+  // Super-hard question pool (level + SPELL_LEVEL_BONUS) shared by spells + Pair Attacks.
   const [spellQs, setSpellQs] = useState<Question[]>([]);
   const [spellIdx, setSpellIdx] = useState(0);
   const [phaseBanner, setPhaseBanner] = useState<string | null>(null);
+  // Correct answers in a row (any question) — powers up every hit.
+  const [streak, setStreak] = useState(0);
+  // Wrong options Pip will cross out on the next question. A ref, not state:
+  // the next question is often posed by a `next` callback created before the
+  // peek was set, and it must still see it.
+  const peek = useRef(0);
+  // What the enemy does on its NEXT turn (see lib/battleTurn nextIntent).
+  const [intent, setIntent] = useState<EnemyIntent>('attack');
+  const enemyTurnNo = useRef(0);
+  const [reward, setReward] = useState<Reward | null>(null);
+
+  // Displayed HP while a blow is still in the air (null = show the store's).
+  const [shownHp, setShownHp] = useState<{ p: number; e: number } | null>(null);
+  const shownSeq = useRef(0);
+
   // One-shot animation triggers (remount keys) + which motion each plays
-  // (see ./choreography). The move is set together with the counter bump.
+  // (see ./choreography). The motion is set together with the counter bump.
   const [heroLunge, setHeroLunge] = useState(0);
   const [heroMotion, setHeroMotion] = useState<HeroMove>('lunge');
   const [enemyLunge, setEnemyLunge] = useState(0);
-  const [emberLunge, setEmberLunge] = useState(0);
-  const [emberMotion, setEmberMotion] = useState<EmberMove>('lunge');
-  // The enemy flinches when a blow LANDS (not when the attacker sets off —
-  // slower combos land ~570ms in).
+  const [companionLunge, setCompanionLunge] = useState(0);
+  const [companionMotion, setCompanionMotion] = useState<CompanionMotion>('lunge');
+  const [swapIn, setSwapIn] = useState(0);
+  const [cheer, setCheer] = useState(0);
+  const [cheering, setCheering] = useState(false);
+  // The enemy flinches when a blow LANDS (not when the attacker sets off).
   const [enemyHit, setEnemyHit] = useState(0);
   const [enemyHurt, setEnemyHurt] = useState(false);
   // Measured px gap between hero and enemy, so dives reach the enemy on any screen.
@@ -161,10 +232,10 @@ export default function BattleArena() {
   const enemyRef = useRef<HTMLDivElement>(null);
   // Fireballs in flight, from Ember to the enemy.
   const [fireballs, setFireballs] = useState<{ id: number; delayMs: number; big: boolean }[]>([]);
-  // Transient flags: true only for the ~520ms of the lunge animation.
+  // Transient flags: true only while the lunge animation plays.
   const [enemyActing, setEnemyActing] = useState(false);
   const [heroActing, setHeroActing] = useState(false);
-  const [emberActing, setEmberActing] = useState(false);
+  const [companionActing, setCompanionActing] = useState(false);
   const [floats, setFloats] = useState<{ id: number; text: string; side: 'hero' | 'enemy'; color: string }[]>([]);
   const floatId = useRef(0);
   const [answers, setAnswers] = useState<boolean[]>([]);
@@ -189,7 +260,7 @@ export default function BattleArena() {
     fetchQuestions(
       topic,
       age,
-      clampLevel(enemy.level + SPELL_LEVEL_BONUS),
+      clampLevel(enemy.level + SPELL_LEVEL_BONUS - mercy.levelDrop),
       4,
       `a hero casting a powerful spell against ${enemy.name}`,
     )
@@ -203,35 +274,50 @@ export default function BattleArena() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId]);
 
-  // One banner lifecycle for every caller (archetype callouts, boss enrage):
-  // showing a new banner cancels the previous hide timer, so a stale timeout
-  // can never wipe a banner another path just raised.
+  // One banner lifecycle for every caller (archetype callouts, boss enrage,
+  // power moves, pair attacks, swaps): showing a new banner cancels the
+  // previous hide timer, so a stale timeout can never wipe a fresh banner.
   const bannerTimer = useRef<number | null>(null);
-  // Warnings (archetypes, enrage) default to ⚠️; a Pair Attack brings its own emoji.
+  // Warnings default to ⚠️; other callers bring their own emoji.
   const showBanner = useCallback((text: string, ttl = 2500, icon = '⚠️') => {
     if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
     setPhaseBanner(`${icon} ${text}`);
     bannerTimer.current = window.setTimeout(() => setPhaseBanner(null), ttl);
   }, []);
-  useEffect(() => () => {
-    if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
+    },
+    [],
+  );
 
-  // Archetype callout (Wave 0.5) so the twist is announced, never a gotcha.
-  // Waits for the question LoadingScreen to clear — the banner only renders in
-  // the battle UI, so a mount-anchored timer would expire unseen on a slow
-  // generation (the exact gotcha this callout exists to prevent).
+  // Start-of-battle callouts, once the question LoadingScreen clears (the
+  // banner only renders in the battle UI): the archetype twist (so it's never
+  // a gotcha), then mercy if this enemy has beaten the hero a couple of times.
   const calloutShownFor = useRef<string | null>(null);
   useEffect(() => {
-    if (loading || !enemy?.behavior || calloutShownFor.current === enemy.instanceId) return;
+    if (loading || !enemy || calloutShownFor.current === enemy.instanceId) return;
     calloutShownFor.current = enemy.instanceId;
-    const callout = {
-      shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
-      trickster: `${enemy.name} is too slippery for Hint Feathers!`,
-      healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
-    }[enemy.behavior];
-    const show = setTimeout(() => showBanner(callout, 3000), 250);
-    return () => clearTimeout(show);
+    const timers: number[] = [];
+    let at = 250;
+    if (enemy.behavior) {
+      const callout = {
+        shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
+        trickster: `${enemy.name} is too slippery for Hint Feathers!`,
+        healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
+      }[enemy.behavior];
+      timers.push(window.setTimeout(() => showBanner(callout, 3000), at));
+      at += 3200;
+    }
+    if (mercy.levelDrop > 0) {
+      timers.push(
+        window.setTimeout(
+          () => showBanner(`${enemy.name} remembers your last battles — it will go a little easier this time.`, 3500, '💛'),
+          at,
+        ),
+      );
+    }
+    return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId, loading]);
 
@@ -254,7 +340,7 @@ export default function BattleArena() {
     chain();
   }, [loading, enemy, keyBoss]);
 
-  // Flip acting flags on for the lunge duration (0.5s transition → clear at 520ms).
+  // Flip acting flags on for each motion's duration.
   useEffect(() => {
     if (!enemyLunge) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack/hurt flag for the lunge animation window
@@ -273,13 +359,21 @@ export default function BattleArena() {
   }, [heroLunge]);
 
   useEffect(() => {
-    if (!emberLunge) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack flag for Ember's lunge window
-    setEmberActing(true);
-    const t = setTimeout(() => setEmberActing(false), actingMs(EMBER_MOTION[emberMotion]));
+    if (!companionLunge) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient attack flag for the companion's lunge window
+    setCompanionActing(true);
+    const t = setTimeout(() => setCompanionActing(false), actingMs(COMPANION_MOTION[companionMotion]));
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- emberMotion is set in the same batch as the counter
-  }, [emberLunge]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- companionMotion is set in the same batch as the counter
+  }, [companionLunge]);
+
+  useEffect(() => {
+    if (!cheer) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transient cheer while a streak is celebrated
+    setCheering(true);
+    const t = setTimeout(() => setCheering(false), 1200);
+    return () => clearTimeout(t);
+  }, [cheer]);
 
   useEffect(() => {
     if (!enemyHit) return;
@@ -309,49 +403,96 @@ export default function BattleArena() {
     );
   }
 
+  const viewPlayerHp = shownHp?.p ?? playerHp;
+  const viewEnemyHp = shownHp?.e ?? enemyHp;
   const phase = enemy.isBoss ? bossPhase(enemyHp, enemy.maxHp) : 0;
   const canCastAny = spellQs.length > 0 && spells.some((s) => charge >= s.cost);
-  const emberReady = emberCanFight(ember);
+  const powerMove = powerMoveName(enemy.id);
   const nextQuestion = () => {
     const q = questions[qIndex % questions.length];
     setQIndex((i) => i + 1);
     return q;
   };
+  /** Pose a question turn, spending Pip's peek on it if one is waiting. */
+  const ask = (t: QuestionTurn) => {
+    setTurn({ ...t, hide: peek.current });
+    peek.current = 0;
+  };
+  /** Streak bonus applied to every hero-side hit. */
+  const boost = (dmg: number) => Math.round(dmg * streakMultiplier(streak));
+  const burst = (opts: confetti.Options) => confetti({ ...opts, disableForReducedMotion: true });
+
+  /**
+   * Write HP to the store NOW (the source of truth every later action reads),
+   * but keep showing the old values until the blow lands `revealMs` later.
+   * A newer commit supersedes an older pending reveal.
+   */
+  function commitHp(p: number, e: number, revealMs: number) {
+    const seq = ++shownSeq.current;
+    if (revealMs > 0) {
+      setShownHp({ p: viewPlayerHp, e: viewEnemyHp });
+      setTimeout(() => {
+        if (shownSeq.current === seq) setShownHp(null);
+      }, revealMs);
+    } else {
+      setShownHp(null);
+    }
+    setHp(p, e);
+  }
 
   function recordAnswer(correct: boolean, q: Question, picked: number) {
     setAnswers((a) => [...a, correct]);
-    if (correct) setCharge((c) => Math.min(CHARGE_MAX, c + 1));
-    else misses.current.push({ question: q, picked });
+    if (correct) {
+      setCharge((c) => Math.min(CHARGE_MAX, c + 1));
+      const next = streak + 1;
+      setStreak(next);
+      if (next === STREAK_START || next === STREAK_MAX) {
+        sfx('streak');
+        float(`🔥 ${next} in a row!`, 'hero', 'text-orange-300');
+        setCheer((n) => n + 1);
+      }
+    } else {
+      setStreak(0);
+      misses.current.push({ question: q, picked });
+    }
   }
 
   // --- Command handlers ------------------------------------------------------
 
   function commandAttack() {
-    setTurn({ kind: 'question', mode: 'attack', question: nextQuestion() });
+    ask({ kind: 'question', mode: 'attack', question: nextQuestion() });
   }
   function commandGuard() {
-    setTurn({ kind: 'question', mode: 'guard', question: nextQuestion() });
-  }
-  function commandCast() {
-    setTurn({ kind: 'cast' });
+    ask({ kind: 'question', mode: 'guard', question: nextQuestion() });
   }
   function commandCompanion() {
-    if (emberReady) setTurn({ kind: 'companion' });
+    if (cReady) setTurn({ kind: 'companion' });
   }
-  function commandEmberAttack() {
-    setTurn({ kind: 'question', mode: 'ember', question: nextQuestion() });
+  function commandCompanionStrike() {
+    ask({ kind: 'question', mode: 'companion', question: nextQuestion() });
   }
   function startPair(pair: PairAttack) {
     if (charge < pair.cost || spellQs.length === 0) return;
     const q = spellQs[spellIdx % spellQs.length];
     setSpellIdx((i) => i + 1);
-    setTurn({ kind: 'question', mode: 'pair', pair, question: q });
+    ask({ kind: 'question', mode: 'pair', pair, question: q });
   }
   function castSpell(spell: Spell) {
     if (charge < spell.cost || spellQs.length === 0) return;
     const q = spellQs[spellIdx % spellQs.length];
     setSpellIdx((i) => i + 1);
-    setTurn({ kind: 'question', mode: 'spell', spell, question: q });
+    ask({ kind: 'question', mode: 'spell', spell, question: q });
+  }
+  /** Swap companions — a free action: the turn stays on the command menu. */
+  function swapTo(id: CompanionId) {
+    if (id !== companionId && party.includes(id)) {
+      const c = COMPANIONS[id];
+      setCompanion(id);
+      setSwapIn((n) => n + 1);
+      sfx('swap');
+      showBanner(`${c.name} tags in — still your move!`, 1800, c.emoji);
+    }
+    setTurn({ kind: 'command' });
   }
   /** Why a battle item can't be used right now (null = usable). */
   function itemBlocked(id: ConsumableId): string | null {
@@ -368,7 +509,7 @@ export default function BattleArena() {
     const { name, emoji } = CONSUMABLES[id];
     if (id === 'potion' || id === 'elixir') {
       const healed = id === 'elixir' ? playerMaxHp : Math.min(playerMaxHp, playerHp + POTION_HEAL);
-      setHp(healed, enemyHp);
+      commitHp(healed, enemyHp, 0);
       sfx('heal');
       float(`+${healed - playerHp}`, 'hero', 'text-emerald-300');
     } else if (id === 'spark') {
@@ -396,33 +537,52 @@ export default function BattleArena() {
         setGuarded(true);
         sfx('guard');
         float('🛡️', 'hero', 'text-sky-300');
-        setTurn({ kind: 'message', text: `${avatar!.name} braces behind a wall of knowing!`, next: enemyTurn });
+        const warn = intent === 'power' ? ` ${powerMove} won't get through!` : '';
+        setTurn({ kind: 'message', text: `${avatar!.name} braces behind a wall of knowing!${warn}`, next: enemyTurn });
       } else {
         setTurn({ kind: 'message', text: 'The guard slips… stay sharp!', next: enemyTurn });
       }
       return;
     }
-
-    const dmg = attackDamage(wasCorrect, style, powerUps);
+    const dmg = boost(attackDamage(wasCorrect, style, powerUps));
     const text = wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…';
     dealHeroDamage(dmg, text, 'text-red-300', { sound: 'attack' });
   }
 
   /**
-   * Ember's own strike. A correct answer also stokes the spell gauge with an
-   * extra ◆ (on top of the usual +1), setting up a Pair Attack; a wrong
-   * answer is a glancing puff — effort is never worth zero.
+   * The companion's strike. A correct answer also triggers its perk — Ember
+   * stokes an extra ◆, Pip crosses out a wrong answer on the next question,
+   * Wisp mends the hero. A wrong answer is a glancing blow (effort never zero).
    */
-  function resolveEmberAttack(wasCorrect: boolean) {
-    const dmg = emberAttackDamage(wasCorrect, ember);
-    if (wasCorrect) {
+  function resolveCompanionStrike(wasCorrect: boolean) {
+    const dmg = boost(companionAttackDamage(wasCorrect, cPower));
+    let note = '';
+    let heroHp = playerHp;
+    if (wasCorrect && companion.perk === 'charge') {
       setCharge((c) => Math.min(CHARGE_MAX, c + EMBER_BONUS_CHARGE));
       setTimeout(() => float(`+${EMBER_BONUS_CHARGE}◆`, 'hero', 'text-amber-300'), 260);
+      note = ' The fire stokes your spell charge!';
+    } else if (wasCorrect && companion.perk === 'peek') {
+      peek.current = PIP_PEEK_HIDES;
+      note = ' Pip peeks ahead — one wrong answer on the next question is crossed out! 👀';
+    } else if (wasCorrect && companion.perk === 'mend') {
+      heroHp = Math.min(playerMaxHp, playerHp + WISP_MEND);
+      if (heroHp > playerHp) {
+        setTimeout(() => {
+          sfx('heal');
+          float(`+${heroHp - playerHp}`, 'hero', 'text-emerald-300');
+        }, 260);
+        note = ` Wisp's light mends ${heroHp - playerHp} HP!`;
+      }
     }
     const text = wasCorrect
-      ? `${emberMove.emoji} Ember uses ${emberMove.name}! The fire stokes your spell charge!`
-      : `${emberMove.emoji} Ember puffs a little smoke… a glancing blow.`;
-    dealHeroDamage(dmg, text, 'text-orange-300', { choreo: EMBER_STRIKE, sound: 'roar' });
+      ? `${cMove.emoji} ${companion.name} uses ${cMove.name}!${note}`
+      : `${cMove.emoji} ${companion.name}'s ${cMove.name} just grazes it… a glancing blow.`;
+    dealHeroDamage(dmg, text, 'text-orange-300', {
+      choreo: COMPANION_STRIKE,
+      sound: companion.sound,
+      playerHpAfter: heroHp,
+    });
   }
 
   /** Fire a Pair Attack once its super-hard question resolves. */
@@ -437,13 +597,22 @@ export default function BattleArena() {
       return;
     }
     setCharge((c) => Math.max(0, c - pair.cost));
-    confetti({ particleCount: 140, spread: 120, origin: { y: 0.4 }, colors: ['#fb923c', '#fbbf24', '#f87171', '#fde68a'] });
+    burst({ particleCount: 140, spread: 120, origin: { y: 0.4 }, colors: ['#fb923c', '#fbbf24', '#f87171', '#fde68a'] });
     showBanner(`PAIR ATTACK — ${pair.name.toUpperCase()}!`, 1800, pair.emoji);
-    const dmg = pairDamage(style, powerUps, ember, pair.multiplier);
-    dealHeroDamage(dmg, `${pair.emoji} ${avatar!.name} and Ember unleash ${pair.name}!`, pair.color, {
+    const dmg = boost(pairDamage(style, powerUps, cPower, pair.multiplier));
+    const heroHp = pair.heal ? Math.min(playerMaxHp, playerHp + pair.heal) : playerHp;
+    if (heroHp > playerHp) {
+      setTimeout(() => {
+        sfx('heal');
+        float(`+${heroHp - playerHp}`, 'hero', 'text-emerald-300');
+      }, 400);
+    }
+    const healNote = heroHp > playerHp ? ` Its light mends ${heroHp - playerHp} HP!` : '';
+    dealHeroDamage(dmg, `${pair.emoji} ${avatar!.name} and ${companion.name} unleash ${pair.name}!${healNote}`, pair.color, {
       refundCharge: pair.cost,
       choreo: pairChoreo(pair.id),
       sound: 'pair',
+      playerHpAfter: heroHp,
     });
   }
 
@@ -455,11 +624,11 @@ export default function BattleArena() {
       return;
     }
     setCharge((c) => Math.max(0, c - spell.cost));
-    confetti({ particleCount: 90, spread: 100, origin: { y: 0.4 } });
+    burst({ particleCount: 90, spread: 100, origin: { y: 0.4 } });
 
     if (spell.effect.kind === 'heal') {
       const healed = Math.min(playerMaxHp, playerHp + spell.effect.amount);
-      setHp(healed, enemyHp);
+      commitHp(healed, enemyHp, 0);
       setHeroMotion('lunge');
       setHeroLunge((n) => n + 1);
       sfx('spell');
@@ -473,34 +642,43 @@ export default function BattleArena() {
     if (spell.effect.kind === 'shield') {
       setGuarded(true);
       const healed = Math.min(playerMaxHp, playerHp + spell.effect.heal);
-      setHp(healed, enemyHp);
+      commitHp(healed, enemyHp, 0);
       sfx('spell');
       setTimeout(() => sfx('guard'), 260);
       float('🛡️', 'hero', spell.color);
       setTurn({ kind: 'message', text: `${spell.emoji} ${spell.name}! A shield of knowing rises — the next hit will glance away.`, next: enemyTurn });
       return;
     }
-    // Offensive spell.
-    const dmg = spellDamage(style, powerUps, spell.effect.multiplier);
-    const text =
-      ember !== 'egg' && spell.id === 'ember-breath'
+    // Offensive spell — super effective when a Sage's topic matches the enemy's.
+    const weak = spell.topic !== undefined && spell.topic === enemy!.topic;
+    const dmg = boost(Math.round(spellDamage(style, powerUps, spell.effect.multiplier) * (weak ? SUPER_EFFECTIVE : 1)));
+    const breath = spell.id === 'ember-breath';
+    const lead =
+      breath && emberActive
         ? `${spell.emoji} ${spell.name}! Ember rears back and breathes dragonfire!`
-        : ember !== 'egg'
-          ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
-          : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;
-    // Ember's Breath is Ember's own move once hatched: inhale, then a fireball volley.
-    const choreo = ember !== 'egg' && spell.id === 'ember-breath' ? EMBER_BREATH : HERO_STRIKE;
-    dealHeroDamage(dmg, text, spell.color, { refundCharge: spell.cost, choreo, sound: 'spell' });
+        : breath
+          ? `${spell.emoji} ${spell.name}! Ember swoops in from the sidelines, breathing dragonfire!`
+          : emberActive
+            ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
+            : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;
+    // Ember's Breath is Ember's own move when Ember is fighting: inhale, then a fireball volley.
+    const choreo = breath && emberActive ? EMBER_BREATH : HERO_STRIKE;
+    dealHeroDamage(dmg, weak ? `${lead} It's super effective!` : lead, spell.color, {
+      refundCharge: spell.cost,
+      choreo,
+      sound: 'spell',
+      superEffective: weak,
+    });
   }
 
   /**
-   * Shared damage-dealing path for Attack, Ember, Pair Attacks and offensive
-   * spells. Charge-spending moves pass `refundCharge` so a shield-absorbed
-   * cast gives the charge back — a correct super-hard answer must never buy
-   * less than a free glancing blow would (effort is never punished).
-   * `choreo` says who moves and when the blow lands (./choreography); `sound`
-   * is the wind-up SFX (the 'pair' sound carries its own impacts, every other
-   * hit adds an 'impact' as it lands).
+   * Shared damage-dealing path for Attack, companion strikes, Pair Attacks and
+   * offensive spells (rules in lib/battleTurn resolveHeroHit). Charge-spending
+   * moves pass `refundCharge` so a shield-absorbed cast gives the charge back —
+   * a correct super-hard answer must never buy less than a free glancing blow
+   * would. `choreo` says who moves and when the blow lands; `sound` is the
+   * wind-up SFX (the 'pair' sound carries its own impacts). `playerHpAfter`
+   * carries a heal that rides on the move (Wisp).
    */
   function dealHeroDamage(
     dmg: number,
@@ -510,22 +688,36 @@ export default function BattleArena() {
       refundCharge = 0,
       choreo = HERO_STRIKE,
       sound,
-    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName },
+      playerHpAfter = playerHp,
+      superEffective = false,
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; playerHpAfter?: number; superEffective?: boolean },
   ) {
     perform(choreo, sound);
-    const land = (fn: () => void) =>
-      setTimeout(() => {
-        setEnemyHit((n) => n + 1);
-        fn();
-      }, choreo.hitMs);
-    // Shielded archetype: the shield absorbs the first landed hit (any hit —
-    // even a glancing blow shatters it), then the enemy fights unprotected.
-    if (enemyShielded && dmg > 0) {
-      setEnemyShielded(false);
-      land(() => {
+    const hit = resolveHeroHit({
+      dmg,
+      enemyHp,
+      enemyMaxHp: enemy!.maxHp,
+      shielded: enemyShielded,
+      isBoss: enemy!.isBoss,
+      lastPhase: lastPhase.current,
+    });
+    commitHp(playerHpAfter, hit.newEnemyHp, choreo.hitMs);
+    setTimeout(() => {
+      setEnemyHit((n) => n + 1);
+      if (hit.shieldBroke) {
         sfx('shatter');
         float('Shield shattered!', 'enemy', 'text-amber-300');
-      });
+        return;
+      }
+      if (sound !== 'pair') sfx('impact');
+      float(`-${dmg}`, 'enemy', floatColor);
+      if (superEffective) float('Super effective!', 'enemy', 'text-yellow-200');
+    }, choreo.hitMs);
+
+    // Shielded archetype: the shield absorbs the first landed hit (any hit —
+    // even a glancing blow shatters it), then the enemy fights unprotected.
+    if (hit.shieldBroke) {
+      setEnemyShielded(false);
       if (refundCharge > 0) setCharge((c) => Math.min(CHARGE_MAX, c + refundCharge));
       setTurn({
         kind: 'message',
@@ -536,24 +728,14 @@ export default function BattleArena() {
       });
       return;
     }
-    const newEnemyHp = Math.max(0, enemyHp - dmg);
-    land(() => {
-      if (sound !== 'pair') sfx('impact');
-      float(`-${dmg}`, 'enemy', floatColor);
-      setHp(playerHp, newEnemyHp);
-    });
-
-    if (newEnemyHp <= 0) {
+    if (hit.defeated) {
       setTurn({ kind: 'message', text, next: () => victory() });
       return;
     }
     // Boss enrage callout when crossing a phase boundary.
-    if (enemy!.isBoss) {
-      const p = bossPhase(newEnemyHp, enemy!.maxHp);
-      if (p > lastPhase.current) {
-        lastPhase.current = p;
-        showBanner(p === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
-      }
+    if (hit.phaseCrossed) {
+      lastPhase.current = hit.phaseCrossed;
+      showBanner(hit.phaseCrossed === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
     }
     setTurn({ kind: 'message', text, next: enemyTurn });
   }
@@ -567,12 +749,12 @@ export default function BattleArena() {
       setHeroMotion(c.hero);
       setHeroLunge((n) => n + 1);
     }
-    if (c.ember) {
-      setEmberMotion(c.ember);
-      setEmberLunge((n) => n + 1);
+    if (c.companion) {
+      setCompanionMotion(c.companion);
+      setCompanionLunge((n) => n + 1);
     }
-    if (c.fireballs > 0) {
-      const big = c.ember === 'breath' || ember === 'dragon';
+    if (c.fireballs > 0 && !reduceMotion) {
+      const big = c.companion === 'breath' || ember === 'dragon';
       const volley = Array.from({ length: c.fireballs }, (_, i) => ({
         id: ++floatId.current,
         delayMs: fireballLaunchMs(c, i),
@@ -586,49 +768,65 @@ export default function BattleArena() {
     else sfx(sound);
   }
 
+  /** Move the enemy's plan on to its next turn (lib/battleTurn nextIntent). */
+  function advanceIntent(current: EnemyIntent) {
+    enemyTurnNo.current += 1;
+    setIntent(nextIntent(current, enemyTurnNo.current, enemy!.isBoss));
+  }
+
   function enemyTurn() {
-    setTurn({ kind: 'enemy-question', question: nextQuestion() });
+    if (intent === 'charge') {
+      // Telegraph: this turn the enemy only gathers power — and says so.
+      sfx('charge');
+      showBanner(`${enemy!.name} is gathering power for ${powerMove}!`, 2800, '💢');
+      advanceIntent('charge');
+      setTurn({
+        kind: 'message',
+        text: `${enemy!.name} is gathering power… ${powerMove} is coming next turn! 🛡️ Guard (or a Rainbow Ward) will block it completely.`,
+        next: () => setTurn({ kind: 'command' }),
+      });
+      return;
+    }
+    ask({ kind: 'enemy-question', question: nextQuestion() });
   }
 
   function resolveEnemyQuestion(wasCorrect: boolean) {
-    const raw = enemyAttack(enemy!.level, enemy!.isBoss, phase);
-    let dmg: number;
-    if (guarded) {
-      dmg = 0;
-      setGuarded(false);
-    } else {
-      dmg = Math.max(0, raw - defendReduction(wasCorrect, style, powerUps));
-    }
-
-    // Healer archetype (Wave 0.5): mends itself at the end of its turn while
-    // below half HP — rewards pressing the attack over turtling.
-    let newEnemyHp = enemyHp;
-    let healNote = '';
-    if (enemy!.behavior === 'healer' && healerMends(enemyHp, enemy!.maxHp)) {
-      newEnemyHp = Math.min(enemy!.maxHp, enemyHp + healerRegen(enemy!.maxHp));
-      healNote = ` It glows softly and mends ${newEnemyHp - enemyHp} HP!`;
-    }
+    const blow = intent === 'power' ? 'power' : 'attack';
+    const r = resolveEnemyAttack({
+      level: enemy!.level,
+      isBoss: enemy!.isBoss,
+      phase,
+      intent: blow,
+      guarded,
+      wasCorrect,
+      style,
+      powerUps,
+      behavior: enemy!.behavior,
+      playerHp,
+      enemyHp,
+      enemyMaxHp: enemy!.maxHp,
+      attackScale: mercy.attackScale,
+    });
+    if (guarded) setGuarded(false);
+    advanceIntent(blow);
 
     setEnemyLunge((n) => n + 1);
     sfx('enemyAttack');
-    const newPlayerHp = Math.max(0, playerHp - dmg);
+    commitHp(r.newPlayerHp, r.newEnemyHp, 260);
     setTimeout(() => {
-      float(dmg === 0 ? 'Blocked!' : `-${dmg}`, 'hero', dmg === 0 ? 'text-sky-300' : 'text-red-300');
-      if (newEnemyHp > enemyHp) float(`+${newEnemyHp - enemyHp}`, 'enemy', 'text-emerald-300');
-      sfx(dmg === 0 ? 'block' : 'hit');
-      setHp(newPlayerHp, newEnemyHp);
+      float(r.dmg === 0 ? 'Blocked!' : `-${r.dmg}`, 'hero', r.dmg === 0 ? 'text-sky-300' : 'text-red-300');
+      if (r.mended > 0) float(`+${r.mended}`, 'enemy', 'text-emerald-300');
+      sfx(r.dmg === 0 ? 'block' : 'hit');
     }, 260);
     // A healer's mend chimes just after the hit lands, so the two don't blur.
-    if (newEnemyHp > enemyHp) setTimeout(() => sfx('heal'), 600);
+    if (r.mended > 0) setTimeout(() => sfx('heal'), 600);
 
+    const who = blow === 'power' ? `${enemy!.name} unleashes ${powerMove}` : `${enemy!.name} attacks`;
     const text =
-      (dmg === 0
-        ? `${enemy!.name} attacks — completely blocked!`
-        : wasCorrect
-          ? `${enemy!.name} attacks — you soften the hit!`
-          : `${enemy!.name} lands a hit!`) + healNote;
+      (r.dmg === 0 ? `${who} — completely blocked!` : wasCorrect ? `${who} — you soften the hit!` : `${who} and lands a hit!`) +
+      (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '');
 
-    if (newPlayerHp <= 0) {
+    if (r.knockedOut) {
       setTurn({ kind: 'message', text, next: () => defeat() });
     } else {
       setTurn({ kind: 'message', text, next: () => setTurn({ kind: 'command' }) });
@@ -650,16 +848,21 @@ export default function BattleArena() {
   }
 
   function victory() {
-    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
+    burst({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
     stopMusic(); // silence the battle loop under the victory jingle
     sfx('victory');
     const xp = settleCommon() + npcDefeatXp(enemy!.level) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
     void addXp(xp);
     markDefeated(enemy!.instanceId);
+    const killsBefore = save!.kills[enemy!.id] ?? 0;
+    const coins = victoryCoins(enemy!.coins, killsBefore);
+    const drop = rollDrop(enemy!.isBoss);
+    setReward({ coins, firstWin: killsBefore === 0, drop });
     updateSave((s) => ({
       ...s,
       hp: playerHp,
-      coins: s.coins + enemy!.coins,
+      coins: s.coins + coins,
+      items: drop ? { ...s.items, [drop]: s.items[drop] + 1 } : s.items,
       // Lifetime kill counts drive defeat quests (#42).
       kills: { ...s.kills, [enemy!.id]: (s.kills[enemy!.id] ?? 0) + 1 },
       library: pushLibrary(s.library, misses.current),
@@ -681,6 +884,8 @@ export default function BattleArena() {
   function defeat() {
     const xp = settleCommon();
     void addXp(xp);
+    // Remember the loss: after a couple, this enemy eases off (mercy).
+    recordLoss(enemy!.id);
     // No game over (#37): wake up safe at Lumina Field, fully healed.
     updateSave((s) => ({
       ...s,
@@ -706,7 +911,20 @@ export default function BattleArena() {
 
   const correctCount = answers.filter(Boolean).length;
   const won = turn.kind === 'victory';
+  const isEgg = companionId === 'ember' && ember === 'egg';
   const hpPct = (hp: number, max: number) => `${Math.max(0, (hp / max) * 100)}%`;
+  const bob = (y: number, duration: number) =>
+    reduceMotion ? { animate: {} } : { animate: { y: [0, y, 0] }, transition: { repeat: Infinity, duration } };
+  const floatUp = reduceMotion ? { opacity: 0 } : { y: -54, opacity: 0 };
+  const companionAnim = companionActing
+    ? COMPANION_CLIP[companionMotion]
+    : won || cheering
+      ? 'cheer'
+      : enemyActing
+        ? 'hurt'
+        : 'idle';
+  const perkLabel = { charge: `+${EMBER_BONUS_CHARGE}◆`, peek: '👀 peek', mend: `+${WISP_MEND} HP` }[companion.perk];
+  const charging = intent === 'power';
 
   return (
     <div className={`min-h-screen flex flex-col bg-gradient-to-b ${info.skyGradient} overflow-hidden relative`}>
@@ -730,8 +948,7 @@ export default function BattleArena() {
         <div
           className="absolute inset-x-[-20%] bottom-0 h-full rounded-[100%_100%_0_0]"
           style={{
-            background:
-              'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.18), rgba(0,0,0,0.35) 70%)',
+            background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.18), rgba(0,0,0,0.35) 70%)',
             transform: 'perspective(500px) rotateX(30deg) scale(1.25)',
             transformOrigin: 'bottom',
           }}
@@ -750,10 +967,13 @@ export default function BattleArena() {
             <span className="text-white/70">Lv {enemy.level}</span>
           </div>
           <div className="w-full bg-white/15 rounded-full h-3 mt-1 overflow-hidden">
-            <motion.div className="h-full bg-red-400 rounded-full" animate={{ width: hpPct(enemyHp, enemy.maxHp) }} />
+            <motion.div className="h-full bg-red-400 rounded-full" animate={{ width: hpPct(viewEnemyHp, enemy.maxHp) }} />
           </div>
-          <div className="text-[11px] text-white/60 text-right mt-0.5">
-            {enemyHp}/{enemy.maxHp}
+          <div className="flex justify-between text-[11px] mt-0.5">
+            <span className="text-amber-300 font-bold animate-pulse">{charging && `💢 ${powerMove} next!`}</span>
+            <span className="text-white/60">
+              {viewEnemyHp}/{enemy.maxHp}
+            </span>
           </div>
         </div>
         <div className="bg-indigo-950/90 border-2 border-white/70 rounded-xl px-4 py-2 text-white w-60">
@@ -770,22 +990,27 @@ export default function BattleArena() {
             </span>
           </div>
           <div className="w-full bg-white/15 rounded-full h-3 mt-1 overflow-hidden">
-            <motion.div className="h-full bg-green-400 rounded-full" animate={{ width: hpPct(playerHp, playerMaxHp) }} />
+            <motion.div className="h-full bg-green-400 rounded-full" animate={{ width: hpPct(viewPlayerHp, playerMaxHp) }} />
           </div>
-          <div className="text-[11px] text-white/60 text-right mt-0.5">
-            {playerHp}/{playerMaxHp}
+          <div className="flex justify-between text-[11px] mt-0.5">
+            <span className="text-orange-300 font-bold" title="Answers in a row">
+              {streak >= STREAK_START && `🔥×${streak} streak`}
+            </span>
+            <span className="text-white/60">
+              {viewPlayerHp}/{playerMaxHp}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Boss enrage banner */}
+      {/* Callout banner (archetypes, enrage, power moves, pair attacks, swaps) */}
       <AnimatePresence>
         {phaseBanner && (
           <motion.p
-            initial={{ y: -12, opacity: 0 }}
+            initial={reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative z-10 text-center text-amber-300 font-extrabold tracking-wide"
+            className="relative z-10 text-center text-amber-300 font-extrabold tracking-wide px-4"
           >
             {phaseBanner}
           </motion.p>
@@ -797,18 +1022,22 @@ export default function BattleArena() {
         <div className="relative" ref={enemyRef}>
           <motion.div
             key={`el${enemyLunge}`}
-            animate={enemyLunge ? { x: [0, 70, 0] } : {}}
+            animate={enemyLunge && !reduceMotion ? { x: [0, 70, 0] } : {}}
             transition={{ duration: 0.5 }}
             className={enemy.isBoss ? 'text-[7rem] leading-none' : 'text-8xl leading-none'}
-            style={{ filter: 'drop-shadow(0 14px 10px rgba(0,0,0,0.45))' }}
+            style={{
+              filter: charging
+                ? 'drop-shadow(0 0 12px rgba(255,90,60,0.9)) drop-shadow(0 14px 10px rgba(0,0,0,0.45))'
+                : 'drop-shadow(0 14px 10px rgba(0,0,0,0.45))',
+            }}
           >
             {/* knocked back a step whenever a blow lands */}
             <motion.div
               key={`eh${enemyHit}`}
-              animate={enemyHit ? { x: [0, -14, 6, 0] } : {}}
+              animate={enemyHit && !reduceMotion ? { x: [0, -14, 6, 0] } : {}}
               transition={{ duration: 0.35 }}
             >
-              <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 2.2 }}>
+              <motion.div {...bob(-6, 2.2)}>
                 <SpriteSheet
                   view={enemySprite.def?.battle ?? null}
                   anim={enemyActing ? 'attack' : enemyHurt ? 'hurt' : 'idle'}
@@ -825,9 +1054,9 @@ export default function BattleArena() {
               <motion.span
                 key={f.id}
                 initial={{ y: 0, opacity: 1 }}
-                animate={{ y: -54, opacity: 0 }}
+                animate={floatUp}
                 transition={{ duration: 1 }}
-                className={`absolute -top-6 left-1/2 -translate-x-1/2 font-extrabold text-2xl ${f.color}`}
+                className={`absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap font-extrabold text-2xl ${f.color}`}
               >
                 {f.text}
               </motion.span>
@@ -837,17 +1066,17 @@ export default function BattleArena() {
         <div className="relative" ref={heroRef}>
           <motion.div
             key={`hl${heroLunge}`}
-            {...motionProps(heroLunge ? fitReach(HERO_MOTION[heroMotion], reachGap) : null)}
+            {...motionProps(heroLunge ? fitReach(HERO_MOTION[heroMotion], reachGap) : null, reduceMotion)}
             className="relative text-8xl leading-none"
             style={{ filter: 'drop-shadow(0 14px 10px rgba(0,0,0,0.45))' }}
           >
             {/* Blazing Comet: the hero streaks down wrapped in fire */}
-            {heroActing && heroMotion === 'comet' && fireballSprite.def?.battle && (
+            {heroActing && heroMotion === 'comet' && !reduceMotion && fireballSprite.def?.battle && (
               <div className="absolute left-[35%] top-1/2 -translate-y-1/2 scale-x-[-1] opacity-90 pointer-events-none">
                 <SpriteSheet view={fireballSprite.def.battle} emoji="🔥" scale={4.5} />
               </div>
             )}
-            <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 1.8 }}>
+            <motion.div {...bob(-5, 1.8)}>
               <SpriteSheet
                 view={heroSprite.def?.battle ?? null}
                 anim={heroActing ? 'attack' : enemyActing ? 'hurt' : 'idle'}
@@ -859,27 +1088,36 @@ export default function BattleArena() {
           </motion.div>
           {guarded && <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl">🛡️</span>}
           <motion.div
-            key={`ml${emberLunge}`}
-            {...motionProps(emberLunge ? fitReach(EMBER_MOTION[emberMotion], reachGap) : null)}
+            key={`ml${companionLunge}`}
+            {...motionProps(companionLunge ? fitReach(COMPANION_MOTION[companionMotion], reachGap) : null, reduceMotion)}
             className="absolute -right-10 bottom-0"
           >
-            <motion.span
-              // The egg wobbles with joy on a win; a hatched Ember cheers (sprite clip).
-              animate={won && ember === 'egg' ? { rotate: [0, -12, 12, -8, 0], y: 0 } : { y: [0, -4, 0] }}
-              transition={{ repeat: Infinity, duration: won && ember === 'egg' ? 0.8 : 1.4 }}
-              className={`block ${ember === 'egg' ? 'text-2xl' : ember === 'dragon' ? 'text-5xl' : 'text-3xl'}`}
-              title="Ember"
-              style={{ filter: 'drop-shadow(0 8px 6px rgba(0,0,0,0.4))' }}
+            {/* A swapped-in companion drops into place */}
+            <motion.div
+              key={`sw${swapIn}-${companionId}`}
+              initial={swapIn ? (reduceMotion ? { opacity: 0 } : { y: -70, opacity: 0 }) : false}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 16 }}
             >
-              <SpriteSheet
-                view={emberSprite.def?.battle ?? null}
-                anim={emberActing ? EMBER_CLIP[emberMotion] : won ? 'cheer' : enemyActing ? 'hurt' : 'idle'}
-                emoji={emberSprite.emoji}
-                scale={ember === 'egg' ? 1.5 : ember === 'dragon' ? 3 : 2}
-                // Sheets face right; Ember stands on the hero's side, so face the enemy.
-                className="scale-x-[-1]"
-              />
-            </motion.span>
+              <motion.span
+                // The egg wobbles with joy on a win; everyone else cheers (sprite clip).
+                {...(won && isEgg && !reduceMotion
+                  ? { animate: { rotate: [0, -12, 12, -8, 0] }, transition: { repeat: Infinity, duration: 0.8 } }
+                  : bob(-4, 1.4))}
+                className={`block ${isEgg ? 'text-2xl' : ember === 'dragon' && companionId === 'ember' ? 'text-5xl' : 'text-3xl'}`}
+                title={companion.name}
+                style={{ filter: 'drop-shadow(0 8px 6px rgba(0,0,0,0.4))' }}
+              >
+                <SpriteSheet
+                  view={cSprite.def?.battle ?? null}
+                  anim={companionAnim}
+                  emoji={cSprite.emoji}
+                  scale={companionId !== 'ember' ? 1.8 : isEgg ? 1.5 : ember === 'dragon' ? 3 : 2}
+                  // Sheets face right; the companion stands on the hero's side, so face the enemy.
+                  className="scale-x-[-1]"
+                />
+              </motion.span>
+            </motion.div>
           </motion.div>
           {floats
             .filter((f) => f.side === 'hero')
@@ -887,9 +1125,9 @@ export default function BattleArena() {
               <motion.span
                 key={f.id}
                 initial={{ y: 0, opacity: 1 }}
-                animate={{ y: -54, opacity: 0 }}
+                animate={floatUp}
                 transition={{ duration: 1 }}
-                className={`absolute -top-6 left-1/2 -translate-x-1/2 font-extrabold text-2xl ${f.color}`}
+                className={`absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap font-extrabold text-2xl ${f.color}`}
               >
                 {f.text}
               </motion.span>
@@ -919,7 +1157,7 @@ export default function BattleArena() {
         {turn.kind === 'command' && (
           <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
             <p className="text-xs text-white/60 mb-3 uppercase tracking-widest">
-              Your move — every command is a question!
+              {charging ? `💢 ${powerMove} is coming — Guard to block it!` : 'Your move — every command is a question!'}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <CommandButton emoji="⚔️" label="Attack" onClick={commandAttack} />
@@ -934,24 +1172,38 @@ export default function BattleArena() {
                       ? `◆ ${charge}/${CHARGE_MAX}`
                       : `Charge ◆ ${charge}/${CHARGE_MAX}`
                 }
-                onClick={commandCast}
+                onClick={() => setTurn({ kind: 'cast' })}
               />
               <CommandButton
-                emoji="🐉"
-                label="Ember"
-                disabled={!emberReady}
-                hint={emberReady ? `${emberMove.name} · Pair Attacks` : 'Still an egg…'}
+                emoji={companion.emoji}
+                label={companion.name}
+                disabled={!cReady}
+                hint={cReady ? `${cMove.name} · Pair Attacks` : 'Still an egg…'}
                 onClick={commandCompanion}
               />
-              <CommandButton emoji="🛡️" label="Guard" onClick={commandGuard} />
+              <CommandButton
+                emoji="🛡️"
+                label="Guard"
+                hint={charging ? `Blocks ${powerMove}!` : undefined}
+                highlight={charging}
+                onClick={commandGuard}
+              />
               <CommandButton
                 emoji="🎒"
                 label="Items"
                 disabled={BATTLE_ITEMS.every((id) => save.items[id] === 0)}
-                hint={BATTLE_ITEMS.filter((id) => save.items[id] > 0)
-                  .map((id) => `${CONSUMABLES[id].emoji}×${save.items[id]}`)
-                  .join(' ') || 'Empty'}
+                hint={
+                  BATTLE_ITEMS.filter((id) => save.items[id] > 0)
+                    .map((id) => `${CONSUMABLES[id].emoji}×${save.items[id]}`)
+                    .join(' ') || 'Empty'
+                }
                 onClick={() => setTurn({ kind: 'items' })}
+              />
+              <CommandButton
+                emoji="🔄"
+                label="Swap"
+                hint={party.length > 1 ? 'Free — keeps your turn' : 'Friends can join you'}
+                onClick={() => setTurn({ kind: 'swap' })}
               />
               <CommandButton
                 emoji="🏃"
@@ -961,6 +1213,39 @@ export default function BattleArena() {
                 onClick={commandFlee}
               />
             </div>
+          </div>
+        )}
+
+        {turn.kind === 'swap' && (
+          <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
+            <p className="text-xs text-white/60 mb-3 uppercase tracking-widest">🔄 Swap — free, you still get your move!</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {COMPANION_IDS.map((id) => {
+                const c = COMPANIONS[id];
+                const joined = party.includes(id);
+                const active = id === companionId;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => swapTo(id)}
+                    disabled={!joined}
+                    className={`rounded-xl px-3 py-2 text-left transition border ${
+                      active ? 'bg-sky-500/25 border-sky-300/70' : 'bg-white/10 hover:bg-white/20 border-transparent'
+                    } disabled:opacity-40 disabled:hover:bg-white/10`}
+                  >
+                    <span className="font-bold text-sm">
+                      <span className="mr-1.5">{c.emoji}</span>
+                      {c.name}
+                      <span className="ml-1.5 text-[10px] uppercase tracking-wider text-white/50">{c.role}</span>
+                    </span>
+                    <span className="block text-[10px] text-white/60 mt-0.5">
+                      {!joined ? `🔒 ${c.joinHint}` : active ? '✓ Fighting now' : c.blurb}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <BackButton onClick={() => setTurn({ kind: 'command' })} />
           </div>
         )}
 
@@ -982,44 +1267,32 @@ export default function BattleArena() {
                       {CONSUMABLES[id].name}
                       <span className="ml-1.5 text-xs text-white/60">×{save.items[id]}</span>
                     </span>
-                    <span className="block text-[10px] text-white/50 mt-0.5">
-                      {blocked ?? CONSUMABLES[id].description}
-                    </span>
+                    <span className="block text-[10px] text-white/50 mt-0.5">{blocked ?? CONSUMABLES[id].description}</span>
                   </button>
                 );
               })}
             </div>
-            <button
-              onClick={() => setTurn({ kind: 'command' })}
-              className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-2 text-xs font-semibold"
-            >
-              ← Back
-            </button>
+            <BackButton onClick={() => setTurn({ kind: 'command' })} />
           </div>
         )}
 
         {turn.kind === 'companion' && (
           <div className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl">
-            <p className="text-xs text-white/60 mb-1 uppercase tracking-widest">🐉 Ember — fight side by side!</p>
-            <p className="text-[11px] text-white/50 mb-3">
-              Charge:{' '}
-              {Array.from({ length: CHARGE_MAX }).map((_, i) => (
-                <span key={i} className={i < charge ? 'text-amber-300' : 'text-white/25'}>
-                  ◆
-                </span>
-              ))}
+            <p className="text-xs text-white/60 mb-1 uppercase tracking-widest">
+              {companion.emoji} {companion.name} — fight side by side!
             </p>
+            <ChargeRow charge={charge} />
             <button
-              onClick={commandEmberAttack}
+              onClick={commandCompanionStrike}
               className="w-full mb-2 bg-white/10 hover:bg-white/20 rounded-xl px-3 py-2 text-left transition"
             >
               <span className="font-bold text-sm">
-                <span className="mr-1.5">{emberMove.emoji}</span>
-                {emberMove.name}
-                <span className="ml-1.5 text-xs text-amber-300">+{EMBER_BONUS_CHARGE}◆</span>
+                <span className="mr-1.5">{cMove.emoji}</span>
+                {cMove.name}
+                <span className="ml-1.5 text-xs text-amber-300">{perkLabel}</span>
               </span>
               <span className="block text-[10px] text-white/50 mt-0.5">
-                Ember attacks! A right answer also adds an extra ◆ of charge.
+                {companion.name} attacks! A right answer also: {companion.blurb.charAt(0).toLowerCase() + companion.blurb.slice(1)}
               </span>
             </button>
             <p className="text-[10px] text-white/50 mb-1.5 uppercase tracking-widest">
@@ -1038,26 +1311,19 @@ export default function BattleArena() {
                     <span className="font-bold text-sm">
                       <span className="mr-1.5">{pair.emoji}</span>
                       {pair.name}
-                      <span className={`ml-1.5 text-xs ${affordable ? 'text-amber-300' : 'text-white/40'}`}>
-                        ◆{pair.cost}
-                      </span>
+                      <span className={`ml-1.5 text-xs ${affordable ? 'text-amber-300' : 'text-white/40'}`}>◆{pair.cost}</span>
                     </span>
                     <span className="block text-[10px] text-white/50 mt-0.5">{pair.description}</span>
                   </button>
                 );
               })}
             </div>
-            {pairs.length < PAIR_ATTACKS.length && (
+            {companionId === 'ember' && pairs.length < PAIR_ATTACKS.filter((p) => p.companion === 'ember').length && (
               <p className="text-[10px] text-white/40 mt-2 italic">
                 Restore crystals to help Ember grow — bigger Ember, bigger combos!
               </p>
             )}
-            <button
-              onClick={() => setTurn({ kind: 'command' })}
-              className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-2 text-xs font-semibold"
-            >
-              ← Back
-            </button>
+            <BackButton onClick={() => setTurn({ kind: 'command' })} />
           </div>
         )}
 
@@ -1066,17 +1332,11 @@ export default function BattleArena() {
             <p className="text-xs text-white/60 mb-1 uppercase tracking-widest">
               📖 Spellbook — each spell needs one super-hard answer!
             </p>
-            <p className="text-[11px] text-white/50 mb-3">
-              Charge:{' '}
-              {Array.from({ length: CHARGE_MAX }).map((_, i) => (
-                <span key={i} className={i < charge ? 'text-amber-300' : 'text-white/25'}>
-                  ◆
-                </span>
-              ))}
-            </p>
+            <ChargeRow charge={charge} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {spells.map((spell) => {
                 const affordable = charge >= spell.cost && spellQs.length > 0;
+                const weak = spell.topic !== undefined && spell.topic === enemy.topic;
                 return (
                   <button
                     key={spell.id}
@@ -1087,21 +1347,15 @@ export default function BattleArena() {
                     <span className="font-bold text-sm">
                       <span className="mr-1.5">{spell.emoji}</span>
                       {spell.name}
-                      <span className={`ml-1.5 text-xs ${affordable ? 'text-amber-300' : 'text-white/40'}`}>
-                        ◆{spell.cost}
-                      </span>
+                      <span className={`ml-1.5 text-xs ${affordable ? 'text-amber-300' : 'text-white/40'}`}>◆{spell.cost}</span>
                     </span>
+                    {weak && <span className="block text-[10px] font-bold text-yellow-200">✨ Super effective here!</span>}
                     <span className="block text-[10px] text-white/50 mt-0.5">{spell.description}</span>
                   </button>
                 );
               })}
             </div>
-            <button
-              onClick={() => setTurn({ kind: 'command' })}
-              className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-2 text-xs font-semibold"
-            >
-              ← Back
-            </button>
+            <BackButton onClick={() => setTurn({ kind: 'command' })} />
           </div>
         )}
 
@@ -1109,19 +1363,25 @@ export default function BattleArena() {
           <div className="w-full max-w-xl">
             <p className="text-center text-white font-bold mb-2 text-sm uppercase tracking-widest">
               {turn.kind === 'enemy-question'
-                ? `🛡️ ${enemy.name} attacks — answer to block!`
+                ? charging
+                  ? `💢 ${enemy.name} unleashes ${powerMove} — answer to soften it!`
+                  : `🛡️ ${enemy.name} attacks — answer to block!`
                 : {
                     spell: turn.mode === 'spell' && `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`,
-                    pair: turn.mode === 'pair' && `${turn.pair.emoji} Super-hard question — ${turn.pair.name} with Ember!`,
-                    ember: `${emberMove.emoji} Answer to help Ember strike!`,
+                    pair: turn.mode === 'pair' && `${turn.pair.emoji} Super-hard question — ${turn.pair.name} with ${companion.name}!`,
+                    companion: `${cMove.emoji} Answer to help ${companion.name} strike!`,
                     guard: '🛡️ Answer to raise your guard!',
                     attack: '⚔️ Answer to strike!',
                   }[turn.mode]}
             </p>
+            {!!turn.hide && (
+              <p className="text-center text-sky-200 text-xs font-semibold mb-2">👀 Pip crossed out a wrong answer for you!</p>
+            )}
             <QuestionCard
               key={turn.question.id + qIndex + spellIdx}
               question={turn.question}
               hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
+              preHidden={turn.hide ?? 0}
               onUseHint={useSaveStore.getState().spendHint}
               onAnswered={(correct, picked) => recordAnswer(correct, turn.question, picked)}
               continueLabel="▶ Go!"
@@ -1132,8 +1392,8 @@ export default function BattleArena() {
                     ? resolveSpell(turn.spell, correct)
                     : turn.mode === 'pair'
                       ? resolvePair(turn.pair, correct)
-                      : turn.mode === 'ember'
-                        ? resolveEmberAttack(correct)
+                      : turn.mode === 'companion'
+                        ? resolveCompanionStrike(correct)
                         : resolvePlayerQuestion(turn.mode, correct)
               }
             />
@@ -1172,19 +1432,25 @@ export default function BattleArena() {
                 )}
                 {enemy.isBoss && !keyBoss && (
                   <>
-                    <p className="text-white/60 italic text-sm mb-1">
-                      "{BOSS_LINES[topic as keyof typeof BOSS_LINES].defeat}"
-                    </p>
-                    <p className="text-emerald-300 font-bold mb-1">
-                      💎 The {info.crystalName} shines again!
-                    </p>
+                    <p className="text-white/60 italic text-sm mb-1">"{BOSS_LINES[topic as keyof typeof BOSS_LINES].defeat}"</p>
+                    <p className="text-emerald-300 font-bold mb-1">💎 The {info.crystalName} shines again!</p>
                   </>
                 )}
                 <p className="text-sm text-white/80">
-                  {correctCount} correct answers · 🪙 +{enemy.coins} ·{' '}
-                  ⭐ +{correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)) + npcDefeatXp(enemy.level) + (enemy.isBoss ? BOSS_XP_BONUS : 0)}{' '}
+                  {correctCount} correct answers · 🪙 +{reward?.coins ?? enemy.coins} · ⭐ +
+                  {correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)) +
+                    npcDefeatXp(enemy.level) +
+                    (enemy.isBoss ? BOSS_XP_BONUS : 0)}{' '}
                   XP
                 </p>
+                {reward?.firstWin && (
+                  <p className="text-sm text-yellow-200 font-semibold mt-1">⭐ First time beating a {enemy.name} — bonus coins!</p>
+                )}
+                {reward?.drop && (
+                  <p className="text-sm text-emerald-200 font-semibold mt-1">
+                    🎁 It dropped a {CONSUMABLES[reward.drop].emoji} {CONSUMABLES[reward.drop].name}!
+                  </p>
+                )}
               </>
             ) : (
               <>
@@ -1209,13 +1475,34 @@ export default function BattleArena() {
   );
 }
 
-/** Framer props for a choreography motion (null = at rest). */
-function motionProps(k: Keyframes | null) {
-  if (!k) return { animate: {} };
+/** Framer props for a choreography motion (null or reduced motion = at rest). */
+function motionProps(k: Keyframes | null, reduceMotion: boolean) {
+  if (!k || reduceMotion) return { animate: {} };
   return {
     animate: { x: k.x, y: k.y ?? 0 },
     transition: { duration: k.duration, times: k.times },
   };
+}
+
+function ChargeRow({ charge }: { charge: number }) {
+  return (
+    <p className="text-[11px] text-white/50 mb-3">
+      Charge:{' '}
+      {Array.from({ length: CHARGE_MAX }).map((_, i) => (
+        <span key={i} className={i < charge ? 'text-amber-300' : 'text-white/25'}>
+          ◆
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-2 text-xs font-semibold">
+      ← Back
+    </button>
+  );
 }
 
 function CommandButton({
@@ -1223,19 +1510,24 @@ function CommandButton({
   label,
   hint,
   disabled,
+  highlight,
   onClick,
 }: {
   emoji: string;
   label: string;
   hint?: string;
   disabled?: boolean;
+  /** Pulse to draw the eye (e.g. Guard while a power move is coming). */
+  highlight?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 rounded-xl px-3 py-2.5 text-left transition"
+      className={`${
+        highlight ? 'bg-amber-400/25 ring-2 ring-amber-300 animate-pulse' : 'bg-white/10'
+      } hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 rounded-xl px-3 py-2.5 text-left transition`}
     >
       <span className="text-lg mr-1.5">{emoji}</span>
       <span className="font-bold text-sm">{label}</span>

@@ -2508,6 +2508,31 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "fps": 8
         }
       }
+    },
+    "battle": {
+      "sheet": "/sprites/hub-kid/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
     }
   },
   "hub-innkeeper": {
@@ -3367,6 +3392,31 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "from": 14,
           "to": 17,
           "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/woods-sprite/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
         }
       }
     }

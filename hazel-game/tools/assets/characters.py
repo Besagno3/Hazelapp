@@ -1624,5 +1624,8 @@ NPCS: list[Char] = [
     Char('grove-firefly', '🦋', 'flyer', H(kind='butterfly', color='#5a4a3a', wing='#9ae0ff', spot='#fff27a', glow=True)),
     Char('grove-otter', '🦦', 'humanoid', H(skin='#8a5a3a', ears='round', snout='muzzle', muzzle='#e8d0b0', tail='flat', outfit='#4a8ab0', blush=False)),
 ]
+# NPCs are world-only — except the ones who can join the party as battle
+# companions (content/companion.ts), who need a battle sheet too.
+BATTLE_COMPANIONS = {'hub-kid', 'woods-sprite'}
 for n in NPCS:
-    n.battle = False
+    n.battle = n.id in BATTLE_COMPANIONS

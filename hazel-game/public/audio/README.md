@@ -28,7 +28,10 @@ in-game menu (📜 → 🔊 Audio).
 | `block.mp3` | an enemy hit is fully blocked |
 | `shatter.mp3` | a shielded enemy's shield breaks |
 | `roar.mp3` | Ember attacks |
-| `pair.mp3` | a hero + Ember Pair Attack |
+| `swap.mp3` | a companion swaps in |
+| `charge.mp3` | an enemy gathers power (a telegraphed blow is coming) |
+| `streak.mp3` | 3 / 5 correct answers in a row |
+| `pair.mp3` | a hero + companion Pair Attack |
 
 ## `16bit/music/` — seamless loops
 `title`, `overworld`, `battle`, `boss`, `spire`, `finalBoss`, `victory`

@@ -272,6 +272,23 @@ def sfx_bank() -> dict[str, np.ndarray]:
     mixin(b, out['impact'], 0.58, 0.7)
     mixin(b, _seq(['C4', 'G4', 'C5'], 0.001, voice='tri', gain=0.3, length=0.6, s=0.6, r=0.4), 0.45)
     out['pair'] = echo(b, 0.12, 0.3, 0.25)
+    # swap: a companion tags in — a quick "poof" + bright two-note hop
+    b = np.zeros(int(0.45 * SR))
+    mixin(b, lowpass(noise(0.12, 2.2, 31) * env(int(0.12 * SR), 0.005, 0.03, 0.5, 0.06), 0.45), 0, 0.4)
+    mixin(b, _seq(['G5', 'D6'], 0.07, duty=0.25, gain=0.35, length=0.3), 0.06)
+    out['swap'] = echo(b, 0.08, 0.25, 0.2)
+    # charge: an enemy gathers power — a low rising, wobbling hum (a warning)
+    n = 0.8
+    hum = pulse(hz(midi('A2')), n, 0.3, vib=0.06, slide=1.0) * env(int(n * SR), 0.1, 0.1, 0.8, 0.12)
+    rum = noise(n, 0.4, 37) * np.linspace(0.2, 1, int(n * SR)) * env(int(n * SR), 0.1, 0.1, 0.7, 0.12)
+    b = np.zeros(int(0.95 * SR))
+    mixin(b, lowpass(hum, 0.3), 0, 0.5)
+    mixin(b, lowpass(rum, 0.2), 0, 0.3)
+    out['charge'] = b
+    # streak: answers in a row — a sparkly rising triple chime
+    b = _seq(['E6', 'G#6', 'B6'], 0.06, duty=0.125, gain=0.35, length=0.45)
+    b += _seq(['E5', 'G#5', 'B5'], 0.06, voice='tri', gain=0.3, length=0.45)
+    out['streak'] = echo(b, 0.07, 0.35, 0.3)
     return out
 
 

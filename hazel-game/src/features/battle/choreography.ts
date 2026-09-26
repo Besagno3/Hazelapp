@@ -1,15 +1,16 @@
 /**
- * Battle choreography for the hero + Ember: which motion each actor plays for
+ * Battle choreography for the hero + their companion: which motion each actor plays for
  * a move, the Framer Motion keyframes for those motions, and when the blow
  * lands. Pure data so the timing rules are unit-tested and BattleArena only
  * has to play them back.
  *
- * Screen layout reminder: the enemy stands LEFT, the hero RIGHT with Ember at
- * the hero's side — so "toward the enemy" is negative x.
+ * Screen layout reminder: the enemy stands LEFT, the hero RIGHT with the
+ * companion at the hero's side — so "toward the enemy" is negative x.
  */
 
 export type HeroMove = 'lunge' | 'comet' | 'duet';
-export type EmberMove = 'lunge' | 'breath' | 'toss' | 'duet';
+/** Companion motions; `breath` / `toss` / `duet` are Ember's big moves. */
+export type CompanionMotion = 'lunge' | 'breath' | 'toss' | 'duet';
 
 export interface Keyframes {
   x: number[];
@@ -32,7 +33,7 @@ export const HERO_MOTION: Record<HeroMove, Keyframes> = {
   duet: { x: [0, 10, -210, 0], y: [0, -120, 0, 0], times: [0, 0.35, 0.6, 1], duration: 0.95, reach: true },
 };
 
-export const EMBER_MOTION: Record<EmberMove, Keyframes> = {
+export const COMPANION_MOTION: Record<CompanionMotion, Keyframes> = {
   lunge: { x: [0, -110, 0], duration: 0.5 },
   // Breathing fire: brace back on the inhale, recoil forward on the blast.
   breath: { x: [0, 8, -12, 0], times: [0, 0.25, 0.5, 1], duration: 0.7 },
@@ -41,8 +42,8 @@ export const EMBER_MOTION: Record<EmberMove, Keyframes> = {
   duet: { x: [0, 10, -250, 0], y: [0, -140, -10, 0], times: [0, 0.35, 0.6, 1], duration: 0.95, reach: true },
 };
 
-/** Which sprite clip an Ember motion plays (the sheet has attack + breath). */
-export const EMBER_CLIP: Record<EmberMove, 'attack' | 'breath'> = {
+/** Which sprite clip a companion motion plays (sheets without `breath` fall back to idle). */
+export const COMPANION_CLIP: Record<CompanionMotion, 'attack' | 'breath'> = {
   lunge: 'attack',
   breath: 'breath',
   toss: 'attack',
@@ -56,29 +57,31 @@ export const FIREBALL_STAGGER_MS = 70;
 
 export interface Choreo {
   hero?: HeroMove;
-  ember?: EmberMove;
+  companion?: CompanionMotion;
   /** When the blow lands (damage number, impact SFX, enemy flinch), in ms. */
   hitMs: number;
   /** Delay before the move's wind-up sound, in ms. */
   soundMs: number;
-  /** Fireballs Ember spits at the enemy (0 = none). */
+  /** Fireballs Ember spits at the enemy (0 = none; Ember's moves only). */
   fireballs: number;
 }
 
-/** The default single-actor strike (Attack / spells: the hero; Ember Attack: Ember). */
+/** The default single-actor strike (Attack / spells: the hero; a companion's strike). */
 export const HERO_STRIKE: Choreo = { hero: 'lunge', hitMs: 260, soundMs: 0, fireballs: 0 };
-export const EMBER_STRIKE: Choreo = { ember: 'lunge', hitMs: 260, soundMs: 0, fireballs: 0 };
+export const COMPANION_STRIKE: Choreo = { companion: 'lunge', hitMs: 260, soundMs: 0, fireballs: 0 };
 /** Ember's Breath: Ember inhales, then a fireball volley crosses the arena. */
-export const EMBER_BREATH: Choreo = { ember: 'breath', hitMs: 560, soundMs: 0, fireballs: 3 };
+export const EMBER_BREATH: Choreo = { companion: 'breath', hitMs: 560, soundMs: 0, fireballs: 3 };
 
 /**
  * Per-Pair-Attack choreography. The 'pair' SFX has its impacts ~450ms in, so
  * the slower combos start it late enough that the thud lands with the hit.
  */
 export const PAIR_CHOREO: Record<string, Choreo> = {
-  'twin-strike': { hero: 'lunge', ember: 'lunge', hitMs: 260, soundMs: 0, fireballs: 0 },
-  'blazing-comet': { hero: 'comet', ember: 'toss', hitMs: 570, soundMs: 120, fireballs: 0 },
-  'dragon-duet': { hero: 'duet', ember: 'duet', hitMs: 570, soundMs: 120, fireballs: 3 },
+  'twin-strike': { hero: 'lunge', companion: 'lunge', hitMs: 260, soundMs: 0, fireballs: 0 },
+  'blazing-comet': { hero: 'comet', companion: 'toss', hitMs: 570, soundMs: 120, fireballs: 0 },
+  'dragon-duet': { hero: 'duet', companion: 'duet', hitMs: 570, soundMs: 120, fireballs: 3 },
+  'marble-volley': { hero: 'lunge', companion: 'lunge', hitMs: 260, soundMs: 0, fireballs: 0 },
+  'starlight-chorus': { hero: 'lunge', companion: 'lunge', hitMs: 260, soundMs: 0, fireballs: 0 },
 };
 
 /** Choreography for a Pair Attack id (unknown ids fall back to Twin Strike's). */

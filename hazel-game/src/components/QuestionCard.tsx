@@ -7,11 +7,13 @@ import type { Question } from '../types';
  * One self-contained question card (#37) — used by battle turns, gate/chest
  * locks, and the Library. Reveals correct/wrong styling on pick, shows the
  * explanation, and supports spending a Hint Feather (hides two wrong options).
+ * `preHidden` crosses out wrong options before the player starts (Pip's peek).
  * The parent advances via `onContinue` so reading is never rushed.
  */
 export default function QuestionCard({
   question,
   hints = 0,
+  preHidden = 0,
   onUseHint,
   onAnswered,
   continueLabel = 'Continue',
@@ -20,6 +22,8 @@ export default function QuestionCard({
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
   hints?: number;
+  /** Wrong options crossed out from the start (a companion's peek). */
+  preHidden?: number;
   onUseHint?: () => void;
   /** Fires once, as soon as an option is picked. */
   onAnswered: (correct: boolean, picked: number) => void;
@@ -28,7 +32,8 @@ export default function QuestionCard({
   onContinue: (correct: boolean) => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
-  const [hidden, setHidden] = useState<number[]>([]);
+  const [hidden, setHidden] = useState<number[]>(() => pickWrong(question, [], preHidden));
+  const [hintUsed, setHintUsed] = useState(false);
   const [continued, setContinued] = useState(false);
 
   function pick(idx: number) {
@@ -47,16 +52,9 @@ export default function QuestionCard({
   }
 
   function useHint() {
-    if (selected !== null || hidden.length > 0 || !onUseHint) return;
-    const wrong = question.options
-      .map((_, i) => i)
-      .filter((i) => i !== question.correctIndex);
-    // Hide two of the wrong options, picked uniformly (Fisher-Yates).
-    for (let i = wrong.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [wrong[i], wrong[j]] = [wrong[j], wrong[i]];
-    }
-    setHidden(wrong.slice(0, 2));
+    if (selected !== null || hintUsed || !onUseHint) return;
+    setHidden((h) => [...h, ...pickWrong(question, h, 2)]);
+    setHintUsed(true);
     onUseHint();
   }
 
@@ -92,7 +90,7 @@ export default function QuestionCard({
         })}
       </div>
 
-      {selected === null && hints > 0 && onUseHint && hidden.length === 0 && (
+      {selected === null && hints > 0 && onUseHint && !hintUsed && canHideMore(question, hidden) && (
         <button
           onClick={useHint}
           className="mt-3 text-xs text-purple-600 hover:text-purple-800 font-semibold"
@@ -101,13 +99,28 @@ export default function QuestionCard({
         </button>
       )}
 
+      {selected !== null && selected !== question.correctIndex && (
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-4 text-sm font-semibold text-green-700"
+        >
+          ✅ The answer is: {question.options[question.correctIndex]}
+        </motion.p>
+      )}
+
       {selected !== null && question.explanation && (
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg p-3"
+          className={
+            selected === question.correctIndex
+              ? 'mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg p-3'
+              : 'mt-2 text-sm text-gray-700 bg-amber-50 border border-amber-200 rounded-lg p-3'
+          }
         >
-          💡 {question.explanation}
+          💡 {selected === question.correctIndex ? '' : "Here's why: "}
+          {question.explanation}
         </motion.p>
       )}
 
@@ -124,4 +137,27 @@ export default function QuestionCard({
       )}
     </motion.div>
   );
+}
+
+/** Wrong option indexes still showing (not yet crossed out). */
+function wrongLeft(question: Question, hidden: number[]): number[] {
+  return question.options.map((_, i) => i).filter((i) => i !== question.correctIndex && !hidden.includes(i));
+}
+
+/** Whether a hint could still cross something out — always leave one wrong option. */
+function canHideMore(question: Question, hidden: number[]): boolean {
+  return wrongLeft(question, hidden).length > 1;
+}
+
+/**
+ * Up to `count` wrong options to cross out, picked uniformly (Fisher-Yates),
+ * always leaving at least one wrong option so there's still a real choice.
+ */
+function pickWrong(question: Question, hidden: number[], count: number): number[] {
+  const wrong = wrongLeft(question, hidden);
+  for (let i = wrong.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [wrong[i], wrong[j]] = [wrong[j], wrong[i]];
+  }
+  return wrong.slice(0, Math.max(0, Math.min(count, wrong.length - 1)));
 }

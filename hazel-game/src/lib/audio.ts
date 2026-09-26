@@ -32,7 +32,10 @@ export type SfxName =
   | 'block'
   | 'shatter'
   | 'roar'
-  | 'pair';
+  | 'pair'
+  | 'swap'
+  | 'charge'
+  | 'streak';
 
 export type MusicTrack =
   | 'title'
@@ -71,7 +74,10 @@ export const SFX_SOURCES: Record<SfxName, string> = {
   block: '/audio/16bit/sfx/block.mp3', // an enemy hit is fully blocked
   shatter: '/audio/16bit/sfx/shatter.mp3', // a shielded enemy's shield breaks
   roar: '/audio/16bit/sfx/roar.mp3', // Ember attacks
-  pair: '/audio/16bit/sfx/pair.mp3', // a hero + Ember Pair Attack
+  pair: '/audio/16bit/sfx/pair.mp3', // a hero + companion Pair Attack
+  swap: '/audio/16bit/sfx/swap.mp3', // a companion swaps in
+  charge: '/audio/16bit/sfx/charge.mp3', // an enemy gathers power (telegraphed blow)
+  streak: '/audio/16bit/sfx/streak.mp3', // correct answers in a row
 };
 
 export const MUSIC_SOURCES: Record<MusicTrack, string> = {
