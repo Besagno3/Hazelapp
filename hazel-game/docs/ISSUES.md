@@ -351,6 +351,9 @@ World cutscenes are unchanged and remain open.
   + recharts for the parent dashboard #29, vite-plugin-pwa for #5).
 - **README** rewritten for the game (was the Vite template).
 - **#68 closed as won't-do:** the question bank is meant to grow.
+- **Review follow-up:** the #70 test was hardened with fake timers (it previously
+  asserted before any timer could fire); `BattleArena` now uses a `useShallow`
+  store selector.
 
 ### #45 — World canvas: black lines, click-to-focus, too small 🟢 High — RESOLVED (2026-06-13)
 Three problems with the KaPlay overworld surfaced in live play:

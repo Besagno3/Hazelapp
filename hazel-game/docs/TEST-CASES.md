@@ -387,7 +387,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-R5 | M | ⬜ | #23 | after 0005, a quiz round increases `select count(*) from questions` |
 | TC-R6 | M | ⬜ | #24 | after 0006, two back-to-back rounds return non-overlapping question IDs |
 | TC-R7 | M | ⬜ | #26 | flagging a question removes it from the next call's cache pool |
-| TC-R8 | C | ✅ | #70 | enemy hit then an immediate potion (tapping through before the 260ms impact) keeps both the damage and the heal (BattleArena.test + battleTurn.test) |
+| TC-R8 | C | ✅ | #70 | enemy hit then an immediate potion (tapping through before the 260ms impact) keeps both the damage and the heal, and HP stays put after all pending timers fire (fake timers; BattleArena.test + battleTurn.test) |
 
 ---
 

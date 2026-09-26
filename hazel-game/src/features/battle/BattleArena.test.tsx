@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import type { BattleEnemy, Question } from '../../types';
 
 const q: Question = {
@@ -62,7 +62,14 @@ describe('BattleArena (smoke)', () => {
     expect(s.charge).toBe(1);
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('a potion used right after an enemy hit keeps both (#70)', () => {
+    // Fake timers so the test can prove no delayed write lands afterwards —
+    // the original bug was an HP write 260ms after the hit.
+    vi.useFakeTimers();
     render(<BattleArena />);
     // Guard → wrong answer → enemy attacks → wrong defend answer.
     fireEvent.click(screen.getByText('Guard'));
@@ -77,7 +84,13 @@ describe('BattleArena (smoke)', () => {
     fireEvent.click(screen.getByText(/tap to continue/));
     fireEvent.click(screen.getByText('Items'));
     fireEvent.click(screen.getByText('Berry Potion'));
-    expect(useBattleStore.getState().playerHp).toBe(Math.min(100, afterHit + 50));
+    const healed = Math.min(100, afterHit + 50);
+    expect(useBattleStore.getState().playerHp).toBe(healed);
+    // Let every pending animation / impact timer fire: HP must not move.
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(useBattleStore.getState().playerHp).toBe(healed);
     expect(useSaveStore.getState().save!.items.potion).toBe(0);
   });
 });

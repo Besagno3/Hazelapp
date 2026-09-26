@@ -192,6 +192,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-09-26 — Review fixes on the battle refactor (#75)
+- The #70 regression test now uses fake timers and advances past every
+  pending impact/animation timer after the potion, so a future delayed HP
+  write fails it (verified by re-inserting one: 35 ≠ 85).
+- `BattleArena` subscribes via one `useShallow` selector instead of the
+  whole `battleStore`.
+
 ### 2026-09-26 — Tech-debt pass: battle refactor, tap-race fix, README, deps (#75)
 - **Tap-race fixed (#70):** the battle's numbers moved into `battleStore`
   (`charge`, `guarded`, `enemyShielded`, `lastPhase` joined HP; `start()`

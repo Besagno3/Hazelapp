@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
@@ -79,7 +80,21 @@ export default function BattleArena() {
     applyCombat,
     markDefeated,
     endBattle,
-  } = useBattleStore();
+  } = useBattleStore(
+    // One shallow-compared selector: re-render only when these fields change.
+    useShallow((s) => ({
+      enemy: s.enemy,
+      playerHp: s.playerHp,
+      playerMaxHp: s.playerMaxHp,
+      enemyHp: s.enemyHp,
+      charge: s.charge,
+      guarded: s.guarded,
+      enemyShielded: s.enemyShielded,
+      applyCombat: s.applyCombat,
+      markDefeated: s.markDefeated,
+      endBattle: s.endBattle,
+    })),
+  );
   const save = useSaveStore((s) => s.save);
   const updateSave = useSaveStore((s) => s.update);
   const profile = useProfileStore((s) => s.profile);
