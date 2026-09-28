@@ -90,17 +90,20 @@ import type { LibraryEntry, Question } from '../../types';
 /** Wall-clock ms for answer timing (module-level so it's never called during render). */
 const nowMs = () => performance.now();
 
-/** `hide` = wrong options crossed out before the player starts (Pip's peek). */
+/**
+ * `hide` = wrong options crossed out before the player starts (Pip's peek).
+ * `seq` = which ask this is (unique per battle) — keys the question card.
+ */
 type Turn =
   | { kind: 'command' }
   | { kind: 'cast' }
   | { kind: 'items' }
   | { kind: 'companion' }
   | { kind: 'swap' }
-  | { kind: 'question'; mode: 'attack' | 'guard' | 'companion'; question: Question; hide?: number }
-  | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question; hide?: number }
-  | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number }
-  | { kind: 'enemy-question'; question: Question; hide?: number }
+  | { kind: 'question'; mode: 'attack' | 'guard' | 'companion'; question: Question; hide?: number; seq?: number }
+  | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question; hide?: number; seq?: number }
+  | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number; seq?: number }
+  | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
   | { kind: 'victory' }
   | { kind: 'defeat' };
@@ -218,7 +221,10 @@ export default function BattleArena() {
   // raise this battle's question level. Refs, not state — the next question is
   // often posed by a callback created a render earlier and must see the boost.
   const askedAt = useRef(0);
-  const hinted = useRef(false);
+  // A Hint Feather or Pip's peek made this question easier — it can't count
+  // toward the speed trigger.
+  const helped = useRef(false);
+  const askSeq = useRef(0);
   const speedRun = useRef(0);
   const speedBoost = useRef(0);
   const boostPool = useRef<{ qs: Question[]; i: number }>({ qs: [], i: 0 });
@@ -343,6 +349,8 @@ export default function BattleArena() {
   // through `later`, so leaving the battle cancels whatever is still pending —
   // no stray impact/heal sound or state update after the arena is gone.
   const pendingTimers = useRef(new Set<number>());
+  // False once the arena unmounts — late fetches (the speed-boost pool) bail.
+  const live = useRef(true);
   const later = useCallback((fn: () => void, ms: number) => {
     const id = window.setTimeout(() => {
       pendingTimers.current.delete(id);
@@ -352,7 +360,9 @@ export default function BattleArena() {
   }, []);
   useEffect(() => {
     const timers = pendingTimers.current;
+    live.current = true;
     return () => {
+      live.current = false;
       timers.forEach(clearTimeout);
       timers.clear();
     };
@@ -460,10 +470,10 @@ export default function BattleArena() {
   const baseQLevel = clampLevel(enemy.level - mercy.levelDrop);
   /** Pose a question turn, spending Pip's peek on it if one is waiting. */
   const ask = (t: QuestionTurn) => {
-    setTurn({ ...t, hide: peek.current });
+    setTurn({ ...t, hide: peek.current, seq: ++askSeq.current });
+    helped.current = peek.current > 0;
     peek.current = 0;
     askedAt.current = nowMs();
-    hinted.current = false;
   };
   /** Streak bonus applied to every hero-side hit. */
   const boost = (dmg: number) => Math.round(dmg * streakMultiplier(streak));
@@ -489,8 +499,8 @@ export default function BattleArena() {
 
   function recordAnswer(correct: boolean, q: Question, picked: number) {
     setAnswers((a) => [...a, correct]);
-    // A hinted answer isn't evidence the questions are too easy.
-    const ms = hinted.current ? Infinity : nowMs() - askedAt.current;
+    // A hinted / peeked answer isn't evidence the questions are too easy.
+    const ms = helped.current ? Infinity : nowMs() - askedAt.current;
     const step = speedStep(speedRun.current, correct, ms, age, speedBoost.current);
     speedRun.current = step.run;
     if (step.boosted) raiseQuestionLevel();
@@ -577,6 +587,12 @@ export default function BattleArena() {
   }
   function commandFlee() {
     updateSave((s) => ({ ...s, hp: useBattleStore.getState().playerHp }));
+    // Fleeing skips the battle ramp, but a level the speed trigger earned stays earned.
+    if (profile && speedBoost.current > 0) {
+      const current = skillLevelFor(profile.skillLevels, topic, age);
+      const next = skillAfterBattle(current, [], speedBoost.current);
+      if (next !== current) void setSkillLevel(topic, next);
+    }
     sendFlow({ type: 'BATTLE_END', result: 'lose' });
     endBattle();
   }
@@ -900,24 +916,41 @@ export default function BattleArena() {
   }
 
   /**
-   * The speed trigger fired: FAST_STREAK quick correct answers in a row. Ask
-   * the rest of this battle one level harder (fetched now; the current pool
-   * keeps serving until it arrives) and save it at the end (skillAfterBattle).
+   * The speed trigger fired: FAST_STREAK quick correct answers in a row. The
+   * level is earned now (saved at the end, or on Flee — skillAfterBattle); the
+   * rest of the battle is asked one level harder once that pool arrives (the
+   * current pool keeps serving until then). The banner + ⚡ badge wait for the
+   * harder questions so they never promise questions that aren't there yet.
    */
   function raiseQuestionLevel() {
     const from = clampLevel(baseQLevel + speedBoost.current);
     const to = clampLevel(from + 1);
     if (to === from) return; // already at the top level
     speedBoost.current += 1;
-    setBoostShown(speedBoost.current);
-    sfx('streak');
-    showBanner(`So quick! The questions just got harder — level ${from} → ${to}`, 3200, '⚡');
-    fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, `a quick-thinking hero battling ${enemy!.name}`)
+    const wanted = speedBoost.current;
+    const name = enemy!.name;
+    const announce = (text: string) => {
+      sfx('streak');
+      showBanner(text, 3200, '⚡');
+    };
+    fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, `a quick-thinking hero battling ${name}`)
       .then((qs) => {
-        if (qs.length > 0) boostPool.current = { qs, i: 0 };
+        // Gone, or a newer boost superseded this one (an older, easier pool
+        // arriving late must never replace a harder one).
+        if (!live.current || speedBoost.current !== wanted) return;
+        if (qs.length === 0) {
+          announce(`So quick! Your level goes up to ${to} after this battle`);
+          return;
+        }
+        boostPool.current = { qs, i: 0 };
+        setBoostShown(wanted);
+        announce(`So quick! The questions just got harder — level ${from} → ${to}`);
       })
       .catch(() => {
-        /* keep asking from the current pool — the level still saves at the end */
+        // Keep asking from the current pool — the level still saves at the end.
+        if (live.current && speedBoost.current === wanted) {
+          announce(`So quick! Your level goes up to ${to} after this battle`);
+        }
       });
   }
 
@@ -1018,7 +1051,7 @@ export default function BattleArena() {
   const perkLabel = { charge: `+${EMBER_BONUS_CHARGE}◆`, peek: '👀 peek', mend: `+${WISP_MEND} HP` }[companion.perk];
   const charging = intent === 'power';
   // Identifies the current question card (remounts QuestionCard + DefendTimer).
-  const qKey = turn.kind === 'question' || turn.kind === 'enemy-question' ? turn.question.id + qIndex + spellIdx : '';
+  const qKey = turn.kind === 'question' || turn.kind === 'enemy-question' ? `${turn.question.id}:${turn.seq}` : '';
 
   return (
     // overflow-clip (not hidden): a hidden-overflow box is still programmatically
@@ -1518,7 +1551,7 @@ export default function BattleArena() {
               hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
               preHidden={turn.hide ?? 0}
               onUseHint={() => {
-                hinted.current = true;
+                helped.current = true;
                 useSaveStore.getState().spendHint();
               }}
               onAnswered={(correct, picked) => {

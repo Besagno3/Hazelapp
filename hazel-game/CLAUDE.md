@@ -127,10 +127,11 @@ existing architecture.
   (**mercy** — session-only, no change to damage). **Defend questions are
   timed** (`DefendTimer`, `defendTimeMs(age)`: 25s at age 5, 1.5s less per
   year, 10–25s, +5s under mercy, paused while the tab is hidden; switch off
-  per player in 📜 → ⚔️ Battle). **Speed trigger:** 5 quick (within half the
-  age countdown, no Hint Feather) correct answers in a row raise the battle's
-  question level by 1 on the spot (max +2 per battle, saved at the end).; running out lands the blow as a
-  wrong answer. Fiends (bosses) have enrage phases and restore their
+  per player in 📜 → ⚔️ Battle; running out lands the blow as a wrong
+  answer). **Speed trigger:** 5 quick (within half the age countdown, no
+  Hint Feather or Pip's peek) correct answers in a row raise the battle's
+  question level by 1 on the spot (max +2 per battle, saved at the end or
+  on Flee). Fiends (bosses) have enrage phases and restore their
   crystal on defeat. Pure math in `lib/battleMath.ts`, turn rules in
   `lib/battleTurn.ts`, motion in `features/battle/choreography.ts`. No game over — defeat
   returns the player to the hub, healed.
@@ -214,6 +215,26 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-09-28 — Speed-trigger review fixes: stuck card, pool race, Flee, Pip's peek (#81)
+From a code review of #80:
+- **Stuck question (medium):** the battle's question card was keyed by
+  `id + qIndex + spellIdx`; `qIndex` doesn't move while the harder pool
+  serves, so a short pool could repeat a key and leave an answered card on
+  screen. `ask()` now stamps every question turn with its own `seq`
+  (`qKey = id:seq`).
+- **Pool race / failure:** only the pool fetched for the *current* boost is
+  kept (a late, easier one is dropped, and nothing lands after the arena
+  closes — `live` ref). The ⚡ banner + badge now wait for the harder
+  questions; if the fetch fails or comes back empty the banner says "Your
+  level goes up to N after this battle" (the boost still saves).
+- **Flee keeps the boost:** Flee saves `skillAfterBattle(current, [], boost)`.
+- **Pip's peek doesn't count:** a question with a crossed-out answer is
+  treated like a Hint Feather (`helped` ref → `ms = Infinity`), so it breaks
+  the quick run.
+- 349 tests green; lint + build clean. 15 checks in headless Chromium: the
+  normal boost, a one-question pool asked 4× without sticking, a failed pool,
+  Flee with/without a boost, and Pip's peek breaking the run.
 
 ### 2026-09-26 — Difficulty follows the question level + a speed trigger; XP no longer scales anything (#80)
 Revises #79: leveling up (XP) should not make the game harder — answering

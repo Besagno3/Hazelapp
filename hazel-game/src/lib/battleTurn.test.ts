@@ -182,4 +182,9 @@ describe('speed trigger', () => {
     expect(skillAfterBattle(4, Array(6).fill(true), 1)).toBeGreaterThanOrEqual(5);
     expect(skillAfterBattle(10, Array(6).fill(true), 2)).toBe(10);
   });
+
+  it('fleeing (no ramp answers) still keeps the speed boost', () => {
+    expect(skillAfterBattle(4, [], 1)).toBe(5);
+    expect(skillAfterBattle(4, [], 0)).toBe(4);
+  });
 });

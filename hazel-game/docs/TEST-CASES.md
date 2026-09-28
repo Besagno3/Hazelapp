@@ -474,6 +474,11 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-386 | M | ✅ | battle | 6 correct answers at 12s each (slower than 9.5s) → no raise; 4 quick + 1 with a Hint Feather → no raise (headless Chromium) |
 | TC-387 | M | ✅ | battle | 9000 XP meets the same enemy level as 0 XP; a math level of 7 → Count Bat Lv 7 and level-7 battle questions (headless Chromium) |
 | TC-388 | M | ⬜ | battle | playtest: does "quick" (half the countdown) feel right for 6-, 9- and 12-year-olds? |
+| TC-389 | U | ✅ | battleTurn | `skillAfterBattle` with no ramp answers (Flee) keeps the speed boost, and changes nothing without one |
+| TC-390 | M | ✅ | battle | the harder pool has ONE question: after the boost it's asked 4 times in a row and every time can be answered and continued (no stuck card) (headless Chromium, #81) |
+| TC-391 | M | ✅ | battle | the harder-pool fetch fails → one banner "Your level goes up to 5 after this battle", no ⚡ badge, questions continue at level 4 (headless Chromium) |
+| TC-392 | M | ✅ | battle | 5 quick correct then Flee → math level saved 4 → 5; Flee with no boost saves nothing (headless Chromium) |
+| TC-393 | M | ✅ | battle | with Pip: Slingshot (quick, correct) → the next question has one answer crossed out and doesn't count toward the run; strike + peeked + 4 quick = no raise, one more quick answer = raise (headless Chromium) |
 
 ## Regression cases (tied to ISSUES.md)
 
