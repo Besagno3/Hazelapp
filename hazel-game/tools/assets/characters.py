@@ -1925,7 +1925,7 @@ def microbe(c: Canvas, p: Pose, s: dict):
 
 
 def pulley_spider(c: Canvas, p: Pose, s: dict):
-    """A hard-hatted spider dangling from a pulley, a counterweight on the far rope."""
+    """A hard-hatted spider dangling from a pulley, hoisting a little house on the far rope."""
     d = D(c, p)
     col = hexc(s.get('color', '#8a6ab0'))
     rope = hexc(s.get('rope', '#c8a870'))
@@ -1937,9 +1937,13 @@ def pulley_spider(c: Canvas, p: Pose, s: dict):
     rig.ellipse(18.75, 3.6, 6.2, 2.6, '#8a96a8')  # wide pulley wheel
     rig.ellipse(18.75, 3.6, 1.2, 1.2, '#4a4a5a', shade=False)
     rig.line(13, 3.6, 13, sy - 4, rope, w=0.6)  # rope down to the spider
-    rig.line(24.5, 3.6, 24.5, 14 - drop, rope, w=0.6)  # rope down to the rock
-    rig.ellipse(24.5, 16.5 - drop, 3.2, 2.8, '#9a9284')  # the rock it is lifting
-    rig.dot(23.5, 15.5 - drop, '#bab4a6', w=1, h=1)
+    rig.line(24.5, 3.6, 24.5, 14 - drop, rope, w=0.6)  # rope down to the house
+    hy = 14 - drop  # a little house hangs from its roof peak
+    rig.rect(21.3, hy + 2.6, 27.7, hy + 7.6, '#f0dcb0')  # walls
+    rig.poly([(20.4, hy + 3), (24.5, hy - 0.4), (28.6, hy + 3)], '#d0443a')  # roof
+    rig.rect(22.2, hy + 4.2, 24, hy + 5.8, '#7ac8f0', shade=False)  # window
+    rig.rect(25, hy + 4.6, 26.6, hy + 7.6, '#8a5a30', shade=False)  # door
+    rig.rect(26.4, hy - 0.2, 27.4, hy + 1.8, '#8a6a5a')  # chimney
     d.put(rig)
     legs = d.part(lean, bob)
     for i in range(3):
@@ -1979,23 +1983,37 @@ def piston_boar(c: Canvas, p: Pose, s: dict):
         legs.rect(lx - 1.5, 29.2, lx + 1.6, 30.6, '#4a4a58')  # foot
     d.put(legs)
     st = d.part(lean, bob)
-    st.rect(9, 9.5, 11.5, 15, '#6a6a78')  # exhaust stack
-    st.rect(8.5, 8.8, 12, 10, '#4a4a58', shade=False)
+    st.rect(18.5, 9.5, 20.5, 14.5, '#6a6a78')  # exhaust stack on the shoulders
+    st.rect(18, 8.8, 21, 10, '#4a4a58', shade=False)
     puff = 1 if p.frame % 2 else 0
-    st.ellipse(9.5 - puff, 6.5 - puff, 2.2 + puff * 0.4, 1.8, '#e8ecf4', shade=False)
-    st.ellipse(7 - puff * 1.5, 3.8 - puff, 1.6, 1.3, '#d0d8e4', shade=False)
+    st.ellipse(19 - puff, 6.5 - puff, 2.2 + puff * 0.4, 1.8, '#e8ecf4', shade=False)
+    st.ellipse(16.5 - puff * 1.5, 3.8 - puff, 1.6, 1.3, '#d0d8e4', shade=False)
     d.put(st)
     body = d.part(lean, bob)
     body.ellipse(16, 18.5, 10, 5.8, fur)
     body.ellipse(17, 21.3, 7, 2.5, light(fur, 0.12))
-    for x in (8.5, 11, 13.5, 16, 18.5):  # bristly mohawk
-        body.poly([(x - 1, 13.6), (x + 0.3, 10.8 + (x % 2)), (x + 1.4, 13.6)], dark(fur, 0.3))
+    for x in (14.5, 16.5):  # a tuft of bristles left between the pistons
+        body.poly([(x - 1, 13.6), (x + 0.3, 11), (x + 1.4, 13.6)], dark(fur, 0.3))
     body.rect(12, 16, 20, 17.2, steel, shade=False)  # riveted strap
     if d.sep:
         for x in (13, 16, 19):
             body.dot(x, 16.2, '#e8eef8')
     body.line(6.5, 17, 4, 15.5 + (p.frame % 2), dark(fur, 0.2), w=0.7)  # curly tail
     d.put(body)
+    pist = d.part(lean, bob)
+    # pistons bursting out of its back and rump, each pumping in turn
+    brass = hexc(s.get('brass', '#d0a040'))
+    for i, (bx, by, ang) in enumerate(((10, 13.8, -1.95), (13, 13.2, -1.6), (6.8, 16.5, -2.6), (7.2, 20.5, 3.0))):
+        ext = 2.4 if (i + p.frame) % 2 else 0.6
+        if p.arm == 'strike':
+            ext = 3.0
+        dx, dy = math.cos(ang), math.sin(ang)
+        cx0, cy0 = bx + dx * 3.2, by + dy * 3.2  # end of the cylinder
+        pist.line(bx, by, cx0, cy0, brass, w=2.4)  # brass cylinder
+        pist.line(cx0 - dx * 0.3, cy0 - dy * 0.3, cx0, cy0, dark(brass, 0.3), w=2.6)  # cylinder lip
+        pist.line(cx0, cy0, cx0 + dx * ext, cy0 + dy * ext, light(steel, 0.1), w=0.9)  # steel rod
+        pist.ellipse(cx0 + dx * (ext + 0.6), cy0 + dy * (ext + 0.6), 1.1, 1.1, '#5a5a68')  # rod cap
+    d.put(pist)
     head = d.part(lean, bob)
     head.ellipse(24, 17.5, 4.8, 4.4, fur)
     head.poly([(21, 13.5), (22, 10.5), (23.5, 13.5)], dark(fur, 0.15))  # ear
