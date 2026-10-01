@@ -187,6 +187,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-01 — Review fixes for the village expansion (#76)
+Code review of the expansion; all five findings fixed in `BattleArena`:
+- Focus Tea is no longer wasted on a shielded foe — the focus waits for the
+  next swing while the shield is up.
+- Boss enrage banners now fire from any damage (new `checkBossPhase`, shared
+  by attacks and Mirror Charm bounces), so the phase never desyncs.
+- Mirror Charm vs a shielded foe: the bounced hit shatters the shield (any
+  landed hit does), instead of bypassing it.
+- Item buffs (mirror / focus / clover) reset per enemy alongside the shield.
+- `secretFlag` moved to `zones.ts`, breaking the secrets.ts ↔ quests.ts
+  import cycle (`secrets.ts` re-exports it).
+320 tests green; lint + build clean; mocked battle replayed in headless Chromium.
+
 ### 2026-10-01 — Village expansion: bigger towns, side quests, secrets, new shops (#76)
 The five main towns grew, with more to do in each.
 - **Bigger maps (`zones.ts`):** Lumina Village 44→66 wide (east district:

@@ -1,5 +1,5 @@
 import type { SaveData, ZoneId } from '../types';
-import { secretFlag } from './secrets';
+import { secretFlag } from './zones';
 import type { ConsumableId } from './items';
 
 /**

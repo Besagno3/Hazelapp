@@ -132,6 +132,10 @@ export default function BattleArena() {
   if (enemy && shieldedFor !== enemy.instanceId) {
     setShieldedFor(enemy.instanceId);
     setEnemyShielded(enemy.behavior === 'shielded');
+    // Battle-item buffs belong to one fight too.
+    setMirrored(false);
+    setFocused(false);
+    setLucky(false);
   }
 
   // Warm the super-hard spell-tier pool (level + SPELL_LEVEL_BONUS). Every
@@ -346,10 +350,15 @@ export default function BattleArena() {
     let dmg = attackDamage(wasCorrect, style, powerUps);
     let text = wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…';
     if (focused && dmg > 0) {
-      // Focus Tea: the next Attack hits extra hard (then the focus is spent).
-      setFocused(false);
-      dmg *= TEA_DAMAGE_MULT;
-      text += ' 🍵 Focused — double damage!';
+      if (enemyShielded) {
+        // The shield would swallow the doubled hit — keep the focus for later.
+        text += ' 🍵 (Your focus holds for the next swing!)';
+      } else {
+        // Focus Tea: the next Attack hits extra hard (then the focus is spent).
+        setFocused(false);
+        dmg *= TEA_DAMAGE_MULT;
+        text += ' 🍵 Focused — double damage!';
+      }
     }
     dealHeroDamage(dmg, text, 'text-red-300');
   }
@@ -425,15 +434,18 @@ export default function BattleArena() {
       setTurn({ kind: 'message', text, next: () => victory() });
       return;
     }
-    // Boss enrage callout when crossing a phase boundary.
-    if (enemy!.isBoss) {
-      const p = bossPhase(newEnemyHp, enemy!.maxHp);
-      if (p > lastPhase.current) {
-        lastPhase.current = p;
-        showBanner(p === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
-      }
-    }
+    checkBossPhase(newEnemyHp);
     setTurn({ kind: 'message', text, next: enemyTurn });
+  }
+
+  /** Boss enrage callout when the enemy's HP crosses a phase boundary (any damage source). */
+  function checkBossPhase(newEnemyHp: number) {
+    if (!enemy!.isBoss || newEnemyHp <= 0) return;
+    const p = bossPhase(newEnemyHp, enemy!.maxHp);
+    if (p > lastPhase.current) {
+      lastPhase.current = p;
+      showBanner(p === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
+    }
   }
 
   function enemyTurn() {
@@ -444,7 +456,10 @@ export default function BattleArena() {
     const raw = enemyAttack(enemy!.level, enemy!.isBoss, phase);
     let dmg: number;
     // Mirror Charm: block the hit and bounce it back at the enemy.
-    const reflected = mirrored ? raw : 0;
+    // A shielded foe's shield takes the bounced hit (any landed hit shatters it).
+    const shieldTakesBounce = mirrored && enemyShielded && raw > 0;
+    if (shieldTakesBounce) setEnemyShielded(false);
+    const reflected = mirrored && !shieldTakesBounce ? raw : 0;
     if (mirrored) {
       dmg = 0;
       setMirrored(false);
@@ -469,14 +484,17 @@ export default function BattleArena() {
     const newPlayerHp = Math.max(0, playerHp - dmg);
     setTimeout(() => {
       float(dmg === 0 ? 'Blocked!' : `-${dmg}`, 'hero', dmg === 0 ? 'text-sky-300' : 'text-red-300');
-      if (reflected > 0) float(`-${reflected}`, 'enemy', 'text-sky-300');
+      if (shieldTakesBounce) float('Shield shattered!', 'enemy', 'text-amber-300');
+      else if (reflected > 0) float(`-${reflected}`, 'enemy', 'text-sky-300');
       else if (newEnemyHp > enemyHp) float(`+${newEnemyHp - enemyHp}`, 'enemy', 'text-emerald-300');
       if (dmg > 0) sfx('hit');
       setHp(newPlayerHp, newEnemyHp);
     }, 260);
 
     const text =
-      (reflected > 0
+      (shieldTakesBounce
+        ? `${enemy!.name} attacks — the Mirror Charm bounces it back, and its shield SHATTERS! 🪞`
+        : reflected > 0
         ? `${enemy!.name} attacks — the Mirror Charm bounces it right back! 🪞`
         : dmg === 0
         ? `${enemy!.name} attacks — completely blocked!`
@@ -484,6 +502,7 @@ export default function BattleArena() {
           ? `${enemy!.name} attacks — you soften the hit!`
           : `${enemy!.name} lands a hit!`) + healNote;
 
+    checkBossPhase(newEnemyHp);
     if (newEnemyHp <= 0) {
       setTurn({ kind: 'message', text, next: () => victory() });
     } else if (newPlayerHp <= 0) {

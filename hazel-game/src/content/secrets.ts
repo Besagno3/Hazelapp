@@ -1,5 +1,5 @@
 import type { SaveData } from '../types';
-import { ZONES, type SecretDef, type ZoneDef, type ZoneId } from './zones';
+import { ZONES, secretFlag, type SecretDef, type ZoneDef, type ZoneId } from './zones';
 import { CONSUMABLES, type ConsumableId } from './items';
 import { QUEST_ITEMS } from './quests';
 
@@ -8,9 +8,7 @@ import { QUEST_ITEMS } from './quests';
  * `ZoneDef.secrets`; this module claims them and summarizes progress.
  */
 
-export function secretFlag(id: string): string {
-  return `secret:${id}`;
-}
+export { secretFlag };
 
 /** Every secret in the world, with the zone it lives in. */
 export const ALL_SECRETS: { zoneId: ZoneId; secret: SecretDef }[] = Object.values(ZONES).flatMap((z) =>

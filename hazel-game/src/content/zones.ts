@@ -139,6 +139,11 @@ export interface SecretDef {
   reward: SecretReward;
 }
 
+/** Save flag set once a secret is found (lives here so quests needn't import secrets.ts). */
+export function secretFlag(id: string): string {
+  return `secret:${id}`;
+}
+
 export interface ZoneExit {
   /** Grid cell of the 'E' tile. */
   x: number;
