@@ -2313,10 +2313,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "divvy-duck": {
+  "raven-prince": {
     "emoji": "🐦‍⬛",
     "world": {
-      "sheet": "/sprites/divvy-duck/world.png",
+      "sheet": "/sprites/raven-prince/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2354,7 +2354,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/divvy-duck/battle.png",
+      "sheet": "/sprites/raven-prince/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
