@@ -837,6 +837,9 @@ def flyer(c: Canvas, p: Pose, s: dict):
             L.ellipse(16 + side * 6 * span, 13.5, 1.8 * span + 0.4, 1.8, s.get('spot', '#ffffff'), shade=False)
     else:
         L.ellipse(12, 14 + flap * 0.6, 3.5, 6.0, dark(wc, 0.08), rot=-0.5)
+    if s.get('pirate'):  # long parrot tail feathers, behind the body
+        L.poly([(11, 19), (1, 25), (3, 27), (12, 22)], s.get('tail', dark(col, 0.1)))
+        L.poly([(11, 20), (2, 28), (5, 29), (13, 22)], s.get('tail2', wc))
     # body
     if kind == 'bee':
         L.ellipse(9, 20, 5, 4.2, '#ffd23a')
@@ -850,8 +853,8 @@ def flyer(c: Canvas, p: Pose, s: dict):
     if kind == 'bird':
         L.ellipse(18, 21, 3.5, 3.0, mix(col, (255, 255, 255), 0.5))
         L.poly([(9, 19), (4, 16), (5, 21)], dark(col, 0.1))
-        L.line(15, 24, 15, 27, '#e0a030', w=0.8)
-        L.line(18, 24, 18, 27, '#e0a030', w=0.8)
+        L.line(15, 24, 15, 27, s.get('feet', '#e0a030'), w=0.8)
+        L.line(18, 24, 18, 27, s.get('feet', '#e0a030'), w=0.8)
     # head
     if kind == 'bat':
         L.poly([(13.5, 14), (14.5, 9.5), (17, 13)], col)
@@ -860,6 +863,19 @@ def flyer(c: Canvas, p: Pose, s: dict):
         L.dot(18.5, 21, WHITE)
         if s.get('number'):
             L.dot(13, 20, '#ffe066', w=2, h=2)
+    elif kind == 'bird' and s.get('pirate'):
+        # hooked parrot beak, eyepatch and a tricorn hat
+        bk = hexc(s.get('beak', '#f0e8d0'))
+        L.poly([(21.5, 15), (25, 15), (27, 17.5), (25.5, 20.5), (24.5, 18), (21.5, 19.5)], bk)
+        L.poly([(22, 19), (24.5, 18.5), (23.5, 21)], dark(bk, 0.3))
+        L.line(15.5, 14, 22, 18.5, '#2a2230', w=0.8)
+        L.ellipse(20, 16.5, 2.0, 1.8, '#2a2230', shade=False)
+        if d.sep and not p.hurt:
+            L.dot(20.5, 16, (90, 80, 100))
+        L.poly([(12, 13.5), (15, 9), (19, 7.5), (23, 9), (25.5, 13.5), (19, 12)], '#2a2230')
+        L.rect(13, 12.2, 25, 13.5, '#e0b040', shade=False)
+        L.dot(18.5, 9.5, WHITE, w=2, h=2)
+        L.dot(18.5, 11, (60, 50, 70), w=2, h=1)
     elif kind == 'bird':
         L.poly([(22, 17), (27, 18.5), (22, 20)], '#ffb030')
         d.eyes(L, [(20, 16.5)])
@@ -1357,10 +1373,26 @@ def octopus(c: Canvas, p: Pose, s: dict):
         L.ellipse(14, 5.5, 7.5, 2.0, s['hat'])
         L.rect(10, 1, 18, 5.5, s['hat'])
         L.rect(10, 4, 18, 5, '#ffe066', shade=False)
-    d.eyes(L, [(17.5, 13), (21, 13)])
+    if s.get('minus'):
+        L.rect(9.5, 8.5, 14.5, 10, WHITE, shade=False)
+        L.rect(8, 16, 11, 17, light(col, 0.35), shade=False)
+    ex = [17.5, 21]
+    d.eyes(L, [(x, 13) for x in ex])
+    if s.get('brow') and ex and not p.hurt:
+        L.line(ex[0] - 1.2, 10.8, ex[0] + 1.2, 11.8, dark(col, 0.5), w=0.8)
+        L.line(ex[1] + 1.2, 10.8, ex[1] - 1.2, 11.8, dark(col, 0.5), w=0.8)
     if d.sep:
         L.dot(20, 17, dark(col, 0.4), w=2, h=1)
     d.put(L)
+    if s.get('loot'):
+        grab = d.part(d.lean, d.bob)
+        tip = {'raise': (25, 4), 'strike': (30, 14), 'follow': (28, 17)}.get(p.arm, (27, 8))
+        mid = (24.5, 15)
+        grab.line(20, 18, mid[0], mid[1], dark(col, 0.05), w=2.0)
+        grab.line(mid[0], mid[1], tip[0], tip[1] + 2, dark(col, 0.05), w=1.6)
+        grab.ellipse(tip[0], tip[1], 2.4, 2.4, '#ffcf3a')
+        grab.dot(tip[0] - 0.5, tip[1] - 1, '#fff4b0')
+        d.put(grab)
     finish(c, d)
 
 
@@ -1418,6 +1450,188 @@ def umbra(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.5, 8, 1.5))
 
 
+# ─── Batch-1 critters (Divvy Duck, Fossil Fang, Knight-Mare) ─────────────────
+
+
+def duck(c: Canvas, p: Pose, s: dict):
+    """Waddling duck carrying a pie cut into equal slices."""
+    d = D(c, p)
+    col = hexc(s['color'])
+    bill = hexc(s.get('bill', '#ff9a2a'))
+    lean, bob = d.lean, d.bob
+    feet = d.part(lean * 0.4, 0)
+    for i, fx in enumerate((12.5, 17.5)):
+        off = p.step * (1.5 if i else -1.5)
+        feet.line(fx + off, 25, fx + off, 28.5, bill, w=1.0)
+        feet.poly([(fx - 1 + off, 28.2), (fx + 3.5 + off, 28.2), (fx + 3 + off, 30.2), (fx - 1 + off, 30.2)], dark(bill, 0.08))
+    d.put(feet)
+    waddle = (0.6 if p.frame % 2 else -0.6) * (1 if p.step else 0)
+    body = d.part(lean, bob)
+    body.poly([(7.5, 19), (3, 14), (5, 20.5)], light(col, 0.05))  # perky tail
+    body.ellipse(14, 21.5, 8.5, 5.6, col, rot=waddle * 0.08)
+    body.ellipse(15.5, 23.5, 5.5, 2.6, light(col, 0.18))
+    d.put(body)
+    head = d.part(lean, bob)
+    head.ellipse(21, 12.5, 4.6, 4.4, col)
+    head.ellipse(26, 14, 3.2, 1.3, bill)
+    head.ellipse(25.5, 15.3, 2.6, 0.9, dark(bill, 0.12))
+    if s.get('tuft'):
+        head.poly([(19, 8.5), (20, 5.5), (21, 8.5)], dark(col, 0.08))
+    d.eyes(head, [(22.5, 11)])
+    if d.sep and not p.hurt:
+        head.line(21, 9, 24, 9.8, dark(col, 0.55), w=0.6)  # a grumpy brow
+    d.put(head)
+    wing = d.part(lean, bob)
+    wing.ellipse(12, 20.5, 4.2, 2.6, light(col, 0.04), rot=0.25)
+    d.put(wing)
+    # the pie, seen from above: golden crust cut into slices, one already gone
+    pie = d.part(lean, bob)
+    py = {'raise': 15, 'strike': 18.5, 'follow': 20.5}.get(p.arm, 21.5)
+    px = {'strike': 25}.get(p.arm, 22.5)
+    pie.ellipse(px, py, 4.0, 3.4, '#c8783a')
+    pie.ellipse(px - 0.3, py - 0.3, 2.6, 2.1, '#f0c070', shade=False)
+    cut = '#6a3010'
+    pie.line(px - 3.8, py, px + 3.8, py, cut, w=0.5)
+    pie.line(px, py - 3.3, px, py + 3.3, cut, w=0.5)
+    pie.erase_ellipse(px + 2.8, py - 2.6, 2.4, 2.1)  # one slice already eaten
+    pie.dot(px + 0.5, py - 1.2, '#e04a5a')
+    pie.dot(px + 1.2, py - 0.6, '#e04a5a')
+    d.put(pie)
+    finish(c, d, shadow=(15, 30.5, 8, 1.3))
+
+
+def fossil(c: Canvas, p: Pose, s: dict):
+    """A T-rex skeleton put back together slightly wrong (one arm on the tail)."""
+    d = D(c, p)
+    bone = hexc(s.get('color', '#ece4cc'))
+    glow = hexc(s.get('glow', '#ff8a2a'))
+    lean, bob = d.lean, d.bob
+    legs = d.part(lean * 0.4, 0)
+    for i, (hx, col) in enumerate(((11.5, dark(bone, 0.12)), (13, bone))):
+        off = p.step * (1.6 if i else -1.6)
+        legs.line(hx, 19, hx + 2.5 + off * 0.5, 24, col, w=1.6)
+        legs.line(hx + 2.5 + off * 0.5, 24, hx + off, 28.5, col, w=1.3)
+        legs.line(hx - 1 + off, 29.3, hx + 3 + off, 29.3, col, w=1.2)
+    d.put(legs)
+    sp = d.part(lean, bob)
+    # tail: tapering vertebrae, flicking a little
+    flick = (1 if p.frame % 2 else 0)
+    for i, (x, y, w) in enumerate(((10, 18, 1.8), (7.5, 18.5, 1.6), (5, 18.5 - flick * 0.5, 1.4), (2.5, 18 - flick, 1.2))):
+        sp.ellipse(x, y, w * 0.9, w * 0.8, bone)
+    # the misplaced arm, waving from the tail
+    wave = -1.5 if p.frame % 2 else 0
+    sp.line(5, 17.5, 4.5, 14, bone, w=0.9)
+    sp.line(4.5, 14, 3 + wave * 0.3, 12 + wave, bone, w=0.7)
+    sp.line(4.5, 14, 6, 12 + wave, bone, w=0.7)
+    # spine + ribs
+    sp.line(10, 17.5, 19, 13, bone, w=1.4)
+    for i, x in enumerate((12, 14.2, 16.4)):
+        y = 17 - i * 1.1
+        sp.line(x, y, x + 0.6, y + 5.5 - i * 0.4, dark(bone, 0.05), w=0.9)
+    sp.ellipse(11.5, 18.5, 2.4, 1.8, bone)  # hip
+    d.put(sp)
+    head = d.part(lean, bob)
+    head.line(19, 13.5, 21, 10, bone, w=1.4)
+    jaw = {'raise': 1.5, 'strike': 3.0, 'follow': 1.0}.get(p.arm, 0.4)
+    if p.hurt:
+        jaw = 2.0
+    # lower jaw (drops open to attack), then the skull over it
+    head.poly([(20, 11), (29, 11 + jaw * 0.6), (28.5, 12.6 + jaw), (21, 13)], dark(bone, 0.08))
+    if d.sep:
+        for tx in (23, 25, 27):
+            head.dot(tx, 11 + jaw * 0.5, WHITE)
+    head.poly([(18.5, 9), (21, 4.5), (26, 5), (30, 8), (29.5, 10.5), (20, 11)], bone)
+    head.ellipse(22.3, 7.3, 1.6, 1.4, (40, 26, 30), shade=False)  # eye socket
+    ec = WHITE if p.hurt else glow
+    head.dot(22.5, 7, ec)
+    head.dot(28.6, 8, (60, 40, 40))  # nostril
+    if d.sep:
+        for tx in (24, 26, 28):
+            head.dot(tx, 10.3, WHITE)
+    d.put(head)
+    finish(c, d, shadow=(15, 30.5, 9, 1.3))
+
+
+def _rot(pts, ang, cx=16.0, cy=29.5):
+    cs, sn = math.cos(ang), math.sin(ang)
+    return [(cx + (x - cx) * cs - (y - cy) * sn, cy + (x - cx) * sn + (y - cy) * cs) for x, y in pts]
+
+
+def knight_mare(c: Canvas, p: Pose, s: dict):
+    """An empty suit of armour riding a dapple-grey rocking horse."""
+    d = D(c, p)
+    steel = hexc(s.get('steel', '#a8b4c4'))
+    wood = hexc(s.get('wood', '#8a5230'))
+    coat = hexc(s.get('coat', '#ece6da'))
+    mane = hexc(s.get('mane', '#c8343a'))
+    glow = hexc(s.get('glow', '#7ef9ff'))
+    # the whole toy rocks about the middle of its rocker
+    ang = {2: -0.10, 3: 0.12, 4: 0.06, 5: -0.06}.get(p.frame, 0.0) if p.facing == 'side' else 0.0
+    if p.frame < 6 and p.step:  # world walk: rock back and forth
+        ang = 0.08 * p.step
+    if p.hurt:
+        ang = -0.12
+
+    def R(*pts):
+        return _rot(list(pts), ang)
+
+    def pt(x, y):
+        return R((x, y))[0]
+
+    L = d.part(d.lean, d.bob)
+    # rocker: a shallow arc
+    xs = [4 + i * 2 for i in range(13)]
+    arc = [(x, 29.5 - 3.2 * ((x - 16) / 12) ** 2) for x in xs]
+    arc = R(*arc)
+    for a, b in zip(arc, arc[1:]):
+        L.line(a[0], a[1], b[0], b[1], dark(wood, 0.1), w=1.6)
+    for lx, ly in ((9, 19), (11.5, 19), (20, 19), (22.5, 19)):
+        x0, y0 = pt(lx, ly)
+        x1, y1 = pt(lx + (-1 if lx < 16 else 1), 28.3)
+        L.line(x0, y0, x1, y1, wood, w=1.4)
+    tx, ty = pt(6.5, 17)
+    L.poly(R((7, 16), (3, 18), (3.5, 23), (6, 19.5)), mane)  # yarn tail
+    bx, by = pt(15, 17.5)
+    L.ellipse(bx, by, 8.5, 4.2, coat, rot=ang)
+    if d.sep:
+        for (x, y) in ((11, 17), (13.5, 19), (17, 16.5), (19, 19)):
+            gx, gy = pt(x, y)
+            L.dot(gx, gy, dark(coat, 0.18))
+    L.poly(R((19, 16.5), (22.5, 8), (25.5, 9), (23.5, 18)), coat)  # neck
+    hx, hy = pt(26, 9.5)
+    L.ellipse(hx, hy, 4.0, 2.4, coat, rot=0.45 + ang)
+    L.poly(R((20, 15), (21.5, 8), (23.5, 7), (21.5, 13)), mane)  # mane
+    L.poly(R((22.5, 7.5), (23.5, 4.5), (24.5, 7.5)), coat)  # ear
+    ex, ey = pt(25.5, 8.5)
+    L.dot(ex, ey, EYE)
+    nx, ny = pt(29, 11)
+    L.dot(nx, ny, dark(coat, 0.4))
+    L.poly(R((11.5, 13.5), (18.5, 13.5), (19, 17), (11, 17)), mane)  # saddle blanket
+    d.put(L)
+    K = d.part(d.lean, d.bob)
+    kx, ky = pt(14.5, 14)
+    K.line(kx + 0.5, ky, kx + 2.5, ky + 6, dark(steel, 0.12), w=2.0)  # greave
+    K.rect(kx - 3, ky - 8, kx + 3, ky + 0.5, steel)  # breastplate
+    K.rect(kx - 3, ky - 3.5, kx + 3, ky - 2.5, dark(steel, 0.2), shade=False)  # belt
+    K.ellipse(kx, ky - 11, 3.4, 3.4, light(steel, 0.05))  # helm
+    if p.facing != 'up':
+        K.rect(kx - 0.5, ky - 11.5, kx + 3.4, ky - 10.2, (10, 8, 20), shade=False)  # visor slit
+        if not p.hurt:
+            K.dot(kx + 0.8, ky - 11.2, glow)
+            K.dot(kx + 2.4, ky - 11.2, glow)
+        else:
+            K.dot(kx + 1.5, ky - 11.2, WHITE, w=2, h=1)
+    K.poly([(kx - 1, ky - 14), (kx - 5, ky - 18), (kx - 6.5, ky - 15), (kx - 2.5, ky - 13)], s.get('plume', '#7a4ad0'))
+    d.put(K)
+    A = d.part(d.lean, d.bob)
+    lance = {'raise': (kx + 9, ky - 16), 'strike': (kx + 16, ky - 6), 'follow': (kx + 14, ky - 3)}.get(p.arm, (kx + 12, ky - 12))
+    A.line(kx + 1, ky - 4, lance[0], lance[1], '#d8b878', w=1.0)
+    A.poly([(lance[0] - 0.8, lance[1] - 0.8), (lance[0] + 2.2, lance[1] - 1.2 if lance[1] < ky - 7 else lance[1]), (lance[0] + 0.8, lance[1] + 0.8)], '#e8eef8')
+    A.ellipse(kx + 2, ky - 5, 1.8, 1.8, dark(steel, 0.05))  # gauntlet
+    d.put(A)
+    finish(c, d, shadow=(16, 30.8, 10, 1.2))
+
+
 # ─── Roster ──────────────────────────────────────────────────────────────────
 
 DRAWERS = {
@@ -1441,6 +1655,9 @@ DRAWERS = {
     'octopus': octopus,
     'seal': seal,
     'umbra': umbra,
+    'duck': duck,
+    'fossil': fossil,
+    'knight_mare': knight_mare,
 }
 
 
@@ -1509,6 +1726,13 @@ ROSTER: list[Char] = [
     Char('relic-golem', '🗿', 'golem', H(color='#9a8a70', accent='#6ad0c0', glow='#6affe0', runes=True, shield=True)),
     # ── The Crystal Spire ──
     Char('umbra', '🌑', 'umbra', boss=True),
+    # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
+    Char('divvy-duck', '🦆', 'duck', H(color='#ffd84a', bill='#ff8a2a', tuft=True)),
+    Char('subtractopus', '🐙', 'octopus', H(color='#6a5ad8', minus=True, brow=True, loot=True)),
+    Char('pirate-parrot', '🦜', 'flyer', H(kind='bird', color='#e03a3a', wing='#2a9ae0', tail='#2a9ae0', tail2='#ffd23a',
+                                          pirate=True, beak='#f0e8d0', feet='#8a8a9a')),
+    Char('fossil-fang', '🦖', 'fossil', H(color='#ece4cc', glow='#ff8a2a')),
+    Char('knight-mare', '🐴', 'knight_mare', H(steel='#a8b4c4', coat='#ece6da', mane='#c8343a', plume='#7a4ad0')),
     Char('clockwork-titan', '🦾', 'golem', H(color='#c89040', accent='#ff6a3a', glow='#ffe066', bolts=True, crown=True), boss=True),
 ]
 
