@@ -2314,7 +2314,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "divvy-duck": {
-    "emoji": "🦆",
+    "emoji": "🐦‍⬛",
     "world": {
       "sheet": "/sprites/divvy-duck/world.png",
       "frameW": 32,

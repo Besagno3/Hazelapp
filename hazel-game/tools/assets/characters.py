@@ -1454,35 +1454,60 @@ def umbra(c: Canvas, p: Pose, s: dict):
 
 
 def duck(c: Canvas, p: Pose, s: dict):
-    """Waddling duck carrying a pie cut into equal slices."""
+    """Waddling bird (duck, or raven with kind='raven') carrying a pie cut into equal slices."""
     d = D(c, p)
     col = hexc(s['color'])
     bill = hexc(s.get('bill', '#ff9a2a'))
+    raven = s.get('kind') == 'raven'
     lean, bob = d.lean, d.bob
     feet = d.part(lean * 0.4, 0)
     for i, fx in enumerate((12.5, 17.5)):
         off = p.step * (1.5 if i else -1.5)
-        feet.line(fx + off, 25, fx + off, 28.5, bill, w=1.0)
-        feet.poly([(fx - 1 + off, 28.2), (fx + 3.5 + off, 28.2), (fx + 3 + off, 30.2), (fx - 1 + off, 30.2)], dark(bill, 0.08))
+        if raven:  # thin dark legs and claws
+            leg = hexc(s.get('legs', '#3a3848'))
+            feet.line(fx + off, 25, fx + off, 29.5, leg, w=0.9)
+            feet.line(fx + off, 29.5, fx + 2.5 + off, 30, leg, w=0.7)
+            feet.line(fx + off, 29.5, fx - 1.5 + off, 30, leg, w=0.7)
+        else:
+            feet.line(fx + off, 25, fx + off, 28.5, bill, w=1.0)
+            feet.poly([(fx - 1 + off, 28.2), (fx + 3.5 + off, 28.2), (fx + 3 + off, 30.2), (fx - 1 + off, 30.2)], dark(bill, 0.08))
     d.put(feet)
     waddle = (0.6 if p.frame % 2 else -0.6) * (1 if p.step else 0)
     body = d.part(lean, bob)
-    body.poly([(7.5, 19), (3, 14), (5, 20.5)], light(col, 0.05))  # perky tail
-    body.ellipse(14, 21.5, 8.5, 5.6, col, rot=waddle * 0.08)
-    body.ellipse(15.5, 23.5, 5.5, 2.6, light(col, 0.18))
+    if raven:
+        body.poly([(8, 18.5), (0.5, 22), (1.5, 24.5), (8.5, 22.5)], dark(col, 0.06))  # long wedge tail
+        body.ellipse(14, 20.5, 8.5, 5.4, col, rot=-0.15 + waddle * 0.08)
+        body.ellipse(15.5, 22.5, 5.5, 2.4, light(col, 0.08))
+    else:
+        body.poly([(7.5, 19), (3, 14), (5, 20.5)], light(col, 0.05))  # perky tail
+        body.ellipse(14, 21.5, 8.5, 5.6, col, rot=waddle * 0.08)
+        body.ellipse(15.5, 23.5, 5.5, 2.6, light(col, 0.18))
     d.put(body)
     head = d.part(lean, bob)
-    head.ellipse(21, 12.5, 4.6, 4.4, col)
-    head.ellipse(26, 14, 3.2, 1.3, bill)
-    head.ellipse(25.5, 15.3, 2.6, 0.9, dark(bill, 0.12))
-    if s.get('tuft'):
-        head.poly([(19, 8.5), (20, 5.5), (21, 8.5)], dark(col, 0.08))
-    d.eyes(head, [(22.5, 11)])
-    if d.sep and not p.hurt:
-        head.line(21, 9, 24, 9.8, dark(col, 0.55), w=0.6)  # a grumpy brow
+    if raven:
+        head.poly([(18, 16), (20.5, 19.5), (22, 15.5), (23.5, 18.5), (24, 14)], col)  # shaggy throat
+        head.ellipse(21, 11.5, 4.4, 4.2, col)
+        # heavy, slightly hooked beak
+        head.poly([(23.5, 10), (29.5, 12.2), (30.5, 13.6), (24, 14.2)], bill)
+        head.line(24.5, 12.6, 29.5, 13.2, dark(bill, 0.3), w=0.4)
+        head.poly([(19, 7.8), (20.5, 5.5), (22, 7.6)], dark(col, 0.04))  # ruffled crown
+        d.eyes(head, [(22.5, 10.5)], color=hexc(s.get('eye', '#ffd24a')), shine=False)
+        if d.sep and not p.hurt:
+            head.line(20.8, 8.6, 24, 9.4, light(col, 0.35), w=0.6)  # a grumpy brow
+        if d.sep:
+            head.dot(19.5, 10, light(col, 0.3))  # glossy sheen
+    else:
+        head.ellipse(21, 12.5, 4.6, 4.4, col)
+        head.ellipse(26, 14, 3.2, 1.3, bill)
+        head.ellipse(25.5, 15.3, 2.6, 0.9, dark(bill, 0.12))
+        if s.get('tuft'):
+            head.poly([(19, 8.5), (20, 5.5), (21, 8.5)], dark(col, 0.08))
+        d.eyes(head, [(22.5, 11)])
+        if d.sep and not p.hurt:
+            head.line(21, 9, 24, 9.8, dark(col, 0.55), w=0.6)  # a grumpy brow
     d.put(head)
     wing = d.part(lean, bob)
-    wing.ellipse(12, 20.5, 4.2, 2.6, light(col, 0.04), rot=0.25)
+    wing.ellipse(12, 20.5 if not raven else 19.5, 4.6 if raven else 4.2, 2.6, light(col, 0.1 if raven else 0.04), rot=0.25)
     d.put(wing)
     # the pie, seen from above: golden crust cut into slices, one already gone
     pie = d.part(lean, bob)
@@ -1727,7 +1752,7 @@ ROSTER: list[Char] = [
     # ── The Crystal Spire ──
     Char('umbra', '🌑', 'umbra', boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
-    Char('divvy-duck', '🦆', 'duck', H(color='#ffd84a', bill='#ff8a2a', tuft=True)),
+    Char('divvy-duck', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a')),
     Char('subtractopus', '🐙', 'octopus', H(color='#6a5ad8', minus=True, brow=True, loot=True)),
     Char('pirate-parrot', '🦜', 'flyer', H(kind='bird', color='#e03a3a', wing='#2a9ae0', tail='#2a9ae0', tail2='#ffd23a',
                                           pirate=True, beak='#f0e8d0', feet='#8a8a9a')),
