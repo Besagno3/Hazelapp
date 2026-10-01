@@ -259,6 +259,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'sum-slime', x: 17, y: 5 },
       { defId: 'count-bat', x: 14, y: 8 },
       { defId: 'sir-sumsalot', x: 7, y: 6 },
+      { defId: 'raven-prince', x: 14, y: 3 },
+      { defId: 'kia', x: 39, y: 11 },
+      { defId: 'pirate-parrot', x: 8, y: 10 },
       { defId: 'null-fiend', x: 3, y: 6 },
     ],
     exits: [
@@ -649,6 +652,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'cog-sprite', x: 6, y: 5 },
       { defId: 'hourglass-imp', x: 14, y: 6 },
       { defId: 'relic-golem', x: 8, y: 2 },
+      { defId: 'tut-tut', x: 3, y: 7 },
+      { defId: 'knight-mare', x: 14, y: 11 },
       { defId: 'clockwork-titan', x: 10, y: 5 },
     ],
     exits: [

@@ -837,9 +837,6 @@ def flyer(c: Canvas, p: Pose, s: dict):
             L.ellipse(16 + side * 6 * span, 13.5, 1.8 * span + 0.4, 1.8, s.get('spot', '#ffffff'), shade=False)
     else:
         L.ellipse(12, 14 + flap * 0.6, 3.5, 6.0, dark(wc, 0.08), rot=-0.5)
-    if s.get('pirate'):  # long parrot tail feathers, behind the body
-        L.poly([(11, 19), (1, 25), (3, 27), (12, 22)], s.get('tail', dark(col, 0.1)))
-        L.poly([(11, 20), (2, 28), (5, 29), (13, 22)], s.get('tail2', wc))
     # body
     if kind == 'bee':
         L.ellipse(9, 20, 5, 4.2, '#ffd23a')
@@ -853,8 +850,8 @@ def flyer(c: Canvas, p: Pose, s: dict):
     if kind == 'bird':
         L.ellipse(18, 21, 3.5, 3.0, mix(col, (255, 255, 255), 0.5))
         L.poly([(9, 19), (4, 16), (5, 21)], dark(col, 0.1))
-        L.line(15, 24, 15, 27, s.get('feet', '#e0a030'), w=0.8)
-        L.line(18, 24, 18, 27, s.get('feet', '#e0a030'), w=0.8)
+        L.line(15, 24, 15, 27, '#e0a030', w=0.8)
+        L.line(18, 24, 18, 27, '#e0a030', w=0.8)
     # head
     if kind == 'bat':
         L.poly([(13.5, 14), (14.5, 9.5), (17, 13)], col)
@@ -863,19 +860,6 @@ def flyer(c: Canvas, p: Pose, s: dict):
         L.dot(18.5, 21, WHITE)
         if s.get('number'):
             L.dot(13, 20, '#ffe066', w=2, h=2)
-    elif kind == 'bird' and s.get('pirate'):
-        # hooked parrot beak, eyepatch and a tricorn hat
-        bk = hexc(s.get('beak', '#f0e8d0'))
-        L.poly([(21.5, 15), (25, 15), (27, 17.5), (25.5, 20.5), (24.5, 18), (21.5, 19.5)], bk)
-        L.poly([(22, 19), (24.5, 18.5), (23.5, 21)], dark(bk, 0.3))
-        L.line(15.5, 14, 22, 18.5, '#2a2230', w=0.8)
-        L.ellipse(20, 16.5, 2.0, 1.8, '#2a2230', shade=False)
-        if d.sep and not p.hurt:
-            L.dot(20.5, 16, (90, 80, 100))
-        L.poly([(12, 13.5), (15, 9), (19, 7.5), (23, 9), (25.5, 13.5), (19, 12)], '#2a2230')
-        L.rect(13, 12.2, 25, 13.5, '#e0b040', shade=False)
-        L.dot(18.5, 9.5, WHITE, w=2, h=2)
-        L.dot(18.5, 11, (60, 50, 70), w=2, h=1)
     elif kind == 'bird':
         L.poly([(22, 17), (27, 18.5), (22, 20)], '#ffb030')
         d.eyes(L, [(20, 16.5)])
@@ -1924,8 +1908,8 @@ ROSTER: list[Char] = [
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
-    Char('pirate-parrot', '🦜', 'flyer', H(kind='bird', color='#e03a3a', wing='#2a9ae0', tail='#2a9ae0', tail2='#ffd23a',
-                                          pirate=True, beak='#f0e8d0', feet='#8a8a9a')),
+    Char('pirate-parrot', '🦜', 'parrot', H(color='#2a8ae0', wing='#2a7ad0', band='#2ab0a0', tail='#2a6ad0', chest='#ffd23a',
+                                          face='#f4ece4', beak='#3a3440', hat='tricorn', hat_color='#8a2a3a', coin=True)),
     Char('tut-tut', '🧟', 'mummy', H()),
     Char('knight-mare', '🐴', 'knight_mare', H(steel='#a8b4c4', coat='#ece6da', mane='#c8343a', plume='#7a4ad0')),
     Char('clockwork-titan', '🦾', 'golem', H(color='#c89040', accent='#ff6a3a', glow='#ffe066', bolts=True, crown=True), boss=True),

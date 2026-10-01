@@ -33,6 +33,9 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'sum-slime': { id: 'sum-slime', name: 'Sum Slime', sprite: '🟦', topic: 'math', levelOffset: -1, hpPerLevel: 10 },
   'count-bat': { id: 'count-bat', name: 'Count Bat', sprite: '🦇', topic: 'math', levelOffset: 0, hpPerLevel: 12 },
   'sir-sumsalot': { id: 'sir-sumsalot', name: 'Sir Sumsalot', sprite: '🐉', topic: 'math', levelOffset: 1, hpPerLevel: 14 },
+  'raven-prince': { id: 'raven-prince', name: 'Raven Prince', sprite: '🐦‍⬛', topic: 'math', levelOffset: -1, hpPerLevel: 10 },
+  'kia': { id: 'kia', name: 'Kia', sprite: '🦑', topic: 'math', levelOffset: 0, hpPerLevel: 12 },
+  'pirate-parrot': { id: 'pirate-parrot', name: 'Pi-rate Parrot', sprite: '🦜', topic: 'math', levelOffset: 1, hpPerLevel: 14, behavior: 'trickster' },
   'null-fiend': { id: 'null-fiend', name: 'The Null Fiend', sprite: '👹', topic: 'math', levelOffset: 1, hpPerLevel: 20, isBoss: true },
 
   // --- Verdara (science) ---
@@ -69,6 +72,8 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'cog-sprite': { id: 'cog-sprite', name: 'Cog Sprite', sprite: '⚙️', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
   'hourglass-imp': { id: 'hourglass-imp', name: 'Hourglass Imp', sprite: '⏳', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
   'relic-golem': { id: 'relic-golem', name: 'Relic Golem', sprite: '🗿', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
+  'tut-tut': { id: 'tut-tut', name: 'Tut-Tut', sprite: '🧟', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
+  'knight-mare': { id: 'knight-mare', name: 'Knight-Mare', sprite: '🐴', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
   'clockwork-titan': { id: 'clockwork-titan', name: 'The Clockwork Titan', sprite: '🦾', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 };
 
