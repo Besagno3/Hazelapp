@@ -1589,6 +1589,28 @@ NPCS: list[Char] = [
     Char('grove-guardian', '🌙', 'ghost', H(color='#dfe8ff', moon=True, eye='#3a4a8a')),
     Char('grove-firefly', '🦋', 'flyer', H(kind='butterfly', color='#5a4a3a', wing='#9ae0ff', spot='#fff27a', glow=True)),
     Char('grove-otter', '🦦', 'humanoid', H(skin='#8a5a3a', ears='round', snout='muzzle', muzzle='#e8d0b0', tail='flat', outfit='#4a8ab0', blush=False)),
+    # ── Village expansion townsfolk ──
+    Char('village-mayor', '🎩', 'humanoid', H(hair='short', hair_color='#d8a040', hat='crown', hat_color='#e8c040', outfit='#8a2a4a', trim='#ffd24a', robe=True, glasses=True)),
+    Char('village-clover-merchant', '🧺', 'humanoid', H(hair='ponytail', hair_color='#6a3a1a', hat='straw', outfit='#4ab060', apron='#f4ecd8', pack='#a07040')),
+    Char('village-baker', '🥐', 'humanoid', H(hair='bun', hair_color='#3a2a1a', hat='chef', outfit='#f0d8a8', apron='#ffffff', item='ladle', blush=True)),
+    Char('village-guard', '💂', 'humanoid', H(hair='short', hair_color='#2a1a1a', hat='helmet', hat_color='#b8c0cc', outfit='#3a5a9a', trim='#ffd24a', item='spear')),
+    Char('village-kid', '👦', 'humanoid', H(hair='spiky', hair_color='#e0a040', outfit='#e05a3a', pants='#3a5a9a', scarf='#4ad0c0')),
+    Char('numbria-tea-merchant', '🍵', 'humanoid', H(hair='bun', hair_color='#c8c8d0', outfit='#3a8a6a', apron='#f4ecd8', glasses=True, item='ladle')),
+    Char('numbria-teacher', '👩‍🏫', 'humanoid', H(hair='long', hair_color='#5a2a1a', outfit='#5a4ac0', trim='#ffffff', glasses=True, item='book')),
+    Char('numbria-kid', '🧒', 'humanoid', H(hair='bob', hair_color='#2a1a3a', outfit='#e0c040', pants='#3a3a6a')),
+    Char('numbria-sundial', '🧔', 'humanoid', H(hair='fringe', hair_color='#8a6a4a', beard='#8a6a4a', hat='straw', outfit='#c08a3a', item='staff', item_color='#c8a070')),
+    Char('verdara-seed-merchant', '🌻', 'humanoid', H(hair='long', hair_color='#f0c030', hat='flower', outfit='#e8a030', apron='#6ab04a', pack='#8a5a30')),
+    Char('verdara-beekeeper', '🐝', 'humanoid', H(hair='bun', hair_color='#b07a3a', hat='band', hat_color='#f4ecd8', outfit='#f0d040', trim='#3a2a1a', item='lantern')),
+    Char('verdara-kid', '🧒', 'humanoid', H(hair='short', hair_color='#7a4a2a', outfit='#5ab04a', pants='#8a5a3a', scarf='#ffd24a')),
+    Char('verdara-botanist', '👩‍🔬', 'humanoid', H(hair='ponytail', hair_color='#3a7a4a', outfit='#f4f4f4', trim='#5ab04a', glasses=True, item='book')),
+    Char('gearfall-coil-merchant', '🔩', 'humanoid', H(hair='short', hair_color='#3a2a1a', hat='cap', hat_color='#3ab0c0', outfit='#5a6a7a', apron='#8a6a4a', item='wrench')),
+    Char('gearfall-inventor', '🥽', 'humanoid', H(hair='spiky', hair_color='#f0f0f0', outfit='#f4f4f4', trim='#c89040', glasses=True, item='hammer', beard='#f0f0f0')),
+    Char('gearfall-clockkeeper', '🕰️', 'humanoid', H(hair='fringe', hair_color='#c8c8c8', beard='#d8d8d8', hat='band', hat_color='#6a4a2a', outfit='#6a4a8a', robe=True, item='lantern')),
+    Char('gearfall-apprentice', '🧑‍🔧', 'humanoid', H(hair='short', hair_color='#c05a2a', hat='hardhat', hat_color='#3ab0e0', outfit='#e0a030', item='wrench')),
+    Char('chromaria-mirror-merchant', '🪞', 'humanoid', H(hair='long', hair_color='#c8d8ff', outfit='#7a5ac0', trim='#e0e8ff', robe=True, item='orb', item_color='#d8f0ff')),
+    Char('chromaria-curator', '🖼️', 'humanoid', H(hair='bob', hair_color='#d03a5a', hat='beret', hat_color='#2a2a3a', outfit='#2a2a3a', trim='#ffd24a', glasses=True)),
+    Char('chromaria-musician', '🎻', 'humanoid', H(hair='long', hair_color='#ffb030', outfit='#3a8ad0', scarf='#ff6aa0', hat='flower')),
+    Char('chromaria-kid', '🧑‍🎨', 'humanoid', H(hair='spiky', hair_color='#4a2a1a', outfit='#e07a3a', apron='#c8a070', item='brush')),
 ]
 for n in NPCS:
     n.battle = False

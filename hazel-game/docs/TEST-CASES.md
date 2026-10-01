@@ -362,6 +362,33 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-314 | M | ✅ | Spire | the world Menu button is hidden during the climb; 🚪 Leave the Spire returns to the Spire door (world.exploring), Menu returns, and standing by the tower doesn't instantly reopen it (headless Chromium) |
 | TC-315 | M | ✅ | Spire | a fast double-click on a story panel advances exactly one panel (headless Chromium) |
 
+## Character portraits + Umbra (#75)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-316 | U | ✅ | CharacterPortrait | a fighter shows its battle sheet; a world-only NPC shows its world sheet facing the player (idleDown); an unknown id falls back to the emoji (CharacterPortrait.test) |
+| TC-317 | U | ✅ | sprites | Umbra's world and battle frames are larger than every other character's (sprites.test) |
+| TC-318 | M | ✅ | UI | dialogue box, Sage screen, HUD Ember, menu Ember + hero, and the battle name tag all show sprites, not emoji (headless Chromium render) |
+| TC-319 | M | ✅ | Spire | on the throne floor, Umbra looms oversized above the message / challenge panel with a violet glow; smaller on screens under 720px tall |
+
+## Village expansion: towns, side quests, secrets, items (#76)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-320 | U | ✅ | zones | all expanded maps keep the zone invariants: legend-only rows, closed buildings with one door, every door reachable, every indoor NPC talkable, one style per place, unique building names (zones.test) |
+| TC-321 | U | ✅ | secrets | each of the five towns hides ≥3 secrets; ids unique; every reward is real; every secret is reachable from the spawn without opening a gate (step-on for walkable tiles, bump for solid) (secrets.test) |
+| TC-322 | U | ✅ | secrets | every hidden passage 'H' joins two walkable sides; claiming a secret pays once and sets `secret:<id>`; a quest-item secret adds the item once; per-zone progress counts (secrets.test) |
+| TC-323 | U | ✅ | quests | each town has exactly two side quests with distinct givers; every topic zone still has exactly one main quest; quest items taken back are obtainable (quests.test) |
+| TC-324 | U | ✅ | quests | Mayor's Seal (secret → complete takes the seal, pays 40 coins + clover); Lost Lessons hint names the page still hidden; a secret found before the offer completes the quest at once; bakery deliveries go Wick → Sol in order; Widget's test needs both kills then the Professor (quests.test) |
+| TC-325 | U | ✅ | items | five new consumables are each sold in exactly one shop; every new merchant runs a shop; older saves gain zeroed slots (items.test) |
+| TC-326 | M | ✅ | world | the five expanded towns render in their own style with the new buildings, roofs and townsfolk (headless Chromium screenshots) |
+| TC-327 | M | ✅ | secrets | walking right through the village hedge passage into the hidden garden pops "Secret found!" and adds 40 coins + a Lucky Clover; bumping the plaza fountain finds the Town Seal (headless Chromium) |
+| TC-328 | M | ✅ | shop | bumping Mirror Hall's counter opens Glint's dialogue (headless Chromium) |
+| TC-329 | M | ✅ | battle | Mirror Charm bounces the next enemy hit back; Focus Tea doubles the next Attack; Lucky Clover doubles the coins (victory panel shows 🍀) (headless Chromium, mocked questions) |
+| TC-330 | M | ⬜ | battle | Sunseed Snack heals 30 HP + 1 ◆; Turbo Coil fills ◆; each is greyed out with a reason when it would do nothing |
+| TC-331 | M | ⬜ | menu | the menu shows "✨ Secrets: n/3 found here · n/15 across Lumina" and tags side quests with their town |
+| TC-332 | M | ⬜ | secrets | a twinkle ✦ blinks every few seconds over each unfound secret and disappears once it's found; indoor twinkles only show once the roof fades |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

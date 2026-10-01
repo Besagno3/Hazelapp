@@ -51,7 +51,18 @@ describe('shops (#73: every store is unique)', () => {
 describe('save items (#73)', () => {
   it('an older save with only potion/hint gains zeroed slots for new items', () => {
     const s = normalizeSave({ items: { potion: 3, hint: 2 } });
-    expect(s.items).toEqual({ potion: 3, hint: 2, elixir: 0, spark: 0, ward: 0 });
+    expect(s.items).toEqual({
+      potion: 3,
+      hint: 2,
+      elixir: 0,
+      spark: 0,
+      ward: 0,
+      clover: 0,
+      tea: 0,
+      snack: 0,
+      coil: 0,
+      mirror: 0,
+    });
   });
   it('new item counts round-trip', () => {
     const s = normalizeSave({ items: { potion: 1, hint: 0, elixir: 2, spark: 1, ward: 4 } });

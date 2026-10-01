@@ -16,6 +16,7 @@ import {
   type BuildingDef,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
+import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
@@ -108,6 +109,8 @@ export interface WorldCanvasCallbacks {
   onWard?: (id: string) => void;
   onStairs?: () => void;
   onUmbra?: () => void;
+  /** Found a hidden secret (bumped its scenery or stepped on its spot). */
+  onSecret?: (id: string) => void;
 }
 
 /**
@@ -340,7 +343,8 @@ export default function WorldCanvas({
         } else {
           tile(groundVariant(x, y), px, py);
         }
-        if (ch === '#') {
+        if (ch === '#' || ch === 'H') {
+          // 'H' hidden passages look exactly like solid scenery.
           tile(TILE_FRAME.solid, px, py, -40);
         } else if (ch === ',') {
           tile(TILE_FRAME.deco, px, py, -40);
@@ -377,6 +381,22 @@ export default function WorldCanvas({
           }
         }
       }
+    }
+
+    // --- Secrets: a faint twinkle marks each one not yet found ----------
+    // Drawn under the roofs (z 12 < 15), so indoor secrets only show inside.
+    const twinkles = new Map<string, { opacity: number; destroy: () => void }>();
+    for (const sec of z.secrets ?? []) {
+      if (flagsRef.current[secretFlag(sec.id)]) continue;
+      const t = k.add([
+        k.text('✦', { size: 12 }),
+        k.pos(sec.x * TILE + TILE - 7, sec.y * TILE + 7),
+        k.anchor('center'),
+        k.color(255, 250, 200),
+        k.opacity(0),
+        k.z(12),
+      ]);
+      twinkles.set(sec.id, t as unknown as { opacity: number; destroy: () => void });
     }
 
     // --- Buildings (#72): signs + roofs ---------------------------------
@@ -512,7 +532,7 @@ export default function WorldCanvas({
         // wanderers, stationary NPCs, the boss, the Spire — not the player or
         // Ember) block the step; on a bump, stop and repick a direction.
         if (
-          hitBox(c.x, c.y, WANDER_WALL_HALF) ||
+          hitBox(c.x, c.y, WANDER_WALL_HALF, true) ||
           // Townsfolk stay on their side of a building wall (no strolling in
           // or out of shops through the door).
           buildingAt(z, Math.floor(c.x / TILE), Math.floor(c.y / TILE)) !== homeBuilding ||
@@ -792,16 +812,17 @@ export default function WorldCanvas({
     const isOpenGate = (x: number, y: number) =>
       flagsRef.current[gateFlag(gateIdAt(zoneId, z.map, x, y))] === true;
 
-    /** What blocks the cell, if anything. */
-    function blockerAt(cx: number, cy: number): { ch: string; x: number; y: number } | null {
+    /** What blocks the cell, if anything. Hidden passages block `strict` movers (wanderers). */
+    function blockerAt(cx: number, cy: number, strict = false): { ch: string; x: number; y: number } | null {
       const ch = z.map[cy]?.[cx] ?? '#';
+      if (strict && ch === 'H') return { ch, x: cx, y: cy };
       if (WALKABLE_CHARS.has(ch)) return null;
       if (ch === 'G' && isOpenGate(cx, cy)) return null;
       return { ch, x: cx, y: cy };
     }
 
     /** Does a `half`-sized box centered at (px,py) overlap any blocked tile? */
-    function hitBox(px: number, py: number, half: number): { ch: string; x: number; y: number } | null {
+    function hitBox(px: number, py: number, half: number, strict = false): { ch: string; x: number; y: number } | null {
       const corners: [number, number][] = [
         [px - half, py - half],
         [px + half, py - half],
@@ -809,7 +830,7 @@ export default function WorldCanvas({
         [px + half, py + half],
       ];
       for (const [cx, cy] of corners) {
-        const b = blockerAt(Math.floor(cx / TILE), Math.floor(cy / TILE));
+        const b = blockerAt(Math.floor(cx / TILE), Math.floor(cy / TILE), strict);
         if (b) return b;
       }
       return null;
@@ -888,9 +909,14 @@ export default function WorldCanvas({
         else bumped = bumped ?? hit;
       }
 
-      // Bump interactions (gate / chest / save crystal).
+      // Bump interactions (secret / gate / chest / save crystal).
+      const bumpedSecret = bumped ? secretAt(z, bumped.x, bumped.y) : undefined;
       if (bumped && cooldown === 0) {
-        if (bumped.ch === 'G') {
+        if (bumpedSecret && !flagsRef.current[secretFlag(bumpedSecret.id)]) {
+          cooldown = TRIGGER_COOLDOWN;
+          cbRef.current.onMove(player.pos.x, player.pos.y);
+          cbRef.current.onSecret?.(bumpedSecret.id);
+        } else if (bumped.ch === 'G') {
           const id = gateIdAt(zoneId, z.map, bumped.x, bumped.y);
           cooldown = TRIGGER_COOLDOWN;
           // A warden-keyed Fiend gate checks a key instead of asking a question (#58).
@@ -1061,9 +1087,27 @@ export default function WorldCanvas({
         }
       }
 
+      // Secrets: twinkle now and then; vanish once found.
+      for (const [id, t] of twinkles) {
+        if (flagsRef.current[secretFlag(id)]) {
+          t.destroy();
+          twinkles.delete(id);
+          continue;
+        }
+        const phase = (k.time() + (id.length % 7) * 0.45) % 3.2;
+        t.opacity = phase < 0.8 ? Math.sin((phase / 0.8) * Math.PI) * 0.9 : 0;
+      }
+
       // Zone exits.
       const cellX = Math.floor(player.pos.x / TILE);
       const cellY = Math.floor(player.pos.y / TILE);
+      // A secret on open ground is found by stepping onto its spot.
+      const underfoot = secretAt(z, cellX, cellY);
+      if (underfoot && cooldown === 0 && !flagsRef.current[secretFlag(underfoot.id)]) {
+        cooldown = TRIGGER_COOLDOWN;
+        cbRef.current.onMove(player.pos.x, player.pos.y);
+        cbRef.current.onSecret?.(underfoot.id);
+      }
       const exit = z.exits.find((e) => e.x === cellX && e.y === cellY);
       if (exit) {
         triggered = true;
