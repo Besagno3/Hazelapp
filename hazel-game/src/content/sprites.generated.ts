@@ -2379,10 +2379,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "subtractopus": {
+  "kia": {
     "emoji": "🦑",
     "world": {
-      "sheet": "/sprites/subtractopus/world.png",
+      "sheet": "/sprites/kia/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2420,7 +2420,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/subtractopus/battle.png",
+      "sheet": "/sprites/kia/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,

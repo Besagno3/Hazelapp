@@ -1831,7 +1831,7 @@ ROSTER: list[Char] = [
     Char('umbra', '🌑', 'umbra', boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a')),
-    Char('subtractopus', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True, stache='#2e1c14')),
+    Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True, stache='#2e1c14')),
     Char('pirate-parrot', '🦜', 'flyer', H(kind='bird', color='#e03a3a', wing='#2a9ae0', tail='#2a9ae0', tail2='#ffd23a',
                                           pirate=True, beak='#f0e8d0', feet='#8a8a9a')),
     Char('fossil-fang', '🦖', 'fossil', H(color='#ece4cc', glow='#ff8a2a')),
