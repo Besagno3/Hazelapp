@@ -2251,8 +2251,8 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     "emoji": "🌑",
     "world": {
       "sheet": "/sprites/umbra/world.png",
-      "frameW": 48,
-      "frameH": 48,
+      "frameW": 64,
+      "frameH": 64,
       "frames": 18,
       "anims": {
         "idle": {
@@ -2289,8 +2289,8 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     },
     "battle": {
       "sheet": "/sprites/umbra/battle.png",
-      "frameW": 48,
-      "frameH": 48,
+      "frameW": 96,
+      "frameH": 96,
       "frames": 7,
       "anims": {
         "idle": {

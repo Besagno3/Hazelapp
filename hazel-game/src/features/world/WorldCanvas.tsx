@@ -739,7 +739,7 @@ export default function WorldCanvas({
     if (umbraAt) {
       const ux = (umbraAt.x + 1) * TILE; // centred on the two-tile carpet
       const uy = umbraAt.y * TILE + TILE / 2;
-      const face = worldFace(k, { spriteId: 'umbra', emoji: '🌑', x: ux, y: uy, size: 34, z: 6 })
+      const face = worldFace(k, { spriteId: 'umbra', emoji: '🌑', x: ux, y: uy, size: 56, z: 6 })
         .obj as unknown as WorldActor;
       let t = 0;
       face.onUpdate(() => {
@@ -747,7 +747,7 @@ export default function WorldCanvas({
         t += k.dt() * 2;
         face.pos.y = uy + Math.sin(t) * 3; // a slow, menacing hover
       });
-      actors.push({ x: ux, y: uy, kind: 'umbra', radius: ACTOR_RADIUS.boss });
+      actors.push({ x: ux, y: uy, kind: 'umbra', radius: ACTOR_RADIUS.giant });
     }
 
     // --- Player ------------------------------------------------------------

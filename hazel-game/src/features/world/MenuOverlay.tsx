@@ -4,7 +4,8 @@ import { spellsKnown } from '../../content/spells';
 import { ALL_SHOP_ITEMS, CONSUMABLES, CONSUMABLE_IDS } from '../../content/items';
 import { GATE_KEYS } from '../../content/keys';
 import { avatarById } from '../../content/avatars';
-import { emberStatus, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
+import { emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_STAGE_LABEL } from '../../content/story';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
 import { heroMaxHp } from '../../lib/powerups';
 import { useSaveStore } from '../../store/saveStore';
@@ -67,7 +68,7 @@ export default function MenuOverlay() {
         </div>
 
         <div className="flex items-center gap-3 bg-white/10 rounded-xl p-3 mb-3">
-          <span className="text-3xl">{EMBER_SPRITES[ember]}</span>
+          <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={1.25} className="text-3xl" />
           <div className="flex-1">
             <div className="font-bold text-sm">Ember</div>
             <div className="text-xs text-white/70">

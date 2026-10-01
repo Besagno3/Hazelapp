@@ -21,6 +21,7 @@ import {
   emberStatus,
   endingPanels,
   EMBER_SPRITES,
+  EMBER_SPRITE_IDS,
   EMBER_STAGE_LABEL,
   EMBER_HATCHED,
   EMBER_HATCH_SEEN,
@@ -38,6 +39,7 @@ import {
   GROVE_PANELS,
   GROVE_SEEN,
 } from '../../content/story';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { playerAge } from '../../lib/age';
 import { heroMaxHp } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
@@ -204,7 +206,9 @@ export default function WorldScreen() {
           </p>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>{EMBER_SPRITES[ember]}</span>
+          <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>
+            <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={0.75} />
+          </span>
           <span title="HP">
             ❤️ {hp}/{maxHp}
           </span>

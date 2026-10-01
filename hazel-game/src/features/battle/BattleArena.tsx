@@ -27,6 +27,7 @@ import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { SpriteSheet } from './SpriteSheet';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { resolveSprite } from '../../content/sprites';
 import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
@@ -563,7 +564,13 @@ export default function BattleArena() {
         <div className="bg-indigo-950/90 border-2 border-white/70 rounded-xl px-4 py-2 text-white w-60">
           <div className="flex justify-between text-sm font-bold">
             <span>
-              {avatar.sprite} {avatar.name}
+              <CharacterPortrait
+                spriteId={avatar.spriteId}
+                emoji={avatar.sprite}
+                scale={0.75}
+                className="inline-block align-middle mr-1"
+              />
+              {avatar.name}
             </span>
             <span className="flex gap-0.5 items-center" title="Special charge">
               {Array.from({ length: CHARGE_MAX }).map((_, i) => (

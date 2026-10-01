@@ -1451,6 +1451,7 @@ class Char:
     drawer: str
     params: dict = field(default_factory=dict)
     boss: bool = False
+    giant: bool = False  # the final boss: 2× a boss's world size, 2× its battle resolution
     battle: bool = True  # NPCs are world-only
     world: bool = True
 
@@ -1508,7 +1509,7 @@ ROSTER: list[Char] = [
     Char('hourglass-imp', '⏳', 'hourglass'),
     Char('relic-golem', '🗿', 'golem', H(color='#9a8a70', accent='#6ad0c0', glow='#6affe0', runes=True, shield=True)),
     # ── The Crystal Spire ──
-    Char('umbra', '🌑', 'umbra', boss=True),
+    Char('umbra', '🌑', 'umbra', boss=True, giant=True),
     Char('clockwork-titan', '🦾', 'golem', H(color='#c89040', accent='#ff6a3a', glow='#ffe066', bolts=True, crown=True), boss=True),
 ]
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { NPC_DEFS, ROLE_SERVICE, type DialogueLine } from '../../content/npcs';
+import { NPC_DEFS, ROLE_SERVICE, npcSpriteId, type DialogueLine } from '../../content/npcs';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { questConversation, type QuestConversation } from '../../content/quests';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
@@ -86,7 +87,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
         className="w-full max-w-xl bg-indigo-950/95 border-4 border-white/80 rounded-xl p-5 text-white shadow-2xl"
       >
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-3xl">{npc.sprite}</span>
+          <CharacterPortrait spriteId={npcSpriteId(npc)} emoji={npc.sprite} scale={1.25} className="text-3xl" />
           <span className="font-bold text-amber-300">{npc.name}</span>
           {quest && (
             <span className="ml-auto text-[10px] uppercase tracking-wider bg-amber-400/20 text-amber-300 rounded px-2 py-0.5">
