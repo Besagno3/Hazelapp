@@ -1450,7 +1450,7 @@ def umbra(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.5, 8, 1.5))
 
 
-# ─── Batch-1 critters (Divvy Duck, Fossil Fang, Knight-Mare) ─────────────────
+# ─── Batch-1 critters (Raven Prince, Knight-Mare) ─────────────────
 
 
 def duck(c: Canvas, p: Pose, s: dict):
@@ -1539,56 +1539,139 @@ def duck(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(15, 30.5, 8, 1.3))
 
 
-def fossil(c: Canvas, p: Pose, s: dict):
-    """A T-rex skeleton put back together slightly wrong (one arm on the tail)."""
+def parrot(c: Canvas, p: Pose, s: dict):
+    """An upright pirate parrot; costume and colours come from params."""
     d = D(c, p)
-    bone = hexc(s.get('color', '#ece4cc'))
-    glow = hexc(s.get('glow', '#ff8a2a'))
+    col = hexc(s['color'])
+    wing = hexc(s.get('wing', dark(col, 0.1)))
+    band = hexc(s.get('band', '#ffd23a'))
+    tail = hexc(s.get('tail', wing))
+    lean, bob = d.lean, d.bob
+    hop = -0.8 if p.step and p.frame % 2 else 0.0
+    feet = d.part(lean * 0.4, 0)
+    leg = hexc(s.get('legs', '#8a8a9a'))
+    feet.line(15, 25, 14.5 + p.step * 0.6, 29.6, leg, w=0.9)
+    feet.line(13 + p.step * 0.6, 30, 16.5 + p.step * 0.6, 30, leg, w=0.8)
+    if s.get('peg'):
+        feet.line(18.5, 25, 18.5 - p.step * 0.6, 30, '#9a6a3a', w=1.3)  # wooden peg leg
+    else:
+        feet.line(18.5, 25, 18.5 - p.step * 0.6, 29.6, leg, w=0.9)
+        feet.line(17 - p.step * 0.6, 30, 20.5 - p.step * 0.6, 30, leg, w=0.8)
+    d.put(feet)
+    T = d.part(lean, bob + hop)
+    T.poly([(12.5, 21), (6.5, 30.5), (9, 31), (15, 23)], tail)  # long tail feathers
+    T.poly([(13.5, 22), (9.5, 31), (11.5, 31), (15.5, 23.5)], dark(tail, 0.12))
+    d.put(T)
+    B = d.part(lean, bob + hop)
+    B.ellipse(16, 18.5, 5.6, 7.4, col, rot=0.25)
+    if s.get('chest'):
+        B.ellipse(18, 19.5, 3, 5.2, s['chest'], rot=0.25)
+    d.put(B)
+    W = d.part(lean, bob + hop)
+    flare = {'raise': -0.9, 'strike': 0.5, 'follow': 0.3}.get(p.arm, 0.0)
+    W.ellipse(13.8, 18.5, 3.6, 6.4, wing, rot=0.35 + flare)
+    W.ellipse(13.2 + flare * 2, 16.2, 2.6, 2.2, band, rot=0.35 + flare)  # shoulder band
+    W.ellipse(12.2 - flare, 23.5, 2.0, 2.8, dark(wing, 0.18), rot=0.35 + flare)  # flight-feather tips
+    d.put(W)
+    H = d.part(lean, bob + hop)
+    H.ellipse(19, 10, 5, 4.7, col)
+    if s.get('face'):
+        H.ellipse(21.3, 11, 2.3, 2.1, s['face'], shade=False)
+    gape = 1.4 if p.arm in ('strike', 'raise') or p.hurt else 0.0
+    bk = hexc(s.get('beak', '#f0e8d0'))
+    H.poly([(22.5, 12.5 + gape * 0.3), (25.3, 13 + gape), (23.5, 14.8 + gape)], dark(bk, 0.35))  # lower beak
+    H.poly([(22, 8.2), (25.5, 8.6), (27.6, 11.6), (26.4, 14.6), (25, 12.6), (22, 12.6)], bk)  # hooked upper beak
+    d.eyes(H, [(21.4, 9.4)], shine=True)
+    if s.get('earring'):
+        H.ellipse(17.6, 13.6, 1.3, 1.3, '#ffcf3a', shade=False)
+        H.erase_ellipse(17.6, 13.6, 0.55, 0.55)
+    hat = s.get('hat')
+    hc = hexc(s.get('hat_color', '#2a2230'))
+    H.dy -= 1.6  # hats perch above the eye
+    if hat == 'bicorne':
+        H.poly([(12, 8), (14, 3.5), (19, 1.8), (24, 3.5), (25.5, 7.2), (19, 6.2)], hc)
+        H.line(13, 7.6, 25, 6.9, '#e0b040', w=0.6)
+        H.line(17.6, 3.4, 17.6, 5.6, WHITE, w=0.5)  # a little pi on the hat
+        H.line(19.4, 3.4, 19.4, 5.6, WHITE, w=0.5)
+        H.line(16.8, 3.4, 20.2, 3.4, WHITE, w=0.5)
+    elif hat == 'bandana':
+        H.poly([(14.2, 9), (15.5, 5.2), (20, 4.6), (23.6, 6.6), (23.8, 8.2), (18, 7.6)], hc)
+        H.poly([(14.5, 8), (10.5, 7.5 + (p.frame % 2)), (11, 10.5), (14.5, 9.5)], dark(hc, 0.1))  # knot tails
+        if d.sep:
+            for (x, y) in ((17, 6.2), (20, 5.6), (22.4, 6.8)):
+                H.dot(x, y, WHITE)
+    elif hat == 'tricorn':
+        H.poly([(13.5, 7.5), (15, 3.2), (19.5, 1.8), (24, 4.2), (24.5, 7.6), (19, 6.4)], hc)
+        H.line(14, 7.2, 24.2, 7.3, '#ffd24a', w=0.6)
+        H.poly([(18.5, 1.9), (19.8, -0.6), (21, 2.2)], '#ffffff')  # feather
+    H.dy += 1.6
+    if s.get('patch') and not p.hurt:
+        H.line(15.5, 7.4, 23.2, 11.4, '#2a2230', w=0.6)  # strap to the patch on the far eye
+    d.put(H)
+    if s.get('coin'):
+        K = d.part(lean, bob + hop)
+        cy = {'raise': 15, 'strike': 18}.get(p.arm, 21)
+        cx = {'strike': 22.5}.get(p.arm, 20.5)
+        K.ellipse(cx, cy, 2.6, 2.6, '#ffcf3a')
+        K.line(cx - 1, cy - 0.9, cx - 1, cy + 1.2, '#a07010', w=0.45)  # pi stamp
+        K.line(cx + 0.9, cy - 0.9, cx + 0.9, cy + 1.2, '#a07010', w=0.45)
+        K.line(cx - 1.6, cy - 0.9, cx + 1.6, cy - 0.9, '#a07010', w=0.45)
+        d.put(K)
+    finish(c, d, shadow=(15, 30.8, 7, 1.2))
+
+
+def mummy(c: Canvas, p: Pose, s: dict):
+    """A little pharaoh mummy: wrapped up, arms out, one bandage coming loose."""
+    d = D(c, p)
+    wrap = hexc(s.get('color', '#e8dcc0'))
+    seam = dark(wrap, 0.22)
+    glow = hexc(s.get('glow', '#8affb0'))
+    stripe_a = hexc(s.get('nemes', '#2a5ab0'))
+    stripe_b = hexc(s.get('nemes2', '#ffcf3a'))
     lean, bob = d.lean, d.bob
     legs = d.part(lean * 0.4, 0)
-    for i, (hx, col) in enumerate(((11.5, dark(bone, 0.12)), (13, bone))):
-        off = p.step * (1.6 if i else -1.6)
-        legs.line(hx, 19, hx + 2.5 + off * 0.5, 24, col, w=1.6)
-        legs.line(hx + 2.5 + off * 0.5, 24, hx + off, 28.5, col, w=1.3)
-        legs.line(hx - 1 + off, 29.3, hx + 3 + off, 29.3, col, w=1.2)
+    for i, lx in enumerate((13.5, 18)):
+        off = p.step * (1.4 if i else -1.4)
+        legs.rect(lx - 1.7 + off, 23.5, lx + 1.7 + off, 30.3, wrap if i else dark(wrap, 0.08))
+        legs.line(lx - 1.7 + off, 26.5, lx + 1.7 + off, 27.3, seam, w=0.4)
     d.put(legs)
-    sp = d.part(lean, bob)
-    # tail: tapering vertebrae, flicking a little
-    flick = (1 if p.frame % 2 else 0)
-    for i, (x, y, w) in enumerate(((10, 18, 1.8), (7.5, 18.5, 1.6), (5, 18.5 - flick * 0.5, 1.4), (2.5, 18 - flick, 1.2))):
-        sp.ellipse(x, y, w * 0.9, w * 0.8, bone)
-    # the misplaced arm, waving from the tail
-    wave = -1.5 if p.frame % 2 else 0
-    sp.line(5, 17.5, 4.5, 14, bone, w=0.9)
-    sp.line(4.5, 14, 3 + wave * 0.3, 12 + wave, bone, w=0.7)
-    sp.line(4.5, 14, 6, 12 + wave, bone, w=0.7)
-    # spine + ribs
-    sp.line(10, 17.5, 19, 13, bone, w=1.4)
-    for i, x in enumerate((12, 14.2, 16.4)):
-        y = 17 - i * 1.1
-        sp.line(x, y, x + 0.6, y + 5.5 - i * 0.4, dark(bone, 0.05), w=0.9)
-    sp.ellipse(11.5, 18.5, 2.4, 1.8, bone)  # hip
-    d.put(sp)
+    back = d.part(lean, bob)
+    flap = 1.2 if p.frame % 2 else -0.6
+    back.line(12, 10, 8, 12.5 + flap, dark(wrap, 0.05), w=1.1)  # a bandage coming loose
+    back.line(8, 12.5 + flap, 4.5, 12 + flap * 1.6, dark(wrap, 0.05), w=1.0)
+    d.put(back)
+    body = d.part(lean, bob)
+    body.rect(11, 13.5, 21.5, 24.5, wrap)
+    for i, y in enumerate((15.5, 18, 20.5, 23)):
+        body.line(11, y + (0.6 if i % 2 else 0), 21.5, y + (0 if i % 2 else 0.6), seam, w=0.45)
+    body.poly([(12, 13.5), (20.5, 13.5), (19, 16.5), (13.5, 16.5)], stripe_b)  # gold collar
+    body.line(13, 15, 19.5, 15, stripe_a, w=0.6)
+    d.put(body)
     head = d.part(lean, bob)
-    head.line(19, 13.5, 21, 10, bone, w=1.4)
-    jaw = {'raise': 1.5, 'strike': 3.0, 'follow': 1.0}.get(p.arm, 0.4)
-    if p.hurt:
-        jaw = 2.0
-    # lower jaw (drops open to attack), then the skull over it
-    head.poly([(20, 11), (29, 11 + jaw * 0.6), (28.5, 12.6 + jaw), (21, 13)], dark(bone, 0.08))
-    if d.sep:
-        for tx in (23, 25, 27):
-            head.dot(tx, 11 + jaw * 0.5, WHITE)
-    head.poly([(18.5, 9), (21, 4.5), (26, 5), (30, 8), (29.5, 10.5), (20, 11)], bone)
-    head.ellipse(22.3, 7.3, 1.6, 1.4, (40, 26, 30), shade=False)  # eye socket
-    ec = WHITE if p.hurt else glow
-    head.dot(22.5, 7, ec)
-    head.dot(28.6, 8, (60, 40, 40))  # nostril
-    if d.sep:
-        for tx in (24, 26, 28):
-            head.dot(tx, 10.3, WHITE)
+    # striped nemes headdress, then the wrapped face peeking out
+    head.poly([(10, 14.5), (11.5, 5), (16.5, 2.8), (21.5, 5), (23, 14.5), (19.5, 12), (13.5, 12)], stripe_a)
+    for y in (6.5, 9, 11.5):
+        head.line(10.8, y + 1.2, 22.2, y + 1.2, stripe_b, w=0.6)
+    head.ellipse(17.5, 8.8, 4.4, 4.2, wrap)
+    head.line(13.3, 7.2, 21.8, 6.6, seam, w=0.45)
+    head.line(13.3, 11.2, 21.8, 11.6, seam, w=0.45)
+    if p.facing != 'up':
+        head.rect(14.6, 8, 21.6, 10, (24, 16, 28), shade=False)  # the gap in the wraps
+        if p.hurt:
+            head.dot(17, 8.5, WHITE, w=2, h=1)
+            head.dot(19.8, 8.5, WHITE, w=2, h=1)
+        elif not p.blink:
+            head.dot(17, 8.4, glow, w=1, h=1.4)
+            head.dot(19.8, 8.4, glow, w=1, h=1.4)
+    head.poly([(15, 2.8), (16.5, 0.5), (18, 2.8)], stripe_b)  # cobra crest
     d.put(head)
-    finish(c, d, shadow=(15, 30.5, 9, 1.3))
+    reach = {'raise': (24, 9), 'strike': (29, 15.5), 'follow': (27, 18)}.get(p.arm, (26.5, 16 + (0.5 if p.frame % 2 else 0)))
+    for dy, dx in ((0, 0), (3.2, -1)):  # both arms stretched out in front, classic mummy shuffle
+        a = d.part(lean, bob)
+        a.line(17.5 + dx, 16 + dy, reach[0] + dx, reach[1] + dy, dark(wrap, 0.07) if dy == 0 else wrap, w=1.8)
+        a.line(reach[0] + dx - 2.5, reach[1] + dy - 0.8, reach[0] + dx - 2, reach[1] + dy + 0.8, seam, w=0.4)
+        d.put(a)
+    finish(c, d, shadow=(16, 30.8, 7, 1.3))
 
 
 def _tentacle(L: Canvas, pts, w0: float, w1: float, col, sucker=None):
@@ -1766,9 +1849,10 @@ DRAWERS = {
     'seal': seal,
     'umbra': umbra,
     'duck': duck,
-    'fossil': fossil,
     'knight_mare': knight_mare,
     'kraken': kraken,
+    'parrot': parrot,
+    'mummy': mummy,
 }
 
 
@@ -1842,7 +1926,7 @@ ROSTER: list[Char] = [
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
     Char('pirate-parrot', '🦜', 'flyer', H(kind='bird', color='#e03a3a', wing='#2a9ae0', tail='#2a9ae0', tail2='#ffd23a',
                                           pirate=True, beak='#f0e8d0', feet='#8a8a9a')),
-    Char('fossil-fang', '🦖', 'fossil', H(color='#ece4cc', glow='#ff8a2a')),
+    Char('tut-tut', '🧟', 'mummy', H()),
     Char('knight-mare', '🐴', 'knight_mare', H(steel='#a8b4c4', coat='#ece6da', mane='#c8343a', plume='#7a4ad0')),
     Char('clockwork-titan', '🦾', 'golem', H(color='#c89040', accent='#ff6a3a', glow='#ffe066', bolts=True, crown=True), boss=True),
 ]

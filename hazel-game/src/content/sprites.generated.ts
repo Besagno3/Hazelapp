@@ -2511,10 +2511,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "fossil-fang": {
-    "emoji": "🦖",
+  "tut-tut": {
+    "emoji": "🧟",
     "world": {
-      "sheet": "/sprites/fossil-fang/world.png",
+      "sheet": "/sprites/tut-tut/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2552,7 +2552,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/fossil-fang/battle.png",
+      "sheet": "/sprites/tut-tut/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
