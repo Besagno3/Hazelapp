@@ -1577,6 +1577,83 @@ def fossil(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(15, 30.5, 9, 1.3))
 
 
+def _tentacle(L: Canvas, pts, w0: float, w1: float, col, sucker=None):
+    """Tapering tentacle through `pts`; optional sucker dots along it."""
+    n = len(pts) - 1
+    for i, (a, b) in enumerate(zip(pts, pts[1:])):
+        w = w0 + (w1 - w0) * i / max(n - 1, 1)
+        L.line(a[0], a[1], b[0], b[1], col, w=w)
+    if sucker is not None:
+        for (x, y) in pts[1:-1:2]:
+            L.dot(x, y + 0.6, sucker)
+
+
+def kraken(c: Canvas, p: Pose, s: dict):
+    """A sea kraken with a handlebar mustache and sabre-tooth fangs."""
+    d = D(c, p)
+    col = hexc(s['color'])
+    deep = dark(col, 0.14)
+    suck = light(col, 0.35)
+    stache = hexc(s.get('stache', '#3a2418'))
+    fang = hexc(s.get('fang', '#f6eedc'))
+    lean, bob = d.lean, d.bob
+    sw = 1 if p.frame % 2 else -1  # tentacle sway
+    back = d.part(lean, bob)
+    # two big tentacles rearing up behind the mantle
+    _tentacle(back, [(9, 18), (5, 14), (3, 9 + sw), (4.5, 5 + sw), (7, 4.5 + sw), (7.5, 6.5 + sw)], 2.6, 1.0, deep)
+    _tentacle(back, [(21, 18), (26, 15), (29, 10 - sw), (28, 6.5 - sw), (26, 6.5 - sw)], 2.4, 1.0, deep)
+    d.put(back)
+    legs = d.part(lean * 0.6, bob * 0.5)
+    for i, bx in enumerate((8.5, 12.5, 16.5, 20.5, 24)):
+        dirn = -1 if bx < 16 else 1
+        curl = sw if i % 2 else -sw
+        pts = [(bx, 19), (bx + dirn * 1.0, 24), (bx + dirn * 2.2 + curl * 0.5, 28), (bx + dirn * 4.2, 29.5),
+               (bx + dirn * 5.2, 28 + curl * 0.4)]
+        _tentacle(legs, pts, 2.6, 1.0, col if i % 2 else dark(col, 0.06), sucker=suck if d.sep else None)
+    d.put(legs)
+    body = d.part(lean, bob)
+    # tall mantle swept back, with a pair of fins at the top
+    body.poly([(9.5, 7), (6, 2.5), (11.5, 4.5)], deep)
+    body.ellipse(14.5, 10.5, 7.2, 8.6, col, rot=-0.3)
+    body.ellipse(17, 16.5, 7.5, 4.5, col)
+    for (x, y) in ((11, 6), (13.5, 3.5), (10, 11)):
+        body.dot(x, y, light(col, 0.2), w=2, h=2)
+    if s.get('minus'):
+        body.rect(11, 8.5, 15.5, 10, WHITE, shade=False)
+    d.put(body)
+    face = d.part(lean, bob)
+    ex = [17.8, 22]
+    if p.facing != 'up':
+        for x in ex:  # glaring eye-whites so the face reads under the mustache
+            face.ellipse(x + 0.3, 11.8, 1.7, 1.6, WHITE, shade=False)
+        d.eyes(face, [(x + 0.3, 11.3) for x in ex], h=2, shine=False)
+        if not p.hurt:
+            face.line(16, 9.2, 19.3, 10.4, dark(col, 0.5), w=0.9)
+            face.line(24, 9.2, 20.7, 10.4, dark(col, 0.5), w=0.9)
+    d.put(face, outline=False)
+    teeth = d.part(lean, bob)
+    # sabre-tooth fangs hang below the mustache; longer when it lunges
+    fl = {'strike': 6.5, 'follow': 6.0, 'raise': 5.5}.get(p.arm, 5.0)
+    for fx in (18.6, 21.4):
+        teeth.poly([(fx - 0.9, 16.4), (fx + 0.9, 16.4), (fx + 0.1, 16.4 + fl)], fang)
+    d.put(teeth)
+    # thin handlebar mustache with curled tips (unoutlined so the face stays open)
+    tw = 0.5 if p.frame % 2 else 0
+    lip = d.part(lean, bob)
+    for side in (-1, 1):
+        pts = [(20, 15.2), (20 + side * 2.5, 16.2), (20 + side * 5, 15.6), (20 + side * 6.2, 14 - tw), (20 + side * 5.3, 13.2 - tw)]
+        _tentacle(lip, pts, 1.5, 0.8, stache)
+    d.put(lip, outline=False)
+    if s.get('loot'):
+        grab = d.part(lean, bob)
+        tip = {'raise': (27, 3), 'strike': (29, 12), 'follow': (28.5, 16)}.get(p.arm, (28.5, 7))
+        _tentacle(grab, [(24, 18), (27, 16), (tip[0], tip[1] + 2.5)], 2.0, 1.4, dark(col, 0.04))
+        grab.ellipse(tip[0], tip[1], 2.4, 2.4, '#ffcf3a')
+        grab.dot(tip[0] - 0.5, tip[1] - 1, '#fff4b0')
+        d.put(grab)
+    finish(c, d, shadow=(16, 30.6, 11, 1.3))
+
+
 def _rot(pts, ang, cx=16.0, cy=29.5):
     cs, sn = math.cos(ang), math.sin(ang)
     return [(cx + (x - cx) * cs - (y - cy) * sn, cy + (x - cx) * sn + (y - cy) * cs) for x, y in pts]
@@ -1683,6 +1760,7 @@ DRAWERS = {
     'duck': duck,
     'fossil': fossil,
     'knight_mare': knight_mare,
+    'kraken': kraken,
 }
 
 
@@ -1753,7 +1831,7 @@ ROSTER: list[Char] = [
     Char('umbra', '🌑', 'umbra', boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('divvy-duck', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a')),
-    Char('subtractopus', '🐙', 'octopus', H(color='#6a5ad8', minus=True, brow=True, loot=True)),
+    Char('subtractopus', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True, stache='#2e1c14')),
     Char('pirate-parrot', '🦜', 'flyer', H(kind='bird', color='#e03a3a', wing='#2a9ae0', tail='#2a9ae0', tail2='#ffd23a',
                                           pirate=True, beak='#f0e8d0', feet='#8a8a9a')),
     Char('fossil-fang', '🦖', 'fossil', H(color='#ece4cc', glow='#ff8a2a')),

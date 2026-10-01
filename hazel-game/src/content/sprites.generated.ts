@@ -2380,7 +2380,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "subtractopus": {
-    "emoji": "🐙",
+    "emoji": "🦑",
     "world": {
       "sheet": "/sprites/subtractopus/world.png",
       "frameW": 32,
