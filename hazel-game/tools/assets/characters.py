@@ -2030,6 +2030,241 @@ def piston_boar(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.9, 10, 1.2))
 
 
+# ─── Batch-3 critters (Chromaria + Whispering Woods) ─────────────────────────
+
+
+def clay(c: Canvas, p: Pose, s: dict):
+    """A lump of clay that keeps squishing itself into new (mostly wrong) shapes."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#d0784a'))
+    lean = d.lean
+    L = d.part(lean, 0)
+    form = p.frame % 3 if not p.hurt else 3
+    if p.arm == 'strike':
+        form = 4
+    # each form is a set of lumps (cx, cy, rx, ry)
+    forms = {
+        0: [(15, 24.5, 8.5, 5.5), (13, 19.5, 5, 4), (18.5, 20, 3.5, 3)],
+        1: [(16, 25, 9.5, 5), (16, 20, 5.5, 3.5), (11, 21, 2.5, 2.5)],
+        2: [(16, 25.5, 7.5, 4.5), (16, 19.5, 4.5, 4.5), (16, 14.5, 3.5, 2.5)],  # a wobbly almost-vase
+        3: [(16, 26, 10, 4), (12, 23, 3, 2.5), (20, 23, 3, 2)],  # splatted
+        4: [(17, 25, 8.5, 5), (22, 20, 5.5, 3.5), (26, 18.5, 3, 2.5)],  # lunging fist of clay
+    }[form]
+    for i, (x, y, rx, ry) in enumerate(forms):
+        L.ellipse(x, y, rx, ry, col if i == 0 else light(col, 0.04 * i))
+    if form == 2:
+        L.ellipse(16, 12.6, 3.8, 1.2, light(col, 0.12))  # the rim it was trying for
+        L.ellipse(16, 12.6, 2.4, 0.6, dark(col, 0.3), shade=False)
+    if d.sep:
+        for (x, y) in ((11, 25), (19.5, 26.5), (14, 21)):  # thumbprints
+            L.ellipse(x, y, 1.1, 0.8, dark(col, 0.12), shade=False)
+    # a sculpting loop-tool stuck in its head
+    tx, ty = forms[1][0] if form != 2 else 16, forms[1][1] - forms[1][3] if form != 2 else 13
+    L.line(tx - 1, ty + 1, tx - 3.5, ty - 4, '#c8a070', w=0.8)
+    L.ellipse(tx - 4, ty - 5, 1.3, 1.3, '#8a96a8', shade=False)
+    L.erase_ellipse(tx - 4, ty - 5, 0.6, 0.6)
+    fy = forms[0][1] - 2.5
+    ex = face_x(p, [17.5, 21], [13, 17.5])
+    if ex:
+        d.eyes(L, [(ex[0], fy - 0.8), (ex[1], fy + 0.4)])  # lopsided eyes
+        if d.sep:
+            L.line(ex[0] + 0.5, fy + 3, ex[1], fy + 2.4, dark(col, 0.45), w=0.5)
+    d.put(L)
+    finish(c, d, shadow=(16, 30.6, 9, 1.2))
+
+
+def mime(c: Canvas, p: Pose, s: dict):
+    """A silent mime pressing its gloves against an invisible box."""
+    d = D(c, p)
+    face = hexc(s.get('face', '#f6f4f0'))
+    lean, bob = d.lean, d.bob
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((13.5, 17.5)):
+        off = p.step * (1.2 if i else -1.2)
+        legs.rect(lx - 1.4 + off, 23, lx + 1.4 + off, 29.5, '#2a2430')
+        legs.rect(lx - 1.6 + off, 29, lx + 2.2 + off, 30.6, '#1a1a20')
+    d.put(legs)
+    body = d.part(lean, bob)
+    body.rect(11.5, 15, 19.5, 23.5, WHITE)
+    for y in (16.2, 18.4, 20.6, 22.8):  # striped shirt
+        body.rect(11.5, y, 19.5, y + 1.1, '#2a2430', shade=False)
+    body.poly([(12.5, 15), (18.5, 15), (17, 17), (14, 17)], '#d0303a')  # red scarf
+    body.poly([(17, 16), (19, 19.5), (17.6, 19.8)], '#b02030')
+    d.put(body)
+    head = d.part(lean, bob)
+    head.ellipse(16, 10.5, 4.8, 4.6, face)
+    head.ellipse(15, 6.2, 4.6, 1.8, '#2a2430')  # beret
+    head.dot(13.5, 4.2, '#2a2430', w=1, h=1.2)
+    if p.facing != 'up':
+        ex = face_x(p, [16.8, 19.6], [14.2, 17.8])
+        d.eyes(head, [(x, 9.6) for x in ex], h=1, shine=False)
+        if d.sep:
+            head.dot(ex[0], 11.4, '#2a2430', w=1, h=1)  # painted tear
+            head.ellipse((ex[0] + ex[1]) / 2 + 0.3, 12.6, 1.1, 0.6, '#d0303a', shade=False)  # red lips
+            head.line(ex[0] - 0.6, 8.2, ex[0] + 0.8, 7.8, '#2a2430', w=0.4)  # arched brows
+            head.line(ex[1] - 0.6, 7.8, ex[1] + 0.8, 8.2, '#2a2430', w=0.4)
+    d.put(head)
+    # the invisible box: a faint pane it keeps bumping into
+    wall_x = {'strike': 27.5, 'follow': 26}.get(p.arm, 24.5)
+    pane = d.part(lean, bob)
+    pane.line(wall_x + 1.2, 6, wall_x + 1.2, 28, (190, 220, 255), w=0.4)
+    if d.sep:
+        pane.dot(wall_x + 0.6, 9, WHITE)
+        pane.dot(wall_x + 0.6, 10.5, WHITE)
+    d.put(pane, outline=False)
+    arms = d.part(lean, bob)
+    for i, hy in enumerate((13.5, 18.5) if p.arm != 'raise' else (10, 14.5)):
+        arms.line(18, 16.5 + i * 1.5, wall_x - 1, hy, WHITE if i else (230, 230, 236), w=1.4)
+        arms.ellipse(wall_x, hy, 1.4, 2.0, WHITE)  # flat palm on the glass
+    d.put(arms)
+    finish(c, d, shadow=(16, 30.9, 6, 1.2))
+
+
+def peacock(c: Canvas, p: Pose, s: dict):
+    """A peacock whose fanned tail is splashed with paint; it carries a brush."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#2a6ad0'))
+    lean, bob = d.lean, d.bob
+    spread = {'raise': 1.15, 'strike': 0.8, 'follow': 0.9}.get(p.arm, 1.0) * (1.04 if p.frame % 2 else 1.0)
+    paints = ['#e8303a', '#ff9a2a', '#ffe03a', '#3ac04a', '#3aa0ff', '#9a5ae0', '#ff6ac0']
+    T = d.part(lean * 0.5, bob)
+    fx, fy = 13, 21  # the fan rises in a big arc behind the body
+    n = 9
+    tips = []
+    for i in range(n):
+        a = math.radians(196 + i * (148 / (n - 1)))
+        r = 12.5 * spread
+        tips.append((fx + math.cos(a) * r, fy + math.sin(a) * r * 0.95))
+    T.poly([(fx, fy)] + tips, '#1e7a50')  # the fan's body
+    for i, (x, y) in enumerate(tips):
+        T.line(fx, fy, x, y, '#3ab07a', w=0.6)
+        T.ellipse(x, y, 2.4, 2.4, '#3ab07a')
+        T.ellipse(x, y, 1.4, 1.4, paints[i % 7], shade=False)  # each eye-spot a different paint
+    if d.sep:  # wet paint dripping off the feathers
+        for i in (1, 4, 7):
+            x, y = tips[i]
+            T.line(x, y + 2, x, y + 3.6 + (p.frame % 2), paints[i % 7], w=0.5)
+    d.put(T)
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((15, 18)):
+        off = p.step * (0.8 if i else -0.8)
+        legs.line(lx, 24, lx + off, 29.6, '#8a8a9a', w=0.8)
+        legs.line(lx + off - 1, 30, lx + off + 1.6, 30, '#8a8a9a', w=0.7)
+    d.put(legs)
+    B = d.part(lean, bob)
+    B.ellipse(16.5, 20.5, 5, 4.6, col)
+    B.ellipse(13.5, 20.5, 3, 3.6, '#2a8a5a', rot=0.3)  # folded wing
+    B.poly([(18, 18), (19.5, 11), (21.5, 11), (20.5, 18)], col)  # neck
+    B.ellipse(21, 9.5, 2.8, 2.6, col)
+    for x in (19.5, 21, 22.5):  # crest
+        B.line(21, 7.5, x, 4.5, dark(col, 0.2), w=0.4)
+        B.dot(x - 0.4, 4, '#3ab07a', w=1, h=1)
+    B.ellipse(21.8, 9.8, 1.2, 0.7, WHITE, shade=False)  # face stripe
+    d.eyes(B, [(21.8, 9.2)], h=1, shine=False)
+    B.poly([(23.4, 9.2), (25.6, 10), (23.4, 10.8)], '#c8a060')  # beak
+    d.put(B)
+    brush = d.part(lean, bob)
+    tip = {'raise': (27, 4), 'strike': (30, 12.5), 'follow': (28.5, 14)}.get(p.arm, (28.5, 8.5))
+    brush.line(24.8, 10.2, tip[0], tip[1], '#c8884a', w=0.7)  # paintbrush held in the beak
+    brush.ellipse(tip[0] + 0.3, tip[1] - 0.2, 1.1, 0.9, paints[p.frame % 7], shade=False)
+    d.put(brush)
+    finish(c, d, shadow=(16, 30.8, 8, 1.2))
+
+
+def pinecone(c: Canvas, p: Pose, s: dict):
+    """A porcupine whose spiky back looks exactly like a pinecone; curls up to attack."""
+    d = D(c, p)
+    scale = hexc(s.get('scale', '#a0683a'))
+    fur = hexc(s.get('fur', '#c8a07a'))
+    lean, bob = d.lean, d.bob
+    curled = p.arm in ('strike', 'follow')
+    if curled:  # rolled into a perfect pinecone ball
+        B = d.part(lean, bob)
+        B.ellipse(17, 23, 7, 6.6, scale)
+        for r in range(3):
+            for k in range(5 + r):
+                a = k / (5 + r) * 2 * math.pi + r * 0.4 + p.frame * 0.5
+                x, y = 17 + math.cos(a) * (2 + r * 2), 23 + math.sin(a) * (2 + r * 2)
+                B.poly([(x - 1.2, y + 0.6), (x, y - 1.2), (x + 1.2, y + 0.6)], dark(scale, 0.14 + r * 0.04))
+        d.put(B)
+        finish(c, d, shadow=(17, 30.6, 7, 1.2))
+        return
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((12, 15, 19, 21.5)):
+        off = p.step * (1 if i % 2 else -1)
+        legs.rect(lx - 0.9 + off, 25, lx + 0.9 + off, 29.8, dark(fur, 0.2 if i % 2 == 0 else 0.1))
+    d.put(legs)
+    B = d.part(lean, bob)
+    B.ellipse(16, 23, 8.5, 4.8, fur)  # belly
+    B.ellipse(14.5, 20.5, 8.5, 6.5, scale)  # pinecone back
+    for row, (y, n, x0) in enumerate(((16, 4, 9), (18.6, 5, 7.5), (21.2, 5, 7.5), (23.8, 4, 9))):
+        for k in range(n):
+            x = x0 + k * 3.2 + (1.6 if row % 2 else 0)
+            B.poly([(x - 1.5, y + 0.8), (x, y - 1.4), (x + 1.5, y + 0.8)], dark(scale, 0.18))
+            B.dot(x - 0.3, y - 0.4, light(scale, 0.2))
+    d.put(B)
+    H = d.part(lean, bob)
+    H.ellipse(23, 22, 3.6, 3.2, fur)
+    H.poly([(25.5, 21), (28.8, 22.6), (25.5, 24)], light(fur, 0.05))  # pointy snout
+    H.dot(28.6, 22.2, '#3a2a2a', w=1, h=1)
+    H.ellipse(21.5, 19.6, 1, 1, dark(fur, 0.2))  # ear
+    if p.facing != 'up':
+        d.eyes(H, [(24.2, 21)], h=1)
+        if d.sep:
+            H.dot(23, 23, BLUSH)
+    d.put(H)
+    finish(c, d, shadow=(16, 30.8, 9, 1.2))
+
+
+def wolf_pup(c: Canvas, p: Pose, s: dict):
+    """A wolf pup practising its howl, which comes out as a squeak."""
+    d = D(c, p)
+    fur = hexc(s.get('fur', '#8a94a8'))
+    belly = hexc(s.get('belly', '#e8e6ee'))
+    lean, bob = d.lean, d.bob
+    howl = (p.frame == 1 or p.arm == 'raise') and not p.hurt
+    tail = d.part(lean, bob)
+    wag = 1.2 if p.frame % 2 else -0.6
+    tail.poly([(8.5, 20), (3, 15 + wag), (4.5, 19.5 + wag), (8, 22)], fur)  # bushy tail
+    tail.ellipse(3.6, 15.6 + wag, 1.4, 1.4, belly)
+    d.put(tail)
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((10.5, 13, 18.5, 21)):
+        off = p.step * (1.3 if i % 2 else -1.3)
+        legs.rect(lx - 1.1 + off, 23, lx + 1.1 + off, 29.8, fur if i % 2 else dark(fur, 0.12))
+        legs.rect(lx - 1.2 + off, 29, lx + 1.6 + off, 30.6, belly)
+    d.put(legs)
+    B = d.part(lean, bob)
+    B.ellipse(15.5, 21, 8, 4.8, fur)
+    B.ellipse(17, 23, 5.5, 2.2, belly)
+    d.put(B)
+    H = d.part(lean, bob)
+    hx, hy = (22, 13.5) if howl else (22.5, 16)
+    tilt = -0.6 if howl else 0.0
+    H.ellipse(hx, hy, 4.4, 4.0, fur)
+    H.poly([(hx - 3.5, hy - 2), (hx - 3, hy - 7), (hx - 0.8, hy - 3)], fur)  # ears
+    H.poly([(hx - 0.5, hy - 3), (hx + 0.8, hy - 7.5), (hx + 2.4, hy - 2.5)], dark(fur, 0.06))
+    H.dot(hx - 2.2, hy - 4.2, '#f0a0b0', w=1, h=1.4)
+    sx, sy = (hx + 3, hy - 2.5) if howl else (hx + 3.5, hy + 0.8)
+    H.ellipse(sx, sy, 2.8, 1.8, belly, rot=tilt)  # snout
+    H.dot(sx + 2.2, sy - 0.8 if howl else sy - 0.4, '#2a2230', w=1, h=1)  # nose
+    if p.facing != 'up':
+        if howl and not p.hurt:
+            H.line(hx + 0.2, hy - 1, hx + 1.6, hy - 1.4, EYE, w=0.5)  # eyes squeezed shut mid-howl
+            H.ellipse(sx + 0.6, sy + 1.4, 0.9, 1.1, '#5a2a3a', shade=False)  # little round mouth
+        else:
+            d.eyes(H, [(hx + 1, hy - 1.2)])
+    d.put(H)
+    if howl and p.facing != 'up':  # the squeaky "awoo" lines
+        N = d.part(lean, bob)
+        for i, (x, y) in enumerate(((26.5, 7), (28, 3.5))):
+            N.line(x, y, x + 1.4, y - 1, '#fff2a0', w=0.7)
+            N.line(x + 1.4, y - 1, x + 2.8, y, '#fff2a0', w=0.7)
+            N.line(x + 2.8, y, x + 3.8, y - 0.8, '#fff2a0', w=0.7)
+        d.put(N, outline=False)
+    finish(c, d, shadow=(15, 30.9, 9, 1.2))
+
+
 # ─── Roster ──────────────────────────────────────────────────────────────────
 
 DRAWERS = {
@@ -2062,6 +2297,11 @@ DRAWERS = {
     'microbe': microbe,
     'pulley_spider': pulley_spider,
     'piston_boar': piston_boar,
+    'clay': clay,
+    'mime': mime,
+    'peacock': peacock,
+    'pinecone': pinecone,
+    'wolf_pup': wolf_pup,
 }
 
 
@@ -2136,6 +2376,12 @@ ROSTER: list[Char] = [
     Char('germinator', '🦠', 'microbe', H(color='#7ad04a')),
     Char('pulley-spider', '🕷️', 'pulley_spider', H(color='#8a6ab0')),
     Char('piston-boar', '🐗', 'piston_boar', H(color='#8a5a3a')),
+    # --- New critters, batch 3 (Chromaria + Whispering Woods) ---
+    Char('clumsy-clay', '🏺', 'clay', H(color='#d0784a')),
+    Char('mime-mimic', '🎭', 'mime', H()),
+    Char('paint-peacock', '🦚', 'peacock', H(color='#2a6ad0')),
+    Char('pinecone-porcupine', '🦔', 'pinecone', H(scale='#a0683a', fur='#c8a07a')),
+    Char('howl-pup', '🐺', 'wolf_pup', H(fur='#8a94a8')),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
