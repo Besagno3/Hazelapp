@@ -781,6 +781,9 @@ def blob(c: Canvas, p: Pose, s: dict):
         L.ellipse(16, cy - ry + 1.5, rx + 2.5, 5.2, cc)
         for (x, y) in ((11, cy - ry), (16, cy - ry - 2), (20.5, cy - ry + 0.5)):
             L.dot(x, y, WHITE, w=2, h=2)
+    if s.get('foam'):
+        for (x, y, r) in ((10.5, cy - ry + 1.5, 2.6), (14.5, cy - ry, 3.0), (19, cy - ry + 0.2, 2.8), (22.5, cy - ry + 2, 2.2)):
+            L.ellipse(x, y, r, r * 0.85, WHITE)
     if s.get('crest'):
         L.poly([(9, cy - ry + 3), (15, cy - ry - 5), (17, cy - ry), (23, cy - ry - 2), (22, cy - ry + 3)], light(col, 0.15))
     if s.get('symbol') == 'plus':
@@ -789,8 +792,19 @@ def blob(c: Canvas, p: Pose, s: dict):
     ex = face_x(p, [18, 21.5], [13.5, 18])
     d.eyes(L, [(x, cy - 2) for x in ex])
     if d.sep and ex:
-        L.dot(ex[0] + 1.5, cy + 1.5, dark(col, 0.4), w=2, h=1)
+        if s.get('foam'):
+            L.ellipse(ex[0] + 2, cy + 2, 1.1, 1.3, dark(col, 0.45), shade=False)  # an excited "o"
+        else:
+            L.dot(ex[0] + 1.5, cy + 1.5, dark(col, 0.4), w=2, h=1)
     d.put(L)
+    if s.get('foam'):
+        fz = d.part(lean, 0)
+        rise = (p.frame % 3) * 2.2
+        for (x, y0, r) in ((5, 22, 1.4), (27, 20, 1.1), (8, 13, 0.9), (25, 11, 1.3)):
+            y = y0 - rise
+            fz.ellipse(x, y, r, r, light(col, 0.25), shade=False)
+            fz.erase_ellipse(x - r * 0.25, y - r * 0.25, r * 0.45, r * 0.45)
+        d.put(fz, outline=False)
     finish(c, d)
 
 
@@ -1809,6 +1823,195 @@ def knight_mare(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.8, 10, 1.2))
 
 
+# ─── Batch-2 critters (Magnetick, Germinator, Pulley Spider, Piston Boar) ────
+
+
+def magnet_tick(c: Canvas, p: Pose, s: dict):
+    """A horseshoe magnet on tick legs; its two poles spark at each other."""
+    d = D(c, p)
+    body = hexc(s.get('color', '#e0303a'))
+    north = hexc(s.get('north', '#e0303a'))
+    south = hexc(s.get('south', '#2a6ae0'))
+    steel = hexc(s.get('steel', '#d8dee8'))
+    lean, bob = d.lean, d.bob
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((10, 13.5, 18.5, 22)):
+        off = (1 if (i + p.frame) % 2 else -1) * 0.7 * (1 if p.step else 0.4)
+        dirn = -1 if lx < 16 else 1
+        legs.line(lx, 25, lx + dirn * 2 + off, 28, dark(body, 0.35), w=0.9)
+        legs.line(lx + dirn * 2 + off, 28, lx + dirn * 2.6 + off, 30.2, dark(body, 0.35), w=0.8)
+    d.put(legs)
+    m = d.part(lean, bob)
+    pinch = {'raise': 1.2, 'strike': -1.0, 'follow': -0.5}.get(p.arm, 0.0)  # prongs flex on attack
+    # the U: a fat bend at the bottom, two prongs standing up
+    m.ellipse(16, 21.5, 8.5, 5, body)
+    m.rect(7.5 - pinch, 9.5, 12.5 - pinch, 21.5, body)
+    m.rect(19.5 + pinch, 9.5, 24.5 + pinch, 21.5, dark(body, 0.06))
+    m.ellipse(16, 17.5, 3.5, 3.5, (0, 0, 0), shade=False)
+    m.erase_ellipse(16, 16.5, 3.5, 4.5)  # hollow of the horseshoe
+    d.put(m)
+    poles = d.part(lean, bob)
+    poles.rect(7.5 - pinch, 5.5, 12.5 - pinch, 9.5, north)
+    poles.rect(19.5 + pinch, 5.5, 24.5 + pinch, 9.5, south)
+    poles.rect(7.5 - pinch, 9.2, 12.5 - pinch, 10.4, steel, shade=False)
+    poles.rect(19.5 + pinch, 9.2, 24.5 + pinch, 10.4, steel, shade=False)
+    # tiny cross faces on each pole: they are arguing
+    if d.sep and p.facing != 'up':
+        for px, flip in ((10 - pinch, 1), (22 + pinch, -1)):
+            poles.dot(px - 1.2 * flip, 7, EYE)
+            poles.dot(px + 0.6 * flip, 6.7, EYE)
+            poles.line(px - 1.6, 8.6, px + 1.6, 8.6 - 0.6 * flip, EYE, w=0.4)
+    d.put(poles)
+    # the big shared face on the bend
+    face = d.part(lean, bob)
+    d.eyes(face, [(x, 21.5) for x in face_x(p, [17.5, 21], [13.5, 18.5])])
+    if d.sep and p.facing != 'up':
+        face.dot(18.5, 24, dark(body, 0.45), w=2, h=1)
+    d.put(face, outline=False)
+    zap = d.part(lean, bob)
+    if p.frame % 2 or p.arm in ('strike', 'raise'):  # field spark between the poles
+        y = 4 if p.arm != 'strike' else 6
+        zap.line(12.5, y + 2, 15, y, '#ffe23a', w=0.6)
+        zap.line(15, y, 17, y + 2, '#ffe23a', w=0.6)
+        zap.line(17, y + 2, 19.5, y, '#ffe23a', w=0.6)
+    d.put(zap, outline=False)
+    finish(c, d, shadow=(16, 30.8, 9, 1.2))
+
+
+def microbe(c: Canvas, p: Pose, s: dict):
+    """A wobbly germ with cilia, a nucleus, sunglasses and a bud splitting off."""
+    d = D(c, p)
+    col = hexc(s['color'])
+    lean, bob = d.lean, d.bob
+    wob = 0.5 if p.frame % 2 else -0.5
+    hover = -1 if p.frame % 2 else 0
+    cx, cy = 16, 17 + hover * 0.3
+    bud = d.part(lean * 0.6, bob)
+    bs = 3.2 + (0.6 if p.frame % 2 else 0)  # the bud pulses as it splits off
+    bud.line(10, cy + 1, 5.5, cy + 3, dark(col, 0.08), w=2.4)
+    bud.ellipse(5, cy + 3.5, bs, bs, light(col, 0.05))
+    bud.dot(4, cy + 2.5, dark(col, 0.3), w=2, h=2)
+    d.put(bud)
+    cil = d.part(lean, bob)
+    for i in range(14):  # cilia waving round the edge
+        a = i / 14 * 2 * math.pi + (0.12 if (i + p.frame) % 2 else -0.12)
+        x0, y0 = cx + math.cos(a) * 8.2, cy + math.sin(a) * 7.2
+        x1, y1 = cx + math.cos(a) * 10.4, cy + math.sin(a) * 9.4
+        cil.line(x0, y0, x1, y1, dark(col, 0.2), w=0.6)
+    d.put(cil, outline=False)
+    B = d.part(lean, bob)
+    B.ellipse(cx, cy, 8.6 + wob * 0.4, 7.8 - wob * 0.4, col)
+    B.ellipse(cx - 3.5, cy + 2.5, 2.8, 2.4, dark(col, 0.18))  # nucleus
+    B.dot(cx - 4, cy + 2, light(col, 0.15), w=1, h=1)
+    for (x, y) in ((cx + 2, cy + 4.5), (cx - 1, cy - 4.5), (cx + 5.5, cy + 2)):
+        B.dot(x, y, light(col, 0.25), w=1, h=1)
+    d.put(B)
+    F = d.part(lean, bob)
+    if p.facing != 'up':
+        if p.hurt:  # glasses knocked crooked
+            F.line(16, cy - 3.5, 23.5, cy - 1.5, '#1a1a24', w=1.6)
+            d.eyes(F, [(18, cy - 2), (21.5, cy - 1)])
+        else:
+            F.rect(15.5, cy - 4, 24.2, cy - 2, '#1a1a24', shade=False)  # cool sunglasses
+            F.rect(15.8, cy - 2.2, 19.4, cy - 1, '#1a1a24', shade=False)
+            F.rect(20.4, cy - 2.2, 24, cy - 1, '#1a1a24', shade=False)
+            F.dot(16.6, cy - 3.6, (150, 220, 255))
+            F.dot(21.4, cy - 3.6, (150, 220, 255))
+        grin = 1.2 if p.arm in ('strike', 'follow') else 0.6
+        F.line(18, cy + 2, 21, cy + 2 + grin, dark(col, 0.5), w=0.6)
+        F.line(21, cy + 2 + grin, 23.2, cy + 1.2, dark(col, 0.5), w=0.6)
+    d.put(F, outline=False)
+    finish(c, d, shadow=(16, 30.6, 7, 1.3))
+
+
+def pulley_spider(c: Canvas, p: Pose, s: dict):
+    """A hard-hatted spider dangling from a pulley, a counterweight on the far rope."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#8a6ab0'))
+    rope = hexc(s.get('rope', '#c8a870'))
+    lean, bob = d.lean, d.bob
+    drop = {'raise': -2.5, 'strike': 3.0, 'follow': 1.5}.get(p.arm, 0.0) + (0.8 if p.frame % 2 else 0.0)
+    sy = 18 + drop  # spider's height on its rope
+    rig = d.part(lean * 0.3, 0)
+    rig.line(12, 1, 25.5, 1, '#6a5a4a', w=1.0)  # the beam it hangs from
+    rig.ellipse(18.75, 3.6, 6.2, 2.6, '#8a96a8')  # wide pulley wheel
+    rig.ellipse(18.75, 3.6, 1.2, 1.2, '#4a4a5a', shade=False)
+    rig.line(13, 3.6, 13, sy - 4, rope, w=0.6)  # rope down to the spider
+    rig.line(24.5, 3.6, 24.5, 14 - drop, rope, w=0.6)  # rope down to the rock
+    rig.ellipse(24.5, 16.5 - drop, 3.2, 2.8, '#9a9284')  # the rock it is lifting
+    rig.dot(23.5, 15.5 - drop, '#bab4a6', w=1, h=1)
+    d.put(rig)
+    legs = d.part(lean, bob)
+    for i in range(3):
+        sw = (0.8 if (i + p.frame) % 2 else -0.8)
+        y0 = sy + i * 1.6
+        for dirn, lc in ((-1, dark(col, 0.12)), (1, col)):
+            kx, ky = 13 + dirn * (5 + i * 0.4), y0 - 2 + i * 1.8 + sw * dirn
+            legs.line(13, y0, kx, ky, lc, w=0.8)
+            legs.line(kx, ky, kx + dirn * 1, ky + 4 + i * 0.6, lc, w=0.7)
+    d.put(legs)
+    b = d.part(lean, bob)
+    b.ellipse(13, sy + 3.5, 4.2, 4.6, col)  # abdomen
+    b.dot(12, sy + 3, light(col, 0.2), w=2, h=1)
+    b.ellipse(13, sy - 1.2, 3.2, 2.8, light(col, 0.05))  # head
+    b.ellipse(13, sy - 3.8, 3.4, 1.8, '#ffc83a')  # hard hat
+    b.rect(9.2, sy - 3.4, 16.8, sy - 2.6, '#e0a020', shade=False)  # hat brim
+    if p.facing != 'up':
+        d.eyes(b, [(13.2, sy - 1.5), (15, sy - 1.5)], h=1, shine=False)
+        if d.sep:
+            b.dot(14, sy, '#ff6060')  # little fangs mouth
+    d.put(b)
+    finish(c, d, shadow=(15, 30.8, 6, 1.2))
+
+
+def piston_boar(c: Canvas, p: Pose, s: dict):
+    """A boar on pumping piston legs, steam puffing from its exhaust."""
+    d = D(c, p)
+    fur = hexc(s.get('color', '#8a5a3a'))
+    steel = hexc(s.get('steel', '#b0b8c8'))
+    lean, bob = d.lean, d.bob
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((10, 13, 19.5, 22.5)):
+        pump = (1.2 if (i + p.frame) % 2 else 0.0)  # pistons pump up and down
+        col = steel if i % 2 else dark(steel, 0.12)
+        legs.rect(lx - 1.4, 21.5, lx + 1.4, 25 + pump, col)  # cylinder
+        legs.line(lx, 25 + pump, lx, 29.4, dark(steel, 0.3), w=0.8)  # rod
+        legs.rect(lx - 1.5, 29.2, lx + 1.6, 30.6, '#4a4a58')  # foot
+    d.put(legs)
+    st = d.part(lean, bob)
+    st.rect(9, 9.5, 11.5, 15, '#6a6a78')  # exhaust stack
+    st.rect(8.5, 8.8, 12, 10, '#4a4a58', shade=False)
+    puff = 1 if p.frame % 2 else 0
+    st.ellipse(9.5 - puff, 6.5 - puff, 2.2 + puff * 0.4, 1.8, '#e8ecf4', shade=False)
+    st.ellipse(7 - puff * 1.5, 3.8 - puff, 1.6, 1.3, '#d0d8e4', shade=False)
+    d.put(st)
+    body = d.part(lean, bob)
+    body.ellipse(16, 18.5, 10, 5.8, fur)
+    body.ellipse(17, 21.3, 7, 2.5, light(fur, 0.12))
+    for x in (8.5, 11, 13.5, 16, 18.5):  # bristly mohawk
+        body.poly([(x - 1, 13.6), (x + 0.3, 10.8 + (x % 2)), (x + 1.4, 13.6)], dark(fur, 0.3))
+    body.rect(12, 16, 20, 17.2, steel, shade=False)  # riveted strap
+    if d.sep:
+        for x in (13, 16, 19):
+            body.dot(x, 16.2, '#e8eef8')
+    body.line(6.5, 17, 4, 15.5 + (p.frame % 2), dark(fur, 0.2), w=0.7)  # curly tail
+    d.put(body)
+    head = d.part(lean, bob)
+    head.ellipse(24, 17.5, 4.8, 4.4, fur)
+    head.poly([(21, 13.5), (22, 10.5), (23.5, 13.5)], dark(fur, 0.15))  # ear
+    head.ellipse(28, 19, 2.4, 2.2, '#e88a8a')  # snout
+    head.dot(28.6, 18.5, '#7a3a3a')
+    head.dot(29.4, 19.6, '#7a3a3a')
+    tusk = '#f4ecd8'
+    head.poly([(25.5, 20.5), (27.5, 15.5), (26.5, 20.8)], tusk)  # tusk
+    if p.facing != 'up':
+        d.eyes(head, [(24.5, 16)], color=(200, 40, 40) if not p.hurt else EYE)
+        if not p.hurt:
+            head.line(23, 14.2, 26, 15, dark(fur, 0.5), w=0.6)  # cross brow
+    d.put(head)
+    finish(c, d, shadow=(16, 30.9, 10, 1.2))
+
+
 # ─── Roster ──────────────────────────────────────────────────────────────────
 
 DRAWERS = {
@@ -1837,6 +2040,10 @@ DRAWERS = {
     'kraken': kraken,
     'parrot': parrot,
     'mummy': mummy,
+    'magnet_tick': magnet_tick,
+    'microbe': microbe,
+    'pulley_spider': pulley_spider,
+    'piston_boar': piston_boar,
 }
 
 
@@ -1905,6 +2112,12 @@ ROSTER: list[Char] = [
     Char('relic-golem', '🗿', 'golem', H(color='#9a8a70', accent='#6ad0c0', glow='#6affe0', runes=True, shield=True)),
     # ── The Crystal Spire ──
     Char('umbra', '🌑', 'umbra', boss=True),
+    # --- New critters, batch 2 (Verdara + Gearfall) ---
+    Char('fizzlet', '🫧', 'blob', H(color='#7ad0e8', foam=True)),
+    Char('magnetick', '🧲', 'magnet_tick', H(color='#c8303a', north='#e8303a', south='#2a6ae0')),
+    Char('germinator', '🦠', 'microbe', H(color='#7ad04a')),
+    Char('pulley-spider', '🕷️', 'pulley_spider', H(color='#8a6ab0')),
+    Char('piston-boar', '🐗', 'piston_boar', H(color='#8a5a3a')),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
