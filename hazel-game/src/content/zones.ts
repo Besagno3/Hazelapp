@@ -322,6 +322,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'spore-puff', x: 5, y: 9 },
       { defId: 'static-jelly', x: 15, y: 9 },
       { defId: 'comet-crab', x: 6, y: 4 },
+      { defId: 'fizzlet', x: 11, y: 11 },
+      { defId: 'magnetick', x: 18, y: 9 },
+      { defId: 'germinator', x: 16, y: 5 },
       { defId: 'smog-fiend', x: 10, y: 2 },
     ],
     exits: [
@@ -384,6 +387,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'bolt-mouse', x: 6, y: 4 },
       { defId: 'scrap-golem', x: 8, y: 9 },
       { defId: 'gear-wyrm', x: 14, y: 6 },
+      { defId: 'pulley-spider', x: 7, y: 2 },
+      { defId: 'piston-boar', x: 16, y: 15 },
       { defId: 'rust-fiend', x: 18, y: 6 },
     ],
     exits: [
