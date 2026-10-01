@@ -1383,39 +1383,80 @@ def seal(c: Canvas, p: Pose, s: dict):
     finish(c, d)
 
 
+UMBRA_ARMOR = hexc('#1a1226')
+UMBRA_PURPLE = hexc('#7a3ad0')
+UMBRA_CAPE = hexc('#2a1048')
+UMBRA_HELM = hexc('#eceaf2')
+UMBRA_BLADE = '#c890ff'
+
+
 def umbra(c: Canvas, p: Pose, s: dict):
-    """Umbra, the Forgotten One (#74): a hovering hooded shadow-king."""
+    """Umbra, the Forgotten One: an armoured shadow-lord in a white war-helm."""
     d = D(c, p)
-    robe = hexc('#2a1a40')
-    hover = (-1 if p.frame % 2 else 0) * d.u
-    L = d.part(d.lean * 0.5, d.bob + hover)
-    flare = {'raise': 2.5, 'strike': 3.5}.get(p.arm, 0)
-    for side in (-1, 1):  # sleeves + violet flame hands
-        hx = 16 + side * (10 + flare * 0.6)
-        hy = 18 - flare
-        L.line(16 + side * 4, 13, hx, hy, dark(robe, 0.05), w=3.2)
-        L.poly([(hx - 2, hy + 1), (hx, hy - 4 - flare * 0.5), (hx + 2, hy + 1)], '#9a4aff')
-        L.poly([(hx - 1, hy + 1), (hx, hy - 2), (hx + 1, hy + 1)], '#e0b0ff')
-    # tattered robe
-    pts = [(9, 12), (23, 12), (26, 27)]
-    for i, x in enumerate(range(26, 5, -3)):
-        pts.append((x, 30 if (i + p.frame) % 2 else 27.5))
-    pts.append((6, 27))
-    L.poly(pts, robe)
-    L.rect(14.5, 14, 17.5, 26, dark(robe, 0.2), shade=False)  # robe seam
-    # hood with a void for a face
-    L.ellipse(16, 10, 7.5, 7, dark(robe, 0.08))
-    L.ellipse(16, 11.5, 4.8, 4.4, (6, 4, 14), shade=False)
-    ec = (255, 255, 255) if p.hurt else hexc('#c8a8ff')
-    L.dot(14, 11, ec, w=2, h=1)
-    L.dot(17, 11, ec, w=2, h=1)
-    d.put(L)
-    crown = d.part(d.lean * 0.5, d.bob + hover)  # crown of shadow spikes
-    for x, h in ((10, 4), (13, 6), (16, 8), (19, 6), (22, 4)):
-        crown.poly([(x - 1.5, 5), (x, 5 - h), (x + 1.5, 5)], '#5a2a8a')
-    crown.dot(16, 1, '#e0b0ff')
-    d.put(crown)
-    finish(c, d, shadow=(16, 30.5, 8, 1.5))
+    back = p.facing == 'up'
+    step = p.step
+    # cape (behind everything)
+    C = d.part(d.lean * 0.3, d.bob)
+    sway = (p.frame % 2) * 0.8
+    C.poly([(8, 11), (24, 11), (27 + sway, 30), (5 - sway, 30)], UMBRA_CAPE)
+    d.put(C)
+    # legs
+    Lg = d.part(d.lean * 0.5, d.bob)
+    Lg.rect(11.5, 23, 15, 30 - max(step, 0), UMBRA_ARMOR)
+    Lg.rect(17, 23, 20.5, 30 - max(-step, 0), UMBRA_ARMOR)
+    Lg.rect(11, 28.5 - max(step, 0), 15.5, 30.5 - max(step, 0), dark(UMBRA_PURPLE, 0.3))
+    Lg.rect(16.5, 28.5 - max(-step, 0), 21, 30.5 - max(-step, 0), dark(UMBRA_PURPLE, 0.3))
+    d.put(Lg)
+    # torso
+    B = d.part(d.lean * 0.6, d.bob)
+    B.rect(10, 12, 22, 24, UMBRA_ARMOR)
+    B.ellipse(9.5, 13, 3.4, 2.6, UMBRA_PURPLE)       # shoulder plates
+    B.ellipse(22.5, 13, 3.4, 2.6, UMBRA_PURPLE)
+    B.rect(10, 21, 22, 23, dark(UMBRA_PURPLE, 0.2))  # belt
+    B.rect(14.5, 20.6, 17.5, 23.4, '#c8c4d4')  # buckle
+    if not back:
+        B.rect(13, 14.5, 19, 18.5, '#2e2440', shade=False)   # chest panel
+        for i, col in enumerate(('#ff4a6a', '#6ad0ff', '#c890ff', '#7aff8a')):
+            B.dot(13.8 + i * 1.4, 15.6, col)
+        B.rect(13.6, 17, 18.4, 17.8, UMBRA_PURPLE, shade=False)
+    else:
+        B.rect(15, 13, 17, 21, dark(UMBRA_CAPE, 0.1), shade=False)
+    d.put(B)
+    # arms + energy blade
+    A = d.part(d.lean * 0.7, d.bob)
+    up = {'raise': 5, 'strike': -2, 'follow': 1}.get(p.arm, 0)
+    A.line(8.5, 14, 7.5, 21, UMBRA_ARMOR, w=2.6)               # left arm
+    A.ellipse(7.5, 21.5, 1.4, 1.3, dark(UMBRA_PURPLE, 0.2))
+    hx, hy = 24, 20 - up
+    A.line(23.5, 14, hx, hy, UMBRA_ARMOR, w=2.6)               # sword arm
+    d.put(A)
+    S = d.part(d.lean, d.bob)  # violet energy blade
+    tip = {'raise': (24.5, 1), 'strike': (31, 18), 'follow': (30, 12)}.get(p.arm, (27.5, 6))
+    S.line(hx, hy, *tip, UMBRA_BLADE, w=1.9)  # glow
+    S.line(hx, hy, *tip, '#f4e8ff', w=0.7)  # core
+    S.rect(hx - 1, hy - 0.2, hx + 1, hy + 2.2, '#9a96a8')  # hilt
+    d.put(S, outline=False)
+    # helmet
+    H = d.part(d.lean * 0.6, d.bob)
+    H.ellipse(16, 7.5, 5.6, 5.4, UMBRA_HELM)                    # dome
+    H.rect(10.6, 7.5, 21.4, 11.6, UMBRA_HELM)                   # flared cheek guards
+    H.poly([(10, 11.6), (22, 11.6), (21, 12.8), (11, 12.8)], dark(UMBRA_HELM, 0.12))
+    H.rect(15.4, 2.2, 16.6, 6.8, UMBRA_PURPLE, shade=False)     # crest stripe
+    if not back:
+        ec = (255, 255, 255) if p.hurt else (14, 8, 24)
+        H.poly([(11.6, 7.2), (15.2, 7.6), (14.8, 9.6), (12, 9.2)], ec, shade=False)   # angled lenses
+        H.poly([(20.4, 7.2), (16.8, 7.6), (17.2, 9.6), (20, 9.2)], ec, shade=False)
+        if not p.hurt and not p.blink:
+            H.dot(13, 8.2, '#c890ff'); H.dot(18.6, 8.2, '#c890ff')            # lens glint
+        H.poly([(13, 10.2), (19, 10.2), (18, 12.6), (14, 12.6)], (30, 20, 44), shade=False)  # breather grille
+        for x in (14.6, 15.6, 16.6):
+            H.rect(x, 10.6, x + 0.5, 12.2, UMBRA_PURPLE, shade=False)
+        H.poly([(11.2, 9.8), (12.6, 10.4), (12.2, 12.4), (11, 12)], dark(UMBRA_HELM, 0.25), shade=False)   # cheek vents
+        H.poly([(20.8, 9.8), (19.4, 10.4), (19.8, 12.4), (21, 12)], dark(UMBRA_HELM, 0.25), shade=False)
+    else:
+        H.rect(13, 9, 19, 11, dark(UMBRA_HELM, 0.15), shade=False)
+    d.put(H)
+    finish(c, d, shadow=(16, 30.5, 9, 1.5))
 
 
 # ─── Roster ──────────────────────────────────────────────────────────────────

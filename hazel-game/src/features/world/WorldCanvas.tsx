@@ -739,14 +739,8 @@ export default function WorldCanvas({
     if (umbraAt) {
       const ux = (umbraAt.x + 1) * TILE; // centred on the two-tile carpet
       const uy = umbraAt.y * TILE + TILE / 2;
-      const face = worldFace(k, { spriteId: 'umbra', emoji: '🌑', x: ux, y: uy, size: 56, z: 6 })
-        .obj as unknown as WorldActor;
-      let t = 0;
-      face.onUpdate(() => {
-        if (pausedRef.current) return;
-        t += k.dt() * 2;
-        face.pos.y = uy + Math.sin(t) * 3; // a slow, menacing hover
-      });
+      // He stands guard in front of the throne (his idle anim does the rest).
+      worldFace(k, { spriteId: 'umbra', emoji: '🌑', x: ux, y: uy, size: 56, z: 6 });
       actors.push({ x: ux, y: uy, kind: 'umbra', radius: ACTOR_RADIUS.giant });
     }
 
