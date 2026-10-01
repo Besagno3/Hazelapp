@@ -1509,10 +1509,24 @@ def duck(c: Canvas, p: Pose, s: dict):
     wing = d.part(lean, bob)
     wing.ellipse(12, 20.5 if not raven else 19.5, 4.6 if raven else 4.2, 2.6, light(col, 0.1 if raven else 0.04), rot=0.25)
     d.put(wing)
+    if s.get('crown'):
+        # a crown far too big for his head, slumped down around his neck
+        cr = d.part(lean, bob)
+        gold = hexc(s['crown'])
+        oy = 0.8  # how far it has slipped down
+        cr.poly([(15.5, 15 + oy), (26, 16.8 + oy), (25.4, 19.8 + oy), (15, 18 + oy)], gold)  # wide band, tilted
+        for (x, y) in ((16.4, 15.1 + oy), (20.8, 15.9 + oy), (25, 16.7 + oy)):  # points
+            cr.poly([(x - 1.4, y + 0.3), (x, y - 3), (x + 1.4, y + 0.5)], gold)
+            cr.dot(x - 0.3, y - 3.4, light(gold, 0.3))  # ball tips
+        cr.dot(20.3, 17.3 + oy, '#e0304a', w=1.6, h=1.4)  # ruby
+        if d.sep:
+            cr.dot(17.3, 16.9 + oy, '#4ad0ff')
+            cr.dot(23.8, 18.1 + oy, '#4ad0ff')
+        d.put(cr)
     # the pie, seen from above: golden crust cut into slices, one already gone
     pie = d.part(lean, bob)
-    py = {'raise': 15, 'strike': 18.5, 'follow': 20.5}.get(p.arm, 21.5)
-    px = {'strike': 25}.get(p.arm, 22.5)
+    py = {'raise': 13.5, 'strike': 21, 'follow': 23}.get(p.arm, 24)
+    px = {'strike': 26, 'raise': 25}.get(p.arm, 23.5)
     pie.ellipse(px, py, 4.0, 3.4, '#c8783a')
     pie.ellipse(px - 0.3, py - 0.3, 2.6, 2.1, '#f0c070', shade=False)
     cut = '#6a3010'
@@ -1589,12 +1603,11 @@ def _tentacle(L: Canvas, pts, w0: float, w1: float, col, sucker=None):
 
 
 def kraken(c: Canvas, p: Pose, s: dict):
-    """A sea kraken with a handlebar mustache and sabre-tooth fangs."""
+    """A sea kraken with sabre-tooth fangs."""
     d = D(c, p)
     col = hexc(s['color'])
     deep = dark(col, 0.14)
     suck = light(col, 0.35)
-    stache = hexc(s.get('stache', '#3a2418'))
     fang = hexc(s.get('fang', '#f6eedc'))
     lean, bob = d.lean, d.bob
     sw = 1 if p.frame % 2 else -1  # tentacle sway
@@ -1624,29 +1637,24 @@ def kraken(c: Canvas, p: Pose, s: dict):
     face = d.part(lean, bob)
     ex = [17.8, 22]
     if p.facing != 'up':
-        for x in ex:  # glaring eye-whites so the face reads under the mustache
+        for x in ex:  # glaring eye-whites
             face.ellipse(x + 0.3, 11.8, 1.7, 1.6, WHITE, shade=False)
         d.eyes(face, [(x + 0.3, 11.3) for x in ex], h=2, shine=False)
         if not p.hurt:
             face.line(16, 9.2, 19.3, 10.4, dark(col, 0.5), w=0.9)
             face.line(24, 9.2, 20.7, 10.4, dark(col, 0.5), w=0.9)
+    if p.facing != 'up':
+        face.line(17, 16.2, 23, 16.2, dark(col, 0.55), w=0.7)  # a grim mouth line
     d.put(face, outline=False)
     teeth = d.part(lean, bob)
-    # sabre-tooth fangs hang below the mustache; longer when it lunges
+    # sabre-tooth fangs; longer when it lunges
     fl = {'strike': 6.5, 'follow': 6.0, 'raise': 5.5}.get(p.arm, 5.0)
     for fx in (18.6, 21.4):
         teeth.poly([(fx - 0.9, 16.4), (fx + 0.9, 16.4), (fx + 0.1, 16.4 + fl)], fang)
     d.put(teeth)
-    # thin handlebar mustache with curled tips (unoutlined so the face stays open)
-    tw = 0.5 if p.frame % 2 else 0
-    lip = d.part(lean, bob)
-    for side in (-1, 1):
-        pts = [(20, 15.2), (20 + side * 2.5, 16.2), (20 + side * 5, 15.6), (20 + side * 6.2, 14 - tw), (20 + side * 5.3, 13.2 - tw)]
-        _tentacle(lip, pts, 1.5, 0.8, stache)
-    d.put(lip, outline=False)
     if s.get('loot'):
         grab = d.part(lean, bob)
-        tip = {'raise': (27, 3), 'strike': (29, 12), 'follow': (28.5, 16)}.get(p.arm, (28.5, 7))
+        tip = {'raise': (27, 3), 'strike': (25, 11.5), 'follow': (27, 15.5)}.get(p.arm, (28.5, 7))
         _tentacle(grab, [(24, 18), (27, 16), (tip[0], tip[1] + 2.5)], 2.0, 1.4, dark(col, 0.04))
         grab.ellipse(tip[0], tip[1], 2.4, 2.4, '#ffcf3a')
         grab.dot(tip[0] - 0.5, tip[1] - 1, '#fff4b0')
@@ -1830,8 +1838,8 @@ ROSTER: list[Char] = [
     # ── The Crystal Spire ──
     Char('umbra', '🌑', 'umbra', boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
-    Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a')),
-    Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True, stache='#2e1c14')),
+    Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
+    Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
     Char('pirate-parrot', '🦜', 'flyer', H(kind='bird', color='#e03a3a', wing='#2a9ae0', tail='#2a9ae0', tail2='#ffd23a',
                                           pirate=True, beak='#f0e8d0', feet='#8a8a9a')),
     Char('fossil-fang', '🦖', 'fossil', H(color='#ece4cc', glow='#ff8a2a')),
