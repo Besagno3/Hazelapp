@@ -2643,10 +2643,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "clumsy-clay": {
-    "emoji": "🏺",
+  "crayon-goblin": {
+    "emoji": "🖍️",
     "world": {
-      "sheet": "/sprites/clumsy-clay/world.png",
+      "sheet": "/sprites/crayon-goblin/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2684,7 +2684,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/clumsy-clay/battle.png",
+      "sheet": "/sprites/crayon-goblin/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -2709,10 +2709,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "mime-mimic": {
-    "emoji": "🎭",
+  "graffiti-gargoyle": {
+    "emoji": "🎨",
     "world": {
-      "sheet": "/sprites/mime-mimic/world.png",
+      "sheet": "/sprites/graffiti-gargoyle/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2750,7 +2750,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/mime-mimic/battle.png",
+      "sheet": "/sprites/graffiti-gargoyle/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -2775,10 +2775,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "paint-peacock": {
-    "emoji": "🦚",
+  "patchwork-bear": {
+    "emoji": "🧸",
     "world": {
-      "sheet": "/sprites/paint-peacock/world.png",
+      "sheet": "/sprites/patchwork-bear/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2816,7 +2816,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/paint-peacock/battle.png",
+      "sheet": "/sprites/patchwork-bear/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -2841,10 +2841,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "pinecone-porcupine": {
-    "emoji": "🦔",
+  "dart-frog": {
+    "emoji": "🐸",
     "world": {
-      "sheet": "/sprites/pinecone-porcupine/world.png",
+      "sheet": "/sprites/dart-frog/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2882,7 +2882,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/pinecone-porcupine/battle.png",
+      "sheet": "/sprites/dart-frog/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -2907,10 +2907,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "howl-pup": {
-    "emoji": "🐺",
+  "snapjaw": {
+    "emoji": "🪴",
     "world": {
-      "sheet": "/sprites/howl-pup/world.png",
+      "sheet": "/sprites/snapjaw/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2948,7 +2948,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/howl-pup/battle.png",
+      "sheet": "/sprites/snapjaw/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,

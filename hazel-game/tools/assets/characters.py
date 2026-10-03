@@ -2033,276 +2033,279 @@ def piston_boar(c: Canvas, p: Pose, s: dict):
 # ─── Batch-3 critters (Chromaria + Whispering Woods) ─────────────────────────
 
 
-def clay(c: Canvas, p: Pose, s: dict):
-    """A lump of clay that keeps squishing itself into new (mostly wrong) shapes."""
+def crayon_goblin(c: Canvas, p: Pose, s: dict):
+    """A scrappy goblin swinging a giant crayon like a club."""
     d = D(c, p)
-    col = hexc(s.get('color', '#d0784a'))
-    lean = d.lean
-    L = d.part(lean, 0)
-    form = p.frame % 3 if not p.hurt else 3
-    if p.arm == 'strike':
-        form = 4
-    # each form is a set of lumps (cx, cy, rx, ry)
-    forms = {
-        0: [(15, 24.5, 8.5, 5.5), (13, 19.5, 5, 4), (18.5, 20, 3.5, 3)],
-        1: [(16, 25, 9.5, 5), (16, 20, 5.5, 3.5), (11, 21, 2.5, 2.5)],
-        2: [(16, 25.5, 7.5, 4.5), (16, 19.5, 4.5, 4.5), (16, 14.5, 3.5, 2.5)],  # a wobbly almost-vase
-        3: [(16, 26, 10, 4), (12, 23, 3, 2.5), (20, 23, 3, 2)],  # splatted
-        4: [(17, 25, 8.5, 5), (22, 20, 5.5, 3.5), (26, 18.5, 3, 2.5)],  # lunging fist of clay
-    }[form]
-    for i, (x, y, rx, ry) in enumerate(forms):
-        L.ellipse(x, y, rx, ry, col if i == 0 else light(col, 0.04 * i))
-    if form == 2:
-        L.ellipse(16, 12.6, 3.8, 1.2, light(col, 0.12))  # the rim it was trying for
-        L.ellipse(16, 12.6, 2.4, 0.6, dark(col, 0.3), shade=False)
-    if d.sep:
-        for (x, y) in ((11, 25), (19.5, 26.5), (14, 21)):  # thumbprints
-            L.ellipse(x, y, 1.1, 0.8, dark(col, 0.12), shade=False)
-        L.line(9, 23, 11, 26.5, dark(col, 0.4), w=0.4)  # dry cracks
-        L.line(11, 26.5, 10, 28, dark(col, 0.4), w=0.4)
-    # a sculpting loop-tool stuck in its head
-    tx, ty = forms[1][0] if form != 2 else 16, forms[1][1] - forms[1][3] if form != 2 else 13
-    L.line(tx - 1, ty + 1, tx - 3.5, ty - 4, '#c8a070', w=0.8)
-    L.ellipse(tx - 4, ty - 5, 1.3, 1.3, '#8a96a8', shade=False)
-    L.erase_ellipse(tx - 4, ty - 5, 0.6, 0.6)
-    fy = forms[0][1] - 2.5
-    ex = face_x(p, [17.5, 21], [13, 17.5])
-    if ex:
-        eye_pts = [(ex[0], fy - 0.8), (ex[1], fy + 0.4)]  # lopsided eyes
-        for (x, y) in eye_pts:
-            L.ellipse(x + 0.4, y + 0.6, 1.4, 1.5, dark(col, 0.55), shade=False)  # deep sockets
-        d.eyes(L, eye_pts, color=(255, 200, 60) if not p.hurt else EYE, shine=False)
-        if not p.hurt:
-            L.line(ex[0] - 1.4, fy - 3.4, ex[0] + 1.2, fy - 1.9, dark(col, 0.65), w=0.8)  # angry brows
-            L.line(ex[1] + 1.6, fy - 2.2, ex[1] - 1, fy - 0.7, dark(col, 0.65), w=0.8)
-        mx = (ex[0] + ex[1]) / 2 + 0.5
-        L.ellipse(mx, fy + 3.2, 3, 1.2, (50, 20, 20), shade=False)  # jagged grin
-        if d.sep:
-            for tx in (mx - 2, mx - 0.6, mx + 0.8, mx + 2.2):
-                L.poly([(tx - 0.5, fy + 2.3), (tx + 0.5, fy + 2.3), (tx, fy + 3.4)], WHITE, shade=False)
-    d.put(L)
-    finish(c, d, shadow=(16, 30.6, 9, 1.2))
-
-
-def mime(c: Canvas, p: Pose, s: dict):
-    """A silent mime pressing its gloves against an invisible box."""
-    d = D(c, p)
-    face = hexc(s.get('face', '#f6f4f0'))
+    skin = hexc(s.get('skin', '#6ab04a'))
+    tunic = hexc(s.get('tunic', '#7a5a3a'))
+    crayon = hexc(s.get('crayon', '#e0303a'))
     lean, bob = d.lean, d.bob
     legs = d.part(lean * 0.4, 0)
     for i, lx in enumerate((13.5, 17.5)):
-        off = p.step * (1.2 if i else -1.2)
-        legs.rect(lx - 1.4 + off, 23, lx + 1.4 + off, 29.5, '#2a2430')
-        legs.rect(lx - 1.6 + off, 29, lx + 2.2 + off, 30.6, '#1a1a20')
+        off = p.step * (1.3 if i else -1.3)
+        legs.rect(lx - 1.2 + off, 23.5, lx + 1.2 + off, 29.5, dark(skin, 0.1 if i else 0.2))
+        legs.ellipse(lx + 0.8 + off, 29.8, 2, 1, dark(skin, 0.25))
     d.put(legs)
     body = d.part(lean, bob)
-    body.rect(11.5, 15, 19.5, 23.5, '#e8e4ec')
-    for y in (16.2, 18.4, 20.6, 22.8):  # striped shirt
-        body.rect(11.5, y, 19.5, y + 1.1, '#1a1420', shade=False)
-    body.poly([(12.5, 15), (18.5, 15), (17, 17), (14, 17)], '#d0303a')  # red scarf
-    body.poly([(17, 16), (19, 19.5), (17.6, 19.8)], '#b02030')
+    body.poly([(11, 15.5), (20, 15.5), (21.5, 25), (19.5, 24), (17.5, 25.5), (15.5, 24), (13.5, 25.5), (11.5, 24), (9.5, 25)], tunic)  # ragged tunic
+    body.line(11, 19.5, 20.5, 19.5, '#3a2a1a', w=0.7)  # rope belt
     d.put(body)
     head = d.part(lean, bob)
-    head.ellipse(16, 10.5, 4.8, 4.6, face)
-    head.ellipse(15, 6.2, 4.6, 1.8, '#2a2430')  # beret
-    head.dot(13.5, 4.2, '#2a2430', w=1, h=1.2)
+    head.poly([(12.5, 9), (5.5, 5.5), (12, 12)], skin)  # long pointy ears
+    head.poly([(20.5, 9.5), (26, 5), (21.5, 12.5)], dark(skin, 0.06))
+    head.ellipse(16.5, 10.5, 5.2, 5, skin)
+    head.ellipse(21, 12, 1.6, 1.4, dark(skin, 0.1))  # warty nose
     if p.facing != 'up':
-        ex = face_x(p, [16.8, 19.6], [14.2, 17.8])
-        for x in ex:  # painted black diamonds round the eyes
-            head.poly([(x - 1.3, 9.9), (x + 0.3, 8.2), (x + 1.7, 9.9), (x + 0.3, 11.4)], '#1a1420', shade=False)
-        d.eyes(head, [(x + 0.1, 9.5) for x in ex], color=(255, 50, 60) if not p.hurt else WHITE, h=1, shine=False)
+        ex = face_x(p, [17, 20.2], [14.2, 18.4])
+        d.eyes(head, [(x, 9.5) for x in ex], color=(255, 60, 40) if not p.hurt else EYE, shine=False)
+        if not p.hurt:
+            head.line(ex[0] - 1.3, 7.4, ex[0] + 1.1, 8.6, '#2a3a1a', w=0.7)  # angry brows
+            head.line(ex[1] + 1.3, 7.4, ex[1] - 1.1, 8.6, '#2a3a1a', w=0.7)
+        head.line(15, 13.6, 21, 13.2, '#2a1a1a', w=0.8)  # toothy grin
         if d.sep:
-            head.dot(ex[0], 11.8, '#1a1420', w=1, h=1)  # painted tear
-            head.line(ex[0] - 1.2, 7.2, ex[0] + 1.2, 8.3, '#1a1420', w=0.5)  # angry V brows
-            head.line(ex[1] + 1.4, 7.2, ex[1] - 1, 8.3, '#1a1420', w=0.5)
-        gx0, gx1 = ex[0] - 0.8, ex[1] + 1.4
-        head.line(gx0, 12, (gx0 + gx1) / 2, 13.4, '#c02030', w=0.8)  # a wide, wicked grin
-        head.line((gx0 + gx1) / 2, 13.4, gx1, 11.8, '#c02030', w=0.8)
-        if d.sep:
-            head.dot((gx0 + gx1) / 2 - 0.6, 12.6, WHITE)
-            head.dot((gx0 + gx1) / 2 + 0.6, 12.6, WHITE)
+            for tx in (16, 17.6, 19.4):
+                head.poly([(tx - 0.5, 13.4), (tx + 0.5, 13.4), (tx, 14.6)], WHITE, shade=False)
     d.put(head)
-    # the invisible box: a faint pane it keeps bumping into
-    wall_x = {'strike': 27.5, 'follow': 26}.get(p.arm, 24.5)
-    pane = d.part(lean, bob)
-    pane.line(wall_x + 1.2, 6, wall_x + 1.2, 28, (190, 220, 255), w=0.4)
-    if d.sep:
-        pane.dot(wall_x + 0.6, 9, WHITE)
-        pane.dot(wall_x + 0.6, 10.5, WHITE)
-    d.put(pane, outline=False)
-    arms = d.part(lean, bob)
-    for i, hy in enumerate((13.5, 18.5) if p.arm != 'raise' else (10, 14.5)):
-        arms.line(18, 16.5 + i * 1.5, wall_x - 1, hy, WHITE if i else (230, 230, 236), w=1.4)
-        arms.ellipse(wall_x, hy, 1.4, 2.0, WHITE)  # flat palm on the glass
-    d.put(arms)
-    finish(c, d, shadow=(16, 30.9, 6, 1.2))
+    club = d.part(lean, bob)
+    hand, tip = {'raise': ((15, 12), (9, 1)), 'strike': ((22, 17), (31, 13)), 'follow': ((21, 20), (29, 24))}.get(
+        p.arm, ((20, 17.5), (25, 6)))
+    dx, dy = tip[0] - hand[0], tip[1] - hand[1]
+    L = math.hypot(dx, dy) or 1
+    ux, uy = dx / L, dy / L
+    club.line(hand[0], hand[1], tip[0] - ux * 2.5, tip[1] - uy * 2.5, crayon, w=3)  # the giant crayon
+    club.line(hand[0] + ux * 3, hand[1] + uy * 3, hand[0] + ux * 6, hand[1] + uy * 6, light(crayon, 0.3), w=3.1)  # paper wrapper
+    club.line(hand[0] + ux * 4.5, hand[1] + uy * 4.5, hand[0] + ux * 4.6, hand[1] + uy * 4.6, dark(crayon, 0.3), w=3.2)
+    club.poly([(tip[0] - ux * 2.5 - uy * 1.5, tip[1] - uy * 2.5 + ux * 1.5), (tip[0], tip[1]),
+               (tip[0] - ux * 2.5 + uy * 1.5, tip[1] - uy * 2.5 - ux * 1.5)], dark(crayon, 0.1))  # waxy point
+    club.ellipse(hand[0], hand[1], 1.6, 1.6, skin)  # fist
+    d.put(club)
+    if p.arm in ('strike', 'follow'):  # angry scribbles left in the air
+        sc = d.part(lean, bob)
+        sc.line(25, 20, 27, 18, crayon, w=0.5)
+        sc.line(27, 18, 26, 21, crayon, w=0.5)
+        sc.line(26, 21, 29, 19.5, crayon, w=0.5)
+        d.put(sc, outline=False)
+    finish(c, d, shadow=(16, 30.8, 7, 1.2))
 
 
-def peacock(c: Canvas, p: Pose, s: dict):
-    """A peacock whose fanned tail is splashed with paint; it carries a brush."""
+def gargoyle(c: Canvas, p: Pose, s: dict):
+    """A crouching stone gargoyle with bat wings, tagging walls with a spray can."""
     d = D(c, p)
-    col = hexc(s.get('color', '#2a6ad0'))
+    stone = hexc(s.get('color', '#8a8a96'))
+    glow = hexc(s.get('glow', '#ff8a2a'))
+    can = hexc(s.get('can', '#3ab0e0'))
     lean, bob = d.lean, d.bob
-    spread = {'raise': 1.15, 'strike': 0.8, 'follow': 0.9}.get(p.arm, 1.0) * (1.04 if p.frame % 2 else 1.0)
-    paints = ['#e8303a', '#ff9a2a', '#ffe03a', '#3ac04a', '#3aa0ff', '#9a5ae0', '#ff6ac0']
-    T = d.part(lean * 0.5, bob)
-    fx, fy = 13, 21  # the fan rises in a big arc behind the body
-    n = 9
-    tips = []
-    for i in range(n):
-        a = math.radians(196 + i * (148 / (n - 1)))
-        r = 12.5 * spread
-        tips.append((fx + math.cos(a) * r, fy + math.sin(a) * r * 0.95))
-    T.poly([(fx, fy)] + tips, '#124a34')  # the fan's body
-    for i, (x, y) in enumerate(tips):
-        T.line(fx, fy, x, y, '#3ab07a', w=0.6)
-        T.ellipse(x, y, 2.4, 2.4, '#3ab07a')
-        T.ellipse(x, y, 1.4, 1.4, paints[i % 7], shade=False)  # each eye-spot a different paint
-    if d.sep:  # wet paint dripping off the feathers
-        for i in (1, 4, 7):
-            x, y = tips[i]
-            T.line(x, y + 2, x, y + 3.6 + (p.frame % 2), paints[i % 7], w=0.5)
-    d.put(T)
+    flap = {0: -2.0, 1: 0.0, 2: 1.5}[p.wing]
+    W = d.part(lean * 0.6, bob)
+    W.poly([(12, 13), (2, 4 + flap), (3, 10 + flap), (1.5, 13 + flap), (4.5, 15), (3.5, 18), (10, 18)], dark(stone, 0.22))  # bat wing
+    W.line(12, 13, 2, 4 + flap, dark(stone, 0.35), w=0.6)
+    W.line(10, 15, 3, 10 + flap, dark(stone, 0.35), w=0.5)
+    d.put(W)
     legs = d.part(lean * 0.4, 0)
-    for i, lx in enumerate((15, 18)):
-        off = p.step * (0.8 if i else -0.8)
-        legs.line(lx, 24, lx + off, 29.6, '#8a8a9a', w=0.8)
-        legs.line(lx + off - 1, 30, lx + off + 1.6, 30, '#8a8a9a', w=0.7)
+    for i, lx in enumerate((11.5, 18.5)):
+        off = p.step * (1.0 if i else -1.0)
+        legs.ellipse(lx + off, 26, 3, 3.4, dark(stone, 0.1 if i else 0.18))  # crouched haunches
+        for k in range(3):  # talons
+            legs.poly([(lx - 1.5 + k * 1.4 + off, 29), (lx - 1 + k * 1.4 + off, 30.6), (lx - 0.5 + k * 1.4 + off, 29)], '#4a4a54')
     d.put(legs)
     B = d.part(lean, bob)
-    B.ellipse(16.5, 20.5, 5, 4.6, col)
-    B.ellipse(13.5, 20.5, 3, 3.6, '#2a8a5a', rot=0.3)  # folded wing
-    B.poly([(18, 18), (19.5, 11), (21.5, 11), (20.5, 18)], col)  # neck
-    B.ellipse(21, 9.5, 2.8, 2.6, col)
-    for x in (18.5, 20.5, 22.5):  # spiked crest
-        B.poly([(x - 0.6, 7.8), (x + 0.4 - (21 - x) * 0.5, 3.4), (x + 0.8, 7.8)], dark(col, 0.25))
-    B.ellipse(21.8, 9.8, 1.4, 0.8, '#1a1420', shade=False)  # dark war-paint stripe
-    d.eyes(B, [(21.8, 9.2)], color=(255, 50, 60) if not p.hurt else WHITE, h=1, shine=False)
-    if not p.hurt:
-        B.line(20.4, 7.9, 23, 8.8, '#1a1420', w=0.5)  # glaring brow
-    B.poly([(23.2, 8.9), (26, 9.6), (25.6, 10.8), (23.2, 10.8)], '#c8a060')  # hooked beak
-    B.dot(25.4, 10.6, '#8a6a30')
-    d.put(B)
-    brush = d.part(lean, bob)
-    tip = {'raise': (27, 4), 'strike': (30, 12.5), 'follow': (28.5, 14)}.get(p.arm, (28.5, 8.5))
-    brush.line(24.8, 10.2, tip[0], tip[1], '#c8884a', w=0.7)  # paintbrush held in the beak
-    brush.ellipse(tip[0] + 0.3, tip[1] - 0.2, 1.1, 0.9, paints[p.frame % 7], shade=False)
-    d.put(brush)
-    finish(c, d, shadow=(16, 30.8, 8, 1.2))
-
-
-def pinecone(c: Canvas, p: Pose, s: dict):
-    """A porcupine whose spiky back looks exactly like a pinecone; curls up to attack."""
-    d = D(c, p)
-    scale = hexc(s.get('scale', '#a0683a'))
-    fur = hexc(s.get('fur', '#c8a07a'))
-    lean, bob = d.lean, d.bob
-    curled = p.arm in ('strike', 'follow')
-    if curled:  # rolled into a perfect pinecone ball
-        B = d.part(lean, bob)
-        B.ellipse(17, 23, 7, 6.6, scale)
-        for r in range(3):
-            for k in range(5 + r):
-                a = k / (5 + r) * 2 * math.pi + r * 0.4 + p.frame * 0.5
-                x, y = 17 + math.cos(a) * (2 + r * 2), 23 + math.sin(a) * (2 + r * 2)
-                B.poly([(x - 1.2, y + 0.6), (x, y - 1.2), (x + 1.2, y + 0.6)], dark(scale, 0.14 + r * 0.04))
-        B.rect(18, 21, 22.5, 22.6, (30, 16, 20), shade=False)  # eyes glaring out of the ball
-        B.dot(18.8, 21.3, (230, 40, 50))
-        B.dot(21.2, 21.3, (230, 40, 50))
-        d.put(B)
-        finish(c, d, shadow=(17, 30.6, 7, 1.2))
-        return
-    legs = d.part(lean * 0.4, 0)
-    for i, lx in enumerate((12, 15, 19, 21.5)):
-        off = p.step * (1 if i % 2 else -1)
-        legs.rect(lx - 0.9 + off, 25, lx + 0.9 + off, 29.8, dark(fur, 0.2 if i % 2 == 0 else 0.1))
-    d.put(legs)
-    B = d.part(lean, bob)
-    B.ellipse(16, 23, 8.5, 4.8, fur)  # belly
-    B.ellipse(14.5, 20.5, 8.5, 6.5, scale)  # pinecone back
-    for row, (y, n, x0) in enumerate(((16, 4, 9), (18.6, 5, 7.5), (21.2, 5, 7.5), (23.8, 4, 9))):
-        for k in range(n):
-            x = x0 + k * 3.2 + (1.6 if row % 2 else 0)
-            B.poly([(x - 1.5, y + 0.8), (x, y - 1.4), (x + 1.5, y + 0.8)], dark(scale, 0.18))
-            B.dot(x - 0.3, y - 0.4, light(scale, 0.2))
-    for k, (x, ang) in enumerate(((8, -2.4), (11, -2.0), (14, -1.7), (17, -1.4), (19.5, -1.1))):  # quills
-        L2 = 3.5 + (k % 2) * 1.2
-        B.line(x, 15.5, x + math.cos(ang) * L2, 15.5 + math.sin(ang) * L2, '#f0e0c0', w=0.5)
+    B.ellipse(15.5, 20.5, 6.5, 6, stone)
+    for (x, y, col) in ((13, 18, '#ff4aa0'), (17.5, 23, '#3ae0a0'), (12, 23, '#ffd23a')):  # paint splats on the stone
+        B.ellipse(x, y, 1.1, 0.9, col, shade=False)
+    B.line(14, 16, 12.5, 19, dark(stone, 0.35), w=0.4)  # crack
     d.put(B)
     H = d.part(lean, bob)
-    H.ellipse(23, 22, 3.6, 3.2, fur)
-    H.poly([(25.5, 21), (28.8, 22.6), (25.5, 24)], light(fur, 0.05))  # pointy snout
-    H.dot(28.6, 22.2, '#3a2a2a', w=1, h=1)
-    H.ellipse(21.5, 19.6, 1, 1, dark(fur, 0.2))  # ear
+    H.poly([(14.5, 8), (12.5, 2.5), (16.5, 6.5)], dark(stone, 0.2))  # horns
+    H.poly([(19.5, 7), (21, 1.5), (21.5, 7.5)], dark(stone, 0.12))
+    H.ellipse(18.5, 10.5, 5, 4.6, light(stone, 0.04))
+    H.poly([(21.5, 10), (26, 11), (25.5, 13.5), (21.5, 13.5)], stone)  # snout
     if p.facing != 'up':
-        d.eyes(H, [(24.2, 21)], color=(230, 40, 50) if not p.hurt else EYE, h=1, shine=False)
+        d.eyes(H, [(19, 9.4), (21.6, 9.4)], color=glow if not p.hurt else WHITE, h=1, shine=False)
         if not p.hurt:
-            H.line(22.8, 19.4, 25.2, 20.4, dark(fur, 0.6), w=0.6)  # scowl
+            H.line(17.6, 7.6, 20.2, 8.6, dark(stone, 0.55), w=0.7)  # heavy stone brow
+            H.line(20.6, 8.6, 23, 7.6, dark(stone, 0.55), w=0.7)
+        H.line(21.5, 13.2, 25.5, 13, '#1a1a22', w=0.6)  # mouth
         if d.sep:
-            H.poly([(26.2, 23.4), (27, 23.4), (26.6, 24.8)], WHITE, shade=False)  # little fang
+            H.poly([(23, 13), (23.8, 13), (23.4, 14.6)], WHITE, shade=False)  # fangs
+            H.poly([(24.6, 13), (25.4, 13), (25, 14.4)], WHITE, shade=False)
     d.put(H)
+    A = d.part(lean, bob)
+    hand = {'raise': (19, 11), 'strike': (25, 16), 'follow': (24, 19)}.get(p.arm, (22, 19))
+    A.line(17, 18, hand[0], hand[1], stone, w=2)
+    A.rect(hand[0] - 1, hand[1] - 3.6, hand[0] + 1.4, hand[1] + 0.6, can)  # spray can
+    A.rect(hand[0] - 0.5, hand[1] - 4.6, hand[0] + 0.9, hand[1] - 3.5, '#d8dee8', shade=False)
+    A.ellipse(hand[0], hand[1], 1.4, 1.4, light(stone, 0.05))
+    d.put(A)
+    if p.arm in ('strike', 'follow'):  # a cloud of spray paint
+        sp = d.part(lean, bob)
+        for (x, y, r) in ((hand[0] + 3, hand[1] - 4.5, 1.4), (hand[0] + 5, hand[1] - 5.5, 1.8), (hand[0] + 4.5, hand[1] - 2.5, 1.1)):
+            sp.ellipse(x, y, r, r, light(can, 0.2), shade=False)
+        d.put(sp, outline=False)
+    finish(c, d, shadow=(15, 30.9, 9, 1.2))
+
+
+def patchwork_bear(c: Canvas, p: Pose, s: dict):
+    """A stitched-up teddy bear with a button eye and a giant sewing needle."""
+    d = D(c, p)
+    fur = hexc(s.get('fur', '#a0683a'))
+    lean, bob = d.lean, d.bob
+    stitch = '#2a1a14'
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((12.5, 18.5)):
+        off = p.step * (1.2 if i else -1.2)
+        legs.ellipse(lx + off, 27, 2.6, 3.4, fur if i else dark(fur, 0.1))
+        legs.ellipse(lx + 0.4 + off, 29.6, 2.2, 1.1, '#e8c89a')  # foot pad
+    d.put(legs)
+    B = d.part(lean, bob)
+    B.ellipse(15.5, 20.5, 6.6, 6.2, fur)
+    B.rect(12, 19, 15.5, 22.5, '#4a7ad0')  # sewn-on patches
+    B.rect(16.5, 21.5, 19.5, 24.5, '#d05a8a')
+    if d.sep:
+        for (x0, y0, x1, y1) in ((12, 19, 15.5, 22.5), (16.5, 21.5, 19.5, 24.5)):
+            for t in range(4):
+                B.dot(x0 + (x1 - x0) * t / 3, y0 - 0.2, stitch)
+        for y in (15, 16.4, 17.8, 19.2, 20.6, 22, 23.4, 24.8):  # a long stitched seam down its belly
+            B.line(15.2, y, 16.6, y + 0.6, stitch, w=0.35)
+    B.ellipse(10, 15.5, 1.6, 1.2, '#f4f0e8')  # stuffing bursting out
+    B.ellipse(9, 14.6, 1.1, 0.9, WHITE, shade=False)
+    d.put(B)
+    H = d.part(lean, bob)
+    H.ellipse(12.5, 5.5, 2.2, 2.2, fur)  # ears
+    H.ellipse(20.5, 5.5, 2.2, 2.2, dark(fur, 0.06))
+    H.ellipse(12.5, 5.5, 1, 1, '#e8c89a', shade=False)
+    H.ellipse(16.5, 9.5, 5.4, 4.8, fur)
+    H.ellipse(19.5, 11.5, 2.6, 2, '#e8c89a')  # muzzle
+    H.dot(21, 10.6, stitch, w=1, h=1)
+    if p.facing != 'up':
+        H.ellipse(15, 8.6, 1.6, 1.6, '#1a1a22')  # button eye
+        if d.sep:
+            H.dot(14.6, 8.2, '#6a6a7a')
+            H.dot(15.4, 9, '#6a6a7a')
+        H.line(17.2, 7, 20.2, 9.8, stitch, w=0.4)  # stitched X over the other eye
+        H.line(20.2, 7, 17.2, 9.8, stitch, w=0.4)
+        H.dot(18.8, 8.4, (255, 60, 60) if not p.hurt else WHITE)  # a red glint behind the stitches
+        H.line(17.8, 12.6, 21.4, 12.4, stitch, w=0.5)  # stitched-shut grin
+        if d.sep:
+            for x in (18.4, 19.6, 20.8):
+                H.line(x, 11.8, x, 13.2, stitch, w=0.3)
+    d.put(H)
+    A = d.part(lean, bob)
+    paw = {'raise': (20, 10), 'strike': (25, 16), 'follow': (24, 20)}.get(p.arm, (22, 18))
+    A.line(18, 17.5, paw[0], paw[1], fur, w=2.4)
+    tip = {'raise': (24, 1), 'strike': (31, 14), 'follow': (30, 22)}.get(p.arm, (27, 9))
+    A.line(paw[0], paw[1], tip[0], tip[1], '#d8dee8', w=0.8)  # giant needle
+    A.ellipse(paw[0] - (tip[0] - paw[0]) * 0.15, paw[1] - (tip[1] - paw[1]) * 0.15, 0.9, 0.9, '#8a96a8')  # needle eye
+    A.line(paw[0], paw[1], 14, 26, '#e0303a', w=0.4)  # trailing red thread
+    A.ellipse(paw[0], paw[1], 1.8, 1.8, light(fur, 0.05))
+    d.put(A)
+    finish(c, d, shadow=(15.5, 30.9, 8, 1.2))
+
+
+def dart_frog(c: Canvas, p: Pose, s: dict):
+    """A neon poison dart frog: bright colours mean DON'T TOUCH."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#2a8aff'))
+    spot = hexc(s.get('spot', '#141420'))
+    lean, bob = d.lean, d.bob
+    crouch = 1.2 if p.arm == 'raise' else 0.0
+    L = d.part(lean, bob + crouch * 0.5)
+    L.ellipse(9, 26.5, 4, 2.6, dark(col, 0.12))  # folded back leg
+    L.ellipse(7.5, 29.6, 2.6, 0.9, dark(col, 0.2))
+    d.put(L)
+    B = d.part(lean, bob + crouch * 0.5)
+    B.ellipse(15, 23, 8.5, 5.6, col)
+    B.ellipse(16.5, 26, 6, 2.4, light(col, 0.1))
+    if d.sep:
+        for (x, y, r) in ((10, 21, 1.3), (13.5, 19.2, 1.1), (17, 20.6, 1.4), (11.5, 24.5, 1.0), (20, 23, 1.0)):
+            B.ellipse(x, y, r, r * 0.8, spot, shade=False)
+    else:
+        B.dot(12, 21, spot, w=2, h=1)
+    throat = 2.2 if p.frame % 2 else 1.2  # puffing its throat
+    B.ellipse(22, 25.5, throat, throat * 0.8, '#ffd23a')
+    d.put(B)
+    F = d.part(lean * 0.5, 0)
+    F.ellipse(20, 29.6, 2.4, 0.9, dark(col, 0.2))  # front feet
+    F.ellipse(14, 29.8, 2, 0.8, dark(col, 0.2))
+    d.put(F)
+    H = d.part(lean, bob + crouch * 0.5)
+    H.ellipse(21.5, 20, 5, 3.8, col)
+    H.ellipse(19, 16.6, 2.2, 2.2, col)  # eye bumps on top
+    H.ellipse(22.5, 16.8, 2.1, 2.1, dark(col, 0.05))
+    if p.facing != 'up':
+        for (x, y) in ((19.2, 16.6), (22.6, 16.8)):
+            H.ellipse(x, y, 1.4, 1.4, '#ffd23a', shade=False)  # yellow eyes
+            if not p.hurt:
+                H.rect(x - 0.25, y - 1.1, x + 0.35, y + 1.1, '#141420', shade=False)  # slit pupils
+            else:
+                H.dot(x - 0.5, y - 0.5, '#141420')
+        H.line(19.5, 21.6, 26, 20.6, dark(col, 0.5), w=0.5)  # wide mean mouth
+    d.put(H)
+    if p.arm in ('strike', 'follow'):  # sticky tongue lash
+        T = d.part(lean, bob)
+        reach = 31 if p.arm == 'strike' else 28.5
+        T.line(25.5, 21, reach, 19.5, '#ff5a7a', w=0.9)
+        T.ellipse(reach, 19.5, 1.2, 1.2, '#ff5a7a')
+        d.put(T)
+    D2 = d.part(lean, bob)  # a toxic drip
+    dy = (p.frame % 3) * 1.2
+    D2.ellipse(11, 27 + dy, 0.7, 0.9, '#8aff5a', shade=False)
+    d.put(D2, outline=False)
     finish(c, d, shadow=(16, 30.8, 9, 1.2))
 
 
-def wolf_pup(c: Canvas, p: Pose, s: dict):
-    """A wolf pup practising its howl, which comes out as a squeak."""
+def snapjaw(c: Canvas, p: Pose, s: dict):
+    """A walking Venus flytrap with jaws full of spiky teeth."""
     d = D(c, p)
-    fur = hexc(s.get('fur', '#8a94a8'))
-    belly = hexc(s.get('belly', '#e8e6ee'))
+    leaf = hexc(s.get('color', '#5ab03a'))
+    mouth = hexc(s.get('mouth', '#d0304a'))
     lean, bob = d.lean, d.bob
-    howl = (p.frame == 1 or p.arm == 'raise') and not p.hurt
-    tail = d.part(lean, bob)
-    wag = 1.2 if p.frame % 2 else -0.6
-    tail.poly([(8.5, 20), (3, 15 + wag), (4.5, 19.5 + wag), (8, 22)], fur)  # bushy tail
-    tail.ellipse(3.6, 15.6 + wag, 1.4, 1.4, belly)
-    d.put(tail)
-    legs = d.part(lean * 0.4, 0)
-    for i, lx in enumerate((10.5, 13, 18.5, 21)):
-        off = p.step * (1.3 if i % 2 else -1.3)
-        legs.rect(lx - 1.1 + off, 23, lx + 1.1 + off, 29.8, fur if i % 2 else dark(fur, 0.12))
-        legs.rect(lx - 1.2 + off, 29, lx + 1.6 + off, 30.6, belly)
-    d.put(legs)
-    B = d.part(lean, bob)
-    B.ellipse(15.5, 21, 8, 4.8, fur)
-    B.ellipse(17, 23, 5.5, 2.2, belly)
-    for x in (9, 11.5, 14, 16.5):  # scruffy raised hackles
-        B.poly([(x - 1.2, 17.2), (x + 0.6, 14.2 - (x % 2)), (x + 1.4, 17.2)], dark(fur, 0.2))
-    d.put(B)
-    H = d.part(lean, bob)
-    hx, hy = (22, 13.5) if howl else (22.5, 16)
-    tilt = -0.6 if howl else 0.0
-    H.ellipse(hx, hy, 4.4, 4.0, fur)
-    H.poly([(hx - 3.5, hy - 2), (hx - 3, hy - 7), (hx - 0.8, hy - 3)], fur)  # ears
-    H.poly([(hx - 0.5, hy - 3), (hx + 0.8, hy - 7.5), (hx + 2.4, hy - 2.5)], dark(fur, 0.06))
-    H.dot(hx - 2.2, hy - 4.2, '#f0a0b0', w=1, h=1.4)
-    sx, sy = (hx + 3, hy - 2.5) if howl else (hx + 3.5, hy + 0.8)
-    H.ellipse(sx, sy, 2.8, 1.8, belly, rot=tilt)  # snout
-    H.dot(sx + 2.2, sy - 0.8 if howl else sy - 0.4, '#2a2230', w=1, h=1)  # nose
-    H.poly([(hx - 2.4, hy - 3.6), (hx - 3.6, hy - 5.2), (hx - 1.4, hy - 4.2)], dark(fur, 0.2))  # scruffy tuft
+    roots = d.part(lean * 0.4, 0)
+    for i, (x0, x1) in enumerate(((13, 9.5), (15, 13.5), (17, 18.5), (19, 22))):  # root legs
+        off = p.step * (1 if i % 2 else -1)
+        roots.line(x0, 25, x1 + off, 29.6, '#7a5a3a', w=1.0)
+        roots.line(x1 + off, 29.6, x1 + off + (1.2 if i > 1 else -1.2), 30.4, '#7a5a3a', w=0.7)
+    d.put(roots)
+    base = d.part(lean, bob)
+    base.poly([(16, 25), (8, 22), (6, 24.5), (14, 26)], dark(leaf, 0.12))  # base leaves
+    base.poly([(16, 25), (24, 21.5), (26, 24), (18, 26)], leaf)
+    sway = 0.6 if p.frame % 2 else -0.4
+    base.line(16, 25, 15.5 + sway, 16, dark(leaf, 0.2), w=1.6)  # stem
+    d.put(base)
+    gape = {'raise': 6.5, 'strike': 1.0, 'follow': 2.0}.get(p.arm, 4.0 if p.frame % 2 else 3.0)
+    if p.hurt:
+        gape = 5.0
+    hx, hy = 16 + sway + (2 if p.arm == 'strike' else 0), 13
+    J = d.part(lean, bob)
+    R = 6.2
+    half = math.radians(8 + gape * 6)  # mouth opening, as a wedge facing forward
+    J.ellipse(hx, hy, R, R * 0.9, leaf)  # the trap head
+    J.dot(hx - 3, hy - 3, light(leaf, 0.25), w=2, h=1)
+    lip_up = (hx + math.cos(-half) * R * 1.05, hy + math.sin(-half) * R)
+    lip_dn = (hx + math.cos(half) * R * 1.05, hy + math.sin(half) * R)
+    J.poly([(hx - 1, hy), lip_up, (hx + R + 2, hy), lip_dn], mouth, shade=False)  # red inside
+    J.poly([(hx + 0.5, hy - 0.3), (hx + R + 2, hy - 0.6), (hx + R + 2, hy + 0.6), (hx + 0.5, hy + 0.3)], dark(mouth, 0.4), shade=False)  # throat
+    J.erase_ellipse(hx + R + 2.6, hy, 2.6, max(0.4, math.tan(half) * 3))  # bite out the front of the mouth
+    d.put(J)
+    T = d.part(lean, bob)
+    for k in range(3):  # white teeth along both lips
+        t = 0.3 + k * 0.25
+        ux, uy = hx - 1 + (lip_up[0] - hx + 1) * t, hy + (lip_up[1] - hy) * t
+        dx_, dy_ = hx - 1 + (lip_dn[0] - hx + 1) * t, hy + (lip_dn[1] - hy) * t
+        T.poly([(ux - 0.6, uy), (ux + 0.6, uy), (ux + 0.2, uy + 1.6)], WHITE, shade=False)
+        T.poly([(dx_ - 0.6, dy_), (dx_ + 0.6, dy_), (dx_ + 0.2, dy_ - 1.6)], WHITE, shade=False)
+    for (lx, ly, sgn) in ((lip_up[0], lip_up[1], -1), (lip_dn[0], lip_dn[1], 1)):  # bristles on the lip tips
+        for k in range(3):
+            T.line(lx - k * 1.2, ly + sgn * k * 0.4, lx - k * 1.2 + 1.6, ly + sgn * (k * 0.4 + 1.6), light(leaf, 0.25), w=0.45)
     if p.facing != 'up':
-        if howl and not p.hurt:
-            H.line(hx + 0.2, hy - 1, hx + 1.6, hy - 1.4, EYE, w=0.5)  # eyes squeezed shut mid-howl
-            H.ellipse(sx + 0.6, sy + 1.4, 1.1, 1.3, '#3a1420', shade=False)  # open howling jaws
-            H.poly([(sx, sy + 0.6), (sx + 0.5, sy + 0.6), (sx + 0.2, sy + 1.6)], WHITE, shade=False)
-            H.poly([(sx + 1, sy + 0.6), (sx + 1.5, sy + 0.6), (sx + 1.2, sy + 1.6)], WHITE, shade=False)
-        else:
-            d.eyes(H, [(hx + 1, hy - 1.2)], color=(230, 40, 50) if not p.hurt else EYE, shine=False)
-            if not p.hurt:
-                H.line(hx - 0.4, hy - 3.2, hx + 2.2, hy - 2, '#1a1420', w=0.6)  # angry brow
-                H.line(sx - 1.6, sy + 1.6, sx + 1.8, sy + 1.6, '#3a1420', w=0.6)  # snarl
-                H.poly([(sx - 0.6, sy + 1.4), (sx + 0.1, sy + 1.4), (sx - 0.2, sy + 2.8)], WHITE, shade=False)  # fangs
-                H.poly([(sx + 0.9, sy + 1.4), (sx + 1.6, sy + 1.4), (sx + 1.2, sy + 2.8)], WHITE, shade=False)
-        if d.sep:
-            H.line(hx - 0.2, hy - 2.8, hx + 1.4, hy + 0.4, '#d89aa0', w=0.4)  # an old scar over the eye
-    d.put(H)
-    if howl and p.facing != 'up':  # the squeaky "awoo" lines
-        N = d.part(lean, bob)
-        for i, (x, y) in enumerate(((26.5, 7), (28, 3.5))):
-            N.line(x, y, x + 1.4, y - 1, '#fff2a0', w=0.7)
-            N.line(x + 1.4, y - 1, x + 2.8, y, '#fff2a0', w=0.7)
-            N.line(x + 2.8, y, x + 3.8, y - 0.8, '#fff2a0', w=0.7)
-        d.put(N, outline=False)
-    finish(c, d, shadow=(15, 30.9, 9, 1.2))
+        ex, ey = hx - 0.5, hy - 3.6
+        T.ellipse(ex, ey, 1.5, 1.3, '#ffe23a' if not p.hurt else WHITE, shade=False)  # one angry eye
+        if not p.hurt:
+            T.rect(ex - 0.2, ey - 1, ex + 0.4, ey + 1, '#1a1420', shade=False)
+            T.line(ex - 1.8, ey - 2.2, ex + 1.6, ey - 1.2, dark(leaf, 0.6), w=0.7)
+    if gape > 2.5 and d.sep:  # drool
+        T.line(lip_dn[0] - 1.5, lip_dn[1], lip_dn[0] - 1.5, lip_dn[1] + 1.8 + (p.frame % 2), '#bfe8ff', w=0.4)
+    d.put(T, outline=False)
+    finish(c, d, shadow=(16, 30.9, 8, 1.2))
 
 
 # ─── Roster ──────────────────────────────────────────────────────────────────
@@ -2337,11 +2340,11 @@ DRAWERS = {
     'microbe': microbe,
     'pulley_spider': pulley_spider,
     'piston_boar': piston_boar,
-    'clay': clay,
-    'mime': mime,
-    'peacock': peacock,
-    'pinecone': pinecone,
-    'wolf_pup': wolf_pup,
+    'crayon_goblin': crayon_goblin,
+    'gargoyle': gargoyle,
+    'patchwork_bear': patchwork_bear,
+    'dart_frog': dart_frog,
+    'snapjaw': snapjaw,
 }
 
 
@@ -2417,11 +2420,11 @@ ROSTER: list[Char] = [
     Char('pulley-spider', '🕷️', 'pulley_spider', H(color='#8a6ab0')),
     Char('piston-boar', '🐗', 'piston_boar', H(color='#8a5a3a')),
     # --- New critters, batch 3 (Chromaria + Whispering Woods) ---
-    Char('clumsy-clay', '🏺', 'clay', H(color='#d0784a')),
-    Char('mime-mimic', '🎭', 'mime', H()),
-    Char('paint-peacock', '🦚', 'peacock', H(color='#3a2a9a')),
-    Char('pinecone-porcupine', '🦔', 'pinecone', H(scale='#a0683a', fur='#c8a07a')),
-    Char('howl-pup', '🐺', 'wolf_pup', H(fur='#5a6278', belly='#b8bcc8')),
+    Char('crayon-goblin', '🖍️', 'crayon_goblin', H(skin='#6ab04a', crayon='#e0303a')),
+    Char('graffiti-gargoyle', '🎨', 'gargoyle', H(color='#8a8a96', glow='#ff8a2a', can='#3ab0e0')),
+    Char('patchwork-bear', '🧸', 'patchwork_bear', H(fur='#a0683a')),
+    Char('dart-frog', '🐸', 'dart_frog', H(color='#2a8aff')),
+    Char('snapjaw', '🪴', 'snapjaw', H(color='#5ab03a', mouth='#d0304a')),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
