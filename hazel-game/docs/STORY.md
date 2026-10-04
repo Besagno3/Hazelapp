@@ -207,8 +207,11 @@ bible: Acts II–IV, every zone/NPC/enemy/quest/spell named):
 - **A fifth crystal** — History → the "Crystal of Memory," exactly as this
   hook predicted. → STORY-4X Act II.
 - **A bigger world:** the overworld plan (`ROADMAP-OVERWORLD.md` §3) puts the
-  Fiends at the literal corners of the world and the Spire at its heart,
+  Fiends at the literal corners of **Dawnreach** (the home continent — the
+  whole world is still Lumina) and the Spire at its heart. Beyond lie the
+  islands of **the Silver Shallows** (Act II, by boat) and, across **the
+  Starfall Sea**, the far continent **Taleshore** (Act III). The plan also
   turns the fog of Forgetting into real fog that lifts per crystal, and adds
-  a travel ladder (walk → Marlow's boat → Ember's wings → down). It also
+  a travel ladder (walk → Marlow's boat → Ember's wings → down). It
   settles the hero's home as Lumina Village (this bible says both Field and
   Village today) and adds writing rules for rumors and roadside stories.

@@ -21,8 +21,10 @@ battles, no game over, no reading pressure).
   Everything is the same scale, so it never feels like a journey.
 - **Build a two-scale world:** one big scrolling overworld where each town,
   cave, tower and shrine is an icon you walk into.
-- **Shape:** two continents plus a ring of islands. **Travel ladder:** walk →
-  sail → fly → descend, one new way to move per act.
+- **Shape:** two continents, **Dawnreach** (home) and **Taleshore** (far),
+  with the islands of **the Silver Shallows** off home and **the Starfall Sea**
+  between them. **Travel ladder:** walk → sail → fly → descend, one new way
+  to move per act.
 - **The story needs re-staging more than new acts.** The bible already
   describes a bigger world than the maps show. The one new story mechanic: the
   *fog of Forgetting* becomes real fog on the map that lifts as crystals return.
@@ -138,12 +140,19 @@ three ways to travel (walk, sail, fly), plus "down" for the finale.
 | Piece | Size (tiles) | Reached by | Holds |
 |---|---|---|---|
 | **World map** | ~160 × 112 (~58 screens, about half sea) | — | everything below |
-| **Home continent** (Lumina) | ~80 × 60 | on foot | Act I: Lumina Village, the four crystal regions at the corners, the Spire at the heart, warden areas, Moonwell Grove, 4–6 roadside places |
-| **Inner-sea islands** | 5–7 islands, ~8×8 to 16×12 each | boat | Act II: Eldergrove, the Sunken Archive, one shrine / hermit / treasure per small island |
-| **Far continent** (name TBD) | ~56 × 44 | Ember (later also a ferry) | Act III: the ten zones of `STORY-4X.md` §5 |
+| **Dawnreach** (home continent) | ~80 × 60 | on foot | Act I: Lumina Village, the four crystal regions at the corners, the Spire at the heart, warden areas, Moonwell Grove, 4–6 roadside places |
+| **The Silver Shallows** (inner sea) and its islands | 5–7 islands, ~8×8 to 16×12 each | boat | Act II: Eldergrove, the Sunken Archive, one shrine / hermit / treasure per small island |
+| **Taleshore** (far continent) | ~56 × 44 | Ember (later also a ferry) | Act III: the ten zones of `STORY-4X.md` §5 |
 | **Below the Spire** | dungeon floors | descend | Act IV: the Dream Root |
 
-Walking speed is 170 px/s (~5 tiles/s), so crossing the home continent in a
+**Names (decided 2026-10-04).** The whole world is still **Lumina**. Its
+parts: **Dawnreach**, the home continent; **Taleshore**, the far continent;
+**the Silver Shallows**, the calm inner sea of islands (all shallow water, so
+the boat can sail anywhere in it); and **the Starfall Sea**, the open sea
+between the continents, where the Great Fogbank sits. Lumina Village and
+the other existing place names stay as they are.
+
+Walking speed is 170 px/s (~5 tiles/s), so crossing Dawnreach in a
 straight line takes ~16 s, and about 30–45 s along winding roads. That's long
 enough to feel like a journey and short enough for a young player.
 
@@ -151,9 +160,9 @@ enough to feel like a journey and short enough for a young player.
 
 | Act | Mode | How you get it | What it opens | Speed | Battles |
 |---|---|---|---|---|---|
-| I | **On foot** | from the start | the home continent; bridges and passes opened by gatekeepers and warden keys; fog lifts per crystal | 1× | visible roaming critters |
-| II | **Boat** | Old Marlow's boat, repaired in a cross-continent quest (Rivet + Sage Cog) after `spire-cleared` | the inner sea, coasts and islands; lands only at docks and beaches | 1.5× | visible sea critters |
-| III | **Ember (flight)** | Ember full-grown + crystal #5 restored (`flight-unlocked`, `STORY-4X.md` §5) | over mountains and the Great Fogbank to the far continent; sky-only ledges | 2.5× | none (the reward for getting there) |
+| I | **On foot** | from the start | Dawnreach; bridges and passes opened by gatekeepers and warden keys; fog lifts per crystal | 1× | visible roaming critters |
+| II | **Boat** | Old Marlow's boat, repaired in a cross-continent quest (Rivet + Sage Cog) after `spire-cleared` | the Silver Shallows: its coasts and islands; lands only at docks and beaches | 1.5× | visible sea critters |
+| III | **Ember (flight)** | Ember full-grown + crystal #5 restored (`flight-unlocked`, `STORY-4X.md` §5) | over mountains, and over the Great Fogbank on the Starfall Sea to Taleshore; sky-only ledges | 2.5× | none (the reward for getting there) |
 | IV | **Down** | the Blank Chart (`STORY-4X.md` §6) | the Dream Root beneath the Spire | — | dungeon |
 
 Travel rules (classic, adjusted for kids):
@@ -239,9 +248,9 @@ progress. Mechanically it's a gate with a flag, like today's gates.
 |---|---|---|
 | Four small "corner pockets", one near each crystal region | that crystal is restored | a shrine, treasure or side place you could see but not reach (the reward is visible in advance) |
 | The ring around the Spire grounds | the first crystal (today's "The Spire wakes" scene, `spire-awake-seen`) | the Spire grounds and Keeper Aurora. The door itself stays sealed until all four crystals, as today |
-| The inner sea | `spire-cleared` (Act II opening) | the coastline for the boat, and the islands |
+| The Silver Shallows | `spire-cleared` (Act II opening) | the coastline for the boat, and the islands |
 | The road past Moonwell Grove | `act2-seen` | Remembrance Hill (`STORY-4X.md`: "a road that was never there before") |
-| The Great Fogbank (outer sea) | never on its own. Ember flies over it in Act III; it thins when the Hush Fiend falls | the far continent by sea (a ferry from Port Lantern) |
+| The Great Fogbank (on the Starfall Sea) | never on its own. Ember flies over it in Act III; it thins when the Hush Fiend falls | Taleshore by sea (a ferry from Port Lantern) |
 
 ### 3.3 New story beats
 
@@ -286,13 +295,13 @@ progress. Mechanically it's a gate with a flag, like today's gates.
 
 | Act | `STORY-4X.md` zone | Where it goes | Reached by |
 |---|---|---|---|
-| II | Remembrance Hill | home continent, behind the Grove fog | foot |
-| II | Eldergrove | a forest island | boat |
-| II | Foglight Marsh | a marshy coast across the bay | boat |
-| II | The Sunken Archive | a half-sunk island ruin | boat |
-| III | Port Lantern + 8 island/coast zones | the far continent | Ember |
-| III | Chartmaker's Rest | an outlying island | Ember |
-| IV | The Dream Root Door → Nameless Hall | beneath the Spire, at the heart of the home continent | down |
+| II | Remembrance Hill | Dawnreach, behind the Grove fog | foot |
+| II | Eldergrove | a forest island in the Silver Shallows | boat |
+| II | Foglight Marsh | a marshy coast across the Silver Shallows | boat |
+| II | The Sunken Archive | a half-sunk island ruin in the Silver Shallows | boat |
+| III | Port Lantern + 8 island/coast zones | Taleshore | Ember |
+| III | Chartmaker's Rest | an island off Taleshore | Ember |
+| IV | The Dream Root Door → Nameless Hall | beneath the Spire, at the heart of Dawnreach | down |
 
 The story ends where the map began: back at the Spire, at the heart of home.
 
@@ -383,14 +392,14 @@ mostly follows build order.
 | 5 | **Map authoring:** Tiled import, invariants ported (§4.6) | S–M | 1→2 | the world map is edited in Tiled and all zone tests run on it |
 | 6 | **Wayfinding:** world map menu, quest markers, signposts, "where next?" lines | S–M | 2 | a playtester can always answer "where am I?" and "where do I go?" |
 | 7 | **Fog banks** (§3.2) | S–M | 2 | restoring a crystal visibly lifts its fog and opens what's behind it |
-| 8 | **Re-stage Act I on the home continent** (§3.5) | M (mostly content) | 2 | Act I is playable start to finish as a journey; the Field hub is gone |
+| 8 | **Re-stage Act I on Dawnreach** (§3.5) | M (mostly content) | 2 | Act I is playable start to finish as a journey; the Field hub is gone |
 | 9 | **Field spells + shrines:** *Return* (fast travel), *Glow* (light dark caves), *Calm* (critters ignore you), learned at roadside shrines by passing a short question trial; spells unlocked by flags, not just Sages/crystals (`spellsKnown`, `spells.ts:94`) | M | 2 | each shrine teaches one field spell; *Glow* is needed for one cave |
 | 10 | **Real dungeons:** generalize the Spire (floors as ordinary zones joined by stairs, optional darkness, treasure, a boss at the bottom). Clockwork Depths first | M–L | 2 | Clockwork Depths is a 3-floor cave entered from the Woods; the Spire runs on the same engine |
 | 11 | **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | every town has an inn and ~8–12 people; every town points onward |
 | 12 | **Regional difficulty:** keep question level matched to the child, scale enemy HP, damage, behaviours and coins by region | S | 2 | far regions feel tougher without harder questions |
 | 13 | **Side-quest item chains:** "have item" / "bring item" steps, key-item chests in dungeons | S–M | 2–3 | e.g. find the Moonstone in a cave and bring it to a hermit |
-| 14 | **The boat + islands** (Act II) | M + content | 3 | Marlow's boat quest → sail the inner sea; the Act II zones live on islands and coasts |
-| 15 | **Ember flight + the far continent** (Act III) | M + content | 4 | fly over the Great Fogbank; land, explore, fast-travel |
+| 14 | **The boat + islands** (Act II) | M + content | 3 | Marlow's boat quest → sail the Silver Shallows; the Act II zones live on islands and coasts |
+| 15 | **Ember flight + Taleshore** (Act III) | M + content | 4 | fly over the Great Fogbank; land, explore, fast-travel |
 | 16 | **The Dream Root** (Act IV) on the dungeon engine | M | 5 | descend beneath the Spire; the finale plays as written |
 
 ---
@@ -408,17 +417,17 @@ can walk out of the Village, find the Woods, go in, and come back out beside
 it, and the world already feels bigger. **This proves the whole pipeline
 before any existing content is moved.**
 
-**Phase 2 — The home continent (Act I on the map).** The full continent with
+**Phase 2 — Dawnreach (Act I on the map).** The full continent with
 the four crystal regions at the corners and the Spire at the heart; fog that
 lifts per crystal; 4–6 roadside places; field spells; Clockwork Depths as the
 first real cave; inns everywhere; the rumor pass; regional difficulty. *Exit:*
 Act I is playable start to finish as a journey, and old saves load.
 
-**Phase 3 — The sea (Act II).** Marlow's boat, the inner sea, the islands,
+**Phase 3 — The sea (Act II).** Marlow's boat, the Silver Shallows and its islands,
 the Act II zones from `STORY-4X.md` §4 placed per §3.6.
 
-**Phase 4 — The sky (Act III).** Ember flight, the Great Fogbank, the far
-continent with `STORY-4X.md` §5's zones, sky-only side places.
+**Phase 4 — The sky (Act III).** Ember flight over the Great Fogbank, Taleshore
+with `STORY-4X.md` §5's zones, sky-only side places.
 
 **Phase 5 — Down (Act IV).** The Dream Root beneath the Spire, on the
 generalized dungeon engine.
@@ -445,8 +454,10 @@ written; only *where* each zone sits and *how you get there* changes.
 
 1. **World shape.** Approve two continents + islands + walk / sail / fly /
    descend (§2)? *Recommended: yes.*
-2. **Names.** The home continent (Lumina?), the far continent, the seas, and
-   region names for the world map.
+2. ~~**Names.**~~ **Decided (2026-10-04):** the world stays **Lumina**;
+   continents **Dawnreach** (home) and **Taleshore** (far); seas **the Silver
+   Shallows** (inner) and **the Starfall Sea** (outer). Still open: region
+   names for the world map.
 3. **Retire Lumina Field as a hub** and fold its people and buildings into
    Lumina Village? *Recommended: yes.*
 4. **An inn in every town** (reverses #73's one-inn rule)? *Recommended: yes.*

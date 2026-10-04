@@ -186,6 +186,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-04 — World names chosen (docs only, #75)
+The world stays **Lumina**; its home continent is **Dawnreach**, the far
+continent (Act III) **Taleshore**, the inner sea of islands (Act II) **the
+Silver Shallows**, and the open sea between the continents **the Starfall
+Sea** (already used by STORY-4X). Recorded in `ROADMAP-OVERWORLD.md` (§2.1,
+§3, §8 decision 2 closed), `STORY.md` §8 and `STORY-4X.md` (header note +
+Act III premise). Doc-only.
+
 ### 2026-10-04 — Overworld roadmap (docs only, #75)
 New `docs/ROADMAP-OVERWORLD.md`: analysis of why the world feels small (18
 screens, two hubs with spokes, 8 of 11 zones dead ends, one scale only,
