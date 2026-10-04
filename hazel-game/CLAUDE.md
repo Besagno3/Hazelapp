@@ -186,6 +186,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-04 — Overworld roadmap (docs only, #75)
+New `docs/ROADMAP-OVERWORLD.md`: analysis of why the world feels small (18
+screens, two hubs with spokes, 8 of 11 zones dead ends, one scale only,
+Field ↔ Village both north exits — logged as #76) plus a phased plan for a
+DQ3/FF2-style overworld — enterable places, two continents + islands, a
+travel ladder (walk → boat → Ember flight → descend), fog banks that lift per
+crystal, field spells at shrines, generalized dungeons — with a ranked work
+list and open decisions. Key engineering risk: `WorldCanvas` makes one KaPlay
+object per tile, so chunked rendering comes first. Re-sequences
+`ROADMAP-4X.md` (header note added); `STORY.md` §8 points at it. World atlas
+image at `docs/images/lumina-world-atlas.png`. Doc-only.
+
 ### 2026-09-23 — Spire review fixes: softlock, leave button, double-tap (#74)
 Code review of the Spire climb; all four findings fixed:
 - **Softlock (high):** a short question batch (the edge function can return

@@ -206,3 +206,9 @@ bible: Acts II–IV, every zone/NPC/enemy/quest/spell named):
 - **Ember side-moments:** snack-finding micro-beats in each zone.
 - **A fifth crystal** — History → the "Crystal of Memory," exactly as this
   hook predicted. → STORY-4X Act II.
+- **A bigger world:** the overworld plan (`ROADMAP-OVERWORLD.md` §3) puts the
+  Fiends at the literal corners of the world and the Spire at its heart,
+  turns the fog of Forgetting into real fog that lifts per crystal, and adds
+  a travel ladder (walk → Marlow's boat → Ember's wings → down). It also
+  settles the hero's home as Lumina Village (this bible says both Field and
+  Village today) and adds writing rules for rumors and roadside stories.

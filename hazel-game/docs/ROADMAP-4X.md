@@ -8,6 +8,12 @@ expansion bible**: the full end-to-end content spec for Acts II–IV (every
 zone, NPC, enemy, boss, quest, spell, item, cutscene, and flag). This doc is
 the *delivery plan*; STORY-4X.md is *what gets built*.
 
+> **Re-sequenced (2026-10-04):** `ROADMAP-OVERWORLD.md` moves the world to a
+> two-scale overworld (enterable places, boat, Ember flight) and changes the
+> *order and placement* of the waves below — Wave 1 (Act II) now waits for the
+> home continent, and its zones are placed on the map instead of built as
+> edge-linked screens. STORY-4X.md content is unchanged. See its §7.
+
 ---
 
 ## 1. Where the game is today (baseline audit)
