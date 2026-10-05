@@ -203,10 +203,16 @@ Travel rules (classic, adjusted for kids):
   later.
 - **No random battles.** Monsters stay visible and avoidable on the overworld
   (`DESIGN-JRPG.md` rule 1).
-- **An inn in every town.** With real travel distance, "one inn in the
-  world" (#73, enforced at `zones.test.ts:310`) turns into a long walk. Give
-  every town an inn (different innkeepers, same service). Keep "each item is
-  sold in only one shop": that's what makes each town worth visiting.
+- **An inn in every town (decided 2026-10-05).** With real travel distance,
+  "one inn in the world" (#73, enforced at `zones.test.ts:310`) turns into a
+  long walk, so every town gets an inn (different innkeepers, same service).
+  Today that means four new inns, in Numbria, Verdara, Gearfall Canyon and
+  Chromaria, beside the Sleepy Sheep Inn in Lumina Village. Later towns get
+  one too (`STORY-4X.md` already gives the Sunken Archive, Port Lantern and
+  Chorus Isle an innkeeper; Remembrance Hill needs one). The test becomes
+  "every town has exactly one inn". Unchanged: one Library in the world, and
+  "each item is sold in only one shop", which is what makes each town worth
+  visiting.
 - **Defeat sends you somewhere sensible.** Today losing a battle or the Spire
   climb sends you to `HUB_ZONE` (`BattleArena.tsx:493`,
   `SpireOverlay.tsx:279`). On the overworld it should be the last town you
@@ -281,8 +287,12 @@ progress. Mechanically it's a gate with a flag, like today's gates.
   Lumina Field" (§1, §3) and "the hero's home, Lumina Village" (§1). On the
   overworld, home is Lumina Village; "Lumina Field" becomes the open country
   around it.
-- **Move Elder Lumen, Pip, Maple's Trading Post and the Library** into
-  Lumina Village (or a hamlet just outside it).
+- **Retire Lumina Field as a hub (decided 2026-10-05).** Move Elder Lumen,
+  Pip, Maple's Trading Post and the Library into Lumina Village (or a hamlet
+  just outside it). The Village becomes `HUB_ZONE` and the hero's home; the
+  `lumina-field` zone is removed, and save v2 moves anyone standing in it to
+  the Village (§4.5). This happens in Phase 2, when the overworld exists to
+  replace the Field as the link between the crystal regions.
 - **Only five lines of game text** mention "Lumina Field", "the field" or "the
   hub" (`story.ts`, `npcs.ts`), so this is cheap to update.
 - **The crystal regions move to the corners without redrawing their maps.**
@@ -439,7 +449,7 @@ generalized dungeon engine.
 | 4× wave | Status after this roadmap |
 |---|---|
 | Wave 0 — Foundations | mostly shipped; its remaining items still apply |
-| Wave 1 — Act II (Memory) | becomes **Phase 3**, built on the map with the boat. Don't build its four zones as edge-linked screens |
+| Wave 1 — Act II (Memory) | **paused (decided 2026-10-05)** until Phase 2 exits; then becomes **Phase 3**, built on the map with the boat. Don't build its four zones as edge-linked screens |
 | Wave 2 — Companions, Ember in battle | unchanged; can land any time after Phase 2 |
 | Wave 3 — Act III (Starfall Sea) | becomes **Phase 4**; its "world map / fly-travel screen" becomes real flight over a real map |
 | Wave 4 — Depth (NG+, side dungeons, daily loop, parent dashboard) | unchanged, except the "mini-Spire" side dungeons become island and roadside dungeons |
@@ -450,7 +460,9 @@ written; only *where* each zone sits and *how you get there* changes.
 
 ---
 
-## 8. Open decisions
+## 8. Decisions
+
+Struck-through items are decided; the rest are still open.
 
 1. **World shape.** Approve two continents + islands + walk / sail / fly /
    descend (§2)? *Recommended: yes.*
@@ -458,9 +470,10 @@ written; only *where* each zone sits and *how you get there* changes.
    continents **Dawnreach** (home) and **Taleshore** (far); seas **the Silver
    Shallows** (inner) and **the Starfall Sea** (outer). Still open: region
    names for the world map.
-3. **Retire Lumina Field as a hub** and fold its people and buildings into
-   Lumina Village? *Recommended: yes.*
-4. **An inn in every town** (reverses #73's one-inn rule)? *Recommended: yes.*
+3. ~~**Retire Lumina Field as a hub.**~~ **Decided (2026-10-05): yes.** Its
+   people and buildings fold into Lumina Village in Phase 2 (§3.5).
+4. ~~**An inn in every town.**~~ **Decided (2026-10-05): yes**, reversing
+   #73's one-inn rule (§2.4).
 5. **Visible monsters only, no random battles**, on the overworld too?
    *Recommended: yes (`DESIGN-JRPG.md` rule 1).*
 6. **Overworld tile scale:** same 32px tiles as towns (DQ-style), or a
@@ -471,6 +484,9 @@ written; only *where* each zone sits and *how you get there* changes.
    islands can hold early side content? *Recommended: Act II.*
 9. **Flight timing:** keep `STORY-4X.md`'s rule (Ember flies at crystal #5)?
    *Recommended: yes.*
+10. ~~**Pause `ROADMAP-4X.md` Wave 1 (Act II).**~~ **Decided (2026-10-05):
+    yes.** No Act II zones get built until Phase 2 (Dawnreach) exits; they
+    are then placed on the map per §3.6 (§7).
 
 ---
 
@@ -485,4 +501,4 @@ written; only *where* each zone sits and *how you get there* changes.
 | Softlocks from travel gating | per-act, per-mode reachability tests (§4.7) |
 | Scope creep | cap at two continents; one structure per small island; vehicles beyond boat + Ember only if a region needs one |
 | Tone drift (barriers feel punishing) | fog is "the world forgetting"; lifting it is always a celebration; barriers never take anything away |
-| Building Act II in the old shape | pause `ROADMAP-4X.md` Wave 1 until Phase 2 exits (§7) |
+| Building Act II in the old shape | `ROADMAP-4X.md` Wave 1 is paused until Phase 2 exits (decided 2026-10-05, §7) |

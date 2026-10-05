@@ -214,4 +214,6 @@ bible: Acts II–IV, every zone/NPC/enemy/quest/spell named):
   turns the fog of Forgetting into real fog that lifts per crystal, and adds
   a travel ladder (walk → Marlow's boat → Ember's wings → down). It
   settles the hero's home as Lumina Village (this bible says both Field and
-  Village today) and adds writing rules for rumors and roadside stories.
+  Village today), retires Lumina Field as a hub so its people move into the
+  Village, gives every town an inn (both decided 2026-10-05), and adds
+  writing rules for rumors and roadside stories.
