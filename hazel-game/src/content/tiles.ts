@@ -20,6 +20,9 @@ export const TILE_FRAME = {
   exit: 8,
 } as const;
 
+/** Water (and Spire pit) animation speed, frames per second. */
+export const WATER_FPS = 2;
+
 export const PROPS_FRAMES = 5;
 
 export const PROP_FRAME = {

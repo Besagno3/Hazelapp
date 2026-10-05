@@ -302,6 +302,27 @@ describe('zone exits slide (Zelda-style transition)', () => {
       }
     }
   });
+
+  // #76: the Field and the Village used to be "north" of each other — you
+  // walked north to go either way, and the screen slid north both ways.
+  const OPPOSITE = { north: 'south', south: 'north', east: 'west', west: 'east' } as const;
+  it('walking out one edge brings you in through the opposite edge, and back the same way', () => {
+    for (const z of allZones) {
+      for (const e of z.exits) {
+        const side = exitSide(e.x, e.y, z.map[0].length, z.map.length)!;
+        const to = ZONES[e.to];
+        const toCols = to.map[0].length;
+        const toRows = to.map.length;
+        // You arrive near the opposite edge of the next zone…
+        const gap = { north: toRows - 1 - e.spawnY, south: e.spawnY, east: e.spawnX, west: toCols - 1 - e.spawnX }[side];
+        expect(gap, `${z.id} ${side} exit ${e.x},${e.y} → ${e.to} spawn ${e.spawnX},${e.spawnY}`).toBeLessThanOrEqual(2);
+        // …and that zone's way back is on the opposite edge.
+        for (const back of to.exits.filter((b) => b.to === z.id)) {
+          expect(exitSide(back.x, back.y, toCols, toRows), `${e.to} exit back to ${z.id}`).toBe(OPPOSITE[side]);
+        }
+      }
+    }
+  });
 });
 
 describe('every place is unique (#73)', () => {

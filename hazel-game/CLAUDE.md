@@ -96,7 +96,10 @@ existing architecture.
   `profiles` row (birth date, skill levels, xp, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
   wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
-  the Spire icon, remounted per zone, paused under overlays via ref). Overlays:
+  the Spire icon, remounted per zone, paused under overlays via ref). Terrain
+  is ONE object that draws only the cells in view each frame, from frames
+  worked out once per zone by `lib/terrain.ts` — never add one KaPlay object
+  per tile (big maps would crawl; #75). Roofs are one object per building. Overlays:
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
   key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
@@ -141,6 +144,11 @@ npm run dev      # Vite dev server
 npm run build    # tsc -b && vite build
 npm run lint     # eslint
 npm test         # Vitest suite (test:watch / test:ui also available)
+
+# World renderer bench (dev-only; needs Playwright — a global install works)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps [cols rows]   # frame times on a big test map
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 ```
 
 ## Error handling
@@ -194,6 +202,31 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-05 — Overworld Phase 0: big-map renderer + Field/Village exit fix (#75, #76)
+- **Renderer:** `WorldCanvas` no longer creates one KaPlay object per tile.
+  New pure `lib/terrain.ts` works out every cell's base + overlay frames once
+  per zone (`terrainLayers` — the same rules the old loop used: ground
+  variants, paths/exits, water, scenery/flower/exit overlays, walls/facades/
+  interiors in each building's style), and a single `terrain` object draws
+  only the cells in view each frame (`visibleRange`). Water animates from the
+  clock (`waterFrame`, `WATER_FPS` in `content/tiles.ts`; the unused tileset
+  `water` sprite anims were removed). Each building's roof is now one object.
+  Props that change on their own and all characters are unchanged.
+- **Measured** (`bench/`, headless Chromium, software GL): 160×112 map 3.2 →
+  60 fps, and 0.5 → 37 fps at 4× CPU throttle; Lumina Village 10.5 → 39 fps
+  at 4×; load hitch 1.4 s → 0.17 s. All 18 zone screens + 5 Spire floors are
+  pixel-identical to the old renderer outside animated tiles/idle cycles.
+- **#76 fixed:** the Field's road to the Village leaves from its south edge
+  (2–3, 13) and the Village's north exit lands at the Field's bottom-left
+  (3, 12) — no more walking north both ways. New zones.test invariant: every
+  edge exit lands near the opposite edge, and the way back is on the opposite
+  edge.
+- **Bench** (`hazel-game/bench/`, dev-only, not in the app build):
+  `world.html`/`world.tsx` mount the real `WorldCanvas` on a real zone or a
+  generated 160×112 overworld-like map; `run-world-bench.cjs` runs fps /
+  shots / diff via Playwright.
+- 328 tests green (was 301: +26 terrain, +1 exits); lint + build clean.
 
 ### 2026-10-05 — Overworld decisions recorded (docs only, #75)
 Three roadmap decisions made: retire Lumina Field as a hub, an inn in every

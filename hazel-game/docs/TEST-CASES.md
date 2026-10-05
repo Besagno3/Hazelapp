@@ -362,6 +362,23 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-314 | M | ✅ | Spire | the world Menu button is hidden during the climb; 🚪 Leave the Spire returns to the Spire door (world.exploring), Menu returns, and standing by the tower doesn't instantly reopen it (headless Chromium) |
 | TC-315 | M | ✅ | Spire | a fast double-click on a story panel advances exactly one panel (headless Chromium) |
 
+## Overworld Phase 0 — big-map renderer + exit fix (#75, #76)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-316 | U | ✅ | terrain | every zone and Spire floor yields one valid base frame per cell (zone tileset, water, or its building style's town sheet); overlays only on scenery / flowers / exits (terrain.test) |
+| TC-317 | U | ✅ | terrain | paths and exits use the path tile (exits add the marker), water is marked animated, plain ground uses the deterministic speckle variant, a save crystal sits on plain ground (terrain.test) |
+| TC-318 | U | ✅ | terrain | walls: tops above, facade windows on alternate tiles but never beside the door, the door frame; interiors draw in their building's own style (terrain.test) |
+| TC-319 | U | ✅ | terrain | `visibleRange`: a one-screen zone sees the whole map; never leaves the map; covers every cell the viewport touches at fractional camera positions (terrain.test) |
+| TC-320 | U | ✅ | terrain | the visible cell count stays within the viewport budget for maps from 22×14 up to 512×512 — draw cost never grows with the map (terrain.test) |
+| TC-321 | U | ✅ | terrain | `waterFrame` starts on the first frame and flips every 1/fps seconds (terrain.test) |
+| TC-322 | U | ✅ | zones | every edge exit lands within 2 cells of the opposite edge of the next zone, and that zone's way back is on the opposite edge (#76 regression, zones.test) |
+| TC-323 | M | ✅ | world | all 18 zone screens + 5 Spire floors are pixel-identical to the old per-tile renderer outside animated tiles and character idle cycles (`bench/run-world-bench.cjs shots` + `diff`, headless Chromium) |
+| TC-324 | M | ✅ | world | 160×112 map: 60 fps (was 3.2), 37 fps at 4× CPU throttle (was 0.5); Lumina Village 39 fps at 4× (was 10.5); load hitch 0.17 s (was 1.4 s) (`bench … fps`, headless Chromium, software GL) |
+| TC-325 | M | ✅ | world | standing inside a building fades its roof; water animates over time; walking the big map scrolls with no gaps at the screen edges; no page errors (headless Chromium) |
+| TC-326 | M | ⬜ | world | the fps bench on a real mid-range tablet / Chromebook (hardware GL) |
+| TC-327 | M | ⬜ | world | in the real app: Field's bottom-left exit → arrive at the top of Lumina Village (slides south); the Village's top exit → arrive at the Field's bottom-left (slides north) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
