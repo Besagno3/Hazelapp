@@ -203,6 +203,24 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-05 — Phase 0 code-review fixes (#75)
+`/saas-code-review` of Phase 0 found no player-facing bugs; two fixes ahead of
+Phase 1, the rest logged:
+- **Exit check ready for multi-gate towns:** the #76 test is now a pure
+  helper, `edgeLinkProblem` (`lib/transition.ts`). It checks only the way back
+  you'd actually take (the return exit nearest where you land) and skips links
+  that fade (place entrances, gates that lead out beside an overworld icon), so
+  a town with several gates onto the overworld no longer trips it. Still fails
+  on the pre-fix Field/Village map (verified).
+- **Camera zoom:** new `worldView` (`lib/camera.ts`) gives the camera's view in
+  world pixels; `WorldCanvas` uses it for BOTH the terrain culling and the
+  camera's edge clamp (the clamp had the same 1:1 assumption). Verified with a
+  temporary 2× zoom-out: edge-to-edge drawing and correct clamping, vs. bare
+  edges and an off-centre town before.
+- **Logged:** ISSUES #77 (bench cleanup, Phase 1) and #78 (Spire candle-light
+  ignores the camera — fix with real dungeons, Phase 2).
+- 335 tests green (was 328: +5 transition, +2 camera); lint + build clean.
+
 ### 2026-10-05 — Overworld Phase 0: big-map renderer + Field/Village exit fix (#75, #76)
 - **Renderer:** `WorldCanvas` no longer creates one KaPlay object per tile.
   New pure `lib/terrain.ts` works out every cell's base + overlay frames once

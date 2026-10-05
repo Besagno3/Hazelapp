@@ -426,7 +426,7 @@ mostly follows build order.
 | 7 | **Fog banks** (§3.2) | S–M | 2 | restoring a crystal visibly lifts its fog and opens what's behind it |
 | 8 | **Re-stage Act I on Dawnreach** (§3.5) | M (mostly content) | 2 | Act I is playable start to finish as a journey; the Field hub is gone |
 | 9 | **Field spells + shrines:** *Return* (fast travel), *Glow* (light dark caves), *Calm* (critters ignore you), learned at roadside shrines by passing a short question trial; spells unlocked by flags, not just Sages/crystals (`spellsKnown`, `spells.ts:94`) | M | 2 | each shrine teaches one field spell; *Glow* is needed for one cave |
-| 10 | **Real dungeons:** generalize the Spire (floors as ordinary zones joined by stairs, optional darkness, treasure, a boss at the bottom). Clockwork Depths first | M–L | 2 | Clockwork Depths is a 3-floor cave entered from the Woods; the Spire runs on the same engine |
+| 10 | **Real dungeons:** generalize the Spire (floors as ordinary zones joined by stairs, optional darkness, treasure, a boss at the bottom). Clockwork Depths first — note ISSUES #78: the candle-light overlay ignores the camera, fix it for dungeons bigger than one screen | M–L | 2 | Clockwork Depths is a 3-floor cave entered from the Woods; the Spire runs on the same engine |
 | 11 | **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | every town has an inn and ~8–12 people; every town points onward |
 | 12 | **Regional difficulty:** keep question level matched to the child, scale enemy HP, damage, behaviours and coins by region | S | 2 | far regions feel tougher without harder questions |
 | 13 | **Side-quest item chains:** "have item" / "bring item" steps, key-item chests in dungeons | S–M | 2–3 | e.g. find the Moonstone in a cave and bring it to a hermit |
@@ -451,7 +451,11 @@ Village, Whispering Woods, the entrance to Clockwork Depths, one shrine, one
 fog pocket; fades and music per place kind; a stub world map. *Exit:* a kid
 can walk out of the Village, find the Woods, go in, and come back out beside
 it, and the world already feels bigger. **This proves the whole pipeline
-before any existing content is moved.**
+before any existing content is moved.** Also in Phase 1: the bench cleanup
+from the Phase 0 code review (ISSUES #77). Ready for it already: the exit
+check (`edgeLinkProblem`) handles towns with several gates onto the
+overworld, and culling + camera clamping use `worldView`, so a zoomed-out
+camera (decision 6) draws correctly.
 
 **Phase 2 — Dawnreach (Act I on the map).** The full continent with
 the four crystal regions at the corners and the Spire at the heart; fog that

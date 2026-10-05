@@ -23,7 +23,7 @@ import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
 import { loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
-import { camAxis } from '../../lib/camera';
+import { camAxis, worldView } from '../../lib/camera';
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
 import { SLIDE_MS, exitSide, slideFrom, type ExitSide } from '../../lib/transition';
 import {
@@ -295,6 +295,9 @@ export default function WorldCanvas({
     const layers = terrainLayers(z);
     const sheetKeys = layers.sheets.map((s) => (s === 'zone' ? tiles : townKey(s)));
     const builtAt = k.time();
+    // The camera's view in world pixels — larger than the canvas if it's ever
+    // zoomed out, so culling and edge clamping never assume a 1:1 camera.
+    const view = () => worldView(VIEW_W, VIEW_H, k.getCamScale());
     k.add([
       k.pos(0, 0),
       k.z(-50),
@@ -302,7 +305,8 @@ export default function WorldCanvas({
         id: 'terrain',
         draw() {
           const cam = k.getCamPos();
-          const r = visibleRange(cam.x, cam.y, VIEW_W, VIEW_H, cols, rows, TILE);
+          const v = view();
+          const r = visibleRange(cam.x, cam.y, v.w, v.h, cols, rows, TILE);
           const water = waterFrame(k.time() - builtAt, WATER_FPS);
           // Base tiles, one sheet at a time so same-texture quads batch.
           for (let s = 0; s < sheetKeys.length; s++) {
@@ -755,7 +759,10 @@ export default function WorldCanvas({
     // A saved position that no longer fits the map (e.g. a save from before a
     // zone was redrawn) falls back to the zone spawn instead of a wall.
     const spawn = safeSpawn(z, startPos);
-    const followCam = (x: number, y: number) => k.setCamPos(camAxis(x, W, VIEW_W), camAxis(y, H, VIEW_H));
+    const followCam = (x: number, y: number) => {
+      const v = view();
+      k.setCamPos(camAxis(x, W, v.w), camAxis(y, H, v.h));
+    };
     followCam(spawn.x, spawn.y);
     const heroView = resolveSprite(avatar.spriteId, avatar.sprite).def?.world ?? null;
     let player: HeroActor;

@@ -109,6 +109,8 @@ export function terrainLayers(z: ZoneDef): TerrainLayers {
 /**
  * The cells a camera centred at (camX, camY) can see through a viewW×viewH
  * viewport, plus a `margin` of cells on every side, clamped to the map.
+ * viewW/viewH are in WORLD pixels — use `worldView` (lib/camera.ts) so a
+ * zoomed camera is handled.
  * Half-open: x in [x0, x1), y in [y0, y1). Its size depends only on the
  * viewport, never on the map — that's what keeps big maps cheap.
  */
