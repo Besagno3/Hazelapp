@@ -49,6 +49,15 @@ existing architecture.
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
   generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
+- **Overworld (2026-10-04/05, #75):** the world becomes a two-scale DQ3/FF2-style
+  overworld — plan in `docs/ROADMAP-OVERWORLD.md`. Names: world **Lumina**,
+  home continent **Dawnreach**, far continent **Taleshore**, inner sea **the
+  Silver Shallows**, outer sea **the Starfall Sea**. **Lumina Field retires as
+  a hub** (its people + buildings move into Lumina Village, which becomes home
+  and `HUB_ZONE`). **Every town gets an inn** (reverses #73's one-inn rule;
+  still one Library, still each item sold in one shop). **`ROADMAP-4X.md`
+  Wave 1 (Act II) is paused** until Dawnreach exists — don't build Act II
+  zones as edge-linked screens.
 
 ## Architecture
 
@@ -185,6 +194,33 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-05 — Overworld decisions recorded (docs only, #75)
+Three roadmap decisions made: retire Lumina Field as a hub, an inn in every
+town (reverses #73), and pause `ROADMAP-4X.md` Wave 1 until Dawnreach exists.
+Recorded in this file's Decisions section, `ROADMAP-OVERWORLD.md` (§2.4,
+§3.5, §7, §8), `ROADMAP-4X.md` (header + Wave 1 marked paused), `STORY.md`
+§8 and ISSUES #73/#75. Building happens in overworld Phase 2. Doc-only.
+
+### 2026-10-04 — World names chosen (docs only, #75)
+The world stays **Lumina**; its home continent is **Dawnreach**, the far
+continent (Act III) **Taleshore**, the inner sea of islands (Act II) **the
+Silver Shallows**, and the open sea between the continents **the Starfall
+Sea** (already used by STORY-4X). Recorded in `ROADMAP-OVERWORLD.md` (§2.1,
+§3, §8 decision 2 closed), `STORY.md` §8 and `STORY-4X.md` (header note +
+Act III premise). Doc-only.
+
+### 2026-10-04 — Overworld roadmap (docs only, #75)
+New `docs/ROADMAP-OVERWORLD.md`: analysis of why the world feels small (18
+screens, two hubs with spokes, 8 of 11 zones dead ends, one scale only,
+Field ↔ Village both north exits — logged as #76) plus a phased plan for a
+DQ3/FF2-style overworld — enterable places, two continents + islands, a
+travel ladder (walk → boat → Ember flight → descend), fog banks that lift per
+crystal, field spells at shrines, generalized dungeons — with a ranked work
+list and open decisions. Key engineering risk: `WorldCanvas` makes one KaPlay
+object per tile, so chunked rendering comes first. Re-sequences
+`ROADMAP-4X.md` (header note added); `STORY.md` §8 points at it. World atlas
+image at `docs/images/lumina-world-atlas.png`. Doc-only.
 
 ### 2026-09-23 — Spire review fixes: softlock, leave button, double-tap (#74)
 Code review of the Spire climb; all four findings fixed:
