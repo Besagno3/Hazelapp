@@ -212,6 +212,24 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-07 — Edge-blending review fixes: no vanishing roads, sheets on demand (#71b)
+`/saas-code-review` + `/saas-ux-review` of the edge blending; all 3 findings fixed:
+- **Roads vanished until the blend sheet loaded (medium):** cells whose four
+  corners blend skip their base tile — but before the zone's blend sheet
+  arrived nothing covered them, so a one-tile road (all such cells) showed as
+  bare ground for seconds on a slow first load. `WorldCanvas` now waits for
+  `getSprite(blendKey).loaded` before skipping or drawing corner tiles: square
+  edges first, rounded once the sheet lands.
+- **Sheets on demand (low):** blend sheets load per zone as it's built — its
+  own plus its neighbours' (`blendSheetsFor` / `ensureBlendSheets`,
+  `worldSprites.ts`) — instead of all 13 (~265 KB) on first entry.
+- **`blendPairFrame` throws on a wrong pair (low)** instead of silently
+  returning another pair's tile.
+- Verified in headless Chromium with the blend sheets delayed: the road shows
+  (square) before they arrive and rounded after; Dawnreach fetches 9 sheets,
+  the Village 2; every zone screen unchanged; the Phase 1 walk-through passes.
+- 397 tests green (+2); lint + build clean.
+
 ### 2026-10-06 — Rounded coasts, beaches and roads: edge blending (#75 item 3, #71b)
 Water, beaches and roads no longer meet in hard squares — the last part of
 roadmap item 3 ("no square-edged water") and ISSUES #71b.

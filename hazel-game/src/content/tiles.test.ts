@@ -46,6 +46,9 @@ describe('16-bit tilesets', () => {
     expect(blendShapeFrame(BLEND_CLASS.sand, 1)).toBe(0);
     expect(blendPairFrame(BLEND_CLASS.water, BLEND_CLASS.path, 15) + BLEND_WATER_STEP).toBe(134);
     expect(blendPairFrame(BLEND_CLASS.ground, BLEND_CLASS.path, 15)).toBe(BLEND_FRAMES - 1);
+    // A pair must go low → high; anything else fails loudly instead of drawing another pair's tile.
+    expect(() => blendPairFrame(BLEND_CLASS.path, BLEND_CLASS.sand, 3)).toThrow();
+    expect(() => blendPairFrame(BLEND_CLASS.ground, BLEND_CLASS.ground, 3)).toThrow();
   });
   it('every zone has a battle backdrop', () => {
     for (const id of ZONE_IDS) expect(existsSync(pub(battleBackdrop(id))), id).toBe(true);

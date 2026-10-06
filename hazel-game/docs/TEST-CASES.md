@@ -452,6 +452,10 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-379 | M | ✅ | world | all 46 zone screens + Spire floors before/after: coasts, ponds, the Village fountain and roads are rounded (foam on water, a darker rim on land), walls stay square, Spire floors pixel-identical (bench `shots` + `diff`, headless Chromium) |
 | TC-380 | M | ✅ | world | frame rate (software GL, alternating runs, same machine): stress map unchanged; walking Dawnreach ~5% lower unthrottled, ~12% lower at 4× CPU throttle; the Phase 1 walk-through still passes |
 | TC-381 | M | ⬜ | world | the same Dawnreach walk on a real tablet / Chromebook (hardware GL) keeps a smooth frame rate (with TC-326) |
+| TC-382 | M | ✅ | world | with the blend sheets delayed 6 s (fresh browser context), Dawnreach's one-tile road shows with square edges until they arrive, then rounded — on the review's code it vanished (bare ground) for that time (headless Chromium) |
+| TC-383 | U | ✅ | sprites | `blendSheetsFor`: a zone's own sheet plus each neighbour's, once each; none for Spire floors (worldSprites.test) |
+| TC-384 | M | ✅ | sprites | first entry fetches only what's near: Dawnreach 9 blend sheets (itself + its 8 places), the Village 2 (itself + Dawnreach); walking out onto Dawnreach fetches the rest of its neighbours (headless Chromium, request log) |
+| TC-385 | U | ✅ | tiles | `blendPairFrame` throws for a pair that isn't low → high (tiles.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

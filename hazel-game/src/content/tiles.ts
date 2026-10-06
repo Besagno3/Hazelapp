@@ -148,6 +148,8 @@ export function blendShapeFrame(cls: LandClass, mask: number): number {
  * water frame; the second is `BLEND_WATER_STEP` frames on.
  */
 export function blendPairFrame(lower: BlendClass, upper: LandClass, mask: number): number {
+  // A wrong pair would silently draw another pair's tile — fail loudly instead.
+  if (lower >= upper) throw new Error(`blendPairFrame: class ${lower} must be below class ${upper}`);
   if (lower === BLEND_CLASS.water) return 45 + (upper - 1) * 2 * 15 + (mask - 1);
   return 135 + LAND_PAIRS.indexOf(`${lower}-${upper}`) * 15 + (mask - 1);
 }
