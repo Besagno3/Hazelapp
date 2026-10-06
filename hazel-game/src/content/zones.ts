@@ -1,4 +1,5 @@
 import type { Topic } from '../types';
+import type { ConsumableId } from './items';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -42,6 +43,8 @@ export type ZoneId = (typeof ZONE_IDS)[number];
  *   'G'  gate (solid until its flag is set; bump → gatekeeper question, or a
  *        warden's key check when the zone marks it as a `keyGate`, #58)
  *   'E'  zone exit (walkable; must have a matching entry in `exits`)
+ *   'H'  hidden passage — drawn exactly like solid scenery, but the hero can
+ *        walk through it (wanderers can't, so they never give it away)
  *
  * Buildings (towns, #72) — each must sit inside a `buildings` rect:
  *   'W'  building wall (solid; the bottom row is the street-facing facade)
@@ -59,8 +62,8 @@ export const TILE = 32;
 export const VIEW_COLS = 22;
 export const VIEW_ROWS = 14;
 export const BUILDING_CHARS = new Set(['W', 'D', 'F', 'K', 'B', 'T', 'Z']);
-export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', ...BUILDING_CHARS]);
-export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'D', 'F']);
+export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', 'H', ...BUILDING_CHARS]);
+export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'D', 'F', 'H']);
 
 export const ROOF_COLORS = [
   'red',
@@ -112,6 +115,35 @@ export interface BuildingDef {
   sign?: SignKind;
 }
 
+/** What a secret hands over when it's found (each part optional). */
+export interface SecretReward {
+  coins?: number;
+  items?: Partial<Record<ConsumableId, number>>;
+  /** A carried quest item (see QUEST_ITEMS) — side quests ask for these. */
+  questItem?: string;
+}
+
+/**
+ * A hidden secret (village expansion): a stash tucked into scenery, a shelf,
+ * a bed or a quiet patch of ground. A faint twinkle gives it away to sharp
+ * eyes. On a solid tile the hero finds it by bumping; on a walkable tile, by
+ * stepping on it. Found once per save (`secretFlag`, content/secrets.ts).
+ */
+export interface SecretDef {
+  /** Unique across the world. */
+  id: string;
+  x: number;
+  y: number;
+  /** Shown when found, e.g. "Tucked behind the barrel: a pouch of coins!" */
+  text: string;
+  reward: SecretReward;
+}
+
+/** Save flag set once a secret is found (lives here so quests needn't import secrets.ts). */
+export function secretFlag(id: string): string {
+  return `secret:${id}`;
+}
+
 export interface ZoneExit {
   /** Grid cell of the 'E' tile. */
   x: number;
@@ -161,6 +193,8 @@ export interface ZoneDef {
   keyGate?: { x: number; y: number };
   /** Enterable buildings (#72) — see `BuildingDef`. */
   buildings?: BuildingDef[];
+  /** Hidden secrets to find (village expansion) — see `SecretDef`. */
+  secrets?: SecretDef[];
   /**
    * Tileset key override (default: the zone id). The Spire's floor maps
    * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
@@ -240,6 +274,20 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#,.........#......,..#..~~~...WFFTFFW.,..#.#',
       '#..........#.........#.....,..WWWDWWW.....,#',
       '#....,.....#....,....#.#....#....=.........#',
+      '#################################==#########',
+      '#..##...#......##.....#.......,..==.....##.#',
+      '##....,.....,......,.......,.....==...,....#',
+      '#..========================================#',
+      '#..========================================#',
+      '#.........,....=.............=.........=...#',
+      '#...........WWWWWWWW....WWWWWWWWWW..WWWWWWW#',
+      '##########..WZFFFFBW....WBBFFFFBBW..WBFFFBW#',
+      '#.,.....##..WFFFFFFW.,..WFFFFFFFFW..WKKKKKW#',
+      '#.....,..#..WFTFFFFW.#..WFTTFFTTFW..WFFFFFW#',
+      '#........H..WFFFFFFW....WFTTFFTTFW..WTFFFTW#',
+      '#........#..WWWDWWWW.,..WFFFFFFFFW..WWWDWWW#',
+      '#..,...,.#..............WWWWWDWWWW.....=...#',
+      '##.......#.,........#.,............,.......#',
       '############################################',
     ],
     ground: [110, 138, 188],
@@ -251,11 +299,42 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'abacus-observatory', name: 'Abacus Observatory', x: 24, y: 1, w: 9, h: 5, roof: 'slate', style: 'stone', sign: 'sage' },
       { id: 'quill-and-count', name: "Plus's Quill & Count", x: 34, y: 1, w: 7, h: 5, roof: 'blue', style: 'stone', sign: 'shop' },
       { id: 'counting-house', name: 'Counting House', x: 30, y: 8, w: 7, h: 4, roof: 'slate', style: 'stone', sign: 'house' },
+      // South district (village expansion), down the lane from the Counting House.
+      { id: 'numbria-school', name: 'Numbria Schoolhouse', x: 24, y: 19, w: 10, h: 7, roof: 'red', style: 'stone', sign: 'star' },
+      { id: 'tea-room', name: "Chai's Tea Room", x: 36, y: 19, w: 7, h: 6, roof: 'green', style: 'stone', sign: 'shop' },
+      { id: 'sundial-house', name: 'Sundial House', x: 12, y: 19, w: 8, h: 6, roof: 'dusk', style: 'stone', sign: 'house' },
     ],
     npcs: [
       { defId: 'sage-abacus', x: 28, y: 3 },
       { defId: 'numbria-villager', x: 17, y: 9 },
       { defId: 'numbria-merchant', x: 37, y: 2 },
+      { defId: 'numbria-tea-merchant', x: 39, y: 20 },
+      { defId: 'numbria-teacher', x: 29, y: 21 },
+      { defId: 'numbria-kid', x: 20, y: 15 },
+      { defId: 'numbria-sundial', x: 10, y: 15 },
+    ],
+    secrets: [
+      {
+        id: 'numbria-school-shelf',
+        x: 25,
+        y: 20,
+        text: "Wedged behind the schoolbooks: a crumpled lesson page about adding!",
+        reward: { questItem: 'page-addition' },
+      },
+      {
+        id: 'numbria-hill-nook',
+        x: 4,
+        y: 23,
+        text: 'A hidden hollow in the hills! A lesson page about shapes is pinned under a pebble.',
+        reward: { coins: 20, questItem: 'page-shapes' },
+      },
+      {
+        id: 'numbria-pond',
+        x: 25,
+        y: 9,
+        text: 'Coins glitter in the pond — someone has been making wishes. Plus a sealed tin of tea!',
+        reward: { coins: 35, items: { tea: 1 } },
+      },
     ],
     enemies: [
       { defId: 'sum-slime', x: 17, y: 5 },
@@ -274,34 +353,34 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     name: 'Verdara',
     topic: 'science',
     map: [
-      '######################',
-      '#....,.......,.......#',
-      '#.................C..#',
-      '#...##..........##...#',
-      '#....................#',
-      '#..~~................#',
-      '#....................#',
-      '##########GG##########',
-      '#....................#',
-      '#...,...........,....#',
-      '#....................#',
-      '#.S..................#',
-      '#....................#',
-      '#########==###########',
-      '#........==..........#',
-      '#.WWWWWWW==....~~~.#.#',
-      '#.WTFFFTW==.,..~~~.#.#',
-      '#.WFFFFFW==..........#',
-      '#.WTFFFTW==..........#',
-      '#.WWWDWWW==..WWWWWWW.#',
-      '#....=...==..WBFFFBW.#',
-      '#....======..WKKKKKW.#',
-      '#...,....==..WFFFFFW.#',
-      '#.##.....==..WWWDWWW.#',
-      '#........========....#',
-      '#.#.,..#.==..,....,#.#',
-      '#........==..........#',
-      '#########EE###########',
+      '############################################',
+      '#....,.......,.......#######################',
+      '#.................C..#######################',
+      '#...##..........##...#######################',
+      '#....................#######################',
+      '#..~~................#######################',
+      '#....................#######################',
+      '##########GG################################',
+      '#....................#######################',
+      '#...,...........,....##,,,,.,,##############',
+      '#....................HH,,.,,,,##############',
+      '#.S..................##,,,,,,,##############',
+      '#....................#######################',
+      '#########==#################################',
+      '#........==..........##.WWWWWWW..WWWWWWWW..#',
+      '#.WWWWWWW==....~~~.#.#..WBFFFBW..WZFFFFBW.##',
+      '#.WTFFFTW==.,..~~~.#.#..WKKKKKW..WFFFFFFW.##',
+      '#.WFFFFFW==.............WFFFFFW..WFTFFTFW..#',
+      '#.WTFFFTW==.............WFTFTFW..WFFFFFFW..#',
+      '#.WWWDWWW==..WWWWWWW.#..WWWDWWW..WWWWDWWW#.#',
+      '#....=...==..WBFFFBW.#.#...=.WWWWWWW.=.....#',
+      '#....======..WKKKKKW.#.....=.WZFFBFW.=...,.#',
+      '#...,....==..WFFFFFW.#.,...=.WFTFFFW.=.,...#',
+      '#.##.....==..WWWDWWW.#.....=.WWWDWWW.=..,..#',
+      '#........=================================.#',
+      '#.#.,..#.==..,....,#.#,....................#',
+      '#........==.............,......,..,.....,..#',
+      '#########EE#################################',
     ],
     ground: [92, 158, 102],
     path: [150, 192, 140],
@@ -311,11 +390,42 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     buildings: [
       { id: 'flora-greenhouse', name: "Flora's Greenhouse", x: 2, y: 15, w: 7, h: 5, roof: 'leaf', style: 'leaf', sign: 'sage' },
       { id: 'tadpole-tonics', name: "Tadpole's Tonics", x: 13, y: 19, w: 7, h: 5, roof: 'green', style: 'leaf', sign: 'shop' },
+      // East meadow district (village expansion).
+      { id: 'sunseed-stand', name: 'Sunseed Stand', x: 24, y: 14, w: 7, h: 6, roof: 'thatch', style: 'leaf', sign: 'shop' },
+      { id: 'bee-cottage', name: "Beekeeper's Cottage", x: 33, y: 14, w: 8, h: 6, roof: 'leaf', style: 'leaf', sign: 'house' },
+      { id: 'sprout-treehouse', name: "Sprout's Treehouse", x: 29, y: 20, w: 7, h: 4, roof: 'green', style: 'leaf', sign: 'house' },
     ],
     npcs: [
       { defId: 'sage-flora', x: 5, y: 17 },
       { defId: 'verdara-villager', x: 16, y: 11 },
       { defId: 'verdara-merchant', x: 16, y: 20 },
+      { defId: 'verdara-seed-merchant', x: 27, y: 15 },
+      { defId: 'verdara-beekeeper', x: 36, y: 17 },
+      { defId: 'verdara-kid', x: 30, y: 25 },
+      { defId: 'verdara-botanist', x: 40, y: 21 },
+    ],
+    secrets: [
+      {
+        id: 'verdara-queen-bee',
+        x: 28,
+        y: 10,
+        text: 'A hidden glade full of clover — and the runaway Queen Bee, napping on a blossom!',
+        reward: { questItem: 'queen-bee' },
+      },
+      {
+        id: 'verdara-treehouse-bed',
+        x: 30,
+        y: 21,
+        text: "Under Sprout's hammock: an emergency snack stash! Sprout says you can share.",
+        reward: { items: { snack: 2 } },
+      },
+      {
+        id: 'verdara-lily-pond',
+        x: 16,
+        y: 15,
+        text: 'A frog hops off a lily pad, revealing a tiny bottle and a few coins.',
+        reward: { coins: 30, items: { potion: 1 } },
+      },
     ],
     enemies: [
       { defId: 'spore-puff', x: 5, y: 9 },
@@ -336,34 +446,34 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     name: 'Gearfall Canyon',
     topic: 'engineering',
     map: [
-      '######################',
-      '#....,....#......,...#',
-      '#.S.......#..........#',
-      '#.........#...##.....#',
-      '#...##....#..........#',
-      '#.........#..........#',
-      'E.........G..........#',
-      'E.........G..........#',
-      '#...##....#...##.....#',
-      '#.........#..........#',
-      '#....,....#.......,..#',
-      '#.........#........C.#',
-      '#....,....#....,.....#',
-      '####==################',
-      '#...==...............#',
-      '#...==..,.#...,....#.#',
-      '#...==============.#.#',
-      '#...==============...#',
-      '#.........==.........#',
-      '#.WWWWWWWW==WWWWWWW..#',
-      '#.WTFFFTTW==WBFFFBW..#',
-      '#.WFFFFFFW==WKKKKKW..#',
-      '#.WBFFFFBW==WFFFFFW..#',
-      '#.WWWDWWWW==WWWDWWW..#',
-      '#....===========.....#',
-      '##.,......##.....,..##',
-      '#....................#',
-      '######################',
+      '############################################',
+      '#....,....#......,...#######################',
+      '#.S.......#..........##...,..........#....##',
+      '#.........#...##.....##....WWWWWWWWW.H..,.##',
+      '#...##....#..........##....WTFFFFFTW.#....##',
+      '#.........#..........##.#..WFFFFFFFW.#######',
+      'E.........G..........##.#..WBFFFFFBW......##',
+      'E.........G..........##....WFFFFFFFW......##',
+      '#...##....#...##.....##.,..WFFFFFFFW......##',
+      '#.........#..........##....WWWWDWWWW....#.##',
+      '#....,....#.......,..##..#.....==.........##',
+      '#.........#........C.###.....,.==...#..,..##',
+      '#....,....#....,.....##########==###########',
+      '####==#########################==###########',
+      '#...==..................##.....==.....,..#.#',
+      '#...==..,.#...,....#.#......,..==.........##',
+      '#...=======================================#',
+      '#...=======================================#',
+      '#.........==..............=.........=......#',
+      '#.WWWWWWWW==WWWWWWW....WWWWWWW..WWWWWWWW...#',
+      '#.WTFFFTTW==WBFFFBW....WBFFFBW..WTFFFBBW...#',
+      '#.WFFFFFFW==WKKKKKW...,WKKKKKW..WFFFFFFW...#',
+      '#.WBFFFFBW==WFFFFFW....WFFFFFW..WFTFFFFW.,.#',
+      '#.WWWDWWWW==WWWDWWW....WTFFFTW..WZFFFFFW...#',
+      '#....===========.......WWWDWWW..WWWWDWWW...#',
+      '##.,......##.....,..##.....................#',
+      '#.....................#...,...#,..........##',
+      '############################################',
     ],
     ground: [176, 142, 100],
     path: [205, 180, 140],
@@ -373,11 +483,42 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     buildings: [
       { id: 'cog-workshop', name: "Cog's Workshop", x: 2, y: 19, w: 8, h: 5, roof: 'copper', style: 'brass', sign: 'tools' },
       { id: 'volt-gadgets', name: "Volt's Gadgets", x: 12, y: 19, w: 7, h: 5, roof: 'slate', style: 'brass', sign: 'shop' },
+      // East district + Clockwork Plaza (village expansion).
+      { id: 'coil-spring', name: 'Coil & Spring', x: 23, y: 19, w: 7, h: 6, roof: 'teal', style: 'brass', sign: 'shop' },
+      { id: 'inventor-workshop', name: "Sprocket's Workshop", x: 32, y: 19, w: 8, h: 6, roof: 'red', style: 'brass', sign: 'tools' },
+      { id: 'clocktower', name: 'Clocktower', x: 27, y: 3, w: 9, h: 7, roof: 'dusk', style: 'brass', sign: 'star' },
     ],
     npcs: [
       { defId: 'sage-cog', x: 5, y: 21 },
       { defId: 'gearfall-villager', x: 4, y: 9 },
       { defId: 'gearfall-merchant', x: 15, y: 20 },
+      { defId: 'gearfall-coil-merchant', x: 26, y: 20 },
+      { defId: 'gearfall-inventor', x: 35, y: 21 },
+      { defId: 'gearfall-clockkeeper', x: 31, y: 5 },
+      { defId: 'gearfall-apprentice', x: 34, y: 11 },
+    ],
+    secrets: [
+      {
+        id: 'gearfall-gear-crate',
+        x: 24,
+        y: 5,
+        text: 'A loose plate on the crate swings open — a shiny Brass Gear rolls out!',
+        reward: { questItem: 'brass-gear' },
+      },
+      {
+        id: 'gearfall-nook-gear',
+        x: 40,
+        y: 3,
+        text: 'A hidden nook behind the canyon wall! A Silver Gear and some coins sit in an old oil tin.',
+        reward: { coins: 25, questItem: 'silver-gear' },
+      },
+      {
+        id: 'gearfall-workshop-bed',
+        x: 33,
+        y: 23,
+        text: "Professor Sprocket keeps spare parts under the bed. 'Take some — science should be shared!'",
+        reward: { items: { coil: 1, spark: 1 } },
+      },
     ],
     enemies: [
       { defId: 'bolt-mouse', x: 6, y: 4 },
@@ -411,6 +552,20 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#..........~~........#..WBFFFFFBW=WFFFFFW..#',
       '#....................#..WWWWDWWWW=WWWDWWW..#',
       '#..............C.....#=====================#',
+      '################################==##########',
+      '#..........#..........,.........==......,..#',
+      '#..========================================#',
+      '###########.............WWWWWWW..WWWWWWWWWW#',
+      '#,,,,,,,,,#.WWWWWWWW.,..WBFFFBW#.WBFBFFBFBW#',
+      '#,,#,,,#,,#.WZFFFFBW....WKKKKKW#.WFFFFFFFFW#',
+      '#,,,,,,,,,#.WFFFFFFW.#..WFFFFFW..WFFTFFTFFW#',
+      '#,,,.,,,,,H.WFTFFTFW.#..WTFFFTW..WFFFFFFFFW#',
+      '#,,,..,,#,#.WFFFFFFW....WWWDWWW..WFFFFFFFFW#',
+      '#,,,,.,,,,#.WWWDWWWW.,.....=.....WWWWDWWWWW#',
+      '#,#,,,,,,,#....=...........=.........=.....#',
+      '#,,,,,#,,,#================================#',
+      '#,,,,,,,,,#....................,..........##',
+      '#,,,,,,,,,#.,...........................,..#',
       '############################################',
     ],
     ground: [172, 122, 168],
@@ -421,11 +576,42 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     buildings: [
       { id: 'muse-atelier', name: "Muse's Atelier", x: 24, y: 7, w: 9, h: 5, roof: 'pink', style: 'paint', sign: 'sage' },
       { id: 'swirl-studio', name: "Swirl's Paint & Charms", x: 34, y: 7, w: 7, h: 5, roof: 'teal', style: 'paint', sign: 'shop' },
+      // South district (village expansion), down the lane from the street.
+      { id: 'mirror-hall', name: 'Mirror Hall', x: 24, y: 16, w: 7, h: 6, roof: 'purple', style: 'paint', sign: 'shop' },
+      { id: 'grand-gallery', name: 'Grand Gallery', x: 33, y: 16, w: 10, h: 7, roof: 'red', style: 'paint', sign: 'star' },
+      { id: 'music-house', name: 'Music House', x: 12, y: 17, w: 8, h: 6, roof: 'blue', style: 'paint', sign: 'house' },
     ],
     npcs: [
       { defId: 'sage-muse', x: 28, y: 9 },
       { defId: 'chromaria-villager', x: 16, y: 5 },
       { defId: 'chromaria-merchant', x: 37, y: 8 },
+      { defId: 'chromaria-mirror-merchant', x: 27, y: 17 },
+      { defId: 'chromaria-curator', x: 37, y: 18 },
+      { defId: 'chromaria-musician', x: 16, y: 19 },
+      { defId: 'chromaria-kid', x: 20, y: 25 },
+    ],
+    secrets: [
+      {
+        id: 'chromaria-lost-painting',
+        x: 4,
+        y: 21,
+        text: 'A secret sculpture garden! Leaning on a statue: the missing masterpiece, "Sunrise in Seven Colours".',
+        reward: { questItem: 'lost-painting' },
+      },
+      {
+        id: 'chromaria-mirror-table',
+        x: 25,
+        y: 20,
+        text: 'One hand mirror on the display table shows a different room… reach in and find a Mirror Charm and some coins!',
+        reward: { coins: 20, items: { mirror: 1 } },
+      },
+      {
+        id: 'chromaria-pond',
+        x: 37,
+        y: 2,
+        text: 'The rainbow pond shimmers — a Rainbow Ward and a handful of coins sparkle under the water.',
+        reward: { coins: 40, items: { ward: 1 } },
+      },
     ],
     enemies: [
       { defId: 'doodle-imp', x: 6, y: 5 },
@@ -448,39 +634,41 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   'lumina-village': {
     id: 'lumina-village',
     name: 'Lumina Village',
-    // A two-by-two-screen market town (#72): the camera scrolls with the hero.
-    // Four enterable buildings — Clove's Curios (NW), the Sleepy Sheep Inn
-    // (NE, the world's only inn), the Lantern Workshop (SW) and Grandmother
-    // Wick's house (SE) — around a plaza with the save crystal.
+    // A three-by-two-screen market town (#72, grown east in the village
+    // expansion): the camera scrolls with the hero. West: Clove's Curios, the
+    // Sleepy Sheep Inn (the world's only inn), the Lantern Workshop and
+    // Grandmother Wick's house around the plaza and fountain. East: the Town
+    // Hall, Clover's Market, Dot's Bakery, Nib's house and a hedge garden
+    // reached only through a hidden gap (H) in its west hedge.
     map: [
-      '#####################EE#####################',
-      '#....................==....................#',
-      '#.#..................==....................#',
-      '#...WWWWWWWWW..##....==....##..WWWWWWWWW...#',
-      '#...WBBFFFBBW..#....,==,....#..WZFZFZFZW...#',
-      '#...WFFFFFFFW........==........WFFFFFFFW...#',
-      '#...WKKKKKKKW........==........WFFFFFFFW...#',
-      '#...WFTFFFTFW........==........WTFFFFFTW...#',
-      '#...WFFFFFFFW...#...,==,.......WFFFFFFFW...#',
-      '#...WWWWDWWWW........==.....#..WWWWDWWWW...#',
-      '#.#.....=........==========........=.....#.#',
-      '#.#..,,.=...,....=S========...,,...=..,..#.#',
-      '#.......=........==========........=.......#',
-      'E==========================================E',
-      'E==========================================E',
-      '#..............,.=======~~=.,..............#',
-      '#.....,....,.....=======~~=.........,..,...#',
-      '#.#..............==========................#',
-      '#...WWWWWWWWWWW......==.......WWWWWWWWW....#',
-      '#...WTFFFFFFFTW......==.......WZFFFFBBW....#',
-      '#...WFFFFFFFFFW.##...==...##..WFFFFFFFW..#.#',
-      '#...WFTTFFFTTFW......==.......WFFTTFFFW..#.#',
-      '#...WFFFFFFFFFW....#.==.#.....WFFFFFFFW....#',
-      '#...WBFFFFFFFBW...,..==..,....WFFFFFFFW....#',
-      '#...WFFFFFFFFFW......==.......WWWWDWWWW....#',
-      '#...WWWWWDWWWWW......==...........=........#',
-      '#.========================================.#',
-      '###EE################EE#####################',
+      '#####################EE###########################################',
+      '#....................==.....................,............,.....,.#',
+      '#.#..................==....................#.WWWWWWWWWWW##.......#',
+      '#...WWWWWWWWW..##....==....##..WWWWWWWWW...#.WBBFFFFFBBW..WWWWWWW#',
+      '#...WBBFFFBBW..#....,==,....#..WZFZFZFZW.....WFFFFFFFFFW..WBFFFBW#',
+      '#...WFFFFFFFW........==........WFFFFFFFW.....WFTFFFFFTFW..WFFFFFW#',
+      '#...WKKKKKKKW........==........WFFFFFFFW.....WFFFFFFFFFW..WKKKKKW#',
+      '#...WFTFFFTFW........==........WTFFFFFTW....#WFFFFFFFFFW..WFFFFFW#',
+      '#...WFFFFFFFW...#...,==,.......WFFFFFFFW.....WBFFFFFFFBW..WFFFFFW#',
+      '#...WWWWDWWWW........==.....#..WWWWDWWWW...#.WWWWWDWWWWW..WWWDWWW#',
+      '#.#.....=........==========........=.....#.#......=..........=...#',
+      '#.#..,,.=...,....=S========...,,...=..,..#.....,..=.....,....=...#',
+      '#.......=........==========........=..............=..........=...#',
+      'E================================================================E',
+      'E================================================================E',
+      '#..............,.=======~~=.,....................=....,....=....,#',
+      '#.....,....,.....=======~~=.........,..,.....WWWWWWWWW..WWWWWWWW.#',
+      '#.#..............==========..................WTFFFFFTW..WZFFFFBW.#',
+      '#...WWWWWWWWWWW......==.......WWWWWWWWW....#.WFFFFFFFW..WFFFFFFW.#',
+      '#...WTFFFFFFFTW......==.......WZFFFFBBW....#.WKKKKKKKW..WFFTTFFW.#',
+      '#...WFFFFFFFFFW.##...==...##..WFFFFFFFW..#..,WFFFFFFFW..WFFFFFFW.#',
+      '#...WFTTFFFTTFW......==.......WFFTTFFFW..#...WFBFFFBFW..WWWDWWWW.#',
+      '#...WFFFFFFFFFW....#.==.#.....WFFFFFFFW......WWWWDWWWW.....=.....#',
+      '#...WBFFFFFFFBW...,..==..,....WFFFFFFFW....#.....=......##########',
+      '#...WFFFFFFFFFW......==.......WWWWDWWWW......,...=..,.#.#,,,,,,,,#',
+      '#...WWWWWDWWWWW......==...........=..............=...#..H,,,..,,,#',
+      '#.=====================================================.#,,,,,,,,#',
+      '###EE################EE###########################################',
     ],
     ground: [120, 160, 110],
     path: [196, 178, 128],
@@ -492,6 +680,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'village-inn', name: 'Sleepy Sheep Inn', x: 31, y: 3, w: 9, h: 7, roof: 'blue', style: 'timber', sign: 'inn' },
       { id: 'lantern-workshop', name: 'Lantern Workshop', x: 4, y: 18, w: 11, h: 8, roof: 'purple', style: 'timber', sign: 'tools' },
       { id: 'wick-house', name: "Wick's House", x: 30, y: 18, w: 9, h: 7, roof: 'green', style: 'timber', sign: 'house' },
+      { id: 'town-hall', name: 'Town Hall', x: 45, y: 2, w: 11, h: 8, roof: 'slate', style: 'timber', sign: 'star' },
+      { id: 'clover-market', name: "Clover's Market", x: 58, y: 3, w: 7, h: 7, roof: 'leaf', style: 'timber', sign: 'shop' },
+      { id: 'dot-bakery', name: "Dot's Bakery", x: 45, y: 16, w: 9, h: 7, roof: 'thatch', style: 'timber', sign: 'shop' },
+      { id: 'nib-house', name: "Nib's House", x: 56, y: 16, w: 8, h: 6, roof: 'pink', style: 'timber', sign: 'house' },
     ],
     npcs: [
       { defId: 'village-shopkeeper', x: 8, y: 5 },
@@ -499,6 +691,34 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'village-elder', x: 35, y: 22 },
       { defId: 'village-friend', x: 19, y: 15 },
       { defId: 'village-keeper', x: 9, y: 21 },
+      { defId: 'village-mayor', x: 50, y: 4 },
+      { defId: 'village-clover-merchant', x: 61, y: 5 },
+      { defId: 'village-baker', x: 49, y: 18 },
+      { defId: 'village-guard', x: 54, y: 11 },
+      { defId: 'village-kid', x: 51, y: 24 },
+    ],
+    secrets: [
+      {
+        id: 'village-fountain-seal',
+        x: 24,
+        y: 15,
+        text: 'Something glints at the bottom of the fountain… the Mayor\'s golden Town Seal!',
+        reward: { questItem: 'town-seal' },
+      },
+      {
+        id: 'village-hall-shelf',
+        x: 54,
+        y: 3,
+        text: 'A hollow book on the Town Hall shelf hides two Hint Feathers.',
+        reward: { items: { hint: 2 } },
+      },
+      {
+        id: 'village-secret-garden',
+        x: 63,
+        y: 25,
+        text: 'In the hidden garden, a four-leaf clover grows beside a forgotten coin jar!',
+        reward: { coins: 40, items: { clover: 1 } },
+      },
     ],
     enemies: [],
     exits: [
@@ -506,8 +726,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 22, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 12 },
       { x: 0, y: 13, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
       { x: 0, y: 14, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
-      { x: 43, y: 13, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
-      { x: 43, y: 14, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
+      { x: 65, y: 13, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
+      { x: 65, y: 14, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
       // Hidden grove tucked away in the town's south-west corner (#grove).
       { x: 3, y: 27, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
       { x: 4, y: 27, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
@@ -607,8 +827,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'tide-colossus', x: 12, y: 3 },
     ],
     exits: [
-      { x: 0, y: 6, to: 'lumina-village', spawnX: 42, spawnY: 13 },
-      { x: 0, y: 7, to: 'lumina-village', spawnX: 42, spawnY: 13 },
+      { x: 0, y: 6, to: 'lumina-village', spawnX: 64, spawnY: 13 },
+      { x: 0, y: 7, to: 'lumina-village', spawnX: 64, spawnY: 13 },
     ],
   },
 

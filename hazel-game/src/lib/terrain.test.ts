@@ -27,9 +27,11 @@ describe('terrainLayers', () => {
         } else {
           expect(f >= 0 && f < TOWN_FRAMES, `${x},${y}`).toBe(true);
         }
-        // Only scenery, flowers and exits get a zone-tileset overlay.
+        // Only scenery, flowers, exits and hidden passages get a zone-tileset overlay.
         const ch = z.map[y][x];
-        expect(L.overFrame[i] !== NO_OVERLAY, `${x},${y} '${ch}'`).toBe('#,E'.includes(ch));
+        expect(L.overFrame[i] !== NO_OVERLAY, `${x},${y} '${ch}'`).toBe('#,EH'.includes(ch));
+        // A hidden passage must look exactly like solid scenery.
+        if (ch === 'H') expect(L.overFrame[i], `${x},${y} hidden passage`).toBe(TILE_FRAME.solid);
       }
     }
   });

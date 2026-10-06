@@ -1,4 +1,6 @@
 import type { SaveData, ZoneId } from '../types';
+import { secretFlag } from './zones';
+import type { ConsumableId } from './items';
 
 /**
  * Zone quests (#37 story pass, #42 variety). Quests are ordered steps over
@@ -8,6 +10,7 @@ import type { SaveData, ZoneId } from '../types';
  * - chest steps   — the zone's riddle-chest (openedChests)
  * - defeat steps  — lifetime kill counts per enemy def (save.kills)
  * - talk steps    — speak to a named NPC, who advances the quest
+ * - secret steps  — find hidden secrets (village expansion; content/secrets.ts)
  *
  * Conversations resolve through `questConversation(npcId, save)`:
  * the giver speaks offer / current-step hint / completion; step-target NPCs
@@ -23,6 +26,15 @@ export interface QuestItemInfo {
 /** Carried delivery items (shown in the menu while held). */
 export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'color-seed': { id: 'color-seed', name: 'Color Seed', emoji: '🌱' },
+  // Village expansion side quests (most are found in secrets).
+  'town-seal': { id: 'town-seal', name: 'Town Seal', emoji: '🔏' },
+  'warm-buns': { id: 'warm-buns', name: 'Warm Honey Buns', emoji: '🥐' },
+  'page-addition': { id: 'page-addition', name: 'Lesson Page: Adding', emoji: '📄' },
+  'page-shapes': { id: 'page-shapes', name: 'Lesson Page: Shapes', emoji: '📐' },
+  'queen-bee': { id: 'queen-bee', name: 'Queen Bee', emoji: '🐝' },
+  'brass-gear': { id: 'brass-gear', name: 'Brass Gear', emoji: '⚙️' },
+  'silver-gear': { id: 'silver-gear', name: 'Silver Gear', emoji: '🔘' },
+  'lost-painting': { id: 'lost-painting', name: '"Sunrise in Seven Colours"', emoji: '🖼️' },
 };
 
 export interface QuestStep {
@@ -42,9 +54,13 @@ export interface QuestDef {
   offer: string[];
   /** Item handed over when the quest is accepted (delivery quests). */
   givesItem?: string;
+  /** Carried items handed back on completion (e.g. found in secrets). */
+  takesItems?: string[];
+  /** A town side quest (village expansion) rather than a zone's main quest. */
+  side?: boolean;
   steps: QuestStep[];
   complete: string[];
-  reward: { coins: number; potion?: number; hint?: number };
+  reward: { coins: number; potion?: number; hint?: number; items?: Partial<Record<ConsumableId, number>> };
 }
 
 // --- Step builders ------------------------------------------------------------
@@ -81,6 +97,18 @@ function talkStep(id: string, npcId: string, lines: string[], hint: string): Que
     hint,
     npc: { id: npcId, lines },
     isComplete: (save) => save.flags[stepFlag(id)] === true,
+  };
+}
+
+/** Find each listed secret (any order) — the hint names whatever's still hidden. */
+function secretStep(id: string, targets: { secretId: string; label: string }[], intro: string): QuestStep {
+  return {
+    id,
+    hint: (save) => {
+      const left = targets.filter((t) => !save.flags[secretFlag(t.secretId)]);
+      return left.length === 0 || targets.length === 1 ? intro : `${intro} Still hidden: ${left.map((t) => t.label).join(', ')}.`;
+    },
+    isComplete: (save) => targets.every((t) => save.flags[secretFlag(t.secretId)] === true),
   };
 }
 
@@ -259,6 +287,329 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { coins: 35, potion: 1 },
   },
+  // --- Village expansion: two side quests per town ----------------------------
+
+  // Lumina Village: find the Town Seal (a secret in the plaza fountain).
+  {
+    id: 'mayor-seal',
+    zoneId: 'lumina-village',
+    giverNpcId: 'village-mayor',
+    side: true,
+    title: "The Mayor's Missing Seal",
+    offer: [
+      'Oh dear, oh dear. My golden Town Seal is GONE. I had it at the plaza this morning, admiring the fountain…',
+      'Without it I cannot sign anything. Not even my own birthday card!',
+      'Could you look around town for it? Keep an eye out for anything that glints.',
+    ],
+    steps: [
+      secretStep(
+        'mayor-seal-find',
+        [{ secretId: 'village-fountain-seal', label: 'the Town Seal' }],
+        'Last I had it, I was leaning over the plaza fountain. Look closely at the water!',
+      ),
+    ],
+    takesItems: ['town-seal'],
+    complete: [
+      'My seal! Shiny as the day it was made. *STAMP* — I hereby declare you an Honorary Citizen!',
+      '✨ Reward: 40 coins and a Lucky Clover!',
+    ],
+    reward: { coins: 40, items: { clover: 1 } },
+  },
+
+  // Lumina Village: deliver warm buns to two neighbours, in order.
+  {
+    id: 'bakery-deliveries',
+    zoneId: 'lumina-village',
+    giverNpcId: 'village-baker',
+    side: true,
+    title: "Baker Dot's Busy Morning",
+    offer: [
+      'Two orders and only one of me! These honey buns must reach Grandmother Wick AND Keeper Sol while they are warm.',
+      'Grandmother Wick first — she gets grumpy if hers is cold. Then Keeper Sol in the Lantern Workshop.',
+      'Here, take the basket. Quick-quick, before they cool!',
+    ],
+    givesItem: 'warm-buns',
+    steps: [
+      talkStep(
+        'buns-wick',
+        'village-elder',
+        [
+          'Honey buns from Dot? Still warm! You always were my favourite delivery hero.',
+          'Off you go now — Sol is waiting for the other one, and that man LOVES a bun.',
+        ],
+        'First stop: Grandmother Wick, in her house in the south-east of town!',
+      ),
+      talkStep(
+        'buns-sol',
+        'village-keeper',
+        [
+          'Is that… a honey bun? For me? The lanterns can wait. *munch munch*',
+          'Tell Dot it was perfect. Crispy outside, soft inside — like a good lantern wick.',
+        ],
+        'Next: Keeper Sol at the Lantern Workshop, in the south-west of town!',
+      ),
+    ],
+    complete: [
+      'Both delivered while warm?! You are faster than my oven timer!',
+      'Here — a baker always pays in snacks. And coins. Mostly snacks.',
+      '✨ Reward: 35 coins, a Berry Potion and a Sunseed Snack!',
+    ],
+    reward: { coins: 35, potion: 1, items: { snack: 1 } },
+  },
+
+  // Numbria: two lost lesson pages, hidden in the school and the hills.
+  {
+    id: 'lost-lessons',
+    zoneId: 'numbria',
+    giverNpcId: 'numbria-teacher',
+    side: true,
+    title: "Teacher Pi's Lost Lessons",
+    offer: [
+      'Disaster! A gust of wind blew two of my lesson pages away — the one on ADDING and the one on SHAPES.',
+      'One fluttered somewhere inside this very schoolhouse. The other sailed off toward the west hills!',
+      'Without them, class tomorrow is just me humming. Will you find them?',
+    ],
+    steps: [
+      secretStep(
+        'lessons-find',
+        [
+          { secretId: 'numbria-school-shelf', label: 'the page on adding (somewhere in the schoolhouse)' },
+          { secretId: 'numbria-hill-nook', label: 'the page on shapes (out in the west hills)' },
+        ],
+        'Find my two lesson pages!',
+      ),
+    ],
+    takesItems: ['page-addition', 'page-shapes'],
+    complete: [
+      'Adding AND shapes! Class is saved. A square has four sides and you have one enormous heart.',
+      '✨ Reward: 40 coins, a Hint Feather and a Focus Tea!',
+    ],
+    reward: { coins: 40, hint: 1, items: { tea: 1 } },
+  },
+
+  // Numbria: chase off two slimy pests.
+  {
+    id: 'dos-slimes',
+    zoneId: 'numbria',
+    giverNpcId: 'numbria-kid',
+    side: true,
+    title: "Dos's Slime Trouble",
+    offer: [
+      'The Sum Slime keeps sliming my homework, and Sir Sumsalot keeps correcting it. WRONG-ly!',
+      'Beat them both in a battle and I can do my sums in peace. Ten, nine, eight… please?',
+    ],
+    steps: [
+      defeatStep(
+        'dos-slimes-defeat',
+        [
+          { defId: 'sum-slime', label: 'Sum Slime 🟦' },
+          { defId: 'sir-sumsalot', label: 'Sir Sumsalot 🐉' },
+        ],
+        'My homework is still in danger!',
+      ),
+    ],
+    complete: [
+      'They are GONE! My homework is clean and my sums are right. Mostly right. Some of them.',
+      '✨ Reward: 30 coins and a Focus Tea!',
+    ],
+    reward: { coins: 30, items: { tea: 1 } },
+  },
+
+  // Verdara: the runaway Queen Bee hides in a secret glade.
+  {
+    id: 'queen-bee',
+    zoneId: 'verdara',
+    giverNpcId: 'verdara-beekeeper',
+    side: true,
+    title: "Hilda's Runaway Queen",
+    offer: [
+      'My Queen Bee has flown the hive! Without her, the workers just buzz in circles. Look at them. Circles!',
+      'She loves clover more than anything. If there is a clover patch hidden anywhere in Verdara, she is in it.',
+      'Bring her home gently, won\'t you? She bites only when she is cranky. She is always cranky.',
+    ],
+    steps: [
+      secretStep(
+        'queen-find',
+        [{ secretId: 'verdara-queen-bee', label: 'the Queen Bee' }],
+        'Find a hidden clover patch — the trees east of the big meadow look awfully thin in one spot…',
+      ),
+    ],
+    takesItems: ['queen-bee'],
+    complete: [
+      'Your Majesty! Back where you belong. Listen — the whole hive is cheering. Bzzzzz!',
+      '✨ Reward: 40 coins and two Sunseed Snacks!',
+    ],
+    reward: { coins: 40, items: { snack: 2 } },
+  },
+
+  // Verdara: a talk chain — a cutting from Sage Flora, planted by Sprout.
+  {
+    id: 'garden-survey',
+    zoneId: 'verdara',
+    giverNpcId: 'verdara-botanist',
+    side: true,
+    title: "Professor Petal's Moonbloom",
+    offer: [
+      'I am trying to grow a moonbloom — the rarest flower in Lumina! Only Sage Flora knows how to take a cutting.',
+      'Ask her for one, then bring it to Sprout. That treehouse gets the best light in all of Verdara.',
+    ],
+    steps: [
+      talkStep(
+        'moonbloom-cutting',
+        'sage-flora',
+        [
+          'A moonbloom cutting? For Petal? Of course. Snip — gently, gently.',
+          'Keep it in the shade until it is planted. Sprout\'s treehouse will suit it perfectly.',
+        ],
+        'First, ask Sage Flora for a moonbloom cutting — she tends her greenhouse in the south-west.',
+      ),
+      talkStep(
+        'moonbloom-plant',
+        'verdara-kid',
+        [
+          'A real moonbloom?! I will plant it in my best pot. I will water it EVERY day. Twice on Sundays!',
+          'Tell Professor Petal it is in good hands. Small hands, but good ones.',
+        ],
+        'Now bring the cutting to Sprout, who lives in the treehouse in the east meadow.',
+      ),
+    ],
+    complete: [
+      'Planted in the treehouse? Splendid! In a month it will glow like a little moon.',
+      '✨ Reward: 35 coins and a Honey Elixir!',
+    ],
+    reward: { coins: 35, items: { elixir: 1 } },
+  },
+
+  // Gearfall: two missing clock gears, both hidden.
+  {
+    id: 'tock-gears',
+    zoneId: 'gearfall',
+    giverNpcId: 'gearfall-clockkeeper',
+    side: true,
+    title: "Tock's Stopped Clock",
+    offer: [
+      'The Clocktower has stopped! Two gears are missing — a Brass Gear and a Silver Gear. Without them, it is always 3 o\'clock.',
+      'I love 3 o\'clock, but not FOREVER. Somebody must have hidden them around the plaza.',
+    ],
+    steps: [
+      secretStep(
+        'gears-find',
+        [
+          { secretId: 'gearfall-gear-crate', label: 'the Brass Gear' },
+          { secretId: 'gearfall-nook-gear', label: 'the Silver Gear' },
+        ],
+        'Search around the Clockwork Plaza for my gears!',
+      ),
+    ],
+    takesItems: ['brass-gear', 'silver-gear'],
+    complete: [
+      'Brass… click. Silver… clack. And — TICK! TOCK! The clock lives!',
+      '✨ Reward: 45 coins and a Turbo Coil!',
+    ],
+    reward: { coins: 45, items: { coil: 1 } },
+  },
+
+  // Gearfall: beat two critters, then report to the Professor.
+  {
+    id: 'widget-test',
+    zoneId: 'gearfall',
+    giverNpcId: 'gearfall-apprentice',
+    side: true,
+    title: "Widget's Field Test",
+    offer: [
+      'Professor Sprocket wants field data on canyon critters, and I am, um, scared of them.',
+      'Battle the Bolt Mouse and the Scrap Golem, then tell the Professor what you saw. For science!',
+    ],
+    steps: [
+      defeatStep(
+        'widget-defeat',
+        [
+          { defId: 'bolt-mouse', label: 'Bolt Mouse 🐭' },
+          { defId: 'scrap-golem', label: 'Scrap Golem 🤖' },
+        ],
+        'We still need data!',
+      ),
+      talkStep(
+        'widget-report',
+        'gearfall-inventor',
+        [
+          'Field data! Bolt Mouse: zippy. Scrap Golem: clanky. Hero: magnificent. I will write that down.',
+          'Tell Widget the experiment was a success. And to stop hiding behind the crates.',
+        ],
+        'Now report to Professor Sprocket in the workshop!',
+      ),
+    ],
+    complete: [
+      'The Professor said SUCCESS? I am going to frame that word.',
+      '✨ Reward: 35 coins and a Spark Cell!',
+    ],
+    reward: { coins: 35, items: { spark: 1 } },
+  },
+
+  // Chromaria: the missing masterpiece, hidden in the sculpture garden.
+  {
+    id: 'masterpiece',
+    zoneId: 'chromaria',
+    giverNpcId: 'chromaria-curator',
+    side: true,
+    title: 'The Missing Masterpiece',
+    offer: [
+      'Darling, a catastrophe! "Sunrise in Seven Colours" — our most precious painting — has vanished from the Gallery!',
+      'The Gray Fiend\'s critters must have carried it off and hidden it. Somewhere quiet. Somewhere… sculptural.',
+      'Bring it home and the Gallery will be forever in your debt!',
+    ],
+    steps: [
+      secretStep(
+        'masterpiece-find',
+        [{ secretId: 'chromaria-lost-painting', label: 'the painting' }],
+        'Clay talks about a secret sculpture garden behind the west wall. Perhaps look there, darling?',
+      ),
+    ],
+    takesItems: ['lost-painting'],
+    complete: [
+      'My Sunrise! Every one of its seven colours, safe and bright. I could kiss you. I will not. But I could.',
+      '✨ Reward: 45 coins and a Mirror Charm!',
+    ],
+    reward: { coins: 45, items: { mirror: 1 } },
+  },
+
+  // Chromaria: collect three notes by talking around town.
+  {
+    id: 'song-of-colors',
+    zoneId: 'chromaria',
+    giverNpcId: 'chromaria-musician',
+    side: true,
+    title: 'Song of Colors',
+    offer: [
+      'I am writing the Song of Colors, but three notes are missing! Each one is kept by a different artist in town.',
+      'Clay the sculptor, Seller Swirl at the paint shop, and Glint at Mirror Hall. Collect all three for me?',
+    ],
+    steps: [
+      talkStep(
+        'note-clay',
+        'chromaria-kid',
+        ['A note? Mine is a big, round, squishy one — like clay! BOOOM. There, you have it.'],
+        'First note: Clay the sculptor, who wanders the south streets.',
+      ),
+      talkStep(
+        'note-swirl',
+        'chromaria-merchant',
+        ['My note swirls up and down like paint in water. Oooo-eeee-oooo! Take it, take it!'],
+        "Second note: Seller Swirl, at Swirl's Paint & Charms up the street.",
+      ),
+      talkStep(
+        'note-glint',
+        'chromaria-mirror-merchant',
+        ['My note is the same note, but backwards. *ting*… *gnit*. Mirror magic!'],
+        'Last note: Glint, at Mirror Hall.',
+      ),
+    ],
+    complete: [
+      'Squish… swirl… ting! *plays* — the Song of Colors is COMPLETE! Listen to it ring!',
+      '✨ Reward: 40 coins and a Rainbow Ward!',
+    ],
+    reward: { coins: 40, items: { ward: 1 } },
+  },
 ];
 
 // --- Resolution -----------------------------------------------------------------
@@ -310,14 +661,14 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
         badge: quest.title,
         finishKind: 'complete',
         finish: (s) => {
-          const { coins, potion = 0, hint = 0 } = quest.reward;
+          const { coins, potion = 0, hint = 0, items = {} } = quest.reward;
+          const nextItems = { ...s.items, potion: s.items.potion + potion, hint: s.items.hint + hint };
+          for (const [id, n] of Object.entries(items) as [ConsumableId, number][]) nextItems[id] += n;
           return {
             ...s,
             coins: s.coins + coins,
-            items: { ...s.items, potion: s.items.potion + potion, hint: s.items.hint + hint },
-            questItems: quest.givesItem
-              ? s.questItems.filter((i) => i !== quest.givesItem)
-              : s.questItems,
+            items: nextItems,
+            questItems: s.questItems.filter((i) => i !== quest.givesItem && !quest.takesItems?.includes(i)),
             flags: { ...s.flags, [questDoneFlag(quest)]: true, [questOfferedFlag(quest)]: true },
           };
         },

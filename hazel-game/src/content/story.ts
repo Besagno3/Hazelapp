@@ -25,8 +25,8 @@ export const EMBER_SPRITES: Record<EmberStage, string> = {
 };
 
 /**
- * Sprite-manifest ids per Ember growth stage. Unmapped in SPRITES until the
- * asset task, so each resolves to its EMBER_SPRITES emoji until real art lands.
+ * Sprite-manifest ids per Ember growth stage (generated art in SPRITES);
+ * EMBER_SPRITES holds the emoji fallback for each.
  */
 export const EMBER_SPRITE_IDS: Record<EmberStage, string> = {
   egg: 'ember-egg',

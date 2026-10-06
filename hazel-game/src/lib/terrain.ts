@@ -38,6 +38,8 @@ const TOWN_TILE: Record<string, number> = {
 /** Zone-tileset overlays drawn over the ground (transparent frames). */
 const OVERLAY: Record<string, number> = {
   '#': TILE_FRAME.solid,
+  // Hidden passages look exactly like solid scenery (the hero can walk through).
+  H: TILE_FRAME.solid,
   ',': TILE_FRAME.deco,
   E: TILE_FRAME.exit,
 };

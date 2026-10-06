@@ -21,6 +21,7 @@ import {
   emberStatus,
   endingPanels,
   EMBER_SPRITES,
+  EMBER_SPRITE_IDS,
   EMBER_STAGE_LABEL,
   EMBER_HATCHED,
   EMBER_HATCH_SEEN,
@@ -38,6 +39,10 @@ import {
   GROVE_PANELS,
   GROVE_SEEN,
 } from '../../content/story';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
+import { claimSecret, rewardSummary, secretById, secretFlag } from '../../content/secrets';
+import type { SecretDef } from '../../content/zones';
+import { sfx } from '../../lib/audio';
 import { playerAge } from '../../lib/age';
 import { heroMaxHp } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
@@ -92,6 +97,13 @@ export default function WorldScreen() {
     touchDirRef.current = { dx, dy };
   }, []);
   const [toast, setToast] = useState<string | null>(null);
+  // The secret just found — shown in a small celebration card.
+  const [found, setFound] = useState<SecretDef | null>(null);
+  useEffect(() => {
+    if (!found) return;
+    const t = setTimeout(() => setFound(null), 4000);
+    return () => clearTimeout(t);
+  }, [found]);
 
   const age = playerAge(profile);
   const zoneId = save?.zoneId ?? 'lumina-field';
@@ -204,7 +216,9 @@ export default function WorldScreen() {
           </p>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>{EMBER_SPRITES[ember]}</span>
+          <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>
+            <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={0.75} />
+          </span>
           <span title="HP">
             ❤️ {hp}/{maxHp}
           </span>
@@ -259,6 +273,13 @@ export default function WorldScreen() {
           onWard: (id) => spireBump({ kind: 'ward', id }),
           onStairs: () => spireBump({ kind: 'stairs' }),
           onUmbra: () => spireBump({ kind: 'umbra' }),
+          onSecret: (id) => {
+            const secret = secretById(id);
+            if (!secret || save.flags[secretFlag(id)]) return;
+            update((s) => claimSecret(s, secret));
+            sfx('chest');
+            setFound(secret);
+          },
         }}
         spireFloor={spireTheme}
         spireBroken={spireBroken}
@@ -280,6 +301,20 @@ export default function WorldScreen() {
         >
           {toast}
         </motion.div>
+      )}
+
+      {/* Secret found */}
+      {found && (
+        <motion.button
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          onClick={() => setFound(null)}
+          className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-b from-amber-200 to-amber-100 text-amber-950 border-4 border-amber-400 rounded-2xl px-6 py-4 shadow-2xl text-center max-w-sm"
+        >
+          <div className="text-xs font-extrabold uppercase tracking-widest text-amber-700">✨ Secret found! ✨</div>
+          <p className="font-semibold mt-1">{found.text}</p>
+          <p className="text-sm font-bold mt-2">{rewardSummary(found)}</p>
+        </motion.button>
       )}
 
       {/* Overlays (machine substates) */}
