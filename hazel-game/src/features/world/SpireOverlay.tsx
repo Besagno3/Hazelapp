@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, ageToStartLevel, clampLevel } from '../../lib/age';
@@ -341,9 +342,27 @@ export default function SpireOverlay() {
   }
 
   const q = phase.kind === 'question' ? questions[phase.index] : undefined;
+  // Umbra looms over the throne-hall panels — the game's big bad, drawn
+  // oversized (giant sprite tier, #74). Smaller on short screens.
+  const showUmbra =
+    !!floor?.isBoss && (phase.kind === 'message' || (phase.kind === 'question' && phase.mode === 'boss'));
+  const umbraScale = typeof window !== 'undefined' && window.innerHeight < 720 ? 1.5 : 2.5;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/60 p-4 overflow-y-auto">
+      {showUmbra && (
+        <motion.div
+          initial={{ y: -30, opacity: 0, scale: 0.8 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+          className="relative z-10 -mb-8 pointer-events-none shrink-0"
+          style={{ filter: 'drop-shadow(0 0 24px rgba(154,74,255,0.75)) drop-shadow(0 18px 14px rgba(0,0,0,0.6))' }}
+        >
+          <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 3.2, ease: 'easeInOut' }}>
+            <CharacterPortrait spriteId="umbra" emoji="🌑" scale={umbraScale} className="text-[8rem] leading-none" />
+          </motion.div>
+        </motion.div>
+      )}
       <motion.div
         initial={{ scale: 0.92, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}

@@ -22,11 +22,21 @@ import {
 import { BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { CHARGE_MAX } from '../../content/abilities';
 import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells';
-import { BATTLE_ITEMS, CONSUMABLES, POTION_HEAL, SPARK_CHARGE, type ConsumableId } from '../../content/items';
+import {
+  BATTLE_ITEMS,
+  CLOVER_COIN_MULT,
+  CONSUMABLES,
+  POTION_HEAL,
+  SNACK_HEAL,
+  SPARK_CHARGE,
+  TEA_DAMAGE_MULT,
+  type ConsumableId,
+} from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { SpriteSheet } from './SpriteSheet';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { resolveSprite } from '../../content/sprites';
 import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
@@ -93,6 +103,10 @@ export default function BattleArena() {
   const [turn, setTurn] = useState<Turn>({ kind: 'command' });
   const [charge, setCharge] = useState(0);
   const [guarded, setGuarded] = useState(false);
+  // Battle-item buffs (village expansion items): each lasts until it's used up.
+  const [mirrored, setMirrored] = useState(false); // Mirror Charm: bounce the next hit
+  const [focused, setFocused] = useState(false); // Focus Tea: next Attack ×TEA_DAMAGE_MULT
+  const [lucky, setLucky] = useState(false); // Lucky Clover: ×CLOVER_COIN_MULT coins on a win
   const [qIndex, setQIndex] = useState(0);
   // Super-hard question pool (level + SPELL_LEVEL_BONUS) shared by every spell.
   const [spellQs, setSpellQs] = useState<Question[]>([]);
@@ -118,6 +132,10 @@ export default function BattleArena() {
   if (enemy && shieldedFor !== enemy.instanceId) {
     setShieldedFor(enemy.instanceId);
     setEnemyShielded(enemy.behavior === 'shielded');
+    // Battle-item buffs belong to one fight too.
+    setMirrored(false);
+    setFocused(false);
+    setLucky(false);
   }
 
   // Warm the super-hard spell-tier pool (level + SPELL_LEVEL_BONUS). Every
@@ -267,6 +285,11 @@ export default function BattleArena() {
     if ((id === 'potion' || id === 'elixir') && playerHp >= playerMaxHp) return 'HP is full';
     if (id === 'spark' && charge >= CHARGE_MAX) return 'Charge is full';
     if (id === 'ward' && guarded) return 'Already warded';
+    if (id === 'snack' && playerHp >= playerMaxHp && charge >= CHARGE_MAX) return 'HP and charge are full';
+    if (id === 'coil' && charge >= CHARGE_MAX) return 'Charge is full';
+    if (id === 'mirror' && mirrored) return 'Mirror is up';
+    if (id === 'tea' && focused) return 'Already focused';
+    if (id === 'clover' && lucky) return 'Already lucky';
     return null;
   }
   /** Use a battle item (#73). Like any command, it spends the hero's turn. */
@@ -284,6 +307,23 @@ export default function BattleArena() {
     } else if (id === 'ward') {
       setGuarded(true);
       float('🌈', 'hero', 'text-sky-300');
+    } else if (id === 'snack') {
+      const healed = Math.min(playerMaxHp, playerHp + SNACK_HEAL);
+      setHp(healed, enemyHp);
+      setCharge((c) => Math.min(CHARGE_MAX, c + 1));
+      float(`+${healed - playerHp} +1◆`, 'hero', 'text-emerald-300');
+    } else if (id === 'coil') {
+      setCharge(CHARGE_MAX);
+      float('◆ MAX', 'hero', 'text-amber-300');
+    } else if (id === 'mirror') {
+      setMirrored(true);
+      float('🪞', 'hero', 'text-sky-300');
+    } else if (id === 'tea') {
+      setFocused(true);
+      float('🍵 Focus!', 'hero', 'text-lime-300');
+    } else if (id === 'clover') {
+      setLucky(true);
+      float('🍀 Lucky!', 'hero', 'text-emerald-300');
     }
     setTurn({ kind: 'message', text: `${avatar!.name} uses a ${name}! ${emoji}`, next: enemyTurn });
   }
@@ -307,8 +347,19 @@ export default function BattleArena() {
       return;
     }
 
-    const dmg = attackDamage(wasCorrect, style, powerUps);
-    const text = wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…';
+    let dmg = attackDamage(wasCorrect, style, powerUps);
+    let text = wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…';
+    if (focused && dmg > 0) {
+      if (enemyShielded) {
+        // The shield would swallow the doubled hit — keep the focus for later.
+        text += ' 🍵 (Your focus holds for the next swing!)';
+      } else {
+        // Focus Tea: the next Attack hits extra hard (then the focus is spent).
+        setFocused(false);
+        dmg *= TEA_DAMAGE_MULT;
+        text += ' 🍵 Focused — double damage!';
+      }
+    }
     dealHeroDamage(dmg, text, 'text-red-300');
   }
 
@@ -383,15 +434,18 @@ export default function BattleArena() {
       setTurn({ kind: 'message', text, next: () => victory() });
       return;
     }
-    // Boss enrage callout when crossing a phase boundary.
-    if (enemy!.isBoss) {
-      const p = bossPhase(newEnemyHp, enemy!.maxHp);
-      if (p > lastPhase.current) {
-        lastPhase.current = p;
-        showBanner(p === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
-      }
-    }
+    checkBossPhase(newEnemyHp);
     setTurn({ kind: 'message', text, next: enemyTurn });
+  }
+
+  /** Boss enrage callout when the enemy's HP crosses a phase boundary (any damage source). */
+  function checkBossPhase(newEnemyHp: number) {
+    if (!enemy!.isBoss || newEnemyHp <= 0) return;
+    const p = bossPhase(newEnemyHp, enemy!.maxHp);
+    if (p > lastPhase.current) {
+      lastPhase.current = p;
+      showBanner(p === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
+    }
   }
 
   function enemyTurn() {
@@ -401,7 +455,15 @@ export default function BattleArena() {
   function resolveEnemyQuestion(wasCorrect: boolean) {
     const raw = enemyAttack(enemy!.level, enemy!.isBoss, phase);
     let dmg: number;
-    if (guarded) {
+    // Mirror Charm: block the hit and bounce it back at the enemy.
+    // A shielded foe's shield takes the bounced hit (any landed hit shatters it).
+    const shieldTakesBounce = mirrored && enemyShielded && raw > 0;
+    if (shieldTakesBounce) setEnemyShielded(false);
+    const reflected = mirrored && !shieldTakesBounce ? raw : 0;
+    if (mirrored) {
+      dmg = 0;
+      setMirrored(false);
+    } else if (guarded) {
       dmg = 0;
       setGuarded(false);
     } else {
@@ -410,30 +472,40 @@ export default function BattleArena() {
 
     // Healer archetype (Wave 0.5): mends itself at the end of its turn while
     // below half HP — rewards pressing the attack over turtling.
-    let newEnemyHp = enemyHp;
+    let newEnemyHp = Math.max(0, enemyHp - reflected);
     let healNote = '';
-    if (enemy!.behavior === 'healer' && healerMends(enemyHp, enemy!.maxHp)) {
-      newEnemyHp = Math.min(enemy!.maxHp, enemyHp + healerRegen(enemy!.maxHp));
-      healNote = ` It glows softly and mends ${newEnemyHp - enemyHp} HP!`;
+    if (newEnemyHp > 0 && enemy!.behavior === 'healer' && healerMends(newEnemyHp, enemy!.maxHp)) {
+      const before = newEnemyHp;
+      newEnemyHp = Math.min(enemy!.maxHp, newEnemyHp + healerRegen(enemy!.maxHp));
+      healNote = ` It glows softly and mends ${newEnemyHp - before} HP!`;
     }
 
     setEnemyLunge((n) => n + 1);
     const newPlayerHp = Math.max(0, playerHp - dmg);
     setTimeout(() => {
       float(dmg === 0 ? 'Blocked!' : `-${dmg}`, 'hero', dmg === 0 ? 'text-sky-300' : 'text-red-300');
-      if (newEnemyHp > enemyHp) float(`+${newEnemyHp - enemyHp}`, 'enemy', 'text-emerald-300');
+      if (shieldTakesBounce) float('Shield shattered!', 'enemy', 'text-amber-300');
+      else if (reflected > 0) float(`-${reflected}`, 'enemy', 'text-sky-300');
+      else if (newEnemyHp > enemyHp) float(`+${newEnemyHp - enemyHp}`, 'enemy', 'text-emerald-300');
       if (dmg > 0) sfx('hit');
       setHp(newPlayerHp, newEnemyHp);
     }, 260);
 
     const text =
-      (dmg === 0
+      (shieldTakesBounce
+        ? `${enemy!.name} attacks — the Mirror Charm bounces it back, and its shield SHATTERS! 🪞`
+        : reflected > 0
+        ? `${enemy!.name} attacks — the Mirror Charm bounces it right back! 🪞`
+        : dmg === 0
         ? `${enemy!.name} attacks — completely blocked!`
         : wasCorrect
           ? `${enemy!.name} attacks — you soften the hit!`
           : `${enemy!.name} lands a hit!`) + healNote;
 
-    if (newPlayerHp <= 0) {
+    checkBossPhase(newEnemyHp);
+    if (newEnemyHp <= 0) {
+      setTurn({ kind: 'message', text, next: () => victory() });
+    } else if (newPlayerHp <= 0) {
       setTurn({ kind: 'message', text, next: () => defeat() });
     } else {
       setTurn({ kind: 'message', text, next: () => setTurn({ kind: 'command' }) });
@@ -464,7 +536,7 @@ export default function BattleArena() {
     updateSave((s) => ({
       ...s,
       hp: playerHp,
-      coins: s.coins + enemy!.coins,
+      coins: s.coins + enemy!.coins * (lucky ? CLOVER_COIN_MULT : 1),
       // Lifetime kill counts drive defeat quests (#42).
       kills: { ...s.kills, [enemy!.id]: (s.kills[enemy!.id] ?? 0) + 1 },
       library: pushLibrary(s.library, misses.current),
@@ -563,7 +635,13 @@ export default function BattleArena() {
         <div className="bg-indigo-950/90 border-2 border-white/70 rounded-xl px-4 py-2 text-white w-60">
           <div className="flex justify-between text-sm font-bold">
             <span>
-              {avatar.sprite} {avatar.name}
+              <CharacterPortrait
+                spriteId={avatar.spriteId}
+                emoji={avatar.sprite}
+                scale={0.75}
+                className="inline-block align-middle mr-1"
+              />
+              {avatar.name}
             </span>
             <span className="flex gap-0.5 items-center" title="Special charge">
               {Array.from({ length: CHARGE_MAX }).map((_, i) => (
@@ -871,7 +949,7 @@ export default function BattleArena() {
                   </>
                 )}
                 <p className="text-sm text-white/80">
-                  {correctCount} correct answers · 🪙 +{enemy.coins} ·{' '}
+                  {correctCount} correct answers · 🪙 +{enemy.coins * (lucky ? CLOVER_COIN_MULT : 1)}{lucky ? ' 🍀' : ''} ·{' '}
                   ⭐ +{correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)) + npcDefeatXp(enemy.level) + (enemy.isBoss ? BOSS_XP_BONUS : 0)}{' '}
                   XP
                 </p>

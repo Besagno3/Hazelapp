@@ -382,6 +382,33 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-329 | U | ✅ | camera | `worldView` grows the view when the camera zooms out; zoomed out on a 160×112 map the camera never shows past the edge and the drawn window covers the whole view (camera.test) |
 | TC-330 | M | ✅ | world | with the camera forced to 2× zoom-out: the big map and Lumina Village draw edge to edge, the camera stops at the map edge, and the whole Village fits — vs. bare edges and an off-centre town under the old 1:1 assumption (headless Chromium, temporary patch) |
 
+## Character portraits + Umbra (#79)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-331 | U | ✅ | CharacterPortrait | a fighter shows its battle sheet; a world-only NPC shows its world sheet facing the player (idleDown); an unknown id falls back to the emoji (CharacterPortrait.test) |
+| TC-332 | U | ✅ | sprites | Umbra's world and battle frames are larger than every other character's (sprites.test) |
+| TC-333 | M | ✅ | UI | dialogue box, Sage screen, HUD Ember, menu Ember + hero, and the battle name tag all show sprites, not emoji (headless Chromium render) |
+| TC-334 | M | ✅ | Spire | on the throne floor, Umbra looms oversized above the message / challenge panel with a violet glow; smaller on screens under 720px tall |
+
+## Village expansion: towns, side quests, secrets, items (#80)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-335 | U | ✅ | zones | all expanded maps keep the zone invariants: legend-only rows, closed buildings with one door, every door reachable, every indoor NPC talkable, one style per place, unique building names (zones.test) |
+| TC-336 | U | ✅ | secrets | each of the five towns hides ≥3 secrets; ids unique; every reward is real; every secret is reachable from the spawn without opening a gate (step-on for walkable tiles, bump for solid) (secrets.test) |
+| TC-337 | U | ✅ | secrets | every hidden passage 'H' joins two walkable sides; claiming a secret pays once and sets `secret:<id>`; a quest-item secret adds the item once; per-zone progress counts (secrets.test) |
+| TC-338 | U | ✅ | quests | each town has exactly two side quests with distinct givers; every topic zone still has exactly one main quest; quest items taken back are obtainable (quests.test) |
+| TC-339 | U | ✅ | quests | Mayor's Seal (secret → complete takes the seal, pays 40 coins + clover); Lost Lessons hint names the page still hidden; a secret found before the offer completes the quest at once; bakery deliveries go Wick → Sol in order; Widget's test needs both kills then the Professor (quests.test) |
+| TC-340 | U | ✅ | items | five new consumables are each sold in exactly one shop; every new merchant runs a shop; older saves gain zeroed slots (items.test) |
+| TC-341 | M | ✅ | world | the five expanded towns render in their own style with the new buildings, roofs and townsfolk (headless Chromium screenshots) |
+| TC-342 | M | ✅ | secrets | walking right through the village hedge passage into the hidden garden pops "Secret found!" and adds 40 coins + a Lucky Clover; bumping the plaza fountain finds the Town Seal (headless Chromium) |
+| TC-343 | M | ✅ | shop | bumping Mirror Hall's counter opens Glint's dialogue (headless Chromium) |
+| TC-344 | M | ✅ | battle | Mirror Charm bounces the next enemy hit back; Focus Tea doubles the next Attack; Lucky Clover doubles the coins (victory panel shows 🍀) (headless Chromium, mocked questions) |
+| TC-345 | M | ⬜ | battle | Sunseed Snack heals 30 HP + 1 ◆; Turbo Coil fills ◆; each is greyed out with a reason when it would do nothing |
+| TC-346 | M | ⬜ | menu | the menu shows "✨ Secrets: n/3 found here · n/15 across Lumina" and tags side quests with their town |
+| TC-347 | M | ⬜ | secrets | a twinkle ✦ blinks every few seconds over each unfound secret and disappears once it's found; indoor twinkles only show once the roof fades |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

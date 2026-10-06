@@ -84,7 +84,8 @@ existing architecture.
   (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
-  Fiends, #58), `items.ts` (shop + economy tuning), `avatars.ts`.
+  Fiends, #58), `items.ts` (shop + economy tuning), `secrets.ts` (hidden secrets per
+  zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue. Write-through: localStorage immediately
@@ -204,7 +205,7 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-06 — CI: lint + test + build on every PR (#79)
+### 2026-10-06 — CI: lint + test + build on every PR (#81)
 First CI for the repo: `.github/workflows/ci.yml` (repo root) runs `npm ci`,
 `npm run lint`, `npm test` and `npm run build` in `hazel-game/` on every pull
 request, every push to `main`, and on demand. Node 22 (Vite 8 needs
@@ -288,6 +289,68 @@ list and open decisions. Key engineering risk: `WorldCanvas` makes one KaPlay
 object per tile, so chunked rendering comes first. Re-sequences
 `ROADMAP-4X.md` (header note added); `STORY.md` §8 points at it. World atlas
 image at `docs/images/lumina-world-atlas.png`. Doc-only.
+
+### 2026-10-01 — Review fixes for the village expansion (#80)
+Code review of the expansion; all five findings fixed in `BattleArena`:
+- Focus Tea is no longer wasted on a shielded foe — the focus waits for the
+  next swing while the shield is up.
+- Boss enrage banners now fire from any damage (new `checkBossPhase`, shared
+  by attacks and Mirror Charm bounces), so the phase never desyncs.
+- Mirror Charm vs a shielded foe: the bounced hit shatters the shield (any
+  landed hit does), instead of bypassing it.
+- Item buffs (mirror / focus / clover) reset per enemy alongside the shield.
+- `secretFlag` moved to `zones.ts`, breaking the secrets.ts ↔ quests.ts
+  import cycle (`secrets.ts` re-exports it).
+320 tests green; lint + build clean; mocked battle replayed in headless Chromium.
+
+### 2026-10-01 — Village expansion: bigger towns, side quests, secrets, new shops (#80)
+The five main towns grew, with more to do in each.
+- **Bigger maps (`zones.ts`):** Lumina Village 44→66 wide (east district:
+  Town Hall, Clover's Market, Dot's Bakery, Nib's House, a hedge garden);
+  Numbria 14→28 rows (south: Schoolhouse, Chai's Tea Room, Sundial House);
+  Verdara + Gearfall 22→44 wide (east districts; Gearfall also a Clockwork
+  Plaza with the Clocktower); Chromaria 14→28 rows (south: Mirror Hall,
+  Grand Gallery, Music House). Maps only grew right/down, so every chest,
+  gate, key gate, save crystal and spawn keeps its coordinates (old saves
+  and quests stay valid). Fiend areas stay sealed off from the new land.
+  The village's east exit moved to col 65 (the Coast's spawn back updated).
+- **Secrets (`ZoneDef.secrets`, new `content/secrets.ts`):** 15 secrets (3 per
+  town). On a solid tile (shelf, bed, crate, fountain) you bump it; on open
+  ground you step on it. Rewards: coins, items, or a quest item. Found once
+  (`secret:<id>` flag). `WorldCanvas` draws a faint ✦ twinkle over unfound
+  ones (under roofs) and calls `onSecret`; `WorldScreen` claims it and shows
+  a "Secret found!" card. New map char **`H`** = hidden passage: drawn as
+  solid scenery but walkable for the hero (wanderers treat it as solid).
+- **21 new townsfolk (`npcs.ts`)** with generated sprites (`characters.py`
+  NPCS): five merchants, ten side-quest givers, and villagers whose lines
+  hint at the secrets.
+- **10 side quests (`quests.ts`):** two per town, tagged `side: true`. New
+  `secretStep` (find listed secrets; hint names what's still hidden),
+  `takesItems` (quest items handed back on completion) and `reward.items`.
+  Mix: find-the-secret, delivery chains, talk chains, defeat + report.
+- **5 new shops + items (`items.ts`):** Clover's Market (🍀 Lucky Clover —
+  2× coins this battle), Chai's Tea Room (🍵 Focus Tea — next Attack 2×),
+  Sunseed Stand (🌻 Sunseed Snack — +30 HP, +1 ◆), Coil & Spring (🌀 Turbo
+  Coil — fill ◆), Mirror Hall (🪞 Mirror Charm — bounce the next hit back),
+  each with a badge. Effects in `BattleArena` (`mirrored`/`focused`/`lucky`
+  state); a bounced hit can win the battle.
+- **Menu:** secrets found here / across Lumina, side-quest tags, and the hero
+  card now uses the sprite.
+- Tests: new secrets.test; side-quest flows in quests.test; items/zones tests
+  updated. 320 tests green; lint + build clean. Played in headless Chromium
+  (fake auth + seeded save): every new district, the hedge-garden passage,
+  the fountain secret, Glint's counter, and a battle using Mirror Charm,
+  Focus Tea and Lucky Clover.
+
+### 2026-10-01 — Sprite portraits everywhere + Umbra redesign (#79)
+- `components/CharacterPortrait.tsx`: animated sprite portrait for UI panels
+  (battle view, else the world view facing the player; emoji fallback). Used
+  by the dialogue box, Sage screen, HUD + menu Ember and the battle name tag.
+- **Umbra:** new `giant` size tier in the generator (64px world, 96px battle;
+  bosses are 48). Redrawn as an armoured purple shadow-lord in a white
+  war-helm with a violet energy blade (an original design, not a copy of any
+  film character). He stands on the throne floor (no hover) and looms
+  oversized over the Spire throne-hall panels.
 
 ### 2026-09-23 — Spire review fixes: softlock, leave button, double-tap (#74)
 Code review of the Spire climb; all four findings fixed:

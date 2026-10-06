@@ -4,7 +4,8 @@ import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import { CONSUMABLE_IDS, LIBRARY_XP, shopFor, type ConsumableId, type ShopItem } from '../../content/items';
 import { SAGES } from '../../content/abilities';
-import { NPC_DEFS } from '../../content/npcs';
+import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
@@ -219,7 +220,9 @@ function Sage({ npcId }: { npcId: string | null }) {
 
   return (
     <div className="text-center">
-      <div className="text-5xl mb-2">{sage.sprite}</div>
+      <div className="text-5xl mb-2 flex justify-center">
+        <CharacterPortrait spriteId={npcId ? npcSpriteId(NPC_DEFS[npcId]) : undefined} emoji={sage.sprite} scale={2} />
+      </div>
       <h2 className="text-xl font-extrabold mb-1">{sage.name}</h2>
       {!known ? (
         <>

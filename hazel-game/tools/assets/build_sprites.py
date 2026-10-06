@@ -22,12 +22,12 @@ def render(ch: Char, n: int, poses) -> list[Image.Image]:
 
 
 def world_frames(ch: Char) -> list[Image.Image]:
-    n = 24 if ch.boss else 16
+    n = 32 if ch.giant else 24 if ch.boss else 16
     return [upscale(f, WORLD_SCALE) for f in render(ch, n, WORLD_POSES)]
 
 
 def battle_frames(ch: Char) -> list[Image.Image]:
-    n = 48 if ch.boss else 32
+    n = 96 if ch.giant else 48 if ch.boss else 32
     return render(ch, n, BATTLE_POSES)
 
 
