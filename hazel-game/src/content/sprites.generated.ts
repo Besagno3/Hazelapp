@@ -2643,10 +2643,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "crayon-goblin": {
-    "emoji": "🖍️",
+  "flicker-goblin": {
+    "emoji": "🔥",
     "world": {
-      "sheet": "/sprites/crayon-goblin/world.png",
+      "sheet": "/sprites/flicker-goblin/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2684,7 +2684,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/crayon-goblin/battle.png",
+      "sheet": "/sprites/flicker-goblin/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -2775,10 +2775,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "patchwork-bear": {
-    "emoji": "🧸",
+  "dog-knight": {
+    "emoji": "🐕",
     "world": {
-      "sheet": "/sprites/patchwork-bear/world.png",
+      "sheet": "/sprites/dog-knight/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -2816,7 +2816,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/patchwork-bear/battle.png",
+      "sheet": "/sprites/dog-knight/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,

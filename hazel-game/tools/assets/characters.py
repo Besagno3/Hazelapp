@@ -2033,59 +2033,116 @@ def piston_boar(c: Canvas, p: Pose, s: dict):
 # ─── Batch-3 critters (Chromaria + Whispering Woods) ─────────────────────────
 
 
-def crayon_goblin(c: Canvas, p: Pose, s: dict):
-    """A scrappy goblin swinging a giant crayon like a club."""
+def flame_goblin(c: Canvas, p: Pose, s: dict):
+    """A small goblin cupping a tiny flame it refuses to share."""
     d = D(c, p)
     skin = hexc(s.get('skin', '#6ab04a'))
-    tunic = hexc(s.get('tunic', '#7a5a3a'))
-    crayon = hexc(s.get('crayon', '#e0303a'))
+    rag = hexc(s.get('tunic', '#6a4a3a'))
     lean, bob = d.lean, d.bob
     legs = d.part(lean * 0.4, 0)
-    for i, lx in enumerate((13.5, 17.5)):
-        off = p.step * (1.3 if i else -1.3)
-        legs.rect(lx - 1.2 + off, 23.5, lx + 1.2 + off, 29.5, dark(skin, 0.1 if i else 0.2))
-        legs.ellipse(lx + 0.8 + off, 29.8, 2, 1, dark(skin, 0.25))
+    for i, lx in enumerate((14, 17.5)):
+        off = p.step * (1.1 if i else -1.1)
+        legs.rect(lx - 1 + off, 26, lx + 1 + off, 29.6, dark(skin, 0.1 if i else 0.2))
+        legs.ellipse(lx + 0.7 + off, 29.9, 1.7, 0.8, dark(skin, 0.25))
     d.put(legs)
     body = d.part(lean, bob)
-    body.poly([(11, 15.5), (20, 15.5), (21.5, 25), (19.5, 24), (17.5, 25.5), (15.5, 24), (13.5, 25.5), (11.5, 24), (9.5, 25)], tunic)  # ragged tunic
-    body.line(11, 19.5, 20.5, 19.5, '#3a2a1a', w=0.7)  # rope belt
+    body.poly([(12.5, 19.5), (19.5, 19.5), (20.5, 27), (18.8, 26.2), (17, 27.4), (15.2, 26.2), (13.4, 27.4), (11.6, 26.4)], rag)  # ragged tunic
+    body.line(12.4, 22.5, 20, 22.5, '#2a1a12', w=0.6)
     d.put(body)
     head = d.part(lean, bob)
-    head.poly([(12.5, 9), (5.5, 5.5), (12, 12)], skin)  # long pointy ears
-    head.poly([(20.5, 9.5), (26, 5), (21.5, 12.5)], dark(skin, 0.06))
-    head.ellipse(16.5, 10.5, 5.2, 5, skin)
-    head.ellipse(21, 12, 1.6, 1.4, dark(skin, 0.1))  # warty nose
+    head.poly([(13.5, 14), (7.5, 11), (13.5, 16.5)], skin)  # pointy ears
+    head.poly([(19.5, 14.2), (24.5, 10.5), (20, 16.5)], dark(skin, 0.06))
+    head.ellipse(16.5, 15, 4.2, 4, skin)
+    head.ellipse(20.2, 16.2, 1.2, 1.1, dark(skin, 0.1))  # warty nose
+    head.poly([(12.5, 12.8), (14.5, 9.6), (18.5, 9.4), (20.5, 12.5), (16.5, 11.6)], dark(rag, 0.15))  # ragged hood
     if p.facing != 'up':
-        ex = face_x(p, [17, 20.2], [14.2, 18.4])
-        d.eyes(head, [(x, 9.5) for x in ex], color=(255, 60, 40) if not p.hurt else EYE, shine=False)
+        ex = face_x(p, [16.8, 19.4], [14.6, 18])
+        d.eyes(head, [(x, 14.4) for x in ex], color=(255, 190, 40) if not p.hurt else EYE, h=1, shine=False)  # lit by the flame
         if not p.hurt:
-            head.line(ex[0] - 1.3, 7.4, ex[0] + 1.1, 8.6, '#2a3a1a', w=0.7)  # angry brows
-            head.line(ex[1] + 1.3, 7.4, ex[1] - 1.1, 8.6, '#2a3a1a', w=0.7)
-        head.line(15, 13.6, 21, 13.2, '#2a1a1a', w=0.8)  # toothy grin
+            head.line(ex[0] - 1.1, 12.8, ex[0] + 0.9, 13.6, '#2a3a1a', w=0.6)
+            head.line(ex[1] + 1.1, 12.8, ex[1] - 0.9, 13.6, '#2a3a1a', w=0.6)
+        head.line(15.5, 17.4, 20.2, 17.0, '#2a1a1a', w=0.6)  # sly grin
         if d.sep:
-            for tx in (16, 17.6, 19.4):
-                head.poly([(tx - 0.5, 13.4), (tx + 0.5, 13.4), (tx, 14.6)], WHITE, shade=False)
+            head.poly([(17.2, 17.2), (18, 17.2), (17.6, 18.2)], WHITE, shade=False)
+            head.poly([(18.8, 17.1), (19.6, 17.1), (19.2, 18.1)], WHITE, shade=False)
     d.put(head)
-    club = d.part(lean, bob)
-    hand, tip = {'raise': ((15, 12), (9, 1)), 'strike': ((22, 17), (31, 13)), 'follow': ((21, 20), (29, 24))}.get(
-        p.arm, ((20, 17.5), (25, 6)))
-    dx, dy = tip[0] - hand[0], tip[1] - hand[1]
-    L = math.hypot(dx, dy) or 1
-    ux, uy = dx / L, dy / L
-    club.line(hand[0], hand[1], tip[0] - ux * 2.5, tip[1] - uy * 2.5, crayon, w=3)  # the giant crayon
-    club.line(hand[0] + ux * 3, hand[1] + uy * 3, hand[0] + ux * 6, hand[1] + uy * 6, light(crayon, 0.3), w=3.1)  # paper wrapper
-    club.line(hand[0] + ux * 4.5, hand[1] + uy * 4.5, hand[0] + ux * 4.6, hand[1] + uy * 4.6, dark(crayon, 0.3), w=3.2)
-    club.poly([(tip[0] - ux * 2.5 - uy * 1.5, tip[1] - uy * 2.5 + ux * 1.5), (tip[0], tip[1]),
-               (tip[0] - ux * 2.5 + uy * 1.5, tip[1] - uy * 2.5 - ux * 1.5)], dark(crayon, 0.1))  # waxy point
-    club.ellipse(hand[0], hand[1], 1.6, 1.6, skin)  # fist
-    d.put(club)
-    if p.arm in ('strike', 'follow'):  # angry scribbles left in the air
-        sc = d.part(lean, bob)
-        sc.line(25, 20, 27, 18, crayon, w=0.5)
-        sc.line(27, 18, 26, 21, crayon, w=0.5)
-        sc.line(26, 21, 29, 19.5, crayon, w=0.5)
-        d.put(sc, outline=False)
-    finish(c, d, shadow=(16, 30.8, 7, 1.2))
+    hand = {'raise': (20, 14), 'strike': (25, 19), 'follow': (23.5, 21)}.get(p.arm, (21.5, 21.5))
+    arm = d.part(lean, bob)
+    arm.line(18.5, 20.5, hand[0], hand[1], skin, w=1.3)
+    arm.ellipse(hand[0], hand[1] + 0.6, 1.6, 1, dark(skin, 0.05))  # cupped palm
+    d.put(arm)
+    big = {'raise': 1.5, 'strike': 2.0, 'follow': 1.6}.get(p.arm, 1.25)
+    flick = 0.5 if p.frame % 2 else -0.4
+    fx, fy = hand[0], hand[1] - 0.6
+    f2 = d.part(lean, bob)
+    for (sx, sy) in ((fx + 2.2, fy - 4.5 * big), (fx - 1.8, fy - 3.5 * big)) if p.frame % 2 else ((fx + 1.5, fy - 5 * big),):
+        f2.dot(sx, sy, '#ffd23a')  # sparks
+    f2.poly([(fx - 1.2 * big, fy), (fx + flick, fy - 4 * big), (fx + 1.2 * big, fy)], '#ff6a1a', shade=False)  # tiny flame
+    f2.poly([(fx - 0.6 * big, fy), (fx + flick * 0.6, fy - 2.4 * big), (fx + 0.6 * big, fy)], '#ffe066', shade=False)
+    d.put(f2, outline=False)
+    finish(c, d, shadow=(16, 30.8, 5.5, 1.1))
+
+
+def dog_knight(c: Canvas, p: Pose, s: dict):
+    """A dog in a knight's helm and cape, carrying a sword in its mouth like a bone."""
+    d = D(c, p)
+    fur = hexc(s.get('fur', '#c8945a'))
+    steel = hexc(s.get('steel', '#b8c2d0'))
+    cape = hexc(s.get('cape', '#b0283a'))
+    lean, bob = d.lean, d.bob
+    C = d.part(lean * 0.6, bob)
+    sway = 0.8 if p.frame % 2 else -0.4
+    C.poly([(10, 15.5), (17, 15.5), (12.5, 24 + sway), (5, 23 + sway * 1.4)], cape)  # flowing cape
+    d.put(C)
+    tail = d.part(lean, bob)
+    wag = 1.2 if p.frame % 2 else -0.6
+    tail.line(8, 18, 4.5, 13 + wag, fur, w=1.6)
+    d.put(tail)
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((10.5, 13, 18.5, 21)):
+        off = p.step * (1.3 if i % 2 else -1.3)
+        legs.rect(lx - 1.1 + off, 22, lx + 1.1 + off, 29.6, fur if i % 2 else dark(fur, 0.14))
+        legs.rect(lx - 1.3 + off, 28.6, lx + 1.5 + off, 30.6, steel)  # armoured boots
+    d.put(legs)
+    B = d.part(lean, bob)
+    B.ellipse(15.5, 19.5, 8, 4.8, fur)
+    B.ellipse(17, 21.8, 5.5, 2.2, light(fur, 0.2))
+    B.rect(12, 15.2, 19, 19.2, steel)  # breastplate saddle
+    B.dot(15.5, 16.2, light(steel, 0.25), w=2, h=1)
+    d.put(B)
+    H = d.part(lean, bob)
+    hx, hy = 22.5, 13.5
+    H.ellipse(hx, hy, 4.4, 4, fur)
+    H.ellipse(hx + 3.8, hy + 1.6, 2.8, 2, light(fur, 0.15))  # snout
+    H.dot(hx + 6.2, hy + 0.8, '#2a1a1a', w=1, h=1)  # nose
+    H.ellipse(hx - 3, hy + 1, 1.6, 3, dark(fur, 0.2), rot=0.3)  # floppy ear
+    # knight's helm: a steel cap with a nose guard and a plume
+    H.ellipse(hx - 0.4, hy - 3.2, 4.2, 2.4, steel)
+    H.rect(hx - 4.4, hy - 3.2, hx + 3.6, hy - 2.2, dark(steel, 0.15), shade=False)
+    H.poly([(hx - 1, hy - 5.2), (hx - 4, hy - 9.6 - (p.frame % 2) * 0.6), (hx - 2.2, hy - 5)], cape)  # plume
+    if p.facing != 'up':
+        d.eyes(H, [(hx + 1.6, hy - 0.6)], color=(230, 40, 50) if not p.hurt else EYE, h=1, shine=False)
+        if not p.hurt:
+            H.line(hx + 0.2, hy - 1.8, hx + 2.8, hy - 1.0, '#1a1420', w=0.6)  # stern brow under the helm
+    # spiked collar
+    H.rect(hx - 3.5, hy + 3, hx + 1, hy + 4.2, '#3a2a2a', shade=False)
+    if d.sep:
+        for x in (hx - 2.5, hx - 0.8):
+            H.poly([(x - 0.4, hy + 4.2), (x + 0.4, hy + 4.2), (x, hy + 5.2)], steel, shade=False)
+    d.put(H)
+    # the sword, clamped crosswise in its jaws like a bone
+    S = d.part(lean, bob)
+    my = hy + 3.4
+    reach = {'strike': 3.0, 'follow': 1.5, 'raise': -1.0}.get(p.arm, 0.0)
+    gx = hx + 1.5 + reach
+    tilt = -1.6 if p.arm == 'raise' else (0.6 if p.arm == 'strike' else 0.0)
+    S.line(gx - 3, my + 0.4, gx, my, '#6a3a2a', w=1.0)  # grip
+    S.ellipse(gx - 3.4, my + 0.45, 0.8, 0.8, '#e0b040')  # pommel
+    S.line(gx, my - 2, gx + 0.2, my + 2, '#e0b040', w=0.9)  # crossguard
+    S.line(gx + 0.4, my, gx + 9 + reach * 0.3, my + tilt, steel, w=1.1)  # blade
+    S.line(gx + 0.4, my - 0.3, gx + 8.6 + reach * 0.3, my - 0.3 + tilt, light(steel, 0.3), w=0.35)
+    d.put(S)
+    finish(c, d, shadow=(15.5, 30.9, 9, 1.2))
 
 
 def gargoyle(c: Canvas, p: Pose, s: dict):
@@ -2142,63 +2199,6 @@ def gargoyle(c: Canvas, p: Pose, s: dict):
             sp.ellipse(x, y, r, r, light(can, 0.2), shade=False)
         d.put(sp, outline=False)
     finish(c, d, shadow=(15, 30.9, 9, 1.2))
-
-
-def patchwork_bear(c: Canvas, p: Pose, s: dict):
-    """A stitched-up teddy bear with a button eye and a giant sewing needle."""
-    d = D(c, p)
-    fur = hexc(s.get('fur', '#a0683a'))
-    lean, bob = d.lean, d.bob
-    stitch = '#2a1a14'
-    legs = d.part(lean * 0.4, 0)
-    for i, lx in enumerate((12.5, 18.5)):
-        off = p.step * (1.2 if i else -1.2)
-        legs.ellipse(lx + off, 27, 2.6, 3.4, fur if i else dark(fur, 0.1))
-        legs.ellipse(lx + 0.4 + off, 29.6, 2.2, 1.1, '#e8c89a')  # foot pad
-    d.put(legs)
-    B = d.part(lean, bob)
-    B.ellipse(15.5, 20.5, 6.6, 6.2, fur)
-    B.rect(12, 19, 15.5, 22.5, '#4a7ad0')  # sewn-on patches
-    B.rect(16.5, 21.5, 19.5, 24.5, '#d05a8a')
-    if d.sep:
-        for (x0, y0, x1, y1) in ((12, 19, 15.5, 22.5), (16.5, 21.5, 19.5, 24.5)):
-            for t in range(4):
-                B.dot(x0 + (x1 - x0) * t / 3, y0 - 0.2, stitch)
-        for y in (15, 16.4, 17.8, 19.2, 20.6, 22, 23.4, 24.8):  # a long stitched seam down its belly
-            B.line(15.2, y, 16.6, y + 0.6, stitch, w=0.35)
-    B.ellipse(10, 15.5, 1.6, 1.2, '#f4f0e8')  # stuffing bursting out
-    B.ellipse(9, 14.6, 1.1, 0.9, WHITE, shade=False)
-    d.put(B)
-    H = d.part(lean, bob)
-    H.ellipse(12.5, 5.5, 2.2, 2.2, fur)  # ears
-    H.ellipse(20.5, 5.5, 2.2, 2.2, dark(fur, 0.06))
-    H.ellipse(12.5, 5.5, 1, 1, '#e8c89a', shade=False)
-    H.ellipse(16.5, 9.5, 5.4, 4.8, fur)
-    H.ellipse(19.5, 11.5, 2.6, 2, '#e8c89a')  # muzzle
-    H.dot(21, 10.6, stitch, w=1, h=1)
-    if p.facing != 'up':
-        H.ellipse(15, 8.6, 1.6, 1.6, '#1a1a22')  # button eye
-        if d.sep:
-            H.dot(14.6, 8.2, '#6a6a7a')
-            H.dot(15.4, 9, '#6a6a7a')
-        H.line(17.2, 7, 20.2, 9.8, stitch, w=0.4)  # stitched X over the other eye
-        H.line(20.2, 7, 17.2, 9.8, stitch, w=0.4)
-        H.dot(18.8, 8.4, (255, 60, 60) if not p.hurt else WHITE)  # a red glint behind the stitches
-        H.line(17.8, 12.6, 21.4, 12.4, stitch, w=0.5)  # stitched-shut grin
-        if d.sep:
-            for x in (18.4, 19.6, 20.8):
-                H.line(x, 11.8, x, 13.2, stitch, w=0.3)
-    d.put(H)
-    A = d.part(lean, bob)
-    paw = {'raise': (20, 10), 'strike': (25, 16), 'follow': (24, 20)}.get(p.arm, (22, 18))
-    A.line(18, 17.5, paw[0], paw[1], fur, w=2.4)
-    tip = {'raise': (24, 1), 'strike': (31, 14), 'follow': (30, 22)}.get(p.arm, (27, 9))
-    A.line(paw[0], paw[1], tip[0], tip[1], '#d8dee8', w=0.8)  # giant needle
-    A.ellipse(paw[0] - (tip[0] - paw[0]) * 0.15, paw[1] - (tip[1] - paw[1]) * 0.15, 0.9, 0.9, '#8a96a8')  # needle eye
-    A.line(paw[0], paw[1], 14, 26, '#e0303a', w=0.4)  # trailing red thread
-    A.ellipse(paw[0], paw[1], 1.8, 1.8, light(fur, 0.05))
-    d.put(A)
-    finish(c, d, shadow=(15.5, 30.9, 8, 1.2))
 
 
 def dart_frog(c: Canvas, p: Pose, s: dict):
@@ -2340,9 +2340,9 @@ DRAWERS = {
     'microbe': microbe,
     'pulley_spider': pulley_spider,
     'piston_boar': piston_boar,
-    'crayon_goblin': crayon_goblin,
+    'flame_goblin': flame_goblin,
     'gargoyle': gargoyle,
-    'patchwork_bear': patchwork_bear,
+    'dog_knight': dog_knight,
     'dart_frog': dart_frog,
     'snapjaw': snapjaw,
 }
@@ -2420,9 +2420,9 @@ ROSTER: list[Char] = [
     Char('pulley-spider', '🕷️', 'pulley_spider', H(color='#8a6ab0')),
     Char('piston-boar', '🐗', 'piston_boar', H(color='#8a5a3a')),
     # --- New critters, batch 3 (Chromaria + Whispering Woods) ---
-    Char('crayon-goblin', '🖍️', 'crayon_goblin', H(skin='#6ab04a', crayon='#e0303a')),
+    Char('flicker-goblin', '🔥', 'flame_goblin', H(skin='#6ab04a')),
     Char('graffiti-gargoyle', '🎨', 'gargoyle', H(color='#8a8a96', glow='#ff8a2a', can='#3ab0e0')),
-    Char('patchwork-bear', '🧸', 'patchwork_bear', H(fur='#a0683a')),
+    Char('dog-knight', '🐕', 'dog_knight', H(fur='#c8945a', cape='#b0283a')),
     Char('dart-frog', '🐸', 'dart_frog', H(color='#2a8aff')),
     Char('snapjaw', '🪴', 'snapjaw', H(color='#5ab03a', mouth='#d0304a')),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
