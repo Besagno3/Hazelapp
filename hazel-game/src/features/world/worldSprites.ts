@@ -28,7 +28,6 @@ import {
   SPIRE_KEY,
   SPIRE_SHEET,
   TILESET_FRAMES,
-  TILE_FRAME,
   TOWN_FRAMES,
   tilesetKey,
   townKey,
@@ -78,11 +77,11 @@ export function loadWorldSprites(k: KaplayCtx): void {
     });
   }
   // 16-bit environment art: one tileset strip per zone + shared props.
+  // (Water animates in the terrain renderer — `lib/terrain.ts` — not as a sprite anim.)
   for (const id of ZONE_IDS) {
     k.loadSprite(tilesetKey(id), tilesetSheet(id), {
       sliceX: TILESET_FRAMES,
       sliceY: 1,
-      anims: { water: { from: TILE_FRAME.water[0], to: TILE_FRAME.water[1], loop: true, speed: 2 } },
     });
   }
   k.loadSprite(PROPS_KEY, PROPS_SHEET, {
@@ -97,7 +96,6 @@ export function loadWorldSprites(k: KaplayCtx): void {
     k.loadSprite(namedTilesetKey(name), namedTilesetSheet(name), {
       sliceX: TILESET_FRAMES,
       sliceY: 1,
-      anims: { water: { from: TILE_FRAME.water[0], to: TILE_FRAME.water[1], loop: true, speed: 2 } },
     });
   }
   k.loadSprite(SPIRE_PROPS_KEY, SPIRE_PROPS_SHEET, {

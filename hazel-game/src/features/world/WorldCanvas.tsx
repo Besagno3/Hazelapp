@@ -23,7 +23,7 @@ import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
 import { loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
-import { camAxis } from '../../lib/camera';
+import { camAxis, worldView } from '../../lib/camera';
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
 import { SLIDE_MS, exitSide, slideFrom, type ExitSide } from '../../lib/transition';
 import {
@@ -33,14 +33,14 @@ import {
   SPIRE_KEY,
   SPIRE_PROPS_KEY,
   SPIRE_PROP_FRAME,
-  TILE_FRAME,
   TOWN_FRAME,
-  groundVariant,
+  WATER_FPS,
   namedTilesetKey,
   roofFrame,
   tilesetKey,
   townKey,
 } from '../../content/tiles';
+import { NO_OVERLAY, WATER, terrainLayers, visibleRange, waterFrame } from '../../lib/terrain';
 import {
   npcWanders,
   pickWanderDir,
@@ -62,15 +62,6 @@ const VIEW_W = VIEW_COLS * TILE;
 const VIEW_H = VIEW_ROWS * TILE;
 /** Roof fade speed (per second) when the hero steps in / out of a building. */
 const ROOF_FADE = 10;
-/** Building-interior chars → town tile frame. */
-const TOWN_TILE: Record<string, number> = {
-  D: TOWN_FRAME.door,
-  F: TOWN_FRAME.floor,
-  K: TOWN_FRAME.counter,
-  B: TOWN_FRAME.shelf,
-  T: TOWN_FRAME.table,
-  Z: TOWN_FRAME.bed,
-};
 /** Seconds after closing an overlay before bumps can trigger again. */
 const TRIGGER_COOLDOWN = 0.8;
 /** Movement keys we own at the window level (see the keyboard effect). */
@@ -293,13 +284,55 @@ export default function WorldCanvas({
     // Ground fill under everything (also covers any sub-pixel canvas edge).
     k.add([k.rect(W, H), k.pos(0, 0), k.color(...z.ground), k.z(-100)]);
 
-    // --- Tiles -------------------------------------------------------------
-    // Every cell gets an opaque base (ground / path / water), then overlays
-    // (scenery, flowers, exits, props) are layered on top. Frame indices come
-    // from `TILE_FRAME` / `PROP_FRAME` so the generator and renderer agree.
+    // --- Terrain (overworld Phase 0, #75) ------------------------------------
+    // Ground / path / water / building tiles and the scenery / flower / exit
+    // overlays are worked out once per build (`lib/terrain.ts`) and painted by
+    // ONE object that draws only the cells in view each frame. The old
+    // one-KaPlay-object-per-tile approach cost grew with the map (~0.5 fps on
+    // a 160×112 map with a throttled CPU); this stays flat. Water animates
+    // from the clock.
     const tiles = z.tileset ? namedTilesetKey(z.tileset) : tilesetKey(zoneId);
-    const tile = (frame: number, px: number, py: number, z = -50) =>
-      k.add([k.sprite(tiles, { frame }), k.pos(px, py), k.z(z)]);
+    const layers = terrainLayers(z);
+    const sheetKeys = layers.sheets.map((s) => (s === 'zone' ? tiles : townKey(s)));
+    const builtAt = k.time();
+    // The camera's view in world pixels — larger than the canvas if it's ever
+    // zoomed out, so culling and edge clamping never assume a 1:1 camera.
+    const view = () => worldView(VIEW_W, VIEW_H, k.getCamScale());
+    k.add([
+      k.pos(0, 0),
+      k.z(-50),
+      {
+        id: 'terrain',
+        draw() {
+          const cam = k.getCamPos();
+          const v = view();
+          const r = visibleRange(cam.x, cam.y, v.w, v.h, cols, rows, TILE);
+          const water = waterFrame(k.time() - builtAt, WATER_FPS);
+          // Base tiles, one sheet at a time so same-texture quads batch.
+          for (let s = 0; s < sheetKeys.length; s++) {
+            for (let y = r.y0; y < r.y1; y++) {
+              for (let x = r.x0; x < r.x1; x++) {
+                const i = y * cols + x;
+                if (layers.baseSheet[i] !== s) continue;
+                const f = layers.baseFrame[i];
+                k.drawSprite({ sprite: sheetKeys[s], frame: f === WATER ? water : f, pos: k.vec2(x * TILE, y * TILE) });
+              }
+            }
+          }
+          // Scenery / flower / exit overlays on top.
+          for (let y = r.y0; y < r.y1; y++) {
+            for (let x = r.x0; x < r.x1; x++) {
+              const f = layers.overFrame[y * cols + x];
+              if (f !== NO_OVERLAY) k.drawSprite({ sprite: tiles, frame: f, pos: k.vec2(x * TILE, y * TILE) });
+            }
+          }
+        },
+      },
+    ]);
+
+    // --- Props: the few tiles that change or animate on their own -----------
+    // (save crystals, chests, gates, Spire seals / stairs / throne) stay live
+    // objects on top of the terrain.
     const prop = (frame: number, px: number, py: number) =>
       k.add([k.sprite(PROPS_KEY, { frame }), k.pos(px, py), k.z(-10)]);
     const chestSprites = new Map<string, ReturnType<typeof k.add>>();
@@ -314,39 +347,7 @@ export default function WorldCanvas({
         const ch = z.map[y][x];
         const px = x * TILE;
         const py = y * TILE;
-        const home = buildingAt(z, x, y);
-        // Building tiles draw in that building's architecture style (#73).
-        const townTiles = townKey(home?.style ?? 'timber');
-        if (ch === 'W') {
-          // Facade (a building's street-facing bottom row) vs. wall tops.
-          const b = home;
-          const facade = b && y === b.y + b.h - 1;
-          const nearDoor = z.map[y][x - 1] === 'D' || z.map[y][x + 1] === 'D';
-          const frame = !facade
-            ? TOWN_FRAME.wallTop
-            : (x - (b?.x ?? 0)) % 2 === 1 && !nearDoor
-              ? TOWN_FRAME.facadeWindow
-              : TOWN_FRAME.facade;
-          k.add([k.sprite(townTiles, { frame }), k.pos(px, py), k.z(-50)]);
-          continue;
-        } else if (ch in TOWN_TILE) {
-          k.add([k.sprite(townTiles, { frame: TOWN_TILE[ch] }), k.pos(px, py), k.z(-50)]);
-          continue;
-        } else if (ch === '=' || ch === 'E') {
-          tile(TILE_FRAME.path, px, py);
-        } else if (ch === '~') {
-          const water = tile(TILE_FRAME.water[0], px, py);
-          (water as unknown as { play: (n: string) => void }).play('water');
-        } else {
-          tile(groundVariant(x, y), px, py);
-        }
-        if (ch === '#') {
-          tile(TILE_FRAME.solid, px, py, -40);
-        } else if (ch === ',') {
-          tile(TILE_FRAME.deco, px, py, -40);
-        } else if (ch === 'E') {
-          tile(TILE_FRAME.exit, px, py, -40);
-        } else if (ch === 'S') {
+        if (ch === 'S') {
           const crystal = prop(PROP_FRAME.crystal[0], px, py);
           (crystal as unknown as { play: (n: string) => void }).play('glow');
         } else if (ch === 'C') {
@@ -382,34 +383,38 @@ export default function WorldCanvas({
     // --- Buildings (#72): signs + roofs ---------------------------------
     // Outside, a roof hides every row but the facade so the building reads as
     // enclosed; stepping inside fades that building's roof (and name) away.
+    // Each roof is one object drawing its nine-slice tiles (not one per tile).
     type Fader = { opacity: number };
     const roofs: { b: BuildingDef; parts: Fader[]; opacity: number }[] = [];
     for (const b of z.buildings ?? []) {
-      const parts: Fader[] = [];
       const roofRows = b.h - 1; // the facade row stays visible
+      const cells: { frame: number; pos: ReturnType<typeof k.vec2> }[] = [];
       for (let ry = 0; ry < roofRows; ry++) {
         for (let rx = 0; rx < b.w; rx++) {
-          parts.push(
-            k.add([
-              k.sprite(ROOF_KEY, { frame: roofFrame(b.roof, rx, ry, b.w, roofRows) }),
-              k.pos((b.x + rx) * TILE, (b.y + ry) * TILE),
-              k.opacity(1),
-              k.z(15),
-            ]) as unknown as Fader,
-          );
+          cells.push({ frame: roofFrame(b.roof, rx, ry, b.w, roofRows), pos: k.vec2((b.x + rx) * TILE, (b.y + ry) * TILE) });
         }
       }
-      parts.push(
-        k.add([
-          k.text(b.name, { size: 11 }),
-          k.pos((b.x + b.w / 2) * TILE, (b.y + roofRows / 2) * TILE),
-          k.anchor('center'),
-          k.color(255, 248, 225),
-          k.opacity(1),
-          k.z(16),
-        ]) as unknown as Fader,
-      );
-      roofs.push({ b, parts, opacity: 1 });
+      const roof: Fader = { opacity: 1 };
+      k.add([
+        k.pos(0, 0),
+        k.z(15),
+        {
+          id: 'roof',
+          draw() {
+            if (roof.opacity <= 0) return;
+            for (const c of cells) k.drawSprite({ sprite: ROOF_KEY, frame: c.frame, pos: c.pos, opacity: roof.opacity });
+          },
+        },
+      ]);
+      const label = k.add([
+        k.text(b.name, { size: 11 }),
+        k.pos((b.x + b.w / 2) * TILE, (b.y + roofRows / 2) * TILE),
+        k.anchor('center'),
+        k.color(255, 248, 225),
+        k.opacity(1),
+        k.z(16),
+      ]) as unknown as Fader;
+      roofs.push({ b, parts: [roof, label], opacity: 1 });
       if (b.sign) {
         // Hang the sign on the facade beside the door (right side if free).
         const fy = b.y + b.h - 1;
@@ -754,7 +759,10 @@ export default function WorldCanvas({
     // A saved position that no longer fits the map (e.g. a save from before a
     // zone was redrawn) falls back to the zone spawn instead of a wall.
     const spawn = safeSpawn(z, startPos);
-    const followCam = (x: number, y: number) => k.setCamPos(camAxis(x, W, VIEW_W), camAxis(y, H, VIEW_H));
+    const followCam = (x: number, y: number) => {
+      const v = view();
+      k.setCamPos(camAxis(x, W, v.w), camAxis(y, H, v.h));
+    };
     followCam(spawn.x, spawn.y);
     const heroView = resolveSprite(avatar.spriteId, avatar.sprite).def?.world ?? null;
     let player: HeroActor;

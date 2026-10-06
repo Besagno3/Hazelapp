@@ -15,7 +15,7 @@ import {
   buildingInside,
   safeSpawn,
 } from './zones';
-import { exitSide } from '../lib/transition';
+import { edgeLinkProblem, exitSide } from '../lib/transition';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
@@ -301,6 +301,15 @@ describe('zone exits slide (Zelda-style transition)', () => {
         expect(exitSide(e.x, e.y, z.map[0].length, z.map.length), `${z.id} exit ${e.x},${e.y}`).not.toBeNull();
       }
     }
+  });
+
+  // #76: the Field and the Village used to be "north" of each other — you
+  // walked north to go either way, and the screen slid north both ways.
+  // `edgeLinkProblem` (lib/transition.test.ts covers its edge cases).
+  it('walking out one edge brings you in through the opposite edge, and back the same way', () => {
+    // Collect them all so a failure lists every broken link with its full reason.
+    const problems = allZones.flatMap((z) => z.exits.map((e) => edgeLinkProblem(z, e, ZONES[e.to])));
+    expect(problems.filter(Boolean)).toEqual([]);
   });
 });
 

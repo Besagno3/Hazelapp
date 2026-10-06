@@ -338,12 +338,34 @@ one-tile icons that act as exits. Inside a place, its edge exits return to
 the overworld cell beside its icon. Relax `zones.test.ts:298` to "edge exits
 slide, place entrances fade".
 
-### 4.3 Renderer
+### 4.3 Renderer ✅ (Phase 0, 2026-10-05)
 
-Draw the static tiles once into chunk images (for example 16×16-tile chunks
-drawn to an offscreen canvas and loaded as sprites). Keep only animated water,
-props and actors as live objects. Target: 60 fps on a mid-range tablet with a
-160×112 map.
+**Built:** instead of one KaPlay object per tile, each cell's frames are
+worked out once per zone (`lib/terrain.ts`: `terrainLayers`), and ONE object
+draws only the cells in view every frame (`visibleRange`, plus a one-cell
+margin). Water animates from the clock (`waterFrame`). Each building's roof
+is one object instead of one per roof tile. Props that change on their own
+(crystals, chests, gates, Spire seals/stairs/throne) and all characters stay
+live objects.
+
+This replaced the earlier "bake 16×16-tile chunks into images" idea: drawing
+the visible cells directly needs no async image loading or texture memory,
+keeps water animation free, and has the same property that matters — the
+per-frame cost depends on the viewport, never on the map size.
+
+Measured with `bench/run-world-bench.cjs` (headless Chromium, software GL):
+
+| Map | Before (1× / 4× CPU throttle) | After (1× / 4×) |
+|---|---|---|
+| 160×112 | 3.2 / 0.5 fps · 1.4 s load hitch | **60 / 37 fps** · 0.17 s |
+| 44×28 (the Village) | 46 / 10.5 fps | 60 / 39 fps |
+| 22×14 (one screen) | 60 / 33 fps | 60 / 43 fps |
+
+At 4× the big map is now as fast as a one-screen zone; what's left is the
+fixed per-frame cost every zone pays in software-rendered headless Chromium.
+All 18 zone screens and 5 Spire floors are pixel-identical to the old
+renderer outside animated tiles. Still to do: run the bench on a real
+mid-range tablet (TC-326).
 
 ### 4.4 Travel modes
 
@@ -394,8 +416,8 @@ mostly follows build order.
 
 | # | Item | Effort | Phase | Done when |
 |---|---|---|---|---|
-| 0 | **Quick fix:** Field ↔ Village exits are both north (`zones.ts:210`, `:503`) | S | 0 | going north from the Field arrives at the Village's *south* edge (or the Field is retired, Phase 2) |
-| 1 | **Big-map renderer:** chunked static tiles (§4.3) | M | 0 | a 160×112 test map holds ~60 fps in CPU-throttled Chromium; existing zones look identical |
+| 0 | ✅ **Quick fix:** Field ↔ Village exits are both north (`zones.ts:210`, `:503`) | S | 0 | **Done (2026-10-05):** the Field's road to the Village now leaves south and the Village's way back is north; zones.test guards every exit pair |
+| 1 | ✅ **Big-map renderer:** one terrain layer drawing only visible cells (§4.3) | M | 0 | **Done (2026-10-05):** a 160×112 map runs as fast as a one-screen zone (60 fps; 37 fps at 4× CPU throttle, was 0.5); existing zones pixel-identical |
 | 2 | **Overworld zone + enterable places** (§4.1–4.2) | L | 1–2 | walk out of the Village, enter each place by its icon, come back out beside it; old saves load |
 | 3 | **Overworld art:** terrain, structure icons, smooth coast/road edges (#71b), fog tiles, the Spire landmark (`tools/assets/tiles.py`) | M | 1–2 | the overworld reads like a 16-bit world map, with no square-edged water |
 | 4 | **Transitions + music per place kind** | S | 1 | entering a place fades; towns, fields, caves and towers each have their own track |
@@ -404,7 +426,7 @@ mostly follows build order.
 | 7 | **Fog banks** (§3.2) | S–M | 2 | restoring a crystal visibly lifts its fog and opens what's behind it |
 | 8 | **Re-stage Act I on Dawnreach** (§3.5) | M (mostly content) | 2 | Act I is playable start to finish as a journey; the Field hub is gone |
 | 9 | **Field spells + shrines:** *Return* (fast travel), *Glow* (light dark caves), *Calm* (critters ignore you), learned at roadside shrines by passing a short question trial; spells unlocked by flags, not just Sages/crystals (`spellsKnown`, `spells.ts:94`) | M | 2 | each shrine teaches one field spell; *Glow* is needed for one cave |
-| 10 | **Real dungeons:** generalize the Spire (floors as ordinary zones joined by stairs, optional darkness, treasure, a boss at the bottom). Clockwork Depths first | M–L | 2 | Clockwork Depths is a 3-floor cave entered from the Woods; the Spire runs on the same engine |
+| 10 | **Real dungeons:** generalize the Spire (floors as ordinary zones joined by stairs, optional darkness, treasure, a boss at the bottom). Clockwork Depths first — note ISSUES #78: the candle-light overlay ignores the camera, fix it for dungeons bigger than one screen | M–L | 2 | Clockwork Depths is a 3-floor cave entered from the Woods; the Spire runs on the same engine |
 | 11 | **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | every town has an inn and ~8–12 people; every town points onward |
 | 12 | **Regional difficulty:** keep question level matched to the child, scale enemy HP, damage, behaviours and coins by region | S | 2 | far regions feel tougher without harder questions |
 | 13 | **Side-quest item chains:** "have item" / "bring item" steps, key-item chests in dungeons | S–M | 2–3 | e.g. find the Moonstone in a cave and bring it to a hermit |
@@ -419,13 +441,21 @@ mostly follows build order.
 **Phase 0 — Groundwork.** Decisions (§8), renderer (#1), the north/north fix
 (#0), the save v2 design. *Exit:* a big test map runs smoothly; nothing
 visible changes for players.
+*Status (2026-10-05):* renderer ✅ and north/north fix ✅. The save v2 design
+stands as written in §4.5 and ships with the first feature that needs a new
+save field (Phase 1/2). Decisions 5–9 in §8 are still open; none blocks
+Phase 1. Remaining check: the bench on a real tablet (TC-326).
 
 **Phase 1 — Vertical slice.** A 64×48 overworld around Lumina Village: the
 Village, Whispering Woods, the entrance to Clockwork Depths, one shrine, one
 fog pocket; fades and music per place kind; a stub world map. *Exit:* a kid
 can walk out of the Village, find the Woods, go in, and come back out beside
 it, and the world already feels bigger. **This proves the whole pipeline
-before any existing content is moved.**
+before any existing content is moved.** Also in Phase 1: the bench cleanup
+from the Phase 0 code review (ISSUES #77). Ready for it already: the exit
+check (`edgeLinkProblem`) handles towns with several gates onto the
+overworld, and culling + camera clamping use `worldView`, so a zoomed-out
+camera (decision 6) draws correctly.
 
 **Phase 2 — Dawnreach (Act I on the map).** The full continent with
 the four crystal regions at the corners and the Spire at the heart; fog that
