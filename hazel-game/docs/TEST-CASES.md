@@ -372,7 +372,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-319 | U | ✅ | terrain | `visibleRange`: a one-screen zone sees the whole map; never leaves the map; covers every cell the viewport touches at fractional camera positions (terrain.test) |
 | TC-320 | U | ✅ | terrain | the visible cell count stays within the viewport budget for maps from 22×14 up to 512×512 — draw cost never grows with the map (terrain.test) |
 | TC-321 | U | ✅ | terrain | `waterFrame` starts on the first frame and flips every 1/fps seconds (terrain.test) |
-| TC-322 | U | ✅ | zones | every edge exit in the world passes `edgeLinkProblem`: you land within 2 cells of the opposite edge, and the way back you'd take is on that edge (#76 regression, zones.test — fails on the pre-fix map) |
+| TC-322 | U | ✅ | zones | every edge exit in the world passes `edgeLinkProblem`: you land within 2 cells of the opposite edge, and the way back you'd take is on that edge; a failure lists every broken link with its full reason (#76 regression, zones.test — on the pre-fix map it lists all 4 Field/Village exits) |
 | TC-323 | M | ✅ | world | all 18 zone screens + 5 Spire floors are pixel-identical to the old per-tile renderer outside animated tiles and character idle cycles (`bench/run-world-bench.cjs shots` + `diff`, headless Chromium) |
 | TC-324 | M | ✅ | world | 160×112 map: 60 fps (was 3.2), 37 fps at 4× CPU throttle (was 0.5); Lumina Village 39 fps at 4× (was 10.5); load hitch 0.17 s (was 1.4 s) (`bench … fps`, headless Chromium, software GL) |
 | TC-325 | M | ✅ | world | standing inside a building fades its roof; water animates over time; walking the big map scrolls with no gaps at the screen edges; no page errors (headless Chromium) |

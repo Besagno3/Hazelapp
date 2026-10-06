@@ -220,6 +220,10 @@ Phase 1, the rest logged:
 - **Logged:** ISSUES #77 (bench cleanup, Phase 1) and #78 (Spire candle-light
   ignores the camera — fix with real dungeons, Phase 2).
 - 335 tests green (was 328: +5 transition, +2 camera); lint + build clean.
+- **Second review pass (1 low finding, fixed):** the zones.test exit check
+  now collects every `edgeLinkProblem` and asserts the list is empty, so a
+  failure prints every broken link with its full reason (it used to stop at
+  the first one, with the reason cut off by Vitest).
 
 ### 2026-10-05 — Overworld Phase 0: big-map renderer + Field/Village exit fix (#75, #76)
 - **Renderer:** `WorldCanvas` no longer creates one KaPlay object per tile.

@@ -307,11 +307,9 @@ describe('zone exits slide (Zelda-style transition)', () => {
   // walked north to go either way, and the screen slid north both ways.
   // `edgeLinkProblem` (lib/transition.test.ts covers its edge cases).
   it('walking out one edge brings you in through the opposite edge, and back the same way', () => {
-    for (const z of allZones) {
-      for (const e of z.exits) {
-        expect(edgeLinkProblem(z, e, ZONES[e.to])).toBeNull();
-      }
-    }
+    // Collect them all so a failure lists every broken link with its full reason.
+    const problems = allZones.flatMap((z) => z.exits.map((e) => edgeLinkProblem(z, e, ZONES[e.to])));
+    expect(problems.filter(Boolean)).toEqual([]);
   });
 });
 
