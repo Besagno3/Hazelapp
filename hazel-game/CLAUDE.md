@@ -49,6 +49,15 @@ existing architecture.
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
   generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
+- **Overworld (2026-10-04/05, #75):** the world becomes a two-scale DQ3/FF2-style
+  overworld — plan in `docs/ROADMAP-OVERWORLD.md`. Names: world **Lumina**,
+  home continent **Dawnreach**, far continent **Taleshore**, inner sea **the
+  Silver Shallows**, outer sea **the Starfall Sea**. **Lumina Field retires as
+  a hub** (its people + buildings move into Lumina Village, which becomes home
+  and `HUB_ZONE`). **Every town gets an inn** (reverses #73's one-inn rule;
+  still one Library, still each item sold in one shop). **`ROADMAP-4X.md`
+  Wave 1 (Act II) is paused** until Dawnreach exists — don't build Act II
+  zones as edge-linked screens.
 
 ## Architecture
 
@@ -88,7 +97,10 @@ existing architecture.
   `profiles` row (birth date, skill levels, xp, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
   wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
-  the Spire icon, remounted per zone, paused under overlays via ref). Overlays:
+  the Spire icon, remounted per zone, paused under overlays via ref). Terrain
+  is ONE object that draws only the cells in view each frame, from frames
+  worked out once per zone by `lib/terrain.ts` — never add one KaPlay object
+  per tile (big maps would crawl; #75). Roofs are one object per building. Overlays:
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
   key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
@@ -133,6 +145,11 @@ npm run dev      # Vite dev server
 npm run build    # tsc -b && vite build
 npm run lint     # eslint
 npm test         # Vitest suite (test:watch / test:ui also available)
+
+# World renderer bench (dev-only; needs Playwright — a global install works)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps [cols rows]   # frame times on a big test map
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 ```
 
 ## Error handling
@@ -187,7 +204,81 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-01 — Review fixes for the village expansion (#76)
+### 2026-10-05 — Phase 0 code-review fixes (#75)
+`/saas-code-review` of Phase 0 found no player-facing bugs; two fixes ahead of
+Phase 1, the rest logged:
+- **Exit check ready for multi-gate towns:** the #76 test is now a pure
+  helper, `edgeLinkProblem` (`lib/transition.ts`). It checks only the way back
+  you'd actually take (the return exit nearest where you land) and skips links
+  that fade (place entrances, gates that lead out beside an overworld icon), so
+  a town with several gates onto the overworld no longer trips it. Still fails
+  on the pre-fix Field/Village map (verified).
+- **Camera zoom:** new `worldView` (`lib/camera.ts`) gives the camera's view in
+  world pixels; `WorldCanvas` uses it for BOTH the terrain culling and the
+  camera's edge clamp (the clamp had the same 1:1 assumption). Verified with a
+  temporary 2× zoom-out: edge-to-edge drawing and correct clamping, vs. bare
+  edges and an off-centre town before.
+- **Logged:** ISSUES #77 (bench cleanup, Phase 1) and #78 (Spire candle-light
+  ignores the camera — fix with real dungeons, Phase 2).
+- 335 tests green (was 328: +5 transition, +2 camera); lint + build clean.
+- **Second review pass (1 low finding, fixed):** the zones.test exit check
+  now collects every `edgeLinkProblem` and asserts the list is empty, so a
+  failure prints every broken link with its full reason (it used to stop at
+  the first one, with the reason cut off by Vitest).
+
+### 2026-10-05 — Overworld Phase 0: big-map renderer + Field/Village exit fix (#75, #76)
+- **Renderer:** `WorldCanvas` no longer creates one KaPlay object per tile.
+  New pure `lib/terrain.ts` works out every cell's base + overlay frames once
+  per zone (`terrainLayers` — the same rules the old loop used: ground
+  variants, paths/exits, water, scenery/flower/exit overlays, walls/facades/
+  interiors in each building's style), and a single `terrain` object draws
+  only the cells in view each frame (`visibleRange`). Water animates from the
+  clock (`waterFrame`, `WATER_FPS` in `content/tiles.ts`; the unused tileset
+  `water` sprite anims were removed). Each building's roof is now one object.
+  Props that change on their own and all characters are unchanged.
+- **Measured** (`bench/`, headless Chromium, software GL): 160×112 map 3.2 →
+  60 fps, and 0.5 → 37 fps at 4× CPU throttle; Lumina Village 10.5 → 39 fps
+  at 4×; load hitch 1.4 s → 0.17 s. All 18 zone screens + 5 Spire floors are
+  pixel-identical to the old renderer outside animated tiles/idle cycles.
+- **#76 fixed:** the Field's road to the Village leaves from its south edge
+  (2–3, 13) and the Village's north exit lands at the Field's bottom-left
+  (3, 12) — no more walking north both ways. New zones.test invariant: every
+  edge exit lands near the opposite edge, and the way back is on the opposite
+  edge.
+- **Bench** (`hazel-game/bench/`, dev-only, not in the app build):
+  `world.html`/`world.tsx` mount the real `WorldCanvas` on a real zone or a
+  generated 160×112 overworld-like map; `run-world-bench.cjs` runs fps /
+  shots / diff via Playwright.
+- 328 tests green (was 301: +26 terrain, +1 exits); lint + build clean.
+
+### 2026-10-05 — Overworld decisions recorded (docs only, #75)
+Three roadmap decisions made: retire Lumina Field as a hub, an inn in every
+town (reverses #73), and pause `ROADMAP-4X.md` Wave 1 until Dawnreach exists.
+Recorded in this file's Decisions section, `ROADMAP-OVERWORLD.md` (§2.4,
+§3.5, §7, §8), `ROADMAP-4X.md` (header + Wave 1 marked paused), `STORY.md`
+§8 and ISSUES #73/#75. Building happens in overworld Phase 2. Doc-only.
+
+### 2026-10-04 — World names chosen (docs only, #75)
+The world stays **Lumina**; its home continent is **Dawnreach**, the far
+continent (Act III) **Taleshore**, the inner sea of islands (Act II) **the
+Silver Shallows**, and the open sea between the continents **the Starfall
+Sea** (already used by STORY-4X). Recorded in `ROADMAP-OVERWORLD.md` (§2.1,
+§3, §8 decision 2 closed), `STORY.md` §8 and `STORY-4X.md` (header note +
+Act III premise). Doc-only.
+
+### 2026-10-04 — Overworld roadmap (docs only, #75)
+New `docs/ROADMAP-OVERWORLD.md`: analysis of why the world feels small (18
+screens, two hubs with spokes, 8 of 11 zones dead ends, one scale only,
+Field ↔ Village both north exits — logged as #76) plus a phased plan for a
+DQ3/FF2-style overworld — enterable places, two continents + islands, a
+travel ladder (walk → boat → Ember flight → descend), fog banks that lift per
+crystal, field spells at shrines, generalized dungeons — with a ranked work
+list and open decisions. Key engineering risk: `WorldCanvas` makes one KaPlay
+object per tile, so chunked rendering comes first. Re-sequences
+`ROADMAP-4X.md` (header note added); `STORY.md` §8 points at it. World atlas
+image at `docs/images/lumina-world-atlas.png`. Doc-only.
+
+### 2026-10-01 — Review fixes for the village expansion (#80)
 Code review of the expansion; all five findings fixed in `BattleArena`:
 - Focus Tea is no longer wasted on a shielded foe — the focus waits for the
   next swing while the shield is up.
@@ -200,7 +291,7 @@ Code review of the expansion; all five findings fixed in `BattleArena`:
   import cycle (`secrets.ts` re-exports it).
 320 tests green; lint + build clean; mocked battle replayed in headless Chromium.
 
-### 2026-10-01 — Village expansion: bigger towns, side quests, secrets, new shops (#76)
+### 2026-10-01 — Village expansion: bigger towns, side quests, secrets, new shops (#80)
 The five main towns grew, with more to do in each.
 - **Bigger maps (`zones.ts`):** Lumina Village 44→66 wide (east district:
   Town Hall, Clover's Market, Dot's Bakery, Nib's House, a hedge garden);
@@ -239,7 +330,7 @@ The five main towns grew, with more to do in each.
   the fountain secret, Glint's counter, and a battle using Mirror Charm,
   Focus Tea and Lucky Clover.
 
-### 2026-10-01 — Sprite portraits everywhere + Umbra redesign (#75)
+### 2026-10-01 — Sprite portraits everywhere + Umbra redesign (#79)
 - `components/CharacterPortrait.tsx`: animated sprite portrait for UI panels
   (battle view, else the world view facing the player; emoji fallback). Used
   by the dialogue box, Sage screen, HUD + menu Ember and the battle name tag.

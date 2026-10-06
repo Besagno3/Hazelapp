@@ -209,9 +209,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'lumina-field',
     name: 'Lumina Field',
     map: [
-      '##EE#####EE###########',
-      '#.==.....==..WWWWWWW.#',
-      '#.==..##.==..WBBFBBW.#',
+      '#########EE###########',
+      '#........==..WWWWWWW.#',
+      '#.....##.==..WBBFBBW.#',
       '#...S....==,.WFFFFFW.#',
       '#.,..,...==..WBFFFBW.#',
       'E........==..WWWDWWW.E',
@@ -221,8 +221,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#.WKKKKKW==....~~~~..#',
       '#.WFFFFFW==....~~~~..#',
       '##WWWDWWW==.##.....#.#',
-      '#....=...==......,...#',
-      '#########EE###########',
+      '#.==.=...==......,...#',
+      '##EE#####EE###########',
     ],
     ground: [104, 168, 104],
     path: [196, 178, 128],
@@ -241,8 +241,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [],
     exits: [
-      { x: 2, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 1 },
-      { x: 3, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 1 },
+      // South to Lumina Village (#76: was a north exit, but the Village's way
+      // back is north too — you walked north to go either way).
+      { x: 2, y: 13, to: 'lumina-village', spawnX: 21, spawnY: 1 },
+      { x: 3, y: 13, to: 'lumina-village', spawnX: 21, spawnY: 1 },
       { x: 9, y: 0, to: 'verdara', spawnX: 10, spawnY: 26 },
       { x: 10, y: 0, to: 'verdara', spawnX: 10, spawnY: 26 },
       { x: 0, y: 5, to: 'numbria', spawnX: 42, spawnY: 6 },
@@ -720,8 +722,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [],
     exits: [
-      { x: 21, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
-      { x: 22, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
+      { x: 21, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 12 },
+      { x: 22, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 12 },
       { x: 0, y: 13, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
       { x: 0, y: 14, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
       { x: 65, y: 13, to: 'starfall-coast', spawnX: 1, spawnY: 6 },

@@ -1,3 +1,5 @@
+import type { ZoneDef, ZoneExit } from '../content/zones';
+
 /**
  * Zelda-style screen slide between zones. Leaving by an edge exit, the old
  * screen scrolls out the way the hero walked while the new zone scrolls in
@@ -33,4 +35,45 @@ export function slideFrom(side: ExitSide): { x: number; y: number } {
     case 'south':
       return { x: 0, y: 1 };
   }
+}
+
+/** The edge you come in by after leaving through `side`. */
+export const OPPOSITE_SIDE: Record<ExitSide, ExitSide> = {
+  north: 'south',
+  south: 'north',
+  east: 'west',
+  west: 'east',
+};
+
+/** How many cells from the arrival edge an edge exit may land you. */
+export const ARRIVAL_SLACK = 2;
+
+/**
+ * Checks one exit of an edge-to-edge link (#76): leaving `from` by an edge
+ * must land you near the opposite edge of `to`, and the way back must be on
+ * that same edge. Returns what's wrong, or null when it lines up.
+ *
+ * "The way back" is `to`'s exit to `from` nearest where you land — zones may
+ * link more than once (a town with several gates onto the overworld), and only
+ * the way you'd actually walk back is checked. Links that fade instead of
+ * slide are skipped: an entrance in the middle of a map, or a gate whose way
+ * back is a place icon on the overworld.
+ */
+export function edgeLinkProblem(from: ZoneDef, exit: ZoneExit, to: ZoneDef): string | null {
+  const side = exitSide(exit.x, exit.y, from.map[0].length, from.map.length);
+  if (!side) return null;
+  const backs = to.exits.filter((b) => b.to === from.id);
+  if (backs.length === 0) return `${to.id} has no way back to ${from.id}`;
+  const dist = (b: ZoneExit) => Math.abs(b.x - exit.spawnX) + Math.abs(b.y - exit.spawnY);
+  const back = backs.reduce((best, b) => (dist(b) < dist(best) ? b : best));
+  const cols = to.map[0].length;
+  const rows = to.map.length;
+  const backSide = exitSide(back.x, back.y, cols, rows);
+  if (!backSide) return null;
+  const arrive = OPPOSITE_SIDE[side];
+  const where = `${from.id} ${side} exit ${exit.x},${exit.y} → ${to.id}`;
+  if (backSide !== arrive) return `${where}: the way back is on the ${backSide} edge, not the ${arrive} edge`;
+  const gap = { north: exit.spawnY, south: rows - 1 - exit.spawnY, west: exit.spawnX, east: cols - 1 - exit.spawnX }[arrive];
+  if (gap > ARRIVAL_SLACK) return `${where}: lands ${gap} cells from the ${arrive} edge`;
+  return null;
 }
