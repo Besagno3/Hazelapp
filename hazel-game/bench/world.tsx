@@ -13,6 +13,8 @@
  *   paused=1                           freeze the world (deterministic screenshots)
  *   flags=a,b                          story flags to set (e.g. a crystal, to lift fog)
  *
+ * `__bench.pause(true|false)` pauses the world the way a menu or dialogue does.
+ *
  * Exits really change zones (so a script can walk through slides, fades and
  * the arrival lock); `window.__bench.state()` reports where the hero is (and
  * how many times it has bumped a fog bank).
@@ -176,6 +178,8 @@ const tick = (t: number) => {
   requestAnimationFrame(tick);
 };
 requestAnimationFrame(tick);
+/** The world's pause switch — module-level so `__bench.pause()` can flip it. */
+const benchPaused = { current: paused };
 const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(xs.length * p))] ?? 0;
 (window as unknown as { __bench: unknown }).__bench = {
   reset: () => {
@@ -190,6 +194,10 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
     max: maxDelta,
   }),
   state: () => ({ ...live }),
+  /** Pause / resume the world, as a menu or dialogue would. */
+  pause: (on: boolean) => {
+    benchPaused.current = on;
+  },
   info: () => ({
     zoneId,
     floor,
@@ -217,7 +225,6 @@ const live: { zoneId: ZoneId; exits: number; pos: { x: number; y: number } | nul
 };
 
 function Bench() {
-  const pausedRef = useRef(paused);
   const touchDirRef = useRef({ dx: 0, dy: 0 });
   const [where, setWhere] = useState<{ zoneId: ZoneId; pos: { x: number; y: number } | null }>({
     zoneId,
@@ -237,7 +244,7 @@ function Bench() {
         flags={flags}
         openedChests={[]}
         defeatedIds={[]}
-        pausedRef={pausedRef}
+        pausedRef={benchPaused}
         touchDirRef={touchDirRef}
         callbacks={{
           onTalk: noop,

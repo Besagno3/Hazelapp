@@ -33,6 +33,18 @@ export function transitionFor(
   return 'slide';
 }
 
+/**
+ * Should the hero wait for the movement keys to be let go after arriving?
+ * Yes where you land right beside a way back out (walking into or out of a
+ * place) — a held key would carry you straight back. Never between screens
+ * joined edge to edge: you arrive walking away from the exit, so holding the
+ * key keeps you going. Decided by the link, not by reduced motion (which turns
+ * every slide into a cut but shouldn't make walking stop-start).
+ */
+export function needsArrivalLock(side: ExitSide | null, fromKind: ZoneKind, toKind: ZoneKind): boolean {
+  return transitionFor(side, fromKind, toKind, false) !== 'slide';
+}
+
 /** Which map edge an exit tile sits on (null for an interior exit). */
 export function exitSide(x: number, y: number, cols: number, rows: number): ExitSide | null {
   if (y === 0) return 'north';

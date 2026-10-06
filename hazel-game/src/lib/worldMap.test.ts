@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { TILE, ZONES } from '../content/zones';
-import { mapCellColor, whereOnMap } from './worldMap';
+import { PLACE_ICONS, TILE, ZONES } from '../content/zones';
+import { PLACE_EMOJI, mapCaption, mapCellColor, whereOnMap } from './worldMap';
 
 const dawn = ZONES.dawnreach;
 
@@ -38,5 +38,33 @@ describe('whereOnMap', () => {
     for (const id of Object.keys(ZONES) as (keyof typeof ZONES)[]) {
       expect(whereOnMap(ZONES, dawn, id, null), id).not.toBeNull();
     }
+  });
+});
+
+describe('PLACE_EMOJI', () => {
+  it('gives every kind of place its own emoji, so the map and the list can be matched up', () => {
+    const emoji = PLACE_ICONS.map((i) => PLACE_EMOJI[i]);
+    expect(emoji.every(Boolean)).toBe(true);
+    expect(new Set(emoji).size).toBe(emoji.length);
+  });
+});
+
+describe('mapCaption', () => {
+  it('out on the overworld', () => {
+    expect(mapCaption({ x: 1, y: 1, exact: true }, 'Dawnreach', 'Dawnreach')).toBe("You're out on Dawnreach");
+  });
+  it('inside a place: its name as written, with no article to get wrong', () => {
+    expect(mapCaption({ x: 1, y: 1, exact: false, place: 'The Crystal Spire' }, 'The Crystal Spire', 'Dawnreach')).toBe(
+      "You're here: The Crystal Spire",
+    );
+    expect(
+      mapCaption({ x: 1, y: 1, exact: false, place: 'Shrine of First Light' }, 'Shrine of First Light', 'Dawnreach'),
+    ).toBe("You're here: Shrine of First Light");
+  });
+  it('beyond a place (a zone not on the map yet), and nowhere on the map at all', () => {
+    expect(mapCaption({ x: 1, y: 1, exact: false, place: 'Lumina Field' }, 'Numbria', 'Dawnreach')).toBe(
+      "You're here: Numbria (past Lumina Field)",
+    );
+    expect(mapCaption(null, 'Somewhere', 'Dawnreach')).toBe("You're here: Somewhere");
   });
 });

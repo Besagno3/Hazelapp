@@ -46,6 +46,7 @@ import { claimSecret, rewardSummary, secretById, secretFlag } from '../../conten
 import type { SecretDef } from '../../content/zones';
 import { sfx } from '../../lib/audio';
 import { playerAge } from '../../lib/age';
+import { toastMs } from '../../lib/toast';
 import { heroMaxHp } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { useSaveStore } from '../../store/saveStore';
@@ -99,6 +100,15 @@ export default function WorldScreen() {
     touchDirRef.current = { dx, dy };
   }, []);
   const [toast, setToast] = useState<string | null>(null);
+  // One timer for whichever toast is up: a new toast replaces the old one's
+  // timer, so an earlier toast can't hide a newer one early.
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
   // The secret just found — shown in a small celebration card.
   const [found, setFound] = useState<SecretDef | null>(null);
   useEffect(() => {
@@ -200,8 +210,9 @@ export default function WorldScreen() {
   }
 
   function showToast(text: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(text);
-    setTimeout(() => setToast(null), 2200);
+    toastTimer.current = setTimeout(() => setToast(null), toastMs(text));
   }
 
   return (

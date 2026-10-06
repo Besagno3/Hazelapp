@@ -28,7 +28,7 @@ import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis, worldView } from '../../lib/camera';
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
-import { FADE_MS, SLIDE_MS, exitSide, slideFrom, transitionFor, type ExitSide } from '../../lib/transition';
+import { FADE_MS, SLIDE_MS, exitSide, needsArrivalLock, slideFrom, transitionFor, type ExitSide } from '../../lib/transition';
 import {
   OVERWORLD_FRAME,
   OVERWORLD_KEY,
@@ -457,13 +457,14 @@ export default function WorldCanvas({
       } else {
         k.add([k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.icon[p.icon] }), k.pos(cx, cy), k.anchor('center'), k.z(-10)]);
       }
-      const name = k.add([k.text(p.name, { size: 9 }), k.pos(cx, cy + 22), k.anchor('center'), k.color(255, 252, 235), k.z(13)]) as unknown as {
+      // Same size as building names (they name somewhere you can go in, too).
+      const name = k.add([k.text(p.name, { size: 11 }), k.pos(cx, cy + 24), k.anchor('center'), k.color(255, 252, 235), k.z(13)]) as unknown as {
         width?: number;
         height?: number;
       };
       k.add([
-        k.rect((name.width ?? p.name.length * 6) + 8, (name.height ?? 10) + 4, { radius: 3 }),
-        k.pos(cx, cy + 22),
+        k.rect((name.width ?? p.name.length * 7) + 8, (name.height ?? 12) + 4, { radius: 3 }),
+        k.pos(cx, cy + 24),
         k.anchor('center'),
         k.color(20, 16, 36),
         k.opacity(0.55),
@@ -951,6 +952,11 @@ export default function WorldCanvas({
     const loop = k.onUpdate(() => {
       if (triggered) return;
       if (pausedRef.current || slidingRef.current) {
+        // Pausing for a menu / dialogue / cutscene: save where the hero really
+        // is. Walking only saves every 1.5 s, so otherwise the world map's star
+        // (and a refresh) could be up to ~8 tiles behind. (Encounters save their
+        // own step-back position and return above, via `triggered`.)
+        if (!wasPaused && pausedRef.current) cbRef.current.onMove(player.pos.x, player.pos.y);
         wasPaused = true;
         return;
       }
@@ -1243,7 +1249,8 @@ export default function WorldCanvas({
         const side = exitSide(exit.x, exit.y, cols, rows);
         const reduceMotion =
           typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
-        const how = transitionFor(side, z.kind, zone(exit.to).kind, reduceMotion);
+        const toKind = zone(exit.to).kind;
+        const how = transitionFor(side, z.kind, toKind, reduceMotion);
         // Snapshot the outgoing screen (the canvas keeps its last frame), then
         // switch zones underneath it.
         if (how === 'slide' && side) {
@@ -1253,7 +1260,9 @@ export default function WorldCanvas({
           slidingRef.current = true;
           setFade({ src: k.screenshot(), dark: false, shown: true });
         }
-        if (how !== 'slide') arrivalLockRef.current = true;
+        // Only where you land beside a way back out (places) — never between
+        // edge-joined screens, even when reduced motion makes the slide a cut.
+        if (needsArrivalLock(side, z.kind, toKind)) arrivalLockRef.current = true;
         cbRef.current.onExit(exit.to, exit.spawnX, exit.spawnY);
         return;
       }

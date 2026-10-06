@@ -1122,7 +1122,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
         w: 3,
         h: 3,
         liftedBy: ANY_CRYSTAL,
-        hint: 'The fog of Forgetting is too thick to cross here. Restore a crystal, and it will lift!',
+        hint: 'Too foggy to pass! Restore a crystal to clear it.',
       },
     ],
     npcs: [{ defId: 'dawnreach-scout', x: 34, y: 22 }],

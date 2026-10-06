@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { edgeLinkProblem, exitSide, slideFrom, transitionFor } from './transition';
+import { edgeLinkProblem, exitSide, needsArrivalLock, slideFrom, transitionFor } from './transition';
 import { ZONES, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 
 /** A bare test zone (real id, synthetic map + exits). */
@@ -87,5 +87,18 @@ describe('transitionFor (#75 Phase 1)', () => {
   it('cuts instantly for players who prefer reduced motion', () => {
     expect(transitionFor('east', 'field', 'field', true)).toBe('cut');
     expect(transitionFor(null, 'overworld', 'town', true)).toBe('cut');
+  });
+});
+
+describe('needsArrivalLock (#75 Phase 1 review)', () => {
+  it('locks where you land beside a way back out: into or out of a place', () => {
+    expect(needsArrivalLock(null, 'overworld', 'town')).toBe(true);
+    expect(needsArrivalLock('north', 'town', 'overworld')).toBe(true);
+  });
+  it('never locks between edge-joined screens — whatever the motion setting, holding a key keeps you walking', () => {
+    expect(needsArrivalLock('east', 'field', 'field')).toBe(false);
+    expect(needsArrivalLock('south', 'field', 'dungeon')).toBe(false);
+    // (Reduced motion turns these slides into cuts, but the lock follows the link.)
+    expect(transitionFor('east', 'field', 'field', true)).toBe('cut');
   });
 });

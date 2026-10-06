@@ -57,7 +57,18 @@ export default function MenuOverlay() {
         animate={{ scale: 1, opacity: 1 }}
         className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-6 w-full max-w-md text-white shadow-2xl max-h-[85vh] overflow-y-auto"
       >
-        <h2 className="text-xl font-extrabold mb-4">📜 Menu</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-extrabold">📜 Menu</h2>
+          {/* A way back right at the top, so a long menu never hides it. */}
+          <button
+            onClick={() => sendFlow({ type: 'CLOSE' })}
+            aria-label="Back to the world"
+            title="Back to the world"
+            className="w-11 h-11 -mr-2 rounded-lg bg-white/15 hover:bg-white/25 font-bold text-lg"
+          >
+            ✕
+          </button>
+        </div>
 
         <div className="flex items-center gap-3 bg-white/10 rounded-xl p-3 mb-3">
           <CharacterPortrait

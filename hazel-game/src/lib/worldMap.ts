@@ -1,4 +1,4 @@
-import { TILE, type ZoneDef, type ZoneId } from '../content/zones';
+import { TILE, type PlaceIcon, type ZoneDef, type ZoneId } from '../content/zones';
 
 /**
  * The menu's world map (#75 Phase 1): the overworld drawn small, one coloured
@@ -21,6 +21,24 @@ const CELL_COLOR: Record<string, string> = {
 export function mapCellColor(ch: string): string {
   return CELL_COLOR[ch] ?? CELL_COLOR['.'];
 }
+
+/** Fog on the map: a pale square, explained by the legend under it. */
+export const FOG_COLOR = '#e6e8f4';
+
+/**
+ * One emoji per kind of place, drawn on the map at the place and beside its
+ * name in the list, so a kid can match "Whispering Woods" to its spot.
+ */
+export const PLACE_EMOJI: Record<PlaceIcon, string> = {
+  town: '🏘️',
+  hamlet: '🌾',
+  forest: '🌲',
+  cave: '🕳️',
+  shrine: '🕯️',
+  coast: '🌊',
+  grove: '🌙',
+  tower: '🗼',
+};
 
 export interface MapMarker {
   /** Tile on the overworld. */
@@ -67,4 +85,15 @@ export function whereOnMap(
     }
   }
   return null;
+}
+
+/**
+ * The line under the map. "You're here: <name>" reads right whatever the name
+ * looks like ("The Crystal Spire", "Shrine of First Light") — no articles to
+ * get wrong.
+ */
+export function mapCaption(here: MapMarker | null, zoneName: string, worldName: string): string {
+  if (here?.exact) return `You're out on ${worldName}`;
+  if (!here?.place || here.place === zoneName) return `You're here: ${zoneName}`;
+  return `You're here: ${zoneName} (past ${here.place})`;
 }

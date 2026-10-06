@@ -208,6 +208,33 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-06 — Phase 1 review fixes: map, toasts, arrival lock (#75)
+`/saas-code-review` (2 findings) and `/saas-ux-review` (6 findings) of Phase 1;
+all fixed:
+- **World map tells places apart:** each place has its own emoji
+  (`PLACE_EMOJI`, `lib/worldMap.ts`) on the map and beside its name in the
+  list; inside a place the ⭐ perches above its emoji; a legend explains the
+  fog square while any fog is left. The caption is "You're here: <name>" /
+  "You're out on Dawnreach" (`mapCaption` — no articles to get wrong); list
+  emoji are hidden from screen readers.
+- **The ⭐ is where you are:** pausing (menu, dialogue, cutscene) now saves
+  the hero's real position — walking only saved every 1.5 s, so the star (and
+  a refresh) could be ~8 tiles behind.
+- **Reduced motion walks smoothly again:** the arrival lock follows the link
+  (`needsArrivalLock`, `lib/transition.ts`): only into/out of places, never
+  between edge-joined screens — reduced motion had locked every edge cut.
+- **Toasts:** time on screen follows the text (`toastMs`, `lib/toast.ts`: ~2
+  words a second, 2.5–8 s), and a new toast replaces the old timer (an earlier
+  toast's timer used to hide a newer one early). The fog hint is shorter: "Too
+  foggy to pass! Restore a crystal to clear it." (~6.5 s).
+- **Place names** on the overworld use 11 px like building names (were 9 px —
+  ~4.6 px on a phone). **Menu:** a ✕ "Back to the world" button in the header
+  (44 px), so the way out never scrolls away.
+- Bench: `__bench.pause(on)` pauses the world like a menu does.
+- 386 tests green (+9); lint + build clean. Verified in headless Chromium: map
+  in four situations, the real menu at 1024 px and 375 px, labels, pause
+  saving and reduced-motion walking (both fail on the previous code).
+
 ### 2026-10-06 — Overworld Phase 1: the Dawnreach vertical slice (#75, #77)
 The world gets its first real overworld: walk out of Lumina Village onto a
 64×48 map of Dawnreach and into every old place from there.
