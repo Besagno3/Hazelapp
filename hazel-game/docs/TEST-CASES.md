@@ -441,6 +441,18 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-373 | M | ✅ | world | walk < 1.5 s, then pause (as the menu does): the saved position jumps to where the hero really is (40.5 → 45.5 tiles); on the previous code it stayed 5 tiles behind (headless Chromium, `__bench.pause`) |
 | TC-374 | M | ✅ | menu | the menu's ✕ "Back to the world" (44×44) is visible without scrolling at 1024 px and 375 px wide; place names on Dawnreach are 11 px and don't collide around the Village, Grove and Spire (headless Chromium) |
 
+## Rounded coasts, beaches and roads — edge blending (#75 item 3, #71b)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-375 | U | ✅ | terrain | blend classes stack water < sand < ground < path; building tiles never blend (terrain.test) |
+| TC-376 | U | ✅ | terrain | a pond corner is one ready-made tile that follows the water animation; a road/grass corner is one static tile; a four-class corner draws the water/sand pair, then the grass and road shapes (terrain.test) |
+| TC-377 | U | ✅ | terrain | nothing is drawn where four cells match, next to a building, or past the map edge; a cell whose four corners blend is hidden (base skipped) (terrain.test) |
+| TC-378 | U | ✅ | tiles | every pair and shape has its own frame inside the sheet, and every zone has a 512×384 blend sheet; every zone's corners give valid frames; Spire floors never blend (terrain.test, tiles.test) |
+| TC-379 | M | ✅ | world | all 46 zone screens + Spire floors before/after: coasts, ponds, the Village fountain and roads are rounded (foam on water, a darker rim on land), walls stay square, Spire floors pixel-identical (bench `shots` + `diff`, headless Chromium) |
+| TC-380 | M | ✅ | world | frame rate (software GL, alternating runs, same machine): stress map unchanged; walking Dawnreach ~5% lower unthrottled, ~12% lower at 4× CPU throttle; the Phase 1 walk-through still passes |
+| TC-381 | M | ⬜ | world | the same Dawnreach walk on a real tablet / Chromebook (hardware GL) keeps a smooth frame rate (with TC-326) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

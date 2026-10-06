@@ -12,6 +12,8 @@ import { SPRITES, resolveSprite } from '../../content/sprites';
 import { BUILDING_STYLES, ZONE_IDS } from '../../content/zones';
 import { SPIRE_THEMES } from '../../content/spire';
 import {
+  BLEND_COLS,
+  BLEND_ROWS,
   OVERWORLD_FRAME,
   OVERWORLD_FRAMES,
   OVERWORLD_KEY,
@@ -24,6 +26,8 @@ import {
   SPIRE_PROPS_KEY,
   SPIRE_PROPS_SHEET,
   SPIRE_PROP_FRAME,
+  blendKey,
+  blendSheet,
   namedTilesetKey,
   namedTilesetSheet,
   ROOF_FRAMES,
@@ -87,6 +91,8 @@ export function loadWorldSprites(k: KaplayCtx): void {
       sliceX: TILESET_FRAMES,
       sliceY: 1,
     });
+    // Rounded coast / beach / road edges (#71b): a 16×6 grid per zone.
+    k.loadSprite(blendKey(id), blendSheet(id), { sliceX: BLEND_COLS, sliceY: BLEND_ROWS });
   }
   k.loadSprite(PROPS_KEY, PROPS_SHEET, {
     sliceX: PROPS_FRAMES,
