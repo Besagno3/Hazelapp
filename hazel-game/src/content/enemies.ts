@@ -59,12 +59,17 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'doodle-imp': { id: 'doodle-imp', name: 'Doodle Imp', sprite: '👻', topic: 'creativity', levelOffset: -1, hpPerLevel: 10 },
   'off-key-bird': { id: 'off-key-bird', name: 'Off-Key Bird', sprite: '🐦', topic: 'creativity', levelOffset: 0, hpPerLevel: 12 },
   'pixel-witch': { id: 'pixel-witch', name: 'Pixel Witch', sprite: '🦹', topic: 'creativity', levelOffset: 1, hpPerLevel: 14, behavior: 'trickster' },
+  'flicker-goblin': { id: 'flicker-goblin', name: 'Flicker Goblin', sprite: '🔥', topic: 'creativity', levelOffset: -1, hpPerLevel: 10 },
+  'graffiti-gargoyle': { id: 'graffiti-gargoyle', name: 'Graffiti Gargoyle', sprite: '🎨', topic: 'creativity', levelOffset: 0, hpPerLevel: 12 },
+  'dog-knight': { id: 'dog-knight', name: 'Dog-Knight', sprite: '🐕', topic: 'creativity', levelOffset: 1, hpPerLevel: 14, behavior: 'healer' },
   'gray-fiend': { id: 'gray-fiend', name: 'The Gray Fiend', sprite: '🌑', topic: 'creativity', levelOffset: 1, hpPerLevel: 20, isBoss: true },
 
   // --- Whispering Woods (nature & animals) — critters + the warden boss (#58) ---
   'mossback-cub': { id: 'mossback-cub', name: 'Mossback Cub', sprite: '🐻', topic: 'nature', levelOffset: -1, hpPerLevel: 10 },
   'thornhare': { id: 'thornhare', name: 'Thornhare', sprite: '🐰', topic: 'nature', levelOffset: 0, hpPerLevel: 12 },
   'grumblebee': { id: 'grumblebee', name: 'Grumblebee', sprite: '🐝', topic: 'nature', levelOffset: 1, hpPerLevel: 13 },
+  'dart-frog': { id: 'dart-frog', name: 'Dart Frog', sprite: '🐸', topic: 'nature', levelOffset: -1, hpPerLevel: 10 },
+  'snapjaw': { id: 'snapjaw', name: 'Snapjaw', sprite: '🪴', topic: 'nature', levelOffset: 0, hpPerLevel: 12 },
   'thicket-warden': { id: 'thicket-warden', name: 'The Thicket Warden', sprite: '🦌', topic: 'nature', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 
   // --- Starfall Coast (space) — critters + the warden boss (#58) ---

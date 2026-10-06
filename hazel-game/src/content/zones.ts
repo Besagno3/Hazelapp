@@ -437,6 +437,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'doodle-imp', x: 6, y: 5 },
       { defId: 'off-key-bird', x: 15, y: 4 },
       { defId: 'pixel-witch', x: 10, y: 9 },
+      { defId: 'flicker-goblin', x: 17, y: 1 },
+      { defId: 'graffiti-gargoyle', x: 40, y: 6 },
+      { defId: 'dog-knight', x: 17, y: 9 },
       { defId: 'gray-fiend', x: 10, y: 11 },
     ],
     exits: [
@@ -561,6 +564,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'mossback-cub', x: 12, y: 4 },
       { defId: 'thornhare', x: 17, y: 8 },
       { defId: 'grumblebee', x: 16, y: 12 },
+      { defId: 'dart-frog', x: 11, y: 2 },
+      { defId: 'snapjaw', x: 19, y: 10 },
       { defId: 'thicket-warden', x: 16, y: 4 },
     ],
     exits: [
