@@ -14,6 +14,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { sendFlow } from '../../machines/gameFlow';
+import WorldMapPanel from './WorldMapPanel';
 
 /**
  * The pause/party menu (#37): hero status, inventory, Sage equipping,
@@ -78,6 +79,8 @@ export default function MenuOverlay() {
             </div>
           </div>
         </div>
+
+        <WorldMapPanel zoneId={save.zoneId} pos={save.pos} flags={save.flags} />
 
         <div className="flex items-center gap-3 bg-white/10 rounded-xl p-3 mb-3">
           <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={1.25} className="text-3xl" />

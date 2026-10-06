@@ -11,8 +11,13 @@
  *   floor=<SpireTheme>                 draw a Spire floor (with zone=crystal-spire)
  *   at=x,y                             start cell (else the zone spawn)
  *   paused=1                           freeze the world (deterministic screenshots)
+ *   flags=a,b                          story flags to set (e.g. a crystal, to lift fog)
+ *
+ * Exits really change zones (so a script can walk through slides, fades and
+ * the arrival lock); `window.__bench.state()` reports where the hero is (and
+ * how many times it has bumped a fog bank).
  */
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import WorldCanvas from '../src/features/world/WorldCanvas';
 import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, buildingInside, type ZoneDef, type ZoneId } from '../src/content/zones';
@@ -153,11 +158,20 @@ function animatedRects(): [number, number, number, number][] {
   return rects.filter(([x, y, w, h]) => x > -w && y > -h && x < VW && y < VH);
 }
 
-// Frame-time sampler (rAF deltas), read by the runner.
+// Frame-time sampler (rAF deltas), read by the runner. Bounded, with a
+// running max — a tab left open for ages can't grow it forever or overflow
+// `Math.max(...deltas)` (#77).
+const MAX_SAMPLES = 10_000;
 const deltas: number[] = [];
+let maxDelta = 0;
 let last = 0;
 const tick = (t: number) => {
-  if (last) deltas.push(t - last);
+  if (last) {
+    const d = t - last;
+    deltas.push(d);
+    if (deltas.length > MAX_SAMPLES) deltas.shift();
+    maxDelta = Math.max(maxDelta, d);
+  }
   last = t;
   requestAnimationFrame(tick);
 };
@@ -166,14 +180,16 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
 (window as unknown as { __bench: unknown }).__bench = {
   reset: () => {
     deltas.length = 0;
+    maxDelta = 0;
   },
   stats: () => ({
     frames: deltas.length,
     fps: deltas.length ? 1000 / (deltas.reduce((a, b) => a + b, 0) / deltas.length) : 0,
     p50: pct(deltas, 0.5),
     p95: pct(deltas, 0.95),
-    max: Math.max(0, ...deltas),
+    max: maxDelta,
   }),
+  state: () => ({ ...live }),
   info: () => ({
     zoneId,
     floor,
@@ -186,21 +202,39 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
   }),
 };
 
+const flags = Object.fromEntries(
+  (q.get('flags') ?? '')
+    .split(',')
+    .filter(Boolean)
+    .map((f) => [f, true]),
+);
+/** Live position, read by the runner / scripts. */
+const live: { zoneId: ZoneId; exits: number; pos: { x: number; y: number } | null; fogBumps: number } = {
+  zoneId,
+  exits: 0,
+  pos: startPos,
+  fogBumps: 0,
+};
+
 function Bench() {
   const pausedRef = useRef(paused);
   const touchDirRef = useRef({ dx: 0, dy: 0 });
+  const [where, setWhere] = useState<{ zoneId: ZoneId; pos: { x: number; y: number } | null }>({
+    zoneId,
+    pos: startPos,
+  });
   const noop = () => {};
   return (
     // +4px for the stage's 2px border, so the canvas shows at its native 704×448
     // (no resampling — screenshots compare pixel-for-pixel).
     <div style={{ width: VIEW_COLS * TILE + 4 }}>
       <WorldCanvas
-        zoneId={zoneId}
+        zoneId={where.zoneId}
         avatar={avatarById('a1')!}
         age={9}
         emberStage="hatchling"
-        startPos={startPos}
-        flags={{}}
+        startPos={where.pos}
+        flags={flags}
         openedChests={[]}
         defeatedIds={[]}
         pausedRef={pausedRef}
@@ -209,10 +243,21 @@ function Bench() {
           onTalk: noop,
           onEncounter: noop,
           onPath: noop,
-          onExit: noop,
+          onExit: (to, sx, sy) => {
+            const pos = { x: sx * TILE + TILE / 2, y: sy * TILE + TILE / 2 };
+            live.zoneId = to;
+            live.exits += 1;
+            live.pos = pos;
+            setWhere({ zoneId: to, pos });
+          },
           onSaveCrystal: noop,
-          onMove: noop,
+          onMove: (x, y) => {
+            live.pos = { x, y };
+          },
           onSpire: noop,
+          onFog: () => {
+            live.fogBumps += 1;
+          },
         }}
         spireFloor={floor}
         spireBroken={[]}

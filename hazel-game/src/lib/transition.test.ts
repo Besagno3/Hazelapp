@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { edgeLinkProblem, exitSide, slideFrom } from './transition';
+import { edgeLinkProblem, exitSide, slideFrom, transitionFor } from './transition';
 import { ZONES, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 
 /** A bare test zone (real id, synthetic map + exits). */
@@ -71,5 +71,21 @@ describe('edgeLinkProblem (#76)', () => {
     const a = fixture('numbria', 8, 5, [{ x: 7, y: 2, to: 'verdara', spawnX: 1, spawnY: 2 }]);
     const b = fixture('verdara', 8, 5, []);
     expect(edgeLinkProblem(a, a.exits[0], b)).toMatch(/no way back/);
+  });
+});
+
+describe('transitionFor (#75 Phase 1)', () => {
+  it('slides between neighbouring screens joined edge to edge', () => {
+    expect(transitionFor('east', 'field', 'field', false)).toBe('slide');
+    expect(transitionFor('north', 'town', 'field', false)).toBe('slide');
+  });
+  it('fades into and out of places on the overworld', () => {
+    expect(transitionFor(null, 'overworld', 'town', false)).toBe('fade'); // walking onto an icon
+    expect(transitionFor('west', 'town', 'overworld', false)).toBe('fade'); // leaving a town gate
+    expect(transitionFor(null, 'field', 'dungeon', false)).toBe('fade'); // any mid-map entrance
+  });
+  it('cuts instantly for players who prefer reduced motion', () => {
+    expect(transitionFor('east', 'field', 'field', true)).toBe('cut');
+    expect(transitionFor(null, 'overworld', 'town', true)).toBe('cut');
   });
 });

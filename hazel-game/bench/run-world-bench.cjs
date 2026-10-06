@@ -20,12 +20,18 @@ const ROOT = path.resolve(__dirname, '..');
 const BASE = `http://localhost:${PORT}/bench/world.html`;
 
 function startVite() {
+  // stderr goes straight to the terminal: a piped-but-unread stream can fill
+  // up and stall Vite on a long, noisy run (#77).
   const p = spawn(path.join(ROOT, 'node_modules/.bin/vite'), ['--port', String(PORT), '--strictPort'], {
     cwd: ROOT,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['ignore', 'pipe', 'inherit'],
   });
   return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('vite did not start')), 30000);
+    // If Vite never says it's ready, stop it — the caller never gets a handle to kill (#77).
+    const t = setTimeout(() => {
+      p.kill();
+      reject(new Error('vite did not start'));
+    }, 30000);
     p.stdout.on('data', (d) => {
       if (String(d).includes('Local')) {
         clearTimeout(t);
@@ -167,6 +173,8 @@ async function diff(browser, dirA, dirB) {
     console.log(`${name}: ${res.diffs} px differ (+${res.maskedDiffs} in animated tiles) ${res.size.join('/')}`);
   }
   console.log(worst === 0 ? 'IDENTICAL outside animated tiles' : `DIFFERENT (worst ${worst} px)`);
+  // Scripts and agents read the exit code, not the text (#77).
+  if (worst !== 0) process.exitCode = 1;
 }
 
 (async () => {

@@ -74,11 +74,13 @@ existing architecture.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
-  resolves all seven, #33/#55), `zones.ts` (11 ASCII tile maps: Lumina Field
-  hub + 4 crystal zones + Village (safe, a scrolling 2×2-screen town with
-  enterable buildings) + 3 themed combat zones + the hidden
-  Moonwell Grove + the Crystal Spire; `ZONE_IDS` is the zone-id source of
-  truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
+  resolves all seven, #33/#55), `zones.ts` (13 ASCII tile maps: the
+  **Dawnreach** overworld (64×48, `kind: 'overworld'`, with `places` icons
+  and `fogs`, #75) + the Shrine of First Light + Lumina Field + 4 crystal
+  zones + Village (safe, a scrolling 3×2-screen town with enterable
+  buildings) + 3 themed combat zones + the hidden Moonwell Grove + the
+  Crystal Spire; every zone has a `kind` that picks its transition + music;
+  `ZONE_IDS` is the zone-id source of truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
   (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
@@ -100,7 +102,9 @@ existing architecture.
   the Spire icon, remounted per zone, paused under overlays via ref). Terrain
   is ONE object that draws only the cells in view each frame, from frames
   worked out once per zone by `lib/terrain.ts` — never add one KaPlay object
-  per tile (big maps would crawl; #75). Roofs are one object per building. Overlays:
+  per tile (big maps would crawl; #75). Roofs are one object per building.
+  Moving between edge-joined screens slides; entering or leaving a place on
+  the overworld fades (`transitionFor`, `lib/transition.ts`). Overlays:
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
   key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
@@ -203,6 +207,46 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-06 — Overworld Phase 1: the Dawnreach vertical slice (#75, #77)
+The world gets its first real overworld: walk out of Lumina Village onto a
+64×48 map of Dawnreach and into every old place from there.
+- **Zone kinds** (`ZoneDef.kind`, `ZONE_KINDS`): overworld / town / field /
+  dungeon / shrine. The kind picks the transition and the music.
+- **Places** (`ZoneDef.places`, legend `P`): one-tile icons on the overworld
+  that act as exits (town, hamlet, forest, cave, shrine, coast, grove, and the
+  Spire's tower). New legend chars: `^` mountain (solid), `:` sand. Every gate
+  out of a place lands right beside its own icon.
+- **Transitions** (`transitionFor`, `lib/transition.ts`): screens joined edge
+  to edge still slide; going into or out of a place fades through black
+  (`FADE_MS`); reduced motion cuts. After a fade or cut the hero waits for the
+  keys to be released, so a held key can't walk straight back out.
+- **Fog banks** (`ZoneDef.fogs`, `FogDef`, `fogAt`): drifting fog blocks a
+  rectangle of the map until any of its `liftedBy` flags is set. The first
+  one seals the **Shrine of First Light** pocket until any crystal is
+  restored (`ANY_CRYSTAL`); bumping it shows a hint toast.
+- **Content:** `dawnreach` (overworld: the Village, Lumina Field, the Woods,
+  the Depths cave, the Grove, the Spire, the Coast and the shrine; a road
+  network; 5 roaming critters; Scout Tamsin with directions) and
+  `dawn-shrine` (Old Wren, the shrine keeper — field spells come in Phase 2).
+  Every old link out of the Village, Field, Woods, Coast, Depths, Grove and
+  Spire onto another place now goes through Dawnreach instead; zone-to-zone
+  links inside a region (Field ↔ crystal zones, Woods ↔ Depths) are unchanged.
+  A first-visit cutscene (`DAWNREACH_PANELS`) plays after the Grove's.
+- **World map** (menu): `WorldMapPanel` draws Dawnreach small with fog, places
+  and a pulsing ⭐ "you are here" (`lib/worldMap.ts`: `whereOnMap` follows
+  exits back to the nearest place for zones not on the map yet).
+- **Music by kind** (`ZONE_KIND_TRACK`, `lib/audio.ts`): new `town`, `cave`
+  and `shrine` loops; the overworld and fields keep the overworld theme.
+- **Art:** `/tiles/overworld.png` (mountain, sand, 2-frame fog, place icons),
+  tilesets + backdrops for both new zones, two NPC sprites
+  (`tools/assets`: targeted `overworld` build; existing files untouched).
+- **Bench cleanup (#77, all four):** Vite stderr inherited, Vite killed if it
+  never starts, `diff` exits 1 on a difference, the frame sampler is capped
+  with a running max. The bench can also follow exits between zones and
+  report its zone/position (`__bench.state()`), and takes `flags=`.
+- No save change: places are zones, so positions save as before.
+- 377 tests green (354 on main before this); lint + build clean.
 
 ### 2026-10-05 — Phase 0 code-review fixes (#75)
 `/saas-code-review` of Phase 0 found no player-facing bugs; two fixes ahead of

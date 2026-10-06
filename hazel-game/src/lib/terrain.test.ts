@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, type ZoneDef } from '../content/zones';
 import { SPIRE_THEMES, floorZone } from '../content/spire';
-import { TILESET_FRAMES, TILE_FRAME, TOWN_FRAME, TOWN_FRAMES, groundVariant } from '../content/tiles';
+import { OVERWORLD_FRAME, OVERWORLD_FRAMES, TILESET_FRAMES, TILE_FRAME, TOWN_FRAME, TOWN_FRAMES, groundVariant } from '../content/tiles';
 import { NO_OVERLAY, WATER, baseTile, overlayTile, terrainLayers, visibleRange, waterFrame } from './terrain';
 
 const ALL_MAPS: [string, ZoneDef][] = [
@@ -24,14 +24,19 @@ describe('terrainLayers', () => {
         const f = L.baseFrame[i];
         if (sheet === 'zone') {
           expect(f === WATER || (f >= 0 && f < TILESET_FRAMES), `${x},${y}`).toBe(true);
+        } else if (sheet === 'overworld') {
+          expect(f >= 0 && f < OVERWORLD_FRAMES, `${x},${y}`).toBe(true);
         } else {
           expect(f >= 0 && f < TOWN_FRAMES, `${x},${y}`).toBe(true);
         }
-        // Only scenery, flowers, exits and hidden passages get a zone-tileset overlay.
+        // Only scenery, flowers, exits, hidden passages and mountains get an overlay.
         const ch = z.map[y][x];
-        expect(L.overFrame[i] !== NO_OVERLAY, `${x},${y} '${ch}'`).toBe('#,EH'.includes(ch));
+        expect(L.overFrame[i] !== NO_OVERLAY, `${x},${y} '${ch}'`).toBe('#,EH^'.includes(ch));
         // A hidden passage must look exactly like solid scenery.
-        if (ch === 'H') expect(L.overFrame[i], `${x},${y} hidden passage`).toBe(TILE_FRAME.solid);
+        if (ch === 'H') {
+          expect(L.sheets[L.overSheet[i]], `${x},${y} hidden passage`).toBe('zone');
+          expect(L.overFrame[i], `${x},${y} hidden passage`).toBe(TILE_FRAME.solid);
+        }
       }
     }
   });
@@ -40,7 +45,7 @@ describe('terrainLayers', () => {
     const z = ZONES['lumina-field'];
     expect(baseTile(z, 5, 6)).toEqual({ sheet: 'zone', frame: TILE_FRAME.path }); // '='
     expect(baseTile(z, 0, 5)).toEqual({ sheet: 'zone', frame: TILE_FRAME.path }); // 'E'
-    expect(overlayTile('E')).toBe(TILE_FRAME.exit);
+    expect(overlayTile('E')).toEqual({ sheet: 'zone', frame: TILE_FRAME.exit });
     expect(baseTile(z, 16, 9)).toEqual({ sheet: 'zone', frame: WATER }); // '~'
   });
 
@@ -48,16 +53,16 @@ describe('terrainLayers', () => {
     const z = ZONES['lumina-field'];
     expect(baseTile(z, 1, 1)).toEqual({ sheet: 'zone', frame: groundVariant(1, 1) });
     expect(baseTile(z, 0, 0)).toEqual({ sheet: 'zone', frame: groundVariant(0, 0) }); // '#'
-    expect(overlayTile('#')).toBe(TILE_FRAME.solid);
-    expect(overlayTile(',')).toBe(TILE_FRAME.deco);
-    expect(overlayTile('.')).toBe(NO_OVERLAY);
+    expect(overlayTile('#')).toEqual({ sheet: 'zone', frame: TILE_FRAME.solid });
+    expect(overlayTile(',')).toEqual({ sheet: 'zone', frame: TILE_FRAME.deco });
+    expect(overlayTile('.')).toBeNull();
   });
 
   it('props are not terrain: a save crystal sits on plain ground with no overlay', () => {
     const z = ZONES['lumina-field'];
     expect(z.map[3][4]).toBe('S');
     expect(baseTile(z, 4, 3)).toEqual({ sheet: 'zone', frame: groundVariant(4, 3) });
-    expect(overlayTile('S')).toBe(NO_OVERLAY);
+    expect(overlayTile('S')).toBeNull();
   });
 
   it("walls: tops above, a facade with windows on alternate tiles but never beside the door", () => {
@@ -71,6 +76,18 @@ describe('terrainLayers', () => {
     expect(baseTile(z, 9, 9)).toEqual({ sheet: 'timber', frame: TOWN_FRAME.facade }); // beside the door
     expect(baseTile(z, 11, 9)).toEqual({ sheet: 'timber', frame: TOWN_FRAME.facadeWindow });
     expect(baseTile(z, 8, 9)).toEqual({ sheet: 'timber', frame: TOWN_FRAME.door });
+  });
+
+  it('overworld tiles (#75): sand is a base on the overworld sheet, mountains overlay the ground, places sit on plain ground', () => {
+    const z: ZoneDef = { ...ZONES['lumina-field'], map: ['.:^P'], buildings: [] };
+    expect(baseTile(z, 1, 0)).toEqual({ sheet: 'overworld', frame: OVERWORLD_FRAME.sand });
+    expect(baseTile(z, 2, 0)).toEqual({ sheet: 'zone', frame: groundVariant(2, 0) });
+    expect(overlayTile('^')).toEqual({ sheet: 'overworld', frame: OVERWORLD_FRAME.mountain });
+    expect(baseTile(z, 3, 0)).toEqual({ sheet: 'zone', frame: groundVariant(3, 0) });
+    expect(overlayTile('P')).toBeNull();
+    const L = terrainLayers(z);
+    expect(L.sheets[L.overSheet[2]]).toBe('overworld');
+    expect(L.overFrame[2]).toBe(OVERWORLD_FRAME.mountain);
   });
 
   it("interiors draw in their own building's architecture", () => {

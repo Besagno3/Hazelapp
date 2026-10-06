@@ -409,6 +409,29 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-346 | M | ⬜ | menu | the menu shows "✨ Secrets: n/3 found here · n/15 across Lumina" and tags side quests with their town |
 | TC-347 | M | ⬜ | secrets | a twinkle ✦ blinks every few seconds over each unfound secret and disappears once it's found; indoor twinkles only show once the roof fades |
 
+## Overworld Phase 1 — the Dawnreach vertical slice (#75, #77)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-348 | U | ✅ | zones | there is exactly one overworld, and it has places; every `P` tile is a place with an exit, named after the zone it leads to (zones.test) |
+| TC-349 | U | ✅ | zones | on foot from the Village gate, every place on Dawnreach is reachable with the fog down except the Shrine; with the fog lifted the Shrine is reachable too (zones.test) |
+| TC-350 | U | ✅ | zones | every gate from a place onto Dawnreach lands 1–2 cells from that place's own icon, on open ground connected to the rest of the map (zones.test) |
+| TC-351 | U | ✅ | zones | `E` exits sit on a map edge and `P` entrances inside the map; every `E`/`P` tile has an exit entry that lands on a walkable tile; the overworld hosts roaming critters but never bosses (zones.test) |
+| TC-352 | U | ✅ | zones | fog banks sit inside the map, cover walkable ground and are lifted by real flags; `fogAt` covers its rectangle until any one flag is set; `placeAt` finds the place on its tile; `ANY_CRYSTAL` lists every crystal flag (zones.test) |
+| TC-353 | U | ✅ | transition | `transitionFor`: edge-joined screens slide; going into or out of the overworld fades; reduced motion always cuts (transition.test) |
+| TC-354 | U | ✅ | audio | in the world, the music follows the zone kind: overworld/field → overworld theme, town → town, dungeon → cave, shrine → shrine (audio.test) |
+| TC-355 | U | ✅ | terrain | sand is a base tile on the overworld sheet, mountains overlay the ground from the overworld sheet, a place tile draws plain ground; the overworld sheet has one frame per `OVERWORLD_FRAME` entry (terrain.test, tiles.test) |
+| TC-356 | U | ✅ | world map | `whereOnMap`: on the overworld the hero's own tile; with no saved position the spawn; inside a place that place's icon; in Numbria the nearest place on the map (Lumina Field); every zone can be placed (worldMap.test) |
+| TC-357 | M | ⬜ | world | every existing zone screen + Spire floor is pixel-identical to main outside animated tiles and idle cycles (`bench … shots` + `diff`, headless Chromium) |
+| TC-358 | M | ⬜ | world | walking onto the Village icon fades into the Village; holding the key on arrival doesn't walk straight back out; releasing and walking out the north gate fades back onto Dawnreach beside the icon (headless Chromium) |
+| TC-359 | M | ⬜ | world | bumping the fog bank shows the "fog of Forgetting" toast and doesn't let you through; with a crystal restored (`flags=crystal-math-restored`) the fog is gone and the Shrine path is open (headless Chromium) |
+| TC-360 | M | ⬜ | world | Dawnreach and the Shrine render with their place icons, names, the Spire tower, mountains, sand and sea (headless Chromium screenshots) |
+| TC-361 | M | ⬜ | world | walking across Dawnreach holds a smooth frame rate (bench, headless Chromium, software GL) |
+| TC-362 | M | ⬜ | menu | the menu's world map shows Dawnreach with fog, place markers and a pulsing ⭐ where you are, captioned "You're out on Dawnreach." / "You're in Lumina Village." |
+| TC-363 | M | ⬜ | story | the first time you step onto Dawnreach (after the Grove's scene, if due) the 3-panel Dawnreach cutscene plays once and ends on "🗺️ Explore Dawnreach" |
+| TC-364 | M | ⬜ | audio | with music on: the Village plays the town theme, Dawnreach the overworld theme, the Depths the cave theme, the Shrine the shrine theme |
+| TC-365 | M | ✅ | bench | #77: `diff` exits 1 when shots differ; Vite's stderr reaches the terminal; the frame sampler is capped (code review + typecheck) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
