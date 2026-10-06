@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import kaplay from 'kaplay';
 import type { MutableRefObject } from 'react';
 import {
@@ -199,26 +199,34 @@ export default function WorldCanvas({
   // --- Fade into / out of a place (#75 Phase 1) -------------------------------
   // Walking onto a town / cave / shrine on the overworld (or back out of one)
   // dips to black: a snapshot of the old screen darkens, the new zone builds
-  // underneath, then the black lifts. The hero is frozen throughout.
+  // underneath, then the black lifts. The hero is frozen throughout. Each step
+  // waits for the black overlay's own transition to finish (`onFadeStep`), not
+  // a timer — on a slow device a timer could drop the snapshot before the
+  // screen is black and the new zone would pop in.
   const [fade, setFade] = useState<{ src: string; dark: boolean; shown: boolean } | null>(null);
   const fadeStarted = !!fade;
+  const endFade = useCallback(() => {
+    slidingRef.current = false;
+    setFade(null);
+  }, []);
   useEffect(() => {
     if (!fadeStarted) return;
     let raf = requestAnimationFrame(() => {
       raf = requestAnimationFrame(() => setFade((f) => (f ? { ...f, dark: true } : f)));
     });
-    // Black reached: drop the snapshot and lift the black off the new zone.
-    const lift = setTimeout(() => setFade((f) => (f ? { ...f, shown: false, dark: false } : f)), FADE_MS / 2 + 40);
-    const done = setTimeout(() => {
-      slidingRef.current = false;
-      setFade(null);
-    }, FADE_MS + 80);
+    // Safety net: never leave the hero frozen if a transition event is lost.
+    const safety = setTimeout(endFade, FADE_MS * 6);
     return () => {
       cancelAnimationFrame(raf);
-      clearTimeout(lift);
-      clearTimeout(done);
+      clearTimeout(safety);
     };
-  }, [fadeStarted]);
+  }, [fadeStarted, endFade]);
+  /** The black overlay finished a transition: black reached → lift it; lifted → done. */
+  const onFadeStep = () => {
+    if (!fade) return;
+    if (fade.dark) setFade({ ...fade, shown: false, dark: false });
+    else endFade();
+  };
   // After a fade (or a reduced-motion cut) the hero arrives standing still and
   // waits for the movement keys to be let go — otherwise a held key could walk
   // you straight back out of an exit right beside where you land.
@@ -1319,6 +1327,7 @@ export default function WorldCanvas({
           aria-hidden
           className="absolute inset-0 pointer-events-none bg-black"
           style={{ opacity: fade.dark ? 1 : 0, transition: `opacity ${FADE_MS / 2}ms ease-in-out` }}
+          onTransitionEnd={onFadeStep}
         />
       )}
     </div>

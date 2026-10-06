@@ -219,7 +219,10 @@ The world gets its first real overworld: walk out of Lumina Village onto a
   out of a place lands right beside its own icon.
 - **Transitions** (`transitionFor`, `lib/transition.ts`): screens joined edge
   to edge still slide; going into or out of a place fades through black
-  (`FADE_MS`); reduced motion cuts. After a fade or cut the hero waits for the
+  (`FADE_MS`); reduced motion cuts. Each fade step waits for the black
+  overlay's own `transitionend` (a safety timeout unfreezes the hero if one
+  is lost) — fixed timers dropped the old screen at 11% black on a 4×-slowed
+  CPU, so the new zone popped in. After a fade or cut the hero waits for the
   keys to be released, so a held key can't walk straight back out.
 - **Fog banks** (`ZoneDef.fogs`, `FogDef`, `fogAt`): drifting fog blocks a
   rectangle of the map until any of its `liftedBy` flags is set. The first
@@ -246,6 +249,11 @@ The world gets its first real overworld: walk out of Lumina Village onto a
   with a running max. The bench can also follow exits between zones and
   report its zone/position (`__bench.state()`), and takes `flags=`.
 - No save change: places are zones, so positions save as before.
+- **Verified in headless Chromium:** all 33 existing zone screens + Spire
+  floors pixel-identical to main; the Village fade / arrival lock / walk back
+  out, fog block + lift and shrine entry walked on the bench; Dawnreach walks
+  at the same frame rate as the stress map (Phase 1 adds no cost); the world
+  map panel in four situations.
 - 377 tests green (354 on main before this); lint + build clean.
 
 ### 2026-10-05 — Phase 0 code-review fixes (#75)
