@@ -22,7 +22,7 @@ import { clampLevel, nextSkillLevelFromBattle } from './age';
  * writes the result back immediately — that is what closes the #70 tap-race,
  * where a delayed HP write could clobber a potion heal.
  *
- * Alongside the resolvers live the battle's other rules (#91–#97): enemy
+ * Alongside the resolvers live the battle's other rules (#92–#98): enemy
  * intents (telegraphed power blows), answer streaks, topic weakness, mercy,
  * victory rewards, the age-based defend countdown and the speed trigger.
  * Companion / Pair Attack damage is in `battleMath`.

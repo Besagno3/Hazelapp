@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `profileStore`, `settingsStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `quizSessionStore`, `authStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
@@ -112,6 +112,9 @@ zod, react-query. Add the package in the same change that first uses it.
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
   instance ids, losses per enemy for mercy) — deliberately not persisted, so
   a reload is a fresh start for mercy.
+- **`quizSessionStore`** holds the ephemeral Training-Grounds session — the
+  topics passed (80%+) this session, so `TopicSelect` greys them out and stops
+  re-picking. Not persisted; reset on sign-out (#64).
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
@@ -158,7 +161,7 @@ zod, react-query. Add the package in the same change that first uses it.
   question level by 1 on the spot (max +2 per battle, saved at the end or
   on Flee). Fiends (bosses) have enrage phases and restore their
   crystal on defeat. No game over — defeat returns the player to the hub,
-  healed. **Structure (#87, kept by the #98 port):** the rules of a turn are
+  healed. **Structure (#87, kept by the #99 port):** the rules of a turn are
   pure resolvers + tuning in `lib/battleTurn.ts` (damage formulas in
   `lib/battleMath.ts`); the fight's live numbers (HP, charge, guard, shield,
   enrage phase, item buffs) live in `battleStore` and are read with
@@ -295,7 +298,7 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-07 — Battle port onto main's split arena; issue numbers moved again (#98)
+### 2026-10-07 — Battle port onto main's split arena; issue numbers moved again (#99)
 `main` merged its own battle refactor (#87) while this branch had grown the
 old single-file arena, so the second merge moved every battle feature from
 this branch onto main's structure instead of picking one side.
@@ -306,7 +309,7 @@ this branch onto main's structure instead of picking one side.
   split (`BattleHud` / `BattleStage` / `BattleMenus` / `BattleResult`),
   `useBattleFx`, and main's tests (smoke + #70 regression) — unchanged and
   passing.
-- **Moved onto it from this branch (#91–#97):** `resolveEnemyTurn` gained
+- **Moved onto it from this branch (#92–#98):** `resolveEnemyTurn` gained
   `intent` (a charged power blow hits ×2; Guard / Ward / Mirror still stop
   it, tested); intents, streaks, weakness, mercy, rewards, the countdown and
   the speed trigger joined `lib/battleTurn.ts` (my `resolveHeroHit` /
@@ -321,14 +324,42 @@ this branch onto main's structure instead of picking one side.
   drop lines. The arena keeps the timed defends, Pip's peek, Pair Attacks,
   mercy lock and speed-boost pool. The HUD still lags until a blow lands, but
   only for display.
-- **Numbers:** main now uses issues up to #90 (incl. #83, #87–#90) and
-  TC-446, so this branch's issues moved #83–#89 → **#91–#97** and its test
-  cases TC-386–463 → **TC-447–524**; this port is #98 / TC-525–530.
+- **Numbers:** main now uses issues up to #91 (incl. #83, #87–#91) and
+  TC-451, so this branch's issues moved #83–#89 → **#92–#98** and its test
+  cases TC-386–463 → **TC-452–529**; this port is **#99 / TC-530–535**.
+  (Main took #91 / TC-447–451 for the Training Grounds, PR #8, during this
+  merge — hence one more shift than first planned.)
 - 510 tests green; lint + build clean; every sprite rebuilds identical.
   65 headless-Chromium checks on the ported arena: 23 round-3 (swap, peek,
   streak, Wisp, store-first HP, super effective, power move + Guard, mercy,
   rewards, reduced motion), 10 items, 15 speed trigger, 14 defend timer,
   3 portrait/world bench.
+
+### 2026-10-07 — All 7 topics on the Training Grounds + per-session completion (#91)
+Written 2026-07-03 (PR #8), merged 2026-10-07 on top of the overworld and
+tech-debt work; renumbered from #64, which `main` had since used.
+The topic-selection gate players hit after login now offers every topic and
+tracks what's been cleared this session.
+- **All topics selectable:** `TopicSelect` maps over `ALL_TOPIC_INFO` (now
+  exported from `content/topics.ts`) instead of just `TOPIC_REGISTRY`, so the
+  three `EXTRA_TOPICS` (Nature 🦋 / Space 🪐 / Time & History ⏳) join the four
+  crystal topics — seven total. They were already fully styled and
+  question-generable (#55/#57), just never shown here → **no edge-function
+  redeploy**.
+- **Per-session completion (`store/quizSessionStore.ts`):** a new **ephemeral,
+  non-persisted** Zustand store (mirrors `battleStore`) holding
+  `completedTopics`. `QuizRound.finishRound` calls `markCompleted(topic)` only
+  when the round is **passed** (80%+, reuses `PASS_THRESHOLD`). `TopicSelect`
+  greys a completed topic out with a ✓ + "Completed" and disables it (drops the
+  hover/tap motion + `onClick`) for the rest of the session. A failed attempt
+  stays selectable.
+- **Scope:** "session" = the in-memory play session — a reload starts fresh,
+  and sign-out clears it (`useAuthInit` resets the store alongside
+  `battleStore`) so one player's completed set can't leak into the next.
+- The world stays reachable throughout: only 3 passes unlock it, so the "🗺️
+  Enter the world" button appears well before all 7 could be cleared.
+- +4 tests (`quizSessionStore.test`); 471 green after merging `main`;
+  lint + build clean.
 
 ### 2026-10-07 — Merge main into the tech-debt/security branch (#87–#90)
 - Ported main's village-expansion battle items (#80) into the refactored
@@ -407,7 +438,7 @@ Brought `main` (overworld Phases 0–1, edge blending, village expansion,
 portraits, giant Umbra) into the battle-system branch.
 - **Battle items ported to the refactored arena:** Sunseed Snack, Turbo
   Coil, Mirror Charm, Focus Tea and Lucky Clover work as on `main`. The Mirror
-  Charm moved into the pure `resolveEnemyAttack` (since folded into main's `resolveEnemyTurn`, #98) (`mirrored` /
+  Charm moved into the pure `resolveEnemyAttack` (since folded into main's `resolveEnemyTurn`, #99) (`mirrored` /
   `enemyShielded` → `reflected`, `shieldBroke`, `defeated`): it blocks the blow
   and bounces it back, a shield takes the bounce instead, a bounce that
   finishes the enemy is a win, and a healer mends from its HP after the
@@ -424,8 +455,8 @@ portraits, giant Umbra) into the battle-system branch.
 - `bench/world.tsx` passes the new `skillLevels` prop.
 - **Numbers:** `main` already used issues #75–#80/#82 and TC-316–385, so this
   branch's battle issues moved #75–#81 → #83–#89 and its test cases
-  TC-316–393 → TC-386–463 (moved again by the #98 port below: **#91–#97**,
-  **TC-447–524**).
+  TC-316–393 → TC-386–463 (moved again by the #99 port below: **#92–#98**,
+  **TC-452–529**).
 
 ### 2026-10-07 — Edge-blending review fixes: no vanishing roads, sheets on demand (#71b)
 `/saas-code-review` + `/saas-ux-review` of the edge blending; all 3 findings fixed:
@@ -693,8 +724,8 @@ The five main towns grew, with more to do in each.
   film character). He stands on the throne floor (no hover) and looms
   oversized over the Spire throne-hall panels.
 
-### 2026-09-28 — Speed-trigger review fixes: stuck card, pool race, Flee, Pip's peek (#97)
-From a code review of #96:
+### 2026-09-28 — Speed-trigger review fixes: stuck card, pool race, Flee, Pip's peek (#98)
+From a code review of #97:
 - **Stuck question (medium):** the battle's question card was keyed by
   `id + qIndex + spellIdx`; `qIndex` doesn't move while the harder pool
   serves, so a short pool could repeat a key and leave an answered card on
@@ -713,8 +744,8 @@ From a code review of #96:
   normal boost, a one-question pool asked 4× without sticking, a failed pool,
   Flee with/without a boost, and Pip's peek breaking the run.
 
-### 2026-09-26 — Difficulty follows the question level + a speed trigger; XP no longer scales anything (#96)
-Revises #95: leveling up (XP) should not make the game harder — answering
+### 2026-09-26 — Difficulty follows the question level + a speed trigger; XP no longer scales anything (#97)
+Revises #96: leveling up (XP) should not make the game harder — answering
 well and fast should.
 - **Removed** `lib/growth.ts` (XP-based `growthSteps` / `challengeLevel`).
   XP / player level is back to progress + power-ups only.
@@ -723,7 +754,7 @@ well and fast should.
   question level for the enemy's topic (`skillLevelFor` — the age baseline
   if they've never played it). `WorldScreen` + `WorldCanvas` pass
   `profile.skillLevels`. The Spire asks each topic at the player's level for
-  that topic. (Before #95 battles used age only, per #32.)
+  that topic. (Before #96 battles used age only, per #32.)
 - **Speed trigger (`lib/battleTurn.ts`, tested):** answers are timed from the
   question appearing; `fastAnswerMs(age)` = half the age countdown (≈9.5s at
   9, 12s at 6). `speedStep` counts quick correct answers in a row — a slow,
@@ -740,8 +771,8 @@ well and fast should.
   hinted answer don't trigger it; 9000 XP meets the same enemy as 0 XP; math
   level 7 → Count Bat Lv 7 with level-7 questions.
 
-### 2026-09-26 — Age-based growth rule, age-based countdown, timer setting (#95)
-*(The XP-based growth part was reverted by #96 above.)*
+### 2026-09-26 — Age-based growth rule, age-based countdown, timer setting (#96)
+*(The XP-based growth part was reverted by #97 above.)*
 - **One growth rule (`lib/growth.ts`, tested):** age (from the sign-up birth
   date, recomputed so it rises each birthday) is the baseline;
   `growthSteps(level)` adds +1 per 5 player levels (max +3) as the kid levels
@@ -766,7 +797,7 @@ well and fast should.
   (Lv 4 at Lv 1); timer off = no countdown and no timeout after 60s; the menu
   toggle flips it.
 
-### 2026-09-26 — Defend countdown is a flat 15 seconds (#94 follow-up)
+### 2026-09-26 — Defend countdown is a flat 15 seconds (#95 follow-up)
 The defend clock no longer scales with question length: every defend
 question gets `DEFEND_MS` = 15s (10s was considered and rejected — too fast
 for young kids still learning to read), still +5s under mercy and paused while
@@ -774,7 +805,7 @@ the page is hidden. `defendTimeMs(mercy)` lost its question argument. 338
 tests green; lint + build clean; the countdown starts at 15s in headless
 Chromium.
 
-### 2026-09-26 — Timed defend questions (#94)
+### 2026-09-26 — Timed defend questions (#95)
 Resolves the STORY-4X §12 "timer" decision for defending: the enemy's blow
 now comes on a clock.
 - **`DefendTimer`** (`features/battle/`): replaces the defend header with the
@@ -798,7 +829,7 @@ now comes on a clock.
   then wrong/hit sounds, answering freezes it (40s later still waiting on
   Go!), paused while hidden (10s hidden = 0s lost), fits at 360×640.
 
-### 2026-09-26 — Battle UX pass: fits on phones, bigger touch targets, readable hints (#93)
+### 2026-09-26 — Battle UX pass: fits on phones, bigger touch targets, readable hints (#94)
 From a UX review at phone widths (measured in headless Chromium). Before: on a
 390×844 phone "Go!" sat below the fold after every answer; on 390×667 answers
 3–4 were hidden before answering; the command menu cut off Flee.
@@ -824,7 +855,7 @@ From a UX review at phone widths (measured in headless Chromium). Before: on a
   answers on screen, Go! on screen after answering, ≥44px targets, one-line
   names, Back visible, no sideways shift).
 
-### 2026-09-26 — Review fixes: saved HP after a healing finisher, timers cancelled on exit (#92)
+### 2026-09-26 — Review fixes: saved HP after a healing finisher, timers cancelled on exit (#93)
 From a SaaS code review of the companion/mercy commit (security came up clean:
 `saves` RLS limits every row to its owner; `companionId` is re-validated on load).
 - **Medium:** `victory()` saved the render-captured `playerHp`, so when Wisp's
@@ -839,7 +870,7 @@ From a SaaS code review of the companion/mercy commit (security came up clean:
   finisher heals 92 → 112 and the save records 112; unmounting mid-attack
   plays no landing sound and logs no errors.
 
-### 2026-09-26 — Companion pick survives reloads; mercy = easier questions only (#92 follow-up)
+### 2026-09-26 — Companion pick survives reloads; mercy = easier questions only (#93 follow-up)
 - **Companion persists:** the 🔄 Swap pick moved from `battleStore` into the
   save (`SaveData.companionId`, default `'ember'`). Additive + defaulted in
   `normalizeSave` (older saves and unknown ids → Ember), like #73's item
@@ -854,7 +885,7 @@ From a SaaS code review of the companion/mercy commit (security came up clean:
   written to the save, a save round-tripped through JSON + `normalizeSave`
   starts with Pip, mercy drops the question level with identical damage.
 
-### 2026-09-26 — Battle round 3: party + free swap, power moves, streaks, mercy, rewards (#92)
+### 2026-09-26 — Battle round 3: party + free swap, power moves, streaks, mercy, rewards (#93)
 - **Companions (`content/companion.ts`, rewritten as a registry):** Ember
   (Striker, +1◆), **Pip** (Helper — Slingshot; a correct strike crosses out a
   wrong answer on the *next* question) and **Wisp** (Healer — Glimmer mends 20
@@ -897,9 +928,9 @@ From a SaaS code review of the companion/mercy commit (security came up clean:
   headless Chromium (swap keeps the turn, peek, Wisp mend, streak, the #70
   race, boss charge → Guard block, super effective, mercy level drop, first-win
   + drop, reduced motion). The run caught and fixed a stale-closure bug in
-  Pip's peek and screen-reader-visible hidden labels. See ISSUES #92.
+  Pip's peek and screen-reader-visible hidden labels. See ISSUES #93.
 
-### 2026-09-26 — Ember animations: attack, fire breath, pair choreography, cheer (#91 follow-up)
+### 2026-09-26 — Ember animations: attack, fire breath, pair choreography, cheer (#92 follow-up)
 - **Ember's own battle sheet** (`tools/assets/characters.py`): new `Pose`
   fields `mouth` (open / puff / breath), `rear` (head lift) and `happy` (^ ^
   eyes) drive `EMBER_BATTLE_POSES` — a clear wind-up → open-mouthed lunge
@@ -926,7 +957,7 @@ From a SaaS code review of the companion/mercy commit (security came up clean:
   (frame captures at each stage, dive distance measured per frame at 390 / 900
   / 1280px).
 
-### 2026-09-26 — Ember fights + Pair Attacks + battle sound effects (#91)
+### 2026-09-26 — Ember fights + Pair Attacks + battle sound effects (#92)
 Ember, the companion dragon, now fights beside the hero instead of just
 bouncing in the background, and battles got a full set of sound effects.
 - **🐉 Ember command** (`BattleArena`): disabled while Ember is an egg. Opens a
@@ -955,7 +986,7 @@ bouncing in the background, and battles got a full set of sound effects.
   Pair Attacks).
 - 310 tests green (was 301); lint + build clean. Played in headless Chromium
   with a seeded save + mocked questions (egg / hatchling / dragon, shielded
-  enemy, fizzle) with a Howl.play spy confirming sound order. See ISSUES #91.
+  enemy, fizzle) with a Howl.play spy confirming sound order. See ISSUES #92.
 
 ### 2026-09-26 — Access hardening (0010) + migration guardrails (#90)
 From the migrations review:

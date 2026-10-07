@@ -118,7 +118,8 @@ export const EXTRA_TOPICS: TopicInfo[] = [
   },
 ];
 
-const ALL_TOPIC_INFO: TopicInfo[] = [...TOPIC_REGISTRY, ...EXTRA_TOPICS];
+/** Every topic (crystal + expansion) — the Training Grounds offers all of these. */
+export const ALL_TOPIC_INFO: TopicInfo[] = [...TOPIC_REGISTRY, ...EXTRA_TOPICS];
 
 /** The crystal topics (BOSS_LINES / SAGES / crystal logic iterate this). */
 export const TOPICS: CrystalTopic[] = [...CRYSTAL_TOPIC_IDS];

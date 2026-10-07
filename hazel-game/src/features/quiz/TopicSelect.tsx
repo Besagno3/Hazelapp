@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { PASS_THRESHOLD, ROUNDS_TO_UNLOCK } from '../../lib/utils';
-import { TOPIC_REGISTRY } from '../../content/topics';
+import { ALL_TOPIC_INFO } from '../../content/topics';
 import { useSaveStore } from '../../store/saveStore';
+import { useQuizSessionStore } from '../../store/quizSessionStore';
 import { sendFlow } from '../../machines/gameFlow';
 import type { Topic } from '../../types';
 
@@ -13,6 +14,7 @@ export default function TopicSelect() {
   const passedRounds = useSaveStore((s) => s.save?.passedRounds ?? 0);
   const worldUnlocked = useSaveStore((s) => s.save?.worldUnlocked ?? false);
   const update = useSaveStore((s) => s.update);
+  const completedTopics = useQuizSessionStore((s) => s.completedTopics);
 
   function handlePick(topic: Topic) {
     sendFlow({ type: 'PICK_TOPIC', topic });
@@ -44,21 +46,36 @@ export default function TopicSelect() {
       </p>
 
       <div className="grid grid-cols-2 gap-4 w-full max-w-md">
-        {TOPIC_REGISTRY.map((t, i) => (
-          <motion.button
-            key={t.id}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: i * 0.1 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => handlePick(t.id)}
-            className={`${t.buttonColor} text-white rounded-2xl p-6 text-center shadow-lg transition`}
-          >
-            <div className="text-5xl mb-2">{t.emoji}</div>
-            <div className="font-bold text-lg">{t.label}</div>
-          </motion.button>
-        ))}
+        {ALL_TOPIC_INFO.map((t, i) => {
+          const completed = completedTopics.includes(t.id);
+          return (
+            <motion.button
+              key={t.id}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: i * 0.1 }}
+              whileHover={completed ? undefined : { scale: 1.05 }}
+              whileTap={completed ? undefined : { scale: 0.95 }}
+              onClick={() => !completed && handlePick(t.id)}
+              disabled={completed}
+              aria-disabled={completed}
+              className={
+                completed
+                  ? 'relative bg-gray-400 text-white/80 rounded-2xl p-6 text-center shadow-inner opacity-60 cursor-not-allowed'
+                  : `${t.buttonColor} text-white rounded-2xl p-6 text-center shadow-lg transition`
+              }
+            >
+              {completed && (
+                <span className="absolute top-2 right-3 text-xl" aria-hidden>
+                  ✓
+                </span>
+              )}
+              <div className="text-5xl mb-2">{t.emoji}</div>
+              <div className="font-bold text-lg">{t.label}</div>
+              {completed && <div className="text-xs mt-1 font-medium">Completed</div>}
+            </motion.button>
+          );
+        })}
       </div>
 
       {worldUnlocked && (
