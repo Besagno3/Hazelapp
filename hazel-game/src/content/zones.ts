@@ -219,7 +219,25 @@ export interface NpcPlacement {
   defId: string;
   x: number;
   y: number;
+  /**
+   * Only standing here once this story flag is set… (#75 item 8: an NPC can
+   * have two placements that hand over, e.g. Elder Lumen on the plaza until
+   * he has greeted you, then in the Library.)
+   */
+  ifFlag?: string;
+  /** …or only until it is set. */
+  unlessFlag?: string;
 }
+
+/** Whether an NPC placement is in the world, given the story flags. */
+export function npcPresent(p: Pick<NpcPlacement, 'ifFlag' | 'unlessFlag'>, flags: Record<string, boolean>): boolean {
+  if (p.ifFlag && !flags[p.ifFlag]) return false;
+  if (p.unlessFlag && flags[p.unlessFlag]) return false;
+  return true;
+}
+
+/** Set once Elder Lumen has greeted the hero on the plaza (he then keeps the Library). */
+export const MET_ELDER = 'met-elder';
 
 export interface EnemyPlacement {
   defId: string;
@@ -772,9 +790,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'village-baker', x: 49, y: 18 },
       { defId: 'village-guard', x: 54, y: 11 },
       { defId: 'village-kid', x: 51, y: 24 },
-      // From Lumina Field (#75 item 8): Elder Lumen by the Library door, the
-      // Librarian and Maple at work inside, Pip out on the green.
-      { defId: 'elder-lumen', x: 69, y: 10 },
+      // From Lumina Field (#75 item 8): Elder Lumen greets a new hero on the
+      // plaza, then keeps the Library with the Librarian (giving tips on what
+      // to do next); Maple at work in her shop; Pip out on the green.
+      { defId: 'elder-lumen', x: 23, y: 11, unlessFlag: MET_ELDER },
+      { defId: 'elder-lumen', x: 69, y: 5, ifFlag: MET_ELDER },
       { defId: 'hub-librarian', x: 71, y: 4 },
       { defId: 'hub-merchant', x: 81, y: 4 },
       { defId: 'hub-kid', x: 76, y: 20 },

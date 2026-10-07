@@ -75,7 +75,8 @@ answers stay the only skill input.
 ## 4. Cast
 
 **Home (Lumina Village, east end — moved in from Lumina Field in #75 item
-8):** Elder Lumen 👴 (exposition, dragon lore), Pip 🧒 (tutorial hints, Ember
+8):** Elder Lumen 👴 (greets a new hero on the plaza, then keeps the Library
+and gives big-picture tips on what to do next; dragon lore), Pip 🧒 (tutorial hints, Ember
 superfan), Librarian Sage 🦉 (the Lumina Library), Merchant Maple 🦝 (Maple's
 Trading Post). Innkeeper Poppy 👩‍🍳 runs the Sleepy Sheep Inn in the Village.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ZONES, reachableOnFoot, type ZoneDef, type ZoneId } from '../content/zones';
+import { MET_ELDER, ZONES, reachableOnFoot, type ZoneDef, type ZoneId } from '../content/zones';
 import { whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
@@ -18,6 +18,7 @@ import {
   signpostLines,
   wayfindingLines,
   type Objective,
+  mentorTips,
 } from './wayfinding';
 
 const dawn = ZONES.dawnreach;
@@ -196,27 +197,60 @@ describe('signpostLines', () => {
   });
 });
 
+describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
+  const met = { [MET_ELDER]: true };
+  const math = { ...met, [crystalFlag('math')]: true };
+  it('a new hero: the plan (start with Numbria, no key needed) and where the potions are', () => {
+    const [plan, tip] = mentorTips(ZONES, met);
+    expect(plan).toMatch(/four Fiends.*corner of Dawnreach.*the Null Fiend in Numbria, to the north-west.*no key/);
+    expect(tip).toMatch(/Berry Potions at Maple's Trading Post/);
+  });
+  it('after the first crystal: the wardens and their keys; holding a key: its gate', () => {
+    expect(mentorTips(ZONES, math)[0]).toMatch(/other three Fiends.*locked gates.*the Thicket Warden in the Whispering Woods, to the west.*Verdant Key/);
+    expect(mentorTips(ZONES, { ...math, [keyFlag('verdara-key')]: true })[0]).toMatch(
+      /You hold the Verdant Key! It opens the Smog Fiend's gate in Verdara, to the south-west\. Free the Crystal of Nature/,
+    );
+    const two = { ...math, [crystalFlag('science')]: true };
+    expect(mentorTips(ZONES, two)[0]).toMatch(/^The Rust Fiend still hides behind a locked gate\..*the Clockwork Titan/);
+  });
+  it('all four crystals: the Spire; after it: secrets and friends', () => {
+    expect(mentorTips(ZONES, { ...met, ...allCrystals })).toEqual([
+      expect.stringMatching(/Crystal Spire stands open, to the south of our village/),
+      expect.stringMatching(/Rest at the Sleepy Sheep Inn/),
+    ]);
+    expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true })[0]).toMatch(/Lumina is safe/);
+  });
+  it('is the big picture, not the road: no "go …" or "take the … path" steps', () => {
+    const stages = [met, math, { ...math, [keyFlag('verdara-key')]: true }, { ...met, ...allCrystals }];
+    for (const flags of stages) for (const line of mentorTips(ZONES, flags)) expect(line).not.toMatch(/\b(Go|go) (north|south|east|west)|path to/);
+  });
+  it('on the plaza (first meeting) the tips end with where to find him again; in the Library they don\'t', () => {
+    const plaza = wayfindingLines(ZONES, NPC_DEFS['elder-lumen'], {});
+    expect(plaza).toHaveLength(3);
+    expect(plaza[2]).toMatch(/Lumina Library, at the far east end of town/);
+    expect(wayfindingLines(ZONES, NPC_DEFS['elder-lumen'], met)).toEqual(mentorTips(ZONES, met));
+  });
+});
+
 describe('guides and signposts', () => {
   const wayfinders = Object.values(NPC_DEFS).filter((n) => n.guide || n.signpost);
 
-  it('Elder Lumen, Grandmother Wick and Scout Tamsin are guides; the crossroads have signposts', () => {
-    expect(wayfinders.filter((n) => n.guide).map((n) => n.id).sort()).toEqual(
-      ['dawnreach-scout', 'elder-lumen', 'village-elder'].sort(),
-    );
+  it('Grandmother Wick and Scout Tamsin are guides, Elder Lumen the mentor; the crossroads have signposts', () => {
+    expect(wayfinders.filter((n) => n.guide).map((n) => n.id).sort()).toEqual(['dawnreach-scout', 'village-elder']);
+    expect(Object.values(NPC_DEFS).filter((n) => n.mentor).map((n) => n.id)).toEqual(['elder-lumen']);
     expect(wayfinders.filter((n) => n.signpost).length).toBeGreaterThanOrEqual(2);
   });
   it('every guide and signpost stands somewhere in the world', () => {
     for (const n of wayfinders) expect(npcHome(ZONES, n.id), n.id).not.toBeNull();
   });
   it('a guide ends on where to go next, from where they stand', () => {
-    expect(wayfindingLines(ZONES, NPC_DEFS['elder-lumen'], {})).toEqual([
+    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], {})).toEqual([
       'Where to next? The Null Fiend hoards the Crystal of Numbers. Go north-west to Numbria.',
     ]);
-    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], {})[0]).toContain('Go north-west to Numbria');
   });
   it("after the story, a guide just cheers you on", () => {
     const done = { ...allCrystals, [SPIRE_CLEARED]: true };
-    expect(wayfindingLines(ZONES, NPC_DEFS['elder-lumen'], done)).toEqual([nextObjective(done).why]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], done)).toEqual([nextObjective(done).why]);
   });
   it('a signpost reads out the places around it, then the way to the next goal', () => {
     for (const n of wayfinders.filter((w) => w.signpost)) {

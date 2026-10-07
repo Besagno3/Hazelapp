@@ -1,7 +1,7 @@
-import type { ZoneDef, ZoneExit, ZoneId } from '../content/zones';
+import { HUB_ZONE, MET_ELDER, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import type { WorldNpcDef } from '../content/npcs';
-import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
-import { keyFlag, keyForZone } from '../content/keys';
+import { TOPIC_REGISTRY, crystalFlag, type CrystalTopicInfo } from '../content/topics';
+import { keyFlag, keyForZone, type GateKey } from '../content/keys';
 import { SPIRE_CLEARED } from '../content/story';
 
 /**
@@ -59,6 +59,10 @@ export interface Objective {
   why: string;
   /** Where to go; null once the story is done. */
   zoneId: ZoneId | null;
+  /** The crystal this goal is about (a crystal, or the key to its gate). */
+  crystal?: CrystalTopicInfo;
+  /** The warden's key involved: the one to win, or the one you hold. */
+  key?: GateKey;
 }
 
 /**
@@ -98,6 +102,8 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         ? `Your ${key.name} opens ${key.fiendName}'s gate. Free the ${open.crystalName}!`
         : `${open.fiendName} hoards the ${open.crystalName}.`,
       zoneId: open.zoneId,
+      crystal: open,
+      key,
     };
   }
   // Every crystal left is behind a gate (only Numbria's has none).
@@ -107,6 +113,8 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
     title: `Win the ${key.name}`,
     why: `${key.bossName} guards the ${key.name}. It opens ${key.fiendName}'s gate.`,
     zoneId: key.fromZone,
+    crystal: left[0],
+    key,
   };
 }
 
@@ -203,6 +211,72 @@ export function goalDirections(
   return sentence(routeSteps(zones, here, goal.zoneId, at) ?? []);
 }
 
+// --- The mentor (Elder Lumen, #75 item 8) ------------------------------------------
+
+/** A name as it starts a sentence: "the Smog Fiend" → "The Smog Fiend". */
+function capitalize(s: string): string {
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+/** A name as it reads mid-sentence: "The Null Fiend" → "the Null Fiend". */
+function midSentence(name: string): string {
+  return name.startsWith('The ') ? `the ${name.slice(4)}` : name;
+}
+
+/** Which way a zone's place on the overworld lies from home ("north-west"), if both are on it. */
+function bearingFromHome(zones: Record<ZoneId, ZoneDef>, to: ZoneId): string | null {
+  const world = Object.values(zones).find((z) => z.kind === 'overworld');
+  const home = world?.exits.find((e) => e.to === HUB_ZONE);
+  const there = world?.exits.find((e) => e.to === to);
+  return home && there ? compass(there.x - home.x, there.y - home.y) : null;
+}
+
+/**
+ * Elder Lumen's tips (#75 item 8): the big picture of what to do next — the
+ * plan for this stage of the story, in a sentence or two, and one practical
+ * tip. Not the road to take (the 🚩 map, Grandmother Wick, Scout Tamsin and
+ * the signposts do that). Pure: worked out from the story flags and the map.
+ */
+export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string, boolean>): [string, string] {
+  const goal = nextObjective(flags);
+  const restored = TOPIC_REGISTRY.filter((t) => flags[crystalFlag(t.id)]).length;
+  const place = (id: ZoneId) => {
+    const dir = bearingFromHome(zones, id);
+    return `${placeName(zones[id])}${dir ? `, to the ${dir}` : ''}`;
+  };
+  let plan: string;
+  if (goal.kind === 'crystal' && goal.crystal && !goal.key) {
+    plan = `Here is the plan: four Fiends hold the crystals, one at each far corner of Dawnreach. Start with ${midSentence(goal.crystal.fiendName)} in ${place(goal.crystal.zoneId)} — its gate needs no key, only brave answers.`;
+  } else if (goal.kind === 'crystal' && goal.crystal && goal.key) {
+    plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s gate in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
+  } else if (goal.kind === 'key' && goal.key) {
+    const keeper = `${midSentence(goal.key.bossName)} in ${place(goal.key.fromZone)}`;
+    plan =
+      restored === 1
+        ? `The other three Fiends hide behind locked gates, and a warden out in the wild guards each key. Start with ${keeper} — win the ${goal.key.name}!`
+        : `${capitalize(goal.key.fiendName)} still hides behind a locked gate. Its key is guarded by ${keeper} — win the ${goal.key.name}!`;
+  } else if (goal.kind === 'spire') {
+    plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
+  } else {
+    plan = 'Lumina is safe, thanks to you! But there are still secrets ✦ hidden in every town, and friends who would love your help.';
+  }
+  let tip: string;
+  if (goal.kind === 'spire') {
+    tip = 'Rest at the Sleepy Sheep Inn before you climb. In the Spire, every wrong answer snuffs a candle.';
+  } else if (goal.kind === 'explore') {
+    tip = 'Many townsfolk have little quests for you. Talk to everyone — and look for twinkles ✦!';
+  } else if (restored === 0) {
+    tip = "Before you set out, buy Berry Potions at Maple's Trading Post, beside the Library. And whenever you're hurt, rest at the Sleepy Sheep Inn by the plaza.";
+  } else {
+    tip = [
+      'Every crystal you restore lifts a bank of fog on Dawnreach. Open your 📜 Menu map to see what each crystal will uncover!',
+      'Each crystal town has a Sage who can teach you a spell. Spells hit hard — but their questions are extra tricky!',
+      'The Librarian keeps every question you missed — try them again in the Library any time!',
+    ][(restored - 1) % 3];
+  }
+  return [plan, tip];
+}
+
 // --- Signposts and guides --------------------------------------------------------
 
 /**
@@ -239,13 +313,16 @@ export function npcHome(zones: Record<ZoneId, ZoneDef>, defId: string): { zoneId
 /**
  * The wayfinding lines an NPC adds after their own (none for most). A guide
  * says where to go next, from where they stand; a signpost reads out the
- * places around it, then the way to the next goal.
+ * places around it, then the way to the next goal; the mentor gives the big
+ * picture (`mentorTips`) and, on first meeting, where to find him again.
  */
 export function wayfindingLines(
   zones: Record<ZoneId, ZoneDef>,
-  npc: Pick<WorldNpcDef, 'id' | 'guide' | 'signpost'>,
+  npc: Pick<WorldNpcDef, 'id' | 'guide' | 'signpost' | 'mentor'>,
   flags: Record<string, boolean>,
 ): string[] {
+  // The mentor: the big picture, then (first meeting only) where to find him again.
+  if (npc.mentor) return [...mentorTips(zones, flags), ...(flags[MET_ELDER] ? [] : [npc.mentor.invite])];
   if (!npc.guide && !npc.signpost) return [];
   const home = npcHome(zones, npc.id);
   if (!home) return [];

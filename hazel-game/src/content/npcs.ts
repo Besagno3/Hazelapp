@@ -1,5 +1,5 @@
 import type { ServiceType, Topic } from '../types';
-import { fogSeenFlag } from './zones';
+import { MET_ELDER, fogSeenFlag } from './zones';
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -54,6 +54,13 @@ export interface WorldNpcDef {
    */
   guide?: boolean;
   /**
+   * Gives big-picture tips on what to do next (#75 item 8, Elder Lumen in the
+   * Library): after their own lines, the plan for this stage of the story and
+   * one practical tip (`mentorTips`, `lib/wayfinding.ts`). `invite` closes
+   * the first meeting, before `MET_ELDER` is set — where to find them again.
+   */
+  mentor?: { invite: string };
+  /**
    * A signpost, not a person (#75 item 6): it reads out the places around it
    * by direction, worked out from the map, then the way to the next goal.
    * Its `lines` stay empty. Place it beside a crossroads, off the road.
@@ -83,15 +90,28 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '👴',
     role: 'villager',
     stationary: true,
-    guide: true,
+    // Meets a new hero on the plaza, then keeps the Library (two placements in
+    // zones.ts that hand over on MET_ELDER), where he gives tips (#75 item 8).
+    mentor: {
+      invite:
+        'I keep the Lumina Library, at the far east end of town. Come and find me there whenever you wonder what to do next!',
+    },
     lines: [
+      // First meeting, on the plaza.
       {
-        text: 'Welcome, brave one! A fog of Forgetting has dimmed our four Crystals of Knowing.',
-        unlessFlag: 'met-elder',
-        setFlag: 'met-elder',
+        text: 'Welcome home, brave one! I am Elder Lumen. A fog of Forgetting has dimmed our four Crystals of Knowing.',
+        unlessFlag: MET_ELDER,
+        setFlag: MET_ELDER,
       },
-      'Four Fiends hoard the crystal light, one at each far corner of Dawnreach. Every road out of our village leads to one of them, sooner or later.',
-      'Every question you answer returns a spark of light. Learning is our magic!',
+      {
+        text: 'Every question you answer returns a spark of light. Learning is our magic!',
+        unlessFlag: MET_ELDER,
+      },
+      // Afterwards, in the Library.
+      {
+        text: 'Ah, welcome to the Library, young one! Sit, sit — let us look at where your journey stands.',
+        ifFlag: MET_ELDER,
+      },
       {
         text: 'That egg you carry… the last dragon of Lumina chose YOU. Keep answering bravely, and it will hatch.',
         unlessFlag: 'ember-hatched',

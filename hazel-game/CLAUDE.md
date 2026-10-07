@@ -304,6 +304,37 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-07 — Elder Lumen greets you on the plaza, then mentors from the Library (#75 item 8)
+From the `/saas-ux-review` of item 8: home's welcome (Elder Lumen) and its
+potion shop had ended up two screens from where a new game starts. Now:
+- **On the plaza:** Elder Lumen stands beside the home spawn until he has
+  greeted you ("Welcome home, brave one!…", sets `MET_ELDER`), and ends by
+  inviting you to the Lumina Library at the far east end of town. He leaves
+  the plaza the moment the conversation closes.
+- **In the Library afterwards:** he gives the **big picture** of what to do
+  next, not the road (`mentorTips`, `lib/wayfinding.ts`): the plan for this
+  stage (start with Numbria — no key needed; the wardens and their keys;
+  "you hold the Verdant Key — it opens the Smog Fiend's gate in Verdara";
+  the Spire; then secrets and friends), plus one practical tip (Berry Potions
+  at Maple's, the Sage spells, the fog map, the Library's missed questions,
+  rest before the Spire). Directions stay with the 🚩 map, Grandmother Wick,
+  Scout Tamsin and the signposts. `WorldNpcDef.mentor` (with the first
+  meeting's `invite`) replaces his `guide` role; `Objective` now carries its
+  `crystal` and `key`.
+- **NPCs that come and go:** `NpcPlacement.ifFlag` / `unlessFlag`
+  (`npcPresent`) — an NPC may have two placements that hand over on one flag.
+  `WorldCanvas` spawns NPCs through `spawnNpc` and keeps the conditional ones
+  in step with the flags every frame (like gates and chests), so Lumen leaves
+  the plaza and appears in the Library within the same visit. zones.test now
+  checks no NPC is ever in two places at once.
+- Bench: `__bench.setFlag(f)` sets a story flag mid-run, as a conversation
+  would.
+- +7 tests (mentor tips per stage, first-meeting invite, the hand-over, Lumen's
+  two spots); 549 green, lint + build clean. Checked in headless Chromium: a
+  new hero on the plaza with Lumen beside them; talking to him; with the flag
+  set his plaza spot is empty at once; in the Library he appears live beside
+  the Librarian and can be talked to.
+
 ### 2026-10-07 — Act I re-staged on Dawnreach: crystal regions at the corners, Lumina Field retired (#75 item 8)
 Roadmap item 8 (§3.5): Act I now plays as a journey across one continent.
 - **Dawnreach grew to 80×60** (`maps/dawnreach.tmj`, painted from ASCII via

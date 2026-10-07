@@ -14,6 +14,8 @@ import {
   buildingAt,
   buildingInside,
   safeSpawn,
+  npcPresent,
+  MET_ELDER,
 } from './zones';
 import { edgeLinkProblem, exitSide } from '../lib/transition';
 import { WANDER_TUNING } from '../lib/wander';
@@ -373,9 +375,29 @@ describe('every place is unique (#73)', () => {
     }
   });
 
-  it('no NPC is placed twice', () => {
-    const ids = placed.map((x) => x.p.defId);
-    expect(new Set(ids).size).toBe(ids.length);
+  it('no NPC is ever in two places at once: one placed twice hands over on a flag (#75 item 8)', () => {
+    const byDef = new Map<string, typeof placed>();
+    for (const x of placed) byDef.set(x.p.defId, [...(byDef.get(x.p.defId) ?? []), x]);
+    for (const [id, spots] of byDef) {
+      if (spots.length === 1) continue;
+      const flagNames = [...new Set(spots.flatMap(({ p }) => [p.ifFlag, p.unlessFlag].filter(Boolean) as string[]))];
+      expect(flagNames.length, `${id} hands over on one flag`).toBe(1);
+      for (const on of [false, true]) {
+        const present = spots.filter(({ p }) => npcPresent(p, { [flagNames[0]]: on }));
+        expect(present.length, `${id} with ${flagNames[0]}=${on}`).toBe(1);
+      }
+    }
+  });
+
+  it('Elder Lumen greets a new hero on the plaza, then keeps the Library (#75 item 8)', () => {
+    const home = ZONES[HUB_ZONE];
+    const lumen = home.npcs.filter((p) => p.defId === 'elder-lumen');
+    const plaza = lumen.find((p) => npcPresent(p, {}))!;
+    const later = lumen.find((p) => npcPresent(p, { [MET_ELDER]: true }))!;
+    expect(Math.max(Math.abs(plaza.x - home.spawn.x), Math.abs(plaza.y - home.spawn.y))).toBeLessThanOrEqual(3);
+    expect(buildingInside(home, plaza.x, plaza.y)).toBeNull();
+    expect(buildingInside(home, later.x, later.y)?.id).toBe('lumina-library');
+    expect(NPC_DEFS['elder-lumen'].lines[0]).toMatchObject({ unlessFlag: MET_ELDER, setFlag: MET_ELDER });
   });
 
   it('every merchant, sage, innkeeper and librarian works inside a building', () => {
