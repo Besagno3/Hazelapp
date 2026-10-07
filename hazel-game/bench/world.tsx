@@ -28,6 +28,7 @@ import { SPIRE_FLOOR_MAPS, SPIRE_THEMES, floorSpawnPx, floorZone, type SpireThem
 import { avatarById } from '../src/content/avatars';
 import { camAxis } from '../src/lib/camera';
 import { BLEND_OPS_PER_CORNER, blendLayer, blendsEdges } from '../src/lib/terrain';
+import { FOG_OVERHANG } from '../src/lib/fog';
 import '../src/index.css';
 
 const q = new URLSearchParams(location.search);
@@ -164,8 +165,10 @@ function animatedRects(): [number, number, number, number][] {
       }
     }
   }
-  // Fog banks drift between two frames (#75).
-  for (const f of z.fogs ?? []) rects.push([f.x * TILE - ox, f.y * TILE - oy, f.w * TILE, f.h * TILE]);
+  // Fog banks drift (#75): their puffs orbit and swell.
+  // Fog puffs drift past the bank's rectangle by up to FOG_OVERHANG.
+  const m = FOG_OVERHANG;
+  for (const f of z.fogs ?? []) rects.push([f.x * TILE - ox - m, f.y * TILE - oy - m, f.w * TILE + 2 * m, f.h * TILE + 2 * m]);
   // Character sprites: a generous box around each one's start point.
   const box = (cx: number, cy: number, half: number) => rects.push([cx - half - ox, cy - half - oy, half * 2, half * 2]);
   for (const p of [...z.npcs, ...z.enemies]) box(p.x * TILE + TILE / 2, p.y * TILE + TILE / 2, 30);

@@ -836,6 +836,46 @@ def ow_fog(frame):
     return c
 
 
+# Fog puffs (#75 item 7 follow-up): soft, lumpy clouds that a fog bank is
+# built from in the game — many overlapping puffs drifting around each other,
+# so a bank has rounded, wispy edges instead of square tiles. Drawn at 24px
+# (shown 2× as 48px) with stepped alpha so they stay pixel-art.
+FOG_PUFF = 24
+FOG_PUFF_SHAPES = (
+    ((12, 13, 7.5), (6.5, 14.5, 5), (17.5, 14, 5.5), (11, 8.5, 5.5), (15.5, 9.5, 4)),
+    ((12, 12.5, 8), (6, 13.5, 5.5), (18, 13, 4.5), (9, 8, 4.5)),
+    ((11.5, 13, 7), (17, 12.5, 6), (6.5, 14, 4.5), (14, 8, 5)),
+)
+
+
+def fog_puff(shape) -> Image.Image:
+    n = FOG_PUFF
+    yy, xx = np.mgrid[0:n, 0:n] + 0.5
+    # Signed distance to the union of the puff's circles (negative inside).
+    d = np.min([np.hypot(xx - cx, yy - cy) - r for (cx, cy, r) in shape], axis=0)
+    depth = -d
+    alpha = np.select([depth > 3, depth > 1.5, depth > 0], [228, 165, 90], 0).astype(np.uint8)
+    cy0 = np.mean([c[1] for c in shape])
+    base = np.array([238, 240, 250], dtype=float)
+    shade = np.array([204, 208, 230], dtype=float)
+    light = np.array([255, 255, 255], dtype=float)
+    # Shadow underneath, a bright rim on top: a cloud lit from above.
+    low = np.clip((yy - cy0) / 6, 0, 1)[..., None]
+    rgb = base * (1 - low) + shade * low
+    top_rim = ((depth > 0) & (depth <= 2) & (yy < cy0 - 1))[..., None]
+    rgb = np.where(top_rim, light, rgb)
+    img = np.zeros((n, n, 4), dtype=np.uint8)
+    img[..., :3] = rgb.round().astype(np.uint8)
+    img[..., 3] = alpha
+    return Image.fromarray(img, 'RGBA')
+
+
+def build_fog(public: Path):
+    """Write only the fog-puff sheet (#75): `/tiles/fog-puffs.png`."""
+    tdir = public / 'tiles'
+    strip([upscale(fog_puff(sh), 2) for sh in FOG_PUFF_SHAPES]).save(tdir / 'fog-puffs.png', optimize=True)
+
+
 def ow_icon(kind):
     c = _c()
     if kind == 'town':

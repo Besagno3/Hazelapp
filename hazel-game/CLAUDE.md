@@ -264,6 +264,25 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-07 — Fog banks look like fog: soft puffs drifting around each other (#75 item 7)
+The banks were rectangles of square fog tiles. Now each is a cluster of soft
+pixel-art cloud puffs (`/tiles/fog-puffs.png`, three shapes, stepped alpha;
+`tiles.fog_puff`, `python3 tools/assets/build.py fog`) laid out by
+`lib/fog.ts` (`fogPuffs`, seeded by the bank's id): they overlap past the
+bank's edge, so the outline is round and wispy, and each drifts in an orbit
+plus a slow sway around its spot, neighbours turning opposite ways, so the
+bank churns and floats (`puffAt`). Lifting spreads the puffs out, up and away
+as they fade. Collision is unchanged (the bank's rectangle). Reduced motion:
+puffs stay put, a lift only fades. One updater moves every puff; banks off
+screen are hidden and skipped. The bench's fog masks grow by `FOG_OVERHANG`.
+- Frame rate (headless Chromium, software GL, alternating runs vs the tile
+  fog): in the foggiest view (the Spire ring + a pocket on screen) about 8% lower (38 → 35 fps; it was 14% before off-screen banks were skipped);
+  elsewhere unchanged (off-screen banks cost nothing).
+- +6 tests (`fog.test`: deterministic, no holes, overhang bound, shapes and
+  both turning directions, drift/still, lift) and a size check on the sheet;
+  484 green, lint + build clean. A wider puff spacing (25 px) was tried and
+  dropped: it thinned the middle of the small shrine bank.
+
 ### 2026-10-07 — Fog banks: each crystal lifts its own fog, on screen (#75 item 7)
 Roadmap item 7 (§3.2): restoring a crystal now visibly lifts its fog on
 Dawnreach and opens what's behind it.

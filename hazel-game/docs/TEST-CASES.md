@@ -552,6 +552,11 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-459 | M | ✅ | world | with reduced motion the camera cuts to each bank and back instead of gliding; in a fresh browser the reveal waits until the map art has loaded (filmed) |
 | TC-460 | M | ✅ | world | with no crystal, walking into the math pocket's fog stops the hero and shows its hint; the Spire tower rises above its fogged grounds; the menu map shows the crystal markers and the 💎 legend (headless Chromium) |
 | TC-461 | M | ⬜ | world | in the real app: restore Numbria's crystal, see the new storybook panel, walk out onto Dawnreach and watch the three banks lift; open the math pocket's chest (a math question) |
+| TC-462 | U | ✅ | fog | `fogPuffs` lays a bank out the same way every time, leaves no holes (every cell well inside a puff), mixes all three shapes, and has neighbours turning both ways (fog.test) |
+| TC-463 | U | ✅ | fog | however the puffs drift, they never spill more than `FOG_OVERHANG` past the bank (fog.test) |
+| TC-464 | U | ✅ | fog | `puffAt`: puffs drift over time and stay put with reduced motion; lifting moves them up and away and fades them to nothing (a fade only, with reduced motion); the puff sheet is 3 × 48 px (fog.test, tiles.test) |
+| TC-465 | M | ✅ | world | the Spire ring and the pockets look like soft fog with round edges, the tower rising out of it; filmed a second apart, the puffs visibly shift around each other; a lift spreads them up and away (headless Chromium) |
+| TC-466 | M | ✅ | world | frame rate in the foggiest view vs the tile fog (alternating runs, same machine, software GL): about 8% lower (38 → 35 fps); banks off screen are hidden and skipped. Recheck on a real device with TC-326 |
 
 ## Regression cases (tied to ISSUES.md)
 

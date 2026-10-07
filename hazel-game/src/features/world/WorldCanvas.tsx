@@ -30,11 +30,13 @@ import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis, worldView } from '../../lib/camera';
+import { FOG_OVERHANG, fogPuffs, puffAt, type FogPuff } from '../../lib/fog';
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
 import { FADE_MS, SLIDE_MS, exitSide, needsArrivalLock, slideFrom, transitionFor, type ExitSide } from '../../lib/transition';
 import {
   OVERWORLD_FRAME,
   OVERWORLD_KEY,
+  FOG_PUFF_KEY,
   PROPS_KEY,
   PROP_FRAME,
   ROOF_KEY,
@@ -518,27 +520,86 @@ export default function WorldCanvas({
     }
 
     // --- Fog of Forgetting (#75): drifting banks that lift for good ---------
-    // A bank stays on screen until its lifting has been shown (item 7): one
-    // that lifted while you were away clears in front of you when you arrive.
-    type Fader2 = { opacity: number; pos: { y: number }; destroy: () => void; play: (n: string) => void };
-    const fogBanks: { def: FogDef; parts: Fader2[]; shown: boolean }[] = [];
+    // Each bank is a cluster of soft puffs that overlap past its edge (round,
+    // wispy outline) and drift around each other (`lib/fog.ts`); collision is
+    // still the bank's rectangle (`fogAt`). A bank stays on screen until its
+    // lifting has been shown (item 7): one that lifted while you were away
+    // clears in front of you when you arrive.
+    const reducedMotion =
+      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    type PuffObj = {
+      pos: { x: number; y: number };
+      scale: { x: number; y: number };
+      opacity: number;
+      hidden: boolean;
+      destroy: () => void;
+    };
+    type Bank = {
+      def: FogDef;
+      puffs: { p: FogPuff; obj: PuffObj }[];
+      centre: { x: number; y: number };
+      /** 0 → 1 while it lifts on screen. */
+      lift: number;
+      shown: boolean;
+      /** Off screen: its puffs are hidden and not moved (they're many). */
+      offscreen: boolean;
+    };
+    const fogBanks: Bank[] = [];
     const lifted = (f: FogDef) => fogLifted(f, flagsRef.current);
     for (const f of z.fogs ?? []) {
       if (lifted(f) && flagsRef.current[fogSeenFlag(f.id)]) continue;
-      const parts: Fader2[] = [];
-      for (let fy = f.y; fy < f.y + f.h; fy++) {
-        for (let fx = f.x; fx < f.x + f.w; fx++) {
-          const puff = k.add([
-            k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.fog[(fx + fy) % 2] }),
-            k.pos(fx * TILE, fy * TILE),
-            k.opacity(0.94),
-            k.z(8),
-          ]) as unknown as Fader2;
-          puff.play('drift');
-          parts.push(puff);
+      const puffs = fogPuffs(f).map((p) => ({
+        p,
+        obj: k.add([
+          k.sprite(FOG_PUFF_KEY, { frame: p.frame }),
+          k.pos(p.x, p.y),
+          k.anchor('center'),
+          k.scale(p.scale),
+          k.opacity(p.opacity),
+          k.z(8),
+        ]) as unknown as PuffObj,
+      }));
+      fogBanks.push({
+        def: f,
+        puffs,
+        centre: { x: (f.x + f.w / 2) * TILE, y: (f.y + f.h / 2) * TILE },
+        lift: 0,
+        shown: false,
+        offscreen: false,
+      });
+    }
+    if (fogBanks.length) {
+      // One updater drifts every puff (an object, so it goes with the scene).
+      // It runs while the world is paused too: fog keeps drifting behind a menu.
+      k.add([k.pos(0, 0)]).onUpdate(() => {
+        const t = k.time();
+        const cam = k.getCamPos();
+        const v = view();
+        for (const bank of fogBanks) {
+          // Skip a bank that's off screen (with room for its drifting puffs,
+          // and a tile more since the camera may move after this runs).
+          const f = bank.def;
+          const m = FOG_OVERHANG + TILE;
+          const off =
+            (f.x + f.w) * TILE + m < cam.x - v.w / 2 ||
+            f.x * TILE - m > cam.x + v.w / 2 ||
+            (f.y + f.h) * TILE + m < cam.y - v.h / 2 ||
+            f.y * TILE - m > cam.y + v.h / 2;
+          if (off !== bank.offscreen) {
+            bank.offscreen = off;
+            for (const { obj } of bank.puffs) obj.hidden = off;
+          }
+          if (off) continue;
+          for (const { p, obj } of bank.puffs) {
+            const at = puffAt(p, t, bank.lift, bank.centre, reducedMotion);
+            obj.pos.x = at.x;
+            obj.pos.y = at.y;
+            obj.scale.x = at.scale;
+            obj.scale.y = at.scale;
+            obj.opacity = at.opacity;
+          }
         }
-      }
-      fogBanks.push({ def: f, parts, shown: false });
+      });
     }
 
     // --- Buildings (#72): signs + roofs ---------------------------------
@@ -996,8 +1057,6 @@ export default function WorldCanvas({
     // peels away (with a line saying what it uncovered), and the camera
     // glides back. Several banks play one after another. Reduced motion cuts
     // the camera instead of gliding.
-    const reducedMotion =
-      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const PAN_S = reducedMotion ? 0 : 1.1;
     const LIFT_S = 1.6;
     const HOLD_S = 0.7;
@@ -1006,7 +1065,7 @@ export default function WorldCanvas({
     // …and never before the map and the fog are drawn: on a slow first load the
     // camera would otherwise glide over blank ground to fog that isn't there.
     let artReady = false;
-    const artLoaded = () => [tiles, OVERWORLD_KEY].every((key) => k.getSprite(key)?.loaded === true);
+    const artLoaded = () => [tiles, OVERWORLD_KEY, FOG_PUFF_KEY].every((key) => k.getSprite(key)?.loaded === true);
     type Reveal = {
       banks: (typeof fogBanks)[number][];
       i: number;
@@ -1042,14 +1101,11 @@ export default function WorldCanvas({
         return true;
       }
       if (r.phase === 'lift') {
-        const o = Math.max(0, 0.94 * (1 - r.t / LIFT_S));
-        for (const part of bank.parts) {
-          part.opacity = o;
-          if (!reducedMotion) part.pos.y -= dt * 10; // the fog rises as it thins
-        }
-        if (o > 0) return true;
-        for (const part of bank.parts) part.destroy();
-        bank.parts = [];
+        // The puffs spread out, rise and thin away (the drift updater draws it).
+        bank.lift = Math.min(1, r.t / LIFT_S);
+        if (bank.lift < 1) return true;
+        for (const { obj } of bank.puffs) obj.destroy();
+        bank.puffs = [];
         bank.shown = true;
         cbRef.current.onFogRevealed?.(bank.def.id);
         r.phase = 'hold';
@@ -1098,7 +1154,7 @@ export default function WorldCanvas({
       cooldown = Math.max(0, cooldown - dt);
 
       if (!reveal) {
-        const due = fogBanks.filter((b) => !b.shown && b.parts.length > 0 && lifted(b.def));
+        const due = fogBanks.filter((b) => !b.shown && b.puffs.length > 0 && lifted(b.def));
         if (due.length && !artReady) artReady = artLoaded();
         revealWait = due.length && artReady ? revealWait - dt : 0.8;
         if (due.length && revealWait <= 0) {

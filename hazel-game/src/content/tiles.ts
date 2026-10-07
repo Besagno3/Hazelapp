@@ -114,6 +114,16 @@ export const OVERWORLD_SHEET = '/tiles/overworld.png';
 export const OVERWORLD_KEY = 't_overworld';
 
 /**
+ * Fog puffs (#75 item 7): `/tiles/fog-puffs.png`, three soft cloud shapes,
+ * 48×48 each. A fog bank is drawn as many of them overlapping and drifting
+ * around each other (`lib/fog.ts`), so its edges are round and wispy.
+ */
+export const FOG_PUFF_SHEET = '/tiles/fog-puffs.png';
+export const FOG_PUFF_KEY = 't_fogpuffs';
+export const FOG_PUFF_FRAMES = 3;
+export const FOG_PUFF_SIZE = 48;
+
+/**
  * Edge blending (#75, #71b): `/tiles/<zoneId>-blend.png`, 32×32 frames, 16 per
  * row. The renderer draws a tile centred on every corner where different
  * terrain meets, so coasts, beaches and roads come out rounded instead of

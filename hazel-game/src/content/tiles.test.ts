@@ -20,7 +20,7 @@ import {
   SPIRE_PROPS_FRAMES,
   SPIRE_PROPS_SHEET,
   groundVariant,
-  tilesetSheet, OVERWORLD_FRAME, OVERWORLD_FRAMES, OVERWORLD_SHEET,
+  tilesetSheet, OVERWORLD_FRAME, OVERWORLD_FRAMES, OVERWORLD_SHEET, FOG_PUFF_FRAMES, FOG_PUFF_SHEET, FOG_PUFF_SIZE,
   BLEND_COLS, BLEND_ROWS, BLEND_FRAMES, BLEND_CLASS, BLEND_WATER_STEP, blendPairFrame, blendShapeFrame, blendSheet } from './tiles';
 
 const pub = (p: string) => join(process.cwd(), 'public', p);
@@ -55,6 +55,8 @@ describe('16-bit tilesets', () => {
   });
   it('the overworld sheet has one 32px frame per OVERWORLD_FRAME entry (#75)', () => {
     expect(pngSize(OVERWORLD_SHEET)).toEqual({ w: OVERWORLD_FRAMES * 32, h: 32 });
+    // The fog banks' puffs (#75 item 7): one strip of soft cloud shapes.
+    expect(pngSize(FOG_PUFF_SHEET)).toEqual({ w: FOG_PUFF_FRAMES * FOG_PUFF_SIZE, h: FOG_PUFF_SIZE });
     const icons = Object.values(OVERWORLD_FRAME.icon);
     expect(Math.max(...icons)).toBe(OVERWORLD_FRAMES - 1);
   });
