@@ -103,6 +103,10 @@ existing architecture.
   is ONE object that draws only the cells in view each frame, from frames
   worked out once per zone by `lib/terrain.ts` — never add one KaPlay object
   per tile (big maps would crawl; #75). Roofs are one object per building.
+  Coasts, beaches and roads are rounded by **edge blending** (`blendLayer`,
+  `lib/terrain.ts`): a tile centred on every corner where terrain classes meet
+  (water < sand < ground < path), from a per-zone `/tiles/<zone>-blend.png`;
+  buildings and Spire floors never blend.
   Moving between edge-joined screens slides; entering or leaving a place on
   the overworld fades (`transitionFor`, `lib/transition.ts`). Overlays:
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
@@ -207,6 +211,49 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-07 — Edge-blending review fixes: no vanishing roads, sheets on demand (#71b)
+`/saas-code-review` + `/saas-ux-review` of the edge blending; all 3 findings fixed:
+- **Roads vanished until the blend sheet loaded (medium):** cells whose four
+  corners blend skip their base tile — but before the zone's blend sheet
+  arrived nothing covered them, so a one-tile road (all such cells) showed as
+  bare ground for seconds on a slow first load. `WorldCanvas` now waits for
+  `getSprite(blendKey).loaded` before skipping or drawing corner tiles: square
+  edges first, rounded once the sheet lands.
+- **Sheets on demand (low):** blend sheets load per zone as it's built — its
+  own plus its neighbours' (`blendSheetsFor` / `ensureBlendSheets`,
+  `worldSprites.ts`) — instead of all 13 (~265 KB) on first entry.
+- **`blendPairFrame` throws on a wrong pair (low)** instead of silently
+  returning another pair's tile.
+- Verified in headless Chromium with the blend sheets delayed: the road shows
+  (square) before they arrive and rounded after; Dawnreach fetches 9 sheets,
+  the Village 2; every zone screen unchanged; the Phase 1 walk-through passes.
+- 397 tests green (+2); lint + build clean.
+
+### 2026-10-06 — Rounded coasts, beaches and roads: edge blending (#75 item 3, #71b)
+Water, beaches and roads no longer meet in hard squares — the last part of
+roadmap item 3 ("no square-edged water") and ISSUES #71b.
+- **How:** a "dual grid". Each cell has a blend class — water < sand < ground
+  < path (`blendClass`); buildings have none and keep square walls. Wherever
+  classes meet at a tile corner, the renderer draws a 32px tile centred on
+  that corner (`blendLayer`, `lib/terrain.ts`, worked out once per zone; drawn
+  between the base tiles and the overlays). Two-class corners (almost all)
+  draw ONE ready-made opaque pair tile; three- or four-class corners add the
+  higher classes' rounded shapes on top. Shapes get a foam line on water and
+  a darker rim on land. Cells whose four corners all blend skip their (hidden)
+  base tile.
+- **Art:** `tools/assets/tiles.py` `blend_sheet` writes
+  `/tiles/<zone>-blend.png` per zone (180 frames, 16×12) from each zone's own
+  textures (smoothstep-rounded shapes); `python3 tools/assets/build.py blend`
+  writes only these — no existing file changed. Spire floors don't blend
+  (their `~` are pits).
+- **Checked (headless Chromium):** all 46 zone screens + Spire floors
+  reviewed before/after; Spire floors pixel-identical. Frame rate (software GL,
+  same machine, alternating runs): stress map unchanged (59.7 / 31.3 fps vs
+  59.4 / 30.2); walking Dawnreach ~5% lower unthrottled and ~12% lower at 4×
+  CPU throttle (pair tiles + the hidden-cell skip halved the first version's
+  cost). The Phase 1 walk-through still passes.
+- 395 tests green (+9); lint + build clean.
 
 ### 2026-10-06 — Phase 1 review fixes: map, toasts, arrival lock (#75)
 `/saas-code-review` (2 findings) and `/saas-ux-review` (6 findings) of Phase 1;

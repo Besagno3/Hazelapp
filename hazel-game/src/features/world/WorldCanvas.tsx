@@ -23,7 +23,7 @@ import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
-import { loadWorldSprites, worldFace } from './worldSprites';
+import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis, worldView } from '../../lib/camera';
@@ -38,14 +38,26 @@ import {
   SPIRE_KEY,
   SPIRE_PROPS_KEY,
   SPIRE_PROP_FRAME,
+  TILE_FRAME,
   TOWN_FRAME,
   WATER_FPS,
+  blendKey,
   namedTilesetKey,
   roofFrame,
   tilesetKey,
   townKey,
 } from '../../content/tiles';
-import { NO_OVERLAY, WATER, terrainLayers, visibleRange, waterFrame } from '../../lib/terrain';
+import {
+  BLEND_OPS_PER_CORNER,
+  NO_BLEND,
+  NO_OVERLAY,
+  WATER,
+  blendLayer,
+  blendsEdges,
+  terrainLayers,
+  visibleRange,
+  waterFrame,
+} from '../../lib/terrain';
 import {
   npcWanders,
   pickWanderDir,
@@ -339,6 +351,15 @@ export default function WorldCanvas({
     // from the clock.
     const tiles = z.tileset ? namedTilesetKey(z.tileset) : tilesetKey(zoneId);
     const layers = terrainLayers(z);
+    // Rounded coasts / beaches / road edges (#71b): tiles on the corners where
+    // terrain meets, drawn between the base tiles and the overlays.
+    const blend = blendsEdges(z) ? blendLayer(z) : null;
+    const blendSprite = blendKey(zoneId);
+    if (blend) ensureBlendSheets(k, z);
+    // Until this zone's blend sheet has loaded, draw plain square edges: the
+    // corner tiles would be skipped, and the cells they cover (a one-tile road
+    // is all such cells) would vanish.
+    let blendReady = false;
     const sheetKeys = layers.sheets.map((s) => (s === 'zone' ? tiles : s === 'overworld' ? OVERWORLD_KEY : townKey(s)));
     const builtAt = k.time();
     // The camera's view in world pixels — larger than the canvas if it's ever
@@ -354,14 +375,30 @@ export default function WorldCanvas({
           const v = view();
           const r = visibleRange(cam.x, cam.y, v.w, v.h, cols, rows, TILE);
           const water = waterFrame(k.time() - builtAt, WATER_FPS);
+          if (blend && !blendReady) blendReady = k.getSprite(blendSprite)?.loaded === true;
           // Base tiles, one sheet at a time so same-texture quads batch.
           for (let s = 0; s < sheetKeys.length; s++) {
             for (let y = r.y0; y < r.y1; y++) {
               for (let x = r.x0; x < r.x1; x++) {
                 const i = y * cols + x;
-                if (layers.baseSheet[i] !== s) continue;
+                if (layers.baseSheet[i] !== s || (blendReady && blend?.hidden[i])) continue;
                 const f = layers.baseFrame[i];
                 k.drawSprite({ sprite: sheetKeys[s], frame: f === WATER ? water : f, pos: k.vec2(x * TILE, y * TILE) });
+              }
+            }
+          }
+          // Edge blending: one tile centred on each corner where terrain meets.
+          if (blend && blendReady) {
+            const secondWater = water !== TILE_FRAME.water[0];
+            for (let vy = r.y0; vy <= r.y1; vy++) {
+              for (let vx = r.x0; vx <= r.x1; vx++) {
+                const o = (vy * blend.vcols + vx) * BLEND_OPS_PER_CORNER;
+                if (blend.ops[o] === NO_BLEND) continue;
+                const pos = k.vec2(vx * TILE - TILE / 2, vy * TILE - TILE / 2);
+                for (let j = o; j < o + BLEND_OPS_PER_CORNER && blend.ops[j] !== NO_BLEND; j++) {
+                  const frame = blend.ops[j] + (secondWater ? blend.waterStep[j] : 0);
+                  k.drawSprite({ sprite: blendSprite, frame, pos });
+                }
               }
             }
           }

@@ -1,8 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, type ZoneDef } from '../content/zones';
 import { SPIRE_THEMES, floorZone } from '../content/spire';
-import { OVERWORLD_FRAME, OVERWORLD_FRAMES, TILESET_FRAMES, TILE_FRAME, TOWN_FRAME, TOWN_FRAMES, groundVariant } from '../content/tiles';
-import { NO_OVERLAY, WATER, baseTile, overlayTile, terrainLayers, visibleRange, waterFrame } from './terrain';
+import {
+  BLEND_CLASS,
+  BLEND_FRAMES,
+  BLEND_WATER_STEP,
+  OVERWORLD_FRAME,
+  OVERWORLD_FRAMES,
+  TILESET_FRAMES,
+  TILE_FRAME,
+  TOWN_FRAME,
+  TOWN_FRAMES,
+  blendPairFrame,
+  blendShapeFrame,
+  groundVariant,
+} from '../content/tiles';
+import {
+  BLEND_OPS_PER_CORNER,
+  NO_BLEND,
+  NO_OVERLAY,
+  WATER,
+  baseTile,
+  blendClass,
+  blendLayer,
+  blendsEdges,
+  overlayTile,
+  terrainLayers,
+  visibleRange,
+  waterFrame,
+} from './terrain';
 
 const ALL_MAPS: [string, ZoneDef][] = [
   ...ZONE_IDS.map((id): [string, ZoneDef] => [id, ZONES[id]]),
@@ -153,5 +179,100 @@ describe('waterFrame', () => {
     expect(waterFrame(0.5, 2)).toBe(TILE_FRAME.water[1]);
     expect(waterFrame(1.0, 2)).toBe(TILE_FRAME.water[0]);
     expect(waterFrame(-3, 2)).toBe(TILE_FRAME.water[0]);
+  });
+});
+
+describe('edge blending (#75, #71b)', () => {
+  /** A synthetic map on a real zone (only `map` matters here). */
+  const mapZone = (map: string[]): ZoneDef => ({ ...ZONES['lumina-field'], map, buildings: [] });
+  /** The tiles at corner (vx, vy): [frame, water step] pairs, empty slots dropped. */
+  const corner = (z: ZoneDef, vx: number, vy: number) => {
+    const L = blendLayer(z);
+    const o = (vy * L.vcols + vx) * BLEND_OPS_PER_CORNER;
+    const out: [number, number][] = [];
+    for (let j = o; j < o + BLEND_OPS_PER_CORNER && L.ops[j] !== NO_BLEND; j++) out.push([L.ops[j], L.waterStep[j]]);
+    return out;
+  };
+  const { water, sand, ground, path } = BLEND_CLASS;
+
+  it('classes stack water < sand < ground < path; buildings never blend', () => {
+    expect(blendClass('~')).toBe(water);
+    expect(blendClass(':')).toBe(sand);
+    for (const ch of '.,#HSCGP^') expect(blendClass(ch), ch).toBe(ground);
+    for (const ch of '=E') expect(blendClass(ch), ch).toBe(path);
+    for (const ch of 'WDFKBTZ') expect(blendClass(ch), ch).toBeNull();
+  });
+
+  it('a pond corner is ONE ready-made tile — water with grass on 3 cells — that follows the water animation', () => {
+    const z = mapZone(['..', '.~']);
+    expect(corner(z, 1, 1)).toEqual([[blendPairFrame(water, ground, 1 | 2 | 4), BLEND_WATER_STEP]]);
+  });
+
+  it('a road meeting grass is one tile too, and it never animates', () => {
+    const z = mapZone(['.=', '==']);
+    expect(corner(z, 1, 1)).toEqual([[blendPairFrame(ground, path, 2 | 4 | 8), 0]]);
+  });
+
+  it('a corner with every class: the water|sand pair, then the grass and road shapes on top', () => {
+    const z = mapZone(['~:', '.=']);
+    expect(corner(z, 1, 1)).toEqual([
+      [blendPairFrame(water, sand, 2 | 4 | 8), BLEND_WATER_STEP],
+      [blendShapeFrame(ground, 4 | 8), 0],
+      [blendShapeFrame(path, 8), 0],
+    ]);
+  });
+
+  it('a cell whose four corners all blend is hidden (its base tile is skipped); others are not', () => {
+    // A one-cell beach between sea and grass: every corner of the sand cell mixes classes.
+    const z = mapZone(['~~~', '~:.', '~~~']);
+    const L = blendLayer(z);
+    expect(L.hidden[1 * 3 + 1]).toBe(1); // the sand cell
+    expect(L.hidden[0]).toBe(0); // open sea at the map corner
+    const g = blendLayer(mapZone(['...', '...', '...']));
+    expect([...g.hidden].every((h) => h === 0)).toBe(true);
+  });
+
+  it('nothing is drawn where all four cells match, next to a building, or past the map edge', () => {
+    const z = mapZone(['..W', '.~.', '...']);
+    expect(corner(z, 0, 0)).toEqual([]); // all grass (cells past the edge repeat the edge)
+    expect(corner(z, 2, 1)).toEqual([]); // touches the wall
+    expect(corner(z, 1, 1)).not.toEqual([]); // the pond's top-left corner blends
+    expect(corner(z, 3, 3)).toEqual([]); // bottom-right map corner: all grass
+  });
+
+  it('frames: every pair and shape has its own slot inside the sheet, and water pairs leave room for their second frame', () => {
+    const seen = new Set<number>();
+    const add = (f: number) => {
+      expect(f >= 0 && f < BLEND_FRAMES, String(f)).toBe(true);
+      expect(seen.has(f), String(f)).toBe(false);
+      seen.add(f);
+    };
+    for (let m = 1; m <= 15; m++) {
+      for (const cls of [sand, ground, path] as const) {
+        add(blendShapeFrame(cls, m));
+        add(blendPairFrame(water, cls, m));
+        add(blendPairFrame(water, cls, m) + BLEND_WATER_STEP);
+      }
+      add(blendPairFrame(sand, ground, m));
+      add(blendPairFrame(sand, path, m));
+      add(blendPairFrame(ground, path, m));
+    }
+    expect(seen.size).toBe(BLEND_FRAMES);
+  });
+
+  it('every zone yields valid frames, and its coasts and roads really blend; Spire floors (pits) never do', () => {
+    for (const id of ZONE_IDS) {
+      const z = ZONES[id];
+      expect(blendsEdges(z), id).toBe(true);
+      const L = blendLayer(z);
+      expect(L.vcols, id).toBe(z.map[0].length + 1);
+      expect(L.vrows, id).toBe(z.map.length + 1);
+      L.ops.forEach((f, j) => {
+        if (f === NO_BLEND) return;
+        expect(f >= 0 && f + L.waterStep[j] < BLEND_FRAMES, id).toBe(true);
+      });
+    }
+    expect(blendLayer(ZONES.dawnreach).waterStep.some((s) => s > 0)).toBe(true);
+    for (const t of SPIRE_THEMES) expect(blendsEdges(floorZone(t)), t).toBe(false);
   });
 });

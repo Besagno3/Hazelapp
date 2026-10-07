@@ -893,6 +893,118 @@ def overworld_sheet():
     return [ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
 
 
+# ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
+#
+# A "dual grid": the renderer draws a 32px tile centred on every tile corner
+# where different terrain meets, so coastlines and road edges come out rounded
+# instead of square. Terrain classes stack low → high: water, sand, ground,
+# path. A class's shape at a corner is a 4-bit mask of which of the 4 cells
+# around it reach that class (top-left 1, top-right 2, bottom-left 4,
+# bottom-right 8). Shapes get a foam line where they sit on water and a darker
+# rim on land. Textures are the zone's own, shifted half a tile so they line up
+# with the cells around them.
+#
+# Most corners hold just two classes, so each pair comes ready-made as one
+# opaque tile (one draw). The rare corner with three or four classes draws its
+# lowest pair, then the higher shapes on top — those always sit on land (water
+# is always the lowest class), so single shapes only need the rim.
+#
+# Sheet layout (32×32 frames, 16 per row; mask m indexes as m-1) — keep in sync
+# with src/content/tiles.ts:
+#   0–44     shapes (rim): sand, ground, path × 15 masks
+#   45–134   water pairs: upper sand, ground, path × water frame 0, 1 × 15 masks
+#   135–179  land pairs: sand|ground, sand|path, ground|path × 15 masks
+
+BLEND_CLASSES = ('water', 'sand', 'ground', 'path')
+BLEND_LAND_PAIRS = ((1, 2), (1, 3), (2, 3))
+BLEND_COLS = 16
+BLEND_ROWS = 12
+FOAM = (236, 246, 255)
+
+
+def _half_shift(c: Canvas) -> np.ndarray:
+    """The tile's texture moved half a tile, so a corner tile matches its cells."""
+    return np.roll(np.roll(c.a.copy(), T // 2, axis=0), T // 2, axis=1)
+
+
+def blend_mask_field(mask: int):
+    """Per pixel: inside the shape?, and signed distance to its edge (px, + inside)."""
+    tl, tr, bl, br = (mask >> 0) & 1, (mask >> 1) & 1, (mask >> 2) & 1, (mask >> 3) & 1
+    c = (np.arange(T) + 0.5) / T
+    x, y = np.meshgrid(c, c)  # across, down
+    # Smoothstep before blending the corners: plain bilinear contours are
+    # nearly straight diagonals (octagonal coasts); this rounds them.
+    u, v = x * x * (3 - 2 * x), y * y * (3 - 2 * y)
+    du, dv = 6 * x * (1 - x), 6 * y * (1 - y)
+    f = tl * (1 - u) * (1 - v) + tr * u * (1 - v) + bl * (1 - u) * v + br * u * v
+    fu = ((1 - v) * (tr - tl) + v * (br - bl)) * du
+    fv = ((1 - u) * (bl - tl) + u * (br - tr)) * dv
+    grad = np.maximum(np.hypot(fu, fv), 1e-6)
+    dist = (f - 0.5) / grad * T  # in logical pixels
+    return f > 0.5, dist
+
+
+def blend_shape(tex: np.ndarray, mask: int, foam: bool) -> Canvas:
+    """One class's shape: its texture inside, a rim or a foam line at the edge."""
+    inside, dist = blend_mask_field(mask)
+    c = _c()
+    a = c.a
+    a[:] = 0
+    a[inside] = tex[inside]
+    edge = inside & (dist < 1.0)
+    if foam:
+        # Wet edge inside, a bright foam line just outside (over the water).
+        for y, x in zip(*np.nonzero(edge)):
+            a[y, x, :3] = dark(tuple(int(v) for v in tex[y, x, :3]), 0.1)
+        line = ~inside & (dist > -1.25)
+        a[line] = (*FOAM, 230)
+        halo = ~inside & (dist <= -1.25) & (dist > -2.25)
+        a[halo] = (*FOAM, 90)
+    else:
+        for y, x in zip(*np.nonzero(edge)):
+            a[y, x, :3] = dark(tuple(int(v) for v in tex[y, x, :3]), 0.16)
+    return c
+
+
+def blend_pair(lower: np.ndarray, upper: np.ndarray, mask: int, on_water: bool) -> Canvas:
+    """A ready-made opaque corner: the lower class everywhere, the upper's shape on top."""
+    top = blend_shape(upper, mask, on_water).a.astype(np.float32)
+    alpha = top[:, :, 3:4] / 255.0
+    c = _c()
+    c.a[:, :, :3] = np.round(top[:, :, :3] * alpha + lower[:, :, :3] * (1 - alpha)).astype(np.uint8)
+    c.a[:, :, 3] = 255  # opaque: it fully replaces the square corners beneath
+    return c
+
+
+def blend_sheet(z: dict, i: int) -> Image.Image:
+    """The edge-blend sheet for one zone (see the layout above)."""
+    tex = {
+        1: _half_shift(ow_sand()),
+        2: _half_shift(ground(z['ground'], 1 + i * 10)),
+        3: _half_shift(path_tile(z['path'])),
+    }
+    waters = [_half_shift(water(z['water'], f)) for f in (0, 1)]
+    frames: list[Canvas] = []
+    for cls in (1, 2, 3):
+        frames += [blend_shape(tex[cls], m, False) for m in range(1, 16)]
+    for cls in (1, 2, 3):
+        for w in waters:
+            frames += [blend_pair(w, tex[cls], m, True) for m in range(1, 16)]
+    for lo, hi in BLEND_LAND_PAIRS:
+        frames += [blend_pair(tex[lo], tex[hi], m, False) for m in range(1, 16)]
+    sheet = Image.new('RGBA', (BLEND_COLS * T * 2, BLEND_ROWS * T * 2), (0, 0, 0, 0))
+    for n, fr in enumerate(frames):
+        sheet.paste(upscale(fr.image(), 2), ((n % BLEND_COLS) * T * 2, (n // BLEND_COLS) * T * 2))
+    return sheet
+
+
+def build_blend(public: Path):
+    """Write only the edge-blend sheets (#75 / #71b) — every other file untouched."""
+    tdir = public / 'tiles'
+    for i, (zid, z) in enumerate(ZONES.items()):
+        blend_sheet(z, i).save(tdir / f'{zid}-blend.png', optimize=True)
+
+
 # ─── Build ───────────────────────────────────────────────────────────────────
 
 
@@ -922,6 +1034,7 @@ def build(public: Path) -> list[str]:
     bdir.mkdir(parents=True, exist_ok=True)
     for i, (zid, z) in enumerate(ZONES.items()):
         _write_zone(tdir, bdir, i, zid, z)
+        blend_sheet(z, i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in props()]).save(tdir / 'props.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
     for i, (theme, (g, pc, pit, pitc, solid_kind, deco_kind)) in enumerate(SPIRE_THEMES.items()):
