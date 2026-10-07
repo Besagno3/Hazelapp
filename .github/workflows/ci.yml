@@ -1,0 +1,46 @@
+# Lint, test and build the game on every PR and every push to main.
+# The job's check is named `test` — require it in the main-branch ruleset
+# (Settings → Rules → Rulesets → Require status checks, source: GitHub Actions).
+#
+# No `paths:` filter on purpose: a required check that skips some PRs would
+# leave them stuck on "waiting for status".
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One run per branch/PR; a new push cancels the outdated run.
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: hazel-game
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          # Vite 8 needs Node ^20.19 || >=22.12.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: hazel-game/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm test
+      # tsc -b (app + bench type-check) then vite build.
+      - run: npm run build

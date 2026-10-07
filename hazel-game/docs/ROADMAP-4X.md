@@ -229,8 +229,9 @@ the game gets deeper, not just wider.
 
 ## 5. Ops & risks
 
-- **No CI:** every wave merges only after local `npm run lint && npm test
-  && npm run build` — keep the 218-test bar green.
+- **CI (since 2026-10-06):** `.github/workflows/ci.yml` runs lint + tests +
+  build on every PR and push to `main` (check name `test`); still run the same
+  locally before pushing.
 - **Supabase prod drift is the #1 live risk** (see ISSUES #61): every wave
   that adds a migration or topic must include applying it to prod +
   redeploying `generate-questions` (CLI/dashboard, not the SQL editor).
