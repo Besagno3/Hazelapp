@@ -9,6 +9,9 @@ import {
   buildingAt,
   buildingInside,
   fogAt,
+  fogLifted,
+  fogSeenFlag,
+  chestTopicAt,
   pathTargetId,
   gateFlag,
   gateIdAt,
@@ -27,11 +30,13 @@ import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis, worldView } from '../../lib/camera';
+import { FOG_OVERHANG, fogPuffs, placesInside, puffAt, revealOpacity, type FogPuff } from '../../lib/fog';
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
 import { FADE_MS, SLIDE_MS, exitSide, needsArrivalLock, slideFrom, transitionFor, type ExitSide } from '../../lib/transition';
 import {
   OVERWORLD_FRAME,
   OVERWORLD_KEY,
+  FOG_PUFF_KEY,
   PROPS_KEY,
   PROP_FRAME,
   ROOF_KEY,
@@ -120,6 +125,10 @@ export interface WorldCanvasCallbacks {
   onSecret?: (id: string) => void;
   /** Bumped a bank of the fog of Forgetting (#75) — show why it won't let you pass. */
   onFog?: (hint: string) => void;
+  /** A lifted fog bank starts clearing on screen (#75 item 7): say what it uncovered. */
+  onFogLift?: (fog: FogDef) => void;
+  /** …and has been watched clearing: remember that, so it plays once. */
+  onFogRevealed?: (id: string) => void;
 }
 
 /**
@@ -268,8 +277,12 @@ export default function WorldCanvas({
   // whenever the browser window has focus — no need to click the canvas first
   // (KaPlay binds keys to the canvas element, which we run with focus:false).
   const keysRef = useRef<Set<string>>(new Set());
+  // Fresh presses — any key (not auto-repeats), click or tap, the d-pad
+  // included: a fog reveal skips on one.
+  const pressesRef = useRef(0);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      if (!e.repeat) pressesRef.current += 1;
       const key = e.key.toLowerCase();
       if (!MOVE_KEYS.has(key)) return;
       e.preventDefault(); // stop arrow keys from scrolling the page
@@ -278,14 +291,19 @@ export default function WorldCanvas({
     const up = (e: KeyboardEvent) => {
       keysRef.current.delete(e.key.toLowerCase());
     };
+    const point = () => {
+      pressesRef.current += 1;
+    };
     // Releasing focus (alt-tab, devtools) could otherwise leave a key "stuck".
     const clear = () => keysRef.current.clear();
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('pointerdown', point);
     window.addEventListener('blur', clear);
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('pointerdown', point);
       window.removeEventListener('blur', clear);
     };
   }, []);
@@ -488,21 +506,39 @@ export default function WorldCanvas({
 
     // --- Overworld places (#75 Phase 1): an icon + name on each 'P' tile ------
     // Walking onto one is a zone exit (see `exits`); this just draws it.
+    // Each place's pieces (and how opaque each is normally) are kept, so a
+    // place inside a fog bank can hide behind it and fade in as it lifts.
+    type Faded = { opacity: number };
+    const placeParts = new Map<string, { obj: Faded; opacity: number }[]>();
     for (const p of z.places ?? []) {
       const cx = p.x * TILE + TILE / 2;
       const cy = p.y * TILE + TILE / 2;
+      const parts: { obj: Faded; opacity: number }[] = [];
       if (p.icon === 'tower') {
         // The Spire is the landmark: the tall tower sprite, base on its tile.
-        k.add([k.sprite(SPIRE_KEY), k.pos(cx, cy - 16), k.anchor('center'), k.z(7)]);
+        // Drawn under fog (z 8): hidden in its ring of clouds until they lift.
+        const tower = k.add([k.sprite(SPIRE_KEY), k.pos(cx, cy - 16), k.anchor('center'), k.opacity(1), k.z(7)]);
+        parts.push({ obj: tower as unknown as Faded, opacity: 1 });
       } else {
-        k.add([k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.icon[p.icon] }), k.pos(cx, cy), k.anchor('center'), k.z(-10)]);
+        const icon = k.add([
+          k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.icon[p.icon] }),
+          k.pos(cx, cy),
+          k.anchor('center'),
+          k.opacity(1),
+          k.z(-10),
+        ]);
+        parts.push({ obj: icon as unknown as Faded, opacity: 1 });
       }
       // Same size as building names (they name somewhere you can go in, too).
-      const name = k.add([k.text(p.name, { size: 11 }), k.pos(cx, cy + 24), k.anchor('center'), k.color(255, 252, 235), k.z(13)]) as unknown as {
-        width?: number;
-        height?: number;
-      };
-      k.add([
+      const name = k.add([
+        k.text(p.name, { size: 11 }),
+        k.pos(cx, cy + 24),
+        k.anchor('center'),
+        k.color(255, 252, 235),
+        k.opacity(1),
+        k.z(13),
+      ]) as unknown as Faded & { width?: number; height?: number };
+      const plate = k.add([
         k.rect((name.width ?? p.name.length * 7) + 8, (name.height ?? 12) + 4, { radius: 3 }),
         k.pos(cx, cy + 24),
         k.anchor('center'),
@@ -510,28 +546,99 @@ export default function WorldCanvas({
         k.opacity(0.55),
         k.z(12),
       ]);
+      parts.push({ obj: name, opacity: 1 }, { obj: plate as unknown as Faded, opacity: 0.55 });
+      placeParts.set(`${p.x},${p.y}`, parts);
     }
 
     // --- Fog of Forgetting (#75): drifting banks that lift for good ---------
-    type Fader2 = { opacity: number; destroy: () => void; play: (n: string) => void };
-    const fogBanks: { def: FogDef; parts: Fader2[]; lifting: boolean }[] = [];
-    const fogLifted = (f: FogDef) => f.liftedBy.some((flag) => flagsRef.current[flag]);
+    // Each bank is a cluster of soft puffs that overlap past its edge (round,
+    // wispy outline) and drift around each other (`lib/fog.ts`); collision is
+    // still the bank's rectangle (`fogAt`). A bank stays on screen until its
+    // lifting has been shown (item 7): one that lifted while you were away
+    // clears in front of you when you arrive.
+    const reducedMotion =
+      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    type PuffObj = {
+      pos: { x: number; y: number };
+      scale: { x: number; y: number };
+      opacity: number;
+      hidden: boolean;
+      destroy: () => void;
+    };
+    type Bank = {
+      def: FogDef;
+      puffs: { p: FogPuff; obj: PuffObj }[];
+      centre: { x: number; y: number };
+      /** 0 → 1 while it lifts on screen. */
+      lift: number;
+      shown: boolean;
+      /** Off screen: its puffs are hidden and not moved (they're many). */
+      offscreen: boolean;
+      /** Places inside the bank (the Spire in its ring): hidden until it lifts. */
+      hides: { obj: Faded; opacity: number }[];
+    };
+    const fogBanks: Bank[] = [];
+    const lifted = (f: FogDef) => fogLifted(f, flagsRef.current);
     for (const f of z.fogs ?? []) {
-      if (fogLifted(f)) continue;
-      const parts: Fader2[] = [];
-      for (let fy = f.y; fy < f.y + f.h; fy++) {
-        for (let fx = f.x; fx < f.x + f.w; fx++) {
-          const puff = k.add([
-            k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.fog[(fx + fy) % 2] }),
-            k.pos(fx * TILE, fy * TILE),
-            k.opacity(0.94),
-            k.z(8),
-          ]) as unknown as Fader2;
-          puff.play('drift');
-          parts.push(puff);
+      if (lifted(f) && flagsRef.current[fogSeenFlag(f.id)]) continue;
+      const puffs = fogPuffs(f).map((p) => ({
+        p,
+        obj: k.add([
+          k.sprite(FOG_PUFF_KEY, { frame: p.frame }),
+          k.pos(p.x, p.y),
+          k.anchor('center'),
+          k.scale(p.scale),
+          k.opacity(p.opacity),
+          k.z(8),
+        ]) as unknown as PuffObj,
+      }));
+      fogBanks.push({
+        def: f,
+        puffs,
+        centre: { x: (f.x + f.w / 2) * TILE, y: (f.y + f.h / 2) * TILE },
+        lift: 0,
+        shown: false,
+        offscreen: false,
+        hides: placesInside(f, z.places ?? []).flatMap((p) => placeParts.get(`${p.x},${p.y}`) ?? []),
+      });
+      // Hidden from the first frame (the drift updater keeps it that way).
+      for (const h of fogBanks[fogBanks.length - 1].hides) h.obj.opacity = 0;
+    }
+    if (fogBanks.length) {
+      // One updater drifts every puff (an object, so it goes with the scene).
+      // It runs while the world is paused too: fog keeps drifting behind a menu.
+      k.add([k.pos(0, 0)]).onUpdate(() => {
+        const t = k.time();
+        const cam = k.getCamPos();
+        const v = view();
+        for (const bank of fogBanks) {
+          // A place hidden in the bank fades in only as the clouds clear.
+          const seen = bank.puffs.length === 0 ? 1 : revealOpacity(bank.lift);
+          for (const h of bank.hides) h.obj.opacity = h.opacity * seen;
+          // Skip a bank that's off screen (with room for its drifting puffs,
+          // and a tile more since the camera may move after this runs).
+          const f = bank.def;
+          const m = FOG_OVERHANG + TILE;
+          const off =
+            (f.x + f.w) * TILE + m < cam.x - v.w / 2 ||
+            f.x * TILE - m > cam.x + v.w / 2 ||
+            (f.y + f.h) * TILE + m < cam.y - v.h / 2 ||
+            f.y * TILE - m > cam.y + v.h / 2;
+          if (off !== bank.offscreen) {
+            bank.offscreen = off;
+            for (const { obj } of bank.puffs) obj.hidden = off;
+          }
+          if (off) continue;
+          for (const { p, obj } of bank.puffs) {
+            const at = puffAt(p, t, bank.lift, bank.centre, reducedMotion);
+            obj.pos.x = at.x;
+            obj.pos.y = at.y;
+            obj.scale.x = at.scale;
+            obj.scale.y = at.scale;
+            obj.opacity = at.opacity;
+          }
         }
-      }
-      fogBanks.push({ def: f, parts, lifting: false });
+      });
     }
 
     // --- Buildings (#72): signs + roofs ---------------------------------
@@ -611,6 +718,8 @@ export default function WorldCanvas({
     // Set true once a battle/exit fires; freezes all ambient motion too.
     // Declared here (not by the main loop) so wander controllers can read it.
     let triggered = false;
+    // A fog bank is clearing on screen (#75 item 7): the world holds still.
+    let cinematic = false;
 
     // --- Ambient life: wandering actors + idle speech bubbles --------------
     // Contact/collision reads each actor's live x/y every frame (see the main
@@ -645,7 +754,7 @@ export default function WorldCanvas({
       };
       animate(false);
       anchor.onUpdate(() => {
-        if (pausedRef.current || triggered) return;
+        if (pausedRef.current || triggered || cinematic) return;
         const dt = k.dt();
         timer -= dt;
         if (timer <= 0) {
@@ -906,7 +1015,7 @@ export default function WorldCanvas({
     // --- Player ------------------------------------------------------------
     // A saved position that no longer fits the map (e.g. a save from before a
     // zone was redrawn) falls back to the zone spawn instead of a wall.
-    const spawn = safeSpawn(z, startPos);
+    const spawn = safeSpawn(z, startPos, flagsRef.current);
     const followCam = (x: number, y: number) => {
       const v = view();
       k.setCamPos(camAxis(x, W, v.w), camAxis(y, H, v.h));
@@ -981,6 +1090,130 @@ export default function WorldCanvas({
 
     const hitAt = (px: number, py: number) => hitBox(px, py, HALF);
 
+    // --- Fog reveal (#75 item 7) ------------------------------------------
+    // A bank that has lifted but not been watched clearing gets a moment of
+    // its own: the hero holds still, the camera glides to the fog, the fog
+    // peels away (with a line saying what it uncovered), and the camera
+    // glides back. Several banks play one after another. Reduced motion cuts
+    // the camera instead of gliding.
+    const PAN_S = reducedMotion ? 0 : 1.1;
+    const LIFT_S = 1.6;
+    // A bank hiding a place (the Spire) clears slowly, so it emerges gradually.
+    const LIFT_HIDING_S = 3.2;
+    const HOLD_S = 0.7;
+    // A beat after arriving before the camera moves, so you see where you are first.
+    let revealWait = 0.8;
+    // …and never before the map and the fog are drawn: on a slow first load the
+    // camera would otherwise glide over blank ground to fog that isn't there.
+    let artReady = false;
+    const artLoaded = () => [tiles, OVERWORLD_KEY, FOG_PUFF_KEY].every((key) => k.getSprite(key)?.loaded === true);
+    type Reveal = {
+      banks: (typeof fogBanks)[number][];
+      i: number;
+      phase: 'to' | 'lift' | 'hold' | 'back';
+      t: number;
+      from: { x: number; y: number };
+      to: { x: number; y: number };
+      /** Presses so far when it started: a newer one skips it. */
+      presses: number;
+      /** "Tap or press a key to skip", pinned to the screen while it plays. */
+      hint: { destroy: () => void }[];
+    };
+    let reveal: Reveal | null = null;
+    const camFor = (x: number, y: number) => {
+      const v = view();
+      return { x: camAxis(x, W, v.w), y: camAxis(y, H, v.h) };
+    };
+    const camNow = () => {
+      const c = k.getCamPos();
+      return { x: c.x, y: c.y };
+    };
+    const bankCam = (f: FogDef) => camFor((f.x + f.w / 2) * TILE, (f.y + f.h / 2) * TILE);
+    const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+    /**
+     * Skip the rest of a reveal: every bank left clears at once (the one in
+     * view still says what it uncovered, if it hadn't yet) and is remembered
+     * as seen, and the camera cuts back to the hero.
+     */
+    function skipReveal(r: Reveal) {
+      for (let i = r.i; i < r.banks.length; i++) {
+        const bank = r.banks[i];
+        if (bank.shown) continue;
+        if (i === r.i && r.phase === 'to') cbRef.current.onFogLift?.(bank.def);
+        for (const { obj } of bank.puffs) obj.destroy();
+        bank.puffs = [];
+        bank.lift = 1;
+        bank.shown = true;
+        cbRef.current.onFogRevealed?.(bank.def.id);
+      }
+      const home = camFor(player.pos.x, player.pos.y);
+      k.setCamPos(home.x, home.y);
+    }
+    /** The skip hint: a small pill at the top of the screen. */
+    function skipHint(): { destroy: () => void }[] {
+      const label = 'Tap or press a key to skip ⏩';
+      const text = k.add([
+        k.text(label, { size: 11 }),
+        k.pos(VIEW_W / 2, 16),
+        k.anchor('center'),
+        k.color(255, 252, 235),
+        k.fixed(),
+        k.z(30),
+      ]) as unknown as { width?: number; destroy: () => void };
+      const pill = k.add([
+        k.rect((text.width ?? label.length * 6) + 14, 20, { radius: 6 }),
+        k.pos(VIEW_W / 2, 16),
+        k.anchor('center'),
+        k.color(20, 16, 36),
+        k.opacity(0.6),
+        k.fixed(),
+        k.z(29),
+      ]);
+      return [text, pill];
+    }
+
+    /** Advance the reveal by `dt`; false once it's over. */
+    function stepReveal(r: Reveal, dt: number): boolean {
+      r.t += dt;
+      const bank = r.banks[r.i];
+      if (r.phase === 'to' || r.phase === 'back') {
+        const u = PAN_S === 0 ? 1 : Math.min(1, r.t / PAN_S);
+        const e = easeInOut(u);
+        k.setCamPos(r.from.x + (r.to.x - r.from.x) * e, r.from.y + (r.to.y - r.from.y) * e);
+        if (u < 1) return true;
+        if (r.phase === 'back') return false;
+        r.phase = 'lift';
+        r.t = 0;
+        cbRef.current.onFogLift?.(bank.def);
+        return true;
+      }
+      if (r.phase === 'lift') {
+        // The puffs spread out, rise and thin away (the drift updater draws it).
+        bank.lift = Math.min(1, r.t / (bank.hides.length ? LIFT_HIDING_S : LIFT_S));
+        if (bank.lift < 1) return true;
+        for (const { obj } of bank.puffs) obj.destroy();
+        bank.puffs = [];
+        bank.shown = true;
+        cbRef.current.onFogRevealed?.(bank.def.id);
+        r.phase = 'hold';
+        r.t = 0;
+        return true;
+      }
+      // hold: let the kid see what was hiding, then on to the next bank or home.
+      if (r.t < HOLD_S) return true;
+      r.from = camNow();
+      r.t = 0;
+      if (r.i + 1 < r.banks.length) {
+        r.i += 1;
+        r.phase = 'to';
+        r.to = bankCam(r.banks[r.i].def);
+      } else {
+        r.phase = 'back';
+        r.to = camFor(player.pos.x, player.pos.y);
+      }
+      return true;
+    }
+
     // --- Main loop ---------------------------------------------------------
     let wasPaused = false;
     // Arrived by a fade or a cut: hold still until the movement keys are let go.
@@ -1006,6 +1239,44 @@ export default function WorldCanvas({
       }
       const dt = k.dt();
       cooldown = Math.max(0, cooldown - dt);
+
+      if (!reveal) {
+        const due = fogBanks.filter((b) => !b.shown && b.puffs.length > 0 && lifted(b.def));
+        if (due.length && !artReady) artReady = artLoaded();
+        revealWait = due.length && artReady ? revealWait - dt : 0.8;
+        if (due.length && revealWait <= 0) {
+          // Nearest first, so the camera never zig-zags across the map.
+          const d = (b: (typeof due)[number]) =>
+            Math.hypot((b.def.x + b.def.w / 2) * TILE - player.pos.x, (b.def.y + b.def.h / 2) * TILE - player.pos.y);
+          due.sort((a, b) => d(a) - d(b));
+          reveal = {
+            banks: due,
+            i: 0,
+            phase: 'to',
+            t: 0,
+            from: camNow(),
+            to: bankCam(due[0].def),
+            presses: pressesRef.current,
+            hint: skipHint(),
+          };
+          cinematic = true;
+          if (heroView) {
+            curAnim = animFor(heroFacing, false, heroView.anims);
+            player.play(curAnim);
+          }
+        }
+      }
+      if (reveal) {
+        // Skip on a fresh key press, click or tap (the d-pad too) — never on a
+        // key or the d-pad already held when it began.
+        if (pressesRef.current > reveal.presses) skipReveal(reveal);
+        else if (stepReveal(reveal, dt)) return;
+        for (const part of reveal.hint) part.destroy();
+        reveal = null;
+        cinematic = false;
+        cooldown = TRIGGER_COOLDOWN;
+        needsRelease = true; // a key held through the reveal doesn't walk off at once
+      }
 
       const keys = keysRef.current;
       let dx = touchDirRef.current.dx;
@@ -1086,7 +1357,7 @@ export default function WorldCanvas({
           const id = pathTargetId(zoneId, 'chest', bumped.x, bumped.y);
           if (!chestsRef.current.includes(id)) {
             cooldown = TRIGGER_COOLDOWN;
-            cbRef.current.onPath({ kind: 'chest', id, topic: z.topic ?? 'math', zoneId });
+            cbRef.current.onPath({ kind: 'chest', id, topic: chestTopicAt(z, bumped.x, bumped.y), zoneId });
           }
         } else if (bumped.ch === 'S') {
           cooldown = 2;
@@ -1234,18 +1505,6 @@ export default function WorldCanvas({
           emberSprite.play(want);
         }
         if (f === 'side') emberSprite.flipX = lastDir.x < 0;
-      }
-
-      // Fog lifts once its story flag is set: fade the bank out, then drop it.
-      for (const bank of fogBanks) {
-        if (!bank.lifting && fogLifted(bank.def)) bank.lifting = true;
-        if (!bank.lifting || bank.parts.length === 0) continue;
-        const o = Math.max(0, bank.parts[0].opacity - dt * 0.8);
-        for (const part of bank.parts) part.opacity = o;
-        if (o === 0) {
-          for (const part of bank.parts) part.destroy();
-          bank.parts = [];
-        }
       }
 
       // Open gates / opened chests update live (flag set while overlay open).

@@ -20,7 +20,17 @@ import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
 import type { ZoneDef } from './zones';
-import { ANY_CRYSTAL, fogAt, placeAt } from './zones';
+import {
+  ANY_CRYSTAL,
+  behindFog,
+  chestTopicAt,
+  fogAt,
+  fogSeenFlag,
+  fogsToReveal,
+  placeAt,
+  reachableOnFoot,
+} from './zones';
+import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
 
 const allZones = Object.values(ZONES);
@@ -117,13 +127,18 @@ describe('zone maps', () => {
     }
   });
 
-  it('gates and chests only exist in topic zones (their questions need a topic)', () => {
+  it("every gate and chest has a topic for its question: its zone's, or (a chest) its fog bank's", () => {
     for (const z of allZones) {
       if (z.topic) continue;
-      for (const row of z.map) {
-        expect(row.includes('G'), `${z.id} must not contain gates`).toBe(false);
-        expect(row.includes('C'), `${z.id} must not contain chests`).toBe(false);
-      }
+      z.map.forEach((row, y) =>
+        [...row].forEach((ch, x) => {
+          expect(ch === 'G', `${z.id} has a gate at ${x},${y} but no topic`).toBe(false);
+          if (ch === 'C') {
+            const bank = z.fogs?.find((f) => f.guards.x === x && f.guards.y === y);
+            expect(bank?.chestTopic, `${z.id} chest at ${x},${y} has no topic`).toBeDefined();
+          }
+        }),
+      );
     }
   });
 
@@ -370,7 +385,9 @@ describe('overworld helpers (#75 Phase 1)', () => {
     ...base,
     map: ['....', '..P.', '....'],
     places: [{ x: 2, y: 1, icon: 'cave', name: 'A Cave' }],
-    fogs: [{ id: 'f', x: 0, y: 0, w: 2, h: 2, liftedBy: ['a', 'b'], hint: 'Too foggy!' }],
+    fogs: [
+      { id: 'f', x: 0, y: 0, w: 2, h: 2, liftedBy: ['a', 'b'], hint: 'Too foggy!', guards: { x: 3, y: 0 }, lifted: 'Gone!' },
+    ],
   };
   it('fogAt covers its rectangle until any one of its flags is set', () => {
     expect(fogAt(z, 0, 0, {})?.id).toBe('f');
@@ -392,22 +409,9 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
   const overworlds = allZones.filter((z) => z.kind === 'overworld');
   const dawn = ZONES.dawnreach;
 
-  /** Cells reachable on foot, with fog blocking unless `lifted`. */
-  function onFoot(z: ZoneDef, sx: number, sy: number, lifted: boolean): Set<string> {
-    const flags: Record<string, boolean> = lifted ? Object.fromEntries(ANY_CRYSTAL.map((f) => [f, true])) : {};
-    const seen = new Set<string>([`${sx},${sy}`]);
-    const queue = [[sx, sy]];
-    while (queue.length) {
-      const [x, y] = queue.shift()!;
-      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-        const key = `${nx},${ny}`;
-        if (seen.has(key) || !isWalkable(z, nx, ny) || fogAt(z, nx, ny, flags)) continue;
-        seen.add(key);
-        queue.push([nx, ny]);
-      }
-    }
-    return seen;
-  }
+  const allLifted = Object.fromEntries(ANY_CRYSTAL.map((f) => [f, true]));
+  /** Cells reachable on foot from the spawn, with fog blocking unless `lifted`. */
+  const onFoot = (z: ZoneDef, lifted: boolean) => reachableOnFoot(z, lifted ? allLifted : {});
 
   it('is an overworld with places', () => {
     expect(overworlds.map((z) => z.id)).toEqual(['dawnreach']);
@@ -427,18 +431,22 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
     }
   });
 
-  it('on foot, every place is reachable — except the ones behind fog until it lifts', () => {
-    const down = onFoot(dawn, dawn.spawn.x, dawn.spawn.y, false);
-    const up = onFoot(dawn, dawn.spawn.x, dawn.spawn.y, true);
+  it('on foot, every place is reachable — except the ones a fog bank guards, until it lifts', () => {
+    const down = onFoot(dawn, false);
+    const up = onFoot(dawn, true);
+    const guarded = new Set((dawn.fogs ?? []).map((f) => `${f.guards.x},${f.guards.y}`));
+    expect(dawn.places!.filter((p) => guarded.has(`${p.x},${p.y}`)).map((p) => p.name).sort()).toEqual([
+      'Shrine of First Light',
+      'The Crystal Spire',
+    ]);
     for (const p of dawn.places!) {
       expect(up.has(`${p.x},${p.y}`), `${p.name} reachable once the fog lifts`).toBe(true);
-      const fogged = p.name === 'Shrine of First Light';
-      expect(down.has(`${p.x},${p.y}`), `${p.name} reachable through the fog?`).toBe(!fogged);
+      expect(down.has(`${p.x},${p.y}`), `${p.name} reachable through the fog?`).toBe(!guarded.has(`${p.x},${p.y}`));
     }
   });
 
   it('every gate onto the overworld lands right beside its own icon, on open ground you can walk from', () => {
-    const roam = onFoot(dawn, dawn.spawn.x, dawn.spawn.y, true);
+    const roam = onFoot(dawn, true);
     for (const z of allZones) {
       for (const e of z.exits.filter((x) => x.to === 'dawnreach')) {
         const icon = dawn.places!.find((p) => dawn.exits.some((x) => x.x === p.x && x.y === p.y && x.to === z.id));
@@ -460,7 +468,60 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
         for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) if (isWalkable(z, x, y)) walkable++;
         expect(walkable, `${f.id} blocks a real path`).toBeGreaterThan(0);
         expect(f.hint.length).toBeGreaterThan(0);
+        expect(f.lifted.length).toBeGreaterThan(0);
       }
     }
+  });
+
+  // #75 item 7: each bank keeps you from one thing, which you can then reach.
+  it('each fog bank shuts its reward away until one of its own flags lifts it', () => {
+    for (const z of allZones) {
+      for (const f of z.fogs ?? []) {
+        const key = `${f.guards.x},${f.guards.y}`;
+        expect(isWalkable(z, f.guards.x, f.guards.y) || tileAt(z, f.guards.x, f.guards.y) === 'C', `${f.id} guards something real`).toBe(true);
+        // Reach the reward by its neighbours (a chest is bumped, not stood on).
+        const reach = (open: Set<string>) =>
+          open.has(key) ||
+          [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => open.has(`${f.guards.x + dx},${f.guards.y + dy}`));
+        expect(reach(reachableOnFoot(z, {})), `${f.id}: reward reachable through the fog`).toBe(false);
+        for (const flag of f.liftedBy) {
+          expect(reach(reachableOnFoot(z, { [flag]: true })), `${f.id}: ${flag} opens the way`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('every crystal clears exactly one pocket of its own, with a chest on its topic inside', () => {
+    for (const topic of CRYSTAL_TOPIC_IDS) {
+      const own = (dawn.fogs ?? []).filter((f) => f.liftedBy.length === 1 && f.liftedBy[0] === crystalFlag(topic));
+      expect(own.length, topic).toBe(1);
+      const f = own[0];
+      expect(tileAt(dawn, f.guards.x, f.guards.y), `${f.id} guards a chest`).toBe('C');
+      expect(f.chestTopic).toBe(topic);
+      expect(chestTopicAt(dawn, f.guards.x, f.guards.y)).toBe(topic);
+      expect(f.hint).toContain(TOPIC_REGISTRY.find((t) => t.id === topic)!.crystalName);
+    }
+    expect(chestTopicAt(ZONES.numbria, 0, 0)).toBe('math');
+  });
+
+  it('a bank waits to be shown: lifted, not yet seen → revealed once', () => {
+    const math = { [crystalFlag('math')]: true };
+    const ids = (flags: Record<string, boolean>) => fogsToReveal(dawn, flags).map((f) => f.id).sort();
+    expect(ids({})).toEqual([]);
+    expect(ids(math)).toEqual(['math-fog', 'shrine-fog', 'spire-fog']);
+    expect(ids({ ...math, [fogSeenFlag('spire-fog')]: true })).toEqual(['math-fog', 'shrine-fog']);
+  });
+
+  it('a save shut in behind fog — or standing in it — starts at the zone spawn instead', () => {
+    const spawnPx = { x: dawn.spawn.x * TILE + TILE / 2, y: dawn.spawn.y * TILE + TILE / 2 };
+    const px = (x: number, y: number) => ({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 });
+    // Inside the math pocket, beside its chest; and inside the Spire's fog, where its gate lands.
+    expect(safeSpawn(dawn, px(12, 9), {})).toEqual(spawnPx);
+    expect(safeSpawn(dawn, px(32, 38), {})).toEqual(spawnPx);
+    expect(behindFog(dawn, {}).has('32,38')).toBe(true);
+    // Once lifted, both are fine places to stand; out in the open always was.
+    expect(safeSpawn(dawn, px(12, 9), { [crystalFlag('math')]: true })).toEqual(px(12, 9));
+    expect(safeSpawn(dawn, px(32, 38), { [crystalFlag('science')]: true })).toEqual(px(32, 38));
+    expect(safeSpawn(dawn, px(40, 30), {})).toEqual(px(40, 30));
   });
 });

@@ -6,6 +6,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py overworld  # only the #75 Phase 1 additions
     python3 tools/assets/build.py blend      # only the edge-blend sheets (#71b)
     python3 tools/assets/build.py signpost   # only the signpost prop (#75 item 6)
+    python3 tools/assets/build.py fog        # only the fog-puff sheet (#75 item 7)
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -45,6 +46,11 @@ def main():
         # Just the edge-blend sheets (#75 / #71b) — existing files untouched.
         tiles.build_blend(PUBLIC)
         print('blend ✓')
+        return
+    if 'fog' in only:
+        # Just the fog puffs (#75 item 7) — existing files untouched.
+        tiles.build_fog(PUBLIC)
+        print('fog ✓')
         return
     if 'signpost' in only:
         # Just the wayfinding signpost (#75 item 6) — existing files untouched.

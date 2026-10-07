@@ -1,6 +1,6 @@
-import type { Topic } from '../types';
+import type { CrystalTopic, Topic } from '../types';
 import type { ConsumableId } from './items';
-import { crystalFlag } from './topics';
+import { crystalFlag, crystalInfo } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
 import { tiledRows } from '../lib/tiled';
 import dawnreachTmj from './maps/dawnreach.tmj?raw';
@@ -192,6 +192,15 @@ export interface FogDef {
   liftedBy: string[];
   /** What bumping into it says — the reason a kid can repeat out loud. */
   hint: string;
+  /**
+   * The cell it keeps you from: a place, or a chest you can see but not reach
+   * (#75 item 7). Out of reach until the fog lifts, in reach after (zones.test).
+   */
+  guards: { x: number; y: number };
+  /** When it guards a chest: the topic of the chest's question (the overworld has none of its own). */
+  chestTopic?: Topic;
+  /** The line shown as it lifts. */
+  lifted: string;
 }
 
 export interface ZoneExit {
@@ -266,6 +275,28 @@ const DAWNREACH_MAP = tiledRows(JSON.parse(dawnreachTmj), JSON.parse(legendTsj),
 
 /** Restoring any crystal lifts these — the first fog to go is the first reward you can see. */
 export const ANY_CRYSTAL = CRYSTAL_TOPIC_IDS.map((t) => crystalFlag(t));
+
+/**
+ * A crystal's own fog pocket (#75 item 7): a small nook you can see into, a
+ * treasure chest inside, and one bank of fog in the way that only that crystal
+ * lifts. The chest asks a question on the crystal's topic.
+ */
+function crystalPocket(
+  topic: CrystalTopic,
+  bank: { x: number; y: number; w: number; h: number },
+  chest: { x: number; y: number },
+  where: string,
+): FogDef {
+  return {
+    id: `${topic}-fog`,
+    ...bank,
+    liftedBy: [crystalFlag(topic)],
+    hint: `Too foggy to pass! Restore the ${crystalInfo(topic).crystalName} to clear it.`,
+    guards: chest,
+    chestTopic: topic,
+    lifted: `✨ The fog lifts! A treasure chest was hiding ${where}.`,
+  };
+}
 
 export const ZONES: Record<ZoneId, ZoneDef> = {
   'lumina-field': {
@@ -1097,6 +1128,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 55, y: 24, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
       { x: 49, y: 9, to: 'dawn-shrine', spawnX: 10, spawnY: 11 },
     ],
+    // Fog of Forgetting (#75 item 7): the first crystal clears the way to the
+    // shrine and the Spire grounds; each crystal also clears its own pocket.
     fogs: [
       {
         id: 'shrine-fog',
@@ -1106,7 +1139,24 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
         h: 3,
         liftedBy: ANY_CRYSTAL,
         hint: 'Too foggy to pass! Restore a crystal to clear it.',
+        guards: { x: 49, y: 9 },
+        lifted: '✨ The fog lifts! The path to the Shrine of First Light is open.',
       },
+      {
+        id: 'spire-fog',
+        x: 29,
+        y: 36,
+        w: 7,
+        h: 6,
+        liftedBy: ANY_CRYSTAL,
+        hint: 'The fog hides the Spire grounds. Restore a crystal to clear it.',
+        guards: { x: 32, y: 39 },
+        lifted: '✨ The fog around the Crystal Spire is gone!',
+      },
+      crystalPocket('math', { x: 12, y: 11, w: 3, h: 2 }, { x: 13, y: 9 }, 'in the hills'),
+      crystalPocket('science', { x: 17, y: 18, w: 2, h: 3 }, { x: 15, y: 18 }, 'in the forest'),
+      crystalPocket('engineering', { x: 52, y: 19, w: 3, h: 2 }, { x: 53, y: 17 }, 'in the rocks by the sea'),
+      crystalPocket('creativity', { x: 47, y: 39, w: 3, h: 2 }, { x: 48, y: 37 }, 'in the little grove'),
     ],
     npcs: [
       { defId: 'dawnreach-scout', x: 34, y: 22 },
@@ -1219,21 +1269,82 @@ export function buildingInside(z: ZoneDef, x: number, y: number): BuildingDef | 
   );
 }
 
-/** A position (pixels) the hero can safely stand on, else the zone spawn. */
-export function safeSpawn(z: ZoneDef, pos: { x: number; y: number } | null): { x: number; y: number } {
+/**
+ * A position (pixels) the hero can safely stand on, else the zone spawn. With
+ * `flags`, a spot shut in behind fog that hasn't lifted counts as unsafe too:
+ * a save from before the fog (or an exit that lands inside it) must never
+ * leave the hero sealed in (#75 item 7).
+ */
+export function safeSpawn(
+  z: ZoneDef,
+  pos: { x: number; y: number } | null,
+  flags?: Record<string, boolean>,
+): { x: number; y: number } {
   const fallback = { x: z.spawn.x * TILE + TILE / 2, y: z.spawn.y * TILE + TILE / 2 };
   if (!pos) return fallback;
-  const ch = tileAt(z, Math.floor(pos.x / TILE), Math.floor(pos.y / TILE));
-  return WALKABLE_CHARS.has(ch) ? pos : fallback;
+  const cx = Math.floor(pos.x / TILE);
+  const cy = Math.floor(pos.y / TILE);
+  if (!WALKABLE_CHARS.has(tileAt(z, cx, cy))) return fallback;
+  if (flags && z.fogs?.length && behindFog(z, flags).has(`${cx},${cy}`)) return fallback;
+  return pos;
+}
+
+/**
+ * Cells you can walk to from the zone's spawn (4-way), with fog in the way
+ * unless `flags` lift it; `flags` null ignores fog altogether.
+ */
+export function reachableOnFoot(z: ZoneDef, flags: Record<string, boolean> | null): Set<string> {
+  const seen = new Set<string>([`${z.spawn.x},${z.spawn.y}`]);
+  const queue: [number, number][] = [[z.spawn.x, z.spawn.y]];
+  while (queue.length) {
+    const [x, y] = queue.shift()!;
+    for (const [nx, ny] of [
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+    ]) {
+      const key = `${nx},${ny}`;
+      if (seen.has(key) || !WALKABLE_CHARS.has(tileAt(z, nx, ny))) continue;
+      if (flags && fogAt(z, nx, ny, flags)) continue;
+      seen.add(key);
+      queue.push([nx, ny]);
+    }
+  }
+  return seen;
+}
+
+/** Cells only reachable through fog that hasn't lifted (the fog itself included). */
+export function behindFog(z: ZoneDef, flags: Record<string, boolean>): Set<string> {
+  const open = reachableOnFoot(z, flags);
+  return new Set([...reachableOnFoot(z, null)].filter((c) => !open.has(c)));
+}
+
+/** Has any of this bank's flags been earned? */
+export function fogLifted(f: FogDef, flags: Record<string, boolean>): boolean {
+  return f.liftedBy.some((flag) => flags[flag]);
 }
 
 /** The unlifted fog bank covering this cell, if any (#75). */
 export function fogAt(z: ZoneDef, x: number, y: number, flags: Record<string, boolean>): FogDef | null {
   return (
-    z.fogs?.find(
-      (f) => x >= f.x && x < f.x + f.w && y >= f.y && y < f.y + f.h && !f.liftedBy.some((flag) => flags[flag]),
-    ) ?? null
+    z.fogs?.find((f) => x >= f.x && x < f.x + f.w && y >= f.y && y < f.y + f.h && !fogLifted(f, flags)) ?? null
   );
+}
+
+/** Save flag: this bank's lifting has been shown — the camera pan to it (#75 item 7). */
+export function fogSeenFlag(id: string): string {
+  return `fog-${id}-seen`;
+}
+
+/** Banks that have lifted but whose lifting the hero hasn't watched yet. */
+export function fogsToReveal(z: ZoneDef, flags: Record<string, boolean>): FogDef[] {
+  return (z.fogs ?? []).filter((f) => fogLifted(f, flags) && !flags[fogSeenFlag(f.id)]);
+}
+
+/** A chest's question topic: the one its fog bank names, else the zone's, else math. */
+export function chestTopicAt(z: ZoneDef, x: number, y: number): Topic {
+  return z.fogs?.find((f) => f.chestTopic && f.guards.x === x && f.guards.y === y)?.chestTopic ?? z.topic ?? 'math';
 }
 
 /** The place on this map whose entrance is at (x, y), if any. */

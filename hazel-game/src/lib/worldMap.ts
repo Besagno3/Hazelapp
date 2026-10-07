@@ -1,4 +1,6 @@
-import { TILE, type PlaceIcon, type ZoneDef, type ZoneId } from '../content/zones';
+import { TILE, fogLifted, type FogDef, type PlaceDef, type PlaceIcon, type ZoneDef, type ZoneId } from '../content/zones';
+import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
+import { placesInside } from './fog';
 
 /**
  * The menu's world map (#75 Phase 1): the overworld drawn small, one coloured
@@ -25,6 +27,31 @@ export function mapCellColor(ch: string): string {
 /** Fog on the map: a pale square, explained by the legend under it. */
 export const FOG_COLOR = '#e6e8f4';
 
+/** Marks a bank that any one crystal clears. */
+export const ANY_CRYSTAL_EMOJI = '💎';
+
+/**
+ * What the map shows on a fog bank (#75 item 7): the emoji of the one crystal
+ * that clears it, or 💎 when any crystal will do — so the map shows which
+ * crystal opens which part of the world.
+ */
+export function fogMarker(f: FogDef): string {
+  const own = f.liftedBy.length === 1 ? TOPIC_REGISTRY.find((t) => crystalFlag(t.id) === f.liftedBy[0]) : undefined;
+  return own?.emoji ?? ANY_CRYSTAL_EMOJI;
+}
+
+/**
+ * Where on the map to draw a bank's marker (tile coordinates of its centre),
+ * nudged to the bank's top edge when a place icon sits in the middle of it
+ * (the Spire inside its ring of fog) so the two don't overlap.
+ */
+export function fogMarkerAt(f: FogDef, places: { x: number; y: number }[]): { x: number; y: number } {
+  const cx = f.x + (f.w - 1) / 2;
+  const cy = f.y + (f.h - 1) / 2;
+  const crowded = places.some((p) => Math.abs(p.x - cx) <= 1 && Math.abs(p.y - cy) <= 1);
+  return crowded ? { x: cx, y: f.y } : { x: cx, y: cy };
+}
+
 /**
  * One emoji per kind of place, drawn on the map at the place and beside its
  * name in the list, so a kid can match "Whispering Woods" to its spot.
@@ -39,6 +66,19 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   grove: '🌙',
   tower: '🗼',
 };
+
+/** Stands in for a place that's still hidden in fog. */
+export const HIDDEN_PLACE_EMOJI = '☁️';
+
+/**
+ * A place's emoji on the map and in the list: its own, or ☁️ while it sits
+ * inside a bank of fog that hasn't lifted (the Spire in its ring, #75 item 7)
+ * — the map doesn't show what the world itself still hides.
+ */
+export function placeEmoji(world: ZoneDef, place: PlaceDef, flags: Record<string, boolean>): string {
+  const hidden = (world.fogs ?? []).some((f) => !fogLifted(f, flags) && placesInside(f, [place]).length > 0);
+  return hidden ? HIDDEN_PLACE_EMOJI : PLACE_EMOJI[place.icon];
+}
 
 export interface MapMarker {
   /** Tile on the overworld. */

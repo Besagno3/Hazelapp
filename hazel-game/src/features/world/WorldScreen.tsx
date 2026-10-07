@@ -10,7 +10,7 @@ import KeyGateOverlay from './KeyGateOverlay';
 import MenuOverlay from './MenuOverlay';
 import SpireOverlay from './SpireOverlay';
 import StoryPanels from '../../components/StoryPanels';
-import { zone, TILE } from '../../content/zones';
+import { zone, TILE, fogSeenFlag } from '../../content/zones';
 import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx } from '../../content/spire';
 import { useSpireStore } from '../../store/spireStore';
 import { spawnEnemy } from '../../content/enemies';
@@ -291,6 +291,12 @@ export default function WorldScreen() {
           },
           onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),
           onFog: (hint) => showToast(`🌫️ ${hint}`),
+          // The fog of Forgetting lifts on screen (#75 item 7), once per bank.
+          onFogLift: (fog) => {
+            sfx('gate'); // a way opening — not the level-up fanfare
+            showToast(fog.lifted);
+          },
+          onFogRevealed: (id) => setFlag(fogSeenFlag(id)),
           onWard: (id) => spireBump({ kind: 'ward', id }),
           onStairs: () => spireBump({ kind: 'stairs' }),
           onUmbra: () => spireBump({ kind: 'umbra' }),
@@ -313,16 +319,19 @@ export default function WorldScreen() {
       </div>
       <TouchPad onDirChange={onDirChange} />
 
-      {/* Toast */}
-      {toast && (
-        <motion.div
-          initial={{ y: 16, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="fixed bottom-8 bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl z-50"
-        >
-          {toast}
-        </motion.div>
-      )}
+      {/* Toast — inside a live region that's always there, so screen readers
+          announce each one as it appears. */}
+      <div role="status" aria-live="polite">
+        {toast && (
+          <motion.div
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="fixed bottom-8 bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl z-50"
+          >
+            {toast}
+          </motion.div>
+        )}
+      </div>
 
       {/* Secret found */}
       {found && (

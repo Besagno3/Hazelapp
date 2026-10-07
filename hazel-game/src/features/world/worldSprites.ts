@@ -21,6 +21,9 @@ import {
   OVERWORLD_FRAMES,
   OVERWORLD_KEY,
   OVERWORLD_SHEET,
+  FOG_PUFF_FRAMES,
+  FOG_PUFF_KEY,
+  FOG_PUFF_SHEET,
   PROPS_FRAMES,
   PROPS_KEY,
   PROPS_SHEET,
@@ -119,6 +122,8 @@ export function loadWorldSprites(k: KaplayCtx): void {
     sliceY: 1,
     anims: { drift: { from: OVERWORLD_FRAME.fog[0], to: OVERWORLD_FRAME.fog[1], loop: true, speed: 1.5 } },
   });
+  // Fog banks (#75 item 7): soft puffs that drift around each other.
+  k.loadSprite(FOG_PUFF_KEY, FOG_PUFF_SHEET, { sliceX: FOG_PUFF_FRAMES, sliceY: 1 });
   // The Spire's floor maps (#74): one tileset per floor theme + shared props.
   for (const theme of SPIRE_THEMES) {
     const name = `spire-${theme}`;

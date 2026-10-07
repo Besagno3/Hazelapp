@@ -17,7 +17,8 @@
  *
  * Exits really change zones (so a script can walk through slides, fades and
  * the arrival lock); `window.__bench.state()` reports where the hero is (how
- * many times it has bumped a fog bank, and who it has talked to).
+ * many times it has bumped a fog bank, who it has talked to, and which fog
+ * banks it has watched clear).
  */
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -27,6 +28,7 @@ import { SPIRE_FLOOR_MAPS, SPIRE_THEMES, floorSpawnPx, floorZone, type SpireThem
 import { avatarById } from '../src/content/avatars';
 import { camAxis } from '../src/lib/camera';
 import { BLEND_OPS_PER_CORNER, blendLayer, blendsEdges } from '../src/lib/terrain';
+import { FOG_OVERHANG } from '../src/lib/fog';
 import '../src/index.css';
 
 const q = new URLSearchParams(location.search);
@@ -163,8 +165,10 @@ function animatedRects(): [number, number, number, number][] {
       }
     }
   }
-  // Fog banks drift between two frames (#75).
-  for (const f of z.fogs ?? []) rects.push([f.x * TILE - ox, f.y * TILE - oy, f.w * TILE, f.h * TILE]);
+  // Fog banks drift (#75): their puffs orbit and swell.
+  // Fog puffs drift past the bank's rectangle by up to FOG_OVERHANG.
+  const m = FOG_OVERHANG;
+  for (const f of z.fogs ?? []) rects.push([f.x * TILE - ox - m, f.y * TILE - oy - m, f.w * TILE + 2 * m, f.h * TILE + 2 * m]);
   // Character sprites: a generous box around each one's start point.
   const box = (cx: number, cy: number, half: number) => rects.push([cx - half - ox, cy - half - oy, half * 2, half * 2]);
   for (const p of [...z.npcs, ...z.enemies]) box(p.x * TILE + TILE / 2, p.y * TILE + TILE / 2, 30);
@@ -208,7 +212,7 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
     p95: pct(deltas, 0.95),
     max: maxDelta,
   }),
-  state: () => ({ ...live, talks: [...live.talks] }),
+  state: () => ({ ...live, talks: [...live.talks], fogReveals: [...live.fogReveals] }),
   /** Pause / resume the world, as a menu or dialogue would. */
   pause: (on: boolean) => {
     benchPaused.current = on;
@@ -239,12 +243,15 @@ const live: {
   fogBumps: number;
   /** Everyone the hero has talked to, in order (NPC def ids). */
   talks: string[];
+  /** Fog banks seen clearing on screen, in order (#75 item 7). */
+  fogReveals: string[];
 } = {
   zoneId,
   exits: 0,
   pos: startPos,
   fogBumps: 0,
   talks: [],
+  fogReveals: [],
 };
 
 function Bench() {
@@ -290,6 +297,9 @@ function Bench() {
           onSpire: noop,
           onFog: () => {
             live.fogBumps += 1;
+          },
+          onFogRevealed: (id) => {
+            live.fogReveals.push(id);
           },
         }}
         spireFloor={floor}

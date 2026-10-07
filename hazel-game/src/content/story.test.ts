@@ -10,6 +10,7 @@ import {
   CRYSTAL_PANELS,
   SPIRE_PANELS,
   GROVE_PANELS,
+  DAWNREACH_PANELS,
   spireVictoryPanels,
   VILLAIN_NAME,
   EMBER_SPRITES,
@@ -17,6 +18,8 @@ import {
   EMBER_HATCHED,
 } from './story';
 import { TOPICS } from './topics';
+import { NPC_DEFS, type DialogueLine } from './npcs';
+import { fogSeenFlag } from './zones';
 
 describe('emberStage', () => {
   it('stays an egg until the first battle victory, regardless of crystals', () => {
@@ -101,6 +104,30 @@ describe('cutscene panels', () => {
     const finale = spireVictoryPanels('Nova');
     expect(finale.length).toBeGreaterThanOrEqual(3);
     expect(finale.some((p) => p.text.includes('Nova'))).toBe(true);
+  });
+});
+
+describe('the script matches the fog over the Spire (#75 item 7)', () => {
+  const shown = (lines: DialogueLine[], flags: Record<string, boolean>) =>
+    lines
+      .filter((l) => typeof l === 'string' || ((!l.ifFlag || flags[l.ifFlag]) && (!l.unlessFlag || !flags[l.unlessFlag])))
+      .map((l) => (typeof l === 'string' ? l : l.text))
+      .join(' ');
+
+  it('leaving home (always before any crystal) says the Spire is hidden in fog, not that it shows the way', () => {
+    const text = DAWNREACH_PANELS.map((p) => p.text).join(' ');
+    expect(text).toMatch(/fog hides the Crystal Spire/);
+    expect(text).not.toMatch(/glitters|find your way/);
+  });
+
+  it("Scout Tamsin only calls the Spire a landmark once its fog has lifted on screen", () => {
+    const lines = NPC_DEFS['dawnreach-scout'].lines;
+    const before = shown(lines, {});
+    expect(before).toMatch(/Spire hides in a ring of fog/);
+    expect(before).not.toMatch(/Look for the Spire/);
+    const after = shown(lines, { [fogSeenFlag('spire-fog')]: true });
+    expect(after).toMatch(/out of the fog at last.*Look for the Spire/);
+    expect(after).not.toMatch(/hides in a ring of fog/);
   });
 });
 

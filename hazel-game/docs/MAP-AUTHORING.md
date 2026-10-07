@@ -58,6 +58,21 @@ drawing a broken world. It rejects:
 Object layers are allowed, for example for notes to yourself; the game
 ignores them.
 
+## Fog banks
+
+A fog bank (`fogs` in the zone's entry) is a rectangle that blocks the way
+until one of its `liftedBy` flags is set. Give it:
+- `guards`: the cell it keeps you from (a place, or a chest). The tests check
+  it's out of reach while the fog is there and in reach once it lifts, so the
+  bank must really seal the way in.
+- `chestTopic` when it guards a chest on a map with no topic (the overworld),
+  so the chest's question has a subject.
+- `hint` (bumping it) and `lifted` (shown as it clears on screen).
+
+For a crystal's own pocket, use `crystalPocket(topic, bank, chest, where)`.
+Paint the pocket in Tiled first: a small nook with one opening, then put the
+bank over the opening.
+
 ## Signposts
 
 A signpost is an NPC with `signpost: true` (see `dawnreach-sign-west` in

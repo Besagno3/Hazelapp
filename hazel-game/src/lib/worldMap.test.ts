@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { PLACE_ICONS, TILE, ZONES } from '../content/zones';
-import { PLACE_EMOJI, mapCaption, mapCellColor, whereOnMap } from './worldMap';
+import { crystalFlag } from '../content/topics';
+import {
+  ANY_CRYSTAL_EMOJI,
+  HIDDEN_PLACE_EMOJI,
+  PLACE_EMOJI,
+  fogMarker,
+  fogMarkerAt,
+  mapCaption,
+  mapCellColor,
+  placeEmoji,
+  whereOnMap,
+} from './worldMap';
 
 const dawn = ZONES.dawnreach;
 
@@ -46,6 +57,21 @@ describe('PLACE_EMOJI', () => {
     const emoji = PLACE_ICONS.map((i) => PLACE_EMOJI[i]);
     expect(emoji.every(Boolean)).toBe(true);
     expect(new Set(emoji).size).toBe(emoji.length);
+    expect(emoji).not.toContain(HIDDEN_PLACE_EMOJI);
+  });
+});
+
+describe('placeEmoji (#75 item 7)', () => {
+  const place = (name: string) => dawn.places!.find((p) => p.name === name)!;
+  it('shows the Spire as a cloud until its ring of fog lifts, then as the tower', () => {
+    const spire = place('The Crystal Spire');
+    expect(placeEmoji(dawn, spire, {})).toBe(HIDDEN_PLACE_EMOJI);
+    expect(placeEmoji(dawn, spire, { [crystalFlag('science')]: true })).toBe(PLACE_EMOJI.tower);
+  });
+  it('leaves places outside the fog alone, even one just past a bank (the shrine)', () => {
+    for (const p of dawn.places!.filter((p) => p.name !== 'The Crystal Spire')) {
+      expect(placeEmoji(dawn, p, {}), p.name).toBe(PLACE_EMOJI[p.icon]);
+    }
   });
 });
 
@@ -66,5 +92,20 @@ describe('mapCaption', () => {
       "You're here: Numbria (past Lumina Field)",
     );
     expect(mapCaption(null, 'Somewhere', 'Dawnreach')).toBe("You're here: Somewhere");
+  });
+});
+
+describe('fog markers (#75 item 7)', () => {
+  const bank = (id: string) => dawn.fogs!.find((f) => f.id === id)!;
+  it("shows the crystal that clears a bank, or 💎 when any crystal will", () => {
+    expect(fogMarker(bank('math-fog'))).toBe('🔢');
+    expect(fogMarker(bank('creativity-fog'))).toBe('🎨');
+    expect(fogMarker(bank('spire-fog'))).toBe(ANY_CRYSTAL_EMOJI);
+    expect(fogMarker(bank('shrine-fog'))).toBe(ANY_CRYSTAL_EMOJI);
+  });
+  it("sits mid-bank, but moves to the bank's top edge when a place icon is in the middle", () => {
+    expect(fogMarkerAt(bank('math-fog'), dawn.places!)).toEqual({ x: 13, y: 11.5 });
+    const spire = fogMarkerAt(bank('spire-fog'), dawn.places!);
+    expect(spire).toEqual({ x: 32, y: 36 });
   });
 });

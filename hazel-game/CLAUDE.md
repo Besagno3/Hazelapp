@@ -298,6 +298,114 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-07 — Merge main (battle round 3, #92–#99) into the fog branch
+`main` took issue numbers #92–#99 and test cases up to TC-535 while the fog
+banks were being built, so the fog follow-ups moved **#92 → #100** and the fog
+test cases **TC-452–475 → TC-536–559**. No code conflicts: `main`'s
+`skillLevels` prop and the fog work touch different parts of `WorldCanvas` /
+`WorldScreen`.
+
+### 2026-10-07 — The world map shows ☁️ for the Spire until its fog lifts (#75 item 7)
+The menu map drew the Spire's 🗼 inside its ring of fog, though the world
+hides it. Now a place inside a bank that hasn't lifted shows ☁️ on the map and
+in the place list (`placeEmoji`, `lib/worldMap.ts` — today just the Spire),
+with a legend line "☁️ = a place still hidden in the fog"; once the ring
+lifts, the tower is back. The shrine, just past its own bank, is unaffected.
++2 tests (worldMap.test); 490 green, lint + build clean. Checked on a 375 px
+menu map in headless Chromium, with no crystal and with one.
+
+### 2026-10-07 — Fog UX review fixes: the script, a skip, the chime, screen readers (#75 item 7)
+`/saas-ux-review` of the fog banks; all 4 findings fixed:
+- **The script matches the fog:** the leaving-home panels (`DAWNREACH_PANELS`,
+  always before any crystal) said the Spire "glitters above the hills" and
+  shows the way home, while it sat hidden in its ring of fog. Now: a great
+  ring of fog hides the Spire; restore a crystal and the fog starts to lift,
+  around the Spire first. Scout Tamsin says the Spire hides in fog until its
+  ring has lifted on screen (`fogSeenFlag('spire-fog')`), then calls it the
+  landmark to look for.
+- **A reveal can be skipped:** "Tap or press a key to skip ⏩" shows at the top
+  while one plays; any fresh key, click or tap (the d-pad too) clears every
+  bank left at once, marks them seen, and cuts the camera home. A key or
+  finger already down when it started doesn't skip (counted presses,
+  `pressesRef`, window-level like the movement keys).
+- **The lift plays the gate chime** (a way opening), not the level-up fanfare.
+- **Toasts are read out:** they render inside an always-present
+  `role="status"` live region.
+- +2 tests (story.test); 488 green, lint + build clean. Checked in headless
+  Chromium on the bench: skip by key / click / tap / under reduced motion
+  (all banks seen within ~50 ms, camera home, hero walks after); a held key
+  or pointer doesn't skip; the Spire whole after a skip; untouched, the
+  reveal plays out as before.
+
+### 2026-10-07 — The Spire hides in its clouds and emerges as they clear (#75 item 7)
+The Crystal Spire was drawn above its ring of fog. Now a place inside a fog
+bank (`placesInside`, `lib/fog.ts` — today just the Spire) is hidden behind
+the clouds, tower and name plate alike, until the bank lifts. As it lifts the
+place stays hidden while the clouds start to thin, then fades in slowly
+(`revealOpacity`: eased, complete as the last puff goes), drawn under the
+puffs so it emerges from behind them. A bank that hides a place clears more
+slowly (3.2 s instead of 1.6 s). +2 tests (fog.test); 486 green, lint + build
+clean. Filmed in headless Chromium: hidden with no crystal; on the lift, a
+faint tower, then a solid one, then the camera glides back.
+
+### 2026-10-07 — Fog banks look like fog: soft puffs drifting around each other (#75 item 7)
+The banks were rectangles of square fog tiles. Now each is a cluster of soft
+pixel-art cloud puffs (`/tiles/fog-puffs.png`, three shapes, stepped alpha;
+`tiles.fog_puff`, `python3 tools/assets/build.py fog`) laid out by
+`lib/fog.ts` (`fogPuffs`, seeded by the bank's id): they overlap past the
+bank's edge, so the outline is round and wispy, and each drifts in an orbit
+plus a slow sway around its spot, neighbours turning opposite ways, so the
+bank churns and floats (`puffAt`). Lifting spreads the puffs out, up and away
+as they fade. Collision is unchanged (the bank's rectangle). Reduced motion:
+puffs stay put, a lift only fades. One updater moves every puff; banks off
+screen are hidden and skipped. The bench's fog masks grow by `FOG_OVERHANG`.
+- Frame rate (headless Chromium, software GL, alternating runs vs the tile
+  fog): in the foggiest view (the Spire ring + a pocket on screen) about 8% lower (38 → 35 fps; it was 14% before off-screen banks were skipped);
+  elsewhere unchanged (off-screen banks cost nothing).
+- +6 tests (`fog.test`: deterministic, no holes, overhang bound, shapes and
+  both turning directions, drift/still, lift) and a size check on the sheet;
+  484 green, lint + build clean. A wider puff spacing (25 px) was tried and
+  dropped: it thinned the middle of the small shrine bank.
+
+### 2026-10-07 — Fog banks: each crystal lifts its own fog, on screen (#75 item 7)
+Roadmap item 7 (§3.2): restoring a crystal now visibly lifts its fog on
+Dawnreach and opens what's behind it.
+- **Six banks** on Dawnreach (`ZoneDef.fogs`). The first crystal (any one)
+  clears the road to the Shrine of First Light (as before) and a new ring of
+  fog over the Spire grounds; the tower is drawn above the fog so it still
+  rises out of it. Each crystal also clears its own small pocket (`crystalPocket`):
+  a nook painted into the map (in Tiled) with a treasure chest you can see
+  but not reach — math in the north-west hills, science in a clearing of the
+  western forest, engineering among the rocks by the east shore, creativity in
+  a little grove in the south-east. The fog hint names the crystal.
+- **`FogDef` grows:** `guards` (the cell it keeps you from), `chestTopic` (the
+  question topic of a chest on the topic-less overworld; `chestTopicAt`), and
+  `lifted` (the line shown as it clears).
+- **The lift, on screen:** a bank that has lifted but not been watched
+  (`fogsToReveal`, flag `fogSeenFlag(id)`) clears when you're next on its map.
+  After a short beat (and only once the map art has loaded) the hero holds
+  still, the camera glides to the bank, the fog thins and rises away with a
+  toast + chime, and the camera glides back; several banks play nearest
+  first. Reduced motion cuts the camera instead. Wanderers hold still too.
+- **One storybook panel per crystal** ("Back on Dawnreach, a bank of fog …
+  thins and drifts away"), and one in the Spire-wakes scene for the Spire
+  ring and the shrine road.
+- **Never shut in:** `safeSpawn(z, pos, flags)` sends a save standing inside
+  fog, or sealed behind it, to the zone spawn (`behindFog`,
+  `reachableOnFoot`) — e.g. an old save at the Spire with no crystal.
+- **World map:** each fogged bank shows the crystal that clears it (🔢 🔬 ⚙️ 🎨,
+  or 💎 for any crystal; `fogMarker`, `fogMarkerAt`), so the map is a picture
+  of what each crystal will open.
+- Tests: each bank shuts its reward away until one of its own flags lifts it;
+  each crystal has exactly one pocket with a chest on its topic; at every step
+  of the story the next goal is walkable with the fog lifted so far (no
+  softlock); reveal bookkeeping; safe spawn behind fog. Bench: `fogReveals` in
+  `__bench.state()`.
+- 478 tests green (+7); lint + build clean. Checked in headless Chromium: the
+  reveal filmed (Spire ring, shrine road, math pocket in order; camera glides
+  out and back; hero walks again after), reduced motion (cuts), a fresh
+  browser (waits for the art), fog bumps, safe spawn, the menu map.
+
 ### 2026-10-07 — Battle port onto main's split arena; issue numbers moved again (#99)
 `main` merged its own battle refactor (#87) while this branch had grown the
 old single-file arena, so the second merge moved every battle feature from
@@ -548,6 +656,9 @@ The world gets its first real overworld: walk out of Lumina Village onto a
   rectangle of the map until any of its `liftedBy` flags is set. The first
   one seals the **Shrine of First Light** pocket until any crystal is
   restored (`ANY_CRYSTAL`); bumping it shows a hint toast.
+  (Item 7, 2026-10-07: six banks — the shrine road and the Spire ring on any
+  crystal, plus one pocket per crystal — each `guards` something, and lifts on
+  screen with a camera pan; see the feature log.)
 - **Content:** `dawnreach` (overworld: the Village, Lumina Field, the Woods,
   the Depths cave, the Grove, the Spire, the Coast and the shrine; a road
   network; 5 roaming critters; Scout Tamsin with directions) and

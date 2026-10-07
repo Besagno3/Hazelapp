@@ -666,6 +666,35 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-450 | M | ⬜ | TopicSelect | passing a topic round (80%+) greys it out with a ✓ + "Completed" and makes it unclickable for the rest of the session; failing leaves it selectable |
 | TC-451 | M | ⬜ | TopicSelect | sign out and back in (or reload) → every topic is selectable again (the completed set is ephemeral, cleared on sign-out via `useAuthInit`) |
 
+## Fog banks: each crystal lifts its own fog, on screen (#75 item 7)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-536 | U | ✅ | fog | every fog bank keeps its reward (a place or a chest) out of reach until one of its own flags lifts it, and in reach after; the Shrine and the Spire are the only places behind fog at the start (zones.test) |
+| TC-537 | U | ✅ | fog | each crystal clears exactly one pocket of its own, with a chest whose question is on that crystal's topic (`chestTopicAt`); the hint names the crystal; every chest on a topic-less map has a topic from its bank (zones.test) |
+| TC-538 | U | ✅ | fog | at every step of the story (wayfinding's next goal), the goal's entrance on Dawnreach is walkable with the fog lifted so far — no softlock (wayfinding.test) |
+| TC-539 | U | ✅ | fog | `fogsToReveal`: none before a crystal; the math crystal → the math pocket, the shrine road and the Spire ring; a bank marked seen isn't shown again (zones.test) |
+| TC-540 | U | ✅ | fog | `safeSpawn` with flags: a save inside the math pocket or inside the Spire fog starts at the zone spawn; once lifted it stays put; open ground always does (zones.test; and live on the bench) |
+| TC-541 | U | ✅ | map | the world map marks each fogged bank with the crystal that clears it (🔢 🔬 ⚙️ 🎨, 💎 for any crystal), moved to the bank's top edge when a place icon is in its middle (worldMap.test) |
+| TC-542 | M | ✅ | world | arriving with the math crystal restored: after a beat the camera glides to the Spire ring, the shrine road and the math pocket in turn (nearest first); each thins and rises away revealing what it hid; the camera glides back and the hero walks again (headless Chromium, filmed) |
+| TC-543 | M | ✅ | world | with reduced motion the camera cuts to each bank and back instead of gliding; in a fresh browser the reveal waits until the map art has loaded (filmed) |
+| TC-544 | M | ✅ | world | with no crystal, walking into the math pocket's fog stops the hero and shows its hint; the Spire tower rises above its fogged grounds; the menu map shows the crystal markers and the 💎 legend (headless Chromium) |
+| TC-545 | M | ⬜ | world | in the real app: restore Numbria's crystal, see the new storybook panel, walk out onto Dawnreach and watch the three banks lift; open the math pocket's chest (a math question) |
+| TC-546 | U | ✅ | fog | `fogPuffs` lays a bank out the same way every time, leaves no holes (every cell well inside a puff), mixes all three shapes, and has neighbours turning both ways (fog.test) |
+| TC-547 | U | ✅ | fog | however the puffs drift, they never spill more than `FOG_OVERHANG` past the bank (fog.test) |
+| TC-548 | U | ✅ | fog | `puffAt`: puffs drift over time and stay put with reduced motion; lifting moves them up and away and fades them to nothing (a fade only, with reduced motion); the puff sheet is 3 × 48 px (fog.test, tiles.test) |
+| TC-549 | M | ✅ | world | the Spire ring and the pockets look like soft fog with round edges, the tower rising out of it; filmed a second apart, the puffs visibly shift around each other; a lift spreads them up and away (headless Chromium) |
+| TC-550 | M | ✅ | world | frame rate in the foggiest view vs the tile fog (alternating runs, same machine, software GL): about 8% lower (38 → 35 fps); banks off screen are hidden and skipped. Recheck on a real device with TC-326 |
+| TC-551 | U | ✅ | fog | `placesInside`: the Spire is inside its ring of fog, the shrine is beyond its own bank; `revealOpacity` stays 0 while the clouds start to thin, then rises smoothly to 1 (fog.test) |
+| TC-552 | M | ✅ | world | with no crystal, the Spire tower and its name are hidden in the clouds; when the ring lifts, a faint tower appears, then a solid one, as the last puffs go; the camera glides back after (headless Chromium, filmed) |
+| TC-553 | U | ✅ | story | the leaving-home panels (always before any crystal) say a ring of fog hides the Spire — not that it glitters or shows the way; Scout Tamsin calls the Spire a landmark only once its fog has lifted on screen (`fogSeenFlag('spire-fog')`), before that she says it's hidden (story.test) |
+| TC-554 | M | ✅ | world | a fog reveal shows "Tap or press a key to skip ⏩" at the top while it plays; a key press, a click or a tap mid-reveal clears every bank left at once (all reported seen within ~50 ms), the hint goes, the camera is back on the hero, and the hero walks on the next key (headless Chromium, bench) |
+| TC-555 | M | ✅ | world | a key or pointer already held down when a reveal starts does NOT skip it, nor does letting go; a fresh press then does; untouched, the reveal plays out in full (headless Chromium, bench) |
+| TC-556 | M | ✅ | world | skipped as the camera reaches the Spire ring, the Spire stands whole with no fog left; reduced motion skips the same way (headless Chromium, bench) |
+| TC-557 | M | ⬜ | world | in the real app: a fog lift plays the gate chime (not the level-up fanfare); with a screen reader on, the lift's toast ("The fog …") is read out, as are other toasts (fog hint, save) |
+| TC-558 | U | ✅ | world map | `placeEmoji`: the Spire is ☁️ while its ring of fog is up and 🗼 once any crystal lifts it; every other place keeps its own emoji, the shrine included; ☁️ isn't any place's own emoji (worldMap.test) |
+| TC-559 | M | ✅ | world map | menu map at 375 px: with no crystal, ☁️ sits in the Spire's fog (with the 💎 above it), "☁️ The Crystal Spire" in the list and a "☁️ = a place still hidden in the fog" legend line; with one crystal, 🗼 and no ☁️ legend (headless Chromium) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
