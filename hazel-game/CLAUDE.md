@@ -81,7 +81,10 @@ existing architecture.
   zones + Village (safe, a scrolling 3×2-screen town with enterable
   buildings) + 3 themed combat zones + the hidden Moonwell Grove + the
   Crystal Spire; every zone has a `kind` that picks its transition + music;
-  `ZONE_IDS` is the zone-id source of truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
+  `ZONE_IDS` is the zone-id source of truth, validated by `zones.test.ts`;
+  Dawnreach's terrain is painted in **Tiled** — `content/maps/dawnreach.tmj`
+  with the `legend.tsj` tileset, read by `tiledRows` (`lib/tiled.ts`); see
+  `docs/MAP-AUTHORING.md`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
   (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
@@ -159,6 +162,11 @@ npm test         # Vitest suite (test:watch / test:ui also available)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps [cols rows]   # frame times on a big test map
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
+
+# Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
+python3 tools/tiled/tiled.py to-ascii src/content/maps/dawnreach.tmj    # a Tiled map as ASCII rows
+python3 tools/tiled/tiled.py from-ascii rows.txt src/content/maps/x.tmj # ASCII rows → a Tiled map
+python3 tools/tiled/tiled.py legend                                    # rebuild the legend tileset (append-only)
 ```
 
 ## Error handling
@@ -212,6 +220,31 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-07 — Maps painted in Tiled: Dawnreach's terrain (#75 item 5)
+Big maps are now edited in **Tiled** (the free map editor) instead of typed
+as ASCII — roadmap item 5, decision 7 taken (Tiled for the world map, ASCII
+for smaller maps). Guide: `docs/MAP-AUTHORING.md`.
+- **Files:** `src/content/maps/dawnreach.tmj` (the map, one `terrain` tile
+  layer) and `legend.tsj` + `legend.png` (the tileset: one tile per map
+  character — the game's own art with the character in the corner, its
+  `char` and `meaning` as tile properties; hidden passages dashed).
+- **Loading:** `tiledRows` (`lib/tiled.ts`) turns the map back into the usual
+  ASCII rows at load, so every zone invariant runs on it unchanged. Strict on
+  purpose: an empty cell, a flipped tile, a compressed layer, a second
+  tileset or a missing `terrain` layer fails with where and why. Places,
+  exits, fog, NPCs and enemies stay in zones.ts.
+- **Tools:** `tools/tiled/tiled.py` — `legend` (rebuilds the tileset;
+  append-only, refuses to change an existing tile's character), `from-ascii`,
+  `to-ascii` (to read a map diff).
+- **Migration:** Dawnreach's 48 rows → `.tmj` → rows round-trip identical; an
+  independent Tiled parser (`pytiled_parser`) reads both files.
+- **Bench:** the `diff` masks now cover shoreline corner tiles (edge
+  blending animates water half a tile off the water cells) and drifting fog
+  banks, so coast and fog screens no longer "differ" from animation alone.
+- 402 tests green (+5: legend = LEGEND_CHARS, round trip, Dawnreach loads,
+  9 bad-map cases); lint + build clean. Every zone screen unchanged (only
+  animated water pixels differed — hence the bench fix).
 
 ### 2026-10-07 — Edge-blending review fixes: no vanishing roads, sheets on demand (#71b)
 `/saas-code-review` + `/saas-ux-review` of the edge blending; all 3 findings fixed:
