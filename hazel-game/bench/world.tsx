@@ -163,6 +163,8 @@ function animatedRects(): [number, number, number, number][] {
       }
     }
   }
+  // Fog banks drift between two frames (#75).
+  for (const f of z.fogs ?? []) rects.push([f.x * TILE - ox, f.y * TILE - oy, f.w * TILE, f.h * TILE]);
   // Character sprites: a generous box around each one's start point.
   const box = (cx: number, cy: number, half: number) => rects.push([cx - half - ox, cy - half - oy, half * 2, half * 2]);
   for (const p of [...z.npcs, ...z.enemies]) box(p.x * TILE + TILE / 2, p.y * TILE + TILE / 2, 30);

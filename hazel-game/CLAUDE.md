@@ -239,8 +239,8 @@ for smaller maps). Guide: `docs/MAP-AUTHORING.md`.
 - **Migration:** Dawnreach's 48 rows → `.tmj` → rows round-trip identical; an
   independent Tiled parser (`pytiled_parser`) reads both files.
 - **Bench:** the `diff` masks now cover shoreline corner tiles (edge
-  blending animates water half a tile off the water cells), so coast screens
-  no longer "differ" from animation alone.
+  blending animates water half a tile off the water cells) and drifting fog
+  banks, so coast and fog screens no longer "differ" from animation alone.
 - 402 tests green (+5: legend = LEGEND_CHARS, round trip, Dawnreach loads,
   9 bad-map cases); lint + build clean. Every zone screen unchanged (only
   animated water pixels differed — hence the bench fix).
