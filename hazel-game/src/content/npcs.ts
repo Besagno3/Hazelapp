@@ -483,7 +483,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'The great machines down here built the Spire, long ago — crystal-light and clockwork together. The Rust Fiend tried to seize it all, up in Gearfall.',
       // The Depths run three floors deep since #75 item 10.
       {
-        text: 'The Clockwork Titan? It clanked off down the stairs to the old forge — three floors down, past the Gear Halls. The gatekeeper here guards the way.',
+        text: 'The Clockwork Titan? It clanked off down the stairs to the old forge — two floors down, past the Gear Halls. The gatekeeper here guards the way.',
         unlessFlag: 'key-gearfall-key',
       },
       {

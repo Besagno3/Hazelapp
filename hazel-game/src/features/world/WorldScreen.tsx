@@ -256,9 +256,16 @@ export default function WorldScreen() {
     }
   }
   const knowsGlow = knowsFieldSpell('glow', flags);
-  // On a dungeon floor (#75 item 10) the title says which floor: "B2 · The Gear Halls".
+  // On a dungeon floor (#75 item 10) the title says which floor: "B2 — The Gear Halls",
+  // numbered like the Spire's "Floor 2 — …". The label never wraps away from the name.
   const floor = dungeonFloor(zoneId);
-  const hudTitle = floor ? `${floorLabel(floor.dungeon.goes, floor.index)} · ${z.name}` : z.name;
+  const hudTitle = floor ? (
+    <>
+      <span className="whitespace-nowrap">{floorLabel(floor.dungeon.goes, floor.index)} —</span> {z.name}
+    </>
+  ) : (
+    z.name
+  );
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-16">
@@ -269,8 +276,10 @@ export default function WorldScreen() {
         style={{ width: 'min(96vw, calc((100dvh - 220px) * 11 / 7))' }}
       >
       {/* HUD */}
-      <div className="w-full flex items-center justify-between text-white mb-2 px-1">
-        <div>
+      {/* On a phone the stats don't leave a place name room beside them, so the
+          row wraps: the name on its own line, the stats right-aligned below. */}
+      <div className="w-full flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-white mb-2 px-1">
+        <div className="min-w-0">
           <h1 className="text-lg font-extrabold leading-tight">
             {spireTheme ? spireFloorTitle(spireFloorIndex!) : hudTitle}
           </h1>
@@ -278,7 +287,7 @@ export default function WorldScreen() {
             💎 {crystals}/{TOPIC_REGISTRY.length} crystals restored
           </p>
         </div>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="ml-auto flex shrink-0 items-center gap-3 text-sm">
           <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>
             <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={0.75} />
           </span>
@@ -296,9 +305,12 @@ export default function WorldScreen() {
           {knowsGlow && canGlow(z, flags) && overlay === null && !cutscene && (
             <button
               onClick={() => castFieldSpell({ spell: 'glow' })}
+              aria-label="Cast Glow"
+              title="Cast Glow"
               className="bg-amber-400 hover:bg-amber-300 text-amber-950 rounded-lg px-3 py-1.5 text-xs font-bold"
             >
-              🔆 Glow
+              {/* Just the lamp on a phone, so the place name keeps its room. */}
+              🔆<span className="hidden sm:inline"> Glow</span>
             </button>
           )}
           {/* The machine's Spire state ignores OPEN_MENU, so don't offer it
