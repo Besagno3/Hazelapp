@@ -409,6 +409,54 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-346 | M | ⬜ | menu | the menu shows "✨ Secrets: n/3 found here · n/15 across Lumina" and tags side quests with their town |
 | TC-347 | M | ⬜ | secrets | a twinkle ✦ blinks every few seconds over each unfound secret and disappears once it's found; indoor twinkles only show once the roof fades |
 
+## Overworld Phase 1 — the Dawnreach vertical slice (#75, #77)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-348 | U | ✅ | zones | there is exactly one overworld, and it has places; every `P` tile is a place with an exit, named after the zone it leads to (zones.test) |
+| TC-349 | U | ✅ | zones | on foot from the Village gate, every place on Dawnreach is reachable with the fog down except the Shrine; with the fog lifted the Shrine is reachable too (zones.test) |
+| TC-350 | U | ✅ | zones | every gate from a place onto Dawnreach lands 1–2 cells from that place's own icon, on open ground connected to the rest of the map (zones.test) |
+| TC-351 | U | ✅ | zones | `E` exits sit on a map edge and `P` entrances inside the map; every `E`/`P` tile has an exit entry that lands on a walkable tile; the overworld hosts roaming critters but never bosses (zones.test) |
+| TC-352 | U | ✅ | zones | fog banks sit inside the map, cover walkable ground and are lifted by real flags; `fogAt` covers its rectangle until any one flag is set; `placeAt` finds the place on its tile; `ANY_CRYSTAL` lists every crystal flag (zones.test) |
+| TC-353 | U | ✅ | transition | `transitionFor`: edge-joined screens slide; going into or out of the overworld fades; reduced motion always cuts (transition.test) |
+| TC-354 | U | ✅ | audio | in the world, the music follows the zone kind: overworld/field → overworld theme, town → town, dungeon → cave, shrine → shrine (audio.test) |
+| TC-355 | U | ✅ | terrain | sand is a base tile on the overworld sheet, mountains overlay the ground from the overworld sheet, a place tile draws plain ground; the overworld sheet has one frame per `OVERWORLD_FRAME` entry (terrain.test, tiles.test) |
+| TC-356 | U | ✅ | world map | `whereOnMap`: on the overworld the hero's own tile; with no saved position the spawn; inside a place that place's icon; in Numbria the nearest place on the map (Lumina Field); every zone can be placed (worldMap.test) |
+| TC-357 | M | ✅ | world | every existing zone screen + Spire floor (33 shots, incl. main's expanded towns) is pixel-identical to main outside animated tiles and idle cycles (`bench … shots` + `diff`, headless Chromium) |
+| TC-358 | M | ✅ | world | walking onto the Village icon fades into the Village (arriving at its north gate, 21,1); holding ↑ for 1.8 s more stays in the Village (arrival lock); releasing and pressing ↑ again leaves by the north gate onto Dawnreach at (32,23), beside the icon (bench walk-through, headless Chromium) |
+| TC-359 | M | ✅ | world | walking east into the fog bank stops the hero at its edge and reports a fog bump (`onFog`); with a crystal restored (`flags=crystal-math-restored`) the fog is gone and the same walk crosses it; walking onto the shrine icon enters the Shrine (bench walk-through, headless Chromium). The toast text itself is wired in `WorldScreen` (not on the bench) |
+| TC-360 | M | ✅ | world | Dawnreach (12 screens) and the Shrine render with their place icons, names, the Spire tower, mountains, sand, sea and the drifting fog (headless Chromium screenshots) |
+| TC-361 | M | ✅ | world | walking across Dawnreach: 40 fps (19 at 4× CPU throttle) — the same as the 160×112 stress map on the same machine (40.5 / 20.6), and the stress map matches main (40.9 / 21.5) and the Phase 0 commit (41.4 / 22.3), so Phase 1 adds no cost. (This container is slower than Phase 0's, which measured 60 / 37.) Headless Chromium, software GL |
+| TC-362 | M | ✅ | menu | the world map panel shows Dawnreach with fog, place markers and a ⭐ where you are, captioned "You're out on Dawnreach" / "You're here: Lumina Village" (its name highlighted) / "You're here: Numbria (past Lumina Field)"; with a crystal restored the fog square is gone; no page errors (`WorldMapPanel` mounted on a temporary page, headless Chromium) |
+| TC-363 | M | ⬜ | story | the first time you step onto Dawnreach (after the Grove's scene, if due) the 3-panel Dawnreach cutscene plays once and ends on "🗺️ Explore Dawnreach" |
+| TC-364 | M | ⬜ | audio | with music on: the Village plays the town theme, Dawnreach the overworld theme, the Depths the cave theme, the Shrine the shrine theme |
+| TC-365 | M | ✅ | bench | #77: `diff` exits 1 when one shot is altered (and 0 when all match); Vite's stderr reaches the terminal; the frame sampler is capped (headless Chromium + code review) |
+| TC-366 | M | ✅ | world | the place fade reaches full black before the old screen is dropped, on a fast and a slow machine: at 4× CPU throttle the old fixed-timer fade dropped the snapshot at 11% black (peak 55%, the new zone popped in); the `transitionend`-driven fade drops it at 100% black, unthrottled (~0.6 s) and throttled (~1.1 s), in and out of the Village; edge slides unchanged (frame-by-frame overlay recording, headless Chromium) |
+| TC-367 | U | ✅ | world map | every kind of place has its own emoji (`PLACE_EMOJI`); `mapCaption` reads "You're out on Dawnreach", "You're here: The Crystal Spire", "You're here: Shrine of First Light", "You're here: Numbria (past Lumina Field)" (worldMap.test) |
+| TC-368 | M | ✅ | world map | each place shows its emoji on the map and beside its name; inside a place the ⭐ sits just above that place's emoji; "Fog — restore a crystal to clear it" shows while fog is left and goes once it lifts; the list emoji are `aria-hidden` (headless Chromium) |
+| TC-369 | U | ✅ | toast | `toastMs`: "💎 Game saved!" stays 2.5–3 s, the fog hint ≥ 5 s, never over 8 s (toast.test) |
+| TC-370 | M | ⬜ | toast | in the real app: bump the fog right after a save toast — the fog hint stays its full time (the save toast's timer no longer hides it) |
+| TC-371 | U | ✅ | transition | `needsArrivalLock`: yes into/out of places, no between edge-joined screens (whatever the motion setting) (transition.test) |
+| TC-372 | M | ✅ | world | reduced motion: holding ← across the Field → Numbria edge keeps walking on the new screen; holding ↑ onto the Village icon still doesn't walk straight back out. On the previous code the edge case stood still (headless Chromium, `reducedMotion: 'reduce'`) |
+| TC-373 | M | ✅ | world | walk < 1.5 s, then pause (as the menu does): the saved position jumps to where the hero really is (40.5 → 45.5 tiles); on the previous code it stayed 5 tiles behind (headless Chromium, `__bench.pause`) |
+| TC-374 | M | ✅ | menu | the menu's ✕ "Back to the world" (44×44) is visible without scrolling at 1024 px and 375 px wide; place names on Dawnreach are 11 px and don't collide around the Village, Grove and Spire (headless Chromium) |
+
+## Rounded coasts, beaches and roads — edge blending (#75 item 3, #71b)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-375 | U | ✅ | terrain | blend classes stack water < sand < ground < path; building tiles never blend (terrain.test) |
+| TC-376 | U | ✅ | terrain | a pond corner is one ready-made tile that follows the water animation; a road/grass corner is one static tile; a four-class corner draws the water/sand pair, then the grass and road shapes (terrain.test) |
+| TC-377 | U | ✅ | terrain | nothing is drawn where four cells match, next to a building, or past the map edge; a cell whose four corners blend is hidden (base skipped) (terrain.test) |
+| TC-378 | U | ✅ | tiles | every pair and shape has its own frame inside the sheet, and every zone has a 512×384 blend sheet; every zone's corners give valid frames; Spire floors never blend (terrain.test, tiles.test) |
+| TC-379 | M | ✅ | world | all 46 zone screens + Spire floors before/after: coasts, ponds, the Village fountain and roads are rounded (foam on water, a darker rim on land), walls stay square, Spire floors pixel-identical (bench `shots` + `diff`, headless Chromium) |
+| TC-380 | M | ✅ | world | frame rate (software GL, alternating runs, same machine): stress map unchanged; walking Dawnreach ~5% lower unthrottled, ~12% lower at 4× CPU throttle; the Phase 1 walk-through still passes |
+| TC-381 | M | ⬜ | world | the same Dawnreach walk on a real tablet / Chromebook (hardware GL) keeps a smooth frame rate (with TC-326) |
+| TC-382 | M | ✅ | world | with the blend sheets delayed 6 s (fresh browser context), Dawnreach's one-tile road shows with square edges until they arrive, then rounded — on the review's code it vanished (bare ground) for that time (headless Chromium) |
+| TC-383 | U | ✅ | sprites | `blendSheetsFor`: a zone's own sheet plus each neighbour's, once each; none for Spire floors (worldSprites.test) |
+| TC-384 | M | ✅ | sprites | first entry fetches only what's near: Dawnreach 9 blend sheets (itself + its 8 places), the Village 2 (itself + Dawnreach); walking out onto Dawnreach fetches the rest of its neighbours (headless Chromium, request log) |
+| TC-385 | U | ✅ | tiles | `blendPairFrame` throws for a pair that isn't low → high (tiles.test) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

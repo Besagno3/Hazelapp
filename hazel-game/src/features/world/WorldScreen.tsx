@@ -38,12 +38,15 @@ import {
   crystalSceneFlag,
   GROVE_PANELS,
   GROVE_SEEN,
+  DAWNREACH_PANELS,
+  DAWNREACH_SEEN,
 } from '../../content/story';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { claimSecret, rewardSummary, secretById, secretFlag } from '../../content/secrets';
 import type { SecretDef } from '../../content/zones';
 import { sfx } from '../../lib/audio';
 import { playerAge } from '../../lib/age';
+import { toastMs } from '../../lib/toast';
 import { heroMaxHp } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { useSaveStore } from '../../store/saveStore';
@@ -97,6 +100,15 @@ export default function WorldScreen() {
     touchDirRef.current = { dx, dy };
   }, []);
   const [toast, setToast] = useState<string | null>(null);
+  // One timer for whichever toast is up: a new toast replaces the old one's
+  // timer, so an earlier toast can't hide a newer one early.
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
   // The secret just found — shown in a small celebration card.
   const [found, setFound] = useState<SecretDef | null>(null);
   useEffect(() => {
@@ -125,8 +137,10 @@ export default function WorldScreen() {
     null;
   const spireAwakeDue = crystals >= 1 && !flags[SPIRE_AWAKE_SEEN];
   const endingDue = crystals === TOPIC_REGISTRY.length && !flags[ENDING_SEEN];
-  // Location-triggered: plays once on first stepping into the hidden grove.
+  // Location-triggered: plays once on first stepping into the hidden grove,
+  // and once on the first step out onto Dawnreach (#75 Phase 1).
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
+  const dawnreachDue = zoneId === 'dawnreach' && !flags[DAWNREACH_SEEN];
 
   const activeScene:
     | 'spireVictory'
@@ -136,6 +150,7 @@ export default function WorldScreen() {
     | 'spire'
     | 'ending'
     | 'grove'
+    | 'dawnreach'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -150,7 +165,9 @@ export default function WorldScreen() {
               ? 'ending'
               : groveDue
                 ? 'grove'
-                : null;
+                : dawnreachDue
+                  ? 'dawnreach'
+                  : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
@@ -193,8 +210,9 @@ export default function WorldScreen() {
   }
 
   function showToast(text: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(text);
-    setTimeout(() => setToast(null), 2200);
+    toastTimer.current = setTimeout(() => setToast(null), toastMs(text));
   }
 
   return (
@@ -270,6 +288,7 @@ export default function WorldScreen() {
             sendFlow({ type: 'ENCOUNTER' });
           },
           onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),
+          onFog: (hint) => showToast(`🌫️ ${hint}`),
           onWard: (id) => spireBump({ kind: 'ward', id }),
           onStairs: () => spireBump({ kind: 'stairs' }),
           onUmbra: () => spireBump({ kind: 'umbra' }),
@@ -371,6 +390,13 @@ export default function WorldScreen() {
           panels={spireVictoryPanels(avatar.name)}
           doneLabel="🌟 The adventure continues!"
           onDone={() => setFlag(SPIRE_VICTORY_SEEN)}
+        />
+      )}
+      {activeScene === 'dawnreach' && (
+        <StoryPanels
+          panels={DAWNREACH_PANELS}
+          doneLabel="🗺️ Explore Dawnreach"
+          onDone={() => setFlag(DAWNREACH_SEEN)}
         />
       )}
       {activeScene === 'grove' && (

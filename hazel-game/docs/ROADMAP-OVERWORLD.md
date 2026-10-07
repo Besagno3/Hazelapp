@@ -418,9 +418,9 @@ mostly follows build order.
 |---|---|---|---|---|
 | 0 | ✅ **Quick fix:** Field ↔ Village exits are both north (`zones.ts:210`, `:503`) | S | 0 | **Done (2026-10-05):** the Field's road to the Village now leaves south and the Village's way back is north; zones.test guards every exit pair |
 | 1 | ✅ **Big-map renderer:** one terrain layer drawing only visible cells (§4.3) | M | 0 | **Done (2026-10-05):** a 160×112 map runs as fast as a one-screen zone (60 fps; 37 fps at 4× CPU throttle, was 0.5); existing zones pixel-identical |
-| 2 | **Overworld zone + enterable places** (§4.1–4.2) | L | 1–2 | walk out of the Village, enter each place by its icon, come back out beside it; old saves load |
-| 3 | **Overworld art:** terrain, structure icons, smooth coast/road edges (#71b), fog tiles, the Spire landmark (`tools/assets/tiles.py`) | M | 1–2 | the overworld reads like a 16-bit world map, with no square-edged water |
-| 4 | **Transitions + music per place kind** | S | 1 | entering a place fades; towns, fields, caves and towers each have their own track |
+| 2 | ✅ **Overworld zone + enterable places** (§4.1–4.2) | L | 1–2 | **Done (2026-10-06, Phase 1):** `dawnreach` with 8 enterable places; you walk out of the Village, enter each place by its icon and come back out beside it; no save change, so old saves load |
+| 3 | ✅ **Overworld art:** terrain, structure icons, smooth coast/road edges (#71b), fog tiles, the Spire landmark (`tools/assets/tiles.py`) | M | 1–2 | **Done (2026-10-06):** terrain, icons, fog and the Spire landmark in Phase 1; rounded coasts, beaches and roads (edge blending, `blendLayer`) everywhere but the Spire floors — no square-edged water |
+| 4 | ✅ **Transitions + music per place kind** | S | 1 | **Done (2026-10-06, Phase 1):** places fade (slides between neighbouring screens stay), and towns, fields/overworld, caves and shrines each have their own track |
 | 5 | **Map authoring:** Tiled import, invariants ported (§4.6) | S–M | 1→2 | the world map is edited in Tiled and all zone tests run on it |
 | 6 | **Wayfinding:** world map menu, quest markers, signposts, "where next?" lines | S–M | 2 | a playtester can always answer "where am I?" and "where do I go?" |
 | 7 | **Fog banks** (§3.2) | S–M | 2 | restoring a crystal visibly lifts its fog and opens what's behind it |
@@ -456,6 +456,20 @@ from the Phase 0 code review (ISSUES #77). Ready for it already: the exit
 check (`edgeLinkProblem`) handles towns with several gates onto the
 overworld, and culling + camera clamping use `worldView`, so a zoomed-out
 camera (decision 6) draws correctly.
+*Status (2026-10-06):* built. `dawnreach` is a 64×48 overworld holding all
+eight places around the Village (the Village, Lumina Field, the Woods, the
+Depths cave, the Grove, the Spire, the Coast and the new Shrine of First
+Light). One fog pocket seals the shrine until any crystal is restored. Zone
+kinds pick fade vs slide and the music (new town / cave / shrine themes),
+and the menu has a stub world map. The bench cleanup (#77) is done.
+As built, it differs from §4.1–4.2 in three ways:
+- the kinds are `overworld / town / field / dungeon / shrine` (no
+  `interior`: building interiors stay inside their town);
+- music is per kind (`ZONE_KIND_TRACK`), not a per-zone `music` field;
+- places are `PlaceDef` icons on `P` tiles, with the link itself kept in
+  `exits` like every other exit.
+
+Follow-ups for Phase 2 are in ISSUES #82.
 
 **Phase 2 — Dawnreach (Act I on the map).** The full continent with
 the four crystal regions at the corners and the Spire at the heart; fog that
@@ -504,12 +518,16 @@ Struck-through items are decided; the rest are still open.
    people and buildings fold into Lumina Village in Phase 2 (§3.5).
 4. ~~**An inn in every town.**~~ **Decided (2026-10-05): yes**, reversing
    #73's one-inn rule (§2.4).
-5. **Visible monsters only, no random battles**, on the overworld too?
-   *Recommended: yes (`DESIGN-JRPG.md` rule 1).*
-6. **Overworld tile scale:** same 32px tiles as towns (DQ-style), or a
-   zoomed-out world map? *Recommended: same scale.*
+5. ~~**Visible monsters only, no random battles**, on the overworld too?~~
+   **Taken as recommended in Phase 1 (2026-10-06): yes**: Dawnreach's
+   critters roam visibly like everywhere else.
+6. ~~**Overworld tile scale.**~~ **Taken as recommended in Phase 1: the
+   same 32px tiles** as towns (DQ-style). The camera can still zoom out
+   later (culling and clamping already handle it).
 7. **Map authoring:** Tiled for the world map, ASCII for everything smaller?
-   *Recommended: yes.*
+   *Recommended: yes.* Phase 1's 64×48 slice is still ASCII (generated
+   from a script, then hand-checked); Tiled comes in when the full continent
+   is drawn (Phase 2).
 8. **When the boat arrives:** Act II as planned, or at the end of Act I so
    islands can hold early side content? *Recommended: Act II.*
 9. **Flight timing:** keep `STORY-4X.md`'s rule (Ember flies at crystal #5)?

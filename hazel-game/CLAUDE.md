@@ -75,11 +75,13 @@ existing architecture.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
-  resolves all seven, #33/#55), `zones.ts` (11 ASCII tile maps: Lumina Field
-  hub + 4 crystal zones + Village (safe, a scrolling 2×2-screen town with
-  enterable buildings) + 3 themed combat zones + the hidden
-  Moonwell Grove + the Crystal Spire; `ZONE_IDS` is the zone-id source of
-  truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
+  resolves all seven, #33/#55), `zones.ts` (13 ASCII tile maps: the
+  **Dawnreach** overworld (64×48, `kind: 'overworld'`, with `places` icons
+  and `fogs`, #75) + the Shrine of First Light + Lumina Field + 4 crystal
+  zones + Village (safe, a scrolling 3×2-screen town with enterable
+  buildings) + 3 themed combat zones + the hidden Moonwell Grove + the
+  Crystal Spire; every zone has a `kind` that picks its transition + music;
+  `ZONE_IDS` is the zone-id source of truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
   (Sage personas + charge tuning), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
@@ -101,7 +103,13 @@ existing architecture.
   the Spire icon, remounted per zone, paused under overlays via ref). Terrain
   is ONE object that draws only the cells in view each frame, from frames
   worked out once per zone by `lib/terrain.ts` — never add one KaPlay object
-  per tile (big maps would crawl; #75). Roofs are one object per building. Overlays:
+  per tile (big maps would crawl; #75). Roofs are one object per building.
+  Coasts, beaches and roads are rounded by **edge blending** (`blendLayer`,
+  `lib/terrain.ts`): a tile centred on every corner where terrain classes meet
+  (water < sand < ground < path), from a per-zone `/tiles/<zone>-blend.png`;
+  buildings and Spire floors never blend.
+  Moving between edge-joined screens slides; entering or leaving a place on
+  the overworld fades (`transitionFor`, `lib/transition.ts`). Overlays:
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
   key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
@@ -204,6 +212,124 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-07 — Edge-blending review fixes: no vanishing roads, sheets on demand (#71b)
+`/saas-code-review` + `/saas-ux-review` of the edge blending; all 3 findings fixed:
+- **Roads vanished until the blend sheet loaded (medium):** cells whose four
+  corners blend skip their base tile — but before the zone's blend sheet
+  arrived nothing covered them, so a one-tile road (all such cells) showed as
+  bare ground for seconds on a slow first load. `WorldCanvas` now waits for
+  `getSprite(blendKey).loaded` before skipping or drawing corner tiles: square
+  edges first, rounded once the sheet lands.
+- **Sheets on demand (low):** blend sheets load per zone as it's built — its
+  own plus its neighbours' (`blendSheetsFor` / `ensureBlendSheets`,
+  `worldSprites.ts`) — instead of all 13 (~265 KB) on first entry.
+- **`blendPairFrame` throws on a wrong pair (low)** instead of silently
+  returning another pair's tile.
+- Verified in headless Chromium with the blend sheets delayed: the road shows
+  (square) before they arrive and rounded after; Dawnreach fetches 9 sheets,
+  the Village 2; every zone screen unchanged; the Phase 1 walk-through passes.
+- 397 tests green (+2); lint + build clean.
+
+### 2026-10-06 — Rounded coasts, beaches and roads: edge blending (#75 item 3, #71b)
+Water, beaches and roads no longer meet in hard squares — the last part of
+roadmap item 3 ("no square-edged water") and ISSUES #71b.
+- **How:** a "dual grid". Each cell has a blend class — water < sand < ground
+  < path (`blendClass`); buildings have none and keep square walls. Wherever
+  classes meet at a tile corner, the renderer draws a 32px tile centred on
+  that corner (`blendLayer`, `lib/terrain.ts`, worked out once per zone; drawn
+  between the base tiles and the overlays). Two-class corners (almost all)
+  draw ONE ready-made opaque pair tile; three- or four-class corners add the
+  higher classes' rounded shapes on top. Shapes get a foam line on water and
+  a darker rim on land. Cells whose four corners all blend skip their (hidden)
+  base tile.
+- **Art:** `tools/assets/tiles.py` `blend_sheet` writes
+  `/tiles/<zone>-blend.png` per zone (180 frames, 16×12) from each zone's own
+  textures (smoothstep-rounded shapes); `python3 tools/assets/build.py blend`
+  writes only these — no existing file changed. Spire floors don't blend
+  (their `~` are pits).
+- **Checked (headless Chromium):** all 46 zone screens + Spire floors
+  reviewed before/after; Spire floors pixel-identical. Frame rate (software GL,
+  same machine, alternating runs): stress map unchanged (59.7 / 31.3 fps vs
+  59.4 / 30.2); walking Dawnreach ~5% lower unthrottled and ~12% lower at 4×
+  CPU throttle (pair tiles + the hidden-cell skip halved the first version's
+  cost). The Phase 1 walk-through still passes.
+- 395 tests green (+9); lint + build clean.
+
+### 2026-10-06 — Phase 1 review fixes: map, toasts, arrival lock (#75)
+`/saas-code-review` (2 findings) and `/saas-ux-review` (6 findings) of Phase 1;
+all fixed:
+- **World map tells places apart:** each place has its own emoji
+  (`PLACE_EMOJI`, `lib/worldMap.ts`) on the map and beside its name in the
+  list; inside a place the ⭐ perches above its emoji; a legend explains the
+  fog square while any fog is left. The caption is "You're here: <name>" /
+  "You're out on Dawnreach" (`mapCaption` — no articles to get wrong); list
+  emoji are hidden from screen readers.
+- **The ⭐ is where you are:** pausing (menu, dialogue, cutscene) now saves
+  the hero's real position — walking only saved every 1.5 s, so the star (and
+  a refresh) could be ~8 tiles behind.
+- **Reduced motion walks smoothly again:** the arrival lock follows the link
+  (`needsArrivalLock`, `lib/transition.ts`): only into/out of places, never
+  between edge-joined screens — reduced motion had locked every edge cut.
+- **Toasts:** time on screen follows the text (`toastMs`, `lib/toast.ts`: ~2
+  words a second, 2.5–8 s), and a new toast replaces the old timer (an earlier
+  toast's timer used to hide a newer one early). The fog hint is shorter: "Too
+  foggy to pass! Restore a crystal to clear it." (~6.5 s).
+- **Place names** on the overworld use 11 px like building names (were 9 px —
+  ~4.6 px on a phone). **Menu:** a ✕ "Back to the world" button in the header
+  (44 px), so the way out never scrolls away.
+- Bench: `__bench.pause(on)` pauses the world like a menu does.
+- 386 tests green (+9); lint + build clean. Verified in headless Chromium: map
+  in four situations, the real menu at 1024 px and 375 px, labels, pause
+  saving and reduced-motion walking (both fail on the previous code).
+
+### 2026-10-06 — Overworld Phase 1: the Dawnreach vertical slice (#75, #77)
+The world gets its first real overworld: walk out of Lumina Village onto a
+64×48 map of Dawnreach and into every old place from there.
+- **Zone kinds** (`ZoneDef.kind`, `ZONE_KINDS`): overworld / town / field /
+  dungeon / shrine. The kind picks the transition and the music.
+- **Places** (`ZoneDef.places`, legend `P`): one-tile icons on the overworld
+  that act as exits (town, hamlet, forest, cave, shrine, coast, grove, and the
+  Spire's tower). New legend chars: `^` mountain (solid), `:` sand. Every gate
+  out of a place lands right beside its own icon.
+- **Transitions** (`transitionFor`, `lib/transition.ts`): screens joined edge
+  to edge still slide; going into or out of a place fades through black
+  (`FADE_MS`); reduced motion cuts. Each fade step waits for the black
+  overlay's own `transitionend` (a safety timeout unfreezes the hero if one
+  is lost) — fixed timers dropped the old screen at 11% black on a 4×-slowed
+  CPU, so the new zone popped in. After a fade or cut the hero waits for the
+  keys to be released, so a held key can't walk straight back out.
+- **Fog banks** (`ZoneDef.fogs`, `FogDef`, `fogAt`): drifting fog blocks a
+  rectangle of the map until any of its `liftedBy` flags is set. The first
+  one seals the **Shrine of First Light** pocket until any crystal is
+  restored (`ANY_CRYSTAL`); bumping it shows a hint toast.
+- **Content:** `dawnreach` (overworld: the Village, Lumina Field, the Woods,
+  the Depths cave, the Grove, the Spire, the Coast and the shrine; a road
+  network; 5 roaming critters; Scout Tamsin with directions) and
+  `dawn-shrine` (Old Wren, the shrine keeper — field spells come in Phase 2).
+  Every old link out of the Village, Field, Woods, Coast, Depths, Grove and
+  Spire onto another place now goes through Dawnreach instead; zone-to-zone
+  links inside a region (Field ↔ crystal zones, Woods ↔ Depths) are unchanged.
+  A first-visit cutscene (`DAWNREACH_PANELS`) plays after the Grove's.
+- **World map** (menu): `WorldMapPanel` draws Dawnreach small with fog, places
+  and a pulsing ⭐ "you are here" (`lib/worldMap.ts`: `whereOnMap` follows
+  exits back to the nearest place for zones not on the map yet).
+- **Music by kind** (`ZONE_KIND_TRACK`, `lib/audio.ts`): new `town`, `cave`
+  and `shrine` loops; the overworld and fields keep the overworld theme.
+- **Art:** `/tiles/overworld.png` (mountain, sand, 2-frame fog, place icons),
+  tilesets + backdrops for both new zones, two NPC sprites
+  (`tools/assets`: targeted `overworld` build; existing files untouched).
+- **Bench cleanup (#77, all four):** Vite stderr inherited, Vite killed if it
+  never starts, `diff` exits 1 on a difference, the frame sampler is capped
+  with a running max. The bench can also follow exits between zones and
+  report its zone/position (`__bench.state()`), and takes `flags=`.
+- No save change: places are zones, so positions save as before.
+- **Verified in headless Chromium:** all 33 existing zone screens + Spire
+  floors pixel-identical to main; the Village fade / arrival lock / walk back
+  out, fog block + lift and shrine entry walked on the bench; Dawnreach walks
+  at the same frame rate as the stress map (Phase 1 adds no cost); the world
+  map panel in four situations.
+- 377 tests green (354 on main before this); lint + build clean.
 
 ### 2026-10-06 — CI: lint + test + build on every PR (#81)
 First CI for the repo: `.github/workflows/ci.yml` (repo root) runs `npm ci`,

@@ -1611,6 +1611,9 @@ NPCS: list[Char] = [
     Char('chromaria-curator', '🖼️', 'humanoid', H(hair='bob', hair_color='#d03a5a', hat='beret', hat_color='#2a2a3a', outfit='#2a2a3a', trim='#ffd24a', glasses=True)),
     Char('chromaria-musician', '🎻', 'humanoid', H(hair='long', hair_color='#ffb030', outfit='#3a8ad0', scarf='#ff6aa0', hat='flower')),
     Char('chromaria-kid', '🧑‍🎨', 'humanoid', H(hair='spiky', hair_color='#4a2a1a', outfit='#e07a3a', apron='#c8a070', item='brush')),
+    # ── Dawnreach, the overworld (#75 Phase 1) ──
+    Char('dawnreach-scout', '🧭', 'humanoid', H(hair='ponytail', hair_color='#7a4a2a', hat='cap', hat_color='#e07a2a', outfit='#4a8a5a', pants='#5a4a3a', scarf='#ffd24a', pack='#8a5a30', item='telescope')),
+    Char('shrine-keeper', '🕯️', 'humanoid', H(hair='bun', hair_color='#ececf4', outfit='#ece4d4', trim='#e0b040', robe=True, item='lantern')),
 ]
 for n in NPCS:
     n.battle = False

@@ -1,5 +1,16 @@
 import { buildingAt, type BuildingStyle, type ZoneDef } from '../content/zones';
-import { TILE_FRAME, TOWN_FRAME, groundVariant } from '../content/tiles';
+import {
+  BLEND_CLASS,
+  BLEND_WATER_STEP,
+  OVERWORLD_FRAME,
+  TILE_FRAME,
+  TOWN_FRAME,
+  blendPairFrame,
+  blendShapeFrame,
+  groundVariant,
+  type BlendClass,
+  type LandClass,
+} from '../content/tiles';
 
 /**
  * Terrain layers for the world renderer (overworld Phase 0, #75).
@@ -17,8 +28,18 @@ import { TILE_FRAME, TOWN_FRAME, groundVariant } from '../content/tiles';
  * terrain — they stay live objects drawn on top.
  */
 
-/** A sheet a terrain cell draws from: the zone's own tileset, or a building style's town sheet. */
-export type TerrainSheet = 'zone' | BuildingStyle;
+/**
+ * A sheet a terrain cell draws from: the zone's own tileset, the shared
+ * overworld sheet (mountains, sand — #75 Phase 1), or a building style's
+ * town sheet.
+ */
+export type TerrainSheet = 'zone' | 'overworld' | BuildingStyle;
+
+/** One tile to draw: which sheet, which frame. */
+export interface TileRef {
+  sheet: TerrainSheet;
+  frame: number;
+}
 
 /** `baseFrame` value for animated water — the frame is picked from the clock at draw time. */
 export const WATER = -1;
@@ -35,30 +56,33 @@ const TOWN_TILE: Record<string, number> = {
   Z: TOWN_FRAME.bed,
 };
 
-/** Zone-tileset overlays drawn over the ground (transparent frames). */
-const OVERLAY: Record<string, number> = {
-  '#': TILE_FRAME.solid,
+/** Overlays drawn over the ground (transparent frames). */
+const OVERLAY: Record<string, TileRef> = {
+  '#': { sheet: 'zone', frame: TILE_FRAME.solid },
   // Hidden passages look exactly like solid scenery (the hero can walk through).
-  H: TILE_FRAME.solid,
-  ',': TILE_FRAME.deco,
-  E: TILE_FRAME.exit,
+  H: { sheet: 'zone', frame: TILE_FRAME.solid },
+  ',': { sheet: 'zone', frame: TILE_FRAME.deco },
+  E: { sheet: 'zone', frame: TILE_FRAME.exit },
+  '^': { sheet: 'overworld', frame: OVERWORLD_FRAME.mountain },
 };
 
 export interface TerrainLayers {
   cols: number;
   rows: number;
-  /** Sheets in use; `baseSheet` holds an index into this list per cell. */
+  /** Sheets in use; `baseSheet` / `overSheet` hold an index into this list per cell. */
   sheets: TerrainSheet[];
   /** Per cell (row-major): which sheet the base tile comes from. */
   baseSheet: Uint8Array;
   /** Per cell: base frame, or `WATER`. */
   baseFrame: Int16Array;
-  /** Per cell: zone-tileset overlay frame, or `NO_OVERLAY`. */
+  /** Per cell: which sheet the overlay comes from (ignored when there is none). */
+  overSheet: Uint8Array;
+  /** Per cell: overlay frame, or `NO_OVERLAY`. */
   overFrame: Int16Array;
 }
 
 /** The base tile for one cell: its sheet and frame (or `WATER`). */
-export function baseTile(z: ZoneDef, x: number, y: number): { sheet: TerrainSheet; frame: number } {
+export function baseTile(z: ZoneDef, x: number, y: number): TileRef {
   const ch = z.map[y][x];
   const home = buildingAt(z, x, y);
   // Building tiles draw in that building's architecture style (#73).
@@ -78,12 +102,13 @@ export function baseTile(z: ZoneDef, x: number, y: number): { sheet: TerrainShee
   if (ch in TOWN_TILE) return { sheet: style, frame: TOWN_TILE[ch] };
   if (ch === '=' || ch === 'E') return { sheet: 'zone', frame: TILE_FRAME.path };
   if (ch === '~') return { sheet: 'zone', frame: WATER };
+  if (ch === ':') return { sheet: 'overworld', frame: OVERWORLD_FRAME.sand };
   return { sheet: 'zone', frame: groundVariant(x, y) };
 }
 
-/** The overlay frame drawn over a cell's base (scenery, flowers, exit marker), if any. */
-export function overlayTile(ch: string): number {
-  return OVERLAY[ch] ?? NO_OVERLAY;
+/** The overlay drawn over a cell's base (scenery, flowers, exit marker, mountain), if any. */
+export function overlayTile(ch: string): TileRef | null {
+  return OVERLAY[ch] ?? null;
 }
 
 /** Works out every cell's terrain frames once per zone build. */
@@ -93,19 +118,124 @@ export function terrainLayers(z: ZoneDef): TerrainLayers {
   const sheets: TerrainSheet[] = [];
   const baseSheet = new Uint8Array(cols * rows);
   const baseFrame = new Int16Array(cols * rows);
+  const overSheet = new Uint8Array(cols * rows);
   const overFrame = new Int16Array(cols * rows);
+  const sheetIndex = (sheet: TerrainSheet) => {
+    const s = sheets.indexOf(sheet);
+    return s >= 0 ? s : sheets.push(sheet) - 1;
+  };
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const i = y * cols + x;
       const base = baseTile(z, x, y);
-      let s = sheets.indexOf(base.sheet);
-      if (s < 0) s = sheets.push(base.sheet) - 1;
-      baseSheet[i] = s;
+      baseSheet[i] = sheetIndex(base.sheet);
       baseFrame[i] = base.frame;
-      overFrame[i] = overlayTile(z.map[y][x]);
+      const over = overlayTile(z.map[y][x]);
+      overSheet[i] = over ? sheetIndex(over.sheet) : 0;
+      overFrame[i] = over ? over.frame : NO_OVERLAY;
     }
   }
-  return { cols, rows, sheets, baseSheet, baseFrame, overFrame };
+  return { cols, rows, sheets, baseSheet, baseFrame, overSheet, overFrame };
+}
+
+// --- Edge blending (#75, #71b) ---------------------------------------------
+// Coasts, beaches and roads would otherwise meet in hard squares. Wherever
+// different terrain meets at a tile corner, the renderer draws tiles centred
+// on that corner: a ready-made opaque tile for the lowest two classes there,
+// then any higher class's rounded shape on top. Classes stack water < sand <
+// ground < path. Buildings never blend (their walls stay square), and neither
+// do the Spire's floors (their '~' are pits, not water).
+
+const BLEND_OF: Record<string, BlendClass> = {
+  '~': BLEND_CLASS.water,
+  ':': BLEND_CLASS.sand,
+  '.': BLEND_CLASS.ground,
+  ',': BLEND_CLASS.ground,
+  '#': BLEND_CLASS.ground,
+  H: BLEND_CLASS.ground,
+  S: BLEND_CLASS.ground,
+  C: BLEND_CLASS.ground,
+  G: BLEND_CLASS.ground,
+  P: BLEND_CLASS.ground,
+  '^': BLEND_CLASS.ground,
+  '=': BLEND_CLASS.path,
+  E: BLEND_CLASS.path,
+};
+
+/** The blend class of a map cell, or null where nothing blends (buildings). */
+export function blendClass(ch: string): BlendClass | null {
+  return BLEND_OF[ch] ?? null;
+}
+
+/** Does this map get blended edges? Every zone does; Spire floors (own tileset) don't. */
+export function blendsEdges(z: ZoneDef): boolean {
+  return !z.tileset;
+}
+
+/** An empty slot in `BlendLayer.ops`. */
+export const NO_BLEND = -1;
+/** Tiles per corner: one pair, then at most two more shapes (four classes). */
+export const BLEND_OPS_PER_CORNER = 3;
+
+export interface BlendLayer {
+  /** Tile corners per row / column: one more than the map's cells. */
+  vcols: number;
+  vrows: number;
+  /**
+   * Per corner (row-major), `BLEND_OPS_PER_CORNER` blend-sheet frames to draw
+   * in order, or `NO_BLEND` (the rest are empty too). A corner whose first
+   * slot is `NO_BLEND` draws nothing.
+   */
+  ops: Int16Array;
+  /** Per slot: frames to add on the second water frame (0 when the tile doesn't animate). */
+  waterStep: Uint8Array;
+  /**
+   * Per cell (row-major): 1 when all four of its corners blend — their opaque
+   * pair tiles cover it completely, so its base tile needn't be drawn.
+   */
+  hidden: Uint8Array;
+}
+
+/**
+ * Works out every tile corner's blend tiles once per zone build. Corner
+ * (vx, vy) sits between cells (vx-1, vy-1), (vx, vy-1), (vx-1, vy) and
+ * (vx, vy); cells past the map edge count as the nearest edge cell.
+ */
+export function blendLayer(z: ZoneDef): BlendLayer {
+  const rows = z.map.length;
+  const cols = z.map[0].length;
+  const vcols = cols + 1;
+  const vrows = rows + 1;
+  const ops = new Int16Array(vcols * vrows * BLEND_OPS_PER_CORNER).fill(NO_BLEND);
+  const waterStep = new Uint8Array(vcols * vrows * BLEND_OPS_PER_CORNER);
+  const classAt = (x: number, y: number) =>
+    blendClass(z.map[Math.min(Math.max(y, 0), rows - 1)][Math.min(Math.max(x, 0), cols - 1)]);
+  for (let vy = 0; vy < vrows; vy++) {
+    for (let vx = 0; vx < vcols; vx++) {
+      // Corner order matches the mask bits: top-left 1, top-right 2, bottom-left 4, bottom-right 8.
+      const c = [classAt(vx - 1, vy - 1), classAt(vx, vy - 1), classAt(vx - 1, vy), classAt(vx, vy)];
+      if (c.some((k) => k === null)) continue;
+      const present = [...new Set(c as BlendClass[])].sort((a, b) => a - b);
+      if (present.length < 2) continue;
+      const maskOf = (cls: BlendClass) => c.reduce<number>((m, k, b) => ((k as number) >= cls ? m | (1 << b) : m), 0);
+      const o = (vy * vcols + vx) * BLEND_OPS_PER_CORNER;
+      const [lower, upper] = present as [BlendClass, LandClass];
+      ops[o] = blendPairFrame(lower, upper, maskOf(upper));
+      if (lower === BLEND_CLASS.water) waterStep[o] = BLEND_WATER_STEP;
+      for (let k = 2; k < present.length; k++) {
+        const cls = present[k] as LandClass;
+        ops[o + k - 1] = blendShapeFrame(cls, maskOf(cls));
+      }
+    }
+  }
+  const hidden = new Uint8Array(cols * rows);
+  const blends = (vx: number, vy: number) => ops[(vy * vcols + vx) * BLEND_OPS_PER_CORNER] !== NO_BLEND;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (blends(x, y) && blends(x + 1, y) && blends(x, y + 1) && blends(x + 1, y + 1)) hidden[y * cols + x] = 1;
+    }
+  }
+  return { vcols, vrows, ops, waterStep, hidden };
 }
 
 /**
