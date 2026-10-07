@@ -31,10 +31,16 @@ interface BattleStore {
   lucky: boolean;
   /** Enemy instances beaten this session — kept off the map until reload. */
   defeatedIds: string[];
+  /**
+   * Losses per enemy def this session — after a couple, that enemy's questions
+   * get easier (mercy). Deliberately session-only: a reload is a fresh start.
+   */
+  losses: Record<string, number>;
 
   start: (enemy: BattleEnemy, playerHp: number, playerMaxHp: number) => void;
   applyCombat: (s: CombatState) => void;
   markDefeated: (instanceId: string) => void;
+  recordLoss: (defId: string) => void;
   endBattle: () => void;
   reset: () => void;
 }
@@ -56,6 +62,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
   enemyHp: 0,
   ...FRESH_COMBAT,
   defeatedIds: [],
+  losses: {},
 
   start: (enemy, playerHp, playerMaxHp) =>
     set({
@@ -83,10 +90,12 @@ export const useBattleStore = create<BattleStore>((set) => ({
   markDefeated: (instanceId) =>
     set((s) => ({ defeatedIds: [...s.defeatedIds, instanceId] })),
 
+  recordLoss: (defId) => set((s) => ({ losses: { ...s.losses, [defId]: (s.losses[defId] ?? 0) + 1 } })),
+
   endBattle: () => set({ enemy: null }),
 
   reset: () =>
-    set({ enemy: null, playerHp: 0, playerMaxHp: 0, enemyHp: 0, ...FRESH_COMBAT, defeatedIds: [] }),
+    set({ enemy: null, playerHp: 0, playerMaxHp: 0, enemyHp: 0, ...FRESH_COMBAT, defeatedIds: [], losses: {} }),
 }));
 
 /** The live combat numbers, read synchronously (never from a stale render). */

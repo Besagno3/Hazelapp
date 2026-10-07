@@ -6,25 +6,54 @@ import QuestionCard from '../../components/QuestionCard';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { fetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
-import { sfx, stopMusic } from '../../lib/audio';
-import { playerAge, clampLevel, nextSkillLevelFromBattle, skillLevelFor } from '../../lib/age';
+import { sfx, stopMusic, type SfxName } from '../../lib/audio';
+import { playerAge, clampLevel, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
-import { attackDamage, spellDamage, BOSS_XP_BONUS } from '../../lib/battleMath';
+import { attackDamage, spellDamage, companionAttackDamage, pairDamage, BOSS_XP_BONUS } from '../../lib/battleMath';
 import {
   applyFocus,
   chargeAfterAnswer,
+  defendTimeMs,
   itemBlocked,
+  mercyFor,
+  nextIntent,
+  powerMoveName,
   resolveEnemyTurn,
   resolveHeroHit,
   resolveItem,
   resolveSpell,
+  rollDrop,
+  skillAfterBattle,
+  speedStep,
+  streakMultiplier,
+  STREAK_MAX,
+  STREAK_START,
+  SUPER_EFFECTIVE,
+  victoryCoins,
   type CombatState,
+  type EnemyIntent,
 } from '../../lib/battleTurn';
+import { CHARGE_MAX } from '../../content/abilities';
 import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells';
+import {
+  COMPANIONS,
+  EMBER_BONUS_CHARGE,
+  PIP_PEEK_HIDES,
+  WISP_MEND,
+  companionCanFight,
+  companionMove,
+  companionPower,
+  companionSprite,
+  companionsInParty,
+  pairAttacksFor,
+  PAIR_ATTACKS,
+  type CompanionId,
+  type PairAttack,
+} from '../../content/companion';
 import { CLOVER_COIN_MULT, CONSUMABLES, type ConsumableId } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
-import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
+import { BOSS_LINES, emberStatus, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { resolveSprite } from '../../content/sprites';
 import { battleBackdrop } from '../../content/tiles';
@@ -38,36 +67,75 @@ import { pushLibrary } from '../../lib/save';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
-import { CommandMenu, ItemMenu, SpellMenu } from './BattleMenus';
+import { CommandMenu, CompanionMenu, ItemMenu, SpellMenu, SwapMenu } from './BattleMenus';
 import { BattleResult } from './BattleResult';
+import { DefendTimer } from './DefendTimer';
+import { COMPANION_STRIKE, EMBER_BREATH, HERO_STRIKE, pairChoreo, type Choreo } from './choreography';
 import { IMPACT_MS, useBattleFx } from './useBattleFx';
 
+/** Wall-clock ms for answer timing (module-level so it's never called during render). */
+const nowMs = () => performance.now();
+
+/**
+ * `hide` = wrong options crossed out before the player starts (Pip's peek).
+ * `seq` = which ask this is (unique per battle) — keys the question card.
+ */
 type Turn =
   | { kind: 'command' }
   | { kind: 'cast' }
   | { kind: 'items' }
-  | { kind: 'question'; mode: 'attack' | 'guard'; question: Question }
-  | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question }
-  | { kind: 'enemy-question'; question: Question }
+  | { kind: 'companion' }
+  | { kind: 'swap' }
+  | { kind: 'question'; mode: 'attack' | 'guard' | 'companion'; question: Question; hide?: number; seq?: number }
+  | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question; hide?: number; seq?: number }
+  | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number; seq?: number }
+  | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
-  | { kind: 'victory'; xp: number; coins: number; lucky: boolean }
+  | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null }
   | { kind: 'defeat'; xp: number };
+
+type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
+
+/** The sound each battle item makes when used. */
+const ITEM_SOUND: Record<ConsumableId, SfxName> = {
+  potion: 'heal',
+  elixir: 'heal',
+  snack: 'heal',
+  spark: 'spell',
+  coil: 'spell',
+  tea: 'spell',
+  ward: 'guard',
+  mirror: 'guard',
+  clover: 'streak',
+  hint: 'select',
+};
 
 /**
  * FF-style side-profile command battle (#37). Enemy left, hero right, on a
- * pseudo-3D ground plane. Commands: Attack / Spells / Guard / Items /
- * Flee — every command resolves through a question (the educational core),
- * and the enemy's counterattack is blocked by answering a defend question.
- * Spells (the Spellbook) let the hero pick from a growing set of abilities —
- * heal, shield, Sage strikes, Ember's Breath — each cast by answering one
- * *super-hard* question (SPELL_LEVEL_BONUS levels up); a miss fizzles
- * harmlessly and the spell's charge is refunded.
+ * pseudo-3D ground plane. Commands: Attack / Spells / companion / Guard /
+ * Items / Swap / Flee — every command resolves through a question (the
+ * educational core), and the enemy's counterattack is blocked by answering a
+ * defend question (on an age-based countdown, `DefendTimer`).
+ *
+ * - **Spells** (the Spellbook): one *super-hard* question (SPELL_LEVEL_BONUS
+ *   levels up); a miss fizzles and the charge is safe. A Sage spell matching
+ *   the enemy's topic is super effective.
+ * - **Companions** (`content/companion.ts`): one fights beside the hero — a
+ *   question-powered strike with a perk, plus Pair Attacks. 🔄 Swap brings in
+ *   another companion **without spending the turn**.
+ * - **Enemy intents**: enemies sometimes gather power (announced), then land
+ *   a double-strength blow next turn unless guarded.
+ * - **Streaks** power up every hit; **mercy** eases the questions after a
+ *   couple of losses; quick correct answers raise the question level (the
+ *   **speed trigger**).
  *
  * Layout (#44): this component owns the turn flow (which box is showing and
- * what comes next). The fight's rules live in `lib/battleTurn.ts`, its live
- * numbers in `battleStore`, cosmetic effects in `useBattleFx`, and the
- * presentational pieces in `BattleHud` / `BattleStage` / `BattleMenus` /
- * `BattleResult`.
+ * what comes next). The fight's rules live in `lib/battleTurn.ts` /
+ * `lib/battleMath.ts`, its live numbers in `battleStore` (read with
+ * `combatState()` when a command resolves and written straight back with
+ * `applyCombat` — never from a timer, #70), cosmetic effects in `useBattleFx`
+ * + `./choreography`, and the view in `BattleHud` / `BattleStage` /
+ * `BattleMenus` / `BattleResult`.
  */
 export default function BattleArena() {
   const {
@@ -83,6 +151,7 @@ export default function BattleArena() {
     lucky,
     applyCombat,
     markDefeated,
+    recordLoss,
     endBattle,
   } = useBattleStore(
     // One shallow-compared selector: re-render only when these fields change.
@@ -99,9 +168,11 @@ export default function BattleArena() {
       lucky: s.lucky,
       applyCombat: s.applyCombat,
       markDefeated: s.markDefeated,
+      recordLoss: s.recordLoss,
       endBattle: s.endBattle,
     })),
   );
+  const lossesSoFar = useBattleStore((s) => (enemy ? (s.losses[enemy.id] ?? 0) : 0));
   const save = useSaveStore((s) => s.save);
   const updateSave = useSaveStore((s) => s.update);
   const profile = useProfileStore((s) => s.profile);
@@ -118,27 +189,82 @@ export default function BattleArena() {
   // Warden bosses (#58) drop a gate key instead of restoring a crystal.
   const keyBoss = enemy ? keyForBoss(enemy.id) : undefined;
   const spells = save ? spellsKnown(save) : [];
-  const { stage: ember } = emberStatus(save?.flags ?? {});
+
+  // Locked for the whole fight, re-locked per encounter:
+  // - Ember's stage — a win can hatch the egg or grow Ember, but that reveal
+  //   belongs to the world cutscene, not a sprite swap on the victory panel.
+  // - The loss count behind mercy (easier questions) — recording this fight's
+  //   loss must not re-key the question pool (and flash a loading screen over
+  //   the defeat).
+  const liveEmber = emberStatus(save?.flags ?? {}).stage;
+  const [locked, setLocked] = useState(() => ({ for: enemy?.instanceId, ember: liveEmber, losses: lossesSoFar }));
+  if (enemy && locked.for !== enemy.instanceId) {
+    setLocked({ for: enemy.instanceId, ember: liveEmber, losses: lossesSoFar });
+  }
+  const ember = locked.ember;
+  const mercy = mercyFor(locked.losses);
+
+  // The active companion (🔄 Swap) lives in the save, so it survives reloads;
+  // fall back to Ember if the saved pick isn't in this save's party.
+  const party = save ? companionsInParty(save) : (['ember'] as CompanionId[]);
+  const savedCompanion = save?.companionId ?? 'ember';
+  const companionId: CompanionId = party.includes(savedCompanion) ? savedCompanion : 'ember';
+  const companion = COMPANIONS[companionId];
+  const cMove = companionMove(companionId, ember);
+  const cPower = companionPower(companionId, ember);
+  const cReady = companionCanFight(companionId, ember);
+  const pairs = pairAttacksFor(companionId, ember);
+  const emberActive = companionId === 'ember' && ember !== 'egg';
 
   const enemySprite = resolveSprite(enemy?.spriteId, enemy?.sprite ?? '❓');
   const heroSprite = resolveSprite(avatar?.spriteId, avatar?.sprite ?? '❓');
-  const emberSprite = resolveSprite(EMBER_SPRITE_IDS[ember], EMBER_SPRITES[ember]);
+  const cSpriteIds = companionSprite(companionId, ember);
+  const cSprite = resolveSprite(cSpriteIds.spriteId, cSpriteIds.emoji);
+  const fireballSprite = resolveSprite('fx-fireball', '🔥');
 
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
     BATTLE_QUESTION_COUNT,
-    enemy?.level,
+    enemy ? clampLevel(enemy.level - mercy.levelDrop) : undefined,
   );
 
   const fx = useBattleFx();
   const { float, showBanner, later } = fx;
   const [turn, setTurn] = useState<Turn>({ kind: 'command' });
   const [qIndex, setQIndex] = useState(0);
-  // Super-hard question pool (level + SPELL_LEVEL_BONUS) shared by every spell.
+  // Super-hard question pool (level + SPELL_LEVEL_BONUS) shared by spells + Pair Attacks.
   const [spellQs, setSpellQs] = useState<Question[]>([]);
   const [spellIdx, setSpellIdx] = useState(0);
   const [answers, setAnswers] = useState<boolean[]>([]);
   const misses = useRef<LibraryEntry[]>([]);
+  // Correct answers in a row (any question) — powers up every hit.
+  const [streak, setStreak] = useState(0);
+  // Wrong options Pip will cross out on the next question. A ref, not state:
+  // the next question is often posed by a `next` callback created before the
+  // peek was set, and it must still see it.
+  const peek = useRef(0);
+  // What the enemy does on its NEXT turn (see lib/battleTurn nextIntent).
+  const [intent, setIntent] = useState<EnemyIntent>('attack');
+  const enemyTurnNo = useRef(0);
+  // Speed trigger (lib/battleTurn speedStep): quick correct answers in a row
+  // raise this battle's question level. Refs, not state — the next question is
+  // often posed by a callback created a render earlier and must see the boost.
+  const askedAt = useRef(0);
+  // A Hint Feather or Pip's peek made this question easier — it can't count
+  // toward the speed trigger.
+  const helped = useRef(false);
+  const askSeq = useRef(0);
+  const speedRun = useRef(0);
+  const speedBoost = useRef(0);
+  const boostPool = useRef<{ qs: Question[]; i: number }>({ qs: [], i: 0 });
+  const [boostShown, setBoostShown] = useState(0);
+  // The question (by card key) the player has picked an answer for — stops
+  // the defend countdown.
+  const [answeredKey, setAnsweredKey] = useState<string | null>(null);
+  // Displayed HP while a blow is still in the air (null = show the store's).
+  // Cosmetic only: the store already holds the real numbers.
+  const [shownHp, setShownHp] = useState<{ p: number; e: number } | null>(null);
+  const shownSeq = useRef(0);
 
   // Warm the super-hard spell-tier pool (level + SPELL_LEVEL_BONUS). Every
   // hero knows at least Mend, so this always loads; spells stay castable.
@@ -148,7 +274,7 @@ export default function BattleArena() {
     fetchQuestions(
       topic,
       age,
-      clampLevel(enemy.level + SPELL_LEVEL_BONUS),
+      clampLevel(enemy.level + SPELL_LEVEL_BONUS - mercy.levelDrop),
       4,
       `a hero casting a powerful spell against ${enemy.name}`,
     )
@@ -162,20 +288,29 @@ export default function BattleArena() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId]);
 
-  // Archetype callout (Wave 0.5) so the twist is announced, never a gotcha.
-  // Waits for the question LoadingScreen to clear — the banner only renders in
-  // the battle UI, so a mount-anchored timer would expire unseen on a slow
-  // generation (the exact gotcha this callout exists to prevent).
+  // Start-of-battle callouts, once the question LoadingScreen clears (the
+  // banner only renders in the battle UI): the archetype twist (so it's never
+  // a gotcha), then mercy if this enemy has beaten the hero a couple of times.
   const calloutShownFor = useRef<string | null>(null);
   useEffect(() => {
-    if (loading || !enemy?.behavior || calloutShownFor.current === enemy.instanceId) return;
+    if (loading || !enemy || calloutShownFor.current === enemy.instanceId) return;
     calloutShownFor.current = enemy.instanceId;
-    const callout = {
-      shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
-      trickster: `${enemy.name} is too slippery for Hint Feathers!`,
-      healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
-    }[enemy.behavior];
-    later(() => showBanner(callout, 3000), 250);
+    let at = 250;
+    if (enemy.behavior) {
+      const callout = {
+        shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
+        trickster: `${enemy.name} is too slippery for Hint Feathers!`,
+        healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
+      }[enemy.behavior];
+      later(() => showBanner(callout, 3000), at);
+      at += 3200;
+    }
+    if (mercy.levelDrop > 0) {
+      later(
+        () => showBanner(`Tough one last time? ${enemy.name}'s questions will be a little easier now.`, 3500, '💛'),
+        at,
+      );
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId, loading]);
 
@@ -212,35 +347,113 @@ export default function BattleArena() {
     );
   }
 
+  const viewPlayerHp = shownHp?.p ?? playerHp;
+  const viewEnemyHp = shownHp?.e ?? enemyHp;
   const canCastAny = spellQs.length > 0 && spells.some((s) => charge >= s.cost);
+  const powerMove = powerMoveName(enemy.id);
+  const charging = intent === 'power';
   const nextQuestion = () => {
+    // After a speed boost, draw from the harder pool once it has arrived.
+    const bp = boostPool.current;
+    if (bp.qs.length > 0) return bp.qs[bp.i++ % bp.qs.length];
     const q = questions[qIndex % questions.length];
     setQIndex((i) => i + 1);
     return q;
   };
+  /** The level this battle's regular questions are asked at (before any speed boost). */
+  const baseQLevel = clampLevel(enemy.level - mercy.levelDrop);
+  /** Pose a question turn, spending Pip's peek on it if one is waiting. */
+  const ask = (t: QuestionTurn) => {
+    setTurn({ ...t, hide: peek.current, seq: ++askSeq.current });
+    helped.current = peek.current > 0;
+    peek.current = 0;
+    askedAt.current = nowMs();
+  };
   /** Continue with a message box, then `next`. */
   const say = (text: string, next: () => void) => setTurn({ kind: 'message', text, next });
+  /** Streak bonus applied to every hero-side hit. */
+  const boost = (dmg: number) => Math.round(dmg * streakMultiplier(streak));
+  const burst = (opts: confetti.Options) => confetti({ ...opts, disableForReducedMotion: true });
+
+  /**
+   * Write the combat state NOW (the source of truth every later action reads,
+   * #70), but keep showing the old HP until the blow lands `revealMs` later.
+   * A newer commit supersedes an older pending reveal.
+   */
+  function commit(next: CombatState, revealMs: number) {
+    const seq = ++shownSeq.current;
+    if (revealMs > 0) {
+      setShownHp({ p: viewPlayerHp, e: viewEnemyHp });
+      later(() => {
+        if (shownSeq.current === seq) setShownHp(null);
+      }, revealMs);
+    } else {
+      setShownHp(null);
+    }
+    applyCombat(next);
+  }
 
   function recordAnswer(correct: boolean, q: Question, picked: number) {
     setAnswers((a) => [...a, correct]);
     const s = combatState();
     applyCombat({ ...s, charge: chargeAfterAnswer(s.charge, correct) });
-    if (!correct) misses.current.push({ question: q, picked });
+    // A hinted / peeked answer isn't evidence the questions are too easy.
+    const ms = helped.current ? Infinity : nowMs() - askedAt.current;
+    const step = speedStep(speedRun.current, correct, ms, age, speedBoost.current);
+    speedRun.current = step.run;
+    if (step.boosted) raiseQuestionLevel();
+    if (correct) {
+      const next = streak + 1;
+      setStreak(next);
+      if (next === STREAK_START || next === STREAK_MAX) {
+        sfx('streak');
+        float(`🔥 ${next} in a row!`, 'hero', 'text-orange-300');
+        fx.cheer();
+      }
+    } else {
+      setStreak(0);
+      misses.current.push({ question: q, picked });
+    }
   }
 
   // --- Command handlers ------------------------------------------------------
 
   function commandAttack() {
-    setTurn({ kind: 'question', mode: 'attack', question: nextQuestion() });
+    ask({ kind: 'question', mode: 'attack', question: nextQuestion() });
   }
   function commandGuard() {
-    setTurn({ kind: 'question', mode: 'guard', question: nextQuestion() });
+    ask({ kind: 'question', mode: 'guard', question: nextQuestion() });
+  }
+  function commandCompanion() {
+    if (cReady) setTurn({ kind: 'companion' });
+  }
+  function commandCompanionStrike() {
+    ask({ kind: 'question', mode: 'companion', question: nextQuestion() });
+  }
+  /** The next super-hard question (spells + Pair Attacks share the pool). */
+  function nextSpellQuestion() {
+    const q = spellQs[spellIdx % spellQs.length];
+    setSpellIdx((i) => i + 1);
+    return q;
+  }
+  function startPair(pair: PairAttack) {
+    if (combatState().charge < pair.cost || spellQs.length === 0) return;
+    ask({ kind: 'question', mode: 'pair', pair, question: nextSpellQuestion() });
   }
   function castSpell(spell: Spell) {
     if (combatState().charge < spell.cost || spellQs.length === 0) return;
-    const q = spellQs[spellIdx % spellQs.length];
-    setSpellIdx((i) => i + 1);
-    setTurn({ kind: 'question', mode: 'spell', spell, question: q });
+    ask({ kind: 'question', mode: 'spell', spell, question: nextSpellQuestion() });
+  }
+  /** Swap companions — a free action: the turn stays on the command menu. */
+  function swapTo(id: CompanionId) {
+    if (id !== companionId && party.includes(id)) {
+      const c = COMPANIONS[id];
+      updateSave((s) => ({ ...s, companionId: id }));
+      fx.dropIn();
+      sfx('swap');
+      showBanner(`${c.name} tags in — still your move!`, 1800, c.emoji);
+    }
+    setTurn({ kind: 'command' });
   }
   /** Use a battle item (#73). Like any command, it spends the hero's turn. */
   function applyItem(id: ConsumableId) {
@@ -248,7 +461,8 @@ export default function BattleArena() {
     if (itemBlocked(s, id, save!.items[id])) return;
     updateSave((sv) => ({ ...sv, items: { ...sv.items, [id]: Math.max(0, sv.items[id] - 1) } }));
     const r = resolveItem(s, id);
-    applyCombat(r.state);
+    commit(r.state, 0);
+    sfx(ITEM_SOUND[id]);
     if (r.healed > 0) float(`+${r.healed}`, 'hero', 'text-emerald-300');
     if (r.chargeGained > 0) float(`+${r.chargeGained}◆`, 'hero', 'text-amber-300');
     const buffFloat: Partial<Record<ConsumableId, [string, string]>> = {
@@ -264,6 +478,12 @@ export default function BattleArena() {
   }
   function commandFlee() {
     updateSave((s) => ({ ...s, hp: combatState().playerHp }));
+    // Fleeing skips the battle ramp, but a level the speed trigger earned stays earned.
+    if (profile && speedBoost.current > 0) {
+      const current = skillLevelFor(profile.skillLevels, topic, age);
+      const next = skillAfterBattle(current, [], speedBoost.current);
+      if (next !== current) void setSkillLevel(topic, next);
+    }
     sendFlow({ type: 'BATTLE_END', result: 'lose' });
     endBattle();
   }
@@ -274,18 +494,82 @@ export default function BattleArena() {
     if (mode === 'guard') {
       if (wasCorrect) {
         applyCombat({ ...combatState(), guarded: true });
+        sfx('guard');
         float('🛡️', 'hero', 'text-sky-300');
-        say(`${avatar!.name} braces behind a wall of knowing!`, enemyTurn);
+        const warn = charging ? ` ${powerMove} won't get through!` : '';
+        say(`${avatar!.name} braces behind a wall of knowing!${warn}`, enemyTurn);
       } else {
         say('The guard slips… stay sharp!', enemyTurn);
       }
       return;
     }
     // Focus Tea (#80): a landed Attack hits TEA_DAMAGE_MULT× and spends the focus.
-    const focus = applyFocus(combatState(), attackDamage(wasCorrect, style, powerUps));
+    const focus = applyFocus(combatState(), boost(attackDamage(wasCorrect, style, powerUps)));
     applyCombat(focus.state);
     const text = (wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…') + focus.note;
-    heroStrike(focus.dmg, text, 'text-red-300');
+    heroStrike(focus.dmg, text, 'text-red-300', { sound: 'attack' });
+  }
+
+  /**
+   * The companion's strike. A correct answer also triggers its perk — Ember
+   * stokes an extra ◆, Pip crosses out a wrong answer on the next question,
+   * Wisp mends the hero. A wrong answer is a glancing blow (effort never zero).
+   */
+  function resolveCompanionStrike(wasCorrect: boolean) {
+    const dmg = boost(companionAttackDamage(wasCorrect, cPower));
+    let note = '';
+    let heal = 0;
+    if (wasCorrect && companion.perk === 'charge') {
+      const s = combatState();
+      applyCombat({ ...s, charge: Math.min(CHARGE_MAX, s.charge + EMBER_BONUS_CHARGE) });
+      later(() => float(`+${EMBER_BONUS_CHARGE}◆`, 'hero', 'text-amber-300'), IMPACT_MS);
+      note = ' The fire stokes your spell charge!';
+    } else if (wasCorrect && companion.perk === 'peek') {
+      peek.current = PIP_PEEK_HIDES;
+      note = ' Pip peeks ahead — one wrong answer on the next question is crossed out! 👀';
+    } else if (wasCorrect && companion.perk === 'mend') {
+      const s = combatState();
+      heal = Math.min(s.playerMaxHp, s.playerHp + WISP_MEND) - s.playerHp;
+      if (heal > 0) {
+        later(() => {
+          sfx('heal');
+          float(`+${heal}`, 'hero', 'text-emerald-300');
+        }, IMPACT_MS);
+        note = ` Wisp's light mends ${heal} HP!`;
+      }
+    }
+    const text = wasCorrect
+      ? `${cMove.emoji} ${companion.name} uses ${cMove.name}!${note}`
+      : `${cMove.emoji} ${companion.name}'s ${cMove.name} just grazes it… a glancing blow.`;
+    heroStrike(dmg, text, 'text-orange-300', { choreo: COMPANION_STRIKE, sound: companion.sound, heal });
+  }
+
+  /** Fire a Pair Attack once its super-hard question resolves. */
+  function resolvePair(pair: PairAttack, wasCorrect: boolean) {
+    if (!wasCorrect) {
+      // Same promise as spells: a miss fizzles and the charge is safe.
+      say(`${pair.emoji} ${pair.name} falls out of step… the charge is safe. Try again together!`, enemyTurn);
+      return;
+    }
+    const s = combatState();
+    applyCombat({ ...s, charge: Math.max(0, s.charge - pair.cost) });
+    burst({ particleCount: 140, spread: 120, origin: { y: 0.4 }, colors: ['#fb923c', '#fbbf24', '#f87171', '#fde68a'] });
+    showBanner(`PAIR ATTACK — ${pair.name.toUpperCase()}!`, 1800, pair.emoji);
+    const dmg = boost(pairDamage(style, powerUps, cPower, pair.multiplier));
+    const heal = pair.heal ? Math.min(s.playerMaxHp, s.playerHp + pair.heal) - s.playerHp : 0;
+    if (heal > 0) {
+      later(() => {
+        sfx('heal');
+        float(`+${heal}`, 'hero', 'text-emerald-300');
+      }, 400);
+    }
+    const healNote = heal > 0 ? ` Its light mends ${heal} HP!` : '';
+    heroStrike(dmg, `${pair.emoji} ${avatar!.name} and ${companion.name} unleash ${pair.name}!${healNote}`, pair.color, {
+      refundCharge: pair.cost,
+      choreo: pairChoreo(pair.id),
+      sound: 'pair',
+      heal,
+    });
   }
 
   /** Cast the chosen spell once its super-hard question resolves. */
@@ -296,35 +580,81 @@ export default function BattleArena() {
       say(`${spell.emoji} ${spell.name} fizzles… the charge is safe. Try again!`, enemyTurn);
       return;
     }
-    applyCombat(r.state);
-    confetti({ particleCount: 90, spread: 100, origin: { y: 0.4 } });
+    commit(r.state, 0);
+    burst({ particleCount: 90, spread: 100, origin: { y: 0.4 } });
     if (r.kind === 'heal') {
-      fx.lungeHero();
-      later(() => float(`+${r.healed}`, 'hero', spell.color), IMPACT_MS);
+      fx.perform(HERO_STRIKE, 'spell');
+      later(() => {
+        sfx('heal');
+        float(`+${r.healed}`, 'hero', spell.color);
+      }, IMPACT_MS);
       say(`${spell.emoji} ${spell.name}! Bright knowing knits your wounds.`, enemyTurn);
       return;
     }
     if (r.kind === 'shield') {
+      sfx('spell');
+      later(() => sfx('guard'), IMPACT_MS);
       float('🛡️', 'hero', spell.color);
       say(`${spell.emoji} ${spell.name}! A shield of knowing rises — the next hit will glance away.`, enemyTurn);
       return;
     }
-    const text =
-      ember !== 'egg' && spell.id === 'ember-breath'
+    // Offensive spell — super effective when a Sage's topic matches the enemy's.
+    const weak = spell.topic !== undefined && spell.topic === enemy!.topic;
+    const dmg = boost(Math.round(spellDamage(style, powerUps, r.multiplier) * (weak ? SUPER_EFFECTIVE : 1)));
+    const breath = spell.id === 'ember-breath';
+    const lead =
+      breath && emberActive
         ? `${spell.emoji} ${spell.name}! Ember rears back and breathes dragonfire!`
-        : ember !== 'egg'
-          ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
-          : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;
-    heroStrike(spellDamage(style, powerUps, r.multiplier), text, spell.color, spell.cost);
+        : breath
+          ? `${spell.emoji} ${spell.name}! Ember swoops in from the sidelines, breathing dragonfire!`
+          : emberActive
+            ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
+            : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;
+    // Ember's Breath is Ember's own move when Ember is fighting: inhale, then a fireball volley.
+    heroStrike(dmg, weak ? `${lead} It's super effective!` : lead, spell.color, {
+      refundCharge: spell.cost,
+      choreo: breath && emberActive ? EMBER_BREATH : HERO_STRIKE,
+      sound: 'spell',
+      superEffective: weak,
+    });
   }
 
-  /** Shared damage-dealing path for Attack and offensive spells. */
-  function heroStrike(dmg: number, text: string, floatColor: string, refundCharge = 0) {
+  /**
+   * Shared damage-dealing path for Attack, companion strikes, Pair Attacks and
+   * offensive spells (rules in lib/battleTurn resolveHeroHit). Charge-spending
+   * moves pass `refundCharge` so a shield-absorbed cast gives the charge back.
+   * `choreo` says who moves and when the blow lands; `sound` is the wind-up
+   * SFX (the 'pair' sound carries its own impacts); `heal` rides on the move
+   * (Wisp, Starlight Chorus).
+   */
+  function heroStrike(
+    dmg: number,
+    text: string,
+    floatColor: string,
+    {
+      refundCharge = 0,
+      choreo = HERO_STRIKE,
+      sound,
+      heal = 0,
+      superEffective = false,
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; superEffective?: boolean },
+  ) {
+    fx.perform(choreo, sound, ember === 'dragon');
     const r = resolveHeroHit(combatState(), dmg, { isBoss: enemy!.isBoss, refundCharge });
-    applyCombat(r.state);
-    fx.lungeHero();
+    commit({ ...r.state, playerHp: Math.min(r.state.playerMaxHp, r.state.playerHp + heal) }, choreo.hitMs);
+    later(() => {
+      fx.hitEnemy();
+      if (r.outcome === 'shield-broken') {
+        sfx('shatter');
+        float('Shield shattered!', 'enemy', 'text-amber-300');
+        return;
+      }
+      if (sound !== 'pair') sfx('impact');
+      float(`-${r.dealt}`, 'enemy', floatColor);
+      if (superEffective) float('Super effective!', 'enemy', 'text-yellow-200');
+    }, choreo.hitMs);
+
     if (r.outcome === 'shield-broken') {
-      later(() => float('Shield shattered!', 'enemy', 'text-amber-300'), IMPACT_MS);
       say(
         `${text} The stony shield takes the blow — and SHATTERS! ${enemy!.name} is wide open now!` +
           (r.refunded > 0 ? ' The spell-light flows back to you — charge refunded!' : ''),
@@ -332,57 +662,140 @@ export default function BattleArena() {
       );
       return;
     }
-    later(() => float(`-${r.dealt}`, 'enemy', floatColor), IMPACT_MS);
     if (r.outcome === 'defeated') {
       say(text, victory);
       return;
     }
-    // Boss enrage callout when crossing a phase boundary.
-    if (r.newPhase) {
-      showBanner(r.newPhase === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
-    }
+    if (r.newPhase) announcePhase(r.newPhase);
     say(text, enemyTurn);
   }
 
-  function enemyTurn() {
-    setTurn({ kind: 'enemy-question', question: nextQuestion() });
+  /** Boss enrage callout when the enemy's HP crosses into phase `p` (from any damage). */
+  function announcePhase(p: 1 | 2) {
+    showBanner(p === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
   }
 
-  function resolveEnemyQuestion(wasCorrect: boolean) {
+  /** Move the enemy's plan on to its next turn (lib/battleTurn nextIntent). */
+  function advanceIntent(current: EnemyIntent) {
+    enemyTurnNo.current += 1;
+    setIntent(nextIntent(current, enemyTurnNo.current, enemy!.isBoss));
+  }
+
+  function enemyTurn() {
+    if (intent === 'charge') {
+      // Telegraph: this turn the enemy only gathers power — and says so.
+      sfx('charge');
+      showBanner(`${enemy!.name} is gathering power for ${powerMove}!`, 2800, '💢');
+      advanceIntent('charge');
+      say(
+        `${enemy!.name} is gathering power… ${powerMove} is coming next turn! 🛡️ Guard (or a Rainbow Ward) will block it completely.`,
+        () => setTurn({ kind: 'command' }),
+      );
+      return;
+    }
+    ask({ kind: 'enemy-question', question: nextQuestion() });
+  }
+
+  /**
+   * The defend countdown ran out before an answer was picked: the blow lands
+   * exactly as for a wrong answer (the streak breaks, the question goes to the
+   * Library), with a "Time's up!" message.
+   */
+  function defendTimedOut(q: Question) {
+    sfx('wrong');
+    speedRun.current = 0;
+    setAnswers((a) => [...a, false]);
+    setStreak(0);
+    misses.current.push({ question: q, picked: -1 }); // no pick — the Library never shows it
+    resolveEnemyQuestion(false, true);
+  }
+
+  function resolveEnemyQuestion(wasCorrect: boolean, timedOut = false) {
+    const blow = charging ? 'power' : 'attack';
     const r = resolveEnemyTurn(combatState(), {
       wasCorrect,
+      intent: blow,
       level: enemy!.level,
       isBoss: enemy!.isBoss,
       behavior: enemy!.behavior,
       style,
       powerUps,
     });
-    applyCombat(r.state);
+    commit(r.state, IMPACT_MS);
+    advanceIntent(blow);
     fx.lungeEnemy();
+    sfx('enemyAttack');
     later(() => {
       float(r.dmg === 0 ? 'Blocked!' : `-${r.dmg}`, 'hero', r.dmg === 0 ? 'text-sky-300' : 'text-red-300');
-      if (r.shieldShattered) float('Shield shattered!', 'enemy', 'text-amber-300');
-      else if (r.reflected > 0) float(`-${r.reflected}`, 'enemy', 'text-sky-300');
+      if (r.shieldShattered) {
+        float('Shield shattered!', 'enemy', 'text-amber-300');
+        sfx('shatter');
+      } else if (r.reflected > 0) {
+        float(`-${r.reflected}`, 'enemy', 'text-sky-300');
+        sfx('impact');
+      }
       if (r.mended > 0) float(`+${r.mended}`, 'enemy', 'text-emerald-300');
-      if (r.dmg > 0) sfx('hit');
+      sfx(r.dmg === 0 ? 'block' : 'hit');
     }, IMPACT_MS);
+    // A healer's mend chimes just after the hit lands, so the two don't blur.
+    if (r.mended > 0) later(() => sfx('heal'), 600);
     // Boss enrage callout from a Mirror Charm bounce (#80: any damage source).
-    if (r.newPhase) {
-      showBanner(r.newPhase === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
-    }
+    if (r.newPhase) announcePhase(r.newPhase);
 
+    const who = blow === 'power' ? `${enemy!.name} unleashes ${powerMove}` : `${enemy!.name} attacks`;
     const text =
+      (timedOut ? "⏰ Time's up! " : '') +
       (r.shieldShattered
-        ? `${enemy!.name} attacks — the Mirror Charm bounces it back, and its shield SHATTERS! 🪞`
+        ? `${who} — the Mirror Charm bounces it back, and its shield SHATTERS! 🪞`
         : r.reflected > 0
-          ? `${enemy!.name} attacks — the Mirror Charm bounces it right back! 🪞`
+          ? `${who} — the Mirror Charm bounces it right back! 🪞`
           : r.dmg === 0
-            ? `${enemy!.name} attacks — completely blocked!`
+            ? `${who} — completely blocked!`
             : wasCorrect
-              ? `${enemy!.name} attacks — you soften the hit!`
-              : `${enemy!.name} lands a hit!`) + (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '');
+              ? `${who} — you soften the hit!`
+              : `${who} and lands a hit!`) +
+      (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '');
     // A bounced hit can win the battle (checked first: a mirrored hero takes no damage).
     say(text, r.enemyDown ? victory : r.heroDown ? defeat : () => setTurn({ kind: 'command' }));
+  }
+
+  /**
+   * The speed trigger fired: FAST_STREAK quick correct answers in a row. The
+   * level is earned now (saved at the end, or on Flee — skillAfterBattle); the
+   * rest of the battle is asked one level harder once that pool arrives (the
+   * current pool keeps serving until then). The banner + ⚡ badge wait for the
+   * harder questions so they never promise questions that aren't there yet.
+   */
+  function raiseQuestionLevel() {
+    const from = clampLevel(baseQLevel + speedBoost.current);
+    const to = clampLevel(from + 1);
+    if (to === from) return; // already at the top level
+    speedBoost.current += 1;
+    const wanted = speedBoost.current;
+    const name = enemy!.name;
+    const announce = (text: string) => {
+      sfx('streak');
+      showBanner(text, 3200, '⚡');
+    };
+    fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, `a quick-thinking hero battling ${name}`)
+      .then((qs) => {
+        // Gone, or a newer boost superseded this one (an older, easier pool
+        // arriving late must never replace a harder one).
+        if (!fx.live.current || speedBoost.current !== wanted) return;
+        if (qs.length === 0) {
+          announce(`So quick! Your level goes up to ${to} after this battle`);
+          return;
+        }
+        boostPool.current = { qs, i: 0 };
+        setBoostShown(wanted);
+        announce(`So quick! The questions just got harder — level ${from} → ${to}`);
+      })
+      .catch(() => {
+        // Keep asking from the current pool — the level still saves at the end.
+        if (fx.live.current && speedBoost.current === wanted) {
+          announce(`So quick! Your level goes up to ${to} after this battle`);
+        }
+      });
   }
 
   // --- Battle end --------------------------------------------------------------
@@ -393,26 +806,32 @@ export default function BattleArena() {
     void recordActivity();
     if (profile) {
       const current = skillLevelFor(profile.skillLevels, topic, age);
-      const next = nextSkillLevelFromBattle(current, answers);
+      // The usual battle ramp (never lowers), but never below what speed earned.
+      const next = skillAfterBattle(current, answers, speedBoost.current);
       if (next !== current) void setSkillLevel(topic, next);
     }
     return xp;
   }
 
   function victory() {
-    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
+    burst({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
     stopMusic(); // silence the battle loop under the victory jingle
     sfx('victory');
     const xp = settleCommon() + npcDefeatXp(enemy!.level) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
     void addXp(xp);
     markDefeated(enemy!.instanceId);
+    // Read from the store, not this render: victory() runs from a message
+    // callback created before a finishing move's heal (Wisp) was committed.
     const { playerHp: finalHp, lucky: wonLucky } = combatState();
-    // Lucky Clover (#80): the win pays CLOVER_COIN_MULT× coins.
-    const coins = enemy!.coins * (wonLucky ? CLOVER_COIN_MULT : 1);
+    const killsBefore = save!.kills[enemy!.id] ?? 0;
+    // First-win bonus, then a Lucky Clover (#80) doubles the lot.
+    const coins = victoryCoins(enemy!.coins, killsBefore) * (wonLucky ? CLOVER_COIN_MULT : 1);
+    const drop = rollDrop(enemy!.isBoss);
     updateSave((s) => ({
       ...s,
       hp: finalHp,
       coins: s.coins + coins,
+      items: drop ? { ...s.items, [drop]: s.items[drop] + 1 } : s.items,
       // Lifetime kill counts drive defeat quests (#42).
       kills: { ...s.kills, [enemy!.id]: (s.kills[enemy!.id] ?? 0) + 1 },
       library: pushLibrary(s.library, misses.current),
@@ -428,12 +847,14 @@ export default function BattleArena() {
         ...(keyBoss ? { [keyFlag(keyBoss.id)]: true } : {}),
       },
     }));
-    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky });
+    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop });
   }
 
   function defeat() {
     const xp = settleCommon();
     void addXp(xp);
+    // Remember the loss: after a couple, this enemy eases off (mercy).
+    recordLoss(enemy!.id);
     // No game over (#37): wake up safe at Lumina Field, fully healed.
     updateSave((s) => ({
       ...s,
@@ -470,9 +891,18 @@ export default function BattleArena() {
     focused,
     lucky,
   };
+  const perkLabel = { charge: `+${EMBER_BONUS_CHARGE}◆`, peek: '👀 peek', mend: `+${WISP_MEND} HP` }[companion.perk];
+  // Identifies the current question card (remounts QuestionCard + DefendTimer).
+  const qKey = turn.kind === 'question' || turn.kind === 'enemy-question' ? `${turn.question.id}:${turn.seq}` : '';
+  const toCommand = () => setTurn({ kind: 'command' });
 
   return (
-    <div className={`min-h-screen flex flex-col bg-gradient-to-b ${info.skyGradient} overflow-hidden relative`}>
+    // overflow-clip (not hidden): a hidden-overflow box is still programmatically
+    // scrollable, so focusing/scrolling to a button could slide the whole arena
+    // sideways; clip can't scroll. overflow-hidden stays as the fallback.
+    <div
+      className={`min-h-screen flex flex-col bg-gradient-to-b ${info.skyGradient} overflow-hidden supports-[overflow:clip]:overflow-clip relative`}
+    >
       {/* 16-bit zone backdrop (the sky gradient stays underneath as a fallback) */}
       <div
         aria-hidden
@@ -491,8 +921,7 @@ export default function BattleArena() {
         <div
           className="absolute inset-x-[-20%] bottom-0 h-full rounded-[100%_100%_0_0]"
           style={{
-            background:
-              'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.18), rgba(0,0,0,0.35) 70%)',
+            background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.18), rgba(0,0,0,0.35) 70%)',
             transform: 'perspective(500px) rotateX(30deg) scale(1.25)',
             transformOrigin: 'bottom',
           }}
@@ -501,44 +930,50 @@ export default function BattleArena() {
 
       <BattleHud
         enemy={enemy}
-        enemyHp={enemyHp}
+        enemyHp={viewEnemyHp}
         enemyShielded={enemyShielded}
+        speedBoost={boostShown}
+        powerMoveNext={charging ? powerMove : null}
         avatar={avatar}
-        playerHp={playerHp}
+        playerHp={viewPlayerHp}
         playerMaxHp={playerMaxHp}
         charge={charge}
+        streak={streak}
       />
 
-      {/* Boss enrage / archetype banner */}
+      {/* Callout banner (archetypes, enrage, power moves, pair attacks, swaps, speed) */}
       <AnimatePresence>
         {fx.banner && (
           <motion.p
-            initial={{ y: -12, opacity: 0 }}
+            initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative z-10 text-center text-amber-300 font-extrabold tracking-wide"
+            className="relative z-10 text-center text-amber-300 font-extrabold tracking-wide px-4"
           >
-            ⚠️ {fx.banner}
+            {fx.banner}
           </motion.p>
         )}
       </AnimatePresence>
 
       <BattleStage
+        fx={fx.stage}
+        heroRef={fx.heroRef}
+        enemyRef={fx.enemyRef}
         enemySprite={enemySprite}
         heroSprite={heroSprite}
-        emberSprite={emberSprite}
+        companionSprite={cSprite}
+        fireballSprite={fireballSprite}
+        companionId={companionId}
+        companionName={companion.name}
         ember={ember}
         isBoss={enemy.isBoss}
         guarded={guarded}
-        floats={fx.floats}
-        heroLunge={fx.heroLunge}
-        enemyLunge={fx.enemyLunge}
-        heroActing={fx.heroActing}
-        enemyActing={fx.enemyActing}
+        charging={charging}
+        won={turn.kind === 'victory'}
       />
 
       {/* Bottom box: commands / question / message / results */}
-      <div className="relative z-20 p-4 pb-6 flex justify-center">
+      <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6">
         {turn.kind === 'command' && (
           <CommandMenu
             charge={charge}
@@ -546,20 +981,44 @@ export default function BattleArena() {
             canCastAny={canCastAny}
             items={save.items}
             isBoss={enemy.isBoss}
+            powerMove={charging ? powerMove : null}
+            companion={companion}
+            companionReady={cReady}
+            companionHint={cReady ? `${cMove.name} · Pair Attacks` : 'Still an egg…'}
+            canSwap={party.length > 1}
             onAttack={commandAttack}
             onSpells={() => setTurn({ kind: 'cast' })}
+            onCompanion={commandCompanion}
             onGuard={commandGuard}
             onItems={() => setTurn({ kind: 'items' })}
+            onSwap={() => setTurn({ kind: 'swap' })}
             onFlee={commandFlee}
           />
         )}
+
+        {turn.kind === 'swap' && <SwapMenu party={party} active={companionId} onSwap={swapTo} onBack={toCommand} />}
 
         {turn.kind === 'items' && (
           <ItemMenu
             items={save.items}
             blocked={(id) => itemBlocked(liveState, id, save.items[id])}
             onUse={applyItem}
-            onBack={() => setTurn({ kind: 'command' })}
+            onBack={toCommand}
+          />
+        )}
+
+        {turn.kind === 'companion' && (
+          <CompanionMenu
+            companion={companion}
+            move={cMove}
+            perkLabel={perkLabel}
+            pairs={pairs}
+            growHint={companionId === 'ember' && pairs.length < PAIR_ATTACKS.filter((p) => p.companion === 'ember').length}
+            charge={charge}
+            spellsLoaded={spellQs.length > 0}
+            onStrike={commandCompanionStrike}
+            onPair={startPair}
+            onBack={toCommand}
           />
         )}
 
@@ -568,35 +1027,66 @@ export default function BattleArena() {
             spells={spells}
             charge={charge}
             spellsLoaded={spellQs.length > 0}
+            enemyTopic={enemy.topic}
             onCast={castSpell}
-            onBack={() => setTurn({ kind: 'command' })}
+            onBack={toCommand}
           />
         )}
 
         {(turn.kind === 'question' || turn.kind === 'enemy-question') && (
           <div className="w-full max-w-xl">
-            <p className="text-center text-white font-bold mb-2 text-sm uppercase tracking-widest">
-              {turn.kind === 'enemy-question'
-                ? `🛡️ ${enemy.name} attacks — answer to block!`
-                : turn.mode === 'spell'
-                  ? `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`
-                  : turn.mode === 'guard'
-                    ? '🛡️ Answer to raise your guard!'
-                    : '⚔️ Answer to strike!'}
-            </p>
+            {turn.kind === 'enemy-question' && save.defendTimer ? (
+              <DefendTimer
+                key={qKey}
+                durationMs={defendTimeMs(age, mercy.levelDrop > 0)}
+                stopped={answeredKey === qKey}
+                onExpire={() => defendTimedOut(turn.question)}
+                label={charging ? `💢 ${powerMove} — answer to soften it!` : `🛡️ ${enemy.name} attacks — answer to block!`}
+              />
+            ) : (
+              <p className="text-center text-white font-bold mb-2 text-sm uppercase tracking-widest">
+                {turn.kind === 'enemy-question'
+                  ? charging
+                    ? `💢 ${powerMove} — answer to soften it!`
+                    : `🛡️ ${enemy.name} attacks — answer to block!`
+                  : {
+                      spell: turn.mode === 'spell' && `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`,
+                      pair:
+                        turn.mode === 'pair' &&
+                        `${turn.pair.emoji} Super-hard question — ${turn.pair.name} with ${companion.name}!`,
+                      companion: `${cMove.emoji} Answer to help ${companion.name} strike!`,
+                      guard: '🛡️ Answer to raise your guard!',
+                      attack: '⚔️ Answer to strike!',
+                    }[turn.mode]}
+              </p>
+            )}
+            {!!turn.hide && (
+              <p className="text-center text-sky-200 text-xs font-semibold mb-2">👀 Pip crossed out a wrong answer for you!</p>
+            )}
             <QuestionCard
-              key={turn.question.id + qIndex + spellIdx}
+              key={qKey}
               question={turn.question}
               hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
-              onUseHint={useSaveStore.getState().spendHint}
-              onAnswered={(correct, picked) => recordAnswer(correct, turn.question, picked)}
+              preHidden={turn.hide ?? 0}
+              onUseHint={() => {
+                helped.current = true;
+                useSaveStore.getState().spendHint();
+              }}
+              onAnswered={(correct, picked) => {
+                setAnsweredKey(qKey);
+                recordAnswer(correct, turn.question, picked);
+              }}
               continueLabel="▶ Go!"
               onContinue={(correct) =>
                 turn.kind === 'enemy-question'
                   ? resolveEnemyQuestion(correct)
                   : turn.mode === 'spell'
                     ? resolveSpellQuestion(turn.spell, correct)
-                    : resolvePlayerQuestion(turn.mode, correct)
+                    : turn.mode === 'pair'
+                      ? resolvePair(turn.pair, correct)
+                      : turn.mode === 'companion'
+                        ? resolveCompanionStrike(correct)
+                        : resolvePlayerQuestion(turn.mode, correct)
               }
             />
           </div>
@@ -627,6 +1117,8 @@ export default function BattleArena() {
             xp={turn.xp}
             coins={turn.kind === 'victory' ? turn.coins : enemy.coins}
             lucky={turn.kind === 'victory' && turn.lucky}
+            firstWin={turn.kind === 'victory' && turn.firstWin}
+            drop={turn.kind === 'victory' ? turn.drop : null}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

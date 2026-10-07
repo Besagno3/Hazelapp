@@ -5,6 +5,7 @@ import { ALL_SHOP_ITEMS, CONSUMABLES, CONSUMABLE_IDS } from '../../content/items
 import { GATE_KEYS } from '../../content/keys';
 import { avatarById } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_STAGE_LABEL } from '../../content/story';
+import { COMPANIONS, COMPANION_IDS, companionsInParty } from '../../content/companion';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
 import { ALL_SECRETS, secretFlag, secretProgress } from '../../content/secrets';
@@ -23,6 +24,7 @@ import WorldMapPanel from './WorldMapPanel';
 export default function MenuOverlay() {
   const save = useSaveStore((s) => s.save);
   const flush = useSaveStore((s) => s.flush);
+  const update = useSaveStore((s) => s.update);
   const remoteError = useSaveStore((s) => s.remoteError);
   const profile = useProfileStore((s) => s.profile);
   const profileError = useProfileStore((s) => s.remoteError);
@@ -103,6 +105,20 @@ export default function MenuOverlay() {
                 : `The last dragon of Lumina — ${EMBER_STAGE_LABEL[ember]}. Grows with each crystal!`}
             </div>
           </div>
+        </div>
+
+        {/* Battle party: who can be swapped in (🔄 Swap in battle — a free action) */}
+        <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
+          <span className="font-bold mr-2">Battle friends:</span>
+          {COMPANION_IDS.filter((id) => id !== 'ember').map((id) => {
+            const c = COMPANIONS[id];
+            const joined = companionsInParty(save).includes(id);
+            return (
+              <span key={id} className={`mr-3 ${joined ? '' : 'text-white/40'}`} title={joined ? c.blurb : c.joinHint}>
+                {c.emoji} {c.name} {joined ? `(${c.role})` : `🔒 ${c.joinHint}`}
+              </span>
+            );
+          })}
         </div>
 
         {save.badges.length > 0 && (
@@ -188,6 +204,25 @@ export default function MenuOverlay() {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="bg-white/10 rounded-xl p-3 mb-3">
+          <div className="font-bold text-sm mb-2">⚔️ Battle</div>
+          <button
+            onClick={() => update((s) => ({ ...s, defendTimer: !s.defendTimer }))}
+            className="w-full min-h-[44px] flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm"
+            aria-pressed={save.defendTimer}
+          >
+            <span className="text-left">
+              ⏳ Defend timer
+              <span className="block text-xs text-white/70">
+                {save.defendTimer ? 'Answer before the countdown ends to block' : 'Take as long as you need'}
+              </span>
+            </span>
+            <span className={save.defendTimer ? 'text-emerald-300 font-bold' : 'text-white/70'}>
+              {save.defendTimer ? 'On' : 'Off'}
+            </span>
+          </button>
         </div>
 
         <div className="bg-white/10 rounded-xl p-3 mb-3">

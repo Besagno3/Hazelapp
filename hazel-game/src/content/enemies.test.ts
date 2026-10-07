@@ -47,3 +47,19 @@ describe('enemy behavior archetypes (Wave 0.5)', () => {
     }
   });
 });
+
+describe('enemy scaling: the player\'s question level for the topic', () => {
+  it('a player new to the topic meets enemies at their age baseline', () => {
+    expect(spawnEnemy('count-bat', 'numbria', 'a', 8, {}).level).toBe(spawnEnemy('count-bat', 'numbria', 'a', 8).level);
+    expect(spawnEnemy('count-bat', 'numbria', 'a', 9).level).toBeGreaterThan(spawnEnemy('count-bat', 'numbria', 'a', 8).level);
+  });
+
+  it('follows the question level for the enemy\'s own topic', () => {
+    const base = spawnEnemy('count-bat', 'numbria', 'a', 8); // a math enemy
+    const better = spawnEnemy('count-bat', 'numbria', 'a', 8, { math: 7 });
+    expect(better.level).toBeGreaterThan(base.level);
+    expect(better.maxHp).toBeGreaterThan(base.maxHp);
+    // a level earned in another topic doesn't carry over
+    expect(spawnEnemy('count-bat', 'numbria', 'a', 8, { science: 9 }).level).toBe(base.level);
+  });
+});

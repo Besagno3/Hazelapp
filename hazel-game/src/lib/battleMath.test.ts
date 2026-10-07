@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   attackDamage,
   specialDamage,
+  spellDamage,
+  companionAttackDamage,
+  pairDamage,
   enemyAttack,
   defendReduction,
   bossPhase,
@@ -9,6 +12,7 @@ import {
   healerRegen,
   HEALER_REGEN_RATE,
 } from './battleMath';
+import { EMBER_POWER } from '../content/companion';
 
 describe('attackDamage', () => {
   it('a correct answer outdamages a glancing blow', () => {
@@ -92,5 +96,33 @@ describe('healer archetype (Wave 0.5)', () => {
     // The roster-level "no healer out-mends a real hit" invariant lives in
     // enemies.test.ts, derived from ENEMY_DEFS (not a hardcoded HP).
     expect(healerRegen(300)).toBe(Math.round(300 * HEALER_REGEN_RATE));
+  });
+});
+
+describe('companionAttackDamage', () => {
+  it('power 0 (an egg) cannot fight', () => {
+    expect(companionAttackDamage(true, EMBER_POWER.egg)).toBe(0);
+  });
+
+  it('Ember grows stronger with each stage', () => {
+    expect(EMBER_POWER.dragon).toBeGreaterThan(EMBER_POWER.whelp);
+    expect(EMBER_POWER.whelp).toBeGreaterThan(EMBER_POWER.hatchling);
+  });
+
+  it('a wrong answer is a glancing blow, never zero with any power', () => {
+    expect(companionAttackDamage(false, 12)).toBeGreaterThan(0);
+    expect(companionAttackDamage(false, 12)).toBeLessThan(companionAttackDamage(true, 12));
+  });
+});
+
+describe('pairDamage', () => {
+  it('combines hero and companion power', () => {
+    expect(pairDamage('balanced', {}, EMBER_POWER.dragon, 1)).toBe(
+      attackDamage(true, 'balanced', {}) + EMBER_POWER.dragon,
+    );
+  });
+
+  it('outdamages a solo spell of the same multiplier', () => {
+    expect(pairDamage('balanced', {}, EMBER_POWER.hatchling, 2.5)).toBeGreaterThan(spellDamage('balanced', {}, 2.5));
   });
 });

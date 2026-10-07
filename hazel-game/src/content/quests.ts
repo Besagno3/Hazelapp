@@ -252,7 +252,8 @@ export const QUESTS: QuestDef[] = [
     complete: [
       'MY MARBLE! And the Count Bat said you counted CIRCLES around it!',
       'You are the best hero ever. I saved up these coins from my chore jar — they are yours!',
-      '✨ Reward: 20 coins and a Berry Potion!',
+      "And… can I come fight with you? I'm REALLY good with a slingshot. I can spot the tricky answers, too!",
+      '✨ Reward: 20 coins and a Berry Potion! 🧒 Pip joined your battle party — use 🔄 Swap in battle to bring Pip in.',
     ],
     reward: { coins: 20, potion: 1 },
   },
@@ -283,7 +284,8 @@ export const QUESTS: QuestDef[] = [
     complete: [
       'The moon-token… and the water is calm again. Look — the Moonwell is catching the light!',
       'It remembers your face first of all. So will the whole grove, now. Thank you, little light.',
-      '✨ Reward: 35 coins and a Berry Potion!',
+      'A small glow drifts down from the branches — Wisp, made of leftover questions, bright with all the ones you answered. It wants to light your way.',
+      '✨ Reward: 35 coins and a Berry Potion! 🧚 Wisp joined your battle party — use 🔄 Swap in battle to bring Wisp in.',
     ],
     reward: { coins: 35, potion: 1 },
   },

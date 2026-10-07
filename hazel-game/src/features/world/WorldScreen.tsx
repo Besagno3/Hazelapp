@@ -118,6 +118,7 @@ export default function WorldScreen() {
   }, [found]);
 
   const age = playerAge(profile);
+  const skillLevels = profile?.skillLevels ?? {};
   const zoneId = save?.zoneId ?? 'lumina-field';
   const z = zone(zoneId);
   const avatar = avatarById(save?.avatarId ?? null);
@@ -180,7 +181,7 @@ export default function WorldScreen() {
   useEffect(() => {
     if (!save) return;
     for (const p of z.enemies) {
-      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age);
+      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels);
       if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, save.flags)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT);
@@ -259,6 +260,7 @@ export default function WorldScreen() {
         zoneId={zoneId}
         avatar={avatar}
         age={age}
+        skillLevels={skillLevels}
         emberStage={ember}
         startPos={spireTheme ? floorSpawnPx(spireTheme, TILE) : save.pos}
         flags={save.flags}

@@ -2,7 +2,26 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   applyFocus,
   chargeAfterAnswer,
+  DEFEND_MAX_MS,
+  DEFEND_MERCY_BONUS_MS,
+  DEFEND_MIN_MS,
+  defendTimeMs,
+  fastAnswerMs,
+  FAST_STREAK,
   itemBlocked,
+  MAX_SPEED_BOOST,
+  MERCY_AFTER,
+  mercyFor,
+  nextIntent,
+  POWER_MULTIPLIER,
+  powerMoveName,
+  rollDrop,
+  skillAfterBattle,
+  speedStep,
+  STREAK_MAX,
+  STREAK_START,
+  streakMultiplier,
+  victoryCoins,
   resolveEnemyTurn,
   resolveHeroHit,
   resolveItem,
@@ -14,6 +33,8 @@ import { CHARGE_MAX } from '../content/abilities';
 import { POTION_HEAL, SNACK_HEAL, SPARK_CHARGE, TEA_DAMAGE_MULT } from '../content/items';
 import { AEGIS, EMBER_BREATH, MEND } from '../content/spells';
 import { combatState, useBattleStore } from '../store/battleStore';
+import { ENEMY_DEFS } from '../content/enemies';
+import { CONSUMABLE_IDS } from '../content/items';
 import type { BattleEnemy } from '../types';
 
 const base: CombatState = {
@@ -121,6 +142,50 @@ describe('resolveEnemyTurn', () => {
     const calm = resolveEnemyTurn(base, { ...enemyInput, isBoss: true });
     const furious = resolveEnemyTurn({ ...base, enemyHp: 10 }, { ...enemyInput, isBoss: true });
     expect(furious.dmg).toBeGreaterThan(calm.dmg);
+  });
+});
+
+describe('resolveEnemyTurn — telegraphed power blows', () => {
+  it('a power blow hits POWER_MULTIPLIER× as hard', () => {
+    const normal = resolveEnemyTurn(base, enemyInput).dmg;
+    expect(resolveEnemyTurn(base, { ...enemyInput, intent: 'power' }).dmg).toBe(normal * POWER_MULTIPLIER);
+  });
+
+  it('a guard still blocks a power blow completely', () => {
+    expect(resolveEnemyTurn({ ...base, guarded: true }, { ...enemyInput, intent: 'power' }).dmg).toBe(0);
+  });
+
+  it('a Mirror Charm bounces the full power blow', () => {
+    const normal = resolveEnemyTurn(base, enemyInput).dmg;
+    const r = resolveEnemyTurn({ ...base, mirrored: true }, { ...enemyInput, intent: 'power' });
+    expect(r.reflected).toBe(Math.min(base.enemyHp, normal * POWER_MULTIPLIER));
+  });
+});
+
+describe('nextIntent', () => {
+  it('never charges on the first enemy turn', () => {
+    expect(nextIntent(null, 0, false, 0)).toBe('attack');
+    expect(nextIntent(null, 0, true, 0)).toBe('attack');
+  });
+
+  it('a charge is always followed by its power blow, then a normal turn', () => {
+    expect(nextIntent('charge', 5, false, 0.99)).toBe('power');
+    expect(nextIntent('power', 6, false, 0)).toBe('attack');
+  });
+
+  it('regular enemies charge on a low roll; bosses on a fixed rhythm', () => {
+    expect(nextIntent('attack', 1, false, 0.1)).toBe('charge');
+    expect(nextIntent('attack', 1, false, 0.5)).toBe('attack');
+    expect(nextIntent('attack', 2, true, 0.99)).toBe('charge');
+    expect(nextIntent('attack', 1, true, 0)).toBe('attack');
+  });
+
+  it('every boss has its own signature move name', () => {
+    const bosses = Object.values(ENEMY_DEFS).filter((d) => d.isBoss);
+    const names = bosses.map((b) => powerMoveName(b.id));
+    expect(names).not.toContain('Mighty Blow');
+    expect(new Set(names).size).toBe(bosses.length);
+    expect(powerMoveName('sum-slime')).toBe('Mighty Blow');
   });
 });
 
@@ -268,5 +333,91 @@ describe('battleStore combat state (#70 tap-race)', () => {
     // …so a potion tapped straight after reads the post-hit HP.
     applyCombat(resolveItem(combatState(), 'potion').state);
     expect(combatState().playerHp).toBe(Math.min(150, 100 - hit.dmg + POTION_HEAL));
+  });
+});
+
+describe('streaks, mercy, rewards', () => {
+  it('the streak bonus starts at STREAK_START and caps at STREAK_MAX', () => {
+    expect(streakMultiplier(STREAK_START - 1)).toBe(1);
+    expect(streakMultiplier(STREAK_START)).toBeGreaterThan(1);
+    expect(streakMultiplier(STREAK_MAX)).toBeGreaterThan(streakMultiplier(STREAK_START));
+    expect(streakMultiplier(STREAK_MAX + 10)).toBe(streakMultiplier(STREAK_MAX));
+  });
+
+  it('mercy makes questions easier after MERCY_AFTER losses — and nothing else', () => {
+    expect(mercyFor(MERCY_AFTER - 1)).toEqual({ levelDrop: 0 });
+    expect(mercyFor(MERCY_AFTER)).toEqual({ levelDrop: 1 });
+  });
+
+  it('the first win over an enemy kind pays a coin bonus', () => {
+    expect(victoryCoins(10, 0)).toBeGreaterThan(10);
+    expect(victoryCoins(10, 3)).toBe(10);
+  });
+
+  it('bosses always drop; regular drops are real consumables or nothing', () => {
+    expect(rollDrop(true, 0.99)).toBe('elixir');
+    const seen = new Set([0, 0.1, 0.2, 0.3, 0.5, 0.99].map((r) => rollDrop(false, r)));
+    expect(seen.has(null)).toBe(true);
+    for (const d of seen) if (d) expect(CONSUMABLE_IDS).toContain(d);
+  });
+});
+
+describe('defendTimeMs', () => {
+  it('younger kids get more time', () => {
+    expect(defendTimeMs(6)).toBeGreaterThan(defendTimeMs(9));
+    expect(defendTimeMs(9)).toBeGreaterThan(defendTimeMs(13));
+  });
+
+  it('a young reader (5–8) always gets more than 15s', () => {
+    for (const age of [5, 6, 7, 8]) expect(defendTimeMs(age)).toBeGreaterThan(15_000);
+  });
+
+  it('is clamped to 10–25s', () => {
+    expect(defendTimeMs(18)).toBe(DEFEND_MIN_MS);
+    expect(defendTimeMs(3)).toBe(DEFEND_MAX_MS);
+  });
+
+  it('mercy adds a few seconds on top', () => {
+    expect(defendTimeMs(10, true)).toBe(defendTimeMs(10) + DEFEND_MERCY_BONUS_MS);
+  });
+});
+
+describe('speed trigger', () => {
+  const age = 9;
+  const quick = fastAnswerMs(age) - 1;
+
+  it('"quick" is half the age countdown — more time for younger kids', () => {
+    expect(fastAnswerMs(age)).toBe(defendTimeMs(age) / 2);
+    expect(fastAnswerMs(6)).toBeGreaterThan(fastAnswerMs(12));
+  });
+
+  it(`${FAST_STREAK} quick correct answers in a row raise the level`, () => {
+    let run = 0;
+    let boosted = false;
+    for (let i = 0; i < FAST_STREAK; i++) ({ run, boosted } = speedStep(run, true, quick, age, 0));
+    expect(boosted).toBe(true);
+    expect(run).toBe(0); // the next step needs another full streak
+  });
+
+  it('a slow answer, a wrong answer, or a hinted answer (Infinity) breaks the run', () => {
+    expect(speedStep(4, true, fastAnswerMs(age) + 1, age, 0)).toEqual({ run: 0, boosted: false });
+    expect(speedStep(4, false, quick, age, 0)).toEqual({ run: 0, boosted: false });
+    expect(speedStep(4, true, Infinity, age, 0)).toEqual({ run: 0, boosted: false });
+  });
+
+  it(`never raises more than ${MAX_SPEED_BOOST} in one battle`, () => {
+    expect(speedStep(FAST_STREAK - 1, true, quick, age, MAX_SPEED_BOOST).boosted).toBe(false);
+  });
+
+  it('the saved level after a battle keeps what speed earned, and never drops', () => {
+    expect(skillAfterBattle(4, [true, false, false, false], 1)).toBe(5);
+    expect(skillAfterBattle(4, [false, false], 0)).toBe(4);
+    expect(skillAfterBattle(4, Array(6).fill(true), 1)).toBeGreaterThanOrEqual(5);
+    expect(skillAfterBattle(10, Array(6).fill(true), 2)).toBe(10);
+  });
+
+  it('fleeing (no ramp answers) still keeps the speed boost', () => {
+    expect(skillAfterBattle(4, [], 1)).toBe(5);
+    expect(skillAfterBattle(4, [], 0)).toBe(4);
   });
 });

@@ -311,7 +311,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-hatchling/battle.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 7,
+      "frames": 12,
       "anims": {
         "idle": {
           "from": 0,
@@ -329,6 +329,17 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "to": 6,
           "fps": 7,
           "loop": false
+        },
+        "breath": {
+          "from": 7,
+          "to": 9,
+          "fps": 8,
+          "loop": false
+        },
+        "cheer": {
+          "from": 10,
+          "to": 11,
+          "fps": 5
         }
       }
     }
@@ -377,7 +388,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-whelp/battle.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 7,
+      "frames": 12,
       "anims": {
         "idle": {
           "from": 0,
@@ -395,6 +406,17 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "to": 6,
           "fps": 7,
           "loop": false
+        },
+        "breath": {
+          "from": 7,
+          "to": 9,
+          "fps": 8,
+          "loop": false
+        },
+        "cheer": {
+          "from": 10,
+          "to": 11,
+          "fps": 5
         }
       }
     }
@@ -443,7 +465,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       "sheet": "/sprites/ember-dragon/battle.png",
       "frameW": 32,
       "frameH": 32,
-      "frames": 7,
+      "frames": 12,
       "anims": {
         "idle": {
           "from": 0,
@@ -461,6 +483,33 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "to": 6,
           "fps": 7,
           "loop": false
+        },
+        "breath": {
+          "from": 7,
+          "to": 9,
+          "fps": 8,
+          "loop": false
+        },
+        "cheer": {
+          "from": 10,
+          "to": 11,
+          "fps": 5
+        }
+      }
+    }
+  },
+  "fx-fireball": {
+    "emoji": "🔥",
+    "battle": {
+      "sheet": "/sprites/fx-fireball/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 4,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 3,
+          "fps": 12
         }
       }
     }
@@ -3779,6 +3828,31 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "fps": 8
         }
       }
+    },
+    "battle": {
+      "sheet": "/sprites/hub-kid/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
     }
   },
   "hub-innkeeper": {
@@ -4638,6 +4712,31 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "from": 14,
           "to": 17,
           "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/woods-sprite/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
         }
       }
     }
