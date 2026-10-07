@@ -811,4 +811,43 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
     ambient: ['*sculpts*', 'Squish!', 'Art!'],
   },
+
+  // --- Dawnreach, the overworld (#75 Phase 1) ---------------------------------
+  // A scout at the Village crossroads: every road, in one breath, and a nudge
+  // toward the world map — so a kid always knows where to go next.
+  'dawnreach-scout': {
+    id: 'dawnreach-scout',
+    name: 'Scout Tamsin',
+    sprite: '🧭',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Hi! I\'m mapping all of Dawnreach. Want the short version? Here goes!',
+      'North: Lumina Field. West: the Whispering Woods. East: Starfall Coast, where the land runs out.',
+      'South, past the hills: the Crystal Spire. You can see it from almost anywhere — lost? Look for the Spire!',
+      {
+        text: 'Far to the north-east, an old shrine hides behind the fog. Nobody\'s been there since the fog came.',
+        unlessFlag: 'met-wren',
+      },
+      { text: 'You found the Shrine of First Light! I\'m drawing it on my map RIGHT NOW. With extra sparkles.', ifFlag: 'met-wren' },
+      'Tip: open the 📜 Menu to see my map. I drew the trees myself. All of them. Each one. Individually.',
+    ],
+    ambient: ['Hmm… north is that way.', '*scribbles on a map*', 'So many places to draw!'],
+  },
+  // Old Wren kept one candle burning here through the whole fog.
+  'shrine-keeper': {
+    id: 'shrine-keeper',
+    name: 'Old Wren',
+    sprite: '🕯️',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      { text: 'Welcome, little light. This is the Shrine of First Light — the oldest lit place in all of Dawnreach.', setFlag: 'met-wren' },
+      'When the fog rolled in, I kept one candle burning here. Just one. It was enough to remember the way.',
+      'I\'ve kept that candle lit for sixty years. I blinked once. Very nervous blink.',
+      { text: 'Your dragon is warm as a hearth! Ember would make a fine candle-keeper. Don\'t tell the candle.', ifFlag: 'ember-hatched' },
+      'Someday I\'ll teach you to carry the light with you, so you can always find your way home. Not yet. Soon.',
+      { text: 'The Forgotten One fell, and still my candle burns. Good. Some lights are for keeping.', ifFlag: 'spire-cleared' },
+    ],
+  },
 };

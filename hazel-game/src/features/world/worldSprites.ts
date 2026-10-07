@@ -12,6 +12,10 @@ import { SPRITES, resolveSprite } from '../../content/sprites';
 import { BUILDING_STYLES, ZONE_IDS } from '../../content/zones';
 import { SPIRE_THEMES } from '../../content/spire';
 import {
+  OVERWORLD_FRAME,
+  OVERWORLD_FRAMES,
+  OVERWORLD_KEY,
+  OVERWORLD_SHEET,
   PROPS_FRAMES,
   PROPS_KEY,
   PROPS_SHEET,
@@ -90,6 +94,12 @@ export function loadWorldSprites(k: KaplayCtx): void {
     anims: { glow: { from: PROP_FRAME.crystal[0], to: PROP_FRAME.crystal[1], loop: true, speed: 2 } },
   });
   k.loadSprite(SPIRE_KEY, SPIRE_SHEET);
+  // Overworld (#75 Phase 1): mountains, sand, drifting fog, place icons.
+  k.loadSprite(OVERWORLD_KEY, OVERWORLD_SHEET, {
+    sliceX: OVERWORLD_FRAMES,
+    sliceY: 1,
+    anims: { drift: { from: OVERWORLD_FRAME.fog[0], to: OVERWORLD_FRAME.fog[1], loop: true, speed: 1.5 } },
+  });
   // The Spire's floor maps (#74): one tileset per floor theme + shared props.
   for (const theme of SPIRE_THEMES) {
     const name = `spire-${theme}`;

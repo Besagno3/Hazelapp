@@ -1,5 +1,5 @@
 import { buildingAt, type BuildingStyle, type ZoneDef } from '../content/zones';
-import { TILE_FRAME, TOWN_FRAME, groundVariant } from '../content/tiles';
+import { OVERWORLD_FRAME, TILE_FRAME, TOWN_FRAME, groundVariant } from '../content/tiles';
 
 /**
  * Terrain layers for the world renderer (overworld Phase 0, #75).
@@ -17,8 +17,18 @@ import { TILE_FRAME, TOWN_FRAME, groundVariant } from '../content/tiles';
  * terrain — they stay live objects drawn on top.
  */
 
-/** A sheet a terrain cell draws from: the zone's own tileset, or a building style's town sheet. */
-export type TerrainSheet = 'zone' | BuildingStyle;
+/**
+ * A sheet a terrain cell draws from: the zone's own tileset, the shared
+ * overworld sheet (mountains, sand — #75 Phase 1), or a building style's
+ * town sheet.
+ */
+export type TerrainSheet = 'zone' | 'overworld' | BuildingStyle;
+
+/** One tile to draw: which sheet, which frame. */
+export interface TileRef {
+  sheet: TerrainSheet;
+  frame: number;
+}
 
 /** `baseFrame` value for animated water — the frame is picked from the clock at draw time. */
 export const WATER = -1;
@@ -35,30 +45,33 @@ const TOWN_TILE: Record<string, number> = {
   Z: TOWN_FRAME.bed,
 };
 
-/** Zone-tileset overlays drawn over the ground (transparent frames). */
-const OVERLAY: Record<string, number> = {
-  '#': TILE_FRAME.solid,
+/** Overlays drawn over the ground (transparent frames). */
+const OVERLAY: Record<string, TileRef> = {
+  '#': { sheet: 'zone', frame: TILE_FRAME.solid },
   // Hidden passages look exactly like solid scenery (the hero can walk through).
-  H: TILE_FRAME.solid,
-  ',': TILE_FRAME.deco,
-  E: TILE_FRAME.exit,
+  H: { sheet: 'zone', frame: TILE_FRAME.solid },
+  ',': { sheet: 'zone', frame: TILE_FRAME.deco },
+  E: { sheet: 'zone', frame: TILE_FRAME.exit },
+  '^': { sheet: 'overworld', frame: OVERWORLD_FRAME.mountain },
 };
 
 export interface TerrainLayers {
   cols: number;
   rows: number;
-  /** Sheets in use; `baseSheet` holds an index into this list per cell. */
+  /** Sheets in use; `baseSheet` / `overSheet` hold an index into this list per cell. */
   sheets: TerrainSheet[];
   /** Per cell (row-major): which sheet the base tile comes from. */
   baseSheet: Uint8Array;
   /** Per cell: base frame, or `WATER`. */
   baseFrame: Int16Array;
-  /** Per cell: zone-tileset overlay frame, or `NO_OVERLAY`. */
+  /** Per cell: which sheet the overlay comes from (ignored when there is none). */
+  overSheet: Uint8Array;
+  /** Per cell: overlay frame, or `NO_OVERLAY`. */
   overFrame: Int16Array;
 }
 
 /** The base tile for one cell: its sheet and frame (or `WATER`). */
-export function baseTile(z: ZoneDef, x: number, y: number): { sheet: TerrainSheet; frame: number } {
+export function baseTile(z: ZoneDef, x: number, y: number): TileRef {
   const ch = z.map[y][x];
   const home = buildingAt(z, x, y);
   // Building tiles draw in that building's architecture style (#73).
@@ -78,12 +91,13 @@ export function baseTile(z: ZoneDef, x: number, y: number): { sheet: TerrainShee
   if (ch in TOWN_TILE) return { sheet: style, frame: TOWN_TILE[ch] };
   if (ch === '=' || ch === 'E') return { sheet: 'zone', frame: TILE_FRAME.path };
   if (ch === '~') return { sheet: 'zone', frame: WATER };
+  if (ch === ':') return { sheet: 'overworld', frame: OVERWORLD_FRAME.sand };
   return { sheet: 'zone', frame: groundVariant(x, y) };
 }
 
-/** The overlay frame drawn over a cell's base (scenery, flowers, exit marker), if any. */
-export function overlayTile(ch: string): number {
-  return OVERLAY[ch] ?? NO_OVERLAY;
+/** The overlay drawn over a cell's base (scenery, flowers, exit marker, mountain), if any. */
+export function overlayTile(ch: string): TileRef | null {
+  return OVERLAY[ch] ?? null;
 }
 
 /** Works out every cell's terrain frames once per zone build. */
@@ -93,19 +107,24 @@ export function terrainLayers(z: ZoneDef): TerrainLayers {
   const sheets: TerrainSheet[] = [];
   const baseSheet = new Uint8Array(cols * rows);
   const baseFrame = new Int16Array(cols * rows);
+  const overSheet = new Uint8Array(cols * rows);
   const overFrame = new Int16Array(cols * rows);
+  const sheetIndex = (sheet: TerrainSheet) => {
+    const s = sheets.indexOf(sheet);
+    return s >= 0 ? s : sheets.push(sheet) - 1;
+  };
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const i = y * cols + x;
       const base = baseTile(z, x, y);
-      let s = sheets.indexOf(base.sheet);
-      if (s < 0) s = sheets.push(base.sheet) - 1;
-      baseSheet[i] = s;
+      baseSheet[i] = sheetIndex(base.sheet);
       baseFrame[i] = base.frame;
-      overFrame[i] = overlayTile(z.map[y][x]);
+      const over = overlayTile(z.map[y][x]);
+      overSheet[i] = over ? sheetIndex(over.sheet) : 0;
+      overFrame[i] = over ? over.frame : NO_OVERLAY;
     }
   }
-  return { cols, rows, sheets, baseSheet, baseFrame, overFrame };
+  return { cols, rows, sheets, baseSheet, baseFrame, overSheet, overFrame };
 }
 
 /**

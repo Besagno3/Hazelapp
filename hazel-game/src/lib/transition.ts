@@ -1,4 +1,4 @@
-import type { ZoneDef, ZoneExit } from '../content/zones';
+import type { ZoneDef, ZoneExit, ZoneKind } from '../content/zones';
 
 /**
  * Zelda-style screen slide between zones. Leaving by an edge exit, the old
@@ -9,6 +9,41 @@ export type ExitSide = 'north' | 'south' | 'east' | 'west';
 
 /** Slide duration (ms) — about half a second, like the 16-bit classics. */
 export const SLIDE_MS = 480;
+
+/** Dip-to-black duration (ms) for walking into or out of a place (#75 Phase 1). */
+export const FADE_MS = 440;
+
+export type TransitionKind = 'slide' | 'fade' | 'cut';
+
+/**
+ * How a zone change looks (#75 Phase 1). Neighbouring screens joined edge to
+ * edge slide, Zelda-style. Walking onto a place on the overworld, or out of a
+ * place back onto it, fades through black instead — the two maps aren't side
+ * by side, so a slide would lie about the geography. An entrance in the middle
+ * of a map always fades. Players who ask for reduced motion get a cut.
+ */
+export function transitionFor(
+  side: ExitSide | null,
+  fromKind: ZoneKind,
+  toKind: ZoneKind,
+  reduceMotion: boolean,
+): TransitionKind {
+  if (reduceMotion) return 'cut';
+  if (!side || fromKind === 'overworld' || toKind === 'overworld') return 'fade';
+  return 'slide';
+}
+
+/**
+ * Should the hero wait for the movement keys to be let go after arriving?
+ * Yes where you land right beside a way back out (walking into or out of a
+ * place) — a held key would carry you straight back. Never between screens
+ * joined edge to edge: you arrive walking away from the exit, so holding the
+ * key keeps you going. Decided by the link, not by reduced motion (which turns
+ * every slide into a cut but shouldn't make walking stop-start).
+ */
+export function needsArrivalLock(side: ExitSide | null, fromKind: ZoneKind, toKind: ZoneKind): boolean {
+  return transitionFor(side, fromKind, toKind, false) !== 'slide';
+}
 
 /** Which map edge an exit tile sits on (null for an interior exit). */
 export function exitSide(x: number, y: number, cols: number, rows: number): ExitSide | null {

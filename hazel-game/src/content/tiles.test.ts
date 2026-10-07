@@ -20,8 +20,7 @@ import {
   SPIRE_PROPS_FRAMES,
   SPIRE_PROPS_SHEET,
   groundVariant,
-  tilesetSheet,
-} from './tiles';
+  tilesetSheet, OVERWORLD_FRAME, OVERWORLD_FRAMES, OVERWORLD_SHEET } from './tiles';
 
 const pub = (p: string) => join(process.cwd(), 'public', p);
 function pngSize(p: string) {
@@ -38,6 +37,11 @@ describe('16-bit tilesets', () => {
   });
   it('every zone has a battle backdrop', () => {
     for (const id of ZONE_IDS) expect(existsSync(pub(battleBackdrop(id))), id).toBe(true);
+  });
+  it('the overworld sheet has one 32px frame per OVERWORLD_FRAME entry (#75)', () => {
+    expect(pngSize(OVERWORLD_SHEET)).toEqual({ w: OVERWORLD_FRAMES * 32, h: 32 });
+    const icons = Object.values(OVERWORLD_FRAME.icon);
+    expect(Math.max(...icons)).toBe(OVERWORLD_FRAMES - 1);
   });
   it('props strip and Spire tower are the expected sizes', () => {
     expect(pngSize(PROPS_SHEET)).toEqual({ w: PROPS_FRAMES * 32, h: 32 });

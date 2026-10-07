@@ -63,6 +63,8 @@ export const SPIRE_CLEARED = 'spire-cleared';
 export const SPIRE_VICTORY_SEEN = 'spire-victory-seen';
 /** Plays once the first time the hero enters the hidden Moonwell Grove (#grove). */
 export const GROVE_SEEN = 'grove-seen';
+/** First step out of a gate onto Dawnreach, the overworld (#75 Phase 1). */
+export const DAWNREACH_SEEN = 'dawnreach-seen';
 
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
@@ -194,6 +196,26 @@ export const SPIRE_PANELS: StoryPanel[] = [
  * Entry cutscene for the hidden Moonwell Grove (#grove) — plays once the first
  * time the hero steps into the grove from Lumina Village.
  */
+/**
+ * Leaving home (#75 Phase 1): plays the first time the hero steps out of a gate
+ * onto Dawnreach. Points at the Spire — the landmark that always shows the way
+ * — and plants the fog that lifts as crystals return.
+ */
+export const DAWNREACH_PANELS: StoryPanel[] = [
+  {
+    emoji: '🌄',
+    text: 'Beyond the gate, the whole land opens up: Dawnreach, home of the four crystals. Roads wind away to forests, caves and shores you have only heard about.',
+  },
+  {
+    emoji: '🗼',
+    text: 'Far to the south, the Crystal Spire glitters above the hills. Wherever you wander, it will help you find your way home.',
+  },
+  {
+    emoji: '🌫️',
+    text: 'Here and there, the fog of Forgetting still clings to the land. Restore the crystals, and it will lift.',
+  },
+];
+
 export const GROVE_PANELS: StoryPanel[] = [
   {
     emoji: '🌙',

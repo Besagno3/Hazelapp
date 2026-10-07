@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import kaplay from 'kaplay';
 import type { MutableRefObject } from 'react';
 import {
@@ -8,12 +8,14 @@ import {
   WALKABLE_CHARS,
   buildingAt,
   buildingInside,
+  fogAt,
   pathTargetId,
   gateFlag,
   gateIdAt,
   safeSpawn,
   zone,
   type BuildingDef,
+  type FogDef,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
 import { secretAt, secretFlag } from '../../content/secrets';
@@ -26,8 +28,10 @@ import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis, worldView } from '../../lib/camera';
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
-import { SLIDE_MS, exitSide, slideFrom, type ExitSide } from '../../lib/transition';
+import { FADE_MS, SLIDE_MS, exitSide, needsArrivalLock, slideFrom, transitionFor, type ExitSide } from '../../lib/transition';
 import {
+  OVERWORLD_FRAME,
+  OVERWORLD_KEY,
   PROPS_KEY,
   PROP_FRAME,
   ROOF_KEY,
@@ -102,6 +106,8 @@ export interface WorldCanvasCallbacks {
   onUmbra?: () => void;
   /** Found a hidden secret (bumped its scenery or stepped on its spot). */
   onSecret?: (id: string) => void;
+  /** Bumped a bank of the fog of Forgetting (#75) — show why it won't let you pass. */
+  onFog?: (hint: string) => void;
 }
 
 /**
@@ -189,6 +195,43 @@ export default function WorldCanvas({
     }, SLIDE_MS + 30);
     return () => clearTimeout(t);
   }, [slide?.running]);
+
+  // --- Fade into / out of a place (#75 Phase 1) -------------------------------
+  // Walking onto a town / cave / shrine on the overworld (or back out of one)
+  // dips to black: a snapshot of the old screen darkens, the new zone builds
+  // underneath, then the black lifts. The hero is frozen throughout. Each step
+  // waits for the black overlay's own transition to finish (`onFadeStep`), not
+  // a timer — on a slow device a timer could drop the snapshot before the
+  // screen is black and the new zone would pop in.
+  const [fade, setFade] = useState<{ src: string; dark: boolean; shown: boolean } | null>(null);
+  const fadeStarted = !!fade;
+  const endFade = useCallback(() => {
+    slidingRef.current = false;
+    setFade(null);
+  }, []);
+  useEffect(() => {
+    if (!fadeStarted) return;
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setFade((f) => (f ? { ...f, dark: true } : f)));
+    });
+    // Safety net: never leave the hero frozen if a transition event is lost.
+    const safety = setTimeout(endFade, FADE_MS * 6);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(safety);
+    };
+  }, [fadeStarted, endFade]);
+  /** The black overlay finished a transition: black reached → lift it; lifted → done. */
+  const onFadeStep = () => {
+    if (!fade) return;
+    if (fade.dark) setFade({ ...fade, shown: false, dark: false });
+    else endFade();
+  };
+  // After a fade (or a reduced-motion cut) the hero arrives standing still and
+  // waits for the movement keys to be let go — otherwise a held key could walk
+  // you straight back out of an exit right beside where you land.
+  const arrivalLockRef = useRef(false);
+
   const kRef = useRef<ReturnType<typeof kaplay> | null>(null);
   // Re-running the scene effect for every prop change would rebuild the
   // world mid-walk; the latest callbacks/flags are read through refs instead.
@@ -296,7 +339,7 @@ export default function WorldCanvas({
     // from the clock.
     const tiles = z.tileset ? namedTilesetKey(z.tileset) : tilesetKey(zoneId);
     const layers = terrainLayers(z);
-    const sheetKeys = layers.sheets.map((s) => (s === 'zone' ? tiles : townKey(s)));
+    const sheetKeys = layers.sheets.map((s) => (s === 'zone' ? tiles : s === 'overworld' ? OVERWORLD_KEY : townKey(s)));
     const builtAt = k.time();
     // The camera's view in world pixels — larger than the canvas if it's ever
     // zoomed out, so culling and edge clamping never assume a 1:1 camera.
@@ -322,11 +365,15 @@ export default function WorldCanvas({
               }
             }
           }
-          // Scenery / flower / exit overlays on top.
-          for (let y = r.y0; y < r.y1; y++) {
-            for (let x = r.x0; x < r.x1; x++) {
-              const f = layers.overFrame[y * cols + x];
-              if (f !== NO_OVERLAY) k.drawSprite({ sprite: tiles, frame: f, pos: k.vec2(x * TILE, y * TILE) });
+          // Scenery / flower / exit / mountain overlays on top, again by sheet.
+          for (let s = 0; s < sheetKeys.length; s++) {
+            for (let y = r.y0; y < r.y1; y++) {
+              for (let x = r.x0; x < r.x1; x++) {
+                const i = y * cols + x;
+                const f = layers.overFrame[i];
+                if (f === NO_OVERLAY || layers.overSheet[i] !== s) continue;
+                k.drawSprite({ sprite: sheetKeys[s], frame: f, pos: k.vec2(x * TILE, y * TILE) });
+              }
             }
           }
         },
@@ -397,6 +444,54 @@ export default function WorldCanvas({
         k.z(12),
       ]);
       twinkles.set(sec.id, t as unknown as { opacity: number; destroy: () => void });
+    }
+
+    // --- Overworld places (#75 Phase 1): an icon + name on each 'P' tile ------
+    // Walking onto one is a zone exit (see `exits`); this just draws it.
+    for (const p of z.places ?? []) {
+      const cx = p.x * TILE + TILE / 2;
+      const cy = p.y * TILE + TILE / 2;
+      if (p.icon === 'tower') {
+        // The Spire is the landmark: the tall tower sprite, base on its tile.
+        k.add([k.sprite(SPIRE_KEY), k.pos(cx, cy - 16), k.anchor('center'), k.z(7)]);
+      } else {
+        k.add([k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.icon[p.icon] }), k.pos(cx, cy), k.anchor('center'), k.z(-10)]);
+      }
+      // Same size as building names (they name somewhere you can go in, too).
+      const name = k.add([k.text(p.name, { size: 11 }), k.pos(cx, cy + 24), k.anchor('center'), k.color(255, 252, 235), k.z(13)]) as unknown as {
+        width?: number;
+        height?: number;
+      };
+      k.add([
+        k.rect((name.width ?? p.name.length * 7) + 8, (name.height ?? 12) + 4, { radius: 3 }),
+        k.pos(cx, cy + 24),
+        k.anchor('center'),
+        k.color(20, 16, 36),
+        k.opacity(0.55),
+        k.z(12),
+      ]);
+    }
+
+    // --- Fog of Forgetting (#75): drifting banks that lift for good ---------
+    type Fader2 = { opacity: number; destroy: () => void; play: (n: string) => void };
+    const fogBanks: { def: FogDef; parts: Fader2[]; lifting: boolean }[] = [];
+    const fogLifted = (f: FogDef) => f.liftedBy.some((flag) => flagsRef.current[flag]);
+    for (const f of z.fogs ?? []) {
+      if (fogLifted(f)) continue;
+      const parts: Fader2[] = [];
+      for (let fy = f.y; fy < f.y + f.h; fy++) {
+        for (let fx = f.x; fx < f.x + f.w; fx++) {
+          const puff = k.add([
+            k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.fog[(fx + fy) % 2] }),
+            k.pos(fx * TILE, fy * TILE),
+            k.opacity(0.94),
+            k.z(8),
+          ]) as unknown as Fader2;
+          puff.play('drift');
+          parts.push(puff);
+        }
+      }
+      fogBanks.push({ def: f, parts, lifting: false });
     }
 
     // --- Buildings (#72): signs + roofs ---------------------------------
@@ -821,6 +916,7 @@ export default function WorldCanvas({
 
     /** What blocks the cell, if anything. Hidden passages block `strict` movers (wanderers). */
     function blockerAt(cx: number, cy: number, strict = false): { ch: string; x: number; y: number } | null {
+      if (fogAt(z, cx, cy, flagsRef.current)) return { ch: 'fog', x: cx, y: cy };
       const ch = z.map[cy]?.[cx] ?? '#';
       if (strict && ch === 'H') return { ch, x: cx, y: cy };
       if (WALKABLE_CHARS.has(ch)) return null;
@@ -847,12 +943,20 @@ export default function WorldCanvas({
 
     // --- Main loop ---------------------------------------------------------
     let wasPaused = false;
+    // Arrived by a fade or a cut: hold still until the movement keys are let go.
+    let needsRelease = arrivalLockRef.current;
+    arrivalLockRef.current = false;
     let cooldown = 0;
     let moveSaveTimer = 0;
 
     const loop = k.onUpdate(() => {
       if (triggered) return;
       if (pausedRef.current || slidingRef.current) {
+        // Pausing for a menu / dialogue / cutscene: save where the hero really
+        // is. Walking only saves every 1.5 s, so otherwise the world map's star
+        // (and a refresh) could be up to ~8 tiles behind. (Encounters save their
+        // own step-back position and return above, via `triggered`.)
+        if (!wasPaused && pausedRef.current) cbRef.current.onMove(player.pos.x, player.pos.y);
         wasPaused = true;
         return;
       }
@@ -876,6 +980,14 @@ export default function WorldCanvas({
         const inv = 1 / Math.sqrt(2);
         dx *= inv;
         dy *= inv;
+      }
+      if (needsRelease) {
+        if (dx !== 0 || dy !== 0) {
+          dx = 0;
+          dy = 0;
+        } else {
+          needsRelease = false;
+        }
       }
 
       if (dx !== 0 || dy !== 0) lastDir = { x: dx, y: dy };
@@ -939,6 +1051,10 @@ export default function WorldCanvas({
         } else if (bumped.ch === 'S') {
           cooldown = 2;
           cbRef.current.onSaveCrystal();
+        } else if (bumped.ch === 'fog') {
+          const fog = fogAt(z, bumped.x, bumped.y, flagsRef.current);
+          cooldown = 2;
+          if (fog) cbRef.current.onFog?.(fog.hint);
         } else if (bumped.ch === 'Q') {
           // A rune seal on a Spire floor (#74): face its question.
           const id = `${bumped.x},${bumped.y}`;
@@ -1080,6 +1196,18 @@ export default function WorldCanvas({
         if (f === 'side') emberSprite.flipX = lastDir.x < 0;
       }
 
+      // Fog lifts once its story flag is set: fade the bank out, then drop it.
+      for (const bank of fogBanks) {
+        if (!bank.lifting && fogLifted(bank.def)) bank.lifting = true;
+        if (!bank.lifting || bank.parts.length === 0) continue;
+        const o = Math.max(0, bank.parts[0].opacity - dt * 0.8);
+        for (const part of bank.parts) part.opacity = o;
+        if (o === 0) {
+          for (const part of bank.parts) part.destroy();
+          bank.parts = [];
+        }
+      }
+
       // Open gates / opened chests update live (flag set while overlay open).
       for (const [id, sprites] of gateSprites) {
         if (flagsRef.current[gateFlag(id)]) {
@@ -1120,13 +1248,21 @@ export default function WorldCanvas({
         triggered = true;
         const side = exitSide(exit.x, exit.y, cols, rows);
         const reduceMotion =
-          typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-        if (side && !reduceMotion) {
-          // Snapshot the outgoing screen (the canvas keeps its last frame) for
-          // the slide, then switch zones underneath it.
+          typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+        const toKind = zone(exit.to).kind;
+        const how = transitionFor(side, z.kind, toKind, reduceMotion);
+        // Snapshot the outgoing screen (the canvas keeps its last frame), then
+        // switch zones underneath it.
+        if (how === 'slide' && side) {
           slidingRef.current = true;
           setSlide({ src: k.screenshot(), side, from: zoneId, running: false });
+        } else if (how === 'fade') {
+          slidingRef.current = true;
+          setFade({ src: k.screenshot(), dark: false, shown: true });
         }
+        // Only where you land beside a way back out (places) — never between
+        // edge-joined screens, even when reduced motion makes the slide a cut.
+        if (needsArrivalLock(side, z.kind, toKind)) arrivalLockRef.current = true;
         cbRef.current.onExit(exit.to, exit.spawnX, exit.spawnY);
         return;
       }
@@ -1183,6 +1319,24 @@ export default function WorldCanvas({
             transition: motion,
             imageRendering: 'pixelated',
           }}
+        />
+      )}
+      {/* Fade into / out of a place (#75): old screen → black → new zone. */}
+      {fade?.shown && (
+        <img
+          src={fade.src}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ imageRendering: 'pixelated' }}
+        />
+      )}
+      {fade && (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none bg-black"
+          style={{ opacity: fade.dark ? 1 : 0, transition: `opacity ${FADE_MS / 2}ms ease-in-out` }}
+          onTransitionEnd={onFadeStep}
         />
       )}
     </div>
