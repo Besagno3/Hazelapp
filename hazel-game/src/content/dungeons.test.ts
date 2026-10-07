@@ -102,8 +102,9 @@ describe('dungeons (#75 item 10)', () => {
         const open = walk(z, arrive.spawnX, arrive.spawnY);
         const next = stairsOf(z, onward)[0];
         if (i + 1 < d.floors.length) expect(open.has(`${next.x},${next.y}`), `${z.id}: the stairs on`).toBe(true);
-        // Nothing on the floor is walled off for good (pitch dark waits for Glow, that's all).
-        expect(next ? z.exits.every((e) => open.has(`${e.x},${e.y}`)) : true, `${z.id}: every exit`).toBe(true);
+        // Nothing on the floor is walled off for good — the deepest floor too
+        // (pitch dark waits for Glow, that's all).
+        expect(z.exits.every((e) => open.has(`${e.x},${e.y}`)), `${z.id}: every exit`).toBe(true);
       }
     }
   });

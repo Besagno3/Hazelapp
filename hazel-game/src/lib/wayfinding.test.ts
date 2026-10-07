@@ -133,8 +133,9 @@ describe('dungeons (#75 item 10)', () => {
     const goal = nextObjective(twoCrystals);
     expect(goal.zoneId).toBe('clockwork-depths-b3');
     expect(goalDirections(ZONES, goal, 'lumina-village')).toBe(
-      "Go south-west to the Clockwork Depths, then take the stairs down to the Gear Halls, then take the stairs down to the Titan's Forge.",
+      "Go south-west to the Clockwork Depths, then take the stairs down two floors to the Titan's Forge.",
     );
+    expect(goalDirections(ZONES, goal, 'clockwork-depths')).toBe("Take the stairs down two floors to the Titan's Forge.");
     expect(goalDirections(ZONES, goal, 'clockwork-depths-b2')).toBe("Take the stairs down to the Titan's Forge.");
   });
   it('Elder Lumen says the floor and the dungeon it lies deep in', () => {

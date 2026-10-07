@@ -168,8 +168,9 @@ zod, react-query. Add the package in the same change that first uses it.
   a screen, maybe `dark` — `dark.dim` makes it dim rather than black); stairs
   `>` (down) / `<` (up) are exits inside the map, so moving floors fades like
   a place and needs nothing special from the canvas (it just draws the stairs
-  sprite). The HUD reads "B2 · The Gear Halls"; routes say "take the stairs
-  down to …". The Spire numbers its floors the same way (`spireFloorTitle`)
+  sprite). The HUD reads "B2 — The Gear Halls" (like the Spire's "Floor 2 — …");
+  routes say "take the stairs down to …", a run of them "down two floors to …".
+  The Spire numbers its floors the same way (`spireFloorTitle`)
   but its trial floors stay `SpireOverlay`'s (ISSUES #103).
   **Inns** (#75 item 11): every town in `RETURN_TOWNS` has exactly one
   building with `sign: 'inn'` (`innOf`) and its innkeeper inside. Resting
@@ -343,6 +344,27 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-07 — Dungeon review fixes (#75 item 10)
+`/saas-code-review` + `/saas-ux-review` of item 10 — every finding fixed but one:
+- **HUD:** the floor title reads "B2 — The Gear Halls", the same shape as the
+  Spire's "Floor 2 — …" and the map's "Clockwork Depths · B2 — …", and the
+  label never wraps away from the name. On a 375 px phone the stats left any
+  place name a ~50 px column (B2's title took four lines, "Lumina Village"
+  two), so the HUD row now wraps: the name on its own line, the stats
+  right-aligned below. The 🔆 Glow button is just the lamp on a phone
+  (`aria-label` "Cast Glow").
+- **Routes:** a run of stairs the same way is one step — "Go south-west to the
+  Clockwork Depths, then take the stairs down two floors to the Titan's Forge."
+- **Key gate:** "beat the Clockwork Titan deep in the Clockwork Depths" (articles
+  mid-sentence via `placeName`; "deep in" for a warden below the first floor) —
+  the other gates now read "in the Whispering Woods" / "in Starfall Coast" too.
+- **Cricket** (on B1) says the forge is *two* floors down.
+- **World map caption:** a dungeon floor drops "(past …)" only when its title is
+  the place's own name or starts "<place> · " — not on any shared prefix.
+- dungeons.test now checks every exit is reachable on the deepest floor too
+  (it was skipped there; B3 passes).
+- Kept: the "B1 / B2" labels (ISSUES #103h).
 
 ### 2026-10-07 — Inns in every town, travelers with rumors, defeat wakes you at your inn (#75 item 11)
 Roadmap item 11: with real distances, "one inn in the world" (#73) was a
