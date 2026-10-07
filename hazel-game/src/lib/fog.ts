@@ -111,3 +111,18 @@ export function puffAt(
   }
   return { x, y, scale, opacity: p.opacity * (1 - Math.min(1, Math.max(0, lift))) };
 }
+
+/** The places drawn inside a bank: hidden behind its clouds until it lifts. */
+export function placesInside<P extends { x: number; y: number }>(f: FogDef, places: P[]): P[] {
+  return places.filter((p) => p.x >= f.x && p.x < f.x + f.w && p.y >= f.y && p.y < f.y + f.h);
+}
+
+/**
+ * How visible a place hidden in a bank is while the bank lifts (`lift` 0 → 1):
+ * nothing until the clouds have started to thin, then a slow, eased fade-in
+ * that's complete just as the last puff goes.
+ */
+export function revealOpacity(lift: number): number {
+  const t = Math.min(1, Math.max(0, (lift - 0.25) / 0.75));
+  return t * t * (3 - 2 * t);
+}

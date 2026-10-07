@@ -264,6 +264,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-07 — The Spire hides in its clouds and emerges as they clear (#75 item 7)
+The Crystal Spire was drawn above its ring of fog. Now a place inside a fog
+bank (`placesInside`, `lib/fog.ts` — today just the Spire) is hidden behind
+the clouds, tower and name plate alike, until the bank lifts. As it lifts the
+place stays hidden while the clouds start to thin, then fades in slowly
+(`revealOpacity`: eased, complete as the last puff goes), drawn under the
+puffs so it emerges from behind them. A bank that hides a place clears more
+slowly (3.2 s instead of 1.6 s). +2 tests (fog.test); 486 green, lint + build
+clean. Filmed in headless Chromium: hidden with no crystal; on the lift, a
+faint tower, then a solid one, then the camera glides back.
+
 ### 2026-10-07 — Fog banks look like fog: soft puffs drifting around each other (#75 item 7)
 The banks were rectangles of square fog tiles. Now each is a cluster of soft
 pixel-art cloud puffs (`/tiles/fog-puffs.png`, three shapes, stepped alpha;

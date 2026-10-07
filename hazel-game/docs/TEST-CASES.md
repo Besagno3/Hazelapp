@@ -557,6 +557,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-464 | U | ✅ | fog | `puffAt`: puffs drift over time and stay put with reduced motion; lifting moves them up and away and fades them to nothing (a fade only, with reduced motion); the puff sheet is 3 × 48 px (fog.test, tiles.test) |
 | TC-465 | M | ✅ | world | the Spire ring and the pockets look like soft fog with round edges, the tower rising out of it; filmed a second apart, the puffs visibly shift around each other; a lift spreads them up and away (headless Chromium) |
 | TC-466 | M | ✅ | world | frame rate in the foggiest view vs the tile fog (alternating runs, same machine, software GL): about 8% lower (38 → 35 fps); banks off screen are hidden and skipped. Recheck on a real device with TC-326 |
+| TC-467 | U | ✅ | fog | `placesInside`: the Spire is inside its ring of fog, the shrine is beyond its own bank; `revealOpacity` stays 0 while the clouds start to thin, then rises smoothly to 1 (fog.test) |
+| TC-468 | M | ✅ | world | with no crystal, the Spire tower and its name are hidden in the clouds; when the ring lifts, a faint tower appears, then a solid one, as the last puffs go; the camera glides back after (headless Chromium, filmed) |
 
 ## Regression cases (tied to ISSUES.md)
 

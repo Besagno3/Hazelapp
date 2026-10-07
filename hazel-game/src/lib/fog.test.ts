@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TILE, ZONES } from '../content/zones';
 import { FOG_PUFF_FRAMES, FOG_PUFF_SIZE } from '../content/tiles';
-import { FOG_OVERHANG, fogPuffs, puffAt } from './fog';
+import { FOG_OVERHANG, fogPuffs, placesInside, puffAt, revealOpacity } from './fog';
 
 const banks = ZONES.dawnreach.fogs!;
 const centre = (f: (typeof banks)[number]) => ({ x: (f.x + f.w / 2) * TILE, y: (f.y + f.h / 2) * TILE });
@@ -66,5 +66,22 @@ describe('puffAt', () => {
     const still = puffAt(p, 1, 0.5, centre(f), true);
     expect([still.x, still.y]).toEqual([p.x, p.y]);
     expect(still.opacity).toBeCloseTo(p.opacity / 2);
+  });
+});
+
+describe('a place hidden in the fog', () => {
+  const dawn = ZONES.dawnreach;
+  const bank = (id: string) => banks.find((f) => f.id === id)!;
+  it('the Spire is inside its ring of fog; the shrine sits beyond its own bank', () => {
+    expect(placesInside(bank('spire-fog'), dawn.places!).map((p) => p.name)).toEqual(['The Crystal Spire']);
+    expect(placesInside(bank('shrine-fog'), dawn.places!)).toEqual([]);
+  });
+  it('stays hidden while the clouds start to thin, then fades in slowly', () => {
+    expect(revealOpacity(0)).toBe(0);
+    expect(revealOpacity(0.2)).toBe(0);
+    expect(revealOpacity(0.5)).toBeGreaterThan(0);
+    expect(revealOpacity(0.5)).toBeLessThan(0.5);
+    expect(revealOpacity(1)).toBe(1);
+    for (let l = 0; l < 1; l += 0.05) expect(revealOpacity(l + 0.05)).toBeGreaterThanOrEqual(revealOpacity(l));
   });
 });

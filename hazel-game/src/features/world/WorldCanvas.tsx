@@ -30,7 +30,7 @@ import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis, worldView } from '../../lib/camera';
-import { FOG_OVERHANG, fogPuffs, puffAt, type FogPuff } from '../../lib/fog';
+import { FOG_OVERHANG, fogPuffs, placesInside, puffAt, revealOpacity, type FogPuff } from '../../lib/fog';
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
 import { FADE_MS, SLIDE_MS, exitSide, needsArrivalLock, slideFrom, transitionFor, type ExitSide } from '../../lib/transition';
 import {
@@ -494,22 +494,39 @@ export default function WorldCanvas({
 
     // --- Overworld places (#75 Phase 1): an icon + name on each 'P' tile ------
     // Walking onto one is a zone exit (see `exits`); this just draws it.
+    // Each place's pieces (and how opaque each is normally) are kept, so a
+    // place inside a fog bank can hide behind it and fade in as it lifts.
+    type Faded = { opacity: number };
+    const placeParts = new Map<string, { obj: Faded; opacity: number }[]>();
     for (const p of z.places ?? []) {
       const cx = p.x * TILE + TILE / 2;
       const cy = p.y * TILE + TILE / 2;
+      const parts: { obj: Faded; opacity: number }[] = [];
       if (p.icon === 'tower') {
         // The Spire is the landmark: the tall tower sprite, base on its tile.
-        // Drawn above fog (z 8) so it rises out of its fogged grounds (#75 item 7).
-        k.add([k.sprite(SPIRE_KEY), k.pos(cx, cy - 16), k.anchor('center'), k.z(9)]);
+        // Drawn under fog (z 8): hidden in its ring of clouds until they lift.
+        const tower = k.add([k.sprite(SPIRE_KEY), k.pos(cx, cy - 16), k.anchor('center'), k.opacity(1), k.z(7)]);
+        parts.push({ obj: tower as unknown as Faded, opacity: 1 });
       } else {
-        k.add([k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.icon[p.icon] }), k.pos(cx, cy), k.anchor('center'), k.z(-10)]);
+        const icon = k.add([
+          k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.icon[p.icon] }),
+          k.pos(cx, cy),
+          k.anchor('center'),
+          k.opacity(1),
+          k.z(-10),
+        ]);
+        parts.push({ obj: icon as unknown as Faded, opacity: 1 });
       }
       // Same size as building names (they name somewhere you can go in, too).
-      const name = k.add([k.text(p.name, { size: 11 }), k.pos(cx, cy + 24), k.anchor('center'), k.color(255, 252, 235), k.z(13)]) as unknown as {
-        width?: number;
-        height?: number;
-      };
-      k.add([
+      const name = k.add([
+        k.text(p.name, { size: 11 }),
+        k.pos(cx, cy + 24),
+        k.anchor('center'),
+        k.color(255, 252, 235),
+        k.opacity(1),
+        k.z(13),
+      ]) as unknown as Faded & { width?: number; height?: number };
+      const plate = k.add([
         k.rect((name.width ?? p.name.length * 7) + 8, (name.height ?? 12) + 4, { radius: 3 }),
         k.pos(cx, cy + 24),
         k.anchor('center'),
@@ -517,6 +534,8 @@ export default function WorldCanvas({
         k.opacity(0.55),
         k.z(12),
       ]);
+      parts.push({ obj: name, opacity: 1 }, { obj: plate as unknown as Faded, opacity: 0.55 });
+      placeParts.set(`${p.x},${p.y}`, parts);
     }
 
     // --- Fog of Forgetting (#75): drifting banks that lift for good ---------
@@ -543,6 +562,8 @@ export default function WorldCanvas({
       shown: boolean;
       /** Off screen: its puffs are hidden and not moved (they're many). */
       offscreen: boolean;
+      /** Places inside the bank (the Spire in its ring): hidden until it lifts. */
+      hides: { obj: Faded; opacity: number }[];
     };
     const fogBanks: Bank[] = [];
     const lifted = (f: FogDef) => fogLifted(f, flagsRef.current);
@@ -566,7 +587,10 @@ export default function WorldCanvas({
         lift: 0,
         shown: false,
         offscreen: false,
+        hides: placesInside(f, z.places ?? []).flatMap((p) => placeParts.get(`${p.x},${p.y}`) ?? []),
       });
+      // Hidden from the first frame (the drift updater keeps it that way).
+      for (const h of fogBanks[fogBanks.length - 1].hides) h.obj.opacity = 0;
     }
     if (fogBanks.length) {
       // One updater drifts every puff (an object, so it goes with the scene).
@@ -576,6 +600,9 @@ export default function WorldCanvas({
         const cam = k.getCamPos();
         const v = view();
         for (const bank of fogBanks) {
+          // A place hidden in the bank fades in only as the clouds clear.
+          const seen = bank.puffs.length === 0 ? 1 : revealOpacity(bank.lift);
+          for (const h of bank.hides) h.obj.opacity = h.opacity * seen;
           // Skip a bank that's off screen (with room for its drifting puffs,
           // and a tile more since the camera may move after this runs).
           const f = bank.def;
@@ -1059,6 +1086,8 @@ export default function WorldCanvas({
     // the camera instead of gliding.
     const PAN_S = reducedMotion ? 0 : 1.1;
     const LIFT_S = 1.6;
+    // A bank hiding a place (the Spire) clears slowly, so it emerges gradually.
+    const LIFT_HIDING_S = 3.2;
     const HOLD_S = 0.7;
     // A beat after arriving before the camera moves, so you see where you are first.
     let revealWait = 0.8;
@@ -1102,7 +1131,7 @@ export default function WorldCanvas({
       }
       if (r.phase === 'lift') {
         // The puffs spread out, rise and thin away (the drift updater draws it).
-        bank.lift = Math.min(1, r.t / LIFT_S);
+        bank.lift = Math.min(1, r.t / (bank.hides.length ? LIFT_HIDING_S : LIFT_S));
         if (bank.lift < 1) return true;
         for (const { obj } of bank.puffs) obj.destroy();
         bank.puffs = [];
