@@ -1,5 +1,6 @@
 import type { ServiceType, Topic } from '../types';
-import { MET_ELDER, fogSeenFlag } from './zones';
+import { MET_ELDER, fogSeenFlag, litFlag } from './zones';
+import { fieldSpellFlag } from './fieldSpells';
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -19,7 +20,8 @@ export type DialogueLine =
       setFlag?: string;
     };
 
-export type NpcRole = 'villager' | 'sage' | 'merchant' | 'innkeeper' | 'librarian';
+/** `keeper`: a shrine keeper, who teaches a field spell by a short trial (#75 item 9). */
+export type NpcRole = 'villager' | 'sage' | 'merchant' | 'innkeeper' | 'librarian' | 'keeper';
 
 export interface WorldNpcDef {
   id: string;
@@ -79,6 +81,7 @@ export const ROLE_SERVICE: Partial<Record<NpcRole, ServiceType>> = {
   merchant: 'shop',
   innkeeper: 'inn',
   librarian: 'library',
+  keeper: 'trial',
 };
 
 export const NPC_DEFS: Record<string, WorldNpcDef> = {
@@ -924,19 +927,91 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [],
   },
   // Old Wren kept one candle burning here through the whole fog.
+  // Old Wren keeps the Shrine of First Light, and teaches Glow (#75 item 9).
   'shrine-keeper': {
     id: 'shrine-keeper',
     name: 'Old Wren',
     sprite: '🕯️',
-    role: 'villager',
+    role: 'keeper',
     stationary: true,
     lines: [
       { text: 'Welcome, little light. This is the Shrine of First Light — the oldest lit place in all of Dawnreach.', setFlag: 'met-wren' },
       'When the fog rolled in, I kept one candle burning here. Just one. It was enough to remember the way.',
       'I\'ve kept that candle lit for sixty years. I blinked once. Very nervous blink.',
       { text: 'Your dragon is warm as a hearth! Ember would make a fine candle-keeper. Don\'t tell the candle.', ifFlag: 'ember-hatched' },
-      'Someday I\'ll teach you to carry the light with you, so you can always find your way home. Not yet. Soon.',
+      {
+        text: 'Now I can teach you to carry the light with you: Glow. Answer three riddles about how the world works, and it\'s yours.',
+        unlessFlag: fieldSpellFlag('glow'),
+      },
+      {
+        text: 'There\'s an old mine in the ridge just south of here — the Echo Mine. It has been dark since the fog came. Glow would light it again.',
+        unlessFlag: litFlag('echo-mine'),
+      },
       { text: 'The Forgotten One fell, and still my candle burns. Good. Some lights are for keeping.', ifFlag: 'spire-cleared' },
+    ],
+  },
+
+  // ── Field-spell shrines (#75 item 9) ──
+  'wayfarer-keeper': {
+    id: 'wayfarer-keeper',
+    name: 'Wayfarer Juniper',
+    sprite: '🌠',
+    role: 'keeper',
+    stationary: true,
+    lines: [
+      "Ah, a fellow traveler! I'm Juniper. I've walked every road in Dawnreach — some of them twice, by accident.",
+      'My feet got tired, so I learned the stars\' trick instead: Return. Think of a town you\'ve been to, and the stars carry you there.',
+      {
+        text: 'Answer three star riddles and Return is yours. A wrong guess? The stars just ask another!',
+        unlessFlag: fieldSpellFlag('return'),
+      },
+      {
+        text: 'Mind the landing. I once Returned into a haystack. The hay was not expecting me either.',
+        ifFlag: fieldSpellFlag('return'),
+      },
+    ],
+  },
+  'quiet-keeper': {
+    id: 'quiet-keeper',
+    name: 'Keeper Thistle',
+    sprite: '🦔',
+    role: 'keeper',
+    stationary: true,
+    lines: [
+      "Shh… welcome to the Shrine of Quiet Paws. I'm Thistle. The critters out there aren't mean — they're scared of the fog.",
+      'I know a spell that tells them, gently, "I mean no harm." It\'s called Calm. For a whole minute, every critter lets you pass.',
+      {
+        text: 'Answer three riddles about living things and Calm is yours. Take your time — the ponds aren\'t going anywhere.',
+        unlessFlag: fieldSpellFlag('calm'),
+      },
+      {
+        text: 'Calm won\'t work on the big bosses, mind. They\'re far too busy being dramatic.',
+        ifFlag: fieldSpellFlag('calm'),
+      },
+    ],
+    ambient: ['Shh…', 'Hello, little frog.', '🌸'],
+  },
+  'mine-miner': {
+    id: 'mine-miner',
+    name: 'Miner Mabel',
+    sprite: '⛏️',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "Oh! A visitor! I'm Mabel. I've dug this mine for forty years, and I've never been this scared of the dark.",
+      {
+        text: 'When the fog came, every lamp went out at once. I ran up here and haven\'t dared go back down since.',
+        unlessFlag: litFlag('echo-mine'),
+      },
+      {
+        text: 'My treasure chest is still at the very bottom. If only someone could carry a light down there…',
+        unlessFlag: litFlag('echo-mine'),
+      },
+      {
+        text: 'You lit the lamps — every single one! Go on down. The chest at the bottom is yours. You earned it!',
+        ifFlag: litFlag('echo-mine'),
+      },
+      'Moles are supposed to love the dark, you know. I\'m a very unusual mole. I don\'t like dirt much, either.',
     ],
   },
 };

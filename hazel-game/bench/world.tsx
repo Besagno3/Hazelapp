@@ -15,6 +15,9 @@
  *                                      `__bench.setFlag(f)` sets one later, as a conversation would
  *
  * `__bench.pause(true|false)` pauses the world the way a menu or dialogue does.
+ * `__bench.travel(zone, x, y)` casts Return and `__bench.calm(seconds)` casts
+ * Calm (#75 item 9); `state()` counts encounters, pitch-dark bumps and the
+ * Calm seconds left.
  *
  * Exits really change zones (so a script can walk through slides, fades and
  * the arrival lock); `window.__bench.state()` reports where the hero is (how
@@ -23,7 +26,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import WorldCanvas from '../src/features/world/WorldCanvas';
+import WorldCanvas, { type Travel } from '../src/features/world/WorldCanvas';
 import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, buildingInside, type ZoneDef, type ZoneId } from '../src/content/zones';
 import { SPIRE_FLOOR_MAPS, SPIRE_THEMES, floorSpawnPx, floorZone, type SpireTheme } from '../src/content/spire';
 import { avatarById } from '../src/content/avatars';
@@ -203,6 +206,9 @@ const tick = (t: number) => {
 requestAnimationFrame(tick);
 /** The world's pause switch — module-level so `__bench.pause()` can flip it. */
 const benchPaused = { current: paused };
+/** Field spells (#75 item 9): a Return to fly (`__bench.travel`) and Calm seconds (`__bench.calm`). */
+const benchTravel: { current: Travel | null } = { current: null };
+const benchCalm = { current: 0 };
 const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(xs.length * p))] ?? 0;
 (window as unknown as { __bench: unknown }).__bench = {
   reset: () => {
@@ -220,6 +226,14 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
   /** Pause / resume the world, as a menu or dialogue would. */
   pause: (on: boolean) => {
     benchPaused.current = on;
+  },
+  /** Cast Return (#75 item 9): fly to `to`, landing on cell (x, y). */
+  travel: (to: ZoneId, x: number, y: number) => {
+    benchTravel.current = { to, x, y };
+  },
+  /** Cast Calm (#75 item 9) for this many seconds. */
+  calm: (seconds: number) => {
+    benchCalm.current = seconds;
   },
   info: () => ({
     zoneId,
@@ -252,6 +266,11 @@ const live: {
   talks: string[];
   /** Fog banks seen clearing on screen, in order (#75 item 7). */
   fogReveals: string[];
+  /** Battles the hero walked into, and pitch-dark bumps (#75 item 9). */
+  encounters: number;
+  darkBumps: number;
+  /** The last whole seconds of Calm the world reported. */
+  calmLeft: number;
 } = {
   zoneId,
   exits: 0,
@@ -259,6 +278,9 @@ const live: {
   fogBumps: 0,
   talks: [],
   fogReveals: [],
+  encounters: 0,
+  darkBumps: 0,
+  calmLeft: 0,
 };
 
 function Bench() {
@@ -292,7 +314,15 @@ function Bench() {
           onTalk: (id) => {
             live.talks.push(id);
           },
-          onEncounter: noop,
+          onEncounter: () => {
+            live.encounters += 1;
+          },
+          onDark: () => {
+            live.darkBumps += 1;
+          },
+          onCalmTick: (left) => {
+            live.calmLeft = left;
+          },
           onPath: noop,
           onExit: (to, sx, sy) => {
             const pos = { x: sx * TILE + TILE / 2, y: sy * TILE + TILE / 2 };
@@ -316,6 +346,8 @@ function Bench() {
         spireFloor={floor}
         spireBroken={[]}
         spireLight={null}
+        travelRef={benchTravel}
+        calmRef={benchCalm}
       />
     </div>
   );

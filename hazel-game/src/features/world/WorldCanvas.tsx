@@ -8,6 +8,7 @@ import {
   WALKABLE_CHARS,
   buildingAt,
   buildingInside,
+  darkAt,
   fogAt,
   fogLifted,
   fogSeenFlag,
@@ -15,6 +16,7 @@ import {
   pathTargetId,
   gateFlag,
   gateIdAt,
+  litFlag,
   npcPresent,
   safeSpawn,
   zone,
@@ -88,6 +90,11 @@ const VIEW_H = VIEW_ROWS * TILE;
 const ROOF_FADE = 10;
 /** Seconds after closing an overlay before bumps can trigger again. */
 const TRIGGER_COOLDOWN = 0.8;
+/** A dark place's circle of light (px): unlit — a few steps around you — and lit by Glow (#75 item 9). */
+const DIM_RADIUS = 80;
+const LIT_RADIUS = 330;
+/** Critters fade to this while Calm is on, so you can see they'll let you pass. */
+const CALM_OPACITY = 0.45;
 /** Movement keys we own at the window level (see the keyboard effect). */
 const MOVE_KEYS = new Set([
   'arrowleft',
@@ -131,6 +138,17 @@ export interface WorldCanvasCallbacks {
   onFogLift?: (fog: FogDef) => void;
   /** …and has been watched clearing: remember that, so it plays once. */
   onFogRevealed?: (id: string) => void;
+  /** Bumped the pitch dark of an unlit dark place (#75 item 9). */
+  onDark?: () => void;
+  /** The whole seconds of Calm left changed (0 = it has worn off). */
+  onCalmTick?: (secondsLeft: number) => void;
+}
+
+/** A Return (#75 item 9) waiting to be flown: where to, and the landing cell. */
+export interface Travel {
+  to: ZoneId;
+  x: number;
+  y: number;
 }
 
 /**
@@ -163,6 +181,8 @@ export default function WorldCanvas({
   spireFloor = null,
   spireBroken = [],
   spireLight = null,
+  travelRef,
+  calmRef,
 }: {
   zoneId: ZoneId;
   avatar: Avatar;
@@ -185,6 +205,13 @@ export default function WorldCanvas({
   spireBroken?: string[];
   /** Candle-lights left — the hero's circle of light shrinks as they go out. */
   spireLight?: { lives: number; max: number } | null;
+  /**
+   * Field spells (#75 item 9): a Return to fly once the world is running
+   * again (the menu sets it; the loop takes it and fades away)…
+   */
+  travelRef?: MutableRefObject<Travel | null>;
+  /** …and the seconds of Calm left, counted down here while the world runs. */
+  calmRef?: MutableRefObject<number>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -954,6 +981,7 @@ export default function WorldCanvas({
     for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
     for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
 
+    const critters: { opacity: number }[][] = [];
     for (const p of z.enemies) {
       const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
@@ -1011,7 +1039,10 @@ export default function WorldCanvas({
           face.pos.y = py + dy;
         });
       } else {
-        // Regular critters roam their patch (slightly wider leash than NPCs).
+        // Regular critters roam their patch (slightly wider leash than NPCs),
+        // and fade while Calm is on (#75 item 9).
+        for (const part of parts) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
+        critters.push(parts as unknown as { opacity: number }[]);
         attachWander(face, {
           actor,
           parts,
@@ -1088,6 +1119,7 @@ export default function WorldCanvas({
     /** What blocks the cell, if anything. Hidden passages block `strict` movers (wanderers). */
     function blockerAt(cx: number, cy: number, strict = false): { ch: string; x: number; y: number } | null {
       if (fogAt(z, cx, cy, flagsRef.current)) return { ch: 'fog', x: cx, y: cy };
+      if (darkAt(z, cx, cy, flagsRef.current)) return { ch: 'dark', x: cx, y: cy };
       const ch = z.map[cy]?.[cx] ?? '#';
       if (strict && ch === 'H') return { ch, x: cx, y: cy };
       if (WALKABLE_CHARS.has(ch)) return null;
@@ -1236,6 +1268,56 @@ export default function WorldCanvas({
       return true;
     }
 
+    // --- Field spells (#75 item 9) -----------------------------------------
+    // Pitch dark: solid black over the tunnels no light reaches, until Glow
+    // lights the place for good — then it fades away. (The hero's circle of
+    // light is the DOM overlay, drawn in the loop.)
+    type Shade = { opacity: number; destroy: () => void };
+    const pitch: Shade[] =
+      z.dark && !flagsRef.current[litFlag(zoneId)]
+        ? z.dark.pitch.map(
+            (r) =>
+              k.add([
+                k.rect(r.w * TILE, r.h * TILE),
+                k.pos(r.x * TILE, r.y * TILE),
+                k.color(4, 2, 10),
+                k.opacity(1),
+                k.z(30),
+              ]) as unknown as Shade,
+          )
+        : [];
+    let pitchFade = 1;
+    let calmShown = Math.ceil(calmRef?.current ?? 0);
+    let critterOpacity = 1;
+
+    // Darkness everywhere but a flickering circle of light round the hero:
+    // the Spire's candle-light (#74), or a dark place (#75 item 9) — a few
+    // steps' worth until Glow lights it, then the old lamps' wide glow.
+    // Centred where the hero is on screen, so it follows a scrolled camera
+    // (#78). Painted every frame — paused and mid-fade too, so a dark place
+    // is dark as it fades in, and the next place isn't as it fades out.
+    function paintDark() {
+      const light = lightRef.current;
+      const dark = darkRef.current;
+      if (dark) {
+        const flicker = Math.sin(k.time() * 7) * 3 + Math.sin(k.time() * 13) * 2;
+        const lit = !!z.dark && flagsRef.current[litFlag(zoneId)] === true;
+        // Spooky but readable for kids: the candle glow narrows per lost candle.
+        const r = light ? 150 + 45 * Math.max(0, light.lives) : z.dark ? (lit ? LIT_RADIUS : DIM_RADIUS) : null;
+        if (r !== null) {
+          const at = k.toScreen(player.pos);
+          const cx = (at.x / VIEW_W) * 100;
+          const cy = (at.y / VIEW_H) * 100;
+          const edge = light ? 0.72 : lit ? 0.55 : 0.9;
+          dark.style.background = `radial-gradient(ellipse ${((r + flicker) / VIEW_W) * 100}% ${((r + flicker) / VIEW_H) * 100}% at ${cx}% ${cy}%, rgba(8,4,20,0) 0%, rgba(8,4,20,0.15) 50%, rgba(8,4,20,${edge}) 100%)`;
+          dark.style.opacity = '1';
+        } else {
+          dark.style.opacity = '0';
+        }
+      }
+    }
+    paintDark();
+
     // --- Main loop ---------------------------------------------------------
     let wasPaused = false;
     // Arrived by a fade or a cut: hold still until the movement keys are let go.
@@ -1245,6 +1327,7 @@ export default function WorldCanvas({
     let moveSaveTimer = 0;
 
     const loop = k.onUpdate(() => {
+      paintDark();
       if (triggered) return;
       if (pausedRef.current || slidingRef.current) {
         // Pausing for a menu / dialogue / cutscene: save where the hero really
@@ -1298,6 +1381,46 @@ export default function WorldCanvas({
         cinematic = false;
         cooldown = TRIGGER_COOLDOWN;
         needsRelease = true; // a key held through the reveal doesn't walk off at once
+      }
+
+      // Return (#75 item 9): cast from the menu, flown once the world runs —
+      // a fade to the town, landing just inside its door.
+      const travel = travelRef?.current;
+      if (travel && travelRef) {
+        travelRef.current = null;
+        if (travel.to === zoneId) {
+          // Already here (the menu doesn't offer it): just step to the landing.
+          player.pos = k.vec2(travel.x * TILE + TILE / 2, travel.y * TILE + TILE / 2);
+          followCam(player.pos.x, player.pos.y);
+          cbRef.current.onMove(player.pos.x, player.pos.y);
+        } else {
+          triggered = true;
+          const reduceMotion =
+            typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+          if (!reduceMotion) {
+            slidingRef.current = true;
+            setFade({ src: k.screenshot(), dark: false, shown: true });
+          }
+          arrivalLockRef.current = true;
+          cbRef.current.onExit(travel.to, travel.x, travel.y);
+          return;
+        }
+      }
+
+      // Calm (#75 item 9) runs down only while the hero is free to walk.
+      if (calmRef && calmRef.current > 0) {
+        calmRef.current = Math.max(0, calmRef.current - dt);
+        const whole = Math.ceil(calmRef.current);
+        if (whole !== calmShown) {
+          calmShown = whole;
+          cbRef.current.onCalmTick?.(whole);
+        }
+      }
+      const calm = (calmRef?.current ?? 0) > 0;
+      const wantOpacity = calm ? CALM_OPACITY : 1;
+      if (wantOpacity !== critterOpacity) {
+        critterOpacity = wantOpacity;
+        for (const parts of critters) for (const part of parts) part.opacity = wantOpacity;
       }
 
       const keys = keysRef.current;
@@ -1388,6 +1511,9 @@ export default function WorldCanvas({
           const fog = fogAt(z, bumped.x, bumped.y, flagsRef.current);
           cooldown = 2;
           if (fog) cbRef.current.onFog?.(fog.hint);
+        } else if (bumped.ch === 'dark') {
+          cooldown = 2;
+          cbRef.current.onDark?.();
         } else if (bumped.ch === 'Q') {
           // A rune seal on a Spire floor (#74): face its question.
           const id = `${bumped.x},${bumped.y}`;
@@ -1418,6 +1544,8 @@ export default function WorldCanvas({
       // Actor contact: NPCs talk, enemies start battles.
       if (cooldown === 0) {
         for (const a of actors) {
+          // Calm: roaming critters let the hero pass (bosses don't).
+          if (calm && a.kind === 'enemy' && !a.enemy?.isBoss) continue;
           const r = a.kind === 'enemy' && a.enemy?.isBoss ? 34 : 28;
           const dxa = player.pos.x - a.x;
           const dya = player.pos.y - a.y;
@@ -1485,19 +1613,13 @@ export default function WorldCanvas({
         }
       }
 
-      // Candle-light: darkness everywhere but a flickering circle round the hero.
-      const light = lightRef.current;
-      const dark = darkRef.current;
-      if (dark) {
-        if (light) {
-          // Spooky but readable for kids: a wide glow that narrows per lost candle.
-          const r = 150 + 45 * Math.max(0, light.lives) + Math.sin(k.time() * 7) * 3 + Math.sin(k.time() * 13) * 2;
-          const cx = (player.pos.x / VIEW_W) * 100;
-          const cy = (player.pos.y / VIEW_H) * 100;
-          dark.style.background = `radial-gradient(ellipse ${(r / VIEW_W) * 100}% ${(r / VIEW_H) * 100}% at ${cx}% ${cy}%, rgba(8,4,20,0) 0%, rgba(8,4,20,0.15) 50%, rgba(8,4,20,0.72) 100%)`;
-          dark.style.opacity = '1';
-        } else {
-          dark.style.opacity = '0';
+      // Glow has lit this place: the pitch dark fades away.
+      if (pitch.length && flagsRef.current[litFlag(zoneId)]) {
+        pitchFade = Math.max(0, pitchFade - dt / 1.2);
+        for (const shade of pitch) shade.opacity = pitchFade;
+        if (pitchFade === 0) {
+          for (const shade of pitch) shade.destroy();
+          pitch.length = 0;
         }
       }
 
@@ -1637,7 +1759,7 @@ export default function WorldCanvas({
         className="absolute inset-0 [&>canvas]:!block [&>canvas]:!w-full [&>canvas]:!h-full"
         style={{ transform: slide && !slide.running ? shift(1) : 'none', transition: motion }}
       />
-      {/* Spire candle-light (#74): updated per frame from the game loop. */}
+      {/* Spire candle-light (#74) / a dark place (#75 item 9): updated per frame from the game loop. */}
       <div ref={darkRef} aria-hidden className="absolute inset-0 pointer-events-none" style={{ opacity: 0 }} />
       {slide && (
         <img

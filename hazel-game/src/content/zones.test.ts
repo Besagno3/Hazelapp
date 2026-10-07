@@ -32,6 +32,8 @@ import {
   fogsToReveal,
   placeAt,
   reachableOnFoot,
+  darkAt,
+  litFlag,
 } from './zones';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
@@ -402,7 +404,8 @@ describe('every place is unique (#73)', () => {
 
   it('every merchant, sage, innkeeper and librarian works inside a building', () => {
     for (const { z, p, def } of placed) {
-      if (def.role === 'villager') continue;
+      // Shrine keepers (#75 item 9) keep their open-air shrine.
+      if (def.role === 'villager' || def.role === 'keeper') continue;
       expect(buildingInside(z, p.x, p.y), `${def.id} in ${z.id}`).not.toBeNull();
     }
   });
@@ -582,5 +585,63 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
     expect(safeSpawn(dawn, px(20, 15), { [crystalFlag('math')]: true })).toEqual(px(20, 15));
     expect(safeSpawn(dawn, px(40, 44), { [crystalFlag('science')]: true })).toEqual(px(40, 44));
     expect(safeSpawn(dawn, px(48, 36), {})).toEqual(px(48, 36));
+  });
+});
+
+describe('dark places (#75 item 9)', () => {
+  const dark = allZones.filter((z) => z.dark);
+  const lit = (z: ZoneDef) => ({ [litFlag(z.id)]: true });
+
+  it('there is one today — the Echo Mine — and it is a cave', () => {
+    expect(dark.map((z) => z.id)).toEqual(['echo-mine']);
+    expect(ZONES['echo-mine'].kind).toBe('dungeon');
+  });
+
+  it('its pitch dark sits inside the map over walkable ground', () => {
+    for (const z of dark) {
+      for (const r of z.dark!.pitch) {
+        expect(r.x >= 0 && r.y >= 0 && r.x + r.w <= z.map[0].length && r.y + r.h <= z.map.length, z.id).toBe(true);
+        let walkable = 0;
+        for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (isWalkable(z, x, y)) walkable++;
+        expect(walkable, `${z.id} pitch covers a way through`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('shuts its chest away until Glow lights the place, then lets you reach it', () => {
+    for (const z of dark) {
+      const { x, y } = z.dark!.guards;
+      expect(tileAt(z, x, y), `${z.id} guards a chest`).toBe('C');
+      expect(z.topic, `${z.id}'s chest has a topic`).toBeDefined();
+      const besideChest = (open: Set<string>) =>
+        [
+          [x + 1, y],
+          [x - 1, y],
+          [x, y + 1],
+          [x, y - 1],
+        ].some(([cx, cy]) => open.has(`${cx},${cy}`));
+      expect(besideChest(reachableOnFoot(z, {})), `${z.id} unlit`).toBe(false);
+      expect(besideChest(reachableOnFoot(z, lit(z))), `${z.id} lit`).toBe(true);
+    }
+  });
+
+  it('the dark is only a wall until it is lit; a lit place is open everywhere', () => {
+    const mine = ZONES['echo-mine'];
+    const r = mine.dark!.pitch[0];
+    expect(darkAt(mine, r.x, r.y, {})).toBe(true);
+    expect(darkAt(mine, r.x, r.y, lit(mine))).toBe(false);
+    expect(darkAt(ZONES.dawnreach, 10, 10, {})).toBe(false);
+    // Lit, every walkable cell is reachable from the door (nothing left behind).
+    const open = reachableOnFoot(mine, lit(mine));
+    const walkable = mine.map.flatMap((row, y) => [...row].map((_, x) => [x, y])).filter(([x, y]) => isWalkable(mine, x, y));
+    expect(walkable.filter(([x, y]) => !open.has(`${x},${y}`))).toEqual([]);
+  });
+
+  it('the hero waits outside the dark: the door, the spawn and Miner Mabel are in the light', () => {
+    const mine = ZONES['echo-mine'];
+    const open = reachableOnFoot(mine, {});
+    for (const e of mine.exits) expect(open.has(`${e.x},${e.y}`)).toBe(true);
+    const mabel = mine.npcs.find((p) => p.defId === 'mine-miner')!;
+    expect(open.has(`${mabel.x},${mabel.y}`)).toBe(true);
   });
 });

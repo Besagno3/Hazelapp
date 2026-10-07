@@ -85,10 +85,10 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
-  resolves all seven, #33/#55), `zones.ts` (12 tile maps: the **Dawnreach**
+  resolves all seven, #33/#55), `zones.ts` (15 tile maps: the **Dawnreach**
   overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
-  #75 — the four crystal regions sit at its corners, item 8) + the Shrine of
-  First Light + 4 crystal zones + Lumina Village (home and `HUB_ZONE`: safe,
+  #75 — the four crystal regions sit at its corners, item 8) + three roadside
+  shrines and the dark Echo Mine (item 9) + 4 crystal zones + Lumina Village (home and `HUB_ZONE`: safe,
   a scrolling 4×2-screen town with enterable buildings, incl. the Library
   and Maple's Trading Post from the retired Lumina Field) + 3 themed combat
   zones + the hidden Moonwell Grove + the Crystal Spire; every zone but
@@ -101,7 +101,9 @@ zod, react-query. Add the package in the same change that first uses it.
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
   (Sage personas + charge tuning), `companion.ts` (battle companions — Ember /
   Pip / Wisp — their strikes, perks + Pair Attacks), `spells.ts` (the Spellbook — castable
-  abilities derived from the save), `spire.ts` (the endgame climb floors +
+  abilities derived from the save), `fieldSpells.ts` (#75 item 9: the field
+  spells Return / Glow / Calm — learned at shrines as `spell:<id>` flags —
+  plus visited towns and Return landings), `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
   Fiends, #58), `items.ts` (shop + economy tuning), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
@@ -146,6 +148,16 @@ zod, react-query. Add the package in the same change that first uses it.
   floors are walkable themed maps drawn by `WorldCanvas`, state in
   `spireStore`, #74). `TouchPad`
   is the mobile d-pad.
+  **Field spells** (#75 item 9, `content/fieldSpells.ts`): a shrine keeper
+  (`NpcRole` `keeper` → service `trial`, `ShrineTrial`) teaches one by 3 right
+  answers; the menu's ✨ Field spells (`FieldSpellsPanel`) casts them through
+  `WorldScreen.castFieldSpell`: **Return** sets `travelRef`, which the canvas
+  loop takes once the world runs again (fade + `onExit`); **Glow** sets
+  `lit:<zone>` in a dark place (`ZoneDef.dark`: a small circle of light and
+  `pitch` rects that block like fog until lit; a 🔆 HUD button appears there);
+  **Calm** fills `calmRef` (seconds, counted down by the canvas while the world
+  runs) — critters fade and don't start battles, bosses still do. Arriving
+  anywhere sets `visited:<zone>`.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -249,11 +261,13 @@ npm test         # Vitest suite (test:watch / test:ui also available)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps [cols rows]   # frame times on a big test map
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
+# (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
 python3 tools/tiled/tiled.py to-ascii src/content/maps/dawnreach.tmj    # a Tiled map as ASCII rows
 python3 tools/tiled/tiled.py from-ascii rows.txt src/content/maps/x.tmj # ASCII rows → a Tiled map
 python3 tools/tiled/tiled.py legend                                    # rebuild the legend tileset (append-only)
+python3 tools/assets/build.py spells   # art for the field-spell places + keepers only (#75 item 9)
 ```
 
 ## Error handling
@@ -307,6 +321,60 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-07 — Field spells: Return, Glow and Calm, learned at roadside shrines (#75 item 9)
+Roadmap item 9: magic for out in the world, not for battle.
+- **Three spells** (`content/fieldSpells.ts`): 🏠 **Return** flies you to any
+  town you've been to (home and the four crystal regions — home's plaza, or
+  just inside a town's front door); 🔆 **Glow** lights a dark place for good;
+  🕊️ **Calm** makes roaming critters let you pass for 60 s (they fade; bosses
+  still fight). Free to cast from the 📜 Menu's new ✨ Field spells section
+  (`FieldSpellsPanel`), which also names the shrine that teaches each one not
+  learned yet. Knowing one is a `spell:<id>` flag — no save field, no version
+  bump; older saves know none.
+- **Shrines + trials:** each spell has its own shrine and keeper (new
+  `NpcRole` `keeper` → service `trial`): **Wayfarer Juniper** at the new
+  Wayfarer's Shrine (just north-west of the Village, open from the start —
+  Return, 🪐 space questions), **Old Wren** at the Shrine of First Light
+  (behind fog until a crystal — Glow, 🔬 science; her lines now point at the
+  mine), **Keeper Thistle** at the new Shrine of Quiet Paws (off the east road
+  — Calm, 🦋 nature). The trial (`ShrineTrial`) asks for 3 right answers at
+  the player's level; a miss brings another and goes to the Library; the spell
+  is learned on the third right answer.
+- **The Echo Mine** (new dungeon place in the ridge south of the shrine
+  valley): `ZoneDef.dark` — a small circle of light round the hero and a
+  pitch-dark doorway that blocks like fog (`darkAt`, part of
+  `reachableOnFoot`) until Glow lights it (`litFlag`): the pitch fades and the
+  old lamps' wide glow follows you down 2-tile tunnels to a ⏳ history
+  riddle-chest. Miner Mabel (a mole who doesn't like the dark) waits at the
+  mouth. Bumping the dark says what you need — Old Wren's spell, or "tap 🔆
+  Glow" (a HUD button in an unlit dark place once Glow is known).
+- **Return** (`travelRef`): the canvas loop takes the trip once the menu has
+  closed and fades there like a place exit (a cut under reduced motion), with
+  the arrival lock. **Visits** are recorded on arrival (`visited:<zone>`);
+  for older saves a town whose crystal is restored counts too.
+- **Calm** (`calmRef`): counted down by the canvas only while the world runs;
+  the HUD shows "🕊️ 42s" and a toast when it wears off.
+- **Darkness follows the camera** (`k.toScreen`), fixing #78 for the Spire's
+  candle-light too (no change on its one-screen floors), and is painted every
+  frame (`paintDark`), paused and mid-fade included — so a dark place is dark
+  as it fades in, and the next place isn't as it fades out.
+- Elder Lumen's tip (after the first crystal) names the next field spell you
+  can learn at a shrine you can reach (`shrineToVisit`); signposts and the
+  world map list the new places automatically.
+- **Art** (`python3 tools/assets/build.py spells`): tilesets, blend sheets and
+  backdrops for the three places (appended to the art table, so no other
+  zone's art changed) and sprites for Juniper, Thistle and Mabel. Dawnreach
+  repainted at the three new icons (`maps/dawnreach.tmj`).
+- Bench: `__bench.travel(zone, x, y)`, `__bench.calm(s)`; `state()` counts
+  encounters, pitch-dark bumps and Calm left.
+- +26 tests (field spell registry + shrines + Return + visits, dark places,
+  Lumen's shrine tip, the trial, the menu panel); 581 green, lint + tsc +
+  build clean. Checked in headless Chromium: the Wayfarer's Shrine trial at
+  375 px, Return home → Numbria from the menu, the Echo Mine dark and lit
+  (the first, 1-tile-wide tunnels snagged the hero on corners — widened to 2),
+  Calm (no battle on top of a critter; the control run battles at once), and
+  in/out of each new place. Follow-ups: #102.
 
 ### 2026-10-07 — Item 8 review fixes: saves never go backwards, a friendlier update screen, Tamsin split (#101)
 The rest of the item 8 `/saas-code-review` + `/saas-ux-review` findings:
