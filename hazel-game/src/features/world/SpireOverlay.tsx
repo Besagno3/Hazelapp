@@ -5,7 +5,7 @@ import QuestionCard from '../../components/QuestionCard';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
-import { playerAge, ageToStartLevel, clampLevel } from '../../lib/age';
+import { clampLevel, playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { pushLibrary } from '../../lib/save';
@@ -26,7 +26,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useSpireStore, type SpireBump } from '../../store/spireStore';
 import { sendFlow } from '../../machines/gameFlow';
-import type { LibraryEntry, Question } from '../../types';
+import type { LibraryEntry, Question, Topic } from '../../types';
 
 /**
  * The Crystal Spire endgame climb (#55; walkable floors since #74). Sealed
@@ -179,11 +179,13 @@ export default function SpireOverlay() {
   function loadFloor(i: number) {
     const f = SPIRE_FLOORS[i];
     setPhase({ kind: 'loading' });
-    const level = clampLevel(ageToStartLevel(age) + f.levelBonus + 1);
     const perTopic = Math.ceil(f.questions / f.topics.length);
+    // Each topic asks at the player's own question level for it (the age
+    // baseline if they haven't played it yet), plus the floor's climb.
+    const levelFor = (t: Topic) => clampLevel(skillLevelFor(profile?.skillLevels ?? {}, t, age) + f.levelBonus + 1);
     Promise.all(
       f.topics.map((t) =>
-        fetchQuestions(t, age, level, perTopic, `the final ascent of a dark wizard's tower`),
+        fetchQuestions(t, age, levelFor(t), perTopic, `the final ascent of a dark wizard's tower`),
       ),
     )
       .then((batches) => {

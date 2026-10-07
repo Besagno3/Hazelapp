@@ -22,7 +22,7 @@ import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
-import type { Avatar, BattleEnemy, PathTarget, ZoneId } from '../../types';
+import type { Avatar, BattleEnemy, PathTarget, Topic, ZoneId } from '../../types';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
@@ -140,6 +140,7 @@ export default function WorldCanvas({
   zoneId,
   avatar,
   age,
+  skillLevels,
   emberStage,
   startPos,
   flags,
@@ -155,6 +156,8 @@ export default function WorldCanvas({
   zoneId: ZoneId;
   avatar: Avatar;
   age: number;
+  /** The player's question level per topic — sets each enemy's level (spawnEnemy). */
+  skillLevels: Partial<Record<Topic, number>>;
   /** Ember the dragon's growth stage — drawn trailing the hero. */
   emberStage: EmberStage;
   /** Pixel position to spawn at, or null for the zone default. */
@@ -821,7 +824,7 @@ export default function WorldCanvas({
     }
 
     for (const p of z.enemies) {
-      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age);
+      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
       // regular enemies stay gone for the session (they respawn next visit).
       if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, flagsRef.current)) continue;

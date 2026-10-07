@@ -32,6 +32,10 @@ class Pose:
     flash: str | None = None  # 'white' | 'red'
     frame: int = 0  # raw frame index (for cyclic effects)
     facing: str = 'side'  # side (facing right) · down (toward camera) · up (away)
+    # Expressive extras (only Ember's battle sheet sets these so far):
+    mouth: str = 'closed'  # closed · open (bite / roar) · puff (inhaling) · breath (open + big flame)
+    rear: float = 0  # head lifted back by this many design px (wind-up / inhale)
+    happy: bool = False  # ^ ^ eyes
 
 
 _WORLD_SIDE = [
@@ -67,6 +71,30 @@ BATTLE_ANIMS = {
     'idle': {'from': 0, 'to': 1, 'fps': 3},
     'attack': {'from': 2, 'to': 4, 'fps': 9, 'loop': False},
     'hurt': {'from': 5, 'to': 6, 'fps': 7, 'loop': False},
+}
+
+# Ember's battle sheet: the shared idle/hurt frames, a punchier attack
+# (rear back → lunge with an open-mouthed bite → follow through), plus two
+# Ember-only clips — `breath` (inhale → fire blast ×2, for Ember's Breath and
+# the Pair Attacks) and `cheer` (a happy wing-flap hop on victory).
+EMBER_BATTLE_POSES = [
+    BATTLE_POSES[0],
+    BATTLE_POSES[1],
+    Pose(lean=-3, rear=2, wing=0, squash=1, frame=2),
+    Pose(lean=5, mouth='open', wing=2, squash=-1, frame=3),
+    Pose(lean=2, wing=1, frame=4),
+    BATTLE_POSES[5],
+    BATTLE_POSES[6],
+    Pose(lean=-3, rear=2, mouth='puff', wing=0, frame=7),
+    Pose(lean=-2, mouth='breath', wing=1, frame=8),
+    Pose(lean=-2, bob=-1, mouth='breath', wing=2, frame=9),
+    Pose(bob=-4, happy=True, mouth='open', wing=0, frame=10),
+    Pose(bob=1, happy=True, wing=2, squash=1, frame=11),
+]
+EMBER_BATTLE_ANIMS = {
+    **BATTLE_ANIMS,
+    'breath': {'from': 7, 'to': 9, 'fps': 8, 'loop': False},
+    'cheer': {'from': 10, 'to': 11, 'fps': 5},
 }
 
 EYE = (30, 22, 40)
@@ -964,7 +992,7 @@ def dragon(c: Canvas, p: Pose, s: dict):
         back.poly(pts, s.get('wing', '#ffb05a'))
         back.line(*S(14, 17), *S(4, 6 + flap), dark(col, 0.1), w=0.9)
     d.put(back)
-    legs = d.part(lean * 0.4, 0)
+    legs = d.part(lean * 0.4, bob if p.happy else 0)  # the cheer hop leaves the ground
     for i, lx in enumerate((12.5, 19)):
         off = p.step * (1.4 if i else -1.4)
         x0, y0 = S(lx - 2 + off, 25)
@@ -979,19 +1007,40 @@ def dragon(c: Canvas, p: Pose, s: dict):
         sx, sy = S(10 + k * 3, 16.5 - k * 0.3)
         body.poly([(sx - 1, sy + 1), (sx, sy - 2 * size), (sx + 1.2, sy + 1)], light(col, 0.15))
     d.put(body)
-    head = d.part(lean, bob)
+    head = d.part(lean - p.rear * 0.5, bob - p.rear)
     hx, hy = S(21, 12.5)
     hr = 6.2 * size * (1.15 if stage == 'hatchling' else 1)
     head.poly([(hx - 3 * size, hy - 3 * size), (hx - 6 * size, hy - 9 * size), (hx - 0.5 * size, hy - 4 * size)], s.get('horn', '#fff0c8'))
     head.poly([(hx + 0.5 * size, hy - 4 * size), (hx + 0 * size, hy - 10 * size), (hx + 3 * size, hy - 4.5 * size)], s.get('horn', '#fff0c8'))
     head.ellipse(hx, hy, hr, hr * 0.9, col)
-    head.ellipse(hx + 4.5 * size, hy + 2 * size, 3.6 * size, 2.6 * size, col)
+    if p.mouth in ('open', 'breath'):
+        # upper snout tilts up, a lower jaw drops below it, dark mouth between
+        head.ellipse(hx + 4.5 * size, hy + 1.2 * size, 3.6 * size, 2.0 * size, col)
+        head.poly([(hx + 2.5 * size, hy + 2.6 * size), (hx + 8.2 * size, hy + 2.2 * size),
+                   (hx + 7.4 * size, hy + 4.6 * size)], (120, 30, 40))
+        head.ellipse(hx + 4 * size, hy + 4.4 * size, 3.2 * size, 1.3 * size, dark(col, 0.08))
+    else:
+        head.ellipse(hx + 4.5 * size, hy + 2 * size, 3.6 * size, 2.6 * size, col)
+    if p.mouth == 'puff':  # cheeks full of fire
+        head.ellipse(hx + 3 * size, hy + 2.6 * size, 3.0 * size, 2.4 * size, light(col, 0.12))
+        head.dot(hx + 8 * size, hy + 2 * size, (255, 200, 80))
     head.dot(hx + 7 * size, hy + 0.8 * size, dark(col, 0.4))
-    d.eyes(head, [(hx + 1.5 * size, hy - 1.5 * size)])
+    if p.happy:
+        ex, ey = hx + 1.5 * size, hy - 1.5 * size
+        for dx, dy in ((-1, 1), (0, 0), (1, 1)):
+            head.dot(ex + dx, ey + dy, EYE)
+    else:
+        d.eyes(head, [(hx + 1.5 * size, hy - 1.5 * size)])
     if s.get('helmet'):
         head.ellipse(hx - 0.5, hy - 3, hr + 0.5, 4, '#c0c8d4')
         head.poly([(hx - 3, hy - 6), (hx - 1, hy - 12), (hx + 1, hy - 6)], '#e84040')
-    if p.arm in ('strike',) or s.get('always_fire'):
+    if p.mouth == 'breath':  # a fire cone from the jaws to the frame edge
+        fx, fy = hx + 7.5 * size, hy + 3.2 * size
+        flick = 1.2 if p.frame % 2 else 0
+        head.poly([(fx, fy - 1.2), (32, fy - 4.5 - flick), (32, fy + 4.5 + flick), (fx, fy + 1.2)], '#ff6a2a')
+        head.poly([(fx, fy - 0.8), (32, fy - 2.6), (32, fy + 2.6), (fx, fy + 0.8)], '#ffb040')
+        head.poly([(fx, fy - 0.4), (31, fy - 1), (31, fy + 1), (fx, fy + 0.4)], '#fff2a0')
+    elif p.arm in ('strike',) or s.get('always_fire'):
         fx, fy = hx + 8 * size, hy + 2 * size
         head.poly([(fx, fy - 1.5), (fx + 5, fy - 3), (fx + 7, fy), (fx + 5, fy + 3), (fx, fy + 1.5)], '#ff8a2a')
         head.poly([(fx, fy - 0.8), (fx + 4, fy), (fx, fy + 0.8)], '#ffe066')
@@ -1080,6 +1129,22 @@ def egg(c: Canvas, p: Pose, s: dict):
     for (x, y, r) in ((13, 19, 1.6), (18.5, 23, 2.0), (14.5, 26, 1.3), (19, 17, 1.1)):
         L.ellipse(x, y, r, r, '#ff9a4a')
     L.dot(13, 17, WHITE, w=2, h=2)
+    d.put(L)
+    finish(c, d)
+
+
+def fireball(c: Canvas, p: Pose, s: dict):
+    """Battle FX: a flying fireball heading right, tail flickering per frame."""
+    d = D(c, p)
+    L = d.part(0, 0)
+    ph = p.frame * 1.7
+    # flickering tongues trailing behind (left)
+    for i, (x, y, r) in enumerate(((7, 16, 3.2), (10, 13, 3.0), (10, 19.5, 3.0), (5, 12, 2.0), (5, 20.5, 2.0))):
+        wob = math.sin(ph + i * 1.3) * 1.3
+        L.ellipse(x + wob, y + math.cos(ph + i) * 0.8, r, r * 0.8, '#e8401e')
+    L.ellipse(16, 16, 7.5, 6.5, '#ff6a2a')
+    L.ellipse(18, 16, 5.5, 4.8, '#ffa53a')
+    L.ellipse(19.5, 16, 3.2, 2.8, '#fff0a0')
     d.put(L)
     finish(c, d)
 
@@ -2644,6 +2709,7 @@ def oak_owl(c: Canvas, p: Pose, s: dict):
 # ─── Roster ──────────────────────────────────────────────────────────────────
 
 DRAWERS = {
+    'fireball': fireball,
     'humanoid': humanoid,
     'beast': beast,
     'blob': blob,
@@ -2696,6 +2762,9 @@ class Char:
     giant: bool = False  # the final boss: 2× a boss's world size, 2× its battle resolution
     battle: bool = True  # NPCs are world-only
     world: bool = True
+    # Per-character battle sheet override (Ember's extra clips); None = shared.
+    battle_poses: list | None = None
+    battle_anims: dict | None = None
 
 
 def H(**kw):
@@ -2712,9 +2781,16 @@ ROSTER: list[Char] = [
                                     trim='#f0f0f0', wings='feather', wing_color='#9a6a3a', item='spear', scarf='#ffd24a')),
     # ── Ember ──
     Char('ember-egg', '🥚', 'egg'),
-    Char('ember-hatchling', '🐣', 'dragon', H(color='#ff7a2f', stage='hatchling')),
-    Char('ember-whelp', '🦎', 'dragon', H(color='#ff6a2a', stage='whelp')),
-    Char('ember-dragon', '🐉', 'dragon', H(color='#f0502a', stage='dragon', wing='#ffb05a')),
+    Char('ember-hatchling', '🐣', 'dragon', H(color='#ff7a2f', stage='hatchling'),
+         battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
+    Char('ember-whelp', '🦎', 'dragon', H(color='#ff6a2a', stage='whelp'),
+         battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
+    Char('ember-dragon', '🐉', 'dragon', H(color='#f0502a', stage='dragon', wing='#ffb05a'),
+         battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
+    # ── Battle FX (not characters — reuse the battle-sheet pipeline) ──
+    Char('fx-fireball', '🔥', 'fireball', world=False,
+         battle_poses=[Pose(frame=i) for i in range(4)],
+         battle_anims={'idle': {'from': 0, 'to': 3, 'fps': 12}}),
     # ── Enemies: Numbria (math) ──
     Char('sum-slime', '🟦', 'blob', H(color='#3f8cff', symbol='plus')),
     Char('count-bat', '🦇', 'flyer', H(kind='bat', color='#5a3f8a', wing='#7a5ab0', number=True)),
@@ -2841,5 +2917,8 @@ NPCS: list[Char] = [
     Char('dawnreach-scout', '🧭', 'humanoid', H(hair='ponytail', hair_color='#7a4a2a', hat='cap', hat_color='#e07a2a', outfit='#4a8a5a', pants='#5a4a3a', scarf='#ffd24a', pack='#8a5a30', item='telescope')),
     Char('shrine-keeper', '🕯️', 'humanoid', H(hair='bun', hair_color='#ececf4', outfit='#ece4d4', trim='#e0b040', robe=True, item='lantern')),
 ]
+# NPCs are world-only — except the ones who can join the party as battle
+# companions (content/companion.ts), who need a battle sheet too.
+BATTLE_COMPANIONS = {'hub-kid', 'woods-sprite'}
 for n in NPCS:
-    n.battle = False
+    n.battle = n.id in BATTLE_COMPANIONS

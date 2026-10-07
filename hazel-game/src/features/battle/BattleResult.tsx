@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import type { GateKey } from '../../content/keys';
+import { CONSUMABLES, type ConsumableId } from '../../content/items';
 import type { BattleEnemy } from '../../types';
 
 /** The end-of-battle panel: victory spoils (crystal / key / coins / XP) or a gentle defeat. */
@@ -13,6 +14,8 @@ export function BattleResult({
   xp,
   coins,
   lucky,
+  firstWin,
+  drop,
   onLeave,
 }: {
   result: 'victory' | 'defeat';
@@ -29,6 +32,10 @@ export function BattleResult({
   coins: number;
   /** Won under a Lucky Clover (#80) — shown with a 🍀. */
   lucky: boolean;
+  /** The first time this kind of enemy was beaten (coins include the bonus). */
+  firstWin: boolean;
+  /** The item the enemy dropped, if any. */
+  drop: ConsumableId | null;
   onLeave: () => void;
 }) {
   const won = result === 'victory';
@@ -60,6 +67,14 @@ export function BattleResult({
             {correctCount} correct answers · 🪙 +{coins}
             {lucky ? ' 🍀' : ''} · ⭐ +{xp} XP
           </p>
+          {firstWin && (
+            <p className="text-sm text-yellow-200 font-semibold mt-1">⭐ First time beating a {enemy.name} — bonus coins!</p>
+          )}
+          {drop && (
+            <p className="text-sm text-emerald-200 font-semibold mt-1">
+              🎁 It dropped a {CONSUMABLES[drop].emoji} {CONSUMABLES[drop].name}!
+            </p>
+          )}
         </>
       ) : (
         <>

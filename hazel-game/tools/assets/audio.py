@@ -206,6 +206,89 @@ def sfx_bank() -> dict[str, np.ndarray]:
     # select: short UI blip
     b = _seq(['E6', 'B6'], 0.035, duty=0.25, gain=0.4, length=0.14)
     out['select'] = b
+
+    # ── Battle: spells, defending, damage, companion ──
+    # impact: an enemy takes damage — a meaty thud with a crunchy transient
+    th = tri(hz(midi('A2')), 0.16, slide=-0.5) * env(int(0.16 * SR), 0.001, 0.04, 0.5, 0.07)
+    cr = noise(0.07, 2.0, 11) * env(int(0.07 * SR), 0.001, 0.02, 0.4, 0.03)
+    b = np.zeros(int(0.26 * SR))
+    mixin(b, th, 0, 0.85)
+    mixin(b, cr, 0, 0.5)
+    out['impact'] = b
+    # enemyAttack: a lower, growlier swoosh than the hero's (the enemy lunging)
+    sw = noise(0.22, 1.4, 13) * np.linspace(0.15, 1, int(0.22 * SR)) ** 1.5 * env(int(0.22 * SR), 0.001, 0.02, 0.9, 0.06)
+    gr = pulse(hz(midi('D3')), 0.2, 0.125, vib=0.08, slide=-0.3) * env(int(0.2 * SR), 0.01, 0.05, 0.6, 0.06)
+    b = np.zeros(int(0.34 * SR))
+    mixin(b, lowpass(sw, 0.3), 0, 0.5)
+    mixin(b, lowpass(gr, 0.45), 0.04, 0.35)
+    out['enemyAttack'] = b
+    # spell: sparkling rising shimmer (a spell is cast)
+    b = np.zeros(int(0.7 * SR))
+    for i, nm in enumerate(['E5', 'G#5', 'B5', 'E6', 'G#6', 'B6', 'E7']):
+        s1 = pulse(hz(midi(nm)), 0.1, 0.125, vib=0.02)
+        mixin(b, s1 * env(len(s1), 0.002, 0.03, 0.5, 0.05), i * 0.035, 0.3)
+    swell = tri(hz(midi('E4')), 0.4, slide=1.0) * env(int(0.4 * SR), 0.05, 0.1, 0.6, 0.15)
+    mixin(b, swell, 0, 0.35)
+    out['spell'] = echo(b, 0.07, 0.4, 0.35)
+    # heal: soft, gentle major chime (Mend, potions, a healer enemy mending)
+    b = _seq(['G5', 'C6', 'E6', 'G6'], 0.08, voice='tri', gain=0.5, length=0.8, a=0.01, s=0.6, r=0.2)
+    b += _seq(['C6', 'E6', 'G6', 'C7'], 0.08, duty=0.125, gain=0.18, length=0.8, a=0.01, s=0.5, r=0.2)
+    out['heal'] = echo(b, 0.12, 0.35, 0.3)
+    # guard: raising a shield — a metallic "shing" (two detuned high pulses)
+    b = np.zeros(int(0.5 * SR))
+    for f, g in ((hz(midi('A6')), 0.3), (hz(midi('A6')) * 1.013, 0.3), (hz(midi('E7')), 0.15)):
+        s1 = pulse(f, 0.35, 0.25, slide=0.02)
+        mixin(b, s1 * env(len(s1), 0.001, 0.05, 0.35, 0.25), 0, g)
+    tk = noise(0.03, 4.0, 17) * env(int(0.03 * SR), 0.001, 0.01, 0.3, 0.01)
+    mixin(b, tk, 0, 0.4)
+    out['guard'] = echo(b, 0.08, 0.3, 0.25)
+    # block: an attack bounces off the shield — a hard "clang"
+    b = np.zeros(int(0.4 * SR))
+    for nm, g in (('C6', 0.3), ('F#6', 0.25), ('C7', 0.15)):
+        s1 = pulse(hz(midi(nm)), 0.28, 0.5) * env(int(0.28 * SR), 0.001, 0.03, 0.25, 0.2)
+        mixin(b, s1, 0, g)
+    ns = noise(0.05, 3.0, 19) * env(int(0.05 * SR), 0.001, 0.01, 0.4, 0.03)
+    mixin(b, ns, 0, 0.5)
+    out['block'] = lowpass(b, 0.55)
+    # shatter: an enemy's stony shield breaks — crunch + falling glassy shards
+    b = np.zeros(int(0.7 * SR))
+    mixin(b, noise(0.18, 2.5, 23) * env(int(0.18 * SR), 0.001, 0.05, 0.4, 0.1), 0, 0.55)
+    for i, nm in enumerate(['B6', 'F6', 'D6', 'G#5', 'E5']):
+        s1 = pulse(hz(midi(nm)), 0.06, 0.25)
+        mixin(b, s1 * env(len(s1), 0.001, 0.02, 0.5, 0.03), 0.06 + i * 0.05, 0.25)
+    out['shatter'] = echo(b, 0.06, 0.3, 0.2)
+    # roar: Ember's attack — a rising, gravelly dragon roar into a fire whoosh
+    rr = pulse(hz(midi('G2')), 0.35, 0.3, vib=0.12, slide=0.5) * env(int(0.35 * SR), 0.02, 0.08, 0.7, 0.1)
+    fw = noise(0.3, 2.0, 29) * env(int(0.3 * SR), 0.05, 0.08, 0.7, 0.12)
+    b = np.zeros(int(0.6 * SR))
+    mixin(b, lowpass(rr, 0.35), 0, 0.55)
+    mixin(b, lowpass(fw, 0.4), 0.18, 0.5)
+    out['roar'] = b
+    # pair: a Pair Attack — roar + rising power-up arpeggio + big double impact
+    b = np.zeros(int(1.3 * SR))
+    mixin(b, out['roar'], 0, 0.7)
+    mixin(b, _seq(['C5', 'G5', 'C6', 'E6', 'G6', 'C7'], 0.045, duty=0.25, gain=0.3, length=0.5), 0.1)
+    mixin(b, out['impact'], 0.45, 0.8)
+    mixin(b, out['impact'], 0.58, 0.7)
+    mixin(b, _seq(['C4', 'G4', 'C5'], 0.001, voice='tri', gain=0.3, length=0.6, s=0.6, r=0.4), 0.45)
+    out['pair'] = echo(b, 0.12, 0.3, 0.25)
+    # swap: a companion tags in — a quick "poof" + bright two-note hop
+    b = np.zeros(int(0.45 * SR))
+    mixin(b, lowpass(noise(0.12, 2.2, 31) * env(int(0.12 * SR), 0.005, 0.03, 0.5, 0.06), 0.45), 0, 0.4)
+    mixin(b, _seq(['G5', 'D6'], 0.07, duty=0.25, gain=0.35, length=0.3), 0.06)
+    out['swap'] = echo(b, 0.08, 0.25, 0.2)
+    # charge: an enemy gathers power — a low rising, wobbling hum (a warning)
+    n = 0.8
+    hum = pulse(hz(midi('A2')), n, 0.3, vib=0.06, slide=1.0) * env(int(n * SR), 0.1, 0.1, 0.8, 0.12)
+    rum = noise(n, 0.4, 37) * np.linspace(0.2, 1, int(n * SR)) * env(int(n * SR), 0.1, 0.1, 0.7, 0.12)
+    b = np.zeros(int(0.95 * SR))
+    mixin(b, lowpass(hum, 0.3), 0, 0.5)
+    mixin(b, lowpass(rum, 0.2), 0, 0.3)
+    out['charge'] = b
+    # streak: answers in a row — a sparkly rising triple chime
+    b = _seq(['E6', 'G#6', 'B6'], 0.06, duty=0.125, gain=0.35, length=0.45)
+    b += _seq(['E5', 'G#5', 'B5'], 0.06, voice='tri', gain=0.3, length=0.45)
+    out['streak'] = echo(b, 0.07, 0.35, 0.3)
     return out
 
 

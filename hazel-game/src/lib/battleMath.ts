@@ -42,6 +42,29 @@ export function spellDamage(style: FightStyle, powerUps: PowerUps, multiplier: n
   return Math.round((STYLE_ATTACK[style] + attackBonus(powerUps)) * multiplier);
 }
 
+/**
+ * A companion's strike (Ember, Pip, Wisp — see `content/companion.ts`). Like
+ * Attack, a wrong answer still lands a glancing blow; power 0 (an egg) can't
+ * fight.
+ */
+export function companionAttackDamage(correct: boolean, power: number): number {
+  return correct ? power : Math.round(power * GLANCING);
+}
+
+/**
+ * Damage of a landed Pair Attack: the hero's AND the companion's power
+ * combined, then scaled by the combo's multiplier — so it always beats a solo
+ * spell of the same cost.
+ */
+export function pairDamage(
+  style: FightStyle,
+  powerUps: PowerUps,
+  companionPower: number,
+  multiplier: number,
+): number {
+  return Math.round((STYLE_ATTACK[style] + attackBonus(powerUps) + companionPower) * multiplier);
+}
+
 /** Raw enemy attack power; bosses hit harder and enrage by phase. */
 export function enemyAttack(level: number, isBoss: boolean, phase: number): number {
   return Math.round((16 + level * 3) * (isBoss ? 1.3 : 1) * (1 + phase * 0.15));

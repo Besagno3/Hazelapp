@@ -456,6 +456,134 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-383 | U | ✅ | sprites | `blendSheetsFor`: a zone's own sheet plus each neighbour's, once each; none for Spire floors (worldSprites.test) |
 | TC-384 | M | ✅ | sprites | first entry fetches only what's near: Dawnreach 9 blend sheets (itself + its 8 places), the Village 2 (itself + Dawnreach); walking out onto Dawnreach fetches the rest of its neighbours (headless Chromium, request log) |
 | TC-385 | U | ✅ | tiles | `blendPairFrame` throws for a pair that isn't low → high (tiles.test) |
+## Ember companion + battle SFX (#92)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-452 | U | ✅ | companion | Ember can't fight as an egg; Pair Attacks unlock hatchling → whelp → dragon (1/2/3); every cost fits `CHARGE_MAX` (companion.test) |
+| TC-453 | U | ✅ | battleMath | `emberAttackDamage`: 0 for an egg, grows per stage, wrong answer is a non-zero glancing blow; `pairDamage` = (hero + Ember power) × multiplier and beats any solo damage spell of the same or lower cost (battleMath.test, companion.test) |
+| TC-454 | U | ✅ | audio | every new SFX (impact, enemyAttack, spell, heal, guard, block, shatter, roar, pair) points at a shipped file (audio.test) |
+| TC-455 | M | ✅ | battle | with Ember still an egg the 🐉 Ember command is disabled ("Still an egg…") (headless Chromium, seeded save) |
+| TC-456 | M | ✅ | battle | hatchling: Ember → Ember Nip → correct answer → Ember lunges, enemy −18, charge +2 (+1 answer, +1 Ember bonus) (headless Chromium, mocked questions) |
+| TC-457 | M | ✅ | battle | Pair Attacks are disabled below their cost; Twin Strike at 3◆ asks a super-hard question, both hero and Ember lunge, banner "⚔️ PAIR ATTACK — TWIN STRIKE!", enemy −77, charge −2 (headless Chromium) |
+| TC-458 | M | ✅ | battle | a missed Pair Attack fizzles ("falls out of step… the charge is safe") and spends no charge (headless Chromium) |
+| TC-459 | M | ✅ | battle | Ember's first hit on a shielded enemy (Relic Golem) shatters the shield for 0 damage and plays `shatter` (headless Chromium) |
+| TC-460 | M | ✅ | audio | sound order in play (Howl.play spy): Attack → attack, impact · Ember → roar, impact · Pair → pair · Mend → spell, heal · Guard → guard · enemy turn → enemyAttack then block (0 dmg) or hit (headless Chromium) |
+| TC-461 | M | ⬜ | audio | by ear with Sound on: new SFX sit at a comfortable level next to the old ones; the pair combo doesn't clip; a healer enemy's mend chime follows (not overlaps) the hit |
+| TC-462 | M | ⬜ | battle | dragon-stage Ember: Dragon Tail, Blazing Comet and Dragon Duet all selectable at their cost; Dragon Duet vs a Fiend feels strong but not a guaranteed one-shot |
+
+## Ember animations (#92 follow-up)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-463 | U | ✅ | choreography | every Pair Attack has a choreography moving both actors; every motion starts/ends at rest and heads toward the enemy; the blow lands within 60ms of the mover reaching the enemy; a volley's last fireball arrives exactly on the hit (choreography.test) |
+| TC-464 | U | ✅ | choreography | `fitReach` rescales comet/duet dives to 85% of the measured gap, never overshoots on a narrow screen, and leaves lunges alone (choreography.test) |
+| TC-465 | U | ✅ | sprites | hatchling/whelp/dragon battle sheets carry idle/attack/hurt/breath/cheer; the fireball FX sheet exists (choreography.test) |
+| TC-466 | M | ✅ | battle | Ember faces the enemy (mirrored like the hero) (headless Chromium) |
+| TC-467 | M | ✅ | battle | Ember Attack: wind-up → open-mouthed lunge; the enemy flinches + knocks back when the blow lands (headless Chromium) |
+| TC-468 | M | ✅ | battle | Ember's Breath (dragon): Ember inhales and breathes, a 3-fireball volley crosses the arena, damage lands with the last fireball (headless Chromium) |
+| TC-469 | M | ✅ | battle | Blazing Comet: Ember heaves, the hero arcs up wrapped in fire and crashes toward the enemy; Dragon Duet: hero + Ember rise and dive together behind a fireball volley (headless Chromium) |
+| TC-470 | M | ✅ | battle | comet dive stops just short of the enemy at 390 / 900 / 1280px wide (closest gap 20 / 83 / 128px, measured per frame) |
+| TC-471 | M | ✅ | battle | victory: a hatched Ember does its cheer hop; an egg wobbles — and a first win no longer hatches the egg on the victory panel (stage locked per fight) (headless Chromium) |
+| TC-472 | M | ⬜ | battle | on a real phone: animations feel smooth, the fire trail/fireballs don't cover the question box, and nothing jitters |
+
+## Battle round 3 — party, power moves, streaks, mercy (#93)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-473 | U | ✅ | battleTurn | `resolveHeroHit`: damage, defeat at 0, a shield absorbs the first landed hit (even glancing), a boss phase crossing is reported once and never on the killing blow |
+| TC-474 | U | ✅ | battleTurn | `nextIntent`: never charges on the first enemy turn; charge → power → attack; regular enemies charge on a low roll, bosses every 3rd turn; every boss has a unique signature move name |
+| TC-475 | U | ✅ | battleTurn | `resolveEnemyAttack`: power = 2×, Guard blocks even a power blow, a correct defend softens, mercy softens, healer mends below half, knockout reported |
+| TC-476 | U | ✅ | battleTurn | streak bonus starts at 3 and caps at 5; mercy after 2 losses is only `{ levelDrop: 1 }`; first-win coin bonus only when kills = 0; bosses always drop an elixir, regular drops are real consumables or nothing |
+| TC-477 | U | ✅ | companion | Ember always in the party, Pip/Wisp join on their quest's done flag (flags checked against `questDoneFlag`); every companion has a battle sheet, power and a Pair Attack; pair ids unique and within `CHARGE_MAX` |
+| TC-478 | M | ✅ | battle | 🔄 Swap lists Ember / Pip / Wisp (locked ones show how to recruit); picking one swaps the sprite in and returns to the command menu — the turn is NOT spent (headless Chromium) |
+| TC-479 | M | ✅ | battle | Pip's Slingshot (correct) → the next question (even the enemy's defend question) shows 3 options, one crossed out, with "Pip crossed out a wrong answer" (headless Chromium) |
+| TC-480 | M | ✅ | battle | Wisp's Glimmer (correct) mends 20 HP (headless Chromium) |
+| TC-481 | M | ✅ | battle | 3 correct in a row → "🔥 3 in a row!" + streak badge + chime; a wrong answer clears it (headless Chromium) |
+| TC-482 | M | ✅ | battle | #70: after an enemy hit the store HP drops at once while the bar still shows the old value; tapping through and drinking a potion within 260ms heals from the real HP (headless Chromium) |
+| TC-483 | M | ✅ | battle | boss: the 3rd enemy turn is "gathering power for Zero Crush" (charge SFX, glowing enemy, "💢 Zero Crush next!", Guard pulses); the next enemy turn unleashes it and a Guard blocks it completely (headless Chromium) |
+| TC-484 | M | ✅ | battle | a Sage spell matching the enemy topic is tagged "✨ Super effective here!" in the Spellbook and its hit says "It's super effective!" (headless Chromium) |
+| TC-485 | M | ✅ | battle | after 2 session losses to Count Bat: questions requested 1 level lower, the enemy's hits are NOT softened (same damage as without mercy), and a 💛 "questions will be a little easier" banner shows (headless Chromium) |
+| TC-486 | M | ✅ | battle | first win over a Fiend: "First time beating…" + 1.5× coins and a Honey Elixir drop added to the bag; a repeat win has no bonus (headless Chromium) |
+| TC-487 | M | ✅ | battle | with prefers-reduced-motion: Dragon Duet resolves with the hero never moving and no fireballs (headless Chromium, emulated media) |
+| TC-488 | M | ⬜ | world | finish "Pip's Lucky Marble" / "The Darkened Moonwell" → the completion lines announce the new battle friend; the 📜 menu lists them under "Battle friends" |
+| TC-489 | M | ⬜ | battle | a wrong answer shows "✅ The answer is: …" and the explanation under "Here's why:" in an amber box |
+| TC-490 | M | ⬜ | audio | by ear: swap / charge / streak SFX feel right next to the existing set |
+
+## Companion persistence + mercy rework (#93 follow-up)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-491 | U | ✅ | save | `normalizeSave` keeps `companionId: 'pip'`; a save without it, or with an unknown id, gets Ember (save.test) |
+| TC-492 | M | ✅ | battle | 🔄 Swap writes the pick into the save; a battle started from that save (JSON round-trip + normalize) opens with Pip (headless Chromium) |
+| TC-494 | M | ✅ | battle | Wisp's Glimmer lands the killing blow after the hero took damage: HP 92 → 112 and the saved HP after victory is 112, not 92 (headless Chromium) |
+| TC-495 | M | ✅ | battle | leaving the arena before an attack lands (unmount within 260ms) plays no impact sound and logs no errors (headless Chromium) |
+| TC-493 | M | ⬜ | battle | real reload: swap to Wisp, refresh the page, walk into a battle → Wisp is fighting; lose twice, refresh → no mercy banner (fresh start) |
+
+## Battle UX on phones (#94)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-496 | M | ✅ | battle | at 360×640, 390×667, 390×844 and 900×760 the whole command menu is on screen (headless Chromium) |
+| TC-497 | M | ✅ | battle | a 3-line question: all four answers are on screen before answering, and after answering (with the explanation) Go! is on screen — at all four sizes (headless Chromium) |
+| TC-498 | M | ✅ | battle | answer options, the Hint Feather button and ← Back are ≥ 44px tall (headless Chromium) |
+| TC-499 | M | ✅ | battle | the companion / spell menus fit or scroll inside the panel with ← Back visible; charge moves you can't afford say "Need N more ◆" (headless Chromium) |
+| TC-500 | M | ✅ | battle | status panels keep each name on one line ("The Null Fi… Lv 5"); nothing slides the arena sideways (overflow: clip) (headless Chromium) |
+| TC-501 | M | ⬜ | battle | on a real phone (iOS Safari + Android Chrome): no scrolling needed to answer and continue; tap targets feel comfortable; hint text readable in sunlight |
+
+## Timed defend questions (#95)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-502 | U | ✅ | battleTurn | `defendTimeMs`: a flat 15s for every defend question; mercy adds 5s |
+| TC-503 | M | ✅ | battle | a defend question shows "⏳ Ns" + a bar that counts down; attack questions show no countdown (headless Chromium, fake clock) |
+| TC-504 | M | ✅ | battle | letting it run out: three ticks in the last 3s, then "⏰ Time's up! … lands a hit!", HP drops, wrong + hit sounds (headless Chromium) |
+| TC-505 | M | ✅ | battle | picking an answer freezes it on "✓ In time!"; waiting 40s more never times out (headless Chromium) |
+| TC-506 | M | ✅ | battle | the countdown pauses while the page is hidden (10s hidden → no time lost) (headless Chromium) |
+| TC-507 | M | ✅ | battle | 360×640: countdown and all four answers on screen (headless Chromium) |
+| TC-508 | M | ⬜ | battle | with a Guard up, letting the clock run out still blocks the blow completely; the timed-out question appears in the Library |
+| TC-509 | M | ⬜ | battle | playtest: does the clock feel fair for a young reader on a long word problem? |
+
+## Growth rule + countdown by age + timer setting (#96)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-510 | — | ❌ | growth | *(removed by #97 — XP no longer scales difficulty)* |
+| TC-511 | — | ❌ | enemies | *(replaced by TC-519)* |
+| TC-512 | U | ✅ | battleTurn | `defendTimeMs(age)`: younger → more time; 5–8 year-olds always > 15s; clamped 10–25s; mercy +5s (level no longer affects it) |
+| TC-513 | U | ✅ | save | `defendTimer` defaults on (new and older saves); only an explicit `false` turns it off (save.test) |
+| TC-514 | M | ✅ | battle | countdown starts at 24s (age 6), 19s (age 9), 15s (age 12) (headless Chromium; the Lv-16 part is superseded by #97) |
+| TC-515 | M | ✅ | battle | with the timer off: no countdown, and 60s later the defend question is still waiting (headless Chromium) |
+| TC-516 | M | ✅ | menu | 📜 Menu → ⚔️ Battle → Defend timer toggles On ↔ Off ("Take as long as you need") and writes the save (headless Chromium) |
+| TC-517 | M | ⬜ | world | real account: turn the timer off, reload on another device → still off; level up past Lv 5, re-enter a zone → enemies one level higher |
+
+## Question level + speed trigger (#97)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-518 | U | ✅ | battleTurn | `fastAnswerMs` = half the age countdown; 5 quick correct in a row → boost and the run restarts; slow / wrong / hinted (Infinity) resets; never more than +2 per battle; `skillAfterBattle` keeps the boost and never lowers |
+| TC-519 | U | ✅ | enemies | a player new to a topic meets the age baseline; a math level of 7 raises a math enemy (and its HP); a level in another topic doesn't carry over (enemies.test) |
+| TC-520 | M | ✅ | battle | age 9: 5 correct answers at 3s each → "⚡ So quick! … level 4 → 5", ⚡+1 by the enemy level, a level-5 pool is fetched and the following questions are level 5 (headless Chromium, fake clock) |
+| TC-521 | M | ✅ | battle | winning that battle saves the math question level above where it started (4 → 6) (headless Chromium) |
+| TC-522 | M | ✅ | battle | 6 correct answers at 12s each (slower than 9.5s) → no raise; 4 quick + 1 with a Hint Feather → no raise (headless Chromium) |
+| TC-523 | M | ✅ | battle | 9000 XP meets the same enemy level as 0 XP; a math level of 7 → Count Bat Lv 7 and level-7 battle questions (headless Chromium) |
+| TC-524 | M | ⬜ | battle | playtest: does "quick" (half the countdown) feel right for 6-, 9- and 12-year-olds? |
+| TC-525 | U | ✅ | battleTurn | `skillAfterBattle` with no ramp answers (Flee) keeps the speed boost, and changes nothing without one |
+| TC-526 | M | ✅ | battle | the harder pool has ONE question: after the boost it's asked 4 times in a row and every time can be answered and continued (no stuck card) (headless Chromium, #98) |
+| TC-527 | M | ✅ | battle | the harder-pool fetch fails → one banner "Your level goes up to 5 after this battle", no ⚡ badge, questions continue at level 4 (headless Chromium) |
+| TC-528 | M | ✅ | battle | 5 quick correct then Flee → math level saved 4 → 5; Flee with no boost saves nothing (headless Chromium) |
+| TC-529 | M | ✅ | battle | with Pip: Slingshot (quick, correct) → the next question has one answer crossed out and doesn't count toward the run; strike + peeked + 4 quick = no raise, one more quick answer = raise (headless Chromium) |
+
+## Battle port onto main's split arena (#99)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-530 | U | ✅ | battleTurn | a charged `power` blow through `resolveEnemyTurn` hits POWER_MULTIPLIER×; a guard still blocks it; a Mirror Charm bounces the full power blow |
+| TC-531 | U | ✅ | battleTurn | the combined rule suite: main's resolvers (hits, shields, enrage, enemy turn, spells, items, buffs, store #70) + this branch's intents, streaks, mercy, rewards, countdown and speed trigger — 49 tests |
+| TC-532 | C | ✅ | battle | main's arena smoke tests pass on the ported arena: Attack fills charge; a potion right after an enemy hit keeps both, and no timer moves HP afterwards (#70) |
+| TC-533 | M | ✅ | battle | headless Chromium on the ported arena: 23 round-3 checks (swap keeps the turn, Pip's peek, streak, Wisp mend, store-first HP + fast potion, super effective, power-move telegraph + Guard block, mercy, first-win + drop, reduced motion) |
+| TC-534 | M | ✅ | battle | headless Chromium: 10 item checks (Mirror bounce / vs shield / finishing bounce, Focus Tea ×2, Lucky Clover coins, Sunseed Snack) + 15 speed-trigger checks + 14 defend-timer checks, all on the ported arena |
+| TC-535 | M | ⬜ | battle | playtest on a real phone: a full fight with Ember (egg → hatchling), a Pair Attack, a swap to Pip, a Mirror Charm and a timed defend — nothing missing vs before the port |
 
 ## Maps painted in Tiled (#75 item 5)
 

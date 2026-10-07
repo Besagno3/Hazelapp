@@ -33,6 +33,8 @@ export interface Spell {
   effect: SpellEffect;
   /** Tailwind text color for the cast flash + labels. */
   color: string;
+  /** A Sage spell's topic — super effective against enemies of that topic. */
+  topic?: CrystalTopic;
 }
 
 /** Every spell asks a question this many levels above the enemy — "super hard". */
@@ -84,6 +86,7 @@ export function sageSpell(topic: CrystalTopic): Spell {
     cost: 3,
     effect: { kind: 'damage', multiplier: 2.5 },
     color: s.flashColor,
+    topic,
   };
 }
 

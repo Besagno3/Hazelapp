@@ -262,6 +262,7 @@ function Bench() {
         zoneId={where.zoneId}
         avatar={avatarById('a1')!}
         age={9}
+        skillLevels={{}}
         emberStage="hatchling"
         startPos={where.pos}
         flags={flags}
