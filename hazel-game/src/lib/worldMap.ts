@@ -1,5 +1,6 @@
-import { TILE, type FogDef, type PlaceIcon, type ZoneDef, type ZoneId } from '../content/zones';
+import { TILE, fogLifted, type FogDef, type PlaceDef, type PlaceIcon, type ZoneDef, type ZoneId } from '../content/zones';
 import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
+import { placesInside } from './fog';
 
 /**
  * The menu's world map (#75 Phase 1): the overworld drawn small, one coloured
@@ -65,6 +66,19 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   grove: '🌙',
   tower: '🗼',
 };
+
+/** Stands in for a place that's still hidden in fog. */
+export const HIDDEN_PLACE_EMOJI = '☁️';
+
+/**
+ * A place's emoji on the map and in the list: its own, or ☁️ while it sits
+ * inside a bank of fog that hasn't lifted (the Spire in its ring, #75 item 7)
+ * — the map doesn't show what the world itself still hides.
+ */
+export function placeEmoji(world: ZoneDef, place: PlaceDef, flags: Record<string, boolean>): string {
+  const hidden = (world.fogs ?? []).some((f) => !fogLifted(f, flags) && placesInside(f, [place]).length > 0);
+  return hidden ? HIDDEN_PLACE_EMOJI : PLACE_EMOJI[place.icon];
+}
 
 export interface MapMarker {
   /** Tile on the overworld. */

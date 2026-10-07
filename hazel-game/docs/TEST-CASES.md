@@ -564,6 +564,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-471 | M | ✅ | world | a key or pointer already held down when a reveal starts does NOT skip it, nor does letting go; a fresh press then does; untouched, the reveal plays out in full (headless Chromium, bench) |
 | TC-472 | M | ✅ | world | skipped as the camera reaches the Spire ring, the Spire stands whole with no fog left; reduced motion skips the same way (headless Chromium, bench) |
 | TC-473 | M | ⬜ | world | in the real app: a fog lift plays the gate chime (not the level-up fanfare); with a screen reader on, the lift's toast ("The fog …") is read out, as are other toasts (fog hint, save) |
+| TC-474 | U | ✅ | world map | `placeEmoji`: the Spire is ☁️ while its ring of fog is up and 🗼 once any crystal lifts it; every other place keeps its own emoji, the shrine included; ☁️ isn't any place's own emoji (worldMap.test) |
+| TC-475 | M | ✅ | world map | menu map at 375 px: with no crystal, ☁️ sits in the Spire's fog (with the 💎 above it), "☁️ The Crystal Spire" in the list and a "☁️ = a place still hidden in the fog" legend line; with one crystal, 🗼 and no ☁️ legend (headless Chromium) |
 
 ## Regression cases (tied to ISSUES.md)
 

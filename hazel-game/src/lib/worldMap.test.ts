@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { PLACE_ICONS, TILE, ZONES } from '../content/zones';
-import { ANY_CRYSTAL_EMOJI, PLACE_EMOJI, fogMarker, fogMarkerAt, mapCaption, mapCellColor, whereOnMap } from './worldMap';
+import { crystalFlag } from '../content/topics';
+import {
+  ANY_CRYSTAL_EMOJI,
+  HIDDEN_PLACE_EMOJI,
+  PLACE_EMOJI,
+  fogMarker,
+  fogMarkerAt,
+  mapCaption,
+  mapCellColor,
+  placeEmoji,
+  whereOnMap,
+} from './worldMap';
 
 const dawn = ZONES.dawnreach;
 
@@ -46,6 +57,21 @@ describe('PLACE_EMOJI', () => {
     const emoji = PLACE_ICONS.map((i) => PLACE_EMOJI[i]);
     expect(emoji.every(Boolean)).toBe(true);
     expect(new Set(emoji).size).toBe(emoji.length);
+    expect(emoji).not.toContain(HIDDEN_PLACE_EMOJI);
+  });
+});
+
+describe('placeEmoji (#75 item 7)', () => {
+  const place = (name: string) => dawn.places!.find((p) => p.name === name)!;
+  it('shows the Spire as a cloud until its ring of fog lifts, then as the tower', () => {
+    const spire = place('The Crystal Spire');
+    expect(placeEmoji(dawn, spire, {})).toBe(HIDDEN_PLACE_EMOJI);
+    expect(placeEmoji(dawn, spire, { [crystalFlag('science')]: true })).toBe(PLACE_EMOJI.tower);
+  });
+  it('leaves places outside the fog alone, even one just past a bank (the shrine)', () => {
+    for (const p of dawn.places!.filter((p) => p.name !== 'The Crystal Spire')) {
+      expect(placeEmoji(dawn, p, {}), p.name).toBe(PLACE_EMOJI[p.icon]);
+    }
   });
 });
 

@@ -264,6 +264,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-07 — The world map shows ☁️ for the Spire until its fog lifts (#75 item 7)
+The menu map drew the Spire's 🗼 inside its ring of fog, though the world
+hides it. Now a place inside a bank that hasn't lifted shows ☁️ on the map and
+in the place list (`placeEmoji`, `lib/worldMap.ts` — today just the Spire),
+with a legend line "☁️ = a place still hidden in the fog"; once the ring
+lifts, the tower is back. The shrine, just past its own bank, is unaffected.
++2 tests (worldMap.test); 490 green, lint + build clean. Checked on a 375 px
+menu map in headless Chromium, with no crystal and with one.
+
 ### 2026-10-07 — Fog UX review fixes: the script, a skip, the chime, screen readers (#75 item 7)
 `/saas-ux-review` of the fog banks; all 4 findings fixed:
 - **The script matches the fog:** the leaving-home panels (`DAWNREACH_PANELS`,
