@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { NPC_DEFS, ROLE_SERVICE, npcSpriteId, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { questConversation, type QuestConversation } from '../../content/quests';
+import { ZONES } from '../../content/zones';
+import { wayfindingLines } from '../../lib/wayfinding';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 
@@ -21,7 +23,8 @@ function visibleLines(lines: DialogueLine[], flags: Record<string, boolean>): Di
  * givers speak their quest conversation (offer / in-progress / completion
  * with rewards, see content/quests.ts) before falling back to their normal
  * lines. Service NPCs offer their service on the last line; lines can set
- * story flags as they're read.
+ * story flags as they're read. Guides and signposts add the way to the next
+ * goal (lib/wayfinding.ts).
  */
 export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const update = useSaveStore((s) => s.update);
@@ -34,7 +37,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
       const save = useSaveStore.getState().save;
       const quest = save ? questConversation(npcId, save) : null;
       if (quest) return { lines: quest.lines, quest };
-      return { lines: visibleLines(npc?.lines ?? [], save?.flags ?? {}), quest: null };
+      const flags = save?.flags ?? {};
+      // Guides end on "where to next?"; signposts read out the way (#75 item 6).
+      const wayfinding = npc ? wayfindingLines(ZONES, npc, flags) : [];
+      return { lines: [...visibleLines(npc?.lines ?? [], flags), ...wayfinding], quest: null };
     },
   );
   const { lines, quest } = conversation;
@@ -95,7 +101,8 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
             </span>
           )}
         </div>
-        <p className="leading-relaxed min-h-[3rem]">{text}</p>
+        {/* pre-line: a signpost reads one direction per line. */}
+        <p className="leading-relaxed min-h-[3rem] whitespace-pre-line">{text}</p>
         <div className="flex justify-end gap-3 mt-3">
           {isLast && service && (
             <button

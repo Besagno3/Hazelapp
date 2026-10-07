@@ -16,8 +16,8 @@
  * `__bench.pause(true|false)` pauses the world the way a menu or dialogue does.
  *
  * Exits really change zones (so a script can walk through slides, fades and
- * the arrival lock); `window.__bench.state()` reports where the hero is (and
- * how many times it has bumped a fog bank).
+ * the arrival lock); `window.__bench.state()` reports where the hero is (how
+ * many times it has bumped a fog bank, and who it has talked to).
  */
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -208,7 +208,7 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
     p95: pct(deltas, 0.95),
     max: maxDelta,
   }),
-  state: () => ({ ...live }),
+  state: () => ({ ...live, talks: [...live.talks] }),
   /** Pause / resume the world, as a menu or dialogue would. */
   pause: (on: boolean) => {
     benchPaused.current = on;
@@ -232,11 +232,19 @@ const flags = Object.fromEntries(
     .map((f) => [f, true]),
 );
 /** Live position, read by the runner / scripts. */
-const live: { zoneId: ZoneId; exits: number; pos: { x: number; y: number } | null; fogBumps: number } = {
+const live: {
+  zoneId: ZoneId;
+  exits: number;
+  pos: { x: number; y: number } | null;
+  fogBumps: number;
+  /** Everyone the hero has talked to, in order (NPC def ids). */
+  talks: string[];
+} = {
   zoneId,
   exits: 0,
   pos: startPos,
   fogBumps: 0,
+  talks: [],
 };
 
 function Bench() {
@@ -262,7 +270,9 @@ function Bench() {
         pausedRef={benchPaused}
         touchDirRef={touchDirRef}
         callbacks={{
-          onTalk: noop,
+          onTalk: (id) => {
+            live.talks.push(id);
+          },
           onEncounter: noop,
           onPath: noop,
           onExit: (to, sx, sy) => {

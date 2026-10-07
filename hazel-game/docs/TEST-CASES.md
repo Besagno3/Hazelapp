@@ -470,6 +470,18 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-393 | M | ✅ | bench | the bench masks shoreline corner tiles (they animate water half a tile off the water cells) and drifting fog banks, so two shot sets of the same code `diff` as IDENTICAL (exit 0) instead of "DIFFERENT" on coasts and near fog — verified on all 46 screens |
 | TC-392 | M | ⬜ | tools | open `dawnreach.tmj` in the Tiled app: the legend shows the game's art, painting a tile and saving keeps the format the game reads (`npm test` passes) |
 
+## Wayfinding: the 🚩, signposts, "where to next?" (#75 item 6)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-394 | U | ✅ | wayfinding | the next goal follows the story: Numbria's crystal first; then a crystal whose key you hold (before a key you'd still have to win); else the warden of the first locked crystal; the Spire at four crystals; "Explore Lumina" after it. Walked from a fresh save it takes 9 goals, each doable right then, no repeats, and every goal is reachable from every zone (wayfinding.test) |
+| TC-395 | U | ✅ | wayfinding | directions: 8-way compass (none within a tile); fewest-zones route; from the Field "Take the west path to Numbria."; from the Village "Go north to Lumina Field, then take the west path to Numbria."; on the overworld measured from the hero's tile ("step into" when beside it); "It's right here in Numbria!" when there; a sentence for every story goal from every zone (wayfinding.test) |
+| TC-396 | U | ✅ | wayfinding | a signpost names every place once, by direction, clockwise from north, nearest first, and leaves out a place right beside it; each signpost stands beside a crossroads, off the road; Elder Lumen, Grandmother Wick and Scout Tamsin end on "Where to next?" with the route from where they stand; after the Spire they just cheer you on (wayfinding.test) |
+| TC-397 | M | ✅ | menu | world map at five story stages: 🚩 on the goal's place (Lumina Field for Numbria, the Woods for the Verdant Key, the Spire), "🚩 Next: …" and the route under the ⭐ caption, 🚩 beside the place in the list, the ⭐ stepping aside when both share a place; a 🎉 line and no flag after the Spire; fits at 390 px; no page errors (headless Chromium) |
+| TC-398 | M | ✅ | dialogue | Elder Lumen's last line is "Where to next? The Null Fiend hoards the Crystal of Numbers. Take the west path to Numbria."; after the first crystal Grandmother Wick sends you west to the Whispering Woods; the west signpost reads six arrow lines, then "🚩 Next: … Go north-east to Lumina Field, then take the west path to Numbria." (headless Chromium) |
+| TC-399 | M | ✅ | world | both signposts are drawn at their crossroads (pixel sign, "Signpost" label, off the road), and walking into each opens its own conversation (bench `__bench.state().talks`, headless Chromium) |
+| TC-400 | M | ⬜ | world | in the real app: talk to a signpost and to Elder Lumen, open the menu map, then restore Numbria's crystal and check the 🚩 and the lines move on to the Whispering Woods |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

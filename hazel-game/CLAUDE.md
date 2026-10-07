@@ -220,6 +220,41 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-07 — Wayfinding: the 🚩, signposts, "where to next?" (#75 item 6)
+Roadmap item 6, so a kid can always answer "where am I?" and "where do I
+go?". All of it comes from one pure module, `lib/wayfinding.ts`, worked out
+from the story flags and the maps, so it stays right when a map is repainted.
+- **The next goal** (`nextObjective`): Numbria's crystal first (no gate);
+  then a crystal whose warden key you hold; else the key for the first
+  crystal still locked (the warden's zone); at four crystals the Crystal
+  Spire; after it, "Explore Lumina". A test walks it from a fresh save to the
+  end: 9 goals, each one the hero can do right then, no repeats.
+- **Directions** (`routeSteps` / `goalDirections`): the fewest-zones route
+  (`routeTo`), told as "Go north to Lumina Field, then take the west path to
+  Numbria." On the overworld the bearing (8-way `compass`) is measured from
+  where you stand, or from where the last exit set you down; between zones it
+  names the edge the path leaves by (`exitSide`). Zones that read "the …"
+  mid-sentence set `ZoneDef.the` (Woods, Depths, Shrine).
+- **World map** (menu): a 🚩 on the place to head for (the place a zone is
+  reached through, e.g. Lumina Field for Numbria), "🚩 Next: <goal>" and the
+  route under the ⭐ caption, 🚩 beside the place in the list; the ⭐ steps
+  aside when both are on one place. After the Spire: a 🎉 line, no flag.
+- **Guides** (`WorldNpcDef.guide`): Elder Lumen, Grandmother Wick and Scout
+  Tamsin end their talk with "Where to next? <why> <route from where they
+  stand>".
+- **Signposts** (`WorldNpcDef.signpost`): two on Dawnreach, beside the
+  crossroads on the long east–west road, off the road. They read out every
+  place by direction (arrow per line, clockwise from north, nearest first),
+  then "🚩 Next: …" with the way from the sign. Pixel-art sign sprite
+  (`tiles.signpost`, a one-frame still prop in the sprite manifest:
+  `python3 tools/assets/build.py signpost`). `DialogueOverlay` appends
+  `wayfindingLines` and keeps line breaks (`whitespace-pre-line`).
+- **Bench:** `__bench.state().talks` lists who the hero talked to.
+- 430 tests green (+28); lint + build clean. Checked in headless Chromium:
+  map, flag and route at five story stages (desktop + phone menu), the guide
+  and signpost conversations, both signposts drawn at their crossroads and
+  talked to by walking into them.
+
 ### 2026-10-07 — Maps painted in Tiled: Dawnreach's terrain (#75 item 5)
 Big maps are now edited in **Tiled** (the free map editor) instead of typed
 as ASCII — roadmap item 5, decision 7 taken (Tiled for the world map, ASCII
@@ -345,7 +380,8 @@ The world gets its first real overworld: walk out of Lumina Village onto a
   A first-visit cutscene (`DAWNREACH_PANELS`) plays after the Grove's.
 - **World map** (menu): `WorldMapPanel` draws Dawnreach small with fog, places
   and a pulsing ⭐ "you are here" (`lib/worldMap.ts`: `whereOnMap` follows
-  exits back to the nearest place for zones not on the map yet).
+  exits back to the nearest place for zones not on the map yet), plus a 🚩 on
+  the next goal and the way there (`lib/wayfinding.ts`, item 6).
 - **Music by kind** (`ZONE_KIND_TRACK`, `lib/audio.ts`): new `town`, `cave`
   and `shrine` loops; the overworld and fields keep the overworld theme.
 - **Art:** `/tiles/overworld.png` (mountain, sand, 2-frame fog, place icons),
