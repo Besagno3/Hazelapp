@@ -1,7 +1,7 @@
 # Lint, test and build the game on every PR and every push to main.
 # The job's check is named `test` — require it in the main-branch ruleset
 # (Settings → Rules → Rulesets → Require status checks, source: GitHub Actions).
-# `edge-function` and `migrations` (#84) check the Supabase side.
+# `edge-function` and `migrations` (#88) check the Supabase side.
 #
 # No `paths:` filter on purpose: a required check that skips some PRs would
 # leave them stuck on "waiting for status".

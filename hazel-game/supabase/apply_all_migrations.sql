@@ -313,7 +313,7 @@ on conflict (version) do nothing;
 -- ============================================================================
 -- 0009_question_quota.sql
 -- ============================================================================
--- Hazel Quest — per-player request log + quota for generate-questions (#84)
+-- Hazel Quest — per-player request log + quota for generate-questions (#88)
 -- Run in the Supabase SQL Editor (or `supabase db push`) after 0008.
 --
 -- The edge function calls the Claude API on the project's key, so an
@@ -410,7 +410,7 @@ on conflict (version) do nothing;
 -- ============================================================================
 -- 0010_access_hardening.sql
 -- ============================================================================
--- Hazel Quest — access hardening from the migrations review (#86)
+-- Hazel Quest — access hardening from the migrations review (#90)
 -- Run in the Supabase SQL Editor (or `supabase db push`) after 0009.
 -- Re-runnable, like every migration (see CLAUDE.md → migrations rules).
 --

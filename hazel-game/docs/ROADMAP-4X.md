@@ -229,7 +229,7 @@ the game gets deeper, not just wider.
 
 ## 5. Ops & risks
 
-- **CI (since 2026-10-06, #81; Supabase jobs #84):** `.github/workflows/ci.yml`
+- **CI (since 2026-10-06, #81; Supabase jobs #88):** `.github/workflows/ci.yml`
   runs lint + tests + build on every PR and push to `main` (check name
   `test`), plus a Deno type-check of the edge function and a migrations job
   (apply all, bundle twice, SQL tests); still run the same locally before

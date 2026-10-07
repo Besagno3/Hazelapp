@@ -886,6 +886,24 @@ def ow_icon(kind):
     return _outlined(c)
 
 
+def signpost():
+    """A crossroads signpost (#75 item 6): a post with two arrow boards, one
+    pointing each way. Stands in the world like an NPC — talk to it."""
+    c = _c()
+    c.shadow(8, 15.2, 4, 1)
+    c.rect(7, 2, 9, 15.5, '#8a5a32', shade=False)
+    c.rect(7, 2, 7.6, 15.5, '#a8743e', shade=False)
+    # Top board points right, bottom board points left.
+    c.poly([(2, 3), (12, 3), (15, 5.5), (12, 8), (2, 8)], '#dcaa64', shade=False)
+    c.poly([(14, 9), (4, 9), (1, 11.5), (4, 14), (14, 14)], '#c8904a', shade=False)
+    c.rect(2, 3, 12, 4, '#ecc488', shade=False)
+    c.rect(4, 9, 14, 10, '#dcaa64', shade=False)
+    for (x, y) in ((4, 5), (6, 5), (8, 5), (10, 5), (5, 6), (7, 6), (9, 6),
+                   (6, 11), (8, 11), (10, 11), (12, 11), (7, 12), (9, 12), (11, 12)):
+        c.dot(x, y, '#6a4020')
+    return _outlined(c)
+
+
 OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove')
 
 

@@ -457,51 +457,76 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-384 | M | ✅ | sprites | first entry fetches only what's near: Dawnreach 9 blend sheets (itself + its 8 places), the Village 2 (itself + Dawnreach); walking out onto Dawnreach fetches the rest of its neighbours (headless Chromium, request log) |
 | TC-385 | U | ✅ | tiles | `blendPairFrame` throws for a pair that isn't low → high (tiles.test) |
 
-## Battle tech-debt pass (#83)
+## Maps painted in Tiled (#75 item 5)
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-386 | U | ✅ | battleTurn | a correct answer fills one ◆, capped at `CHARGE_MAX`; a wrong one leaves charge alone (battleTurn.test) |
-| TC-387 | U | ✅ | battleTurn | hero hit: deals damage, floors enemy HP at 0 and reports defeat; a shield absorbs the first landed hit then is gone; a shield-absorbed spell refunds its charge (battleTurn.test) |
-| TC-388 | U | ✅ | battleTurn | boss enrage phases 1 and 2 are each announced exactly once; regular enemies never announce (battleTurn.test) |
-| TC-389 | U | ✅ | battleTurn | enemy turn: a standing guard blocks fully and is spent; a correct defend softens; HP floors at 0 → hero down; a hurt healer mends, a healthy one doesn't; boss damage uses the current phase (battleTurn.test) |
-| TC-390 | U | ✅ | battleTurn | spells: a miss fizzles and keeps charge; Mend heals (capped); Aegis raises the guard; offensive spells spend their cost (battleTurn.test) |
-| TC-391 | U | ✅ | battleTurn | items: blocked reasons (none left / HP full / charge full / already warded); potion, elixir, spark and ward effects (battleTurn.test) |
-| TC-392 | U | ✅ | battleStore | `start()` resets combat and derives the shield from the enemy archetype, so shield state never leaks between fights (battleTurn.test) |
-| TC-393 | C | ✅ | BattleArena | smoke: Attack → correct answer → Go! shows "strikes true", lowers enemy HP and fills one ◆ (BattleArena.test) |
-| TC-394 | M | ⬜ | BattleArena | play a full fight on a phone: lunges, damage numbers, SFX, enrage banner and victory panel look the same as before the refactor |
+| TC-386 | U | ✅ | tiled | the legend tileset has exactly one tile per map character (LEGEND_CHARS); a tile with no one-letter `char`, or a character on two tiles, is rejected (tiled.test) |
+| TC-387 | U | ✅ | tiled | `tiledRows` turns a Tiled map back into the same rows; Dawnreach loads from its `.tmj` as 64×48 and is what every zone test checks (tiled.test, zones.test) |
+| TC-388 | U | ✅ | tiled | a map the game can't read fails with where and why: an empty cell, a flipped tile, a tile not in the legend, a compressed layer, no `terrain` layer, a second tileset, an infinite map, a short layer, isometric (tiled.test) |
+| TC-389 | M | ✅ | tools | Dawnreach's 48 rows → `.tmj` → rows round-trip identical; `pytiled_parser` (an independent Tiled reader) reads the map and tileset with the right size, layer, tileset and `char` properties |
+| TC-390 | M | ✅ | tools | `tiled.py legend` regenerates byte-identical files, and refuses a reorder that would change an existing tile's character |
+| TC-391 | M | ✅ | world | every zone screen is unchanged after the move to Tiled, and the dev server loads the `.tmj` in the browser (bench `shots` + `diff`, headless Chromium: the only differing pixels — ≤28 per coast screen, Starfall Coast included — are animated water/foam in shoreline corner tiles) |
+| TC-393 | M | ✅ | bench | the bench masks shoreline corner tiles (they animate water half a tile off the water cells) and drifting fog banks, so two shot sets of the same code `diff` as IDENTICAL (exit 0) instead of "DIFFERENT" on coasts and near fog — verified on all 46 screens |
+| TC-392 | M | ⬜ | tools | open `dawnreach.tmj` in the Tiled app: the legend shows the game's art, painting a tile and saving keeps the format the game reads (`npm test` passes) |
 
-## Critical fixes (#84)
-
-| ID    | Type | Status | Feature | Case |
-|-------|------|--------|---------|------|
-| TC-395 | U | ✅ | quota SQL | 3 calls/min pass and the 4th is refused; a player over the daily fresh budget gets 0; the global budget caps a fresh player; budgets reset after a day (supabase/ci/quota.test.sql) |
-| TC-396 | U | ✅ | quota SQL | anon and authenticated cannot EXECUTE `begin_question_request`; service_role can (quota.test.sql) |
-| TC-397 | U | ✅ | migrations | every migration 0001→0009 applies in order to a fresh Postgres + the Supabase stub (CI migrations job) |
-| TC-398 | U | ✅ | edge function | `deno check` passes for generate-questions (CI edge-function job) |
-| TC-399 | M | ⬜ | edge function | after deploy: a request with no Authorization (or only the anon key) → 401 "Please sign in to play." |
-| TC-400 | M | ⬜ | edge function | after deploy: 21 rapid calls from one player → the 21st returns 429 and the game shows the retry screen with the "short rest" message |
-| TC-401 | M | ⬜ | edge function | with `FRESH_PER_PLAYER_PER_DAY=0`: a battle still loads (served from the cache) and `question_requests.fresh_count` stays 0 |
-| TC-402 | U | ✅ | auth | `isRecoveryUrl` spots `type=recovery` in the hash or query and ignores other links (PasswordReset.test) |
-| TC-403 | C | ✅ | AuthPage | Forgot password hides the password field, calls `resetPasswordForEmail` with this page as the redirect, and shows a neutral notice; errors are shown (PasswordReset.test) |
-| TC-404 | C | ✅ | ResetPasswordPage | too-short / mismatched passwords are rejected without a server call; success saves and leaves recovery mode; a server error keeps recovery mode (PasswordReset.test) |
-| TC-406 | U | ✅ | migrations | `apply_all_migrations.sql` is regenerated from `supabase/migrations/` and matches (CI `--check`) |
-| TC-407 | U | ✅ | migrations | the bundle applies to a fresh DB, applies again without error, and records one row per migration (CI apply-twice job) |
-| TC-408 | M | ✅ | migrations | on a drifted DB (old 0001 without the UPDATE policy, CLI history table with extra columns, existing player + question): the bundle restores the policy, adds columns, keeps data, records all 9 (local Postgres 16) |
-| TC-409 | U | ✅ | migrations | a user created without (or with invalid) birth-date metadata does not fail sign-up and gets no trigger-made profile; valid metadata still seeds one (supabase/ci/access.test.sql) |
-| TC-410 | U | ✅ | migrations | authenticated has select/insert/update on `profiles`; anon can't update it; only service_role can execute `increment_question_usage` (access.test.sql) |
-| TC-411 | U | ✅ | db:bundle | the generator rejects a migration with BEGIN/COMMIT, CREATE TABLE/INDEX or ADD COLUMN without IF NOT EXISTS, CREATE FUNCTION without OR REPLACE, or CREATE POLICY/TRIGGER without a prior DROP IF EXISTS (verified by hand with throwaway files) |
-| TC-405 | M | ⬜ | auth | end to end: request a reset email, open the link → "Choose a new password" → save → the game loads; sign out and sign in with the new password |
-
-## Merge with main: village-expansion items in the refactored battle (#83, #80)
+## Wayfinding: the 🚩, signposts, "where to next?" (#75 item 6)
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-412 | U | ✅ | battleTurn | Mirror Charm: blocks the hit, bounces the full hit back, is spent, and keeps a standing guard (battleTurn.test) |
-| TC-413 | U | ✅ | battleTurn | a bounce onto a shielded foe shatters the shield instead of hurting it; a bounce can win the battle and a beaten healer doesn't mend; a bounce announces a boss enrage phase (battleTurn.test) |
-| TC-414 | U | ✅ | battleTurn | Focus Tea multiplies one landed hit by `TEA_DAMAGE_MULT`, then is spent; it waits while the enemy's shield is up (battleTurn.test) |
-| TC-415 | U | ✅ | battleTurn | Sunseed Snack heals `SNACK_HEAL` + 1 ◆; Turbo Coil fills ◆; Mirror/Tea/Clover set their flags; each new item has its "would do nothing" reason (battleTurn.test) |
-| TC-416 | U | ✅ | battleStore | `start()` also resets the Mirror/Focus/Clover buffs, so they never carry into the next fight (battleTurn.test) |
+| TC-394 | U | ✅ | wayfinding | the next goal follows the story: Numbria's crystal first; then a crystal whose key you hold (before a key you'd still have to win); else the warden of the first locked crystal; the Spire at four crystals; "Explore Lumina" after it. Walked from a fresh save it takes 9 goals, each doable right then, no repeats, and every goal is reachable from every zone (wayfinding.test) |
+| TC-395 | U | ✅ | wayfinding | directions: 8-way compass (none within a tile); fewest-zones route; from the Field "Take the west path to Numbria."; from the Village "Go north to Lumina Field, then take the west path to Numbria."; on the overworld measured from the hero's tile ("step into" when beside it); "It's right here in Numbria!" when there; a sentence for every story goal from every zone (wayfinding.test) |
+| TC-396 | U | ✅ | wayfinding | a signpost names every place once, by direction, clockwise from north, nearest first, and leaves out a place right beside it; each signpost stands beside a crossroads, off the road; Elder Lumen, Grandmother Wick and Scout Tamsin end on "Where to next?" with the route from where they stand; after the Spire they just cheer you on (wayfinding.test) |
+| TC-397 | M | ✅ | menu | world map at five story stages: 🚩 on the goal's place (Lumina Field for Numbria, the Woods for the Verdant Key, the Spire), "🚩 Next: …" and the route under the ⭐ caption, 🚩 beside the place in the list, the ⭐ stepping aside when both share a place; a 🎉 line and no flag after the Spire; fits at 390 px; no page errors (headless Chromium) |
+| TC-398 | M | ✅ | dialogue | Elder Lumen's last line is "Where to next? The Null Fiend hoards the Crystal of Numbers. Take the west path to Numbria."; after the first crystal Grandmother Wick sends you west to the Whispering Woods; the west signpost reads six arrow lines, then "🚩 Next: … Go north-east to Lumina Field, then take the west path to Numbria." (headless Chromium) |
+| TC-399 | M | ✅ | world | both signposts are drawn at their crossroads (pixel sign, "Signpost" label, off the road), and walking into each opens its own conversation (bench `__bench.state().talks`, headless Chromium) |
+| TC-400 | M | ⬜ | world | in the real app: talk to a signpost and to Elder Lumen, open the menu map, then restore Numbria's crystal and check the 🚩 and the lines move on to the Whispering Woods |
+
+## Battle tech-debt pass (#87)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-416 | U | ✅ | battleTurn | a correct answer fills one ◆, capped at `CHARGE_MAX`; a wrong one leaves charge alone (battleTurn.test) |
+| TC-417 | U | ✅ | battleTurn | hero hit: deals damage, floors enemy HP at 0 and reports defeat; a shield absorbs the first landed hit then is gone; a shield-absorbed spell refunds its charge (battleTurn.test) |
+| TC-418 | U | ✅ | battleTurn | boss enrage phases 1 and 2 are each announced exactly once; regular enemies never announce (battleTurn.test) |
+| TC-419 | U | ✅ | battleTurn | enemy turn: a standing guard blocks fully and is spent; a correct defend softens; HP floors at 0 → hero down; a hurt healer mends, a healthy one doesn't; boss damage uses the current phase (battleTurn.test) |
+| TC-420 | U | ✅ | battleTurn | spells: a miss fizzles and keeps charge; Mend heals (capped); Aegis raises the guard; offensive spells spend their cost (battleTurn.test) |
+| TC-421 | U | ✅ | battleTurn | items: blocked reasons (none left / HP full / charge full / already warded); potion, elixir, spark and ward effects (battleTurn.test) |
+| TC-422 | U | ✅ | battleStore | `start()` resets combat and derives the shield from the enemy archetype, so shield state never leaks between fights (battleTurn.test) |
+| TC-423 | C | ✅ | BattleArena | smoke: Attack → correct answer → Go! shows "strikes true", lowers enemy HP and fills one ◆ (BattleArena.test) |
+| TC-424 | M | ⬜ | BattleArena | play a full fight on a phone: lunges, damage numbers, SFX, enrage banner and victory panel look the same as before the refactor |
+
+## Critical fixes (#88)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-425 | U | ✅ | quota SQL | 3 calls/min pass and the 4th is refused; a player over the daily fresh budget gets 0; the global budget caps a fresh player; budgets reset after a day (supabase/ci/quota.test.sql) |
+| TC-426 | U | ✅ | quota SQL | anon and authenticated cannot EXECUTE `begin_question_request`; service_role can (quota.test.sql) |
+| TC-427 | U | ✅ | migrations | every migration 0001→0009 applies in order to a fresh Postgres + the Supabase stub (CI migrations job) |
+| TC-428 | U | ✅ | edge function | `deno check` passes for generate-questions (CI edge-function job) |
+| TC-429 | M | ⬜ | edge function | after deploy: a request with no Authorization (or only the anon key) → 401 "Please sign in to play." |
+| TC-430 | M | ⬜ | edge function | after deploy: 21 rapid calls from one player → the 21st returns 429 and the game shows the retry screen with the "short rest" message |
+| TC-431 | M | ⬜ | edge function | with `FRESH_PER_PLAYER_PER_DAY=0`: a battle still loads (served from the cache) and `question_requests.fresh_count` stays 0 |
+| TC-432 | U | ✅ | auth | `isRecoveryUrl` spots `type=recovery` in the hash or query and ignores other links (PasswordReset.test) |
+| TC-433 | C | ✅ | AuthPage | Forgot password hides the password field, calls `resetPasswordForEmail` with this page as the redirect, and shows a neutral notice; errors are shown (PasswordReset.test) |
+| TC-434 | C | ✅ | ResetPasswordPage | too-short / mismatched passwords are rejected without a server call; success saves and leaves recovery mode; a server error keeps recovery mode (PasswordReset.test) |
+| TC-436 | U | ✅ | migrations | `apply_all_migrations.sql` is regenerated from `supabase/migrations/` and matches (CI `--check`) |
+| TC-437 | U | ✅ | migrations | the bundle applies to a fresh DB, applies again without error, and records one row per migration (CI apply-twice job) |
+| TC-438 | M | ✅ | migrations | on a drifted DB (old 0001 without the UPDATE policy, CLI history table with extra columns, existing player + question): the bundle restores the policy, adds columns, keeps data, records all 9 (local Postgres 16) |
+| TC-439 | U | ✅ | migrations | a user created without (or with invalid) birth-date metadata does not fail sign-up and gets no trigger-made profile; valid metadata still seeds one (supabase/ci/access.test.sql) |
+| TC-440 | U | ✅ | migrations | authenticated has select/insert/update on `profiles`; anon can't update it; only service_role can execute `increment_question_usage` (access.test.sql) |
+| TC-441 | U | ✅ | db:bundle | the generator rejects a migration with BEGIN/COMMIT, CREATE TABLE/INDEX or ADD COLUMN without IF NOT EXISTS, CREATE FUNCTION without OR REPLACE, or CREATE POLICY/TRIGGER without a prior DROP IF EXISTS (verified by hand with throwaway files) |
+| TC-435 | M | ⬜ | auth | end to end: request a reset email, open the link → "Choose a new password" → save → the game loads; sign out and sign in with the new password |
+
+## Merge with main: village-expansion items in the refactored battle (#87, #80)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-442 | U | ✅ | battleTurn | Mirror Charm: blocks the hit, bounces the full hit back, is spent, and keeps a standing guard (battleTurn.test) |
+| TC-443 | U | ✅ | battleTurn | a bounce onto a shielded foe shatters the shield instead of hurting it; a bounce can win the battle and a beaten healer doesn't mend; a bounce announces a boss enrage phase (battleTurn.test) |
+| TC-444 | U | ✅ | battleTurn | Focus Tea multiplies one landed hit by `TEA_DAMAGE_MULT`, then is spent; it waits while the enemy's shield is up (battleTurn.test) |
+| TC-445 | U | ✅ | battleTurn | Sunseed Snack heals `SNACK_HEAL` + 1 ◆; Turbo Coil fills ◆; Mirror/Tea/Clover set their flags; each new item has its "would do nothing" reason (battleTurn.test) |
+| TC-446 | U | ✅ | battleStore | `start()` also resets the Mirror/Focus/Clover buffs, so they never carry into the next fight (battleTurn.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

@@ -1,0 +1,317 @@
+{
+ "columns": 10,
+ "image": "legend.png",
+ "imageheight": 64,
+ "imagewidth": 320,
+ "margin": 0,
+ "name": "map-legend",
+ "spacing": 0,
+ "tilecount": 20,
+ "tiledversion": "1.10.2",
+ "tileheight": 32,
+ "tiles": [
+  {
+   "id": 0,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "."
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "grass / open ground"
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": ","
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "flowers (walkable)"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "#"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "trees / scenery (solid)"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "~"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "water (solid)"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": ":"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "sand / beach"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "^"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "mountain (solid)"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "="
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "road / path"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "E"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "zone exit on a map edge (needs an exits entry)"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "P"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "place entrance (needs an exits entry AND a places entry)"
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "S"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "save crystal"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "C"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "treasure chest"
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "G"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "gate"
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "H"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "hidden passage: looks like trees, the hero walks through"
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "W"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "building wall"
+    }
+   ]
+  },
+  {
+   "id": 14,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "D"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "building door"
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "F"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "building floor"
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "K"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "shop counter"
+    }
+   ]
+  },
+  {
+   "id": 17,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "B"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "bookshelf"
+    }
+   ]
+  },
+  {
+   "id": 18,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "T"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "table"
+    }
+   ]
+  },
+  {
+   "id": 19,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "Z"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "bed"
+    }
+   ]
+  }
+ ],
+ "tilewidth": 32,
+ "type": "tileset",
+ "version": "1.10"
+}

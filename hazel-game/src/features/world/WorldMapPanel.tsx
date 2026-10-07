@@ -1,16 +1,17 @@
 import { useEffect, useRef } from 'react';
-import { ZONES, fogAt } from '../../content/zones';
+import { TILE, ZONES, fogAt } from '../../content/zones';
 import type { ZoneId } from '../../types';
 import { FOG_COLOR, PLACE_EMOJI, mapCaption, mapCellColor, whereOnMap } from '../../lib/worldMap';
+import { goalDirections, nextObjective } from '../../lib/wayfinding';
 
 /** Screen pixels per overworld tile on the map. */
 const PX = 4;
 
 /**
  * The menu's world map (#75 Phase 1, a stub): Dawnreach drawn small, fog where
- * it hasn't lifted yet, each place marked with its own emoji, and a pulsing
- * star where you are — so a kid can always answer "where am I?" and "where's
- * everything else?".
+ * it hasn't lifted yet, each place marked with its own emoji, a pulsing star
+ * where you are, and a 🚩 on the place to head for next with the way there
+ * (#75 item 6) — so a kid can always answer "where am I?" and "where do I go?".
  */
 export default function WorldMapPanel({
   zoneId,
@@ -28,6 +29,13 @@ export default function WorldMapPanel({
   const places = world.places ?? [];
   const here = whereOnMap(ZONES, world, zoneId, pos);
   const fogged = (world.fogs ?? []).some((f) => !f.liftedBy.some((flag) => flags[flag]));
+  const goal = nextObjective(flags);
+  const flagAt = goal.zoneId ? whereOnMap(ZONES, world, goal.zoneId, null) : null;
+  // On the overworld, directions start from the hero's own tile.
+  const heroTile = zoneId === world.id && pos ? { x: Math.floor(pos.x / TILE), y: Math.floor(pos.y / TILE) } : undefined;
+  const how = goalDirections(ZONES, goal, zoneId, heroTile);
+  // Star and flag on the same place: the star steps aside so both show.
+  const shared = !!here && !!flagAt && !here.exact && here.x === flagAt.x && here.y === flagAt.y;
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
@@ -41,6 +49,7 @@ export default function WorldMapPanel({
   }, [world, cols, rows, flags]);
 
   const caption = mapCaption(here, ZONES[zoneId].name, world.name);
+  const nextLabel = goal.zoneId ? `Next: ${goal.title}` : goal.why;
   const at = (x: number, y: number) => ({ left: `${((x + 0.5) / cols) * 100}%`, top: `${((y + 0.5) / rows) * 100}%` });
 
   return (
@@ -52,7 +61,7 @@ export default function WorldMapPanel({
           width={cols * PX}
           height={rows * PX}
           role="img"
-          aria-label={`Map of ${world.name}. ${caption}.`}
+          aria-label={`Map of ${world.name}. ${caption}. ${goal.zoneId ? `${nextLabel}, flagged at ${flagAt?.place ?? ZONES[goal.zoneId].name}.` : nextLabel}`}
           className="block w-full rounded-md"
           style={{ imageRendering: 'pixelated' }}
         />
@@ -71,19 +80,37 @@ export default function WorldMapPanel({
             aria-hidden
             // Out on the map the star is you; inside a place it perches on
             // top of that place's emoji like a pin, so both stay visible.
-            className={`absolute -translate-x-1/2 ${here.exact ? '-translate-y-1/2' : '-translate-y-[110%]'} text-base leading-none animate-pulse drop-shadow pointer-events-none`}
+            className={`absolute ${shared ? '-translate-x-full' : '-translate-x-1/2'} ${here.exact ? '-translate-y-1/2' : '-translate-y-[110%]'} text-base leading-none animate-pulse drop-shadow pointer-events-none`}
             style={at(here.x, here.y)}
           >
             ⭐
           </span>
         )}
+        {flagAt && (
+          <span
+            aria-hidden
+            // Planted on the place's top-right corner, like a pin in a map.
+            className="absolute -translate-x-[15%] -translate-y-[105%] text-[15px] leading-none drop-shadow pointer-events-none"
+            style={at(flagAt.x, flagAt.y)}
+          >
+            🚩
+          </span>
+        )}
       </div>
       <p className="text-[11px] text-white/70 mt-1.5">⭐ {caption}</p>
+      <p className="text-[11px] mt-0.5">
+        <span className="text-amber-300 font-semibold">
+          <span aria-hidden>{goal.zoneId ? '🚩' : '🎉'} </span>
+          {nextLabel}
+        </span>
+        {how && <span className="block text-white/70">{how}</span>}
+      </p>
       <ul className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-white/60">
         {places.map((p) => (
           <li key={p.name} className={p.name === here?.place ? 'text-amber-300 font-semibold' : undefined}>
             <span aria-hidden>{PLACE_EMOJI[p.icon]} </span>
             {p.name}
+            {p.name === flagAt?.place && <span aria-hidden> 🚩</span>}
           </li>
         ))}
       </ul>

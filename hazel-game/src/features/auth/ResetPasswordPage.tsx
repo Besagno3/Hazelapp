@@ -8,7 +8,7 @@ const MIN_PASSWORD_LENGTH = 6;
 
 /**
  * Shown after a password-reset email link signs the user in with a temporary
- * recovery session (#84). They must pick a new password before the game
+ * recovery session (#88). They must pick a new password before the game
  * continues; "Cancel" signs them out instead.
  */
 export default function ResetPasswordPage() {
