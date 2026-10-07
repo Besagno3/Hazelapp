@@ -3039,10 +3039,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "gravity-grub": {
-    "emoji": "🐛",
+  "gravity-beetle": {
+    "emoji": "🪲",
     "world": {
-      "sheet": "/sprites/gravity-grub/world.png",
+      "sheet": "/sprites/gravity-beetle/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -3080,7 +3080,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/gravity-grub/battle.png",
+      "sheet": "/sprites/gravity-beetle/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -3171,10 +3171,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "riveted-rhino": {
+  "ironhorn-rampager": {
     "emoji": "🦏",
     "world": {
-      "sheet": "/sprites/riveted-rhino/world.png",
+      "sheet": "/sprites/ironhorn-rampager/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -3212,7 +3212,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/riveted-rhino/battle.png",
+      "sheet": "/sprites/ironhorn-rampager/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,

@@ -2376,50 +2376,127 @@ def orbit_otter(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.8, 6, 1.1))
 
 
-def gravity_grub(c: Canvas, p: Pose, s: dict):
-    """A heavy armoured grub whose mouth is a tiny black hole, sucking coins in."""
+def gravity_beetle(c: Canvas, p: Pose, s: dict):
+    """A wingless beetle that floats on its own gravity; its mouth is a tiny black hole."""
     d = D(c, p)
-    col = hexc(s.get('color', '#5a3a8a'))
-    plate = hexc(s.get('plate', '#8a6ac8'))
+    col = hexc(s.get('color', '#4a2a7a'))
     lean, bob = d.lean, d.bob
-    L = d.part(lean * 0.4, 0)
-    for i in range(5):  # stubby legs
-        x = 7 + i * 3.4
-        off = (0.6 if (i + p.frame) % 2 else -0.6)
-        L.line(x, 27, x + off, 30, dark(col, 0.3), w=0.8)
-    d.put(L)
-    B = d.part(lean, bob)
-    wav = 0.6 if p.frame % 2 else 0.0
-    segs = [(5, 24.5, 3.2), (9, 23.5 - wav, 4), (13.5, 22.5, 4.8), (18, 22 - wav, 5.2)]
-    for i, (x, y, r) in enumerate(segs):  # armoured segments
-        B.ellipse(x, y, r, r * 0.9, col if i % 2 else dark(col, 0.08))
-        B.ellipse(x - r * 0.15, y - r * 0.45, r * 0.85, r * 0.4, plate)  # back plate
-        if d.sep:
-            B.dot(x - r * 0.15, y - r * 0.75, light(plate, 0.3))
+    hover = (-1.2 if p.frame % 2 else 0.0)  # bobbing in mid-air
+    lift = -4 + hover
+    Rp = d.part(lean * 0.3, 0)  # a ripple of bent gravity under it
+    for k in range(16):
+        a = k / 16 * 2 * math.pi
+        Rp.dot(16 + math.cos(a) * (6.5 + (p.frame % 2)), 29 + math.sin(a) * 1.4, '#a07aff')
+    d.put(Rp, outline=False)
+    Lg = d.part(lean, bob + lift)
+    for i, x in enumerate((10.5, 15, 19.5)):  # six legs dangling, curled
+        sw = 0.6 if (i + p.frame) % 2 else -0.6
+        for dx in (-0.8, 0.8):
+            Lg.line(x + dx, 20, x + dx - 1 + sw, 24, light(col, 0.12), w=0.7)
+            Lg.line(x + dx - 1 + sw, 24, x + dx + 0.4 + sw, 26, light(col, 0.12), w=0.6)
+    d.put(Lg)
+    B = d.part(lean, bob + lift)
+    B.ellipse(15, 15.5, 9, 6.4, col)  # closed, domed shell: no wings
+    B.line(8, 14.6, 22.5, 12.8, light(col, 0.2), w=0.35)  # shell seam
+    B.ellipse(12, 12.4, 3.2, 1.4, light(col, 0.3), shade=False)  # glossy shine
+    if d.sep:
+        for (x, y) in ((9.5, 16.5), (14, 18.5), (18.5, 16.5), (16.5, 11.5), (11.5, 19)):  # starry speckles
+            B.dot(x, y, '#e8d8ff')
+    B.ellipse(14.5, 20.6, 7.5, 1.6, dark(col, 0.08))  # underbelly
     d.put(B)
-    H = d.part(lean, bob)
-    hx, hy = 23.5, 20.5
-    H.ellipse(hx, hy, 5.4, 5.2, col)
-    H.ellipse(hx - 0.5, hy - 3.2, 4.2, 1.8, plate)
+    H = d.part(lean, bob + lift)
+    hx, hy = 24.2, 17.2
+    H.ellipse(hx, hy, 3.8, 3.4, dark(col, 0.04))
     gape = {'raise': 1.4, 'strike': 1.8, 'follow': 1.5}.get(p.arm, 1.0)
-    mx, my = hx + 2.2, hy + 1
-    swirl = '#c86aff'
-    H.ellipse(mx, my, 3 * gape, 2.6 * gape, swirl, shade=False)  # glowing accretion ring
-    H.ellipse(mx, my, 2.1 * gape, 1.8 * gape, (8, 4, 16), shade=False)  # the black hole
+    H.poly([(hx + 2, hy - 2.2), (hx + 6 + gape, hy - 1.6 - gape * 0.6), (hx + 3.5, hy - 0.4)], '#2a1a3a')  # mandibles
+    H.poly([(hx + 2, hy + 2.2), (hx + 6 + gape, hy + 1.6 + gape * 0.6), (hx + 3.5, hy + 0.4)], '#2a1a3a')
+    mx, my = hx + 3.4, hy
+    H.ellipse(mx, my, 1.8 * gape, 1.6 * gape, '#c86aff', shade=False)  # glowing ring
+    H.ellipse(mx, my, 1.1 * gape, 1.0 * gape, (8, 4, 16), shade=False)  # the black hole
     if p.facing != 'up':
-        for x in (hx - 1.5, hx + 1.2):
-            H.dot(x, hy - 2.4, (255, 60, 60) if not p.hurt else WHITE)  # beady red eyes
-        if not p.hurt:
-            H.line(hx - 2.6, hy - 3.6, hx + 2.4, hy - 3.2, dark(col, 0.6), w=0.5)
+        H.dot(hx - 0.4, hy - 2, (255, 60, 60) if not p.hurt else WHITE)  # red eyes
+        H.dot(hx + 1.2, hy - 2.2, (255, 60, 60) if not p.hurt else WHITE)
+        H.line(hx - 1.2, hy - 3.2, hx + 2, hy - 2.9, '#14081e', w=0.5)
+        H.line(hx + 0.4, hy - 3.4, hx - 1, hy - 5.6, '#2a1a3a', w=0.45)  # antennae
+        H.line(hx + 1.4, hy - 3.4, hx + 2.6, hy - 5.8, '#2a1a3a', w=0.45)
     d.put(H)
-    C = d.part(lean, bob)  # coins spiralling into the mouth
+    C = d.part(lean, bob + lift)  # coins spiralling into the mouth
     for k in range(3):
         t = ((p.frame + k * 2) % 6) / 6
         a = t * 4 + k
-        r = (1 - t) * 7 + 2
-        C.ellipse(mx + math.cos(a) * r, my + math.sin(a) * r * 0.6, 0.9, 0.9, '#ffcf3a', shade=False)
+        r = (1 - t) * 6 + 1.6
+        C.ellipse(mx + math.cos(a) * r, my + math.sin(a) * r * 0.7, 0.9, 0.9, '#ffcf3a', shade=False)
     d.put(C, outline=False)
-    finish(c, d, shadow=(15, 30.8, 11, 1.2))
+    finish(c, d, shadow=(16, 30.6, 6 + hover, 1.1))
+
+
+def ironhorn(c: Canvas, p: Pose, s: dict):
+    """A huge armoured rhino charging head-down behind a massive drill horn."""
+    d = D(c, p)
+    hide = hexc(s.get('color', '#6a6878'))
+    steel = hexc(s.get('steel', '#b8c2d0'))
+    lean, bob = d.lean, d.bob
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((7.5, 11.5, 17.5, 21.5)):  # thick pillar legs
+        off = p.step * (1.4 if i % 2 else -1.4)
+        legs.rect(lx - 2.3 + off, 20, lx + 2.3 + off, 28.6, hide if i % 2 else dark(hide, 0.18))
+        legs.rect(lx - 2.6 + off, 27.6, lx + 2.6 + off, 30.8, steel)  # big steel hoof caps
+        for k in (-1.5, 0, 1.5):  # claws
+            legs.poly([(lx + k - 0.5 + off, 30.6), (lx + k + 0.5 + off, 30.6), (lx + k + 0.9 + off, 31.6)], '#e8eef8')
+    d.put(legs)
+    B = d.part(lean, bob)
+    B.ellipse(14.5, 17, 11, 7, hide)
+    B.ellipse(15.5, 21.6, 8, 2.2, light(hide, 0.08))
+    for (x0, x1) in ((5, 11.5), (12, 18.5)):  # bolted armour plates
+        B.rect(x0, 10.8, x1, 17.5, steel)
+        if d.sep:
+            for (x, y) in ((x0 + 0.8, 11.6), (x1 - 1.2, 11.6), (x0 + 0.8, 16.6), (x1 - 1.2, 16.6)):
+                B.dot(x, y, '#5a5a68')
+    for x in (6.5, 10, 13.5, 17):  # spikes along its back
+        B.poly([(x - 1.2, 11), (x + 0.4, 6.5), (x + 1.2, 11)], '#d8dee8')
+    B.line(4, 14, 2, 11 + (p.frame % 2), dark(hide, 0.3), w=0.7)  # tail
+    if d.sep:
+        B.line(20, 14, 22, 18, '#d89aa0', w=0.4)  # battle scar
+    d.put(B)
+    H = d.part(lean, bob)
+    hx, hy = 24, 19.5  # head lowered to charge
+    H.ellipse(hx, hy, 5.4, 4.6, hide)
+    H.poly([(hx - 3, hy - 3.4), (hx - 4.4, hy - 7.6), (hx - 1.4, hy - 4)], dark(hide, 0.1))  # ear
+    H.rect(hx + 0.6, hy - 2.8, hx + 6.2, hy + 2.6, steel)  # steel nose plate
+    if d.sep:
+        H.dot(hx + 1.4, hy - 2, '#5a5a68')
+        H.dot(hx + 1.4, hy + 1.8, '#5a5a68')
+    # a second, smaller horn
+    H.poly([(hx - 0.6, hy - 3.6), (hx + 0.8, hy - 7.8), (hx + 1.8, hy - 3.6)], '#c89a40')
+    # the massive drill horn
+    spin = p.frame % 2
+    reach = {'strike': 1.2, 'follow': 0.6, 'raise': -0.6}.get(p.arm, 0.0)
+    bx, by = hx + 3.6, hy - 2.6
+    tipx, tipy = hx + 7.6 + reach, hy - 14.5 - reach
+    H.poly([(bx - 3, by + 0.8), (tipx, tipy), (bx + 3, by + 0.4)], '#d8a840')
+    for k in range(5):  # spiral flutes, shifting as it spins
+        t = 0.1 + k * 0.17 + spin * 0.08
+        x, y = bx + (tipx - bx) * t, by + (tipy - by) * t
+        wdt = 2.8 * (1 - t)
+        H.line(x - wdt, y + 0.6, x + wdt, y - 0.8, '#8a6a20', w=0.6)
+    if p.facing != 'up':
+        H.ellipse(hx - 1, hy - 1.4, 1.2, 1, (255, 40, 30) if not p.hurt else WHITE, shade=False)  # burning eye
+        if not p.hurt:
+            H.line(hx - 3, hy - 3.4, hx + 0.6, hy - 2.2, '#140c14', w=0.8)  # furious brow
+        H.line(hx + 0.8, hy + 3, hx + 5.6, hy + 2.6, '#2a1a1a', w=0.6)  # snarl
+        if d.sep:
+            for tx in (hx + 2.2, hx + 4):
+                H.poly([(tx - 0.5, hy + 2.9), (tx + 0.5, hy + 2.9), (tx, hy + 4.1)], WHITE, shade=False)
+    d.put(H)
+    Sm = d.part(lean, bob)  # angry steam snorting from its nostrils
+    puff = p.frame % 2
+    Sm.ellipse(hx + 7.4 + puff, hy + 3.6, 1.4 + puff * 0.4, 1, '#e8ecf4', shade=False)
+    Sm.ellipse(hx + 6.4, hy + 5 + puff * 0.4, 1, 0.8, '#d0d8e4', shade=False)
+    if p.arm in ('strike', 'follow') or p.step:  # dust kicked up as it charges
+        for (x, y, r) in ((3, 29, 1.6), (1, 27.2, 1.1)):
+            Sm.ellipse(x, y, r, r, '#c8b8a0', shade=False)
+    d.put(Sm, outline=False)
+    finish(c, d, shadow=(15.5, 30.9, 12, 1.2))
 
 
 def eclipse_fox(c: Canvas, p: Pose, s: dict):
@@ -2473,62 +2550,6 @@ def eclipse_fox(c: Canvas, p: Pose, s: dict):
     Sd.dot(sx - 2.6, sy - 1.4, WHITE)
     d.put(Sd)
     finish(c, d, shadow=(15.5, 30.9, 10, 1.2))
-
-
-def riveted_rhino(c: Canvas, p: Pose, s: dict):
-    """An armour-plated rhino with a bolted-on steel nose plate and a spinning drill horn."""
-    d = D(c, p)
-    hide = hexc(s.get('color', '#7a7888'))
-    steel = hexc(s.get('steel', '#b8c2d0'))
-    lean, bob = d.lean, d.bob
-    legs = d.part(lean * 0.4, 0)
-    for i, lx in enumerate((8.5, 12, 18, 21.5)):
-        off = p.step * (1.2 if i % 2 else -1.2)
-        legs.rect(lx - 1.8 + off, 21, lx + 1.8 + off, 29.4, hide if i % 2 else dark(hide, 0.15))
-        legs.rect(lx - 2 + off, 28.6, lx + 2 + off, 30.6, steel)  # steel hoof caps
-    d.put(legs)
-    B = d.part(lean, bob)
-    B.ellipse(15, 18.5, 10, 6.2, hide)
-    B.ellipse(16, 22, 7, 2.2, light(hide, 0.1))
-    for (x0, x1) in ((7, 13), (13.5, 19.5)):  # bolted armour plates
-        B.rect(x0, 12.8, x1, 19, steel)
-        if d.sep:
-            for (x, y) in ((x0 + 0.8, 13.6), (x1 - 1.2, 13.6), (x0 + 0.8, 18), (x1 - 1.2, 18)):
-                B.dot(x, y, '#5a5a68')
-    B.line(5.5, 16, 3.5, 13.5 + (p.frame % 2), dark(hide, 0.3), w=0.6)  # tail
-    d.put(B)
-    H = d.part(lean, bob)
-    hx, hy = 24, 18.5
-    H.ellipse(hx, hy, 5, 4.4, hide)
-    H.poly([(hx - 2.5, hy - 3.5), (hx - 3.4, hy - 7), (hx - 1, hy - 4)], dark(hide, 0.1))  # ear
-    H.rect(hx + 0.5, hy - 2.6, hx + 5.6, hy + 2.6, steel)  # steel nose plate
-    if d.sep:
-        H.dot(hx + 1.4, hy - 1.8, '#5a5a68')
-        H.dot(hx + 1.4, hy + 1.6, '#5a5a68')
-    # the drill horn, spinning
-    spin = p.frame % 2
-    reach = {'strike': 2.5, 'follow': 1.2}.get(p.arm, 0.0)
-    bx, by = hx + 3.2, hy - 2.6
-    tipx, tipy = hx + 6.6 + reach * 0.5, hy - 10
-    H.poly([(bx - 2, by + 0.6), (tipx, tipy), (bx + 2.2, by + 0.4)], '#d0a040')  # the drill horn
-    for k in range(4):  # spiral flutes, shifting as it spins
-        t = 0.15 + k * 0.2 + spin * 0.1
-        x, y = bx + (tipx - bx) * t, by + (tipy - by) * t
-        wdt = 2 * (1 - t)
-        H.line(x - wdt, y + 0.5, x + wdt, y - 0.7, '#8a6a20', w=0.5)
-    if p.facing != 'up':
-        d.eyes(H, [(hx - 0.8, hy - 1.4)], color=(255, 50, 50) if not p.hurt else EYE, h=1, shine=False)
-        if not p.hurt:
-            H.line(hx - 2.4, hy - 3, hx + 0.4, hy - 2.2, '#1a1420', w=0.6)  # heavy brow
-        if d.sep:
-            H.dot(hx + 3, hy + 3, '#2a2230', w=1, h=1)  # snort
-    d.put(H)
-    if p.arm in ('strike', 'follow') or p.step:  # dust kicked up as it charges
-        Du = d.part(lean * 0.4, 0)
-        for (x, y, r) in ((4, 29, 1.3), (2, 27.5, 1)):
-            Du.ellipse(x, y, r, r, '#c8b8a0', shade=False)
-        d.put(Du, outline=False)
-    finish(c, d, shadow=(15.5, 30.9, 11, 1.2))
 
 
 def oak_owl(c: Canvas, p: Pose, s: dict):
@@ -2617,9 +2638,9 @@ DRAWERS = {
     'dart_frog': dart_frog,
     'snapjaw': snapjaw,
     'orbit_otter': orbit_otter,
-    'gravity_grub': gravity_grub,
+    'gravity_beetle': gravity_beetle,
     'eclipse_fox': eclipse_fox,
-    'riveted_rhino': riveted_rhino,
+    'ironhorn': ironhorn,
     'oak_owl': oak_owl,
 }
 
@@ -2703,9 +2724,9 @@ ROSTER: list[Char] = [
     Char('snapjaw', '🪴', 'snapjaw', H(color='#5ab03a', mouth='#d0304a')),
     # --- New critters, batch 4 (Starfall Coast, Gearfall, Whispering Woods) ---
     Char('orbit-otter', '🦦', 'orbit_otter', H(fur='#7a5238')),
-    Char('gravity-grub', '🐛', 'gravity_grub', H(color='#5a3a8a', plate='#8a6ac8')),
+    Char('gravity-beetle', '🪲', 'gravity_beetle', H(color='#6a3aa8')),
     Char('eclipse-fox', '🦊', 'eclipse_fox', H(fur='#2e2848', glow='#ffb02a')),
-    Char('riveted-rhino', '🦏', 'riveted_rhino', H(color='#7a7888')),
+    Char('ironhorn-rampager', '🦏', 'ironhorn', H(color='#6a6878')),
     Char('oak-owl', '🦉', 'oak_owl', H(color='#5a4030', glow='#ffd23a')),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
