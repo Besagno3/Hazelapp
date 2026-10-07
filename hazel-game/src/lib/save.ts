@@ -17,10 +17,13 @@ export const SAVE_VERSION = 2 as const;
  * Old saves then upgrade step-by-step on every load path (Supabase and
  * localStorage both come through `normalizeSave`).
  *
- *   5. nothing else: `saveIsTooNew` already makes this client refuse a save
- *      written by a newer one (the store shows "refresh to update" instead of
- *      field-stripping it back to an older shape — the #61 data-loss class).
- *      Added with v2; clients from before it (v1) have no such guard.
+ *   5. nothing else: an older client never strips a newer save back to its
+ *      own shape (the #61 data-loss class). On LOAD, `saveIsTooNew` makes it
+ *      refuse the save; on SAVE, the server refuses any write that lowers a
+ *      save's version (migration 0011's trigger, `SAVE_VERSION_CONFLICT`).
+ *      Either way the store shows "refresh to update". The load check came
+ *      with v2, so v1 clients don't have it — the server trigger still stops
+ *      their saves, and `SAVE_V2_FLAG` covers a v1 copy that slips through.
  * save.test.ts's ladder tripwire catches a bumped version with a missing step.
  */
 export type RawSave = Record<string, unknown>;
@@ -32,6 +35,14 @@ export type MigrationLadder = Record<number, (raw: RawSave) => RawSave>;
  * by this much to stay on the same spot. Frozen: it describes that one change.
  */
 export const DAWNREACH_GREW_BY = { x: 8, y: 6 } as const;
+
+/**
+ * Carried in `flags` by every v2-or-later save. A v1 client copies `flags`
+ * through untouched, so if an old tab ever re-saves a v2 save stamped "v1",
+ * this tells the v1 → v2 step the save is already v2-shaped — its Dawnreach
+ * position must not move a second time (#101c).
+ */
+export const SAVE_V2_FLAG = 'save:v2';
 
 /**
  * The four fog-pocket chests (#75 item 7) after Dawnreach grew and two of them
@@ -53,11 +64,15 @@ export const MIGRATIONS: MigrationLadder = {
    */
   1: (raw) => {
     const out: RawSave = { ...raw };
+    const flags = isRecord(raw.flags) ? raw.flags : {};
+    // Already v2-shaped (an old tab re-saved it as "v1"): don't move it again.
+    const alreadyV2 = flags[SAVE_V2_FLAG] === true;
+    out.flags = { ...flags, [SAVE_V2_FLAG]: true };
     delete out.sageEquipped;
     if (raw.zoneId === 'lumina-field') {
       out.zoneId = 'lumina-village';
       out.pos = null;
-    } else if (raw.zoneId === 'dawnreach' && isPos(raw.pos)) {
+    } else if (raw.zoneId === 'dawnreach' && isPos(raw.pos) && !alreadyV2) {
       out.pos = { x: raw.pos.x + DAWNREACH_GREW_BY.x * TILE, y: raw.pos.y + DAWNREACH_GREW_BY.y * TILE };
     }
     if (Array.isArray(raw.openedChests)) {
@@ -66,6 +81,10 @@ export const MIGRATIONS: MigrationLadder = {
     return out;
   },
 };
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
 
 function isPos(p: unknown): p is { x: number; y: number } {
   return (
@@ -91,6 +110,12 @@ export function saveVersionOf(raw: unknown): number {
 export function saveIsTooNew(raw: unknown): boolean {
   return saveVersionOf(raw) > SAVE_VERSION;
 }
+
+/**
+ * The error the server raises when a save would overwrite one from a newer
+ * version of the game (supabase/migrations/0011_save_version_guard.sql).
+ */
+export const SAVE_VERSION_CONFLICT = 'save_version_conflict';
 
 /**
  * Walks `raw` up the ladder to `targetVersion`. A payload without a numeric
@@ -134,7 +159,7 @@ export function defaultSave(): SaveData {
     items: { potion: 1, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0 },
     badges: [],
     sages: [],
-    flags: {},
+    flags: { [SAVE_V2_FLAG]: true },
     openedChests: [],
     kills: {},
     questItems: [],
@@ -178,7 +203,8 @@ export function normalizeSave(raw: unknown): SaveData {
     items,
     badges: stringArray(r.badges),
     sages: stringArray(r.sages) as CrystalTopic[],
-    flags: typeof r.flags === 'object' && r.flags !== null ? (r.flags as Record<string, boolean>) : {},
+    // Every v2 save carries the marker (see SAVE_V2_FLAG), whatever it came with.
+    flags: { ...(isRecord(r.flags) ? (r.flags as Record<string, boolean>) : {}), [SAVE_V2_FLAG]: true },
     openedChests: stringArray(r.openedChests),
     kills: killCounts(r.kills),
     questItems: stringArray(r.questItems),

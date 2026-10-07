@@ -9,6 +9,7 @@ import {
   saveIsTooNew,
   saveKey,
   LEGACY_KEY,
+  SAVE_VERSION_CONFLICT,
 } from '../lib/save';
 import { ROUNDS_TO_UNLOCK } from '../lib/utils';
 import type { LibraryEntry, SaveData } from '../types';
@@ -24,7 +25,9 @@ import type { LibraryEntry, SaveData } from '../types';
  *
  * A save written by a newer version of the game (an old tab still open after
  * an update) is never loaded or overwritten: status goes to 'outdated' and the
- * app asks for a refresh, so this older code can't strip it (`saveIsTooNew`).
+ * app asks for a refresh, so this older code can't strip it. Loads check
+ * `saveIsTooNew`; saves are refused by the server (migration 0011), which
+ * `flush` turns into the same 'outdated' state.
  */
 
 const FLUSH_DEBOUNCE_MS = 2000;
@@ -138,7 +141,14 @@ export const useSaveStore = create<SaveStore>((set, get) => ({
     const { error } = await supabase
       .from('saves')
       .upsert({ profile_id: userId, data: save, updated_at: new Date().toISOString() });
-    set({ remoteError: error ? errorMessage(error) : null });
+    const remoteError = error ? errorMessage(error) : null;
+    // The server holds a save from a newer version of the game (migration
+    // 0011 refused this one): stop saving and ask for a refresh, as load does.
+    if (remoteError?.includes(SAVE_VERSION_CONFLICT)) {
+      set({ save: null, status: 'outdated', remoteError });
+      return;
+    }
+    set({ remoteError });
   },
 
   recordQuizRound: (passed, misses) => {

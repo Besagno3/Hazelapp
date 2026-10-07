@@ -56,21 +56,33 @@ export function LoadingScreen({
   );
 }
 
-/** Full-screen error state with optional retry / back actions. */
+/**
+ * Full-screen error state with optional retry / back actions. `title`, `emoji`
+ * and `retryLabel` let a screen that isn't really an error (an update to
+ * refresh for) say so in friendlier words.
+ */
 export function ErrorScreen({
   message,
   onRetry,
   onBack,
+  title = 'Something went wrong',
+  emoji = '😕',
+  retryLabel = 'Try again',
 }: {
   message: string;
   onRetry?: () => void;
   onBack?: () => void;
+  title?: string;
+  emoji?: string;
+  retryLabel?: string;
 }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6">
       <div className="bg-white text-gray-700 rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
-        <div className="text-5xl mb-3">😕</div>
-        <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
+        <div className="text-5xl mb-3" aria-hidden="true">
+          {emoji}
+        </div>
+        <h2 className="text-xl font-bold mb-2">{title}</h2>
         <p className="text-sm text-gray-500 mb-6">{message}</p>
         <div className="flex gap-3 justify-center">
           {onRetry && (
@@ -78,7 +90,7 @@ export function ErrorScreen({
               onClick={onRetry}
               className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-5 py-2 transition"
             >
-              Try again
+              {retryLabel}
             </button>
           )}
           {onBack && (

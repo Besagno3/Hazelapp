@@ -35,4 +35,22 @@ describe('ErrorScreen', () => {
     render(<ErrorScreen message="Oops" />);
     expect(screen.queryByRole('button')).toBeNull();
   });
+
+  it('says "Something went wrong" unless given a friendlier title and button (#101i)', () => {
+    const { unmount } = render(<ErrorScreen message="Oops" />);
+    expect(screen.getByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument();
+    unmount();
+    render(
+      <ErrorScreen
+        message="Refresh to keep playing."
+        title="Hazel Quest has been updated!"
+        emoji="✨"
+        retryLabel="🔄 Refresh"
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Hazel Quest has been updated!' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '🔄 Refresh' })).toBeInTheDocument();
+    expect(screen.queryByText('Something went wrong')).toBeNull();
+  });
 });

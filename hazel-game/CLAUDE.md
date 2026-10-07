@@ -113,8 +113,12 @@ zod, react-query. Add the package in the same change that first uses it.
   `flush()` on save crystals / sign-out. Supabase errors degrade to
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
   the `MIGRATIONS` ladder — **`SAVE_VERSION` 2** since #75 item 8). A save
-  from a *newer* version is never loaded or written back (`saveIsTooNew` →
-  status `'outdated'`, and `App` asks for a refresh).
+  from a *newer* version is never loaded or overwritten: loads check
+  `saveIsTooNew`, and the server refuses any write that lowers a save's
+  version (migration 0011's trigger → `save_version_conflict`, which `flush`
+  catches). Either way status goes `'outdated'` and `App` asks for a refresh.
+  Every v2+ save carries the `save:v2` flag (`SAVE_V2_FLAG`) so the v1 → v2
+  step never moves a position twice.
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
   instance ids, losses per enemy for mercy) — deliberately not persisted, so
   a reload is a fresh start for mercy.
@@ -303,6 +307,40 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-07 — Item 8 review fixes: saves never go backwards, a friendlier update screen, Tamsin split (#101)
+The rest of the item 8 `/saas-code-review` + `/saas-ux-review` findings:
+- **An old tab can't overwrite a newer save any more (#101h):** new migration
+  `0011_save_version_guard.sql` — a `before update` trigger on `saves` refuses
+  any write whose `data->>'version'` is lower than the stored one (a missing or
+  non-numeric version counts as 1, as `saveVersionOf` reads it), raising
+  `save_version_conflict`. `saveStore.flush` turns that error into the same
+  `'outdated'` state a too-new load gives (save dropped, nothing more pushed).
+  The ladder comment in `lib/save.ts` no longer claims the load check covers
+  saves. New `supabase/ci/save_version.test.sql` (same/newer saves, an older
+  update and an older upsert refused with the newer data kept, unversioned saves
+  upgrade normally); bundle regenerated (11 migrations).
+- **No double shift from a v1 tab (#101c):** every v2 save carries the
+  `save:v2` flag (`SAVE_V2_FLAG`; `defaultSave` and `normalizeSave` add it).
+  A v1 client keeps `flags` as they are, so if it ever re-saves a v2 save as
+  "v1", `MIGRATIONS[1]` sees the flag and leaves the Dawnreach position alone
+  (still drops `sageEquipped` and moves Lumina Field saves home).
+- **The update screen says what happened (#101i):** `ErrorScreen` takes
+  optional `title` / `emoji` / `retryLabel` (defaults unchanged, emoji now
+  `aria-hidden`); the outdated screen reads "✨ Hazel Quest has been updated!
+  — Your adventure was saved by the new version. Refresh the page to keep
+  playing — nothing is lost." with a **🔄 Refresh** button.
+- **Scout Tamsin (#101j):** her 7-row corner-regions box is now two lines —
+  the Woods and the Coast, then "At the four corners lie the crystal lands:
+  Numbria north-west, …" (135 characters, ~4 rows on a phone).
+- +6 tests (v2 marker on new/loaded saves, the stale-tab round trip, flush on a
+  version conflict vs any other error, the update-screen copy, Tamsin's line);
+  555 green, lint + tsc + build clean. SQL: the stub + all 11 migrations applied
+  twice and the bundle applied twice on Postgres 16; access, quota and
+  save_version tests pass.
+- ⚠️ Deploy: apply `0011_save_version_guard.sql` (or re-run
+  `apply_all_migrations.sql`) **before** shipping this build, so an old tab
+  that is still open can't save over a v2 save.
 
 ### 2026-10-07 — Elder Lumen greets you on the plaza, then mentors from the Library (#75 item 8)
 From the `/saas-ux-review` of item 8: home's welcome (Elder Lumen) and its

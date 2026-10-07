@@ -9,6 +9,7 @@ import {
   DAWNREACH_GREW_BY,
   MIGRATIONS,
   MOVED_CHESTS,
+  SAVE_V2_FLAG,
   SAVE_VERSION,
   type MigrationLadder,
 } from './save';
@@ -124,6 +125,22 @@ describe('runMigrations (Wave 0.2 versioned ladder)', () => {
     expect(tileAt(ZONES.dawnreach, 40, 29)).toBe('=');
     // Elsewhere, positions stay as they were.
     expect(normalizeSave({ ...V1, zoneId: 'numbria', pos: centre(5, 6) }).pos).toEqual(centre(5, 6));
+  });
+
+  it('every v2 save carries the v2 marker flag, new or loaded', () => {
+    expect(defaultSave().flags[SAVE_V2_FLAG]).toBe(true);
+    expect(normalizeSave(V1).flags).toMatchObject({ [SAVE_V2_FLAG]: true, 'crystal-math-restored': true });
+    expect(normalizeSave({ version: 2, flags: 'junk' }).flags).toEqual({ [SAVE_V2_FLAG]: true });
+  });
+
+  it('an old tab re-saving a v2 save as "v1" does not move a Dawnreach position twice (#101c)', () => {
+    const v2 = normalizeSave({ ...V1, zoneId: 'dawnreach', pos: centre(32, 23) });
+    expect(v2.pos).toEqual(centre(40, 29));
+    // What a v1 client writes back: its own version stamp, everything else as it was (flags verbatim).
+    const resavedByV1 = { ...v2, version: 1, sageEquipped: null };
+    const again = normalizeSave(resavedByV1);
+    expect(again.pos).toEqual(centre(40, 29));
+    expect(again.version).toBe(2);
   });
 
   it('v1 → v2: opened fog-pocket chests stay opened where the chests now are', () => {

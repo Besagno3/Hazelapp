@@ -710,6 +710,13 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-573 | U | ✅ | wayfinding | Elder Lumen is the mentor (not a guide; Wick and Tamsin are the guides): on the plaza his tips end with the invite to the Library; in the Library they don't (wayfinding.test) |
 | TC-574 | M | ✅ | world | headless Chromium: a new hero on the plaza with Elder Lumen beside them; walking into him talks; once `met-elder` is set his plaza spot is empty at once (bumping it talks to no one); standing in the Library, he appears there live when the flag is set, beside the Librarian (labels apart), and can be talked to |
 | TC-575 | M | ⬜ | world | in the real app with a new account: the intro, then Elder Lumen's welcome on the plaza ending with the Library invite; walk to the Library and hear the Numbria plan + potion tip; restore Numbria's crystal and hear the warden plan |
+| TC-576 | U | ✅ | save | every v2 save carries the `save:v2` flag — a new save, a v1 save upgraded, a v2 save loaded (save.test) |
+| TC-577 | U | ✅ | save | a stale v1 tab re-saving a migrated v2 save as "v1" (flags kept, version 1): the next load does NOT shift its Dawnreach position a second time; a real v1 save still shifts once (save.test) |
+| TC-578 | U | ✅ | db | migration 0011: saving the same or a newer version works; an older `update` and an older `upsert` (`on conflict … do update`) are refused with `save_version_conflict` and the newer data is kept; a save with no version, a junk one or a number in a string counts as v1 and upgrades normally (supabase/ci/save_version.test.sql, CI on Postgres 16) |
+| TC-579 | U | ✅ | saveStore | `flush` hit by `save_version_conflict`: status 'outdated', save dropped, later changes push nothing; any other server error keeps play going and only sets `remoteError` (saveStore.test) |
+| TC-580 | C | ✅ | status screens | `ErrorScreen` says "Something went wrong" / "Try again" by default; with `title` / `emoji` / `retryLabel` it shows those instead — the outdated screen reads "Hazel Quest has been updated!" with a "🔄 Refresh" button (StatusScreens.test) |
+| TC-581 | U | ✅ | story | Scout Tamsin names all four crystal lands with their corners in one line of ≤ 140 characters, separate from the Woods/Coast line (story.test) |
+| TC-582 | M | ⬜ | save | after 0011 is applied in prod: open the game in two tabs, ship a version bump, play on in the new tab, then make the old tab save — it switches to "Hazel Quest has been updated!" and the new save survives a reload |
 
 ## Regression cases (tied to ISSUES.md)
 

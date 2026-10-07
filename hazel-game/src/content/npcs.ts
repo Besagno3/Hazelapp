@@ -861,7 +861,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     guide: true,
     lines: [
       'Hi! I\'m mapping all of Dawnreach. Want the short version? Here goes!',
-      'West: the Whispering Woods. East: Starfall Coast, where the land runs out. And out at the four corners, the crystal lands: Numbria to the north-west, Gearfall Canyon to the north-east, Verdara to the south-west and Chromaria to the south-east.',
+      'West: the Whispering Woods. East: Starfall Coast, where the land runs out.',
+      'At the four corners lie the crystal lands: Numbria north-west, Gearfall Canyon north-east, Verdara south-west and Chromaria south-east!',
       // The Spire hides in its ring of fog until the first crystal (#75 item 7).
       {
         text: "South, past the hills, the Crystal Spire hides in a ring of fog. I haven't been able to draw it yet! Restore a crystal and the fog should lift.",

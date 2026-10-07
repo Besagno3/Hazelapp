@@ -76,7 +76,10 @@ export default function App() {
   if (saveStatus === 'outdated') {
     return (
       <ErrorScreen
-        message="Hazel Quest has been updated since this page opened, and your adventure was saved by the new version. Refresh the page to keep playing."
+        emoji="✨"
+        title="Hazel Quest has been updated!"
+        message="Your adventure was saved by the new version. Refresh the page to keep playing — nothing is lost."
+        retryLabel="🔄 Refresh"
         onRetry={() => window.location.reload()}
       />
     );
