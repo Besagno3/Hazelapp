@@ -319,6 +319,11 @@ TRACKS = {
     'finalBoss': dict(bpm=172, key='C', scale=MINOR, chords='Cm Ab Bb G Cm Ab Bb G  Fm Ab G G Fm Db G G',
                       style='heavy', seed=61, oct=5),
     'victory': dict(bpm=126, key='C', scale=MAJOR, chords='C F G C Am F G C', style='march', seed=71, oct=5),
+    # Overworld places (#75 Phase 1): a cosy town, an echoing cave, a still shrine.
+    'town': dict(bpm=104, key='F', scale=MAJOR, chords='F C Dm Bb F C Bb C  Dm Bb F C Bb C F F', style='gentle',
+                 seed=83, oct=5),
+    'cave': dict(bpm=72, key='D', scale=MINOR, chords='Dm Bb Gm A Dm Bb C A', style='mystic', seed=89, oct=4),
+    'shrine': dict(bpm=66, key='G', scale=MAJOR, chords='G Em C D G Em Am D', style='mystic', seed=97, oct=5),
 }
 
 RHYTHMS = {  # one-bar melody rhythms, in 8th notes (sum = 8)
@@ -531,6 +536,14 @@ def compose_spooky(spec):
     wet = echo(lowpass(melody[:n], 0.6), delay=beat * 0.75, fb=0.45, wet=0.35, wrap=True)
     pad = echo(lowpass(organ[:n], 0.3), delay=beat * 1.5, fb=0.3, wet=0.2, wrap=True)
     return wet + pad + lowpass(bass[:n], 0.5) + echo(fx[:n], delay=beat, fb=0.35, wet=0.3, wrap=True)
+
+
+def build_music(public: Path, names: list[str]):
+    """Write just these music tracks (e.g. new ones) — leaves every other file alone."""
+    mdir = public / 'audio' / '16bit' / 'music'
+    mdir.mkdir(parents=True, exist_ok=True)
+    for name in names:
+        encode(compose(TRACKS[name]), mdir / f'{name}.mp3', kbps=96, peak=0.8)
 
 
 def build(public: Path):

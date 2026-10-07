@@ -7,7 +7,7 @@
  */
 
 /** Carried consumables. The save stores a count for each id. */
-export const CONSUMABLE_IDS = ['potion', 'hint', 'elixir', 'spark', 'ward'] as const;
+export const CONSUMABLE_IDS = ['potion', 'hint', 'elixir', 'spark', 'ward', 'clover', 'tea', 'snack', 'coil', 'mirror'] as const;
 export type ConsumableId = (typeof CONSUMABLE_IDS)[number];
 
 export interface ShopItem {
@@ -22,6 +22,12 @@ export interface ShopItem {
 export const POTION_HEAL = 50;
 /** Charge (◆) granted by a Spark Cell in battle. */
 export const SPARK_CHARGE = 2;
+/** HP restored by a Sunseed Snack (it also adds 1 ◆ charge). */
+export const SNACK_HEAL = 30;
+/** Coin multiplier for a battle won under a Lucky Clover. */
+export const CLOVER_COIN_MULT = 2;
+/** Damage multiplier for the next Attack after a Focus Tea. */
+export const TEA_DAMAGE_MULT = 2;
 
 /**
  * Staples deliberately sold in exactly TWO shops (everything else: one).
@@ -36,10 +42,15 @@ export const CONSUMABLES: Record<ConsumableId, { name: string; emoji: string; de
   elixir: { name: 'Honey Elixir', emoji: '🍯', description: 'Restores ALL your HP.' },
   spark: { name: 'Spark Cell', emoji: '🔋', description: `Adds ${SPARK_CHARGE} ◆ charge for spells.` },
   ward: { name: 'Rainbow Ward', emoji: '🌈', description: "Blocks the enemy's next hit completely." },
+  clover: { name: 'Lucky Clover', emoji: '🍀', description: `Win this battle for ${CLOVER_COIN_MULT}× the coins.` },
+  tea: { name: 'Focus Tea', emoji: '🍵', description: `Your next Attack deals ${TEA_DAMAGE_MULT}× damage.` },
+  snack: { name: 'Sunseed Snack', emoji: '🌻', description: `Restores ${SNACK_HEAL} HP and adds 1 ◆ charge.` },
+  coil: { name: 'Turbo Coil', emoji: '🌀', description: 'Fills your ◆ charge all the way up.' },
+  mirror: { name: 'Mirror Charm', emoji: '🪞', description: "Bounces the enemy's next hit back at it." },
 };
 
 /** Consumables that can be used from the battle Items menu (not Hint Feathers). */
-export const BATTLE_ITEMS: readonly ConsumableId[] = ['potion', 'elixir', 'spark', 'ward'];
+export const BATTLE_ITEMS: readonly ConsumableId[] = ['potion', 'elixir', 'snack', 'spark', 'coil', 'ward', 'mirror', 'tea', 'clover'];
 
 function stock(id: ConsumableId, price: number): ShopItem {
   return { id, ...CONSUMABLES[id], price };
@@ -102,6 +113,47 @@ export const SHOPS: Record<string, ShopDef> = {
       { id: 'badge:star', name: 'Star Badge', emoji: '⭐', description: 'A shiny badge for your collection.', price: 100 },
       { id: 'badge:lantern', name: 'Lantern Badge', emoji: '🏮', description: 'Glows a little when you smile at it.', price: 120 },
       { id: 'badge:moon', name: 'Moon Badge', emoji: '🌙', description: 'A mysterious badge for your collection.', price: 150 },
+    ],
+  },
+  // --- Village expansion: one new shop per town, each with its own item ---
+  'village-clover-merchant': {
+    name: "Clover's Market",
+    emoji: '🧺',
+    items: [
+      stock('clover', 35),
+      { id: 'badge:clover', name: 'Clover Badge', emoji: '🍀', description: 'Four leaves, zero bad luck.', price: 110 },
+    ],
+  },
+  'numbria-tea-merchant': {
+    name: "Chai's Tea Room",
+    emoji: '🍵',
+    items: [
+      stock('tea', 40),
+      { id: 'badge:teacup', name: 'Teacup Badge', emoji: '☕', description: 'Pinky out, hero.', price: 90 },
+    ],
+  },
+  'verdara-seed-merchant': {
+    name: 'Sunseed Stand',
+    emoji: '🌻',
+    items: [
+      stock('snack', 35),
+      { id: 'badge:sunflower', name: 'Sunflower Badge', emoji: '🌻', description: 'Always faces the sunny side.', price: 90 },
+    ],
+  },
+  'gearfall-coil-merchant': {
+    name: 'Coil & Spring',
+    emoji: '🔩',
+    items: [
+      stock('coil', 60),
+      { id: 'badge:bolt', name: 'Bolt Badge', emoji: '🔩', description: 'Tightly fastened to awesome.', price: 90 },
+    ],
+  },
+  'chromaria-mirror-merchant': {
+    name: 'Mirror Hall',
+    emoji: '🪞',
+    items: [
+      stock('mirror', 55),
+      { id: 'badge:mirror', name: 'Mirror Badge', emoji: '🪞', description: 'Looks exactly like you. Handsome!', price: 90 },
     ],
   },
 };

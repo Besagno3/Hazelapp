@@ -123,3 +123,14 @@ describe('character → sprite resolution', () => {
     }
   });
 });
+
+describe('Umbra, the final boss', () => {
+  it('is drawn larger than every other character', () => {
+    const umbra = SPRITES.umbra;
+    for (const [id, def] of Object.entries(SPRITES)) {
+      if (id === 'umbra') continue;
+      expect(umbra.world!.frameW, id).toBeGreaterThan(def.world?.frameW ?? 0);
+      expect(umbra.battle!.frameW, id).toBeGreaterThan(def.battle?.frameW ?? 0);
+    }
+  });
+});

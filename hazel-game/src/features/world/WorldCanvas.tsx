@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import kaplay from 'kaplay';
 import type { MutableRefObject } from 'react';
 import {
@@ -8,25 +8,30 @@ import {
   WALKABLE_CHARS,
   buildingAt,
   buildingInside,
+  fogAt,
   pathTargetId,
   gateFlag,
   gateIdAt,
   safeSpawn,
   zone,
   type BuildingDef,
+  type FogDef,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
+import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, PathTarget, Topic, ZoneId } from '../../types';
-import { loadWorldSprites, worldFace } from './worldSprites';
+import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
-import { camAxis } from '../../lib/camera';
+import { camAxis, worldView } from '../../lib/camera';
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
-import { SLIDE_MS, exitSide, slideFrom, type ExitSide } from '../../lib/transition';
+import { FADE_MS, SLIDE_MS, exitSide, needsArrivalLock, slideFrom, transitionFor, type ExitSide } from '../../lib/transition';
 import {
+  OVERWORLD_FRAME,
+  OVERWORLD_KEY,
   PROPS_KEY,
   PROP_FRAME,
   ROOF_KEY,
@@ -35,12 +40,24 @@ import {
   SPIRE_PROP_FRAME,
   TILE_FRAME,
   TOWN_FRAME,
-  groundVariant,
+  WATER_FPS,
+  blendKey,
   namedTilesetKey,
   roofFrame,
   tilesetKey,
   townKey,
 } from '../../content/tiles';
+import {
+  BLEND_OPS_PER_CORNER,
+  NO_BLEND,
+  NO_OVERLAY,
+  WATER,
+  blendLayer,
+  blendsEdges,
+  terrainLayers,
+  visibleRange,
+  waterFrame,
+} from '../../lib/terrain';
 import {
   npcWanders,
   pickWanderDir,
@@ -62,15 +79,6 @@ const VIEW_W = VIEW_COLS * TILE;
 const VIEW_H = VIEW_ROWS * TILE;
 /** Roof fade speed (per second) when the hero steps in / out of a building. */
 const ROOF_FADE = 10;
-/** Building-interior chars → town tile frame. */
-const TOWN_TILE: Record<string, number> = {
-  D: TOWN_FRAME.door,
-  F: TOWN_FRAME.floor,
-  K: TOWN_FRAME.counter,
-  B: TOWN_FRAME.shelf,
-  T: TOWN_FRAME.table,
-  Z: TOWN_FRAME.bed,
-};
 /** Seconds after closing an overlay before bumps can trigger again. */
 const TRIGGER_COOLDOWN = 0.8;
 /** Movement keys we own at the window level (see the keyboard effect). */
@@ -108,6 +116,10 @@ export interface WorldCanvasCallbacks {
   onWard?: (id: string) => void;
   onStairs?: () => void;
   onUmbra?: () => void;
+  /** Found a hidden secret (bumped its scenery or stepped on its spot). */
+  onSecret?: (id: string) => void;
+  /** Bumped a bank of the fog of Forgetting (#75) — show why it won't let you pass. */
+  onFog?: (hint: string) => void;
 }
 
 /**
@@ -198,6 +210,43 @@ export default function WorldCanvas({
     }, SLIDE_MS + 30);
     return () => clearTimeout(t);
   }, [slide?.running]);
+
+  // --- Fade into / out of a place (#75 Phase 1) -------------------------------
+  // Walking onto a town / cave / shrine on the overworld (or back out of one)
+  // dips to black: a snapshot of the old screen darkens, the new zone builds
+  // underneath, then the black lifts. The hero is frozen throughout. Each step
+  // waits for the black overlay's own transition to finish (`onFadeStep`), not
+  // a timer — on a slow device a timer could drop the snapshot before the
+  // screen is black and the new zone would pop in.
+  const [fade, setFade] = useState<{ src: string; dark: boolean; shown: boolean } | null>(null);
+  const fadeStarted = !!fade;
+  const endFade = useCallback(() => {
+    slidingRef.current = false;
+    setFade(null);
+  }, []);
+  useEffect(() => {
+    if (!fadeStarted) return;
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setFade((f) => (f ? { ...f, dark: true } : f)));
+    });
+    // Safety net: never leave the hero frozen if a transition event is lost.
+    const safety = setTimeout(endFade, FADE_MS * 6);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(safety);
+    };
+  }, [fadeStarted, endFade]);
+  /** The black overlay finished a transition: black reached → lift it; lifted → done. */
+  const onFadeStep = () => {
+    if (!fade) return;
+    if (fade.dark) setFade({ ...fade, shown: false, dark: false });
+    else endFade();
+  };
+  // After a fade (or a reduced-motion cut) the hero arrives standing still and
+  // waits for the movement keys to be let go — otherwise a held key could walk
+  // you straight back out of an exit right beside where you land.
+  const arrivalLockRef = useRef(false);
+
   const kRef = useRef<ReturnType<typeof kaplay> | null>(null);
   // Re-running the scene effect for every prop change would rebuild the
   // world mid-walk; the latest callbacks/flags are read through refs instead.
@@ -296,13 +345,84 @@ export default function WorldCanvas({
     // Ground fill under everything (also covers any sub-pixel canvas edge).
     k.add([k.rect(W, H), k.pos(0, 0), k.color(...z.ground), k.z(-100)]);
 
-    // --- Tiles -------------------------------------------------------------
-    // Every cell gets an opaque base (ground / path / water), then overlays
-    // (scenery, flowers, exits, props) are layered on top. Frame indices come
-    // from `TILE_FRAME` / `PROP_FRAME` so the generator and renderer agree.
+    // --- Terrain (overworld Phase 0, #75) ------------------------------------
+    // Ground / path / water / building tiles and the scenery / flower / exit
+    // overlays are worked out once per build (`lib/terrain.ts`) and painted by
+    // ONE object that draws only the cells in view each frame. The old
+    // one-KaPlay-object-per-tile approach cost grew with the map (~0.5 fps on
+    // a 160×112 map with a throttled CPU); this stays flat. Water animates
+    // from the clock.
     const tiles = z.tileset ? namedTilesetKey(z.tileset) : tilesetKey(zoneId);
-    const tile = (frame: number, px: number, py: number, z = -50) =>
-      k.add([k.sprite(tiles, { frame }), k.pos(px, py), k.z(z)]);
+    const layers = terrainLayers(z);
+    // Rounded coasts / beaches / road edges (#71b): tiles on the corners where
+    // terrain meets, drawn between the base tiles and the overlays.
+    const blend = blendsEdges(z) ? blendLayer(z) : null;
+    const blendSprite = blendKey(zoneId);
+    if (blend) ensureBlendSheets(k, z);
+    // Until this zone's blend sheet has loaded, draw plain square edges: the
+    // corner tiles would be skipped, and the cells they cover (a one-tile road
+    // is all such cells) would vanish.
+    let blendReady = false;
+    const sheetKeys = layers.sheets.map((s) => (s === 'zone' ? tiles : s === 'overworld' ? OVERWORLD_KEY : townKey(s)));
+    const builtAt = k.time();
+    // The camera's view in world pixels — larger than the canvas if it's ever
+    // zoomed out, so culling and edge clamping never assume a 1:1 camera.
+    const view = () => worldView(VIEW_W, VIEW_H, k.getCamScale());
+    k.add([
+      k.pos(0, 0),
+      k.z(-50),
+      {
+        id: 'terrain',
+        draw() {
+          const cam = k.getCamPos();
+          const v = view();
+          const r = visibleRange(cam.x, cam.y, v.w, v.h, cols, rows, TILE);
+          const water = waterFrame(k.time() - builtAt, WATER_FPS);
+          if (blend && !blendReady) blendReady = k.getSprite(blendSprite)?.loaded === true;
+          // Base tiles, one sheet at a time so same-texture quads batch.
+          for (let s = 0; s < sheetKeys.length; s++) {
+            for (let y = r.y0; y < r.y1; y++) {
+              for (let x = r.x0; x < r.x1; x++) {
+                const i = y * cols + x;
+                if (layers.baseSheet[i] !== s || (blendReady && blend?.hidden[i])) continue;
+                const f = layers.baseFrame[i];
+                k.drawSprite({ sprite: sheetKeys[s], frame: f === WATER ? water : f, pos: k.vec2(x * TILE, y * TILE) });
+              }
+            }
+          }
+          // Edge blending: one tile centred on each corner where terrain meets.
+          if (blend && blendReady) {
+            const secondWater = water !== TILE_FRAME.water[0];
+            for (let vy = r.y0; vy <= r.y1; vy++) {
+              for (let vx = r.x0; vx <= r.x1; vx++) {
+                const o = (vy * blend.vcols + vx) * BLEND_OPS_PER_CORNER;
+                if (blend.ops[o] === NO_BLEND) continue;
+                const pos = k.vec2(vx * TILE - TILE / 2, vy * TILE - TILE / 2);
+                for (let j = o; j < o + BLEND_OPS_PER_CORNER && blend.ops[j] !== NO_BLEND; j++) {
+                  const frame = blend.ops[j] + (secondWater ? blend.waterStep[j] : 0);
+                  k.drawSprite({ sprite: blendSprite, frame, pos });
+                }
+              }
+            }
+          }
+          // Scenery / flower / exit / mountain overlays on top, again by sheet.
+          for (let s = 0; s < sheetKeys.length; s++) {
+            for (let y = r.y0; y < r.y1; y++) {
+              for (let x = r.x0; x < r.x1; x++) {
+                const i = y * cols + x;
+                const f = layers.overFrame[i];
+                if (f === NO_OVERLAY || layers.overSheet[i] !== s) continue;
+                k.drawSprite({ sprite: sheetKeys[s], frame: f, pos: k.vec2(x * TILE, y * TILE) });
+              }
+            }
+          }
+        },
+      },
+    ]);
+
+    // --- Props: the few tiles that change or animate on their own -----------
+    // (save crystals, chests, gates, Spire seals / stairs / throne) stay live
+    // objects on top of the terrain.
     const prop = (frame: number, px: number, py: number) =>
       k.add([k.sprite(PROPS_KEY, { frame }), k.pos(px, py), k.z(-10)]);
     const chestSprites = new Map<string, ReturnType<typeof k.add>>();
@@ -317,39 +437,7 @@ export default function WorldCanvas({
         const ch = z.map[y][x];
         const px = x * TILE;
         const py = y * TILE;
-        const home = buildingAt(z, x, y);
-        // Building tiles draw in that building's architecture style (#73).
-        const townTiles = townKey(home?.style ?? 'timber');
-        if (ch === 'W') {
-          // Facade (a building's street-facing bottom row) vs. wall tops.
-          const b = home;
-          const facade = b && y === b.y + b.h - 1;
-          const nearDoor = z.map[y][x - 1] === 'D' || z.map[y][x + 1] === 'D';
-          const frame = !facade
-            ? TOWN_FRAME.wallTop
-            : (x - (b?.x ?? 0)) % 2 === 1 && !nearDoor
-              ? TOWN_FRAME.facadeWindow
-              : TOWN_FRAME.facade;
-          k.add([k.sprite(townTiles, { frame }), k.pos(px, py), k.z(-50)]);
-          continue;
-        } else if (ch in TOWN_TILE) {
-          k.add([k.sprite(townTiles, { frame: TOWN_TILE[ch] }), k.pos(px, py), k.z(-50)]);
-          continue;
-        } else if (ch === '=' || ch === 'E') {
-          tile(TILE_FRAME.path, px, py);
-        } else if (ch === '~') {
-          const water = tile(TILE_FRAME.water[0], px, py);
-          (water as unknown as { play: (n: string) => void }).play('water');
-        } else {
-          tile(groundVariant(x, y), px, py);
-        }
-        if (ch === '#') {
-          tile(TILE_FRAME.solid, px, py, -40);
-        } else if (ch === ',') {
-          tile(TILE_FRAME.deco, px, py, -40);
-        } else if (ch === 'E') {
-          tile(TILE_FRAME.exit, px, py, -40);
-        } else if (ch === 'S') {
+        if (ch === 'S') {
           const crystal = prop(PROP_FRAME.crystal[0], px, py);
           (crystal as unknown as { play: (n: string) => void }).play('glow');
         } else if (ch === 'C') {
@@ -382,37 +470,105 @@ export default function WorldCanvas({
       }
     }
 
+    // --- Secrets: a faint twinkle marks each one not yet found ----------
+    // Drawn under the roofs (z 12 < 15), so indoor secrets only show inside.
+    const twinkles = new Map<string, { opacity: number; destroy: () => void }>();
+    for (const sec of z.secrets ?? []) {
+      if (flagsRef.current[secretFlag(sec.id)]) continue;
+      const t = k.add([
+        k.text('✦', { size: 12 }),
+        k.pos(sec.x * TILE + TILE - 7, sec.y * TILE + 7),
+        k.anchor('center'),
+        k.color(255, 250, 200),
+        k.opacity(0),
+        k.z(12),
+      ]);
+      twinkles.set(sec.id, t as unknown as { opacity: number; destroy: () => void });
+    }
+
+    // --- Overworld places (#75 Phase 1): an icon + name on each 'P' tile ------
+    // Walking onto one is a zone exit (see `exits`); this just draws it.
+    for (const p of z.places ?? []) {
+      const cx = p.x * TILE + TILE / 2;
+      const cy = p.y * TILE + TILE / 2;
+      if (p.icon === 'tower') {
+        // The Spire is the landmark: the tall tower sprite, base on its tile.
+        k.add([k.sprite(SPIRE_KEY), k.pos(cx, cy - 16), k.anchor('center'), k.z(7)]);
+      } else {
+        k.add([k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.icon[p.icon] }), k.pos(cx, cy), k.anchor('center'), k.z(-10)]);
+      }
+      // Same size as building names (they name somewhere you can go in, too).
+      const name = k.add([k.text(p.name, { size: 11 }), k.pos(cx, cy + 24), k.anchor('center'), k.color(255, 252, 235), k.z(13)]) as unknown as {
+        width?: number;
+        height?: number;
+      };
+      k.add([
+        k.rect((name.width ?? p.name.length * 7) + 8, (name.height ?? 12) + 4, { radius: 3 }),
+        k.pos(cx, cy + 24),
+        k.anchor('center'),
+        k.color(20, 16, 36),
+        k.opacity(0.55),
+        k.z(12),
+      ]);
+    }
+
+    // --- Fog of Forgetting (#75): drifting banks that lift for good ---------
+    type Fader2 = { opacity: number; destroy: () => void; play: (n: string) => void };
+    const fogBanks: { def: FogDef; parts: Fader2[]; lifting: boolean }[] = [];
+    const fogLifted = (f: FogDef) => f.liftedBy.some((flag) => flagsRef.current[flag]);
+    for (const f of z.fogs ?? []) {
+      if (fogLifted(f)) continue;
+      const parts: Fader2[] = [];
+      for (let fy = f.y; fy < f.y + f.h; fy++) {
+        for (let fx = f.x; fx < f.x + f.w; fx++) {
+          const puff = k.add([
+            k.sprite(OVERWORLD_KEY, { frame: OVERWORLD_FRAME.fog[(fx + fy) % 2] }),
+            k.pos(fx * TILE, fy * TILE),
+            k.opacity(0.94),
+            k.z(8),
+          ]) as unknown as Fader2;
+          puff.play('drift');
+          parts.push(puff);
+        }
+      }
+      fogBanks.push({ def: f, parts, lifting: false });
+    }
+
     // --- Buildings (#72): signs + roofs ---------------------------------
     // Outside, a roof hides every row but the facade so the building reads as
     // enclosed; stepping inside fades that building's roof (and name) away.
+    // Each roof is one object drawing its nine-slice tiles (not one per tile).
     type Fader = { opacity: number };
     const roofs: { b: BuildingDef; parts: Fader[]; opacity: number }[] = [];
     for (const b of z.buildings ?? []) {
-      const parts: Fader[] = [];
       const roofRows = b.h - 1; // the facade row stays visible
+      const cells: { frame: number; pos: ReturnType<typeof k.vec2> }[] = [];
       for (let ry = 0; ry < roofRows; ry++) {
         for (let rx = 0; rx < b.w; rx++) {
-          parts.push(
-            k.add([
-              k.sprite(ROOF_KEY, { frame: roofFrame(b.roof, rx, ry, b.w, roofRows) }),
-              k.pos((b.x + rx) * TILE, (b.y + ry) * TILE),
-              k.opacity(1),
-              k.z(15),
-            ]) as unknown as Fader,
-          );
+          cells.push({ frame: roofFrame(b.roof, rx, ry, b.w, roofRows), pos: k.vec2((b.x + rx) * TILE, (b.y + ry) * TILE) });
         }
       }
-      parts.push(
-        k.add([
-          k.text(b.name, { size: 11 }),
-          k.pos((b.x + b.w / 2) * TILE, (b.y + roofRows / 2) * TILE),
-          k.anchor('center'),
-          k.color(255, 248, 225),
-          k.opacity(1),
-          k.z(16),
-        ]) as unknown as Fader,
-      );
-      roofs.push({ b, parts, opacity: 1 });
+      const roof: Fader = { opacity: 1 };
+      k.add([
+        k.pos(0, 0),
+        k.z(15),
+        {
+          id: 'roof',
+          draw() {
+            if (roof.opacity <= 0) return;
+            for (const c of cells) k.drawSprite({ sprite: ROOF_KEY, frame: c.frame, pos: c.pos, opacity: roof.opacity });
+          },
+        },
+      ]);
+      const label = k.add([
+        k.text(b.name, { size: 11 }),
+        k.pos((b.x + b.w / 2) * TILE, (b.y + roofRows / 2) * TILE),
+        k.anchor('center'),
+        k.color(255, 248, 225),
+        k.opacity(1),
+        k.z(16),
+      ]) as unknown as Fader;
+      roofs.push({ b, parts: [roof, label], opacity: 1 });
       if (b.sign) {
         // Hang the sign on the facade beside the door (right side if free).
         const fy = b.y + b.h - 1;
@@ -515,7 +671,7 @@ export default function WorldCanvas({
         // wanderers, stationary NPCs, the boss, the Spire — not the player or
         // Ember) block the step; on a bump, stop and repick a direction.
         if (
-          hitBox(c.x, c.y, WANDER_WALL_HALF) ||
+          hitBox(c.x, c.y, WANDER_WALL_HALF, true) ||
           // Townsfolk stay on their side of a building wall (no strolling in
           // or out of shops through the door).
           buildingAt(z, Math.floor(c.x / TILE), Math.floor(c.y / TILE)) !== homeBuilding ||
@@ -742,22 +898,19 @@ export default function WorldCanvas({
     if (umbraAt) {
       const ux = (umbraAt.x + 1) * TILE; // centred on the two-tile carpet
       const uy = umbraAt.y * TILE + TILE / 2;
-      const face = worldFace(k, { spriteId: 'umbra', emoji: '🌑', x: ux, y: uy, size: 34, z: 6 })
-        .obj as unknown as WorldActor;
-      let t = 0;
-      face.onUpdate(() => {
-        if (pausedRef.current) return;
-        t += k.dt() * 2;
-        face.pos.y = uy + Math.sin(t) * 3; // a slow, menacing hover
-      });
-      actors.push({ x: ux, y: uy, kind: 'umbra', radius: ACTOR_RADIUS.boss });
+      // He stands guard in front of the throne (his idle anim does the rest).
+      worldFace(k, { spriteId: 'umbra', emoji: '🌑', x: ux, y: uy, size: 56, z: 6 });
+      actors.push({ x: ux, y: uy, kind: 'umbra', radius: ACTOR_RADIUS.giant });
     }
 
     // --- Player ------------------------------------------------------------
     // A saved position that no longer fits the map (e.g. a save from before a
     // zone was redrawn) falls back to the zone spawn instead of a wall.
     const spawn = safeSpawn(z, startPos);
-    const followCam = (x: number, y: number) => k.setCamPos(camAxis(x, W, VIEW_W), camAxis(y, H, VIEW_H));
+    const followCam = (x: number, y: number) => {
+      const v = view();
+      k.setCamPos(camAxis(x, W, v.w), camAxis(y, H, v.h));
+    };
     followCam(spawn.x, spawn.y);
     const heroView = resolveSprite(avatar.spriteId, avatar.sprite).def?.world ?? null;
     let player: HeroActor;
@@ -801,16 +954,18 @@ export default function WorldCanvas({
     const isOpenGate = (x: number, y: number) =>
       flagsRef.current[gateFlag(gateIdAt(zoneId, z.map, x, y))] === true;
 
-    /** What blocks the cell, if anything. */
-    function blockerAt(cx: number, cy: number): { ch: string; x: number; y: number } | null {
+    /** What blocks the cell, if anything. Hidden passages block `strict` movers (wanderers). */
+    function blockerAt(cx: number, cy: number, strict = false): { ch: string; x: number; y: number } | null {
+      if (fogAt(z, cx, cy, flagsRef.current)) return { ch: 'fog', x: cx, y: cy };
       const ch = z.map[cy]?.[cx] ?? '#';
+      if (strict && ch === 'H') return { ch, x: cx, y: cy };
       if (WALKABLE_CHARS.has(ch)) return null;
       if (ch === 'G' && isOpenGate(cx, cy)) return null;
       return { ch, x: cx, y: cy };
     }
 
     /** Does a `half`-sized box centered at (px,py) overlap any blocked tile? */
-    function hitBox(px: number, py: number, half: number): { ch: string; x: number; y: number } | null {
+    function hitBox(px: number, py: number, half: number, strict = false): { ch: string; x: number; y: number } | null {
       const corners: [number, number][] = [
         [px - half, py - half],
         [px + half, py - half],
@@ -818,7 +973,7 @@ export default function WorldCanvas({
         [px + half, py + half],
       ];
       for (const [cx, cy] of corners) {
-        const b = blockerAt(Math.floor(cx / TILE), Math.floor(cy / TILE));
+        const b = blockerAt(Math.floor(cx / TILE), Math.floor(cy / TILE), strict);
         if (b) return b;
       }
       return null;
@@ -828,12 +983,20 @@ export default function WorldCanvas({
 
     // --- Main loop ---------------------------------------------------------
     let wasPaused = false;
+    // Arrived by a fade or a cut: hold still until the movement keys are let go.
+    let needsRelease = arrivalLockRef.current;
+    arrivalLockRef.current = false;
     let cooldown = 0;
     let moveSaveTimer = 0;
 
     const loop = k.onUpdate(() => {
       if (triggered) return;
       if (pausedRef.current || slidingRef.current) {
+        // Pausing for a menu / dialogue / cutscene: save where the hero really
+        // is. Walking only saves every 1.5 s, so otherwise the world map's star
+        // (and a refresh) could be up to ~8 tiles behind. (Encounters save their
+        // own step-back position and return above, via `triggered`.)
+        if (!wasPaused && pausedRef.current) cbRef.current.onMove(player.pos.x, player.pos.y);
         wasPaused = true;
         return;
       }
@@ -857,6 +1020,14 @@ export default function WorldCanvas({
         const inv = 1 / Math.sqrt(2);
         dx *= inv;
         dy *= inv;
+      }
+      if (needsRelease) {
+        if (dx !== 0 || dy !== 0) {
+          dx = 0;
+          dy = 0;
+        } else {
+          needsRelease = false;
+        }
       }
 
       if (dx !== 0 || dy !== 0) lastDir = { x: dx, y: dy };
@@ -897,9 +1068,14 @@ export default function WorldCanvas({
         else bumped = bumped ?? hit;
       }
 
-      // Bump interactions (gate / chest / save crystal).
+      // Bump interactions (secret / gate / chest / save crystal).
+      const bumpedSecret = bumped ? secretAt(z, bumped.x, bumped.y) : undefined;
       if (bumped && cooldown === 0) {
-        if (bumped.ch === 'G') {
+        if (bumpedSecret && !flagsRef.current[secretFlag(bumpedSecret.id)]) {
+          cooldown = TRIGGER_COOLDOWN;
+          cbRef.current.onMove(player.pos.x, player.pos.y);
+          cbRef.current.onSecret?.(bumpedSecret.id);
+        } else if (bumped.ch === 'G') {
           const id = gateIdAt(zoneId, z.map, bumped.x, bumped.y);
           cooldown = TRIGGER_COOLDOWN;
           // A warden-keyed Fiend gate checks a key instead of asking a question (#58).
@@ -915,6 +1091,10 @@ export default function WorldCanvas({
         } else if (bumped.ch === 'S') {
           cooldown = 2;
           cbRef.current.onSaveCrystal();
+        } else if (bumped.ch === 'fog') {
+          const fog = fogAt(z, bumped.x, bumped.y, flagsRef.current);
+          cooldown = 2;
+          if (fog) cbRef.current.onFog?.(fog.hint);
         } else if (bumped.ch === 'Q') {
           // A rune seal on a Spire floor (#74): face its question.
           const id = `${bumped.x},${bumped.y}`;
@@ -1056,6 +1236,18 @@ export default function WorldCanvas({
         if (f === 'side') emberSprite.flipX = lastDir.x < 0;
       }
 
+      // Fog lifts once its story flag is set: fade the bank out, then drop it.
+      for (const bank of fogBanks) {
+        if (!bank.lifting && fogLifted(bank.def)) bank.lifting = true;
+        if (!bank.lifting || bank.parts.length === 0) continue;
+        const o = Math.max(0, bank.parts[0].opacity - dt * 0.8);
+        for (const part of bank.parts) part.opacity = o;
+        if (o === 0) {
+          for (const part of bank.parts) part.destroy();
+          bank.parts = [];
+        }
+      }
+
       // Open gates / opened chests update live (flag set while overlay open).
       for (const [id, sprites] of gateSprites) {
         if (flagsRef.current[gateFlag(id)]) {
@@ -1070,21 +1262,47 @@ export default function WorldCanvas({
         }
       }
 
+      // Secrets: twinkle now and then; vanish once found.
+      for (const [id, t] of twinkles) {
+        if (flagsRef.current[secretFlag(id)]) {
+          t.destroy();
+          twinkles.delete(id);
+          continue;
+        }
+        const phase = (k.time() + (id.length % 7) * 0.45) % 3.2;
+        t.opacity = phase < 0.8 ? Math.sin((phase / 0.8) * Math.PI) * 0.9 : 0;
+      }
+
       // Zone exits.
       const cellX = Math.floor(player.pos.x / TILE);
       const cellY = Math.floor(player.pos.y / TILE);
+      // A secret on open ground is found by stepping onto its spot.
+      const underfoot = secretAt(z, cellX, cellY);
+      if (underfoot && cooldown === 0 && !flagsRef.current[secretFlag(underfoot.id)]) {
+        cooldown = TRIGGER_COOLDOWN;
+        cbRef.current.onMove(player.pos.x, player.pos.y);
+        cbRef.current.onSecret?.(underfoot.id);
+      }
       const exit = z.exits.find((e) => e.x === cellX && e.y === cellY);
       if (exit) {
         triggered = true;
         const side = exitSide(exit.x, exit.y, cols, rows);
         const reduceMotion =
-          typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-        if (side && !reduceMotion) {
-          // Snapshot the outgoing screen (the canvas keeps its last frame) for
-          // the slide, then switch zones underneath it.
+          typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+        const toKind = zone(exit.to).kind;
+        const how = transitionFor(side, z.kind, toKind, reduceMotion);
+        // Snapshot the outgoing screen (the canvas keeps its last frame), then
+        // switch zones underneath it.
+        if (how === 'slide' && side) {
           slidingRef.current = true;
           setSlide({ src: k.screenshot(), side, from: zoneId, running: false });
+        } else if (how === 'fade') {
+          slidingRef.current = true;
+          setFade({ src: k.screenshot(), dark: false, shown: true });
         }
+        // Only where you land beside a way back out (places) — never between
+        // edge-joined screens, even when reduced motion makes the slide a cut.
+        if (needsArrivalLock(side, z.kind, toKind)) arrivalLockRef.current = true;
         cbRef.current.onExit(exit.to, exit.spawnX, exit.spawnY);
         return;
       }
@@ -1141,6 +1359,24 @@ export default function WorldCanvas({
             transition: motion,
             imageRendering: 'pixelated',
           }}
+        />
+      )}
+      {/* Fade into / out of a place (#75): old screen → black → new zone. */}
+      {fade?.shown && (
+        <img
+          src={fade.src}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ imageRendering: 'pixelated' }}
+        />
+      )}
+      {fade && (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none bg-black"
+          style={{ opacity: fade.dark ? 1 : 0, transition: `opacity ${FADE_MS / 2}ms ease-in-out` }}
+          onTransitionEnd={onFadeStep}
         />
       )}
     </div>

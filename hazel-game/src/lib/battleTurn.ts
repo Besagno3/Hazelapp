@@ -4,7 +4,7 @@ import { bossPhase, defendReduction, enemyAttack, healerMends, healerRegen } fro
 import { clampLevel, nextSkillLevelFromBattle } from './age';
 
 /**
- * Pure battle-turn resolution (#75 follow-up). BattleArena decides WHAT the
+ * Pure battle-turn resolution (#83 follow-up). BattleArena decides WHAT the
  * player did; these functions decide what it DOES — damage, shields, enemy
  * intents, streaks, mercy, drops — so the rules are unit-tested and the
  * component only plays them back (animations, sounds, messages).
@@ -101,6 +101,13 @@ export interface EnemyAttackInput {
   intent: 'attack' | 'power';
   /** A Guard / Aegis / Rainbow Ward is up — the blow is fully blocked. */
   guarded: boolean;
+  /**
+   * A Mirror Charm is up: the blow is blocked AND bounced back at the enemy
+   * (a shielded enemy's shield takes the bounce and shatters instead).
+   */
+  mirrored?: boolean;
+  /** The enemy's shield (shielded archetype) is still up. */
+  enemyShielded?: boolean;
   /** The defend question was answered correctly. */
   wasCorrect: boolean;
   style: FightStyle;
@@ -117,20 +124,39 @@ export interface EnemyAttackResult {
   newEnemyHp: number;
   /** HP a healer-archetype enemy mended at the end of its turn. */
   mended: number;
+  /** Damage a Mirror Charm bounced back at the enemy. */
+  reflected: number;
+  /** The bounced blow shattered the enemy's shield (no damage to it). */
+  shieldBroke: boolean;
   knockedOut: boolean;
+  /** The bounced blow finished the enemy off (a win beats a knockout). */
+  defeated: boolean;
 }
 
 export function resolveEnemyAttack(i: EnemyAttackInput): EnemyAttackResult {
   const raw = Math.round(
     enemyAttack(i.level, i.isBoss, i.phase) * (i.intent === 'power' ? POWER_MULTIPLIER : 1),
   );
-  const dmg = i.guarded ? 0 : Math.max(0, raw - defendReduction(i.wasCorrect, i.style, i.powerUps));
+  const shieldBroke = !!i.mirrored && !!i.enemyShielded && raw > 0;
+  const reflected = i.mirrored && !shieldBroke ? raw : 0;
+  const dmg = i.mirrored || i.guarded ? 0 : Math.max(0, raw - defendReduction(i.wasCorrect, i.style, i.powerUps));
   const newPlayerHp = Math.max(0, i.playerHp - dmg);
-  let newEnemyHp = i.enemyHp;
-  if (i.behavior === 'healer' && healerMends(i.enemyHp, i.enemyMaxHp)) {
-    newEnemyHp = Math.min(i.enemyMaxHp, i.enemyHp + healerRegen(i.enemyMaxHp));
+  const afterBounce = Math.max(0, i.enemyHp - reflected);
+  let newEnemyHp = afterBounce;
+  if (afterBounce > 0 && i.behavior === 'healer' && healerMends(afterBounce, i.enemyMaxHp)) {
+    newEnemyHp = Math.min(i.enemyMaxHp, afterBounce + healerRegen(i.enemyMaxHp));
   }
-  return { dmg, newPlayerHp, newEnemyHp, mended: newEnemyHp - i.enemyHp, knockedOut: newPlayerHp <= 0 };
+  const defeated = newEnemyHp <= 0;
+  return {
+    dmg,
+    newPlayerHp,
+    newEnemyHp,
+    mended: newEnemyHp - afterBounce,
+    reflected,
+    shieldBroke,
+    knockedOut: !defeated && newPlayerHp <= 0,
+    defeated,
+  };
 }
 
 // --- Answer streaks -----------------------------------------------------------------

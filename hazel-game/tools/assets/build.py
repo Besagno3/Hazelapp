@@ -3,6 +3,8 @@ Regenerate every 16-bit asset the game ships:
 
     pip install pillow numpy lameenc
     python3 tools/assets/build.py            # from hazel-game/
+    python3 tools/assets/build.py overworld  # only the #75 Phase 1 additions
+    python3 tools/assets/build.py blend      # only the edge-blend sheets (#71b)
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -38,6 +40,18 @@ def write_manifest(data: dict):
 
 def main():
     only = set(sys.argv[1:]) or {'sprites', 'tiles', 'audio'}
+    if 'blend' in only:
+        # Just the edge-blend sheets (#75 / #71b) — existing files untouched.
+        tiles.build_blend(PUBLIC)
+        print('blend ✓')
+        return
+    if 'overworld' in only:
+        # Just the Phase 1 overworld additions (#75) — existing files untouched.
+        write_manifest(build_sprites.build(PUBLIC, only={'dawnreach-scout', 'shrine-keeper'}))
+        tiles.build_overworld(PUBLIC)
+        audio.build_music(PUBLIC, ['town', 'cave', 'shrine'])
+        print('overworld ✓')
+        return
     if 'sprites' in only:
         write_manifest(build_sprites.build(PUBLIC))
         print('sprites ✓')

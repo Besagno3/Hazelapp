@@ -101,6 +101,30 @@ describe('resolveEnemyAttack', () => {
   it('reports a knockout', () => {
     expect(resolveEnemyAttack({ ...base, playerHp: 1 }).knockedOut).toBe(true);
   });
+
+  it('a Mirror Charm blocks the blow and bounces it back', () => {
+    const raw = resolveEnemyAttack(base).dmg; // wrong answer, no guard = the full blow
+    const r = resolveEnemyAttack({ ...base, mirrored: true });
+    expect(r.dmg).toBe(0);
+    expect(r.reflected).toBe(raw);
+    expect(r.newEnemyHp).toBe(50 - raw);
+  });
+
+  it("a shielded enemy's shield takes the bounce instead", () => {
+    const r = resolveEnemyAttack({ ...base, mirrored: true, enemyShielded: true });
+    expect(r).toMatchObject({ dmg: 0, reflected: 0, shieldBroke: true, newEnemyHp: 50 });
+  });
+
+  it('a bounce that finishes the enemy is a win — no healer mend, no knockout', () => {
+    const r = resolveEnemyAttack({ ...base, mirrored: true, enemyHp: 1, playerHp: 0, behavior: 'healer' });
+    expect(r).toMatchObject({ defeated: true, knockedOut: false, mended: 0, newEnemyHp: 0 });
+  });
+
+  it('a healer mends from its HP after the bounce', () => {
+    const r = resolveEnemyAttack({ ...base, mirrored: true, behavior: 'healer', enemyHp: 45 });
+    expect(r.mended).toBeGreaterThan(0);
+    expect(r.newEnemyHp).toBe(45 - r.reflected + r.mended);
+  });
 });
 
 describe('streaks, mercy, rewards', () => {

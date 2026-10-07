@@ -59,6 +59,15 @@ existing architecture.
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
   generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
+- **Overworld (2026-10-04/05, #75):** the world becomes a two-scale DQ3/FF2-style
+  overworld — plan in `docs/ROADMAP-OVERWORLD.md`. Names: world **Lumina**,
+  home continent **Dawnreach**, far continent **Taleshore**, inner sea **the
+  Silver Shallows**, outer sea **the Starfall Sea**. **Lumina Field retires as
+  a hub** (its people + buildings move into Lumina Village, which becomes home
+  and `HUB_ZONE`). **Every town gets an inn** (reverses #73's one-inn rule;
+  still one Library, still each item sold in one shop). **`ROADMAP-4X.md`
+  Wave 1 (Act II) is paused** until Dawnreach exists — don't build Act II
+  zones as edge-linked screens.
 
 ## Architecture
 
@@ -75,17 +84,20 @@ existing architecture.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
-  resolves all seven, #33/#55), `zones.ts` (11 ASCII tile maps: Lumina Field
-  hub + 4 crystal zones + Village (safe, a scrolling 2×2-screen town with
-  enterable buildings) + 3 themed combat zones + the hidden
-  Moonwell Grove + the Crystal Spire; `ZONE_IDS` is the zone-id source of
-  truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
+  resolves all seven, #33/#55), `zones.ts` (13 ASCII tile maps: the
+  **Dawnreach** overworld (64×48, `kind: 'overworld'`, with `places` icons
+  and `fogs`, #75) + the Shrine of First Light + Lumina Field + 4 crystal
+  zones + Village (safe, a scrolling 3×2-screen town with enterable
+  buildings) + 3 themed combat zones + the hidden Moonwell Grove + the
+  Crystal Spire; every zone has a `kind` that picks its transition + music;
+  `ZONE_IDS` is the zone-id source of truth, validated by `zones.test.ts`), `npcs.ts` (dialogue trees),
   `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
   (Sage personas + charge tuning), `companion.ts` (battle companions — Ember /
   Pip / Wisp — their strikes, perks + Pair Attacks), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
-  Fiends, #58), `items.ts` (shop + economy tuning), `avatars.ts`.
+  Fiends, #58), `items.ts` (shop + economy tuning), `secrets.ts` (hidden secrets per
+  zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
@@ -100,7 +112,16 @@ existing architecture.
   `profiles` row (birth date, skill levels, xp, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
   wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
-  the Spire icon, remounted per zone, paused under overlays via ref). Overlays:
+  the Spire icon, remounted per zone, paused under overlays via ref). Terrain
+  is ONE object that draws only the cells in view each frame, from frames
+  worked out once per zone by `lib/terrain.ts` — never add one KaPlay object
+  per tile (big maps would crawl; #75). Roofs are one object per building.
+  Coasts, beaches and roads are rounded by **edge blending** (`blendLayer`,
+  `lib/terrain.ts`): a tile centred on every corner where terrain classes meet
+  (water < sand < ground < path), from a per-zone `/tiles/<zone>-blend.png`;
+  buildings and Spire floors never blend.
+  Moving between edge-joined screens slides; entering or leaving a place on
+  the overworld fades (`transitionFor`, `lib/transition.ts`). Overlays:
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
   key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
@@ -162,6 +183,11 @@ npm run dev      # Vite dev server
 npm run build    # tsc -b && vite build
 npm run lint     # eslint
 npm test         # Vitest suite (test:watch / test:ui also available)
+
+# World renderer bench (dev-only; needs Playwright — a global install works)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps [cols rows]   # frame times on a big test map
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 ```
 
 ## Error handling
@@ -216,8 +242,285 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-09-28 — Speed-trigger review fixes: stuck card, pool race, Flee, Pip's peek (#81)
-From a code review of #80:
+### 2026-10-07 — Merge main into the battle branch: battle items ported, issue numbers moved
+Brought `main` (overworld Phases 0–1, edge blending, village expansion,
+portraits, giant Umbra) into the battle-system branch.
+- **Battle items ported to the refactored arena:** Sunseed Snack, Turbo
+  Coil, Mirror Charm, Focus Tea and Lucky Clover work as on `main`. The Mirror
+  Charm moved into the pure `resolveEnemyAttack` (`mirrored` /
+  `enemyShielded` → `reflected`, `shieldBroke`, `defeated`): it blocks the blow
+  and bounces it back, a shield takes the bounce instead, a bounce that
+  finishes the enemy is a win, and a healer mends from its HP after the
+  bounce (tested). A Mirror Charm takes the blow before a Guard, so the Guard
+  stays up for the next one. Focus Tea doubles an Attack after the streak
+  bonus and keeps its focus while the enemy is shielded. A Lucky Clover
+  doubles the coins after the first-win bonus (🍀 on the victory panel). Boss
+  enrage now also triggers on bounced damage (`checkBossPhase`).
+- **Portraits:** the hero status panel uses `CharacterPortrait` (from
+  `main`); the menu keeps the Battle friends row.
+- **Sprites:** `battle_frames` honours both `ch.giant` (Umbra, from `main`)
+  and `ch.battle_poses` (Ember, from this branch); every sheet rebuilds
+  byte-identical.
+- `bench/world.tsx` passes the new `skillLevels` prop.
+- **Numbers:** `main` already used issues #75–#80/#82 and TC-316–385, so this
+  branch's battle issues moved #75–#81 → **#83–#89** and its test cases
+  TC-316–393 → **TC-386–463**.
+
+### 2026-10-07 — Edge-blending review fixes: no vanishing roads, sheets on demand (#71b)
+`/saas-code-review` + `/saas-ux-review` of the edge blending; all 3 findings fixed:
+- **Roads vanished until the blend sheet loaded (medium):** cells whose four
+  corners blend skip their base tile — but before the zone's blend sheet
+  arrived nothing covered them, so a one-tile road (all such cells) showed as
+  bare ground for seconds on a slow first load. `WorldCanvas` now waits for
+  `getSprite(blendKey).loaded` before skipping or drawing corner tiles: square
+  edges first, rounded once the sheet lands.
+- **Sheets on demand (low):** blend sheets load per zone as it's built — its
+  own plus its neighbours' (`blendSheetsFor` / `ensureBlendSheets`,
+  `worldSprites.ts`) — instead of all 13 (~265 KB) on first entry.
+- **`blendPairFrame` throws on a wrong pair (low)** instead of silently
+  returning another pair's tile.
+- Verified in headless Chromium with the blend sheets delayed: the road shows
+  (square) before they arrive and rounded after; Dawnreach fetches 9 sheets,
+  the Village 2; every zone screen unchanged; the Phase 1 walk-through passes.
+- 397 tests green (+2); lint + build clean.
+
+### 2026-10-06 — Rounded coasts, beaches and roads: edge blending (#75 item 3, #71b)
+Water, beaches and roads no longer meet in hard squares — the last part of
+roadmap item 3 ("no square-edged water") and ISSUES #71b.
+- **How:** a "dual grid". Each cell has a blend class — water < sand < ground
+  < path (`blendClass`); buildings have none and keep square walls. Wherever
+  classes meet at a tile corner, the renderer draws a 32px tile centred on
+  that corner (`blendLayer`, `lib/terrain.ts`, worked out once per zone; drawn
+  between the base tiles and the overlays). Two-class corners (almost all)
+  draw ONE ready-made opaque pair tile; three- or four-class corners add the
+  higher classes' rounded shapes on top. Shapes get a foam line on water and
+  a darker rim on land. Cells whose four corners all blend skip their (hidden)
+  base tile.
+- **Art:** `tools/assets/tiles.py` `blend_sheet` writes
+  `/tiles/<zone>-blend.png` per zone (180 frames, 16×12) from each zone's own
+  textures (smoothstep-rounded shapes); `python3 tools/assets/build.py blend`
+  writes only these — no existing file changed. Spire floors don't blend
+  (their `~` are pits).
+- **Checked (headless Chromium):** all 46 zone screens + Spire floors
+  reviewed before/after; Spire floors pixel-identical. Frame rate (software GL,
+  same machine, alternating runs): stress map unchanged (59.7 / 31.3 fps vs
+  59.4 / 30.2); walking Dawnreach ~5% lower unthrottled and ~12% lower at 4×
+  CPU throttle (pair tiles + the hidden-cell skip halved the first version's
+  cost). The Phase 1 walk-through still passes.
+- 395 tests green (+9); lint + build clean.
+
+### 2026-10-06 — Phase 1 review fixes: map, toasts, arrival lock (#75)
+`/saas-code-review` (2 findings) and `/saas-ux-review` (6 findings) of Phase 1;
+all fixed:
+- **World map tells places apart:** each place has its own emoji
+  (`PLACE_EMOJI`, `lib/worldMap.ts`) on the map and beside its name in the
+  list; inside a place the ⭐ perches above its emoji; a legend explains the
+  fog square while any fog is left. The caption is "You're here: <name>" /
+  "You're out on Dawnreach" (`mapCaption` — no articles to get wrong); list
+  emoji are hidden from screen readers.
+- **The ⭐ is where you are:** pausing (menu, dialogue, cutscene) now saves
+  the hero's real position — walking only saved every 1.5 s, so the star (and
+  a refresh) could be ~8 tiles behind.
+- **Reduced motion walks smoothly again:** the arrival lock follows the link
+  (`needsArrivalLock`, `lib/transition.ts`): only into/out of places, never
+  between edge-joined screens — reduced motion had locked every edge cut.
+- **Toasts:** time on screen follows the text (`toastMs`, `lib/toast.ts`: ~2
+  words a second, 2.5–8 s), and a new toast replaces the old timer (an earlier
+  toast's timer used to hide a newer one early). The fog hint is shorter: "Too
+  foggy to pass! Restore a crystal to clear it." (~6.5 s).
+- **Place names** on the overworld use 11 px like building names (were 9 px —
+  ~4.6 px on a phone). **Menu:** a ✕ "Back to the world" button in the header
+  (44 px), so the way out never scrolls away.
+- Bench: `__bench.pause(on)` pauses the world like a menu does.
+- 386 tests green (+9); lint + build clean. Verified in headless Chromium: map
+  in four situations, the real menu at 1024 px and 375 px, labels, pause
+  saving and reduced-motion walking (both fail on the previous code).
+
+### 2026-10-06 — Overworld Phase 1: the Dawnreach vertical slice (#75, #77)
+The world gets its first real overworld: walk out of Lumina Village onto a
+64×48 map of Dawnreach and into every old place from there.
+- **Zone kinds** (`ZoneDef.kind`, `ZONE_KINDS`): overworld / town / field /
+  dungeon / shrine. The kind picks the transition and the music.
+- **Places** (`ZoneDef.places`, legend `P`): one-tile icons on the overworld
+  that act as exits (town, hamlet, forest, cave, shrine, coast, grove, and the
+  Spire's tower). New legend chars: `^` mountain (solid), `:` sand. Every gate
+  out of a place lands right beside its own icon.
+- **Transitions** (`transitionFor`, `lib/transition.ts`): screens joined edge
+  to edge still slide; going into or out of a place fades through black
+  (`FADE_MS`); reduced motion cuts. Each fade step waits for the black
+  overlay's own `transitionend` (a safety timeout unfreezes the hero if one
+  is lost) — fixed timers dropped the old screen at 11% black on a 4×-slowed
+  CPU, so the new zone popped in. After a fade or cut the hero waits for the
+  keys to be released, so a held key can't walk straight back out.
+- **Fog banks** (`ZoneDef.fogs`, `FogDef`, `fogAt`): drifting fog blocks a
+  rectangle of the map until any of its `liftedBy` flags is set. The first
+  one seals the **Shrine of First Light** pocket until any crystal is
+  restored (`ANY_CRYSTAL`); bumping it shows a hint toast.
+- **Content:** `dawnreach` (overworld: the Village, Lumina Field, the Woods,
+  the Depths cave, the Grove, the Spire, the Coast and the shrine; a road
+  network; 5 roaming critters; Scout Tamsin with directions) and
+  `dawn-shrine` (Old Wren, the shrine keeper — field spells come in Phase 2).
+  Every old link out of the Village, Field, Woods, Coast, Depths, Grove and
+  Spire onto another place now goes through Dawnreach instead; zone-to-zone
+  links inside a region (Field ↔ crystal zones, Woods ↔ Depths) are unchanged.
+  A first-visit cutscene (`DAWNREACH_PANELS`) plays after the Grove's.
+- **World map** (menu): `WorldMapPanel` draws Dawnreach small with fog, places
+  and a pulsing ⭐ "you are here" (`lib/worldMap.ts`: `whereOnMap` follows
+  exits back to the nearest place for zones not on the map yet).
+- **Music by kind** (`ZONE_KIND_TRACK`, `lib/audio.ts`): new `town`, `cave`
+  and `shrine` loops; the overworld and fields keep the overworld theme.
+- **Art:** `/tiles/overworld.png` (mountain, sand, 2-frame fog, place icons),
+  tilesets + backdrops for both new zones, two NPC sprites
+  (`tools/assets`: targeted `overworld` build; existing files untouched).
+- **Bench cleanup (#77, all four):** Vite stderr inherited, Vite killed if it
+  never starts, `diff` exits 1 on a difference, the frame sampler is capped
+  with a running max. The bench can also follow exits between zones and
+  report its zone/position (`__bench.state()`), and takes `flags=`.
+- No save change: places are zones, so positions save as before.
+- **Verified in headless Chromium:** all 33 existing zone screens + Spire
+  floors pixel-identical to main; the Village fade / arrival lock / walk back
+  out, fog block + lift and shrine entry walked on the bench; Dawnreach walks
+  at the same frame rate as the stress map (Phase 1 adds no cost); the world
+  map panel in four situations.
+- 377 tests green (354 on main before this); lint + build clean.
+
+### 2026-10-05 — Phase 0 code-review fixes (#75)
+`/saas-code-review` of Phase 0 found no player-facing bugs; two fixes ahead of
+Phase 1, the rest logged:
+- **Exit check ready for multi-gate towns:** the #76 test is now a pure
+  helper, `edgeLinkProblem` (`lib/transition.ts`). It checks only the way back
+  you'd actually take (the return exit nearest where you land) and skips links
+  that fade (place entrances, gates that lead out beside an overworld icon), so
+  a town with several gates onto the overworld no longer trips it. Still fails
+  on the pre-fix Field/Village map (verified).
+- **Camera zoom:** new `worldView` (`lib/camera.ts`) gives the camera's view in
+  world pixels; `WorldCanvas` uses it for BOTH the terrain culling and the
+  camera's edge clamp (the clamp had the same 1:1 assumption). Verified with a
+  temporary 2× zoom-out: edge-to-edge drawing and correct clamping, vs. bare
+  edges and an off-centre town before.
+- **Logged:** ISSUES #77 (bench cleanup, Phase 1) and #78 (Spire candle-light
+  ignores the camera — fix with real dungeons, Phase 2).
+- 335 tests green (was 328: +5 transition, +2 camera); lint + build clean.
+- **Second review pass (1 low finding, fixed):** the zones.test exit check
+  now collects every `edgeLinkProblem` and asserts the list is empty, so a
+  failure prints every broken link with its full reason (it used to stop at
+  the first one, with the reason cut off by Vitest).
+
+### 2026-10-05 — Overworld Phase 0: big-map renderer + Field/Village exit fix (#75, #76)
+- **Renderer:** `WorldCanvas` no longer creates one KaPlay object per tile.
+  New pure `lib/terrain.ts` works out every cell's base + overlay frames once
+  per zone (`terrainLayers` — the same rules the old loop used: ground
+  variants, paths/exits, water, scenery/flower/exit overlays, walls/facades/
+  interiors in each building's style), and a single `terrain` object draws
+  only the cells in view each frame (`visibleRange`). Water animates from the
+  clock (`waterFrame`, `WATER_FPS` in `content/tiles.ts`; the unused tileset
+  `water` sprite anims were removed). Each building's roof is now one object.
+  Props that change on their own and all characters are unchanged.
+- **Measured** (`bench/`, headless Chromium, software GL): 160×112 map 3.2 →
+  60 fps, and 0.5 → 37 fps at 4× CPU throttle; Lumina Village 10.5 → 39 fps
+  at 4×; load hitch 1.4 s → 0.17 s. All 18 zone screens + 5 Spire floors are
+  pixel-identical to the old renderer outside animated tiles/idle cycles.
+- **#76 fixed:** the Field's road to the Village leaves from its south edge
+  (2–3, 13) and the Village's north exit lands at the Field's bottom-left
+  (3, 12) — no more walking north both ways. New zones.test invariant: every
+  edge exit lands near the opposite edge, and the way back is on the opposite
+  edge.
+- **Bench** (`hazel-game/bench/`, dev-only, not in the app build):
+  `world.html`/`world.tsx` mount the real `WorldCanvas` on a real zone or a
+  generated 160×112 overworld-like map; `run-world-bench.cjs` runs fps /
+  shots / diff via Playwright.
+- 328 tests green (was 301: +26 terrain, +1 exits); lint + build clean.
+
+### 2026-10-05 — Overworld decisions recorded (docs only, #75)
+Three roadmap decisions made: retire Lumina Field as a hub, an inn in every
+town (reverses #73), and pause `ROADMAP-4X.md` Wave 1 until Dawnreach exists.
+Recorded in this file's Decisions section, `ROADMAP-OVERWORLD.md` (§2.4,
+§3.5, §7, §8), `ROADMAP-4X.md` (header + Wave 1 marked paused), `STORY.md`
+§8 and ISSUES #73/#75. Building happens in overworld Phase 2. Doc-only.
+
+### 2026-10-04 — World names chosen (docs only, #75)
+The world stays **Lumina**; its home continent is **Dawnreach**, the far
+continent (Act III) **Taleshore**, the inner sea of islands (Act II) **the
+Silver Shallows**, and the open sea between the continents **the Starfall
+Sea** (already used by STORY-4X). Recorded in `ROADMAP-OVERWORLD.md` (§2.1,
+§3, §8 decision 2 closed), `STORY.md` §8 and `STORY-4X.md` (header note +
+Act III premise). Doc-only.
+
+### 2026-10-04 — Overworld roadmap (docs only, #75)
+New `docs/ROADMAP-OVERWORLD.md`: analysis of why the world feels small (18
+screens, two hubs with spokes, 8 of 11 zones dead ends, one scale only,
+Field ↔ Village both north exits — logged as #76) plus a phased plan for a
+DQ3/FF2-style overworld — enterable places, two continents + islands, a
+travel ladder (walk → boat → Ember flight → descend), fog banks that lift per
+crystal, field spells at shrines, generalized dungeons — with a ranked work
+list and open decisions. Key engineering risk: `WorldCanvas` makes one KaPlay
+object per tile, so chunked rendering comes first. Re-sequences
+`ROADMAP-4X.md` (header note added); `STORY.md` §8 points at it. World atlas
+image at `docs/images/lumina-world-atlas.png`. Doc-only.
+
+### 2026-10-01 — Review fixes for the village expansion (#80)
+Code review of the expansion; all five findings fixed in `BattleArena`:
+- Focus Tea is no longer wasted on a shielded foe — the focus waits for the
+  next swing while the shield is up.
+- Boss enrage banners now fire from any damage (new `checkBossPhase`, shared
+  by attacks and Mirror Charm bounces), so the phase never desyncs.
+- Mirror Charm vs a shielded foe: the bounced hit shatters the shield (any
+  landed hit does), instead of bypassing it.
+- Item buffs (mirror / focus / clover) reset per enemy alongside the shield.
+- `secretFlag` moved to `zones.ts`, breaking the secrets.ts ↔ quests.ts
+  import cycle (`secrets.ts` re-exports it).
+320 tests green; lint + build clean; mocked battle replayed in headless Chromium.
+
+### 2026-10-01 — Village expansion: bigger towns, side quests, secrets, new shops (#80)
+The five main towns grew, with more to do in each.
+- **Bigger maps (`zones.ts`):** Lumina Village 44→66 wide (east district:
+  Town Hall, Clover's Market, Dot's Bakery, Nib's House, a hedge garden);
+  Numbria 14→28 rows (south: Schoolhouse, Chai's Tea Room, Sundial House);
+  Verdara + Gearfall 22→44 wide (east districts; Gearfall also a Clockwork
+  Plaza with the Clocktower); Chromaria 14→28 rows (south: Mirror Hall,
+  Grand Gallery, Music House). Maps only grew right/down, so every chest,
+  gate, key gate, save crystal and spawn keeps its coordinates (old saves
+  and quests stay valid). Fiend areas stay sealed off from the new land.
+  The village's east exit moved to col 65 (the Coast's spawn back updated).
+- **Secrets (`ZoneDef.secrets`, new `content/secrets.ts`):** 15 secrets (3 per
+  town). On a solid tile (shelf, bed, crate, fountain) you bump it; on open
+  ground you step on it. Rewards: coins, items, or a quest item. Found once
+  (`secret:<id>` flag). `WorldCanvas` draws a faint ✦ twinkle over unfound
+  ones (under roofs) and calls `onSecret`; `WorldScreen` claims it and shows
+  a "Secret found!" card. New map char **`H`** = hidden passage: drawn as
+  solid scenery but walkable for the hero (wanderers treat it as solid).
+- **21 new townsfolk (`npcs.ts`)** with generated sprites (`characters.py`
+  NPCS): five merchants, ten side-quest givers, and villagers whose lines
+  hint at the secrets.
+- **10 side quests (`quests.ts`):** two per town, tagged `side: true`. New
+  `secretStep` (find listed secrets; hint names what's still hidden),
+  `takesItems` (quest items handed back on completion) and `reward.items`.
+  Mix: find-the-secret, delivery chains, talk chains, defeat + report.
+- **5 new shops + items (`items.ts`):** Clover's Market (🍀 Lucky Clover —
+  2× coins this battle), Chai's Tea Room (🍵 Focus Tea — next Attack 2×),
+  Sunseed Stand (🌻 Sunseed Snack — +30 HP, +1 ◆), Coil & Spring (🌀 Turbo
+  Coil — fill ◆), Mirror Hall (🪞 Mirror Charm — bounce the next hit back),
+  each with a badge. Effects in `BattleArena` (`mirrored`/`focused`/`lucky`
+  state); a bounced hit can win the battle.
+- **Menu:** secrets found here / across Lumina, side-quest tags, and the hero
+  card now uses the sprite.
+- Tests: new secrets.test; side-quest flows in quests.test; items/zones tests
+  updated. 320 tests green; lint + build clean. Played in headless Chromium
+  (fake auth + seeded save): every new district, the hedge-garden passage,
+  the fountain secret, Glint's counter, and a battle using Mirror Charm,
+  Focus Tea and Lucky Clover.
+
+### 2026-10-01 — Sprite portraits everywhere + Umbra redesign (#79)
+- `components/CharacterPortrait.tsx`: animated sprite portrait for UI panels
+  (battle view, else the world view facing the player; emoji fallback). Used
+  by the dialogue box, Sage screen, HUD + menu Ember and the battle name tag.
+- **Umbra:** new `giant` size tier in the generator (64px world, 96px battle;
+  bosses are 48). Redrawn as an armoured purple shadow-lord in a white
+  war-helm with a violet energy blade (an original design, not a copy of any
+  film character). He stands on the throne floor (no hover) and looms
+  oversized over the Spire throne-hall panels.
+### 2026-09-28 — Speed-trigger review fixes: stuck card, pool race, Flee, Pip's peek (#89)
+From a code review of #88:
 - **Stuck question (medium):** the battle's question card was keyed by
   `id + qIndex + spellIdx`; `qIndex` doesn't move while the harder pool
   serves, so a short pool could repeat a key and leave an answered card on
@@ -236,8 +539,8 @@ From a code review of #80:
   normal boost, a one-question pool asked 4× without sticking, a failed pool,
   Flee with/without a boost, and Pip's peek breaking the run.
 
-### 2026-09-26 — Difficulty follows the question level + a speed trigger; XP no longer scales anything (#80)
-Revises #79: leveling up (XP) should not make the game harder — answering
+### 2026-09-26 — Difficulty follows the question level + a speed trigger; XP no longer scales anything (#88)
+Revises #87: leveling up (XP) should not make the game harder — answering
 well and fast should.
 - **Removed** `lib/growth.ts` (XP-based `growthSteps` / `challengeLevel`).
   XP / player level is back to progress + power-ups only.
@@ -246,7 +549,7 @@ well and fast should.
   question level for the enemy's topic (`skillLevelFor` — the age baseline
   if they've never played it). `WorldScreen` + `WorldCanvas` pass
   `profile.skillLevels`. The Spire asks each topic at the player's level for
-  that topic. (Before #79 battles used age only, per #32.)
+  that topic. (Before #87 battles used age only, per #32.)
 - **Speed trigger (`lib/battleTurn.ts`, tested):** answers are timed from the
   question appearing; `fastAnswerMs(age)` = half the age countdown (≈9.5s at
   9, 12s at 6). `speedStep` counts quick correct answers in a row — a slow,
@@ -263,8 +566,8 @@ well and fast should.
   hinted answer don't trigger it; 9000 XP meets the same enemy as 0 XP; math
   level 7 → Count Bat Lv 7 with level-7 questions.
 
-### 2026-09-26 — Age-based growth rule, age-based countdown, timer setting (#79)
-*(The XP-based growth part was reverted by #80 above.)*
+### 2026-09-26 — Age-based growth rule, age-based countdown, timer setting (#87)
+*(The XP-based growth part was reverted by #88 above.)*
 - **One growth rule (`lib/growth.ts`, tested):** age (from the sign-up birth
   date, recomputed so it rises each birthday) is the baseline;
   `growthSteps(level)` adds +1 per 5 player levels (max +3) as the kid levels
@@ -289,7 +592,7 @@ well and fast should.
   (Lv 4 at Lv 1); timer off = no countdown and no timeout after 60s; the menu
   toggle flips it.
 
-### 2026-09-26 — Defend countdown is a flat 15 seconds (#78 follow-up)
+### 2026-09-26 — Defend countdown is a flat 15 seconds (#86 follow-up)
 The defend clock no longer scales with question length: every defend
 question gets `DEFEND_MS` = 15s (10s was considered and rejected — too fast
 for young kids still learning to read), still +5s under mercy and paused while
@@ -297,7 +600,7 @@ the page is hidden. `defendTimeMs(mercy)` lost its question argument. 338
 tests green; lint + build clean; the countdown starts at 15s in headless
 Chromium.
 
-### 2026-09-26 — Timed defend questions (#78)
+### 2026-09-26 — Timed defend questions (#86)
 Resolves the STORY-4X §12 "timer" decision for defending: the enemy's blow
 now comes on a clock.
 - **`DefendTimer`** (`features/battle/`): replaces the defend header with the
@@ -321,7 +624,7 @@ now comes on a clock.
   then wrong/hit sounds, answering freezes it (40s later still waiting on
   Go!), paused while hidden (10s hidden = 0s lost), fits at 360×640.
 
-### 2026-09-26 — Battle UX pass: fits on phones, bigger touch targets, readable hints (#77)
+### 2026-09-26 — Battle UX pass: fits on phones, bigger touch targets, readable hints (#85)
 From a UX review at phone widths (measured in headless Chromium). Before: on a
 390×844 phone "Go!" sat below the fold after every answer; on 390×667 answers
 3–4 were hidden before answering; the command menu cut off Flee.
@@ -347,7 +650,7 @@ From a UX review at phone widths (measured in headless Chromium). Before: on a
   answers on screen, Go! on screen after answering, ≥44px targets, one-line
   names, Back visible, no sideways shift).
 
-### 2026-09-26 — Review fixes: saved HP after a healing finisher, timers cancelled on exit (#76)
+### 2026-09-26 — Review fixes: saved HP after a healing finisher, timers cancelled on exit (#84)
 From a SaaS code review of the companion/mercy commit (security came up clean:
 `saves` RLS limits every row to its owner; `companionId` is re-validated on load).
 - **Medium:** `victory()` saved the render-captured `playerHp`, so when Wisp's
@@ -362,7 +665,7 @@ From a SaaS code review of the companion/mercy commit (security came up clean:
   finisher heals 92 → 112 and the save records 112; unmounting mid-attack
   plays no landing sound and logs no errors.
 
-### 2026-09-26 — Companion pick survives reloads; mercy = easier questions only (#76 follow-up)
+### 2026-09-26 — Companion pick survives reloads; mercy = easier questions only (#84 follow-up)
 - **Companion persists:** the 🔄 Swap pick moved from `battleStore` into the
   save (`SaveData.companionId`, default `'ember'`). Additive + defaulted in
   `normalizeSave` (older saves and unknown ids → Ember), like #73's item
@@ -377,7 +680,7 @@ From a SaaS code review of the companion/mercy commit (security came up clean:
   written to the save, a save round-tripped through JSON + `normalizeSave`
   starts with Pip, mercy drops the question level with identical damage.
 
-### 2026-09-26 — Battle round 3: party + free swap, power moves, streaks, mercy, rewards (#76)
+### 2026-09-26 — Battle round 3: party + free swap, power moves, streaks, mercy, rewards (#84)
 - **Companions (`content/companion.ts`, rewritten as a registry):** Ember
   (Striker, +1◆), **Pip** (Helper — Slingshot; a correct strike crosses out a
   wrong answer on the *next* question) and **Wisp** (Healer — Glimmer mends 20
@@ -420,9 +723,9 @@ From a SaaS code review of the companion/mercy commit (security came up clean:
   headless Chromium (swap keeps the turn, peek, Wisp mend, streak, the #70
   race, boss charge → Guard block, super effective, mercy level drop, first-win
   + drop, reduced motion). The run caught and fixed a stale-closure bug in
-  Pip's peek and screen-reader-visible hidden labels. See ISSUES #76.
+  Pip's peek and screen-reader-visible hidden labels. See ISSUES #84.
 
-### 2026-09-26 — Ember animations: attack, fire breath, pair choreography, cheer (#75 follow-up)
+### 2026-09-26 — Ember animations: attack, fire breath, pair choreography, cheer (#83 follow-up)
 - **Ember's own battle sheet** (`tools/assets/characters.py`): new `Pose`
   fields `mouth` (open / puff / breath), `rear` (head lift) and `happy` (^ ^
   eyes) drive `EMBER_BATTLE_POSES` — a clear wind-up → open-mouthed lunge
@@ -449,7 +752,7 @@ From a SaaS code review of the companion/mercy commit (security came up clean:
   (frame captures at each stage, dive distance measured per frame at 390 / 900
   / 1280px).
 
-### 2026-09-26 — Ember fights + Pair Attacks + battle sound effects (#75)
+### 2026-09-26 — Ember fights + Pair Attacks + battle sound effects (#83)
 Ember, the companion dragon, now fights beside the hero instead of just
 bouncing in the background, and battles got a full set of sound effects.
 - **🐉 Ember command** (`BattleArena`): disabled while Ember is an egg. Opens a
@@ -478,7 +781,7 @@ bouncing in the background, and battles got a full set of sound effects.
   Pair Attacks).
 - 310 tests green (was 301); lint + build clean. Played in headless Chromium
   with a seeded save + mocked questions (egg / hatchling / dragon, shielded
-  enemy, fizzle) with a Howl.play spy confirming sound order. See ISSUES #75.
+  enemy, fizzle) with a Howl.play spy confirming sound order. See ISSUES #83.
 
 ### 2026-09-23 — Spire review fixes: softlock, leave button, double-tap (#74)
 Code review of the Spire climb; all four findings fixed:

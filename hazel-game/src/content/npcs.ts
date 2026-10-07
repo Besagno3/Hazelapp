@@ -557,4 +557,297 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
     ambient: ['*splash!*', '*floats on its back*', 'The water is so still…'],
   },
+
+  // --- Village expansion: new townsfolk (side quests + secret hints) --------
+  // Lumina Village — east district
+  'village-mayor': {
+    id: 'village-mayor',
+    name: 'Mayor Marigold',
+    sprite: '🎩',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Welcome to the Town Hall! I am Mayor Marigold. I sign every important paper in Lumina Village with the golden Town Seal.',
+      {
+        text: 'Thank you again for finding my seal. The paperwork is flowing like a river! A very boring river.',
+        ifFlag: 'quest:mayor-seal:done',
+      },
+    ],
+  },
+  'village-clover-merchant': {
+    id: 'village-clover-merchant',
+    name: 'Grocer Clover',
+    sprite: '🧺',
+    role: 'merchant',
+    lines: ["Fresh from the hills! Lucky clovers, picked at dawn. Win a battle holding one and the coins just pour in!"],
+  },
+  'village-baker': {
+    id: 'village-baker',
+    name: 'Baker Dot',
+    sprite: '🥐',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Mmm, smell that? Honey buns, fresh out of the oven! I bake before the sun gets up. The sun is VERY lazy.',
+      {
+        text: 'Grandmother Wick and Keeper Sol both loved their buns. You are the fastest delivery hero in Lumina!',
+        ifFlag: 'quest:bakery-deliveries:done',
+      },
+    ],
+  },
+  'village-guard': {
+    id: 'village-guard',
+    name: 'Guard Rook',
+    sprite: '💂',
+    role: 'villager',
+    lines: [
+      'Guard Rook, on patrol! Nothing gets past me. Except butterflies. And bees. And, once, a very polite goose.',
+      'Psst. When the sun hits the plaza fountain just right, I swear something golden glints at the bottom.',
+      'The Mayor keeps old books in the Town Hall. Some of them are not books at all… if you know what I mean. I do not know what I mean.',
+    ],
+    ambient: ['*marches*', 'All clear!', 'Was that a goose?'],
+  },
+  'village-kid': {
+    id: 'village-kid',
+    name: 'Nib',
+    sprite: '👦',
+    role: 'villager',
+    lines: [
+      'Wanna know a secret? The hedge around the corner garden has a gap you can squeeze through. It looks solid… but it is NOT!',
+      'Look for the little twinkles ✦ — that is where secrets hide. Every town has some. I have found… zero. But YOU might!',
+      {
+        text: 'You found the secret garden?! I KNEW it was real. Best day ever.',
+        ifFlag: 'secret:village-secret-garden',
+      },
+    ],
+    ambient: ['✦?', '*hops*', 'Secrets everywhere!'],
+  },
+
+  // Numbria — south district
+  'numbria-tea-merchant': {
+    id: 'numbria-tea-merchant',
+    name: 'Auntie Chai',
+    sprite: '🍵',
+    role: 'merchant',
+    lines: ['Sit, sit! One cup of Focus Tea and your next swing lands twice as hard. Mathematicians swear by it!'],
+  },
+  'numbria-teacher': {
+    id: 'numbria-teacher',
+    name: 'Teacher Pi',
+    sprite: '👩‍🏫',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Welcome to the Numbria Schoolhouse! Today we are learning that 3.14159… oh, you have heard this one.',
+      {
+        text: 'Thanks to you, the class has all its lessons back. Everyone gets a gold star. You get TWO.',
+        ifFlag: 'quest:lost-lessons:done',
+      },
+    ],
+  },
+  'numbria-kid': {
+    id: 'numbria-kid',
+    name: 'Dos',
+    sprite: '🧒',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'My twin Uno counts forwards and I count backwards. We meet in the middle at lunch.',
+      {
+        text: 'The slimes are gone and I can do my sums outside again. Ten, nine, eight… you are the BEST!',
+        ifFlag: 'quest:dos-slimes:done',
+      },
+    ],
+  },
+  'numbria-sundial': {
+    id: 'numbria-sundial',
+    name: 'Sundial Sid',
+    sprite: '🧔',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'I tell the time by shadows. The shadow on the west hill is wrong, though — it points INTO the rock. Rocks do not have insides… do they?',
+      'People toss coins in the town pond for luck. Nobody ever fishes them out. Somebody should. For science.',
+    ],
+  },
+
+  // Verdara — east meadow
+  'verdara-seed-merchant': {
+    id: 'verdara-seed-merchant',
+    name: 'Sunny',
+    sprite: '🌻',
+    role: 'merchant',
+    lines: ['Sunseed Snacks! Crunchy, sunny, and they top up your spell charge too. Grown right here in the meadow!'],
+  },
+  'verdara-beekeeper': {
+    id: 'verdara-beekeeper',
+    name: 'Beekeeper Hilda',
+    sprite: '🐝',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Bzz-welcome! My bees make the sweetest honey in all of Verdara. Mind the hives — they are friendly but VERY busy.',
+      {
+        text: 'The Queen is home and the hives are humming. Listen — that buzz is a thank-you song!',
+        ifFlag: 'quest:queen-bee:done',
+      },
+    ],
+  },
+  'verdara-kid': {
+    id: 'verdara-kid',
+    name: 'Sprout',
+    sprite: '🧒',
+    role: 'villager',
+    lines: [
+      'I live in the treehouse! I keep a snack stash under my hammock. For emergencies. Snack emergencies.',
+      'The trees east of the big meadow whisper and wiggle. I think there is a hole in them. A bee-sized hole. Or a you-sized one!',
+    ],
+    ambient: ['*climbs*', 'Treehouse rules!', 'Snack time?'],
+  },
+  'verdara-botanist': {
+    id: 'verdara-botanist',
+    name: 'Professor Petal',
+    sprite: '👩‍🔬',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'I study every leaf, petal and root in Verdara. Did you know sunflowers follow the sun across the sky? Show-offs.',
+      {
+        text: 'The moonbloom cutting is thriving in the treehouse garden. Science AND friendship — the best kind of experiment!',
+        ifFlag: 'quest:garden-survey:done',
+      },
+    ],
+  },
+
+  // Gearfall — east district + Clockwork Plaza
+  'gearfall-coil-merchant': {
+    id: 'gearfall-coil-merchant',
+    name: 'Mechanic Spring',
+    sprite: '🔩',
+    role: 'merchant',
+    lines: ['Coil & Spring, open all hours! A Turbo Coil fills your spell charge right to the top. Zzzap!'],
+  },
+  'gearfall-inventor': {
+    id: 'gearfall-inventor',
+    name: 'Professor Sprocket',
+    sprite: '🥽',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Professor Sprocket, inventor extraordinaire! Today I invented a spoon that stirs itself. Tomorrow: a self-tying shoe!',
+      'I keep spare parts under my bed. Everyone should. Where else would you keep them? In a DRAWER? Preposterous.',
+    ],
+  },
+  'gearfall-clockkeeper': {
+    id: 'gearfall-clockkeeper',
+    name: 'Tock',
+    sprite: '🕰️',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Tick… tock… tick… The Clocktower has kept Gearfall on time for a hundred years. Well. Mostly on time.',
+      {
+        text: 'Both gears home and the great clock sings on the hour again. Gearfall will never be late — thanks to you!',
+        ifFlag: 'quest:tock-gears:done',
+      },
+    ],
+  },
+  'gearfall-apprentice': {
+    id: 'gearfall-apprentice',
+    name: 'Widget',
+    sprite: '🧑‍🔧',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'I am Professor Sprocket\'s apprentice! I hold the wrench. Sometimes I hold TWO wrenches.',
+      'There is a crate by the Clocktower with a loose plate. It rattles when the wind blows. Rattle rattle!',
+    ],
+  },
+
+  // Chromaria — south district
+  'chromaria-mirror-merchant': {
+    id: 'chromaria-mirror-merchant',
+    name: 'Glint',
+    sprite: '🪞',
+    role: 'merchant',
+    lines: ['Mirror, mirror, on the shelf — a Mirror Charm bounces a foe\'s next hit right back at itself! Clever, no?'],
+  },
+  'chromaria-curator': {
+    id: 'chromaria-curator',
+    name: 'Madame Hue',
+    sprite: '🖼️',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Welcome to the Grand Gallery, darling! Every painting here was rescued from the gray. Well — almost every painting.',
+      {
+        text: '"Sunrise in Seven Colours" is back on its wall where it belongs. Visitors weep. With JOY, darling.',
+        ifFlag: 'quest:masterpiece:done',
+      },
+    ],
+  },
+  'chromaria-musician': {
+    id: 'chromaria-musician',
+    name: 'Bard Lyra',
+    sprite: '🎻',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'La la LAAA! In Chromaria every colour has a note. Red is a trumpet. Blue is a cello. Gray is… a sigh.',
+      {
+        text: 'Our Song of Colors plays in every street now. Can you hear yourself in it? You are the high, brave part!',
+        ifFlag: 'quest:song-of-colors:done',
+      },
+    ],
+  },
+  'chromaria-kid': {
+    id: 'chromaria-kid',
+    name: 'Clay',
+    sprite: '🧑‍🎨',
+    role: 'villager',
+    lines: [
+      'I make statues! My best ones live in a secret garden past the west wall. The wall has a soft spot. Shh!',
+      'Madame Hue lost her favourite painting. I bet it is somewhere nobody looks… like a garden full of statues.',
+    ],
+    ambient: ['*sculpts*', 'Squish!', 'Art!'],
+  },
+
+  // --- Dawnreach, the overworld (#75 Phase 1) ---------------------------------
+  // A scout at the Village crossroads: every road, in one breath, and a nudge
+  // toward the world map — so a kid always knows where to go next.
+  'dawnreach-scout': {
+    id: 'dawnreach-scout',
+    name: 'Scout Tamsin',
+    sprite: '🧭',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Hi! I\'m mapping all of Dawnreach. Want the short version? Here goes!',
+      'North: Lumina Field. West: the Whispering Woods. East: Starfall Coast, where the land runs out.',
+      'South, past the hills: the Crystal Spire. You can see it from almost anywhere — lost? Look for the Spire!',
+      {
+        text: 'Far to the north-east, an old shrine hides behind the fog. Nobody\'s been there since the fog came.',
+        unlessFlag: 'met-wren',
+      },
+      { text: 'You found the Shrine of First Light! I\'m drawing it on my map RIGHT NOW. With extra sparkles.', ifFlag: 'met-wren' },
+      'Tip: open the 📜 Menu to see my map. I drew the trees myself. All of them. Each one. Individually.',
+    ],
+    ambient: ['Hmm… north is that way.', '*scribbles on a map*', 'So many places to draw!'],
+  },
+  // Old Wren kept one candle burning here through the whole fog.
+  'shrine-keeper': {
+    id: 'shrine-keeper',
+    name: 'Old Wren',
+    sprite: '🕯️',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      { text: 'Welcome, little light. This is the Shrine of First Light — the oldest lit place in all of Dawnreach.', setFlag: 'met-wren' },
+      'When the fog rolled in, I kept one candle burning here. Just one. It was enough to remember the way.',
+      'I\'ve kept that candle lit for sixty years. I blinked once. Very nervous blink.',
+      { text: 'Your dragon is warm as a hearth! Ember would make a fine candle-keeper. Don\'t tell the candle.', ifFlag: 'ember-hatched' },
+      'Someday I\'ll teach you to carry the light with you, so you can always find your way home. Not yet. Soon.',
+      { text: 'The Forgotten One fell, and still my candle burns. Good. Some lights are for keeping.', ifFlag: 'spire-cleared' },
+    ],
+  },
 };
