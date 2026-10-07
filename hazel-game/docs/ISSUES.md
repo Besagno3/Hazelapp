@@ -11,7 +11,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #2  | 🟢 | High   | `PASS_THRESHOLD` (0.82) vs 5 questions requires a perfect score |
 | #3  | 🟢 | High   | App crashes on boot if Supabase env vars are missing |
 | #4  | 🟢 | Med    | Test infrastructure (Vitest) installed but not wired |
-| #5  | 🔴 | Med    | `vite-plugin-pwa` installed but not configured |
+| #5  | 🔴 | Med    | No PWA (installable/offline). `vite-plugin-pwa` was removed as unused in #87 — `npm i -D vite-plugin-pwa` when this is picked up |
 | #6  | 🟢 | Med    | Sign-up proceeds even when email confirmation is pending |
 | #7  | 🟢 | Med    | Quiz/battle questions are hardcoded — replaced by AI generation |
 | #8  | 🟢 | Low    | Battle damage and avatar HP do not persist between battles |
@@ -50,7 +50,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #41 | 🔴 | Low    | No audio — howler installed, needs CC0 chiptune/SFX packs (phase 4) |
 | #42 | 🟢 | Low    | All four mini-quests share the riddle-chest pattern — add variety later |
 | #43 | 🟢 | Med    | Review-pass fixes: double-tap turn resolve, legacy-key leak, sage/step lock, hub chest |
-| #44 | 🔴 | Low    | Battle turn flow + world cutscenes live in component state, not machine substates |
+| #44 | 🟡 | Low    | Battle turn flow refactored (#87): rules → `lib/battleTurn.ts`, live numbers → `battleStore`, UI split into HUD/stage/menus/result. Still open: world cutscenes as machine substates |
 | #45 | 🟢 | High   | World canvas: black lines on screen change, keys need a click, canvas too small |
 | #46 | 🔴 | Med    | Pixel-art assets still to be produced — heroes, Ember, Verdara first; hub NPCs + Numbria/Gearfall/Chromaria zones after (depends on Task 8 asset production; see `docs/ASSET-SOURCING.md`) |
 | #47 | 🟢 | High   | XP gauge never moved / no level medallion — a missing `profiles` row left `profile` null so `addXp` silently dropped all XP. `loadProfile` now self-heals: falls back to a working local profile and best-effort upserts the row (`profileStore.ts`). `LevelBadge` shows Lv 1 / 0 XP instead of nothing. |
@@ -66,9 +66,13 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #57 | 🟢 | High   | ⚠️ Deploy: redeploy `generate-questions` so nature/space/history questions generate — the function whitelists topics, so the new zones' gates/chests/battles 400 until it ships. Redeployed 2026-06-18 (fixed the Clockwork Depths "topic must be one of…" error). |
 | #58 | 🟢 | High   | Warden bosses in the 3 themed zones drop keys that gate-unlock 3 of the 4 Fiends (Numbria stays open). Reward: key + trophy badge + boss XP. |
 | #59 | 🟢 | Low    | Warden bosses sit in the open roaming area. Added a signpost NPC near each warden that warns of it and points the reward home; keys retheme to their destination crystal zone (Verdant/Prism/Gearwright). |
+| #90 | 🟢 | Med    | Migrations review: `profiles` lacked explicit grants (likely part of #61), sign-up trigger failed without birth-date metadata, `increment_question_usage` callable via PUBLIC → fixed in `0010_access_hardening.sql`. Migration rules (forward-only, re-runnable, no BEGIN/COMMIT) documented + linted by `db:bundle`. Open (low): players can edit their own `xp`/`power_ups` via the API — move XP awards server-side before any leaderboard |
+| #88 | 🟡 | High   | ⚠️ Deploy: apply `0009_question_quota.sql`, redeploy `generate-questions`, add the site URL to Auth → Redirect URLs. Code shipped: sign-in required + rate limit/budget on the question generator, CI workflow, password reset. Until 0009 is applied the quota fails OPEN (logged) |
+| #89 | 🔴 | High   | Children sign up directly with email + password and a birth date — no parent involvement. Needs a parent-account / verifiable-consent design before shipping to other families (COPPA / GDPR-K). Product + legal decision |
+| #87 | 🟢 | Low    | Tech-debt pass: battle refactor (#44), tap-race fix (#70), real README, 22 unused packages removed. Note: `npm audit` still reports 13 pre-existing advisories (vite/vitest/postcss chain, was 17) — handle with a toolchain bump |
 | #83 | 🔴 | Low    | **Wayfinding follow-ups (#75 item 6):** (a) the 🚩 and the guides follow the main story only (crystals → warden keys → Spire); side quests stay in the menu's quest log, and optional places (the Shrine, the Grove) are never the goal; (b) the crystals are suggested in a fixed order (Numbria, Verdara, Gearfall, Chromaria; a key you already hold jumps the queue) though the story lets you do them in any order; (c) directions are straight-line compass bearings, not road-following: fine on Dawnreach's straight roads, but on the full continent a sign could say "north-east" where the road first goes north — follow the roads by pathfinding then; (d) routes count zones and ignore fog and gates (no main-story route crosses fog today); (e) inside a crystal zone the 🚩 has no marker toward the Fiend's gate itself — "It's right here in Numbria!" is all you get; (f) "every town's people point onward" (§3.4 rumor lines) is roadmap item 11, not done here. |
 | #82 | 🔴 | Low    | **Overworld Phase 1 follow-ups (for Phase 2):** (a) Lumina Field is still its own place (a "hamlet" icon north of the Village) — it retires as a hub in Phase 2 (decision 3); (b) the Shrine of First Light teaches nothing yet — Old Wren is flavour until field spells land; (c) the one fog bank lifts on *any* crystal (`ANY_CRYSTAL`); Phase 2 ties each bank to its region's crystal; (d) the world map is a stub: no zoom or scroll, no region names, places listed as text, and zones not on the map (e.g. Numbria) show the nearest place on it; (e) overworld critters reuse existing nature/space enemies (their own topics); a regional difficulty pass comes with the full continent; (f) dev-only: `bench … shots` picks each screen by the walkable cell nearest its centre (the hero must stand on open ground), so on maps with big solid areas some strips go unshot — on Dawnreach, rows ~23–28 west of the Village (the Woods icon was checked by hand). Add a camera-only position to the bench before the full continent; (g) Tiled holds only the terrain — places, exits and fog are still coordinates in zones.ts, kept in step by the tests. If moving places around in Tiled gets painful on the full continent, read them from a Tiled object layer instead; (h) a `.tmj` map is one long JSON line, so map changes diff badly in PRs — use `tools/tiled/tiled.py to-ascii` to compare, or add a CI step that prints the ASCII diff. |
-| #81 | 🟡 | Med    | CI added (`.github/workflows/ci.yml`: lint + test + build on every PR / push to `main`, check `test`). **Manual step left (GitHub settings, owner only):** add `test` as a required status check in the `main` branch ruleset (source: GitHub Actions) after its first run (the first run, on PR #15, passed — so it is in the picker); optionally keep `Vercel` too. Until then CI reports but doesn't block merges. |
+| #81 | 🟡 | Med    | CI added (`.github/workflows/ci.yml`: lint + test + build on every PR / push to `main`, check `test`; #88 added the `edge-function` and `migrations` jobs + the bundle check). **Manual step left (GitHub settings, owner only):** add `test` as a required status check in the `main` branch ruleset (source: GitHub Actions) after its first run (the first run, on PR #15, passed — so it is in the picker); optionally keep `Vercel` too. Until then CI reports but doesn't block merges. |
 | #80 | 🟡 | Low    | Village expansion: five towns enlarged (Lumina Village +1 screen east; Numbria/Chromaria a south district; Verdara/Gearfall an east district + Gearfall's Clockwork Plaza), 15 new buildings, 21 new townsfolk with sprites, 5 new shops + items (Lucky Clover, Focus Tea, Sunseed Snack, Turbo Coil, Mirror Charm), 10 side quests, 15 secrets and hidden 'H' passages. Follow-ups: (a) ~~the Mirror Charm's bounced hit ignored a shielded enemy's shield~~ fixed in the review pass: it now shatters the shield like any landed hit; (b) secrets are flat rewards — no 'all secrets found' trophy yet; (c) Lumina Field, the Woods, Coast and Depths hamlets were deliberately left as they are; (d) shop clerks stand behind full-width counters, so a secret can never sit behind one (secrets.test enforces reachability); (e) the side-quest NPCs are stationary — none of them roam. |
 | #79 | 🟢 | Low    | Character art pass: every UI portrait (dialogue, Sage, HUD + menu Ember, menu hero, battle name tag) now uses the sprite via `CharacterPortrait`; Umbra redesigned as an armoured purple shadow-lord in a white war-helm and drawn at a new 'giant' size tier (64px map / 96px battle), shown oversized over the throne-hall panels. |
 | #78 | 🔴 | Low    | **Phase 2 (real dungeons):** the Spire's candle-light overlay places its circle at `player.pos / VIEW_W` (`WorldCanvas.tsx`, the darkness block) — world pixels with no camera offset or zoom. Correct only because every Spire floor is one screen; a scrolling dungeon would put the light in the wrong place. Fix when the dungeon engine is generalized (roadmap §5 rank 10): convert to screen space with the camera position + `worldView`. |
@@ -79,9 +83,9 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #73 | 🟡 | Med    | Every place unique: one Inn (village), one Library (field), six distinct shops (each item sold once), 3 new battle items, per-place layouts + architecture styles. Follow-ups: (a) ~~potions only on Lumina Field~~ — Tadpole's Tonics (Verdara) now also sells them (`SHARED_STOCK`); (b) the battle 🎒 Items menu is covered by typecheck + logic only, not yet played in-browser; (c) Rainbow Ward/Spark Cell/Honey Elixir prices are first guesses; (d) Moonwell Grove and the Crystal Spire deliberately have no buildings (wild grove / the tower); (e) the Spire climb doesn't offer battle items. **Update 2026-10-05:** the one-inn rule is reversed by #75 — every town gets an inn when towns move onto the overworld (Phase 2); `zones.test.ts` one-inn check changes then. |
 | #72 | 🟡 | Low    | Lumina Village is now a scrolling 44×28 town with 4 enterable buildings (roof fades when inside; counter talk). Follow-ups: (a) ~~duplicated services~~ resolved by #73; (b) ~~zone changes hard-cut~~ done — Zelda-style slide (edge exits only; a future interior exit/door-warp would need a fade); (c) only the town scrolls — other zones stay one screen; (d) NPC name labels can overlap furniture indoors; (e) ambient speech bubbles render above roofs (only matters if a chatty NPC is ever placed indoors). |
 | #71 | 🟡 | Low    | 16-bit asset set generated (`tools/assets/`): every hero/Ember stage/enemy/NPC sprite, 11 zone tilesets + props + Spire, per-zone battle backdrops, and chiptune SFX + music loops. Follow-ups: (a) ~~no up/down walk cycles~~ done — 4-way facing (beasts, flyers, crabs, serpents, demons, whale, octopus, seal still reuse side art for up/down); zone changes now slide (#72 follow-up); (b) ~~no autotiling, so water/path edges are hard squares~~ done (2026-10-06, #75 item 3) — edge blending rounds coasts, beaches and roads (`blendLayer`); Spire pits stay square on purpose; (c) music is procedurally composed and was checked numerically, not by ear — swap any track via `MUSIC_SOURCES` if one grates; (d) the Spire climb overlay has no backdrop art yet; (e) zones are still fixed 22×14 single screens — a true scrolling camera (bigger maps + `k.camPos` follow) is engine work, not assets. |
-| #70 | 🟡 | Low    | Pre-existing battle tap-race, widened by Wave 0.5. `BattleArena` applies the enemy's hit via a 260ms `setTimeout` that closes over render-captured `playerHp`/`enemyHp` and calls `setHp(...)`; a kid who taps the result message through (<260ms) and immediately taps Potion/Flee can have that pending write clobber the potion heal or persist pre-hit HP. Wave 0.5 added the healer mend to that same delayed `setHp`, so a mend can now also be dropped. Not introduced here (predates #43's double-tap fix era) and fixing it properly means reworking the turn-resolution timing (make HP writes synchronous / functional-update based), so deferred. Low impact (self-correcting on the next turn's write). Revisit when the turn machine is touched (Wave 2 companions). |
-| #69 | 🟡 | Med    | Wave 0.5: enemy behavior archetypes shipped (`EnemyBehavior`: shielded/trickster/healer) with three existing +1-tier critters retuned as the first users (Relic Golem 🛡, Pixel Witch 🎭, Moon Moth 💚) — a mild live difficulty change, announced in-battle via the phase banner so it's never a gotcha. **Open:** (a) the "swift"/timed archetype is deliberately unbuilt pending the STORY-4X §12 timer decision; (b) archetype logic lives in `BattleArena` component state — fine at 3 archetypes, extract a pure turn-resolver if Wave 3 adds more; (c) healer stall-check is test-guarded for today's stat ranges only (battleMath.test) — re-verify if HP formulas change. |
-| #68 | 🔴 | Low    | Question-table growth has no pruning (`questions`, `question_views`, `question_flags` grow unbounded). Fine at current usage; before any real player growth, add a migration with (a) an index on `question_views(profile_id, created_at)`, (b) a `prune_question_views()` routine deleting views older than ~90 days beyond each profile's most-recent `SEEN_HISTORY_LIMIT` (100), (c) optionally retiring flagged questions never reused in 180 days. Deferred deliberately — shipping unapplied migrations is this repo's known prod-drift risk (#61). |
+| #70 | 🟢 | Low    | **Resolved by #87.** Battle tap-race: a delayed 260ms `setHp` could clobber a potion heal / healer mend. HP, charge, guard and shield now live in `battleStore` and every command reads + writes them synchronously; only cosmetic effects are delayed |
+| #69 | 🟡 | Med    | Wave 0.5: enemy behavior archetypes shipped (`EnemyBehavior`: shielded/trickster/healer) with three existing +1-tier critters retuned as the first users (Relic Golem 🛡, Pixel Witch 🎭, Moon Moth 💚) — a mild live difficulty change, announced in-battle via the phase banner so it's never a gotcha. **Open:** (a) the "swift"/timed archetype is deliberately unbuilt pending the STORY-4X §12 timer decision; (b) ~~archetype logic lives in `BattleArena` component state~~ extracted to the pure `lib/battleTurn.ts` resolvers (#87); (c) healer stall-check is test-guarded for today's stat ranges only (battleMath.test) — re-verify if HP formulas change. |
+| #68 | 🟢 | Low    | **Won't do (product decision 2026-09-26):** questions are never pruned — the bank should keep growing so different children get variety. Revisit only for storage cost, and then add an index, not deletion |
 | #67 | 🟢 | Med    | Wave 0.4 + follow-up. Topic whitelist + persona lines have a canonical copy in `supabase/functions/_shared/topics.ts` (imported by the app via `src/content/topicPrompts.ts`, with a compile-time `Topic` ≡ `TopicId` lock + test). **The edge function keeps its OWN inline copy** of that table (reverted from a `../_shared` import) so `generate-questions/index.ts` stays a single self-contained file — a sibling `_shared` import fails to bundle on non-CLI/dashboard deploys with `Module not found "_shared/topics.ts"` (hit live 2026-07-07). Drift between the function's inline copy and the canonical source is caught by `topicPrompts.test.ts` (reads the function file via `?raw` and asserts every id + persona is present). Net: deploy the function ANY way (CLI, dashboard, API); adding a topic means editing both the `_shared` table and the function's inline block, and the test fails if you forget. |
 | #66 | 🟢 | Low    | Wave 0.3: `ZoneId` now derives from `ZONE_IDS` in `content/zones.ts` (types/index.ts re-exports it type-only — the circular import is erased at compile time). Adding a zone touches only zones.ts; the `Record<ZoneId, ZoneDef>` shape + zones.test enforce id/entry consistency. **Not done (deliberate):** lazy per-region zone loading — all 11 maps still load eagerly, fine at this scale; revisit when Act III's ~10 island zones land (ROADMAP-4X Wave 3). |
 | #65 | 🟢 | Med    | Wave 0.2: versioned save-migration ladder (`runMigrations`/`MIGRATIONS`, `lib/save.ts`) runs inside `normalizeSave`, so both load paths (Supabase + localStorage) upgrade old payloads step-by-step before field coercion. The ladder is empty while `SAVE_VERSION` is 1 — the first real save-shape change (e.g. Wave 2 party state) must bump the version, add a step, and add a real-v1-fixture test. Reminder from #53: drop the vestigial `sageEquipped` on that same bump. |
@@ -320,12 +324,78 @@ is the point; server cache absorbs cost); path-question refetch on retry
 (fresh question per attempt is a design feature); hand-rolled normalizeSave
 vs zod (tested, working; revisit if schema churn grows).
 
-### #44 — Battle turns + cutscenes as machine substates 🔴 Low
+### #44 — Battle turns + cutscenes as machine substates 🟡 Low
 The design doc sketches battle substates inside the flow machine; the build
 keeps turn flow in BattleArena component state and cutscenes as WorldScreen
 local overlays (pausedRef union). Fine at current scale, but each new
 cutscene/turn-phase adds boilerplate. When phase 4 lands (companions, more
 story moments), promote both into the gameFlow machine.
+
+**Battle half addressed by #87 (2026-09-26)**, but deliberately *not* as
+gameFlow substates: the fight's rules became pure resolvers in
+`lib/battleTurn.ts` (unit-tested, no React), its numbers moved into
+`battleStore` (synchronous source of truth), cosmetic timers into
+`features/battle/useBattleFx.ts`, and the render into `BattleHud` /
+`BattleStage` / `BattleMenus` / `BattleResult`. `BattleArena` now only
+sequences the `Turn` union. That gives companions (Wave 2) a pure place to add
+actions without growing the component. Promoting the `Turn` union into an
+xstate machine is still possible later if companion turn order gets complex.
+World cutscenes are unchanged and remain open.
+
+### #88 — Question-generator lockdown, CI, password reset 🟡 High
+**Why:** `generate-questions` accepted any caller holding the public anon key
+(it's in the web bundle) and called Claude with no limit — a cost/abuse hole.
+**Shipped:**
+- 401 unless signed in; `begin_question_request` (migration 0009) logs every
+  call and enforces a per-player rate (429) plus per-player and global daily
+  budgets of fresh questions. Over budget the batch comes from the cache, then
+  already-seen cached questions; only an empty cache returns 429.
+- Known limits: the per-player lock serializes the check, but `fresh_count`
+  is written after generation, so a burst inside one minute can overshoot the
+  daily budget by at most (calls/min × batch size). The global budget isn't
+  locked across players (can overshoot slightly under heavy parallel load).
+  New accounts can still be created freely, which is why the global budget is
+  the real ceiling. The `question_requests` log grows by one row per call;
+  it's tiny, but it's the one table that may need a cleanup job later (unlike
+  `questions`, which is never pruned).
+- CI workflow + `supabase/ci/` (Supabase stub, `quota.test.sql`).
+- Password reset (AuthPage + ResetPasswordPage + recovery detection).
+**Easiest path:** paste `supabase/apply_all_migrations.sql` into the SQL
+Editor (applies + records 0001–0009, safe to re-run).
+**To finish (manual):** apply 0009 to production, redeploy the function, add
+Redirect URLs, then confirm a signed-out `curl` to the function returns 401.
+Also still open from #61: apply 0001–0008 to production if not done.
+
+### #89 — Parent accounts / consent 🔴 High
+Kids create their own email/password accounts and enter a birth date. For a
+product used by other families this needs a parent-first model (parent
+account → child profiles, PIN or picture login for kids) and a consent flow.
+Needs a product/legal decision before building.
+
+### #87 — Tech-debt pass 🟢 Low — RESOLVED (2026-09-26)
+- **#70 tap-race fixed.** Root cause: `BattleArena` applied the enemy's hit in
+  a 260ms `setTimeout` that wrote render-captured HP, so a kid tapping
+  through and drinking a potion could lose the heal (or a healer's mend).
+  Now every command resolves against `combatState()` read from the store at
+  that moment and writes the result back immediately; the timers only drive
+  floats/SFX (`useBattleFx`, cleared on unmount). Victory/flee also read the
+  store for the HP they save. Regression-tested in `battleTurn.test` and the
+  `BattleArena.test` smoke test.
+- **Behavior notes:** HP bars now start moving at the lunge rather than at
+  impact (they animate either way). Victory XP is computed once and shown
+  from the same number (was a duplicated formula in the render).
+- **Unused packages removed (22):** @hookform/resolvers, @tailwindcss/typography,
+  @tanstack/react-query, @tanstack/react-table, class-variance-authority, cmdk,
+  date-fns, embla-carousel-react, katex, lottie-react, lucide-react,
+  next-themes, react-hook-form, react-katex, react-router-dom, recharts,
+  sonner, tailwindcss-animate, vaul, zod, vite-plugin-pwa,
+  @testing-library/user-event. Re-add when a feature adopts one (react-router
+  + recharts for the parent dashboard #29, vite-plugin-pwa for #5).
+- **README** rewritten for the game (was the Vite template).
+- **#68 closed as won't-do:** the question bank is meant to grow.
+- **Review follow-up:** the #70 test was hardened with fake timers (it previously
+  asserted before any timer could fire); `BattleArena` now uses a `useShallow`
+  store selector.
 
 ### #45 — World canvas: black lines, click-to-focus, too small 🟢 High — RESOLVED (2026-06-13)
 Three problems with the KaPlay overworld surfaced in live play:

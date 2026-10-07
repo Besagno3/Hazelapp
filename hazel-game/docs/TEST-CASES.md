@@ -482,6 +482,52 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-399 | M | ✅ | world | both signposts are drawn at their crossroads (pixel sign, "Signpost" label, off the road), and walking into each opens its own conversation (bench `__bench.state().talks`, headless Chromium) |
 | TC-400 | M | ⬜ | world | in the real app: talk to a signpost and to Elder Lumen, open the menu map, then restore Numbria's crystal and check the 🚩 and the lines move on to the Whispering Woods |
 
+## Battle tech-debt pass (#87)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-416 | U | ✅ | battleTurn | a correct answer fills one ◆, capped at `CHARGE_MAX`; a wrong one leaves charge alone (battleTurn.test) |
+| TC-417 | U | ✅ | battleTurn | hero hit: deals damage, floors enemy HP at 0 and reports defeat; a shield absorbs the first landed hit then is gone; a shield-absorbed spell refunds its charge (battleTurn.test) |
+| TC-418 | U | ✅ | battleTurn | boss enrage phases 1 and 2 are each announced exactly once; regular enemies never announce (battleTurn.test) |
+| TC-419 | U | ✅ | battleTurn | enemy turn: a standing guard blocks fully and is spent; a correct defend softens; HP floors at 0 → hero down; a hurt healer mends, a healthy one doesn't; boss damage uses the current phase (battleTurn.test) |
+| TC-420 | U | ✅ | battleTurn | spells: a miss fizzles and keeps charge; Mend heals (capped); Aegis raises the guard; offensive spells spend their cost (battleTurn.test) |
+| TC-421 | U | ✅ | battleTurn | items: blocked reasons (none left / HP full / charge full / already warded); potion, elixir, spark and ward effects (battleTurn.test) |
+| TC-422 | U | ✅ | battleStore | `start()` resets combat and derives the shield from the enemy archetype, so shield state never leaks between fights (battleTurn.test) |
+| TC-423 | C | ✅ | BattleArena | smoke: Attack → correct answer → Go! shows "strikes true", lowers enemy HP and fills one ◆ (BattleArena.test) |
+| TC-424 | M | ⬜ | BattleArena | play a full fight on a phone: lunges, damage numbers, SFX, enrage banner and victory panel look the same as before the refactor |
+
+## Critical fixes (#88)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-425 | U | ✅ | quota SQL | 3 calls/min pass and the 4th is refused; a player over the daily fresh budget gets 0; the global budget caps a fresh player; budgets reset after a day (supabase/ci/quota.test.sql) |
+| TC-426 | U | ✅ | quota SQL | anon and authenticated cannot EXECUTE `begin_question_request`; service_role can (quota.test.sql) |
+| TC-427 | U | ✅ | migrations | every migration 0001→0009 applies in order to a fresh Postgres + the Supabase stub (CI migrations job) |
+| TC-428 | U | ✅ | edge function | `deno check` passes for generate-questions (CI edge-function job) |
+| TC-429 | M | ⬜ | edge function | after deploy: a request with no Authorization (or only the anon key) → 401 "Please sign in to play." |
+| TC-430 | M | ⬜ | edge function | after deploy: 21 rapid calls from one player → the 21st returns 429 and the game shows the retry screen with the "short rest" message |
+| TC-431 | M | ⬜ | edge function | with `FRESH_PER_PLAYER_PER_DAY=0`: a battle still loads (served from the cache) and `question_requests.fresh_count` stays 0 |
+| TC-432 | U | ✅ | auth | `isRecoveryUrl` spots `type=recovery` in the hash or query and ignores other links (PasswordReset.test) |
+| TC-433 | C | ✅ | AuthPage | Forgot password hides the password field, calls `resetPasswordForEmail` with this page as the redirect, and shows a neutral notice; errors are shown (PasswordReset.test) |
+| TC-434 | C | ✅ | ResetPasswordPage | too-short / mismatched passwords are rejected without a server call; success saves and leaves recovery mode; a server error keeps recovery mode (PasswordReset.test) |
+| TC-436 | U | ✅ | migrations | `apply_all_migrations.sql` is regenerated from `supabase/migrations/` and matches (CI `--check`) |
+| TC-437 | U | ✅ | migrations | the bundle applies to a fresh DB, applies again without error, and records one row per migration (CI apply-twice job) |
+| TC-438 | M | ✅ | migrations | on a drifted DB (old 0001 without the UPDATE policy, CLI history table with extra columns, existing player + question): the bundle restores the policy, adds columns, keeps data, records all 9 (local Postgres 16) |
+| TC-439 | U | ✅ | migrations | a user created without (or with invalid) birth-date metadata does not fail sign-up and gets no trigger-made profile; valid metadata still seeds one (supabase/ci/access.test.sql) |
+| TC-440 | U | ✅ | migrations | authenticated has select/insert/update on `profiles`; anon can't update it; only service_role can execute `increment_question_usage` (access.test.sql) |
+| TC-441 | U | ✅ | db:bundle | the generator rejects a migration with BEGIN/COMMIT, CREATE TABLE/INDEX or ADD COLUMN without IF NOT EXISTS, CREATE FUNCTION without OR REPLACE, or CREATE POLICY/TRIGGER without a prior DROP IF EXISTS (verified by hand with throwaway files) |
+| TC-435 | M | ⬜ | auth | end to end: request a reset email, open the link → "Choose a new password" → save → the game loads; sign out and sign in with the new password |
+
+## Merge with main: village-expansion items in the refactored battle (#87, #80)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-442 | U | ✅ | battleTurn | Mirror Charm: blocks the hit, bounces the full hit back, is spent, and keeps a standing guard (battleTurn.test) |
+| TC-443 | U | ✅ | battleTurn | a bounce onto a shielded foe shatters the shield instead of hurting it; a bounce can win the battle and a beaten healer doesn't mend; a bounce announces a boss enrage phase (battleTurn.test) |
+| TC-444 | U | ✅ | battleTurn | Focus Tea multiplies one landed hit by `TEA_DAMAGE_MULT`, then is spent; it waits while the enemy's shield is up (battleTurn.test) |
+| TC-445 | U | ✅ | battleTurn | Sunseed Snack heals `SNACK_HEAL` + 1 ◆; Turbo Coil fills ◆; Mirror/Tea/Clover set their flags; each new item has its "would do nothing" reason (battleTurn.test) |
+| TC-446 | U | ✅ | battleStore | `start()` also resets the Mirror/Focus/Clover buffs, so they never carry into the next fight (battleTurn.test) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
@@ -493,6 +539,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-R5 | M | ⬜ | #23 | after 0005, a quiz round increases `select count(*) from questions` |
 | TC-R6 | M | ⬜ | #24 | after 0006, two back-to-back rounds return non-overlapping question IDs |
 | TC-R7 | M | ⬜ | #26 | flagging a question removes it from the next call's cache pool |
+| TC-R8 | C | ✅ | #70 | enemy hit then an immediate potion (tapping through before the 260ms impact) keeps both the damage and the heal, and HP stays put after all pending timers fire (fake timers; BattleArena.test + battleTurn.test) |
 
 ---
 

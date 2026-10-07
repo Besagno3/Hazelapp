@@ -73,3 +73,6 @@ desktop.ini
 # ─── Local tooling / temp ───────────────────────────────────
 .superpowers/
 hazel-game/supabase/.temp/
+
+# Python wheels / downloads
+*.whl

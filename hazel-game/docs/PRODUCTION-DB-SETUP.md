@@ -33,7 +33,7 @@ order by column_name;
 select table_name
 from information_schema.tables
 where table_schema = 'public'
-  and table_name in ('profiles','questions','question_views','question_flags','saves')
+  and table_name in ('profiles','questions','question_views','question_flags','saves','question_requests')
 order by table_name;
 ```
 
@@ -55,12 +55,23 @@ order by table_name;
   | `questions` | `0003_questions_cache.sql` (+ `0005_questions_grants.sql`) |
   | `question_views` / `question_flags` | `0006_question_views_and_flags.sql` |
   | `saves` | `0008_saves.sql` |
+  | `question_requests` | `0009_question_quota.sql` (question-generator rate limit + budget) |
 
 ---
 
 ## Step 2 — Apply the missing migrations
 
-### Option A (recommended): Supabase CLI
+### Option A (easiest): one script, no CLI
+Open `hazel-game/supabase/apply_all_migrations.sql`, paste the **whole file**
+into the SQL Editor, and click **Run**. It applies every migration in order in
+one transaction and records each one in `supabase_migrations.schema_migrations`.
+It never fails on things that already exist — every statement is idempotent —
+so it is safe whatever state the project is in, and it also re-creates a
+missing or wrong RLS policy (the XP-reset cause). The last result lists the
+recorded migrations; you should see every file from `0001` to the newest.
+Skip Step 1's diagnosis if you like — this fixes all of it.
+
+### Option A2: Supabase CLI
 From `hazel-game/`:
 
 ```bash
@@ -73,11 +84,16 @@ outstanding ones, in order.
 
 ### Option B: paste SQL by hand
 In the SQL Editor, open each file under `hazel-game/supabase/migrations/` and
-run them **in numeric order** (`0001` → `0008`), skipping any the diagnostic
+run them **in numeric order** (`0001` → `0009`), skipping any the diagnostic
 showed are already present. If a statement errors with `already exists`, that
 piece is done — keep going.
 
-Full order: `0001` → `0002` → `0003` → `0004` → `0005` → `0006` → `0007` → `0008`.
+Full order: `0001` → `0002` → `0003` → `0004` → `0005` → `0006` → `0007` → `0008` → `0009`.
+
+After `0009`, **redeploy `generate-questions`** (it now requires sign-in and
+calls `begin_question_request`). If the function logs
+`QUOTA CHECK FAILED (is migration 0009 applied?)`, the migration is missing:
+play still works, but the rate limit and budget are OFF until it's applied.
 
 ---
 

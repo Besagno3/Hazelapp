@@ -18,14 +18,17 @@ create table if not exists public.profiles (
 -- Row Level Security: a user may only see and change their own profile.
 alter table public.profiles enable row level security;
 
+drop policy if exists "Profiles are viewable by their owner" on public.profiles;
 create policy "Profiles are viewable by their owner"
   on public.profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "Users can insert their own profile" on public.profiles;
 create policy "Users can insert their own profile"
   on public.profiles for insert
   with check (auth.uid() = id);
 
+drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile"
   on public.profiles for update
   using (auth.uid() = id)
