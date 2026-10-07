@@ -1,5 +1,10 @@
 # Demo Asset Sourcing Guide (Pixel-Art Character Sprites)
 
+> **Update (2026-09-23, #71):** every character now ships with generated
+> 16-bit art from `tools/assets/` (see `tools/assets/README.md`). This guide
+> still applies if you want to replace an id with hand-made or CC0 art: drop
+> the PNGs in and add an override entry to `SPRITES` in `src/content/sprites.ts`.
+
 Reference for sourcing/creating the pixel-art sprites that replace the emoji
 characters. The code pipeline is already built and ships everything behind an
 emoji fallback, so assets can be dropped in incrementally — a character only

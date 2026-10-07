@@ -11,6 +11,8 @@ import MenuOverlay from './MenuOverlay';
 import SpireOverlay from './SpireOverlay';
 import StoryPanels from '../../components/StoryPanels';
 import { zone, TILE } from '../../content/zones';
+import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx } from '../../content/spire';
+import { useSpireStore } from '../../store/spireStore';
 import { spawnEnemy } from '../../content/enemies';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
@@ -19,6 +21,7 @@ import {
   emberStatus,
   endingPanels,
   EMBER_SPRITES,
+  EMBER_SPRITE_IDS,
   EMBER_STAGE_LABEL,
   EMBER_HATCHED,
   EMBER_HATCH_SEEN,
@@ -35,8 +38,15 @@ import {
   crystalSceneFlag,
   GROVE_PANELS,
   GROVE_SEEN,
+  DAWNREACH_PANELS,
+  DAWNREACH_SEEN,
 } from '../../content/story';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
+import { claimSecret, rewardSummary, secretById, secretFlag } from '../../content/secrets';
+import type { SecretDef } from '../../content/zones';
+import { sfx } from '../../lib/audio';
 import { playerAge } from '../../lib/age';
+import { toastMs } from '../../lib/toast';
 import { heroMaxHp } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { useSaveStore } from '../../store/saveStore';
@@ -76,11 +86,36 @@ export default function WorldScreen() {
   const service = useFlow((s) => s.context.service);
   const pathTarget = useFlow((s) => s.context.pathTarget);
 
+  // Spire climb (#74): while on a floor, the canvas shows that floor's map and
+  // the world runs only while the hero is free to explore (no panel open).
+  const spireFloorIndex = useSpireStore((s) => s.floor);
+  const spireExploring = useSpireStore((s) => s.exploring);
+  const spireLives = useSpireStore((s) => s.lives);
+  const spireBroken = useSpireStore((s) => s.broken);
+  const spireBump = useSpireStore((s) => s.bump);
+  const onSpireFloor = overlay === 'spire' && spireFloorIndex !== null;
+  const spireTheme = onSpireFloor ? SPIRE_FLOORS[spireFloorIndex].theme : null;
   const touchDirRef = useRef({ dx: 0, dy: 0 });
   const onDirChange = useCallback((dx: number, dy: number) => {
     touchDirRef.current = { dx, dy };
   }, []);
   const [toast, setToast] = useState<string | null>(null);
+  // One timer for whichever toast is up: a new toast replaces the old one's
+  // timer, so an earlier toast can't hide a newer one early.
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
+  // The secret just found — shown in a small celebration card.
+  const [found, setFound] = useState<SecretDef | null>(null);
+  useEffect(() => {
+    if (!found) return;
+    const t = setTimeout(() => setFound(null), 4000);
+    return () => clearTimeout(t);
+  }, [found]);
 
   const age = playerAge(profile);
   const zoneId = save?.zoneId ?? 'lumina-field';
@@ -102,8 +137,10 @@ export default function WorldScreen() {
     null;
   const spireAwakeDue = crystals >= 1 && !flags[SPIRE_AWAKE_SEEN];
   const endingDue = crystals === TOPIC_REGISTRY.length && !flags[ENDING_SEEN];
-  // Location-triggered: plays once on first stepping into the hidden grove.
+  // Location-triggered: plays once on first stepping into the hidden grove,
+  // and once on the first step out onto Dawnreach (#75 Phase 1).
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
+  const dawnreachDue = zoneId === 'dawnreach' && !flags[DAWNREACH_SEEN];
 
   const activeScene:
     | 'spireVictory'
@@ -113,6 +150,7 @@ export default function WorldScreen() {
     | 'spire'
     | 'ending'
     | 'grove'
+    | 'dawnreach'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -127,13 +165,16 @@ export default function WorldScreen() {
               ? 'ending'
               : groveDue
                 ? 'grove'
-                : null;
+                : dawnreachDue
+                  ? 'dawnreach'
+                  : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
   useEffect(() => {
-    pausedRef.current = overlay !== null || cutscene;
-  }, [overlay, cutscene]);
+    const spireFree = overlay === 'spire' && spireExploring;
+    pausedRef.current = (overlay !== null && !spireFree) || cutscene;
+  }, [overlay, cutscene, spireExploring]);
 
   // Warm each living enemy's battle questions while the player explores.
   useEffect(() => {
@@ -169,8 +210,9 @@ export default function WorldScreen() {
   }
 
   function showToast(text: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(text);
-    setTimeout(() => setToast(null), 2200);
+    toastTimer.current = setTimeout(() => setToast(null), toastMs(text));
   }
 
   return (
@@ -184,24 +226,32 @@ export default function WorldScreen() {
       {/* HUD */}
       <div className="w-full flex items-center justify-between text-white mb-2 px-1">
         <div>
-          <h1 className="text-lg font-extrabold leading-tight">{z.name}</h1>
+          <h1 className="text-lg font-extrabold leading-tight">
+            {spireTheme ? SPIRE_FLOORS[spireFloorIndex!].name : z.name}
+          </h1>
           <p className="text-[11px] text-white/60">
             💎 {crystals}/{TOPIC_REGISTRY.length} crystals restored
           </p>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>{EMBER_SPRITES[ember]}</span>
+          <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>
+            <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={0.75} />
+          </span>
           <span title="HP">
             ❤️ {hp}/{maxHp}
           </span>
           <span title="Coins">🪙 {save.coins}</span>
           <span title="Potions">🧪 {save.items.potion}</span>
-          <button
-            onClick={() => sendFlow({ type: 'OPEN_MENU' })}
-            className="bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
-          >
-            📜 Menu
-          </button>
+          {/* The machine's Spire state ignores OPEN_MENU, so don't offer it
+              mid-climb — the Spire HUD has its own "Leave the Spire". */}
+          {overlay !== 'spire' && (
+            <button
+              onClick={() => sendFlow({ type: 'OPEN_MENU' })}
+              className="bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
+            >
+              📜 Menu
+            </button>
+          )}
         </div>
       </div>
 
@@ -210,14 +260,17 @@ export default function WorldScreen() {
         avatar={avatar}
         age={age}
         emberStage={ember}
-        startPos={save.pos}
+        startPos={spireTheme ? floorSpawnPx(spireTheme, TILE) : save.pos}
         flags={save.flags}
         openedChests={save.openedChests}
         defeatedIds={defeatedIds}
         pausedRef={pausedRef}
         touchDirRef={touchDirRef}
         callbacks={{
-          onMove: (x, y) => update((s) => ({ ...s, pos: { x, y } })),
+          // Floor positions are never saved — a reload lands back at the Spire door.
+          onMove: (x, y) => {
+            if (!spireTheme) update((s) => ({ ...s, pos: { x, y } }));
+          },
           onTalk: (id) => sendFlow({ type: 'TALK', npcId: id }),
           onPath: (target) => sendFlow({ type: 'OPEN_PATH', target }),
           onSaveCrystal: () => {
@@ -235,7 +288,21 @@ export default function WorldScreen() {
             sendFlow({ type: 'ENCOUNTER' });
           },
           onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),
+          onFog: (hint) => showToast(`🌫️ ${hint}`),
+          onWard: (id) => spireBump({ kind: 'ward', id }),
+          onStairs: () => spireBump({ kind: 'stairs' }),
+          onUmbra: () => spireBump({ kind: 'umbra' }),
+          onSecret: (id) => {
+            const secret = secretById(id);
+            if (!secret || save.flags[secretFlag(id)]) return;
+            update((s) => claimSecret(s, secret));
+            sfx('chest');
+            setFound(secret);
+          },
         }}
+        spireFloor={spireTheme}
+        spireBroken={spireBroken}
+        spireLight={spireTheme ? { lives: spireLives, max: SPIRE_LIVES } : null}
       />
 
       <p className="text-white/50 text-xs mt-2">
@@ -253,6 +320,20 @@ export default function WorldScreen() {
         >
           {toast}
         </motion.div>
+      )}
+
+      {/* Secret found */}
+      {found && (
+        <motion.button
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          onClick={() => setFound(null)}
+          className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-b from-amber-200 to-amber-100 text-amber-950 border-4 border-amber-400 rounded-2xl px-6 py-4 shadow-2xl text-center max-w-sm"
+        >
+          <div className="text-xs font-extrabold uppercase tracking-widest text-amber-700">✨ Secret found! ✨</div>
+          <p className="font-semibold mt-1">{found.text}</p>
+          <p className="text-sm font-bold mt-2">{rewardSummary(found)}</p>
+        </motion.button>
       )}
 
       {/* Overlays (machine substates) */}
@@ -309,6 +390,13 @@ export default function WorldScreen() {
           panels={spireVictoryPanels(avatar.name)}
           doneLabel="🌟 The adventure continues!"
           onDone={() => setFlag(SPIRE_VICTORY_SEEN)}
+        />
+      )}
+      {activeScene === 'dawnreach' && (
+        <StoryPanels
+          panels={DAWNREACH_PANELS}
+          doneLabel="🗺️ Explore Dawnreach"
+          onDone={() => setFlag(DAWNREACH_SEEN)}
         />
       )}
       {activeScene === 'grove' && (

@@ -14,6 +14,13 @@
 // The Anthropic API key stays server-side (ANTHROPIC_API_KEY secret).
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase.
 //
+// Access (#88): callers must be signed in (401 otherwise), and every call goes
+// through `begin_question_request` (migration 0009) — a per-player rate limit
+// (429 when exceeded) plus per-player and project-wide daily budgets of FRESH
+// questions. When a budget is spent the call is served from the cache
+// (re-using already-seen questions if it must), so play continues without
+// spending more on Claude. Limits are tunable via env (see QUOTA_DEFAULTS).
+//
 // Deploy:  supabase functions deploy generate-questions
 // ----------------------------------------------------------------------------
 
@@ -21,15 +28,25 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js';
 
 const MODEL = 'claude-haiku-4-5';
-const TOPICS = [
-  'math',
-  'science',
-  'engineering',
-  'creativity',
-  'nature',
-  'space',
-  'history',
-] as const;
+
+// Topic whitelist + question-writer persona lines. Kept INLINE so this
+// function is a single self-contained file that deploys via any path (CLI,
+// dashboard, or API) — a sibling `_shared/` import silently fails to bundle
+// on non-CLI deploys (#67). The canonical copy for the app lives in
+// `_shared/topics.ts`; `topicPrompts.test.ts` reads THIS file's text and
+// fails if the two ever drift, so adding a topic still can't diverge silently.
+const TOPIC_PROMPTS: Record<string, string> = {
+  math: 'arithmetic, geometry, fractions, word problems.',
+  science: 'nature, biology, physics, space, chemistry basics.',
+  engineering: 'how things work, computers, materials, structures, simple logic.',
+  creativity: 'art, music, colour, writing, design, imagination.',
+  nature: 'animals, plants, habitats, weather, the human body, the living world.',
+  space: 'planets, stars, moons, the solar system, astronauts, rockets, the night sky.',
+  history:
+    'world history, ancient civilizations, famous inventions, important people, the measurement of time.',
+};
+const TOPICS = Object.keys(TOPIC_PROMPTS);
+const TOPIC_PROMPT_BLOCK = TOPICS.map((id) => `- ${id}: ${TOPIC_PROMPTS[id]}`).join('\n');
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
 const LEVEL_BAND = 2;
@@ -39,6 +56,23 @@ const SEEN_HISTORY_LIMIT = 100;
 const RICH_CACHE_MULTIPLE = 3;
 /** Fraction of a batch that comes fresh from Claude when the cache is rich (#30). */
 const NOVELTY_RATE = 0.2;
+/**
+ * Quota defaults (#88), overridable with the same-named Supabase secrets.
+ * A battle asks for ~6 questions + 4 spell-tier ones, so 20 calls/minute is
+ * far above real play; 200 fresh/day per player and 5000 fresh/day overall
+ * cap the Claude bill while the shared cache keeps growing.
+ */
+const QUOTA_DEFAULTS = {
+  QUESTION_RATE_PER_MINUTE: 20,
+  FRESH_PER_PLAYER_PER_DAY: 200,
+  FRESH_GLOBAL_PER_DAY: 5000,
+};
+function quotaSetting(name: keyof typeof QUOTA_DEFAULTS): number {
+  const n = Number(Deno.env.get(name));
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : QUOTA_DEFAULTS[name];
+}
+/** Kid-facing message when the per-minute limit trips (shown on the retry screen). */
+const SLOW_DOWN = 'The question wizards need a short rest — try again in a minute!';
 
 const SYSTEM_PROMPT = `You are a question writer for "Hazel Quest", an educational quiz-battle game for children.
 
@@ -53,13 +87,7 @@ Each question has exactly 4 options. "correctIndex" is the 0-based index of the 
 "explanation" is one short, encouraging, kid-friendly sentence explaining the answer.
 
 Topics:
-- math: arithmetic, geometry, fractions, word problems.
-- science: nature, biology, physics, space, chemistry basics.
-- engineering: how things work, computers, materials, structures, simple logic.
-- creativity: art, music, colour, writing, design, imagination.
-- nature: animals, plants, habitats, weather, the human body, the living world.
-- space: planets, stars, moons, the solar system, astronauts, rockets, the night sky.
-- history: world history, ancient civilizations, famous inventions, important people, the measurement of time.
+${TOPIC_PROMPT_BLOCK}
 
 Difficulty guidance: level 1-3 = simple recall for young children; 4-6 = applied
 understanding; 7-10 = multi-step reasoning and harder concepts. A question must
@@ -270,20 +298,47 @@ Deno.serve(async (req) => {
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const db: SupabaseClient | null = dbUrl && dbKey ? createClient(dbUrl, dbKey) : null;
 
-  // Identify the caller (for per-player dedupe, #24). Anonymous calls skip dedupe.
+  // Identify the caller (#88): signed-in players only. The anon key is public
+  // (it ships in the web bundle), so without this anyone could spend the
+  // project's Claude budget. The id also drives per-player dedupe (#24).
+  if (!dbUrl || !anonKey || !db) {
+    return json({ error: 'Server is missing Supabase configuration' }, 500);
+  }
+  const authHeader = req.headers.get('Authorization');
   let profileId: string | null = null;
-  if (dbUrl && anonKey) {
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader) {
-      try {
-        const userClient = createClient(dbUrl, anonKey, {
-          global: { headers: { Authorization: authHeader } },
-        });
-        const { data: userData } = await userClient.auth.getUser();
-        profileId = userData?.user?.id ?? null;
-      } catch (e) {
-        console.error('auth lookup failed:', e instanceof Error ? e.message : String(e));
-      }
+  if (authHeader) {
+    try {
+      const userClient = createClient(dbUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData } = await userClient.auth.getUser();
+      profileId = userData?.user?.id ?? null;
+    } catch (e) {
+      console.error('auth lookup failed:', e instanceof Error ? e.message : String(e));
+    }
+  }
+  if (!profileId) return json({ error: 'Please sign in to play.' }, 401);
+
+  // Rate limit + fresh-question budget (#88). If the quota migration isn't
+  // applied yet the RPC errors — fail OPEN (logged loudly) so a deploy-order
+  // slip can't lock every kid out; sign-in is still required either way.
+  let freshAllowance = count;
+  let requestId: number | null = null;
+  {
+    const { data: quota, error: quotaErr } = await db.rpc('begin_question_request', {
+      p_profile: profileId,
+      p_max_per_minute: quotaSetting('QUESTION_RATE_PER_MINUTE'),
+      p_fresh_per_day: quotaSetting('FRESH_PER_PLAYER_PER_DAY'),
+      p_fresh_global: quotaSetting('FRESH_GLOBAL_PER_DAY'),
+    });
+    const row = Array.isArray(quota) ? quota[0] : quota;
+    if (quotaErr || !row) {
+      console.error('QUOTA CHECK FAILED (is migration 0009 applied?):', quotaErr?.message ?? 'no row');
+    } else if (!row.allowed) {
+      return json({ error: 'rate_limited', detail: SLOW_DOWN }, 429);
+    } else {
+      freshAllowance = Math.max(0, Number(row.fresh_allowance) || 0);
+      requestId = row.request_id ?? null;
     }
   }
 
@@ -303,6 +358,9 @@ Deno.serve(async (req) => {
     }
 
     // 1a. Exclude flagged questions (#26) and the player's recently-seen ones (#24).
+    // Seen-but-unflagged rows are kept aside as a last resort for when the
+    // fresh budget (#88) can't cover the batch.
+    let seenFallback: CacheRow[] = [];
     if (db && cached.length > 0) {
       const cachedIds = cached.map((r) => r.id);
 
@@ -325,15 +383,22 @@ Deno.serve(async (req) => {
         seenSet = new Set((viewRows ?? []).map((r) => r.question_id as string));
       }
 
+      seenFallback = cached.filter((r) => !flaggedSet.has(r.id) && seenSet.has(r.id));
       cached = cached.filter((r) => !flaggedSet.has(r.id) && !seenSet.has(r.id));
     }
 
     // 2. Split the batch using the cache-richness policy (#30): a rich cache
     //    leans heavily on reuse with a sprinkle of fresh for novelty; a thin
     //    cache uses what's available and generates the rest.
-    const freshCount = chooseFreshCount(count, cached.length);
+    //    The fresh share is capped by the caller's remaining budget (#88);
+    //    anything the budget can't cover is topped up from already-seen
+    //    cached questions, so the batch stays full whenever the bank can.
+    const freshCount = Math.min(chooseFreshCount(count, cached.length), freshAllowance);
     const reuseCount = count - freshCount;
     const reused = shuffle(cached).slice(0, reuseCount);
+    if (reused.length < reuseCount) {
+      reused.push(...shuffle(seenFallback).slice(0, reuseCount - reused.length));
+    }
 
     // 3. Generate the fresh questions (at the exact level) and cache them.
     let fresh: OutQuestion[] = [];
@@ -384,9 +449,23 @@ Deno.serve(async (req) => {
       if (rpcErr) console.error('counter update failed:', rpcErr.message);
     }
 
+    // 4a. Charge the fresh questions to the caller's daily budget (#88).
+    if (requestId !== null && fresh.length > 0) {
+      const { error: usageErr } = await db
+        .from('question_requests')
+        .update({ fresh_count: fresh.length })
+        .eq('id', requestId);
+      if (usageErr) console.error('usage update failed:', usageErr.message);
+    }
+
     // 5. Sprinkle reused + fresh together randomly.
     const reusedOut = reused.map((r) => ({ ...rowToOut(r), timesAsked: r.times_asked + 1 }));
     const questions = shuffle([...reusedOut, ...fresh]);
+
+    // Budget spent and the bank has nothing left for this topic/level.
+    if (questions.length === 0 && freshAllowance === 0) {
+      return json({ error: 'budget_exhausted', detail: SLOW_DOWN }, 429);
+    }
 
     // 6. Record this delivery in question_views so the player won't see the
     // same ones for the next SEEN_HISTORY_LIMIT views (#24). Best-effort —

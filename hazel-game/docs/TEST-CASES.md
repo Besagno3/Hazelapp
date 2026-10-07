@@ -251,11 +251,292 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-228 | M | ⬜ | world | idle speech bubbles render dark text on a light outlined pill, legible over dark-ground zones (Moonwell Grove / Clockwork Depths); pill + text rise, fade, and disappear together |
 | TC-229 | U | ✅ | wander | `approachBlocked`: blocks a step that moves within minDist & closer; allows steps that stay outside min, that separate already-overlapping actors, and that ignore far actors; `ACTOR_RADIUS` positive + `WANDER_WALL_HALF*2 < 32` (wander.test) |
 | TC-230 | M | ⬜ | world | wandering characters never overlap each other, stationary NPCs, the boss, or the Spire, and don't clip walls/trees; the player can still walk into NPCs to talk and enemies to battle (player/Ember are not avoided) |
-| TC-231 | U | ✅ | quizSessionStore | `markCompleted` adds a topic; is idempotent (never listed twice); accumulates distinct topics in order (quizSessionStore.test) |
-| TC-232 | U | ✅ | quizSessionStore | `reset` clears the completed set so it cannot leak into the next session (quizSessionStore.test) |
-| TC-233 | M | ⬜ | TopicSelect | the Training Grounds shows all 7 topics (4 crystal + nature/space/history), not just the crystal four |
-| TC-234 | M | ⬜ | TopicSelect | passing a topic round (80%+) greys it out with a ✓ + "Completed" and makes it unclickable for the rest of the session; failing leaves it selectable |
-| TC-235 | M | ⬜ | TopicSelect | sign out and back in (or reload) → every topic is selectable again (the completed set is ephemeral, cleared on sign-out via `useAuthInit`) |
+| TC-231 | U | ✅ | topics | Wave 0.1: `TOPIC_REGISTRY` ids exactly equal `CRYSTAL_TOPIC_IDS` and `TOTAL_CRYSTALS === TOPIC_REGISTRY.length` — adding a crystal id without its registry entry fails (topics.test) |
+| TC-232 | U | ✅ | topics | `EXTRA_TOPICS` ids exactly equal `EXTRA_TOPIC_IDS`; `ALL_TOPICS` has no duplicates and covers crystal + extra (topics.test) |
+| TC-233 | U | ✅ | story | `EMBER_STAGE_AT` holds explicit spec values (whelp 2, dragon 4); TRIPWIRE fails if `TOTAL_CRYSTALS` moves so the stages are retuned deliberately, not silently derived (story.test) |
+| TC-234 | U | ✅ | save | Wave 0.2: `runMigrations` walks a payload up a fake ladder stamping each version; starts mid-ladder for a v2 payload without rerunning the v1 step (save.test) |
+| TC-235 | U | ✅ | save | Wave 0.2: missing version treated as v1; missing step stops the walk (normalizeSave defaults the rest); null/non-object passthrough; version ≥ target untouched — no downgrade (save.test) |
+| TC-236 | U | ✅ | save | Wave 0.2: the real `MIGRATIONS` ladder is empty while `SAVE_VERSION` is 1, and a v1 payload round-trips `runMigrations` unchanged (save.test) |
+| TC-237 | U | ✅ | zones | Wave 0.3: `ZONES` keys exactly equal `ZONE_IDS` (order included) and every `ZoneDef.id` matches its record key (zones.test) |
+| TC-238 | U | ✅ | topics | Wave 0.4: shared `TOPIC_IDS` (edge-function whitelist) exactly equals the game's `ALL_TOPICS`; every topic has a >10-char persona line with no school words (test/grade/exam/homework) (topicPrompts.test) |
+| TC-239 | U | ✅ | topics | Wave 0.4: `topicPromptBlock()` emits exactly one `- id: …` line per topic (topicPrompts.test) |
+| TC-240 | M | ⬜ | edge fn | after redeploying generate-questions, all 7 topics still generate (spot-check one crystal + one extra topic); an unknown topic still 400s with the whitelist message |
+| TC-241 | U | ✅ | enemies | Wave 0.5: declared behaviors are known archetypes; each archetype used by ≥1 enemy; bosses have none; `spawnEnemy` carries `behavior` (enemies.test) |
+| TC-242 | U | ✅ | battleMath | Wave 0.5: `healerMends` only below half HP and alive; `healerRegen` is integer `HEALER_REGEN_RATE`×maxHp; biggest healer's regen < weakest style's landed hit — no unwinnable stall (battleMath.test) |
+| TC-243 | M | ⬜ | battle | vs Relic Golem (shielded): banner announces the shield; 🛡️ shows by its name; the FIRST landed hit (attack, glancing blow, or offensive spell) deals 0 and shatters the shield with a message; subsequent hits damage normally |
+| TC-244 | M | ⬜ | battle | vs Pixel Witch (trickster): banner announces it; the Hint Feather button never appears on attack/guard/spell/defend questions in that fight; feather count is not consumed and works again in the next battle |
+| TC-245 | M | ⬜ | battle | vs Moon Moth (healer): banner announces it; once below half HP it mends +N (green float) at the end of each of its turns, never above half-triggered ceiling of max HP; a correctly-answered attack still visibly out-damages the mend |
+| TC-246 | U | ✅ | save | TRIPWIRE: `MIGRATIONS` has a step for every version below `SAVE_VERSION` and no orphan steps at/above it — a bumped version with a missing step fails here, not silently at load (save.test) |
+| TC-247 | U | ✅ | enemies | no `behavior:'healer'` enemy at max age can out-mend the weakest correctly-answered hit; derived from `ENEMY_DEFS` via `spawnEnemy` so retuning HP re-checks automatically (enemies.test) |
+| TC-248 | U | ✅ | topics | `ENEMY_BEHAVIORS` const array is the single source for the `EnemyBehavior` union; enemies.test imports it rather than a private copy (enemies.test) |
+| TC-249 | U | ✅ | topics | compile-time lock: `topicPrompts.ts` `_topicSetsMatch` proves `Topic ≡ TopicId`; a one-sided topic add fails `tsc`/`vite build`, not just vitest (build step) |
+| TC-253 | U | ✅ | topics | the edge function's INLINE topic copy matches the canonical `_shared/topics.ts`: `topicPrompts.test.ts` reads `generate-questions/index.ts` via `?raw` and asserts every id + persona string is present (drift = fail) |
+| TC-250 | M | ⬜ | battle | archetype callout banner appears only AFTER the question LoadingScreen clears (slow generation): enter a trickster/shielded/healer fight with a cold cache and confirm the banner is still shown once the battle UI renders |
+| TC-251 | M | ⬜ | battle | cast an offensive spell as the first hit on a shielded enemy: the shield shatters, 0 damage, and the spell's charge is refunded (message says so) — a correct super-hard answer never costs more than a free glancing blow |
+| TC-252 | M | ⬜ | battle | shatter a shielded enemy's shield, Flee, re-engage the same enemy: shield state resets correctly on the fresh instance (no phantom shield, no pre-shattered start) |
+
+## 16-bit asset set (#71)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-254 | U | ✅ | sprites | every manifest sheet exists in `public/` and its PNG is exactly `frames × frameW` wide and `frameH` tall (sprites.test) |
+| TC-255 | U | ✅ | sprites | every hero resolves world (idle+walk) and battle (idle+attack+hurt) art (sprites.test) |
+| TC-256 | U | ✅ | sprites | every enemy def resolves world + battle art via `spawnEnemy` (`spriteId` defaults to the def id) (sprites.test) |
+| TC-257 | U | ✅ | sprites | every NPC resolves world art via `npcSpriteId`; every Ember stage has world + battle art (sprites.test) |
+| TC-258 | U | ✅ | tiles | every zone has a `TILESET_FRAMES`×32px tileset strip and a battle backdrop; props strip + 32×64 Spire tower sizes (tiles.test) |
+| TC-259 | U | ✅ | tiles | `TILE_FRAME` indices stay inside the strip; `groundVariant` is deterministic and always a ground frame (tiles.test) |
+| TC-260 | U | ✅ | audio | every `SFX_SOURCES` / `MUSIC_SOURCES` path points at a shipped file (audio.test) |
+| TC-261 | M | ✅ | WorldCanvas | zones render from tilesets (ground/path/water/scenery/deco/exit), save crystal glows, chests + gates are prop sprites, Spire is the tower sprite (verified in headless Chromium: Verdara, Lumina Field, Crystal Spire, Starfall Coast) |
+| TC-262 | M | ⬜ | WorldCanvas | open a chest → it swaps to the open-chest frame; answer a gate → both gate tiles vanish |
+| TC-263 | M | ⬜ | WorldCanvas | wandering NPCs/enemies play their walk cycle and face their heading; idle when stopped |
+| TC-264 | M | ✅ | BattleArena | battle shows the zone's pixel backdrop behind the combatants; enemy + hero sprites animate (verified in a harness) |
+| TC-265 | M | ⬜ | audio | with Music + Sound on: title/overworld/battle/boss/spire/final-boss tracks loop; correct/wrong/attack/hit/gate/chest/levelup/victory/select SFX fire at sensible relative volumes |
+| TC-267 | U | ✅ | facing | `facingFor`: dominant axis wins, diagonals → side, no movement keeps prior facing; `animFor` picks idle/walk per facing and falls back to side then `idle` (facing.test) |
+| TC-268 | U | ✅ | sprites | every world sheet defines idle/walk for side, down and up (sprites.test) |
+| TC-269 | M | ✅ | WorldCanvas | hero spawns facing down; walking down shows the front view, up shows the back view, left mirrors the side view; Ember follows with matching facing (verified in headless Chromium) |
+| TC-270 | M | ⬜ | WorldCanvas | wandering NPCs/enemies switch to front/back views when their heading is mostly vertical |
+| TC-266 | M | ⬜ | AvatarSelect | hero cards show the animated battle sprite; picking a hero plays `select` |
+
+## Town + enterable buildings (#72)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-271 | U | ✅ | zones | every building is a closed `W` rect with exactly one facade `D` (not a corner) and only F/K/B/T/Z inside; building chars never appear outside a building (zones.test) |
+| TC-272 | U | ✅ | zones | every door is reachable from the spawn and every indoor NPC is reachable or talkable across a counter (zones.test) |
+| TC-273 | U | ✅ | zones | `buildingInside` = interior only, `buildingAt` includes walls; every map is ≥ one screen (zones.test) |
+| TC-274 | U | ✅ | zones | `safeSpawn` keeps walkable saved positions and falls back to the zone spawn for walls / off-map / null (zones.test) |
+| TC-275 | U | ✅ | camera | `camAxis` centres single-screen maps, follows on larger ones, clamps at both edges (camera.test) |
+| TC-276 | U | ✅ | tiles | town + roof strips sized correctly; `roofFrame` picks nine-slice pieces per colour (tiles.test) |
+| TC-277 | M | ✅ | WorldCanvas | outside a building the roof + name cover it (facade, door, sign visible); walking through the door fades the roof and shows the room (headless Chromium: Item Shop, Wick's House) |
+| TC-278 | M | ✅ | WorldCanvas | bumping the Item Shop counter opens Shopkeep Clove's dialogue (headless Chromium) |
+| TC-279 | M | ✅ | WorldCanvas | camera follows the hero around the 2×2 town and stops at the map edges |
+| TC-280 | M | ⬜ | WorldScreen | full flow in the real app: enter each building, use shop/inn/library, walk back out (roof returns), leave by each of the 5 town exits and come back |
+| TC-281 | M | ⬜ | save | a pre-#72 save standing in the old village loads at a walkable spot (not inside a wall) |
+
+## Zone slide transition
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-282 | U | ✅ | transition | `exitSide` names the edge (north/south/east/west) and is null for interior cells; `slideFrom` gives the entry vector per side (transition.test) |
+| TC-283 | U | ✅ | zones | every zone exit sits on a map edge, so every exit has a slide direction (zones.test) |
+| TC-284 | M | ✅ | WorldCanvas | leaving west / north / into the town: old screen and new zone slide together, no black gap, snapshot removed after ~0.5s (headless Chromium) |
+| TC-285 | M | ⬜ | WorldCanvas | holding a direction key through the slide doesn't move the hero until it settles, and doesn't instantly re-trigger the exit back |
+| TC-286 | M | ⬜ | a11y | with OS "reduce motion" on, zone changes are an instant cut |
+
+## Unique places, shops and items (#73)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-287 | U | ✅ | items | every shop item is sold in exactly one shop except `SHARED_STOCK`; every consumable is for sale somewhere; shop names distinct (items.test) |
+| TC-299 | U | ✅ | items | Berry Potion has exactly two sellers — Maple's Trading Post + Tadpole's Tonics — at the same price; `ALL_SHOP_ITEMS` lists each item once (items.test) |
+| TC-300 | M | ⬜ | shop | Tadpole's Tonics lists Berry Potion (🪙30) above Honey Elixir; buying one increments the potion count |
+| TC-288 | U | ✅ | items | `SHOPS` keys == the set of merchant NPCs; `shopFor` null for non-merchants (items.test) |
+| TC-289 | U | ✅ | save | an old `{potion, hint}` save normalizes with elixir/spark/ward = 0; new counts round-trip (items.test) |
+| TC-290 | U | ✅ | zones | exactly one innkeeper and one librarian defined and placed; no NPC placed twice (zones.test) |
+| TC-291 | U | ✅ | zones | every merchant / sage / innkeeper / librarian stands inside a building (zones.test) |
+| TC-292 | U | ✅ | zones | each place uses one architecture style and no two places share one; building ids + names unique (zones.test) |
+| TC-293 | U | ✅ | tiles | every style has a 16-frame town sheet; roof strip = 9 frames × colour (tiles.test) |
+| TC-294 | M | ✅ | world | all 9 built-up places render their own style + roof colours; walking into Plus's Quill & Count clears the roof (headless Chromium) |
+| TC-295 | M | ✅ | shop | Tadpole's Tonics and Clove's Curios show their own name + stock (headless Chromium, seeded save) |
+| TC-296 | M | ⬜ | battle | 🎒 Items: Berry Potion heals 50, Honey Elixir heals to full, Spark Cell +2 ◆ (capped), Rainbow Ward blocks the next enemy hit; each spends the turn; disabled reasons show; button disabled with no battle items |
+| TC-297 | M | ⬜ | world | from a pre-#73 save standing in Numbria/Verdara/Gearfall/Chromaria: loads at a walkable spot; chests/gates already opened stay opened |
+| TC-298 | M | ⬜ | world | leave + re-enter each extended zone by every exit (moved exits land correctly, slide direction correct) |
+
+## Spire floors (#74)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-301 | U | ✅ | spire | every floor has a unique theme and music; maps are 22×14 and legend-only; arrival tile walkable (spire.test) |
+| TC-302 | U | ✅ | spire | climbing floors have exactly one `Q` seal per question, every seal + the stairs reachable on foot; the throne floor has no seals/stairs and Umbra is reachable (spire.test) |
+| TC-303 | U | ✅ | spireStore | bumps register only while exploring and one at a time; broken seals can't be re-bumped; entering a floor resets seals (spireStore.test) |
+| TC-304 | U | ✅ | tiles | a tileset per Spire theme + the Spire props strip exist at the right sizes (tiles.test) |
+| TC-305 | M | ✅ | Spire | open the Spire with 4 crystals → intro → floor 1 map with HUD (seals 0/3, 4 candles) and candle-light darkness (headless Chromium, mocked questions) |
+| TC-306 | M | ✅ | Spire | walking into a rune seal opens its question; answering breaks the seal (HUD updates) (headless Chromium) |
+| TC-307 | M | ✅ | Spire | bumping sealed stairs explains how many runes remain; with all seals broken the stairs lead to the next floor; floors 1→5 all load (headless Chromium) |
+| TC-308 | M | ✅ | Spire | a wrong answer snuffs a candle and the circle of light narrows (headless Chromium) |
+| TC-309 | M | ✅ | Spire | on the throne floor, walking up the carpet to Umbra starts "Umbra's challenge 1/5" (headless Chromium) |
+| TC-310 | M | ⬜ | audio | with Music on: each floor plays its own spooky loop; the Final Battle track starts only when Umbra's challenge begins |
+| TC-311 | M | ⬜ | Spire | lose every candle mid-climb → cast back to Lumina Field healed; reopening the Spire starts a fresh climb from floor 1 |
+| TC-312 | M | ⬜ | Spire | refresh mid-climb → you're back outside the Spire door (floor positions are never saved) |
+| TC-313 | M | ✅ | Spire | a floor's question batch comes back short → "The Spire shudders: only N of M riddles…" with Try again; retry recovers and the hero can explore (headless Chromium, mocked short batch) |
+| TC-314 | M | ✅ | Spire | the world Menu button is hidden during the climb; 🚪 Leave the Spire returns to the Spire door (world.exploring), Menu returns, and standing by the tower doesn't instantly reopen it (headless Chromium) |
+| TC-315 | M | ✅ | Spire | a fast double-click on a story panel advances exactly one panel (headless Chromium) |
+
+## Overworld Phase 0 — big-map renderer + exit fix (#75, #76)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-316 | U | ✅ | terrain | every zone and Spire floor yields one valid base frame per cell (zone tileset, water, or its building style's town sheet); overlays only on scenery / flowers / exits (terrain.test) |
+| TC-317 | U | ✅ | terrain | paths and exits use the path tile (exits add the marker), water is marked animated, plain ground uses the deterministic speckle variant, a save crystal sits on plain ground (terrain.test) |
+| TC-318 | U | ✅ | terrain | walls: tops above, facade windows on alternate tiles but never beside the door, the door frame; interiors draw in their building's own style (terrain.test) |
+| TC-319 | U | ✅ | terrain | `visibleRange`: a one-screen zone sees the whole map; never leaves the map; covers every cell the viewport touches at fractional camera positions (terrain.test) |
+| TC-320 | U | ✅ | terrain | the visible cell count stays within the viewport budget for maps from 22×14 up to 512×512 — draw cost never grows with the map (terrain.test) |
+| TC-321 | U | ✅ | terrain | `waterFrame` starts on the first frame and flips every 1/fps seconds (terrain.test) |
+| TC-322 | U | ✅ | zones | every edge exit in the world passes `edgeLinkProblem`: you land within 2 cells of the opposite edge, and the way back you'd take is on that edge; a failure lists every broken link with its full reason (#76 regression, zones.test — on the pre-fix map it lists all 4 Field/Village exits) |
+| TC-323 | M | ✅ | world | all 18 zone screens + 5 Spire floors are pixel-identical to the old per-tile renderer outside animated tiles and character idle cycles (`bench/run-world-bench.cjs shots` + `diff`, headless Chromium) |
+| TC-324 | M | ✅ | world | 160×112 map: 60 fps (was 3.2), 37 fps at 4× CPU throttle (was 0.5); Lumina Village 39 fps at 4× (was 10.5); load hitch 0.17 s (was 1.4 s) (`bench … fps`, headless Chromium, software GL) |
+| TC-325 | M | ✅ | world | standing inside a building fades its roof; water animates over time; walking the big map scrolls with no gaps at the screen edges; no page errors (headless Chromium) |
+| TC-326 | M | ⬜ | world | the fps bench on a real mid-range tablet / Chromebook (hardware GL) |
+| TC-327 | M | ⬜ | world | in the real app: Field's bottom-left exit → arrive at the top of Lumina Village (slides south); the Village's top exit → arrive at the Field's bottom-left (slides north) |
+| TC-328 | U | ✅ | transition | `edgeLinkProblem`: catches two zones each "north" of the other and a far-off landing; accepts two zones linked on two different edges; skips fading links (a town with several gates onto an overworld place icon); reports a missing way back (transition.test) |
+| TC-329 | U | ✅ | camera | `worldView` grows the view when the camera zooms out; zoomed out on a 160×112 map the camera never shows past the edge and the drawn window covers the whole view (camera.test) |
+| TC-330 | M | ✅ | world | with the camera forced to 2× zoom-out: the big map and Lumina Village draw edge to edge, the camera stops at the map edge, and the whole Village fits — vs. bare edges and an off-centre town under the old 1:1 assumption (headless Chromium, temporary patch) |
+
+## Character portraits + Umbra (#79)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-331 | U | ✅ | CharacterPortrait | a fighter shows its battle sheet; a world-only NPC shows its world sheet facing the player (idleDown); an unknown id falls back to the emoji (CharacterPortrait.test) |
+| TC-332 | U | ✅ | sprites | Umbra's world and battle frames are larger than every other character's (sprites.test) |
+| TC-333 | M | ✅ | UI | dialogue box, Sage screen, HUD Ember, menu Ember + hero, and the battle name tag all show sprites, not emoji (headless Chromium render) |
+| TC-334 | M | ✅ | Spire | on the throne floor, Umbra looms oversized above the message / challenge panel with a violet glow; smaller on screens under 720px tall |
+
+## Village expansion: towns, side quests, secrets, items (#80)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-335 | U | ✅ | zones | all expanded maps keep the zone invariants: legend-only rows, closed buildings with one door, every door reachable, every indoor NPC talkable, one style per place, unique building names (zones.test) |
+| TC-336 | U | ✅ | secrets | each of the five towns hides ≥3 secrets; ids unique; every reward is real; every secret is reachable from the spawn without opening a gate (step-on for walkable tiles, bump for solid) (secrets.test) |
+| TC-337 | U | ✅ | secrets | every hidden passage 'H' joins two walkable sides; claiming a secret pays once and sets `secret:<id>`; a quest-item secret adds the item once; per-zone progress counts (secrets.test) |
+| TC-338 | U | ✅ | quests | each town has exactly two side quests with distinct givers; every topic zone still has exactly one main quest; quest items taken back are obtainable (quests.test) |
+| TC-339 | U | ✅ | quests | Mayor's Seal (secret → complete takes the seal, pays 40 coins + clover); Lost Lessons hint names the page still hidden; a secret found before the offer completes the quest at once; bakery deliveries go Wick → Sol in order; Widget's test needs both kills then the Professor (quests.test) |
+| TC-340 | U | ✅ | items | five new consumables are each sold in exactly one shop; every new merchant runs a shop; older saves gain zeroed slots (items.test) |
+| TC-341 | M | ✅ | world | the five expanded towns render in their own style with the new buildings, roofs and townsfolk (headless Chromium screenshots) |
+| TC-342 | M | ✅ | secrets | walking right through the village hedge passage into the hidden garden pops "Secret found!" and adds 40 coins + a Lucky Clover; bumping the plaza fountain finds the Town Seal (headless Chromium) |
+| TC-343 | M | ✅ | shop | bumping Mirror Hall's counter opens Glint's dialogue (headless Chromium) |
+| TC-344 | M | ✅ | battle | Mirror Charm bounces the next enemy hit back; Focus Tea doubles the next Attack; Lucky Clover doubles the coins (victory panel shows 🍀) (headless Chromium, mocked questions) |
+| TC-345 | M | ⬜ | battle | Sunseed Snack heals 30 HP + 1 ◆; Turbo Coil fills ◆; each is greyed out with a reason when it would do nothing |
+| TC-346 | M | ⬜ | menu | the menu shows "✨ Secrets: n/3 found here · n/15 across Lumina" and tags side quests with their town |
+| TC-347 | M | ⬜ | secrets | a twinkle ✦ blinks every few seconds over each unfound secret and disappears once it's found; indoor twinkles only show once the roof fades |
+
+## Overworld Phase 1 — the Dawnreach vertical slice (#75, #77)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-348 | U | ✅ | zones | there is exactly one overworld, and it has places; every `P` tile is a place with an exit, named after the zone it leads to (zones.test) |
+| TC-349 | U | ✅ | zones | on foot from the Village gate, every place on Dawnreach is reachable with the fog down except the Shrine; with the fog lifted the Shrine is reachable too (zones.test) |
+| TC-350 | U | ✅ | zones | every gate from a place onto Dawnreach lands 1–2 cells from that place's own icon, on open ground connected to the rest of the map (zones.test) |
+| TC-351 | U | ✅ | zones | `E` exits sit on a map edge and `P` entrances inside the map; every `E`/`P` tile has an exit entry that lands on a walkable tile; the overworld hosts roaming critters but never bosses (zones.test) |
+| TC-352 | U | ✅ | zones | fog banks sit inside the map, cover walkable ground and are lifted by real flags; `fogAt` covers its rectangle until any one flag is set; `placeAt` finds the place on its tile; `ANY_CRYSTAL` lists every crystal flag (zones.test) |
+| TC-353 | U | ✅ | transition | `transitionFor`: edge-joined screens slide; going into or out of the overworld fades; reduced motion always cuts (transition.test) |
+| TC-354 | U | ✅ | audio | in the world, the music follows the zone kind: overworld/field → overworld theme, town → town, dungeon → cave, shrine → shrine (audio.test) |
+| TC-355 | U | ✅ | terrain | sand is a base tile on the overworld sheet, mountains overlay the ground from the overworld sheet, a place tile draws plain ground; the overworld sheet has one frame per `OVERWORLD_FRAME` entry (terrain.test, tiles.test) |
+| TC-356 | U | ✅ | world map | `whereOnMap`: on the overworld the hero's own tile; with no saved position the spawn; inside a place that place's icon; in Numbria the nearest place on the map (Lumina Field); every zone can be placed (worldMap.test) |
+| TC-357 | M | ✅ | world | every existing zone screen + Spire floor (33 shots, incl. main's expanded towns) is pixel-identical to main outside animated tiles and idle cycles (`bench … shots` + `diff`, headless Chromium) |
+| TC-358 | M | ✅ | world | walking onto the Village icon fades into the Village (arriving at its north gate, 21,1); holding ↑ for 1.8 s more stays in the Village (arrival lock); releasing and pressing ↑ again leaves by the north gate onto Dawnreach at (32,23), beside the icon (bench walk-through, headless Chromium) |
+| TC-359 | M | ✅ | world | walking east into the fog bank stops the hero at its edge and reports a fog bump (`onFog`); with a crystal restored (`flags=crystal-math-restored`) the fog is gone and the same walk crosses it; walking onto the shrine icon enters the Shrine (bench walk-through, headless Chromium). The toast text itself is wired in `WorldScreen` (not on the bench) |
+| TC-360 | M | ✅ | world | Dawnreach (12 screens) and the Shrine render with their place icons, names, the Spire tower, mountains, sand, sea and the drifting fog (headless Chromium screenshots) |
+| TC-361 | M | ✅ | world | walking across Dawnreach: 40 fps (19 at 4× CPU throttle) — the same as the 160×112 stress map on the same machine (40.5 / 20.6), and the stress map matches main (40.9 / 21.5) and the Phase 0 commit (41.4 / 22.3), so Phase 1 adds no cost. (This container is slower than Phase 0's, which measured 60 / 37.) Headless Chromium, software GL |
+| TC-362 | M | ✅ | menu | the world map panel shows Dawnreach with fog, place markers and a ⭐ where you are, captioned "You're out on Dawnreach" / "You're here: Lumina Village" (its name highlighted) / "You're here: Numbria (past Lumina Field)"; with a crystal restored the fog square is gone; no page errors (`WorldMapPanel` mounted on a temporary page, headless Chromium) |
+| TC-363 | M | ⬜ | story | the first time you step onto Dawnreach (after the Grove's scene, if due) the 3-panel Dawnreach cutscene plays once and ends on "🗺️ Explore Dawnreach" |
+| TC-364 | M | ⬜ | audio | with music on: the Village plays the town theme, Dawnreach the overworld theme, the Depths the cave theme, the Shrine the shrine theme |
+| TC-365 | M | ✅ | bench | #77: `diff` exits 1 when one shot is altered (and 0 when all match); Vite's stderr reaches the terminal; the frame sampler is capped (headless Chromium + code review) |
+| TC-366 | M | ✅ | world | the place fade reaches full black before the old screen is dropped, on a fast and a slow machine: at 4× CPU throttle the old fixed-timer fade dropped the snapshot at 11% black (peak 55%, the new zone popped in); the `transitionend`-driven fade drops it at 100% black, unthrottled (~0.6 s) and throttled (~1.1 s), in and out of the Village; edge slides unchanged (frame-by-frame overlay recording, headless Chromium) |
+| TC-367 | U | ✅ | world map | every kind of place has its own emoji (`PLACE_EMOJI`); `mapCaption` reads "You're out on Dawnreach", "You're here: The Crystal Spire", "You're here: Shrine of First Light", "You're here: Numbria (past Lumina Field)" (worldMap.test) |
+| TC-368 | M | ✅ | world map | each place shows its emoji on the map and beside its name; inside a place the ⭐ sits just above that place's emoji; "Fog — restore a crystal to clear it" shows while fog is left and goes once it lifts; the list emoji are `aria-hidden` (headless Chromium) |
+| TC-369 | U | ✅ | toast | `toastMs`: "💎 Game saved!" stays 2.5–3 s, the fog hint ≥ 5 s, never over 8 s (toast.test) |
+| TC-370 | M | ⬜ | toast | in the real app: bump the fog right after a save toast — the fog hint stays its full time (the save toast's timer no longer hides it) |
+| TC-371 | U | ✅ | transition | `needsArrivalLock`: yes into/out of places, no between edge-joined screens (whatever the motion setting) (transition.test) |
+| TC-372 | M | ✅ | world | reduced motion: holding ← across the Field → Numbria edge keeps walking on the new screen; holding ↑ onto the Village icon still doesn't walk straight back out. On the previous code the edge case stood still (headless Chromium, `reducedMotion: 'reduce'`) |
+| TC-373 | M | ✅ | world | walk < 1.5 s, then pause (as the menu does): the saved position jumps to where the hero really is (40.5 → 45.5 tiles); on the previous code it stayed 5 tiles behind (headless Chromium, `__bench.pause`) |
+| TC-374 | M | ✅ | menu | the menu's ✕ "Back to the world" (44×44) is visible without scrolling at 1024 px and 375 px wide; place names on Dawnreach are 11 px and don't collide around the Village, Grove and Spire (headless Chromium) |
+
+## Rounded coasts, beaches and roads — edge blending (#75 item 3, #71b)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-375 | U | ✅ | terrain | blend classes stack water < sand < ground < path; building tiles never blend (terrain.test) |
+| TC-376 | U | ✅ | terrain | a pond corner is one ready-made tile that follows the water animation; a road/grass corner is one static tile; a four-class corner draws the water/sand pair, then the grass and road shapes (terrain.test) |
+| TC-377 | U | ✅ | terrain | nothing is drawn where four cells match, next to a building, or past the map edge; a cell whose four corners blend is hidden (base skipped) (terrain.test) |
+| TC-378 | U | ✅ | tiles | every pair and shape has its own frame inside the sheet, and every zone has a 512×384 blend sheet; every zone's corners give valid frames; Spire floors never blend (terrain.test, tiles.test) |
+| TC-379 | M | ✅ | world | all 46 zone screens + Spire floors before/after: coasts, ponds, the Village fountain and roads are rounded (foam on water, a darker rim on land), walls stay square, Spire floors pixel-identical (bench `shots` + `diff`, headless Chromium) |
+| TC-380 | M | ✅ | world | frame rate (software GL, alternating runs, same machine): stress map unchanged; walking Dawnreach ~5% lower unthrottled, ~12% lower at 4× CPU throttle; the Phase 1 walk-through still passes |
+| TC-381 | M | ⬜ | world | the same Dawnreach walk on a real tablet / Chromebook (hardware GL) keeps a smooth frame rate (with TC-326) |
+| TC-382 | M | ✅ | world | with the blend sheets delayed 6 s (fresh browser context), Dawnreach's one-tile road shows with square edges until they arrive, then rounded — on the review's code it vanished (bare ground) for that time (headless Chromium) |
+| TC-383 | U | ✅ | sprites | `blendSheetsFor`: a zone's own sheet plus each neighbour's, once each; none for Spire floors (worldSprites.test) |
+| TC-384 | M | ✅ | sprites | first entry fetches only what's near: Dawnreach 9 blend sheets (itself + its 8 places), the Village 2 (itself + Dawnreach); walking out onto Dawnreach fetches the rest of its neighbours (headless Chromium, request log) |
+| TC-385 | U | ✅ | tiles | `blendPairFrame` throws for a pair that isn't low → high (tiles.test) |
+
+## Maps painted in Tiled (#75 item 5)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-386 | U | ✅ | tiled | the legend tileset has exactly one tile per map character (LEGEND_CHARS); a tile with no one-letter `char`, or a character on two tiles, is rejected (tiled.test) |
+| TC-387 | U | ✅ | tiled | `tiledRows` turns a Tiled map back into the same rows; Dawnreach loads from its `.tmj` as 64×48 and is what every zone test checks (tiled.test, zones.test) |
+| TC-388 | U | ✅ | tiled | a map the game can't read fails with where and why: an empty cell, a flipped tile, a tile not in the legend, a compressed layer, no `terrain` layer, a second tileset, an infinite map, a short layer, isometric (tiled.test) |
+| TC-389 | M | ✅ | tools | Dawnreach's 48 rows → `.tmj` → rows round-trip identical; `pytiled_parser` (an independent Tiled reader) reads the map and tileset with the right size, layer, tileset and `char` properties |
+| TC-390 | M | ✅ | tools | `tiled.py legend` regenerates byte-identical files, and refuses a reorder that would change an existing tile's character |
+| TC-391 | M | ✅ | world | every zone screen is unchanged after the move to Tiled, and the dev server loads the `.tmj` in the browser (bench `shots` + `diff`, headless Chromium: the only differing pixels — ≤28 per coast screen, Starfall Coast included — are animated water/foam in shoreline corner tiles) |
+| TC-393 | M | ✅ | bench | the bench masks shoreline corner tiles (they animate water half a tile off the water cells) and drifting fog banks, so two shot sets of the same code `diff` as IDENTICAL (exit 0) instead of "DIFFERENT" on coasts and near fog — verified on all 46 screens |
+| TC-392 | M | ⬜ | tools | open `dawnreach.tmj` in the Tiled app: the legend shows the game's art, painting a tile and saving keeps the format the game reads (`npm test` passes) |
+
+## Wayfinding: the 🚩, signposts, "where to next?" (#75 item 6)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-394 | U | ✅ | wayfinding | the next goal follows the story: Numbria's crystal first; then a crystal whose key you hold (before a key you'd still have to win); else the warden of the first locked crystal; the Spire at four crystals; "Explore Lumina" after it. Walked from a fresh save it takes 9 goals, each doable right then, no repeats, and every goal is reachable from every zone (wayfinding.test) |
+| TC-395 | U | ✅ | wayfinding | directions: 8-way compass (none within a tile); fewest-zones route; from the Field "Take the west path to Numbria."; from the Village "Go north to Lumina Field, then take the west path to Numbria."; on the overworld measured from the hero's tile ("step into" when beside it); "It's right here in Numbria!" when there; a sentence for every story goal from every zone (wayfinding.test) |
+| TC-396 | U | ✅ | wayfinding | a signpost names every place once, by direction, clockwise from north, nearest first, and leaves out a place right beside it; each signpost stands beside a crossroads, off the road; Elder Lumen, Grandmother Wick and Scout Tamsin end on "Where to next?" with the route from where they stand; after the Spire they just cheer you on (wayfinding.test) |
+| TC-397 | M | ✅ | menu | world map at five story stages: 🚩 on the goal's place (Lumina Field for Numbria, the Woods for the Verdant Key, the Spire), "🚩 Next: …" and the route under the ⭐ caption, 🚩 beside the place in the list, the ⭐ stepping aside when both share a place; a 🎉 line and no flag after the Spire; fits at 390 px; no page errors (headless Chromium) |
+| TC-398 | M | ✅ | dialogue | Elder Lumen's last line is "Where to next? The Null Fiend hoards the Crystal of Numbers. Take the west path to Numbria."; after the first crystal Grandmother Wick sends you west to the Whispering Woods; the west signpost reads six arrow lines, then "🚩 Next: … Go north-east to Lumina Field, then take the west path to Numbria." (headless Chromium) |
+| TC-399 | M | ✅ | world | both signposts are drawn at their crossroads (pixel sign, "Signpost" label, off the road), and walking into each opens its own conversation (bench `__bench.state().talks`, headless Chromium) |
+| TC-400 | M | ⬜ | world | in the real app: talk to a signpost and to Elder Lumen, open the menu map, then restore Numbria's crystal and check the 🚩 and the lines move on to the Whispering Woods |
+
+## Battle tech-debt pass (#87)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-416 | U | ✅ | battleTurn | a correct answer fills one ◆, capped at `CHARGE_MAX`; a wrong one leaves charge alone (battleTurn.test) |
+| TC-417 | U | ✅ | battleTurn | hero hit: deals damage, floors enemy HP at 0 and reports defeat; a shield absorbs the first landed hit then is gone; a shield-absorbed spell refunds its charge (battleTurn.test) |
+| TC-418 | U | ✅ | battleTurn | boss enrage phases 1 and 2 are each announced exactly once; regular enemies never announce (battleTurn.test) |
+| TC-419 | U | ✅ | battleTurn | enemy turn: a standing guard blocks fully and is spent; a correct defend softens; HP floors at 0 → hero down; a hurt healer mends, a healthy one doesn't; boss damage uses the current phase (battleTurn.test) |
+| TC-420 | U | ✅ | battleTurn | spells: a miss fizzles and keeps charge; Mend heals (capped); Aegis raises the guard; offensive spells spend their cost (battleTurn.test) |
+| TC-421 | U | ✅ | battleTurn | items: blocked reasons (none left / HP full / charge full / already warded); potion, elixir, spark and ward effects (battleTurn.test) |
+| TC-422 | U | ✅ | battleStore | `start()` resets combat and derives the shield from the enemy archetype, so shield state never leaks between fights (battleTurn.test) |
+| TC-423 | C | ✅ | BattleArena | smoke: Attack → correct answer → Go! shows "strikes true", lowers enemy HP and fills one ◆ (BattleArena.test) |
+| TC-424 | M | ⬜ | BattleArena | play a full fight on a phone: lunges, damage numbers, SFX, enrage banner and victory panel look the same as before the refactor |
+
+## Critical fixes (#88)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-425 | U | ✅ | quota SQL | 3 calls/min pass and the 4th is refused; a player over the daily fresh budget gets 0; the global budget caps a fresh player; budgets reset after a day (supabase/ci/quota.test.sql) |
+| TC-426 | U | ✅ | quota SQL | anon and authenticated cannot EXECUTE `begin_question_request`; service_role can (quota.test.sql) |
+| TC-427 | U | ✅ | migrations | every migration 0001→0009 applies in order to a fresh Postgres + the Supabase stub (CI migrations job) |
+| TC-428 | U | ✅ | edge function | `deno check` passes for generate-questions (CI edge-function job) |
+| TC-429 | M | ⬜ | edge function | after deploy: a request with no Authorization (or only the anon key) → 401 "Please sign in to play." |
+| TC-430 | M | ⬜ | edge function | after deploy: 21 rapid calls from one player → the 21st returns 429 and the game shows the retry screen with the "short rest" message |
+| TC-431 | M | ⬜ | edge function | with `FRESH_PER_PLAYER_PER_DAY=0`: a battle still loads (served from the cache) and `question_requests.fresh_count` stays 0 |
+| TC-432 | U | ✅ | auth | `isRecoveryUrl` spots `type=recovery` in the hash or query and ignores other links (PasswordReset.test) |
+| TC-433 | C | ✅ | AuthPage | Forgot password hides the password field, calls `resetPasswordForEmail` with this page as the redirect, and shows a neutral notice; errors are shown (PasswordReset.test) |
+| TC-434 | C | ✅ | ResetPasswordPage | too-short / mismatched passwords are rejected without a server call; success saves and leaves recovery mode; a server error keeps recovery mode (PasswordReset.test) |
+| TC-436 | U | ✅ | migrations | `apply_all_migrations.sql` is regenerated from `supabase/migrations/` and matches (CI `--check`) |
+| TC-437 | U | ✅ | migrations | the bundle applies to a fresh DB, applies again without error, and records one row per migration (CI apply-twice job) |
+| TC-438 | M | ✅ | migrations | on a drifted DB (old 0001 without the UPDATE policy, CLI history table with extra columns, existing player + question): the bundle restores the policy, adds columns, keeps data, records all 9 (local Postgres 16) |
+| TC-439 | U | ✅ | migrations | a user created without (or with invalid) birth-date metadata does not fail sign-up and gets no trigger-made profile; valid metadata still seeds one (supabase/ci/access.test.sql) |
+| TC-440 | U | ✅ | migrations | authenticated has select/insert/update on `profiles`; anon can't update it; only service_role can execute `increment_question_usage` (access.test.sql) |
+| TC-441 | U | ✅ | db:bundle | the generator rejects a migration with BEGIN/COMMIT, CREATE TABLE/INDEX or ADD COLUMN without IF NOT EXISTS, CREATE FUNCTION without OR REPLACE, or CREATE POLICY/TRIGGER without a prior DROP IF EXISTS (verified by hand with throwaway files) |
+| TC-435 | M | ⬜ | auth | end to end: request a reset email, open the link → "Choose a new password" → save → the game loads; sign out and sign in with the new password |
+
+## Merge with main: village-expansion items in the refactored battle (#87, #80)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-442 | U | ✅ | battleTurn | Mirror Charm: blocks the hit, bounces the full hit back, is spent, and keeps a standing guard (battleTurn.test) |
+| TC-443 | U | ✅ | battleTurn | a bounce onto a shielded foe shatters the shield instead of hurting it; a bounce can win the battle and a beaten healer doesn't mend; a bounce announces a boss enrage phase (battleTurn.test) |
+| TC-444 | U | ✅ | battleTurn | Focus Tea multiplies one landed hit by `TEA_DAMAGE_MULT`, then is spent; it waits while the enemy's shield is up (battleTurn.test) |
+| TC-445 | U | ✅ | battleTurn | Sunseed Snack heals `SNACK_HEAL` + 1 ◆; Turbo Coil fills ◆; Mirror/Tea/Clover set their flags; each new item has its "would do nothing" reason (battleTurn.test) |
+| TC-446 | U | ✅ | battleStore | `start()` also resets the Mirror/Focus/Clover buffs, so they never carry into the next fight (battleTurn.test) |
+
+## Training Grounds: all 7 topics, passed topics retired per session (#91)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-447 | U | ✅ | quizSessionStore | `markCompleted` adds a topic; is idempotent (never listed twice); accumulates distinct topics in order (quizSessionStore.test) |
+| TC-448 | U | ✅ | quizSessionStore | `reset` clears the completed set so it cannot leak into the next session (quizSessionStore.test) |
+| TC-449 | M | ⬜ | TopicSelect | the Training Grounds shows all 7 topics (4 crystal + nature/space/history), not just the crystal four |
+| TC-450 | M | ⬜ | TopicSelect | passing a topic round (80%+) greys it out with a ✓ + "Completed" and makes it unclickable for the rest of the session; failing leaves it selectable |
+| TC-451 | M | ⬜ | TopicSelect | sign out and back in (or reload) → every topic is selectable again (the completed set is ephemeral, cleared on sign-out via `useAuthInit`) |
 
 ## Regression cases (tied to ISSUES.md)
 
@@ -268,6 +549,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-R5 | M | ⬜ | #23 | after 0005, a quiz round increases `select count(*) from questions` |
 | TC-R6 | M | ⬜ | #24 | after 0006, two back-to-back rounds return non-overlapping question IDs |
 | TC-R7 | M | ⬜ | #26 | flagging a question removes it from the next call's cache pool |
+| TC-R8 | C | ✅ | #70 | enemy hit then an immediate potion (tapping through before the 260ms impact) keeps both the damage and the heal, and HP stays put after all pending timers fire (fake timers; BattleArena.test + battleTurn.test) |
 
 ---
 

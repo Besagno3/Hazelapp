@@ -9,14 +9,17 @@ create table if not exists public.saves (
 
 alter table public.saves enable row level security;
 
+drop policy if exists "Players read their own save" on public.saves;
 create policy "Players read their own save"
   on public.saves for select
   using (auth.uid() = profile_id);
 
+drop policy if exists "Players create their own save" on public.saves;
 create policy "Players create their own save"
   on public.saves for insert
   with check (auth.uid() = profile_id);
 
+drop policy if exists "Players update their own save" on public.saves;
 create policy "Players update their own save"
   on public.saves for update
   using (auth.uid() = profile_id)

@@ -1,0 +1,114 @@
+# Lint, test and build the game on every PR and every push to main.
+# The job's check is named `test` — require it in the main-branch ruleset
+# (Settings → Rules → Rulesets → Require status checks, source: GitHub Actions).
+# `edge-function` and `migrations` (#88) check the Supabase side.
+#
+# No `paths:` filter on purpose: a required check that skips some PRs would
+# leave them stuck on "waiting for status".
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One run per branch/PR; a new push cancels the outdated run.
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: hazel-game
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          # Vite 8 needs Node ^20.19 || >=22.12.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: hazel-game/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - name: apply_all_migrations.sql matches supabase/migrations
+        run: node scripts/build-apply-all.mjs --check
+      - run: npm test
+      # tsc -b (app + bench type-check) then vite build.
+      - run: npm run build
+
+  edge-function:
+    name: Type-check edge function
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: hazel-game/supabase/functions
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # --no-config / --node-modules-dir=none: resolve npm: imports the way the
+      # Supabase runtime does, not through the app's package.json.
+      - run: deno check --no-config --node-modules-dir=none generate-questions/index.ts
+
+  migrations:
+    name: Apply migrations + SQL tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    defaults:
+      run:
+        working-directory: hazel-game/supabase
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Apply the Supabase stub and every migration in order
+        run: |
+          psql -v ON_ERROR_STOP=1 -q -f ci/supabase-stub.sql
+          for f in migrations/*.sql; do
+            echo "::group::$f"
+            psql -v ON_ERROR_STOP=1 -q -f "$f"
+            echo "::endgroup::"
+          done
+      - name: apply_all_migrations.sql is re-runnable (fresh DB, applied twice)
+        run: |
+          psql -v ON_ERROR_STOP=1 -q -c 'create database apply_all'
+          psql -d apply_all -v ON_ERROR_STOP=1 -q -f ci/supabase-stub.sql
+          psql -d apply_all -v ON_ERROR_STOP=1 -q -f apply_all_migrations.sql
+          psql -d apply_all -v ON_ERROR_STOP=1 -q -f apply_all_migrations.sql
+          test "$(psql -d apply_all -tAc 'select count(*) from supabase_migrations.schema_migrations')" = "$(ls migrations/*.sql | wc -l)"
+      - name: SQL tests
+        run: |
+          for f in ci/*.test.sql; do
+            echo "::group::$f"
+            psql -v ON_ERROR_STOP=1 -q -f "$f"
+            echo "::endgroup::"
+          done

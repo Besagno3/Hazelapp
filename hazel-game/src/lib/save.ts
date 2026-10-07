@@ -1,8 +1,58 @@
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
 import { HUB_ZONE, ZONES } from '../content/zones';
-import { LIBRARY_MAX } from '../content/items';
+import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
 
 export const SAVE_VERSION = 1 as const;
+
+/**
+ * Versioned save-migration ladder (Wave 0.2, ROADMAP-4X). Each step upgrades
+ * a raw persisted payload from version N to N+1 and runs BEFORE field-level
+ * normalization (steps see raw unknown-shaped data — the old shape no longer
+ * typechecks). To change the save shape:
+ *   1. bump `SAVE_VERSION`,
+ *   2. add `MIGRATIONS[oldVersion]` returning the upgraded raw payload,
+ *   3. update `SaveData` / `defaultSave` / `normalizeSave` to the new shape,
+ *   4. add a fixture test in save.test.ts feeding a real old-version payload.
+ * Old saves then upgrade step-by-step on every load path (Supabase and
+ * localStorage both come through `normalizeSave`).
+ *
+ * ⚠️ The FIRST version bump must also add a stale-client guard: today
+ * `normalizeSave` stamps `version: SAVE_VERSION` unconditionally, so once v2
+ * exists, a cached v1 client opening a v2 save would field-strip it and
+ * re-persist it as v1 (the #61 silent-data-loss class). Harmless while only
+ * v1 exists — treat "refuse to load versions above SAVE_VERSION" as step 5
+ * of the checklist above. save.test.ts's ladder tripwire separately catches
+ * a bumped version with a missing step.
+ */
+export type RawSave = Record<string, unknown>;
+export type MigrationLadder = Record<number, (raw: RawSave) => RawSave>;
+
+export const MIGRATIONS: MigrationLadder = {
+  // 1: (raw) => ({ ...raw, party: [] }),   ← example: v1 → v2
+};
+
+/**
+ * Walks `raw` up the ladder to `targetVersion`. A payload without a numeric
+ * version is treated as v1 (the first JRPG shape). Stops early if a step is
+ * missing — `normalizeSave`'s field defaulting is the safety net. Pure and
+ * ladder-injectable for tests.
+ */
+export function runMigrations(
+  raw: unknown,
+  ladder: MigrationLadder = MIGRATIONS,
+  targetVersion: number = SAVE_VERSION,
+): unknown {
+  if (typeof raw !== 'object' || raw === null) return raw;
+  let data = raw as RawSave;
+  let version = typeof data.version === 'number' ? data.version : 1;
+  while (version < targetVersion) {
+    const step = ladder[version];
+    if (!step) break;
+    version += 1;
+    data = { ...step(data), version };
+  }
+  return data;
+}
 
 /** localStorage key for a user's save (per-user — fixes #12). */
 export function saveKey(userId: string): string {
@@ -20,7 +70,7 @@ export function defaultSave(): SaveData {
     pos: null,
     hp: null,
     coins: 0,
-    items: { potion: 1, hint: 1 },
+    items: { potion: 1, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0 },
     badges: [],
     sages: [],
     sageEquipped: null,
@@ -41,8 +91,9 @@ export function defaultSave(): SaveData {
  */
 export function normalizeSave(raw: unknown): SaveData {
   const d = defaultSave();
-  if (typeof raw !== 'object' || raw === null) return d;
-  const r = raw as Record<string, unknown>;
+  const migrated = runMigrations(raw);
+  if (typeof migrated !== 'object' || migrated === null) return d;
+  const r = migrated as Record<string, unknown>;
 
   const zoneId =
     typeof r.zoneId === 'string' && r.zoneId in ZONES ? (r.zoneId as ZoneId) : d.zoneId;
@@ -52,13 +103,12 @@ export function normalizeSave(raw: unknown): SaveData {
     typeof (r.pos as { y?: unknown }).y === 'number'
       ? { x: (r.pos as { x: number }).x, y: (r.pos as { y: number }).y }
       : null;
-  const items =
-    typeof r.items === 'object' && r.items !== null
-      ? {
-          potion: numberOr((r.items as Record<string, unknown>).potion, d.items.potion),
-          hint: numberOr((r.items as Record<string, unknown>).hint, d.items.hint),
-        }
-      : d.items;
+  // Every known consumable gets a count; ids added later (#73: elixir, spark,
+  // ward) simply default in for older saves.
+  const rawItems = typeof r.items === 'object' && r.items !== null ? (r.items as Record<string, unknown>) : {};
+  const items = Object.fromEntries(
+    CONSUMABLE_IDS.map((id) => [id, numberOr(rawItems[id], d.items[id])]),
+  ) as Record<ConsumableId, number>;
 
   return {
     version: SAVE_VERSION,

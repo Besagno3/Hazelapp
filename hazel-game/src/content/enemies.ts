@@ -1,4 +1,4 @@
-import type { BattleEnemy, Topic, ZoneId } from '../types';
+import type { BattleEnemy, EnemyBehavior, Topic, ZoneId } from '../types';
 import { ageToStartLevel, clampLevel } from '../lib/age';
 import { topicInfo } from './topics';
 import { bossCoinDrop, enemyCoinDrop } from './items';
@@ -21,6 +21,8 @@ export interface EnemyDef {
   /** maxHp = HP_BASE + level * hpPerLevel. */
   hpPerLevel: number;
   isBoss?: boolean;
+  /** Mechanical archetype (Wave 0.5) — see EnemyBehavior in types. */
+  behavior?: EnemyBehavior;
 }
 
 const HP_BASE = 60;
@@ -31,42 +33,62 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'sum-slime': { id: 'sum-slime', name: 'Sum Slime', sprite: '🟦', topic: 'math', levelOffset: -1, hpPerLevel: 10 },
   'count-bat': { id: 'count-bat', name: 'Count Bat', sprite: '🦇', topic: 'math', levelOffset: 0, hpPerLevel: 12 },
   'sir-sumsalot': { id: 'sir-sumsalot', name: 'Sir Sumsalot', sprite: '🐉', topic: 'math', levelOffset: 1, hpPerLevel: 14 },
+  'raven-prince': { id: 'raven-prince', name: 'Raven Prince', sprite: '🐦‍⬛', topic: 'math', levelOffset: -1, hpPerLevel: 10 },
+  'kia': { id: 'kia', name: 'Kia', sprite: '🦑', topic: 'math', levelOffset: 0, hpPerLevel: 12 },
+  'pirate-parrot': { id: 'pirate-parrot', name: 'Pi-rate Parrot', sprite: '🦜', topic: 'math', levelOffset: 1, hpPerLevel: 14, behavior: 'trickster' },
   'null-fiend': { id: 'null-fiend', name: 'The Null Fiend', sprite: '👹', topic: 'math', levelOffset: 1, hpPerLevel: 20, isBoss: true },
 
   // --- Verdara (science) ---
   'spore-puff': { id: 'spore-puff', name: 'Spore Puff', sprite: '🍄', topic: 'science', levelOffset: -1, hpPerLevel: 10 },
   'static-jelly': { id: 'static-jelly', name: 'Static Jelly', sprite: '🪼', topic: 'science', levelOffset: 0, hpPerLevel: 12 },
   'comet-crab': { id: 'comet-crab', name: 'Comet Crab', sprite: '🦀', topic: 'science', levelOffset: 1, hpPerLevel: 14 },
+  'fizzlet': { id: 'fizzlet', name: 'Fizzlet', sprite: '🫧', topic: 'science', levelOffset: -1, hpPerLevel: 10 },
+  'magnetick': { id: 'magnetick', name: 'Magnetick', sprite: '🧲', topic: 'science', levelOffset: 0, hpPerLevel: 12 },
+  'germinator': { id: 'germinator', name: 'Germinator', sprite: '🦠', topic: 'science', levelOffset: 1, hpPerLevel: 14, behavior: 'healer' },
   'smog-fiend': { id: 'smog-fiend', name: 'The Smog Fiend', sprite: '🌫️', topic: 'science', levelOffset: 1, hpPerLevel: 20, isBoss: true },
 
   // --- Gearfall (engineering) ---
   'bolt-mouse': { id: 'bolt-mouse', name: 'Bolt Mouse', sprite: '🐭', topic: 'engineering', levelOffset: -1, hpPerLevel: 10 },
   'scrap-golem': { id: 'scrap-golem', name: 'Scrap Golem', sprite: '🗿', topic: 'engineering', levelOffset: 0, hpPerLevel: 12 },
   'gear-wyrm': { id: 'gear-wyrm', name: 'Gear Wyrm', sprite: '🐍', topic: 'engineering', levelOffset: 1, hpPerLevel: 14 },
+  'pulley-spider': { id: 'pulley-spider', name: 'Pulley Spider', sprite: '🕷️', topic: 'engineering', levelOffset: -1, hpPerLevel: 10 },
+  'piston-boar': { id: 'piston-boar', name: 'Piston Boar', sprite: '🐗', topic: 'engineering', levelOffset: 0, hpPerLevel: 12 },
+  'ironhorn-rampager': { id: 'ironhorn-rampager', name: 'Ironhorn Rampager', sprite: '🦏', topic: 'engineering', levelOffset: 1, hpPerLevel: 14, behavior: 'shielded' },
   'rust-fiend': { id: 'rust-fiend', name: 'The Rust Fiend', sprite: '🤖', topic: 'engineering', levelOffset: 1, hpPerLevel: 20, isBoss: true },
 
   // --- Chromaria (creativity) ---
   'doodle-imp': { id: 'doodle-imp', name: 'Doodle Imp', sprite: '👻', topic: 'creativity', levelOffset: -1, hpPerLevel: 10 },
   'off-key-bird': { id: 'off-key-bird', name: 'Off-Key Bird', sprite: '🐦', topic: 'creativity', levelOffset: 0, hpPerLevel: 12 },
-  'pixel-witch': { id: 'pixel-witch', name: 'Pixel Witch', sprite: '🦹', topic: 'creativity', levelOffset: 1, hpPerLevel: 14 },
+  'pixel-witch': { id: 'pixel-witch', name: 'Pixel Witch', sprite: '🦹', topic: 'creativity', levelOffset: 1, hpPerLevel: 14, behavior: 'trickster' },
+  'flicker-goblin': { id: 'flicker-goblin', name: 'Flicker Goblin', sprite: '🔥', topic: 'creativity', levelOffset: -1, hpPerLevel: 10 },
+  'graffiti-gargoyle': { id: 'graffiti-gargoyle', name: 'Graffiti Gargoyle', sprite: '🎨', topic: 'creativity', levelOffset: 0, hpPerLevel: 12 },
+  'dog-knight': { id: 'dog-knight', name: 'Dog-Knight', sprite: '🐕', topic: 'creativity', levelOffset: 1, hpPerLevel: 14, behavior: 'healer' },
   'gray-fiend': { id: 'gray-fiend', name: 'The Gray Fiend', sprite: '🌑', topic: 'creativity', levelOffset: 1, hpPerLevel: 20, isBoss: true },
 
   // --- Whispering Woods (nature & animals) — critters + the warden boss (#58) ---
   'mossback-cub': { id: 'mossback-cub', name: 'Mossback Cub', sprite: '🐻', topic: 'nature', levelOffset: -1, hpPerLevel: 10 },
   'thornhare': { id: 'thornhare', name: 'Thornhare', sprite: '🐰', topic: 'nature', levelOffset: 0, hpPerLevel: 12 },
   'grumblebee': { id: 'grumblebee', name: 'Grumblebee', sprite: '🐝', topic: 'nature', levelOffset: 1, hpPerLevel: 13 },
+  'dart-frog': { id: 'dart-frog', name: 'Dart Frog', sprite: '🐸', topic: 'nature', levelOffset: -1, hpPerLevel: 10 },
+  'snapjaw': { id: 'snapjaw', name: 'Snapjaw', sprite: '🪴', topic: 'nature', levelOffset: 0, hpPerLevel: 12 },
+  'oak-owl': { id: 'oak-owl', name: 'Oak Owl', sprite: '🦉', topic: 'nature', levelOffset: 1, hpPerLevel: 13, behavior: 'trickster' },
   'thicket-warden': { id: 'thicket-warden', name: 'The Thicket Warden', sprite: '🦌', topic: 'nature', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 
   // --- Starfall Coast (space) — critters + the warden boss (#58) ---
   'tide-sprite': { id: 'tide-sprite', name: 'Tide Sprite', sprite: '🌊', topic: 'space', levelOffset: -1, hpPerLevel: 10 },
   'meteor-mite': { id: 'meteor-mite', name: 'Meteor Mite', sprite: '☄️', topic: 'space', levelOffset: 0, hpPerLevel: 12 },
-  'moon-moth': { id: 'moon-moth', name: 'Moon Moth', sprite: '🌙', topic: 'space', levelOffset: 1, hpPerLevel: 13 },
+  'moon-moth': { id: 'moon-moth', name: 'Moon Moth', sprite: '🌙', topic: 'space', levelOffset: 1, hpPerLevel: 13, behavior: 'healer' },
+  'orbit-otter': { id: 'orbit-otter', name: 'Orbit Otter', sprite: '🦦', topic: 'space', levelOffset: -1, hpPerLevel: 10 },
+  'gravity-beetle': { id: 'gravity-beetle', name: 'Gravity Beetle', sprite: '🪲', topic: 'space', levelOffset: 0, hpPerLevel: 12 },
+  'eclipse-fox': { id: 'eclipse-fox', name: 'Eclipse Fox', sprite: '🦊', topic: 'space', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
   'tide-colossus': { id: 'tide-colossus', name: 'The Tide Colossus', sprite: '🐳', topic: 'space', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 
   // --- Clockwork Depths (time & history) — critters + the warden boss (#58) ---
   'cog-sprite': { id: 'cog-sprite', name: 'Cog Sprite', sprite: '⚙️', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
   'hourglass-imp': { id: 'hourglass-imp', name: 'Hourglass Imp', sprite: '⏳', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
-  'relic-golem': { id: 'relic-golem', name: 'Relic Golem', sprite: '🗿', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
+  'relic-golem': { id: 'relic-golem', name: 'Relic Golem', sprite: '🗿', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
+  'tut-tut': { id: 'tut-tut', name: 'Tut-Tut', sprite: '🧟', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
+  'knight-mare': { id: 'knight-mare', name: 'Knight-Mare', sprite: '🐴', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
   'clockwork-titan': { id: 'clockwork-titan', name: 'The Clockwork Titan', sprite: '🦾', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 };
 
@@ -98,12 +120,14 @@ export function spawnEnemy(
     instanceId: `${zoneId}:${placementKey}`,
     name,
     sprite: def.sprite,
-    spriteId: def.spriteId,
+    // Generated art is keyed by the def id; an explicit spriteId overrides.
+    spriteId: def.spriteId ?? def.id,
     topic: def.topic,
     level,
     maxHp: (def.isBoss ? BOSS_HP_BASE : HP_BASE) + level * def.hpPerLevel,
     zoneId,
     isBoss: def.isBoss ?? false,
     coins: def.isBoss ? bossCoinDrop(level) : enemyCoinDrop(level),
+    behavior: def.behavior,
   };
 }
