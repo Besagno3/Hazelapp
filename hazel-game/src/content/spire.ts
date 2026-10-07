@@ -2,6 +2,7 @@ import type { Topic } from '../types';
 import type { MusicTrack } from '../lib/audio';
 import { VILLAIN_NAME } from './story';
 import type { ZoneDef } from './zones';
+import { SPIRE_DUNGEON, floorLabel } from './dungeons';
 
 /**
  * The Crystal Spire endgame (#55): a multi-floor question climb, unlocked only
@@ -21,7 +22,7 @@ import type { ZoneDef } from './zones';
  */
 
 export interface SpireFloor {
-  /** Floor title shown on the landing. */
+  /** The floor's own name; `spireFloorTitle` adds its number. */
   name: string;
   /** Umbra's taunt as the floor begins. */
   taunt: string;
@@ -186,6 +187,14 @@ export const SPIRE_FLOOR_MAPS: Record<SpireTheme, SpireFloorMap> = {
   },
 };
 
+/**
+ * "Floor 2 — The Overgrown Landing": the Spire numbers its floors the way
+ * every dungeon does (`floorLabel`, content/dungeons.ts — #75 item 10).
+ */
+export function spireFloorTitle(index: number): string {
+  return `${floorLabel(SPIRE_DUNGEON.goes, index)} — ${SPIRE_FLOORS[index].name}`;
+}
+
 /** Arrival point (px) for a floor — the centre of its spawn tile. */
 export function floorSpawnPx(theme: SpireTheme, tile: number): { x: number; y: number } {
   const s = SPIRE_FLOOR_MAPS[theme].spawn;
@@ -240,7 +249,7 @@ export const SPIRE_INTRO: string[] = [
 
 export const SPIRE_FLOORS: SpireFloor[] = [
   {
-    name: 'Floor 1 — The Whispering Stair',
+    name: 'The Whispering Stair',
     theme: 'archive',
     music: 'spireArchive',
     taunt: '"This first stair is made of old, forgotten things. Name them, if you can."',
@@ -249,7 +258,7 @@ export const SPIRE_FLOORS: SpireFloor[] = [
     questions: 3,
   },
   {
-    name: 'Floor 2 — The Overgrown Landing',
+    name: 'The Overgrown Landing',
     theme: 'thicket',
     music: 'spireThicket',
     taunt: '"Vines and creatures I let the fog eat. You think you know them better than I forgot them?"',
@@ -258,7 +267,7 @@ export const SPIRE_FLOORS: SpireFloor[] = [
     questions: 3,
   },
   {
-    name: 'Floor 3 — The Star Gallery',
+    name: 'The Star Gallery',
     theme: 'stars',
     music: 'spireStars',
     taunt: '"Up here I smothered the very stars. Reach them — if your little mind can stretch that far."',
@@ -267,7 +276,7 @@ export const SPIRE_FLOORS: SpireFloor[] = [
     questions: 4,
   },
   {
-    name: 'Floor 4 — The Engine Vault',
+    name: 'The Engine Vault',
     theme: 'engine',
     music: 'spireEngine',
     taunt: '"Numbers, gears, wild ideas — I jammed them all. Untangle my locks. They get nastier from here."',
@@ -276,7 +285,7 @@ export const SPIRE_FLOORS: SpireFloor[] = [
     questions: 4,
   },
   {
-    name: 'Floor 5 — The Forgotten Throne',
+    name: 'The Forgotten Throne',
     theme: 'throne',
     // The throne hall creeps with the Spire theme; 'finalBoss' takes over
     // once the hero walks up to Umbra and the fight begins.

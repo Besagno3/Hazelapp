@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { TILE, ZONES, fogAt, fogLifted } from '../../content/zones';
+import { floorTitle } from '../../content/dungeons';
 import type { ZoneId } from '../../types';
 import {
   ANY_CRYSTAL_EMOJI,
@@ -61,7 +62,7 @@ export default function WorldMapPanel({
     }
   }, [world, cols, rows, flags]);
 
-  const caption = mapCaption(here, ZONES[zoneId].name, world.name);
+  const caption = mapCaption(here, floorTitle(ZONES, zoneId) ?? ZONES[zoneId].name, world.name);
   const nextLabel = goal.zoneId ? `Next: ${goal.title}` : goal.why;
   const at = (x: number, y: number) => ({ left: `${((x + 0.5) / cols) * 100}%`, top: `${((y + 0.5) / rows) * 100}%` });
 

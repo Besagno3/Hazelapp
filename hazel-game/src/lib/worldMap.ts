@@ -140,6 +140,7 @@ export function whereOnMap(
  */
 export function mapCaption(here: MapMarker | null, zoneName: string, worldName: string): string {
   if (here?.exact) return `You're out on ${worldName}`;
-  if (!here?.place || here.place === zoneName) return `You're here: ${zoneName}`;
+  // A dungeon floor's name already says which place it's in ("Clockwork Depths · B2 — …").
+  if (!here?.place || zoneName.startsWith(here.place)) return `You're here: ${zoneName}`;
   return `You're here: ${zoneName} (past ${here.place})`;
 }

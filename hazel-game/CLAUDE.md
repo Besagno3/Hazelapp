@@ -85,14 +85,15 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
-  resolves all seven, #33/#55), `zones.ts` (15 tile maps: the **Dawnreach**
+  resolves all seven, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
   overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
   #75 — the four crystal regions sit at its corners, item 8) + three roadside
   shrines and the dark Echo Mine (item 9) + 4 crystal zones + Lumina Village (home and `HUB_ZONE`: safe,
   a scrolling 4×2-screen town with enterable buildings, incl. the Library
   and Maple's Trading Post from the retired Lumina Field) + 3 themed combat
-  zones + the hidden Moonwell Grove + the Crystal Spire; every zone but
-  Dawnreach is a place on it; every zone has a `kind` that picks its
+  zones (the Clockwork Depths three floors deep, item 10) + the hidden
+  Moonwell Grove + the Crystal Spire; every zone but Dawnreach is a place on
+  it or a floor below one; every zone has a `kind` that picks its
   transition + music;
   `ZONE_IDS` is the zone-id source of truth, validated by `zones.test.ts`;
   Dawnreach's terrain is painted in **Tiled** — `content/maps/dawnreach.tmj`
@@ -103,7 +104,10 @@ zod, react-query. Add the package in the same change that first uses it.
   Pip / Wisp — their strikes, perks + Pair Attacks), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `fieldSpells.ts` (#75 item 9: the field
   spells Return / Glow / Calm — learned at shrines as `spell:<id>` flags —
-  plus visited towns and Return landings), `spire.ts` (the endgame climb floors +
+  plus visited towns and Return landings), `dungeons.ts` (#75 item 10: which
+  zones are floors of one dungeon, which way is deeper, floor labels B1… /
+  Floor 1…, the boss at the bottom — floors are ordinary zones joined by
+  `>` / `<` stairs exits), `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
   Fiends, #58), `items.ts` (shop + economy tuning), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
@@ -158,6 +162,14 @@ zod, react-query. Add the package in the same change that first uses it.
   **Calm** fills `calmRef` (seconds, counted down by the canvas while the world
   runs) — critters fade and don't start battles, bosses still do. Arriving
   anywhere sets `visited:<zone>`.
+  **Dungeons** (#75 item 10, `content/dungeons.ts`): a floor is an ordinary
+  `dungeon` zone (saves your place, critters, chests, NPCs, maybe bigger than
+  a screen, maybe `dark` — `dark.dim` makes it dim rather than black); stairs
+  `>` (down) / `<` (up) are exits inside the map, so moving floors fades like
+  a place and needs nothing special from the canvas (it just draws the stairs
+  sprite). The HUD reads "B2 · The Gear Halls"; routes say "take the stairs
+  down to …". The Spire numbers its floors the same way (`spireFloorTitle`)
+  but its trial floors stay `SpireOverlay`'s (ISSUES #103).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -268,6 +280,7 @@ python3 tools/tiled/tiled.py to-ascii src/content/maps/dawnreach.tmj    # a Tile
 python3 tools/tiled/tiled.py from-ascii rows.txt src/content/maps/x.tmj # ASCII rows → a Tiled map
 python3 tools/tiled/tiled.py legend                                    # rebuild the legend tileset (append-only)
 python3 tools/assets/build.py spells   # art for the field-spell places + keepers only (#75 item 9)
+python3 tools/assets/build.py dungeon  # the Depths' lower floors + the stairs sheet only (#75 item 10)
 ```
 
 ## Error handling
@@ -321,6 +334,48 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-07 — Real dungeons: the Clockwork Depths go three floors down (#75 item 10)
+Roadmap item 10: dungeons are now ordinary zones joined by stairs.
+- **The engine** (`content/dungeons.ts`): a `DungeonDef` lists its floors
+  from the entrance inward, which way is deeper (`goes`), and the boss at
+  the bottom. Floors are ordinary `dungeon` zones; new legend chars `>`
+  (stairs down) / `<` (stairs up) are exits inside the map (each needs an
+  `exits` entry), so changing floors fades like entering a place and the
+  canvas only draws the stairs (`/tiles/stairs.png`, `STAIRS_FRAME`). Helpers:
+  `dungeonFloor`, `floorLabel` (B1… going down, Floor 1… going up),
+  `floorTitle`, `dungeonEntrance`, `stairsChars`. `DarknessDef.dim` makes a
+  floor dim instead of black (its own unlit light radius, lighter edge).
+- **The Clockwork Depths** (entered from Dawnreach since Phase 1, not the
+  Woods): **B1** keeps its map — every chest, gate and save position still
+  matches — plus stairs down in the gated vault (the gatekeeper now guards
+  the way down); **B2, the Gear Halls** (new, 22×28 — two screens tall):
+  dim halls of stopped gears, a save crystal, two critters, and a side hall
+  the old lamps never reached, pitch dark until Glow, with a chest; **B3,
+  the Titan's Forge** (new): an antechamber with a save crystal and Ratchet
+  the Wind-Up (moved down with the boss), the forge where the **Clockwork
+  Titan** stands in the way to the hoard chest. The Gearwright Key's
+  `fromZone` is now B3. Cricket and Echo point down the stairs.
+- **Wayfinding:** routes say "take the stairs down to the Gear Halls";
+  Elder Lumen places the Titan "in the Titan's Forge, deep in the Clockwork
+  Depths, to the south-west"; the key gate names the Depths. The HUD reads
+  "B2 · The Gear Halls"; the world map "You're here: Clockwork Depths · B2 —
+  The Gear Halls".
+- **The Spire** numbers its floors the same way (`spireFloorTitle`, the
+  floor number no longer baked into `SPIRE_FLOORS[].name`) and lights them
+  with the same darkness code (camera-aware since item 9); its trial floors
+  — rune seals, candles, Umbra — stay `SpireOverlay`'s (ISSUES #103a).
+- **Art** (`python3 tools/assets/build.py dungeon`): the stairs sheet and
+  B2/B3 tilesets, blend sheets and backdrops (appended to the art table — no
+  other zone's art changed). The Tiled legend gained `>` and `<` (append-only).
+- Tests: +8 (dungeons.test: floors, stairs both ways landing beside the way
+  back, walkable to the bottom without Glow, boss on the deepest floor, labels;
+  zones.test: stairs need exits, two dark places; wayfinding.test: the stairs
+  route, Lumen's "deep in"); 591 green, lint + tsc + build clean. Checked in
+  headless Chromium: B1 → B2 and back, B2's dark side hall (blocks, lit opens),
+  B2's far end with the camera two screens down (the light stays on the hero),
+  B2 → B3, the Titan fights with or without Calm, the HUD title and map caption
+  on a 375 px phone. Follow-ups: #103.
 
 ### 2026-10-07 — Field spells: Return, Glow and Calm, learned at roadside shrines (#75 item 9)
 Roadmap item 9: magic for out in the world, not for battle.

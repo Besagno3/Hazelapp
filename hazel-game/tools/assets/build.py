@@ -8,6 +8,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py signpost   # only the signpost prop (#75 item 6)
     python3 tools/assets/build.py fog        # only the fog-puff sheet (#75 item 7)
     python3 tools/assets/build.py spells     # only the field-spell places + keepers (#75 item 9)
+    python3 tools/assets/build.py dungeon    # only the Depths' lower floors + the stairs (#75 item 10)
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -57,6 +58,11 @@ def main():
         # Just the wayfinding signpost (#75 item 6) — existing files untouched.
         write_manifest(build_sprites.build(PUBLIC, only={'signpost'}))
         print('signpost ✓')
+        return
+    if 'dungeon' in only:
+        # Just the Clockwork Depths' lower floors and the stairs (#75 item 10).
+        tiles.build_dungeon(PUBLIC)
+        print('dungeon ✓')
         return
     if 'spells' in only:
         # Just the field-spell places and their people (#75 item 9) — every

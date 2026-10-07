@@ -72,18 +72,19 @@ describe('zone maps', () => {
     }
   });
 
-  it("every 'E' / 'P' tile has an exit entry and every exit lands on a walkable tile", () => {
+  it("every 'E' / 'P' / stairs tile has an exit entry and every exit lands on a walkable tile", () => {
+    const exitChars = ['E', 'P', '>', '<'];
     for (const z of allZones) {
       for (let y = 0; y < z.map.length; y++) {
         for (let x = 0; x < z.map[y].length; x++) {
-          if (z.map[y][x] === 'E' || z.map[y][x] === 'P') {
+          if (exitChars.includes(z.map[y][x])) {
             const exit = z.exits.find((e) => e.x === x && e.y === y);
             expect(exit, `${z.id} ${z.map[y][x]} at ${x},${y} missing exit def`).toBeDefined();
           }
         }
       }
       for (const exit of z.exits) {
-        expect(['E', 'P'], `${z.id} exit tile ${exit.x},${exit.y}`).toContain(tileAt(z, exit.x, exit.y));
+        expect(exitChars, `${z.id} exit tile ${exit.x},${exit.y}`).toContain(tileAt(z, exit.x, exit.y));
         const target = ZONES[exit.to];
         expect(target, `${z.id} exit target ${exit.to}`).toBeDefined();
         expect(
@@ -592,9 +593,13 @@ describe('dark places (#75 item 9)', () => {
   const dark = allZones.filter((z) => z.dark);
   const lit = (z: ZoneDef) => ({ [litFlag(z.id)]: true });
 
-  it('there is one today — the Echo Mine — and it is a cave', () => {
-    expect(dark.map((z) => z.id)).toEqual(['echo-mine']);
-    expect(ZONES['echo-mine'].kind).toBe('dungeon');
+  it('the Echo Mine (pitch dark past its door) and the Gear Halls (dim, #75 item 10) — both underground', () => {
+    expect(dark.map((z) => z.id).sort()).toEqual(['clockwork-depths-b2', 'echo-mine']);
+    for (const z of dark) expect(z.kind).toBe('dungeon');
+    // The mine waits for Glow; the Gear Halls are on the way to the Titan, so
+    // they're only dim — wide enough to cross without a light.
+    expect(ZONES['echo-mine'].dark!.dim).toBeUndefined();
+    expect(ZONES['clockwork-depths-b2'].dark!.dim).toBeGreaterThanOrEqual(150);
   });
 
   it('its pitch dark sits inside the map over walkable ground', () => {

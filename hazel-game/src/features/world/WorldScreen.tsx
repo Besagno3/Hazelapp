@@ -19,7 +19,8 @@ import {
   visitedFlag,
   type FieldCast,
 } from '../../content/fieldSpells';
-import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx } from '../../content/spire';
+import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx, spireFloorTitle } from '../../content/spire';
+import { dungeonFloor, floorLabel } from '../../content/dungeons';
 import { useSpireStore } from '../../store/spireStore';
 import { spawnEnemy } from '../../content/enemies';
 import { avatarById } from '../../content/avatars';
@@ -255,6 +256,9 @@ export default function WorldScreen() {
     }
   }
   const knowsGlow = knowsFieldSpell('glow', flags);
+  // On a dungeon floor (#75 item 10) the title says which floor: "B2 · The Gear Halls".
+  const floor = dungeonFloor(zoneId);
+  const hudTitle = floor ? `${floorLabel(floor.dungeon.goes, floor.index)} · ${z.name}` : z.name;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-16">
@@ -268,7 +272,7 @@ export default function WorldScreen() {
       <div className="w-full flex items-center justify-between text-white mb-2 px-1">
         <div>
           <h1 className="text-lg font-extrabold leading-tight">
-            {spireTheme ? SPIRE_FLOORS[spireFloorIndex!].name : z.name}
+            {spireTheme ? spireFloorTitle(spireFloorIndex!) : hudTitle}
           </h1>
           <p className="text-[11px] text-white/60">
             💎 {crystals}/{TOPIC_REGISTRY.length} crystals restored

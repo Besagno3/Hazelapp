@@ -47,6 +47,8 @@ import {
   SPIRE_KEY,
   SPIRE_PROPS_KEY,
   SPIRE_PROP_FRAME,
+  STAIRS_FRAME,
+  STAIRS_KEY,
   TILE_FRAME,
   TOWN_FRAME,
   WATER_FPS,
@@ -500,6 +502,9 @@ export default function WorldCanvas({
             (ward as unknown as { play: (n: string) => void }).play('glow');
             wardSprites.set(id, ward);
           }
+        } else if (ch === '>' || ch === '<') {
+          // Dungeon stairs (#75 item 10): an exit to the floor below / above.
+          k.add([k.sprite(STAIRS_KEY, { frame: STAIRS_FRAME[ch] }), k.pos(px, py), k.z(-10)]);
         } else if (ch === 'U') {
           stairSprites.push(spireProp(SPIRE_PROP_FRAME.stairsSealed, px, py));
         } else if (ch === 'Y') {
@@ -1303,12 +1308,19 @@ export default function WorldCanvas({
         const flicker = Math.sin(k.time() * 7) * 3 + Math.sin(k.time() * 13) * 2;
         const lit = !!z.dark && flagsRef.current[litFlag(zoneId)] === true;
         // Spooky but readable for kids: the candle glow narrows per lost candle.
-        const r = light ? 150 + 45 * Math.max(0, light.lives) : z.dark ? (lit ? LIT_RADIUS : DIM_RADIUS) : null;
+        const r = light
+          ? 150 + 45 * Math.max(0, light.lives)
+          : z.dark
+            ? lit
+              ? LIT_RADIUS
+              : (z.dark.dim ?? DIM_RADIUS)
+            : null;
         if (r !== null) {
           const at = k.toScreen(player.pos);
           const cx = (at.x / VIEW_W) * 100;
           const cy = (at.y / VIEW_H) * 100;
-          const edge = light ? 0.72 : lit ? 0.55 : 0.9;
+          // A dim floor (#75 item 10) is spooky, not black: its edge is lighter.
+          const edge = light ? 0.72 : lit ? 0.55 : z.dark?.dim ? 0.8 : 0.9;
           dark.style.background = `radial-gradient(ellipse ${((r + flicker) / VIEW_W) * 100}% ${((r + flicker) / VIEW_H) * 100}% at ${cx}% ${cy}%, rgba(8,4,20,0) 0%, rgba(8,4,20,0.15) 50%, rgba(8,4,20,${edge}) 100%)`;
           dark.style.opacity = '1';
         } else {

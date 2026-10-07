@@ -64,6 +64,8 @@ LEGEND: list[tuple[str, str]] = [
     ('B', 'bookshelf'),
     ('T', 'table'),
     ('Z', 'bed'),
+    ('>', 'dungeon stairs down (needs an exits entry to the floor below)'),
+    ('<', 'dungeon stairs up (needs an exits entry to the floor above)'),
 ]
 
 
@@ -101,6 +103,8 @@ def _tile_art(ch: str) -> Image.Image:
         'B': timber[6],
         'T': timber[7],
         'Z': timber[8],
+        '>': on_ground(tiles.stairs_sheet()[0]),
+        '<': on_ground(tiles.stairs_sheet()[1]),
     }[ch]
     img = upscale(art.image(), 2).convert('RGBA')
     d = ImageDraw.Draw(img)

@@ -1,12 +1,12 @@
 {
  "columns": 10,
  "image": "legend.png",
- "imageheight": 64,
+ "imageheight": 96,
  "imagewidth": 320,
  "margin": 0,
  "name": "map-legend",
  "spacing": 0,
- "tilecount": 20,
+ "tilecount": 22,
  "tiledversion": "1.10.2",
  "tileheight": 32,
  "tiles": [
@@ -307,6 +307,36 @@
      "name": "meaning",
      "type": "string",
      "value": "bed"
+    }
+   ]
+  },
+  {
+   "id": 20,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": ">"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "dungeon stairs down (needs an exits entry to the floor below)"
+    }
+   ]
+  },
+  {
+   "id": 21,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "<"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "dungeon stairs up (needs an exits entry to the floor above)"
     }
    ]
   }

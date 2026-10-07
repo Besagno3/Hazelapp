@@ -60,10 +60,17 @@ ZONES = {
                          sky=('#5ab07a', '#d8f4d0'), far='#4a8a5a', mid='pine', water='#3a8ab0'),
     'echo-mine': dict(ground=(84, 72, 70), path=(140, 116, 92), solid='darkrock', deco='shard', deco_c='#ffb030',
                       sky=('#140e0a', '#3a2a20'), far='#2a1e18', mid='mountain', water='#3a4a6a', cave=True),
+    # The Clockwork Depths' lower floors (#75 item 10): gear halls, then the forge.
+    'clockwork-depths-b2': dict(ground=(78, 72, 98), path=(124, 114, 140), solid='darkrock', deco='gear', deco_c='#c8a040',
+                                sky=('#120f1c', '#3a3050'), far='#221c30', mid='gears', water='#3a4a8a', cave=True),
+    'clockwork-depths-b3': dict(ground=(104, 78, 70), path=(150, 112, 88), solid='darkrock', deco='shard', deco_c='#ff7a3a',
+                                sky=('#1c0e0a', '#5a2a1a'), far='#2e1610', mid='gears', water='#6a3a2a', cave=True),
 }
 
 # Added for the field spells (#75 item 9) — `build_spell_places` writes only these.
 SPELL_ZONES = ('wayfarer-shrine', 'quiet-shrine', 'echo-mine')
+# Added with real dungeons (#75 item 10) — `build_dungeon` writes only these (+ the stairs).
+DUNGEON_ZONES = ('clockwork-depths-b2', 'clockwork-depths-b3')
 
 # Zones added after the first asset run (#75 Phase 1) — `build_overworld` writes
 # only these (plus the overworld sheet), so existing files stay untouched.
@@ -666,6 +673,20 @@ def spire_deco(kind):
     return c if kind in ('cobweb', 'mote', 'steam') else _outlined(c)
 
 
+def stairs_sheet():
+    """Dungeon stairs (#75 item 10): 0 = down into the dark, 1 = up toward the light."""
+    down = _c()
+    down.rect(1, 1, 15, 15, '#5a5464')  # the stone rim
+    down.rect(3, 3, 13, 13, '#141018', shade=False)  # the dark below
+    for i, col in enumerate(('#9a94a4', '#76707f', '#524c5c', '#302a38')):
+        down.rect(3, 3 + i * 2.5, 13, 5 + i * 2.5, col)  # each step further down, darker
+    up = _c()
+    for i in range(4):
+        up.rect(2 + i, 2 + i * 3, 14 - i, 5 + i * 3, '#8a8494' if i % 2 else '#7a7484')
+    up.rect(5, 0, 11, 3, '#fff4b0', shade=False)  # light from above
+    return [_outlined(down), _outlined(up)]
+
+
 def spire_props():
     frames = []
     for glow in (0, 1):  # rune seal, glowing
@@ -1167,6 +1188,18 @@ def build_spell_places(public: Path):
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
 
 
+def build_dungeon(public: Path):
+    """Write only the dungeon additions (#75 item 10): the lower floors' art and the stairs."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in DUNGEON_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in stairs_sheet()]).save(tdir / 'stairs.png', optimize=True)
+
+
 def build(public: Path) -> list[str]:
     tdir = public / 'tiles'
     tdir.mkdir(parents=True, exist_ok=True)
@@ -1185,6 +1218,7 @@ def build(public: Path) -> list[str]:
                   spire_solid(solid_kind), spire_deco(deco_kind), exit_marker()]
         strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'spire-{theme}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in spire_props()]).save(tdir / 'spire-props.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in stairs_sheet()]).save(tdir / 'stairs.png', optimize=True)
     for style in STYLES:
         strip([upscale(f.image(), 2) for f in town_tiles(style)]).save(tdir / f'town-{style}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in roof_tiles()]).save(tdir / 'roofs.png', optimize=True)

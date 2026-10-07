@@ -19,6 +19,7 @@ import {
   SPIRE_CLEAR_XP,
   SPIRE_BOSS_DEFEAT,
   floorWards,
+  spireFloorTitle,
 } from '../../content/spire';
 import { HUB_ZONE } from '../../content/zones';
 import { useSaveStore } from '../../store/saveStore';
@@ -173,7 +174,7 @@ export default function SpireOverlay() {
   function beginFloor(i: number) {
     spire().enterFloor(i); // the floor map appears behind the taunt
     const f = SPIRE_FLOORS[i];
-    setPhase({ kind: 'message', text: `${f.name}\n\n${f.taunt}`, next: () => loadFloor(i) });
+    setPhase({ kind: 'message', text: `${spireFloorTitle(i)}\n\n${f.taunt}`, next: () => loadFloor(i) });
   }
 
   function loadFloor(i: number) {
@@ -323,7 +324,7 @@ export default function SpireOverlay() {
     return (
       <div className="fixed top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex items-center gap-2">
         <div className="bg-slate-950/85 border-2 border-violet-400/60 rounded-xl px-4 py-2 text-white shadow-xl flex items-center gap-4 whitespace-nowrap">
-          <span className="text-xs font-bold text-violet-200">{floor.name}</span>
+          <span className="text-xs font-bold text-violet-200">{spireFloorTitle(floorIndex!)}</span>
           <span className="text-xs text-white/80">
             {floor.isBoss
               ? '👑 Walk up to Umbra'
@@ -439,8 +440,8 @@ export default function SpireOverlay() {
           <div>
             <p className="text-center text-violet-200 font-bold mb-2 text-xs uppercase tracking-widest">
               {phase.mode === 'ward'
-                ? `${floor.name} · Rune seal ${phase.index + 1}/${wardTotal}`
-                : `${floor.name} · Umbra's challenge ${phase.index + 1}/${floor.questions}`}
+                ? `${spireFloorTitle(floorIndex!)} · Rune seal ${phase.index + 1}/${wardTotal}`
+                : `${spireFloorTitle(floorIndex!)} · Umbra's challenge ${phase.index + 1}/${floor.questions}`}
             </p>
             <QuestionCard
               key={`${floorIndex}:${phase.mode}:${phase.index}:${q.id}`}

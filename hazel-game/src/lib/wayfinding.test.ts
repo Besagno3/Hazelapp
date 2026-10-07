@@ -122,6 +122,28 @@ describe('fog and the story', () => {
   });
 });
 
+describe('dungeons (#75 item 10)', () => {
+  const twoCrystals = {
+    [MET_ELDER]: true,
+    [crystalFlag('math')]: true,
+    [keyFlag('verdara-key')]: true,
+    [crystalFlag('science')]: true,
+  };
+  it('the way to the Clockwork Titan goes in by the cave and down the stairs, floor by floor', () => {
+    const goal = nextObjective(twoCrystals);
+    expect(goal.zoneId).toBe('clockwork-depths-b3');
+    expect(goalDirections(ZONES, goal, 'lumina-village')).toBe(
+      "Go south-west to the Clockwork Depths, then take the stairs down to the Gear Halls, then take the stairs down to the Titan's Forge.",
+    );
+    expect(goalDirections(ZONES, goal, 'clockwork-depths-b2')).toBe("Take the stairs down to the Titan's Forge.");
+  });
+  it('Elder Lumen says the floor and the dungeon it lies deep in', () => {
+    expect(mentorTips(ZONES, twoCrystals)[0]).toMatch(
+      /the Clockwork Titan in the Titan's Forge, deep in the Clockwork Depths, to the south-west/,
+    );
+  });
+});
+
 describe('routeTo', () => {
   it('is empty when you are already there', () => {
     expect(routeTo(ZONES, 'numbria', 'numbria')).toEqual([]);
