@@ -20,8 +20,8 @@ import {
   SPIRE_PROPS_FRAMES,
   SPIRE_PROPS_SHEET,
   groundVariant,
-  tilesetSheet,
-} from './tiles';
+  tilesetSheet, OVERWORLD_FRAME, OVERWORLD_FRAMES, OVERWORLD_SHEET,
+  BLEND_COLS, BLEND_ROWS, BLEND_FRAMES, BLEND_CLASS, BLEND_WATER_STEP, blendPairFrame, blendShapeFrame, blendSheet } from './tiles';
 
 const pub = (p: string) => join(process.cwd(), 'public', p);
 function pngSize(p: string) {
@@ -36,8 +36,27 @@ describe('16-bit tilesets', () => {
       expect(pngSize(tilesetSheet(id))).toEqual({ w: TILESET_FRAMES * 32, h: 32 });
     }
   });
+  it('every zone has an edge-blend sheet: a 16-wide grid of 32px tiles holding every frame (#71b)', () => {
+    for (const id of ZONE_IDS) {
+      expect(existsSync(pub(blendSheet(id))), id).toBe(true);
+      expect(pngSize(blendSheet(id)), id).toEqual({ w: BLEND_COLS * 32, h: BLEND_ROWS * 32 });
+    }
+    expect(BLEND_FRAMES).toBeLessThanOrEqual(BLEND_COLS * BLEND_ROWS);
+    // The first shape, the last water pair and the last land pair bracket the layout exactly.
+    expect(blendShapeFrame(BLEND_CLASS.sand, 1)).toBe(0);
+    expect(blendPairFrame(BLEND_CLASS.water, BLEND_CLASS.path, 15) + BLEND_WATER_STEP).toBe(134);
+    expect(blendPairFrame(BLEND_CLASS.ground, BLEND_CLASS.path, 15)).toBe(BLEND_FRAMES - 1);
+    // A pair must go low → high; anything else fails loudly instead of drawing another pair's tile.
+    expect(() => blendPairFrame(BLEND_CLASS.path, BLEND_CLASS.sand, 3)).toThrow();
+    expect(() => blendPairFrame(BLEND_CLASS.ground, BLEND_CLASS.ground, 3)).toThrow();
+  });
   it('every zone has a battle backdrop', () => {
     for (const id of ZONE_IDS) expect(existsSync(pub(battleBackdrop(id))), id).toBe(true);
+  });
+  it('the overworld sheet has one 32px frame per OVERWORLD_FRAME entry (#75)', () => {
+    expect(pngSize(OVERWORLD_SHEET)).toEqual({ w: OVERWORLD_FRAMES * 32, h: 32 });
+    const icons = Object.values(OVERWORLD_FRAME.icon);
+    expect(Math.max(...icons)).toBe(OVERWORLD_FRAMES - 1);
   });
   it('props strip and Spire tower are the expected sizes', () => {
     expect(pngSize(PROPS_SHEET)).toEqual({ w: PROPS_FRAMES * 32, h: 32 });

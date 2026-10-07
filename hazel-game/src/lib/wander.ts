@@ -40,6 +40,8 @@ export const ACTOR_RADIUS = {
   npc: 15,
   enemy: 16,
   boss: 21,
+  /** Umbra's giant (64px) world sprite. */
+  giant: 28,
   spire: 18,
 } as const;
 

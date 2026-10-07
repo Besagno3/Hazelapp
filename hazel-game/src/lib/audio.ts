@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Howl } from 'howler';
 import { useSettingsStore } from '../store/settingsStore';
+import type { ZoneKind } from '../content/zones';
 
 /**
  * The game's audio engine (Howler.js). Two responsibilities: fire one-shot
@@ -27,6 +28,9 @@ export type SfxName =
 export type MusicTrack =
   | 'title'
   | 'overworld'
+  | 'town'
+  | 'cave'
+  | 'shrine'
   | 'spire'
   | 'spireArchive'
   | 'spireThicket'
@@ -56,7 +60,10 @@ export const SFX_SOURCES: Record<SfxName, string> = {
 };
 
 export const MUSIC_SOURCES: Record<MusicTrack, string> = {
-  overworld: '/audio/16bit/music/overworld.mp3', // the tile map
+  overworld: '/audio/16bit/music/overworld.mp3', // the overworld + open fields
+  town: '/audio/16bit/music/town.mp3', // towns (#75 Phase 1)
+  cave: '/audio/16bit/music/cave.mp3', // caves and dungeons
+  shrine: '/audio/16bit/music/shrine.mp3', // shrines
   spire: '/audio/16bit/music/spire.mp3', // the Spire's entrance + intro
   // One spooky loop per Spire floor (#74); the throne floor uses finalBoss.
   spireArchive: '/audio/16bit/music/spireArchive.mp3',
@@ -210,15 +217,28 @@ export function stopMusic(): void {
 
 type Screen = 'topics' | 'quiz' | 'avatar' | 'world' | 'battle';
 
-/** Which track suits the current screen. Pure — unit-tested. */
-export function trackForScreen(screen: Screen, isBoss = false): MusicTrack | null {
+/** Music for each kind of place in the world (#75 Phase 1). */
+export const ZONE_KIND_TRACK: Record<ZoneKind, MusicTrack> = {
+  overworld: 'overworld',
+  field: 'overworld',
+  town: 'town',
+  dungeon: 'cave',
+  shrine: 'shrine',
+};
+
+/**
+ * Which track suits the current screen. In the world it follows the kind of
+ * place you're in (towns, caves and shrines each have their own theme).
+ * Pure — unit-tested.
+ */
+export function trackForScreen(screen: Screen, isBoss = false, zoneKind: ZoneKind = 'field'): MusicTrack | null {
   switch (screen) {
     case 'topics':
     case 'quiz':
     case 'avatar':
       return 'title';
     case 'world':
-      return 'overworld';
+      return ZONE_KIND_TRACK[zoneKind];
     case 'battle':
       return isBoss ? 'boss' : 'battle';
     default:
@@ -234,11 +254,11 @@ export function trackForScreen(screen: Screen, isBoss = false): MusicTrack | nul
  * floor and so chooses spire vs final-boss music) — this hook steps aside so the
  * two never fight over the same track.
  */
-export function useScreenMusic(screen: Screen, isBoss = false, inSpire = false): void {
+export function useScreenMusic(screen: Screen, isBoss = false, inSpire = false, zoneKind: ZoneKind = 'field'): void {
   const music = useSettingsStore((s) => s.music);
   const musicVolume = useSettingsStore((s) => s.musicVolume);
   useEffect(() => {
     if (inSpire) return; // SpireOverlay drives music while the climb is open
-    playMusic(trackForScreen(screen, isBoss));
-  }, [screen, isBoss, inSpire, music, musicVolume]);
+    playMusic(trackForScreen(screen, isBoss, zoneKind));
+  }, [screen, isBoss, inSpire, zoneKind, music, musicVolume]);
 }

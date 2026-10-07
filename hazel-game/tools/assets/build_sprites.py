@@ -22,25 +22,32 @@ def render(ch: Char, n: int, poses) -> list[Image.Image]:
 
 
 def world_frames(ch: Char) -> list[Image.Image]:
-    n = 24 if ch.boss else 16
+    n = 32 if ch.giant else 24 if ch.boss else 16
     return [upscale(f, WORLD_SCALE) for f in render(ch, n, WORLD_POSES)]
 
 
 def battle_frames(ch: Char) -> list[Image.Image]:
-    n = 48 if ch.boss else 32
+    n = 96 if ch.giant else 48 if ch.boss else 32
     return render(ch, n, BATTLE_POSES)
 
 
-def build(public: Path) -> dict:
-    """Write the sheets; return manifest data {id: {emoji, world?, battle?}}."""
+def build(public: Path, only: set[str] | None = None) -> dict:
+    """Write the sheets; return manifest data {id: {emoji, world?, battle?}}.
+
+    `only` limits which characters get their PNGs (re)written — the manifest
+    still covers everyone, so adding a character doesn't rewrite every sheet.
+    """
     manifest = {}
     for ch in ROSTER + NPCS:
+        write = only is None or ch.id in only
         out = public / 'sprites' / ch.id
-        out.mkdir(parents=True, exist_ok=True)
+        if write:
+            out.mkdir(parents=True, exist_ok=True)
         entry = {'emoji': ch.emoji}
         if ch.world:
             fr = world_frames(ch)
-            strip(fr).save(out / 'world.png', optimize=True)
+            if write:
+                strip(fr).save(out / 'world.png', optimize=True)
             entry['world'] = {
                 'sheet': f'/sprites/{ch.id}/world.png',
                 'frameW': fr[0].width,
@@ -50,7 +57,8 @@ def build(public: Path) -> dict:
             }
         if ch.battle:
             fr = battle_frames(ch)
-            strip(fr).save(out / 'battle.png', optimize=True)
+            if write:
+                strip(fr).save(out / 'battle.png', optimize=True)
             entry['battle'] = {
                 'sheet': f'/sprites/{ch.id}/battle.png',
                 'frameW': fr[0].width,

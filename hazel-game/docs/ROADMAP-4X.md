@@ -8,6 +8,14 @@ expansion bible**: the full end-to-end content spec for Acts II–IV (every
 zone, NPC, enemy, boss, quest, spell, item, cutscene, and flag). This doc is
 the *delivery plan*; STORY-4X.md is *what gets built*.
 
+> **Re-sequenced (2026-10-04) · Wave 1 paused (2026-10-05):**
+> `ROADMAP-OVERWORLD.md` moves the world to a two-scale overworld (enterable
+> places, boat, Ember flight) and changes the *order and placement* of the
+> waves below. **Wave 1 (Act II) is paused** until the home continent,
+> Dawnreach, exists (that roadmap's Phase 2); its zones will then be placed
+> on the map instead of built as edge-linked screens. STORY-4X.md content is
+> unchanged. See its §7.
+
 ---
 
 ## 1. Where the game is today (baseline audit)
@@ -164,7 +172,7 @@ the game gets deeper, not just wider.
    then ship art zone-by-zone.
 7. **Doc sync:** fold Moonwell Grove into STORY.md; add the act structure.
 
-### Wave 1 — Act II: The Crystal of Memory
+### Wave 1 — Act II: The Crystal of Memory ⏸️ *paused — see `ROADMAP-OVERWORLD.md` §7*
 - 4 zones, ~12 NPCs, 1 Sage, 1 Fiend + 1 warden, 4 quests, ~20 panels.
 - History graduates from extra topic → crystal topic (validates Wave 0.1).
 - "The world remembers" reactive-dialogue pass across all existing zones.

@@ -15,6 +15,7 @@ import { ENEMY_DEFS } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
 import { defaultSave } from '../lib/save';
 import type { SaveData } from '../types';
+import { ALL_SECRETS, claimSecret, secretById } from './secrets';
 
 function byId(id: string) {
   const q = QUESTS.find((x) => x.id === id);
@@ -41,9 +42,9 @@ function chestOf(zoneId: keyof typeof ZONES): string {
 }
 
 describe('QUESTS content', () => {
-  it('every topic zone has exactly one quest; givers exist and are placed in their zone', () => {
+  it('every topic zone has exactly one main quest; givers exist and are placed in their zone', () => {
     for (const t of TOPIC_REGISTRY) {
-      expect(QUESTS.filter((q) => q.zoneId === t.zoneId), `${t.zoneId}`).toHaveLength(1);
+      expect(QUESTS.filter((q) => q.zoneId === t.zoneId && !q.side), `${t.zoneId}`).toHaveLength(1);
     }
     for (const q of QUESTS) {
       expect(NPC_DEFS[q.giverNpcId], `giver ${q.giverNpcId}`).toBeDefined();
@@ -203,5 +204,87 @@ describe('grove side-quest (grove-moonwell)', () => {
     const done = converse(quest.giverNpcId, save);
     expect(done.coins).toBe(save.coins + quest.reward.coins);
     expect(done.flags[questDoneFlag(quest)]).toBe(true);
+  });
+});
+
+describe('town side quests (village expansion)', () => {
+  const TOWNS = ['lumina-village', 'numbria', 'verdara', 'gearfall', 'chromaria'] as const;
+
+  it('each of the five towns has two side quests, each with its own giver', () => {
+    for (const town of TOWNS) {
+      expect(QUESTS.filter((q) => q.side && q.zoneId === town), town).toHaveLength(2);
+    }
+    const givers = QUESTS.map((q) => q.giverNpcId);
+    expect(new Set(givers).size).toBe(givers.length);
+  });
+
+  it('items a quest takes back exist, and are found in a secret or handed over', () => {
+    for (const q of QUESTS) {
+      for (const item of q.takesItems ?? []) {
+        expect(QUEST_ITEMS[item], `${q.id} item ${item}`).toBeDefined();
+        const fromSecret = ALL_SECRETS.some((s) => s.secret.reward.questItem === item);
+        expect(fromSecret || q.givesItem === item, `${q.id} ${item} obtainable`).toBe(true);
+      }
+    }
+  });
+
+  it("the Mayor's seal: offer → find the fountain secret → complete takes the seal back", () => {
+    const quest = byId('mayor-seal');
+    let save = converse('village-mayor', defaultSave());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    expect(questConversation('village-mayor', save)!.finishKind).toBeNull(); // just a hint
+    save = claimSecret(save, secretById('village-fountain-seal')!);
+    expect(save.questItems).toContain('town-seal');
+    const coins = save.coins;
+    const clovers = save.items.clover;
+    save = converse('village-mayor', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).not.toContain('town-seal');
+    expect(save.coins).toBe(coins + 40);
+    expect(save.items.clover).toBe(clovers + 1);
+  });
+
+  it('lesson pages: the hint names whichever page is still hidden', () => {
+    const quest = byId('lost-lessons');
+    let save = converse('numbria-teacher', defaultSave());
+    save = claimSecret(save, secretById('numbria-school-shelf')!);
+    const hint = resolveHint(activeStep(quest, save)!, save);
+    expect(hint).toContain('shapes');
+    expect(hint).not.toContain('adding');
+    save = claimSecret(save, secretById('numbria-hill-nook')!);
+    expect(activeStep(quest, save)).toBeNull();
+  });
+
+  it('a secret found before the quest still counts', () => {
+    let save = claimSecret(defaultSave(), secretById('verdara-queen-bee')!);
+    expect(questConversation('verdara-beekeeper', save)!.finishKind).toBe('complete'); // skips the offer
+    save = converse('verdara-beekeeper', save);
+    expect(save.flags[questDoneFlag(byId('queen-bee'))]).toBe(true);
+    expect(save.questItems).not.toContain('queen-bee');
+  });
+
+  it("bakery deliveries go Wick → Sol in order, then the basket is handed back", () => {
+    const quest = byId('bakery-deliveries');
+    let save = converse('village-baker', defaultSave());
+    expect(save.questItems).toContain('warm-buns');
+    expect(questConversation('village-keeper', save)).toBeNull(); // not Sol's turn yet
+    save = converse('village-elder', save);
+    save = converse('village-keeper', save);
+    save = converse('village-baker', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).not.toContain('warm-buns');
+  });
+
+  it("Widget's field test needs both battles, then the Professor's report", () => {
+    const quest = byId('widget-test');
+    let save = converse('gearfall-apprentice', defaultSave());
+    save = { ...save, kills: { 'bolt-mouse': 1 } };
+    expect(activeStep(quest, save)!.id).toBe('widget-defeat');
+    save = { ...save, kills: { 'bolt-mouse': 1, 'scrap-golem': 1 } };
+    expect(activeStep(quest, save)!.id).toBe('widget-report');
+    save = converse('gearfall-inventor', save);
+    save = converse('gearfall-apprentice', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.items.spark).toBe(1);
   });
 });
