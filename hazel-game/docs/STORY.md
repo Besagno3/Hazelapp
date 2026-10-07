@@ -82,6 +82,22 @@ and gives big-picture tips on what to do next; dragon lore), Pip 🧒 (tutorial 
 superfan), Librarian Sage 🦉 (the Lumina Library), Merchant Maple 🦝 (Maple's
 Trading Post). Innkeeper Poppy 👩‍🍳 runs the Sleepy Sheep Inn in the Village.
 
+**Inns and travelers (#75 item 11):** every town has an inn (same service:
+free rest, full HP) and an innkeeper who hears every rumor; each crystal town
+also has a traveler passing through. Between them they **point onward** —
+each names another place and what's there, and a rumor about a spell, key or
+quest goes quiet once it's done. **Losing a battle or the Spire climb wakes
+the hero inside the last inn they rested at** (healed; home if they've never
+rested away from it).
+
+| Town | Inn · innkeeper | Traveler |
+|---|---|---|
+| Lumina Village | Sleepy Sheep Inn · Poppy 👩‍🍳 | — |
+| Numbria | Square Root Inn · Tabitha 🧶 (measured every bed, twice) | Pilgrim Oriel 🎒 (walking every road; all of them twice so far) |
+| Verdara | Mossy Pillow Inn · Willow 🌿 (real moss pillows, only a little damp) | Peddler Fennick 🧳 (buttons, string, slightly used maps) |
+| Gearfall Canyon | Wound-Down Inn · Hinge 🔩 (the only quiet place in the canyon) | Courier Zip 📨 (the special delivery is usually for Zip) |
+| Chromaria | Rainbow Quilt Inn · Indigo 🌈 (one quilt per guest, no swaps) | Bard Lark 🎶 (still working on the second verse) |
+
 **Per zone — pattern: Sage (teacher) + Villager (quest giver) + Merchant:**
 
 | Zone | Sage | Villager & quest | Fiend |

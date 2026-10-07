@@ -8,7 +8,7 @@ import { errorMessage } from '../../lib/errors';
 import { clampLevel, playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
-import { pushLibrary } from '../../lib/save';
+import { pushLibrary, wakeAfterDefeat, wakeInnName } from '../../lib/save';
 import { playMusic } from '../../lib/audio';
 import { emberStatus, SPIRE_CLEARED } from '../../content/story';
 import { TOPIC_REGISTRY } from '../../content/topics';
@@ -21,7 +21,6 @@ import {
   floorWards,
   spireFloorTitle,
 } from '../../content/spire';
-import { HUB_ZONE } from '../../content/zones';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -36,7 +35,7 @@ import type { LibraryEntry, Question, Topic } from '../../types';
  * bumps rune seals to face its questions, and takes the stairs once every
  * seal is broken. Wrong answers snuff candle-lights (`SPIRE_LIVES`) — and the
  * hero's circle of light shrinks with them; running out casts the hero back
- * home to Lumina Village, healed. The top floor is Umbra's throne room: walking up to
+ * to the last inn they rested at (or home to Lumina Village), healed. The top floor is Umbra's throne room: walking up to
  * him starts the final question gauntlet. Clearing it sets `SPIRE_CLEARED`.
  *
  * This overlay owns the rules and the panels; `spireStore` carries the live
@@ -80,6 +79,8 @@ export default function SpireOverlay() {
   const started = useRef(false);
 
   const floor = floorIndex !== null ? SPIRE_FLOORS[floorIndex] : null;
+  // Where a cast-out hero wakes (#75 item 11) — the save's lastRest doesn't change mid-climb.
+  const wakeInn = save ? wakeInnName(save) : null;
   const wardTotal = floor ? floorWards(floor.theme).length : 0;
 
   // A fresh climb every time the Spire opens; tidy up when it closes.
@@ -275,13 +276,13 @@ export default function SpireOverlay() {
   }
 
   function lose() {
-    // Cast out, gently: wake at home in Lumina Village, fully healed. Keep XP earned.
+    // Cast out, gently: wake fully healed at the last inn rested at, or home
+    // in Lumina Village (#75 item 11). Keep XP earned.
     void addXp(correctCount.current * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
     updateSave((s) => ({
       ...s,
       hp: null,
-      zoneId: HUB_ZONE,
-      pos: null,
+      ...wakeAfterDefeat(s),
       library: pushLibrary(s.library, misses.current),
     }));
     void useSaveStore.getState().flush();
@@ -479,8 +480,8 @@ export default function SpireOverlay() {
             <div className="text-6xl mb-2">🕯️</div>
             <h2 className="text-xl font-extrabold mb-2">Down, but never out</h2>
             <p className="text-sm text-white/85 mb-5">
-              The Spire sets you gently back home in Lumina Village, rested and healed. The door stays
-              open — rest up, and climb again whenever you're ready.
+              The Spire sets you gently down {wakeInn ? `at ${wakeInn}` : 'back home in Lumina Village'}, rested and
+              healed. The door stays open — rest up, and climb again whenever you're ready.
             </p>
             <button
               onClick={close}

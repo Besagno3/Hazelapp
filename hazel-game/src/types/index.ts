@@ -180,4 +180,9 @@ export interface SaveData {
   companionId: CompanionId;
   /** Countdown on defend questions (⏳). A per-player setting in the 📜 menu; on by default. */
   defendTimer: boolean;
+  /**
+   * The town whose inn the hero last rested at (#75 item 11) — where a defeat
+   * wakes them. Null → home (Lumina Village's plaza), as before inns were everywhere.
+   */
+  lastRest: ZoneId | null;
 }

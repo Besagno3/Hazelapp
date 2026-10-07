@@ -1,6 +1,7 @@
 import type { ServiceType, Topic } from '../types';
 import { MET_ELDER, fogSeenFlag, litFlag } from './zones';
 import { fieldSpellFlag } from './fieldSpells';
+import { keyFlag } from './keys';
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -164,7 +165,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Innkeeper Poppy',
     sprite: '👩‍🍳',
     role: 'innkeeper',
-    lines: ['Welcome to the Sleepy Sheep Inn! Rest here and your HP comes right back. On the house!'],
+    lines: [
+      'Welcome to the Sleepy Sheep Inn! Rest here and your HP comes right back. On the house!',
+      // Every town has an inn now (#75 item 11) — and inns hear every rumor.
+      'A courier told me every town on Dawnreach has an inn now. Rest in any of them, and that\'s where you\'ll wake if a fight goes badly.',
+      'Travelers say the Echo Mine, in the ridge north-east of here, went pitch dark when the fog came. Nobody\'s been down since.',
+    ],
   },
   'hub-librarian': {
     id: 'hub-librarian',
@@ -955,6 +961,122 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       { text: 'The Forgotten One fell, and still my candle burns. Good. Some lights are for keeping.', ifFlag: 'spire-cleared' },
     ],
+  },
+
+  // ── An inn in every town, and travelers who carry the news (#75 item 11) ──
+  // Every town points onward: the innkeeper and a traveler each name another
+  // place and what's there (zones.test checks every town has someone who does).
+  'numbria-innkeeper': {
+    id: 'numbria-innkeeper',
+    name: 'Innkeeper Tabitha',
+    sprite: '🧶',
+    role: 'innkeeper',
+    lines: [
+      'Welcome to the Square Root Inn! Every bed is exactly the right size. I measured. Twice.',
+      'Rest here and your HP comes right back — free for heroes. And if a battle ever goes badly, this is where you\'ll wake up.',
+      {
+        text: "A traveler told me the Wayfarer's Shrine, just north-west of Lumina Village, teaches a spell that flies you home. Think of the shoes you'd save!",
+        unlessFlag: fieldSpellFlag('return'),
+      },
+      'They say Verdara, way down in the south-west corner of Dawnreach, grows flowers taller than houses.',
+    ],
+  },
+  'numbria-traveler': {
+    id: 'numbria-traveler',
+    name: 'Pilgrim Oriel',
+    sprite: '🎒',
+    role: 'villager',
+    lines: [
+      "I'm walking every road on Dawnreach! So far I've walked all of them twice.",
+      {
+        text: 'In the Whispering Woods, west of Lumina Village, a Thicket Warden guards a key. Or so the squirrels say. Squirrels exaggerate.',
+        unlessFlag: keyFlag('verdara-key'),
+      },
+      'Have you seen Starfall Coast, east of Lumina Village? The sand there sparkles at night like it fell from the sky.',
+    ],
+    ambient: ['Left foot, right foot…', 'Which way is north again?', '🎒'],
+  },
+  'verdara-innkeeper': {
+    id: 'verdara-innkeeper',
+    name: 'Innkeeper Willow',
+    sprite: '🌿',
+    role: 'innkeeper',
+    lines: [
+      'Welcome to the Mossy Pillow Inn! The pillows are real moss. Very soft. Only a little bit damp.',
+      'Rest here and your HP comes right back — free for heroes. And if a battle ever goes badly, this is where you\'ll wake up.',
+      {
+        text: 'Down in the Clockwork Depths, the stairs go three floors deep. Something big still ticks at the bottom.',
+        unlessFlag: keyFlag('gearfall-key'),
+      },
+      'A ranger from the north-east said the Echo Mine went dark when the fog came. Old Wren at the Shrine of First Light knows how to carry a light.',
+    ],
+  },
+  'verdara-traveler': {
+    id: 'verdara-traveler',
+    name: 'Peddler Fennick',
+    sprite: '🧳',
+    role: 'villager',
+    lines: [
+      'Buttons! String! Slightly used maps! …No? Fair enough. I mostly sell to squirrels anyway.',
+      'Up in Gearfall Canyon, in the north-east corner, there is a clocktower that has never once been on time. Lovely place.',
+    ],
+    ambient: ['Buttons! String!', 'Maps, slightly used!', '🧳'],
+  },
+  'gearfall-innkeeper': {
+    id: 'gearfall-innkeeper',
+    name: 'Innkeeper Hinge',
+    sprite: '🔩',
+    role: 'innkeeper',
+    lines: [
+      'Welcome to the Wound-Down Inn — the only quiet place in Gearfall Canyon. We oil the beds so they never squeak.',
+      'Rest here and your HP comes right back — free for heroes. And if a battle ever goes badly, this is where you\'ll wake up.',
+      'A tinker passing through swore that Chromaria, down in the south-east corner, has a Mirror Hall where your reflection waves first.',
+      {
+        text: 'They say the keeper of the Shrine of Quiet Paws, off the east road, can make any critter let you pass. Handy on a long walk!',
+        unlessFlag: fieldSpellFlag('calm'),
+      },
+    ],
+  },
+  'gearfall-traveler': {
+    id: 'gearfall-traveler',
+    name: 'Courier Zip',
+    sprite: '📨',
+    role: 'villager',
+    lines: [
+      'Special delivery! …Oh. It\'s for me again. I keep doing that.',
+      'I deliver all the way to Starfall Coast, east of Lumina Village. The stargazer there says every star has a question for a name.',
+      {
+        text: 'Out on Starfall Coast a Tide Colossus guards the Prism Key. I deliver around it. Very carefully.',
+        unlessFlag: keyFlag('chromaria-key'),
+      },
+    ],
+    ambient: ['Special delivery!', 'Coming through!', '📨'],
+  },
+  'chromaria-innkeeper': {
+    id: 'chromaria-innkeeper',
+    name: 'Innkeeper Indigo',
+    sprite: '🌈',
+    role: 'innkeeper',
+    lines: [
+      "Welcome to the Rainbow Quilt Inn! Every quilt is a different color. Pick your favorite — no, you can't have two.",
+      'Rest here and your HP comes right back — free for heroes. And if a battle ever goes badly, this is where you\'ll wake up.',
+      'Have you heard? Up in Numbria, in the north-west corner, the Abacus Observatory counts the stars every single night.',
+    ],
+  },
+  'chromaria-traveler': {
+    id: 'chromaria-traveler',
+    name: 'Bard Lark',
+    sprite: '🎶',
+    role: 'villager',
+    lines: [
+      '♪ Oh, the fog rolled in and the colors ran… ♪ I\'m still working on the second verse.',
+      {
+        text: 'In the hidden Moonwell Grove, south-west of Lumina Village, the moon\'s well went dark. Lune the Moonkeeper is looking for a helper.',
+        unlessFlag: 'quest:grove-moonwell:done',
+      },
+      'Up at the Wayfarer\'s Shrine, north-west of Lumina Village, the pool is full of stars — even at noon. I wrote a song about it. It\'s very short.',
+    ],
+    ambient: ['♪ La la la… ♪', '🎶', 'What rhymes with "fog"?'],
   },
 
   // ── Field-spell shrines (#75 item 9) ──

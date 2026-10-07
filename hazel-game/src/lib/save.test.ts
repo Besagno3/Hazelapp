@@ -6,6 +6,8 @@ import {
   pushLibrary,
   runMigrations,
   saveIsTooNew,
+  wakeAfterDefeat,
+  wakeInnName,
   DAWNREACH_GREW_BY,
   MIGRATIONS,
   MOVED_CHESTS,
@@ -14,7 +16,7 @@ import {
   type MigrationLadder,
 } from './save';
 import { LIBRARY_MAX } from '../content/items';
-import { TILE, ZONES, chestTopicAt, tileAt } from '../content/zones';
+import { HUB_ZONE, TILE, ZONES, chestTopicAt, innWakeCell, tileAt } from '../content/zones';
 import type { LibraryEntry, Question } from '../types';
 
 function q(id: string): Question {
@@ -281,5 +283,31 @@ describe('pushLibrary', () => {
     expect(out).toHaveLength(LIBRARY_MAX);
     expect(out[0].question.id).toBe('old-1');
     expect(out[out.length - 1].question.id).toBe('new');
+  });
+});
+
+describe('the last inn rested at (#75 item 11)', () => {
+  it('a new save, and one from before inns were everywhere, wakes at home', () => {
+    expect(defaultSave().lastRest).toBeNull();
+    expect(normalizeSave({ version: 2, coins: 3 }).lastRest).toBeNull();
+    expect(wakeAfterDefeat(defaultSave())).toEqual({ zoneId: HUB_ZONE, pos: null });
+    expect(wakeInnName(defaultSave())).toBeNull();
+  });
+
+  it('keeps a town with an inn, and drops anything else', () => {
+    expect(normalizeSave({ version: 2, lastRest: 'numbria' }).lastRest).toBe('numbria');
+    expect(normalizeSave({ version: 2, lastRest: 'whispering-woods' }).lastRest).toBeNull(); // no inn there
+    expect(normalizeSave({ version: 2, lastRest: 'atlantis' }).lastRest).toBeNull();
+    expect(normalizeSave({ version: 2, lastRest: 7 }).lastRest).toBeNull();
+  });
+
+  it('a defeat wakes the hero just inside the door of that inn', () => {
+    const cell = innWakeCell(ZONES.gearfall)!;
+    expect(wakeAfterDefeat({ lastRest: 'gearfall' })).toEqual({
+      zoneId: 'gearfall',
+      pos: { x: cell.x * TILE + TILE / 2, y: cell.y * TILE + TILE / 2 },
+    });
+    expect(wakeInnName({ lastRest: 'gearfall' })).toBe('the Wound-Down Inn in Gearfall Canyon');
+    expect(wakeInnName({ lastRest: 'lumina-village' })).toBe('the Sleepy Sheep Inn in Lumina Village');
   });
 });
