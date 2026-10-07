@@ -395,6 +395,11 @@ ASCII maps are fine up to ~64 columns (towns, caves, the vertical slice). The
 imported as JSON, or assembled from smaller ASCII regions. Port the zone
 invariant tests to whichever format is chosen.
 
+*Built (2026-10-07):* Dawnreach is a Tiled map (`src/content/maps/dawnreach.tmj`)
+painted with a legend tileset whose tiles stand for map characters; the game
+reads it back into rows (`tiledRows`), so the invariants needed no porting.
+How-to: `docs/MAP-AUTHORING.md`.
+
 ### 4.7 Tests to add
 
 - **No softlocks:** for each act, every place the act needs is reachable
@@ -421,8 +426,8 @@ mostly follows build order.
 | 2 | ✅ **Overworld zone + enterable places** (§4.1–4.2) | L | 1–2 | **Done (2026-10-06, Phase 1):** `dawnreach` with 8 enterable places; you walk out of the Village, enter each place by its icon and come back out beside it; no save change, so old saves load |
 | 3 | ✅ **Overworld art:** terrain, structure icons, smooth coast/road edges (#71b), fog tiles, the Spire landmark (`tools/assets/tiles.py`) | M | 1–2 | **Done (2026-10-06):** terrain, icons, fog and the Spire landmark in Phase 1; rounded coasts, beaches and roads (edge blending, `blendLayer`) everywhere but the Spire floors — no square-edged water |
 | 4 | ✅ **Transitions + music per place kind** | S | 1 | **Done (2026-10-06, Phase 1):** places fade (slides between neighbouring screens stay), and towns, fields/overworld, caves and shrines each have their own track |
-| 5 | **Map authoring:** Tiled import, invariants ported (§4.6) | S–M | 1→2 | the world map is edited in Tiled and all zone tests run on it |
-| 6 | **Wayfinding:** world map menu, quest markers, signposts, "where next?" lines | S–M | 2 | a playtester can always answer "where am I?" and "where do I go?" |
+| 5 | ✅ **Map authoring:** Tiled import, invariants ported (§4.6) | S–M | 1→2 | **Done (2026-10-07):** Dawnreach's terrain is painted in Tiled (`content/maps/dawnreach.tmj`) and read back into rows by `tiledRows`, so every zone test runs on it; guide in `docs/MAP-AUTHORING.md` |
+| 6 | ✅ **Wayfinding:** world map menu, quest markers, signposts, "where next?" lines | S–M | 2 | **Done (2026-10-07):** the menu map flags the next goal (🚩) with the way there; two crossroads signposts on Dawnreach; Elder Lumen, Grandmother Wick and Scout Tamsin say where to go next — all worked out from the story flags and the maps (`lib/wayfinding.ts`) |
 | 7 | **Fog banks** (§3.2) | S–M | 2 | restoring a crystal visibly lifts its fog and opens what's behind it |
 | 8 | **Re-stage Act I on Dawnreach** (§3.5) | M (mostly content) | 2 | Act I is playable start to finish as a journey; the Field hub is gone |
 | 9 | **Field spells + shrines:** *Return* (fast travel), *Glow* (light dark caves), *Calm* (critters ignore you), learned at roadside shrines by passing a short question trial; spells unlocked by flags, not just Sages/crystals (`spellsKnown`, `spells.ts:94`) | M | 2 | each shrine teaches one field spell; *Glow* is needed for one cave |
@@ -524,10 +529,11 @@ Struck-through items are decided; the rest are still open.
 6. ~~**Overworld tile scale.**~~ **Taken as recommended in Phase 1: the
    same 32px tiles** as towns (DQ-style). The camera can still zoom out
    later (culling and clamping already handle it).
-7. **Map authoring:** Tiled for the world map, ASCII for everything smaller?
-   *Recommended: yes.* Phase 1's 64×48 slice is still ASCII (generated
-   from a script, then hand-checked); Tiled comes in when the full continent
-   is drawn (Phase 2).
+7. ~~**Map authoring.**~~ **Taken as recommended (2026-10-07): Tiled for
+   the world map, ASCII for everything smaller.** Dawnreach moved to Tiled
+   first (roadmap item 5), so the full continent is painted there from the
+   start. Only the terrain lives in Tiled; places, exits and fog stay typed
+   in zones.ts (ISSUES #82g).
 8. **When the boat arrives:** Act II as planned, or at the end of Act I so
    islands can hold early side content? *Recommended: Act II.*
 9. **Flight timing:** keep `STORY-4X.md`'s rule (Ember flies at crystal #5)?

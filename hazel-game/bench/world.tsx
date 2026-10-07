@@ -16,8 +16,8 @@
  * `__bench.pause(true|false)` pauses the world the way a menu or dialogue does.
  *
  * Exits really change zones (so a script can walk through slides, fades and
- * the arrival lock); `window.__bench.state()` reports where the hero is (and
- * how many times it has bumped a fog bank).
+ * the arrival lock); `window.__bench.state()` reports where the hero is (how
+ * many times it has bumped a fog bank, and who it has talked to).
  */
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -26,6 +26,7 @@ import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, buildingInside, type ZoneD
 import { SPIRE_FLOOR_MAPS, SPIRE_THEMES, floorSpawnPx, floorZone, type SpireTheme } from '../src/content/spire';
 import { avatarById } from '../src/content/avatars';
 import { camAxis } from '../src/lib/camera';
+import { BLEND_OPS_PER_CORNER, blendLayer, blendsEdges } from '../src/lib/terrain';
 import '../src/index.css';
 
 const q = new URLSearchParams(location.search);
@@ -150,6 +151,20 @@ function animatedRects(): [number, number, number, number][] {
       if ('~SQ'.includes(z.map[y][x])) rects.push([x * TILE - ox, y * TILE - oy, TILE, TILE]);
     }
   }
+  // Shoreline corner tiles (edge blending, #71b) animate their water too, half a
+  // tile off the water cells — mask them, or every coast screen "differs".
+  if (blendsEdges(z)) {
+    const L = blendLayer(z);
+    for (let vy = 0; vy < L.vrows; vy++) {
+      for (let vx = 0; vx < L.vcols; vx++) {
+        if (L.waterStep[(vy * L.vcols + vx) * BLEND_OPS_PER_CORNER] > 0) {
+          rects.push([vx * TILE - TILE / 2 - ox, vy * TILE - TILE / 2 - oy, TILE, TILE]);
+        }
+      }
+    }
+  }
+  // Fog banks drift between two frames (#75).
+  for (const f of z.fogs ?? []) rects.push([f.x * TILE - ox, f.y * TILE - oy, f.w * TILE, f.h * TILE]);
   // Character sprites: a generous box around each one's start point.
   const box = (cx: number, cy: number, half: number) => rects.push([cx - half - ox, cy - half - oy, half * 2, half * 2]);
   for (const p of [...z.npcs, ...z.enemies]) box(p.x * TILE + TILE / 2, p.y * TILE + TILE / 2, 30);
@@ -193,7 +208,7 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
     p95: pct(deltas, 0.95),
     max: maxDelta,
   }),
-  state: () => ({ ...live }),
+  state: () => ({ ...live, talks: [...live.talks] }),
   /** Pause / resume the world, as a menu or dialogue would. */
   pause: (on: boolean) => {
     benchPaused.current = on;
@@ -217,11 +232,19 @@ const flags = Object.fromEntries(
     .map((f) => [f, true]),
 );
 /** Live position, read by the runner / scripts. */
-const live: { zoneId: ZoneId; exits: number; pos: { x: number; y: number } | null; fogBumps: number } = {
+const live: {
+  zoneId: ZoneId;
+  exits: number;
+  pos: { x: number; y: number } | null;
+  fogBumps: number;
+  /** Everyone the hero has talked to, in order (NPC def ids). */
+  talks: string[];
+} = {
   zoneId,
   exits: 0,
   pos: startPos,
   fogBumps: 0,
+  talks: [],
 };
 
 function Bench() {
@@ -248,7 +271,9 @@ function Bench() {
         pausedRef={benchPaused}
         touchDirRef={touchDirRef}
         callbacks={{
-          onTalk: noop,
+          onTalk: (id) => {
+            live.talks.push(id);
+          },
           onEncounter: noop,
           onPath: noop,
           onExit: (to, sx, sy) => {

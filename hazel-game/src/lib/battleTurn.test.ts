@@ -1,47 +1,164 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  applyFocus,
+  chargeAfterAnswer,
   DEFEND_MAX_MS,
   DEFEND_MERCY_BONUS_MS,
   DEFEND_MIN_MS,
   defendTimeMs,
   fastAnswerMs,
   FAST_STREAK,
+  itemBlocked,
   MAX_SPEED_BOOST,
-  speedStep,
-  skillAfterBattle,
   MERCY_AFTER,
-  POWER_MULTIPLIER,
-  STREAK_MAX,
-  STREAK_START,
   mercyFor,
   nextIntent,
+  POWER_MULTIPLIER,
   powerMoveName,
-  resolveEnemyAttack,
-  resolveHeroHit,
   rollDrop,
+  skillAfterBattle,
+  speedStep,
+  STREAK_MAX,
+  STREAK_START,
   streakMultiplier,
   victoryCoins,
-  type EnemyAttackInput,
+  resolveEnemyTurn,
+  resolveHeroHit,
+  resolveItem,
+  resolveSpell,
+  type CombatState,
 } from './battleTurn';
+import { defendReduction, enemyAttack, healerRegen } from './battleMath';
+import { CHARGE_MAX } from '../content/abilities';
+import { POTION_HEAL, SNACK_HEAL, SPARK_CHARGE, TEA_DAMAGE_MULT } from '../content/items';
+import { AEGIS, EMBER_BREATH, MEND } from '../content/spells';
+import { combatState, useBattleStore } from '../store/battleStore';
 import { ENEMY_DEFS } from '../content/enemies';
 import { CONSUMABLE_IDS } from '../content/items';
+import type { BattleEnemy } from '../types';
+
+const base: CombatState = {
+  playerHp: 100,
+  playerMaxHp: 150,
+  enemyHp: 90,
+  enemyMaxHp: 90,
+  charge: 0,
+  guarded: false,
+  enemyShielded: false,
+  lastPhase: 0,
+  mirrored: false,
+  focused: false,
+  lucky: false,
+};
+
+const enemyInput = {
+  wasCorrect: false,
+  level: 3,
+  isBoss: false,
+  style: 'balanced' as const,
+  powerUps: {},
+};
+
+describe('chargeAfterAnswer', () => {
+  it('fills one ◆ per correct answer, capped at CHARGE_MAX', () => {
+    expect(chargeAfterAnswer(0, true)).toBe(1);
+    expect(chargeAfterAnswer(CHARGE_MAX, true)).toBe(CHARGE_MAX);
+    expect(chargeAfterAnswer(2, false)).toBe(2);
+  });
+});
 
 describe('resolveHeroHit', () => {
-  const base = { dmg: 30, enemyHp: 100, enemyMaxHp: 100, shielded: false, isBoss: false, lastPhase: 0 };
-
-  it('subtracts damage and reports defeat at 0', () => {
-    expect(resolveHeroHit(base)).toMatchObject({ newEnemyHp: 70, defeated: false, shieldBroke: false });
-    expect(resolveHeroHit({ ...base, dmg: 500 })).toMatchObject({ newEnemyHp: 0, defeated: true });
+  it('deals damage and reports a plain hit', () => {
+    const r = resolveHeroHit(base, 30, { isBoss: false });
+    expect(r.outcome).toBe('hit');
+    expect(r.state.enemyHp).toBe(60);
+    expect(r.dealt).toBe(30);
   });
 
-  it('a shield absorbs the first landed hit — even a glancing one', () => {
-    expect(resolveHeroHit({ ...base, dmg: 3, shielded: true })).toMatchObject({ shieldBroke: true, newEnemyHp: 100 });
+  it('never drops enemy HP below zero and reports defeat', () => {
+    const r = resolveHeroHit(base, 500, { isBoss: false });
+    expect(r.outcome).toBe('defeated');
+    expect(r.state.enemyHp).toBe(0);
+    expect(r.dealt).toBe(90);
   });
 
-  it('reports a boss phase crossing once, and never on the killing blow', () => {
-    expect(resolveHeroHit({ ...base, isBoss: true, dmg: 40 }).phaseCrossed).toBe(1);
-    expect(resolveHeroHit({ ...base, isBoss: true, dmg: 40, lastPhase: 1 }).phaseCrossed).toBeNull();
-    expect(resolveHeroHit({ ...base, isBoss: true, dmg: 100 }).phaseCrossed).toBeNull();
+  it('a shield absorbs the first landed hit, then is gone', () => {
+    const r = resolveHeroHit({ ...base, enemyShielded: true }, 30, { isBoss: false });
+    expect(r.outcome).toBe('shield-broken');
+    expect(r.state.enemyHp).toBe(90);
+    expect(r.state.enemyShielded).toBe(false);
+    expect(resolveHeroHit(r.state, 30, { isBoss: false }).state.enemyHp).toBe(60);
+  });
+
+  it('a shield-absorbed spell refunds its charge (effort never punished)', () => {
+    const r = resolveHeroHit({ ...base, enemyShielded: true, charge: 0 }, 80, { isBoss: false, refundCharge: 3 });
+    expect(r.refunded).toBe(3);
+    expect(r.state.charge).toBe(3);
+  });
+
+  it('announces each boss enrage phase exactly once', () => {
+    const first = resolveHeroHit(base, 40, { isBoss: true }); // 50/90 → phase 1
+    expect(first.newPhase).toBe(1);
+    const again = resolveHeroHit(first.state, 1, { isBoss: true }); // still phase 1
+    expect(again.newPhase).toBeNull();
+    const furious = resolveHeroHit(again.state, 25, { isBoss: true }); // 24/90 → phase 2
+    expect(furious.newPhase).toBe(2);
+  });
+
+  it('never announces phases for regular enemies', () => {
+    expect(resolveHeroHit(base, 80, { isBoss: false }).newPhase).toBeNull();
+  });
+});
+
+describe('resolveEnemyTurn', () => {
+  it('a standing guard blocks the hit completely and is spent', () => {
+    const r = resolveEnemyTurn({ ...base, guarded: true }, enemyInput);
+    expect(r.dmg).toBe(0);
+    expect(r.state.playerHp).toBe(100);
+    expect(r.state.guarded).toBe(false);
+  });
+
+  it('a correct defend answer softens the hit', () => {
+    const miss = resolveEnemyTurn(base, enemyInput);
+    const block = resolveEnemyTurn(base, { ...enemyInput, wasCorrect: true });
+    expect(miss.dmg).toBe(enemyAttack(3, false, 0) - defendReduction(false, 'balanced', {}));
+    expect(block.dmg).toBeLessThan(miss.dmg);
+  });
+
+  it('reports the hero going down (HP floors at zero)', () => {
+    const r = resolveEnemyTurn({ ...base, playerHp: 1 }, enemyInput);
+    expect(r.state.playerHp).toBe(0);
+    expect(r.heroDown).toBe(true);
+  });
+
+  it('a hurt healer mends itself; a healthy one does not', () => {
+    const hurt = resolveEnemyTurn({ ...base, enemyHp: 30 }, { ...enemyInput, behavior: 'healer' });
+    expect(hurt.mended).toBe(healerRegen(90));
+    expect(hurt.state.enemyHp).toBe(30 + healerRegen(90));
+    expect(resolveEnemyTurn(base, { ...enemyInput, behavior: 'healer' }).mended).toBe(0);
+  });
+
+  it('boss damage uses the enrage phase at the moment it swings', () => {
+    const calm = resolveEnemyTurn(base, { ...enemyInput, isBoss: true });
+    const furious = resolveEnemyTurn({ ...base, enemyHp: 10 }, { ...enemyInput, isBoss: true });
+    expect(furious.dmg).toBeGreaterThan(calm.dmg);
+  });
+});
+
+describe('resolveEnemyTurn — telegraphed power blows', () => {
+  it('a power blow hits POWER_MULTIPLIER× as hard', () => {
+    const normal = resolveEnemyTurn(base, enemyInput).dmg;
+    expect(resolveEnemyTurn(base, { ...enemyInput, intent: 'power' }).dmg).toBe(normal * POWER_MULTIPLIER);
+  });
+
+  it('a guard still blocks a power blow completely', () => {
+    expect(resolveEnemyTurn({ ...base, guarded: true }, { ...enemyInput, intent: 'power' }).dmg).toBe(0);
+  });
+
+  it('a Mirror Charm bounces the full power blow', () => {
+    const normal = resolveEnemyTurn(base, enemyInput).dmg;
+    const r = resolveEnemyTurn({ ...base, mirrored: true }, { ...enemyInput, intent: 'power' });
+    expect(r.reflected).toBe(Math.min(base.enemyHp, normal * POWER_MULTIPLIER));
   });
 });
 
@@ -72,58 +189,150 @@ describe('nextIntent', () => {
   });
 });
 
-describe('resolveEnemyAttack', () => {
-  const base: EnemyAttackInput = {
-    level: 5, isBoss: false, phase: 0, intent: 'attack', guarded: false, wasCorrect: false,
-    style: 'balanced', powerUps: {}, playerHp: 100, enemyHp: 50, enemyMaxHp: 100,
-  };
-
-  it('a power blow hits POWER_MULTIPLIER× as hard', () => {
-    const normal = resolveEnemyAttack(base).dmg;
-    expect(resolveEnemyAttack({ ...base, intent: 'power' }).dmg).toBe(normal * POWER_MULTIPLIER);
+describe('resolveSpell', () => {
+  it('a miss fizzles and keeps the charge', () => {
+    const r = resolveSpell({ ...base, charge: 4 }, MEND, false);
+    expect(r.kind).toBe('fizzle');
+    expect(r.state.charge).toBe(4);
   });
 
-  it('a guard blocks even a power blow completely', () => {
-    expect(resolveEnemyAttack({ ...base, intent: 'power', guarded: true }).dmg).toBe(0);
+  it('Mend spends its cost and heals, capped at max HP', () => {
+    const r = resolveSpell({ ...base, charge: 4, playerHp: 140 }, MEND, true);
+    expect(r.kind).toBe('heal');
+    expect(r.state.charge).toBe(4 - MEND.cost);
+    expect(r.state.playerHp).toBe(150);
   });
 
-  it('a correct defend answer softens the blow', () => {
-    expect(resolveEnemyAttack({ ...base, wasCorrect: true }).dmg).toBeLessThan(resolveEnemyAttack(base).dmg);
+  it('Aegis raises the guard', () => {
+    const r = resolveSpell({ ...base, charge: 4 }, AEGIS, true);
+    expect(r.kind).toBe('shield');
+    expect(r.state.guarded).toBe(true);
   });
 
-  it('a healer below half HP mends at the end of its turn', () => {
-    const r = resolveEnemyAttack({ ...base, behavior: 'healer', enemyHp: 40 });
-    expect(r.mended).toBeGreaterThan(0);
-    expect(r.newEnemyHp).toBe(40 + r.mended);
-    expect(resolveEnemyAttack({ ...base, behavior: 'healer', enemyHp: 90 }).mended).toBe(0);
+  it('an offensive spell spends its cost and hands back the multiplier', () => {
+    const r = resolveSpell({ ...base, charge: 4 }, EMBER_BREATH, true);
+    expect(r.kind).toBe('strike');
+    expect(r.state.charge).toBe(4 - EMBER_BREATH.cost);
+  });
+});
+
+describe('battle items', () => {
+  it('blocks items that would do nothing', () => {
+    expect(itemBlocked(base, 'potion', 0)).toBe('None left');
+    expect(itemBlocked({ ...base, playerHp: 150 }, 'potion', 1)).toBe('HP is full');
+    expect(itemBlocked({ ...base, charge: CHARGE_MAX }, 'spark', 1)).toBe('Charge is full');
+    expect(itemBlocked({ ...base, guarded: true }, 'ward', 1)).toBe('Already warded');
+    expect(itemBlocked(base, 'potion', 1)).toBeNull();
   });
 
-  it('reports a knockout', () => {
-    expect(resolveEnemyAttack({ ...base, playerHp: 1 }).knockedOut).toBe(true);
+  it('potion heals POTION_HEAL, elixir heals to full', () => {
+    expect(resolveItem({ ...base, playerHp: 10 }, 'potion').healed).toBe(POTION_HEAL);
+    expect(resolveItem(base, 'elixir').state.playerHp).toBe(150);
   });
 
-  it('a Mirror Charm blocks the blow and bounces it back', () => {
-    const raw = resolveEnemyAttack(base).dmg; // wrong answer, no guard = the full blow
-    const r = resolveEnemyAttack({ ...base, mirrored: true });
+  it('spark adds charge, ward raises the guard', () => {
+    expect(resolveItem(base, 'spark').chargeGained).toBe(SPARK_CHARGE);
+    expect(resolveItem(base, 'ward').state.guarded).toBe(true);
+  });
+});
+
+describe('village-expansion items (#80)', () => {
+  it('Mirror Charm blocks the hit, bounces it back, keeps a standing guard', () => {
+    const r = resolveEnemyTurn({ ...base, mirrored: true, guarded: true }, enemyInput);
     expect(r.dmg).toBe(0);
-    expect(r.reflected).toBe(raw);
-    expect(r.newEnemyHp).toBe(50 - raw);
+    expect(r.reflected).toBe(enemyAttack(3, false, 0));
+    expect(r.state.enemyHp).toBe(90 - r.reflected);
+    expect(r.state.mirrored).toBe(false);
+    expect(r.state.guarded).toBe(true);
   });
 
-  it("a shielded enemy's shield takes the bounce instead", () => {
-    const r = resolveEnemyAttack({ ...base, mirrored: true, enemyShielded: true });
-    expect(r).toMatchObject({ dmg: 0, reflected: 0, shieldBroke: true, newEnemyHp: 50 });
+  it('a bounce onto a shielded foe shatters the shield instead of hurting it', () => {
+    const r = resolveEnemyTurn({ ...base, mirrored: true, enemyShielded: true }, enemyInput);
+    expect(r.shieldShattered).toBe(true);
+    expect(r.reflected).toBe(0);
+    expect(r.state.enemyShielded).toBe(false);
+    expect(r.state.enemyHp).toBe(90);
   });
 
-  it('a bounce that finishes the enemy is a win — no healer mend, no knockout', () => {
-    const r = resolveEnemyAttack({ ...base, mirrored: true, enemyHp: 1, playerHp: 0, behavior: 'healer' });
-    expect(r).toMatchObject({ defeated: true, knockedOut: false, mended: 0, newEnemyHp: 0 });
+  it('a bounce can win the battle, and a beaten healer does not mend', () => {
+    const r = resolveEnemyTurn({ ...base, mirrored: true, enemyHp: 5 }, { ...enemyInput, behavior: 'healer' });
+    expect(r.enemyDown).toBe(true);
+    expect(r.mended).toBe(0);
+    expect(r.state.enemyHp).toBe(0);
   });
 
-  it('a healer mends from its HP after the bounce', () => {
-    const r = resolveEnemyAttack({ ...base, mirrored: true, behavior: 'healer', enemyHp: 45 });
-    expect(r.mended).toBeGreaterThan(0);
-    expect(r.newEnemyHp).toBe(45 - r.reflected + r.mended);
+  it('a bounce announces a boss enrage phase', () => {
+    const r = resolveEnemyTurn({ ...base, mirrored: true, enemyHp: 70 }, { ...enemyInput, isBoss: true });
+    expect(r.newPhase).toBe(1);
+    expect(r.state.lastPhase).toBe(1);
+  });
+
+  it('Focus Tea multiplies a landed hit once, but waits while a shield is up', () => {
+    const f = applyFocus({ ...base, focused: true }, 30);
+    expect(f.dmg).toBe(30 * TEA_DAMAGE_MULT);
+    expect(f.state.focused).toBe(false);
+    const held = applyFocus({ ...base, focused: true, enemyShielded: true }, 30);
+    expect(held.dmg).toBe(30);
+    expect(held.state.focused).toBe(true);
+    expect(applyFocus(base, 30).dmg).toBe(30);
+  });
+
+  it('snack heals + charges; coil fills charge; buffs set their flags', () => {
+    const snack = resolveItem({ ...base, playerHp: 10 }, 'snack');
+    expect(snack.healed).toBe(SNACK_HEAL);
+    expect(snack.chargeGained).toBe(1);
+    expect(resolveItem(base, 'coil').state.charge).toBe(CHARGE_MAX);
+    expect(resolveItem(base, 'mirror').state.mirrored).toBe(true);
+    expect(resolveItem(base, 'tea').state.focused).toBe(true);
+    expect(resolveItem(base, 'clover').state.lucky).toBe(true);
+  });
+
+  it('new items are greyed out when they would do nothing', () => {
+    expect(itemBlocked({ ...base, playerHp: 150, charge: CHARGE_MAX }, 'snack', 1)).toBe('HP and charge are full');
+    expect(itemBlocked({ ...base, charge: CHARGE_MAX }, 'coil', 1)).toBe('Charge is full');
+    expect(itemBlocked({ ...base, mirrored: true }, 'mirror', 1)).toBe('Mirror is up');
+    expect(itemBlocked({ ...base, focused: true }, 'tea', 1)).toBe('Already focused');
+    expect(itemBlocked({ ...base, lucky: true }, 'clover', 1)).toBe('Already lucky');
+  });
+});
+
+describe('battleStore combat state (#70 tap-race)', () => {
+  const enemy = {
+    id: 'relic-golem',
+    instanceId: 'x1',
+    name: 'Relic Golem',
+    sprite: '🗿',
+    level: 3,
+    maxHp: 90,
+    topic: 'math',
+    zoneId: 'numbria',
+    isBoss: false,
+    coins: 10,
+    behavior: 'shielded',
+  } as BattleEnemy;
+
+  beforeEach(() => useBattleStore.getState().reset());
+
+  it('start() resets combat and derives the shield from the archetype', () => {
+    useBattleStore.getState().applyCombat({ ...base, charge: 3, guarded: true, mirrored: true, focused: true, lucky: true });
+    useBattleStore.getState().start(enemy, 100, 150);
+    const s = combatState();
+    expect(s).toMatchObject({ playerHp: 100, enemyHp: 90, charge: 0, guarded: false, enemyShielded: true });
+    // Item buffs belong to one fight too.
+    expect(s).toMatchObject({ mirrored: false, focused: false, lucky: false });
+    useBattleStore.getState().start({ ...enemy, instanceId: 'x2', behavior: undefined }, 100, 150);
+    expect(combatState().enemyShielded).toBe(false);
+  });
+
+  it('an enemy hit followed at once by a potion keeps BOTH effects', () => {
+    useBattleStore.getState().start({ ...enemy, behavior: undefined }, 100, 150);
+    const { applyCombat } = useBattleStore.getState();
+    // Enemy turn resolves and is written immediately…
+    const hit = resolveEnemyTurn(combatState(), enemyInput);
+    applyCombat(hit.state);
+    // …so a potion tapped straight after reads the post-hit HP.
+    applyCombat(resolveItem(combatState(), 'potion').state);
+    expect(combatState().playerHp).toBe(Math.min(150, 100 - hit.dmg + POTION_HEAL));
   });
 });
 

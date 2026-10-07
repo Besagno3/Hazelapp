@@ -8,8 +8,15 @@ from PIL import Image
 from characters import (BATTLE_ANIMS, BATTLE_POSES, DRAWERS, NPCS, ROSTER,
                         WORLD_ANIMS, WORLD_POSES, Char)
 from pix import Canvas, strip, upscale
+import tiles
 
 WORLD_SCALE = 2  # world art is authored at 16px/tile and shown 2× (32px tiles)
+
+# Things that stand in the world like NPCs (you talk to them) but never move
+# or turn: one still frame, with every facing anim pointing at it (#75 item 6).
+STILL_PROPS = {
+    'signpost': ('🪧', tiles.signpost),
+}
 
 
 def render(ch: Char, n: int, poses) -> list[Image.Image]:
@@ -67,6 +74,22 @@ def build(public: Path, only: set[str] | None = None) -> dict:
                 'anims': ch.battle_anims or BATTLE_ANIMS,
             }
         manifest[ch.id] = entry
+    for pid, (emoji, draw) in STILL_PROPS.items():
+        img = upscale(draw().image(), WORLD_SCALE)
+        if only is None or pid in only:
+            out = public / 'sprites' / pid
+            out.mkdir(parents=True, exist_ok=True)
+            img.save(out / 'world.png', optimize=True)
+        manifest[pid] = {
+            'emoji': emoji,
+            'world': {
+                'sheet': f'/sprites/{pid}/world.png',
+                'frameW': img.width,
+                'frameH': img.height,
+                'frames': 1,
+                'anims': {name: {'from': 0, 'to': 0, 'fps': 1} for name in WORLD_ANIMS},
+            },
+        }
     return manifest
 
 
