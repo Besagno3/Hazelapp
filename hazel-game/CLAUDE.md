@@ -23,6 +23,7 @@ shared source of truth for how this project works.
 | Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
+| CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build on every PR / push to `main`; check `test` |
 
 Many dependencies in `package.json` are installed but **not yet used**
 (react-router-dom, xstate, react-query, react-hook-form, zod, recharts,
@@ -329,6 +330,17 @@ The world gets its first real overworld: walk out of Lumina Village onto a
   at the same frame rate as the stress map (Phase 1 adds no cost); the world
   map panel in four situations.
 - 377 tests green (354 on main before this); lint + build clean.
+
+### 2026-10-06 — CI: lint + test + build on every PR (#81)
+First CI for the repo: `.github/workflows/ci.yml` (repo root) runs `npm ci`,
+`npm run lint`, `npm test` and `npm run build` in `hazel-game/` on every pull
+request, every push to `main`, and on demand. Node 22 (Vite 8 needs
+^20.19 || >=22.12), npm cache, `contents: read` only, checkout without
+persisted credentials, a newer push cancels the outdated run. No `paths:`
+filter on purpose — a required check must report on every PR. The job's check
+is named `test`: add it to the `main` ruleset as a required check (source:
+GitHub Actions) once it has run once. Verified locally in a clean worktree
+(fresh `npm ci`, no `.env`): lint clean, 335 tests, build clean.
 
 ### 2026-10-05 — Phase 0 code-review fixes (#75)
 `/saas-code-review` of Phase 0 found no player-facing bugs; two fixes ahead of
