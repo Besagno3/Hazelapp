@@ -53,6 +53,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'gear-wyrm': { id: 'gear-wyrm', name: 'Gear Wyrm', sprite: '🐍', topic: 'engineering', levelOffset: 1, hpPerLevel: 14 },
   'pulley-spider': { id: 'pulley-spider', name: 'Pulley Spider', sprite: '🕷️', topic: 'engineering', levelOffset: -1, hpPerLevel: 10 },
   'piston-boar': { id: 'piston-boar', name: 'Piston Boar', sprite: '🐗', topic: 'engineering', levelOffset: 0, hpPerLevel: 12 },
+  'ironhorn-rampager': { id: 'ironhorn-rampager', name: 'Ironhorn Rampager', sprite: '🦏', topic: 'engineering', levelOffset: 1, hpPerLevel: 14, behavior: 'shielded' },
   'rust-fiend': { id: 'rust-fiend', name: 'The Rust Fiend', sprite: '🤖', topic: 'engineering', levelOffset: 1, hpPerLevel: 20, isBoss: true },
 
   // --- Chromaria (creativity) ---
@@ -70,12 +71,16 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'grumblebee': { id: 'grumblebee', name: 'Grumblebee', sprite: '🐝', topic: 'nature', levelOffset: 1, hpPerLevel: 13 },
   'dart-frog': { id: 'dart-frog', name: 'Dart Frog', sprite: '🐸', topic: 'nature', levelOffset: -1, hpPerLevel: 10 },
   'snapjaw': { id: 'snapjaw', name: 'Snapjaw', sprite: '🪴', topic: 'nature', levelOffset: 0, hpPerLevel: 12 },
+  'oak-owl': { id: 'oak-owl', name: 'Oak Owl', sprite: '🦉', topic: 'nature', levelOffset: 1, hpPerLevel: 13, behavior: 'trickster' },
   'thicket-warden': { id: 'thicket-warden', name: 'The Thicket Warden', sprite: '🦌', topic: 'nature', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 
   // --- Starfall Coast (space) — critters + the warden boss (#58) ---
   'tide-sprite': { id: 'tide-sprite', name: 'Tide Sprite', sprite: '🌊', topic: 'space', levelOffset: -1, hpPerLevel: 10 },
   'meteor-mite': { id: 'meteor-mite', name: 'Meteor Mite', sprite: '☄️', topic: 'space', levelOffset: 0, hpPerLevel: 12 },
   'moon-moth': { id: 'moon-moth', name: 'Moon Moth', sprite: '🌙', topic: 'space', levelOffset: 1, hpPerLevel: 13, behavior: 'healer' },
+  'orbit-otter': { id: 'orbit-otter', name: 'Orbit Otter', sprite: '🦦', topic: 'space', levelOffset: -1, hpPerLevel: 10 },
+  'gravity-beetle': { id: 'gravity-beetle', name: 'Gravity Beetle', sprite: '🪲', topic: 'space', levelOffset: 0, hpPerLevel: 12 },
+  'eclipse-fox': { id: 'eclipse-fox', name: 'Eclipse Fox', sprite: '🦊', topic: 'space', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
   'tide-colossus': { id: 'tide-colossus', name: 'The Tide Colossus', sprite: '🐳', topic: 'space', levelOffset: 1, hpPerLevel: 16, isBoss: true },
 
   // --- Clockwork Depths (time & history) — critters + the warden boss (#58) ---
