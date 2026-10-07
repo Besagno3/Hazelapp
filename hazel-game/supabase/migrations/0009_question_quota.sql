@@ -1,4 +1,4 @@
--- Hazel Quest — per-player request log + quota for generate-questions (#76)
+-- Hazel Quest — per-player request log + quota for generate-questions (#84)
 -- Run in the Supabase SQL Editor (or `supabase db push`) after 0008.
 --
 -- The edge function calls the Claude API on the project's key, so an

@@ -1,4 +1,4 @@
--- Hazel Quest — access hardening from the migrations review (#78)
+-- Hazel Quest — access hardening from the migrations review (#86)
 -- Run in the Supabase SQL Editor (or `supabase db push`) after 0009.
 -- Re-runnable, like every migration (see CLAUDE.md → migrations rules).
 --

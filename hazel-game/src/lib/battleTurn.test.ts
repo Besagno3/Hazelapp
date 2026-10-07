@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  applyFocus,
   chargeAfterAnswer,
   itemBlocked,
   resolveEnemyTurn,
@@ -10,7 +11,7 @@ import {
 } from './battleTurn';
 import { defendReduction, enemyAttack, healerRegen } from './battleMath';
 import { CHARGE_MAX } from '../content/abilities';
-import { POTION_HEAL, SPARK_CHARGE } from '../content/items';
+import { POTION_HEAL, SNACK_HEAL, SPARK_CHARGE, TEA_DAMAGE_MULT } from '../content/items';
 import { AEGIS, EMBER_BREATH, MEND } from '../content/spells';
 import { combatState, useBattleStore } from '../store/battleStore';
 import type { BattleEnemy } from '../types';
@@ -24,6 +25,9 @@ const base: CombatState = {
   guarded: false,
   enemyShielded: false,
   lastPhase: 0,
+  mirrored: false,
+  focused: false,
+  lucky: false,
 };
 
 const enemyInput = {
@@ -167,6 +171,66 @@ describe('battle items', () => {
   });
 });
 
+describe('village-expansion items (#80)', () => {
+  it('Mirror Charm blocks the hit, bounces it back, keeps a standing guard', () => {
+    const r = resolveEnemyTurn({ ...base, mirrored: true, guarded: true }, enemyInput);
+    expect(r.dmg).toBe(0);
+    expect(r.reflected).toBe(enemyAttack(3, false, 0));
+    expect(r.state.enemyHp).toBe(90 - r.reflected);
+    expect(r.state.mirrored).toBe(false);
+    expect(r.state.guarded).toBe(true);
+  });
+
+  it('a bounce onto a shielded foe shatters the shield instead of hurting it', () => {
+    const r = resolveEnemyTurn({ ...base, mirrored: true, enemyShielded: true }, enemyInput);
+    expect(r.shieldShattered).toBe(true);
+    expect(r.reflected).toBe(0);
+    expect(r.state.enemyShielded).toBe(false);
+    expect(r.state.enemyHp).toBe(90);
+  });
+
+  it('a bounce can win the battle, and a beaten healer does not mend', () => {
+    const r = resolveEnemyTurn({ ...base, mirrored: true, enemyHp: 5 }, { ...enemyInput, behavior: 'healer' });
+    expect(r.enemyDown).toBe(true);
+    expect(r.mended).toBe(0);
+    expect(r.state.enemyHp).toBe(0);
+  });
+
+  it('a bounce announces a boss enrage phase', () => {
+    const r = resolveEnemyTurn({ ...base, mirrored: true, enemyHp: 70 }, { ...enemyInput, isBoss: true });
+    expect(r.newPhase).toBe(1);
+    expect(r.state.lastPhase).toBe(1);
+  });
+
+  it('Focus Tea multiplies a landed hit once, but waits while a shield is up', () => {
+    const f = applyFocus({ ...base, focused: true }, 30);
+    expect(f.dmg).toBe(30 * TEA_DAMAGE_MULT);
+    expect(f.state.focused).toBe(false);
+    const held = applyFocus({ ...base, focused: true, enemyShielded: true }, 30);
+    expect(held.dmg).toBe(30);
+    expect(held.state.focused).toBe(true);
+    expect(applyFocus(base, 30).dmg).toBe(30);
+  });
+
+  it('snack heals + charges; coil fills charge; buffs set their flags', () => {
+    const snack = resolveItem({ ...base, playerHp: 10 }, 'snack');
+    expect(snack.healed).toBe(SNACK_HEAL);
+    expect(snack.chargeGained).toBe(1);
+    expect(resolveItem(base, 'coil').state.charge).toBe(CHARGE_MAX);
+    expect(resolveItem(base, 'mirror').state.mirrored).toBe(true);
+    expect(resolveItem(base, 'tea').state.focused).toBe(true);
+    expect(resolveItem(base, 'clover').state.lucky).toBe(true);
+  });
+
+  it('new items are greyed out when they would do nothing', () => {
+    expect(itemBlocked({ ...base, playerHp: 150, charge: CHARGE_MAX }, 'snack', 1)).toBe('HP and charge are full');
+    expect(itemBlocked({ ...base, charge: CHARGE_MAX }, 'coil', 1)).toBe('Charge is full');
+    expect(itemBlocked({ ...base, mirrored: true }, 'mirror', 1)).toBe('Mirror is up');
+    expect(itemBlocked({ ...base, focused: true }, 'tea', 1)).toBe('Already focused');
+    expect(itemBlocked({ ...base, lucky: true }, 'clover', 1)).toBe('Already lucky');
+  });
+});
+
 describe('battleStore combat state (#70 tap-race)', () => {
   const enemy = {
     id: 'relic-golem',
@@ -185,10 +249,12 @@ describe('battleStore combat state (#70 tap-race)', () => {
   beforeEach(() => useBattleStore.getState().reset());
 
   it('start() resets combat and derives the shield from the archetype', () => {
-    useBattleStore.getState().applyCombat({ ...base, charge: 3, guarded: true });
+    useBattleStore.getState().applyCombat({ ...base, charge: 3, guarded: true, mirrored: true, focused: true, lucky: true });
     useBattleStore.getState().start(enemy, 100, 150);
     const s = combatState();
     expect(s).toMatchObject({ playerHp: 100, enemyHp: 90, charge: 0, guarded: false, enemyShielded: true });
+    // Item buffs belong to one fight too.
+    expect(s).toMatchObject({ mirrored: false, focused: false, lucky: false });
     useBattleStore.getState().start({ ...enemy, instanceId: 'x2', behavior: undefined }, 100, 150);
     expect(combatState().enemyShielded).toBe(false);
   });

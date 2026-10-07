@@ -8,6 +8,14 @@ expansion bible**: the full end-to-end content spec for Acts II–IV (every
 zone, NPC, enemy, boss, quest, spell, item, cutscene, and flag). This doc is
 the *delivery plan*; STORY-4X.md is *what gets built*.
 
+> **Re-sequenced (2026-10-04) · Wave 1 paused (2026-10-05):**
+> `ROADMAP-OVERWORLD.md` moves the world to a two-scale overworld (enterable
+> places, boat, Ember flight) and changes the *order and placement* of the
+> waves below. **Wave 1 (Act II) is paused** until the home continent,
+> Dawnreach, exists (that roadmap's Phase 2); its zones will then be placed
+> on the map instead of built as edge-linked screens. STORY-4X.md content is
+> unchanged. See its §7.
+
 ---
 
 ## 1. Where the game is today (baseline audit)
@@ -164,7 +172,7 @@ the game gets deeper, not just wider.
    then ship art zone-by-zone.
 7. **Doc sync:** fold Moonwell Grove into STORY.md; add the act structure.
 
-### Wave 1 — Act II: The Crystal of Memory
+### Wave 1 — Act II: The Crystal of Memory ⏸️ *paused — see `ROADMAP-OVERWORLD.md` §7*
 - 4 zones, ~12 NPCs, 1 Sage, 1 Fiend + 1 warden, 4 quests, ~20 panels.
 - History graduates from extra topic → crystal topic (validates Wave 0.1).
 - "The world remembers" reactive-dialogue pass across all existing zones.
@@ -221,9 +229,11 @@ the game gets deeper, not just wider.
 
 ## 5. Ops & risks
 
-- **CI (added #76):** `.github/workflows/ci.yml` runs lint/test/build, the
-  edge-function type-check and a migrations job on every PR; still run
-  `npm run lint && npm test && npm run build` locally before pushing.
+- **CI (since 2026-10-06, #81; Supabase jobs #84):** `.github/workflows/ci.yml`
+  runs lint + tests + build on every PR and push to `main` (check name
+  `test`), plus a Deno type-check of the edge function and a migrations job
+  (apply all, bundle twice, SQL tests); still run the same locally before
+  pushing.
 - **Supabase prod drift is the #1 live risk** (see ISSUES #61): every wave
   that adds a migration or topic must include applying it to prod +
   redeploying `generate-questions` (CLI/dashboard, not the SQL editor).

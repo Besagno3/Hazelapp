@@ -12,6 +12,7 @@ import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { attackDamage, spellDamage, BOSS_XP_BONUS } from '../../lib/battleMath';
 import {
+  applyFocus,
   chargeAfterAnswer,
   itemBlocked,
   resolveEnemyTurn,
@@ -21,7 +22,7 @@ import {
   type CombatState,
 } from '../../lib/battleTurn';
 import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells';
-import { CONSUMABLES, type ConsumableId } from '../../content/items';
+import { CLOVER_COIN_MULT, CONSUMABLES, type ConsumableId } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
@@ -49,7 +50,7 @@ type Turn =
   | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question }
   | { kind: 'enemy-question'; question: Question }
   | { kind: 'message'; text: string; next: () => void }
-  | { kind: 'victory'; xp: number }
+  | { kind: 'victory'; xp: number; coins: number; lucky: boolean }
   | { kind: 'defeat'; xp: number };
 
 /**
@@ -77,6 +78,9 @@ export default function BattleArena() {
     charge,
     guarded,
     enemyShielded,
+    mirrored,
+    focused,
+    lucky,
     applyCombat,
     markDefeated,
     endBattle,
@@ -90,6 +94,9 @@ export default function BattleArena() {
       charge: s.charge,
       guarded: s.guarded,
       enemyShielded: s.enemyShielded,
+      mirrored: s.mirrored,
+      focused: s.focused,
+      lucky: s.lucky,
       applyCombat: s.applyCombat,
       markDefeated: s.markDefeated,
       endBattle: s.endBattle,
@@ -244,7 +251,14 @@ export default function BattleArena() {
     applyCombat(r.state);
     if (r.healed > 0) float(`+${r.healed}`, 'hero', 'text-emerald-300');
     if (r.chargeGained > 0) float(`+${r.chargeGained}◆`, 'hero', 'text-amber-300');
-    if (id === 'ward') float('🌈', 'hero', 'text-sky-300');
+    const buffFloat: Partial<Record<ConsumableId, [string, string]>> = {
+      ward: ['🌈', 'text-sky-300'],
+      mirror: ['🪞', 'text-sky-300'],
+      tea: ['🍵 Focus!', 'text-lime-300'],
+      clover: ['🍀 Lucky!', 'text-emerald-300'],
+    };
+    const bf = buffFloat[id];
+    if (bf) float(bf[0], 'hero', bf[1]);
     const { name, emoji } = CONSUMABLES[id];
     say(`${avatar!.name} uses a ${name}! ${emoji}`, enemyTurn);
   }
@@ -267,8 +281,11 @@ export default function BattleArena() {
       }
       return;
     }
-    const dmg = attackDamage(wasCorrect, style, powerUps);
-    heroStrike(dmg, wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…', 'text-red-300');
+    // Focus Tea (#80): a landed Attack hits TEA_DAMAGE_MULT× and spends the focus.
+    const focus = applyFocus(combatState(), attackDamage(wasCorrect, style, powerUps));
+    applyCombat(focus.state);
+    const text = (wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…') + focus.note;
+    heroStrike(focus.dmg, text, 'text-red-300');
   }
 
   /** Cast the chosen spell once its super-hard question resolves. */
@@ -344,17 +361,28 @@ export default function BattleArena() {
     fx.lungeEnemy();
     later(() => {
       float(r.dmg === 0 ? 'Blocked!' : `-${r.dmg}`, 'hero', r.dmg === 0 ? 'text-sky-300' : 'text-red-300');
+      if (r.shieldShattered) float('Shield shattered!', 'enemy', 'text-amber-300');
+      else if (r.reflected > 0) float(`-${r.reflected}`, 'enemy', 'text-sky-300');
       if (r.mended > 0) float(`+${r.mended}`, 'enemy', 'text-emerald-300');
       if (r.dmg > 0) sfx('hit');
     }, IMPACT_MS);
+    // Boss enrage callout from a Mirror Charm bounce (#80: any damage source).
+    if (r.newPhase) {
+      showBanner(r.newPhase === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
+    }
 
     const text =
-      (r.dmg === 0
-        ? `${enemy!.name} attacks — completely blocked!`
-        : wasCorrect
-          ? `${enemy!.name} attacks — you soften the hit!`
-          : `${enemy!.name} lands a hit!`) + (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '');
-    say(text, r.heroDown ? defeat : () => setTurn({ kind: 'command' }));
+      (r.shieldShattered
+        ? `${enemy!.name} attacks — the Mirror Charm bounces it back, and its shield SHATTERS! 🪞`
+        : r.reflected > 0
+          ? `${enemy!.name} attacks — the Mirror Charm bounces it right back! 🪞`
+          : r.dmg === 0
+            ? `${enemy!.name} attacks — completely blocked!`
+            : wasCorrect
+              ? `${enemy!.name} attacks — you soften the hit!`
+              : `${enemy!.name} lands a hit!`) + (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '');
+    // A bounced hit can win the battle (checked first: a mirrored hero takes no damage).
+    say(text, r.enemyDown ? victory : r.heroDown ? defeat : () => setTurn({ kind: 'command' }));
   }
 
   // --- Battle end --------------------------------------------------------------
@@ -378,11 +406,13 @@ export default function BattleArena() {
     const xp = settleCommon() + npcDefeatXp(enemy!.level) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
     void addXp(xp);
     markDefeated(enemy!.instanceId);
-    const finalHp = combatState().playerHp;
+    const { playerHp: finalHp, lucky: wonLucky } = combatState();
+    // Lucky Clover (#80): the win pays CLOVER_COIN_MULT× coins.
+    const coins = enemy!.coins * (wonLucky ? CLOVER_COIN_MULT : 1);
     updateSave((s) => ({
       ...s,
       hp: finalHp,
-      coins: s.coins + enemy!.coins,
+      coins: s.coins + coins,
       // Lifetime kill counts drive defeat quests (#42).
       kills: { ...s.kills, [enemy!.id]: (s.kills[enemy!.id] ?? 0) + 1 },
       library: pushLibrary(s.library, misses.current),
@@ -398,7 +428,7 @@ export default function BattleArena() {
         ...(keyBoss ? { [keyFlag(keyBoss.id)]: true } : {}),
       },
     }));
-    setTurn({ kind: 'victory', xp });
+    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky });
   }
 
   function defeat() {
@@ -436,6 +466,9 @@ export default function BattleArena() {
     guarded,
     enemyShielded,
     lastPhase: 0,
+    mirrored,
+    focused,
+    lucky,
   };
 
   return (
@@ -592,6 +625,8 @@ export default function BattleArena() {
             crystalName={info.crystalName}
             correctCount={answers.filter(Boolean).length}
             xp={turn.xp}
+            coins={turn.kind === 'victory' ? turn.coins : enemy.coins}
+            lucky={turn.kind === 'victory' && turn.lucky}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

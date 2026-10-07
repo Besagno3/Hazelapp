@@ -211,6 +211,7 @@ export function floorZone(theme: SpireTheme): ZoneDef {
   const f = SPIRE_FLOOR_MAPS[theme];
   return {
     id: 'crystal-spire',
+    kind: 'dungeon',
     name: 'The Crystal Spire',
     map: f.map,
     ground: f.ground,

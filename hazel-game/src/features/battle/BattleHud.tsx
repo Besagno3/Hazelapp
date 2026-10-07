@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { CHARGE_MAX } from '../../content/abilities';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
 import type { Avatar, BattleEnemy } from '../../types';
 
 const hpPct = (hp: number, max: number) => `${Math.max(0, (hp / max) * 100)}%`;
@@ -56,7 +57,13 @@ export function BattleHud({
       <div className="bg-indigo-950/90 border-2 border-white/70 rounded-xl px-4 py-2 text-white w-60">
         <div className="flex justify-between text-sm font-bold">
           <span>
-            {avatar.sprite} {avatar.name}
+            <CharacterPortrait
+              spriteId={avatar.spriteId}
+              emoji={avatar.sprite}
+              scale={0.75}
+              className="inline-block align-middle mr-1"
+            />
+            {avatar.name}
           </span>
           <span className="flex gap-0.5 items-center" title="Special charge">
             <ChargePips charge={charge} />

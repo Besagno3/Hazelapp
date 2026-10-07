@@ -1,4 +1,7 @@
 import type { Topic } from '../types';
+import type { ConsumableId } from './items';
+import { crystalFlag } from './topics';
+import { CRYSTAL_TOPIC_IDS } from '../types';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -14,13 +17,16 @@ export const ZONE_IDS = [
   'verdara',
   'gearfall',
   'chromaria',
-  // Expansion: story / exploration regions reached through the village
+  // Expansion: story / exploration regions — reached across Dawnreach (the overworld) since #75
   'lumina-village',
   'whispering-woods',
   'starfall-coast',
   'clockwork-depths',
   'moonwell-grove',
   'crystal-spire',
+  // Overworld (#75 Phase 1): the home continent + its first roadside place
+  'dawnreach',
+  'dawn-shrine',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -41,7 +47,14 @@ export type ZoneId = (typeof ZONE_IDS)[number];
  *   'C'  treasure chest (solid; bump → question lock)
  *   'G'  gate (solid until its flag is set; bump → gatekeeper question, or a
  *        warden's key check when the zone marks it as a `keyGate`, #58)
- *   'E'  zone exit (walkable; must have a matching entry in `exits`)
+ *   'E'  zone exit on a map edge (walkable; must have a matching entry in `exits`)
+ *   'H'  hidden passage — drawn exactly like solid scenery, but the hero can
+ *        walk through it (wanderers can't, so they never give it away)
+ *
+ * The overworld (#75 Phase 1) adds:
+ *   'P'  a place entrance — a town / cave / shrine icon you walk onto
+ *        (walkable; needs an `exits` entry AND a `places` entry)
+ *   '^'  mountain (solid) · ':' sand / beach (walkable)
  *
  * Buildings (towns, #72) — each must sit inside a `buildings` rect:
  *   'W'  building wall (solid; the bottom row is the street-facing facade)
@@ -59,8 +72,8 @@ export const TILE = 32;
 export const VIEW_COLS = 22;
 export const VIEW_ROWS = 14;
 export const BUILDING_CHARS = new Set(['W', 'D', 'F', 'K', 'B', 'T', 'Z']);
-export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', ...BUILDING_CHARS]);
-export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'D', 'F']);
+export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', 'H', 'P', '^', ':', ...BUILDING_CHARS]);
+export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'H', 'P', ':', 'D', 'F']);
 
 export const ROOF_COLORS = [
   'red',
@@ -112,6 +125,72 @@ export interface BuildingDef {
   sign?: SignKind;
 }
 
+/** What a secret hands over when it's found (each part optional). */
+export interface SecretReward {
+  coins?: number;
+  items?: Partial<Record<ConsumableId, number>>;
+  /** A carried quest item (see QUEST_ITEMS) — side quests ask for these. */
+  questItem?: string;
+}
+
+/**
+ * A hidden secret (village expansion): a stash tucked into scenery, a shelf,
+ * a bed or a quiet patch of ground. A faint twinkle gives it away to sharp
+ * eyes. On a solid tile the hero finds it by bumping; on a walkable tile, by
+ * stepping on it. Found once per save (`secretFlag`, content/secrets.ts).
+ */
+export interface SecretDef {
+  /** Unique across the world. */
+  id: string;
+  x: number;
+  y: number;
+  /** Shown when found, e.g. "Tucked behind the barrel: a pouch of coins!" */
+  text: string;
+  reward: SecretReward;
+}
+
+/** Save flag set once a secret is found (lives here so quests needn't import secrets.ts). */
+export function secretFlag(id: string): string {
+  return `secret:${id}`;
+}
+
+/**
+ * What kind of place a zone is (#75 Phase 1) — it decides the music and how
+ * you move in and out: the overworld fades to and from the places on it,
+ * while neighbouring screens slide (`lib/transition.ts` `transitionFor`).
+ */
+export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as const;
+export type ZoneKind = (typeof ZONE_KINDS)[number];
+
+/** Overworld icons (one tile each; the tower is the tall Spire sprite). */
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower'] as const;
+export type PlaceIcon = (typeof PLACE_ICONS)[number];
+
+/** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
+export interface PlaceDef {
+  x: number;
+  y: number;
+  icon: PlaceIcon;
+  /** Shown under the icon and on the world map. */
+  name: string;
+}
+
+/**
+ * A bank of the fog of Forgetting (#75): a rectangle of the map nobody can
+ * cross until any of `liftedBy`'s flags is set — then it lifts for good.
+ */
+export interface FogDef {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Any one of these flags lifts the fog. */
+  liftedBy: string[];
+  /** What bumping into it says — the reason a kid can repeat out loud. */
+  hint: string;
+}
+
 export interface ZoneExit {
   /** Grid cell of the 'E' tile. */
   x: number;
@@ -137,6 +216,7 @@ export interface EnemyPlacement {
 export interface ZoneDef {
   id: ZoneId;
   name: string;
+  kind: ZoneKind;
   /** Topic zones carry their topic; the hub has none. */
   topic?: Topic;
   map: string[];
@@ -161,6 +241,12 @@ export interface ZoneDef {
   keyGate?: { x: number; y: number };
   /** Enterable buildings (#72) — see `BuildingDef`. */
   buildings?: BuildingDef[];
+  /** Hidden secrets to find (village expansion) — see `SecretDef`. */
+  secrets?: SecretDef[];
+  /** Overworld places — every 'P' tile is one (and also has an `exits` entry). */
+  places?: PlaceDef[];
+  /** Fog banks that block part of the map until a story flag lifts them. */
+  fogs?: FogDef[];
   /**
    * Tileset key override (default: the zone id). The Spire's floor maps
    * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
@@ -170,14 +256,18 @@ export interface ZoneDef {
 
 export const HUB_ZONE: ZoneId = 'lumina-field';
 
+/** Restoring any crystal lifts these — the first fog to go is the first reward you can see. */
+export const ANY_CRYSTAL = CRYSTAL_TOPIC_IDS.map((t) => crystalFlag(t));
+
 export const ZONES: Record<ZoneId, ZoneDef> = {
   'lumina-field': {
     id: 'lumina-field',
     name: 'Lumina Field',
+    kind: 'field',
     map: [
-      '##EE#####EE###########',
-      '#.==.....==..WWWWWWW.#',
-      '#.==..##.==..WBBFBBW.#',
+      '#########EE###########',
+      '#........==..WWWWWWW.#',
+      '#.....##.==..WBBFBBW.#',
       '#...S....==,.WFFFFFW.#',
       '#.,..,...==..WBFFFBW.#',
       'E........==..WWWDWWW.E',
@@ -187,8 +277,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#.WKKKKKW==....~~~~..#',
       '#.WFFFFFW==....~~~~..#',
       '##WWWDWWW==.##.....#.#',
-      '#....=...==......,...#',
-      '#########EE###########',
+      '#.==.=...==......,...#',
+      '##EE#####EE###########',
     ],
     ground: [104, 168, 104],
     path: [196, 178, 128],
@@ -207,8 +297,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [],
     exits: [
-      { x: 2, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 1 },
-      { x: 3, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 1 },
+      // South onto Dawnreach, beside the Field's icon (#75 Phase 1; #76 moved
+      // this road from the north edge).
+      { x: 2, y: 13, to: 'dawnreach', spawnX: 32, spawnY: 10 },
+      { x: 3, y: 13, to: 'dawnreach', spawnX: 32, spawnY: 10 },
       { x: 9, y: 0, to: 'verdara', spawnX: 10, spawnY: 26 },
       { x: 10, y: 0, to: 'verdara', spawnX: 10, spawnY: 26 },
       { x: 0, y: 5, to: 'numbria', spawnX: 42, spawnY: 6 },
@@ -223,6 +315,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   numbria: {
     id: 'numbria',
     name: 'Numbria',
+    kind: 'field',
     topic: 'math',
     map: [
       '############################################',
@@ -238,6 +331,20 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#,.........#......,..#..~~~...WFFTFFW.,..#.#',
       '#..........#.........#.....,..WWWDWWW.....,#',
       '#....,.....#....,....#.#....#....=.........#',
+      '#################################==#########',
+      '#..##...#......##.....#.......,..==.....##.#',
+      '##....,.....,......,.......,.....==...,....#',
+      '#..========================================#',
+      '#..========================================#',
+      '#.........,....=.............=.........=...#',
+      '#...........WWWWWWWW....WWWWWWWWWW..WWWWWWW#',
+      '##########..WZFFFFBW....WBBFFFFBBW..WBFFFBW#',
+      '#.,.....##..WFFFFFFW.,..WFFFFFFFFW..WKKKKKW#',
+      '#.....,..#..WFTFFFFW.#..WFTTFFTTFW..WFFFFFW#',
+      '#........H..WFFFFFFW....WFTTFFTTFW..WTFFFTW#',
+      '#........#..WWWDWWWW.,..WFFFFFFFFW..WWWDWWW#',
+      '#..,...,.#..............WWWWWDWWWW.....=...#',
+      '##.......#.,........#.,............,.......#',
       '############################################',
     ],
     ground: [110, 138, 188],
@@ -249,11 +356,42 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'abacus-observatory', name: 'Abacus Observatory', x: 24, y: 1, w: 9, h: 5, roof: 'slate', style: 'stone', sign: 'sage' },
       { id: 'quill-and-count', name: "Plus's Quill & Count", x: 34, y: 1, w: 7, h: 5, roof: 'blue', style: 'stone', sign: 'shop' },
       { id: 'counting-house', name: 'Counting House', x: 30, y: 8, w: 7, h: 4, roof: 'slate', style: 'stone', sign: 'house' },
+      // South district (village expansion), down the lane from the Counting House.
+      { id: 'numbria-school', name: 'Numbria Schoolhouse', x: 24, y: 19, w: 10, h: 7, roof: 'red', style: 'stone', sign: 'star' },
+      { id: 'tea-room', name: "Chai's Tea Room", x: 36, y: 19, w: 7, h: 6, roof: 'green', style: 'stone', sign: 'shop' },
+      { id: 'sundial-house', name: 'Sundial House', x: 12, y: 19, w: 8, h: 6, roof: 'dusk', style: 'stone', sign: 'house' },
     ],
     npcs: [
       { defId: 'sage-abacus', x: 28, y: 3 },
       { defId: 'numbria-villager', x: 17, y: 9 },
       { defId: 'numbria-merchant', x: 37, y: 2 },
+      { defId: 'numbria-tea-merchant', x: 39, y: 20 },
+      { defId: 'numbria-teacher', x: 29, y: 21 },
+      { defId: 'numbria-kid', x: 20, y: 15 },
+      { defId: 'numbria-sundial', x: 10, y: 15 },
+    ],
+    secrets: [
+      {
+        id: 'numbria-school-shelf',
+        x: 25,
+        y: 20,
+        text: "Wedged behind the schoolbooks: a crumpled lesson page about adding!",
+        reward: { questItem: 'page-addition' },
+      },
+      {
+        id: 'numbria-hill-nook',
+        x: 4,
+        y: 23,
+        text: 'A hidden hollow in the hills! A lesson page about shapes is pinned under a pebble.',
+        reward: { coins: 20, questItem: 'page-shapes' },
+      },
+      {
+        id: 'numbria-pond',
+        x: 25,
+        y: 9,
+        text: 'Coins glitter in the pond — someone has been making wishes. Plus a sealed tin of tea!',
+        reward: { coins: 35, items: { tea: 1 } },
+      },
     ],
     enemies: [
       { defId: 'sum-slime', x: 17, y: 5 },
@@ -270,36 +408,37 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   verdara: {
     id: 'verdara',
     name: 'Verdara',
+    kind: 'field',
     topic: 'science',
     map: [
-      '######################',
-      '#....,.......,.......#',
-      '#.................C..#',
-      '#...##..........##...#',
-      '#....................#',
-      '#..~~................#',
-      '#....................#',
-      '##########GG##########',
-      '#....................#',
-      '#...,...........,....#',
-      '#....................#',
-      '#.S..................#',
-      '#....................#',
-      '#########==###########',
-      '#........==..........#',
-      '#.WWWWWWW==....~~~.#.#',
-      '#.WTFFFTW==.,..~~~.#.#',
-      '#.WFFFFFW==..........#',
-      '#.WTFFFTW==..........#',
-      '#.WWWDWWW==..WWWWWWW.#',
-      '#....=...==..WBFFFBW.#',
-      '#....======..WKKKKKW.#',
-      '#...,....==..WFFFFFW.#',
-      '#.##.....==..WWWDWWW.#',
-      '#........========....#',
-      '#.#.,..#.==..,....,#.#',
-      '#........==..........#',
-      '#########EE###########',
+      '############################################',
+      '#....,.......,.......#######################',
+      '#.................C..#######################',
+      '#...##..........##...#######################',
+      '#....................#######################',
+      '#..~~................#######################',
+      '#....................#######################',
+      '##########GG################################',
+      '#....................#######################',
+      '#...,...........,....##,,,,.,,##############',
+      '#....................HH,,.,,,,##############',
+      '#.S..................##,,,,,,,##############',
+      '#....................#######################',
+      '#########==#################################',
+      '#........==..........##.WWWWWWW..WWWWWWWW..#',
+      '#.WWWWWWW==....~~~.#.#..WBFFFBW..WZFFFFBW.##',
+      '#.WTFFFTW==.,..~~~.#.#..WKKKKKW..WFFFFFFW.##',
+      '#.WFFFFFW==.............WFFFFFW..WFTFFTFW..#',
+      '#.WTFFFTW==.............WFTFTFW..WFFFFFFW..#',
+      '#.WWWDWWW==..WWWWWWW.#..WWWDWWW..WWWWDWWW#.#',
+      '#....=...==..WBFFFBW.#.#...=.WWWWWWW.=.....#',
+      '#....======..WKKKKKW.#.....=.WZFFBFW.=...,.#',
+      '#...,....==..WFFFFFW.#.,...=.WFTFFFW.=.,...#',
+      '#.##.....==..WWWDWWW.#.....=.WWWDWWW.=..,..#',
+      '#........=================================.#',
+      '#.#.,..#.==..,....,#.#,....................#',
+      '#........==.............,......,..,.....,..#',
+      '#########EE#################################',
     ],
     ground: [92, 158, 102],
     path: [150, 192, 140],
@@ -309,11 +448,42 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     buildings: [
       { id: 'flora-greenhouse', name: "Flora's Greenhouse", x: 2, y: 15, w: 7, h: 5, roof: 'leaf', style: 'leaf', sign: 'sage' },
       { id: 'tadpole-tonics', name: "Tadpole's Tonics", x: 13, y: 19, w: 7, h: 5, roof: 'green', style: 'leaf', sign: 'shop' },
+      // East meadow district (village expansion).
+      { id: 'sunseed-stand', name: 'Sunseed Stand', x: 24, y: 14, w: 7, h: 6, roof: 'thatch', style: 'leaf', sign: 'shop' },
+      { id: 'bee-cottage', name: "Beekeeper's Cottage", x: 33, y: 14, w: 8, h: 6, roof: 'leaf', style: 'leaf', sign: 'house' },
+      { id: 'sprout-treehouse', name: "Sprout's Treehouse", x: 29, y: 20, w: 7, h: 4, roof: 'green', style: 'leaf', sign: 'house' },
     ],
     npcs: [
       { defId: 'sage-flora', x: 5, y: 17 },
       { defId: 'verdara-villager', x: 16, y: 11 },
       { defId: 'verdara-merchant', x: 16, y: 20 },
+      { defId: 'verdara-seed-merchant', x: 27, y: 15 },
+      { defId: 'verdara-beekeeper', x: 36, y: 17 },
+      { defId: 'verdara-kid', x: 30, y: 25 },
+      { defId: 'verdara-botanist', x: 40, y: 21 },
+    ],
+    secrets: [
+      {
+        id: 'verdara-queen-bee',
+        x: 28,
+        y: 10,
+        text: 'A hidden glade full of clover — and the runaway Queen Bee, napping on a blossom!',
+        reward: { questItem: 'queen-bee' },
+      },
+      {
+        id: 'verdara-treehouse-bed',
+        x: 30,
+        y: 21,
+        text: "Under Sprout's hammock: an emergency snack stash! Sprout says you can share.",
+        reward: { items: { snack: 2 } },
+      },
+      {
+        id: 'verdara-lily-pond',
+        x: 16,
+        y: 15,
+        text: 'A frog hops off a lily pad, revealing a tiny bottle and a few coins.',
+        reward: { coins: 30, items: { potion: 1 } },
+      },
     ],
     enemies: [
       { defId: 'spore-puff', x: 5, y: 9 },
@@ -332,36 +502,37 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   gearfall: {
     id: 'gearfall',
     name: 'Gearfall Canyon',
+    kind: 'field',
     topic: 'engineering',
     map: [
-      '######################',
-      '#....,....#......,...#',
-      '#.S.......#..........#',
-      '#.........#...##.....#',
-      '#...##....#..........#',
-      '#.........#..........#',
-      'E.........G..........#',
-      'E.........G..........#',
-      '#...##....#...##.....#',
-      '#.........#..........#',
-      '#....,....#.......,..#',
-      '#.........#........C.#',
-      '#....,....#....,.....#',
-      '####==################',
-      '#...==...............#',
-      '#...==..,.#...,....#.#',
-      '#...==============.#.#',
-      '#...==============...#',
-      '#.........==.........#',
-      '#.WWWWWWWW==WWWWWWW..#',
-      '#.WTFFFTTW==WBFFFBW..#',
-      '#.WFFFFFFW==WKKKKKW..#',
-      '#.WBFFFFBW==WFFFFFW..#',
-      '#.WWWDWWWW==WWWDWWW..#',
-      '#....===========.....#',
-      '##.,......##.....,..##',
-      '#....................#',
-      '######################',
+      '############################################',
+      '#....,....#......,...#######################',
+      '#.S.......#..........##...,..........#....##',
+      '#.........#...##.....##....WWWWWWWWW.H..,.##',
+      '#...##....#..........##....WTFFFFFTW.#....##',
+      '#.........#..........##.#..WFFFFFFFW.#######',
+      'E.........G..........##.#..WBFFFFFBW......##',
+      'E.........G..........##....WFFFFFFFW......##',
+      '#...##....#...##.....##.,..WFFFFFFFW......##',
+      '#.........#..........##....WWWWDWWWW....#.##',
+      '#....,....#.......,..##..#.....==.........##',
+      '#.........#........C.###.....,.==...#..,..##',
+      '#....,....#....,.....##########==###########',
+      '####==#########################==###########',
+      '#...==..................##.....==.....,..#.#',
+      '#...==..,.#...,....#.#......,..==.........##',
+      '#...=======================================#',
+      '#...=======================================#',
+      '#.........==..............=.........=......#',
+      '#.WWWWWWWW==WWWWWWW....WWWWWWW..WWWWWWWW...#',
+      '#.WTFFFTTW==WBFFFBW....WBFFFBW..WTFFFBBW...#',
+      '#.WFFFFFFW==WKKKKKW...,WKKKKKW..WFFFFFFW...#',
+      '#.WBFFFFBW==WFFFFFW....WFFFFFW..WFTFFFFW.,.#',
+      '#.WWWDWWWW==WWWDWWW....WTFFFTW..WZFFFFFW...#',
+      '#....===========.......WWWDWWW..WWWWDWWW...#',
+      '##.,......##.....,..##.....................#',
+      '#.....................#...,...#,..........##',
+      '############################################',
     ],
     ground: [176, 142, 100],
     path: [205, 180, 140],
@@ -371,11 +542,42 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     buildings: [
       { id: 'cog-workshop', name: "Cog's Workshop", x: 2, y: 19, w: 8, h: 5, roof: 'copper', style: 'brass', sign: 'tools' },
       { id: 'volt-gadgets', name: "Volt's Gadgets", x: 12, y: 19, w: 7, h: 5, roof: 'slate', style: 'brass', sign: 'shop' },
+      // East district + Clockwork Plaza (village expansion).
+      { id: 'coil-spring', name: 'Coil & Spring', x: 23, y: 19, w: 7, h: 6, roof: 'teal', style: 'brass', sign: 'shop' },
+      { id: 'inventor-workshop', name: "Sprocket's Workshop", x: 32, y: 19, w: 8, h: 6, roof: 'red', style: 'brass', sign: 'tools' },
+      { id: 'clocktower', name: 'Clocktower', x: 27, y: 3, w: 9, h: 7, roof: 'dusk', style: 'brass', sign: 'star' },
     ],
     npcs: [
       { defId: 'sage-cog', x: 5, y: 21 },
       { defId: 'gearfall-villager', x: 4, y: 9 },
       { defId: 'gearfall-merchant', x: 15, y: 20 },
+      { defId: 'gearfall-coil-merchant', x: 26, y: 20 },
+      { defId: 'gearfall-inventor', x: 35, y: 21 },
+      { defId: 'gearfall-clockkeeper', x: 31, y: 5 },
+      { defId: 'gearfall-apprentice', x: 34, y: 11 },
+    ],
+    secrets: [
+      {
+        id: 'gearfall-gear-crate',
+        x: 24,
+        y: 5,
+        text: 'A loose plate on the crate swings open — a shiny Brass Gear rolls out!',
+        reward: { questItem: 'brass-gear' },
+      },
+      {
+        id: 'gearfall-nook-gear',
+        x: 40,
+        y: 3,
+        text: 'A hidden nook behind the canyon wall! A Silver Gear and some coins sit in an old oil tin.',
+        reward: { coins: 25, questItem: 'silver-gear' },
+      },
+      {
+        id: 'gearfall-workshop-bed',
+        x: 33,
+        y: 23,
+        text: "Professor Sprocket keeps spare parts under the bed. 'Take some — science should be shared!'",
+        reward: { items: { coil: 1, spark: 1 } },
+      },
     ],
     enemies: [
       { defId: 'bolt-mouse', x: 6, y: 4 },
@@ -394,6 +596,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   chromaria: {
     id: 'chromaria',
     name: 'Chromaria',
+    kind: 'field',
     topic: 'creativity',
     map: [
       '#########EE#################################',
@@ -409,6 +612,20 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#..........~~........#..WBFFFFFBW=WFFFFFW..#',
       '#....................#..WWWWDWWWW=WWWDWWW..#',
       '#..............C.....#=====================#',
+      '################################==##########',
+      '#..........#..........,.........==......,..#',
+      '#..========================================#',
+      '###########.............WWWWWWW..WWWWWWWWWW#',
+      '#,,,,,,,,,#.WWWWWWWW.,..WBFFFBW#.WBFBFFBFBW#',
+      '#,,#,,,#,,#.WZFFFFBW....WKKKKKW#.WFFFFFFFFW#',
+      '#,,,,,,,,,#.WFFFFFFW.#..WFFFFFW..WFFTFFTFFW#',
+      '#,,,.,,,,,H.WFTFFTFW.#..WTFFFTW..WFFFFFFFFW#',
+      '#,,,..,,#,#.WFFFFFFW....WWWDWWW..WFFFFFFFFW#',
+      '#,,,,.,,,,#.WWWDWWWW.,.....=.....WWWWDWWWWW#',
+      '#,#,,,,,,,#....=...........=.........=.....#',
+      '#,,,,,#,,,#================================#',
+      '#,,,,,,,,,#....................,..........##',
+      '#,,,,,,,,,#.,...........................,..#',
       '############################################',
     ],
     ground: [172, 122, 168],
@@ -419,11 +636,42 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     buildings: [
       { id: 'muse-atelier', name: "Muse's Atelier", x: 24, y: 7, w: 9, h: 5, roof: 'pink', style: 'paint', sign: 'sage' },
       { id: 'swirl-studio', name: "Swirl's Paint & Charms", x: 34, y: 7, w: 7, h: 5, roof: 'teal', style: 'paint', sign: 'shop' },
+      // South district (village expansion), down the lane from the street.
+      { id: 'mirror-hall', name: 'Mirror Hall', x: 24, y: 16, w: 7, h: 6, roof: 'purple', style: 'paint', sign: 'shop' },
+      { id: 'grand-gallery', name: 'Grand Gallery', x: 33, y: 16, w: 10, h: 7, roof: 'red', style: 'paint', sign: 'star' },
+      { id: 'music-house', name: 'Music House', x: 12, y: 17, w: 8, h: 6, roof: 'blue', style: 'paint', sign: 'house' },
     ],
     npcs: [
       { defId: 'sage-muse', x: 28, y: 9 },
       { defId: 'chromaria-villager', x: 16, y: 5 },
       { defId: 'chromaria-merchant', x: 37, y: 8 },
+      { defId: 'chromaria-mirror-merchant', x: 27, y: 17 },
+      { defId: 'chromaria-curator', x: 37, y: 18 },
+      { defId: 'chromaria-musician', x: 16, y: 19 },
+      { defId: 'chromaria-kid', x: 20, y: 25 },
+    ],
+    secrets: [
+      {
+        id: 'chromaria-lost-painting',
+        x: 4,
+        y: 21,
+        text: 'A secret sculpture garden! Leaning on a statue: the missing masterpiece, "Sunrise in Seven Colours".',
+        reward: { questItem: 'lost-painting' },
+      },
+      {
+        id: 'chromaria-mirror-table',
+        x: 25,
+        y: 20,
+        text: 'One hand mirror on the display table shows a different room… reach in and find a Mirror Charm and some coins!',
+        reward: { coins: 20, items: { mirror: 1 } },
+      },
+      {
+        id: 'chromaria-pond',
+        x: 37,
+        y: 2,
+        text: 'The rainbow pond shimmers — a Rainbow Ward and a handful of coins sparkle under the water.',
+        reward: { coins: 40, items: { ward: 1 } },
+      },
     ],
     enemies: [
       { defId: 'doodle-imp', x: 6, y: 5 },
@@ -440,45 +688,48 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   },
 
   // --- Expansion: the homeward regions (story zones, no topic) ----------------
-  // These are safe exploration screens reached through the village — no fiends,
+  // These are exploration screens around the village (on Dawnreach since #75) — no fiends,
   // gates, or chests (those need a topic). They carry the expanded narrative.
 
   'lumina-village': {
     id: 'lumina-village',
     name: 'Lumina Village',
-    // A two-by-two-screen market town (#72): the camera scrolls with the hero.
-    // Four enterable buildings — Clove's Curios (NW), the Sleepy Sheep Inn
-    // (NE, the world's only inn), the Lantern Workshop (SW) and Grandmother
-    // Wick's house (SE) — around a plaza with the save crystal.
+    kind: 'town',
+    // A three-by-two-screen market town (#72, grown east in the village
+    // expansion): the camera scrolls with the hero. West: Clove's Curios, the
+    // Sleepy Sheep Inn (the world's only inn), the Lantern Workshop and
+    // Grandmother Wick's house around the plaza and fountain. East: the Town
+    // Hall, Clover's Market, Dot's Bakery, Nib's house and a hedge garden
+    // reached only through a hidden gap (H) in its west hedge.
     map: [
-      '#####################EE#####################',
-      '#....................==....................#',
-      '#.#..................==....................#',
-      '#...WWWWWWWWW..##....==....##..WWWWWWWWW...#',
-      '#...WBBFFFBBW..#....,==,....#..WZFZFZFZW...#',
-      '#...WFFFFFFFW........==........WFFFFFFFW...#',
-      '#...WKKKKKKKW........==........WFFFFFFFW...#',
-      '#...WFTFFFTFW........==........WTFFFFFTW...#',
-      '#...WFFFFFFFW...#...,==,.......WFFFFFFFW...#',
-      '#...WWWWDWWWW........==.....#..WWWWDWWWW...#',
-      '#.#.....=........==========........=.....#.#',
-      '#.#..,,.=...,....=S========...,,...=..,..#.#',
-      '#.......=........==========........=.......#',
-      'E==========================================E',
-      'E==========================================E',
-      '#..............,.=======~~=.,..............#',
-      '#.....,....,.....=======~~=.........,..,...#',
-      '#.#..............==========................#',
-      '#...WWWWWWWWWWW......==.......WWWWWWWWW....#',
-      '#...WTFFFFFFFTW......==.......WZFFFFBBW....#',
-      '#...WFFFFFFFFFW.##...==...##..WFFFFFFFW..#.#',
-      '#...WFTTFFFTTFW......==.......WFFTTFFFW..#.#',
-      '#...WFFFFFFFFFW....#.==.#.....WFFFFFFFW....#',
-      '#...WBFFFFFFFBW...,..==..,....WFFFFFFFW....#',
-      '#...WFFFFFFFFFW......==.......WWWWDWWWW....#',
-      '#...WWWWWDWWWWW......==...........=........#',
-      '#.========================================.#',
-      '###EE################EE#####################',
+      '#####################EE###########################################',
+      '#....................==.....................,............,.....,.#',
+      '#.#..................==....................#.WWWWWWWWWWW##.......#',
+      '#...WWWWWWWWW..##....==....##..WWWWWWWWW...#.WBBFFFFFBBW..WWWWWWW#',
+      '#...WBBFFFBBW..#....,==,....#..WZFZFZFZW.....WFFFFFFFFFW..WBFFFBW#',
+      '#...WFFFFFFFW........==........WFFFFFFFW.....WFTFFFFFTFW..WFFFFFW#',
+      '#...WKKKKKKKW........==........WFFFFFFFW.....WFFFFFFFFFW..WKKKKKW#',
+      '#...WFTFFFTFW........==........WTFFFFFTW....#WFFFFFFFFFW..WFFFFFW#',
+      '#...WFFFFFFFW...#...,==,.......WFFFFFFFW.....WBFFFFFFFBW..WFFFFFW#',
+      '#...WWWWDWWWW........==.....#..WWWWDWWWW...#.WWWWWDWWWWW..WWWDWWW#',
+      '#.#.....=........==========........=.....#.#......=..........=...#',
+      '#.#..,,.=...,....=S========...,,...=..,..#.....,..=.....,....=...#',
+      '#.......=........==========........=..............=..........=...#',
+      'E================================================================E',
+      'E================================================================E',
+      '#..............,.=======~~=.,....................=....,....=....,#',
+      '#.....,....,.....=======~~=.........,..,.....WWWWWWWWW..WWWWWWWW.#',
+      '#.#..............==========..................WTFFFFFTW..WZFFFFBW.#',
+      '#...WWWWWWWWWWW......==.......WWWWWWWWW....#.WFFFFFFFW..WFFFFFFW.#',
+      '#...WTFFFFFFFTW......==.......WZFFFFBBW....#.WKKKKKKKW..WFFTTFFW.#',
+      '#...WFFFFFFFFFW.##...==...##..WFFFFFFFW..#..,WFFFFFFFW..WFFFFFFW.#',
+      '#...WFTTFFFTTFW......==.......WFFTTFFFW..#...WFBFFFBFW..WWWDWWWW.#',
+      '#...WFFFFFFFFFW....#.==.#.....WFFFFFFFW......WWWWDWWWW.....=.....#',
+      '#...WBFFFFFFFBW...,..==..,....WFFFFFFFW....#.....=......##########',
+      '#...WFFFFFFFFFW......==.......WWWWDWWWW......,...=..,.#.#,,,,,,,,#',
+      '#...WWWWWDWWWWW......==...........=..............=...#..H,,,..,,,#',
+      '#.=====================================================.#,,,,,,,,#',
+      '###EE################EE###########################################',
     ],
     ground: [120, 160, 110],
     path: [196, 178, 128],
@@ -490,6 +741,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'village-inn', name: 'Sleepy Sheep Inn', x: 31, y: 3, w: 9, h: 7, roof: 'blue', style: 'timber', sign: 'inn' },
       { id: 'lantern-workshop', name: 'Lantern Workshop', x: 4, y: 18, w: 11, h: 8, roof: 'purple', style: 'timber', sign: 'tools' },
       { id: 'wick-house', name: "Wick's House", x: 30, y: 18, w: 9, h: 7, roof: 'green', style: 'timber', sign: 'house' },
+      { id: 'town-hall', name: 'Town Hall', x: 45, y: 2, w: 11, h: 8, roof: 'slate', style: 'timber', sign: 'star' },
+      { id: 'clover-market', name: "Clover's Market", x: 58, y: 3, w: 7, h: 7, roof: 'leaf', style: 'timber', sign: 'shop' },
+      { id: 'dot-bakery', name: "Dot's Bakery", x: 45, y: 16, w: 9, h: 7, roof: 'thatch', style: 'timber', sign: 'shop' },
+      { id: 'nib-house', name: "Nib's House", x: 56, y: 16, w: 8, h: 6, roof: 'pink', style: 'timber', sign: 'house' },
     ],
     npcs: [
       { defId: 'village-shopkeeper', x: 8, y: 5 },
@@ -497,26 +752,56 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'village-elder', x: 35, y: 22 },
       { defId: 'village-friend', x: 19, y: 15 },
       { defId: 'village-keeper', x: 9, y: 21 },
+      { defId: 'village-mayor', x: 50, y: 4 },
+      { defId: 'village-clover-merchant', x: 61, y: 5 },
+      { defId: 'village-baker', x: 49, y: 18 },
+      { defId: 'village-guard', x: 54, y: 11 },
+      { defId: 'village-kid', x: 51, y: 24 },
+    ],
+    secrets: [
+      {
+        id: 'village-fountain-seal',
+        x: 24,
+        y: 15,
+        text: 'Something glints at the bottom of the fountain… the Mayor\'s golden Town Seal!',
+        reward: { questItem: 'town-seal' },
+      },
+      {
+        id: 'village-hall-shelf',
+        x: 54,
+        y: 3,
+        text: 'A hollow book on the Town Hall shelf hides two Hint Feathers.',
+        reward: { items: { hint: 2 } },
+      },
+      {
+        id: 'village-secret-garden',
+        x: 63,
+        y: 25,
+        text: 'In the hidden garden, a four-leaf clover grows beside a forgotten coin jar!',
+        reward: { coins: 40, items: { clover: 1 } },
+      },
     ],
     enemies: [],
     exits: [
-      { x: 21, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
-      { x: 22, y: 0, to: 'lumina-field', spawnX: 3, spawnY: 1 },
-      { x: 0, y: 13, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
-      { x: 0, y: 14, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
-      { x: 43, y: 13, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
-      { x: 43, y: 14, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
-      // Hidden grove tucked away in the town's south-west corner (#grove).
-      { x: 3, y: 27, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
-      { x: 4, y: 27, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
-      { x: 21, y: 27, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
-      { x: 22, y: 27, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
+      // Every gate leads out onto Dawnreach (#75 Phase 1), beside the
+      // Village's icon on the side you left by.
+      { x: 21, y: 0, to: 'dawnreach', spawnX: 32, spawnY: 23 },
+      { x: 22, y: 0, to: 'dawnreach', spawnX: 32, spawnY: 23 },
+      { x: 0, y: 13, to: 'dawnreach', spawnX: 31, spawnY: 24 },
+      { x: 0, y: 14, to: 'dawnreach', spawnX: 31, spawnY: 24 },
+      { x: 65, y: 13, to: 'dawnreach', spawnX: 33, spawnY: 24 },
+      { x: 65, y: 14, to: 'dawnreach', spawnX: 33, spawnY: 24 },
+      { x: 3, y: 27, to: 'dawnreach', spawnX: 31, spawnY: 25 },
+      { x: 4, y: 27, to: 'dawnreach', spawnX: 31, spawnY: 25 },
+      { x: 21, y: 27, to: 'dawnreach', spawnX: 32, spawnY: 25 },
+      { x: 22, y: 27, to: 'dawnreach', spawnX: 32, spawnY: 25 },
     ],
   },
 
   'whispering-woods': {
     id: 'whispering-woods',
     name: 'Whispering Woods',
+    kind: 'field',
     topic: 'nature',
     // A gated chest alcove (cols 1-7, behind the col-8 wall) holds the treasure;
     // critters roam the open right half where the spawn and both exits live.
@@ -556,16 +841,19 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'thicket-warden', x: 16, y: 4 },
     ],
     exits: [
-      { x: 21, y: 6, to: 'lumina-village', spawnX: 1, spawnY: 13 },
-      { x: 21, y: 7, to: 'lumina-village', spawnX: 1, spawnY: 13 },
-      { x: 10, y: 13, to: 'clockwork-depths', spawnX: 10, spawnY: 2 },
-      { x: 11, y: 13, to: 'clockwork-depths', spawnX: 10, spawnY: 2 },
+      // Out onto Dawnreach beside the Woods' icon (#75 Phase 1). The Depths
+      // are their own cave now, a little way south.
+      { x: 21, y: 6, to: 'dawnreach', spawnX: 18, spawnY: 24 },
+      { x: 21, y: 7, to: 'dawnreach', spawnX: 18, spawnY: 24 },
+      { x: 10, y: 13, to: 'dawnreach', spawnX: 18, spawnY: 25 },
+      { x: 11, y: 13, to: 'dawnreach', spawnX: 18, spawnY: 25 },
     ],
   },
 
   'starfall-coast': {
     id: 'starfall-coast',
     name: 'Starfall Coast',
+    kind: 'field',
     topic: 'space',
     // A gated tide-pool nook (cols 17-20, behind the col-16 wall) holds the
     // chest; star-critters roam the open sand; the sea (water) fills the south.
@@ -605,14 +893,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'tide-colossus', x: 12, y: 3 },
     ],
     exits: [
-      { x: 0, y: 6, to: 'lumina-village', spawnX: 42, spawnY: 13 },
-      { x: 0, y: 7, to: 'lumina-village', spawnX: 42, spawnY: 13 },
+      { x: 0, y: 6, to: 'dawnreach', spawnX: 54, spawnY: 24 },
+      { x: 0, y: 7, to: 'dawnreach', spawnX: 54, spawnY: 24 },
     ],
   },
 
   'clockwork-depths': {
     id: 'clockwork-depths',
     name: 'Clockwork Depths',
+    kind: 'dungeon',
     topic: 'history',
     // A gated vault (the bottom half, behind the row-8 wall) holds the chest;
     // old-machine critters wind through the open upper galleries.
@@ -652,8 +941,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'clockwork-titan', x: 10, y: 5 },
     ],
     exits: [
-      { x: 10, y: 0, to: 'whispering-woods', spawnX: 10, spawnY: 12 },
-      { x: 11, y: 0, to: 'whispering-woods', spawnX: 10, spawnY: 12 },
+      // Up out of the cave mouth onto Dawnreach (#75 Phase 1).
+      { x: 10, y: 0, to: 'dawnreach', spawnX: 13, spawnY: 36 },
+      { x: 11, y: 0, to: 'dawnreach', spawnX: 13, spawnY: 36 },
     ],
   },
 
@@ -662,6 +952,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   'moonwell-grove': {
     id: 'moonwell-grove',
     name: 'Moonwell Grove',
+    kind: 'field',
     topic: 'nature',
     map: [
       '##########EE##########',
@@ -695,14 +986,16 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'grumblebee', x: 16, y: 9 },
     ],
     exits: [
-      { x: 10, y: 0, to: 'lumina-village', spawnX: 3, spawnY: 26 },
-      { x: 11, y: 0, to: 'lumina-village', spawnX: 3, spawnY: 26 },
+      // Back out through the gap in the trees (#75 Phase 1).
+      { x: 10, y: 0, to: 'dawnreach', spawnX: 20, spawnY: 40 },
+      { x: 11, y: 0, to: 'dawnreach', spawnX: 20, spawnY: 40 },
     ],
   },
 
   'crystal-spire': {
     id: 'crystal-spire',
     name: 'The Crystal Spire',
+    kind: 'field',
     map: [
       '##########EE##########',
       '#....................#',
@@ -727,11 +1020,154 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [{ defId: 'spire-keeper', x: 16, y: 6 }],
     enemies: [],
     exits: [
-      { x: 10, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 26 },
-      { x: 11, y: 0, to: 'lumina-village', spawnX: 21, spawnY: 26 },
+      { x: 10, y: 0, to: 'dawnreach', spawnX: 32, spawnY: 38 },
+      { x: 11, y: 0, to: 'dawnreach', spawnX: 32, spawnY: 38 },
     ],
     // The Spire itself stands in the central shrine — the endgame entrance.
     spire: { x: 10, y: 6 },
+  },
+
+  // --- The overworld (#75 Phase 1) --------------------------------------------
+  // Dawnreach, the home continent — a 64×48 slice around Lumina Village. Every
+  // place is an icon ('P') you walk onto; leaving a place puts you back beside
+  // its icon. Roads link the Village to the Field (north), the Woods (west),
+  // the Coast (east) and the Spire's plateau (south), with a branch to the
+  // Clockwork Depths cave; the Grove hides in a ring of trees (find the gap);
+  // the Shrine of First Light waits behind fog that lifts with the first
+  // restored crystal. Painted by a script, kept as plain ASCII.
+  dawnreach: {
+    id: 'dawnreach',
+    name: 'Dawnreach',
+    kind: 'overworld',
+    map: [
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~::::..,...:::::~~~:::::^^~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~::::::::::.............:::::.,^^^^^~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~:::.........#...................^^^..,.~~~~~~~~~~~~~',
+      '~~~~~~~~~~~::,........................,....^^^...,.~~~~~~~~~~~~~',
+      '~~~~~~~~~~:....................,P..........^^^...P..~~~~~~~~~~~~',
+      '~~~~~~~~~:..,...................=......,.,.^^^=,....,~~~~~~~~~~~',
+      '~~~~~~~~:..........,............=........,..^==.....^^~~~~~~~~~~',
+      '~~~~~~~::...........,....,......=.,..,......^=^^^^^^^^~~~~~~~~~~',
+      '~~~~~~~:........,...,...........=.........====^^^^^^^::~~~~~~~~~',
+      '~~~~~~::######,..............,..=.........=.....^^^,..::~~~~~~~~',
+      '~~~~~~::########................=,........=...........::~~~~~~~~',
+      '~~~~~~:##########.....,,.,......=...=======....,.......::~~~~~~~',
+      '~~~~~::##########...,...........=...=..................:::~~~~~~',
+      '~~~~~::###########,.............=...=..............,...::::~~~~~',
+      '~~~~~::###########..............=...=..............,....:::~~~~~',
+      '~~~~~::###########..............=...=...................::::~~~~',
+      '~~~~~::###########.....,........=#..=...................::::~~~~',
+      '~~~~~~:###########........,...,.=..,=...,................:::~~~~',
+      '~~~~~~:###########..,#..,.......=.#.=.........#..........:::~~~~',
+      '~~~~~~:##########P==============P======================P.::::~~~',
+      '~~~~~~:###########......=.......=.............,..........::::~~~',
+      '~~~~~~:###########......=....,..=.,...,...................:::~~~',
+      '~~~~~~:##########.......=.,.....=.............,...........:::~~~',
+      '~~~~~~::#########.......=.......=......,..................:::~~~',
+      '~~~~~~::########........=....,..=,,....................,..::~~~~',
+      '~~~~~~::######===========...#...=..,.....................:::~~~~',
+      '~~~~~~::......=.................=......,,................:::~~~~',
+      '~~~~~~~:^^^^..=.................=.........,.............:::~~~~~',
+      '~~~~~~~:^^^^^^=......#......,...=.......................::~~~~~~',
+      '~~~~~~~::^^^^^=...............,.=............#.........::~~~~~~~',
+      '~~~~~~~~:^^^^^=...,...#.........=...,.................::~~~~~~~~',
+      '~~~~~~~~::^^P==.......,......^^.=.^^.........,.......::~~~~~~~~~',
+      '~~~~~~~~~:^^^^^......###...,^^..=..^^...........,...::~~~~~~~~~~',
+      '~~~~~~~~~~:^^^^.....#####...^^..=..^^..............::~~~~~~~~~~~',
+      '~~~~~~~~~~::^^.....##...##.,^...P...^.............::~~~~~~~~~~~~',
+      '~~~~~~~~~~~:::........P.##..^^.....^^............:~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~::::::##...##..^^.....^^.......,..::~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~#::..^^^^^^^,,::::::::::~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~:::..^^^::::::::::~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~:::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    ],
+    ground: [104, 168, 104],
+    path: [196, 178, 128],
+    solidEmoji: '🌳',
+    decoEmoji: '🌼',
+    spawn: { x: 32, y: 23 },
+    places: [
+      { x: 32, y: 24, icon: 'town', name: 'Lumina Village' },
+      { x: 32, y: 9, icon: 'hamlet', name: 'Lumina Field' },
+      { x: 17, y: 24, icon: 'forest', name: 'Whispering Woods' },
+      { x: 12, y: 36, icon: 'cave', name: 'Clockwork Depths' },
+      { x: 22, y: 40, icon: 'grove', name: 'Moonwell Grove' },
+      { x: 32, y: 39, icon: 'tower', name: 'The Crystal Spire' },
+      { x: 55, y: 24, icon: 'coast', name: 'Starfall Coast' },
+      { x: 49, y: 9, icon: 'shrine', name: 'Shrine of First Light' },
+    ],
+    exits: [
+      { x: 32, y: 24, to: 'lumina-village', spawnX: 21, spawnY: 1 },
+      { x: 32, y: 9, to: 'lumina-field', spawnX: 3, spawnY: 12 },
+      { x: 17, y: 24, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
+      { x: 12, y: 36, to: 'clockwork-depths', spawnX: 10, spawnY: 2 },
+      { x: 22, y: 40, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
+      { x: 32, y: 39, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
+      { x: 55, y: 24, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
+      { x: 49, y: 9, to: 'dawn-shrine', spawnX: 10, spawnY: 11 },
+    ],
+    fogs: [
+      {
+        id: 'shrine-fog',
+        x: 44,
+        y: 11,
+        w: 3,
+        h: 3,
+        liftedBy: ANY_CRYSTAL,
+        hint: 'Too foggy to pass! Restore a crystal to clear it.',
+      },
+    ],
+    npcs: [{ defId: 'dawnreach-scout', x: 34, y: 22 }],
+    enemies: [
+      { defId: 'thornhare', x: 22, y: 19 },
+      { defId: 'mossback-cub', x: 27, y: 28 },
+      { defId: 'grumblebee', x: 19, y: 33 },
+      { defId: 'tide-sprite', x: 48, y: 29 },
+      { defId: 'meteor-mite', x: 45, y: 19 },
+    ],
+  },
+
+  // A small, quiet shrine behind the fog in Dawnreach's north-east. Old Wren
+  // has kept one candle lit here since the fog came. (#75 Phase 1)
+  'dawn-shrine': {
+    id: 'dawn-shrine',
+    name: 'Shrine of First Light',
+    kind: 'shrine',
+    map: [
+      '######################',
+      '#,..................,#',
+      '#..##....~~~~....##..#',
+      '#..##....~~~~....##..#',
+      '#........~~~~........#',
+      '#,........==........,#',
+      '#.........==.........#',
+      '#.##......==......##.#',
+      '#.##......==......##.#',
+      '#.........==.........#',
+      '#,........==........,#',
+      '#....S....==.........#',
+      '#.........==.........#',
+      '##########EE##########',
+    ],
+    ground: [196, 188, 170],
+    path: [190, 90, 80],
+    solidEmoji: '🏛️',
+    decoEmoji: '🕯️',
+    spawn: { x: 10, y: 11 },
+    npcs: [{ defId: 'shrine-keeper', x: 13, y: 5 }],
+    enemies: [],
+    exits: [
+      { x: 10, y: 13, to: 'dawnreach', spawnX: 49, spawnY: 10 },
+      { x: 11, y: 13, to: 'dawnreach', spawnX: 49, spawnY: 10 },
+    ],
   },
 };
 
@@ -800,4 +1236,18 @@ export function safeSpawn(z: ZoneDef, pos: { x: number; y: number } | null): { x
   if (!pos) return fallback;
   const ch = tileAt(z, Math.floor(pos.x / TILE), Math.floor(pos.y / TILE));
   return WALKABLE_CHARS.has(ch) ? pos : fallback;
+}
+
+/** The unlifted fog bank covering this cell, if any (#75). */
+export function fogAt(z: ZoneDef, x: number, y: number, flags: Record<string, boolean>): FogDef | null {
+  return (
+    z.fogs?.find(
+      (f) => x >= f.x && x < f.x + f.w && y >= f.y && y < f.y + f.h && !f.liftedBy.some((flag) => flags[flag]),
+    ) ?? null
+  );
+}
+
+/** The place on this map whose entrance is at (x, y), if any. */
+export function placeAt(z: ZoneDef, x: number, y: number): PlaceDef | null {
+  return z.places?.find((p) => p.x === x && p.y === y) ?? null;
 }

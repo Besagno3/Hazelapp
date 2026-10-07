@@ -1,45 +1,64 @@
-# Hazel Quest CI: runs the same checks a contributor runs locally
-# (see hazel-game/README.md) on every push and pull request.
+# Lint, test and build the game on every PR and every push to main.
+# The job's check is named `test` — require it in the main-branch ruleset
+# (Settings → Rules → Rulesets → Require status checks, source: GitHub Actions).
+# `edge-function` and `migrations` (#84) check the Supabase side.
+#
+# No `paths:` filter on purpose: a required check that skips some PRs would
+# leave them stuck on "waiting for status".
 name: CI
 
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # One run per branch/PR; a new push cancels the outdated run.
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  app:
-    name: Lint, test, build
+  test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: hazel-game
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          # Vite 8 needs Node ^20.19 || >=22.12.
           node-version: 22
           cache: npm
           cache-dependency-path: hazel-game/package-lock.json
-      - run: npm ci
+
+      - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - name: apply_all_migrations.sql matches supabase/migrations
         run: node scripts/build-apply-all.mjs --check
       - run: npm test
+      # tsc -b (app + bench type-check) then vite build.
       - run: npm run build
 
   edge-function:
     name: Type-check edge function
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: hazel-game/supabase/functions
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -50,6 +69,7 @@ jobs:
   migrations:
     name: Apply migrations + SQL tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:16
@@ -67,7 +87,9 @@ jobs:
       run:
         working-directory: hazel-game/supabase
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Apply the Supabase stub and every migration in order
         run: |
           psql -v ON_ERROR_STOP=1 -q -f ci/supabase-stub.sql

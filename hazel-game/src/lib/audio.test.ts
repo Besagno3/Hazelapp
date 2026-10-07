@@ -15,6 +15,16 @@ describe('trackForScreen', () => {
     expect(trackForScreen('world')).toBe('overworld');
   });
 
+  it('in the world, follows the kind of place you are in (#75 Phase 1)', () => {
+    expect(trackForScreen('world', false, 'overworld')).toBe('overworld');
+    expect(trackForScreen('world', false, 'field')).toBe('overworld');
+    expect(trackForScreen('world', false, 'town')).toBe('town');
+    expect(trackForScreen('world', false, 'dungeon')).toBe('cave');
+    expect(trackForScreen('world', false, 'shrine')).toBe('shrine');
+    // Kind only matters in the world.
+    expect(trackForScreen('battle', false, 'town')).toBe('battle');
+  });
+
   it('uses the boss theme only for boss battles', () => {
     expect(trackForScreen('battle', false)).toBe('battle');
     expect(trackForScreen('battle', true)).toBe('boss');

@@ -45,7 +45,16 @@ ZONES = {
                            sky=('#101a3a', '#3a4a8a'), far='#1a2a4a', mid='pine', water='#3a5ab0', stars=True, moon=True),
     'crystal-spire': dict(ground=(120, 110, 180), path=(180, 170, 220), solid='pillar', deco='sparkle', deco_c='#fff4b0',
                           sky=('#2a1a5a', '#9a7ae0'), far='#4a3a8a', mid='crystals', water='#5a5ae0', stars=True),
+    # Overworld (#75 Phase 1): Dawnreach's grass and the Shrine of First Light.
+    'dawnreach': dict(ground=(100, 164, 98), path=(196, 178, 128), solid='tree', deco='flower', deco_c='#ffe066',
+                      sky=('#6ab8ff', '#cfeeff'), far='#7aa0c8', mid='mountain', water='#3a7ad0'),
+    'dawn-shrine': dict(ground=(196, 188, 170), path=(190, 90, 80), solid='shrinepillar', deco='candle', deco_c='#ffd24a',
+                        sky=('#2a1a4a', '#7a6ab0'), far='#4a3a6a', mid='crystals', water='#6ad0f0', cave=True),
 }
+
+# Zones added after the first asset run (#75 Phase 1) — `build_overworld` writes
+# only these (plus the overworld sheet), so existing files stay untouched.
+NEW_ZONES = ('dawnreach', 'dawn-shrine')
 
 
 def _c() -> Canvas:
@@ -139,6 +148,12 @@ def solid(kind, zone):
         c.poly([(0.5, 8), (8, 1), (15.5, 8)], '#c0503a')
         c.rect(6.5, 11, 9.5, 16, '#7a4a2a')
         c.rect(10.5, 9, 13, 11.5, '#8ad0ff')
+    elif kind == 'shrinepillar':
+        c.rect(2, 13, 14, 16, '#c8a060')
+        c.rect(4, 3, 12, 13, '#f4eee2')
+        c.rect(2, 1, 14, 3.5, '#c8a060')
+        for x in (5.5, 8, 10.5):
+            c.rect(x, 4, x + 0.8, 12.5, '#ddd4c0', shade=False)
     elif kind == 'pillar':
         c.rect(2, 13, 14, 16, '#9a8ad0')
         c.rect(4, 3, 12, 13, '#d8d0f8')
@@ -186,6 +201,12 @@ def deco(kind, colr):
             c.rect(x, 7, x + 1, 13, '#3a7a4a', shade=False)
             for y in (4, 5.5, 7):
                 c.dot(x, y, colr)
+    elif kind == 'candle':
+        for (x, y) in ((4.5, 7), (11, 10)):
+            c.rect(x - 1, y, x + 1, y + 5, '#f4ecd8')
+            c.ellipse(x, y - 1.2, 0.9, 1.6, '#ff8a3a', shade=False)
+            c.dot(x, y - 1, colr)
+        return c
     elif kind == 'sparkle':
         for (x, y) in ((5, 5), (11, 10)):
             c.dot(x, y - 2, colr, h=5)
@@ -781,7 +802,229 @@ def _mid_shape(img, kind, x0, base, col, rnd):
         fill(lambda x, y: (x + y) % 7 == 0, x0 - 2, x0 + 22, base - 8, base - 6, c=(200, 230, 255))
 
 
+# ─── Overworld sheet (#75 Phase 1) ───────────────────────────────────────────
+# One 32px strip shared by every overworld (keep in sync with OVERWORLD_FRAME in
+# src/content/tiles.ts): 0 mountain overlay · 1 sand · 2-3 fog (drifting) ·
+# 4 town · 5 hamlet · 6 forest · 7 cave · 8 shrine · 9 coast · 10 grove.
+
+
+def ow_mountain():
+    c = _c()
+    c.poly([(0, 15.5), (5.5, 4), (9, 9), (12, 3), (16, 15.5)], '#8a90a8')
+    c.poly([(5.5, 4), (9, 9), (7.5, 15.5), (0, 15.5)], '#767c94')
+    c.poly([(4, 7.2), (5.5, 4), (7.2, 7.4), (5.6, 6.6)], '#f0f4ff', shade=False)
+    c.poly([(10.4, 6.4), (12, 3), (13.8, 6.8), (12, 6)], '#f0f4ff', shade=False)
+    return _outlined(c)
+
+
+def ow_sand():
+    c = _c()
+    _speckle(c, (226, 210, 156), 311, density=0.2, tufts=False)
+    c.dot(4, 11, '#ffffff')
+    c.dot(12, 5, '#f8d0c0')
+    return c
+
+
+def ow_fog(frame):
+    c = _c()
+    for (x, y, rx, ry) in ((4 + frame * 2, 5, 5, 3.4), (12 - frame * 2, 9, 5.5, 3.6), (6 + frame, 13, 5, 3)):
+        c.ellipse(x, y, rx, ry, '#eef0fa')
+    # a soft bank: every pixel at least lightly fogged, the puffs denser
+    a = c.a
+    a[:, :, :3] = np.where(a[:, :, 3:4] > 0, a[:, :, :3], np.array([226, 228, 242], dtype=np.uint8))
+    a[:, :, 3] = np.where(a[:, :, 3] > 0, 210, 150).astype(np.uint8)
+    return c
+
+
+def ow_icon(kind):
+    c = _c()
+    if kind == 'town':
+        for (x0, y0, roof) in ((1, 7, '#d0503a'), (8, 5, '#3a6ad0')):
+            c.rect(x0 + 1, y0 + 3, x0 + 7, y0 + 9, '#f0e0c0')
+            c.poly([(x0, y0 + 3.5), (x0 + 4, y0 - 0.5), (x0 + 8, y0 + 3.5)], roof)
+            c.rect(x0 + 3.5, y0 + 6, x0 + 5, y0 + 9, '#7a4a2a')
+        c.dot(12, 9, '#8ad0ff')
+    elif kind == 'hamlet':
+        c.rect(1.5, 9, 8, 15, '#f4ecd8')
+        c.poly([(0.5, 9.5), (4.8, 5), (9, 9.5)], '#c0703a')
+        c.rect(4, 12, 5.5, 15, '#7a4a2a')
+        c.rect(11, 6, 14, 15, '#e8dcc0')
+        c.line(9, 3, 16, 10, '#8a6a4a', w=1.0)
+        c.line(16, 3, 9, 10, '#8a6a4a', w=1.0)
+        c.dot(12.5, 6.5, '#5a3a2a', w=1, h=1)
+    elif kind == 'forest':
+        for (x, y, h) in ((4, 4, 11), (12, 4, 11), (8, 2, 12)):
+            c.rect(x - 0.6, y + h - 1, x + 0.6, y + h + 1, '#5a3a2a')
+            c.poly([(x, y), (x + 4.2, y + h), (x - 4.2, y + h)], '#2a7a4a')
+        c.ellipse(8, 14.5, 2, 1.4, '#1a2a1a', shade=False)
+    elif kind == 'cave':
+        c.poly([(0.5, 15.5), (3, 6), (8, 2.5), (13, 5.5), (15.5, 15.5)], '#8a7a6a')
+        c.ellipse(8, 13.5, 3.6, 4, '#1a1420', shade=False)
+        c.rect(4.4, 13.5, 11.6, 15.6, '#1a1420', shade=False)
+        c.dot(5, 6, '#b0a090', w=2, h=1)
+    elif kind == 'shrine':
+        c.rect(2, 13, 14, 15.5, '#c8a060')
+        for x in (3.5, 11):
+            c.rect(x, 7, x + 1.6, 13, '#f4eee2')
+        c.rect(5.5, 9, 10.5, 13, '#fff4d0', shade=False)
+        c.poly([(1, 7.5), (8, 2), (15, 7.5)], '#e0b040')
+        c.ellipse(8, 10.5, 1, 1.6, '#ffb03a', shade=False)
+    elif kind == 'coast':
+        c.ellipse(8, 14.5, 7, 2, '#8a8a8a')
+        for i, y in enumerate(range(4, 14, 2)):
+            c.rect(6, y, 10, y + 2, '#e04848' if i % 2 == 0 else '#f4f4f4')
+        c.rect(5.5, 2, 10.5, 4, '#3a3a4a')
+        c.dot(8, 2.8, '#ffe066', w=2, h=1)
+    elif kind == 'grove':
+        c.ellipse(8, 11, 5, 3, '#3a5ab0')
+        c.ellipse(9, 10.5, 1.6, 1.6, '#fff4c8', shade=False)
+        c.ellipse(9.8, 10.1, 1.4, 1.4, '#3a5ab0', shade=False)
+        for (x, y) in ((2.5, 6), (13.5, 6)):
+            c.ellipse(x, y, 2.6, 3.4, '#2a6a4a')
+        c.dot(5, 4, '#fff27a')
+        c.dot(11, 3, '#fff27a')
+    return _outlined(c)
+
+
+OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove')
+
+
+def overworld_sheet():
+    return [ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
+
+
+# ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
+#
+# A "dual grid": the renderer draws a 32px tile centred on every tile corner
+# where different terrain meets, so coastlines and road edges come out rounded
+# instead of square. Terrain classes stack low → high: water, sand, ground,
+# path. A class's shape at a corner is a 4-bit mask of which of the 4 cells
+# around it reach that class (top-left 1, top-right 2, bottom-left 4,
+# bottom-right 8). Shapes get a foam line where they sit on water and a darker
+# rim on land. Textures are the zone's own, shifted half a tile so they line up
+# with the cells around them.
+#
+# Most corners hold just two classes, so each pair comes ready-made as one
+# opaque tile (one draw). The rare corner with three or four classes draws its
+# lowest pair, then the higher shapes on top — those always sit on land (water
+# is always the lowest class), so single shapes only need the rim.
+#
+# Sheet layout (32×32 frames, 16 per row; mask m indexes as m-1) — keep in sync
+# with src/content/tiles.ts:
+#   0–44     shapes (rim): sand, ground, path × 15 masks
+#   45–134   water pairs: upper sand, ground, path × water frame 0, 1 × 15 masks
+#   135–179  land pairs: sand|ground, sand|path, ground|path × 15 masks
+
+BLEND_CLASSES = ('water', 'sand', 'ground', 'path')
+BLEND_LAND_PAIRS = ((1, 2), (1, 3), (2, 3))
+BLEND_COLS = 16
+BLEND_ROWS = 12
+FOAM = (236, 246, 255)
+
+
+def _half_shift(c: Canvas) -> np.ndarray:
+    """The tile's texture moved half a tile, so a corner tile matches its cells."""
+    return np.roll(np.roll(c.a.copy(), T // 2, axis=0), T // 2, axis=1)
+
+
+def blend_mask_field(mask: int):
+    """Per pixel: inside the shape?, and signed distance to its edge (px, + inside)."""
+    tl, tr, bl, br = (mask >> 0) & 1, (mask >> 1) & 1, (mask >> 2) & 1, (mask >> 3) & 1
+    c = (np.arange(T) + 0.5) / T
+    x, y = np.meshgrid(c, c)  # across, down
+    # Smoothstep before blending the corners: plain bilinear contours are
+    # nearly straight diagonals (octagonal coasts); this rounds them.
+    u, v = x * x * (3 - 2 * x), y * y * (3 - 2 * y)
+    du, dv = 6 * x * (1 - x), 6 * y * (1 - y)
+    f = tl * (1 - u) * (1 - v) + tr * u * (1 - v) + bl * (1 - u) * v + br * u * v
+    fu = ((1 - v) * (tr - tl) + v * (br - bl)) * du
+    fv = ((1 - u) * (bl - tl) + u * (br - tr)) * dv
+    grad = np.maximum(np.hypot(fu, fv), 1e-6)
+    dist = (f - 0.5) / grad * T  # in logical pixels
+    return f > 0.5, dist
+
+
+def blend_shape(tex: np.ndarray, mask: int, foam: bool) -> Canvas:
+    """One class's shape: its texture inside, a rim or a foam line at the edge."""
+    inside, dist = blend_mask_field(mask)
+    c = _c()
+    a = c.a
+    a[:] = 0
+    a[inside] = tex[inside]
+    edge = inside & (dist < 1.0)
+    if foam:
+        # Wet edge inside, a bright foam line just outside (over the water).
+        for y, x in zip(*np.nonzero(edge)):
+            a[y, x, :3] = dark(tuple(int(v) for v in tex[y, x, :3]), 0.1)
+        line = ~inside & (dist > -1.25)
+        a[line] = (*FOAM, 230)
+        halo = ~inside & (dist <= -1.25) & (dist > -2.25)
+        a[halo] = (*FOAM, 90)
+    else:
+        for y, x in zip(*np.nonzero(edge)):
+            a[y, x, :3] = dark(tuple(int(v) for v in tex[y, x, :3]), 0.16)
+    return c
+
+
+def blend_pair(lower: np.ndarray, upper: np.ndarray, mask: int, on_water: bool) -> Canvas:
+    """A ready-made opaque corner: the lower class everywhere, the upper's shape on top."""
+    top = blend_shape(upper, mask, on_water).a.astype(np.float32)
+    alpha = top[:, :, 3:4] / 255.0
+    c = _c()
+    c.a[:, :, :3] = np.round(top[:, :, :3] * alpha + lower[:, :, :3] * (1 - alpha)).astype(np.uint8)
+    c.a[:, :, 3] = 255  # opaque: it fully replaces the square corners beneath
+    return c
+
+
+def blend_sheet(z: dict, i: int) -> Image.Image:
+    """The edge-blend sheet for one zone (see the layout above)."""
+    tex = {
+        1: _half_shift(ow_sand()),
+        2: _half_shift(ground(z['ground'], 1 + i * 10)),
+        3: _half_shift(path_tile(z['path'])),
+    }
+    waters = [_half_shift(water(z['water'], f)) for f in (0, 1)]
+    frames: list[Canvas] = []
+    for cls in (1, 2, 3):
+        frames += [blend_shape(tex[cls], m, False) for m in range(1, 16)]
+    for cls in (1, 2, 3):
+        for w in waters:
+            frames += [blend_pair(w, tex[cls], m, True) for m in range(1, 16)]
+    for lo, hi in BLEND_LAND_PAIRS:
+        frames += [blend_pair(tex[lo], tex[hi], m, False) for m in range(1, 16)]
+    sheet = Image.new('RGBA', (BLEND_COLS * T * 2, BLEND_ROWS * T * 2), (0, 0, 0, 0))
+    for n, fr in enumerate(frames):
+        sheet.paste(upscale(fr.image(), 2), ((n % BLEND_COLS) * T * 2, (n // BLEND_COLS) * T * 2))
+    return sheet
+
+
+def build_blend(public: Path):
+    """Write only the edge-blend sheets (#75 / #71b) — every other file untouched."""
+    tdir = public / 'tiles'
+    for i, (zid, z) in enumerate(ZONES.items()):
+        blend_sheet(z, i).save(tdir / f'{zid}-blend.png', optimize=True)
+
+
 # ─── Build ───────────────────────────────────────────────────────────────────
+
+
+def _write_zone(tdir: Path, bdir: Path, i: int, zid: str, z: dict):
+    g = z['ground']
+    frames = [ground(g, 1 + i * 10), ground(g, 2 + i * 10), ground(g, 3 + i * 10), path_tile(z['path']),
+              water(z['water'], 0), water(z['water'], 1), solid(z['solid'], z), deco(z['deco'], z['deco_c']),
+              exit_marker()]
+    strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'{zid}.png', optimize=True)
+    upscale(backdrop(z, 100 + i), 1).save(bdir / f'{zid}.png', optimize=True)
+
+
+def build_overworld(public: Path):
+    """Write only the Phase 1 overworld art (#75): its zones + the overworld sheet."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in NEW_ZONES:
+        _write_zone(tdir, bdir, ids.index(zid), zid, ZONES[zid])
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 
 def build(public: Path) -> list[str]:
@@ -790,13 +1033,10 @@ def build(public: Path) -> list[str]:
     bdir = public / 'backgrounds'
     bdir.mkdir(parents=True, exist_ok=True)
     for i, (zid, z) in enumerate(ZONES.items()):
-        g = z['ground']
-        frames = [ground(g, 1 + i * 10), ground(g, 2 + i * 10), ground(g, 3 + i * 10), path_tile(z['path']),
-                  water(z['water'], 0), water(z['water'], 1), solid(z['solid'], z), deco(z['deco'], z['deco_c']),
-                  exit_marker()]
-        strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'{zid}.png', optimize=True)
-        upscale(backdrop(z, 100 + i), 1).save(bdir / f'{zid}.png', optimize=True)
+        _write_zone(tdir, bdir, i, zid, z)
+        blend_sheet(z, i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in props()]).save(tdir / 'props.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
     for i, (theme, (g, pc, pit, pitc, solid_kind, deco_kind)) in enumerate(SPIRE_THEMES.items()):
         frames = [spire_ground(g, 40 + i * 5, theme), spire_ground(g, 41 + i * 5, theme), spire_ground(g, 42 + i * 5, theme),
                   spire_path(pc, theme), spire_pit(pit, pitc, 0), spire_pit(pit, pitc, 1),

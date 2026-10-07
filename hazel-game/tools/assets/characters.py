@@ -1383,39 +1383,80 @@ def seal(c: Canvas, p: Pose, s: dict):
     finish(c, d)
 
 
+UMBRA_ARMOR = hexc('#1a1226')
+UMBRA_PURPLE = hexc('#7a3ad0')
+UMBRA_CAPE = hexc('#2a1048')
+UMBRA_HELM = hexc('#eceaf2')
+UMBRA_BLADE = '#c890ff'
+
+
 def umbra(c: Canvas, p: Pose, s: dict):
-    """Umbra, the Forgotten One (#74): a hovering hooded shadow-king."""
+    """Umbra, the Forgotten One: an armoured shadow-lord in a white war-helm."""
     d = D(c, p)
-    robe = hexc('#2a1a40')
-    hover = (-1 if p.frame % 2 else 0) * d.u
-    L = d.part(d.lean * 0.5, d.bob + hover)
-    flare = {'raise': 2.5, 'strike': 3.5}.get(p.arm, 0)
-    for side in (-1, 1):  # sleeves + violet flame hands
-        hx = 16 + side * (10 + flare * 0.6)
-        hy = 18 - flare
-        L.line(16 + side * 4, 13, hx, hy, dark(robe, 0.05), w=3.2)
-        L.poly([(hx - 2, hy + 1), (hx, hy - 4 - flare * 0.5), (hx + 2, hy + 1)], '#9a4aff')
-        L.poly([(hx - 1, hy + 1), (hx, hy - 2), (hx + 1, hy + 1)], '#e0b0ff')
-    # tattered robe
-    pts = [(9, 12), (23, 12), (26, 27)]
-    for i, x in enumerate(range(26, 5, -3)):
-        pts.append((x, 30 if (i + p.frame) % 2 else 27.5))
-    pts.append((6, 27))
-    L.poly(pts, robe)
-    L.rect(14.5, 14, 17.5, 26, dark(robe, 0.2), shade=False)  # robe seam
-    # hood with a void for a face
-    L.ellipse(16, 10, 7.5, 7, dark(robe, 0.08))
-    L.ellipse(16, 11.5, 4.8, 4.4, (6, 4, 14), shade=False)
-    ec = (255, 255, 255) if p.hurt else hexc('#c8a8ff')
-    L.dot(14, 11, ec, w=2, h=1)
-    L.dot(17, 11, ec, w=2, h=1)
-    d.put(L)
-    crown = d.part(d.lean * 0.5, d.bob + hover)  # crown of shadow spikes
-    for x, h in ((10, 4), (13, 6), (16, 8), (19, 6), (22, 4)):
-        crown.poly([(x - 1.5, 5), (x, 5 - h), (x + 1.5, 5)], '#5a2a8a')
-    crown.dot(16, 1, '#e0b0ff')
-    d.put(crown)
-    finish(c, d, shadow=(16, 30.5, 8, 1.5))
+    back = p.facing == 'up'
+    step = p.step
+    # cape (behind everything)
+    C = d.part(d.lean * 0.3, d.bob)
+    sway = (p.frame % 2) * 0.8
+    C.poly([(8, 11), (24, 11), (27 + sway, 30), (5 - sway, 30)], UMBRA_CAPE)
+    d.put(C)
+    # legs
+    Lg = d.part(d.lean * 0.5, d.bob)
+    Lg.rect(11.5, 23, 15, 30 - max(step, 0), UMBRA_ARMOR)
+    Lg.rect(17, 23, 20.5, 30 - max(-step, 0), UMBRA_ARMOR)
+    Lg.rect(11, 28.5 - max(step, 0), 15.5, 30.5 - max(step, 0), dark(UMBRA_PURPLE, 0.3))
+    Lg.rect(16.5, 28.5 - max(-step, 0), 21, 30.5 - max(-step, 0), dark(UMBRA_PURPLE, 0.3))
+    d.put(Lg)
+    # torso
+    B = d.part(d.lean * 0.6, d.bob)
+    B.rect(10, 12, 22, 24, UMBRA_ARMOR)
+    B.ellipse(9.5, 13, 3.4, 2.6, UMBRA_PURPLE)       # shoulder plates
+    B.ellipse(22.5, 13, 3.4, 2.6, UMBRA_PURPLE)
+    B.rect(10, 21, 22, 23, dark(UMBRA_PURPLE, 0.2))  # belt
+    B.rect(14.5, 20.6, 17.5, 23.4, '#c8c4d4')  # buckle
+    if not back:
+        B.rect(13, 14.5, 19, 18.5, '#2e2440', shade=False)   # chest panel
+        for i, col in enumerate(('#ff4a6a', '#6ad0ff', '#c890ff', '#7aff8a')):
+            B.dot(13.8 + i * 1.4, 15.6, col)
+        B.rect(13.6, 17, 18.4, 17.8, UMBRA_PURPLE, shade=False)
+    else:
+        B.rect(15, 13, 17, 21, dark(UMBRA_CAPE, 0.1), shade=False)
+    d.put(B)
+    # arms + energy blade
+    A = d.part(d.lean * 0.7, d.bob)
+    up = {'raise': 5, 'strike': -2, 'follow': 1}.get(p.arm, 0)
+    A.line(8.5, 14, 7.5, 21, UMBRA_ARMOR, w=2.6)               # left arm
+    A.ellipse(7.5, 21.5, 1.4, 1.3, dark(UMBRA_PURPLE, 0.2))
+    hx, hy = 24, 20 - up
+    A.line(23.5, 14, hx, hy, UMBRA_ARMOR, w=2.6)               # sword arm
+    d.put(A)
+    S = d.part(d.lean, d.bob)  # violet energy blade
+    tip = {'raise': (24.5, 1), 'strike': (31, 18), 'follow': (30, 12)}.get(p.arm, (27.5, 6))
+    S.line(hx, hy, *tip, UMBRA_BLADE, w=1.9)  # glow
+    S.line(hx, hy, *tip, '#f4e8ff', w=0.7)  # core
+    S.rect(hx - 1, hy - 0.2, hx + 1, hy + 2.2, '#9a96a8')  # hilt
+    d.put(S, outline=False)
+    # helmet
+    H = d.part(d.lean * 0.6, d.bob)
+    H.ellipse(16, 7.5, 5.6, 5.4, UMBRA_HELM)                    # dome
+    H.rect(10.6, 7.5, 21.4, 11.6, UMBRA_HELM)                   # flared cheek guards
+    H.poly([(10, 11.6), (22, 11.6), (21, 12.8), (11, 12.8)], dark(UMBRA_HELM, 0.12))
+    H.rect(15.4, 2.2, 16.6, 6.8, UMBRA_PURPLE, shade=False)     # crest stripe
+    if not back:
+        ec = (255, 255, 255) if p.hurt else (14, 8, 24)
+        H.poly([(11.6, 7.2), (15.2, 7.6), (14.8, 9.6), (12, 9.2)], ec, shade=False)   # angled lenses
+        H.poly([(20.4, 7.2), (16.8, 7.6), (17.2, 9.6), (20, 9.2)], ec, shade=False)
+        if not p.hurt and not p.blink:
+            H.dot(13, 8.2, '#c890ff'); H.dot(18.6, 8.2, '#c890ff')            # lens glint
+        H.poly([(13, 10.2), (19, 10.2), (18, 12.6), (14, 12.6)], (30, 20, 44), shade=False)  # breather grille
+        for x in (14.6, 15.6, 16.6):
+            H.rect(x, 10.6, x + 0.5, 12.2, UMBRA_PURPLE, shade=False)
+        H.poly([(11.2, 9.8), (12.6, 10.4), (12.2, 12.4), (11, 12)], dark(UMBRA_HELM, 0.25), shade=False)   # cheek vents
+        H.poly([(20.8, 9.8), (19.4, 10.4), (19.8, 12.4), (21, 12)], dark(UMBRA_HELM, 0.25), shade=False)
+    else:
+        H.rect(13, 9, 19, 11, dark(UMBRA_HELM, 0.15), shade=False)
+    d.put(H)
+    finish(c, d, shadow=(16, 30.5, 9, 1.5))
 
 
 # ─── Roster ──────────────────────────────────────────────────────────────────
@@ -1451,6 +1492,7 @@ class Char:
     drawer: str
     params: dict = field(default_factory=dict)
     boss: bool = False
+    giant: bool = False  # the final boss: 2× a boss's world size, 2× its battle resolution
     battle: bool = True  # NPCs are world-only
     world: bool = True
 
@@ -1508,7 +1550,7 @@ ROSTER: list[Char] = [
     Char('hourglass-imp', '⏳', 'hourglass'),
     Char('relic-golem', '🗿', 'golem', H(color='#9a8a70', accent='#6ad0c0', glow='#6affe0', runes=True, shield=True)),
     # ── The Crystal Spire ──
-    Char('umbra', '🌑', 'umbra', boss=True),
+    Char('umbra', '🌑', 'umbra', boss=True, giant=True),
     Char('clockwork-titan', '🦾', 'golem', H(color='#c89040', accent='#ff6a3a', glow='#ffe066', bolts=True, crown=True), boss=True),
 ]
 
@@ -1547,6 +1589,31 @@ NPCS: list[Char] = [
     Char('grove-guardian', '🌙', 'ghost', H(color='#dfe8ff', moon=True, eye='#3a4a8a')),
     Char('grove-firefly', '🦋', 'flyer', H(kind='butterfly', color='#5a4a3a', wing='#9ae0ff', spot='#fff27a', glow=True)),
     Char('grove-otter', '🦦', 'humanoid', H(skin='#8a5a3a', ears='round', snout='muzzle', muzzle='#e8d0b0', tail='flat', outfit='#4a8ab0', blush=False)),
+    # ── Village expansion townsfolk ──
+    Char('village-mayor', '🎩', 'humanoid', H(hair='short', hair_color='#d8a040', hat='crown', hat_color='#e8c040', outfit='#8a2a4a', trim='#ffd24a', robe=True, glasses=True)),
+    Char('village-clover-merchant', '🧺', 'humanoid', H(hair='ponytail', hair_color='#6a3a1a', hat='straw', outfit='#4ab060', apron='#f4ecd8', pack='#a07040')),
+    Char('village-baker', '🥐', 'humanoid', H(hair='bun', hair_color='#3a2a1a', hat='chef', outfit='#f0d8a8', apron='#ffffff', item='ladle', blush=True)),
+    Char('village-guard', '💂', 'humanoid', H(hair='short', hair_color='#2a1a1a', hat='helmet', hat_color='#b8c0cc', outfit='#3a5a9a', trim='#ffd24a', item='spear')),
+    Char('village-kid', '👦', 'humanoid', H(hair='spiky', hair_color='#e0a040', outfit='#e05a3a', pants='#3a5a9a', scarf='#4ad0c0')),
+    Char('numbria-tea-merchant', '🍵', 'humanoid', H(hair='bun', hair_color='#c8c8d0', outfit='#3a8a6a', apron='#f4ecd8', glasses=True, item='ladle')),
+    Char('numbria-teacher', '👩‍🏫', 'humanoid', H(hair='long', hair_color='#5a2a1a', outfit='#5a4ac0', trim='#ffffff', glasses=True, item='book')),
+    Char('numbria-kid', '🧒', 'humanoid', H(hair='bob', hair_color='#2a1a3a', outfit='#e0c040', pants='#3a3a6a')),
+    Char('numbria-sundial', '🧔', 'humanoid', H(hair='fringe', hair_color='#8a6a4a', beard='#8a6a4a', hat='straw', outfit='#c08a3a', item='staff', item_color='#c8a070')),
+    Char('verdara-seed-merchant', '🌻', 'humanoid', H(hair='long', hair_color='#f0c030', hat='flower', outfit='#e8a030', apron='#6ab04a', pack='#8a5a30')),
+    Char('verdara-beekeeper', '🐝', 'humanoid', H(hair='bun', hair_color='#b07a3a', hat='band', hat_color='#f4ecd8', outfit='#f0d040', trim='#3a2a1a', item='lantern')),
+    Char('verdara-kid', '🧒', 'humanoid', H(hair='short', hair_color='#7a4a2a', outfit='#5ab04a', pants='#8a5a3a', scarf='#ffd24a')),
+    Char('verdara-botanist', '👩‍🔬', 'humanoid', H(hair='ponytail', hair_color='#3a7a4a', outfit='#f4f4f4', trim='#5ab04a', glasses=True, item='book')),
+    Char('gearfall-coil-merchant', '🔩', 'humanoid', H(hair='short', hair_color='#3a2a1a', hat='cap', hat_color='#3ab0c0', outfit='#5a6a7a', apron='#8a6a4a', item='wrench')),
+    Char('gearfall-inventor', '🥽', 'humanoid', H(hair='spiky', hair_color='#f0f0f0', outfit='#f4f4f4', trim='#c89040', glasses=True, item='hammer', beard='#f0f0f0')),
+    Char('gearfall-clockkeeper', '🕰️', 'humanoid', H(hair='fringe', hair_color='#c8c8c8', beard='#d8d8d8', hat='band', hat_color='#6a4a2a', outfit='#6a4a8a', robe=True, item='lantern')),
+    Char('gearfall-apprentice', '🧑‍🔧', 'humanoid', H(hair='short', hair_color='#c05a2a', hat='hardhat', hat_color='#3ab0e0', outfit='#e0a030', item='wrench')),
+    Char('chromaria-mirror-merchant', '🪞', 'humanoid', H(hair='long', hair_color='#c8d8ff', outfit='#7a5ac0', trim='#e0e8ff', robe=True, item='orb', item_color='#d8f0ff')),
+    Char('chromaria-curator', '🖼️', 'humanoid', H(hair='bob', hair_color='#d03a5a', hat='beret', hat_color='#2a2a3a', outfit='#2a2a3a', trim='#ffd24a', glasses=True)),
+    Char('chromaria-musician', '🎻', 'humanoid', H(hair='long', hair_color='#ffb030', outfit='#3a8ad0', scarf='#ff6aa0', hat='flower')),
+    Char('chromaria-kid', '🧑‍🎨', 'humanoid', H(hair='spiky', hair_color='#4a2a1a', outfit='#e07a3a', apron='#c8a070', item='brush')),
+    # ── Dawnreach, the overworld (#75 Phase 1) ──
+    Char('dawnreach-scout', '🧭', 'humanoid', H(hair='ponytail', hair_color='#7a4a2a', hat='cap', hat_color='#e07a2a', outfit='#4a8a5a', pants='#5a4a3a', scarf='#ffd24a', pack='#8a5a30', item='telescope')),
+    Char('shrine-keeper', '🕯️', 'humanoid', H(hair='bun', hair_color='#ececf4', outfit='#ece4d4', trim='#e0b040', robe=True, item='lantern')),
 ]
 for n in NPCS:
     n.battle = False

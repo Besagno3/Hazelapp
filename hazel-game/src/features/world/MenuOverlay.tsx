@@ -4,13 +4,17 @@ import { spellsKnown } from '../../content/spells';
 import { ALL_SHOP_ITEMS, CONSUMABLES, CONSUMABLE_IDS } from '../../content/items';
 import { GATE_KEYS } from '../../content/keys';
 import { avatarById } from '../../content/avatars';
-import { emberStatus, EMBER_SPRITES, EMBER_STAGE_LABEL } from '../../content/story';
+import { emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_STAGE_LABEL } from '../../content/story';
+import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
+import { ALL_SECRETS, secretFlag, secretProgress } from '../../content/secrets';
+import { zone } from '../../content/zones';
 import { heroMaxHp } from '../../lib/powerups';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { sendFlow } from '../../machines/gameFlow';
+import WorldMapPanel from './WorldMapPanel';
 
 /**
  * The pause/party menu (#37): hero status, inventory, Sage equipping,
@@ -34,6 +38,11 @@ export default function MenuOverlay() {
   const hp = save.hp ?? maxHp;
   const { stage: ember } = emberStatus(save.flags);
   const quests = activeQuests(save);
+  const secretsHere = secretProgress(save.zoneId, save);
+  const secretsWorld = {
+    found: ALL_SECRETS.filter((s) => save.flags[secretFlag(s.secret.id)]).length,
+    total: ALL_SECRETS.length,
+  };
 
   async function doSave() {
     await flush();
@@ -48,10 +57,26 @@ export default function MenuOverlay() {
         animate={{ scale: 1, opacity: 1 }}
         className="bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-6 w-full max-w-md text-white shadow-2xl max-h-[85vh] overflow-y-auto"
       >
-        <h2 className="text-xl font-extrabold mb-4">📜 Menu</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-extrabold">📜 Menu</h2>
+          {/* A way back right at the top, so a long menu never hides it. */}
+          <button
+            onClick={() => sendFlow({ type: 'CLOSE' })}
+            aria-label="Back to the world"
+            title="Back to the world"
+            className="w-11 h-11 -mr-2 rounded-lg bg-white/15 hover:bg-white/25 font-bold text-lg"
+          >
+            ✕
+          </button>
+        </div>
 
         <div className="flex items-center gap-3 bg-white/10 rounded-xl p-3 mb-3">
-          <span className="text-3xl">{avatar?.sprite ?? '🧑'}</span>
+          <CharacterPortrait
+            spriteId={avatar?.spriteId}
+            emoji={avatar?.sprite ?? '🧑'}
+            scale={1.25}
+            className="text-3xl"
+          />
           <div className="flex-1">
             <div className="font-bold text-sm">{avatar?.name ?? 'Hero'}</div>
             <div className="text-xs text-white/70">
@@ -66,8 +91,10 @@ export default function MenuOverlay() {
           </div>
         </div>
 
+        <WorldMapPanel zoneId={save.zoneId} pos={save.pos} flags={save.flags} />
+
         <div className="flex items-center gap-3 bg-white/10 rounded-xl p-3 mb-3">
-          <span className="text-3xl">{EMBER_SPRITES[ember]}</span>
+          <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={1.25} className="text-3xl" />
           <div className="flex-1">
             <div className="font-bold text-sm">Ember</div>
             <div className="text-xs text-white/70">
@@ -111,7 +138,12 @@ export default function MenuOverlay() {
                 const step = activeStep(q, save);
                 return (
                   <div key={q.id} className="text-xs">
-                    <div className="font-semibold text-amber-300">{q.title}</div>
+                    <div className="font-semibold text-amber-300">
+                      {q.title}
+                      {q.side && (
+                        <span className="ml-1.5 text-[10px] font-normal text-white/50">side quest · {zone(q.zoneId).name}</span>
+                      )}
+                    </div>
                     <div className="text-white/70">
                       {step ? resolveHint(step, save) : 'Done — go collect your reward!'}
                     </div>
@@ -119,6 +151,23 @@ export default function MenuOverlay() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {secretsWorld.total > 0 && (
+          <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
+            <span className="font-bold mr-2">✨ Secrets:</span>
+            {secretsHere.total > 0 && (
+              <span>
+                {secretsHere.found}/{secretsHere.total} found here ·{' '}
+              </span>
+            )}
+            <span className="text-white/70">
+              {secretsWorld.found}/{secretsWorld.total} across Lumina
+            </span>
+            {secretsHere.total > secretsHere.found && (
+              <p className="text-[11px] text-white/50 mt-1">Watch for a faint ✦ twinkle — and some walls are not as solid as they look…</p>
+            )}
           </div>
         )}
 

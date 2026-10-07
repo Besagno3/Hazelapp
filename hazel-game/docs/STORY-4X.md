@@ -7,13 +7,19 @@ the shipped patterns: Sage + quest-giver + merchant per crystal zone, warden
 keys named for their destination, one joke per villager, Fiends who concede
 the theme, failure that never punishes.
 
+> **World names (2026-10-04):** the world is **Lumina**. The home continent
+> is **Dawnreach**; Act III's far continent is **Taleshore**; the calm inner
+> sea of islands (Act II, by boat) is **the Silver Shallows**; the open sea
+> between the continents is **the Starfall Sea**. Where each zone below sits
+> on the map: `ROADMAP-OVERWORLD.md` §3.6.
+
 ---
 
 ## 1. The expansion in one breath
 
 Umbra falls at the top of the Spire — and the world **remembers**. Remembered
 places wake up (Act II: the Crystal of Memory). A full-grown Ember carries
-the hero across the sea to a continent that *never forgot* (Act III: the
+the hero across the Starfall Sea to **Taleshore**, a continent that *never forgot* (Act III: the
 Crystal of Voices). And the returning memories finally answer the real
 question: the fog was never an attack. Umbra was **Aster, Lumina's first
 Sage**, who collected every question nobody could answer until the world,
@@ -150,7 +156,7 @@ New flags: `act2-seen`, `met-mnem`, `met-chronicle`, `key-memoria`,
 
 **Premise.** With five crystals lit, Ember spreads full wings: the hero can
 **fly**. Across the sea — where Old Marlow's fish went, where Vela's stars
-point — is a continent the fog never touched, because its people never
+point — is **Taleshore**, a continent the fog never touched, because its people never
 stopped telling the stories. They remember Umbra's name… but it's *rude to
 say a name its owner lost*. They'll teach the hero how to earn it.
 

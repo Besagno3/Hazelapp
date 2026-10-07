@@ -20,7 +20,7 @@ const files = readdirSync(join(root, 'migrations'))
 const sqlString = (s) => `'${s.replaceAll("'", "''")}'`;
 
 /**
- * Re-runnability lint (#78). The bundle replays EVERY migration on every run,
+ * Re-runnability lint (#86). The bundle replays EVERY migration on every run,
  * so each statement must be safe to run twice, and none may manage its own
  * transaction (a stray COMMIT would end the bundle's transaction early and a
  * later error would leave a half-applied database). CI's apply-twice job is

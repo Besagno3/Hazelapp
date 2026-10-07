@@ -16,7 +16,7 @@ export default function AuthPage() {
   const [birthYear, setBirthYear] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  // "Forgot password?" mode: email only, sends a reset link (#76).
+  // "Forgot password?" mode: email only, sends a reset link (#84).
   const [isForgot, setIsForgot] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);

@@ -14,7 +14,7 @@
 // The Anthropic API key stays server-side (ANTHROPIC_API_KEY secret).
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase.
 //
-// Access (#76): callers must be signed in (401 otherwise), and every call goes
+// Access (#84): callers must be signed in (401 otherwise), and every call goes
 // through `begin_question_request` (migration 0009) — a per-player rate limit
 // (429 when exceeded) plus per-player and project-wide daily budgets of FRESH
 // questions. When a budget is spent the call is served from the cache
@@ -57,7 +57,7 @@ const RICH_CACHE_MULTIPLE = 3;
 /** Fraction of a batch that comes fresh from Claude when the cache is rich (#30). */
 const NOVELTY_RATE = 0.2;
 /**
- * Quota defaults (#76), overridable with the same-named Supabase secrets.
+ * Quota defaults (#84), overridable with the same-named Supabase secrets.
  * A battle asks for ~6 questions + 4 spell-tier ones, so 20 calls/minute is
  * far above real play; 200 fresh/day per player and 5000 fresh/day overall
  * cap the Claude bill while the shared cache keeps growing.
@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const db: SupabaseClient | null = dbUrl && dbKey ? createClient(dbUrl, dbKey) : null;
 
-  // Identify the caller (#76): signed-in players only. The anon key is public
+  // Identify the caller (#84): signed-in players only. The anon key is public
   // (it ships in the web bundle), so without this anyone could spend the
   // project's Claude budget. The id also drives per-player dedupe (#24).
   if (!dbUrl || !anonKey || !db) {
@@ -319,7 +319,7 @@ Deno.serve(async (req) => {
   }
   if (!profileId) return json({ error: 'Please sign in to play.' }, 401);
 
-  // Rate limit + fresh-question budget (#76). If the quota migration isn't
+  // Rate limit + fresh-question budget (#84). If the quota migration isn't
   // applied yet the RPC errors — fail OPEN (logged loudly) so a deploy-order
   // slip can't lock every kid out; sign-in is still required either way.
   let freshAllowance = count;
@@ -359,7 +359,7 @@ Deno.serve(async (req) => {
 
     // 1a. Exclude flagged questions (#26) and the player's recently-seen ones (#24).
     // Seen-but-unflagged rows are kept aside as a last resort for when the
-    // fresh budget (#76) can't cover the batch.
+    // fresh budget (#84) can't cover the batch.
     let seenFallback: CacheRow[] = [];
     if (db && cached.length > 0) {
       const cachedIds = cached.map((r) => r.id);
@@ -390,7 +390,7 @@ Deno.serve(async (req) => {
     // 2. Split the batch using the cache-richness policy (#30): a rich cache
     //    leans heavily on reuse with a sprinkle of fresh for novelty; a thin
     //    cache uses what's available and generates the rest.
-    //    The fresh share is capped by the caller's remaining budget (#76);
+    //    The fresh share is capped by the caller's remaining budget (#84);
     //    anything the budget can't cover is topped up from already-seen
     //    cached questions, so the batch stays full whenever the bank can.
     const freshCount = Math.min(chooseFreshCount(count, cached.length), freshAllowance);
@@ -449,7 +449,7 @@ Deno.serve(async (req) => {
       if (rpcErr) console.error('counter update failed:', rpcErr.message);
     }
 
-    // 4a. Charge the fresh questions to the caller's daily budget (#76).
+    // 4a. Charge the fresh questions to the caller's daily budget (#84).
     if (requestId !== null && fresh.length > 0) {
       const { error: usageErr } = await db
         .from('question_requests')

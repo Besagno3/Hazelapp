@@ -11,6 +11,8 @@ export function BattleResult({
   crystalName,
   correctCount,
   xp,
+  coins,
+  lucky,
   onLeave,
 }: {
   result: 'victory' | 'defeat';
@@ -23,6 +25,10 @@ export function BattleResult({
   correctCount: number;
   /** XP awarded for the whole fight. */
   xp: number;
+  /** Coins actually paid out (Lucky Clover multiplies them). */
+  coins: number;
+  /** Won under a Lucky Clover (#80) — shown with a 🍀. */
+  lucky: boolean;
   onLeave: () => void;
 }) {
   const won = result === 'victory';
@@ -51,7 +57,8 @@ export function BattleResult({
             </>
           )}
           <p className="text-sm text-white/80">
-            {correctCount} correct answers · 🪙 +{enemy.coins} · ⭐ +{xp} XP
+            {correctCount} correct answers · 🪙 +{coins}
+            {lucky ? ' 🍀' : ''} · ⭐ +{xp} XP
           </p>
         </>
       ) : (

@@ -1,6 +1,6 @@
 import type { EnemyBehavior, FightStyle, PowerUps } from '../types';
 import { CHARGE_MAX } from '../content/abilities';
-import { POTION_HEAL, SPARK_CHARGE, type ConsumableId } from '../content/items';
+import { POTION_HEAL, SNACK_HEAL, SPARK_CHARGE, TEA_DAMAGE_MULT, type ConsumableId } from '../content/items';
 import type { Spell } from '../content/spells';
 import {
   bossPhase,
@@ -34,6 +34,23 @@ export interface CombatState {
   enemyShielded: boolean;
   /** Highest boss enrage phase already announced (0 = calm). */
   lastPhase: number;
+  /** Mirror Charm: the next enemy hit is blocked AND bounced back at it. */
+  mirrored: boolean;
+  /** Focus Tea: the next landed Attack deals TEA_DAMAGE_MULT× damage. */
+  focused: boolean;
+  /** Lucky Clover: a win pays CLOVER_COIN_MULT× coins. */
+  lucky: boolean;
+}
+
+/**
+ * A boss enrage phase crossed by the enemy dropping to `enemyHp` (from any
+ * damage source — strikes or Mirror bounces), or null. Each phase is
+ * announced once; a defeated enemy announces nothing.
+ */
+function phaseCrossed(s: CombatState, enemyHp: number, isBoss: boolean): { lastPhase: number; newPhase: 1 | 2 | null } {
+  if (!isBoss || enemyHp <= 0) return { lastPhase: s.lastPhase, newPhase: null };
+  const p = bossPhase(enemyHp, s.enemyMaxHp);
+  return p > s.lastPhase ? { lastPhase: p, newPhase: p as 1 | 2 } : { lastPhase: s.lastPhase, newPhase: null };
 }
 
 /** Charge after answering a question — each correct answer fills one ◆. */
@@ -86,16 +103,19 @@ export function resolveHeroHit(
   if (enemyHp <= 0) {
     return { state: { ...s, enemyHp }, outcome: 'defeated', dealt, refunded: 0, newPhase: null };
   }
-  let lastPhase = s.lastPhase;
-  let newPhase: 1 | 2 | null = null;
-  if (opts.isBoss) {
-    const p = bossPhase(enemyHp, s.enemyMaxHp);
-    if (p > lastPhase) {
-      lastPhase = p;
-      newPhase = p as 1 | 2;
-    }
-  }
+  const { lastPhase, newPhase } = phaseCrossed(s, enemyHp, opts.isBoss);
   return { state: { ...s, enemyHp, lastPhase }, outcome: 'hit', dealt, refunded: 0, newPhase };
+}
+
+/**
+ * Focus Tea on a basic Attack: a landed hit deals TEA_DAMAGE_MULT× and spends
+ * the focus. Against a shielded foe the focus waits — the shield would
+ * swallow the doubled hit (#80 review fix).
+ */
+export function applyFocus(s: CombatState, dmg: number): { state: CombatState; dmg: number; note: string } {
+  if (!s.focused || dmg <= 0) return { state: s, dmg, note: '' };
+  if (s.enemyShielded) return { state: s, dmg, note: ' 🍵 (Your focus holds for the next swing!)' };
+  return { state: { ...s, focused: false }, dmg: dmg * TEA_DAMAGE_MULT, note: ' 🍵 Focused — double damage!' };
 }
 
 // --- Enemy turn ----------------------------------------------------------------
@@ -114,35 +134,71 @@ export interface EnemyTurnResult {
   state: CombatState;
   /** Damage the hero took (0 = fully blocked). */
   dmg: number;
+  /** Damage a Mirror Charm bounced back onto the enemy. */
+  reflected: number;
+  /** A Mirror Charm bounce shattered the enemy's shield instead of hurting it. */
+  shieldShattered: boolean;
   /** HP the healer archetype mended at the end of its turn (0 = none). */
   mended: number;
   /** The hero is out of HP. */
   heroDown: boolean;
+  /** A Mirror Charm bounce defeated the enemy (checked before heroDown). */
+  enemyDown: boolean;
+  /** A boss enrage phase crossed by a bounce, else null. */
+  newPhase: 1 | 2 | null;
 }
 
 /**
- * The enemy's counterattack. A standing guard blocks it completely (and is
- * spent); otherwise a correct defend answer softens it. Boss damage scales
- * with the enrage phase at the moment it swings. A healer-archetype enemy
- * then mends itself while below half HP — rewards pressing the attack.
+ * The enemy's counterattack. A Mirror Charm blocks it AND bounces the full
+ * hit back (a shielded foe's shield takes the bounce and shatters — any
+ * landed hit does); the charm is spent, a standing guard is kept. Otherwise a
+ * standing guard blocks it completely (and is spent), or a correct defend
+ * answer softens it. Boss damage scales with the enrage phase at the moment
+ * it swings. A surviving healer-archetype enemy then mends itself while below
+ * half HP — rewards pressing the attack.
  */
 export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTurnResult {
   const phase = input.isBoss ? bossPhase(s.enemyHp, s.enemyMaxHp) : 0;
   const raw = enemyAttack(input.level, input.isBoss, phase);
-  const dmg = s.guarded
-    ? 0
-    : Math.max(0, raw - defendReduction(input.wasCorrect, input.style, input.powerUps));
 
-  let enemyHp = s.enemyHp;
-  if (input.behavior === 'healer' && healerMends(s.enemyHp, s.enemyMaxHp)) {
-    enemyHp = Math.min(s.enemyMaxHp, s.enemyHp + healerRegen(s.enemyMaxHp));
+  let next: CombatState = { ...s };
+  let dmg: number;
+  let reflected = 0;
+  let shieldShattered = false;
+  if (s.mirrored) {
+    dmg = 0;
+    next.mirrored = false;
+    if (s.enemyShielded && raw > 0) {
+      shieldShattered = true;
+      next.enemyShielded = false;
+    } else {
+      reflected = raw;
+    }
+  } else if (s.guarded) {
+    dmg = 0;
+    next.guarded = false;
+  } else {
+    dmg = Math.max(0, raw - defendReduction(input.wasCorrect, input.style, input.powerUps));
+  }
+
+  let enemyHp = Math.max(0, s.enemyHp - reflected);
+  reflected = s.enemyHp - enemyHp;
+  const afterBounce = enemyHp;
+  if (enemyHp > 0 && input.behavior === 'healer' && healerMends(enemyHp, s.enemyMaxHp)) {
+    enemyHp = Math.min(s.enemyMaxHp, enemyHp + healerRegen(s.enemyMaxHp));
   }
   const playerHp = Math.max(0, s.playerHp - dmg);
+  const { lastPhase, newPhase } = phaseCrossed(s, afterBounce, input.isBoss);
+  next = { ...next, playerHp, enemyHp, lastPhase };
   return {
-    state: { ...s, playerHp, enemyHp, guarded: false },
+    state: next,
     dmg,
-    mended: enemyHp - s.enemyHp,
+    reflected,
+    shieldShattered,
+    mended: enemyHp - afterBounce,
     heroDown: playerHp <= 0,
+    enemyDown: enemyHp <= 0,
+    newPhase,
   };
 }
 
@@ -186,6 +242,11 @@ export function itemBlocked(s: CombatState, id: ConsumableId, count: number): st
   if ((id === 'potion' || id === 'elixir') && s.playerHp >= s.playerMaxHp) return 'HP is full';
   if (id === 'spark' && s.charge >= CHARGE_MAX) return 'Charge is full';
   if (id === 'ward' && s.guarded) return 'Already warded';
+  if (id === 'snack' && s.playerHp >= s.playerMaxHp && s.charge >= CHARGE_MAX) return 'HP and charge are full';
+  if (id === 'coil' && s.charge >= CHARGE_MAX) return 'Charge is full';
+  if (id === 'mirror' && s.mirrored) return 'Mirror is up';
+  if (id === 'tea' && s.focused) return 'Already focused';
+  if (id === 'clover' && s.lucky) return 'Already lucky';
   return null;
 }
 
@@ -205,6 +266,15 @@ export function resolveItem(s: CombatState, id: ConsumableId): ItemResult {
     const charge = Math.min(CHARGE_MAX, s.charge + SPARK_CHARGE);
     return { state: { ...s, charge }, healed: 0, chargeGained: charge - s.charge };
   }
+  if (id === 'snack') {
+    const playerHp = Math.min(s.playerMaxHp, s.playerHp + SNACK_HEAL);
+    const charge = Math.min(CHARGE_MAX, s.charge + 1);
+    return { state: { ...s, playerHp, charge }, healed: playerHp - s.playerHp, chargeGained: charge - s.charge };
+  }
+  if (id === 'coil') return { state: { ...s, charge: CHARGE_MAX }, healed: 0, chargeGained: CHARGE_MAX - s.charge };
   if (id === 'ward') return { state: { ...s, guarded: true }, healed: 0, chargeGained: 0 };
+  if (id === 'mirror') return { state: { ...s, mirrored: true }, healed: 0, chargeGained: 0 };
+  if (id === 'tea') return { state: { ...s, focused: true }, healed: 0, chargeGained: 0 };
+  if (id === 'clover') return { state: { ...s, lucky: true }, healed: 0, chargeGained: 0 };
   return { state: s, healed: 0, chargeGained: 0 };
 }

@@ -25,6 +25,10 @@ interface BattleStore {
   enemyShielded: boolean;
   /** Highest boss enrage phase already announced. */
   lastPhase: number;
+  /** Battle-item buffs (Mirror Charm / Focus Tea / Lucky Clover), per fight. */
+  mirrored: boolean;
+  focused: boolean;
+  lucky: boolean;
   /** Enemy instances beaten this session — kept off the map until reload. */
   defeatedIds: string[];
 
@@ -35,7 +39,15 @@ interface BattleStore {
   reset: () => void;
 }
 
-const FRESH_COMBAT = { charge: 0, guarded: false, enemyShielded: false, lastPhase: 0 };
+const FRESH_COMBAT = {
+  charge: 0,
+  guarded: false,
+  enemyShielded: false,
+  lastPhase: 0,
+  mirrored: false,
+  focused: false,
+  lucky: false,
+};
 
 export const useBattleStore = create<BattleStore>((set) => ({
   enemy: null,
@@ -63,6 +75,9 @@ export const useBattleStore = create<BattleStore>((set) => ({
       guarded: s.guarded,
       enemyShielded: s.enemyShielded,
       lastPhase: s.lastPhase,
+      mirrored: s.mirrored,
+      focused: s.focused,
+      lucky: s.lucky,
     }),
 
   markDefeated: (instanceId) =>
@@ -86,5 +101,8 @@ export function combatState(): CombatState {
     guarded: s.guarded,
     enemyShielded: s.enemyShielded,
     lastPhase: s.lastPhase,
+    mirrored: s.mirrored,
+    focused: s.focused,
+    lucky: s.lucky,
   };
 }
