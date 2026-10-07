@@ -264,6 +264,29 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-07 — Fog UX review fixes: the script, a skip, the chime, screen readers (#75 item 7)
+`/saas-ux-review` of the fog banks; all 4 findings fixed:
+- **The script matches the fog:** the leaving-home panels (`DAWNREACH_PANELS`,
+  always before any crystal) said the Spire "glitters above the hills" and
+  shows the way home, while it sat hidden in its ring of fog. Now: a great
+  ring of fog hides the Spire; restore a crystal and the fog starts to lift,
+  around the Spire first. Scout Tamsin says the Spire hides in fog until its
+  ring has lifted on screen (`fogSeenFlag('spire-fog')`), then calls it the
+  landmark to look for.
+- **A reveal can be skipped:** "Tap or press a key to skip ⏩" shows at the top
+  while one plays; any fresh key, click or tap (the d-pad too) clears every
+  bank left at once, marks them seen, and cuts the camera home. A key or
+  finger already down when it started doesn't skip (counted presses,
+  `pressesRef`, window-level like the movement keys).
+- **The lift plays the gate chime** (a way opening), not the level-up fanfare.
+- **Toasts are read out:** they render inside an always-present
+  `role="status"` live region.
+- +2 tests (story.test); 488 green, lint + build clean. Checked in headless
+  Chromium on the bench: skip by key / click / tap / under reduced motion
+  (all banks seen within ~50 ms, camera home, hero walks after); a held key
+  or pointer doesn't skip; the Spire whole after a skip; untouched, the
+  reveal plays out as before.
+
 ### 2026-10-07 — The Spire hides in its clouds and emerges as they clear (#75 item 7)
 The Crystal Spire was drawn above its ring of fog. Now a place inside a fog
 bank (`placesInside`, `lib/fog.ts` — today just the Spire) is hidden behind

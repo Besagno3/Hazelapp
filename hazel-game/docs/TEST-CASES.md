@@ -559,6 +559,11 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-466 | M | ✅ | world | frame rate in the foggiest view vs the tile fog (alternating runs, same machine, software GL): about 8% lower (38 → 35 fps); banks off screen are hidden and skipped. Recheck on a real device with TC-326 |
 | TC-467 | U | ✅ | fog | `placesInside`: the Spire is inside its ring of fog, the shrine is beyond its own bank; `revealOpacity` stays 0 while the clouds start to thin, then rises smoothly to 1 (fog.test) |
 | TC-468 | M | ✅ | world | with no crystal, the Spire tower and its name are hidden in the clouds; when the ring lifts, a faint tower appears, then a solid one, as the last puffs go; the camera glides back after (headless Chromium, filmed) |
+| TC-469 | U | ✅ | story | the leaving-home panels (always before any crystal) say a ring of fog hides the Spire — not that it glitters or shows the way; Scout Tamsin calls the Spire a landmark only once its fog has lifted on screen (`fogSeenFlag('spire-fog')`), before that she says it's hidden (story.test) |
+| TC-470 | M | ✅ | world | a fog reveal shows "Tap or press a key to skip ⏩" at the top while it plays; a key press, a click or a tap mid-reveal clears every bank left at once (all reported seen within ~50 ms), the hint goes, the camera is back on the hero, and the hero walks on the next key (headless Chromium, bench) |
+| TC-471 | M | ✅ | world | a key or pointer already held down when a reveal starts does NOT skip it, nor does letting go; a fresh press then does; untouched, the reveal plays out in full (headless Chromium, bench) |
+| TC-472 | M | ✅ | world | skipped as the camera reaches the Spire ring, the Spire stands whole with no fog left; reduced motion skips the same way (headless Chromium, bench) |
+| TC-473 | M | ⬜ | world | in the real app: a fog lift plays the gate chime (not the level-up fanfare); with a screen reader on, the lift's toast ("The fog …") is read out, as are other toasts (fog hint, save) |
 
 ## Regression cases (tied to ISSUES.md)
 

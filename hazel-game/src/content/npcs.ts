@@ -1,4 +1,5 @@
 import type { ServiceType, Topic } from '../types';
+import { fogSeenFlag } from './zones';
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -839,7 +840,15 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Hi! I\'m mapping all of Dawnreach. Want the short version? Here goes!',
       'North: Lumina Field. West: the Whispering Woods. East: Starfall Coast, where the land runs out.',
-      'South, past the hills: the Crystal Spire. You can see it from almost anywhere — lost? Look for the Spire!',
+      // The Spire hides in its ring of fog until the first crystal (#75 item 7).
+      {
+        text: "South, past the hills, the Crystal Spire hides in a ring of fog. I haven't been able to draw it yet! Restore a crystal and the fog should lift.",
+        unlessFlag: fogSeenFlag('spire-fog'),
+      },
+      {
+        text: 'South, past the hills: the Crystal Spire, out of the fog at last! You can see it from almost anywhere — lost? Look for the Spire!',
+        ifFlag: fogSeenFlag('spire-fog'),
+      },
       {
         text: 'Far to the north-east, an old shrine hides behind the fog. Nobody\'s been there since the fog came.',
         unlessFlag: 'met-wren',

@@ -204,8 +204,8 @@ export const SPIRE_PANELS: StoryPanel[] = [
  */
 /**
  * Leaving home (#75 Phase 1): plays the first time the hero steps out of a gate
- * onto Dawnreach. Points at the Spire — the landmark that always shows the way
- * — and plants the fog that lifts as crystals return.
+ * onto Dawnreach — always before any crystal, so the Spire is still hidden in
+ * its ring of fog (#75 item 7). Plants the fog that lifts as crystals return.
  */
 export const DAWNREACH_PANELS: StoryPanel[] = [
   {
@@ -213,12 +213,12 @@ export const DAWNREACH_PANELS: StoryPanel[] = [
     text: 'Beyond the gate, the whole land opens up: Dawnreach, home of the four crystals. Roads wind away to forests, caves and shores you have only heard about.',
   },
   {
-    emoji: '🗼',
-    text: 'Far to the south, the Crystal Spire glitters above the hills. Wherever you wander, it will help you find your way home.',
+    emoji: '🌫️',
+    text: 'Far to the south, a great ring of fog hides the Crystal Spire. Nobody has seen it since the fog came.',
   },
   {
-    emoji: '🌫️',
-    text: 'Here and there, the fog of Forgetting still clings to the land. Restore the crystals, and it will lift.',
+    emoji: '💎',
+    text: 'Restore a crystal, and the fog will start to lift — around the Spire first, then a little more with every crystal you bring back.',
   },
 ];
 

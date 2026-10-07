@@ -274,8 +274,12 @@ export default function WorldCanvas({
   // whenever the browser window has focus — no need to click the canvas first
   // (KaPlay binds keys to the canvas element, which we run with focus:false).
   const keysRef = useRef<Set<string>>(new Set());
+  // Fresh presses — any key (not auto-repeats), click or tap, the d-pad
+  // included: a fog reveal skips on one.
+  const pressesRef = useRef(0);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      if (!e.repeat) pressesRef.current += 1;
       const key = e.key.toLowerCase();
       if (!MOVE_KEYS.has(key)) return;
       e.preventDefault(); // stop arrow keys from scrolling the page
@@ -284,14 +288,19 @@ export default function WorldCanvas({
     const up = (e: KeyboardEvent) => {
       keysRef.current.delete(e.key.toLowerCase());
     };
+    const point = () => {
+      pressesRef.current += 1;
+    };
     // Releasing focus (alt-tab, devtools) could otherwise leave a key "stuck".
     const clear = () => keysRef.current.clear();
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('pointerdown', point);
     window.addEventListener('blur', clear);
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('pointerdown', point);
       window.removeEventListener('blur', clear);
     };
   }, []);
@@ -1102,6 +1111,10 @@ export default function WorldCanvas({
       t: number;
       from: { x: number; y: number };
       to: { x: number; y: number };
+      /** Presses so far when it started: a newer one skips it. */
+      presses: number;
+      /** "Tap or press a key to skip", pinned to the screen while it plays. */
+      hint: { destroy: () => void }[];
     };
     let reveal: Reveal | null = null;
     const camFor = (x: number, y: number) => {
@@ -1114,6 +1127,48 @@ export default function WorldCanvas({
     };
     const bankCam = (f: FogDef) => camFor((f.x + f.w / 2) * TILE, (f.y + f.h / 2) * TILE);
     const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+    /**
+     * Skip the rest of a reveal: every bank left clears at once (the one in
+     * view still says what it uncovered, if it hadn't yet) and is remembered
+     * as seen, and the camera cuts back to the hero.
+     */
+    function skipReveal(r: Reveal) {
+      for (let i = r.i; i < r.banks.length; i++) {
+        const bank = r.banks[i];
+        if (bank.shown) continue;
+        if (i === r.i && r.phase === 'to') cbRef.current.onFogLift?.(bank.def);
+        for (const { obj } of bank.puffs) obj.destroy();
+        bank.puffs = [];
+        bank.lift = 1;
+        bank.shown = true;
+        cbRef.current.onFogRevealed?.(bank.def.id);
+      }
+      const home = camFor(player.pos.x, player.pos.y);
+      k.setCamPos(home.x, home.y);
+    }
+    /** The skip hint: a small pill at the top of the screen. */
+    function skipHint(): { destroy: () => void }[] {
+      const label = 'Tap or press a key to skip ⏩';
+      const text = k.add([
+        k.text(label, { size: 11 }),
+        k.pos(VIEW_W / 2, 16),
+        k.anchor('center'),
+        k.color(255, 252, 235),
+        k.fixed(),
+        k.z(30),
+      ]) as unknown as { width?: number; destroy: () => void };
+      const pill = k.add([
+        k.rect((text.width ?? label.length * 6) + 14, 20, { radius: 6 }),
+        k.pos(VIEW_W / 2, 16),
+        k.anchor('center'),
+        k.color(20, 16, 36),
+        k.opacity(0.6),
+        k.fixed(),
+        k.z(29),
+      ]);
+      return [text, pill];
+    }
+
     /** Advance the reveal by `dt`; false once it's over. */
     function stepReveal(r: Reveal, dt: number): boolean {
       r.t += dt;
@@ -1191,7 +1246,16 @@ export default function WorldCanvas({
           const d = (b: (typeof due)[number]) =>
             Math.hypot((b.def.x + b.def.w / 2) * TILE - player.pos.x, (b.def.y + b.def.h / 2) * TILE - player.pos.y);
           due.sort((a, b) => d(a) - d(b));
-          reveal = { banks: due, i: 0, phase: 'to', t: 0, from: camNow(), to: bankCam(due[0].def) };
+          reveal = {
+            banks: due,
+            i: 0,
+            phase: 'to',
+            t: 0,
+            from: camNow(),
+            to: bankCam(due[0].def),
+            presses: pressesRef.current,
+            hint: skipHint(),
+          };
           cinematic = true;
           if (heroView) {
             curAnim = animFor(heroFacing, false, heroView.anims);
@@ -1200,7 +1264,11 @@ export default function WorldCanvas({
         }
       }
       if (reveal) {
-        if (stepReveal(reveal, dt)) return;
+        // Skip on a fresh key press, click or tap (the d-pad too) — never on a
+        // key or the d-pad already held when it began.
+        if (pressesRef.current > reveal.presses) skipReveal(reveal);
+        else if (stepReveal(reveal, dt)) return;
+        for (const part of reveal.hint) part.destroy();
         reveal = null;
         cinematic = false;
         cooldown = TRIGGER_COOLDOWN;
