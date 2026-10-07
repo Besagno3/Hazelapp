@@ -219,6 +219,8 @@ export interface EnemyPlacement {
 export interface ZoneDef {
   id: ZoneId;
   name: string;
+  /** Read as "the …" mid-sentence ("go west to the Whispering Woods") — see lib/wayfinding.ts. */
+  the?: boolean;
   kind: ZoneKind;
   /** Topic zones carry their topic; the hub has none. */
   topic?: Topic;
@@ -819,6 +821,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   'whispering-woods': {
     id: 'whispering-woods',
     name: 'Whispering Woods',
+    the: true,
     kind: 'field',
     topic: 'nature',
     // A gated chest alcove (cols 1-7, behind the col-8 wall) holds the treasure;
@@ -925,6 +928,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   'clockwork-depths': {
     id: 'clockwork-depths',
     name: 'Clockwork Depths',
+    the: true,
     kind: 'dungeon',
     topic: 'history',
     // A gated vault (the bottom half, behind the row-8 wall) holds the chest;
@@ -1104,7 +1108,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
         hint: 'Too foggy to pass! Restore a crystal to clear it.',
       },
     ],
-    npcs: [{ defId: 'dawnreach-scout', x: 34, y: 22 }],
+    npcs: [
+      { defId: 'dawnreach-scout', x: 34, y: 22 },
+      // Signposts at the two crossroads on the long east–west road (#75 item 6).
+      { defId: 'dawnreach-sign-west', x: 24, y: 23 },
+      { defId: 'dawnreach-sign-east', x: 36, y: 25 },
+    ],
     enemies: [
       { defId: 'thornhare', x: 22, y: 19 },
       { defId: 'mossback-cub', x: 27, y: 28 },
@@ -1119,6 +1128,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   'dawn-shrine': {
     id: 'dawn-shrine',
     name: 'Shrine of First Light',
+    the: true,
     kind: 'shrine',
     map: [
       '######################',

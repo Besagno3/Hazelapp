@@ -46,6 +46,18 @@ export interface WorldNpcDef {
    * for ambient life (wandering-NPC pass). Distinct from `lines` (conversation).
    */
   ambient?: string[];
+  /**
+   * Tells you where to go next (#75 item 6): after their own lines, a "where
+   * to next?" line keyed to the story, with the way there from where they
+   * stand. See `lib/wayfinding.ts`.
+   */
+  guide?: boolean;
+  /**
+   * A signpost, not a person (#75 item 6): it reads out the places around it
+   * by direction, worked out from the map, then the way to the next goal.
+   * Its `lines` stay empty. Place it beside a crossroads, off the road.
+   */
+  signpost?: boolean;
 }
 
 /** The sprite-manifest key for an NPC (explicit `spriteId`, else its id). */
@@ -69,6 +81,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '👴',
     role: 'villager',
     stationary: true,
+    guide: true,
     lines: [
       {
         text: 'Welcome, brave one! A fog of Forgetting has dimmed our four Crystals of Knowing.',
@@ -265,6 +278,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '👵',
     role: 'villager',
     stationary: true,
+    guide: true,
     lines: [
       {
         text: 'Oh, my brave grandchild! This is the village where you grew up. The fog took the warmth from our lanterns, but never from our hearts.',
@@ -821,6 +835,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🧭',
     role: 'villager',
     stationary: true,
+    guide: true,
     lines: [
       'Hi! I\'m mapping all of Dawnreach. Want the short version? Here goes!',
       'North: Lumina Field. West: the Whispering Woods. East: Starfall Coast, where the land runs out.',
@@ -833,6 +848,28 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Tip: open the 📜 Menu to see my map. I drew the trees myself. All of them. Each one. Individually.',
     ],
     ambient: ['Hmm… north is that way.', '*scribbles on a map*', 'So many places to draw!'],
+  },
+  // Crossroads signposts (#75 item 6). What they say is worked out from the
+  // map (lib/wayfinding.ts), so a repainted map can't make them lie.
+  'dawnreach-sign-west': {
+    id: 'dawnreach-sign-west',
+    name: 'Signpost',
+    sprite: '🪧',
+    spriteId: 'signpost',
+    role: 'villager',
+    stationary: true,
+    signpost: true,
+    lines: [],
+  },
+  'dawnreach-sign-east': {
+    id: 'dawnreach-sign-east',
+    name: 'Signpost',
+    sprite: '🪧',
+    spriteId: 'signpost',
+    role: 'villager',
+    stationary: true,
+    signpost: true,
+    lines: [],
   },
   // Old Wren kept one candle burning here through the whole fog.
   'shrine-keeper': {

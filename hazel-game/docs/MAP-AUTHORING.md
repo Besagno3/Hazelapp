@@ -58,6 +58,15 @@ drawing a broken world. It rejects:
 Object layers are allowed, for example for notes to yourself; the game
 ignores them.
 
+## Signposts
+
+A signpost is an NPC with `signpost: true` (see `dawnreach-sign-west` in
+`npcs.ts`), placed in the zone's `npcs` like anyone else. What it says is
+worked out from the map when you talk to it: every place by direction, then
+the way to the next goal (`lib/wayfinding.ts`). So moving places around never
+makes a sign lie. Put it beside a crossroads, off the road;
+`wayfinding.test.ts` checks that.
+
 ## Tools
 
 From `hazel-game/`:
