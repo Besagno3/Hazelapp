@@ -466,7 +466,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-388 | U | ✅ | tiled | a map the game can't read fails with where and why: an empty cell, a flipped tile, a tile not in the legend, a compressed layer, no `terrain` layer, a second tileset, an infinite map, a short layer, isometric (tiled.test) |
 | TC-389 | M | ✅ | tools | Dawnreach's 48 rows → `.tmj` → rows round-trip identical; `pytiled_parser` (an independent Tiled reader) reads the map and tileset with the right size, layer, tileset and `char` properties |
 | TC-390 | M | ✅ | tools | `tiled.py legend` regenerates byte-identical files, and refuses a reorder that would change an existing tile's character |
-| TC-391 | M | ⬜ | world | every zone screen is unchanged after the move to Tiled, and the dev server loads the `.tmj` in the browser (bench `shots` + `diff`, headless Chromium) |
+| TC-391 | M | ✅ | world | every zone screen is unchanged after the move to Tiled, and the dev server loads the `.tmj` in the browser (bench `shots` + `diff`, headless Chromium: the only differing pixels — ≤28 per coast screen, Starfall Coast included — are animated water/foam in shoreline corner tiles) |
+| TC-393 | M | ⬜ | bench | the bench masks shoreline corner tiles (they animate water half a tile off the water cells), so two shot sets of the same code `diff` as IDENTICAL instead of "DIFFERENT" on every coast |
 | TC-392 | M | ⬜ | tools | open `dawnreach.tmj` in the Tiled app: the legend shows the game's art, painting a tile and saving keeps the format the game reads (`npm test` passes) |
 
 ## Regression cases (tied to ISSUES.md)

@@ -238,8 +238,12 @@ for smaller maps). Guide: `docs/MAP-AUTHORING.md`.
   `to-ascii` (to read a map diff).
 - **Migration:** Dawnreach's 48 rows → `.tmj` → rows round-trip identical; an
   independent Tiled parser (`pytiled_parser`) reads both files.
+- **Bench:** the `diff` masks now cover shoreline corner tiles (edge
+  blending animates water half a tile off the water cells), so coast screens
+  no longer "differ" from animation alone.
 - 402 tests green (+5: legend = LEGEND_CHARS, round trip, Dawnreach loads,
-  9 bad-map cases); lint + build clean.
+  9 bad-map cases); lint + build clean. Every zone screen unchanged (only
+  animated water pixels differed — hence the bench fix).
 
 ### 2026-10-07 — Edge-blending review fixes: no vanishing roads, sheets on demand (#71b)
 `/saas-code-review` + `/saas-ux-review` of the edge blending; all 3 findings fixed:

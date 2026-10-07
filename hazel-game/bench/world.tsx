@@ -26,6 +26,7 @@ import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, buildingInside, type ZoneD
 import { SPIRE_FLOOR_MAPS, SPIRE_THEMES, floorSpawnPx, floorZone, type SpireTheme } from '../src/content/spire';
 import { avatarById } from '../src/content/avatars';
 import { camAxis } from '../src/lib/camera';
+import { BLEND_OPS_PER_CORNER, blendLayer, blendsEdges } from '../src/lib/terrain';
 import '../src/index.css';
 
 const q = new URLSearchParams(location.search);
@@ -148,6 +149,18 @@ function animatedRects(): [number, number, number, number][] {
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       if ('~SQ'.includes(z.map[y][x])) rects.push([x * TILE - ox, y * TILE - oy, TILE, TILE]);
+    }
+  }
+  // Shoreline corner tiles (edge blending, #71b) animate their water too, half a
+  // tile off the water cells — mask them, or every coast screen "differs".
+  if (blendsEdges(z)) {
+    const L = blendLayer(z);
+    for (let vy = 0; vy < L.vrows; vy++) {
+      for (let vx = 0; vx < L.vcols; vx++) {
+        if (L.waterStep[(vy * L.vcols + vx) * BLEND_OPS_PER_CORNER] > 0) {
+          rects.push([vx * TILE - TILE / 2 - ox, vy * TILE - TILE / 2 - oy, TILE, TILE]);
+        }
+      }
     }
   }
   // Character sprites: a generous box around each one's start point.
