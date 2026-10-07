@@ -538,6 +538,21 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-450 | M | ⬜ | TopicSelect | passing a topic round (80%+) greys it out with a ✓ + "Completed" and makes it unclickable for the rest of the session; failing leaves it selectable |
 | TC-451 | M | ⬜ | TopicSelect | sign out and back in (or reload) → every topic is selectable again (the completed set is ephemeral, cleared on sign-out via `useAuthInit`) |
 
+## Fog banks: each crystal lifts its own fog, on screen (#75 item 7)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-452 | U | ✅ | fog | every fog bank keeps its reward (a place or a chest) out of reach until one of its own flags lifts it, and in reach after; the Shrine and the Spire are the only places behind fog at the start (zones.test) |
+| TC-453 | U | ✅ | fog | each crystal clears exactly one pocket of its own, with a chest whose question is on that crystal's topic (`chestTopicAt`); the hint names the crystal; every chest on a topic-less map has a topic from its bank (zones.test) |
+| TC-454 | U | ✅ | fog | at every step of the story (wayfinding's next goal), the goal's entrance on Dawnreach is walkable with the fog lifted so far — no softlock (wayfinding.test) |
+| TC-455 | U | ✅ | fog | `fogsToReveal`: none before a crystal; the math crystal → the math pocket, the shrine road and the Spire ring; a bank marked seen isn't shown again (zones.test) |
+| TC-456 | U | ✅ | fog | `safeSpawn` with flags: a save inside the math pocket or inside the Spire fog starts at the zone spawn; once lifted it stays put; open ground always does (zones.test; and live on the bench) |
+| TC-457 | U | ✅ | map | the world map marks each fogged bank with the crystal that clears it (🔢 🔬 ⚙️ 🎨, 💎 for any crystal), moved to the bank's top edge when a place icon is in its middle (worldMap.test) |
+| TC-458 | M | ✅ | world | arriving with the math crystal restored: after a beat the camera glides to the Spire ring, the shrine road and the math pocket in turn (nearest first); each thins and rises away revealing what it hid; the camera glides back and the hero walks again (headless Chromium, filmed) |
+| TC-459 | M | ✅ | world | with reduced motion the camera cuts to each bank and back instead of gliding; in a fresh browser the reveal waits until the map art has loaded (filmed) |
+| TC-460 | M | ✅ | world | with no crystal, walking into the math pocket's fog stops the hero and shows its hint; the Spire tower rises above its fogged grounds; the menu map shows the crystal markers and the 💎 legend (headless Chromium) |
+| TC-461 | M | ⬜ | world | in the real app: restore Numbria's crystal, see the new storybook panel, walk out onto Dawnreach and watch the three banks lift; open the math pocket's chest (a math question) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

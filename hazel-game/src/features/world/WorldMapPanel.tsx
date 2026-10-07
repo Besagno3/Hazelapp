@@ -1,7 +1,16 @@
 import { useEffect, useRef } from 'react';
-import { TILE, ZONES, fogAt } from '../../content/zones';
+import { TILE, ZONES, fogAt, fogLifted } from '../../content/zones';
 import type { ZoneId } from '../../types';
-import { FOG_COLOR, PLACE_EMOJI, mapCaption, mapCellColor, whereOnMap } from '../../lib/worldMap';
+import {
+  ANY_CRYSTAL_EMOJI,
+  FOG_COLOR,
+  PLACE_EMOJI,
+  fogMarker,
+  fogMarkerAt,
+  mapCaption,
+  mapCellColor,
+  whereOnMap,
+} from '../../lib/worldMap';
 import { goalDirections, nextObjective } from '../../lib/wayfinding';
 
 /** Screen pixels per overworld tile on the map. */
@@ -28,7 +37,8 @@ export default function WorldMapPanel({
   const rows = world.map.length;
   const places = world.places ?? [];
   const here = whereOnMap(ZONES, world, zoneId, pos);
-  const fogged = (world.fogs ?? []).some((f) => !f.liftedBy.some((flag) => flags[flag]));
+  const foggedBanks = (world.fogs ?? []).filter((f) => !fogLifted(f, flags));
+  const fogged = foggedBanks.length > 0;
   const goal = nextObjective(flags);
   const flagAt = goal.zoneId ? whereOnMap(ZONES, world, goal.zoneId, null) : null;
   // On the overworld, directions start from the hero's own tile.
@@ -75,6 +85,17 @@ export default function WorldMapPanel({
             {PLACE_EMOJI[p.icon]}
           </span>
         ))}
+        {foggedBanks.map((f) => (
+          <span
+            key={f.id}
+            aria-hidden
+            // The crystal that clears this bank (#75 item 7).
+            className="absolute -translate-x-1/2 -translate-y-1/2 text-[11px] leading-none pointer-events-none select-none opacity-90"
+            style={at(fogMarkerAt(f, places).x, fogMarkerAt(f, places).y)}
+          >
+            {fogMarker(f)}
+          </span>
+        ))}
         {here && (
           <span
             aria-hidden
@@ -117,7 +138,8 @@ export default function WorldMapPanel({
       {fogged && (
         <p className="text-[11px] text-white/60 mt-1">
           <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1" style={{ background: FOG_COLOR }} />
-          Fog — restore a crystal to clear it
+          Fog — restore the crystal shown on it to clear it
+          {foggedBanks.some((f) => fogMarker(f) === ANY_CRYSTAL_EMOJI) && <span> ({ANY_CRYSTAL_EMOJI} = any crystal)</span>}
         </p>
       )}
     </div>

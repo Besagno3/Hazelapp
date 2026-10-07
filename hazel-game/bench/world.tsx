@@ -17,7 +17,8 @@
  *
  * Exits really change zones (so a script can walk through slides, fades and
  * the arrival lock); `window.__bench.state()` reports where the hero is (how
- * many times it has bumped a fog bank, and who it has talked to).
+ * many times it has bumped a fog bank, who it has talked to, and which fog
+ * banks it has watched clear).
  */
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -208,7 +209,7 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
     p95: pct(deltas, 0.95),
     max: maxDelta,
   }),
-  state: () => ({ ...live, talks: [...live.talks] }),
+  state: () => ({ ...live, talks: [...live.talks], fogReveals: [...live.fogReveals] }),
   /** Pause / resume the world, as a menu or dialogue would. */
   pause: (on: boolean) => {
     benchPaused.current = on;
@@ -239,12 +240,15 @@ const live: {
   fogBumps: number;
   /** Everyone the hero has talked to, in order (NPC def ids). */
   talks: string[];
+  /** Fog banks seen clearing on screen, in order (#75 item 7). */
+  fogReveals: string[];
 } = {
   zoneId,
   exits: 0,
   pos: startPos,
   fogBumps: 0,
   talks: [],
+  fogReveals: [],
 };
 
 function Bench() {
@@ -289,6 +293,9 @@ function Bench() {
           onSpire: noop,
           onFog: () => {
             live.fogBumps += 1;
+          },
+          onFogRevealed: (id) => {
+            live.fogReveals.push(id);
           },
         }}
         spireFloor={floor}

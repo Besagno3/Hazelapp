@@ -185,6 +185,12 @@ export const SPIRE_PANELS: StoryPanel[] = [
       'has woken something that slept through the whole long fog.',
   },
   {
+    emoji: '🌫️',
+    text:
+      'The fog that hid the Spire grounds melts away in the new light — and so does the fog ' +
+      'on the old road to the Shrine of First Light.',
+  },
+  {
     emoji: '🔮',
     text:
       '"At last," whispers Keeper Aurora from the top of the Spire. "A bright heart walks ' +
@@ -250,6 +256,12 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
         'back to life. Far off in Numbria, the counting river starts to count again — one, two, three…',
     },
     {
+      emoji: '🌫️',
+      text:
+        'Back on Dawnreach, a bank of fog in the north-west hills thins and drifts away. ' +
+        'Something was hiding behind it — go and see!',
+    },
+    {
       emoji: '🐲',
       text: 'Ember gulps down the fresh crystal-light and grows a little bigger. Three crystals to go!',
     },
@@ -266,6 +278,12 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
       text:
         'The Smog Fiend coughs once and clears away like morning mist. The Crystal of Nature ' +
         'shines, and high over Verdara the stars quietly remember their own names.',
+    },
+    {
+      emoji: '🌫️',
+      text:
+        'Back on Dawnreach, a bank of fog at the edge of the western forest thins and drifts away. ' +
+        'Something was hiding behind it — go and see!',
     },
     {
       emoji: '🐲',
@@ -286,6 +304,12 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
         'and deep below, every sleeping machine in the Clockwork Depths turns over with a happy clank.',
     },
     {
+      emoji: '🌫️',
+      text:
+        'Back on Dawnreach, a bank of fog among the rocks by the eastern sea thins and drifts away. ' +
+        'Something was hiding behind it — go and see!',
+    },
+    {
       emoji: '🐲',
       text: 'Ember warms its claws on the glowing crystal and stretches, just a touch taller. Keep going!',
     },
@@ -302,6 +326,12 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
       text:
         'The Gray Fiend dissolves into a splash of every color it ever stole. The Crystal of Wonder ' +
         'sings, and all of Chromaria bursts into a paintbox of light and music at once.',
+    },
+    {
+      emoji: '🌫️',
+      text:
+        'Back on Dawnreach, a bank of fog around a little grove in the south-east thins and drifts away. ' +
+        'Something was hiding behind it — go and see!',
     },
     {
       emoji: '🐲',

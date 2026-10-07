@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ZONES, type ZoneDef, type ZoneId } from '../content/zones';
+import { ZONES, reachableOnFoot, type ZoneDef, type ZoneId } from '../content/zones';
+import { whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
 import { GATE_KEYS, keyFlag, keyForZone } from '../content/keys';
@@ -98,6 +99,23 @@ describe('nextObjective', () => {
       if (!g.zoneId) continue;
       for (const from of ALL_ZONES) expect(routeTo(ZONES, from, g.zoneId), `${from} → ${g.zoneId}`).not.toBeNull();
     }
+  });
+});
+
+// #75 item 7 (roadmap §4.7): fog never stands between the hero and the goal.
+describe('fog and the story', () => {
+  it('at every step of the story, the next goal is walkable on Dawnreach with the fog lifted so far', () => {
+    const flags: Record<string, boolean> = {};
+    for (let i = 0; i < 20; i++) {
+      const g = nextObjective(flags);
+      if (!g.zoneId) break;
+      const entrance = whereOnMap(ZONES, dawn, g.zoneId, null)!;
+      expect(reachableOnFoot(dawn, flags).has(`${entrance.x},${entrance.y}`), `${g.title} (${entrance.place})`).toBe(true);
+      if (g.kind === 'crystal') flags[crystalFlag(TOPIC_REGISTRY.find((t) => t.zoneId === g.zoneId)!.id)] = true;
+      else if (g.kind === 'key') flags[keyFlag(GATE_KEYS.find((k) => k.fromZone === g.zoneId)!.id)] = true;
+      else flags[SPIRE_CLEARED] = true;
+    }
+    expect(nextObjective(flags).kind).toBe('explore');
   });
 });
 
