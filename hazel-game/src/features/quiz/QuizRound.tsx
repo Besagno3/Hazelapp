@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
+import { useQuizSessionStore } from '../../store/quizSessionStore';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { PASS_THRESHOLD } from '../../lib/utils';
@@ -17,6 +18,7 @@ export default function QuizRound() {
   const topic = useFlow((s) => s.context.topic) ?? 'math';
   const worldUnlocked = useSaveStore((s) => s.save?.worldUnlocked ?? false);
   const recordQuizRound = useSaveStore((s) => s.recordQuizRound);
+  const markCompleted = useQuizSessionStore((s) => s.markCompleted);
   const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
   const addXp = useProfileStore((s) => s.addXp);
   const recordActivity = useProfileStore((s) => s.recordActivity);
@@ -67,6 +69,8 @@ export default function QuizRound() {
       .map((question, i) => ({ question, picked: picks[i] }))
       .filter((_, i) => answers[i] === false);
     recordQuizRound(finalPassed, misses);
+    // A passed topic is retired from the Training Grounds for this session.
+    if (finalPassed) markCompleted(topic);
     // Persist the skill ramp for this topic and award XP for correct answers.
     const newLevel = nextSkillLevel(skillLevel, answers);
     void setSkillLevel(topic, newLevel);

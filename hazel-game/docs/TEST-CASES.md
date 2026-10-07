@@ -528,6 +528,16 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-445 | U | ✅ | battleTurn | Sunseed Snack heals `SNACK_HEAL` + 1 ◆; Turbo Coil fills ◆; Mirror/Tea/Clover set their flags; each new item has its "would do nothing" reason (battleTurn.test) |
 | TC-446 | U | ✅ | battleStore | `start()` also resets the Mirror/Focus/Clover buffs, so they never carry into the next fight (battleTurn.test) |
 
+## Training Grounds: all 7 topics, passed topics retired per session (#91)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-447 | U | ✅ | quizSessionStore | `markCompleted` adds a topic; is idempotent (never listed twice); accumulates distinct topics in order (quizSessionStore.test) |
+| TC-448 | U | ✅ | quizSessionStore | `reset` clears the completed set so it cannot leak into the next session (quizSessionStore.test) |
+| TC-449 | M | ⬜ | TopicSelect | the Training Grounds shows all 7 topics (4 crystal + nature/space/history), not just the crystal four |
+| TC-450 | M | ⬜ | TopicSelect | passing a topic round (80%+) greys it out with a ✓ + "Completed" and makes it unclickable for the rest of the session; failing leaves it selectable |
+| TC-451 | M | ⬜ | TopicSelect | sign out and back in (or reload) → every topic is selectable again (the completed set is ephemeral, cleared on sign-out via `useAuthInit`) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
