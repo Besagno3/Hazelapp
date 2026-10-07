@@ -212,8 +212,6 @@ function Sage({ npcId }: { npcId: string | null }) {
     update((s) => ({
       ...s,
       sages: s.sages.includes(topic!) ? s.sages : [...s.sages, topic!],
-      // Kept for older saves; the Spellbook reads `sages`, not the equipped slot.
-      sageEquipped: s.sageEquipped ?? topic!,
     }));
     confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
   }

@@ -292,7 +292,8 @@ progress. Mechanically it's a gate with a flag, like today's gates.
   just outside it). The Village becomes `HUB_ZONE` and the hero's home; the
   `lumina-field` zone is removed, and save v2 moves anyone standing in it to
   the Village (§4.5). This happens in Phase 2, when the overworld exists to
-  replace the Field as the link between the crystal regions.
+  replace the Field as the link between the crystal regions. *Done (item 8,
+  2026-10-07): into a new east end of the Village.*
 - **Only five lines of game text** mention "Lumina Field", "the field" or "the
   hub" (`story.ts`, `npcs.ts`), so this is cheap to update.
 - **The crystal regions move to the corners without redrawing their maps.**
@@ -429,7 +430,7 @@ mostly follows build order.
 | 5 | ✅ **Map authoring:** Tiled import, invariants ported (§4.6) | S–M | 1→2 | **Done (2026-10-07):** Dawnreach's terrain is painted in Tiled (`content/maps/dawnreach.tmj`) and read back into rows by `tiledRows`, so every zone test runs on it; guide in `docs/MAP-AUTHORING.md` |
 | 6 | ✅ **Wayfinding:** world map menu, quest markers, signposts, "where next?" lines | S–M | 2 | **Done (2026-10-07):** the menu map flags the next goal (🚩) with the way there; two crossroads signposts on Dawnreach; Elder Lumen, Grandmother Wick and Scout Tamsin say where to go next — all worked out from the story flags and the maps (`lib/wayfinding.ts`) |
 | 7 | ✅ **Fog banks** (§3.2) | S–M | 2 | **Done (2026-10-07):** each crystal lifts its own fog pocket on Dawnreach (a chest on its topic); the first crystal also clears the shrine road and a ring over the Spire grounds; each lift plays on screen once — the camera glides to the fog as it peels away — with a storybook panel |
-| 8 | **Re-stage Act I on Dawnreach** (§3.5) | M (mostly content) | 2 | Act I is playable start to finish as a journey; the Field hub is gone |
+| 8 | ✅ **Re-stage Act I on Dawnreach** (§3.5) | M (mostly content) | 2 | **Done (2026-10-07):** Dawnreach grew to 80×60 with the four crystal regions at its corners (Numbria NW, Gearfall Canyon NE, Verdara SW, Chromaria SE — each its own icon, its fog pocket beside it); Lumina Field retired, its people and buildings now in Lumina Village (home, `HUB_ZONE`); save v2 moves old saves; Act I walks start to finish as a journey |
 | 9 | **Field spells + shrines:** *Return* (fast travel), *Glow* (light dark caves), *Calm* (critters ignore you), learned at roadside shrines by passing a short question trial; spells unlocked by flags, not just Sages/crystals (`spellsKnown`, `spells.ts:94`) | M | 2 | each shrine teaches one field spell; *Glow* is needed for one cave |
 | 10 | **Real dungeons:** generalize the Spire (floors as ordinary zones joined by stairs, optional darkness, treasure, a boss at the bottom). Clockwork Depths first — note ISSUES #78: the candle-light overlay ignores the camera, fix it for dungeons bigger than one screen | M–L | 2 | Clockwork Depths is a 3-floor cave entered from the Woods; the Spire runs on the same engine |
 | 11 | **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | every town has an inn and ~8–12 people; every town points onward |
@@ -481,6 +482,17 @@ the four crystal regions at the corners and the Spire at the heart; fog that
 lifts per crystal; 4–6 roadside places; field spells; Clockwork Depths as the
 first real cave; inns everywhere; the rumor pass; regional difficulty. *Exit:*
 Act I is playable start to finish as a journey, and old saves load.
+*Status (2026-10-07):* items 7 (fog) and 8 (Act I re-staged) done. As built,
+Dawnreach is 80×60: the Phase 1 island was kept whole in the middle (shifted
+8 right and 6 down) and a lobe of land added at each corner for a crystal
+region, so the Village — not the Spire — sits at the heart, with the Spire
+just south of it inside its fog ring (moving the Spire would have meant
+repainting the whole middle; revisit if the landmark idea needs it, #100g).
+Save v2 shipped with it (§4.5): `lumina-field` saves wake in the Village,
+Dawnreach positions shift with the map, the pocket chests keep their opened
+state, `sageEquipped` is gone, and a client now refuses a save from a newer
+version. `visited` / `lastRest` / `vehicle` / `boat` wait for the features
+that need them (fast travel, inns everywhere, the boat). Next: items 9–13.
 
 **Phase 3 — The sea (Act II).** Marlow's boat, the Silver Shallows and its islands,
 the Act II zones from `STORY-4X.md` §4 placed per §3.6.
@@ -520,7 +532,8 @@ Struck-through items are decided; the rest are still open.
    Shallows** (inner) and **the Starfall Sea** (outer). Still open: region
    names for the world map.
 3. ~~**Retire Lumina Field as a hub.**~~ **Decided (2026-10-05): yes.** Its
-   people and buildings fold into Lumina Village in Phase 2 (§3.5).
+   people and buildings fold into Lumina Village in Phase 2 (§3.5). *Done
+   (item 8, 2026-10-07).*
 4. ~~**An inn in every town.**~~ **Decided (2026-10-05): yes**, reversing
    #73's one-inn rule (§2.4).
 5. ~~**Visible monsters only, no random battles**, on the overworld too?~~

@@ -104,12 +104,25 @@ export const OVERWORLD_FRAME = {
   mountain: 0,
   sand: 1,
   fog: [2, 3],
-  icon: { town: 4, hamlet: 5, forest: 6, cave: 7, shrine: 8, coast: 9, grove: 10 } satisfies Record<
+  // 11–14: the four crystal regions (#75 item 8).
+  icon: {
+    town: 4,
+    hamlet: 5,
+    forest: 6,
+    cave: 7,
+    shrine: 8,
+    coast: 9,
+    grove: 10,
+    city: 11,
+    canyon: 12,
+    garden: 13,
+    pavilion: 14,
+  } satisfies Record<
     Exclude<PlaceIcon, 'tower'>,
     number
   >,
 } as const;
-export const OVERWORLD_FRAMES = 11;
+export const OVERWORLD_FRAMES = 15;
 export const OVERWORLD_SHEET = '/tiles/overworld.png';
 export const OVERWORLD_KEY = 't_overworld';
 

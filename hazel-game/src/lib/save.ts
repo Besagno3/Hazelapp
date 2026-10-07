@@ -1,9 +1,9 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
-import { HUB_ZONE, ZONES } from '../content/zones';
+import { HUB_ZONE, TILE, ZONES } from '../content/zones';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
 
-export const SAVE_VERSION = 1 as const;
+export const SAVE_VERSION = 2 as const;
 
 /**
  * Versioned save-migration ladder (Wave 0.2, ROADMAP-4X). Each step upgrades
@@ -17,20 +17,80 @@ export const SAVE_VERSION = 1 as const;
  * Old saves then upgrade step-by-step on every load path (Supabase and
  * localStorage both come through `normalizeSave`).
  *
- * ⚠️ The FIRST version bump must also add a stale-client guard: today
- * `normalizeSave` stamps `version: SAVE_VERSION` unconditionally, so once v2
- * exists, a cached v1 client opening a v2 save would field-strip it and
- * re-persist it as v1 (the #61 silent-data-loss class). Harmless while only
- * v1 exists — treat "refuse to load versions above SAVE_VERSION" as step 5
- * of the checklist above. save.test.ts's ladder tripwire separately catches
- * a bumped version with a missing step.
+ *   5. nothing else: `saveIsTooNew` already makes this client refuse a save
+ *      written by a newer one (the store shows "refresh to update" instead of
+ *      field-stripping it back to an older shape — the #61 data-loss class).
+ *      Added with v2; clients from before it (v1) have no such guard.
+ * save.test.ts's ladder tripwire catches a bumped version with a missing step.
  */
 export type RawSave = Record<string, unknown>;
 export type MigrationLadder = Record<number, (raw: RawSave) => RawSave>;
 
-export const MIGRATIONS: MigrationLadder = {
-  // 1: (raw) => ({ ...raw, party: [] }),   ← example: v1 → v2
+/**
+ * Dawnreach grew from 64×48 to 80×60 tiles in #75 item 8, its old map now
+ * sitting this many tiles in from the top-left — so a v1 position on it moves
+ * by this much to stay on the same spot. Frozen: it describes that one change.
+ */
+export const DAWNREACH_GREW_BY = { x: 8, y: 6 } as const;
+
+/**
+ * The four fog-pocket chests (#75 item 7) after Dawnreach grew and two of them
+ * moved beside their regions (item 8), so an opened chest stays opened.
+ */
+export const MOVED_CHESTS: Record<string, string> = {
+  'dawnreach:chest:13,9': 'dawnreach:chest:21,15', // math, by Numbria
+  'dawnreach:chest:15,18': 'dawnreach:chest:18,49', // science, now by Verdara
+  'dawnreach:chest:53,17': 'dawnreach:chest:70,14', // engineering, now in Gearfall Canyon
+  'dawnreach:chest:48,37': 'dawnreach:chest:56,43', // creativity, by Chromaria
 };
+
+export const MIGRATIONS: MigrationLadder = {
+  /**
+   * v1 → v2 (#75 item 8, Act I re-staged on Dawnreach): Lumina Field retired
+   * (a save there wakes on Lumina Village's plaza), Dawnreach grew (a save on
+   * it keeps its spot; the pocket chests keep their opened state), and the
+   * unused `sageEquipped` slot is gone (#53).
+   */
+  1: (raw) => {
+    const out: RawSave = { ...raw };
+    delete out.sageEquipped;
+    if (raw.zoneId === 'lumina-field') {
+      out.zoneId = 'lumina-village';
+      out.pos = null;
+    } else if (raw.zoneId === 'dawnreach' && isPos(raw.pos)) {
+      out.pos = { x: raw.pos.x + DAWNREACH_GREW_BY.x * TILE, y: raw.pos.y + DAWNREACH_GREW_BY.y * TILE };
+    }
+    if (Array.isArray(raw.openedChests)) {
+      out.openedChests = raw.openedChests.map((id) => (typeof id === 'string' ? (MOVED_CHESTS[id] ?? id) : id));
+    }
+    return out;
+  },
+};
+
+function isPos(p: unknown): p is { x: number; y: number } {
+  return (
+    typeof p === 'object' &&
+    p !== null &&
+    typeof (p as { x?: unknown }).x === 'number' &&
+    typeof (p as { y?: unknown }).y === 'number'
+  );
+}
+
+/** The version a raw persisted payload claims (v1 when it doesn't say). */
+export function saveVersionOf(raw: unknown): number {
+  if (typeof raw !== 'object' || raw === null) return 1;
+  const v = (raw as RawSave).version;
+  return typeof v === 'number' ? v : 1;
+}
+
+/**
+ * A save written by a newer version of the game than this one: loading it
+ * would strip what this version doesn't know and save it back older, so the
+ * store refuses it and asks for a refresh instead.
+ */
+export function saveIsTooNew(raw: unknown): boolean {
+  return saveVersionOf(raw) > SAVE_VERSION;
+}
 
 /**
  * Walks `raw` up the ladder to `targetVersion`. A payload without a numeric
@@ -74,7 +134,6 @@ export function defaultSave(): SaveData {
     items: { potion: 1, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0 },
     badges: [],
     sages: [],
-    sageEquipped: null,
     flags: {},
     openedChests: [],
     kills: {},
@@ -98,14 +157,10 @@ export function normalizeSave(raw: unknown): SaveData {
   if (typeof migrated !== 'object' || migrated === null) return d;
   const r = migrated as Record<string, unknown>;
 
-  const zoneId =
-    typeof r.zoneId === 'string' && r.zoneId in ZONES ? (r.zoneId as ZoneId) : d.zoneId;
-  const pos =
-    typeof r.pos === 'object' && r.pos !== null &&
-    typeof (r.pos as { x?: unknown }).x === 'number' &&
-    typeof (r.pos as { y?: unknown }).y === 'number'
-      ? { x: (r.pos as { x: number }).x, y: (r.pos as { y: number }).y }
-      : null;
+  const zoneKnown = typeof r.zoneId === 'string' && r.zoneId in ZONES;
+  const zoneId = zoneKnown ? (r.zoneId as ZoneId) : d.zoneId;
+  // A position only means something in its own zone: none when it fell back.
+  const pos = zoneKnown && isPos(r.pos) ? { x: r.pos.x, y: r.pos.y } : null;
   // Every known consumable gets a count; ids added later (#73: elixir, spark,
   // ward) simply default in for older saves.
   const rawItems = typeof r.items === 'object' && r.items !== null ? (r.items as Record<string, unknown>) : {};
@@ -123,7 +178,6 @@ export function normalizeSave(raw: unknown): SaveData {
     items,
     badges: stringArray(r.badges),
     sages: stringArray(r.sages) as CrystalTopic[],
-    sageEquipped: typeof r.sageEquipped === 'string' ? (r.sageEquipped as CrystalTopic) : null,
     flags: typeof r.flags === 'object' && r.flags !== null ? (r.flags as Record<string, boolean>) : {},
     openedChests: stringArray(r.openedChests),
     kills: killCounts(r.kills),

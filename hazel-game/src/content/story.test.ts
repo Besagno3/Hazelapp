@@ -131,6 +131,16 @@ describe('the script matches the fog over the Spire (#75 item 7)', () => {
   });
 });
 
+describe('Lumina Field is retired (#75 item 8)', () => {
+  it('no one points the hero at it any more (it is just the open country now)', () => {
+    for (const npc of Object.values(NPC_DEFS)) {
+      for (const l of npc.lines) {
+        expect(typeof l === 'string' ? l : l.text, npc.id).not.toMatch(/Lumina Field|this field/);
+      }
+    }
+  });
+});
+
 describe('BOSS_LINES', () => {
   it('every topic has Fiend intro lines and last words', () => {
     for (const topic of TOPICS) {

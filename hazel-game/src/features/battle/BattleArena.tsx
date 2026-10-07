@@ -855,7 +855,7 @@ export default function BattleArena() {
     void addXp(xp);
     // Remember the loss: after a couple, this enemy eases off (mercy).
     recordLoss(enemy!.id);
-    // No game over (#37): wake up safe at Lumina Field, fully healed.
+    // No game over (#37): wake up safe at home in Lumina Village, fully healed.
     updateSave((s) => ({
       ...s,
       hp: null,

@@ -12,7 +12,7 @@ import type { ZoneDef } from './zones';
  *
  * Kid-friendly fail rule: the hero carries `SPIRE_LIVES` candle-lights; each
  * wrong answer snuffs one. Run out and the Spire gently casts you back to
- * Lumina Field, fully healed — climb again any time, no penalty.
+ * Lumina Village, fully healed — climb again any time, no penalty.
  *
  * Every floor is a walkable, themed map (#74): its questions are guarded by
  * rune seals ('Q'), and breaking them all unseals the stairs ('U') up. The

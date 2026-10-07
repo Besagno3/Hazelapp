@@ -65,7 +65,7 @@ zod, react-query. Add the package in the same change that first uses it.
   home continent **Dawnreach**, far continent **Taleshore**, inner sea **the
   Silver Shallows**, outer sea **the Starfall Sea**. **Lumina Field retires as
   a hub** (its people + buildings move into Lumina Village, which becomes home
-  and `HUB_ZONE`). **Every town gets an inn** (reverses #73's one-inn rule;
+  and `HUB_ZONE` — done in item 8, 2026-10-07). **Every town gets an inn** (reverses #73's one-inn rule;
   still one Library, still each item sold in one shop). **`ROADMAP-4X.md`
   Wave 1 (Act II) is paused** until Dawnreach exists — don't build Act II
   zones as edge-linked screens.
@@ -85,12 +85,15 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
-  resolves all seven, #33/#55), `zones.ts` (13 ASCII tile maps: the
-  **Dawnreach** overworld (64×48, `kind: 'overworld'`, with `places` icons
-  and `fogs`, #75) + the Shrine of First Light + Lumina Field + 4 crystal
-  zones + Village (safe, a scrolling 3×2-screen town with enterable
-  buildings) + 3 themed combat zones + the hidden Moonwell Grove + the
-  Crystal Spire; every zone has a `kind` that picks its transition + music;
+  resolves all seven, #33/#55), `zones.ts` (12 tile maps: the **Dawnreach**
+  overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
+  #75 — the four crystal regions sit at its corners, item 8) + the Shrine of
+  First Light + 4 crystal zones + Lumina Village (home and `HUB_ZONE`: safe,
+  a scrolling 4×2-screen town with enterable buildings, incl. the Library
+  and Maple's Trading Post from the retired Lumina Field) + 3 themed combat
+  zones + the hidden Moonwell Grove + the Crystal Spire; every zone but
+  Dawnreach is a place on it; every zone has a `kind` that picks its
+  transition + music;
   `ZONE_IDS` is the zone-id source of truth, validated by `zones.test.ts`;
   Dawnreach's terrain is painted in **Tiled** — `content/maps/dawnreach.tmj`
   with the `legend.tsj` tileset, read by `tiledRows` (`lib/tiled.ts`); see
@@ -108,7 +111,10 @@ zod, react-query. Add the package in the same change that first uses it.
   setting. Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
   `flush()` on save crystals / sign-out. Supabase errors degrade to
-  local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration).
+  local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
+  the `MIGRATIONS` ladder — **`SAVE_VERSION` 2** since #75 item 8). A save
+  from a *newer* version is never loaded or written back (`saveIsTooNew` →
+  status `'outdated'`, and `App` asks for a refresh).
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
   instance ids, losses per enemy for mercy) — deliberately not persisted, so
   a reload is a fresh start for mercy.
@@ -160,8 +166,8 @@ zod, react-query. Add the package in the same change that first uses it.
   Hint Feather or Pip's peek) correct answers in a row raise the battle's
   question level by 1 on the spot (max +2 per battle, saved at the end or
   on Flee). Fiends (bosses) have enrage phases and restore their
-  crystal on defeat. No game over — defeat returns the player to the hub,
-  healed. **Structure (#87, kept by the #99 port):** the rules of a turn are
+  crystal on defeat. No game over — defeat returns the player home to Lumina
+  Village (`HUB_ZONE`), healed. **Structure (#87, kept by the #99 port):** the rules of a turn are
   pure resolvers + tuning in `lib/battleTurn.ts` (damage formulas in
   `lib/battleMath.ts`); the fight's live numbers (HP, charge, guard, shield,
   enrage phase, item buffs) live in `battleStore` and are read with
@@ -297,6 +303,58 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-07 — Act I re-staged on Dawnreach: crystal regions at the corners, Lumina Field retired (#75 item 8)
+Roadmap item 8 (§3.5): Act I now plays as a journey across one continent.
+- **Dawnreach grew to 80×60** (`maps/dawnreach.tmj`, painted from ASCII via
+  `tiled.py`). The Phase 1 island is kept whole in the middle (shifted 8
+  right, 6 down — every Dawnreach coordinate and inbound landing moved with
+  it) and a lobe of land added at each corner for a crystal region:
+  **Numbria** (north-west, a lake and stone hills), **Gearfall Canyon**
+  (north-east, between rock ridges), **Verdara** (south-west, a wood) and
+  **Chromaria** (south-east, a meadow with a pond). Each is a place with its
+  own icon (`city` 🏛️ / `canyon` 🕰️ / `garden` 🌻 / `pavilion` 🎪 — new frames
+  11–14 of `/tiles/overworld.png`, `python3 tools/assets/build.py icons`,
+  the old frames unchanged), its fog pocket beside it (science and
+  engineering moved), and a critter of its topic roaming near. Roads: the
+  north road now turns west to Numbria; a new road north off the east road
+  to Gearfall, south to Chromaria; the Depths road runs on to Verdara. A
+  mountain ridge keeps the shrine's valley fog-locked (the new lobe had
+  opened a back way in). Two more signposts at the forks.
+- **Each crystal zone's one exit** now leads out onto Dawnreach beside its
+  icon (it used to lead to Lumina Field); their maps, chests, gates and
+  quests are unchanged.
+- **Lumina Field retired:** the `lumina-field` zone is gone. Its Library,
+  Maple's Trading Post, Elder Lumen, the Librarian and Pip moved into a new
+  east end of **Lumina Village** (88×28 now, 4×2 screens; nothing else in it
+  moved; the east gate is at column 87). The Village is `HUB_ZONE`: new
+  games and defeated heroes wake on its plaza (the spawn moved there from
+  the north gate). Its art files were deleted; the art tool keeps its entry
+  (`RETIRED`) so the other zones' seeds don't shift.
+- **Save v2** (the first `SAVE_VERSION` bump, `MIGRATIONS[1]`): a save on
+  Lumina Field wakes in the Village; a position on Dawnreach moves by
+  `DAWNREACH_GREW_BY` to the same spot; the four pocket chests keep their
+  opened state (`MOVED_CHESTS`); `sageEquipped` is dropped (#53). Plus the
+  guard the ladder asked for: a save from a newer version than the code is
+  refused (`saveIsTooNew`; the store goes `'outdated'` and writes nothing,
+  `App` shows "refresh the page"). An unknown zone now drops its position too.
+- **Text:** Elder Lumen ("one at each far corner of Dawnreach"), Scout
+  Tamsin (the four corner regions), the defeat panels ("carry you home to
+  Lumina Village", "Back home"), the Spire's cast-out panel, comments.
+  Elder Lumen's "All four crystals shine again" line was keyed to the first
+  (math) crystal; now to `ending-seen`. STORY.md settles home as the Village
+  ("Lumina Field" is the open country around it).
+- **Bench:** the stress map borrows Dawnreach's tileset (the Field's is gone),
+  so it now edge-blends its lakes and roads: 55 / 27 fps (1× / 4× throttle)
+  vs ~60 / 31 before — a new bench baseline, not a change to the game.
+- Tests: home + moved people, corner regions and their one-way-back exits,
+  reachability (regions open, shrine + Spire sealed, pockets per crystal),
+  no critter near a doorstep, save v2 with a real v1 save, the outdated guard
+  in the store, no NPC pointing at Lumina Field; wayfinding/world-map
+  expectations follow the new routes. 543 tests green (+14 net), lint +
+  build clean. Checked in headless Chromium: every region's doorstep, in
+  and out of all four regions and the Village's east gate, the Library and
+  Trading Post interiors, the menu map at 375 px.
 
 ### 2026-10-07 — Merge main (battle round 3, #92–#99) into the fog branch
 `main` took issue numbers #92–#99 and test cases up to TC-535 while the fog

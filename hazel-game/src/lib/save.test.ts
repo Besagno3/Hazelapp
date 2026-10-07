@@ -5,11 +5,15 @@ import {
   migrateLegacy,
   pushLibrary,
   runMigrations,
+  saveIsTooNew,
+  DAWNREACH_GREW_BY,
   MIGRATIONS,
+  MOVED_CHESTS,
   SAVE_VERSION,
   type MigrationLadder,
 } from './save';
 import { LIBRARY_MAX } from '../content/items';
+import { TILE, ZONES, chestTopicAt, tileAt } from '../content/zones';
 import type { LibraryEntry, Question } from '../types';
 
 function q(id: string): Question {
@@ -17,9 +21,10 @@ function q(id: string): Question {
 }
 
 describe('defaultSave', () => {
-  it('starts at the hub, locked world, starter items', () => {
+  it('starts at home (Lumina Village), locked world, starter items', () => {
     const s = defaultSave();
-    expect(s.zoneId).toBe('lumina-field');
+    expect(s.zoneId).toBe('lumina-village');
+    expect(s.pos).toBeNull();
     expect(s.worldUnlocked).toBe(false);
     expect(s.items.potion).toBeGreaterThan(0);
     expect(s.avatarId).toBeNull();
@@ -73,19 +78,78 @@ describe('runMigrations (Wave 0.2 versioned ladder)', () => {
     expect(out.coins).toBe(9);
   });
 
-  it('the real ladder is empty while SAVE_VERSION is 1', () => {
-    expect(SAVE_VERSION).toBe(1);
-    expect(Object.keys(MIGRATIONS)).toHaveLength(0);
-    const v1 = { version: 1, coins: 12 };
-    expect(runMigrations(v1)).toEqual(v1);
+  // A real v1 save, as v1 wrote it (#75 item 8 bumps to v2).
+  const V1 = {
+    version: 1,
+    avatarId: 'blaze',
+    zoneId: 'lumina-field',
+    pos: { x: 336, y: 368 },
+    hp: 80,
+    coins: 120,
+    items: { potion: 2, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0 },
+    badges: ['badge-numbria'],
+    sages: ['math'],
+    sageEquipped: 'math',
+    flags: { 'crystal-math-restored': true, 'intro-seen': true },
+    openedChests: ['numbria:chest:12,4', 'dawnreach:chest:13,9'],
+    kills: { 'count-bat': 1 },
+    questItems: [],
+    passedRounds: 3,
+    worldUnlocked: true,
+    library: [],
+    companionId: 'ember',
+    defendTimer: true,
+  };
+  const centre = (x: number, y: number) => ({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 });
+
+  it('v1 → v2: a save on the retired Lumina Field wakes at home, keeping everything else (#75 item 8)', () => {
+    expect(SAVE_VERSION).toBe(2);
+    const v2 = runMigrations(V1) as Record<string, unknown>;
+    expect(v2.version).toBe(2);
+    expect(v2.zoneId).toBe('lumina-village');
+    expect(v2.pos).toBeNull();
+    expect(v2).not.toHaveProperty('sageEquipped');
+    const s = normalizeSave(V1);
+    expect(s).toMatchObject({ version: 2, zoneId: 'lumina-village', pos: null, coins: 120, sages: ['math'], kills: { 'count-bat': 1 } });
+    expect(s.flags['crystal-math-restored']).toBe(true);
+    expect(s).not.toHaveProperty('sageEquipped');
+  });
+
+  it('v1 → v2: a save on Dawnreach keeps its spot on the bigger map', () => {
+    // Old (32, 23): the road just north of the Village, on the 64×48 map.
+    const v2 = normalizeSave({ ...V1, zoneId: 'dawnreach', pos: centre(32, 23) });
+    expect(DAWNREACH_GREW_BY).toEqual({ x: 8, y: 6 });
+    expect(v2.zoneId).toBe('dawnreach');
+    expect(v2.pos).toEqual(centre(40, 29));
+    expect(tileAt(ZONES.dawnreach, 40, 29)).toBe('=');
+    // Elsewhere, positions stay as they were.
+    expect(normalizeSave({ ...V1, zoneId: 'numbria', pos: centre(5, 6) }).pos).toEqual(centre(5, 6));
+  });
+
+  it('v1 → v2: opened fog-pocket chests stay opened where the chests now are', () => {
+    const v2 = normalizeSave(V1);
+    expect(v2.openedChests).toEqual(['numbria:chest:12,4', 'dawnreach:chest:21,15']);
+    for (const [from, to] of Object.entries(MOVED_CHESTS)) {
+      const [x, y] = to.split(':')[2].split(',').map(Number);
+      expect(tileAt(ZONES.dawnreach, x, y), `${from} → ${to} is a chest`).toBe('C');
+      expect(chestTopicAt(ZONES.dawnreach, x, y)).toBeDefined();
+    }
+  });
+
+  it('a save from a newer version is refused, not stripped (the stale-client guard)', () => {
+    expect(saveIsTooNew({ version: SAVE_VERSION + 1 })).toBe(true);
+    expect(saveIsTooNew({ version: SAVE_VERSION })).toBe(false);
+    expect(saveIsTooNew(V1)).toBe(false);
+    expect(saveIsTooNew({ coins: 3 })).toBe(false); // no version: v1
+    expect(saveIsTooNew(null)).toBe(false);
   });
 
   it('TRIPWIRE: the ladder has a step for every version below SAVE_VERSION', () => {
     // runMigrations stops silently at a missing step and normalizeSave then
     // stamps the payload as fully current — a gap would permanently mask a
     // never-run migration (see the MIGRATIONS doc comment). This must hold
-    // for every version, and the first bump must also add the stale-client
-    // downgrade guard described there.
+    // for every version. (The stale-client guard, `saveIsTooNew`, came with
+    // the first bump, v2.)
     for (let v = 1; v < SAVE_VERSION; v++) {
       expect(MIGRATIONS[v], `missing migration step ${v} → ${v + 1}`).toBeTypeOf('function');
     }
@@ -137,8 +201,10 @@ describe('normalizeSave', () => {
     expect(s.flags['crystal-math-restored']).toBe(true);
   });
 
-  it('rejects an unknown zone id', () => {
-    expect(normalizeSave({ zoneId: 'narnia' }).zoneId).toBe('lumina-field');
+  it('rejects an unknown zone id (and the position that went with it)', () => {
+    const s = normalizeSave({ version: 2, zoneId: 'narnia', pos: { x: 10, y: 10 } });
+    expect(s.zoneId).toBe('lumina-village');
+    expect(s.pos).toBeNull();
   });
 
   it('repairs kill counts and quest items (#42)', () => {

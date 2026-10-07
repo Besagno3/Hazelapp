@@ -75,7 +75,8 @@ export const ROLE_SERVICE: Partial<Record<NpcRole, ServiceType>> = {
 };
 
 export const NPC_DEFS: Record<string, WorldNpcDef> = {
-  // --- Lumina Field (hub) ---
+  // --- Home: Lumina Village's east end (moved in from Lumina Field when it
+  // retired as a hub, #75 item 8; the hub-* ids are kept for saves + quests) ---
   'elder-lumen': {
     id: 'elder-lumen',
     name: 'Elder Lumen',
@@ -89,7 +90,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         unlessFlag: 'met-elder',
         setFlag: 'met-elder',
       },
-      'Four Fiends hoard the crystal light — one beyond each path from this field.',
+      'Four Fiends hoard the crystal light, one at each far corner of Dawnreach. Every road out of our village leads to one of them, sooner or later.',
       'Every question you answer returns a spark of light. Learning is our magic!',
       {
         text: 'That egg you carry… the last dragon of Lumina chose YOU. Keep answering bravely, and it will hatch.',
@@ -101,7 +102,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       {
         text: 'All four crystals shine again… you truly are the Hero of Lumina!',
-        ifFlag: 'crystal-math-restored',
+        // Once all four are back (the ending scene sets it), not after the first.
+        ifFlag: 'ending-seen',
       },
       {
         text: 'You climbed the Spire and faced Umbra itself. Lumina will tell your story for a thousand years, brave one.',
@@ -839,7 +841,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     guide: true,
     lines: [
       'Hi! I\'m mapping all of Dawnreach. Want the short version? Here goes!',
-      'North: Lumina Field. West: the Whispering Woods. East: Starfall Coast, where the land runs out.',
+      'West: the Whispering Woods. East: Starfall Coast, where the land runs out. And out at the four corners, the crystal lands: Numbria to the north-west, Gearfall Canyon to the north-east, Verdara to the south-west and Chromaria to the south-east.',
       // The Spire hides in its ring of fog until the first crystal (#75 item 7).
       {
         text: "South, past the hills, the Crystal Spire hides in a ring of fog. I haven't been able to draw it yet! Restore a crystal and the fog should lift.",
@@ -872,6 +874,26 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'dawnreach-sign-east': {
     id: 'dawnreach-sign-east',
+    name: 'Signpost',
+    sprite: '🪧',
+    spriteId: 'signpost',
+    role: 'villager',
+    stationary: true,
+    signpost: true,
+    lines: [],
+  },
+  'dawnreach-sign-north': {
+    id: 'dawnreach-sign-north',
+    name: 'Signpost',
+    sprite: '🪧',
+    spriteId: 'signpost',
+    role: 'villager',
+    stationary: true,
+    signpost: true,
+    lines: [],
+  },
+  'dawnreach-sign-fork': {
+    id: 'dawnreach-sign-fork',
     name: 'Signpost',
     sprite: '🪧',
     spriteId: 'signpost',

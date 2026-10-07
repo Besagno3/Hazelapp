@@ -12,7 +12,7 @@ import SignOutButton from './features/auth/SignOutButton';
 import LevelBadge from './components/LevelBadge';
 import StreakBadge from './components/StreakBadge';
 import LevelUpModal from './components/LevelUpModal';
-import { LoadingScreen } from './components/StatusScreens';
+import { ErrorScreen, LoadingScreen } from './components/StatusScreens';
 import TopicSelect from './features/quiz/TopicSelect';
 import QuizRound from './features/quiz/QuizRound';
 import AvatarSelect from './features/battle/AvatarSelect';
@@ -71,6 +71,16 @@ export default function App() {
   if (!session) return <AuthPage />;
   // Arrived from a reset-email link → choose a new password before playing.
   if (passwordRecovery) return <ResetPasswordPage />;
+
+  // The save came from a newer version of the game (this tab is out of date).
+  if (saveStatus === 'outdated') {
+    return (
+      <ErrorScreen
+        message="Hazel Quest has been updated since this page opened, and your adventure was saved by the new version. Refresh the page to keep playing."
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
 
   if (saveStatus !== 'ready' || booting) {
     return <LoadingScreen label="Preparing your adventure…" />;

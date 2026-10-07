@@ -151,7 +151,7 @@ export interface LibraryEntry {
  * table with a localStorage write-through cache keyed by user id (#12).
  */
 export interface SaveData {
-  version: 1;
+  version: 2;
   avatarId: string | null;
   zoneId: ZoneId;
   /** Pixel position in the current zone; null → the zone's default spawn. */
@@ -164,7 +164,6 @@ export interface SaveData {
   badges: string[];
   /** Topics whose Sage the player has met (each grants that topic's spell). */
   sages: CrystalTopic[];
-  sageEquipped: CrystalTopic | null;
   /** Story + world flags: crystal-<topic>-restored, gate:<id>, ending-seen… */
   flags: Record<string, boolean>;
   openedChests: string[];

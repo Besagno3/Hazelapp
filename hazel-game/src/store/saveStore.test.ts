@@ -1,6 +1,20 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSaveStore } from './saveStore';
-import { defaultSave } from '../lib/save';
+import { defaultSave, saveKey, SAVE_VERSION } from '../lib/save';
+
+// The Supabase `saves` table, faked: one row to read back, and the upserts made.
+const remote = vi.hoisted(() => ({ row: null as unknown, upserts: [] as unknown[] }));
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: remote.row, error: null }) }) }),
+      upsert: async (r: unknown) => {
+        remote.upserts.push(r);
+        return { error: null };
+      },
+    }),
+  },
+}));
 import { ROUNDS_TO_UNLOCK } from '../lib/utils';
 import type { Question } from '../types';
 
@@ -56,5 +70,42 @@ describe('saveStore.clear', () => {
     useSaveStore.getState().clear();
     expect(useSaveStore.getState().save).toBeNull();
     expect(useSaveStore.getState().status).toBe('idle');
+  });
+});
+
+describe('saveStore.load', () => {
+  beforeEach(() => {
+    remote.row = null;
+    remote.upserts = [];
+    localStorage.clear();
+  });
+
+  it('upgrades a v1 save from the server and saves it back as v2 (#75 item 8)', async () => {
+    remote.row = { data: { version: 1, zoneId: 'lumina-field', pos: { x: 5, y: 5 }, coins: 7, sageEquipped: 'math' } };
+    await useSaveStore.getState().load('u1');
+    const { save, status } = useSaveStore.getState();
+    expect(status).toBe('ready');
+    expect(save).toMatchObject({ version: 2, zoneId: 'lumina-village', pos: null, coins: 7 });
+    expect(JSON.parse(localStorage.getItem(saveKey('u1'))!).version).toBe(2);
+    expect(remote.upserts).toHaveLength(1);
+  });
+
+  it('refuses a save from a newer version: nothing loaded, nothing written back', async () => {
+    const newer = { version: SAVE_VERSION + 1, zoneId: 'somewhere-new', coins: 999 };
+    remote.row = { data: newer };
+    await useSaveStore.getState().load('u2');
+    expect(useSaveStore.getState().status).toBe('outdated');
+    expect(useSaveStore.getState().save).toBeNull();
+    expect(localStorage.getItem(saveKey('u2'))).toBeNull();
+    expect(remote.upserts).toHaveLength(0);
+  });
+
+  it('refuses a newer local copy too (no server row)', async () => {
+    const newer = JSON.stringify({ version: SAVE_VERSION + 1, coins: 5 });
+    localStorage.setItem(saveKey('u3'), newer);
+    await useSaveStore.getState().load('u3');
+    expect(useSaveStore.getState().status).toBe('outdated');
+    expect(localStorage.getItem(saveKey('u3'))).toBe(newer);
+    expect(remote.upserts).toHaveLength(0);
   });
 });

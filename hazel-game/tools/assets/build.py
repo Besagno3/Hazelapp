@@ -57,6 +57,12 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only={'signpost'}))
         print('signpost ✓')
         return
+    if 'icons' in only:
+        # Just the overworld sheet, now with the crystal regions' icons (#75
+        # item 8) — existing frames unchanged, every other file untouched.
+        tiles.build_overworld_sheet(PUBLIC)
+        print('icons ✓')
+        return
     if 'overworld' in only:
         # Just the Phase 1 overworld additions (#75) — existing files untouched.
         write_manifest(build_sprites.build(PUBLIC, only={'dawnreach-scout', 'shrine-keeper'}))

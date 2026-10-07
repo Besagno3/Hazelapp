@@ -89,7 +89,7 @@ async function fps(browser, cols, rows) {
 
 async function shots(browser, outDir) {
   fs.mkdirSync(outDir, { recursive: true });
-  const page = await openBench(browser, 'zone=lumina-field&paused=1');
+  const page = await openBench(browser, 'zone=lumina-village&paused=1');
   const { zoneIds, spireThemes } = await page.evaluate(() => window.__bench.info());
   const targets = [];
   for (const zone of zoneIds) {

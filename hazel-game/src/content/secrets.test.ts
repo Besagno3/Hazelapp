@@ -90,6 +90,6 @@ describe('secrets (village expansion)', () => {
   it('secretProgress counts found secrets per zone', () => {
     const save = claimSecret(defaultSave(), secretById('numbria-pond')!);
     expect(secretProgress('numbria', save)).toEqual({ found: 1, total: ZONES.numbria.secrets!.length });
-    expect(secretProgress('lumina-field', save)).toEqual({ found: 0, total: 0 });
+    expect(secretProgress('dawnreach', save)).toEqual({ found: 0, total: 0 });
   });
 });

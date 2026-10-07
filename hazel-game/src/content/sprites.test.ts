@@ -83,7 +83,7 @@ describe('generated 16-bit sprite set', () => {
   });
   it('every enemy resolves to world + battle art through spawnEnemy', () => {
     for (const id of Object.keys(ENEMY_DEFS)) {
-      const e = spawnEnemy(id, 'lumina-field', 'test', 9);
+      const e = spawnEnemy(id, 'lumina-village', 'test', 9);
       const def = resolveSprite(e.spriteId, e.sprite).def;
       expect(def?.world, `${id} world`).toBeDefined();
       expect(def?.battle, `${id} battle`).toBeDefined();

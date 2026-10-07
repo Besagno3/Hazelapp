@@ -74,13 +74,16 @@ function stressZone(cols: number, rows: number): ZoneDef {
     }
     map.push(row);
   }
-  const base = ZONES['lumina-field'];
+  // Borrows the overworld's tileset (and id), as an overworld-like map should.
+  const base = ZONES.dawnreach;
   return {
     ...base,
     name: `Stress ${cols}×${rows}`,
     map,
     spawn: { x: Math.floor(cx), y: Math.floor(cy) },
     buildings: [],
+    places: [],
+    fogs: [],
     // A few villagers off the roads (they wander + collide, like a real map).
     npcs: ['hub-kid', 'village-friend', 'woods-sprite', 'grove-firefly', 'grove-otter', 'coast-fisher']
       .map((defId, i) => ({ defId, x: Math.floor(cx) - 9 + i * 3, y: Math.floor(cy) + 3 }))
@@ -92,8 +95,8 @@ function stressZone(cols: number, rows: number): ZoneDef {
 
 let zoneId: ZoneId;
 if (zoneParam === 'stress') {
-  ZONES['lumina-field'] = stressZone(Number(q.get('cols') ?? 160), Number(q.get('rows') ?? 112));
-  zoneId = 'lumina-field';
+  ZONES.dawnreach = stressZone(Number(q.get('cols') ?? 160), Number(q.get('rows') ?? 112));
+  zoneId = 'dawnreach';
 } else {
   zoneId = zoneParam as ZoneId;
 }

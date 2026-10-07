@@ -181,7 +181,7 @@ export function routeSteps(
   return steps;
 }
 
-/** Steps as one sentence: "Go north to Lumina Field, then take the west path to Numbria." */
+/** Steps as one sentence: "Go west to the Whispering Woods, then take the east path to …" — or just "Go north-west to Numbria." */
 export function sentence(steps: string[]): string {
   const s = steps.join(', then ');
   return s ? `${s[0].toUpperCase()}${s.slice(1)}.` : '';
