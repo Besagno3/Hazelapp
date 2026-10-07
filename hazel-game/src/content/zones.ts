@@ -397,6 +397,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'sum-slime', x: 17, y: 5 },
       { defId: 'count-bat', x: 14, y: 8 },
       { defId: 'sir-sumsalot', x: 7, y: 6 },
+      { defId: 'raven-prince', x: 14, y: 3 },
+      { defId: 'kia', x: 39, y: 11 },
+      { defId: 'pirate-parrot', x: 8, y: 10 },
       { defId: 'null-fiend', x: 3, y: 6 },
     ],
     exits: [
@@ -489,6 +492,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'spore-puff', x: 5, y: 9 },
       { defId: 'static-jelly', x: 15, y: 9 },
       { defId: 'comet-crab', x: 6, y: 4 },
+      { defId: 'fizzlet', x: 11, y: 11 },
+      { defId: 'magnetick', x: 18, y: 9 },
+      { defId: 'germinator', x: 16, y: 5 },
       { defId: 'smog-fiend', x: 10, y: 2 },
     ],
     exits: [
@@ -583,6 +589,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'bolt-mouse', x: 6, y: 4 },
       { defId: 'scrap-golem', x: 8, y: 9 },
       { defId: 'gear-wyrm', x: 14, y: 6 },
+      { defId: 'pulley-spider', x: 7, y: 2 },
+      { defId: 'piston-boar', x: 16, y: 15 },
+      { defId: 'ironhorn-rampager', x: 13, y: 10 },
       { defId: 'rust-fiend', x: 18, y: 6 },
     ],
     exits: [
@@ -677,6 +686,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'doodle-imp', x: 6, y: 5 },
       { defId: 'off-key-bird', x: 15, y: 4 },
       { defId: 'pixel-witch', x: 10, y: 9 },
+      { defId: 'flicker-goblin', x: 17, y: 1 },
+      { defId: 'graffiti-gargoyle', x: 40, y: 6 },
+      { defId: 'dog-knight', x: 17, y: 9 },
       { defId: 'gray-fiend', x: 10, y: 11 },
     ],
     exits: [
@@ -838,6 +850,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'mossback-cub', x: 12, y: 4 },
       { defId: 'thornhare', x: 17, y: 8 },
       { defId: 'grumblebee', x: 16, y: 12 },
+      { defId: 'dart-frog', x: 11, y: 2 },
+      { defId: 'snapjaw', x: 19, y: 10 },
+      { defId: 'oak-owl', x: 5, y: 4 },
       { defId: 'thicket-warden', x: 16, y: 4 },
     ],
     exits: [
@@ -890,6 +905,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'tide-sprite', x: 13, y: 6 },
       { defId: 'meteor-mite', x: 11, y: 5 },
       { defId: 'moon-moth', x: 5, y: 7 },
+      { defId: 'orbit-otter', x: 2, y: 2 },
+      { defId: 'gravity-beetle', x: 14, y: 2 },
+      { defId: 'eclipse-fox', x: 19, y: 5 },
       { defId: 'tide-colossus', x: 12, y: 3 },
     ],
     exits: [
@@ -938,6 +956,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'cog-sprite', x: 6, y: 5 },
       { defId: 'hourglass-imp', x: 14, y: 6 },
       { defId: 'relic-golem', x: 8, y: 2 },
+      { defId: 'tut-tut', x: 3, y: 7 },
+      { defId: 'knight-mare', x: 14, y: 11 },
       { defId: 'clockwork-titan', x: 10, y: 5 },
     ],
     exits: [
