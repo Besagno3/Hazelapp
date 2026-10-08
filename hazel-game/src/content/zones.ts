@@ -5,6 +5,7 @@ import { CRYSTAL_TOPIC_IDS } from '../types';
 import { tiledRows } from '../lib/tiled';
 import dawnreachTmj from './maps/dawnreach.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
+import type { DangerTier } from './regions';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -287,6 +288,11 @@ export interface EnemyPlacement {
   defId: string;
   x: number;
   y: number;
+  /**
+   * Danger tier (#75 item 12, content/regions.ts) when it isn't the zone's —
+   * an overworld critter roaming beside a far region takes that region's.
+   */
+  tier?: DangerTier;
 }
 
 export interface ZoneDef {
@@ -1374,11 +1380,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'grumblebee', x: 27, y: 39 },
       { defId: 'tide-sprite', x: 56, y: 35 },
       { defId: 'meteor-mite', x: 53, y: 25 },
-      // A critter from each region roams near it (#75 item 8).
-      { defId: 'sum-slime', x: 16, y: 16 },
-      { defId: 'bolt-mouse', x: 67, y: 19 },
-      { defId: 'spore-puff', x: 8, y: 52 },
-      { defId: 'doodle-imp', x: 63, y: 51 },
+      // A critter from each region roams near it (#75 item 8) — as tough as
+      // that region (#75 item 12); the heartland's critters above are home ground.
+      { defId: 'sum-slime', x: 16, y: 16, tier: 1 },
+      { defId: 'bolt-mouse', x: 67, y: 19, tier: 3 },
+      { defId: 'spore-puff', x: 8, y: 52, tier: 2 },
+      { defId: 'doodle-imp', x: 63, y: 51, tier: 4 },
     ],
   },
 

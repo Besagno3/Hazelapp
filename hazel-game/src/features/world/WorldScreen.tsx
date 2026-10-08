@@ -22,7 +22,10 @@ import {
 import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx, spireFloorTitle } from '../../content/spire';
 import { dungeonFloor, floorLabel } from '../../content/dungeons';
 import { useSpireStore } from '../../store/spireStore';
-import { spawnEnemy } from '../../content/enemies';
+import { atTier, spawnPlaced } from '../../content/enemies';
+import { lossKey, mercyFor } from '../../lib/battleTurn';
+import { roadTier } from '../../lib/wayfinding';
+import { arrivalWarning, zoneTier } from '../../content/regions';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
 import { bossDefeated } from '../../content/keys';
@@ -193,9 +196,14 @@ export default function WorldScreen() {
   }, [overlay, cutscene, spireExploring]);
 
   // Remember every place the hero has been: Return flies to the towns (#75 item 9).
+  // Arriving somewhere new that fights far tougher than the 🚩's road (the
+  // Coast, early on) says so once, and points back to the road (#75 item 12).
   const visitedHere = save?.flags[visitedFlag(zoneId)] === true;
   useEffect(() => {
-    if (save && !visitedHere) setFlag(visitedFlag(zoneId));
+    if (!save || visitedHere) return;
+    setFlag(visitedFlag(zoneId));
+    const warning = arrivalWarning(zoneTier(zoneId), roadTier(save.flags));
+    if (warning) showToast(warning);
     // Only on arriving somewhere new.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoneId, visitedHere]);
@@ -204,7 +212,7 @@ export default function WorldScreen() {
   useEffect(() => {
     if (!save) return;
     for (const p of z.enemies) {
-      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels);
+      const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, save.flags)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT);
@@ -356,7 +364,10 @@ export default function WorldScreen() {
               pos: { x: spawnX * TILE + TILE / 2, y: spawnY * TILE + TILE / 2 },
             })),
           onEncounter: (enemy) => {
-            startBattle(enemy, hp, maxHp);
+            // Mercy far from home (#75 item 12): a critter that has beaten the
+            // hero a couple of times fights like a Numbria one from then on.
+            const losses = useBattleStore.getState().losses[lossKey(enemy)] ?? 0;
+            startBattle(atTier(enemy, mercyFor(losses, enemy.tier).fightTier), hp, maxHp);
             sendFlow({ type: 'ENCOUNTER' });
           },
           onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),
