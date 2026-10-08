@@ -396,7 +396,8 @@ def compose(spec):
         # within a section, the second half opens by echoing the first half's opening
         half = slen // 2
         repeat_of = si - half if half >= 4 and half <= si < half + half // 2 else None
-        local = {}
+        if si == 0:
+            local = {}  # this section's notes, for the echo above
         t = bi * bar
         seq = []
         for k, length in enumerate(rhythm):

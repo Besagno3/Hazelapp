@@ -359,6 +359,9 @@ passes `MIN_LOOP_S` (30 s). Loops now run 61–116 s; music is encoded at 64 kbp
 (`MUSIC_KBPS`) so the files stay ~0.5–0.9 MB. The Spire's spooky tracks
 (already 46–66 s) are unchanged. Still seeded/deterministic; the echo tail
 still wraps so the loop seam is seamless.
+Review fix: the in-section echo (a section's second half opening with its first
+half's notes) never fired because its note memory was reset every bar; it now
+resets once per section. Open: #105 (bridge arp register, needs a listen).
 
 ### 2026-10-08 — Pitch dark fades in at its edges (#75 item 10, #103)
 A fresh-eyes `/saas-code-review` + `/saas-ux-review` of item 10 after the
