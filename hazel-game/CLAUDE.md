@@ -346,6 +346,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-08 — Pitch dark fades in at its edges (#75 item 10, #103)
+A fresh-eyes `/saas-code-review` + `/saas-ux-review` of item 10 after the
+builder's own review (all three floors, the stairs, the side hall dark and
+lit, the map caption and a B2 battle played in headless Chromium, desktop and
+375 px). No new code findings. One UX fix: on the dim Gear Halls the side
+hall's pitch dark was one opaque rectangle over a floor you can mostly see,
+so it read as a black hole in the map. `WorldCanvas` now draws each pitch
+rectangle as stacked layers (`PITCH_FEATHER`: 35 / 45 / 60% rims, 10 px apart,
+around an opaque core — a small rectangle skips the inner layers and its
+innermost turns opaque),
+each fading by its own share when Glow lights the place. The Echo Mine's
+doorway gets the same soft edge. 592 tests green, lint + build clean.
+
 ### 2026-10-08 — Field spells review fixes: Calm's grace, a darker mine, spells up the menu (#75 item 9, #102h)
 `/saas-code-review` + `/saas-ux-review` of item 9, run in a fresh session
 (the trial, the menu, Return, Calm and the Echo Mine played in headless
