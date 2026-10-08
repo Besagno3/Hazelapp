@@ -27,8 +27,8 @@ import {
 import { bossDefeated } from '../../content/keys';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
-import { spawnEnemy } from '../../content/enemies';
-import { BASE_TIER, DANGER, mapLabel, placementTier } from '../../content/regions';
+import { spawnPlaced } from '../../content/enemies';
+import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, PathTarget, Topic, ZoneId } from '../../types';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
@@ -1002,7 +1002,7 @@ export default function WorldCanvas({
 
     const critters: { opacity: number }[][] = [];
     for (const p of z.enemies) {
-      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels, placementTier(zoneId, p));
+      const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
       // regular enemies stay gone for the session (they respawn next visit).
       if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, flagsRef.current)) continue;

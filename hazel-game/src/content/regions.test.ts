@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { BASE_TIER, DANGER, REGIONS, dangerMarks, mapLabel, placementTier, zoneTier, type DangerTier } from './regions';
 import { ZONES, ZONE_IDS } from './zones';
-import { spawnEnemy } from './enemies';
+import { spawnEnemy, spawnPlaced } from './enemies';
 import { enemyAttack, defeatXp } from '../lib/battleMath';
 import { CHARGE_CHANCE, nextIntent } from '../lib/battleTurn';
 import { nextObjective } from '../lib/wayfinding';
@@ -100,7 +100,9 @@ describe('scaling a battle by tier — never its questions', () => {
     expect(spawnEnemy('sum-slime', 'numbria', 'a', 9).tier).toBe(1);
     const dawnreach = ZONES.dawnreach;
     const imp = dawnreach.enemies.find((p) => p.defId === 'doodle-imp')!;
-    expect(spawnEnemy(imp.defId, 'dawnreach', 'a', 9, {}, placementTier('dawnreach', imp)).tier).toBe(4);
+    const spawned = spawnPlaced('dawnreach', imp, 9);
+    expect(spawned.tier).toBe(4);
+    expect(spawned.instanceId).toBe(`dawnreach:doodle-imp@${imp.x},${imp.y}`);
     const hare = dawnreach.enemies.find((p) => p.defId === 'thornhare')!;
     expect(placementTier('dawnreach', hare)).toBe(0);
   });

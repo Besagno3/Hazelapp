@@ -22,8 +22,7 @@ import {
 import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx, spireFloorTitle } from '../../content/spire';
 import { dungeonFloor, floorLabel } from '../../content/dungeons';
 import { useSpireStore } from '../../store/spireStore';
-import { spawnEnemy } from '../../content/enemies';
-import { placementTier } from '../../content/regions';
+import { spawnPlaced } from '../../content/enemies';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
 import { bossDefeated } from '../../content/keys';
@@ -205,7 +204,7 @@ export default function WorldScreen() {
   useEffect(() => {
     if (!save) return;
     for (const p of z.enemies) {
-      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels, placementTier(zoneId, p));
+      const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, save.flags)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT);

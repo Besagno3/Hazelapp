@@ -2,7 +2,8 @@ import type { BattleEnemy, EnemyBehavior, Topic, ZoneId } from '../types';
 import { clampLevel, skillLevelFor } from '../lib/age';
 import { topicInfo } from './topics';
 import { bossCoinDrop, enemyCoinDrop } from './items';
-import { DANGER, zoneTier, type DangerTier } from './regions';
+import { DANGER, placementTier, zoneTier, type DangerTier } from './regions';
+import type { EnemyPlacement } from './zones';
 
 /**
  * Enemy archetypes (#37). Placements in zones.ts reference these by id; the
@@ -141,4 +142,19 @@ export function spawnEnemy(
     behavior: def.behavior,
     tier,
   };
+}
+
+/**
+ * A zone's placed enemy, ready for battle: its instance id ("count-bat@12,4",
+ * the key session defeat-tracking matches) and its danger tier (the
+ * placement's own, else the zone's — #75 item 12). The world and the
+ * question prefetch both spawn through this, so they always agree.
+ */
+export function spawnPlaced(
+  zoneId: ZoneId,
+  p: EnemyPlacement,
+  age: number,
+  skillLevels: Partial<Record<Topic, number>> = {},
+): BattleEnemy {
+  return spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels, placementTier(zoneId, p));
 }

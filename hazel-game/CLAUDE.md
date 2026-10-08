@@ -365,7 +365,9 @@ level was the child's question level ±1, so Chromaria felt like Numbria.
   **1** Numbria + the Whispering Woods, **2** Verdara + the Clockwork Depths
   (+ the Echo Mine), **3** Gearfall Canyon + Starfall Coast, **4** Chromaria.
   The four critters roaming by the corner regions on Dawnreach take their
-  region's tier (`EnemyPlacement.tier`, `placementTier`).
+  region's tier (`EnemyPlacement.tier`, `placementTier`). The world and the
+  question prefetch both spawn a placed enemy through `spawnPlaced`, so its
+  instance id and tier always agree.
 - **What a tier changes** (`DANGER`): HP (×0.85 … ×1.45), every blow (×0.85 …
   ×1.3), a regular enemy's chance to wind up a power move (12% … 35%; bosses
   keep their every-third-turn rhythm), coins (×0.8 … ×2) and the win's bonus
