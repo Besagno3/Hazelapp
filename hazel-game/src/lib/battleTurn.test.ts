@@ -344,9 +344,10 @@ describe('streaks, mercy, rewards', () => {
     expect(streakMultiplier(STREAK_MAX + 10)).toBe(streakMultiplier(STREAK_MAX));
   });
 
-  it('mercy makes questions easier after MERCY_AFTER losses — and nothing else', () => {
-    expect(mercyFor(MERCY_AFTER - 1)).toEqual({ levelDrop: 0 });
-    expect(mercyFor(MERCY_AFTER)).toEqual({ levelDrop: 1 });
+  it('near home, mercy makes questions easier after MERCY_AFTER losses — and nothing else', () => {
+    expect(mercyFor(MERCY_AFTER - 1)).toEqual({ levelDrop: 0, fightTier: 1 });
+    expect(mercyFor(MERCY_AFTER)).toEqual({ levelDrop: 1, fightTier: 1 });
+    expect(mercyFor(MERCY_AFTER, 0)).toEqual({ levelDrop: 1, fightTier: 0 }); // home ground stays gentler still
   });
 
   it('the first win over an enemy kind pays a coin bonus', () => {

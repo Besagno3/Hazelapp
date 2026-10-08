@@ -11,6 +11,7 @@ import {
   healerMends,
   healerRegen,
   HEALER_REGEN_RATE,
+  HEALER_REGEN_MAX,
 } from './battleMath';
 import { EMBER_POWER } from '../content/companion';
 
@@ -90,12 +91,15 @@ describe('healer archetype (Wave 0.5)', () => {
     expect(Number.isInteger(healerRegen(133))).toBe(true);
   });
 
-  it('regen is a fixed fraction, so a big enough hit always outpaces it', () => {
+  it('regen is a fixed fraction up to a cap, so a big enough hit always outpaces it', () => {
     // Pure-function guarantee: regen scales linearly with maxHp at
-    // HEALER_REGEN_RATE, so any hit above rate×maxHp makes net progress.
-    // The roster-level "no healer out-mends a real hit" invariant lives in
-    // enemies.test.ts, derived from ENEMY_DEFS (not a hardcoded HP).
-    expect(healerRegen(300)).toBe(Math.round(300 * HEALER_REGEN_RATE));
+    // HEALER_REGEN_RATE, capped at HEALER_REGEN_MAX (#75 item 12 — a far
+    // region's beefier healer mends no more), so any hit above the cap makes
+    // net progress. The roster-level "no healer out-mends a real hit"
+    // invariant lives in enemies.test.ts, derived from ENEMY_DEFS.
+    expect(healerRegen(150)).toBe(Math.round(150 * HEALER_REGEN_RATE));
+    expect(healerRegen(200)).toBe(HEALER_REGEN_MAX);
+    expect(healerRegen(300)).toBe(HEALER_REGEN_MAX);
   });
 });
 

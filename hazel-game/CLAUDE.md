@@ -47,7 +47,10 @@ zod, react-query. Add the package in the same change that first uses it.
   answers in a row → +1 mid-battle). It sets quiz, gate, chest, Spire and
   battle questions and enemy levels. **XP / player level** only tracks
   progress and grants power-ups — leveling up never makes anything harder.
-  The defend countdown is age-based only.
+  The defend countdown is age-based only. **Where an enemy roams scales how
+  it fights, never what it asks (#75 item 12, 2026-10-08):** each zone's
+  danger tier (`content/regions.ts`, by story leg) scales its HP, blows,
+  power-move rate, coins and win XP; its questions stay at the child's level.
 - **Player profiles:** a Supabase `profiles` table (birth year/month + per-topic
   skill levels) backs age-based difficulty. Difficulty model: a **persistent
   per-topic skill level** that rises on consecutive correct answers and falls
@@ -107,7 +110,10 @@ zod, react-query. Add the package in the same change that first uses it.
   plus visited towns and Return landings), `dungeons.ts` (#75 item 10: which
   zones are floors of one dungeon, which way is deeper, floor labels B1… /
   Floor 1…, the boss at the bottom — floors are ordinary zones joined by
-  `>` / `<` stairs exits), `spire.ts` (the endgame climb floors +
+  `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
+  danger tier 0–4, the `DANGER` tuning per tier, map labels "Lv 4 !!", the
+  danger banner / defeat tip / arrival warning copy),
+  `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
   Fiends, #58), `items.ts` (shop + economy tuning), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
@@ -127,8 +133,9 @@ zod, react-query. Add the package in the same change that first uses it.
   Every v2+ save carries the `save:v2` flag (`SAVE_V2_FLAG`) so the v1 → v2
   step never moves a position twice.
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
-  instance ids, losses per enemy for mercy) — deliberately not persisted, so
-  a reload is a fresh start for mercy.
+  instance ids, losses per enemy kind + tier for mercy (`lossKey`), the danger
+  tiers already explained) — deliberately not persisted, so a reload is a
+  fresh start for mercy.
 - **`quizSessionStore`** holds the ephemeral Training-Grounds session — the
   topics passed (80%+) this session, so `TopicSelect` greys them out and stops
   re-picking. Not persisted; reset on sign-out (#64).
@@ -195,14 +202,24 @@ zod, react-query. Add the package in the same change that first uses it.
   **telegraph a power move** (charge turn → 2× blow; Guard blocks it), Sage
   spells are **super effective** vs their topic, **answer streaks** power up
   hits, and after two losses to the same enemy its questions get easier
-  (**mercy** — session-only, no change to damage). **Defend questions are
+  (**mercy** — session-only; near home no change to damage, while a critter
+  with "!" marks also fights like a tier-1 one from then on: `mercyFor`'s
+  `fightTier`, applied at the encounter by `atTier`). **Defend questions are
   timed** (`DefendTimer`, `defendTimeMs(age)`: 25s at age 5, 1.5s less per
   year, 10–25s, +5s under mercy, paused while the tab is hidden; switch off
   per player in 📜 → ⚔️ Battle; running out lands the blow as a wrong
   answer). **Speed trigger:** 5 quick (within half the age countdown, no
   Hint Feather or Pip's peek) correct answers in a row raise the battle's
   question level by 1 on the spot (max +2 per battle, saved at the end or
-  on Flee). Fiends (bosses) have enrage phases and restore their
+  on Flee). **Danger tiers** (#75 item 12): `BattleEnemy.tier` (from
+  `placementTier` at spawn) scales max HP and coins (`spawnEnemy`), every
+  blow (`enemyAttack`), a regular enemy's power-move chance (`nextIntent`) and
+  the win XP (`defeatXp`) — never `level`, the question level; the HUD shows
+  its "!" marks beside "Lv", the first fight against each tier's marks in a
+  session opens with a 💪 tap-to-continue line saying what they mean
+  (`toughCallout`, chained after a boss's monologue, then the 💛 mercy line), a
+  far defeat says what to do (`defeatTip`), and a healer's mend is capped
+  (`HEALER_REGEN_MAX`) so no region makes a fight stall. Fiends (bosses) have enrage phases and restore their
   crystal on defeat. No game over — defeat wakes the player, healed, inside
   the last inn they rested at (`wakeAfterDefeat`; home to Lumina Village,
   `HUB_ZONE`, if they've never rested away from it). **Structure (#87, kept by the #99 port):** the rules of a turn are
@@ -217,7 +234,9 @@ zod, react-query. Add the package in the same change that first uses it.
   fireballs, flinch, cheer); `BattleHud` / `BattleStage` / `BattleMenus`
   (command, Spells, Items, companion, Swap) / `BattleResult` are the view;
   `BattleArena` owns the turn flow. Session-only `battleStore.losses` drives
-  mercy.
+  mercy, keyed by `lossKey` (kind + the tier it roams at). The callout
+  banner is a dark pill over the stage's sky, out of the layout (a zero-height
+  live region), so it reads on any backdrop and never moves the answers.
 - DB schema lives in `supabase/migrations/` — apply with
   `supabase/apply_all_migrations.sql` (paste into the SQL Editor; generated by
   `npm run db:bundle`, replays every migration and records each in
@@ -345,6 +364,123 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-08 — Item 12 second review: the explanations a child can actually read (#75 item 12)
+A second `/saas-code-review` + `/saas-ux-review` pass on the item 12 branch
+(the UX one played real battles in headless Chromium at 375×667 / 390×844).
+Code: the critter labels drew over the fog (fixed in the commit before this).
+UX — all 7 findings fixed:
+- **The battle banner was unreadable on light skies** (amber text, no
+  background: 1.2–2:1 on Dawnreach, Gearfall, Verdara, Chromaria). It's now
+  a dark pill like the HUD's panels — for every callout, not just item 12's.
+- **The banner pushed the answers down a row** on a small phone, then
+  pulled them back up when it went — mid-question, so a child could tap the
+  wrong answer. It now floats over the stage's sky inside a zero-height
+  live region (`role="status"`, so screen readers hear callouts too).
+- **💪 and 💛 are tap-to-continue lines now**, not 4-second banners (18
+  words want ~8 s for a young reader, and fleeing or a Swap banner could
+  lose the 💪 one for the session): chained after a boss's monologue
+  before the first command, and a tier counts as explained only once its
+  line is on screen.
+- **"Far from home" was a rule the map breaks** (the Coast is the nearest
+  tough place, Numbria the farthest gentle one): every line now talks about
+  the "!" marks instead — "Critters with ! marks hit harder", "💪
+  Tough-critter bonus", Tamsin's "Some lands have tougher critters than
+  others!".
+- **"The 🚩 on your map" pointed at a map you can't see** from the world:
+  the arrival toast, the off-road defeat tip and Tamsin now say "Open 📜
+  Menu — the 🚩 on the map shows where to go next!", and name the marks
+  ("see the !!").
+- **After mercy the HUD shows 💛 where the marks were** ("Going easier on
+  you" read aloud), and losing an eased fight off the 🚩's road no longer
+  calls it "extra tough".
+- **Tier-4 map labels** are a lighter red (255,150,140) on a darker plate
+  (0.85), so "!!!" reads on sand and pink ground.
+- Tests: +3 (BattleArena.test: the 💪 line before the first command, once a
+  session; the 💛 line for an eased fight; BattleHud.test: the 💛 mark) and
+  the copy tests pinned to the new words; 629 green, lint + tsc + build
+  clean. Checked in headless Chromium at 375×667: the pill on Dawnreach's
+  light sky, the answer rows unmoved as the banner leaves, the 💪 and 💛
+  lines, Chromaria's and the Coast's labels.
+
+### 2026-10-08 — Item 12 UX review: danger a child can read, and no wall far from home (#75 item 12)
+A `/saas-ux-review` of regional difficulty (headless Chromium, 375 px)
+found the danger wasn't legible or explained to a child. All findings fixed:
+- **Map labels on a plate:** a critter's "Lv 4 !!" now sits on a dark
+  rounded plate like a place name's, 11 px, drawn above every character
+  (`LABEL_Z`) so a passing critter or NPC never hides another's marks — but
+  under the fog (z 8), which still hides what's behind it. The plate fades
+  with the critter under Calm.
+- **The HUD shows the same marks:** "Lv 5 !!!" in the enemy panel's title
+  row, coloured like the map's, read aloud as "Far from home: it hits harder
+  — and drops more coins". The bottom row is only for a coming power move;
+  the "💪 Tough / Fierce / Mighty" word is gone ("Mighty" clashed with the
+  "Mighty Blow" power move).
+- **Touch players get told:** the first battle against each tier's marks in
+  a session opens with a 💪 banner — "See the !! by its level? Far from home,
+  critters hit harder — but they drop more coins!" (`toughCallout`,
+  `battleStore.toughMet`).
+- **No wall far from home:** after two losses to a critter with "!" marks it
+  fights like a tier-1 one — HP, blows, power moves and pay (`mercyFor` →
+  `fightTier`, applied at the encounter by `atTier`; `eased` remembers where
+  it roams) — on top of the easier questions mercy always gave; the 💛 banner
+  says "gentler hits and easier questions". Losses now count per kind AND
+  tier (`lossKey`), so losing to a Mighty imp by Chromaria doesn't soften the
+  gentle ones near home.
+- **The result screen explains:** a far defeat adds a 💡 tip — off the 🚩's
+  road "…fights extra tough out here. The 🚩 on your map shows a gentler
+  road!", on it "after a couple of tries, they go easier on you!"
+  (`defeatTip`, `roadTier`); a far win says "💪 Far-from-home bonus: extra
+  coins and XP!".
+- **Early Coast trips:** first arriving somewhere two or more tiers past the
+  🚩's road (`WARN_AHEAD`) toasts "⚔️ Critters here fight fiercely! The 🚩 on
+  your map shows a gentler road." (`arrivalWarning`).
+- **Scout Tamsin** says it in two short boxes and adds "Follow the 🚩 on
+  your map for the gentlest road."
+- Tests: +9 (regions.test: mercy's fight tier, `atTier` + `lossKey`, the
+  store's per-tier losses and `toughMet`, the banners, defeat tips, the
+  arrival warning never firing on the 🚩's road; BattleHud.test: the marks,
+  read-aloud text, the power-move row, the result screen's bonus + tip);
+  626 green, lint + tsc clean. Checked in headless Chromium at 375 px: the
+  plates on Dawnreach, the Coast, Gearfall, Verdara and Chromaria, the HUD at
+  tiers 3–4 with a power move and ⚡+2, the defeat tip and victory bonus.
+
+### 2026-10-08 — Regional difficulty: far regions fight tougher, questions stay the child's (#75 item 12)
+Roadmap item 12 (finding 5, "distance doesn't mean danger"): every enemy's
+level was the child's question level ±1, so Chromaria felt like Numbria.
+- **Danger tiers** (`content/regions.ts`): every zone is in one region, and
+  each region has a tier by the story leg the 🚩 sends you down — **0** home
+  ground (the Village, Dawnreach's heartland, Moonwell Grove, the shrines),
+  **1** Numbria + the Whispering Woods, **2** Verdara + the Clockwork Depths
+  (+ the Echo Mine), **3** Gearfall Canyon + Starfall Coast, **4** Chromaria.
+  The four critters roaming by the corner regions on Dawnreach take their
+  region's tier (`EnemyPlacement.tier`, `placementTier`). The world and the
+  question prefetch both spawn a placed enemy through `spawnPlaced`, so its
+  instance id and tier always agree.
+- **What a tier changes** (`DANGER`): HP (×0.85 … ×1.45), every blow (×0.85 …
+  ×1.3), a regular enemy's chance to wind up a power move (12% … 35%; bosses
+  keep their every-third-turn rhythm), coins (×0.8 … ×2) and the win's bonus
+  XP (×0.9 … ×1.45). **Tier 1 is the old balance**, so Numbria plays exactly
+  as before; home ground is a little gentler. **The questions never change:**
+  `BattleEnemy.level` is still the child's question level for the topic, and
+  XP per answer is the same everywhere.
+- **You can see it coming:** a critter's map label reads "Lv 4 !!" — the
+  level its questions are asked at, then one "!" per tier past 1 — in a
+  warmer colour (gold, orange, red), now over a dark shadow so it reads on
+  any ground (`mapLabel`). In battle the enemy panel says "💪 Tough / Fierce /
+  Mighty" under the HP bar (a coming power move takes the spot). Scout Tamsin
+  explains the "!".
+- **No stalls:** a far region's beefier healer could out-mend a defensive
+  hero's correct hit (Dog-Knight at tier 4: 29 vs 26), so a healer's mend is
+  capped at `HEALER_REGEN_MAX` = 20 — the biggest mend before regions.
+- Tests: +12 (regions.test: one region per zone, tier 1 = the old balance and
+  each tier tougher, the 🚩's road never gets easier, the corner critters'
+  tiers, questions the same at every tier, HP/coins/blows/power moves/XP by
+  tier, map labels, bosses by leg; BattleHud.test: the danger word; the
+  healer test now runs at every tier); 617 green, lint + tsc + build clean.
+  Checked in headless Chromium: labels on Dawnreach's heartland and by
+  Gearfall / Chromaria / Verdara, inside Chromaria and Numbria, and the
+  battle HUD at every tier on a 375 px phone. Follow-ups: #105.
 
 ### 2026-10-08 — Pitch dark fades in at its edges (#75 item 10, #103)
 A fresh-eyes `/saas-code-review` + `/saas-ux-review` of item 10 after the

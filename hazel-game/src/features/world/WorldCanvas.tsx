@@ -27,7 +27,8 @@ import {
 import { bossDefeated } from '../../content/keys';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
-import { spawnEnemy } from '../../content/enemies';
+import { spawnPlaced } from '../../content/enemies';
+import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, PathTarget, Topic, ZoneId } from '../../types';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
@@ -97,6 +98,12 @@ const DIM_RADIUS = 80;
 const LIT_RADIUS = 330;
 /** Critters fade to this while Calm is on, so you can see they'll let you pass. */
 const CALM_OPACITY = 0.45;
+/**
+ * Critter level labels draw on their plates above characters (z 6) — but
+ * under fog (z 8), which must keep hiding what's behind it, and the hero (z 10).
+ */
+const LABEL_Z = 7;
+const LABEL_PLATE_OPACITY = 0.85;
 /** Seconds after Calm wears off before a critter you're touching starts a battle. */
 const CALM_GRACE = 1.5;
 /**
@@ -999,9 +1006,9 @@ export default function WorldCanvas({
     for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
     for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
 
-    const critters: { opacity: number }[][] = [];
+    const critters: { obj: { opacity: number }; opacity: number }[] = [];
     for (const p of z.enemies) {
-      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels);
+      const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
       // regular enemies stay gone for the session (they respawn next visit).
       if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, flagsRef.current)) continue;
@@ -1030,13 +1037,27 @@ export default function WorldCanvas({
         z: 6,
       }).obj as unknown as WorldActor;
       parts.push(face);
+      // The level is its questions'; "!" marks and a warmer colour say how hard it fights (#75 item 12).
+      // It sits on a dark plate like a place name's, above every character (they're z 6), so the
+      // warm colours read on any ground and a passing critter never hides another's marks.
+      const labelText = mapLabel(enemy.level, enemy.isBoss, enemy.tier);
+      const labelY = py + (enemy.isBoss ? 32 : 26);
       const label = k.add([
-        k.text(`${enemy.isBoss ? '👑 ' : ''}Lv ${enemy.level}`, { size: 10 }),
-        k.pos(px, py + (enemy.isBoss ? 32 : 26)),
+        k.text(labelText, { size: 11 }),
+        k.pos(px, labelY),
         k.anchor('center'),
-        k.color(255, 200, 200),
-      ]);
-      parts.push(label as unknown as Part);
+        k.color(...DANGER[enemy.tier ?? BASE_TIER].mapColor),
+        k.z(LABEL_Z + 0.5),
+      ]) as unknown as Part & { width?: number; height?: number };
+      const labelPlate = k.add([
+        k.rect((label.width ?? labelText.length * 7) + 8, (label.height ?? 12) + 4, { radius: 3 }),
+        k.pos(px, labelY),
+        k.anchor('center'),
+        k.color(20, 16, 36),
+        k.opacity(LABEL_PLATE_OPACITY),
+        k.z(LABEL_Z),
+      ]) as unknown as Part;
+      parts.push(label, labelPlate);
       const actor: Actor = {
         x: px,
         y: py,
@@ -1059,8 +1080,11 @@ export default function WorldCanvas({
       } else {
         // Regular critters roam their patch (slightly wider leash than NPCs),
         // and fade while Calm is on (#75 item 9).
-        for (const part of parts) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
-        critters.push(parts as unknown as { opacity: number }[]);
+        for (const part of parts) {
+          const base = part === labelPlate ? LABEL_PLATE_OPACITY : 1;
+          if (part !== labelPlate) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
+          critters.push({ obj: part as unknown as { opacity: number }, opacity: base });
+        }
         attachWander(face, {
           actor,
           parts,
@@ -1457,7 +1481,7 @@ export default function WorldCanvas({
       const wantOpacity = calm ? CALM_OPACITY : 1;
       if (wantOpacity !== critterOpacity) {
         critterOpacity = wantOpacity;
-        for (const parts of critters) for (const part of parts) part.opacity = wantOpacity;
+        for (const c of critters) c.obj.opacity = c.opacity * wantOpacity;
       }
 
       const keys = keysRef.current;

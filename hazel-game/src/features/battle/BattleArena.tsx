@@ -10,12 +10,14 @@ import { sfx, stopMusic, type SfxName } from '../../lib/audio';
 import { playerAge, clampLevel, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
-import { attackDamage, spellDamage, companionAttackDamage, pairDamage, BOSS_XP_BONUS } from '../../lib/battleMath';
+import { attackDamage, spellDamage, companionAttackDamage, pairDamage, BOSS_XP_BONUS, defeatXp } from '../../lib/battleMath';
 import {
   applyFocus,
   chargeAfterAnswer,
   defendTimeMs,
   itemBlocked,
+  lossKey,
+  mercyCallout,
   mercyFor,
   nextIntent,
   powerMoveName,
@@ -56,6 +58,8 @@ import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { resolveSprite } from '../../content/sprites';
+import { BASE_TIER, dangerMarks, defeatTip, toughCallout } from '../../content/regions';
+import { roadTier } from '../../lib/wayfinding';
 import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
 import { combatState, useBattleStore } from '../../store/battleStore';
@@ -171,7 +175,7 @@ export default function BattleArena() {
       endBattle: s.endBattle,
     })),
   );
-  const lossesSoFar = useBattleStore((s) => (enemy ? (s.losses[enemy.id] ?? 0) : 0));
+  const lossesSoFar = useBattleStore((s) => (enemy ? (s.losses[lossKey(enemy)] ?? 0) : 0));
   const save = useSaveStore((s) => s.save);
   const updateSave = useSaveStore((s) => s.update);
   const profile = useProfileStore((s) => s.profile);
@@ -202,6 +206,7 @@ export default function BattleArena() {
   }
   const ember = locked.ember;
   const mercy = mercyFor(locked.losses);
+  const mercyDrop = mercy.levelDrop;
 
   // The active companion (🔄 Swap) lives in the save, so it survives reloads;
   // fall back to Ember if the saved pick isn't in this save's party.
@@ -287,44 +292,52 @@ export default function BattleArena() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId]);
 
-  // Start-of-battle callouts, once the question LoadingScreen clears (the
-  // banner only renders in the battle UI): the archetype twist (so it's never
-  // a gotcha), then mercy if this enemy has beaten the hero a couple of times.
+  // Start-of-battle callout, once the question LoadingScreen clears (the
+  // banner only renders in the battle UI): the archetype twist, so it's never
+  // a gotcha.
   const calloutShownFor = useRef<string | null>(null);
   useEffect(() => {
     if (loading || !enemy || calloutShownFor.current === enemy.instanceId) return;
     calloutShownFor.current = enemy.instanceId;
-    let at = 250;
     if (enemy.behavior) {
       const callout = {
         shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
         trickster: `${enemy.name} is too slippery for Hint Feathers!`,
         healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
       }[enemy.behavior];
-      later(() => showBanner(callout, 3000), at);
-      at += 3200;
-    }
-    if (mercy.levelDrop > 0) {
-      later(
-        () => showBanner(`Tough one last time? ${enemy.name}'s questions will be a little easier now.`, 3500, '💛'),
-        at,
-      );
+      later(() => showBanner(callout, 3000), 250);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId, loading]);
 
-  // Fiends monologue before the first command (#37 story pass).
-  const bossIntroDone = useRef(false);
+  // Before the first command, tap-to-continue lines nothing can hurry past: a
+  // Fiend's monologue (#37 story pass), then what "!" marks mean the first
+  // time a tier's are met this session, then mercy if this enemy has beaten
+  // the hero a couple of times (#75 item 12). A tier counts as explained only
+  // once its line is on screen.
+  const openingDone = useRef(false);
   useEffect(() => {
-    if (loading || !enemy?.isBoss || bossIntroDone.current) return;
-    bossIntroDone.current = true;
-    const lines = keyBoss ? keyBoss.bossIntro : BOSS_LINES[enemy.topic as keyof typeof BOSS_LINES].intro;
+    if (loading || !enemy || openingDone.current) return;
+    openingDone.current = true;
+    const tier = enemy.tier ?? BASE_TIER;
+    const { toughMet, meetTough } = useBattleStore.getState();
+    const lines: { text: string; shown?: () => void }[] = [];
+    if (enemy.isBoss) {
+      const intro = keyBoss ? keyBoss.bossIntro : BOSS_LINES[enemy.topic as keyof typeof BOSS_LINES].intro;
+      for (const text of intro) lines.push({ text });
+    }
+    if (dangerMarks(tier) && !toughMet.includes(tier)) lines.push({ text: `💪 ${toughCallout(tier)}`, shown: () => meetTough(tier) });
+    if (mercyDrop > 0) lines.push({ text: `💛 ${mercyCallout(enemy)}` });
+    if (lines.length === 0) return;
     const chain = lines.reduceRight<() => void>(
-      (next, line) => () => setTurn({ kind: 'message', text: line, next }),
+      (next, line) => () => {
+        line.shown?.();
+        setTurn({ kind: 'message', text: line.text, next });
+      },
       () => setTurn({ kind: 'command' }),
     );
     chain();
-  }, [loading, enemy, keyBoss]);
+  }, [loading, enemy, keyBoss, mercyDrop]);
 
   // Battle entered without an encounter (e.g. stale reload) — bail out.
   const invalid = !enemy || !save || !avatar;
@@ -677,7 +690,7 @@ export default function BattleArena() {
   /** Move the enemy's plan on to its next turn (lib/battleTurn nextIntent). */
   function advanceIntent(current: EnemyIntent) {
     enemyTurnNo.current += 1;
-    setIntent(nextIntent(current, enemyTurnNo.current, enemy!.isBoss));
+    setIntent(nextIntent(current, enemyTurnNo.current, enemy!.isBoss, Math.random(), enemy!.tier));
   }
 
   function enemyTurn() {
@@ -717,6 +730,7 @@ export default function BattleArena() {
       level: enemy!.level,
       isBoss: enemy!.isBoss,
       behavior: enemy!.behavior,
+      tier: enemy!.tier,
       style,
       powerUps,
     });
@@ -816,7 +830,8 @@ export default function BattleArena() {
     burst({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
     stopMusic(); // silence the battle loop under the victory jingle
     sfx('victory');
-    const xp = settleCommon() + npcDefeatXp(enemy!.level) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
+    // Far regions pay more XP for the win (#75 item 12); the answers' XP is the same everywhere.
+    const xp = settleCommon() + defeatXp(npcDefeatXp(enemy!.level), enemy!.tier) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
     void addXp(xp);
     markDefeated(enemy!.instanceId);
     // Read from the store, not this render: victory() runs from a message
@@ -853,7 +868,7 @@ export default function BattleArena() {
     const xp = settleCommon();
     void addXp(xp);
     // Remember the loss: after a couple, this enemy eases off (mercy).
-    recordLoss(enemy!.id);
+    recordLoss(lossKey(enemy!));
     // No game over (#37): wake up safe and fully healed — at the last inn
     // rested at, or home in Lumina Village (#75 item 11).
     updateSave((s) => ({
@@ -940,19 +955,24 @@ export default function BattleArena() {
         streak={streak}
       />
 
-      {/* Callout banner (archetypes, enrage, power moves, pair attacks, swaps, speed) */}
-      <AnimatePresence>
-        {fx.banner && (
-          <motion.p
-            initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="relative z-10 text-center text-amber-300 font-extrabold tracking-wide px-4"
-          >
-            {fx.banner}
-          </motion.p>
-        )}
-      </AnimatePresence>
+      {/* Callout banner (archetypes, enrage, power moves, pair attacks, swaps, speed):
+          a dark pill like the HUD's panels over the stage's sky, so it reads on
+          any backdrop; out of the layout (h-0), so nothing below it — a question's
+          answers — jumps when it comes and goes; read aloud as it appears. */}
+      <div role="status" aria-live="polite" className="relative z-20 h-0">
+        <AnimatePresence>
+          {fx.banner && (
+            <motion.p
+              initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="pointer-events-none absolute inset-x-0 top-1 mx-auto w-fit max-w-[92%] rounded-xl border-2 border-white/70 bg-indigo-950/90 px-3 py-1.5 text-center text-amber-300 font-extrabold tracking-wide shadow-lg"
+            >
+              {fx.banner}
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
 
       <BattleStage
         fx={fx.stage}
@@ -1119,6 +1139,7 @@ export default function BattleArena() {
             firstWin={turn.kind === 'victory' && turn.firstWin}
             drop={turn.kind === 'victory' ? turn.drop : null}
             wakeInn={save ? wakeInnName(save) : null}
+            tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

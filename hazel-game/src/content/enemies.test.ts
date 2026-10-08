@@ -32,18 +32,21 @@ describe('enemy behavior archetypes (Wave 0.5)', () => {
     expect(slime.behavior).toBeUndefined();
   });
 
-  it('no healer can out-mend a correctly-answered hit — stall-proof at any age', () => {
+  it('no healer can out-mend a correctly-answered hit — stall-proof at any age, in any region', () => {
     // Derived from the live roster (not a hardcoded HP), so retuning a
     // healer's HP or tagging a beefier enemy as a healer re-checks this
-    // automatically. age 100 → the level cap, i.e. each healer's max HP.
+    // automatically. age 100 → the level cap; every danger tier (#75 item 12)
+    // → each healer's max HP anywhere it could roam.
     const healers = Object.values(ENEMY_DEFS).filter((d) => d.behavior === 'healer');
     expect(healers.length).toBeGreaterThan(0);
     for (const def of healers) {
-      const e = spawnEnemy(def.id, 'starfall-coast', '0,0', 100);
-      expect(
-        healerRegen(e.maxHp),
-        `${def.id} (maxHp ${e.maxHp}) out-mends the weakest landed hit`,
-      ).toBeLessThan(attackDamage(true, 'defensive', {}));
+      for (const tier of [0, 1, 2, 3, 4] as const) {
+        const e = spawnEnemy(def.id, 'starfall-coast', '0,0', 100, {}, tier);
+        expect(
+          healerRegen(e.maxHp),
+          `${def.id} at tier ${tier} (maxHp ${e.maxHp}) out-mends the weakest landed hit`,
+        ).toBeLessThan(attackDamage(true, 'defensive', {}));
+      }
     }
   });
 });
