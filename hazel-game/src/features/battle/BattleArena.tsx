@@ -206,6 +206,7 @@ export default function BattleArena() {
   }
   const ember = locked.ember;
   const mercy = mercyFor(locked.losses);
+  const mercyDrop = mercy.levelDrop;
 
   // The active companion (🔄 Swap) lives in the save, so it survives reloads;
   // fall back to Ember if the saved pick isn't in this save's party.
@@ -291,49 +292,52 @@ export default function BattleArena() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId]);
 
-  // Start-of-battle callouts, once the question LoadingScreen clears (the
-  // banner only renders in the battle UI): the archetype twist (so it's never
-  // a gotcha), what "!" marks mean the first time a tier's are met (#75
-  // item 12), then mercy if this enemy has beaten the hero a couple of times.
+  // Start-of-battle callout, once the question LoadingScreen clears (the
+  // banner only renders in the battle UI): the archetype twist, so it's never
+  // a gotcha.
   const calloutShownFor = useRef<string | null>(null);
   useEffect(() => {
     if (loading || !enemy || calloutShownFor.current === enemy.instanceId) return;
     calloutShownFor.current = enemy.instanceId;
-    let at = 250;
     if (enemy.behavior) {
       const callout = {
         shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
         trickster: `${enemy.name} is too slippery for Hint Feathers!`,
         healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
       }[enemy.behavior];
-      later(() => showBanner(callout, 3000), at);
-      at += 3200;
-    }
-    const tier = enemy.tier ?? BASE_TIER;
-    const { toughMet, meetTough } = useBattleStore.getState();
-    if (dangerMarks(tier) && !toughMet.includes(tier)) {
-      meetTough(tier);
-      later(() => showBanner(toughCallout(tier), 4000, '💪'), at);
-      at += 4200;
-    }
-    if (mercy.levelDrop > 0) {
-      later(() => showBanner(mercyCallout(enemy), 4000, '💛'), at);
+      later(() => showBanner(callout, 3000), 250);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId, loading]);
 
-  // Fiends monologue before the first command (#37 story pass).
-  const bossIntroDone = useRef(false);
+  // Before the first command, tap-to-continue lines nothing can hurry past: a
+  // Fiend's monologue (#37 story pass), then what "!" marks mean the first
+  // time a tier's are met this session, then mercy if this enemy has beaten
+  // the hero a couple of times (#75 item 12). A tier counts as explained only
+  // once its line is on screen.
+  const openingDone = useRef(false);
   useEffect(() => {
-    if (loading || !enemy?.isBoss || bossIntroDone.current) return;
-    bossIntroDone.current = true;
-    const lines = keyBoss ? keyBoss.bossIntro : BOSS_LINES[enemy.topic as keyof typeof BOSS_LINES].intro;
+    if (loading || !enemy || openingDone.current) return;
+    openingDone.current = true;
+    const tier = enemy.tier ?? BASE_TIER;
+    const { toughMet, meetTough } = useBattleStore.getState();
+    const lines: { text: string; shown?: () => void }[] = [];
+    if (enemy.isBoss) {
+      const intro = keyBoss ? keyBoss.bossIntro : BOSS_LINES[enemy.topic as keyof typeof BOSS_LINES].intro;
+      for (const text of intro) lines.push({ text });
+    }
+    if (dangerMarks(tier) && !toughMet.includes(tier)) lines.push({ text: `💪 ${toughCallout(tier)}`, shown: () => meetTough(tier) });
+    if (mercyDrop > 0) lines.push({ text: `💛 ${mercyCallout(enemy)}` });
+    if (lines.length === 0) return;
     const chain = lines.reduceRight<() => void>(
-      (next, line) => () => setTurn({ kind: 'message', text: line, next }),
+      (next, line) => () => {
+        line.shown?.();
+        setTurn({ kind: 'message', text: line.text, next });
+      },
       () => setTurn({ kind: 'command' }),
     );
     chain();
-  }, [loading, enemy, keyBoss]);
+  }, [loading, enemy, keyBoss, mercyDrop]);
 
   // Battle entered without an encounter (e.g. stale reload) — bail out.
   const invalid = !enemy || !save || !avatar;
@@ -951,19 +955,24 @@ export default function BattleArena() {
         streak={streak}
       />
 
-      {/* Callout banner (archetypes, enrage, power moves, pair attacks, swaps, speed) */}
-      <AnimatePresence>
-        {fx.banner && (
-          <motion.p
-            initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="relative z-10 text-center text-amber-300 font-extrabold tracking-wide px-4"
-          >
-            {fx.banner}
-          </motion.p>
-        )}
-      </AnimatePresence>
+      {/* Callout banner (archetypes, enrage, power moves, pair attacks, swaps, speed):
+          a dark pill like the HUD's panels over the stage's sky, so it reads on
+          any backdrop; out of the layout (h-0), so nothing below it — a question's
+          answers — jumps when it comes and goes; read aloud as it appears. */}
+      <div role="status" aria-live="polite" className="relative z-20 h-0">
+        <AnimatePresence>
+          {fx.banner && (
+            <motion.p
+              initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="pointer-events-none absolute inset-x-0 top-1 mx-auto w-fit max-w-[92%] rounded-xl border-2 border-white/70 bg-indigo-950/90 px-3 py-1.5 text-center text-amber-300 font-extrabold tracking-wide shadow-lg"
+            >
+              {fx.banner}
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
 
       <BattleStage
         fx={fx.stage}

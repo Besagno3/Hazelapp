@@ -197,7 +197,9 @@ describe('mercy far from home, and what the danger says (#75 item 12 UX review)'
   });
 
   it('the start-of-battle banners say what the marks and the mercy mean', () => {
-    expect(toughCallout(3)).toMatch(/See the !! by its level\? .*hit harder.*more coins/);
+    expect(toughCallout(3)).toBe('See the !! by its level? Critters with ! marks hit harder — but they drop more coins!');
+    // The copy talks about the marks, not distance: the Coast is near home but tough.
+    for (const t of TIERS) expect(toughCallout(t)).not.toMatch(/far|home/i);
     expect(mercyCallout({ name: 'Dog-Knight' })).toMatch(/questions will be a little easier/);
     expect(mercyCallout({ name: 'Dog-Knight', eased: 4 })).toMatch(/gentler hits and easier questions/);
   });
@@ -206,8 +208,9 @@ describe('mercy far from home, and what the danger says (#75 item 12 UX review)'
     const imp = (tier: DangerTier, eased?: DangerTier) => ({ name: 'Doodle Imp', tier, eased });
     expect(defeatTip(imp(1), 1)).toBeNull();
     expect(defeatTip(imp(0), null)).toBeNull();
-    expect(defeatTip(imp(4), 1)).toMatch(/Doodle Imp fights extra tough.*🚩/);
-    expect(defeatTip(imp(1, 4), 1)).toMatch(/🚩/); // eased, but still off the road
+    expect(defeatTip(imp(4), 1)).toBe('Doodle Imp is extra tough (see its !!!). Open 📜 Menu — the 🚩 on the map shows where to go next!');
+    // Eased, but still off the road: point the way without calling a gentle fight tough.
+    expect(defeatTip(imp(1, 4), 1)).toBe('Open 📜 Menu — the 🚩 on the map shows where to go next!');
     expect(defeatTip(imp(2), 2)).toMatch(/couple of tries/);
     expect(defeatTip(imp(1, 2), 2)).toBeNull(); // mercy already eased it
     expect(defeatTip(imp(3), null)).toMatch(/couple of tries/); // the story is done: no road to point to
@@ -215,7 +218,9 @@ describe('mercy far from home, and what the danger says (#75 item 12 UX review)'
 
   it(`arriving somewhere ${WARN_AHEAD} tiers past the 🚩's road warns; the road itself never does`, () => {
     expect(roadTier({})).toBe(zoneTier('numbria'));
-    expect(arrivalWarning(zoneTier('starfall-coast'), roadTier({}))).toMatch(/fiercely.*🚩/);
+    expect(arrivalWarning(zoneTier('starfall-coast'), roadTier({}))).toBe(
+      '⚔️ Critters here are extra tough (see the !!)! Open 📜 Menu — the 🚩 on the map shows where to go next!',
+    );
     expect(arrivalWarning(zoneTier('verdara'), roadTier({}))).toBeNull();
     expect(arrivalWarning(zoneTier('lumina-village'), roadTier({}))).toBeNull();
     expect(arrivalWarning(4, null)).toBeNull();

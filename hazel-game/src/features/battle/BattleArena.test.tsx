@@ -25,6 +25,7 @@ const { default: BattleArena } = await import('./BattleArena');
 const { useBattleStore } = await import('../../store/battleStore');
 const { useSaveStore } = await import('../../store/saveStore');
 const { defaultSave } = await import('../../lib/save');
+const { atTier } = await import('../../content/enemies');
 
 const enemy = {
   id: 'count-bat',
@@ -92,5 +93,36 @@ describe('BattleArena (smoke)', () => {
     });
     expect(useBattleStore.getState().playerHp).toBe(healed);
     expect(useSaveStore.getState().save!.items.potion).toBe(0);
+  });
+});
+
+describe('opening lines (#75 item 12)', () => {
+  const tough = { ...enemy, instanceId: 'e2', tier: 3 } as BattleEnemy;
+
+  it("the first fight against a tier's marks explains them before the first command — once a session", () => {
+    useBattleStore.getState().start(tough, 60, 100);
+    const first = render(<BattleArena />);
+    expect(screen.getByText('💪 See the !! by its level? Critters with ! marks hit harder — but they drop more coins!')).toBeInTheDocument();
+    expect(screen.queryByText('Attack')).toBeNull();
+    expect(useBattleStore.getState().toughMet).toEqual([3]);
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+    first.unmount();
+
+    useBattleStore.getState().start({ ...tough, instanceId: 'e3' }, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByText(/💪/)).toBeNull();
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+  });
+
+  it("after two losses a far critter's fight is eased, and a 💛 line says how", () => {
+    useBattleStore.getState().recordLoss('count-bat@3');
+    useBattleStore.getState().recordLoss('count-bat@3');
+    useBattleStore.getState().start(atTier(tough, 1), 60, 100);
+    render(<BattleArena />);
+    expect(
+      screen.getByText('💛 Tough one last time? Count Bat will go easier on you now — gentler hits and easier questions.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/💪/)).toBeNull(); // it fights at tier 1 now: no marks to explain
   });
 });

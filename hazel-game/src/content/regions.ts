@@ -40,7 +40,7 @@ export const DANGER: Record<DangerTier, DangerDef> = {
   1: { hp: 1, attack: 1, chargeChance: 0.2, coins: 1, xp: 1, mapColor: [255, 200, 200] },
   2: { hp: 1.15, attack: 1.1, chargeChance: 0.25, coins: 1.3, xp: 1.15, mapColor: [255, 226, 120] },
   3: { hp: 1.3, attack: 1.2, chargeChance: 0.3, coins: 1.6, xp: 1.3, mapColor: [255, 170, 80] },
-  4: { hp: 1.45, attack: 1.3, chargeChance: 0.35, coins: 2, xp: 1.45, mapColor: [255, 110, 100] },
+  4: { hp: 1.45, attack: 1.3, chargeChance: 0.35, coins: 2, xp: 1.45, mapColor: [255, 150, 140] },
 };
 
 /** The tier the game was balanced at before regions (tests and hand-built enemies default to it). */
@@ -102,13 +102,18 @@ export function mapLabel(level: number, isBoss: boolean, tier: DangerTier = BASE
 }
 
 /**
- * The banner the first battle against a tier's "!" marks opens with, once per
+ * The line the first battle against a tier's "!" marks opens with, once per
  * tier a session (#75 item 12) — so a child who taps into a fight, never
- * having read the map, still learns what the marks mean.
+ * having read the map, still learns what the marks mean. The copy talks
+ * about the marks, not distance: tiers follow the story's road, and the
+ * Coast is a short walk from home.
  */
 export function toughCallout(tier: DangerTier): string {
-  return `See the ${dangerMarks(tier)} by its level? Far from home, critters hit harder — but they drop more coins!`;
+  return `See the ${dangerMarks(tier)} by its level? Critters with ! marks hit harder — but they drop more coins!`;
 }
+
+/** Where the 🚩 is, in the words of the buttons a child can see. */
+const FLAG_HINT = 'Open 📜 Menu — the 🚩 on the map shows where to go next!';
 
 /**
  * The defeat screen's tip after losing far from home (#75 item 12), or null.
@@ -118,10 +123,14 @@ export function toughCallout(tier: DangerTier): string {
  */
 export function defeatTip(enemy: Pick<BattleEnemy, 'name' | 'tier' | 'eased'>, road: DangerTier | null): string | null {
   const tier = enemy.eased ?? enemy.tier ?? BASE_TIER;
-  if (!dangerMarks(tier)) return null;
-  if (road !== null && tier > road) return `${enemy.name} fights extra tough out here. The 🚩 on your map shows a gentler road!`;
+  const marks = dangerMarks(tier);
+  if (!marks) return null;
+  if (road !== null && tier > road) {
+    // An eased fight was a gentle one: don't call it tough, just point the way.
+    return enemy.eased !== undefined ? FLAG_HINT : `${enemy.name} is extra tough (see its ${marks}). ${FLAG_HINT}`;
+  }
   if (enemy.eased !== undefined) return null;
-  return 'Far from home, critters hit hard. Keep at it — after a couple of tries, they go easier on you!';
+  return 'Critters with ! marks hit hard. Keep at it — after a couple of tries, they go easier on you!';
 }
 
 /** How many tiers past the 🚩's road a place is before arriving there warns you. */
@@ -133,5 +142,5 @@ export const WARN_AHEAD = 2;
  */
 export function arrivalWarning(tier: DangerTier, road: DangerTier | null): string | null {
   if (road === null || tier - road < WARN_AHEAD) return null;
-  return '⚔️ Critters here fight fiercely! The 🚩 on your map shows a gentler road.';
+  return `⚔️ Critters here are extra tough (see the ${dangerMarks(tier)})! ${FLAG_HINT}`;
 }

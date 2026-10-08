@@ -41,12 +41,12 @@ export function BattleResult({
   drop: ConsumableId | null;
   /** Defeat: the inn the hero wakes at ("the Square Root Inn in Numbria"), or null for home (#75 item 11). */
   wakeInn?: string | null;
-  /** Defeat: a far-from-home tip (`defeatTip`, #75 item 12). */
+  /** Defeat: a tip after losing to a critter with "!" marks (`defeatTip`, #75 item 12). */
   tip?: string | null;
   onLeave: () => void;
 }) {
   const won = result === 'victory';
-  // Far from home a win pays more (#75 item 12) — say why the numbers are bigger.
+  // A critter with "!" marks pays more (#75 item 12) — say why the numbers are bigger.
   const farBonus = won && dangerMarks(enemy.tier ?? BASE_TIER) !== '';
   return (
     <motion.div
@@ -76,7 +76,7 @@ export function BattleResult({
             {correctCount} correct answers · 🪙 +{coins}
             {lucky ? ' 🍀' : ''} · ⭐ +{xp} XP
           </p>
-          {farBonus && <p className="text-sm text-orange-200 font-semibold mt-1">💪 Far-from-home bonus: extra coins and XP!</p>}
+          {farBonus && <p className="text-sm text-orange-200 font-semibold mt-1">💪 Tough-critter bonus: extra coins and XP!</p>}
           {firstWin && (
             <p className="text-sm text-yellow-200 font-semibold mt-1">⭐ First time beating a {enemy.name} — bonus coins!</p>
           )}

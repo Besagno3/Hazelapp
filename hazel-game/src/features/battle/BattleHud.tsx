@@ -70,7 +70,7 @@ export function BattleHud({
           </span>
           <span className="shrink-0 whitespace-nowrap text-white/70">
             Lv {enemy.level}
-            <DangerMarks tier={enemy.tier ?? BASE_TIER} />
+            {enemy.eased !== undefined ? <EasedMark /> : <DangerMarks tier={enemy.tier ?? BASE_TIER} />}
             {speedBoost > 0 && (
               <span className="ml-1 text-yellow-300" title="Questions raised by quick answers">
                 ⚡+{speedBoost}
@@ -121,16 +121,27 @@ export function BattleHud({
 
 /**
  * Its "!" marks beside its level, as on the map (#75 item 12): it fights
- * harder than near home — its questions are still the player's own level.
- * Nothing near home.
+ * harder than the critters near home — its questions are still the player's
+ * own level. Nothing near home.
  */
 function DangerMarks({ tier }: { tier: DangerTier }) {
   const marks = dangerMarks(tier);
   if (!marks) return null;
-  const says = 'Far from home: it hits harder — and drops more coins';
+  const says = 'Tough critter: it hits harder — and drops more coins';
   return (
     <span className={`ml-1 font-extrabold ${DANGER_TEXT[tier] ?? ''}`} title={says}>
       <span aria-hidden="true">{marks}</span>
+      <span className="sr-only">{says}</span>
+    </span>
+  );
+}
+
+/** Where its marks were, once mercy has eased the fight (#75 item 12): it's going easier on you. */
+function EasedMark() {
+  const says = 'Going easier on you';
+  return (
+    <span className="ml-1" title={says}>
+      <span aria-hidden="true">💛</span>
       <span className="sr-only">{says}</span>
     </span>
   );

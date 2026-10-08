@@ -103,7 +103,7 @@ const CALM_OPACITY = 0.45;
  * under fog (z 8), which must keep hiding what's behind it, and the hero (z 10).
  */
 const LABEL_Z = 7;
-const LABEL_PLATE_OPACITY = 0.7;
+const LABEL_PLATE_OPACITY = 0.85;
 /** Seconds after Calm wears off before a critter you're touching starts a battle. */
 const CALM_GRACE = 1.5;
 /**
