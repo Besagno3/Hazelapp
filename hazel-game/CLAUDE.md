@@ -71,7 +71,10 @@ zod, react-query. Add the package in the same change that first uses it.
   and `HUB_ZONE` — done in item 8, 2026-10-07). **Every town gets an inn** (reverses #73's one-inn rule —
   done in item 11, 2026-10-07; still one Library, still each item sold in one shop). **`ROADMAP-4X.md`
   Wave 1 (Act II) is paused** until Dawnreach exists — don't build Act II
-  zones as edge-linked screens.
+  zones as edge-linked screens. **Act II is on the sea (#75 item 14,
+  2026-10-08):** Marlow's boat arrives after the Spire (roadmap decision 8),
+  and Act II's places are islands and coasts of the Silver Shallows — its
+  own overworld map east of Dawnreach, reached by sailing off the east edge.
 
 ## Architecture
 
@@ -113,6 +116,9 @@ zod, react-query. Add the package in the same change that first uses it.
   `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
   danger tier 0–4, the `DANGER` tuning per tier, map labels "Lv 4 !!", the
   danger banner / defeat tip / arrival warning copy),
+  `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
+  (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
+  rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
   Fiends, #58), `items.ts` (shop + economy tuning), `secrets.ts` (hidden secrets per
@@ -121,7 +127,9 @@ zod, react-query. Add the package in the same change that first uses it.
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
   setting, the last inn rested at (`lastRest`, #75 item 11 — additive, so no
-  version bump; null = home). Write-through: localStorage immediately
+  version bump; null = home), where Marlow's boat is moored and whether the
+  hero is in it (`boat` / `aboard`, #75 item 14 — additive too; `normalizeSave`
+  keeps a mooring only on open sea, and `aboard` only afloat with a boat). Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
   `flush()` on save crystals / sign-out. Supabase errors degrade to
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
@@ -186,6 +194,21 @@ zod, react-query. Add the package in the same change that first uses it.
   Spire — goes through `wakeAfterDefeat` (`lib/save.ts`): that inn's
   `innWakeCell` (the floor just inside its door), or home (`HUB_ZONE`, saved
   start) when `lastRest` is null. `wakeInnName` words it for the defeat screens.
+  **The sea** (#75 item 14): travel modes are `foot` / `boat`
+  (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
+  sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
+  new legend char: planks over water). Maps join at sea through
+  `ZoneDef.seaLinks` (an edge, the map beyond, a row shift; every link has its
+  mirror): sailing off a linked edge slides onto the next map one cell in
+  (`seaCrossing`). `WorldCanvas` takes `boat` (its mooring) and `aboard`:
+  bump the moored boat to climb in (`onBoard`), sail into a beach or dock to
+  go ashore with the boat moored where it floated (`onLand`); collision is
+  boat-aware (`heroHit` / `blockerAt(…, afloat)`), and the boat is two
+  sprites — under the hero, and its hull's front over them. Return and a lost
+  battle leave the boat moored where it was (`moorBoat`); Old Marlow rows it
+  home on request. The menu map draws whichever overworld you're on, ⛵ where
+  the boat is moored, and the Great Fogbank (a bank no boat passes, lifted
+  only in Act III) with its own line.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -311,6 +334,7 @@ python3 tools/tiled/tiled.py legend                                    # rebuild
 python3 tools/assets/build.py spells   # art for the field-spell places + keepers only (#75 item 9)
 python3 tools/assets/build.py dungeon  # the Depths' lower floors + the stairs sheet only (#75 item 10)
 python3 tools/assets/build.py inns     # the innkeepers + travelers' sprites only (#75 item 11)
+python3 tools/assets/build.py sea      # the Silver Shallows, the boat, the dock + Lamplighter Ness only (#75 item 14)
 ```
 
 ## Error handling
@@ -364,6 +388,53 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-08 — The boat and the Silver Shallows: Act II opens on the sea (#75 item 14, slice 14a)
+Roadmap item 14 (Phase 3, "the sea") — the first of four slices (ISSUES #107).
+- **Act II opens** (`ACT2_PANELS`, flag `act2-seen`): the morning after the
+  Spire's finale, Lumina starts remembering — and the fog rolls back off the
+  sea east of Dawnreach. Old Marlow remembers he used to sail.
+- **"Marlow's Boat"** (`quests.ts`, `requires: act2-seen` — a quest can now
+  wait for a story flag): a sail from Innkeeper Willow (Verdara), his old
+  star-compass from Mapmaker Atlas (Chromaria), a clockwork rudder from Sage
+  Cog (Gearfall) — three conversations, in turn — then the boat, the
+  **Biscuit**, is yours at his dock (+50 coins).
+- **The boat** (`content/boat.ts`, `lib/travel.ts`): moored at Marlow's dock
+  (two planks, '|', painted onto Dawnreach east of the Starfall Coast icon);
+  bump it to climb in, sail open sea at 1.5× walking pace, sail into a beach
+  or dock to go ashore — it waits right where you left it (`SaveData.boat` /
+  `aboard`, additive). Return or a lost battle mid-voyage moor it where it
+  floated; Old Marlow rows it home on request. While sailing the hero sits in
+  it (the hull's front drawn over them), Ember alongside, ⛵ in the HUD.
+  First boarding plays `FIRST_VOYAGE_PANELS`.
+- **The Silver Shallows** (new overworld, 64×44, painted in Tiled —
+  `maps/silver-shallows.tmj`): reached by sailing off Dawnreach's east edge
+  (`seaLinks`; it slides like neighbouring screens). So far: **Gull Rock**,
+  with Lamplighter Ness in her lighthouse (whitewashed cottage style, free
+  since Lumina Field retired), and **Sandpiper Cay**, a sandbar with a
+  riddle-chest on sea life (`topic: 'nature'`); the **Great Fogbank** walls
+  the far side (its first bump plays `GREAT_FOGBANK_PANELS` — it's where
+  Ember's flight will matter). Room is left for Act II's islands.
+- **Wayfinding:** after the Spire the 🚩 follows Marlow's quest step by step
+  (each friend's town), then "Sail the Silver Shallows" with the 🚩 on his
+  dock ("Go east to Marlow's dock and sail east."); routes cross the sea
+  ("Sail west to Dawnreach, then …"); Elder Lumen's plan covers both. The
+  menu map draws the Shallows when you're out there, ⛵ where the boat is
+  moored, and the fogbank's own line. Moving between two overworld maps
+  slides (`transitionFor`).
+- **Art** (`python3 tools/assets/build.py sea`): the Shallows' tileset (a
+  new palm scenery), blend sheet and backdrop, the boat sheet
+  (`/tiles/boat.png`: whole boat ×2, hull front ×2), the dock as frame 15 of
+  the overworld sheet (frames 0–14 unchanged), Ness's sprite; the Tiled
+  legend gained '|' (append-only).
+- Tests: +19 (boat.test: travel rules, sea links mirrored and every edge
+  crossing, docks, island beaches, the fogbank, Ness, the save fields,
+  mooring, Marlow rowing home, the quest end to end; WorldMapPanel.test; a
+  DialogueOverlay case; existing tests follow two overworlds and the longer
+  story); 650 green, lint + tsc + build clean. Played on the bench in
+  headless Chromium: the dock, boarding, sailing off the edge into the
+  Shallows, landing on Gull Rock and Sandpiper Cay, climbing back in, the
+  Great Fogbank.
 
 ### 2026-10-08 — Item 12 second review: the explanations a child can actually read (#75 item 12)
 A second `/saas-code-review` + `/saas-ux-review` pass on the item 12 branch

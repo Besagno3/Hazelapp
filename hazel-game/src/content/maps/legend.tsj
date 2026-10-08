@@ -6,7 +6,7 @@
  "margin": 0,
  "name": "map-legend",
  "spacing": 0,
- "tilecount": 22,
+ "tilecount": 23,
  "tiledversion": "1.10.2",
  "tileheight": 32,
  "tiles": [
@@ -337,6 +337,21 @@
      "name": "meaning",
      "type": "string",
      "value": "dungeon stairs up (needs an exits entry to the floor above)"
+    }
+   ]
+  },
+  {
+   "id": 22,
+   "properties": [
+    {
+     "name": "char",
+     "type": "string",
+     "value": "|"
+    },
+    {
+     "name": "meaning",
+     "type": "string",
+     "value": "dock: walkable planks over the water, where a boat moors"
     }
    ]
   }

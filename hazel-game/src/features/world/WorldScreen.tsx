@@ -52,7 +52,14 @@ import {
   GROVE_SEEN,
   DAWNREACH_PANELS,
   DAWNREACH_SEEN,
+  ACT2_PANELS,
+  ACT2_SEEN,
+  FIRST_VOYAGE_PANELS,
+  GREAT_FOGBANK_MET,
+  GREAT_FOGBANK_PANELS,
+  GREAT_FOGBANK_SEEN,
 } from '../../content/story';
+import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { claimSecret, rewardSummary, secretById, secretFlag } from '../../content/secrets';
 import type { SecretDef } from '../../content/zones';
@@ -160,6 +167,11 @@ export default function WorldScreen() {
   // and once on the first step out onto Dawnreach (#75 Phase 1).
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
   const dawnreachDue = zoneId === 'dawnreach' && !flags[DAWNREACH_SEEN];
+  // Act II (#75 item 14): the morning after the Spire's finale; the first
+  // time in the boat; the first bump into the Great Fogbank.
+  const act2Due = flags[SPIRE_VICTORY_SEEN] === true && !flags[ACT2_SEEN];
+  const voyageDue = save?.aboard === true && !flags[FIRST_VOYAGE_SEEN];
+  const fogbankDue = flags[GREAT_FOGBANK_MET] === true && !flags[GREAT_FOGBANK_SEEN];
 
   const activeScene:
     | 'spireVictory'
@@ -170,6 +182,9 @@ export default function WorldScreen() {
     | 'ending'
     | 'grove'
     | 'dawnreach'
+    | 'act2'
+    | 'voyage'
+    | 'fogbank'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -182,11 +197,17 @@ export default function WorldScreen() {
             ? 'spire'
             : endingDue
               ? 'ending'
-              : groveDue
-                ? 'grove'
-                : dawnreachDue
-                  ? 'dawnreach'
-                  : null;
+              : act2Due
+                ? 'act2'
+                : groveDue
+                  ? 'grove'
+                  : dawnreachDue
+                    ? 'dawnreach'
+                    : voyageDue
+                      ? 'voyage'
+                      : fogbankDue
+                        ? 'fogbank'
+                        : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
@@ -251,6 +272,8 @@ export default function WorldScreen() {
   function castFieldSpell(cast: FieldCast) {
     sfx('spell');
     if (cast.spell === 'return') {
+      // Flying off mid-voyage leaves the boat moored where it floats (#75 item 14).
+      if (save?.aboard) update((s) => ({ ...s, ...moorBoat(s) }));
       const at = returnLanding(ZONES, cast.to);
       travelRef.current = { to: cast.to, x: at.x, y: at.y };
       showToast(`🏠 Return! Off to ${zone(cast.to).name}…`);
@@ -304,6 +327,11 @@ export default function WorldScreen() {
           </span>
           <span title="Coins">🪙 {save.coins}</span>
           <span title="Potions">🧪 {save.items.potion}</span>
+          {save.aboard && (
+            <span title="Sailing Marlow's boat" aria-label="Sailing Marlow's boat" className="rounded-full bg-sky-400/20 px-2 py-0.5">
+              ⛵
+            </span>
+          )}
           {calmLeft > 0 && (
             <span title="Calm: critters let you pass" className="rounded-full bg-sky-400/20 px-2 py-0.5 text-sky-100">
               🕊️ {calmLeft}s
@@ -371,7 +399,16 @@ export default function WorldScreen() {
             sendFlow({ type: 'ENCOUNTER' });
           },
           onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),
-          onFog: (hint) => showToast(`🌫️ ${hint}`),
+          onFog: (hint, id) => {
+            // The Great Fogbank's first bump plays its panels instead (#75 item 14).
+            if (id === GREAT_FOGBANK && !save.flags[GREAT_FOGBANK_MET]) setFlag(GREAT_FOGBANK_MET);
+            else showToast(`🌫️ ${hint}`);
+          },
+          // Marlow's boat (#75 item 14): climbing in, going ashore.
+          onBoard: (x, y) => update((s) => ({ ...s, aboard: true, pos: { x, y } })),
+          onLand: (boat, x, y) =>
+            update((s) => ({ ...s, aboard: false, boat: { zoneId: s.zoneId, ...boat }, pos: { x, y } })),
+          onAshore: () => update((s) => ({ ...s, aboard: false, boat: null })),
           // The fog of Forgetting lifts on screen (#75 item 7), once per bank.
           onFogLift: (fog) => {
             sfx('gate'); // a way opening — not the level-up fanfare
@@ -402,6 +439,8 @@ export default function WorldScreen() {
         spireLight={spireTheme ? { lives: spireLives, max: SPIRE_LIVES } : null}
         travelRef={travelRef}
         calmRef={calmRef}
+        boat={boatSpot(save)}
+        aboard={save.aboard}
       />
 
       <p className="text-white/50 text-xs mt-2">
@@ -500,6 +539,15 @@ export default function WorldScreen() {
           doneLabel="🗺️ Explore Dawnreach"
           onDone={() => setFlag(DAWNREACH_SEEN)}
         />
+      )}
+      {activeScene === 'act2' && (
+        <StoryPanels panels={ACT2_PANELS} doneLabel="⛵ Find Old Marlow" onDone={() => setFlag(ACT2_SEEN)} />
+      )}
+      {activeScene === 'voyage' && (
+        <StoryPanels panels={FIRST_VOYAGE_PANELS} doneLabel="⛵ Set sail!" onDone={() => setFlag(FIRST_VOYAGE_SEEN)} />
+      )}
+      {activeScene === 'fogbank' && (
+        <StoryPanels panels={GREAT_FOGBANK_PANELS} doneLabel="🧭 Sail on" onDone={() => setFlag(GREAT_FOGBANK_SEEN)} />
       )}
       {activeScene === 'grove' && (
         <StoryPanels

@@ -198,4 +198,18 @@ export interface SaveData {
    * wakes them. Null → home (Lumina Village's plaza), as before inns were everywhere.
    */
   lastRest: ZoneId | null;
+  /**
+   * Where Marlow's boat is moored (#75 item 14), in tiles — null = at his dock
+   * (once it's mended; see `content/boat.ts` `boatSpot`). Additive: no version bump.
+   */
+  boat: BoatSpot | null;
+  /** Sailing: the hero is in the boat, at `pos` on the sea (#75 item 14). */
+  aboard: boolean;
+}
+
+/** A boat's mooring (#75 item 14): a sea cell on a map, in tiles. */
+export interface BoatSpot {
+  zoneId: ZoneId;
+  x: number;
+  y: number;
 }

@@ -7,6 +7,7 @@ import {
   BLEND_WATER_STEP,
   OVERWORLD_FRAME,
   OVERWORLD_FRAMES,
+  OVERWORLD_DOCK_FRAME,
   TILESET_FRAMES,
   TILE_FRAME,
   TOWN_FRAME,
@@ -55,9 +56,14 @@ describe('terrainLayers', () => {
         } else {
           expect(f >= 0 && f < TOWN_FRAMES, `${x},${y}`).toBe(true);
         }
-        // Only scenery, flowers, exits, hidden passages and mountains get an overlay.
+        // Only scenery, flowers, exits, hidden passages, mountains and docks get an overlay.
         const ch = z.map[y][x];
-        expect(L.overFrame[i] !== NO_OVERLAY, `${x},${y} '${ch}'`).toBe('#,EH^'.includes(ch));
+        expect(L.overFrame[i] !== NO_OVERLAY, `${x},${y} '${ch}'`).toBe('#,EH^|'.includes(ch));
+        // A dock (#75 item 14) is planks over animated water.
+        if (ch === '|') {
+          expect(f, `${x},${y} dock`).toBe(WATER);
+          expect(L.overFrame[i], `${x},${y} dock`).toBe(OVERWORLD_DOCK_FRAME);
+        }
         // A hidden passage must look exactly like solid scenery.
         if (ch === 'H') {
           expect(L.sheets[L.overSheet[i]], `${x},${y} hidden passage`).toBe('zone');

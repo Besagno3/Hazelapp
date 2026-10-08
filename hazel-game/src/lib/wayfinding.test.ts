@@ -21,11 +21,32 @@ import {
   mentorTips,
   shrineToVisit,
 } from './wayfinding';
-import { FIELD_SPELL_IDS, fieldSpellFlag } from '../content/fieldSpells';
+import { FIELD_SPELL_IDS, fieldSpellFlag, visitedFlag } from '../content/fieldSpells';
+import { BOAT_MENDED } from '../content/boat';
+import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
 
 const dawn = ZONES.dawnreach;
 const ALL_ZONES = Object.keys(ZONES) as ZoneId[];
 const allCrystals = Object.fromEntries(TOPIC_REGISTRY.map((t) => [crystalFlag(t.id), true]));
+/** Act II's errands done (#75 item 14): Marlow's boat mended and sailed to the Silver Shallows. */
+const actTwoDone = { [BOAT_MENDED]: true, [visitedFlag('silver-shallows')]: true };
+/** The whole story so far: every crystal, the Spire, the boat, the voyage. */
+const storyDone = { ...allCrystals, [SPIRE_CLEARED]: true, ...actTwoDone };
+
+/** Does what the goal asks — the way a player would — by setting the flags it leads to. */
+function advance(g: Objective, flags: Record<string, boolean>) {
+  if (g.kind === 'crystal') flags[crystalFlag(TOPIC_REGISTRY.find((t) => t.zoneId === g.zoneId)!.id)] = true;
+  else if (g.kind === 'key') flags[keyFlag(GATE_KEYS.find((k) => k.fromZone === g.zoneId)!.id)] = true;
+  else if (g.kind === 'spire') flags[SPIRE_CLEARED] = true;
+  else if (g.kind === 'sail') flags[visitedFlag('silver-shallows')] = true;
+  else if (g.kind === 'boat') {
+    const quest = QUESTS.find((q) => q.id === 'marlows-boat')!;
+    const step = ['boat-sail', 'boat-compass', 'boat-rudder'].find((id) => !flags[stepFlag(id)]);
+    if (!flags[questOfferedFlag(quest)]) flags[questOfferedFlag(quest)] = true;
+    else if (step) flags[stepFlag(step)] = true;
+    else flags[BOAT_MENDED] = true;
+  }
+}
 
 describe('compass', () => {
   it('names all eight directions (y grows southward)', () => {
@@ -68,9 +89,40 @@ describe('nextObjective', () => {
     expect(g).toMatchObject({ kind: 'crystal', zoneId: 'chromaria' });
     expect(g.why).toContain('Prism Key');
   });
-  it('once every crystal shines: the Spire, then the open world', () => {
+  it('once every crystal shines: the Spire, then Act II — Old Marlow, his boat, the sea — then the open world', () => {
     expect(nextObjective(allCrystals)).toMatchObject({ kind: 'spire', zoneId: 'crystal-spire' });
-    expect(nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true })).toMatchObject({ kind: 'explore', zoneId: null });
+    expect(nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true })).toMatchObject({
+      kind: 'boat',
+      zoneId: 'starfall-coast',
+      title: 'Help Old Marlow',
+    });
+    expect(nextObjective(storyDone)).toMatchObject({ kind: 'explore', zoneId: null });
+  });
+
+  it("Marlow's boat (#75 item 14): each friend in turn, then back to Marlow, then sail from his dock", () => {
+    const flags: Record<string, boolean> = { ...allCrystals, [SPIRE_CLEARED]: true };
+    const path: [string, ZoneId | null][] = [];
+    for (let i = 0; i < 10; i++) {
+      const g = nextObjective(flags);
+      if (g.kind === 'explore') break;
+      path.push([g.title, g.zoneId]);
+      advance(g, flags);
+    }
+    expect(path).toEqual([
+      ['Help Old Marlow', 'starfall-coast'],
+      ["Find a sail for Marlow's boat", 'verdara'],
+      ["Fetch Marlow's compass", 'chromaria'],
+      ["Get a rudder built for Marlow's boat", 'gearfall'],
+      ['Tell Old Marlow his boat is ready', 'starfall-coast'],
+      ['Sail the Silver Shallows', 'silver-shallows'],
+    ]);
+    // The voyage starts at Marlow's dock: its 🚩 sits there, and the way says so.
+    const sail = nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true });
+    expect(sail.at).toEqual({ zoneId: 'dawnreach', x: 70, y: 30 });
+    expect(ZONES.dawnreach.map[sail.at!.y][sail.at!.x]).toBe('|');
+    expect(goalDirections(ZONES, sail, 'starfall-coast')).toBe("Go east to Marlow's dock and sail east.");
+    expect(goalDirections(ZONES, sail, 'lumina-village')).toBe("Go east to Marlow's dock and sail east.");
+    expect(goalDirections(ZONES, sail, 'silver-shallows')).toBe("It's right here in the Silver Shallows!");
   });
 
   // Doing what it says must finish the story: every step is one the hero can
@@ -83,24 +135,20 @@ describe('nextObjective', () => {
       seen.push(g);
       if (g.kind === 'explore') break;
       if (g.kind === 'crystal') {
-        const t = TOPIC_REGISTRY.find((x) => x.zoneId === g.zoneId)!;
-        const key = keyForZone(t.zoneId);
+        const key = keyForZone(g.zoneId!);
         if (key) expect(flags[keyFlag(key.id)], `${g.title} needs ${key.name}`).toBe(true);
-        flags[crystalFlag(t.id)] = true;
-      } else if (g.kind === 'key') {
-        const key = GATE_KEYS.find((k) => k.fromZone === g.zoneId)!;
-        flags[keyFlag(key.id)] = true;
-      } else {
-        flags[SPIRE_CLEARED] = true;
       }
+      advance(g, flags);
     }
     expect(seen.at(-1)?.kind).toBe('explore');
-    expect(seen).toHaveLength(TOPIC_REGISTRY.length + GATE_KEYS.length + 2);
+    // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage, explore.
+    expect(seen).toHaveLength(TOPIC_REGISTRY.length + GATE_KEYS.length + 1 + 5 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
       if (!g.zoneId) continue;
-      for (const from of ALL_ZONES) expect(routeTo(ZONES, from, g.zoneId), `${from} → ${g.zoneId}`).not.toBeNull();
+      const to = g.at?.zoneId ?? g.zoneId;
+      for (const from of ALL_ZONES) expect(routeTo(ZONES, from, to), `${from} → ${to}`).not.toBeNull();
     }
   });
 });
@@ -112,11 +160,10 @@ describe('fog and the story', () => {
     for (let i = 0; i < 20; i++) {
       const g = nextObjective(flags);
       if (!g.zoneId) break;
-      const entrance = whereOnMap(ZONES, dawn, g.zoneId, null)!;
-      expect(reachableOnFoot(dawn, flags).has(`${entrance.x},${entrance.y}`), `${g.title} (${entrance.place})`).toBe(true);
-      if (g.kind === 'crystal') flags[crystalFlag(TOPIC_REGISTRY.find((t) => t.zoneId === g.zoneId)!.id)] = true;
-      else if (g.kind === 'key') flags[keyFlag(GATE_KEYS.find((k) => k.fromZone === g.zoneId)!.id)] = true;
-      else flags[SPIRE_CLEARED] = true;
+      // A goal across the sea starts at a spot on Dawnreach (Marlow's dock).
+      const entrance = g.at ?? whereOnMap(ZONES, dawn, g.zoneId, null)!;
+      expect(reachableOnFoot(dawn, flags).has(`${entrance.x},${entrance.y}`), `${g.title}`).toBe(true);
+      advance(g, flags);
     }
     expect(nextObjective(flags).kind).toBe('explore');
   });
@@ -193,10 +240,16 @@ describe('routeSteps and goalDirections', () => {
   });
   it("says so when you're already there, and nothing once the story's done", () => {
     expect(goalDirections(ZONES, numbria, 'numbria')).toBe("It's right here in Numbria!");
-    expect(goalDirections(ZONES, nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true }), 'numbria')).toBe('');
+    expect(goalDirections(ZONES, nextObjective(storyDone), 'numbria')).toBe('');
   });
   it('gives directions to every story goal from every zone', () => {
-    const goals = [nextObjective({}), nextObjective({ [crystalFlag('math')]: true }), nextObjective(allCrystals)];
+    const goals = [
+      nextObjective({}),
+      nextObjective({ [crystalFlag('math')]: true }),
+      nextObjective(allCrystals),
+      nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true }),
+      nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true }),
+    ];
     for (const g of goals) {
       for (const from of ALL_ZONES) expect(goalDirections(ZONES, g, from), `${from} → ${g.zoneId}`).toMatch(/^[A-Z].+[.!]$/);
     }
@@ -243,7 +296,9 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
       expect.stringMatching(/Crystal Spire stands open, to the south of our village/),
       expect.stringMatching(/Rest at the Sleepy Sheep Inn/),
     ]);
-    expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true })[0]).toMatch(/Lumina is safe/);
+    expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true })[0]).toMatch(/Old Marlow.*mend his boat/);
+    expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true })[0]).toMatch(/Silver Shallows/);
+    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/Lumina is safe/);
   });
   it('is the big picture, not the road: no "go …" or "take the … path" steps', () => {
     const stages = [met, math, { ...math, [keyFlag('verdara-key')]: true }, { ...met, ...allCrystals }];
@@ -291,8 +346,7 @@ describe('guides and signposts', () => {
     ]);
   });
   it("after the story, a guide just cheers you on", () => {
-    const done = { ...allCrystals, [SPIRE_CLEARED]: true };
-    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], done)).toEqual([nextObjective(done).why]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], storyDone)).toEqual([nextObjective(storyDone).why]);
   });
   it('a signpost reads out the places around it, then the way to the next goal', () => {
     for (const n of wayfinders.filter((w) => w.signpost)) {

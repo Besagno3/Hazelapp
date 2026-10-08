@@ -90,3 +90,21 @@ describe('the defeat screen names where you wake, and why there', () => {
     expect(screen.getByText('Back home')).toBeInTheDocument();
   });
 });
+
+describe("Old Marlow rows the boat home (#75 item 14)", () => {
+  it('offers when the boat was left out at sea, and brings it back to his dock on closing', async () => {
+    const { BOAT_MENDED, BOAT_HOME, boatSpot } = await import('../../content/boat');
+    useSaveStore.setState({
+      userId: null,
+      save: { ...defaultSave(), flags: { [BOAT_MENDED]: true }, boat: { zoneId: 'silver-shallows', x: 3, y: 22 } },
+      status: 'ready',
+      remoteError: null,
+    });
+    render(<DialogueOverlay npcId="coast-fisher" />);
+    expect(screen.getByText(/Left the boat out on the water/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.getByText(/row her home to my dock/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /bye|close|ok|got it|thanks/i }));
+    expect(boatSpot(useSaveStore.getState().save!)).toEqual(BOAT_HOME);
+  });
+});

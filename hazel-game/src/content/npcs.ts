@@ -2,6 +2,7 @@ import type { ServiceType, Topic } from '../types';
 import { MET_ELDER, fogSeenFlag, litFlag } from './zones';
 import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
+import { BOAT_MENDED } from './boat';
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -437,12 +438,19 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Old Marlow',
     sprite: '🎣',
     role: 'villager',
+    // He gives "Marlow's Boat" (#75 item 14): quest-givers stay put.
+    stationary: true,
     lines: [
       'The fog rolled out to sea and the fish forgot the way home. Now I mostly catch old boots. Tasty boots, mind you. Acquired taste.',
       'They call it Starfall Coast because the stars used to land here to rest. Then the Smog Fiend smudged the sky. Clear it, and maybe they\'ll come back.',
       {
         text: 'Look! A star skipped across the water last night, plain as a thrown stone. The coast remembers its name again. So do I.',
         ifFlag: 'crystal-science-restored',
+      },
+      // Once his boat is mended (#75 item 14, "Marlow's Boat").
+      {
+        text: "The Biscuit's yours whenever you like — she's tied up at my dock, just east of here. Sail off the edge of the sea to reach the Silver Shallows!",
+        ifFlag: BOAT_MENDED,
       },
     ],
     ambient: ['*casts a line*', 'Caught a boot.', 'Tide is turning…'],
@@ -458,6 +466,24 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
     ambient: ['*peers skyward*', 'So many stars…', 'What is that one called?'],
   },
+  // --- The Silver Shallows (#75 item 14) ---
+  // A lighthouse keeper on Gull Rock, the first island you sail up to.
+  'gull-lamplighter': {
+    id: 'gull-lamplighter',
+    name: 'Lamplighter Ness',
+    sprite: '🏮',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "A visitor! By BOAT! Oh, my lamp hasn't had anyone to shine for in a hundred years.",
+      "I'm Ness. I kept this lighthouse lit all through the fog, just in case somebody came. Nobody did. I'd do it again.",
+      'These islands are only now remembering they exist. Some mornings I count a new one! Yesterday it was a rock shaped like a sneeze.',
+      'See the little sandbar to the south-east? Sandpiper Cay. The sandpipers say there\'s a chest on it. Sandpipers say a LOT of things.',
+      "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
+    ],
+    ambient: ['*polishes the lamp*', 'Ship ahoy? …Oh, it\'s you!', 'Shine on, little light.'],
+  },
+
   // Warns the player before the Tide Colossus — and points the reward home (#59).
   'coast-warden-sign': {
     id: 'coast-warden-sign',

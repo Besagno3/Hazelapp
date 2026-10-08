@@ -4,6 +4,7 @@ import { crystalFlag, crystalInfo } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
 import { tiledRows } from '../lib/tiled';
 import dawnreachTmj from './maps/dawnreach.tmj?raw';
+import shallowsTmj from './maps/silver-shallows.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 
@@ -39,6 +40,8 @@ export const ZONE_IDS = [
   'wayfarer-shrine',
   'quiet-shrine',
   'echo-mine',
+  // Act II (#75 item 14): the calm inner sea of islands, reached in Marlow's boat.
+  'silver-shallows',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -69,6 +72,9 @@ export type ZoneId = (typeof ZONE_IDS)[number];
  *        (walkable; needs an `exits` entry AND a `places` entry)
  *   '^'  mountain (solid) · ':' sand / beach (walkable)
  *
+ * The sea (#75 item 14) — Marlow's boat sails on '~' and lands on a beach or:
+ *   '|'  a dock (walkable planks over the water — where a boat moors)
+ *
  * Dungeons (#75 item 10) — floors joined by stairs, inside the map:
  *   '>'  stairs down · '<' stairs up (walkable; each needs an `exits` entry
  *        to the floor below / above, landing beside its stairs back)
@@ -90,8 +96,14 @@ export const VIEW_COLS = 22;
 export const VIEW_ROWS = 14;
 export const BUILDING_CHARS = new Set(['W', 'D', 'F', 'K', 'B', 'T', 'Z']);
 export const STAIRS_CHARS = new Set(['>', '<']);
-export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', 'H', 'P', '^', ':', ...BUILDING_CHARS, ...STAIRS_CHARS]);
-export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'H', 'P', ':', 'D', 'F', ...STAIRS_CHARS]);
+export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', 'H', 'P', '^', ':', '|', ...BUILDING_CHARS, ...STAIRS_CHARS]);
+export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'H', 'P', ':', '|', 'D', 'F', ...STAIRS_CHARS]);
+/** How the hero gets about (#75 item 14): on foot, or in Marlow's boat (`lib/travel.ts`). */
+export type TravelMode = 'foot' | 'boat';
+/** Where a boat can sail: the sea. */
+export const SEA_CHARS = new Set(['~']);
+/** Where a boat can put the hero ashore: a beach or a dock. */
+export const LANDING_CHARS = new Set([':', '|']);
 
 export const ROOF_COLORS = [
   'red',
@@ -219,6 +231,21 @@ export interface FogDef {
   lifted: string;
 }
 
+/** A map edge. */
+export type Side = 'north' | 'south' | 'east' | 'west';
+
+/**
+ * Open sea joining two maps along an edge (#75 item 14): a boat sailing off
+ * this edge comes out one cell in from the opposite edge of `to`, `shift`
+ * cells along (the row for east / west edges, the column for north / south).
+ * Every link has its mirror on the other map (zones.test).
+ */
+export interface SeaLink {
+  side: Side;
+  to: ZoneId;
+  shift?: number;
+}
+
 /**
  * A dark place (#75 item 9): the hero sees only a small circle around them,
  * and the `pitch` rectangles can't be crossed at all — until the hero casts
@@ -324,6 +351,8 @@ export interface ZoneDef {
   fogs?: FogDef[];
   /** A dark place, explored by the light of the Glow field spell (#75 item 9). */
   dark?: DarknessDef;
+  /** Edges a boat can sail off onto another map (#75 item 14) — see `SeaLink`. */
+  seaLinks?: SeaLink[];
   /**
    * Tileset key override (default: the zone id). The Spire's floor maps
    * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
@@ -339,6 +368,15 @@ export const HUB_ZONE: ZoneId = 'lumina-village';
 
 /** Dawnreach's terrain, painted in Tiled (#75 roadmap item 5). */
 const DAWNREACH_MAP = tiledRows(JSON.parse(dawnreachTmj), JSON.parse(legendTsj), 'dawnreach');
+/** The Silver Shallows (#75 item 14), painted in Tiled too. */
+const SHALLOWS_MAP = tiledRows(JSON.parse(shallowsTmj), JSON.parse(legendTsj), 'silver-shallows');
+
+/**
+ * The fog bank across the far side of the Silver Shallows, where the Starfall
+ * Sea begins (#75 item 14). No boat gets past it: in Act III Ember flies over
+ * it, and it thins when the Hush Fiend falls (STORY-4X §5).
+ */
+export const GREAT_FOGBANK = 'great-fogbank';
 
 /** Restoring any crystal lifts these — the first fog to go is the first reward you can see. */
 export const ANY_CRYSTAL = CRYSTAL_TOPIC_IDS.map((t) => crystalFlag(t));
@@ -1349,6 +1387,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       crystalPocket('engineering', { x: 69, y: 16, w: 3, h: 2 }, { x: 70, y: 14 }, 'in the cliffs of Gearfall Canyon'),
       crystalPocket('creativity', { x: 55, y: 45, w: 3, h: 2 }, { x: 56, y: 43 }, 'in the little grove by Chromaria'),
     ],
+    // Off the east coast, past Marlow's dock (69–70, 30), the sea runs on
+    // into the Silver Shallows (#75 item 14).
+    seaLinks: [{ side: 'east', to: 'silver-shallows', shift: -8 }],
     npcs: [
       { defId: 'dawnreach-scout', x: 42, y: 28 },
       // Signposts at the two crossroads on the long east–west road (#75 item 6).
@@ -1524,6 +1565,47 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       guards: { x: 19, y: 2 },
     },
   },
+
+  // Act II (#75 item 14): the Silver Shallows — the calm inner sea east of
+  // Dawnreach, reached in Old Marlow's boat by sailing off the east coast
+  // (sea links, no gates). Islands the world forgot are remembering
+  // themselves: so far Gull Rock, with Lamplighter Ness's lighthouse, and the
+  // little Sandpiper Cay; Act II's own islands come next. Its far side is
+  // walled by the Great Fogbank. Painted in Tiled (maps/silver-shallows.tmj).
+  'silver-shallows': {
+    id: 'silver-shallows',
+    name: 'The Silver Shallows',
+    kind: 'overworld',
+    // Riddle-chests out here ask about sea life.
+    topic: 'nature',
+    map: SHALLOWS_MAP,
+    ground: [118, 176, 112],
+    path: [220, 204, 150],
+    solidEmoji: '🌴',
+    decoEmoji: '🐚',
+    spawn: { x: 11, y: 21 },
+    buildings: [
+      // Whitewashed like the old Lumina Field cottages (that style's free since the Field retired).
+      { id: 'gull-lighthouse', name: 'Gull Rock Lighthouse', x: 9, y: 16, w: 5, h: 4, roof: 'red', style: 'cottage', sign: 'star' },
+    ],
+    npcs: [{ defId: 'gull-lamplighter', x: 11, y: 17 }],
+    enemies: [],
+    exits: [],
+    seaLinks: [{ side: 'west', to: 'dawnreach', shift: 8 }],
+    fogs: [
+      {
+        id: GREAT_FOGBANK,
+        x: 56,
+        y: 0,
+        w: 8,
+        h: 44,
+        liftedBy: ['crystal-words-restored'],
+        hint: "The Great Fogbank! Even Old Marlow won't sail into that.",
+        guards: { x: 63, y: 22 },
+        lifted: '✨ The Great Fogbank thins, and the Starfall Sea shines beyond it!',
+      },
+    ],
+  },
 };
 
 export function zone(id: ZoneId): ZoneDef {
@@ -1595,11 +1677,14 @@ export function safeSpawn(
   z: ZoneDef,
   pos: { x: number; y: number } | null,
   flags?: Record<string, boolean>,
+  mode: TravelMode = 'foot',
 ): { x: number; y: number } {
   const fallback = { x: z.spawn.x * TILE + TILE / 2, y: z.spawn.y * TILE + TILE / 2 };
   if (!pos) return fallback;
   const cx = Math.floor(pos.x / TILE);
   const cy = Math.floor(pos.y / TILE);
+  // Afloat (#75 item 14): any open sea will do — fog still counts as solid.
+  if (mode === 'boat') return SEA_CHARS.has(tileAt(z, cx, cy)) && !(flags && fogAt(z, cx, cy, flags)) ? pos : fallback;
   if (!WALKABLE_CHARS.has(tileAt(z, cx, cy))) return fallback;
   if (flags && z.fogs?.length && behindFog(z, flags).has(`${cx},${cy}`)) return fallback;
   return pos;

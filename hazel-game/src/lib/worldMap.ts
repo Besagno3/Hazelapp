@@ -17,6 +17,10 @@ const CELL_COLOR: Record<string, string> = {
   '^': '#8a90a8', // mountains
   '=': '#c8b482', // road
   P: '#64a462', // a place sits on grass; its marker is drawn on top
+  '|': '#a47640', // a dock (#75 item 14)
+  W: '#b07a5a', // a building out on the map (Gull Rock's lighthouse)
+  D: '#b07a5a',
+  F: '#b07a5a',
 };
 
 /** Colour of one overworld tile on the map (unknown tiles read as grass). */

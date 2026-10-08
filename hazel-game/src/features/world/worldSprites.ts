@@ -33,6 +33,9 @@ import {
   SPIRE_PROPS_SHEET,
   SPIRE_PROP_FRAME,
   STAIRS_FRAMES,
+  BOAT_FRAMES,
+  BOAT_KEY,
+  BOAT_SHEET,
   STAIRS_KEY,
   STAIRS_SHEET,
   blendKey,
@@ -136,6 +139,7 @@ export function loadWorldSprites(k: KaplayCtx): void {
     });
   }
   k.loadSprite(STAIRS_KEY, STAIRS_SHEET, { sliceX: STAIRS_FRAMES, sliceY: 1 });
+  k.loadSprite(BOAT_KEY, BOAT_SHEET, { sliceX: BOAT_FRAMES, sliceY: 1 });
   k.loadSprite(SPIRE_PROPS_KEY, SPIRE_PROPS_SHEET, {
     sliceX: SPIRE_PROPS_FRAMES,
     sliceY: 1,

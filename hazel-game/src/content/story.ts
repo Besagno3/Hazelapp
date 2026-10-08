@@ -65,6 +65,11 @@ export const SPIRE_VICTORY_SEEN = 'spire-victory-seen';
 export const GROVE_SEEN = 'grove-seen';
 /** First step out of a gate onto Dawnreach, the overworld (#75 Phase 1). */
 export const DAWNREACH_SEEN = 'dawnreach-seen';
+/** Act II opens (#75 item 14, STORY-4X §4): set once `ACT2_PANELS` has played. */
+export const ACT2_SEEN = 'act2-seen';
+/** The first time the boat bumps the Great Fogbank, its panel plays once. */
+export const GREAT_FOGBANK_MET = 'great-fogbank-met';
+export const GREAT_FOGBANK_SEEN = 'great-fogbank-seen';
 
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
@@ -219,6 +224,59 @@ export const DAWNREACH_PANELS: StoryPanel[] = [
   {
     emoji: '💎',
     text: 'Restore a crystal, and the fog will start to lift — around the Spire first, then a little more with every crystal you bring back.',
+  },
+];
+
+/**
+ * Act II opens (#75 item 14; STORY-4X §4, re-staged on the map by
+ * ROADMAP-OVERWORLD §3.3): the morning after the Spire, the world starts
+ * remembering — and the sea off Dawnreach's east coast comes back, islands
+ * and all. Plays once, the next time the hero is out in the world.
+ */
+export const ACT2_PANELS: StoryPanel[] = [
+  {
+    emoji: '🌅',
+    text: 'The morning after the Spire, the last fog is gone — and Lumina starts remembering things it forgot it had lost.',
+  },
+  {
+    emoji: '🧁',
+    text: 'Innkeeper Poppy remembers a recipe for cloud-buns. Lantern-Keeper Sol remembers a sixth lantern he never knew he had. Everyone hums tunes nobody has sung in years.',
+  },
+  {
+    emoji: '🌊',
+    text: "Off Dawnreach's east coast, the fog has rolled back from the sea. Out on the shining water lie islands nobody remembers: the Silver Shallows.",
+  },
+  {
+    emoji: '🕯️',
+    text: 'Grandmother Wick squeezes your hand. "We didn\'t lose those places, little spark. We FORGOT them. That\'s worse — and it\'s fixable."',
+  },
+  {
+    emoji: '🎣',
+    text: "Down on Starfall Coast, Old Marlow is waving his hat. His fish remembered the way home — and so did he. He used to sail! If only his old boat weren't in pieces…",
+  },
+];
+
+/** Climbing into the mended boat for the first time (#75 item 14). */
+export const FIRST_VOYAGE_PANELS: StoryPanel[] = [
+  {
+    emoji: '⛵',
+    text: 'The sail fills with a fresh sea wind. The Biscuit slips away from the dock, Ember perched on the bow, and Dawnreach grows small behind you.',
+  },
+  {
+    emoji: '🧭',
+    text: 'Sail anywhere the water shines — east is the way to the Silver Shallows. Bump a beach or a dock to go ashore; the Biscuit waits right where you leave her.',
+  },
+];
+
+/** The boat's first bump into the Great Fogbank (#75 item 14) — it sets up flight (Act III). */
+export const GREAT_FOGBANK_PANELS: StoryPanel[] = [
+  {
+    emoji: '🌫️',
+    text: 'A wall of fog as tall as a mountain stands across the water: the Great Fogbank. The waves go quiet near it, and even Ember stops humming.',
+  },
+  {
+    emoji: '🐉',
+    text: 'Marlow warned you: "Past the Fogbank lies the Starfall Sea, and nobody has sailed it in a hundred years." Maybe not by boat… Ember is looking up at the sky.',
   },
 ];
 

@@ -65,7 +65,13 @@ ZONES = {
                                 sky=('#120f1c', '#3a3050'), far='#221c30', mid='gears', water='#3a4a8a', cave=True),
     'clockwork-depths-b3': dict(ground=(104, 78, 70), path=(150, 112, 88), solid='darkrock', deco='shard', deco_c='#ff7a3a',
                                 sky=('#1c0e0a', '#5a2a1a'), far='#2e1610', mid='gears', water='#6a3a2a', cave=True),
+    # The Silver Shallows (#75 item 14): a calm, bright sea of sandy islands.
+    'silver-shallows': dict(ground=(118, 176, 112), path=(220, 204, 150), solid='palm', deco='shell', deco_c='#ffc0b0',
+                            sky=('#5ab0e8', '#d8f4ff'), far='#8ac0e0', mid='sea', water='#4a9ad8'),
 }
+
+# Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
+SEA_ZONES = ('silver-shallows',)
 
 # Added for the field spells (#75 item 9) — `build_spell_places` writes only these.
 SPELL_ZONES = ('wayfarer-shrine', 'quiet-shrine', 'echo-mine')
@@ -174,6 +180,13 @@ def solid(kind, zone):
         c.rect(2, 1, 14, 3.5, '#c8a060')
         for x in (5.5, 8, 10.5):
             c.rect(x, 4, x + 0.8, 12.5, '#ddd4c0', shade=False)
+    elif kind == 'palm':
+        # An island palm (#75 item 14): a leaning trunk, fronds, a coconut or two.
+        c.poly([(7, 16), (9.5, 16), (10, 9), (9, 5), (7.8, 5.5), (8.6, 9)], '#a8783e')
+        for (x0, y0, x1, y1) in ((9, 5, 2, 7.5), (9, 5, 15.5, 7), (9, 5, 4, 1.5), (9, 5, 14, 1.8)):
+            c.poly([(x0, y0 - 1), (x1, y1), (x0, y0 + 1.2)], '#3aa060')
+        c.dot(8, 6, '#6a4020', w=1, h=1)
+        c.dot(10, 6.4, '#6a4020', w=1, h=1)
     elif kind == 'pillar':
         c.rect(2, 13, 14, 16, '#9a8ad0')
         c.rect(4, 3, 12, 13, '#d8d0f8')
@@ -1029,11 +1042,55 @@ def signpost():
     return _outlined(c)
 
 
+def ow_dock():
+    """Marlow's dock (#75 item 14): plank boards on pilings, drawn over the water."""
+    c = _c()
+    for i, y in enumerate((1, 4.2, 7.4, 10.6)):
+        col = '#b8864e' if i % 2 else '#a47640'
+        c.rect(0, y, 16, y + 2.8, col, shade=False)
+        c.rect(0, y, 16, y + 0.7, '#d4a46a', shade=False)  # each board's lit top edge
+        c.dot(2 + (i % 2) * 5, y + 1.6, '#5a3a20')
+        c.dot(11 + (i % 2) * 2, y + 1.6, '#5a3a20')
+    for x in (1, 13):  # mooring posts at the end of the boards
+        c.ellipse(x + 1, 14.4, 1.4, 1.3, '#6a4426')
+        c.dot(x + 0.6, 13.8, '#9a6a3e')
+    return c
+
+
+def boat_sheet():
+    """Marlow's boat, the Biscuit (#75 item 14), afloat and facing right.
+
+    0, 1: the whole boat (two frames of a bob) — moored, or under the hero.
+    2, 3: just the front of the hull, drawn OVER the hero while they sail, so
+          they sit in the boat rather than on it.
+    """
+    frames = []
+    for front_only in (False, True):
+        for f in (0, 1):
+            c = _c()
+            lift = 0.5 if f else 0
+            if not front_only:
+                # Mast and sail (behind the hero), a little red pennant on top.
+                c.rect(11.2, 1 + lift, 12, 11 + lift, '#7a4a2a', shade=False)
+                c.poly([(11, 1.6 + lift), (11, 9.6 + lift), (3.5, 9.6 + lift)], '#f4eedc')
+                c.poly([(12, 1 + lift), (14.6, 1.8 + lift), (12, 2.8 + lift)], '#e04848', shade=False)
+            # The hull: planks, a lighter rim, a stripe of red paint.
+            c.poly([(0.5, 10.2 + lift), (15.5, 10.2 + lift), (13.2, 14.6 + lift), (2.6, 14.6 + lift)], '#9a5a30')
+            c.rect(0.8, 10.2 + lift, 15.2, 11 + lift, '#c8884e', shade=False)
+            c.rect(2.2, 12.2 + lift, 13.8, 12.9 + lift, '#d05a3a', shade=False)
+            if not front_only:
+                for x in ((2, 6, 10, 14) if f else (4, 8, 12)):  # foam where the hull meets the water
+                    c.dot(x, 15, '#e8f4ff')
+            frames.append(_outlined(c))
+    return frames
+
+
 OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'city', 'canyon', 'garden', 'pavilion')
 
 
 def overworld_sheet():
-    return [ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
+    # Frame 15 (#75 item 14): the dock — appended, so every earlier frame keeps its place.
+    return [ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS] + [ow_dock()]
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
@@ -1200,6 +1257,19 @@ def build_dungeon(public: Path):
     strip([upscale(f.image(), 2) for f in stairs_sheet()]).save(tdir / 'stairs.png', optimize=True)
 
 
+def build_sea(public: Path):
+    """Write only the boat's additions (#75 item 14): the Shallows' art, the boat, the overworld sheet."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in SEA_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in boat_sheet()]).save(tdir / 'boat.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
 def build(public: Path) -> list[str]:
     tdir = public / 'tiles'
     tdir.mkdir(parents=True, exist_ok=True)
@@ -1219,6 +1289,7 @@ def build(public: Path) -> list[str]:
         strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'spire-{theme}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in spire_props()]).save(tdir / 'spire-props.png', optimize=True)
     strip([upscale(f.image(), 2) for f in stairs_sheet()]).save(tdir / 'stairs.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in boat_sheet()]).save(tdir / 'boat.png', optimize=True)
     for style in STYLES:
         strip([upscale(f.image(), 2) for f in town_tiles(style)]).save(tdir / f'town-{style}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in roof_tiles()]).save(tdir / 'roofs.png', optimize=True)

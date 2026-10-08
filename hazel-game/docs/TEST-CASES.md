@@ -760,6 +760,25 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-623 | C | ✅ | battle | the first fight against tier-3 marks opens with the 💪 tap-to-continue line before any command, and marks the tier explained; the next tier-3 fight goes straight to the commands; an eased Count Bat opens with the 💛 line and no 💪 (BattleArena.test); an eased enemy's HUD shows 💛 with "Going easier on you" read aloud, no marks (BattleHud.test) |
 | TC-624 | M | ✅ | battle | headless Chromium at 375×667: the healer callout is a dark pill readable over Dawnreach's light sky; with a question open, the answer buttons' positions are identical while the banner is up and after it leaves; the 💪 and 💛 lines read in the message box; tier-4 labels on Chromaria and the Coast read on the darker plate |
 
+## The boat and the Silver Shallows: Act II opens on the sea (#75 item 14, slice 14a)
+
+Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-640 | U | ✅ | travel | the boat sails open sea only, 1.5× walking pace, and lands on a beach or a dock — never grass, a road or a place icon; edges and their opposites (boat.test) |
+| TC-641 | U | ✅ | travel | sailing off Dawnreach's east edge comes out at (1, y − 8) on the Silver Shallows and back at (78, y + 8); no crossing off an unlinked edge, inland, or on a row the far map doesn't have; every link has its mirror and every open-sea cell on a linked edge crosses onto open sea and straight back (boat.test) |
+| TC-642 | U | ✅ | travel | `nearestSea`, `reachableBySea` (the dock reaches the Shallows' edge; Numbria's lake is land-locked) and `seaEntryCell`; one sea to the next slides (reduced motion cuts), a place still fades (boat.test) |
+| TC-643 | U | ✅ | content | the boat's home (71, 30) is open sea beside Marlow's two-plank dock, in line with the Starfall Coast icon; every dock touches the sea and leads ashore; every island has a beach the boat reaches from where it sails in; the Great Fogbank spans the Shallows' whole east edge (boat.test, zones.test) |
+| TC-644 | U | ✅ | content | Lamplighter Ness stands inside Gull Rock Lighthouse and points to Sandpiper Cay and the Great Fogbank; the lighthouse is the only cottage-style building (boat.test, zones.test) |
+| TC-645 | U | ✅ | save | no boat before the quest, then at Marlow's dock, then wherever it was left — none while sailing it; leaving it mid-voyage moors it on the sea under the hero, the nearest sea, or home; a saved mooring must be open sea on a real map; a hero is only aboard with a boat and afloat (boat.test) |
+| TC-646 | U | ✅ | dialogue | Old Marlow offers to row the boat home only when it's moored somewhere else and the hero is ashore; closing the conversation brings it back to his dock (boat.test, DialogueOverlay.test) |
+| TC-647 | U | ✅ | quest | "Marlow's Boat" isn't offered before `act2-seen`; then Willow (sail), Mapmaker Atlas (compass) and Sage Cog (rudder) in that order — a friend out of turn says nothing about it — then Marlow's reward: the boat at his dock and 50 coins; none of the three gives a quest of their own (boat.test) |
+| TC-648 | U | ✅ | wayfinding | after the Spire the 🚩 goes: Help Old Marlow (Starfall Coast) → Verdara → Chromaria → Gearfall → back to Marlow → Sail the Silver Shallows (🚩 on Marlow's dock: "Go east to Marlow's dock and sail east.") → explore; from the Shallows every goal routes home ("Sail west to Dawnreach, then …"); Elder Lumen's plan names Marlow, then the Shallows (wayfinding.test) |
+| TC-649 | C | ✅ | world map | out at sea the menu map draws the Silver Shallows ("You're sailing the Silver Shallows in the Biscuit") and explains the Great Fogbank with no crystal legend; on Dawnreach a moored boat shows ⛵ and the voyage's 🚩 sits on the dock (WorldMapPanel.test) |
+| TC-650 | M | ✅ | boat | headless Chromium (bench): walk onto Marlow's dock and bump the boat → aboard, the hero sits in it (hull drawn over their legs) with Ember alongside; sail east off the map → slides into the Shallows at Gull Rock's latitude; sail into its beach → ashore, the boat moored behind; walk back into it → aboard again; Sandpiper Cay's beach lands too; the Great Fogbank stops the boat and counts a fog bump; no page errors |
+| TC-651 | M | ⬜ | Act II | in the real app: clear the Spire → the Act II panels; Marlow's quest across three towns; first boarding → the voyage panels; first Great Fogbank bump → its panels; Return from an island, then Marlow rows the boat home; reload while sailing → still afloat in the boat; lose a battle at sea → wake at the inn, boat moored where you were |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

@@ -1,6 +1,7 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
-import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell } from '../content/zones';
+import { HUB_ZONE, SEA_CHARS, TILE, ZONES, innOf, innWakeCell, tileAt } from '../content/zones';
+import { hasBoat, validMooring } from '../content/boat';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
 
 export const SAVE_VERSION = 2 as const;
@@ -169,6 +170,8 @@ export function defaultSave(): SaveData {
     companionId: 'ember',
     defendTimer: true,
     lastRest: null,
+    boat: null,
+    aboard: false,
   };
 }
 
@@ -189,6 +192,7 @@ export function normalizeSave(raw: unknown): SaveData {
   const pos = zoneKnown && isPos(r.pos) ? { x: r.pos.x, y: r.pos.y } : null;
   // Every known consumable gets a count; ids added later (#73: elixir, spark,
   // ward) simply default in for older saves.
+  const flags = { ...(isRecord(r.flags) ? (r.flags as Record<string, boolean>) : {}), [SAVE_V2_FLAG]: true };
   const rawItems = typeof r.items === 'object' && r.items !== null ? (r.items as Record<string, unknown>) : {};
   const items = Object.fromEntries(
     CONSUMABLE_IDS.map((id) => [id, numberOr(rawItems[id], d.items[id])]),
@@ -205,7 +209,7 @@ export function normalizeSave(raw: unknown): SaveData {
     badges: stringArray(r.badges),
     sages: stringArray(r.sages) as CrystalTopic[],
     // Every v2 save carries the marker (see SAVE_V2_FLAG), whatever it came with.
-    flags: { ...(isRecord(r.flags) ? (r.flags as Record<string, boolean>) : {}), [SAVE_V2_FLAG]: true },
+    flags,
     openedChests: stringArray(r.openedChests),
     kills: killCounts(r.kills),
     questItems: stringArray(r.questItems),
@@ -221,6 +225,15 @@ export function normalizeSave(raw: unknown): SaveData {
     // Added with an inn in every town (#75 item 11) — additive, like the two
     // above: older saves (or a town without an inn) wake at home.
     lastRest: typeof r.lastRest === 'string' && r.lastRest in ZONES && innOf(ZONES[r.lastRest as ZoneId]) ? (r.lastRest as ZoneId) : null,
+    // Marlow's boat (#75 item 14) — additive too. A mooring that isn't open
+    // sea (a map repainted under it) goes back to his dock; the hero is only
+    // aboard with a boat, afloat where they're saved.
+    boat: validMooring(r.boat) ? { zoneId: r.boat.zoneId, x: r.boat.x, y: r.boat.y } : null,
+    aboard:
+      r.aboard === true &&
+      hasBoat(flags) &&
+      pos !== null &&
+      SEA_CHARS.has(tileAt(ZONES[zoneId], Math.floor(pos.x / TILE), Math.floor(pos.y / TILE))),
   };
 }
 

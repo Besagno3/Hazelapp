@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { NPC_DEFS, ROLE_SERVICE, npcSpriteId, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { questConversation, type QuestConversation } from '../../content/quests';
+import { boatFetch } from '../../content/boat';
 import { ZONES } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
 import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
@@ -39,6 +40,14 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
       const save = useSaveStore.getState().save;
       const quest = save ? questConversation(npcId, save) : null;
       if (quest) return { lines: quest.lines, quest };
+      // Old Marlow rows the boat home from wherever it was left (#75 item 14).
+      const fetch = save ? boatFetch(npcId, save) : null;
+      if (fetch) {
+        return {
+          lines: fetch.lines,
+          quest: { lines: fetch.lines, badge: 'The Biscuit ⛵', finish: fetch.finish, finishKind: null },
+        };
+      }
       const flags = save?.flags ?? {};
       // Guides end on "where to next?"; signposts read out the way (#75 item 6).
       const wayfinding = npc ? wayfindingLines(ZONES, npc, flags) : [];

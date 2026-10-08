@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { TILE, ZONES, fogAt, fogLifted } from '../../content/zones';
+import { GREAT_FOGBANK, TILE, ZONES, fogAt, fogLifted } from '../../content/zones';
 import { floorTitle } from '../../content/dungeons';
-import type { ZoneId } from '../../types';
+import type { BoatSpot, ZoneId } from '../../types';
 import {
   ANY_CRYSTAL_EMOJI,
   FOG_COLOR,
@@ -28,23 +28,41 @@ export default function WorldMapPanel({
   zoneId,
   pos,
   flags,
+  boat = null,
+  aboard = false,
 }: {
   zoneId: ZoneId;
   pos: { x: number; y: number } | null;
   flags: Record<string, boolean>;
+  /** Where Marlow's boat is moored, if it is (#75 item 14) — ⛵ on its map. */
+  boat?: BoatSpot | null;
+  /** Sailing it: the caption says so. */
+  aboard?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const world = ZONES.dawnreach;
+  // The map you're out on — Dawnreach, or the Silver Shallows (#75 item 14);
+  // from inside a place, the overworld it's on.
+  const world = ZONES[zoneId].kind === 'overworld' ? ZONES[zoneId] : ZONES.dawnreach;
   const cols = world.map[0].length;
   const rows = world.map.length;
   const places = world.places ?? [];
   const here = whereOnMap(ZONES, world, zoneId, pos);
-  const foggedBanks = (world.fogs ?? []).filter((f) => !fogLifted(f, flags));
+  // Banks a crystal will clear get its marker; the Great Fogbank has a line of its own.
+  const greatFogbank = (world.fogs ?? []).find((f) => f.id === GREAT_FOGBANK && !fogLifted(f, flags));
+  const foggedBanks = (world.fogs ?? []).filter((f) => !fogLifted(f, flags) && f.id !== GREAT_FOGBANK);
   const fogged = foggedBanks.length > 0;
   const emojiOf = (p: (typeof places)[number]) => placeEmoji(world, p, flags);
   const anyHidden = places.some((p) => emojiOf(p) === HIDDEN_PLACE_EMOJI);
   const goal = nextObjective(flags);
-  const flagAt = goal.zoneId ? whereOnMap(ZONES, world, goal.zoneId, null) : null;
+  // A goal across the sea flags where it starts (Marlow's dock) on its own map.
+  const flagAt = goal.at
+    ? goal.at.zoneId === world.id
+      ? { x: goal.at.x, y: goal.at.y, exact: true, place: undefined }
+      : null
+    : goal.zoneId
+      ? whereOnMap(ZONES, world, goal.zoneId, null)
+      : null;
+  const boatHere = boat && boat.zoneId === world.id ? boat : null;
   // On the overworld, directions start from the hero's own tile.
   const heroTile = zoneId === world.id && pos ? { x: Math.floor(pos.x / TILE), y: Math.floor(pos.y / TILE) } : undefined;
   const how = goalDirections(ZONES, goal, zoneId, heroTile);
@@ -62,7 +80,9 @@ export default function WorldMapPanel({
     }
   }, [world, cols, rows, flags]);
 
-  const caption = mapCaption(here, floorTitle(ZONES, zoneId) ?? ZONES[zoneId].name, world.name);
+  const caption = aboard
+    ? `You're sailing ${world.name.startsWith('The ') ? `the ${world.name.slice(4)}` : `off ${world.name}`} in the Biscuit`
+    : mapCaption(here, floorTitle(ZONES, zoneId) ?? ZONES[zoneId].name, world.name);
   const nextLabel = goal.zoneId ? `Next: ${goal.title}` : goal.why;
   const at = (x: number, y: number) => ({ left: `${((x + 0.5) / cols) * 100}%`, top: `${((y + 0.5) / rows) * 100}%` });
 
@@ -100,6 +120,16 @@ export default function WorldMapPanel({
             {fogMarker(f)}
           </span>
         ))}
+        {boatHere && (
+          <span
+            aria-hidden
+            // Marlow's boat, moored where it was left (#75 item 14).
+            className="absolute -translate-x-1/2 -translate-y-1/2 text-[13px] leading-none pointer-events-none select-none drop-shadow"
+            style={at(boatHere.x, boatHere.y)}
+          >
+            ⛵
+          </span>
+        )}
         {here && (
           <span
             aria-hidden
@@ -139,6 +169,17 @@ export default function WorldMapPanel({
           </li>
         ))}
       </ul>
+      {(boatHere || greatFogbank) && (
+        <p className="text-[11px] text-white/60 mt-1">
+          {boatHere && <span className="block">⛵ = Marlow's boat, waiting where you left it</span>}
+          {greatFogbank && (
+            <span className="block">
+              <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1" style={{ background: FOG_COLOR }} />
+              The Great Fogbank — no boat can pass it
+            </span>
+          )}
+        </p>
+      )}
       {fogged && (
         <p className="text-[11px] text-white/60 mt-1">
           <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1" style={{ background: FOG_COLOR }} />
