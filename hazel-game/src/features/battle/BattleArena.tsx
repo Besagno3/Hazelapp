@@ -58,12 +58,11 @@ import { keyForBoss, keyFlag } from '../../content/keys';
 import { resolveSprite } from '../../content/sprites';
 import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
-import { HUB_ZONE } from '../../content/zones';
 import { combatState, useBattleStore } from '../../store/battleStore';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
-import { pushLibrary } from '../../lib/save';
+import { pushLibrary, wakeAfterDefeat, wakeInnName } from '../../lib/save';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
@@ -855,12 +854,12 @@ export default function BattleArena() {
     void addXp(xp);
     // Remember the loss: after a couple, this enemy eases off (mercy).
     recordLoss(enemy!.id);
-    // No game over (#37): wake up safe at home in Lumina Village, fully healed.
+    // No game over (#37): wake up safe and fully healed — at the last inn
+    // rested at, or home in Lumina Village (#75 item 11).
     updateSave((s) => ({
       ...s,
       hp: null,
-      zoneId: HUB_ZONE,
-      pos: null,
+      ...wakeAfterDefeat(s),
       library: pushLibrary(s.library, misses.current),
     }));
     setTurn({ kind: 'defeat', xp });
@@ -1119,6 +1118,7 @@ export default function BattleArena() {
             lucky={turn.kind === 'victory' && turn.lucky}
             firstWin={turn.kind === 'victory' && turn.firstWin}
             drop={turn.kind === 'victory' ? turn.drop : null}
+            wakeInn={save ? wakeInnName(save) : null}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

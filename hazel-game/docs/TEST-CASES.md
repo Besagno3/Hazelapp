@@ -332,7 +332,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-300 | M | ⬜ | shop | Tadpole's Tonics lists Berry Potion (🪙30) above Honey Elixir; buying one increments the potion count |
 | TC-288 | U | ✅ | items | `SHOPS` keys == the set of merchant NPCs; `shopFor` null for non-merchants (items.test) |
 | TC-289 | U | ✅ | save | an old `{potion, hint}` save normalizes with elixir/spark/ward = 0; new counts round-trip (items.test) |
-| TC-290 | U | ✅ | zones | exactly one innkeeper and one librarian defined and placed; no NPC placed twice (zones.test) |
+| TC-290 | U | ✅ | zones | exactly one librarian defined and placed; no NPC placed twice (zones.test). *(The one-innkeeper half was retired by #75 item 11 — every town has an inn now; see TC-599.)* |
 | TC-291 | U | ✅ | zones | every merchant / sage / innkeeper / librarian stands inside a building (zones.test) |
 | TC-292 | U | ✅ | zones | each place uses one architecture style and no two places share one; building ids + names unique (zones.test) |
 | TC-293 | U | ✅ | tiles | every style has a 16-frame town sheet; roof strip = 9 frames × colour (tiles.test) |
@@ -733,7 +733,16 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-596 | U | ✅ | wayfinding | the way to the Clockwork Titan reads "Go south-west to the Clockwork Depths, then take the stairs down two floors to the Titan's Forge." (a run of stairs the same way is one step); Elder Lumen: "…in the Titan's Forge, deep in the Clockwork Depths, to the south-west" (wayfinding.test) |
 | TC-597 | M | ✅ | dungeons | headless Chromium: B1's vault stairs → B2 beside its stairs up, and back; B2's dark side hall blocks (pitch bump), lit it opens to its chest; B2's far end with the camera scrolled two screens down keeps the light on the hero; B2 → B3; the Titan fights with or without Calm; on a 375 px phone the HUD reads "B2 · The Gear Halls" and the map "You're here: Clockwork Depths · B2 — The Gear Halls"; **review fix (#103 b2):** the side hall's pitch dark (and the mine's doorway) fades in over ~30 px at its edge instead of a hard-edged black box, keeps an opaque core over the chest, and still fades away whole on Glow; a battle on B2 draws its backdrop, the Knight-Mare and the hero |
 | TC-598 | M | ⬜ | dungeons | in the real app: answer B1's gatekeeper, walk all three floors to the Titan, win the Gearwright Key, open the forge hoard and the Gear Halls' side-hall chest (Glow), save at B3's crystal, reload mid-dungeon (wakes where saved) |
+| TC-599 | U | ✅ | inns | every town (Lumina Village, Numbria, Verdara, Gearfall Canyon, Chromaria) has exactly one `sign: 'inn'` building and one innkeeper, standing inside it; no other zone has either (zones.test) |
+| TC-600 | U | ✅ | inns | each town's inn wake cell is inn floor ('F') inside the inn, the door is right below it, and from the door you can walk out of town to Dawnreach (zones.test) |
+| TC-601 | U | ✅ | rumors | every town has 8+ people (signposts don't count), and someone a brand-new hero can talk to names another place by name (zones.test) |
+| TC-602 | U | ✅ | save | `lastRest` defaults to null (home); `normalizeSave` keeps a town with an inn and drops a place without one, an unknown zone or a non-string; `wakeAfterDefeat` gives the inn's wake cell in pixels (or home with no position); `wakeInnName` reads "the Wound-Down Inn in Gearfall Canyon" (save.test) |
+| TC-603 | M | ✅ | inns | headless Chromium at 375 px: in Numbria, talk to Innkeeper Tabitha → 🛏️ Rest → "Rest until morning" sets `lastRest: 'numbria'` and full HP; the panel names the Square Root Inn; all four new inns render in their streets; each wake cell puts the hero inside the inn; no console errors |
+| TC-604 | M | ⬜ | inns | in the real app, signed in: rest at a far town's inn, lose a battle (and, once the crystals allow, the Spire climb) — the defeat screen names that inn ("To the inn"), you wake inside it healed; reload — you're still there; a hero who never rested away from home still wakes in the Village |
 | TC-605 | U | ✅ | world map | a dungeon floor's caption reads "You're here: Clockwork Depths · B2 — The Gear Halls" with no "(past …)"; a zone merely sharing a prefix with the place still gets "(past …)" (worldMap.test) |
+| TC-606 | C | ✅ | inns | an innkeeper offers 🛏️ Rest from the first line of their talk (and it opens the Inn); a shrine keeper's trial still waits for the last line (DialogueOverlay.test) |
+| TC-607 | C | ✅ | rumors | Poppy's Echo Mine rumor is gone once the mine is lit; Willow's Old Wren rumor once Glow is learned (DialogueOverlay.test) |
+| TC-608 | C | ✅ | defeat | the battle defeat screen reads "…back to the Square Root Inn in Numbria, where you last rested" with "To the inn", or "home to Lumina Village" with "Back home" (DialogueOverlay.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

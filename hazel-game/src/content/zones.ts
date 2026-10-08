@@ -393,6 +393,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#........#..WWWDWWWW.,..WFFFFFFFFW..WWWDWWW#',
       '#..,...,.#..............WWWWWDWWWW.....=...#',
       '##.......#.,........#.,............,.......#',
+      '##########################..################',
+      '#..........................................#',
+      '#.............#.........WWWWWWWWW..........#',
+      '#..,....................WZFZFZFZW..........#',
+      '#.......................WFFFFFFFW.....,....#',
+      '#.......................WTFFFFFTW..........#',
+      '#.......,...............WFFFFFFFW..........#',
+      '#.......................WWWWDWWWW........,.#',
+      '#..........................................#',
       '############################################',
     ],
     ground: [110, 138, 188],
@@ -408,6 +417,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'numbria-school', name: 'Numbria Schoolhouse', x: 24, y: 19, w: 10, h: 7, roof: 'red', style: 'stone', sign: 'star' },
       { id: 'tea-room', name: "Chai's Tea Room", x: 36, y: 19, w: 7, h: 6, roof: 'green', style: 'stone', sign: 'shop' },
       { id: 'sundial-house', name: 'Sundial House', x: 12, y: 19, w: 8, h: 6, roof: 'dusk', style: 'stone', sign: 'house' },
+      // Every town has an inn (#75 item 11): rest here and a defeat wakes you here.
+      { id: 'numbria-inn', name: 'Square Root Inn', x: 24, y: 29, w: 9, h: 6, roof: 'teal', style: 'stone', sign: 'inn' },
     ],
     npcs: [
       { defId: 'sage-abacus', x: 28, y: 3 },
@@ -417,6 +428,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'numbria-teacher', x: 29, y: 21 },
       { defId: 'numbria-kid', x: 20, y: 15 },
       { defId: 'numbria-sundial', x: 10, y: 15 },
+      // The innkeeper hears every traveler's tale, and a traveler passing through (#75 item 11).
+      { defId: 'numbria-innkeeper', x: 29, y: 32 },
+      { defId: 'numbria-traveler', x: 16, y: 31 },
     ],
     secrets: [
       {
@@ -468,15 +482,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#.................C..#######################',
       '#...##..........##...#######################',
       '#....................#######################',
-      '#..~~................#######################',
-      '#....................#######################',
-      '##########GG################################',
-      '#....................#######################',
-      '#...,...........,....##,,,,.,,##############',
-      '#....................HH,,.,,,,##############',
-      '#.S..................##,,,,,,,##############',
-      '#....................#######################',
-      '#########==#################################',
+      '#..~~................###########,WWWWWWWWW.#',
+      '#....................###########.WZFZFZFZW,#',
+      '##########GG####################.WFFFFFFFW.#',
+      '#....................###########.WTFFFFFTW.#',
+      '#...,...........,....##,,,,.,,##.WFFFFFFFW.#',
+      '#....................HH,,.,,,,##.WWWWDWWWW.#',
+      '#.S..................##,,,,,,,##...........#',
+      '#....................###########,..........#',
+      '#########==##############################..#',
       '#........==..........##.WWWWWWW..WWWWWWWW..#',
       '#.WWWWWWW==....~~~.#.#..WBFFFBW..WZFFFFBW.##',
       '#.WTFFFTW==.,..~~~.#.#..WKKKKKW..WFFFFFFW.##',
@@ -504,6 +518,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'sunseed-stand', name: 'Sunseed Stand', x: 24, y: 14, w: 7, h: 6, roof: 'thatch', style: 'leaf', sign: 'shop' },
       { id: 'bee-cottage', name: "Beekeeper's Cottage", x: 33, y: 14, w: 8, h: 6, roof: 'leaf', style: 'leaf', sign: 'house' },
       { id: 'sprout-treehouse', name: "Sprout's Treehouse", x: 29, y: 20, w: 7, h: 4, roof: 'green', style: 'leaf', sign: 'house' },
+      // Every town has an inn (#75 item 11): rest here and a defeat wakes you here.
+      { id: 'verdara-inn', name: 'Mossy Pillow Inn', x: 33, y: 5, w: 9, h: 6, roof: 'green', style: 'leaf', sign: 'inn' },
     ],
     npcs: [
       { defId: 'sage-flora', x: 5, y: 17 },
@@ -513,6 +529,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'verdara-beekeeper', x: 36, y: 17 },
       { defId: 'verdara-kid', x: 30, y: 25 },
       { defId: 'verdara-botanist', x: 40, y: 21 },
+      // The innkeeper hears every traveler's tale, and a traveler passing through (#75 item 11).
+      { defId: 'verdara-innkeeper', x: 38, y: 8 },
+      { defId: 'verdara-traveler', x: 16, y: 17 },
     ],
     secrets: [
       {
@@ -588,6 +607,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#....===========.......WWWDWWW..WWWWDWWW...#',
       '##.,......##.....,..##.....................#',
       '#.....................#...,...#,..........##',
+      '##############..############################',
+      '#..........................................#',
+      '#...........WWWWWWWWW................,.....#',
+      '#...........WZFZFZFZW.....,................#',
+      '#...........WFFFFFFFW......................#',
+      '#..,........WTFFFFFTW...................,..#',
+      '#...........WFFFFFFFW......................#',
+      '#...........WWWWDWWWW..........,...........#',
+      '#..........................................#',
       '############################################',
     ],
     ground: [176, 142, 100],
@@ -602,6 +630,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'coil-spring', name: 'Coil & Spring', x: 23, y: 19, w: 7, h: 6, roof: 'teal', style: 'brass', sign: 'shop' },
       { id: 'inventor-workshop', name: "Sprocket's Workshop", x: 32, y: 19, w: 8, h: 6, roof: 'red', style: 'brass', sign: 'tools' },
       { id: 'clocktower', name: 'Clocktower', x: 27, y: 3, w: 9, h: 7, roof: 'dusk', style: 'brass', sign: 'star' },
+      // Every town has an inn (#75 item 11): rest here and a defeat wakes you here.
+      { id: 'gearfall-inn', name: 'Wound-Down Inn', x: 12, y: 29, w: 9, h: 6, roof: 'copper', style: 'brass', sign: 'inn' },
     ],
     npcs: [
       { defId: 'sage-cog', x: 5, y: 21 },
@@ -611,6 +641,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'gearfall-inventor', x: 35, y: 21 },
       { defId: 'gearfall-clockkeeper', x: 31, y: 5 },
       { defId: 'gearfall-apprentice', x: 34, y: 11 },
+      // The innkeeper hears every traveler's tale, and a traveler passing through (#75 item 11).
+      { defId: 'gearfall-innkeeper', x: 17, y: 32 },
+      { defId: 'gearfall-traveler', x: 30, y: 32 },
     ],
     secrets: [
       {
@@ -686,6 +719,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#,,,,,#,,,#================================#',
       '#,,,,,,,,,#....................,..........##',
       '#,,,,,,,,,#.,...........................,..#',
+      '########################..##################',
+      '#..........................................#',
+      '#..............,......WWWWWWWWW............#',
+      '#.....................WZFZFZFZW.....,......#',
+      '#...,.................WFFFFFFFW............#',
+      '#.....................WTFFFFFTW............#',
+      '#.....................WFFFFFFFW.........#..#',
+      '#........#............WWWWDWWWW............#',
+      '#..........................................#',
       '############################################',
     ],
     ground: [172, 122, 168],
@@ -700,6 +742,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'mirror-hall', name: 'Mirror Hall', x: 24, y: 16, w: 7, h: 6, roof: 'purple', style: 'paint', sign: 'shop' },
       { id: 'grand-gallery', name: 'Grand Gallery', x: 33, y: 16, w: 10, h: 7, roof: 'red', style: 'paint', sign: 'star' },
       { id: 'music-house', name: 'Music House', x: 12, y: 17, w: 8, h: 6, roof: 'blue', style: 'paint', sign: 'house' },
+      // Every town has an inn (#75 item 11): rest here and a defeat wakes you here.
+      { id: 'chromaria-inn', name: 'Rainbow Quilt Inn', x: 22, y: 29, w: 9, h: 6, roof: 'pink', style: 'paint', sign: 'inn' },
     ],
     npcs: [
       { defId: 'sage-muse', x: 28, y: 9 },
@@ -709,6 +753,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'chromaria-curator', x: 37, y: 18 },
       { defId: 'chromaria-musician', x: 16, y: 19 },
       { defId: 'chromaria-kid', x: 20, y: 25 },
+      // The innkeeper hears every traveler's tale, and a traveler passing through (#75 item 11).
+      { defId: 'chromaria-innkeeper', x: 27, y: 32 },
+      { defId: 'chromaria-traveler', x: 12, y: 31 },
     ],
     secrets: [
       {
@@ -761,7 +808,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     kind: 'town',
     // The hero's home (HUB_ZONE): a four-by-two-screen market town (#72, grown
     // east twice); the camera scrolls with the hero. West: Clove's Curios, the
-    // Sleepy Sheep Inn (the world's only inn), the Lantern Workshop and
+    // Sleepy Sheep Inn (home's inn — every town has one since #75 item 11), the Lantern Workshop and
     // Grandmother Wick's house around the plaza and fountain. Middle: the Town
     // Hall, Clover's Market, Dot's Bakery, Nib's house and a hedge garden
     // reached only through a hidden gap (H) in its west hedge. Far east (#75
@@ -1592,6 +1639,20 @@ export function fogAt(z: ZoneDef, x: number, y: number, flags: Record<string, bo
   return (
     z.fogs?.find((f) => x >= f.x && x < f.x + f.w && y >= f.y && y < f.y + f.h && !fogLifted(f, flags)) ?? null
   );
+}
+
+/** A town's inn (#75 item 11: every town has exactly one), if the zone has one. */
+export function innOf(z: ZoneDef): BuildingDef | undefined {
+  return z.buildings?.find((b) => b.sign === 'inn');
+}
+
+/** Where a hero wakes in a town's inn: just inside its door. */
+export function innWakeCell(z: ZoneDef): { x: number; y: number } | null {
+  const inn = innOf(z);
+  if (!inn) return null;
+  const facade = inn.y + inn.h - 1;
+  for (let x = inn.x; x < inn.x + inn.w; x++) if (z.map[facade][x] === 'D') return { x, y: facade - 1 };
+  return null;
 }
 
 /** Save flag: the Glow field spell has lit this dark place, for good (#75 item 9). */

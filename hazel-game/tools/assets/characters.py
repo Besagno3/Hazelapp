@@ -2920,6 +2920,15 @@ NPCS: list[Char] = [
     Char('wayfarer-keeper', '🌠', 'humanoid', H(hair='long', hair_color='#d8d8e8', beard='#e8e8f4', hat='hood', hat_color='#2a3a7a', outfit='#3a4a9a', trim='#ffe066', robe=True, pack='#8a5a30', item='staff', item_color='#bfe0ff')),
     Char('quiet-keeper', '🦔', 'humanoid', H(skin='#b08a6a', ears='round', snout='pointy', hair='spiky', hair_color='#6a4a3a', outfit='#5a9a5a', robe=True, item='staff', item_color='#ff9ad0')),
     Char('mine-miner', '⛏️', 'humanoid', H(skin='#5a4848', ears='round', snout='muzzle', muzzle='#d8a0a0', hat='hardhat', hat_color='#ffd23a', outfit='#8a6a4a', apron='#6a4a2a', item='hammer', glasses=True)),
+    # ── An inn in every town, and travelers with rumors (#75 item 11) ──
+    Char('numbria-innkeeper', '🧶', 'humanoid', H(hair='bun', hair_color='#8a5a8a', outfit='#5a6ab0', apron='#f4ecd8', item='ladle', glasses=True)),
+    Char('numbria-traveler', '🎒', 'humanoid', H(hair='short', hair_color='#3a2a1a', hat='cap', hat_color='#5a8a3a', outfit='#8a6a4a', pack='#8a5a30', item='staff', item_color='#c8a070')),
+    Char('verdara-innkeeper', '🌿', 'humanoid', H(hair='long', hair_color='#5a8a3a', hat='flower', outfit='#6ab04a', apron='#f4ecd8')),
+    Char('verdara-traveler', '🧳', 'humanoid', H(skin='#c87a3a', ears='pointed', snout='pointy', tail='fox', hat='straw', outfit='#7a4a8a', pack='#8a5a30', blush=False)),
+    Char('gearfall-innkeeper', '🔩', 'humanoid', H(hair='short', hair_color='#5a3a2a', beard='#5a3a2a', outfit='#8a6a3a', apron='#6a4a2a', item='wrench')),
+    Char('gearfall-traveler', '📨', 'humanoid', H(hair='spiky', hair_color='#e0a040', hat='cap', hat_color='#d03a3a', outfit='#3a5a9a', pack='#a07040', scarf='#ffd24a')),
+    Char('chromaria-innkeeper', '🌈', 'humanoid', H(hair='bob', hair_color='#5a3ac0', outfit='#3a3a8a', apron='#ffb0d0', trim='#ffd24a')),
+    Char('chromaria-traveler', '🗺️', 'humanoid', H(hair='long', hair_color='#e8c040', hat='beret', hat_color='#3ab0a0', outfit='#c05a8a', scarf='#4ad0c0', item='book')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

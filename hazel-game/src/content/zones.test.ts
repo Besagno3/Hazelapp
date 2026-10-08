@@ -34,7 +34,10 @@ import {
   reachableOnFoot,
   darkAt,
   litFlag,
+  innOf,
+  innWakeCell,
 } from './zones';
+import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
 
@@ -370,11 +373,54 @@ describe('zone exits slide (Zelda-style transition)', () => {
 describe('every place is unique (#73)', () => {
   const placed = allZones.flatMap((z) => z.npcs.map((p) => ({ z, p, def: NPC_DEFS[p.defId] })));
 
-  it('there is exactly one Inn and one Library in the world', () => {
-    for (const role of ['innkeeper', 'librarian'] as const) {
-      const defs = Object.values(NPC_DEFS).filter((n) => n.role === role);
-      expect(defs.length, `${role} defs`).toBe(1);
-      expect(placed.filter((x) => x.def.role === role).length, `${role} placements`).toBe(1);
+  it('there is exactly one Library in the world', () => {
+    const defs = Object.values(NPC_DEFS).filter((n) => n.role === 'librarian');
+    expect(defs.length).toBe(1);
+    expect(placed.filter((x) => x.def.role === 'librarian').length).toBe(1);
+  });
+
+  // #75 item 11 (reverses #73's one-inn rule, decided 2026-10-05).
+  it('every town has exactly one inn, with its own innkeeper inside; nowhere else has one', () => {
+    for (const z of allZones) {
+      const inns = (z.buildings ?? []).filter((b) => b.sign === 'inn');
+      const keepers = placed.filter((x) => x.z.id === z.id && x.def.role === 'innkeeper');
+      const isTown = (RETURN_TOWNS as readonly string[]).includes(z.id);
+      expect(inns.length, `${z.id} inns`).toBe(isTown ? 1 : 0);
+      expect(keepers.length, `${z.id} innkeepers`).toBe(isTown ? 1 : 0);
+      if (isTown) expect(buildingInside(z, keepers[0].p.x, keepers[0].p.y)?.id, `${z.id} innkeeper indoors`).toBe(inns[0].id);
+    }
+  });
+
+  it('a defeated hero wakes just inside their inn — on its floor, with the street outside the door', () => {
+    for (const id of RETURN_TOWNS) {
+      const z = ZONES[id];
+      const cell = innWakeCell(z)!;
+      expect(cell, id).not.toBeNull();
+      expect(tileAt(z, cell.x, cell.y), `${id} wakes on the inn floor`).toBe('F');
+      expect(buildingInside(z, cell.x, cell.y)?.id).toBe(innOf(z)!.id);
+      const door = { x: cell.x, y: cell.y + 1 };
+      expect(tileAt(z, door.x, door.y)).toBe('D');
+      // Out of the door and into town: the town's own front door is walkable from there.
+      const around = reachable(z, door.x, door.y);
+      const out = z.exits.filter((e) => ZONES[e.to].kind === 'overworld');
+      expect(out.some((e) => around.has(`${e.x},${e.y}`)), `${id}: from the inn you can walk out of town`).toBe(true);
+    }
+  });
+
+  it('every town has 8+ people, and someone a new hero can talk to names another place (the rumor network)', () => {
+    const places = allZones.filter((z) => z.kind !== 'overworld').map((z) => z.name.replace(/^The /, ''));
+    for (const id of RETURN_TOWNS) {
+      const z = ZONES[id];
+      const people = new Set(z.npcs.map((p) => p.defId).filter((d) => !NPC_DEFS[d].signpost));
+      expect(people.size, `${id} people`).toBeGreaterThanOrEqual(8);
+      const pointsOnward = [...people].some((d) =>
+        NPC_DEFS[d].lines.some((l) => {
+          if (typeof l !== 'string' && l.ifFlag) return false;
+          const text = typeof l === 'string' ? l : l.text;
+          return places.some((name) => name !== z.name.replace(/^The /, '') && text.includes(name));
+        }),
+      );
+      expect(pointsOnward, `${id}: someone names another place`).toBe(true);
     }
   });
 

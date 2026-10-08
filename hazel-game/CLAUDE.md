@@ -65,8 +65,8 @@ zod, react-query. Add the package in the same change that first uses it.
   home continent **Dawnreach**, far continent **Taleshore**, inner sea **the
   Silver Shallows**, outer sea **the Starfall Sea**. **Lumina Field retires as
   a hub** (its people + buildings move into Lumina Village, which becomes home
-  and `HUB_ZONE` — done in item 8, 2026-10-07). **Every town gets an inn** (reverses #73's one-inn rule;
-  still one Library, still each item sold in one shop). **`ROADMAP-4X.md`
+  and `HUB_ZONE` — done in item 8, 2026-10-07). **Every town gets an inn** (reverses #73's one-inn rule —
+  done in item 11, 2026-10-07; still one Library, still each item sold in one shop). **`ROADMAP-4X.md`
   Wave 1 (Act II) is paused** until Dawnreach exists — don't build Act II
   zones as edge-linked screens.
 
@@ -114,7 +114,8 @@ zod, react-query. Add the package in the same change that first uses it.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
-  setting. Write-through: localStorage immediately
+  setting, the last inn rested at (`lastRest`, #75 item 11 — additive, so no
+  version bump; null = home). Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
   `flush()` on save crystals / sign-out. Supabase errors degrade to
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
@@ -172,6 +173,12 @@ zod, react-query. Add the package in the same change that first uses it.
   routes say "take the stairs down to …", a run of them "down two floors to …".
   The Spire numbers its floors the same way (`spireFloorTitle`)
   but its trial floors stay `SpireOverlay`'s (ISSUES #103).
+  **Inns** (#75 item 11): every town in `RETURN_TOWNS` has exactly one
+  building with `sign: 'inn'` (`innOf`) and its innkeeper inside. Resting
+  (`ServiceOverlay` → Inn) sets `lastRest` to that town; a defeat — battle or
+  Spire — goes through `wakeAfterDefeat` (`lib/save.ts`): that inn's
+  `innWakeCell` (the floor just inside its door), or home (`HUB_ZONE`, saved
+  start) when `lastRest` is null. `wakeInnName` words it for the defeat screens.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -196,8 +203,9 @@ zod, react-query. Add the package in the same change that first uses it.
   Hint Feather or Pip's peek) correct answers in a row raise the battle's
   question level by 1 on the spot (max +2 per battle, saved at the end or
   on Flee). Fiends (bosses) have enrage phases and restore their
-  crystal on defeat. No game over — defeat returns the player home to Lumina
-  Village (`HUB_ZONE`), healed. **Structure (#87, kept by the #99 port):** the rules of a turn are
+  crystal on defeat. No game over — defeat wakes the player, healed, inside
+  the last inn they rested at (`wakeAfterDefeat`; home to Lumina Village,
+  `HUB_ZONE`, if they've never rested away from it). **Structure (#87, kept by the #99 port):** the rules of a turn are
   pure resolvers + tuning in `lib/battleTurn.ts` (damage formulas in
   `lib/battleMath.ts`); the fight's live numbers (HP, charge, guard, shield,
   enrage phase, item buffs) live in `battleStore` and are read with
@@ -283,6 +291,7 @@ python3 tools/tiled/tiled.py from-ascii rows.txt src/content/maps/x.tmj # ASCII 
 python3 tools/tiled/tiled.py legend                                    # rebuild the legend tileset (append-only)
 python3 tools/assets/build.py spells   # art for the field-spell places + keepers only (#75 item 9)
 python3 tools/assets/build.py dungeon  # the Depths' lower floors + the stairs sheet only (#75 item 10)
+python3 tools/assets/build.py inns     # the innkeepers + travelers' sprites only (#75 item 11)
 ```
 
 ## Error handling
@@ -370,6 +379,34 @@ no bugs on a common path; three fixes:
   bonus like gates and chests do.
 - 581 tests green, lint + build clean.
 
+### 2026-10-07 — Inn review fixes (#75 item 11)
+`/saas-code-review` + `/saas-ux-review` of item 11 — every finding fixed:
+- **🛏️ Rest from the first line:** innkeepers' rumors had pushed the Rest
+  button three or four text boxes deep (every other service is on line one).
+  `DialogueOverlay` now offers an inn's service on every line (other services
+  still wait for the last line — a shrine keeper's trial follows its story),
+  and the innkeepers' "Rest here…" line is gone (the Inn panel says it).
+- **Defeat copy:** "Friendly hands carry you back to the Square Root Inn in
+  Numbria, where you last rested" — so a hero beaten deep in the Depths knows
+  why they wake far away. The Spire's lose panel says the same, and its
+  button reads "To the inn" (it still said "Back home").
+- **No look-alikes:** Chromaria's traveler was a second bard writing a song
+  about colors beside Bard Lyra (the Song of Colors quest) — now **Mapmaker
+  Atlas** 🗺️; Peddler Fennick hawked wares with no Shop button — now
+  **Collector Fennick** (buttons); Pilgrim Oriel no longer tells Wayfarer
+  Juniper's "every road twice" joke.
+- **Rumors that go quiet:** Poppy's Echo Mine rumor ends once the mine is lit
+  (`litFlag`), Willow's Old Wren rumor once Glow is learned (and it says the
+  shrine opens when its fog lifts); Hinge places the Shrine of Quiet Paws
+  "south-east of Lumina Village"; Poppy no longer says inns are everywhere
+  "now" (a new hero doesn't know the history), and "battle goes badly"
+  everywhere.
+- The Inn panel's "Good morning!" is a `role="status"` (it replaces the
+  button that had focus); `BattleArena` reads the wake inn from its
+  subscribed save.
+- Tests: DialogueOverlay.test (+7: Rest on line one, a keeper's trial still
+  waits, the two rumors go quiet, the defeat screen's inn and home copy).
+
 ### 2026-10-07 — Dungeon review fixes (#75 item 10)
 `/saas-code-review` + `/saas-ux-review` of item 10 — every finding fixed but one:
 - **HUD:** the floor title reads "B2 — The Gear Halls", the same shape as the
@@ -390,6 +427,44 @@ no bugs on a common path; three fixes:
 - dungeons.test now checks every exit is reachable on the deepest floor too
   (it was skipped there; B3 passes).
 - Kept: the "B1 / B2" labels (ISSUES #103h).
+
+### 2026-10-07 — Inns in every town, travelers with rumors, defeat wakes you at your inn (#75 item 11)
+Roadmap item 11: with real distances, "one inn in the world" (#73) was a
+long walk home, so every town gets one (decided 2026-10-05).
+- **Four new inns** (`zones.ts`, `sign: 'inn'`, a 9×6 room of beds and
+  tables): the Square Root Inn (Numbria), the Mossy Pillow Inn (Verdara), the
+  Wound-Down Inn (Gearfall Canyon) and the Rainbow Quilt Inn (Chromaria),
+  each with its own innkeeper — Tabitha 🧶, Willow 🌿, Hinge 🔩, Indigo 🌈 —
+  on the same Inn service as Poppy. Numbria, Gearfall and Chromaria had no
+  room, so each grew a street south (28 → 37 rows) through a gap in its old
+  bottom wall; every other tile, door and saved position is where it was.
+  Verdara's inn sits in its open north-east block. Helpers `innOf` /
+  `innWakeCell`.
+- **More townsfolk + the rumor pass** (`npcs.ts`): a traveler wanders each
+  crystal town — Pilgrim Oriel, Peddler Fennick, Courier Zip, Bard Lark —
+  so each has 9 people (the Village 14). Innkeepers and travelers name
+  another place and what's there ("Verdara, way down in the south-west
+  corner, grows flowers taller than houses"); rumors about a field spell, a
+  warden key or the Moonwell quest drop away (`unlessFlag`) once it's done.
+  Poppy gained two. Directions were checked against Dawnreach's icons.
+- **Defeat wakes you at your inn:** new `SaveData.lastRest` (additive; old
+  saves read null; `normalizeSave` drops anything that isn't a town with an
+  inn). Resting at an inn sets it; losing a battle or the Spire climb now
+  wakes the hero on the floor just inside that inn's door (`wakeAfterDefeat`),
+  healed — still home when they've never rested away from it. The defeat
+  screens say where: "Friendly hands carry you to the Square Root Inn in
+  Numbria" / "To the inn". The Inn panel names the inn and says it's where
+  you'll wake.
+- **Art** (`python3 tools/assets/build.py inns`): 8 NPC sprites; the
+  manifest only gained entries.
+- Tests: +6 (zones.test: one Library; one inn + innkeeper per town and none
+  elsewhere; the wake cell is inn floor with the door below and a walk out
+  of town; 8+ people per town and someone names another place; save.test:
+  `lastRest` default / normalize / wake position / inn name); 597 green,
+  lint + tsc + build clean. Checked in headless Chromium: all four inns in
+  their streets, resting with Tabitha sets `lastRest: 'numbria'` and full HP,
+  each wake cell puts the hero inside the inn, dialogue and Inn panel on a
+  375 px phone. Follow-ups: #104.
 
 ### 2026-10-07 — Real dungeons: the Clockwork Depths go three floors down (#75 item 10)
 Roadmap item 10: dungeons are now ordinary zones joined by stairs.

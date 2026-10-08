@@ -216,7 +216,8 @@ Travel rules (classic, adjusted for kids):
 - **Defeat sends you somewhere sensible.** Today losing a battle or the Spire
   climb sends you to `HUB_ZONE` (`BattleArena.tsx:493`,
   `SpireOverlay.tsx:279`). On the overworld it should be the last town you
-  rested in.
+  rested in. *Done in item 11:* the last inn rested at (`SaveData.lastRest`),
+  or home if you've never rested away from it.
 
 ---
 
@@ -433,7 +434,7 @@ mostly follows build order.
 | 8 | ✅ **Re-stage Act I on Dawnreach** (§3.5) | M (mostly content) | 2 | **Done (2026-10-07):** Dawnreach grew to 80×60 with the four crystal regions at its corners (Numbria NW, Gearfall Canyon NE, Verdara SW, Chromaria SE — each its own icon, its fog pocket beside it); Lumina Field retired, its people and buildings now in Lumina Village (home, `HUB_ZONE`); save v2 moves old saves; Act I walks start to finish as a journey |
 | 9 | ✅ **Field spells + shrines:** *Return* (fast travel), *Glow* (light dark caves), *Calm* (critters ignore you), learned at roadside shrines by passing a short question trial; spells unlocked by flags, not just Sages/crystals (`spellsKnown`, `spells.ts:94`) | M | 2 | **Done (2026-10-07):** Wayfarer Juniper (Wayfarer's Shrine) teaches 🏠 Return, Old Wren (Shrine of First Light) 🔆 Glow, Keeper Thistle (Shrine of Quiet Paws) 🕊️ Calm — each by a 3-question trial, learned as a `spell:<id>` flag, cast from the menu (`content/fieldSpells.ts`); the Echo Mine is pitch dark past its first chamber until Glow lights it for good |
 | 10 | ✅ **Real dungeons:** generalize the Spire (floors as ordinary zones joined by stairs, optional darkness, treasure, a boss at the bottom). Clockwork Depths first — note ISSUES #78: the candle-light overlay ignores the camera, fix it for dungeons bigger than one screen | M–L | 2 | **Done (2026-10-07):** floors are ordinary zones joined by stairs exits (`>` / `<`), grouped by `content/dungeons.ts`; the Clockwork Depths (entered from Dawnreach since Phase 1) is 3 floors — B1 as before, B2 the dim two-screen Gear Halls with a side hall that needs Glow, B3 the Titan's Forge with the boss and a hoard; darkness follows the camera (#78 fixed in item 9). The Spire numbers its floors and lights them the same way; its trial floors stay its own (ISSUES #103a) |
-| 11 | **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | every town has an inn and ~8–12 people; every town points onward |
+| 11 | ✅ **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | **Done (2026-10-07):** Numbria, Verdara, Gearfall Canyon and Chromaria each got an inn and an innkeeper beside the Sleepy Sheep Inn (Numbria, Gearfall and Chromaria grew a street south for it); a traveler in each crystal town; every town has 9–14 people and an innkeeper or traveler who names another place and what's there; losing a battle or the Spire climb wakes you inside the last inn you rested at (`lastRest`) |
 | 12 | **Regional difficulty:** keep question level matched to the child, scale enemy HP, damage, behaviours and coins by region | S | 2 | far regions feel tougher without harder questions |
 | 13 | **Side-quest item chains:** "have item" / "bring item" steps, key-item chests in dungeons | S–M | 2–3 | e.g. find the Moonstone in a cave and bring it to a hermit |
 | 14 | **The boat + islands** (Act II) | M + content | 3 | Marlow's boat quest → sail the Silver Shallows; the Act II zones live on islands and coasts |
@@ -492,7 +493,8 @@ Save v2 shipped with it (§4.5): `lumina-field` saves wake in the Village,
 Dawnreach positions shift with the map, the pocket chests keep their opened
 state, `sageEquipped` is gone, and a client now refuses a save from a newer
 version. `visited` / `lastRest` / `vehicle` / `boat` wait for the features
-that need them (fast travel, inns everywhere, the boat).
+that need them (fast travel, inns everywhere, the boat) — `visited` came as
+flags in item 9, `lastRest` in item 11.
 *Item 9 (2026-10-07):* field spells done. As built, `visited` is not a save
 field but a `visited:<zone>` flag per place (flags already ride through every
 save untouched, so no version bump was needed), and Return flies to the five
@@ -500,7 +502,14 @@ towns, landing just inside each one's front door.
 *Item 10 (2026-10-07):* real dungeons done — floors are zones, stairs are
 exits, so a dungeon needs nothing special from the canvas; the Spire shares
 the floor naming and lighting but keeps its trial floors (ISSUES #103).
-Next: items 11–13.
+*Item 11 (2026-10-07):* inns everywhere done. `lastRest` shipped as an
+additive save field (null = home, no version bump): resting at any inn sets
+it, and a defeat — battle or Spire — wakes the hero on the floor just inside
+that inn's door, healed. The towns that had no room for an inn grew a street
+south (saved positions stay where they were); rumors are ordinary dialogue
+lines, the ones about a spell, key or quest dropping away once it's done
+(ISSUES #104).
+Next: items 12–13.
 
 **Phase 3 — The sea (Act II).** Marlow's boat, the Silver Shallows and its islands,
 the Act II zones from `STORY-4X.md` §4 placed per §3.6.

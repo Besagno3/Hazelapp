@@ -6,6 +6,7 @@ import { CONSUMABLE_IDS, LIBRARY_XP, shopFor, type ConsumableId, type ShopItem }
 import { SAGES } from '../../content/abilities';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
+import { ZONES, innOf } from '../../content/zones';
 import ShrineTrial from './ShrineTrial';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
@@ -106,26 +107,40 @@ function Shop({ npcId }: { npcId: string | null }) {
   );
 }
 
+/**
+ * Every town's inn (#75 item 11): a free full heal, and the bed you'll wake
+ * in if a battle goes badly (`lastRest`).
+ */
 function Inn() {
   const update = useSaveStore((s) => s.update);
+  const zoneId = useSaveStore((s) => s.save?.zoneId);
   const [rested, setRested] = useState(false);
+  const inn = zoneId ? innOf(ZONES[zoneId]) : undefined;
 
   function rest() {
-    update((s) => ({ ...s, hp: null }));
+    update((s) => ({ ...s, hp: null, lastRest: innOf(ZONES[s.zoneId]) ? s.zoneId : s.lastRest }));
     setRested(true);
     confetti({ particleCount: 40, spread: 50, origin: { y: 0.5 } });
   }
 
   return (
     <div className="text-center">
-      <h2 className="text-xl font-extrabold mb-2">🛏️ The Inn</h2>
+      <h2 className="text-xl font-extrabold mb-2">🛏️ {inn ? `The ${inn.name}` : 'The Inn'}</h2>
       {rested ? (
-        <p className="text-emerald-300 font-semibold py-6">
+        <p role="status" className="text-emerald-300 font-semibold py-6">
           💤 … 🌅 Good morning! Your HP is fully restored!
+          {inn && (
+            <span className="block text-sm font-normal text-white/80 mt-2">
+              If a battle ever goes badly, this is where you'll wake up.
+            </span>
+          )}
         </p>
       ) : (
         <>
-          <p className="text-sm text-white/80 mb-5">A warm bed and a big breakfast — free for heroes.</p>
+          <p className="text-sm text-white/80 mb-5">
+            A warm bed and a big breakfast — free for heroes. Rest here, and this is where you'll wake if a battle
+            goes badly.
+          </p>
           <button
             onClick={rest}
             className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-3"

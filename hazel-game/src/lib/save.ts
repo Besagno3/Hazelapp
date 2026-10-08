@@ -1,6 +1,6 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
-import { HUB_ZONE, TILE, ZONES } from '../content/zones';
+import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell } from '../content/zones';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
 
 export const SAVE_VERSION = 2 as const;
@@ -168,6 +168,7 @@ export function defaultSave(): SaveData {
     library: [],
     companionId: 'ember',
     defendTimer: true,
+    lastRest: null,
   };
 }
 
@@ -217,7 +218,27 @@ export function normalizeSave(raw: unknown): SaveData {
       : d.companionId,
     // Added after v1 shipped: only an explicit `false` turns the countdown off.
     defendTimer: r.defendTimer !== false,
+    // Added with an inn in every town (#75 item 11) — additive, like the two
+    // above: older saves (or a town without an inn) wake at home.
+    lastRest: typeof r.lastRest === 'string' && r.lastRest in ZONES && innOf(ZONES[r.lastRest as ZoneId]) ? (r.lastRest as ZoneId) : null,
   };
+}
+
+/** The inn a defeated hero wakes at — "the Square Root Inn in Numbria" — or null for home. */
+export function wakeInnName(save: Pick<SaveData, 'lastRest'>): string | null {
+  const z = save.lastRest ? ZONES[save.lastRest] : null;
+  const inn = z ? innOf(z) : undefined;
+  return z && inn ? `the ${inn.name} in ${z.name}` : null;
+}
+
+/**
+ * Where a defeated hero wakes, healed (#75 item 11): just inside the door of
+ * the last inn they rested at, or home on Lumina Village's plaza.
+ */
+export function wakeAfterDefeat(save: Pick<SaveData, 'lastRest'>): { zoneId: ZoneId; pos: { x: number; y: number } | null } {
+  const cell = save.lastRest ? innWakeCell(ZONES[save.lastRest]) : null;
+  if (!save.lastRest || !cell) return { zoneId: HUB_ZONE, pos: null };
+  return { zoneId: save.lastRest, pos: { x: cell.x * TILE + TILE / 2, y: cell.y * TILE + TILE / 2 } };
 }
 
 function numberOr(v: unknown, fallback: number): number {
