@@ -352,6 +352,35 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-08 — Item chains, third review: the "who wants this" note on screen, Mabel points the way (#75 item 13, #106)
+A third `/saas-code-review` + `/saas-ux-review` (a fresh reviewer; it fed the
+chest a realistic riddle at seven screen sizes). No code bugs; fixed:
+- **The note is on screen (UX, medium):** the second review's "fits a
+  360×640 phone" was measured with a one-line stub question. With a real
+  riddle the note sat under the big button, below the fold on phones (cut
+  off at 360×640, gone in landscape), in an overlay that didn't scroll — and
+  one tap on the button closed it unread. `QuestionCard` takes an optional
+  `note` (shown above Continue once an answer is picked; passing it mounts
+  the `role="status"` region up front), so the card's existing
+  scroll-Continue-into-view brings the note with it; `PathQuestionOverlay`
+  passes the chest's `chestWantedLine` there and now scrolls (`overflow-y-auto`
+  around a `min-h-full` centred column), which also un-clips its title on
+  phones. Checked with a long riddle at 320×568, 360×640, 375×667, 740×360
+  and 1024×800: note and button both on screen, note first.
+- **Mabel points to the nook (UX, low):** while Moss's quest is on and the
+  stone isn't cut, Mabel — the person Moss names, first met inside — says
+  where it is ("…the little nook up the left-hand tunnel. Bring it to me and
+  I'll cut it for him!"; `ifFlag` offered, `unlessFlag` handed over). Her
+  lit-mine line about "the chest at the bottom" had pointed kids at the
+  other chest. `questOfferedFlag` / `questDoneFlag` take just an id.
+- **No step aimed at a quest giver (code, low):** a giver's own quest speaks
+  first, so a step through them could never fire — a test now forbids it.
+- **`PathQuestionOverlay.test`** (new): a right answer on the Moonstone chest
+  pays the coins and the stone and shows the note above the button; a wrong
+  answer opens nothing; no note once Moss has asked or for an ordinary chest.
+- 622 tests green (+5), lint + build clean; the chain replayed in headless
+  Chromium at desktop and 375 px.
+
 ### 2026-10-08 — Item chains, second review: chest steps skip key chests, one owner per item, "who wants this?" (#75 item 13, #106)
 A second `/saas-code-review` + `/saas-ux-review` pass over all of item 13. No
 security findings (no new Supabase access; quest items live in the

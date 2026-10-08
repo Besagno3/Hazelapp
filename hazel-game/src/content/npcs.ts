@@ -2,6 +2,7 @@ import type { ServiceType, Topic } from '../types';
 import { MET_ELDER, fogSeenFlag, litFlag } from './zones';
 import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
+import { handedOverFlag, questOfferedFlag } from './quests';
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -1129,6 +1130,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       "Oh! A visitor! I'm Mabel. I've dug this mine for forty years, and I've never been this scared of the dark.",
+      // While Moss's quest is on and the stone isn't cut yet (#75 item 13).
+      {
+        text: "Looking for Moss's Moonstone? The miners left it in the little nook up the left-hand tunnel. Bring it to me and I'll cut it for him!",
+        ifFlag: questOfferedFlag({ id: 'hermit-moonstone' }),
+        unlessFlag: handedOverFlag('moonstone'),
+      },
       {
         text: 'When the fog came, every lamp went out at once. I ran up here and haven\'t dared go back down since.',
         unlessFlag: litFlag('echo-mine'),

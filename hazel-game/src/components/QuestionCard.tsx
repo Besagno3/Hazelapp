@@ -18,6 +18,7 @@ export default function QuestionCard({
   onAnswered,
   continueLabel = 'Continue',
   onContinue,
+  note,
 }: {
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
@@ -30,6 +31,12 @@ export default function QuestionCard({
   continueLabel?: string;
   /** Fires once with whether the pick was correct — guarded against double-clicks. */
   onContinue: (correct: boolean) => void;
+  /**
+   * A line shown above Continue once an answer is picked (empty = none yet).
+   * Passing it at all mounts a live region up front, so a screen reader reads
+   * the line when it appears; the parent decides when it has text.
+   */
+  note?: string;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [hidden, setHidden] = useState<number[]>(() => pickWrong(question, [], preHidden));
@@ -135,6 +142,19 @@ export default function QuestionCard({
           💡 {selected === question.correctIndex ? '' : "Here's why: "}
           {question.explanation}
         </motion.p>
+      )}
+
+      {note !== undefined && (
+        <p
+          role="status"
+          className={
+            selected !== null && note
+              ? 'mt-4 text-sm font-semibold text-violet-900 bg-violet-50 border border-violet-200 rounded-lg p-3'
+              : 'sr-only'
+          }
+        >
+          {selected !== null ? note : ''}
+        </p>
       )}
 
       {selected !== null && (

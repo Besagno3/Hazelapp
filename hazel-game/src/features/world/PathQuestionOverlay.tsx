@@ -96,65 +96,59 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const wanted = target.kind === 'chest' && save ? chestWantedLine(save, target.id) : null;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/60 p-4">
-      <motion.h2
-        initial={{ y: -16, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="text-white text-xl font-extrabold mb-4 text-center"
-      >
-        {title}
-      </motion.h2>
+    // Scrolls when a long riddle doesn't fit (a phone, landscape); the inner
+    // column still centres when it does.
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
+      <div className="min-h-full flex flex-col items-center justify-center">
+        <motion.h2
+          initial={{ y: -16, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="text-white text-xl font-extrabold mb-4 text-center"
+        >
+          {title}
+        </motion.h2>
 
-      {!question && !error && (
-        <div className="text-white/90 bg-white/10 rounded-xl px-6 py-4">
-          Thinking of a good one… 🤔
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-white rounded-xl p-5 max-w-sm text-center">
-          <p className="text-sm text-gray-600 mb-4">{error}</p>
-          <div className="flex justify-center gap-3">
-            <button
-              onClick={() => setAttempt((a) => a + 1)}
-              className="bg-purple-600 text-white font-semibold rounded-lg px-4 py-2 text-sm"
-            >
-              Try again
-            </button>
-            <button
-              onClick={() => sendFlow({ type: 'CLOSE' })}
-              className="bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm"
-            >
-              Walk away
-            </button>
+        {!question && !error && (
+          <div className="text-white/90 bg-white/10 rounded-xl px-6 py-4">
+            Thinking of a good one… 🤔
           </div>
-        </div>
-      )}
+        )}
 
-      {question && (
-        <QuestionCard
-          key={question.id}
-          question={question}
-          hints={hints}
-          onUseHint={spendHint}
-          onAnswered={onAnswered}
-          continueLabel={solved ? `✨ ${successText}` : 'Hmm… I’ll come back!'}
-          onContinue={() => sendFlow({ type: 'CLOSE' })}
-        />
-      )}
+        {error && (
+          <div className="bg-white rounded-xl p-5 max-w-sm text-center">
+            <p className="text-sm text-gray-600 mb-4">{error}</p>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setAttempt((a) => a + 1)}
+                className="bg-purple-600 text-white font-semibold rounded-lg px-4 py-2 text-sm"
+              >
+                Try again
+              </button>
+              <button
+                onClick={() => sendFlow({ type: 'CLOSE' })}
+                className="bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm"
+              >
+                Walk away
+              </button>
+            </div>
+          </div>
+        )}
 
-      {/* A key item found before its quest (#75 item 13): say who wants it. The
-          live region is always there, so a screen reader reads it as it fills. */}
-      <p
-        role="status"
-        className={
-          solved && wanted
-            ? 'mt-3 max-w-md text-center text-sm text-amber-100 bg-white/10 rounded-xl px-4 py-2'
-            : 'sr-only'
-        }
-      >
-        {solved && wanted ? wanted : ''}
-      </p>
+        {question && (
+          <QuestionCard
+            key={question.id}
+            question={question}
+            hints={hints}
+            onUseHint={spendHint}
+            onAnswered={onAnswered}
+            continueLabel={solved ? `✨ ${successText}` : 'Hmm… I’ll come back!'}
+            onContinue={() => sendFlow({ type: 'CLOSE' })}
+            // A key item found before its quest (#75 item 13): say who wants it,
+            // above the button, so it's read before the overlay closes.
+            note={target.kind === 'chest' ? (solved && wanted ? wanted : '') : undefined}
+          />
+        )}
+      </div>
     </div>
   );
 }

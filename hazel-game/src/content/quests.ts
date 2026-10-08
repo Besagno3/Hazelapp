@@ -744,11 +744,11 @@ export function questFor(npcId: string): QuestDef | undefined {
   return QUESTS.find((q) => q.giverNpcId === npcId);
 }
 
-export function questOfferedFlag(q: QuestDef): string {
+export function questOfferedFlag(q: Pick<QuestDef, 'id'>): string {
   return `quest:${q.id}:offered`;
 }
 
-export function questDoneFlag(q: QuestDef): string {
+export function questDoneFlag(q: Pick<QuestDef, 'id'>): string {
   return `quest:${q.id}:done`;
 }
 

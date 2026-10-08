@@ -453,6 +453,11 @@ describe('item chains (#75 item 13)', () => {
     }
   });
 
+  it("no step is aimed at a quest giver (their own quest would speak first, and the step could never fire)", () => {
+    const givers = new Set(QUESTS.map((q) => q.giverNpcId));
+    for (const q of QUESTS) for (const st of q.steps) if (st.npc) expect(givers.has(st.npc.id), `${q.id} step ${st.id} → ${st.npc.id}`).toBe(false);
+  });
+
   it('every quest item a step, chest or hand-over names is a registered quest item', () => {
     const named = [
       ...KEY_CHESTS.map((c) => c.item),
