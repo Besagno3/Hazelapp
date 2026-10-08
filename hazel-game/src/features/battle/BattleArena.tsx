@@ -10,7 +10,7 @@ import { sfx, stopMusic, type SfxName } from '../../lib/audio';
 import { playerAge, clampLevel, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
-import { attackDamage, spellDamage, companionAttackDamage, pairDamage, BOSS_XP_BONUS } from '../../lib/battleMath';
+import { attackDamage, spellDamage, companionAttackDamage, pairDamage, BOSS_XP_BONUS, defeatXp } from '../../lib/battleMath';
 import {
   applyFocus,
   chargeAfterAnswer,
@@ -677,7 +677,7 @@ export default function BattleArena() {
   /** Move the enemy's plan on to its next turn (lib/battleTurn nextIntent). */
   function advanceIntent(current: EnemyIntent) {
     enemyTurnNo.current += 1;
-    setIntent(nextIntent(current, enemyTurnNo.current, enemy!.isBoss));
+    setIntent(nextIntent(current, enemyTurnNo.current, enemy!.isBoss, Math.random(), enemy!.tier));
   }
 
   function enemyTurn() {
@@ -717,6 +717,7 @@ export default function BattleArena() {
       level: enemy!.level,
       isBoss: enemy!.isBoss,
       behavior: enemy!.behavior,
+      tier: enemy!.tier,
       style,
       powerUps,
     });
@@ -816,7 +817,8 @@ export default function BattleArena() {
     burst({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
     stopMusic(); // silence the battle loop under the victory jingle
     sfx('victory');
-    const xp = settleCommon() + npcDefeatXp(enemy!.level) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
+    // Far regions pay more XP for the win (#75 item 12); the answers' XP is the same everywhere.
+    const xp = settleCommon() + defeatXp(npcDefeatXp(enemy!.level), enemy!.tier) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
     void addXp(xp);
     markDefeated(enemy!.instanceId);
     // Read from the store, not this render: victory() runs from a message

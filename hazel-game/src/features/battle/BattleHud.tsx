@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { CHARGE_MAX } from '../../content/abilities';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { STREAK_START } from '../../lib/battleTurn';
+import { BASE_TIER, DANGER, type DangerTier } from '../../content/regions';
 import type { Avatar, BattleEnemy } from '../../types';
 
 const hpPct = (hp: number, max: number) => `${Math.max(0, (hp / max) * 100)}%`;
@@ -22,6 +23,9 @@ export function ChargePips({ charge }: { charge: number }) {
 const PANEL =
   'bg-indigo-950/90 border-2 border-white/70 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-white w-60 min-w-0';
 const TITLE_ROW = 'flex justify-between items-baseline gap-2 text-[13px] sm:text-sm font-bold';
+
+/** The danger word's colour, warmer the tougher — matching its "!" label on the map (#75 item 12). */
+const DANGER_TEXT: Partial<Record<DangerTier, string>> = { 2: 'text-yellow-200', 3: 'text-orange-300', 4: 'text-red-300' };
 
 /**
  * FF-style status boxes: enemy (left) and hero with charge gauge (right).
@@ -77,7 +81,11 @@ export function BattleHud({
           <motion.div className="h-full bg-red-400 rounded-full" animate={{ width: hpPct(enemyHp, enemy.maxHp) }} />
         </div>
         <div className="flex justify-between gap-2 text-xs mt-0.5">
-          <span className="text-amber-300 font-bold animate-pulse">{powerMoveNext && `💢 ${powerMoveNext} next!`}</span>
+          {powerMoveNext ? (
+            <span className="text-amber-300 font-bold animate-pulse">💢 {powerMoveNext} next!</span>
+          ) : (
+            <DangerWord tier={enemy.tier ?? BASE_TIER} />
+          )}
           <span className="text-white/60">
             {enemyHp}/{enemy.maxHp}
           </span>
@@ -111,5 +119,20 @@ export function BattleHud({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * How tough a fighter it is, far from home (#75 item 12): "💪 Fierce". Its
+ * questions are the player's own level wherever it roams; this says it hits
+ * harder, takes more beating and pays more. Nothing near home.
+ */
+function DangerWord({ tier }: { tier: DangerTier }) {
+  const label = DANGER[tier].label;
+  if (!label) return <span />;
+  return (
+    <span className={`font-bold ${DANGER_TEXT[tier] ?? ''}`} title="Far from home: it hits harder and takes more beating — and drops more coins.">
+      💪 {label}
+    </span>
   );
 }

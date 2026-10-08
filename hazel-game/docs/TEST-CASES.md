@@ -743,6 +743,13 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-606 | C | ✅ | inns | an innkeeper offers 🛏️ Rest from the first line of their talk (and it opens the Inn); a shrine keeper's trial still waits for the last line (DialogueOverlay.test) |
 | TC-607 | C | ✅ | rumors | Poppy's Echo Mine rumor is gone once the mine is lit; Willow's Old Wren rumor once Glow is learned (DialogueOverlay.test) |
 | TC-608 | C | ✅ | defeat | the battle defeat screen reads "…back to the Square Root Inn in Numbria, where you last rested" with "To the inn", or "home to Lumina Village" with "Back home" (DialogueOverlay.test) |
+| TC-609 | U | ✅ | regions | every zone is in exactly one region; tier 1 is the old balance (all ×1, 20% charge) and each tier after it is no easier on HP, blows, charge, coins or XP; only tiers 2–4 have a battle word (Tough / Fierce / Mighty) (regions.test) |
+| TC-610 | U | ✅ | regions | walking the 🚩 from a fresh save, the goals' tiers never drop (Numbria 1 → Woods 1 → Verdara 2 → Depths B3 2 → Gearfall 3 → Coast 3 → Chromaria 4); the four corner critters on Dawnreach carry the tier of the place they roam nearest, and nothing else overrides its zone (regions.test) |
+| TC-611 | U | ✅ | difficulty | the same enemy asks the same question level at every tier; its HP and coins grow with the tier (tier 1 = 60 + level×12 HP, 10 + level×3 coins); blows and the win XP scale, a regular enemy charges a power move more often far from home, a boss keeps its every-third-turn rhythm (regions.test) |
+| TC-612 | U | ✅ | difficulty | no healer can out-mend a correctly answered hit at any age in any tier (mend capped at 20) (enemies.test, battleMath.test) |
+| TC-613 | C | ✅ | battle HUD | a tier-3 enemy's panel reads "💪 Fierce" beside its "Lv"; tiers 0–1 show nothing extra; a coming power move takes the spot (BattleHud.test) |
+| TC-614 | M | ✅ | difficulty | headless Chromium: Dawnreach's heartland critters read "Lv 4" / "Lv 3"; by Gearfall "Lv 3 !!" in orange, by Chromaria "!!!" in red, by Verdara "!" in gold; inside Chromaria every label "!!!" and readable on the pink ground (dark shadow); the battle HUD at tiers 0–4 on a 375 px phone (name truncates, "💪 Mighty" under the HP bar) |
+| TC-615 | M | ⬜ | difficulty | in the real app: beat a Numbria critter and a Chromaria critter at the same question level — Chromaria's takes noticeably more hits and pays ~2× the coins; its questions feel the same; Scout Tamsin's "!" line reads on a phone |
 
 ## Regression cases (tied to ISSUES.md)
 

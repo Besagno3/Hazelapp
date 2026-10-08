@@ -28,6 +28,7 @@ import { bossDefeated } from '../../content/keys';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnEnemy } from '../../content/enemies';
+import { BASE_TIER, DANGER, mapLabel, placementTier } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, PathTarget, Topic, ZoneId } from '../../types';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
@@ -1001,7 +1002,7 @@ export default function WorldCanvas({
 
     const critters: { opacity: number }[][] = [];
     for (const p of z.enemies) {
-      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels);
+      const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels, placementTier(zoneId, p));
       // Bosses stay gone once beaten (crystal restored / warden's key held);
       // regular enemies stay gone for the session (they respawn next visit).
       if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, flagsRef.current)) continue;
@@ -1030,11 +1031,17 @@ export default function WorldCanvas({
         z: 6,
       }).obj as unknown as WorldActor;
       parts.push(face);
+      // The level is its questions'; "!" marks and a warmer colour say how hard it fights (#75 item 12).
+      // A dark shadow one pixel down-right keeps the warm colours readable on any ground.
+      const labelText = mapLabel(enemy.level, enemy.isBoss, enemy.tier);
+      const labelY = py + (enemy.isBoss ? 32 : 26);
+      const labelShadow = k.add([k.text(labelText, { size: 10 }), k.pos(px + 1, labelY + 1), k.anchor('center'), k.color(24, 16, 40)]);
+      parts.push(labelShadow as unknown as Part);
       const label = k.add([
-        k.text(`${enemy.isBoss ? '👑 ' : ''}Lv ${enemy.level}`, { size: 10 }),
-        k.pos(px, py + (enemy.isBoss ? 32 : 26)),
+        k.text(labelText, { size: 10 }),
+        k.pos(px, labelY),
         k.anchor('center'),
-        k.color(255, 200, 200),
+        k.color(...DANGER[enemy.tier ?? BASE_TIER].mapColor),
       ]);
       parts.push(label as unknown as Part);
       const actor: Actor = {

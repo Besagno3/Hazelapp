@@ -47,7 +47,10 @@ zod, react-query. Add the package in the same change that first uses it.
   answers in a row → +1 mid-battle). It sets quiz, gate, chest, Spire and
   battle questions and enemy levels. **XP / player level** only tracks
   progress and grants power-ups — leveling up never makes anything harder.
-  The defend countdown is age-based only.
+  The defend countdown is age-based only. **Where an enemy roams scales how
+  it fights, never what it asks (#75 item 12, 2026-10-08):** each zone's
+  danger tier (`content/regions.ts`, by story leg) scales its HP, blows,
+  power-move rate, coins and win XP; its questions stay at the child's level.
 - **Player profiles:** a Supabase `profiles` table (birth year/month + per-topic
   skill levels) backs age-based difficulty. Difficulty model: a **persistent
   per-topic skill level** that rises on consecutive correct answers and falls
@@ -107,7 +110,9 @@ zod, react-query. Add the package in the same change that first uses it.
   plus visited towns and Return landings), `dungeons.ts` (#75 item 10: which
   zones are floors of one dungeon, which way is deeper, floor labels B1… /
   Floor 1…, the boss at the bottom — floors are ordinary zones joined by
-  `>` / `<` stairs exits), `spire.ts` (the endgame climb floors +
+  `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
+  danger tier 0–4, the `DANGER` tuning per tier, map labels "Lv 4 !!"),
+  `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
   Fiends, #58), `items.ts` (shop + economy tuning), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
@@ -202,7 +207,12 @@ zod, react-query. Add the package in the same change that first uses it.
   answer). **Speed trigger:** 5 quick (within half the age countdown, no
   Hint Feather or Pip's peek) correct answers in a row raise the battle's
   question level by 1 on the spot (max +2 per battle, saved at the end or
-  on Flee). Fiends (bosses) have enrage phases and restore their
+  on Flee). **Danger tiers** (#75 item 12): `BattleEnemy.tier` (from
+  `placementTier` at spawn) scales max HP and coins (`spawnEnemy`), every
+  blow (`enemyAttack`), a regular enemy's power-move chance (`nextIntent`) and
+  the win XP (`defeatXp`) — never `level`, the question level; the HUD names
+  it ("💪 Fierce") and a healer's mend is capped (`HEALER_REGEN_MAX`) so no
+  region makes a fight stall. Fiends (bosses) have enrage phases and restore their
   crystal on defeat. No game over — defeat wakes the player, healed, inside
   the last inn they rested at (`wakeAfterDefeat`; home to Lumina Village,
   `HUB_ZONE`, if they've never rested away from it). **Structure (#87, kept by the #99 port):** the rules of a turn are
@@ -345,6 +355,41 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-08 — Regional difficulty: far regions fight tougher, questions stay the child's (#75 item 12)
+Roadmap item 12 (finding 5, "distance doesn't mean danger"): every enemy's
+level was the child's question level ±1, so Chromaria felt like Numbria.
+- **Danger tiers** (`content/regions.ts`): every zone is in one region, and
+  each region has a tier by the story leg the 🚩 sends you down — **0** home
+  ground (the Village, Dawnreach's heartland, Moonwell Grove, the shrines),
+  **1** Numbria + the Whispering Woods, **2** Verdara + the Clockwork Depths
+  (+ the Echo Mine), **3** Gearfall Canyon + Starfall Coast, **4** Chromaria.
+  The four critters roaming by the corner regions on Dawnreach take their
+  region's tier (`EnemyPlacement.tier`, `placementTier`).
+- **What a tier changes** (`DANGER`): HP (×0.85 … ×1.45), every blow (×0.85 …
+  ×1.3), a regular enemy's chance to wind up a power move (12% … 35%; bosses
+  keep their every-third-turn rhythm), coins (×0.8 … ×2) and the win's bonus
+  XP (×0.9 … ×1.45). **Tier 1 is the old balance**, so Numbria plays exactly
+  as before; home ground is a little gentler. **The questions never change:**
+  `BattleEnemy.level` is still the child's question level for the topic, and
+  XP per answer is the same everywhere.
+- **You can see it coming:** a critter's map label reads "Lv 4 !!" — the
+  level its questions are asked at, then one "!" per tier past 1 — in a
+  warmer colour (gold, orange, red), now over a dark shadow so it reads on
+  any ground (`mapLabel`). In battle the enemy panel says "💪 Tough / Fierce /
+  Mighty" under the HP bar (a coming power move takes the spot). Scout Tamsin
+  explains the "!".
+- **No stalls:** a far region's beefier healer could out-mend a defensive
+  hero's correct hit (Dog-Knight at tier 4: 29 vs 26), so a healer's mend is
+  capped at `HEALER_REGEN_MAX` = 20 — the biggest mend before regions.
+- Tests: +12 (regions.test: one region per zone, tier 1 = the old balance and
+  each tier tougher, the 🚩's road never gets easier, the corner critters'
+  tiers, questions the same at every tier, HP/coins/blows/power moves/XP by
+  tier, map labels, bosses by leg; BattleHud.test: the danger word; the
+  healer test now runs at every tier); 617 green, lint + tsc + build clean.
+  Checked in headless Chromium: labels on Dawnreach's heartland and by
+  Gearfall / Chromaria / Verdara, inside Chromaria and Numbria, and the
+  battle HUD at every tier on a 375 px phone. Follow-ups: #105.
 
 ### 2026-10-08 — Pitch dark fades in at its edges (#75 item 10, #103)
 A fresh-eyes `/saas-code-review` + `/saas-ux-review` of item 10 after the

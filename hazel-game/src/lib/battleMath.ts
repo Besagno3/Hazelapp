@@ -1,6 +1,7 @@
 import type { FightStyle, PowerUps } from '../types';
 import { attackBonus, defenseBonus } from './powerups';
 import { SPECIAL_MULTIPLIER } from '../content/abilities';
+import { BASE_TIER, DANGER, type DangerTier } from '../content/regions';
 
 /**
  * Battle math for the JRPG command battles (#37). Pure functions — all
@@ -65,9 +66,17 @@ export function pairDamage(
   return Math.round((STYLE_ATTACK[style] + attackBonus(powerUps) + companionPower) * multiplier);
 }
 
-/** Raw enemy attack power; bosses hit harder and enrage by phase. */
-export function enemyAttack(level: number, isBoss: boolean, phase: number): number {
-  return Math.round((16 + level * 3) * (isBoss ? 1.3 : 1) * (1 + phase * 0.15));
+/**
+ * Raw enemy attack power; bosses hit harder and enrage by phase, and enemies
+ * in far regions hit harder (`DANGER[tier].attack`, #75 item 12).
+ */
+export function enemyAttack(level: number, isBoss: boolean, phase: number, tier: DangerTier = BASE_TIER): number {
+  return Math.round((16 + level * 3) * (isBoss ? 1.3 : 1) * (1 + phase * 0.15) * DANGER[tier].attack);
+}
+
+/** Bonus XP for beating an enemy: its level's, scaled by where it roams (#75 item 12). */
+export function defeatXp(baseXp: number, tier: DangerTier = BASE_TIER): number {
+  return Math.round(baseXp * DANGER[tier].xp);
 }
 
 /**
@@ -81,10 +90,16 @@ export function defendReduction(correct: boolean, style: FightStyle, powerUps: P
 
 /** Healer archetype (Wave 0.5): fraction of max HP mended per enemy turn. */
 export const HEALER_REGEN_RATE = 0.1;
+/**
+ * The most a healer mends in one turn — the biggest mend before regions
+ * (a level-10 healer's 200 HP), so a far region's beefier healer (#75 item 12)
+ * still can't out-mend a correctly answered hit (enemies.test).
+ */
+export const HEALER_REGEN_MAX = 20;
 
 /** HP a healer-archetype enemy recovers at the end of its turn (below half HP). */
 export function healerRegen(maxHp: number): number {
-  return Math.round(maxHp * HEALER_REGEN_RATE);
+  return Math.min(HEALER_REGEN_MAX, Math.round(maxHp * HEALER_REGEN_RATE));
 }
 
 /** Whether a healer-archetype enemy mends this turn (hurt below half, alive). */

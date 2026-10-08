@@ -75,7 +75,8 @@ counting any towns or dungeons.
    of Chromaria. Players can't build a mental map.
 5. **Distance doesn't mean danger.** Every enemy's level is the player's
    age-based level plus −1, 0 or +1 (`spawnEnemy` in `enemies.ts`), so far
-   places feel the same as near ones.
+   places feel the same as near ones. *(Fixed in item 12: a danger tier per
+   region scales how enemies fight; the questions stay the child's.)*
 6. **Every place sounds the same.** Towns, caves and fields share the single
    `overworld` music track (`trackForScreen`, `audio.ts:221`).
 7. **One dungeon, special-cased.** The Crystal Spire is the only dungeon, and
@@ -435,7 +436,7 @@ mostly follows build order.
 | 9 | ✅ **Field spells + shrines:** *Return* (fast travel), *Glow* (light dark caves), *Calm* (critters ignore you), learned at roadside shrines by passing a short question trial; spells unlocked by flags, not just Sages/crystals (`spellsKnown`, `spells.ts:94`) | M | 2 | **Done (2026-10-07):** Wayfarer Juniper (Wayfarer's Shrine) teaches 🏠 Return, Old Wren (Shrine of First Light) 🔆 Glow, Keeper Thistle (Shrine of Quiet Paws) 🕊️ Calm — each by a 3-question trial, learned as a `spell:<id>` flag, cast from the menu (`content/fieldSpells.ts`); the Echo Mine is pitch dark past its first chamber until Glow lights it for good |
 | 10 | ✅ **Real dungeons:** generalize the Spire (floors as ordinary zones joined by stairs, optional darkness, treasure, a boss at the bottom). Clockwork Depths first — note ISSUES #78: the candle-light overlay ignores the camera, fix it for dungeons bigger than one screen | M–L | 2 | **Done (2026-10-07):** floors are ordinary zones joined by stairs exits (`>` / `<`), grouped by `content/dungeons.ts`; the Clockwork Depths (entered from Dawnreach since Phase 1) is 3 floors — B1 as before, B2 the dim two-screen Gear Halls with a side hall that needs Glow, B3 the Titan's Forge with the boss and a hoard; darkness follows the camera (#78 fixed in item 9). The Spire numbers its floors and lights them the same way; its trial floors stay its own (ISSUES #103a) |
 | 11 | ✅ **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | **Done (2026-10-07):** Numbria, Verdara, Gearfall Canyon and Chromaria each got an inn and an innkeeper beside the Sleepy Sheep Inn (Numbria, Gearfall and Chromaria grew a street south for it); a traveler in each crystal town; every town has 9–14 people and an innkeeper or traveler who names another place and what's there; losing a battle or the Spire climb wakes you inside the last inn you rested at (`lastRest`) |
-| 12 | **Regional difficulty:** keep question level matched to the child, scale enemy HP, damage, behaviours and coins by region | S | 2 | far regions feel tougher without harder questions |
+| 12 | ✅ **Regional difficulty:** keep question level matched to the child, scale enemy HP, damage, behaviours and coins by region | S | 2 | **Done (2026-10-08):** every zone has a danger tier by story leg — home ground 0, Numbria + the Woods 1 (the old balance), Verdara + the Depths 2, Gearfall + the Coast 3, Chromaria 4 (`content/regions.ts`) — scaling enemy HP, blows, power-move rate, coins and win XP; questions stay at the child's level. Critters show it on the map ("Lv 4 !!") and in battle ("💪 Fierce") |
 | 13 | **Side-quest item chains:** "have item" / "bring item" steps, key-item chests in dungeons | S–M | 2–3 | e.g. find the Moonstone in a cave and bring it to a hermit |
 | 14 | **The boat + islands** (Act II) | M + content | 3 | Marlow's boat quest → sail the Silver Shallows; the Act II zones live on islands and coasts |
 | 15 | **Ember flight + Taleshore** (Act III) | M + content | 4 | fly over the Great Fogbank; land, explore, fast-travel |
@@ -509,7 +510,12 @@ that inn's door, healed. The towns that had no room for an inn grew a street
 south (saved positions stay where they were); rumors are ordinary dialogue
 lines, the ones about a spell, key or quest dropping away once it's done
 (ISSUES #104).
-Next: items 12–13.
+*Item 12 (2026-10-08):* regional difficulty done. Tiers follow the story leg
+the 🚩 sends you down rather than the distance from home, so the first
+crystal stays the gentlest fight and the last the toughest; a place you can
+walk to early (Starfall Coast) can still be a late, tough one, and its
+critters say so on the map (ISSUES #105).
+Next: item 13 — then Phase 2's exit check.
 
 **Phase 3 — The sea (Act II).** Marlow's boat, the Silver Shallows and its islands,
 the Act II zones from `STORY-4X.md` §4 placed per §3.6.

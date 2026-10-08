@@ -2,6 +2,7 @@ import type { BattleEnemy, EnemyBehavior, Topic, ZoneId } from '../types';
 import { clampLevel, skillLevelFor } from '../lib/age';
 import { topicInfo } from './topics';
 import { bossCoinDrop, enemyCoinDrop } from './items';
+import { DANGER, zoneTier, type DangerTier } from './regions';
 
 /**
  * Enemy archetypes (#37). Placements in zones.ts reference these by id; the
@@ -105,6 +106,9 @@ export function fiendFor(topic: Topic): EnemyDef {
  * from their sign-up age and moves with how well (and how fast) they answer.
  * XP / player level never changes it. A player with no level for the topic
  * yet gets the age baseline. `instanceId` keys session defeat-tracking.
+ * `tier` is the danger of where it roams (#75 item 12, `placementTier`): it
+ * scales HP and coins here, its blows and power moves in battle — the
+ * questions stay at `level`.
  */
 export function spawnEnemy(
   defId: string,
@@ -112,7 +116,9 @@ export function spawnEnemy(
   placementKey: string,
   age: number,
   skillLevels: Partial<Record<Topic, number>> = {},
+  tier: DangerTier = zoneTier(zoneId),
 ): BattleEnemy {
+  const danger = DANGER[tier];
   const def = ENEMY_DEFS[defId];
   if (!def) throw new Error(`Unknown enemy def: ${defId}`);
   const level = clampLevel(skillLevelFor(skillLevels, def.topic, age) + def.levelOffset);
@@ -128,10 +134,11 @@ export function spawnEnemy(
     spriteId: def.spriteId ?? def.id,
     topic: def.topic,
     level,
-    maxHp: (def.isBoss ? BOSS_HP_BASE : HP_BASE) + level * def.hpPerLevel,
+    maxHp: Math.round(((def.isBoss ? BOSS_HP_BASE : HP_BASE) + level * def.hpPerLevel) * danger.hp),
     zoneId,
     isBoss: def.isBoss ?? false,
-    coins: def.isBoss ? bossCoinDrop(level) : enemyCoinDrop(level),
+    coins: Math.round((def.isBoss ? bossCoinDrop(level) : enemyCoinDrop(level)) * danger.coins),
     behavior: def.behavior,
+    tier,
   };
 }

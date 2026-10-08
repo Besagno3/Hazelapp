@@ -77,6 +77,7 @@ export interface NPC {
  */
 import type { ZoneId } from '../content/zones';
 import type { ConsumableId } from '../content/items';
+import type { DangerTier } from '../content/regions';
 export type { ZoneId };
 
 /**
@@ -98,6 +99,12 @@ export interface BattleEnemy extends NPC {
   /** Coins dropped on victory. */
   coins: number;
   behavior?: EnemyBehavior;
+  /**
+   * Danger tier of where it roams (#75 item 12, content/regions.ts): scales
+   * its HP, blows, power moves and rewards — never its questions (`level`).
+   * Missing = BASE_TIER (the balance before regions).
+   */
+  tier?: DangerTier;
 }
 
 /** Town/zone services opened by talking to the matching NPC (`trial`: a shrine keeper's, #75 item 9). */

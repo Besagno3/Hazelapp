@@ -2,6 +2,7 @@ import type { EnemyBehavior, FightStyle, PowerUps } from '../types';
 import { CHARGE_MAX } from '../content/abilities';
 import { POTION_HEAL, SNACK_HEAL, SPARK_CHARGE, TEA_DAMAGE_MULT, type ConsumableId } from '../content/items';
 import type { Spell } from '../content/spells';
+import { BASE_TIER, DANGER, type DangerTier } from '../content/regions';
 import {
   bossPhase,
   defendReduction,
@@ -134,26 +135,32 @@ export function applyFocus(s: CombatState, dmg: number): { state: CombatState; d
 export type EnemyIntent = 'attack' | 'charge' | 'power';
 
 export const POWER_MULTIPLIER = 2;
-/** Chance a regular enemy starts charging on a given turn (never turn 0). */
-export const CHARGE_CHANCE = 0.2;
+/**
+ * Chance a regular enemy starts charging on a given turn (never turn 0) — the
+ * balance before regions; far regions charge more often (`DANGER[tier].chargeChance`).
+ */
+export const CHARGE_CHANCE = DANGER[BASE_TIER].chargeChance;
 /** Bosses charge on a fixed rhythm — every BOSS_CHARGE_EVERY-th turn. */
 export const BOSS_CHARGE_EVERY = 3;
 
 /**
  * The enemy's next intent. `turn` counts enemy turns from 0; `roll` ∈ [0, 1)
  * (defaults to Math.random; fixed in tests). A charge is ALWAYS followed by its
- * power blow, and a power blow is never followed by another charge.
+ * power blow, and a power blow is never followed by another charge. A regular
+ * enemy in a far region charges more often (`tier`, #75 item 12); a boss
+ * keeps its rhythm anywhere.
  */
 export function nextIntent(
   prev: EnemyIntent | null,
   turn: number,
   isBoss: boolean,
   roll: number = Math.random(),
+  tier: DangerTier = BASE_TIER,
 ): EnemyIntent {
   if (prev === 'charge') return 'power';
   if (prev === 'power' || turn === 0) return 'attack';
   if (isBoss) return turn % BOSS_CHARGE_EVERY === BOSS_CHARGE_EVERY - 1 ? 'charge' : 'attack';
-  return roll < CHARGE_CHANCE ? 'charge' : 'attack';
+  return roll < DANGER[tier].chargeChance ? 'charge' : 'attack';
 }
 
 /** Named signature blows for bosses; everyone else "winds up a mighty blow". */
@@ -181,6 +188,8 @@ export interface EnemyTurnInput {
   level: number;
   isBoss: boolean;
   behavior?: EnemyBehavior;
+  /** Danger tier of where it roams (#75 item 12): far regions hit harder. */
+  tier?: DangerTier;
   style: FightStyle;
   powerUps: PowerUps;
 }
@@ -215,7 +224,7 @@ export interface EnemyTurnResult {
  */
 export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTurnResult {
   const phase = input.isBoss ? bossPhase(s.enemyHp, s.enemyMaxHp) : 0;
-  const raw = Math.round(enemyAttack(input.level, input.isBoss, phase) * (input.intent === 'power' ? POWER_MULTIPLIER : 1));
+  const raw = Math.round(enemyAttack(input.level, input.isBoss, phase, input.tier) * (input.intent === 'power' ? POWER_MULTIPLIER : 1));
 
   let next: CombatState = { ...s };
   let dmg: number;
