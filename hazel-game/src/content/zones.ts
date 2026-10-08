@@ -268,6 +268,15 @@ export interface DarknessDef {
   dim?: number;
 }
 
+/** A riddle-chest that also holds a quest item (#75 item 13; `QUEST_ITEMS` id). */
+export interface KeyChestDef {
+  x: number;
+  y: number;
+  item: string;
+  /** Who wants it and where — shown with the find if their quest hasn't been offered yet. */
+  wantedBy: string;
+}
+
 export interface ZoneExit {
   /** Grid cell of the 'E' tile. */
   x: number;
@@ -353,6 +362,11 @@ export interface ZoneDef {
   dark?: DarknessDef;
   /** Edges a boat can sail off onto another map (#75 item 14) — see `SeaLink`. */
   seaLinks?: SeaLink[];
+  /**
+   * Key-item chests (#75 item 13): riddle-chests ('C') that hold a quest item
+   * as well as the usual coins — the item a side quest asks you to find.
+   */
+  keyChests?: KeyChestDef[];
   /**
    * Tileset key override (default: the zone id). The Spire's floor maps
    * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
@@ -1398,6 +1412,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // …and where the roads fork for the corners (#75 item 8).
       { defId: 'dawnreach-sign-north', x: 41, y: 14 },
       { defId: 'dawnreach-sign-fork', x: 61, y: 31 },
+      // Hermit Moss, on the hill beside the Echo Mine (#75 item 13).
+      { defId: 'dawnreach-hermit', x: 61, y: 20 },
     ],
     enemies: [
       { defId: 'thornhare', x: 30, y: 25 },
@@ -1539,7 +1555,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '####=.#..#.=##.=.,.,.#',
       '####=.#..#.=##.=######',
       '####=.#..#.....=######',
-      '####=.#.,#====.=######',
+      '####=.#.C#====.=######',
       '####=.################',
       '####=.################',
       '#,..=...............,#',
@@ -1564,6 +1580,17 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       lit: '🔆 Glow! The old mine lamps flicker back to life, one after another, deep into the tunnels.',
       guards: { x: 19, y: 2 },
     },
+    // The old miners' Moonstone, in the nook at the top of the left-hand
+    // tunnel — Hermit Moss wants it for his moon-lamp (#75 item 13, "The
+    // Hermit's Moonstone").
+    keyChests: [
+      {
+        x: 8,
+        y: 7,
+        item: 'moonstone',
+        wantedBy: '🏮 Hermit Moss, on the hill just outside the mine, has been wishing for a Moonstone!',
+      },
+    ],
   },
 
   // Act II (#75 item 14): the Silver Shallows — the calm inner sea east of
@@ -1766,6 +1793,20 @@ export function fogSeenFlag(id: string): string {
 /** Banks that have lifted but whose lifting the hero hasn't watched yet. */
 export function fogsToReveal(z: ZoneDef, flags: Record<string, boolean>): FogDef[] {
   return (z.fogs ?? []).filter((f) => fogLifted(f, flags) && !flags[fogSeenFlag(f.id)]);
+}
+
+/** The key-item chest with this path-target id, if it is one (#75 item 13). */
+export function keyChestFor(chestId: string): KeyChestDef | undefined {
+  for (const z of Object.values(ZONES)) {
+    const chest = z.keyChests?.find((c) => pathTargetId(z.id, 'chest', c.x, c.y) === chestId);
+    if (chest) return chest;
+  }
+  return undefined;
+}
+
+/** The quest item in the chest with this path-target id, if it's a key-item chest (#75 item 13). */
+export function chestKeyItem(chestId: string): string | undefined {
+  return keyChestFor(chestId)?.item;
 }
 
 /** A chest's question topic: the one its fog bank names, else the zone's, else math. */

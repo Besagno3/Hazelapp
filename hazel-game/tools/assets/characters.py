@@ -2931,6 +2931,8 @@ NPCS: list[Char] = [
     # ── Act II: the Silver Shallows (#75 item 14) ──
     Char('gull-lamplighter', '🏮', 'humanoid', H(hair='bun', hair_color='#e8e8e8', hat='cap', hat_color='#d03a3a', outfit='#f4eee2', scarf='#3a6ab0', item='lantern', glasses=True)),
     Char('chromaria-traveler', '🗺️', 'humanoid', H(hair='long', hair_color='#e8c040', hat='beret', hat_color='#3ab0a0', outfit='#c05a8a', scarf='#4ad0c0', item='book')),
+    # ── Item chains (#75 item 13) ──
+    Char('dawnreach-hermit', '🏮', 'humanoid', H(hair='long', hair_color='#b8b8c8', beard='#d8d8e4', hat='hood', hat_color='#4a3a6a', outfit='#5a4a7a', trim='#c8b0ff', robe=True, item='lantern')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

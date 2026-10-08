@@ -108,3 +108,21 @@ describe("Old Marlow rows the boat home (#75 item 14)", () => {
     expect(boatSpot(useSaveStore.getState().save!)).toEqual(BOAT_HOME);
   });
 });
+
+describe("Miner Mabel and Moss's Moonstone (#75 item 13 review)", () => {
+  const offered = 'quest:hermit-moonstone:offered';
+  const handedOver = 'quest-item:moonstone:handed-over';
+  it('points to the nook while the quest is on — not before it, not once the stone is cut', () => {
+    withFlags({ [offered]: true, [litFlag('echo-mine')]: true });
+    const { unmount } = render(<DialogueOverlay npcId="mine-miner" />);
+    expect(readAll()).toMatch(/little nook up the left-hand tunnel/);
+    unmount();
+    withFlags({ [litFlag('echo-mine')]: true });
+    const before = render(<DialogueOverlay npcId="mine-miner" />);
+    expect(readAll()).not.toMatch(/Moonstone/);
+    before.unmount();
+    withFlags({ [offered]: true, [handedOver]: true, [litFlag('echo-mine')]: true });
+    render(<DialogueOverlay npcId="mine-miner" />);
+    expect(readAll()).not.toMatch(/left-hand tunnel/);
+  });
+});

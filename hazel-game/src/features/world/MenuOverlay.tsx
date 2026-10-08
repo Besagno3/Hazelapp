@@ -10,6 +10,7 @@ import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
 import { ALL_SECRETS, secretFlag, secretProgress } from '../../content/secrets';
 import { zone } from '../../content/zones';
+import { NPC_DEFS } from '../../content/npcs';
 import { heroMaxHp } from '../../lib/powerups';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
@@ -176,7 +177,7 @@ export default function MenuOverlay({
                       )}
                     </div>
                     <div className="text-white/70">
-                      {step ? resolveHint(step, save) : 'Done — go collect your reward!'}
+                      {step ? resolveHint(step, save) : `Done — go back to ${NPC_DEFS[q.giverNpcId]?.name ?? 'them'} for your reward!`}
                     </div>
                   </div>
                 );

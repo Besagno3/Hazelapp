@@ -11,6 +11,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py dungeon    # only the Depths' lower floors + the stairs (#75 item 10)
     python3 tools/assets/build.py inns       # only the innkeepers + travelers (#75 item 11)
     python3 tools/assets/build.py sea        # only the Silver Shallows, the boat and the dock (#75 item 14)
+    python3 tools/assets/build.py quests     # only Hermit Moss (#75 item 13)
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -72,6 +73,11 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only={'gull-lamplighter'}))
         tiles.build_sea(PUBLIC)
         print('sea ✓')
+        return
+    if 'quests' in only:
+        # Just Hermit Moss (#75 item 13) — every other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only={'dawnreach-hermit'}))
+        print('quests ✓')
         return
     if 'dungeon' in only:
         # Just the Clockwork Depths' lower floors and the stairs (#75 item 10).

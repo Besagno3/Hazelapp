@@ -121,7 +121,12 @@ zod, react-query. Add the package in the same change that first uses it.
   rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
-  Fiends, #58), `items.ts` (shop + economy tuning), `secrets.ts` (hidden secrets per
+  Fiends, #58), `items.ts` (shop + economy tuning), `quests.ts` (quests as
+  ordered steps — chest / defeat / talk / secret, and since #75 item 13 *have*
+  (carry an item, any of its forms) and *bring* (hand it to an NPC, who may
+  hand back something new) steps; `openChest` pays a key-item chest's
+  `ZoneDef.keyChests` item and `zoneChestOpened` ignores those chests; each
+  quest item belongs to one quest), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
@@ -335,6 +340,7 @@ python3 tools/assets/build.py spells   # art for the field-spell places + keeper
 python3 tools/assets/build.py dungeon  # the Depths' lower floors + the stairs sheet only (#75 item 10)
 python3 tools/assets/build.py inns     # the innkeepers + travelers' sprites only (#75 item 11)
 python3 tools/assets/build.py sea      # the Silver Shallows, the boat, the dock + Lamplighter Ness only (#75 item 14)
+python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
 ```
 
 ## Error handling
@@ -435,6 +441,122 @@ Roadmap item 14 (Phase 3, "the sea") — the first of four slices (ISSUES #107).
   headless Chromium: the dock, boarding, sailing off the edge into the
   Shallows, landing on Gull Rock and Sandpiper Cay, climbing back in, the
   Great Fogbank.
+### 2026-10-08 — Item chains, third review: the "who wants this" note on screen, Mabel points the way (#75 item 13, #106)
+A third `/saas-code-review` + `/saas-ux-review` (a fresh reviewer; it fed the
+chest a realistic riddle at seven screen sizes). No code bugs; fixed:
+- **The note is on screen (UX, medium):** the second review's "fits a
+  360×640 phone" was measured with a one-line stub question. With a real
+  riddle the note sat under the big button, below the fold on phones (cut
+  off at 360×640, gone in landscape), in an overlay that didn't scroll — and
+  one tap on the button closed it unread. `QuestionCard` takes an optional
+  `note` (shown above Continue once an answer is picked; passing it mounts
+  the `role="status"` region up front), so the card's existing
+  scroll-Continue-into-view brings the note with it; `PathQuestionOverlay`
+  passes the chest's `chestWantedLine` there and now scrolls (`overflow-y-auto`
+  around a `min-h-full` centred column), which also un-clips its title on
+  phones. Checked with a long riddle at 320×568, 360×640, 375×667, 740×360
+  and 1024×800: note and button both on screen, note first.
+- **Mabel points to the nook (UX, low):** while Moss's quest is on and the
+  stone isn't cut, Mabel — the person Moss names, first met inside — says
+  where it is ("…the little nook up the left-hand tunnel. Bring it to me and
+  I'll cut it for him!"; `ifFlag` offered, `unlessFlag` handed over). Her
+  lit-mine line about "the chest at the bottom" had pointed kids at the
+  other chest. `questOfferedFlag` / `questDoneFlag` take just an id.
+- **No step aimed at a quest giver (code, low):** a giver's own quest speaks
+  first, so a step through them could never fire — a test now forbids it.
+- **`PathQuestionOverlay.test`** (new): a right answer on the Moonstone chest
+  pays the coins and the stone and shows the note above the button; a wrong
+  answer opens nothing; no note once Moss has asked or for an ordinary chest.
+- 622 tests green (+5), lint + build clean; the chain replayed in headless
+  Chromium at desktop and 375 px.
+
+### 2026-10-08 — Item chains, second review: chest steps skip key chests, one owner per item, "who wants this?" (#75 item 13, #106)
+A second `/saas-code-review` + `/saas-ux-review` pass over all of item 13. No
+security findings (no new Supabase access; quest items live in the
+owner-only `saves` row). Fixed:
+- **Chest steps ignore key-item chests (code, low):** a "find the zone's
+  riddle-chest" step counted *any* opened chest in its zone, so a key-item
+  chest placed in, say, Numbria would have finished Tally's quest. It now
+  goes through `zoneChestOpened` (quests.ts), which skips key-item chests.
+- **One quest per item (code, low):** `handedOverFlag` is kept per item, so
+  two quests sharing an item id would pre-complete each other's have steps.
+  A test now checks every quest item belongs to exactly one quest.
+- **"Who wants this?" (UX, low → fixed):** a Moonstone found before meeting
+  Moss came with no hint of its use. A key-item chest now names who wants
+  it (`KeyChestDef.wantedBy`; `keyChestFor`, `chestWantedLine`): "🏮 Hermit
+  Moss, on the hill just outside the mine, has been wishing for a Moonstone!"
+  under the chest's result — only while that quest hasn't been offered. It
+  sits in an always-present `role="status"` region, so screen readers read it
+  as it appears. Fits a 360×640 phone.
+- 617 tests green (+3), lint + build clean; the chain replayed in headless
+  Chromium at desktop and 375 px, the early-find note at 360 / 375 / 1024 px.
+
+### 2026-10-08 — Item chains review fixes: hand-overs stick, hints that fit, "go back to Moss" (#75 item 13, #106)
+A fresh-context `/saas-code-review` + `/saas-ux-review` of item 13 (a reviewer
+with none of the build's context; it played the chain in headless Chromium
+too). Fixed:
+- **A hand-over never undoes a find (code, medium):** a have step only looked
+  at what's carried, so a future chain whose bring step *keeps* the item (no
+  `gives`) would have dropped back to "go find it" — and the chest pays once,
+  so the quest would be stuck for good. A bring step now also sets
+  `handedOverFlag(item)`, and a have step counts an item handed over. (The
+  Moonstone also lists its cut form, so either keeps it complete.)
+- **Item ids can't drift (code, low):** `QuestStep.needs` records a have
+  step's items, and a test checks that every item a chest, step, hand-over,
+  gift or take-back names is in `QUEST_ITEMS` (a typo used to compile and
+  silently strand a quest).
+- **The hint fits the mine (UX, medium):** once the Echo Mine is lit — the
+  usual case, since Wren, Poppy and Mabel all send you to light it — Moss
+  said "pitch dark, cast Glow" while the menu said "Nothing dark to light
+  here". Now three cases: no Glow → Old Wren; Glow → cast it inside; lit →
+  "go up the left-hand tunnel and look in the little nook for a 🎁".
+- **Words kids know (UX):** "oldest seam" and "mine mouth" became "a little
+  nook deep in the Echo Mine, the cave beside my hill" and "just inside the
+  mine".
+- **Who to go back to (UX):** the menu's quest log said "Done — go collect
+  your reward!" for every quest; it now names the giver ("Done — go back to
+  Hermit Moss for your reward!").
+- **Name plates:** Moss moved one tile east (61,20) so his plate no longer
+  runs into "Echo Mine".
+- `chestTopicAt` got its doc comment back (it had slid onto `chestKeyItem`).
+- Logged (#106g): a Moonstone found before meeting Moss comes with no hint of
+  who wants it.
+- 614 tests green, lint + build clean; the full chain replayed in headless
+  Chromium at desktop and 375 px (the lit-mine hint, "go back to Hermit Moss",
+  the plates).
+
+### 2026-10-08 — Item chains: have / bring steps, key-item chests, the Hermit's Moonstone (#75 item 13)
+Roadmap item 13: side quests can now send you to find a thing, change it and
+bring it home.
+- **Two new quest steps** (`content/quests.ts`): `haveStep` — carry each
+  listed item; a target can name several forms of one thing (the Moonstone,
+  then the same stone cut), any of which counts, so a later step that changes
+  the item doesn't undo it; the hint names what's still missing. `bringStep` —
+  hand a carried item to another NPC (`QuestStep.trade`: `takes`, optional
+  `gives`); their step lines only play while the item is in hand
+  (`questConversation` skips them otherwise), and the hand-over swaps the
+  items as the conversation closes.
+- **Key-item chests** (`ZoneDef.keyChests`, `chestKeyItem`): a riddle-chest
+  that also holds a quest item. `openChest` (quests.ts) now opens every chest
+  — coins, plus the item from a key-item chest, once — and
+  `PathQuestionOverlay` says "The chest pops open — 25 coins and the 🌙
+  Moonstone!" (`chestRewardText`).
+- **"The Hermit's Moonstone"** (side quest): **Hermit Moss** 🏮 (new, on the
+  hill beside the Echo Mine at Dawnreach 61,20) wants a stone for his
+  moon-lamp. The Moonstone 🌙 sits in a new chest at the end of the mine's
+  oldest seam (8,7 — behind the pitch dark, so it needs Glow; the hint names
+  Old Wren until Glow is known); **Miner Mabel** cuts it (💠 Cut Moonstone);
+  Moss takes it back: 50 coins and a Honey Elixir.
+- **Art:** Moss's sprite (`python3 tools/assets/build.py quests`; the manifest
+  only gained his entry).
+- Tests: +8 (quests.test: key-item chests are chests, reachable, holding an
+  item a quest needs; every item taken can be had first; the Moonstone's chest
+  needs Glow; `openChest` pays once; the chain end to end; a stone found
+  before meeting Moss; a bring step waits for its item); 613 green, lint +
+  build clean. Checked in headless Chromium at desktop and 375 px: Moss's
+  offer and quest-log hint, the alcove chest's riddle and Moonstone, Mabel's
+  cut, Moss's reward. Numbers: #106 and TC-620–626 (TC-625–631 since item 12, which took
+  #105 and TC-609–624, merged first). Follow-ups: #106.
 
 ### 2026-10-08 — Item 12 second review: the explanations a child can actually read (#75 item 12)
 A second `/saas-code-review` + `/saas-ux-review` pass on the item 12 branch
