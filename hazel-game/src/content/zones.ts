@@ -14,8 +14,8 @@ import legendTsj from './maps/legend.tsj?raw';
  * in sync automatically.
  */
 export const ZONE_IDS = [
-  // Original five (hub + four topic regions)
-  'lumina-field',
+  // The four crystal regions (once off the old Lumina Field hub; at the corners
+  // of Dawnreach since #75 item 8 — Lumina Field itself retired then)
   'numbria',
   'verdara',
   'gearfall',
@@ -35,8 +35,9 @@ export const ZONE_IDS = [
 export type ZoneId = (typeof ZONE_IDS)[number];
 
 /**
- * The world of Lumina (#37): a hub field with four topic zones off its edges
- * (FF1's four-regions structure). Maps are ASCII grids rendered with the
+ * The world of Lumina (#37): four crystal regions — FF1's four-regions
+ * structure — once off the edges of a hub field, now at the four corners of
+ * the Dawnreach overworld with Lumina Village, home, near its heart (#75). Maps are ASCII grids rendered with the
  * generated 16-bit tilesets (`content/tiles.ts`). Most zones are one 22×14
  * screen; larger maps (the town) scroll with a camera that follows the hero.
  *
@@ -96,7 +97,8 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
 
 /**
  * Each place builds in its own style (#73) — walls, facades, floors and
- * windows all change: whitewashed cottages on Lumina Field, plaster-and-timber
+ * windows all change: whitewashed cottages (Lumina Field's, unused since it
+ * retired in #75 item 8 — kept for future hamlets), plaster-and-timber
  * in the town, blue stone in Numbria,
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
@@ -166,7 +168,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -217,7 +219,25 @@ export interface NpcPlacement {
   defId: string;
   x: number;
   y: number;
+  /**
+   * Only standing here once this story flag is set… (#75 item 8: an NPC can
+   * have two placements that hand over, e.g. Elder Lumen on the plaza until
+   * he has greeted you, then in the Library.)
+   */
+  ifFlag?: string;
+  /** …or only until it is set. */
+  unlessFlag?: string;
 }
+
+/** Whether an NPC placement is in the world, given the story flags. */
+export function npcPresent(p: Pick<NpcPlacement, 'ifFlag' | 'unlessFlag'>, flags: Record<string, boolean>): boolean {
+  if (p.ifFlag && !flags[p.ifFlag]) return false;
+  if (p.unlessFlag && flags[p.unlessFlag]) return false;
+  return true;
+}
+
+/** Set once Elder Lumen has greeted the hero on the plaza (he then keeps the Library). */
+export const MET_ELDER = 'met-elder';
 
 export interface EnemyPlacement {
   defId: string;
@@ -268,7 +288,11 @@ export interface ZoneDef {
   tileset?: string;
 }
 
-export const HUB_ZONE: ZoneId = 'lumina-field';
+/**
+ * Home: where a new game starts and where a defeated hero wakes up, healed
+ * (#75 item 8: Lumina Village, the hero's home, took over from Lumina Field).
+ */
+export const HUB_ZONE: ZoneId = 'lumina-village';
 
 /** Dawnreach's terrain, painted in Tiled (#75 roadmap item 5). */
 const DAWNREACH_MAP = tiledRows(JSON.parse(dawnreachTmj), JSON.parse(legendTsj), 'dawnreach');
@@ -299,58 +323,6 @@ function crystalPocket(
 }
 
 export const ZONES: Record<ZoneId, ZoneDef> = {
-  'lumina-field': {
-    id: 'lumina-field',
-    name: 'Lumina Field',
-    kind: 'field',
-    map: [
-      '#########EE###########',
-      '#........==..WWWWWWW.#',
-      '#.....##.==..WBBFBBW.#',
-      '#...S....==,.WFFFFFW.#',
-      '#.,..,...==..WBFFFBW.#',
-      'E........==..WWWDWWW.E',
-      'E====================E',
-      '#.WWWWWWW==..........#',
-      '#.WBFFFBW==..,.....###',
-      '#.WKKKKKW==....~~~~..#',
-      '#.WFFFFFW==....~~~~..#',
-      '##WWWDWWW==.##.....#.#',
-      '#.==.=...==......,...#',
-      '##EE#####EE###########',
-    ],
-    ground: [104, 168, 104],
-    path: [196, 178, 128],
-    solidEmoji: '🌳',
-    decoEmoji: '🌼',
-    spawn: { x: 10, y: 11 },
-    buildings: [
-      { id: 'lumina-library', name: 'Lumina Library', x: 13, y: 1, w: 7, h: 5, roof: 'purple', style: 'cottage', sign: 'library' },
-      { id: 'trading-post', name: "Maple's Trading Post", x: 2, y: 7, w: 7, h: 5, roof: 'red', style: 'cottage', sign: 'shop' },
-    ],
-    npcs: [
-      { defId: 'elder-lumen', x: 12, y: 2 },
-      { defId: 'hub-librarian', x: 16, y: 3 },
-      { defId: 'hub-kid', x: 14, y: 12 },
-      { defId: 'hub-merchant', x: 5, y: 8 },
-    ],
-    enemies: [],
-    exits: [
-      // South onto Dawnreach, beside the Field's icon (#75 Phase 1; #76 moved
-      // this road from the north edge).
-      { x: 2, y: 13, to: 'dawnreach', spawnX: 32, spawnY: 10 },
-      { x: 3, y: 13, to: 'dawnreach', spawnX: 32, spawnY: 10 },
-      { x: 9, y: 0, to: 'verdara', spawnX: 10, spawnY: 26 },
-      { x: 10, y: 0, to: 'verdara', spawnX: 10, spawnY: 26 },
-      { x: 0, y: 5, to: 'numbria', spawnX: 42, spawnY: 6 },
-      { x: 0, y: 6, to: 'numbria', spawnX: 42, spawnY: 6 },
-      { x: 21, y: 5, to: 'gearfall', spawnX: 2, spawnY: 6 },
-      { x: 21, y: 6, to: 'gearfall', spawnX: 2, spawnY: 6 },
-      { x: 9, y: 13, to: 'chromaria', spawnX: 10, spawnY: 2 },
-      { x: 10, y: 13, to: 'chromaria', spawnX: 10, spawnY: 2 },
-    ],
-  },
-
   numbria: {
     id: 'numbria',
     name: 'Numbria',
@@ -442,8 +414,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'null-fiend', x: 3, y: 6 },
     ],
     exits: [
-      { x: 43, y: 6, to: 'lumina-field', spawnX: 2, spawnY: 5 },
-      { x: 43, y: 7, to: 'lumina-field', spawnX: 2, spawnY: 5 },
+      // Out onto Dawnreach, beside Numbria's icon in the north-west (#75 item 8).
+      { x: 43, y: 6, to: 'dawnreach', spawnX: 11, spawnY: 13 },
+      { x: 43, y: 7, to: 'dawnreach', spawnX: 11, spawnY: 13 },
     ],
   },
 
@@ -537,8 +510,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'smog-fiend', x: 10, y: 2 },
     ],
     exits: [
-      { x: 9, y: 27, to: 'lumina-field', spawnX: 10, spawnY: 2 },
-      { x: 10, y: 27, to: 'lumina-field', spawnX: 10, spawnY: 2 },
+      // Out onto Dawnreach, beside Verdara's icon in the south-west (#75 item 8).
+      { x: 9, y: 27, to: 'dawnreach', spawnX: 13, spawnY: 47 },
+      { x: 10, y: 27, to: 'dawnreach', spawnX: 13, spawnY: 47 },
     ],
     // The Smog Fiend's gate opens to the Thornroot Key (Whispering Woods, #58).
     keyGate: { x: 10, y: 7 },
@@ -634,8 +608,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'rust-fiend', x: 18, y: 6 },
     ],
     exits: [
-      { x: 0, y: 6, to: 'lumina-field', spawnX: 19, spawnY: 6 },
-      { x: 0, y: 7, to: 'lumina-field', spawnX: 19, spawnY: 6 },
+      // Out onto Dawnreach, beside Gearfall's icon in the north-east (#75 item 8).
+      { x: 0, y: 6, to: 'dawnreach', spawnX: 67, spawnY: 10 },
+      { x: 0, y: 7, to: 'dawnreach', spawnX: 67, spawnY: 10 },
     ],
     // The Rust Fiend's gate opens to the Mainspring Key (Clockwork Depths, #58).
     keyGate: { x: 10, y: 6 },
@@ -731,8 +706,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'gray-fiend', x: 10, y: 11 },
     ],
     exits: [
-      { x: 9, y: 0, to: 'lumina-field', spawnX: 10, spawnY: 11 },
-      { x: 10, y: 0, to: 'lumina-field', spawnX: 10, spawnY: 11 },
+      // Out onto Dawnreach, beside Chromaria's icon in the south-east (#75 item 8).
+      { x: 9, y: 0, to: 'dawnreach', spawnX: 66, spawnY: 45 },
+      { x: 10, y: 0, to: 'dawnreach', spawnX: 66, spawnY: 45 },
     ],
     // The Gray Fiend's gate opens to the Starlight Prism (Starfall Coast, #58).
     keyGate: { x: 11, y: 7 },
@@ -746,47 +722,50 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'lumina-village',
     name: 'Lumina Village',
     kind: 'town',
-    // A three-by-two-screen market town (#72, grown east in the village
-    // expansion): the camera scrolls with the hero. West: Clove's Curios, the
+    // The hero's home (HUB_ZONE): a four-by-two-screen market town (#72, grown
+    // east twice); the camera scrolls with the hero. West: Clove's Curios, the
     // Sleepy Sheep Inn (the world's only inn), the Lantern Workshop and
-    // Grandmother Wick's house around the plaza and fountain. East: the Town
+    // Grandmother Wick's house around the plaza and fountain. Middle: the Town
     // Hall, Clover's Market, Dot's Bakery, Nib's house and a hedge garden
-    // reached only through a hidden gap (H) in its west hedge.
+    // reached only through a hidden gap (H) in its west hedge. Far east (#75
+    // item 8, from the retired Lumina Field): the Lumina Library, Maple's
+    // Trading Post, Elder Lumen and Pip, by a pond.
     map: [
-      '#####################EE###########################################',
-      '#....................==.....................,............,.....,.#',
-      '#.#..................==....................#.WWWWWWWWWWW##.......#',
-      '#...WWWWWWWWW..##....==....##..WWWWWWWWW...#.WBBFFFFFBBW..WWWWWWW#',
-      '#...WBBFFFBBW..#....,==,....#..WZFZFZFZW.....WFFFFFFFFFW..WBFFFBW#',
-      '#...WFFFFFFFW........==........WFFFFFFFW.....WFTFFFFFTFW..WFFFFFW#',
-      '#...WKKKKKKKW........==........WFFFFFFFW.....WFFFFFFFFFW..WKKKKKW#',
-      '#...WFTFFFTFW........==........WTFFFFFTW....#WFFFFFFFFFW..WFFFFFW#',
-      '#...WFFFFFFFW...#...,==,.......WFFFFFFFW.....WBFFFFFFFBW..WFFFFFW#',
-      '#...WWWWDWWWW........==.....#..WWWWDWWWW...#.WWWWWDWWWWW..WWWDWWW#',
-      '#.#.....=........==========........=.....#.#......=..........=...#',
-      '#.#..,,.=...,....=S========...,,...=..,..#.....,..=.....,....=...#',
-      '#.......=........==========........=..............=..........=...#',
-      'E================================================================E',
-      'E================================================================E',
-      '#..............,.=======~~=.,....................=....,....=....,#',
-      '#.....,....,.....=======~~=.........,..,.....WWWWWWWWW..WWWWWWWW.#',
-      '#.#..............==========..................WTFFFFFTW..WZFFFFBW.#',
-      '#...WWWWWWWWWWW......==.......WWWWWWWWW....#.WFFFFFFFW..WFFFFFFW.#',
-      '#...WTFFFFFFFTW......==.......WZFFFFBBW....#.WKKKKKKKW..WFFTTFFW.#',
-      '#...WFFFFFFFFFW.##...==...##..WFFFFFFFW..#..,WFFFFFFFW..WFFFFFFW.#',
-      '#...WFTTFFFTTFW......==.......WFFTTFFFW..#...WFBFFFBFW..WWWDWWWW.#',
-      '#...WFFFFFFFFFW....#.==.#.....WFFFFFFFW......WWWWDWWWW.....=.....#',
-      '#...WBFFFFFFFBW...,..==..,....WFFFFFFFW....#.....=......##########',
-      '#...WFFFFFFFFFW......==.......WWWWDWWWW......,...=..,.#.#,,,,,,,,#',
-      '#...WWWWWDWWWWW......==...........=..............=...#..H,,,..,,,#',
-      '#.=====================================================.#,,,,,,,,#',
-      '###EE################EE###########################################',
+      '#####################EE#################################################################',
+      '#....................==.....................,............,.....,.......,..........,....#',
+      '#.#..................==....................#.WWWWWWWWWWW##.......#.WWWWWWWWW.WWWWWWWWW.#',
+      '#...WWWWWWWWW..##....==....##..WWWWWWWWW...#.WBBFFFFFBBW..WWWWWWW#.WBBBFBBBW.WBBFFFBBW.#',
+      '#...WBBFFFBBW..#....,==,....#..WZFZFZFZW.....WFFFFFFFFFW..WBFFFBW#.WFFFFFFFW.WFFFFFFFW.#',
+      '#...WFFFFFFFW........==........WFFFFFFFW.....WFTFFFFFTFW..WFFFFFW#.WBFFFFFBW.WKKKKKKKW.#',
+      '#...WKKKKKKKW........==........WFFFFFFFW.....WFFFFFFFFFW..WKKKKKW#.WFTFFFTFW.WFTFFFTFW.#',
+      '#...WFTFFFTFW........==........WTFFFFFTW....#WFFFFFFFFFW..WFFFFFW#.WFFFFFFFW.WFFFFFFFW.#',
+      '#...WFFFFFFFW...#...,==,.......WFFFFFFFW.....WBFFFFFFFBW..WFFFFFW#.WWWWDWWWW.WWWWDWWWW.#',
+      '#...WWWWDWWWW........==.....#..WWWWDWWWW...#.WWWWWDWWWWW..WWWDWWW#.....=.........=.....#',
+      '#.#.....=........==========........=.....#.#......=..........=......,..=.........=..,..#',
+      '#.#..,,.=...,....=S========...,,...=..,..#.....,..=.....,....=.........=....,....=.....#',
+      '#.......=........==========........=..............=..........=.........=.........=.....#',
+      'E======================================================================================E',
+      'E======================================================================================E',
+      '#..............,.=======~~=.,....................=....,....=....,......,..........,....#',
+      '#.....,....,.....=======~~=.........,..,.....WWWWWWWWW..WWWWWWWW.#..,..................#',
+      '#.#..............==========..................WTFFFFFTW..WZFFFFBW.#...~~~.........,.....#',
+      '#...WWWWWWWWWWW......==.......WWWWWWWWW....#.WFFFFFFFW..WFFFFFFW.#..~~~~~.......##.....#',
+      '#...WTFFFFFFFTW......==.......WZFFFFBBW....#.WKKKKKKKW..WFFTTFFW.#...~~~........##..,..#',
+      '#...WFFFFFFFFFW.##...==...##..WFFFFFFFW..#..,WFFFFFFFW..WFFFFFFW.#.,...................#',
+      '#...WFTTFFFTTFW......==.......WFFTTFFFW..#...WFBFFFBFW..WWWDWWWW.#.......,......,......#',
+      '#...WFFFFFFFFFW....#.==.#.....WFFFFFFFW......WWWWDWWWW.....=.....#...,.................#',
+      '#...WBFFFFFFFBW...,..==..,....WFFFFFFFW....#.....=......##########..........##.....,...#',
+      '#...WFFFFFFFFFW......==.......WWWWDWWWW......,...=..,.#.#,,,,,,,,#..,.......##.........#',
+      '#...WWWWWDWWWWW......==...........=..............=...#..H,,,..,,,#.....,...........,...#',
+      '#.=====================================================.#,,,,,,,,#.....................#',
+      '###EE################EE#################################################################',
     ],
     ground: [120, 160, 110],
     path: [196, 178, 128],
     solidEmoji: '🌳',
     decoEmoji: '🌷',
-    spawn: { x: 21, y: 2 },
+    // Home: a new game starts on the plaza, and a defeated hero wakes here.
+    spawn: { x: 21, y: 12 },
     buildings: [
       { id: 'village-shop', name: "Clove's Curios", x: 4, y: 3, w: 9, h: 7, roof: 'red', style: 'timber', sign: 'shop' },
       { id: 'village-inn', name: 'Sleepy Sheep Inn', x: 31, y: 3, w: 9, h: 7, roof: 'blue', style: 'timber', sign: 'inn' },
@@ -796,6 +775,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'clover-market', name: "Clover's Market", x: 58, y: 3, w: 7, h: 7, roof: 'leaf', style: 'timber', sign: 'shop' },
       { id: 'dot-bakery', name: "Dot's Bakery", x: 45, y: 16, w: 9, h: 7, roof: 'thatch', style: 'timber', sign: 'shop' },
       { id: 'nib-house', name: "Nib's House", x: 56, y: 16, w: 8, h: 6, roof: 'pink', style: 'timber', sign: 'house' },
+      // Moved in from Lumina Field when it stopped being a hub (#75 item 8).
+      { id: 'lumina-library', name: 'Lumina Library', x: 67, y: 2, w: 9, h: 7, roof: 'dusk', style: 'timber', sign: 'library' },
+      { id: 'trading-post', name: "Maple's Trading Post", x: 77, y: 2, w: 9, h: 7, roof: 'copper', style: 'timber', sign: 'shop' },
     ],
     npcs: [
       { defId: 'village-shopkeeper', x: 8, y: 5 },
@@ -808,6 +790,14 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'village-baker', x: 49, y: 18 },
       { defId: 'village-guard', x: 54, y: 11 },
       { defId: 'village-kid', x: 51, y: 24 },
+      // From Lumina Field (#75 item 8): Elder Lumen greets a new hero on the
+      // plaza, then keeps the Library with the Librarian (giving tips on what
+      // to do next); Maple at work in her shop; Pip out on the green.
+      { defId: 'elder-lumen', x: 23, y: 11, unlessFlag: MET_ELDER },
+      { defId: 'elder-lumen', x: 69, y: 5, ifFlag: MET_ELDER },
+      { defId: 'hub-librarian', x: 71, y: 4 },
+      { defId: 'hub-merchant', x: 81, y: 4 },
+      { defId: 'hub-kid', x: 76, y: 20 },
     ],
     secrets: [
       {
@@ -836,16 +826,16 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     exits: [
       // Every gate leads out onto Dawnreach (#75 Phase 1), beside the
       // Village's icon on the side you left by.
-      { x: 21, y: 0, to: 'dawnreach', spawnX: 32, spawnY: 23 },
-      { x: 22, y: 0, to: 'dawnreach', spawnX: 32, spawnY: 23 },
-      { x: 0, y: 13, to: 'dawnreach', spawnX: 31, spawnY: 24 },
-      { x: 0, y: 14, to: 'dawnreach', spawnX: 31, spawnY: 24 },
-      { x: 65, y: 13, to: 'dawnreach', spawnX: 33, spawnY: 24 },
-      { x: 65, y: 14, to: 'dawnreach', spawnX: 33, spawnY: 24 },
-      { x: 3, y: 27, to: 'dawnreach', spawnX: 31, spawnY: 25 },
-      { x: 4, y: 27, to: 'dawnreach', spawnX: 31, spawnY: 25 },
-      { x: 21, y: 27, to: 'dawnreach', spawnX: 32, spawnY: 25 },
-      { x: 22, y: 27, to: 'dawnreach', spawnX: 32, spawnY: 25 },
+      { x: 21, y: 0, to: 'dawnreach', spawnX: 40, spawnY: 29 },
+      { x: 22, y: 0, to: 'dawnreach', spawnX: 40, spawnY: 29 },
+      { x: 0, y: 13, to: 'dawnreach', spawnX: 39, spawnY: 30 },
+      { x: 0, y: 14, to: 'dawnreach', spawnX: 39, spawnY: 30 },
+      { x: 87, y: 13, to: 'dawnreach', spawnX: 41, spawnY: 30 },
+      { x: 87, y: 14, to: 'dawnreach', spawnX: 41, spawnY: 30 },
+      { x: 3, y: 27, to: 'dawnreach', spawnX: 39, spawnY: 31 },
+      { x: 4, y: 27, to: 'dawnreach', spawnX: 39, spawnY: 31 },
+      { x: 21, y: 27, to: 'dawnreach', spawnX: 40, spawnY: 31 },
+      { x: 22, y: 27, to: 'dawnreach', spawnX: 40, spawnY: 31 },
     ],
   },
 
@@ -898,10 +888,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     exits: [
       // Out onto Dawnreach beside the Woods' icon (#75 Phase 1). The Depths
       // are their own cave now, a little way south.
-      { x: 21, y: 6, to: 'dawnreach', spawnX: 18, spawnY: 24 },
-      { x: 21, y: 7, to: 'dawnreach', spawnX: 18, spawnY: 24 },
-      { x: 10, y: 13, to: 'dawnreach', spawnX: 18, spawnY: 25 },
-      { x: 11, y: 13, to: 'dawnreach', spawnX: 18, spawnY: 25 },
+      { x: 21, y: 6, to: 'dawnreach', spawnX: 26, spawnY: 30 },
+      { x: 21, y: 7, to: 'dawnreach', spawnX: 26, spawnY: 30 },
+      { x: 10, y: 13, to: 'dawnreach', spawnX: 26, spawnY: 31 },
+      { x: 11, y: 13, to: 'dawnreach', spawnX: 26, spawnY: 31 },
     ],
   },
 
@@ -951,8 +941,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'tide-colossus', x: 12, y: 3 },
     ],
     exits: [
-      { x: 0, y: 6, to: 'dawnreach', spawnX: 54, spawnY: 24 },
-      { x: 0, y: 7, to: 'dawnreach', spawnX: 54, spawnY: 24 },
+      { x: 0, y: 6, to: 'dawnreach', spawnX: 62, spawnY: 30 },
+      { x: 0, y: 7, to: 'dawnreach', spawnX: 62, spawnY: 30 },
     ],
   },
 
@@ -1003,8 +993,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     exits: [
       // Up out of the cave mouth onto Dawnreach (#75 Phase 1).
-      { x: 10, y: 0, to: 'dawnreach', spawnX: 13, spawnY: 36 },
-      { x: 11, y: 0, to: 'dawnreach', spawnX: 13, spawnY: 36 },
+      { x: 10, y: 0, to: 'dawnreach', spawnX: 21, spawnY: 42 },
+      { x: 11, y: 0, to: 'dawnreach', spawnX: 21, spawnY: 42 },
     ],
   },
 
@@ -1048,8 +1038,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     exits: [
       // Back out through the gap in the trees (#75 Phase 1).
-      { x: 10, y: 0, to: 'dawnreach', spawnX: 20, spawnY: 40 },
-      { x: 11, y: 0, to: 'dawnreach', spawnX: 20, spawnY: 40 },
+      { x: 10, y: 0, to: 'dawnreach', spawnX: 28, spawnY: 46 },
+      { x: 11, y: 0, to: 'dawnreach', spawnX: 28, spawnY: 46 },
     ],
   },
 
@@ -1081,8 +1071,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [{ defId: 'spire-keeper', x: 16, y: 6 }],
     enemies: [],
     exits: [
-      { x: 10, y: 0, to: 'dawnreach', spawnX: 32, spawnY: 38 },
-      { x: 11, y: 0, to: 'dawnreach', spawnX: 32, spawnY: 38 },
+      { x: 10, y: 0, to: 'dawnreach', spawnX: 40, spawnY: 44 },
+      { x: 11, y: 0, to: 'dawnreach', spawnX: 40, spawnY: 44 },
     ],
     // The Spire itself stands in the central shrine — the endgame entrance.
     spire: { x: 10, y: 6 },
@@ -1107,69 +1097,85 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     path: [196, 178, 128],
     solidEmoji: '🌳',
     decoEmoji: '🌼',
-    spawn: { x: 32, y: 23 },
+    spawn: { x: 40, y: 29 },
     places: [
-      { x: 32, y: 24, icon: 'town', name: 'Lumina Village' },
-      { x: 32, y: 9, icon: 'hamlet', name: 'Lumina Field' },
-      { x: 17, y: 24, icon: 'forest', name: 'Whispering Woods' },
-      { x: 12, y: 36, icon: 'cave', name: 'Clockwork Depths' },
-      { x: 22, y: 40, icon: 'grove', name: 'Moonwell Grove' },
-      { x: 32, y: 39, icon: 'tower', name: 'The Crystal Spire' },
-      { x: 55, y: 24, icon: 'coast', name: 'Starfall Coast' },
-      { x: 49, y: 9, icon: 'shrine', name: 'Shrine of First Light' },
+      { x: 40, y: 30, icon: 'town', name: 'Lumina Village' },
+      { x: 25, y: 30, icon: 'forest', name: 'Whispering Woods' },
+      { x: 20, y: 42, icon: 'cave', name: 'Clockwork Depths' },
+      { x: 30, y: 46, icon: 'grove', name: 'Moonwell Grove' },
+      { x: 40, y: 45, icon: 'tower', name: 'The Crystal Spire' },
+      { x: 63, y: 30, icon: 'coast', name: 'Starfall Coast' },
+      { x: 57, y: 15, icon: 'shrine', name: 'Shrine of First Light' },
+      // The four crystal regions, one at each corner of the land (#75 item 8).
+      { x: 10, y: 13, icon: 'city', name: 'Numbria' },
+      { x: 68, y: 10, icon: 'canyon', name: 'Gearfall Canyon' },
+      { x: 12, y: 47, icon: 'garden', name: 'Verdara' },
+      { x: 66, y: 46, icon: 'pavilion', name: 'Chromaria' },
     ],
     exits: [
-      { x: 32, y: 24, to: 'lumina-village', spawnX: 21, spawnY: 1 },
-      { x: 32, y: 9, to: 'lumina-field', spawnX: 3, spawnY: 12 },
-      { x: 17, y: 24, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
-      { x: 12, y: 36, to: 'clockwork-depths', spawnX: 10, spawnY: 2 },
-      { x: 22, y: 40, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
-      { x: 32, y: 39, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
-      { x: 55, y: 24, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
-      { x: 49, y: 9, to: 'dawn-shrine', spawnX: 10, spawnY: 11 },
+      { x: 40, y: 30, to: 'lumina-village', spawnX: 21, spawnY: 1 },
+      { x: 25, y: 30, to: 'whispering-woods', spawnX: 20, spawnY: 6 },
+      { x: 20, y: 42, to: 'clockwork-depths', spawnX: 10, spawnY: 2 },
+      { x: 30, y: 46, to: 'moonwell-grove', spawnX: 10, spawnY: 2 },
+      { x: 40, y: 45, to: 'crystal-spire', spawnX: 10, spawnY: 2 },
+      { x: 63, y: 30, to: 'starfall-coast', spawnX: 1, spawnY: 6 },
+      { x: 57, y: 15, to: 'dawn-shrine', spawnX: 10, spawnY: 11 },
+      { x: 10, y: 13, to: 'numbria', spawnX: 42, spawnY: 6 },
+      { x: 68, y: 10, to: 'gearfall', spawnX: 2, spawnY: 6 },
+      { x: 12, y: 47, to: 'verdara', spawnX: 10, spawnY: 26 },
+      { x: 66, y: 46, to: 'chromaria', spawnX: 10, spawnY: 2 },
     ],
     // Fog of Forgetting (#75 item 7): the first crystal clears the way to the
     // shrine and the Spire grounds; each crystal also clears its own pocket.
     fogs: [
       {
         id: 'shrine-fog',
-        x: 44,
-        y: 11,
+        x: 52,
+        y: 17,
         w: 3,
         h: 3,
         liftedBy: ANY_CRYSTAL,
         hint: 'Too foggy to pass! Restore a crystal to clear it.',
-        guards: { x: 49, y: 9 },
+        guards: { x: 57, y: 15 },
         lifted: '✨ The fog lifts! The path to the Shrine of First Light is open.',
       },
       {
         id: 'spire-fog',
-        x: 29,
-        y: 36,
+        x: 37,
+        y: 42,
         w: 7,
         h: 6,
         liftedBy: ANY_CRYSTAL,
         hint: 'The fog hides the Spire grounds. Restore a crystal to clear it.',
-        guards: { x: 32, y: 39 },
+        guards: { x: 40, y: 45 },
         lifted: '✨ The fog around the Crystal Spire is gone!',
       },
-      crystalPocket('math', { x: 12, y: 11, w: 3, h: 2 }, { x: 13, y: 9 }, 'in the hills'),
-      crystalPocket('science', { x: 17, y: 18, w: 2, h: 3 }, { x: 15, y: 18 }, 'in the forest'),
-      crystalPocket('engineering', { x: 52, y: 19, w: 3, h: 2 }, { x: 53, y: 17 }, 'in the rocks by the sea'),
-      crystalPocket('creativity', { x: 47, y: 39, w: 3, h: 2 }, { x: 48, y: 37 }, 'in the little grove'),
+      // Each crystal's pocket sits near its own region (#75 item 8).
+      crystalPocket('math', { x: 20, y: 17, w: 3, h: 2 }, { x: 21, y: 15 }, 'in the hills by Numbria'),
+      crystalPocket('science', { x: 17, y: 51, w: 3, h: 2 }, { x: 18, y: 49 }, 'in the trees by Verdara'),
+      crystalPocket('engineering', { x: 69, y: 16, w: 3, h: 2 }, { x: 70, y: 14 }, 'in the cliffs of Gearfall Canyon'),
+      crystalPocket('creativity', { x: 55, y: 45, w: 3, h: 2 }, { x: 56, y: 43 }, 'in the little grove by Chromaria'),
     ],
     npcs: [
-      { defId: 'dawnreach-scout', x: 34, y: 22 },
+      { defId: 'dawnreach-scout', x: 42, y: 28 },
       // Signposts at the two crossroads on the long east–west road (#75 item 6).
-      { defId: 'dawnreach-sign-west', x: 24, y: 23 },
-      { defId: 'dawnreach-sign-east', x: 36, y: 25 },
+      { defId: 'dawnreach-sign-west', x: 32, y: 29 },
+      { defId: 'dawnreach-sign-east', x: 44, y: 31 },
+      // …and where the roads fork for the corners (#75 item 8).
+      { defId: 'dawnreach-sign-north', x: 41, y: 14 },
+      { defId: 'dawnreach-sign-fork', x: 61, y: 31 },
     ],
     enemies: [
-      { defId: 'thornhare', x: 22, y: 19 },
-      { defId: 'mossback-cub', x: 27, y: 28 },
-      { defId: 'grumblebee', x: 19, y: 33 },
-      { defId: 'tide-sprite', x: 48, y: 29 },
-      { defId: 'meteor-mite', x: 45, y: 19 },
+      { defId: 'thornhare', x: 30, y: 25 },
+      { defId: 'mossback-cub', x: 35, y: 34 },
+      { defId: 'grumblebee', x: 27, y: 39 },
+      { defId: 'tide-sprite', x: 56, y: 35 },
+      { defId: 'meteor-mite', x: 53, y: 25 },
+      // A critter from each region roams near it (#75 item 8).
+      { defId: 'sum-slime', x: 16, y: 16 },
+      { defId: 'bolt-mouse', x: 67, y: 19 },
+      { defId: 'spore-puff', x: 8, y: 52 },
+      { defId: 'doodle-imp', x: 63, y: 51 },
     ],
   },
 
@@ -1204,8 +1210,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [{ defId: 'shrine-keeper', x: 13, y: 5 }],
     enemies: [],
     exits: [
-      { x: 10, y: 13, to: 'dawnreach', spawnX: 49, spawnY: 10 },
-      { x: 11, y: 13, to: 'dawnreach', spawnX: 49, spawnY: 10 },
+      { x: 10, y: 13, to: 'dawnreach', spawnX: 57, spawnY: 16 },
+      { x: 11, y: 13, to: 'dawnreach', spawnX: 57, spawnY: 16 },
     ],
   },
 };

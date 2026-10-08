@@ -15,10 +15,12 @@ import {
   pathTargetId,
   gateFlag,
   gateIdAt,
+  npcPresent,
   safeSpawn,
   zone,
   type BuildingDef,
   type FogDef,
+  type NpcPlacement,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
 import { secretAt, secretFlag } from '../../content/secrets';
@@ -880,12 +882,14 @@ export default function WorldCanvas({
       actors.push({ x: px, y: py, kind: 'spire', radius: ACTOR_RADIUS.spire });
     }
 
-    for (const p of z.npcs) {
+    /** Puts an NPC in the world; `remove()` takes them out again. */
+    function spawnNpc(p: NpcPlacement): { remove: () => void } {
       const def = NPC_DEFS[p.defId];
       const px = p.x * TILE + TILE / 2;
       const py = p.y * TILE + TILE / 2;
       // All visual pieces move together when the NPC wanders.
       const parts: Part[] = [];
+      const pieces: { destroy: () => void }[] = [];
       const spriteId = npcSpriteId(def);
       const npcView = resolveSprite(spriteId, def.sprite).def?.world;
       if (!npcView) {
@@ -897,10 +901,12 @@ export default function WorldCanvas({
           k.anchor('center'),
         ]);
         parts.push(token as unknown as Part);
+        pieces.push(token);
       }
       const face = worldFace(k, { spriteId, emoji: def.sprite, x: px, y: py, size: 22 })
         .obj as unknown as WorldActor;
       parts.push(face);
+      pieces.push(face);
       const label = k.add([
         k.text(def.name, { size: 10 }),
         k.pos(px, py + 24),
@@ -908,6 +914,7 @@ export default function WorldCanvas({
         k.color(255, 255, 255),
       ]);
       parts.push(label as unknown as Part);
+      pieces.push(label);
       const actor: Actor = {
         x: px,
         y: py,
@@ -930,7 +937,22 @@ export default function WorldCanvas({
         });
       }
       if (def.ambient?.length) attachAmbient(face, def.ambient);
+      return {
+        remove: () => {
+          const i = actors.indexOf(actor);
+          if (i >= 0) actors.splice(i, 1);
+          for (const piece of pieces) piece.destroy();
+        },
+      };
     }
+    // Most NPCs simply stand in the world. A few come and go with the story
+    // (#75 item 8: Elder Lumen greets a new hero on the plaza, then keeps the
+    // Library); the main loop keeps those in step with the flags.
+    const comings = z.npcs
+      .filter((p) => p.ifFlag || p.unlessFlag)
+      .map((p) => ({ p, here: null as { remove: () => void } | null }));
+    for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
+    for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
 
     for (const p of z.enemies) {
       const enemy = spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels);
@@ -1505,6 +1527,16 @@ export default function WorldCanvas({
           emberSprite.play(want);
         }
         if (f === 'side') emberSprite.flipX = lastDir.x < 0;
+      }
+
+      // NPCs who come and go with the story (a flag set in a conversation).
+      for (const c of comings) {
+        const present = npcPresent(c.p, flagsRef.current);
+        if (present && !c.here) c.here = spawnNpc(c.p);
+        else if (!present && c.here) {
+          c.here.remove();
+          c.here = null;
+        }
       }
 
       // Open gates / opened chests update live (flag set while overlay open).

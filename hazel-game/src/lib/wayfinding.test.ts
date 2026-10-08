@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ZONES, reachableOnFoot, type ZoneDef, type ZoneId } from '../content/zones';
+import { MET_ELDER, ZONES, reachableOnFoot, type ZoneDef, type ZoneId } from '../content/zones';
 import { whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
@@ -18,6 +18,7 @@ import {
   signpostLines,
   wayfindingLines,
   type Objective,
+  mentorTips,
 } from './wayfinding';
 
 const dawn = ZONES.dawnreach;
@@ -125,11 +126,7 @@ describe('routeTo', () => {
   });
   it('goes through the fewest zones', () => {
     const hops = routeTo(ZONES, 'lumina-village', 'numbria')!;
-    expect(hops.map((h) => `${h.from}→${h.exit.to}`)).toEqual([
-      'lumina-village→dawnreach',
-      'dawnreach→lumina-field',
-      'lumina-field→numbria',
-    ]);
+    expect(hops.map((h) => `${h.from}→${h.exit.to}`)).toEqual(['lumina-village→dawnreach', 'dawnreach→numbria']);
   });
   it('is null when there is no way', () => {
     const island = { ...ZONES.numbria, id: 'numbria', exits: [] } as ZoneDef;
@@ -139,22 +136,23 @@ describe('routeTo', () => {
 
 describe('exitSide', () => {
   it('finds the edge an exit is on, or none for a place on the map', () => {
-    const field = ZONES['lumina-field'];
-    expect(exitSide(field, field.exits.find((e) => e.to === 'numbria')!)).toBe('west');
-    expect(exitSide(field, field.exits.find((e) => e.to === 'verdara')!)).toBe('north');
+    expect(exitSide(ZONES.numbria, ZONES.numbria.exits[0])).toBe('east');
+    expect(exitSide(ZONES.verdara, ZONES.verdara.exits[0])).toBe('south');
     expect(exitSide(dawn, dawn.exits[0])).toBeNull();
   });
 });
 
 describe('routeSteps and goalDirections', () => {
   const numbria = nextObjective({});
-  it('from next door: just the path to take', () => {
-    expect(goalDirections(ZONES, numbria, 'lumina-field')).toBe('Take the west path to Numbria.');
+  it('between two zones joined edge to edge: the path to take', () => {
+    const joined = { ...ZONES.numbria, exits: [{ x: 0, y: 6, to: 'verdara' as const, spawnX: 42, spawnY: 6 }] };
+    expect(routeSteps({ ...ZONES, numbria: joined }, 'numbria', 'verdara')).toEqual(['take the west path to Verdara']);
   });
-  it('across the overworld: the way to the place, then the path', () => {
-    expect(goalDirections(ZONES, numbria, 'lumina-village')).toBe(
-      'Go north to Lumina Field, then take the west path to Numbria.',
-    );
+  it('across the overworld: out of the Village, then the way to the place (#75 item 8)', () => {
+    expect(goalDirections(ZONES, numbria, 'lumina-village')).toBe('Go north-west to Numbria.');
+  });
+  it('right outside its door: step in', () => {
+    expect(goalDirections(ZONES, numbria, 'dawnreach', { x: 11, y: 13 })).toBe('Step into Numbria.');
   });
   it("on the overworld, measured from where you stand", () => {
     const woods = dawn.places!.find((p) => p.name === 'Whispering Woods')!;
@@ -186,11 +184,12 @@ describe('routeSteps and goalDirections', () => {
 
 describe('signpostLines', () => {
   it('names every place once, by direction, clockwise from north, nearest first', () => {
-    const lines = signpostLines(dawn, 36, 25);
+    const lines = signpostLines(dawn, 44, 31);
     const names = lines.flatMap((l) => l.replace(/^\S+ /, '').split(' · '));
     expect(names.sort()).toEqual(dawn.places!.map((p) => p.name).sort());
-    expect(lines[0]).toBe('⬆️ Lumina Field');
+    expect(lines[0]).toBe('↗️ Shrine of First Light · Gearfall Canyon');
     expect(lines.find((l) => l.startsWith('⬅️'))).toBe('⬅️ Lumina Village · Whispering Woods');
+    expect(lines.at(-1)).toBe('↖️ Numbria');
   });
   it("leaves out a place you're standing beside", () => {
     const village = dawn.places!.find((p) => p.name === 'Lumina Village')!;
@@ -198,27 +197,60 @@ describe('signpostLines', () => {
   });
 });
 
+describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
+  const met = { [MET_ELDER]: true };
+  const math = { ...met, [crystalFlag('math')]: true };
+  it('a new hero: the plan (start with Numbria, no key needed) and where the potions are', () => {
+    const [plan, tip] = mentorTips(ZONES, met);
+    expect(plan).toMatch(/four Fiends.*corner of Dawnreach.*the Null Fiend in Numbria, to the north-west.*no key/);
+    expect(tip).toMatch(/Berry Potions at Maple's Trading Post/);
+  });
+  it('after the first crystal: the wardens and their keys; holding a key: its gate', () => {
+    expect(mentorTips(ZONES, math)[0]).toMatch(/other three Fiends.*locked gates.*the Thicket Warden in the Whispering Woods, to the west.*Verdant Key/);
+    expect(mentorTips(ZONES, { ...math, [keyFlag('verdara-key')]: true })[0]).toMatch(
+      /You hold the Verdant Key! It opens the Smog Fiend's gate in Verdara, to the south-west\. Free the Crystal of Nature/,
+    );
+    const two = { ...math, [crystalFlag('science')]: true };
+    expect(mentorTips(ZONES, two)[0]).toMatch(/^The Rust Fiend still hides behind a locked gate\..*the Clockwork Titan/);
+  });
+  it('all four crystals: the Spire; after it: secrets and friends', () => {
+    expect(mentorTips(ZONES, { ...met, ...allCrystals })).toEqual([
+      expect.stringMatching(/Crystal Spire stands open, to the south of our village/),
+      expect.stringMatching(/Rest at the Sleepy Sheep Inn/),
+    ]);
+    expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true })[0]).toMatch(/Lumina is safe/);
+  });
+  it('is the big picture, not the road: no "go …" or "take the … path" steps', () => {
+    const stages = [met, math, { ...math, [keyFlag('verdara-key')]: true }, { ...met, ...allCrystals }];
+    for (const flags of stages) for (const line of mentorTips(ZONES, flags)) expect(line).not.toMatch(/\b(Go|go) (north|south|east|west)|path to/);
+  });
+  it('on the plaza (first meeting) the tips end with where to find him again; in the Library they don\'t', () => {
+    const plaza = wayfindingLines(ZONES, NPC_DEFS['elder-lumen'], {});
+    expect(plaza).toHaveLength(3);
+    expect(plaza[2]).toMatch(/Lumina Library, at the far east end of town/);
+    expect(wayfindingLines(ZONES, NPC_DEFS['elder-lumen'], met)).toEqual(mentorTips(ZONES, met));
+  });
+});
+
 describe('guides and signposts', () => {
   const wayfinders = Object.values(NPC_DEFS).filter((n) => n.guide || n.signpost);
 
-  it('Elder Lumen, Grandmother Wick and Scout Tamsin are guides; the crossroads have signposts', () => {
-    expect(wayfinders.filter((n) => n.guide).map((n) => n.id).sort()).toEqual(
-      ['dawnreach-scout', 'elder-lumen', 'village-elder'].sort(),
-    );
+  it('Grandmother Wick and Scout Tamsin are guides, Elder Lumen the mentor; the crossroads have signposts', () => {
+    expect(wayfinders.filter((n) => n.guide).map((n) => n.id).sort()).toEqual(['dawnreach-scout', 'village-elder']);
+    expect(Object.values(NPC_DEFS).filter((n) => n.mentor).map((n) => n.id)).toEqual(['elder-lumen']);
     expect(wayfinders.filter((n) => n.signpost).length).toBeGreaterThanOrEqual(2);
   });
   it('every guide and signpost stands somewhere in the world', () => {
     for (const n of wayfinders) expect(npcHome(ZONES, n.id), n.id).not.toBeNull();
   });
   it('a guide ends on where to go next, from where they stand', () => {
-    expect(wayfindingLines(ZONES, NPC_DEFS['elder-lumen'], {})).toEqual([
-      'Where to next? The Null Fiend hoards the Crystal of Numbers. Take the west path to Numbria.',
+    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], {})).toEqual([
+      'Where to next? The Null Fiend hoards the Crystal of Numbers. Go north-west to Numbria.',
     ]);
-    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], {})[0]).toContain('Go north to Lumina Field');
   });
   it("after the story, a guide just cheers you on", () => {
     const done = { ...allCrystals, [SPIRE_CLEARED]: true };
-    expect(wayfindingLines(ZONES, NPC_DEFS['elder-lumen'], done)).toEqual([nextObjective(done).why]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], done)).toEqual([nextObjective(done).why]);
   });
   it('a signpost reads out the places around it, then the way to the next goal', () => {
     for (const n of wayfinders.filter((w) => w.signpost)) {
@@ -232,9 +264,10 @@ describe('guides and signposts', () => {
     expect(wayfindingLines(ZONES, NPC_DEFS['hub-kid'], {})).toEqual([]);
   });
 
-  // A signpost belongs at a crossroads: beside a road tile where 3+ roads
-  // meet, and not on the road itself (it would block it).
-  it('every signpost stands beside a crossroads, off the road', () => {
+  // A signpost belongs where the way splits or turns: beside a road tile where
+  // 3+ roads meet, or where the road bends (the north road turning for
+  // Numbria, #75 item 8) — and not on the road itself (it would block it).
+  it('every signpost stands beside a crossroads or a bend, off the road', () => {
     const road = (z: ZoneDef, x: number, y: number) => '=P'.includes(z.map[y]?.[x] ?? '#');
     for (const n of wayfinders.filter((w) => w.signpost)) {
       const home = npcHome(ZONES, n.id)!;
@@ -242,16 +275,17 @@ describe('guides and signposts', () => {
       expect(z.kind, n.id).toBe('overworld');
       expect(road(z, home.x, home.y), `${n.id} is on the road`).toBe(false);
       const near = [-1, 0, 1].flatMap((dx) => [-1, 0, 1].map((dy) => [home.x + dx, home.y + dy]));
-      const atCrossroads = near.some(
-        ([x, y]) =>
-          road(z, x, y) &&
-          [
-            [1, 0],
-            [-1, 0],
-            [0, 1],
-            [0, -1],
-          ].filter(([dx, dy]) => road(z, x + dx, y + dy)).length >= 3,
-      );
+      const atCrossroads = near.some(([x, y]) => {
+        if (!road(z, x, y)) return false;
+        const ways = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ].filter(([dx, dy]) => road(z, x + dx, y + dy));
+        const bend = ways.length === 2 && ways[0][0] !== -ways[1][0] && ways[0][1] !== -ways[1][1];
+        return ways.length >= 3 || bend;
+      });
       expect(atCrossroads, `${n.id} at ${home.x},${home.y}`).toBe(true);
     }
   });

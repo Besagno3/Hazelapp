@@ -11,7 +11,8 @@
  *   floor=<SpireTheme>                 draw a Spire floor (with zone=crystal-spire)
  *   at=x,y                             start cell (else the zone spawn)
  *   paused=1                           freeze the world (deterministic screenshots)
- *   flags=a,b                          story flags to set (e.g. a crystal, to lift fog)
+ *   flags=a,b                          story flags to set (e.g. a crystal, to lift fog);
+ *                                      `__bench.setFlag(f)` sets one later, as a conversation would
  *
  * `__bench.pause(true|false)` pauses the world the way a menu or dialogue does.
  *
@@ -20,7 +21,7 @@
  * many times it has bumped a fog bank, who it has talked to, and which fog
  * banks it has watched clear).
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import WorldCanvas from '../src/features/world/WorldCanvas';
 import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, buildingInside, type ZoneDef, type ZoneId } from '../src/content/zones';
@@ -74,13 +75,16 @@ function stressZone(cols: number, rows: number): ZoneDef {
     }
     map.push(row);
   }
-  const base = ZONES['lumina-field'];
+  // Borrows the overworld's tileset (and id), as an overworld-like map should.
+  const base = ZONES.dawnreach;
   return {
     ...base,
     name: `Stress ${cols}×${rows}`,
     map,
     spawn: { x: Math.floor(cx), y: Math.floor(cy) },
     buildings: [],
+    places: [],
+    fogs: [],
     // A few villagers off the roads (they wander + collide, like a real map).
     npcs: ['hub-kid', 'village-friend', 'woods-sprite', 'grove-firefly', 'grove-otter', 'coast-fisher']
       .map((defId, i) => ({ defId, x: Math.floor(cx) - 9 + i * 3, y: Math.floor(cy) + 3 }))
@@ -92,8 +96,8 @@ function stressZone(cols: number, rows: number): ZoneDef {
 
 let zoneId: ZoneId;
 if (zoneParam === 'stress') {
-  ZONES['lumina-field'] = stressZone(Number(q.get('cols') ?? 160), Number(q.get('rows') ?? 112));
-  zoneId = 'lumina-field';
+  ZONES.dawnreach = stressZone(Number(q.get('cols') ?? 160), Number(q.get('rows') ?? 112));
+  zoneId = 'dawnreach';
 } else {
   zoneId = zoneParam as ZoneId;
 }
@@ -235,6 +239,9 @@ const flags = Object.fromEntries(
     .filter(Boolean)
     .map((f) => [f, true]),
 );
+/** Sets a story flag mid-run (`__bench.setFlag`), as a conversation would. */
+const setFlagRef: { current: ((flag: string) => void) | null } = { current: null };
+(window as unknown as { __bench: Record<string, unknown> }).__bench.setFlag = (flag: string) => setFlagRef.current?.(flag);
 /** Live position, read by the runner / scripts. */
 const live: {
   zoneId: ZoneId;
@@ -256,6 +263,10 @@ const live: {
 
 function Bench() {
   const touchDirRef = useRef({ dx: 0, dy: 0 });
+  const [benchFlags, setBenchFlags] = useState<Record<string, boolean>>(flags);
+  useEffect(() => {
+    setFlagRef.current = (flag) => setBenchFlags((f) => ({ ...f, [flag]: true }));
+  }, []);
   const [where, setWhere] = useState<{ zoneId: ZoneId; pos: { x: number; y: number } | null }>({
     zoneId,
     pos: startPos,
@@ -272,7 +283,7 @@ function Bench() {
         skillLevels={{}}
         emberStage="hatchling"
         startPos={where.pos}
-        flags={flags}
+        flags={benchFlags}
         openedChests={[]}
         defeatedIds={[]}
         pausedRef={benchPaused}

@@ -2,7 +2,7 @@
  * The coin economy + shops (#37; per-shop stock since #73). Every merchant
  * runs their own store, and every item is sold in exactly ONE place — so each
  * town is worth visiting — except the `SHARED_STOCK` staples, which have a
- * second seller so a hero far from Lumina Field can restock (items.test
+ * second seller so a hero far from Lumina Village can restock (items.test
  * enforces both rules). All tuning numbers live here.
  */
 
@@ -31,7 +31,7 @@ export const TEA_DAMAGE_MULT = 2;
 
 /**
  * Staples deliberately sold in exactly TWO shops (everything else: one).
- * Berry Potions: Maple's Trading Post (Lumina Field) + Tadpole's Tonics (Verdara).
+ * Berry Potions: Maple's Trading Post (Lumina Village) + Tadpole's Tonics (Verdara).
  */
 export const SHARED_STOCK: readonly ConsumableId[] = ['potion'];
 

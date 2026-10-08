@@ -10,7 +10,7 @@ import KeyGateOverlay from './KeyGateOverlay';
 import MenuOverlay from './MenuOverlay';
 import SpireOverlay from './SpireOverlay';
 import StoryPanels from '../../components/StoryPanels';
-import { zone, TILE, fogSeenFlag } from '../../content/zones';
+import { zone, TILE, fogSeenFlag, HUB_ZONE } from '../../content/zones';
 import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx } from '../../content/spire';
 import { useSpireStore } from '../../store/spireStore';
 import { spawnEnemy } from '../../content/enemies';
@@ -119,7 +119,7 @@ export default function WorldScreen() {
 
   const age = playerAge(profile);
   const skillLevels = profile?.skillLevels ?? {};
-  const zoneId = save?.zoneId ?? 'lumina-field';
+  const zoneId = save?.zoneId ?? HUB_ZONE;
   const z = zone(zoneId);
   const avatar = avatarById(save?.avatarId ?? null);
   const maxHp = heroMaxHp(avatar, profile?.powerUps ?? {});

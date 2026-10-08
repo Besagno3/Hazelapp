@@ -231,10 +231,11 @@ export const QUESTS: QuestDef[] = [
     reward: { coins: 30, hint: 1 },
   },
 
-  // Hub quest sending the kid cross-zone for a specific foe.
+  // Home quest (Pip lives in Lumina Village since #75 item 8) sending the kid
+  // out to Numbria for a specific foe.
   {
     id: 'pips-marble',
-    zoneId: 'lumina-field',
+    zoneId: 'lumina-village',
     giverNpcId: 'hub-kid',
     title: "Pip's Lucky Marble",
     offer: [

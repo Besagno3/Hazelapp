@@ -6,8 +6,10 @@ import {
   migrateLegacy,
   normalizeSave,
   pushLibrary,
+  saveIsTooNew,
   saveKey,
   LEGACY_KEY,
+  SAVE_VERSION_CONFLICT,
 } from '../lib/save';
 import { ROUNDS_TO_UNLOCK } from '../lib/utils';
 import type { LibraryEntry, SaveData } from '../types';
@@ -20,6 +22,12 @@ import type { LibraryEntry, SaveData } from '../types';
  * falls back to the per-user localStorage copy, then the legacy pre-JRPG
  * key, then a fresh save. Supabase errors degrade gracefully to local-only
  * play (e.g. migration 0008 not applied yet) — `remoteError` says why.
+ *
+ * A save written by a newer version of the game (an old tab still open after
+ * an update) is never loaded or overwritten: status goes to 'outdated' and the
+ * app asks for a refresh, so this older code can't strip it. Loads check
+ * `saveIsTooNew`; saves are refused by the server (migration 0011), which
+ * `flush` turns into the same 'outdated' state.
  */
 
 const FLUSH_DEBOUNCE_MS = 2000;
@@ -28,7 +36,7 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null;
 interface SaveStore {
   userId: string | null;
   save: SaveData | null;
-  status: 'idle' | 'loading' | 'ready';
+  status: 'idle' | 'loading' | 'ready' | 'outdated';
   /** Set when remote persistence is failing (local play still works). */
   remoteError: string | null;
 
@@ -46,10 +54,11 @@ interface SaveStore {
   clear: () => void;
 }
 
-function readLocal(userId: string): SaveData | null {
+/** The raw localStorage copy of a user's save (null when missing or unreadable). */
+function readLocalRaw(userId: string): unknown {
   try {
     const raw = localStorage.getItem(saveKey(userId));
-    return raw ? normalizeSave(JSON.parse(raw)) : null;
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
@@ -79,13 +88,20 @@ export const useSaveStore = create<SaveStore>((set, get) => ({
       .select('data')
       .eq('profile_id', userId)
       .maybeSingle();
+    // Newer than this code understands: touch nothing, ask for a refresh.
+    const outdated = () => set({ save: null, status: 'outdated', remoteError });
     if (error) {
       remoteError = errorMessage(error);
     } else if (data?.data) {
+      if (saveIsTooNew(data.data)) return outdated();
       save = normalizeSave(data.data);
     }
 
-    if (!save) save = readLocal(userId);
+    if (!save) {
+      const local = readLocalRaw(userId);
+      if (local && saveIsTooNew(local)) return outdated();
+      if (local) save = normalizeSave(local);
+    }
     if (!save) {
       save = migrateLegacy(localStorage.getItem(LEGACY_KEY));
       // Consume the pre-JRPG key either way: it belongs to whoever played
@@ -125,7 +141,14 @@ export const useSaveStore = create<SaveStore>((set, get) => ({
     const { error } = await supabase
       .from('saves')
       .upsert({ profile_id: userId, data: save, updated_at: new Date().toISOString() });
-    set({ remoteError: error ? errorMessage(error) : null });
+    const remoteError = error ? errorMessage(error) : null;
+    // The server holds a save from a newer version of the game (migration
+    // 0011 refused this one): stop saving and ask for a refresh, as load does.
+    if (remoteError?.includes(SAVE_VERSION_CONFLICT)) {
+      set({ save: null, status: 'outdated', remoteError });
+      return;
+    }
+    set({ remoteError });
   },
 
   recordQuizRound: (passed, misses) => {

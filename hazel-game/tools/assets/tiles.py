@@ -22,6 +22,9 @@ from pix import Canvas, dark, hexc, light, mix, strip, upscale
 T = 16  # logical tile size
 
 # Zone themes. ground/path mirror zones.ts; the rest choose scenery.
+# A zone's position here seeds its art, so a retired zone keeps its entry (and
+# is skipped by the builds) — removing it would redraw every zone after it.
+RETIRED = {'lumina-field'}  # #75 item 8: Lumina Field folded into Lumina Village
 ZONES = {
     'lumina-field': dict(ground=(104, 168, 104), path=(196, 178, 128), solid='tree', deco='flower', deco_c='#ffe066',
                          sky=('#6ab8ff', '#bfe6ff'), far='#7aa0c8', mid='tree', water='#3a7ad0'),
@@ -805,7 +808,8 @@ def _mid_shape(img, kind, x0, base, col, rnd):
 # ─── Overworld sheet (#75 Phase 1) ───────────────────────────────────────────
 # One 32px strip shared by every overworld (keep in sync with OVERWORLD_FRAME in
 # src/content/tiles.ts): 0 mountain overlay · 1 sand · 2-3 fog (drifting) ·
-# 4 town · 5 hamlet · 6 forest · 7 cave · 8 shrine · 9 coast · 10 grove.
+# 4 town · 5 hamlet · 6 forest · 7 cave · 8 shrine · 9 coast · 10 grove ·
+# 11 city · 12 canyon · 13 garden · 14 pavilion (the four crystal regions, #75 item 8).
 
 
 def ow_mountain():
@@ -923,6 +927,56 @@ def ow_icon(kind):
             c.ellipse(x, y, 2.6, 3.4, '#2a6a4a')
         c.dot(5, 4, '#fff27a')
         c.dot(11, 3, '#fff27a')
+    elif kind == 'city':
+        # Numbria: blue-stone towers with domed roofs behind a wall and gate.
+        c.rect(1, 9, 15, 15.5, '#9aa6c4')
+        for x in (1.5, 4.5, 7.5, 10.5, 13.5):
+            c.rect(x, 8, x + 1.5, 9, '#9aa6c4')
+        c.rect(2, 4, 6, 9, '#b4bed8')
+        c.ellipse(4, 4, 2.2, 1.8, '#3a6ad0')
+        c.rect(10, 2.5, 14, 9, '#b4bed8')
+        c.ellipse(12, 2.5, 2.2, 1.8, '#3a6ad0')
+        c.dot(12, 0.5, '#ffe066')
+        c.rect(6.5, 11.5, 9.5, 15.5, '#3a3048')
+        c.dot(4, 6, '#ffe066')
+        c.dot(12, 5, '#ffe066')
+        c.dot(12, 7, '#ffe066')
+    elif kind == 'canyon':
+        # Gearfall Canyon: a brass gear turning between two red-rock cliffs.
+        c.poly([(0.5, 15.5), (1, 5), (3.5, 2.5), (5.5, 6), (6, 15.5)], '#8a4a36')
+        c.poly([(10, 15.5), (10.5, 5.5), (13, 3), (15.5, 6), (15.5, 15.5)], '#7a3e2c')
+        c.rect(1.5, 9, 5, 10, '#6a3424', shade=False)
+        c.rect(11, 11, 15, 12, '#5e2e1e', shade=False)
+        for i in range(8):
+            a = i * math.pi / 4
+            c.dot(8 + math.cos(a) * 3.6, 9.5 + math.sin(a) * 3.6, '#f0c848', w=2, h=2)
+        c.ellipse(8, 9.5, 3, 3, '#ffd860')
+        c.ellipse(8, 9.5, 1.1, 1.1, '#5a3a1a', shade=False)
+    elif kind == 'garden':
+        # Verdara: a glass greenhouse dome full of leaves.
+        c.rect(2, 13, 14, 15.5, '#8a6a4a')
+        c.ellipse(8, 11.5, 6, 6, '#bce8dc')
+        c.rect(1.5, 11.5, 14.5, 13.2, '#bce8dc')
+        for x in (5, 8, 11):
+            c.line(x, 6, x, 13, '#6aa898', w=0.6)
+        c.line(2.5, 10, 13.5, 10, '#6aa898', w=0.6)
+        c.ellipse(6, 11.5, 2, 1.6, '#3a9a4a', shade=False)
+        c.ellipse(10, 11, 2.2, 1.8, '#2a8a3e', shade=False)
+        c.dot(10, 10, '#ff8ab0')
+        c.dot(6.5, 11, '#ffe066')
+        c.dot(8, 4.5, '#ffffff')
+    elif kind == 'pavilion':
+        # Chromaria: a striped pavilion with a flag — every colour at once.
+        stripes = ('#e04848', '#ffd23a', '#3a8ae0', '#4ac06a', '#c05ad8')
+        for i, col in enumerate(stripes):
+            x0 = 2 + i * 2.4
+            c.rect(x0, 10, x0 + 2.4, 15.5, col)
+        c.poly([(1, 10.5), (8, 3), (15, 10.5)], '#ffd23a')
+        c.poly([(4.5, 10.5), (8, 3), (8, 10.5)], '#e04848', shade=False)
+        c.poly([(8, 3), (11.5, 10.5), (8, 10.5)], '#3a8ae0', shade=False)
+        c.rect(7, 12, 9, 15.5, '#3a2a40', shade=False)
+        c.line(8, 0.5, 8, 3, '#5a4a4a', w=0.6)
+        c.poly([(8, 0.5), (11, 1.3), (8, 2.1)], '#e04848', shade=False)
     return _outlined(c)
 
 
@@ -944,7 +998,7 @@ def signpost():
     return _outlined(c)
 
 
-OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove')
+OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'city', 'canyon', 'garden', 'pavilion')
 
 
 def overworld_sheet():
@@ -1060,6 +1114,8 @@ def build_blend(public: Path):
     """Write only the edge-blend sheets (#75 / #71b) — every other file untouched."""
     tdir = public / 'tiles'
     for i, (zid, z) in enumerate(ZONES.items()):
+        if zid in RETIRED:
+            continue
         blend_sheet(z, i).save(tdir / f'{zid}-blend.png', optimize=True)
 
 
@@ -1073,6 +1129,11 @@ def _write_zone(tdir: Path, bdir: Path, i: int, zid: str, z: dict):
               exit_marker()]
     strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'{zid}.png', optimize=True)
     upscale(backdrop(z, 100 + i), 1).save(bdir / f'{zid}.png', optimize=True)
+
+
+def build_overworld_sheet(public: Path):
+    """Write only the overworld sheet (#75 item 8 adds the four region icons)."""
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(public / 'tiles' / 'overworld.png', optimize=True)
 
 
 def build_overworld(public: Path):
@@ -1091,6 +1152,8 @@ def build(public: Path) -> list[str]:
     bdir = public / 'backgrounds'
     bdir.mkdir(parents=True, exist_ok=True)
     for i, (zid, z) in enumerate(ZONES.items()):
+        if zid in RETIRED:
+            continue
         _write_zone(tdir, bdir, i, zid, z)
         blend_sheet(z, i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in props()]).save(tdir / 'props.png', optimize=True)

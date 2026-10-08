@@ -42,8 +42,14 @@ describe('whereOnMap', () => {
     expect(m).toMatchObject({ exact: false, place: 'Lumina Village' });
     expect(dawn.map[m!.y][m!.x]).toBe('P');
   });
-  it('in a zone not on the map yet: the nearest place on it (Numbria → Lumina Field)', () => {
-    expect(whereOnMap(ZONES, dawn, 'numbria', null)).toMatchObject({ exact: false, place: 'Lumina Field' });
+  it('every crystal region is on the map itself (#75 item 8)', () => {
+    expect(whereOnMap(ZONES, dawn, 'numbria', null)).toMatchObject({ exact: false, place: 'Numbria' });
+  });
+  it('in a zone not on the map itself: the nearest place that is', () => {
+    // As if Numbria had no icon and were reached through the Village instead.
+    const zones = { ...ZONES, numbria: { ...ZONES.numbria, exits: [{ x: 43, y: 6, to: 'lumina-village' as const, spawnX: 1, spawnY: 13 }] } };
+    const overworld = { ...dawn, exits: dawn.exits.filter((e) => e.to !== 'numbria') };
+    expect(whereOnMap(zones, overworld, 'numbria', null)).toMatchObject({ exact: false, place: 'Lumina Village' });
   });
   it('every zone in the world can be placed on the map', () => {
     for (const id of Object.keys(ZONES) as (keyof typeof ZONES)[]) {
@@ -104,8 +110,8 @@ describe('fog markers (#75 item 7)', () => {
     expect(fogMarker(bank('shrine-fog'))).toBe(ANY_CRYSTAL_EMOJI);
   });
   it("sits mid-bank, but moves to the bank's top edge when a place icon is in the middle", () => {
-    expect(fogMarkerAt(bank('math-fog'), dawn.places!)).toEqual({ x: 13, y: 11.5 });
+    expect(fogMarkerAt(bank('math-fog'), dawn.places!)).toEqual({ x: 21, y: 17.5 });
     const spire = fogMarkerAt(bank('spire-fog'), dawn.places!);
-    expect(spire).toEqual({ x: 32, y: 36 });
+    expect(spire).toEqual({ x: 40, y: 42 });
   });
 });

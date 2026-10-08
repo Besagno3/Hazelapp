@@ -35,7 +35,7 @@ import type { LibraryEntry, Question, Topic } from '../../types';
  * bumps rune seals to face its questions, and takes the stairs once every
  * seal is broken. Wrong answers snuff candle-lights (`SPIRE_LIVES`) — and the
  * hero's circle of light shrinks with them; running out casts the hero back
- * to Lumina Field, healed. The top floor is Umbra's throne room: walking up to
+ * home to Lumina Village, healed. The top floor is Umbra's throne room: walking up to
  * him starts the final question gauntlet. Clearing it sets `SPIRE_CLEARED`.
  *
  * This overlay owns the rules and the panels; `spireStore` carries the live
@@ -274,7 +274,7 @@ export default function SpireOverlay() {
   }
 
   function lose() {
-    // Cast out, gently: wake at Lumina Field, fully healed. Keep XP earned.
+    // Cast out, gently: wake at home in Lumina Village, fully healed. Keep XP earned.
     void addXp(correctCount.current * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
     updateSave((s) => ({
       ...s,
@@ -478,14 +478,14 @@ export default function SpireOverlay() {
             <div className="text-6xl mb-2">🕯️</div>
             <h2 className="text-xl font-extrabold mb-2">Down, but never out</h2>
             <p className="text-sm text-white/85 mb-5">
-              The Spire sets you gently back in Lumina Field, rested and healed. The door stays
+              The Spire sets you gently back home in Lumina Village, rested and healed. The door stays
               open — rest up, and climb again whenever you're ready.
             </p>
             <button
               onClick={close}
               className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-6 py-2.5 text-sm"
             >
-              Back to the field
+              Back home
             </button>
           </div>
         )}

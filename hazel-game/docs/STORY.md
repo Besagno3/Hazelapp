@@ -17,10 +17,14 @@ spark of light, and dragons grow on bravery and bright answers. When all four
 crystals shine, their light gathers at the **Crystal Spire** at the heart of
 the world and burns the fog away for good.
 
-The world is **11 zones**: the Lumina Field hub, the four topic regions, and
-six quieter **story zones** reached through the hero's home, **Lumina
-Village** (Whispering Woods → Clockwork Depths, Starfall Coast, the hidden
-Moonwell Grove, and the Crystal Spire). The themed story zones have no Fiends
+The world is **Dawnreach**, the home continent (an overworld you walk, #75):
+the hero's home, **Lumina Village**, near its heart; the four topic regions
+at its four corners (Numbria north-west, Gearfall Canyon north-east, Verdara
+south-west, Chromaria south-east — the corners of the world the Fiends hid
+in); and quieter **story places** between them (Whispering Woods, Clockwork
+Depths, Starfall Coast, the hidden Moonwell Grove, the Shrine of First Light,
+and the Crystal Spire south of the Village). "Lumina Field" is the open
+country around the Village; it stopped being a separate hub in #75 item 8. The themed story zones have no Fiends
 of their own, but each of the three warden zones holds a **warden boss**
 guarding a gate key (#58) — they carry the narrative, hold save crystals, and
 let the world breathe between Fiend battles. The Grove (#grove) is a secret
@@ -49,7 +53,8 @@ One register for everyone (decided 2026-06-12): playful, warm, ~ages 7–11.
 ## 3. The hero & Ember 🐲
 
 **The hero** (player's avatar — Blaze/Shield/Nova) is a curious kid from
-Lumina Field. Personal stake: on the morning the fog arrived, the hero found
+Lumina Village, at the edge of Lumina Field (settled in #75 item 8: home is
+the Village; the Field is the open country around it). Personal stake: on the morning the fog arrived, the hero found
 **the last dragon egg of Lumina** — the one thing the fog couldn't touch.
 The egg chose them; raising it is their quest as much as the crystals are.
 
@@ -69,9 +74,11 @@ answers stay the only skill input.
 
 ## 4. Cast
 
-**Hub (Lumina Field):** Elder Lumen 👴 (exposition, dragon lore), Pip 🧒
-(tutorial hints, Ember superfan), Innkeeper Poppy 👩‍🍳, Librarian Sage 🦉,
-Merchant Maple 🦝.
+**Home (Lumina Village, east end — moved in from Lumina Field in #75 item
+8):** Elder Lumen 👴 (greets a new hero on the plaza, then keeps the Library
+and gives big-picture tips on what to do next; dragon lore), Pip 🧒 (tutorial hints, Ember
+superfan), Librarian Sage 🦉 (the Lumina Library), Merchant Maple 🦝 (Maple's
+Trading Post). Innkeeper Poppy 👩‍🍳 runs the Sleepy Sheep Inn in the Village.
 
 **Per zone — pattern: Sage (teacher) + Villager (quest giver) + Merchant:**
 
@@ -141,8 +148,8 @@ then last words on defeat that *concede the theme* ("your answers… counted").
   Spire and Umbra calls the hero up. The Spire door (icon 🗼) opens.
 - **The Spire climb** (`content/spire.ts`, `SpireOverlay`): a multi-floor
   question gauntlet, each floor harder and on different topics, candle-lights
-  for mistakes, ending in the **Umbra** boss floor. Lose → cast back to the
-  hub, healed (climb again any time). Win → the true finale.
+  for mistakes, ending in the **Umbra** boss floor. Lose → cast back home to
+  Lumina Village, healed (climb again any time). Win → the true finale.
 - **True finale** (`spireVictoryPanels(heroName)`): Umbra unravels, Ember roars
   full-grown, Aurora bows, the hero is named as the reason — open door to New
   Game+ ("trickier riddles than ever").
@@ -154,7 +161,7 @@ heal) unlocks at the first crystal; **Ember's Breath** (huge damage) unlocks
 when Ember is full-grown. Spells cost charge (◆) filled by correct answers; a
 miss fizzles harmlessly and refunds the charge — effort is never punished.
 
-## 6. Quests (one per crystal zone + the hub + the Grove)
+## 6. Quests (one per crystal zone + home + the Grove)
 
 Quests are ordered **steps** over the save file (`quests.ts`, #42) — three
 mechanics, each used at least once so every zone plays differently:
@@ -165,7 +172,7 @@ mechanics, each used at least once so every zone plays differently:
 | The Firefly Defenders (Verdara) | Fern 👦 | **defeat quest** — beat all three zone critters, any order; the hint names whoever's left |
 | Rivet's Golden Gear (Gearfall) | Rivet 👷 | **multi-step** — chest → Sage Cog polishes it → report back |
 | Doodle's Color Seed (Chromaria) | Doodle 🧑‍🎨 | **delivery** — carry the seed (shown in the menu) to Sage Muse, return |
-| Pip's Lucky Marble (hub) | Pip 🧒 | **cross-zone defeat** — beat the Count Bat in Numbria |
+| Pip's Lucky Marble (home) | Pip 🧒 | **cross-zone defeat** — beat the Count Bat in Numbria |
 | The Darkened Moonwell (Grove) | Lune 🌙 | **chest + defeat-3** — open the gated chest, then clear the grove critters |
 
 Conversation shape: giver offers → giver reminds with the current step's
@@ -212,8 +219,9 @@ bible: Acts II–IV, every zone/NPC/enemy/quest/spell named):
   islands of **the Silver Shallows** (Act II, by boat) and, across **the
   Starfall Sea**, the far continent **Taleshore** (Act III). The plan also
   turns the fog of Forgetting into real fog that lifts per crystal, and adds
-  a travel ladder (walk → Marlow's boat → Ember's wings → down). It
-  settles the hero's home as Lumina Village (this bible says both Field and
-  Village today), retires Lumina Field as a hub so its people move into the
-  Village, gives every town an inn (both decided 2026-10-05), and adds
-  writing rules for rumors and roadside stories.
+  a travel ladder (walk → Marlow's boat → Ember's wings → down). Done so
+  far: the crystal regions sit at Dawnreach's corners, fog lifts per crystal,
+  the hero's home is settled as Lumina Village, and Lumina Field retired as a
+  hub (its people moved into the Village) — #75 items 7–8. Still to come:
+  every town gets an inn (decided 2026-10-05), and writing rules for rumors
+  and roadside stories.

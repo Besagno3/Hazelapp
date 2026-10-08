@@ -68,15 +68,15 @@ describe('terrainLayers', () => {
   });
 
   it('paths and exits use the path tile; exits add the exit marker; water animates', () => {
-    const z = ZONES['lumina-field'];
-    expect(baseTile(z, 5, 6)).toEqual({ sheet: 'zone', frame: TILE_FRAME.path }); // '='
-    expect(baseTile(z, 0, 5)).toEqual({ sheet: 'zone', frame: TILE_FRAME.path }); // 'E'
+    const z = ZONES['lumina-village'];
+    expect(baseTile(z, 8, 10)).toEqual({ sheet: 'zone', frame: TILE_FRAME.path }); // '='
+    expect(baseTile(z, 0, 13)).toEqual({ sheet: 'zone', frame: TILE_FRAME.path }); // 'E'
     expect(overlayTile('E')).toEqual({ sheet: 'zone', frame: TILE_FRAME.exit });
-    expect(baseTile(z, 16, 9)).toEqual({ sheet: 'zone', frame: WATER }); // '~'
+    expect(baseTile(z, 24, 15)).toEqual({ sheet: 'zone', frame: WATER }); // '~' (the fountain)
   });
 
   it('plain ground uses the deterministic speckle variant, scenery overlays on top', () => {
-    const z = ZONES['lumina-field'];
+    const z = ZONES['lumina-village'];
     expect(baseTile(z, 1, 1)).toEqual({ sheet: 'zone', frame: groundVariant(1, 1) });
     expect(baseTile(z, 0, 0)).toEqual({ sheet: 'zone', frame: groundVariant(0, 0) }); // '#'
     expect(overlayTile('#')).toEqual({ sheet: 'zone', frame: TILE_FRAME.solid });
@@ -85,9 +85,9 @@ describe('terrainLayers', () => {
   });
 
   it('props are not terrain: a save crystal sits on plain ground with no overlay', () => {
-    const z = ZONES['lumina-field'];
-    expect(z.map[3][4]).toBe('S');
-    expect(baseTile(z, 4, 3)).toEqual({ sheet: 'zone', frame: groundVariant(4, 3) });
+    const z = ZONES['lumina-village'];
+    expect(z.map[11][18]).toBe('S');
+    expect(baseTile(z, 18, 11)).toEqual({ sheet: 'zone', frame: groundVariant(18, 11) });
     expect(overlayTile('S')).toBeNull();
   });
 
@@ -105,7 +105,7 @@ describe('terrainLayers', () => {
   });
 
   it('overworld tiles (#75): sand is a base on the overworld sheet, mountains overlay the ground, places sit on plain ground', () => {
-    const z: ZoneDef = { ...ZONES['lumina-field'], map: ['.:^P'], buildings: [] };
+    const z: ZoneDef = { ...ZONES['lumina-village'], map: ['.:^P'], buildings: [] };
     expect(baseTile(z, 1, 0)).toEqual({ sheet: 'overworld', frame: OVERWORLD_FRAME.sand });
     expect(baseTile(z, 2, 0)).toEqual({ sheet: 'zone', frame: groundVariant(2, 0) });
     expect(overlayTile('^')).toEqual({ sheet: 'overworld', frame: OVERWORLD_FRAME.mountain });
@@ -184,7 +184,7 @@ describe('waterFrame', () => {
 
 describe('edge blending (#75, #71b)', () => {
   /** A synthetic map on a real zone (only `map` matters here). */
-  const mapZone = (map: string[]): ZoneDef => ({ ...ZONES['lumina-field'], map, buildings: [] });
+  const mapZone = (map: string[]): ZoneDef => ({ ...ZONES['lumina-village'], map, buildings: [] });
   /** The tiles at corner (vx, vy): [frame, water step] pairs, empty slots dropped. */
   const corner = (z: ZoneDef, vx: number, vy: number) => {
     const L = blendLayer(z);

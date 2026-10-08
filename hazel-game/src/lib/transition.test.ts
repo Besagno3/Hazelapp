@@ -30,9 +30,9 @@ describe('slideFrom', () => {
 
 describe('edgeLinkProblem (#76)', () => {
   it('catches two zones that are each "north" of the other', () => {
-    // The pre-fix Field ↔ Village shape: both ways out are north exits.
-    const field = fixture('lumina-field', 6, 4, [{ x: 2, y: 0, to: 'lumina-village', spawnX: 3, spawnY: 1 }]);
-    const village = fixture('lumina-village', 8, 5, [{ x: 3, y: 0, to: 'lumina-field', spawnX: 2, spawnY: 1 }]);
+    // The pre-fix Field ↔ Village shape (#76): both ways out are north exits.
+    const field = fixture('whispering-woods', 6, 4, [{ x: 2, y: 0, to: 'lumina-village', spawnX: 3, spawnY: 1 }]);
+    const village = fixture('lumina-village', 8, 5, [{ x: 3, y: 0, to: 'whispering-woods', spawnX: 2, spawnY: 1 }]);
     expect(edgeLinkProblem(field, field.exits[0], village)).toMatch(/north edge, not the south edge/);
   });
 
@@ -59,10 +59,10 @@ describe('edgeLinkProblem (#76)', () => {
     // Phase 1 shape: both town gates lead out beside the town's icon; the
     // overworld's way in is an entrance in the middle of its map.
     const town = fixture('lumina-village', 8, 5, [
-      { x: 0, y: 2, to: 'lumina-field', spawnX: 5, spawnY: 4 },
-      { x: 7, y: 2, to: 'lumina-field', spawnX: 7, spawnY: 4 },
+      { x: 0, y: 2, to: 'dawnreach', spawnX: 5, spawnY: 4 },
+      { x: 7, y: 2, to: 'dawnreach', spawnX: 7, spawnY: 4 },
     ]);
-    const overworld = fixture('lumina-field', 12, 8, [{ x: 6, y: 4, to: 'lumina-village', spawnX: 1, spawnY: 2 }]);
+    const overworld = fixture('dawnreach', 12, 8, [{ x: 6, y: 4, to: 'lumina-village', spawnX: 1, spawnY: 2 }]);
     for (const e of town.exits) expect(edgeLinkProblem(town, e, overworld)).toBeNull();
     expect(edgeLinkProblem(overworld, overworld.exits[0], town)).toBeNull();
   });

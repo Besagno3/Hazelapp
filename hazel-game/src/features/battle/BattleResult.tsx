@@ -81,7 +81,7 @@ export function BattleResult({
           <div className="text-5xl mb-2">😴</div>
           <h2 className="text-xl font-extrabold mb-1">Whew — that was close!</h2>
           <p className="text-sm text-white/80">
-            Friendly hands carry you back to Lumina Field. You're safe, rested, and{' '}
+            Friendly hands carry you home to Lumina Village. You're safe, rested, and{' '}
             {correctCount > 0 ? `kept ${correctCount} answers' worth of XP!` : 'ready to try again!'}
           </p>
         </>
@@ -90,7 +90,7 @@ export function BattleResult({
         onClick={onLeave}
         className="mt-4 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-2.5"
       >
-        {won ? 'Onward!' : 'Back to the field'}
+        {won ? 'Onward!' : 'Back home'}
       </button>
     </motion.div>
   );

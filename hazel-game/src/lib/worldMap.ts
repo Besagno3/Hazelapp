@@ -65,6 +65,11 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   coast: '🌊',
   grove: '🌙',
   tower: '🗼',
+  // The four crystal regions (#75 item 8).
+  city: '🏛️',
+  canyon: '🕰️',
+  garden: '🌻',
+  pavilion: '🎪',
 };
 
 /** Stands in for a place that's still hidden in fog. */
@@ -92,8 +97,9 @@ export interface MapMarker {
 
 /**
  * Where to put "you are here". On the overworld: the hero's own tile. Inside a
- * place: that place's icon. In a zone that isn't on the map yet (Numbria, off
- * Lumina Field): follow the exits back to the nearest place that is.
+ * place: that place's icon. In a zone that isn't a place itself (none today,
+ * since every zone has its own icon as of #75 item 8; later, e.g. a dungeon's
+ * lower floors): follow the exits back to the nearest place that is.
  */
 export function whereOnMap(
   zones: Record<ZoneId, ZoneDef>,

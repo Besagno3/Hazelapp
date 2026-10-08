@@ -47,10 +47,10 @@ describe('tiledRows (#75 item 5)', () => {
     expect(tiledRows(tmj(rows), legend)).toEqual(rows);
   });
 
-  it('Dawnreach is painted in Tiled and loads as a 64×48 map — the rows every zone test checks', () => {
+  it('Dawnreach is painted in Tiled and loads as an 80×60 map — the rows every zone test checks', () => {
     const rows = tiledRows(JSON.parse(dawnreachTmj), legend, 'dawnreach');
-    expect(rows.length).toBe(48);
-    expect(rows.every((r) => r.length === 64)).toBe(true);
+    expect(rows.length).toBe(60);
+    expect(rows.every((r) => r.length === 80)).toBe(true);
     expect(ZONES.dawnreach.map).toEqual(rows);
   });
 

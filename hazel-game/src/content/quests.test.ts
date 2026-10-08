@@ -161,8 +161,8 @@ describe('delivery quest (color-seed)', () => {
 describe('cross-zone quest (pips-marble)', () => {
   const quest = byId('pips-marble');
 
-  it('Pip in the hub sends the player after Numbria\'s Count Bat', () => {
-    expect(quest.zoneId).toBe('lumina-field');
+  it('Pip, at home in the Village, sends the player after Numbria\'s Count Bat', () => {
+    expect(quest.zoneId).toBe('lumina-village');
     let save = converse(quest.giverNpcId, defaultSave());
     expect(activeQuests(save).map((q) => q.id)).toContain('pips-marble');
 

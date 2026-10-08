@@ -120,6 +120,15 @@ describe('the script matches the fog over the Spire (#75 item 7)', () => {
     expect(text).not.toMatch(/glitters|find your way/);
   });
 
+  it('Scout Tamsin names all four crystal lands, but not in one overlong box on a phone (#101j)', () => {
+    const lines = NPC_DEFS['dawnreach-scout'].lines.map((l) => (typeof l === 'string' ? l : l.text));
+    const corners = lines.find((l) => /crystal lands/.test(l));
+    expect(corners).toMatch(/Numbria north-west.*Gearfall Canyon north-east.*Verdara south-west.*Chromaria south-east/);
+    // ~35 characters a row in a 375 px dialogue box: this keeps it to four rows.
+    expect(corners!.length).toBeLessThanOrEqual(140);
+    expect(corners).not.toMatch(/Whispering Woods|Starfall Coast/);
+  });
+
   it("Scout Tamsin only calls the Spire a landmark once its fog has lifted on screen", () => {
     const lines = NPC_DEFS['dawnreach-scout'].lines;
     const before = shown(lines, {});
@@ -128,6 +137,16 @@ describe('the script matches the fog over the Spire (#75 item 7)', () => {
     const after = shown(lines, { [fogSeenFlag('spire-fog')]: true });
     expect(after).toMatch(/out of the fog at last.*Look for the Spire/);
     expect(after).not.toMatch(/hides in a ring of fog/);
+  });
+});
+
+describe('Lumina Field is retired (#75 item 8)', () => {
+  it('no one points the hero at it any more (it is just the open country now)', () => {
+    for (const npc of Object.values(NPC_DEFS)) {
+      for (const l of npc.lines) {
+        expect(typeof l === 'string' ? l : l.text, npc.id).not.toMatch(/Lumina Field|this field/);
+      }
+    }
   });
 });
 

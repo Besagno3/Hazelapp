@@ -1,5 +1,5 @@
 import type { ServiceType, Topic } from '../types';
-import { fogSeenFlag } from './zones';
+import { MET_ELDER, fogSeenFlag } from './zones';
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -54,6 +54,13 @@ export interface WorldNpcDef {
    */
   guide?: boolean;
   /**
+   * Gives big-picture tips on what to do next (#75 item 8, Elder Lumen in the
+   * Library): after their own lines, the plan for this stage of the story and
+   * one practical tip (`mentorTips`, `lib/wayfinding.ts`). `invite` closes
+   * the first meeting, before `MET_ELDER` is set — where to find them again.
+   */
+  mentor?: { invite: string };
+  /**
    * A signpost, not a person (#75 item 6): it reads out the places around it
    * by direction, worked out from the map, then the way to the next goal.
    * Its `lines` stay empty. Place it beside a crossroads, off the road.
@@ -75,22 +82,36 @@ export const ROLE_SERVICE: Partial<Record<NpcRole, ServiceType>> = {
 };
 
 export const NPC_DEFS: Record<string, WorldNpcDef> = {
-  // --- Lumina Field (hub) ---
+  // --- Home: Lumina Village's east end (moved in from Lumina Field when it
+  // retired as a hub, #75 item 8; the hub-* ids are kept for saves + quests) ---
   'elder-lumen': {
     id: 'elder-lumen',
     name: 'Elder Lumen',
     sprite: '👴',
     role: 'villager',
     stationary: true,
-    guide: true,
+    // Meets a new hero on the plaza, then keeps the Library (two placements in
+    // zones.ts that hand over on MET_ELDER), where he gives tips (#75 item 8).
+    mentor: {
+      invite:
+        'I keep the Lumina Library, at the far east end of town. Come and find me there whenever you wonder what to do next!',
+    },
     lines: [
+      // First meeting, on the plaza.
       {
-        text: 'Welcome, brave one! A fog of Forgetting has dimmed our four Crystals of Knowing.',
-        unlessFlag: 'met-elder',
-        setFlag: 'met-elder',
+        text: 'Welcome home, brave one! I am Elder Lumen. A fog of Forgetting has dimmed our four Crystals of Knowing.',
+        unlessFlag: MET_ELDER,
+        setFlag: MET_ELDER,
       },
-      'Four Fiends hoard the crystal light — one beyond each path from this field.',
-      'Every question you answer returns a spark of light. Learning is our magic!',
+      {
+        text: 'Every question you answer returns a spark of light. Learning is our magic!',
+        unlessFlag: MET_ELDER,
+      },
+      // Afterwards, in the Library.
+      {
+        text: 'Ah, welcome to the Library, young one! Sit, sit — let us look at where your journey stands.',
+        ifFlag: MET_ELDER,
+      },
       {
         text: 'That egg you carry… the last dragon of Lumina chose YOU. Keep answering bravely, and it will hatch.',
         unlessFlag: 'ember-hatched',
@@ -101,7 +122,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       {
         text: 'All four crystals shine again… you truly are the Hero of Lumina!',
-        ifFlag: 'crystal-math-restored',
+        // Once all four are back (the ending scene sets it), not after the first.
+        ifFlag: 'ending-seen',
       },
       {
         text: 'You climbed the Spire and faced Umbra itself. Lumina will tell your story for a thousand years, brave one.',
@@ -839,7 +861,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     guide: true,
     lines: [
       'Hi! I\'m mapping all of Dawnreach. Want the short version? Here goes!',
-      'North: Lumina Field. West: the Whispering Woods. East: Starfall Coast, where the land runs out.',
+      'West: the Whispering Woods. East: Starfall Coast, where the land runs out.',
+      'At the four corners lie the crystal lands: Numbria north-west, Gearfall Canyon north-east, Verdara south-west and Chromaria south-east!',
       // The Spire hides in its ring of fog until the first crystal (#75 item 7).
       {
         text: "South, past the hills, the Crystal Spire hides in a ring of fog. I haven't been able to draw it yet! Restore a crystal and the fog should lift.",
@@ -872,6 +895,26 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'dawnreach-sign-east': {
     id: 'dawnreach-sign-east',
+    name: 'Signpost',
+    sprite: '🪧',
+    spriteId: 'signpost',
+    role: 'villager',
+    stationary: true,
+    signpost: true,
+    lines: [],
+  },
+  'dawnreach-sign-north': {
+    id: 'dawnreach-sign-north',
+    name: 'Signpost',
+    sprite: '🪧',
+    spriteId: 'signpost',
+    role: 'villager',
+    stationary: true,
+    signpost: true,
+    lines: [],
+  },
+  'dawnreach-sign-fork': {
+    id: 'dawnreach-sign-fork',
     name: 'Signpost',
     sprite: '🪧',
     spriteId: 'signpost',

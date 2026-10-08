@@ -14,8 +14,11 @@ import {
   buildingAt,
   buildingInside,
   safeSpawn,
+  npcPresent,
+  MET_ELDER,
 } from './zones';
 import { edgeLinkProblem, exitSide } from '../lib/transition';
+import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
@@ -172,11 +175,35 @@ describe('zone maps', () => {
     }
   });
 
-  it('the hub is safe (no enemies) and links to all four topic zones', () => {
-    const hub = ZONES[HUB_ZONE];
-    expect(hub.enemies).toHaveLength(0);
-    const targets = new Set(hub.exits.map((e) => e.to));
-    for (const t of TOPIC_REGISTRY) expect(targets.has(t.zoneId), `hub → ${t.zoneId}`).toBe(true);
+  it('home is Lumina Village, safe (no enemies) — Lumina Field is retired (#75 item 8)', () => {
+    expect(HUB_ZONE).toBe('lumina-village');
+    const home = ZONES[HUB_ZONE];
+    expect(home.enemies).toHaveLength(0);
+    expect(Object.keys(ZONES)).not.toContain('lumina-field');
+    // The Field's people and buildings moved in.
+    expect(home.buildings!.map((b) => b.name)).toEqual(expect.arrayContaining(['Lumina Library', "Maple's Trading Post"]));
+    for (const id of ['elder-lumen', 'hub-librarian', 'hub-merchant', 'hub-kid']) {
+      expect(home.npcs.map((n) => n.defId), id).toContain(id);
+    }
+    // A new game (and a defeated hero) starts on open ground in town, not at a gate.
+    expect(isWalkable(home, home.spawn.x, home.spawn.y)).toBe(true);
+    expect(home.exits.some((e) => Math.abs(e.x - home.spawn.x) + Math.abs(e.y - home.spawn.y) <= 3)).toBe(false);
+  });
+
+  it('each crystal region is a place at its own corner of Dawnreach, and leads only back onto it (#75 item 8)', () => {
+    const dawn = ZONES.dawnreach;
+    const [w, h] = [dawn.map[0].length, dawn.map.length];
+    const corners = new Set<string>();
+    for (const t of TOPIC_REGISTRY) {
+      const exit = dawn.exits.find((e) => e.to === t.zoneId);
+      expect(exit, `${t.zoneId} is entered from Dawnreach`).toBeDefined();
+      const { x, y } = exit!;
+      const corner = `${x < w / 3 ? 'west' : x >= (2 * w) / 3 ? 'east' : 'middle'}-${y < h / 3 ? 'north' : y >= (2 * h) / 3 ? 'south' : 'middle'}`;
+      expect(corner, `${t.zoneId} at ${x},${y}`).not.toContain('middle');
+      corners.add(corner);
+      expect(new Set(ZONES[t.zoneId].exits.map((e) => e.to)), t.zoneId).toEqual(new Set(['dawnreach']));
+    }
+    expect(corners.size).toBe(TOPIC_REGISTRY.length);
   });
 
   it('every zone is reachable from the hub by walking exits', () => {
@@ -348,9 +375,29 @@ describe('every place is unique (#73)', () => {
     }
   });
 
-  it('no NPC is placed twice', () => {
-    const ids = placed.map((x) => x.p.defId);
-    expect(new Set(ids).size).toBe(ids.length);
+  it('no NPC is ever in two places at once: one placed twice hands over on a flag (#75 item 8)', () => {
+    const byDef = new Map<string, typeof placed>();
+    for (const x of placed) byDef.set(x.p.defId, [...(byDef.get(x.p.defId) ?? []), x]);
+    for (const [id, spots] of byDef) {
+      if (spots.length === 1) continue;
+      const flagNames = [...new Set(spots.flatMap(({ p }) => [p.ifFlag, p.unlessFlag].filter(Boolean) as string[]))];
+      expect(flagNames.length, `${id} hands over on one flag`).toBe(1);
+      for (const on of [false, true]) {
+        const present = spots.filter(({ p }) => npcPresent(p, { [flagNames[0]]: on }));
+        expect(present.length, `${id} with ${flagNames[0]}=${on}`).toBe(1);
+      }
+    }
+  });
+
+  it('Elder Lumen greets a new hero on the plaza, then keeps the Library (#75 item 8)', () => {
+    const home = ZONES[HUB_ZONE];
+    const lumen = home.npcs.filter((p) => p.defId === 'elder-lumen');
+    const plaza = lumen.find((p) => npcPresent(p, {}))!;
+    const later = lumen.find((p) => npcPresent(p, { [MET_ELDER]: true }))!;
+    expect(Math.max(Math.abs(plaza.x - home.spawn.x), Math.abs(plaza.y - home.spawn.y))).toBeLessThanOrEqual(3);
+    expect(buildingInside(home, plaza.x, plaza.y)).toBeNull();
+    expect(buildingInside(home, later.x, later.y)?.id).toBe('lumina-library');
+    expect(NPC_DEFS['elder-lumen'].lines[0]).toMatchObject({ unlessFlag: MET_ELDER, setFlag: MET_ELDER });
   });
 
   it('every merchant, sage, innkeeper and librarian works inside a building', () => {
@@ -380,7 +427,7 @@ describe('every place is unique (#73)', () => {
 });
 
 describe('overworld helpers (#75 Phase 1)', () => {
-  const base = ZONES['lumina-field'];
+  const base = ZONES['lumina-village'];
   const z: ZoneDef = {
     ...base,
     map: ['....', '..P.', '....'],
@@ -459,6 +506,18 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
     }
   });
 
+  it("no critter can wander up to a doorstep: you never step out of a place into a fight (#75 item 8)", () => {
+    const reach = WANDER_TUNING.enemy.leashTiles;
+    const landings = allZones.flatMap((z) => z.exits.filter((e) => e.to === 'dawnreach').map((e) => ({ from: z.id, x: e.spawnX, y: e.spawnY })));
+    for (const foe of dawn.enemies) {
+      expect(isWalkable(dawn, foe.x, foe.y), `${foe.defId} at ${foe.x},${foe.y} stands on open ground`).toBe(true);
+      for (const l of landings) {
+        const gap = Math.max(Math.abs(foe.x - l.x), Math.abs(foe.y - l.y));
+        expect(gap, `${foe.defId} at ${foe.x},${foe.y} vs ${l.from}'s doorstep ${l.x},${l.y}`).toBeGreaterThan(reach + 1);
+      }
+    }
+  });
+
   it('fog banks sit inside the map, cover walkable ground, and are lifted by real flags', () => {
     for (const z of allZones) {
       for (const f of z.fogs ?? []) {
@@ -516,12 +575,12 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
     const spawnPx = { x: dawn.spawn.x * TILE + TILE / 2, y: dawn.spawn.y * TILE + TILE / 2 };
     const px = (x: number, y: number) => ({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 });
     // Inside the math pocket, beside its chest; and inside the Spire's fog, where its gate lands.
-    expect(safeSpawn(dawn, px(12, 9), {})).toEqual(spawnPx);
-    expect(safeSpawn(dawn, px(32, 38), {})).toEqual(spawnPx);
-    expect(behindFog(dawn, {}).has('32,38')).toBe(true);
+    expect(safeSpawn(dawn, px(20, 15), {})).toEqual(spawnPx);
+    expect(safeSpawn(dawn, px(40, 44), {})).toEqual(spawnPx);
+    expect(behindFog(dawn, {}).has('40,44')).toBe(true);
     // Once lifted, both are fine places to stand; out in the open always was.
-    expect(safeSpawn(dawn, px(12, 9), { [crystalFlag('math')]: true })).toEqual(px(12, 9));
-    expect(safeSpawn(dawn, px(32, 38), { [crystalFlag('science')]: true })).toEqual(px(32, 38));
-    expect(safeSpawn(dawn, px(40, 30), {})).toEqual(px(40, 30));
+    expect(safeSpawn(dawn, px(20, 15), { [crystalFlag('math')]: true })).toEqual(px(20, 15));
+    expect(safeSpawn(dawn, px(40, 44), { [crystalFlag('science')]: true })).toEqual(px(40, 44));
+    expect(safeSpawn(dawn, px(48, 36), {})).toEqual(px(48, 36));
   });
 });
