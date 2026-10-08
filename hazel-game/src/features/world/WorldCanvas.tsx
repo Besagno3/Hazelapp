@@ -97,6 +97,8 @@ const DIM_RADIUS = 80;
 const LIT_RADIUS = 330;
 /** Critters fade to this while Calm is on, so you can see they'll let you pass. */
 const CALM_OPACITY = 0.45;
+/** Seconds after Calm wears off before a critter you're touching starts a battle. */
+const CALM_GRACE = 1.5;
 /** Movement keys we own at the window level (see the keyboard effect). */
 const MOVE_KEYS = new Set([
   'arrowleft',
@@ -1320,7 +1322,8 @@ export default function WorldCanvas({
           const cx = (at.x / VIEW_W) * 100;
           const cy = (at.y / VIEW_H) * 100;
           // A dim floor (#75 item 10) is spooky, not black: its edge is lighter.
-          const edge = light ? 0.72 : lit ? 0.55 : z.dark?.dim ? 0.8 : 0.9;
+          // Elsewhere unlit is near-black, so a pitch doorway blends in (#102h).
+          const edge = light ? 0.72 : lit ? 0.55 : z.dark?.dim ? 0.8 : 0.95;
           dark.style.background = `radial-gradient(ellipse ${((r + flicker) / VIEW_W) * 100}% ${((r + flicker) / VIEW_H) * 100}% at ${cx}% ${cy}%, rgba(8,4,20,0) 0%, rgba(8,4,20,0.15) 50%, rgba(8,4,20,${edge}) 100%)`;
           dark.style.opacity = '1';
         } else {
@@ -1426,6 +1429,8 @@ export default function WorldCanvas({
         if (whole !== calmShown) {
           calmShown = whole;
           cbRef.current.onCalmTick?.(whole);
+          // Worn off: a moment to step away from a critter you're standing on.
+          if (whole === 0) cooldown = Math.max(cooldown, CALM_GRACE);
         }
       }
       const calm = (calmRef?.current ?? 0) > 0;
