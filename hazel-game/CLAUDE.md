@@ -346,6 +346,20 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-08 — Longer music loops: every track is a song, not one phrase on repeat
+Players heard the same bit over and over: each `compose()` track was one chord
+progression (8–16 bars) rendered once and looped, so loops ran 15–37 s
+(battle 25 s, boss 23 s, final boss 22 s, title 20 s). `tools/assets/audio.py`
+now lays each track out as a song form — `song_form`: A, A' (melody ~45%
+restated, lead pulse width swapped, gentle tracks gain an arp, driving tracks
+a descending one), B (a new hand-written `bridge` progression with its own
+rhythms, a drum breakdown, a different bass figure), A'' (theme ~85% restated)
+— with a snare fill into each section. A' is dropped when A alone already
+passes `MIN_LOOP_S` (30 s). Loops now run 61–116 s; music is encoded at 64 kbps
+(`MUSIC_KBPS`) so the files stay ~0.5–0.9 MB. The Spire's spooky tracks
+(already 46–66 s) are unchanged. Still seeded/deterministic; the echo tail
+still wraps so the loop seam is seamless.
+
 ### 2026-10-08 — Pitch dark fades in at its edges (#75 item 10, #103)
 A fresh-eyes `/saas-code-review` + `/saas-ux-review` of item 10 after the
 builder's own review (all three floors, the stairs, the side hall dark and

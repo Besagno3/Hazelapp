@@ -34,8 +34,11 @@ in-game menu (📜 → 🔊 Audio).
 | `pair.mp3` | a hero + companion Pair Attack |
 
 ## `16bit/music/` — seamless loops
-`title`, `overworld`, `battle`, `boss`, `spire`, `finalBoss`, `victory`
-(reserved) — see `trackForScreen` in `src/lib/audio.ts`.
+`title`, `overworld`, `town`, `cave`, `shrine`, `battle`, `boss`, `finalBoss`,
+`victory` (reserved), plus the Spire's spooky set (`spire`, `spireArchive`,
+`spireThicket`, `spireStars`, `spireEngine`) — see `trackForScreen` in
+`src/lib/audio.ts`. Each loop is a full song form (A A' B A'', at least 30 s;
+today 45–116 s) so it doesn't feel like one phrase on repeat.
 
 ## Older tracks
 The earlier player-supplied mp3s (`Overworld.mp3`, `Battle_Music.mp3`, …)
