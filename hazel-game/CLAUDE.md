@@ -367,8 +367,9 @@ A `/saas-ux-review` of regional difficulty (headless Chromium, 375 px)
 found the danger wasn't legible or explained to a child. All findings fixed:
 - **Map labels on a plate:** a critter's "Lv 4 !!" now sits on a dark
   rounded plate like a place name's, 11 px, drawn above every character
-  (`LABEL_Z`) so a passing critter or NPC never hides another's marks. The
-  plate fades with the critter under Calm.
+  (`LABEL_Z`) so a passing critter or NPC never hides another's marks — but
+  under the fog (z 8), which still hides what's behind it. The plate fades
+  with the critter under Calm.
 - **The HUD shows the same marks:** "Lv 5 !!!" in the enemy panel's title
   row, coloured like the map's, read aloud as "Far from home: it hits harder
   — and drops more coins". The bottom row is only for a coming power move;

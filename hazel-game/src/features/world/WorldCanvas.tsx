@@ -98,7 +98,10 @@ const DIM_RADIUS = 80;
 const LIT_RADIUS = 330;
 /** Critters fade to this while Calm is on, so you can see they'll let you pass. */
 const CALM_OPACITY = 0.45;
-/** Critter level labels and their plates draw above characters (z 6) and below the hero (z 10). */
+/**
+ * Critter level labels draw on their plates above characters (z 6) — but
+ * under fog (z 8), which must keep hiding what's behind it, and the hero (z 10).
+ */
 const LABEL_Z = 7;
 const LABEL_PLATE_OPACITY = 0.7;
 /** Seconds after Calm wears off before a critter you're touching starts a battle. */
@@ -1044,7 +1047,7 @@ export default function WorldCanvas({
         k.pos(px, labelY),
         k.anchor('center'),
         k.color(...DANGER[enemy.tier ?? BASE_TIER].mapColor),
-        k.z(LABEL_Z + 1),
+        k.z(LABEL_Z + 0.5),
       ]) as unknown as Part & { width?: number; height?: number };
       const labelPlate = k.add([
         k.rect((label.width ?? labelText.length * 7) + 8, (label.height ?? 12) + 4, { radius: 3 }),
