@@ -106,6 +106,9 @@ export default function MenuOverlay({
 
         <WorldMapPanel zoneId={save.zoneId} pos={save.pos} flags={save.flags} />
 
+        {/* Field spells sit under the map: see where to go, then fly there with Return. */}
+        <FieldSpellsPanel save={save} calmLeft={calmLeft} onCast={onCast} />
+
         <div className="flex items-center gap-3 bg-white/10 rounded-xl p-3 mb-3">
           <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={1.25} className="text-3xl" />
           <div className="flex-1">
@@ -197,8 +200,6 @@ export default function MenuOverlay({
             )}
           </div>
         )}
-
-        <FieldSpellsPanel save={save} calmLeft={calmLeft} onCast={onCast} />
 
         <div className="bg-white/10 rounded-xl p-3 mb-3">
           <div className="font-bold text-sm mb-2">📖 Spellbook</div>

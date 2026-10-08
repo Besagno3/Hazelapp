@@ -160,7 +160,8 @@ zod, react-query. Add the package in the same change that first uses it.
   `lit:<zone>` in a dark place (`ZoneDef.dark`: a small circle of light and
   `pitch` rects that block like fog until lit; a 🔆 HUD button appears there);
   **Calm** fills `calmRef` (seconds, counted down by the canvas while the world
-  runs) — critters fade and don't start battles, bosses still do. Arriving
+  runs) — critters fade and don't start battles, bosses still do; when it
+  wears off a critter you're touching waits `CALM_GRACE` (1.5 s). Arriving
   anywhere sets `visited:<zone>`.
   **Dungeons** (#75 item 10, `content/dungeons.ts`): a floor is an ordinary
   `dungeon` zone (saves your place, critters, chests, NPCs, maybe bigger than
@@ -335,6 +336,26 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-08 — Field spells review fixes: Calm's grace, a darker mine, spells up the menu (#75 item 9, #102h)
+`/saas-code-review` + `/saas-ux-review` of item 9, run in a fresh session
+(the trial, the menu, Return, Calm and the Echo Mine played in headless
+Chromium against a stubbed Supabase, desktop and 375 px). The code held up —
+no bugs on a common path; three fixes:
+- **Calm's grace:** Calm running out while the hero stood on a critter started
+  the battle in the same frame (bench: 0 s in 2 of 3 runs). Now the canvas
+  sets `CALM_GRACE` (1.5 s) of trigger cooldown as it wears off, so a kid can
+  step away (bench: 1.5–2.5 s).
+- **The unlit mine looks dark, not broken:** outside the light circle the map
+  was only ~90% dark, so the pitch-dark doorway (fully opaque) showed as a
+  hard black box over a visible map. The unlit edge is now 95%: the doorway
+  blends into the dark, Miner Mabel's name and the chest still glint faintly.
+- **✨ Field spells sits under the menu's map** (was below Ember, battle
+  friends, quests and secrets — a long scroll on a phone for Return).
+- Logged in #102: the LEVEL / STREAK badges cover the zone name and overlay
+  titles on a phone (pre-existing), and the trial's XP skips the Scholar
+  bonus like gates and chests do.
+- 581 tests green, lint + build clean.
 
 ### 2026-10-07 — Dungeon review fixes (#75 item 10)
 `/saas-code-review` + `/saas-ux-review` of item 10 — every finding fixed but one:
