@@ -109,7 +109,11 @@ zod, react-query. Add the package in the same change that first uses it.
   Floor 1…, the boss at the bottom — floors are ordinary zones joined by
   `>` / `<` stairs exits), `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
-  Fiends, #58), `items.ts` (shop + economy tuning), `secrets.ts` (hidden secrets per
+  Fiends, #58), `items.ts` (shop + economy tuning), `quests.ts` (quests as
+  ordered steps — chest / defeat / talk / secret, and since #75 item 13 *have*
+  (carry an item, any of its forms) and *bring* (hand it to an NPC, who may
+  hand back something new) steps; `openChest` pays a key-item chest's
+  `ZoneDef.keyChests` item), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
@@ -292,6 +296,7 @@ python3 tools/tiled/tiled.py legend                                    # rebuild
 python3 tools/assets/build.py spells   # art for the field-spell places + keepers only (#75 item 9)
 python3 tools/assets/build.py dungeon  # the Depths' lower floors + the stairs sheet only (#75 item 10)
 python3 tools/assets/build.py inns     # the innkeepers + travelers' sprites only (#75 item 11)
+python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
 ```
 
 ## Error handling
@@ -345,6 +350,39 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-08 — Item chains: have / bring steps, key-item chests, the Hermit's Moonstone (#75 item 13)
+Roadmap item 13: side quests can now send you to find a thing, change it and
+bring it home.
+- **Two new quest steps** (`content/quests.ts`): `haveStep` — carry each
+  listed item; a target can name several forms of one thing (the Moonstone,
+  then the same stone cut), any of which counts, so a later step that changes
+  the item doesn't undo it; the hint names what's still missing. `bringStep` —
+  hand a carried item to another NPC (`QuestStep.trade`: `takes`, optional
+  `gives`); their step lines only play while the item is in hand
+  (`questConversation` skips them otherwise), and the hand-over swaps the
+  items as the conversation closes.
+- **Key-item chests** (`ZoneDef.keyChests`, `chestKeyItem`): a riddle-chest
+  that also holds a quest item. `openChest` (quests.ts) now opens every chest
+  — coins, plus the item from a key-item chest, once — and
+  `PathQuestionOverlay` says "The chest pops open — 25 coins and the 🌙
+  Moonstone!" (`chestRewardText`).
+- **"The Hermit's Moonstone"** (side quest): **Hermit Moss** 🏮 (new, on the
+  hill beside the Echo Mine at Dawnreach 60,20) wants a stone for his
+  moon-lamp. The Moonstone 🌙 sits in a new chest at the end of the mine's
+  oldest seam (8,7 — behind the pitch dark, so it needs Glow; the hint names
+  Old Wren until Glow is known); **Miner Mabel** cuts it (💠 Cut Moonstone);
+  Moss takes it back: 50 coins and a Honey Elixir.
+- **Art:** Moss's sprite (`python3 tools/assets/build.py quests`; the manifest
+  only gained his entry).
+- Tests: +8 (quests.test: key-item chests are chests, reachable, holding an
+  item a quest needs; every item taken can be had first; the Moonstone's chest
+  needs Glow; `openChest` pays once; the chain end to end; a stone found
+  before meeting Moss; a bring step waits for its item); 613 green, lint +
+  build clean. Checked in headless Chromium at desktop and 375 px: Moss's
+  offer and quest-log hint, the alcove chest's riddle and Moonstone, Mabel's
+  cut, Moss's reward. Numbers: #106 and TC-620–626, leaving #105 and
+  TC-609–619 for item 12 (built in parallel). Follow-ups: #106.
 
 ### 2026-10-08 — Pitch dark fades in at its edges (#75 item 10, #103)
 A fresh-eyes `/saas-code-review` + `/saas-ux-review` of item 10 after the

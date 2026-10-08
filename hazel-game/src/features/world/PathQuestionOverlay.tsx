@@ -6,7 +6,7 @@ import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
-import { CHEST_COINS } from '../../content/items';
+import { chestRewardText, openChest } from '../../content/quests';
 import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
 import { topicInfo } from '../../content/topics';
@@ -79,11 +79,8 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         update((s) => ({ ...s, flags: { ...s.flags, [gateFlag(target.id)]: true } }));
       } else {
         sfx('chest');
-        update((s) => ({
-          ...s,
-          openedChests: [...s.openedChests, target.id],
-          coins: s.coins + CHEST_COINS,
-        }));
+        // Coins, plus the quest item in a key-item chest (#75 item 13).
+        update((s) => openChest(s, target.id));
       }
     },
     [addXp, target, update],
@@ -94,7 +91,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const successText =
     target.kind === 'gate'
       ? 'The gate swings open!'
-      : `The chest pops open — ${CHEST_COINS} coins! 🪙`;
+      : `The chest pops open — ${chestRewardText(target.id)}`;
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/60 p-4">

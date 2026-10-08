@@ -1,6 +1,7 @@
 import type { SaveData, ZoneId } from '../types';
-import { secretFlag } from './zones';
-import type { ConsumableId } from './items';
+import { chestKeyItem, secretFlag } from './zones';
+import { CHEST_COINS, type ConsumableId } from './items';
+import { knowsFieldSpell } from './fieldSpells';
 
 /**
  * Zone quests (#37 story pass, #42 variety). Quests are ordered steps over
@@ -11,6 +12,9 @@ import type { ConsumableId } from './items';
  * - defeat steps  — lifetime kill counts per enemy def (save.kills)
  * - talk steps    — speak to a named NPC, who advances the quest
  * - secret steps  — find hidden secrets (village expansion; content/secrets.ts)
+ * - have steps    — carry a quest item, e.g. from a key-item chest (#75 item 13)
+ * - bring steps   — hand a carried item to another NPC, who may give back
+ *                   something new — the item, changed (#75 item 13)
  *
  * Conversations resolve through `questConversation(npcId, save)`:
  * the giver speaks offer / current-step hint / completion; step-target NPCs
@@ -35,6 +39,9 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'brass-gear': { id: 'brass-gear', name: 'Brass Gear', emoji: '⚙️' },
   'silver-gear': { id: 'silver-gear', name: 'Silver Gear', emoji: '🔘' },
   'lost-painting': { id: 'lost-painting', name: '"Sunrise in Seven Colours"', emoji: '🖼️' },
+  // Item chains (#75 item 13): found in a key-item chest, cut by Miner Mabel.
+  moonstone: { id: 'moonstone', name: 'Moonstone', emoji: '🌙' },
+  'cut-moonstone': { id: 'cut-moonstone', name: 'Cut Moonstone', emoji: '💠' },
 };
 
 export interface QuestStep {
@@ -44,6 +51,11 @@ export interface QuestStep {
   isComplete: (save: SaveData) => boolean;
   /** Set when this step is fulfilled by talking to another NPC. */
   npc?: { id: string; lines: string[] };
+  /**
+   * A bring step's hand-over (#75 item 13): talking to `npc` takes `takes`
+   * (only while it's carried) and hands back `gives`, if any.
+   */
+  trade?: { takes: string; gives?: string };
 }
 
 export interface QuestDef {
@@ -109,6 +121,50 @@ function secretStep(id: string, targets: { secretId: string; label: string }[], 
       return left.length === 0 || targets.length === 1 ? intro : `${intro} Still hidden: ${left.map((t) => t.label).join(', ')}.`;
     },
     isComplete: (save) => targets.every((t) => save.flags[secretFlag(t.secretId)] === true),
+  };
+}
+
+/**
+ * Carry each listed item (#75 item 13) — any order; the hint names what's
+ * still missing. A target can name several forms of one thing (a stone, then
+ * the same stone cut), and carrying any of them counts, so a later bring step
+ * that changes the item doesn't undo this one.
+ */
+function haveStep(
+  id: string,
+  targets: { items: string[]; label: string }[],
+  intro: string | ((save: SaveData) => string),
+): QuestStep {
+  const carrying = (save: SaveData, t: { items: string[] }) => t.items.some((i) => save.questItems.includes(i));
+  return {
+    id,
+    hint: (save) => {
+      const lead = typeof intro === 'function' ? intro(save) : intro;
+      const left = targets.filter((t) => !carrying(save, t));
+      return left.length === 0 || targets.length === 1 ? lead : `${lead} Still to find: ${left.map((t) => t.label).join(', ')}.`;
+    },
+    isComplete: (save) => targets.every((t) => carrying(save, t)),
+  };
+}
+
+/**
+ * Bring a carried item to another NPC (#75 item 13). While this step is
+ * active and the item is carried, talking to them hands it over — and they
+ * may hand back `gives` (the item, changed).
+ */
+function bringStep(
+  id: string,
+  npcId: string,
+  trade: { takes: string; gives?: string },
+  lines: string[],
+  hint: string,
+): QuestStep {
+  return {
+    id,
+    hint,
+    npc: { id: npcId, lines },
+    trade,
+    isComplete: (save) => save.flags[stepFlag(id)] === true,
   };
 }
 
@@ -613,6 +669,52 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { coins: 40, items: { ward: 1 } },
   },
+
+  // --- Item chains (#75 item 13) ----------------------------------------------
+
+  // Find a key item in a dungeon chest (behind the Echo Mine's dark — Glow),
+  // have it cut by Miner Mabel, bring it home to the hermit.
+  {
+    id: 'hermit-moonstone',
+    zoneId: 'dawnreach',
+    giverNpcId: 'dawnreach-hermit',
+    side: true,
+    title: "The Hermit's Moonstone",
+    offer: [
+      "Hello, traveler. I'm Moss. I've lived on this hill since before the fog, reading the stars by my moon-lamp.",
+      'But the lamp\'s old stone cracked, and without it the night sky is too dim to read.',
+      'The miners once found a Moonstone at the end of the Echo Mine\'s oldest seam, and left it there in a chest.',
+      'Bring it out, and ask Miner Mabel at the mine mouth to cut it — her paws know stone. Then bring it to me?',
+    ],
+    steps: [
+      haveStep(
+        'moonstone-find',
+        [{ items: ['moonstone', 'cut-moonstone'], label: 'the Moonstone' }],
+        (save) =>
+          knowsFieldSpell('glow', save.flags)
+            ? "The Moonstone's chest is at the end of the Echo Mine's oldest seam, just over the hill. It's pitch dark in there — cast 🔆 Glow!"
+            : "The Moonstone's chest is at the end of the Echo Mine's oldest seam, just over the hill. It's pitch dark in there — Old Wren at the Shrine of First Light knows a spell for light.",
+      ),
+      bringStep(
+        'moonstone-cut',
+        'mine-miner',
+        { takes: 'moonstone', gives: 'cut-moonstone' },
+        [
+          'Is that… a Moonstone? From the old seam? I haven\'t seen one since I was a pup!',
+          'For Moss\'s lamp? Hold still… tap, tap… *tink*. There — seven little faces, to catch the moon.',
+          '✨ You got the Cut Moonstone! Take it up the hill to Moss. Tell him Mabel says hello.',
+        ],
+        'You have the Moonstone! Ask Miner Mabel, at the mouth of the Echo Mine, to cut it.',
+      ),
+    ],
+    takesItems: ['cut-moonstone'],
+    complete: [
+      'Mabel\'s work — I\'d know it anywhere. Seven faces, every one catching the light.',
+      '*click* — the moon-lamp glows. Look up: every star over Dawnreach, sharp as new.',
+      '✨ Reward: 50 coins and a Honey Elixir!',
+    ],
+    reward: { coins: 50, items: { elixir: 1 } },
+  },
 ];
 
 // --- Resolution -----------------------------------------------------------------
@@ -701,15 +803,50 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
     const step = activeStep(q, save);
     if (step?.npc && step.npc.id === npcId) {
       const flag = stepFlag(step.id);
+      const trade = step.trade;
+      // A bring step waits until the item is in hand (#75 item 13).
+      if (trade && !save.questItems.includes(trade.takes)) continue;
       return {
         lines: step.npc.lines,
         badge: q.title,
         finishKind: 'step',
-        finish: (s) => ({ ...s, flags: { ...s.flags, [flag]: true } }),
+        finish: (s) => ({
+          ...s,
+          questItems: trade ? tradeItems(s.questItems, trade) : s.questItems,
+          flags: { ...s.flags, [flag]: true },
+        }),
       };
     }
   }
   return null;
+}
+
+/** Carried items after a bring step's hand-over: `takes` goes, `gives` (if any) arrives once. */
+function tradeItems(items: string[], trade: { takes: string; gives?: string }): string[] {
+  const kept = items.filter((i) => i !== trade.takes);
+  return trade.gives && !kept.includes(trade.gives) ? [...kept, trade.gives] : kept;
+}
+
+/**
+ * Open a riddle-chest (path-target id): mark it opened and pay its coins,
+ * plus its quest item if it's a key-item chest (#75 item 13). Opening one
+ * twice changes nothing.
+ */
+export function openChest(save: SaveData, chestId: string): SaveData {
+  if (save.openedChests.includes(chestId)) return save;
+  const item = chestKeyItem(chestId);
+  return {
+    ...save,
+    openedChests: [...save.openedChests, chestId],
+    coins: save.coins + CHEST_COINS,
+    questItems: item && !save.questItems.includes(item) ? [...save.questItems, item] : save.questItems,
+  };
+}
+
+/** What a chest gives, for its "pops open" line: "25 coins! 🪙" or "25 coins and the 🌙 Moonstone!". */
+export function chestRewardText(chestId: string): string {
+  const info = QUEST_ITEMS[chestKeyItem(chestId) ?? ''];
+  return info ? `${CHEST_COINS} coins and the ${info.emoji} ${info.name}!` : `${CHEST_COINS} coins! 🪙`;
 }
 
 /** Quests accepted but not finished — for the menu's quest log. */

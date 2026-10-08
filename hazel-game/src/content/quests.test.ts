@@ -8,14 +8,29 @@ import {
   activeQuests,
   resolveHint,
   QUEST_ITEMS,
+  openChest,
+  chestRewardText,
 } from './quests';
-import { ZONES, pathTargetId } from './zones';
+import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, reachableOnFoot, tileAt } from './zones';
+import { fieldSpellFlag } from './fieldSpells';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
 import { defaultSave } from '../lib/save';
 import type { SaveData } from '../types';
 import { ALL_SECRETS, claimSecret, secretById } from './secrets';
+
+/** Every key-item chest in the world (#75 item 13). */
+const KEY_CHESTS = Object.values(ZONES).flatMap((z) => (z.keyChests ?? []).map((c) => ({ z, ...c })));
+
+/** Can this quest item be had somewhere: a secret, a key-item chest, or a bring step's hand-back? */
+function obtainable(item: string): boolean {
+  return (
+    ALL_SECRETS.some((s) => s.secret.reward.questItem === item) ||
+    KEY_CHESTS.some((c) => c.item === item) ||
+    QUESTS.some((q) => q.steps.some((st) => st.trade?.gives === item))
+  );
+}
 
 function byId(id: string) {
   const q = QUESTS.find((x) => x.id === id);
@@ -218,12 +233,11 @@ describe('town side quests (village expansion)', () => {
     expect(new Set(givers).size).toBe(givers.length);
   });
 
-  it('items a quest takes back exist, and are found in a secret or handed over', () => {
+  it('items a quest takes back exist, and are found in a secret or chest, or handed over', () => {
     for (const q of QUESTS) {
       for (const item of q.takesItems ?? []) {
         expect(QUEST_ITEMS[item], `${q.id} item ${item}`).toBeDefined();
-        const fromSecret = ALL_SECRETS.some((s) => s.secret.reward.questItem === item);
-        expect(fromSecret || q.givesItem === item, `${q.id} ${item} obtainable`).toBe(true);
+        expect(obtainable(item) || q.givesItem === item, `${q.id} ${item} obtainable`).toBe(true);
       }
     }
   });
@@ -286,5 +300,116 @@ describe('town side quests (village expansion)', () => {
     save = converse('gearfall-apprentice', save);
     expect(save.flags[questDoneFlag(quest)]).toBe(true);
     expect(save.items.spark).toBe(1);
+  });
+});
+
+describe('item chains (#75 item 13)', () => {
+  const MOONSTONE_CHEST = pathTargetId('echo-mine', 'chest', 8, 7);
+  const neighbours = (x: number, y: number) => [`${x + 1},${y}`, `${x - 1},${y}`, `${x},${y + 1}`, `${x},${y - 1}`];
+
+  it('each key-item chest is a riddle-chest you can reach, holding a known item some quest needs', () => {
+    expect(KEY_CHESTS.length).toBeGreaterThan(0);
+    for (const c of KEY_CHESTS) {
+      expect(tileAt(c.z, c.x, c.y), `${c.z.id} (${c.x},${c.y}) is a chest`).toBe('C');
+      expect(c.z.topic, `${c.z.id} has a riddle topic`).toBeDefined();
+      expect(QUEST_ITEMS[c.item], `${c.item} is a quest item`).toBeDefined();
+      // Reachable with every fog lifted and every dark place lit.
+      const open = reachableOnFoot(c.z, null);
+      expect(neighbours(c.x, c.y).some((k) => open.has(k)), `${c.z.id} chest reachable`).toBe(true);
+      const needed = QUESTS.some((q) => q.takesItems?.includes(c.item) || q.steps.some((st) => st.trade?.takes === c.item));
+      expect(needed, `${c.item} is needed by a quest`).toBe(true);
+    }
+  });
+
+  it('every item a bring step takes can be had first', () => {
+    for (const q of QUESTS) {
+      for (const st of q.steps) {
+        if (st.trade) expect(obtainable(st.trade.takes) || q.givesItem === st.trade.takes, `${q.id} ${st.trade.takes}`).toBe(true);
+      }
+    }
+  });
+
+  it("the Moonstone's chest sits behind the Echo Mine's dark until Glow lights it", () => {
+    const mine = ZONES['echo-mine'];
+    expect(mine.keyChests).toEqual([{ x: 8, y: 7, item: 'moonstone' }]);
+    const reach = (flags: Record<string, boolean>) => neighbours(8, 7).some((k) => reachableOnFoot(mine, flags).has(k));
+    expect(reach({})).toBe(false);
+    expect(reach({ [litFlag('echo-mine')]: true })).toBe(true);
+  });
+
+  it('Hermit Moss stands on open ground on Dawnreach', () => {
+    const at = ZONES.dawnreach.npcs.find((p) => p.defId === 'dawnreach-hermit');
+    expect(at).toBeDefined();
+    expect(WALKABLE_CHARS.has(tileAt(ZONES.dawnreach, at!.x, at!.y))).toBe(true);
+    expect(NPC_DEFS['dawnreach-hermit']).toBeDefined();
+  });
+
+  it('opening a key-item chest pays its coins and the item, once', () => {
+    let save = openChest(defaultSave(), MOONSTONE_CHEST);
+    expect(save.openedChests).toContain(MOONSTONE_CHEST);
+    expect(save.questItems).toEqual(['moonstone']);
+    expect(save.coins).toBe(25);
+    expect(openChest(save, MOONSTONE_CHEST)).toBe(save); // a second time changes nothing
+    // An ordinary chest still pays coins only.
+    const plain = pathTargetId('echo-mine', 'chest', 19, 2);
+    save = openChest(save, plain);
+    expect(save.questItems).toEqual(['moonstone']);
+    expect(save.coins).toBe(50);
+    expect(chestRewardText(MOONSTONE_CHEST)).toBe('25 coins and the 🌙 Moonstone!');
+    expect(chestRewardText(plain)).toBe('25 coins! 🪙');
+  });
+
+  it("the Hermit's Moonstone: offer → the mine's chest → Mabel cuts it → Moss takes it", () => {
+    const quest = byId('hermit-moonstone');
+    let save = converse('dawnreach-hermit', defaultSave());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    // Before Glow the hint points at Old Wren; after, at the spell.
+    expect(questConversation('dawnreach-hermit', save)!.lines[0]).toMatch(/Old Wren/);
+    const glowing = { ...save, flags: { ...save.flags, [fieldSpellFlag('glow')]: true } };
+    expect(questConversation('dawnreach-hermit', glowing)!.lines[0]).toMatch(/cast 🔆 Glow/);
+    // Mabel has nothing to cut yet.
+    expect(questConversation('mine-miner', save)).toBeNull();
+
+    save = openChest(save, MOONSTONE_CHEST);
+    expect(resolveHint(activeStep(quest, save)!, save)).toMatch(/Miner Mabel/);
+    const cut = questConversation('mine-miner', save)!;
+    expect(cut.finishKind).toBe('step');
+    save = cut.finish!(save);
+    expect(save.questItems).toEqual(['cut-moonstone']);
+    // The changed stone still counts for the first step, so the quest is ready to finish.
+    expect(activeStep(quest, save)).toBeNull();
+
+    const coins = save.coins;
+    const elixirs = save.items.elixir;
+    save = converse('dawnreach-hermit', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual([]);
+    expect(save.coins).toBe(coins + 50);
+    expect(save.items.elixir).toBe(elixirs + 1);
+    // Afterwards Moss speaks his own lines and Mabel hers.
+    expect(questConversation('dawnreach-hermit', save)).toBeNull();
+    expect(questConversation('mine-miner', save)).toBeNull();
+  });
+
+  it('a Moonstone found before meeting Moss: he offers, then sends you to Mabel', () => {
+    const quest = byId('hermit-moonstone');
+    let save = openChest(defaultSave(), MOONSTONE_CHEST);
+    const offer = questConversation('dawnreach-hermit', save)!;
+    expect(offer.finishKind).toBe('offer');
+    save = offer.finish!(save);
+    expect(activeStep(quest, save)!.id).toBe('moonstone-cut');
+    expect(questConversation('mine-miner', save)!.finishKind).toBe('step');
+  });
+
+  it('a bring step waits until the item is in hand', () => {
+    const quest = byId('hermit-moonstone');
+    // An odd save: the quest's second step is up, but the raw Moonstone isn't carried.
+    const save: SaveData = {
+      ...defaultSave(),
+      questItems: ['cut-moonstone'],
+      flags: { ...defaultSave().flags, [questOfferedFlag(quest)]: true },
+    };
+    expect(activeStep(quest, save)!.id).toBe('moonstone-cut');
+    expect(questConversation('mine-miner', save)).toBeNull();
   });
 });
