@@ -351,6 +351,40 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-08 — Item chains review fixes: hand-overs stick, hints that fit, "go back to Moss" (#75 item 13, #106)
+A fresh-context `/saas-code-review` + `/saas-ux-review` of item 13 (a reviewer
+with none of the build's context; it played the chain in headless Chromium
+too). Fixed:
+- **A hand-over never undoes a find (code, medium):** a have step only looked
+  at what's carried, so a future chain whose bring step *keeps* the item (no
+  `gives`) would have dropped back to "go find it" — and the chest pays once,
+  so the quest would be stuck for good. A bring step now also sets
+  `handedOverFlag(item)`, and a have step counts an item handed over. (The
+  Moonstone also lists its cut form, so either keeps it complete.)
+- **Item ids can't drift (code, low):** `QuestStep.needs` records a have
+  step's items, and a test checks that every item a chest, step, hand-over,
+  gift or take-back names is in `QUEST_ITEMS` (a typo used to compile and
+  silently strand a quest).
+- **The hint fits the mine (UX, medium):** once the Echo Mine is lit — the
+  usual case, since Wren, Poppy and Mabel all send you to light it — Moss
+  said "pitch dark, cast Glow" while the menu said "Nothing dark to light
+  here". Now three cases: no Glow → Old Wren; Glow → cast it inside; lit →
+  "go up the left-hand tunnel and look in the little nook for a 🎁".
+- **Words kids know (UX):** "oldest seam" and "mine mouth" became "a little
+  nook deep in the Echo Mine, the cave beside my hill" and "just inside the
+  mine".
+- **Who to go back to (UX):** the menu's quest log said "Done — go collect
+  your reward!" for every quest; it now names the giver ("Done — go back to
+  Hermit Moss for your reward!").
+- **Name plates:** Moss moved one tile east (61,20) so his plate no longer
+  runs into "Echo Mine".
+- `chestTopicAt` got its doc comment back (it had slid onto `chestKeyItem`).
+- Logged (#106g): a Moonstone found before meeting Moss comes with no hint of
+  who wants it.
+- 614 tests green, lint + build clean; the full chain replayed in headless
+  Chromium at desktop and 375 px (the lit-mine hint, "go back to Hermit Moss",
+  the plates).
+
 ### 2026-10-08 — Item chains: have / bring steps, key-item chests, the Hermit's Moonstone (#75 item 13)
 Roadmap item 13: side quests can now send you to find a thing, change it and
 bring it home.
@@ -368,7 +402,7 @@ bring it home.
   `PathQuestionOverlay` says "The chest pops open — 25 coins and the 🌙
   Moonstone!" (`chestRewardText`).
 - **"The Hermit's Moonstone"** (side quest): **Hermit Moss** 🏮 (new, on the
-  hill beside the Echo Mine at Dawnreach 60,20) wants a stone for his
+  hill beside the Echo Mine at Dawnreach 61,20) wants a stone for his
   moon-lamp. The Moonstone 🌙 sits in a new chest at the end of the mine's
   oldest seam (8,7 — behind the pitch dark, so it needs Glow; the hint names
   Old Wren until Glow is known); **Miner Mabel** cuts it (💠 Cut Moonstone);

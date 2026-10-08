@@ -1,5 +1,5 @@
 import type { SaveData, ZoneId } from '../types';
-import { chestKeyItem, secretFlag } from './zones';
+import { chestKeyItem, litFlag, secretFlag } from './zones';
 import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 
@@ -56,6 +56,8 @@ export interface QuestStep {
    * (only while it's carried) and hands back `gives`, if any.
    */
   trade?: { takes: string; gives?: string };
+  /** A have step's items (#75 item 13), every form of every target — for the content tests. */
+  needs?: string[];
 }
 
 export interface QuestDef {
@@ -127,17 +129,20 @@ function secretStep(id: string, targets: { secretId: string; label: string }[], 
 /**
  * Carry each listed item (#75 item 13) — any order; the hint names what's
  * still missing. A target can name several forms of one thing (a stone, then
- * the same stone cut), and carrying any of them counts, so a later bring step
- * that changes the item doesn't undo this one.
+ * the same stone cut), and carrying any of them counts. An item already
+ * handed over in a bring step still counts (`handedOverFlag`), so a later
+ * step that takes it away never sends the hero back to find it again.
  */
 function haveStep(
   id: string,
   targets: { items: string[]; label: string }[],
   intro: string | ((save: SaveData) => string),
 ): QuestStep {
-  const carrying = (save: SaveData, t: { items: string[] }) => t.items.some((i) => save.questItems.includes(i));
+  const carrying = (save: SaveData, t: { items: string[] }) =>
+    t.items.some((i) => save.questItems.includes(i) || save.flags[handedOverFlag(i)] === true);
   return {
     id,
+    needs: targets.flatMap((t) => t.items),
     hint: (save) => {
       const lead = typeof intro === 'function' ? intro(save) : intro;
       const left = targets.filter((t) => !carrying(save, t));
@@ -166,6 +171,11 @@ function bringStep(
     trade,
     isComplete: (save) => save.flags[stepFlag(id)] === true,
   };
+}
+
+/** Save flag: this quest item was handed over in a bring step (#75 item 13). */
+export function handedOverFlag(item: string): string {
+  return `quest-item:${item}:handed-over`;
 }
 
 export function stepFlag(stepId: string): string {
@@ -683,17 +693,19 @@ export const QUESTS: QuestDef[] = [
     offer: [
       "Hello, traveler. I'm Moss. I've lived on this hill since before the fog, reading the stars by my moon-lamp.",
       'But the lamp\'s old stone cracked, and without it the night sky is too dim to read.',
-      'The miners once found a Moonstone at the end of the Echo Mine\'s oldest seam, and left it there in a chest.',
-      'Bring it out, and ask Miner Mabel at the mine mouth to cut it — her paws know stone. Then bring it to me?',
+      'Long ago the miners found a Moonstone in the Echo Mine — that cave, right beside my hill — and left it in a chest, in a little nook.',
+      'Bring it out, and ask Miner Mabel, just inside the mine, to cut it — her paws know stone. Then bring it to me?',
     ],
     steps: [
       haveStep(
         'moonstone-find',
         [{ items: ['moonstone', 'cut-moonstone'], label: 'the Moonstone' }],
         (save) =>
-          knowsFieldSpell('glow', save.flags)
-            ? "The Moonstone's chest is at the end of the Echo Mine's oldest seam, just over the hill. It's pitch dark in there — cast 🔆 Glow!"
-            : "The Moonstone's chest is at the end of the Echo Mine's oldest seam, just over the hill. It's pitch dark in there — Old Wren at the Shrine of First Light knows a spell for light.",
+          save.flags[litFlag('echo-mine')]
+            ? "The Echo Mine's lamps are lit now! Go up the left-hand tunnel and look in the little nook for a 🎁 — that's the Moonstone's chest."
+            : knowsFieldSpell('glow', save.flags)
+              ? "The Moonstone's chest is in a little nook deep in the Echo Mine, the cave beside my hill. It's pitch dark in there — cast 🔆 Glow inside!"
+              : "The Moonstone's chest is in a little nook deep in the Echo Mine, the cave beside my hill. It's too dark to find without a light — Old Wren at the Shrine of First Light knows a light spell.",
       ),
       bringStep(
         'moonstone-cut',
@@ -704,7 +716,7 @@ export const QUESTS: QuestDef[] = [
           'For Moss\'s lamp? Hold still… tap, tap… *tink*. There — seven little faces, to catch the moon.',
           '✨ You got the Cut Moonstone! Take it up the hill to Moss. Tell him Mabel says hello.',
         ],
-        'You have the Moonstone! Ask Miner Mabel, at the mouth of the Echo Mine, to cut it.',
+        'You have the Moonstone! Ask Miner Mabel, just inside the Echo Mine, to cut it.',
       ),
     ],
     takesItems: ['cut-moonstone'],
@@ -813,7 +825,7 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
         finish: (s) => ({
           ...s,
           questItems: trade ? tradeItems(s.questItems, trade) : s.questItems,
-          flags: { ...s.flags, [flag]: true },
+          flags: { ...s.flags, [flag]: true, ...(trade ? { [handedOverFlag(trade.takes)]: true } : {}) },
         }),
       };
     }

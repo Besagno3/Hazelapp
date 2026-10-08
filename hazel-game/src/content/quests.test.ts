@@ -10,6 +10,7 @@ import {
   QUEST_ITEMS,
   openChest,
   chestRewardText,
+  handedOverFlag,
 } from './quests';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, reachableOnFoot, tileAt } from './zones';
 import { fieldSpellFlag } from './fieldSpells';
@@ -363,10 +364,13 @@ describe('item chains (#75 item 13)', () => {
     const quest = byId('hermit-moonstone');
     let save = converse('dawnreach-hermit', defaultSave());
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
-    // Before Glow the hint points at Old Wren; after, at the spell.
+    // Before Glow the hint points at Old Wren; with Glow, at casting it; once
+    // the mine is lit, at the nook itself.
     expect(questConversation('dawnreach-hermit', save)!.lines[0]).toMatch(/Old Wren/);
     const glowing = { ...save, flags: { ...save.flags, [fieldSpellFlag('glow')]: true } };
     expect(questConversation('dawnreach-hermit', glowing)!.lines[0]).toMatch(/cast 🔆 Glow/);
+    const lit = { ...glowing, flags: { ...glowing.flags, [litFlag('echo-mine')]: true } };
+    expect(questConversation('dawnreach-hermit', lit)!.lines[0]).toMatch(/lamps are lit.*little nook/);
     // Mabel has nothing to cut yet.
     expect(questConversation('mine-miner', save)).toBeNull();
 
@@ -376,7 +380,10 @@ describe('item chains (#75 item 13)', () => {
     expect(cut.finishKind).toBe('step');
     save = cut.finish!(save);
     expect(save.questItems).toEqual(['cut-moonstone']);
-    // The changed stone still counts for the first step, so the quest is ready to finish.
+    // The raw stone is gone, but the cut one (and the handed-over flag) still
+    // count for the first step, so the quest is ready to finish — not back to
+    // "go find it".
+    expect(save.flags[handedOverFlag('moonstone')]).toBe(true);
     expect(activeStep(quest, save)).toBeNull();
 
     const coins = save.coins;
@@ -403,13 +410,27 @@ describe('item chains (#75 item 13)', () => {
 
   it('a bring step waits until the item is in hand', () => {
     const quest = byId('hermit-moonstone');
-    // An odd save: the quest's second step is up, but the raw Moonstone isn't carried.
+    // An odd save: the find step counts (the Moonstone was handed over once —
+    // the flag alone keeps a take-only trade from undoing it), so the cutting
+    // step is up, but no Moonstone is carried to hand over.
     const save: SaveData = {
       ...defaultSave(),
-      questItems: ['cut-moonstone'],
-      flags: { ...defaultSave().flags, [questOfferedFlag(quest)]: true },
+      flags: { ...defaultSave().flags, [questOfferedFlag(quest)]: true, [handedOverFlag('moonstone')]: true },
     };
     expect(activeStep(quest, save)!.id).toBe('moonstone-cut');
     expect(questConversation('mine-miner', save)).toBeNull();
+  });
+
+  it('every quest item a step, chest or hand-over names is a registered quest item', () => {
+    const named = [
+      ...KEY_CHESTS.map((c) => c.item),
+      ...QUESTS.flatMap((q) => [
+        ...(q.givesItem ? [q.givesItem] : []),
+        ...(q.takesItems ?? []),
+        ...q.steps.flatMap((st) => [...(st.needs ?? []), ...(st.trade ? [st.trade.takes] : []), ...(st.trade?.gives ? [st.trade.gives] : [])]),
+      ]),
+    ];
+    expect(named).toContain('moonstone');
+    for (const id of named) expect(QUEST_ITEMS[id], `quest item ${id}`).toBeDefined();
   });
 });

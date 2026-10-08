@@ -1364,7 +1364,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'dawnreach-sign-north', x: 41, y: 14 },
       { defId: 'dawnreach-sign-fork', x: 61, y: 31 },
       // Hermit Moss, on the hill beside the Echo Mine (#75 item 13).
-      { defId: 'dawnreach-hermit', x: 60, y: 20 },
+      { defId: 'dawnreach-hermit', x: 61, y: 20 },
     ],
     enemies: [
       { defId: 'thornhare', x: 30, y: 25 },
@@ -1693,7 +1693,6 @@ export function fogsToReveal(z: ZoneDef, flags: Record<string, boolean>): FogDef
   return (z.fogs ?? []).filter((f) => fogLifted(f, flags) && !flags[fogSeenFlag(f.id)]);
 }
 
-/** A chest's question topic: the one its fog bank names, else the zone's, else math. */
 /** The quest item in the chest with this path-target id, if it's a key-item chest (#75 item 13). */
 export function chestKeyItem(chestId: string): string | undefined {
   for (const z of Object.values(ZONES)) {
@@ -1703,6 +1702,7 @@ export function chestKeyItem(chestId: string): string | undefined {
   return undefined;
 }
 
+/** A chest's question topic: the one its fog bank names, else the zone's, else math. */
 export function chestTopicAt(z: ZoneDef, x: number, y: number): Topic {
   return z.fogs?.find((f) => f.chestTopic && f.guards.x === x && f.guards.y === y)?.chestTopic ?? z.topic ?? 'math';
 }
