@@ -35,7 +35,10 @@ in-game menu (📜 → 🔊 Audio).
 
 ## `16bit/music/` — seamless loops
 `title`, `overworld`, `battle`, `boss`, `spire`, `finalBoss`, `victory`
-(reserved) — see `trackForScreen` in `src/lib/audio.ts`.
+(reserved) — see `trackForScreen` in `src/lib/audio.ts`. Places: `town`,
+`cave`, `shrine`; the Spire's floors: `spireArchive`, `spireThicket`,
+`spireStars`, `spireEngine`; the sea (one per sea area, `SEA_TRACK`):
+`sailing`, `shallows`, `fogbank`.
 
 ## Older tracks
 The earlier player-supplied mp3s (`Overworld.mp3`, `Battle_Music.mp3`, …)

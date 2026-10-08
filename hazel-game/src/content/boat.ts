@@ -1,5 +1,5 @@
 import type { BoatSpot, SaveData } from '../types';
-import { SEA_CHARS, TILE, ZONES, tileAt } from './zones';
+import { GREAT_FOGBANK, SEA_CHARS, TILE, ZONES, fogLifted, tileAt } from './zones';
 import { nearestSea } from '../lib/travel';
 
 /**
@@ -75,3 +75,30 @@ export function boatFetch(npcId: string, save: SaveData): { lines: string[]; fin
 
 /** Old Marlow's NPC id (on Starfall Coast). */
 export const MARLOW = 'coast-fisher';
+
+/**
+ * The sea areas, each with its own music (`SEA_TRACK`, lib/audio.ts):
+ * Dawnreach's waters while you sail them (ashore it's the overworld theme),
+ * the Silver Shallows — its islets too, specks in it — and the water near the
+ * Great Fogbank while the fog stands.
+ */
+export const SEA_AREAS = ['dawnreach-waters', 'silver-shallows', 'great-fogbank'] as const;
+export type SeaArea = (typeof SEA_AREAS)[number];
+
+/** Within this many cells of the standing Great Fogbank, its music takes over. */
+export const FOGBANK_NEAR = 6;
+
+/** Which sea area the hero is in — null on land (and anywhere off the two sea maps). */
+export function seaAreaAt(save: Pick<SaveData, 'zoneId' | 'pos' | 'aboard' | 'flags'>): SeaArea | null {
+  if (save.zoneId === 'dawnreach') return save.aboard ? 'dawnreach-waters' : null;
+  if (save.zoneId !== 'silver-shallows') return null;
+  const fog = ZONES['silver-shallows'].fogs?.find((f) => f.id === GREAT_FOGBANK);
+  if (fog && save.pos && !fogLifted(fog, save.flags)) {
+    const x = Math.floor(save.pos.x / TILE);
+    const y = Math.floor(save.pos.y / TILE);
+    const dx = Math.max(fog.x - x, 0, x - (fog.x + fog.w - 1));
+    const dy = Math.max(fog.y - y, 0, y - (fog.y + fog.h - 1));
+    if (Math.max(dx, dy) <= FOGBANK_NEAR) return 'great-fogbank';
+  }
+  return 'silver-shallows';
+}

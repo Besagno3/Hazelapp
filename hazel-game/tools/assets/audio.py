@@ -559,3 +559,263 @@ def build(public: Path):
         encode(compose(spec), mdir / f'{name}.mp3', kbps=96, peak=0.8)
     for name, spec in SPOOKY.items():
         encode(compose_spooky(spec), mdir / f'{name}.mp3', kbps=96, peak=0.8)
+
+
+# ─── Sea music (#75 item 14) ─────────────────────────────────────────────────
+# One loop per sea area, with the sea itself in the mix:
+#   sailing  — Dawnreach's waters, aboard Marlow's boat: a jaunty 6/8 shanty
+#              (squeezebox lead, oom-pah-pah bass and chords, a shaker), waves
+#              and the odd gull;
+#   shallows — the Silver Shallows: calm and glittering, 6/8, a rolling
+#              arpeggio like light on the water, an ocarina tune, a chime;
+#   fogbank  — near the Great Fogbank: slow and misty, 4/4, a muffled
+#              foghorn, a rocking buoy bell, the Shallows' tune heard again in
+#              a minor key through the fog.
+# Unlike `compose`, the melodies are written out by hand (note:eighths,
+# bars split by '|'); the accompaniment is worked out from the chords. Song
+# form A A' B A'' (the fogbank: A B, then a bar-for-bar rest), so a loop runs
+# 40-60 s. Anything that rings past the end wraps round to the start, so the
+# loop is seamless. Seeded: rebuilds are byte-identical.
+
+SHANTY_A = ('D5:2 D5:1 F#5:2 A5:1 | A5:2 F#5:1 D5:3 | G5:2 G5:1 B5:2 G5:1 | E5:2 F#5:1 E5:3 | '
+            'D5:2 D5:1 F#5:2 A5:1 | B5:2 A5:1 F#5:2 D5:1 | G5:2 B4:1 C#5:2 E5:1 | D5:3 r:2 A4:1')
+SHANTY_A2 = ('D5:2 D5:1 F#5:2 A5:1 | D6:2 A5:1 F#5:3 | G5:2 B5:1 D6:2 B5:1 | A5:2 G5:1 E5:3 | '
+             'F#5:2 B5:1 A5:2 F#5:1 | G5:2 E5:1 D5:2 B4:1 | C#5:2 E5:1 A5:2 G5:1 | F#5:3 D5:3')
+SHANTY_B = ('B5:3 A5:2 F#5:1 | G5:3 D5:3 | F#5:3 E5:2 D5:1 | E5:5 r:1 | '
+            'B5:3 C#6:2 D6:1 | D6:3 B5:2 G5:1 | E5:2 G5:1 B5:2 A5:1 | A5:3 C#5:2 E5:1')
+
+SHALLOWS_A = ('E5:3 C#5:2 E5:1 | F#5:4 E5:2 | D5:3 F#5:2 A5:1 | B4:2 E5:1 G#5:3 | '
+              'A5:3 G#5:2 E5:1 | E5:3 C#5:2 G#4:1 | F#5:2 E5:1 D5:2 C#5:1 | B4:6')
+SHALLOWS_A2 = ('E5:3 C#5:2 E5:1 | F#5:4 A5:2 | D6:3 C#6:2 A5:1 | B5:3 G#5:3 | '
+               'A5:3 F#5:2 C#5:1 | D5:2 G#5:1 A5:3 | G#5:2 F#5:1 E5:2 D5:1 | C#5:6')
+SHALLOWS_B = ('A5:3 F#5:2 D5:1 | E5:3 C#5:3 | D5:2 F#5:1 B5:3 | G#5:6 | '
+              'F#5:2 A5:1 D6:3 | C#6:2 B5:1 G#5:3 | F#5:2 A5:1 D5:2 F#5:1 | G#4:3 B4:3')
+
+# The Shallows' opening, a fifth down in D minor and slowed, half lost in the fog.
+FOGBANK_A = ('r:2 A4:3 F4:1 A4:2 | Bb4:6 A4:2 | G4:3 Bb4:1 D5:4 | C#5:8 | '
+             'r:4 F5:2 E5:1 D5:1 | D5:6 r:2 | Eb5:4 G5:2 Bb4:2 | A4:8')
+FOGBANK_B = ('r:2 D5:3 Bb4:1 G4:2 | A4:6 r:2 | F4:3 G4:1 Bb4:4 | A4:4 r:4 | '
+             'r:8 | r:8 | r:8 | r:8')
+
+SEA = {
+    'sailing': dict(bpm=100, meter=6, key='D', scale=MAJOR, style='shanty', seed=113, parts=[
+        dict(chords='D D G A D Bm G/A D', tune=SHANTY_A),
+        dict(chords='D D G A Bm G A D', tune=SHANTY_A2),
+        dict(chords='Bm G D A Bm G Em A', tune=SHANTY_B),
+        dict(chords='D D G A D Bm G/A D', tune=SHANTY_A, duet=True),  # the crew joins in
+    ]),
+    'shallows': dict(bpm=66, meter=6, key='A', scale=MAJOR, style='roll', seed=127, parts=[
+        dict(chords='A F#m D E A C#m D E', tune=SHALLOWS_A),
+        dict(chords='A F#m D E F#m D E A', tune=SHALLOWS_A2),
+        dict(chords='D A Bm E D C#m Bm E', tune=SHALLOWS_B),
+        dict(chords='A F#m D E A C#m D E', tune=SHALLOWS_A, duet=True),
+    ]),
+    'fogbank': dict(bpm=60, meter=8, key='D', scale=MINOR, style='mist', seed=131, parts=[
+        dict(chords='Dm Bb Gm A Dm Bb Eb A', tune=FOGBANK_A),
+        dict(chords='Gm Dm Bb A Dm Bb Gm A', tune=FOGBANK_B),
+    ]),
+}
+
+
+def _bars(text: str, meter: int):
+    """'D5:2 F#5:1 | r:3 …' → one list of (midi or None, eighths) per bar; every bar must fill the meter."""
+    bars = []
+    for chunk in text.split('|'):
+        notes = [(None if nm == 'r' else midi(nm), int(n)) for nm, n in (tok.split(':') for tok in chunk.split())]
+        held = sum(n for _, n in notes)
+        assert held == meter, f'bar {len(bars) + 1} of "{text[:24]}…" holds {held} eighths, not {meter}'
+        bars.append(notes)
+    return bars
+
+
+def _osc(freq, dur, shape='tri', duty=0.5, vib=0.0, slide=0.0) -> np.ndarray:
+    """A pulse or 4-bit triangle with a vibrato that eases in, as a held note's would."""
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    f = freq * (1 + slide * t / max(dur, 1e-6))
+    if vib:
+        f = f * (1 + vib * np.sin(2 * np.pi * 5.0 * t) * np.clip(t * 3 - 0.4, 0, 1))
+    ph = (np.cumsum(f) / SR) % 1.0
+    if shape == 'tri':
+        return np.round((4 * np.abs(ph - 0.5) - 1) * 8) / 8
+    return np.where(ph < duty, 1.0, -1.0)
+
+
+def _third_below(m: int, scale) -> int:
+    """The scale note a third under m — the crew's (or the second ocarina's) line."""
+    steps = [m - k for k in range(1, 6) if (m - k) % 12 in scale]
+    return steps[1] if len(steps) > 1 else m - 3
+
+
+def _wave(dur, seed, muffle=0.12) -> np.ndarray:
+    """A wave washing in and drawing back: filtered noise, a slow swell, a long hiss out."""
+    n = int(dur * SR)
+    x = lowpass(noise(dur, 3.0, seed), muffle)
+    return x * np.interp(np.arange(n) / n, [0, 0.35, 0.5, 1], [0, 1, 0.65, 0])
+
+
+def _gull(seed) -> np.ndarray:
+    """'Kee-ow, kee-ow' — a quick rise, a long fall, twice."""
+    rnd = random.Random(seed)
+    out = []
+    for _ in range(2):
+        f0 = 1250 * (1 + rnd.random() * 0.15)
+        up = _osc(f0, 0.05, 'pulse', 0.25, slide=0.4)
+        down = _osc(f0 * 1.4, 0.2, 'pulse', 0.25, slide=-0.45)
+        cry = np.concatenate([up, down])
+        out += [cry * env(len(cry), 0.01, 0.05, 0.7, 0.08), np.zeros(int(0.07 * SR))]
+    return lowpass(np.concatenate(out), 0.35)
+
+
+def _bell(m: float, dur=2.2) -> np.ndarray:
+    """A struck bell: the note plus an inharmonic partial, dying away."""
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    tone = _osc(hz(m), dur, 'pulse', 0.5) * np.exp(-t * 2.2) + 0.4 * _osc(hz(m) * 2.76, dur, 'tri') * np.exp(-t * 4.5)
+    return tone * env(n, 0.001, 0.01, 1.0, 0.05)
+
+
+def _foghorn(m: int) -> np.ndarray:
+    """A soft, low diaphone 'hooo…' that sags at the end."""
+    main = _osc(hz(m), 2.2, 'pulse', 0.5) + 0.6 * _osc(hz(m + 7), 2.2, 'pulse', 0.5)
+    sag = _osc(hz(m), 0.5, 'pulse', 0.5, slide=-0.12) + 0.6 * _osc(hz(m + 7), 0.5, 'pulse', 0.5, slide=-0.12)
+    horn = np.concatenate([main, sag])
+    return lowpass(horn * env(len(horn), 0.35, 0.3, 0.8, 0.45), 0.05)
+
+
+def _fold(buf: np.ndarray, n: int) -> np.ndarray:
+    """Wrap whatever rings past the loop's end back onto its start."""
+    out = buf[:n].copy()
+    spill = buf[n:]
+    out[: len(spill)] += spill[:n]
+    return out
+
+
+def compose_sea(spec):
+    rnd = random.Random(spec['seed'])
+    meter, style = spec['meter'], spec['style']
+    e8 = 60 / spec['bpm'] / (3 if meter == 6 else 2)
+    bar = e8 * meter
+    key = NOTE_IDX[spec['key']]
+    scale = [(key + s) % 12 for s in spec['scale']]
+    bars = []  # (chords for the bar's halves, notes, duet?)
+    for part in spec['parts']:
+        tune = _bars(part['tune'], meter)
+        chords = part['chords'].split()
+        assert len(chords) == len(tune), f'{len(chords)} chords for {len(tune)} bars'
+        for ch, notes in zip(chords, tune):
+            halves = ch.split('/')
+            bars.append((halves if len(halves) == 2 else halves * 2, notes, part.get('duet', False)))
+    n = int(bar * len(bars) * SR)
+    pad = n + 6 * SR  # room for tails; folded back to the start at the end
+    lead, harm, bass, drums, sea = (np.zeros(pad) for _ in range(5))
+
+    for bi, (halves, notes, duet) in enumerate(bars):
+        t0 = bi * bar
+        # --- the tune (and in a duet, a second voice a third below)
+        t = t0
+        for m, length in notes:
+            if m is not None:
+                dur = length * e8 * (0.82 if style == 'shanty' and length == 1 else 0.94)
+                vib = 0.006 if length >= 3 else 0.0
+                if style == 'shanty':  # squeezebox: two reeds, a hair apart
+                    sig = _osc(hz(m), dur, 'pulse', 0.5, vib) + 0.6 * _osc(hz(m) * 1.004, dur, 'pulse', 0.25, vib)
+                    e = env(len(sig), 0.01, 0.08, 0.75, 0.05)
+                    mixin(lead, sig * e, t, 0.19)
+                    if duet:
+                        h = _osc(hz(_third_below(m, scale)), dur, 'pulse', 0.5)
+                        mixin(lead, h * env(len(h), 0.01, 0.08, 0.7, 0.05), t, 0.1)
+                elif style == 'roll':  # ocarina: a triangle with a little breath of pulse
+                    sig = _osc(hz(m), dur, 'tri', vib=vib) + 0.18 * _osc(hz(m), dur, 'pulse', 0.5, vib)
+                    mixin(lead, sig * env(len(sig), 0.03, 0.1, 0.8, 0.12), t, 0.3)
+                    if duet:
+                        h = _osc(hz(_third_below(m, scale)), dur, 'tri', vib=vib)
+                        mixin(lead, h * env(len(h), 0.03, 0.1, 0.75, 0.12), t, 0.18)
+                else:  # mist: a music box heard through fog
+                    sig = _osc(hz(m), dur, 'tri', vib=0.004)
+                    mixin(lead, sig * env(len(sig), 0.02, 0.35, 0.45, 0.4), t, 0.4)
+            t += length * e8
+
+        # --- accompaniment, one half-bar (one chord) at a time
+        half = meter // 2
+        for hi, ch in enumerate(halves):
+            root, tones = chord_notes(ch)
+            ivs = [(p - root) % 12 for p in tones]
+            ht = t0 + hi * half * e8
+            if style == 'shanty':
+                # oom (bass) pah pah (chord) — root on the first half, fifth on the second
+                b = 36 + root + (0 if hi == 0 or halves[0] != halves[1] else 7)
+                sig = _osc(hz(b), 2 * e8 * 0.9)
+                mixin(bass, sig * env(len(sig), 0.003, 0.05, 0.8, 0.04), ht, 0.45)
+                for k in (1, 2):
+                    for p in tones[:3]:
+                        c = _osc(hz(60 + (p - 60) % 12), e8 * 0.55, 'pulse', 0.25)
+                        mixin(harm, c * env(len(c), 0.002, 0.03, 0.5, 0.03), ht + k * e8, 0.055)
+                # a soft kick on the beat, a tap on the second, a shaker in between
+                if hi == 0:
+                    kick = _osc(110, 0.1, slide=-0.7)
+                    mixin(drums, kick * env(len(kick), 0.001, 0.03, 0.4, 0.04), ht, 0.45)
+                else:
+                    tap = noise(0.06, 2.0, 700 + bi) * env(int(0.06 * SR), 0.001, 0.02, 0.3, 0.03)
+                    mixin(drums, tap, ht, 0.16)
+                for k in range(3):
+                    sh = noise(0.035, 5, 720 + bi * 6 + hi * 3 + k) * env(int(0.035 * SR), 0.004, 0.01, 0.3, 0.015)
+                    mixin(drums, sh, ht + k * e8, 0.07 if k == 0 else 0.045)
+            elif style == 'roll':
+                # light on the water: root, fifth, octave, tenth … rolling up and back
+                r = 48 + root
+                if r < 52:
+                    r += 12
+                third = next((i for i in ivs if i in (3, 4)), 4)
+                pattern = [0, 7, 12] if hi == 0 else [12 + third, 12, 7]
+                for k, iv in enumerate(pattern):
+                    sig = _osc(hz(r + iv), e8 * 0.9, 'pulse', 0.125)
+                    mixin(harm, sig * env(len(sig), 0.004, 0.08, 0.35, 0.08), ht + k * e8, 0.09)
+                b = 36 + root + (0 if hi == 0 else 7)
+                if b < 40:
+                    b += 12
+                sig = _osc(hz(b), half * e8 * 0.95)
+                mixin(bass, sig * env(len(sig), 0.02, 0.15, 0.6, 0.15), ht, 0.42 if hi == 0 else 0.3)
+            else:  # mist: a slow, detuned pad and a low drone, one chord per bar
+                if hi == 1:
+                    continue
+                for j, p in enumerate(tones[:3]):
+                    for det in (0.0, 0.09):
+                        sig = _osc(hz(60 + (p - 60) % 12 + det), bar * 1.15, 'pulse', 0.125)
+                        mixin(harm, sig * env(len(sig), 1.2, 0.4, 0.6, 1.0), ht + j * 0.03, 0.028)
+                sig = _osc(hz(36 + root), bar * 1.05)
+                mixin(bass, sig * env(len(sig), 0.4, 0.3, 0.5, 0.6), ht, 0.3)
+
+        # --- the sea itself
+        if bi % 2 == 0:  # a wave every other bar, never quite the same
+            w = _wave(bar * (1.6 + rnd.random() * 0.4), 800 + bi, 0.05 if style == 'mist' else 0.12)
+            mixin(sea, w, t0 + rnd.random() * e8 * 2, {'shanty': 0.13, 'roll': 0.11}.get(style, 0.16))
+        if style == 'shanty' and bi % 8 == 5:
+            mixin(sea, _gull(900 + bi), t0 + e8 * rnd.choice((1, 2, 4)), 0.05)
+        if style == 'roll':
+            if bi % 4 == 0:  # a chime at each phrase, high and far off
+                mixin(sea, _bell(72 + key + (12 if bi % 8 == 4 else 0), 1.8), t0, 0.06)
+            if bi % 16 == 10:
+                mixin(sea, _gull(950 + bi), t0 + e8 * 2, 0.03)
+        if style == 'mist':
+            if bi % 4 == 0:
+                mixin(sea, _foghorn(36 + key), t0 + bar / 2, 0.22)
+            if bi % 2 == 1:  # the buoy rocks: ding … ding-ding
+                bt = t0 + e8 * (1 + rnd.random())
+                mixin(sea, _bell(81), bt, 0.07)
+                if rnd.random() < 0.5:
+                    mixin(sea, _bell(81), bt + e8 * 1.5, 0.05)
+
+    # a dotted-quarter echo; the fog's is long and wet, half drowning its tune
+    wet_fb, wet_mix = (0.5, 0.42) if style == 'mist' else (0.3, 0.2)
+    melodic = lowpass(_fold(lead, n) + _fold(harm, n), 0.4 if style == 'mist' else 0.6)
+    wet = echo(melodic, delay=e8 * 3, fb=wet_fb, wet=wet_mix, wrap=True)
+    return wet + lowpass(_fold(bass, n), 0.6) + _fold(drums, n) + echo(_fold(sea, n), delay=e8 * 2, fb=0.25, wet=0.2, wrap=True)
+
+
+def build_sea_music(public: Path):
+    """Write the sea tracks only — leaves every other file alone."""
+    mdir = public / 'audio' / '16bit' / 'music'
+    mdir.mkdir(parents=True, exist_ok=True)
+    for name, spec in SEA.items():
+        encode(compose_sea(spec), mdir / f'{name}.mp3', kbps=96, peak=0.8)

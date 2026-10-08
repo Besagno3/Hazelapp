@@ -4,11 +4,13 @@ import {
   BOAT_HOME,
   BOAT_MENDED,
   BOAT_QUEST_ID,
+  FOGBANK_NEAR,
   MARLOW,
   boatFetch,
   boatSpot,
   hasBoat,
   moorBoat,
+  seaAreaAt,
   validMooring,
 } from './boat';
 import { QUESTS, questConversation, questFor, questOfferedFlag } from './quests';
@@ -220,6 +222,33 @@ describe('the boat in the save (#75 item 14)', () => {
     expect(boatFetch(MARLOW, { ...away, aboard: true })).toBeNull();
     expect(boatFetch(MARLOW, { ...away, flags: {} })).toBeNull();
     expect(boatFetch('verdara-innkeeper', away)).toBeNull();
+  });
+});
+
+describe('sea areas, for the music (#75 item 14)', () => {
+  const fog = sea.fogs!.find((f) => f.id === GREAT_FOGBANK)!;
+  const at = (zoneId: SaveData['zoneId'], x: number, y: number, s: Partial<SaveData> = {}) =>
+    seaAreaAt(mended({ zoneId, pos: px(x, y), ...s }));
+
+  it("Dawnreach's waters only while sailing them", () => {
+    expect(at('dawnreach', BOAT_HOME.x, BOAT_HOME.y, { aboard: true })).toBe('dawnreach-waters');
+    expect(at('dawnreach', 40, 30)).toBeNull(); // ashore: the overworld theme
+    expect(at('lumina-village', 10, 10)).toBeNull();
+  });
+
+  it('the Silver Shallows, afloat or on an islet', () => {
+    expect(at('silver-shallows', 20, 26, { aboard: true })).toBe('silver-shallows');
+    expect(at('silver-shallows', 11, 21)).toBe('silver-shallows'); // Gull Rock, on foot
+    expect(seaAreaAt(mended({ zoneId: 'silver-shallows', pos: null }))).toBe('silver-shallows');
+  });
+
+  it('the Great Fogbank within FOGBANK_NEAR cells of it, while it stands', () => {
+    const edge = fog.x - FOGBANK_NEAR;
+    expect(at('silver-shallows', edge, 22, { aboard: true })).toBe('great-fogbank');
+    expect(at('silver-shallows', edge - 1, 22, { aboard: true })).toBe('silver-shallows');
+    expect(at('silver-shallows', fog.x - 1, 0, { aboard: true })).toBe('great-fogbank');
+    const lifted = { ...mended().flags, [fog.liftedBy[0]]: true };
+    expect(at('silver-shallows', fog.x - 1, 22, { aboard: true, flags: lifted })).toBe('silver-shallows');
   });
 });
 

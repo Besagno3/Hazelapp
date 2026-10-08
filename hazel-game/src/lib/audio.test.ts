@@ -2,7 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { MUSIC_SOURCES, SFX_SOURCES, trackForScreen } from './audio';
+import { MUSIC_SOURCES, SEA_TRACK, SFX_SOURCES, ZONE_KIND_TRACK, trackForScreen } from './audio';
+import { SEA_AREAS } from '../content/boat';
 
 describe('trackForScreen', () => {
   it('maps menu-ish screens to the title theme', () => {
@@ -23,6 +24,19 @@ describe('trackForScreen', () => {
     expect(trackForScreen('world', false, 'shrine')).toBe('shrine');
     // Kind only matters in the world.
     expect(trackForScreen('battle', false, 'town')).toBe('battle');
+  });
+
+  it('out on the water, each sea area has its own music (#75 item 14)', () => {
+    expect(trackForScreen('world', false, 'overworld', 'dawnreach-waters')).toBe('sailing');
+    expect(trackForScreen('world', false, 'overworld', 'silver-shallows')).toBe('shallows');
+    expect(trackForScreen('world', false, 'overworld', 'great-fogbank')).toBe('fogbank');
+    expect(trackForScreen('world', false, 'overworld', null)).toBe('overworld');
+    // A battle at sea is still a battle.
+    expect(trackForScreen('battle', false, 'overworld', 'silver-shallows')).toBe('battle');
+    // One track per sea, none shared with a kind of place.
+    const tracks = SEA_AREAS.map((a) => SEA_TRACK[a]);
+    expect(new Set(tracks).size).toBe(SEA_AREAS.length);
+    for (const t of tracks) expect(Object.values(ZONE_KIND_TRACK)).not.toContain(t);
   });
 
   it('uses the boss theme only for boss battles', () => {

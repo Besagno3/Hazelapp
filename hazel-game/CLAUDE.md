@@ -213,7 +213,11 @@ zod, react-query. Add the package in the same change that first uses it.
   battle leave the boat moored where it was (`moorBoat`); Old Marlow rows it
   home on request. The menu map draws whichever overworld you're on, ⛵ where
   the boat is moored, and the Great Fogbank (a bank no boat passes, lifted
-  only in Act III) with its own line.
+  only in Act III) with its own line. Each sea area has its own music
+  (`seaAreaAt` in `boat.ts` → `SEA_TRACK` in `lib/audio.ts`, which wins over
+  the zone kind's track): a shanty while sailing Dawnreach's waters, the
+  Silver Shallows' theme anywhere on that map, a misty loop near the Great
+  Fogbank while it stands.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -341,6 +345,7 @@ python3 tools/assets/build.py dungeon  # the Depths' lower floors + the stairs s
 python3 tools/assets/build.py inns     # the innkeepers + travelers' sprites only (#75 item 11)
 python3 tools/assets/build.py sea      # the Silver Shallows, the boat, the dock + Lamplighter Ness only (#75 item 14)
 python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
+python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallows, the fogbank (#75 item 14)
 ```
 
 ## Error handling
@@ -394,6 +399,38 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-08 — Sea music: a loop for each sea area (#75 item 14, #107c)
+The Shallows played the overworld march. Now each sea area has its own track,
+composed by a new chiptune composer (`compose_sea`, appended to
+`tools/assets/audio.py`; `python3 tools/assets/build.py seamusic` writes just
+these, byte-identical on a rebuild). Unlike the other tracks, the tunes are
+written out by hand (note:eighths, bar by bar, checked against the meter) in
+song form A A' B A''; the accompaniment comes from the chords, and the sea is
+in the mix — waves washing in and out every other bar, gulls, a chime, a
+buoy bell, a foghorn. Anything ringing past the loop's end wraps to its start.
+- **Sailing** (`sailing.mp3`, 38 s, D major 6/8): a sea shanty for Dawnreach's
+  waters while aboard — a two-reed squeezebox tune over oom-pah-pah bass and
+  chords and a shaker; the last A has the crew singing a third below.
+- **The Silver Shallows** (`shallows.mp3`, 58 s, A major 6/8): calm and
+  glittering — an ocarina tune (a lydian G# over D for shimmer) over a
+  rolling arpeggio, a chime at each phrase, a second ocarina in the last A. It plays
+  anywhere on the Shallows' map, so landing on Gull Rock keeps it.
+- **The Great Fogbank** (`fogbank.mp3`, 64 s, D minor 4/4): the Shallows'
+  opening heard again a fifth down in minor, half lost in a long echo, over a
+  slow detuned pad, a soft low foghorn every four bars and a rocking buoy
+  bell; four bars of only fog before it loops. Plays within `FOGBANK_NEAR`
+  (6) cells of the bank while it stands.
+- **Wiring:** `seaAreaAt(save)` (`content/boat.ts`, `SEA_AREAS`) → `SEA_TRACK`
+  (`lib/audio.ts`); `trackForScreen` / `useScreenMusic` take the sea area,
+  which wins over the zone kind in the world (battles keep battle music);
+  `App` selects it from the save, so the music changes as you board, land,
+  cross to the Shallows or near the fogbank (the position is saved every
+  1.5 s while moving).
+- Tests: +4 (boat.test: the sea areas, the fogbank's edge and after it lifts;
+  audio.test: a sea track wins in the world, not in battle, none shared with a
+  kind of place); 671 green, lint + tsc clean. The three MP3s decode in headless
+  Chromium (Web Audio and `<audio>`), as loud as the overworld theme.
 
 ### 2026-10-08 — The boat and the Silver Shallows: Act II opens on the sea (#75 item 14, slice 14a)
 Roadmap item 14 (Phase 3, "the sea") — the first of four slices (ISSUES #107).

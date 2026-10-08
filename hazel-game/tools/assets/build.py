@@ -12,6 +12,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py inns       # only the innkeepers + travelers (#75 item 11)
     python3 tools/assets/build.py sea        # only the Silver Shallows, the boat and the dock (#75 item 14)
     python3 tools/assets/build.py quests     # only Hermit Moss (#75 item 13)
+    python3 tools/assets/build.py seamusic   # only the sea music: sailing, the Shallows, the fogbank (#75 item 14)
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -74,6 +75,11 @@ def main():
         tiles.build_sea(PUBLIC)
         print('sea ✓')
         return
+    if 'seamusic' in only:
+        # Just the sea music (#75 item 14) — every other file untouched.
+        audio.build_sea_music(PUBLIC)
+        print('sea music ✓')
+        return
     if 'quests' in only:
         # Just Hermit Moss (#75 item 13) — every other file untouched.
         write_manifest(build_sprites.build(PUBLIC, only={'dawnreach-hermit'}))
@@ -112,6 +118,7 @@ def main():
         print('tiles + backdrops ✓')
     if 'audio' in only:
         audio.build(PUBLIC)
+        audio.build_sea_music(PUBLIC)
         print('audio ✓')
 
 
