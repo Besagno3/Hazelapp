@@ -2,6 +2,7 @@ import type { ServiceType, Topic } from '../types';
 import { MET_ELDER, fogSeenFlag, litFlag } from './zones';
 import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
+import { handedOverFlag, questOfferedFlag } from './quests';
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -1132,6 +1133,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       "Oh! A visitor! I'm Mabel. I've dug this mine for forty years, and I've never been this scared of the dark.",
+      // While Moss's quest is on and the stone isn't cut yet (#75 item 13).
+      {
+        text: "Looking for Moss's Moonstone? The miners left it in the little nook up the left-hand tunnel. Bring it to me and I'll cut it for him!",
+        ifFlag: questOfferedFlag({ id: 'hermit-moonstone' }),
+        unlessFlag: handedOverFlag('moonstone'),
+      },
       {
         text: 'When the fog came, every lamp went out at once. I ran up here and haven\'t dared go back down since.',
         unlessFlag: litFlag('echo-mine'),
@@ -1146,5 +1153,22 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       'Moles are supposed to love the dark, you know. I\'m a very unusual mole. I don\'t like dirt much, either.',
     ],
+  },
+
+  // ── Item chains (#75 item 13) ──
+  // Hermit Moss reads the stars from his hill beside the Echo Mine. His quest
+  // (quests.ts, "The Hermit's Moonstone") speaks until it's done; these lines
+  // come after.
+  'dawnreach-hermit': {
+    id: 'dawnreach-hermit',
+    name: 'Hermit Moss',
+    sprite: '🏮',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'My moon-lamp shines every night now. On a clear one I can count the stars over the far sea.',
+      "Mabel cut that stone better than the miners ever could. Don't tell her I said so — she'll blush right through her fur.",
+    ],
+    ambient: ['*hums at the sky*', 'Clear skies tonight?', '🌙'],
   },
 };
