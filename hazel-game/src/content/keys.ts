@@ -64,7 +64,8 @@ export const GATE_KEYS: GateKey[] = [
       '"DEFINITION: intruder. The way to Gearfall stays locked until you prove your cogs turn true. Compute, child."',
     ],
     bossDefeat: '"Re…calculating… you were the missing piece all along. Take the Gearwright Key and wind the Rust Fiend down for me."',
-    fromZone: 'clockwork-depths',
+    // At the bottom of the Depths since they became a dungeon (#75 item 10).
+    fromZone: 'clockwork-depths-b3',
     unlocksZone: 'gearfall',
     fiendName: 'the Rust Fiend',
   },

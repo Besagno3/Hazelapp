@@ -481,6 +481,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Mind the gears! Half of them are sleeping and half are grumpy and you cannot always tell which until you tap one.',
       'The great machines down here built the Spire, long ago — crystal-light and clockwork together. The Rust Fiend tried to seize it all, up in Gearfall.',
+      // The Depths run three floors deep since #75 item 10.
+      {
+        text: 'The Clockwork Titan? It clanked off down the stairs to the old forge — two floors down, past the Gear Halls. The gatekeeper here guards the way.',
+        unlessFlag: 'key-gearfall-key',
+      },
       {
         text: 'The Rust Fiend fell? I FELT it — every gear down here turned over in its sleep and sighed. You woke the whole deep, friend.',
         ifFlag: 'crystal-engineering-restored',
@@ -496,6 +501,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'HELLO hello hello… sorry. Down here every word comes back three times. I have been alone with my own voice a very long while.',
       'I am the last lantern-bot of the deep. I keep one light burning for the crystals\' sake. Tell me a bright answer and I will keep it glowing.',
+      'The Gear Halls below are dim — my light never reached them. Mind the side hall: it is darker still.',
     ],
     ambient: ['hello… hello… hello…', '*hums an echo*', 'Anyone… anyone…?'],
   },

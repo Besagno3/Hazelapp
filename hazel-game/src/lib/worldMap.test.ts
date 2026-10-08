@@ -99,6 +99,15 @@ describe('mapCaption', () => {
     );
     expect(mapCaption(null, 'Somewhere', 'Dawnreach')).toBe("You're here: Somewhere");
   });
+  it('down a dungeon: the floor title names the place, so no "(past …)"; a mere name prefix is not enough', () => {
+    const depths = { x: 1, y: 1, exact: false, place: 'Clockwork Depths' };
+    expect(mapCaption(depths, 'Clockwork Depths · B2 — The Gear Halls', 'Dawnreach')).toBe(
+      "You're here: Clockwork Depths · B2 — The Gear Halls",
+    );
+    expect(mapCaption({ ...depths, place: 'Clockwork' }, 'Clockwork Depths', 'Dawnreach')).toBe(
+      "You're here: Clockwork Depths (past Clockwork)",
+    );
+  });
 });
 
 describe('fog markers (#75 item 7)', () => {

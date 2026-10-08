@@ -25,6 +25,9 @@ export const ZONE_IDS = [
   'whispering-woods',
   'starfall-coast',
   'clockwork-depths',
+  // …and its lower floors, a real dungeon since #75 item 10 (content/dungeons.ts)
+  'clockwork-depths-b2',
+  'clockwork-depths-b3',
   'moonwell-grove',
   'crystal-spire',
   // Overworld (#75 Phase 1): the home continent + its first roadside place
@@ -65,6 +68,10 @@ export type ZoneId = (typeof ZONE_IDS)[number];
  *        (walkable; needs an `exits` entry AND a `places` entry)
  *   '^'  mountain (solid) · ':' sand / beach (walkable)
  *
+ * Dungeons (#75 item 10) — floors joined by stairs, inside the map:
+ *   '>'  stairs down · '<' stairs up (walkable; each needs an `exits` entry
+ *        to the floor below / above, landing beside its stairs back)
+ *
  * Buildings (towns, #72) — each must sit inside a `buildings` rect:
  *   'W'  building wall (solid; the bottom row is the street-facing facade)
  *   'D'  door (walkable; exactly one, in the facade row)
@@ -81,8 +88,9 @@ export const TILE = 32;
 export const VIEW_COLS = 22;
 export const VIEW_ROWS = 14;
 export const BUILDING_CHARS = new Set(['W', 'D', 'F', 'K', 'B', 'T', 'Z']);
-export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', 'H', 'P', '^', ':', ...BUILDING_CHARS]);
-export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'H', 'P', ':', 'D', 'F']);
+export const STAIRS_CHARS = new Set(['>', '<']);
+export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', 'H', 'P', '^', ':', ...BUILDING_CHARS, ...STAIRS_CHARS]);
+export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'H', 'P', ':', 'D', 'F', ...STAIRS_CHARS]);
 
 export const ROOF_COLORS = [
   'red',
@@ -224,6 +232,12 @@ export interface DarknessDef {
   lit: string;
   /** The cell the dark keeps you from — a chest you can't reach without a light (zones.test). */
   guards: { x: number; y: number };
+  /**
+   * How far the hero sees before Glow (px; default a few steps). A dungeon
+   * floor you must cross (#75 item 10) is dim, not pitch black: wide enough
+   * to find your way, with only its `pitch` shut until Glow.
+   */
+  dim?: number;
 }
 
 export interface ZoneExit {
@@ -975,8 +989,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     the: true,
     kind: 'dungeon',
     topic: 'history',
-    // A gated vault (the bottom half, behind the row-8 wall) holds the chest;
-    // old-machine critters wind through the open upper galleries.
+    // B1 of a three-floor dungeon (#75 item 10). A gated vault (the bottom
+    // half, behind the row-8 wall) holds the chest and the stairs down; old-
+    // machine critters wind through the open upper galleries. Unchanged but for
+    // the stairs, so every chest, gate and save position still matches.
     map: [
       '##########EE##########',
       '#..............WWWWWW#',
@@ -988,7 +1004,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#.........,,.........#',
       '##########GG##########',
       '#..##..........##....#',
-      '#..##..........##....#',
+      '#..##..........##..>.#',
       '#....,....C.....,....#',
       '#....................#',
       '######################',
@@ -1004,21 +1020,115 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [
       { defId: 'depths-tinker', x: 17, y: 3 },
       { defId: 'depths-echo', x: 14, y: 5 },
-      { defId: 'depths-warden-sign', x: 10, y: 3 },
     ],
     enemies: [
       { defId: 'cog-sprite', x: 6, y: 5 },
       { defId: 'hourglass-imp', x: 14, y: 6 },
       { defId: 'relic-golem', x: 8, y: 2 },
       { defId: 'tut-tut', x: 3, y: 7 },
-      { defId: 'knight-mare', x: 14, y: 11 },
-      { defId: 'clockwork-titan', x: 10, y: 5 },
     ],
     exits: [
       // Up out of the cave mouth onto Dawnreach (#75 Phase 1).
       { x: 10, y: 0, to: 'dawnreach', spawnX: 21, spawnY: 42 },
       { x: 11, y: 0, to: 'dawnreach', spawnX: 21, spawnY: 42 },
+      // Down the stairs in the vault (#75 item 10).
+      { x: 19, y: 10, to: 'clockwork-depths-b2', spawnX: 3, spawnY: 2 },
     ],
+  },
+
+  // B2 of the Clockwork Depths (#75 item 10): great halls of stopped gears, two
+  // screens deep. Dim — the hero sees a good way around them — and a side
+  // vault the old lamps never reached stays pitch dark until Glow.
+  'clockwork-depths-b2': {
+    id: 'clockwork-depths-b2',
+    name: 'The Gear Halls',
+    kind: 'dungeon',
+    topic: 'history',
+    map: [
+      '######################',
+      '#....................#',
+      '#.<..##........##....#',
+      '#........S...........#',
+      '#....................#',
+      '##=.##################',
+      '##=.##################',
+      '##=.############....,#',
+      '##=.############...C.#',
+      '##=.############.....#',
+      '##=.############.,...#',
+      '##=.############.....#',
+      '##=.#############..###',
+      '#....................#',
+      '#.....##....##.......#',
+      '#..,............,....#',
+      '#.....##....##.......#',
+      '#....................#',
+      '#################.=###',
+      '#################.=###',
+      '#################.=###',
+      '#################.=###',
+      '#################.=###',
+      '#################.=###',
+      '#..............,.....#',
+      '#===,=====>========..#',
+      '#....................#',
+      '######################',
+    ],
+    ground: [78, 72, 98],
+    path: [124, 114, 140],
+    solidEmoji: '⚙️',
+    decoEmoji: '⏳',
+    spawn: { x: 3, y: 3 },
+    npcs: [],
+    enemies: [
+      { defId: 'knight-mare', x: 9, y: 15 },
+      { defId: 'cog-sprite', x: 14, y: 3 },
+    ],
+    exits: [
+      { x: 2, y: 2, to: 'clockwork-depths', spawnX: 18, spawnY: 10 },
+      { x: 10, y: 25, to: 'clockwork-depths-b3', spawnX: 3, spawnY: 2 },
+    ],
+    dark: {
+      pitch: [{ x: 16, y: 7, w: 5, h: 6 }],
+      dim: 160,
+      hint: "That side hall is pitch dark — the old lamps never reached it. A Glow spell would light the way.",
+      lit: '🔆 Glow! Lamps flicker on all along the Gear Halls — even in the dark side hall.',
+      guards: { x: 19, y: 8 },
+    },
+  },
+
+  // B3, the bottom of the Clockwork Depths (#75 item 10): the forge where the
+  // Clockwork Titan still turns, guarding the Gearwright Key and the Depths'
+  // old hoard. A save crystal waits in the antechamber.
+  'clockwork-depths-b3': {
+    id: 'clockwork-depths-b3',
+    name: "The Titan's Forge",
+    kind: 'dungeon',
+    topic: 'history',
+    map: [
+      '######################',
+      '#......##............#',
+      '#.<........#......#..#',
+      '#....S...............#',
+      '#......##............#',
+      '#########...........,#',
+      '#########............#',
+      '#########..#......#..#',
+      '#########............#',
+      '##############..######',
+      '##############..######',
+      '###########.,......###',
+      '###########.....,C.###',
+      '######################',
+    ],
+    ground: [104, 78, 70],
+    path: [150, 112, 88],
+    solidEmoji: '⚙️',
+    decoEmoji: '🔥',
+    spawn: { x: 3, y: 3 },
+    npcs: [{ defId: 'depths-warden-sign', x: 4, y: 2 }],
+    enemies: [{ defId: 'clockwork-titan', x: 14, y: 8 }],
+    exits: [{ x: 2, y: 2, to: 'clockwork-depths-b2', spawnX: 11, spawnY: 25 }],
   },
 
   // A hidden nature-themed side-region off Lumina Village (#grove). A dark

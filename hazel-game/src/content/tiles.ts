@@ -56,6 +56,11 @@ export const SPIRE_PROP_FRAME = {
 } as const;
 export const SPIRE_PROPS_SHEET = '/tiles/spire-props.png';
 export const SPIRE_PROPS_KEY = 't_spire_props';
+/** Dungeon stairs (#75 item 10): '>' down into the dark, '<' up toward the light. */
+export const STAIRS_SHEET = '/tiles/stairs.png';
+export const STAIRS_KEY = 't_stairs';
+export const STAIRS_FRAME = { '>': 0, '<': 1 } as const;
+export const STAIRS_FRAMES = 2;
 export const PROPS_KEY = 't_props';
 export const SPIRE_KEY = 't_spire';
 

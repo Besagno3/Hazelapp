@@ -32,6 +32,9 @@ import {
   SPIRE_PROPS_KEY,
   SPIRE_PROPS_SHEET,
   SPIRE_PROP_FRAME,
+  STAIRS_FRAMES,
+  STAIRS_KEY,
+  STAIRS_SHEET,
   blendKey,
   blendSheet,
   namedTilesetKey,
@@ -132,6 +135,7 @@ export function loadWorldSprites(k: KaplayCtx): void {
       sliceY: 1,
     });
   }
+  k.loadSprite(STAIRS_KEY, STAIRS_SHEET, { sliceX: STAIRS_FRAMES, sliceY: 1 });
   k.loadSprite(SPIRE_PROPS_KEY, SPIRE_PROPS_SHEET, {
     sliceX: SPIRE_PROPS_FRAMES,
     sliceY: 1,

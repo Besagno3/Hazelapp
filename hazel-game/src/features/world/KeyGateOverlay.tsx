@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { gateFlag, ZONES } from '../../content/zones';
+import { dungeonEntrance } from '../../content/dungeons';
+import { placeName } from '../../lib/wayfinding';
 import { keyForZone, keyFlag } from '../../content/keys';
 import { useSaveStore } from '../../store/saveStore';
 import { sfx } from '../../lib/audio';
@@ -20,7 +22,11 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
   if (!save || !key) return null;
 
   const hasKey = save.flags[keyFlag(key.id)] === true;
-  const fromZoneName = ZONES[key.fromZone].name;
+  // A warden at the bottom of a dungeon (#75 item 10) is found by its entrance:
+  // "in the Whispering Woods", "deep in the Clockwork Depths".
+  const entrance = dungeonEntrance(key.fromZone);
+  const where = `${entrance === key.fromZone ? 'in' : 'deep in'} ${placeName(ZONES[entrance])}`;
+  const bossName = key.bossName.replace(/^The /, 'the ');
 
   function open() {
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
@@ -52,8 +58,7 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
               <strong>
                 {key.name} {key.emoji}
               </strong>{' '}
-              — beat <strong>{key.bossName ?? 'the warden'}</strong> in <strong>{fromZoneName}</strong>{' '}
-              to claim it.
+              — beat <strong>{bossName}</strong> {where} to claim it.
             </>
           )}
         </p>

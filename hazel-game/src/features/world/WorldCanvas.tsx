@@ -47,6 +47,8 @@ import {
   SPIRE_KEY,
   SPIRE_PROPS_KEY,
   SPIRE_PROP_FRAME,
+  STAIRS_FRAME,
+  STAIRS_KEY,
   TILE_FRAME,
   TOWN_FRAME,
   WATER_FPS,
@@ -97,6 +99,17 @@ const LIT_RADIUS = 330;
 const CALM_OPACITY = 0.45;
 /** Seconds after Calm wears off before a critter you're touching starts a battle. */
 const CALM_GRACE = 1.5;
+/**
+ * Pitch dark (#75 item 9) as stacked layers, inset from the rectangle's edge
+ * (px): a soft three-step rim around an opaque core, so on a dim floor (#75
+ * item 10) it reads as darkness rather than a hole in the map.
+ */
+const PITCH_FEATHER = [
+  { inset: 0, alpha: 0.35 },
+  { inset: 10, alpha: 0.45 },
+  { inset: 20, alpha: 0.6 },
+  { inset: 30, alpha: 1 },
+];
 /** Movement keys we own at the window level (see the keyboard effect). */
 const MOVE_KEYS = new Set([
   'arrowleft',
@@ -502,6 +515,9 @@ export default function WorldCanvas({
             (ward as unknown as { play: (n: string) => void }).play('glow');
             wardSprites.set(id, ward);
           }
+        } else if (ch === '>' || ch === '<') {
+          // Dungeon stairs (#75 item 10): an exit to the floor below / above.
+          k.add([k.sprite(STAIRS_KEY, { frame: STAIRS_FRAME[ch] }), k.pos(px, py), k.z(-10)]);
         } else if (ch === 'U') {
           stairSprites.push(spireProp(SPIRE_PROP_FRAME.stairsSealed, px, py));
         } else if (ch === 'Y') {
@@ -1274,19 +1290,28 @@ export default function WorldCanvas({
     // Pitch dark: solid black over the tunnels no light reaches, until Glow
     // lights the place for good — then it fades away. (The hero's circle of
     // light is the DOM overlay, drawn in the loop.)
-    type Shade = { opacity: number; destroy: () => void };
+    // Each rectangle is drawn as stepped layers (PITCH_FEATHER), so its edge
+    // fades into the dim around it instead of showing as a hard black box.
+    type Shade = { obj: { opacity: number; destroy: () => void }; base: number };
     const pitch: Shade[] =
       z.dark && !flagsRef.current[litFlag(zoneId)]
-        ? z.dark.pitch.map(
-            (r) =>
-              k.add([
-                k.rect(r.w * TILE, r.h * TILE),
-                k.pos(r.x * TILE, r.y * TILE),
-                k.color(4, 2, 10),
-                k.opacity(1),
-                k.z(30),
-              ]) as unknown as Shade,
-          )
+        ? z.dark.pitch.flatMap((r) => {
+            // A small rectangle skips the inner layers; its innermost is still opaque.
+            const fits = PITCH_FEATHER.filter(({ inset }) => r.w * TILE > 2 * inset && r.h * TILE > 2 * inset);
+            return fits.map(({ inset, alpha }, i) => {
+              const base = i === fits.length - 1 ? 1 : alpha;
+              return {
+                obj: k.add([
+                  k.rect(r.w * TILE - 2 * inset, r.h * TILE - 2 * inset),
+                  k.pos(r.x * TILE + inset, r.y * TILE + inset),
+                  k.color(4, 2, 10),
+                  k.opacity(base),
+                  k.z(30),
+                ]) as unknown as Shade['obj'],
+                base,
+              };
+            });
+          })
         : [];
     let pitchFade = 1;
     let calmShown = Math.ceil(calmRef?.current ?? 0);
@@ -1305,12 +1330,20 @@ export default function WorldCanvas({
         const flicker = Math.sin(k.time() * 7) * 3 + Math.sin(k.time() * 13) * 2;
         const lit = !!z.dark && flagsRef.current[litFlag(zoneId)] === true;
         // Spooky but readable for kids: the candle glow narrows per lost candle.
-        const r = light ? 150 + 45 * Math.max(0, light.lives) : z.dark ? (lit ? LIT_RADIUS : DIM_RADIUS) : null;
+        const r = light
+          ? 150 + 45 * Math.max(0, light.lives)
+          : z.dark
+            ? lit
+              ? LIT_RADIUS
+              : (z.dark.dim ?? DIM_RADIUS)
+            : null;
         if (r !== null) {
           const at = k.toScreen(player.pos);
           const cx = (at.x / VIEW_W) * 100;
           const cy = (at.y / VIEW_H) * 100;
-          const edge = light ? 0.72 : lit ? 0.55 : 0.95;
+          // A dim floor (#75 item 10) is spooky, not black: its edge is lighter.
+          // Elsewhere unlit is near-black, so a pitch doorway blends in (#102h).
+          const edge = light ? 0.72 : lit ? 0.55 : z.dark?.dim ? 0.8 : 0.95;
           dark.style.background = `radial-gradient(ellipse ${((r + flicker) / VIEW_W) * 100}% ${((r + flicker) / VIEW_H) * 100}% at ${cx}% ${cy}%, rgba(8,4,20,0) 0%, rgba(8,4,20,0.15) 50%, rgba(8,4,20,${edge}) 100%)`;
           dark.style.opacity = '1';
         } else {
@@ -1620,9 +1653,9 @@ export default function WorldCanvas({
       // Glow has lit this place: the pitch dark fades away.
       if (pitch.length && flagsRef.current[litFlag(zoneId)]) {
         pitchFade = Math.max(0, pitchFade - dt / 1.2);
-        for (const shade of pitch) shade.opacity = pitchFade;
+        for (const shade of pitch) shade.obj.opacity = shade.base * pitchFade;
         if (pitchFade === 0) {
-          for (const shade of pitch) shade.destroy();
+          for (const shade of pitch) shade.obj.destroy();
           pitch.length = 0;
         }
       }

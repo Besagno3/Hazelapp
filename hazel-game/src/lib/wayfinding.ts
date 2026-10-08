@@ -1,6 +1,7 @@
 import { HUB_ZONE, MET_ELDER, reachableOnFoot, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, type FieldSpell } from '../content/fieldSpells';
+import { dungeonEntrance } from '../content/dungeons';
 import { TOPIC_REGISTRY, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForZone, type GateKey } from '../content/keys';
 import { SPIRE_CLEARED } from '../content/story';
@@ -174,6 +175,8 @@ export function routeSteps(
   if (!route) return null;
   const steps: string[] = [];
   let origin = at ?? null;
+  // A run of stairs the same way is one step: "take the stairs down two floors to …".
+  let stairsRun: { way: 'down' | 'up'; floors: number } | null = null;
   for (const { from: id, exit } of route) {
     const z = zones[id];
     const dest = zones[exit.to];
@@ -182,13 +185,28 @@ export function routeSteps(
       const dir = compass(exit.x - o.x, exit.y - o.y);
       steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
+      const stairs = z.map[exit.y]?.[exit.x];
       const side = exitSide(z, exit);
+      // Dungeon stairs (#75 item 10) lead down ('>') or up ('<') a floor.
+      if (stairs === '>' || stairs === '<') {
+        const way = stairs === '>' ? 'down' : 'up';
+        const run = stairsRun?.way === way ? stairsRun.floors + 1 : 1;
+        if (run > 1) steps.pop();
+        const floors = run > 1 ? ` ${FLOOR_COUNT[run] ?? run} floors` : '';
+        steps.push(`take the stairs ${way}${floors} to ${placeName(dest)}`);
+        stairsRun = { way, floors: run };
+        origin = { x: exit.spawnX, y: exit.spawnY };
+        continue;
+      }
       steps.push(side ? `take the ${side} path to ${placeName(dest)}` : `go on to ${placeName(dest)}`);
     }
+    stairsRun = null;
     origin = { x: exit.spawnX, y: exit.spawnY };
   }
   return steps;
 }
+
+const FLOOR_COUNT = ['', 'one', 'two', 'three', 'four', 'five'];
 
 /** Steps as one sentence: "Go west to the Whispering Woods, then take the east path to …" — or just "Go north-west to Numbria." */
 export function sentence(steps: string[]): string {
@@ -258,8 +276,11 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   const goal = nextObjective(flags);
   const restored = TOPIC_REGISTRY.filter((t) => flags[crystalFlag(t.id)]).length;
   const place = (id: ZoneId) => {
-    const dir = bearingFromHome(zones, id);
-    return `${placeName(zones[id])}${dir ? `, to the ${dir}` : ''}`;
+    // A floor deep in a dungeon (#75 item 10) is found by its entrance.
+    const entrance = dungeonEntrance(id);
+    const dir = bearingFromHome(zones, entrance);
+    const where = entrance === id ? placeName(zones[id]) : `${placeName(zones[id])}, deep in ${placeName(zones[entrance])}`;
+    return `${where}${dir ? `, to the ${dir}` : ''}`;
   };
   let plan: string;
   if (goal.kind === 'crystal' && goal.crystal && !goal.key) {

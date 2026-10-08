@@ -101,7 +101,7 @@ the Crystal Spire holds the endgame:
 | Lumina Village (home) | — (safe) | — | Grandmother Wick 👵 (gran, dragon lore), Bramble 🧑 (childhood friend, burns the bread), Lantern-Keeper Sol 🧓 (lanterns brighten per crystal) |
 | Whispering Woods | 🦋 Nature & Animals | Thicket Warden 🦌 → Verdant Key (Verdara) | Hazel the Spellwright 🧙‍♀️ (explains the Spellbook), Wisp 🧚 (made of unanswered questions), Old Bracken 🦡 (warns of the Warden) |
 | Starfall Coast | 🪐 Space | Tide Colossus 🐳 → Prism Key (Chromaria) | Old Marlow 🎣 (the fish forgot the way home), Vela 🔭 (every star has a question for a name), Castaway Pell 🦭 (warns of the Colossus) |
-| Clockwork Depths | ⏳ Time & History | Clockwork Titan 🦾 → Gearwright Key (Gearfall) | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times), Ratchet the Wind-Up 🔧 (warns of the Titan) |
+| Clockwork Depths — three floors down (#75 item 10): B1 the galleries, B2 the dim Gear Halls, B3 the Titan's Forge | ⏳ Time & History | Clockwork Titan 🦾 (at the bottom, B3) → Gearwright Key (Gearfall) | Cricket 🐭 (gear-tender; says the Titan clanked off down to the forge), Echo 🤖 (the last lantern-bot, everything comes back three times), Ratchet the Wind-Up 🔧 (in the forge, warns of the Titan) |
 | Moonwell Grove (hidden, #grove) | 🦋 Nature (reused) | — (no warden; riddle-chest + defeat quest) | Lune the Moonkeeper 🌙 (quest-giver, tends the darkened well), Glim ✨ (flavor critter), Ripple 💧 (flavor critter) |
 | The Crystal Spire | endgame climb | — | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals) + the Spire icon 🗼 |
 
