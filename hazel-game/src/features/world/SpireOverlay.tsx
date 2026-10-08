@@ -480,14 +480,15 @@ export default function SpireOverlay() {
             <div className="text-6xl mb-2">🕯️</div>
             <h2 className="text-xl font-extrabold mb-2">Down, but never out</h2>
             <p className="text-sm text-white/85 mb-5">
-              The Spire sets you gently down {wakeInn ? `at ${wakeInn}` : 'back home in Lumina Village'}, rested and
-              healed. The door stays open — rest up, and climb again whenever you're ready.
+              The Spire sets you gently down{' '}
+              {wakeInn ? `at ${wakeInn}, where you last rested` : 'back home in Lumina Village'}, healed. The
+              door stays open — rest up, and climb again whenever you're ready.
             </p>
             <button
               onClick={close}
               className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-6 py-2.5 text-sm"
             >
-              Back home
+              {wakeInn ? 'To the inn' : 'Back home'}
             </button>
           </div>
         )}

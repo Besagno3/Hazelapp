@@ -1118,7 +1118,7 @@ export default function BattleArena() {
             lucky={turn.kind === 'victory' && turn.lucky}
             firstWin={turn.kind === 'victory' && turn.firstWin}
             drop={turn.kind === 'victory' ? turn.drop : null}
-            wakeInn={wakeInnName(useSaveStore.getState().save ?? { lastRest: null })}
+            wakeInn={save ? wakeInnName(save) : null}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

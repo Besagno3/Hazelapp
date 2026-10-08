@@ -127,7 +127,7 @@ function Inn() {
     <div className="text-center">
       <h2 className="text-xl font-extrabold mb-2">🛏️ {inn ? `The ${inn.name}` : 'The Inn'}</h2>
       {rested ? (
-        <p className="text-emerald-300 font-semibold py-6">
+        <p role="status" className="text-emerald-300 font-semibold py-6">
           💤 … 🌅 Good morning! Your HP is fully restored!
           {inn && (
             <span className="block text-sm font-normal text-white/80 mt-2">

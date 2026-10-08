@@ -93,10 +93,10 @@ rested away from it).
 | Town | Inn · innkeeper | Traveler |
 |---|---|---|
 | Lumina Village | Sleepy Sheep Inn · Poppy 👩‍🍳 | — |
-| Numbria | Square Root Inn · Tabitha 🧶 (measured every bed, twice) | Pilgrim Oriel 🎒 (walking every road; all of them twice so far) |
-| Verdara | Mossy Pillow Inn · Willow 🌿 (real moss pillows, only a little damp) | Peddler Fennick 🧳 (buttons, string, slightly used maps) |
+| Numbria | Square Root Inn · Tabitha 🧶 (measured every bed, twice) | Pilgrim Oriel 🎒 (walking every road; on a third pair of boots) |
+| Verdara | Mossy Pillow Inn · Willow 🌿 (real moss pillows, only a little damp) | Collector Fennick 🧳 (412 buttons and counting) |
 | Gearfall Canyon | Wound-Down Inn · Hinge 🔩 (the only quiet place in the canyon) | Courier Zip 📨 (the special delivery is usually for Zip) |
-| Chromaria | Rainbow Quilt Inn · Indigo 🌈 (one quilt per guest, no swaps) | Bard Lark 🎶 (still working on the second verse) |
+| Chromaria | Rainbow Quilt Inn · Indigo 🌈 (one quilt per guest, no swaps) | Mapmaker Atlas 🗺️ (a map of Dawnreach, mostly smudges) |
 
 **Per zone — pattern: Sage (teacher) + Villager (quest giver) + Merchant:**
 

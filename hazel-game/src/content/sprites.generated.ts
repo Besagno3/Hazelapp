@@ -6546,7 +6546,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "chromaria-traveler": {
-    "emoji": "🎶",
+    "emoji": "🗺️",
     "world": {
       "sheet": "/sprites/chromaria-traveler/world.png",
       "frameW": 32,

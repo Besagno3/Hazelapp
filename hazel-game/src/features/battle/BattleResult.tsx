@@ -84,7 +84,8 @@ export function BattleResult({
           <div className="text-5xl mb-2">😴</div>
           <h2 className="text-xl font-extrabold mb-1">Whew — that was close!</h2>
           <p className="text-sm text-white/80">
-            Friendly hands carry you {wakeInn ? `to ${wakeInn}` : 'home to Lumina Village'}. You're safe, rested, and{' '}
+            Friendly hands carry you {wakeInn ? `back to ${wakeInn}, where you last rested` : 'home to Lumina Village'}.
+            You're safe, rested, and{' '}
             {correctCount > 0 ? `kept ${correctCount} answers' worth of XP!` : 'ready to try again!'}
           </p>
         </>

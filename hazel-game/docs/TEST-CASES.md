@@ -740,6 +740,9 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-603 | M | ✅ | inns | headless Chromium at 375 px: in Numbria, talk to Innkeeper Tabitha → 🛏️ Rest → "Rest until morning" sets `lastRest: 'numbria'` and full HP; the panel names the Square Root Inn; all four new inns render in their streets; each wake cell puts the hero inside the inn; no console errors |
 | TC-604 | M | ⬜ | inns | in the real app, signed in: rest at a far town's inn, lose a battle (and, once the crystals allow, the Spire climb) — the defeat screen names that inn ("To the inn"), you wake inside it healed; reload — you're still there; a hero who never rested away from home still wakes in the Village |
 | TC-605 | U | ✅ | world map | a dungeon floor's caption reads "You're here: Clockwork Depths · B2 — The Gear Halls" with no "(past …)"; a zone merely sharing a prefix with the place still gets "(past …)" (worldMap.test) |
+| TC-606 | C | ✅ | inns | an innkeeper offers 🛏️ Rest from the first line of their talk (and it opens the Inn); a shrine keeper's trial still waits for the last line (DialogueOverlay.test) |
+| TC-607 | C | ✅ | rumors | Poppy's Echo Mine rumor is gone once the mine is lit; Willow's Old Wren rumor once Glow is learned (DialogueOverlay.test) |
+| TC-608 | C | ✅ | defeat | the battle defeat screen reads "…back to the Square Root Inn in Numbria, where you last rested" with "To the inn", or "home to Lumina Village" with "Back home" (DialogueOverlay.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

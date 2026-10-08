@@ -23,7 +23,8 @@ function visibleLines(lines: DialogueLine[], flags: Record<string, boolean>): Di
  * Classic JRPG text box (#37) — one line at a time, player-paced. Quest
  * givers speak their quest conversation (offer / in-progress / completion
  * with rewards, see content/quests.ts) before falling back to their normal
- * lines. Service NPCs offer their service on the last line; lines can set
+ * lines. Service NPCs offer their service on the last line (an innkeeper on
+ * every line); lines can set
  * story flags as they're read. Guides and signposts add the way to the next
  * goal (lib/wayfinding.ts).
  */
@@ -61,6 +62,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // must still offer their service — a sage's "Learn" can't be quest-locked.
   const service =
     quest && quest.finishKind !== 'step' ? undefined : ROLE_SERVICE[npc.role];
+  // An innkeeper passes on the news from the road (#75 item 11), but a tired
+  // hero shouldn't have to hear it first: Rest is on offer from line one.
+  const offerService = !!service && (isLast || service === 'inn');
   // A shrine keeper's button: the trial, or (once passed) how to cast the spell.
   const taught = fieldSpellTaughtBy(npcId);
   const trialPassed = !!taught && knowsFieldSpell(taught.id, useSaveStore.getState().save?.flags ?? {});
@@ -108,7 +112,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
         {/* pre-line: a signpost reads one direction per line. */}
         <p className="leading-relaxed min-h-[3rem] whitespace-pre-line">{text}</p>
         <div className="flex justify-end gap-3 mt-3">
-          {isLast && service && (
+          {offerService && (
             <button
               onClick={openService}
               className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"

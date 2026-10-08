@@ -345,6 +345,34 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-07 — Inn review fixes (#75 item 11)
+`/saas-code-review` + `/saas-ux-review` of item 11 — every finding fixed:
+- **🛏️ Rest from the first line:** innkeepers' rumors had pushed the Rest
+  button three or four text boxes deep (every other service is on line one).
+  `DialogueOverlay` now offers an inn's service on every line (other services
+  still wait for the last line — a shrine keeper's trial follows its story),
+  and the innkeepers' "Rest here…" line is gone (the Inn panel says it).
+- **Defeat copy:** "Friendly hands carry you back to the Square Root Inn in
+  Numbria, where you last rested" — so a hero beaten deep in the Depths knows
+  why they wake far away. The Spire's lose panel says the same, and its
+  button reads "To the inn" (it still said "Back home").
+- **No look-alikes:** Chromaria's traveler was a second bard writing a song
+  about colors beside Bard Lyra (the Song of Colors quest) — now **Mapmaker
+  Atlas** 🗺️; Peddler Fennick hawked wares with no Shop button — now
+  **Collector Fennick** (buttons); Pilgrim Oriel no longer tells Wayfarer
+  Juniper's "every road twice" joke.
+- **Rumors that go quiet:** Poppy's Echo Mine rumor ends once the mine is lit
+  (`litFlag`), Willow's Old Wren rumor once Glow is learned (and it says the
+  shrine opens when its fog lifts); Hinge places the Shrine of Quiet Paws
+  "south-east of Lumina Village"; Poppy no longer says inns are everywhere
+  "now" (a new hero doesn't know the history), and "battle goes badly"
+  everywhere.
+- The Inn panel's "Good morning!" is a `role="status"` (it replaces the
+  button that had focus); `BattleArena` reads the wake inn from its
+  subscribed save.
+- Tests: DialogueOverlay.test (+7: Rest on line one, a keeper's trial still
+  waits, the two rumors go quiet, the defeat screen's inn and home copy).
+
 ### 2026-10-07 — Dungeon review fixes (#75 item 10)
 `/saas-code-review` + `/saas-ux-review` of item 10 — every finding fixed but one:
 - **HUD:** the floor title reads "B2 — The Gear Halls", the same shape as the
