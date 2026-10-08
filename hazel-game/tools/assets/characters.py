@@ -2916,6 +2916,10 @@ NPCS: list[Char] = [
     # ── Dawnreach, the overworld (#75 Phase 1) ──
     Char('dawnreach-scout', '🧭', 'humanoid', H(hair='ponytail', hair_color='#7a4a2a', hat='cap', hat_color='#e07a2a', outfit='#4a8a5a', pants='#5a4a3a', scarf='#ffd24a', pack='#8a5a30', item='telescope')),
     Char('shrine-keeper', '🕯️', 'humanoid', H(hair='bun', hair_color='#ececf4', outfit='#ece4d4', trim='#e0b040', robe=True, item='lantern')),
+    # ── Field-spell shrines + the Echo Mine (#75 item 9) ──
+    Char('wayfarer-keeper', '🌠', 'humanoid', H(hair='long', hair_color='#d8d8e8', beard='#e8e8f4', hat='hood', hat_color='#2a3a7a', outfit='#3a4a9a', trim='#ffe066', robe=True, pack='#8a5a30', item='staff', item_color='#bfe0ff')),
+    Char('quiet-keeper', '🦔', 'humanoid', H(skin='#b08a6a', ears='round', snout='pointy', hair='spiky', hair_color='#6a4a3a', outfit='#5a9a5a', robe=True, item='staff', item_color='#ff9ad0')),
+    Char('mine-miner', '⛏️', 'humanoid', H(skin='#5a4848', ears='round', snout='muzzle', muzzle='#d8a0a0', hat='hardhat', hat_color='#ffd23a', outfit='#8a6a4a', apron='#6a4a2a', item='hammer', glasses=True)),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

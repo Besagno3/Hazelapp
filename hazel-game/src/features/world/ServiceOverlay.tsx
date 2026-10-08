@@ -6,6 +6,7 @@ import { CONSUMABLE_IDS, LIBRARY_XP, shopFor, type ConsumableId, type ShopItem }
 import { SAGES } from '../../content/abilities';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
+import ShrineTrial from './ShrineTrial';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
@@ -14,8 +15,9 @@ import type { CrystalTopic, LibraryEntry, ServiceType } from '../../types';
 /**
  * Town services (#37): Shop (coins → potions/hints/badges), Inn (free full
  * heal), Library (re-answer missed questions for bonus XP — the learning
- * loop closing), and Sage (FF6-Esper homage: grants + equips the topic's
- * Special Attack).
+ * loop closing), Sage (FF6-Esper homage: grants + equips the topic's
+ * Special Attack), and a shrine keeper's Trial (#75 item 9: a few questions
+ * to learn a field spell, `ShrineTrial`).
  */
 export default function ServiceOverlay({
   service,
@@ -35,6 +37,7 @@ export default function ServiceOverlay({
         {service === 'inn' && <Inn />}
         {service === 'library' && <Library />}
         {service === 'sage' && <Sage npcId={npcId} />}
+        {service === 'trial' && <ShrineTrial npcId={npcId} />}
         <button
           onClick={() => sendFlow({ type: 'CLOSE' })}
           className="mt-5 w-full bg-white/15 hover:bg-white/25 font-semibold rounded-lg py-2 text-sm"

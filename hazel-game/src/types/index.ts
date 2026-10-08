@@ -100,8 +100,8 @@ export interface BattleEnemy extends NPC {
   behavior?: EnemyBehavior;
 }
 
-/** Town/zone services opened by talking to the matching NPC. */
-export type ServiceType = 'inn' | 'shop' | 'library' | 'sage';
+/** Town/zone services opened by talking to the matching NPC (`trial`: a shrine keeper's, #75 item 9). */
+export type ServiceType = 'inn' | 'shop' | 'library' | 'sage' | 'trial';
 
 /** A question-locked obstacle on the path: a gate or a treasure chest. */
 export interface PathTarget {

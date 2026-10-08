@@ -19,7 +19,9 @@ import {
   wayfindingLines,
   type Objective,
   mentorTips,
+  shrineToVisit,
 } from './wayfinding';
+import { FIELD_SPELL_IDS, fieldSpellFlag } from '../content/fieldSpells';
 
 const dawn = ZONES.dawnreach;
 const ALL_ZONES = Object.keys(ZONES) as ZoneId[];
@@ -187,9 +189,9 @@ describe('signpostLines', () => {
     const lines = signpostLines(dawn, 44, 31);
     const names = lines.flatMap((l) => l.replace(/^\S+ /, '').split(' · '));
     expect(names.sort()).toEqual(dawn.places!.map((p) => p.name).sort());
-    expect(lines[0]).toBe('↗️ Shrine of First Light · Gearfall Canyon');
+    expect(lines[0]).toBe('↗️ Echo Mine · Shrine of First Light · Gearfall Canyon');
     expect(lines.find((l) => l.startsWith('⬅️'))).toBe('⬅️ Lumina Village · Whispering Woods');
-    expect(lines.at(-1)).toBe('↖️ Numbria');
+    expect(lines.at(-1)).toBe("↖️ Wayfarer's Shrine · Numbria");
   });
   it("leaves out a place you're standing beside", () => {
     const village = dawn.places!.find((p) => p.name === 'Lumina Village')!;
@@ -223,6 +225,23 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
   it('is the big picture, not the road: no "go …" or "take the … path" steps', () => {
     const stages = [met, math, { ...math, [keyFlag('verdara-key')]: true }, { ...met, ...allCrystals }];
     for (const flags of stages) for (const line of mentorTips(ZONES, flags)) expect(line).not.toMatch(/\b(Go|go) (north|south|east|west)|path to/);
+  });
+  it('once a crystal is back, points to a shrine whose field spell you could learn (#75 item 9)', () => {
+    const knows = (...ids: (typeof FIELD_SPELL_IDS)[number][]) => Object.fromEntries(ids.map((id) => [fieldSpellFlag(id), true]));
+    // A new hero hears about potions first — the Wayfarer's Shrine is open, though.
+    expect(shrineToVisit(ZONES, met)?.id).toBe('return');
+    expect(mentorTips(ZONES, met)[1]).toMatch(/Berry Potions/);
+    expect(mentorTips(ZONES, math)[1]).toMatch(
+      /^Wayfarer Juniper teaches a field spell at Wayfarer's Shrine, to the north-west: 🏠 Return\. Fly back/,
+    );
+    // Next the first crystal's shrine (out of its fog now), then the Shrine of Quiet Paws.
+    expect(mentorTips(ZONES, { ...math, ...knows('return') })[1]).toMatch(/^Old Wren .* the Shrine of First Light, to the north-east: 🔆 Glow/);
+    expect(mentorTips(ZONES, { ...math, ...knows('return', 'glow') })[1]).toMatch(/^Keeper Thistle .* the Shrine of Quiet Paws, to the south-east: 🕊️ Calm/);
+    // All three known: back to the everyday tips.
+    expect(shrineToVisit(ZONES, { ...math, ...knows(...FIELD_SPELL_IDS) })).toBeNull();
+    expect(mentorTips(ZONES, { ...math, ...knows(...FIELD_SPELL_IDS) })[1]).toMatch(/fog on Dawnreach/);
+    // Before any crystal the Shrine of First Light is still in its fog.
+    expect(shrineToVisit(ZONES, { ...met, ...knows('return', 'calm') })).toBeNull();
   });
   it('on the plaza (first meeting) the tips end with where to find him again; in the Library they don\'t', () => {
     const plaza = wayfindingLines(ZONES, NPC_DEFS['elder-lumen'], {});

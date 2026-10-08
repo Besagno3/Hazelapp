@@ -16,12 +16,23 @@ import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { sendFlow } from '../../machines/gameFlow';
 import WorldMapPanel from './WorldMapPanel';
+import FieldSpellsPanel from './FieldSpellsPanel';
+import type { FieldCast } from '../../content/fieldSpells';
 
 /**
  * The pause/party menu (#37): hero status, inventory, Sage equipping,
- * manual save, and the way back to the training grounds (quiz mode).
+ * field spells to cast (#75 item 9), manual save, and the way back to the
+ * training grounds (quiz mode).
  */
-export default function MenuOverlay() {
+export default function MenuOverlay({
+  calmLeft = 0,
+  onCast,
+}: {
+  /** Seconds of the Calm field spell left (0 = off). */
+  calmLeft?: number;
+  /** Cast a field spell — the menu closes first. */
+  onCast?: (cast: FieldCast) => void;
+} = {}) {
   const save = useSaveStore((s) => s.save);
   const flush = useSaveStore((s) => s.flush);
   const update = useSaveStore((s) => s.update);
@@ -94,6 +105,9 @@ export default function MenuOverlay() {
         </div>
 
         <WorldMapPanel zoneId={save.zoneId} pos={save.pos} flags={save.flags} />
+
+        {/* Field spells sit under the map: see where to go, then fly there with Return. */}
+        <FieldSpellsPanel save={save} calmLeft={calmLeft} onCast={onCast} />
 
         <div className="flex items-center gap-3 bg-white/10 rounded-xl p-3 mb-3">
           <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={1.25} className="text-3xl" />

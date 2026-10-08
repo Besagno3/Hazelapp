@@ -5,6 +5,7 @@ import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { questConversation, type QuestConversation } from '../../content/quests';
 import { ZONES } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
+import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 
@@ -60,6 +61,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // must still offer their service — a sage's "Learn" can't be quest-locked.
   const service =
     quest && quest.finishKind !== 'step' ? undefined : ROLE_SERVICE[npc.role];
+  // A shrine keeper's button: the trial, or (once passed) how to cast the spell.
+  const taught = fieldSpellTaughtBy(npcId);
+  const trialPassed = !!taught && knowsFieldSpell(taught.id, useSaveStore.getState().save?.flags ?? {});
 
   function applyLineFlag() {
     if (typeof line !== 'string' && line.setFlag) setFlag(line.setFlag);
@@ -113,6 +117,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               {service === 'inn' && '🛏️ Rest'}
               {service === 'library' && '📚 Library'}
               {service === 'sage' && '✨ Learn'}
+              {service === 'trial' && (trialPassed ? `${taught?.emoji} How to cast` : '🕯️ Take the trial')}
             </button>
           )}
           <button

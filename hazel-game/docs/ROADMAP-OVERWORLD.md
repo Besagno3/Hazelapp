@@ -431,7 +431,7 @@ mostly follows build order.
 | 6 | ✅ **Wayfinding:** world map menu, quest markers, signposts, "where next?" lines | S–M | 2 | **Done (2026-10-07):** the menu map flags the next goal (🚩) with the way there; two crossroads signposts on Dawnreach; Elder Lumen, Grandmother Wick and Scout Tamsin say where to go next — all worked out from the story flags and the maps (`lib/wayfinding.ts`) |
 | 7 | ✅ **Fog banks** (§3.2) | S–M | 2 | **Done (2026-10-07):** each crystal lifts its own fog pocket on Dawnreach (a chest on its topic); the first crystal also clears the shrine road and a ring over the Spire grounds; each lift plays on screen once — the camera glides to the fog as it peels away — with a storybook panel |
 | 8 | ✅ **Re-stage Act I on Dawnreach** (§3.5) | M (mostly content) | 2 | **Done (2026-10-07):** Dawnreach grew to 80×60 with the four crystal regions at its corners (Numbria NW, Gearfall Canyon NE, Verdara SW, Chromaria SE — each its own icon, its fog pocket beside it); Lumina Field retired, its people and buildings now in Lumina Village (home, `HUB_ZONE`); save v2 moves old saves; Act I walks start to finish as a journey |
-| 9 | **Field spells + shrines:** *Return* (fast travel), *Glow* (light dark caves), *Calm* (critters ignore you), learned at roadside shrines by passing a short question trial; spells unlocked by flags, not just Sages/crystals (`spellsKnown`, `spells.ts:94`) | M | 2 | each shrine teaches one field spell; *Glow* is needed for one cave |
+| 9 | ✅ **Field spells + shrines:** *Return* (fast travel), *Glow* (light dark caves), *Calm* (critters ignore you), learned at roadside shrines by passing a short question trial; spells unlocked by flags, not just Sages/crystals (`spellsKnown`, `spells.ts:94`) | M | 2 | **Done (2026-10-07):** Wayfarer Juniper (Wayfarer's Shrine) teaches 🏠 Return, Old Wren (Shrine of First Light) 🔆 Glow, Keeper Thistle (Shrine of Quiet Paws) 🕊️ Calm — each by a 3-question trial, learned as a `spell:<id>` flag, cast from the menu (`content/fieldSpells.ts`); the Echo Mine is pitch dark past its first chamber until Glow lights it for good |
 | 10 | **Real dungeons:** generalize the Spire (floors as ordinary zones joined by stairs, optional darkness, treasure, a boss at the bottom). Clockwork Depths first — note ISSUES #78: the candle-light overlay ignores the camera, fix it for dungeons bigger than one screen | M–L | 2 | Clockwork Depths is a 3-floor cave entered from the Woods; the Spire runs on the same engine |
 | 11 | **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | every town has an inn and ~8–12 people; every town points onward |
 | 12 | **Regional difficulty:** keep question level matched to the child, scale enemy HP, damage, behaviours and coins by region | S | 2 | far regions feel tougher without harder questions |
@@ -492,7 +492,11 @@ Save v2 shipped with it (§4.5): `lumina-field` saves wake in the Village,
 Dawnreach positions shift with the map, the pocket chests keep their opened
 state, `sageEquipped` is gone, and a client now refuses a save from a newer
 version. `visited` / `lastRest` / `vehicle` / `boat` wait for the features
-that need them (fast travel, inns everywhere, the boat). Next: items 9–13.
+that need them (fast travel, inns everywhere, the boat).
+*Item 9 (2026-10-07):* field spells done. As built, `visited` is not a save
+field but a `visited:<zone>` flag per place (flags already ride through every
+save untouched, so no version bump was needed), and Return flies to the five
+towns, landing just inside each one's front door. Next: items 10–13.
 
 **Phase 3 — The sea (Act II).** Marlow's boat, the Silver Shallows and its islands,
 the Act II zones from `STORY-4X.md` §4 placed per §3.6.

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import WorldCanvas from './WorldCanvas';
+import WorldCanvas, { type Travel } from './WorldCanvas';
 import TouchPad from './TouchPad';
 import DialogueOverlay from './DialogueOverlay';
 import ServiceOverlay from './ServiceOverlay';
@@ -10,7 +10,15 @@ import KeyGateOverlay from './KeyGateOverlay';
 import MenuOverlay from './MenuOverlay';
 import SpireOverlay from './SpireOverlay';
 import StoryPanels from '../../components/StoryPanels';
-import { zone, TILE, fogSeenFlag, HUB_ZONE } from '../../content/zones';
+import { zone, TILE, fogSeenFlag, HUB_ZONE, ZONES, litFlag } from '../../content/zones';
+import {
+  CALM_SECONDS,
+  canGlow,
+  knowsFieldSpell,
+  returnLanding,
+  visitedFlag,
+  type FieldCast,
+} from '../../content/fieldSpells';
 import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx } from '../../content/spire';
 import { useSpireStore } from '../../store/spireStore';
 import { spawnEnemy } from '../../content/enemies';
@@ -109,6 +117,12 @@ export default function WorldScreen() {
     },
     [],
   );
+  // Field spells (#75 item 9): a Return waiting to fly (the canvas takes it
+  // once the menu has closed) and the seconds of Calm left (the canvas counts
+  // them down while the world runs; `calmLeft` is the HUD's copy).
+  const travelRef = useRef<Travel | null>(null);
+  const calmRef = useRef(0);
+  const [calmLeft, setCalmLeft] = useState(0);
   // The secret just found — shown in a small celebration card.
   const [found, setFound] = useState<SecretDef | null>(null);
   useEffect(() => {
@@ -177,6 +191,14 @@ export default function WorldScreen() {
     pausedRef.current = (overlay !== null && !spireFree) || cutscene;
   }, [overlay, cutscene, spireExploring]);
 
+  // Remember every place the hero has been: Return flies to the towns (#75 item 9).
+  const visitedHere = save?.flags[visitedFlag(zoneId)] === true;
+  useEffect(() => {
+    if (save && !visitedHere) setFlag(visitedFlag(zoneId));
+    // Only on arriving somewhere new.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoneId, visitedHere]);
+
   // Warm each living enemy's battle questions while the player explores.
   useEffect(() => {
     if (!save) return;
@@ -216,6 +238,24 @@ export default function WorldScreen() {
     toastTimer.current = setTimeout(() => setToast(null), toastMs(text));
   }
 
+  /** A field spell cast from the menu, or Glow from the HUD (#75 item 9). */
+  function castFieldSpell(cast: FieldCast) {
+    sfx('spell');
+    if (cast.spell === 'return') {
+      const at = returnLanding(ZONES, cast.to);
+      travelRef.current = { to: cast.to, x: at.x, y: at.y };
+      showToast(`🏠 Return! Off to ${zone(cast.to).name}…`);
+    } else if (cast.spell === 'glow') {
+      setFlag(litFlag(zoneId));
+      showToast(z.dark?.lit ?? '🔆 Glow!');
+    } else {
+      calmRef.current = CALM_SECONDS;
+      setCalmLeft(CALM_SECONDS);
+      showToast(`🕊️ Calm! Critters will let you pass for ${CALM_SECONDS} seconds.`);
+    }
+  }
+  const knowsGlow = knowsFieldSpell('glow', flags);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-16">
       {/* Responsive stage: as wide as the viewport allows while keeping the
@@ -243,6 +283,20 @@ export default function WorldScreen() {
           </span>
           <span title="Coins">🪙 {save.coins}</span>
           <span title="Potions">🧪 {save.items.potion}</span>
+          {calmLeft > 0 && (
+            <span title="Calm: critters let you pass" className="rounded-full bg-sky-400/20 px-2 py-0.5 text-sky-100">
+              🕊️ {calmLeft}s
+            </span>
+          )}
+          {/* In a dark place, Glow is one tap away (#75 item 9). */}
+          {knowsGlow && canGlow(z, flags) && overlay === null && !cutscene && (
+            <button
+              onClick={() => castFieldSpell({ spell: 'glow' })}
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 rounded-lg px-3 py-1.5 text-xs font-bold"
+            >
+              🔆 Glow
+            </button>
+          )}
           {/* The machine's Spire state ignores OPEN_MENU, so don't offer it
               mid-climb — the Spire HUD has its own "Leave the Spire". */}
           {overlay !== 'spire' && (
@@ -297,6 +351,14 @@ export default function WorldScreen() {
             showToast(fog.lifted);
           },
           onFogRevealed: (id) => setFlag(fogSeenFlag(id)),
+          onDark: () =>
+            showToast(
+              knowsGlow ? '🌑 Too dark to go on! Tap 🔆 Glow at the top to light the way.' : `🌑 ${z.dark?.hint ?? "It's too dark!"}`,
+            ),
+          onCalmTick: (left) => {
+            setCalmLeft(left);
+            if (left === 0) showToast('🕊️ The calm wears off — the critters are curious again!');
+          },
           onWard: (id) => spireBump({ kind: 'ward', id }),
           onStairs: () => spireBump({ kind: 'stairs' }),
           onUmbra: () => spireBump({ kind: 'umbra' }),
@@ -311,6 +373,8 @@ export default function WorldScreen() {
         spireFloor={spireTheme}
         spireBroken={spireBroken}
         spireLight={spireTheme ? { lives: spireLives, max: SPIRE_LIVES } : null}
+        travelRef={travelRef}
+        calmRef={calmRef}
       />
 
       <p className="text-white/50 text-xs mt-2">
@@ -357,7 +421,7 @@ export default function WorldScreen() {
         ) : (
           <PathQuestionOverlay target={pathTarget} />
         ))}
-      {overlay === 'menu' && <MenuOverlay />}
+      {overlay === 'menu' && <MenuOverlay calmLeft={calmLeft} onCast={castFieldSpell} />}
       {overlay === 'spire' && <SpireOverlay />}
 
       {/* Story cutscenes (#37 story pass + expansion) — one at a time. */}

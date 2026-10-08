@@ -30,6 +30,11 @@ export const ZONE_IDS = [
   // Overworld (#75 Phase 1): the home continent + its first roadside place
   'dawnreach',
   'dawn-shrine',
+  // Roadside places for the field spells (#75 item 9): two more shrines, and a
+  // mine too dark to explore without Glow.
+  'wayfarer-shrine',
+  'quiet-shrine',
+  'echo-mine',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -205,6 +210,22 @@ export interface FogDef {
   lifted: string;
 }
 
+/**
+ * A dark place (#75 item 9): the hero sees only a small circle around them,
+ * and the `pitch` rectangles can't be crossed at all — until the hero casts
+ * the Glow field spell here, which lights the place for good (`litFlag`).
+ */
+export interface DarknessDef {
+  /** Too dark to walk into (like a fog bank) until the place is lit. */
+  pitch: { x: number; y: number; w: number; h: number }[];
+  /** What bumping into the pitch dark says before Glow is known. */
+  hint: string;
+  /** The line shown as Glow lights the place. */
+  lit: string;
+  /** The cell the dark keeps you from — a chest you can't reach without a light (zones.test). */
+  guards: { x: number; y: number };
+}
+
 export interface ZoneExit {
   /** Grid cell of the 'E' tile. */
   x: number;
@@ -281,6 +302,8 @@ export interface ZoneDef {
   places?: PlaceDef[];
   /** Fog banks that block part of the map until a story flag lifts them. */
   fogs?: FogDef[];
+  /** A dark place, explored by the light of the Glow field spell (#75 item 9). */
+  dark?: DarknessDef;
   /**
    * Tileset key override (default: the zone id). The Spire's floor maps
    * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
@@ -1111,6 +1134,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 68, y: 10, icon: 'canyon', name: 'Gearfall Canyon' },
       { x: 12, y: 47, icon: 'garden', name: 'Verdara' },
       { x: 66, y: 46, icon: 'pavilion', name: 'Chromaria' },
+      // Where the field spells are learned — and needed (#75 item 9).
+      { x: 34, y: 18, icon: 'shrine', name: "Wayfarer's Shrine" },
+      { x: 50, y: 39, icon: 'shrine', name: 'Shrine of Quiet Paws' },
+      { x: 57, y: 20, icon: 'cave', name: 'Echo Mine' },
     ],
     exits: [
       { x: 40, y: 30, to: 'lumina-village', spawnX: 21, spawnY: 1 },
@@ -1124,6 +1151,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 68, y: 10, to: 'gearfall', spawnX: 2, spawnY: 6 },
       { x: 12, y: 47, to: 'verdara', spawnX: 10, spawnY: 26 },
       { x: 66, y: 46, to: 'chromaria', spawnX: 10, spawnY: 2 },
+      { x: 34, y: 18, to: 'wayfarer-shrine', spawnX: 10, spawnY: 11 },
+      { x: 50, y: 39, to: 'quiet-shrine', spawnX: 10, spawnY: 11 },
+      { x: 57, y: 20, to: 'echo-mine', spawnX: 11, spawnY: 11 },
     ],
     // Fog of Forgetting (#75 item 7): the first crystal clears the way to the
     // shrine and the Spire grounds; each crystal also clears its own pocket.
@@ -1214,6 +1244,122 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 11, y: 13, to: 'dawnreach', spawnX: 57, spawnY: 16 },
     ],
   },
+
+  // A starlit shrine just north-west of the village, open from the start: its
+  // keeper teaches Return, so the long roads are only walked once (#75 item 9).
+  'wayfarer-shrine': {
+    id: 'wayfarer-shrine',
+    name: "Wayfarer's Shrine",
+    kind: 'shrine',
+    map: [
+      '######################',
+      '#,.....,......,.....,#',
+      '#...##..........##...#',
+      '#..#....~~~~~~....#..#',
+      '#..#...~~~~~~~~...#..#',
+      '#......~~~~~~~~......#',
+      '#.......~~~~~~.......#',
+      '#,........==........,#',
+      '#..##.....==.....##..#',
+      '#..##.....==.....##..#',
+      '#.........==.........#',
+      '#....S....==.........#',
+      '#,........==........,#',
+      '##########EE##########',
+    ],
+    ground: [70, 78, 120],
+    path: [150, 160, 210],
+    solidEmoji: '🏛️',
+    decoEmoji: '✨',
+    spawn: { x: 10, y: 11 },
+    npcs: [{ defId: 'wayfarer-keeper', x: 12, y: 7 }],
+    enemies: [],
+    exits: [
+      { x: 10, y: 13, to: 'dawnreach', spawnX: 35, spawnY: 18 },
+      { x: 11, y: 13, to: 'dawnreach', spawnX: 35, spawnY: 18 },
+    ],
+  },
+
+  // A mossy garden shrine with two lily ponds, off the east road. Its keeper
+  // teaches Calm, and every critter for miles knows her name (#75 item 9).
+  'quiet-shrine': {
+    id: 'quiet-shrine',
+    name: 'Shrine of Quiet Paws',
+    the: true,
+    kind: 'shrine',
+    map: [
+      '######################',
+      '#,,....#......#....,,#',
+      '#,..........,........#',
+      '#...~~~~......~~~~...#',
+      '#..~~~~~~....~~~~~~..#',
+      '#...~~~~......~~~~...#',
+      '#.........==.........#',
+      '#.,.......==......,..#',
+      '#.....#...==...#.....#',
+      '#.........==.........#',
+      '#..,......==.....,...#',
+      '#.........==...S.....#',
+      '#,........==........,#',
+      '##########EE##########',
+    ],
+    ground: [96, 140, 92],
+    path: [176, 160, 120],
+    solidEmoji: '🌳',
+    decoEmoji: '🌸',
+    spawn: { x: 10, y: 11 },
+    npcs: [{ defId: 'quiet-keeper', x: 12, y: 6 }],
+    enemies: [],
+    exits: [
+      { x: 10, y: 13, to: 'dawnreach', spawnX: 51, spawnY: 39 },
+      { x: 11, y: 13, to: 'dawnreach', spawnX: 51, spawnY: 39 },
+    ],
+  },
+
+  // An old mine in the ridge south of the shrine valley. Its lamps went out
+  // with the fog: past the first chamber it's pitch dark until Glow lights it
+  // (#75 item 9). Miner Mabel waits at the mouth; a chest waits at the bottom.
+  'echo-mine': {
+    id: 'echo-mine',
+    name: 'Echo Mine',
+    kind: 'dungeon',
+    // The chest's riddle is about the old days (the mine's long history).
+    topic: 'history',
+    // Two tiles wide everywhere, like the gates, so no one snags on a corner.
+    map: [
+      '######################',
+      '##############.=.....#',
+      '####======.=##.=...C.#',
+      '####.......=##.=.....#',
+      '####=.#..#.=##.=.,.,.#',
+      '####=.#..#.=##.=######',
+      '####=.#..#.....=######',
+      '####=.#.,#====.=######',
+      '####=.################',
+      '####=.################',
+      '#,..=...............,#',
+      '#...=................#',
+      '#...========.,.......#',
+      '##########EE##########',
+    ],
+    ground: [84, 72, 70],
+    path: [140, 116, 92],
+    solidEmoji: '🪨',
+    decoEmoji: '💎',
+    spawn: { x: 11, y: 11 },
+    npcs: [{ defId: 'mine-miner', x: 15, y: 11 }],
+    enemies: [],
+    exits: [
+      { x: 10, y: 13, to: 'dawnreach', spawnX: 57, spawnY: 21 },
+      { x: 11, y: 13, to: 'dawnreach', spawnX: 57, spawnY: 21 },
+    ],
+    dark: {
+      pitch: [{ x: 4, y: 7, w: 2, h: 3 }],
+      hint: "It's pitch dark in there! You'd need a light to go on. Old Wren at the Shrine of First Light knows a spell for that.",
+      lit: '🔆 Glow! The old mine lamps flicker back to life, one after another, deep into the tunnels.',
+      guards: { x: 19, y: 2 },
+    },
+  },
 };
 
 export function zone(id: ZoneId): ZoneDef {
@@ -1296,8 +1442,8 @@ export function safeSpawn(
 }
 
 /**
- * Cells you can walk to from the zone's spawn (4-way), with fog in the way
- * unless `flags` lift it; `flags` null ignores fog altogether.
+ * Cells you can walk to from the zone's spawn (4-way), with fog (and pitch
+ * dark) in the way unless `flags` lift it; `flags` null ignores both.
  */
 export function reachableOnFoot(z: ZoneDef, flags: Record<string, boolean> | null): Set<string> {
   const seen = new Set<string>([`${z.spawn.x},${z.spawn.y}`]);
@@ -1312,7 +1458,7 @@ export function reachableOnFoot(z: ZoneDef, flags: Record<string, boolean> | nul
     ]) {
       const key = `${nx},${ny}`;
       if (seen.has(key) || !WALKABLE_CHARS.has(tileAt(z, nx, ny))) continue;
-      if (flags && fogAt(z, nx, ny, flags)) continue;
+      if (flags && (fogAt(z, nx, ny, flags) || darkAt(z, nx, ny, flags))) continue;
       seen.add(key);
       queue.push([nx, ny]);
     }
@@ -1336,6 +1482,17 @@ export function fogAt(z: ZoneDef, x: number, y: number, flags: Record<string, bo
   return (
     z.fogs?.find((f) => x >= f.x && x < f.x + f.w && y >= f.y && y < f.y + f.h && !fogLifted(f, flags)) ?? null
   );
+}
+
+/** Save flag: the Glow field spell has lit this dark place, for good (#75 item 9). */
+export function litFlag(zoneId: ZoneId): string {
+  return `lit:${zoneId}`;
+}
+
+/** Is this cell pitch dark — part of an unlit dark place's `pitch`? */
+export function darkAt(z: ZoneDef, x: number, y: number, flags: Record<string, boolean>): boolean {
+  if (!z.dark || flags[litFlag(z.id)]) return false;
+  return z.dark.pitch.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 }
 
 /** Save flag: this bank's lifting has been shown — the camera pan to it (#75 item 7). */

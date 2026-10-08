@@ -23,7 +23,9 @@ at its four corners (Numbria north-west, Gearfall Canyon north-east, Verdara
 south-west, Chromaria south-east — the corners of the world the Fiends hid
 in); and quieter **story places** between them (Whispering Woods, Clockwork
 Depths, Starfall Coast, the hidden Moonwell Grove, the Shrine of First Light,
-and the Crystal Spire south of the Village). "Lumina Field" is the open
+and the Crystal Spire south of the Village), plus **roadside places** where
+the hero learns **field spells** (#75 item 9: the Wayfarer's Shrine, the
+Shrine of Quiet Paws, and the dark Echo Mine). "Lumina Field" is the open
 country around the Village; it stopped being a separate hub in #75 item 8. The themed story zones have no Fiends
 of their own, but each of the three warden zones holds a **warden boss**
 guarding a gate key (#58) — they carry the narrative, hold save crystals, and
@@ -102,6 +104,19 @@ the Crystal Spire holds the endgame:
 | Clockwork Depths | ⏳ Time & History | Clockwork Titan 🦾 → Gearwright Key (Gearfall) | Cricket 🐭 (gear-tender), Echo 🤖 (the last lantern-bot, everything comes back three times), Ratchet the Wind-Up 🔧 (warns of the Titan) |
 | Moonwell Grove (hidden, #grove) | 🦋 Nature (reused) | — (no warden; riddle-chest + defeat quest) | Lune the Moonkeeper 🌙 (quest-giver, tends the darkened well), Glim ✨ (flavor critter), Ripple 💧 (flavor critter) |
 | The Crystal Spire | endgame climb | — | Keeper Aurora 🔮 (kept the Spire since before the fog; reacts to crystals) + the Spire icon 🗼 |
+
+**Roadside shrines + field spells (#75 item 9):** each shrine's keeper teaches
+one **field spell** — magic for out in the world, not for battle — by a short
+**trial**: three right answers on the shrine's topic (a wrong answer just
+brings another, and goes to the Library). Field spells are cast from the 📜
+Menu and need no questions once learned.
+
+| Place | Keeper | Spell (trial topic) | Opens |
+|---|---|---|---|
+| Wayfarer's Shrine (just north-west of the Village) | Wayfarer Juniper 🌠 — walked every road, some twice by accident | 🏠 **Return** — fly to any town you've been to (🪐 space: "the stars carry you") | from the start |
+| Shrine of First Light (north-east, behind fog) | Old Wren 🕯️ — kept one candle lit for sixty years | 🔆 **Glow** — light a dark place, for good (🔬 science: light) | the first crystal (its fog lifts) |
+| Shrine of Quiet Paws (off the east road) | Keeper Thistle 🦔 — the critters aren't mean, they're scared of the fog | 🕊️ **Calm** — critters let you pass for a minute; bosses don't (🦋 nature) | from the start |
+| Echo Mine (in the ridge south of the shrine valley) | Miner Mabel ⛏️ — a mole who doesn't like the dark (or dirt) | — needs **Glow**: pitch dark past its first chamber; lit, it holds a ⏳ history riddle-chest | from the start |
 
 **Warden keys (#58):** each themed zone's **warden boss** drops a **key**, and
 each key is **named for the crystal zone it unlocks** (its destination — the
@@ -200,6 +215,9 @@ current hint) and carried items. Flags: `quest:<id>:offered`,
 | `ending-seen` | finishing the four-crystal "call to the Spire" cutscene |
 | `spire-cleared` | beating Umbra at the top of the Spire climb |
 | `spire-victory-seen` | finishing the true-finale cutscene |
+| `spell:<return\|glow\|calm>` | passing that field spell's shrine trial (#75 item 9) |
+| `visited:<zone>` | arriving in a zone — Return flies to the visited towns (#75 item 9) |
+| `lit:<zone>` | casting Glow in a dark place (the Echo Mine), for good |
 
 ## 8. Future story hooks (phase 4+)
 

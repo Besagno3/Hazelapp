@@ -7,6 +7,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py blend      # only the edge-blend sheets (#71b)
     python3 tools/assets/build.py signpost   # only the signpost prop (#75 item 6)
     python3 tools/assets/build.py fog        # only the fog-puff sheet (#75 item 7)
+    python3 tools/assets/build.py spells     # only the field-spell places + keepers (#75 item 9)
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -56,6 +57,13 @@ def main():
         # Just the wayfinding signpost (#75 item 6) — existing files untouched.
         write_manifest(build_sprites.build(PUBLIC, only={'signpost'}))
         print('signpost ✓')
+        return
+    if 'spells' in only:
+        # Just the field-spell places and their people (#75 item 9) — every
+        # other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only={'wayfarer-keeper', 'quiet-keeper', 'mine-miner'}))
+        tiles.build_spell_places(PUBLIC)
+        print('spells ✓')
         return
     if 'icons' in only:
         # Just the overworld sheet, now with the crystal regions' icons (#75

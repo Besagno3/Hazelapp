@@ -1,5 +1,6 @@
-import { HUB_ZONE, MET_ELDER, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
-import type { WorldNpcDef } from '../content/npcs';
+import { HUB_ZONE, MET_ELDER, reachableOnFoot, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
+import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, type FieldSpell } from '../content/fieldSpells';
 import { TOPIC_REGISTRY, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForZone, type GateKey } from '../content/keys';
 import { SPIRE_CLEARED } from '../content/story';
@@ -232,6 +233,22 @@ function bearingFromHome(zones: Record<ZoneId, ZoneDef>, to: ZoneId): string | n
 }
 
 /**
+ * The first field spell (#75 item 9) not learned yet whose shrine you can walk
+ * to right now (the Shrine of First Light waits behind fog for a crystal).
+ */
+export function shrineToVisit(zones: Record<ZoneId, ZoneDef>, flags: Record<string, boolean>): FieldSpell | null {
+  const world = Object.values(zones).find((z) => z.kind === 'overworld');
+  if (!world) return null;
+  const open = reachableOnFoot(world, flags);
+  for (const id of FIELD_SPELL_IDS) {
+    const spell = FIELD_SPELLS[id];
+    const door = world.exits.find((e) => e.to === spell.shrine);
+    if (!knowsFieldSpell(id, flags) && door && open.has(`${door.x},${door.y}`)) return spell;
+  }
+  return null;
+}
+
+/**
  * Elder Lumen's tips (#75 item 8): the big picture of what to do next — the
  * plan for this stage of the story, in a sentence or two, and one practical
  * tip. Not the road to take (the 🚩 map, Grandmother Wick, Scout Tamsin and
@@ -267,6 +284,11 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = 'Many townsfolk have little quests for you. Talk to everyone — and look for twinkles ✦!';
   } else if (restored === 0) {
     tip = "Before you set out, buy Berry Potions at Maple's Trading Post, beside the Library. And whenever you're hurt, rest at the Sleepy Sheep Inn by the plaza.";
+  } else if (shrineToVisit(zones, flags)) {
+    // A field spell (#75 item 9) waiting at a shrine you can reach.
+    const spell = shrineToVisit(zones, flags)!;
+    const keeper = NPC_DEFS[spell.keeper]?.name ?? 'A shrine keeper';
+    tip = `${keeper} teaches a field spell at ${place(spell.shrine)}: ${spell.emoji} ${spell.name}. ${spell.description}`;
   } else {
     tip = [
       'Every crystal you restore lifts a bank of fog on Dawnreach. Open your 📜 Menu map to see what each crystal will uncover!',

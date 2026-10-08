@@ -53,7 +53,17 @@ ZONES = {
                       sky=('#6ab8ff', '#cfeeff'), far='#7aa0c8', mid='mountain', water='#3a7ad0'),
     'dawn-shrine': dict(ground=(196, 188, 170), path=(190, 90, 80), solid='shrinepillar', deco='candle', deco_c='#ffd24a',
                         sky=('#2a1a4a', '#7a6ab0'), far='#4a3a6a', mid='crystals', water='#6ad0f0', cave=True),
+    # Field-spell places (#75 item 9): a starlit shrine, a mossy one, a dark mine.
+    'wayfarer-shrine': dict(ground=(70, 78, 120), path=(150, 160, 210), solid='shrinepillar', deco='sparkle', deco_c='#bfe0ff',
+                            sky=('#0e1030', '#3a3a7a'), far='#2a2a5a', mid='crystals', water='#3a4ab0', stars=True),
+    'quiet-shrine': dict(ground=(96, 140, 92), path=(176, 160, 120), solid='pine', deco='lavender', deco_c='#ff9ad0',
+                         sky=('#5ab07a', '#d8f4d0'), far='#4a8a5a', mid='pine', water='#3a8ab0'),
+    'echo-mine': dict(ground=(84, 72, 70), path=(140, 116, 92), solid='darkrock', deco='shard', deco_c='#ffb030',
+                      sky=('#140e0a', '#3a2a20'), far='#2a1e18', mid='mountain', water='#3a4a6a', cave=True),
 }
+
+# Added for the field spells (#75 item 9) — `build_spell_places` writes only these.
+SPELL_ZONES = ('wayfarer-shrine', 'quiet-shrine', 'echo-mine')
 
 # Zones added after the first asset run (#75 Phase 1) — `build_overworld` writes
 # only these (plus the overworld sheet), so existing files stay untouched.
@@ -1144,6 +1154,17 @@ def build_overworld(public: Path):
     for zid in NEW_ZONES:
         _write_zone(tdir, bdir, ids.index(zid), zid, ZONES[zid])
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_spell_places(public: Path):
+    """Write only the field-spell places' art (#75 item 9): tilesets, backdrops, blend sheets."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in SPELL_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
 
 
 def build(public: Path) -> list[str]:
