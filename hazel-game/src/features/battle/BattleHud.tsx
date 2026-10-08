@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { CHARGE_MAX } from '../../content/abilities';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { STREAK_START } from '../../lib/battleTurn';
-import { BASE_TIER, DANGER, type DangerTier } from '../../content/regions';
+import { BASE_TIER, dangerMarks, type DangerTier } from '../../content/regions';
 import type { Avatar, BattleEnemy } from '../../types';
 
 const hpPct = (hp: number, max: number) => `${Math.max(0, (hp / max) * 100)}%`;
@@ -24,7 +24,7 @@ const PANEL =
   'bg-indigo-950/90 border-2 border-white/70 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-white w-60 min-w-0';
 const TITLE_ROW = 'flex justify-between items-baseline gap-2 text-[13px] sm:text-sm font-bold';
 
-/** The danger word's colour, warmer the tougher — matching its "!" label on the map (#75 item 12). */
+/** The "!" marks' colour, warmer the tougher — matching its label on the map (#75 item 12). */
 const DANGER_TEXT: Partial<Record<DangerTier, string>> = { 2: 'text-yellow-200', 3: 'text-orange-300', 4: 'text-red-300' };
 
 /**
@@ -70,6 +70,7 @@ export function BattleHud({
           </span>
           <span className="shrink-0 whitespace-nowrap text-white/70">
             Lv {enemy.level}
+            <DangerMarks tier={enemy.tier ?? BASE_TIER} />
             {speedBoost > 0 && (
               <span className="ml-1 text-yellow-300" title="Questions raised by quick answers">
                 ⚡+{speedBoost}
@@ -81,11 +82,7 @@ export function BattleHud({
           <motion.div className="h-full bg-red-400 rounded-full" animate={{ width: hpPct(enemyHp, enemy.maxHp) }} />
         </div>
         <div className="flex justify-between gap-2 text-xs mt-0.5">
-          {powerMoveNext ? (
-            <span className="text-amber-300 font-bold animate-pulse">💢 {powerMoveNext} next!</span>
-          ) : (
-            <DangerWord tier={enemy.tier ?? BASE_TIER} />
-          )}
+          <span className="text-amber-300 font-bold animate-pulse">{powerMoveNext && `💢 ${powerMoveNext} next!`}</span>
           <span className="text-white/60">
             {enemyHp}/{enemy.maxHp}
           </span>
@@ -123,16 +120,18 @@ export function BattleHud({
 }
 
 /**
- * How tough a fighter it is, far from home (#75 item 12): "💪 Fierce". Its
- * questions are the player's own level wherever it roams; this says it hits
- * harder, takes more beating and pays more. Nothing near home.
+ * Its "!" marks beside its level, as on the map (#75 item 12): it fights
+ * harder than near home — its questions are still the player's own level.
+ * Nothing near home.
  */
-function DangerWord({ tier }: { tier: DangerTier }) {
-  const label = DANGER[tier].label;
-  if (!label) return <span />;
+function DangerMarks({ tier }: { tier: DangerTier }) {
+  const marks = dangerMarks(tier);
+  if (!marks) return null;
+  const says = 'Far from home: it hits harder — and drops more coins';
   return (
-    <span className={`font-bold ${DANGER_TEXT[tier] ?? ''}`} title="Far from home: it hits harder and takes more beating — and drops more coins.">
-      💪 {label}
+    <span className={`ml-1 font-extrabold ${DANGER_TEXT[tier] ?? ''}`} title={says}>
+      <span aria-hidden="true">{marks}</span>
+      <span className="sr-only">{says}</span>
     </span>
   );
 }

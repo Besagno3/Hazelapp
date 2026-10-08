@@ -16,6 +16,8 @@ import {
   chargeAfterAnswer,
   defendTimeMs,
   itemBlocked,
+  lossKey,
+  mercyCallout,
   mercyFor,
   nextIntent,
   powerMoveName,
@@ -56,6 +58,8 @@ import { topicInfo, crystalFlag } from '../../content/topics';
 import { BOSS_LINES, emberStatus, EMBER_HATCHED } from '../../content/story';
 import { keyForBoss, keyFlag } from '../../content/keys';
 import { resolveSprite } from '../../content/sprites';
+import { BASE_TIER, dangerMarks, defeatTip, toughCallout } from '../../content/regions';
+import { roadTier } from '../../lib/wayfinding';
 import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
 import { combatState, useBattleStore } from '../../store/battleStore';
@@ -171,7 +175,7 @@ export default function BattleArena() {
       endBattle: s.endBattle,
     })),
   );
-  const lossesSoFar = useBattleStore((s) => (enemy ? (s.losses[enemy.id] ?? 0) : 0));
+  const lossesSoFar = useBattleStore((s) => (enemy ? (s.losses[lossKey(enemy)] ?? 0) : 0));
   const save = useSaveStore((s) => s.save);
   const updateSave = useSaveStore((s) => s.update);
   const profile = useProfileStore((s) => s.profile);
@@ -289,7 +293,8 @@ export default function BattleArena() {
 
   // Start-of-battle callouts, once the question LoadingScreen clears (the
   // banner only renders in the battle UI): the archetype twist (so it's never
-  // a gotcha), then mercy if this enemy has beaten the hero a couple of times.
+  // a gotcha), what "!" marks mean the first time a tier's are met (#75
+  // item 12), then mercy if this enemy has beaten the hero a couple of times.
   const calloutShownFor = useRef<string | null>(null);
   useEffect(() => {
     if (loading || !enemy || calloutShownFor.current === enemy.instanceId) return;
@@ -304,11 +309,15 @@ export default function BattleArena() {
       later(() => showBanner(callout, 3000), at);
       at += 3200;
     }
+    const tier = enemy.tier ?? BASE_TIER;
+    const { toughMet, meetTough } = useBattleStore.getState();
+    if (dangerMarks(tier) && !toughMet.includes(tier)) {
+      meetTough(tier);
+      later(() => showBanner(toughCallout(tier), 4000, '💪'), at);
+      at += 4200;
+    }
     if (mercy.levelDrop > 0) {
-      later(
-        () => showBanner(`Tough one last time? ${enemy.name}'s questions will be a little easier now.`, 3500, '💛'),
-        at,
-      );
+      later(() => showBanner(mercyCallout(enemy), 4000, '💛'), at);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId, loading]);
@@ -855,7 +864,7 @@ export default function BattleArena() {
     const xp = settleCommon();
     void addXp(xp);
     // Remember the loss: after a couple, this enemy eases off (mercy).
-    recordLoss(enemy!.id);
+    recordLoss(lossKey(enemy!));
     // No game over (#37): wake up safe and fully healed — at the last inn
     // rested at, or home in Lumina Village (#75 item 11).
     updateSave((s) => ({
@@ -1121,6 +1130,7 @@ export default function BattleArena() {
             firstWin={turn.kind === 'victory' && turn.firstWin}
             drop={turn.kind === 'victory' ? turn.drop : null}
             wakeInn={save ? wakeInnName(save) : null}
+            tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

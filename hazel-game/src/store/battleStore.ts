@@ -32,15 +32,22 @@ interface BattleStore {
   /** Enemy instances beaten this session — kept off the map until reload. */
   defeatedIds: string[];
   /**
-   * Losses per enemy def this session — after a couple, that enemy's questions
-   * get easier (mercy). Deliberately session-only: a reload is a fresh start.
+   * Losses per enemy kind and tier this session (`lossKey`) — after a couple,
+   * that enemy eases off (mercy). Deliberately session-only: a reload is a
+   * fresh start.
    */
   losses: Record<string, number>;
+  /**
+   * Danger tiers already explained this session (#75 item 12): the first
+   * battle against a critter with "!" marks says what they mean, once per tier.
+   */
+  toughMet: number[];
 
   start: (enemy: BattleEnemy, playerHp: number, playerMaxHp: number) => void;
   applyCombat: (s: CombatState) => void;
   markDefeated: (instanceId: string) => void;
-  recordLoss: (defId: string) => void;
+  recordLoss: (key: string) => void;
+  meetTough: (tier: number) => void;
   endBattle: () => void;
   reset: () => void;
 }
@@ -63,6 +70,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
   ...FRESH_COMBAT,
   defeatedIds: [],
   losses: {},
+  toughMet: [],
 
   start: (enemy, playerHp, playerMaxHp) =>
     set({
@@ -90,12 +98,14 @@ export const useBattleStore = create<BattleStore>((set) => ({
   markDefeated: (instanceId) =>
     set((s) => ({ defeatedIds: [...s.defeatedIds, instanceId] })),
 
-  recordLoss: (defId) => set((s) => ({ losses: { ...s.losses, [defId]: (s.losses[defId] ?? 0) + 1 } })),
+  recordLoss: (key) => set((s) => ({ losses: { ...s.losses, [key]: (s.losses[key] ?? 0) + 1 } })),
+
+  meetTough: (tier) => set((s) => (s.toughMet.includes(tier) ? s : { toughMet: [...s.toughMet, tier] })),
 
   endBattle: () => set({ enemy: null }),
 
   reset: () =>
-    set({ enemy: null, playerHp: 0, playerMaxHp: 0, enemyHp: 0, ...FRESH_COMBAT, defeatedIds: [], losses: {} }),
+    set({ enemy: null, playerHp: 0, playerMaxHp: 0, enemyHp: 0, ...FRESH_COMBAT, defeatedIds: [], losses: {}, toughMet: [] }),
 }));
 
 /** The live combat numbers, read synchronously (never from a stale render). */

@@ -98,6 +98,9 @@ const DIM_RADIUS = 80;
 const LIT_RADIUS = 330;
 /** Critters fade to this while Calm is on, so you can see they'll let you pass. */
 const CALM_OPACITY = 0.45;
+/** Critter level labels and their plates draw above characters (z 6) and below the hero (z 10). */
+const LABEL_Z = 7;
+const LABEL_PLATE_OPACITY = 0.7;
 /** Seconds after Calm wears off before a critter you're touching starts a battle. */
 const CALM_GRACE = 1.5;
 /**
@@ -1000,7 +1003,7 @@ export default function WorldCanvas({
     for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
     for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
 
-    const critters: { opacity: number }[][] = [];
+    const critters: { obj: { opacity: number }; opacity: number }[] = [];
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
@@ -1032,18 +1035,26 @@ export default function WorldCanvas({
       }).obj as unknown as WorldActor;
       parts.push(face);
       // The level is its questions'; "!" marks and a warmer colour say how hard it fights (#75 item 12).
-      // A dark shadow one pixel down-right keeps the warm colours readable on any ground.
+      // It sits on a dark plate like a place name's, above every character (they're z 6), so the
+      // warm colours read on any ground and a passing critter never hides another's marks.
       const labelText = mapLabel(enemy.level, enemy.isBoss, enemy.tier);
       const labelY = py + (enemy.isBoss ? 32 : 26);
-      const labelShadow = k.add([k.text(labelText, { size: 10 }), k.pos(px + 1, labelY + 1), k.anchor('center'), k.color(24, 16, 40)]);
-      parts.push(labelShadow as unknown as Part);
       const label = k.add([
-        k.text(labelText, { size: 10 }),
+        k.text(labelText, { size: 11 }),
         k.pos(px, labelY),
         k.anchor('center'),
         k.color(...DANGER[enemy.tier ?? BASE_TIER].mapColor),
-      ]);
-      parts.push(label as unknown as Part);
+        k.z(LABEL_Z + 1),
+      ]) as unknown as Part & { width?: number; height?: number };
+      const labelPlate = k.add([
+        k.rect((label.width ?? labelText.length * 7) + 8, (label.height ?? 12) + 4, { radius: 3 }),
+        k.pos(px, labelY),
+        k.anchor('center'),
+        k.color(20, 16, 36),
+        k.opacity(LABEL_PLATE_OPACITY),
+        k.z(LABEL_Z),
+      ]) as unknown as Part;
+      parts.push(label, labelPlate);
       const actor: Actor = {
         x: px,
         y: py,
@@ -1066,8 +1077,11 @@ export default function WorldCanvas({
       } else {
         // Regular critters roam their patch (slightly wider leash than NPCs),
         // and fade while Calm is on (#75 item 9).
-        for (const part of parts) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
-        critters.push(parts as unknown as { opacity: number }[]);
+        for (const part of parts) {
+          const base = part === labelPlate ? LABEL_PLATE_OPACITY : 1;
+          if (part !== labelPlate) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
+          critters.push({ obj: part as unknown as { opacity: number }, opacity: base });
+        }
         attachWander(face, {
           actor,
           parts,
@@ -1464,7 +1478,7 @@ export default function WorldCanvas({
       const wantOpacity = calm ? CALM_OPACITY : 1;
       if (wantOpacity !== critterOpacity) {
         critterOpacity = wantOpacity;
-        for (const parts of critters) for (const part of parts) part.opacity = wantOpacity;
+        for (const c of critters) c.obj.opacity = c.opacity * wantOpacity;
       }
 
       const keys = keysRef.current;

@@ -1,10 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { BASE_TIER, DANGER, REGIONS, dangerMarks, mapLabel, placementTier, zoneTier, type DangerTier } from './regions';
+import {
+  BASE_TIER,
+  DANGER,
+  REGIONS,
+  WARN_AHEAD,
+  arrivalWarning,
+  dangerMarks,
+  defeatTip,
+  mapLabel,
+  placementTier,
+  toughCallout,
+  zoneTier,
+  type DangerTier,
+} from './regions';
 import { ZONES, ZONE_IDS } from './zones';
-import { spawnEnemy, spawnPlaced } from './enemies';
+import { atTier, spawnEnemy, spawnPlaced } from './enemies';
 import { enemyAttack, defeatXp } from '../lib/battleMath';
-import { CHARGE_CHANCE, nextIntent } from '../lib/battleTurn';
-import { nextObjective } from '../lib/wayfinding';
+import { CHARGE_CHANCE, MERCY_AFTER, lossKey, mercyCallout, mercyFor, nextIntent } from '../lib/battleTurn';
+import { nextObjective, roadTier } from '../lib/wayfinding';
+import { useBattleStore } from '../store/battleStore';
 import { TOPIC_REGISTRY, crystalFlag } from './topics';
 import { GATE_KEYS, keyFlag, keyForZone } from './keys';
 import type { ZoneId } from '../types';
@@ -30,8 +44,6 @@ describe('regions and danger tiers (#75 item 12)', () => {
         expect(b[k], `tier ${t} ${k}`).toBeGreaterThanOrEqual(a[k]);
       }
     }
-    // A word in battle only where it matters: away from home ground and the first region.
-    expect(TIERS.map((t) => DANGER[t].label)).toEqual([null, null, 'Tough', 'Fierce', 'Mighty']);
   });
 
   it('the road the 🚩 sends you down never gets easier (the Spire is a question trial, not a fight)', () => {
@@ -148,5 +160,79 @@ describe('scaling a battle by tier — never its questions', () => {
       'starfall-coast': 'tide-colossus:3',
       chromaria: 'gray-fiend:4',
     });
+  });
+});
+
+describe('mercy far from home, and what the danger says (#75 item 12 UX review)', () => {
+  it('after MERCY_AFTER losses a far critter fights like a Numbria one; its questions ease as anywhere', () => {
+    for (const t of [2, 3, 4] as DangerTier[]) {
+      expect(mercyFor(MERCY_AFTER - 1, t)).toEqual({ levelDrop: 0, fightTier: t });
+      expect(mercyFor(MERCY_AFTER, t)).toEqual({ levelDrop: 1, fightTier: BASE_TIER });
+    }
+  });
+
+  it('an eased enemy fights at the gentler tier and keeps its questions; its losses still count where it roams', () => {
+    const far = spawnEnemy('dog-knight', 'chromaria', 'a', 9);
+    const near = spawnEnemy('dog-knight', 'chromaria', 'a', 9, {}, BASE_TIER);
+    const eased = atTier(far, BASE_TIER);
+    expect(eased).toMatchObject({ tier: 1, eased: 4, level: far.level, maxHp: near.maxHp, coins: near.coins });
+    expect(eased.instanceId).toBe(far.instanceId); // beating it still clears it off the map
+    expect(lossKey(far)).toBe('dog-knight@4');
+    expect(lossKey(eased)).toBe(lossKey(far));
+    expect(lossKey(near)).toBe('dog-knight@1');
+    expect(atTier(far, 4)).toBe(far);
+  });
+
+  it('losses count per kind and tier; each tier\'s marks are explained once a session', () => {
+    const s = useBattleStore.getState();
+    s.reset();
+    s.recordLoss('dog-knight@4');
+    s.recordLoss('dog-knight@4');
+    expect(useBattleStore.getState().losses).toEqual({ 'dog-knight@4': 2 });
+    s.meetTough(3);
+    s.meetTough(3);
+    expect(useBattleStore.getState().toughMet).toEqual([3]);
+    s.reset();
+    expect(useBattleStore.getState().toughMet).toEqual([]);
+  });
+
+  it('the start-of-battle banners say what the marks and the mercy mean', () => {
+    expect(toughCallout(3)).toMatch(/See the !! by its level\? .*hit harder.*more coins/);
+    expect(mercyCallout({ name: 'Dog-Knight' })).toMatch(/questions will be a little easier/);
+    expect(mercyCallout({ name: 'Dog-Knight', eased: 4 })).toMatch(/gentler hits and easier questions/);
+  });
+
+  it('a defeat far from home: off the 🚩 road it points back to it; on the road it says mercy is coming', () => {
+    const imp = (tier: DangerTier, eased?: DangerTier) => ({ name: 'Doodle Imp', tier, eased });
+    expect(defeatTip(imp(1), 1)).toBeNull();
+    expect(defeatTip(imp(0), null)).toBeNull();
+    expect(defeatTip(imp(4), 1)).toMatch(/Doodle Imp fights extra tough.*🚩/);
+    expect(defeatTip(imp(1, 4), 1)).toMatch(/🚩/); // eased, but still off the road
+    expect(defeatTip(imp(2), 2)).toMatch(/couple of tries/);
+    expect(defeatTip(imp(1, 2), 2)).toBeNull(); // mercy already eased it
+    expect(defeatTip(imp(3), null)).toMatch(/couple of tries/); // the story is done: no road to point to
+  });
+
+  it(`arriving somewhere ${WARN_AHEAD} tiers past the 🚩's road warns; the road itself never does`, () => {
+    expect(roadTier({})).toBe(zoneTier('numbria'));
+    expect(arrivalWarning(zoneTier('starfall-coast'), roadTier({}))).toMatch(/fiercely.*🚩/);
+    expect(arrivalWarning(zoneTier('verdara'), roadTier({}))).toBeNull();
+    expect(arrivalWarning(zoneTier('lumina-village'), roadTier({}))).toBeNull();
+    expect(arrivalWarning(4, null)).toBeNull();
+    const flags: Record<string, boolean> = {};
+    for (let i = 0; i < 20; i++) {
+      const g = nextObjective(flags);
+      if (g.kind === 'explore' || g.kind === 'spire') break;
+      expect(arrivalWarning(zoneTier(g.zoneId!), roadTier(flags)), g.zoneId!).toBeNull();
+      if (g.kind === 'crystal') {
+        const t = TOPIC_REGISTRY.find((x) => x.zoneId === g.zoneId)!;
+        const key = keyForZone(t.zoneId);
+        if (key) flags[keyFlag(key.id)] = true;
+        flags[crystalFlag(t.id)] = true;
+      } else {
+        flags[keyFlag(GATE_KEYS.find((k) => k.fromZone === g.zoneId)!.id)] = true;
+      }
+    }
+    expect(roadTier(flags)).toBeNull();
   });
 });

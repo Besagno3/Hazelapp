@@ -2,7 +2,7 @@ import type { BattleEnemy, EnemyBehavior, Topic, ZoneId } from '../types';
 import { clampLevel, skillLevelFor } from '../lib/age';
 import { topicInfo } from './topics';
 import { bossCoinDrop, enemyCoinDrop } from './items';
-import { DANGER, placementTier, zoneTier, type DangerTier } from './regions';
+import { BASE_TIER, DANGER, placementTier, zoneTier, type DangerTier } from './regions';
 import type { EnemyPlacement } from './zones';
 
 /**
@@ -119,7 +119,6 @@ export function spawnEnemy(
   skillLevels: Partial<Record<Topic, number>> = {},
   tier: DangerTier = zoneTier(zoneId),
 ): BattleEnemy {
-  const danger = DANGER[tier];
   const def = ENEMY_DEFS[defId];
   if (!def) throw new Error(`Unknown enemy def: ${defId}`);
   const level = clampLevel(skillLevelFor(skillLevels, def.topic, age) + def.levelOffset);
@@ -135,12 +134,38 @@ export function spawnEnemy(
     spriteId: def.spriteId ?? def.id,
     topic: def.topic,
     level,
-    maxHp: Math.round(((def.isBoss ? BOSS_HP_BASE : HP_BASE) + level * def.hpPerLevel) * danger.hp),
+    maxHp: scaledHp(def, level, tier),
     zoneId,
     isBoss: def.isBoss ?? false,
-    coins: Math.round((def.isBoss ? bossCoinDrop(level) : enemyCoinDrop(level)) * danger.coins),
+    coins: scaledCoins(def, level, tier),
     behavior: def.behavior,
     tier,
+  };
+}
+
+function scaledHp(def: EnemyDef, level: number, tier: DangerTier): number {
+  return Math.round(((def.isBoss ? BOSS_HP_BASE : HP_BASE) + level * def.hpPerLevel) * DANGER[tier].hp);
+}
+
+function scaledCoins(def: EnemyDef, level: number, tier: DangerTier): number {
+  return Math.round((def.isBoss ? bossCoinDrop(level) : enemyCoinDrop(level)) * DANGER[tier].coins);
+}
+
+/**
+ * The same enemy fighting at another tier — mercy far from home (`mercyFor`'s
+ * `fightTier`): HP, blows, power moves and pay all follow `tier`, while
+ * `eased` remembers where it roams. Its questions don't change.
+ */
+export function atTier(enemy: BattleEnemy, tier: DangerTier): BattleEnemy {
+  if (tier === (enemy.tier ?? BASE_TIER)) return enemy;
+  const def = ENEMY_DEFS[enemy.id];
+  if (!def) throw new Error(`Unknown enemy def: ${enemy.id}`);
+  return {
+    ...enemy,
+    maxHp: scaledHp(def, enemy.level, tier),
+    coins: scaledCoins(def, enemy.level, tier),
+    tier,
+    eased: enemy.eased ?? enemy.tier ?? BASE_TIER,
   };
 }
 

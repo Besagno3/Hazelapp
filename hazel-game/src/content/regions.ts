@@ -1,4 +1,4 @@
-import type { ZoneId } from '../types';
+import type { BattleEnemy, ZoneId } from '../types';
 import type { EnemyPlacement } from './zones';
 
 /**
@@ -17,8 +17,6 @@ import type { EnemyPlacement } from './zones';
 export type DangerTier = 0 | 1 | 2 | 3 | 4;
 
 export interface DangerDef {
-  /** The word shown in battle ("Fierce"), or null where nothing needs saying. */
-  label: string | null;
   /** Scales max HP. */
   hp: number;
   /** Scales every blow (before power moves, enrage and defending). */
@@ -38,11 +36,11 @@ export interface DangerDef {
  * crystal, plays exactly as it did); home ground is a little gentler.
  */
 export const DANGER: Record<DangerTier, DangerDef> = {
-  0: { label: null, hp: 0.85, attack: 0.85, chargeChance: 0.12, coins: 0.8, xp: 0.9, mapColor: [255, 200, 200] },
-  1: { label: null, hp: 1, attack: 1, chargeChance: 0.2, coins: 1, xp: 1, mapColor: [255, 200, 200] },
-  2: { label: 'Tough', hp: 1.15, attack: 1.1, chargeChance: 0.25, coins: 1.3, xp: 1.15, mapColor: [255, 226, 120] },
-  3: { label: 'Fierce', hp: 1.3, attack: 1.2, chargeChance: 0.3, coins: 1.6, xp: 1.3, mapColor: [255, 170, 80] },
-  4: { label: 'Mighty', hp: 1.45, attack: 1.3, chargeChance: 0.35, coins: 2, xp: 1.45, mapColor: [255, 110, 100] },
+  0: { hp: 0.85, attack: 0.85, chargeChance: 0.12, coins: 0.8, xp: 0.9, mapColor: [255, 200, 200] },
+  1: { hp: 1, attack: 1, chargeChance: 0.2, coins: 1, xp: 1, mapColor: [255, 200, 200] },
+  2: { hp: 1.15, attack: 1.1, chargeChance: 0.25, coins: 1.3, xp: 1.15, mapColor: [255, 226, 120] },
+  3: { hp: 1.3, attack: 1.2, chargeChance: 0.3, coins: 1.6, xp: 1.3, mapColor: [255, 170, 80] },
+  4: { hp: 1.45, attack: 1.3, chargeChance: 0.35, coins: 2, xp: 1.45, mapColor: [255, 110, 100] },
 };
 
 /** The tier the game was balanced at before regions (tests and hand-built enemies default to it). */
@@ -88,7 +86,11 @@ export function placementTier(zoneId: ZoneId, p: Pick<EnemyPlacement, 'tier'>): 
   return p.tier ?? zoneTier(zoneId);
 }
 
-/** "!" marks after a critter's level on the map: none up to tier 1, then one more per tier ("Lv 4 !!"). */
+/**
+ * "!" marks after a critter's level, on the map and in battle: none up to
+ * tier 1, then one more per tier ("Lv 4 !!"). A mark means it fights harder
+ * than near home — never that its questions are harder.
+ */
 export function dangerMarks(tier: DangerTier = BASE_TIER): string {
   return '!'.repeat(Math.max(0, tier - BASE_TIER));
 }
@@ -97,4 +99,39 @@ export function dangerMarks(tier: DangerTier = BASE_TIER): string {
 export function mapLabel(level: number, isBoss: boolean, tier: DangerTier = BASE_TIER): string {
   const marks = dangerMarks(tier);
   return `${isBoss ? '👑 ' : ''}Lv ${level}${marks ? ` ${marks}` : ''}`;
+}
+
+/**
+ * The banner the first battle against a tier's "!" marks opens with, once per
+ * tier a session (#75 item 12) — so a child who taps into a fight, never
+ * having read the map, still learns what the marks mean.
+ */
+export function toughCallout(tier: DangerTier): string {
+  return `See the ${dangerMarks(tier)} by its level? Far from home, critters hit harder — but they drop more coins!`;
+}
+
+/**
+ * The defeat screen's tip after losing far from home (#75 item 12), or null.
+ * `road` is the tier of the 🚩's road (`roadTier`): a critter tougher than
+ * that is off the story's path, so point back to it; one on it eases off
+ * after a couple of losses (mercy), so say so — unless it already has.
+ */
+export function defeatTip(enemy: Pick<BattleEnemy, 'name' | 'tier' | 'eased'>, road: DangerTier | null): string | null {
+  const tier = enemy.eased ?? enemy.tier ?? BASE_TIER;
+  if (!dangerMarks(tier)) return null;
+  if (road !== null && tier > road) return `${enemy.name} fights extra tough out here. The 🚩 on your map shows a gentler road!`;
+  if (enemy.eased !== undefined) return null;
+  return 'Far from home, critters hit hard. Keep at it — after a couple of tries, they go easier on you!';
+}
+
+/** How many tiers past the 🚩's road a place is before arriving there warns you. */
+export const WARN_AHEAD = 2;
+
+/**
+ * A toast on first arriving somewhere far tougher than the 🚩's road (#75
+ * item 12) — the Coast is a short walk from home but a late, fierce place.
+ */
+export function arrivalWarning(tier: DangerTier, road: DangerTier | null): string | null {
+  if (road === null || tier - road < WARN_AHEAD) return null;
+  return '⚔️ Critters here fight fiercely! The 🚩 on your map shows a gentler road.';
 }

@@ -105,6 +105,12 @@ export interface BattleEnemy extends NPC {
    * Missing = BASE_TIER (the balance before regions).
    */
   tier?: DangerTier;
+  /**
+   * Set when mercy eased this fight (`atTier`): the tier of where it roams,
+   * while `tier` is the gentler one it fights at. Its losses still count
+   * under where it roams (`lossKey`).
+   */
+  eased?: DangerTier;
 }
 
 /** Town/zone services opened by talking to the matching NPC (`trial`: a shrine keeper's, #75 item 9). */

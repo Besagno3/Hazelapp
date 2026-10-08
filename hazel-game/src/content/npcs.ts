@@ -881,8 +881,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Hi! I\'m mapping all of Dawnreach. Want the short version? Here goes!',
       'West: the Whispering Woods. East: Starfall Coast, where the land runs out.',
       'At the four corners lie the crystal lands: Numbria north-west, Gearfall Canyon north-east, Verdara south-west and Chromaria south-east!',
-      // Regional difficulty (#75 item 12): what the "!" by a critter's level means.
-      "The farther from home, the tougher the critters fight. A ! after a critter's level means it hits harder — but it drops more coins, too!",
+      // Regional difficulty (#75 item 12): what the "!" by a critter's level means, and where the gentle road is.
+      'The farther from home you go, the tougher the critters fight!',
+      "See a ! after a critter's level? It hits harder — but drops more coins. Follow the 🚩 on your map for the gentlest road.",
       // The Spire hides in its ring of fog until the first crystal (#75 item 7).
       {
         text: "South, past the hills, the Crystal Spire hides in a ring of fog. I haven't been able to draw it yet! Restore a crystal and the fog should lift.",

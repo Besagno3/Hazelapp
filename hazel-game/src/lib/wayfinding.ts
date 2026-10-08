@@ -5,6 +5,7 @@ import { dungeonEntrance } from '../content/dungeons';
 import { TOPIC_REGISTRY, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForZone, type GateKey } from '../content/keys';
 import { SPIRE_CLEARED } from '../content/story';
+import { zoneTier, type DangerTier } from '../content/regions';
 
 /**
  * Wayfinding (#75 roadmap item 6), so a kid can always answer "where do I
@@ -118,6 +119,17 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
     crystal: left[0],
     key,
   };
+}
+
+/**
+ * The danger tier of the road the 🚩 points down (#75 item 12): its goal's
+ * place's — or null once every crystal is free (the Spire is a question
+ * trial, and after it everywhere is fair game).
+ */
+export function roadTier(flags: Record<string, boolean>): DangerTier | null {
+  const goal = nextObjective(flags);
+  if (goal.kind === 'spire' || goal.kind === 'explore' || !goal.zoneId) return null;
+  return zoneTier(goal.zoneId);
 }
 
 // --- Routes ----------------------------------------------------------------------
