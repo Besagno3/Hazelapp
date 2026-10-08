@@ -6,7 +6,7 @@ import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
-import { chestRewardText, openChest } from '../../content/quests';
+import { chestRewardText, chestWantedLine, openChest } from '../../content/quests';
 import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
 import { topicInfo } from '../../content/topics';
@@ -27,6 +27,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const update = useSaveStore((s) => s.update);
   const spendHint = useSaveStore((s) => s.spendHint);
   const hints = useSaveStore((s) => s.save?.items.hint ?? 0);
+  const save = useSaveStore((s) => s.save);
 
   const age = playerAge(profile);
   const level = skillLevelFor(profile?.skillLevels ?? {}, target.topic, age);
@@ -92,6 +93,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
     target.kind === 'gate'
       ? 'The gate swings open!'
       : `The chest pops open — ${chestRewardText(target.id)}`;
+  const wanted = target.kind === 'chest' && save ? chestWantedLine(save, target.id) : null;
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/60 p-4">
@@ -140,6 +142,19 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
           onContinue={() => sendFlow({ type: 'CLOSE' })}
         />
       )}
+
+      {/* A key item found before its quest (#75 item 13): say who wants it. The
+          live region is always there, so a screen reader reads it as it fills. */}
+      <p
+        role="status"
+        className={
+          solved && wanted
+            ? 'mt-3 max-w-md text-center text-sm text-amber-100 bg-white/10 rounded-xl px-4 py-2'
+            : 'sr-only'
+        }
+      >
+        {solved && wanted ? wanted : ''}
+      </p>
     </div>
   );
 }

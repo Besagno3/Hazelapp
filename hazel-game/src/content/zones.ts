@@ -245,6 +245,8 @@ export interface KeyChestDef {
   x: number;
   y: number;
   item: string;
+  /** Who wants it and where — shown with the find if their quest hasn't been offered yet. */
+  wantedBy: string;
 }
 
 export interface ZoneExit {
@@ -1530,9 +1532,17 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       lit: '🔆 Glow! The old mine lamps flicker back to life, one after another, deep into the tunnels.',
       guards: { x: 19, y: 2 },
     },
-    // The old miners' Moonstone, at the end of the oldest seam — Hermit Moss
-    // wants it for his moon-lamp (#75 item 13, "The Hermit's Moonstone").
-    keyChests: [{ x: 8, y: 7, item: 'moonstone' }],
+    // The old miners' Moonstone, in the nook at the top of the left-hand
+    // tunnel — Hermit Moss wants it for his moon-lamp (#75 item 13, "The
+    // Hermit's Moonstone").
+    keyChests: [
+      {
+        x: 8,
+        y: 7,
+        item: 'moonstone',
+        wantedBy: '🏮 Hermit Moss, on the hill just outside the mine, has been wishing for a Moonstone!',
+      },
+    ],
   },
 };
 
@@ -1693,13 +1703,18 @@ export function fogsToReveal(z: ZoneDef, flags: Record<string, boolean>): FogDef
   return (z.fogs ?? []).filter((f) => fogLifted(f, flags) && !flags[fogSeenFlag(f.id)]);
 }
 
-/** The quest item in the chest with this path-target id, if it's a key-item chest (#75 item 13). */
-export function chestKeyItem(chestId: string): string | undefined {
+/** The key-item chest with this path-target id, if it is one (#75 item 13). */
+export function keyChestFor(chestId: string): KeyChestDef | undefined {
   for (const z of Object.values(ZONES)) {
     const chest = z.keyChests?.find((c) => pathTargetId(z.id, 'chest', c.x, c.y) === chestId);
-    if (chest) return chest.item;
+    if (chest) return chest;
   }
   return undefined;
+}
+
+/** The quest item in the chest with this path-target id, if it's a key-item chest (#75 item 13). */
+export function chestKeyItem(chestId: string): string | undefined {
+  return keyChestFor(chestId)?.item;
 }
 
 /** A chest's question topic: the one its fog bank names, else the zone's, else math. */

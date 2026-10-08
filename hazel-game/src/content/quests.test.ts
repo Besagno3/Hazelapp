@@ -11,6 +11,8 @@ import {
   openChest,
   chestRewardText,
   handedOverFlag,
+  zoneChestOpened,
+  chestWantedLine,
 } from './quests';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, reachableOnFoot, tileAt } from './zones';
 import { fieldSpellFlag } from './fieldSpells';
@@ -332,7 +334,7 @@ describe('item chains (#75 item 13)', () => {
 
   it("the Moonstone's chest sits behind the Echo Mine's dark until Glow lights it", () => {
     const mine = ZONES['echo-mine'];
-    expect(mine.keyChests).toEqual([{ x: 8, y: 7, item: 'moonstone' }]);
+    expect(mine.keyChests!.map(({ x, y, item }) => ({ x, y, item }))).toEqual([{ x: 8, y: 7, item: 'moonstone' }]);
     const reach = (flags: Record<string, boolean>) => neighbours(8, 7).some((k) => reachableOnFoot(mine, flags).has(k));
     expect(reach({})).toBe(false);
     expect(reach({ [litFlag('echo-mine')]: true })).toBe(true);
@@ -419,6 +421,36 @@ describe('item chains (#75 item 13)', () => {
     };
     expect(activeStep(quest, save)!.id).toBe('moonstone-cut');
     expect(questConversation('mine-miner', save)).toBeNull();
+  });
+
+  it('a key item found before its quest says who wants it — until the quest is offered', () => {
+    const quest = byId('hermit-moonstone');
+    const save = openChest(defaultSave(), MOONSTONE_CHEST);
+    expect(chestWantedLine(save, MOONSTONE_CHEST)).toMatch(/Hermit Moss.*Moonstone/);
+    const offered = { ...save, flags: { ...save.flags, [questOfferedFlag(quest)]: true } };
+    expect(chestWantedLine(offered, MOONSTONE_CHEST)).toBeNull();
+    expect(chestWantedLine(save, pathTargetId('echo-mine', 'chest', 19, 2))).toBeNull(); // an ordinary chest
+  });
+
+  it("a key-item chest doesn't count as its zone's riddle-chest", () => {
+    const keyChest = openChest(defaultSave(), MOONSTONE_CHEST);
+    expect(zoneChestOpened(keyChest, 'echo-mine')).toBe(false);
+    expect(zoneChestOpened(openChest(keyChest, pathTargetId('echo-mine', 'chest', 19, 2)), 'echo-mine')).toBe(true);
+  });
+
+  it('each quest item belongs to one quest (hand-overs are remembered per item)', () => {
+    const owner = new Map<string, string>();
+    for (const q of QUESTS) {
+      const ids = new Set([
+        ...(q.givesItem ? [q.givesItem] : []),
+        ...(q.takesItems ?? []),
+        ...q.steps.flatMap((st) => [...(st.needs ?? []), ...(st.trade ? [st.trade.takes] : []), ...(st.trade?.gives ? [st.trade.gives] : [])]),
+      ]);
+      for (const id of ids) {
+        expect(owner.get(id) ?? q.id, `${id} is used by ${owner.get(id)} and ${q.id}`).toBe(q.id);
+        owner.set(id, q.id);
+      }
+    }
   });
 
   it('every quest item a step, chest or hand-over names is a registered quest item', () => {

@@ -1,5 +1,5 @@
 import type { SaveData, ZoneId } from '../types';
-import { chestKeyItem, litFlag, secretFlag } from './zones';
+import { chestKeyItem, keyChestFor, litFlag, secretFlag } from './zones';
 import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 
@@ -84,8 +84,17 @@ function chestStep(zoneId: ZoneId, hint: string): QuestStep {
   return {
     id: `${zoneId}-chest`,
     hint,
-    isComplete: (save) => save.openedChests.some((id) => id.startsWith(`${zoneId}:chest`)),
+    isComplete: (save) => zoneChestOpened(save, zoneId),
   };
+}
+
+/**
+ * Has the zone's riddle-chest been opened? A key-item chest (#75 item 13)
+ * doesn't count — it belongs to its own quest, and opening it mustn't finish
+ * a "find the zone's chest" step.
+ */
+export function zoneChestOpened(save: SaveData, zoneId: ZoneId): boolean {
+  return save.openedChests.some((id) => id.startsWith(`${zoneId}:chest`) && !chestKeyItem(id));
 }
 
 /** Defeat each listed enemy (by def id) at least once — any order. */
@@ -859,6 +868,20 @@ export function openChest(save: SaveData, chestId: string): SaveData {
 export function chestRewardText(chestId: string): string {
   const info = QUEST_ITEMS[chestKeyItem(chestId) ?? ''];
   return info ? `${CHEST_COINS} coins and the ${info.emoji} ${info.name}!` : `${CHEST_COINS} coins! 🪙`;
+}
+
+/**
+ * A key-item chest's "who wants this" line (#75 item 13), shown with the
+ * find — only while the quest that needs the item hasn't been offered, so a
+ * kid who opens the chest first knows where to take it. Null otherwise.
+ */
+export function chestWantedLine(save: SaveData, chestId: string): string | null {
+  const chest = keyChestFor(chestId);
+  if (!chest) return null;
+  const quest = QUESTS.find(
+    (q) => q.takesItems?.includes(chest.item) || q.steps.some((st) => st.needs?.includes(chest.item) || st.trade?.takes === chest.item),
+  );
+  return quest && !save.flags[questOfferedFlag(quest)] && !save.flags[questDoneFlag(quest)] ? chest.wantedBy : null;
 }
 
 /** Quests accepted but not finished — for the menu's quest log. */

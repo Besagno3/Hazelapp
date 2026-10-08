@@ -113,7 +113,8 @@ zod, react-query. Add the package in the same change that first uses it.
   ordered steps — chest / defeat / talk / secret, and since #75 item 13 *have*
   (carry an item, any of its forms) and *bring* (hand it to an NPC, who may
   hand back something new) steps; `openChest` pays a key-item chest's
-  `ZoneDef.keyChests` item), `secrets.ts` (hidden secrets per
+  `ZoneDef.keyChests` item and `zoneChestOpened` ignores those chests; each
+  quest item belongs to one quest), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
@@ -350,6 +351,27 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-08 — Item chains, second review: chest steps skip key chests, one owner per item, "who wants this?" (#75 item 13, #106)
+A second `/saas-code-review` + `/saas-ux-review` pass over all of item 13. No
+security findings (no new Supabase access; quest items live in the
+owner-only `saves` row). Fixed:
+- **Chest steps ignore key-item chests (code, low):** a "find the zone's
+  riddle-chest" step counted *any* opened chest in its zone, so a key-item
+  chest placed in, say, Numbria would have finished Tally's quest. It now
+  goes through `zoneChestOpened` (quests.ts), which skips key-item chests.
+- **One quest per item (code, low):** `handedOverFlag` is kept per item, so
+  two quests sharing an item id would pre-complete each other's have steps.
+  A test now checks every quest item belongs to exactly one quest.
+- **"Who wants this?" (UX, low → fixed):** a Moonstone found before meeting
+  Moss came with no hint of its use. A key-item chest now names who wants
+  it (`KeyChestDef.wantedBy`; `keyChestFor`, `chestWantedLine`): "🏮 Hermit
+  Moss, on the hill just outside the mine, has been wishing for a Moonstone!"
+  under the chest's result — only while that quest hasn't been offered. It
+  sits in an always-present `role="status"` region, so screen readers read it
+  as it appears. Fits a 360×640 phone.
+- 617 tests green (+3), lint + build clean; the chain replayed in headless
+  Chromium at desktop and 375 px, the early-find note at 360 / 375 / 1024 px.
 
 ### 2026-10-08 — Item chains review fixes: hand-overs stick, hints that fit, "go back to Moss" (#75 item 13, #106)
 A fresh-context `/saas-code-review` + `/saas-ux-review` of item 13 (a reviewer
