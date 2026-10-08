@@ -99,6 +99,17 @@ const LIT_RADIUS = 330;
 const CALM_OPACITY = 0.45;
 /** Seconds after Calm wears off before a critter you're touching starts a battle. */
 const CALM_GRACE = 1.5;
+/**
+ * Pitch dark (#75 item 9) as stacked layers, inset from the rectangle's edge
+ * (px): a soft three-step rim around an opaque core, so on a dim floor (#75
+ * item 10) it reads as darkness rather than a hole in the map.
+ */
+const PITCH_FEATHER = [
+  { inset: 0, alpha: 0.35 },
+  { inset: 10, alpha: 0.45 },
+  { inset: 20, alpha: 0.6 },
+  { inset: 30, alpha: 1 },
+];
 /** Movement keys we own at the window level (see the keyboard effect). */
 const MOVE_KEYS = new Set([
   'arrowleft',
@@ -1279,19 +1290,28 @@ export default function WorldCanvas({
     // Pitch dark: solid black over the tunnels no light reaches, until Glow
     // lights the place for good — then it fades away. (The hero's circle of
     // light is the DOM overlay, drawn in the loop.)
-    type Shade = { opacity: number; destroy: () => void };
+    // Each rectangle is drawn as stepped layers (PITCH_FEATHER), so its edge
+    // fades into the dim around it instead of showing as a hard black box.
+    type Shade = { obj: { opacity: number; destroy: () => void }; base: number };
     const pitch: Shade[] =
       z.dark && !flagsRef.current[litFlag(zoneId)]
-        ? z.dark.pitch.map(
-            (r) =>
-              k.add([
-                k.rect(r.w * TILE, r.h * TILE),
-                k.pos(r.x * TILE, r.y * TILE),
-                k.color(4, 2, 10),
-                k.opacity(1),
-                k.z(30),
-              ]) as unknown as Shade,
-          )
+        ? z.dark.pitch.flatMap((r) => {
+            // A small rectangle skips the inner layers; its innermost is still opaque.
+            const fits = PITCH_FEATHER.filter(({ inset }) => r.w * TILE > 2 * inset && r.h * TILE > 2 * inset);
+            return fits.map(({ inset, alpha }, i) => {
+              const base = i === fits.length - 1 ? 1 : alpha;
+              return {
+                obj: k.add([
+                  k.rect(r.w * TILE - 2 * inset, r.h * TILE - 2 * inset),
+                  k.pos(r.x * TILE + inset, r.y * TILE + inset),
+                  k.color(4, 2, 10),
+                  k.opacity(base),
+                  k.z(30),
+                ]) as unknown as Shade['obj'],
+                base,
+              };
+            });
+          })
         : [];
     let pitchFade = 1;
     let calmShown = Math.ceil(calmRef?.current ?? 0);
@@ -1633,9 +1653,9 @@ export default function WorldCanvas({
       // Glow has lit this place: the pitch dark fades away.
       if (pitch.length && flagsRef.current[litFlag(zoneId)]) {
         pitchFade = Math.max(0, pitchFade - dt / 1.2);
-        for (const shade of pitch) shade.opacity = pitchFade;
+        for (const shade of pitch) shade.obj.opacity = shade.base * pitchFade;
         if (pitchFade === 0) {
-          for (const shade of pitch) shade.destroy();
+          for (const shade of pitch) shade.obj.destroy();
           pitch.length = 0;
         }
       }
