@@ -76,6 +76,34 @@ plays on first world entry with `spire-cleared`): the fog lifts → villagers
 remembering (Poppy remembers a recipe, Sol remembers a sixth lantern) → the
 old road appears → Wick's line → call to the Archive.
 
+> **As built (overworld item 14a, 2026-10-09) — read this section with it.**
+> - **The walk home + the opening.** After the Spire's finale (3 panels), three
+>   picture panels walk the hero home (`HOMECOMING_PANELS`: down the Spire with
+>   Ember, the village cheering, the Sleepy Sheep Inn at night); they sleep
+>   there, and `ACT2_PANELS` (4 panels) open "You wake to sunshine at the
+>   Sleepy Sheep Inn": Poppy's cloud-buns, the fog rolled back off the sea,
+>   Wick's line, Old Marlow waving his hat.
+> - **Act II is across the sea.** Eldergrove, Foglight Marsh and the Sunken
+>   Archive are islands and coasts of **the Silver Shallows**, reached in
+>   Marlow's boat (`ROADMAP-OVERWORLD.md` §3.6). Only **Remembrance Hill**
+>   stays on foot: on Dawnreach, behind the road past Moonwell Grove, whose
+>   fog lifts on `act2-seen` (item 14e).
+> - **Marlow's Boat** (`marlows-boat`, giver Old Marlow, Starfall Coast;
+>   `requires: act2-seen`): his boat, *the Biscuit*, needs a leaf-silk sail
+>   (Innkeeper **Willow**, Verdara), his star-compass (Mapmaker **Atlas**,
+>   Chromaria) and a clockwork rudder (**Sage Cog**, Gearfall; Rivet fits it).
+>   Reward: the boat + 50c. First boarding plays `FIRST_VOYAGE_PANELS` (2,
+>   `first-voyage-seen`); first sailing up to the Great Fogbank, its panel
+>   ("Even Old Marlow won't sail into *that*", `great-fogbank-seen`).
+> - **Already on the Shallows:** Gull Rock (Lamplighter **Ness** and a
+>   lighthouse), Sandpiper Cay (a riddle-chest), the Great Fogbank on its east
+>   side (lifts on `crystal-words-restored`).
+> - **Posy's escort stays inside Foglight Marsh** (the Hill and the Marsh are
+>   on different maps). **Ferryman Slosh** can't stock potions (Berry Potion
+>   already has its two sellers) — his stock is decision 12 in the roadmap's
+>   §8. The **Quill Imp**'s *swift* archetype waits on decision 14 there (no
+>   new timers recommended: swift = "strikes first").
+
 ### Zones (4)
 
 | Zone (id) | Topic | Role | Notes |
@@ -166,12 +194,16 @@ the child who out-remembered the Forgotten One" → the custom of the name.
 
 **Travel:** world-map flight screen (Ember as vehicle); fast-travel to any
 save crystal once visited. Flag `flight-unlocked` at `crystal-history-restored`.
+*Revised (2026-10-09, overworld items 15b–c):* real flight over the real
+maps, not a screen — 🐉 Fly / 🛬 Land on open ground, over the Great Fogbank
+to Taleshore; fast travel is the 🏠 Return field spell (towns visited), not
+save crystals. Flight unlocks from `crystal-history-restored` itself.
 
 ### Zones (10)
 
 | Zone (id) | Topic | Role |
 |---|---|---|
-| Port Lantern (`port-lantern`) | — (safe) | harbor hub; inn, shop, library; Act III quest board |
+| Port Lantern (`port-lantern`) | — (safe) | harbor hub; inn, shop, Act III quest board (no library: there is one Library in the world) |
 | Driftwood Shallows (`driftwood-shallows`) | geography | combat/explore, gate + chest |
 | The Wayfinder Isles (`wayfinder-isles`) | geography | warden zone → **Compass Golem** → **Chorus Key A** |
 | Gale Atoll (`gale-atoll`) | geography | combat/explore; windy — wanderers drift (flavor) |
@@ -318,6 +350,10 @@ land warm — Aster isn't rescued by strength but by being remembered.)
 
 **The Dream Root descent** (reuses the Spire-climb engine, descending):
 7 floors, all 10 topics remixed, `SPIRE_LIVES`-style candle-lights.
+*Revised (2026-10-09, overworld item 16d):* the floors are **ordinary
+dungeon floors** (`content/dungeons.ts`, joined by stairs — ISSUES #103a),
+with no candle-lives; a defeat below wakes the hero at the Dream Root Door
+(item 16a). Only the name finale reuses the Spire's question gauntlet.
 Floors 2/4/6 are **Memory Wardens** — echo-fights of the Thicket Warden,
 Tide Colossus, and Clockwork Titan ("the Root remembers your victories —
 prove them again"). Floor 7: **Umbra Remembered** — a battle that ends at
@@ -348,6 +384,8 @@ Grandmother Wick (Village) → Keeper Mnem (Hall of Names) → the Chartmaker
 is a 2–3 line memory of the first Sage; the fifth reveals the name.
 Completing it sets `name-learned` — the flag the finale checks. Reward:
 **Wisp joins the party permanently** (see §7) and gains a face.
+*Revised (2026-10-09):* Wisp already joins in Act I (the Moonwell quest), so
+the reward is Wisp's new face (a sprite) and a line, not a join.
 
 ### Other Act IV quests (3)
 
@@ -384,6 +422,11 @@ again" — the true-true ending flag), `dog-named-<choice>`, `wisp-joined`.
 ---
 
 ## 7. Companions (Wave 2 system, roster grows per act)
+
+> *Status (2026-10-09):* **Pip and Wisp already shipped in Act I** (Pip on
+> `pips-marble`, Wisp on `grove-moonwell`; `content/companion.ts`), with
+> Ember. **Vela** and **Aster** as companions stay in `ROADMAP-4X.md` Waves
+> 2 and 4 — they are not part of overworld items 14–16.
 
 Party = hero + Ember + **one** companion (keeps battles readable for 7–11).
 One companion action per turn cycle, no question required (they're helpers,
@@ -469,10 +512,12 @@ mainline acts stay tight.
    surface; confirm it earns its UI weight for the age band.
 2. **Timed mechanics** — `timed-gentle` and the *swift* archetype introduce
    soft timers; keep the "failing restarts cheerfully" rule everywhere or
-   cut timers entirely if playtests show stress.
+   cut timers entirely if playtests show stress. *Now
+   `ROADMAP-OVERWORLD.md` §8 decision 14 (recommended: no new timers).*
 3. **Aster's name & gender** — placeholder creative choices; easy to change
    until Act III's omen ships (first pronoun reveal).
-4. **Double-key gate** (Chorus Isle) — needs a small `keyGate` extension
-   (array of key flags); confirm before Act III maps are drawn.
+4. ~~**Double-key gate**~~ (Chorus Isle) — **resolved (2026-10-09):**
+   `keyGate` takes a list of keys (overworld item 15g).
 5. **Memory-echo NPCs** (young Wick/Lumen) — same `NpcDef` shape, new ids;
-   decide whether echoes share sprite assets with their elders.
+   decide whether echoes share sprite assets with their elders. *Now
+   `ROADMAP-OVERWORLD.md` §8 decision 18 (recommended: new sprites).*

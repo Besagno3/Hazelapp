@@ -5,7 +5,8 @@
 > shrines are places you walk into, and the map opens up in stages by foot,
 > by boat and on Ember's wings.
 
-Status: **proposal, not started** · Date: 2026-10-04
+Status: **items 0–13 and 14a done; 14b–16f planned** (2026-10-09; §5) ·
+Date: 2026-10-04
 
 Companion docs: `STORY.md` (Act I bible, tone rules still binding),
 `STORY-4X.md` (Acts II–IV content: still the source for every NPC, enemy,
@@ -140,10 +141,10 @@ three ways to travel (walk, sail, fly), plus "down" for the finale.
 
 | Piece | Size (tiles) | Reached by | Holds |
 |---|---|---|---|
-| **World map** | ~160 × 112 (~58 screens, about half sea) | — | everything below |
-| **Dawnreach** (home continent) | ~80 × 60 | on foot | Act I: Lumina Village, the four crystal regions at the corners, the Spire at the heart, warden areas, Moonwell Grove, 4–6 roadside places |
-| **The Silver Shallows** (inner sea) and its islands | 5–7 islands, ~8×8 to 16×12 each | boat | Act II: Eldergrove, the Sunken Archive, one shrine / hermit / treasure per small island |
-| **Taleshore** (far continent) | ~56 × 44 | Ember (later also a ferry) | Act III: the ten zones of `STORY-4X.md` §5 |
+| **World map** | ~160 × 112 (~58 screens, about half sea) | — | everything below — *as built, a chain of overworld maps joined at their edges, not one map (see below)* |
+| **Dawnreach** (home continent) | 80 × 60 ✅ | on foot | Act I: Lumina Village, the four crystal regions at the corners, the Spire at the heart, warden areas, Moonwell Grove, 4–6 roadside places; Act II: Remembrance Hill |
+| **The Silver Shallows** (inner sea) and its islands | 64 × 44 ✅, east of Dawnreach; islands ~8×8 to 16×12 each | boat | Act II: Eldergrove (south), Foglight Marsh (north coast), the Sunken Archive (north-east), Gull Rock ✅ and Sandpiper Cay ✅; the Great Fogbank ✅ walls its east side |
+| **Taleshore** (far continent) | ~56 × 44, east past the Great Fogbank | Ember (a ferry later, deferred — §8 decision 16) | Act III: the ten zones of `STORY-4X.md` §5 |
 | **Below the Spire** | dungeon floors | descend | Act IV: the Dream Root |
 
 **Names (decided 2026-10-04).** The whole world is still **Lumina**. Its
@@ -152,6 +153,15 @@ parts: **Dawnreach**, the home continent; **Taleshore**, the far continent;
 the boat can sail anywhere in it); and **the Starfall Sea**, the open sea
 between the continents, where the Great Fogbank sits. Lumina Village and
 the other existing place names stay as they are.
+
+**As built (item 14a, 2026-10-09): a chain of maps, not one.** Each sea or
+continent is its own overworld zone, painted in its own Tiled file, and open
+sea along a shared edge joins them (`ZoneDef.seaLinks`, `lib/travel.ts`
+`seaCrossing`): sail off Dawnreach's east edge and the screen slides onto the
+Silver Shallows. Dawnreach kept every coordinate, each `.tmj` stays small, a
+map can later load lazily (ISSUES #66), and the world map shows the map you're
+on. Taleshore is the next link east, past the Great Fogbank; Ember crosses
+map edges (and fog) in flight (item 15b–c).
 
 Walking speed is 170 px/s (~5 tiles/s), so crossing Dawnreach in a
 straight line takes ~16 s, and about 30–45 s along winding roads. That's long
@@ -162,7 +172,7 @@ enough to feel like a journey and short enough for a young player.
 | Act | Mode | How you get it | What it opens | Speed | Battles |
 |---|---|---|---|---|---|
 | I | **On foot** | from the start | Dawnreach; bridges and passes opened by gatekeepers and warden keys; fog lifts per crystal | 1× | visible roaming critters |
-| II | **Boat** | Old Marlow's boat, repaired in a cross-continent quest (Rivet + Sage Cog) after `spire-cleared` | the Silver Shallows: its coasts and islands; lands only at docks and beaches | 1.5× | visible sea critters |
+| II | **Boat** ✅ | Old Marlow's boat, the *Biscuit*, mended in "Marlow's Boat" after `act2-seen` (a sail from Willow, his compass from Atlas, a rudder from Sage Cog — item 14a) | the Silver Shallows: its coasts and islands; lands only at docks and beaches | 1.5× | visible sea critters (item 14d) |
 | III | **Ember (flight)** | Ember full-grown + crystal #5 restored (`flight-unlocked`, `STORY-4X.md` §5) | over mountains, and over the Great Fogbank on the Starfall Sea to Taleshore; sky-only ledges | 2.5× | none (the reward for getting there) |
 | IV | **Down** | the Blank Chart (`STORY-4X.md` §6) | the Dream Root beneath the Spire | — | dungeon |
 
@@ -256,9 +266,9 @@ progress. Mechanically it's a gate with a flag, like today's gates.
 |---|---|---|
 | Four small "corner pockets", one near each crystal region | that crystal is restored | a shrine, treasure or side place you could see but not reach (the reward is visible in advance) |
 | The ring around the Spire grounds | the first crystal (today's "The Spire wakes" scene, `spire-awake-seen`) | the Spire grounds and Keeper Aurora. The door itself stays sealed until all four crystals, as today |
-| The Silver Shallows | `spire-cleared` (Act II opening) | the coastline for the boat, and the islands |
-| The road past Moonwell Grove | `act2-seen` | Remembrance Hill (`STORY-4X.md`: "a road that was never there before") |
-| The Great Fogbank (on the Starfall Sea) | never on its own. Ember flies over it in Act III; it thins when the Hush Fiend falls | Taleshore by sea (a ferry from Port Lantern) |
+| The Silver Shallows | ✅ *As built (14a):* no fog bank — the Act II opening says the fog "rolled back from the sea", and the sea link off Dawnreach's east edge is the way in once the boat is mended | the Shallows and its islands |
+| The road past Moonwell Grove | `act2-seen` (item 14e; **not** `spire-cleared`, which live saves already hold — the fog would lift the day it shipped, before Remembrance Hill exists) | Remembrance Hill (`STORY-4X.md`: "a road that was never there before") |
+| The Great Fogbank ✅ (the east side of the Silver Shallows, where the Starfall Sea begins) | never on its own: `crystal-words-restored` (the Hush Fiend, item 15g). Ember flies over it before then (item 15b–c) | Taleshore by sea (a ferry from Port Lantern — deferred, §8 decision 16) |
 
 ### 3.3 New story beats
 
@@ -308,13 +318,18 @@ progress. Mechanically it's a gate with a flag, like today's gates.
 
 | Act | `STORY-4X.md` zone | Where it goes | Reached by |
 |---|---|---|---|
-| II | Remembrance Hill | Dawnreach, behind the Grove fog | foot |
-| II | Eldergrove | a forest island in the Silver Shallows | boat |
-| II | Foglight Marsh | a marshy coast across the Silver Shallows | boat |
-| II | The Sunken Archive | a half-sunk island ruin in the Silver Shallows | boat |
+| II | Remembrance Hill | Dawnreach, behind the Grove-road fog | foot |
+| II | Eldergrove | a forest island in the south of the Silver Shallows | boat |
+| II | Foglight Marsh | a marshy coast along the Silver Shallows' north edge | boat |
+| II | The Sunken Archive | a half-sunk island ruin in the Shallows' north-east | boat |
 | III | Port Lantern + 8 island/coast zones | Taleshore | Ember |
 | III | Chartmaker's Rest | an island off Taleshore | Ember |
 | IV | The Dream Root Door → Nameless Hall | beneath the Spire, at the heart of Dawnreach | down |
+
+(Island spots as the Shallows map left room for them, ISSUES #108a.) Posy's
+escort quest (`STORY-4X.md` §4) runs inside Foglight Marsh: Remembrance Hill
+is on Dawnreach and the Marsh is across the sea, so the bible's Hill → Marsh
+→ Hall route can't be walked.
 
 The story ends where the map began: back at the Spire, at the heart of home.
 
@@ -376,6 +391,21 @@ Replace `WALKABLE_CHARS` with `passable(tile, mode)`. Add a speed per mode,
 board/land rules at docks and open ground, and draw Ember as the mount while
 flying.
 
+*Built for the boat (item 14a):* `TravelMode` is `foot | boat`; `lib/travel.ts`
+holds `passable`, `seaCrossing` (sailing off a linked edge), `landingMooring`
+and `canBoard`; `SEA_CHARS` (`~`) and `LANDING_CHARS` (beach `:` and the new
+dock `|`) live in `zones.ts`; `safeSpawn` takes the mode. You board by bumping
+the boat, land by steering into a beach or dock, places and exits open only
+on foot, and Old Marlow rows the boat home on request (`content/boat.ts`).
+The canvas still checks `WALKABLE_CHARS` / `SEA_CHARS` itself.
+
+*Planned for flight (item 15b):* `TravelMode` gains `ember`, and every canvas
+blocker goes through `passable(ch, mode)`; `landable(ch)` (grass, sand, road,
+dock) decides where 🛬 Land works; a sea link becomes an edge link that says
+which modes may cross it (the boat at sea, Ember anywhere), so flight crosses
+map edges and the Great Fogbank. A 🐉 Fly / 🛬 Land HUD button (like 🔆 Glow)
+is the touch control; flying has no battles, talk or place entries.
+
 ### 4.5 Save v2
 
 New fields: `vehicle`, `boat: { x, y } | null`, `visited: ZoneId[]` (fast
@@ -390,6 +420,14 @@ a real v1 save. In the same bump:
 Existing zone ids and interior coordinates stay unchanged, so every chest,
 gate and quest id in old saves still matches. No Supabase migration is needed
 (the save is a JSONB blob).
+
+*Since v2:* `lastRest` (item 11) and the boat's `boat` / `aboard` (item 14a)
+were added without a version bump (an old tab would drop them on write; the
+boat then waits at Marlow's dock). **Save v3 comes with flight (item 15b,
+§8 decision 15):** `aboard` becomes `vehicle: 'foot' | 'boat' | 'ember'`, the
+same step formally adopts `lastRest` and `boat` (ISSUES #104a), the server's
+version guard (migration 0011) makes old tabs refuse the save and ask for a
+refresh, and a real v2 save fixture is tested through the ladder.
 
 ### 4.6 Map authoring
 
@@ -406,7 +444,10 @@ How-to: `docs/MAP-AUTHORING.md`.
 ### 4.7 Tests to add
 
 - **No softlocks:** for each act, every place the act needs is reachable
-  with the travel modes available by then (BFS per mode).
+  with the travel modes available by then (BFS per mode). *Plan:* one search
+  over (cell, mode) in `lib/reach.ts` (item 14b) replaces `reachableOnFoot`,
+  `reachableBySea` and the five copies in test files; the per-act test lands
+  with Act II's exit (item 14i).
 - Every place icon has an inside, and its return exit lands on a walkable
   overworld cell beside the icon.
 - Every fog region has a lifting flag that can be earned before the fog is in
@@ -438,9 +479,68 @@ mostly follows build order.
 | 11 | ✅ **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | **Done (2026-10-07):** Numbria, Verdara, Gearfall Canyon and Chromaria each got an inn and an innkeeper beside the Sleepy Sheep Inn (Numbria, Gearfall and Chromaria grew a street south for it); a traveler in each crystal town; every town has 9–14 people and an innkeeper or traveler who names another place and what's there; losing a battle or the Spire climb wakes you inside the last inn you rested at (`lastRest`) |
 | 12 | ✅ **Regional difficulty:** keep question level matched to the child, scale enemy HP, damage, behaviours and coins by region | S | 2 | **Done (2026-10-08):** every zone has a danger tier by story leg — home ground 0, Numbria + the Woods 1 (the old balance), Verdara + the Depths 2, Gearfall + the Coast 3, Chromaria 4 (`content/regions.ts`) — scaling enemy HP, blows, power-move rate, coins and win XP; questions stay at the child's level. Critters show it on the map ("Lv 4 !!") and in battle ("💪 Fierce") |
 | 13 | ✅ **Side-quest item chains:** "have item" / "bring item" steps, key-item chests in dungeons | S–M | 2–3 | **Done (2026-10-08):** quests gained *have* steps (carry an item — any of its forms) and *bring* steps (hand it to another NPC, who may hand back something new); riddle-chests can hold a quest item (`ZoneDef.keyChests`). First chain, "The Hermit's Moonstone": Hermit Moss (beside the Echo Mine) wants the Moonstone from a chest at the end of the mine's oldest seam (behind the dark — Glow), cut by Miner Mabel, brought back to him |
-| 14 | **The boat + islands** (Act II) | M + content | 3 | Marlow's boat quest → sail the Silver Shallows; the Act II zones live on islands and coasts. **In progress (2026-10-08):** slice 14a done — the boat (board at Marlow's dock, sail open sea at 1.5×, land on beaches and docks, it waits where you leave it), Marlow's quest, the Silver Shallows map (sea links from Dawnreach's east edge; Gull Rock, Sandpiper Cay, the Great Fogbank), the Act II opening. Next: 14b Remembrance Hill + Eldergrove, 14c Foglight Marsh + the Sunken Archive (crystal #5), 14d Act II's quests and story (ISSUES #108) |
-| 15 | **Ember flight + Taleshore** (Act III) | M + content | 4 | fly over the Great Fogbank; land, explore, fast-travel |
-| 16 | **The Dream Root** (Act IV) on the dungeon engine | M | 5 | descend beneath the Spire; the finale plays as written |
+| 14 | **The boat + islands** (Act II) — split into 14a–14i below (planned 2026-10-09) | L + content | 3 | Marlow's boat quest → sail the Silver Shallows; the Act II zones live on islands and coasts; Act II plays start to finish |
+| 15 | **Ember flight + Taleshore** (Act III) — split into 15a–15h below | L + content | 4 | fly over the Great Fogbank; land, explore, fast-travel; Act III plays start to finish |
+| 16 | **The Dream Root** (Act IV) on the dungeon engine — split into 16a–16f below | L | 5 | descend beneath the Spire; the finale plays as written |
+
+### 5.1 Items 14–16, sub-item by sub-item (planned 2026-10-09)
+
+One branch + PR per sub-item, in this order, each followed by a
+`/saas-code-review` + `/saas-ux-review` pass (the cadence of items 7–13).
+**Every PR leaves the game complete:** Act I plays exactly as before, and the
+🚩 never points at content that doesn't exist yet (where an act's content
+ends, the 🚩 says "Explore"). Scope is what the acts need: the double-key
+gate, the testimony quest, the Blank Chart and the name finale are in;
+charms and the 4× economy, Vela and Aster as companions, New Game+ and side
+dungeons stay in `ROADMAP-4X.md` Waves 2–4 (§7).
+
+**Item 14 — the boat and the islands (Act II, Phase 3)**
+
+| # | Sub-item | Effort | Done when |
+|---|---|---|---|
+| 14a | ✅ **The boat + the Silver Shallows** (PR #30) | L | **Done (2026-10-09):** the morning after the Spire (the walk home, a night at the Sleepy Sheep Inn, `act2-seen`), Marlow's Boat quest (a sail from Willow, his compass from Atlas, a rudder from Sage Cog; `QuestDef.requires`), the boat (board, sail at 1.5×, land on beaches and docks, it waits; Marlow rows it home), the Silver Shallows (64×44, sea-linked east of Dawnreach: Gull Rock's lighthouse, Sandpiper Cay, the Great Fogbank), sea music, Act II 🚩 steps and routes across the sea (ISSUES #108) |
+| 14b | **Phase 2 exit + groundwork** | S | each Act I leg walked in headless Chromium (stubbed Supabase, flags set per leg); real v1/v2 saves load; one `lib/reach.ts` search over (cell, mode) replaces `reachableOnFoot`, `reachableBySea` and the five copies in tests; the LEVEL / STREAK badges no longer cover the HUD on phones (#102i) — the HUD gains buttons in 14–15 |
+| 14c | **Crystals, bosses and quests ready for more acts** (nothing visible) | M | `CRYSTAL_ACT`: with a test registry holding a fake Act II crystal, Act I's Spire seal, ending, HUD count, 🚩 order and corner / fog-pocket rules are unchanged; `EnemyDef.role` (`fiend / warden / miniboss / echo / finale`) replaces "any boss without a key restores its topic's crystal" (`BattleArena`, `bossDefeated`, `spawnEnemy`'s naming, `BOSS_LINES`); one person can give several quests (`questFor(npcId, save)`) and a step may go through a giver; `DangerTier` runs to 7, the Shallows moves to tier 5 (#105g, #108d) |
+| 14d | **Sea critters** | S–M | `EnemyDef.habitat: 'land' \| 'sea'`; sea critters wander only on water and fight only a sailing hero (and a land critter never a sailing one — #108j); a sea battle backdrop; 2–3 roam the Shallows |
+| 14e | **Remembrance Hill** | M | on Dawnreach behind the Grove-road fog, which lifts on `act2-seen` with the on-screen reveal; the Hall of Names, Keeper Mnem, Posy, Trader Knack, an inn and enough townsfolk for the town tests; a Return town; the 🚩 after "Sail the Silver Shallows" leads here; the Spire pays its 600 XP on the first clear only (#109) |
+| 14f | **Eldergrove + the Ringkeeper** | M | the first place icon on the Shallows (south): gate, riddle-chest, 3 critters (the Hollow Acorn shielded), Old Ringwood's warning, Fen and Moss; the Ringkeeper gives the Memoria Key (+2 panels); Fen's acorns as a collection quest (3 key-item chests + a have step) |
+| 14g | **Foglight Marsh** | M | on the Shallows' north coast: a new `escortStep` — Posy follows you through the Marsh (Ember's trail code), stops near critters, keeps her place through a battle, resets gently; the Lantern Ledger; the Last Fogbank (`miniboss`) gives the Foglight Badge and restores nothing |
+| 14h | **The Sunken Archive: the Crystal of Memory** | L | in the Shallows' north-east: history becomes crystal #5 (Act II); Sage Chronicle teaches Time Ripple; the Hollow Fiend behind the Memoria gate; `CRYSTAL_PANELS.history` whispers "Aster"; Binder's inn; Index's letter to Wick; flight's flag is this crystal's; Ember's stage tripwire moves to 5 (#64); Act I unchanged |
+| 14i | **The world remembers + Phase 3 exit** | S–M | every home-town NPC has an `act2-seen` line; the Aster breadcrumbs (Wick, Lumen) and Wisp's beat; the Hall of Names dedication with Second Wind (§8 decision 13); a micro-story on Gull Rock and Sandpiper Cay (hermit chains, #106a); the per-act, per-mode no-softlock test; Act II plays start to finish |
+
+**Item 15 — Ember flight and Taleshore (Act III, Phase 4)**
+
+| # | Sub-item | Effort | Done when |
+|---|---|---|---|
+| 15a | **New topics (code + ops)** | S | geography, words and music in both topic tables, fun facts, styling and the Training Grounds — **and** `generate-questions` redeployed and checked in production before any zone uses them (#61) |
+| 15b | **Ember flight** | M | `TravelMode` gains `ember` and the canvas blocks only through `passable`; 🐉 Fly / 🛬 Land (open ground only); 2.5×, no battles, talk or places while flying; flight crosses map edges and fog; the 3-panel flight tutorial plays once after the history crystal; save v3 with `vehicle` (real-v2 fixture, #104a); one mountaintop place on Dawnreach only reachable by air |
+| 15c | **East to Taleshore** | M–L | a Taleshore overworld past the Great Fogbank, reached by Ember (an edge link that allows only flight while the fog stands); Port Lantern (inn, shop, a quest board — not a library — and 8+ people); `ACT3_PANELS` on first landing; Return and the world map include it (#82d); sea music for the Starfall Sea |
+| 15d | **Taleshore I: geography** | M–L | Driftwood Shallows, the Wayfinder Isles (Compass Golem → Chorus Key A), Gale Atoll; 9 critters; Salt's, Drift's and Juno's quests (Juno reuses the escort step) |
+| 15e | **Taleshore II: words** | M | the Story Reef and Inkwell Cove (Riddle Leviathan → Chorus Key B); a puzzle-chain step (ordered riddle gates) for Yarn |
+| 15f | **Taleshore III: music** | M | Songstone Cliffs and the Quiet Quarter; Reso's songstones (§8 decision 14); Shush's letters to the Librarian |
+| 15g | **Chorus Isle: the Crystal of Voices** | M | `keyGate` takes a list of keys (both Chorus Keys); the Hush Fiend; Sage Aria teaches Chorus Call; words becomes crystal #6 with the pronoun omen; the Great Fogbank thins; Radiant Ember (tripwire to 6) |
+| 15h | **Chartmaker's Rest + Phase 4 exit** | S–M | the Blank Chart quest sets `blank-chart-held` (#106a); the Act III reactive pass; lazy map loading decided (#66); Act III plays start to finish |
+
+**Item 16 — the Dream Root (Act IV, Phase 5)**
+
+| # | Sub-item | Effort | Done when |
+|---|---|---|---|
+| 16a | **The door under the Spire + Say Her Name** | M | with the Blank Chart, `ACT4_PANELS` play and stairs `>` open on the Spire grounds; the Dream Root Door holds Aurora (moved there), a save crystal and a rest, and a defeat below wakes you there (#104g); Wisp's five testimonies set `name-learned` and Wisp gets a new face; `dungeons.test` lets stairs from a place start a dungeon |
+| 16b | **Lumina-That-Was** | M–L | the memory Field (an echo of the retired Lumina Field map), the memory Village and the First Classroom; mixed-topic zones (`ZoneDef.topics`); young Wick and young Lumen; the Unnamed Dog's name choice; the Bell's Apology reuses the puzzle chain |
+| 16c | **Aster's Garden + the Nameless Hall** | M | the Gardener (warden) gives Aster's Key; the garden-watering quest; the Hall's key gate opens the descent |
+| 16d | **The descent** | M–L | 7 ordinary floors on the dungeon engine (no candle-lives, #103a); echo wardens on floors 2, 4, 6 (`role: 'echo'`, their own flags and lines, +2 levels); Umbra's floor taunts soften on the way down |
+| 16e | **The Name** | M | Umbra Remembered's fight ends at the name question (the Spire's question gauntlet pulled out for reuse; without `name-learned` Umbra gently sends you back — §8 decision 17); `namePanels`, `umbra-named`, the post-credits; Aster joins the Hall of Names as the sixth Sage |
+| 16f | **Epilogue + Phase 5 exit** | M | every named NPC has an `umbra-named` line (test-guarded); a full playthrough; ISSUES #75 closed |
+
+**Why the groundwork (14b–14c) comes before any Act II content** (found
+reviewing these rows, 2026-10-09): the crystal system still assumes four —
+every "all crystals" check (`SpireOverlay` seal, `WorldScreen` ending and HUD
+count, `nextObjective`) would re-lock the Spire and reorder the 🚩 once a
+fifth exists; any boss without a key restores its topic's crystal, and the
+Clockwork Titan is already a `history` boss, so the Last Fogbank would
+restore Memory and echo bosses would crash on `BOSS_LINES`; each person can
+give only one quest, and a test forbids a step aimed at a quest giver (which
+the testimony quest needs); `keyGate` holds one key (Chorus Isle needs two).
 
 ---
 
@@ -516,7 +616,8 @@ crystal stays the gentlest fight and the last the toughest; a place you can
 walk to early (Starfall Coast) can still be a late, tough one, and its
 critters say so on the map (ISSUES #105).
 *Item 13 (2026-10-08):* side-quest item chains done (ISSUES #106).
-Next: Phase 2's exit check (Act I start to finish as a journey; old saves load).
+Next: Phase 2's exit check (Act I start to finish as a journey; old saves
+load) — scheduled as sub-item **14b** (§5.1), since 14a was built first.
 
 **Phase 3 — The sea (Act II).** Marlow's boat, the Silver Shallows and its islands,
 the Act II zones from `STORY-4X.md` §4 placed per §3.6.
@@ -528,12 +629,26 @@ of one 160×112 world map — sailing off Dawnreach's east edge slides onto it
 Travel modes are `foot` / `boat` (`passable`), and the save holds where the
 boat is moored and whether you're in it (`boat`, `aboard` — additive, no
 version bump). Decision 8 taken as recommended: the boat comes in Act II.
+*Planned (2026-10-09):* 14a merged (PR #30); the rest of Phase 3 is
+sub-items 14b–14i (§5.1) — the Phase 2 exit check and the groundwork for a
+fifth crystal first, then sea critters, Remembrance Hill, Eldergrove,
+Foglight Marsh, the Sunken Archive (crystal #5) and the reactive pass.
+*Exit:* Act II plays start to finish on the map, and the per-act, per-mode
+no-softlock test passes.
 
 **Phase 4 — The sky (Act III).** Ember flight over the Great Fogbank, Taleshore
 with `STORY-4X.md` §5's zones, sky-only side places.
+*Planned (2026-10-09):* sub-items 15a–15h (§5.1) — the new topics deployed
+first, then flight (with save v3), Taleshore and Port Lantern, its three
+topic clusters, Chorus Isle (crystal #6) and Chartmaker's Rest (the Blank
+Chart). *Exit:* Act III plays start to finish.
 
 **Phase 5 — Down (Act IV).** The Dream Root beneath the Spire, on the
 generalized dungeon engine.
+*Planned (2026-10-09):* sub-items 16a–16f (§5.1) — the door and the
+testimony quest, Lumina-That-Was, Aster's Garden, the 7-floor descent as
+ordinary dungeon floors, the name finale, the epilogue. *Exit:* the finale
+plays as written and the whole game plays through.
 
 ---
 
@@ -542,11 +657,11 @@ generalized dungeon engine.
 | 4× wave | Status after this roadmap |
 |---|---|
 | Wave 0 — Foundations | mostly shipped; its remaining items still apply |
-| Wave 1 — Act II (Memory) | **paused (decided 2026-10-05)** until Phase 2 exits; then becomes **Phase 3**, built on the map with the boat. Don't build its four zones as edge-linked screens |
+| Wave 1 — Act II (Memory) | **becomes Phase 3 / item 14** (14a–14i, §5.1), built on the map with the boat. Was paused until Phase 2 exited (decided 2026-10-05); 14a started first, and 14b holds the exit check. Wave 0.1 (open the crystal system) finishes in 14c + 14h |
 | Wave 2 — Companions, Ember in battle | unchanged; can land any time after Phase 2 |
-| Wave 3 — Act III (Starfall Sea) | becomes **Phase 4**; its "world map / fly-travel screen" becomes real flight over a real map |
+| Wave 3 — Act III (Starfall Sea) | becomes **Phase 4 / item 15** (15a–15h); its "world map / fly-travel screen" becomes real flight over real maps. Its economy (charms, ~20 shop items, inn upgrades) is **not** part of item 15 — it stays a Wave 3 system. Wave 0.4 (topics out of the edge function) is covered for now by 15a's redeploy |
 | Wave 4 — Depth (NG+, side dungeons, daily loop, parent dashboard) | unchanged, except the "mini-Spire" side dungeons become island and roadside dungeons |
-| Wave 5 — Act IV (The Name) | becomes **Phase 5** |
+| Wave 5 — Act IV (The Name) | becomes **Phase 5 / item 16** (16a–16f); New Game+ and Aster as a companion stay in Wave 4 |
 
 `STORY-4X.md` content (cast, enemies, quests, spells, flags) is kept as
 written; only *where* each zone sits and *how you get there* changes.
@@ -557,8 +672,9 @@ written; only *where* each zone sits and *how you get there* changes.
 
 Struck-through items are decided; the rest are still open.
 
-1. **World shape.** Approve two continents + islands + walk / sail / fly /
-   descend (§2)? *Recommended: yes.*
+1. ~~**World shape.**~~ **Taken (2026-10-08): yes** — two continents +
+   islands + walk / sail / fly / descend (§2), as built since Phase 1; as a
+   chain of maps joined at their edges (§2.1, item 14a).
 2. ~~**Names.**~~ **Decided (2026-10-04):** the world stays **Lumina**;
    continents **Dawnreach** (home) and **Taleshore** (far); seas **the Silver
    Shallows** (inner) and **the Starfall Sea** (outer). Still open: region
@@ -581,11 +697,35 @@ Struck-through items are decided; the rest are still open.
    in zones.ts (ISSUES #82g).
 8. ~~**When the boat arrives.**~~ **Taken as recommended (2026-10-08): Act II**,
    after the Spire (roadmap item 14).
-9. **Flight timing:** keep `STORY-4X.md`'s rule (Ember flies at crystal #5)?
-   *Recommended: yes.*
+9. ~~**Flight timing.**~~ **Decided (2026-10-08): yes** — Ember flies once
+   crystal #5 (Memory, `crystal-history-restored`) is restored (item 15b).
 10. ~~**Pause `ROADMAP-4X.md` Wave 1 (Act II).**~~ **Decided (2026-10-05):
     yes.** No Act II zones get built until Phase 2 (Dawnreach) exits; they
     are then placed on the map per §3.6 (§7).
+
+Open for items 14–16 (each with a recommendation; confirm before its
+sub-item starts, as decisions 5–7 were):
+
+11. **New towns** (Remembrance Hill, Port Lantern, Chorus Isle…): keep the
+    "an inn and 8+ people in every town" rule (zones.test)? *Recommended:
+    keep it.* Before 14e.
+12. **New merchants' stock** (Knack, Slosh, Tass…): badges only, or 1–2 new
+    items each? Each item is still sold in one shop, and Berry Potion
+    already has its two sellers. *Recommended: badges + one new item each.*
+    Before 14e.
+13. **Second Wind** (the Hall of Names spell, `STORY-4X.md` §9): include it?
+    *Recommended: yes, in 14i.*
+14. **Timers:** `swift` critters (the Quill Imp) and Reso's songstones would
+    add new timers. *Recommended: no new timers — swift means "strikes
+    first", and the song just restarts.* Before 14h / 15f.
+15. **Save v3 with flight** (`aboard` → `vehicle`, §4.5)? *Recommended: yes.*
+    Before 15b.
+16. **The Port Lantern ferry** after the Hush Fiend? *Recommended: defer.*
+    Before 15c.
+17. **`name-learned`:** gate the whole descent, or only the name question?
+    *Recommended: only the question.* Before 16d.
+18. **Young Wick and young Lumen:** share their elders' sprites, or new ones?
+    *Recommended: new sprites.* Before 16b.
 
 ---
 
@@ -601,3 +741,9 @@ Struck-through items are decided; the rest are still open.
 | Scope creep | cap at two continents; one structure per small island; vehicles beyond boat + Ember only if a region needs one |
 | Tone drift (barriers feel punishing) | fog is "the world forgetting"; lifting it is always a celebration; barriers never take anything away |
 | Building Act II in the old shape | `ROADMAP-4X.md` Wave 1 is paused until Phase 2 exits (decided 2026-10-05, §7) |
+| A fifth crystal breaks Act I | groundwork first (14c): Act I's seal, ending, HUD and 🚩 keyed to the Act I crystals, tested with a fake fifth crystal |
+| Stranded without the boat | the boat moors edge to edge and boards from beside it, Marlow rows it home, places open only on foot (14a); the per-mode no-softlock test (14i) |
+| Old tabs and additive save fields | `boat` / `aboard` / `lastRest` fall back safely; save v3 with flight (15b) makes old tabs refuse and refresh |
+| A topic missing in production | 15a deploys and checks `generate-questions` before any zone asks a new topic (ISSUES #61) |
+| Map PRs collide | a `.tmj` is one long JSON line: map changes go one PR at a time, compared with `tiled.py to-ascii` (#82h) |
+| Art volume (~50 NPCs, ~40 enemies and bosses) | one `build.py` art target per sub-item; emoji stays the fallback, so art never blocks |

@@ -75,6 +75,15 @@ zod, react-query. Add the package in the same change that first uses it.
   2026-10-08):** Marlow's boat arrives after the Spire (roadmap decision 8),
   and Act II's places are islands and coasts of the Silver Shallows — its
   own overworld map east of Dawnreach, reached by sailing off the east edge.
+  **Items 14–16 planned (2026-10-09):** the world is a **chain of overworld
+  maps joined at their edges** (Dawnreach → the Silver Shallows → Taleshore
+  past the Great Fogbank), not one big map; **Ember flies at crystal #5**
+  (Memory — roadmap decision 9) and flight crosses map edges and fog; the rest
+  is one PR per sub-item (14b–14i, 15a–15h, 16a–16f, roadmap §5.1), each
+  followed by `/saas-code-review` + `/saas-ux-review`, groundwork first (a
+  fifth crystal must leave Act I untouched). Scope is what the acts need —
+  charms / the 4× economy, Vela and Aster as companions, New Game+ and side
+  dungeons stay in `ROADMAP-4X.md`.
 
 ## Architecture
 
@@ -427,6 +436,39 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-09 — Items 14–16 planned: one PR per sub-item, built on the boat (#75, docs only)
+A review of the overworld roadmap's last three rows (14 the boat + islands,
+15 Ember flight + Taleshore, 16 the Dream Root) against the code, and of PR
+#30 (item 14's first slice, merged as **14a**). No code changes.
+- **Kept PR #30 and its design:** the Silver Shallows as its own sea map
+  linked at Dawnreach's east edge (not one 160×112 map), `foot` / `boat`
+  travel modes, additive `boat` / `aboard` save fields. The roadmap's §2.1,
+  §3.2, §3.6, §4.4, §4.5 and §4.7 now describe the world as built and plan
+  flight on top of it (`ember` mode, edge links by mode, save v3 at 15b).
+- **Sub-items** (`docs/ROADMAP-OVERWORLD.md` §5.1): 14b the Phase 2 exit
+  check + one reachability search; 14c crystals, bosses and quests ready for a
+  fifth crystal (nothing visible); 14d sea critters; 14e Remembrance Hill;
+  14f Eldergrove; 14g Foglight Marsh; 14h the Sunken Archive (crystal #5);
+  14i the reactive pass; 15a–15h (new topics deployed first, flight,
+  Taleshore, three topic clusters, Chorus Isle, Chartmaker's Rest); 16a–16f
+  (the door + Say Her Name, Lumina-That-Was, Aster's Garden, the descent on
+  the dungeon engine, the Name, the epilogue).
+- **Why groundwork first:** every "all crystals" check (Spire seal, ending,
+  HUD count, `nextObjective`) would re-lock the Spire or reorder the 🚩 with a
+  fifth crystal; any boss without a key restores its topic's crystal (the
+  Clockwork Titan is already `history`); one quest per person; one key per
+  gate.
+- **Decisions:** 1 (world shape) and 9 (flight at crystal #5) taken; 11–18
+  open with recommendations (roadmap §8).
+- **Docs reconciled:** `STORY-4X.md` (Marlow's Boat and the walk home as
+  built, Act II across the sea, Posy's escort inside the Marsh, Port Lantern
+  without a library, ordinary Dream Root floors, Pip / Wisp already joined),
+  `ROADMAP-4X.md` (Waves 1 / 3 / 5 = items 14 / 15 / 16), `STORY.md` (the
+  bigger-world writing rules in §2, Act II flags in §7).
+- **ISSUES:** #75 and #108 point at the sub-items, follow-ups retargeted
+  (#56, #64, #66, #82, #100, #102–#106, #108); new **#109** — a Spire re-clear
+  pays its 600 XP again.
 
 ### 2026-10-09 — Merge main (longer music loops, #107) into the boat branch
 `main` took #107 for the music-loops follow-up while the boat was built, so

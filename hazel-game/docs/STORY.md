@@ -52,6 +52,17 @@ One register for everyone (decided 2026-06-12): playful, warm, ~ages 7–11.
 - Villains get theatrical ALL-CAPS sparingly; kids' lines get exclamation
   marks; Sages speak in cozy metaphors.
 
+**Writing for a bigger world** (from `ROADMAP-OVERWORLD.md` §3.4, #75):
+
+- **Every town points onward.** At least one person per town names another
+  place and what's there (a rumor network).
+- **Every roadside place is a micro-story:** one character, one riddle or
+  trial, one reward, one joke.
+- **Every barrier has a reason a kid can say out loud:** "the fog", "the
+  bridge is out", "we need a boat", "Ember's too small".
+- **Places are named on the world map**, with short names that say what they
+  are (keep the Numbria / Gearfall Canyon pattern).
+
 ## 3. The hero & Ember 🐲
 
 **The hero** (player's avatar — Blaze/Shield/Nova) is a curious kid from
@@ -234,6 +245,9 @@ current hint) and carried items. Flags: `quest:<id>:offered`,
 | `spell:<return\|glow\|calm>` | passing that field spell's shrine trial (#75 item 9) |
 | `visited:<zone>` | arriving in a zone — Return flies to the visited towns (#75 item 9) |
 | `lit:<zone>` | casting Glow in a dark place (the Echo Mine), for good |
+| `act2-seen` | waking at the Sleepy Sheep Inn the morning after the Spire — `ACT2_PANELS` played (#75 item 14) |
+| `first-voyage-seen` | first climbing into Marlow's mended boat (`FIRST_VOYAGE_PANELS`) |
+| `great-fogbank-met` / `great-fogbank-seen` | first sailing up to the Great Fogbank / its panel played |
 
 ## 8. Future story hooks (phase 4+)
 
@@ -256,6 +270,8 @@ bible: Acts II–IV, every zone/NPC/enemy/quest/spell named):
   a travel ladder (walk → Marlow's boat → Ember's wings → down). Done so
   far: the crystal regions sit at Dawnreach's corners, fog lifts per crystal,
   the hero's home is settled as Lumina Village, and Lumina Field retired as a
-  hub (its people moved into the Village) — #75 items 7–8. Still to come:
-  every town gets an inn (decided 2026-10-05), and writing rules for rumors
-  and roadside stories.
+  hub (its people moved into the Village) — #75 items 7–8; every town has an
+  inn (item 11); the writing rules for rumors and roadside stories are in §2;
+  and Act II has opened on the sea — the walk home after the Spire, Old
+  Marlow's boat and the Silver Shallows (item 14a). Still to come: Acts II–IV
+  on the map, sub-item by sub-item (`ROADMAP-OVERWORLD.md` §5.1).
