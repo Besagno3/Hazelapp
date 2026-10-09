@@ -307,65 +307,105 @@ def chord_notes(ch: str):
 MAJOR = (0, 2, 4, 5, 7, 9, 11)
 MINOR = (0, 2, 3, 5, 7, 8, 10)
 
+# Each track is a short song, not one progression on repeat: the main
+# progression `chords` (A) and a contrasting `bridge` (B) are laid out as
+# A A' B A'' — see `song_form`. Every loop is at least MIN_LOOP_S long.
 TRACKS = {
-    'title': dict(bpm=96, key='C', scale=MAJOR, chords='C G Am F C G F G', style='gentle', seed=11, oct=5),
-    'overworld': dict(bpm=124, key='D', scale=MAJOR, chords='D A Bm G D A G A  G A D Bm G A D A', style='march',
-                      seed=23, oct=5),
-    'battle': dict(bpm=152, key='A', scale=MINOR, chords='Am F G E Am F G E  F G Am Am F G E E', style='drive',
-                   seed=37, oct=5),
-    'boss': dict(bpm=164, key='D', scale=MINOR, chords='Dm Bb C A Dm Bb C A  Gm Bb A A Gm Bb A A', style='heavy',
-                 seed=41, oct=5),
-    'spire': dict(bpm=84, key='E', scale=MINOR, chords='Em C Am B Em C Am B', style='mystic', seed=53, oct=5),
+    'title': dict(bpm=96, key='C', scale=MAJOR, chords='C G Am F C G F G', bridge='Am Em F C Dm Em F G',
+                  style='gentle', seed=11, oct=5),
+    'overworld': dict(bpm=124, key='D', scale=MAJOR, chords='D A Bm G D A G A  G A D Bm G A D A',
+                      bridge='Bm F#m G D Em F#m G A', style='march', seed=23, oct=5),
+    'battle': dict(bpm=152, key='A', scale=MINOR, chords='Am F G E Am F G E  F G Am Am F G E E',
+                   bridge='Dm Am F C Dm F E E', style='drive', seed=37, oct=5),
+    'boss': dict(bpm=164, key='D', scale=MINOR, chords='Dm Bb C A Dm Bb C A  Gm Bb A A Gm Bb A A',
+                 bridge='Gm Dm Bb F Gm Bb A A', style='heavy', seed=41, oct=5),
+    'spire': dict(bpm=84, key='E', scale=MINOR, chords='Em C Am B Em C Am B', bridge='Am Em C G Am C B B',
+                  style='mystic', seed=53, oct=5),
     'finalBoss': dict(bpm=172, key='C', scale=MINOR, chords='Cm Ab Bb G Cm Ab Bb G  Fm Ab G G Fm Db G G',
-                      style='heavy', seed=61, oct=5),
-    'victory': dict(bpm=126, key='C', scale=MAJOR, chords='C F G C Am F G C', style='march', seed=71, oct=5),
+                      bridge='Fm Cm Db Ab Fm Db G G', style='heavy', seed=61, oct=5),
+    'victory': dict(bpm=126, key='C', scale=MAJOR, chords='C F G C Am F G C', bridge='Am Em F C Dm G F G',
+                    style='march', seed=71, oct=5),
     # Overworld places (#75 Phase 1): a cosy town, an echoing cave, a still shrine.
-    'town': dict(bpm=104, key='F', scale=MAJOR, chords='F C Dm Bb F C Bb C  Dm Bb F C Bb C F F', style='gentle',
-                 seed=83, oct=5),
-    'cave': dict(bpm=72, key='D', scale=MINOR, chords='Dm Bb Gm A Dm Bb C A', style='mystic', seed=89, oct=4),
-    'shrine': dict(bpm=66, key='G', scale=MAJOR, chords='G Em C D G Em Am D', style='mystic', seed=97, oct=5),
+    'town': dict(bpm=104, key='F', scale=MAJOR, chords='F C Dm Bb F C Bb C  Dm Bb F C Bb C F F',
+                 bridge='Dm Am Bb F Gm Am Bb C', style='gentle', seed=83, oct=5),
+    'cave': dict(bpm=72, key='D', scale=MINOR, chords='Dm Bb Gm A Dm Bb C A', bridge='Gm Dm Bb F Gm Bb A A',
+                 style='mystic', seed=89, oct=4),
+    'shrine': dict(bpm=66, key='G', scale=MAJOR, chords='G Em C D G Em Am D', bridge='Em Bm C G Am Em Am D',
+                   style='mystic', seed=97, oct=5),
 }
 
 RHYTHMS = {  # one-bar melody rhythms, in 8th notes (sum = 8)
-    'gentle': [(2, 1, 1, 2, 2), (3, 1, 2, 2), (2, 2, 4)],
-    'march': [(1, 1, 2, 1, 1, 2), (2, 1, 1, 2, 2), (1, 1, 1, 1, 4)],
-    'drive': [(1, 1, 1, 1, 2, 2), (2, 1, 1, 1, 1, 2), (1, 1, 2, 1, 1, 2)],
-    'heavy': [(1, 1, 1, 1, 1, 1, 2), (2, 1, 1, 2, 1, 1), (1, 1, 2, 2, 2)],
-    'mystic': [(3, 1, 4), (2, 2, 2, 2), (4, 2, 2)],
+    'gentle': [(2, 1, 1, 2, 2), (3, 1, 2, 2), (2, 2, 4), (1, 1, 2, 2, 2), (4, 2, 2)],
+    'march': [(1, 1, 2, 1, 1, 2), (2, 1, 1, 2, 2), (1, 1, 1, 1, 4), (2, 2, 1, 1, 2), (3, 1, 2, 2)],
+    'drive': [(1, 1, 1, 1, 2, 2), (2, 1, 1, 1, 1, 2), (1, 1, 2, 1, 1, 2), (2, 2, 1, 1, 1, 1), (1, 1, 1, 1, 1, 1, 2)],
+    'heavy': [(1, 1, 1, 1, 1, 1, 2), (2, 1, 1, 2, 1, 1), (1, 1, 2, 2, 2), (2, 2, 2, 1, 1), (1, 1, 1, 1, 4)],
+    'mystic': [(3, 1, 4), (2, 2, 2, 2), (4, 2, 2), (2, 2, 4), (6, 2)],
 }
+
+MIN_LOOP_S = 30.0  # a loop shorter than this starts to feel like one snippet on repeat
+MUSIC_KBPS = 64  # mono chiptune holds up fine here, and keeps the 1-2 min loops small
+
+# How much of the A melody each section restates (the rest is re-composed).
+THEME_REUSE = {'A': 0.0, "A'": 0.45, 'B': 0.0, "A''": 0.85}
+
+
+def song_form(spec) -> list[tuple[str, list[str]]]:
+    """The loop's sections: A A' B A''. A' restates A with a varied melody and
+    arrangement, B is the bridge (new chords, new rhythms, a drum breakdown),
+    A'' brings the theme home. A' is dropped when A alone already runs past
+    MIN_LOOP_S, so long progressions don't balloon."""
+    a, b = spec['chords'].split(), spec['bridge'].split()
+    bar = 4 * 60 / spec['bpm']
+    form = [('A', a), ("A'", a), ('B', b), ("A''", a)]
+    if len(a) * bar >= MIN_LOOP_S:
+        form = [('A', a), ('B', b), ("A''", a)]
+    while sum(len(c) for _, c in form) * bar < MIN_LOOP_S:  # never for today's tracks
+        form += [("A'", a), ('B', b)]
+    return form
 
 
 def compose(spec):
     rnd = random.Random(spec['seed'])
-    chords = spec['chords'].split()
+    form = song_form(spec)
+    bars = [(sec, i, ch, len(chs)) for sec, chs in form for i, ch in enumerate(chs)]
     beat = 60 / spec['bpm']
     bar = beat * 4
     e8 = beat / 2
     key = NOTE_IDX[spec['key']]
     scale = [(key + s) % 12 for s in spec['scale']]
     base_oct = 12 * (spec['oct'] + 1)
-    total = bar * len(chords)
+    total = bar * len(bars)
     lead = np.zeros(int(total * SR) + SR)
     harm = np.zeros_like(lead)
     bass = np.zeros_like(lead)
     drums = np.zeros_like(lead)
     style = spec['style']
+    driving = style in ('drive', 'heavy')
 
-    # --- melody: motif per 4-bar phrase, varied on repeat
-    motifs = [rnd.choice(RHYTHMS[style]) for _ in range(3)]
+    # --- melody: motif per 4-bar phrase; the bridge gets its own motifs
+    pool_r = RHYTHMS[style]
+    motifs = [rnd.choice(pool_r) for _ in range(3)]
+    bridge_motifs = [rnd.choice([r for r in pool_r if r not in motifs] or pool_r) for _ in range(3)]
     prev = base_oct + key + 7
-    phrase_notes = {}
-    for bi, ch in enumerate(chords):
+    theme = {}  # (bar-in-section, note index) -> pitch, from section A
+    for bi, (sec, si, ch, slen) in enumerate(bars):
         root, tones = chord_notes(ch)
-        pos_in_phrase = bi % 4
-        rhythm = motifs[0] if pos_in_phrase in (0, 2) else motifs[1 if pos_in_phrase == 1 else 2]
-        repeat_of = bi - 8 if bi >= 8 and (bi % 16) < 12 else None
+        pos_in_phrase = si % 4
+        mset = bridge_motifs if sec == 'B' else motifs
+        rhythm = mset[0] if pos_in_phrase in (0, 2) else mset[1 if pos_in_phrase == 1 else 2]
+        # within a section, the second half opens by echoing the first half's opening
+        half = slen // 2
+        repeat_of = si - half if half >= 4 and half <= si < half + half // 2 else None
+        if si == 0:
+            local = {}  # this section's notes, for the echo above
         t = bi * bar
         seq = []
         for k, length in enumerate(rhythm):
-            last = (bi == len(chords) - 1 or pos_in_phrase == 3) and k == len(rhythm) - 1
-            if repeat_of is not None and (repeat_of, k) in phrase_notes and rnd.random() < 0.75:
-                m = phrase_notes[(repeat_of, k)]
+            last = (bi == len(bars) - 1 or pos_in_phrase == 3) and k == len(rhythm) - 1
+            if (si, k) in theme and rnd.random() < THEME_REUSE[sec]:
+                m = theme[(si, k)]
+            elif repeat_of is not None and (repeat_of, k) in local and rnd.random() < 0.75:
+                m = local[(repeat_of, k)]
             else:
                 strong = k == 0 or length >= 2
                 pool = tones if strong or rnd.random() < 0.6 else scale
@@ -375,14 +415,21 @@ def compose(spec):
                 m = cands[0] if abs(cands[0] - prev) > 0 or rnd.random() < 0.3 else cands[1]
                 if last:
                     m = min((base_oct + root + o for o in (-12, 0, 12)), key=lambda c: abs(c - prev))
-            phrase_notes[(bi, k)] = m
+            if sec == 'A':
+                theme[(si, k)] = m
+            local[(si, k)] = m
             prev = m
             seq.append((m, length))
+        # timbre per section: A' swaps the lead's pulse width, B goes thin and nasal
+        duty = 0.25 if driving else 0.5
+        if sec == "A'":
+            duty = 0.5 if driving else 0.25
+        elif sec == 'B':
+            duty = 0.125
         for m, length in seq:
             dur = length * e8 * 0.9
-            duty = 0.25 if style in ('drive', 'heavy') else 0.5
             sig = pulse(hz(m), dur, duty, vib=0.005 if length >= 2 else 0)
-            mixin(lead, sig * env(len(sig), 0.004, 0.06, 0.7, 0.04), t, 0.28)
+            mixin(lead, sig * env(len(sig), 0.004, 0.06, 0.7, 0.04), t, 0.3 if sec == 'B' else 0.28)
             t += length * e8
 
         # --- harmony: arpeggio (driving) or sustained pad (gentle/mystic)
@@ -391,15 +438,20 @@ def compose(spec):
             for j, p in enumerate(tones[:3]):
                 sig = pulse(hz(base_oct - 12 + p), bar * 0.95, 0.125)
                 mixin(harm, sig * env(len(sig), 0.08, 0.2, 0.45, 0.2), ht + j * 0.01, 0.09)
-            if style == 'mystic':
+            if style == 'mystic' or sec == "A'":  # gentle tracks pick up a soft arp in A'
+                up = 12 if sec == 'B' else 0
                 for s16 in range(8):
-                    p = tones[s16 % len(tones)] + (12 if s16 >= 4 else 0)
+                    p = tones[s16 % len(tones)] + (12 if s16 >= 4 else 0) + up
                     sig = pulse(hz(base_oct + p), e8 * 0.8, 0.25)
-                    mixin(harm, sig * env(len(sig), 0.002, 0.05, 0.3, 0.05), ht + s16 * e8, 0.07)
+                    mixin(harm, sig * env(len(sig), 0.002, 0.05, 0.3, 0.05), ht + s16 * e8,
+                          0.07 if style == 'mystic' else 0.05)
         else:
             s16 = beat / 4
             for k in range(16):
-                p = tones[k % len(tones)] + 12 * ((k // len(tones)) % 2)
+                idx = k % len(tones)
+                if sec == "A'":
+                    idx = len(tones) - 1 - idx  # descending arpeggio
+                p = tones[idx] + 12 * ((k // len(tones)) % 2)
                 sig = pulse(hz(base_oct - 12 + p), s16 * 0.8, 0.125)
                 mixin(harm, sig * env(len(sig), 0.001, 0.03, 0.4, 0.02), ht + k * s16, 0.085)
 
@@ -407,10 +459,12 @@ def compose(spec):
         broot = 12 * 3 + root
         if style in ('gentle', 'mystic'):
             pat = [(0, 2), (7, 2)] if style == 'gentle' else [(0, 4)]
+            if sec == 'B' and style == 'mystic':
+                pat = [(0, 2), (-5, 2)]
         elif style == 'march':
-            pat = [(0, 1), (7, 1), (12, 1), (7, 1)]
+            pat = [(0, 1), (7, 1), (12, 1), (7, 1)] if sec != 'B' else [(0, 1.5), (7, 0.5), (12, 1), (0, 1)]
         else:
-            pat = [(0, 0.5)] * 8
+            pat = [(0, 0.5)] * 8 if sec != 'B' else [(0, 0.5), (12, 0.5)] * 4
         bt = ht
         for iv, beats in pat:
             dur = beats * beat * 0.9
@@ -418,10 +472,16 @@ def compose(spec):
             mixin(bass, sig * env(len(sig), 0.003, 0.05, 0.85, 0.03), bt, 0.55)
             bt += beats * beat
 
-        # --- drums (noise kick/snare/hat)
+        # --- drums (noise kick/snare/hat); the bridge's first half is a breakdown
+        breakdown = sec == 'B' and si < slen // 2
         if style != 'mystic':
             for k in range(8):
                 dt = ht + k * e8
+                if breakdown:
+                    if k in (0, 4):
+                        kick = tri(110, 0.1, slide=-0.7)
+                        mixin(drums, kick * env(len(kick), 0.001, 0.03, 0.4, 0.04), dt, 0.45)
+                    continue
                 if style == 'gentle':
                     if k in (0, 4):
                         kick = tri(110, 0.1, slide=-0.7)
@@ -430,7 +490,7 @@ def compose(spec):
                         h = noise(0.03, 4, k) * env(int(0.03 * SR), 0.001, 0.01, 0.3, 0.01)
                         mixin(drums, h, dt, 0.08)
                     continue
-                if k in (0, 4) or (style in ('drive', 'heavy') and k in (3, 7) and rnd.random() < 0.5):
+                if k in (0, 4) or (driving and k in (3, 7) and rnd.random() < 0.5):
                     kick = tri(120, 0.11, slide=-0.75)
                     mixin(drums, kick * env(len(kick), 0.001, 0.03, 0.5, 0.05), dt, 0.6)
                 if k in (2, 6):
@@ -438,6 +498,11 @@ def compose(spec):
                     mixin(drums, sn, dt, 0.28)
                 h = noise(0.03, 4, 200 + k) * env(int(0.03 * SR), 0.001, 0.01, 0.3, 0.01)
                 mixin(drums, h, dt, 0.07 if k % 2 == 0 else 0.1)
+            # a snare fill into the next section
+            if si == slen - 1 and bi != len(bars) - 1 and style != 'gentle':
+                for k in range(4):
+                    sn = noise(0.06, 1.5, 150 + k) * env(int(0.06 * SR), 0.001, 0.02, 0.35, 0.03)
+                    mixin(drums, sn, ht + 3 * beat + k * beat / 4, 0.18 + 0.04 * k)
 
     n = int(total * SR)
     melodic = lowpass(lead[:n] + harm[:n], 0.55)
@@ -543,7 +608,7 @@ def build_music(public: Path, names: list[str]):
     mdir = public / 'audio' / '16bit' / 'music'
     mdir.mkdir(parents=True, exist_ok=True)
     for name in names:
-        encode(compose(TRACKS[name]), mdir / f'{name}.mp3', kbps=96, peak=0.8)
+        encode(compose(TRACKS[name]), mdir / f'{name}.mp3', kbps=MUSIC_KBPS, peak=0.8)
 
 
 def build(public: Path):
@@ -556,6 +621,6 @@ def build(public: Path):
     for name, spec in TRACKS.items():
         if name in SPOOKY:
             continue  # the Spire's tracks come from the spooky composer below
-        encode(compose(spec), mdir / f'{name}.mp3', kbps=96, peak=0.8)
+        encode(compose(spec), mdir / f'{name}.mp3', kbps=MUSIC_KBPS, peak=0.8)
     for name, spec in SPOOKY.items():
         encode(compose_spooky(spec), mdir / f'{name}.mp3', kbps=96, peak=0.8)

@@ -371,6 +371,22 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-08 — Longer music loops: every track is a song, not one phrase on repeat
+Players heard the same bit over and over: each `compose()` track was one chord
+progression (8–16 bars) rendered once and looped, so loops ran 15–37 s
+(battle 25 s, boss 23 s, final boss 22 s, title 20 s). `tools/assets/audio.py`
+now lays each track out as a song form — `song_form`: A, A' (melody ~45%
+restated, lead pulse width swapped, gentle tracks gain an arp, driving tracks
+a descending one), B (a new hand-written `bridge` progression with its own
+rhythms, a drum breakdown, a different bass figure), A'' (theme ~85% restated)
+— with a snare fill into each section. A' is dropped when A alone already
+passes `MIN_LOOP_S` (30 s). Loops now run 61–116 s; music is encoded at 64 kbps
+(`MUSIC_KBPS`) so the files stay ~0.5–0.9 MB. The Spire's spooky tracks
+(already 46–66 s) are unchanged. Still seeded/deterministic; the echo tail
+still wraps so the loop seam is seamless.
+Review fix: the in-section echo (a section's second half opening with its first
+half's notes) never fired because its note memory was reset every bar; it now
+resets once per section. Open: #107 (bridge arp register, needs a listen).
 ### 2026-10-08 — Item chains, third review: the "who wants this" note on screen, Mabel points the way (#75 item 13, #106)
 A third `/saas-code-review` + `/saas-ux-review` (a fresh reviewer; it fed the
 chest a realistic riddle at seven screen sizes). No code bugs; fixed:
