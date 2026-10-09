@@ -428,7 +428,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-09 — The walk home, reviewed: from the Spire's door, no skipped panels, fits a sideways phone (#75 item 14, #107m)
+### 2026-10-09 — Merge main (longer music loops, #107) into the boat branch
+`main` took #107 for the music-loops follow-up while the boat was built, so
+the boat's follow-ups moved **#107 → #108** (its test cases, TC-640+, didn't
+collide). No code conflicts: the sea music (`compose_sea`, appended to
+`audio.py`) merged cleanly with the song-form rewrite and rebuilds
+byte-identical; the audio README lists both.
+
+### 2026-10-09 — The walk home, reviewed: from the Spire's door, no skipped panels, fits a sideways phone (#75 item 14, #108m)
 A fresh-context `/saas-code-review` + `/saas-ux-review` of the ending (the
 code reviewer reproduced its main finding against the real `WorldScreen`; the
 UX reviewer played it at six screen sizes, by keyboard, touch and reduced
@@ -470,7 +477,7 @@ motion). Every finding fixed:
   lock, inert + Tab, the confetti, the caption); 699 green, lint + tsc +
   build clean. Replayed in headless Chromium (TC-674).
 
-### 2026-10-09 — After Umbra: the walk home, a night at the inn, Act II in the morning (#75 item 14, #107m)
+### 2026-10-09 — After Umbra: the walk home, a night at the inn, Act II in the morning (#75 item 14, #108m)
 Beating Umbra played ten storybook panels in a row (the finale's 5, then
 Act II's 5 the same moment), and nothing took the hero away from the Spire —
 they were left at its door with only the 🚩. Now the ending carries them home:
@@ -502,7 +509,7 @@ they were left at its door with only the 🚩. Now the ending carries them home:
   Chromium against the real `WorldScreen` at 375×667, 1024×768 and with reduced
   motion (TC-668).
 
-### 2026-10-09 — Gull Rock gets a real lighthouse (#75 item 14, #107l)
+### 2026-10-09 — Gull Rock gets a real lighthouse (#75 item 14, #108l)
 "Gull Rock Lighthouse" was a whitewashed cottage with a red roof — no tower.
 Now a lighthouse stands on a rock just east of Ness's cottage (a path's width
 away, level with its roof, so the whole tower is on screen from the beach):
@@ -523,7 +530,7 @@ away, level with its roof, so the whole tower is on screen from the beach):
   686 green, lint + tsc + build clean. Checked on the bench in headless
   Chromium (TC-664).
 
-### 2026-10-09 — The boat, reviewed: never stranded, Menu on phones, the boat never "vanishes" (#75 item 14, #107)
+### 2026-10-09 — The boat, reviewed: never stranded, Menu on phones, the boat never "vanishes" (#75 item 14, #108)
 A fresh-context `/saas-code-review` + `/saas-ux-review` of the whole slice
 (14a + sea music; the UX reviewer played it in a harness around the real
 `WorldScreen` at 320–1024 px). Every finding fixed:
@@ -585,7 +592,7 @@ A fresh-context `/saas-code-review` + `/saas-ux-review` of the whole slice
   green, lint + tsc + build clean. Replayed in headless Chromium against the
   real `WorldScreen` (TC-662).
 
-### 2026-10-08 — Sea music: a loop for each sea area (#75 item 14, #107c)
+### 2026-10-08 — Sea music: a loop for each sea area (#75 item 14, #108c)
 The Shallows played the overworld march. Now each sea area has its own track,
 composed by a new chiptune composer (`compose_sea`, appended to
 `tools/assets/audio.py`; `python3 tools/assets/build.py seamusic` writes just
@@ -618,7 +625,7 @@ buoy bell, a foghorn. Anything ringing past the loop's end wraps to its start.
   Chromium (Web Audio and `<audio>`), as loud as the overworld theme.
 
 ### 2026-10-08 — The boat and the Silver Shallows: Act II opens on the sea (#75 item 14, slice 14a)
-Roadmap item 14 (Phase 3, "the sea") — the first of four slices (ISSUES #107).
+Roadmap item 14 (Phase 3, "the sea") — the first of four slices (ISSUES #108).
 - **Act II opens** (`ACT2_PANELS`, flag `act2-seen`): the morning after the
   Spire's finale, Lumina starts remembering — and the fog rolls back off the
   sea east of Dawnreach. Old Marlow remembers he used to sail.
@@ -663,6 +670,22 @@ Roadmap item 14 (Phase 3, "the sea") — the first of four slices (ISSUES #107).
   headless Chromium: the dock, boarding, sailing off the edge into the
   Shallows, landing on Gull Rock and Sandpiper Cay, climbing back in, the
   Great Fogbank.
+### 2026-10-08 — Longer music loops: every track is a song, not one phrase on repeat
+Players heard the same bit over and over: each `compose()` track was one chord
+progression (8–16 bars) rendered once and looped, so loops ran 15–37 s
+(battle 25 s, boss 23 s, final boss 22 s, title 20 s). `tools/assets/audio.py`
+now lays each track out as a song form — `song_form`: A, A' (melody ~45%
+restated, lead pulse width swapped, gentle tracks gain an arp, driving tracks
+a descending one), B (a new hand-written `bridge` progression with its own
+rhythms, a drum breakdown, a different bass figure), A'' (theme ~85% restated)
+— with a snare fill into each section. A' is dropped when A alone already
+passes `MIN_LOOP_S` (30 s). Loops now run 61–116 s; music is encoded at 64 kbps
+(`MUSIC_KBPS`) so the files stay ~0.5–0.9 MB. The Spire's spooky tracks
+(already 46–66 s) are unchanged. Still seeded/deterministic; the echo tail
+still wraps so the loop seam is seamless.
+Review fix: the in-section echo (a section's second half opening with its first
+half's notes) never fired because its note memory was reset every bar; it now
+resets once per section. Open: #107 (bridge arp register, needs a listen).
 ### 2026-10-08 — Item chains, third review: the "who wants this" note on screen, Mabel points the way (#75 item 13, #106)
 A third `/saas-code-review` + `/saas-ux-review` (a fresh reviewer; it fed the
 chest a realistic riddle at seven screen sizes). No code bugs; fixed:
