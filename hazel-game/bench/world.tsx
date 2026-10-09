@@ -13,6 +13,8 @@
  *   paused=1                           freeze the world (deterministic screenshots)
  *   flags=a,b                          story flags to set (e.g. a crystal, to lift fog);
  *                                      `__bench.setFlag(f)` sets one later, as a conversation would
+ *   boat=zone,x,y                      Marlow's boat moored there (#75 item 14)
+ *   aboard=1                           start in the boat (with `at` on open sea)
  *
  * `__bench.pause(true|false)` pauses the world the way a menu or dialogue does.
  * `__bench.travel(zone, x, y)` casts Return and `__bench.calm(seconds)` casts
@@ -28,6 +30,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import WorldCanvas, { type Travel } from '../src/features/world/WorldCanvas';
 import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, buildingInside, type ZoneDef, type ZoneId } from '../src/content/zones';
+import type { BoatSpot } from '../src/types';
 import { SPIRE_FLOOR_MAPS, SPIRE_THEMES, floorSpawnPx, floorZone, type SpireTheme } from '../src/content/spire';
 import { avatarById } from '../src/content/avatars';
 import { camAxis } from '../src/lib/camera';
@@ -108,6 +111,11 @@ const z = floor ? floorZone(floor) : ZONES[zoneId];
 const cols = z.map[0].length;
 const rows = z.map.length;
 
+/** `boat=zone,x,y` — where Marlow's boat is moored (#75 item 14). */
+const boatParam: BoatSpot | null = (() => {
+  const [z, x, y] = (q.get('boat') ?? '').split(',');
+  return z && z in ZONES ? { zoneId: z as ZoneId, x: Number(x), y: Number(y) } : null;
+})();
 const atParam = q.get('at');
 const startPos = atParam
   ? (() => {
@@ -271,6 +279,11 @@ const live: {
   darkBumps: number;
   /** The last whole seconds of Calm the world reported. */
   calmLeft: number;
+  /** Marlow's boat (#75 item 14): sailing it, where it's moored, and how often you climbed in / went ashore. */
+  aboard: boolean;
+  boat: BoatSpot | null;
+  boardings: number;
+  landings: number;
 } = {
   zoneId,
   exits: 0,
@@ -281,6 +294,10 @@ const live: {
   encounters: 0,
   darkBumps: 0,
   calmLeft: 0,
+  aboard: q.get('aboard') === '1',
+  boat: boatParam,
+  boardings: 0,
+  landings: 0,
 };
 
 function Bench() {
@@ -293,6 +310,7 @@ function Bench() {
     zoneId,
     pos: startPos,
   });
+  const [boat, setBoat] = useState<{ aboard: boolean; spot: BoatSpot | null }>({ aboard: live.aboard, spot: live.boat });
   const noop = () => {};
   return (
     // +4px for the stage's 2px border, so the canvas shows at its native 704×448
@@ -342,12 +360,27 @@ function Bench() {
           onFogRevealed: (id) => {
             live.fogReveals.push(id);
           },
+          onBoard: (x, y) => {
+            live.aboard = true;
+            live.boardings += 1;
+            live.pos = { x, y };
+            setBoat({ aboard: true, spot: null });
+          },
+          onLand: (spot, x, y) => {
+            live.aboard = false;
+            live.landings += 1;
+            live.pos = { x, y };
+            live.boat = { zoneId: live.zoneId, ...spot };
+            setBoat({ aboard: false, spot: live.boat });
+          },
         }}
         spireFloor={floor}
         spireBroken={[]}
         spireLight={null}
         travelRef={benchTravel}
         calmRef={benchCalm}
+        boat={boat.aboard ? null : boat.spot}
+        aboard={boat.aboard}
       />
     </div>
   );

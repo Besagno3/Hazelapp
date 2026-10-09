@@ -61,6 +61,27 @@ export const STAIRS_SHEET = '/tiles/stairs.png';
 export const STAIRS_KEY = 't_stairs';
 export const STAIRS_FRAME = { '>': 0, '<': 1 } as const;
 export const STAIRS_FRAMES = 2;
+
+/**
+ * Marlow's boat (#75 item 14): `/tiles/boat.png`, 32×32 frames, facing right
+ * (flipped for left), each in two frames of a gentle bob — the whole boat,
+ * then just the front of its hull, drawn over a hero sitting in it.
+ */
+export const BOAT_SHEET = '/tiles/boat.png';
+export const BOAT_KEY = 't_boat';
+export const BOAT_FRAME = { whole: [0, 1], hullFront: [2, 3] } as const;
+export const BOAT_FRAMES = 4;
+
+/**
+ * Gull Rock's lighthouse (#75 item 14 review): `/tiles/lighthouse.png`, a
+ * tower 64×128 px (2 tiles × 4) whose foot covers the 2×2 rock cells it
+ * stands on (`ZoneDef.lighthouse`); four frames of its lamp pulsing.
+ */
+export const LIGHTHOUSE_SHEET = '/tiles/lighthouse.png';
+export const LIGHTHOUSE_KEY = 't_lighthouse';
+export const LIGHTHOUSE_FRAMES = 4;
+/** Where its lamp shines from, in px from the sprite's top-left. */
+export const LIGHTHOUSE_LAMP = { x: 32, y: 21 } as const;
 export const PROPS_KEY = 't_props';
 export const SPIRE_KEY = 't_spire';
 
@@ -127,7 +148,9 @@ export const OVERWORLD_FRAME = {
     number
   >,
 } as const;
-export const OVERWORLD_FRAMES = 15;
+// 15: Marlow's dock (#75 item 14) — planks drawn over the water.
+export const OVERWORLD_DOCK_FRAME = 15;
+export const OVERWORLD_FRAMES = 16;
 export const OVERWORLD_SHEET = '/tiles/overworld.png';
 export const OVERWORLD_KEY = 't_overworld';
 

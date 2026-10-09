@@ -67,6 +67,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName } from '../../lib/save';
+import { moorBoat } from '../../content/boat';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
@@ -874,6 +875,8 @@ export default function BattleArena() {
     updateSave((s) => ({
       ...s,
       hp: null,
+      // Beaten at sea (#75 item 14): the boat stays moored where it floated.
+      ...moorBoat(s),
       ...wakeAfterDefeat(s),
       library: pushLibrary(s.library, misses.current),
     }));

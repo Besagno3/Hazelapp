@@ -17,6 +17,10 @@ const CELL_COLOR: Record<string, string> = {
   '^': '#8a90a8', // mountains
   '=': '#c8b482', // road
   P: '#64a462', // a place sits on grass; its marker is drawn on top
+  '|': '#a47640', // a dock (#75 item 14)
+  W: '#b07a5a', // a building out on the map (Gull Rock's lighthouse)
+  D: '#b07a5a',
+  F: '#b07a5a',
 };
 
 /** Colour of one overworld tile on the map (unknown tiles read as grass). */
@@ -139,7 +143,7 @@ export function whereOnMap(
  * get wrong.
  */
 export function mapCaption(here: MapMarker | null, zoneName: string, worldName: string): string {
-  if (here?.exact) return `You're out on ${worldName}`;
+  if (here?.exact) return `You're out on ${worldName.startsWith('The ') ? `the ${worldName.slice(4)}` : worldName}`;
   // A dungeon floor's title already says which place it's in ("Clockwork Depths · B2 — …").
   if (!here?.place || zoneName === here.place || zoneName.startsWith(`${here.place} · `)) {
     return `You're here: ${zoneName}`;

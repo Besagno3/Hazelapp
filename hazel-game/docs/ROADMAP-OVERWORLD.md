@@ -438,7 +438,7 @@ mostly follows build order.
 | 11 | ✅ **Inns everywhere, more townsfolk, rumor lines** (§2.4, §3.4) | S | 2 | **Done (2026-10-07):** Numbria, Verdara, Gearfall Canyon and Chromaria each got an inn and an innkeeper beside the Sleepy Sheep Inn (Numbria, Gearfall and Chromaria grew a street south for it); a traveler in each crystal town; every town has 9–14 people and an innkeeper or traveler who names another place and what's there; losing a battle or the Spire climb wakes you inside the last inn you rested at (`lastRest`) |
 | 12 | ✅ **Regional difficulty:** keep question level matched to the child, scale enemy HP, damage, behaviours and coins by region | S | 2 | **Done (2026-10-08):** every zone has a danger tier by story leg — home ground 0, Numbria + the Woods 1 (the old balance), Verdara + the Depths 2, Gearfall + the Coast 3, Chromaria 4 (`content/regions.ts`) — scaling enemy HP, blows, power-move rate, coins and win XP; questions stay at the child's level. Critters show it on the map ("Lv 4 !!") and in battle ("💪 Fierce") |
 | 13 | ✅ **Side-quest item chains:** "have item" / "bring item" steps, key-item chests in dungeons | S–M | 2–3 | **Done (2026-10-08):** quests gained *have* steps (carry an item — any of its forms) and *bring* steps (hand it to another NPC, who may hand back something new); riddle-chests can hold a quest item (`ZoneDef.keyChests`). First chain, "The Hermit's Moonstone": Hermit Moss (beside the Echo Mine) wants the Moonstone from a chest at the end of the mine's oldest seam (behind the dark — Glow), cut by Miner Mabel, brought back to him |
-| 14 | **The boat + islands** (Act II) | M + content | 3 | Marlow's boat quest → sail the Silver Shallows; the Act II zones live on islands and coasts |
+| 14 | **The boat + islands** (Act II) | M + content | 3 | Marlow's boat quest → sail the Silver Shallows; the Act II zones live on islands and coasts. **In progress (2026-10-08):** slice 14a done — the boat (board at Marlow's dock, sail open sea at 1.5×, land on beaches and docks, it waits where you leave it), Marlow's quest, the Silver Shallows map (sea links from Dawnreach's east edge; Gull Rock, Sandpiper Cay, the Great Fogbank), the Act II opening. Next: 14b Remembrance Hill + Eldergrove, 14c Foglight Marsh + the Sunken Archive (crystal #5), 14d Act II's quests and story (ISSUES #108) |
 | 15 | **Ember flight + Taleshore** (Act III) | M + content | 4 | fly over the Great Fogbank; land, explore, fast-travel |
 | 16 | **The Dream Root** (Act IV) on the dungeon engine | M | 5 | descend beneath the Spire; the finale plays as written |
 
@@ -515,10 +515,19 @@ the 🚩 sends you down rather than the distance from home, so the first
 crystal stays the gentlest fight and the last the toughest; a place you can
 walk to early (Starfall Coast) can still be a late, tough one, and its
 critters say so on the map (ISSUES #105).
-Next: item 13 — then Phase 2's exit check.
+*Item 13 (2026-10-08):* side-quest item chains done (ISSUES #106).
+Next: Phase 2's exit check (Act I start to finish as a journey; old saves load).
 
 **Phase 3 — The sea (Act II).** Marlow's boat, the Silver Shallows and its islands,
 the Act II zones from `STORY-4X.md` §4 placed per §3.6.
+*Status (2026-10-08):* started, before Phase 2's exit check (item 13 was
+built in parallel). Slice 14a: the boat and the sea. As built, the Silver
+Shallows is its own 64×44 overworld map east of Dawnreach rather than part
+of one 160×112 world map — sailing off Dawnreach's east edge slides onto it
+(`ZoneDef.seaLinks`, `lib/travel.ts`), so Dawnreach kept every coordinate.
+Travel modes are `foot` / `boat` (`passable`), and the save holds where the
+boat is moored and whether you're in it (`boat`, `aboard` — additive, no
+version bump). Decision 8 taken as recommended: the boat comes in Act II.
 
 **Phase 4 — The sky (Act III).** Ember flight over the Great Fogbank, Taleshore
 with `STORY-4X.md` §5's zones, sky-only side places.
@@ -570,8 +579,8 @@ Struck-through items are decided; the rest are still open.
    first (roadmap item 5), so the full continent is painted there from the
    start. Only the terrain lives in Tiled; places, exits and fog stay typed
    in zones.ts (ISSUES #82g).
-8. **When the boat arrives:** Act II as planned, or at the end of Act I so
-   islands can hold early side content? *Recommended: Act II.*
+8. ~~**When the boat arrives.**~~ **Taken as recommended (2026-10-08): Act II**,
+   after the Spire (roadmap item 14).
 9. **Flight timing:** keep `STORY-4X.md`'s rule (Ember flies at crystal #5)?
    *Recommended: yes.*
 10. ~~**Pause `ROADMAP-4X.md` Wave 1 (Act II).**~~ **Decided (2026-10-05):

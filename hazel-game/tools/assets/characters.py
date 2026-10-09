@@ -2928,6 +2928,8 @@ NPCS: list[Char] = [
     Char('gearfall-innkeeper', '🔩', 'humanoid', H(hair='short', hair_color='#5a3a2a', beard='#5a3a2a', outfit='#8a6a3a', apron='#6a4a2a', item='wrench')),
     Char('gearfall-traveler', '📨', 'humanoid', H(hair='spiky', hair_color='#e0a040', hat='cap', hat_color='#d03a3a', outfit='#3a5a9a', pack='#a07040', scarf='#ffd24a')),
     Char('chromaria-innkeeper', '🌈', 'humanoid', H(hair='bob', hair_color='#5a3ac0', outfit='#3a3a8a', apron='#ffb0d0', trim='#ffd24a')),
+    # ── Act II: the Silver Shallows (#75 item 14) ──
+    Char('gull-lamplighter', '🏮', 'humanoid', H(hair='bun', hair_color='#e8e8e8', hat='cap', hat_color='#d03a3a', outfit='#f4eee2', scarf='#3a6ab0', item='lantern', glasses=True)),
     Char('chromaria-traveler', '🗺️', 'humanoid', H(hair='long', hair_color='#e8c040', hat='beret', hat_color='#3ab0a0', outfit='#c05a8a', scarf='#4ad0c0', item='book')),
     # ── Item chains (#75 item 13) ──
     Char('dawnreach-hermit', '🏮', 'humanoid', H(hair='long', hair_color='#b8b8c8', beard='#d8d8e4', hat='hood', hat_color='#4a3a6a', outfit='#5a4a7a', trim='#c8b0ff', robe=True, item='lantern')),

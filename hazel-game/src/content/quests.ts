@@ -2,6 +2,8 @@ import type { SaveData, ZoneId } from '../types';
 import { chestKeyItem, keyChestFor, litFlag, secretFlag } from './zones';
 import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
+import { ACT2_SEEN } from './story';
+import { BOAT_QUEST_ID } from './boat';
 
 /**
  * Zone quests (#37 story pass, #42 variety). Quests are ordered steps over
@@ -72,6 +74,8 @@ export interface QuestDef {
   takesItems?: string[];
   /** A town side quest (village expansion) rather than a zone's main quest. */
   side?: boolean;
+  /** Only offered once this story flag is set (Act II's quests wait for `act2-seen`, #75 item 14). */
+  requires?: string;
   steps: QuestStep[];
   complete: string[];
   reward: { coins: number; potion?: number; hint?: number; items?: Partial<Record<ConsumableId, number>> };
@@ -736,6 +740,64 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { coins: 50, items: { elixir: 1 } },
   },
+
+  // --- Act II (#75 item 14) ---------------------------------------------------
+
+  // Marlow's Boat: the morning after the Spire, Old Marlow remembers he's a
+  // sailor. Three friends across Dawnreach give his boat what it needs; then
+  // the Biscuit is yours, and the Silver Shallows are a sail away.
+  {
+    id: BOAT_QUEST_ID,
+    zoneId: 'starfall-coast',
+    giverNpcId: 'coast-fisher',
+    requires: ACT2_SEEN,
+    title: "Marlow's Boat",
+    offer: [
+      'You! The kid who climbed the Spire! Did you feel it too? This morning my fish remembered the way home — and I remembered I\'m a SAILOR.',
+      "Out past my dock lie the Silver Shallows: islands nobody's seen since the fog came. I'd take you there in a heartbeat, but my boat, the Biscuit, is in pieces.",
+      'She needs a new sail, a compass that remembers north, and a rudder. Three friends of mine can help — one in Verdara, one in Chromaria, one in Gearfall Canyon.',
+      'Start with the sail: Willow weaves the toughest sails on Dawnreach. She runs the Mossy Pillow Inn in Verdara, way down in the south-west.',
+    ],
+    steps: [
+      talkStep(
+        'boat-sail',
+        'verdara-innkeeper',
+        [
+          "A sail for Old Marlow? Oh, I'd LOVE to. Every winter I weave one from Verdara's giant leaves — tough as a turtle, and it smells like rain.",
+          "Help me fold it… there! I'll send it down to Marlow's dock with the next flower cart.",
+          "✨ The Leaf-Silk Sail is on its way to the dock! Next, Marlow's compass: Mapmaker Atlas has it, in Chromaria.",
+        ],
+        'First, a sail. Willow weaves the toughest sails on Dawnreach — she runs the Mossy Pillow Inn in Verdara, way down in the south-west.',
+      ),
+      talkStep(
+        'boat-compass',
+        'chromaria-traveler',
+        [
+          'Marlow\'s star-compass? He lent it to me ages ago, to draw the coast! I forgot I even had it. …Everyone is remembering things today.',
+          "It points north again now the fog is gone — look, it's practically wagging. I'll send it to his dock!",
+          "✨ Marlow's Star-Compass is on its way to the dock! Last, a rudder: Sage Cog in Gearfall Canyon builds anything that turns.",
+        ],
+        "Next, my compass. I lent it to Mapmaker Atlas, who's drawing maps by the Rainbow Quilt Inn in Chromaria, way over in the south-east.",
+      ),
+      talkStep(
+        'boat-rudder',
+        'sage-cog',
+        [
+          "A rudder? For a boat that SAILS? Oh, splendid. I've been dying to build something wet.",
+          '*clank* *whirr* *tink* — a clockwork rudder that steers itself straight whenever you let go. Rivet will carry it down to Marlow\'s dock and help him fit everything.',
+          '✨ The Clockwork Rudder is done! Go tell Old Marlow on Starfall Coast — his boat is ready to mend.',
+        ],
+        'Last, a rudder. Sage Cog in Gearfall Canyon, up in the north-east, can build anything that turns.',
+      ),
+    ],
+    complete: [
+      'A leaf-silk sail, my old star-compass, and a rudder that steers itself! Rivet and I fitted the lot this morning.',
+      "Look at her bob! The Biscuit is the finest boat in Lumina — and she's yours to sail. I'm too old for islands, but you're not.",
+      "She's tied up at my dock, just east of here. Climb in, and sail off the east edge of the sea to reach the Silver Shallows!",
+      '✨ Reward: Marlow\'s boat, the Biscuit — and 50 coins!',
+    ],
+    reward: { coins: 50 },
+  },
 ];
 
 // --- Resolution -----------------------------------------------------------------
@@ -779,7 +841,8 @@ export interface QuestConversation {
  */
 export function questConversation(npcId: string, save: SaveData): QuestConversation | null {
   const quest = questFor(npcId);
-  if (quest && !save.flags[questDoneFlag(quest)]) {
+  // A quest that waits for the story (`requires`) isn't offered yet: normal dialogue.
+  if (quest && !save.flags[questDoneFlag(quest)] && (!quest.requires || save.flags[quest.requires])) {
     const step = activeStep(quest, save);
     if (!step) {
       return {

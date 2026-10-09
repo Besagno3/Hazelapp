@@ -6,6 +6,8 @@ import {
   VIEW_COLS,
   VIEW_ROWS,
   WALKABLE_CHARS,
+  SEA_CHARS,
+  ZONES,
   buildingAt,
   buildingInside,
   darkAt,
@@ -19,6 +21,7 @@ import {
   litFlag,
   npcPresent,
   safeSpawn,
+  tileAt,
   zone,
   type BuildingDef,
   type FogDef,
@@ -30,7 +33,9 @@ import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
-import type { Avatar, BattleEnemy, PathTarget, Topic, ZoneId } from '../../types';
+import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
+import { BOAT_SPEED, canBoard, canLand, landingMooring, nearestSea, seaCrossing } from '../../lib/travel';
+import { BOAT_REMOOR_REACH } from '../../content/boat';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
@@ -39,6 +44,10 @@ import { FOG_OVERHANG, fogPuffs, placesInside, puffAt, revealOpacity, type FogPu
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
 import { FADE_MS, SLIDE_MS, exitSide, needsArrivalLock, slideFrom, transitionFor, type ExitSide } from '../../lib/transition';
 import {
+  BOAT_FRAME,
+  BOAT_KEY,
+  LIGHTHOUSE_KEY,
+  LIGHTHOUSE_LAMP,
   OVERWORLD_FRAME,
   OVERWORLD_KEY,
   FOG_PUFF_KEY,
@@ -155,7 +164,7 @@ export interface WorldCanvasCallbacks {
   /** Found a hidden secret (bumped its scenery or stepped on its spot). */
   onSecret?: (id: string) => void;
   /** Bumped a bank of the fog of Forgetting (#75) — show why it won't let you pass. */
-  onFog?: (hint: string) => void;
+  onFog?: (hint: string, id: string) => void;
   /** A lifted fog bank starts clearing on screen (#75 item 7): say what it uncovered. */
   onFogLift?: (fog: FogDef) => void;
   /** …and has been watched clearing: remember that, so it plays once. */
@@ -164,6 +173,16 @@ export interface WorldCanvasCallbacks {
   onDark?: () => void;
   /** The whole seconds of Calm left changed (0 = it has worn off). */
   onCalmTick?: (secondsLeft: number) => void;
+  /** Climbed into Marlow's boat (#75 item 14), now at (x, y) px on the sea. */
+  onBoard?: (x: number, y: number) => void;
+  /** Went ashore at (x, y) px, leaving the boat moored at `boat` (tiles). */
+  onLand?: (boat: { x: number; y: number }, x: number, y: number) => void;
+  /**
+   * Arrived "aboard" somewhere with no open sea near them (a repainted map):
+   * back on foot, the boat moored at `boat` (tiles) beside them — null if
+   * there's no sea that close either.
+   */
+  onAshore?: (boat: { x: number; y: number } | null) => void;
 }
 
 /** A Return (#75 item 9) waiting to be flown: where to, and the landing cell. */
@@ -205,6 +224,8 @@ export default function WorldCanvas({
   spireLight = null,
   travelRef,
   calmRef,
+  boat = null,
+  aboard = false,
 }: {
   zoneId: ZoneId;
   avatar: Avatar;
@@ -234,6 +255,10 @@ export default function WorldCanvas({
   travelRef?: MutableRefObject<Travel | null>;
   /** …and the seconds of Calm left, counted down here while the world runs. */
   calmRef?: MutableRefObject<number>;
+  /** Marlow's boat (#75 item 14): where it's moored, if it is (any map — drawn when it's this one)… */
+  boat?: BoatSpot | null;
+  /** …and whether the hero is sailing it (read when the zone builds; the canvas keeps it after). */
+  aboard?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -316,7 +341,11 @@ export default function WorldCanvas({
   const brokenRef = useRef(spireBroken);
   const lightRef = useRef(spireLight);
   const darkRef = useRef<HTMLDivElement>(null);
+  const boatRef = useRef(boat);
+  const aboardRef = useRef(aboard);
   useEffect(() => {
+    boatRef.current = boat;
+    aboardRef.current = aboard;
     cbRef.current = callbacks;
     flagsRef.current = flags;
     chestsRef.current = openedChests;
@@ -934,6 +963,39 @@ export default function WorldCanvas({
       actors.push({ x: px, y: py, kind: 'spire', radius: ACTOR_RADIUS.spire });
     }
 
+    // A lighthouse (#75 item 14): the tower stands on its 2×2 rock and rises
+    // two tiles above it — over anyone walking or sailing behind it, under
+    // roofs and name plates. Its lamp pulses, glows, and sweeps two soft beams
+    // round (held still under reduced motion).
+    if (z.lighthouse) {
+      const lx = (z.lighthouse.x + 1) * TILE; // the middle of the rock
+      const ly = (z.lighthouse.y + 2) * TILE; // the rock's foot
+      const tower = k.add([k.sprite(LIGHTHOUSE_KEY, { frame: 0 }), k.pos(lx, ly), k.anchor('bot'), k.z(14)]);
+      if (!reducedMotion) (tower as unknown as { play: (n: string) => void }).play('shine');
+      // The sprite is 2 tiles wide and 4 tall, anchored at its foot.
+      const lamp = k.vec2(lx - TILE + LIGHTHOUSE_LAMP.x, ly - 4 * TILE + LIGHTHOUSE_LAMP.y);
+      const BEAM = 3.5 * TILE;
+      const SPREAD = 0.16;
+      k.add([
+        k.pos(0, 0),
+        k.z(14.5),
+        {
+          id: 'lighthouse-light',
+          draw() {
+            const t = reducedMotion ? 0 : k.time();
+            const turn = reducedMotion ? -0.6 : t * 0.7;
+            for (const a of [turn, turn + Math.PI]) {
+              const tip = (da: number) => k.vec2(lamp.x + Math.cos(a + da) * BEAM, lamp.y + Math.sin(a + da) * BEAM * 0.6);
+              k.drawTriangle({ p1: lamp, p2: tip(-SPREAD), p3: tip(SPREAD), color: k.rgb(255, 244, 180), opacity: 0.18 });
+            }
+            const pulse = reducedMotion ? 0 : Math.sin(t * 3) * 0.06;
+            k.drawCircle({ pos: lamp, radius: 15, color: k.rgb(255, 236, 150), opacity: 0.22 + pulse });
+            k.drawCircle({ pos: lamp, radius: 8, color: k.rgb(255, 250, 210), opacity: 0.3 + pulse });
+          },
+        },
+      ]);
+    }
+
     /** Puts an NPC in the world; `remove()` takes them out again. */
     function spawnNpc(p: NpcPlacement): { remove: () => void } {
       const def = NPC_DEFS[p.defId];
@@ -1110,7 +1172,28 @@ export default function WorldCanvas({
     // --- Player ------------------------------------------------------------
     // A saved position that no longer fits the map (e.g. a save from before a
     // zone was redrawn) falls back to the zone spawn instead of a wall.
-    const spawn = safeSpawn(z, startPos, flagsRef.current);
+    // In Marlow's boat (#75 item 14) the hero spawns afloat — on open sea.
+    const spawn = safeSpawn(z, startPos, flagsRef.current, aboardRef.current ? 'boat' : 'foot');
+    // Arriving indoors — waking at an inn after a defeat or the walk home from
+    // the Spire — the roof over you is off from the first frame, not faded
+    // away once the world runs (it stays paused while the morning fades in).
+    const startIndoors = buildingInside(z, Math.floor(spawn.x / TILE), Math.floor(spawn.y / TILE));
+    for (const r of roofs) {
+      if (startIndoors?.id !== r.b.id) continue;
+      r.opacity = 0;
+      for (const part of r.parts) part.opacity = 0;
+    }
+    let aboard =
+      aboardRef.current && SEA_CHARS.has(tileAt(z, Math.floor(spawn.x / TILE), Math.floor(spawn.y / TILE)));
+    // Couldn't stay afloat: ashore at the spawn, the boat on the sea nearest it.
+    let ashoreMooring: { x: number; y: number } | null = null;
+    if (aboardRef.current && !aboard) {
+      const open = (x: number, y: number) => !fogAt(z, x, y, flagsRef.current);
+      ashoreMooring = z.seaLinks?.length
+        ? nearestSea(z, Math.floor(spawn.x / TILE), Math.floor(spawn.y / TILE), BOAT_REMOOR_REACH, open)
+        : null;
+      cbRef.current.onAshore?.(ashoreMooring);
+    }
     const followCam = (x: number, y: number) => {
       const v = view();
       k.setCamPos(camAxis(x, W, v.w), camAxis(y, H, v.h));
@@ -1154,15 +1237,53 @@ export default function WorldCanvas({
     let emberAnim = '';
     let lastDir = { x: 0, y: 1 };
 
+    // --- Marlow's boat (#75 item 14) ---------------------------------------
+    // One sprite: moored at its spot when that's on this map, under the hero
+    // while they sail, hidden otherwise. Bump it to climb in; sail into a
+    // beach or a dock to go ashore, leaving it moored where you were.
+    const mooredHere = (): { x: number; y: number } | null => {
+      const b = boatRef.current;
+      return !aboard && b && b.zoneId === zoneId ? { x: b.x, y: b.y } : null;
+    };
+    let mooring = ashoreMooring ?? mooredHere();
+    type BoatPart = { pos: { x: number; y: number }; frame: number; flipX: boolean; opacity: number };
+    const boatPart = (z: number) =>
+      k.add([k.sprite(BOAT_KEY, { frame: 0 }), k.pos(spawn.x, spawn.y), k.anchor('center'), k.opacity(0), k.z(z)]) as unknown as BoatPart;
+    // The boat under the hero (z 9), and the front of its hull over them (z 11)
+    // so they sit in it rather than stand on it.
+    const boatSprite = boatPart(9);
+    const hullFront = boatPart(11);
+    const placeBoat = () => {
+      const bob = Math.sin(k.time() * 2.2) * 1.5;
+      const f = Math.floor(k.time() * 1.6) % 2;
+      boatSprite.frame = BOAT_FRAME.whole[f];
+      hullFront.frame = BOAT_FRAME.hullFront[f];
+      if (aboard) {
+        boatSprite.opacity = hullFront.opacity = 1;
+        boatSprite.pos = hullFront.pos = k.vec2(player.pos.x, player.pos.y + 7 + bob);
+        if (lastDir.x !== 0) boatSprite.flipX = hullFront.flipX = lastDir.x < 0;
+      } else if (mooring) {
+        boatSprite.opacity = 1;
+        hullFront.opacity = 0;
+        boatSprite.pos = k.vec2(mooring.x * TILE + TILE / 2, mooring.y * TILE + TILE / 2 + 4 + bob);
+      } else {
+        boatSprite.opacity = hullFront.opacity = 0;
+      }
+    };
+
     // --- Collision ---------------------------------------------------------
     const isOpenGate = (x: number, y: number) =>
       flagsRef.current[gateFlag(gateIdAt(zoneId, z.map, x, y))] === true;
 
-    /** What blocks the cell, if anything. Hidden passages block `strict` movers (wanderers). */
-    function blockerAt(cx: number, cy: number, strict = false): { ch: string; x: number; y: number } | null {
+    /**
+     * What blocks the cell, if anything. Hidden passages block `strict` movers
+     * (wanderers); afloat (#75 item 14) everything but open sea does.
+     */
+    function blockerAt(cx: number, cy: number, strict = false, afloat = false): { ch: string; x: number; y: number } | null {
       if (fogAt(z, cx, cy, flagsRef.current)) return { ch: 'fog', x: cx, y: cy };
       if (darkAt(z, cx, cy, flagsRef.current)) return { ch: 'dark', x: cx, y: cy };
       const ch = z.map[cy]?.[cx] ?? '#';
+      if (afloat) return SEA_CHARS.has(ch) ? null : { ch, x: cx, y: cy };
       if (strict && ch === 'H') return { ch, x: cx, y: cy };
       if (WALKABLE_CHARS.has(ch)) return null;
       if (ch === 'G' && isOpenGate(cx, cy)) return null;
@@ -1170,7 +1291,13 @@ export default function WorldCanvas({
     }
 
     /** Does a `half`-sized box centered at (px,py) overlap any blocked tile? */
-    function hitBox(px: number, py: number, half: number, strict = false): { ch: string; x: number; y: number } | null {
+    function hitBox(
+      px: number,
+      py: number,
+      half: number,
+      strict = false,
+      afloat = false,
+    ): { ch: string; x: number; y: number } | null {
       const corners: [number, number][] = [
         [px - half, py - half],
         [px + half, py - half],
@@ -1178,13 +1305,15 @@ export default function WorldCanvas({
         [px + half, py + half],
       ];
       for (const [cx, cy] of corners) {
-        const b = blockerAt(Math.floor(cx / TILE), Math.floor(cy / TILE), strict);
+        const b = blockerAt(Math.floor(cx / TILE), Math.floor(cy / TILE), strict, afloat);
         if (b) return b;
       }
       return null;
     }
 
     const hitAt = (px: number, py: number) => hitBox(px, py, HALF);
+    /** The hero's own collision: on foot, or afloat while in the boat (#75 item 14). */
+    const heroHit = (px: number, py: number) => hitBox(px, py, HALF, false, aboard);
 
     // --- Fog reveal (#75 item 7) ------------------------------------------
     // A bank that has lifted but not been watched clearing gets a moment of
@@ -1376,6 +1505,7 @@ export default function WorldCanvas({
       }
     }
     paintDark();
+    placeBoat();
 
     // --- Main loop ---------------------------------------------------------
     let wasPaused = false;
@@ -1447,6 +1577,12 @@ export default function WorldCanvas({
       const travel = travelRef?.current;
       if (travel && travelRef) {
         travelRef.current = null;
+        // Flying off mid-voyage leaves the boat moored where it floats (the
+        // screen saved that before setting the trip).
+        if (aboard) {
+          aboard = false;
+          mooring = mooredHere();
+        }
         if (travel.to === zoneId) {
           // Already here (the menu doesn't offer it): just step to the landing.
           player.pos = k.vec2(travel.x * TILE + TILE / 2, travel.y * TILE + TILE / 2);
@@ -1509,7 +1645,8 @@ export default function WorldCanvas({
 
       if (dx !== 0 || dy !== 0) lastDir = { x: dx, y: dy };
 
-      const moving = dx !== 0 || dy !== 0;
+      // Sitting in the boat, the hero doesn't walk — the boat does the moving.
+      const moving = (dx !== 0 || dy !== 0) && !aboard;
       if (heroView) {
         heroFacing = facingFor(dx, dy, heroFacing);
         const want = animFor(heroFacing, moving, heroView.anims);
@@ -1532,17 +1669,44 @@ export default function WorldCanvas({
 
       // Axis-separated movement for wall sliding; remember what we bumped.
       let bumped: { ch: string; x: number; y: number } | null = null;
+      const speed = SPEED * (aboard ? BOAT_SPEED : 1);
       if (dx !== 0) {
-        const nx = player.pos.x + dx * SPEED * dt;
-        const hit = hitAt(nx, player.pos.y);
+        const nx = player.pos.x + dx * speed * dt;
+        const hit = heroHit(nx, player.pos.y);
         if (!hit) player.pos.x = nx;
         else bumped = hit;
       }
       if (dy !== 0) {
-        const ny = player.pos.y + dy * SPEED * dt;
-        const hit = hitAt(player.pos.x, ny);
+        const ny = player.pos.y + dy * speed * dt;
+        const hit = heroHit(player.pos.x, ny);
         if (!hit) player.pos.y = ny;
         else bumped = bumped ?? hit;
+      }
+
+      // Marlow's boat (#75 item 14): bump the water by it to climb in (from
+      // beside it, corners too — `canBoard`); sail into a beach or a dock to
+      // go ashore there, leaving it moored beside that shore (`landingMooring`
+      // — never only corner to corner, where nobody could climb back in).
+      const heroCell = { x: Math.floor(player.pos.x / TILE), y: Math.floor(player.pos.y / TILE) };
+      const landAt =
+        bumped && cooldown === 0 && aboard && canLand(bumped.ch) && !fogAt(z, bumped.x, bumped.y, flagsRef.current)
+          ? landingMooring(z, heroCell, bumped, (x, y) => !fogAt(z, x, y, flagsRef.current))
+          : null;
+      if (bumped && cooldown === 0 && !aboard && mooring && SEA_CHARS.has(bumped.ch) && canBoard(heroCell, bumped, mooring)) {
+        aboard = true;
+        player.pos = k.vec2(mooring.x * TILE + TILE / 2, mooring.y * TILE + TILE / 2);
+        mooring = null;
+        cooldown = TRIGGER_COOLDOWN;
+        cbRef.current.onBoard?.(player.pos.x, player.pos.y);
+        bumped = null;
+      } else if (bumped && landAt) {
+        aboard = false;
+        mooring = landAt;
+        player.pos = k.vec2(bumped.x * TILE + TILE / 2, bumped.y * TILE + TILE / 2);
+        cooldown = TRIGGER_COOLDOWN;
+        needsRelease = true; // don't sail straight back into the boat
+        cbRef.current.onLand?.(landAt, player.pos.x, player.pos.y);
+        bumped = null;
       }
 
       // Bump interactions (secret / gate / chest / save crystal).
@@ -1571,7 +1735,7 @@ export default function WorldCanvas({
         } else if (bumped.ch === 'fog') {
           const fog = fogAt(z, bumped.x, bumped.y, flagsRef.current);
           cooldown = 2;
-          if (fog) cbRef.current.onFog?.(fog.hint);
+          if (fog) cbRef.current.onFog?.(fog.hint, fog.id);
         } else if (bumped.ch === 'dark') {
           cooldown = 2;
           cbRef.current.onDark?.();
@@ -1659,6 +1823,7 @@ export default function WorldCanvas({
 
       // Camera follows the hero on maps bigger than one screen.
       followCam(player.pos.x, player.pos.y);
+      placeBoat();
 
       // Spire floors: seals dim as they break; the stairs open once all are.
       if (wardSprites.size) {
@@ -1756,6 +1921,19 @@ export default function WorldCanvas({
         cooldown = TRIGGER_COOLDOWN;
         cbRef.current.onMove(player.pos.x, player.pos.y);
         cbRef.current.onSecret?.(underfoot.id);
+      }
+      // Sailing off an edge onto the next stretch of sea (#75 item 14).
+      const crossing = aboard ? seaCrossing(z, cellX, cellY, ZONES) : null;
+      if (crossing) {
+        triggered = true;
+        const reduceMotion =
+          typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+        if (transitionFor(crossing.side, z.kind, zone(crossing.to).kind, reduceMotion) === 'slide') {
+          slidingRef.current = true;
+          setSlide({ src: k.screenshot(), side: crossing.side, from: zoneId, running: false });
+        }
+        cbRef.current.onExit(crossing.to, crossing.x, crossing.y);
+        return;
       }
       const exit = z.exits.find((e) => e.x === cellX && e.y === cellY);
       if (exit) {

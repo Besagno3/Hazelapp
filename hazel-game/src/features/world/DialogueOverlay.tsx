@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { NPC_DEFS, ROLE_SERVICE, npcSpriteId, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { questConversation, type QuestConversation } from '../../content/quests';
+import { boatFetchOffer, fetchBoatHome } from '../../content/boat';
 import { ZONES } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
 import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
@@ -34,19 +35,25 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const npc = NPC_DEFS[npcId];
   // Freeze the conversation at open — quest completion or a line that sets
   // its own filter flag must not reshuffle lines mid-conversation.
-  const [conversation] = useState<{ lines: DialogueLine[]; quest: QuestConversation | null }>(
-    () => {
-      const save = useSaveStore.getState().save;
-      const quest = save ? questConversation(npcId, save) : null;
-      if (quest) return { lines: quest.lines, quest };
-      const flags = save?.flags ?? {};
-      // Guides end on "where to next?"; signposts read out the way (#75 item 6).
-      const wayfinding = npc ? wayfindingLines(ZONES, npc, flags) : [];
-      return { lines: [...visibleLines(npc?.lines ?? [], flags), ...wayfinding], quest: null };
-    },
-  );
-  const { lines, quest } = conversation;
+  const [conversation] = useState<{
+    lines: DialogueLine[];
+    quest: QuestConversation | null;
+    fetchOffer: { line: string; done: string } | null;
+  }>(() => {
+    const save = useSaveStore.getState().save;
+    const quest = save ? questConversation(npcId, save) : null;
+    if (quest) return { lines: quest.lines, quest, fetchOffer: null };
+    const flags = save?.flags ?? {};
+    // Guides end on "where to next?"; signposts read out the way (#75 item 6).
+    const wayfinding = npc ? wayfindingLines(ZONES, npc, flags) : [];
+    // Old Marlow offers to row the boat home when it's away (#75 item 14).
+    const fetchOffer = save ? boatFetchOffer(npcId, save) : null;
+    const lines = [...visibleLines(npc?.lines ?? [], flags), ...wayfinding, ...(fetchOffer ? [fetchOffer.line] : [])];
+    return { lines, quest: null, fetchOffer };
+  });
+  const { lines, quest, fetchOffer } = conversation;
   const [index, setIndex] = useState(0);
+  const [fetched, setFetched] = useState(false);
 
   const invalid = !npc || lines.length === 0;
   useEffect(() => {
@@ -55,7 +62,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   if (invalid) return null;
 
   const line = lines[Math.min(index, lines.length - 1)];
-  const text = typeof line === 'string' ? line : line.text;
+  const text = fetched && fetchOffer ? fetchOffer.done : typeof line === 'string' ? line : line.text;
   const isLast = index >= lines.length - 1;
   // Giver conversations don't double as service menus, but a service NPC who
   // is merely a quest STEP target (Sage Cog polishing, Sage Muse singing)
@@ -93,6 +100,11 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     if (service) sendFlow({ type: 'OPEN_SERVICE', service, npcId });
   }
 
+  function rowHome() {
+    update(fetchBoatHome);
+    setFetched(true);
+  }
+
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
       <motion.div
@@ -122,6 +134,14 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               {service === 'library' && '📚 Library'}
               {service === 'sage' && '✨ Learn'}
               {service === 'trial' && (trialPassed ? `${taught?.emoji} How to cast` : '🕯️ Take the trial')}
+            </button>
+          )}
+          {isLast && fetchOffer && !fetched && (
+            <button
+              onClick={rowHome}
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"
+            >
+              ⛵ Row her home
             </button>
           )}
           <button

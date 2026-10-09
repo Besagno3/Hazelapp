@@ -16,8 +16,10 @@ import {
   safeSpawn,
   npcPresent,
   MET_ELDER,
+  SEA_CHARS,
 } from './zones';
 import { edgeLinkProblem, exitSide } from '../lib/transition';
+import { reachableBySea, seaEntryCell } from '../lib/travel';
 import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
@@ -212,15 +214,16 @@ describe('zone maps', () => {
     expect(corners.size).toBe(TOPIC_REGISTRY.length);
   });
 
-  it('every zone is reachable from the hub by walking exits', () => {
+  it('every zone is reachable from the hub by walking exits (or sailing across a sea link, #75 item 14)', () => {
     const seen = new Set<string>([HUB_ZONE]);
     const queue: string[] = [HUB_ZONE];
     while (queue.length) {
       const id = queue.shift()!;
-      for (const exit of ZONES[id as keyof typeof ZONES].exits) {
-        if (!seen.has(exit.to)) {
-          seen.add(exit.to);
-          queue.push(exit.to);
+      const z = ZONES[id as keyof typeof ZONES];
+      for (const to of [...z.exits.map((e) => e.to), ...(z.seaLinks ?? []).map((l) => l.to)]) {
+        if (!seen.has(to)) {
+          seen.add(to);
+          queue.push(to);
         }
       }
     }
@@ -510,8 +513,8 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
   /** Cells reachable on foot from the spawn, with fog blocking unless `lifted`. */
   const onFoot = (z: ZoneDef, lifted: boolean) => reachableOnFoot(z, lifted ? allLifted : {});
 
-  it('is an overworld with places', () => {
-    expect(overworlds.map((z) => z.id)).toEqual(['dawnreach']);
+  it('is an overworld with places (and the Silver Shallows, the sea beyond it, #75 item 14)', () => {
+    expect(overworlds.map((z) => z.id)).toEqual(['dawnreach', 'silver-shallows']);
     expect(dawn.places?.length).toBeGreaterThanOrEqual(8);
   });
 
@@ -573,8 +576,10 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
       for (const f of z.fogs ?? []) {
         expect(f.liftedBy.length, `${f.id} lifted by something`).toBeGreaterThan(0);
         expect(f.x >= 0 && f.y >= 0 && f.x + f.w <= z.map[0].length && f.y + f.h <= z.map.length, f.id).toBe(true);
+        // Ground you could walk — or sea a boat could sail (#75 item 14).
         let walkable = 0;
-        for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) if (isWalkable(z, x, y)) walkable++;
+        for (let y = f.y; y < f.y + f.h; y++)
+          for (let x = f.x; x < f.x + f.w; x++) if (isWalkable(z, x, y) || SEA_CHARS.has(tileAt(z, x, y))) walkable++;
         expect(walkable, `${f.id} blocks a real path`).toBeGreaterThan(0);
         expect(f.hint.length).toBeGreaterThan(0);
         expect(f.lifted.length).toBeGreaterThan(0);
@@ -587,6 +592,15 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
     for (const z of allZones) {
       for (const f of z.fogs ?? []) {
         const key = `${f.guards.x},${f.guards.y}`;
+        // A bank out at sea (#75 item 14) keeps the boat from the water beyond it.
+        if (SEA_CHARS.has(tileAt(z, f.guards.x, f.guards.y))) {
+          const entry = (z.seaLinks ?? []).map((l) => seaEntryCell(z, l.side)).find((c) => c !== null)!;
+          expect(entry, `${z.id} has a way in by sea`).toBeTruthy();
+          const bySea = (flags: Record<string, boolean>) => reachableBySea(z, entry, (x, y) => !!fogAt(z, x, y, flags)).has(key);
+          expect(bySea({}), `${f.id}: sea beyond it reachable through the fog`).toBe(false);
+          for (const flag of f.liftedBy) expect(bySea({ [flag]: true }), `${f.id}: ${flag} opens the way`).toBe(true);
+          continue;
+        }
         expect(isWalkable(z, f.guards.x, f.guards.y) || tileAt(z, f.guards.x, f.guards.y) === 'C', `${f.id} guards something real`).toBe(true);
         // Reach the reward by its neighbours (a chest is bumped, not stood on).
         const reach = (open: Set<string>) =>

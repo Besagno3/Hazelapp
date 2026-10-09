@@ -39,6 +39,8 @@ in-game menu (📜 → 🔊 Audio).
 `spireThicket`, `spireStars`, `spireEngine`) — see `trackForScreen` in
 `src/lib/audio.ts`. Each loop is a full song form (A A' B A'', at least 30 s;
 today 45–116 s) so it doesn't feel like one phrase on repeat.
+The sea has one loop per sea area (`SEA_TRACK`): `sailing`, `shallows`,
+`fogbank` — hand-written tunes in the same song form (38–64 s).
 
 ## Older tracks
 The earlier player-supplied mp3s (`Overworld.mp3`, `Battle_Music.mp3`, …)

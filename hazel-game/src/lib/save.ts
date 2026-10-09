@@ -1,7 +1,9 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
-import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell } from '../content/zones';
+import { BOAT_SPAWN_REACH, HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, safeSpawn } from '../content/zones';
+import { BOAT_REMOOR_REACH, hasBoat, seaBeside, validMooring } from '../content/boat';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
+import { ACT2_SEEN, SPIRE_VICTORY_SEEN } from '../content/story';
 
 export const SAVE_VERSION = 2 as const;
 
@@ -169,6 +171,8 @@ export function defaultSave(): SaveData {
     companionId: 'ember',
     defendTimer: true,
     lastRest: null,
+    boat: null,
+    aboard: false,
   };
 }
 
@@ -183,18 +187,32 @@ export function normalizeSave(raw: unknown): SaveData {
   if (typeof migrated !== 'object' || migrated === null) return d;
   const r = migrated as Record<string, unknown>;
 
-  const zoneKnown = typeof r.zoneId === 'string' && r.zoneId in ZONES;
+  const zoneKnown = isZoneId(r.zoneId);
   const zoneId = zoneKnown ? (r.zoneId as ZoneId) : d.zoneId;
   // A position only means something in its own zone: none when it fell back.
-  const pos = zoneKnown && isPos(r.pos) ? { x: r.pos.x, y: r.pos.y } : null;
+  const savedPos = zoneKnown && isPos(r.pos) ? { x: r.pos.x, y: r.pos.y } : null;
   // Every known consumable gets a count; ids added later (#73: elixir, spark,
   // ward) simply default in for older saves.
+  const flags = { ...(isRecord(r.flags) ? (r.flags as Record<string, boolean>) : {}), [SAVE_V2_FLAG]: true };
   const rawItems = typeof r.items === 'object' && r.items !== null ? (r.items as Record<string, unknown>) : {};
   const items = Object.fromEntries(
     CONSUMABLE_IDS.map((id) => [id, numberOr(rawItems[id], d.items[id])]),
   ) as Record<ConsumableId, number>;
+  // Marlow's boat (#75 item 14). A hero saved afloat stays afloat: where they
+  // were, or — on a map repainted (or fogged) under them — the nearest open
+  // sea. With no sea that close they go ashore, and the boat waits on the sea
+  // nearest them rather than wherever they last climbed in, so a hero is
+  // never left on an island without it.
+  const cell = savedPos ? { x: Math.floor(savedPos.x / TILE), y: Math.floor(savedPos.y / TILE) } : null;
+  const wasAboard = r.aboard === true && hasBoat(flags) && cell !== null;
+  const afloat = wasAboard ? seaBeside(zoneId, cell.x, cell.y, flags, BOAT_SPAWN_REACH) : null;
+  // Where they'll stand instead — that spot, or the zone's spawn (`safeSpawn`).
+  const stand = wasAboard && !afloat ? safeSpawn(ZONES[zoneId], savedPos, flags) : null;
+  const beside = stand ? seaBeside(zoneId, Math.floor(stand.x / TILE), Math.floor(stand.y / TILE), flags, BOAT_REMOOR_REACH) : null;
+  const moved = afloat && (afloat.x !== cell?.x || afloat.y !== cell?.y);
+  const pos = moved ? { x: afloat.x * TILE + TILE / 2, y: afloat.y * TILE + TILE / 2 } : savedPos;
 
-  return {
+  const save: SaveData = {
     version: SAVE_VERSION,
     avatarId: typeof r.avatarId === 'string' ? r.avatarId : null,
     zoneId,
@@ -205,7 +223,7 @@ export function normalizeSave(raw: unknown): SaveData {
     badges: stringArray(r.badges),
     sages: stringArray(r.sages) as CrystalTopic[],
     // Every v2 save carries the marker (see SAVE_V2_FLAG), whatever it came with.
-    flags: { ...(isRecord(r.flags) ? (r.flags as Record<string, boolean>) : {}), [SAVE_V2_FLAG]: true },
+    flags,
     openedChests: stringArray(r.openedChests),
     kills: killCounts(r.kills),
     questItems: stringArray(r.questItems),
@@ -220,8 +238,21 @@ export function normalizeSave(raw: unknown): SaveData {
     defendTimer: r.defendTimer !== false,
     // Added with an inn in every town (#75 item 11) — additive, like the two
     // above: older saves (or a town without an inn) wake at home.
-    lastRest: typeof r.lastRest === 'string' && r.lastRest in ZONES && innOf(ZONES[r.lastRest as ZoneId]) ? (r.lastRest as ZoneId) : null,
+    lastRest: isZoneId(r.lastRest) && innOf(ZONES[r.lastRest]) ? r.lastRest : null,
+    // Marlow's boat (#75 item 14) — additive too (see above). A mooring that
+    // isn't afloat (a map repainted under it, a pond, fog) goes back to his dock.
+    boat: beside
+      ? { zoneId, ...beside }
+      : validMooring(r.boat, flags)
+        ? { zoneId: r.boat.zoneId, x: r.boat.x, y: r.boat.y }
+        : null,
+    aboard: afloat !== null,
   };
+  // Between the Spire's finale and Act II the hero is asleep at the Sleepy
+  // Sheep Inn (#75 item 14) — Act II opens "You wake to sunshine at the Sleepy
+  // Sheep Inn". A save that beat the Spire before the walk home existed (or
+  // was reloaded mid-morning) is put to bed there too, so that's true.
+  return save.flags[SPIRE_VICTORY_SEEN] && !save.flags[ACT2_SEEN] ? { ...save, ...restAtHomeInn() } : save;
 }
 
 /** The inn a defeated hero wakes at — "the Square Root Inn in Numbria" — or null for home. */
@@ -239,6 +270,15 @@ export function wakeAfterDefeat(save: Pick<SaveData, 'lastRest'>): { zoneId: Zon
   const cell = save.lastRest ? innWakeCell(ZONES[save.lastRest]) : null;
   if (!save.lastRest || !cell) return { zoneId: HUB_ZONE, pos: null };
   return { zoneId: save.lastRest, pos: { x: cell.x * TILE + TILE / 2, y: cell.y * TILE + TILE / 2 } };
+}
+
+/**
+ * Home to bed after the Spire (#75 item 14): the hero sleeps at the Sleepy
+ * Sheep Inn in Lumina Village — healed, on its floor just inside the door,
+ * and it's the inn they last rested at. Spread into the save.
+ */
+export function restAtHomeInn(): Pick<SaveData, 'zoneId' | 'pos' | 'hp' | 'lastRest' | 'aboard'> {
+  return { ...wakeAfterDefeat({ lastRest: HUB_ZONE }), hp: null, lastRest: HUB_ZONE, aboard: false };
 }
 
 function numberOr(v: unknown, fallback: number): number {

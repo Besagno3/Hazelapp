@@ -10,6 +10,8 @@ import KeyGateOverlay from './KeyGateOverlay';
 import MenuOverlay from './MenuOverlay';
 import SpireOverlay from './SpireOverlay';
 import StoryPanels from '../../components/StoryPanels';
+import WakeFade from '../../components/WakeFade';
+import { restAtHomeInn } from '../../lib/save';
 import { zone, TILE, fogSeenFlag, HUB_ZONE, ZONES, litFlag } from '../../content/zones';
 import {
   CALM_SECONDS,
@@ -47,12 +49,20 @@ import {
   SPIRE_CLEARED,
   SPIRE_VICTORY_SEEN,
   spireVictoryPanels,
+  HOMECOMING_PANELS,
   crystalSceneFlag,
   GROVE_PANELS,
   GROVE_SEEN,
   DAWNREACH_PANELS,
   DAWNREACH_SEEN,
+  ACT2_PANELS,
+  ACT2_SEEN,
+  FIRST_VOYAGE_PANELS,
+  GREAT_FOGBANK_MET,
+  GREAT_FOGBANK_PANELS,
+  GREAT_FOGBANK_SEEN,
 } from '../../content/story';
+import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { claimSecret, rewardSummary, secretById, secretFlag } from '../../content/secrets';
 import type { SecretDef } from '../../content/zones';
@@ -127,6 +137,10 @@ export default function WorldScreen() {
   const travelRef = useRef<Travel | null>(null);
   const calmRef = useRef(0);
   const [calmLeft, setCalmLeft] = useState(0);
+  // After the Spire's finale the hero is carried home to bed; this is the
+  // morning fading in at the inn, before Act II begins (#75 item 14).
+  const [waking, setWaking] = useState(false);
+  const wakeUp = useCallback(() => setWaking(false), []);
   // The secret just found — shown in a small celebration card.
   const [found, setFound] = useState<SecretDef | null>(null);
   useEffect(() => {
@@ -148,7 +162,10 @@ export default function WorldScreen() {
   // Story moments (#37 story pass + expansion + #55 Spire finale). Exactly one
   // plays at a time; priority: Spire victory (true finale) → intro → hatch →
   // crystal-restored → Spire awakens → ending (the call to climb the Spire).
-  const spireVictoryDue = flags[SPIRE_CLEARED] === true && !flags[SPIRE_VICTORY_SEEN];
+  // The Spire's own "The Spire is yours!" panel comes first: the finale waits
+  // for its "🌟 See how it ends" to close the climb, so the walk home leaves
+  // from the Spire's door rather than the throne room.
+  const spireVictoryDue = flags[SPIRE_CLEARED] === true && !flags[SPIRE_VICTORY_SEEN] && overlay !== 'spire';
   const introDue = !flags[INTRO_SEEN];
   const hatchDue = flags[EMBER_HATCHED] === true && !flags[EMBER_HATCH_SEEN];
   const crystalSceneTopic =
@@ -160,6 +177,12 @@ export default function WorldScreen() {
   // and once on the first step out onto Dawnreach (#75 Phase 1).
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
   const dawnreachDue = zoneId === 'dawnreach' && !flags[DAWNREACH_SEEN];
+  // Act II (#75 item 14): the morning after the Spire's finale, once the hero
+  // has woken at the inn; the first time in the boat; the first bump into the
+  // Great Fogbank.
+  const act2Due = flags[SPIRE_VICTORY_SEEN] === true && !flags[ACT2_SEEN] && !waking;
+  const voyageDue = save?.aboard === true && !flags[FIRST_VOYAGE_SEEN];
+  const fogbankDue = flags[GREAT_FOGBANK_MET] === true && !flags[GREAT_FOGBANK_SEEN];
 
   const activeScene:
     | 'spireVictory'
@@ -170,6 +193,9 @@ export default function WorldScreen() {
     | 'ending'
     | 'grove'
     | 'dawnreach'
+    | 'act2'
+    | 'voyage'
+    | 'fogbank'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -182,18 +208,24 @@ export default function WorldScreen() {
             ? 'spire'
             : endingDue
               ? 'ending'
-              : groveDue
-                ? 'grove'
-                : dawnreachDue
-                  ? 'dawnreach'
-                  : null;
+              : act2Due
+                ? 'act2'
+                : groveDue
+                  ? 'grove'
+                  : dawnreachDue
+                    ? 'dawnreach'
+                    : voyageDue
+                      ? 'voyage'
+                      : fogbankDue
+                        ? 'fogbank'
+                        : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
   useEffect(() => {
     const spireFree = overlay === 'spire' && spireExploring;
-    pausedRef.current = (overlay !== null && !spireFree) || cutscene;
-  }, [overlay, cutscene, spireExploring]);
+    pausedRef.current = (overlay !== null && !spireFree) || cutscene || waking;
+  }, [overlay, cutscene, spireExploring, waking]);
 
   // Remember every place the hero has been: Return flies to the towns (#75 item 9).
   // Arriving somewhere new that fights far tougher than the 🚩's road (the
@@ -223,8 +255,9 @@ export default function WorldScreen() {
 
   useEffect(() => {
     if (activeScene === 'ending' || activeScene === 'spireVictory')
-      confetti({ particleCount: 320, spread: 130, origin: { y: 0.4 } });
-    else if (activeScene === 'crystal') confetti({ particleCount: 160, spread: 100, origin: { y: 0.4 } });
+      confetti({ particleCount: 320, spread: 130, origin: { y: 0.4 }, disableForReducedMotion: true });
+    else if (activeScene === 'crystal')
+      confetti({ particleCount: 160, spread: 100, origin: { y: 0.4 }, disableForReducedMotion: true });
   }, [activeScene]);
 
   if (!save || !avatar) {
@@ -251,9 +284,15 @@ export default function WorldScreen() {
   function castFieldSpell(cast: FieldCast) {
     sfx('spell');
     if (cast.spell === 'return') {
+      // Flying off mid-voyage leaves the boat moored where it floats (#75 item 14)
+      // — and says so, so it doesn't seem to vanish.
+      const leftAtSea = !!save?.aboard;
+      if (leftAtSea) update((s) => ({ ...s, ...moorBoat(s) }));
       const at = returnLanding(ZONES, cast.to);
       travelRef.current = { to: cast.to, x: at.x, y: at.y };
-      showToast(`🏠 Return! Off to ${zone(cast.to).name}…`);
+      showToast(
+        `🏠 Return! Off to ${zone(cast.to).name}…${leftAtSea ? ' The Biscuit stays moored out at sea — Old Marlow can row her home.' : ''}`,
+      );
     } else if (cast.spell === 'glow') {
       setFlag(litFlag(zoneId));
       showToast(z.dark?.lit ?? '🔆 Glow!');
@@ -290,12 +329,21 @@ export default function WorldScreen() {
         <div className="min-w-0">
           <h1 className="text-lg font-extrabold leading-tight">
             {spireTheme ? spireFloorTitle(spireFloorIndex!) : hudTitle}
+            {/* Sailing (#75 item 14): beside the name, so the stats keep their room. */}
+            {save.aboard && (
+              <span className="whitespace-nowrap">
+                {' '}
+                <span aria-hidden>⛵</span>
+                <span className="sr-only">(sailing Marlow's boat)</span>
+              </span>
+            )}
           </h1>
           <p className="text-[11px] text-white/60">
             💎 {crystals}/{TOPIC_REGISTRY.length} crystals restored
           </p>
         </div>
-        <div className="ml-auto flex shrink-0 items-center gap-3 text-sm">
+        {/* Wraps rather than pushing 📜 Menu off a phone's screen (Calm's timer, Glow). */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-sm">
           <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>
             <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={0.75} />
           </span>
@@ -326,7 +374,7 @@ export default function WorldScreen() {
           {overlay !== 'spire' && (
             <button
               onClick={() => sendFlow({ type: 'OPEN_MENU' })}
-              className="bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
+              className="shrink-0 bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
             >
               📜 Menu
             </button>
@@ -371,7 +419,21 @@ export default function WorldScreen() {
             sendFlow({ type: 'ENCOUNTER' });
           },
           onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),
-          onFog: (hint) => showToast(`🌫️ ${hint}`),
+          onFog: (hint, id) => {
+            // The Great Fogbank's first bump plays its panels instead (#75 item 14).
+            if (id === GREAT_FOGBANK && !save.flags[GREAT_FOGBANK_MET]) setFlag(GREAT_FOGBANK_MET);
+            else showToast(`🌫️ ${hint}`);
+          },
+          // Marlow's boat (#75 item 14): climbing in, going ashore.
+          onBoard: (x, y) => {
+            sfx('select');
+            update((s) => ({ ...s, aboard: true, pos: { x, y } }));
+          },
+          onLand: (boat, x, y) => {
+            sfx('select');
+            update((s) => ({ ...s, aboard: false, boat: { zoneId: s.zoneId, ...boat }, pos: { x, y } }));
+          },
+          onAshore: (boat) => update((s) => ({ ...s, aboard: false, boat: boat ? { zoneId: s.zoneId, ...boat } : null })),
           // The fog of Forgetting lifts on screen (#75 item 7), once per bank.
           onFogLift: (fog) => {
             sfx('gate'); // a way opening — not the level-up fanfare
@@ -402,22 +464,31 @@ export default function WorldScreen() {
         spireLight={spireTheme ? { lives: spireLives, max: SPIRE_LIVES } : null}
         travelRef={travelRef}
         calmRef={calmRef}
+        boat={boatSpot(save)}
+        aboard={save.aboard}
       />
 
       <p className="text-white/50 text-xs mt-2">
-        Walk: arrow keys / WASD · bump into friends to talk, foes to battle!
+        {save.aboard
+          ? 'Sail: arrow keys / WASD · sail into a beach or a dock to go ashore'
+          : 'Walk: arrow keys / WASD · bump into friends to talk, foes to battle!'}
       </p>
       </div>
       <TouchPad onDirChange={onDirChange} />
 
       {/* Toast — inside a live region that's always there, so screen readers
-          announce each one as it appears. */}
-      <div role="status" aria-live="polite">
+          announce each one as it appears. Centred, and on a phone up top, so it
+          never sits over the d-pad. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed inset-x-0 top-24 sm:top-auto sm:bottom-8 z-50 flex justify-center px-4 pointer-events-none"
+      >
         {toast && (
           <motion.div
             initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="fixed bottom-8 bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl z-50"
+            className="max-w-md text-center bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl"
           >
             {toast}
           </motion.div>
@@ -488,18 +559,40 @@ export default function WorldScreen() {
         />
       )}
       {activeScene === 'spireVictory' && (
+        // The finale, then the walk home in pictures; on "Good night" the hero
+        // is put to bed at the Sleepy Sheep Inn while the screen is dark, and
+        // wakes there (WakeFade) to Act II.
         <StoryPanels
-          panels={spireVictoryPanels(avatar.name)}
-          doneLabel="🌟 The adventure continues!"
-          onDone={() => setFlag(SPIRE_VICTORY_SEEN)}
+          panels={[...spireVictoryPanels(avatar.name), ...HOMECOMING_PANELS]}
+          doneLabel="💤 Good night"
+          cast={{
+            hero: { spriteId: avatar.spriteId, emoji: avatar.sprite },
+            ember: { spriteId: EMBER_SPRITE_IDS[ember], emoji: EMBER_SPRITES[ember] },
+          }}
+          onDone={() => {
+            setWaking(true);
+            update((s) => ({ ...s, ...restAtHomeInn(), flags: { ...s.flags, [SPIRE_VICTORY_SEEN]: true } }));
+            // Saved at once, so a reload mid-morning can't bring back the finale.
+            void flush();
+          }}
         />
       )}
+      {waking && <WakeFade onDone={wakeUp} />}
       {activeScene === 'dawnreach' && (
         <StoryPanels
           panels={DAWNREACH_PANELS}
           doneLabel="🗺️ Explore Dawnreach"
           onDone={() => setFlag(DAWNREACH_SEEN)}
         />
+      )}
+      {activeScene === 'act2' && (
+        <StoryPanels panels={ACT2_PANELS} doneLabel="⛵ Find Old Marlow" onDone={() => setFlag(ACT2_SEEN)} />
+      )}
+      {activeScene === 'voyage' && (
+        <StoryPanels panels={FIRST_VOYAGE_PANELS} doneLabel="⛵ Set sail!" onDone={() => setFlag(FIRST_VOYAGE_SEEN)} />
+      )}
+      {activeScene === 'fogbank' && (
+        <StoryPanels panels={GREAT_FOGBANK_PANELS} doneLabel="🧭 Sail on" onDone={() => setFlag(GREAT_FOGBANK_SEEN)} />
       )}
       {activeScene === 'grove' && (
         <StoryPanels

@@ -71,7 +71,10 @@ zod, react-query. Add the package in the same change that first uses it.
   and `HUB_ZONE` — done in item 8, 2026-10-07). **Every town gets an inn** (reverses #73's one-inn rule —
   done in item 11, 2026-10-07; still one Library, still each item sold in one shop). **`ROADMAP-4X.md`
   Wave 1 (Act II) is paused** until Dawnreach exists — don't build Act II
-  zones as edge-linked screens.
+  zones as edge-linked screens. **Act II is on the sea (#75 item 14,
+  2026-10-08):** Marlow's boat arrives after the Spire (roadmap decision 8),
+  and Act II's places are islands and coasts of the Silver Shallows — its
+  own overworld map east of Dawnreach, reached by sailing off the east edge.
 
 ## Architecture
 
@@ -113,6 +116,9 @@ zod, react-query. Add the package in the same change that first uses it.
   `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
   danger tier 0–4, the `DANGER` tuning per tier, map labels "Lv 4 !!", the
   danger banner / defeat tip / arrival warning copy),
+  `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
+  (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
+  rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
   villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
   Fiends, #58), `items.ts` (shop + economy tuning), `quests.ts` (quests as
@@ -126,7 +132,9 @@ zod, react-query. Add the package in the same change that first uses it.
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
   setting, the last inn rested at (`lastRest`, #75 item 11 — additive, so no
-  version bump; null = home). Write-through: localStorage immediately
+  version bump; null = home), where Marlow's boat is moored and whether the
+  hero is in it (`boat` / `aboard`, #75 item 14 — additive too; `normalizeSave`
+  keeps a mooring only on open sea, and `aboard` only afloat with a boat). Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
   `flush()` on save crystals / sign-out. Supabase errors degrade to
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
@@ -191,6 +199,52 @@ zod, react-query. Add the package in the same change that first uses it.
   Spire — goes through `wakeAfterDefeat` (`lib/save.ts`): that inn's
   `innWakeCell` (the floor just inside its door), or home (`HUB_ZONE`, saved
   start) when `lastRest` is null. `wakeInnName` words it for the defeat screens.
+  **The sea** (#75 item 14): travel modes are `foot` / `boat`
+  (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
+  sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
+  new legend char: planks over water). Maps join at sea through
+  `ZoneDef.seaLinks` (an edge, the map beyond, a row shift; every link has its
+  mirror): sailing off a linked edge slides onto the next map one cell in
+  (`seaCrossing`). `WorldCanvas` takes `boat` (its mooring) and `aboard`:
+  bump the water by the moored boat to climb in (`onBoard`; from beside it,
+  corners too — `canBoard`), sail into a beach or dock to go ashore with the
+  boat moored edge to edge with that shore (`onLand`, `landingMooring` — never
+  only corner to corner, where nobody could climb back in); collision is
+  boat-aware (`heroHit` / `blockerAt(…, afloat)`), and the boat is two
+  sprites — under the hero, and its hull's front over them. Return and a lost
+  battle leave the boat moored where it was (`moorBoat`); Old Marlow offers
+  to row it home (a ⛵ Row her home button) when it's away from his dock. A
+  boat only floats on open sea of a sea-linked map outside standing fog
+  (`afloatAt`); a hero saved aboard anywhere else loads on the nearest open
+  sea, or ashore with the boat beside them (`normalizeSave`, `safeSpawn`).
+  The menu map draws whichever overworld you're on, its landmarks
+  (`ZoneDef.landmarks` — named spots that aren't places), "◀ Dawnreach"-style
+  markers on its sea edges, ⛵ where the boat is moored (or a line saying
+  which map it's on), and the Great Fogbank (a bank no boat passes, lifted
+  only in Act III) with its own line. Each sea area has its own music
+  (`seaAreaAt` in `boat.ts` → `SEA_TRACK` in `lib/audio.ts`, which wins over
+  the zone kind's track): a shanty while sailing Dawnreach's waters, the
+  Silver Shallows' theme anywhere on that map, a misty loop near the Great
+  Fogbank while it stands (in at `FOGBANK_NEAR`, out past `FOGBANK_LEAVE`).
+  Zone ids from a save are checked with `isZoneId` (own keys of `ZONES` —
+  never `in`, which lets `constructor` through). A zone can have a
+  lighthouse (`ZoneDef.lighthouse`: the 2×2 rock it stands on): the canvas
+  draws the tower two tiles taller than the rock, over characters but under
+  roofs, its lamp pulsing and two beams sweeping round.
+  **After the Spire** (#75 item 14): once the Spire's own "🌟 See how it
+  ends" closes the climb (`spireVictoryDue` waits for `overlay !== 'spire'`),
+  the finale (`spireVictoryPanels`) runs straight into `HOMECOMING_PANELS` —
+  picture panels (`StoryPanel.scene`, drawn by `components/StoryScene` from
+  the game's own backdrops and sprites) that fade in and out through black —
+  then `WorldScreen` puts the hero to bed at the Sleepy Sheep Inn
+  (`restAtHomeInn`, `lib/save.ts`; saved at once) under the dark, `WakeFade`
+  says "The next morning…" and brings the morning in, holding it
+  `MORNING_MS` (the world stays paused; a hero who arrives indoors finds that
+  roof already off), and `ACT2_PANELS` follow (`act2Due` waits for `waking`
+  to end). A save between the finale and Act II always loads asleep at that
+  inn (`normalizeSave`). `StoryPanels` ignores a tap until the panel on
+  screen has faded in, and it and `WakeFade` make the rest of the page
+  `inert` while they're up (`hooks/useInertOutside`).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -316,7 +370,10 @@ python3 tools/tiled/tiled.py legend                                    # rebuild
 python3 tools/assets/build.py spells   # art for the field-spell places + keepers only (#75 item 9)
 python3 tools/assets/build.py dungeon  # the Depths' lower floors + the stairs sheet only (#75 item 10)
 python3 tools/assets/build.py inns     # the innkeepers + travelers' sprites only (#75 item 11)
+python3 tools/assets/build.py sea      # the Silver Shallows, the boat, the dock + Lamplighter Ness only (#75 item 14)
 python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
+python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallows, the fogbank (#75 item 14)
+python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 ```
 
 ## Error handling
@@ -371,6 +428,248 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-09 — Merge main (longer music loops, #107) into the boat branch
+`main` took #107 for the music-loops follow-up while the boat was built, so
+the boat's follow-ups moved **#107 → #108** (its test cases, TC-640+, didn't
+collide). No code conflicts: the sea music (`compose_sea`, appended to
+`audio.py`) merged cleanly with the song-form rewrite and rebuilds
+byte-identical; the audio README lists both.
+
+### 2026-10-09 — The walk home, reviewed: from the Spire's door, no skipped panels, fits a sideways phone (#75 item 14, #108m)
+A fresh-context `/saas-code-review` + `/saas-ux-review` of the ending (the
+code reviewer reproduced its main finding against the real `WorldScreen`; the
+UX reviewer played it at six screen sizes, by keyboard, touch and reduced
+motion). Every finding fixed:
+- **Woke in the throne room (code, high):** `SpireOverlay.win` sets
+  `spire-cleared` while its "The Spire is yours!" panel is still up, so the
+  finale played on top of it — after "Good night" the canvas still drew the
+  throne floor, Act II played there with the Spire's music, and "🌟 See how
+  it ends" was offered after the ending. The finale now waits for that button
+  to close the climb, which is what it promises.
+- **Old saves (code):** Act II isn't on `main`, so everyone who beat the
+  Spire there would get "You wake … at the Sleepy Sheep Inn" wherever they
+  stood. `normalizeSave` puts a save with `spire-victory-seen` but not
+  `act2-seen` to bed at the inn; "Good night" saves at once (`flush`).
+- **Sideways phones (UX, critical):** the pictures pushed the only button off
+  screen with no scroll. The dialog scrolls, a picture is at most ~35% of the
+  screen tall, and short screens tighten the spacing — the button fits at
+  667×375, 844×390 and 568×320.
+- **Double taps (UX, high):** a second tap within the 1.4 s cross-fade
+  skipped a panel (even the inn's) or left a stale picture. A tap counts only
+  once the panel on screen has faded in (`PICTURE_FADE_MS` / `WORDS_FADE_MS`);
+  the label and dots follow the panel on screen.
+- **Behind the story (UX):** new `hooks/useInertOutside` makes the rest of
+  the page `inert` while a story or the wake is up (no tapping 📜 Menu through
+  the fade, no Tab to a hidden Menu), and Tab keeps to the story's button.
+- **Screen readers (UX):** each new panel's words are announced (a polite
+  live region; the button is described by them), panel emoji are hidden, and
+  the dark says "The next morning…" (shown too).
+- **The morning (asked):** it now holds 1.8 s (`MORNING_MS`) before Act II
+  (was ~0.6 s); `WAKE_MS` 4 s, under reduced motion 3 s.
+- **Copy:** Act II is 4 short panels again (Grandmother Wick "squeezes your
+  hand" before she speaks), none over 30 words; Aurora's line has no
+  quote-in-a-quote; Marlow is "just east of the village".
+- **Pictures:** stairs down from the Spire, two sheep cheering, the inn's
+  blue roof; the village's confetti is smaller, lower and cleared when its
+  picture goes; the finale's big burst respects reduced motion.
+- Tests: +5 (WorldScreen.ending.test plays it from the Spire's panel — fails
+  on the old code; save.test: old saves to bed; StoryPanels.test: the tap
+  lock, inert + Tab, the confetti, the caption); 699 green, lint + tsc +
+  build clean. Replayed in headless Chromium (TC-674).
+
+### 2026-10-09 — After Umbra: the walk home, a night at the inn, Act II in the morning (#75 item 14, #108m)
+Beating Umbra played ten storybook panels in a row (the finale's 5, then
+Act II's 5 the same moment), and nothing took the hero away from the Spire —
+they were left at its door with only the 🚩. Now the ending carries them home:
+- **The finale** (`spireVictoryPanels`): three panels — Umbra unravels, Ember
+  roars, Keeper Aurora names the hero.
+- **The walk home** (`HOMECOMING_PANELS`): three pictures that fade in and out
+  through black (`StoryPanel.scene` → new `components/StoryScene.tsx`, built
+  from the game's art): the hero and Ember walking away from the glowing
+  Spire at dusk; Lumina Village under strings of lanterns, Elder Lumen,
+  Grandmother Wick and Poppy cheering (with confetti); the Sleepy Sheep Inn at
+  night, one window lit, Zzz. `StoryPanels` takes a `cast` (the hero's and
+  Ember's sprites) and shows picture runs over solid black. The last button is
+  "💤 Good night".
+- **Bed, then morning:** `WorldScreen` moves the hero into the inn while the
+  screen is dark (`restAtHomeInn`: Lumina Village, the floor just inside the
+  door, healed, `lastRest` home), then `WakeFade` (`components/WakeFade.tsx`)
+  holds the dark a moment and fades the morning in on them standing inside the
+  inn — the canvas now clears the roof over a hero who arrives indoors from the
+  first frame. The world stays paused through it.
+- **Act II** (`ACT2_PANELS`, now three): "You wake to sunshine at the Sleepy
+  Sheep Inn…", the Silver Shallows with Grandmother Wick's line, then Old
+  Marlow → "⛵ Find Old Marlow"; the 🚩 then reads "Help Old Marlow — Go east to
+  Starfall Coast." All three runs together are under 330 words (~450 before),
+  broken by the fades and a look round the inn. The finale's first panel is 💨
+  (🌑 vanished on the black).
+- Tests: +8 (story.test: the three runs, their order and length; save.test:
+  `restAtHomeInn`; StoryPanels.test: the pictures, the fallback, Good night,
+  waking); 694 green, lint + tsc + build clean. Played end to end in headless
+  Chromium against the real `WorldScreen` at 375×667, 1024×768 and with reduced
+  motion (TC-668).
+
+### 2026-10-09 — Gull Rock gets a real lighthouse (#75 item 14, #108l)
+"Gull Rock Lighthouse" was a whitewashed cottage with a red roof — no tower.
+Now a lighthouse stands on a rock just east of Ness's cottage (a path's width
+away, level with its roof, so the whole tower is on screen from the beach):
+- **Art** (`tiles.lighthouse_sheet`, `python3 tools/assets/build.py
+  lighthouse`; `build.py sea` writes it too): `/tiles/lighthouse.png`, a tower
+  2 tiles wide and 4 tall — whitewashed with two red bands, a little window
+  and a door, a black gallery and railing, the lantern room, a red dome — on a
+  grey, mossy rock; four frames of the lamp pulsing.
+- **Map:** the rock is two by two '^' cells (a palm made room), painted in
+  `maps/silver-shallows.tmj`; you can walk round it either side.
+- **Canvas** (`ZoneDef.lighthouse`): the tower stands on the rock, anchored at
+  its foot, drawn over anyone walking or sailing behind it and under roofs and
+  name plates; a soft glow pulses round the lamp and two faint beams sweep
+  slowly round (still, under reduced motion). The cottage keeps its name — it's
+  the lighthouse keeper's house.
+- Tests: +1 (boat.test: the rock, its place by the cottage, the rows the
+  tower rises into, the way round it) and the sheet's size in tiles.test;
+  686 green, lint + tsc + build clean. Checked on the bench in headless
+  Chromium (TC-664).
+
+### 2026-10-09 — The boat, reviewed: never stranded, Menu on phones, the boat never "vanishes" (#75 item 14, #108)
+A fresh-context `/saas-code-review` + `/saas-ux-review` of the whole slice
+(14a + sea music; the UX reviewer played it in a harness around the real
+`WorldScreen` at 320–1024 px). Every finding fixed:
+- **Stranded on an island (code, critical):** sailing into a beach's corner
+  left the boat touching the shore only corner to corner, where no bump could
+  reach it — on Gull Rock or Sandpiper Cay that's a softlock without Return,
+  kept by the save. Landing now moors the boat edge to edge with the shore
+  (`landingMooring`, `lib/travel.ts`; no landing at an inside corner), and
+  boarding works from beside the boat, corners too (`canBoard`) — which also
+  frees a save already stuck that way, and a hero standing across two rows.
+- **A hand-edited save crashed the load (code, medium):** `'constructor' in
+  ZONES` is true, so a save naming it as a map threw in `normalizeSave` and
+  the game hung on "Preparing your adventure…". New `isZoneId` (own keys) for
+  the zone, the boat's map and `lastRest`.
+- **Afloat where there's no sea (code, medium):** `aboard` was accepted on any
+  '~' (a town's pond, the fogbank) and, when refused, the boat stayed wherever
+  the hero last boarded — maybe another map. Now a boat floats only on open
+  sea of a sea-linked map outside standing fog (`afloatAt`); a hero saved
+  aboard loads on the nearest open sea (6 cells), else ashore with the boat
+  on the sea beside where they'll stand (`seaBeside`); the canvas does the
+  same (`safeSpawn`'s boat fallback, `onAshore(boat)`).
+- **Silent music (code, low):** re-picking a track during its fade-out (sail
+  out of a sea area and straight back) cancelled the fade, which fired its
+  stop — now the stop checks the track is still leaving. The fogbank's music
+  lasts out to `FOGBANK_LEAVE` (9 cells; `useSeaArea` in `App` keeps the last
+  area), so the edge doesn't flip it back and forth.
+- **📜 Menu off a phone's screen (UX, high):** the ⛵ chip (and Calm's timer)
+  pushed it past 360 px. ⛵ now sits beside the place name ("(sailing
+  Marlow's boat)" for screen readers), and the stats row wraps.
+- **The boat "vanished" (UX, high):** after a Return (or a loss) at sea the
+  Dawnreach map didn't show it. The Return toast says the Biscuit stays moored
+  out at sea and Old Marlow can row her home; the map's legend says which map
+  she's on.
+- **Guides spoke as Marlow (UX, medium):** Wick and Tamsin read his hint ("my
+  compass"). Each step has its own line about him; Atlas is "by the Rainbow
+  Quilt Inn in Chromaria".
+- **How do I get off? (UX, medium):** while sailing the footer reads "Sail …
+  sail into a beach or a dock to go ashore", and boarding/landing make a sound.
+- **The Shallows' map (UX, medium):** Gull Rock and Sandpiper Cay are named
+  (`ZoneDef.landmarks`), and each map marks its sea edges ("◀ Dawnreach",
+  "Silver Shallows ▶" once the boat is mended).
+- **Marlow asks first (UX, medium):** he says his own lines, then offers —
+  "The Biscuit's still out in the Silver Shallows? … Just say the word!" —
+  with a ⛵ Row her home button (`boatFetchOffer`, `fetchBoatHome`); a boat
+  within 2 cells of his dock counts as home (`boatAway`).
+- **Copy (UX, low):** Act II opens with "the fog over the land is gone" (the
+  Great Fogbank still stands); the fogbank panel quotes "old sailors", not a
+  warning Marlow never gave.
+- **Also:** the map caption reads "out on the Silver Shallows" and its spoken
+  text names "Marlow's dock" and where the boat is; standing on the dock the
+  way is "Climb into Marlow's boat…"; story panels focus their button (Enter
+  reads on, Tab stays put); toasts are centred, and on a phone sit up top,
+  clear of the d-pad.
+- Tests: +14 (boat.test: every landing on both maps, the corner cases,
+  boarding, `afloatAt`, loading afloat, prototype keys, the hysteresis;
+  audio.music.test: the fade race with a stand-in Howl — it fails on the old
+  code; WorldMapPanel.test: landmarks, edges, the boat after a Return;
+  DialogueOverlay.test: the offer button; wayfinding.test: the dock); 685
+  green, lint + tsc + build clean. Replayed in headless Chromium against the
+  real `WorldScreen` (TC-662).
+
+### 2026-10-08 — Sea music: a loop for each sea area (#75 item 14, #108c)
+The Shallows played the overworld march. Now each sea area has its own track,
+composed by a new chiptune composer (`compose_sea`, appended to
+`tools/assets/audio.py`; `python3 tools/assets/build.py seamusic` writes just
+these, byte-identical on a rebuild). Unlike the other tracks, the tunes are
+written out by hand (note:eighths, bar by bar, checked against the meter) in
+song form A A' B A''; the accompaniment comes from the chords, and the sea is
+in the mix — waves washing in and out every other bar, gulls, a chime, a
+buoy bell, a foghorn. Anything ringing past the loop's end wraps to its start.
+- **Sailing** (`sailing.mp3`, 38 s, D major 6/8): a sea shanty for Dawnreach's
+  waters while aboard — a two-reed squeezebox tune over oom-pah-pah bass and
+  chords and a shaker; the last A has the crew singing a third below.
+- **The Silver Shallows** (`shallows.mp3`, 58 s, A major 6/8): calm and
+  glittering — an ocarina tune (a lydian G# over D for shimmer) over a
+  rolling arpeggio, a chime at each phrase, a second ocarina in the last A. It plays
+  anywhere on the Shallows' map, so landing on Gull Rock keeps it.
+- **The Great Fogbank** (`fogbank.mp3`, 64 s, D minor 4/4): the Shallows'
+  opening heard again a fifth down in minor, half lost in a long echo, over a
+  slow detuned pad, a soft low foghorn every four bars and a rocking buoy
+  bell; four bars of only fog before it loops. Plays within `FOGBANK_NEAR`
+  (6) cells of the bank while it stands.
+- **Wiring:** `seaAreaAt(save)` (`content/boat.ts`, `SEA_AREAS`) → `SEA_TRACK`
+  (`lib/audio.ts`); `trackForScreen` / `useScreenMusic` take the sea area,
+  which wins over the zone kind in the world (battles keep battle music);
+  `App` selects it from the save, so the music changes as you board, land,
+  cross to the Shallows or near the fogbank (the position is saved every
+  1.5 s while moving).
+- Tests: +4 (boat.test: the sea areas, the fogbank's edge and after it lifts;
+  audio.test: a sea track wins in the world, not in battle, none shared with a
+  kind of place); 671 green, lint + tsc clean. The three MP3s decode in headless
+  Chromium (Web Audio and `<audio>`), as loud as the overworld theme.
+
+### 2026-10-08 — The boat and the Silver Shallows: Act II opens on the sea (#75 item 14, slice 14a)
+Roadmap item 14 (Phase 3, "the sea") — the first of four slices (ISSUES #108).
+- **Act II opens** (`ACT2_PANELS`, flag `act2-seen`): the morning after the
+  Spire's finale, Lumina starts remembering — and the fog rolls back off the
+  sea east of Dawnreach. Old Marlow remembers he used to sail.
+- **"Marlow's Boat"** (`quests.ts`, `requires: act2-seen` — a quest can now
+  wait for a story flag): a sail from Innkeeper Willow (Verdara), his old
+  star-compass from Mapmaker Atlas (Chromaria), a clockwork rudder from Sage
+  Cog (Gearfall) — three conversations, in turn — then the boat, the
+  **Biscuit**, is yours at his dock (+50 coins).
+- **The boat** (`content/boat.ts`, `lib/travel.ts`): moored at Marlow's dock
+  (two planks, '|', painted onto Dawnreach east of the Starfall Coast icon);
+  bump it to climb in, sail open sea at 1.5× walking pace, sail into a beach
+  or dock to go ashore — it waits right where you left it (`SaveData.boat` /
+  `aboard`, additive). Return or a lost battle mid-voyage moor it where it
+  floated; Old Marlow rows it home on request. While sailing the hero sits in
+  it (the hull's front drawn over them), Ember alongside, ⛵ in the HUD.
+  First boarding plays `FIRST_VOYAGE_PANELS`.
+- **The Silver Shallows** (new overworld, 64×44, painted in Tiled —
+  `maps/silver-shallows.tmj`): reached by sailing off Dawnreach's east edge
+  (`seaLinks`; it slides like neighbouring screens). So far: **Gull Rock**,
+  with Lamplighter Ness in her lighthouse (whitewashed cottage style, free
+  since Lumina Field retired), and **Sandpiper Cay**, a sandbar with a
+  riddle-chest on sea life (`topic: 'nature'`); the **Great Fogbank** walls
+  the far side (its first bump plays `GREAT_FOGBANK_PANELS` — it's where
+  Ember's flight will matter). Room is left for Act II's islands.
+- **Wayfinding:** after the Spire the 🚩 follows Marlow's quest step by step
+  (each friend's town), then "Sail the Silver Shallows" with the 🚩 on his
+  dock ("Go east to Marlow's dock and sail east."); routes cross the sea
+  ("Sail west to Dawnreach, then …"); Elder Lumen's plan covers both. The
+  menu map draws the Shallows when you're out there, ⛵ where the boat is
+  moored, and the fogbank's own line. Moving between two overworld maps
+  slides (`transitionFor`).
+- **Art** (`python3 tools/assets/build.py sea`): the Shallows' tileset (a
+  new palm scenery), blend sheet and backdrop, the boat sheet
+  (`/tiles/boat.png`: whole boat ×2, hull front ×2), the dock as frame 15 of
+  the overworld sheet (frames 0–14 unchanged), Ness's sprite; the Tiled
+  legend gained '|' (append-only).
+- Tests: +19 (boat.test: travel rules, sea links mirrored and every edge
+  crossing, docks, island beaches, the fogbank, Ness, the save fields,
+  mooring, Marlow rowing home, the quest end to end; WorldMapPanel.test; a
+  DialogueOverlay case; existing tests follow two overworlds and the longer
+  story); 650 green, lint + tsc + build clean. Played on the bench in
+  headless Chromium: the dock, boarding, sailing off the edge into the
+  Shallows, landing on Gull Rock and Sandpiper Cay, climbing back in, the
+  Great Fogbank.
 ### 2026-10-08 — Longer music loops: every track is a song, not one phrase on repeat
 Players heard the same bit over and over: each `compose()` track was one chord
 progression (8–16 bars) rendered once and looped, so loops ran 15–37 s

@@ -12,6 +12,8 @@ import {
   GROVE_PANELS,
   DAWNREACH_PANELS,
   spireVictoryPanels,
+  HOMECOMING_PANELS,
+  ACT2_PANELS,
   VILLAIN_NAME,
   EMBER_SPRITES,
   EMBER_MAP_SIZE,
@@ -159,3 +161,37 @@ describe('BOSS_LINES', () => {
     }
   });
 });
+
+describe('after the Spire: the finale, the walk home, and Act II at the inn (#75 item 14)', () => {
+  const words = (panels: { text: string }[]) =>
+    panels.reduce((n, p) => n + p.text.split(/\s+/).filter((w) => /\p{L}/u.test(w)).length, 0);
+
+  it('the walk home is three pictures — down the Spire, the village cheering, a bed at the inn', () => {
+    expect(HOMECOMING_PANELS.map((p) => p.scene)).toEqual(['spire-stairs', 'village-cheer', 'inn-night']);
+    expect(HOMECOMING_PANELS[2].text).toMatch(/Sleepy Sheep Inn/);
+    // The finale itself is words only, and ends on the hero — not "the adventure continues".
+    const finale = spireVictoryPanels('Nova');
+    expect(finale.every((p) => !p.scene)).toBe(true);
+    expect(finale[finale.length - 1].text).toMatch(/Nova/);
+    expect(finale.map((p) => p.text).join(' ')).not.toMatch(/adventure continues/i);
+  });
+
+  it('Act II opens by waking at that inn, and ends on Old Marlow', () => {
+    expect(ACT2_PANELS[0].text).toMatch(/^You wake .* Sleepy Sheep Inn/);
+    expect(ACT2_PANELS[ACT2_PANELS.length - 1].text).toMatch(/Old Marlow/);
+    // …and says which way he is, since the hero wakes with no 🚩 on screen.
+    expect(ACT2_PANELS[ACT2_PANELS.length - 1].text).toMatch(/east of the village/);
+    // Grandmother Wick is brought in before she speaks.
+    expect(ACT2_PANELS.find((p) => p.text.includes('Wick'))?.text).toMatch(/^Grandmother Wick squeezes your hand/);
+  });
+
+  it('is shorter than the ten panels it replaced: short runs of short panels, under 330 words in all', () => {
+    for (const run of [spireVictoryPanels('Nova'), HOMECOMING_PANELS]) expect(run.length).toBeLessThanOrEqual(3);
+    expect(ACT2_PANELS.length).toBeLessThanOrEqual(4);
+    // An early reader gets no more than 30 words at a time.
+    for (const p of [...spireVictoryPanels('Nova'), ...HOMECOMING_PANELS, ...ACT2_PANELS])
+      expect(words([p]), p.text).toBeLessThanOrEqual(30);
+    expect(words(spireVictoryPanels('Nova')) + words(HOMECOMING_PANELS) + words(ACT2_PANELS)).toBeLessThan(330);
+  });
+});
+

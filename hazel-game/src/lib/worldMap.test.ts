@@ -51,9 +51,10 @@ describe('whereOnMap', () => {
     const overworld = { ...dawn, exits: dawn.exits.filter((e) => e.to !== 'numbria') };
     expect(whereOnMap(zones, overworld, 'numbria', null)).toMatchObject({ exact: false, place: 'Lumina Village' });
   });
-  it('every zone in the world can be placed on the map', () => {
+  it('every zone in the world can be placed on the map — the Silver Shallows on its own (#75 item 14)', () => {
     for (const id of Object.keys(ZONES) as (keyof typeof ZONES)[]) {
-      expect(whereOnMap(ZONES, dawn, id, null), id).not.toBeNull();
+      const map = ZONES[id].kind === 'overworld' ? ZONES[id] : dawn;
+      expect(whereOnMap(ZONES, map, id, null), id).not.toBeNull();
     }
   });
 });

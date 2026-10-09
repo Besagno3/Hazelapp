@@ -29,7 +29,10 @@ export function transitionFor(
   reduceMotion: boolean,
 ): TransitionKind {
   if (reduceMotion) return 'cut';
-  if (!side || fromKind === 'overworld' || toKind === 'overworld') return 'fade';
+  if (!side) return 'fade';
+  // One stretch of open sea to the next (#75 item 14) are neighbouring screens.
+  if (fromKind === 'overworld' && toKind === 'overworld') return 'slide';
+  if (fromKind === 'overworld' || toKind === 'overworld') return 'fade';
   return 'slide';
 }
 

@@ -16,6 +16,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { sendFlow } from '../../machines/gameFlow';
+import { boatSpot } from '../../content/boat';
 import WorldMapPanel from './WorldMapPanel';
 import FieldSpellsPanel from './FieldSpellsPanel';
 import type { FieldCast } from '../../content/fieldSpells';
@@ -105,7 +106,7 @@ export default function MenuOverlay({
           </div>
         </div>
 
-        <WorldMapPanel zoneId={save.zoneId} pos={save.pos} flags={save.flags} />
+        <WorldMapPanel zoneId={save.zoneId} pos={save.pos} flags={save.flags} boat={boatSpot(save)} aboard={save.aboard} />
 
         {/* Field spells sit under the map: see where to go, then fly there with Return. */}
         <FieldSpellsPanel save={save} calmLeft={calmLeft} onCast={onCast} />

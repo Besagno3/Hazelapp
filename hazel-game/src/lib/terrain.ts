@@ -2,6 +2,7 @@ import { buildingAt, type BuildingStyle, type ZoneDef } from '../content/zones';
 import {
   BLEND_CLASS,
   BLEND_WATER_STEP,
+  OVERWORLD_DOCK_FRAME,
   OVERWORLD_FRAME,
   TILE_FRAME,
   TOWN_FRAME,
@@ -64,6 +65,8 @@ const OVERLAY: Record<string, TileRef> = {
   ',': { sheet: 'zone', frame: TILE_FRAME.deco },
   E: { sheet: 'zone', frame: TILE_FRAME.exit },
   '^': { sheet: 'overworld', frame: OVERWORLD_FRAME.mountain },
+  // A dock's planks over the water beneath (#75 item 14).
+  '|': { sheet: 'overworld', frame: OVERWORLD_DOCK_FRAME },
 };
 
 export interface TerrainLayers {
@@ -101,7 +104,7 @@ export function baseTile(z: ZoneDef, x: number, y: number): TileRef {
   }
   if (ch in TOWN_TILE) return { sheet: style, frame: TOWN_TILE[ch] };
   if (ch === '=' || ch === 'E') return { sheet: 'zone', frame: TILE_FRAME.path };
-  if (ch === '~') return { sheet: 'zone', frame: WATER };
+  if (ch === '~' || ch === '|') return { sheet: 'zone', frame: WATER };
   if (ch === ':') return { sheet: 'overworld', frame: OVERWORLD_FRAME.sand };
   return { sheet: 'zone', frame: groundVariant(x, y) };
 }
@@ -148,6 +151,8 @@ export function terrainLayers(z: ZoneDef): TerrainLayers {
 
 const BLEND_OF: Record<string, BlendClass> = {
   '~': BLEND_CLASS.water,
+  // A dock stands in the water: the coast blends around it as sea.
+  '|': BLEND_CLASS.water,
   ':': BLEND_CLASS.sand,
   '.': BLEND_CLASS.ground,
   ',': BLEND_CLASS.ground,

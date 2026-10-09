@@ -1,10 +1,11 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useAuthInit } from './features/auth/useAuthInit';
 import { useAuthStore } from './store/authStore';
 import { useSaveStore } from './store/saveStore';
 import { useBattleStore } from './store/battleStore';
 import { useScreenMusic } from './lib/audio';
 import { HUB_ZONE, zone } from './content/zones';
+import { seaAreaAt, type SeaArea } from './content/boat';
 import { sendFlow, useFlow } from './machines/gameFlow';
 import AuthPage from './features/auth/AuthPage';
 import ResetPasswordPage from './features/auth/ResetPasswordPage';
@@ -27,6 +28,23 @@ const WorldScreen = lazy(() => import('./features/world/WorldScreen'));
  * top-level state the machine is in. Auth still gates everything, and the
  * machine waits in `boot` until the session + save file are ready.
  */
+/**
+ * The sea area the hero is in (#75 item 14), for the music — kept as state so
+ * each new position is judged against the last area (the fogbank's music
+ * lingers a little on the way out instead of flipping at one line).
+ */
+function useSeaArea(): SeaArea | null {
+  const [area, setArea] = useState<SeaArea | null>(() => {
+    const save = useSaveStore.getState().save;
+    return save ? seaAreaAt(save) : null;
+  });
+  useEffect(
+    () => useSaveStore.subscribe((st) => setArea((prev) => (st.save ? seaAreaAt(st.save, prev) : null))),
+    [],
+  );
+  return area;
+}
+
 export default function App() {
   useAuthInit();
   const initialized = useAuthStore((s) => s.initialized);
@@ -48,10 +66,11 @@ export default function App() {
   const isBoss = useBattleStore((s) => s.enemy?.isBoss ?? false);
   const inSpire = useFlow((s) => s.matches({ world: 'spire' }));
   const zoneKind = useSaveStore((s) => zone(s.save?.zoneId ?? HUB_ZONE).kind);
+  const sea = useSeaArea();
 
-  // Background music follows the screen — and, in the world, the kind of place
-  // you're in (silent until enabled in the menu).
-  useScreenMusic(screen, isBoss, inSpire, zoneKind);
+  // Background music follows the screen — and, in the world, the sea area or
+  // the kind of place you're in (silent until enabled in the menu).
+  useScreenMusic(screen, isBoss, inSpire, zoneKind, sea);
 
   // Wake the machine once auth + save have loaded (guards read the save).
   useEffect(() => {

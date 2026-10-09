@@ -1,6 +1,9 @@
-import { HUB_ZONE, MET_ELDER, reachableOnFoot, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { HUB_ZONE, MET_ELDER, ZONES, reachableOnFoot, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
-import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, type FieldSpell } from '../content/fieldSpells';
+import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
+import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
+import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
+import { oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { TOPIC_REGISTRY, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForZone, type GateKey } from '../content/keys';
@@ -55,7 +58,8 @@ export function placeName(z: ZoneDef): string {
 // --- The next goal ---------------------------------------------------------------
 
 export interface Objective {
-  kind: 'crystal' | 'key' | 'spire' | 'explore';
+  /** Act II adds `boat` (help Old Marlow mend his boat) and `sail` (take it to the Silver Shallows), #75 item 14. */
+  kind: 'crystal' | 'key' | 'spire' | 'boat' | 'sail' | 'explore';
   /** Short, for the map and signposts: "Free the Crystal of Numbers". */
   title: string;
   /** One or two sentences for the guides. Never says where: the route does. */
@@ -66,6 +70,76 @@ export interface Objective {
   crystal?: CrystalTopicInfo;
   /** The warden's key involved: the one to win, or the one you hold. */
   key?: GateKey;
+  /**
+   * A spot on an overworld to flag instead of `zoneId`'s place — where a
+   * goal across the sea starts (Marlow's dock for the Silver Shallows).
+   */
+  at?: { zoneId: ZoneId; x: number; y: number; name: string };
+}
+
+/**
+ * The 🚩 for each step of Marlow's quest (#75 item 14): its title, and the why
+ * a guide or the map gives — said about Marlow, not in his voice (the quest
+ * log's hints are his), and without directions (the route says those).
+ */
+const BOAT_STEPS: Record<string, { title: string; why: string }> = {
+  'boat-sail': {
+    title: "Find a sail for Marlow's boat",
+    why: "Innkeeper Willow in Verdara weaves the toughest sails — ask her for one for Marlow's boat.",
+  },
+  'boat-compass': {
+    title: "Fetch Marlow's compass",
+    why: "Old Marlow lent his star-compass to Mapmaker Atlas, who's drawing maps by the Rainbow Quilt Inn in Chromaria.",
+  },
+  'boat-rudder': {
+    title: "Get a rudder built for Marlow's boat",
+    why: "Sage Cog in Gearfall Canyon can build Marlow a clockwork rudder.",
+  },
+};
+
+/**
+ * Act II's next step (#75 item 14), once the Spire is cleared: help Old Marlow
+ * mend his boat (step by step — each step's friend is the goal), then sail it
+ * to the Silver Shallows. Null once you've been there (explore from then on).
+ */
+function actTwoObjective(flags: Record<string, boolean>): Objective | null {
+  if (!hasBoat(flags)) {
+    const quest = QUESTS.find((q) => q.id === BOAT_QUEST_ID)!;
+    if (!flags[questOfferedFlag(quest)]) {
+      return {
+        kind: 'boat',
+        title: 'Help Old Marlow',
+        why: 'Old Marlow on Starfall Coast used to be a sailor — but his boat is in pieces. Ask him how to help!',
+        zoneId: quest.zoneId,
+      };
+    }
+    const step = quest.steps.find((st) => st.npc && !flags[stepFlag(st.id)]);
+    const home = step?.npc ? npcHome(ZONES, step.npc.id) : null;
+    if (step && home) {
+      return {
+        kind: 'boat',
+        title: BOAT_STEPS[step.id]?.title ?? quest.title,
+        why: BOAT_STEPS[step.id]?.why ?? quest.title,
+        zoneId: home.zoneId,
+      };
+    }
+    return {
+      kind: 'boat',
+      title: 'Tell Old Marlow his boat is ready',
+      why: "Old Marlow's boat has everything it needs. Tell him on Starfall Coast!",
+      zoneId: quest.zoneId,
+    };
+  }
+  if (!flags[visitedFlag('silver-shallows')]) {
+    return {
+      kind: 'sail',
+      title: 'Sail the Silver Shallows',
+      why: "Marlow's boat waits at his dock, just east of Starfall Coast. Climb in and sail east, off the edge of the sea!",
+      zoneId: 'silver-shallows',
+      at: { zoneId: BOAT_HOME.zoneId, x: BOAT_HOME.x - 1, y: BOAT_HOME.y, name: "Marlow's dock" },
+    };
+  }
+  return null;
 }
 
 /**
@@ -78,10 +152,14 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
   const left = TOPIC_REGISTRY.filter((t) => !flags[crystalFlag(t.id)]);
   if (left.length === 0) {
     if (flags[SPIRE_CLEARED]) {
+      const actTwo = actTwoObjective(flags);
+      if (actTwo) return actTwo;
       return {
         kind: 'explore',
         title: 'Explore Lumina',
-        why: 'Lumina is safe, thanks to you! Hunt for secrets ✨ and help everyone you meet.',
+        why: flags[visitedFlag('silver-shallows')]
+          ? 'Lumina is safe, thanks to you! Sail the Silver Shallows, hunt for secrets ✨ and help everyone you meet.'
+          : 'Lumina is safe, thanks to you! Hunt for secrets ✨ and help everyone you meet.',
         zoneId: null,
       };
     }
@@ -128,7 +206,8 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
  */
 export function roadTier(flags: Record<string, boolean>): DangerTier | null {
   const goal = nextObjective(flags);
-  if (goal.kind === 'spire' || goal.kind === 'explore' || !goal.zoneId) return null;
+  // After the Act I crystals (the Spire, then Act II's errands) everywhere is fair game.
+  if ((goal.kind !== 'crystal' && goal.kind !== 'key') || !goal.zoneId) return null;
   return zoneTier(goal.zoneId);
 }
 
@@ -140,6 +219,30 @@ export interface Hop {
   exit: ZoneExit;
 }
 
+/**
+ * A zone's ways out: its exits, plus — for a sea (#75 item 14) — one crossing
+ * per sea link, as if it were an exit on that edge, landing where a boat
+ * comes in on the far side.
+ */
+function waysOut(zones: Record<ZoneId, ZoneDef>, z: ZoneDef): ZoneExit[] {
+  const sea = (z.seaLinks ?? []).flatMap((l) => {
+    const landing = seaEntryCell(zones[l.to], oppositeSide(l.side));
+    if (!landing) return [];
+    const shift = l.shift ?? 0;
+    const cols = z.map[0].length;
+    const rows = z.map.length;
+    const x = l.side === 'east' ? cols - 1 : l.side === 'west' ? 0 : landing.x - shift;
+    const y = l.side === 'south' ? rows - 1 : l.side === 'north' ? 0 : landing.y - shift;
+    return [{ x, y, to: l.to, spawnX: landing.x, spawnY: landing.y }];
+  });
+  return [...z.exits, ...sea];
+}
+
+/** Does this exit sail across a sea link rather than walk out of a gate? */
+function sails(zones: Record<ZoneId, ZoneDef>, from: ZoneDef, exit: ZoneExit): boolean {
+  return !from.exits.includes(exit) && zones[exit.to].kind === 'overworld';
+}
+
 /** The exits to take from one zone to another, through the fewest zones; [] when already there, null when there's no way. */
 export function routeTo(zones: Record<ZoneId, ZoneDef>, from: ZoneId, to: ZoneId): Hop[] | null {
   if (from === to) return [];
@@ -147,7 +250,7 @@ export function routeTo(zones: Record<ZoneId, ZoneDef>, from: ZoneId, to: ZoneId
   const queue: ZoneId[] = [from];
   while (queue.length) {
     const id = queue.shift()!;
-    for (const exit of zones[id].exits) {
+    for (const exit of waysOut(zones, zones[id])) {
       if (exit.to === from || cameBy.has(exit.to)) continue;
       cameBy.set(exit.to, { from: id, exit });
       if (exit.to === to) {
@@ -192,7 +295,10 @@ export function routeSteps(
   for (const { from: id, exit } of route) {
     const z = zones[id];
     const dest = zones[exit.to];
-    if (z.kind === 'overworld') {
+    if (z.kind === 'overworld' && sails(zones, z, exit)) {
+      // Across the sea (#75 item 14): off the edge the boat sails over.
+      steps.push(`sail ${exitSide(z, exit) ?? 'on'} to ${placeName(dest)}`);
+    } else if (z.kind === 'overworld') {
       const o = origin ?? z.spawn;
       const dir = compass(exit.x - o.x, exit.y - o.y);
       steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
@@ -239,6 +345,20 @@ export function goalDirections(
 ): string {
   if (!goal.zoneId) return '';
   if (goal.zoneId === here) return `It's right here in ${placeName(zones[here])}!`;
+  // A goal across the sea (#75 item 14): the way to where it starts, then sail.
+  if (goal.at) {
+    const steps = routeSteps(zones, here, goal.at.zoneId, at) ?? [];
+    const route = routeTo(zones, here, goal.at.zoneId) ?? [];
+    const last = route.length ? route[route.length - 1].exit : null;
+    const from = here === goal.at.zoneId ? (at ?? zones[here].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
+    // Already on the dock (or right by it): just climb in.
+    if (here === goal.at.zoneId && from && Math.max(Math.abs(goal.at.x - from.x), Math.abs(goal.at.y - from.y)) <= 1) {
+      return "Climb into Marlow's boat at the end of the dock and sail east.";
+    }
+    const dir = from ? compass(goal.at.x - from.x, goal.at.y - from.y) : null;
+    steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and sail east`);
+    return sentence(steps);
+  }
   return sentence(routeSteps(zones, here, goal.zoneId, at) ?? []);
 }
 
@@ -256,7 +376,8 @@ function midSentence(name: string): string {
 
 /** Which way a zone's place on the overworld lies from home ("north-west"), if both are on it. */
 function bearingFromHome(zones: Record<ZoneId, ZoneDef>, to: ZoneId): string | null {
-  const world = Object.values(zones).find((z) => z.kind === 'overworld');
+  // Home's own overworld (there's more than one since the Silver Shallows, #75 item 14).
+  const world = zones.dawnreach;
   const home = world?.exits.find((e) => e.to === HUB_ZONE);
   const there = world?.exits.find((e) => e.to === to);
   return home && there ? compass(there.x - home.x, there.y - home.y) : null;
@@ -267,7 +388,7 @@ function bearingFromHome(zones: Record<ZoneId, ZoneDef>, to: ZoneId): string | n
  * to right now (the Shrine of First Light waits behind fog for a crystal).
  */
 export function shrineToVisit(zones: Record<ZoneId, ZoneDef>, flags: Record<string, boolean>): FieldSpell | null {
-  const world = Object.values(zones).find((z) => z.kind === 'overworld');
+  const world = zones.dawnreach;
   if (!world) return null;
   const open = reachableOnFoot(world, flags);
   for (const id of FIELD_SPELL_IDS) {
@@ -305,6 +426,10 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
       restored === 1
         ? `The other three Fiends hide behind locked gates, and a warden out in the wild guards each key. Start with ${keeper} — win the ${goal.key.name}!`
         : `${capitalize(goal.key.fiendName)} still hides behind a locked gate. Its key is guarded by ${keeper} — win the ${goal.key.name}!`;
+  } else if (goal.kind === 'boat') {
+    plan = 'The Spire is cleared, and Lumina is remembering! Old Marlow on Starfall Coast remembers he was a sailor. Help him mend his boat, and the Silver Shallows — islands the world forgot — will be yours to explore.';
+  } else if (goal.kind === 'sail') {
+    plan = "Marlow's boat is mended! Out past his dock lie the Silver Shallows, islands nobody has seen since the fog. Go and see them — and tell me everything!";
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
   } else {
@@ -313,6 +438,12 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   let tip: string;
   if (goal.kind === 'spire') {
     tip = 'Rest at the Sleepy Sheep Inn before you climb. In the Spire, every wrong answer snuffs a candle.';
+  } else if (goal.kind === 'boat') {
+    tip = knowsFieldSpell('return', flags)
+      ? "🏠 Return flies you to any town you've been to — handy for gathering what Marlow's boat needs!"
+      : 'Many townsfolk have little quests for you. Talk to everyone — and look for twinkles ✦!';
+  } else if (goal.kind === 'sail') {
+    tip = 'In the boat, bump into a beach or a dock to go ashore. The boat waits right where you leave it — and Old Marlow can always row it home.';
   } else if (goal.kind === 'explore') {
     tip = 'Many townsfolk have little quests for you. Talk to everyone — and look for twinkles ✦!';
   } else if (restored === 0) {

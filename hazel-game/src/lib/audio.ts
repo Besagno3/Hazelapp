@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Howl } from 'howler';
 import { useSettingsStore } from '../store/settingsStore';
 import type { ZoneKind } from '../content/zones';
+import type { SeaArea } from '../content/boat';
 
 /**
  * The game's audio engine (Howler.js). Two responsibilities: fire one-shot
@@ -44,6 +45,9 @@ export type MusicTrack =
   | 'town'
   | 'cave'
   | 'shrine'
+  | 'sailing'
+  | 'shallows'
+  | 'fogbank'
   | 'spire'
   | 'spireArchive'
   | 'spireThicket'
@@ -89,6 +93,10 @@ export const MUSIC_SOURCES: Record<MusicTrack, string> = {
   town: '/audio/16bit/music/town.mp3', // towns (#75 Phase 1)
   cave: '/audio/16bit/music/cave.mp3', // caves and dungeons
   shrine: '/audio/16bit/music/shrine.mp3', // shrines
+  // The sea (#75 item 14): one loop per sea area (`SEA_TRACK`).
+  sailing: '/audio/16bit/music/sailing.mp3', // a shanty: sailing Dawnreach's waters
+  shallows: '/audio/16bit/music/shallows.mp3', // the Silver Shallows, afloat or on its islets
+  fogbank: '/audio/16bit/music/fogbank.mp3', // misty: near the Great Fogbank
   spire: '/audio/16bit/music/spire.mp3', // the Spire's entrance + intro
   // One spooky loop per Spire floor (#74); the throne floor uses finalBoss.
   spireArchive: '/audio/16bit/music/spireArchive.mp3',
@@ -215,13 +223,18 @@ export function playMusic(track: MusicTrack | null): void {
     return;
   }
 
-  // Fade out + stop whatever was playing.
+  // Fade out + stop whatever was playing — unless it's picked again before the
+  // fade ends (sailing out of a sea area and straight back): changing its
+  // volume cancels the fade, which still fires 'fade', and it must play on.
   if (currentTrack) {
-    const prev = getMusic(currentTrack);
+    const leaving = currentTrack;
+    const prev = getMusic(leaving);
     if (prev) {
       try {
         prev.fade(prev.volume(), 0, FADE_MS);
-        prev.once('fade', () => prev.stop());
+        prev.once('fade', () => {
+          if (currentTrack !== leaving) prev.stop();
+        });
       } catch {
         try {
           prev.stop();
@@ -251,19 +264,31 @@ export const ZONE_KIND_TRACK: Record<ZoneKind, MusicTrack> = {
   shrine: 'shrine',
 };
 
+/** Music for each sea area (#75 item 14, `seaAreaAt`) — out on the water it wins over the place's kind. */
+export const SEA_TRACK: Record<SeaArea, MusicTrack> = {
+  'dawnreach-waters': 'sailing',
+  'silver-shallows': 'shallows',
+  'great-fogbank': 'fogbank',
+};
+
 /**
- * Which track suits the current screen. In the world it follows the kind of
- * place you're in (towns, caves and shrines each have their own theme).
- * Pure — unit-tested.
+ * Which track suits the current screen. In the world it follows the sea area
+ * you're in, else the kind of place (towns, caves and shrines each have their
+ * own theme). Pure — unit-tested.
  */
-export function trackForScreen(screen: Screen, isBoss = false, zoneKind: ZoneKind = 'field'): MusicTrack | null {
+export function trackForScreen(
+  screen: Screen,
+  isBoss = false,
+  zoneKind: ZoneKind = 'field',
+  sea: SeaArea | null = null,
+): MusicTrack | null {
   switch (screen) {
     case 'topics':
     case 'quiz':
     case 'avatar':
       return 'title';
     case 'world':
-      return ZONE_KIND_TRACK[zoneKind];
+      return sea ? SEA_TRACK[sea] : ZONE_KIND_TRACK[zoneKind];
     case 'battle':
       return isBoss ? 'boss' : 'battle';
     default:
@@ -279,11 +304,17 @@ export function trackForScreen(screen: Screen, isBoss = false, zoneKind: ZoneKin
  * floor and so chooses spire vs final-boss music) — this hook steps aside so the
  * two never fight over the same track.
  */
-export function useScreenMusic(screen: Screen, isBoss = false, inSpire = false, zoneKind: ZoneKind = 'field'): void {
+export function useScreenMusic(
+  screen: Screen,
+  isBoss = false,
+  inSpire = false,
+  zoneKind: ZoneKind = 'field',
+  sea: SeaArea | null = null,
+): void {
   const music = useSettingsStore((s) => s.music);
   const musicVolume = useSettingsStore((s) => s.musicVolume);
   useEffect(() => {
     if (inSpire) return; // SpireOverlay drives music while the climb is open
-    playMusic(trackForScreen(screen, isBoss, zoneKind));
-  }, [screen, isBoss, inSpire, zoneKind, music, musicVolume]);
+    playMusic(trackForScreen(screen, isBoss, zoneKind, sea));
+  }, [screen, isBoss, inSpire, zoneKind, sea, music, musicVolume]);
 }
