@@ -207,6 +207,17 @@ export interface PlaceDef {
 }
 
 /**
+ * A spot named on the menu map that isn't a place you step into — an islet,
+ * a lighthouse rock (#75 item 14). Just a label: no tile, no exit.
+ */
+export interface LandmarkDef {
+  x: number;
+  y: number;
+  emoji: string;
+  name: string;
+}
+
+/**
  * A bank of the fog of Forgetting (#75): a rectangle of the map nobody can
  * cross until any of `liftedBy`'s flags is set — then it lifts for good.
  */
@@ -356,6 +367,8 @@ export interface ZoneDef {
   secrets?: SecretDef[];
   /** Overworld places — every 'P' tile is one (and also has an `exits` entry). */
   places?: PlaceDef[];
+  /** Named spots on the menu map that aren't places (`LandmarkDef`). */
+  landmarks?: LandmarkDef[];
   /** Fog banks that block part of the map until a story flag lifts them. */
   fogs?: FogDef[];
   /** A dark place, explored by the light of the Glow field spell (#75 item 9). */
@@ -1618,6 +1631,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [{ defId: 'gull-lamplighter', x: 11, y: 17 }],
     enemies: [],
     exits: [],
+    landmarks: [
+      { x: 12, y: 18, emoji: '🏮', name: 'Gull Rock' },
+      { x: 26, y: 31, emoji: '🏝️', name: 'Sandpiper Cay' },
+    ],
     seaLinks: [{ side: 'west', to: 'dawnreach', shift: 8 }],
     fogs: [
       {
@@ -1634,6 +1651,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
   },
 };
+
+/**
+ * Is this one of the game's zone ids? (An own key of `ZONES` — not
+ * `constructor` or `__proto__` from a hand-edited save, which `in` would let
+ * through.)
+ */
+export function isZoneId(id: unknown): id is ZoneId {
+  return typeof id === 'string' && Object.hasOwn(ZONES, id);
+}
 
 export function zone(id: ZoneId): ZoneDef {
   return ZONES[id];
@@ -1700,6 +1726,27 @@ export function buildingInside(z: ZoneDef, x: number, y: number): BuildingDef | 
  * a save from before the fog (or an exit that lands inside it) must never
  * leave the hero sealed in (#75 item 7).
  */
+/** How far (cells) a hero saved afloat may be moved to stay afloat (`safeSpawn`). */
+export const BOAT_SPAWN_REACH = 6;
+
+/** The cell nearest (x, y), within `reach` cells, that `ok` accepts (the cell itself first). */
+export function nearestCell(
+  x: number,
+  y: number,
+  reach: number,
+  ok: (x: number, y: number) => boolean,
+): { x: number; y: number } | null {
+  let best: { x: number; y: number; d: number } | null = null;
+  for (let dy = -reach; dy <= reach; dy++) {
+    for (let dx = -reach; dx <= reach; dx++) {
+      if (!ok(x + dx, y + dy)) continue;
+      const d = dx * dx + dy * dy;
+      if (!best || d < best.d) best = { x: x + dx, y: y + dy, d };
+    }
+  }
+  return best ? { x: best.x, y: best.y } : null;
+}
+
 export function safeSpawn(
   z: ZoneDef,
   pos: { x: number; y: number } | null,
@@ -1710,8 +1757,15 @@ export function safeSpawn(
   if (!pos) return fallback;
   const cx = Math.floor(pos.x / TILE);
   const cy = Math.floor(pos.y / TILE);
-  // Afloat (#75 item 14): any open sea will do — fog still counts as solid.
-  if (mode === 'boat') return SEA_CHARS.has(tileAt(z, cx, cy)) && !(flags && fogAt(z, cx, cy, flags)) ? pos : fallback;
+  // Afloat (#75 item 14): any open sea will do — fog still counts as solid. A
+  // map repainted (or fogged) under the boat puts it on the nearest open sea,
+  // so the hero stays afloat rather than landing wherever the spawn is.
+  if (mode === 'boat') {
+    const afloat = (x: number, y: number) => SEA_CHARS.has(tileAt(z, x, y)) && !(flags && fogAt(z, x, y, flags));
+    if (afloat(cx, cy)) return pos;
+    const near = nearestCell(cx, cy, BOAT_SPAWN_REACH, afloat);
+    return near ? { x: near.x * TILE + TILE / 2, y: near.y * TILE + TILE / 2 } : fallback;
+  }
   if (!WALKABLE_CHARS.has(tileAt(z, cx, cy))) return fallback;
   if (flags && z.fogs?.length && behindFog(z, flags).has(`${cx},${cy}`)) return fallback;
   return pos;

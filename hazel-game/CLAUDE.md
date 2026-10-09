@@ -206,18 +206,28 @@ zod, react-query. Add the package in the same change that first uses it.
   `ZoneDef.seaLinks` (an edge, the map beyond, a row shift; every link has its
   mirror): sailing off a linked edge slides onto the next map one cell in
   (`seaCrossing`). `WorldCanvas` takes `boat` (its mooring) and `aboard`:
-  bump the moored boat to climb in (`onBoard`), sail into a beach or dock to
-  go ashore with the boat moored where it floated (`onLand`); collision is
+  bump the water by the moored boat to climb in (`onBoard`; from beside it,
+  corners too — `canBoard`), sail into a beach or dock to go ashore with the
+  boat moored edge to edge with that shore (`onLand`, `landingMooring` — never
+  only corner to corner, where nobody could climb back in); collision is
   boat-aware (`heroHit` / `blockerAt(…, afloat)`), and the boat is two
   sprites — under the hero, and its hull's front over them. Return and a lost
-  battle leave the boat moored where it was (`moorBoat`); Old Marlow rows it
-  home on request. The menu map draws whichever overworld you're on, ⛵ where
-  the boat is moored, and the Great Fogbank (a bank no boat passes, lifted
+  battle leave the boat moored where it was (`moorBoat`); Old Marlow offers
+  to row it home (a ⛵ Row her home button) when it's away from his dock. A
+  boat only floats on open sea of a sea-linked map outside standing fog
+  (`afloatAt`); a hero saved aboard anywhere else loads on the nearest open
+  sea, or ashore with the boat beside them (`normalizeSave`, `safeSpawn`).
+  The menu map draws whichever overworld you're on, its landmarks
+  (`ZoneDef.landmarks` — named spots that aren't places), "◀ Dawnreach"-style
+  markers on its sea edges, ⛵ where the boat is moored (or a line saying
+  which map it's on), and the Great Fogbank (a bank no boat passes, lifted
   only in Act III) with its own line. Each sea area has its own music
   (`seaAreaAt` in `boat.ts` → `SEA_TRACK` in `lib/audio.ts`, which wins over
   the zone kind's track): a shanty while sailing Dawnreach's waters, the
   Silver Shallows' theme anywhere on that map, a misty loop near the Great
-  Fogbank while it stands.
+  Fogbank while it stands (in at `FOGBANK_NEAR`, out past `FOGBANK_LEAVE`).
+  Zone ids from a save are checked with `isZoneId` (own keys of `ZONES` —
+  never `in`, which lets `constructor` through).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -399,6 +409,68 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-09 — The boat, reviewed: never stranded, Menu on phones, the boat never "vanishes" (#75 item 14, #107)
+A fresh-context `/saas-code-review` + `/saas-ux-review` of the whole slice
+(14a + sea music; the UX reviewer played it in a harness around the real
+`WorldScreen` at 320–1024 px). Every finding fixed:
+- **Stranded on an island (code, critical):** sailing into a beach's corner
+  left the boat touching the shore only corner to corner, where no bump could
+  reach it — on Gull Rock or Sandpiper Cay that's a softlock without Return,
+  kept by the save. Landing now moors the boat edge to edge with the shore
+  (`landingMooring`, `lib/travel.ts`; no landing at an inside corner), and
+  boarding works from beside the boat, corners too (`canBoard`) — which also
+  frees a save already stuck that way, and a hero standing across two rows.
+- **A hand-edited save crashed the load (code, medium):** `'constructor' in
+  ZONES` is true, so a save naming it as a map threw in `normalizeSave` and
+  the game hung on "Preparing your adventure…". New `isZoneId` (own keys) for
+  the zone, the boat's map and `lastRest`.
+- **Afloat where there's no sea (code, medium):** `aboard` was accepted on any
+  '~' (a town's pond, the fogbank) and, when refused, the boat stayed wherever
+  the hero last boarded — maybe another map. Now a boat floats only on open
+  sea of a sea-linked map outside standing fog (`afloatAt`); a hero saved
+  aboard loads on the nearest open sea (6 cells), else ashore with the boat
+  on the sea beside where they'll stand (`seaBeside`); the canvas does the
+  same (`safeSpawn`'s boat fallback, `onAshore(boat)`).
+- **Silent music (code, low):** re-picking a track during its fade-out (sail
+  out of a sea area and straight back) cancelled the fade, which fired its
+  stop — now the stop checks the track is still leaving. The fogbank's music
+  lasts out to `FOGBANK_LEAVE` (9 cells; `useSeaArea` in `App` keeps the last
+  area), so the edge doesn't flip it back and forth.
+- **📜 Menu off a phone's screen (UX, high):** the ⛵ chip (and Calm's timer)
+  pushed it past 360 px. ⛵ now sits beside the place name ("(sailing
+  Marlow's boat)" for screen readers), and the stats row wraps.
+- **The boat "vanished" (UX, high):** after a Return (or a loss) at sea the
+  Dawnreach map didn't show it. The Return toast says the Biscuit stays moored
+  out at sea and Old Marlow can row her home; the map's legend says which map
+  she's on.
+- **Guides spoke as Marlow (UX, medium):** Wick and Tamsin read his hint ("my
+  compass"). Each step has its own line about him; Atlas is "by the Rainbow
+  Quilt Inn in Chromaria".
+- **How do I get off? (UX, medium):** while sailing the footer reads "Sail …
+  sail into a beach or a dock to go ashore", and boarding/landing make a sound.
+- **The Shallows' map (UX, medium):** Gull Rock and Sandpiper Cay are named
+  (`ZoneDef.landmarks`), and each map marks its sea edges ("◀ Dawnreach",
+  "Silver Shallows ▶" once the boat is mended).
+- **Marlow asks first (UX, medium):** he says his own lines, then offers —
+  "The Biscuit's still out in the Silver Shallows? … Just say the word!" —
+  with a ⛵ Row her home button (`boatFetchOffer`, `fetchBoatHome`); a boat
+  within 2 cells of his dock counts as home (`boatAway`).
+- **Copy (UX, low):** Act II opens with "the fog over the land is gone" (the
+  Great Fogbank still stands); the fogbank panel quotes "old sailors", not a
+  warning Marlow never gave.
+- **Also:** the map caption reads "out on the Silver Shallows" and its spoken
+  text names "Marlow's dock" and where the boat is; standing on the dock the
+  way is "Climb into Marlow's boat…"; story panels focus their button (Enter
+  reads on, Tab stays put); toasts are centred, and on a phone sit up top,
+  clear of the d-pad.
+- Tests: +14 (boat.test: every landing on both maps, the corner cases,
+  boarding, `afloatAt`, loading afloat, prototype keys, the hysteresis;
+  audio.music.test: the fade race with a stand-in Howl — it fails on the old
+  code; WorldMapPanel.test: landmarks, edges, the boat after a Return;
+  DialogueOverlay.test: the offer button; wayfinding.test: the dock); 685
+  green, lint + tsc + build clean. Replayed in headless Chromium against the
+  real `WorldScreen` (TC-662).
 
 ### 2026-10-08 — Sea music: a loop for each sea area (#75 item 14, #107c)
 The Shallows played the overworld march. Now each sea area has its own track,

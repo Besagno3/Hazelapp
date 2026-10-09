@@ -2,6 +2,7 @@ import {
   LANDING_CHARS,
   SEA_CHARS,
   WALKABLE_CHARS,
+  nearestCell,
   tileAt,
   type Side,
   type TravelMode,
@@ -92,19 +93,54 @@ export function seaCrossing(z: ZoneDef, x: number, y: number, zones: Record<Zone
 
 /**
  * The open-sea cell nearest (x, y) within `reach` cells (the cell itself
- * first) — where a boat moors when the hero leaves it mid-voyage. Null when
- * there's no sea that close.
+ * first) — where a boat moors when the hero leaves it mid-voyage. `ok` can
+ * rule cells out (say, under fog). Null when there's no sea that close.
  */
-export function nearestSea(z: ZoneDef, x: number, y: number, reach = 2): { x: number; y: number } | null {
-  let best: { x: number; y: number; d: number } | null = null;
-  for (let dy = -reach; dy <= reach; dy++) {
-    for (let dx = -reach; dx <= reach; dx++) {
-      if (!SEA_CHARS.has(tileAt(z, x + dx, y + dy))) continue;
-      const d = dx * dx + dy * dy;
-      if (!best || d < best.d) best = { x: x + dx, y: y + dy, d };
-    }
+export function nearestSea(
+  z: ZoneDef,
+  x: number,
+  y: number,
+  reach = 2,
+  ok: (x: number, y: number) => boolean = () => true,
+): { x: number; y: number } | null {
+  return nearestCell(x, y, reach, (cx, cy) => SEA_CHARS.has(tileAt(z, cx, cy)) && ok(cx, cy));
+}
+
+type Cell = { x: number; y: number };
+const nextTo = (a: Cell, b: Cell) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) <= 1;
+
+/**
+ * Where the boat is left when the hero, afloat in cell `from`, goes ashore on
+ * the beach or dock `to`: right where they were when `to` is straight ahead;
+ * after a landing at a corner, the open sea beside `to` on their side instead,
+ * so the boat is never left touching the shore only corner to corner. Null
+ * when neither is open sea (`ok` can rule cells out) — then there's no landing.
+ */
+export function landingMooring(
+  z: ZoneDef,
+  from: Cell,
+  to: Cell,
+  ok: (x: number, y: number) => boolean = () => true,
+): Cell | null {
+  if (Math.abs(to.x - from.x) + Math.abs(to.y - from.y) === 1) return from;
+  const sx = Math.sign(to.x - from.x);
+  const sy = Math.sign(to.y - from.y);
+  for (const c of [
+    { x: to.x - sx, y: to.y },
+    { x: to.x, y: to.y - sy },
+  ]) {
+    if (SEA_CHARS.has(tileAt(z, c.x, c.y)) && ok(c.x, c.y)) return c;
   }
-  return best ? { x: best.x, y: best.y } : null;
+  return null;
+}
+
+/**
+ * On foot in cell `hero`, bumping the sea cell `bumped` climbs into the boat
+ * moored at `boat` when both are next to it — diagonals too, so a boat by a
+ * corner of the shore, or a hero standing across two rows, still gets in.
+ */
+export function canBoard(hero: Cell, bumped: Cell, boat: Cell): boolean {
+  return nextTo(hero, boat) && nextTo(bumped, boat);
 }
 
 /**

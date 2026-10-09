@@ -14,6 +14,12 @@ import {
   whereOnMap,
 } from '../../lib/worldMap';
 import { goalDirections, nextObjective } from '../../lib/wayfinding';
+import { boatAway, hasBoat } from '../../content/boat';
+
+/** A map's name on a marker: "Silver Shallows", "Dawnreach". */
+const bare = (name: string) => (name.startsWith('The ') ? name.slice(4) : name);
+/** …and mid-sentence: "the Silver Shallows", "Dawnreach". */
+const mid = (name: string) => (name.startsWith('The ') ? `the ${name.slice(4)}` : name);
 
 /** Screen pixels per overworld tile on the map. */
 const PX = 4;
@@ -63,6 +69,13 @@ export default function WorldMapPanel({
       ? whereOnMap(ZONES, world, goal.zoneId, null)
       : null;
   const boatHere = boat && boat.zoneId === world.id ? boat : null;
+  // Moored on the other map (after a Return, say): the legend says where.
+  const boatElsewhere = boat && boat.zoneId !== world.id ? boat : null;
+  const boatHome = !!boatHere && !boatAway({ boat: boatHere, aboard: false, flags });
+  // Landmarks (#75 item 14): islets and rocks named on the map, not entered.
+  const landmarks = world.landmarks ?? [];
+  // Which way the sea leads off this map, once there's a boat to sail it.
+  const seaWays = hasBoat(flags) ? (world.seaLinks ?? []) : [];
   // On the overworld, directions start from the hero's own tile.
   const heroTile = zoneId === world.id && pos ? { x: Math.floor(pos.x / TILE), y: Math.floor(pos.y / TILE) } : undefined;
   const how = goalDirections(ZONES, goal, zoneId, heroTile);
@@ -84,6 +97,15 @@ export default function WorldMapPanel({
     ? `You're sailing ${world.name.startsWith('The ') ? `the ${world.name.slice(4)}` : `off ${world.name}`} in the Biscuit`
     : mapCaption(here, floorTitle(ZONES, zoneId) ?? ZONES[zoneId].name, world.name);
   const nextLabel = goal.zoneId ? `Next: ${goal.title}` : goal.why;
+  const flagName = goal.at?.name ?? flagAt?.place ?? (goal.zoneId ? ZONES[goal.zoneId].name : '');
+  const boatLine = boatElsewhere
+    ? `⛵ The Biscuit is moored out in ${mid(ZONES[boatElsewhere.zoneId].name)} — Old Marlow on Starfall Coast can row her home.`
+    : boatHere
+      ? boatHome
+        ? "⛵ = the Biscuit, waiting at Marlow's dock"
+        : '⛵ = the Biscuit, moored where you left her'
+      : null;
+  const seaWayText = seaWays.map((l) => `Sail off the ${l.side} edge to ${mid(ZONES[l.to].name)}.`).join(' ');
   const at = (x: number, y: number) => ({ left: `${((x + 0.5) / cols) * 100}%`, top: `${((y + 0.5) / rows) * 100}%` });
 
   return (
@@ -95,7 +117,7 @@ export default function WorldMapPanel({
           width={cols * PX}
           height={rows * PX}
           role="img"
-          aria-label={`Map of ${world.name}. ${caption}. ${goal.zoneId ? `${nextLabel}, flagged at ${flagAt?.place ?? ZONES[goal.zoneId].name}.` : nextLabel}`}
+          aria-label={`Map of ${mid(world.name)}. ${caption}. ${goal.zoneId ? `${nextLabel}, flagged at ${flagName}.` : nextLabel}${boatLine ? ` ${boatLine.replace(/^⛵ (= )?/, boatElsewhere ? '' : 'The boat: ').replace(/([^.])$/, '$1.')}` : ''}${seaWayText ? ` ${seaWayText}` : ''}`}
           className="block w-full rounded-md"
           style={{ imageRendering: 'pixelated' }}
         />
@@ -107,6 +129,34 @@ export default function WorldMapPanel({
             style={at(p.x, p.y)}
           >
             {emojiOf(p)}
+          </span>
+        ))}
+        {landmarks.map((l) => (
+          <span
+            key={l.name}
+            aria-hidden
+            className="absolute -translate-x-1/2 -translate-y-1/2 text-[13px] leading-none pointer-events-none select-none drop-shadow"
+            style={at(l.x, l.y)}
+          >
+            {l.emoji}
+          </span>
+        ))}
+        {seaWays.map((l) => (
+          <span
+            key={l.side}
+            aria-hidden
+            // Off this edge the sea carries on to the next map.
+            className={`absolute pointer-events-none select-none whitespace-nowrap rounded bg-black/60 px-1 py-0.5 text-[10px] font-semibold leading-none text-white ${
+              l.side === 'west'
+                ? 'left-0.5 top-1/2 -translate-y-1/2'
+                : l.side === 'east'
+                  ? 'right-0.5 top-1/2 -translate-y-1/2'
+                  : l.side === 'north'
+                    ? 'top-0.5 left-1/2 -translate-x-1/2'
+                    : 'bottom-0.5 left-1/2 -translate-x-1/2'
+            }`}
+          >
+            {l.side === 'west' ? `◀ ${bare(ZONES[l.to].name)}` : l.side === 'east' ? `${bare(ZONES[l.to].name)} ▶` : l.side === 'north' ? `▲ ${bare(ZONES[l.to].name)}` : `▼ ${bare(ZONES[l.to].name)}`}
           </span>
         ))}
         {foggedBanks.map((f) => (
@@ -168,10 +218,16 @@ export default function WorldMapPanel({
             {p.name === flagAt?.place && <span aria-hidden> 🚩</span>}
           </li>
         ))}
+        {landmarks.map((l) => (
+          <li key={l.name}>
+            <span aria-hidden>{l.emoji} </span>
+            {l.name}
+          </li>
+        ))}
       </ul>
-      {(boatHere || greatFogbank) && (
+      {(boatLine || greatFogbank) && (
         <p className="text-[11px] text-white/60 mt-1">
-          {boatHere && <span className="block">⛵ = Marlow's boat, waiting where you left it</span>}
+          {boatLine && <span className="block">{boatLine}</span>}
           {greatFogbank && (
             <span className="block">
               <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1" style={{ background: FOG_COLOR }} />

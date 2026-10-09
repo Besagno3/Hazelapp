@@ -450,7 +450,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       // Once his boat is mended (#75 item 14, "Marlow's Boat").
       {
-        text: "The Biscuit's yours whenever you like — she's tied up at my dock, just east of here. Sail off the edge of the sea to reach the Silver Shallows!",
+        text: "The Biscuit's yours whenever you like — my dock's just east of here. Sail off the edge of the sea to reach the Silver Shallows!",
         ifFlag: BOAT_MENDED,
       },
     ],

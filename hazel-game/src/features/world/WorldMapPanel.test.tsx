@@ -33,11 +33,39 @@ describe('the menu map at sea (#75 item 14)', () => {
         boat={BOAT_HOME}
       />,
     );
-    expect(screen.getByText(/⛵ = Marlow's boat, waiting where you left it/)).toBeInTheDocument();
+    expect(screen.getByText("⛵ = the Biscuit, waiting at Marlow's dock")).toBeInTheDocument();
+    // Off the east edge lies the Shallows, now there's a boat to sail there.
+    expect(screen.getByText('Silver Shallows ▶')).toBeInTheDocument();
     expect(screen.getByText(/Next: Sail the Silver Shallows/)).toBeInTheDocument();
     expect(screen.getByText("Go east to Marlow's dock and sail east.")).toBeInTheDocument();
     const marks = Array.from(container.querySelectorAll('span[aria-hidden]'), (s) => s.textContent);
     expect(marks).toContain('⛵');
     expect(marks).toContain('🚩');
+  });
+});
+
+describe('the menu map at sea — review fixes (#75 item 14)', () => {
+  const flags = { ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true };
+
+  it('names the Shallows\' islets and the way home off its west edge', () => {
+    const { container } = render(<WorldMapPanel zoneId="silver-shallows" pos={px(11, 21)} flags={flags} boat={{ zoneId: 'silver-shallows', x: 11, y: 23 }} />);
+    expect(screen.getByText('Gull Rock')).toBeInTheDocument();
+    expect(screen.getByText('Sandpiper Cay')).toBeInTheDocument();
+    expect(screen.getByText('◀ Dawnreach')).toBeInTheDocument();
+    expect(screen.getByText("⭐ You're out on the Silver Shallows")).toBeInTheDocument();
+    expect(screen.getByText('⛵ = the Biscuit, moored where you left her')).toBeInTheDocument();
+    expect(container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/Sail off the west edge to Dawnreach\./);
+  });
+
+  it('after a Return, Dawnreach\'s map says the boat is out in the Shallows and who can fetch it', () => {
+    const { container } = render(<WorldMapPanel zoneId="lumina-village" pos={null} flags={flags} boat={{ zoneId: 'silver-shallows', x: 3, y: 22 }} />);
+    expect(screen.getByText(/The Biscuit is moored out in the Silver Shallows — Old Marlow on Starfall Coast can row her home/)).toBeInTheDocument();
+    // The voyage's 🚩 is read out as Marlow's dock, not the Shallows.
+    expect(container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/flagged at Marlow's dock\./);
+  });
+
+  it('no sea-edge marker before the boat is mended', () => {
+    render(<WorldMapPanel zoneId="dawnreach" pos={px(40, 30)} flags={{ ...allCrystals, [SPIRE_CLEARED]: true }} />);
+    expect(screen.queryByText('Silver Shallows ▶')).toBeNull();
   });
 });

@@ -92,20 +92,39 @@ describe('the defeat screen names where you wake, and why there', () => {
 });
 
 describe("Old Marlow rows the boat home (#75 item 14)", () => {
-  it('offers when the boat was left out at sea, and brings it back to his dock on closing', async () => {
-    const { BOAT_MENDED, BOAT_HOME, boatSpot } = await import('../../content/boat');
+  async function marlowWithBoatAt(boat: { zoneId: 'silver-shallows' | 'dawnreach'; x: number; y: number }) {
+    const { BOAT_MENDED } = await import('../../content/boat');
     useSaveStore.setState({
       userId: null,
-      save: { ...defaultSave(), flags: { [BOAT_MENDED]: true }, boat: { zoneId: 'silver-shallows', x: 3, y: 22 } },
+      save: { ...defaultSave(), flags: { [BOAT_MENDED]: true }, boat },
       status: 'ready',
       remoteError: null,
     });
     render(<DialogueOverlay npcId="coast-fisher" />);
-    expect(screen.getByText(/Left the boat out on the water/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText('▼ Next'));
-    expect(screen.getByText(/row her home to my dock/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /bye|close|ok|got it|thanks/i }));
+  }
+
+  it('after his own lines, offers when the boat is out at sea — and only rows her home if asked', async () => {
+    const { BOAT_HOME, boatSpot } = await import('../../content/boat');
+    await marlowWithBoatAt({ zoneId: 'silver-shallows', x: 3, y: 22 });
+    const said = readAll();
+    expect(said).toMatch(/still out in the Silver Shallows\? Don't fret/);
+    // Saying bye leaves her where she is…
+    expect(screen.getByText('⛵ Row her home')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('⛵ Row her home'));
+    // …the button brings her back, and he says so.
     expect(boatSpot(useSaveStore.getState().save!)).toEqual(BOAT_HOME);
+    expect(screen.getByText(/tied up at my dock again/)).toBeInTheDocument();
+    expect(screen.queryByText('⛵ Row her home')).toBeNull();
+    fireEvent.click(screen.getByText('Bye!'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
+  it("closing without asking leaves the boat where it is; one moored right by his dock is home already", async () => {
+    const { boatSpot } = await import('../../content/boat');
+    await marlowWithBoatAt({ zoneId: 'dawnreach', x: 60, y: 56 });
+    expect(readAll()).toMatch(/moored along the coast/);
+    fireEvent.click(screen.getByText('Bye!'));
+    expect(boatSpot(useSaveStore.getState().save!)).toEqual({ zoneId: 'dawnreach', x: 60, y: 56 });
   });
 });
 

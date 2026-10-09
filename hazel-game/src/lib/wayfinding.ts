@@ -74,14 +74,27 @@ export interface Objective {
    * A spot on an overworld to flag instead of `zoneId`'s place — where a
    * goal across the sea starts (Marlow's dock for the Silver Shallows).
    */
-  at?: { zoneId: ZoneId; x: number; y: number };
+  at?: { zoneId: ZoneId; x: number; y: number; name: string };
 }
 
-/** The 🚩 title for each step of Marlow's quest (#75 item 14). */
-const BOAT_STEP_TITLES: Record<string, string> = {
-  'boat-sail': "Find a sail for Marlow's boat",
-  'boat-compass': "Fetch Marlow's compass",
-  'boat-rudder': "Get a rudder built for Marlow's boat",
+/**
+ * The 🚩 for each step of Marlow's quest (#75 item 14): its title, and the why
+ * a guide or the map gives — said about Marlow, not in his voice (the quest
+ * log's hints are his), and without directions (the route says those).
+ */
+const BOAT_STEPS: Record<string, { title: string; why: string }> = {
+  'boat-sail': {
+    title: "Find a sail for Marlow's boat",
+    why: "Innkeeper Willow in Verdara weaves the toughest sails — ask her for one for Marlow's boat.",
+  },
+  'boat-compass': {
+    title: "Fetch Marlow's compass",
+    why: "Old Marlow lent his star-compass to Mapmaker Atlas, who's drawing maps by the Rainbow Quilt Inn in Chromaria.",
+  },
+  'boat-rudder': {
+    title: "Get a rudder built for Marlow's boat",
+    why: "Sage Cog in Gearfall Canyon can build Marlow a clockwork rudder.",
+  },
 };
 
 /**
@@ -105,8 +118,8 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
     if (step && home) {
       return {
         kind: 'boat',
-        title: BOAT_STEP_TITLES[step.id] ?? quest.title,
-        why: typeof step.hint === 'string' ? step.hint : quest.title,
+        title: BOAT_STEPS[step.id]?.title ?? quest.title,
+        why: BOAT_STEPS[step.id]?.why ?? quest.title,
         zoneId: home.zoneId,
       };
     }
@@ -123,7 +136,7 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
       title: 'Sail the Silver Shallows',
       why: "Marlow's boat waits at his dock, just east of Starfall Coast. Climb in and sail east, off the edge of the sea!",
       zoneId: 'silver-shallows',
-      at: { zoneId: BOAT_HOME.zoneId, x: BOAT_HOME.x - 1, y: BOAT_HOME.y },
+      at: { zoneId: BOAT_HOME.zoneId, x: BOAT_HOME.x - 1, y: BOAT_HOME.y, name: "Marlow's dock" },
     };
   }
   return null;
@@ -338,6 +351,10 @@ export function goalDirections(
     const route = routeTo(zones, here, goal.at.zoneId) ?? [];
     const last = route.length ? route[route.length - 1].exit : null;
     const from = here === goal.at.zoneId ? (at ?? zones[here].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
+    // Already on the dock (or right by it): just climb in.
+    if (here === goal.at.zoneId && from && Math.max(Math.abs(goal.at.x - from.x), Math.abs(goal.at.y - from.y)) <= 1) {
+      return "Climb into Marlow's boat at the end of the dock and sail east.";
+    }
     const dir = from ? compass(goal.at.x - from.x, goal.at.y - from.y) : null;
     steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and sail east`);
     return sentence(steps);

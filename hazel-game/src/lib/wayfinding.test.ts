@@ -118,11 +118,14 @@ describe('nextObjective', () => {
     ]);
     // The voyage starts at Marlow's dock: its 🚩 sits there, and the way says so.
     const sail = nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true });
-    expect(sail.at).toEqual({ zoneId: 'dawnreach', x: 70, y: 30 });
+    expect(sail.at).toEqual({ zoneId: 'dawnreach', x: 70, y: 30, name: "Marlow's dock" });
     expect(ZONES.dawnreach.map[sail.at!.y][sail.at!.x]).toBe('|');
     expect(goalDirections(ZONES, sail, 'starfall-coast')).toBe("Go east to Marlow's dock and sail east.");
     expect(goalDirections(ZONES, sail, 'lumina-village')).toBe("Go east to Marlow's dock and sail east.");
     expect(goalDirections(ZONES, sail, 'silver-shallows')).toBe("It's right here in the Silver Shallows!");
+    // Already on the dock: just climb in (review fix).
+    expect(goalDirections(ZONES, sail, 'dawnreach', { x: 70, y: 30 })).toBe("Climb into Marlow's boat at the end of the dock and sail east.");
+    expect(goalDirections(ZONES, sail, 'dawnreach', { x: 60, y: 30 })).toBe("Go east to Marlow's dock and sail east.");
   });
 
   // Doing what it says must finish the story: every step is one the hero can

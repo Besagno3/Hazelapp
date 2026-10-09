@@ -777,7 +777,7 @@ export const QUESTS: QuestDef[] = [
           "It points north again now the fog is gone — look, it's practically wagging. I'll send it to his dock!",
           "✨ Marlow's Star-Compass is on its way to the dock! Last, a rudder: Sage Cog in Gearfall Canyon builds anything that turns.",
         ],
-        "Next, my compass. I lent it to Mapmaker Atlas, who's drawing maps in Chromaria, way over in the south-east.",
+        "Next, my compass. I lent it to Mapmaker Atlas, who's drawing maps by the Rainbow Quilt Inn in Chromaria, way over in the south-east.",
       ),
       talkStep(
         'boat-rudder',

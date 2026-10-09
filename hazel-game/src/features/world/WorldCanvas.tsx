@@ -34,7 +34,8 @@ import { spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
-import { BOAT_SPEED, canLand, seaCrossing } from '../../lib/travel';
+import { BOAT_SPEED, canBoard, canLand, landingMooring, nearestSea, seaCrossing } from '../../lib/travel';
+import { BOAT_REMOOR_REACH } from '../../content/boat';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
@@ -174,8 +175,12 @@ export interface WorldCanvasCallbacks {
   onBoard?: (x: number, y: number) => void;
   /** Went ashore at (x, y) px, leaving the boat moored at `boat` (tiles). */
   onLand?: (boat: { x: number; y: number }, x: number, y: number) => void;
-  /** Arrived "aboard" somewhere with no sea under them (a repainted map): back on foot. */
-  onAshore?: () => void;
+  /**
+   * Arrived "aboard" somewhere with no open sea near them (a repainted map):
+   * back on foot, the boat moored at `boat` (tiles) beside them — null if
+   * there's no sea that close either.
+   */
+  onAshore?: (boat: { x: number; y: number } | null) => void;
 }
 
 /** A Return (#75 item 9) waiting to be flown: where to, and the landing cell. */
@@ -1136,7 +1141,15 @@ export default function WorldCanvas({
     const spawn = safeSpawn(z, startPos, flagsRef.current, aboardRef.current ? 'boat' : 'foot');
     let aboard =
       aboardRef.current && SEA_CHARS.has(tileAt(z, Math.floor(spawn.x / TILE), Math.floor(spawn.y / TILE)));
-    if (aboardRef.current && !aboard) cbRef.current.onAshore?.();
+    // Couldn't stay afloat: ashore at the spawn, the boat on the sea nearest it.
+    let ashoreMooring: { x: number; y: number } | null = null;
+    if (aboardRef.current && !aboard) {
+      const open = (x: number, y: number) => !fogAt(z, x, y, flagsRef.current);
+      ashoreMooring = z.seaLinks?.length
+        ? nearestSea(z, Math.floor(spawn.x / TILE), Math.floor(spawn.y / TILE), BOAT_REMOOR_REACH, open)
+        : null;
+      cbRef.current.onAshore?.(ashoreMooring);
+    }
     const followCam = (x: number, y: number) => {
       const v = view();
       k.setCamPos(camAxis(x, W, v.w), camAxis(y, H, v.h));
@@ -1188,7 +1201,7 @@ export default function WorldCanvas({
       const b = boatRef.current;
       return !aboard && b && b.zoneId === zoneId ? { x: b.x, y: b.y } : null;
     };
-    let mooring = mooredHere();
+    let mooring = ashoreMooring ?? mooredHere();
     type BoatPart = { pos: { x: number; y: number }; frame: number; flipX: boolean; opacity: number };
     const boatPart = (z: number) =>
       k.add([k.sprite(BOAT_KEY, { frame: 0 }), k.pos(spawn.x, spawn.y), k.anchor('center'), k.opacity(0), k.z(z)]) as unknown as BoatPart;
@@ -1626,23 +1639,29 @@ export default function WorldCanvas({
         else bumped = bumped ?? hit;
       }
 
-      // Marlow's boat (#75 item 14): bump it to climb in; sail into a beach or
-      // a dock to go ashore there, leaving it moored where it floats.
-      if (bumped && cooldown === 0 && !aboard && mooring && bumped.x === mooring.x && bumped.y === mooring.y) {
+      // Marlow's boat (#75 item 14): bump the water by it to climb in (from
+      // beside it, corners too — `canBoard`); sail into a beach or a dock to
+      // go ashore there, leaving it moored beside that shore (`landingMooring`
+      // — never only corner to corner, where nobody could climb back in).
+      const heroCell = { x: Math.floor(player.pos.x / TILE), y: Math.floor(player.pos.y / TILE) };
+      const landAt =
+        bumped && cooldown === 0 && aboard && canLand(bumped.ch) && !fogAt(z, bumped.x, bumped.y, flagsRef.current)
+          ? landingMooring(z, heroCell, bumped, (x, y) => !fogAt(z, x, y, flagsRef.current))
+          : null;
+      if (bumped && cooldown === 0 && !aboard && mooring && SEA_CHARS.has(bumped.ch) && canBoard(heroCell, bumped, mooring)) {
         aboard = true;
+        player.pos = k.vec2(mooring.x * TILE + TILE / 2, mooring.y * TILE + TILE / 2);
         mooring = null;
-        player.pos = k.vec2(bumped.x * TILE + TILE / 2, bumped.y * TILE + TILE / 2);
         cooldown = TRIGGER_COOLDOWN;
         cbRef.current.onBoard?.(player.pos.x, player.pos.y);
         bumped = null;
-      } else if (bumped && cooldown === 0 && aboard && canLand(bumped.ch) && !fogAt(z, bumped.x, bumped.y, flagsRef.current)) {
-        const at = { x: Math.floor(player.pos.x / TILE), y: Math.floor(player.pos.y / TILE) };
+      } else if (bumped && landAt) {
         aboard = false;
-        mooring = at;
+        mooring = landAt;
         player.pos = k.vec2(bumped.x * TILE + TILE / 2, bumped.y * TILE + TILE / 2);
         cooldown = TRIGGER_COOLDOWN;
         needsRelease = true; // don't sail straight back into the boat
-        cbRef.current.onLand?.(at, player.pos.x, player.pos.y);
+        cbRef.current.onLand?.(landAt, player.pos.x, player.pos.y);
         bumped = null;
       }
 

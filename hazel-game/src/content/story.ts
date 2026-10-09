@@ -236,7 +236,7 @@ export const DAWNREACH_PANELS: StoryPanel[] = [
 export const ACT2_PANELS: StoryPanel[] = [
   {
     emoji: '🌅',
-    text: 'The morning after the Spire, the last fog is gone — and Lumina starts remembering things it forgot it had lost.',
+    text: 'The morning after the Spire, the fog over the land is gone — and Lumina starts remembering things it forgot it had lost.',
   },
   {
     emoji: '🧁',
@@ -276,7 +276,7 @@ export const GREAT_FOGBANK_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🐉',
-    text: 'Marlow warned you: "Past the Fogbank lies the Starfall Sea, and nobody has sailed it in a hundred years." Maybe not by boat… Ember is looking up at the sky.',
+    text: 'Old sailors say that past the Fogbank lies the Starfall Sea — and nobody has sailed it in a hundred years. Maybe not by boat… Ember is looking up at the sky.',
   },
 ];
 

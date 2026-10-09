@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { LANDING_CHARS, SEA_CHARS, TILE, ZONES, GREAT_FOGBANK, fogAt, tileAt } from './zones';
+import { LANDING_CHARS, SEA_CHARS, TILE, ZONES, GREAT_FOGBANK, fogAt, safeSpawn, tileAt } from './zones';
 import {
   BOAT_HOME,
   BOAT_MENDED,
   BOAT_QUEST_ID,
   FOGBANK_NEAR,
   MARLOW,
-  boatFetch,
+  DOCK_NEAR,
+  FOGBANK_LEAVE,
+  afloatAt,
+  boatAway,
+  boatFetchOffer,
+  fetchBoatHome,
   boatSpot,
   hasBoat,
   moorBoat,
@@ -19,8 +24,10 @@ import { ACT2_SEEN } from './story';
 import { defaultSave, normalizeSave } from '../lib/save';
 import {
   BOAT_SPEED,
+  canBoard,
   canLand,
   edgeOf,
+  landingMooring,
   nearestSea,
   oppositeSide,
   passable,
@@ -209,19 +216,120 @@ describe('the boat in the save (#75 item 14)', () => {
     const afloat = { flags, zoneId: 'silver-shallows', pos: px(3, 22), aboard: true };
     expect(normalizeSave(afloat).aboard).toBe(true);
     expect(normalizeSave({ ...afloat, flags: {} }).aboard).toBe(false); // no boat yet
-    expect(normalizeSave({ ...afloat, pos: px(11, 21) }).aboard).toBe(false); // standing on Gull Rock
+    // Saved aboard where it's land now (an island painted under them): afloat on the nearest open sea.
+    const repainted = normalizeSave({ ...afloat, pos: px(11, 21) }); // Gull Rock's path
+    expect(repainted.aboard).toBe(true);
+    expect(tileAt(sea, Math.floor(repainted.pos!.x / TILE), Math.floor(repainted.pos!.y / TILE))).toBe('~');
     expect(normalizeSave({ flags, zoneId: 'dawnreach', pos: px(71, 30) }).aboard).toBe(false); // older saves
   });
 
-  it('Old Marlow rows the boat home when it was left somewhere else and the hero is ashore', () => {
+  it('Old Marlow offers to row the boat home when it was left away from his dock and the hero is ashore', () => {
     const away = mended({ boat: { zoneId: 'silver-shallows', x: 3, y: 22 } });
-    const fetch = boatFetch(MARLOW, away)!;
-    expect(fetch.lines.join(' ')).toMatch(/row her home/);
-    expect(boatSpot(fetch.finish(away))).toEqual(BOAT_HOME);
-    expect(boatFetch(MARLOW, mended())).toBeNull(); // already home
-    expect(boatFetch(MARLOW, { ...away, aboard: true })).toBeNull();
-    expect(boatFetch(MARLOW, { ...away, flags: {} })).toBeNull();
-    expect(boatFetch('verdara-innkeeper', away)).toBeNull();
+    expect(boatFetchOffer(MARLOW, away)!.line).toMatch(/still out in the Silver Shallows\? .* row her home/);
+    expect(boatSpot(fetchBoatHome(away))).toEqual(BOAT_HOME);
+    expect(boatFetchOffer(MARLOW, mended())).toBeNull(); // already home
+    expect(boatFetchOffer(MARLOW, { ...away, aboard: true })).toBeNull();
+    expect(boatFetchOffer(MARLOW, { ...away, flags: {} })).toBeNull();
+    expect(boatFetchOffer('verdara-innkeeper', away)).toBeNull();
+    // Moored down the coast: offered, worded for Dawnreach.
+    const coast = mended({ boat: { zoneId: 'dawnreach', x: 60, y: 56 } });
+    expect(boatFetchOffer(MARLOW, coast)!.line).toMatch(/moored along the coast/);
+  });
+
+  it('a boat moored within DOCK_NEAR cells of the dock counts as home', () => {
+    for (const [dx, dy] of [[0, 1], [-DOCK_NEAR, 0], [DOCK_NEAR, -DOCK_NEAR]]) {
+      expect(boatAway(mended({ boat: { zoneId: 'dawnreach', x: BOAT_HOME.x + dx, y: BOAT_HOME.y + dy } }))).toBeNull();
+    }
+    expect(boatAway(mended({ boat: { zoneId: 'dawnreach', x: BOAT_HOME.x, y: BOAT_HOME.y + DOCK_NEAR + 1 } }))).not.toBeNull();
+  });
+});
+
+describe('never stranded: landing, boarding and loading (#75 item 14 review)', () => {
+  const standing = {}; // no flags: the Great Fogbank stands
+  const open = (z: typeof sea) => (x: number, y: number) => !fogAt(z, x, y, standing);
+
+  it('every landing — straight on or at a corner — leaves the boat edge to edge with the shore, where the hero can climb back in', () => {
+    for (const z of [dawn, sea]) {
+      let landings = 0;
+      for (let y = 0; y < z.map.length; y++) {
+        for (let x = 0; x < z.map[0].length; x++) {
+          if (!LANDING_CHARS.has(tileAt(z, x, y)) || fogAt(z, x, y, standing)) continue;
+          for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
+            const from = { x: x + dx, y: y + dy };
+            if (!SEA_CHARS.has(tileAt(z, from.x, from.y)) || fogAt(z, from.x, from.y, standing)) continue;
+            const m = landingMooring(z, from, { x, y }, open(z));
+            if (!m) {
+              // No landing only at an inside corner: both cells between are land (or fog), so the
+              // boat could only be left corner to corner — it sails on instead.
+              expect(Math.abs(dx) + Math.abs(dy), `${z.id} ${x},${y} from ${from.x},${from.y}`).toBe(2);
+              const sailable = (cx: number, cy: number) => SEA_CHARS.has(tileAt(z, cx, cy)) && open(z)(cx, cy);
+              expect(sailable(x + dx, y) || sailable(x, y + dy)).toBe(false);
+              continue;
+            }
+            expect(SEA_CHARS.has(tileAt(z, m.x, m.y))).toBe(true);
+            expect(Math.abs(m.x - x) + Math.abs(m.y - y), `${z.id} ${x},${y}`).toBe(1);
+            // Walking straight from the landing cell into the boat's own cell climbs in.
+            expect(canBoard({ x, y }, m, m)).toBe(true);
+            landings++;
+          }
+        }
+      }
+      expect(landings).toBeGreaterThan(20);
+    }
+  });
+
+  it("the corner landings the review found on Gull Rock and Sandpiper Cay moor beside the beach", () => {
+    expect(landingMooring(sea, { x: 8, y: 12 }, { x: 9, y: 13 })).toEqual({ x: 8, y: 13 });
+    expect(landingMooring(sea, { x: 23, y: 28 }, { x: 24, y: 29 })).toEqual({ x: 23, y: 29 });
+  });
+
+  it('boarding works from beside the boat, corners included — not from two cells off', () => {
+    const boat = { x: 8, y: 12 };
+    expect(canBoard({ x: 9, y: 13 }, { x: 9, y: 12 }, boat)).toBe(true); // a boat left at the corner (old saves)
+    expect(canBoard({ x: 8, y: 13 }, { x: 8, y: 12 }, boat)).toBe(true);
+    expect(canBoard({ x: 9, y: 13 }, { x: 9, y: 14 }, boat)).toBe(false); // the water on the far side
+    expect(canBoard({ x: 10, y: 13 }, { x: 9, y: 12 }, boat)).toBe(false); // too far away to climb in
+  });
+
+  it('a boat only floats on open sea, on a map the sea joins to others, outside standing fog', () => {
+    expect(afloatAt('silver-shallows', 3, 22, standing)).toBe(true);
+    expect(afloatAt('silver-shallows', 58, 20, standing)).toBe(false); // in the Great Fogbank
+    expect(afloatAt('chromaria', 11, 10, standing)).toBe(false); // a town's pond
+    expect(validMooring({ zoneId: 'chromaria', x: 11, y: 10 })).toBe(false);
+  });
+
+  it('a hero saved aboard loads afloat — out of the fog, never on a pond', () => {
+    const flags = { [BOAT_MENDED]: true };
+    const fogged = normalizeSave({ flags, zoneId: 'silver-shallows', pos: px(58, 20), aboard: true });
+    expect(fogged.aboard).toBe(true);
+    expect(afloatAt('silver-shallows', Math.floor(fogged.pos!.x / TILE), Math.floor(fogged.pos!.y / TILE), flags)).toBe(true);
+    const pond = normalizeSave({ flags, zoneId: 'chromaria', pos: px(11, 10), aboard: true, boat: BOAT_HOME });
+    expect([pond.aboard, pond.boat]).toEqual([false, BOAT_HOME]);
+    // Anywhere on the Shallows, saved aboard: afloat — or, deep in the fog, ashore
+    // with the boat on the sea right beside where they'll stand.
+    for (let y = 0; y < sea.map.length; y += 3) {
+      for (let x = 0; x < sea.map[0].length; x += 3) {
+        const s = normalizeSave({ flags, zoneId: 'silver-shallows', pos: px(x, y), aboard: true });
+        if (s.aboard) continue;
+        const stand = safeSpawn(sea, s.pos, flags);
+        const cx = Math.floor(stand.x / TILE);
+        const cy = Math.floor(stand.y / TILE);
+        expect(s.boat?.zoneId, `${x},${y}`).toBe('silver-shallows');
+        expect(Math.max(Math.abs(s.boat!.x - cx), Math.abs(s.boat!.y - cy)), `${x},${y}`).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  it('the canvas puts a hero saved afloat in fog on the nearest open sea, not on Gull Rock', () => {
+    const at = safeSpawn(sea, px(58, 20), standing, 'boat');
+    expect(afloatAt('silver-shallows', Math.floor(at.x / TILE), Math.floor(at.y / TILE), standing)).toBe(true);
+  });
+
+  it("a hand-edited save naming 'constructor' or '__proto__' as a map loads instead of crashing", () => {
+    for (const id of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      const s = normalizeSave({ flags: { [BOAT_MENDED]: true }, zoneId: id, pos: px(1, 1), boat: { zoneId: id, x: 0, y: 0 }, lastRest: id, aboard: true });
+      expect([s.zoneId, s.boat, s.lastRest, s.aboard], id).toEqual([defaultSave().zoneId, null, null, false]);
+    }
   });
 });
 
@@ -247,6 +355,10 @@ describe('sea areas, for the music (#75 item 14)', () => {
     expect(at('silver-shallows', edge, 22, { aboard: true })).toBe('great-fogbank');
     expect(at('silver-shallows', edge - 1, 22, { aboard: true })).toBe('silver-shallows');
     expect(at('silver-shallows', fog.x - 1, 0, { aboard: true })).toBe('great-fogbank');
+    // Once in, the fog's music lasts until you're past FOGBANK_LEAVE — no flip-flopping along the edge.
+    expect(at('silver-shallows', edge - 2, 22, { aboard: true })).toBe('silver-shallows');
+    expect(seaAreaAt(mended({ zoneId: 'silver-shallows', pos: px(edge - 2, 22) }), 'great-fogbank')).toBe('great-fogbank');
+    expect(seaAreaAt(mended({ zoneId: 'silver-shallows', pos: px(fog.x - FOGBANK_LEAVE - 1, 22) }), 'great-fogbank')).toBe('silver-shallows');
     const lifted = { ...mended().flags, [fog.liftedBy[0]]: true };
     expect(at('silver-shallows', fog.x - 1, 22, { aboard: true, flags: lifted })).toBe('silver-shallows');
   });

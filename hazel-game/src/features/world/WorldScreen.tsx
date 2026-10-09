@@ -272,11 +272,15 @@ export default function WorldScreen() {
   function castFieldSpell(cast: FieldCast) {
     sfx('spell');
     if (cast.spell === 'return') {
-      // Flying off mid-voyage leaves the boat moored where it floats (#75 item 14).
-      if (save?.aboard) update((s) => ({ ...s, ...moorBoat(s) }));
+      // Flying off mid-voyage leaves the boat moored where it floats (#75 item 14)
+      // — and says so, so it doesn't seem to vanish.
+      const leftAtSea = !!save?.aboard;
+      if (leftAtSea) update((s) => ({ ...s, ...moorBoat(s) }));
       const at = returnLanding(ZONES, cast.to);
       travelRef.current = { to: cast.to, x: at.x, y: at.y };
-      showToast(`🏠 Return! Off to ${zone(cast.to).name}…`);
+      showToast(
+        `🏠 Return! Off to ${zone(cast.to).name}…${leftAtSea ? ' The Biscuit stays moored out at sea — Old Marlow can row her home.' : ''}`,
+      );
     } else if (cast.spell === 'glow') {
       setFlag(litFlag(zoneId));
       showToast(z.dark?.lit ?? '🔆 Glow!');
@@ -313,12 +317,21 @@ export default function WorldScreen() {
         <div className="min-w-0">
           <h1 className="text-lg font-extrabold leading-tight">
             {spireTheme ? spireFloorTitle(spireFloorIndex!) : hudTitle}
+            {/* Sailing (#75 item 14): beside the name, so the stats keep their room. */}
+            {save.aboard && (
+              <span className="whitespace-nowrap">
+                {' '}
+                <span aria-hidden>⛵</span>
+                <span className="sr-only">(sailing Marlow's boat)</span>
+              </span>
+            )}
           </h1>
           <p className="text-[11px] text-white/60">
             💎 {crystals}/{TOPIC_REGISTRY.length} crystals restored
           </p>
         </div>
-        <div className="ml-auto flex shrink-0 items-center gap-3 text-sm">
+        {/* Wraps rather than pushing 📜 Menu off a phone's screen (Calm's timer, Glow). */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-sm">
           <span title={`Ember — ${EMBER_STAGE_LABEL[ember]}`}>
             <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={0.75} />
           </span>
@@ -327,11 +340,6 @@ export default function WorldScreen() {
           </span>
           <span title="Coins">🪙 {save.coins}</span>
           <span title="Potions">🧪 {save.items.potion}</span>
-          {save.aboard && (
-            <span title="Sailing Marlow's boat" aria-label="Sailing Marlow's boat" className="rounded-full bg-sky-400/20 px-2 py-0.5">
-              ⛵
-            </span>
-          )}
           {calmLeft > 0 && (
             <span title="Calm: critters let you pass" className="rounded-full bg-sky-400/20 px-2 py-0.5 text-sky-100">
               🕊️ {calmLeft}s
@@ -354,7 +362,7 @@ export default function WorldScreen() {
           {overlay !== 'spire' && (
             <button
               onClick={() => sendFlow({ type: 'OPEN_MENU' })}
-              className="bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
+              className="shrink-0 bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
             >
               📜 Menu
             </button>
@@ -405,10 +413,15 @@ export default function WorldScreen() {
             else showToast(`🌫️ ${hint}`);
           },
           // Marlow's boat (#75 item 14): climbing in, going ashore.
-          onBoard: (x, y) => update((s) => ({ ...s, aboard: true, pos: { x, y } })),
-          onLand: (boat, x, y) =>
-            update((s) => ({ ...s, aboard: false, boat: { zoneId: s.zoneId, ...boat }, pos: { x, y } })),
-          onAshore: () => update((s) => ({ ...s, aboard: false, boat: null })),
+          onBoard: (x, y) => {
+            sfx('select');
+            update((s) => ({ ...s, aboard: true, pos: { x, y } }));
+          },
+          onLand: (boat, x, y) => {
+            sfx('select');
+            update((s) => ({ ...s, aboard: false, boat: { zoneId: s.zoneId, ...boat }, pos: { x, y } }));
+          },
+          onAshore: (boat) => update((s) => ({ ...s, aboard: false, boat: boat ? { zoneId: s.zoneId, ...boat } : null })),
           // The fog of Forgetting lifts on screen (#75 item 7), once per bank.
           onFogLift: (fog) => {
             sfx('gate'); // a way opening — not the level-up fanfare
@@ -444,19 +457,26 @@ export default function WorldScreen() {
       />
 
       <p className="text-white/50 text-xs mt-2">
-        Walk: arrow keys / WASD · bump into friends to talk, foes to battle!
+        {save.aboard
+          ? 'Sail: arrow keys / WASD · sail into a beach or a dock to go ashore'
+          : 'Walk: arrow keys / WASD · bump into friends to talk, foes to battle!'}
       </p>
       </div>
       <TouchPad onDirChange={onDirChange} />
 
       {/* Toast — inside a live region that's always there, so screen readers
-          announce each one as it appears. */}
-      <div role="status" aria-live="polite">
+          announce each one as it appears. Centred, and on a phone up top, so it
+          never sits over the d-pad. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed inset-x-0 top-24 sm:top-auto sm:bottom-8 z-50 flex justify-center px-4 pointer-events-none"
+      >
         {toast && (
           <motion.div
             initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="fixed bottom-8 bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl z-50"
+            className="max-w-md text-center bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl"
           >
             {toast}
           </motion.div>

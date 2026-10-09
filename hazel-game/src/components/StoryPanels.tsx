@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { StoryPanel } from '../content/story';
 
@@ -18,9 +18,13 @@ export default function StoryPanels({
   const [index, setIndex] = useState(0);
   const panel = panels[index];
   const isLast = index >= panels.length - 1;
+  // The button takes focus, so Enter / Space read on and Tab can't wander off
+  // to the HUD behind the panels.
+  const next = useRef<HTMLButtonElement>(null);
+  useEffect(() => next.current?.focus(), [index]);
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-6">
+    <div role="dialog" aria-modal="true" aria-label="Story" className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-6">
       <div className="w-full max-w-lg text-center">
         <AnimatePresence mode="wait">
           <motion.div
@@ -45,6 +49,7 @@ export default function StoryPanels({
         </div>
 
         <button
+          ref={next}
           onClick={() => (isLast ? onDone() : setIndex((i) => i + 1))}
           className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-8 py-3"
         >

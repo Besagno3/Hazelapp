@@ -223,13 +223,18 @@ export function playMusic(track: MusicTrack | null): void {
     return;
   }
 
-  // Fade out + stop whatever was playing.
+  // Fade out + stop whatever was playing — unless it's picked again before the
+  // fade ends (sailing out of a sea area and straight back): changing its
+  // volume cancels the fade, which still fires 'fade', and it must play on.
   if (currentTrack) {
-    const prev = getMusic(currentTrack);
+    const leaving = currentTrack;
+    const prev = getMusic(leaving);
     if (prev) {
       try {
         prev.fade(prev.volume(), 0, FADE_MS);
-        prev.once('fade', () => prev.stop());
+        prev.once('fade', () => {
+          if (currentTrack !== leaving) prev.stop();
+        });
       } catch {
         try {
           prev.stop();
