@@ -369,6 +369,12 @@ export interface ZoneDef {
   places?: PlaceDef[];
   /** Named spots on the menu map that aren't places (`LandmarkDef`). */
   landmarks?: LandmarkDef[];
+  /**
+   * A lighthouse tower (#75 item 14): the top-left of the 2×2 cells of rock
+   * ('^') it stands on. The canvas draws the tower rising two tiles above
+   * them, its lamp glowing and a beam sweeping round.
+   */
+  lighthouse?: { x: number; y: number };
   /** Fog banks that block part of the map until a story flag lifts them. */
   fogs?: FogDef[];
   /** A dark place, explored by the light of the Glow field spell (#75 item 9). */
@@ -1631,6 +1637,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [{ defId: 'gull-lamplighter', x: 11, y: 17 }],
     enemies: [],
     exits: [],
+    // Its tower stands on the rock just east of Ness's cottage.
+    lighthouse: { x: 15, y: 16 },
     landmarks: [
       { x: 12, y: 18, emoji: '🏮', name: 'Gull Rock' },
       { x: 26, y: 31, emoji: '🏝️', name: 'Sandpiper Cay' },

@@ -227,7 +227,10 @@ zod, react-query. Add the package in the same change that first uses it.
   Silver Shallows' theme anywhere on that map, a misty loop near the Great
   Fogbank while it stands (in at `FOGBANK_NEAR`, out past `FOGBANK_LEAVE`).
   Zone ids from a save are checked with `isZoneId` (own keys of `ZONES` —
-  never `in`, which lets `constructor` through).
+  never `in`, which lets `constructor` through). A zone can have a
+  lighthouse (`ZoneDef.lighthouse`: the 2×2 rock it stands on): the canvas
+  draws the tower two tiles taller than the rock, over characters but under
+  roofs, its lamp pulsing and two beams sweeping round.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -356,6 +359,7 @@ python3 tools/assets/build.py inns     # the innkeepers + travelers' sprites onl
 python3 tools/assets/build.py sea      # the Silver Shallows, the boat, the dock + Lamplighter Ness only (#75 item 14)
 python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
 python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallows, the fogbank (#75 item 14)
+python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 ```
 
 ## Error handling
@@ -409,6 +413,27 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-09 — Gull Rock gets a real lighthouse (#75 item 14, #107l)
+"Gull Rock Lighthouse" was a whitewashed cottage with a red roof — no tower.
+Now a lighthouse stands on a rock just east of Ness's cottage (a path's width
+away, level with its roof, so the whole tower is on screen from the beach):
+- **Art** (`tiles.lighthouse_sheet`, `python3 tools/assets/build.py
+  lighthouse`; `build.py sea` writes it too): `/tiles/lighthouse.png`, a tower
+  2 tiles wide and 4 tall — whitewashed with two red bands, a little window
+  and a door, a black gallery and railing, the lantern room, a red dome — on a
+  grey, mossy rock; four frames of the lamp pulsing.
+- **Map:** the rock is two by two '^' cells (a palm made room), painted in
+  `maps/silver-shallows.tmj`; you can walk round it either side.
+- **Canvas** (`ZoneDef.lighthouse`): the tower stands on the rock, anchored at
+  its foot, drawn over anyone walking or sailing behind it and under roofs and
+  name plates; a soft glow pulses round the lamp and two faint beams sweep
+  slowly round (still, under reduced motion). The cottage keeps its name — it's
+  the lighthouse keeper's house.
+- Tests: +1 (boat.test: the rock, its place by the cottage, the rows the
+  tower rises into, the way round it) and the sheet's size in tiles.test;
+  686 green, lint + tsc + build clean. Checked on the bench in headless
+  Chromium (TC-664).
 
 ### 2026-10-09 — The boat, reviewed: never stranded, Menu on phones, the boat never "vanishes" (#75 item 14, #107)
 A fresh-context `/saas-code-review` + `/saas-ux-review` of the whole slice

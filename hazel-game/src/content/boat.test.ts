@@ -244,6 +244,34 @@ describe('the boat in the save (#75 item 14)', () => {
   });
 });
 
+describe("Gull Rock's lighthouse (#75 item 14 review)", () => {
+  it('stands on a 2×2 rock just east of Ness\'s cottage, with room to walk round it', () => {
+    const lh = sea.lighthouse!;
+    for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) expect(tileAt(sea, lh.x + dx, lh.y + dy)).toBe('^');
+    const cottage = sea.buildings!.find((b) => b.id === 'gull-lighthouse')!;
+    // Beside the cottage, a path's width away, level with its roof — so the
+    // whole tower is on screen from the beach below.
+    expect(lh.x).toBe(cottage.x + cottage.w + 1);
+    expect(lh.y).toBe(cottage.y);
+    // The two rows the tower rises into are beach and sea — nothing drawn there it would hide.
+    for (let y = lh.y - 2; y < lh.y; y++) {
+      for (const x of [lh.x, lh.x + 1]) expect([':', '~', '.']).toContain(tileAt(sea, x, y));
+    }
+    // The rock doesn't cut Gull Rock in two: west of it to east of it on foot.
+    const seen = new Set<string>([`${lh.x - 1},${lh.y + 1}`]);
+    const queue: [number, number][] = [[lh.x - 1, lh.y + 1]];
+    while (queue.length) {
+      const [x, y] = queue.shift()!;
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        if (seen.has(`${nx},${ny}`) || !['.', ',', '=', ':'].includes(tileAt(sea, nx, ny))) continue;
+        seen.add(`${nx},${ny}`);
+        queue.push([nx, ny]);
+      }
+    }
+    expect(seen.has(`${lh.x + 2},${lh.y + 1}`)).toBe(true);
+  });
+});
+
 describe('never stranded: landing, boarding and loading (#75 item 14 review)', () => {
   const standing = {}; // no flags: the Great Fogbank stands
   const open = (z: typeof sea) => (x: number, y: number) => !fogAt(z, x, y, standing);

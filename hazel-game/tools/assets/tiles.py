@@ -1085,6 +1085,71 @@ def boat_sheet():
     return frames
 
 
+def lighthouse_sheet():
+    """Gull Rock's lighthouse (#75 item 14 review): a tower 2 tiles wide and 4
+    tall, standing on a grey rock that fills the 2×2 cells at its foot —
+    whitewashed, two red bands, a black gallery, a red dome. Four frames of
+    the lamp pulsing (bright, warm, low, warm); the canvas adds the glow and
+    the sweeping beam.
+    """
+    lamps = (('#fff8c8', True), ('#ffe88a', True), ('#ffd45a', False), ('#ffe88a', True))
+    frames = []
+    for glass, core in lamps:
+        c = Canvas(64, 64)
+        o = 16  # draw in the middle 32 columns, cropped below
+
+        def x(v):
+            return o + v
+
+        def edge(y):  # the tower's sides at height y: it narrows as it rises
+            t = (y - 16) / 34
+            return x(11 - 2 * t), x(21 + 2 * t)
+
+        # The rock it stands on — Gull Rock itself — with a few cracks and tufts of moss.
+        c.poly([(x(1), 64), (x(0), 54), (x(2), 46), (x(7), 41), (x(13), 39), (x(20), 39.5),
+                (x(26), 42), (x(30), 47), (x(32), 55), (x(31), 64)], '#8e8c98')
+        for (ax, ay), (bx, by) in (((5, 52), (8, 57)), ((23, 50), (26, 55)), ((14, 58), (18, 61))):
+            c.line(x(ax), ay, x(bx), by, '#64626e', w=0.8)
+        for mx, my in ((3, 47), (27, 46), (9, 42)):
+            c.dot(x(mx), my, '#6a9a4a', w=2)
+        # The tower: whitewashed, tapering, with two red bands.
+        l0, r0 = edge(50)
+        l1, r1 = edge(16)
+        c.poly([(l0, 50), (l1, 16), (r1, 16), (r0, 50)], '#f4f2ec', shade=False)
+        for y0, y1 in ((22, 28), (35, 41)):
+            a0, b0 = edge(y0)
+            a1, b1 = edge(y1)
+            c.poly([(a1, y1), (a0, y0), (b0, y0), (b1, y1)], '#d84848', shade=False)
+        # Round it off: a shadow down the right-hand side, sun on the left.
+        for y0, y1, col in ((16, 22, '#cfcbc4'), (22, 28, '#a83434'), (28, 35, '#cfcbc4'), (35, 41, '#a83434'), (41, 50, '#cfcbc4')):
+            _, b0 = edge(y0)
+            _, b1 = edge(y1)
+            c.poly([(b0 - 3, y0), (b0, y0), (b1, y1), (b1 - 3, y1)], col, shade=False)
+        for y0, y1, col in ((16, 22, '#ffffff'), (22, 28, '#f07070'), (28, 35, '#ffffff'), (35, 41, '#f07070'), (41, 50, '#ffffff')):
+            a0, _ = edge(y0)
+            a1, _ = edge(y1)
+            c.poly([(a0, y0), (a0 + 1.5, y0), (a1 + 1.5, y1), (a1, y1)], col, shade=False)
+        c.rect(x(15), 31, x(17), 33.5, '#3a3a52', shade=False)  # a little window
+        c.rect(x(14), 45, x(18), 50, '#4a3424', shade=False)  # the door
+        c.ellipse(x(16), 45, 2, 1.6, '#4a3424', shade=False)
+        # The gallery with its railing, the lantern room, the dome and its finial.
+        c.rect(x(8), 14, x(24), 16.5, '#34344a')
+        for px in (9, 12, 15, 18, 21):
+            c.rect(x(px), 12, x(px + 1), 14, '#34344a', shade=False)
+        c.rect(x(8), 11.5, x(24), 12.5, '#34344a', shade=False)
+        c.ellipse(x(16), 7.5, 5.5, 4, '#d04040')
+        c.rect(x(11), 7.5, x(21), 14, glass, shade=False)
+        for mx in (13.5, 18.5):
+            c.rect(x(mx), 7.5, x(mx + 0.8), 14, '#34344a', shade=False)
+        if core:
+            c.ellipse(x(16), 10.8, 1.6, 1.8, '#ffffff', shade=False)
+        c.rect(x(15.5), 1.5, x(16.5), 4, '#34344a', shade=False)
+        c.dot(x(15.5), 1, '#ffd84a', w=1)
+        out = _outlined(c).image().crop((o, 0, o + 32, 64))
+        frames.append(out)
+    return frames
+
+
 OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'city', 'canyon', 'garden', 'pavilion')
 
 
@@ -1268,6 +1333,12 @@ def build_sea(public: Path):
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in boat_sheet()]).save(tdir / 'boat.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+    build_lighthouse(public)
+
+
+def build_lighthouse(public: Path):
+    """Write only Gull Rock's lighthouse tower (#75 item 14 review)."""
+    strip([upscale(f, 2) for f in lighthouse_sheet()]).save(public / 'tiles' / 'lighthouse.png', optimize=True)
 
 
 def build(public: Path) -> list[str]:
@@ -1290,6 +1361,7 @@ def build(public: Path) -> list[str]:
     strip([upscale(f.image(), 2) for f in spire_props()]).save(tdir / 'spire-props.png', optimize=True)
     strip([upscale(f.image(), 2) for f in stairs_sheet()]).save(tdir / 'stairs.png', optimize=True)
     strip([upscale(f.image(), 2) for f in boat_sheet()]).save(tdir / 'boat.png', optimize=True)
+    build_lighthouse(public)
     for style in STYLES:
         strip([upscale(f.image(), 2) for f in town_tiles(style)]).save(tdir / f'town-{style}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in roof_tiles()]).save(tdir / 'roofs.png', optimize=True)

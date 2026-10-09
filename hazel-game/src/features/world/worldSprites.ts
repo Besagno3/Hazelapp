@@ -36,6 +36,9 @@ import {
   BOAT_FRAMES,
   BOAT_KEY,
   BOAT_SHEET,
+  LIGHTHOUSE_FRAMES,
+  LIGHTHOUSE_KEY,
+  LIGHTHOUSE_SHEET,
   STAIRS_KEY,
   STAIRS_SHEET,
   blendKey,
@@ -140,6 +143,11 @@ export function loadWorldSprites(k: KaplayCtx): void {
   }
   k.loadSprite(STAIRS_KEY, STAIRS_SHEET, { sliceX: STAIRS_FRAMES, sliceY: 1 });
   k.loadSprite(BOAT_KEY, BOAT_SHEET, { sliceX: BOAT_FRAMES, sliceY: 1 });
+  k.loadSprite(LIGHTHOUSE_KEY, LIGHTHOUSE_SHEET, {
+    sliceX: LIGHTHOUSE_FRAMES,
+    sliceY: 1,
+    anims: { shine: { from: 0, to: LIGHTHOUSE_FRAMES - 1, loop: true, speed: 3 } },
+  });
   k.loadSprite(SPIRE_PROPS_KEY, SPIRE_PROPS_SHEET, {
     sliceX: SPIRE_PROPS_FRAMES,
     sliceY: 1,

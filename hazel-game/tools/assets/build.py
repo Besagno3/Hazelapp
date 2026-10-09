@@ -13,6 +13,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py sea        # only the Silver Shallows, the boat and the dock (#75 item 14)
     python3 tools/assets/build.py quests     # only Hermit Moss (#75 item 13)
     python3 tools/assets/build.py seamusic   # only the sea music: sailing, the Shallows, the fogbank (#75 item 14)
+    python3 tools/assets/build.py lighthouse # only Gull Rock's lighthouse tower (#75 item 14)
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -74,6 +75,11 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only={'gull-lamplighter'}))
         tiles.build_sea(PUBLIC)
         print('sea ✓')
+        return
+    if 'lighthouse' in only:
+        # Just Gull Rock's lighthouse tower (#75 item 14) — every other file untouched.
+        tiles.build_lighthouse(PUBLIC)
+        print('lighthouse ✓')
         return
     if 'seamusic' in only:
         # Just the sea music (#75 item 14) — every other file untouched.

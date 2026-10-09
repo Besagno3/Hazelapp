@@ -46,6 +46,8 @@ import { FADE_MS, SLIDE_MS, exitSide, needsArrivalLock, slideFrom, transitionFor
 import {
   BOAT_FRAME,
   BOAT_KEY,
+  LIGHTHOUSE_KEY,
+  LIGHTHOUSE_LAMP,
   OVERWORLD_FRAME,
   OVERWORLD_KEY,
   FOG_PUFF_KEY,
@@ -959,6 +961,39 @@ export default function WorldCanvas({
         k.color(255, 240, 200),
       ]);
       actors.push({ x: px, y: py, kind: 'spire', radius: ACTOR_RADIUS.spire });
+    }
+
+    // A lighthouse (#75 item 14): the tower stands on its 2×2 rock and rises
+    // two tiles above it — over anyone walking or sailing behind it, under
+    // roofs and name plates. Its lamp pulses, glows, and sweeps two soft beams
+    // round (held still under reduced motion).
+    if (z.lighthouse) {
+      const lx = (z.lighthouse.x + 1) * TILE; // the middle of the rock
+      const ly = (z.lighthouse.y + 2) * TILE; // the rock's foot
+      const tower = k.add([k.sprite(LIGHTHOUSE_KEY, { frame: 0 }), k.pos(lx, ly), k.anchor('bot'), k.z(14)]);
+      if (!reducedMotion) (tower as unknown as { play: (n: string) => void }).play('shine');
+      // The sprite is 2 tiles wide and 4 tall, anchored at its foot.
+      const lamp = k.vec2(lx - TILE + LIGHTHOUSE_LAMP.x, ly - 4 * TILE + LIGHTHOUSE_LAMP.y);
+      const BEAM = 3.5 * TILE;
+      const SPREAD = 0.16;
+      k.add([
+        k.pos(0, 0),
+        k.z(14.5),
+        {
+          id: 'lighthouse-light',
+          draw() {
+            const t = reducedMotion ? 0 : k.time();
+            const turn = reducedMotion ? -0.6 : t * 0.7;
+            for (const a of [turn, turn + Math.PI]) {
+              const tip = (da: number) => k.vec2(lamp.x + Math.cos(a + da) * BEAM, lamp.y + Math.sin(a + da) * BEAM * 0.6);
+              k.drawTriangle({ p1: lamp, p2: tip(-SPREAD), p3: tip(SPREAD), color: k.rgb(255, 244, 180), opacity: 0.18 });
+            }
+            const pulse = reducedMotion ? 0 : Math.sin(t * 3) * 0.06;
+            k.drawCircle({ pos: lamp, radius: 15, color: k.rgb(255, 236, 150), opacity: 0.22 + pulse });
+            k.drawCircle({ pos: lamp, radius: 8, color: k.rgb(255, 250, 210), opacity: 0.3 + pulse });
+          },
+        },
+      ]);
     }
 
     /** Puts an NPC in the world; `remove()` takes them out again. */

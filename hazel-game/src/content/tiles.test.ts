@@ -20,7 +20,7 @@ import {
   SPIRE_PROPS_FRAMES,
   SPIRE_PROPS_SHEET,
   groundVariant,
-  tilesetSheet, OVERWORLD_FRAME, OVERWORLD_FRAMES, OVERWORLD_SHEET, OVERWORLD_DOCK_FRAME, BOAT_FRAME, BOAT_FRAMES, BOAT_SHEET, FOG_PUFF_FRAMES, FOG_PUFF_SHEET, FOG_PUFF_SIZE,
+  tilesetSheet, OVERWORLD_FRAME, OVERWORLD_FRAMES, OVERWORLD_SHEET, OVERWORLD_DOCK_FRAME, BOAT_FRAME, BOAT_FRAMES, BOAT_SHEET, LIGHTHOUSE_FRAMES, LIGHTHOUSE_LAMP, LIGHTHOUSE_SHEET, FOG_PUFF_FRAMES, FOG_PUFF_SHEET, FOG_PUFF_SIZE,
   BLEND_COLS, BLEND_ROWS, BLEND_FRAMES, BLEND_CLASS, BLEND_WATER_STEP, blendPairFrame, blendShapeFrame, blendSheet } from './tiles';
 
 const pub = (p: string) => join(process.cwd(), 'public', p);
@@ -64,6 +64,10 @@ describe('16-bit tilesets', () => {
     // Marlow's boat: the whole boat, then its hull's front, two bob frames each.
     expect(pngSize(BOAT_SHEET)).toEqual({ w: BOAT_FRAMES * 32, h: 32 });
     expect([...BOAT_FRAME.whole, ...BOAT_FRAME.hullFront].sort()).toEqual([0, 1, 2, 3]);
+    // Gull Rock's lighthouse: 2 tiles wide, 4 tall, its lamp inside the frame's top quarter.
+    expect(pngSize(LIGHTHOUSE_SHEET)).toEqual({ w: LIGHTHOUSE_FRAMES * 64, h: 128 });
+    expect(LIGHTHOUSE_LAMP.x).toBeLessThan(64);
+    expect(LIGHTHOUSE_LAMP.y).toBeLessThan(32);
   });
   it('props strip and Spire tower are the expected sizes', () => {
     expect(pngSize(PROPS_SHEET)).toEqual({ w: PROPS_FRAMES * 32, h: 32 });
