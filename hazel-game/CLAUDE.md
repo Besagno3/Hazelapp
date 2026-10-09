@@ -231,6 +231,14 @@ zod, react-query. Add the package in the same change that first uses it.
   lighthouse (`ZoneDef.lighthouse`: the 2×2 rock it stands on): the canvas
   draws the tower two tiles taller than the rock, over characters but under
   roofs, its lamp pulsing and two beams sweeping round.
+  **After the Spire** (#75 item 14): beating Umbra plays the finale
+  (`spireVictoryPanels`) straight into `HOMECOMING_PANELS` — picture panels
+  (`StoryPanel.scene`, drawn by `components/StoryScene` from the game's own
+  backdrops and sprites) that fade in and out through black — then
+  `WorldScreen` puts the hero to bed at the Sleepy Sheep Inn (`restAtHomeInn`,
+  `lib/save.ts`) under the dark, `WakeFade` brings the morning in (the world
+  stays paused; a hero who arrives indoors finds that roof already off), and
+  `ACT2_PANELS` follow (`act2Due` waits for `waking` to end).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -413,6 +421,38 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-09 — After Umbra: the walk home, a night at the inn, Act II in the morning (#75 item 14, #107m)
+Beating Umbra played ten storybook panels in a row (the finale's 5, then
+Act II's 5 the same moment), and nothing took the hero away from the Spire —
+they were left at its door with only the 🚩. Now the ending carries them home:
+- **The finale** (`spireVictoryPanels`): three panels — Umbra unravels, Ember
+  roars, Keeper Aurora names the hero.
+- **The walk home** (`HOMECOMING_PANELS`): three pictures that fade in and out
+  through black (`StoryPanel.scene` → new `components/StoryScene.tsx`, built
+  from the game's art): the hero and Ember walking away from the glowing
+  Spire at dusk; Lumina Village under strings of lanterns, Elder Lumen,
+  Grandmother Wick and Poppy cheering (with confetti); the Sleepy Sheep Inn at
+  night, one window lit, Zzz. `StoryPanels` takes a `cast` (the hero's and
+  Ember's sprites) and shows picture runs over solid black. The last button is
+  "💤 Good night".
+- **Bed, then morning:** `WorldScreen` moves the hero into the inn while the
+  screen is dark (`restAtHomeInn`: Lumina Village, the floor just inside the
+  door, healed, `lastRest` home), then `WakeFade` (`components/WakeFade.tsx`)
+  holds the dark a moment and fades the morning in on them standing inside the
+  inn — the canvas now clears the roof over a hero who arrives indoors from the
+  first frame. The world stays paused through it.
+- **Act II** (`ACT2_PANELS`, now three): "You wake to sunshine at the Sleepy
+  Sheep Inn…", the Silver Shallows with Grandmother Wick's line, then Old
+  Marlow → "⛵ Find Old Marlow"; the 🚩 then reads "Help Old Marlow — Go east to
+  Starfall Coast." All three runs together are under 330 words (~450 before),
+  broken by the fades and a look round the inn. The finale's first panel is 💨
+  (🌑 vanished on the black).
+- Tests: +8 (story.test: the three runs, their order and length; save.test:
+  `restAtHomeInn`; StoryPanels.test: the pictures, the fallback, Good night,
+  waking); 694 green, lint + tsc + build clean. Played end to end in headless
+  Chromium against the real `WorldScreen` at 375×667, 1024×768 and with reduced
+  motion (TC-668).
 
 ### 2026-10-09 — Gull Rock gets a real lighthouse (#75 item 14, #107l)
 "Gull Rock Lighthouse" was a whitewashed cottage with a red roof — no tower.

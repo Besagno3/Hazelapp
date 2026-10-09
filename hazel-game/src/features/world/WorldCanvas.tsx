@@ -1174,6 +1174,15 @@ export default function WorldCanvas({
     // zone was redrawn) falls back to the zone spawn instead of a wall.
     // In Marlow's boat (#75 item 14) the hero spawns afloat — on open sea.
     const spawn = safeSpawn(z, startPos, flagsRef.current, aboardRef.current ? 'boat' : 'foot');
+    // Arriving indoors — waking at an inn after a defeat or the walk home from
+    // the Spire — the roof over you is off from the first frame, not faded
+    // away once the world runs (it stays paused while the morning fades in).
+    const startIndoors = buildingInside(z, Math.floor(spawn.x / TILE), Math.floor(spawn.y / TILE));
+    for (const r of roofs) {
+      if (startIndoors?.id !== r.b.id) continue;
+      r.opacity = 0;
+      for (const part of r.parts) part.opacity = 0;
+    }
     let aboard =
       aboardRef.current && SEA_CHARS.has(tileAt(z, Math.floor(spawn.x / TILE), Math.floor(spawn.y / TILE)));
     // Couldn't stay afloat: ashore at the spawn, the boat on the sea nearest it.

@@ -10,6 +10,8 @@ import KeyGateOverlay from './KeyGateOverlay';
 import MenuOverlay from './MenuOverlay';
 import SpireOverlay from './SpireOverlay';
 import StoryPanels from '../../components/StoryPanels';
+import WakeFade from '../../components/WakeFade';
+import { restAtHomeInn } from '../../lib/save';
 import { zone, TILE, fogSeenFlag, HUB_ZONE, ZONES, litFlag } from '../../content/zones';
 import {
   CALM_SECONDS,
@@ -47,6 +49,7 @@ import {
   SPIRE_CLEARED,
   SPIRE_VICTORY_SEEN,
   spireVictoryPanels,
+  HOMECOMING_PANELS,
   crystalSceneFlag,
   GROVE_PANELS,
   GROVE_SEEN,
@@ -134,6 +137,10 @@ export default function WorldScreen() {
   const travelRef = useRef<Travel | null>(null);
   const calmRef = useRef(0);
   const [calmLeft, setCalmLeft] = useState(0);
+  // After the Spire's finale the hero is carried home to bed; this is the
+  // morning fading in at the inn, before Act II begins (#75 item 14).
+  const [waking, setWaking] = useState(false);
+  const wakeUp = useCallback(() => setWaking(false), []);
   // The secret just found — shown in a small celebration card.
   const [found, setFound] = useState<SecretDef | null>(null);
   useEffect(() => {
@@ -167,9 +174,10 @@ export default function WorldScreen() {
   // and once on the first step out onto Dawnreach (#75 Phase 1).
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
   const dawnreachDue = zoneId === 'dawnreach' && !flags[DAWNREACH_SEEN];
-  // Act II (#75 item 14): the morning after the Spire's finale; the first
-  // time in the boat; the first bump into the Great Fogbank.
-  const act2Due = flags[SPIRE_VICTORY_SEEN] === true && !flags[ACT2_SEEN];
+  // Act II (#75 item 14): the morning after the Spire's finale, once the hero
+  // has woken at the inn; the first time in the boat; the first bump into the
+  // Great Fogbank.
+  const act2Due = flags[SPIRE_VICTORY_SEEN] === true && !flags[ACT2_SEEN] && !waking;
   const voyageDue = save?.aboard === true && !flags[FIRST_VOYAGE_SEEN];
   const fogbankDue = flags[GREAT_FOGBANK_MET] === true && !flags[GREAT_FOGBANK_SEEN];
 
@@ -213,8 +221,8 @@ export default function WorldScreen() {
   const pausedRef = useRef(false);
   useEffect(() => {
     const spireFree = overlay === 'spire' && spireExploring;
-    pausedRef.current = (overlay !== null && !spireFree) || cutscene;
-  }, [overlay, cutscene, spireExploring]);
+    pausedRef.current = (overlay !== null && !spireFree) || cutscene || waking;
+  }, [overlay, cutscene, spireExploring, waking]);
 
   // Remember every place the hero has been: Return flies to the towns (#75 item 9).
   // Arriving somewhere new that fights far tougher than the 🚩's road (the
@@ -547,12 +555,23 @@ export default function WorldScreen() {
         />
       )}
       {activeScene === 'spireVictory' && (
+        // The finale, then the walk home in pictures; on "Good night" the hero
+        // is put to bed at the Sleepy Sheep Inn while the screen is dark, and
+        // wakes there (WakeFade) to Act II.
         <StoryPanels
-          panels={spireVictoryPanels(avatar.name)}
-          doneLabel="🌟 The adventure continues!"
-          onDone={() => setFlag(SPIRE_VICTORY_SEEN)}
+          panels={[...spireVictoryPanels(avatar.name), ...HOMECOMING_PANELS]}
+          doneLabel="💤 Good night"
+          cast={{
+            hero: { spriteId: avatar.spriteId, emoji: avatar.sprite },
+            ember: { spriteId: EMBER_SPRITE_IDS[ember], emoji: EMBER_SPRITES[ember] },
+          }}
+          onDone={() => {
+            setWaking(true);
+            update((s) => ({ ...s, ...restAtHomeInn(), flags: { ...s.flags, [SPIRE_VICTORY_SEEN]: true } }));
+          }}
         />
       )}
+      {waking && <WakeFade onDone={wakeUp} />}
       {activeScene === 'dawnreach' && (
         <StoryPanels
           panels={DAWNREACH_PANELS}

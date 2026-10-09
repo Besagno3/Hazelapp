@@ -11,7 +11,15 @@ import { TOPIC_REGISTRY, crystalFlag } from './topics';
 export interface StoryPanel {
   emoji: string;
   text: string;
+  /**
+   * A little picture in place of the big emoji (`StoryScene`): the walk home
+   * after the Spire (#75 item 14). Panels with a scene fade through black.
+   */
+  scene?: StorySceneId;
 }
+
+/** The pictures `StoryScene` can draw. */
+export type StorySceneId = 'spire-stairs' | 'village-cheer' | 'inn-night';
 
 // --- Ember, the last dragon ---------------------------------------------------
 
@@ -231,28 +239,21 @@ export const DAWNREACH_PANELS: StoryPanel[] = [
  * Act II opens (#75 item 14; STORY-4X §4, re-staged on the map by
  * ROADMAP-OVERWORLD §3.3): the morning after the Spire, the world starts
  * remembering — and the sea off Dawnreach's east coast comes back, islands
- * and all. Plays once, the next time the hero is out in the world.
+ * and all. Plays once the hero wakes at the Sleepy Sheep Inn after the walk
+ * home (`HOMECOMING_PANELS`).
  */
 export const ACT2_PANELS: StoryPanel[] = [
   {
     emoji: '🌅',
-    text: 'The morning after the Spire, the fog over the land is gone — and Lumina starts remembering things it forgot it had lost.',
-  },
-  {
-    emoji: '🧁',
-    text: 'Innkeeper Poppy remembers a recipe for cloud-buns. Lantern-Keeper Sol remembers a sixth lantern he never knew he had. Everyone hums tunes nobody has sung in years.',
+    text: 'You wake to sunshine at the Sleepy Sheep Inn. The fog over the land is gone — and all of Lumina is remembering things it had forgotten. Poppy remembers a recipe for cloud-buns!',
   },
   {
     emoji: '🌊',
-    text: "Off Dawnreach's east coast, the fog has rolled back from the sea. Out on the shining water lie islands nobody remembers: the Silver Shallows.",
-  },
-  {
-    emoji: '🕯️',
-    text: 'Grandmother Wick squeezes your hand. "We didn\'t lose those places, little spark. We FORGOT them. That\'s worse — and it\'s fixable."',
+    text: 'Off Dawnreach\'s east coast the fog has rolled back from the sea. Out on the water lie islands nobody remembers: the Silver Shallows. "We didn\'t lose those places," says Grandmother Wick. "We forgot them — and that\'s fixable."',
   },
   {
     emoji: '🎣',
-    text: "Down on Starfall Coast, Old Marlow is waving his hat. His fish remembered the way home — and so did he. He used to sail! If only his old boat weren't in pieces…",
+    text: "Down on Starfall Coast, Old Marlow is waving his hat. He remembers he used to sail! If only his old boat weren't in pieces…",
   },
 ];
 
@@ -447,11 +448,14 @@ export function endingPanels(heroName: string): StoryPanel[] {
   ];
 }
 
-/** The TRUE finale (#55) — after the hero climbs the Spire and beats Umbra. */
+/**
+ * The TRUE finale (#55) — after the hero climbs the Spire and beats Umbra.
+ * `HOMECOMING_PANELS` follow straight on: the walk home, then bed.
+ */
 export function spireVictoryPanels(heroName: string): StoryPanel[] {
   return [
     {
-      emoji: '🌑',
+      emoji: '💨', // (🌑 vanishes on the black behind the walk-home pictures)
       text:
         `"How…?" The Forgotten One unravels like old smoke. "I drank a whole WORLD of forgetting… ` +
         'and one curious child out-remembered me." Even fading, it sounds almost relieved.',
@@ -460,28 +464,40 @@ export function spireVictoryPanels(heroName: string): StoryPanel[] {
       emoji: '🐉',
       text:
         'Ember spreads wings wide enough to shade the whole Spire and ROARS — a real, full-grown ' +
-        'dragon\'s roar — and the last knot of fog is gone for good.',
-    },
-    {
-      emoji: '🏛️',
-      text:
-        'Keeper Aurora bows. "Lumina will remember THIS. The day a kid from a little village climbed ' +
-        'the Spire and taught the dark how to be brave." The crystals blaze like four small suns.',
+        'dragon\'s roar — and the last of the fog over the land is gone for good.',
     },
     {
       emoji: '🌟',
       text:
-        `Lumina is truly bright again because ${heroName} kept asking "why?" — all the way to the top, ` +
-        'even when the questions got terribly hard. That is what heroes are made of.',
-    },
-    {
-      emoji: '🗺️',
-      text:
-        'Somewhere, someday, something may try to make the world forget again — with trickier riddles ' +
-        'than ever. Ember will be ready. So will you. The adventure continues!',
+        `Keeper Aurora bows. "Lumina is bright again because ${heroName} kept asking 'why?' — all the ` +
+        'way to the top, even when the questions got terribly hard. That is what heroes are made of."',
     },
   ];
 }
+
+/**
+ * After the finale (#75 item 14): the walk home, in pictures that fade in and
+ * out — down the Spire, Lumina Village cheering, a bed at the Sleepy Sheep
+ * Inn. When they end the hero is moved there (`restAtHomeInn`) and wakes to
+ * `ACT2_PANELS`.
+ */
+export const HOMECOMING_PANELS: StoryPanel[] = [
+  {
+    emoji: '🗼',
+    scene: 'spire-stairs',
+    text: "Down the Spire's long, winding stairs you go, with Ember gliding beside you. Behind you, the tower glows in the dusk.",
+  },
+  {
+    emoji: '🏮',
+    scene: 'village-cheer',
+    text: 'Lumina Village has hung up every lantern it owns. Everyone cheers your name — so loudly that the sheep join in!',
+  },
+  {
+    emoji: '🛏️',
+    scene: 'inn-night',
+    text: 'That night Innkeeper Poppy saves you the best bed at the Sleepy Sheep Inn. Ember curls up by the fire. Zzz…',
+  },
+];
 
 // --- Fiend battle dialogue ------------------------------------------------------
 

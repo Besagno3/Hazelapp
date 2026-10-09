@@ -4,6 +4,7 @@ import {
   normalizeSave,
   migrateLegacy,
   pushLibrary,
+  restAtHomeInn,
   runMigrations,
   saveIsTooNew,
   wakeAfterDefeat,
@@ -16,7 +17,7 @@ import {
   type MigrationLadder,
 } from './save';
 import { LIBRARY_MAX } from '../content/items';
-import { HUB_ZONE, TILE, ZONES, chestTopicAt, innWakeCell, tileAt } from '../content/zones';
+import { HUB_ZONE, TILE, ZONES, buildingInside, chestTopicAt, innWakeCell, tileAt } from '../content/zones';
 import type { LibraryEntry, Question } from '../types';
 
 function q(id: string): Question {
@@ -311,3 +312,16 @@ describe('the last inn rested at (#75 item 11)', () => {
     expect(wakeInnName({ lastRest: 'lumina-village' })).toBe('the Sleepy Sheep Inn in Lumina Village');
   });
 });
+
+describe('home to bed after the Spire (#75 item 14)', () => {
+  it('puts the hero inside the Sleepy Sheep Inn in Lumina Village, healed, resting there', () => {
+    const rest = restAtHomeInn();
+    expect([rest.zoneId, rest.hp, rest.lastRest, rest.aboard]).toEqual([HUB_ZONE, null, HUB_ZONE, false]);
+    const cell = { x: Math.floor(rest.pos!.x / TILE), y: Math.floor(rest.pos!.y / TILE) };
+    expect(buildingInside(ZONES[HUB_ZONE], cell.x, cell.y)?.name).toBe('Sleepy Sheep Inn');
+    // …which is also where a later defeat wakes them, and it survives a reload.
+    const saved = normalizeSave({ ...defaultSave(), ...rest });
+    expect([saved.zoneId, saved.pos, saved.lastRest]).toEqual([HUB_ZONE, rest.pos, HUB_ZONE]);
+  });
+});
+

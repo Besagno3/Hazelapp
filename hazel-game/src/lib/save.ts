@@ -266,6 +266,15 @@ export function wakeAfterDefeat(save: Pick<SaveData, 'lastRest'>): { zoneId: Zon
   return { zoneId: save.lastRest, pos: { x: cell.x * TILE + TILE / 2, y: cell.y * TILE + TILE / 2 } };
 }
 
+/**
+ * Home to bed after the Spire (#75 item 14): the hero sleeps at the Sleepy
+ * Sheep Inn in Lumina Village — healed, on its floor just inside the door,
+ * and it's the inn they last rested at. Spread into the save.
+ */
+export function restAtHomeInn(): Pick<SaveData, 'zoneId' | 'pos' | 'hp' | 'lastRest' | 'aboard'> {
+  return { ...wakeAfterDefeat({ lastRest: HUB_ZONE }), hp: null, lastRest: HUB_ZONE, aboard: false };
+}
+
 function numberOr(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fallback;
 }
