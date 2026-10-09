@@ -5,6 +5,7 @@ import { CRYSTAL_TOPIC_IDS } from '../types';
 import { tiledRows } from '../lib/tiled';
 import dawnreachTmj from './maps/dawnreach.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
+import type { DangerTier } from './regions';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -240,6 +241,15 @@ export interface DarknessDef {
   dim?: number;
 }
 
+/** A riddle-chest that also holds a quest item (#75 item 13; `QUEST_ITEMS` id). */
+export interface KeyChestDef {
+  x: number;
+  y: number;
+  item: string;
+  /** Who wants it and where — shown with the find if their quest hasn't been offered yet. */
+  wantedBy: string;
+}
+
 export interface ZoneExit {
   /** Grid cell of the 'E' tile. */
   x: number;
@@ -278,6 +288,11 @@ export interface EnemyPlacement {
   defId: string;
   x: number;
   y: number;
+  /**
+   * Danger tier (#75 item 12, content/regions.ts) when it isn't the zone's —
+   * an overworld critter roaming beside a far region takes that region's.
+   */
+  tier?: DangerTier;
 }
 
 export interface ZoneDef {
@@ -318,6 +333,11 @@ export interface ZoneDef {
   fogs?: FogDef[];
   /** A dark place, explored by the light of the Glow field spell (#75 item 9). */
   dark?: DarknessDef;
+  /**
+   * Key-item chests (#75 item 13): riddle-chests ('C') that hold a quest item
+   * as well as the usual coins — the item a side quest asks you to find.
+   */
+  keyChests?: KeyChestDef[];
   /**
    * Tileset key override (default: the zone id). The Spire's floor maps
    * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
@@ -1351,6 +1371,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // …and where the roads fork for the corners (#75 item 8).
       { defId: 'dawnreach-sign-north', x: 41, y: 14 },
       { defId: 'dawnreach-sign-fork', x: 61, y: 31 },
+      // Hermit Moss, on the hill beside the Echo Mine (#75 item 13).
+      { defId: 'dawnreach-hermit', x: 61, y: 20 },
     ],
     enemies: [
       { defId: 'thornhare', x: 30, y: 25 },
@@ -1358,11 +1380,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'grumblebee', x: 27, y: 39 },
       { defId: 'tide-sprite', x: 56, y: 35 },
       { defId: 'meteor-mite', x: 53, y: 25 },
-      // A critter from each region roams near it (#75 item 8).
-      { defId: 'sum-slime', x: 16, y: 16 },
-      { defId: 'bolt-mouse', x: 67, y: 19 },
-      { defId: 'spore-puff', x: 8, y: 52 },
-      { defId: 'doodle-imp', x: 63, y: 51 },
+      // A critter from each region roams near it (#75 item 8) — as tough as
+      // that region (#75 item 12); the heartland's critters above are home ground.
+      { defId: 'sum-slime', x: 16, y: 16, tier: 1 },
+      { defId: 'bolt-mouse', x: 67, y: 19, tier: 3 },
+      { defId: 'spore-puff', x: 8, y: 52, tier: 2 },
+      { defId: 'doodle-imp', x: 63, y: 51, tier: 4 },
     ],
   },
 
@@ -1491,7 +1514,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '####=.#..#.=##.=.,.,.#',
       '####=.#..#.=##.=######',
       '####=.#..#.....=######',
-      '####=.#.,#====.=######',
+      '####=.#.C#====.=######',
       '####=.################',
       '####=.################',
       '#,..=...............,#',
@@ -1516,6 +1539,17 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       lit: '🔆 Glow! The old mine lamps flicker back to life, one after another, deep into the tunnels.',
       guards: { x: 19, y: 2 },
     },
+    // The old miners' Moonstone, in the nook at the top of the left-hand
+    // tunnel — Hermit Moss wants it for his moon-lamp (#75 item 13, "The
+    // Hermit's Moonstone").
+    keyChests: [
+      {
+        x: 8,
+        y: 7,
+        item: 'moonstone',
+        wantedBy: '🏮 Hermit Moss, on the hill just outside the mine, has been wishing for a Moonstone!',
+      },
+    ],
   },
 };
 
@@ -1674,6 +1708,20 @@ export function fogSeenFlag(id: string): string {
 /** Banks that have lifted but whose lifting the hero hasn't watched yet. */
 export function fogsToReveal(z: ZoneDef, flags: Record<string, boolean>): FogDef[] {
   return (z.fogs ?? []).filter((f) => fogLifted(f, flags) && !flags[fogSeenFlag(f.id)]);
+}
+
+/** The key-item chest with this path-target id, if it is one (#75 item 13). */
+export function keyChestFor(chestId: string): KeyChestDef | undefined {
+  for (const z of Object.values(ZONES)) {
+    const chest = z.keyChests?.find((c) => pathTargetId(z.id, 'chest', c.x, c.y) === chestId);
+    if (chest) return chest;
+  }
+  return undefined;
+}
+
+/** The quest item in the chest with this path-target id, if it's a key-item chest (#75 item 13). */
+export function chestKeyItem(chestId: string): string | undefined {
+  return keyChestFor(chestId)?.item;
 }
 
 /** A chest's question topic: the one its fog bank names, else the zone's, else math. */

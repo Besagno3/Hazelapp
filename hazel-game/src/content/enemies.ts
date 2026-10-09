@@ -2,6 +2,8 @@ import type { BattleEnemy, EnemyBehavior, Topic, ZoneId } from '../types';
 import { clampLevel, skillLevelFor } from '../lib/age';
 import { topicInfo } from './topics';
 import { bossCoinDrop, enemyCoinDrop } from './items';
+import { BASE_TIER, DANGER, placementTier, zoneTier, type DangerTier } from './regions';
+import type { EnemyPlacement } from './zones';
 
 /**
  * Enemy archetypes (#37). Placements in zones.ts reference these by id; the
@@ -105,6 +107,9 @@ export function fiendFor(topic: Topic): EnemyDef {
  * from their sign-up age and moves with how well (and how fast) they answer.
  * XP / player level never changes it. A player with no level for the topic
  * yet gets the age baseline. `instanceId` keys session defeat-tracking.
+ * `tier` is the danger of where it roams (#75 item 12, `placementTier`): it
+ * scales HP and coins here, its blows and power moves in battle — the
+ * questions stay at `level`.
  */
 export function spawnEnemy(
   defId: string,
@@ -112,6 +117,7 @@ export function spawnEnemy(
   placementKey: string,
   age: number,
   skillLevels: Partial<Record<Topic, number>> = {},
+  tier: DangerTier = zoneTier(zoneId),
 ): BattleEnemy {
   const def = ENEMY_DEFS[defId];
   if (!def) throw new Error(`Unknown enemy def: ${defId}`);
@@ -128,10 +134,52 @@ export function spawnEnemy(
     spriteId: def.spriteId ?? def.id,
     topic: def.topic,
     level,
-    maxHp: (def.isBoss ? BOSS_HP_BASE : HP_BASE) + level * def.hpPerLevel,
+    maxHp: scaledHp(def, level, tier),
     zoneId,
     isBoss: def.isBoss ?? false,
-    coins: def.isBoss ? bossCoinDrop(level) : enemyCoinDrop(level),
+    coins: scaledCoins(def, level, tier),
     behavior: def.behavior,
+    tier,
   };
+}
+
+function scaledHp(def: EnemyDef, level: number, tier: DangerTier): number {
+  return Math.round(((def.isBoss ? BOSS_HP_BASE : HP_BASE) + level * def.hpPerLevel) * DANGER[tier].hp);
+}
+
+function scaledCoins(def: EnemyDef, level: number, tier: DangerTier): number {
+  return Math.round((def.isBoss ? bossCoinDrop(level) : enemyCoinDrop(level)) * DANGER[tier].coins);
+}
+
+/**
+ * The same enemy fighting at another tier — mercy far from home (`mercyFor`'s
+ * `fightTier`): HP, blows, power moves and pay all follow `tier`, while
+ * `eased` remembers where it roams. Its questions don't change.
+ */
+export function atTier(enemy: BattleEnemy, tier: DangerTier): BattleEnemy {
+  if (tier === (enemy.tier ?? BASE_TIER)) return enemy;
+  const def = ENEMY_DEFS[enemy.id];
+  if (!def) throw new Error(`Unknown enemy def: ${enemy.id}`);
+  return {
+    ...enemy,
+    maxHp: scaledHp(def, enemy.level, tier),
+    coins: scaledCoins(def, enemy.level, tier),
+    tier,
+    eased: enemy.eased ?? enemy.tier ?? BASE_TIER,
+  };
+}
+
+/**
+ * A zone's placed enemy, ready for battle: its instance id ("count-bat@12,4",
+ * the key session defeat-tracking matches) and its danger tier (the
+ * placement's own, else the zone's — #75 item 12). The world and the
+ * question prefetch both spawn through this, so they always agree.
+ */
+export function spawnPlaced(
+  zoneId: ZoneId,
+  p: EnemyPlacement,
+  age: number,
+  skillLevels: Partial<Record<Topic, number>> = {},
+): BattleEnemy {
+  return spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels, placementTier(zoneId, p));
 }

@@ -1,7 +1,8 @@
-import type { EnemyBehavior, FightStyle, PowerUps } from '../types';
+import type { BattleEnemy, EnemyBehavior, FightStyle, PowerUps } from '../types';
 import { CHARGE_MAX } from '../content/abilities';
 import { POTION_HEAL, SNACK_HEAL, SPARK_CHARGE, TEA_DAMAGE_MULT, type ConsumableId } from '../content/items';
 import type { Spell } from '../content/spells';
+import { BASE_TIER, DANGER, type DangerTier } from '../content/regions';
 import {
   bossPhase,
   defendReduction,
@@ -134,26 +135,32 @@ export function applyFocus(s: CombatState, dmg: number): { state: CombatState; d
 export type EnemyIntent = 'attack' | 'charge' | 'power';
 
 export const POWER_MULTIPLIER = 2;
-/** Chance a regular enemy starts charging on a given turn (never turn 0). */
-export const CHARGE_CHANCE = 0.2;
+/**
+ * Chance a regular enemy starts charging on a given turn (never turn 0) — the
+ * balance before regions; far regions charge more often (`DANGER[tier].chargeChance`).
+ */
+export const CHARGE_CHANCE = DANGER[BASE_TIER].chargeChance;
 /** Bosses charge on a fixed rhythm — every BOSS_CHARGE_EVERY-th turn. */
 export const BOSS_CHARGE_EVERY = 3;
 
 /**
  * The enemy's next intent. `turn` counts enemy turns from 0; `roll` ∈ [0, 1)
  * (defaults to Math.random; fixed in tests). A charge is ALWAYS followed by its
- * power blow, and a power blow is never followed by another charge.
+ * power blow, and a power blow is never followed by another charge. A regular
+ * enemy in a far region charges more often (`tier`, #75 item 12); a boss
+ * keeps its rhythm anywhere.
  */
 export function nextIntent(
   prev: EnemyIntent | null,
   turn: number,
   isBoss: boolean,
   roll: number = Math.random(),
+  tier: DangerTier = BASE_TIER,
 ): EnemyIntent {
   if (prev === 'charge') return 'power';
   if (prev === 'power' || turn === 0) return 'attack';
   if (isBoss) return turn % BOSS_CHARGE_EVERY === BOSS_CHARGE_EVERY - 1 ? 'charge' : 'attack';
-  return roll < CHARGE_CHANCE ? 'charge' : 'attack';
+  return roll < DANGER[tier].chargeChance ? 'charge' : 'attack';
 }
 
 /** Named signature blows for bosses; everyone else "winds up a mighty blow". */
@@ -181,6 +188,8 @@ export interface EnemyTurnInput {
   level: number;
   isBoss: boolean;
   behavior?: EnemyBehavior;
+  /** Danger tier of where it roams (#75 item 12): far regions hit harder. */
+  tier?: DangerTier;
   style: FightStyle;
   powerUps: PowerUps;
 }
@@ -215,7 +224,7 @@ export interface EnemyTurnResult {
  */
 export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTurnResult {
   const phase = input.isBoss ? bossPhase(s.enemyHp, s.enemyMaxHp) : 0;
-  const raw = Math.round(enemyAttack(input.level, input.isBoss, phase) * (input.intent === 'power' ? POWER_MULTIPLIER : 1));
+  const raw = Math.round(enemyAttack(input.level, input.isBoss, phase, input.tier) * (input.intent === 'power' ? POWER_MULTIPLIER : 1));
 
   let next: CombatState = { ...s };
   let dmg: number;
@@ -360,11 +369,30 @@ export const MERCY_AFTER = 2;
 
 /**
  * After MERCY_AFTER losses to the same kind of enemy its questions are one
- * level easier — no game over, and no wall either. The enemy still hits just
- * as hard: mercy helps with the learning, not the fight.
+ * level easier — no game over, and no wall either. Near home it still hits
+ * just as hard (mercy helps with the learning); a critter that fights tougher
+ * than that, far from home (#75 item 12), also fights like a Numbria one
+ * from then on (`fightTier`), since there the fight may be the wall.
  */
-export function mercyFor(losses: number): { levelDrop: number } {
-  return { levelDrop: losses >= MERCY_AFTER ? 1 : 0 };
+export function mercyFor(losses: number, tier: DangerTier = BASE_TIER): { levelDrop: number; fightTier: DangerTier } {
+  const merciful = losses >= MERCY_AFTER;
+  return { levelDrop: merciful ? 1 : 0, fightTier: merciful && tier > BASE_TIER ? BASE_TIER : tier };
+}
+
+/** The mercy banner: what eased, in a child's words. */
+export function mercyCallout(enemy: Pick<BattleEnemy, 'name' | 'eased'>): string {
+  return enemy.eased !== undefined
+    ? `Tough one last time? ${enemy.name} will go easier on you now — gentler hits and easier questions.`
+    : `Tough one last time? ${enemy.name}'s questions will be a little easier now.`;
+}
+
+/**
+ * Where losses to an enemy count (`battleStore.losses`): its kind AND the tier
+ * it roams at, so losing to a Mighty doodle-imp by Chromaria doesn't soften
+ * the gentle ones near home (and an eased fight still counts as the tough one).
+ */
+export function lossKey(enemy: Pick<BattleEnemy, 'id' | 'tier' | 'eased'>): string {
+  return `${enemy.id}@${enemy.eased ?? enemy.tier ?? BASE_TIER}`;
 }
 
 // --- Victory rewards ----------------------------------------------------------------------

@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { CHARGE_MAX } from '../../content/abilities';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { STREAK_START } from '../../lib/battleTurn';
+import { BASE_TIER, dangerMarks, type DangerTier } from '../../content/regions';
 import type { Avatar, BattleEnemy } from '../../types';
 
 const hpPct = (hp: number, max: number) => `${Math.max(0, (hp / max) * 100)}%`;
@@ -22,6 +23,9 @@ export function ChargePips({ charge }: { charge: number }) {
 const PANEL =
   'bg-indigo-950/90 border-2 border-white/70 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-white w-60 min-w-0';
 const TITLE_ROW = 'flex justify-between items-baseline gap-2 text-[13px] sm:text-sm font-bold';
+
+/** The "!" marks' colour, warmer the tougher — matching its label on the map (#75 item 12). */
+const DANGER_TEXT: Partial<Record<DangerTier, string>> = { 2: 'text-yellow-200', 3: 'text-orange-300', 4: 'text-red-300' };
 
 /**
  * FF-style status boxes: enemy (left) and hero with charge gauge (right).
@@ -66,6 +70,7 @@ export function BattleHud({
           </span>
           <span className="shrink-0 whitespace-nowrap text-white/70">
             Lv {enemy.level}
+            {enemy.eased !== undefined ? <EasedMark /> : <DangerMarks tier={enemy.tier ?? BASE_TIER} />}
             {speedBoost > 0 && (
               <span className="ml-1 text-yellow-300" title="Questions raised by quick answers">
                 ⚡+{speedBoost}
@@ -111,5 +116,33 @@ export function BattleHud({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Its "!" marks beside its level, as on the map (#75 item 12): it fights
+ * harder than the critters near home — its questions are still the player's
+ * own level. Nothing near home.
+ */
+function DangerMarks({ tier }: { tier: DangerTier }) {
+  const marks = dangerMarks(tier);
+  if (!marks) return null;
+  const says = 'Tough critter: it hits harder — and drops more coins';
+  return (
+    <span className={`ml-1 font-extrabold ${DANGER_TEXT[tier] ?? ''}`} title={says}>
+      <span aria-hidden="true">{marks}</span>
+      <span className="sr-only">{says}</span>
+    </span>
+  );
+}
+
+/** Where its marks were, once mercy has eased the fight (#75 item 12): it's going easier on you. */
+function EasedMark() {
+  const says = 'Going easier on you';
+  return (
+    <span className="ml-1" title={says}>
+      <span aria-hidden="true">💛</span>
+      <span className="sr-only">{says}</span>
+    </span>
   );
 }
