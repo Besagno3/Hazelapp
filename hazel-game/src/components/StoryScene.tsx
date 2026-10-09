@@ -22,6 +22,16 @@ const CHEERING = [
 /** Lanterns strung across the village, as (x %, y %) along a sagging line. */
 const LANTERNS = [8, 21, 34, 47, 60, 73, 86].map((x) => ({ x, y: 14 + 10 * (1 - ((x - 47) / 39) ** 2) }));
 
+/** Two sheep cheering too (left %, facing). */
+const SHEEP = [
+  { at: '33%', flip: false },
+  { at: '85%', flip: true },
+];
+
+/** The Spire's stairs (viewBox 0 0 100 100): seven steps down from its door to the ground. */
+const STAIRS =
+  'M12 100 V92 H22 V90 H32 V88 H42 V86 H52 V84 H62 V82 H72 V80 H86 V100 Z';
+
 const STARS = [
   [8, 10],
   [18, 26],
@@ -53,6 +63,21 @@ function Figure({
   );
 }
 
+/** A little pixel sheep (there's no sheep sprite in the game yet). */
+function Sheep({ flip }: { flip: boolean }) {
+  return (
+    <svg width="30" height="22" viewBox="0 0 15 11" shapeRendering="crispEdges" style={flip ? { transform: 'scaleX(-1)' } : undefined}>
+      <rect x="1" y="2" width="10" height="6" fill="#f4f1ea" />
+      <rect x="2" y="1" width="8" height="8" fill="#f4f1ea" />
+      <rect x="2" y="7" width="8" height="1" fill="#d9d3c6" />
+      <rect x="10" y="2" width="4" height="4" fill="#3b3340" />
+      <rect x="12" y="3" width="1" height="1" fill="#f4f1ea" />
+      <rect x="3" y="9" width="1" height="2" fill="#3b3340" />
+      <rect x="8" y="9" width="1" height="2" fill="#3b3340" />
+    </svg>
+  );
+}
+
 function Backdrop({ zone }: { zone: string }) {
   return (
     <img
@@ -74,9 +99,15 @@ function Backdrop({ zone }: { zone: string }) {
 export default function StoryScene({ id, cast }: { id: StorySceneId; cast: StoryCast }) {
   const still = useReducedMotion() ?? false;
 
-  // The village throws its cheer with a burst of confetti.
+  // The village throws its cheer with a burst of confetti, from about where
+  // the picture sits — and clears it away when the picture goes, so none
+  // drifts into the night at the inn.
   useEffect(() => {
-    if (id === 'village-cheer' && !still) confetti({ particleCount: 90, spread: 80, origin: { y: 0.45 } });
+    if (id !== 'village-cheer' || still) return;
+    confetti({ particleCount: 60, spread: 70, origin: { y: 0.3 }, disableForReducedMotion: true });
+    return () => {
+      confetti.reset();
+    };
   }, [id, still]);
 
   const hop = (delay: number) =>
@@ -85,7 +116,10 @@ export default function StoryScene({ id, cast }: { id: StorySceneId; cast: Story
   return (
     <div
       aria-hidden
-      className="relative mx-auto mb-5 aspect-[16/9] w-full max-w-md overflow-hidden rounded-xl border-4 border-white/15 bg-slate-900"
+      className="relative mx-auto mb-5 aspect-[16/9] w-full max-w-md overflow-hidden rounded-xl border-4 border-white/15 bg-slate-900 [@media(max-height:500px)]:mb-3"
+      // No taller than about a third of the screen, so on a phone held
+      // sideways the words and the button still fit below it.
+      style={{ width: 'min(100%, 28rem, calc(35dvh * 16 / 9))' }}
     >
       {id === 'spire-stairs' && (
         <>
@@ -97,11 +131,15 @@ export default function StoryScene({ id, cast }: { id: StorySceneId; cast: Story
             className="absolute bottom-[22%] right-[10%] h-[64%]"
             style={{ imageRendering: 'pixelated', filter: 'drop-shadow(0 0 10px rgba(190,170,255,0.85))' }}
           />
-          {/* Walking away from the Spire, toward home. */}
+          {/* The Spire's long stairs, stepping down from its door to the ground. */}
+          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path d={STAIRS} fill="#4b4560" stroke="#a99fd0" strokeWidth="0.5" />
+          </svg>
+          {/* Walking down them, away from the Spire, toward home. */}
           <motion.div
-            className="absolute bottom-[8%] flex items-end gap-1"
-            initial={{ left: still ? '38%' : '58%' }}
-            animate={{ left: '24%' }}
+            className="absolute flex items-end gap-1"
+            initial={still ? { left: '36%', bottom: '14%' } : { left: '58%', bottom: '18%' }}
+            animate={still ? { left: '36%', bottom: '14%' } : { left: '14%', bottom: '9%' }}
             transition={{ duration: still ? 0 : 6, ease: 'linear' }}
           >
             <Figure spriteId={cast.hero.spriteId} emoji={cast.hero.emoji} anim={still ? 'idle' : 'walk'} flip />
@@ -127,6 +165,12 @@ export default function StoryScene({ id, cast }: { id: StorySceneId; cast: Story
               animate={still ? undefined : { rotate: [-6, 6, -6] }}
               transition={still ? undefined : { duration: 2.4, repeat: Infinity, delay: i * 0.2 }}
             />
+          ))}
+          {/* "…so loudly that the sheep join in!" */}
+          {SHEEP.map((sh, i) => (
+            <motion.div key={sh.at} className="absolute bottom-[9%]" style={{ left: sh.at }} {...hop(0.1 + i * 0.25)}>
+              <Sheep flip={sh.flip} />
+            </motion.div>
           ))}
           {CHEERING.map((v, i) => (
             <motion.div key={v.id} className="absolute bottom-[10%]" style={{ left: v.at }} {...hop(i * 0.18)}>
@@ -156,7 +200,8 @@ export default function StoryScene({ id, cast }: { id: StorySceneId; cast: Story
           ))}
           {/* The Sleepy Sheep Inn, one window still glowing. */}
           <div className="absolute bottom-[12%] left-1/2 h-[50%] w-[40%] -translate-x-1/2">
-            <div className="absolute inset-x-0 top-0 h-[44%] bg-rose-900" style={{ clipPath: 'polygon(50% 0, 100% 100%, 0 100%)' }} />
+            {/* Its blue roof, as on the village map, in the moonlight. */}
+            <div className="absolute inset-x-0 top-0 h-[44%] bg-[#2c4f86]" style={{ clipPath: 'polygon(50% 0, 100% 100%, 0 100%)' }} />
             <div className="absolute inset-x-[7%] bottom-0 h-[58%] bg-[#5e5170]" />
             <div className="absolute bottom-[22%] left-[17%] h-[24%] w-[20%] bg-[#2a2440]" />
             <div className="absolute bottom-[22%] right-[17%] h-[24%] w-[20%] bg-amber-300 shadow-[0_0_18px_6px_rgba(252,211,77,0.55)]">

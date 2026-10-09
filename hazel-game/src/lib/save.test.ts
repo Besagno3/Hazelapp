@@ -19,6 +19,7 @@ import {
 import { LIBRARY_MAX } from '../content/items';
 import { HUB_ZONE, TILE, ZONES, buildingInside, chestTopicAt, innWakeCell, tileAt } from '../content/zones';
 import type { LibraryEntry, Question } from '../types';
+import { ACT2_SEEN, SPIRE_VICTORY_SEEN } from '../content/story';
 
 function q(id: string): Question {
   return { id, topic: 'math', level: 3, text: '?', options: ['a', 'b', 'c', 'd'], correctIndex: 0 };
@@ -322,6 +323,23 @@ describe('home to bed after the Spire (#75 item 14)', () => {
     // …which is also where a later defeat wakes them, and it survives a reload.
     const saved = normalizeSave({ ...defaultSave(), ...rest });
     expect([saved.zoneId, saved.pos, saved.lastRest]).toEqual([HUB_ZONE, rest.pos, HUB_ZONE]);
+  });
+
+  it('a save between the finale and Act II loads asleep at the inn, so Act II\'s "You wake… at the Sleepy Sheep Inn" is true', () => {
+    // Beat the Spire before the walk home existed, then wandered off to the Coast.
+    const elsewhere = { ...defaultSave(), zoneId: 'starfall-coast', pos: { x: 80, y: 80 }, hp: 3, lastRest: null };
+    const finaleSeen = normalizeSave({ ...elsewhere, flags: { [SPIRE_VICTORY_SEEN]: true } });
+    expect([finaleSeen.zoneId, finaleSeen.pos, finaleSeen.hp, finaleSeen.lastRest]).toEqual([
+      HUB_ZONE,
+      restAtHomeInn().pos,
+      null,
+      HUB_ZONE,
+    ]);
+    // Before the finale, or once Act II has opened, the hero stays put.
+    for (const flags of [{}, { [SPIRE_VICTORY_SEEN]: true, [ACT2_SEEN]: true }]) {
+      const s = normalizeSave({ ...elsewhere, flags });
+      expect([s.zoneId, s.pos]).toEqual(['starfall-coast', { x: 80, y: 80 }]);
+    }
   });
 });
 

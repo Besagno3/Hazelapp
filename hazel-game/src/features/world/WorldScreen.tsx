@@ -162,7 +162,10 @@ export default function WorldScreen() {
   // Story moments (#37 story pass + expansion + #55 Spire finale). Exactly one
   // plays at a time; priority: Spire victory (true finale) → intro → hatch →
   // crystal-restored → Spire awakens → ending (the call to climb the Spire).
-  const spireVictoryDue = flags[SPIRE_CLEARED] === true && !flags[SPIRE_VICTORY_SEEN];
+  // The Spire's own "The Spire is yours!" panel comes first: the finale waits
+  // for its "🌟 See how it ends" to close the climb, so the walk home leaves
+  // from the Spire's door rather than the throne room.
+  const spireVictoryDue = flags[SPIRE_CLEARED] === true && !flags[SPIRE_VICTORY_SEEN] && overlay !== 'spire';
   const introDue = !flags[INTRO_SEEN];
   const hatchDue = flags[EMBER_HATCHED] === true && !flags[EMBER_HATCH_SEEN];
   const crystalSceneTopic =
@@ -252,8 +255,9 @@ export default function WorldScreen() {
 
   useEffect(() => {
     if (activeScene === 'ending' || activeScene === 'spireVictory')
-      confetti({ particleCount: 320, spread: 130, origin: { y: 0.4 } });
-    else if (activeScene === 'crystal') confetti({ particleCount: 160, spread: 100, origin: { y: 0.4 } });
+      confetti({ particleCount: 320, spread: 130, origin: { y: 0.4 }, disableForReducedMotion: true });
+    else if (activeScene === 'crystal')
+      confetti({ particleCount: 160, spread: 100, origin: { y: 0.4 }, disableForReducedMotion: true });
   }, [activeScene]);
 
   if (!save || !avatar) {
@@ -568,6 +572,8 @@ export default function WorldScreen() {
           onDone={() => {
             setWaking(true);
             update((s) => ({ ...s, ...restAtHomeInn(), flags: { ...s.flags, [SPIRE_VICTORY_SEEN]: true } }));
+            // Saved at once, so a reload mid-morning can't bring back the finale.
+            void flush();
           }}
         />
       )}

@@ -245,15 +245,19 @@ export const DAWNREACH_PANELS: StoryPanel[] = [
 export const ACT2_PANELS: StoryPanel[] = [
   {
     emoji: '🌅',
-    text: 'You wake to sunshine at the Sleepy Sheep Inn. The fog over the land is gone — and all of Lumina is remembering things it had forgotten. Poppy remembers a recipe for cloud-buns!',
+    text: 'You wake to sunshine at the Sleepy Sheep Inn. The fog over the land is gone, and Lumina is remembering things it forgot. Poppy remembers how to bake cloud-buns!',
   },
   {
     emoji: '🌊',
-    text: 'Off Dawnreach\'s east coast the fog has rolled back from the sea. Out on the water lie islands nobody remembers: the Silver Shallows. "We didn\'t lose those places," says Grandmother Wick. "We forgot them — and that\'s fixable."',
+    text: "Off Dawnreach's east coast, the fog has rolled back from the sea, too. Out on the water lie islands nobody remembers: the Silver Shallows.",
+  },
+  {
+    emoji: '🕯️',
+    text: 'Grandmother Wick squeezes your hand. "We didn\'t lose those places, little spark. We forgot them — and that\'s fixable."',
   },
   {
     emoji: '🎣',
-    text: "Down on Starfall Coast, Old Marlow is waving his hat. He remembers he used to sail! If only his old boat weren't in pieces…",
+    text: "Down on Starfall Coast, just east of the village, Old Marlow is waving his hat. He remembers he used to sail! If only his old boat weren't in pieces…",
   },
 ];
 
@@ -469,8 +473,8 @@ export function spireVictoryPanels(heroName: string): StoryPanel[] {
     {
       emoji: '🌟',
       text:
-        `Keeper Aurora bows. "Lumina is bright again because ${heroName} kept asking 'why?' — all the ` +
-        'way to the top, even when the questions got terribly hard. That is what heroes are made of."',
+        `Keeper Aurora bows. "Lumina is bright again because you kept asking why, ${heroName} — even ` +
+        'when the questions got hard. That\'s what heroes are made of."',
     },
   ];
 }

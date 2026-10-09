@@ -231,14 +231,20 @@ zod, react-query. Add the package in the same change that first uses it.
   lighthouse (`ZoneDef.lighthouse`: the 2×2 rock it stands on): the canvas
   draws the tower two tiles taller than the rock, over characters but under
   roofs, its lamp pulsing and two beams sweeping round.
-  **After the Spire** (#75 item 14): beating Umbra plays the finale
-  (`spireVictoryPanels`) straight into `HOMECOMING_PANELS` — picture panels
-  (`StoryPanel.scene`, drawn by `components/StoryScene` from the game's own
-  backdrops and sprites) that fade in and out through black — then
-  `WorldScreen` puts the hero to bed at the Sleepy Sheep Inn (`restAtHomeInn`,
-  `lib/save.ts`) under the dark, `WakeFade` brings the morning in (the world
-  stays paused; a hero who arrives indoors finds that roof already off), and
-  `ACT2_PANELS` follow (`act2Due` waits for `waking` to end).
+  **After the Spire** (#75 item 14): once the Spire's own "🌟 See how it
+  ends" closes the climb (`spireVictoryDue` waits for `overlay !== 'spire'`),
+  the finale (`spireVictoryPanels`) runs straight into `HOMECOMING_PANELS` —
+  picture panels (`StoryPanel.scene`, drawn by `components/StoryScene` from
+  the game's own backdrops and sprites) that fade in and out through black —
+  then `WorldScreen` puts the hero to bed at the Sleepy Sheep Inn
+  (`restAtHomeInn`, `lib/save.ts`; saved at once) under the dark, `WakeFade`
+  says "The next morning…" and brings the morning in, holding it
+  `MORNING_MS` (the world stays paused; a hero who arrives indoors finds that
+  roof already off), and `ACT2_PANELS` follow (`act2Due` waits for `waking`
+  to end). A save between the finale and Act II always loads asleep at that
+  inn (`normalizeSave`). `StoryPanels` ignores a tap until the panel on
+  screen has faded in, and it and `WakeFade` make the rest of the page
+  `inert` while they're up (`hooks/useInertOutside`).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -421,6 +427,48 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-09 — The walk home, reviewed: from the Spire's door, no skipped panels, fits a sideways phone (#75 item 14, #107m)
+A fresh-context `/saas-code-review` + `/saas-ux-review` of the ending (the
+code reviewer reproduced its main finding against the real `WorldScreen`; the
+UX reviewer played it at six screen sizes, by keyboard, touch and reduced
+motion). Every finding fixed:
+- **Woke in the throne room (code, high):** `SpireOverlay.win` sets
+  `spire-cleared` while its "The Spire is yours!" panel is still up, so the
+  finale played on top of it — after "Good night" the canvas still drew the
+  throne floor, Act II played there with the Spire's music, and "🌟 See how
+  it ends" was offered after the ending. The finale now waits for that button
+  to close the climb, which is what it promises.
+- **Old saves (code):** Act II isn't on `main`, so everyone who beat the
+  Spire there would get "You wake … at the Sleepy Sheep Inn" wherever they
+  stood. `normalizeSave` puts a save with `spire-victory-seen` but not
+  `act2-seen` to bed at the inn; "Good night" saves at once (`flush`).
+- **Sideways phones (UX, critical):** the pictures pushed the only button off
+  screen with no scroll. The dialog scrolls, a picture is at most ~35% of the
+  screen tall, and short screens tighten the spacing — the button fits at
+  667×375, 844×390 and 568×320.
+- **Double taps (UX, high):** a second tap within the 1.4 s cross-fade
+  skipped a panel (even the inn's) or left a stale picture. A tap counts only
+  once the panel on screen has faded in (`PICTURE_FADE_MS` / `WORDS_FADE_MS`);
+  the label and dots follow the panel on screen.
+- **Behind the story (UX):** new `hooks/useInertOutside` makes the rest of
+  the page `inert` while a story or the wake is up (no tapping 📜 Menu through
+  the fade, no Tab to a hidden Menu), and Tab keeps to the story's button.
+- **Screen readers (UX):** each new panel's words are announced (a polite
+  live region; the button is described by them), panel emoji are hidden, and
+  the dark says "The next morning…" (shown too).
+- **The morning (asked):** it now holds 1.8 s (`MORNING_MS`) before Act II
+  (was ~0.6 s); `WAKE_MS` 4 s, under reduced motion 3 s.
+- **Copy:** Act II is 4 short panels again (Grandmother Wick "squeezes your
+  hand" before she speaks), none over 30 words; Aurora's line has no
+  quote-in-a-quote; Marlow is "just east of the village".
+- **Pictures:** stairs down from the Spire, two sheep cheering, the inn's
+  blue roof; the village's confetti is smaller, lower and cleared when its
+  picture goes; the finale's big burst respects reduced motion.
+- Tests: +5 (WorldScreen.ending.test plays it from the Spire's panel — fails
+  on the old code; save.test: old saves to bed; StoryPanels.test: the tap
+  lock, inert + Tab, the confetti, the caption); 699 green, lint + tsc +
+  build clean. Replayed in headless Chromium (TC-674).
 
 ### 2026-10-09 — After Umbra: the walk home, a night at the inn, Act II in the morning (#75 item 14, #107m)
 Beating Umbra played ten storybook panels in a row (the finale's 5, then

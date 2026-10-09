@@ -3,6 +3,7 @@ import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
 import { BOAT_SPAWN_REACH, HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, safeSpawn } from '../content/zones';
 import { BOAT_REMOOR_REACH, hasBoat, seaBeside, validMooring } from '../content/boat';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
+import { ACT2_SEEN, SPIRE_VICTORY_SEEN } from '../content/story';
 
 export const SAVE_VERSION = 2 as const;
 
@@ -211,7 +212,7 @@ export function normalizeSave(raw: unknown): SaveData {
   const moved = afloat && (afloat.x !== cell?.x || afloat.y !== cell?.y);
   const pos = moved ? { x: afloat.x * TILE + TILE / 2, y: afloat.y * TILE + TILE / 2 } : savedPos;
 
-  return {
+  const save: SaveData = {
     version: SAVE_VERSION,
     avatarId: typeof r.avatarId === 'string' ? r.avatarId : null,
     zoneId,
@@ -247,6 +248,11 @@ export function normalizeSave(raw: unknown): SaveData {
         : null,
     aboard: afloat !== null,
   };
+  // Between the Spire's finale and Act II the hero is asleep at the Sleepy
+  // Sheep Inn (#75 item 14) — Act II opens "You wake to sunshine at the Sleepy
+  // Sheep Inn". A save that beat the Spire before the walk home existed (or
+  // was reloaded mid-morning) is put to bed there too, so that's true.
+  return save.flags[SPIRE_VICTORY_SEEN] && !save.flags[ACT2_SEEN] ? { ...save, ...restAtHomeInn() } : save;
 }
 
 /** The inn a defeated hero wakes at — "the Square Root Inn in Numbria" — or null for home. */
