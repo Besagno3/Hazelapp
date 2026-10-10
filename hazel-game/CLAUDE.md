@@ -501,6 +501,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The Forget-Me-Knot: a second try on a wrong answer (#75 item 14e)
+Fourth slice of 14e — Trader Knack's new item (roadmap decision 12, as
+chosen: "badges + one new item"). **🎗️ Forget-Me-Knot** (`knot`, 35 coins at
+Knack's Pre-Remembered Goods): from the battle Items menu it spends the turn
+and ties on (`CombatState.knotted` / `battleStore`, "Already tied" while it
+is); the next wrong pick on any battle question is crossed out instead of
+answered and the hero picks again, once (`QuestionCard` `secondChance` /
+`onSecondChance`, with a status line). Only the final pick counts; a second
+try breaks the speed trigger's quick run, like a Hint Feather; a Hint Feather
+after the cross-out still leaves a wrong option. Old saves gain a zero slot
+(`CONSUMABLE_IDS`). Tests: +9 (QuestionCard.test, new: 4; BattleArena.test: 2;
+battleTurn.test: 1; items/save fixtures). 818 green.
+
 ### 2026-10-10 — The 🚩 leads to Remembrance Hill after the Shallows (#75 item 14e)
 Third slice of 14e. Once the Silver Shallows are visited, the 🚩 reads
 **"Visit Remembrance Hill"** (`Objective.kind: 'visit'`; "Where the old fog sat

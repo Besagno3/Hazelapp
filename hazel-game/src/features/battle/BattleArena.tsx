@@ -112,6 +112,7 @@ const ITEM_SOUND: Record<ConsumableId, SfxName> = {
   ward: 'guard',
   mirror: 'guard',
   clover: 'streak',
+  knot: 'spell',
   hint: 'select',
 };
 
@@ -154,6 +155,7 @@ export default function BattleArena() {
     mirrored,
     focused,
     lucky,
+    knotted,
     applyCombat,
     markDefeated,
     recordLoss,
@@ -171,6 +173,7 @@ export default function BattleArena() {
       mirrored: s.mirrored,
       focused: s.focused,
       lucky: s.lucky,
+      knotted: s.knotted,
       applyCombat: s.applyCombat,
       markDefeated: s.markDefeated,
       recordLoss: s.recordLoss,
@@ -484,6 +487,7 @@ export default function BattleArena() {
       mirror: ['🪞', 'text-sky-300'],
       tea: ['🍵 Focus!', 'text-lime-300'],
       clover: ['🍀 Lucky!', 'text-emerald-300'],
+      knot: ['🎗️', 'text-violet-300'],
     };
     const bf = buffFloat[id];
     if (bf) float(bf[0], 'hero', bf[1]);
@@ -910,6 +914,7 @@ export default function BattleArena() {
     mirrored,
     focused,
     lucky,
+    knotted,
   };
   const perkLabel = { charge: `+${EMBER_BONUS_CHARGE}◆`, peek: '👀 peek', mend: `+${WISP_MEND} HP` }[companion.perk];
   // Identifies the current question card (remounts QuestionCard + DefendTimer).
@@ -1093,6 +1098,13 @@ export default function BattleArena() {
               question={turn.question}
               hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
               preHidden={turn.hide ?? 0}
+              // Forget-Me-Knot (#75 item 14e): a wrong pick is crossed out and the hero picks again.
+              secondChance={knotted}
+              onSecondChance={() => {
+                // A second try isn't evidence the questions are too easy (the speed trigger).
+                helped.current = true;
+                applyCombat({ ...combatState(), knotted: false });
+              }}
               onUseHint={() => {
                 helped.current = true;
                 useSaveStore.getState().spendHint();

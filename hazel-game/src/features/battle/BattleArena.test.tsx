@@ -96,6 +96,34 @@ describe('BattleArena (smoke)', () => {
   });
 });
 
+describe('the Forget-Me-Knot (#75 item 14e)', () => {
+  it('from the Items menu it spends a turn and ties on; the next wrong answer gets a second try, once', () => {
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1', items: { ...defaultSave().items, knot: 1 } } });
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Items'));
+    fireEvent.click(screen.getByText('Forget-Me-Knot'));
+    expect(useBattleStore.getState().knotted).toBe(true);
+    expect(useSaveStore.getState().save!.items.knot).toBe(0);
+    // The enemy's turn: a defend question — pick wrong, get a second try, pick right.
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    expect(screen.getByText(/second try/)).toBeInTheDocument();
+    expect(useBattleStore.getState().knotted).toBe(false);
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    // Defended (a right answer only grazes; a wrong one would hit for ~25).
+    expect(useBattleStore.getState().playerHp).toBeGreaterThanOrEqual(55);
+  });
+
+  it('can\'t be tied twice', () => {
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1', items: { ...defaultSave().items, knot: 2 } } });
+    useBattleStore.getState().applyCombat({ ...useBattleStore.getState(), enemyMaxHp: 200, knotted: true } as never);
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Items'));
+    expect(screen.getByText(/Already tied/)).toBeInTheDocument();
+  });
+});
+
 describe('opening lines (#75 item 12)', () => {
   const tough = { ...enemy, instanceId: 'e2', tier: 3 } as BattleEnemy;
 
