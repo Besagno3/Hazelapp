@@ -67,8 +67,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-54 | C | ⬜ | TopicSelect | unlock copy reflects PASS_THRESHOLD / ROUNDS_TO_UNLOCK |
 | TC-55 | C | ✅ | StatusScreens | `LoadingScreen` renders the given label |
 | TC-56 | C | ✅ | StatusScreens | `ErrorScreen` shows message; omits actions when no handler |
-| TC-57 | U | ✅ | level | `playerLevel` is 1 at 0 XP and advances every 100 XP |
-| TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction for the level |
+| TC-57 | U | ✅ | level | RETIRED (#118) — the level is saved now; see TC-834–836 |
+| TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction for the saved level (level 2 needs 125) |
 | TC-59 | U | ✅ | level | `npcDefeatXp` rewards more for higher-level NPCs |
 | TC-60 | U | ✅ | enemies | RETIRED with lib/npc (#37) — authored placements now, see TC-119/120 |
 | TC-61 | U | ✅ | enemies | RETIRED with lib/npc (#37) — see TC-119/120 |
@@ -83,7 +83,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-70 | E | ⬜ | generate-questions | caches freshly generated questions for later reuse |
 | TC-71 | E | ⬜ | generate-questions | bumps `times_asked` on every question returned |
 | TC-72 | C | ✅ | LevelBadge | renders nothing when no profile is loaded |
-| TC-73 | C | ✅ | LevelBadge | shows the level + XP progress derived from profile XP |
+| TC-73 | C | ✅ | LevelBadge | shows the saved level + XP into it; a profile with no saved level shows its old flat-100 level (250 XP → Level 3, 50/150 XP) |
 | TC-74 | U | ✅ | powerups | bonuses are zero with none, and scale with stack count |
 | TC-75 | U | ✅ | powerups | `totalPowerUps` sums every stack |
 | TC-76 | C | ⬜ | LevelUpModal | appears when a power-up is owed (level > chosen + 1) |
@@ -230,7 +230,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-207 | U | ✅ | zones | every gate is a double-wide opening — 2 orthogonally-adjacent `G` tiles share one canonical id via `gateIdAt` (zones.test) |
 | TC-208 | U | ✅ | zones | each `keyGate` cell sits on a `G` and resolves to a real gate group id (zones.test) |
 | TC-209 | M | ⬜ | World | an open gate (question or key) is 2 tiles wide and the hero can walk through either tile |
-| TC-210 | U | ✅ | settings | music is on by default and sound effects off (changed from all-off, #117); `normalizeSettings` keeps a saved boolean, falls back to the default for anything else, clamps volumes 0..1 (settings.test) |
+| TC-210 | U | ✅ | settings | music is on by default and sound effects off (changed from all-off, #120); `normalizeSettings` keeps a saved boolean, falls back to the default for anything else, clamps volumes 0..1 (settings.test) |
 | TC-211 | U | ✅ | audio | `trackForScreen` maps screens→music; boss theme only for boss battles (audio.test) |
 | TC-212 | M | ⬜ | audio | with files in `public/audio/`: Music/Sound toggles persist across reload; SFX fire on wrong-answer/hit/levelup/victory; music follows the screen (overworld ⇄ battle ⇄ boss) |
 | TC-213 | M | ⬜ | audio | Spire music plays while climbing; switches to the Final Battle track only once the Umbra (boss-floor) fight is underway, then back to overworld on exit |
@@ -660,11 +660,11 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-447 | U | ✅ | quizSessionStore | `markCompleted` adds a topic; is idempotent (never listed twice); accumulates distinct topics in order (quizSessionStore.test) |
-| TC-448 | U | ✅ | quizSessionStore | `reset` clears the completed set so it cannot leak into the next session (quizSessionStore.test) |
+| TC-447 | U | ✅ | quizSessionStore | RETIRED (#119) — the store is gone; see TC-839 |
+| TC-448 | U | ✅ | quizSessionStore | RETIRED (#119) — the store is gone |
 | TC-449 | M | ⬜ | TopicSelect | the Training Grounds shows all 7 topics (4 crystal + nature/space/history), not just the crystal four |
-| TC-450 | M | ⬜ | TopicSelect | passing a topic round (80%+) greys it out with a ✓ + "Completed" and makes it unclickable for the rest of the session; failing leaves it selectable |
-| TC-451 | M | ⬜ | TopicSelect | sign out and back in (or reload) → every topic is selectable again (the completed set is ephemeral, cleared on sign-out via `useAuthInit`) |
+| TC-450 | M | ⬜ | TopicSelect | passing a topic round (80%+) leaves it selectable — pick it again and a new round starts (#119; it used to grey out) |
+| TC-451 | M | ✅ | TopicSelect | RETIRED (#119) — topics never lock, so there is nothing to clear |
 
 ## Fog banks: each crystal lifts its own fog, on screen (#75 item 7)
 
@@ -929,7 +929,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-781 | M | ✅ | encounters | by an awake critter (or a boss) a sleeper's letter hides rather than fading to 25%, eased so a passer-by doesn't make it flicker — Starfall from 14,5 and 10,6, the Grove from 19,8, the Depths' arrival (bench page, reduced motion, 4 frames 2 s apart, 2026-10-10) |
 | TC-782 | U | ✅ | encounters | the 💤 hint shows only heading towards a sleeper, and counts as said once it's been up 2.5 s — cut short by a battle (the world screen goes) it's said again next time (WorldScreen.sleeper.test) |
 | TC-783 | U | ✅ | encounters | from where you arrive in the Clockwork Depths and on Starfall Coast, a walk to the save crystal clear of every awake critter's reach (critters within reach of the arrival are asleep) — the Imp's move to 5,1 had taken the Depths' one away (seaCritters.test) |
-| TC-784 | U | ✅ | encounters | the hero sweep moves the hero on an 8 px grid within reach of every sleeper (a Flee or a reload leaves them between cells): never a boss or within 8 px of one, a neighbour, a roof, the edge or the hero where a clearer way was there, and Ember never on the sleeper; covering the hero outweighs any amount of the lesser costs (`zzPath` weighs boss, anyone, hero in turn — sleepMark.test) |
+| TC-784 | U | ✅ | encounters | the hero sweep moves the hero on an 8 px grid within reach of every sleeper (a Flee or a reload leaves them between cells): never a boss or within 8 px of one, a neighbour, a roof, the edge or the hero where a clearer way was there, and Ember never on the sleeper; covering the hero outweighs any amount of the lesser costs (`zzPath` weighs boss, anyone, hero in turn — sleepMark.test; a 20 s budget since 14f's critters, #117s) |
 | TC-785 | U/M | ✅ | encounters | a sleeper's hidden level is in nobody's way — letters may cross it, Ember may stand on it, it dims nothing — and only an awake critter's face weighs `FOE_FACE`; Starfall from 11,7 and 13,7 (a tile below the sleeping Mite / Sprite, water below): Ember starts off the sleeper (bench page, reduced motion, 2026-10-10) |
 | TC-768 | U/M | ✅ | encounters | a cooldown spares the critters touching the hero as it's armed, worked out afresh each time, never a boss (`graceOf`, encounter.test); Calm wearing off inside another cooldown: 0 of 14 trials fought in that frame (before: 2 of 14) (2026-10-10) |
 | TC-769 | M | ✅ | encounters | standing still at Starfall Coast's save crystal (inside the Orbit Otter's patch) for 4.5 s after "💎 Game saved!": 0 of 30 trials fought (before: 4 of 52) — the crystal guards a still hero for 3 s (its bump cooldown is 2 s), and a critter that comes onto them then is spared while they stand or step away (2026-10-10) |
@@ -975,22 +975,46 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-813 | U | ✅ | music | key presses as the current track loops queue nothing in Howler, and a new volume from the menu still applies (audio.music.test; fails on the code before the review) |
 | TC-814 | U | ✅ | music | picked again just as it loops mid-fade-out (the sound at 0, the Howl still saying 0.6), a track is heard at full volume on the next key press — the volume compared is the sound's (audio.music.test; fails on a Howl-volume comparison) |
 | TC-815 | M | ✅ | music | real Howler in headless Chromium, after the review fixes: the fuzz clean in 8 seeds (6 with 1–2 s loops and a throttled network); a Howl-volume comparison left the current track silent in 5 rounds over 6 seeds; re-picking a track at once, the loop-point battle and Music off all hold |
+| TC-816 | U | ✅ | Eldergrove | a history field on its own island in the Shallows' south-west (off its icon, only the island's cells and its beach), as tough as the Shallows (tier 5); sailing in from Dawnreach's edge, a boat lands on its beach and the hero walks to the icon; three critters (Ring Beetle −1, Sap Sprite 0, Hollow Acorn +1 shielded); the Ring Hollow's chest is behind the gate and every chest is in reach with gates open; Fen, Old Ringwood and Dawdle live there — Ringwood and Fen stand still, Dawdle is the slowest wanderer in the game; the place, exit and building tests cover it (zones.test) |
+| TC-817 | U | ✅ | world map | inside a place the menu map is the overworld it opens onto: Eldergrove → the Silver Shallows (its ⭐ on the elder icon), the Depths' B3 and Remembrance Hill → Dawnreach; every zone can be placed on its own map (worldMap.test) |
+| TC-818 | U | ✅ | art | Eldergrove has its tileset, blend sheet and backdrop, the `bark` style its town sheet, the overworld sheet frame 17 (the elder icon; frames 0–16 byte-identical); its critters and people have world (and critters battle) sprites (tiles.test, sprites.test) |
+| TC-819 | M | ⬜ | Eldergrove | in the app, in Act II with the boat: sail to the island in the Shallows' south-west, land on its north beach, walk up the path onto the ring-tree icon; inside, find Fen by her hollow, Old Ringwood north of the Great Ring and Dawdle ambling (very slowly) by the pond; open 📜 Menu — the map is the Shallows with the ⭐ on Eldergrove |
+| TC-820 | U | ✅ | Memoria Key | the Ringkeeper (a history warden, +1) stands in the Great Ring south of Old Ringwood and holds the Memoria Key (flag `key-memoria`); its gate isn't on any map yet (`unlocksZone` null, no keyGate asks for it); its monologue is the key's; it's gone once the key is held; Old Ringwood warns of it until then and congratulates after; Act I's three keys still open their Fiends' gates (keys.test, zones.test) |
+| TC-821 | U/C | ✅ | Memoria Key | winning it says "You won the Memoria Key! It opens a door the whole world forgot." (no Fiend named), while the Verdant Key still says it unlocks the Smog Fiend's gate; its two panels (each ≤ 30 words, no Archive or Fiend named) play once in the world after the key, "🗝️ Keep it safe" sets `memoria-seen`, and nothing plays before the key (BattleHud.test, story.test, WorldScreen.ending.test) |
+| TC-822 | M | ⬜ | Memoria Key | in the app: talk to Old Ringwood, walk into the Great Ring and fight the Ringkeeper (its two-box monologue, the purple "!!!" line on a first tier-5 fight, its Thousand-Year Charge); win — the victory panel names the key and the door; back in the grove the two panels play, the Ringkeeper is gone, Ringwood congratulates you and 📜 Menu shows 🗝️ among the badges |
+| TC-823 | U | ✅ | Fen's acorns | three acorns in three key-item chests across Eldergrove, all in reach without the gate; offer → her hint names the Speckled Acorn's hollow log, then (each find jogging her memory) the Striped one across the bridge, then the Golden one in the south-west ring, with "Still to find: …"; found out of order, she names the first still missing; with all three she takes them and pays 35 coins and a Hint Feather; an acorn found before meeting her says Fen wants it (quests.test) |
+| TC-824 | M | ⬜ | Fen's acorns | in the app: talk to Fen, follow her hints to the three chests (answering each chest's riddle), check the 📜 Menu's quest log names the next acorn as you go, then bring them back for the reward |
+| TC-825 | U/C | ✅ | wayfinding | after "Visit Remembrance Hill" the 🚩 reads "Win the Memoria Key" (`kind: 'key'`, no crystal, Eldergrove; no Archive or Fiend named), routed "Sail east to the Silver Shallows, then go south-east to Eldergrove." from the Hill, "Go south-west to Eldergrove." on the Shallows, "It's right here in Eldergrove!" inside; `roadTier` is null; Elder Lumen's plan names the Ringkeeper and his tip the Forget-Me-Knot; with the key, "Explore"; the walk from a new save has one more step and still ends, every goal walkable on its own map (by boat for Eldergrove); on the Shallows' menu map the 🚩 sits on Eldergrove ("flagged at Eldergrove."), and inside Eldergrove the map is the Shallows (wayfinding.test, WorldMapPanel.test) |
+| TC-826 | M | ⬜ | wayfinding | in the app, after visiting Remembrance Hill: 📜 Menu reads "🚩 Next: Win the Memoria Key"; sail out — the Shallows' map flags Eldergrove; Elder Lumen in the Library names Eldergrove and the Ringkeeper; after the key, "Explore" |
+| TC-827 | U/C | ✅ | Eldergrove (review) | beaten in Eldergrove, the hero wakes on the floor inside Fen's Hollow (door below, the way out open), healed, `lastRest` kept — elsewhere the inn as before; the defeat screen says "Fen the Forager finds you and tucks you up in Fen's Hollow." with "To Fen's Hollow"; only Eldergrove has a shelter, and it isn't an inn (save.test, zones.test, BattleHud.test) |
+| TC-828 | U/C | ✅ | wayfinding (review) | off the Shallows the Memoria goal starts at Marlow's dock: "Go north-east to Marlow's dock and sail east to the Silver Shallows, then go south-east to Eldergrove."; on the dock "Climb into Marlow's boat… then go south-east to Eldergrove."; Dawnreach's menu map flags the dock ("flagged at Marlow's dock."), the Shallows' map Eldergrove; a goal with no 🚩 ends with a full stop before the boat line; with the key the 🚩, Elder Lumen, Old Ringwood and the panel say the door "will turn up later in your adventure" (wayfinding.test, WorldMapPanel.test, keys.test, story.test) |
+| TC-829 | U | ✅ | Fen's acorns (review) | her hints name a 🎁 and what's drawn, say "Ooh, now I remember!" only past the first acorn, end "Three to go!" / "Two to go!" / "It's the last one!", are ≤ 30 words; a found acorn says "Fen might remember where the next one is now — ask her!", the last "That's all three! Take them back to Fen.", nothing once she has them (quests.test) |
+| TC-830 | U/C | ✅ | battle (review) | a boss reads aloud "Very tough boss" and its 💪 line says "A very tough boss"; a first win reads "First time beating the Ringkeeper / an Oak Owl / a Count Bat"; the level and streak sit in a row before the enemy's status box, not floating (BattleHud.test, regions.test, BattleArena.test) |
+| TC-831 | U | ✅ | danger colours (review) | tiers 5–7 are violet-400, fuchsia-300 and #ff66b8; each is readable (≥ 4.5:1) on the map's plate and the battle panel, tier 5 is a real purple (L* < 75), and every pair of tiers 4–7 is 15+ ΔE apart in normal vision and simulated deuteranopia, protanopia and tritanopia (regions.test) |
+| TC-832 | B | ✅ | battle top bar (review) | `bench … battle`: on the real app (Supabase stubbed) the hero walks into the Ringkeeper (Eldergrove's tier-5 warden) at 320×568, 360×640, 375×667, 390×844 and 1024×768 — the top bar (40 px on a phone) sits above the status boxes (none at 320 wide), the enemy's "!!!" is on top, nothing scrolls sideways, and the monologue, the 💪 line and every command fit on the screen (but a boss's disabled 🏃 Flee at 320×568, pre-existing, #117q): 5/5, twice |
+| TC-833 | M | ⬜ | Eldergrove (review) | on a real phone: lose to the Ringkeeper and wake in Fen's Hollow with the boat at the beach; watch Dawdle amble (his legs keep pace); check the purple / magenta / pink "!!!" in sunlight; Old Ringwood stands taller than the trees with his name plate under his roots, not over his trunk (seen on the bench) |
+| TC-834 | U | ✅ | level | `xpForLevel`: 100 at level 1, +25 each level after (125, 150, … 325 at level 10), always rising (level.test) |
+| TC-835 | U | ✅ | level | `gainXp` fills the level, rolls the extra over on a level-up, clears several levels at once, never lowers a saved level; a profile without a saved level keeps its old flat-100 level (`levelState`: 1000 XP → level 11) (level.test) |
+| TC-836 | U | ✅ | profile | `mergeProfiles` keeps the further saved level (higher level, then more XP into it); a pre-save local cache's old level beats a fresh remote row at level 1 (profile.test) |
+| TC-837 | M | ✅ | migrations | 0012 on a row with 1037 XP backfills level 11, 37 into it; applied twice changes nothing; a new sign-up starts at level 1 / 0 (`supabase/ci/level.test.sql`; local Postgres 16, 2026-10-10) |
+| TC-838 | M | ⬜ | profile | after 0012 in production, an existing player sees the same level as before; earning XP moves the bar toward the new, larger need; a refresh keeps both |
+| TC-839 | C | ✅ | TopicSelect | every topic is an enabled button with no "Completed" tag, and the same topic can be picked again and again — each pick sends `PICK_TOPIC` (TopicSelect.test, #119) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
-## The sign-in screen's intro music (#117)
+## The sign-in screen's intro music (#120)
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-816 | U | ✅ | music | the sign-in screen (`'auth'`) plays `intro`, not the title theme; `intro.mp3` ships and is named in `MUSIC_SOURCES` (audio.test) |
-| TC-817 | U | ✅ | music | `musicScreen`: no music while the session is checked (a refresh mid-game never plays the intro), the intro whenever nobody is signed in (or a new password is being set), else the game's screen (audio.test) |
-| TC-818 | M | ✅ | music | the real app in headless Chromium, Supabase stubbed, music on: the sign-in page plays only the intro at full volume; in the world the overworld theme; Sign out → the overworld stops and the intro plays — 4 runs, one on a cold server |
-| TC-819 | M | ✅ | music | `python3 tools/assets/build.py intro` writes only `intro.mp3` (72 s), byte-identical on a rebuild; loudness by bar rises 15% → 100% by bar 17 and falls to 19% by bar 24, meeting the loop's start |
-| TC-822 | M | ✅ | music | the intro, retuned lower: the same notes an octave down (harp top ≈ 1.1 kHz, tune G4–Ab5), brightness (spectral centroid) 3070 → 1740 Hz and energy above 2 kHz 40% → 22%, loudness by bar still 14% → 100% → 19%; `build.py intro` byte-identical on a rebuild |
-| TC-823 | U | ✅ | settings | a choice sticks: a saved `music: false` stays off, `sfx: true` stays on; a toggle that isn't a boolean (0, 'off', 'yes', 1) takes its default, never truthy coercion (settings.test) |
-| TC-824 | M | ✅ | music | the real app, Supabase stubbed: a new device (nothing saved) hears the intro on the sign-in page at the default volume and the overworld theme after signing in; a device with music saved off hears nothing |
-| TC-825 | M | ✅ | music | the climax (bars 17–20, 0:48–1:00) brings a new colour, not just volume: `INTRO_CLIMAX_VOICE = 'celesta'` adds a bell on every harp note at the same pitch; `'high'` lifts the harp's sweeps an octave; both rendered (loudness by bar 13% → 100% → 18% and 15% → 100% → 21%), the game's `intro.mp3` is the celesta one, byte-identical on a rebuild |
-| TC-820 | M | ⬜ | music | by ear: a harp arpeggio rising and falling, swelling from soft ripples to a full climax and back; the loop comes round without a jump |
-| TC-821 | M | ⬜ | music | in a real browser with Music on, open the sign-in page fresh: silent until the first tap or key (the browser's rule), then the intro starts; sign out from the world → the intro replaces the world's music |
+| TC-840 | U | ✅ | music | the sign-in screen (`'auth'`) plays `intro`, not the title theme; `intro.mp3` ships and is named in `MUSIC_SOURCES` (audio.test) |
+| TC-841 | U | ✅ | music | `musicScreen`: no music while the session is checked (a refresh mid-game never plays the intro), the intro whenever nobody is signed in (or a new password is being set), else the game's screen (audio.test) |
+| TC-842 | M | ✅ | music | the real app in headless Chromium, Supabase stubbed, music on: the sign-in page plays only the intro at full volume; in the world the overworld theme; Sign out → the overworld stops and the intro plays — 4 runs, one on a cold server |
+| TC-843 | M | ✅ | music | `python3 tools/assets/build.py intro` writes only `intro.mp3` (72 s), byte-identical on a rebuild; loudness by bar rises 15% → 100% by bar 17 and falls to 19% by bar 24, meeting the loop's start |
+| TC-846 | M | ✅ | music | the intro, retuned lower: the same notes an octave down (harp top ≈ 1.1 kHz, tune G4–Ab5), brightness (spectral centroid) 3070 → 1740 Hz and energy above 2 kHz 40% → 22%, loudness by bar still 14% → 100% → 19%; `build.py intro` byte-identical on a rebuild |
+| TC-847 | U | ✅ | settings | a choice sticks: a saved `music: false` stays off, `sfx: true` stays on; a toggle that isn't a boolean (0, 'off', 'yes', 1) takes its default, never truthy coercion (settings.test) |
+| TC-848 | M | ✅ | music | the real app, Supabase stubbed: a new device (nothing saved) hears the intro on the sign-in page at the default volume and the overworld theme after signing in; a device with music saved off hears nothing |
+| TC-849 | M | ✅ | music | the climax (bars 17–20, 0:48–1:00) brings a new colour, not just volume: `INTRO_CLIMAX_VOICE = 'celesta'` adds a bell on every harp note at the same pitch; `'high'` lifts the harp's sweeps an octave; both rendered (loudness by bar 13% → 100% → 18% and 15% → 100% → 21%), the game's `intro.mp3` is the celesta one, byte-identical on a rebuild |
+| TC-844 | M | ⬜ | music | by ear: a harp arpeggio rising and falling, swelling from soft ripples to a full climax and back; the loop comes round without a jump |
+| TC-845 | M | ⬜ | music | in a real browser with Music on, open the sign-in page fresh: silent until the first tap or key (the browser's rule), then the intro starts; sign out from the world → the intro replaces the world's music |
 
 ## Regression cases (tied to ISSUES.md)
 

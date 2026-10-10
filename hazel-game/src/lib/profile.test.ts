@@ -54,6 +54,21 @@ describe('mergeProfiles', () => {
     expect(mergeProfiles(remote, local).xp).toBe(10);
   });
 
+  it('keeps the further saved level', () => {
+    const remote = makeProfile({ xp: 300, level: 3, levelXp: 20 });
+    const local = makeProfile({ xp: 400, level: 3, levelXp: 90 });
+    const merged = mergeProfiles(remote, local);
+    expect(merged.level).toBe(3);
+    expect(merged.levelXp).toBe(90);
+  });
+
+  it("keeps a pre-save cache's old level against a fresh remote row", () => {
+    // The local cache predates saved levels: 1000 XP was level 11 on the old curve.
+    const remote = makeProfile({ xp: 0, level: 1, levelXp: 0 });
+    const local = makeProfile({ xp: 1000 });
+    expect(mergeProfiles(remote, local)).toMatchObject({ level: 11, levelXp: 0 });
+  });
+
   it('merges skill levels, power-ups, and streaks by max', () => {
     const remote = makeProfile({
       skillLevels: { math: 2, space: 5 },

@@ -45,6 +45,9 @@ export const ZONE_IDS = [
   'silver-shallows',
   // Act II (#75 item 14e): a town past Moonwell Grove, hidden in fog until Act II.
   'remembrance-hill',
+  // Act II (#75 item 14f): an island of ring-trees on the Shallows' south side,
+  // where the Ringkeeper keeps the Memoria Key.
+  'eldergrove',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -132,7 +135,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -197,7 +200,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -405,6 +408,14 @@ export interface ZoneDef {
    */
   keyChests?: KeyChestDef[];
   /**
+   * Somewhere far from any inn (#75 item 14f, Eldergrove): a hero beaten here
+   * wakes healed just inside this building, looked after by `host`, instead
+   * of at their last inn — so a retry isn't a voyage away, and the boat is
+   * still at the beach. It isn't an inn: resting isn't offered and
+   * `lastRest` doesn't change.
+   */
+  shelter?: { building: string; host: string };
+  /**
    * Tileset key override (default: the zone id). The Spire's floor maps
    * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
    */
@@ -453,6 +464,9 @@ function crystalPocket(
     lifted: `✨ The fog lifts! A treasure chest was hiding ${where}.`,
   };
 }
+
+/** Who wants an acorn found in Eldergrove before her quest is offered (#75 item 14f). */
+const FEN_WANTS = "🧺 Fen the Forager, by her hollow in the grove's north-west, has lost her three best acorns!";
 
 export const ZONES: Record<ZoneId, ZoneDef> = {
   numbria: {
@@ -1689,7 +1703,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'inkling', x: 38, y: 16 },
       { defId: 'starfix', x: 44, y: 34 },
     ],
-    exits: [],
+    // Eldergrove (#75 item 14f): an island in the south-west, with a beach on its north side.
+    places: [{ x: 12, y: 39, icon: 'elder', name: 'Eldergrove' }],
+    exits: [{ x: 12, y: 39, to: 'eldergrove', spawnX: 20, spawnY: 1 }],
     // Its tower stands on the rock just east of Ness's cottage.
     lighthouse: { x: 15, y: 16 },
     landmarks: [
@@ -1773,6 +1789,84 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Out onto Dawnreach, on the road just north of the hill's icon.
       { x: 16, y: 0, to: 'dawnreach', spawnX: 30, spawnY: 50 },
       { x: 17, y: 0, to: 'dawnreach', spawnX: 30, spawnY: 50 },
+    ],
+  },
+  // Eldergrove (#75 item 14f): trees with memory-rings on an island of the
+  // Silver Shallows. Fen's hut in the north-west, the gated Ring Hollow (the
+  // riddle-chest) in the north-east, a stream with a bridge, and the Great
+  // Ring — a clearing of the oldest trees round a stump — in the south, where
+  // the Ringkeeper stands. Fen's three acorns are in chests across the grove.
+  eldergrove: {
+    id: 'eldergrove',
+    name: 'Eldergrove',
+    kind: 'field',
+    topic: 'history',
+    map: [
+      '####################EE######################',
+      '#...................==..............#......#',
+      '#..WWWWWWW..#.......==.S...#........#......#',
+      '#..WZFFFBW......#...==..........,...G...C..#',
+      '#..WFFFFFW..........================G......#',
+      '#..WTFFFFW..........==..............#......#',
+      '#..WWWDWWW...#.,....==........#.....#......#',
+      '#.....=.............==...,..........########',
+      '#.....================...........~~........#',
+      '#.#.................==....#......~~...#....#',
+      '#...,....#..........==.......,...~~........#',
+      '#...............#...==...........~~........#',
+      '#.......,...........====================...#',
+      '####......#.........==...........==........#',
+      '#..#................==...........~~......C.#',
+      '#.C.==================......#....~~....,...#',
+      '#..#.=...........#..==...#.......~~........#',
+      '####.=..#...........==...........~~........#',
+      '#....=..............==...........~~...#..#.#',
+      '#....=........######...########..~~........#',
+      '#....=........#...............#............#',
+      '#...#=#.....,.#...............#...~~~~~~~..#',
+      '#..#...#......#......##.......#...~~~~~~~..#',
+      '#..........#..#......##.......#...~~~~~~~..#',
+      '#....C........#...,...........##..~~~~~~~..#',
+      '#..#...#......#...........,...#...~~~~~~~..#',
+      '#........#....#...............#............#',
+      '############################################',
+    ],
+    ground: [96, 132, 84],
+    path: [176, 150, 108],
+    solidEmoji: '🌳',
+    decoEmoji: '🍂',
+    spawn: { x: 20, y: 1 },
+    buildings: [
+      // Built into a hollow ring-tree — Eldergrove's own style.
+      { id: 'fen-hut', name: "Fen's Hollow", x: 3, y: 2, w: 7, h: 5, roof: 'leaf', style: 'bark', sign: 'house' },
+    ],
+    // Beaten anywhere in the grove, Fen finds you and tucks you up in her hollow.
+    shelter: { building: 'fen-hut', host: 'Fen the Forager' },
+    npcs: [
+      { defId: 'elder-fen', x: 8, y: 7 },
+      { defId: 'elder-ringwood', x: 23, y: 17 },
+      { defId: 'elder-dawdle', x: 32, y: 23 },
+    ],
+    enemies: [
+      { defId: 'ring-beetle', x: 10, y: 11 },
+      { defId: 'ring-beetle', x: 28, y: 6 },
+      { defId: 'sap-sprite', x: 14, y: 4 },
+      { defId: 'sap-sprite', x: 38, y: 16 },
+      { defId: 'hollow-acorn', x: 9, y: 20 },
+      { defId: 'hollow-acorn', x: 31, y: 14 },
+      // In the Great Ring, beside the stump.
+      { defId: 'ringkeeper', x: 25, y: 23 },
+    ],
+    // Fen's three best acorns, each in a riddle-chest (#75 item 14f, "Fen's Forgotten Acorns").
+    keyChests: [
+      { x: 2, y: 15, item: 'acorn-speckled', wantedBy: FEN_WANTS },
+      { x: 41, y: 14, item: 'acorn-striped', wantedBy: FEN_WANTS },
+      { x: 5, y: 24, item: 'acorn-golden', wantedBy: FEN_WANTS },
+    ],
+    exits: [
+      // Back out to the island's path, just north of Eldergrove's icon on the Shallows.
+      { x: 20, y: 0, to: 'silver-shallows', spawnX: 12, spawnY: 38 },
+      { x: 21, y: 0, to: 'silver-shallows', spawnX: 12, spawnY: 38 },
     ],
   },
 };
@@ -1883,10 +1977,21 @@ export function innOf(z: ZoneDef): BuildingDef | undefined {
 /** Where a hero wakes in a town's inn: just inside its door. */
 export function innWakeCell(z: ZoneDef): { x: number; y: number } | null {
   const inn = innOf(z);
-  if (!inn) return null;
-  const facade = inn.y + inn.h - 1;
-  for (let x = inn.x; x < inn.x + inn.w; x++) if (z.map[facade][x] === 'D') return { x, y: facade - 1 };
+  return inn ? insideDoor(z, inn) : null;
+}
+
+/** The floor just inside a building's facade door. */
+function insideDoor(z: ZoneDef, b: BuildingDef): { x: number; y: number } | null {
+  const facade = b.y + b.h - 1;
+  for (let x = b.x; x < b.x + b.w; x++) if (z.map[facade][x] === 'D') return { x, y: facade - 1 };
   return null;
+}
+
+/** A place's shelter, if it has one (#75 item 14f): the building and who looks after you there. */
+export function shelterOf(z: ZoneDef): { building: BuildingDef; host: string; cell: { x: number; y: number } } | null {
+  const b = z.shelter && z.buildings?.find((x) => x.id === z.shelter!.building);
+  const cell = b ? insideDoor(z, b) : null;
+  return b && cell ? { building: b, host: z.shelter!.host, cell } : null;
 }
 
 /** Save flag: the Glow field spell has lit this dark place, for good (#75 item 9). */

@@ -71,6 +71,9 @@ ZONES = {
     # Remembrance Hill (#75 item 14e): a quiet hilltop town of pale stone and forget-me-nots, at sunset.
     'remembrance-hill': dict(ground=(112, 168, 118), path=(214, 206, 186), solid='hedge', deco='flower', deco_c='#7aa8ff',
                              sky=('#e8906a', '#ffe2c4'), far='#b88aa0', mid='houses', water='#4a8ad0'),
+    # Eldergrove (#75 item 14f): ancient ring-trees in late-summer gold, on an island of the Shallows.
+    'eldergrove': dict(ground=(96, 132, 84), path=(176, 150, 108), solid='eldertree', deco='leaves', deco_c='#e0a03a',
+                       sky=('#c8a050', '#fff0c0'), far='#7a8a50', mid='tree', water='#3a8a9a'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -79,6 +82,10 @@ SEA_ZONES = ('silver-shallows',)
 # Added with Remembrance Hill (#75 item 14e) — `build_hill` writes only these
 # (+ the marble town sheet and the overworld sheet with the hill icon appended).
 HILL_ZONES = ('remembrance-hill',)
+
+# Added with Eldergrove (#75 item 14f) — `build_elder` writes only these
+# (+ the bark town sheet and the overworld sheet with the elder icon appended).
+ELDER_ZONES = ('eldergrove',)
 
 # Added for the field spells (#75 item 9) — `build_spell_places` writes only these.
 SPELL_ZONES = ('wayfarer-shrine', 'quiet-shrine', 'echo-mine')
@@ -187,6 +194,17 @@ def solid(kind, zone):
         c.rect(2, 1, 14, 3.5, '#c8a060')
         for x in (5.5, 8, 10.5):
             c.rect(x, 4, x + 0.8, 12.5, '#ddd4c0', shade=False)
+    elif kind == 'eldertree':
+        # An ancient ring-tree (#75 item 14f): a broad trunk with a ring-knot, a golden-green crown.
+        c.rect(5.5, 10, 10.5, 16, '#6a4428')
+        c.rect(6.5, 10, 7.3, 16, '#80583a', shade=False)
+        c.ellipse(8, 13, 1.6, 1.4, '#c8a070', shade=False)
+        c.ellipse(8, 13, 0.8, 0.7, '#8a5a32', shade=False)
+        c.ellipse(8, 6.5, 7.6, 6.2, '#5a8a3a')
+        c.ellipse(5, 5, 3, 2.4, '#7aa04a')
+        c.dot(11, 4, '#e0b040', w=2, h=1)
+        c.dot(4, 8, '#e0a03a')
+        c.dot(12, 9, '#e0a03a')
     elif kind == 'palm':
         # An island palm (#75 item 14): a leaning trunk, fronds, a coconut or two.
         c.poly([(7, 16), (9.5, 16), (10, 9), (9, 5), (7.8, 5.5), (8.6, 9)], '#a8783e')
@@ -334,6 +352,8 @@ STYLES = {
     'cave':      ('#5a5470', '#2e2a40', 'bricks',  'arch',   'tiles',  ('#6a6480', '#545068')),
     # Remembrance Hill (#75 item 14e): pale marble, lavender trim.
     'marble':    ('#eee8f4', '#7a6aa8', 'bricks',  'arch',   'checker', ('#f6f2fa', '#dcd4ea')),
+    # Eldergrove (#75 item 14f): a hut in a hollow ring-tree — bark walls, a round window.
+    'bark':      ('#6a4a30', '#3e2a1a', 'bark',    'round',  'planks', ('#b08a5a',)),
 }
 
 
@@ -406,6 +426,13 @@ def _wall_face(style, window=False, door=False):
         c.dot(4, 3, '#ff8fb8')
     elif pattern == 'timber':
         c.rect(0, 0, 1.5, 16, trim, shade=False)
+    elif pattern == 'bark':
+        # A hollow ring-tree's wall (#75 item 14f): deep grooves and a knot.
+        for x in (2, 6, 10, 13):
+            c.a[:, x, :3] = dark(base, 0.25)
+        for (x, y) in ((4, 5), (11, 9), (8, 12)):
+            c.dot(x, y, light(base, 0.12))
+        c.ellipse(8, 8, 1.4, 1.1, dark(base, 0.3), shade=False)
     # every facade gets a top beam + base course in the trim colour
     c.rect(0, 0, 16, 2, trim, shade=False)
     c.rect(0, 14, 16, 16, dark(base, 0.3), shade=False)
@@ -472,7 +499,7 @@ def town_tiles(style):
     c = fl()                                       # 8 bed
     c.rect(2, 1, 14, 15.5, '#7a4a2a')
     c.rect(3, 2, 13, 6, '#ffffff')
-    c.rect(3, 6, 13, 15, {'leaf': '#5aa04a', 'cave': '#6a5ab0', 'log': '#c05a3a'}.get(style, '#d05a5a'))
+    c.rect(3, 6, 13, 15, {'leaf': '#5aa04a', 'cave': '#6a5ab0', 'log': '#c05a3a', 'bark': '#6a9a4a'}.get(style, '#d05a5a'))
     c.rect(3, 6, 13, 7, '#f0c0a0', shade=False)
     frames.append(c)
     # 9-15 hanging signs (transparent overlays on the facade)
@@ -1101,6 +1128,18 @@ def ow_icon(kind):
         c.rect(7.2, 9, 8.8, 11, '#5a4a7a', shade=False)
         for fx, fy in ((2.5, 13), (5, 14.2), (11, 13.6), (13.5, 14.4), (8, 14.6)):
             c.dot(fx, fy, '#7aa8ff', w=1, h=1)
+    elif kind == 'elder':
+        # Eldergrove (#75 item 14f): one great ring-tree, a ring-cut stump beside it.
+        c.rect(6, 9, 10, 15.5, '#6a4428')
+        c.rect(6.8, 9, 7.5, 15.5, '#80583a', shade=False)
+        c.ellipse(8, 6, 7.2, 5.6, '#5a8a3a')
+        c.ellipse(4.8, 4.6, 2.8, 2.2, '#7aa04a')
+        c.ellipse(11.4, 4.2, 2.4, 2, '#7aa04a')
+        c.dot(9, 2.5, '#e0b040', w=2, h=1)
+        c.dot(3.5, 7, '#e0a03a')
+        c.ellipse(13, 13.5, 2.4, 1.6, '#c8a070')
+        c.ellipse(13, 13.5, 1.4, 0.9, '#a07a4a', shade=False)
+        c.dot(13, 13.5, '#6a4428', w=1, h=1)
     return _outlined(c)
 
 
@@ -1234,9 +1273,10 @@ OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'cit
 
 
 def overworld_sheet():
-    # Frame 15 (#75 item 14): the dock; frame 16 (#75 item 14e): Remembrance Hill —
-    # each appended, so every earlier frame keeps its place.
-    return [ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS] + [ow_dock(), ow_icon('hill')]
+    # Frame 15 (#75 item 14): the dock; frame 16 (#75 item 14e): Remembrance Hill;
+    # frame 17 (#75 item 14f): Eldergrove — each appended, so every earlier frame keeps its place.
+    return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
+            + [ow_dock(), ow_icon('hill'), ow_icon('elder')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
@@ -1429,6 +1469,20 @@ def build_hill(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('marble')]).save(tdir / 'town-marble.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_elder(public: Path):
+    """Write only Eldergrove's art (#75 item 14f): its tileset, blend sheet,
+    backdrop, the bark town sheet and the overworld sheet with the elder icon."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in ELDER_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('bark')]).save(tdir / 'town-bark.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 

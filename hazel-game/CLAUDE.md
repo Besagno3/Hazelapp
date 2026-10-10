@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `quizSessionStore`, `authStore`, `profileStore`, `settingsStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
@@ -129,11 +129,16 @@ zod, react-query. Add the package in the same change that first uses it.
   `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
   danger tier 0–7 — Act I 0–4, the Shallows 5 — the `DANGER` tuning per
   tier, map labels "Lv 4 !!" (marks stop at "!!!", tiers 5–7 go violet →
-  magenta), the danger banner / defeat tip / arrival warning copy),
+  magenta → pink, kept apart for colour-blind kids — #75 item 14f review),
+  the danger banner / defeat tip / arrival warning copy),
   (Act II's **Remembrance Hill**, #75 item 14e, is a town on Dawnreach behind
   the Grove-road fog — `hill-fog`, lifted by `act2-seen` — and a place nobody
   names before then: `PlaceDef.knownFrom` / `placeKnown` keep it off the
-  signposts and the menu map), `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
+  signposts and the menu map; Act II's **Eldergrove**, #75 item 14f, is
+  an island of the Silver Shallows — a history field at tier 5 whose warden,
+  the Ringkeeper, gives the Memoria Key, a `GateKey` whose gate isn't on any
+  map until the Sunken Archive (14h): `unlocksZone: null`, `opens` instead),
+  `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
@@ -171,11 +176,8 @@ zod, react-query. Add the package in the same change that first uses it.
   instance ids, losses per enemy kind + tier for mercy (`lossKey`), the danger
   tiers already explained) — deliberately not persisted, so a reload is a
   fresh start for mercy.
-- **`quizSessionStore`** holds the ephemeral Training-Grounds session — the
-  topics passed (80%+) this session, so `TopicSelect` greys them out and stops
-  re-picking. Not persisted; reset on sign-out (#64).
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
-  `profiles` row (birth date, skill levels, xp, power-ups, streak).
+  `profiles` row (birth date, skill levels, xp, saved level, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
   wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
   the Spire icon, remounted per zone, paused under overlays via ref). Terrain
@@ -202,9 +204,14 @@ zod, react-query. Add the package in the same change that first uses it.
   tall (pt-3 + bar + mb-2 = the old pt-16), so they never cover the place
   name and every overlay (z-40) draws over them. Exploring a Spire floor,
   `SpireOverlay` portals its seals, candles and 🚪 Leave the Spire into the
-  HUD row (`hudSlot`, in 📜 Menu's place). Other screens keep the floating
-  badges. Sign out there asks "Sign out?" first (same size; the hint floats
-  below it), and any other tap or key takes the question back.
+  HUD row (`hudSlot`, in 📜 Menu's place). The battle screen has a top bar
+  too (#75 item 14f review, `data-testid="battle-topbar"`): the level and
+  streak in a row above the status boxes (no Sign out in battle, as before;
+  40 px on a phone — `LevelBadge` / `StreakBadge` `dense`), hidden below
+  360 px wide or 500 px tall, where there's no room for it without pushing
+  🏃 Flee off the screen (`bench … battle`, a boss fight). Other screens
+  keep the floating badges. Sign out there asks "Sign out?" first (same size;
+  the hint floats below it), and any other tap or key takes the question back.
   **Overlays are modal** (#75 item 14b review): every world overlay (dialogue,
   services, path questions, key gates, menu, the Spire's panels) and the
   level-up sit in `components/ModalLayer` — `role="dialog"` + `aria-modal`,
@@ -479,8 +486,13 @@ zod, react-query. Add the package in the same change that first uses it.
   with loading and error/retry states.
 - Two progression systems: (1) per-topic **skill ramp** — `nextSkillLevel`
   (`lib/age.ts`) tunes quiz difficulty after each quiz round, persisted via
-  `profileStore.setSkillLevel`; (2) overall **player level** — derived from XP
-  (`lib/level.ts`), earned from correct answers + NPC defeats, in `profiles.xp`.
+  `profileStore.setSkillLevel`; (2) overall **player level** — saved in
+  `profiles.level` with the XP earned toward the next one in `profiles.level_xp`
+  (migration 0012; `xp` stays the lifetime total), earned from correct answers
+  + NPC defeats. Level n takes `xpForLevel(n)` = 100 + 25×(n−1) XP
+  (`lib/level.ts`). Retuning the curve never lowers anyone's level — only how
+  far the next one is. Read it with `levelState(profile)` (a profile cached
+  before levels were saved falls back to the old flat-100 curve).
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter). The edge function randomly
   mixes cached questions (reused from a ±2 level band) with fresh ones.
@@ -502,6 +514,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pix
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit (#75 item 14f)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -517,7 +530,8 @@ python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallo
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
-python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#117)
+python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
+python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
 
@@ -595,7 +609,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-10 — The sign-in intro's climax: a celesta joins the harp (#117)
+### 2026-10-10 — Merge main (Eldergrove #42, the saved player level #41, open Training
+Grounds #43) into the sign-in-music branch (#120)
+`main` took ISSUES **#117–#119** and TC-816–839 while the sign-in music was in
+review, so it moved **#117 → #120** and its test cases **TC-816–825 → TC-840–849**.
+Only the docs conflicted; `App.tsx` and `build.py` merged cleanly (the `intro`
+build target sits beside 14f's `elder`).
+
+### 2026-10-10 — The sign-in intro's climax: a celesta joins the harp (#120)
 The climax (0:48–1:00, bars 17–20, after a timpani roll from 0:45) only made
 the harp louder, which didn't land. Now a new colour comes in: a celesta (a
 soft music-box bell, `_celesta`) plays with the harp, note for note at the
@@ -605,7 +626,7 @@ sweeps an octave for the climax instead; both were rendered for the owner
 to choose by ear. Loudness by bar 13% → 100% → 18%; rebuilt with
 `build.py intro`.
 
-### 2026-10-10 — Music is on by default (#117)
+### 2026-10-10 — Music is on by default (#120)
 So everyone hears the sign-in screen's intro, Music now defaults to **on**
 (`DEFAULT_SETTINGS.music`, `lib/settings.ts`); sound effects stay off. It
 starts on the first tap or key (browsers hold sound until then), and the
@@ -617,7 +638,7 @@ Checked in the real app (Supabase stubbed): a new device hears the intro on
 the sign-in page and the overworld theme after signing in; a device with
 music saved off hears nothing. Tests: settings.test rewritten (+2).
 
-### 2026-10-10 — The sign-in intro, an octave lower and mellower (#117)
+### 2026-10-10 — The sign-in intro, an octave lower and mellower (#120)
 Liked the tune, tempo and notes; it was too high-pitched. Same notes and
 shape, an octave down — the harp's sweeps now start between D2 and C#3 (top
 note ≈ 1.1 kHz, was ≈ 2.2 kHz), the tune sits in G4–Ab5 (was G5–Ab6) — and a
@@ -629,7 +650,7 @@ octave up; it plays louder instead. Brightness (spectral centroid) 3070 →
 1740 Hz, energy above 2 kHz 40% → 22%; loudness by bar still 14% → 100% →
 19%. Rebuilt with `build.py intro` (byte-identical on a rebuild).
 
-### 2026-10-10 — The sign-in screen gets its own intro music (#117)
+### 2026-10-10 — The sign-in screen gets its own intro music (#120)
 The sign-in screen played the title theme. Now it has an intro of its own,
 heard there and on the screen after signing out (and while choosing a new
 password): **`intro`** (`public/audio/16bit/music/intro.mp3`, 72 s,
@@ -645,7 +666,7 @@ spirit of a 16-bit RPG prelude, not a copy of one.
   picks the screen whose music plays — `'loading'` (none) while the session is
   checked, so a refresh mid-game never blips the intro; `'auth'` → `intro`
   until someone signs in, again after signing out; else the game's screen.
-  `App` passes it to `useScreenMusic`. Music stays off by default (#117).
+  `App` passes it to `useScreenMusic`. Music stays off by default (#120).
 - **Checked:** the real app in headless Chromium (Supabase stubbed, music on)
   — the sign-in page plays only the intro; in the world the overworld theme;
   Sign out → the overworld stops and the intro plays (4 runs, a cold server
@@ -653,6 +674,167 @@ spirit of a 16-bit RPG prelude, not a copy of one.
   rebuild (and the sea music rebuilds byte-identical here, so the toolchain
   matches). Tests +2 (audio.test); the shipped-file guards cover the new file.
 
+### 2026-10-10 — Every Training Grounds topic stays open (#119)
+Passing a topic round no longer greys that topic out for the rest of the
+session — kids can pick any topic, as often as they like, for more questions.
+`store/quizSessionStore.ts` (and its test) existed only for that lock and is
+gone; `QuizRound` no longer marks topics, `useAuthInit` no longer resets it,
+and `TopicSelect` renders every topic as a live button. New
+`TopicSelect.test` picks a topic three times and checks every button stays
+enabled with no "Completed" tag. Reverses #91's per-session completion.
+
+### 2026-10-10 — The player level is saved; each level takes a little more XP (#118)
+Levels used to be worked out from total XP at a flat 100 XP each, so every
+level came just as fast, and any change to the curve would have moved every
+player's level.
+- **Saved:** migration `0012_save_player_level.sql` adds `profiles.level` and
+  `profiles.level_xp` (XP into the current level), backfilled from the old
+  flat curve so everyone keeps the level they had; new players start at 1 / 0.
+  `profileStore.addXp` rolls XP over levels (`gainXp`) and writes all three;
+  `loadProfile` pushes a row back up when it has no level yet or the local
+  cache is further along (`mergeProfiles` keeps the further level,
+  `furthestLevel`).
+- **A gentle curve that keeps climbing:** level n takes 100 + 25×(n−1) XP
+  (`xpForLevel`: 100, 125, 150 … 325 at level 10, 575 at 20).
+- **Readers:** `LevelBadge`, the Menu's hero card and `LevelUpModal` read
+  `levelState(profile)`; `playerLevel(xp)` and `XP_PER_LEVEL` are gone. A
+  profile cached before this (no `level`) uses the old flat-100 level.
+- Tests: level.test (rewritten), profile.test (+2), LevelBadge.test (+1),
+  `supabase/ci/level.test.sql`. Migrations applied in order and the bundle
+  twice on Postgres 16; a 1037-XP row backfills to level 11, 37 in.
+- ⚠️ Deploy: apply 0012 (or re-run `apply_all_migrations.sql`) **before**
+  shipping this build.
+### 2026-10-10 — The "z Z" hero sweep gets a 20 s budget (#75 item 14f, #117s)
+On PR #42's CI the sleepMark.test sweep (every critter on every map, the hero
+at every spot round it) timed out at Vitest's 5 s default: Eldergrove's six
+critters made it ~3 s locally and more on CI's runner. It takes 20 s now, like
+the Spire's long tests; nothing it checks changed.
+
+### 2026-10-10 — Merge main (the hero roster, PR #39; the music fix, PR #40) into the Eldergrove branch (#75 item 14f)
+`main` took the hero roster (#115, TC-786–803) and then the music fix (#116,
+TC-804–815) while 14f waited, so 14f's follow-ups moved on again,
+**#115 → #117**, and its test cases **TC-786–803 → TC-816–833** (only 14f's
+own lines were renumbered). The only code conflict was `build.py`'s list of
+targets (both kept); the music fix merged cleanly (`lib/audio.ts` only).
+
+### 2026-10-10 — The battle row fits a boss fight at 360×640 (#75 item 14f, after merging 14d)
+After the merge, 14d's resting critters (one that could reach the hero where
+they arrive rests until they leave its patch) meant `bench … battle` — which
+started the hero on a beetle — never got a fight. It now walks the hero into
+the Ringkeeper, who stands still; a boss's 🏃 Flee row ("No escape!") then
+showed the battle row 10 px too tall at 360×640, so on a phone the row is
+40 px (`LevelBadge` / `StreakBadge` `dense`, `pt-1`). 5/5 twice; a boss's
+Flee at 320×568 was off the screen before 14f too (#117q).
+
+### 2026-10-10 — Merge main (14d sea critters) into the Eldergrove branch (#75 items 14d + 14f)
+`main` took 14d (PR #36) while 14f was built. Its #114 and TC-731–785 came
+first, so 14f's follow-ups moved **#114 → #115** and its test cases
+**TC-731–748 → TC-786–803** (then on again, below). Code: both sides kept — the Shallows has 14d's
+three sea critters and 14f's island (placed clear of them from the start:
+seaCritters.test passes unchanged), `ENEMY_DEFS`, the art drawers and build
+targets have both, `WanderOpts` has `afloat`/`asleep` and `animSpeed`, and a
+defeat runs 14d's `boatAfterDefeat` then 14f's shelter-aware
+`wakeAfterDefeat`. Eldergrove's art rebuilds byte-identical, the sprite
+manifest unchanged. 897 tests green, lint + tsc clean.
+
+### 2026-10-10 — 14f review fixes: Fen's Hollow, the dock 🚩, a battle top bar, a real purple (#75 item 14f)
+A fresh `/saas-code-review` (1 medium, 3 low) and `/saas-ux-review` (3 high,
+2 medium, 4 low; played on the stubbed app at 320–800 px). Fixed, as chosen:
+- **A loss in Eldergrove wakes you in Fen's Hollow** (code medium / UX high):
+  a place can have a shelter (`ZoneDef.shelter`, `shelterOf`, `wakeShelter`)
+  — beaten there, you wake on its floor, healed, the boat still at the
+  beach, so a retry isn't a voyage away. Not an inn: `lastRest` is kept, so
+  a defeat elsewhere never strands you on the island. 14d's boat rule is
+  untouched.
+- **The Memoria 🚩 starts at Marlow's dock** off the Shallows (UX high):
+  flagged on the dock on Dawnreach's map, "Go … to Marlow's dock and sail
+  east to the Silver Shallows, then go south-east to Eldergrove."
+- **Copy:** Fen's hints match what's drawn, count down, ≤ 30 words, simpler
+  words, and a found acorn says Fen might remember the next
+  (`QuestDef.foundNote`, `haveStep` `listLeft`); after the key, its door
+  "will turn up later in your adventure" (🚩, Lumen, Ringwood, the panel);
+  the Ringkeeper's intro; "First time beating the Ringkeeper" (was "a The …"
+  for every "The" boss); a boss is a "very tough boss".
+- **The battle's top bar** (UX high, pre-existing): the level and streak
+  in a row above the status boxes, not floating over the enemy's "!!!";
+  hidden below 360 × 500, where it pushed 🏃 Flee off the screen. Measured
+  by a new `bench … battle` (5/5).
+- **A real purple:** tier 5 is violet-400 (violet-200 read white), tier 7
+  #ff66b8, so 4–7 stay apart for colour-blind kids (a simulated test).
+- **Art:** Dawdle's face toward you and his walk at his pace (`animSpeed`),
+  Old Ringwood taller than the trees (a tall NPC's name plate sits under its
+  feet), the Hollow Acorn 🫥.
+- **Code:** `keyForZone` ignores null; tests that couldn't fail.
+- Logged (#117 m–p): a battle never fit a sideways phone (pre-existing), the
+  crowded island on the in-grove menu map, a real-phone check, the dock 🚩
+  after a Return. Tests: +9 net (one old LevelBadge test removed). 850 green.
+
+### 2026-10-10 — The 🚩 leads to Eldergrove for the Memoria Key (#75 item 14f)
+Fourth slice of 14f. After "Visit Remembrance Hill" the 🚩 reads **"Win the
+Memoria Key"** (`kind: 'key'`, no `crystal`): "On Eldergrove, an island of
+ancient ring-trees out in the Silver Shallows, the Ringkeeper guards the
+Memoria Key…", routed "Sail east to the Silver Shallows, then go south-east to
+Eldergrove."; on the Shallows' menu map the 🚩 sits on Eldergrove. Once the key
+is won, "Explore" until 14g. Elder Lumen's plan names Eldergrove and the
+Ringkeeper; his tip, the purple !!! and Knack's Forget-Me-Knot. `roadTier`
+stays Act I's (no arrival warnings in Act II). Tests: wayfinding.test (+1; the
+walks know the new step, and walk Eldergrove's by boat), WorldMapPanel.test
+(+2). 841 green.
+
+### 2026-10-10 — Fen's Forgotten Acorns: a collection quest (#75 item 14f)
+Third slice of 14f. Fen the Forager hid her three best acorns — Speckled,
+Striped and Golden — in chests and forgot which (`fen-acorns`, side quest):
+three key-item chests across Eldergrove (`ZoneDef.keyChests`, items
+`acorn-*`) and one have step. Her hint always names the first acorn still
+missing and where it is, and each find "jogs her memory" for the next
+(`FEN_ACORNS`). She takes all three for 35 coins and a Hint Feather. An acorn
+found before meeting her says who wants it. Tests: quests.test +4. 838 green.
+
+### 2026-10-10 — The Ringkeeper and the Memoria Key (#75 item 14f)
+Second slice of 14f — Eldergrove's warden.
+- **The Ringkeeper** 🦌 (`ringkeeper`, a history warden, +1; "Thousand-Year
+  Charge") stands in the Great Ring: a pale birch stag with tree rings in its
+  bark, golden leaves and a silver key on its antlers (`beast` gained `rings`,
+  `leaf` and `key`). "Every ring is a year, and every year is MINE."
+- **The Memoria Key** 🗝️ (`GateKey` `memoria`, flag `key-memoria`): its gate
+  is the Sunken Archive's, which comes in 14h, so `GateKey.unlocksZone` may
+  be null; winning it then says what it `opens` — "It opens a door the whole
+  world forgot." — instead of naming a Fiend nobody has met.
+- **Old Ringwood** is its signpost: he warns of the Ringkeeper until the key
+  is won, then congratulates. **Two panels** play once after the key
+  (`MEMORIA_PANELS`, `memoria-seen`).
+- Tests: +5 (keys.test: the Memoria Key; Act I's naming and gate checks
+  scoped to Act I; the signpost check by key flag; BattleHud.test: the
+  victory line; story.test; WorldScreen.ending.test: the panels play once).
+  834 green.
+
+### 2026-10-10 — Eldergrove: an island of ring-trees in the Silver Shallows (#75 item 14f)
+First slice of 14f — Act II's first island (the Ringkeeper, Fen's quest and
+the 🚩 come in the next commits).
+- **On the Shallows:** an island in the south-west (6–19, 34–42,
+  `maps/silver-shallows.tmj`) with a north beach to land on and a path to its
+  icon (a new `elder` frame, a great ring-tree, appended at 17 after the hill;
+  frames 0–16 byte-identical). Placed clear of 14d's sea critters (its
+  branch isn't merged yet; its test wants them 4+ cells from land, #117a).
+- **The grove** (`eldergrove`, 44×28, `kind: 'field'`, history, tier 5 with
+  the Shallows — "The Silver Shallows and its islands"): Fen's Hollow (a new
+  **bark** style: a hut in a hollow ring-tree), the gated Ring Hollow with
+  the riddle-chest, a stream and its bridge, three acorn chests, and the
+  Great Ring — the oldest trees round a stump — in the south.
+- **Critters:** Ring Beetle 🪲 (its shell cut like a log), Sap Sprite ✨ and
+  the shielded Hollow Acorn 🌰, two of each. **People:** Fen the Forager 🧺,
+  Old Ringwood 🌳 (a talking tree who loses count of his rings) and **Dawdle**
+  🐢 (STORY-4X's Moss, renamed — Hermit Moss already exists), the slowest
+  wanderer in the game (`WorldNpcDef.pace`).
+- **The menu map** from inside a place draws the overworld it opens onto
+  (`overworldOf`): Eldergrove's is the Shallows.
+- **Art** (`python3 tools/assets/build.py elder`): the zone's tileset (a new
+  `eldertree` scenery), blend sheet and backdrop, `town-bark.png`, the
+  overworld sheet and six sprites (new drawers `ring_beetle`, `sap_sprite`,
+  `hollow_acorn`, `tree_folk`, `turtle`); the manifest only gained entries.
+- Tests: +6 (zones.test: the island, sailing there, the critters, the gate,
+  the people; worldMap.test: `overworldOf`). 829 green. Looked at on the
+  bench: the island, the grove's four corners, inside Fen's Hollow.
 ### 2026-10-10 — Merge main (the heroines and hero roster, #39) into the music-fix branch (#116)
 `main` took ISSUES **#115** and TC-786–803 for the hero roster while the
 music fix was in review, so the music fix moved **#115 → #116** and its test

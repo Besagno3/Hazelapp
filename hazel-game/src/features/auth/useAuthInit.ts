@@ -5,7 +5,6 @@ import { useAuthStore } from '../../store/authStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { useBattleStore } from '../../store/battleStore';
-import { useQuizSessionStore } from '../../store/quizSessionStore';
 import { sendFlow } from '../../machines/gameFlow';
 
 /**
@@ -38,7 +37,6 @@ export function useAuthInit() {
         clearProfile();
         clearSave();
         useBattleStore.getState().reset();
-        useQuizSessionStore.getState().reset();
         sendFlow({ type: 'RESET' });
       }
     }
