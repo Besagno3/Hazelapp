@@ -1,4 +1,6 @@
-# Lint, test and build the game on every PR and every push to main.
+# Lint, test and build the game on every non-draft PR and every push to main.
+# Draft PRs skip every job (grey "skipped" checks, no minutes); marking the PR
+# Ready for review runs them.
 # The job's check is named `test` — require it in the main-branch ruleset
 # (Settings → Rules → Rulesets → Require status checks, source: GitHub Actions).
 # `edge-function` and `migrations` (#88) check the Supabase side.
@@ -9,6 +11,9 @@ name: CI
 
 on:
   pull_request:
+    # Draft PRs run nothing: checks start when the PR is marked Ready for review
+    # and re-run on every push after that.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -23,6 +28,7 @@ concurrency:
 
 jobs:
   test:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -49,6 +55,7 @@ jobs:
       - run: npm run build
 
   edge-function:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     name: Type-check edge function
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -67,6 +74,7 @@ jobs:
       - run: deno check --no-config --node-modules-dir=none generate-questions/index.ts
 
   migrations:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     name: Apply migrations + SQL tests
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -23,7 +23,7 @@ shared source of truth for how this project works.
 | Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
-| CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build on every PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests) |
+| CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build on every non-draft PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests); draft PRs skip CI and Vercel previews (see Pull requests) |
 
 `package.json` lists only packages the app actually imports (unused ones
 were removed in #87). Still "approved to adopt" when a feature needs them:
@@ -406,6 +406,26 @@ python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#7
 
 ---
 
+## Pull requests — drafts skip CI
+
+Open every PR as a draft. CI and Vercel previews skip drafts. Don't mark it
+ready on your own; when the owner says merge, mark it ready, wait for every
+check to go green (fix and push on red), then merge.
+
+- **GitHub Actions:** every `ci.yml` job is gated on
+  `github.event_name != 'pull_request' || !github.event.pull_request.draft`,
+  and `pull_request` also triggers on `ready_for_review`, so marking a PR ready
+  starts the full run. Drafts show grey "skipped" checks (a skipped required
+  check still lets the PR merge). Pushes to `main` always run.
+- **Vercel:** `vercel.json` → `ignoreCommand` runs
+  `scripts/vercel-ignore-build.mjs`: production always builds; a preview builds
+  only if its branch has an open, non-draft PR. Marking ready doesn't push, so
+  the first preview builds on the next push. Uses `GITHUB_PR_READ_TOKEN`
+  (Vercel, Preview env); any lookup failure fails open (builds).
+- Dependabot / PRs opened as non-drafts run everything from the first push.
+
+---
+
 ## ⚠️ Pre-commit ritual (REQUIRED before every commit)
 
 Before staging a commit, update all three docs:
@@ -427,6 +447,15 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Draft PRs skip CI and Vercel previews
+
+Every `ci.yml` job (`test`, `edge-function`, `migrations`) now skips on draft
+PRs, and `pull_request` triggers on `ready_for_review` so marking a PR ready
+runs the full set. New `vercel.json` + `scripts/vercel-ignore-build.mjs`
+(Vercel Ignored Build Step) skip preview builds unless the branch has an open,
+non-draft PR; production always builds, lookup failures fail open. See
+"Pull requests — drafts skip CI" above.
 
 ### 2026-10-09 — Merge main (longer music loops, #107) into the boat branch
 `main` took #107 for the music-loops follow-up while the boat was built, so
