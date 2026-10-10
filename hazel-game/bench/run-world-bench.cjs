@@ -242,8 +242,9 @@ const STUB = 'http://supabase.stub';
 const HUD_USER = 'u-hud';
 
 /**
- * Signs in a stub player and answers Supabase for them: their profile, `save`
- * as their saved game, canned questions; every write succeeds.
+ * Signs in a stub grown-up whose one kid is already playing in this tab (#118)
+ * and answers Supabase for them: consent given, the kid's profile, `save` as
+ * their saved game, canned questions; every write succeeds.
  */
 async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = {}) {
   const page = await browser.newPage({ viewport, reducedMotion });
@@ -255,7 +256,13 @@ async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = 
     expires_at: Math.floor(Date.now() / 1000) + 31536000,
     user: { id: HUD_USER, aud: 'authenticated', role: 'authenticated', email: 'kid@example.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' },
   };
-  await page.addInitScript((s) => localStorage.setItem('sb-supabase-auth-token', s), JSON.stringify(session));
+  await page.addInitScript(
+    ([s, kid]) => {
+      localStorage.setItem('sb-supabase-auth-token', s);
+      sessionStorage.setItem(`hazel-active-kid-${kid}`, kid); // past "Who's playing?"
+    },
+    [JSON.stringify(session), profile.id],
+  );
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(String(e)));
   await page.route(`${STUB}/**`, async (route) => {
@@ -264,7 +271,8 @@ async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = 
     const one = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
     const json = (body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     if (req.method() !== 'GET' && url.includes('/rest/v1/')) return route.fulfill({ status: 201, body: '' });
-    if (url.includes('/rest/v1/profiles')) return json(one ? profile : [profile]);
+    if (url.includes('/rest/v1/parents')) return json([{ consent_at: '2026-10-10T00:00:00Z', has_pin: false }]);
+    if (url.includes('/rest/v1/profiles')) return json(one ? profile : [{ display_name: 'Hud', icon: 'fox', has_pin: true, ...profile }]);
     if (url.includes('/rest/v1/saves')) return json(one ? { data: save } : [{ data: save }]);
     if (url.includes('/functions/v1/generate-questions')) {
       const questions = Array.from({ length: 6 }, (_, i) => ({
@@ -385,7 +393,7 @@ async function hud(browser, outDir) {
     const size = `${width}×${height}`;
     const page = await stubbedApp(browser, { width, height }, depths, profile);
     const errors = page.errors;
-    const problems = []; // keyboard, tap-target and Sign-out checks (#75 item 14b review)
+    const problems = []; // keyboard, tap-target and Switch-player checks (#75 item 14b review)
     const layout = await page.evaluate(hudLayout);
     await page.screenshot({ path: path.join(outDir, `hud-${size}.png`) });
     // Tab never sticks: the canvas isn't focusable, and a dozen Tabs move on.
@@ -396,15 +404,15 @@ async function hud(browser, outDir) {
     if (new Set(walk.slice(-4)).size === 1) problems.push(`Tab stuck on ${walk.at(-1)}`);
     const tap = await page.evaluate(tapsLand, '📜 Menu');
     if (tap) problems.push(tap);
-    // Asking "Sign out?" doesn't move anything on a phone.
+    // Asking "Switch?" doesn't move anything on a phone.
     if (width <= 375) {
       const before = await page.evaluate(hudLayout);
-      await page.getByRole('button', { name: 'Sign out' }).click();
+      await page.getByRole('button', { name: 'Switch player' }).click();
       await page.waitForTimeout(150);
       const armed = await page.evaluate(hudLayout);
-      await page.screenshot({ path: path.join(outDir, `hud-${size}-signout-armed.png`) });
+      await page.screenshot({ path: path.join(outDir, `hud-${size}-switch-armed.png`) });
       if (armed.barHeight !== before.barHeight || armed.stage !== before.stage)
-        problems.push(`asking "Sign out?" moved the page: bar ${before.barHeight}→${armed.barHeight}px, stage ${before.stage} → ${armed.stage}`);
+        problems.push(`asking "Switch?" moved the page: bar ${before.barHeight}→${armed.barHeight}px, stage ${before.stage} → ${armed.stage}`);
     }
     // 📜 Menu by keyboard: focus moves in and stays in; closing brings it back to 📜 Menu.
     await page.getByRole('button', { name: '📜 Menu' }).focus();
@@ -427,7 +435,7 @@ async function hud(browser, outDir) {
     await sp.keyboard.down('ArrowDown');
     await sp.waitForTimeout(900);
     await sp.keyboard.up('ArrowDown');
-    // The door's lines: Tab, Tab, Tab never reaches the top bar's Sign out under the panel.
+    // The door's lines: Tab, Tab, Tab never reaches the top bar's Switch under the panel.
     await sp.waitForSelector('[role=dialog][aria-label="The Crystal Spire"]', { timeout: 5000 }).catch(() => {});
     const underPanel = (await tabs(sp, 4)).filter((f) => f.startsWith('top bar'));
     if (underPanel.length) problems.push(`Tab reached the top bar under a Spire panel: ${underPanel.join(', ')}`);

@@ -3,17 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mocked supabase client — replaces the real module (which would throw at
 // import time without VITE_SUPABASE_URL / _ANON_KEY set). vi.hoisted lifts
 // the mock fns above the vi.mock factory so the factory can reference them.
-const { insertMock, fromMock, getUserMock, invokeMock } = vi.hoisted(() => {
+const { insertMock, fromMock, invokeMock } = vi.hoisted(() => {
   const insertMock = vi.fn();
   const fromMock = vi.fn(() => ({ insert: insertMock }));
-  const getUserMock = vi.fn();
   const invokeMock = vi.fn();
-  return { insertMock, fromMock, getUserMock, invokeMock };
+  return { insertMock, fromMock, invokeMock };
 });
 
 vi.mock('./supabase', () => ({
   supabase: {
-    auth: { getUser: getUserMock },
     from: fromMock,
     functions: { invoke: invokeMock },
   },
@@ -21,16 +19,17 @@ vi.mock('./supabase', () => ({
 
 // Import AFTER the mock is registered.
 import { fetchQuestions, flagQuestion, shuffleAnswers } from './questions';
+import { useFamilyStore } from '../store/familyStore';
 
 beforeEach(() => {
   insertMock.mockReset();
   fromMock.mockClear();
-  getUserMock.mockReset();
+  invokeMock.mockReset();
+  useFamilyStore.setState({ activeKidId: 'kid-1' });
 });
 
 describe('flagQuestion', () => {
-  it('inserts a flag row with the caller as profile_id and the chosen reason', async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
+  it('inserts a flag row as the kid playing, with the chosen reason (#118)', async () => {
     insertMock.mockResolvedValue({ error: null });
 
     await flagQuestion('q-123', 'wrong_answer');
@@ -38,43 +37,35 @@ describe('flagQuestion', () => {
     expect(fromMock).toHaveBeenCalledWith('question_flags');
     expect(insertMock).toHaveBeenCalledWith({
       question_id: 'q-123',
-      profile_id: 'user-1',
+      profile_id: 'kid-1',
       reason: 'wrong_answer',
     });
   });
 
   it('passes null for reason when none is provided', async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
     insertMock.mockResolvedValue({ error: null });
 
     await flagQuestion('q-7');
 
     expect(insertMock).toHaveBeenCalledWith({
       question_id: 'q-7',
-      profile_id: 'user-1',
+      profile_id: 'kid-1',
       reason: null,
     });
   });
 
   it('is a no-op for synthetic fresh- IDs (FK would fail anyway)', async () => {
     await flagQuestion('fresh-123-0', 'wrong_answer');
-    expect(getUserMock).not.toHaveBeenCalled();
     expect(insertMock).not.toHaveBeenCalled();
   });
 
-  it('throws "sign in" when no user is on the session', async () => {
-    getUserMock.mockResolvedValue({ data: { user: null }, error: null });
+  it('throws "sign in" when no kid is playing', async () => {
+    useFamilyStore.setState({ activeKidId: null });
     await expect(flagQuestion('q-1', 'confusing')).rejects.toThrow(/sign in/i);
     expect(insertMock).not.toHaveBeenCalled();
   });
 
-  it('wraps the underlying auth error in a flag-context message', async () => {
-    getUserMock.mockResolvedValue({ data: { user: null }, error: { message: 'jwt expired' } });
-    await expect(flagQuestion('q-1', 'confusing')).rejects.toThrow(/jwt expired/);
-  });
-
   it('wraps the underlying DB error in a flag-context message', async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
     insertMock.mockResolvedValue({
       error: { message: 'permission denied for table question_flags', code: '42501' },
     });
@@ -142,6 +133,8 @@ describe('fetchQuestions', () => {
     }));
     invokeMock.mockResolvedValue({ data: { questions: api }, error: null });
     const out = await fetchQuestions('math', 9, 3, api.length);
+    // …and asks as the kid playing, so their seen questions are their own (#118).
+    expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'math', profileId: 'kid-1' });
     expect(out).toHaveLength(api.length);
     for (const question of out) expect(question.options[question.correctIndex]).toBe('right');
     // 40 questions all left in place would be a 1-in-4^40 fluke.

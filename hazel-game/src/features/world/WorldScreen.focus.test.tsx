@@ -53,7 +53,7 @@ const { INTRO_SEEN, DAWNREACH_SEEN, EMBER_HATCHED, SPIRE_CLEARED, ENDING_SEEN, A
 const { addFakeActTwoCrystal } = await import('../../test/fakeCrystal');
 const { actCrystals, crystalFlag } = await import('../../content/topics');
 
-const signOut = () => within(screen.getByTestId('world-topbar')).getByRole('button', { name: /Sign out/, hidden: true });
+const switchPlayer = () => within(screen.getByTestId('world-topbar')).getByRole('button', { name: /Switch player/, hidden: true });
 const isInert = (el: Element) => el.closest('[inert]') !== null;
 
 /** Every crystal restored and its scene seen — the Spire is open. */
@@ -119,7 +119,7 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     const dialog = screen.getByRole('dialog', { name: 'Menu' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(dialog.contains(document.activeElement)).toBe(true);
-    expect(isInert(signOut())).toBe(true);
+    expect(isInert(switchPlayer())).toBe(true);
     expect(isInert(menu)).toBe(true);
     expect(isInert(screen.getByTestId('canvas'))).toBe(true);
 
@@ -128,7 +128,7 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     expect(document.activeElement).toBe(screen.getByRole('button', { name: '📜 Menu' }));
   });
 
-  it('the Spire: its panels cover the top bar (no Tab, Enter, Enter to Sign out mid-climb); walking a floor leaves it live', async () => {
+  it('the Spire: its panels cover the top bar (no Tab, Enter, Enter to Switch player mid-climb); walking a floor leaves it live', async () => {
     useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a3', zoneId: 'crystal-spire', flags: ALL_CRYSTALS } });
     flow.setState({ overlay: 'spire' });
     render(<WorldScreen />);
@@ -136,21 +136,21 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     await act(() => new Promise((r) => setTimeout(r, 0)));
     expect(screen.getByRole('dialog', { name: 'The Crystal Spire' })).toHaveAttribute('aria-modal', 'true');
     expect(document.activeElement?.textContent).toContain('tap to continue');
-    expect(isInert(signOut())).toBe(true);
+    expect(isInert(switchPlayer())).toBe(true);
 
     await readIntro();
-    expect(isInert(signOut())).toBe(false);
+    expect(isInert(switchPlayer())).toBe(false);
     expect(document.querySelector('[inert]')).toBeNull();
 
     // Leave → Escape: back on the floor, focus on Leave again.
     fireEvent.click(screen.getByRole('button', { name: '🚪 Leave the Spire' }));
     const ask = screen.getByRole('alertdialog', { name: 'Leave the Spire?' });
-    expect(isInert(signOut())).toBe(true);
+    expect(isInert(switchPlayer())).toBe(true);
     expect(screen.getByRole('button', { name: '🗼 Keep climbing' })).toHaveFocus();
     fireEvent.keyDown(ask, { key: 'Escape' });
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(screen.getByRole('button', { name: '🚪 Leave the Spire' })).toHaveFocus();
-    expect(isInert(signOut())).toBe(false);
+    expect(isInert(switchPlayer())).toBe(false);
 
     // Leave → Keep climbing: the same.
     fireEvent.click(screen.getByRole('button', { name: '🚪 Leave the Spire' }));
@@ -166,7 +166,7 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     render(<WorldScreen />);
     act(() => flow.setState({ overlay: null }));
     expect(screen.getByRole('dialog', { name: 'Story' })).toBeInTheDocument();
-    expect(isInert(signOut())).toBe(true);
+    expect(isInert(switchPlayer())).toBe(true);
   });
 
   it('with an Act II crystal in the game, Act I\'s four still play the ending, and the HUD counts 4/4 (#75 item 14c)', () => {
@@ -201,10 +201,10 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     }
   });
 
-  it('"Pick an avatar first" still has a way to sign out', () => {
+  it('"Pick an avatar first" still has a way to switch player', () => {
     useSaveStore.setState({ save: { ...defaultSave(), avatarId: null } });
     render(<WorldScreen />);
     expect(screen.getByText('Pick an avatar first to enter the world.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
   });
 });

@@ -15,9 +15,11 @@
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase.
 //
 // Access (#88): callers must be signed in (401 otherwise), and every call goes
-// through `begin_question_request` (migration 0009) — a per-player rate limit
-// (429 when exceeded) plus per-player and project-wide daily budgets of FRESH
-// questions. When a budget is spent the call is served from the cache
+// through `begin_question_request` (migration 0009) — a per-login rate limit
+// (429 when exceeded) plus per-login and project-wide daily budgets of FRESH
+// questions. A login is a grown-up's family account (#118); the app names the
+// kid playing (`profileId`), and each kid has their own budget and seen
+// questions (migration 0013). When a budget is spent the call is served from the cache
 // (re-using already-seen questions if it must), so play continues without
 // spending more on Claude. Limits are tunable via env (see QUOTA_DEFAULTS).
 //
@@ -71,6 +73,9 @@ function quotaSetting(name: keyof typeof QUOTA_DEFAULTS): number {
   const n = Number(Deno.env.get(name));
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : QUOTA_DEFAULTS[name];
 }
+/** A player id as the app sends it (a uuid). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Kid-facing message when the per-minute limit trips (shown on the retry screen). */
 const SLOW_DOWN = 'The question wizards need a short rest — try again in a minute!';
 
@@ -280,6 +285,7 @@ Deno.serve(async (req) => {
     skillLevel?: number;
     count?: number;
     context?: string;
+    profileId?: string;
   };
   try {
     body = await req.json();
@@ -313,24 +319,45 @@ Deno.serve(async (req) => {
 
   // Identify the caller (#88): signed-in players only. The anon key is public
   // (it ships in the web bundle), so without this anyone could spend the
-  // project's Claude budget. The id also drives per-player dedupe (#24).
+  // project's Claude budget.
   if (!dbUrl || !anonKey || !db) {
     return json({ error: 'Server is missing Supabase configuration' }, 500);
   }
   const authHeader = req.headers.get('Authorization');
-  let profileId: string | null = null;
+  let callerId: string | null = null;
   if (authHeader) {
     try {
       const userClient = createClient(dbUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
       const { data: userData } = await userClient.auth.getUser();
-      profileId = userData?.user?.id ?? null;
+      callerId = userData?.user?.id ?? null;
     } catch (e) {
       console.error('auth lookup failed:', e instanceof Error ? e.message : String(e));
     }
   }
-  if (!profileId) return json({ error: 'Please sign in to play.' }, 401);
+  if (!callerId) return json({ error: 'Please sign in to play.' }, 401);
+
+  // Which kid is playing (#118): the app names one of the grown-up's kids, and
+  // the per-kid budget and dedupe (#24) follow them. An app from before parent
+  // accounts sends none — its login is the kid. A failed lookup keeps the
+  // login (the quota fails open below if that isn't a kid); only someone
+  // else's kid is refused.
+  let profileId: string = callerId;
+  if (body.profileId !== undefined) {
+    if (typeof body.profileId !== 'string' || !UUID_RE.test(body.profileId)) {
+      return json({ error: 'profileId must be a player id' }, 400);
+    }
+    const { data: kid, error: kidErr } = await db
+      .from('profiles')
+      .select('id')
+      .eq('id', body.profileId)
+      .eq('parent_id', callerId)
+      .maybeSingle();
+    if (kidErr) console.error('player lookup failed (is migration 0012 applied?):', kidErr.message);
+    else if (!kid) return json({ error: 'That player belongs to another account.' }, 403);
+    else profileId = kid.id as string;
+  }
 
   // Rate limit + fresh-question budget (#88). If the quota migration isn't
   // applied yet the RPC errors — fail OPEN (logged loudly) so a deploy-order

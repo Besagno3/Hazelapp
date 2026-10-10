@@ -9,7 +9,13 @@ import { seaAreaAt, type SeaArea } from './content/boat';
 import { sendFlow, useFlow } from './machines/gameFlow';
 import AuthPage from './features/auth/AuthPage';
 import ResetPasswordPage from './features/auth/ResetPasswordPage';
-import SignOutButton from './features/auth/SignOutButton';
+import ConsentPage from './features/family/ConsentPage';
+import FirstKidPage from './features/family/FirstKidPage';
+import KidSetupPage from './features/family/KidSetupPage';
+import WhoIsPlaying from './features/family/WhoIsPlaying';
+import GrownUpsArea from './features/family/GrownUpsArea';
+import { familyScreen, useFamilyStore } from './store/familyStore';
+import SwitchPlayerButton from './features/auth/SwitchPlayerButton';
 import LevelBadge from './components/LevelBadge';
 import StreakBadge from './components/StreakBadge';
 import LevelUpModal from './components/LevelUpModal';
@@ -50,6 +56,9 @@ export default function App() {
   const initialized = useAuthStore((s) => s.initialized);
   const session = useAuthStore((s) => s.session);
   const passwordRecovery = useAuthStore((s) => s.passwordRecovery);
+  // Before the game: the grown-up's consent, their kids, who's playing (#118).
+  const family = useFamilyStore((s) => familyScreen(s));
+  const familyError = useFamilyStore((s) => s.error);
   const saveStatus = useSaveStore((s) => s.status);
   const booting = useFlow((s) => s.matches('boot'));
   const screen = useFlow((s) =>
@@ -91,6 +100,24 @@ export default function App() {
   // Arrived from a reset-email link → choose a new password before playing.
   if (passwordRecovery) return <ResetPasswordPage />;
 
+  if (family === 'loading') return <LoadingScreen label="Opening your family…" />;
+  if (family === 'error') {
+    return (
+      <ErrorScreen
+        message={familyError ?? "Couldn't load your family."}
+        onRetry={() => {
+          const userId = useAuthStore.getState().user?.id;
+          if (userId) void useFamilyStore.getState().load(userId);
+        }}
+      />
+    );
+  }
+  if (family === 'consent') return <ConsentPage />;
+  if (family === 'grownUps') return <GrownUpsArea />;
+  if (family === 'firstKid') return <FirstKidPage />;
+  if (family === 'kidSetup') return <KidSetupPage />;
+  if (family === 'pick') return <WhoIsPlaying />;
+
   // The save came from a newer version of the game (this tab is out of date).
   if (saveStatus === 'outdated') {
     return (
@@ -110,7 +137,7 @@ export default function App() {
 
   return (
     <>
-      {/* The world screen puts the badges and Sign out in its own top bar, so
+      {/* The world screen puts the badges and Switch player in its own top bar, so
           they never cover the place name or an overlay (#75 item 14b, #102i). */}
       {screen !== 'world' && (
         <>
@@ -118,9 +145,9 @@ export default function App() {
           <StreakBadge />
         </>
       )}
-      {/* Sign-out floats top-right; hide it in battle where it overlaps the
-          hero status panel. */}
-      {screen !== 'battle' && screen !== 'world' && <SignOutButton />}
+      {/* Switch player floats top-right; hide it in battle where it overlaps
+          the hero status panel. */}
+      {screen !== 'battle' && screen !== 'world' && <SwitchPlayerButton />}
       {screen === 'topics' && <TopicSelect />}
       {screen === 'quiz' && <QuizRound />}
       {screen === 'avatar' && <AvatarSelect />}

@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `quizSessionStore`, `authStore`, `profileStore`, `settingsStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `quizSessionStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
@@ -92,13 +92,31 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Auth gates the app.** `App.tsx` calls `useAuthInit()` (loads the Supabase
   session + subscribes to auth changes). No valid session → only `AuthPage` is
   reachable.
+- **A login is a grown-up's; kids are profiles (#118).** Signing in loads the
+  family (`familyStore`: consent + kids). Before the game, `familyScreen()`
+  picks, in order: consent (`ConsentPage`) → 👪 Grown-ups if open
+  (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password:
+  add / change / remove kids, set the grown-up PIN, the privacy notice,
+  Sign out) → the first kid (`FirstKidPage`) → any kid without a PIN
+  (`KidSetupPage`) → "Who's playing?" (`WhoIsPlaying`: a kid's tile, then
+  their 4-digit PIN on `PinPad`). **PINs are hashed in the database**
+  (migration 0013: `kid_pins` / `parent_pins`, readable by no client; set and
+  checked only by `set_/check_kid_pin`, `set_/check_parent_pin`); the app
+  only sees `has_pin`. Picking a kid (`choose`) loads *their* profile and
+  save, keyed by the kid's id; the kid playing in a tab survives a reload
+  (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
+  taps in the world's top bar) replaces Sign out. The active kid's id goes to
+  the question function (`profileId`) — **the question budget is per kid**
+  (a family has at most 8) — and on flags. The privacy notice and the tile
+  pictures live in `content/family.ts` (the notice is a **draft** until a
+  lawyer reviews it — `PRIVACY_IS_DRAFT`).
 - **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
   `boot → topicSelect ⇄ quiz → avatarSelect → world ⇄ battle`, with world
   substates `exploring / dialogue / service / path / menu` driving DOM
   overlays. App sends `READY` once session + save are loaded; sign-out sends
   `RESET`. Guards (world unlock, avatar chosen) read the save store. The
   machine owns *where the player is*; Zustand stores own *what they have*.
-- **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
+- **Feature folders** under `src/features/`: `auth`, `family`, `quiz`, `battle`, `world`.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone,
   each in an act (`act`; `actCrystals` / `actRestored` / `actComplete` —
@@ -585,6 +603,125 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Every kid has a PIN; a grown-up PIN; the question budget per kid (#118)
+The owner's answers (2026-10-10) changed three of the earlier calls:
+- **Each kid opens their profile with a 4-digit PIN** (replacing the secret
+  picture). Migration 0013 keeps PINs bcrypt-hashed (pgcrypto, `extensions`
+  schema) in `kid_pins`, a table with RLS on, no policies and no grants:
+  `set_kid_pin` (4 digits, only for the caller's kid) and `check_kid_pin`
+  (false for anyone else's kid) are the only way in; `profiles.has_pin` tells
+  the app one is set. `picture_password` is dropped. In the app: `PinPad`
+  (four dots, a big number pad, keyboard digits; after 5 wrong in a row it
+  rests 30 s — a brake on a sibling, kept in the screen), `KidForm` takes a
+  PIN (digits only, the 👁️ shows it; blank keeps a kid's PIN when changing
+  them), and **a kid without a PIN is set up before anyone plays**
+  (`KidSetupPage`; an old account's kid gets a nickname, picture and PIN
+  there).
+- **👪 Grown-ups opens with a grown-up PIN or the password.** The grown-up
+  can set an optional PIN (`set_parent_pin`, hashed in `parent_pins`;
+  `parents.has_pin`, which only that function writes). With one set, the
+  gate shows the PIN pad and "Use my password instead"; the password always
+  works.
+- **The question budget is per kid:** the edge function passes the kid's id
+  to `begin_question_request`; `question_requests` now points at `profiles`
+  (on delete cascade; `not valid`, so rows logged under a login before stay).
+  Since every kid adds a budget, a family has **at most 8 players**
+  (`profiles_kid_limit` trigger).
+- Tests: `supabase/ci/pins.test.sql` (4 digits only, set/check, a new PIN
+  replaces the old, hashes unreadable and unwritable by the API role,
+  another grown-up can't check or set my kid's PIN or pass my grown-up PIN,
+  a 9th player refused, each kid's own budget, a removed kid's requests and
+  PIN go) — it fails with `check_kid_pin`'s ownership test removed;
+  `parent_accounts.test.sql` updated. `PinPad`, `KidSetupPage` tests;
+  `familyStore`, `WhoIsPlaying`, `KidForm`, `GrownUpsArea` tests moved to
+  PINs. 935 tests green; lint + tsc + build clean; the five SQL tests, the
+  migrations in order and the bundle twice pass on local Postgres 16;
+  `deno check` clean. Headless Chromium walk (stubbed Supabase, 375×667 and
+  320×568): sign-up → consent → first kid with a PIN → an old kid finished
+  → Who's playing → a wrong then right PIN → the game → Grown-ups by
+  password → set a grown-up PIN → the gate by grown-up PIN — no sideways
+  scroll, no page errors.
+
+### 2026-10-10 — Parent accounts in the app: a grown-up signs up, kids pick themselves (#118, #89)
+The app half of #118 (the server half is the entry below):
+- **Sign-up is a grown-up's:** email, password and one box — "I'm the parent
+  or guardian, I'm 18 or older, and I agree to the privacy notice" (the
+  notice folds open above it). No birth date: that moves to the kid. The
+  consent version (`CONSENT_VERSION`) rides in the sign-up metadata and the
+  database stamps it.
+- **Before the game** (`familyScreen` in `familyStore`): a login with no
+  consent sees `ConsentPage` (old accounts — often a kid's own, so it says
+  "fetch a grown-up"; it can sign out); a family with no kids adds the first
+  (`FirstKidPage` → `KidForm`: nickname ≤ 20, birth month/year for ages ~3–18,
+  a tile picture from 12 animals, a secret picture from 9 things); then
+  "Who's playing?" — tap your tile, then your secret picture (shuffled each
+  time; a wrong one says try again; an old kid with none goes straight in).
+- **👪 Grown-ups** (from "Who's playing?"): opens only after re-entering the
+  grown-up's password (`signInWithPassword` with their email; "Forgot it?"
+  sends a reset link). Lists each kid (age, secret picture), adds / changes
+  them, removes one after a "for good" confirm (the database cascades their
+  save, seen questions and flags; their copies on this device go too), shows
+  when consent was given and the notice, and holds **Sign out**.
+- **In the game, Switch player replaces Sign out** (`SwitchPlayerButton`,
+  renamed from `SignOutButton`; same two-tap guard and width in the world's
+  top bar, "Switch player" read out): saves, puts the game away
+  (`putAwayGame`, shared with sign-out) and returns to "Who's playing?". A
+  kid can no longer sign the family out.
+- The kid playing in a tab survives a reload (sessionStorage); the
+  question function gets `profileId`, flags go in as the kid, and prefetched
+  questions are keyed per kid. `profileStore.loadProfile` takes the kid's
+  birth date to seed a profile it can't read.
+- **The privacy notice is a draft** (`content/family.ts`): plain-language
+  sections a lawyer should review, with [BRACKETS] to fill; it shows a
+  "Draft" badge while `PRIVACY_IS_DRAFT` is on.
+- Bench: `hud` mode's stub now answers `parents` and the kid list and starts
+  with its kid picked; 6/6 checks clean, including "asking Switch? doesn't
+  move the page" on phones. The 5 s gotrue "Lock … not released" warning in
+  the bench log is there on the branch before this too (the stub session).
+- Checked in headless Chromium against a stubbed Supabase at 375×667 and
+  320×568: sign-up, consent, first kid, Who's playing, a wrong then right
+  secret picture, the game with Switch player, a reload keeping the kid,
+  Grown-ups gate and home, the remove confirm — no sideways scroll, no page
+  errors. Two layout fixes came from it (Change / Remove on their own line;
+  title spacing without a subtitle).
+- Tests: `familyStore.test` (gate order, load, choose, reload keeps the kid,
+  switch saves first, add / remove / agree), `WhoIsPlaying`, `KidForm`,
+  `GrownUpsArea`, `ConsentPage` tests, sign-up tests in `PasswordReset.test`,
+  `SwitchPlayerButton.test` (the old sign-out tests, re-aimed). 922 tests
+  green, lint + tsc + build clean.
+
+### 2026-10-10 — Parent accounts, server side: grown-ups own their kids (#118, #89)
+Decided with the owner (2026-10-10): one grown-up login, many kids (no
+child email or login); a secret picture per kid on shared devices; draft
+privacy/consent text for a lawyer to review; the parent area behind the
+grown-up's password; the question budget per login. This commit is the
+server half — backward compatible, so today's app keeps working on it:
+- **Migration 0012** (`0012_parent_accounts.sql`): a `parents` table (one row
+  per login: `consent_at`, `consent_version`; the app writes it only through
+  `record_consent()`, stamped with the server clock). `profiles` are kids:
+  `parent_id` (default `auth.uid()`), `display_name` (1–20 chars), `icon`,
+  `picture_password`; new kids get their own id (`profiles.id` no longer
+  references `auth.users`). RLS on `profiles`, `saves` and `question_flags`
+  is now "belongs to my kid" (`parent_id = auth.uid()`), and a grown-up may
+  remove a kid (their save, seen questions and flags go with them).
+  `handle_new_user` makes every login a grown-up (consent from the sign-up
+  metadata), and still gives an old-app sign-up (birth date in the
+  metadata) its first kid with the login's id.
+- **Old accounts** become a grown-up with one kid: the profile keeps its id,
+  so its save, seen questions and local caches still match; no consent yet,
+  so the new app will ask.
+- **Edge function:** takes an optional `profileId` (the kid), checks it
+  belongs to the caller (403 if not), and keys seen questions to the kid; the
+  quota stays per login (a family). No `profileId` = the login is the kid.
+- Tests: `supabase/ci/parent_accounts.test.sql` acts as two grown-ups through
+  the `authenticated` role (sees/adds/changes/removes only their own kids,
+  saves and flags; consent can't be written by hand; removing a kid removes
+  their save; an old account agrees later). It fails with the "add kids" rule
+  loosened. Upgrading an old account through 0012 was checked by hand on
+  Postgres 16 (XP and save still read and write; deleting the login still
+  removes everything). All four SQL tests, migrations in order and the bundle
+  twice pass locally; `deno check` clean.
 
 ### 2026-10-10 — Show password: an eye on every password field (#117)
 Kids mistype passwords and couldn't see why sign-in failed. New
