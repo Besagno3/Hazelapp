@@ -829,6 +829,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-681 | U | ✅ | journey | from a fresh save the 🚩 hands out Act I's 8 legs in order (4 crystals, 3 keys, the Spire) and then Act II's boat; every leg walks zone by zone from where the last one ended to beside its boss / the Spire (journey.test) |
 | TC-682 | U | ✅ | journey | no step of Act I crosses fog, pitch dark, a secret passage (`H`) or another place's door; without its warden's key there's no way to Verdara's, Gearfall's or Chromaria's Fiend (journey.test) |
 | TC-683 | U | ✅ | journey | every Act I leg still walks from each town visited so far — from its Return landing and from its inn's wake cell — so Return or a defeat never strands the hero (journey.test) |
+| TC-684 | M | ✅ | journey | `bench/run-world-bench.cjs journey`: the real hero (headless Chromium, real `WorldCanvas`) walks all 8 Act I legs from a new save — through gates, exits, slides and fades, down the Depths' stairs — into each boss and the Spire icon, and every seal, the stairs and Umbra on all five Spire floors: 13/13, no page errors (2026-10-10, twice) |
 
 ## Regression cases (tied to ISSUES.md)
 

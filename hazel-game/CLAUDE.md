@@ -382,6 +382,7 @@ npm test         # Vitest suite (test:watch / test:ui also available)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps [cols rows]   # frame times on a big test map
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -448,6 +449,33 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — The real hero walks Act I in headless Chromium (#75 item 14b)
+Third slice of 14b: the journey's paths walked by the real `WorldCanvas` —
+real hitboxes, gates, exits, slides and fades — on the bench.
+- **`bench/walker.ts`** steers the hero through the bench's touch-pad ref (no
+  game hooks): it holds a direction for as long as the distance takes at
+  walking speed, pauses the world to read where the hero really is (the
+  canvas reports its position on a pause), and corrects with short taps to
+  within 4 px of each corner — enough to turn into a one-tile corridor. It
+  waits out the canvas's post-pause trigger cooldown before bumping a gate or
+  a boss, holds into an exit until the zone changes, then lets the slide /
+  fade finish.
+- **`bench/world.tsx`:** `leg=<n>` loads Act I's leg n (zone, start cell, story
+  flags, every lifted fog already watched); `floor=…&walk=1` a Spire floor;
+  `__bench.walkLeg()` / `walkFloor()` walk them; bumping a gatekeeper's gate
+  opens it (as an answered question would), a warden's key gate only with its
+  key flag; battles, the Spire icon, seals, stairs and Umbra are recorded;
+  walks run under Calm from the first frame (a critter wandering into the
+  hero while the page loads would start a battle and stop the world).
+- **`run-world-bench.cjs journey [outDir]`:** each leg and each Spire floor on
+  a fresh page; one line per walk; a screenshot, the stuck cell and the last
+  probes on a failure; turns that took more than three tries; exit code 1.
+- **Result:** 13/13 — all 8 Act I legs from a new save to the Spire (lumina-
+  village → … → crystal-spire, ~710 cells, ~3 min of walking) and every seal,
+  stairs and Umbra on all five Spire floors. No snag in the maps: the two
+  failures on the way were the walker's (it pushed into a target from a
+  stale position, and at a different stairs tile than the one it stood by).
 
 ### 2026-10-10 — Act I as a journey: every leg walks on the maps (#75 item 14b)
 Second slice of 14b — the Phase 2 exit check as a test (`lib/journey.ts`).

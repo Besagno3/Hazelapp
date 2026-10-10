@@ -5,6 +5,8 @@
  *   node bench/run-world-bench.cjs fps [cols] [rows]   frame times on the stress map
  *   node bench/run-world-bench.cjs shots <outDir>      screenshot every zone screen + Spire floor
  *   node bench/run-world-bench.cjs diff <dirA> <dirB>  pixel-compare two shots dirs
+ *   node bench/run-world-bench.cjs journey [outDir]    walk Act I's legs and the Spire's floors
+ *                                                      with the real hero (#75 item 14b)
  *
  * Playwright isn't a project dependency; a global install works:
  *   NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps
@@ -177,6 +179,50 @@ async function diff(browser, dirA, dirB) {
   if (worst !== 0) process.exitCode = 1;
 }
 
+/**
+ * Act I walked by the real hero (#75 item 14b): each leg of `lib/journey.ts` on
+ * a fresh page — zone by zone, through gates and exits, into its boss or the
+ * Spire — then every Spire floor's seals and stairs (or Umbra). One line per
+ * walk; a failure saves a screenshot to `outDir`. Exit code 1 on any failure.
+ */
+async function journey(browser, outDir) {
+  fs.mkdirSync(outDir, { recursive: true });
+  const first = await openBench(browser, 'leg=0');
+  const titles = await first.evaluate(() => window.__bench.legs());
+  const themes = await first.evaluate(() => window.__bench.info().spireThemes);
+  await first.close();
+  const walks = [
+    ...titles.map((title, i) => ({ name: `leg ${i + 1}: ${title}`, query: `leg=${i}`, fn: 'walkLeg' })),
+    ...themes.map((t) => ({ name: `Spire floor: ${t}`, query: `zone=crystal-spire&floor=${t}&walk=1`, fn: 'walkFloor' })),
+  ];
+  let failed = 0;
+  const tight = [];
+  for (const w of walks) {
+    const page = await openBench(browser, w.query);
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    const r = await page.evaluate((fn) => window.__bench[fn](), w.fn);
+    const ok = r.ok && errors.length === 0;
+    const hops = r.hops.map((h) => `${h.zoneId}${h.ok ? '' : ' ✗'}`).join(' → ');
+    const cells = r.hops.reduce((n, h) => n + h.cells, 0);
+    console.log(`${ok ? '✓' : '✗'} ${w.name}  (${r.hops.length} hops, ${cells} cells, ${r.seconds}s)  ${hops}`);
+    for (const h of r.hops) for (const c of h.tightTurns) tight.push(`${w.name}: ${h.zoneId} ${c.x},${c.y}`);
+    if (!ok) {
+      failed += 1;
+      const bad = r.hops.find((h) => !h.ok);
+      if (r.error) console.log(`    ${r.error}`);
+      if (bad) console.log(`    stuck in ${bad.zoneId} at ${bad.stuck?.at ? `${bad.stuck.at.x},${bad.stuck.at.y}` : '?'} (step ${bad.stuck?.step}): ${bad.stuck?.reason}`);
+      if (bad?.trace) console.log(`    trace: ${bad.trace.join(' | ')}`);
+      for (const e of errors) console.log(`    page error: ${e}`);
+      await page.screenshot({ path: path.join(outDir, `${w.query.replace(/[^a-z0-9]+/gi, '_')}.png`) });
+    }
+    await page.close();
+  }
+  console.log(`\n${walks.length - failed}/${walks.length} walks made it.`);
+  if (tight.length) console.log(`Turns that took more than three tries:\n  ${tight.join('\n  ')}`);
+  if (failed) process.exitCode = 1;
+}
+
 (async () => {
   const [mode = 'fps', ...args] = process.argv.slice(2);
   const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] });
@@ -186,6 +232,7 @@ async function diff(browser, dirA, dirB) {
     if (mode === 'fps') await fps(browser, Number(args[0] ?? 160), Number(args[1] ?? 112));
     else if (mode === 'shots') await shots(browser, args[0] ?? 'bench-shots');
     else if (mode === 'diff') await diff(browser, args[0], args[1]);
+    else if (mode === 'journey') await journey(browser, args[0] ?? 'bench-journey');
     else throw new Error(`unknown mode ${mode}`);
   } finally {
     await browser.close();
