@@ -8,7 +8,7 @@ import { BOAT_HOME, boatAfterDefeat, boatSpot, BOAT_MENDED } from './boat';
 import { RETURN_TOWNS } from './fieldSpells';
 import { innOf } from './zones';
 import { NPC_DEFS } from './npcs';
-import { reach } from '../lib/reach';
+import { reach, touches } from '../lib/reach';
 import { encounterHabitat, meetsHero, seaEntryCell } from '../lib/travel';
 import { WANDER_TUNING } from '../lib/wander';
 import { HABITATS } from '../types';
@@ -193,6 +193,7 @@ describe('a battle at sea (#75 item 14d)', () => {
       { x: 10, y: 0 },
       { x: 11, y: 0 },
       { x: 10, y: 2 },
+      { x: 18, y: 10 },
     ]);
     // Moonwell Grove's gate south and the chest behind it.
     clear('moonwell-grove', 'grumblebee', [
@@ -200,6 +201,29 @@ describe('a battle at sea (#75 item 14d)', () => {
       { x: 11, y: 10 },
       { x: 10, y: 11 },
     ]);
+  });
+
+  it("from where you arrive, a walk to the save crystal clear of every awake critter's reach (#112e)", () => {
+    // Critters within reach of the arrival are asleep there (they let you pass); the rest are awake.
+    const reachPx = 32 * WANDER_TUNING.enemy.leashTiles + 28;
+    const px = (c: { x: number; y: number }) => ({ x: c.x * 32 + 16, y: c.y * 32 + 16 });
+    const cases: { zone: keyof typeof ZONES; arrive: { x: number; y: number } }[] = [
+      { zone: 'clockwork-depths', arrive: { x: 10, y: 2 } },
+      { zone: 'starfall-coast', arrive: { x: 1, y: 6 } },
+    ];
+    for (const { zone, arrive } of cases) {
+      const z = ZONES[zone];
+      const a = px(arrive);
+      const awake = z.enemies.map(px).filter((e) => Math.hypot(e.x - a.x, e.y - a.y) >= reachPx);
+      const open = reach(z, {
+        from: arrive,
+        exits: 'stop',
+        blocked: (x, y) => awake.some((e) => Math.hypot(e.x - (x * 32 + 16), e.y - (y * 32 + 16)) < reachPx),
+      });
+      const crystal = z.map.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'S' ? [{ x, y }] : [])))[0];
+      expect(crystal, zone).toBeDefined();
+      expect(touches(open, crystal.x, crystal.y), zone).toBe(true);
+    }
   });
 
   it('every map with sea critters has a battle-at-sea backdrop (256×144); land battles keep the zone one', () => {

@@ -286,20 +286,25 @@ zod, react-query. Add the package in the same change that first uses it.
   its head and fading on a loop (held still under reduced motion), drawn
   over the hero and the boat — by the way up (up-right, up-left, straight up,
   out to a side) that reads most surely as its own as it falls asleep
-  (`lib/sleepMark.ts` `zzPath`, by `markCost`: covering a boss worst, then
-  anyone else or a roof or the lighthouse, then the hero, Ember's spot, the
-  room round the hero; coming near one a twentieth of that; then a letter
-  nearer someone else's face; ways away from the hero first — tested on every
-  map, with the hero anywhere within reach, on foot or sailing), fading right
-  down while they cross anyone or come nearer anyone's face than their
-  sleeper's (an awake critter's too), and hidden with the hero (or the boat)
+  (`lib/sleepMark.ts` `zzPath`, by `markCost`: covering a boss — or coming
+  within `BOSS_MARGIN` (8 px) of it — worst, then anyone else, a roof, the
+  lighthouse or the map's edge (`edgeBoxes`), then the hero, where an awake
+  critter roams (`patchBox`), Ember's spot, the room round the hero; coming
+  near one a twentieth of that; then a letter nearer someone else's face (an
+  awake critter's double, `FOE_FACE`); ways away from the hero first — tested
+  on every map, with the hero anywhere within reach, on foot or sailing),
+  fading right down while they cross anyone or come nearer anyone's face than
+  their sleeper's — hidden by an awake critter's or a boss's, eased so a
+  passer-by doesn't make them flicker — and hidden with the hero (or the boat)
   on it; as a scene starts, or on landing or boarding, Ember sits on a
-  sleeper's far side (or a side: on ground she can stand on, outdoors, off
-  anyone's face — `emberSpot`). Like Calm it lets the hero
-  pass — heading up to one says, once a session (`battleStore`, so sign-out
+  sleeper's far side (or a side: on ground she can stand on, outdoors, her box
+  off anyone's face or label; else where she trails anyway, so the letters are
+  planned round where she goes — `emberSpot`). Like Calm it lets the hero
+  pass — heading towards one says, once a session (`battleStore`, so sign-out
   resets it), "💤 Sleepy critters let you pass. They wake up when you move
-  away." (`onSleeper`; with another toast up, the next time) — until they've
-  left its patch; then it
+  away." (`onSleeper`; with another toast up, the next time; it counts once
+  it's been up 2.5 s, so a battle cutting it short leaves it to say again) —
+  until they've left its patch; then it
   can't touch them unless they steer back (`standDown` / `restOf` /
   `staysDown`, checked every frame). A boss is drawn as ever — it never lets
   the hero past: it only holds back while they stand still, back away or step
@@ -554,6 +559,45 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d fourteenth review: "z Z" keep clear of bosses, the map's edge and awake critters' patches; the hint counts once read; the Imp moved off the crystal walk (#75 item 14d)
+Round 14 — fresh `/saas-code-review` (1 medium, 4 low) + `/saas-ux-review` (1
+medium, 1 low-medium, 2 low, notes). All fixed:
+- **Letters just under a boss's label (code, medium):** on Starfall's corridor
+  the Mite's and Sprite's "z Z" ended 4 px under the Tide Colossus's crown
+  label (it looked asleep), and the sweep test, with 17 px plates where the
+  canvas draws 15, couldn't see it. `zzPath` keeps `BOSS_MARGIN` (8 px) off a
+  boss; the test uses the canvas's plate (`levelPlate`) and fails a path within
+  8 px of a boss where a clear one was there.
+- **A sleeper beside an awake critter's patch (UX, medium):** planned round
+  where neighbours stood, its letters went where an awake critter wandered,
+  faded to 25% by its head (it looked asleep) while the sleeper showed
+  nothing. Letters now keep out of awake critters' patches (`patchBox`, a
+  little cheaper than the hero), a letter by an awake critter's face weighs
+  double (`FOE_FACE`), and by an awake critter or a boss they hide rather than
+  fade — eased (`ZZ_EASE`) so a passer-by doesn't make them flicker.
+- **The 💤 hint used up in a flash (UX, low-medium):** it counted as said the
+  moment it showed, so a battle a second later took it for the session. It
+  counts once it's been up 2.5 s (`SLEEPER_HINT_READ_MS`), and shows only
+  heading towards a sleeper (`WorldScreen.sleeper.test`).
+- **Off the top of the map (code low; UX low):** the Imp's (5,1) and Chromaria's
+  Flicker Goblin's "Z" rose past the top edge, cut off. The map's edges count
+  like a roof (`edgeBoxes`).
+- **The crystal walk (UX, low):** the Imp at 5,1 took away the Depths' one
+  fight-free walk from the arrival to the save crystal. It's at 20,7 now, in
+  the corridor east of the Tinkery's door, and `seaCritters.test` walks from
+  the arrival to the crystal clear of every awake critter's reach (the Depths
+  and Starfall).
+- **Ember (code, low):** with no spot free she trailed somewhere the letters
+  weren't planned round (now the fallback is where she trails: the way the
+  hero last went), and her 20 px rule let her sit on the Tide Colossus's face
+  (now her box off everyone's face and label).
+- **Tests (code, low ×2):** the sweep's checks ignored roofs where the cost
+  model doesn't, used the hero's box at sea and left Ember's fog check out —
+  `HERO_BOX` / `HERO_AFLOAT_BOX` are shared now.
+- Logged (#112ee): on boarding a held key resets `lastDir` the next frame
+  (latent); wanderers could keep a wider berth round sleepers (optional).
+- Tests: 816 green (+3), lint + build clean; `bench … sea` 7/7.
 
 ### 2026-10-10 — 14d thirteenth review: "z Z" never at full strength on anyone else; roofs counted; the Imp and the Mite moved clear (#75 item 14d)
 Round 13 — fresh `/saas-code-review` (1 medium, 5 low) + `/saas-ux-review` (2

@@ -16,6 +16,14 @@ export type ZzPath = { glyphs: readonly Glyph[]; drift: number };
 /** How far a letter rises before it fades, px. */
 export const ZZ_RISE_PX = 12;
 
+/** The hero's sprite, as a box round their position (px) — and Ember's spot, kept to the same size. */
+export const HERO_BOX = { w: 28, h: 36 } as const;
+/** …and sailing, with the boat round them (its hull is drawn over critters). */
+export const HERO_AFLOAT_BOX = { w: 48, h: 48 } as const;
+/** A critter's level on the map: 11 px text on a plate 8 px wider and 4 px taller (`WorldCanvas`). */
+export const LEVEL_TEXT_PX = 11;
+export const levelPlate = (text: string) => ({ w: [...text].length * 7 + 8, h: LEVEL_TEXT_PX + 4 });
+
 /** Up and to the right, up and to the left, straight up, or out to either side — in that order. */
 export const ZZ_PATHS: readonly ZzPath[] = [
   {
@@ -90,47 +98,71 @@ export function sweptBoxes(at: Point, path: ZzPath): Box[] {
 
 /** Something a sleeper's letters keep clear of, and how much crossing it costs (`zzPath`). */
 export type Mark = Box & { boss?: boolean; weight?: number };
+/** A face a letter shouldn't come nearer than its own sleeper's; `weight` is what that costs (default 1). */
+export type Face = Point & { weight?: number };
 
 /** What covering one costs: a boss's face or level 100, anyone else's (or a roof) 10, or its own `weight`. */
 export const markCost = (m: Mark) => m.weight ?? (m.boss ? 100 : 10);
 /**
  * The hero costs less than a neighbour (letters on them can't make a foe look
- * asleep); where Ember stands, less again; the room kept round the hero,
- * least.
+ * asleep); where an awake critter roams (`patchBox`), a little less; where
+ * Ember stands, less again; the room kept round the hero, least.
  */
 export const HERO_COST = 5;
+export const PATCH_COST = 4;
 export const EMBER_COST = 3;
 export const HERO_ROOM_COST = 1;
 
+/**
+ * Where an awake critter roams (#112e): everywhere its leash lets it wander,
+ * with its face, and its level plate riding 26 px below it. Letters rising
+ * there would sit by it whenever it came by.
+ */
+export function patchBox(home: Point, leash: number): Mark {
+  const top = home.y - leash - 16;
+  const bottom = home.y + leash + 26 + LEVEL_TEXT_PX;
+  return { x: home.x, y: (top + bottom) / 2, w: 2 * leash + 32, h: bottom - top, weight: PATCH_COST };
+}
+
 /** Only coming within the gap of one costs a twentieth of covering it. */
 const NEAR_MISS = 0.05;
+/**
+ * A boss's face and level are kept this much clearer (px): letters a few px
+ * under its crown label still read as its, and the boss looks asleep.
+ */
+export const BOSS_MARGIN = 8;
+/** A letter nearer an awake critter's face than its own costs this (it could look asleep), anyone else's 1. */
+export const FOE_FACE = 2;
 
 /**
  * The way up (`ZZ_PATHS`) whose letters read most surely as this sleeper's:
- * covering a boss is worst, then covering anyone else or a roof (`others`;
- * `markCost` — coming within `gap` px of one a twentieth of that), then a letter nearer someone else's face
- * (`faces` — the hero's, Ember's, a neighbour's) than its own sleeper's. Ties
- * go to the ways leading away from `away` (the hero) first, then `ZZ_PATHS`'
- * order.
+ * covering a boss (or coming within `BOSS_MARGIN` of it) is worst, then
+ * covering anyone else, a roof or the map's edge (`others`; `markCost` —
+ * coming within `gap` px of one a twentieth of that), then a letter nearer
+ * someone else's face (`faces` — an awake critter's `FOE_FACE`, the hero's,
+ * Ember's, a person's 1) than its own sleeper's. Ties go to the ways leading
+ * away from `away` (the hero) first, then `ZZ_PATHS`' order.
  */
 export function zzPath(
   at: Point,
   others: readonly Mark[],
-  opts: { gap?: number; faces?: readonly Point[]; away?: Point } = {},
+  opts: { gap?: number; faces?: readonly Face[]; away?: Point } = {},
 ): ZzPath {
   const gap = opts.gap ?? 4;
   const faces = opts.faces ?? [];
   const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+  const kept = others.map((o) => (o.boss ? { ...o, w: o.w + 2 * BOSS_MARGIN, h: o.h + 2 * BOSS_MARGIN } : o));
   const cost = (path: ZzPath) => {
     const swept = sweptBoxes(at, path);
     const wide = swept.map((b) => ({ ...b, w: b.w + 2 * gap, h: b.h + 2 * gap }));
     const covering = others.reduce(
-      (n, o) => n + (swept.some((b) => overlaps(b, o)) ? markCost(o) : wide.some((b) => overlaps(b, o)) ? markCost(o) * NEAR_MISS : 0),
+      (n, o, i) =>
+        n + (swept.some((b) => overlaps(b, kept[i])) ? markCost(o) : wide.some((b) => overlaps(b, kept[i])) ? markCost(o) * NEAR_MISS : 0),
       0,
     );
     const strays = path.glyphs
       .flatMap((g) => [glyphBox(at, g, path.drift, 0), glyphBox(at, g, path.drift, 1)])
-      .filter((c) => faces.some((f) => dist(c, f) < dist(c, at))).length;
+      .reduce((n, c) => n + Math.max(0, ...faces.filter((f) => dist(c, f) < dist(c, at)).map((f) => f.weight ?? 1)), 0);
     return covering + strays;
   };
   const away = opts.away;
@@ -156,24 +188,45 @@ export function roofBoxes(buildings: readonly { id: string; x: number; y: number
 }
 
 /**
- * Where Ember starts, back beside a sleeper (#112e): on its far side from the
- * hero, else either side — on ground she can stand on (`ok`: walkable, or sea
- * when sailing; outdoors) and clear of everyone's face (`faces`, 20 px) —
- * else her usual spot. `dir` is the way she then trails (`lastDir`).
+ * The map's edges (px), where letters rising past them are cut off: costed
+ * like a roof (`zzPath`).
+ */
+export function edgeBoxes(cols: number, rows: number, tile: number): Mark[] {
+  const w = cols * tile;
+  const h = rows * tile;
+  const t = 64;
+  return [
+    { x: w / 2, y: -t / 2, w: w + 2 * t, h: t },
+    { x: w / 2, y: h + t / 2, w: w + 2 * t, h: t },
+    { x: -t / 2, y: h / 2, w: t, h },
+    { x: w + t / 2, y: h / 2, w: t, h },
+  ];
+}
+
+/**
+ * Where Ember starts, back beside a sleeper (#112e), and the way she then
+ * trails (`lastDir`): on its far side from the hero, else either side — on
+ * ground she can stand on (`ok`: walkable, or sea when sailing; outdoors), her
+ * box (`HERO_BOX`) off everyone's face and label (`crowd`, the sleeper's too)
+ * — else where she trails anyway (`trailing`, the way the hero last went). With
+ * no sleeper, her usual first spot.
  */
 export function emberSpot(
   hero: Point,
   sleeper: Point | null,
   ok: (x: number, y: number) => boolean,
-  faces: readonly Point[],
-): { dir: Point | null; at: Point } {
-  const fallback = { dir: null, at: { x: hero.x - 24, y: hero.y + 8 } };
-  const gap = sleeper ? Math.hypot(sleeper.x - hero.x, sleeper.y - hero.y) : 0;
-  if (!sleeper || gap < 4) return fallback;
-  const d = { x: (sleeper.x - hero.x) / gap, y: (sleeper.y - hero.y) / gap };
-  for (const dir of [d, { x: -d.y, y: d.x }, { x: d.y, y: -d.x }]) {
-    const at = { x: hero.x - dir.x * 26, y: hero.y - dir.y * 26 + 8 };
-    if (ok(at.x, at.y) && !faces.some((f) => Math.hypot(f.x - at.x, f.y - at.y) < 20)) return { dir, at };
+  crowd: readonly Box[],
+  trailing: Point = { x: 0, y: 1 },
+): { dir: Point; at: Point } {
+  if (!sleeper) return { dir: trailing, at: { x: hero.x - 24, y: hero.y + 8 } };
+  const spot = (dir: Point) => ({ x: hero.x - dir.x * 26, y: hero.y - dir.y * 26 + 8 });
+  const gap = Math.hypot(sleeper.x - hero.x, sleeper.y - hero.y);
+  if (gap >= 4) {
+    const d = { x: (sleeper.x - hero.x) / gap, y: (sleeper.y - hero.y) / gap };
+    for (const dir of [d, { x: -d.y, y: d.x }, { x: d.y, y: -d.x }]) {
+      const at = spot(dir);
+      if (ok(at.x, at.y) && !crowd.some((b) => overlaps({ ...at, ...HERO_BOX }, b))) return { dir, at };
+    }
   }
-  return fallback;
+  return { dir: trailing, at: spot(trailing) };
 }

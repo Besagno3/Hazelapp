@@ -1152,10 +1152,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'cog-sprite', x: 6, y: 5 },
-      // Clear of Echo (14,5) and the Tinkery's roof, so a sleeping one's "z Z" show and read as
-      // its own, and out of reach of the vault gate, the Tinkery's doorstep and the way out
+      // In the corridor east of the Tinkery's door: clear of Echo (14,5) and the roof, so a
+      // sleeping one's "z Z" show and read as its own, and out of reach of the vault gate, the
+      // Tinkery's doorstep, the way out — and the walk from the arrival to the save crystal
       // (sleepMark.test, seaCritters.test).
-      { defId: 'hourglass-imp', x: 5, y: 1 },
+      { defId: 'hourglass-imp', x: 20, y: 7 },
       { defId: 'relic-golem', x: 8, y: 2 },
       { defId: 'tut-tut', x: 3, y: 7 },
     ],
