@@ -394,7 +394,8 @@ describe("Marlow's Boat — the quest (#75 item 14)", () => {
   };
 
   it("waits for Act II: before the morning after the Spire, Marlow just talks about fish", () => {
-    expect(questFor(MARLOW)).toBe(quest);
+    expect(questFor(MARLOW, defaultSave())).toBeUndefined();
+    expect(questFor(MARLOW, actTwo())).toBe(quest);
     expect(quest.requires).toBe(ACT2_SEEN);
     expect(questConversation(MARLOW, defaultSave())).toBeNull();
     expect(questConversation(MARLOW, actTwo())?.finishKind).toBe('offer');
@@ -419,13 +420,5 @@ describe("Marlow's Boat — the quest (#75 item 14)", () => {
     expect(hasBoat(done.save.flags)).toBe(true);
     expect(done.save.coins).toBe(s.coins + 50);
     expect(boatSpot(done.save)).toEqual(BOAT_HOME);
-  });
-
-  it('its friends are not quest-givers of their own (a step never hides behind another quest)', () => {
-    for (const step of quest.steps) {
-      expect(step.npc, step.id).toBeDefined();
-      expect(questFor(step.npc!.id), step.npc!.id).toBeUndefined();
-      expect(NPC_DEFS[step.npc!.id], step.npc!.id).toBeDefined();
-    }
   });
 });

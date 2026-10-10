@@ -858,6 +858,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-710 | U | ✅ | bosses | every boss has a role and only bosses do; one Fiend per crystal on its own topic (`fiendFor`); a warden exactly when its boss drops a gate key; `fiendFor('history')` no longer returns the Clockwork Titan; a Fiend goes by its crystal's Fiend name, any other boss by its own; `bossScript` by role, nothing (no crash) for a boss with no lines (enemies.test) |
 | TC-711 | U | ✅ | bosses | `bossDefeated` by role: a Fiend on its crystal flag, a warden on its key flag (not its crystal), a miniboss on its own `boss:<id>:defeated` flag even when its topic's crystal is restored (keys.test) |
 | TC-712 | C | ✅ | bosses | in the real arena: a keyless miniboss on `nature` with no lines fights (it crashed on the old code), and beating it sets only its boss flag, no crystal, no "shines again"; an echo on `math` keeps its name and never restores Numbers (it did on the old code); the Null Fiend still speaks first and restores Numbers (BattleArena.test) |
+| TC-713 | U | ✅ | quests | one person, several quests (stand-in quests pushed into `QUESTS`): their quests come one at a time, the next only once the last is done and its story flag is set; a step through them speaks before their own offer and while their own quest is mid-way (both fail on the old code); their own quest ready to finish goes before the step; a bring step through them waits for its item, and until then they offer their own (fails on the old code) (quests.test) |
+| TC-714 | U | ✅ | quests | today's people still give one quest each, and `questFor` gives it once its story flag is set — Marlow's boat only after `act2-seen` (quests.test, boat.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

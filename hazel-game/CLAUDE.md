@@ -494,6 +494,20 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — One person can give several quests (#75 item 14c)
+Third slice of 14c (nothing visible). `questFor(npcId)` returned a person's
+first quest only, and their own quest always spoke before any step aimed at
+them, so Act II–IV people who give more than one quest, or help with someone
+else's, couldn't be written (two tests forbade both).
+- **`questsBy(npcId)`** lists a person's quests; **`questFor(npcId, save)`** is
+  the first not done whose `requires` is set — the next waits for the last.
+- **`questConversation` order:** their quest ready to finish → a step through
+  them (any quest's; a bring step only with its item) → their offer → their
+  hint. Split into `completeConversation` / `stepConversation`.
+- Tests: quests.test (+5 with stand-in quests; 3 fail on the old code), the
+  one-giver-per-quest and no-step-at-a-giver tests removed, boat.test's
+  "friends aren't givers" removed. 790 green, lint clean.
+
 ### 2026-10-10 — Bosses have roles: only a Fiend restores a crystal (#75 item 14c)
 Second slice of 14c (nothing visible). "Any boss without a key restores its
 topic's crystal" broke every boss Acts II–IV need: a keyless boss on a topic
