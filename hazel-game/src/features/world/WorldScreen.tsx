@@ -92,6 +92,9 @@ const HUD_TAP = "relative after:absolute after:inset-x-0 after:-inset-y-2 after:
  * machine's `world.*` substates. The canvas pauses (not unmounts) under
  * overlays and remounts per zone.
  */
+/** The "💤 Sleepy critters…" hint has been said this session (#112e). */
+let sleeperHintSaid = false;
+
 export default function WorldScreen() {
   const save = useSaveStore((s) => s.save);
   const update = useSaveStore((s) => s.update);
@@ -479,10 +482,13 @@ export default function WorldScreen() {
             showToast(
               knowsGlow ? '🌑 Too dark to go on! Tap 🔆 Glow at the top to light the way.' : `🌑 ${z.dark?.hint ?? "It's too dark!"}`,
             ),
-          // Said as they walk into a sleeper — or, with a toast up, at their next bump.
+          // Said once a session, as they head up to a sleeper — or, with a
+          // toast up, the next time they do.
           onSleeper: () => {
+            if (sleeperHintSaid) return true;
             if (toastUp.current) return false;
             showToast('💤 Sleepy critters let you pass. They wake up when you move away.');
+            sleeperHintSaid = true;
             return true;
           },
           onCalmTick: (left) => {

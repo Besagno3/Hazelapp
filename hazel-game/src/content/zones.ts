@@ -1150,7 +1150,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'cog-sprite', x: 6, y: 5 },
-      { defId: 'hourglass-imp', x: 14, y: 6 },
+      // Two tiles clear of Echo (14,5), so a sleeping one's "z Z" rise clear of them (sleepMark.test).
+      { defId: 'hourglass-imp', x: 12, y: 6 },
       { defId: 'relic-golem', x: 8, y: 2 },
       { defId: 'tut-tut', x: 3, y: 7 },
     ],
@@ -1294,7 +1295,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     enemies: [
       { defId: 'mossback-cub', x: 4, y: 9 },
       { defId: 'thornhare', x: 16, y: 8 },
-      { defId: 'grumblebee', x: 16, y: 9 },
+      // Not right under the Thornhare (16,8), so a sleeping one's "z Z" rise clear of it (sleepMark.test).
+      { defId: 'grumblebee', x: 18, y: 9 },
     ],
     exits: [
       // Back out through the gap in the trees (#75 Phase 1).

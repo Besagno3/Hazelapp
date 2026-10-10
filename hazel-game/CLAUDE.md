@@ -212,7 +212,8 @@ zod, react-query. Add the package in the same change that first uses it.
   `pitch` rects that block like fog until lit; a 🔆 HUD button appears there);
   **Calm** fills `calmRef` (seconds, counted down by the canvas while the world
   runs) — critters fade and don't start battles, bosses still do; when it
-  wears off a critter you're touching waits `CALM_GRACE` (1.5 s). Arriving
+  wears off, `CALM_GRACE` (1.5 s) of cooldown: a critter the hero is standing
+  in lets them step away from it — walking on into it fights. Arriving
   anywhere sets `visited:<zone>`.
   **Dungeons** (#75 item 10, `content/dungeons.ts`): a floor is an ordinary
   `dungeon` zone (saves your place, critters, chests, NPCs, maybe bigger than
@@ -282,12 +283,17 @@ zod, react-query. Add the package in the same change that first uses it.
   again on landing or climbing aboard, for the new way of getting about. A
   critter falls asleep: it holds still, drawn a little faded (`SLEEP_OPACITY`,
   less than Calm's), its level hidden, with a little "z" and "Z" rising from
-  its head and fading on a loop (held still under reduced motion;
-  `ZZ_GLYPHS`, drawn over the hero and the boat) — rising from its own head
-  they read as its own, and there's no box to frame a neighbour; like Calm it
-  lets the hero pass — the first one they walk into says "💤 Sleepy critters
-  let you pass. They wake up when you move away." (`onSleeper`; with another
-  toast up, at their next bump) — until they've left its patch; then it
+  its head and fading on a loop (held still under reduced motion), drawn
+  over the hero and the boat — by the first way up (up-right, up-left,
+  straight up, out to a side) clear of everyone else's face and label and of
+  the hero as it falls asleep (`lib/sleepMark.ts` `zzPath`, tested on every
+  map; a boss crossed last of all), fading right down while they cross anyone
+  after all and hidden with the hero standing on it; the hero faces the
+  nearest sleeper as a scene starts, so Ember trails on its far side. Like
+  Calm it lets the hero pass — heading up to one says, once a session, "💤
+  Sleepy critters let you pass. They wake up when you move away."
+  (`onSleeper`; with another toast up, the next time) — until they've left
+  its patch; then it
   can't touch them unless they steer back (`standDown` / `restOf` /
   `staysDown`, checked every frame). A boss is drawn as ever — it never lets
   the hero past: it only holds back while they stand still, back away or step
@@ -542,6 +548,40 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d eleventh review: "z Z" take a way up clear of everyone; wanderers never freeze; Ember trails clear of a sleeper (#75 item 14d)
+Round 11 — fresh `/saas-code-review` (1 medium, 2 low) + `/saas-ux-review` (1
+high, 1 medium, 2 low). Fixed, one kept:
+- **"z Z" on a neighbour (UX high; code medium):** they rose on a fixed path up
+  and to the right, so the sleeping Meteor Mite's sat on the Tide Colossus's
+  crown label (the boss looked asleep, even right after fleeing it), and the
+  Woods Grumblebee's on Wisp's name. `lib/sleepMark.ts` `zzPath` (back, with
+  paths now) picks the first way up — up-right, up-left, straight up, out to
+  a side — clear of everyone else's face and label, and of the hero, as it
+  falls asleep; a boss is crossed last of all; a test checks every critter on
+  every map. Two pairs had no way clear: the Depths' Hourglass Imp moved from
+  under Echo (14,6 → 12,6) and the Grove's Grumblebee from under the
+  Thornhare (16,9 → 18,9).
+- **The hero, Ember or the boat over the sign (UX, medium):** after a Flee the
+  sleeper hid under Ember or the boat while its letters rose from the hero. The
+  letters fade right down while they cross anyone (hero, Ember, a villager, a
+  label) and hide with the hero standing on the sleeper; the hero faces the
+  nearest sleeper as a scene starts, so Ember trails on its far side; the hint
+  shows as the hero heads up to one (44 px), while it's still there to see,
+  and once a session.
+- **Critters froze for good (code, low; pre-existing):** beyond 85% of its
+  leash a wanderer steered straight home, and if that step was blocked it tried
+  the same step forever — the Moon Moth's new 9,8 froze in 193 of 200
+  simulated runs, the Orbit Otter beside Starfall's crystal in 200 of 200. Now a
+  blocked step makes the next pick a random wander.
+- **Calm's grace (code, low):** its comment and this file promised 1.5 s for a
+  critter you're touching; `meetFoe` spares it only while you step away. The
+  words now say so.
+- **Small at 1× (UX, low):** "z" 20 px and "Z" 27 px.
+- **Kept (UX, low): Vela's doorstep → Old Marlow** crosses a corner of the
+  moth's patch — visible and avoidable; his spot, the door and the crystal
+  stay clear (tested).
+- Tests: 806 green (+3), lint + build clean; `bench … sea` 7/7.
 
 ### 2026-10-10 — 14d tenth review: "z Z" rise from a sleeper's head; walking into a spared critter fights; contact rules table-tested (#75 item 14d)
 Round 10 — fresh `/saas-code-review` (1 medium, 5 low) + `/saas-ux-review` (1
