@@ -535,12 +535,16 @@ async function sea(browser, outDir) {
   // Back from a Flee: saved right where the puffer touched you, and it respawns at home.
   page = await ready('zone=silver-shallows&aboard=1&at=17,28');
   await page.waitForTimeout(2500);
+  // Resting, it lets you pass, like under Calm: nudge about inside its patch.
+  await hold(page, 'ArrowRight', 150);
+  await hold(page, 'ArrowLeft', 300);
+  await page.waitForTimeout(1000);
   const idle = (await state(page)).encounters;
-  await hold(page, 'ArrowUp', 600); // sail off, clear of it…
-  await hold(page, 'ArrowDown', 550); // …and back: it fights again
+  await hold(page, 'ArrowUp', 600); // sail out of its patch: it wakes…
+  await hold(page, 'ArrowDown', 550); // …and back: it fights
   await hunt(page);
   s = await state(page);
-  await check(page, 'back on a critter after a Flee: it stands down until you sail clear, then fights again', idle === 0 && s.battles[0] === 'bubble-puffer', `idle ${idle} battles, then ${JSON.stringify(s.battles)}`);
+  await check(page, 'back on a critter after a Flee: it rests (and lets you pass) until you leave its patch, then fights', idle === 0 && s.battles[0] === 'bubble-puffer', `resting ${idle} battles, then ${JSON.stringify(s.battles)}`);
 
   // Back from a Flee a little off its home (a critter that swam into a hero standing still
   // saves them wherever they touched — or a reload there): it waits for the hero to move.

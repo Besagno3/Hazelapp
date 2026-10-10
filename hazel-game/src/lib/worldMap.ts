@@ -151,25 +151,49 @@ export function mapCaption(here: MapMarker | null, zoneName: string, worldName: 
   return `You're here: ${zoneName} (past ${here.place})`;
 }
 
-/**
- * Where down its edge a map's sea-edge label ("◀ Dawnreach", "Silver Shallows
- * ▶") sits — as a fraction of the map's height (#75 item 14d review). The
- * first of these spots whose label box no marker falls in: below the middle
- * by default, clear of Starfall Coast and Marlow's dock on Dawnreach, moving
- * off the ⭐ (or the ⛵, the 🚩, a place) wherever it is; when every spot holds
- * something, the one covering least — never the ⭐.
- */
-export const EDGE_LABEL_SPOTS = [0.63, 0.8, 0.37, 0.5, 0.2, 0.9] as const;
+/** A sea-edge label's words (#75 item 14): "◀ Dawnreach", "Silver Shallows ▶", "▲ …", "▼ …". */
+export function seaEdgeLabel(side: 'north' | 'south' | 'east' | 'west', toName: string): string {
+  const name = toName.startsWith('The ') ? toName.slice(4) : toName;
+  return side === 'west' ? `◀ ${name}` : side === 'east' ? `${name} ▶` : side === 'north' ? `▲ ${name}` : `▼ ${name}`;
+}
 
 /**
- * Does the label at `spot` cover this cell? Its box, generously: ~42% of the
- * map wide (a 10 px label is ~38% of a phone's map) and a few rows tall.
+ * Where down its edge a map's west / east sea-edge label sits — as a fraction
+ * of the map's height (#75 item 14d review). The first of these spots where
+ * the label covers no marker; when every spot covers something, the one
+ * covering least — never the ⭐. Below the middle by default; near the top and
+ * bottom too, since a busy coast (Dawnreach's east) can fill the middle.
  */
-export function edgeLabelCovers(side: 'west' | 'east', cols: number, rows: number, spot: number, m: { x: number; y: number }): boolean {
-  const cx = m.x + 0.5;
-  const nearRow = Math.abs(m.y + 0.5 - spot * rows) <= 3;
-  const wide = cols * 0.42;
-  return nearRow && (side === 'west' ? cx <= wide : cx >= cols - wide);
+export const EDGE_LABEL_SPOTS = [0.63, 0.8, 0.37, 0.5, 0.2, 0.9, 0.06, 0.95] as const;
+
+/**
+ * The narrowest the menu map is drawn (a 360 px phone). Labels and icons keep
+ * their pixel size while the map shrinks, so a label clear of a marker here is
+ * clear at every size.
+ */
+export const MAP_MIN_PX = 248;
+/** Half a label's height (10 px text, 2 px padding each side) and half an icon's (13–16 px). */
+const LABEL_HALF_PX = 7;
+const ICON_HALF_PX = 8;
+/** A label's width: ~6 px a character of 10 px semibold text, its padding, 2 px off the edge. */
+const labelPx = (text: string) => 6 * [...text].length + 10;
+
+/** Does the label (`text`) at `spot` cover a marker on this cell, on the narrowest map? */
+export function edgeLabelCovers(
+  side: 'west' | 'east',
+  cols: number,
+  rows: number,
+  spot: number,
+  m: { x: number; y: number },
+  text: string,
+): boolean {
+  const W = MAP_MIN_PX;
+  const H = (W * rows) / cols;
+  const mx = ((m.x + 0.5) / cols) * W;
+  const my = ((m.y + 0.5) / rows) * H;
+  const lw = labelPx(text);
+  const [x0, x1] = side === 'west' ? [2, 2 + lw] : [W - 2 - lw, W - 2];
+  return Math.abs(my - spot * H) < LABEL_HALF_PX + ICON_HALF_PX && mx + ICON_HALF_PX > x0 && mx - ICON_HALF_PX < x1;
 }
 
 export function edgeLabelSpot(
@@ -177,11 +201,12 @@ export function edgeLabelSpot(
   cols: number,
   rows: number,
   marks: readonly { x: number; y: number }[],
-  here: { x: number; y: number } | null = null,
+  here: { x: number; y: number } | null,
+  text: string,
 ): number {
   const cost = (f: number) =>
-    (here && edgeLabelCovers(side, cols, rows, f, here) ? 100 : 0) +
-    marks.filter((m) => edgeLabelCovers(side, cols, rows, f, m)).length;
+    (here && edgeLabelCovers(side, cols, rows, f, here, text) ? 100 : 0) +
+    marks.filter((m) => edgeLabelCovers(side, cols, rows, f, m, text)).length;
   let best: number = EDGE_LABEL_SPOTS[0];
   for (const f of EDGE_LABEL_SPOTS) {
     if (cost(f) === 0) return f;

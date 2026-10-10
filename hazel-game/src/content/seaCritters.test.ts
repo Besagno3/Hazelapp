@@ -5,6 +5,8 @@ import { SEA_CHARS, ZONES, fogAt, tileAt, type ZoneDef } from './zones';
 import { ENEMY_DEFS, atTier, habitatOf, spawnEnemy, spawnPlaced } from './enemies';
 import { battleBackdrop } from './tiles';
 import { BOAT_HOME, boatAfterDefeat, boatSpot, BOAT_MENDED } from './boat';
+import { RETURN_TOWNS } from './fieldSpells';
+import { innOf } from './zones';
 import { NPC_DEFS } from './npcs';
 import { reach } from '../lib/reach';
 import { encounterHabitat, meetsHero, seaEntryCell } from '../lib/travel';
@@ -144,6 +146,18 @@ describe('a battle at sea (#75 item 14d)', () => {
     // Lost ashore (a land critter): the boat stays wherever it's moored.
     const moored = { zoneId: 'silver-shallows' as const, x: 19, y: 20 };
     expect(boatAfterDefeat({ aboard: false, boat: moored })).toEqual({ aboard: false, boat: moored });
+  });
+
+  it('every inn is a town on Marlow\'s own map, so a hero woken there after a sea defeat can walk to the boat', () => {
+    // `boatAfterDefeat` sends the boat to Marlow's dock on Dawnreach. An inn on
+    // an island (14h plans Binder's, in the Sunken Archive) would strand the
+    // hero there — moor the boat at that town instead when one comes (#112o).
+    const innTowns = Object.values(ZONES).filter((z) => innOf(z));
+    expect(innTowns.length).toBeGreaterThan(0);
+    for (const z of innTowns) {
+      expect(z.exits.some((e) => e.to === BOAT_HOME.zoneId), `${z.id}'s inn opens onto ${BOAT_HOME.zoneId}`).toBe(true);
+    }
+    expect([...RETURN_TOWNS].sort()).toEqual(innTowns.map((z) => z.id).sort());
   });
 
   it('every map with sea critters has a battle-at-sea backdrop (256×144); land battles keep the zone one', () => {

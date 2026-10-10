@@ -34,7 +34,7 @@ import { habitatOf, spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
-import { BOAT_SPEED, canBoard, canLand, landingMooring, nearestSea, seaCrossing } from '../../lib/travel';
+import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
 import { CONTACT_RADIUS, contactRadius, idleReach, standDown, startsBattle, staysDown } from '../../lib/encounter';
 import { BOAT_REMOOR_REACH } from '../../content/boat';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
@@ -1079,9 +1079,9 @@ export default function WorldCanvas({
     for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
     for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
 
-    // Each roaming critter's parts, with their own full opacity — faded under
-    // Calm, and while it stands down (`standingDown`, #75 item 14d).
-    const critters: { obj: { opacity: number }; opacity: number; actor: Actor }[] = [];
+    // Each enemy's parts, with their own full opacity — faded under
+    // Calm, and while it rests (`resting`, #75 item 14d).
+    const critters: { obj: { opacity: number }; opacity: number; actor: Actor; boss: boolean }[] = [];
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
@@ -1155,6 +1155,13 @@ export default function WorldCanvas({
         radius: enemy.isBoss ? ACTOR_RADIUS.boss : ACTOR_RADIUS.enemy,
       };
       actors.push(actor);
+      // Every part fades with the critter — under Calm (not a boss) and while
+      // it rests (`resting`, #75 items 9 and 14d).
+      for (const part of parts) {
+        const base = part === labelPlate ? LABEL_PLATE_OPACITY : part === ripple ? RIPPLE_OPACITY : 1;
+        if (part !== labelPlate && part !== ripple) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
+        critters.push({ obj: part as unknown as { opacity: number }, opacity: base, actor, boss: enemy.isBoss });
+      }
       if (enemy.isBoss) {
         // Bosses hold their ground — gentle idle hover only (collision fixed).
         let t = Math.random() * Math.PI * 2;
@@ -1166,13 +1173,7 @@ export default function WorldCanvas({
           face.pos.y = py + dy;
         });
       } else {
-        // Regular critters roam their patch (slightly wider leash than NPCs),
-        // and fade while Calm is on (#75 item 9).
-        for (const part of parts) {
-          const base = part === labelPlate ? LABEL_PLATE_OPACITY : part === ripple ? RIPPLE_OPACITY : 1;
-          if (part !== labelPlate && part !== ripple) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
-          critters.push({ obj: part as unknown as { opacity: number }, opacity: base, actor });
-        }
+        // Regular critters roam their patch (slightly wider leash than NPCs).
         attachWander(face, {
           actor,
           parts,
@@ -1251,14 +1252,30 @@ export default function WorldCanvas({
     let heroFacing: Facing = 'down';
     // Enemies that could reach the hero standing where they start — back from
     // a Flee (the critter respawns at home, maybe right beside them), a
-    // reload, a neighbour's patch — stand down, faded like under Calm, until
-    // the hero has moved off and is clear: never pulled into a fight before
-    // they've done a thing (#112e).
-    const standingDown = standDown(
-      actors.filter((a) => a.kind === 'enemy' && a.enemy),
-      (a) => idleReach(a.enemy!, TILE * WANDER_TUNING.enemy.leashTiles),
-      spawn,
+    // reload, an arrival, a neighbour's patch — rest: faded like under Calm,
+    // and like Calm they let the hero pass, until the hero has left their
+    // patch (#112e). Only those that could fight the hero as they're getting
+    // about; the rest couldn't anyway. They're all at home now.
+    const leash = TILE * WANDER_TUNING.enemy.leashTiles;
+    const resting = new Map(
+      [
+        ...standDown(
+          actors.filter((a) => a.kind === 'enemy' && a.enemy && meetsHero(a.enemy.habitat, aboard ? 'boat' : 'foot')),
+          (a) => idleReach(a.enemy!, leash),
+          spawn,
+        ),
+      ].map((a) => [a, { x: a.x, y: a.y, reach: idleReach(a.enemy!, leash) }]),
     );
+    // Faded critters let you pass: all but bosses under Calm, and any resting.
+    let critterFade = '';
+    const fadeCritters = (calm: boolean) => {
+      const key = `${calm}|${resting.size}`;
+      if (key === critterFade) return;
+      critterFade = key;
+      for (const c of critters) c.obj.opacity = c.opacity * ((calm && !c.boss) || resting.has(c.actor) ? CALM_OPACITY : 1);
+    };
+    // From the first frame — even while the world waits (a level-up, a slide).
+    fadeCritters((calmRef?.current ?? 0) > 0);
 
     // Ember trails the hero (no collision — dragons walk where they please).
     const ember = worldFace(k, {
@@ -1505,7 +1522,6 @@ export default function WorldCanvas({
         : [];
     let pitchFade = 1;
     let calmShown = Math.ceil(calmRef?.current ?? 0);
-    let critterFade = '';
 
     // Darkness everywhere but a flickering circle of light round the hero:
     // the Spire's candle-light (#74), or a dark place (#75 item 9) — a few
@@ -1651,13 +1667,7 @@ export default function WorldCanvas({
         }
       }
       const calm = (calmRef?.current ?? 0) > 0;
-      // Faded critters let you pass: all of them under Calm, and any standing
-      // down (released only as the hero moves off, so the set only shrinks).
-      const fade = `${calm}|${standingDown.size}`;
-      if (fade !== critterFade) {
-        critterFade = fade;
-        for (const c of critters) c.obj.opacity = c.opacity * (calm || standingDown.has(c.actor) ? CALM_OPACITY : 1);
-      }
+      fadeCritters(calm);
 
       const keys = keysRef.current;
       let dx = touchDirRef.current.dx;
@@ -1809,12 +1819,12 @@ export default function WorldCanvas({
       if (cooldown === 0) {
         for (const a of actors) {
           if (a.kind === 'enemy' && a.enemy) {
-            // One already touching the hero as the scene began (back from a
-            // Flee, say) waits until they've moved off and are clear of it
-            // (#112e)…
-            if (standingDown.has(a)) {
-              if (staysDown(a, player.pos, spawn, contactRadius(a.enemy))) continue;
-              standingDown.delete(a);
+            // One resting since the scene began (it could reach where the hero
+            // started) lets them pass until they've left its patch (#112e)…
+            const rest = resting.get(a);
+            if (rest) {
+              if (staysDown(rest, player.pos, rest.reach)) continue;
+              resting.delete(a);
             }
             // …and a touch fights only in the enemy's own element, and no
             // roaming critter under Calm (`startsBattle`, #75 items 9, 14d).

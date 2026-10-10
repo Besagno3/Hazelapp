@@ -44,27 +44,25 @@ export function idleReach(foe: Pick<BattleEnemy, 'isBoss'>, leash: number): numb
 }
 
 /**
- * The enemies that stand down as a scene starts (all at home then), until the
- * hero has stepped clear of them (`staysDown`): every one that could reach a
- * hero standing where they start (`reachOf`, e.g. `idleReach`). Back from a
- * Flee the critter respawns at home, anywhere up to its leash plus a touch
- * from a hero saved where it swam into them (a step back is no step at all
- * when they stood still) — so it would otherwise wander straight back into
- * the same fight, again after every Flee; and the same after a reload, or
- * with a neighbouring critter (#112e). A critter standing down is drawn faded,
- * like under Calm, so a child can see it won't fight yet.
+ * The enemies that rest as a scene starts (all at home then): every one that
+ * could reach a hero standing where they start (`reachOf`, e.g. `idleReach`).
+ * Back from a Flee the critter respawns at home, anywhere up to its leash plus
+ * a touch from a hero saved where it swam into them (a step back is no step at
+ * all when they stood still) — so it would otherwise wander straight back into
+ * the same fight, again after every Flee; and the same after a reload, an
+ * arrival, or with a neighbour's patch (#112e). A resting enemy is drawn faded,
+ * like under Calm, and like under Calm it lets the hero pass (`staysDown`).
  */
 export function standDown<T extends Point>(foes: readonly T[], reachOf: (foe: NoInfer<T>) => number, hero: Point): Set<T> {
   return new Set(foes.filter((f) => touching(f, hero, reachOf(f))));
 }
 
 /**
- * Does an enemy that stood down as the scene started (`standDown`) stay down?
- * Until the hero has moved off where they started (by its reach) and is clear
- * of it. A critter that wanders off and back into a hero still standing there
- * — say, a child reading after a Flee — doesn't count as the hero stepping
- * clear.
+ * Does a resting enemy (`standDown`) stay resting? While the hero is still
+ * within its reach of its home — inside its patch. It wakes once they've left,
+ * so it never wakes beside them: by then it can't touch them without the hero
+ * steering back in.
  */
-export function staysDown(foe: Point, hero: Point, start: Point, radius: number): boolean {
-  return touching(foe, hero, radius) || touching(start, hero, radius);
+export function staysDown(home: Point, hero: Point, reach: number): boolean {
+  return touching(home, hero, reach);
 }

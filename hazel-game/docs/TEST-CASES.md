@@ -876,12 +876,16 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-723 | M | ✅ | world map | 📜 Menu map on Dawnreach at 375 and 1024 wide: "Silver Shallows ▶" sits down the east edge, clear of Starfall Coast and the ⛵ at Marlow's dock (2026-10-10) |
 | TC-724 | M | ✅ | sea critters | `bench/run-world-bench.cjs sea`: sailing into the puffer battles it; Calm passes it; sailing onto the Shallows starts none; on the puffer's home (back from a Flee) 2.5 s idle start none, then sailing off and back it fights — 4/4 (2026-10-10) |
 | TC-725 | U | ✅ | encounters | `encounterHabitat` maps foot → land, boat → sea (seaCritters.test); it's a `Record<TravelMode, Habitat \| null>`, so a new travel mode fails to compile until it's mapped (type-checked, `npm run build`) |
-| TC-726 | U | ✅ | encounters | every enemy that could reach a hero standing where a scene starts stands down (`idleReach`: a critter 92 px, a boss 34), until the hero moves off and is clear — a critter wandering off and back into them doesn't count (encounter.test). (Round 2's `fledFrom` was replaced by this in round 3.) |
+| TC-726 | U | ✅ | encounters | every enemy that could reach a hero standing where a scene starts rests (`idleReach`: a critter 92 px, a boss 34) and lets the hero pass until they've left its patch — it never wakes within reach (encounter.test). (Round 2's `fledFrom` was replaced in round 3; round 4 made it pass-through until out of its patch.) |
 | TC-727 | M | ✅ | encounters | bench page, idle sailing hero 32 px off the puffer's home: before the stand-down covered it, 6 of 6 fought within 10 s; now none; `bench … sea` 5/5 (2026-10-10) |
 | TC-728 | U/M | ✅ | world map | a sea-edge label takes the first spot down its edge with no marker in its box (42% of the map wide), else the one covering least — never the ⭐: tested with the ⭐ at every cell of Dawnreach and the Shallows, and clear of every Dawnreach place and the dock (worldMap.test); in the real app at 375 and 1024 the label and ⭐ don't overlap (2026-10-10) |
 | TC-729 | M | ✅ | world | the sailing footer is two lines at 740×360 and ends at y 351, like the walking one (2026-10-10) |
 | TC-730 | C | ✅ | battle at sea | the defeat screen's Marlow line follows whether the hero was sailing when they lost (`atSea`, from the save), the same fact that sends the boat home (BattleArena.test) |
-| TC-731 | M | ⏳ | encounters | in the real app, back from a Flee (or a reload) beside a critter: it shows faded and lets the hero pass until they move off, then brightens and fights — read as "resting" by a child? |
+| TC-731 | M | ⏳ | encounters | on a real phone, back from a Flee (or a reload) beside a critter: it shows faded and lets the hero pass until they leave its patch, then brightens — read as "resting" by a child? |
+| TC-732 | U | ✅ | battle at sea | every inn is a town on Marlow's own map (Dawnreach), so a hero woken there after a sea defeat can walk to the boat — fails the day an island inn arrives (seaCritters.test) |
+| TC-733 | C | ✅ | battle at sea | lost ashore in the real BattleArena: no Marlow line, the boat stays moored where it was (BattleArena.test) |
+| TC-734 | U/M | ✅ | world map | the sea-edge label is checked in pixels on the narrowest map (248 px) with its real width: never on the ⭐ at any cell of either map, clear of every Dawnreach place (worldMap.test); real app at 360 / 375 with the hero at 63,49 / 75,57 / 60,54 / 75,38: no icon under the label (2026-10-10) |
+| TC-735 | M | ✅ | encounters | `bench … sea`: resting, nudging about inside its patch starts nothing, leaving and coming back fights (5/5); the bench page at the Clockwork Depths door, one step down then 4 s idle: 0 of 8 fights (2026-10-10) |
 
 ## Regression cases (tied to ISSUES.md)
 

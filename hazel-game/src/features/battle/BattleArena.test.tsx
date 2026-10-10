@@ -174,6 +174,25 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect(after.zoneId).not.toBe('silver-shallows');
   });
 
+  it('lost ashore: no word of the boat, and it stays where it\'s moored', () => {
+    vi.useFakeTimers();
+    const save = useSaveStore.getState().save!;
+    const moored = { zoneId: 'silver-shallows' as const, x: 19, y: 20 };
+    useSaveStore.setState({ save: { ...save, aboard: false, boat: moored, flags: { ...save.flags, [BOAT_MENDED]: true } } });
+    useBattleStore.getState().start(enemy, 1, 100);
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText(/Whew/)).toBeInTheDocument();
+    expect(screen.queryByText(/Old Marlow rowed/)).toBeNull();
+    expect(useSaveStore.getState().save!.boat).toEqual(moored);
+  });
+
   it('a land critter keeps its zone\'s backdrop and no boat', () => {
     const { container } = render(<BattleArena />);
     expect(backdrop(container)).toContain('/backgrounds/numbria.png');

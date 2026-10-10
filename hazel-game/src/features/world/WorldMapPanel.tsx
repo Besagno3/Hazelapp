@@ -7,6 +7,7 @@ import {
   FOG_COLOR,
   HIDDEN_PLACE_EMOJI,
   edgeLabelSpot,
+  seaEdgeLabel,
   fogMarker,
   fogMarkerAt,
   mapCaption,
@@ -17,9 +18,7 @@ import {
 import { goalDirections, nextObjective } from '../../lib/wayfinding';
 import { boatAway, hasBoat } from '../../content/boat';
 
-/** A map's name on a marker: "Silver Shallows", "Dawnreach". */
-const bare = (name: string) => (name.startsWith('The ') ? name.slice(4) : name);
-/** …and mid-sentence: "the Silver Shallows", "Dawnreach". */
+/** A map's name mid-sentence: "the Silver Shallows", "Dawnreach" (on the map's edges: `seaEdgeLabel`). */
 const mid = (name: string) => (name.startsWith('The ') ? `the ${name.slice(4)}` : name);
 
 /** Screen pixels per overworld tile on the map. */
@@ -131,7 +130,7 @@ export default function WorldMapPanel({
             // Off this edge the sea carries on to the next map. Drawn before the
             // icons, so nothing is hidden under it, and down the side where no
             // marker is (`edgeLabelSpot`, #75 item 14d review).
-            style={l.side === 'west' || l.side === 'east' ? { top: `${edgeLabelSpot(l.side, cols, rows, marks, here) * 100}%` } : undefined}
+            style={l.side === 'west' || l.side === 'east' ? { top: `${edgeLabelSpot(l.side, cols, rows, marks, here, seaEdgeLabel(l.side, ZONES[l.to].name)) * 100}%` } : undefined}
             className={`absolute pointer-events-none select-none whitespace-nowrap rounded bg-black/60 px-1 py-0.5 text-[10px] font-semibold leading-none text-white ${
               l.side === 'west'
                 ? 'left-0.5 -translate-y-1/2'
@@ -142,7 +141,7 @@ export default function WorldMapPanel({
                     : 'bottom-0.5 left-1/2 -translate-x-1/2'
             }`}
           >
-            {l.side === 'west' ? `◀ ${bare(ZONES[l.to].name)}` : l.side === 'east' ? `${bare(ZONES[l.to].name)} ▶` : l.side === 'north' ? `▲ ${bare(ZONES[l.to].name)}` : `▼ ${bare(ZONES[l.to].name)}`}
+            {seaEdgeLabel(l.side, ZONES[l.to].name)}
           </span>
         ))}
         {places.map((p) => (

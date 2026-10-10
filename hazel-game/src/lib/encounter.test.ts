@@ -37,15 +37,15 @@ describe('bumping into enemies (#75 item 14d)', () => {
     expect([...down].map((f) => f.id)).toEqual(['puffer', 'bat', 'fiend']);
   });
 
-  it('one that stood down stays down until the hero moves off and is clear — not when it wanders off and back', () => {
-    const start = { x: 100, y: 100 };
-    // The critter swims away and back while the hero stays put: still down.
-    expect(staysDown({ x: 160, y: 100 }, start, start, 28)).toBe(true);
-    expect(staysDown({ x: 110, y: 100 }, start, start, 28)).toBe(true);
-    // The hero has moved off, but the critter followed: still down.
-    expect(staysDown({ x: 140, y: 100 }, { x: 150, y: 100 }, start, 28)).toBe(true);
-    // Moved off and clear of it: it fights again.
-    expect(staysDown({ x: 100, y: 100 }, { x: 150, y: 100 }, start, 28)).toBe(false);
+  it('a resting critter lets the hero pass until they leave its patch — it never wakes beside them', () => {
+    const home = { x: 100, y: 100 };
+    const reach = 92;
+    // Still inside its patch, wherever it has wandered: resting.
+    expect(staysDown(home, home, reach)).toBe(true);
+    expect(staysDown(home, { x: 150, y: 100 }, reach)).toBe(true);
+    expect(staysDown(home, { x: 191, y: 100 }, reach)).toBe(true);
+    // Out of its reach: awake — and it can't touch the hero from its leash (64 + 28 = 92).
+    expect(staysDown(home, { x: 193, y: 100 }, reach)).toBe(false);
   });
 
   it('every critter that could wander into a hero standing still stands down at the start — a Flee, a reload, a neighbour (#112e)', () => {
@@ -59,7 +59,5 @@ describe('bumping into enemies (#75 item 14d)', () => {
     const boss = { id: 'fiend', x: 100, y: 140, isBoss: true }; // 40 px: a boss doesn't come to you
     const down = standDown([fled, edge, far, boss], (f) => idleReach(f, LEASH), start);
     expect([...down].map((f) => f.id)).toEqual(['puffer', 'bat']);
-    // It wanders into the hero, who hasn't moved: still down.
-    expect(staysDown({ x: 105, y: 100 }, start, start, 28)).toBe(true);
   });
 });

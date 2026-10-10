@@ -277,10 +277,12 @@ zod, react-query. Add the package in the same change that first uses it.
   sea critter, on foot for a land one, bosses too (`meetsHero`, `lib/travel.ts`,
   checked in the canvas's contact loop through `lib/encounter.ts`'s
   `startsBattle`, with Calm). Every enemy that could reach a hero standing
-  where a scene starts (`idleReach`: a critter's leash + its touch, a boss's
-  touch) stands down, drawn faded like under Calm, until the hero has moved
-  off and is clear of it (`standDown` / `staysDown`) — so a Flee, a reload or
-  an arrival never drops the hero straight into a fight. The Silver Shallows has three (Bubble
+  where a scene starts, and could fight them as they're getting about
+  (`idleReach`: a critter's leash + its touch, a boss's touch), rests: drawn
+  faded like under Calm (bosses too), and like Calm it lets the hero pass,
+  until they've left its patch — then it can't touch them unless they steer
+  back (`standDown` / `staysDown`). So a Flee, a reload or an arrival never
+  drops the hero straight into a fight. The Silver Shallows has three (Bubble
   Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
   land or the edge a boat sails in by. A battle at sea is fought over
@@ -518,6 +520,32 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d fourth review: resting critters let you pass until you leave their patch (#75 item 14d)
+Round 4 — fresh `/saas-code-review` (5 low) + `/saas-ux-review` (1 medium, 4
+low). All fixed:
+- **"Resting" said one thing and did another (UX, medium):** it looked like
+  Calm ("critters let you pass") but woke after one step inside its patch —
+  steering at it fought, still faded, or slid through, by chance; a golem by
+  the Depths door could jump a child who'd taken one step. Now a resting
+  critter (or boss) lets the hero pass until they've left its patch
+  (`staysDown(home, hero, reach)`), so it wakes out of reach and never beside
+  them; on the bench, nudging about inside its patch starts nothing, 8 of 8
+  Depths arrivals + a step start nothing, and leaving and coming back fights.
+- **Code, low:** the fade is applied as the scene starts, not only once the
+  world runs (`fadeCritters`); bosses fade while resting too; only enemies
+  that could fight the hero as they're getting about rest (a sailing hero's
+  land critters don't); a BattleArena test loses ashore (no Marlow line, the
+  boat stays moored); a guard test: every inn is a town on Marlow's own map,
+  so `boatAfterDefeat` can't strand a hero — 14h's island inn will trip it.
+- **Map labels on phones (UX, low ×2):** the keep-clear check was in map
+  cells, but labels and icons keep their pixel size as the map shrinks: on a
+  360 px phone the label still met the ⭐ (rows 49–58) and the Quiet Paws
+  shrine. `edgeLabelCovers` now works in pixels on the narrowest map
+  (`MAP_MIN_PX` 248) with the label's real width (`seaEdgeLabel`, shared with
+  the panel), with spots near the top and bottom too; the every-cell ⭐ test
+  uses the same geometry. Checked in the real app at 360 / 375: no overlap.
+- Tests: 794 green (+3), lint + build clean; `bench … sea` 5/5.
 
 ### 2026-10-10 — 14d third review: nearby critters rest (faded) until you move; map labels never on the ⭐ (#75 item 14d)
 Round 3 — fresh `/saas-code-review` (4 low) + `/saas-ux-review` (2 low, every
