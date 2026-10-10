@@ -1094,7 +1094,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'tide-sprite', x: 13, y: 6 },
-      { defId: 'meteor-mite', x: 11, y: 5 },
+      // A row below the Tide Colossus's crown label, so a sleeping one's "z Z" have a way up clear of
+      // it — not only toward the hero (sleepMark.test).
+      { defId: 'meteor-mite', x: 11, y: 6 },
       // Out of reach of Old Marlow's spot (5,8) and Vela's door (8,4) and its
       // doorstep — walking up to him, chatting, or stepping out never meets it
       // (#112w).
@@ -1150,9 +1152,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'cog-sprite', x: 6, y: 5 },
-      // Clear of Echo (14,5), so a sleeping one's "z Z" rise clear of them, and out of reach of
-      // the vault gate and the Tinkery's doorstep (sleepMark.test, seaCritters.test).
-      { defId: 'hourglass-imp', x: 14, y: 2 },
+      // Clear of Echo (14,5) and the Tinkery's roof, so a sleeping one's "z Z" show and read as
+      // its own, and out of reach of the vault gate, the Tinkery's doorstep and the way out
+      // (sleepMark.test, seaCritters.test).
+      { defId: 'hourglass-imp', x: 5, y: 1 },
       { defId: 'relic-golem', x: 8, y: 2 },
       { defId: 'tut-tut', x: 3, y: 7 },
     ],

@@ -286,13 +286,16 @@ zod, react-query. Add the package in the same change that first uses it.
   its head and fading on a loop (held still under reduced motion), drawn
   over the hero and the boat — by the way up (up-right, up-left, straight up,
   out to a side) that reads most surely as its own as it falls asleep
-  (`lib/sleepMark.ts` `zzPath`: covering a boss worst, then anyone, with room
-  round the hero and Ember; then a letter nearer someone else's face; ways
-  away from the hero first — tested on every map, with the hero anywhere
-  within reach), fading right down while they cross anyone or come nearer the
-  hero's face than their sleeper's, and hidden with the hero standing on it;
-  as a scene starts Ember sits on a sleeper's far side (or a side, never in
-  the sea, rock or under a roof — `emberStart`). Like Calm it lets the hero
+  (`lib/sleepMark.ts` `zzPath`, by `markCost`: covering a boss worst, then
+  anyone else or a roof or the lighthouse, then the hero, Ember's spot, the
+  room round the hero; coming near one a twentieth of that; then a letter
+  nearer someone else's face; ways away from the hero first — tested on every
+  map, with the hero anywhere within reach, on foot or sailing), fading right
+  down while they cross anyone or come nearer anyone's face than their
+  sleeper's (an awake critter's too), and hidden with the hero (or the boat)
+  on it; as a scene starts, or on landing or boarding, Ember sits on a
+  sleeper's far side (or a side: on ground she can stand on, outdoors, off
+  anyone's face — `emberSpot`). Like Calm it lets the hero
   pass — heading up to one says, once a session (`battleStore`, so sign-out
   resets it), "💤 Sleepy critters let you pass. They wake up when you move
   away." (`onSleeper`; with another toast up, the next time) — until they've
@@ -551,6 +554,41 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d thirteenth review: "z Z" never at full strength on anyone else; roofs counted; the Imp and the Mite moved clear (#75 item 14d)
+Round 13 — fresh `/saas-code-review` (1 medium, 5 low) + `/saas-ux-review` (2
+medium, 1 low-medium, notes). All fixed:
+- **"z Z" read as an awake neighbour's (UX, medium):** a sleeper's letters
+  could sit by an awake critter's head (the Grove's Thornhare, Starfall's
+  Meteor Mite) — it looked asleep and a child walked into a fight. A letter
+  now fades right down while it's nearer anyone's face than its own
+  sleeper's — the hero, Ember, people, awake critters and wanderers alike.
+- **The Imp under the Tinkery's roof (code, medium):** at 14,2 its "z Z" (and,
+  awake, its "!") were hidden by the roof; `zzPath` knew nothing of roofs. It
+  counts roofs (but the one the hero is in) and the lighthouse now
+  (`roofBoxes`), and the Imp moved to 5,1, clear of the roof, the vault gate,
+  the Tinkery's doorstep, Echo, the way out and the arrival.
+- **Starfall's Meteor Mite only ever rose toward the hero (UX, medium):** under
+  the Tide Colossus every way up but one crossed its crown label. It moved
+  a row down (11,6).
+- **Costs (code, low):** the room round the hero cost as much as a neighbour,
+  so letters went onto an awake critter instead; and a near miss of a boss
+  cost as much as covering one. Now each letter's own swept box is measured,
+  a near miss costs a twentieth, and the order is boss, anyone or a roof, the
+  hero, Ember's spot, the hero's room (`markCost`, tested).
+- **Ember (code low ×2; UX notes):** on landing or boarding the letters were
+  planned round a spot she never went to (she goes there now); her start
+  ignored other faces — Wisp, the Tide Colossus — (`emberSpot` keeps 20 px off
+  everyone, and is shared with the test).
+- **At sea (UX, low-medium):** with the boat on a sleeper its letters showed
+  beside the boat — the boat counts as the hero now (`HERO_AFLOAT_BOX`, hidden
+  within 28 px).
+- **Tests (code, low ×2):** the hero sweep skipped the sea critters (it sails
+  their water now) and modelled Ember wrongly (it uses `emberSpot` and the
+  nearest sleeper); it checks never a boss, a neighbour, the hero or a roof
+  where a clearer way was there. The bench's landing check could wander off
+  south — its search stays by the mouse's home.
+- Tests: 813 green (+1), lint + build clean; `bench … sea` 7/7.
 
 ### 2026-10-10 — 14d twelfth review: "z Z" read as their sleeper's own; Ember starts on solid ground; the Imp off the vault gate (#75 item 14d)
 Round 12 — fresh `/saas-code-review` (1 medium, 3 low) + `/saas-ux-review` (1

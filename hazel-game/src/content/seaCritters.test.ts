@@ -181,7 +181,8 @@ describe('a battle at sea (#75 item 14d)', () => {
       const e = ZONES[zoneId].enemies.find((p) => p.defId === defId)!;
       for (const c of cells) expect(Math.hypot(e.x - c.x, e.y - c.y) * 32, `${defId} vs ${c.x},${c.y}`).toBeGreaterThan(reachPx);
     };
-    // The Depths' only way down (the vault gate and the cells before it), the Tinkery's doorstep, Echo.
+    // The Depths' only way down (the vault gate and the cells before it), the Tinkery's doorstep, Echo,
+    // the way out and where you arrive.
     clear('clockwork-depths', 'hourglass-imp', [
       { x: 10, y: 8 },
       { x: 11, y: 8 },
@@ -189,6 +190,9 @@ describe('a battle at sea (#75 item 14d)', () => {
       { x: 11, y: 7 },
       { x: 17, y: 6 },
       { x: 14, y: 5 },
+      { x: 10, y: 0 },
+      { x: 11, y: 0 },
+      { x: 10, y: 2 },
     ]);
     // Moonwell Grove's gate south and the chest behind it.
     clear('moonwell-grove', 'grumblebee', [

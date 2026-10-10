@@ -585,7 +585,11 @@ async function sea(browser, outDir) {
   const ashore = (await state(page)).encounters;
   await hold(page, 'ArrowLeft', 1400); // off the beach, out of its patch: it wakes…
   await hold(page, 'ArrowRight', 1350); // …and back
-  await meet(page);
+  // Stand still a while, then step about its home and back — never drifting off, as the
+  // sea-sized sweep (`hunt`) can on land.
+  for (let t = 0; t < 30 && !(await state(page)).encounters; t++) await page.waitForTimeout(500);
+  const steps = [['ArrowUp', 250], ['ArrowLeft', 250], ['ArrowRight', 500], ['ArrowLeft', 250], ['ArrowDown', 250]];
+  for (let i = 0; i < 12 * steps.length && !(await state(page)).encounters; i++) await hold(page, ...steps[i % steps.length]);
   s = await state(page);
   await check(
     page,

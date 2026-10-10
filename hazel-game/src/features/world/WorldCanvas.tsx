@@ -37,7 +37,20 @@ import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
 import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
 import { CONTACT_RADIUS, contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, staysDown, touching, type Rest } from '../../lib/encounter';
-import { ZZ_PATHS, glyphBox, overlaps, zzPath, type Box, type ZzPath } from '../../lib/sleepMark';
+import {
+  EMBER_COST,
+  HERO_COST,
+  HERO_ROOM_COST,
+  ZZ_PATHS,
+  emberSpot,
+  glyphBox,
+  overlaps,
+  roofBoxes,
+  zzPath,
+  type Box,
+  type Mark,
+  type ZzPath,
+} from '../../lib/sleepMark';
 import { BOAT_REMOOR_REACH } from '../../content/boat';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
@@ -133,6 +146,8 @@ const ZZ_CROSSING = 0.25;
 const SLEEPER_HINT_PX = 44;
 /** The hero's sprite, as a box round their position (px). */
 const HERO_BOX = { w: 28, h: 36 } as const;
+/** …and sailing, with the boat round them (its hull is drawn over critters). */
+const HERO_AFLOAT_BOX = { w: 48, h: 48 } as const;
 /** The ripples under a sea critter (#75 item 14d): faint, so the critter reads first. */
 const RIPPLE_OPACITY = 0.35;
 /**
@@ -1263,9 +1278,9 @@ export default function WorldCanvas({
     // Everyone's face but `who`'s, as points (#112e).
     const lookFaces = (who: Actor) => [...looks.keys()].filter((a) => a !== who).map((a) => ({ x: a.x, y: a.y }));
     // Where everyone's face and label are now, and whose (#112e).
-    const lookBoxes = (): (Box & { who: Actor; boss?: boolean })[] =>
+    const lookBoxes = (): (Box & { who: Actor; boss?: boolean; face?: boolean })[] =>
       [...looks].flatMap(([a, l]) => [
-        { x: a.x, y: a.y, w: l.face, h: l.face, who: a, boss: a.enemy?.isBoss },
+        { x: a.x, y: a.y, w: l.face, h: l.face, who: a, boss: a.enemy?.isBoss, face: true },
         { x: a.x, y: a.y + l.label.dy, w: l.label.w, h: l.label.h, who: a, boss: a.enemy?.isBoss },
       ]);
 
@@ -1344,17 +1359,15 @@ export default function WorldCanvas({
     const leash = TILE * WANDER_TUNING.enemy.leashTiles;
     const resting = new Map<Actor, Rest>();
     let restings = 0; // bumped on every change, so `fadeCritters` redraws
-    // Back beside a sleeper (a Flee, a reload), Ember starts — and trails — on
-    // its far side, rather than over it (#112e): or, if that's sea, rock or
-    // under a roof, on a side instead; else (or right on top of it) as ever.
-    const emberStart = (hero: { x: number; y: number }): { dir: { x: number; y: number } | null; at: { x: number; y: number } } => {
-      const fallback = { dir: null, at: { x: hero.x - 24, y: hero.y + 8 } };
+    /** The hero's box — with the boat round them when sailing. */
+    const heroSize = () => (aboard ? HERO_AFLOAT_BOX : HERO_BOX);
+    // Back beside a sleeper (a Flee, a reload, a landing), Ember starts — and
+    // trails — on its far side, rather than over it (#112e): or, if that's
+    // sea, rock, under a roof or on someone, on a side instead (`emberSpot`).
+    const emberStart = (hero: { x: number; y: number }) => {
       const near = sleepers
         .filter((s) => resting.has(s.actor))
         .sort((a, b) => Math.hypot(a.actor.x - hero.x, a.actor.y - hero.y) - Math.hypot(b.actor.x - hero.x, b.actor.y - hero.y))[0];
-      const gap = near ? Math.hypot(near.actor.x - hero.x, near.actor.y - hero.y) : 0;
-      if (!near || gap < 4) return fallback;
-      const d = { x: (near.actor.x - hero.x) / gap, y: (near.actor.y - hero.y) / gap };
       const indoors = buildingInside(z, Math.floor(hero.x / TILE), Math.floor(hero.y / TILE));
       const ground = (x: number, y: number) => {
         const cx = Math.floor(x / TILE);
@@ -1363,12 +1376,12 @@ export default function WorldCanvas({
         const roof = buildingAt(z, cx, cy);
         return (aboard ? SEA_CHARS.has(ch) : WALKABLE_CHARS.has(ch)) && !fogAt(z, cx, cy, flagsRef.current) && (!roof || roof.id === indoors?.id);
       };
-      for (const dir of [d, { x: -d.y, y: d.x }, { x: d.y, y: -d.x }]) {
-        const at = { x: hero.x - dir.x * 26, y: hero.y - dir.y * 26 + 8 };
-        if (ground(at.x, at.y)) return { dir, at };
-      }
-      return fallback;
+      return emberSpot(hero, near?.actor ?? null, ground, [...looks.keys()].map((a) => ({ x: a.x, y: a.y })));
     };
+    // The lighthouse tower draws over everything round its rock, like a roof.
+    const towerBox: Mark[] = z.lighthouse
+      ? [{ x: (z.lighthouse.x + 1) * TILE, y: z.lighthouse.y * TILE, w: 2 * TILE, h: 4 * TILE }]
+      : [];
     const restAround = (hero: { x: number; y: number }, mode: TravelMode) => {
       resting.clear();
       const foes = actors.flatMap((a) => (a.enemy && a.home && meetsHero(a.enemy.habitat, mode) ? [{ a, ...a.home }] : []));
@@ -1379,10 +1392,14 @@ export default function WorldCanvas({
       // (`zzPath`, #112e): clear of everyone else, with room round the hero and
       // where Ember will stand, and nearer its own face than theirs.
       const em = emberStart(hero).at;
-      const crowd = [
+      const inside = buildingInside(z, Math.floor(hero.x / TILE), Math.floor(hero.y / TILE));
+      const crowd: (Mark & { who?: Actor })[] = [
         ...lookBoxes(),
-        { x: hero.x, y: hero.y, w: HERO_BOX.w + 24, h: HERO_BOX.h + 24 },
-        { x: em.x, y: em.y, ...HERO_BOX },
+        ...roofBoxes(z.buildings ?? [], inside?.id, TILE),
+        ...towerBox,
+        { x: hero.x, y: hero.y, ...heroSize(), weight: HERO_COST },
+        { x: hero.x, y: hero.y, w: heroSize().w + 24, h: heroSize().h + 24, weight: HERO_ROOM_COST },
+        { x: em.x, y: em.y, ...HERO_BOX, weight: EMBER_COST },
       ];
       for (const s of sleepers) {
         if (!resting.has(s.actor)) continue;
@@ -1409,25 +1426,28 @@ export default function WorldCanvas({
     };
     // The letters rise and fade on a loop, each half a loop behind the other;
     // over anyone in `crowd` (the hero, Ember, everyone's face and label but
-    // the sleeper's own) they fade right down, and with the hero on the
+    // the sleeper's own), or nearer anyone's face than their own sleeper's —
+    // awake critters and wanderers included — they fade right down, so they
+    // never read as someone else's; with the hero (or the boat) on the
     // sleeper they hide.
     let zzClock = 0;
-    const riseSleepMarks = (dt: number, crowd: () => (Box & { who?: Actor })[]) => {
+    const riseSleepMarks = (dt: number, crowd: () => (Box & { who?: Actor; face?: boolean })[]) => {
       zzClock += dt;
-      let others: (Box & { who?: Actor })[] | null = null;
+      let others: (Box & { who?: Actor; face?: boolean })[] | null = null;
       for (const s of sleepers) {
         if (!resting.has(s.actor)) continue;
         others ??= crowd();
-        const under = touching(s.actor, player.pos, 16);
+        const under = touching(s.actor, player.pos, aboard ? 28 : 16);
         s.path.glyphs.forEach((g, i) => {
           const { white, shadow } = s.glyphs[i];
           const p = reducedMotion ? 0.5 : (zzClock / ZZ_LOOP_S + i / 2) % 1;
           const box = glyphBox(s.actor, g, s.path.drift, p);
-          // Crossing someone, or nearer the hero's face than its own sleeper's,
+          // Crossing someone, or nearer anyone's face than its own sleeper's,
           // it could read as theirs: faded right down.
-          const crossing =
-            others!.some((o) => o.who !== s.actor && overlaps(box, o)) ||
-            Math.hypot(box.x - player.pos.x, box.y - player.pos.y) < Math.hypot(box.x - s.actor.x, box.y - s.actor.y);
+          const own = Math.hypot(box.x - s.actor.x, box.y - s.actor.y);
+          const crossing = others!.some(
+            (o) => o.who !== s.actor && (overlaps(box, o) || (o.face && Math.hypot(box.x - o.x, box.y - o.y) < own)),
+          );
           white.pos = k.vec2(box.x, box.y);
           shadow.pos = k.vec2(box.x + 1, box.y + 1);
           white.opacity = under ? 0 : (reducedMotion ? 1 : Math.sin(Math.PI * p)) * (crossing ? ZZ_CROSSING : 1);
@@ -1435,7 +1455,7 @@ export default function WorldCanvas({
         });
       }
     };
-    const heroBox = () => ({ x: player.pos.x, y: player.pos.y, ...HERO_BOX });
+    const heroBox = () => ({ x: player.pos.x, y: player.pos.y, ...heroSize(), face: true });
     // From the first frame — even while the world waits (a level-up, a slide).
     fadeCritters((calmRef?.current ?? 0) > 0);
     riseSleepMarks(ZZ_LOOP_S / 4, () => [heroBox(), ...lookBoxes()]);
@@ -1855,7 +1875,7 @@ export default function WorldCanvas({
       }
       const calm = (calmRef?.current ?? 0) > 0;
       fadeCritters(calm);
-      riseSleepMarks(dt, () => [heroBox(), { x: ember.pos.x, y: ember.pos.y, ...HERO_BOX }, ...lookBoxes()]);
+      riseSleepMarks(dt, () => [heroBox(), { x: ember.pos.x, y: ember.pos.y, ...HERO_BOX, face: true }, ...lookBoxes()]);
 
       // Standing still is not moving this frame — a thumb left on the d-pad
       // against a wall or the save crystal is still.
@@ -1939,6 +1959,7 @@ export default function WorldCanvas({
         arm(TRIGGER_COOLDOWN);
         cbRef.current.onBoard?.(player.pos.x, player.pos.y);
         restAround(player.pos, 'boat');
+        lastDir = emberStart(player.pos).dir ?? lastDir; // Ember goes where its letters were planned round
         bumped = null;
       } else if (bumped && landAt) {
         aboard = false;
@@ -1948,6 +1969,7 @@ export default function WorldCanvas({
         needsRelease = true; // don't sail straight back into the boat
         cbRef.current.onLand?.(landAt, player.pos.x, player.pos.y);
         restAround(player.pos, 'foot');
+        lastDir = emberStart(player.pos).dir ?? lastDir;
         bumped = null;
       }
 
