@@ -450,6 +450,27 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — Every save shape since v1 still loads (#75 item 14b)
+Fourth slice of 14b: "old saves load" as fixtures and tests.
+- **`src/test/saveFixtures.ts`:** one save per shape the game has written,
+  rebuilt from that build's `defaultSave` / `SaveData` (commit named on
+  each) and standing where a player of the time could stand — v1 on the
+  retired Lumina Field (moved from save.test); v2 from its first build (no
+  `save:v2` marker, on Dawnreach's road); v2 after the field spells in the
+  Depths' vault on the cell item 10 later made stairs; v2 with an inn
+  (`lastRest`) before the boat; today's shape afloat on the Shallows; and a
+  save that saw the finale but not Act II.
+- **save.test** (table-driven, +23): each loads as v2 with the marker,
+  where it stood (or safe beside it), keeping coins, flags and kills;
+  loading twice changes nothing more; from where it loads there's a way out
+  (an exit or a sea edge, by foot or boat — `reach`); and the story's next
+  step still walks from there (`walkLeg`). The vault save loads beside the
+  stairs, not on them (the `safeSpawn` fix).
+- **saveStore.test** (+7): each fixture served by the server loads `ready`,
+  equals `normalizeSave`, is written back once as v2; a v2 save kept only on
+  the device loads the same.
+- 747 green.
+
 ### 2026-10-10 — The real hero walks Act I in headless Chromium (#75 item 14b)
 Third slice of 14b: the journey's paths walked by the real `WorldCanvas` —
 real hitboxes, gates, exits, slides and fades — on the bench.

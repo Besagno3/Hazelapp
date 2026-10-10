@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSaveStore } from './saveStore';
-import { defaultSave, saveKey, SAVE_VERSION, SAVE_VERSION_CONFLICT } from '../lib/save';
+import { defaultSave, normalizeSave, saveKey, SAVE_VERSION, SAVE_VERSION_CONFLICT } from '../lib/save';
+import { CURRENT_ABOARD, FINALE_NOT_ACT2, V1, V2_FIRST_BUILD, V2_PRE_14A, V2_PRE_ITEM10 } from '../test/saveFixtures';
 
 // The Supabase `saves` table, faked: one row to read back, the upserts made,
 // and the error the next upserts fail with (null = they succeed).
@@ -94,6 +95,32 @@ describe('saveStore.load', () => {
     expect(save).toMatchObject({ version: 2, zoneId: 'lumina-village', pos: null, coins: 7 });
     expect(JSON.parse(localStorage.getItem(saveKey('u1'))!).version).toBe(2);
     expect(remote.upserts).toHaveLength(1);
+  });
+
+  // #75 item 14b: every save shape since v1, served by the server, loads and is written back as today's v2.
+  it.each([
+    ['v1 on Lumina Field', V1],
+    ['v2 from its first build', V2_FIRST_BUILD],
+    ['v2 in the Depths vault', V2_PRE_ITEM10],
+    ['v2 with an inn, before the boat', V2_PRE_14A],
+    ['today, afloat', CURRENT_ABOARD],
+    ['the finale seen, Act II not', FINALE_NOT_ACT2],
+  ])('loads %s from the server, ready to play, and writes it back once as v2', async (_name, raw) => {
+    remote.row = { data: raw };
+    await useSaveStore.getState().load('u-fixture');
+    const { save, status, remoteError } = useSaveStore.getState();
+    expect(status).toBe('ready');
+    expect(remoteError).toBeNull();
+    expect(save).toEqual(normalizeSave(raw));
+    expect(JSON.parse(localStorage.getItem(saveKey('u-fixture'))!)).toEqual(normalizeSave(raw));
+    await vi.waitFor(() => expect(remote.upserts).toHaveLength(1));
+  });
+
+  it('a v2 save kept only on this device (no server row) loads the same', async () => {
+    localStorage.setItem(saveKey('u-local'), JSON.stringify(V2_PRE_14A));
+    await useSaveStore.getState().load('u-local');
+    expect(useSaveStore.getState().status).toBe('ready');
+    expect(useSaveStore.getState().save).toEqual(normalizeSave(V2_PRE_14A));
   });
 
   it('refuses a save from a newer version: nothing loaded, nothing written back', async () => {
