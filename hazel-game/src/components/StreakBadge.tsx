@@ -7,9 +7,10 @@ import { useProfileStore } from '../store/profileStore';
  *
  * `inline` (the world screen's top bar, #75 item 14b / #102i): beside the
  * medallion instead of floating under it, and on a phone "🔥 5 days" ("🔥 5"
- * under 360 px) — the label is read aloud (and shown from `sm` up).
+ * under 360 px) — the label is read aloud (and shown from `sm` up). `dense`
+ * (the battle's top bar, #75 item 14f review): a little shorter on a phone.
  */
-export default function StreakBadge({ inline = false }: { inline?: boolean }) {
+export default function StreakBadge({ inline = false, dense = false }: { inline?: boolean; dense?: boolean }) {
   const profile = useProfileStore((s) => s.profile);
   if (!profile || profile.currentStreak <= 0) return null;
 
@@ -19,7 +20,7 @@ export default function StreakBadge({ inline = false }: { inline?: boolean }) {
 
   return (
     <div
-      className={`${inline ? 'shrink-0' : 'fixed top-16 left-3 z-50'} flex items-center gap-1.5 bg-black/35 backdrop-blur rounded-full pl-2 pr-3 py-1.5 text-white shadow-lg`}
+      className={`${inline ? 'shrink-0' : 'fixed top-16 left-3 z-50'} flex items-center gap-1.5 bg-black/35 backdrop-blur rounded-full pl-2 pr-3 ${dense ? 'py-1 sm:py-1.5' : 'py-1.5'} text-white shadow-lg`}
       title={`Best: ${longestStreak} day${longestStreak === 1 ? '' : 's'}`}
     >
       <span className="text-lg leading-none" aria-hidden={inline || undefined}>

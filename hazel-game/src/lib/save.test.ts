@@ -8,6 +8,7 @@ import {
   runMigrations,
   saveIsTooNew,
   wakeAfterDefeat,
+  wakeShelter,
   wakeInnName,
   DAWNREACH_GREW_BY,
   MIGRATIONS,
@@ -24,7 +25,7 @@ import { walkLeg } from './journey';
 import { nextObjective } from './wayfinding';
 import { boatSpot } from '../content/boat';
 import type { SaveData } from '../types';
-import { HUB_ZONE, TILE, ZONES, buildingInside, chestTopicAt, gateFlag, gateIdAt, innWakeCell, tileAt } from '../content/zones';
+import { HUB_ZONE, TILE, ZONES, buildingInside, chestTopicAt, gateFlag, gateIdAt, innWakeCell, shelterOf, tileAt } from '../content/zones';
 import type { LibraryEntry, Question } from '../types';
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN } from '../content/story';
 import { avatarById } from '../content/avatars';
@@ -298,6 +299,23 @@ describe('the last inn rested at (#75 item 11)', () => {
     });
     expect(wakeInnName({ lastRest: 'gearfall' })).toBe('the Wound-Down Inn in Gearfall Canyon');
     expect(wakeInnName({ lastRest: 'lumina-village' })).toBe('the Sleepy Sheep Inn in Lumina Village');
+  });
+
+  it("beaten in Eldergrove, Fen tucks the hero up in her hollow — the inn they rested at stays theirs (#75 item 14f)", () => {
+    const shelter = shelterOf(ZONES.eldergrove)!;
+    expect(shelter.building.id).toBe('fen-hut');
+    expect(wakeAfterDefeat({ lastRest: 'gearfall', zoneId: 'eldergrove' })).toEqual({
+      zoneId: 'eldergrove',
+      pos: { x: shelter.cell.x * TILE + TILE / 2, y: shelter.cell.y * TILE + TILE / 2 },
+    });
+    expect(wakeShelter({ zoneId: 'eldergrove' })).toEqual({
+      line: "Fen the Forager finds you and tucks you up in Fen's Hollow.",
+      place: "Fen's Hollow",
+    });
+    // Anywhere else: the inn, as before.
+    expect(wakeAfterDefeat({ lastRest: 'gearfall', zoneId: 'silver-shallows' }).zoneId).toBe('gearfall');
+    expect(wakeShelter({ zoneId: 'silver-shallows' })).toBeNull();
+    expect(wakeShelter({ zoneId: 'constructor' as never })).toBeNull();
   });
 });
 

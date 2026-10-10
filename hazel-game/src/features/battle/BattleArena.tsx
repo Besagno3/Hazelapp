@@ -3,6 +3,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
+import LevelBadge from '../../components/LevelBadge';
+import StreakBadge from '../../components/StreakBadge';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { fetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
@@ -78,7 +80,7 @@ import { combatState, useBattleStore } from '../../store/battleStore';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
-import { pushLibrary, wakeAfterDefeat, wakeInnName } from '../../lib/save';
+import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat } from '../../content/boat';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
@@ -361,7 +363,7 @@ export default function BattleArena() {
     if (enemy.isBoss) for (const text of bossScript(enemy)?.intro ?? []) lines.push({ text });
     // Tiers 5–7 share one line (`toughKey`); below that, one per tier.
     const toughAs = toughKey(tier);
-    if (dangerMarks(tier) && !toughMet.includes(toughAs)) lines.push({ text: `💪 ${toughCallout(tier)}`, shown: () => meetTough(toughAs) });
+    if (dangerMarks(tier) && !toughMet.includes(toughAs)) lines.push({ text: `💪 ${toughCallout(tier, enemy.isBoss)}`, shown: () => meetTough(toughAs) });
     if (mercyDrop > 0) lines.push({ text: `💛 ${mercyCallout(enemy)}` });
     if (lines.length === 0) return;
     const chain = lines.reduceRight<() => void>(
@@ -1034,6 +1036,18 @@ export default function BattleArena() {
         />
       </div>
 
+      {/* The level and streak in their own row above the status boxes, as in
+          the world's top bar — floating, they covered the enemy's "!!!" on a
+          phone (#75 item 14f review). Below 360 px wide or 500 px tall there's
+          no room for the row without pushing 🏃 Flee off the screen (measured,
+          `bench … battle`), so a fight there shows neither. */}
+      <div
+        data-testid="battle-topbar"
+        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-1 sm:px-4 sm:pt-3 max-[359px]:hidden [@media(max-height:500px)]:hidden"
+      >
+        <LevelBadge placement="inline" dense />
+        <StreakBadge inline dense />
+      </div>
       <BattleHud
         enemy={enemy}
         enemyHp={viewEnemyHp}
@@ -1245,6 +1259,7 @@ export default function BattleArena() {
             firstWin={turn.kind === 'victory' && turn.firstWin}
             drop={turn.kind === 'victory' ? turn.drop : null}
             wakeInn={save ? wakeInnName(save) : null}
+            shelter={save ? wakeShelter(save) : null}
             tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
             boatHome={turn.kind === 'defeat' && turn.atSea}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}

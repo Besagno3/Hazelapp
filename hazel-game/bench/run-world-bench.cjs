@@ -10,6 +10,9 @@
  *   node bench/run-world-bench.cjs hud [outDir]        the real app (Supabase stubbed) at phone to
  *                                                      desktop sizes: nothing in the world HUD
  *                                                      overlaps, overlays cover the top bar (#102i)
+ *   node bench/run-world-bench.cjs battle [outDir]     the real app (Supabase stubbed): a battle at
+ *                                                      five sizes — its top bar covers nothing, the
+ *                                                      enemy's "!!!" shows, the commands fit (#75 item 14f)
  *   node bench/run-world-bench.cjs sea [outDir]        sea critters on the real canvas (#75 item 14d):
  *                                                      sailing into one battles it, Calm passes it,
  *                                                      arriving starts none; one that could reach the
@@ -245,7 +248,7 @@ const HUD_USER = 'u-hud';
  * Signs in a stub player and answers Supabase for them: their profile, `save`
  * as their saved game, canned questions; every write succeeds.
  */
-async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = {}) {
+async function stubbedApp(browser, viewport, save, profile, { reducedMotion, ready = '[data-testid=world-topbar]' } = {}) {
   const page = await browser.newPage({ viewport, reducedMotion });
   const session = {
     access_token: 'stub',
@@ -276,7 +279,7 @@ async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = 
     return json({});
   });
   await page.goto(`http://localhost:${PORT}/`);
-  await page.waitForSelector('[data-testid=world-topbar]', { timeout: 120000 });
+  await page.waitForSelector(ready, { timeout: 120000, state: 'attached' });
   await page.waitForTimeout(1500);
   return page;
 }
@@ -361,6 +364,103 @@ async function tabs(page, n) {
  * and with the menu open the overlay covers the whole top bar. Then the same
  * in the Spire, its seals and Leave button in the HUD row.
  */
+/** In the page, on the battle screen: the top bar, the status boxes and the enemy's "!" marks (#75 item 14f review). */
+function battleLayout() {
+  const barEl = document.querySelector('[data-testid=battle-topbar]');
+  const bar = barEl.getBoundingClientRect();
+  const panels = [...barEl.nextElementSibling.children].map((el) => el.getBoundingClientRect());
+  const marks = [...document.querySelectorAll('span[aria-hidden=true]')].find((s) => /^!+$/.test(s.textContent.trim()));
+  const mr = marks?.getBoundingClientRect();
+  const top = mr ? document.elementFromPoint(mr.left + mr.width / 2, mr.top + mr.height / 2) : null;
+  const visible = [...document.querySelectorAll('button')].filter((b) => b.offsetParent && b.getBoundingClientRect().width > 0);
+  return {
+    barHeight: Math.round(bar.height),
+    gap: Math.round(Math.min(...panels.map((r) => r.top)) - bar.bottom),
+    marks: marks ? marks.textContent.trim() : null,
+    marksOnTop: !!top && !!marks && (top === marks || marks.parentElement.contains(top)),
+    offScreen: visible.filter((b) => b.getBoundingClientRect().bottom > innerHeight + 1).map((b) => b.textContent.trim().slice(0, 16)),
+    sideways: document.documentElement.scrollWidth > innerWidth,
+  };
+}
+
+/**
+ * The battle screen on the real app (#75 item 14f review): a hero walks into
+ * the Ringkeeper, Eldergrove's tier-5 warden, at five sizes. The level and
+ * streak sit in their own row above the status boxes (they floated over the
+ * enemy's "!!!" on a phone), the "!!!" is on top, nothing scrolls sideways,
+ * and the 💪 line and then the commands fit on screen.
+ */
+async function battleHud(browser, outDir) {
+  fs.mkdirSync(outDir, { recursive: true });
+  const crystals = ['math', 'science', 'engineering', 'creativity'];
+  const flags = {
+    'intro-seen': true, 'dawnreach-seen': true, 'ember-hatched': true, 'ember-hatch-seen': true, 'spire-awake-seen': true, 'save:v2': true,
+    'ending-seen': true, 'spire-cleared': true, 'spire-victory-seen': true, 'act2-seen': true,
+    ...Object.fromEntries(crystals.flatMap((t) => [[`crystal-${t}-restored`, true], [`crystal-${t}-scene-seen`, true]])),
+  };
+  const save = {
+    version: 2, avatarId: 'a1', hp: null, coins: 340, items: { potion: 2, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0, knot: 0 },
+    badges: [], sages: ['math', 'science'], openedChests: [], kills: {}, questItems: [], passedRounds: 6, worldUnlocked: true,
+    library: [], companionId: 'ember', defendTimer: true, lastRest: null, boat: null, aboard: false,
+    // In the Great Ring, three cells east of the Ringkeeper (25,23): a boss
+    // stands still (a critter wanders, and one that could reach the hero as the
+    // world loads rests till they leave its patch, #75 item 14d), so the hero
+    // walks west straight into it.
+    zoneId: 'eldergrove', pos: { x: 28 * 32 + 16, y: 23 * 32 + 16 }, flags,
+  };
+  const profile = { id: HUD_USER, birth_year: 2016, birth_month: 3, skill_levels: {}, xp: 1250, power_ups: { attack: 4, defense: 4, vitality: 2, scholar: 2 }, current_streak: 12, longest_streak: 12, last_played_on: new Date().toISOString().slice(0, 10) };
+  // A sideways phone (740×360) is left out: the battle never fit one, row or not (ISSUES #117m).
+  const sizes = [[320, 568], [360, 640], [375, 667], [390, 844], [1024, 768]];
+  let bad = 0;
+  for (const [width, height] of sizes) {
+    const size = `${width}×${height}`;
+    const page = await stubbedApp(browser, { width, height }, save, profile, {
+      ready: '[data-testid=world-topbar], [data-testid=battle-topbar]',
+    });
+    const problems = [];
+    // Walk west into the Ringkeeper.
+    for (let i = 0; i < 10 && !(await page.locator('[data-testid=battle-topbar]').count()); i++) {
+      await page.keyboard.down('ArrowLeft');
+      await page.waitForTimeout(300);
+      await page.keyboard.up('ArrowLeft');
+      await page.waitForTimeout(250);
+    }
+    if (!(await page.locator('[data-testid=battle-topbar]').count())) {
+      console.log(`✗ ${size}  no battle started`);
+      bad++;
+      await page.close();
+      continue;
+    }
+    await page.waitForTimeout(1200);
+    const opening = await page.evaluate(battleLayout);
+    await page.screenshot({ path: path.join(outDir, `battle-${size}-opening.png`) });
+    // Read on through the opening lines (its monologue, the 💪 line for tier 5) to the commands.
+    for (let i = 0; i < 6 && !(await page.getByRole('button', { name: /Attack/ }).count()); i++) {
+      await page.getByText(/tap to continue/).first().click().catch(() => {});
+      await page.waitForTimeout(500);
+    }
+    const commands = await page.evaluate(battleLayout);
+    await page.screenshot({ path: path.join(outDir, `battle-${size}-commands.png`) });
+    for (const [when, l] of [['opening', opening], ['commands', commands]]) {
+      if (l.barHeight && l.gap < 0) problems.push(`${when}: the top bar runs ${-l.gap}px into the status boxes`);
+      if (!l.marksOnTop) problems.push(`${when}: the enemy's "${l.marks}" is covered`);
+      // A boss's 🏃 Flee ("No escape!") never fit a 320×568 screen, row or no row (ISSUES #117q).
+      const off = width === 320 ? l.offScreen.filter((b) => !b.startsWith('🏃Flee')) : l.offScreen;
+      if (off.length) problems.push(`${when}: off the bottom: ${off.join(', ')}`);
+      if (l.sideways) problems.push(`${when}: the page scrolls sideways`);
+    }
+    if (!(await page.getByRole('button', { name: /Attack/ }).count())) problems.push('never reached the commands');
+    problems.push(...page.errors);
+    const barText = commands.barHeight ? `top bar ${commands.barHeight}px, ${commands.gap}px above the status boxes` : 'no top bar (too small)';
+    console.log(`${problems.length ? '✗' : '✓'} ${size}  ${barText}; "${commands.marks}" on top: ${commands.marksOnTop ? 'yes' : 'no'}`);
+    for (const pr of problems) console.log(`    ${pr}`);
+    if (problems.length) bad++;
+    await page.close();
+  }
+  console.log(`\n${sizes.length - bad}/${sizes.length} battle checks clean. Screenshots in ${outDir}.`);
+  if (bad) process.exitCode = 1;
+}
+
 async function hud(browser, outDir) {
   fs.mkdirSync(outDir, { recursive: true });
   const crystals = ['math', 'science', 'engineering', 'creativity'];
@@ -620,11 +720,12 @@ async function sea(browser, outDir) {
   const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] });
   let vite = null;
   try {
-    if (mode === 'hud') vite = await startVite({ VITE_SUPABASE_URL: STUB, VITE_SUPABASE_ANON_KEY: 'stub-anon-key' });
+    if (mode === 'hud' || mode === 'battle') vite = await startVite({ VITE_SUPABASE_URL: STUB, VITE_SUPABASE_ANON_KEY: 'stub-anon-key' });
     else if (mode !== 'diff') vite = await startVite();
     if (mode === 'fps') await fps(browser, Number(args[0] ?? 160), Number(args[1] ?? 112));
     else if (mode === 'shots') await shots(browser, args[0] ?? 'bench-shots');
     else if (mode === 'diff') await diff(browser, args[0], args[1]);
+    else if (mode === 'battle') await battleHud(browser, args[0] ?? 'bench-battle');
     else if (mode === 'journey') await journey(browser, args[0] ?? 'bench-journey');
     else if (mode === 'hud') await hud(browser, args[0] ?? 'bench-hud');
     else if (mode === 'sea') await sea(browser, args[0] ?? 'bench-sea');

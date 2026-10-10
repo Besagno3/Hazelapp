@@ -1,6 +1,6 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
-import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId } from '../content/zones';
+import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, shelterOf } from '../content/zones';
 import { BOAT_SPAWN_REACH, safeSpawn } from './reach';
 import { BOAT_REMOOR_REACH, hasBoat, seaBeside, validMooring } from '../content/boat';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
@@ -257,6 +257,18 @@ export function normalizeSave(raw: unknown): SaveData {
 }
 
 /** The inn a defeated hero wakes at — "the Square Root Inn in Numbria" — or null for home. */
+/**
+ * What the defeat screen says when a shelter looks after the hero (#75 item
+ * 14f): "Fen the Forager finds you and tucks you up in Fen's Hollow." and the
+ * place for its button — null anywhere else (they wake at their inn,
+ * `wakeInnName`).
+ */
+export function wakeShelter(save: Partial<Pick<SaveData, 'zoneId'>>): { line: string; place: string } | null {
+  const shelter = save.zoneId && isZoneId(save.zoneId) ? shelterOf(ZONES[save.zoneId]) : null;
+  if (!shelter) return null;
+  return { line: `${shelter.host} finds you and tucks you up in ${shelter.building.name}.`, place: shelter.building.name };
+}
+
 export function wakeInnName(save: Pick<SaveData, 'lastRest'>): string | null {
   const z = save.lastRest ? ZONES[save.lastRest] : null;
   const inn = z ? innOf(z) : undefined;
@@ -265,9 +277,16 @@ export function wakeInnName(save: Pick<SaveData, 'lastRest'>): string | null {
 
 /**
  * Where a defeated hero wakes, healed (#75 item 11): just inside the door of
- * the last inn they rested at, or home on Lumina Village's plaza.
+ * the last inn they rested at, or home on Lumina Village's plaza — unless
+ * they were beaten somewhere with a shelter (#75 item 14f, Eldergrove: Fen's
+ * Hollow), which looks after them right there.
  */
-export function wakeAfterDefeat(save: Pick<SaveData, 'lastRest'>): { zoneId: ZoneId; pos: { x: number; y: number } | null } {
+export function wakeAfterDefeat(save: Pick<SaveData, 'lastRest'> & Partial<Pick<SaveData, 'zoneId'>>): {
+  zoneId: ZoneId;
+  pos: { x: number; y: number } | null;
+} {
+  const shelter = save.zoneId && isZoneId(save.zoneId) ? shelterOf(ZONES[save.zoneId]) : null;
+  if (shelter) return { zoneId: save.zoneId!, pos: { x: shelter.cell.x * TILE + TILE / 2, y: shelter.cell.y * TILE + TILE / 2 } };
   const cell = save.lastRest ? innWakeCell(ZONES[save.lastRest]) : null;
   if (!save.lastRest || !cell) return { zoneId: HUB_ZONE, pos: null };
   return { zoneId: save.lastRest, pos: { x: cell.x * TILE + TILE / 2, y: cell.y * TILE + TILE / 2 } };

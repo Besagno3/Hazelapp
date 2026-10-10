@@ -79,6 +79,8 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   pavilion: '🎪',
   // Act II (#75 item 14e): a little house, like its icon on the map.
   hill: '🏡',
+  // Act II (#75 item 14f): the island of ring-trees.
+  elder: '🌳',
 };
 
 /** Stands in for a place that's still hidden in fog. */
@@ -102,6 +104,27 @@ export interface MapMarker {
   exact: boolean;
   /** The place the marker stands for, when you're inside (or beyond) one. */
   place?: string;
+}
+
+/**
+ * The overworld a zone sits on (#75 item 14f): itself for an overworld; for a
+ * place, or a floor below one, the overworld its exits lead back out to —
+ * Dawnreach for Act I's places, the Silver Shallows for Eldergrove. The menu
+ * map draws that one.
+ */
+export function overworldOf(zones: Record<ZoneId, ZoneDef>, zoneId: ZoneId): ZoneDef {
+  const seen = new Set<ZoneId>([zoneId]);
+  const queue: ZoneId[] = [zoneId];
+  while (queue.length) {
+    const z = zones[queue.shift()!];
+    if (z.kind === 'overworld') return z;
+    for (const e of z.exits) {
+      if (seen.has(e.to)) continue;
+      seen.add(e.to);
+      queue.push(e.to);
+    }
+  }
+  return zones.dawnreach;
 }
 
 /**
