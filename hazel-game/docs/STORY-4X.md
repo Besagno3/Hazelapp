@@ -122,7 +122,7 @@ old road appears → Wick's line → call to the Archive.
 | Remembrance Hill | Trader Knack 🧳 | merchant | sells "pre-remembered" goods; "Lightly forgotten. Deep discount." |
 | Eldergrove | Old Ringwood 🌳 | villager (talking tree) | counts its own rings and loses count at 900; warns of the Ringkeeper (signpost pattern) |
 | Eldergrove | Fen the Forager 🧺 | villager | quest-giver (collection); "I remember where I hid my acorns. All 4,000. Roughly." |
-| Eldergrove | Moss 🐢 | flavor critter-friend | ambient one-liners; slowest wanderer in the game (tuning joke) |
+| Eldergrove | Dawdle 🐢 | flavor critter-friend | ambient one-liners; slowest wanderer in the game (tuning joke). *Renamed from Moss (2026-10-10, item 14f): Hermit Moss already lives by the Echo Mine.* |
 | Foglight Marsh | Lightkeeper Brume 🏮 | villager | keeps the marsh lanterns; "The fog and I had an arrangement. It left." |
 | Foglight Marsh | Puddle 🐸 | flavor | remembers being a tadpole "like it was yesterday. It was yesterday." |
 | Foglight Marsh | Ferryman Slosh ⛵ | merchant | poles a raft-shop; stocks potions |

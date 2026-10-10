@@ -133,7 +133,11 @@ zod, react-query. Add the package in the same change that first uses it.
   (Act II's **Remembrance Hill**, #75 item 14e, is a town on Dawnreach behind
   the Grove-road fog — `hill-fog`, lifted by `act2-seen` — and a place nobody
   names before then: `PlaceDef.knownFrom` / `placeKnown` keep it off the
-  signposts and the menu map), `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
+  signposts and the menu map; Act II's **Eldergrove**, #75 item 14f, is
+  an island of the Silver Shallows — a history field at tier 5 whose warden,
+  the Ringkeeper, gives the Memoria Key, a `GateKey` whose gate isn't on any
+  map until the Sunken Archive (14h): `unlocksZone: null`, `opens` instead),
+  `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
