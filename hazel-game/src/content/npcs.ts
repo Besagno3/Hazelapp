@@ -1328,9 +1328,22 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🌳',
     role: 'villager',
     stationary: true,
+    // The Ringkeeper's signpost (#59's pattern): a warning until its key is won.
     lines: [
       'Hrrrm. A visitor. Stand still while I count my rings. One… two… three…',
       '…eight hundred and ninety-nine… nine hundred… nine hundred and… oh, bother. Lost count again.',
+      {
+        text: 'Mind the Great Ring, just south of me. The Ringkeeper lives there — older than me, older than this whole grove.',
+        unlessFlag: keyFlag('memoria'),
+      },
+      {
+        text: 'It wears the Memoria Key on its antlers. Answer its riddles about long ago, and it might give the key away.',
+        unlessFlag: keyFlag('memoria'),
+      },
+      {
+        text: 'You won the Memoria Key! Nine hundred years, and the Ringkeeper never shared a thing before. Hrrm. Well done.',
+        ifFlag: keyFlag('memoria'),
+      },
     ],
     ambient: ['…nine hundred and… hrrm.', '🍂'],
   },

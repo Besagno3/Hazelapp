@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BattleHud } from './BattleHud';
 import { BattleResult } from './BattleResult';
+import { keyForBoss } from '../../content/keys';
 import { AVATARS } from '../../content/avatars';
 import { atTier, spawnEnemy } from '../../content/enemies';
 import type { DangerTier } from '../../content/regions';
@@ -99,6 +100,14 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
   it('…but not near home', () => {
     render(<BattleResult {...base} result="victory" enemy={spawnEnemy('count-bat', 'numbria', 'a', 8)} />);
     expect(screen.queryByText(/Tough-critter bonus/)).toBeNull();
+  });
+  it('a warden whose gate is on the map names the Fiend it unlocks; the Ringkeeper the door nobody remembers (#75 item 14f)', () => {
+    const { unmount } = render(<BattleResult {...base} result="victory" enemy={spawnEnemy('thicket-warden', 'whispering-woods', 'w', 8)} keyBoss={keyForBoss('thicket-warden')} />);
+    expect(screen.getByText(/You won the Verdant Key! It unlocks the Smog Fiend's gate\./)).toBeInTheDocument();
+    unmount();
+    render(<BattleResult {...base} result="victory" enemy={spawnEnemy('ringkeeper', 'eldergrove', 'r', 8)} keyBoss={keyForBoss('ringkeeper')} />);
+    expect(screen.getByText(/You won the Memoria Key! It opens a door the whole world forgot\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Hollow Fiend/)).toBeNull();
   });
   it('a defeat shows its tip', () => {
     render(<BattleResult {...base} result="defeat" enemy={spawnEnemy('count-bat', 'gearfall', 'a', 8)} tip="Follow the 🚩!" />);

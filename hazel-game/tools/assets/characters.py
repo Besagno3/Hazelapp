@@ -749,6 +749,11 @@ def beast(c: Canvas, p: Pose, s: dict):
     if s.get('thorns'):
         for x in (9, 12, 15, 18):
             body.poly([(x, by - 2), (x + 1, by - 6), (x + 2, by - 2)], '#6a8a3a')
+    if s.get('rings'):
+        # Tree rings in its bark (the Ringkeeper, #75 item 14f): a cut log on its flank.
+        rc = hexc(s['rings'])
+        for k, r in enumerate((4.2, 3.0, 1.8, 0.8)):
+            body.ellipse(14, by + 1.5, r * 1.2, r * 0.8, rc if k % 2 == 0 else dark(rc, 0.2), shade=False)
     d.put(body)
     head = d.part(lean, bob)
     hx, hy = (23, by - 2) if kind != 'stag' else (24, by - 5)
@@ -769,8 +774,18 @@ def beast(c: Canvas, p: Pose, s: dict):
         head.line(hx + 1, hy - 4, hx + 3, hy - 13, ac, w=1.3)
         head.line(hx + 2.5, hy - 10, hx + 6, hy - 12, ac, w=1.1)
         if s.get('leaves'):
-            head.ellipse(hx - 8, hy - 11, 1.8, 1.4, '#6fcf5a')
-            head.ellipse(hx + 6, hy - 12, 1.8, 1.4, '#6fcf5a')
+            lc = s.get('leaf', '#6fcf5a')
+            head.ellipse(hx - 8, hy - 11, 1.8, 1.4, lc)
+            head.ellipse(hx + 6, hy - 12, 1.8, 1.4, lc)
+            if s.get('leaf'):
+                head.ellipse(hx - 4.5, hy - 12.5, 1.4, 1.1, lc)
+                head.ellipse(hx + 3.6, hy - 14, 1.4, 1.1, lc)
+        if s.get('key'):
+            # A silver key hanging from its antler (the Memoria Key, #75 item 14f).
+            head.line(hx + 4.5, hy - 11, hx + 4.5, hy - 8.5, '#c8ccd8', w=0.4)
+            head.ellipse(hx + 4.5, hy - 7.6, 1.1, 1.1, '#e8ecf4')
+            head.rect(hx + 4.1, hy - 6.6, hx + 4.9, hy - 3.6, '#e8ecf4')
+            head.rect(hx + 4.9, hy - 4.6, hx + 5.9, hy - 3.8, '#e8ecf4')
     head.ellipse(hx, hy, 5.2, 4.8, fur)
     head.ellipse(hx + 4, hy + 1.5, 2.6, 2.0, belly)
     head.dot(hx + 6, hy + 0.5, (40, 25, 35), w=2, h=1)
@@ -3033,6 +3048,8 @@ ROSTER: list[Char] = [
     Char('ring-beetle', '🪲', 'ring_beetle', H(color='#7a4a2a', ring='#d8b07a')),
     Char('sap-sprite', '✨', 'sap_sprite', H(color='#e8a030')),
     Char('hollow-acorn', '🌰', 'hollow_acorn', H(color='#b8783a', cap='#6a4a2a', shield=True)),
+    Char('ringkeeper', '🦌', 'beast', H(kind='stag', fur='#cdb894', belly='#efe4c8', antler='#8a6440', leaves=True, leaf='#e8a838',
+                                     rings='#8a6440', key=True), boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),

@@ -779,8 +779,9 @@ describe('Eldergrove (#75 item 14f)', () => {
     expect(path!.at(-1)!.mode).toBe('foot');
   });
 
-  it('three critters of the ring-trees, the Hollow Acorn shielded', () => {
-    const kinds = [...new Set(grove.enemies.map((e) => e.defId))].sort();
+  it('three critters of the ring-trees, the Hollow Acorn shielded — and the Ringkeeper', () => {
+    expect(grove.enemies.filter((e) => ENEMY_DEFS[e.defId].isBoss).map((e) => e.defId)).toEqual(['ringkeeper']);
+    const kinds = [...new Set(grove.enemies.filter((e) => !ENEMY_DEFS[e.defId].isBoss).map((e) => e.defId))].sort();
     expect(kinds).toEqual(['hollow-acorn', 'ring-beetle', 'sap-sprite']);
     for (const id of kinds) expect(ENEMY_DEFS[id].topic).toBe('history');
     expect(ENEMY_DEFS['hollow-acorn'].behavior).toBe('shielded');

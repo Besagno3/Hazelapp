@@ -1823,6 +1823,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'sap-sprite', x: 38, y: 16 },
       { defId: 'hollow-acorn', x: 9, y: 20 },
       { defId: 'hollow-acorn', x: 31, y: 14 },
+      // In the Great Ring, beside the stump.
+      { defId: 'ringkeeper', x: 25, y: 23 },
     ],
     exits: [
       // Back out to the island's path, just north of Eldergrove's icon on the Shallows.

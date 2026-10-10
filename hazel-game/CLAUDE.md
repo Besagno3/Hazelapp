@@ -506,6 +506,24 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The Ringkeeper and the Memoria Key (#75 item 14f)
+Second slice of 14f — Eldergrove's warden.
+- **The Ringkeeper** 🦌 (`ringkeeper`, a history warden, +1; "Thousand-Year
+  Charge") stands in the Great Ring: a pale birch stag with tree rings in its
+  bark, golden leaves and a silver key on its antlers (`beast` gained `rings`,
+  `leaf` and `key`). "Every ring is a year, and every year is MINE."
+- **The Memoria Key** 🗝️ (`GateKey` `memoria`, flag `key-memoria`): its gate
+  is the Sunken Archive's, which comes in 14h, so `GateKey.unlocksZone` may
+  be null; winning it then says what it `opens` — "It opens a door the whole
+  world forgot." — instead of naming a Fiend nobody has met.
+- **Old Ringwood** is its signpost: he warns of the Ringkeeper until the key
+  is won, then congratulates. **Two panels** play once after the key
+  (`MEMORIA_PANELS`, `memoria-seen`).
+- Tests: +5 (keys.test: the Memoria Key; Act I's naming and gate checks
+  scoped to Act I; the signpost check by key flag; BattleHud.test: the
+  victory line; story.test; WorldScreen.ending.test: the panels play once).
+  834 green.
+
 ### 2026-10-10 — Eldergrove: an island of ring-trees in the Silver Shallows (#75 item 14f)
 First slice of 14f — Act II's first island (the Ringkeeper, Fen's quest and
 the 🚩 come in the next commits).

@@ -15,6 +15,10 @@ import { crystalFlag } from './topics';
  * is the zone that awards the crystal) — not the warden's home zone, which has
  * no crystal of its own: woods warden→Verdant Key (Verdara), clockwork
  * warden→Gearwright Key (Gearfall), starfall warden→Prism Key (Chromaria).
+ *
+ * Act II (#75 item 14f): the Ringkeeper of Eldergrove gives the **Memoria
+ * Key**, whose gate — the Sunken Archive's — isn't on any map until 14h
+ * (`unlocksZone: null`); winning it says what it `opens` instead.
  */
 export interface GateKey {
   id: string;
@@ -31,10 +35,15 @@ export interface GateKey {
   bossDefeat: string;
   /** The themed zone the warden lives in (for "go beat X" hints). */
   fromZone: ZoneId;
-  /** The crystal zone whose Fiend gate this key unlocks. */
-  unlocksZone: ZoneId;
+  /**
+   * The crystal zone whose Fiend gate this key unlocks — null while that gate
+   * isn't on any map yet (the Memoria Key's Sunken Archive comes in #75 item 14h).
+   */
+  unlocksZone: ZoneId | null;
   /** That zone's Fiend, named in the locked-gate message. */
   fiendName: string;
+  /** What winning it says the key opens, while its gate isn't on any map yet (`unlocksZone` null). */
+  opens?: string;
 }
 
 export const GATE_KEYS: GateKey[] = [
@@ -83,6 +92,25 @@ export const GATE_KEYS: GateKey[] = [
     fromZone: 'starfall-coast',
     unlocksZone: 'chromaria',
     fiendName: 'the Gray Fiend',
+  },
+  // Act II (#75 item 14f): the Ringkeeper of Eldergrove keeps the key to the
+  // Sunken Archive, whose gate comes with the Archive itself (14h). Named for
+  // memory, not its zone, as STORY-4X's flag `key-memoria` has it.
+  {
+    id: 'memoria',
+    name: 'Memoria Key',
+    emoji: '🗝️',
+    bossId: 'ringkeeper',
+    bossName: 'The Ringkeeper',
+    bossIntro: [
+      'The oldest tree in the Great Ring shakes itself awake. It is no tree — it is a great stag with rings in its bark, and a silver key hangs from its antlers.',
+      '"Every ring is a year, and every year is MINE. You want the Memoria Key, little spark? Then tell me about the long-ago!"',
+    ],
+    bossDefeat: '"…take the key. Some years are meant to be given away."',
+    fromZone: 'eldergrove',
+    unlocksZone: null,
+    fiendName: 'the Hollow Fiend',
+    opens: 'It opens a door the whole world forgot.',
   },
 ];
 

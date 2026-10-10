@@ -30,7 +30,7 @@ import { roadTier } from '../../lib/wayfinding';
 import { arrivalWarning, zoneTier } from '../../content/regions';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, actComplete, crystalFlag } from '../../content/topics';
-import { bossDefeated } from '../../content/keys';
+import { bossDefeated, keyFlag } from '../../content/keys';
 import {
   crystalsInPlay,
   emberStatus,
@@ -62,6 +62,8 @@ import {
   GREAT_FOGBANK_MET,
   GREAT_FOGBANK_PANELS,
   GREAT_FOGBANK_SEEN,
+  MEMORIA_PANELS,
+  MEMORIA_SEEN,
 } from '../../content/story';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
@@ -199,6 +201,8 @@ export default function WorldScreen() {
   const act2Due = flags[SPIRE_VICTORY_SEEN] === true && !flags[ACT2_SEEN] && !waking;
   const voyageDue = save?.aboard === true && !flags[FIRST_VOYAGE_SEEN];
   const fogbankDue = flags[GREAT_FOGBANK_MET] === true && !flags[GREAT_FOGBANK_SEEN];
+  // The Memoria Key, won from the Ringkeeper (#75 item 14f).
+  const memoriaDue = flags[keyFlag('memoria')] === true && !flags[MEMORIA_SEEN];
 
   const activeScene:
     | 'spireVictory'
@@ -212,6 +216,7 @@ export default function WorldScreen() {
     | 'act2'
     | 'voyage'
     | 'fogbank'
+    | 'memoria'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -234,7 +239,9 @@ export default function WorldScreen() {
                       ? 'voyage'
                       : fogbankDue
                         ? 'fogbank'
-                        : null;
+                        : memoriaDue
+                          ? 'memoria'
+                          : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
@@ -625,6 +632,9 @@ export default function WorldScreen() {
       )}
       {activeScene === 'fogbank' && (
         <StoryPanels panels={GREAT_FOGBANK_PANELS} doneLabel="🧭 Sail on" onDone={() => setFlag(GREAT_FOGBANK_SEEN)} />
+      )}
+      {activeScene === 'memoria' && (
+        <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />
       )}
       {activeScene === 'grove' && (
         <StoryPanels

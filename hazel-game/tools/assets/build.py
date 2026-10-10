@@ -39,7 +39,7 @@ PUBLIC = ROOT / 'public'
 MANIFEST = ROOT / 'src' / 'content' / 'sprites.generated.ts'
 
 # Eldergrove's critters and people (#75 item 14f), for `build.py elder`.
-ELDER_SPRITES = ('ring-beetle', 'sap-sprite', 'hollow-acorn', 'elder-fen', 'elder-ringwood', 'elder-dawdle')
+ELDER_SPRITES = ('ring-beetle', 'sap-sprite', 'hollow-acorn', 'ringkeeper', 'elder-fen', 'elder-ringwood', 'elder-dawdle')
 
 
 def write_manifest(data: dict):
