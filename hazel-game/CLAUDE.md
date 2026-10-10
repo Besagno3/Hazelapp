@@ -460,6 +460,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — 14b closed out: the final commit walked and diffed (#75 item 14b, docs only)
+On the final 14b commit, in a clean worktree: `bench … journey` 13/13 for the
+third time (all 8 Act I legs and the 5 Spire floors, no page errors), and
+`shots` before (main) and after + `diff`: 66 of 72 screens identical. The other
+six differ only by effects the diff doesn't mask: a dark place's light
+flicker (the Depths' B2, the Echo Mine), the lighthouse's lamp and beams (the
+Shallows), and a Dawnreach critter idling off its mask box. Each was checked
+by eye. Logged as ISSUES #110l (freeze those on the bench before the next
+clean diff is needed); TC-696.
+
 ### 2026-10-10 — 14b review fixes: Leave the Spire asks first, Sign out takes two taps (#75 item 14b)
 Fresh-context `/saas-code-review` (no high or medium findings; 7 low) and
 `/saas-ux-review` (1 high, 3 medium, 3 low) of 14b. Fixed:
