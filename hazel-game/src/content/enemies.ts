@@ -1,6 +1,8 @@
-import type { BattleEnemy, EnemyBehavior, Topic, ZoneId } from '../types';
+import type { BattleEnemy, BossRole, CrystalTopic, EnemyBehavior, Topic, ZoneId } from '../types';
 import { clampLevel, skillLevelFor } from '../lib/age';
 import { topicInfo } from './topics';
+import { BOSS_LINES, type BossScript } from './story';
+import { keyForBoss } from './keys';
 import { bossCoinDrop, enemyCoinDrop } from './items';
 import { BASE_TIER, DANGER, placementTier, zoneTier, type DangerTier } from './regions';
 import type { EnemyPlacement } from './zones';
@@ -23,6 +25,13 @@ export interface EnemyDef {
   /** maxHp = HP_BASE + level * hpPerLevel. */
   hpPerLevel: number;
   isBoss?: boolean;
+  /** A boss's part in the story — required on every boss (#75 item 14c, `BossRole`). */
+  role?: BossRole;
+  /**
+   * A miniboss's / echo's / the finale's own monologue and last words. A
+   * Fiend speaks `BOSS_LINES[topic]` and a warden its key's lines instead.
+   */
+  lines?: BossScript;
   /** Mechanical archetype (Wave 0.5) — see EnemyBehavior in types. */
   behavior?: EnemyBehavior;
 }
@@ -38,7 +47,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'raven-prince': { id: 'raven-prince', name: 'Raven Prince', sprite: '🐦‍⬛', topic: 'math', levelOffset: -1, hpPerLevel: 10 },
   'kia': { id: 'kia', name: 'Kia', sprite: '🦑', topic: 'math', levelOffset: 0, hpPerLevel: 12 },
   'pirate-parrot': { id: 'pirate-parrot', name: 'Pi-rate Parrot', sprite: '🦜', topic: 'math', levelOffset: 1, hpPerLevel: 14, behavior: 'trickster' },
-  'null-fiend': { id: 'null-fiend', name: 'The Null Fiend', sprite: '👹', topic: 'math', levelOffset: 1, hpPerLevel: 20, isBoss: true },
+  'null-fiend': { id: 'null-fiend', name: 'The Null Fiend', sprite: '👹', topic: 'math', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
 
   // --- Verdara (science) ---
   'spore-puff': { id: 'spore-puff', name: 'Spore Puff', sprite: '🍄', topic: 'science', levelOffset: -1, hpPerLevel: 10 },
@@ -47,7 +56,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'fizzlet': { id: 'fizzlet', name: 'Fizzlet', sprite: '🫧', topic: 'science', levelOffset: -1, hpPerLevel: 10 },
   'magnetick': { id: 'magnetick', name: 'Magnetick', sprite: '🧲', topic: 'science', levelOffset: 0, hpPerLevel: 12 },
   'germinator': { id: 'germinator', name: 'Germinator', sprite: '🦠', topic: 'science', levelOffset: 1, hpPerLevel: 14, behavior: 'healer' },
-  'smog-fiend': { id: 'smog-fiend', name: 'The Smog Fiend', sprite: '🌫️', topic: 'science', levelOffset: 1, hpPerLevel: 20, isBoss: true },
+  'smog-fiend': { id: 'smog-fiend', name: 'The Smog Fiend', sprite: '🌫️', topic: 'science', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
 
   // --- Gearfall (engineering) ---
   'bolt-mouse': { id: 'bolt-mouse', name: 'Bolt Mouse', sprite: '🐭', topic: 'engineering', levelOffset: -1, hpPerLevel: 10 },
@@ -56,7 +65,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'pulley-spider': { id: 'pulley-spider', name: 'Pulley Spider', sprite: '🕷️', topic: 'engineering', levelOffset: -1, hpPerLevel: 10 },
   'piston-boar': { id: 'piston-boar', name: 'Piston Boar', sprite: '🐗', topic: 'engineering', levelOffset: 0, hpPerLevel: 12 },
   'ironhorn-rampager': { id: 'ironhorn-rampager', name: 'Ironhorn Rampager', sprite: '🦏', topic: 'engineering', levelOffset: 1, hpPerLevel: 14, behavior: 'shielded' },
-  'rust-fiend': { id: 'rust-fiend', name: 'The Rust Fiend', sprite: '🤖', topic: 'engineering', levelOffset: 1, hpPerLevel: 20, isBoss: true },
+  'rust-fiend': { id: 'rust-fiend', name: 'The Rust Fiend', sprite: '🤖', topic: 'engineering', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
 
   // --- Chromaria (creativity) ---
   'doodle-imp': { id: 'doodle-imp', name: 'Doodle Imp', sprite: '👻', topic: 'creativity', levelOffset: -1, hpPerLevel: 10 },
@@ -65,7 +74,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'flicker-goblin': { id: 'flicker-goblin', name: 'Flicker Goblin', sprite: '🔥', topic: 'creativity', levelOffset: -1, hpPerLevel: 10 },
   'graffiti-gargoyle': { id: 'graffiti-gargoyle', name: 'Graffiti Gargoyle', sprite: '🎨', topic: 'creativity', levelOffset: 0, hpPerLevel: 12 },
   'dog-knight': { id: 'dog-knight', name: 'Dog-Knight', sprite: '🐕', topic: 'creativity', levelOffset: 1, hpPerLevel: 14, behavior: 'healer' },
-  'gray-fiend': { id: 'gray-fiend', name: 'The Gray Fiend', sprite: '🌑', topic: 'creativity', levelOffset: 1, hpPerLevel: 20, isBoss: true },
+  'gray-fiend': { id: 'gray-fiend', name: 'The Gray Fiend', sprite: '🌑', topic: 'creativity', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
 
   // --- Whispering Woods (nature & animals) — critters + the warden boss (#58) ---
   'mossback-cub': { id: 'mossback-cub', name: 'Mossback Cub', sprite: '🐻', topic: 'nature', levelOffset: -1, hpPerLevel: 10 },
@@ -74,7 +83,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'dart-frog': { id: 'dart-frog', name: 'Dart Frog', sprite: '🐸', topic: 'nature', levelOffset: -1, hpPerLevel: 10 },
   'snapjaw': { id: 'snapjaw', name: 'Snapjaw', sprite: '🪴', topic: 'nature', levelOffset: 0, hpPerLevel: 12 },
   'oak-owl': { id: 'oak-owl', name: 'Oak Owl', sprite: '🦉', topic: 'nature', levelOffset: 1, hpPerLevel: 13, behavior: 'trickster' },
-  'thicket-warden': { id: 'thicket-warden', name: 'The Thicket Warden', sprite: '🦌', topic: 'nature', levelOffset: 1, hpPerLevel: 16, isBoss: true },
+  'thicket-warden': { id: 'thicket-warden', name: 'The Thicket Warden', sprite: '🦌', topic: 'nature', levelOffset: 1, hpPerLevel: 16, isBoss: true, role: 'warden' },
 
   // --- Starfall Coast (space) — critters + the warden boss (#58) ---
   'tide-sprite': { id: 'tide-sprite', name: 'Tide Sprite', sprite: '🌊', topic: 'space', levelOffset: -1, hpPerLevel: 10 },
@@ -83,7 +92,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'orbit-otter': { id: 'orbit-otter', name: 'Orbit Otter', sprite: '🦦', topic: 'space', levelOffset: -1, hpPerLevel: 10 },
   'gravity-beetle': { id: 'gravity-beetle', name: 'Gravity Beetle', sprite: '🪲', topic: 'space', levelOffset: 0, hpPerLevel: 12 },
   'eclipse-fox': { id: 'eclipse-fox', name: 'Eclipse Fox', sprite: '🦊', topic: 'space', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
-  'tide-colossus': { id: 'tide-colossus', name: 'The Tide Colossus', sprite: '🐳', topic: 'space', levelOffset: 1, hpPerLevel: 16, isBoss: true },
+  'tide-colossus': { id: 'tide-colossus', name: 'The Tide Colossus', sprite: '🐳', topic: 'space', levelOffset: 1, hpPerLevel: 16, isBoss: true, role: 'warden' },
 
   // --- Clockwork Depths (time & history) — critters + the warden boss (#58) ---
   'cog-sprite': { id: 'cog-sprite', name: 'Cog Sprite', sprite: '⚙️', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
@@ -91,12 +100,12 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'relic-golem': { id: 'relic-golem', name: 'Relic Golem', sprite: '🗿', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
   'tut-tut': { id: 'tut-tut', name: 'Tut-Tut', sprite: '🧟', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
   'knight-mare': { id: 'knight-mare', name: 'Knight-Mare', sprite: '🐴', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
-  'clockwork-titan': { id: 'clockwork-titan', name: 'The Clockwork Titan', sprite: '🦾', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true },
+  'clockwork-titan': { id: 'clockwork-titan', name: 'The Clockwork Titan', sprite: '🦾', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true, role: 'warden' },
 };
 
-/** The boss enemy id for a topic's zone. */
+/** A crystal topic's Fiend — the boss whose defeat restores its crystal. */
 export function fiendFor(topic: Topic): EnemyDef {
-  const def = Object.values(ENEMY_DEFS).find((e) => e.isBoss && e.topic === topic);
+  const def = Object.values(ENEMY_DEFS).find((e) => e.role === 'fiend' && e.topic === topic);
   if (!def) throw new Error(`No fiend defined for topic ${topic}`);
   return def;
 }
@@ -122,9 +131,8 @@ export function spawnEnemy(
   const def = ENEMY_DEFS[defId];
   if (!def) throw new Error(`Unknown enemy def: ${defId}`);
   const level = clampLevel(skillLevelFor(skillLevels, def.topic, age) + def.levelOffset);
-  // Bosses live only in crystal topics, so fiendName is always set there; the
-  // fallback keeps non-crystal enemies (and any future boss) safe.
-  const name = def.isBoss ? (topicInfo(def.topic).fiendName ?? def.name) : def.name;
+  // A Fiend goes by its crystal's Fiend name; every other boss by its own (#75 item 14c).
+  const name = def.role === 'fiend' ? (topicInfo(def.topic).fiendName ?? def.name) : def.name;
   return {
     id: def.id,
     instanceId: `${zoneId}:${placementKey}`,
@@ -137,6 +145,7 @@ export function spawnEnemy(
     maxHp: scaledHp(def, level, tier),
     zoneId,
     isBoss: def.isBoss ?? false,
+    role: def.role,
     coins: scaledCoins(def, level, tier),
     behavior: def.behavior,
     tier,
@@ -182,4 +191,16 @@ export function spawnPlaced(
   skillLevels: Partial<Record<Topic, number>> = {},
 ): BattleEnemy {
   return spawnEnemy(p.defId, zoneId, `${p.defId}@${p.x},${p.y}`, age, skillLevels, placementTier(zoneId, p));
+}
+
+/**
+ * What a boss says before the fight and as it falls (#75 item 14c), by its
+ * role: a Fiend its crystal's `BOSS_LINES`, a warden its key's lines, any
+ * other boss its own `lines` — or nothing, never a crash.
+ */
+export function bossScript(boss: { id: string; topic: Topic; role?: BossRole }): BossScript | null {
+  if (boss.role === 'fiend') return BOSS_LINES[boss.topic as CrystalTopic] ?? null;
+  const key = keyForBoss(boss.id);
+  if (key) return { intro: key.bossIntro, defeat: key.bossDefeat };
+  return ENEMY_DEFS[boss.id]?.lines ?? null;
 }

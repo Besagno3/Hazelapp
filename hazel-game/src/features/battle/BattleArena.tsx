@@ -55,8 +55,9 @@ import {
 } from '../../content/companion';
 import { CLOVER_COIN_MULT, CONSUMABLES, type ConsumableId } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
-import { BOSS_LINES, emberStatus, EMBER_HATCHED } from '../../content/story';
-import { keyForBoss, keyFlag } from '../../content/keys';
+import { emberStatus, EMBER_HATCHED } from '../../content/story';
+import { bossFlag, keyForBoss, keyFlag } from '../../content/keys';
+import { bossScript } from '../../content/enemies';
 import { resolveSprite } from '../../content/sprites';
 import { BASE_TIER, dangerMarks, defeatTip, toughCallout } from '../../content/regions';
 import { roadTier } from '../../lib/wayfinding';
@@ -323,10 +324,8 @@ export default function BattleArena() {
     const tier = enemy.tier ?? BASE_TIER;
     const { toughMet, meetTough } = useBattleStore.getState();
     const lines: { text: string; shown?: () => void }[] = [];
-    if (enemy.isBoss) {
-      const intro = keyBoss ? keyBoss.bossIntro : BOSS_LINES[enemy.topic as keyof typeof BOSS_LINES].intro;
-      for (const text of intro) lines.push({ text });
-    }
+    // A boss's monologue by its role (#75 item 14c) — a boss with no lines just fights.
+    if (enemy.isBoss) for (const text of bossScript(enemy)?.intro ?? []) lines.push({ text });
     if (dangerMarks(tier) && !toughMet.includes(tier)) lines.push({ text: `💪 ${toughCallout(tier)}`, shown: () => meetTough(tier) });
     if (mercyDrop > 0) lines.push({ text: `💛 ${mercyCallout(enemy)}` });
     if (lines.length === 0) return;
@@ -857,9 +856,11 @@ export default function BattleArena() {
         // The first victory warms the egg — the hatch scene plays back in
         // the world (#37 story pass).
         [EMBER_HATCHED]: true,
-        // Crystal Fiends restore a crystal; wardens grant a gate key instead.
-        ...(enemy!.isBoss && !keyBoss ? { [crystalFlag(topic)]: true } : {}),
+        // By its role (#75 item 14c): a Fiend restores its crystal, a warden
+        // gives up its gate key, any other boss is marked beaten on its own.
+        ...(enemy!.role === 'fiend' ? { [crystalFlag(topic)]: true } : {}),
         ...(keyBoss ? { [keyFlag(keyBoss.id)]: true } : {}),
+        ...(enemy!.isBoss && enemy!.role !== 'fiend' && !keyBoss ? { [bossFlag(enemy!.id)]: true } : {}),
       },
     }));
     setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop });
@@ -1131,10 +1132,8 @@ export default function BattleArena() {
             result={turn.kind}
             enemy={enemy}
             keyBoss={keyBoss}
-            fiendDefeatLine={
-              enemy.isBoss && !keyBoss ? BOSS_LINES[topic as keyof typeof BOSS_LINES]?.defeat : undefined
-            }
-            crystalName={info.crystalName}
+            fiendDefeatLine={enemy.isBoss && !keyBoss ? bossScript(enemy)?.defeat : undefined}
+            crystalName={enemy.role === 'fiend' ? info.crystalName : undefined}
             correctCount={answers.filter(Boolean).length}
             xp={turn.xp}
             coins={turn.kind === 'victory' ? turn.coins : enemy.coins}

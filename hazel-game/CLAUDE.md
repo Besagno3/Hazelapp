@@ -494,6 +494,25 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — Bosses have roles: only a Fiend restores a crystal (#75 item 14c)
+Second slice of 14c (nothing visible). "Any boss without a key restores its
+topic's crystal" broke every boss Acts II–IV need: a keyless boss on a topic
+with no Fiend lines crashed the battle as it opened; one on a crystal topic was
+renamed that Fiend, restored that crystal and despawned the real Fiend with
+it; `fiendFor('history')` already returned the Clockwork Titan.
+- **`BossRole`** (`types`, `BOSS_ROLES`): `fiend / warden / miniboss / echo /
+  finale` on `EnemyDef.role`, carried to `BattleEnemy.role`; the four Fiends
+  and three wardens are tagged.
+- **By role:** victory restores a crystal only for a Fiend, gives a key for a
+  warden, and sets `bossFlag(id)` for any other boss (`BattleArena`);
+  `bossDefeated(boss, flags)` (`keys.ts`) the same; `bossScript` (`enemies.ts`)
+  gives the monologue — Fiend → `BOSS_LINES`, warden → its key's lines, other →
+  `EnemyDef.lines` or none; "💎 … shines again!" only for a Fiend; `spawnEnemy`
+  names only a Fiend after its crystal; `fiendFor` finds the `fiend`.
+- Tests: enemies.test (+4), keys.test (rewritten for roles), BattleArena.test
+  (+3: a keyless miniboss and an echo in the real arena — both fail on the old
+  code — and the Null Fiend unchanged). 787 green, lint clean.
+
 ### 2026-10-10 — Crystals belong to an act: Act I stays Act I when more come (#75 item 14c)
 First slice of 14c (nothing a player sees changes). Every "all crystals"
 rule assumed the registry's four, so a fifth crystal would have re-sealed the

@@ -73,7 +73,7 @@ export function playerRules(z: ZoneDef, flags: Record<string, boolean>, target?:
   }
   for (const p of z.enemies) {
     const def = ENEMY_DEFS[p.defId];
-    if (!def?.isBoss || bossDefeated(def.id, def.topic, flags)) continue;
+    if (!def?.isBoss || bossDefeated(def, flags)) continue;
     if (target && p.x === target.x && p.y === target.y) continue;
     standing.add(`${p.x},${p.y}`);
   }

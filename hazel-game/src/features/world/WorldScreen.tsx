@@ -261,7 +261,7 @@ export default function WorldScreen() {
     if (!save) return;
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
-      if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, save.flags)) continue;
+      if (enemy.isBoss && bossDefeated(enemy, save.flags)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT);
     }

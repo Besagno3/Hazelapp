@@ -855,6 +855,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-707 | U | ✅ | acts | with an Act II crystal added (`test/fakeCrystal.ts`): Act I is still complete with its four; the HUD counts 4/4 until Act II opens, then 4/5; Ember still grows with every crystal; the 🚩 and Elder Lumen's plans are the same step for step from a new save to the end; Act I's journey keeps its 8 legs — all fail on the old code (crystals.test) |
 | TC-708 | C | ✅ | acts | with an Act II crystal added, the real climb opens on Act I's four (no "sealed"); with three of Act I's four it's sealed and says "3/4" (SpireOverlay.test) |
 | TC-709 | C | ✅ | acts | with an Act II crystal added, the real WorldScreen plays the ending ("The four Crystals of Knowing rise…") on Act I's four and reads "💎 4/4 crystals restored"; once Act II opens it reads "4/5" (WorldScreen.focus.test) |
+| TC-710 | U | ✅ | bosses | every boss has a role and only bosses do; one Fiend per crystal on its own topic (`fiendFor`); a warden exactly when its boss drops a gate key; `fiendFor('history')` no longer returns the Clockwork Titan; a Fiend goes by its crystal's Fiend name, any other boss by its own; `bossScript` by role, nothing (no crash) for a boss with no lines (enemies.test) |
+| TC-711 | U | ✅ | bosses | `bossDefeated` by role: a Fiend on its crystal flag, a warden on its key flag (not its crystal), a miniboss on its own `boss:<id>:defeated` flag even when its topic's crystal is restored (keys.test) |
+| TC-712 | C | ✅ | bosses | in the real arena: a keyless miniboss on `nature` with no lines fights (it crashed on the old code), and beating it sets only its boss flag, no crystal, no "shines again"; an echo on `math` keeps its name and never restores Numbers (it did on the old code); the Null Fiend still speaks first and restores Numbers (BattleArena.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

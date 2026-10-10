@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { ENEMY_BEHAVIORS } from '../types';
+import { BOSS_ROLES, ENEMY_BEHAVIORS } from '../types';
 import { attackDamage, healerRegen } from '../lib/battleMath';
-import { ENEMY_DEFS, spawnEnemy } from './enemies';
+import { ENEMY_DEFS, bossScript, fiendFor, spawnEnemy } from './enemies';
+import { keyForBoss } from './keys';
+import { BOSS_LINES } from './story';
+import { TOPIC_REGISTRY, crystalInfo } from './topics';
 
 const BEHAVIORS = ENEMY_BEHAVIORS;
 
@@ -23,6 +26,41 @@ describe('enemy behavior archetypes (Wave 0.5)', () => {
     for (const def of Object.values(ENEMY_DEFS)) {
       if (def.isBoss) expect(def.behavior, `${def.id} is a boss with a behavior`).toBeUndefined();
     }
+  });
+
+  it('every boss has a role, and only bosses do (#75 item 14c)', () => {
+    for (const def of Object.values(ENEMY_DEFS)) {
+      if (def.isBoss) expect(BOSS_ROLES, `${def.id} has no role`).toContain(def.role);
+      else expect(def.role, `${def.id} isn't a boss`).toBeUndefined();
+    }
+  });
+
+  it('one Fiend per crystal, on its own topic; a warden exactly when its boss drops a gate key', () => {
+    for (const t of TOPIC_REGISTRY) {
+      const fiends = Object.values(ENEMY_DEFS).filter((e) => e.role === 'fiend' && e.topic === t.id);
+      expect(fiends.map((f) => f.id), t.id).toHaveLength(1);
+      expect(fiendFor(t.id)).toBe(fiends[0]);
+    }
+    for (const def of Object.values(ENEMY_DEFS)) {
+      if (def.role === 'fiend') expect(TOPIC_REGISTRY.map((t) => t.id), def.id).toContain(def.topic);
+      expect(def.role === 'warden', def.id).toBe(!!keyForBoss(def.id));
+    }
+    // The Clockwork Titan is a history warden, not history's Fiend (Memory gets its own, 14h).
+    expect(() => fiendFor('history')).toThrow();
+  });
+
+  it("a Fiend goes by its crystal's Fiend name, every other boss by its own", () => {
+    expect(spawnEnemy('null-fiend', 'numbria', '1,1', 9).name).toBe(crystalInfo('math').fiendName);
+    expect(spawnEnemy('clockwork-titan', 'clockwork-depths-b3', '1,1', 9).name).toBe('The Clockwork Titan');
+    expect(spawnEnemy('null-fiend', 'numbria', '1,1', 9).role).toBe('fiend');
+  });
+
+  it('bossScript: a Fiend speaks its crystal\'s lines, a warden its key\'s, any other boss its own or nothing', () => {
+    expect(bossScript({ id: 'null-fiend', topic: 'math', role: 'fiend' })).toBe(BOSS_LINES.math);
+    const key = keyForBoss('thicket-warden')!;
+    expect(bossScript({ id: 'thicket-warden', topic: 'nature', role: 'warden' })).toEqual({ intro: key.bossIntro, defeat: key.bossDefeat });
+    // A miniboss with no lines on a topic with no BOSS_LINES — no crash, just nothing.
+    expect(bossScript({ id: 'no-such-boss', topic: 'nature', role: 'miniboss' })).toBeNull();
   });
 
   it('spawnEnemy carries the behavior onto the battle instance', () => {
