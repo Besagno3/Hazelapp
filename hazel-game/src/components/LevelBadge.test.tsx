@@ -44,8 +44,8 @@ describe('LevelBadge', () => {
       },
     });
     render(<LevelBadge />);
-    // 250 XP → floor(250/100) + 1 = level 3
-    expect(screen.getByText('Level 3')).toBeInTheDocument();
-    expect(screen.getByText('50/100 XP')).toBeInTheDocument();
+    // 250 XP → level 2 (100 to clear level 1), 150 of the 200 level 2 needs
+    expect(screen.getByText('Level 2')).toBeInTheDocument();
+    expect(screen.getByText('150/200 XP')).toBeInTheDocument();
   });
 });

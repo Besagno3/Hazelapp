@@ -58,7 +58,7 @@ describe('the world top bar (#75 item 14b, #102i)', () => {
         birthYear: 2016,
         birthMonth: 3,
         skillLevels: {},
-        xp: 250,
+        xp: 300,
         powerUps: {},
         currentStreak: 5,
         longestStreak: 9,
