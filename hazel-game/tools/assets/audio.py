@@ -903,7 +903,10 @@ INTRO_TUNE = ('G4:3 Ab4:1 G4:2 Eb4:2 | C5:4 Bb4:2 Ab4:2 | G4:3 F4:1 Eb4:2 Bb3:2 
               'Eb4:2 Ab4:2 C5:3 Bb4:1 | Bb4:2 F4:2 D5:4 | Eb5:3 D5:1 Bb4:2 G4:2 | Eb5:6 r:2 | '
               'C5:2 Eb5:2 Ab5:4 | F5:3 D5:1 Bb4:4 | G5:2 D5:2 Bb4:2 G4:2 | C5:4 Eb5:4 | Ab4:8')
 INTRO_TUNE_FROM = 8  # bar index (0-based) the tune comes in on
-INTRO_CLIMAX = range(16, 20)  # the tune an octave up, a line below it, the harp leaning in
+INTRO_CLIMAX = range(16, 20)  # the tune an octave up, a line below it, and a new colour on the harp
+# What the climax adds to the harp (0:48-1:00): 'celesta' — a soft bell joins
+# it, note for note; 'high' — the harp's sweeps rise an octave instead.
+INTRO_CLIMAX_VOICE = 'celesta'
 # How loud each bar starts (the mix is normalised to its loudest moment): the
 # crescendo up to the climax, and back down so the loop meets its soft start.
 # The tune and bass come in at bar 9, so the dynamics step back there to keep
@@ -920,6 +923,16 @@ def _pluck(m: float, dur=1.2) -> np.ndarray:
     return sig * np.exp(-t * 3.4) * env(n, 0.002, 0.01, 1.0, 0.12)
 
 
+def _celesta(m: float, dur=0.9) -> np.ndarray:
+    """A celesta / music-box chime: a round tone, a faint octave and a glassy overtone, dying away."""
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    tone = (_osc(hz(m), dur, 'tri') * np.exp(-t * 4.0)
+            + 0.22 * _osc(hz(m) * 2, dur, 'tri') * np.exp(-t * 7.0)
+            + 0.07 * _osc(hz(m) * 2.76, dur, 'tri') * np.exp(-t * 10.0))
+    return tone * env(n, 0.001, 0.01, 1.0, 0.08)
+
+
 def _timp(m: int, dur=0.9) -> np.ndarray:
     """A timpani stroke: a low triangle that sags a little, and a soft thump."""
     n = int(dur * SR)
@@ -929,7 +942,7 @@ def _timp(m: int, dur=0.9) -> np.ndarray:
     return (body + 0.6 * thump) * env(n, 0.002, 0.01, 1.0, 0.1)
 
 
-def compose_intro(bpm=80):
+def compose_intro(bpm=80, climax=INTRO_CLIMAX_VOICE):
     s16 = 60 / bpm / 4
     bar = s16 * 16
     chords = INTRO_CHORDS.replace('|', ' ').split()
@@ -954,12 +967,14 @@ def compose_intro(bpm=80):
             up = [base + r for r in rungs[:8]]
             figure = up + [base + rungs[8]] + up[:0:-1]
         figure = figure[:16]
+        if bi in INTRO_CLIMAX and climax == 'high':
+            figure = [m + 12 for m in figure]
         for k, m in enumerate(figure):
             t = t0 + k * s16
             g = 0.16 * dyn_at(t) * (1.15 if k in (0, 8) else 1.0)  # lean on each beat-1 and -3
-            if bi in INTRO_CLIMAX:  # it leans in for the climax (louder, not higher)
-                g *= 1.25
             mixin(harp, _pluck(m), t, g)
+            if bi in INTRO_CLIMAX and climax == 'celesta':
+                mixin(harp, _celesta(m), t, 0.6 * g)
 
         # a soft string pad from the second phrase, the chord held across the bar
         if 4 <= bi <= 21:

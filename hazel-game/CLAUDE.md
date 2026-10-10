@@ -595,6 +595,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The sign-in intro's climax: a celesta joins the harp (#117)
+The climax (0:48–1:00, bars 17–20, after a timpani roll from 0:45) only made
+the harp louder, which didn't land. Now a new colour comes in: a celesta (a
+soft music-box bell, `_celesta`) plays with the harp, note for note at the
+same pitch, while the tune rises an octave. The other option is built in —
+`INTRO_CLIMAX_VOICE = 'high'` (`tools/assets/audio.py`) lifts the harp's
+sweeps an octave for the climax instead; both were rendered for the owner
+to choose by ear. Loudness by bar 13% → 100% → 18%; rebuilt with
+`build.py intro`.
+
 ### 2026-10-10 — Music is on by default (#117)
 So everyone hears the sign-in screen's intro, Music now defaults to **on**
 (`DEFAULT_SETTINGS.music`, `lib/settings.ts`); sound effects stay off. It
