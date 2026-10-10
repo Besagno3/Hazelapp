@@ -162,8 +162,15 @@ export interface Profile {
   birthYear: number;
   birthMonth: number;
   skillLevels: SkillLevels;
-  /** Total experience points; player level is derived from this (lib/level.ts). */
+  /** Lifetime experience points. */
   xp: number;
+  /**
+   * Saved player level, and the XP earned toward the next one (lib/level.ts).
+   * Absent on a profile cached before levels were saved — `levelState`
+   * derives them from `xp` then.
+   */
+  level?: number;
+  levelXp?: number;
   /** Power-ups chosen on level-ups. */
   powerUps: PowerUps;
   /** Consecutive days played (#28). */

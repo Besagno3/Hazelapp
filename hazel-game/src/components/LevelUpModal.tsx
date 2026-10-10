@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useProfileStore } from '../store/profileStore';
-import { playerLevel } from '../lib/level';
+import { levelState } from '../lib/level';
 import { choicesForLevel, totalPowerUps } from '../lib/powerups';
 import { sfx } from '../lib/audio';
 import type { PowerUpId } from '../types';
@@ -10,7 +10,7 @@ import ModalLayer from './ModalLayer';
 
 /**
  * Level-up celebration. Shows whenever the player owes a power-up choice —
- * `owed = (playerLevel - 1) - powerUpsChosen` — derived entirely from the
+ * `owed = (level - 1) - powerUpsChosen` — derived entirely from the
  * profile, so it survives reloads and handles multi-level jumps (one
  * celebration per level). Choosing a power-up decrements `owed`.
  */
@@ -18,7 +18,7 @@ export default function LevelUpModal() {
   const profile = useProfileStore((s) => s.profile);
   const addPowerUp = useProfileStore((s) => s.addPowerUp);
 
-  const level = profile ? playerLevel(profile.xp) : 1;
+  const { level } = levelState(profile);
   const owned = profile ? totalPowerUps(profile.powerUps) : 0;
   const owed = Math.max(0, level - 1 - owned);
   const celebrating = owed > 0 ? level - owed + 1 : null;

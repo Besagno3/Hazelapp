@@ -1,4 +1,5 @@
 import type { PowerUps, Profile, SkillLevels } from '../types';
+import { furthestLevel, levelState } from './level';
 
 /**
  * Local durability for the player profile (XP / skill levels / power-ups /
@@ -47,9 +48,12 @@ function maxByKey<T extends Record<string, number>>(a: T, b: T): T {
  */
 export function mergeProfiles(remote: Profile, local: Profile | null): Profile {
   if (!local || local.id !== remote.id) return remote;
+  const { level, levelXp } = furthestLevel(levelState(remote), levelState(local));
   return {
     ...remote,
     xp: Math.max(remote.xp, local.xp),
+    level,
+    levelXp,
     skillLevels: maxByKey<SkillLevels & Record<string, number>>(
       remote.skillLevels as SkillLevels & Record<string, number>,
       local.skillLevels as SkillLevels & Record<string, number>,

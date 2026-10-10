@@ -12,7 +12,7 @@ import { ALL_SECRETS, secretFlag, secretProgress } from '../../content/secrets';
 import { zone } from '../../content/zones';
 import { NPC_DEFS } from '../../content/npcs';
 import { heroMaxHp } from '../../lib/powerups';
-import { playerLevel, xpProgress } from '../../lib/level';
+import { levelState, xpProgress } from '../../lib/level';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -52,7 +52,7 @@ export default function MenuOverlay({
 
   const avatar = avatarById(save.avatarId);
   const maxHp = heroMaxHp(avatar, profile?.powerUps ?? {});
-  const xp = profile?.xp ?? 0;
+  const levels = levelState(profile);
   const hp = save.hp ?? maxHp;
   const { stage: ember } = emberStatus(save.flags);
   const quests = activeQuests(save);
@@ -99,7 +99,7 @@ export default function MenuOverlay({
             <div className="font-bold text-sm">{avatar?.name ?? 'Hero'}</div>
             {/* The top bar's medallion shows only a bar; here are its numbers (#75 item 14b review). */}
             <div className="text-xs text-yellow-200">
-              ⭐ Level {playerLevel(xp)} · {xpProgress(xp).into}/{xpProgress(xp).needed} XP
+              ⭐ Level {levels.level} · {xpProgress(levels).into}/{xpProgress(levels).needed} XP
             </div>
             <div className="text-xs text-white/70">
               ❤️ {hp}/{maxHp} · 🪙 {save.coins}

@@ -1,5 +1,5 @@
 import { useProfileStore } from '../store/profileStore';
-import { playerLevel, xpProgress } from '../lib/level';
+import { levelState, xpProgress } from '../lib/level';
 
 /**
  * Where the medallion sits. Battle uses top-center to clear the combatant
@@ -24,10 +24,9 @@ const PLACEMENT: Record<Placement, string> = {
  */
 export default function LevelBadge({ placement = 'top-left' }: { placement?: Placement }) {
   const profile = useProfileStore((s) => s.profile);
-  const xp = profile?.xp ?? 0;
-
-  const level = playerLevel(xp);
-  const { into, needed, fraction } = xpProgress(xp);
+  const state = levelState(profile);
+  const { level } = state;
+  const { into, needed, fraction } = xpProgress(state);
   const inline = placement === 'inline';
 
   return (

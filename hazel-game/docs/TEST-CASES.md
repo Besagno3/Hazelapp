@@ -67,8 +67,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-54 | C | ⬜ | TopicSelect | unlock copy reflects PASS_THRESHOLD / ROUNDS_TO_UNLOCK |
 | TC-55 | C | ✅ | StatusScreens | `LoadingScreen` renders the given label |
 | TC-56 | C | ✅ | StatusScreens | `ErrorScreen` shows message; omits actions when no handler |
-| TC-57 | U | ✅ | level | `playerLevel` is 1 at 0 XP and advances every 100 XP |
-| TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction for the level |
+| TC-57 | U | ✅ | level | RETIRED (#115) — the level is saved now; see TC-786–788 |
+| TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction for the saved level (level 2 needs 125) |
 | TC-59 | U | ✅ | level | `npcDefeatXp` rewards more for higher-level NPCs |
 | TC-60 | U | ✅ | enemies | RETIRED with lib/npc (#37) — authored placements now, see TC-119/120 |
 | TC-61 | U | ✅ | enemies | RETIRED with lib/npc (#37) — see TC-119/120 |
@@ -83,7 +83,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-70 | E | ⬜ | generate-questions | caches freshly generated questions for later reuse |
 | TC-71 | E | ⬜ | generate-questions | bumps `times_asked` on every question returned |
 | TC-72 | C | ✅ | LevelBadge | renders nothing when no profile is loaded |
-| TC-73 | C | ✅ | LevelBadge | shows the level + XP progress derived from profile XP |
+| TC-73 | C | ✅ | LevelBadge | shows the saved level + XP into it; a profile with no saved level shows its old flat-100 level (250 XP → Level 3, 50/150 XP) |
 | TC-74 | U | ✅ | powerups | bonuses are zero with none, and scale with stack count |
 | TC-75 | U | ✅ | powerups | `totalPowerUps` sums every stack |
 | TC-76 | C | ⬜ | LevelUpModal | appears when a power-up is owed (level > chosen + 1) |
@@ -936,6 +936,11 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-771 | U | ✅ | encounters | Old Marlow (Starfall Coast), with a step to spare, and Vela's door and doorstep stand out of every Starfall Coast critter's reach — the Moon Moth moved from 5,7 to 9,8 (seaCritters.test, #114w) |
 | TC-772 | U | ✅ | encounters | `meetFoe` (encounter.test): walking into a foe fights, a boss too, cooldown or not; nothing happens to a resting one or in the two held frames; one coming onto a still, guarded hero is spared (never a boss); a spared one lets the hero stand or step away, even after the cooldown, but walking into it fights, and out of touch it's no longer spared; a touch fights only in the enemy's element, no critter under Calm |
 | TC-770 | U | ✅ | world map | with the ⭐ at any east-half cell of Dawnreach, "Silver Shallows ▶" covers no place — covering a marker costs far more than coming within the 3 px gap (worldMap.test) |
+| TC-786 | U | ✅ | level | `xpForLevel`: 100 at level 1, +25 each level after (125, 150, … 325 at level 10), always rising (level.test) |
+| TC-787 | U | ✅ | level | `gainXp` fills the level, rolls the extra over on a level-up, clears several levels at once, never lowers a saved level; a profile without a saved level keeps its old flat-100 level (`levelState`: 1000 XP → level 11) (level.test) |
+| TC-788 | U | ✅ | profile | `mergeProfiles` keeps the further saved level (higher level, then more XP into it); a pre-save local cache's old level beats a fresh remote row at level 1 (profile.test) |
+| TC-789 | M | ✅ | migrations | 0012 on a row with 1037 XP backfills level 11, 37 into it; applied twice changes nothing; a new sign-up starts at level 1 / 0 (`supabase/ci/level.test.sql`; local Postgres 16, 2026-10-10) |
+| TC-790 | M | ⬜ | profile | after 0012 in production, an existing player sees the same level as before; earning XP moves the bar toward the new, larger need; a refresh keeps both |
 
 ## Regression cases (tied to ISSUES.md)
 

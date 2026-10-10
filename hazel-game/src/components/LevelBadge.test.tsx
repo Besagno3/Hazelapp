@@ -44,8 +44,31 @@ describe('LevelBadge', () => {
       },
     });
     render(<LevelBadge />);
-    // 250 XP → level 2 (100 to clear level 1), 150 of the 200 level 2 needs
-    expect(screen.getByText('Level 2')).toBeInTheDocument();
-    expect(screen.getByText('150/200 XP')).toBeInTheDocument();
+    // No saved level yet: 250 XP on the old flat-100 curve is level 3 with 50
+    // over, and level 3 now needs 150.
+    expect(screen.getByText('Level 3')).toBeInTheDocument();
+    expect(screen.getByText('50/150 XP')).toBeInTheDocument();
+  });
+
+  it('shows the saved level, not one worked out from total XP', () => {
+    useProfileStore.setState({
+      profile: {
+        id: 'u1',
+        birthYear: 2014,
+        birthMonth: 6,
+        skillLevels: {},
+        xp: 1000,
+        level: 11,
+        levelXp: 40,
+        powerUps: {},
+        currentStreak: 0,
+        longestStreak: 0,
+        lastPlayedOn: null,
+      },
+    });
+    render(<LevelBadge />);
+    // Level 11 needs 100 + 10 × 25 = 350 XP
+    expect(screen.getByText('Level 11')).toBeInTheDocument();
+    expect(screen.getByText('40/350 XP')).toBeInTheDocument();
   });
 });

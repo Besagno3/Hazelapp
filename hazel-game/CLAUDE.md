@@ -172,7 +172,7 @@ zod, react-query. Add the package in the same change that first uses it.
   topics passed (80%+) this session, so `TopicSelect` greys them out and stops
   re-picking. Not persisted; reset on sign-out (#64).
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
-  `profiles` row (birth date, skill levels, xp, power-ups, streak).
+  `profiles` row (birth date, skill levels, xp, saved level, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
   wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
   the Spire icon, remounted per zone, paused under overlays via ref). Terrain
@@ -461,8 +461,13 @@ zod, react-query. Add the package in the same change that first uses it.
   with loading and error/retry states.
 - Two progression systems: (1) per-topic **skill ramp** — `nextSkillLevel`
   (`lib/age.ts`) tunes quiz difficulty after each quiz round, persisted via
-  `profileStore.setSkillLevel`; (2) overall **player level** — derived from XP
-  (`lib/level.ts`), earned from correct answers + NPC defeats, in `profiles.xp`.
+  `profileStore.setSkillLevel`; (2) overall **player level** — saved in
+  `profiles.level` with the XP earned toward the next one in `profiles.level_xp`
+  (migration 0012; `xp` stays the lifetime total), earned from correct answers
+  + NPC defeats. Level n takes `xpForLevel(n)` = 100 + 25×(n−1) XP
+  (`lib/level.ts`). Retuning the curve never lowers anyone's level — only how
+  far the next one is. Read it with `levelState(profile)` (a profile cached
+  before levels were saved falls back to the old flat-100 curve).
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter). The edge function randomly
   mixes cached questions (reused from a ±2 level band) with fresh ones.
@@ -574,6 +579,28 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — The player level is saved; each level takes a little more XP (#115)
+Levels used to be worked out from total XP at a flat 100 XP each, so every
+level came just as fast, and any change to the curve would have moved every
+player's level.
+- **Saved:** migration `0012_save_player_level.sql` adds `profiles.level` and
+  `profiles.level_xp` (XP into the current level), backfilled from the old
+  flat curve so everyone keeps the level they had; new players start at 1 / 0.
+  `profileStore.addXp` rolls XP over levels (`gainXp`) and writes all three;
+  `loadProfile` pushes a row back up when it has no level yet or the local
+  cache is further along (`mergeProfiles` keeps the further level,
+  `furthestLevel`).
+- **A gentle curve that keeps climbing:** level n takes 100 + 25×(n−1) XP
+  (`xpForLevel`: 100, 125, 150 … 325 at level 10, 575 at 20).
+- **Readers:** `LevelBadge`, the Menu's hero card and `LevelUpModal` read
+  `levelState(profile)`; `playerLevel(xp)` and `XP_PER_LEVEL` are gone. A
+  profile cached before this (no `level`) uses the old flat-100 level.
+- Tests: level.test (rewritten), profile.test (+2), LevelBadge.test (+1),
+  `supabase/ci/level.test.sql`. Migrations applied in order and the bundle
+  twice on Postgres 16; a 1037-XP row backfills to level 11, 37 in.
+- ⚠️ Deploy: apply 0012 (or re-run `apply_all_migrations.sql`) **before**
+  shipping this build.
 
 ### 2026-10-10 — Merge main (14c groundwork, 14e Remembrance Hill) into the sea-critters branch (#75 item 14d)
 `main` took 14c and 14e while 14d was in review. Both used ISSUES **#112**
