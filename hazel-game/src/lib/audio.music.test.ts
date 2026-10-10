@@ -7,9 +7,11 @@ import type { MusicTrack } from './audio';
 // the queue steps on only when an event matches its head, so after a play() on
 // a loaded Howl the queued calls never run. Setting the volume mid-fade cancels
 // the fade and still fires 'fade'; a fade from a volume to itself never ends.
+// Its one sound has its own volume beside the Howl's: a fade cut short (as at a
+// loop point) jumps the sound to the fade's target and leaves the Howl's be.
 const { FakeHowl, howls } = vi.hoisted(() => {
   const howls: InstanceType<typeof FakeHowl>[] = [];
-  let nextId = 1;
+  let nextId = 1000; // Howler's sound ids start at 1000 — never a volume
   type Listener = { ev: string; fn: () => void; id?: number; once: boolean };
   class FakeHowl {
     src: string;
@@ -18,12 +20,15 @@ const { FakeHowl, howls } = vi.hoisted(() => {
     lock = false;
     unloaded = false;
     isPlaying = false;
+    /** The sound's volume — what's heard. */
     vol = 0;
+    /** The Howl's own volume(). */
+    groupVol = 0;
     fadeFrom = 0;
     fadeTo: number | null = null;
     /** play() calls from outside (not the queue's own). */
     playCalls = 0;
-    id = 0;
+    id = -1;
     queue: { event: string; action: () => void }[] = [];
     listeners: Listener[] = [];
     constructor(o: { src: string[] }) {
@@ -53,6 +58,7 @@ const { FakeHowl, howls } = vi.hoisted(() => {
         l.fn();
       }
     }
+    /** Howler's _stopFade: the sound jumps to the fade's target. */
     stopFade() {
       if (this.fadeTo === null) return;
       this.vol = this.fadeTo;
@@ -67,8 +73,8 @@ const { FakeHowl, howls } = vi.hoisted(() => {
       this.listeners.push({ ev, fn, id, once: true });
       return this;
     }
-    playing() {
-      return this.isPlaying;
+    playing(id?: number) {
+      return this.isPlaying && (id === undefined || id === this.id);
     }
     play(id?: number) {
       if (id === undefined) {
@@ -88,10 +94,12 @@ const { FakeHowl, howls } = vi.hoisted(() => {
       return this;
     }
     volume(v?: number) {
-      if (v === undefined) return this.vol;
+      if (v === undefined) return this.groupVol;
+      if (v === this.id) return this.vol; // volume(id): that sound's
       if (this.queued('volume', () => this.volume(v))) return this;
       this.stopFade();
       this.vol = v;
+      this.groupVol = v;
       return this;
     }
     fade(from: number, to: number) {
@@ -133,6 +141,7 @@ const { FakeHowl, howls } = vi.hoisted(() => {
     fadeEnds() {
       if (this.fadeTo === null || this.fadeTo === this.fadeFrom) return;
       this.vol = this.fadeTo;
+      this.groupVol = this.fadeTo;
       this.fadeTo = null;
       this.emit('fade', this.id);
     }
@@ -233,6 +242,30 @@ describe('switching music (#75 item 14 review, #115)', () => {
     overworld.finishLoading();
     overworld.playStarts();
     expect(overworld.playing()).toBe(false);
+  });
+
+  it('a key press at a loop point leaves nothing queued in Howler; a new volume still applies', () => {
+    const overworld = hear('overworld');
+    overworld.loopPoint();
+    window.dispatchEvent(new KeyboardEvent('keydown')); // walking as it restarts
+    window.dispatchEvent(new KeyboardEvent('keydown'));
+    overworld.playStarts();
+    expect(overworld.queue).toEqual([]);
+    useSettingsStore.setState({ musicVolume: 0.3 }); // the menu's slider
+    playMusic('overworld');
+    expect(overworld.volume()).toBe(0.3);
+  });
+
+  it('back just as it loops mid-fade-out, a track is heard again on the next key press', () => {
+    const town = hear('town');
+    playMusic('battle'); // town starts fading out…
+    town.loopPoint(); // …and loops: the sound drops to 0, the Howl still says 0.6
+    playMusic('town'); // back during the restart: that volume() is queued, never run
+    town.playStarts();
+    window.dispatchEvent(new KeyboardEvent('keydown'));
+    vi.advanceTimersByTime(1000);
+    expect(town.playing()).toBe(true);
+    expect(town.vol).toBe(0.6);
   });
 
   it('refused by autoplay, a track plays and fades in on the next gesture', () => {

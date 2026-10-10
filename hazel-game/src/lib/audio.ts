@@ -125,6 +125,8 @@ interface Music {
   howl: Howl;
   /** play() was asked for and not refused — Howler is loading or playing it. */
   started: boolean;
+  /** Its sound, once play() has been asked for. */
+  id: number | null;
 }
 const musicCache = new Map<MusicTrack, Music>();
 /** Left tracks fading out: each one's timer unloads it, unless it's picked again first. */
@@ -157,7 +159,7 @@ function getMusic(track: MusicTrack): Music | null {
         html5: true, // stream longer music instead of fully decoding it
         volume: 0,
       });
-      const m: Music = { howl, started: false };
+      const m: Music = { howl, started: false, id: null };
       howl.on('loaderror', () => {});
       // Autoplay refused it — the next gesture plays it again (`armUnlock`).
       howl.on('playerror', () => {
@@ -227,17 +229,29 @@ function armUnlock(): void {
  * yet.
  */
 
+/**
+ * The volume a track's sound is playing at (0 when it isn't playing). Not the
+ * Howl's own volume(): a loop point mid-fade-out (Howler's restart ends the fade
+ * at its target) leaves the sound at 0 while the Howl still says where it began.
+ */
+function playingAt(music: Music): number {
+  if (music.id === null || !music.howl.playing(music.id)) return 0;
+  const vol = music.howl.volume(music.id);
+  return typeof vol === 'number' ? vol : 0;
+}
+
 /** Play the current track at the settings volume; retry on a gesture if blocked. */
 function startTrack(track: MusicTrack): void {
   const s = useSettingsStore.getState();
   if (!s.music) return;
   const music = getMusic(track);
   if (!music) return;
-  keep(track); // picked again before its fade-out ended — it plays on
+  const fadingOut = keep(track); // picked again before its fade-out ended — it plays on
   const { howl } = music;
   try {
     if (!music.started) {
       const id = howl.play();
+      music.id = id;
       music.started = true;
       howl.once(
         'play',
@@ -249,7 +263,10 @@ function startTrack(track: MusicTrack): void {
         },
         id,
       );
-    } else if (howl.playing()) {
+    } else if (howl.playing() && (fadingOut || playingAt(music) !== s.musicVolume)) {
+      // Setting it stops a fade-out. Otherwise only on a change: this runs on
+      // every key press (`armUnlock`), and one landing as the track loops would
+      // be queued by Howler and replayed later.
       howl.volume(s.musicVolume);
     }
   } catch {
@@ -260,12 +277,13 @@ function startTrack(track: MusicTrack): void {
   armUnlock();
 }
 
-/** Stop waiting to unload `track` — it's been picked again. */
-function keep(track: MusicTrack): void {
+/** Stop waiting to unload `track` — it's been picked again. True if it was fading out. */
+function keep(track: MusicTrack): boolean {
   const timer = retiring.get(track);
-  if (timer === undefined) return;
+  if (timer === undefined) return false;
   clearTimeout(timer);
   retiring.delete(track);
+  return true;
 }
 
 /** Unload `track`'s Howl: it stops whatever Howler is in the middle of. */
@@ -290,7 +308,7 @@ function retire(track: MusicTrack): void {
   const music = musicCache.get(track);
   if (!music) return;
   keep(track);
-  const vol = music.howl.playing() ? music.howl.volume() : 0;
+  const vol = playingAt(music);
   if (!(vol > 0)) {
     unload(track);
     return;

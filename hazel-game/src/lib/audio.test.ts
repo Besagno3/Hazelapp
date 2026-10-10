@@ -52,7 +52,7 @@ describe('16-bit audio set', () => {
     }
   });
 
-  it('every audio file shipped is one the game plays — no leftover tracks (#115)', () => {
+  it('every audio file shipped is one SFX_SOURCES / MUSIC_SOURCES names — no leftover files (#115)', () => {
     const used = new Set([...Object.values(SFX_SOURCES), ...Object.values(MUSIC_SOURCES)].map(decodeURI));
     const root = join(process.cwd(), 'public');
     const shipped = readdirSync(join(root, 'audio'), { recursive: true, encoding: 'utf8' })

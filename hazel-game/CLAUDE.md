@@ -575,6 +575,28 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — #115 code review: key presses leave nothing in Howler's queue; volume read off the sound
+A `/saas-code-review` of the music fix (no security surface: no Supabase, no
+keys). Two low findings, both fixed:
+- **Every key press re-set the current track's volume** (`armUnlock` →
+  `startTrack` → `volume()`), and one landing as the track looped was queued
+  by Howler (the #115 mechanism); two queued could later undo a volume-slider
+  change. Now `volume()` is called only to stop a fade-out (`keep` says it was
+  fading) or when the volume differs. The first try compared the Howl's own
+  `volume()` — but a loop point mid-fade-out ends the fade at its target,
+  dropping the sound to 0 while the Howl still says 0.6, so that track then
+  stayed silent for good (the fuzz caught it: 5 rounds over 6 seeds). It
+  compares the sound's own volume (`playingAt`, `Music.id`), which is what's
+  heard; `retire` reads it too.
+- `audio.test`'s guard named "the game plays" where it checks "a source
+  names" (`16bit/music/victory.mp3` is named but reserved) — renamed.
+- Tests: the stand-in Howl keeps the sound's volume apart from the Howl's;
+  +2 (a key press at a loop point queues nothing and a new volume still
+  applies; back as it loops mid-fade-out, it's heard on the next key press —
+  the second fails on the group-volume try). Real Howler in Chromium: the
+  fuzz clean in 8 seeds, re-picking at once, the loop-point battle and Music
+  off all hold.
+
 ### 2026-10-10 — The unused original mp3s are deleted (#115)
 The player-supplied mp3s from #60 (`Overworld.mp3`, `Battle_Music.mp3`,
 `Boss_Battle.mp3`, `Boss_Battle - Final Battle.mp3`, `Spire_Music.mp3`,
