@@ -243,15 +243,28 @@ async function generateFresh(
   }
 
   const parsed = JSON.parse(textBlock.text) as { questions: FreshQuestion[] };
-  return parsed.questions.filter(
-    (q) =>
-      typeof q.text === 'string' &&
-      Array.isArray(q.options) &&
-      q.options.length === 4 &&
-      Number.isInteger(q.correctIndex) &&
-      q.correctIndex >= 0 &&
-      q.correctIndex < 4,
-  );
+  return parsed.questions
+    .filter(
+      (q) =>
+        typeof q.text === 'string' &&
+        Array.isArray(q.options) &&
+        q.options.length === 4 &&
+        Number.isInteger(q.correctIndex) &&
+        q.correctIndex >= 0 &&
+        q.correctIndex < 4,
+    )
+    .map(shuffleOptions);
+}
+
+/**
+ * The options in a random order, `correctIndex` following the right one. The
+ * model tends to put the right answer in the same spot (most often B), so the
+ * cache would teach kids a position instead of an answer. The app shuffles
+ * again on arrival (`shuffleAnswers`), which also covers rows cached before this.
+ */
+function shuffleOptions(q: FreshQuestion): FreshQuestion {
+  const order = shuffle([0, 1, 2, 3]);
+  return { ...q, options: order.map((i) => q.options[i]), correctIndex: order.indexOf(q.correctIndex) };
 }
 
 Deno.serve(async (req) => {

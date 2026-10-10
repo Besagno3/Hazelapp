@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
-import { fetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
+import { fetchQuestions, shuffleAnswers, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { sfx, stopMusic, type SfxName } from '../../lib/audio';
 import { playerAge, clampLevel, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
@@ -372,12 +372,14 @@ export default function BattleArena() {
   const powerMove = powerMoveName(enemy.id);
   const charging = intent === 'power';
   const nextQuestion = () => {
+    // A long battle goes round its questions again; each ask gets a fresh
+    // answer order, so a repeat tests the answer, not where it sat.
     // After a speed boost, draw from the harder pool once it has arrived.
     const bp = boostPool.current;
-    if (bp.qs.length > 0) return bp.qs[bp.i++ % bp.qs.length];
+    if (bp.qs.length > 0) return shuffleAnswers(bp.qs[bp.i++ % bp.qs.length]);
     const q = questions[qIndex % questions.length];
     setQIndex((i) => i + 1);
-    return q;
+    return shuffleAnswers(q);
   };
   /** The level this battle's regular questions are asked at (before any speed boost). */
   const baseQLevel = clampLevel(enemy.level - mercy.levelDrop);

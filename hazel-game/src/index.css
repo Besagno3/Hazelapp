@@ -15,3 +15,8 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* PasswordInput has its own eye button; hide Edge's built-in one so there aren't two. */
+input::-ms-reveal {
+  display: none;
+}
