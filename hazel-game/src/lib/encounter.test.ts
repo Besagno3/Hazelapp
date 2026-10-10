@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CONTACT_RADIUS, contactRadius, standDown, startsBattle, staysDown, touching } from './encounter';
+import { CONTACT_RADIUS, contactRadius, idleReach, standDown, startsBattle, staysDown, touching } from './encounter';
 
 describe('bumping into enemies (#75 item 14d)', () => {
   it('a boss is touched from further off than a critter', () => {
@@ -48,12 +48,17 @@ describe('bumping into enemies (#75 item 14d)', () => {
     expect(staysDown({ x: 100, y: 100 }, { x: 150, y: 100 }, start, 28)).toBe(false);
   });
 
-  it('the critter just fled from stands down wherever it respawns, until the hero moves off and is clear (#112e)', () => {
+  it('every critter that could wander into a hero standing still stands down at the start — a Flee, a reload, a neighbour (#112e)', () => {
+    const LEASH = 64;
+    expect(idleReach({ isBoss: false }, LEASH)).toBe(CONTACT_RADIUS.critter + LEASH); // 92
+    expect(idleReach({ isBoss: true }, LEASH)).toBe(CONTACT_RADIUS.boss); // bosses hold their ground
     const start = { x: 100, y: 100 };
-    const puffer = { id: 'puffer', x: 140, y: 100, isBoss: false }; // its home, 40 px off: not touching
-    const bat = { id: 'bat', x: 140, y: 140, isBoss: false };
-    const down = standDown([puffer, bat], contactRadius, start, (f) => f.id === 'puffer');
-    expect([...down].map((f) => f.id)).toEqual(['puffer']);
+    const fled = { id: 'puffer', x: 160, y: 100, isBoss: false }; // home 60 px off: it swam into the hero there
+    const edge = { id: 'bat', x: 191, y: 100, isBoss: false }; // 91 px: just within reach
+    const far = { id: 'slime', x: 193, y: 100, isBoss: false }; // 93 px: can't reach a hero standing still
+    const boss = { id: 'fiend', x: 100, y: 140, isBoss: true }; // 40 px: a boss doesn't come to you
+    const down = standDown([fled, edge, far, boss], (f) => idleReach(f, LEASH), start);
+    expect([...down].map((f) => f.id)).toEqual(['puffer', 'bat']);
     // It wanders into the hero, who hasn't moved: still down.
     expect(staysDown({ x: 105, y: 100 }, start, start, 28)).toBe(true);
   });

@@ -77,8 +77,8 @@ export default function WorldMapPanel({
   const landmarks = world.landmarks ?? [];
   // Which way the sea leads off this map, once there's a boat to sail it.
   const seaWays = hasBoat(flags) ? (world.seaLinks ?? []) : [];
-  // Everything drawn on the map that a sea-edge label must keep clear of.
-  const marks = [...places, ...landmarks, ...(boatHere ? [boatHere] : []), ...(here ? [here] : []), ...(flagAt ? [flagAt] : [])];
+  // Everything drawn on the map that a sea-edge label keeps clear of — the ⭐ above all.
+  const marks = [...places, ...landmarks, ...(boatHere ? [boatHere] : []), ...(flagAt ? [flagAt] : [])];
   // On the overworld, directions start from the hero's own tile.
   const heroTile = zoneId === world.id && pos ? { x: Math.floor(pos.x / TILE), y: Math.floor(pos.y / TILE) } : undefined;
   const how = goalDirections(ZONES, goal, zoneId, heroTile);
@@ -131,7 +131,7 @@ export default function WorldMapPanel({
             // Off this edge the sea carries on to the next map. Drawn before the
             // icons, so nothing is hidden under it, and down the side where no
             // marker is (`edgeLabelSpot`, #75 item 14d review).
-            style={l.side === 'west' || l.side === 'east' ? { top: `${edgeLabelSpot(l.side, cols, rows, marks) * 100}%` } : undefined}
+            style={l.side === 'west' || l.side === 'east' ? { top: `${edgeLabelSpot(l.side, cols, rows, marks, here) * 100}%` } : undefined}
             className={`absolute pointer-events-none select-none whitespace-nowrap rounded bg-black/60 px-1 py-0.5 text-[10px] font-semibold leading-none text-white ${
               l.side === 'west'
                 ? 'left-0.5 -translate-y-1/2'

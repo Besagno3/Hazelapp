@@ -174,14 +174,6 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect(after.zoneId).not.toBe('silver-shallows');
   });
 
-  it('fleeing remembers the critter, so back on the map it waits for the hero to move off; the next battle forgets it', () => {
-    render(<BattleArena />);
-    fireEvent.click(screen.getByText('Flee'));
-    expect(useBattleStore.getState().fledFrom).toBe('e1');
-    useBattleStore.getState().start({ ...enemy, instanceId: 'e9' }, 60, 100);
-    expect(useBattleStore.getState().fledFrom).toBeNull();
-  });
-
   it('a land critter keeps its zone\'s backdrop and no boat', () => {
     const { container } = render(<BattleArena />);
     expect(backdrop(container)).toContain('/backgrounds/numbria.png');

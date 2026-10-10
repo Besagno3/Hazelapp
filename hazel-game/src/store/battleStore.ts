@@ -42,19 +42,11 @@ interface BattleStore {
    * battle against a critter with "!" marks says what they mean, once per tier.
    */
   toughMet: number[];
-  /**
-   * The enemy instance last fled from (#75 item 14d review): back on the map
-   * it stands down until the hero has moved off — it respawns at home, which
-   * may be just beside a hero who hasn't moved since (`lib/encounter.ts`).
-   * Cleared when the next battle starts.
-   */
-  fledFrom: string | null;
 
   start: (enemy: BattleEnemy, playerHp: number, playerMaxHp: number) => void;
   applyCombat: (s: CombatState) => void;
   markDefeated: (instanceId: string) => void;
   recordLoss: (key: string) => void;
-  recordFlee: (instanceId: string) => void;
   meetTough: (tier: number) => void;
   endBattle: () => void;
   reset: () => void;
@@ -79,12 +71,10 @@ export const useBattleStore = create<BattleStore>((set) => ({
   defeatedIds: [],
   losses: {},
   toughMet: [],
-  fledFrom: null,
 
   start: (enemy, playerHp, playerMaxHp) =>
     set({
       enemy,
-      fledFrom: null,
       playerHp,
       playerMaxHp,
       enemyHp: enemy.maxHp,
@@ -110,14 +100,12 @@ export const useBattleStore = create<BattleStore>((set) => ({
 
   recordLoss: (key) => set((s) => ({ losses: { ...s.losses, [key]: (s.losses[key] ?? 0) + 1 } })),
 
-  recordFlee: (instanceId) => set({ fledFrom: instanceId }),
-
   meetTough: (tier) => set((s) => (s.toughMet.includes(tier) ? s : { toughMet: [...s.toughMet, tier] })),
 
   endBattle: () => set({ enemy: null }),
 
   reset: () =>
-    set({ enemy: null, playerHp: 0, playerMaxHp: 0, enemyHp: 0, ...FRESH_COMBAT, defeatedIds: [], losses: {}, toughMet: [], fledFrom: null }),
+    set({ enemy: null, playerHp: 0, playerMaxHp: 0, enemyHp: 0, ...FRESH_COMBAT, defeatedIds: [], losses: {}, toughMet: [] }),
 }));
 
 /** The live combat numbers, read synchronously (never from a stale render). */

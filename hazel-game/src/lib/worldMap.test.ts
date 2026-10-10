@@ -5,6 +5,7 @@ import {
   ANY_CRYSTAL_EMOJI,
   EDGE_LABEL_SPOTS,
   HIDDEN_PLACE_EMOJI,
+  edgeLabelCovers,
   edgeLabelSpot,
   PLACE_EMOJI,
   fogMarker,
@@ -129,19 +130,37 @@ describe('fog markers (#75 item 7)', () => {
 });
 
 describe('sea-edge labels keep clear of the map\'s markers (#75 item 14d review)', () => {
-  it('sit below the middle by default — on Dawnreach clear of Starfall Coast and Marlow\'s dock', () => {
+  it('sit below the middle by default; on Dawnreach clear of every place and Marlow\'s dock (the Quiet Paws shrine too)', () => {
     expect(edgeLabelSpot('west', 64, 44, [])).toBe(EDGE_LABEL_SPOTS[0]);
     const marks = [...(dawn.places ?? []), { x: 71, y: 30 }];
-    expect(edgeLabelSpot('east', 80, 60, marks)).toBe(0.63);
+    const spot = edgeLabelSpot('east', 80, 60, marks);
+    for (const m of marks) expect(edgeLabelCovers('east', 80, 60, spot, m), `${m.x},${m.y}`).toBe(false);
   });
-  it('move off the ⭐ wherever the hero sails', () => {
-    // Sailing by the puffer, near the Shallows' west edge (row 28 = 63% down).
+
+  it('never sit on the ⭐, wherever on either map the hero is', () => {
+    for (const z of [ZONES.dawnreach, ZONES['silver-shallows']]) {
+      const cols = z.map[0].length;
+      const rows = z.map.length;
+      const marks = [...(z.places ?? []), ...(z.landmarks ?? [])];
+      for (const link of z.seaLinks ?? []) {
+        if (link.side !== 'west' && link.side !== 'east') continue;
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const here = { x, y };
+            const spot = edgeLabelSpot(link.side, cols, rows, marks, here);
+            expect(edgeLabelCovers(link.side, cols, rows, spot, here), `${z.id} ${link.side} label vs ⭐ at ${x},${y}`).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it('move off the ⭐ by the puffer, and not onto Gull Rock', () => {
     const here = { x: 3, y: 27 };
-    const spot = edgeLabelSpot('west', 64, 44, [...(ZONES['silver-shallows'].landmarks ?? []), here]);
+    const spot = edgeLabelSpot('west', 64, 44, ZONES['silver-shallows'].landmarks ?? [], here);
     expect(spot).not.toBe(0.63);
-    // …and not onto Gull Rock (12,18) either.
     expect(Math.abs(spot * 44 - 18.5)).toBeGreaterThan(3);
-    // A marker on the far side of the map doesn't move it.
-    expect(edgeLabelSpot('west', 64, 44, [{ x: 60, y: 27 }])).toBe(0.63);
+    // A ⭐ on the far side of the map doesn't move it.
+    expect(edgeLabelSpot('west', 64, 44, [], { x: 60, y: 27 })).toBe(0.63);
   });
 });

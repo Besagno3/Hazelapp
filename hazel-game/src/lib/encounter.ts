@@ -34,21 +34,28 @@ export function startsBattle(foe: Pick<BattleEnemy, 'isBoss' | 'habitat'>, hero:
 }
 
 /**
- * The enemies that stand down as a scene starts, until the hero has stepped
- * clear of them (`staysDown`): any already touching the hero — back from a
- * reload, an arrival — and the one just fled from (`fled`), wherever it is. A
- * critter respawns at its home, anywhere up to its leash plus a touch from a
- * hero saved where it swam into them (still, a step back is no step at all),
- * so it would otherwise wander straight back into the same fight, again after
- * every Flee (#112e).
+ * How close (px) a hero standing still can be to an enemy's spot as a scene
+ * starts and still be reached by it: a roaming critter wanders up to `leash`
+ * from home and touches from `contactRadius` beyond that; a boss holds its
+ * ground.
  */
-export function standDown<T extends Point>(
-  foes: readonly T[],
-  radiusOf: (foe: NoInfer<T>) => number,
-  hero: Point,
-  fled: (foe: NoInfer<T>) => boolean = () => false,
-): Set<T> {
-  return new Set(foes.filter((f) => fled(f) || touching(f, hero, radiusOf(f))));
+export function idleReach(foe: Pick<BattleEnemy, 'isBoss'>, leash: number): number {
+  return contactRadius(foe) + (foe.isBoss ? 0 : leash);
+}
+
+/**
+ * The enemies that stand down as a scene starts (all at home then), until the
+ * hero has stepped clear of them (`staysDown`): every one that could reach a
+ * hero standing where they start (`reachOf`, e.g. `idleReach`). Back from a
+ * Flee the critter respawns at home, anywhere up to its leash plus a touch
+ * from a hero saved where it swam into them (a step back is no step at all
+ * when they stood still) — so it would otherwise wander straight back into
+ * the same fight, again after every Flee; and the same after a reload, or
+ * with a neighbouring critter (#112e). A critter standing down is drawn faded,
+ * like under Calm, so a child can see it won't fight yet.
+ */
+export function standDown<T extends Point>(foes: readonly T[], reachOf: (foe: NoInfer<T>) => number, hero: Point): Set<T> {
+  return new Set(foes.filter((f) => touching(f, hero, reachOf(f))));
 }
 
 /**

@@ -543,8 +543,8 @@ async function sea(browser, outDir) {
   await check(page, 'back on a critter after a Flee: it stands down until you sail clear, then fights again', idle === 0 && s.battles[0] === 'bubble-puffer', `idle ${idle} battles, then ${JSON.stringify(s.battles)}`);
 
   // Back from a Flee a little off its home (a critter that swam into a hero standing still
-  // saves them wherever they touched): it waits for the hero to move, wherever it swims.
-  page = await ready('zone=silver-shallows&aboard=1&at=18,28&fled=silver-shallows:bubble-puffer@17,28');
+  // saves them wherever they touched — or a reload there): it waits for the hero to move.
+  page = await ready('zone=silver-shallows&aboard=1&at=18,28');
   await page.waitForTimeout(8000);
   const waited = (await state(page)).encounters;
   await hold(page, 'ArrowUp', 600);

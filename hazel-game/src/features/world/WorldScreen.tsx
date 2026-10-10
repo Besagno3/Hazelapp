@@ -99,7 +99,6 @@ export default function WorldScreen() {
   const flush = useSaveStore((s) => s.flush);
   const profile = useProfileStore((s) => s.profile);
   const defeatedIds = useBattleStore((s) => s.defeatedIds);
-  const fledFrom = useBattleStore((s) => s.fledFrom);
   const startBattle = useBattleStore((s) => s.start);
 
   const overlay = useFlow((s) =>
@@ -495,7 +494,6 @@ export default function WorldScreen() {
         calmRef={calmRef}
         boat={boatSpot(save)}
         aboard={save.aboard}
-        fledFrom={fledFrom}
       />
 
       <p className="text-white/50 text-xs mt-2">

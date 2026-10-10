@@ -35,7 +35,7 @@ import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
 import { BOAT_SPEED, canBoard, canLand, landingMooring, nearestSea, seaCrossing } from '../../lib/travel';
-import { CONTACT_RADIUS, contactRadius, standDown, startsBattle, staysDown } from '../../lib/encounter';
+import { CONTACT_RADIUS, contactRadius, idleReach, standDown, startsBattle, staysDown } from '../../lib/encounter';
 import { BOAT_REMOOR_REACH } from '../../content/boat';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
@@ -229,7 +229,6 @@ export default function WorldCanvas({
   calmRef,
   boat = null,
   aboard = false,
-  fledFrom = null,
 }: {
   zoneId: ZoneId;
   avatar: Avatar;
@@ -263,8 +262,6 @@ export default function WorldCanvas({
   boat?: BoatSpot | null;
   /** …and whether the hero is sailing it (read when the zone builds; the canvas keeps it after). */
   aboard?: boolean;
-  /** The enemy instance just fled from (#75 item 14d review): it stands down until the hero moves off (`standDown`). */
-  fledFrom?: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1082,7 +1079,9 @@ export default function WorldCanvas({
     for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
     for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
 
-    const critters: { obj: { opacity: number }; opacity: number }[] = [];
+    // Each roaming critter's parts, with their own full opacity — faded under
+    // Calm, and while it stands down (`standingDown`, #75 item 14d).
+    const critters: { obj: { opacity: number }; opacity: number; actor: Actor }[] = [];
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
@@ -1172,7 +1171,7 @@ export default function WorldCanvas({
         for (const part of parts) {
           const base = part === labelPlate ? LABEL_PLATE_OPACITY : part === ripple ? RIPPLE_OPACITY : 1;
           if (part !== labelPlate && part !== ripple) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
-          critters.push({ obj: part as unknown as { opacity: number }, opacity: base });
+          critters.push({ obj: part as unknown as { opacity: number }, opacity: base, actor });
         }
         attachWander(face, {
           actor,
@@ -1250,15 +1249,15 @@ export default function WorldCanvas({
     }
     let curAnim = heroView ? animFor('down', false, heroView.anims) : 'idle';
     let heroFacing: Facing = 'down';
-    // Enemies already touching the hero as the scene starts, and the one just
-    // fled from (it respawns at home, maybe right beside them), stand down
-    // until the hero has moved off and is clear — never pulled straight back
-    // into the same fight (#112e).
+    // Enemies that could reach the hero standing where they start — back from
+    // a Flee (the critter respawns at home, maybe right beside them), a
+    // reload, a neighbour's patch — stand down, faded like under Calm, until
+    // the hero has moved off and is clear: never pulled into a fight before
+    // they've done a thing (#112e).
     const standingDown = standDown(
       actors.filter((a) => a.kind === 'enemy' && a.enemy),
-      (a) => contactRadius(a.enemy!),
+      (a) => idleReach(a.enemy!, TILE * WANDER_TUNING.enemy.leashTiles),
       spawn,
-      (a) => a.enemy!.instanceId === fledFrom,
     );
 
     // Ember trails the hero (no collision — dragons walk where they please).
@@ -1506,7 +1505,7 @@ export default function WorldCanvas({
         : [];
     let pitchFade = 1;
     let calmShown = Math.ceil(calmRef?.current ?? 0);
-    let critterOpacity = 1;
+    let critterFade = '';
 
     // Darkness everywhere but a flickering circle of light round the hero:
     // the Spire's candle-light (#74), or a dark place (#75 item 9) — a few
@@ -1652,10 +1651,12 @@ export default function WorldCanvas({
         }
       }
       const calm = (calmRef?.current ?? 0) > 0;
-      const wantOpacity = calm ? CALM_OPACITY : 1;
-      if (wantOpacity !== critterOpacity) {
-        critterOpacity = wantOpacity;
-        for (const c of critters) c.obj.opacity = c.opacity * wantOpacity;
+      // Faded critters let you pass: all of them under Calm, and any standing
+      // down (released only as the hero moves off, so the set only shrinks).
+      const fade = `${calm}|${standingDown.size}`;
+      if (fade !== critterFade) {
+        critterFade = fade;
+        for (const c of critters) c.obj.opacity = c.opacity * (calm || standingDown.has(c.actor) ? CALM_OPACITY : 1);
       }
 
       const keys = keysRef.current;

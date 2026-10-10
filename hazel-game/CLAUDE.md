@@ -276,11 +276,11 @@ zod, react-query. Add the package in the same change that first uses it.
   under it; each critter fights only a hero in its own element — sailing for a
   sea critter, on foot for a land one, bosses too (`meetsHero`, `lib/travel.ts`,
   checked in the canvas's contact loop through `lib/encounter.ts`'s
-  `startsBattle`, with Calm). Enemies already touching the hero as a scene
-  starts, and the one just fled from wherever it respawns (`battleStore.fledFrom`,
-  set by Flee, cleared by the next battle; `WorldCanvas`'s `fledFrom`), stand
-  down until the hero has moved off and is clear of them (`standDown` /
-  `staysDown`). The Silver Shallows has three (Bubble
+  `startsBattle`, with Calm). Every enemy that could reach a hero standing
+  where a scene starts (`idleReach`: a critter's leash + its touch, a boss's
+  touch) stands down, drawn faded like under Calm, until the hero has moved
+  off and is clear of it (`standDown` / `staysDown`) — so a Flee, a reload or
+  an arrival never drops the hero straight into a fight. The Silver Shallows has three (Bubble
   Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
   land or the edge a boat sails in by. A battle at sea is fought over
@@ -518,6 +518,30 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d third review: nearby critters rest (faded) until you move; map labels never on the ⭐ (#75 item 14d)
+Round 3 — fresh `/saas-code-review` (4 low) + `/saas-ux-review` (2 low, every
+earlier fix checked in the real app). All fixed:
+- **Flee, by geometry (code, low):** round 2's `fledFrom` was lost on a reload
+  (the hero saved 28–92 px off the critter's home could be swum into once) and
+  never reached the canvas in a test. Instead, every enemy that could reach a
+  hero standing where the scene starts stands down (`idleReach` — a roaming
+  critter's 64 px leash + its 28 px touch, a boss's 34 px), covering a Flee, a
+  reload and a neighbour's patch; `fledFrom` / `recordFlee` are gone.
+- **…and it shows (UX, open question):** a critter standing down is drawn
+  faded like under Calm, so a child can see why "sail into a critter to
+  battle!" didn't start one; it brightens once they've moved off.
+- **One fact for a sea defeat (code, low):** the defeat screen's Marlow line
+  and the boat going home both follow whether the hero was sailing when they
+  lost (`atSea` on the defeat turn, from `save.aboard`).
+- **Map labels (UX, low ×2):** on Dawnreach the "Silver Shallows ▶" label still
+  sat on the ⭐ along the coast south of the dock (every spot was taken), and
+  on phones clipped the Quiet Paws shrine. A sixth spot (90% down), a box sized
+  to the label on a phone (42% of the map), and when every spot holds
+  something, the one covering least — never the ⭐ (`edgeLabelSpot`,
+  `edgeLabelCovers`); a test checks the ⭐ at every cell of both maps.
+- Docs: TC-717 (no palm), the store's fields.
+- Tests: 791 green (+1 −1: the ⭐ at every cell in, the `fledFrom` check out), lint + build clean; `bench … sea` 5/5.
 
 ### 2026-10-10 — 14d second review: the critter you fled from waits, labels move off the ⭐ (#75 item 14d)
 Round 2 — fresh `/saas-code-review` (1 medium, 2 low) + `/saas-ux-review` (3

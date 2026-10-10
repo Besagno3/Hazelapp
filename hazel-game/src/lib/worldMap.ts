@@ -155,24 +155,37 @@ export function mapCaption(here: MapMarker | null, zoneName: string, worldName: 
  * Where down its edge a map's sea-edge label ("◀ Dawnreach", "Silver Shallows
  * ▶") sits — as a fraction of the map's height (#75 item 14d review). The
  * first of these spots whose label box no marker falls in: below the middle
- * by default, clear of Starfall Coast and Marlow's dock on Dawnreach, and
- * moving off the ⭐ (or the ⛵, the 🚩, a place) wherever it is.
+ * by default, clear of Starfall Coast and Marlow's dock on Dawnreach, moving
+ * off the ⭐ (or the ⛵, the 🚩, a place) wherever it is; when every spot holds
+ * something, the one covering least — never the ⭐.
  */
-export const EDGE_LABEL_SPOTS = [0.63, 0.8, 0.37, 0.5, 0.2] as const;
+export const EDGE_LABEL_SPOTS = [0.63, 0.8, 0.37, 0.5, 0.2, 0.9] as const;
+
+/**
+ * Does the label at `spot` cover this cell? Its box, generously: ~42% of the
+ * map wide (a 10 px label is ~38% of a phone's map) and a few rows tall.
+ */
+export function edgeLabelCovers(side: 'west' | 'east', cols: number, rows: number, spot: number, m: { x: number; y: number }): boolean {
+  const cx = m.x + 0.5;
+  const nearRow = Math.abs(m.y + 0.5 - spot * rows) <= 3;
+  const wide = cols * 0.42;
+  return nearRow && (side === 'west' ? cx <= wide : cx >= cols - wide);
+}
 
 export function edgeLabelSpot(
   side: 'west' | 'east',
   cols: number,
   rows: number,
   marks: readonly { x: number; y: number }[],
+  here: { x: number; y: number } | null = null,
 ): number {
-  // The label's box, generously: ~a third of the map wide, a few rows tall.
-  const wide = cols * 0.36;
-  const tall = 3;
-  const inBox = (f: number, m: { x: number; y: number }) => {
-    const cx = m.x + 0.5;
-    const nearRow = Math.abs(m.y + 0.5 - f * rows) <= tall;
-    return nearRow && (side === 'west' ? cx <= wide : cx >= cols - wide);
-  };
-  return EDGE_LABEL_SPOTS.find((f) => !marks.some((m) => inBox(f, m))) ?? EDGE_LABEL_SPOTS[0];
+  const cost = (f: number) =>
+    (here && edgeLabelCovers(side, cols, rows, f, here) ? 100 : 0) +
+    marks.filter((m) => edgeLabelCovers(side, cols, rows, f, m)).length;
+  let best: number = EDGE_LABEL_SPOTS[0];
+  for (const f of EDGE_LABEL_SPOTS) {
+    if (cost(f) === 0) return f;
+    if (cost(f) < cost(best)) best = f;
+  }
+  return best;
 }

@@ -96,7 +96,7 @@ type Turn =
   | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
   | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null }
-  | { kind: 'defeat'; xp: number };
+  | { kind: 'defeat'; xp: number; atSea: boolean };
 
 type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
 
@@ -491,8 +491,6 @@ export default function BattleArena() {
   }
   function commandFlee() {
     updateSave((s) => ({ ...s, hp: combatState().playerHp }));
-    // Back on the map it waits until the hero has moved off (#75 item 14d review).
-    useBattleStore.getState().recordFlee(enemy!.instanceId);
     // Fleeing skips the battle ramp, but a level the speed trigger earned stays earned.
     if (profile && speedBoost.current > 0) {
       const current = skillLevelFor(profile.skillLevels, topic, age);
@@ -873,7 +871,9 @@ export default function BattleArena() {
     // Remember the loss: after a couple, this enemy eases off (mercy).
     recordLoss(lossKey(enemy!));
     // No game over (#37): wake up safe and fully healed — at the last inn
-    // rested at, or home in Lumina Village (#75 item 11).
+    // rested at, or home in Lumina Village (#75 item 11). Lost while sailing,
+    // the boat goes home too — and the defeat screen says so, from the same fact.
+    const atSea = useSaveStore.getState().save?.aboard === true;
     updateSave((s) => ({
       ...s,
       hp: null,
@@ -883,7 +883,7 @@ export default function BattleArena() {
       ...wakeAfterDefeat(s),
       library: pushLibrary(s.library, misses.current),
     }));
-    setTurn({ kind: 'defeat', xp });
+    setTurn({ kind: 'defeat', xp, atSea });
   }
 
   function leave(result: 'win' | 'lose') {
@@ -1153,7 +1153,7 @@ export default function BattleArena() {
             drop={turn.kind === 'victory' ? turn.drop : null}
             wakeInn={save ? wakeInnName(save) : null}
             tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
-            boatHome={turn.kind === 'defeat' && enemy.habitat === 'sea'}
+            boatHome={turn.kind === 'defeat' && turn.atSea}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}
