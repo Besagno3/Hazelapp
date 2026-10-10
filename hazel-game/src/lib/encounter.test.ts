@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CONTACT_RADIUS, contactRadius, idleReach, restOf, standDown, startsBattle, staysDown, touching } from './encounter';
+import { CONTACT_RADIUS, contactRadius, graceOf, idleReach, restOf, standDown, startsBattle, staysDown, touching } from './encounter';
 
 describe('bumping into enemies (#75 item 14d)', () => {
   it('a boss is touched from further off than a critter', () => {
@@ -83,5 +83,16 @@ describe('bumping into enemies (#75 item 14d)', () => {
     const boss = { id: 'fiend', x: 100, y: 140, isBoss: true }; // 40 px: a boss doesn't come to you
     const down = standDown([fled, edge, far, boss], (f) => idleReach(f, LEASH), start);
     expect([...down].map((f) => f.id)).toEqual(['puffer', 'bat']);
+  });
+
+  it('a cooldown spares only the critters touching the hero as it\'s armed — never a boss, never a person (#112t)', () => {
+    const hero = { x: 100, y: 100 };
+    const on = { id: 'puffer', x: 110, y: 100, enemy: { isBoss: false } }; // touching
+    const near = { id: 'bat', x: 130, y: 100, enemy: { isBoss: false } }; // 30 px: not yet
+    const boss = { id: 'fiend', x: 100, y: 120, enemy: { isBoss: true } }; // touching, but a boss
+    const person = { id: 'echo', x: 100, y: 90 }; // no enemy at all
+    expect([...graceOf([on, near, boss, person], hero)].map((a) => a.id)).toEqual(['puffer']);
+    // Armed again later (Calm wearing off mid-cooldown), it's worked out afresh.
+    expect([...graceOf([on, near, boss, person], { x: 128, y: 100 })].map((a) => a.id)).toEqual(['puffer', 'bat']);
   });
 });

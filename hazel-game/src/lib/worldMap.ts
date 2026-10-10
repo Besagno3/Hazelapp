@@ -160,9 +160,10 @@ export function seaEdgeLabel(side: 'north' | 'south' | 'east' | 'west', toName: 
 /**
  * Where down its edge a map's west / east sea-edge label sits — as a fraction
  * of the map's height (#75 item 14d review). The first of these spots where
- * the label covers no marker; when every spot covers something, the one
- * covering least — never the ⭐. Below the middle by default; near the top and
- * bottom too, since a busy coast (Dawnreach's east) can fill the middle.
+ * the label keeps a gap from every marker; else the one covering least —
+ * the ⭐ last of all — and only then coming nearest. Below the middle by
+ * default; near the top and bottom too, since a busy coast (Dawnreach's east)
+ * can fill the middle.
  */
 export const EDGE_LABEL_SPOTS = [0.63, 0.8, 0.37, 0.5, 0.2, 0.9, 0.06, 0.95] as const;
 
@@ -182,7 +183,11 @@ const GAP_PX = 3;
 /** A label's width: ~6 px a character of 10 px semibold text, its padding, 2 px off the edge. */
 const labelPx = (text: string) => 6 * [...text].length + 10;
 
-/** Does the label (`text`) at `spot` cover a marker on this cell (`halfW` px either side of it), on the narrowest map? */
+/**
+ * Does the label (`text`) at `spot` come within `gap` px of a marker on this
+ * cell (`halfW` px either side of it), on the narrowest map? (`gap` 0: does it
+ * cover it.)
+ */
 export function edgeLabelCovers(
   side: 'west' | 'east',
   cols: number,
@@ -191,6 +196,7 @@ export function edgeLabelCovers(
   m: { x: number; y: number },
   text: string,
   halfW = ICON_HALF_PX,
+  gap = GAP_PX,
 ): boolean {
   const W = MAP_MIN_PX;
   const H = (W * rows) / cols;
@@ -198,7 +204,7 @@ export function edgeLabelCovers(
   const my = ((m.y + 0.5) / rows) * H;
   const lw = labelPx(text);
   const [x0, x1] = side === 'west' ? [2, 2 + lw] : [W - 2 - lw, W - 2];
-  return Math.abs(my - spot * H) < LABEL_HALF_PX + ICON_HALF_PX + GAP_PX && mx + halfW + GAP_PX > x0 && mx - halfW - GAP_PX < x1;
+  return Math.abs(my - spot * H) < LABEL_HALF_PX + ICON_HALF_PX + gap && mx + halfW + gap > x0 && mx - halfW - gap < x1;
 }
 
 export function edgeLabelSpot(
@@ -209,9 +215,13 @@ export function edgeLabelSpot(
   here: { x: number; y: number } | null,
   text: string,
 ): number {
+  // Covering the ⭐ is worst, then covering a marker; only coming within the
+  // gap of one (the ⭐ above others) counts far less — never enough to land on
+  // something instead.
+  const hit = (m: { x: number; y: number }, f: number, covered: number, close: number, halfW?: number) =>
+    edgeLabelCovers(side, cols, rows, f, m, text, halfW, 0) ? covered : edgeLabelCovers(side, cols, rows, f, m, text, halfW) ? close : 0;
   const cost = (f: number) =>
-    (here && edgeLabelCovers(side, cols, rows, f, here, text, STAR_HALF_W) ? 100 : 0) +
-    marks.filter((m) => edgeLabelCovers(side, cols, rows, f, m, text)).length;
+    (here ? hit(here, f, 1000, 10, STAR_HALF_W) : 0) + marks.reduce((n, m) => n + hit(m, f, 100, 1), 0);
   let best: number = EDGE_LABEL_SPOTS[0];
   for (const f of EDGE_LABEL_SPOTS) {
     if (cost(f) === 0) return f;

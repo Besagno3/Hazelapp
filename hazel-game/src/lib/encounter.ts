@@ -59,6 +59,20 @@ export function standDown<T extends Point>(foes: readonly T[], reachOf: (foe: No
 }
 
 /**
+ * The enemies a cooldown spares (a menu closed, a landing, a chest, Calm
+ * wearing off…): the critters touching the hero as it's armed, so they've a
+ * moment to step clear — never a boss, and never one they walk into after
+ * (#112t: the cooldown used to let the hero walk through anything).
+ */
+export function graceOf<T extends Point & { enemy?: Pick<BattleEnemy, 'isBoss'> }>(actors: readonly T[], hero: Point): Set<T> {
+  return standDown(
+    actors.filter((a) => a.enemy && !a.enemy.isBoss),
+    (a) => contactRadius(a.enemy!),
+    hero,
+  );
+}
+
+/**
  * A resting enemy (`standDown`): its home, how near the hero can be and keep
  * it resting (`idleReach`), and — a boss — where the hero was when it began.
  */

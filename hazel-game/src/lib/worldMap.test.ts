@@ -167,6 +167,16 @@ describe('sea-edge labels keep clear of the map\'s markers (#75 item 14d review)
     }
   });
 
+  it('on Dawnreach never land on a place to keep a gap from something else, wherever the ⭐ is in the east half', () => {
+    const marks = [...(dawn.places ?? []), { x: 71, y: 30 }];
+    for (let y = 0; y < 60; y++) {
+      for (let x = 40; x < 80; x++) {
+        const spot = edgeLabelSpot('east', 80, 60, marks, { x, y }, toShallows);
+        for (const m of marks) expect(edgeLabelCovers('east', 80, 60, spot, m, toShallows, undefined, 0), `⭐ ${x},${y} vs ${m.x},${m.y}`).toBe(false);
+      }
+    }
+  });
+
   it('move off the ⭐ by the puffer, and not onto Gull Rock', () => {
     const here = { x: 3, y: 27 };
     const marks = shallows.landmarks ?? [];

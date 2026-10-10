@@ -135,6 +135,9 @@ export default function WorldScreen() {
   // One timer for whichever toast is up: a new toast replaces the old one's
   // timer, so an earlier toast can't hide a newer one early.
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A toast that waits for the one up now to have its time (`queueToast`).
+  const toastUp = useRef(false);
+  const nextToast = useRef<string | null>(null);
   useEffect(
     () => () => {
       if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -291,7 +294,20 @@ export default function WorldScreen() {
   function showToast(text: string) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(text);
-    toastTimer.current = setTimeout(() => setToast(null), toastMs(text));
+    toastUp.current = true;
+    toastTimer.current = setTimeout(() => {
+      const next = nextToast.current;
+      nextToast.current = null;
+      if (next) return showToast(next);
+      setToast(null);
+      toastUp.current = false;
+    }, toastMs(text));
+  }
+
+  /** A hint that mustn't knock a toast off before it's been read (a first-arrival warning). */
+  function queueToast(text: string) {
+    if (toastUp.current) nextToast.current = text;
+    else showToast(text);
   }
 
   /** A field spell cast from the menu, or Glow from the HUD (#75 item 9). */
@@ -472,7 +488,7 @@ export default function WorldScreen() {
             showToast(
               knowsGlow ? '🌑 Too dark to go on! Tap 🔆 Glow at the top to light the way.' : `🌑 ${z.dark?.hint ?? "It's too dark!"}`,
             ),
-          onSleeper: (name) => showToast(`💤 Shh — the ${name} is asleep. Walk a few steps away and it'll wake up!`),
+          onSleeper: () => queueToast("💤 Shh, it's asleep! Move away to wake it."),
           onCalmTick: (left) => {
             setCalmLeft(left);
             if (left === 0) showToast('🕊️ The calm wears off — the critters are curious again!');
