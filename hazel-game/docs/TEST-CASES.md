@@ -230,7 +230,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-207 | U | ✅ | zones | every gate is a double-wide opening — 2 orthogonally-adjacent `G` tiles share one canonical id via `gateIdAt` (zones.test) |
 | TC-208 | U | ✅ | zones | each `keyGate` cell sits on a `G` and resolves to a real gate group id (zones.test) |
 | TC-209 | M | ⬜ | World | an open gate (question or key) is 2 tiles wide and the hero can walk through either tile |
-| TC-210 | U | ✅ | settings | audio is off by default; `normalizeSettings` coerces only literal `true`, clamps volumes 0..1, falls back on garbage (settings.test) |
+| TC-210 | U | ✅ | settings | music is on by default and sound effects off (changed from all-off, #117); `normalizeSettings` keeps a saved boolean, falls back to the default for anything else, clamps volumes 0..1 (settings.test) |
 | TC-211 | U | ✅ | audio | `trackForScreen` maps screens→music; boss theme only for boss battles (audio.test) |
 | TC-212 | M | ⬜ | audio | with files in `public/audio/`: Music/Sound toggles persist across reload; SFX fire on wrong-answer/hit/levelup/victory; music follows the screen (overworld ⇄ battle ⇄ boss) |
 | TC-213 | M | ⬜ | audio | Spire music plays while climbing; switches to the Final Battle track only once the Umbra (boss-floor) fight is underway, then back to overworld on exit |
@@ -986,6 +986,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-818 | M | ✅ | music | the real app in headless Chromium, Supabase stubbed, music on: the sign-in page plays only the intro at full volume; in the world the overworld theme; Sign out → the overworld stops and the intro plays — 4 runs, one on a cold server |
 | TC-819 | M | ✅ | music | `python3 tools/assets/build.py intro` writes only `intro.mp3` (72 s), byte-identical on a rebuild; loudness by bar rises 15% → 100% by bar 17 and falls to 19% by bar 24, meeting the loop's start |
 | TC-822 | M | ✅ | music | the intro, retuned lower: the same notes an octave down (harp top ≈ 1.1 kHz, tune G4–Ab5), brightness (spectral centroid) 3070 → 1740 Hz and energy above 2 kHz 40% → 22%, loudness by bar still 14% → 100% → 19%; `build.py intro` byte-identical on a rebuild |
+| TC-823 | U | ✅ | settings | a choice sticks: a saved `music: false` stays off, `sfx: true` stays on; a toggle that isn't a boolean (0, 'off', 'yes', 1) takes its default, never truthy coercion (settings.test) |
+| TC-824 | M | ✅ | music | the real app, Supabase stubbed: a new device (nothing saved) hears the intro on the sign-in page at the default volume and the overworld theme after signing in; a device with music saved off hears nothing |
 | TC-820 | M | ⬜ | music | by ear: a harp arpeggio rising and falling, swelling from soft ripples to a full climax and back; the loop comes round without a jump |
 | TC-821 | M | ⬜ | music | in a real browser with Music on, open the sign-in page fresh: silent until the first tap or key (the browser's rule), then the intro starts; sign out from the world → the intro replaces the world's music |
 

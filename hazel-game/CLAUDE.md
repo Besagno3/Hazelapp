@@ -20,7 +20,7 @@ shared source of truth for how this project works.
 | State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `quizSessionStore`, `authStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
-| Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
+| Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
 | CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build on every non-draft PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests); draft PRs skip CI and Vercel previews (see Pull requests) |
@@ -594,6 +594,18 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Music is on by default (#117)
+So everyone hears the sign-in screen's intro, Music now defaults to **on**
+(`DEFAULT_SETTINGS.music`, `lib/settings.ts`); sound effects stay off. It
+starts on the first tap or key (browsers hold sound until then), and the
+game's music follows after signing in. A choice sticks: `normalizeSettings`
+keeps a saved `music: false` (anyone who turned it off — the owner's device
+included — stays silent until they turn it back on in 📜 → 🔊 Audio); a saved
+value that isn't a boolean falls back to the default instead of to "off".
+Checked in the real app (Supabase stubbed): a new device hears the intro on
+the sign-in page and the overworld theme after signing in; a device with
+music saved off hears nothing. Tests: settings.test rewritten (+2).
 
 ### 2026-10-10 — The sign-in intro, an octave lower and mellower (#117)
 Liked the tune, tempo and notes; it was too high-pitched. Same notes and

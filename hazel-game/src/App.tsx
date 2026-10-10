@@ -69,8 +69,8 @@ export default function App() {
   const sea = useSeaArea();
 
   // Background music follows the screen — the sign-in screen has its own intro;
-  // in the world, the sea area or the kind of place you're in (silent until
-  // enabled in the menu).
+  // in the world, the sea area or the kind of place you're in (on by default;
+  // the menu turns it off).
   useScreenMusic(musicScreen(initialized, !!session && !passwordRecovery, screen), isBoss, inSpire, zoneKind, sea);
 
   // Wake the machine once auth + save have loaded (guards read the save).

@@ -6,7 +6,8 @@ import {
 } from '../lib/settings';
 
 /**
- * Device audio settings (off by default — see `lib/settings.ts`). Write-through
+ * Device audio settings (music on, sound effects off by default — see
+ * `lib/settings.ts`). Write-through
  * to localStorage on every change. The audio engine (`lib/audio.ts`) reads this
  * store at call time, so toggling music/sfx takes effect immediately.
  */

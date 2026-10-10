@@ -7,9 +7,9 @@ import type { SeaArea } from '../content/boat';
 /**
  * The game's audio engine (Howler.js). Two responsibilities: fire one-shot
  * **sound effects** (`sfx`) and play looping **background music** that follows
- * the current screen (`useScreenMusic`). Both honour the device settings —
- * audio is off by default, so every call here is a silent no-op until the
- * player enables Music / Sound in the menu.
+ * the current screen (`useScreenMusic`). Both honour the device settings
+ * (music on, sound effects off by default; switched in the menu): whichever is
+ * off, its calls here are silent no-ops.
  *
  * Files live in `public/audio/16bit/` (see `public/audio/README.md`). Load
  * errors are swallowed, so a missing file never breaks gameplay.
