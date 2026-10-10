@@ -541,7 +541,8 @@ A fresh `/saas-code-review` (1 medium, 3 low) and `/saas-ux-review` (3 high,
 - **A real purple:** tier 5 is violet-400 (violet-200 read white), tier 7
   #ff66b8, so 4–7 stay apart for colour-blind kids (a simulated test).
 - **Art:** Dawdle's face toward you and his walk at his pace (`animSpeed`),
-  Old Ringwood taller than the trees, the Hollow Acorn 🫥.
+  Old Ringwood taller than the trees (a tall NPC's name plate sits under its
+  feet), the Hollow Acorn 🫥.
 - **Code:** `keyForZone` ignores null; tests that couldn't fail.
 - Logged (#114 m–p): a battle never fit a sideways phone (pre-existing), the
   crowded island on the in-grove menu map, a real-phone check, the dock 🚩

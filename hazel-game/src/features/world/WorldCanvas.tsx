@@ -1029,9 +1029,10 @@ export default function WorldCanvas({
         .obj as unknown as WorldActor;
       parts.push(face);
       pieces.push(face);
+      // Under its feet: a sprite taller than a tile (Old Ringwood, #75 item 14f) pushes it down.
       const label = k.add([
         k.text(def.name, { size: 10 }),
-        k.pos(px, py + 24),
+        k.pos(px, py + 24 + Math.max(0, (npcView?.frameH ?? TILE) - TILE) / 2),
         k.anchor('center'),
         k.color(255, 255, 255),
       ]);

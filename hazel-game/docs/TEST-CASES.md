@@ -893,7 +893,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-745 | U/C | ✅ | battle (review) | a boss reads aloud "Very tough boss" and its 💪 line says "A very tough boss"; a first win reads "First time beating the Ringkeeper / an Oak Owl / a Count Bat"; the level and streak sit in a row before the enemy's status box, not floating (BattleHud.test, regions.test, BattleArena.test) |
 | TC-746 | U | ✅ | danger colours (review) | tiers 5–7 are violet-400, fuchsia-300 and #ff66b8; each is readable (≥ 4.5:1) on the map's plate and the battle panel, tier 5 is a real purple (L* < 75), and every pair of tiers 4–7 is 15+ ΔE apart in normal vision and simulated deuteranopia, protanopia and tritanopia (regions.test) |
 | TC-747 | B | ✅ | battle top bar (review) | `bench … battle`: on the real app (Supabase stubbed) a hero on a tier-5 critter in Eldergrove starts a battle at 320×568, 360×640, 375×667, 390×844 and 1024×768 — the top bar sits above the status boxes (none at 320 wide), the enemy's "!!!" is on top, nothing scrolls sideways, and the 💪 line and every command fit on the screen: 5/5 |
-| TC-748 | M | ⬜ | Eldergrove (review) | on a real phone: lose to the Ringkeeper and wake in Fen's Hollow with the boat at the beach; watch Dawdle amble (his legs keep pace); check the purple / magenta / pink "!!!" in sunlight |
+| TC-748 | M | ⬜ | Eldergrove (review) | on a real phone: lose to the Ringkeeper and wake in Fen's Hollow with the boat at the beach; watch Dawdle amble (his legs keep pace); check the purple / magenta / pink "!!!" in sunlight; Old Ringwood stands taller than the trees with his name plate under his roots, not over his trunk (seen on the bench) |
 
 ## Regression cases (tied to ISSUES.md)
 
