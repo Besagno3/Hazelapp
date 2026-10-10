@@ -482,7 +482,7 @@ export default function WorldScreen() {
           // Said as they walk into a sleeper — or, with a toast up, at their next bump.
           onSleeper: () => {
             if (toastUp.current) return false;
-            showToast('💤 Sleepy critters let you pass. Move away to wake them!');
+            showToast('💤 Sleepy critters let you pass. They wake up when you move away.');
             return true;
           },
           onCalmTick: (left) => {

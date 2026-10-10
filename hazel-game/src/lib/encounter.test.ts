@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CONTACT_RADIUS, contactRadius, graceOf, idleReach, restOf, standDown, startsBattle, staysDown, touching } from './encounter';
+import { CONTACT_RADIUS, contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, startsBattle, staysDown, touching } from './encounter';
 
 describe('bumping into enemies (#75 item 14d)', () => {
   it('a boss is touched from further off than a critter', () => {
@@ -94,5 +94,51 @@ describe('bumping into enemies (#75 item 14d)', () => {
     expect([...graceOf([on, near, boss, person], hero)].map((a) => a.id)).toEqual(['puffer']);
     // Armed again later (Calm wearing off mid-cooldown), it's worked out afresh.
     expect([...graceOf([on, near, boss, person], { x: 128, y: 100 })].map((a) => a.id)).toEqual(['puffer', 'bat']);
+  });
+
+  describe('meeting one foe in a frame (`meetFoe`, #112e, #112t)', () => {
+    const critter = { isBoss: false };
+    const boss = { isBoss: true };
+    const base = {
+      onHero: true,
+      held: false,
+      resting: false,
+      spared: false,
+      guarded: false,
+      still: false,
+      closing: true,
+      mode: 'foot' as const,
+      calm: false,
+    };
+    it('walking into a foe fights — a critter or a boss, during a cooldown or not', () => {
+      expect(meetFoe(critter, base)).toEqual({ fight: true, spared: false });
+      expect(meetFoe(boss, { ...base, guarded: true })).toEqual({ fight: true, spared: false });
+      expect(meetFoe(critter, { ...base, guarded: true })).toEqual({ fight: true, spared: false });
+    });
+    it('nothing happens to a resting one, or in the two frames after a cooldown is armed', () => {
+      expect(meetFoe(critter, { ...base, resting: true })).toEqual({ fight: false, spared: false });
+      expect(meetFoe(critter, { ...base, held: true, spared: true })).toEqual({ fight: false, spared: true });
+    });
+    it('one coming onto a hero standing still while guarded is spared — never a boss', () => {
+      const onStill = { ...base, guarded: true, still: true, closing: false };
+      expect(meetFoe(critter, onStill)).toEqual({ fight: false, spared: true });
+      expect(meetFoe(boss, onStill)).toEqual({ fight: true, spared: false });
+      // Not guarded (no cooldown, no toast to read): it fights, as it always has.
+      expect(meetFoe(critter, { ...onStill, guarded: false })).toEqual({ fight: true, spared: false });
+    });
+    it('a spared one lets the hero stand or step away, even after the cooldown — walking into it fights', () => {
+      const spared = { ...base, spared: true, guarded: false };
+      expect(meetFoe(critter, { ...spared, still: true, closing: false })).toEqual({ fight: false, spared: true });
+      expect(meetFoe(critter, { ...spared, closing: false })).toEqual({ fight: false, spared: true }); // stepping away
+      expect(meetFoe(critter, spared)).toEqual({ fight: true, spared: false }); // stepping into it
+      // Once it's out of the hero's touch it's no longer spared.
+      expect(meetFoe(critter, { ...spared, onHero: false })).toEqual({ fight: false, spared: false });
+    });
+    it('a touch fights only in the enemy\'s element, and no critter under Calm', () => {
+      expect(meetFoe({ isBoss: false, habitat: 'sea' }, base).fight).toBe(false);
+      expect(meetFoe({ isBoss: false, habitat: 'sea' }, { ...base, mode: 'boat' }).fight).toBe(true);
+      expect(meetFoe(critter, { ...base, calm: true }).fight).toBe(false);
+      expect(meetFoe(boss, { ...base, calm: true }).fight).toBe(true);
+    });
   });
 });

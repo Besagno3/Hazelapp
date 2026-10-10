@@ -281,24 +281,29 @@ zod, react-query. Add the package in the same change that first uses it.
   (`idleReach`: a critter's leash + its touch, a boss's touch), rests — asked
   again on landing or climbing aboard, for the new way of getting about. A
   critter falls asleep: it holds still, drawn a little faded (`SLEEP_OPACITY`,
-  less than Calm's), and its own level plate reads "Zz" instead (white, 20 px,
-  never faded — under it, and under every character, so it never sits on
-  someone else's head); like Calm it lets the hero pass — the first one they
-  walk into says "💤 Sleepy critters let you pass. Move away to wake them!"
-  (`onSleeper`; with another toast up, at their next bump) — until they've
-  left its patch; then it can't touch them unless they steer back (`standDown` / `restOf` / `staysDown`, checked every frame). A
-  boss is drawn as ever — it never lets the hero past: it only holds back
-  while they stand still, back away or step aside, and fights the moment they
-  head past it (measured along the line from it to where they began). So a
-  Flee, a reload, an arrival or a landing never drops the hero straight into
-  a fight. And a bump's cooldown (a menu closed, a chest, the save crystal —
-  3 s, as long as "💎 Game saved!" — a landing, Calm wearing off) spares only
-  `spared` critters: those touching the hero as it's armed (`graceOf`) and
-  any that comes onto a hero standing still (not moved this frame) while it
-  runs, each until it steps clear, even past the cooldown — never a boss, and
-  never one the hero walks into (#112t: it used to let the hero walk through
-  anything, bosses too); and none fights in the two frames after one is
-  armed, while its menu or talk takes the world's pause. The Silver Shallows has three (Bubble
+  less than Calm's), its level hidden, with a little "z" and "Z" rising from
+  its head and fading on a loop (held still under reduced motion;
+  `ZZ_GLYPHS`, drawn over the hero and the boat) — rising from its own head
+  they read as its own, and there's no box to frame a neighbour; like Calm it
+  lets the hero pass — the first one they walk into says "💤 Sleepy critters
+  let you pass. They wake up when you move away." (`onSleeper`; with another
+  toast up, at their next bump) — until they've left its patch; then it
+  can't touch them unless they steer back (`standDown` / `restOf` /
+  `staysDown`, checked every frame). A boss is drawn as ever — it never lets
+  the hero past: it only holds back while they stand still, back away or step
+  aside, and fights the moment they head past it (measured along the line
+  from it to where they began). So a Flee, a reload, an arrival or a landing
+  never drops the hero straight into a fight. One frame's meeting with an
+  enemy is `meetFoe` (`lib/encounter.ts`, table-tested): a bump's cooldown
+  (`arm`: a menu closed, a chest, the save crystal, a landing, Calm wearing
+  off — never shortening one already running) spares only `spared` critters
+  — those touching the hero as it's armed (`graceOf`) and any that comes onto
+  a hero standing still (not moved this frame) while they're `guard`ed (the
+  cooldown, or 3 s after saving, as long as "💎 Game saved!") — each while
+  the hero stands or steps away, until it steps clear; walking into one
+  fights, and a boss is never spared (#112t: the cooldown used to let the
+  hero walk through anything, bosses too); and none fights in the two frames
+  after a cooldown is armed, while its menu or talk takes the world's pause. The Silver Shallows has three (Bubble
   Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
   land or the edge a boat sails in by. A battle at sea is fought over
@@ -537,6 +542,39 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d tenth review: "z Z" rise from a sleeper's head; walking into a spared critter fights; contact rules table-tested (#75 item 14d)
+Round 10 — fresh `/saas-code-review` (1 medium, 5 low) + `/saas-ux-review` (1
+medium, 2 low-medium — one pre-existing — and 1 low). Fixed, one logged:
+- **The sleep sign (UX medium; code medium):** drawn under every face, the
+  "Zz" plate was hidden by whoever stood on or below the sleeper (the hero
+  after a Flee, Ember, the boat), read as the hero's name tag under the hint,
+  and framed an awake Grumblebee under a sleeping Thornhare; and people's
+  faces (z 5) were under it after all. Now a sleeper's level is hidden and a
+  little "z" and "Z" rise from its head and fade on a loop, drawn over the
+  hero and boat (held still under reduced motion) — no box to frame anyone,
+  and nobody standing by hides it.
+- **Walking through a spared critter (code low ×1, UX low):** one spared while
+  the hero stood still could be walked through, looking awake. `meetFoe` now
+  spares it only while the hero stands or steps away; walking into it
+  (`closing`) fights.
+- **Cooldowns (code, low ×2):** `arm` never shortens a running cooldown (a menu
+  closed just after saving cut the crystal's 3 s to 0.8); the crystal's bump
+  cooldown is back to 2 s (people could be walked through for 3 s) and its
+  3 s "standing still is safe" is a separate `guard`.
+- **The Moon Moth's new home was on Vela's doorstep (UX low-medium; code
+  low):** 4 of 22 walks to the observatory fought it there. It's at 9,8 now,
+  and the test keeps every Starfall Coast critter off Marlow's spot and the
+  door and doorstep.
+- **Contact rules untested (code, low):** the frame's meeting with an enemy is
+  `meetFoe`, with table tests.
+- **Copy:** the hint reads "💤 Sleepy critters let you pass. They wake up when
+  you move away." (a fact, not an order); the "Zz"'s "77" at DPR 1 is gone with
+  the plate.
+- **Logged (UX, low-medium; pre-existing):** Chromaria's Doodle stands inside the
+  Off-Key Bird's patch — 4 of 10 walks to him fought it first (#112aa).
+- Tests: 803 green (+5), lint + build clean; `bench … sea` 7/7; standing still
+  at Starfall's crystal 0 of 30.
 
 ### 2026-10-10 — 14d ninth review: a sleeper's "Zz" never sits on anyone's head; a still hero stays safe past a cooldown; Marlow out of the moth's reach (#75 item 14d)
 Round 9 — fresh `/saas-code-review` (1 medium, 3 low) + `/saas-ux-review` (3

@@ -160,12 +160,18 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect([...RETURN_TOWNS].sort()).toEqual(innTowns.map((z) => z.id).sort());
   });
 
-  it("Old Marlow, who gives and mends the boat, stands out of every critter's reach — walking up to him or chatting never meets one (#112w)", () => {
+  it("Old Marlow, who gives and mends the boat, and Vela's door stand out of every Starfall Coast critter's reach (#112w)", () => {
     const coast = ZONES['starfall-coast'];
     const marlow = coast.npcs.find((p) => p.defId === 'coast-fisher')!;
+    // Each door and the doorstep below it.
+    const doors = coast.map.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'D' ? [{ x, y }, { x, y: y + 1 }] : [])));
+    expect(doors.length).toBeGreaterThan(0);
     const reachPx = 32 * WANDER_TUNING.enemy.leashTiles + 28; // its leash + a touch
     for (const e of coast.enemies) {
-      expect(Math.hypot(e.x - marlow.x, e.y - marlow.y) * 32, e.defId).toBeGreaterThan(reachPx + 32); // and a step to spare
+      // Walking up to Marlow or chatting never meets one — with a step to spare…
+      expect(Math.hypot(e.x - marlow.x, e.y - marlow.y) * 32, e.defId).toBeGreaterThan(reachPx + 32);
+      // …nor does stepping out of the observatory, onto its doorstep.
+      for (const d of doors) expect(Math.hypot(e.x - d.x, e.y - d.y) * 32, `${e.defId} vs door ${d.x},${d.y}`).toBeGreaterThan(reachPx);
     }
   });
 

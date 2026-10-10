@@ -73,6 +73,41 @@ export function graceOf<T extends Point & { enemy?: Pick<BattleEnemy, 'isBoss'> 
 }
 
 /**
+ * One enemy, this frame, in the canvas's contact loop (#112e, #112t) — does
+ * it fight, and is it `spared` after? Pure, so the rules are tested.
+ * - Resting, or in the two frames after a cooldown is armed (`held`, while
+ *   its menu or talk takes the world's pause): nothing changes.
+ * - Out of the hero's touch: no fight, and no longer spared.
+ * - Spared (touching the hero as a cooldown was armed, or come onto them
+ *   while they stood still): passable while they stand or step away — but
+ *   walking into it (`closing`) fights, like any foe.
+ * - Coming onto a hero standing still while they're guarded (a cooldown, or
+ *   reading "💎 Game saved!"): spared from now on. Never a boss.
+ * - Otherwise a touch fights in its own element, and no critter under Calm
+ *   (`startsBattle`).
+ */
+export function meetFoe(
+  foe: Pick<BattleEnemy, 'isBoss' | 'habitat'>,
+  s: {
+    onHero: boolean;
+    held: boolean;
+    resting: boolean;
+    spared: boolean;
+    guarded: boolean;
+    still: boolean;
+    closing: boolean;
+    mode: TravelMode;
+    calm: boolean;
+  },
+): { fight: boolean; spared: boolean } {
+  if (s.held || s.resting) return { fight: false, spared: s.spared };
+  if (!s.onHero) return { fight: false, spared: false };
+  if (s.spared && !s.closing) return { fight: false, spared: true };
+  if (s.guarded && s.still && !foe.isBoss) return { fight: false, spared: true };
+  return { fight: startsBattle(foe, s), spared: false };
+}
+
+/**
  * A resting enemy (`standDown`): its home, how near the hero can be and keep
  * it resting (`idleReach`), and — a boss — where the hero was when it began.
  */

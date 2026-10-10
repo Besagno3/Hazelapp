@@ -1095,9 +1095,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     enemies: [
       { defId: 'tide-sprite', x: 13, y: 6 },
       { defId: 'meteor-mite', x: 11, y: 5 },
-      // Clear of Old Marlow's spot (5,8) — walking up to him, or chatting,
-      // never meets it (#112w).
-      { defId: 'moon-moth', x: 9, y: 6 },
+      // Out of reach of Old Marlow's spot (5,8) and Vela's door (8,4) and its
+      // doorstep — walking up to him, chatting, or stepping out never meets it
+      // (#112w).
+      { defId: 'moon-moth', x: 9, y: 8 },
       { defId: 'orbit-otter', x: 2, y: 2 },
       { defId: 'gravity-beetle', x: 14, y: 2 },
       { defId: 'eclipse-fox', x: 19, y: 5 },
