@@ -49,6 +49,27 @@ export interface CombatState {
   lucky: boolean;
   /** Forget-Me-Knot (#75 item 14e): the next wrong answer gets a second try. */
   knotted: boolean;
+  /** Fox Sense (Skye): a free Hint Feather still to use this fight. */
+  freeHint: boolean;
+}
+
+// --- A hero type's opening perks ---------------------------------------------------
+
+/** Spark Start (Nyx, mystic): the spell charge she starts every battle with. */
+export const SPARK_START_CHARGE = 2;
+
+/** What a hero's type gives them as a fight opens: spell charge, a free hint. */
+export interface HeroOpening {
+  charge: number;
+  freeHint: boolean;
+}
+
+/** A hero type's opening perks — nothing for the original three. */
+export function heroOpening(style: FightStyle): HeroOpening {
+  return {
+    charge: style === 'mystic' ? SPARK_START_CHARGE : 0,
+    freeHint: style === 'swift',
+  };
 }
 
 /**
@@ -194,6 +215,11 @@ export interface EnemyTurnInput {
   tier?: DangerTier;
   style: FightStyle;
   powerUps: PowerUps;
+  /**
+   * Counter Strike (Skye): what the hero strikes back with when the defend
+   * answer was right and they're still standing (`counterDamage`; 0 = none).
+   */
+  counter?: number;
 }
 
 export interface EnemyTurnResult {
@@ -204,13 +230,17 @@ export interface EnemyTurnResult {
   reflected: number;
   /** A Mirror Charm bounce shattered the enemy's shield instead of hurting it. */
   shieldShattered: boolean;
+  /** Damage the hero's Counter Strike dealt (0 = none, or a shield took it). */
+  countered: number;
+  /** The hero's Counter Strike shattered the enemy's shield instead of hurting it. */
+  counterShattered: boolean;
   /** HP the healer archetype mended at the end of its turn (0 = none). */
   mended: number;
   /** The hero is out of HP. */
   heroDown: boolean;
-  /** A Mirror Charm bounce defeated the enemy (checked before heroDown). */
+  /** A Mirror Charm bounce or a Counter Strike defeated the enemy (checked before heroDown). */
   enemyDown: boolean;
-  /** A boss enrage phase crossed by a bounce, else null. */
+  /** A boss enrage phase crossed by a bounce or a counter, else null. */
   newPhase: 1 | 2 | null;
 }
 
@@ -221,7 +251,9 @@ export interface EnemyTurnResult {
  * `power` blow (see nextIntent) hits POWER_MULTIPLIER× harder. Otherwise a
  * standing guard blocks it completely (and is spent), or a correct defend
  * answer softens it. Boss damage scales with the enrage phase at the moment
- * it swings. A surviving healer-archetype enemy then mends itself while below
+ * it swings. A hero who counters (Skye) and answered right then strikes back
+ * if still standing — like any landed hit, it shatters a shield instead of
+ * hurting. A surviving healer-archetype enemy then mends itself while below
  * half HP — rewards pressing the attack.
  */
 export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTurnResult {
@@ -250,11 +282,26 @@ export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTu
 
   let enemyHp = Math.max(0, s.enemyHp - reflected);
   reflected = s.enemyHp - enemyHp;
+  const playerHp = Math.max(0, s.playerHp - dmg);
+
+  // Counter Strike: after a right defend answer, a standing hero strikes back.
+  let countered = 0;
+  let counterShattered = false;
+  const counter = input.counter ?? 0;
+  if (counter > 0 && input.wasCorrect && playerHp > 0 && enemyHp > 0) {
+    if (next.enemyShielded) {
+      counterShattered = true;
+      next.enemyShielded = false;
+    } else {
+      countered = Math.min(enemyHp, counter);
+      enemyHp -= countered;
+    }
+  }
+
   const afterBounce = enemyHp;
   if (enemyHp > 0 && input.behavior === 'healer' && healerMends(enemyHp, s.enemyMaxHp)) {
     enemyHp = Math.min(s.enemyMaxHp, enemyHp + healerRegen(s.enemyMaxHp));
   }
-  const playerHp = Math.max(0, s.playerHp - dmg);
   const { lastPhase, newPhase } = phaseCrossed(s, afterBounce, input.isBoss);
   next = { ...next, playerHp, enemyHp, lastPhase };
   return {
@@ -262,6 +309,8 @@ export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTu
     dmg,
     reflected,
     shieldShattered,
+    countered,
+    counterShattered,
     mended: enemyHp - afterBounce,
     heroDown: playerHp <= 0,
     enemyDown: enemyHp <= 0,

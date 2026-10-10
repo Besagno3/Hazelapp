@@ -27,6 +27,8 @@ const { useSaveStore } = await import('../../store/saveStore');
 const { defaultSave } = await import('../../lib/save');
 const { atTier } = await import('../../content/enemies');
 const { BOAT_MENDED } = await import('../../content/boat');
+const { heroOpening } = await import('../../lib/battleTurn');
+const { counterDamage } = await import('../../lib/battleMath');
 
 const enemy = {
   id: 'count-bat',
@@ -287,5 +289,76 @@ describe('what beating a boss does follows its role (#75 item 14c)', () => {
     expect(flags['crystal-math-restored']).toBe(true);
     expect(flags['boss:null-fiend:defeated']).toBeUndefined();
     expect(screen.getByText(/The Crystal of Numbers shines again!/)).toBeInTheDocument();
+  });
+});
+
+describe('the heroines in battle: Skye and Nyx', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function asHero(avatarId: string, style: 'swift' | 'mystic', hint = 0) {
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId, items: { ...defaultSave().items, hint } } });
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 60, 100, heroOpening(style));
+  }
+
+  it("Skye's Counter Strike: a right defend answer strikes back", () => {
+    asHero('a4', 'swift');
+    render(<BattleArena />);
+    // Guard → wrong, so the blow isn't simply blocked; then defend right.
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/Counter Strike! Skye strikes right back/)).toBeInTheDocument();
+    expect(useBattleStore.getState().enemyHp).toBe(200 - counterDamage('swift', {}));
+  });
+
+  it('Skye defending wrong does not counter', () => {
+    asHero('a4', 'swift');
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.queryByText(/Counter Strike/)).toBeNull();
+    expect(useBattleStore.getState().enemyHp).toBe(200);
+  });
+
+  it("Skye's Fox Sense: one free hint a battle, used before her feathers", () => {
+    asHero('a4', 'swift', 1);
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Attack'));
+    fireEvent.click(screen.getByText('🦊 Fox Sense — use a free hint!'));
+    expect(useBattleStore.getState().freeHint).toBe(false);
+    expect(useSaveStore.getState().save!.items.hint).toBe(1);
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    // The next question offers her own feather, the ordinary way.
+    expect(screen.getByText('🪶 Use a Hint Feather (1 left)')).toBeInTheDocument();
+  });
+
+  it('a hero without Fox Sense and no feathers gets no hint button', () => {
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1', items: { ...defaultSave().items, hint: 0 } } });
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Attack'));
+    expect(screen.queryByText(/Hint Feather|Fox Sense/)).toBeNull();
+  });
+
+  it("Nyx's Spark Start: she opens the fight with charge, and says so", () => {
+    vi.useFakeTimers();
+    asHero('a5', 'mystic');
+    render(<BattleArena />);
+    expect(useBattleStore.getState().charge).toBe(2);
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(screen.getByText('✨ +2◆')).toBeInTheDocument();
   });
 });

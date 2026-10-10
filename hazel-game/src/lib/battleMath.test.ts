@@ -12,7 +12,10 @@ import {
   healerRegen,
   HEALER_REGEN_RATE,
   HEALER_REGEN_MAX,
+  STYLE_ATTACK,
+  STYLE_MAGIC,
 } from './battleMath';
+import { FIGHT_STYLES } from '../types';
 import { EMBER_POWER } from '../content/companion';
 
 describe('attackDamage', () => {
@@ -128,5 +131,22 @@ describe('pairDamage', () => {
 
   it('outdamages a solo spell of the same multiplier', () => {
     expect(pairDamage('balanced', {}, EMBER_POWER.hatchling, 2.5)).toBeGreaterThan(spellDamage('balanced', {}, 2.5));
+  });
+});
+
+describe('spell power (STYLE_MAGIC)', () => {
+  it("the original three heroes' spells hit exactly as before — their spell power is their attack", () => {
+    for (const style of ['aggressive', 'defensive', 'balanced'] as const) {
+      expect(STYLE_MAGIC[style]).toBe(STYLE_ATTACK[style]);
+      expect(spellDamage(style, {}, 2.5)).toBe(Math.round(STYLE_ATTACK[style] * 2.5));
+    }
+  });
+
+  it("Nyx (mystic) has the strongest spells of every hero type, but the softest Attack", () => {
+    for (const style of FIGHT_STYLES) {
+      if (style === 'mystic') continue;
+      expect(spellDamage('mystic', {}, 2.5), style).toBeGreaterThan(spellDamage(style, {}, 2.5));
+      expect(attackDamage(true, 'mystic', {}), style).toBeLessThanOrEqual(attackDamage(true, style, {}));
+    }
   });
 });

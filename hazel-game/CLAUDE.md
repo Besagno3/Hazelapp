@@ -146,7 +146,9 @@ zod, react-query. Add the package in the same change that first uses it.
   quest item belongs to one quest; one person may give several quests in
   turn — `questFor(npcId, save)`, the one you've started first — and a step
   may go through a giver, #75 item 14c), `secrets.ts` (hidden secrets per
-  zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
+  zone — claim + progress; `ZoneDef.secrets`), `avatars.ts` (the five heroes —
+  Blaze, Shield, Nova, Skye, Nyx — each a hero type (`FIGHT_STYLES`), with
+  `STYLE_LABEL` / `STYLE_DESC` and the types' special abilities, `HERO_ABILITIES`).
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
@@ -377,7 +379,16 @@ zod, react-query. Add the package in the same change that first uses it.
   fights beside the hero: a strike with a perk (Ember +◆, Pip crosses out a
   wrong answer on the next question, Wisp mends) and **Pair Attacks** (hero +
   companion power combined, super-hard question, charge cost, fizzle on a
-  miss). **🔄 Swap** changes companion as a free action. Enemies sometimes
+  miss). **🔄 Swap** changes companion as a free action. **Hero types**
+  (`FightStyle`) set attack / block (`STYLE_ATTACK` / `STYLE_BLOCK`) and spell
+  power (`STYLE_MAGIC` — what spells and Pair Attacks scale from; the original
+  three's equals their attack); the heroines' abilities: **Skye** (swift)
+  strikes back after a defend answered right (**Counter Strike**,
+  `counterDamage` → `resolveEnemyTurn`'s `counter`) and gets a free hint each
+  fight (**Fox Sense**, `CombatState.freeHint`); **Nyx** (mystic) opens every
+  fight with 2◆ (**Spark Start**) and has the highest spell power (**Spell
+  Power**) — the opening perks come from `heroOpening(style)`, handed to
+  `battleStore.start` by `WorldScreen`. Enemies sometimes
   **telegraph a power move** (charge turn → 2× blow; Guard blocks it), Sage
   spells are **super effective** vs their topic, **answer streaks** power up
   hits, and after two losses to the same enemy its questions get easier
@@ -499,6 +510,7 @@ python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallo
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
+python3 tools/assets/build.py heroes   # the heroines Skye and Nyx only
 ```
 
 ## Error handling
@@ -574,6 +586,54 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Two heroines: Skye (swift) and Nyx (mystic), each with special abilities (#115)
+The hero select offers five heroes. The new two each bring a new hero type
+(`FIGHT_STYLES` in `types` now derives `FightStyle`) with two abilities:
+- **Skye** 🦊 (`a4`, **Swift**, 100 HP; attack 32, block 28): an arctic-fox
+  duelist. **⚡ Counter Strike** — after a defend question answered right
+  (guarded, power blow and all), a still-standing Skye strikes back for 40% of
+  her attack (`COUNTER_SHARE`, `counterDamage`; streak-boosted like any hit),
+  inside `resolveEnemyTurn` (`counter` in, `countered` / `counterShattered`
+  out): a stony shield shatters instead, a counter can win the fight or cross
+  a boss phase, and a healer mends after it. In the arena she lunges back once
+  the blow lands ("⚡ -13"), and the enemy's HP waits for it (`commit`'s
+  `enemyRevealMs`). A timeout or wrong answer never counters. **🦊 Fox Sense** —
+  one free Hint Feather per battle (`CombatState.freeHint`), used before her
+  own feathers ("🦊 Fox Sense — use a free hint!", `QuestionCard`'s new
+  `hintLabel`); trickster enemies still block hints.
+- **Nyx** 🐈‍⬛ (`a5`, **Mystic**, 110 HP; attack 26, block 30, spell power
+  50): a starry black-cat spellcaster. **✨ Spark Start** — every battle opens
+  with 2◆ (`SPARK_START_CHARGE`, floats "✨ +2◆"), so Mend is castable on turn
+  one. **🔮 Spell Power** — spells and Pair Attacks scale from a new spell-power
+  stat, `STYLE_MAGIC` (50 for her; for Blaze, Shield and Nova it equals their
+  attack, so their spells and Pair Attacks hit exactly as before). Pair Attacks
+  use it too, so "a Pair Attack beats a solo spell of the same cost" holds for
+  every type (companion.test now checks all five).
+- **Opening perks** (`heroOpening(style)`, `lib/battleTurn.ts`) reach the fight
+  through `battleStore.start(…, opening)` from `WorldScreen`'s encounter; the
+  original three get none.
+- **Hero select** (`AvatarSelect`): wide cards in a list on a phone, a
+  wrapping row (3 + 2, then all five) from `sm` up; each shows its type
+  (`STYLE_LABEL`), description, HP and any abilities. The 📜 Menu's hero card
+  shows the type and the ability names.
+- **Art** (`python3 tools/assets/build.py heroes`): Skye (sky-blue ponytail, a
+  pink flower and scarf, a teal tunic, a sword) and Nyx (silver hair, a starry
+  robe and cape, a glowing orb held low so it never hides her face), drawn
+  with the existing humanoid drawer; the manifest only gained entries, and a
+  full sprite rebuild into a temp dir matches every committed sheet.
+- **Fix (pre-existing):** battle floats were never centred — Motion's
+  transform replaced the Tailwind `-translate-x-1/2`, so every number hung off
+  to the right of its fighter and long ones ("Blocked!") were cut off at a
+  phone's edge. `BattleStage`'s floats centre through Motion's own `x`.
+- Story text is all "you", so nothing needed rewording for the heroines.
+- Tests: 893 green (+24: battleTurn.test 9, battleMath.test 2,
+  BattleArena.test 5, AvatarSelect.test 4, avatars.test 4; companion.test's
+  pair-vs-spell check over every type), lint + build clean. Checked in
+  headless Chromium (a temporary harness page, Supabase stubbed): the hero
+  select at 320 / 375 / 820 / 1280 px with no sideways scroll; Skye's Fox
+  Sense and Counter Strike and Nyx's Spark Start and Spells menu in the real
+  arena at 375×667; both heroines walking Lumina Village on the bench.
 
 ### 2026-10-10 — Merge main (14c groundwork, 14e Remembrance Hill) into the sea-critters branch (#75 item 14d)
 `main` took 14c and 14e while 14d was in review. Both used ISSUES **#112**

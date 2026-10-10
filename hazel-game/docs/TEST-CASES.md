@@ -937,6 +937,23 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-772 | U | ✅ | encounters | `meetFoe` (encounter.test): walking into a foe fights, a boss too, cooldown or not; nothing happens to a resting one or in the two held frames; one coming onto a still, guarded hero is spared (never a boss); a spared one lets the hero stand or step away, even after the cooldown, but walking into it fights, and out of touch it's no longer spared; a touch fights only in the enemy's element, no critter under Calm |
 | TC-770 | U | ✅ | world map | with the ⭐ at any east-half cell of Dawnreach, "Silver Shallows ▶" covers no place — covering a marker costs far more than coming within the 3 px gap (worldMap.test) |
 
+## Heroines: Skye (swift) and Nyx (mystic) (#115)
+
+| ID | Type | Status | Feature | Case |
+|---|---|---|---|---|
+| TC-786 | U | ✅ | roster | five heroes with unique ids, names and sprites; Blaze / Shield / Nova unchanged (ids, types, HP — saves point at them); Skye `a4` swift, Nyx `a5` mystic; every hero type is used, labelled and described, and each heroine has two abilities (avatars.test) |
+| TC-787 | U | ✅ | hero types | `heroOpening`: Nyx starts with `SPARK_START_CHARGE` ◆, Skye with a free hint, the original three with nothing; `battleStore.start` applies it, and with no opening a fight starts fresh as before (battleTurn.test) |
+| TC-788 | U | ✅ | Counter Strike | only a swift hero counters, for a share of her attack (power-ups raise it); a right defend answer strikes back — a wrong one or a timeout doesn't; she counters a power blow and past a standing guard; a counter shatters a stony shield instead of hurting; it can win the fight; a knocked-out hero never counters; a healer mends after it; it can cross a boss phase (battleTurn.test) |
+| TC-789 | U | ✅ | Spell Power | Blaze's, Shield's and Nova's spell power equals their attack (their spells hit as before); Nyx's spells beat every other type's while her Attack is the softest; a Pair Attack beats a solo spell of the same cost for every hero type (battleMath.test, companion.test) |
+| TC-790 | C | ✅ | Counter Strike | in the real arena as Skye: Guard wrong → defend right → "⚡ Counter Strike! Skye strikes right back", enemy HP down by `counterDamage`; defending wrong doesn't counter (BattleArena.test) |
+| TC-791 | C | ✅ | Fox Sense | as Skye with one feather: the first hint button reads "🦊 Fox Sense — use a free hint!" and leaves the feather; the next question offers "🪶 Use a Hint Feather (1 left)"; a hero without Fox Sense and no feathers gets no hint button (BattleArena.test) |
+| TC-792 | C | ✅ | Spark Start | as Nyx a fight opens with 2◆ and floats "✨ +2◆" (BattleArena.test) |
+| TC-793 | C | ✅ | hero select | five cards; Skye's shows Swift, Counter Strike and Fox Sense, Nyx's Mystic, Spark Start and Spell Power; Blaze's its type and no ability list; picking Nyx saves `a5` and sends CHOOSE_AVATAR (AvatarSelect.test) |
+| TC-794 | M | ✅ | hero select / battle | headless Chromium, Supabase stubbed (temporary harness page): the hero select at 320, 375, 820 and 1280 px — no sideways scroll, every card readable; at 375×667 Skye's Fox Sense button and counter ("⚡ -13" over the enemy, its HP after), Nyx's two pips and castable Mend; the 📜 Menu's "Skye · Swift" with her abilities; no page errors (2026-10-10) |
+| TC-795 | M | ✅ | art | `python3 tools/assets/build.py heroes` writes only `skye` and `nyx`; a full sprite rebuild into a temp dir matches every committed sheet; both walk Lumina Village on the bench with 4-way facing (2026-10-10) |
+| TC-796 | M | ✅ | battle floats | floats sit centred over their fighter: "✨ +2◆" over Nyx and "Blocked!" over the hero stay on a 375 px screen (they hung off to the right before) (2026-10-10) |
+| TC-797 | M | ⏳ | balance | a full playthrough of Act I as Skye and as Nyx: neither breezes through nor stalls compared with Blaze / Shield / Nova (#115b) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

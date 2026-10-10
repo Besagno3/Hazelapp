@@ -39,6 +39,8 @@ NPCs and the other three zones stay on emoji until a later rollout.
 | Blaze (hero) | `blaze` | ✅ idle+walk | ✅ idle+attack+hurt | **Generate** | lion / aggressive warrior |
 | Shield (hero) | `shield` | ✅ | ✅ | **Generate** | turtle / defensive tank |
 | Nova (hero) | `nova` | ✅ | ✅ | **Generate** | eagle / balanced |
+| Skye (hero) | `skye` | ✅ | ✅ | **Generated** (`build.py heroes`) | arctic fox / swift duelist — sky-blue ponytail, flower, sword |
+| Nyx (hero) | `nyx` | ✅ | ✅ | **Generated** (`build.py heroes`) | black cat / mystic spellcaster — silver hair, starry robe, glowing orb |
 | Ember — egg | `ember-egg` | ✅ idle | ✅ idle | **Generate** | small egg |
 | Ember — hatchling | `ember-hatchling` | ✅ | ✅ | **Generate** | baby dragon |
 | Ember — whelp | `ember-whelp` | ✅ | ✅ | **Generate** | young dragon |

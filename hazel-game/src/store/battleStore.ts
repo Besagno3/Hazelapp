@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BattleEnemy } from '../types';
-import type { CombatState } from '../lib/battleTurn';
+import { heroOpening, type CombatState, type HeroOpening } from '../lib/battleTurn';
 
 /**
  * Ephemeral battle-session state (#37). Deliberately NOT persisted — a
@@ -30,6 +30,8 @@ interface BattleStore {
   focused: boolean;
   lucky: boolean;
   knotted: boolean;
+  /** Fox Sense (Skye): a free Hint Feather still to use this fight. */
+  freeHint: boolean;
   /** Enemy instances beaten this session — kept off the map until reload. */
   defeatedIds: string[];
   /**
@@ -46,7 +48,8 @@ interface BattleStore {
   /** The "💤 Sleepy critters let you pass…" hint has been said this session (#114e). */
   sleeperHintSaid: boolean;
 
-  start: (enemy: BattleEnemy, playerHp: number, playerMaxHp: number) => void;
+  /** `opening`: the hero type's perks as the fight opens (`heroOpening`) — none by default. */
+  start: (enemy: BattleEnemy, playerHp: number, playerMaxHp: number, opening?: HeroOpening) => void;
   applyCombat: (s: CombatState) => void;
   markDefeated: (instanceId: string) => void;
   recordLoss: (key: string) => void;
@@ -65,7 +68,11 @@ const FRESH_COMBAT = {
   focused: false,
   lucky: false,
   knotted: false,
+  freeHint: false,
 };
+
+/** No opening perks (the original three heroes). */
+const NO_OPENING = heroOpening('balanced');
 
 export const useBattleStore = create<BattleStore>((set) => ({
   enemy: null,
@@ -78,7 +85,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
   toughMet: [],
   sleeperHintSaid: false,
 
-  start: (enemy, playerHp, playerMaxHp) =>
+  start: (enemy, playerHp, playerMaxHp, opening = NO_OPENING) =>
     set({
       enemy,
       playerHp,
@@ -86,6 +93,9 @@ export const useBattleStore = create<BattleStore>((set) => ({
       enemyHp: enemy.maxHp,
       ...FRESH_COMBAT,
       enemyShielded: enemy.behavior === 'shielded',
+      // Spark Start (Nyx) and Fox Sense (Skye).
+      charge: opening.charge,
+      freeHint: opening.freeHint,
     }),
 
   applyCombat: (s) =>
@@ -100,6 +110,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
       focused: s.focused,
       lucky: s.lucky,
       knotted: s.knotted,
+      freeHint: s.freeHint,
     }),
 
   markDefeated: (instanceId) =>
@@ -143,5 +154,6 @@ export function combatState(): CombatState {
     focused: s.focused,
     lucky: s.lucky,
     knotted: s.knotted,
+    freeHint: s.freeHint,
   };
 }

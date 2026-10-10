@@ -2861,6 +2861,15 @@ ROSTER: list[Char] = [
                                       hat='helmet', hat_color='#9aa6b4', snout='wide', item_color='#b8c4d4')),
     Char('nova', '🦅', 'humanoid', H(skin='#f4efe2', hair='crest', hair_color='#8a5a30', snout='beak', outfit='#3a5fc8',
                                     trim='#f0f0f0', wings='feather', wing_color='#9a6a3a', item='spear', scarf='#ffd24a')),
+    # The heroines: Skye, a swift arctic-fox duelist (sky-blue ponytail, a flower,
+    # a sword), and Nyx, a mystic black-cat spellcaster (silver hair, a starry
+    # robe and cape, a glowing orb held low so it never hides her face).
+    Char('skye', '🦊', 'humanoid', H(skin='#eef2fa', ears='pointed', snout='pointy', muzzle='#ffffff', tail='fox',
+                                    hair='ponytail', hair_color='#46b4f0', outfit='#1fa0b4', trim='#fff4c0', scarf='#ff6a9a',
+                                    hat='flower', item='sword', item_color='#e0f4ff')),
+    Char('nyx', '🐈‍⬛', 'humanoid', H(skin='#5a5480', ears='pointed', snout='muzzle', muzzle='#d8d0f0', tail='long',
+                                         eye='#ffd24a', hair='long', hair_color='#e8e4ff', outfit='#4a2fa0', trim='#ffe066',
+                                         robe=True, cape='#1e2a5a', item='orb', item_color='#7af0ff', blush=False)),
     # ── Ember ──
     Char('ember-egg', '🥚', 'egg'),
     Char('ember-hatchling', '🐣', 'dragon', H(color='#ff7a2f', stage='hatchling'),
