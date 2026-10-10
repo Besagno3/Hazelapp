@@ -660,11 +660,11 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-447 | U | ✅ | quizSessionStore | `markCompleted` adds a topic; is idempotent (never listed twice); accumulates distinct topics in order (quizSessionStore.test) |
-| TC-448 | U | ✅ | quizSessionStore | `reset` clears the completed set so it cannot leak into the next session (quizSessionStore.test) |
+| TC-447 | U | ✅ | quizSessionStore | RETIRED (#119) — the store is gone; see TC-839 |
+| TC-448 | U | ✅ | quizSessionStore | RETIRED (#119) — the store is gone |
 | TC-449 | M | ⬜ | TopicSelect | the Training Grounds shows all 7 topics (4 crystal + nature/space/history), not just the crystal four |
-| TC-450 | M | ⬜ | TopicSelect | passing a topic round (80%+) greys it out with a ✓ + "Completed" and makes it unclickable for the rest of the session; failing leaves it selectable |
-| TC-451 | M | ⬜ | TopicSelect | sign out and back in (or reload) → every topic is selectable again (the completed set is ephemeral, cleared on sign-out via `useAuthInit`) |
+| TC-450 | M | ⬜ | TopicSelect | passing a topic round (80%+) leaves it selectable — pick it again and a new round starts (#119; it used to grey out) |
+| TC-451 | M | ✅ | TopicSelect | RETIRED (#119) — topics never lock, so there is nothing to clear |
 
 ## Fog banks: each crystal lifts its own fog, on screen (#75 item 7)
 
@@ -998,6 +998,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-836 | U | ✅ | profile | `mergeProfiles` keeps the further saved level (higher level, then more XP into it); a pre-save local cache's old level beats a fresh remote row at level 1 (profile.test) |
 | TC-837 | M | ✅ | migrations | 0012 on a row with 1037 XP backfills level 11, 37 into it; applied twice changes nothing; a new sign-up starts at level 1 / 0 (`supabase/ci/level.test.sql`; local Postgres 16, 2026-10-10) |
 | TC-838 | M | ⬜ | profile | after 0012 in production, an existing player sees the same level as before; earning XP moves the bar toward the new, larger need; a refresh keeps both |
+| TC-839 | C | ✅ | TopicSelect | every topic is an enabled button with no "Completed" tag, and the same topic can be picked again and again — each pick sends `PICK_TOPIC` (TopicSelect.test, #119) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

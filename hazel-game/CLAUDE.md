@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `quizSessionStore`, `authStore`, `profileStore`, `settingsStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
@@ -176,9 +176,6 @@ zod, react-query. Add the package in the same change that first uses it.
   instance ids, losses per enemy kind + tier for mercy (`lossKey`), the danger
   tiers already explained) — deliberately not persisted, so a reload is a
   fresh start for mercy.
-- **`quizSessionStore`** holds the ephemeral Training-Grounds session — the
-  topics passed (80%+) this session, so `TopicSelect` greys them out and stops
-  re-picking. Not persisted; reset on sign-out (#64).
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, saved level, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
@@ -610,6 +607,15 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Every Training Grounds topic stays open (#119)
+Passing a topic round no longer greys that topic out for the rest of the
+session — kids can pick any topic, as often as they like, for more questions.
+`store/quizSessionStore.ts` (and its test) existed only for that lock and is
+gone; `QuizRound` no longer marks topics, `useAuthInit` no longer resets it,
+and `TopicSelect` renders every topic as a live button. New
+`TopicSelect.test` picks a topic three times and checks every button stays
+enabled with no "Completed" tag. Reverses #91's per-session completion.
 
 ### 2026-10-10 — The player level is saved; each level takes a little more XP (#118)
 Levels used to be worked out from total XP at a flat 100 XP each, so every
