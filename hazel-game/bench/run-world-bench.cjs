@@ -384,8 +384,8 @@ function battleLayout() {
 }
 
 /**
- * The battle screen on the real app (#75 item 14f review): a hero standing on
- * a tier-5 critter in Eldergrove meets it, at five sizes. The level and
+ * The battle screen on the real app (#75 item 14f review): a hero walks into
+ * the Ringkeeper, Eldergrove's tier-5 warden, at five sizes. The level and
  * streak sit in their own row above the status boxes (they floated over the
  * enemy's "!!!" on a phone), the "!!!" is on top, nothing scrolls sideways,
  * and the 💪 line and then the commands fit on screen.
@@ -402,8 +402,11 @@ async function battleHud(browser, outDir) {
     version: 2, avatarId: 'a1', hp: null, coins: 340, items: { potion: 2, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0, knot: 0 },
     badges: [], sages: ['math', 'science'], openedChests: [], kills: {}, questItems: [], passedRounds: 6, worldUnlocked: true,
     library: [], companionId: 'ember', defendTimer: true, lastRest: null, boat: null, aboard: false,
-    // On the Ring Beetle's home cell, so it meets the hero at once.
-    zoneId: 'eldergrove', pos: { x: 10 * 32 + 16, y: 11 * 32 + 16 }, flags,
+    // In the Great Ring, three cells east of the Ringkeeper (25,23): a boss
+    // stands still (a critter wanders, and one that could reach the hero as the
+    // world loads rests till they leave its patch, #75 item 14d), so the hero
+    // walks west straight into it.
+    zoneId: 'eldergrove', pos: { x: 28 * 32 + 16, y: 23 * 32 + 16 }, flags,
   };
   const profile = { id: HUD_USER, birth_year: 2016, birth_month: 3, skill_levels: {}, xp: 1250, power_ups: { attack: 4, defense: 4, vitality: 2, scholar: 2 }, current_streak: 12, longest_streak: 12, last_played_on: new Date().toISOString().slice(0, 10) };
   // A sideways phone (740×360) is left out: the battle never fit one, row or not (ISSUES #115m).
@@ -411,17 +414,16 @@ async function battleHud(browser, outDir) {
   let bad = 0;
   for (const [width, height] of sizes) {
     const size = `${width}×${height}`;
-    // The hero starts on the beetle, so the battle can begin before the world's top bar ever shows.
     const page = await stubbedApp(browser, { width, height }, save, profile, {
       ready: '[data-testid=world-topbar], [data-testid=battle-topbar]',
     });
     const problems = [];
-    // Nudge about if the beetle has wandered off its cell.
-    for (let i = 0; i < 12 && !(await page.locator('[data-testid=battle-topbar]').count()); i++) {
-      await page.keyboard.down(i % 2 ? 'ArrowLeft' : 'ArrowRight');
+    // Walk west into the Ringkeeper.
+    for (let i = 0; i < 10 && !(await page.locator('[data-testid=battle-topbar]').count()); i++) {
+      await page.keyboard.down('ArrowLeft');
+      await page.waitForTimeout(300);
+      await page.keyboard.up('ArrowLeft');
       await page.waitForTimeout(250);
-      await page.keyboard.up(i % 2 ? 'ArrowLeft' : 'ArrowRight');
-      await page.waitForTimeout(400);
     }
     if (!(await page.locator('[data-testid=battle-topbar]').count())) {
       console.log(`✗ ${size}  no battle started`);
@@ -432,8 +434,8 @@ async function battleHud(browser, outDir) {
     await page.waitForTimeout(1200);
     const opening = await page.evaluate(battleLayout);
     await page.screenshot({ path: path.join(outDir, `battle-${size}-opening.png`) });
-    // Read on through the opening lines (the 💪 line for tier 5) to the commands.
-    for (let i = 0; i < 4 && !(await page.getByRole('button', { name: /Attack/ }).count()); i++) {
+    // Read on through the opening lines (its monologue, the 💪 line for tier 5) to the commands.
+    for (let i = 0; i < 6 && !(await page.getByRole('button', { name: /Attack/ }).count()); i++) {
       await page.getByText(/tap to continue/).first().click().catch(() => {});
       await page.waitForTimeout(500);
     }
@@ -442,7 +444,9 @@ async function battleHud(browser, outDir) {
     for (const [when, l] of [['opening', opening], ['commands', commands]]) {
       if (l.barHeight && l.gap < 0) problems.push(`${when}: the top bar runs ${-l.gap}px into the status boxes`);
       if (!l.marksOnTop) problems.push(`${when}: the enemy's "${l.marks}" is covered`);
-      if (l.offScreen.length) problems.push(`${when}: off the bottom: ${l.offScreen.join(', ')}`);
+      // A boss's 🏃 Flee ("No escape!") never fit a 320×568 screen, row or no row (ISSUES #115q).
+      const off = width === 320 ? l.offScreen.filter((b) => !b.startsWith('🏃Flee')) : l.offScreen;
+      if (off.length) problems.push(`${when}: off the bottom: ${off.join(', ')}`);
       if (l.sideways) problems.push(`${when}: the page scrolls sideways`);
     }
     if (!(await page.getByRole('button', { name: /Attack/ }).count())) problems.push('never reached the commands');

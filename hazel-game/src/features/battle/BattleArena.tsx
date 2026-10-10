@@ -973,10 +973,10 @@ export default function BattleArena() {
           `bench … battle`), so a fight there shows neither. */}
       <div
         data-testid="battle-topbar"
-        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-2 sm:px-4 sm:pt-3 max-[359px]:hidden [@media(max-height:500px)]:hidden"
+        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-1 sm:px-4 sm:pt-3 max-[359px]:hidden [@media(max-height:500px)]:hidden"
       >
-        <LevelBadge placement="inline" />
-        <StreakBadge inline />
+        <LevelBadge placement="inline" dense />
+        <StreakBadge inline dense />
       </div>
       <BattleHud
         enemy={enemy}

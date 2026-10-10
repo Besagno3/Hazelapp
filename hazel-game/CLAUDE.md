@@ -206,9 +206,10 @@ zod, react-query. Add the package in the same change that first uses it.
   `SpireOverlay` portals its seals, candles and 🚪 Leave the Spire into the
   HUD row (`hudSlot`, in 📜 Menu's place). The battle screen has a top bar
   too (#75 item 14f review, `data-testid="battle-topbar"`): the level and
-  streak in a row above the status boxes (no Sign out in battle, as before),
-  hidden below 360 px wide or 500 px tall, where there's no room for it
-  without pushing 🏃 Flee off the screen (`bench … battle`). Other screens
+  streak in a row above the status boxes (no Sign out in battle, as before;
+  40 px on a phone — `LevelBadge` / `StreakBadge` `dense`), hidden below
+  360 px wide or 500 px tall, where there's no room for it without pushing
+  🏃 Flee off the screen (`bench … battle`, a boss fight). Other screens
   keep the floating badges. Sign out there asks "Sign out?" first (same size;
   the hint floats below it), and any other tap or key takes the question back.
   **Overlays are modal** (#75 item 14b review): every world overlay (dialogue,
@@ -585,6 +586,15 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — The battle row fits a boss fight at 360×640 (#75 item 14f, after merging 14d)
+After the merge, 14d's resting critters (one that could reach the hero where
+they arrive rests until they leave its patch) meant `bench … battle` — which
+started the hero on a beetle — never got a fight. It now walks the hero into
+the Ringkeeper, who stands still; a boss's 🏃 Flee row ("No escape!") then
+showed the battle row 10 px too tall at 360×640, so on a phone the row is
+40 px (`LevelBadge` / `StreakBadge` `dense`, `pt-1`). 5/5 twice; a boss's
+Flee at 320×568 was off the screen before 14f too (#115q).
 
 ### 2026-10-10 — Merge main (14d sea critters) into the Eldergrove branch (#75 items 14d + 14f)
 `main` took 14d (PR #36) while 14f was built. Its #114 and TC-731–785 came
