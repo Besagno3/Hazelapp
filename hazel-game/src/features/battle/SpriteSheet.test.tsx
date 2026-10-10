@@ -4,7 +4,7 @@ import { SpriteSheet } from './SpriteSheet';
 import type { SpriteView } from '../../content/sprites';
 
 const view: SpriteView = {
-  sheet: '/sprites/blaze/battle.png',
+  sheet: '/sprites/valor/battle.png',
   frameW: 64,
   frameH: 64,
   frames: 6,
@@ -20,7 +20,7 @@ describe('SpriteSheet', () => {
   it('renders an image element backed by the sheet when a view is given', () => {
     render(<SpriteSheet view={view} emoji="🦁" />);
     const el = screen.getByRole('img');
-    expect(el.style.backgroundImage).toContain('/sprites/blaze/battle.png');
+    expect(el.style.backgroundImage).toContain('/sprites/valor/battle.png');
     expect(el.style.width).toBe('64px');
     expect(el.style.height).toBe('64px');
   });

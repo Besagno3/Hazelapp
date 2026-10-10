@@ -12,7 +12,15 @@ import {
   healerRegen,
   HEALER_REGEN_RATE,
   HEALER_REGEN_MAX,
+  STYLE_ATTACK,
+  STYLE_BLOCK,
+  STYLE_MAGIC,
+  KEEN_EYE_HEAL,
+  LIONHEART_MULT,
+  keenEyeHeal,
+  lionheartMultiplier,
 } from './battleMath';
+import { FIGHT_STYLES } from '../types';
 import { EMBER_POWER } from '../content/companion';
 
 describe('attackDamage', () => {
@@ -128,5 +136,42 @@ describe('pairDamage', () => {
 
   it('outdamages a solo spell of the same multiplier', () => {
     expect(pairDamage('balanced', {}, EMBER_POWER.hatchling, 2.5)).toBeGreaterThan(spellDamage('balanced', {}, 2.5));
+  });
+});
+
+describe('spell power (STYLE_MAGIC)', () => {
+  it("the original three heroes' spells hit exactly as before — their spell power is their attack", () => {
+    for (const style of ['aggressive', 'defensive', 'balanced'] as const) {
+      expect(STYLE_MAGIC[style]).toBe(STYLE_ATTACK[style]);
+      expect(spellDamage(style, {}, 2.5)).toBe(Math.round(STYLE_ATTACK[style] * 2.5));
+    }
+  });
+
+  it("Selene (mystic) has the strongest spells of every hero type, but the softest Attack", () => {
+    for (const style of FIGHT_STYLES) {
+      if (style === 'mystic') continue;
+      expect(spellDamage('mystic', {}, 2.5), style).toBeGreaterThan(spellDamage(style, {}, 2.5));
+      expect(attackDamage(true, 'mystic', {}), style).toBeLessThanOrEqual(attackDamage(true, style, {}));
+    }
+  });
+});
+
+describe('signature abilities in the math', () => {
+  it('Lionheart (Valor): only a warrior below half HP hits harder', () => {
+    expect(lionheartMultiplier('aggressive', 49, 100)).toBe(LIONHEART_MULT);
+    expect(lionheartMultiplier('aggressive', 50, 100)).toBe(1);
+    for (const style of FIGHT_STYLES) if (style !== 'aggressive') expect(lionheartMultiplier(style, 1, 100), style).toBe(1);
+  });
+
+  it('Rock Steady (Bastion): a wrong defend answer still blocks half his block; nobody else changes', () => {
+    expect(defendReduction(false, 'defensive', {})).toBe(Math.round(STYLE_BLOCK.defensive / 2));
+    expect(defendReduction(false, 'defensive', { defense: 4 })).toBeGreaterThan(defendReduction(false, 'defensive', {}));
+    for (const style of FIGHT_STYLES) if (style !== 'defensive') expect(defendReduction(false, style, {}), style).toBe(0);
+    expect(defendReduction(true, 'defensive', {})).toBe(STYLE_BLOCK.defensive);
+  });
+
+  it('Keen Eye (Talon): only a ranger mends on a right answer', () => {
+    expect(keenEyeHeal('balanced')).toBe(KEEN_EYE_HEAL);
+    for (const style of FIGHT_STYLES) if (style !== 'balanced') expect(keenEyeHeal(style), style).toBe(0);
   });
 });
