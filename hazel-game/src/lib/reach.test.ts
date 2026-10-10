@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { TILE, ZONES, gateFlag, gateIdAt, litFlag, tileAt, type ZoneDef } from '../content/zones';
 import { BOAT_HOME } from '../content/boat';
-import { behindFog, reach, reachPath, safeSpawn, touches } from './reach';
+import { EXIT_STEP_OFF, behindFog, reach, reachPath, safeSpawn, touches } from './reach';
 
 /** A little test map: Lumina Village's details over our own rows (no buildings, exits or people of its own). */
 function mk(map: string[], extra: Partial<ZoneDef> = {}): ZoneDef {
@@ -138,13 +138,43 @@ describe('safeSpawn on an exit (#75 item 14b)', () => {
     expect(p).not.toEqual({ x: b1.spawn.x * TILE + TILE / 2, y: b1.spawn.y * TILE + TILE / 2 });
   });
 
-  it('a save on any exit of any map never loads onto it', () => {
+  it('a save on any exit of any map loads a few walkable steps off it (or, shut in by fog, at the spawn)', () => {
     for (const z of Object.values(ZONES)) {
+      const shut = behindFog(z, {});
       for (const e of z.exits) {
         const p = safeSpawn(z, { x: e.x * TILE + 4, y: e.y * TILE + 4 }, {});
         const cell = { x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) };
-        expect(z.exits.some((o) => o.x === cell.x && o.y === cell.y), `${z.id} exit ${e.x},${e.y}`).toBe(false);
+        const where = `${z.id} exit ${e.x},${e.y}`;
+        expect(z.exits.some((o) => o.x === cell.x && o.y === cell.y), where).toBe(false);
+        if (shut.has(`${e.x},${e.y}`)) {
+          expect(cell, where).toEqual(z.spawn);
+          continue;
+        }
+        const walk = reachPath(z, (x, y) => x === cell.x && y === cell.y, { from: e, flags: {}, gates: 'flags', exits: 'stop' });
+        expect(walk, where).not.toBeNull();
+        expect(walk!.length - 1, where).toBeLessThanOrEqual(EXIT_STEP_OFF);
       }
     }
+  });
+
+  it('never steps a save across a wall: the step off an exit is walked', () => {
+    // An exit walled in on three sides, its fourth another exit; open floor just over the wall (0,0).
+    const z = mk(['.#...', '#P#..', '#P#..', '#....'], {
+      spawn: { x: 4, y: 0 },
+      exits: [
+        { x: 1, y: 1, to: 'dawnreach', spawnX: 0, spawnY: 0 },
+        { x: 1, y: 2, to: 'dawnreach', spawnX: 0, spawnY: 0 },
+      ],
+    });
+    // Not (0,0) behind the wall, not through the other exit: the spawn.
+    expect(safeSpawn(z, { x: 1 * TILE + 16, y: 1 * TILE + 16 }, {})).toEqual({ x: 4 * TILE + 16, y: 16 });
+    // From the lower exit, the floor below is a step away.
+    expect(safeSpawn(z, { x: 1 * TILE + 16, y: 2 * TILE + 16 }, {})).toEqual({ x: 1 * TILE + 16, y: 3 * TILE + 16 });
+  });
+
+  it('a start off the map is dropped, not wrapped onto another cell', () => {
+    const z = mk(['..', '..']);
+    expect(reach(z, { from: { x: 2, y: 0 } }).size).toBe(0);
+    expect(reach(z, { from: [{ x: 5, y: 5 }, { x: 0, y: 0 }] })).toEqual(new Set(['0,0', '1,0', '0,1', '1,1']));
   });
 });

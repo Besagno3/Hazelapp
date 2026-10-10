@@ -142,6 +142,12 @@ export default function WorldScreen() {
   const [calmLeft, setCalmLeft] = useState(0);
   /** Where the Spire climb shows its seals, candles and Leave button: the HUD, in Menu's place (#75 item 14b). */
   const [hudSlot, setHudSlot] = useState<HTMLElement | null>(null);
+  /** The top bar sits under every overlay; while one covers it, Tab and screen readers skip it too (#75 item 14b review). */
+  const topBarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Exploring a Spire floor keeps it live (the climb's HUD sits beside it); any other overlay covers it.
+    if (topBarRef.current) topBarRef.current.inert = overlay !== null && overlay !== 'spire';
+  }, [overlay]);
   // After the Spire's finale the hero is carried home to bed; this is the
   // morning fading in at the inn, before Act II begins (#75 item 14).
   const [waking, setWaking] = useState(false);
@@ -326,7 +332,7 @@ export default function WorldScreen() {
           overlay. The page's full width (not the stage's, which is narrow on a
           sideways phone), at most 44 px tall: with pt-3 + mb-2 it takes the
           room the old pt-16 left for the floating badges. */}
-      <div data-testid="world-topbar" className="w-full flex items-start justify-between gap-2 mb-2">
+      <div ref={topBarRef} data-testid="world-topbar" className="w-full flex items-start justify-between gap-2 mb-2">
         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           <LevelBadge placement="inline" />
           <StreakBadge inline />

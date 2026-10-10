@@ -460,6 +460,46 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — 14b review fixes: Leave the Spire asks first, Sign out takes two taps (#75 item 14b)
+Fresh-context `/saas-code-review` (no high or medium findings; 7 low) and
+`/saas-ux-review` (1 high, 3 medium, 3 low) of 14b. Fixed:
+- **Leaving the Spire asks first (UX, high):** "🚪 Leave the Spire" now sits
+  where 📜 Menu always is, and one tap ended the climb — and every climb
+  starts again from Floor 1. Leave opens "Leave the Spire? Next time, the
+  climb starts again from the first floor." with 🗼 Keep climbing (focused)
+  and 🚪 Leave; the button is quieter than Menu's; the way-out line no
+  longer says "the climb will wait".
+- **Sign out takes two taps in the world (UX, medium):** the first turns it
+  into "Tap again to sign out" for 3 s (`SIGN_OUT_ARM_MS`), and it's 44 px
+  tall — a slip (or Tab + Enter) never lands a child on the sign-in page.
+- **"🔥 12 days" on a phone (UX, medium):** the bare "🔥 12" (🔥 also means
+  answers in a row in battle) says "days" from 360 px up.
+- **Numbers for touch players (UX, low):** the Menu's hero card shows
+  "⭐ Level 13 · 50/100 XP"; the medallion's number is hidden from screen
+  readers (it read "13 Level 13"); the candles read "3 of 4 candle-lights
+  left".
+- **Under an overlay the top bar is inert** (UX, low): Tab and screen readers
+  no longer reach a hidden Sign out (the Spire's explore HUD stays live).
+- **`reach` (code, low):** a start off the map is dropped (it wrapped onto
+  another cell); `gates: 'flags'` with `flags: null` shuts every gate
+  (documented). **`safeSpawn`'s step off an exit is walked** (`reachPath`,
+  ≤ `EXIT_STEP_OFF` = 3 steps, never across a wall or through another exit;
+  else the spawn) — it took the nearest cell in a 5×5 box, walls or not.
+- **Tests that couldn't fail (code, low):** "no save loads onto an exit" now
+  checks the walk off it (≤ 3 steps, or the spawn when fog shuts it in); a
+  wall case; the vault fixture now holds its gate's flag (no player could
+  stand there without it); saveStore checks the row written back (v2, once);
+  a new `SpireOverlay.test` drives the real climb to the HUD slot and the
+  Leave question; `SignOutButton.test` (+3).
+- **Bench (code, low):** page errors are caught from the first script (they
+  were only listened for after boot); `hud` also fails when the map runs
+  off the bottom of the screen. Re-measured: 5/5 sizes.
+- Logged (#110): the topics screen's floating badges still cover "Training
+  Grounds" on a phone; no d-pad at 640 px and up (TouchPad is `sm:hidden`
+  — iPads and sideways phones can't walk by touch); the Spire's HUD row
+  wraps on phones.
+- 758 green, lint + build clean.
+
 ### 2026-10-10 — Nothing covers the place name: the world's top bar (#75 item 14b, #102i)
 Fifth slice of 14b. On a phone the floating LEVEL / STREAK badges covered
 the place name ("B2 —") and the top of every overlay (a shrine trial's

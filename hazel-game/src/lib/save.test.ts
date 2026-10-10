@@ -24,7 +24,7 @@ import { walkLeg } from './journey';
 import { nextObjective } from './wayfinding';
 import { boatSpot } from '../content/boat';
 import type { SaveData } from '../types';
-import { HUB_ZONE, TILE, ZONES, buildingInside, chestTopicAt, innWakeCell, tileAt } from '../content/zones';
+import { HUB_ZONE, TILE, ZONES, buildingInside, chestTopicAt, gateFlag, gateIdAt, innWakeCell, tileAt } from '../content/zones';
 import type { LibraryEntry, Question } from '../types';
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN } from '../content/story';
 
@@ -392,6 +392,12 @@ describe('old saves load (#75 item 14b)', () => {
       for (const h of leg.hops) expect(h.path, `${leg.goal.title}: across ${h.zoneId}`).not.toBeNull();
     },
   );
+
+  it("the vault save holds the vault gate's flag (it couldn't stand there otherwise)", () => {
+    const b1 = ZONES['clockwork-depths'];
+    expect(tileAt(b1, 10, 8)).toBe('G');
+    expect(V2_PRE_ITEM10.flags).toHaveProperty(gateFlag(gateIdAt('clockwork-depths', b1.map, 11, 8)), true);
+  });
 
   it('the save standing where the Depths\' stairs were drawn later loads beside them, not on them', () => {
     const s = normalizeSave(V2_PRE_ITEM10);

@@ -55,6 +55,9 @@ async function openBench(browser, query, { rate = 1 } = {}) {
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate });
   }
+  // Every page error from the very first script on (a walk or a check reads `page.errors`).
+  page.errors = [];
+  page.on('pageerror', (e) => page.errors.push(String(e)));
   await page.goto(`${BASE}?${query}`);
   await page.waitForFunction(() => window.__bench && document.querySelector('canvas'), null, { timeout: 180000 });
   return page;
@@ -204,8 +207,7 @@ async function journey(browser, outDir) {
   const tight = [];
   for (const w of walks) {
     const page = await openBench(browser, w.query);
-    const errors = [];
-    page.on('pageerror', (e) => errors.push(String(e)));
+    const errors = page.errors;
     const r = await page.evaluate((fn) => window.__bench[fn](), w.fn);
     const ok = r.ok && errors.length === 0;
     const hops = r.hops.map((h) => `${h.zoneId}${h.ok ? '' : ' ✗'}`).join(' → ');
@@ -247,6 +249,8 @@ async function stubbedApp(browser, viewport, save, profile) {
     user: { id: HUD_USER, aud: 'authenticated', role: 'authenticated', email: 'kid@example.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' },
   };
   await page.addInitScript((s) => localStorage.setItem('sb-supabase-auth-token', s), JSON.stringify(session));
+  page.errors = [];
+  page.on('pageerror', (e) => page.errors.push(String(e)));
   await page.route(`${STUB}/**`, async (route) => {
     const req = route.request();
     const url = req.url();
@@ -298,6 +302,8 @@ function hudLayout() {
   return {
     overlaps,
     hscroll: document.documentElement.scrollWidth > window.innerWidth + 1,
+    // The whole map on screen without scrolling (the d-pad below it may need a scroll).
+    mapCut: canvas ? Math.max(0, Math.round(canvas.bottom - window.innerHeight)) : 0,
     barHeight: Math.round(bar.getBoundingClientRect().height),
     stage: canvas ? `${Math.round(canvas.width)}×${Math.round(canvas.height)} @ y ${Math.round(canvas.top)}` : 'no canvas',
   };
@@ -342,8 +348,7 @@ async function hud(browser, outDir) {
   for (const [width, height] of sizes) {
     const size = `${width}×${height}`;
     const page = await stubbedApp(browser, { width, height }, depths, profile);
-    const errors = [];
-    page.on('pageerror', (e) => errors.push(String(e)));
+    const errors = page.errors;
     const layout = await page.evaluate(hudLayout);
     await page.screenshot({ path: path.join(outDir, `hud-${size}.png`) });
     await page.getByRole('button', { name: '📜 Menu' }).click();
@@ -364,12 +369,16 @@ async function hud(browser, outDir) {
     const inSpire = (await sp.locator('[data-testid=spire-hud-slot] button').count()) > 0;
     const spireLayout = inSpire ? await sp.evaluate(hudLayout) : null;
     await sp.screenshot({ path: path.join(outDir, `hud-${size}-spire.png`) });
+    errors.push(...sp.errors);
     await sp.close();
-    const ok = !layout.overlaps.length && !layout.hscroll && covered.every(Boolean) && inSpire && !spireLayout.overlaps.length && !spireLayout.hscroll && !errors.length;
+    const cut = Math.max(layout.mapCut, spireLayout?.mapCut ?? 0);
+    const ok =
+      !layout.overlaps.length && !layout.hscroll && covered.every(Boolean) && inSpire && !spireLayout.overlaps.length && !spireLayout.hscroll && !cut && !errors.length;
     if (!ok) bad += 1;
     console.log(`${ok ? '✓' : '✗'} ${size}  top bar ${layout.barHeight}px, stage ${layout.stage}; menu covers the bar: ${covered.every(Boolean) ? 'yes' : `no (${covered})`}; Spire HUD: ${inSpire ? 'in the row' : 'never reached'}`);
     for (const o of [...layout.overlaps, ...(spireLayout?.overlaps ?? [])]) console.log(`    overlap: ${o}`);
     if (layout.hscroll || spireLayout?.hscroll) console.log('    scrolls sideways');
+    if (cut) console.log(`    the map runs ${cut}px off the bottom of the screen${spireLayout?.mapCut ? ' (in the Spire)' : ''}`);
     for (const e of errors) console.log(`    page error: ${e}`);
   }
   console.log(`\n${sizes.length - bad}/${sizes.length} sizes clean. Screenshots in ${outDir}.`);

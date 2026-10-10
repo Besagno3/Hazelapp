@@ -114,6 +114,13 @@ describe('saveStore.load', () => {
     expect(save).toEqual(normalizeSave(raw));
     expect(JSON.parse(localStorage.getItem(saveKey('u-fixture'))!)).toEqual(normalizeSave(raw));
     await vi.waitFor(() => expect(remote.upserts).toHaveLength(1));
+    const row = remote.upserts[0] as { profile_id: string; data: { version: number } };
+    expect(row.profile_id).toBe('u-fixture');
+    expect(row.data).toEqual(normalizeSave(raw));
+    expect(row.data.version).toBe(SAVE_VERSION);
+    // …and only once.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(remote.upserts).toHaveLength(1);
   });
 
   it('a v2 save kept only on this device (no server row) loads the same', async () => {

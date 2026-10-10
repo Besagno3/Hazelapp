@@ -29,7 +29,7 @@ import { passable as tilePassable, seaCrossing } from './travel';
 export type Cell = { x: number; y: number };
 
 export interface ReachOptions {
-  /** Where the search starts — always counted as reached. Default: the zone's spawn. */
+  /** Where the search starts — always counted as reached (a start off the map is dropped). Default: the zone's spawn. */
   from?: Cell | readonly Cell[];
   /** The start is afloat (the hero is in the boat). */
   aboard?: boolean;
@@ -46,7 +46,8 @@ export interface ReachOptions {
   /**
    * Gatekeepers' gates ('G'): `closed` (default) walls; `open` as if every
    * question were answered; `flags` as the canvas does — open once its
-   * `gate:` flag is set; or decide per gate id.
+   * `gate:` flag is set (so with `flags: null`, every gate is shut); or
+   * decide per gate id.
    */
   gates?: 'closed' | 'open' | 'flags' | ((gateId: string) => boolean);
   /**
@@ -139,7 +140,7 @@ function explore(
   };
 
   const seeds = opts.from === undefined ? [z.spawn] : Array.isArray(opts.from) ? opts.from : [opts.from as Cell];
-  const seedStates = new Set(seeds.map((c) => id(c.x, c.y, MODE_BIT[startMode])));
+  const seedStates = new Set(seeds.filter((c) => inMap(c.x, c.y)).map((c) => id(c.x, c.y, MODE_BIT[startMode])));
   for (const s of seedStates) visit(s, null);
 
   for (let head = 0; head < queue.length && found === null; head++) {
@@ -198,6 +199,8 @@ export function behindFog(z: ZoneDef, flags: Record<string, boolean>): Set<strin
 
 /** How far (cells) a hero saved afloat may be moved to stay afloat (`safeSpawn`). */
 export const BOAT_SPAWN_REACH = 6;
+/** How many steps a save standing on an exit may be walked off it (`safeSpawn`). */
+export const EXIT_STEP_OFF = 3;
 
 /**
  * A position (pixels) the hero can safely stand on, else the zone spawn. With
@@ -233,7 +236,7 @@ export function safeSpawn(
     WALKABLE_CHARS.has(tileAt(z, x, y)) && !shut?.has(`${x},${y}`) && !z.exits.some((e) => e.x === x && e.y === y);
   if (standable(cx, cy)) return pos;
   if (!WALKABLE_CHARS.has(tileAt(z, cx, cy)) || shut?.has(`${cx},${cy}`)) return fallback;
-  // On an exit: the nearest open floor beside it.
-  const beside = nearestCell(cx, cy, 2, standable);
-  return beside ? centre(beside) : fallback;
+  // On an exit: the nearest open floor a few steps away — walked to, never across a wall or a shut gate.
+  const off = reachPath(z, standable, { from: { x: cx, y: cy }, flags: flags ?? null, gates: 'flags', exits: 'stop' });
+  return off && off.length - 1 <= EXIT_STEP_OFF ? centre(off[off.length - 1]) : fallback;
 }

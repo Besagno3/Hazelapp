@@ -837,6 +837,10 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-689 | C | ✅ | HUD | on the world screen the level, streak and Sign out sit in the page's top bar (no fixed ancestor), before the place name; in the Spire, 🚪 Leave the Spire takes 📜 Menu's place in the HUD row (WorldScreen.hud.test) |
 | TC-690 | M | ✅ | HUD | `bench/run-world-bench.cjs hud` — the real app with Supabase stubbed, at 320×568, 360×640, 375×667, 740×360 and 1024×768: no two HUD pieces overlap (badges, Sign out, title, crystals line, stats, Menu / Spire status), no sideways scroll, top bar 44 px, the open Menu covers every top-bar item, the Spire's status sits in the HUD row: 5/5 (2026-10-10) |
 | TC-691 | M | ⏳ | HUD | on a real phone (portrait and sideways): the top bar reads at a glance, Sign out is easy to hit but hard to hit by accident, VoiceOver / TalkBack read "Level 13", "Streak: 12 days" |
+| TC-692 | C | ✅ | Spire | exploring a floor, the real climb puts its seals and "4 of 4 candle-lights left" in the HUD slot; 🚪 Leave the Spire asks "Leave the Spire?" with 🗼 Keep climbing focused (back to the floor) and 🚪 Leave (the climb starts again from the first floor next time) (SpireOverlay.test) |
+| TC-693 | C | ✅ | HUD | floating Sign out signs out in one tap; in the world's top bar the first tap shows "Tap again to sign out" (44 px tall), the second signs out, and it resets after 3 s (SignOutButton.test) |
+| TC-694 | U | ✅ | reach | a start off the map is dropped; a save on any exit walks ≤ 3 steps off it (or wakes at the spawn when fog shuts it in), never across a wall or through another exit (reach.test) |
+| TC-695 | M | ✅ | HUD | `… hud` after the review fixes: 5/5 sizes, the map fully on screen at each (also in the Spire), "🔥 12 days" at 360 px, no page errors from the first script (2026-10-10) |
 
 ## Regression cases (tied to ISSUES.md)
 

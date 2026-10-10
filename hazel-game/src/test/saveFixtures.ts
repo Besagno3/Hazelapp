@@ -67,9 +67,9 @@ export const V2_FIRST_BUILD = {
 
 /**
  * v2 after the field spells (dfd3d5c, item 9), before real dungeons (item
- * 10): in the Clockwork Depths' gated vault, on the cell where item 10 later
- * drew the stairs down — Glow learned, the Echo Mine lit, the Verdant Key
- * won, Verdara freed. No `lastRest` yet (item 11).
+ * 10): in the Clockwork Depths' gated vault (its gatekeeper answered), on
+ * the cell where item 10 later drew the stairs down — Glow learned, the Echo
+ * Mine lit, the Verdant Key won, Verdara freed. No `lastRest` yet (item 11).
  */
 export const V2_PRE_ITEM10 = {
   version: 2,
@@ -95,6 +95,8 @@ export const V2_PRE_ITEM10 = {
     'visited:verdara': true,
     'visited:clockwork-depths': true,
     'lit:echo-mine': true,
+    // The vault's gatekeeper, answered (its gate is the 'GG' on row 8).
+    'gate:clockwork-depths:gate:10,8': true,
   },
   openedChests: ['numbria:chest:12,4'],
   kills: { 'count-bat': 3, 'bolt-mouse': 1 },

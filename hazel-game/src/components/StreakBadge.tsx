@@ -6,8 +6,8 @@ import { useProfileStore } from '../store/profileStore';
  * before then so the first-ever round doesn't compete with the level UI.
  *
  * `inline` (the world screen's top bar, #75 item 14b / #102i): beside the
- * medallion instead of floating under it, and on a phone just "🔥 5" — the
- * words are read aloud (and shown from `sm` up).
+ * medallion instead of floating under it, and on a phone "🔥 5 days" ("🔥 5"
+ * under 360 px) — the label is read aloud (and shown from `sm` up).
  */
 export default function StreakBadge({ inline = false }: { inline?: boolean }) {
   const profile = useProfileStore((s) => s.profile);
@@ -29,6 +29,8 @@ export default function StreakBadge({ inline = false }: { inline?: boolean }) {
         <>
           <span className="text-sm font-bold leading-none sm:hidden" aria-hidden>
             {currentStreak}
+            {/* "days" fits from 360 px up — it says what the number counts (🔥 also means answers in a row in battle). */}
+            <span className="hidden min-[360px]:inline"> {currentStreak === 1 ? 'day' : 'days'}</span>
           </span>
           <span className="sr-only sm:hidden">
             {isRecord ? 'Best streak! ' : 'Streak: '}

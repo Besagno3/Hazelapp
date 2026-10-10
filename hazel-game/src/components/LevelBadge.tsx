@@ -39,7 +39,9 @@ export default function LevelBadge({ placement = 'top-left' }: { placement?: Pla
       <div
         className={`grid place-items-center ${inline ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-gradient-to-br from-amber-300 to-yellow-600 ring-2 ring-yellow-200 shadow-inner`}
       >
-        <span className="text-base font-extrabold leading-none text-yellow-950">{level}</span>
+        <span className="text-base font-extrabold leading-none text-yellow-950" aria-hidden>
+          {level}
+        </span>
       </div>
       <div className={inline ? 'min-w-[4rem]' : 'min-w-[5.5rem]'}>
         <div className="text-[11px] font-semibold uppercase tracking-wide text-yellow-200">

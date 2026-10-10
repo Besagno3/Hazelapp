@@ -50,6 +50,8 @@ type Phase =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
   | { kind: 'explore' }
+  /** "Leave the Spire?" — the climb starts again from the first floor next time. */
+  | { kind: 'leave' }
   | { kind: 'question'; mode: 'ward'; wardId: string; index: number }
   | { kind: 'question'; mode: 'boss'; index: number }
   | { kind: 'win' }
@@ -304,7 +306,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     misses.current = [];
     setPhase({
       kind: 'message',
-      text: 'You slip back down the winding stairs to the Spire door. The climb will wait — come back whenever you are ready.',
+      text: "You slip back down the winding stairs to the Spire door. Come back whenever you're ready — next time, the climb starts again from the first floor.",
       next: close,
     });
   }
@@ -318,9 +320,9 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   if (!save) return null;
 
   const candles = (
-    <span title="Candle-lights" className="text-sm">
+    <span title="Candle-lights" className="text-sm" role="img" aria-label={`${lives} of ${SPIRE_LIVES} candle-lights left`}>
       {Array.from({ length: SPIRE_LIVES }).map((_, i) => (
-        <span key={i} className={i < lives ? '' : 'opacity-25 grayscale'}>
+        <span key={i} aria-hidden className={i < lives ? '' : 'opacity-25 grayscale'}>
           🕯️
         </span>
       ))}
@@ -343,8 +345,8 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
           </span>
           {candles}
           <button
-            onClick={leave}
-            className="shrink-0 bg-slate-950/85 hover:bg-slate-800 border border-white/30 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+            onClick={() => setPhase({ kind: 'leave' })}
+            className="shrink-0 bg-slate-950/60 hover:bg-slate-800 rounded-lg px-3 py-1.5 text-xs font-semibold text-white/90"
           >
             🚪 Leave the Spire
           </button>
@@ -360,7 +362,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
           {candles}
         </div>
         <button
-          onClick={leave}
+          onClick={() => setPhase({ kind: 'leave' })}
           className="pointer-events-auto bg-slate-950/85 hover:bg-slate-800 border-2 border-white/30 rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-xl whitespace-nowrap"
         >
           🚪 Leave the Spire
@@ -443,6 +445,33 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
                 className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-5 py-2 text-sm"
               >
                 Leave the Spire
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* One tap on Leave doesn't end a climb: it sits where 📜 Menu usually is (#75 item 14b review). */}
+        {phase.kind === 'leave' && (
+          <div role="alertdialog" aria-labelledby="spire-leave-q" aria-describedby="spire-leave-why">
+            <p id="spire-leave-q" className="font-extrabold text-lg">
+              Leave the Spire?
+            </p>
+            <p id="spire-leave-why" className="text-sm text-white/75 mt-1">
+              Next time, the climb starts again from the first floor.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                autoFocus
+                onClick={() => setPhase({ kind: 'explore' })}
+                className="flex-1 min-h-11 bg-violet-500 hover:bg-violet-400 rounded-xl px-4 py-2 font-bold"
+              >
+                🗼 Keep climbing
+              </button>
+              <button
+                onClick={leave}
+                className="flex-1 min-h-11 bg-white/10 hover:bg-white/20 border border-white/30 rounded-xl px-4 py-2 font-semibold"
+              >
+                🚪 Leave
               </button>
             </div>
           </div>
