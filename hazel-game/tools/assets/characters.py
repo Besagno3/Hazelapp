@@ -3063,12 +3063,20 @@ def H(**kw):
 
 ROSTER: list[Char] = [
     # ── Heroes ──
-    Char('blaze', '🦁', 'humanoid', H(skin='#e8a94c', hair='mane', hair_color='#c0501e', ears='round', snout='muzzle',
-                                     outfit='#d8383a', trim='#ffd24a', item='sword', tail='lion', cape='#8a1e2a', blush=False)),
-    Char('shield', '🐢', 'humanoid', H(skin='#86c86a', outfit='#2f7fb0', trim='#e0b040', shell='#5a8c3a', item='shield',
-                                      hat='helmet', hat_color='#9aa6b4', snout='wide', item_color='#b8c4d4')),
-    Char('nova', '🦅', 'humanoid', H(skin='#f4efe2', hair='crest', hair_color='#8a5a30', snout='beak', outfit='#3a5fc8',
-                                    trim='#f0f0f0', wings='feather', wing_color='#9a6a3a', item='spear', scarf='#ffd24a')),
+    # Valor the lion knight (crown, gold cape), Bastion the turtle guardian (silver
+    # helm, amber shell), Talon the eagle ranger (green hood), Kira the fox duelist
+    # (red ponytail) and Selene the moon-cat mystic (midnight hair, a glowing orb
+    # held low so it never hides her face).
+    Char('valor', '🦁', 'humanoid', H(skin='#eab04e', hair='mane', hair_color='#a83a1a', ears='round', snout='muzzle',
+         outfit='#c8283a', trim='#ffd24a', hat='crown', item='sword', item_color='#ffb84a', tail='lion', cape='#e0a82a', blush=False)),
+    Char('bastion', '🐢', 'humanoid', H(skin='#7ac08a', outfit='#8a5ad0', trim='#ffd24a', shell='#c07a3a', item='shield', item_color='#e0e6f0',
+         hat='helmet', hat_color='#d0d8e4', snout='wide')),
+    Char('talon', '🦅', 'humanoid', H(skin='#f4efe2', snout='beak', outfit='#3e7a3a', trim='#e8d8a0', wings='feather', wing_color='#7a4a2a',
+         hat='hood', hat_color='#2e5a2e', item='spear', scarf='#d84a3a')),
+    Char('kira', '🦊', 'humanoid', H(skin='#f6f4f8', ears='pointed', snout='pointy', muzzle='#ffffff', tail='fox',
+         hair='ponytail', hair_color='#e03a3a', outfit='#2a2f5a', trim='#ff6a6a', scarf='#e03a3a', item='sword', item_color='#f0f4ff')),
+    Char('selene', '🐈', 'humanoid', H(skin='#f2ede2', ears='pointed', snout='muzzle', muzzle='#ffffff', tail='long', eye='#3aa8ff',
+         hair='long', hair_color='#26328a', outfit='#1f5f8a', trim='#e8eef8', robe=True, cape='#1a2050', item='orb', item_color='#ffe08a', blush=True)),
     # ── Ember ──
     Char('ember-egg', '🥚', 'egg'),
     Char('ember-hatchling', '🐣', 'dragon', H(color='#ff7a2f', stage='hatchling'),

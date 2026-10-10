@@ -29,7 +29,10 @@ function Floats({ floats, side, reduceMotion }: { floats: FloatText[]; side: FxS
             initial={{ y: 0, opacity: 1 }}
             animate={reduceMotion ? { opacity: 0 } : { y: -54, opacity: 0 }}
             transition={{ duration: 1 }}
-            className={`absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap font-extrabold text-2xl ${f.color}`}
+            // Centred through Motion's own `x`: its transform replaces a Tailwind
+            // translate class, which left every float hanging off to the right.
+            style={{ x: '-50%' }}
+            className={`absolute -top-6 left-1/2 whitespace-nowrap font-extrabold text-2xl ${f.color}`}
           >
             {f.text}
           </motion.span>
