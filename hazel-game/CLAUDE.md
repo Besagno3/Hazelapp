@@ -98,7 +98,9 @@ zod, react-query. Add the package in the same change that first uses it.
   machine owns *where the player is*; Zustand stores own *what they have*.
 - **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
-  `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
+  `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone,
+  each in an act (`act`; `actCrystals` / `actRestored` / `actComplete` —
+  the Spire, the ending and the 🚩 read Act I's, #75 item 14c);
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
   resolves all seven, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
   overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
@@ -114,7 +116,9 @@ zod, react-query. Add the package in the same change that first uses it.
   Dawnreach's terrain is painted in **Tiled** — `content/maps/dawnreach.tmj`
   with the `legend.tsj` tileset, read by `tiledRows` (`lib/tiled.ts`); see
   `docs/MAP-AUTHORING.md`), `npcs.ts` (dialogue trees),
-  `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
+  `enemies.ts` (archetypes + fiends, age-scaled at spawn; a boss's `role` —
+  `fiend / warden / miniboss / echo / finale` — decides what beating it does
+  and what it says, `bossScript`, #75 item 14c), `abilities.ts`
   (Sage personas + charge tuning), `companion.ts` (battle companions — Ember /
   Pip / Wisp — their strikes, perks + Pair Attacks), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `fieldSpells.ts` (#75 item 9: the field
@@ -136,7 +140,9 @@ zod, react-query. Add the package in the same change that first uses it.
   (carry an item, any of its forms) and *bring* (hand it to an NPC, who may
   hand back something new) steps; `openChest` pays a key-item chest's
   `ZoneDef.keyChests` item and `zoneChestOpened` ignores those chests; each
-  quest item belongs to one quest), `secrets.ts` (hidden secrets per
+  quest item belongs to one quest; one person may give several quests in
+  turn — `questFor(npcId, save)` — and a step may go through a giver, #75
+  item 14c), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
