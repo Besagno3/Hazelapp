@@ -985,6 +985,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-817 | U | ✅ | music | `musicScreen`: no music while the session is checked (a refresh mid-game never plays the intro), the intro whenever nobody is signed in (or a new password is being set), else the game's screen (audio.test) |
 | TC-818 | M | ✅ | music | the real app in headless Chromium, Supabase stubbed, music on: the sign-in page plays only the intro at full volume; in the world the overworld theme; Sign out → the overworld stops and the intro plays — 4 runs, one on a cold server |
 | TC-819 | M | ✅ | music | `python3 tools/assets/build.py intro` writes only `intro.mp3` (72 s), byte-identical on a rebuild; loudness by bar rises 15% → 100% by bar 17 and falls to 19% by bar 24, meeting the loop's start |
+| TC-822 | M | ✅ | music | the intro, retuned lower: the same notes an octave down (harp top ≈ 1.1 kHz, tune G4–Ab5), brightness (spectral centroid) 3070 → 1740 Hz and energy above 2 kHz 40% → 22%, loudness by bar still 14% → 100% → 19%; `build.py intro` byte-identical on a rebuild |
 | TC-820 | M | ⬜ | music | by ear: a harp arpeggio rising and falling, swelling from soft ripples to a full climax and back; the loop comes round without a jump |
 | TC-821 | M | ⬜ | music | in a real browser with Music on, open the sign-in page fresh: silent until the first tap or key (the browser's rule), then the intro starts; sign out from the world → the intro replaces the world's music |
 

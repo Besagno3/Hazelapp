@@ -595,6 +595,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The sign-in intro, an octave lower and mellower (#117)
+Liked the tune, tempo and notes; it was too high-pitched. Same notes and
+shape, an octave down — the harp's sweeps now start between D2 and C#3 (top
+note ≈ 1.1 kHz, was ≈ 2.2 kHz), the tune sits in G4–Ab5 (was G5–Ab6) — and a
+rounder sound: the harp is a triangle with a touch of square (was a narrow,
+nasal pulse), the tune a square-and-triangle blend, the pad square waves an
+octave down, the cymbal wash darker, and the harp and tune go through a warm
+filter (≈ 1.8 kHz, was ≈ 4 kHz). The climax's harp no longer doubles an
+octave up; it plays louder instead. Brightness (spectral centroid) 3070 →
+1740 Hz, energy above 2 kHz 40% → 22%; loudness by bar still 14% → 100% →
+19%. Rebuilt with `build.py intro` (byte-identical on a rebuild).
+
 ### 2026-10-10 — The sign-in screen gets its own intro music (#117)
 The sign-in screen played the title theme. Now it has an intro of its own,
 heard there and on the screen after signing out (and while choosing a new
@@ -604,7 +616,7 @@ intro`). A harp-like arpeggio sweeps up three octaves and back each bar over
 E♭–Cm–A♭–B♭-style progressions; it begins as small ripples, alone and soft,
 widens into full sweeps as a string pad joins, gains a tune and a bass, swells
 through a timpani roll into a climax (the tune an octave up with a line below
-it, the harp doubled), then thins back to the ripples, so the loop meets its
+it), then thins back to the ripples, so the loop meets its
 own soft start (loudness by bar 15% → 100% → 19%). Original — written in the
 spirit of a 16-bit RPG prelude, not a copy of one.
 - **Wiring:** `musicScreen(initialized, signedIn, gameScreen)` (`lib/audio.ts`)

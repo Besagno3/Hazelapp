@@ -891,18 +891,19 @@ def build_sea_music(public: Path):
 # chord per bar, that grows: it starts as small ripples, alone and very soft,
 # widens into full sweeps as a pad comes in, gains a tune and a bass, swells
 # with a timpani roll into a climax (the tune an octave up, a second line
-# below it, the harp doubled), then thins back to the soft ripples it began
-# with — so the loop comes round without a jump. An original piece, in E-flat;
+# below it), then thins back to the soft ripples it began with — so the loop
+# comes round without a jump. Kept low and mellow: round square-ish waves
+# through a warm filter, nothing shrill. An original piece, in E-flat;
 # deterministic like the rest.
 
 INTRO_CHORDS = ('Eb Cm Ab Bb | Eb Gm Ab Bb | Cm Ab Eb Bb | Ab Bb Eb Eb | '
                 'Ab Bb Gm Cm | Ab Bb Eb Bb')
 # The tune, from bar 9 to bar 21 (note:eighths, 8 to a bar).
-INTRO_TUNE = ('G5:3 Ab5:1 G5:2 Eb5:2 | C6:4 Bb5:2 Ab5:2 | G5:3 F5:1 Eb5:2 Bb4:2 | D5:6 r:2 | '
-              'Eb5:2 Ab5:2 C6:3 Bb5:1 | Bb5:2 F5:2 D6:4 | Eb6:3 D6:1 Bb5:2 G5:2 | Eb6:6 r:2 | '
-              'C6:2 Eb6:2 Ab6:4 | F6:3 D6:1 Bb5:4 | G6:2 D6:2 Bb5:2 G5:2 | C6:4 Eb6:4 | Ab5:8')
+INTRO_TUNE = ('G4:3 Ab4:1 G4:2 Eb4:2 | C5:4 Bb4:2 Ab4:2 | G4:3 F4:1 Eb4:2 Bb3:2 | D4:6 r:2 | '
+              'Eb4:2 Ab4:2 C5:3 Bb4:1 | Bb4:2 F4:2 D5:4 | Eb5:3 D5:1 Bb4:2 G4:2 | Eb5:6 r:2 | '
+              'C5:2 Eb5:2 Ab5:4 | F5:3 D5:1 Bb4:4 | G5:2 D5:2 Bb4:2 G4:2 | C5:4 Eb5:4 | Ab4:8')
 INTRO_TUNE_FROM = 8  # bar index (0-based) the tune comes in on
-INTRO_CLIMAX = range(16, 20)  # the tune an octave up, a line below it, the harp doubled
+INTRO_CLIMAX = range(16, 20)  # the tune an octave up, a line below it, the harp leaning in
 # How loud each bar starts (the mix is normalised to its loudest moment): the
 # crescendo up to the climax, and back down so the loop meets its soft start.
 # The tune and bass come in at bar 9, so the dynamics step back there to keep
@@ -912,10 +913,10 @@ INTRO_DYN = (0.32, 0.37, 0.42, 0.48, 0.45, 0.53, 0.60, 0.67, 0.44, 0.50, 0.57, 0
 
 
 def _pluck(m: float, dur=1.2) -> np.ndarray:
-    """A harp-ish pluck: a soft triangle with a little pulse, ringing away."""
+    """A harp-ish pluck: a soft triangle with a touch of square, ringing away."""
     n = int(dur * SR)
     t = np.arange(n) / SR
-    sig = _osc(hz(m), dur, 'tri') + 0.3 * _osc(hz(m), dur, 'pulse', 0.25)
+    sig = _osc(hz(m), dur, 'tri') + 0.12 * _osc(hz(m), dur, 'pulse', 0.5)
     return sig * np.exp(-t * 3.4) * env(n, 0.002, 0.01, 1.0, 0.12)
 
 
@@ -944,10 +945,10 @@ def compose_intro(bpm=80):
         t0 = bi * bar
         root, tones = chord_notes(ch)
         third = next(((p - root) % 12 for p in tones if (p - root) % 12 in (3, 4)), 4)
-        base = 48 + root if 48 + root >= 50 else 60 + root  # the sweep starts between D3 and C#4
+        base = 36 + root if 36 + root >= 38 else 48 + root  # the sweep starts between D2 and C#3
         # chord tones climbing in an open spread: root, fifth, octave, tenth, …
         rungs = [0, 7, 12, 12 + third, 19, 24, 24 + third, 31, 36]
-        if bi < 4:  # the opening: two small ripples a bar, an octave higher
+        if bi < 4:  # the opening: two small ripples a bar, an octave up from the sweeps' start
             figure = [base + 12 + r for r in (0, 7, 12, 12 + third, 19, 12 + third, 12, 7)] * 2
         else:  # a full sweep: up eight, then back down from the top
             up = [base + r for r in rungs[:8]]
@@ -956,15 +957,15 @@ def compose_intro(bpm=80):
         for k, m in enumerate(figure):
             t = t0 + k * s16
             g = 0.16 * dyn_at(t) * (1.15 if k in (0, 8) else 1.0)  # lean on each beat-1 and -3
+            if bi in INTRO_CLIMAX:  # it leans in for the climax (louder, not higher)
+                g *= 1.25
             mixin(harp, _pluck(m), t, g)
-            if bi in INTRO_CLIMAX:  # doubled an octave up for the climax
-                mixin(harp, _pluck(m + 12, 0.8), t + s16 / 2, 0.05 * dyn_at(t))
 
         # a soft string pad from the second phrase, the chord held across the bar
         if 4 <= bi <= 21:
             for j, p in enumerate(tones[:3]):
                 for det in (0.0, 0.08):
-                    sig = _osc(hz(60 + (p - 60) % 12 + det), bar * 1.1, 'pulse', 0.125)
+                    sig = _osc(hz(48 + (p - 48) % 12 + det), bar * 1.1, 'pulse', 0.5)
                     mixin(strings, sig * env(len(sig), 0.9, 0.4, 0.7, 0.7), t0 + j * 0.02, 0.02 * dyn_at(t0))
         # a bass under the tune: root, then fifth
         if INTRO_TUNE_FROM <= bi <= 21:
@@ -984,7 +985,7 @@ def compose_intro(bpm=80):
             if m is not None:
                 dur = length * s16 * 2 * 0.95
                 vib = 0.006 if length >= 3 else 0.0
-                sig = _osc(hz(m), dur, 'pulse', 0.25, vib) + 0.5 * _osc(hz(m), dur, 'tri', vib=vib)
+                sig = 0.6 * _osc(hz(m), dur, 'pulse', 0.5, vib) + _osc(hz(m), dur, 'tri', vib=vib)
                 mixin(lead, sig * env(len(sig), 0.03, 0.12, 0.8, 0.15), t, 0.15 * dyn_at(t))
                 if climax:
                     h = _osc(hz(_third_below(m, scale)), dur, 'pulse', 0.5, vib)
@@ -1000,14 +1001,14 @@ def compose_intro(bpm=80):
         frac = k / 31
         mixin(perc, _timp(eb2 if k % 2 == 0 else eb2 + 7, 0.4), t0 + k * s16 / 2, 0.05 + 0.25 * frac ** 1.5)
     wn = int(bar * SR)
-    wash = lowpass(noise(bar, 4.0, 67), 0.5) * np.linspace(0, 1, wn) ** 2
-    mixin(perc, wash, t0, 0.12)
+    wash = lowpass(noise(bar, 4.0, 67), 0.15) * np.linspace(0, 1, wn) ** 2
+    mixin(perc, wash, t0, 0.1)
     mixin(perc, _timp(eb2, 1.6), INTRO_CLIMAX.start * bar, 0.6)
     mixin(perc, _timp(eb2, 1.4), (INTRO_CLIMAX.stop) * bar, 0.35)  # and as the climax lets go
 
-    melodic = lowpass(_fold(harp, n) + _fold(lead, n), 0.55)
+    melodic = lowpass(_fold(harp, n) + _fold(lead, n), 0.3)  # a warm filter: rounds off the fizz
     wet = echo(melodic, delay=s16 * 3, fb=0.35, wet=0.25, wrap=True)
-    return wet + lowpass(_fold(strings, n), 0.3) + lowpass(_fold(bass, n), 0.6) + _fold(perc, n)
+    return wet + lowpass(_fold(strings, n), 0.2) + lowpass(_fold(bass, n), 0.6) + _fold(perc, n)
 
 
 def build_intro_music(public: Path):
