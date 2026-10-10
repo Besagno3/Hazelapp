@@ -8,7 +8,7 @@ const { default: WakeFade, WAKE_MS, MORNING_MS, NEXT_MORNING } = await import('.
 const { HOMECOMING_PANELS } = await import('../content/story');
 const confetti = (await import('canvas-confetti')).default as unknown as { reset: ReturnType<typeof vi.fn> };
 
-const cast = { hero: { spriteId: 'nova', emoji: '🦅' }, ember: { spriteId: 'ember-dragon', emoji: '🐉' } };
+const cast = { hero: { spriteId: 'talon', emoji: '🦅' }, ember: { spriteId: 'ember-dragon', emoji: '🐉' } };
 const WORDS = [
   { emoji: '1️⃣', text: 'First panel.' },
   { emoji: '2️⃣', text: 'Second panel.' },

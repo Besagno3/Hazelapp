@@ -28,7 +28,7 @@ export default function QuestionCard({
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
   hints?: number;
-  /** The hint button's words in place of "Use a Hint Feather (N left)" (Skye's Fox Sense). */
+  /** The hint button's words in place of "Use a Hint Feather (N left)" (Kira's Fox Sense). */
   hintLabel?: string;
   /** Wrong options crossed out from the start (a companion's peek). */
   preHidden?: number;

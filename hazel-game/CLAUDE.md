@@ -147,8 +147,9 @@ zod, react-query. Add the package in the same change that first uses it.
   turn — `questFor(npcId, save)`, the one you've started first — and a step
   may go through a giver, #75 item 14c), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts` (the five heroes —
-  Blaze, Shield, Nova, Skye, Nyx — each a hero type (`FIGHT_STYLES`), with
-  `STYLE_LABEL` / `STYLE_DESC` and the types' special abilities, `HERO_ABILITIES`).
+  Valor, Bastion, Talon, Kira, Selene (ids a1–a5) — each a hero type
+  (`FIGHT_STYLES`), with `STYLE_LABEL` / `STYLE_DESC` and every type's two
+  signature abilities, `HERO_ABILITIES`).
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
@@ -382,12 +383,18 @@ zod, react-query. Add the package in the same change that first uses it.
   miss). **🔄 Swap** changes companion as a free action. **Hero types**
   (`FightStyle`) set attack / block (`STYLE_ATTACK` / `STYLE_BLOCK`) and spell
   power (`STYLE_MAGIC` — what spells and Pair Attacks scale from; the original
-  three's equals their attack); the heroines' abilities: **Skye** (swift)
-  strikes back after a defend answered right (**Counter Strike**,
-  `counterDamage` → `resolveEnemyTurn`'s `counter`) and gets a free hint each
-  fight (**Fox Sense**, `CombatState.freeHint`); **Nyx** (mystic) opens every
-  fight with 2◆ (**Spark Start**) and has the highest spell power (**Spell
-  Power**) — the opening perks come from `heroOpening(style)`, handed to
+  three's equals their attack); every type has two signature abilities —
+  **Valor** (aggressive): **Battle Cry** (opens focused: the first landed
+  Attack ×2, via `applyFocus`) and **Lionheart** (Attacks ×1.5 below half HP,
+  `lionheartMultiplier`); **Bastion** (defensive): **Shell Up** (opens
+  guarded) and **Rock Steady** (a wrong defend answer still blocks half his
+  block, `defendReduction`); **Talon** (balanced): **Second Wind** (once a
+  fight a knockout leaves 1 HP, `CombatState.secondWind` in `resolveEnemyTurn`)
+  and **Keen Eye** (+3 HP per right answer, `keenEyeHeal`); **Kira** (swift):
+  **Counter Strike** (`counterDamage` → `resolveEnemyTurn`'s `counter`) and
+  **Fox Sense** (a free hint a fight, `CombatState.freeHint`); **Selene**
+  (mystic): **Spark Start** (opens with 2◆) and **Spell Power** (the highest
+  spell power) — the opening perks come from `heroOpening(style)`, handed to
   `battleStore.start` by `WorldScreen`. Enemies sometimes
   **telegraph a power move** (charge turn → 2× blow; Guard blocks it), Sage
   spells are **super effective** vs their topic, **answer streaks** power up
@@ -510,7 +517,7 @@ python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallo
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
-python3 tools/assets/build.py heroes   # the heroines Skye and Nyx only
+python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
 
 ## Error handling
@@ -586,6 +593,41 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Every hero gets signature abilities, a new name and a new look (#115)
+All five heroes now have two signature abilities each, and all five were
+renamed and redrawn. Ids a1–a5 (what saves store), types and HP are
+unchanged, so every save keeps its hero under the new name.
+- **Names, types, looks:** Blaze → **Valor** 🦁 (Warrior; a crowned lion
+  knight in red with a gold cape and a flaming sword), Shield → **Bastion** 🐢
+  (Guardian; silver helm, purple armour, amber shell), Nova → **Talon** 🦅
+  (Ranger; green hood, spear, red scarf), Skye → **Kira** 🦊 (Duelist; white
+  fox, red ponytail, navy tunic) and Nyx → **Selene** 🐈 (Mystic; a cream moon
+  cat with midnight-blue hair, a blue robe and a golden orb). `STYLE_LABEL`
+  now names the types Warrior / Guardian / Ranger / Duelist / Mystic. Sprite
+  ids follow the names (`valor` … `selene`); the old sheets are gone and
+  `build.py heroes` writes the five.
+- **Valor:** 💥 **Battle Cry** — opens every fight focused, so his first
+  landed Attack hits double (Focus Tea's rule; its note now reads "💥
+  Focused", naming neither source); 🦁 **Lionheart** — below half HP his
+  Attacks hit ×1.5 (`LIONHEART_MULT`).
+- **Bastion:** 🛡️ **Shell Up** — opens every fight guarded (the first blow is
+  fully blocked; the stage shows his guard); 🪨 **Rock Steady** — a wrong
+  defend answer still blocks half his block (`ROCK_STEADY_SHARE`).
+- **Talon:** 🌬️ **Second Wind** — once a fight, a knockout blow leaves 1 HP
+  ("🌬️ Second Wind! Talon hangs on with 1 HP!"); 🎯 **Keen Eye** — every right
+  answer mends 3 HP (`KEEN_EYE_HEAL`, floats "🎯 +3").
+- Kira and Selene keep Counter Strike / Fox Sense and Spark Start / Spell Power.
+- **Opening perks** (`heroOpening`) now cover all five (`HeroOpening` gains
+  `focused` / `guarded` / `secondWind`; `NO_OPENING` is the explicit
+  none); each floats a short line as the fight opens ("💥 Battle Cry!",
+  "🛡️ Shell Up!", "✨ +2◆").
+- Tests: 901 green (+8 net: every type has two distinct abilities, each
+  type's opening, Lionheart / Rock Steady / Keen Eye math, Battle Cry /
+  Shell Up / Second Wind turns, and Battle Cry, Lionheart, Shell Up, Keen
+  Eye and Second Wind in the real arena); lint + build clean. Checked in
+  headless Chromium: the hero select at 375 and 1280 px (no sideways scroll)
+  and Valor's Battle Cry landing 80 in a real battle.
 
 ### 2026-10-10 — Two heroines: Skye (swift) and Nyx (mystic), each with special abilities (#115)
 The hero select offers five heroes. The new two each bring a new hero type

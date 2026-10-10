@@ -49,26 +49,42 @@ export interface CombatState {
   lucky: boolean;
   /** Forget-Me-Knot (#75 item 14e): the next wrong answer gets a second try. */
   knotted: boolean;
-  /** Fox Sense (Skye): a free Hint Feather still to use this fight. */
+  /** Fox Sense (Kira): a free Hint Feather still to use this fight. */
   freeHint: boolean;
+  /** Second Wind (Talon): a knockout blow leaves 1 HP instead — once a fight. */
+  secondWind: boolean;
 }
 
 // --- A hero type's opening perks ---------------------------------------------------
 
-/** Spark Start (Nyx, mystic): the spell charge she starts every battle with. */
+/** Spark Start (Selene, mystic): the spell charge she starts every battle with. */
 export const SPARK_START_CHARGE = 2;
 
-/** What a hero's type gives them as a fight opens: spell charge, a free hint. */
+/** What a hero's type gives them as a fight opens. */
 export interface HeroOpening {
+  /** Spark Start (Selene): spell charge already filled. */
   charge: number;
+  /** Fox Sense (Kira): a free Hint Feather. */
   freeHint: boolean;
+  /** Battle Cry (Valor): the first landed Attack hits double (`applyFocus`). */
+  focused: boolean;
+  /** Shell Up (Bastion): the first enemy blow is fully blocked. */
+  guarded: boolean;
+  /** Second Wind (Talon): survive one knockout blow with 1 HP. */
+  secondWind: boolean;
 }
 
-/** A hero type's opening perks — nothing for the original three. */
+/** No opening perks at all (a fight started without a hero type). */
+export const NO_OPENING: HeroOpening = { charge: 0, freeHint: false, focused: false, guarded: false, secondWind: false };
+
+/** A hero type's opening perks — every type has its own. */
 export function heroOpening(style: FightStyle): HeroOpening {
   return {
     charge: style === 'mystic' ? SPARK_START_CHARGE : 0,
     freeHint: style === 'swift',
+    focused: style === 'aggressive',
+    guarded: style === 'defensive',
+    secondWind: style === 'balanced',
   };
 }
 
@@ -144,8 +160,9 @@ export function resolveHeroHit(
  */
 export function applyFocus(s: CombatState, dmg: number): { state: CombatState; dmg: number; note: string } {
   if (!s.focused || dmg <= 0) return { state: s, dmg, note: '' };
-  if (s.enemyShielded) return { state: s, dmg, note: ' 🍵 (Your focus holds for the next swing!)' };
-  return { state: { ...s, focused: false }, dmg: dmg * TEA_DAMAGE_MULT, note: ' 🍵 Focused — double damage!' };
+  // Focus comes from Focus Tea or Valor's Battle Cry, so the words name neither.
+  if (s.enemyShielded) return { state: s, dmg, note: ' 💥 (Your focus holds for the next swing!)' };
+  return { state: { ...s, focused: false }, dmg: dmg * TEA_DAMAGE_MULT, note: ' 💥 Focused — double damage!' };
 }
 
 // --- Enemy intents (telegraphed power moves) --------------------------------------
@@ -216,7 +233,7 @@ export interface EnemyTurnInput {
   style: FightStyle;
   powerUps: PowerUps;
   /**
-   * Counter Strike (Skye): what the hero strikes back with when the defend
+   * Counter Strike (Kira): what the hero strikes back with when the defend
    * answer was right and they're still standing (`counterDamage`; 0 = none).
    */
   counter?: number;
@@ -236,6 +253,8 @@ export interface EnemyTurnResult {
   counterShattered: boolean;
   /** HP the healer archetype mended at the end of its turn (0 = none). */
   mended: number;
+  /** Second Wind (Talon) caught a knockout blow: the hero hangs on at 1 HP. */
+  secondWind: boolean;
   /** The hero is out of HP. */
   heroDown: boolean;
   /** A Mirror Charm bounce or a Counter Strike defeated the enemy (checked before heroDown). */
@@ -251,7 +270,7 @@ export interface EnemyTurnResult {
  * `power` blow (see nextIntent) hits POWER_MULTIPLIER× harder. Otherwise a
  * standing guard blocks it completely (and is spent), or a correct defend
  * answer softens it. Boss damage scales with the enrage phase at the moment
- * it swings. A hero who counters (Skye) and answered right then strikes back
+ * it swings. A hero who counters (Kira) and answered right then strikes back
  * if still standing — like any landed hit, it shatters a shield instead of
  * hurting. A surviving healer-archetype enemy then mends itself while below
  * half HP — rewards pressing the attack.
@@ -282,7 +301,13 @@ export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTu
 
   let enemyHp = Math.max(0, s.enemyHp - reflected);
   reflected = s.enemyHp - enemyHp;
-  const playerHp = Math.max(0, s.playerHp - dmg);
+  let playerHp = Math.max(0, s.playerHp - dmg);
+  // Second Wind (Talon): once a fight, a knockout blow leaves 1 HP.
+  const caught = playerHp <= 0 && s.secondWind;
+  if (caught) {
+    playerHp = 1;
+    next.secondWind = false;
+  }
 
   // Counter Strike: after a right defend answer, a standing hero strikes back.
   let countered = 0;
@@ -311,6 +336,7 @@ export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTu
     shieldShattered,
     countered,
     counterShattered,
+    secondWind: caught,
     mended: enemyHp - afterBounce,
     heroDown: playerHp <= 0,
     enemyDown: enemyHp <= 0,

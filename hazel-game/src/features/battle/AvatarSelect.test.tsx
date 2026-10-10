@@ -16,33 +16,32 @@ beforeEach(() => {
 const card = (name: string) => screen.getByRole('button', { name: new RegExp(`\\b${name}\\b`) });
 
 describe('AvatarSelect — five heroes', () => {
-  it('offers all five heroes, the heroines Skye and Nyx among them', () => {
+  it('offers all five heroes under their new names', () => {
     render(<AvatarSelect />);
     expect(screen.getAllByRole('button')).toHaveLength(5);
-    for (const name of ['Blaze', 'Shield', 'Nova', 'Skye', 'Nyx']) expect(card(name)).toBeInTheDocument();
+    for (const name of ['Valor', 'Bastion', 'Talon', 'Kira', 'Selene']) expect(card(name)).toBeInTheDocument();
   });
 
-  it("shows each heroine's type and her two special abilities", () => {
+  it("shows every hero's type and two signature abilities", () => {
     render(<AvatarSelect />);
-    const skye = within(card('Skye'));
-    expect(skye.getByText('Swift')).toBeInTheDocument();
-    expect(skye.getByText('Counter Strike:')).toBeInTheDocument();
-    expect(skye.getByText('Fox Sense:')).toBeInTheDocument();
-    const nyx = within(card('Nyx'));
-    expect(nyx.getByText('Mystic')).toBeInTheDocument();
-    expect(nyx.getByText('Spark Start:')).toBeInTheDocument();
-    expect(nyx.getByText('Spell Power:')).toBeInTheDocument();
+    const expected: Record<string, [string, string, string]> = {
+      Valor: ['Warrior', 'Battle Cry:', 'Lionheart:'],
+      Bastion: ['Guardian', 'Shell Up:', 'Rock Steady:'],
+      Talon: ['Ranger', 'Second Wind:', 'Keen Eye:'],
+      Kira: ['Duelist', 'Counter Strike:', 'Fox Sense:'],
+      Selene: ['Mystic', 'Spark Start:', 'Spell Power:'],
+    };
+    for (const [name, [type, ...abilities]] of Object.entries(expected)) {
+      const c = within(card(name));
+      expect(c.getByText(type)).toBeInTheDocument();
+      expect(c.getAllByRole('listitem')).toHaveLength(2);
+      for (const ab of abilities) expect(c.getByText(ab)).toBeInTheDocument();
+    }
   });
 
-  it('the original three show their type and no ability list', () => {
+  it('picking Selene saves her as the hero and moves on', () => {
     render(<AvatarSelect />);
-    expect(within(card('Blaze')).getByText('Aggressive')).toBeInTheDocument();
-    expect(within(card('Blaze')).queryByRole('list')).toBeNull();
-  });
-
-  it('picking Nyx saves her as the hero and moves on', () => {
-    render(<AvatarSelect />);
-    fireEvent.click(card('Nyx'));
+    fireEvent.click(card('Selene'));
     expect(useSaveStore.getState().save!.avatarId).toBe('a5');
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CHOOSE_AVATAR' });
   });

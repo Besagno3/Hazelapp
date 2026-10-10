@@ -15,7 +15,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py seamusic   # only the sea music: sailing, the Shallows, the fogbank (#75 item 14)
     python3 tools/assets/build.py lighthouse # only Gull Rock's lighthouse tower (#75 item 14)
     python3 tools/assets/build.py seacritters # only the sea critters + the battle-at-sea backdrop (#75 item 14d)
-    python3 tools/assets/build.py heroes     # only the heroines Skye and Nyx
+    python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -90,8 +90,8 @@ def main():
         tiles.build_hill(PUBLIC)
         print('hill ✓')
     if 'heroes' in only:
-        # Just the heroines Skye and Nyx — every other file untouched.
-        write_manifest(build_sprites.build(PUBLIC, only={'skye', 'nyx'}))
+        # Just the five heroes — every other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only={'valor', 'bastion', 'talon', 'kira', 'selene'}))
         print('heroes ✓')
         return
     if 'seacritters' in only:

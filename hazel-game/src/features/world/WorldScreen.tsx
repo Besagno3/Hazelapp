@@ -463,7 +463,7 @@ export default function WorldScreen() {
             // Mercy far from home (#75 item 12): a critter that has beaten the
             // hero a couple of times fights like a Numbria one from then on.
             const losses = useBattleStore.getState().losses[lossKey(enemy)] ?? 0;
-            // The hero type's opening perks: Nyx's Spark Start, Skye's Fox Sense.
+            // The hero type's opening perks (Battle Cry, Shell Up, Second Wind, Fox Sense, Spark Start).
             startBattle(atTier(enemy, mercyFor(losses, enemy.tier).fightTier), hp, maxHp, heroOpening(avatar?.fightStyle ?? 'balanced'));
             sendFlow({ type: 'ENCOUNTER' });
           },

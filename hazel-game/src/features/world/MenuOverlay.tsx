@@ -100,7 +100,7 @@ export default function MenuOverlay({
               {avatar?.name ?? 'Hero'}
               {avatar && <span className="font-semibold text-fuchsia-200"> · {STYLE_LABEL[avatar.fightStyle]}</span>}
             </div>
-            {/* A hero type's special abilities (Skye, Nyx), by name — the hero select says what each does. */}
+            {/* The hero type's signature abilities, by name — the hero select says what each does. */}
             {avatar && HERO_ABILITIES[avatar.fightStyle].length > 0 && (
               <div className="text-xs text-sky-200">
                 {HERO_ABILITIES[avatar.fightStyle].map((ab) => (

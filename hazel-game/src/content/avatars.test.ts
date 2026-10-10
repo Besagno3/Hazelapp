@@ -10,28 +10,29 @@ describe('the hero roster', () => {
     }
   });
 
-  it('keeps the original three exactly as they were (saves point at their ids)', () => {
-    expect(AVATARS.slice(0, 3).map((a) => [a.id, a.name, a.fightStyle, a.maxHp])).toEqual([
-      ['a1', 'Blaze', 'aggressive', 100],
-      ['a2', 'Shield', 'defensive', 140],
-      ['a3', 'Nova', 'balanced', 120],
+  it('keeps ids a1–a5 on the same types and HP (saves point at the ids), under the new names', () => {
+    expect(AVATARS.map((a) => [a.id, a.name, a.fightStyle, a.maxHp])).toEqual([
+      ['a1', 'Valor', 'aggressive', 100],
+      ['a2', 'Bastion', 'defensive', 140],
+      ['a3', 'Talon', 'balanced', 120],
+      ['a4', 'Kira', 'swift', 100],
+      ['a5', 'Selene', 'mystic', 110],
     ]);
+    expect(avatarById('a1')?.name).toBe('Valor');
   });
 
-  it('adds Skye (swift) and Nyx (mystic), each with her own type', () => {
-    expect(avatarById('a4')).toMatchObject({ name: 'Skye', fightStyle: 'swift' });
-    expect(avatarById('a5')).toMatchObject({ name: 'Nyx', fightStyle: 'mystic' });
-  });
-
-  it('every hero type is used, labelled and described; each heroine has two special abilities', () => {
+  it('every hero type is used, labelled, described, and has two signature abilities of its own', () => {
     expect(new Set(AVATARS.map((a) => a.fightStyle))).toEqual(new Set(FIGHT_STYLES));
+    const names = new Set<string>();
     for (const style of FIGHT_STYLES) {
       expect(STYLE_LABEL[style], style).toBeTruthy();
       expect(STYLE_DESC[style], style).toBeTruthy();
+      expect(HERO_ABILITIES[style], style).toHaveLength(2);
+      for (const ab of HERO_ABILITIES[style]) {
+        expect(ab.emoji && ab.name && ab.text).toBeTruthy();
+        names.add(ab.name);
+      }
     }
-    for (const style of ['swift', 'mystic'] as const) {
-      expect(HERO_ABILITIES[style]).toHaveLength(2);
-      for (const ab of HERO_ABILITIES[style]) expect(ab.emoji && ab.name && ab.text).toBeTruthy();
-    }
+    expect(names.size).toBe(FIGHT_STYLES.length * 2);
   });
 });

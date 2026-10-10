@@ -3,10 +3,10 @@
 import type { SpriteDef } from './sprites';
 
 export const GENERATED_SPRITES: Record<string, SpriteDef> = {
-  "blaze": {
+  "valor": {
     "emoji": "🦁",
     "world": {
-      "sheet": "/sprites/blaze/world.png",
+      "sheet": "/sprites/valor/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -44,7 +44,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/blaze/battle.png",
+      "sheet": "/sprites/valor/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -69,10 +69,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "shield": {
+  "bastion": {
     "emoji": "🐢",
     "world": {
-      "sheet": "/sprites/shield/world.png",
+      "sheet": "/sprites/bastion/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -110,7 +110,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/shield/battle.png",
+      "sheet": "/sprites/bastion/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -135,10 +135,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "nova": {
+  "talon": {
     "emoji": "🦅",
     "world": {
-      "sheet": "/sprites/nova/world.png",
+      "sheet": "/sprites/talon/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -176,7 +176,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/nova/battle.png",
+      "sheet": "/sprites/talon/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -201,10 +201,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "skye": {
+  "kira": {
     "emoji": "🦊",
     "world": {
-      "sheet": "/sprites/skye/world.png",
+      "sheet": "/sprites/kira/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -242,7 +242,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/skye/battle.png",
+      "sheet": "/sprites/kira/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -267,10 +267,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "nyx": {
-    "emoji": "🐈‍⬛",
+  "selene": {
+    "emoji": "🐈",
     "world": {
-      "sheet": "/sprites/nyx/world.png",
+      "sheet": "/sprites/selene/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -308,7 +308,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/nyx/battle.png",
+      "sheet": "/sprites/selene/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,

@@ -10,7 +10,17 @@ import { sfx, stopMusic, type SfxName } from '../../lib/audio';
 import { playerAge, clampLevel, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
-import { attackDamage, spellDamage, companionAttackDamage, counterDamage, pairDamage, BOSS_XP_BONUS, defeatXp } from '../../lib/battleMath';
+import {
+  attackDamage,
+  spellDamage,
+  companionAttackDamage,
+  counterDamage,
+  keenEyeHeal,
+  lionheartMultiplier,
+  pairDamage,
+  BOSS_XP_BONUS,
+  defeatXp,
+} from '../../lib/battleMath';
 import {
   applyFocus,
   chargeAfterAnswer,
@@ -79,7 +89,7 @@ import { DefendTimer } from './DefendTimer';
 import { COMPANION_STRIKE, EMBER_BREATH, HERO_STRIKE, pairChoreo, type Choreo } from './choreography';
 import { IMPACT_MS, useBattleFx } from './useBattleFx';
 
-/** Skye's Counter Strike sets off this long after the enemy's blow lands. */
+/** Kira's Counter Strike sets off this long after the enemy's blow lands. */
 const COUNTER_DELAY_MS = 280;
 
 /** Wall-clock ms for answer timing (module-level so it's never called during render). */
@@ -161,6 +171,7 @@ export default function BattleArena() {
     lucky,
     knotted,
     freeHint,
+    secondWind,
     applyCombat,
     markDefeated,
     recordLoss,
@@ -180,6 +191,7 @@ export default function BattleArena() {
       lucky: s.lucky,
       knotted: s.knotted,
       freeHint: s.freeHint,
+      secondWind: s.secondWind,
       applyCombat: s.applyCombat,
       markDefeated: s.markDefeated,
       recordLoss: s.recordLoss,
@@ -312,9 +324,16 @@ export default function BattleArena() {
   useEffect(() => {
     if (loading || !enemy || calloutShownFor.current === enemy.instanceId) return;
     calloutShownFor.current = enemy.instanceId;
-    // Spark Start (Nyx): the fight opens with her spell charge already glowing.
-    const sparked = heroOpening(style).charge;
-    if (sparked > 0) later(() => float(`✨ +${sparked}◆`, 'hero', 'text-amber-300'), 400);
+    // The hero type's opening perk, shown as the fight opens (short: it floats over the hero).
+    const opening = heroOpening(style);
+    const perk = opening.charge > 0
+      ? `✨ +${opening.charge}◆`
+      : opening.focused
+        ? '💥 Battle Cry!'
+        : opening.guarded
+          ? '🛡️ Shell Up!'
+          : null;
+    if (perk) later(() => float(perk, 'hero', 'text-amber-300'), 400);
     if (enemy.behavior) {
       const callout = {
         shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
@@ -431,7 +450,10 @@ export default function BattleArena() {
   function recordAnswer(correct: boolean, q: Question, picked: number) {
     setAnswers((a) => [...a, correct]);
     const s = combatState();
-    applyCombat({ ...s, charge: chargeAfterAnswer(s.charge, correct) });
+    // Keen Eye (Talon): a right answer also mends a little.
+    const mend = correct ? Math.min(s.playerMaxHp, s.playerHp + keenEyeHeal(style)) - s.playerHp : 0;
+    applyCombat({ ...s, charge: chargeAfterAnswer(s.charge, correct), playerHp: s.playerHp + mend });
+    if (mend > 0) float(`🎯 +${mend}`, 'hero', 'text-emerald-300');
     // A hinted / peeked answer isn't evidence the questions are too easy.
     const ms = helped.current ? Infinity : nowMs() - askedAt.current;
     const step = speedStep(speedRun.current, correct, ms, age, speedBoost.current);
@@ -539,10 +561,16 @@ export default function BattleArena() {
       }
       return;
     }
-    // Focus Tea (#80): a landed Attack hits TEA_DAMAGE_MULT× and spends the focus.
-    const focus = applyFocus(combatState(), boost(attackDamage(wasCorrect, style, powerUps)));
+    // Lionheart (Valor): below half HP his Attacks hit harder.
+    const now = combatState();
+    const heart = lionheartMultiplier(style, now.playerHp, now.playerMaxHp);
+    // Focus Tea (#80) or Battle Cry: a landed Attack hits TEA_DAMAGE_MULT× and spends the focus.
+    const focus = applyFocus(now, boost(Math.round(attackDamage(wasCorrect, style, powerUps) * heart)));
     applyCombat(focus.state);
-    const text = (wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…') + focus.note;
+    const text =
+      (wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…') +
+      (heart > 1 ? ' 🦁 Lionheart — hits harder when hurt!' : '') +
+      focus.note;
     heroStrike(focus.dmg, text, 'text-red-300', { sound: 'attack' });
   }
 
@@ -757,7 +785,7 @@ export default function BattleArena() {
       tier: enemy!.tier,
       style,
       powerUps,
-      // Counter Strike (Skye): a right answer strikes back — streaks power it up like any hit.
+      // Counter Strike (Kira): a right answer strikes back — streaks power it up like any hit.
       counter: boost(counterDamage(style, powerUps)),
     });
     const counterHit = r.countered > 0 || r.counterShattered;
@@ -814,7 +842,8 @@ export default function BattleArena() {
         : r.countered > 0
           ? ` ⚡ Counter Strike! ${avatar!.name} strikes right back for ${r.countered}!`
           : '') +
-      (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '');
+      (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '') +
+      (r.secondWind ? ` 🌬️ Second Wind! ${avatar!.name} hangs on with 1 HP!` : '');
     // A bounced hit can win the battle (checked first: a mirrored hero takes no damage).
     say(text, r.enemyDown ? victory : r.heroDown ? defeat : () => setTurn({ kind: 'command' }));
   }
@@ -960,6 +989,7 @@ export default function BattleArena() {
     lucky,
     knotted,
     freeHint,
+    secondWind,
   };
   const perkLabel = { charge: `+${EMBER_BONUS_CHARGE}◆`, peek: '👀 peek', mend: `+${WISP_MEND} HP` }[companion.perk];
   // Identifies the current question card (remounts QuestionCard + DefendTimer).
@@ -1150,7 +1180,7 @@ export default function BattleArena() {
             <QuestionCard
               key={qKey}
               question={turn.question}
-              // Fox Sense (Skye): a free hint on top of the feathers, used first.
+              // Fox Sense (Kira): a free hint on top of the feathers, used first.
               hints={enemy.behavior === 'trickster' ? 0 : save.items.hint + (freeHint ? 1 : 0)}
               hintLabel={freeHint ? '🦊 Fox Sense — use a free hint!' : undefined}
               preHidden={turn.hide ?? 0}

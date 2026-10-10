@@ -36,11 +36,11 @@ NPCs and the other three zones stay on emoji until a later rollout.
 
 | Character | id (manifest) | World view | Battle view | Source plan | Maps to / notes |
 |-----------|---------------|------------|-------------|-------------|-----------------|
-| Blaze (hero) | `blaze` | ✅ idle+walk | ✅ idle+attack+hurt | **Generate** | lion / aggressive warrior |
-| Shield (hero) | `shield` | ✅ | ✅ | **Generate** | turtle / defensive tank |
-| Nova (hero) | `nova` | ✅ | ✅ | **Generate** | eagle / balanced |
-| Skye (hero) | `skye` | ✅ | ✅ | **Generated** (`build.py heroes`) | arctic fox / swift duelist — sky-blue ponytail, flower, sword |
-| Nyx (hero) | `nyx` | ✅ | ✅ | **Generated** (`build.py heroes`) | black cat / mystic spellcaster — silver hair, starry robe, glowing orb |
+| Valor (hero) | `valor` | ✅ | ✅ | **Generated** (`build.py heroes`) | lion / warrior — crown, red tunic, gold cape, flaming sword (was Blaze) |
+| Bastion (hero) | `bastion` | ✅ | ✅ | **Generated** | turtle / guardian — silver helm, purple armour, amber shell (was Shield) |
+| Talon (hero) | `talon` | ✅ | ✅ | **Generated** | eagle / ranger — green hood, spear, red scarf (was Nova) |
+| Kira (hero) | `kira` | ✅ | ✅ | **Generated** | white fox / duelist — red ponytail, navy tunic, sword (was Skye) |
+| Selene (hero) | `selene` | ✅ | ✅ | **Generated** | cream cat / mystic — midnight hair, blue robe, golden orb (was Nyx) |
 | Ember — egg | `ember-egg` | ✅ idle | ✅ idle | **Generate** | small egg |
 | Ember — hatchling | `ember-hatchling` | ✅ | ✅ | **Generate** | baby dragon |
 | Ember — whelp | `ember-whelp` | ✅ | ✅ | **Generate** | young dragon |

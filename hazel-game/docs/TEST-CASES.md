@@ -952,7 +952,12 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-794 | M | ✅ | hero select / battle | headless Chromium, Supabase stubbed (temporary harness page): the hero select at 320, 375, 820 and 1280 px — no sideways scroll, every card readable; at 375×667 Skye's Fox Sense button and counter ("⚡ -13" over the enemy, its HP after), Nyx's two pips and castable Mend; the 📜 Menu's "Skye · Swift" with her abilities; no page errors (2026-10-10) |
 | TC-795 | M | ✅ | art | `python3 tools/assets/build.py heroes` writes only `skye` and `nyx`; a full sprite rebuild into a temp dir matches every committed sheet; both walk Lumina Village on the bench with 4-way facing (2026-10-10) |
 | TC-796 | M | ✅ | battle floats | floats sit centred over their fighter: "✨ +2◆" over Nyx and "Blocked!" over the hero stay on a 375 px screen (they hung off to the right before) (2026-10-10) |
-| TC-797 | M | ⏳ | balance | a full playthrough of Act I as Skye and as Nyx: neither breezes through nor stalls compared with Blaze / Shield / Nova (#115b) |
+| TC-797 | M | ⏳ | balance | a full playthrough of Act I as each of the five heroes: none breezes through or stalls compared with the others (#115b) |
+| TC-798 | U | ✅ | roster (rename) | ids a1–a5 keep their type and HP under the new names Valor, Bastion, Talon, Kira, Selene; every type has two abilities and all ten names differ (avatars.test) |
+| TC-799 | U | ✅ | signature abilities | `heroOpening`: Valor opens focused, Bastion guarded, Talon with Second Wind, Kira with a free hint, Selene with 2◆ — each only its own; Lionheart ×1.5 only for a warrior below half HP; Rock Steady keeps half the block on a wrong answer only for a guardian; Keen Eye mends 3 only for a ranger (battleTurn.test, battleMath.test) |
+| TC-800 | U | ✅ | signature abilities | Battle Cry doubles the first landed Attack, then it's spent; Shell Up blocks the first blow and not the next; Second Wind leaves 1 HP once, a second knockout is real, and a light blow never spends it (battleTurn.test) |
+| TC-801 | C | ✅ | signature abilities | real arena: Valor's first Attack lands 80 ("Focused — double damage"); below half HP 60 with "Lionheart"; Bastion opens guarded; Talon mends 3 on a right answer and "Second Wind! Talon hangs on with 1 HP" catches a knockout (BattleArena.test) |
+| TC-802 | C/M | ✅ | hero select | all five cards show their type (Warrior / Guardian / Ranger / Duelist / Mystic) and two abilities (AvatarSelect.test); headless Chromium at 375 and 1280 px, no sideways scroll, no page errors (2026-10-10) |
 
 ## Regression cases (tied to ISSUES.md)
 
