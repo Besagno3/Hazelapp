@@ -26,7 +26,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-14 | C | ⬜ | AuthPage | submit button disabled while `loading` |
 | TC-15 | C | ⬜ | TopicSelect | picking a topic moves to the quiz phase |
 | TC-16 | C | ⬜ | QuizRound | selecting an answer locks further selection |
-| TC-17 | C | ⬜ | QuizRound | perfect score shows "Round Passed!" |
+| TC-17 | C | ✅ | QuizRound | perfect score shows "Round Passed!" (QuizRound.test) |
 | TC-18 | C | ⬜ | QuizRound | sub-threshold score shows "Keep Trying!" |
 | TC-19 | C | ⬜ | AvatarSelect | picking an avatar stores it and enters `world` |
 | TC-20 | C | ⬜ | WorldMap | "Challenge!" starts a battle with that NPC |
@@ -948,6 +948,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-790 | M | ⬜ | Library | re-asking a miss shows its options in a new order each time; beating it still takes it off the shelf and pays the XP |
 | TC-791 | M | ⬜ | battle | in a battle long enough to ask a question twice, the repeat comes in a new order and the right answer still wins |
 | TC-792 | M | ⬜ | edge function | after redeploying `generate-questions`, newly cached rows spread `correct_index` over 0–3 (`select correct_index, count(*) from questions where created_at > '<deploy time>' group by 1`) |
+| TC-793 | C | ✅ | QuizRound | an opening round (world still locked) pays no XP for right answers, and still counts toward the unlock (QuizRound.test) |
+| TC-794 | C | ✅ | QuizRound | the round that opens the world pays no XP either (QuizRound.test) |
+| TC-795 | C | ✅ | QuizRound | a practice round after the world is open still pays XP (QuizRound.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

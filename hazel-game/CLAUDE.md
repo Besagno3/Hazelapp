@@ -47,6 +47,8 @@ zod, react-query. Add the package in the same change that first uses it.
   answers in a row → +1 mid-battle). It sets quiz, gate, chest, Spire and
   battle questions and enemy levels. **XP / player level** only tracks
   progress and grants power-ups — leveling up never makes anything harder.
+  The Training Grounds' opening rounds (before the world opens) pay **no
+  XP** — XP starts in the world (#116, 2026-10-10).
   The defend countdown is age-based only. **Where an enemy roams scales how
   it fights, never what it asks (#75 item 12, 2026-10-08):** each zone's
   danger tier (`content/regions.ts`, by story leg) scales its HP, blows,
@@ -581,6 +583,18 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — No XP for the opening rounds (#116)
+The Training Grounds' first rounds are the way into the world, but they paid
+10 XP (plus the power-up bonus) for every right answer, so kids levelled up
+just by getting in — and, with #115, by tapping B. `QuizRound.finishRound`
+now pays XP only if the world was already open before the round, so the
+round that opens it pays none; practice rounds later (from the world menu)
+still pay. The skill level and the daily streak still move — they describe
+the child, they aren't a reward. XP already earned is kept. New
+`QuizRound.test` (two of its three cases fail without the fix): an opening
+round, the round that opens the world, a practice round. 877 tests green,
+lint + tsc clean.
 
 ### 2026-10-10 — Answers come in a random order: no more "it's always B" (#115)
 The model that writes the questions put the right answer in the same spot

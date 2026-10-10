@@ -71,10 +71,13 @@ export default function QuizRound() {
     recordQuizRound(finalPassed, misses);
     // A passed topic is retired from the Training Grounds for this session.
     if (finalPassed) markCompleted(topic);
-    // Persist the skill ramp for this topic and award XP for correct answers.
+    // Persist the skill ramp for this topic. XP only once the world is open:
+    // the opening rounds are the way in, not a way to level up (#116).
+    // `worldUnlocked` is from before this round, so the round that opens the
+    // world pays none either.
     const newLevel = nextSkillLevel(skillLevel, answers);
     void setSkillLevel(topic, newLevel);
-    void addXp(correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
+    if (worldUnlocked) void addXp(correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
     void recordActivity();
     // Warm the next same-topic round so a replay starts instantly.
     prefetchQuestions(topic, age, newLevel, QUIZ_QUESTION_COUNT);
