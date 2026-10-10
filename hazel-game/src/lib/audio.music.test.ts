@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { MusicTrack } from './audio';
 
 // A stand-in for Howler's html5 Howl, with enough of its load queue to show
-// #115. Like the real one: while it loads or a play() is on its way (the first
+// #116. Like the real one: while it loads or a play() is on its way (the first
 // one, or the restart at a loop point) a fade(), volume() or stop() is queued;
 // the queue steps on only when an event matches its head, so after a play() on
 // a loaded Howl the queued calls never run. Setting the volume mid-fade cancels
@@ -170,7 +170,7 @@ function hear(track: MusicTrack) {
   return h;
 }
 
-describe('switching music (#75 item 14 review, #115)', () => {
+describe('switching music (#75 item 14 review, #116)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     useSettingsStore.setState({ music: true, musicVolume: 0.6 });

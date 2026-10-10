@@ -45,7 +45,7 @@ The sea has one loop per sea area (`SEA_TRACK`): `sailing`, `shallows`,
 ## Only what the game plays
 Every audio file here is one `SFX_SOURCES` / `MUSIC_SOURCES` points at
 (`audio.test` fails on any other). The earlier player-supplied mp3s
-(`Overworld.mp3`, `Battle_Music.mp3`, …) were deleted on 2026-10-10 (#115):
+(`Overworld.mp3`, `Battle_Music.mp3`, …) were deleted on 2026-10-10 (#116):
 nothing played them, and they made it look as if two sets of music were in
 use. To get one back: `git log --diff-filter=D -- public/audio` finds the
 commit that deleted them.

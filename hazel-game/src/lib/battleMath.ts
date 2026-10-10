@@ -10,16 +10,46 @@ import { BASE_TIER, DANGER, type DangerTier } from '../content/regions';
  * Special just fizzles (never backfires).
  */
 
-const STYLE_ATTACK: Record<FightStyle, number> = {
+export const STYLE_ATTACK: Record<FightStyle, number> = {
   aggressive: 40,
   balanced: 30,
   defensive: 26,
+  swift: 32,
+  mystic: 26,
 };
 
-const STYLE_BLOCK: Record<FightStyle, number> = {
+export const STYLE_BLOCK: Record<FightStyle, number> = {
   aggressive: 24,
   balanced: 30,
   defensive: 40,
+  swift: 28,
+  mystic: 30,
+};
+
+/**
+ * Spell power: what offensive spells and Pair Attacks scale from. The original
+ * three heroes' equals their attack (so their spells hit exactly as before); a
+ * mystic's (Selene's Spell Power) is the highest of all, though her Attack is the
+ * weakest.
+ */
+export const STYLE_MAGIC: Record<FightStyle, number> = {
+  aggressive: 40,
+  balanced: 30,
+  defensive: 26,
+  swift: 32,
+  mystic: 50,
+};
+
+/** Kira's Counter Strike: a share of her attack power, struck back after a defend answered right. */
+export const COUNTER_SHARE = 0.4;
+
+/** Which hero types strike back after a defend answered right. */
+const COUNTERS: Record<FightStyle, boolean> = {
+  aggressive: false,
+  balanced: false,
+  defensive: false,
+  swift: true,
+  mystic: false,
 };
 
 /** Fraction of attack damage dealt on a wrong answer (glancing blow). */
@@ -36,11 +66,19 @@ export function specialDamage(style: FightStyle, powerUps: PowerUps): number {
 }
 
 /**
- * Damage of a landed offensive spell — the hero's basic attack power scaled by
- * the spell's own multiplier (see `src/content/spells.ts`).
+ * Damage of a landed offensive spell — the hero's spell power (`STYLE_MAGIC`)
+ * scaled by the spell's own multiplier (see `src/content/spells.ts`).
  */
 export function spellDamage(style: FightStyle, powerUps: PowerUps, multiplier: number): number {
-  return Math.round((STYLE_ATTACK[style] + attackBonus(powerUps)) * multiplier);
+  return Math.round((STYLE_MAGIC[style] + attackBonus(powerUps)) * multiplier);
+}
+
+/**
+ * Counter Strike (Kira, swift): the blow she strikes back after answering a
+ * defend question right — 0 for heroes who don't counter.
+ */
+export function counterDamage(style: FightStyle, powerUps: PowerUps): number {
+  return COUNTERS[style] ? Math.round((STYLE_ATTACK[style] + attackBonus(powerUps)) * COUNTER_SHARE) : 0;
 }
 
 /**
@@ -53,9 +91,9 @@ export function companionAttackDamage(correct: boolean, power: number): number {
 }
 
 /**
- * Damage of a landed Pair Attack: the hero's AND the companion's power
- * combined, then scaled by the combo's multiplier — so it always beats a solo
- * spell of the same cost.
+ * Damage of a landed Pair Attack: the hero's spell power AND the companion's
+ * power combined, then scaled by the combo's multiplier — so it always beats
+ * a solo spell of the same cost, for every hero type.
  */
 export function pairDamage(
   style: FightStyle,
@@ -63,7 +101,7 @@ export function pairDamage(
   companionPower: number,
   multiplier: number,
 ): number {
-  return Math.round((STYLE_ATTACK[style] + attackBonus(powerUps) + companionPower) * multiplier);
+  return Math.round((STYLE_MAGIC[style] + attackBonus(powerUps) + companionPower) * multiplier);
 }
 
 /**
@@ -81,11 +119,33 @@ export function defeatXp(baseXp: number, tier: DangerTier = BASE_TIER): number {
 
 /**
  * Damage blocked when defending: a correct answer blocks style + power-up
- * worth; a wrong answer still gets half the Iron Guard passive.
+ * worth; a wrong answer still gets half the Iron Guard passive (and Bastion's
+ * Rock Steady keeps half his block).
  */
 export function defendReduction(correct: boolean, style: FightStyle, powerUps: PowerUps): number {
   if (correct) return STYLE_BLOCK[style] + defenseBonus(powerUps);
-  return Math.round(defenseBonus(powerUps) / 2);
+  // Rock Steady (Bastion): even a wrong answer keeps part of the guard up.
+  const steady = style === 'defensive' ? Math.round(STYLE_BLOCK[style] * ROCK_STEADY_SHARE) : 0;
+  return steady + Math.round(defenseBonus(powerUps) / 2);
+}
+
+/** Rock Steady (Bastion): the share of his block a wrong defend answer still keeps. */
+export const ROCK_STEADY_SHARE = 0.5;
+
+/** Lionheart (Valor): his Attacks hit this much harder while below half HP. */
+export const LIONHEART_MULT = 1.5;
+
+/** Lionheart (Valor): the Attack multiplier for this hero at this HP (1 = none). */
+export function lionheartMultiplier(style: FightStyle, hp: number, maxHp: number): number {
+  return style === 'aggressive' && hp * 2 < maxHp ? LIONHEART_MULT : 1;
+}
+
+/** Keen Eye (Talon): HP every correct answer mends. */
+export const KEEN_EYE_HEAL = 3;
+
+/** Keen Eye (Talon): HP a correct answer mends for this hero type (0 = none). */
+export function keenEyeHeal(style: FightStyle): number {
+  return style === 'balanced' ? KEEN_EYE_HEAL : 0;
 }
 
 /** Healer archetype (Wave 0.5): fraction of max HP mended per enemy turn. */

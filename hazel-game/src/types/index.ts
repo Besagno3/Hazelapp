@@ -45,7 +45,12 @@ export interface Question {
   timesAsked?: number;
 }
 
-export type FightStyle = 'aggressive' | 'defensive' | 'balanced';
+/**
+ * A hero's type — sets their attack, block and spell power (`lib/battleMath.ts`)
+ * and its two signature abilities (`HERO_ABILITIES`, `content/avatars.ts`).
+ */
+export const FIGHT_STYLES = ['aggressive', 'defensive', 'balanced', 'swift', 'mystic'] as const;
+export type FightStyle = (typeof FIGHT_STYLES)[number];
 
 export interface Avatar {
   id: string;

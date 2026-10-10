@@ -222,7 +222,7 @@ function armUnlock(): void {
  * the play left a track that came back (the overworld after a battle) at volume
  * 0, and a battle that began as the overworld looped left the overworld playing
  * on under the battle music for good — its fade-out, and so its stop, never ran
- * (#115). Hence: a track fades in once its 'play' event says it's really
+ * (#116). Hence: a track fades in once its 'play' event says it's really
  * playing; it's played once until autoplay refuses it (keys pressed while it
  * loads don't queue more plays); and a left track is unloaded once its fade-out
  * is over — unloading stops it even mid-play() — or at once if it's not audible

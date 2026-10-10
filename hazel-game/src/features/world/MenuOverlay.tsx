@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { spellsKnown } from '../../content/spells';
 import { ALL_SHOP_ITEMS, CONSUMABLES, CONSUMABLE_IDS } from '../../content/items';
 import { GATE_KEYS } from '../../content/keys';
-import { avatarById } from '../../content/avatars';
+import { avatarById, HERO_ABILITIES, STYLE_LABEL } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_STAGE_LABEL } from '../../content/story';
 import { COMPANIONS, COMPANION_IDS, companionsInParty } from '../../content/companion';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
@@ -96,7 +96,21 @@ export default function MenuOverlay({
             className="text-3xl"
           />
           <div className="flex-1">
-            <div className="font-bold text-sm">{avatar?.name ?? 'Hero'}</div>
+            <div className="font-bold text-sm">
+              {avatar?.name ?? 'Hero'}
+              {avatar && <span className="font-semibold text-fuchsia-200"> · {STYLE_LABEL[avatar.fightStyle]}</span>}
+            </div>
+            {/* The hero type's signature abilities, by name — the hero select says what each does. */}
+            {avatar && HERO_ABILITIES[avatar.fightStyle].length > 0 && (
+              <div className="text-xs text-sky-200">
+                {HERO_ABILITIES[avatar.fightStyle].map((ab) => (
+                  <span key={ab.name} title={ab.text} className="mr-2 inline-block">
+                    <span aria-hidden>{ab.emoji} </span>
+                    {ab.name}
+                  </span>
+                ))}
+              </div>
+            )}
             {/* The top bar's medallion shows only a bar; here are its numbers (#75 item 14b review). */}
             <div className="text-xs text-yellow-200">
               ⭐ Level {playerLevel(xp)} · {xpProgress(xp).into}/{xpProgress(xp).needed} XP

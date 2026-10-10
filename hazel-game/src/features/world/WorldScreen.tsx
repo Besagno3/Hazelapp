@@ -25,7 +25,7 @@ import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx, spireFloorTitle } from '../../
 import { dungeonFloor, floorLabel } from '../../content/dungeons';
 import { useSpireStore } from '../../store/spireStore';
 import { atTier, spawnPlaced } from '../../content/enemies';
-import { lossKey, mercyFor } from '../../lib/battleTurn';
+import { heroOpening, lossKey, mercyFor, NO_OPENING } from '../../lib/battleTurn';
 import { roadTier } from '../../lib/wayfinding';
 import { arrivalWarning, zoneTier } from '../../content/regions';
 import { avatarById } from '../../content/avatars';
@@ -463,7 +463,8 @@ export default function WorldScreen() {
             // Mercy far from home (#75 item 12): a critter that has beaten the
             // hero a couple of times fights like a Numbria one from then on.
             const losses = useBattleStore.getState().losses[lossKey(enemy)] ?? 0;
-            startBattle(atTier(enemy, mercyFor(losses, enemy.tier).fightTier), hp, maxHp);
+            // The hero type's opening perks (Battle Cry, Shell Up, Second Wind, Fox Sense, Spark Start).
+            startBattle(atTier(enemy, mercyFor(losses, enemy.tier).fightTier), hp, maxHp, avatar ? heroOpening(avatar.fightStyle) : NO_OPENING);
             sendFlow({ type: 'ENCOUNTER' });
           },
           onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),

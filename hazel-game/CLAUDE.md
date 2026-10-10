@@ -146,7 +146,10 @@ zod, react-query. Add the package in the same change that first uses it.
   quest item belongs to one quest; one person may give several quests in
   turn — `questFor(npcId, save)`, the one you've started first — and a step
   may go through a giver, #75 item 14c), `secrets.ts` (hidden secrets per
-  zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
+  zone — claim + progress; `ZoneDef.secrets`), `avatars.ts` (the five heroes —
+  Valor, Bastion, Talon, Kira, Selene (ids a1–a5) — each a hero type
+  (`FIGHT_STYLES`), with `STYLE_LABEL` / `STYLE_DESC` and every type's two
+  signature abilities, `HERO_ABILITIES`).
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
@@ -377,7 +380,22 @@ zod, react-query. Add the package in the same change that first uses it.
   fights beside the hero: a strike with a perk (Ember +◆, Pip crosses out a
   wrong answer on the next question, Wisp mends) and **Pair Attacks** (hero +
   companion power combined, super-hard question, charge cost, fizzle on a
-  miss). **🔄 Swap** changes companion as a free action. Enemies sometimes
+  miss). **🔄 Swap** changes companion as a free action. **Hero types**
+  (`FightStyle`) set attack / block (`STYLE_ATTACK` / `STYLE_BLOCK`) and spell
+  power (`STYLE_MAGIC` — what spells and Pair Attacks scale from; the original
+  three's equals their attack); every type has two signature abilities —
+  **Valor** (aggressive): **Battle Cry** (opens focused: the first landed
+  Attack ×2, via `applyFocus`) and **Lionheart** (Attacks ×1.5 below half HP,
+  `lionheartMultiplier`); **Bastion** (defensive): **Shell Up** (opens
+  guarded) and **Rock Steady** (a wrong defend answer still blocks half his
+  block, `defendReduction`); **Talon** (balanced): **Second Wind** (once a
+  fight a knockout leaves 1 HP, `CombatState.secondWind` in `resolveEnemyTurn`)
+  and **Keen Eye** (+3 HP per right answer, `keenEyeHeal`); **Kira** (swift):
+  **Counter Strike** (`counterDamage` → `resolveEnemyTurn`'s `counter`) and
+  **Fox Sense** (a free hint a fight, `CombatState.freeHint`); **Selene**
+  (mystic): **Spark Start** (opens with 2◆) and **Spell Power** (the highest
+  spell power) — the opening perks come from `heroOpening(style)`, handed to
+  `battleStore.start` by `WorldScreen`. Enemies sometimes
   **telegraph a power move** (charge turn → 2× blow; Guard blocks it), Sage
   spells are **super effective** vs their topic, **answer streaks** power up
   hits, and after two losses to the same enemy its questions get easier
@@ -499,6 +517,7 @@ python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallo
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
+python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
 
 ## Error handling
@@ -575,12 +594,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-10 — #115 code review: key presses leave nothing in Howler's queue; volume read off the sound
+### 2026-10-10 — Merge main (the heroines and hero roster, #39) into the music-fix branch (#116)
+`main` took ISSUES **#115** and TC-786–803 for the hero roster while the
+music fix was in review, so the music fix moved **#115 → #116** and its test
+cases **TC-786–797 → TC-804–815**. Only the three docs conflicted; the code
+merged cleanly (the roster touches battle code, the fix only `lib/audio.ts`).
+
+### 2026-10-10 — #116 code review: key presses leave nothing in Howler's queue; volume read off the sound
 A `/saas-code-review` of the music fix (no security surface: no Supabase, no
 keys). Two low findings, both fixed:
 - **Every key press re-set the current track's volume** (`armUnlock` →
   `startTrack` → `volume()`), and one landing as the track looped was queued
-  by Howler (the #115 mechanism); two queued could later undo a volume-slider
+  by Howler (the #116 mechanism); two queued could later undo a volume-slider
   change. Now `volume()` is called only to stop a fade-out (`keep` says it was
   fading) or when the volume differs. The first try compared the Howl's own
   `volume()` — but a loop point mid-fade-out ends the fade at its target,
@@ -597,18 +622,18 @@ keys). Two low findings, both fixed:
   fuzz clean in 8 seeds, re-picking at once, the loop-point battle and Music
   off all hold.
 
-### 2026-10-10 — The unused original mp3s are deleted (#115)
+### 2026-10-10 — The unused original mp3s are deleted (#116)
 The player-supplied mp3s from #60 (`Overworld.mp3`, `Battle_Music.mp3`,
 `Boss_Battle.mp3`, `Boss_Battle - Final Battle.mp3`, `Spire_Music.mp3`,
 `Character_Grunt.mp3`, `Level_Up.mp3`, `Victory-jingle.mp3`,
 `Wrong_Answer.mp3` — 3.7 MB) sat in `public/audio/` with nothing playing them
-since the 16-bit set (#71). With #115's leftover track playing on after Music
+since the 16-bit set (#71). With #116's leftover track playing on after Music
 was turned off, they made it look as if the old and new music were both in
 use. Deleted; `public/audio/README.md` and `audio.ts` no longer point at them,
 and a new `audio.test` case fails on any audio file under `public/audio/` that
 `SFX_SOURCES` / `MUSIC_SOURCES` doesn't name.
 
-### 2026-10-10 — The overworld music no longer plays on under the battle music (#115)
+### 2026-10-10 — The overworld music no longer plays on under the battle music (#116)
 Howler's html5 mode queues any `fade()` / `volume()` / `stop()` asked for
 while a `play()` is starting — the first one, and the restart at every loop
 point (html5 loops are `stop()` + `play()`) — and after a `play()` on a loaded
@@ -636,6 +661,90 @@ press set its volume.
   it's heard, autoplay refused); the first four fail on the old code, and so
   does the re-pick test, which now lets the left track load. 874 green, lint +
   build clean.
+### 2026-10-10 — Every hero gets signature abilities, a new name and a new look (#115)
+All five heroes now have two signature abilities each, and all five were
+renamed and redrawn. Ids a1–a5 (what saves store), types and HP are
+unchanged, so every save keeps its hero under the new name.
+- **Names, types, looks:** Blaze → **Valor** 🦁 (Warrior; a crowned lion
+  knight in red with a gold cape and a flaming sword), Shield → **Bastion** 🐢
+  (Guardian; silver helm, purple armour, amber shell), Nova → **Talon** 🦅
+  (Ranger; green hood, spear, red scarf), Skye → **Kira** 🦊 (Duelist; white
+  fox, red ponytail, navy tunic) and Nyx → **Selene** 🐈 (Mystic; a cream moon
+  cat with midnight-blue hair, a blue robe and a golden orb). `STYLE_LABEL`
+  now names the types Warrior / Guardian / Ranger / Duelist / Mystic. Sprite
+  ids follow the names (`valor` … `selene`); the old sheets are gone and
+  `build.py heroes` writes the five.
+- **Valor:** 💥 **Battle Cry** — opens every fight focused, so his first
+  landed Attack hits double (Focus Tea's rule; its note now reads "💥
+  Focused", naming neither source); 🦁 **Lionheart** — below half HP his
+  Attacks hit ×1.5 (`LIONHEART_MULT`).
+- **Bastion:** 🛡️ **Shell Up** — opens every fight guarded (the first blow is
+  fully blocked; the stage shows his guard); 🪨 **Rock Steady** — a wrong
+  defend answer still blocks half his block (`ROCK_STEADY_SHARE`).
+- **Talon:** 🌬️ **Second Wind** — once a fight, a knockout blow leaves 1 HP
+  ("🌬️ Second Wind! Talon hangs on with 1 HP!"); 🎯 **Keen Eye** — every right
+  answer mends 3 HP (`KEEN_EYE_HEAL`, floats "🎯 +3").
+- Kira and Selene keep Counter Strike / Fox Sense and Spark Start / Spell Power.
+- **Opening perks** (`heroOpening`) now cover all five (`HeroOpening` gains
+  `focused` / `guarded` / `secondWind`; `NO_OPENING` is the explicit
+  none); each floats a short line as the fight opens ("💥 Battle Cry!",
+  "🛡️ Shell Up!", "✨ +2◆").
+- **Review** (`/saas-code-review`): no security surface (no Supabase change); one
+  low fix — a battle with no hero gets `NO_OPENING`, not Talon's Second Wind.
+- Tests: 901 green (+8 net: every type has two distinct abilities, each
+  type's opening, Lionheart / Rock Steady / Keen Eye math, Battle Cry /
+  Shell Up / Second Wind turns, and Battle Cry, Lionheart, Shell Up, Keen
+  Eye and Second Wind in the real arena); lint + build clean. Checked in
+  headless Chromium: the hero select at 375 and 1280 px (no sideways scroll)
+  and Valor's Battle Cry landing 80 in a real battle.
+
+### 2026-10-10 — Two heroines: Skye (swift) and Nyx (mystic), each with special abilities (#115)
+The hero select offers five heroes. The new two each bring a new hero type
+(`FIGHT_STYLES` in `types` now derives `FightStyle`) with two abilities:
+- **Skye** 🦊 (`a4`, **Swift**, 100 HP; attack 32, block 28): an arctic-fox
+  duelist. **⚡ Counter Strike** — after a defend question answered right
+  (guarded, power blow and all), a still-standing Skye strikes back for 40% of
+  her attack (`COUNTER_SHARE`, `counterDamage`; streak-boosted like any hit),
+  inside `resolveEnemyTurn` (`counter` in, `countered` / `counterShattered`
+  out): a stony shield shatters instead, a counter can win the fight or cross
+  a boss phase, and a healer mends after it. In the arena she lunges back once
+  the blow lands ("⚡ -13"), and the enemy's HP waits for it (`commit`'s
+  `enemyRevealMs`). A timeout or wrong answer never counters. **🦊 Fox Sense** —
+  one free Hint Feather per battle (`CombatState.freeHint`), used before her
+  own feathers ("🦊 Fox Sense — use a free hint!", `QuestionCard`'s new
+  `hintLabel`); trickster enemies still block hints.
+- **Nyx** 🐈‍⬛ (`a5`, **Mystic**, 110 HP; attack 26, block 30, spell power
+  50): a starry black-cat spellcaster. **✨ Spark Start** — every battle opens
+  with 2◆ (`SPARK_START_CHARGE`, floats "✨ +2◆"), so Mend is castable on turn
+  one. **🔮 Spell Power** — spells and Pair Attacks scale from a new spell-power
+  stat, `STYLE_MAGIC` (50 for her; for Blaze, Shield and Nova it equals their
+  attack, so their spells and Pair Attacks hit exactly as before). Pair Attacks
+  use it too, so "a Pair Attack beats a solo spell of the same cost" holds for
+  every type (companion.test now checks all five).
+- **Opening perks** (`heroOpening(style)`, `lib/battleTurn.ts`) reach the fight
+  through `battleStore.start(…, opening)` from `WorldScreen`'s encounter; the
+  original three get none.
+- **Hero select** (`AvatarSelect`): wide cards in a list on a phone, a
+  wrapping row (3 + 2, then all five) from `sm` up; each shows its type
+  (`STYLE_LABEL`), description, HP and any abilities. The 📜 Menu's hero card
+  shows the type and the ability names.
+- **Art** (`python3 tools/assets/build.py heroes`): Skye (sky-blue ponytail, a
+  pink flower and scarf, a teal tunic, a sword) and Nyx (silver hair, a starry
+  robe and cape, a glowing orb held low so it never hides her face), drawn
+  with the existing humanoid drawer; the manifest only gained entries, and a
+  full sprite rebuild into a temp dir matches every committed sheet.
+- **Fix (pre-existing):** battle floats were never centred — Motion's
+  transform replaced the Tailwind `-translate-x-1/2`, so every number hung off
+  to the right of its fighter and long ones ("Blocked!") were cut off at a
+  phone's edge. `BattleStage`'s floats centre through Motion's own `x`.
+- Story text is all "you", so nothing needed rewording for the heroines.
+- Tests: 893 green (+24: battleTurn.test 9, battleMath.test 2,
+  BattleArena.test 5, AvatarSelect.test 4, avatars.test 4; companion.test's
+  pair-vs-spell check over every type), lint + build clean. Checked in
+  headless Chromium (a temporary harness page, Supabase stubbed): the hero
+  select at 320 / 375 / 820 / 1280 px with no sideways scroll; Skye's Fox
+  Sense and Counter Strike and Nyx's Spark Start and Spells menu in the real
+  arena at 375×667; both heroines walking Lumina Village on the bench.
 
 ### 2026-10-10 — Merge main (14c groundwork, 14e Remembrance Hill) into the sea-critters branch (#75 item 14d)
 `main` took 14c and 14e while 14d was in review. Both used ISSUES **#112**
