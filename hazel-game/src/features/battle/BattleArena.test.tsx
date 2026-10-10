@@ -26,6 +26,7 @@ const { useBattleStore } = await import('../../store/battleStore');
 const { useSaveStore } = await import('../../store/saveStore');
 const { defaultSave } = await import('../../lib/save');
 const { atTier } = await import('../../content/enemies');
+const { BOAT_MENDED } = await import('../../content/boat');
 
 const enemy = {
   id: 'count-bat',
@@ -179,6 +180,79 @@ describe('opening lines (#75 item 12)', () => {
       screen.getByText('💛 Tough one last time? Count Bat will go easier on you now — gentler hits and easier questions.'),
     ).toBeInTheDocument();
     expect(screen.queryByText(/💪/)).toBeNull(); // it fights at tier 1 now: no marks to explain
+  });
+});
+
+describe('a battle at sea (#75 item 14d)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const backdrop = (c: HTMLElement) =>
+    Array.from(c.querySelectorAll<HTMLElement>('[aria-hidden]')).map((el) => el.style.backgroundImage).find((b) => b.includes('/backgrounds/'));
+
+  it('a sea critter is fought from Marlow\'s boat, out on the open water', () => {
+    const puffer = { ...enemy, id: 'bubble-puffer', instanceId: 'sea1', name: 'Bubble Puffer', topic: 'nature', zoneId: 'silver-shallows', habitat: 'sea' } as BattleEnemy;
+    useBattleStore.getState().start(puffer, 60, 100);
+    const { container } = render(<BattleArena />);
+    expect(backdrop(container)).toContain('/backgrounds/silver-shallows-sea.png');
+    // The boat behind the hero and the front of its hull over their feet — decoration only.
+    const boat = screen.getByTestId('battle-boat');
+    expect(boat).toHaveAttribute('aria-hidden');
+    expect(boat.style.backgroundImage).toContain('/tiles/boat.png');
+    expect(screen.getByTestId('battle-boat-front')).toHaveAttribute('aria-hidden');
+  });
+
+  it('lost at sea: Old Marlow rows the boat home to his dock, and the defeat screen says so', () => {
+    vi.useFakeTimers();
+    const puffer = { ...enemy, id: 'bubble-puffer', instanceId: 'sea2', name: 'Bubble Puffer', topic: 'nature', zoneId: 'silver-shallows', habitat: 'sea' } as BattleEnemy;
+    const save = useSaveStore.getState().save!;
+    useSaveStore.setState({
+      save: { ...save, zoneId: 'silver-shallows', pos: { x: 15 * 32 + 16, y: 28 * 32 + 16 }, aboard: true, boat: null, flags: { ...save.flags, [BOAT_MENDED]: true } },
+    });
+    useBattleStore.getState().start(puffer, 1, 100);
+    render(<BattleArena />);
+    // Guard → wrong → the puffer attacks → a wrong defend answer: the hero (1 HP) goes down.
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText(/Whew/)).toBeInTheDocument();
+    expect(screen.getByText(/Old Marlow rowed/)).toBeInTheDocument();
+    // Not moored mid-sea where the fight was (`moorBoat` would leave it at 15,28): home.
+    const after = useSaveStore.getState().save!;
+    expect(after.aboard).toBe(false);
+    expect(after.boat).toBeNull();
+    expect(after.zoneId).not.toBe('silver-shallows');
+  });
+
+  it('lost ashore: no word of the boat, and it stays where it\'s moored', () => {
+    vi.useFakeTimers();
+    const save = useSaveStore.getState().save!;
+    const moored = { zoneId: 'silver-shallows' as const, x: 19, y: 20 };
+    useSaveStore.setState({ save: { ...save, aboard: false, boat: moored, flags: { ...save.flags, [BOAT_MENDED]: true } } });
+    useBattleStore.getState().start(enemy, 1, 100);
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText(/Whew/)).toBeInTheDocument();
+    expect(screen.queryByText(/Old Marlow rowed/)).toBeNull();
+    expect(useSaveStore.getState().save!.boat).toEqual(moored);
+  });
+
+  it('a land critter keeps its zone\'s backdrop and no boat', () => {
+    const { container } = render(<BattleArena />);
+    expect(backdrop(container)).toContain('/backgrounds/numbria.png');
+    expect(screen.queryByTestId('battle-boat')).toBeNull();
+    expect(screen.queryByTestId('battle-boat-front')).toBeNull();
   });
 });
 

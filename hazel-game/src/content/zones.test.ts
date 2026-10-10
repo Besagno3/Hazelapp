@@ -102,7 +102,7 @@ describe('zone maps', () => {
     }
   });
 
-  it('NPC and enemy placements reference known defs on walkable tiles', () => {
+  it('NPC and enemy placements reference known defs — on walkable tiles, or (a sea critter, #75 item 14d) open sea', () => {
     for (const z of allZones) {
       for (const p of z.npcs) {
         expect(NPC_DEFS[p.defId], `${z.id} npc ${p.defId}`).toBeDefined();
@@ -110,7 +110,8 @@ describe('zone maps', () => {
       }
       for (const p of z.enemies) {
         expect(ENEMY_DEFS[p.defId], `${z.id} enemy ${p.defId}`).toBeDefined();
-        expect(isWalkable(z, p.x, p.y), `${z.id} enemy ${p.defId} at ${p.x},${p.y}`).toBe(true);
+        const ok = ENEMY_DEFS[p.defId].habitat === 'sea' ? SEA_CHARS.has(tileAt(z, p.x, p.y)) : isWalkable(z, p.x, p.y);
+        expect(ok, `${z.id} enemy ${p.defId} at ${p.x},${p.y}`).toBe(true);
       }
     }
   });

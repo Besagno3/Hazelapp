@@ -25,16 +25,38 @@ import {
   type BuildingDef,
   type FogDef,
   type NpcPlacement,
+  type TravelMode,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
 import { safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
-import { spawnPlaced } from '../../content/enemies';
+import { habitatOf, spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
-import { BOAT_SPEED, canBoard, canLand, landingMooring, nearestSea, seaCrossing } from '../../lib/travel';
+import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
+import { CONTACT_RADIUS, contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, staysDown, touching, type Rest } from '../../lib/encounter';
+import {
+  EMBER_COST,
+  FOE_FACE,
+  HERO_AFLOAT_BOX,
+  HERO_BOX,
+  HERO_COST,
+  HERO_ROOM_COST,
+  LEVEL_TEXT_PX,
+  ZZ_PATHS,
+  edgeBoxes,
+  emberSpot,
+  glyphBox,
+  overlaps,
+  patchBox,
+  roofBoxes,
+  zzPath,
+  type Box,
+  type Mark,
+  type ZzPath,
+} from '../../lib/sleepMark';
 import { BOAT_REMOOR_REACH } from '../../content/boat';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
@@ -81,9 +103,8 @@ import {
 } from '../../lib/terrain';
 import {
   npcWanders,
-  pickWanderDir,
+  nextWanderDir,
   clampToLeash,
-  withinLeash,
   pickAmbientLine,
   approachBlocked,
   WANDER_TUNING,
@@ -113,7 +134,32 @@ const CALM_OPACITY = 0.45;
  */
 const LABEL_Z = 7;
 const LABEL_PLATE_OPACITY = 0.85;
-/** Seconds after Calm wears off before a critter you're touching starts a battle. */
+/**
+ * A sleeping critter (#114e) is drawn a little faded (less than under Calm,
+ * so it's still seen), its level hidden, with a little "z" and "Z" rising from
+ * its head and fading, over and over (held still under reduced motion) — by
+ * the way up clear of everyone else's face and label (`zzPath`), so they read
+ * as its own; drawn over the hero, Ember and the boat (`ZZ_Z`, under place
+ * names and roofs). While they cross anyone after all (the hero, a villager
+ * wandering by) they fade right down (`ZZ_CROSSING`) — by an awake critter
+ * they hide, or it looks asleep — and with the hero standing on the sleeper
+ * they hide: there's nothing of it to see.
+ */
+const SLEEP_OPACITY = 0.7;
+const ZZ_Z = 11.5;
+const ZZ_LOOP_S = 1.8;
+const ZZ_CROSSING = 0.25;
+/** How fast a letter eases to a new fade (per second), so a wanderer passing doesn't make it flicker. */
+const ZZ_EASE = 8;
+/** How near (px) a hero walking by a sleeper is when the "💤" hint shows. */
+const SLEEPER_HINT_PX = 44;
+/** The ripples under a sea critter (#75 item 14d): faint, so the critter reads first. */
+const RIPPLE_OPACITY = 0.35;
+/**
+ * Seconds of cooldown as Calm wears off: a critter the hero is standing in
+ * then lets them step away from it (`spared`) — walking on into it fights,
+ * like any foe — and people and places wait it out.
+ */
 const CALM_GRACE = 1.5;
 /**
  * Pitch dark (#75 item 9) as stacked layers, inset from the rectangle's edge
@@ -171,6 +217,8 @@ export interface WorldCanvasCallbacks {
   onFogRevealed?: (id: string) => void;
   /** Bumped the pitch dark of an unlit dark place (#75 item 9). */
   onDark?: () => void;
+  /** Bumped a sleeping critter (`resting`, #114e): say how to wake it — true once said (once a scene). */
+  onSleeper?: () => boolean;
   /** The whole seconds of Calm left changed (0 = it has worn off). */
   onCalmTick?: (secondsLeft: number) => void;
   /** Climbed into Marlow's boat (#75 item 14), now at (x, y) px on the sea. */
@@ -796,6 +844,8 @@ export default function WorldCanvas({
       kind: 'npc' | 'enemy' | 'spire' | 'umbra';
       npcId?: string;
       enemy?: BattleEnemy;
+      /** Where an enemy roams from (it rests by its home, `resting`). */
+      home?: { x: number; y: number };
       /** Sprite pieces — moved together when a wanderer is pushed off the player. */
       parts?: { pos: WorldVec }[];
       /** Footprint radius (px) for actor↔actor overlap avoidance. */
@@ -826,10 +876,17 @@ export default function WorldCanvas({
       anims?: Record<string, unknown>;
       /** How fast its walk cycle plays — a slow wanderer's slower, so it never treads water (#75 item 14f, Dawdle). */
       animSpeed?: number;
+      /** A sea critter (#75 item 14d): it swims open sea only. */
+      afloat?: boolean;
+      /** Holds still while this says so — a resting critter is asleep (`resting`, #114e). */
+      asleep?: () => boolean;
     }
     function attachWander(anchor: WorldActor, o: WanderOpts) {
       let dir = { x: 0, y: 0 };
       let timer = 0.3 + Math.random() * 1.2;
+      // Blocked last step: wander the next one rather than steer home again —
+      // the straight way home past a wall or the shore would stop it for good.
+      let bumped = false;
       // Sprite wanderers play their walk cycle and face their heading (4-way).
       const spr = o.anims ? (anchor as unknown as { play: (n: string) => void; flipX: boolean; animSpeed: number }) : null;
       if (spr && o.animSpeed) spr.animSpeed = o.animSpeed;
@@ -846,16 +903,17 @@ export default function WorldCanvas({
       animate(false);
       anchor.onUpdate(() => {
         if (pausedRef.current || triggered || cinematic) return;
+        if (o.asleep?.()) {
+          dir = { x: 0, y: 0 };
+          animate(false);
+          return;
+        }
         const dt = k.dt();
         timer -= dt;
         if (timer <= 0) {
-          // Steer back when near the leash edge; otherwise wander freely.
-          if (!withinLeash(o.actor.x, o.actor.y, o.homeX, o.homeY, o.leash * 0.85)) {
-            const len = Math.hypot(o.homeX - o.actor.x, o.homeY - o.actor.y) || 1;
-            dir = { x: (o.homeX - o.actor.x) / len, y: (o.homeY - o.actor.y) / len };
-          } else {
-            dir = pickWanderDir(Math.random);
-          }
+          // Steer back when near the leash edge; otherwise — or just blocked — wander freely.
+          dir = nextWanderDir({ x: o.actor.x, y: o.actor.y, homeX: o.homeX, homeY: o.homeY, leash: o.leash, bumped }, Math.random);
+          bumped = false;
           timer = dir.x || dir.y ? 0.6 + Math.random() : 0.7 + Math.random() * 1.6;
           facing = facingFor(dir.x, dir.y, facing);
           if (spr && facing === 'side') spr.flipX = dir.x < 0;
@@ -871,7 +929,8 @@ export default function WorldCanvas({
         // wanderers, stationary NPCs, the boss, the Spire — not the player or
         // Ember) block the step; on a bump, stop and repick a direction.
         if (
-          hitBox(c.x, c.y, WANDER_WALL_HALF, true) ||
+          // A sea critter's whole box stays on open sea (#75 item 14d).
+          hitBox(c.x, c.y, WANDER_WALL_HALF, true, o.afloat) ||
           // Townsfolk stay on their side of a building wall (no strolling in
           // or out of shops through the door).
           buildingAt(z, Math.floor(c.x / TILE), Math.floor(c.y / TILE)) !== homeBuilding ||
@@ -882,6 +941,7 @@ export default function WorldCanvas({
           )
         ) {
           dir = { x: 0, y: 0 };
+          bumped = true;
           timer = 0.2 + Math.random() * 0.5;
           animate(false);
           return;
@@ -1004,6 +1064,10 @@ export default function WorldCanvas({
       ]);
     }
 
+    // Everyone's face and label (a person's name, an enemy's level), round
+    // where they stand: a sleeper's "z Z" rise clear of them (`zzPath`) and
+    // fade while crossing them (#114e).
+    const looks = new Map<Actor, { face: number; label: { dy: number; w: number; h: number } }>();
     /** Puts an NPC in the world; `remove()` takes them out again. */
     function spawnNpc(p: NpcPlacement): { remove: () => void } {
       const def = NPC_DEFS[p.defId];
@@ -1047,6 +1111,8 @@ export default function WorldCanvas({
         radius: ACTOR_RADIUS.npc,
       };
       actors.push(actor);
+      const nameW = (label as unknown as { width?: number }).width ?? def.name.length * 6;
+      looks.set(actor, { face: 32, label: { dy: 24, w: nameW + 4, h: 12 } });
       // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
       if (npcWanders(def)) {
         attachWander(face, {
@@ -1065,6 +1131,7 @@ export default function WorldCanvas({
         remove: () => {
           const i = actors.indexOf(actor);
           if (i >= 0) actors.splice(i, 1);
+          looks.delete(actor);
           for (const piece of pieces) piece.destroy();
         },
       };
@@ -1078,7 +1145,23 @@ export default function WorldCanvas({
     for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
     for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
 
-    const critters: { obj: { opacity: number }; opacity: number }[] = [];
+    // Each roaming critter's parts, with their own full opacity — faded under
+    // Calm, and less while it sleeps (`resting`, #75 item 14d). Bosses never
+    // fade: neither Calm nor resting lets the hero past one.
+    const critters: { obj: { opacity: number }; opacity: number; actor: Actor }[] = [];
+    // …and while it sleeps it holds still, its level hidden and "z Z" rising
+    // from its head (`ZZ_Z`): a critter that lets you pass is asleep, not a
+    // ghost (#114e).
+    type Glyph = { pos: WorldVec; opacity: number; hidden: boolean };
+    const sleepers: {
+      level: { hidden: boolean }[];
+      // Each letter in white over a dark shadow, for any ground.
+      glyphs: { white: Glyph; shadow: Glyph }[];
+      // How faded each letter is now (1 = not at all), eased (`ZZ_EASE`).
+      fades: number[];
+      path: ZzPath;
+      actor: Actor;
+    }[] = [];
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
@@ -1090,6 +1173,19 @@ export default function WorldCanvas({
       const enemyView = resolveSprite(enemy.spriteId, enemy.sprite).def?.world;
       const enemyHasSprite = !!enemyView;
       const parts: Part[] = [];
+      // A sea critter (#75 item 14d) swims: a soft ring of ripples on the water under it.
+      const afloat = habitatOf(enemy) === 'sea';
+      const ripple = afloat
+        ? (k.add([
+            k.rect(28, 8, { radius: 4 }),
+            k.pos(px, py + 11),
+            k.anchor('center'),
+            k.color(225, 245, 255),
+            k.opacity(RIPPLE_OPACITY),
+            k.z(5),
+          ]) as unknown as Part)
+        : null;
+      if (ripple) parts.push(ripple);
       const body = enemyHasSprite
         ? null
         : k.add([
@@ -1115,14 +1211,14 @@ export default function WorldCanvas({
       const labelText = mapLabel(enemy.level, enemy.isBoss, enemy.tier);
       const labelY = py + (enemy.isBoss ? 32 : 26);
       const label = k.add([
-        k.text(labelText, { size: 11 }),
+        k.text(labelText, { size: LEVEL_TEXT_PX }),
         k.pos(px, labelY),
         k.anchor('center'),
         k.color(...DANGER[enemy.tier ?? BASE_TIER].mapColor),
         k.z(LABEL_Z + 0.5),
       ]) as unknown as Part & { width?: number; height?: number };
       const labelPlate = k.add([
-        k.rect((label.width ?? labelText.length * 7) + 8, (label.height ?? 12) + 4, { radius: 3 }),
+        k.rect((label.width ?? labelText.length * 7) + 8, (label.height ?? LEVEL_TEXT_PX) + 4, { radius: 3 }),
         k.pos(px, labelY),
         k.anchor('center'),
         k.color(20, 16, 36),
@@ -1135,10 +1231,37 @@ export default function WorldCanvas({
         y: py,
         kind: 'enemy',
         enemy,
+        home: { x: px, y: py },
         parts,
         radius: enemy.isBoss ? ACTOR_RADIUS.boss : ACTOR_RADIUS.enemy,
       };
       actors.push(actor);
+      const plate = labelPlate as unknown as { width: number; height: number };
+      looks.set(actor, { face: enemy.isBoss ? 48 : 32, label: { dy: labelY - py, w: plate.width, h: plate.height } });
+      if (!enemy.isBoss) {
+        // Every part fades with the critter (`critters`).
+        for (const part of parts) {
+          const base = part === labelPlate ? LABEL_PLATE_OPACITY : part === ripple ? RIPPLE_OPACITY : 1;
+          if (part !== labelPlate && part !== ripple) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
+          critters.push({ obj: part as unknown as { opacity: number }, opacity: base, actor });
+        }
+        const letter = (text: string, size: number, color: [number, number, number], z: number) => {
+          const o = k.add([k.text(text, { size }), k.pos(px, py), k.anchor('center'), k.color(...color), k.opacity(1), k.z(z)]) as unknown as Glyph;
+          o.hidden = true;
+          return o;
+        };
+        // Every way up has the same two letters; which one is picked below.
+        sleepers.push({
+          level: [label, labelPlate] as unknown as { hidden: boolean }[],
+          glyphs: ZZ_PATHS[0].glyphs.map((g) => ({
+            shadow: letter(g.text, g.size, [20, 16, 36], ZZ_Z),
+            white: letter(g.text, g.size, [255, 255, 255], ZZ_Z + 0.1),
+          })),
+          fades: ZZ_PATHS[0].glyphs.map(() => 1),
+          path: ZZ_PATHS[0],
+          actor,
+        });
+      }
       if (enemy.isBoss) {
         // Bosses hold their ground — gentle idle hover only (collision fixed).
         let t = Math.random() * Math.PI * 2;
@@ -1150,13 +1273,7 @@ export default function WorldCanvas({
           face.pos.y = py + dy;
         });
       } else {
-        // Regular critters roam their patch (slightly wider leash than NPCs),
-        // and fade while Calm is on (#75 item 9).
-        for (const part of parts) {
-          const base = part === labelPlate ? LABEL_PLATE_OPACITY : 1;
-          if (part !== labelPlate) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
-          critters.push({ obj: part as unknown as { opacity: number }, opacity: base });
-        }
+        // Regular critters roam their patch (slightly wider leash than NPCs).
         attachWander(face, {
           actor,
           parts,
@@ -1165,9 +1282,23 @@ export default function WorldCanvas({
           leash: TILE * WANDER_TUNING.enemy.leashTiles,
           speed: WANDER_TUNING.enemy.speed,
           anims: enemyView?.anims,
+          afloat,
+          asleep: () => resting.has(actor),
         });
       }
     }
+
+    // A critter asleep (`resting`, below): its level is hidden.
+    const asleepNow = (a: Actor) => !!a.enemy && !a.enemy.isBoss && resting.has(a);
+    // Everyone's face but `who`'s, as points — an awake critter's weighs more: a letter by it could make it look asleep (#114e).
+    const lookFaces = (who: Actor) =>
+      [...looks.keys()].filter((a) => a !== who).map((a) => ({ x: a.x, y: a.y, weight: a.enemy && !asleepNow(a) ? FOE_FACE : 1 }));
+    // Where everyone's face and shown label are now, and whose (#114e).
+    const lookBoxes = (): (Box & { who: Actor; boss?: boolean; face?: boolean })[] =>
+      [...looks].flatMap(([a, l]) => [
+        { x: a.x, y: a.y, w: l.face, h: l.face, who: a, boss: a.enemy?.isBoss, face: true },
+        ...(asleepNow(a) ? [] : [{ x: a.x, y: a.y + l.label.dy, w: l.label.w, h: l.label.h, who: a, boss: a.enemy?.isBoss }]),
+      ]);
 
     // Umbra, the Forgotten One, waits on the throne floor (#74).
     const umbraAt = spireFloor ? SPIRE_FLOOR_MAPS[spireFloor].umbra : undefined;
@@ -1232,20 +1363,147 @@ export default function WorldCanvas({
     }
     let curAnim = heroView ? animFor('down', false, heroView.anims) : 'idle';
     let heroFacing: Facing = 'down';
+    // Enemies that could reach the hero standing where they start — back from
+    // a Flee (the critter respawns at home, maybe right beside them), a
+    // reload, an arrival, a neighbour's patch — rest: a critter falls asleep
+    // ("z Z" rising from its head, a little faded, holding still) and like Calm lets the hero
+    // pass, until the hero has left its patch; a boss, drawn as ever, only
+    // holds back while they stand still, back away or step aside — it fights
+    // if they head past it (`staysDown`, #114e). Only those that could fight
+    // the hero as they travel now; landing or climbing aboard asks again, for
+    // the new way of getting about, from where the hero is.
+    const leash = TILE * WANDER_TUNING.enemy.leashTiles;
+    const resting = new Map<Actor, Rest>();
+    let restings = 0; // bumped on every change, so `fadeCritters` redraws
+    /** The hero's box — with the boat round them when sailing. */
+    const heroSize = () => (aboard ? HERO_AFLOAT_BOX : HERO_BOX);
+    // The way the hero last went: Ember trails behind it (and the boat faces it).
+    let lastDir = { x: 0, y: 1 };
+    // Back beside a sleeper (a Flee, a reload, a landing), Ember starts — and
+    // trails — on its far side, rather than over it (#114e): or, if that's
+    // sea, rock, under a roof or on someone, on a side instead; else where she
+    // trails anyway (`emberSpot`). The letters are planned round that spot.
+    const emberStart = (hero: { x: number; y: number }) => {
+      const near = sleepers
+        .filter((s) => resting.has(s.actor))
+        .sort((a, b) => Math.hypot(a.actor.x - hero.x, a.actor.y - hero.y) - Math.hypot(b.actor.x - hero.x, b.actor.y - hero.y))[0];
+      const indoors = buildingInside(z, Math.floor(hero.x / TILE), Math.floor(hero.y / TILE));
+      const ground = (x: number, y: number) => {
+        const cx = Math.floor(x / TILE);
+        const cy = Math.floor(y / TILE);
+        const ch = tileAt(z, cx, cy);
+        const roof = buildingAt(z, cx, cy);
+        return (aboard ? SEA_CHARS.has(ch) : WALKABLE_CHARS.has(ch)) && !fogAt(z, cx, cy, flagsRef.current) && (!roof || roof.id === indoors?.id);
+      };
+      return emberSpot(hero, near?.actor ?? null, ground, lookBoxes(), lastDir);
+    };
+    // The lighthouse tower draws over everything round its rock, like a roof.
+    const towerBox: Mark[] = z.lighthouse
+      ? [{ x: (z.lighthouse.x + 1) * TILE, y: z.lighthouse.y * TILE, w: 2 * TILE, h: 4 * TILE }]
+      : [];
+    // Past the map's edges letters are cut off, so they're kept in, like from under a roof.
+    const mapEdges = edgeBoxes(z.map[0].length, z.map.length, TILE);
+    const restAround = (hero: { x: number; y: number }, mode: TravelMode) => {
+      resting.clear();
+      const foes = actors.flatMap((a) => (a.enemy && a.home && meetsHero(a.enemy.habitat, mode) ? [{ a, ...a.home }] : []));
+      for (const f of standDown(foes, (f) => idleReach(f.a.enemy!, leash), hero)) {
+        resting.set(f.a, restOf(f.a.enemy!, f.a.home!, hero, leash));
+      }
+      // Each sleeper's "z Z" take the way up that reads most surely as its own
+      // (`zzPath`, #114e): clear of everyone else and of where awake critters
+      // roam, with room round the hero and where Ember will stand, and nearer
+      // its own face than theirs.
+      const em = emberStart(hero).at;
+      const inside = buildingInside(z, Math.floor(hero.x / TILE), Math.floor(hero.y / TILE));
+      const crowd: (Mark & { who?: Actor })[] = [
+        ...lookBoxes(),
+        ...roofBoxes(z.buildings ?? [], inside?.id, TILE),
+        ...towerBox,
+        ...mapEdges,
+        ...actors.flatMap((a) => (a.enemy && a.home && !a.enemy.isBoss && !resting.has(a) ? [patchBox(a.home, leash)] : [])),
+        { x: hero.x, y: hero.y, ...heroSize(), weight: HERO_COST },
+        { x: hero.x, y: hero.y, w: heroSize().w + 24, h: heroSize().h + 24, weight: HERO_ROOM_COST },
+        { x: em.x, y: em.y, ...HERO_BOX, weight: EMBER_COST },
+      ];
+      for (const s of sleepers) {
+        if (!resting.has(s.actor)) continue;
+        const others = crowd.filter((o) => !('who' in o) || o.who !== s.actor);
+        s.path = zzPath(s.actor, others, { faces: [...lookFaces(s.actor), hero, em], away: hero });
+      }
+      restings += 1;
+    };
+    restAround(spawn, aboard ? 'boat' : 'foot');
+    // Faded critters let you pass: under Calm, and any asleep.
+    let critterFade = '';
+    const fadeCritters = (calm: boolean) => {
+      const key = `${calm}|${restings}`;
+      if (key === critterFade) return;
+      critterFade = key;
+      for (const c of critters) {
+        c.obj.opacity = c.opacity * (resting.has(c.actor) ? SLEEP_OPACITY : calm ? CALM_OPACITY : 1);
+      }
+      for (const s of sleepers) {
+        const asleep = resting.has(s.actor);
+        for (const part of s.level) part.hidden = asleep;
+        for (const { white, shadow } of s.glyphs) white.hidden = shadow.hidden = !asleep;
+      }
+    };
+    // The letters rise and fade on a loop, each half a loop behind the other;
+    // over anyone in `crowd` (the hero, Ember, everyone's face and label but
+    // the sleeper's own), or nearer anyone's face than their own sleeper's,
+    // they fade right down — by an awake critter (or a boss) they hide — so
+    // they never read as someone else's; with the hero (or the boat) on the
+    // sleeper they hide.
+    const awake = (a?: Actor) => !!a?.enemy && !asleepNow(a);
+    let zzClock = 0;
+    const riseSleepMarks = (dt: number, crowd: () => (Box & { who?: Actor; face?: boolean })[]) => {
+      zzClock += dt;
+      let others: (Box & { who?: Actor; face?: boolean })[] | null = null;
+      for (const s of sleepers) {
+        if (!resting.has(s.actor)) continue;
+        others ??= crowd();
+        const under = touching(s.actor, player.pos, aboard ? 28 : 16);
+        s.path.glyphs.forEach((g, i) => {
+          const { white, shadow } = s.glyphs[i];
+          const p = reducedMotion ? 0.5 : (zzClock / ZZ_LOOP_S + i / 2) % 1;
+          const box = glyphBox(s.actor, g, s.path.drift, p);
+          // Crossing someone, or nearer anyone's face than its own sleeper's,
+          // it could read as theirs: faded right down — hidden by an awake critter.
+          const own = Math.hypot(box.x - s.actor.x, box.y - s.actor.y);
+          let fade = 1;
+          for (const o of others!) {
+            if (o.who === s.actor || !(overlaps(box, o) || (o.face && Math.hypot(box.x - o.x, box.y - o.y) < own))) continue;
+            fade = awake(o.who) ? 0 : ZZ_CROSSING;
+            if (fade === 0) break;
+          }
+          s.fades[i] += (fade - s.fades[i]) * Math.min(1, dt * ZZ_EASE);
+          white.pos = k.vec2(box.x, box.y);
+          shadow.pos = k.vec2(box.x + 1, box.y + 1);
+          white.opacity = under ? 0 : (reducedMotion ? 1 : Math.sin(Math.PI * p)) * s.fades[i];
+          shadow.opacity = white.opacity * 0.8;
+        });
+      }
+    };
+    const heroBox = () => ({ x: player.pos.x, y: player.pos.y, ...heroSize(), face: true });
+    // From the first frame — even while the world waits (a level-up, a slide).
+    fadeCritters((calmRef?.current ?? 0) > 0);
+    riseSleepMarks(ZZ_LOOP_S / 4, () => [heroBox(), ...lookBoxes()]);
 
-    // Ember trails the hero (no collision — dragons walk where they please).
+    // Ember trails the hero (no collision — dragons walk where they please),
+    // starting clear of a sleeper (`emberStart`).
+    const emberAt = emberStart(spawn);
     const ember = worldFace(k, {
       spriteId: EMBER_SPRITE_IDS[emberStage],
       emoji: EMBER_SPRITES[emberStage],
-      x: spawn.x - 24,
-      y: spawn.y + 8,
+      x: emberAt.at.x,
+      y: emberAt.at.y,
       size: EMBER_MAP_SIZE[emberStage],
       z: 9,
     }).obj as unknown as WorldActor;
     const emberView = resolveSprite(EMBER_SPRITE_IDS[emberStage], EMBER_SPRITES[emberStage]).def?.world ?? null;
     const emberSprite = ember as unknown as { play: (n: string) => void; flipX: boolean };
     let emberAnim = '';
-    let lastDir = { x: 0, y: 1 };
+    lastDir = emberAt.dir;
 
     // --- Marlow's boat (#75 item 14) ---------------------------------------
     // One sprite: moored at its spot when that's on this map, under the hero
@@ -1478,7 +1736,6 @@ export default function WorldCanvas({
         : [];
     let pitchFade = 1;
     let calmShown = Math.ceil(calmRef?.current ?? 0);
-    let critterOpacity = 1;
 
     // Darkness everywhere but a flickering circle of light round the hero:
     // the Spire's candle-light (#74), or a dark place (#75 item 9) — a few
@@ -1523,6 +1780,27 @@ export default function WorldCanvas({
     let needsRelease = arrivalLockRef.current;
     arrivalLockRef.current = false;
     let cooldown = 0;
+    // Critters that don't fight the hero while they're touching them, until
+    // they step clear (never a boss, #114t): those touching the hero as a
+    // cooldown is armed (`graceOf` — a menu closed, a chest, the save crystal,
+    // a landing, Calm wearing off), and any that comes onto a hero standing
+    // still while one runs (reading "💎 Game saved!") — even once it's over.
+    const spared = new Set<Actor>();
+    // …and none fights for the two frames after one's armed, while the menu,
+    // talk or chest it came with takes the world's pause (a battle sent then
+    // would be dropped, and the world would wait for it forever).
+    let held = 0;
+    // How long a hero standing still isn't walked into (`meetFoe`'s
+    // `guarded`): the cooldown's length, or longer (the save crystal's toast).
+    let guard = 0;
+    // Never shortens one already running (a menu closed just after saving).
+    const arm = (seconds: number, guardFor = seconds) => {
+      cooldown = Math.max(cooldown, seconds);
+      guard = Math.max(guard, guardFor);
+      for (const a of graceOf(actors, player.pos)) spared.add(a);
+      held = 2;
+    };
+    let sleeperHinted = false;
     let moveSaveTimer = 0;
 
     const loop = k.onUpdate(() => {
@@ -1539,10 +1817,11 @@ export default function WorldCanvas({
       }
       if (wasPaused) {
         wasPaused = false;
-        cooldown = TRIGGER_COOLDOWN;
+        arm(TRIGGER_COOLDOWN);
       }
       const dt = k.dt();
       cooldown = Math.max(0, cooldown - dt);
+      guard = Math.max(0, guard - dt);
 
       if (!reveal) {
         const due = fogBanks.filter((b) => !b.shown && b.puffs.length > 0 && lifted(b.def));
@@ -1578,7 +1857,7 @@ export default function WorldCanvas({
         for (const part of reveal.hint) part.destroy();
         reveal = null;
         cinematic = false;
-        cooldown = TRIGGER_COOLDOWN;
+        arm(TRIGGER_COOLDOWN);
         needsRelease = true; // a key held through the reveal doesn't walk off at once
       }
 
@@ -1620,16 +1899,16 @@ export default function WorldCanvas({
           calmShown = whole;
           cbRef.current.onCalmTick?.(whole);
           // Worn off: a moment to step away from a critter you're standing on.
-          if (whole === 0) cooldown = Math.max(cooldown, CALM_GRACE);
+          if (whole === 0) arm(CALM_GRACE);
         }
       }
       const calm = (calmRef?.current ?? 0) > 0;
-      const wantOpacity = calm ? CALM_OPACITY : 1;
-      if (wantOpacity !== critterOpacity) {
-        critterOpacity = wantOpacity;
-        for (const c of critters) c.obj.opacity = c.opacity * wantOpacity;
-      }
+      fadeCritters(calm);
+      riseSleepMarks(dt, () => [heroBox(), { x: ember.pos.x, y: ember.pos.y, ...HERO_BOX, face: true }, ...lookBoxes()]);
 
+      // Standing still is not moving this frame — a thumb left on the d-pad
+      // against a wall or the save crystal is still.
+      const was = { x: player.pos.x, y: player.pos.y };
       const keys = keysRef.current;
       let dx = touchDirRef.current.dx;
       let dy = touchDirRef.current.dy;
@@ -1706,16 +1985,20 @@ export default function WorldCanvas({
         aboard = true;
         player.pos = k.vec2(mooring.x * TILE + TILE / 2, mooring.y * TILE + TILE / 2);
         mooring = null;
-        cooldown = TRIGGER_COOLDOWN;
+        arm(TRIGGER_COOLDOWN);
         cbRef.current.onBoard?.(player.pos.x, player.pos.y);
+        restAround(player.pos, 'boat');
+        lastDir = emberStart(player.pos).dir; // Ember goes where its letters were planned round
         bumped = null;
       } else if (bumped && landAt) {
         aboard = false;
         mooring = landAt;
         player.pos = k.vec2(bumped.x * TILE + TILE / 2, bumped.y * TILE + TILE / 2);
-        cooldown = TRIGGER_COOLDOWN;
+        arm(TRIGGER_COOLDOWN);
         needsRelease = true; // don't sail straight back into the boat
         cbRef.current.onLand?.(landAt, player.pos.x, player.pos.y);
+        restAround(player.pos, 'foot');
+        lastDir = emberStart(player.pos).dir;
         bumped = null;
       }
 
@@ -1723,12 +2006,12 @@ export default function WorldCanvas({
       const bumpedSecret = bumped ? secretAt(z, bumped.x, bumped.y) : undefined;
       if (bumped && cooldown === 0) {
         if (bumpedSecret && !flagsRef.current[secretFlag(bumpedSecret.id)]) {
-          cooldown = TRIGGER_COOLDOWN;
+          arm(TRIGGER_COOLDOWN);
           cbRef.current.onMove(player.pos.x, player.pos.y);
           cbRef.current.onSecret?.(bumpedSecret.id);
         } else if (bumped.ch === 'G') {
           const id = gateIdAt(zoneId, z.map, bumped.x, bumped.y);
-          cooldown = TRIGGER_COOLDOWN;
+          arm(TRIGGER_COOLDOWN);
           // A warden-keyed Fiend gate checks a key instead of asking a question (#58).
           // Match on the gate group so either tile of a double-wide gate counts.
           const keyed = z.keyGate && gateIdAt(zoneId, z.map, z.keyGate.x, z.keyGate.y) === id;
@@ -1736,28 +2019,30 @@ export default function WorldCanvas({
         } else if (bumped.ch === 'C') {
           const id = pathTargetId(zoneId, 'chest', bumped.x, bumped.y);
           if (!chestsRef.current.includes(id)) {
-            cooldown = TRIGGER_COOLDOWN;
+            arm(TRIGGER_COOLDOWN);
             cbRef.current.onPath({ kind: 'chest', id, topic: chestTopicAt(z, bumped.x, bumped.y), zoneId });
           }
         } else if (bumped.ch === 'S') {
-          cooldown = 2;
+          // A hero standing still isn't walked into for as long as "💎 Game
+          // saved!" takes to read (~2.9 s, `toastMs`).
+          arm(2, 3);
           cbRef.current.onSaveCrystal();
         } else if (bumped.ch === 'fog') {
           const fog = fogAt(z, bumped.x, bumped.y, flagsRef.current);
-          cooldown = 2;
+          arm(2);
           if (fog) cbRef.current.onFog?.(fog.hint, fog.id);
         } else if (bumped.ch === 'dark') {
-          cooldown = 2;
+          arm(2);
           cbRef.current.onDark?.();
         } else if (bumped.ch === 'Q') {
           // A rune seal on a Spire floor (#74): face its question.
           const id = `${bumped.x},${bumped.y}`;
           if (!brokenRef.current.includes(id)) {
-            cooldown = TRIGGER_COOLDOWN;
+            arm(TRIGGER_COOLDOWN);
             cbRef.current.onWard?.(id);
           }
         } else if (bumped.ch === 'U') {
-          cooldown = TRIGGER_COOLDOWN;
+          arm(TRIGGER_COOLDOWN);
           cbRef.current.onStairs?.();
         } else if (bumped.ch === 'K') {
           // Talk across a shop counter to whoever stands behind it (#72).
@@ -1769,65 +2054,102 @@ export default function WorldCanvas({
           if (clerk?.npcId) {
             player.pos.x -= dx * 10;
             player.pos.y -= dy * 10;
-            cooldown = TRIGGER_COOLDOWN;
+            arm(TRIGGER_COOLDOWN);
             cbRef.current.onMove(player.pos.x, player.pos.y);
             cbRef.current.onTalk(clerk.npcId);
           }
         }
       }
 
+      // A resting enemy wakes once the hero has left its patch (a boss: or
+      // headed past it) — checked every frame, a bump cooling down or not.
+      for (const [a, rest] of resting) {
+        if (staysDown(rest, player.pos)) continue;
+        resting.delete(a);
+        restings += 1;
+      }
+
+      // A cooldown spares only `spared` — never one the hero walks into, a
+      // boss least of all: it used to let a hero walk through anything (#114t).
+      const still = player.pos.x === was.x && player.pos.y === was.y;
+      const stepX = player.pos.x - was.x;
+      const stepY = player.pos.y - was.y;
+      const holding = held > 0;
+      held = Math.max(0, held - 1);
+
       // Actor contact: NPCs talk, enemies start battles.
-      if (cooldown === 0) {
-        for (const a of actors) {
-          // Calm: roaming critters let the hero pass (bosses don't).
-          if (calm && a.kind === 'enemy' && !a.enemy?.isBoss) continue;
-          const r = a.kind === 'enemy' && a.enemy?.isBoss ? 34 : 28;
-          const dxa = player.pos.x - a.x;
-          const dya = player.pos.y - a.y;
-          if (dxa * dxa + dya * dya < r * r) {
-            if (a.kind === 'npc' && a.npcId) {
-              // Push a *wandering* NPC clear of the contact radius (along the
-              // player→NPC axis) so it can't re-open dialogue on a standing
-              // player after the cooldown; the player nudge alone is a no-op
-              // when the NPC walked into a motionless hero (dx/dy = 0).
-              const dist = Math.sqrt(dxa * dxa + dya * dya) || 1;
-              const need = r + 8 - dist;
-              if (need > 0 && a.parts) {
-                const ax = a.x - (dxa / dist) * need;
-                const ay = a.y - (dya / dist) * need;
-                if (!hitAt(ax, ay)) {
-                  for (const part of a.parts) {
-                    part.pos.x += ax - a.x;
-                    part.pos.y += ay - a.y;
-                  }
-                  a.x = ax;
-                  a.y = ay;
-                }
-              }
-              // Nudge back so closing the dialogue doesn't instantly re-bump.
-              player.pos.x -= dx * 10;
-              player.pos.y -= dy * 10;
-              cooldown = TRIGGER_COOLDOWN;
-              cbRef.current.onMove(player.pos.x, player.pos.y);
-              cbRef.current.onTalk(a.npcId);
-            } else if (a.kind === 'spire') {
-              player.pos.x -= dx * 10;
-              player.pos.y -= dy * 10;
-              cooldown = TRIGGER_COOLDOWN;
-              cbRef.current.onMove(player.pos.x, player.pos.y);
-              cbRef.current.onSpire();
-            } else if (a.kind === 'umbra') {
-              player.pos.x -= dx * 10;
-              player.pos.y -= dy * 10;
-              cooldown = TRIGGER_COOLDOWN;
-              cbRef.current.onUmbra?.();
-            } else if (a.kind === 'enemy' && a.enemy) {
-              triggered = true;
-              cbRef.current.onMove(player.pos.x - dx * 14, player.pos.y - dy * 14);
-              cbRef.current.onEncounter(a.enemy);
-            }
-            break;
+      for (const a of actors) {
+        if (a.kind === 'enemy' && a.enemy) {
+          const onHero = touching(a, player.pos, contactRadius(a.enemy));
+          const asleep = resting.has(a);
+          // Heading up to a sleeping critter — while it's still there to see,
+          // not under them — says why it lets them pass (#114e).
+          const towards = dx * (a.x - player.pos.x) + dy * (a.y - player.pos.y) > 0;
+          if (asleep && !holding && !sleeperHinted && !a.enemy.isBoss && towards && touching(a, player.pos, SLEEPER_HINT_PX)) {
+            sleeperHinted = cbRef.current.onSleeper?.() ?? true;
           }
+          // Fight, pass, or spare (`meetFoe`, #114e, #114t).
+          const met = meetFoe(a.enemy, {
+            onHero,
+            held: holding,
+            resting: asleep,
+            spared: spared.has(a),
+            guarded: guard > 0,
+            still,
+            closing: !still && stepX * (a.x - was.x) + stepY * (a.y - was.y) > 0,
+            mode: aboard ? 'boat' : 'foot',
+            calm,
+          });
+          if (met.spared) spared.add(a);
+          else spared.delete(a);
+          if (!met.fight) continue;
+        } else if (cooldown > 0) continue; // people and places wait out a bump
+        const r = a.kind === 'enemy' && a.enemy ? contactRadius(a.enemy) : CONTACT_RADIUS.critter;
+        const dxa = player.pos.x - a.x;
+        const dya = player.pos.y - a.y;
+        if (dxa * dxa + dya * dya < r * r) {
+          if (a.kind === 'npc' && a.npcId) {
+            // Push a *wandering* NPC clear of the contact radius (along the
+            // player→NPC axis) so it can't re-open dialogue on a standing
+            // player after the cooldown; the player nudge alone is a no-op
+            // when the NPC walked into a motionless hero (dx/dy = 0).
+            const dist = Math.sqrt(dxa * dxa + dya * dya) || 1;
+            const need = r + 8 - dist;
+            if (need > 0 && a.parts) {
+              const ax = a.x - (dxa / dist) * need;
+              const ay = a.y - (dya / dist) * need;
+              if (!hitAt(ax, ay)) {
+                for (const part of a.parts) {
+                  part.pos.x += ax - a.x;
+                  part.pos.y += ay - a.y;
+                }
+                a.x = ax;
+                a.y = ay;
+              }
+            }
+            // Nudge back so closing the dialogue doesn't instantly re-bump.
+            player.pos.x -= dx * 10;
+            player.pos.y -= dy * 10;
+            arm(TRIGGER_COOLDOWN);
+            cbRef.current.onMove(player.pos.x, player.pos.y);
+            cbRef.current.onTalk(a.npcId);
+          } else if (a.kind === 'spire') {
+            player.pos.x -= dx * 10;
+            player.pos.y -= dy * 10;
+            arm(TRIGGER_COOLDOWN);
+            cbRef.current.onMove(player.pos.x, player.pos.y);
+            cbRef.current.onSpire();
+          } else if (a.kind === 'umbra') {
+            player.pos.x -= dx * 10;
+            player.pos.y -= dy * 10;
+            arm(TRIGGER_COOLDOWN);
+            cbRef.current.onUmbra?.();
+          } else if (a.kind === 'enemy' && a.enemy) {
+            triggered = true;
+            cbRef.current.onMove(player.pos.x - dx * 14, player.pos.y - dy * 14);
+            cbRef.current.onEncounter(a.enemy);
+          }
+          break;
         }
       }
 
@@ -1928,7 +2250,7 @@ export default function WorldCanvas({
       // A secret on open ground is found by stepping onto its spot.
       const underfoot = secretAt(z, cellX, cellY);
       if (underfoot && cooldown === 0 && !flagsRef.current[secretFlag(underfoot.id)]) {
-        cooldown = TRIGGER_COOLDOWN;
+        arm(TRIGGER_COOLDOWN);
         cbRef.current.onMove(player.pos.x, player.pos.y);
         cbRef.current.onSecret?.(underfoot.id);
       }

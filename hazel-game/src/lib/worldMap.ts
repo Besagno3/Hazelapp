@@ -178,3 +178,82 @@ export function mapCaption(here: MapMarker | null, zoneName: string, worldName: 
   }
   return `You're here: ${zoneName} (past ${here.place})`;
 }
+
+/** A sea-edge label's words (#75 item 14): "◀ Dawnreach", "Silver Shallows ▶", "▲ …", "▼ …". */
+export function seaEdgeLabel(side: 'north' | 'south' | 'east' | 'west', toName: string): string {
+  const name = toName.startsWith('The ') ? toName.slice(4) : toName;
+  return side === 'west' ? `◀ ${name}` : side === 'east' ? `${name} ▶` : side === 'north' ? `▲ ${name}` : `▼ ${name}`;
+}
+
+/**
+ * Where down its edge a map's west / east sea-edge label sits — as a fraction
+ * of the map's height (#75 item 14d review). The first of these spots where
+ * the label keeps a gap from every marker; else the one covering least —
+ * the ⭐ last of all — and only then coming nearest. Below the middle by
+ * default; near the top and bottom too, since a busy coast (Dawnreach's east)
+ * can fill the middle.
+ */
+export const EDGE_LABEL_SPOTS = [0.63, 0.8, 0.37, 0.5, 0.2, 0.9, 0.06, 0.95] as const;
+
+/**
+ * The narrowest the menu map is drawn (a 320 px phone, the narrowest the game
+ * is played on). Labels and icons keep their pixel size while the map shrinks,
+ * so a label clear of a marker here is clear at every size.
+ */
+export const MAP_MIN_PX = 208;
+/** Half a label's height (10 px text, 2 px padding each side), and half an icon's box (13–16 px). */
+const LABEL_HALF_PX = 7;
+const ICON_HALF_PX = 8;
+/** …but the ⭐ is drawn bigger: 20 px wide. */
+export const STAR_HALF_W = 10;
+/** And a little air between a label and a marker, so they don't touch. */
+const GAP_PX = 3;
+/** A label's width: ~6 px a character of 10 px semibold text, its padding, 2 px off the edge. */
+const labelPx = (text: string) => 6 * [...text].length + 10;
+
+/**
+ * Does the label (`text`) at `spot` come within `gap` px of a marker on this
+ * cell (`halfW` px either side of it), on the narrowest map? (`gap` 0: does it
+ * cover it.)
+ */
+export function edgeLabelCovers(
+  side: 'west' | 'east',
+  cols: number,
+  rows: number,
+  spot: number,
+  m: { x: number; y: number },
+  text: string,
+  halfW = ICON_HALF_PX,
+  gap = GAP_PX,
+): boolean {
+  const W = MAP_MIN_PX;
+  const H = (W * rows) / cols;
+  const mx = ((m.x + 0.5) / cols) * W;
+  const my = ((m.y + 0.5) / rows) * H;
+  const lw = labelPx(text);
+  const [x0, x1] = side === 'west' ? [2, 2 + lw] : [W - 2 - lw, W - 2];
+  return Math.abs(my - spot * H) < LABEL_HALF_PX + ICON_HALF_PX + gap && mx + halfW + gap > x0 && mx - halfW - gap < x1;
+}
+
+export function edgeLabelSpot(
+  side: 'west' | 'east',
+  cols: number,
+  rows: number,
+  marks: readonly { x: number; y: number }[],
+  here: { x: number; y: number } | null,
+  text: string,
+): number {
+  // Covering the ⭐ is worst, then covering a marker; only coming within the
+  // gap of one (the ⭐ above others) counts far less — never enough to land on
+  // something instead.
+  const hit = (m: { x: number; y: number }, f: number, covered: number, close: number, halfW?: number) =>
+    edgeLabelCovers(side, cols, rows, f, m, text, halfW, 0) ? covered : edgeLabelCovers(side, cols, rows, f, m, text, halfW) ? close : 0;
+  const cost = (f: number) =>
+    (here ? hit(here, f, 1000, 10, STAR_HALF_W) : 0) + marks.reduce((n, m) => n + hit(m, f, 100, 1), 0);
+  let best: number = EDGE_LABEL_SPOTS[0];
+  for (const f of EDGE_LABEL_SPOTS) {
+    if (cost(f) === 0) return f;
+    if (cost(f) < cost(best)) best = f;
+  }
+  return best;
+}

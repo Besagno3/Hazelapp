@@ -305,6 +305,8 @@ const live: {
   /** Battles the hero walked into, and pitch-dark bumps (#75 item 9). */
   encounters: number;
   darkBumps: number;
+  /** "It's asleep" hints from walking into a resting critter (#114e). */
+  sleeperHints: number;
   /** The last whole seconds of Calm the world reported. */
   calmLeft: number;
   /** Marlow's boat (#75 item 14): sailing it, where it's moored, and how often you climbed in / went ashore. */
@@ -329,6 +331,7 @@ const live: {
   fogReveals: [],
   encounters: 0,
   darkBumps: 0,
+  sleeperHints: 0,
   calmLeft: 0,
   aboard: q.get('aboard') === '1',
   boat: boatParam,
@@ -458,6 +461,10 @@ function Bench() {
           },
           onDark: () => {
             live.darkBumps += 1;
+          },
+          onSleeper: () => {
+            live.sleeperHints += 1;
+            return true;
           },
           onCalmTick: (left) => {
             live.calmLeft = left;

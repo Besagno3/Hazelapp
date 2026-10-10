@@ -784,15 +784,17 @@ def spire_props():
 BW, BH = 256, 144
 
 
-def backdrop(z: dict, seed: int) -> Image.Image:
-    rnd = random.Random(seed)
+HORIZON = 92
+
+
+def _sky(z: dict) -> np.ndarray:
+    """The sky down to the horizon: a banded gradient with a 2×2 ordered dither
+    between bands (SNES look). No randomness, so it's the same on every call."""
     a = np.zeros((BH, BW, 3), dtype=np.uint8)
     top, bot = hexc(z['sky'][0]), hexc(z['sky'][1])
-    horizon = 92
     bands = 10
-    for y in range(horizon):
-        t = y / horizon
-        # banded gradient with a 2×2 ordered dither between bands (SNES look)
+    for y in range(HORIZON):
+        t = y / HORIZON
         tb = t * bands
         lo = math.floor(tb) / bands
         hi = min(1.0, (math.floor(tb) + 1) / bands)
@@ -801,7 +803,27 @@ def backdrop(z: dict, seed: int) -> Image.Image:
             thresh = ((x % 2) * 2 + (y % 2)) / 4 + 0.125
             tt = hi if frac > thresh else lo
             a[y, x] = mix(top, bot, tt)
-    img = a
+    return a
+
+
+def _sun_and_clouds(img: np.ndarray):
+    """A daytime sky's sun and three flat clouds (no randomness)."""
+    cx, cy, r = 210, 22, 9
+    for y in range(cy - r, cy + r):
+        for x in range(cx - r, cx + r):
+            if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
+                img[y, x] = (255, 250, 210)
+    for (cx, cy, w) in ((50, 20, 26), (120, 34, 20), (170, 14, 16)):
+        for y in range(cy - 4, cy + 4):
+            for x in range(cx - w, cx + w):
+                if ((x - cx) / w) ** 2 + ((y - cy) / 4) ** 2 <= 1:
+                    img[y, x] = (250, 252, 255) if y < cy + 1 else (220, 232, 250)
+
+
+def backdrop(z: dict, seed: int) -> Image.Image:
+    rnd = random.Random(seed)
+    horizon = HORIZON
+    img = _sky(z)
     if z.get('stars'):
         for _ in range(60):
             x, y = rnd.randrange(BW), rnd.randrange(horizon - 20)
@@ -813,16 +835,7 @@ def backdrop(z: dict, seed: int) -> Image.Image:
                 if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
                     img[y, x] = (255, 244, 200)
     elif not z.get('stars') and not z.get('cave'):
-        cx, cy, r = 210, 22, 9
-        for y in range(cy - r, cy + r):
-            for x in range(cx - r, cx + r):
-                if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
-                    img[y, x] = (255, 250, 210)
-        for (cx, cy, w) in ((50, 20, 26), (120, 34, 20), (170, 14, 16)):
-            for y in range(cy - 4, cy + 4):
-                for x in range(cx - w, cx + w):
-                    if ((x - cx) / w) ** 2 + ((y - cy) / 4) ** 2 <= 1:
-                        img[y, x] = (250, 252, 255) if y < cy + 1 else (220, 232, 250)
+        _sun_and_clouds(img)
     # far hills
     far = hexc(z['far'])
     ph = rnd.random() * 10
@@ -883,6 +896,54 @@ def _mid_shape(img, kind, x0, base, col, rnd):
     elif kind == 'sea':
         fill(lambda x, y: True, x0 - 2, x0 + 22, base - 8, base, c=mix(col, (60, 120, 200), 0.5))
         fill(lambda x, y: (x + y) % 7 == 0, x0 - 2, x0 + 22, base - 8, base - 6, c=(200, 230, 255))
+
+
+def sea_backdrop(z: dict, seed: int) -> Image.Image:
+    """A battle out at sea (#75 item 14d): the zone's daytime sky, a few low
+    islands on the horizon, then open water all the way to the front — lighter
+    far off, deeper near, with wave crests in perspective and sparkles. The
+    hero fights from Marlow's boat (the battle screen draws it), and a sea
+    critter rises out of the water."""
+    rnd = random.Random(seed)
+    img = _sky(z)
+    _sun_and_clouds(img)
+    water = hexc(z['water'])
+    deep = dark(water, 0.18)
+    far_sea = light(water, 0.22)
+    # Low islands on the horizon: the Shallows' own sandy humps, one mid-picture
+    # so a phone's narrow crop (background-size: cover — only about x 88–168
+    # shows at 375×667) has one. Just humps, nothing standing on them: the
+    # battle screen's water band (`SeaFloor`) rises over the horizon as the
+    # menu squeezes the stage, and a hump half-covered still reads as an island
+    # — a palm left standing on the water wouldn't (#75 item 14d review).
+    isl = mix(hexc(z['far']), hexc(z['ground']), 0.4)
+    for (cx, w, h) in ((30, 22, 5), (128, 15, 4), (218, 30, 6)):
+        for x in range(max(0, cx - w), min(BW, cx + w)):
+            t = (x - cx) / w
+            for y in range(int(HORIZON - h * (1 - t * t)), HORIZON):
+                img[y, x] = isl
+    # The sea, horizon to front.
+    shade = lambda t: mix(far_sea, deep, t ** 0.8)  # noqa: E731
+    for y in range(HORIZON, BH):
+        img[y, :] = shade((y - HORIZON) / (BH - HORIZON))
+    for y in range(HORIZON + 1, BH):
+        if int((y - HORIZON) ** 1.3) % 5:
+            continue
+        t = (y - HORIZON) / (BH - HORIZON)
+        dash, gap = 3 + int(t * 12), 6 + int(t * 18)
+        crest = light(shade(t), 0.22)
+        for x0 in range(-rnd.randrange(gap + dash), BW, dash + gap):
+            img[y, max(0, x0):max(0, min(BW, x0 + dash))] = crest
+    for x in range(0, BW, 6):
+        img[HORIZON, x:x + 3] = light(far_sea, 0.35)
+    for _ in range(40):
+        img[rnd.randrange(HORIZON + 2, BH), rnd.randrange(BW)] = (240, 250, 255)
+    return Image.fromarray(img, 'RGB')
+
+
+def sea_backdrop_path(zid: str) -> str:
+    """Where a sea map's battle-at-sea backdrop is written (src: `battleBackdrop(zone, 'sea')`)."""
+    return f'{zid}-sea.png'
 
 
 # ─── Overworld sheet (#75 Phase 1) ───────────────────────────────────────────
@@ -1394,6 +1455,7 @@ def build_sea(public: Path):
     strip([upscale(f.image(), 2) for f in boat_sheet()]).save(tdir / 'boat.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
     build_lighthouse(public)
+    build_sea_backdrops(public)
 
 
 def build_hill(public: Path):
@@ -1429,6 +1491,14 @@ def build_lighthouse(public: Path):
     strip([upscale(f, 2) for f in lighthouse_sheet()]).save(public / 'tiles' / 'lighthouse.png', optimize=True)
 
 
+def build_sea_backdrops(public: Path):
+    """Write only the battle-at-sea backdrops (#75 item 14d), one per sea map."""
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in SEA_ZONES:
+        sea_backdrop(ZONES[zid], 300 + ids.index(zid)).save(bdir / sea_backdrop_path(zid), optimize=True)
+
+
 def build(public: Path) -> list[str]:
     tdir = public / 'tiles'
     tdir.mkdir(parents=True, exist_ok=True)
@@ -1450,6 +1520,7 @@ def build(public: Path) -> list[str]:
     strip([upscale(f.image(), 2) for f in stairs_sheet()]).save(tdir / 'stairs.png', optimize=True)
     strip([upscale(f.image(), 2) for f in boat_sheet()]).save(tdir / 'boat.png', optimize=True)
     build_lighthouse(public)
+    build_sea_backdrops(public)
     for style in STYLES:
         strip([upscale(f.image(), 2) for f in town_tiles(style)]).save(tdir / f'town-{style}.png', optimize=True)
     strip([upscale(f.image(), 2) for f in roof_tiles()]).save(tdir / 'roofs.png', optimize=True)

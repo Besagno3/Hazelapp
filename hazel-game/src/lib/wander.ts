@@ -126,6 +126,23 @@ export function withinLeash(
 }
 
 /**
+ * A wanderer's next heading: near its leash's edge (beyond 85%) it steers
+ * straight home — unless its last step was blocked (`bumped`), when it wanders
+ * instead: the straight way home past a wall or the shore would stop it for
+ * good, trying the same blocked step forever (#114bb).
+ */
+export function nextWanderDir(
+  o: { x: number; y: number; homeX: number; homeY: number; leash: number; bumped: boolean },
+  rng: () => number,
+): Dir {
+  if (!o.bumped && !withinLeash(o.x, o.y, o.homeX, o.homeY, o.leash * 0.85)) {
+    const len = Math.hypot(o.homeX - o.x, o.homeY - o.y) || 1;
+    return { x: (o.homeX - o.x) / len, y: (o.homeY - o.y) / len };
+  }
+  return pickWanderDir(rng);
+}
+
+/**
  * Pull (x, y) back onto the edge of the leash circle around home if it strayed
  * outside, so a wanderer never drifts away from where the player expects it.
  */

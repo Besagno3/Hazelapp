@@ -1,4 +1,4 @@
-import type { BattleEnemy, BossRole, CrystalTopic, EnemyBehavior, Topic, ZoneId } from '../types';
+import type { BattleEnemy, BossRole, CrystalTopic, EnemyBehavior, Habitat, Topic, ZoneId } from '../types';
 import { clampLevel, skillLevelFor } from '../lib/age';
 import { topicInfo } from './topics';
 import { BOSS_LINES, type BossScript } from './story';
@@ -34,6 +34,12 @@ export interface EnemyDef {
   lines?: BossScript;
   /** Mechanical archetype (Wave 0.5) — see EnemyBehavior in types. */
   behavior?: EnemyBehavior;
+  /**
+   * Where it lives (#75 item 14d) — missing = land. A sea critter swims open
+   * sea only and fights only a hero sailing Marlow's boat; a land critter
+   * never fights a sailing hero (`meetsHero`, lib/travel.ts).
+   */
+  habitat?: Habitat;
 }
 
 const HP_BASE = 60;
@@ -102,6 +108,13 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'knight-mare': { id: 'knight-mare', name: 'Knight-Mare', sprite: '🐴', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
   'clockwork-titan': { id: 'clockwork-titan', name: 'The Clockwork Titan', sprite: '🦾', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true, role: 'warden' },
 
+  // --- The Silver Shallows (sea life) — sea critters, met only from the boat (#75 item 14d) ---
+  'bubble-puffer': { id: 'bubble-puffer', name: 'Bubble Puffer', sprite: '🐡', topic: 'nature', levelOffset: -1, hpPerLevel: 10, habitat: 'sea' },
+  // Its ink cloud hides the Hint Feather's work (trickster).
+  'inkling': { id: 'inkling', name: 'Inkling', sprite: '🐙', topic: 'nature', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster', habitat: 'sea' },
+  // A sea star regrows its arms — this one mends itself (healer).
+  'starfix': { id: 'starfix', name: 'Starfix', sprite: '⭐', topic: 'nature', levelOffset: 1, hpPerLevel: 13, behavior: 'healer', habitat: 'sea' },
+
   // --- Eldergrove (history, #75 item 14f): critters of the ring-trees ---
   'ring-beetle': { id: 'ring-beetle', name: 'Ring Beetle', sprite: '🪲', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
   'sap-sprite': { id: 'sap-sprite', name: 'Sap Sprite', sprite: '✨', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
@@ -111,6 +124,11 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   // The warden of the Great Ring: beat it for the Memoria Key (keys.ts).
   ringkeeper: { id: 'ringkeeper', name: 'The Ringkeeper', sprite: '🦌', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true, role: 'warden' },
 };
+
+/** Where an enemy lives (#75 item 14d): its def's habitat, else land. */
+export function habitatOf(e: Pick<EnemyDef, 'habitat'> | Pick<BattleEnemy, 'habitat'>): Habitat {
+  return e.habitat ?? 'land';
+}
 
 /** A crystal topic's Fiend — the boss whose defeat restores its crystal. */
 export function fiendFor(topic: Topic): EnemyDef {
@@ -157,6 +175,7 @@ export function spawnEnemy(
     role: def.role,
     coins: scaledCoins(def, level, tier),
     behavior: def.behavior,
+    habitat: def.habitat,
     tier,
   };
 }
