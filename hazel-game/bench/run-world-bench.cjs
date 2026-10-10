@@ -15,7 +15,8 @@
  *                                                      arriving starts none; one that could reach the
  *                                                      hero where a scene starts (back from a Flee)
  *                                                      or where they land rests — lets them pass —
- *                                                      until they leave its patch
+ *                                                      until they leave its patch; a bump's cooldown
+ *                                                      never lets the hero through a boss
  *
  * Playwright isn't a project dependency; a global install works:
  *   NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps
@@ -551,15 +552,16 @@ async function sea(browser, outDir) {
   await hold(page, 'ArrowLeft', 300);
   await page.waitForTimeout(1000);
   const idle = (await state(page)).encounters;
+  const hinted = (await state(page)).sleeperHints; // walking into it says it's asleep, once
   await hold(page, 'ArrowUp', 600); // sail out of its patch: it wakes…
   await hold(page, 'ArrowDown', 550); // …and back: it fights
   await meet(page);
   s = await state(page);
   await check(
     page,
-    'back on a critter after a Flee: it rests — on top of the hero (0 px) and nudging about its patch start nothing — until you leave its patch, then fights',
-    onTop === 0 && idle === 0 && s.battles[0] === 'bubble-puffer',
-    `on top ${onTop}, resting ${idle} battles, then ${JSON.stringify(s.battles)}`,
+    'back on a critter after a Flee: it sleeps — on top of the hero (0 px) and nudging about its patch start nothing, and say it\'s asleep once — until you leave its patch, then fights',
+    onTop === 0 && idle === 0 && hinted === 1 && s.battles[0] === 'bubble-puffer',
+    `on top ${onTop}, resting ${idle} battles, ${hinted} hint, then ${JSON.stringify(s.battles)}`,
   );
 
   // Back from a Flee a little off its home (a critter that swam into a hero standing still
@@ -591,6 +593,18 @@ async function sea(browser, outDir) {
     landed === 1 && ashore === 0 && s.battles[0] === 'bolt-mouse',
     `landed ${landed}, resting ${ashore} battles, then ${JSON.stringify(s.battles)}`,
   );
+
+  // A bump's cooldown spares only an enemy already touching the hero (#112t): bump the
+  // Whispering Woods save crystal (18,2) from 18,3 — a 2 s cooldown — then head down-left
+  // past the Thicket Warden (16,4). It fights; it used to let the hero walk through.
+  page = await ready('zone=whispering-woods&at=18,3');
+  await hold(page, 'ArrowUp', 300);
+  await page.keyboard.down('ArrowLeft');
+  await hold(page, 'ArrowDown', 800);
+  await page.keyboard.up('ArrowLeft');
+  await page.waitForTimeout(300);
+  s = await state(page);
+  await check(page, 'just after a bump (the save crystal\'s cooldown), walking at a boss still fights it', s.battles[0] === 'thicket-warden', JSON.stringify(s.battles));
 
   const bad = checks.filter((ok) => !ok).length;
   console.log(`\n${checks.length - bad}/${checks.length} sea checks passed. Screenshots in ${outDir}.`);

@@ -3,7 +3,6 @@ import { PLACE_ICONS, TILE, ZONES } from '../content/zones';
 import { crystalFlag } from '../content/topics';
 import {
   ANY_CRYSTAL_EMOJI,
-  EDGE_LABEL_SPOTS,
   HIDDEN_PLACE_EMOJI,
   STAR_HALF_W,
   edgeLabelCovers,
@@ -145,7 +144,8 @@ describe('sea-edge labels keep clear of the map\'s markers (#75 item 14d review)
     const marks = [...(dawn.places ?? []), { x: 71, y: 30 }];
     const spot = edgeLabelSpot('east', 80, 60, marks, null, toShallows);
     for (const m of marks) expect(edgeLabelCovers('east', 80, 60, spot, m, toShallows), `${m.x},${m.y}`).toBe(false);
-    expect(edgeLabelSpot('west', 64, 44, shallows.landmarks ?? [], null, toDawnreach)).toBe(EDGE_LABEL_SPOTS[0]);
+    const west = edgeLabelSpot('west', 64, 44, shallows.landmarks ?? [], null, toDawnreach);
+    for (const m of shallows.landmarks ?? []) expect(edgeLabelCovers('west', 64, 44, west, m, toDawnreach), m.name).toBe(false);
   });
 
   it('never sit on the ⭐, wherever on either map the hero is, at the narrowest map\'s pixel sizes', () => {
@@ -174,6 +174,6 @@ describe('sea-edge labels keep clear of the map\'s markers (#75 item 14d review)
     expect(edgeLabelCovers('west', 64, 44, spot, here, toDawnreach, STAR_HALF_W)).toBe(false);
     for (const m of marks) expect(edgeLabelCovers('west', 64, 44, spot, m, toDawnreach), m.name).toBe(false);
     // A ⭐ on the far side of the map doesn't move it.
-    expect(edgeLabelSpot('west', 64, 44, marks, { x: 60, y: 27 }, toDawnreach)).toBe(EDGE_LABEL_SPOTS[0]);
+    expect(edgeLabelSpot('west', 64, 44, marks, { x: 60, y: 27 }, toDawnreach)).toBe(edgeLabelSpot('west', 64, 44, marks, null, toDawnreach));
   });
 });

@@ -280,15 +280,20 @@ zod, react-query. Add the package in the same change that first uses it.
   where a scene starts, and could fight them as they're getting about
   (`idleReach`: a critter's leash + its touch, a boss's touch), rests — asked
   again on landing or climbing aboard, for the new way of getting about. A
-  critter falls asleep: it holds still, drawn faded like under Calm (and over
-  the hero, so one stood on it can't hide it) with a "Zz" over it, and like
-  Calm it lets the hero pass, until they've left its patch — then it can't
-  touch them unless they steer back (`standDown` / `restOf` / `staysDown`,
-  checked every frame). A boss is drawn as ever — it never lets the hero
-  past: it only holds back while they stand still, back away or step aside,
-  and fights the moment they head past it (measured along the line from it
-  to where they began). So a Flee, a reload, an arrival or a landing never
-  drops the hero straight into a fight. The Silver Shallows has three (Bubble
+  critter falls asleep: it holds still, drawn faded like under Calm with a
+  "Zz" over it (in the first spot clear of everyone else's face, level and
+  name, `lib/sleepMark.ts`; faded while it's over the hero), and like Calm it
+  lets the hero pass — the first one they walk into says it's asleep and how
+  to wake it (`onSleeper`, a toast) — until they've left its patch; then it
+  can't touch them unless they steer back (`standDown` / `restOf` /
+  `staysDown`, checked every frame). A boss is drawn as ever — it never lets
+  the hero past: it only holds back while they stand still, back away or step
+  aside, and fights the moment they head past it (measured along the line
+  from it to where they began). So a Flee, a reload, an arrival or a landing
+  never drops the hero straight into a fight. And a bump's cooldown (a menu
+  closed, a chest, a landing, Calm wearing off) spares only the enemies
+  already touching the hero as it began, never one they walk into while it
+  runs (#112t — it used to let the hero walk through anything, bosses too). The Silver Shallows has three (Bubble
   Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
   land or the edge a boat sails in by. A battle at sea is fought over
@@ -437,7 +442,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # scre
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
-NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, resting after a Flee / a landing (#75 item 14d)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -527,6 +532,36 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d seventh review: a bump's cooldown no longer lets you walk through enemies; every "Zz" sits clear and says how to wake it (#75 item 14d)
+Round 7 — fresh `/saas-code-review` (1 medium pre-existing, 1 low) +
+`/saas-ux-review` (2 medium, 1 low-medium, 2 low). Fixed, one kept:
+- **Walking through enemies (code, medium; pre-existing):** the contact loop
+  only ran with no cooldown, so for 0.8–2 s after a menu, a chest, the save
+  crystal, a landing or Calm wearing off the hero walked through anything —
+  past the Thicket Warden after bumping the Woods' save crystal, 0 of 4
+  fought. Now a cooldown spares only the enemies touching the hero as it
+  began (`graced`, until they step clear); people and places still wait it
+  out. 4 of 4 fight, and `bench … sea` checks it.
+- **A "Zz" on a neighbour (UX, medium):** the fixed spot put the Meteor
+  Mite's "Zz" on the Tide Colossus's crown label (the boss looked asleep) and
+  the Hourglass Imp's on Echo. `lib/sleepMark.ts` `zzSpot` picks the first of
+  six spots clear of everyone else's face, level and name (and its own
+  level); a test checks every critter on every map has one (the old spot
+  failed 5).
+- **Nothing said how to wake a sleeper (UX, medium):** the first sleeping
+  critter the hero walks into in a scene shows "💤 Shh — the … is asleep.
+  Walk a few steps away and it'll wake up!" (`onSleeper`; never a boss).
+- **The hero hidden or tinted (UX, low-medium; code, low):** round 6 drew a
+  sleeper over the hero and over neighbours' labels and fog. It's drawn in its
+  own place again, and its "Zz" fades to 35% while over the hero, like a roof.
+- **Map, 320 px (UX, low):** "◀ Dawnreach" touched the ⭐ (0.3 px) and Sandpiper
+  Cay — a 3 px keep-clear gap now.
+- **Kept (UX, low): no 💡 tip after losing at sea.** With it the button falls
+  off a 320×568 phone even with a shorter tip (582 of 568), and a sticky button
+  covered the heading at 740×360; the tip's news isn't lost — a critter that
+  eases off says so in the battle itself.
+- Tests: 797 green (+2), lint + build clean; `bench … sea` 7/7.
 
 ### 2026-10-10 — 14d sixth review: sleeping critters hold still and show; bosses never look passable; the sea defeat fits a 320 px phone (#75 item 14d)
 Round 6 — fresh `/saas-code-review` (2 low) + `/saas-ux-review` (2 medium, 1

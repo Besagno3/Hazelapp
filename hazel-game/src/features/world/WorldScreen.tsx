@@ -472,6 +472,7 @@ export default function WorldScreen() {
             showToast(
               knowsGlow ? '🌑 Too dark to go on! Tap 🔆 Glow at the top to light the way.' : `🌑 ${z.dark?.hint ?? "It's too dark!"}`,
             ),
+          onSleeper: (name) => showToast(`💤 Shh — the ${name} is asleep. Walk a few steps away and it'll wake up!`),
           onCalmTick: (left) => {
             setCalmLeft(left);
             if (left === 0) showToast('🕊️ The calm wears off — the critters are curious again!');

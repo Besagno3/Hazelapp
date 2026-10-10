@@ -101,7 +101,8 @@ export function BattleResult({
           </p>
           {boatHome && <p className="text-sm text-sky-200 font-semibold mt-2">{SEA_DEFEAT_LINE}</p>}
           {/* Lost at sea, where the boat went comes first: with the tip too, a
-              320×568 phone pushed the button off the screen (#112). */}
+              320×568 phone pushed the button off the screen. Nothing's lost —
+              a critter that eases off says so in the battle itself (#112). */}
           {tip && !boatHome && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
         </>
       )}
