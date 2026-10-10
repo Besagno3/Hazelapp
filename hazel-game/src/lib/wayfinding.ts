@@ -7,7 +7,7 @@ import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
-import { keyFlag, keyForZone, type GateKey } from '../content/keys';
+import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
 import { SPIRE_CLEARED } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
 
@@ -105,8 +105,9 @@ const BOAT_STEPS: Record<string, { title: string; why: string }> = {
 /**
  * Act II's next step (#75 item 14), once the Spire is cleared: help Old Marlow
  * mend his boat (step by step — each step's friend is the goal), sail it to
- * the Silver Shallows, then visit Remembrance Hill (#75 item 14e). Null once
- * you've been there — explore from then on, until Act II's next places exist.
+ * the Silver Shallows, then visit Remembrance Hill (#75 item 14e), then win
+ * the Memoria Key from Eldergrove's Ringkeeper (#75 item 14f). Null after
+ * that — explore from then on, until Act II's next places exist.
  */
 function actTwoObjective(flags: Record<string, boolean>): Objective | null {
   if (!hasBoat(flags)) {
@@ -151,6 +152,18 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
       title: 'Visit Remembrance Hill',
       why: 'Lumina is remembering! Where the old fog sat past Moonwell Grove, a road nobody remembered has appeared. It leads to a town called Remembrance Hill.',
       zoneId: 'remembrance-hill',
+    };
+  }
+  // Eldergrove's warden (#75 item 14f). Its key's door comes in 14h; until
+  // then, once it's won, the 🚩 says explore.
+  const memoria = keyForBoss('ringkeeper')!;
+  if (!flags[keyFlag(memoria.id)]) {
+    return {
+      kind: 'key',
+      title: `Win the ${memoria.name}`,
+      why: `On Eldergrove, an island of ancient ring-trees out in the Silver Shallows, ${midSentence(memoria.bossName)} guards the ${memoria.name}. They say it opens a door the whole world forgot.`,
+      zoneId: memoria.fromZone,
+      key: memoria,
     };
   }
   return null;
@@ -222,8 +235,9 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
  */
 export function roadTier(flags: Record<string, boolean>): DangerTier | null {
   const goal = nextObjective(flags);
-  // After the Act I crystals (the Spire, then Act II's errands) everywhere is fair game.
-  if ((goal.kind !== 'crystal' && goal.kind !== 'key') || !goal.zoneId) return null;
+  // After the Act I crystals (the Spire, then Act II's errands — the Memoria
+  // Key's too, #75 item 14f, which has no crystal) everywhere is fair game.
+  if ((goal.kind !== 'crystal' && goal.kind !== 'key') || !goal.zoneId || !goal.crystal) return null;
   return zoneTier(goal.zoneId);
 }
 
@@ -436,6 +450,9 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `Here is the plan: four Fiends hold the crystals, one at each far corner of Dawnreach. Start with ${midSentence(goal.crystal.fiendName)} in ${place(goal.crystal.zoneId)} — its gate needs no key, only brave answers.`;
   } else if (goal.kind === 'crystal' && goal.crystal && goal.key) {
     plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s gate in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
+  } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
+    // Act II's key (#75 item 14f): no Fiend to name yet.
+    plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;
   } else if (goal.kind === 'key' && goal.key) {
     const keeper = `${midSentence(goal.key.bossName)} in ${place(goal.key.fromZone)}`;
     plan =
@@ -462,6 +479,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
       : 'Many townsfolk have little quests for you. Talk to everyone — and look for twinkles ✦!';
   } else if (goal.kind === 'sail') {
     tip = 'In the boat, bump into a beach or a dock to go ashore. The boat waits right where you leave it — and Old Marlow can always row it home.';
+  } else if (goal.kind === 'key' && !goal.crystal) {
+    tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit') {
     tip = "Every town has an inn. Rest at a new one, and if a battle goes badly, that's where you'll wake up.";
   } else if (goal.kind === 'explore') {

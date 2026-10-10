@@ -506,6 +506,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The 🚩 leads to Eldergrove for the Memoria Key (#75 item 14f)
+Fourth slice of 14f. After "Visit Remembrance Hill" the 🚩 reads **"Win the
+Memoria Key"** (`kind: 'key'`, no `crystal`): "On Eldergrove, an island of
+ancient ring-trees out in the Silver Shallows, the Ringkeeper guards the
+Memoria Key…", routed "Sail east to the Silver Shallows, then go south-east to
+Eldergrove."; on the Shallows' menu map the 🚩 sits on Eldergrove. Once the key
+is won, "Explore" until 14g. Elder Lumen's plan names Eldergrove and the
+Ringkeeper; his tip, the purple !!! and Knack's Forget-Me-Knot. `roadTier`
+stays Act I's (no arrival warnings in Act II). Tests: wayfinding.test (+1; the
+walks know the new step, and walk Eldergrove's by boat), WorldMapPanel.test
+(+2). 841 green.
+
 ### 2026-10-10 — Fen's Forgotten Acorns: a collection quest (#75 item 14f)
 Third slice of 14f. Fen the Forager hid her three best acorns — Speckled,
 Striped and Golden — in chests and forgot which (`fen-acorns`, side quest):
