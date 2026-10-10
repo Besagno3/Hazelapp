@@ -409,7 +409,7 @@ async function battleHud(browser, outDir) {
     zoneId: 'eldergrove', pos: { x: 28 * 32 + 16, y: 23 * 32 + 16 }, flags,
   };
   const profile = { id: HUD_USER, birth_year: 2016, birth_month: 3, skill_levels: {}, xp: 1250, power_ups: { attack: 4, defense: 4, vitality: 2, scholar: 2 }, current_streak: 12, longest_streak: 12, last_played_on: new Date().toISOString().slice(0, 10) };
-  // A sideways phone (740×360) is left out: the battle never fit one, row or not (ISSUES #116m).
+  // A sideways phone (740×360) is left out: the battle never fit one, row or not (ISSUES #117m).
   const sizes = [[320, 568], [360, 640], [375, 667], [390, 844], [1024, 768]];
   let bad = 0;
   for (const [width, height] of sizes) {
@@ -444,7 +444,7 @@ async function battleHud(browser, outDir) {
     for (const [when, l] of [['opening', opening], ['commands', commands]]) {
       if (l.barHeight && l.gap < 0) problems.push(`${when}: the top bar runs ${-l.gap}px into the status boxes`);
       if (!l.marksOnTop) problems.push(`${when}: the enemy's "${l.marks}" is covered`);
-      // A boss's 🏃 Flee ("No escape!") never fit a 320×568 screen, row or no row (ISSUES #116q).
+      // A boss's 🏃 Flee ("No escape!") never fit a 320×568 screen, row or no row (ISSUES #117q).
       const off = width === 320 ? l.offScreen.filter((b) => !b.startsWith('🏃Flee')) : l.offScreen;
       if (off.length) problems.push(`${when}: off the bottom: ${off.join(', ')}`);
       if (l.sideways) problems.push(`${when}: the page scrolls sideways`);

@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { MUSIC_SOURCES, SEA_TRACK, SFX_SOURCES, ZONE_KIND_TRACK, trackForScreen } from './audio';
 import { SEA_AREAS } from '../content/boat';
@@ -50,5 +50,14 @@ describe('16-bit audio set', () => {
     for (const src of [...Object.values(SFX_SOURCES), ...Object.values(MUSIC_SOURCES)]) {
       expect(existsSync(join(process.cwd(), 'public', decodeURI(src))), src).toBe(true);
     }
+  });
+
+  it('every audio file shipped is one SFX_SOURCES / MUSIC_SOURCES names — no leftover files (#116)', () => {
+    const used = new Set([...Object.values(SFX_SOURCES), ...Object.values(MUSIC_SOURCES)].map(decodeURI));
+    const root = join(process.cwd(), 'public');
+    const shipped = readdirSync(join(root, 'audio'), { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.(mp3|ogg|wav|m4a)$/i.test(f))
+      .map((f) => `/audio/${f.split('\\').join('/')}`);
+    expect(shipped.filter((f) => !used.has(f))).toEqual([]);
   });
 });

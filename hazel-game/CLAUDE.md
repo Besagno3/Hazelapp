@@ -606,11 +606,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-10 — Merge main (the hero roster, PR #39) into the Eldergrove branch (#75 item 14f)
-`main` took the hero roster (#115, TC-786–803) while 14f waited, so 14f's
-follow-ups moved on again, **#115 → #116**, and its test cases
-**TC-786–803 → TC-804–821** (only 14f's own lines were renumbered). The only
-code conflict was `build.py`'s list of targets (both kept).
+### 2026-10-10 — Merge main (the hero roster, PR #39; the music fix, PR #40) into the Eldergrove branch (#75 item 14f)
+`main` took the hero roster (#115, TC-786–803) and then the music fix (#116,
+TC-804–815) while 14f waited, so 14f's follow-ups moved on again,
+**#115 → #117**, and its test cases **TC-786–803 → TC-816–833** (only 14f's
+own lines were renumbered). The only code conflict was `build.py`'s list of
+targets (both kept); the music fix merged cleanly (`lib/audio.ts` only).
 
 ### 2026-10-10 — The battle row fits a boss fight at 360×640 (#75 item 14f, after merging 14d)
 After the merge, 14d's resting critters (one that could reach the hero where
@@ -619,7 +620,7 @@ started the hero on a beetle — never got a fight. It now walks the hero into
 the Ringkeeper, who stands still; a boss's 🏃 Flee row ("No escape!") then
 showed the battle row 10 px too tall at 360×640, so on a phone the row is
 40 px (`LevelBadge` / `StreakBadge` `dense`, `pt-1`). 5/5 twice; a boss's
-Flee at 320×568 was off the screen before 14f too (#116q).
+Flee at 320×568 was off the screen before 14f too (#117q).
 
 ### 2026-10-10 — Merge main (14d sea critters) into the Eldergrove branch (#75 items 14d + 14f)
 `main` took 14d (PR #36) while 14f was built. Its #114 and TC-731–785 came
@@ -660,7 +661,7 @@ A fresh `/saas-code-review` (1 medium, 3 low) and `/saas-ux-review` (3 high,
   Old Ringwood taller than the trees (a tall NPC's name plate sits under its
   feet), the Hollow Acorn 🫥.
 - **Code:** `keyForZone` ignores null; tests that couldn't fail.
-- Logged (#116 m–p): a battle never fit a sideways phone (pre-existing), the
+- Logged (#117 m–p): a battle never fit a sideways phone (pre-existing), the
   crowded island on the in-grove menu map, a real-phone check, the dock 🚩
   after a Return. Tests: +9 net (one old LevelBadge test removed). 850 green.
 
@@ -710,7 +711,7 @@ the 🚩 come in the next commits).
   `maps/silver-shallows.tmj`) with a north beach to land on and a path to its
   icon (a new `elder` frame, a great ring-tree, appended at 17 after the hill;
   frames 0–16 byte-identical). Placed clear of 14d's sea critters (its
-  branch isn't merged yet; its test wants them 4+ cells from land, #116a).
+  branch isn't merged yet; its test wants them 4+ cells from land, #117a).
 - **The grove** (`eldergrove`, 44×28, `kind: 'field'`, history, tier 5 with
   the Shallows — "The Silver Shallows and its islands"): Fen's Hollow (a new
   **bark** style: a hut in a hollow ring-tree), the gated Ring Hollow with
@@ -730,6 +731,73 @@ the 🚩 come in the next commits).
 - Tests: +6 (zones.test: the island, sailing there, the critters, the gate,
   the people; worldMap.test: `overworldOf`). 829 green. Looked at on the
   bench: the island, the grove's four corners, inside Fen's Hollow.
+### 2026-10-10 — Merge main (the heroines and hero roster, #39) into the music-fix branch (#116)
+`main` took ISSUES **#115** and TC-786–803 for the hero roster while the
+music fix was in review, so the music fix moved **#115 → #116** and its test
+cases **TC-786–797 → TC-804–815**. Only the three docs conflicted; the code
+merged cleanly (the roster touches battle code, the fix only `lib/audio.ts`).
+
+### 2026-10-10 — #116 code review: key presses leave nothing in Howler's queue; volume read off the sound
+A `/saas-code-review` of the music fix (no security surface: no Supabase, no
+keys). Two low findings, both fixed:
+- **Every key press re-set the current track's volume** (`armUnlock` →
+  `startTrack` → `volume()`), and one landing as the track looped was queued
+  by Howler (the #116 mechanism); two queued could later undo a volume-slider
+  change. Now `volume()` is called only to stop a fade-out (`keep` says it was
+  fading) or when the volume differs. The first try compared the Howl's own
+  `volume()` — but a loop point mid-fade-out ends the fade at its target,
+  dropping the sound to 0 while the Howl still says 0.6, so that track then
+  stayed silent for good (the fuzz caught it: 5 rounds over 6 seeds). It
+  compares the sound's own volume (`playingAt`, `Music.id`), which is what's
+  heard; `retire` reads it too.
+- `audio.test`'s guard named "the game plays" where it checks "a source
+  names" (`16bit/music/victory.mp3` is named but reserved) — renamed.
+- Tests: the stand-in Howl keeps the sound's volume apart from the Howl's;
+  +2 (a key press at a loop point queues nothing and a new volume still
+  applies; back as it loops mid-fade-out, it's heard on the next key press —
+  the second fails on the group-volume try). Real Howler in Chromium: the
+  fuzz clean in 8 seeds, re-picking at once, the loop-point battle and Music
+  off all hold.
+
+### 2026-10-10 — The unused original mp3s are deleted (#116)
+The player-supplied mp3s from #60 (`Overworld.mp3`, `Battle_Music.mp3`,
+`Boss_Battle.mp3`, `Boss_Battle - Final Battle.mp3`, `Spire_Music.mp3`,
+`Character_Grunt.mp3`, `Level_Up.mp3`, `Victory-jingle.mp3`,
+`Wrong_Answer.mp3` — 3.7 MB) sat in `public/audio/` with nothing playing them
+since the 16-bit set (#71). With #116's leftover track playing on after Music
+was turned off, they made it look as if the old and new music were both in
+use. Deleted; `public/audio/README.md` and `audio.ts` no longer point at them,
+and a new `audio.test` case fails on any audio file under `public/audio/` that
+`SFX_SOURCES` / `MUSIC_SOURCES` doesn't name.
+
+### 2026-10-10 — The overworld music no longer plays on under the battle music (#116)
+Howler's html5 mode queues any `fade()` / `volume()` / `stop()` asked for
+while a `play()` is starting — the first one, and the restart at every loop
+point (html5 loops are `stop()` + `play()`) — and after a `play()` on a loaded
+track that queue never runs. `lib/audio.ts` stopped a left track when its
+fade-out fired `'fade'`, so a battle that began as the overworld looped never
+stopped it: both tracks played on. And a track played again (the overworld
+after a battle) had its fade-in queued, so it came back at volume 0 until a key
+press set its volume.
+- **A left track is unloaded** (`retire`): faded out, then unloaded on a timer
+  (`RETIRE_MS`) unless it's picked again first; unloaded at once if it isn't
+  audible yet. Unloading stops it even mid-`play()`. Picking it again builds a
+  fresh Howl (`musicCache` holds `{ howl, started }`).
+- **A track fades in on its `'play'` event**, not along with the `play()`.
+- **One play per track** until autoplay refuses it (`started`, cleared on
+  `'playerror'`): keys pressed while it loads no longer queue a play + fade each.
+- **Checked:** the real Howler and shipped tracks in headless Chromium — a
+  battle at the overworld's loop point (before: both at full volume, for
+  good; after: only the battle), a random fuzz of switches with 1–2 s loops
+  and a throttled network (before: 8–9 of 12 rounds left a track running;
+  after: none in 9 seeds), and the real app (Supabase stubbed): a critter on
+  Dawnreach plays only the battle theme, and Flee brings the overworld back at
+  full volume with no key pressed (before: at 0).
+- Tests: `audio.music.test`'s stand-in Howl now queues like Howler's; +5 (a
+  loop-point battle, the comeback, one play while loading, a track left before
+  it's heard, autoplay refused); the first four fail on the old code, and so
+  does the re-pick test, which now lets the left track load. 874 green, lint +
+  build clean.
 ### 2026-10-10 — Every hero gets signature abilities, a new name and a new look (#115)
 All five heroes now have two signature abilities each, and all five were
 renamed and redrawn. Ids a1–a5 (what saves store), types and HP are
