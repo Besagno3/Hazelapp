@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { errorMessage } from '../../lib/errors';
 import { calcAge } from '../../lib/age';
-import { kidIcon, secretPicture } from '../../content/family';
+import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
 import { useAuthStore } from '../../store/authStore';
 import { useFamilyStore } from '../../store/familyStore';
 import PasswordInput from '../../components/PasswordInput';
 import FamilyCard from './FamilyCard';
 import KidForm from './KidForm';
+import PinPad from './PinPad';
 import PrivacyNotice from './PrivacyNotice';
 import type { Kid } from '../../types';
 
@@ -15,9 +16,10 @@ const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
 
 /**
- * 👪 Grown-ups (#118): add, change and remove kids, see the privacy notice,
- * and sign out. Opens only with the grown-up's password, so a kid can't
- * remove a sibling or sign the family out.
+ * 👪 Grown-ups (#118): add, change and remove kids, set the grown-up PIN, see
+ * the privacy notice, and sign out. Opens only with the grown-up's own PIN
+ * (if they've set one) or their password, so a kid can't remove a sibling or
+ * sign the family out.
  */
 export default function GrownUpsArea() {
   const [unlocked, setUnlocked] = useState(false);
@@ -26,7 +28,10 @@ export default function GrownUpsArea() {
 
 function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
   const email = useAuthStore((s) => s.user?.email ?? '');
+  const hasParentPin = useFamilyStore((s) => s.hasParentPin);
+  const checkParentPin = useFamilyStore((s) => s.checkParentPin);
   const close = () => useFamilyStore.getState().setGrownUpsOpen(false);
+  const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -57,6 +62,30 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
     else setNotice(`A reset link is on its way to ${email}.`);
   }
 
+  const back = (
+    <button onClick={close} className="mt-3 w-full text-center text-sm text-purple-600 hover:underline">
+      ← Back to Who's playing
+    </button>
+  );
+
+  if (hasParentPin && !usePassword) {
+    return (
+      <FamilyCard title="👪 Grown-ups" subtitle="Type your grown-up PIN.">
+        <PinPad
+          onSubmit={async (pin) => {
+            const right = await checkParentPin(pin);
+            if (right) onUnlock();
+            return right;
+          }}
+        />
+        <button onClick={() => setUsePassword(true)} className="w-full text-center text-sm text-gray-500 hover:underline">
+          Use my password instead
+        </button>
+        {back}
+      </FamilyCard>
+    );
+  }
+
   return (
     <FamilyCard title="👪 Grown-ups" subtitle={`Enter the password for ${email}.`}>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -81,9 +110,12 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
       <button onClick={() => void sendReset()} className="mt-3 w-full text-center text-sm text-gray-500 hover:underline">
         Forgot it? Email me a reset link
       </button>
-      <button onClick={close} className="mt-3 w-full text-center text-sm text-purple-600 hover:underline">
-        ← Back to Who's playing
-      </button>
+      {hasParentPin && (
+        <button onClick={() => setUsePassword(false)} className="mt-3 w-full text-center text-sm text-gray-500 hover:underline">
+          Use my grown-up PIN instead
+        </button>
+      )}
+      {back}
     </FamilyCard>
   );
 }
@@ -121,34 +153,30 @@ function GrownUpsHome() {
   return (
     <FamilyCard wide title="👪 Grown-ups">
       <ul className="space-y-2">
-        {kids.map((k) => {
-          const secret = secretPicture(k.picture);
-          return (
-            <li key={k.id} className="rounded-xl border border-gray-200 p-3">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl" aria-hidden>
-                  {kidIcon(k.icon)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-gray-800 truncate">{k.name ?? 'Player'}</p>
-                  <p className="text-xs text-gray-500">
-                    Age {calcAge(k.birthYear, k.birthMonth)} ·{' '}
-                    {secret ? `secret picture ${secret.emoji} ${secret.name}` : 'no secret picture yet'}
-                  </p>
-                </div>
+        {kids.map((k) => (
+          <li key={k.id} className="rounded-xl border border-gray-200 p-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl" aria-hidden>
+                {kidIcon(k.icon)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-gray-800 truncate">{k.name ?? 'Player'}</p>
+                <p className="text-xs text-gray-500">
+                  Age {calcAge(k.birthYear, k.birthMonth)} · {k.hasPin ? 'PIN set' : 'no PIN yet'}
+                </p>
               </div>
-              {/* Their own line, so a long nickname never squeezes them on a phone. */}
-              <div className="flex justify-end gap-2">
-                <button onClick={() => setEditing(k.id)} className="text-sm text-purple-600 hover:underline px-2 min-h-11">
-                  Change
-                </button>
-                <button onClick={() => setRemoving(k)} className="text-sm text-red-600 hover:underline px-2 min-h-11">
-                  Remove
-                </button>
-              </div>
-            </li>
-          );
-        })}
+            </div>
+            {/* Their own line, so a long nickname never squeezes them on a phone. */}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setEditing(k.id)} className="text-sm text-purple-600 hover:underline px-2 min-h-11">
+                Change
+              </button>
+              <button onClick={() => setRemoving(k)} className="text-sm text-red-600 hover:underline px-2 min-h-11">
+                Remove
+              </button>
+            </div>
+          </li>
+        ))}
       </ul>
       <button
         onClick={() => setEditing('new')}
@@ -156,6 +184,7 @@ function GrownUpsHome() {
       >
         ＋ Add a player
       </button>
+      <ParentPin />
       <div className="mt-6 space-y-2">
         {consentAt && (
           <p className="text-xs text-gray-500">
@@ -177,6 +206,78 @@ function GrownUpsHome() {
         Sign out
       </button>
     </FamilyCard>
+  );
+}
+
+/** The grown-up's own PIN: a quicker way into 👪 Grown-ups (their password still works). */
+function ParentPin() {
+  const hasParentPin = useFamilyStore((s) => s.hasParentPin);
+  const setParentPin = useFamilyStore((s) => s.setParentPin);
+  const [editing, setEditing] = useState(false);
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!isPin(pin)) return setError(`A PIN is ${PIN_LENGTH} numbers.`);
+    setSaving(true);
+    try {
+      await setParentPin(pin);
+      setEditing(false);
+      setPin('');
+      setNotice('Grown-up PIN saved.');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-6 rounded-xl border border-gray-200 p-3 text-sm">
+      <p className="font-semibold text-gray-700">Grown-up PIN</p>
+      <p className="text-xs text-gray-500 mt-0.5">
+        Opens 👪 Grown-ups without typing your password (your password always works too). Pick one your kids
+        don't know.
+      </p>
+      {editing ? (
+        <form onSubmit={handleSave} className="mt-2 space-y-2">
+          <PasswordInput
+            placeholder={`New ${PIN_LENGTH}-digit PIN`}
+            aria-label="Grown-up PIN"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={PIN_LENGTH}
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH))}
+            className={fieldClass}
+          />
+          {error && <p className="text-red-500">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save PIN'}
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className="px-3 text-gray-500 hover:underline">
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="mt-1 flex items-center justify-between">
+          <span className="text-xs text-gray-500">{notice ?? (hasParentPin ? 'Set' : 'Not set')}</span>
+          <button onClick={() => setEditing(true)} className="text-purple-600 hover:underline px-2 min-h-11">
+            {hasParentPin ? 'Change' : 'Set a PIN'}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

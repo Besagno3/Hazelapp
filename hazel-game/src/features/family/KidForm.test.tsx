@@ -5,13 +5,14 @@ import type { Kid } from '../../types';
 const { default: KidForm } = await import('./KidForm');
 const { KID_BIRTH_YEARS } = await import('../../content/family');
 
-function fill({ name = 'Sam', month = '3', year = String(KID_BIRTH_YEARS[5]), icon = 'Fox', picture = 'Rocket' } = {}) {
+function fill({ name = 'Sam', month = '3', year = String(KID_BIRTH_YEARS[5]), icon = 'Fox', pin = '4821' } = {}) {
   fireEvent.change(screen.getByRole('textbox', { name: 'Nickname' }), { target: { value: name } });
   if (month) fireEvent.change(screen.getByRole('combobox', { name: 'Birth month' }), { target: { value: month } });
   if (year) fireEvent.change(screen.getByRole('combobox', { name: 'Birth year' }), { target: { value: year } });
   if (icon) fireEvent.click(screen.getByRole('button', { name: icon }));
-  if (picture) fireEvent.click(screen.getByRole('button', { name: picture }));
+  fireEvent.change(pinField(), { target: { value: pin } });
 }
+const pinField = () => screen.getByLabelText('PIN') as HTMLInputElement;
 
 describe('KidForm (#118)', () => {
   it('asks for each thing it needs, in turn, before saving', () => {
@@ -20,15 +21,18 @@ describe('KidForm (#118)', () => {
     const save = screen.getByRole('button', { name: 'Add player' });
     fireEvent.click(save);
     expect(screen.getByText('Give them a nickname.')).toBeInTheDocument();
-    fill({ month: '', year: '', icon: '', picture: '' });
+    fill({ month: '', year: '', icon: '', pin: '' });
     fireEvent.click(save);
     expect(screen.getByText('Pick their birth month and year.')).toBeInTheDocument();
-    fill({ icon: '', picture: '' });
+    fill({ icon: '', pin: '' });
     fireEvent.click(save);
     expect(screen.getByText('Pick a picture for their tile.')).toBeInTheDocument();
-    fill({ picture: '' });
+    fill({ pin: '' });
     fireEvent.click(save);
-    expect(screen.getByText('Pick their secret picture.')).toBeInTheDocument();
+    expect(screen.getByText('Their PIN is 4 numbers.')).toBeInTheDocument();
+    fill({ pin: '482' });
+    fireEvent.click(save);
+    expect(screen.getByText('Their PIN is 4 numbers.')).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -39,8 +43,27 @@ describe('KidForm (#118)', () => {
     expect(screen.getByRole('button', { name: 'Fox' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Add player' }));
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ name: 'Sam', icon: 'fox', picture: 'rocket', birthYear: KID_BIRTH_YEARS[5], birthMonth: 3 }),
+      expect(onSubmit).toHaveBeenCalledWith({ name: 'Sam', icon: 'fox', pin: '4821', birthYear: KID_BIRTH_YEARS[5], birthMonth: 3 }),
     );
+  });
+
+  it('the PIN field takes digits only, at most 4, and can be shown', () => {
+    render(<KidForm submitLabel="Add player" onSubmit={async () => {}} />);
+    fireEvent.change(pinField(), { target: { value: '4a8-21 9' } });
+    expect(pinField()).toHaveValue('4821');
+    expect(pinField()).toHaveAttribute('inputmode', 'numeric');
+    expect(pinField().type).toBe('password');
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
+    expect(pinField().type).toBe('text');
+  });
+
+  it('changing a kid with a PIN: a blank PIN keeps theirs', async () => {
+    const onSubmit = vi.fn(async () => {});
+    const kid: Kid = { id: 'k', name: 'Sam', icon: 'fox', hasPin: true, birthYear: KID_BIRTH_YEARS[5], birthMonth: 3 };
+    render(<KidForm kid={kid} submitLabel="Save" onSubmit={onSubmit} />);
+    expect(pinField()).toHaveAttribute('placeholder', 'New PIN (blank keeps theirs)');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Sam', pin: undefined })));
   });
 
   it('shows why a save failed', async () => {
@@ -51,12 +74,12 @@ describe('KidForm (#118)', () => {
   });
 
   it('changing a kid starts from what they have — an older birth year included', () => {
-    const kid: Kid = { id: 'k', name: 'Big Sis', icon: 'tiger', picture: 'pizza', birthYear: 2001, birthMonth: 12 };
+    const kid: Kid = { id: 'k', name: 'Big Sis', icon: 'tiger', hasPin: false, birthYear: 2001, birthMonth: 12 };
     render(<KidForm kid={kid} submitLabel="Save" onSubmit={async () => {}} />);
     expect(screen.getByRole('textbox', { name: 'Nickname' })).toHaveValue('Big Sis');
     expect(screen.getByRole('combobox', { name: 'Birth year' })).toHaveValue('2001');
     expect(screen.getByRole('button', { name: 'Tiger' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Pizza' })).toHaveAttribute('aria-pressed', 'true');
+    expect(pinField()).toHaveAttribute('placeholder', 'Their 4-digit PIN'); // no PIN yet: one is needed
   });
 
   it('offers kid ages only (about 3 to 18)', () => {

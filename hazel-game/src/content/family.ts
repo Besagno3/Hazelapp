@@ -1,9 +1,8 @@
 /**
- * Parent accounts (#118): the pictures a grown-up picks for each kid, and the
- * privacy notice they agree to. A kid's tile picture shows on "Who's
- * playing?"; their secret picture is what they tap to open their own profile
- * on a shared device (a lock against a sibling's slip, not a password). The
- * database stores the ids.
+ * Parent accounts (#118): the pictures a grown-up picks for each kid's tile on
+ * "Who's playing?", and the privacy notice they agree to. Each kid opens their
+ * profile with a 4-digit PIN (stored hashed by the database, migration 0013);
+ * the database stores the picture's id.
  */
 
 export const KID_ICONS = [
@@ -22,27 +21,16 @@ export const KID_ICONS = [
 ] as const;
 export type KidIconId = (typeof KID_ICONS)[number]['id'];
 
-/** Things, not animals, so a kid never mixes up their tile with their secret. */
-export const SECRET_PICTURES = [
-  { id: 'apple', emoji: '🍎', name: 'Apple' },
-  { id: 'rocket', emoji: '🚀', name: 'Rocket' },
-  { id: 'rainbow', emoji: '🌈', name: 'Rainbow' },
-  { id: 'icecream', emoji: '🍦', name: 'Ice cream' },
-  { id: 'ball', emoji: '⚽', name: 'Ball' },
-  { id: 'sunflower', emoji: '🌻', name: 'Sunflower' },
-  { id: 'balloon', emoji: '🎈', name: 'Balloon' },
-  { id: 'pizza', emoji: '🍕', name: 'Pizza' },
-  { id: 'guitar', emoji: '🎸', name: 'Guitar' },
-] as const;
-export type SecretPictureId = (typeof SECRET_PICTURES)[number]['id'];
-
 /** A kid's tile picture (⭐ for a kid from before parent accounts, who has none). */
 export function kidIcon(id: string | null): string {
   return KID_ICONS.find((i) => i.id === id)?.emoji ?? '⭐';
 }
 
-export function secretPicture(id: string | null) {
-  return SECRET_PICTURES.find((p) => p.id === id) ?? null;
+/** Digits in a kid's or a grown-up's PIN (the database checks it too). */
+export const PIN_LENGTH = 4;
+
+export function isPin(s: string): boolean {
+  return new RegExp(`^\\d{${PIN_LENGTH}}$`).test(s);
 }
 
 /** Longest nickname (the database checks it too). */
@@ -76,8 +64,9 @@ export const PRIVACY_NOTICE: { heading: string; body: string }[] = [
     heading: 'What we collect',
     body:
       'From you, the grown-up: your email address and password, to run your family account. ' +
-      'For each child you add: a nickname, their birth month and year, the pictures you pick ' +
-      'for them, and their game progress (answers, levels, items and saved game). We do not ' +
+      'For each child you add: a nickname, their birth month and year, the picture you pick ' +
+      'for them, their PIN (stored scrambled, so no one can read it back), and their game ' +
+      'progress (answers, levels, items and saved game). We do not ' +
       "ask for a child's full name, email, photo, voice or location.",
   },
   {

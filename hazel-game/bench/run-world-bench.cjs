@@ -271,8 +271,8 @@ async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = 
     const one = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
     const json = (body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     if (req.method() !== 'GET' && url.includes('/rest/v1/')) return route.fulfill({ status: 201, body: '' });
-    if (url.includes('/rest/v1/parents')) return json([{ consent_at: '2026-10-10T00:00:00Z' }]);
-    if (url.includes('/rest/v1/profiles')) return json(one ? profile : [{ display_name: 'Hud', icon: 'fox', picture_password: null, ...profile }]);
+    if (url.includes('/rest/v1/parents')) return json([{ consent_at: '2026-10-10T00:00:00Z', has_pin: false }]);
+    if (url.includes('/rest/v1/profiles')) return json(one ? profile : [{ display_name: 'Hud', icon: 'fox', has_pin: true, ...profile }]);
     if (url.includes('/rest/v1/saves')) return json(one ? { data: save } : [{ data: save }]);
     if (url.includes('/functions/v1/generate-questions')) {
       const questions = Array.from({ length: 6 }, (_, i) => ({

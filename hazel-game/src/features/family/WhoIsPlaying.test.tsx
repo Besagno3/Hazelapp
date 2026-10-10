@@ -1,69 +1,55 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import type { Kid } from '../../types';
 
 const { default: WhoIsPlaying } = await import('./WhoIsPlaying');
 const { useFamilyStore } = await import('../../store/familyStore');
 
-const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', picture: 'rocket', birthYear: 2017, birthMonth: 3 };
-const kit: Kid = { id: 'kid-kit', name: 'Kit', icon: 'panda', picture: null, birthYear: 2019, birthMonth: 8 };
+const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
+const kit: Kid = { id: 'kid-kit', name: 'Kit', icon: 'panda', hasPin: true, birthYear: 2019, birthMonth: 8 };
 const choose = vi.fn();
 const setGrownUpsOpen = vi.fn();
+const checkKidPin = vi.fn(async (_id: string, pin: string) => pin === '4821');
+
+async function type(pin: string) {
+  for (const d of pin) await act(async () => fireEvent.click(screen.getByRole('button', { name: d })));
+}
 
 beforeEach(() => {
-  choose.mockReset();
-  setGrownUpsOpen.mockReset();
-  useFamilyStore.setState({ kids: [sam, kit], choose, setGrownUpsOpen });
+  vi.clearAllMocks();
+  useFamilyStore.setState({ kids: [sam, kit], choose, setGrownUpsOpen, checkKidPin });
 });
 
-describe("WhoIsPlaying (#118)", () => {
+describe('WhoIsPlaying (#118)', () => {
   it('shows a tile for each kid, with their picture and nickname', () => {
     render(<WhoIsPlaying />);
-    const sams = screen.getByRole('button', { name: 'Sam' });
-    expect(sams).toHaveTextContent('🦊');
+    expect(screen.getByRole('button', { name: 'Sam' })).toHaveTextContent('🦊');
     expect(screen.getByRole('button', { name: 'Kit' })).toHaveTextContent('🐼');
   });
 
-  it('a kid with a secret picture taps it to get in; a wrong one says try again', () => {
+  it("a kid types their PIN to get in; a wrong one says try again and doesn't", async () => {
     render(<WhoIsPlaying />);
     fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
     expect(screen.getByText('Hi, Sam!')).toBeInTheDocument();
-    expect(screen.getAllByRole('button').filter((b) => b.getAttribute('aria-label'))).toHaveLength(9);
-    fireEvent.click(screen.getByRole('button', { name: 'Apple' }));
+    await type('1234');
+    expect(checkKidPin).toHaveBeenLastCalledWith('kid-sam', '1234');
     expect(choose).not.toHaveBeenCalled();
-    expect(screen.getByRole('status')).toHaveTextContent(/Not that one/);
-    fireEvent.click(screen.getByRole('button', { name: 'Rocket' }));
+    expect(screen.getByRole('status')).toHaveTextContent(/Not quite/);
+    await type('4821');
     expect(choose).toHaveBeenCalledWith('kid-sam');
-  });
-
-  it("a kid without one (from before parent accounts) goes straight in", () => {
-    render(<WhoIsPlaying />);
-    fireEvent.click(screen.getByRole('button', { name: 'Kit' }));
-    expect(choose).toHaveBeenCalledWith('kid-kit');
   });
 
   it("\"That's not me\" goes back to the tiles", () => {
     render(<WhoIsPlaying />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Kit' }));
     fireEvent.click(screen.getByRole('button', { name: /not me/ }));
     expect(screen.getByText("Who's playing?")).toBeInTheDocument();
+    expect(choose).not.toHaveBeenCalled();
   });
 
   it('👪 Grown-ups opens the grown-ups area', () => {
     render(<WhoIsPlaying />);
     fireEvent.click(screen.getByRole('button', { name: /Grown-ups/ }));
     expect(setGrownUpsOpen).toHaveBeenCalledWith(true);
-  });
-
-  it('the secret pictures come in a new order each time', () => {
-    const orders = new Set<string>();
-    for (let i = 0; i < 6; i++) {
-      const { unmount } = render(<WhoIsPlaying />);
-      fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
-      const grid = screen.getByRole('button', { name: 'Rocket' }).parentElement!;
-      orders.add(within(grid).getAllByRole('button').map((b) => b.getAttribute('aria-label')).join());
-      unmount();
-    }
-    expect(orders.size).toBeGreaterThan(1); // 6 identical orders of 9 would be a 1-in-(9!)^5 fluke
   });
 });

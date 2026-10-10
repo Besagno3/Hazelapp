@@ -6,24 +6,22 @@ export interface Picture {
   name: string;
 }
 
-/** A grid of pictures to pick one from (a kid's tile, their secret picture). */
+/** A grid of pictures to pick one from (the picture on a kid's tile). */
 export default function PicturePicker({
   label,
   pictures,
   value,
   onChange,
-  columns = 'grid-cols-4 sm:grid-cols-6',
 }: {
   label: string;
   pictures: readonly Picture[];
   value: string | null;
   onChange: (id: string) => void;
-  columns?: string;
 }) {
   return (
     <fieldset>
       <legend className="block text-xs text-gray-500 mb-1">{label}</legend>
-      <div className={cn('grid gap-1.5', columns)}>
+      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
         {pictures.map((p) => (
           <button
             key={p.id}

@@ -176,16 +176,16 @@ export interface Profile {
 
 /**
  * One of a grown-up's kids (#118): a `profiles` row as the family screens see
- * it. `icon` / `picture` are ids from `content/family.ts` (null for a kid from
- * before parent accounts, until a grown-up picks them).
+ * it. `icon` is an id from `content/family.ts` (null for a kid from before
+ * parent accounts, until a grown-up picks one).
  */
 export interface Kid {
   id: string;
   /** Nickname (null for a kid from before parent accounts). */
   name: string | null;
   icon: string | null;
-  /** Secret picture that opens this kid's profile; null = no lock. */
-  picture: string | null;
+  /** Whether their PIN is set (the PIN itself never leaves the database). */
+  hasPin: boolean;
   birthYear: number;
   birthMonth: number;
 }
@@ -194,7 +194,8 @@ export interface Kid {
 export interface KidInput {
   name: string;
   icon: string;
-  picture: string;
+  /** A new 4-digit PIN; left out when changing a kid keeps theirs. */
+  pin?: string;
   birthYear: number;
   birthMonth: number;
 }

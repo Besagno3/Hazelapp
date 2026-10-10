@@ -11,6 +11,7 @@ import AuthPage from './features/auth/AuthPage';
 import ResetPasswordPage from './features/auth/ResetPasswordPage';
 import ConsentPage from './features/family/ConsentPage';
 import FirstKidPage from './features/family/FirstKidPage';
+import KidSetupPage from './features/family/KidSetupPage';
 import WhoIsPlaying from './features/family/WhoIsPlaying';
 import GrownUpsArea from './features/family/GrownUpsArea';
 import { familyScreen, useFamilyStore } from './store/familyStore';
@@ -114,6 +115,7 @@ export default function App() {
   if (family === 'consent') return <ConsentPage />;
   if (family === 'grownUps') return <GrownUpsArea />;
   if (family === 'firstKid') return <FirstKidPage />;
+  if (family === 'kidSetup') return <KidSetupPage />;
   if (family === 'pick') return <WhoIsPlaying />;
 
   // The save came from a newer version of the game (this tab is out of date).

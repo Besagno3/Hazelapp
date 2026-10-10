@@ -30,13 +30,13 @@ const { useProfileStore } = await import('./profileStore');
 const { useSaveStore } = await import('./saveStore');
 const { CONSENT_VERSION } = await import('../content/family');
 
-const SAM = { id: 'kid-sam', display_name: 'Sam', icon: 'fox', picture_password: 'rocket', birth_year: 2017, birth_month: 3 };
-const KIT = { id: 'kid-kit', display_name: 'Kit', icon: 'panda', picture_password: null, birth_year: 2019, birth_month: 8 };
+const SAM = { id: 'kid-sam', display_name: 'Sam', icon: 'fox', has_pin: true, birth_year: 2017, birth_month: 3 };
+const KIT = { id: 'kid-kit', display_name: 'Kit', icon: 'panda', has_pin: true, birth_year: 2019, birth_month: 8 };
 
-/** Answer the family load: the grown-up's consent and their kids. */
-function family(consentAt: string | null, kids: unknown[]) {
+/** Answer the family load: the grown-up's consent (and PIN) and their kids. */
+function family(consentAt: string | null, kids: unknown[], hasPin = false) {
   db.answer.mockImplementation((table) => {
-    if (table === 'parents') return { data: { consent_at: consentAt }, error: null };
+    if (table === 'parents') return { data: { consent_at: consentAt, has_pin: hasPin }, error: null };
     if (table === 'profiles') return { data: kids, error: null };
     return { data: null, error: null };
   });
@@ -63,14 +63,16 @@ beforeEach(() => {
 });
 
 describe('familyScreen — the gates before the game, in order (#118)', () => {
-  const kid = { id: 'k', name: 'Sam', icon: null, picture: null, birthYear: 2017, birthMonth: 3 };
+  const kid = { id: 'k', name: 'Sam', icon: null, hasPin: true, birthYear: 2017, birthMonth: 3 };
+  const noPin = { ...kid, id: 'old', hasPin: false };
   const ready = { status: 'ready' as const, consentAt: '2026-10-10', kids: [kid], activeKidId: 'k', grownUpsOpen: false };
   it.each([
     ['loading', { ...ready, status: 'loading' as const }],
     ['error', { ...ready, status: 'error' as const }],
     ['consent', { ...ready, consentAt: null, grownUpsOpen: true }],
-    ['grownUps', { ...ready, grownUpsOpen: true, kids: [] }],
+    ['grownUps', { ...ready, grownUpsOpen: true, kids: [noPin] }],
     ['firstKid', { ...ready, kids: [], activeKidId: null }],
+    ['kidSetup', { ...ready, kids: [kid, noPin] }],
     ['pick', { ...ready, activeKidId: null }],
     ['pick', { ...ready, activeKidId: 'removed-kid' }],
     ['play', ready],
@@ -80,14 +82,16 @@ describe('familyScreen — the gates before the game, in order (#118)', () => {
 });
 
 describe('useFamilyStore', () => {
-  it("load: reads the grown-up's consent and only their kids, oldest first", async () => {
-    family('2026-10-10T10:00:00Z', [SAM, KIT]);
+  it("load: reads the grown-up's consent, PIN flag and only their kids, oldest first", async () => {
+    family('2026-10-10T10:00:00Z', [SAM, { ...KIT, has_pin: false }], true);
     await useFamilyStore.getState().load('grown-up-1');
     const s = useFamilyStore.getState();
     expect(s.status).toBe('ready');
     expect(s.consentAt).toBe('2026-10-10T10:00:00Z');
+    expect(s.hasParentPin).toBe(true);
     expect(s.kids.map((k) => k.name)).toEqual(['Sam', 'Kit']);
-    expect(s.kids[0]).toEqual({ id: 'kid-sam', name: 'Sam', icon: 'fox', picture: 'rocket', birthYear: 2017, birthMonth: 3 });
+    expect(s.kids[0]).toEqual({ id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 });
+    expect(s.kids[1].hasPin).toBe(false);
     const kids = db.chains.find((c) => c.table === 'profiles')!;
     expect(kids.ops).toContainEqual(['eq', ['parent_id', 'grown-up-1']]);
     expect(kids.ops).toContainEqual(['order', ['created_at']]);
@@ -111,7 +115,7 @@ describe('useFamilyStore', () => {
   });
 
   it('choose: plays as that kid — their profile (seeded with their birth date) and save load', () => {
-    useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [{ id: 'kid-sam', name: 'Sam', icon: 'fox', picture: 'rocket', birthYear: 2017, birthMonth: 3 }] });
+    useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [{ id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 }] });
     useFamilyStore.getState().choose('kid-sam');
     expect(useFamilyStore.getState().activeKidId).toBe('kid-sam');
     expect(loadProfile).toHaveBeenCalledWith('kid-sam', { birthYear: 2017, birthMonth: 3 });
@@ -146,24 +150,63 @@ describe('useFamilyStore', () => {
     expect(useFamilyStore.getState().activeKidId).toBeNull();
   });
 
-  it("addKid: inserts the kid (the database fills in the id and the grown-up) and lists them", async () => {
+  it('addKid: inserts the kid (the database fills in the id and the grown-up), then sets their PIN', async () => {
     useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [] });
-    db.answer.mockImplementation(() => ({ data: SAM, error: null }));
+    db.answer.mockImplementation(() => ({ data: { ...SAM, has_pin: false }, error: null }));
     const kid = await useFamilyStore
       .getState()
-      .addKid({ name: '  Sam ', icon: 'fox', picture: 'rocket', birthYear: 2017, birthMonth: 3 });
+      .addKid({ name: '  Sam ', icon: 'fox', pin: '4821', birthYear: 2017, birthMonth: 3 });
     const insert = db.chains[0].ops.find(([m]) => m === 'insert')!;
-    expect(insert[1][0]).toEqual({ display_name: 'Sam', icon: 'fox', picture_password: 'rocket', birth_year: 2017, birth_month: 3 });
-    expect(kid.id).toBe('kid-sam');
-    expect(useFamilyStore.getState().kids).toHaveLength(1);
+    // The PIN never goes in the row: only through set_kid_pin, which hashes it.
+    expect(insert[1][0]).toEqual({ display_name: 'Sam', icon: 'fox', birth_year: 2017, birth_month: 3 });
+    expect(db.rpc).toHaveBeenCalledWith('set_kid_pin', { p_kid: 'kid-sam', p_pin: '4821' });
+    expect(kid).toMatchObject({ id: 'kid-sam', hasPin: true });
+    expect(useFamilyStore.getState().kids).toEqual([kid]);
+  });
+
+  it("addKid: a PIN that didn't save leaves the kid listed without one (setup asks again)", async () => {
+    useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [] });
+    db.answer.mockImplementation(() => ({ data: { ...SAM, has_pin: false }, error: null }));
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } } as never);
+    await expect(
+      useFamilyStore.getState().addKid({ name: 'Sam', icon: 'fox', pin: '4821', birthYear: 2017, birthMonth: 3 }),
+    ).rejects.toThrow(/Failed to fetch/);
+    expect(useFamilyStore.getState().kids.map((k) => k.hasPin)).toEqual([false]);
   });
 
   it('addKid: a refused insert throws the reason to show', async () => {
-    db.answer.mockImplementation(() => ({ data: null, error: { message: 'new row violates check constraint' } }));
+    db.answer.mockImplementation(() => ({ data: null, error: { message: 'kid_limit: a family account can have up to 8 players' } }));
     await expect(
-      useFamilyStore.getState().addKid({ name: 'Sam', icon: 'fox', picture: 'rocket', birthYear: 2017, birthMonth: 3 }),
-    ).rejects.toThrow(/check constraint/);
+      useFamilyStore.getState().addKid({ name: 'Sam', icon: 'fox', pin: '4821', birthYear: 2017, birthMonth: 3 }),
+    ).rejects.toThrow(/up to 8 players/);
     expect(useFamilyStore.getState().kids).toHaveLength(0);
+    expect(db.rpc).not.toHaveBeenCalled();
+  });
+
+  it('updateKid: a new PIN is set; a blank one keeps theirs', async () => {
+    useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [{ id: 'old', name: null, icon: null, hasPin: false, birthYear: 2015, birthMonth: 1 }] });
+    db.answer.mockImplementation(() => ({ data: null, error: null }));
+    await useFamilyStore.getState().updateKid('old', { name: 'Ada', icon: 'bee', pin: '7777', birthYear: 2015, birthMonth: 1 });
+    expect(db.rpc).toHaveBeenCalledWith('set_kid_pin', { p_kid: 'old', p_pin: '7777' });
+    expect(useFamilyStore.getState().kids[0]).toMatchObject({ name: 'Ada', icon: 'bee', hasPin: true });
+    db.rpc.mockClear();
+    await useFamilyStore.getState().updateKid('old', { name: 'Ada B', icon: 'bee', birthYear: 2015, birthMonth: 1 });
+    expect(db.rpc).not.toHaveBeenCalled();
+    expect(useFamilyStore.getState().kids[0]).toMatchObject({ name: 'Ada B', hasPin: true });
+  });
+
+  it('PINs are checked by the database: a kid\'s, and the grown-up\'s (which can also be set)', async () => {
+    db.rpc.mockResolvedValueOnce({ data: true, error: null } as never);
+    expect(await useFamilyStore.getState().checkKidPin('kid-sam', '4821')).toBe(true);
+    expect(db.rpc).toHaveBeenLastCalledWith('check_kid_pin', { p_kid: 'kid-sam', p_pin: '4821' });
+    db.rpc.mockResolvedValueOnce({ data: false, error: null } as never);
+    expect(await useFamilyStore.getState().checkParentPin('0000')).toBe(false);
+    expect(db.rpc).toHaveBeenLastCalledWith('check_parent_pin', { p_pin: '0000' });
+    await useFamilyStore.getState().setParentPin('9090');
+    expect(db.rpc).toHaveBeenLastCalledWith('set_parent_pin', { p_pin: '9090' });
+    expect(useFamilyStore.getState().hasParentPin).toBe(true);
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'offline' } } as never);
+    await expect(useFamilyStore.getState().checkKidPin('kid-sam', '1111')).rejects.toThrow(/offline/);
   });
 
   it("removeKid: deletes the kid and the copies of their game on this device", async () => {

@@ -17,8 +17,9 @@
 // Access (#88): callers must be signed in (401 otherwise), and every call goes
 // through `begin_question_request` (migration 0009) — a per-login rate limit
 // (429 when exceeded) plus per-login and project-wide daily budgets of FRESH
-// questions. A login is a grown-up's family account (#118): its kids share the
-// budget, and each kid's seen questions are their own (`profileId`). When a budget is spent the call is served from the cache
+// questions. A login is a grown-up's family account (#118); the app names the
+// kid playing (`profileId`), and each kid has their own budget and seen
+// questions (migration 0013). When a budget is spent the call is served from the cache
 // (re-using already-seen questions if it must), so play continues without
 // spending more on Claude. Limits are tunable via env (see QUOTA_DEFAULTS).
 //
@@ -318,7 +319,7 @@ Deno.serve(async (req) => {
 
   // Identify the caller (#88): signed-in players only. The anon key is public
   // (it ships in the web bundle), so without this anyone could spend the
-  // project's Claude budget. The login drives the quota.
+  // project's Claude budget.
   if (!dbUrl || !anonKey || !db) {
     return json({ error: 'Server is missing Supabase configuration' }, 500);
   }
@@ -338,9 +339,10 @@ Deno.serve(async (req) => {
   if (!callerId) return json({ error: 'Please sign in to play.' }, 401);
 
   // Which kid is playing (#118): the app names one of the grown-up's kids, and
-  // per-kid dedupe (#24) follows them. An app from before parent accounts
-  // sends none — its login is the kid. A failed lookup keeps the login (dedupe
-  // degrades, play goes on); only someone else's kid is refused.
+  // the per-kid budget and dedupe (#24) follow them. An app from before parent
+  // accounts sends none — its login is the kid. A failed lookup keeps the
+  // login (the quota fails open below if that isn't a kid); only someone
+  // else's kid is refused.
   let profileId: string = callerId;
   if (body.profileId !== undefined) {
     if (typeof body.profileId !== 'string' || !UUID_RE.test(body.profileId)) {
@@ -364,7 +366,7 @@ Deno.serve(async (req) => {
   let requestId: number | null = null;
   {
     const { data: quota, error: quotaErr } = await db.rpc('begin_question_request', {
-      p_profile: callerId,
+      p_profile: profileId,
       p_max_per_minute: quotaSetting('QUESTION_RATE_PER_MINUTE'),
       p_fresh_per_day: quotaSetting('FRESH_PER_PLAYER_PER_DAY'),
       p_fresh_global: quotaSetting('FRESH_GLOBAL_PER_DAY'),

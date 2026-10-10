@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import type { Kid } from '../../types';
 
 const auth = vi.hoisted(() => ({
@@ -14,15 +14,29 @@ const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { calcAge } = await import('../../lib/age');
 
-const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', picture: 'rocket', birthYear: 2017, birthMonth: 3 };
-const old: Kid = { id: 'kid-old', name: null, icon: null, picture: null, birthYear: 2015, birthMonth: 1 };
+const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
+const old: Kid = { id: 'kid-old', name: null, icon: null, hasPin: false, birthYear: 2015, birthMonth: 1 };
 const removeKid = vi.fn(async () => {});
 const setGrownUpsOpen = vi.fn();
+const checkParentPin = vi.fn(async (pin: string) => pin === '9090');
+const setParentPin = vi.fn(async () => {});
+
+async function type(pin: string) {
+  for (const d of pin) await act(async () => fireEvent.click(screen.getByRole('button', { name: d })));
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
-  useFamilyStore.setState({ kids: [sam, old], consentAt: '2026-10-10T10:00:00Z', removeKid, setGrownUpsOpen });
+  useFamilyStore.setState({
+    kids: [sam, old],
+    consentAt: '2026-10-10T10:00:00Z',
+    hasParentPin: false,
+    removeKid,
+    setGrownUpsOpen,
+    checkParentPin,
+    setParentPin,
+  });
 });
 
 async function unlock() {
@@ -54,11 +68,31 @@ describe('GrownUpsArea (#118)', () => {
     expect(setGrownUpsOpen).toHaveBeenCalledWith(false);
   });
 
-  it('open: each kid with their age and secret picture; an old kid shows they have none yet', async () => {
+  it('with a grown-up PIN: the PIN opens it, a wrong one does not, and the password still works', async () => {
+    useFamilyStore.setState({ hasParentPin: true });
+    render(<GrownUpsArea />);
+    expect(screen.getByText('Type your grown-up PIN.')).toBeInTheDocument();
+    await type('1111');
+    expect(screen.queryByText('Sam')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/Not quite/);
+    fireEvent.click(screen.getByRole('button', { name: 'Use my password instead' }));
+    expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Use my grown-up PIN instead' }));
+    await type('9090');
+    expect(await screen.findByText('Sam')).toBeInTheDocument();
+  });
+
+  it('without a grown-up PIN it asks for the password, with no PIN option', () => {
+    render(<GrownUpsArea />);
+    expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /grown-up PIN instead/ })).not.toBeInTheDocument();
+  });
+
+  it('open: each kid with their age and whether their PIN is set', async () => {
     await unlock();
-    expect(screen.getByText(new RegExp(`Age ${calcAge(2017, 3)} · secret picture 🚀 Rocket`))).toBeInTheDocument();
+    expect(screen.getByText(`Age ${calcAge(2017, 3)} · PIN set`)).toBeInTheDocument();
     expect(screen.getByText('Player')).toBeInTheDocument();
-    expect(screen.getByText(/no secret picture yet/)).toBeInTheDocument();
+    expect(screen.getByText(/no PIN yet/)).toBeInTheDocument();
     expect(screen.getByText(/You agreed to the privacy notice on/)).toBeInTheDocument();
   });
 
@@ -85,5 +119,18 @@ describe('GrownUpsArea (#118)', () => {
     expect(screen.getByRole('textbox', { name: 'Nickname' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByText('Sam')).toBeInTheDocument();
+  });
+
+  it('sets a grown-up PIN (4 numbers only)', async () => {
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Set a PIN' }));
+    const field = screen.getByLabelText('Grown-up PIN');
+    fireEvent.change(field, { target: { value: '90' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save PIN' }));
+    expect(screen.getByText('A PIN is 4 numbers.')).toBeInTheDocument();
+    fireEvent.change(field, { target: { value: '9090' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save PIN' }));
+    expect(await screen.findByText('Grown-up PIN saved.')).toBeInTheDocument();
+    expect(setParentPin).toHaveBeenCalledWith('9090');
   });
 });

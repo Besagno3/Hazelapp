@@ -95,14 +95,19 @@ zod, react-query. Add the package in the same change that first uses it.
 - **A login is a grown-up's; kids are profiles (#118).** Signing in loads the
   family (`familyStore`: consent + kids). Before the game, `familyScreen()`
   picks, in order: consent (`ConsentPage`) → 👪 Grown-ups if open
-  (`GrownUpsArea`, behind the grown-up's password: add / change / remove
-  kids, the privacy notice, Sign out) → the first kid (`FirstKidPage`) →
-  "Who's playing?" (`WhoIsPlaying`: a kid's tile, then their secret
-  picture). Picking a kid (`choose`) loads *their* profile and save, keyed by
-  the kid's id; the kid playing in a tab survives a reload (sessionStorage).
-  In the game, **Switch player** (`SwitchPlayerButton`, two taps in the
-  world's top bar) replaces Sign out. The active kid's id goes to the
-  question function (`profileId`) and on flags. The privacy notice and the
+  (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password:
+  add / change / remove kids, set the grown-up PIN, the privacy notice,
+  Sign out) → the first kid (`FirstKidPage`) → any kid without a PIN
+  (`KidSetupPage`) → "Who's playing?" (`WhoIsPlaying`: a kid's tile, then
+  their 4-digit PIN on `PinPad`). **PINs are hashed in the database**
+  (migration 0013: `kid_pins` / `parent_pins`, readable by no client; set and
+  checked only by `set_/check_kid_pin`, `set_/check_parent_pin`); the app
+  only sees `has_pin`. Picking a kid (`choose`) loads *their* profile and
+  save, keyed by the kid's id; the kid playing in a tab survives a reload
+  (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
+  taps in the world's top bar) replaces Sign out. The active kid's id goes to
+  the question function (`profileId`) — **the question budget is per kid**
+  (a family has at most 8) — and on flags. The privacy notice and the tile
   pictures live in `content/family.ts` (the notice is a **draft** until a
   lawyer reviews it — `PRIVACY_IS_DRAFT`).
 - **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
@@ -598,6 +603,45 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Every kid has a PIN; a grown-up PIN; the question budget per kid (#118)
+The owner's answers (2026-10-10) changed three of the earlier calls:
+- **Each kid opens their profile with a 4-digit PIN** (replacing the secret
+  picture). Migration 0013 keeps PINs bcrypt-hashed (pgcrypto, `extensions`
+  schema) in `kid_pins`, a table with RLS on, no policies and no grants:
+  `set_kid_pin` (4 digits, only for the caller's kid) and `check_kid_pin`
+  (false for anyone else's kid) are the only way in; `profiles.has_pin` tells
+  the app one is set. `picture_password` is dropped. In the app: `PinPad`
+  (four dots, a big number pad, keyboard digits; after 5 wrong in a row it
+  rests 30 s — a brake on a sibling, kept in the screen), `KidForm` takes a
+  PIN (digits only, the 👁️ shows it; blank keeps a kid's PIN when changing
+  them), and **a kid without a PIN is set up before anyone plays**
+  (`KidSetupPage`; an old account's kid gets a nickname, picture and PIN
+  there).
+- **👪 Grown-ups opens with a grown-up PIN or the password.** The grown-up
+  can set an optional PIN (`set_parent_pin`, hashed in `parent_pins`;
+  `parents.has_pin`, which only that function writes). With one set, the
+  gate shows the PIN pad and "Use my password instead"; the password always
+  works.
+- **The question budget is per kid:** the edge function passes the kid's id
+  to `begin_question_request`; `question_requests` now points at `profiles`
+  (on delete cascade; `not valid`, so rows logged under a login before stay).
+  Since every kid adds a budget, a family has **at most 8 players**
+  (`profiles_kid_limit` trigger).
+- Tests: `supabase/ci/pins.test.sql` (4 digits only, set/check, a new PIN
+  replaces the old, hashes unreadable and unwritable by the API role,
+  another grown-up can't check or set my kid's PIN or pass my grown-up PIN,
+  a 9th player refused, each kid's own budget, a removed kid's requests and
+  PIN go) — it fails with `check_kid_pin`'s ownership test removed;
+  `parent_accounts.test.sql` updated. `PinPad`, `KidSetupPage` tests;
+  `familyStore`, `WhoIsPlaying`, `KidForm`, `GrownUpsArea` tests moved to
+  PINs. 935 tests green; lint + tsc + build clean; the five SQL tests, the
+  migrations in order and the bundle twice pass on local Postgres 16;
+  `deno check` clean. Headless Chromium walk (stubbed Supabase, 375×667 and
+  320×568): sign-up → consent → first kid with a PIN → an old kid finished
+  → Who's playing → a wrong then right PIN → the game → Grown-ups by
+  password → set a grown-up PIN → the gate by grown-up PIN — no sideways
+  scroll, no page errors.
 
 ### 2026-10-10 — Parent accounts in the app: a grown-up signs up, kids pick themselves (#118, #89)
 The app half of #118 (the server half is the entry below):

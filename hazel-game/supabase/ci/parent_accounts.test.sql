@@ -35,8 +35,8 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
 
 -- A adds two kids; their ids and parent_id come from the defaults.
-insert into public.profiles (display_name, icon, picture_password, birth_year, birth_month)
-  values ('Sam', 'fox', 'rocket', 2017, 3), ('Kit', 'panda', 'apple', 2019, 8);
+insert into public.profiles (display_name, icon, birth_year, birth_month)
+  values ('Sam', 'fox', 2017, 3), ('Kit', 'panda', 2019, 8);
 
 do $$
 declare
