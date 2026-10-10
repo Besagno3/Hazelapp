@@ -21,7 +21,8 @@ vi.mock('../../machines/gameFlow', () => ({ sendFlow: (e: unknown) => sendFlow(e
 const { default: SpireOverlay } = await import('./SpireOverlay');
 const { useSaveStore } = await import('../../store/saveStore');
 const { defaultSave } = await import('../../lib/save');
-const { TOPIC_REGISTRY, crystalFlag } = await import('../../content/topics');
+const { actCrystals, crystalFlag } = await import('../../content/topics');
+const { addFakeActTwoCrystal } = await import('../../test/fakeCrystal');
 
 /** Read through the Spire's opening lines (each panel ignores a tap in its first 250 ms). */
 async function readUntil(name: string | RegExp) {
@@ -39,7 +40,7 @@ describe('leaving the Spire asks first (#75 item 14b review)', () => {
     useSaveStore.setState({
       userId: null,
       status: 'ready',
-      save: { ...defaultSave(), avatarId: 'a1', flags: Object.fromEntries(TOPIC_REGISTRY.map((t) => [crystalFlag(t.id), true])) },
+      save: { ...defaultSave(), avatarId: 'a1', flags: Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.id), true])) },
       flush: vi.fn(async () => {}),
     });
   });
@@ -65,5 +66,36 @@ describe('leaving the Spire asks first (#75 item 14b review)', () => {
     expect(screen.getByText(/next time, the climb starts again from the first floor/)).toBeInTheDocument();
     expect(sendFlow).not.toHaveBeenCalled();
     slot.remove();
+  });
+});
+
+describe('the Spire opens on Act I\'s crystals (#75 item 14c)', () => {
+  it('a later act\'s crystal, not yet restored, never seals it again', async () => {
+    const remove = addFakeActTwoCrystal();
+    try {
+      useSaveStore.setState({
+        userId: null,
+        status: 'ready',
+        save: { ...defaultSave(), avatarId: 'a1', flags: Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.id), true])) },
+        flush: vi.fn(async () => {}),
+      });
+      const slot = document.createElement('div');
+      document.body.appendChild(slot);
+      render(<SpireOverlay hudSlot={slot} />);
+      expect(screen.queryByText('The Spire is sealed')).toBeNull();
+      await readUntil('🚪 Leave the Spire');
+      slot.remove();
+    } finally {
+      remove();
+    }
+  });
+
+  it('with three of Act I\'s four, it is sealed and counts "3/4"', () => {
+    useSaveStore.setState({
+      save: { ...defaultSave(), avatarId: 'a1', flags: Object.fromEntries(actCrystals(1).slice(0, 3).map((t) => [crystalFlag(t.id), true])) },
+    });
+    render(<SpireOverlay hudSlot={null} />);
+    expect(screen.getByText('The Spire is sealed')).toBeInTheDocument();
+    expect(screen.getByText('3/4')).toBeInTheDocument();
   });
 });

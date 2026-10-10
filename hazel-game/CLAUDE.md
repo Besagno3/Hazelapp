@@ -494,6 +494,25 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — Crystals belong to an act: Act I stays Act I when more come (#75 item 14c)
+First slice of 14c (nothing a player sees changes). Every "all crystals"
+rule assumed the registry's four, so a fifth crystal would have re-sealed the
+Spire after Act I (a softlock: Act II opens only after the Spire), stopped the
+ending, read "x/5" in Act I and sent the 🚩 to the new crystal right after
+Numbria.
+- **`CrystalTopicInfo.act`** (the roadmap's `CRYSTAL_ACT`; required, so a new
+  crystal can't compile without one) and `actCrystals` / `actRestored` /
+  `actComplete` (`content/topics.ts`, read the registry when called).
+- **The Spire's seal and its "3/4"**, **the ending**, **the 🚩's order** and
+  **Elder Lumen's plans** read Act I's crystals; the **HUD** counts the
+  crystals of the acts that have opened (`crystalsInPlay`, `ACT_OPENS` in
+  `content/story.ts`: Act II on `act2-seen`). Ember still grows with any.
+- Tests: `test/fakeCrystal.ts` adds a stand-in Act II crystal;
+  `crystals.test` (+7), SpireOverlay.test (+2) and WorldScreen.focus.test (+2)
+  check Act I is unchanged with it — 4 of them fail on the old code. The
+  "Spire open" fixtures and the corner / fog-pocket rules now use Act I's
+  crystals. 780 green, lint clean. Follow-ups: #112.
+
 ### 2026-10-10 — 14b second review: keyboard reaches every overlay, Sign out never moves the map (#75 item 14b)
 A second fresh-context `/saas-code-review` (3 low) + `/saas-ux-review` (1
 critical, 1 high, 4 medium, 1 low; played in headless Chromium at five sizes,

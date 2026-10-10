@@ -2,7 +2,7 @@ import { HUB_ZONE, ZONES, gateIdAt, npcPresent, type ZoneDef, type ZoneId } from
 import { NPC_DEFS } from '../content/npcs';
 import { ENEMY_DEFS, fiendFor } from '../content/enemies';
 import { GATE_KEYS, bossDefeated, keyFlag, keyForZone } from '../content/keys';
-import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
+import { crystalFlag } from '../content/topics';
 import { SPIRE_CLEARED } from '../content/story';
 import { BOAT_MENDED, BOAT_QUEST_ID } from '../content/boat';
 import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
@@ -33,7 +33,7 @@ const ACT_ONE: readonly Objective['kind'][] = ['crystal', 'key', 'spire'];
 /** Does what a goal asks — the way a player would — and returns the flags it leads to. */
 export function advanceGoal(g: Objective, flags: Record<string, boolean>): Record<string, boolean> {
   const next = { ...flags };
-  if (g.kind === 'crystal') next[crystalFlag(TOPIC_REGISTRY.find((t) => t.zoneId === g.zoneId)!.id)] = true;
+  if (g.kind === 'crystal') next[crystalFlag(g.crystal!.id)] = true;
   else if (g.kind === 'key') next[keyFlag(GATE_KEYS.find((k) => k.fromZone === g.zoneId)!.id)] = true;
   else if (g.kind === 'spire') next[SPIRE_CLEARED] = true;
   else if (g.kind === 'sail') next[visitedFlag('silver-shallows')] = true;

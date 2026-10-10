@@ -35,12 +35,22 @@ export interface TopicInfo {
   zoneId?: ZoneId;
 }
 
+/**
+ * The act a crystal belongs to (#75 item 14c): Act I's four open the Spire;
+ * later acts add their own (Memory in Act II, Voices in Act III). Every
+ * "all crystals" rule — the Spire's seal, the ending, the 🚩's order — is a
+ * rule about one act's crystals, so a new crystal never changes Act I.
+ */
+export type Act = 1 | 2 | 3;
+
 /** A crystal main-quest topic — crystal fields are guaranteed present. */
 export interface CrystalTopicInfo extends TopicInfo {
   id: CrystalTopic;
   crystalName: string;
   fiendName: string;
   zoneId: ZoneId;
+  /** Which act's crystal it is (the roadmap's `CRYSTAL_ACT`). */
+  act: Act;
 }
 
 export const TOPIC_REGISTRY: CrystalTopicInfo[] = [
@@ -54,6 +64,7 @@ export const TOPIC_REGISTRY: CrystalTopicInfo[] = [
     crystalName: 'Crystal of Numbers',
     fiendName: 'The Null Fiend',
     zoneId: 'numbria',
+    act: 1,
   },
   {
     id: 'science',
@@ -65,6 +76,7 @@ export const TOPIC_REGISTRY: CrystalTopicInfo[] = [
     crystalName: 'Crystal of Nature',
     fiendName: 'The Smog Fiend',
     zoneId: 'verdara',
+    act: 1,
   },
   {
     id: 'engineering',
@@ -76,6 +88,7 @@ export const TOPIC_REGISTRY: CrystalTopicInfo[] = [
     crystalName: 'Crystal of Gears',
     fiendName: 'The Rust Fiend',
     zoneId: 'gearfall',
+    act: 1,
   },
   {
     id: 'creativity',
@@ -87,6 +100,7 @@ export const TOPIC_REGISTRY: CrystalTopicInfo[] = [
     crystalName: 'Crystal of Wonder',
     fiendName: 'The Gray Fiend',
     zoneId: 'chromaria',
+    act: 1,
   },
 ];
 
@@ -140,4 +154,23 @@ export function crystalInfo(id: CrystalTopic): CrystalTopicInfo {
 /** Flag set when a topic's Fiend falls and its crystal is restored. */
 export function crystalFlag(id: Topic): string {
   return `crystal-${id}-restored`;
+}
+
+// Crystals by act (#75 item 14c). These read TOPIC_REGISTRY when called (never
+// a copy taken at load), so a test can add a later act's crystal and check
+// Act I doesn't change (`test/fakeCrystal.ts`).
+
+/** One act's crystals, in the registry's order (the 🚩's order). */
+export function actCrystals(act: Act): CrystalTopicInfo[] {
+  return TOPIC_REGISTRY.filter((t) => t.act === act);
+}
+
+/** How many of one act's crystals are restored. */
+export function actRestored(flags: Record<string, boolean>, act: Act): number {
+  return actCrystals(act).filter((t) => flags[crystalFlag(t.id)]).length;
+}
+
+/** Every crystal of the act restored — Act I's opens the Spire and plays the ending. */
+export function actComplete(flags: Record<string, boolean>, act: Act): boolean {
+  return actRestored(flags, act) >= actCrystals(act).length;
 }
