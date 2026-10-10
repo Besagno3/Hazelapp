@@ -241,7 +241,7 @@ const HUD_USER = 'u-hud';
  * Signs in a stub player and answers Supabase for them: their profile, `save`
  * as their saved game, canned questions; every write succeeds.
  */
-async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = {}) {
+async function stubbedApp(browser, viewport, save, profile, { reducedMotion, ready = '[data-testid=world-topbar]' } = {}) {
   const page = await browser.newPage({ viewport, reducedMotion });
   const session = {
     access_token: 'stub',
@@ -272,7 +272,7 @@ async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = 
     return json({});
   });
   await page.goto(`http://localhost:${PORT}/`);
-  await page.waitForSelector('[data-testid=world-topbar]', { timeout: 120000 });
+  await page.waitForSelector(ready, { timeout: 120000, state: 'attached' });
   await page.waitForTimeout(1500);
   return page;
 }
@@ -404,7 +404,10 @@ async function battleHud(browser, outDir) {
   let bad = 0;
   for (const [width, height] of sizes) {
     const size = `${width}×${height}`;
-    const page = await stubbedApp(browser, { width, height }, save, profile);
+    // The hero starts on the beetle, so the battle can begin before the world's top bar ever shows.
+    const page = await stubbedApp(browser, { width, height }, save, profile, {
+      ready: '[data-testid=world-topbar], [data-testid=battle-topbar]',
+    });
     const problems = [];
     // Nudge about if the beetle has wandered off its cell.
     for (let i = 0; i < 12 && !(await page.locator('[data-testid=battle-topbar]').count()); i++) {
