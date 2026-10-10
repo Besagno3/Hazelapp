@@ -615,6 +615,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — 14g review round 1: the candle's own hint, no waiting on a boss (#75 item 14g)
+A fresh `/saas-code-review` (1 medium, 4 low; no security surface). All fixed:
+the Glimmer Candle's free hint is its own (`CombatState.candleHint`) — for Kira
+it used to do nothing, Fox Sense's hint already up; an escort never waits on a
+boss (it never moves); a shop counter never opens a chat with a walking escort;
+back from a battle, Posy walks a way round the map to the hero (`reachPath`),
+not straight across a pool; two doc comments put back above their code.
+
 ### 2026-10-10 — Foglight Marsh: Posy's walk, Brume's lanterns, the Last Fogbank (#75 item 14g)
 Roadmap sub-item 14g — Act II's marsh on the Silver Shallows' north coast.
 - **On the Shallows:** a coast along the top edge (x 23–46, rows 0–4, a beach

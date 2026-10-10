@@ -1009,6 +1009,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-847 | C | ✅ | battle | the Last Fogbank gives the Foglight Badge on its first defeat only (shown on the victory panel, on the shelf once); the Glimmer Candle lights a free hint that works on a trickster (BattleArena.test); `resolveItem` / `itemBlocked` for the candle (battleTurn.test) |
 | TC-848 | U | ✅ | story | Posy's two panels at the Nameless Stone, each ≤ 30 words (story.test) |
 | TC-849 | B | ✅ | escort (real canvas) | on the bench page (`escort=1`, Supabase-free): under Calm the hero walks landing → hub → west boardwalk → the stone and Posy follows the boardwalks and arrives (`escortArrived`); without Calm, standing near the Mist Newt's patch she stops once (`escortWaits`); no page errors |
+| TC-850 | U | ✅ | battle (review) | a Glimmer Candle used by Kira (Fox Sense already up) adds its own free hint: both are offered, Fox Sense's used first (battleTurn.test) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

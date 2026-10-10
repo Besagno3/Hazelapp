@@ -469,7 +469,6 @@ function crystalPocket(
   };
 }
 
-/** Who wants an acorn found in Eldergrove before her quest is offered (#75 item 14f). */
 /** Posy's walk through Foglight Marsh (#75 item 14g): offered, arrived at the stone, done. */
 const POSY_OFFERED = questOfferedFlag({ id: POSY_QUEST });
 const POSY_ARRIVED = stepFlag(POSY_WALK);
@@ -477,6 +476,7 @@ const POSY_DONE = questDoneFlag({ id: POSY_QUEST });
 
 const BRUME_WANTS = "🏮 Lightkeeper Brume, by the lamp-house in the Marsh's west, has lost her Lantern Ledger!";
 
+/** Who wants an acorn found in Eldergrove before her quest is offered (#75 item 14f). */
 const FEN_WANTS = "🧺 Fen the Forager, by her hollow in the grove's north-west, has lost her three best acorns!";
 
 export const ZONES: Record<ZoneId, ZoneDef> = {

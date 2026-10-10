@@ -32,6 +32,7 @@ interface BattleStore {
   knotted: boolean;
   /** Glimmer Candle (#75 item 14g): Hint Feathers work on tricksters this fight. */
   candleLit: boolean;
+  candleHint: boolean;
   /** Fox Sense (Kira): a free Hint Feather still to use this fight. */
   freeHint: boolean;
   /** Second Wind (Talon): a knockout blow leaves 1 HP — once a fight. */
@@ -79,6 +80,7 @@ const FRESH_COMBAT = {
   lucky: false,
   knotted: false,
   candleLit: false,
+  candleHint: false,
   freeHint: false,
   secondWind: false,
 };
@@ -124,6 +126,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
       lucky: s.lucky,
       knotted: s.knotted,
       candleLit: s.candleLit,
+      candleHint: s.candleHint,
       freeHint: s.freeHint,
       secondWind: s.secondWind,
     }),
@@ -173,6 +176,7 @@ export function combatState(): CombatState {
     lucky: s.lucky,
     knotted: s.knotted,
     candleLit: s.candleLit,
+    candleHint: s.candleHint,
     freeHint: s.freeHint,
     secondWind: s.secondWind,
   };

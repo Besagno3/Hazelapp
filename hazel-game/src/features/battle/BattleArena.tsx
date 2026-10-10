@@ -175,6 +175,7 @@ export default function BattleArena() {
     lucky,
     knotted,
     candleLit,
+    candleHint,
     freeHint,
     secondWind,
     applyCombat,
@@ -196,6 +197,7 @@ export default function BattleArena() {
       lucky: s.lucky,
       knotted: s.knotted,
       candleLit: s.candleLit,
+      candleHint: s.candleHint,
       freeHint: s.freeHint,
       secondWind: s.secondWind,
       applyCombat: s.applyCombat,
@@ -1001,6 +1003,7 @@ export default function BattleArena() {
     lucky,
     knotted,
     candleLit,
+    candleHint,
     freeHint,
     secondWind,
   };
@@ -1207,8 +1210,8 @@ export default function BattleArena() {
               question={turn.question}
               // Fox Sense (Kira): a free hint on top of the feathers, used first.
               // A trickster blocks hints — unless a Glimmer Candle is lit (#75 item 14g).
-              hints={enemy.behavior === 'trickster' && !candleLit ? 0 : save.items.hint + (freeHint ? 1 : 0)}
-              hintLabel={freeHint ? (candleLit ? '🕯️ Glimmer Candle — use a free hint!' : '🦊 Fox Sense — use a free hint!') : undefined}
+              hints={enemy.behavior === 'trickster' && !candleLit ? 0 : save.items.hint + (freeHint ? 1 : 0) + (candleHint ? 1 : 0)}
+              hintLabel={freeHint ? '🦊 Fox Sense — use a free hint!' : candleHint ? '🕯️ Glimmer Candle — use a free hint!' : undefined}
               preHidden={turn.hide ?? 0}
               // Forget-Me-Knot (#75 item 14e): a wrong pick is crossed out and the hero picks again.
               secondChance={knotted}
@@ -1222,7 +1225,9 @@ export default function BattleArena() {
               onUseHint={() => {
                 helped.current = true;
                 const s = combatState();
+                // The free ones first — Fox Sense's, then a Glimmer Candle's — then a feather.
                 if (s.freeHint) applyCombat({ ...s, freeHint: false });
+                else if (s.candleHint) applyCombat({ ...s, candleHint: false });
                 else useSaveStore.getState().spendHint();
               }}
               onAnswered={(correct, picked) => {

@@ -311,11 +311,6 @@ export const GREAT_FOGBANK_PANELS: StoryPanel[] = [
 ];
 
 /**
- * After the Ringkeeper (#75 item 14f): the key, and the door it opens — the
- * Sunken Archive, not on the map until 14h, so nobody knows where it is yet,
- * and it "will turn up later" (not a hunt across the Shallows, review fix).
- */
-/**
  * Posy lays her flower at the Nameless Stone in Foglight Marsh (#75 item 14g,
  * "The Flower for No Name" — the escort's ending, 2 panels).
  */
@@ -330,6 +325,11 @@ export const POSY_STONE_PANELS: StoryPanel[] = [
   },
 ];
 
+/**
+ * After the Ringkeeper (#75 item 14f): the key, and the door it opens — the
+ * Sunken Archive, not on the map until 14h, so nobody knows where it is yet,
+ * and it "will turn up later" (not a hunt across the Shallows, review fix).
+ */
 export const MEMORIA_PANELS: StoryPanel[] = [
   {
     emoji: '🗝️',

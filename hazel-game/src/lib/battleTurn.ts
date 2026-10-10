@@ -49,8 +49,10 @@ export interface CombatState {
   lucky: boolean;
   /** Forget-Me-Knot (#75 item 14e): the next wrong answer gets a second try. */
   knotted: boolean;
-  /** Glimmer Candle (#75 item 14g): Hint Feathers work even on a trickster this fight. */
+  /** Glimmer Candle (#75 item 14g): Hint Feathers work even on a trickster this fight… */
   candleLit: boolean;
+  /** …and its own free hint, still to use — on top of Fox Sense's (#75 item 14g review). */
+  candleHint: boolean;
   /** Fox Sense (Kira): a free Hint Feather still to use this fight. */
   freeHint: boolean;
   /** Second Wind (Talon): a knockout blow leaves 1 HP instead — once a fight. */
@@ -428,7 +430,7 @@ export function resolveItem(s: CombatState, id: ConsumableId): ItemResult {
   if (id === 'clover') return { state: { ...s, lucky: true }, healed: 0, chargeGained: 0 };
   if (id === 'knot') return { state: { ...s, knotted: true }, healed: 0, chargeGained: 0 };
   // A free hint now, and hints that work on tricksters for the rest of the fight.
-  if (id === 'candle') return { state: { ...s, candleLit: true, freeHint: true }, healed: 0, chargeGained: 0 };
+  if (id === 'candle') return { state: { ...s, candleLit: true, candleHint: true }, healed: 0, chargeGained: 0 };
   return { state: s, healed: 0, chargeGained: 0 };
 }
 

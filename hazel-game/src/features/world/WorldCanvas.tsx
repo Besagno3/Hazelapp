@@ -28,7 +28,7 @@ import {
   type TravelMode,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
-import { safeSpawn } from '../../lib/reach';
+import { reachPath, safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { habitatOf, spawnPlaced } from '../../content/enemies';
@@ -2129,7 +2129,7 @@ export default function WorldCanvas({
           const cx = bumped.x * TILE + TILE / 2;
           const cy = bumped.y * TILE + TILE / 2;
           const clerk = actors.find(
-            (a) => a.kind === 'npc' && a.npcId && Math.hypot(a.x - cx, a.y - cy) < TILE * 1.6,
+            (a) => a.kind === 'npc' && a.npcId && !a.follower && Math.hypot(a.x - cx, a.y - cy) < TILE * 1.6,
           );
           if (clerk?.npcId) {
             player.pos.x -= dx * 10;
@@ -2300,6 +2300,14 @@ export default function WorldCanvas({
         const from = walk.from ?? (waitingHere ? { x: waitingHere.x, y: waitingHere.y } : { x: player.pos.x, y: player.pos.y });
         follower = spawnFollower(walk.npcId, from);
         escortState = startEscort(from);
+        // Back from a battle: her footsteps to the hero are gone — walk her a way
+        // round on the map, never straight across a pool (#75 item 14g review).
+        if (walk.from) {
+          const cell = (p: { x: number; y: number }) => ({ x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) });
+          const hero = cell(player.pos);
+          const way = reachPath(z, (x, y) => x === hero.x && y === hero.y, { from: cell(from), flags: flagsRef.current });
+          if (way) escortState = { ...escortState, crumbs: way.slice(1).map((c) => ({ x: c.x * TILE + TILE / 2, y: c.y * TILE + TILE / 2 })) };
+        }
       } else if (!walk && follower) {
         follower.remove();
         follower = null;
@@ -2311,7 +2319,8 @@ export default function WorldCanvas({
         const threats = calm
           ? []
           : actors.flatMap((a) =>
-              a.enemy && !resting.has(a) && meetsHero(a.enemy.habitat, 'foot') ? [{ x: a.x, y: a.y }] : [],
+              // Not a boss: it never moves, so waiting for it would be waiting for ever (#75 item 14g review).
+              a.enemy && !a.enemy.isBoss && !resting.has(a) && meetsHero(a.enemy.habitat, 'foot') ? [{ x: a.x, y: a.y }] : [],
             );
         const wasWaiting = escortState.waiting;
         const before = escortState.at;
