@@ -172,13 +172,15 @@ export const EDGE_LABEL_SPOTS = [0.63, 0.8, 0.37, 0.5, 0.2, 0.9, 0.06, 0.95] as 
  * so a label clear of a marker here is clear at every size.
  */
 export const MAP_MIN_PX = 208;
-/** Half a label's height (10 px text, 2 px padding each side) and half an icon's (13–16 px). */
+/** Half a label's height (10 px text, 2 px padding each side), and half an icon's box (13–16 px). */
 const LABEL_HALF_PX = 7;
 const ICON_HALF_PX = 8;
+/** …but the ⭐ is drawn bigger: 20 px wide. */
+export const STAR_HALF_W = 10;
 /** A label's width: ~6 px a character of 10 px semibold text, its padding, 2 px off the edge. */
 const labelPx = (text: string) => 6 * [...text].length + 10;
 
-/** Does the label (`text`) at `spot` cover a marker on this cell, on the narrowest map? */
+/** Does the label (`text`) at `spot` cover a marker on this cell (`halfW` px either side of it), on the narrowest map? */
 export function edgeLabelCovers(
   side: 'west' | 'east',
   cols: number,
@@ -186,6 +188,7 @@ export function edgeLabelCovers(
   spot: number,
   m: { x: number; y: number },
   text: string,
+  halfW = ICON_HALF_PX,
 ): boolean {
   const W = MAP_MIN_PX;
   const H = (W * rows) / cols;
@@ -193,7 +196,7 @@ export function edgeLabelCovers(
   const my = ((m.y + 0.5) / rows) * H;
   const lw = labelPx(text);
   const [x0, x1] = side === 'west' ? [2, 2 + lw] : [W - 2 - lw, W - 2];
-  return Math.abs(my - spot * H) < LABEL_HALF_PX + ICON_HALF_PX && mx + ICON_HALF_PX > x0 && mx - ICON_HALF_PX < x1;
+  return Math.abs(my - spot * H) < LABEL_HALF_PX + ICON_HALF_PX && mx + halfW > x0 && mx - halfW < x1;
 }
 
 export function edgeLabelSpot(
@@ -205,7 +208,7 @@ export function edgeLabelSpot(
   text: string,
 ): number {
   const cost = (f: number) =>
-    (here && edgeLabelCovers(side, cols, rows, f, here, text) ? 100 : 0) +
+    (here && edgeLabelCovers(side, cols, rows, f, here, text, STAR_HALF_W) ? 100 : 0) +
     marks.filter((m) => edgeLabelCovers(side, cols, rows, f, m, text)).length;
   let best: number = EDGE_LABEL_SPOTS[0];
   for (const f of EDGE_LABEL_SPOTS) {

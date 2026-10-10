@@ -279,13 +279,16 @@ zod, react-query. Add the package in the same change that first uses it.
   `startsBattle`, with Calm). Every enemy that could reach a hero standing
   where a scene starts, and could fight them as they're getting about
   (`idleReach`: a critter's leash + its touch, a boss's touch), rests — asked
-  again on landing or climbing aboard, for the new way of getting about: drawn
-  faded like under Calm (bosses too) with a "Zz" over it, and like Calm it lets
-  the hero pass, until they've left its patch — then it can't touch them
-  unless they steer back (`standDown` / `restOf` / `staysDown`, checked every
-  frame). A resting boss also wakes the moment the hero steps nearer it than
-  they began: they can back away, not walk through it. So a Flee, a reload,
-  an arrival or a landing never drops the hero straight into a fight. The Silver Shallows has three (Bubble
+  again on landing or climbing aboard, for the new way of getting about. A
+  critter falls asleep: it holds still, drawn faded like under Calm (and over
+  the hero, so one stood on it can't hide it) with a "Zz" over it, and like
+  Calm it lets the hero pass, until they've left its patch — then it can't
+  touch them unless they steer back (`standDown` / `restOf` / `staysDown`,
+  checked every frame). A boss is drawn as ever — it never lets the hero
+  past: it only holds back while they stand still, back away or step aside,
+  and fights the moment they head past it (measured along the line from it
+  to where they began). So a Flee, a reload, an arrival or a landing never
+  drops the hero straight into a fight. The Silver Shallows has three (Bubble
   Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
   land or the edge a boat sails in by. A battle at sea is fought over
@@ -295,7 +298,8 @@ zod, react-query. Add the package in the same change that first uses it.
   on deck (`DECK_LIFT`), all decorative; `SeaFloor` keeps water under their
   feet down the whole screen, however much the menu squeezes the stage);
   losing one sends the boat home to Marlow's dock (`boatAfterDefeat`) and the
-  defeat screen says so.
+  defeat screen says so (in place of its 💡 tip, so the button fits a 320 px
+  phone).
   Zone ids from a save are checked with `isZoneId` (own keys of `ZONES` —
   never `in`, which lets `constructor` through). A zone can have a
   lighthouse (`ZoneDef.lighthouse`: the 2×2 rock it stands on): the canvas
@@ -523,6 +527,28 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d sixth review: sleeping critters hold still and show; bosses never look passable; the sea defeat fits a 320 px phone (#75 item 14d)
+Round 6 — fresh `/saas-code-review` (2 low) + `/saas-ux-review` (2 medium, 1
+low-medium, 3 low). All fixed:
+- **Lost at sea on a 320×568 phone (UX, medium):** the Marlow line plus the
+  💡 tip pushed "To the inn" off the screen (558–602 of 568). At sea the line
+  takes the tip's place: the button now sits at 490–534, as on land.
+- **A resting boss looked passable (UX, medium):** faded with a "Zz", but a
+  step towards it fought. A boss is now drawn as ever while it holds back —
+  bosses never fade (as before 14d) — and it wakes the moment the hero heads
+  past it, measured along the line from it to where they began (code, low: by
+  distance alone it could be walked round, and a sideways step could wake it).
+- **The "Zz" (code low, UX low-medium + low ×2):** it drew under the hero and
+  the boat (now `ZZ_Z` 12, over them, under place names and roofs); with the
+  hero stood on a sleeper it floated on the hero's head (the sleeper now draws
+  over the hero, faded, `RESTING_Z`); it was ~5 px on phones (16 px, on a
+  30×20 plate); and sleepers kept wandering, so when they'd wake couldn't be
+  told — now they hold still (`attachWander`'s `asleep`) until the hero has
+  left their patch.
+- **Map, 320 px (UX, low):** "◀ Dawnreach" touched the ⭐'s edge west of
+  Sandpiper Cay — the ⭐ is 20 px wide, not 16 (`STAR_HALF_W`).
+- Tests: 795 green, lint + build clean; `bench … sea` 6/6.
 
 ### 2026-10-10 — 14d fifth review: resting shows "Zz", wakes every frame, holds after a landing; bosses can't be walked through (#75 item 14d)
 Round 5 — fresh `/saas-code-review` (5 low) + `/saas-ux-review` (1 low; every

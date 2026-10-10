@@ -115,6 +115,14 @@ const CALM_OPACITY = 0.45;
  */
 const LABEL_Z = 7;
 const LABEL_PLATE_OPACITY = 0.85;
+/**
+ * A resting enemy's "Zz" (#112e) draws over the hero and the boat (z 9–11) —
+ * steering into it must not hide it — and over fog, which no enemy lives in
+ * (fog blocks their wandering too), but under place names (13) and roofs.
+ */
+const ZZ_Z = 12;
+/** …and the sleeper itself, faded, over the hero and the hull too, under its "Zz". */
+const RESTING_Z = 11.5;
 /** The ripples under a sea critter (#75 item 14d): faint, so the critter reads first. */
 const RIPPLE_OPACITY = 0.35;
 /** Seconds after Calm wears off before a critter you're touching starts a battle. */
@@ -832,6 +840,8 @@ export default function WorldCanvas({
       anims?: Record<string, unknown>;
       /** A sea critter (#75 item 14d): it swims open sea only. */
       afloat?: boolean;
+      /** Holds still while this says so — a resting critter is asleep (`resting`, #112e). */
+      asleep?: () => boolean;
     }
     function attachWander(anchor: WorldActor, o: WanderOpts) {
       let dir = { x: 0, y: 0 };
@@ -851,6 +861,11 @@ export default function WorldCanvas({
       animate(false);
       anchor.onUpdate(() => {
         if (pausedRef.current || triggered || cinematic) return;
+        if (o.asleep?.()) {
+          dir = { x: 0, y: 0 };
+          animate(false);
+          return;
+        }
         const dt = k.dt();
         timer -= dt;
         if (timer <= 0) {
@@ -1082,12 +1097,14 @@ export default function WorldCanvas({
     for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
     for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
 
-    // Each enemy's parts, with their own full opacity — faded under
-    // Calm, and while it rests (`resting`, #75 item 14d).
-    const critters: { obj: { opacity: number }; opacity: number; actor: Actor; boss: boolean }[] = [];
-    // …and a "Zz" over each, shown only while it rests: a faded critter that
-    // lets you pass is asleep, not a ghost (#112e).
-    const sleepers: { zzz: { hidden: boolean }[]; actor: Actor }[] = [];
+    // Each roaming critter's parts, with their own full opacity — faded under
+    // Calm, and while it rests (`resting`, #75 item 14d). Bosses never fade:
+    // neither Calm nor resting lets the hero past one.
+    const critters: { obj: { opacity: number }; opacity: number; actor: Actor }[] = [];
+    // …and while it rests, a "Zz" over it, and it holds still, drawn over the
+    // hero (`RESTING_Z`) so a hero stood on it can't hide it: a faded critter
+    // that lets you pass is asleep, not a ghost (#112e).
+    const sleepers: { zzz: { hidden: boolean }[]; body: { obj: { z: number }; z: number }[]; actor: Actor }[] = [];
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
@@ -1120,6 +1137,7 @@ export default function WorldCanvas({
             k.outline(2, k.rgb(255, 120, 120)),
             k.pos(px, py),
             k.anchor('center'),
+            k.z(0),
           ]);
       if (body) parts.push(body as unknown as Part);
       const face = worldFace(k, {
@@ -1152,20 +1170,6 @@ export default function WorldCanvas({
         k.z(LABEL_Z),
       ]) as unknown as Part;
       parts.push(label, labelPlate);
-      // White on a plate like the level's, so it reads on sea and grass alike.
-      const zzY = py - (enemy.isBoss ? 30 : 24);
-      const zzz = [
-        k.add([k.text('Zz', { size: 11 }), k.pos(px + 12, zzY), k.anchor('center'), k.color(255, 255, 255), k.z(LABEL_Z + 0.5)]),
-        k.add([
-          k.rect(22, 15, { radius: 3 }),
-          k.pos(px + 12, zzY),
-          k.anchor('center'),
-          k.color(20, 16, 36),
-          k.opacity(LABEL_PLATE_OPACITY),
-          k.z(LABEL_Z),
-        ]),
-      ] as unknown as (Part & { hidden: boolean })[];
-      for (const z of zzz) z.hidden = true;
       const actor: Actor = {
         x: px,
         y: py,
@@ -1176,15 +1180,31 @@ export default function WorldCanvas({
         radius: enemy.isBoss ? ACTOR_RADIUS.boss : ACTOR_RADIUS.enemy,
       };
       actors.push(actor);
-      sleepers.push({ zzz, actor });
-      // Every part fades with the critter — under Calm (not a boss) and while
-      // it rests (`resting`, #75 items 9 and 14d).
-      for (const part of parts) {
-        const base = part === labelPlate ? LABEL_PLATE_OPACITY : part === ripple ? RIPPLE_OPACITY : 1;
-        if (part !== labelPlate && part !== ripple) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
-        critters.push({ obj: part as unknown as { opacity: number }, opacity: base, actor, boss: enemy.isBoss });
+      if (!enemy.isBoss) {
+        // Every part fades with the critter (`critters`).
+        for (const part of parts) {
+          const base = part === labelPlate ? LABEL_PLATE_OPACITY : part === ripple ? RIPPLE_OPACITY : 1;
+          if (part !== labelPlate && part !== ripple) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
+          critters.push({ obj: part as unknown as { opacity: number }, opacity: base, actor });
+        }
+        // White on a plate like the level's, so it reads on sea and grass alike (`ZZ_Z`).
+        const zzY = py - 30;
+        const zzz = [
+          k.add([k.text('Zz', { size: 16 }), k.pos(px + 14, zzY), k.anchor('center'), k.color(255, 255, 255), k.z(ZZ_Z + 0.5)]),
+          k.add([
+            k.rect(30, 20, { radius: 4 }),
+            k.pos(px + 14, zzY),
+            k.anchor('center'),
+            k.color(20, 16, 36),
+            k.opacity(LABEL_PLATE_OPACITY),
+            k.z(ZZ_Z),
+          ]),
+        ] as unknown as (Part & { hidden: boolean })[];
+        for (const piece of zzz) piece.hidden = true;
+        parts.push(...zzz); // moves with it, but never fades
+        const asObj = (o: unknown) => o as { z: number };
+        sleepers.push({ zzz, body: [{ obj: asObj(face), z: 6 }, ...(body ? [{ obj: asObj(body), z: 0 }] : [])], actor });
       }
-      parts.push(...zzz); // moves with it, but never fades
       if (enemy.isBoss) {
         // Bosses hold their ground — gentle idle hover only (collision fixed).
         let t = Math.random() * Math.PI * 2;
@@ -1206,6 +1226,7 @@ export default function WorldCanvas({
           speed: WANDER_TUNING.enemy.speed,
           anims: enemyView?.anims,
           afloat,
+          asleep: () => resting.has(actor),
         });
       }
     }
@@ -1275,11 +1296,13 @@ export default function WorldCanvas({
     let heroFacing: Facing = 'down';
     // Enemies that could reach the hero standing where they start — back from
     // a Flee (the critter respawns at home, maybe right beside them), a
-    // reload, an arrival, a neighbour's patch — rest: faded like under Calm,
-    // and like Calm they let the hero pass, until the hero has left their
-    // patch (a boss: or steps nearer it, `staysDown`, #112e). Only those that
-    // could fight the hero as they travel now; landing or climbing aboard
-    // asks again, for the new way of getting about, from where the hero is.
+    // reload, an arrival, a neighbour's patch — rest: a critter falls asleep
+    // ("Zz", faded like under Calm, holding still) and like Calm lets the hero
+    // pass, until the hero has left its patch; a boss, drawn as ever, only
+    // holds back while they stand still, back away or step aside — it fights
+    // if they head past it (`staysDown`, #112e). Only those that could fight
+    // the hero as they travel now; landing or climbing aboard asks again, for
+    // the new way of getting about, from where the hero is.
     const leash = TILE * WANDER_TUNING.enemy.leashTiles;
     const resting = new Map<Actor, Rest>();
     let restings = 0; // bumped on every change, so `fadeCritters` redraws
@@ -1292,14 +1315,18 @@ export default function WorldCanvas({
       restings += 1;
     };
     restAround(spawn, aboard ? 'boat' : 'foot');
-    // Faded critters let you pass: all but bosses under Calm, and any resting.
+    // Faded critters let you pass: under Calm, and any asleep.
     let critterFade = '';
     const fadeCritters = (calm: boolean) => {
       const key = `${calm}|${restings}`;
       if (key === critterFade) return;
       critterFade = key;
-      for (const c of critters) c.obj.opacity = c.opacity * ((calm && !c.boss) || resting.has(c.actor) ? CALM_OPACITY : 1);
-      for (const s of sleepers) for (const z of s.zzz) z.hidden = !resting.has(s.actor);
+      for (const c of critters) c.obj.opacity = c.opacity * (calm || resting.has(c.actor) ? CALM_OPACITY : 1);
+      for (const s of sleepers) {
+        const asleep = resting.has(s.actor);
+        for (const piece of s.zzz) piece.hidden = !asleep;
+        for (const b of s.body) b.obj.z = asleep ? RESTING_Z : b.z;
+      }
     };
     // From the first frame — even while the world waits (a level-up, a slide).
     fadeCritters((calmRef?.current ?? 0) > 0);
@@ -1845,7 +1872,7 @@ export default function WorldCanvas({
       }
 
       // A resting enemy wakes once the hero has left its patch (a boss: or
-      // stepped nearer it) — checked every frame, a bump cooling down or not.
+      // headed past it) — checked every frame, a bump cooling down or not.
       for (const [a, rest] of resting) {
         if (staysDown(rest, player.pos)) continue;
         resting.delete(a);

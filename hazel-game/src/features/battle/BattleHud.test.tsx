@@ -92,8 +92,12 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
     expect(screen.getByText('💡 Follow the 🚩!')).toBeInTheDocument();
   });
   it('a defeat at sea says Old Marlow brought the boat home (#75 item 14d); one ashore says nothing of it', () => {
-    const sea = render(<BattleResult {...base} result="defeat" enemy={spawnEnemy('bubble-puffer', 'silver-shallows', 'a', 8)} boatHome />);
+    const sea = render(
+      <BattleResult {...base} result="defeat" enemy={spawnEnemy('bubble-puffer', 'silver-shallows', 'a', 8)} boatHome tip="Follow the 🚩!" />,
+    );
     expect(screen.getByText(/Old Marlow rowed the Biscuit home to his dock by Starfall Coast/)).toBeInTheDocument();
+    // …in place of the tip, which pushed the button off a 320×568 phone.
+    expect(screen.queryByText(/Follow the 🚩/)).toBeNull();
     sea.unmount();
     render(<BattleResult {...base} result="defeat" enemy={spawnEnemy('count-bat', 'gearfall', 'a', 8)} />);
     expect(screen.queryByText(/Old Marlow/)).toBeNull();

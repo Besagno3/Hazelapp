@@ -60,13 +60,13 @@ export function standDown<T extends Point>(foes: readonly T[], reachOf: (foe: No
 
 /**
  * A resting enemy (`standDown`): its home, how near the hero can be and keep
- * it resting (`idleReach`), and — a boss — how near they were when it began.
+ * it resting (`idleReach`), and — a boss — where the hero was when it began.
  */
-export type Rest = Point & { reach: number; near?: number };
+export type Rest = Point & { reach: number; from?: Point };
 
 export function restOf(foe: Pick<BattleEnemy, 'isBoss'>, home: Point, hero: Point, leash: number): Rest {
   const reach = idleReach(foe, leash);
-  return foe.isBoss ? { x: home.x, y: home.y, reach, near: Math.hypot(hero.x - home.x, hero.y - home.y) } : { x: home.x, y: home.y, reach };
+  return foe.isBoss ? { x: home.x, y: home.y, reach, from: { x: hero.x, y: hero.y } } : { x: home.x, y: home.y, reach };
 }
 
 /**
@@ -74,10 +74,18 @@ export function restOf(foe: Pick<BattleEnemy, 'isBoss'>, home: Point, hero: Poin
  * of its home — inside its patch. It wakes once they've left, so it never
  * wakes beside them: by then it can't touch them without the hero steering
  * back. A boss holds its ground, often across a way on, so it wakes too the
- * moment the hero steps nearer than they began (by half a pixel — standing
- * still never wakes it): they can back away from it, not walk through it.
+ * moment the hero heads past it: measured along the line from the boss out
+ * to where they began, they come any nearer than that (by half a pixel —
+ * standing still never wakes it). Backing away or stepping across that line
+ * is free; every way round to its far side crosses it. (Begun on top of it,
+ * there's no "past": every way off is away.)
  */
 export function staysDown(rest: Rest, hero: Point): boolean {
-  if (rest.near !== undefined && touching(rest, hero, Math.max(0, rest.near - 0.5))) return false;
+  if (rest.from) {
+    const fx = rest.from.x - rest.x;
+    const fy = rest.from.y - rest.y;
+    const near = Math.hypot(fx, fy);
+    if (near > 1 && ((hero.x - rest.x) * fx + (hero.y - rest.y) * fy) / near < near - 0.5) return false;
+  }
   return touching(rest, hero, rest.reach);
 }

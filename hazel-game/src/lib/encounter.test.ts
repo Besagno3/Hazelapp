@@ -49,19 +49,27 @@ describe('bumping into enemies (#75 item 14d)', () => {
     expect(staysDown(rest, { x: 193, y: 100 })).toBe(false);
   });
 
-  it('a resting boss lets the hero back away, but not walk through it (#112e)', () => {
+  it('a resting boss lets the hero back away or step aside, but not get past it (#112e)', () => {
     const home = { x: 100, y: 100 };
-    const rest = restOf({ isBoss: true }, home, { x: 120, y: 100 }, 64); // began 20 px off
-    expect(rest).toEqual({ x: 100, y: 100, reach: 34, near: 20 });
+    const rest = restOf({ isBoss: true }, home, { x: 120, y: 100 }, 64); // began 20 px east of it
+    expect(rest).toEqual({ x: 100, y: 100, reach: 34, from: { x: 120, y: 100 } });
     expect(staysDown(rest, { x: 120, y: 100 })).toBe(true); // standing still
-    expect(staysDown(rest, { x: 100, y: 120 })).toBe(true); // round it, no nearer
+    expect(staysDown(rest, { x: 120, y: 85 })).toBe(true); // a step aside
     expect(staysDown(rest, { x: 125, y: 100 })).toBe(true); // backing away…
     expect(staysDown(rest, { x: 135, y: 100 })).toBe(false); // …clear of it: awake, and out of its touch
     expect(staysDown(rest, { x: 115, y: 100 })).toBe(false); // a step towards it: awake, and touching — it fights
+    // Round it at the same distance, towards its far side: awake as soon as it heads past.
+    expect(staysDown(rest, { x: 120, y: 80 })).toBe(true);
+    expect(staysDown(rest, { x: 119, y: 80 })).toBe(false);
+    expect(touching(home, { x: 119, y: 80 }, 34)).toBe(true); // …still in its touch: it fights
     // Standing still never wakes it, whatever the rounding.
-    for (const hero of [{ x: 103.7, y: 77.1 }, { x: 81.3, y: 109.9 }, { x: 100.1, y: 100.2 }]) {
+    for (const hero of [{ x: 103.7, y: 77.1 }, { x: 81.3, y: 109.9 }, { x: 100.1, y: 100.2 }, { x: 100.6, y: 100.3 }]) {
       expect(staysDown(restOf({ isBoss: true }, home, hero, 64), hero)).toBe(true);
     }
+    // Begun on top of it: every way off is away.
+    const onTop = restOf({ isBoss: true }, home, { x: 100.3, y: 100 }, 64);
+    expect(staysDown(onTop, { x: 80, y: 100 })).toBe(true);
+    expect(staysDown(onTop, { x: 135, y: 100 })).toBe(false);
   });
 
   it('every critter that could wander into a hero standing still stands down at the start — a Flee, a reload, a neighbour (#112e)', () => {

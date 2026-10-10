@@ -5,6 +5,7 @@ import {
   ANY_CRYSTAL_EMOJI,
   EDGE_LABEL_SPOTS,
   HIDDEN_PLACE_EMOJI,
+  STAR_HALF_W,
   edgeLabelCovers,
   edgeLabelSpot,
   seaEdgeLabel,
@@ -159,7 +160,7 @@ describe('sea-edge labels keep clear of the map\'s markers (#75 item 14d review)
           for (let x = 0; x < cols; x++) {
             const here = { x, y };
             const spot = edgeLabelSpot(link.side, cols, rows, marks, here, text);
-            expect(edgeLabelCovers(link.side, cols, rows, spot, here, text), `${z.id} label vs ⭐ at ${x},${y}`).toBe(false);
+            expect(edgeLabelCovers(link.side, cols, rows, spot, here, text, STAR_HALF_W), `${z.id} label vs ⭐ at ${x},${y}`).toBe(false);
           }
         }
       }
@@ -170,7 +171,7 @@ describe('sea-edge labels keep clear of the map\'s markers (#75 item 14d review)
     const here = { x: 3, y: 27 };
     const marks = shallows.landmarks ?? [];
     const spot = edgeLabelSpot('west', 64, 44, marks, here, toDawnreach);
-    expect(edgeLabelCovers('west', 64, 44, spot, here, toDawnreach)).toBe(false);
+    expect(edgeLabelCovers('west', 64, 44, spot, here, toDawnreach, STAR_HALF_W)).toBe(false);
     for (const m of marks) expect(edgeLabelCovers('west', 64, 44, spot, m, toDawnreach), m.name).toBe(false);
     // A ⭐ on the far side of the map doesn't move it.
     expect(edgeLabelSpot('west', 64, 44, marks, { x: 60, y: 27 }, toDawnreach)).toBe(EDGE_LABEL_SPOTS[0]);

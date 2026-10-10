@@ -100,7 +100,9 @@ export function BattleResult({
             {correctCount > 0 ? `kept ${correctCount} answers' worth of XP!` : 'ready to try again!'}
           </p>
           {boatHome && <p className="text-sm text-sky-200 font-semibold mt-2">{SEA_DEFEAT_LINE}</p>}
-          {tip && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
+          {/* Lost at sea, where the boat went comes first: with the tip too, a
+              320×568 phone pushed the button off the screen (#112). */}
+          {tip && !boatHome && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
         </>
       )}
       <button
