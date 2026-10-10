@@ -130,7 +130,10 @@ zod, react-query. Add the package in the same change that first uses it.
   danger tier 0–7 — Act I 0–4, the Shallows 5 — the `DANGER` tuning per
   tier, map labels "Lv 4 !!" (marks stop at "!!!", tiers 5–7 go violet →
   magenta), the danger banner / defeat tip / arrival warning copy),
-  `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
+  (Act II's **Remembrance Hill**, #75 item 14e, is a town on Dawnreach behind
+  the Grove-road fog — `hill-fog`, lifted by `act2-seen` — and a place nobody
+  names before then: `PlaceDef.knownFrom` / `placeKnown` keep it off the
+  signposts and the menu map), `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
@@ -425,6 +428,7 @@ python3 tools/assets/build.py sea      # the Silver Shallows, the boat, the dock
 python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
 python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallows, the fogbank (#75 item 14)
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
+python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
 ```
 
 ## Error handling
@@ -500,6 +504,107 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14e review fixes: the knot waits for you, praise on a re-clear, a hazy bay (#75 item 14e)
+A fresh `/saas-code-review` (2 low) and `/saas-ux-review` (3 medium, 10 low;
+played at 375×667 and 320×568). Fixed, as chosen:
+- **The Forget-Me-Knot (UX, medium):** a second try on a defend question
+  **pauses its timer** until the second pick (`DefendTimer` `paused`, decided);
+  the cross-out keeps keyboard focus (`aria-disabled`), its line sits above the
+  options (it fell below the fold on a small phone) and says "Take your time!",
+  with a soft sound; after a Hint Feather leaves one wrong option a wrong pick
+  is final and the knot stays tied (code, low — it left only the right
+  answer); "Already tied on"; `DefendTimer` has its own key (a duplicate-key
+  warning since #95).
+- **The Spire's re-clear (UX, medium):** "You climbed every floor and beat
+  Umbra again! Your bright answers earned ⭐ N XP. (The big hero's prize comes
+  once — and it's already yours!)"; both win panels show the XP; simpler
+  throne-room lines.
+- **The Hill (UX, low):** the bay's bank is `dense` (a second, staggered grid
+  of puffs — no more hollow middle; other banks unchanged); its hint promises
+  "It will roll away later in your adventure!"; 🏡 on the menu map; Mnem reads
+  the plaques in one line; the legend's crystal line only when a bank has one;
+  the 🚩's why says where the road leads; the spoken map no longer names a 🚩
+  it doesn't draw (code, low).
+- Logged (#113i): the reveal toast over the map on phones, an older tab
+  dropping a bought knot, two pre-existing nits. Tests: +4, several pinned
+  to the new copy. 822 green, lint clean.
+
+### 2026-10-10 — 14e checked: the reveal, the journey, the HUD (#75 item 14e, docs only)
+Roadmap row 14e ✅ and decisions 11 and 12 recorded as taken; #75 and #56
+noted. Verified on the final code: 818 tests, lint, typecheck and build
+clean; `bench … journey` 13/13 (Act I's legs and the Spire's floors on the
+repainted Dawnreach), `bench … hud` 6/6; on the bench, an Act II save on
+Dawnreach plays the Grove-road fog's reveal (the camera glides to the bay,
+the fog clears, the Hill's icon appears, the camera comes back), and the
+town's four screens and the bay fogged / open look right.
+
+### 2026-10-10 — The Forget-Me-Knot: a second try on a wrong answer (#75 item 14e)
+Fourth slice of 14e — Trader Knack's new item (roadmap decision 12, as
+chosen: "badges + one new item"). **🎗️ Forget-Me-Knot** (`knot`, 35 coins at
+Knack's Pre-Remembered Goods): from the battle Items menu it spends the turn
+and ties on (`CombatState.knotted` / `battleStore`, "Already tied" while it
+is); the next wrong pick on any battle question is crossed out instead of
+answered and the hero picks again, once (`QuestionCard` `secondChance` /
+`onSecondChance`, with a status line). Only the final pick counts; a second
+try breaks the speed trigger's quick run, like a Hint Feather; a Hint Feather
+after the cross-out still leaves a wrong option. Old saves gain a zero slot
+(`CONSUMABLE_IDS`). Tests: +9 (QuestionCard.test, new: 4; BattleArena.test: 2;
+battleTurn.test: 1; items/save fixtures). 818 green.
+
+### 2026-10-10 — The 🚩 leads to Remembrance Hill after the Shallows (#75 item 14e)
+Third slice of 14e. Once the Silver Shallows are visited, the 🚩 reads
+**"Visit Remembrance Hill"** (`Objective.kind: 'visit'`; "Where the old fog sat
+past Moonwell Grove, a road nobody remembered has appeared…"), routed back
+across the sea ("Sail west to Dawnreach, then …"), until the hero has been
+there — then "Explore", as before, until 14f adds Eldergrove. Elder Lumen's
+plan names it ("a town called Remembrance Hill, to the south … a keeper there
+never forgets a name"). `advanceGoal` (tests and bench) sets `act2-seen`
+with the Spire, as the walk home does. Tests: wayfinding.test (+1; the walks
+and story fixtures know the new step). 811 green.
+
+### 2026-10-10 — Remembrance Hill: a town in old fog past Moonwell Grove (#75 item 14e)
+Second slice of 14e — the town Act II's 🚩 leads to next (the 🚩 itself comes
+in the next commit).
+- **On Dawnreach:** a road leaves the Grove's south beach for a little
+  headland in the bay (`maps/dawnreach.tmj`), under a new bank, `hill-fog`
+  (lifted by `act2-seen`, so it lifts on screen the first time a hero is on
+  Dawnreach in Act II — and on the next visit for saves already in Act II).
+  No crystal lifts it; its hint says so, and the map marks it with nothing
+  (`fogMarker` → null; legend "Fog with nothing on it lifts later…").
+- **Nobody names it before Act II:** `PlaceDef.knownFrom` / `placeKnown` —
+  signposts (`signpostLines(…, flags)`) and the menu map leave it out, so Act
+  I's signs read exactly as before. Its icon (a new `hill` frame, appended at
+  16 after the dock) hides in the fog till then.
+- **The town** (`remembrance-hill`, 34×26, `kind: 'town'`, home region, no
+  critters, a new **marble** style): the Hall of Names (Keeper Mnem 🗿 reads one
+  plaque per Act I crystal, then the blank ones; his greeting sets
+  `met-mnem`), the Tip-of-the-Tongue Inn (Innkeeper Hettie 🫖 — a Return town
+  and a wake spot), Knack's Pre-Remembered Goods (Trader Knack 🧳 — "Lightly
+  forgotten. Deep discount."; the 🌼 Forget-Me-Not Badge), Chisel's Workshop,
+  Grandpa Dew's Cottage, Posy 👧 by the Hall's flower beds, Traveler Sorrel
+  and Mira the jam-maker.
+- **Art** (`python3 tools/assets/build.py hill`): the zone's tileset, blend
+  sheet and backdrop, `town-marble.png`, the overworld sheet (frames 0–15
+  byte-identical) and eight sprites; the manifest only gained entries.
+- Tests: +9 (zones.test: the town, the fog, nobody names it, Mnem;
+  wayfinding.test: the sign in Act II; worldMap.test; WorldMapPanel.test: +2);
+  the guarded-places and signpost tests know about it. 810 green. Looked at
+  on the bench: the town's four screens, the bay fogged and open.
+
+### 2026-10-10 — The Spire pays its 600 XP once (#75 item 14e, #109)
+First slice of 14e. Replaying the Spire is fine (#56), but every re-clear
+paid the 600 XP clear bonus again, and in Act II Umbra still waits on the
+throne.
+- **`spireClearXp(correct, perCorrect, clearedBefore)`** (`content/spire.ts`):
+  the right answers always; `SPIRE_CLEAR_XP` only on the first clear.
+  `SpireOverlay.win` reads `spire-cleared` from the save store as Umbra falls.
+- **A re-clear says so:** "You beat Umbra again! … the hero's reward was yours
+  the first time", with 🚪 Back to the Spire door (the finale doesn't replay,
+  so no "See how it ends"); the throne room and Umbra remember a hero who has
+  beaten him ("You again, little spark? I remember YOU.").
+- Tests: spire.test (+1), SpireOverlay.test (+2: the real climb to Umbra, first
+  and second time — the second fails on the old code). 800 green.
 
 ### 2026-10-10 — 14c review fixes: finish what you started, the purple !!! explained (#75 item 14c)
 A fresh `/saas-code-review` (1 medium, 1 low) and a light `/saas-ux-review`

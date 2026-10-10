@@ -68,10 +68,17 @@ ZONES = {
     # The Silver Shallows (#75 item 14): a calm, bright sea of sandy islands.
     'silver-shallows': dict(ground=(118, 176, 112), path=(220, 204, 150), solid='palm', deco='shell', deco_c='#ffc0b0',
                             sky=('#5ab0e8', '#d8f4ff'), far='#8ac0e0', mid='sea', water='#4a9ad8'),
+    # Remembrance Hill (#75 item 14e): a quiet hilltop town of pale stone and forget-me-nots, at sunset.
+    'remembrance-hill': dict(ground=(112, 168, 118), path=(214, 206, 186), solid='hedge', deco='flower', deco_c='#7aa8ff',
+                             sky=('#e8906a', '#ffe2c4'), far='#b88aa0', mid='houses', water='#4a8ad0'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
 SEA_ZONES = ('silver-shallows',)
+
+# Added with Remembrance Hill (#75 item 14e) — `build_hill` writes only these
+# (+ the marble town sheet and the overworld sheet with the hill icon appended).
+HILL_ZONES = ('remembrance-hill',)
 
 # Added for the field spells (#75 item 9) — `build_spell_places` writes only these.
 SPELL_ZONES = ('wayfarer-shrine', 'quiet-shrine', 'echo-mine')
@@ -325,6 +332,8 @@ STYLES = {
     'log':       ('#7a5030', '#4a3020', 'logs',    'square', 'planks', ('#9a6a40',)),
     'driftwood': ('#a8b4b4', '#4a6a7a', 'planks',  'round',  'planks', ('#d8c49a',)),
     'cave':      ('#5a5470', '#2e2a40', 'bricks',  'arch',   'tiles',  ('#6a6480', '#545068')),
+    # Remembrance Hill (#75 item 14e): pale marble, lavender trim.
+    'marble':    ('#eee8f4', '#7a6aa8', 'bricks',  'arch',   'checker', ('#f6f2fa', '#dcd4ea')),
 }
 
 
@@ -1021,6 +1030,16 @@ def ow_icon(kind):
         c.rect(7, 12, 9, 15.5, '#3a2a40', shade=False)
         c.line(8, 0.5, 8, 3, '#5a4a4a', w=0.6)
         c.poly([(8, 0.5), (11, 1.3), (8, 2.1)], '#e04848', shade=False)
+    elif kind == 'hill':
+        # Remembrance Hill (#75 item 14e): a green hill crowned by the pale Hall of Names.
+        c.poly([(0.5, 15.5), (2.5, 10), (6, 7.5), (10, 7.5), (13.5, 10), (15.5, 15.5)], '#5aa05a')
+        c.rect(4.5, 6.5, 11.5, 11, '#f2eef8')
+        for x in (5.4, 7.6, 9.8):
+            c.rect(x, 7, x + 0.8, 11, '#c8c0dc', shade=False)
+        c.poly([(3.5, 6.8), (8, 3), (12.5, 6.8)], '#9a8ad0')
+        c.rect(7.2, 9, 8.8, 11, '#5a4a7a', shade=False)
+        for fx, fy in ((2.5, 13), (5, 14.2), (11, 13.6), (13.5, 14.4), (8, 14.6)):
+            c.dot(fx, fy, '#7aa8ff', w=1, h=1)
     return _outlined(c)
 
 
@@ -1154,8 +1173,9 @@ OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'cit
 
 
 def overworld_sheet():
-    # Frame 15 (#75 item 14): the dock — appended, so every earlier frame keeps its place.
-    return [ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS] + [ow_dock()]
+    # Frame 15 (#75 item 14): the dock; frame 16 (#75 item 14e): Remembrance Hill —
+    # each appended, so every earlier frame keeps its place.
+    return [ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS] + [ow_dock(), ow_icon('hill')]
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
@@ -1334,6 +1354,20 @@ def build_sea(public: Path):
     strip([upscale(f.image(), 2) for f in boat_sheet()]).save(tdir / 'boat.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
     build_lighthouse(public)
+
+
+def build_hill(public: Path):
+    """Write only Remembrance Hill's art (#75 item 14e): its tileset, blend sheet,
+    backdrop, the marble town sheet and the overworld sheet with the hill icon."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in HILL_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('marble')]).save(tdir / 'town-marble.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 
 def build_lighthouse(public: Path):

@@ -159,7 +159,7 @@ export function defaultSave(): SaveData {
     pos: null,
     hp: null,
     coins: 0,
-    items: { potion: 1, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0 },
+    items: { potion: 1, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0, knot: 0 },
     badges: [],
     sages: [],
     flags: { [SAVE_V2_FLAG]: true },

@@ -58,9 +58,10 @@ describe('16-bit tilesets', () => {
     // The fog banks' puffs (#75 item 7): one strip of soft cloud shapes.
     expect(pngSize(FOG_PUFF_SHEET)).toEqual({ w: FOG_PUFF_FRAMES * FOG_PUFF_SIZE, h: FOG_PUFF_SIZE });
     const icons = Object.values(OVERWORLD_FRAME.icon);
-    // The dock (#75 item 14) was appended after the icons: the last frame.
-    expect(Math.max(...icons)).toBe(OVERWORLD_DOCK_FRAME - 1);
-    expect(OVERWORLD_DOCK_FRAME).toBe(OVERWORLD_FRAMES - 1);
+    // The dock (#75 item 14) was appended after the icons, then Remembrance Hill's icon (#75 item 14e).
+    expect(OVERWORLD_DOCK_FRAME).toBe(15);
+    expect(OVERWORLD_FRAME.icon.hill).toBe(OVERWORLD_FRAMES - 1);
+    expect(Math.max(...icons.filter((f) => f !== OVERWORLD_FRAME.icon.hill))).toBe(OVERWORLD_DOCK_FRAME - 1);
     // Marlow's boat: the whole boat, then its hull's front, two bob frames each.
     expect(pngSize(BOAT_SHEET)).toEqual({ w: BOAT_FRAMES * 32, h: 32 });
     expect([...BOAT_FRAME.whole, ...BOAT_FRAME.hullFront].sort()).toEqual([0, 1, 2, 3]);

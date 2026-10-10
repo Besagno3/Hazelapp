@@ -4,6 +4,17 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
+import { actCrystals } from './topics';
+
+/** 4 → "Four" (up to ten — the Hall's plaques). */
+function numberWord(n: number): string {
+  return ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][n] ?? String(n);
+}
+
+/** "a, b and c". */
+function listOf(items: string[]): string {
+  return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+}
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -1196,5 +1207,100 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       "Mabel cut that stone better than the miners ever could. Don't tell her I said so — she'll blush right through her fur.",
     ],
     ambient: ['*hums at the sky*', 'Clear skies tonight?', '🌙'],
+  },
+  // ── Act II: Remembrance Hill (#75 item 14e) ──
+  'hill-keeper': {
+    id: 'hill-keeper',
+    name: 'Keeper Mnem',
+    sprite: '🗿',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      { text: "Welcome to the Hall of Names. I'm Keeper Mnem. I never forget a name. Names, ALWAYS.", setFlag: 'met-mnem' },
+      'Faces, though… Have we met? You have a very brave sort of face.',
+      // One plaque per crystal remembered (STORY-4X: the Hall of Names) — read
+      // in one breath. The Hill only opens once all of Act I's are restored.
+      `${numberWord(actCrystals(1).length)} plaques shine again: ${listOf(actCrystals(1).map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
+      'And these plaques are blank. Names nobody remembers… yet.',
+    ],
+    ambient: ['Names, always…', '🗿'],
+  },
+  'hill-posy': {
+    id: 'hill-posy',
+    name: 'Posy',
+    sprite: '👧',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "Hi! I'm Posy. I bring flowers to the Hall of Names.",
+      'Some plaques have names nobody remembers. They get flowers too.',
+      "That's the rule. I made it up!",
+    ],
+    ambient: ['Daisies for the blank plaques!', '🌼'],
+  },
+  'hill-merchant': {
+    id: 'hill-merchant',
+    name: 'Trader Knack',
+    sprite: '🧳',
+    role: 'merchant',
+    lines: [
+      'Trader Knack, at your service! Pre-remembered goods, the finest anywhere.',
+      'Lightly forgotten. Deep discount.',
+      'This compass? It points to wherever you left your other sock.',
+    ],
+  },
+  'hill-innkeeper': {
+    id: 'hill-innkeeper',
+    name: 'Innkeeper Hettie',
+    sprite: '🫖',
+    role: 'innkeeper',
+    lines: [
+      "Welcome to the Tip-of-the-Tongue Inn! The name's right there… on the tip of my tongue.",
+      'Moonwell Grove is just up the road. Lune keeps the moon\'s own well in there. Go and say hello!',
+    ],
+  },
+  'hill-traveler': {
+    id: 'hill-traveler',
+    name: 'Traveler Sorrel',
+    sprite: '🎒',
+    role: 'villager',
+    lines: [
+      "I'm walking all the way round Dawnreach. Again! I forgot I'd already done it.",
+      'In Lumina Village the Sleepy Sheep Inn has the softest pillows. I slept there twice. I think.',
+    ],
+    ambient: ['Left, right, left…', 'Have I been here before?', '🎒'],
+  },
+  'hill-carver': {
+    id: 'hill-carver',
+    name: 'Chisel',
+    sprite: '🔨',
+    role: 'villager',
+    lines: [
+      "I'm Chisel. I carve the names on the Hall's plaques, one letter at a time.",
+      "I carved my own name so small, I can't find it!",
+    ],
+    ambient: ['Tap, tap, tap…', '🔨'],
+  },
+  'hill-elder': {
+    id: 'hill-elder',
+    name: 'Grandpa Dew',
+    sprite: '👴',
+    role: 'villager',
+    lines: [
+      "This hill wasn't here last week. Or maybe I wasn't! Ha!",
+      'I remember my very first day of school. Not the second one. Second days are forgettable.',
+    ],
+    ambient: ['Now where are my glasses… oh! On my nose.', '👓'],
+  },
+  'hill-jam': {
+    id: 'hill-jam',
+    name: 'Mira',
+    sprite: '🧺',
+    role: 'villager',
+    lines: [
+      'Fresh forget-me-not jam! Made with real forget-me-nots.',
+      "One spoonful and you'll never forget the taste. Everything else, maybe.",
+    ],
+    ambient: ['Jam! Lovely jam!', '🍓'],
   },
 };

@@ -5,7 +5,7 @@
 > shrines are places you walk into, and the map opens up in stages by foot,
 > by boat and on Ember's wings.
 
-Status: **items 0–13 and 14a–14c done; 14d–16f planned** (2026-10-10; §5) ·
+Status: **items 0–13, 14a–14c and 14e done; 14d and 14f–16f planned** (2026-10-10; §5) ·
 Date: 2026-10-04
 
 Companion docs: `STORY.md` (Act I bible, tone rules still binding),
@@ -503,7 +503,7 @@ dungeons stay in `ROADMAP-4X.md` Waves 2–4 (§7).
 | 14b | ✅ **Phase 2 exit + groundwork** | M | **Done (2026-10-10):** Phase 2's exit check passes — `lib/journey.ts` walks Act I's 8 legs on the maps by a player's rules (journey.test, CI), and the real hero walks them all in headless Chromium, plus every seal, stairs and Umbra on the five Spire floors (`run-world-bench.cjs journey`: 13/13, three times — the last on the final commit; the bench mounts only the canvas, so no Supabase is involved); every save shape since v1 loads where it stood, is never stranded, and the story's next step walks from it (`test/saveFixtures.ts`); one `lib/reach.ts` search over (cell, mode) replaced `reachableOnFoot`, `reachableBySea` and six copies in tests, and `safeSpawn` steps a save off an exit; the LEVEL / STREAK badges and Sign out sit in the world's own top bar and the Spire's status in the HUD row (#102i) — measured on the real app with Supabase stubbed at five sizes (`… hud`). (Estimated S; the journey walker and the HUD measure made it M.) |
 | 14c | ✅ **Crystals, bosses and quests ready for more acts** (nothing visible) | M | **Done (2026-10-10):** each crystal has an act (`CrystalTopicInfo.act`); with a fake Act II crystal pushed into the registry (`test/fakeCrystal.ts`), Act I's Spire seal, ending, HUD count (4/4, then 4/5 once Act II opens), 🚩 order, Elder Lumen's plans, journey legs and corner / fog-pocket rules are unchanged; bosses have roles (`fiend / warden / miniboss / echo / finale`) — only a Fiend restores a crystal and takes its Fiend name, a warden gives its key, any other boss sets `boss:<id>:defeated` and speaks its own lines or none (a keyless boss without lines crashed the arena); one person can give several quests in turn (`questsBy`, `questFor(npcId, save)`) and a step may go through a giver; `DangerTier` runs to 7, marks stop at "!!!" with tiers 5–7 violet → magenta and read aloud "Very tough", the Shallows is tier 5 (#105g, #108d). Follow-ups #112 |
 | 14d | **Sea critters** | S–M | `EnemyDef.habitat: 'land' \| 'sea'`; sea critters wander only on water and fight only a sailing hero (and a land critter never a sailing one — #108j); a sea battle backdrop; 2–3 roam the Shallows |
-| 14e | **Remembrance Hill** | M | on Dawnreach behind the Grove-road fog, which lifts on `act2-seen` with the on-screen reveal; the Hall of Names, Keeper Mnem, Posy, Trader Knack, an inn and enough townsfolk for the town tests; a Return town; the 🚩 after "Sail the Silver Shallows" leads here; the Spire pays its 600 XP on the first clear only (#109) |
+| 14e | ✅ **Remembrance Hill** | M | **Done (2026-10-10):** on a headland south of Moonwell Grove, behind the Grove-road fog (`hill-fog`, lifted by `act2-seen`, played on screen the first time a hero is on Dawnreach in Act II); nobody names it before then (`PlaceDef.knownFrom`: signposts and the map leave it out, its fog has no crystal marker); a combat-free marble town — the Hall of Names (Keeper Mnem reads a plaque per crystal), Posy, Trader Knack (the Forget-Me-Not Badge and the 🎗️ Forget-Me-Knot: a second try on a wrong answer — decision 12), the Tip-of-the-Tongue Inn (Innkeeper Hettie) and four more townsfolk (decision 11: 8 people and an inn); a Return town; after "Sail the Silver Shallows" the 🚩 reads "Visit Remembrance Hill"; the Spire pays its 600 XP on the first clear only (#109). Follow-ups #113 |
 | 14f | **Eldergrove + the Ringkeeper** | M | the first place icon on the Shallows (south): gate, riddle-chest, 3 critters (the Hollow Acorn shielded), Old Ringwood's warning, Fen and Moss; the Ringkeeper gives the Memoria Key (+2 panels); Fen's acorns as a collection quest (3 key-item chests + a have step) |
 | 14g | **Foglight Marsh** | M | on the Shallows' north coast: a new `escortStep` — Posy follows you through the Marsh (Ember's trail code), stops near critters, keeps her place through a battle, resets gently; the Lantern Ledger; the Last Fogbank (`miniboss`) gives the Foglight Badge and restores nothing |
 | 14h | **The Sunken Archive: the Crystal of Memory** | L | in the Shallows' north-east: history becomes crystal #5 (Act II); Sage Chronicle teaches Time Ripple; the Hollow Fiend behind the Memoria gate; `CRYSTAL_PANELS.history` whispers "Aster"; Binder's inn; Index's letter to Wick; flight's flag is this crystal's; Ember's stage tripwire moves to 5 (#64); Act I unchanged |
@@ -712,13 +712,15 @@ Struck-through items are decided; the rest are still open.
 Open for items 14–16 (each with a recommendation; confirm before its
 sub-item starts, as decisions 5–7 were):
 
-11. **New towns** (Remembrance Hill, Port Lantern, Chorus Isle…): keep the
+11. ✅ **New towns** (Remembrance Hill, Port Lantern, Chorus Isle…): keep the
     "an inn and 8+ people in every town" rule (zones.test)? *Recommended:
-    keep it.* Before 14e.
-12. **New merchants' stock** (Knack, Slosh, Tass…): badges only, or 1–2 new
+    keep it.* **Taken (2026-10-10): kept** — Remembrance Hill has its inn and
+    8 people.
+12. ✅ **New merchants' stock** (Knack, Slosh, Tass…): badges only, or 1–2 new
     items each? Each item is still sold in one shop, and Berry Potion
     already has its two sellers. *Recommended: badges + one new item each.*
-    Before 14e.
+    **Taken (2026-10-10): badges + one new item each** — Knack sells the
+    Forget-Me-Not Badge and the 🎗️ Forget-Me-Knot.
 13. **Second Wind** (the Hall of Names spell, `STORY-4X.md` §9): include it?
     *Recommended: yes, in 14i.*
 14. **Timers:** `swift` critters (the Quill Imp) and Reso's songstones would

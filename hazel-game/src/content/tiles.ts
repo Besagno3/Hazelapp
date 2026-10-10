@@ -143,6 +143,8 @@ export const OVERWORLD_FRAME = {
     canyon: 12,
     garden: 13,
     pavilion: 14,
+    // 16: Remembrance Hill (#75 item 14e) — appended after the dock.
+    hill: 16,
   } satisfies Record<
     Exclude<PlaceIcon, 'tower'>,
     number
@@ -150,7 +152,7 @@ export const OVERWORLD_FRAME = {
 } as const;
 // 15: Marlow's dock (#75 item 14) — planks drawn over the water.
 export const OVERWORLD_DOCK_FRAME = 15;
-export const OVERWORLD_FRAMES = 16;
+export const OVERWORLD_FRAMES = 17;
 export const OVERWORLD_SHEET = '/tiles/overworld.png';
 export const OVERWORLD_KEY = 't_overworld';
 

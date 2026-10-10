@@ -85,3 +85,14 @@ describe('a place hidden in the fog', () => {
     for (let l = 0; l < 1; l += 0.05) expect(revealOpacity(l + 0.05)).toBeGreaterThanOrEqual(revealOpacity(l));
   });
 });
+
+describe('a dense bank (#75 item 14e)', () => {
+  it("gets a second grid of puffs between the first one's; other banks keep theirs", () => {
+    const bank = ZONES.dawnreach.fogs!.find((f) => f.id === 'hill-fog')!;
+    expect(bank.dense).toBe(true);
+    const thin = fogPuffs({ ...bank, dense: false });
+    const thick = fogPuffs(bank);
+    expect(thick.length).toBeGreaterThan(thin.length);
+    expect(thick.slice(0, thin.length)).toEqual(thin);
+  });
+});

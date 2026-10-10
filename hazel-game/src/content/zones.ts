@@ -7,6 +7,7 @@ import dawnreachTmj from './maps/dawnreach.tmj?raw';
 import shallowsTmj from './maps/silver-shallows.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
+import { ACT2_SEEN } from './story';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -42,6 +43,8 @@ export const ZONE_IDS = [
   'echo-mine',
   // Act II (#75 item 14): the calm inner sea of islands, reached in Marlow's boat.
   'silver-shallows',
+  // Act II (#75 item 14e): a town past Moonwell Grove, hidden in fog until Act II.
+  'remembrance-hill',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -129,7 +132,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -194,7 +197,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -204,6 +207,16 @@ export interface PlaceDef {
   icon: PlaceIcon;
   /** Shown under the icon and on the world map. */
   name: string;
+  /**
+   * A story flag before which nobody names this place (#75 item 14e): the
+   * signposts skip it and the map leaves it off. Its icon hides in fog till then.
+   */
+  knownFrom?: string;
+}
+
+/** Whether a place is known yet — named on signposts and the map (#75 item 14e). */
+export function placeKnown(p: Pick<PlaceDef, 'knownFrom'>, flags: Record<string, boolean>): boolean {
+  return !p.knownFrom || flags[p.knownFrom] === true;
 }
 
 /**
@@ -240,6 +253,11 @@ export interface FogDef {
   chestTopic?: Topic;
   /** The line shown as it lifts. */
   lifted: string;
+  /**
+   * Thicker puffs (#75 item 14e), for a bank over land whose middle would
+   * otherwise show through (the road to Remembrance Hill).
+   */
+  dense?: boolean;
 }
 
 /** A map edge. */
@@ -1372,6 +1390,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 34, y: 18, icon: 'shrine', name: "Wayfarer's Shrine" },
       { x: 50, y: 39, icon: 'shrine', name: 'Shrine of Quiet Paws' },
       { x: 57, y: 20, icon: 'cave', name: 'Echo Mine' },
+      // Act II (#75 item 14e): on a headland past Moonwell Grove, in fog until Act II.
+      { x: 30, y: 51, icon: 'hill', name: 'Remembrance Hill', knownFrom: ACT2_SEEN },
     ],
     exits: [
       { x: 40, y: 30, to: 'lumina-village', spawnX: 21, spawnY: 1 },
@@ -1388,6 +1408,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 34, y: 18, to: 'wayfarer-shrine', spawnX: 10, spawnY: 11 },
       { x: 50, y: 39, to: 'quiet-shrine', spawnX: 10, spawnY: 11 },
       { x: 57, y: 20, to: 'echo-mine', spawnX: 11, spawnY: 11 },
+      { x: 30, y: 51, to: 'remembrance-hill', spawnX: 16, spawnY: 1 },
     ],
     // Fog of Forgetting (#75 item 7): the first crystal clears the way to the
     // shrine and the Spire grounds; each crystal also clears its own pocket.
@@ -1419,6 +1440,20 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       crystalPocket('science', { x: 17, y: 51, w: 3, h: 2 }, { x: 18, y: 49 }, 'in the trees by Verdara'),
       crystalPocket('engineering', { x: 69, y: 16, w: 3, h: 2 }, { x: 70, y: 14 }, 'in the cliffs of Gearfall Canyon'),
       crystalPocket('creativity', { x: 55, y: 45, w: 3, h: 2 }, { x: 56, y: 43 }, 'in the little grove by Chromaria'),
+      // The road past Moonwell Grove (#75 item 14e): an old fog no crystal clears —
+      // it lifts the morning Lumina starts remembering (act2-seen).
+      {
+        id: 'hill-fog',
+        x: 28,
+        y: 48,
+        w: 5,
+        h: 6,
+        liftedBy: [ACT2_SEEN],
+        hint: 'This fog is old and stubborn. No crystal can lift it. It will roll away later in your adventure!',
+        guards: { x: 30, y: 51 },
+        lifted: '✨ The old fog past Moonwell Grove rolls away — a road nobody remembered leads to Remembrance Hill!',
+        dense: true,
+      },
     ],
     // Off the east coast, past Marlow's dock (69–70, 30), the sea runs on
     // into the Silver Shallows (#75 item 14).
@@ -1656,6 +1691,70 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
         guards: { x: 63, y: 22 },
         lifted: '✨ The Great Fogbank thins, and the Starfall Sea shines beyond it!',
       },
+    ],
+  },
+  // Act II (#75 item 14e): a town on a hill past Moonwell Grove, hidden in old
+  // fog until Lumina starts remembering (act2-seen). No critters: like the Village.
+  'remembrance-hill': {
+    id: 'remembrance-hill',
+    name: 'Remembrance Hill',
+    kind: 'town',
+    map: [
+      '################EE################',
+      '#...............==...............#',
+      '#.WWWWWWWWW..#..==.#..WWWWWWW..#.#',
+      '#.WZFZFZFZW.....==....WBFFFBW....#',
+      '#.WFFFFFFFW.....==..,.WKKKKKW....#',
+      '#.WTFFFFFTW.,...==....WFFFFFW..,.#',
+      '#.WFFFFFFFW.....==....WWWDWWW....#',
+      '#.WWWWDWWWW.....==========....#..#',
+      '#.....============...............#',
+      '#.#..........========............#',
+      '#............========.....WWWWWWW#',
+      '#.WWWWWWW.#..========S....WZFFFBW#',
+      '#.WBFFFTW....========.....WFFFFFW#',
+      '#.WFFFFFW...,...==...,....WTFFFFW#',
+      '#.WTFFFBW.......==........WWWDWWW#',
+      '#.WWWDWWW=====================...#',
+      '#....=====.WWWWWWWWWWW..=........#',
+      '#........=.WBFBFBFBFBW..=........#',
+      '#..#.....=.WFFFFFFFFFW..=...,....#',
+      '#........=.WFFFFFFFFFW..=..~~~~..#',
+      '#...,....=.WFTFFFFFTFW..=..~~~~..#',
+      '#.#......=.WFFFFFFFFFW..=..~~~~..#',
+      '#.....,..=.WWWWWDWWWWW..=.....,..#',
+      '#....#...=.,,,,.=.,,,,..=.#......#',
+      '#........================......#.#',
+      '##################################',
+    ],
+    ground: [112, 168, 118],
+    path: [214, 206, 186],
+    solidEmoji: '🌳',
+    decoEmoji: '🌼',
+    spawn: { x: 16, y: 1 },
+    buildings: [
+      // One plaque per crystal remembered; the blank ones wait for names nobody remembers yet.
+      { id: 'hall-of-names', name: 'The Hall of Names', x: 11, y: 16, w: 11, h: 7, roof: 'purple', style: 'marble', sign: 'star' },
+      { id: 'hill-inn', name: 'Tip-of-the-Tongue Inn', x: 2, y: 2, w: 9, h: 6, roof: 'blue', style: 'marble', sign: 'inn' },
+      { id: 'knack-goods', name: "Knack's Pre-Remembered Goods", x: 22, y: 2, w: 7, h: 5, roof: 'copper', style: 'marble', sign: 'shop' },
+      { id: 'chisel-workshop', name: "Chisel's Workshop", x: 2, y: 11, w: 7, h: 5, roof: 'slate', style: 'marble', sign: 'tools' },
+      { id: 'dew-cottage', name: "Grandpa Dew's Cottage", x: 26, y: 10, w: 7, h: 5, roof: 'thatch', style: 'marble', sign: 'house' },
+    ],
+    npcs: [
+      { defId: 'hill-keeper', x: 16, y: 18 },
+      { defId: 'hill-posy', x: 14, y: 23 },
+      { defId: 'hill-merchant', x: 25, y: 3 },
+      { defId: 'hill-innkeeper', x: 7, y: 5 },
+      { defId: 'hill-traveler', x: 19, y: 9 },
+      { defId: 'hill-carver', x: 10, y: 19 },
+      { defId: 'hill-elder', x: 29, y: 12 },
+      { defId: 'hill-jam', x: 12, y: 10 },
+    ],
+    enemies: [],
+    exits: [
+      // Out onto Dawnreach, on the road just north of the hill's icon.
+      { x: 16, y: 0, to: 'dawnreach', spawnX: 30, spawnY: 50 },
+      { x: 17, y: 0, to: 'dawnreach', spawnX: 30, spawnY: 50 },
     ],
   },
 };

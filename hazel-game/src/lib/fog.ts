@@ -79,6 +79,27 @@ export function fogPuffs(f: FogDef): FogPuff[] {
       });
     }
   }
+  // A dense bank (#75 item 14e) gets a second grid between the first one's
+  // puffs, so land in its middle doesn't show through. Drawn from its own
+  // seed, so every other bank keeps exactly the puffs it had.
+  if (f.dense) {
+    const more = seeded(hash(`${f.id}:dense`));
+    for (let r = 0; r < rows - 1; r++) {
+      for (let c = 0; c < cols - 1; c++) {
+        puffs.push({
+          x: x0 + ((x1 - x0) * (c + 0.5)) / (cols - 1) + (more() - 0.5) * 8,
+          y: y0 + ((y1 - y0) * (r + 0.5)) / (rows - 1) + (more() - 0.5) * 8,
+          frame: Math.floor(more() * FOG_PUFF_FRAMES),
+          scale: 0.95 + more() * (MAX_SCALE - 0.95),
+          opacity: 0.7 + more() * 0.2,
+          rx: 5 + more() * 4,
+          ry: 3 + more() * 3,
+          speed: (0.35 + more() * 0.4) * ((r + c) % 2 === 0 ? -1 : 1),
+          phase: more() * Math.PI * 2,
+        });
+      }
+    }
+  }
   return puffs;
 }
 

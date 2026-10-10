@@ -101,7 +101,7 @@ export function visitedFlag(zoneId: ZoneId): string {
 }
 
 /** The towns Return flies to: home and the four crystal regions. */
-export const RETURN_TOWNS: readonly ZoneId[] = ['lumina-village', 'numbria', 'verdara', 'gearfall', 'chromaria'];
+export const RETURN_TOWNS: readonly ZoneId[] = ['lumina-village', 'numbria', 'verdara', 'gearfall', 'chromaria', 'remembrance-hill'];
 
 /**
  * Has the hero been here? Home always counts. Visits are only recorded since

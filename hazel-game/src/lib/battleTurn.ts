@@ -47,6 +47,8 @@ export interface CombatState {
   focused: boolean;
   /** Lucky Clover: a win pays CLOVER_COIN_MULT× coins. */
   lucky: boolean;
+  /** Forget-Me-Knot (#75 item 14e): the next wrong answer gets a second try. */
+  knotted: boolean;
 }
 
 /**
@@ -312,6 +314,7 @@ export function itemBlocked(s: CombatState, id: ConsumableId, count: number): st
   if (id === 'mirror' && s.mirrored) return 'Mirror is up';
   if (id === 'tea' && s.focused) return 'Already focused';
   if (id === 'clover' && s.lucky) return 'Already lucky';
+  if (id === 'knot' && s.knotted) return 'Already tied on';
   return null;
 }
 
@@ -341,6 +344,7 @@ export function resolveItem(s: CombatState, id: ConsumableId): ItemResult {
   if (id === 'mirror') return { state: { ...s, mirrored: true }, healed: 0, chargeGained: 0 };
   if (id === 'tea') return { state: { ...s, focused: true }, healed: 0, chargeGained: 0 };
   if (id === 'clover') return { state: { ...s, lucky: true }, healed: 0, chargeGained: 0 };
+  if (id === 'knot') return { state: { ...s, knotted: true }, healed: 0, chargeGained: 0 };
   return { state: s, healed: 0, chargeGained: 0 };
 }
 

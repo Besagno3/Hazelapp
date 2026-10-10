@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import WorldMapPanel from './WorldMapPanel';
 import { BOAT_MENDED, BOAT_HOME } from '../../content/boat';
 import { actCrystals, crystalFlag } from '../../content/topics';
-import { SPIRE_CLEARED } from '../../content/story';
+import { ACT2_SEEN, SPIRE_CLEARED } from '../../content/story';
 import { TILE } from '../../content/zones';
 
 // jsdom has no canvas: the map's squares are skipped, the markers still render.
@@ -67,5 +67,35 @@ describe('the menu map at sea — review fixes (#75 item 14)', () => {
   it('no sea-edge marker before the boat is mended', () => {
     render(<WorldMapPanel zoneId="dawnreach" pos={px(40, 30)} flags={{ ...allCrystals, [SPIRE_CLEARED]: true }} />);
     expect(screen.queryByText('Silver Shallows ▶')).toBeNull();
+  });
+});
+
+describe('Remembrance Hill on the menu map (#75 item 14e)', () => {
+  it('before Act II it is not on the map or in the list — its fog is marked as lifting later', () => {
+    render(<WorldMapPanel zoneId="lumina-village" pos={null} flags={allCrystals} />);
+    expect(screen.queryByText(/Remembrance Hill/)).toBeNull();
+    expect(screen.getByText('Fog with nothing on it lifts later in your adventure')).toBeInTheDocument();
+    // With every crystal restored, no bank shows a crystal: no "restore the crystal" line (review fix).
+    expect(screen.queryByText(/restore the crystal shown on it/)).toBeNull();
+  });
+
+  it('out on the Shallows, the spoken map never names a 🚩 it does not draw (review fix)', () => {
+    const { container } = render(
+      <WorldMapPanel
+        zoneId="silver-shallows"
+        pos={px(30, 20)}
+        flags={{ ...allCrystals, [SPIRE_CLEARED]: true, [ACT2_SEEN]: true, [BOAT_MENDED]: true, 'visited:silver-shallows': true }}
+        aboard
+      />,
+    );
+    const label = container.querySelector('canvas')!.getAttribute('aria-label')!;
+    expect(label).toContain('Visit Remembrance Hill');
+    expect(label).not.toContain('flagged at');
+  });
+
+  it('once Lumina starts remembering, it is listed with its own icon', () => {
+    render(<WorldMapPanel zoneId="lumina-village" pos={null} flags={{ ...allCrystals, [SPIRE_CLEARED]: true, [ACT2_SEEN]: true }} />);
+    expect(screen.getByText('Remembrance Hill')).toBeInTheDocument();
+    expect(screen.queryByText('Fog with nothing on it lifts later in your adventure')).toBeNull();
   });
 });
