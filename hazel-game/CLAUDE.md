@@ -606,6 +606,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The "z Z" hero sweep gets a 20 s budget (#75 item 14f, #117s)
+On PR #42's CI the sleepMark.test sweep (every critter on every map, the hero
+at every spot round it) timed out at Vitest's 5 s default: Eldergrove's six
+critters made it ~3 s locally and more on CI's runner. It takes 20 s now, like
+the Spire's long tests; nothing it checks changed.
+
 ### 2026-10-10 — Merge main (the hero roster, PR #39; the music fix, PR #40) into the Eldergrove branch (#75 item 14f)
 `main` took the hero roster (#115, TC-786–803) and then the music fix (#116,
 TC-804–815) while 14f waited, so 14f's follow-ups moved on again,
