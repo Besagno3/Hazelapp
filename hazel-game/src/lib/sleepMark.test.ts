@@ -6,6 +6,7 @@ import { mapLabel } from '../content/regions';
 import {
   BOSS_MARGIN,
   EMBER_COST,
+  FACE_BOX,
   FOE_FACE,
   HERO_AFLOAT_BOX,
   HERO_BOX,
@@ -43,7 +44,7 @@ function cast(z: ZoneDef) {
       { ...c, w: e.isBoss ? 48 : 32, h: e.isBoss ? 48 : 32, boss: e.isBoss },
       { x: c.x, y: c.y + (e.isBoss ? 32 : 26), ...levelPlate(label), boss: e.isBoss },
     ];
-    return { c, boss: e.isBoss, sea: habitatOf(e) === 'sea', marks, patch: patchBox(c, LEASH), name: `${p.defId}@${p.x},${p.y}` };
+    return { c, boss: e.isBoss, sea: habitatOf(e) === 'sea', marks, face: marks[0], patch: patchBox(c, LEASH), name: `${p.defId}@${p.x},${p.y}` };
   });
   const people = z.npcs.flatMap((p) => {
     const def = NPC_DEFS[p.defId];
@@ -82,6 +83,10 @@ describe('a sleeping critter\'s rising "z Z" (#112e)', () => {
     expect(BOSS_MARGIN).toBeGreaterThan(5);
     // A letter by an awake critter's face weighs more than one by the hero's: it could look asleep.
     expect(FOE_FACE).toBeGreaterThan(1);
+    // Covering the hero outweighs everything after it, however much of that adds up.
+    const onHero = on(ZZ_PATHS[0], { weight: HERO_COST });
+    const rest = ZZ_PATHS.slice(1).flatMap((p) => [PATCH_COST, EMBER_COST, PATCH_COST, HERO_ROOM_COST].flatMap((weight) => on(p, { weight })));
+    expect(hits(me, zzPath(me, [...onHero, ...rest]), onHero)).toBe(false);
     // Worst to cross, to least: a boss, anyone else (or a roof), the hero, where an awake critter roams, where Ember stands, the room round the hero.
     const box = { x: 0, y: 0, w: 1, h: 1 };
     const order = [markCost({ ...box, boss: true }), markCost(box), HERO_COST, PATCH_COST, EMBER_COST, HERO_ROOM_COST];
@@ -98,10 +103,16 @@ describe('a sleeping critter\'s rising "z Z" (#112e)', () => {
     expect(emberSpot(hero, sleeper, notBelow, []).at.y).toBeLessThan(120);
     // Her far-side spot taken by someone — her box on their face, not only its centre near it: a side.
     expect(emberSpot(hero, sleeper, () => true, [{ x: 100, y: 160, w: 32, h: 32 }]).at).not.toEqual({ x: 100, y: 134 });
-    // On top of the sleeper, or nowhere to stand: where she trails anyway — so the letters are planned round where she goes.
+    // On top of the sleeper: where she trails anyway — so the letters are planned round where she goes.
     const trailing = { x: 1, y: 0 };
     expect(emberSpot(hero, hero, () => true, [], trailing)).toEqual({ dir: trailing, at: { x: 74, y: 108 } });
-    expect(emberSpot(hero, sleeper, () => false, [], trailing)).toEqual({ dir: trailing, at: { x: 74, y: 108 } });
+    // Nowhere to stand: still off the sleeper (a dragon flies) — never on it.
+    expect(emberSpot(hero, sleeper, () => false, [], trailing)).toEqual({ dir: { x: 0, y: -1 }, at: { x: 100, y: 134 } });
+    // A tile below a sleeper on the shore — water below, the sides crowded: off the sleeper still.
+    const water = (_x: number, y: number) => y < 120;
+    const crowded = [{ ...sleeper, w: 32, h: 32 }, { x: 70, y: 108, w: 32, h: 32 }, { x: 130, y: 108, w: 32, h: 32 }];
+    const spot = emberSpot(hero, sleeper, water, crowded).at;
+    expect(overlaps({ ...spot, w: 28, h: 36 }, { ...sleeper, w: 32, h: 32 })).toBe(false);
     // No sleeper: her usual first spot.
     expect(emberSpot(hero, null, () => true, []).at).toEqual({ x: 76, y: 108 });
   });
@@ -118,25 +129,32 @@ describe('a sleeping critter\'s rising "z Z" (#112e)', () => {
     expect(crowded).toEqual([]);
   });
 
-  it('with the hero anywhere within reach (sailing, by a sea critter) the way read is the clearest there was', () => {
+  it('with the hero anywhere within reach — on a cell or between, sailing by a sea critter — the way read is the clearest there was, and Ember starts off the sleeper', () => {
     const problems: string[] = [];
+    const STEP = 8; // px: a Flee or a reload leaves the hero anywhere, not only on a cell's centre
     for (const z of Object.values(ZONES)) {
       const { enemies, people, tower } = cast(z);
-      const neighbours = (me: (typeof enemies)[number]) => [...people.flatMap((p) => p.marks), ...enemies.filter((o) => o !== me).flatMap((o) => o.marks)];
       for (const me of enemies.filter((e) => !e.boss)) {
-        for (let y = 0; y < z.map.length; y++) {
-          for (let x = 0; x < z.map[0].length; x++) {
+        for (let ox = -88; ox <= 88; ox += STEP) {
+          for (let oy = -88; oy <= 88; oy += STEP) {
+            const d = Math.hypot(ox, oy);
+            if (d >= REACH || d < 16) continue;
+            const hero = { x: me.c.x + ox, y: me.c.y + oy };
+            const x = Math.floor(hero.x / TILE);
+            const y = Math.floor(hero.y / TILE);
             // The hero sails by a sea critter and walks by a land one.
             const ch = tileAt(z, x, y);
             if (!(me.sea ? SEA_CHARS.has(ch) : WALKABLE_CHARS.has(ch))) continue;
-            const hero = at({ x, y });
-            const d = Math.hypot(hero.x - me.c.x, hero.y - me.c.y);
-            if (d >= REACH || d < 16) continue;
-            // As `restAround` asks it: Ember beside the nearest sleeper, roofs (not the one the hero is in), the hero's room.
-            const sleepersNear = enemies.filter((o) => !o.boss && o.sea === me.sea && Math.hypot(o.c.x - hero.x, o.c.y - hero.y) < REACH);
-            // Everyone else roams awake: letters keep out of where they wander (`patchBox`).
-            const patches = enemies.filter((o) => !o.boss && !sleepersNear.includes(o)).map((o) => o.patch);
-            const nearest = sleepersNear.sort((a, b) => Math.hypot(a.c.x - hero.x, a.c.y - hero.y) - Math.hypot(b.c.x - hero.x, b.c.y - hero.y))[0];
+            // As `restAround` asks it. Who's asleep round the hero hides their level; everyone else roams
+            // awake, and letters keep out of where they wander (`patchBox`).
+            const near = (o: (typeof enemies)[number]) => Math.hypot(o.c.x - hero.x, o.c.y - hero.y);
+            const sleepersNear = enemies.filter((o) => !o.boss && o.sea === me.sea && near(o) < REACH);
+            const asleep = (o: (typeof enemies)[number]) => sleepersNear.includes(o);
+            const shown = (o: (typeof enemies)[number]) => (asleep(o) ? [o.face] : o.marks);
+            const neighbours = [...people.flatMap((p) => p.marks), ...enemies.filter((o) => o !== me).flatMap(shown)];
+            const patches = enemies.filter((o) => !o.boss && !asleep(o)).map((o) => o.patch);
+            // Ember beside the nearest sleeper; roofs (not the one the hero is in); the hero and the room round them.
+            const nearest = [...sleepersNear].sort((a, b) => near(a) - near(b))[0];
             const inside = buildingInside(z, x, y);
             const ok = (px: number, py: number) => {
               const cx = Math.floor(px / TILE);
@@ -144,13 +162,13 @@ describe('a sleeping critter\'s rising "z Z" (#112e)', () => {
               const roof = buildingAt(z, cx, cy);
               return (me.sea ? SEA_CHARS : WALKABLE_CHARS).has(tileAt(z, cx, cy)) && !fogAt(z, cx, cy, {}) && (!roof || roof.id === inside?.id);
             };
-            const crowd = [...people.flatMap((p) => p.marks), ...enemies.flatMap((o) => o.marks)];
-            const em = emberSpot(hero, nearest?.c ?? null, ok, crowd).at;
-            // Roofs (not the one the hero is in), the lighthouse and the map's edges.
+            const em = emberSpot(hero, nearest.c, ok, [...people.flatMap((p) => p.marks), ...enemies.flatMap(shown)]).at;
+            const where = `${z.id} ${me.name} hero ${ox >= 0 ? '+' : ''}${ox},${oy >= 0 ? '+' : ''}${oy}`;
+            if (near(nearest) >= 16 && overlaps({ ...em, ...HERO_BOX }, { ...nearest.c, ...FACE_BOX })) problems.push(`${where}: Ember on the sleeper`);
             const roofs = [...roofBoxes(z.buildings ?? [], inside?.id, TILE), ...tower];
             const size = me.sea ? HERO_AFLOAT_BOX : HERO_BOX;
             const others: Mark[] = [
-              ...neighbours(me),
+              ...neighbours,
               ...roofs,
               ...patches,
               { ...hero, ...size, weight: HERO_COST },
@@ -159,20 +177,19 @@ describe('a sleeping critter\'s rising "z Z" (#112e)', () => {
             ];
             const faces = [
               ...people.map((p) => p.c),
-              ...enemies.filter((o) => o !== me).map((o) => ({ ...o.c, weight: FOE_FACE })),
+              ...enemies.filter((o) => o !== me).map((o) => ({ ...o.c, weight: asleep(o) ? 1 : FOE_FACE })),
               hero,
               em,
             ];
             const path = zzPath(me.c, others, { faces, away: hero });
-            const where = `${z.id} ${me.name} hero ${x},${y}`;
             const bosses = enemies.filter((o) => o.boss).flatMap((o) => o.marks);
             const byBoss = bosses.map((b) => ({ ...b, w: b.w + 2 * NEAR_BOSS, h: b.h + 2 * NEAR_BOSS }));
             const heroBox = { ...hero, ...size };
             const clearOf = (p: ZzPath, ...sets: Box[][]) => !sets.some((set) => hits(me.c, p, set));
-            // Worst first, as `markCost` has it: a boss (or just by one), then a neighbour, a roof or the edge, then the hero.
+            // Worst first, as `zzPath` weighs them: a boss (or just by one), then a neighbour, a roof or the edge, then the hero.
             if (hits(me.c, path, bosses)) problems.push(`${where}: crosses a boss`);
             if (hits(me.c, path, byBoss) && ZZ_PATHS.some((p) => clearOf(p, byBoss))) problems.push(`${where}: right by a boss`);
-            const tens = [...neighbours(me), ...roofs];
+            const tens = [...neighbours, ...roofs];
             if (hits(me.c, path, tens) && ZZ_PATHS.some((p) => clearOf(p, byBoss, tens))) problems.push(`${where}: on a neighbour, under a roof or off the map`);
             if (hits(me.c, path, [heroBox]) && ZZ_PATHS.some((p) => clearOf(p, byBoss, tens, [heroBox]))) problems.push(`${where}: on the hero`);
           }

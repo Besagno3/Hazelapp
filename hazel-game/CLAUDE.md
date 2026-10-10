@@ -288,18 +288,22 @@ zod, react-query. Add the package in the same change that first uses it.
   out to a side) that reads most surely as its own as it falls asleep
   (`lib/sleepMark.ts` `zzPath`, by `markCost`: covering a boss — or coming
   within `BOSS_MARGIN` (8 px) of it — worst, then anyone else, a roof, the
-  lighthouse or the map's edge (`edgeBoxes`), then the hero, where an awake
-  critter roams (`patchBox`), Ember's spot, the room round the hero; coming
-  near one a twentieth of that; then a letter nearer someone else's face (an
-  awake critter's double, `FOE_FACE`); ways away from the hero first — tested
-  on every map, with the hero anywhere within reach, on foot or sailing),
+  lighthouse or the map's edge (`edgeBoxes`), then the hero — each of those
+  outweighing all that follows, however much adds up — then, added up, where
+  an awake critter roams (`patchBox`), Ember's spot, the room round the hero,
+  coming near anything (a twentieth of covering it) and a letter nearer
+  someone else's face (an awake critter's double, `FOE_FACE`); a sleeper's
+  hidden level counts for nothing; ways away from the hero first — tested on
+  every map, with the hero anywhere within reach, on a cell or between, on
+  foot or sailing),
   fading right down while they cross anyone or come nearer anyone's face than
   their sleeper's — hidden by an awake critter's or a boss's, eased so a
   passer-by doesn't make them flicker — and hidden with the hero (or the boat)
   on it; as a scene starts, or on landing or boarding, Ember sits on a
   sleeper's far side (or a side: on ground she can stand on, outdoors, her box
-  off anyone's face or label; else where she trails anyway, so the letters are
-  planned round where she goes — `emberSpot`). Like Calm it lets the hero
+  off anyone's face or shown label; else the first of those off the sleeper at
+  least — never on it — `emberSpot`), and the letters are planned round her
+  spot. Like Calm it lets the hero
   pass — heading towards one says, once a session (`battleStore`, so sign-out
   resets it), "💤 Sleepy critters let you pass. They wake up when you move
   away." (`onSleeper`; with another toast up, the next time; it counts once
@@ -559,6 +563,30 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d fifteenth review: Ember never starts on a sleeper; hidden levels count for nothing; the "z Z" cost tiers weighed in turn (#75 item 14d)
+Round 15 — fresh `/saas-code-review` (1 medium, 2 low). The UX review was
+stopped partway, by request, and the review loop ended here. All three fixed:
+- **Ember on top of the sleeper (code, medium; a regression from round 14):**
+  her start spot had to keep off every label, the sleeper's own hidden level
+  too, and with nothing free she fell back to where she trails — straight onto
+  a sleeper just above the hero (14% of starts 16–28 px off one; Starfall's
+  shore row, on the real canvas). `emberSpot` now tries the far side, then a
+  side: first on ground she can stand on, clear of everyone; then on ground
+  she can stand on, off the sleeper at least; then off the sleeper anywhere
+  (a dragon flies) — never on it. A sleeper's hidden level isn't in anyone's
+  way (`lookBoxes`), and only an awake critter's face weighs `FOE_FACE`.
+- **Hidden levels in the way (code, low):** a sleeping neighbour's hidden level
+  still pushed letters across the hero, and dimmed a letter crossing it. Same
+  fix.
+- **"Never the hero where a clearer way was there" held only on cell centres
+  (code, low):** a hero left between cells (after a Flee or a reload) could get
+  letters on them when the lesser costs added up past the hero's. `zzPath`
+  now weighs covering a boss, then anyone (or a roof, or the edge), then the
+  hero, each in turn — the rest added up after — and the sweep test moves the
+  hero on an 8 px grid, with Ember's spot checked off the sleeper.
+- Tests: 816 green, lint + build clean; `bench … sea` 7/7; Ember off the
+  sleeper on the bench page (Starfall from 11,7 and 13,7).
 
 ### 2026-10-10 — 14d fourteenth review: "z Z" keep clear of bosses, the map's edge and awake critters' patches; the hint counts once read; the Imp moved off the crystal walk (#75 item 14d)
 Round 14 — fresh `/saas-code-review` (1 medium, 4 low) + `/saas-ux-review` (1

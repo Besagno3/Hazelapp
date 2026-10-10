@@ -106,7 +106,9 @@ export const markCost = (m: Mark) => m.weight ?? (m.boss ? 100 : 10);
 /**
  * The hero costs less than a neighbour (letters on them can't make a foe look
  * asleep); where an awake critter roams (`patchBox`), a little less; where
- * Ember stands, less again; the room kept round the hero, least.
+ * Ember stands, less again; the room kept round the hero, least. Covering a
+ * boss, anyone (or a roof, or the edge) or the hero each outweighs everything
+ * after it, however much of that adds up (`zzPath` weighs them in turn).
  */
 export const HERO_COST = 5;
 export const PATCH_COST = 4;
@@ -125,7 +127,7 @@ export function patchBox(home: Point, leash: number): Mark {
 }
 
 /** Only coming within the gap of one costs a twentieth of covering it. */
-const NEAR_MISS = 0.05;
+export const NEAR_MISS = 0.05;
 /**
  * A boss's face and level are kept this much clearer (px): letters a few px
  * under its crown label still read as its, and the boss looks asleep.
@@ -135,13 +137,16 @@ export const BOSS_MARGIN = 8;
 export const FOE_FACE = 2;
 
 /**
- * The way up (`ZZ_PATHS`) whose letters read most surely as this sleeper's:
- * covering a boss (or coming within `BOSS_MARGIN` of it) is worst, then
- * covering anyone else, a roof or the map's edge (`others`; `markCost` —
- * coming within `gap` px of one a twentieth of that), then a letter nearer
- * someone else's face (`faces` — an awake critter's `FOE_FACE`, the hero's,
- * Ember's, a person's 1) than its own sleeper's. Ties go to the ways leading
- * away from `away` (the hero) first, then `ZZ_PATHS`' order.
+ * The way up (`ZZ_PATHS`) whose letters read most surely as this sleeper's,
+ * weighed in turn: covering a boss (or coming within `BOSS_MARGIN` of it) is
+ * worst, then covering anyone else, a roof or the map's edge, then covering
+ * the hero (`others`, by `markCost`) — each outweighs all that follows; then,
+ * added up, covering where an awake critter roams, Ember's spot or the room
+ * round the hero, coming within `gap` px of anything (a twentieth of covering
+ * it), and a letter nearer someone else's face (`faces` — an awake critter's
+ * `FOE_FACE`, the hero's, Ember's, a person's 1) than its own sleeper's. Ties
+ * go to the ways leading away from `away` (the hero) first, then `ZZ_PATHS`'
+ * order.
  */
 export function zzPath(
   at: Point,
@@ -152,18 +157,27 @@ export function zzPath(
   const faces = opts.faces ?? [];
   const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
   const kept = others.map((o) => (o.boss ? { ...o, w: o.w + 2 * BOSS_MARGIN, h: o.h + 2 * BOSS_MARGIN } : o));
+  // What covering costs, worst first: a boss, anyone (or a roof, or the edge), the hero — then all the rest, added up.
+  const tiers = [markCost({ x: 0, y: 0, w: 0, h: 0, boss: true }), markCost({ x: 0, y: 0, w: 0, h: 0 }), HERO_COST];
   const cost = (path: ZzPath) => {
     const swept = sweptBoxes(at, path);
     const wide = swept.map((b) => ({ ...b, w: b.w + 2 * gap, h: b.h + 2 * gap }));
-    const covering = others.reduce(
-      (n, o, i) =>
-        n + (swept.some((b) => overlaps(b, kept[i])) ? markCost(o) : wide.some((b) => overlaps(b, kept[i])) ? markCost(o) * NEAR_MISS : 0),
-      0,
-    );
-    const strays = path.glyphs
+    const n = [0, 0, 0, 0];
+    others.forEach((o, i) => {
+      const c = markCost(o);
+      if (swept.some((b) => overlaps(b, kept[i]))) {
+        const t = tiers.indexOf(c);
+        n[t < 0 ? 3 : t] += c;
+      } else if (wide.some((b) => overlaps(b, kept[i]))) n[3] += c * NEAR_MISS;
+    });
+    n[3] += path.glyphs
       .flatMap((g) => [glyphBox(at, g, path.drift, 0), glyphBox(at, g, path.drift, 1)])
-      .reduce((n, c) => n + Math.max(0, ...faces.filter((f) => dist(c, f) < dist(c, at)).map((f) => f.weight ?? 1)), 0);
-    return covering + strays;
+      .reduce((m, c) => m + Math.max(0, ...faces.filter((f) => dist(c, f) < dist(c, at)).map((f) => f.weight ?? 1)), 0);
+    return n;
+  };
+  const worse = (a: number[], b: number[]) => {
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] > b[i];
+    return false;
   };
   const away = opts.away;
   const heading = (path: ZzPath) => {
@@ -173,7 +187,7 @@ export function zzPath(
   };
   const order = [...ZZ_PATHS].sort((a, b) => heading(a) - heading(b));
   let best = order[0];
-  for (const path of order) if (cost(path) < cost(best)) best = path;
+  for (const path of order) if (worse(cost(best), cost(path))) best = path;
   return best;
 }
 
@@ -203,13 +217,19 @@ export function edgeBoxes(cols: number, rows: number, tile: number): Mark[] {
   ];
 }
 
+/** A critter's face, as a box round it (px). */
+export const FACE_BOX = { w: 32, h: 32 } as const;
+
 /**
  * Where Ember starts, back beside a sleeper (#112e), and the way she then
  * trails (`lastDir`): on its far side from the hero, else either side — on
  * ground she can stand on (`ok`: walkable, or sea when sailing; outdoors), her
- * box (`HERO_BOX`) off everyone's face and label (`crowd`, the sleeper's too)
- * — else where she trails anyway (`trailing`, the way the hero last went). With
- * no sleeper, her usual first spot.
+ * box (`HERO_BOX`) off everyone's face and shown label (`crowd`, the
+ * sleeper's face too); failing that, the first of those she can stand on that
+ * is at least off the sleeper; failing that, the first off the sleeper
+ * wherever it is (a dragon flies) — never on it. With the hero on top of it,
+ * or no sleeper, as ever: where she trails (`trailing`, the way the hero last
+ * went), or her usual first spot.
  */
 export function emberSpot(
   hero: Point,
@@ -221,12 +241,21 @@ export function emberSpot(
   if (!sleeper) return { dir: trailing, at: { x: hero.x - 24, y: hero.y + 8 } };
   const spot = (dir: Point) => ({ x: hero.x - dir.x * 26, y: hero.y - dir.y * 26 + 8 });
   const gap = Math.hypot(sleeper.x - hero.x, sleeper.y - hero.y);
-  if (gap >= 4) {
-    const d = { x: (sleeper.x - hero.x) / gap, y: (sleeper.y - hero.y) / gap };
-    for (const dir of [d, { x: -d.y, y: d.x }, { x: d.y, y: -d.x }]) {
+  if (gap < 4) return { dir: trailing, at: spot(trailing) };
+  const d = { x: (sleeper.x - hero.x) / gap, y: (sleeper.y - hero.y) / gap };
+  const dirs = [d, { x: -d.y, y: d.x }, { x: d.y, y: -d.x }];
+  const on = (at: Point, b: Box) => overlaps({ ...at, ...HERO_BOX }, b);
+  const own = { ...sleeper, ...FACE_BOX };
+  const passes = [
+    (at: Point) => ok(at.x, at.y) && !crowd.some((b) => on(at, b)),
+    (at: Point) => ok(at.x, at.y) && !on(at, own),
+    (at: Point) => !on(at, own),
+  ];
+  for (const pass of passes) {
+    for (const dir of dirs) {
       const at = spot(dir);
-      if (ok(at.x, at.y) && !crowd.some((b) => overlaps({ ...at, ...HERO_BOX }, b))) return { dir, at };
+      if (pass(at)) return { dir, at };
     }
   }
-  return { dir: trailing, at: spot(trailing) };
+  return { dir: d, at: spot(d) };
 }

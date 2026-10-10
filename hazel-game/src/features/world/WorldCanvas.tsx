@@ -1283,14 +1283,16 @@ export default function WorldCanvas({
       }
     }
 
-    // Everyone's face but `who`'s, as points — a critter's weighs more: a letter by it could make it look asleep (#112e).
+    // A critter asleep (`resting`, below): its level is hidden.
+    const asleepNow = (a: Actor) => !!a.enemy && !a.enemy.isBoss && resting.has(a);
+    // Everyone's face but `who`'s, as points — an awake critter's weighs more: a letter by it could make it look asleep (#112e).
     const lookFaces = (who: Actor) =>
-      [...looks.keys()].filter((a) => a !== who).map((a) => ({ x: a.x, y: a.y, weight: a.enemy ? FOE_FACE : 1 }));
-    // Where everyone's face and label are now, and whose (#112e).
+      [...looks.keys()].filter((a) => a !== who).map((a) => ({ x: a.x, y: a.y, weight: a.enemy && !asleepNow(a) ? FOE_FACE : 1 }));
+    // Where everyone's face and shown label are now, and whose (#112e).
     const lookBoxes = (): (Box & { who: Actor; boss?: boolean; face?: boolean })[] =>
       [...looks].flatMap(([a, l]) => [
         { x: a.x, y: a.y, w: l.face, h: l.face, who: a, boss: a.enemy?.isBoss, face: true },
-        { x: a.x, y: a.y + l.label.dy, w: l.label.w, h: l.label.h, who: a, boss: a.enemy?.isBoss },
+        ...(asleepNow(a) ? [] : [{ x: a.x, y: a.y + l.label.dy, w: l.label.w, h: l.label.h, who: a, boss: a.enemy?.isBoss }]),
       ]);
 
     // Umbra, the Forgotten One, waits on the throne floor (#74).
@@ -1447,7 +1449,7 @@ export default function WorldCanvas({
     // they fade right down — by an awake critter (or a boss) they hide — so
     // they never read as someone else's; with the hero (or the boat) on the
     // sleeper they hide.
-    const awake = (a?: Actor) => !!a?.enemy && (a.enemy.isBoss || !resting.has(a));
+    const awake = (a?: Actor) => !!a?.enemy && !asleepNow(a);
     let zzClock = 0;
     const riseSleepMarks = (dt: number, crowd: () => (Box & { who?: Actor; face?: boolean })[]) => {
       zzClock += dt;
