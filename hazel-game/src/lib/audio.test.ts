@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { MUSIC_SOURCES, SEA_TRACK, SFX_SOURCES, ZONE_KIND_TRACK, trackForScreen } from './audio';
+import { MUSIC_SOURCES, SEA_TRACK, SFX_SOURCES, ZONE_KIND_TRACK, musicScreen, trackForScreen } from './audio';
 import { SEA_AREAS } from '../content/boat';
 
 describe('trackForScreen', () => {
@@ -42,6 +42,21 @@ describe('trackForScreen', () => {
   it('uses the boss theme only for boss battles', () => {
     expect(trackForScreen('battle', false)).toBe('battle');
     expect(trackForScreen('battle', true)).toBe('boss');
+  });
+});
+
+describe('the sign-in screen', () => {
+  it('plays its own intro, not the title theme', () => {
+    expect(trackForScreen('auth')).toBe('intro');
+    expect(trackForScreen('topics')).toBe('title');
+  });
+
+  it('has the intro from sign-in to signing out — and nothing while the session is checked', () => {
+    expect(musicScreen(false, false, 'topics')).toBe('loading');
+    expect(trackForScreen(musicScreen(false, true, 'world'))).toBeNull(); // a refresh mid-game: no intro blip
+    expect(musicScreen(true, false, 'topics')).toBe('auth'); // signed out (or never in), or choosing a new password
+    expect(musicScreen(true, true, 'battle')).toBe('battle');
+    expect(musicScreen(true, true, 'world')).toBe('world');
   });
 });
 

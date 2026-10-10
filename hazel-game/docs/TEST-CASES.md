@@ -230,7 +230,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-207 | U | ✅ | zones | every gate is a double-wide opening — 2 orthogonally-adjacent `G` tiles share one canonical id via `gateIdAt` (zones.test) |
 | TC-208 | U | ✅ | zones | each `keyGate` cell sits on a `G` and resolves to a real gate group id (zones.test) |
 | TC-209 | M | ⬜ | World | an open gate (question or key) is 2 tiles wide and the hero can walk through either tile |
-| TC-210 | U | ✅ | settings | audio is off by default; `normalizeSettings` coerces only literal `true`, clamps volumes 0..1, falls back on garbage (settings.test) |
+| TC-210 | U | ✅ | settings | music is on by default and sound effects off (changed from all-off, #120); `normalizeSettings` keeps a saved boolean, falls back to the default for anything else, clamps volumes 0..1 (settings.test) |
 | TC-211 | U | ✅ | audio | `trackForScreen` maps screens→music; boss theme only for boss battles (audio.test) |
 | TC-212 | M | ⬜ | audio | with files in `public/audio/`: Music/Sound toggles persist across reload; SFX fire on wrong-answer/hit/levelup/victory; music follows the screen (overworld ⇄ battle ⇄ boss) |
 | TC-213 | M | ⬜ | audio | Spire music plays while climbing; switches to the Final Battle track only once the Umbra (boss-floor) fight is underway, then back to overworld on exit |
@@ -1000,6 +1000,21 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-838 | M | ⬜ | profile | after 0012 in production, an existing player sees the same level as before; earning XP moves the bar toward the new, larger need; a refresh keeps both |
 | TC-839 | C | ✅ | TopicSelect | every topic is an enabled button with no "Completed" tag, and the same topic can be picked again and again — each pick sends `PICK_TOPIC` (TopicSelect.test, #119) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
+
+## The sign-in screen's intro music (#120)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-840 | U | ✅ | music | the sign-in screen (`'auth'`) plays `intro`, not the title theme; `intro.mp3` ships and is named in `MUSIC_SOURCES` (audio.test) |
+| TC-841 | U | ✅ | music | `musicScreen`: no music while the session is checked (a refresh mid-game never plays the intro), the intro whenever nobody is signed in (or a new password is being set), else the game's screen (audio.test) |
+| TC-842 | M | ✅ | music | the real app in headless Chromium, Supabase stubbed, music on: the sign-in page plays only the intro at full volume; in the world the overworld theme; Sign out → the overworld stops and the intro plays — 4 runs, one on a cold server |
+| TC-843 | M | ✅ | music | `python3 tools/assets/build.py intro` writes only `intro.mp3` (72 s), byte-identical on a rebuild; loudness by bar rises 15% → 100% by bar 17 and falls to 19% by bar 24, meeting the loop's start |
+| TC-846 | M | ✅ | music | the intro, retuned lower: the same notes an octave down (harp top ≈ 1.1 kHz, tune G4–Ab5), brightness (spectral centroid) 3070 → 1740 Hz and energy above 2 kHz 40% → 22%, loudness by bar still 14% → 100% → 19%; `build.py intro` byte-identical on a rebuild |
+| TC-847 | U | ✅ | settings | a choice sticks: a saved `music: false` stays off, `sfx: true` stays on; a toggle that isn't a boolean (0, 'off', 'yes', 1) takes its default, never truthy coercion (settings.test) |
+| TC-848 | M | ✅ | music | the real app, Supabase stubbed: a new device (nothing saved) hears the intro on the sign-in page at the default volume and the overworld theme after signing in; a device with music saved off hears nothing |
+| TC-849 | M | ✅ | music | the climax (bars 17–20, 0:48–1:00) brings a new colour, not just volume: `INTRO_CLIMAX_VOICE = 'celesta'` adds a bell on every harp note at the same pitch; `'high'` lifts the harp's sweeps an octave; both rendered (loudness by bar 13% → 100% → 18% and 15% → 100% → 21%), the game's `intro.mp3` is the celesta one, byte-identical on a rebuild |
+| TC-844 | M | ⬜ | music | by ear: a harp arpeggio rising and falling, swelling from soft ripples to a full climax and back; the loop comes round without a jump |
+| TC-845 | M | ⬜ | music | in a real browser with Music on, open the sign-in page fresh: silent until the first tap or key (the browser's rule), then the intro starts; sign out from the world → the intro replaces the world's music |
 
 ## Regression cases (tied to ISSUES.md)
 

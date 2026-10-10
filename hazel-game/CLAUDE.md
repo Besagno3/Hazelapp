@@ -20,7 +20,7 @@ shared source of truth for how this project works.
 | State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
-| Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
+| Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
 | CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build on every non-draft PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests); draft PRs skip CI and Vercel previews (see Pull requests) |
@@ -531,6 +531,7 @@ python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#7
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
 python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
+python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
 
@@ -607,6 +608,71 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Merge main (Eldergrove #42, the saved player level #41, open Training
+Grounds #43) into the sign-in-music branch (#120)
+`main` took ISSUES **#117–#119** and TC-816–839 while the sign-in music was in
+review, so it moved **#117 → #120** and its test cases **TC-816–825 → TC-840–849**.
+Only the docs conflicted; `App.tsx` and `build.py` merged cleanly (the `intro`
+build target sits beside 14f's `elder`).
+
+### 2026-10-10 — The sign-in intro's climax: a celesta joins the harp (#120)
+The climax (0:48–1:00, bars 17–20, after a timpani roll from 0:45) only made
+the harp louder, which didn't land. Now a new colour comes in: a celesta (a
+soft music-box bell, `_celesta`) plays with the harp, note for note at the
+same pitch, while the tune rises an octave. The other option is built in —
+`INTRO_CLIMAX_VOICE = 'high'` (`tools/assets/audio.py`) lifts the harp's
+sweeps an octave for the climax instead; both were rendered for the owner
+to choose by ear. Loudness by bar 13% → 100% → 18%; rebuilt with
+`build.py intro`.
+
+### 2026-10-10 — Music is on by default (#120)
+So everyone hears the sign-in screen's intro, Music now defaults to **on**
+(`DEFAULT_SETTINGS.music`, `lib/settings.ts`); sound effects stay off. It
+starts on the first tap or key (browsers hold sound until then), and the
+game's music follows after signing in. A choice sticks: `normalizeSettings`
+keeps a saved `music: false` (anyone who turned it off — the owner's device
+included — stays silent until they turn it back on in 📜 → 🔊 Audio); a saved
+value that isn't a boolean falls back to the default instead of to "off".
+Checked in the real app (Supabase stubbed): a new device hears the intro on
+the sign-in page and the overworld theme after signing in; a device with
+music saved off hears nothing. Tests: settings.test rewritten (+2).
+
+### 2026-10-10 — The sign-in intro, an octave lower and mellower (#120)
+Liked the tune, tempo and notes; it was too high-pitched. Same notes and
+shape, an octave down — the harp's sweeps now start between D2 and C#3 (top
+note ≈ 1.1 kHz, was ≈ 2.2 kHz), the tune sits in G4–Ab5 (was G5–Ab6) — and a
+rounder sound: the harp is a triangle with a touch of square (was a narrow,
+nasal pulse), the tune a square-and-triangle blend, the pad square waves an
+octave down, the cymbal wash darker, and the harp and tune go through a warm
+filter (≈ 1.8 kHz, was ≈ 4 kHz). The climax's harp no longer doubles an
+octave up; it plays louder instead. Brightness (spectral centroid) 3070 →
+1740 Hz, energy above 2 kHz 40% → 22%; loudness by bar still 14% → 100% →
+19%. Rebuilt with `build.py intro` (byte-identical on a rebuild).
+
+### 2026-10-10 — The sign-in screen gets its own intro music (#120)
+The sign-in screen played the title theme. Now it has an intro of its own,
+heard there and on the screen after signing out (and while choosing a new
+password): **`intro`** (`public/audio/16bit/music/intro.mp3`, 72 s,
+`compose_intro` in `tools/assets/audio.py`, `python3 tools/assets/build.py
+intro`). A harp-like arpeggio sweeps up three octaves and back each bar over
+E♭–Cm–A♭–B♭-style progressions; it begins as small ripples, alone and soft,
+widens into full sweeps as a string pad joins, gains a tune and a bass, swells
+through a timpani roll into a climax (the tune an octave up with a line below
+it), then thins back to the ripples, so the loop meets its
+own soft start (loudness by bar 15% → 100% → 19%). Original — written in the
+spirit of a 16-bit RPG prelude, not a copy of one.
+- **Wiring:** `musicScreen(initialized, signedIn, gameScreen)` (`lib/audio.ts`)
+  picks the screen whose music plays — `'loading'` (none) while the session is
+  checked, so a refresh mid-game never blips the intro; `'auth'` → `intro`
+  until someone signs in, again after signing out; else the game's screen.
+  `App` passes it to `useScreenMusic`. Music stays off by default (#120).
+- **Checked:** the real app in headless Chromium (Supabase stubbed, music on)
+  — the sign-in page plays only the intro; in the world the overworld theme;
+  Sign out → the overworld stops and the intro plays (4 runs, a cold server
+  included). `build.py intro` writes only `intro.mp3`, byte-identical on a
+  rebuild (and the sea music rebuilds byte-identical here, so the toolchain
+  matches). Tests +2 (audio.test); the shipped-file guards cover the new file.
 
 ### 2026-10-10 — Every Training Grounds topic stays open (#119)
 Passing a topic round no longer greys that topic out for the rest of the
