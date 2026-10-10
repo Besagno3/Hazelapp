@@ -958,6 +958,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-800 | U | ✅ | signature abilities | Battle Cry doubles the first landed Attack, then it's spent; Shell Up blocks the first blow and not the next; Second Wind leaves 1 HP once, a second knockout is real, and a light blow never spends it (battleTurn.test) |
 | TC-801 | C | ✅ | signature abilities | real arena: Valor's first Attack lands 80 ("Focused — double damage"); below half HP 60 with "Lionheart"; Bastion opens guarded; Talon mends 3 on a right answer and "Second Wind! Talon hangs on with 1 HP" catches a knockout (BattleArena.test) |
 | TC-802 | C/M | ✅ | hero select | all five cards show their type (Warrior / Guardian / Ranger / Duelist / Mystic) and two abilities (AvatarSelect.test); headless Chromium at 375 and 1280 px, no sideways scroll, no page errors (2026-10-10) |
+| TC-803 | U | ✅ | opening perks (review) | `NO_OPENING` has no perk at all, so a battle started without a hero (WorldScreen's fallback) gets none — not Talon's Second Wind; `start()` without an opening is a fresh fight (battleTurn.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

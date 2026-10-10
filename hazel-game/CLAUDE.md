@@ -622,6 +622,8 @@ unchanged, so every save keeps its hero under the new name.
   `focused` / `guarded` / `secondWind`; `NO_OPENING` is the explicit
   none); each floats a short line as the fight opens ("💥 Battle Cry!",
   "🛡️ Shell Up!", "✨ +2◆").
+- **Review** (`/saas-code-review`): no security surface (no Supabase change); one
+  low fix — a battle with no hero gets `NO_OPENING`, not Talon's Second Wind.
 - Tests: 901 green (+8 net: every type has two distinct abilities, each
   type's opening, Lionheart / Rock Steady / Keen Eye math, Battle Cry /
   Shell Up / Second Wind turns, and Battle Cry, Lionheart, Shell Up, Keen

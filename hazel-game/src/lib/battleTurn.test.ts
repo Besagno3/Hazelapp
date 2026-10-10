@@ -10,6 +10,7 @@ import {
   FAST_STREAK,
   heroOpening,
   itemBlocked,
+  NO_OPENING,
   MAX_SPEED_BOOST,
   MERCY_AFTER,
   mercyFor,
@@ -442,6 +443,8 @@ describe('hero types: Kira (swift) and Selene (mystic)', () => {
 
   it('each hero type opens a fight with its own perk, and only that one', () => {
     const none = { charge: 0, freeHint: false, focused: false, guarded: false, secondWind: false };
+    // No hero, no perk (WorldScreen's fallback — not the balanced type's Second Wind).
+    expect(NO_OPENING).toEqual(none);
     expect(heroOpening('mystic')).toEqual({ ...none, charge: SPARK_START_CHARGE });
     expect(heroOpening('swift')).toEqual({ ...none, freeHint: true });
     expect(heroOpening('aggressive')).toEqual({ ...none, focused: true });
