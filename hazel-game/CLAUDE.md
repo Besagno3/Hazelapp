@@ -429,6 +429,7 @@ python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
 python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallows, the fogbank (#75 item 14)
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
+python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
 ```
 
 ## Error handling
@@ -504,6 +505,34 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Eldergrove: an island of ring-trees in the Silver Shallows (#75 item 14f)
+First slice of 14f — Act II's first island (the Ringkeeper, Fen's quest and
+the 🚩 come in the next commits).
+- **On the Shallows:** an island in the south-west (6–19, 34–42,
+  `maps/silver-shallows.tmj`) with a north beach to land on and a path to its
+  icon (a new `elder` frame, a great ring-tree, appended at 17 after the hill;
+  frames 0–16 byte-identical). Placed clear of 14d's sea critters (its
+  branch isn't merged yet; its test wants them 4+ cells from land, #114a).
+- **The grove** (`eldergrove`, 44×28, `kind: 'field'`, history, tier 5 with
+  the Shallows — "The Silver Shallows and its islands"): Fen's Hollow (a new
+  **bark** style: a hut in a hollow ring-tree), the gated Ring Hollow with
+  the riddle-chest, a stream and its bridge, three acorn chests, and the
+  Great Ring — the oldest trees round a stump — in the south.
+- **Critters:** Ring Beetle 🪲 (its shell cut like a log), Sap Sprite ✨ and
+  the shielded Hollow Acorn 🌰, two of each. **People:** Fen the Forager 🧺,
+  Old Ringwood 🌳 (a talking tree who loses count of his rings) and **Dawdle**
+  🐢 (STORY-4X's Moss, renamed — Hermit Moss already exists), the slowest
+  wanderer in the game (`WorldNpcDef.pace`).
+- **The menu map** from inside a place draws the overworld it opens onto
+  (`overworldOf`): Eldergrove's is the Shallows.
+- **Art** (`python3 tools/assets/build.py elder`): the zone's tileset (a new
+  `eldertree` scenery), blend sheet and backdrop, `town-bark.png`, the
+  overworld sheet and six sprites (new drawers `ring_beetle`, `sap_sprite`,
+  `hollow_acorn`, `tree_folk`, `turtle`); the manifest only gained entries.
+- Tests: +6 (zones.test: the island, sailing there, the critters, the gate,
+  the people; worldMap.test: `overworldOf`). 829 green. Looked at on the
+  bench: the island, the grove's four corners, inside Fen's Hollow.
 
 ### 2026-10-10 — 14e review fixes: the knot waits for you, praise on a re-clear, a hazy bay (#75 item 14e)
 A fresh `/saas-code-review` (2 low) and `/saas-ux-review` (3 medium, 10 low;

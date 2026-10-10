@@ -45,6 +45,9 @@ export const ZONE_IDS = [
   'silver-shallows',
   // Act II (#75 item 14e): a town past Moonwell Grove, hidden in fog until Act II.
   'remembrance-hill',
+  // Act II (#75 item 14f): an island of ring-trees on the Shallows' south side,
+  // where the Ringkeeper keeps the Memoria Key.
+  'eldergrove',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -132,7 +135,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -197,7 +200,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -1671,7 +1674,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     npcs: [{ defId: 'gull-lamplighter', x: 11, y: 17 }],
     enemies: [],
-    exits: [],
+    // Eldergrove (#75 item 14f): an island in the south-west, with a beach on its north side.
+    places: [{ x: 12, y: 39, icon: 'elder', name: 'Eldergrove' }],
+    exits: [{ x: 12, y: 39, to: 'eldergrove', spawnX: 20, spawnY: 1 }],
     // Its tower stands on the rock just east of Ness's cottage.
     lighthouse: { x: 15, y: 16 },
     landmarks: [
@@ -1755,6 +1760,74 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Out onto Dawnreach, on the road just north of the hill's icon.
       { x: 16, y: 0, to: 'dawnreach', spawnX: 30, spawnY: 50 },
       { x: 17, y: 0, to: 'dawnreach', spawnX: 30, spawnY: 50 },
+    ],
+  },
+  // Eldergrove (#75 item 14f): trees with memory-rings on an island of the
+  // Silver Shallows. Fen's hut in the north-west, the gated Ring Hollow (the
+  // riddle-chest) in the north-east, a stream with a bridge, and the Great
+  // Ring — a clearing of the oldest trees round a stump — in the south, where
+  // the Ringkeeper stands. Fen's three acorns are in chests across the grove.
+  eldergrove: {
+    id: 'eldergrove',
+    name: 'Eldergrove',
+    kind: 'field',
+    topic: 'history',
+    map: [
+      '####################EE######################',
+      '#...................==..............#......#',
+      '#..WWWWWWW..#.......==.S...#........#......#',
+      '#..WZFFFBW......#...==..........,...G...C..#',
+      '#..WFFFFFW..........================G......#',
+      '#..WTFFFFW..........==..............#......#',
+      '#..WWWDWWW...#.,....==........#.....#......#',
+      '#.....=.............==...,..........########',
+      '#.....================...........~~........#',
+      '#.#.................==....#......~~...#....#',
+      '#...,....#..........==.......,...~~........#',
+      '#...............#...==...........~~........#',
+      '#.......,...........====================...#',
+      '####......#.........==...........==........#',
+      '#..#................==...........~~......C.#',
+      '#.C.==================......#....~~....,...#',
+      '#..#.=...........#..==...#.......~~........#',
+      '####.=..#...........==...........~~........#',
+      '#....=..............==...........~~...#..#.#',
+      '#....=........######...########..~~........#',
+      '#....=........#...............#............#',
+      '#...#=#.....,.#...............#...~~~~~~~..#',
+      '#..#...#......#......##.......#...~~~~~~~..#',
+      '#..........#..#......##.......#...~~~~~~~..#',
+      '#....C........#...,...........##..~~~~~~~..#',
+      '#..#...#......#...........,...#...~~~~~~~..#',
+      '#........#....#...............#............#',
+      '############################################',
+    ],
+    ground: [96, 132, 84],
+    path: [176, 150, 108],
+    solidEmoji: '🌳',
+    decoEmoji: '🍂',
+    spawn: { x: 20, y: 1 },
+    buildings: [
+      // Built into a hollow ring-tree — Eldergrove's own style.
+      { id: 'fen-hut', name: "Fen's Hollow", x: 3, y: 2, w: 7, h: 5, roof: 'leaf', style: 'bark', sign: 'house' },
+    ],
+    npcs: [
+      { defId: 'elder-fen', x: 8, y: 7 },
+      { defId: 'elder-ringwood', x: 23, y: 17 },
+      { defId: 'elder-dawdle', x: 32, y: 23 },
+    ],
+    enemies: [
+      { defId: 'ring-beetle', x: 10, y: 11 },
+      { defId: 'ring-beetle', x: 28, y: 6 },
+      { defId: 'sap-sprite', x: 14, y: 4 },
+      { defId: 'sap-sprite', x: 38, y: 16 },
+      { defId: 'hollow-acorn', x: 9, y: 20 },
+      { defId: 'hollow-acorn', x: 31, y: 14 },
+    ],
+    exits: [
+      // Back out to the island's path, just north of Eldergrove's icon on the Shallows.
+      { x: 20, y: 0, to: 'silver-shallows', spawnX: 12, spawnY: 38 },
+      { x: 21, y: 0, to: 'silver-shallows', spawnX: 12, spawnY: 38 },
     ],
   },
 };

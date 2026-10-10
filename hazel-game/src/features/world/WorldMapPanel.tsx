@@ -10,6 +10,7 @@ import {
   fogMarkerAt,
   mapCaption,
   mapCellColor,
+  overworldOf,
   placeEmoji,
   whereOnMap,
 } from '../../lib/worldMap';
@@ -47,8 +48,8 @@ export default function WorldMapPanel({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // The map you're out on — Dawnreach, or the Silver Shallows (#75 item 14);
-  // from inside a place, the overworld it's on.
-  const world = ZONES[zoneId].kind === 'overworld' ? ZONES[zoneId] : ZONES.dawnreach;
+  // from inside a place, the overworld it's on (Eldergrove's is the Shallows, #75 item 14f).
+  const world = overworldOf(ZONES, zoneId);
   const cols = world.map[0].length;
   const rows = world.map.length;
   // A place nobody has heard of yet stays off the map (Remembrance Hill before Act II, #75 item 14e).

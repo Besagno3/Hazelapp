@@ -64,6 +64,11 @@ export interface WorldNpcDef {
    */
   ambient?: string[];
   /**
+   * How fast a wanderer ambles, against everyone else's (default 1) — Dawdle
+   * the turtle (#75 item 14f) is the slowest wanderer in the game.
+   */
+  pace?: number;
+  /**
    * Tells you where to go next (#75 item 6): after their own lines, a "where
    * to next?" line keyed to the story, with the way there from where they
    * stand. See `lib/wayfinding.ts`.
@@ -1302,5 +1307,43 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       "One spoonful and you'll never forget the taste. Everything else, maybe.",
     ],
     ambient: ['Jam! Lovely jam!', '🍓'],
+  },
+
+  // --- Act II: Eldergrove (#75 item 14f) ---
+  'elder-fen': {
+    id: 'elder-fen',
+    name: 'Fen the Forager',
+    sprite: '🧺',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "Oh! A visitor! I'm Fen. I forage.",
+      'I remember where I hid my acorns. All 4,000. Roughly.',
+    ],
+    ambient: ['Acorns, acorns…', '🌰'],
+  },
+  'elder-ringwood': {
+    id: 'elder-ringwood',
+    name: 'Old Ringwood',
+    sprite: '🌳',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Hrrrm. A visitor. Stand still while I count my rings. One… two… three…',
+      '…eight hundred and ninety-nine… nine hundred… nine hundred and… oh, bother. Lost count again.',
+    ],
+    ambient: ['…nine hundred and… hrrm.', '🍂'],
+  },
+  'elder-dawdle': {
+    id: 'elder-dawdle',
+    name: 'Dawdle',
+    sprite: '🐢',
+    role: 'villager',
+    pace: 0.15,
+    lines: [
+      "Oh… hello. I'm… Dawdle.",
+      "I'm going… for a… walk. Around the pond. I started… on Tuesday.",
+    ],
+    ambient: ['Almost… there…', '…', '🐢'],
   },
 };

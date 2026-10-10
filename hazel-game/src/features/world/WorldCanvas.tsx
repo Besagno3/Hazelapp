@@ -1051,7 +1051,7 @@ export default function WorldCanvas({
           homeX: px,
           homeY: py,
           leash: TILE * WANDER_TUNING.npc.leashTiles,
-          speed: WANDER_TUNING.npc.speed,
+          speed: WANDER_TUNING.npc.speed * (def.pace ?? 1),
           anims: npcView?.anims,
         });
       }

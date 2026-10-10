@@ -19,7 +19,8 @@ import {
 } from './zones';
 import { edgeLinkProblem, exitSide } from '../lib/transition';
 import { seaEntryCell } from '../lib/travel';
-import { behindFog, reach, safeSpawn, touches } from '../lib/reach';
+import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
+import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
@@ -743,5 +744,64 @@ describe('Remembrance Hill (#75 item 14e)', () => {
     expect(mnem.lines).toContain('Four plaques shine again: Numbers, Nature, Gears and Wonder!');
     expect(mnem.lines.at(-1)).toMatch(/blank/);
     expect(mnem.lines.length).toBeLessThanOrEqual(4);
+  });
+});
+
+describe('Eldergrove (#75 item 14f)', () => {
+  const grove = ZONES.eldergrove;
+  const sea = ZONES['silver-shallows'];
+  const icon = sea.places!.find((p) => p.name === 'Eldergrove')!;
+  const cells = (ch: string) =>
+    grove.map.flatMap((row, y) => [...row].flatMap((c, x) => (c === ch ? [{ x, y }] : [])));
+
+  it("is a history field on an island off the Shallows' south side, as tough as the Shallows", () => {
+    expect(grove.kind).toBe('field');
+    expect(grove.topic).toBe('history');
+    expect(zoneTier('eldergrove')).toBe(zoneTier('silver-shallows'));
+    expect(icon.icon).toBe('elder');
+    expect(icon.y).toBeGreaterThan(sea.map.length / 2);
+    // Its island stands alone in the sea: off the icon, only beach and sea lead away.
+    const island = reach(sea, { from: icon, flags: null });
+    expect([...island].every((k) => {
+      const [x, y] = k.split(',').map(Number);
+      return Math.abs(x - icon.x) <= 7 && Math.abs(y - icon.y) <= 6;
+    })).toBe(true);
+    expect([...island].some((k) => {
+      const [x, y] = k.split(',').map(Number);
+      return tileAt(sea, x, y) === ':';
+    })).toBe(true);
+  });
+
+  it('a boat lands on its beach and the hero walks to its icon', () => {
+    // Sailing in from Dawnreach, at the Shallows' west edge.
+    const path = reachPath(sea, (x, y) => x === icon.x && y === icon.y, { from: { x: 1, y: 22 }, aboard: true, modes: ['boat', 'foot'] });
+    expect(path, 'sail in and land on Eldergrove').not.toBeNull();
+    expect(path!.at(-1)!.mode).toBe('foot');
+  });
+
+  it('three critters of the ring-trees, the Hollow Acorn shielded', () => {
+    const kinds = [...new Set(grove.enemies.map((e) => e.defId))].sort();
+    expect(kinds).toEqual(['hollow-acorn', 'ring-beetle', 'sap-sprite']);
+    for (const id of kinds) expect(ENEMY_DEFS[id].topic).toBe('history');
+    expect(ENEMY_DEFS['hollow-acorn'].behavior).toBe('shielded');
+    expect(kinds.map((id) => ENEMY_DEFS[id].levelOffset).sort()).toEqual([-1, 0, 1]);
+  });
+
+  it('the Ring Hollow chest waits behind the gate; every chest is in reach once gates open', () => {
+    const [hollow] = cells('C').filter((c) => c.x > 36);
+    expect(hollow).toBeDefined();
+    expect(touches(reach(grove), hollow.x, hollow.y)).toBe(false);
+    for (const c of cells('C')) expect(touches(reach(grove, { gates: 'open' }), c.x, c.y), `${c.x},${c.y}`).toBe(true);
+  });
+
+  it("Fen, Old Ringwood and Dawdle live here — Dawdle the slowest wanderer in the game", () => {
+    expect(grove.npcs.map((n) => n.defId).sort()).toEqual(['elder-dawdle', 'elder-fen', 'elder-ringwood']);
+    const dawdle = NPC_DEFS['elder-dawdle'];
+    expect(dawdle.pace).toBeLessThan(1);
+    for (const def of Object.values(NPC_DEFS)) {
+      if (def.id !== dawdle.id) expect(def.pace ?? 1, def.id).toBeGreaterThan(dawdle.pace!);
+    }
+    expect(NPC_DEFS['elder-ringwood'].stationary).toBe(true);
+    expect(NPC_DEFS['elder-fen'].stationary).toBe(true);
   });
 });

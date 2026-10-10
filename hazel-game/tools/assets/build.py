@@ -14,6 +14,8 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py quests     # only Hermit Moss (#75 item 13)
     python3 tools/assets/build.py seamusic   # only the sea music: sailing, the Shallows, the fogbank (#75 item 14)
     python3 tools/assets/build.py lighthouse # only Gull Rock's lighthouse tower (#75 item 14)
+    python3 tools/assets/build.py hill       # only Remembrance Hill (#75 item 14e)
+    python3 tools/assets/build.py elder      # only Eldergrove: its tiles, critters and people (#75 item 14f)
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -35,6 +37,9 @@ import tiles  # noqa: E402
 ROOT = HERE.parent.parent  # hazel-game/
 PUBLIC = ROOT / 'public'
 MANIFEST = ROOT / 'src' / 'content' / 'sprites.generated.ts'
+
+# Eldergrove's critters and people (#75 item 14f), for `build.py elder`.
+ELDER_SPRITES = ('ring-beetle', 'sap-sprite', 'hollow-acorn', 'elder-fen', 'elder-ringwood', 'elder-dawdle')
 
 
 def write_manifest(data: dict):
@@ -85,6 +90,14 @@ def main():
             'hill-traveler', 'hill-carver', 'hill-elder', 'hill-jam'}))
         tiles.build_hill(PUBLIC)
         print('hill ✓')
+        return
+    if 'elder' in only:
+        # Just Eldergrove (#75 item 14f): its critters and people, its tiles, the
+        # bark town sheet and the overworld sheet with the elder icon appended —
+        # every other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only=set(ELDER_SPRITES)))
+        tiles.build_elder(PUBLIC)
+        print('elder ✓')
         return
     if 'lighthouse' in only:
         # Just Gull Rock's lighthouse tower (#75 item 14) — every other file untouched.

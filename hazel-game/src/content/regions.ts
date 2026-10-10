@@ -79,7 +79,8 @@ export const REGIONS: RegionDef[] = [
   { id: 'gearfall', name: 'Gearfall Canyon and Starfall Coast', tier: 3, zones: ['gearfall', 'starfall-coast'] },
   { id: 'chromaria', name: 'Chromaria', tier: 4, zones: ['chromaria'] },
   // Act II (#75 item 14): the first place past Act I's tiers (#105g, #108d).
-  { id: 'shallows', name: 'The Silver Shallows', tier: 5, zones: ['silver-shallows'] },
+  // Its islands share its tier (#75 item 14f: Eldergrove).
+  { id: 'shallows', name: 'The Silver Shallows and its islands', tier: 5, zones: ['silver-shallows', 'eldergrove'] },
 ];
 
 /** The danger tier of a zone (its region's). */

@@ -9,6 +9,7 @@ import {
   fogMarkerAt,
   mapCaption,
   mapCellColor,
+  overworldOf,
   placeEmoji,
   whereOnMap,
 } from './worldMap';
@@ -51,11 +52,17 @@ describe('whereOnMap', () => {
     const overworld = { ...dawn, exits: dawn.exits.filter((e) => e.to !== 'numbria') };
     expect(whereOnMap(zones, overworld, 'numbria', null)).toMatchObject({ exact: false, place: 'Lumina Village' });
   });
-  it('every zone in the world can be placed on the map — the Silver Shallows on its own (#75 item 14)', () => {
+  it('every zone in the world can be placed on the map it sits on — the Silver Shallows on its own (#75 item 14)', () => {
     for (const id of Object.keys(ZONES) as (keyof typeof ZONES)[]) {
-      const map = ZONES[id].kind === 'overworld' ? ZONES[id] : dawn;
-      expect(whereOnMap(ZONES, map, id, null), id).not.toBeNull();
+      expect(whereOnMap(ZONES, overworldOf(ZONES, id), id, null), id).not.toBeNull();
     }
+  });
+  it("a place's map is the overworld it opens onto: Eldergrove's is the Silver Shallows (#75 item 14f)", () => {
+    expect(overworldOf(ZONES, 'eldergrove').id).toBe('silver-shallows');
+    expect(overworldOf(ZONES, 'silver-shallows').id).toBe('silver-shallows');
+    expect(overworldOf(ZONES, 'clockwork-depths-b3').id).toBe('dawnreach');
+    expect(overworldOf(ZONES, 'remembrance-hill').id).toBe('dawnreach');
+    expect(whereOnMap(ZONES, ZONES['silver-shallows'], 'eldergrove', null)).toMatchObject({ x: 12, y: 39, place: 'Eldergrove' });
   });
 });
 
