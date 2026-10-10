@@ -117,11 +117,16 @@ const LABEL_Z = 7;
 const LABEL_PLATE_OPACITY = 0.85;
 /**
  * A sleeping critter's level plate reads "Zz" instead (#112e): white, bigger
- * than the level, and never faded — on its own plate, under it, it can't be
- * read as a neighbour's, and like the level it draws under the hero.
+ * than the level, never faded, on its own plate under it — and drawn under
+ * every character (they're z 6 and up), so it can never sit on someone
+ * else's head and make them look asleep (a villager, the hero, a boss).
+ * The sleeper itself fades less than under Calm, so the "Zz" has a critter
+ * to belong to.
  */
-const ZZ_TEXT_SIZE = 16;
-const ZZ_PLATE = { w: 30, h: 20 } as const;
+const ZZ_TEXT_SIZE = 20;
+const ZZ_PLATE = { w: 36, h: 24 } as const;
+const ZZ_Z = 5.5;
+const SLEEP_OPACITY = 0.7;
 /** The ripples under a sea critter (#75 item 14d): faint, so the critter reads first. */
 const RIPPLE_OPACITY = 0.35;
 /** Seconds after Calm wears off before a critter you're touching starts a battle. */
@@ -182,8 +187,8 @@ export interface WorldCanvasCallbacks {
   onFogRevealed?: (id: string) => void;
   /** Bumped the pitch dark of an unlit dark place (#75 item 9). */
   onDark?: () => void;
-  /** Bumped a sleeping critter (`resting`, #112e) — once a scene: say how to wake it. */
-  onSleeper?: () => void;
+  /** Bumped a sleeping critter (`resting`, #112e): say how to wake it — true once said (once a scene). */
+  onSleeper?: () => boolean;
   /** The whole seconds of Calm left changed (0 = it has worn off). */
   onCalmTick?: (secondsLeft: number) => void;
   /** Climbed into Marlow's boat (#75 item 14), now at (x, y) px on the sea. */
@@ -1107,8 +1112,8 @@ export default function WorldCanvas({
     // a faded critter that lets you pass is asleep, not a ghost (#112e).
     type Recolor = { r: number; g: number; b: number };
     const sleepers: {
-      label: { text: string; textSize: number; color: Recolor };
-      plate: { width: number; height: number };
+      label: { text: string; textSize: number; color: Recolor; z: number };
+      plate: { width: number; height: number; z: number };
       level: { text: string; color: Recolor; w: number; h: number };
       actor: Actor;
     }[] = [];
@@ -1194,9 +1199,9 @@ export default function WorldCanvas({
           const mark = part === label || part === labelPlate;
           critters.push({ obj: part as unknown as { opacity: number }, opacity: base, actor, mark });
         }
-        const plate = labelPlate as unknown as { width: number; height: number };
+        const plate = labelPlate as unknown as { width: number; height: number; z: number };
         sleepers.push({
-          label: label as unknown as { text: string; textSize: number; color: Recolor },
+          label: label as unknown as { text: string; textSize: number; color: Recolor; z: number },
           plate,
           level: { text: labelText, color: k.rgb(...DANGER[enemy.tier ?? BASE_TIER].mapColor), w: plate.width, h: plate.height },
           actor,
@@ -1320,7 +1325,8 @@ export default function WorldCanvas({
       critterFade = key;
       for (const c of critters) {
         const asleep = resting.has(c.actor);
-        c.obj.opacity = c.opacity * ((c.mark ? calm && !asleep : calm || asleep) ? CALM_OPACITY : 1);
+        const fade = c.mark ? (calm && !asleep ? CALM_OPACITY : 1) : asleep ? SLEEP_OPACITY : calm ? CALM_OPACITY : 1;
+        c.obj.opacity = c.opacity * fade;
       }
       for (const s of sleepers) {
         const asleep = resting.has(s.actor);
@@ -1329,6 +1335,8 @@ export default function WorldCanvas({
         s.label.color = asleep ? k.rgb(255, 255, 255) : s.level.color;
         s.plate.width = asleep ? ZZ_PLATE.w : s.level.w;
         s.plate.height = asleep ? ZZ_PLATE.h : s.level.h;
+        s.label.z = asleep ? ZZ_Z + 0.1 : LABEL_Z + 0.5;
+        s.plate.z = asleep ? ZZ_Z : LABEL_Z;
       }
     };
     // From the first frame — even while the world waits (a level-up, a slide).
@@ -1623,16 +1631,19 @@ export default function WorldCanvas({
     let needsRelease = arrivalLockRef.current;
     arrivalLockRef.current = false;
     let cooldown = 0;
-    // The enemies a cooldown spares: those touching the hero as it's armed
-    // (`graceOf`, worked out afresh each time — Calm can wear off in one).
-    let graced: Set<Actor> | null = null;
+    // Critters that don't fight the hero while they're touching them, until
+    // they step clear (never a boss, #112t): those touching the hero as a
+    // cooldown is armed (`graceOf` — a menu closed, a chest, the save crystal,
+    // a landing, Calm wearing off), and any that comes onto a hero standing
+    // still while one runs (reading "💎 Game saved!") — even once it's over.
+    const spared = new Set<Actor>();
     // …and none fights for the two frames after one's armed, while the menu,
     // talk or chest it came with takes the world's pause (a battle sent then
     // would be dropped, and the world would wait for it forever).
     let held = 0;
     const arm = (seconds: number) => {
       cooldown = seconds;
-      graced = null;
+      for (const a of graceOf(actors, player.pos)) spared.add(a);
       held = 2;
     };
     let sleeperHinted = false;
@@ -1739,6 +1750,9 @@ export default function WorldCanvas({
       const calm = (calmRef?.current ?? 0) > 0;
       fadeCritters(calm);
 
+      // Standing still is not moving this frame — a thumb left on the d-pad
+      // against a wall or the save crystal is still.
+      const was = { x: player.pos.x, y: player.pos.y };
       const keys = keysRef.current;
       let dx = touchDirRef.current.dx;
       let dy = touchDirRef.current.dy;
@@ -1851,7 +1865,8 @@ export default function WorldCanvas({
             cbRef.current.onPath({ kind: 'chest', id, topic: chestTopicAt(z, bumped.x, bumped.y), zoneId });
           }
         } else if (bumped.ch === 'S') {
-          arm(2);
+          // Long enough to read "💎 Game saved!" (~2.9 s, `toastMs`) standing still.
+          arm(3);
           cbRef.current.onSaveCrystal();
         } else if (bumped.ch === 'fog') {
           const fog = fogAt(z, bumped.x, bumped.y, flagsRef.current);
@@ -1895,13 +1910,10 @@ export default function WorldCanvas({
         restings += 1;
       }
 
-      // A cooldown (a menu closed, a landing, a chest, Calm wearing off…)
-      // spares the enemies touching the hero as it's armed, until they've
-      // stepped clear, and a hero standing still — never one they walk into
-      // while it runs, a boss least of all: it used to let a hero walk
-      // through anything (#112t).
-      if (cooldown > 0) graced ??= graceOf(actors, player.pos);
-      else graced = null;
+      // A cooldown spares only `spared` — never one the hero walks into while
+      // it runs, a boss least of all: it used to let a hero walk through
+      // anything (#112t).
+      const still = player.pos.x === was.x && player.pos.y === was.y;
       const holding = held > 0;
       held = Math.max(0, held - 1);
 
@@ -1910,22 +1922,25 @@ export default function WorldCanvas({
         if (a.kind === 'enemy' && a.enemy) {
           if (holding) continue;
           // One resting lets the hero pass (#112e) — the first sleeping
-          // critter they walk into says why — one graced while they step
-          // clear…
+          // critter they walk into says why — one spared while it's touching
+          // them…
           if (resting.has(a)) {
             if (!sleeperHinted && !a.enemy.isBoss && (dx || dy) && touching(a, player.pos, contactRadius(a.enemy))) {
-              sleeperHinted = true;
-              cbRef.current.onSleeper?.();
+              sleeperHinted = cbRef.current.onSleeper?.() ?? true;
             }
             continue;
           }
-          if (graced?.has(a)) {
-            if (touching(a, player.pos, contactRadius(a.enemy))) continue;
-            graced.delete(a);
+          const onHero = touching(a, player.pos, contactRadius(a.enemy));
+          if (spared.has(a)) {
+            if (onHero) continue;
+            spared.delete(a);
           }
-          // …none walks into a hero standing still while a cooldown runs (just
-          // saved, back from a talk or the menu) — only their own step fights…
-          if (cooldown > 0 && !(dx || dy)) continue;
+          // …one coming onto a hero standing still while a cooldown runs is
+          // spared too — only the hero's own step into one fights…
+          if (onHero && cooldown > 0 && still && !a.enemy.isBoss) {
+            spared.add(a);
+            continue;
+          }
           // …and a touch fights only in the enemy's own element, and no
           // roaming critter under Calm (`startsBattle`, #75 items 9, 14d).
           if (!startsBattle(a.enemy, { mode: aboard ? 'boat' : 'foot', calm })) continue;

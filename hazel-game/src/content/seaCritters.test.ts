@@ -160,6 +160,15 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect([...RETURN_TOWNS].sort()).toEqual(innTowns.map((z) => z.id).sort());
   });
 
+  it("Old Marlow, who gives and mends the boat, stands out of every critter's reach — walking up to him or chatting never meets one (#112w)", () => {
+    const coast = ZONES['starfall-coast'];
+    const marlow = coast.npcs.find((p) => p.defId === 'coast-fisher')!;
+    const reachPx = 32 * WANDER_TUNING.enemy.leashTiles + 28; // its leash + a touch
+    for (const e of coast.enemies) {
+      expect(Math.hypot(e.x - marlow.x, e.y - marlow.y) * 32, e.defId).toBeGreaterThan(reachPx + 32); // and a step to spare
+    }
+  });
+
   it('every map with sea critters has a battle-at-sea backdrop (256×144); land battles keep the zone one', () => {
     for (const id of new Set(seaFoes.map((f) => f.z.id))) {
       const path = battleBackdrop(id, 'sea');

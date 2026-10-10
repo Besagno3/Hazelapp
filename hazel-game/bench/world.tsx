@@ -464,6 +464,7 @@ function Bench() {
           },
           onSleeper: () => {
             live.sleeperHints += 1;
+            return true;
           },
           onCalmTick: (left) => {
             live.calmLeft = left;

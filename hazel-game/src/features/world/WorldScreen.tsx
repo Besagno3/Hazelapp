@@ -135,9 +135,9 @@ export default function WorldScreen() {
   // One timer for whichever toast is up: a new toast replaces the old one's
   // timer, so an earlier toast can't hide a newer one early.
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // A toast that waits for the one up now to have its time (`queueToast`).
+  // Is a toast up? A hint can wait for the next chance rather than knock one
+  // off before it's been read (a first-arrival warning; `onSleeper`).
   const toastUp = useRef(false);
-  const nextToast = useRef<string | null>(null);
   useEffect(
     () => () => {
       if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -296,18 +296,9 @@ export default function WorldScreen() {
     setToast(text);
     toastUp.current = true;
     toastTimer.current = setTimeout(() => {
-      const next = nextToast.current;
-      nextToast.current = null;
-      if (next) return showToast(next);
       setToast(null);
       toastUp.current = false;
     }, toastMs(text));
-  }
-
-  /** A hint that mustn't knock a toast off before it's been read (a first-arrival warning). */
-  function queueToast(text: string) {
-    if (toastUp.current) nextToast.current = text;
-    else showToast(text);
   }
 
   /** A field spell cast from the menu, or Glow from the HUD (#75 item 9). */
@@ -488,7 +479,12 @@ export default function WorldScreen() {
             showToast(
               knowsGlow ? '🌑 Too dark to go on! Tap 🔆 Glow at the top to light the way.' : `🌑 ${z.dark?.hint ?? "It's too dark!"}`,
             ),
-          onSleeper: () => queueToast("💤 Shh, it's asleep! Move away to wake it."),
+          // Said as they walk into a sleeper — or, with a toast up, at their next bump.
+          onSleeper: () => {
+            if (toastUp.current) return false;
+            showToast('💤 Sleepy critters let you pass. Move away to wake them!');
+            return true;
+          },
           onCalmTick: (left) => {
             setCalmLeft(left);
             if (left === 0) showToast('🕊️ The calm wears off — the critters are curious again!');
@@ -533,7 +529,7 @@ export default function WorldScreen() {
           <motion.div
             initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="max-w-md text-center bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl"
+            className="max-w-md text-center text-balance bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl"
           >
             {toast}
           </motion.div>

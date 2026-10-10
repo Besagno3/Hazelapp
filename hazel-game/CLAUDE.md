@@ -280,23 +280,25 @@ zod, react-query. Add the package in the same change that first uses it.
   where a scene starts, and could fight them as they're getting about
   (`idleReach`: a critter's leash + its touch, a boss's touch), rests — asked
   again on landing or climbing aboard, for the new way of getting about. A
-  critter falls asleep: it holds still, drawn faded like under Calm, and its
-  own level plate reads "Zz" instead (white, bigger, never faded — under it,
-  so never read as a neighbour's, and under the hero like any level); like
-  Calm it lets the hero pass — the first one they walk into says "💤 Shh, it's
-  asleep! Move away to wake it." (`onSleeper`, a toast that waits for any
-  other) — until they've left its patch; then it can't touch them unless they
-  steer back (`standDown` / `restOf` / `staysDown`, checked every frame). A
+  critter falls asleep: it holds still, drawn a little faded (`SLEEP_OPACITY`,
+  less than Calm's), and its own level plate reads "Zz" instead (white, 20 px,
+  never faded — under it, and under every character, so it never sits on
+  someone else's head); like Calm it lets the hero pass — the first one they
+  walk into says "💤 Sleepy critters let you pass. Move away to wake them!"
+  (`onSleeper`; with another toast up, at their next bump) — until they've
+  left its patch; then it can't touch them unless they steer back (`standDown` / `restOf` / `staysDown`, checked every frame). A
   boss is drawn as ever — it never lets the hero past: it only holds back
   while they stand still, back away or step aside, and fights the moment they
   head past it (measured along the line from it to where they began). So a
   Flee, a reload, an arrival or a landing never drops the hero straight into
-  a fight. And a bump's cooldown (a menu closed, a chest, the save crystal, a
-  landing, Calm wearing off) spares only the critters touching the hero as
-  it's armed (`graceOf`, afresh each time) and a hero standing still — never
-  one they walk into while it runs (#112t: it used to let the hero walk
-  through anything, bosses too); and none fights in the two frames after one
-  is armed, while its menu or talk takes the world's pause. The Silver Shallows has three (Bubble
+  a fight. And a bump's cooldown (a menu closed, a chest, the save crystal —
+  3 s, as long as "💎 Game saved!" — a landing, Calm wearing off) spares only
+  `spared` critters: those touching the hero as it's armed (`graceOf`) and
+  any that comes onto a hero standing still (not moved this frame) while it
+  runs, each until it steps clear, even past the cooldown — never a boss, and
+  never one the hero walks into (#112t: it used to let the hero walk through
+  anything, bosses too); and none fights in the two frames after one is
+  armed, while its menu or talk takes the world's pause. The Silver Shallows has three (Bubble
   Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
   land or the edge a boat sails in by. A battle at sea is fought over
@@ -535,6 +537,35 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d ninth review: a sleeper's "Zz" never sits on anyone's head; a still hero stays safe past a cooldown; Marlow out of the moth's reach (#75 item 14d)
+Round 9 — fresh `/saas-code-review` (1 medium, 3 low) + `/saas-ux-review` (3
+medium, 1 low). All fixed:
+- **A still hero was only spared until the cooldown ended (code, medium):** a
+  critter that came onto them fought the moment it did — 3 of 52 save-crystal
+  trials at 2.03–2.10 s, with "💎 Game saved!" still up. Now it joins
+  `spared` (with those touching the hero as a cooldown is armed) and is
+  spared until it steps clear, even past the cooldown; "still" means the hero
+  didn't move this frame, not no key held (code, low: a thumb on the d-pad
+  against the crystal counted as moving); the crystal's cooldown lasts its
+  toast (3 s). 0 of 30 trials fought in 4.5 s.
+- **The hint (UX medium; code low):** it named a sleeper the child couldn't see
+  (under the hero or boat) and said "asleep" for 5 s after it woke; queued, it
+  could show late or in the next zone. Now it states the rule — "💤 Sleepy
+  critters let you pass. Move away to wake them!" — true whenever it shows;
+  with another toast up it waits for the next bump instead of a queue; the toast
+  wraps balanced.
+- **A "Zz" on someone else's head (UX, medium ×2):** at the sleeper's feet it
+  sat on whoever stood a tile below — Old Marlow, Doodle, the hero, Ember.
+  It's drawn under every character now (`ZZ_Z` 5.5), and sleepers fade less
+  than under Calm (`SLEEP_OPACITY` 0.7), so the "Zz" has a visible critter to
+  belong to. The Moon Moth moved from right above Old Marlow (5,7) to 9,6
+  (#112w), and a test keeps every Starfall Coast critter out of his reach.
+- **"7z" at 320 px on a 2× screen (UX, low):** the "Zz" is 20 px on a 36×24
+  plate.
+- **Code, low:** a critter that came onto a still hero could later be walked
+  through after a menu toggle — now by design: `spared` until it steps clear.
+- Tests: 798 green (+1), lint + build clean; `bench … sea` 7/7.
 
 ### 2026-10-10 — 14d eighth review: a sleeper's own level reads "Zz"; a still hero is safe through a cooldown; Calm's grace holds (#75 item 14d)
 Round 8 — fresh `/saas-code-review` (1 medium, 3 low) + `/saas-ux-review` (3
