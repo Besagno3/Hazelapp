@@ -55,8 +55,8 @@ type Phase =
   | { kind: 'leave' }
   | { kind: 'question'; mode: 'ward'; wardId: string; index: number }
   | { kind: 'question'; mode: 'boss'; index: number }
-  /** `firstClear`: the hero's reward and the ending are still to come (#109). */
-  | { kind: 'win'; firstClear: boolean }
+  /** `firstClear`: the hero's reward and the ending are still to come (#109); `xp`: what this climb earned. */
+  | { kind: 'win'; firstClear: boolean; xp: number }
   | { kind: 'lose' };
 
 /**
@@ -186,7 +186,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
           kind: 'message',
           // Beaten before (#109): Umbra remembers you, even if no one remembers him.
           text: clearedBefore
-            ? '"You again, little spark? I remember YOU." Umbra rises from the throne once more — he never could stay forgotten…'
+            ? '"You again, little spark? I remember YOU." Umbra rises from his throne once more — some shadows just keep coming back!'
             : '"So. The little spark reaches the top." Umbra rises from the throne, and the candles lean away from him…',
           next: () => setPhase({ kind: 'question', mode: 'boss', index: 0 }),
         });
@@ -234,7 +234,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
             ? {
                 kind: 'message',
                 text: clearedBefore
-                  ? "At the far end of the hall, Umbra is back on his throne of shadow. You've beaten him once — walk up to him if you'd like to again."
+                  ? 'At the far end of the hall, Umbra is back on his throne of shadow. Walk up to him — if you dare!'
                   : 'At the far end of the hall, on a throne of shadow, something waits. Walk up to it — if you dare.',
                 next: () => setPhase({ kind: 'explore' }),
               }
@@ -302,12 +302,13 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     // Read at the moment it's won (the save store, not a render's copy): the
     // 600 XP clear bonus is for the first clear only (#109).
     const firstClear = !useSaveStore.getState().save?.flags[SPIRE_CLEARED];
-    void addXp(spireClearXp(correctCount.current, XP_PER_CORRECT + xpBonusPerCorrect(powerUps), !firstClear));
+    const xp = spireClearXp(correctCount.current, XP_PER_CORRECT + xpBonusPerCorrect(powerUps), !firstClear);
+    void addXp(xp);
     void recordActivity();
     updateSave((s) => ({ ...s, library: pushLibrary(s.library, misses.current) }));
     setFlag(SPIRE_CLEARED);
     void useSaveStore.getState().flush();
-    setPhase({ kind: 'win', firstClear });
+    setPhase({ kind: 'win', firstClear, xp });
   }
 
   function lose() {
@@ -563,6 +564,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
               You climbed every floor and out-remembered the Forgotten One. Lumina is truly bright
               again — and your brilliant answers earned a hero's reward.
             </p>
+            <p className="text-amber-200 font-bold -mt-3 mb-5">⭐ {phase.xp} XP</p>
             <button
               onClick={close}
               className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-2.5"
@@ -576,10 +578,10 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
           <div className="text-center">
             <div className="text-6xl mb-2">🌅</div>
             <h2 className="text-2xl font-extrabold text-amber-300 mb-2">You beat Umbra again!</h2>
-            <p className="text-sm text-white/85 mb-5">
-              Every floor, every seal, and the Forgotten One fades back into the dark. Your right
-              answers earned XP — the hero's reward was yours the first time.
+            <p className="text-sm text-white/85 mb-2">
+              You climbed every floor and beat Umbra again! Your bright answers earned ⭐ {phase.xp} XP.
             </p>
+            <p className="text-xs text-white/70 mb-5">(The big hero's prize comes once — and it's already yours!)</p>
             <button
               onClick={close}
               className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-2.5"

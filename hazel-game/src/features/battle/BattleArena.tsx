@@ -270,6 +270,8 @@ export default function BattleArena() {
   // The question (by card key) the player has picked an answer for — stops
   // the defend countdown.
   const [answeredKey, setAnsweredKey] = useState<string | null>(null);
+  /** The question whose defend timer a Forget-Me-Knot's second try paused (#75 item 14e). */
+  const [pausedKey, setPausedKey] = useState<string | null>(null);
   // Displayed HP while a blow is still in the air (null = show the store's).
   // Cosmetic only: the store already holds the real numbers.
   const [shownHp, setShownHp] = useState<{ p: number; e: number } | null>(null);
@@ -1067,9 +1069,11 @@ export default function BattleArena() {
           <div className="w-full max-w-xl">
             {turn.kind === 'enemy-question' && save.defendTimer ? (
               <DefendTimer
-                key={qKey}
+                // Its own key: it sits beside the QuestionCard keyed by `qKey`.
+                key={`${qKey}:timer`}
                 durationMs={defendTimeMs(age, mercy.levelDrop > 0)}
                 stopped={answeredKey === qKey}
+                paused={pausedKey === qKey}
                 onExpire={() => defendTimedOut(turn.question)}
                 label={charging ? `💢 ${powerMove} — answer to soften it!` : `🛡️ ${enemy.name} attacks — answer to block!`}
               />
@@ -1104,6 +1108,8 @@ export default function BattleArena() {
                 // A second try isn't evidence the questions are too easy (the speed trigger).
                 helped.current = true;
                 applyCombat({ ...combatState(), knotted: false });
+                // A defend question's clock waits for the second pick: take your time.
+                setPausedKey(qKey);
               }}
               onUseHint={() => {
                 helped.current = true;

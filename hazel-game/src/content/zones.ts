@@ -253,6 +253,11 @@ export interface FogDef {
   chestTopic?: Topic;
   /** The line shown as it lifts. */
   lifted: string;
+  /**
+   * Thicker puffs (#75 item 14e), for a bank over land whose middle would
+   * otherwise show through (the road to Remembrance Hill).
+   */
+  dense?: boolean;
 }
 
 /** A map edge. */
@@ -1444,9 +1449,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
         w: 5,
         h: 6,
         liftedBy: [ACT2_SEEN],
-        hint: "This fog is old and stubborn. It won't lift for a crystal. Maybe one day Lumina will remember what's behind it.",
+        hint: 'This fog is old and stubborn. No crystal can lift it. It will roll away later in your adventure!',
         guards: { x: 30, y: 51 },
         lifted: '✨ The old fog past Moonwell Grove rolls away — a road nobody remembered leads to Remembrance Hill!',
+        dense: true,
       },
     ],
     // Off the east coast, past Marlow's dock (69–70, 30), the sea runs on

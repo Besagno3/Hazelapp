@@ -77,8 +77,8 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   canyon: '🕰️',
   garden: '🌻',
   pavilion: '🎪',
-  // Act II (#75 item 14e).
-  hill: '⛰️',
+  // Act II (#75 item 14e): a little house, like its icon on the map.
+  hill: '🏡',
 };
 
 /** Stands in for a place that's still hidden in fog. */

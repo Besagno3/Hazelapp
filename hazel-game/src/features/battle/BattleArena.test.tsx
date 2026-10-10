@@ -109,6 +109,9 @@ describe('the Forget-Me-Knot (#75 item 14e)', () => {
     fireEvent.click(screen.getByText('5'));
     expect(screen.getByText(/second try/)).toBeInTheDocument();
     expect(useBattleStore.getState().knotted).toBe(false);
+    // The defend timer waits for the second pick (review fix).
+    expect(screen.getByText('⏸ Paused')).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveAccessibleName('Timer paused — take your time');
     fireEvent.click(screen.getByText('4'));
     fireEvent.click(screen.getByText('▶ Go!'));
     // Defended (a right answer only grazes; a wrong one would hit for ~25).

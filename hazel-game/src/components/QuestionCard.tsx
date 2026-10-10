@@ -69,10 +69,12 @@ export default function QuestionCard({
   function pick(idx: number) {
     if (selected !== null || idx === retried) return;
     const correct = idx === question.correctIndex;
-    // A Forget-Me-Knot: the first wrong pick doesn't count — cross it out and try again.
-    if (!correct && secondChance && retried === null) {
+    // A Forget-Me-Knot: the first wrong pick doesn't count — cross it out and try
+    // again. Only while that leaves a real choice: after a Hint Feather or a peek
+    // has crossed out the rest, the pick is final and the knot stays tied.
+    if (!correct && secondChance && retried === null && wrongLeft(question, hidden).length > 1) {
       setRetried(idx);
-      sfx('wrong');
+      sfx('select');
       onSecondChance?.();
       return;
     }
@@ -106,13 +108,27 @@ export default function QuestionCard({
       className="bg-white text-gray-800 rounded-2xl p-4 sm:p-5 w-full max-w-lg shadow-2xl"
     >
       <h2 className="font-semibold text-lg mb-4">{question.text}</h2>
+      {/*
+        The Forget-Me-Knot's line sits above the options, where a small phone
+        still shows it. Mounted up front while a knot is tied, so a screen
+        reader reads the line when it appears.
+      */}
+      {(secondChance || retried !== null) && (
+        <p
+          role="status"
+          className={retried !== null && selected === null ? '-mt-2 mb-3 text-sm font-semibold text-violet-800' : 'sr-only'}
+        >
+          {retried !== null && selected === null ? '🎗️ Not that one — your Forget-Me-Knot gives you a second try. Take your time!' : ''}
+        </p>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {question.options.map((opt, idx) => {
           if (idx === retried && selected === null) {
+            // aria-disabled, not disabled: focus stays here (a disabled button drops it to the page).
             return (
               <button
                 key={idx}
-                disabled
+                aria-disabled="true"
                 aria-label={`${opt} — not this one`}
                 className="min-h-[44px] border-2 border-red-200 bg-red-50 rounded-lg px-3 py-2 text-sm text-red-400 line-through text-left"
               >
@@ -143,12 +159,6 @@ export default function QuestionCard({
         })}
       </div>
 
-      {/* Mounted up front while a knot is tied, so a screen reader reads the line when it appears. */}
-      {(secondChance || retried !== null) && (
-        <p role="status" className={retried !== null && selected === null ? 'mt-3 text-sm font-semibold text-violet-800' : 'sr-only'}>
-          {retried !== null && selected === null ? '🎗️ Not that one — your Forget-Me-Knot gives you a second try!' : ''}
-        </p>
-      )}
 
       {selected === null && hints > 0 && onUseHint && !hintUsed && canHideMore(question, out) && (
         <button

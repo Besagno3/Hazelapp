@@ -736,12 +736,12 @@ describe('Remembrance Hill (#75 item 14e)', () => {
     expect(placeKnown(icon, { [ACT2_SEEN]: true })).toBe(true);
   });
 
-  it('Keeper Mnem reads one plaque per crystal remembered, then the blank ones', () => {
+  it('Keeper Mnem reads the plaques of every crystal remembered in one line, then the blank ones', () => {
     const mnem = NPC_DEFS['hill-keeper'];
     const first = mnem.lines[0];
     expect(typeof first !== 'string' && first.setFlag).toBe('met-mnem');
-    const plaques = mnem.lines.filter((l) => typeof l !== 'string' && l.ifFlag && /^Plaque/.test(l.text));
-    expect(plaques.map((l) => (typeof l === 'string' ? '' : l.ifFlag))).toEqual(actCrystals(1).map((t) => crystalFlag(t.id)));
+    expect(mnem.lines).toContain('Four plaques shine again: Numbers, Nature, Gears and Wonder!');
     expect(mnem.lines.at(-1)).toMatch(/blank/);
+    expect(mnem.lines.length).toBeLessThanOrEqual(4);
   });
 });

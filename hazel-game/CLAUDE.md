@@ -505,6 +505,31 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — 14e review fixes: the knot waits for you, praise on a re-clear, a hazy bay (#75 item 14e)
+A fresh `/saas-code-review` (2 low) and `/saas-ux-review` (3 medium, 10 low;
+played at 375×667 and 320×568). Fixed, as chosen:
+- **The Forget-Me-Knot (UX, medium):** a second try on a defend question
+  **pauses its timer** until the second pick (`DefendTimer` `paused`, decided);
+  the cross-out keeps keyboard focus (`aria-disabled`), its line sits above the
+  options (it fell below the fold on a small phone) and says "Take your time!",
+  with a soft sound; after a Hint Feather leaves one wrong option a wrong pick
+  is final and the knot stays tied (code, low — it left only the right
+  answer); "Already tied on"; `DefendTimer` has its own key (a duplicate-key
+  warning since #95).
+- **The Spire's re-clear (UX, medium):** "You climbed every floor and beat
+  Umbra again! Your bright answers earned ⭐ N XP. (The big hero's prize comes
+  once — and it's already yours!)"; both win panels show the XP; simpler
+  throne-room lines.
+- **The Hill (UX, low):** the bay's bank is `dense` (a second, staggered grid
+  of puffs — no more hollow middle; other banks unchanged); its hint promises
+  "It will roll away later in your adventure!"; 🏡 on the menu map; Mnem reads
+  the plaques in one line; the legend's crystal line only when a bank has one;
+  the 🚩's why says where the road leads; the spoken map no longer names a 🚩
+  it doesn't draw (code, low).
+- Logged (#113i): the reveal toast over the map on phones, an older tab
+  dropping a bought knot, two pre-existing nits. Tests: +4, several pinned
+  to the new copy. 822 green, lint clean.
+
 ### 2026-10-10 — 14e checked: the reveal, the journey, the HUD (#75 item 14e, docs only)
 Roadmap row 14e ✅ and decisions 11 and 12 recorded as taken; #75 and #56
 noted. Verified on the final code: 818 tests, lint, typecheck and build

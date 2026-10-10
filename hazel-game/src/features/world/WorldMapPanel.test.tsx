@@ -75,6 +75,22 @@ describe('Remembrance Hill on the menu map (#75 item 14e)', () => {
     render(<WorldMapPanel zoneId="lumina-village" pos={null} flags={allCrystals} />);
     expect(screen.queryByText(/Remembrance Hill/)).toBeNull();
     expect(screen.getByText('Fog with nothing on it lifts later in your adventure')).toBeInTheDocument();
+    // With every crystal restored, no bank shows a crystal: no "restore the crystal" line (review fix).
+    expect(screen.queryByText(/restore the crystal shown on it/)).toBeNull();
+  });
+
+  it('out on the Shallows, the spoken map never names a 🚩 it does not draw (review fix)', () => {
+    const { container } = render(
+      <WorldMapPanel
+        zoneId="silver-shallows"
+        pos={px(30, 20)}
+        flags={{ ...allCrystals, [SPIRE_CLEARED]: true, [ACT2_SEEN]: true, [BOAT_MENDED]: true, 'visited:silver-shallows': true }}
+        aboard
+      />,
+    );
+    const label = container.querySelector('canvas')!.getAttribute('aria-label')!;
+    expect(label).toContain('Visit Remembrance Hill');
+    expect(label).not.toContain('flagged at');
   });
 
   it('once Lumina starts remembering, it is listed with its own icon', () => {

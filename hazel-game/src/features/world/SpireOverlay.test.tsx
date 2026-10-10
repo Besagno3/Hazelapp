@@ -158,6 +158,8 @@ describe('beating Umbra pays the 600 XP clear bonus once (#109)', () => {
     expect(addXp).toHaveBeenCalledTimes(1);
     const paid = (addXp.mock.calls[0] as unknown as [number])[0];
     expect(paid).toBeGreaterThanOrEqual(SPIRE_CLEAR_XP + QUESTIONS);
+    // The panel says what the climb earned.
+    expect(screen.getByText(`⭐ ${paid} XP`)).toBeInTheDocument();
     expect(useSaveStore.getState().save!.flags[SPIRE_CLEARED]).toBe(true);
   }, 20000);
 
@@ -165,10 +167,12 @@ describe('beating Umbra pays the 600 XP clear bonus once (#109)', () => {
     useSaveStore.setState({ userId: null, status: 'ready', save: save(true), flush: vi.fn(async () => {}) });
     render(<SpireOverlay hudSlot={null} />);
     await climb();
-    expect(screen.getByText(/the hero's reward was yours the first time/)).toBeInTheDocument();
+    const paid = (addXp.mock.calls[0] as unknown as [number])[0];
+    // Praise first, and the XP it earned; the big prize is "already yours" (review fix).
+    expect(screen.getByText(`You climbed every floor and beat Umbra again! Your bright answers earned ⭐ ${paid} XP.`)).toBeInTheDocument();
+    expect(screen.getByText(/The big hero's prize comes once — and it's already yours!/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '🚪 Back to the Spire door' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '🌟 See how it ends' })).toBeNull();
-    const paid = (addXp.mock.calls[0] as unknown as [number])[0];
     expect(paid).toBeLessThan(SPIRE_CLEAR_XP);
     expect(paid).toBeGreaterThan(0);
   }, 20000);

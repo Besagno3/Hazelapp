@@ -428,7 +428,7 @@ describe('the Forget-Me-Knot (#75 item 14e)', () => {
   it('ties on once, and only while it is not already tied', () => {
     expect(resolveItem(base, 'knot').state.knotted).toBe(true);
     expect(itemBlocked(base, 'knot', 1)).toBeNull();
-    expect(itemBlocked({ ...base, knotted: true }, 'knot', 1)).toBe('Already tied');
+    expect(itemBlocked({ ...base, knotted: true }, 'knot', 1)).toBe('Already tied on');
     expect(itemBlocked(base, 'knot', 0)).toBe('None left');
   });
 });

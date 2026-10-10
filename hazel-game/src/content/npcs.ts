@@ -4,7 +4,17 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { actCrystals, crystalFlag } from './topics';
+import { actCrystals } from './topics';
+
+/** 4 → "Four" (up to ten — the Hall's plaques). */
+function numberWord(n: number): string {
+  return ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][n] ?? String(n);
+}
+
+/** "a, b and c". */
+function listOf(items: string[]): string {
+  return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+}
 
 /**
  * Friendly (non-combat) NPCs and their dialogue (#37).
@@ -1208,11 +1218,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       { text: "Welcome to the Hall of Names. I'm Keeper Mnem. I never forget a name. Names, ALWAYS.", setFlag: 'met-mnem' },
       'Faces, though… Have we met? You have a very brave sort of face.',
-      // One plaque per crystal remembered (STORY-4X: the Hall of Names).
-      ...actCrystals(1).map((t, i) => ({
-        text: `Plaque ${['one', 'two', 'three', 'four'][i]}: the ${t.crystalName}. Shining again!`,
-        ifFlag: crystalFlag(t.id),
-      })),
+      // One plaque per crystal remembered (STORY-4X: the Hall of Names) — read
+      // in one breath. The Hill only opens once all of Act I's are restored.
+      `${numberWord(actCrystals(1).length)} plaques shine again: ${listOf(actCrystals(1).map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
       'And these plaques are blank. Names nobody remembers… yet.',
     ],
     ambient: ['Names, always…', '🗿'],

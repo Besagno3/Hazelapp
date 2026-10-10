@@ -118,7 +118,7 @@ export default function WorldMapPanel({
           width={cols * PX}
           height={rows * PX}
           role="img"
-          aria-label={`Map of ${mid(world.name)}. ${caption}. ${goal.zoneId ? `${nextLabel}, flagged at ${flagName}.` : nextLabel}${boatLine ? ` ${boatLine.replace(/^⛵ (= )?/, boatElsewhere ? '' : 'The boat: ').replace(/([^.])$/, '$1.')}` : ''}${seaWayText ? ` ${seaWayText}` : ''}`}
+          aria-label={`Map of ${mid(world.name)}. ${caption}. ${goal.zoneId && flagAt ? `${nextLabel}, flagged at ${flagName}.` : nextLabel}${boatLine ? ` ${boatLine.replace(/^⛵ (= )?/, boatElsewhere ? '' : 'The boat: ').replace(/([^.])$/, '$1.')}` : ''}${seaWayText ? ` ${seaWayText}` : ''}`}
           className="block w-full rounded-md"
           style={{ imageRendering: 'pixelated' }}
         />
@@ -240,9 +240,12 @@ export default function WorldMapPanel({
       {fogged && (
         <p className="text-[11px] text-white/60 mt-1">
           <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1" style={{ background: FOG_COLOR }} />
-          Fog — restore the crystal shown on it to clear it
+          {/* Only when a bank shows a crystal; the Hill's bank (#75 item 14e) has its own line. */}
+          {foggedBanks.some((f) => fogMarker(f)) && 'Fog — restore the crystal shown on it to clear it'}
           {foggedBanks.some((f) => fogMarker(f) === ANY_CRYSTAL_EMOJI) && <span> ({ANY_CRYSTAL_EMOJI} = any crystal)</span>}
-          {foggedBanks.some((f) => !fogMarker(f)) && <span className="block">Fog with nothing on it lifts later in your adventure</span>}
+          {foggedBanks.some((f) => !fogMarker(f)) && (
+            <span className={foggedBanks.some((f) => fogMarker(f)) ? 'block' : ''}>Fog with nothing on it lifts later in your adventure</span>
+          )}
           {anyHidden && <span className="block">{HIDDEN_PLACE_EMOJI} = a place still hidden in the fog</span>}
         </p>
       )}

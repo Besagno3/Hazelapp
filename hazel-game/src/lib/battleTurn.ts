@@ -314,7 +314,7 @@ export function itemBlocked(s: CombatState, id: ConsumableId, count: number): st
   if (id === 'mirror' && s.mirrored) return 'Mirror is up';
   if (id === 'tea' && s.focused) return 'Already focused';
   if (id === 'clover' && s.lucky) return 'Already lucky';
-  if (id === 'knot' && s.knotted) return 'Already tied';
+  if (id === 'knot' && s.knotted) return 'Already tied on';
   return null;
 }
 

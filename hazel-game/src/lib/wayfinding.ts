@@ -149,7 +149,7 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'visit',
       title: 'Visit Remembrance Hill',
-      why: 'Lumina is remembering! Where the old fog sat past Moonwell Grove, a road nobody remembered has appeared. Where does it lead?',
+      why: 'Lumina is remembering! Where the old fog sat past Moonwell Grove, a road nobody remembered has appeared. It leads to a town called Remembrance Hill.',
       zoneId: 'remembrance-hill',
     };
   }
