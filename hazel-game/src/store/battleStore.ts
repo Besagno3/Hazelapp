@@ -42,12 +42,15 @@ interface BattleStore {
    * battle against a critter with "!" marks says what they mean, once per tier.
    */
   toughMet: number[];
+  /** The "💤 Sleepy critters let you pass…" hint has been said this session (#112e). */
+  sleeperHintSaid: boolean;
 
   start: (enemy: BattleEnemy, playerHp: number, playerMaxHp: number) => void;
   applyCombat: (s: CombatState) => void;
   markDefeated: (instanceId: string) => void;
   recordLoss: (key: string) => void;
   meetTough: (tier: number) => void;
+  saySleeperHint: () => void;
   endBattle: () => void;
   reset: () => void;
 }
@@ -71,6 +74,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
   defeatedIds: [],
   losses: {},
   toughMet: [],
+  sleeperHintSaid: false,
 
   start: (enemy, playerHp, playerMaxHp) =>
     set({
@@ -102,10 +106,22 @@ export const useBattleStore = create<BattleStore>((set) => ({
 
   meetTough: (tier) => set((s) => (s.toughMet.includes(tier) ? s : { toughMet: [...s.toughMet, tier] })),
 
+  saySleeperHint: () => set({ sleeperHintSaid: true }),
+
   endBattle: () => set({ enemy: null }),
 
   reset: () =>
-    set({ enemy: null, playerHp: 0, playerMaxHp: 0, enemyHp: 0, ...FRESH_COMBAT, defeatedIds: [], losses: {}, toughMet: [] }),
+    set({
+      enemy: null,
+      playerHp: 0,
+      playerMaxHp: 0,
+      enemyHp: 0,
+      ...FRESH_COMBAT,
+      defeatedIds: [],
+      losses: {},
+      toughMet: [],
+      sleeperHintSaid: false,
+    }),
 }));
 
 /** The live combat numbers, read synchronously (never from a stale render). */

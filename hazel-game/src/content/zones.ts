@@ -1150,8 +1150,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'cog-sprite', x: 6, y: 5 },
-      // Two tiles clear of Echo (14,5), so a sleeping one's "z Z" rise clear of them (sleepMark.test).
-      { defId: 'hourglass-imp', x: 12, y: 6 },
+      // Clear of Echo (14,5), so a sleeping one's "z Z" rise clear of them, and out of reach of
+      // the vault gate and the Tinkery's doorstep (sleepMark.test, seaCritters.test).
+      { defId: 'hourglass-imp', x: 14, y: 2 },
       { defId: 'relic-golem', x: 8, y: 2 },
       { defId: 'tut-tut', x: 3, y: 7 },
     ],

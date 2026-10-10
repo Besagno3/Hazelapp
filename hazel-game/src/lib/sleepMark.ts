@@ -76,20 +76,37 @@ export function pathBox(at: Point, path: ZzPath): Box {
 }
 
 /**
- * The first way up (`ZZ_PATHS`) whose letters stay `gap` px clear of every box
- * in `others` — everyone else's face and level or name — else the one
- * crossing fewest (a boss's counted ten times over).
+ * The way up (`ZZ_PATHS`) whose letters read most surely as this sleeper's:
+ * covering a boss is worst, then covering anyone else (`others`, within
+ * `gap` px), then a letter nearer someone else's face (`faces` — the hero's,
+ * Ember's, a neighbour's) than its own sleeper's. Ties go to the ways leading
+ * away from `away` (the hero) first, then `ZZ_PATHS`' order.
  */
-export function zzPath(at: Point, others: readonly (Box & { boss?: boolean })[], gap = 4): ZzPath {
+export function zzPath(
+  at: Point,
+  others: readonly (Box & { boss?: boolean })[],
+  opts: { gap?: number; faces?: readonly Point[]; away?: Point } = {},
+): ZzPath {
+  const gap = opts.gap ?? 4;
+  const faces = opts.faces ?? [];
+  const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
   const cost = (path: ZzPath) => {
     const b = pathBox(at, path);
     const wide = { ...b, w: b.w + 2 * gap, h: b.h + 2 * gap };
-    return others.reduce((n, o) => n + (overlaps(wide, o) ? (o.boss ? 10 : 1) : 0), 0);
+    const covering = others.reduce((n, o) => n + (overlaps(wide, o) ? (o.boss ? 100 : 10) : 0), 0);
+    const strays = path.glyphs
+      .flatMap((g) => [glyphBox(at, g, path.drift, 0), glyphBox(at, g, path.drift, 1)])
+      .filter((c) => faces.some((f) => dist(c, f) < dist(c, at))).length;
+    return covering + strays;
   };
-  let best = ZZ_PATHS[0];
-  for (const path of ZZ_PATHS) {
-    if (cost(path) === 0) return path;
-    if (cost(path) < cost(best)) best = path;
-  }
+  const away = opts.away;
+  const heading = (path: ZzPath) => {
+    if (!away) return 0;
+    const b = pathBox(at, path);
+    return (b.x - at.x) * (away.x - at.x) + (b.y - at.y) * (away.y - at.y);
+  };
+  const order = [...ZZ_PATHS].sort((a, b) => heading(a) - heading(b));
+  let best = order[0];
+  for (const path of order) if (cost(path) < cost(best)) best = path;
   return best;
 }

@@ -175,6 +175,29 @@ describe('a battle at sea (#75 item 14d)', () => {
     }
   });
 
+  it('critters moved so a sleeping one\'s "z Z" are its own stay out of reach of the way on, doors and people (#112e)', () => {
+    const reachPx = 32 * WANDER_TUNING.enemy.leashTiles + 28;
+    const clear = (zoneId: keyof typeof ZONES, defId: string, cells: { x: number; y: number }[]) => {
+      const e = ZONES[zoneId].enemies.find((p) => p.defId === defId)!;
+      for (const c of cells) expect(Math.hypot(e.x - c.x, e.y - c.y) * 32, `${defId} vs ${c.x},${c.y}`).toBeGreaterThan(reachPx);
+    };
+    // The Depths' only way down (the vault gate and the cells before it), the Tinkery's doorstep, Echo.
+    clear('clockwork-depths', 'hourglass-imp', [
+      { x: 10, y: 8 },
+      { x: 11, y: 8 },
+      { x: 10, y: 7 },
+      { x: 11, y: 7 },
+      { x: 17, y: 6 },
+      { x: 14, y: 5 },
+    ]);
+    // Moonwell Grove's gate south and the chest behind it.
+    clear('moonwell-grove', 'grumblebee', [
+      { x: 10, y: 10 },
+      { x: 11, y: 10 },
+      { x: 10, y: 11 },
+    ]);
+  });
+
   it('every map with sea critters has a battle-at-sea backdrop (256×144); land battles keep the zone one', () => {
     for (const id of new Set(seaFoes.map((f) => f.z.id))) {
       const path = battleBackdrop(id, 'sea');

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  nextWanderDir,
   npcWanders,
   pickWanderDir,
   withinLeash,
@@ -145,5 +146,21 @@ describe('pickAmbientLine', () => {
     expect(pickAmbientLine(lines, () => 0)).toBe('a');
     expect(pickAmbientLine(lines, () => 0.5)).toBe('b');
     expect(pickAmbientLine(lines, () => 0.99)).toBe('c');
+  });
+});
+
+describe('nextWanderDir (#112bb)', () => {
+  const home = { homeX: 100, homeY: 100, leash: 64 };
+  const rng = () => 0.9; // pickWanderDir: a step, not a pause
+  it('wanders freely inside 85% of its leash', () => {
+    expect(nextWanderDir({ ...home, x: 110, y: 100, bumped: false }, rng)).toEqual(pickWanderDir(rng));
+  });
+  it('near the edge, steers straight home', () => {
+    const d = nextWanderDir({ ...home, x: 160, y: 100, bumped: false }, rng);
+    expect(d.x).toBeCloseTo(-1);
+    expect(d.y).toBeCloseTo(0);
+  });
+  it('near the edge but just blocked, wanders instead — never the same blocked step home forever', () => {
+    expect(nextWanderDir({ ...home, x: 160, y: 100, bumped: true }, rng)).toEqual(pickWanderDir(rng));
   });
 });

@@ -284,16 +284,19 @@ zod, react-query. Add the package in the same change that first uses it.
   critter falls asleep: it holds still, drawn a little faded (`SLEEP_OPACITY`,
   less than Calm's), its level hidden, with a little "z" and "Z" rising from
   its head and fading on a loop (held still under reduced motion), drawn
-  over the hero and the boat — by the first way up (up-right, up-left,
-  straight up, out to a side) clear of everyone else's face and label and of
-  the hero as it falls asleep (`lib/sleepMark.ts` `zzPath`, tested on every
-  map; a boss crossed last of all), fading right down while they cross anyone
-  after all and hidden with the hero standing on it; the hero faces the
-  nearest sleeper as a scene starts, so Ember trails on its far side. Like
-  Calm it lets the hero pass — heading up to one says, once a session, "💤
-  Sleepy critters let you pass. They wake up when you move away."
-  (`onSleeper`; with another toast up, the next time) — until they've left
-  its patch; then it
+  over the hero and the boat — by the way up (up-right, up-left, straight up,
+  out to a side) that reads most surely as its own as it falls asleep
+  (`lib/sleepMark.ts` `zzPath`: covering a boss worst, then anyone, with room
+  round the hero and Ember; then a letter nearer someone else's face; ways
+  away from the hero first — tested on every map, with the hero anywhere
+  within reach), fading right down while they cross anyone or come nearer the
+  hero's face than their sleeper's, and hidden with the hero standing on it;
+  as a scene starts Ember sits on a sleeper's far side (or a side, never in
+  the sea, rock or under a roof — `emberStart`). Like Calm it lets the hero
+  pass — heading up to one says, once a session (`battleStore`, so sign-out
+  resets it), "💤 Sleepy critters let you pass. They wake up when you move
+  away." (`onSleeper`; with another toast up, the next time) — until they've
+  left its patch; then it
   can't touch them unless they steer back (`standDown` / `restOf` /
   `staysDown`, checked every frame). A boss is drawn as ever — it never lets
   the hero past: it only holds back while they stand still, back away or step
@@ -548,6 +551,32 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d twelfth review: "z Z" read as their sleeper's own; Ember starts on solid ground; the Imp off the vault gate (#75 item 14d)
+Round 12 — fresh `/saas-code-review` (1 medium, 3 low) + `/saas-ux-review` (1
+medium, 1 low-medium, 1 low, 2 notes). All fixed:
+- **"z Z" read as the hero's (UX, medium):** the path picker only kept 4 px off
+  the hero, so letters rose into the gap by their face (2–3% of start spots).
+  `zzPath` now scores what reads as whose: covering a boss worst, then anyone
+  (room round the hero, and Ember's start spot), then a letter nearer someone
+  else's face than its own sleeper's; ways away from the hero first. At run
+  time a letter nearer the hero's face than its sleeper's fades right down. A
+  test sweeps the hero over every cell within reach of every sleeper: never a
+  boss, never the hero where a way clear of both was there.
+- **Ember (code low; UX low):** she was made at the old spot and only walked
+  to the far side once the world ran — over the sleeper through any opening
+  pause — and could settle in the sea or under a roof; right on top of a
+  sleeper she vanished into the boat. `emberStart` puts her on the far side
+  from the first frame, else a side, on walkable ground outdoors (sea when
+  sailing), else as before. The hero doesn't turn — the docs said it did.
+- **The hint's "once a session" outlived a sign-out (code, medium):** a module
+  flag; now `battleStore.sleeperHintSaid`, cleared by `reset()` (tested).
+- **The moved Hourglass Imp guarded the Depths' vault gate (code low; UX
+  low-medium):** 12,6 put the only way down in its reach. It's at 14,2 now,
+  clear of the gate, the Tinkery's doorstep and Echo (tested).
+- **The wander unfreeze was untested (code, low):** `nextWanderDir`
+  (`lib/wander.ts`), table-tested.
+- Tests: 812 green (+6), lint + build clean; `bench … sea` 7/7.
 
 ### 2026-10-10 — 14d eleventh review: "z Z" take a way up clear of everyone; wanderers never freeze; Ember trails clear of a sleeper (#75 item 14d)
 Round 11 — fresh `/saas-code-review` (1 medium, 2 low) + `/saas-ux-review` (1

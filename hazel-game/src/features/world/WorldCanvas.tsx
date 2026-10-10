@@ -84,9 +84,8 @@ import {
 } from '../../lib/terrain';
 import {
   npcWanders,
-  pickWanderDir,
+  nextWanderDir,
   clampToLeash,
-  withinLeash,
   pickAmbientLine,
   approachBlocked,
   WANDER_TUNING,
@@ -889,13 +888,8 @@ export default function WorldCanvas({
         const dt = k.dt();
         timer -= dt;
         if (timer <= 0) {
-          // Steer back when near the leash edge; otherwise wander freely.
-          if (!bumped && !withinLeash(o.actor.x, o.actor.y, o.homeX, o.homeY, o.leash * 0.85)) {
-            const len = Math.hypot(o.homeX - o.actor.x, o.homeY - o.actor.y) || 1;
-            dir = { x: (o.homeX - o.actor.x) / len, y: (o.homeY - o.actor.y) / len };
-          } else {
-            dir = pickWanderDir(Math.random);
-          }
+          // Steer back when near the leash edge; otherwise — or just blocked — wander freely.
+          dir = nextWanderDir({ x: o.actor.x, y: o.actor.y, homeX: o.homeX, homeY: o.homeY, leash: o.leash, bumped }, Math.random);
           bumped = false;
           timer = dir.x || dir.y ? 0.6 + Math.random() : 0.7 + Math.random() * 1.6;
           facing = facingFor(dir.x, dir.y, facing);
@@ -1266,6 +1260,8 @@ export default function WorldCanvas({
       }
     }
 
+    // Everyone's face but `who`'s, as points (#112e).
+    const lookFaces = (who: Actor) => [...looks.keys()].filter((a) => a !== who).map((a) => ({ x: a.x, y: a.y }));
     // Where everyone's face and label are now, and whose (#112e).
     const lookBoxes = (): (Box & { who: Actor; boss?: boolean })[] =>
       [...looks].flatMap(([a, l]) => [
@@ -1348,17 +1344,50 @@ export default function WorldCanvas({
     const leash = TILE * WANDER_TUNING.enemy.leashTiles;
     const resting = new Map<Actor, Rest>();
     let restings = 0; // bumped on every change, so `fadeCritters` redraws
+    // Back beside a sleeper (a Flee, a reload), Ember starts — and trails — on
+    // its far side, rather than over it (#112e): or, if that's sea, rock or
+    // under a roof, on a side instead; else (or right on top of it) as ever.
+    const emberStart = (hero: { x: number; y: number }): { dir: { x: number; y: number } | null; at: { x: number; y: number } } => {
+      const fallback = { dir: null, at: { x: hero.x - 24, y: hero.y + 8 } };
+      const near = sleepers
+        .filter((s) => resting.has(s.actor))
+        .sort((a, b) => Math.hypot(a.actor.x - hero.x, a.actor.y - hero.y) - Math.hypot(b.actor.x - hero.x, b.actor.y - hero.y))[0];
+      const gap = near ? Math.hypot(near.actor.x - hero.x, near.actor.y - hero.y) : 0;
+      if (!near || gap < 4) return fallback;
+      const d = { x: (near.actor.x - hero.x) / gap, y: (near.actor.y - hero.y) / gap };
+      const indoors = buildingInside(z, Math.floor(hero.x / TILE), Math.floor(hero.y / TILE));
+      const ground = (x: number, y: number) => {
+        const cx = Math.floor(x / TILE);
+        const cy = Math.floor(y / TILE);
+        const ch = tileAt(z, cx, cy);
+        const roof = buildingAt(z, cx, cy);
+        return (aboard ? SEA_CHARS.has(ch) : WALKABLE_CHARS.has(ch)) && !fogAt(z, cx, cy, flagsRef.current) && (!roof || roof.id === indoors?.id);
+      };
+      for (const dir of [d, { x: -d.y, y: d.x }, { x: d.y, y: -d.x }]) {
+        const at = { x: hero.x - dir.x * 26, y: hero.y - dir.y * 26 + 8 };
+        if (ground(at.x, at.y)) return { dir, at };
+      }
+      return fallback;
+    };
     const restAround = (hero: { x: number; y: number }, mode: TravelMode) => {
       resting.clear();
       const foes = actors.flatMap((a) => (a.enemy && a.home && meetsHero(a.enemy.habitat, mode) ? [{ a, ...a.home }] : []));
       for (const f of standDown(foes, (f) => idleReach(f.a.enemy!, leash), hero)) {
         resting.set(f.a, restOf(f.a.enemy!, f.a.home!, hero, leash));
       }
-      // Each sleeper's "z Z" take the way up clear of everyone else, the hero
-      // included, as they stand now (`zzPath`, #112e).
-      const crowd = [...lookBoxes(), { x: hero.x, y: hero.y, ...HERO_BOX }];
+      // Each sleeper's "z Z" take the way up that reads most surely as its own
+      // (`zzPath`, #112e): clear of everyone else, with room round the hero and
+      // where Ember will stand, and nearer its own face than theirs.
+      const em = emberStart(hero).at;
+      const crowd = [
+        ...lookBoxes(),
+        { x: hero.x, y: hero.y, w: HERO_BOX.w + 24, h: HERO_BOX.h + 24 },
+        { x: em.x, y: em.y, ...HERO_BOX },
+      ];
       for (const s of sleepers) {
-        if (resting.has(s.actor)) s.path = zzPath(s.actor, crowd.filter((o) => !('who' in o) || o.who !== s.actor));
+        if (!resting.has(s.actor)) continue;
+        const others = crowd.filter((o) => !('who' in o) || o.who !== s.actor);
+        s.path = zzPath(s.actor, others, { faces: [...lookFaces(s.actor), hero, em], away: hero });
       }
       restings += 1;
     };
@@ -1394,7 +1423,11 @@ export default function WorldCanvas({
           const { white, shadow } = s.glyphs[i];
           const p = reducedMotion ? 0.5 : (zzClock / ZZ_LOOP_S + i / 2) % 1;
           const box = glyphBox(s.actor, g, s.path.drift, p);
-          const crossing = others!.some((o) => o.who !== s.actor && overlaps(box, o));
+          // Crossing someone, or nearer the hero's face than its own sleeper's,
+          // it could read as theirs: faded right down.
+          const crossing =
+            others!.some((o) => o.who !== s.actor && overlaps(box, o)) ||
+            Math.hypot(box.x - player.pos.x, box.y - player.pos.y) < Math.hypot(box.x - s.actor.x, box.y - s.actor.y);
           white.pos = k.vec2(box.x, box.y);
           shadow.pos = k.vec2(box.x + 1, box.y + 1);
           white.opacity = under ? 0 : (reducedMotion ? 1 : Math.sin(Math.PI * p)) * (crossing ? ZZ_CROSSING : 1);
@@ -1407,28 +1440,21 @@ export default function WorldCanvas({
     fadeCritters((calmRef?.current ?? 0) > 0);
     riseSleepMarks(ZZ_LOOP_S / 4, () => [heroBox(), ...lookBoxes()]);
 
-    // Ember trails the hero (no collision — dragons walk where they please).
+    // Ember trails the hero (no collision — dragons walk where they please),
+    // starting clear of a sleeper (`emberStart`).
+    const emberAt = emberStart(spawn);
     const ember = worldFace(k, {
       spriteId: EMBER_SPRITE_IDS[emberStage],
       emoji: EMBER_SPRITES[emberStage],
-      x: spawn.x - 24,
-      y: spawn.y + 8,
+      x: emberAt.at.x,
+      y: emberAt.at.y,
       size: EMBER_MAP_SIZE[emberStage],
       z: 9,
     }).obj as unknown as WorldActor;
     const emberView = resolveSprite(EMBER_SPRITE_IDS[emberStage], EMBER_SPRITES[emberStage]).def?.world ?? null;
     const emberSprite = ember as unknown as { play: (n: string) => void; flipX: boolean };
     let emberAnim = '';
-    let lastDir = { x: 0, y: 1 };
-    // Back beside a sleeper (a Flee, a reload), face it, so Ember trails on its
-    // far side rather than over it (#112e).
-    const nearestSleeper = sleepers
-      .filter((s) => resting.has(s.actor))
-      .sort((a, b) => Math.hypot(a.actor.x - spawn.x, a.actor.y - spawn.y) - Math.hypot(b.actor.x - spawn.x, b.actor.y - spawn.y))[0];
-    if (nearestSleeper) {
-      const len = Math.hypot(nearestSleeper.actor.x - spawn.x, nearestSleeper.actor.y - spawn.y) || 1;
-      lastDir = { x: (nearestSleeper.actor.x - spawn.x) / len, y: (nearestSleeper.actor.y - spawn.y) / len };
-    }
+    let lastDir = emberAt.dir ?? { x: 0, y: 1 };
 
     // --- Marlow's boat (#75 item 14) ---------------------------------------
     // One sprite: moored at its spot when that's on this map, under the hero
