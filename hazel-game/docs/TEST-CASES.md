@@ -951,6 +951,13 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-793 | C | ✅ | QuizRound | an opening round (world still locked) pays no XP for right answers, and still counts toward the unlock (QuizRound.test) |
 | TC-794 | C | ✅ | QuizRound | the round that opens the world pays no XP either (QuizRound.test) |
 | TC-795 | C | ✅ | QuizRound | a practice round after the world is open still pays XP (QuizRound.test) |
+| TC-796 | C | ✅ | PasswordInput | starts hidden; the eye shows what was typed, the 🙈 hides it again (PasswordInput.test) |
+| TC-797 | C | ✅ | PasswordInput | the eye never sends the form (PasswordInput.test) |
+| TC-798 | C | ✅ | PasswordInput | sending the form hides a shown password first (PasswordInput.test) |
+| TC-799 | C | ✅ | PasswordInput | autocapitalize / autocorrect / spellcheck are off and `autoComplete` passes through (PasswordInput.test) |
+| TC-800 | C | ✅ | AuthPage | the password field has an eye; switching sign in → sign up hides a shown password again (PasswordReset.test) |
+| TC-801 | C | ✅ | ResetPasswordPage | both new-password fields have their own eye, each showing only its own field (PasswordReset.test) |
+| TC-802 | M | ⬜ | PasswordInput | on a real phone (iOS Safari, Android Chrome): tapping the eye keeps the keyboard up and the caret in place; a shown password isn't auto-capitalised; on Edge only one eye shows |
 
 ## Regression cases (tied to ISSUES.md)
 

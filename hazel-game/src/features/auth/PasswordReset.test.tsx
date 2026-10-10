@@ -55,6 +55,27 @@ describe('AuthPage — forgot password', () => {
   });
 });
 
+describe('show password (#117)', () => {
+  it('sign in and sign up each have an eye; switching between them hides the password again', () => {
+    render(<AuthPage />);
+    const field = () => screen.getByPlaceholderText('Password') as HTMLInputElement;
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
+    expect(field().type).toBe('text');
+    fireEvent.click(screen.getByText("Don't have an account? Sign up"));
+    expect(field().type).toBe('password');
+    expect(screen.getByRole('button', { name: 'Show password' })).toBeInTheDocument();
+  });
+
+  it('both new-password fields have their own eye', () => {
+    render(<ResetPasswordPage />);
+    const eyes = screen.getAllByRole('button', { name: 'Show password' });
+    expect(eyes).toHaveLength(2);
+    fireEvent.click(eyes[1]);
+    expect((screen.getByPlaceholderText('New password') as HTMLInputElement).type).toBe('password');
+    expect((screen.getByPlaceholderText('Type it again') as HTMLInputElement).type).toBe('text');
+  });
+});
+
 describe('ResetPasswordPage', () => {
   function fill(a: string, b: string) {
     fireEvent.change(screen.getByPlaceholderText('New password'), { target: { value: a } });

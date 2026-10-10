@@ -525,6 +525,8 @@ python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble
   as if it were.
 - Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
   for conditional class merging.
+- Password fields use `PasswordInput` (`src/components/`, the 👁️ show /
+  🙈 hide button, #117) — not a bare `<input type="password">`.
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
   `ROUNDS_TO_UNLOCK`); battle math in `src/lib/battleMath.ts`; economy in
   `src/content/items.ts`.
@@ -583,6 +585,24 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Show password: an eye on every password field (#117)
+Kids mistype passwords and couldn't see why sign-in failed. New
+`components/PasswordInput`: a 👁️ button inside the field's right edge shows
+what's been typed (🙈 hides it again). It is `type="button"` (never sends
+the form), keeps the caret and a phone's keyboard in the field, turns
+autocorrect / capitals / spellcheck off so a shown password can't be
+changed by the keyboard, and hides the password again when the form is sent
+(a native `submit` listener on the form runs before React's `onSubmit`) so
+browsers don't keep it in their plain-text autofill history. Used for the
+sign-in / sign-up field (`key`ed on the mode, so switching hides it again)
+and both fields on the reset page (an eye each). Edge's own reveal button is
+hidden (`index.css`) so there aren't two. Checked in headless Chromium at
+375×667 with a touch tap: the eye sits in the field (44×42 tap target), the
+caret stays put, no sticky hover. Tests: `PasswordInput.test` (show/hide, no
+submit, hidden again on submit — fails with the listener removed, phone
+keyboard attributes) and two in `PasswordReset.test` (both pages). 883 tests
+green, lint + tsc + build clean.
 
 ### 2026-10-10 — No XP for the opening rounds (#116)
 The Training Grounds' first rounds are the way into the world, but they paid
