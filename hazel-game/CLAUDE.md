@@ -594,6 +594,73 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — Merge main (the heroines and hero roster, #39) into the music-fix branch (#116)
+`main` took ISSUES **#115** and TC-786–803 for the hero roster while the
+music fix was in review, so the music fix moved **#115 → #116** and its test
+cases **TC-786–797 → TC-804–815**. Only the three docs conflicted; the code
+merged cleanly (the roster touches battle code, the fix only `lib/audio.ts`).
+
+### 2026-10-10 — #116 code review: key presses leave nothing in Howler's queue; volume read off the sound
+A `/saas-code-review` of the music fix (no security surface: no Supabase, no
+keys). Two low findings, both fixed:
+- **Every key press re-set the current track's volume** (`armUnlock` →
+  `startTrack` → `volume()`), and one landing as the track looped was queued
+  by Howler (the #116 mechanism); two queued could later undo a volume-slider
+  change. Now `volume()` is called only to stop a fade-out (`keep` says it was
+  fading) or when the volume differs. The first try compared the Howl's own
+  `volume()` — but a loop point mid-fade-out ends the fade at its target,
+  dropping the sound to 0 while the Howl still says 0.6, so that track then
+  stayed silent for good (the fuzz caught it: 5 rounds over 6 seeds). It
+  compares the sound's own volume (`playingAt`, `Music.id`), which is what's
+  heard; `retire` reads it too.
+- `audio.test`'s guard named "the game plays" where it checks "a source
+  names" (`16bit/music/victory.mp3` is named but reserved) — renamed.
+- Tests: the stand-in Howl keeps the sound's volume apart from the Howl's;
+  +2 (a key press at a loop point queues nothing and a new volume still
+  applies; back as it loops mid-fade-out, it's heard on the next key press —
+  the second fails on the group-volume try). Real Howler in Chromium: the
+  fuzz clean in 8 seeds, re-picking at once, the loop-point battle and Music
+  off all hold.
+
+### 2026-10-10 — The unused original mp3s are deleted (#116)
+The player-supplied mp3s from #60 (`Overworld.mp3`, `Battle_Music.mp3`,
+`Boss_Battle.mp3`, `Boss_Battle - Final Battle.mp3`, `Spire_Music.mp3`,
+`Character_Grunt.mp3`, `Level_Up.mp3`, `Victory-jingle.mp3`,
+`Wrong_Answer.mp3` — 3.7 MB) sat in `public/audio/` with nothing playing them
+since the 16-bit set (#71). With #116's leftover track playing on after Music
+was turned off, they made it look as if the old and new music were both in
+use. Deleted; `public/audio/README.md` and `audio.ts` no longer point at them,
+and a new `audio.test` case fails on any audio file under `public/audio/` that
+`SFX_SOURCES` / `MUSIC_SOURCES` doesn't name.
+
+### 2026-10-10 — The overworld music no longer plays on under the battle music (#116)
+Howler's html5 mode queues any `fade()` / `volume()` / `stop()` asked for
+while a `play()` is starting — the first one, and the restart at every loop
+point (html5 loops are `stop()` + `play()`) — and after a `play()` on a loaded
+track that queue never runs. `lib/audio.ts` stopped a left track when its
+fade-out fired `'fade'`, so a battle that began as the overworld looped never
+stopped it: both tracks played on. And a track played again (the overworld
+after a battle) had its fade-in queued, so it came back at volume 0 until a key
+press set its volume.
+- **A left track is unloaded** (`retire`): faded out, then unloaded on a timer
+  (`RETIRE_MS`) unless it's picked again first; unloaded at once if it isn't
+  audible yet. Unloading stops it even mid-`play()`. Picking it again builds a
+  fresh Howl (`musicCache` holds `{ howl, started }`).
+- **A track fades in on its `'play'` event**, not along with the `play()`.
+- **One play per track** until autoplay refuses it (`started`, cleared on
+  `'playerror'`): keys pressed while it loads no longer queue a play + fade each.
+- **Checked:** the real Howler and shipped tracks in headless Chromium — a
+  battle at the overworld's loop point (before: both at full volume, for
+  good; after: only the battle), a random fuzz of switches with 1–2 s loops
+  and a throttled network (before: 8–9 of 12 rounds left a track running;
+  after: none in 9 seeds), and the real app (Supabase stubbed): a critter on
+  Dawnreach plays only the battle theme, and Flee brings the overworld back at
+  full volume with no key pressed (before: at 0).
+- Tests: `audio.music.test`'s stand-in Howl now queues like Howler's; +5 (a
+  loop-point battle, the comeback, one play while loading, a track left before
+  it's heard, autoplay refused); the first four fail on the old code, and so
+  does the re-pick test, which now lets the left track load. 874 green, lint +
+  build clean.
 ### 2026-10-10 — Every hero gets signature abilities, a new name and a new look (#115)
 All five heroes now have two signature abilities each, and all five were
 renamed and redrawn. Ids a1–a5 (what saves store), types and HP are

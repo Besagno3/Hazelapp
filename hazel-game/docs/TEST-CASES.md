@@ -960,6 +960,23 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-802 | C/M | ✅ | hero select | all five cards show their type (Warrior / Guardian / Ranger / Duelist / Mystic) and two abilities (AvatarSelect.test); headless Chromium at 375 and 1280 px, no sideways scroll, no page errors (2026-10-10) |
 | TC-803 | U | ✅ | opening perks (review) | `NO_OPENING` has no perk at all, so a battle started without a hero (WorldScreen's fallback) gets none — not Talon's Second Wind; `start()` without an opening is a fresh fight (battleTurn.test) |
 
+## Music: a left track always stops (#116)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-804 | U | ✅ | music | a battle that starts as the overworld loops (Howler restarts it with stop() + play(); the fade-out asked for meanwhile is queued and never runs) still stops the overworld — a left track is unloaded once its fade-out is over (audio.music.test; fails on the old code) |
+| TC-805 | U | ✅ | music | back from a battle, the overworld fades in to full volume with no key pressed — it fades in on its 'play' event (audio.music.test; fails on the old code, which left it at volume 0) |
+| TC-806 | U | ✅ | music | asked for again while it loads (a re-render, the gesture listener on each key press), a track is played once (audio.music.test; fails on the old code) |
+| TC-807 | U | ✅ | music | a track left before it's heard (still loading) is unloaded at once and never starts; picked again within its fade-out, a track plays on at full volume while the other stops (audio.music.test; both fail on the old code) |
+| TC-808 | U | ✅ | music | refused by autoplay, a track plays and fades in on the next gesture (audio.music.test) |
+| TC-809 | M | ✅ | music | the real Howler + `audio.ts` + shipped tracks in headless Chromium: a battle begun at the overworld's loop point — before, both tracks played on at 0.6; after, only the battle. A random fuzz of switches, key presses and waits (1–2 s loops, a throttled network): before, 8–9 of 12 rounds left a non-current track running; after, none in 9 seeds. The real app (Supabase stubbed), music on: walking into a critter on Dawnreach plays only the battle theme, and fleeing brings the overworld back at 0.6 with no key pressed (before: at 0) |
+| TC-811 | U | ✅ | audio | every audio file under `public/audio/` is one `SFX_SOURCES` / `MUSIC_SOURCES` names — the unused originals are gone, and a stray file fails with its path (audio.test) |
+| TC-812 | M | ✅ | music | with a track left behind by the old engine (a battle begun at the overworld's loop point), turning Music off silenced only the battle music; with the fix nothing is left behind, and Music off leaves silence (real Howler in headless Chromium) |
+| TC-813 | U | ✅ | music | key presses as the current track loops queue nothing in Howler, and a new volume from the menu still applies (audio.music.test; fails on the code before the review) |
+| TC-814 | U | ✅ | music | picked again just as it loops mid-fade-out (the sound at 0, the Howl still saying 0.6), a track is heard at full volume on the next key press — the volume compared is the sound's (audio.music.test; fails on a Howl-volume comparison) |
+| TC-815 | M | ✅ | music | real Howler in headless Chromium, after the review fixes: the fuzz clean in 8 seeds (6 with 1–2 s loops and a throttled network); a Howl-volume comparison left the current track silent in 5 rounds over 6 seeds; re-picking a track at once, the loop-point battle and Music off all hold |
+| TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
@@ -972,6 +989,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-R6 | M | ⬜ | #24 | after 0006, two back-to-back rounds return non-overlapping question IDs |
 | TC-R7 | M | ⬜ | #26 | flagging a question removes it from the next call's cache pool |
 | TC-R8 | C | ✅ | #70 | enemy hit then an immediate potion (tapping through before the 260ms impact) keeps both the damage and the heal, and HP stays put after all pending timers fire (fake timers; BattleArena.test + battleTurn.test) |
+| TC-R9 | U | ✅ | #116 | a battle begun as the overworld loops leaves only the battle music playing (audio.music.test) |
 
 ---
 
