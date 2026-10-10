@@ -13,14 +13,15 @@
  *
  * Playwright isn't a project dependency; a global install works:
  *   NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps
- * Starts its own Vite dev server on port 5199.
+ * Starts its own Vite dev server on port 5199 (or `BENCH_PORT`).
  */
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
 
-const PORT = 5199;
+/** Its own Vite dev server's port (`BENCH_PORT` to run two at once). */
+const PORT = Number(process.env.BENCH_PORT ?? 5199);
 const ROOT = path.resolve(__dirname, '..');
 const BASE = `http://localhost:${PORT}/bench/world.html`;
 
