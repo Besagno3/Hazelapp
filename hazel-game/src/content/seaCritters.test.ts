@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { LANDING_CHARS, SEA_CHARS, ZONES, fogAt, tileAt, type ZoneDef } from './zones';
+import { SEA_CHARS, ZONES, fogAt, tileAt, type ZoneDef } from './zones';
 import { ENEMY_DEFS, atTier, habitatOf, spawnEnemy, spawnPlaced } from './enemies';
 import { battleBackdrop } from './tiles';
 import { BOAT_HOME, boatAfterDefeat, boatSpot, BOAT_MENDED } from './boat';
@@ -112,12 +112,14 @@ describe('the sea critters of the Silver Shallows (#75 item 14d)', () => {
     }
   });
 
-  it('never swim up to a shore you land on, or the edge you sail in by — no fight on landing or arriving', () => {
+  it('never swim up to any land, or the edge you sail in by — no fight on landing, climbing in or arriving', () => {
+    // Any land, not just beaches and docks: the boat can be moored beside any
+    // shore (Return, a load), and a hero climbs in from any cell beside it.
     for (const { z, p } of seaFoes) {
       for (let y = 0; y < z.map.length; y++) {
         for (let x = 0; x < z.map[0].length; x++) {
-          if (!LANDING_CHARS.has(tileAt(z, x, y))) continue;
-          expect(cheb(p, { x, y }), `${p.defId} at ${p.x},${p.y} vs the shore at ${x},${y}`).toBeGreaterThan(leash + 1);
+          if (SEA_CHARS.has(tileAt(z, x, y))) continue;
+          expect(cheb(p, { x, y }), `${p.defId} at ${p.x},${p.y} vs the land at ${x},${y}`).toBeGreaterThan(leash + 1);
         }
       }
       for (const a of arrivals(z)) {
@@ -128,7 +130,7 @@ describe('the sea critters of the Silver Shallows (#75 item 14d)', () => {
 
   it("Lamplighter Ness says why they never bother you on the sand", () => {
     const said = NPC_DEFS['gull-lamplighter'].lines.map((l) => (typeof l === 'string' ? l : l.text)).join(' ');
-    expect(said).toMatch(/only chase boats/);
+    expect(said).toMatch(/only bother boats/);
   });
 });
 

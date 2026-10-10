@@ -36,10 +36,22 @@ export function startsBattle(foe: Pick<BattleEnemy, 'isBoss' | 'habitat'>, hero:
 /**
  * The enemies a hero is already touching as a scene starts — back from a
  * Flee, a reload, an arrival — which stand down until the hero has stepped
- * clear of them. A critter respawns at its home, so a hero saved where it
- * touched them (still, a step back is no step at all) would otherwise be
- * pulled straight back into the same fight, again after every Flee (#112e).
+ * clear of them (`staysDown`). A critter respawns at its home, so a hero
+ * saved where it touched them (still, a step back is no step at all) would
+ * otherwise be pulled straight back into the same fight, again after every
+ * Flee (#112e).
  */
-export function standDown<T extends Point>(foes: readonly T[], radiusOf: (foe: T) => number, hero: Point): Set<T> {
+export function standDown<T extends Point>(foes: readonly T[], radiusOf: (foe: NoInfer<T>) => number, hero: Point): Set<T> {
   return new Set(foes.filter((f) => touching(f, hero, radiusOf(f))));
+}
+
+/**
+ * Does an enemy that stood down as the scene started (`standDown`) stay down?
+ * Until the hero has moved off where they started (by its reach) and is clear
+ * of it. A critter that wanders off and back into a hero still standing there
+ * — say, a child reading after a Flee — doesn't count as the hero stepping
+ * clear.
+ */
+export function staysDown(foe: Point, hero: Point, start: Point, radius: number): boolean {
+  return touching(foe, hero, radius) || touching(start, hero, radius);
 }

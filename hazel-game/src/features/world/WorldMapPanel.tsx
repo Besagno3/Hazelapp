@@ -121,6 +121,26 @@ export default function WorldMapPanel({
           className="block w-full rounded-md"
           style={{ imageRendering: 'pixelated' }}
         />
+        {seaWays.map((l) => (
+          <span
+            key={l.side}
+            aria-hidden
+            // Off this edge the sea carries on to the next map. Drawn before the
+            // icons, so a place or the ⛵ is never hidden under it, and down the
+            // side, clear of Starfall Coast and Marlow's dock (#75 item 14d review).
+            className={`absolute pointer-events-none select-none whitespace-nowrap rounded bg-black/60 px-1 py-0.5 text-[10px] font-semibold leading-none text-white ${
+              l.side === 'west'
+                ? 'left-0.5 top-[63%] -translate-y-1/2'
+                : l.side === 'east'
+                  ? 'right-0.5 top-[63%] -translate-y-1/2'
+                  : l.side === 'north'
+                    ? 'top-0.5 left-1/2 -translate-x-1/2'
+                    : 'bottom-0.5 left-1/2 -translate-x-1/2'
+            }`}
+          >
+            {l.side === 'west' ? `◀ ${bare(ZONES[l.to].name)}` : l.side === 'east' ? `${bare(ZONES[l.to].name)} ▶` : l.side === 'north' ? `▲ ${bare(ZONES[l.to].name)}` : `▼ ${bare(ZONES[l.to].name)}`}
+          </span>
+        ))}
         {places.map((p) => (
           <span
             key={p.name}
@@ -139,24 +159,6 @@ export default function WorldMapPanel({
             style={at(l.x, l.y)}
           >
             {l.emoji}
-          </span>
-        ))}
-        {seaWays.map((l) => (
-          <span
-            key={l.side}
-            aria-hidden
-            // Off this edge the sea carries on to the next map.
-            className={`absolute pointer-events-none select-none whitespace-nowrap rounded bg-black/60 px-1 py-0.5 text-[10px] font-semibold leading-none text-white ${
-              l.side === 'west'
-                ? 'left-0.5 top-1/2 -translate-y-1/2'
-                : l.side === 'east'
-                  ? 'right-0.5 top-1/2 -translate-y-1/2'
-                  : l.side === 'north'
-                    ? 'top-0.5 left-1/2 -translate-x-1/2'
-                    : 'bottom-0.5 left-1/2 -translate-x-1/2'
-            }`}
-          >
-            {l.side === 'west' ? `◀ ${bare(ZONES[l.to].name)}` : l.side === 'east' ? `${bare(ZONES[l.to].name)} ▶` : l.side === 'north' ? `▲ ${bare(ZONES[l.to].name)}` : `▼ ${bare(ZONES[l.to].name)}`}
           </span>
         ))}
         {foggedBanks.map((f) => (

@@ -498,7 +498,7 @@ export default function WorldScreen() {
 
       <p className="text-white/50 text-xs mt-2">
         {save.aboard
-          ? 'Sail: arrow keys / WASD · sail into a beach or a dock to go ashore'
+          ? 'Sail: arrow keys / WASD · sail into a beach or a dock to go ashore, into a sea critter to battle!'
           : 'Walk: arrow keys / WASD · bump into friends to talk, foes to battle!'}
       </p>
       </div>

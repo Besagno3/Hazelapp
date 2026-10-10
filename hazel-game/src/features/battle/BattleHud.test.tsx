@@ -93,7 +93,7 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
   });
   it('a defeat at sea says Old Marlow brought the boat home (#75 item 14d); one ashore says nothing of it', () => {
     const sea = render(<BattleResult {...base} result="defeat" enemy={spawnEnemy('bubble-puffer', 'silver-shallows', 'a', 8)} boatHome />);
-    expect(screen.getByText(/Old Marlow rowed out and brought the Biscuit home to his dock/)).toBeInTheDocument();
+    expect(screen.getByText(/Old Marlow rowed the Biscuit home to his dock by Starfall Coast/)).toBeInTheDocument();
     sea.unmount();
     render(<BattleResult {...base} result="defeat" enemy={spawnEnemy('count-bat', 'gearfall', 'a', 8)} />);
     expect(screen.queryByText(/Old Marlow/)).toBeNull();

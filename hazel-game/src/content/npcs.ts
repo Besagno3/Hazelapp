@@ -481,7 +481,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'These islands are only now remembering they exist. Some mornings I count a new one! Yesterday it was a rock shaped like a sneeze.',
       'See the little sandbar to the south-east? Sandpiper Cay. The sandpipers say there\'s a chest on it. Sandpipers say a LOT of things.',
       // Sea critters (#75 item 14d): why the ones out there never bother you on the sand.
-      "Puffers, inklings, starfish… sea critters splash about out there now. They only chase boats, so on the sand you're as safe as a shell!",
+      "Puffers, inklings, starfish… sea critters splash about out there now. They only bother boats — on the sand you're as safe as a shell!",
       "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
     ],
     ambient: ['*polishes the lamp*', 'Ship ahoy? …Oh, it\'s you!', 'Shine on, little light.'],

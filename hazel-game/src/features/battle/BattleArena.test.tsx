@@ -26,6 +26,7 @@ const { useBattleStore } = await import('../../store/battleStore');
 const { useSaveStore } = await import('../../store/saveStore');
 const { defaultSave } = await import('../../lib/save');
 const { atTier } = await import('../../content/enemies');
+const { BOAT_MENDED } = await import('../../content/boat');
 
 const enemy = {
   id: 'count-bat',
@@ -141,6 +142,32 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect(boat).toHaveAttribute('aria-hidden');
     expect(boat.style.backgroundImage).toContain('/tiles/boat.png');
     expect(screen.getByTestId('battle-boat-front')).toHaveAttribute('aria-hidden');
+  });
+
+  it('lost at sea: Old Marlow rows the boat home to his dock, and the defeat screen says so', () => {
+    vi.useFakeTimers();
+    const puffer = { ...enemy, id: 'bubble-puffer', instanceId: 'sea2', name: 'Bubble Puffer', topic: 'nature', zoneId: 'silver-shallows', habitat: 'sea' } as BattleEnemy;
+    const save = useSaveStore.getState().save!;
+    useSaveStore.setState({
+      save: { ...save, zoneId: 'silver-shallows', pos: { x: 15 * 32 + 16, y: 28 * 32 + 16 }, aboard: true, boat: null, flags: { ...save.flags, [BOAT_MENDED]: true } },
+    });
+    useBattleStore.getState().start(puffer, 1, 100);
+    render(<BattleArena />);
+    // Guard → wrong → the puffer attacks → a wrong defend answer: the hero (1 HP) goes down.
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText(/Whew/)).toBeInTheDocument();
+    expect(screen.getByText(/Old Marlow rowed/)).toBeInTheDocument();
+    // Not moored mid-sea where the fight was (`moorBoat` would leave it at 15,28): home.
+    const after = useSaveStore.getState().save!;
+    expect(after.aboard).toBe(false);
+    expect(after.boat).toBeNull();
+    expect(after.zoneId).not.toBe('silver-shallows');
   });
 
   it('a land critter keeps its zone\'s backdrop and no boat', () => {

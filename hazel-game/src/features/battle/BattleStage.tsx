@@ -41,8 +41,40 @@ function Floats({ floats, side, reduceMotion }: { floats: FloatText[]; side: FxS
 /** Marlow's boat in a battle at sea (#75 item 14d): its 32 px frames drawn this many times bigger. */
 const BOAT_SCALE = 4;
 const BOAT_PX = 32 * BOAT_SCALE;
-/** How far the boat sits below the hero's feet, so the hull's rim covers only their legs. */
-const BOAT_BELOW = 30;
+/** How far the boat sits below the hero's feet, so the hull's rim covers only their feet. */
+const BOAT_BELOW = 38;
+/** At sea the companion stands this much higher, on the deck behind the rim rather than hidden by it. */
+const DECK_LIFT = 6;
+
+/**
+ * The sea under a battle at sea (#75 item 14d): water from a little above the
+ * combatants' feet all the way down the screen (under the menu), so the boat
+ * and the sea critter always float in it — the stage shrinks as the menu or a
+ * question grows, which would otherwise lift them off the backdrop's water
+ * into its sky. Its top fades in, so wherever it meets the backdrop (its sky,
+ * or its own sea) there's one soft horizon, not a hard second one. Sized by
+ * padding: its bottom edge follows the stage's own bottom padding (pb-1,
+ * sm:pb-[8%] — % padding is of the width either way) plus a screen's height.
+ */
+function SeaFloor() {
+  return (
+    <div
+      aria-hidden
+      data-testid="battle-sea"
+      className="pointer-events-none absolute inset-x-0 -bottom-[100vh] -z-20 pt-10 pb-[calc(4px_+_100vh)] sm:pt-14 sm:pb-[calc(8%_+_100vh)]"
+      style={{
+        backgroundImage: [
+          'repeating-linear-gradient(to bottom, transparent 0 9px, rgba(255,255,255,0.14) 9px 11px)',
+          'linear-gradient(to bottom, rgba(114,176,225,0) 0, #72b0e1 16px, #4f97cf 90px, #3d7eb1 220px)',
+        ].join(', '),
+        // The wave lines start below the fade, so none float in the sky.
+        backgroundSize: '100% 100%, 100% 100%',
+        backgroundPosition: '0 18px, 0 0',
+        backgroundRepeat: 'no-repeat',
+      }}
+    />
+  );
+}
 
 /**
  * One piece of Marlow's boat under the hero (and the companion): the whole
@@ -134,6 +166,7 @@ export function BattleStage({
     // Phones: a smaller floor so menus + question cards fit on screen; flex-1
     // still grows it into any spare height (e.g. while a message shows).
     <div className="relative z-10 flex-1 flex items-end justify-between px-[12%] min-h-[112px] pb-1 sm:min-h-[220px] sm:pb-[8%]">
+      {afloat && <SeaFloor />}
       <div className="relative" ref={enemyRef}>
         <motion.div
           key={`el${fx.enemyLunge}`}
@@ -198,6 +231,7 @@ export function BattleStage({
             reduceMotion,
           )}
           className="absolute -right-10 bottom-0"
+          style={afloat ? { bottom: DECK_LIFT } : undefined}
         >
           {/* A swapped-in companion drops into place */}
           <motion.div

@@ -34,7 +34,8 @@ import { habitatOf, spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
-import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
+import { BOAT_SPEED, canBoard, canLand, landingMooring, nearestSea, seaCrossing } from '../../lib/travel';
+import { CONTACT_RADIUS, contactRadius, standDown, startsBattle, staysDown } from '../../lib/encounter';
 import { BOAT_REMOOR_REACH } from '../../content/boat';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
@@ -1246,6 +1247,14 @@ export default function WorldCanvas({
     }
     let curAnim = heroView ? animFor('down', false, heroView.anims) : 'idle';
     let heroFacing: Facing = 'down';
+    // Enemies already touching the hero as the scene starts — back from a
+    // Flee, where a critter respawns at home beside them — stand down until
+    // the hero steps clear, so they're never pulled straight back in (#112e).
+    const standingDown = standDown(
+      actors.filter((a) => a.kind === 'enemy' && a.enemy),
+      (a) => contactRadius(a.enemy!),
+      spawn,
+    );
 
     // Ember trails the hero (no collision — dragons walk where they please).
     const ember = worldFace(k, {
@@ -1793,12 +1802,19 @@ export default function WorldCanvas({
       // Actor contact: NPCs talk, enemies start battles.
       if (cooldown === 0) {
         for (const a of actors) {
-          // Calm: roaming critters let the hero pass (bosses don't).
-          if (calm && a.kind === 'enemy' && !a.enemy?.isBoss) continue;
-          // Each critter fights only a hero in its own element (#75 item 14d):
-          // a sea critter a sailing one, a land critter one on foot (#108j).
-          if (a.kind === 'enemy' && a.enemy && !meetsHero(a.enemy.habitat, aboard ? 'boat' : 'foot')) continue;
-          const r = a.kind === 'enemy' && a.enemy?.isBoss ? 34 : 28;
+          if (a.kind === 'enemy' && a.enemy) {
+            // One already touching the hero as the scene began (back from a
+            // Flee, say) waits until they've moved off and are clear of it
+            // (#112e)…
+            if (standingDown.has(a)) {
+              if (staysDown(a, player.pos, spawn, contactRadius(a.enemy))) continue;
+              standingDown.delete(a);
+            }
+            // …and a touch fights only in the enemy's own element, and no
+            // roaming critter under Calm (`startsBattle`, #75 items 9, 14d).
+            if (!startsBattle(a.enemy, { mode: aboard ? 'boat' : 'foot', calm })) continue;
+          }
+          const r = a.kind === 'enemy' && a.enemy ? contactRadius(a.enemy) : CONTACT_RADIUS.critter;
           const dxa = player.pos.x - a.x;
           const dya = player.pos.y - a.y;
           if (dxa * dxa + dya * dya < r * r) {

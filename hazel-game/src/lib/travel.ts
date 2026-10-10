@@ -27,12 +27,15 @@ export function passable(ch: string, mode: TravelMode): boolean {
 }
 
 /**
- * Which critters a hero getting about this way can meet (#75 item 14d): on
- * foot, land critters; in the boat, sea critters. (Ember's flight, item 15b,
- * will meet none — flying has no battles.)
+ * Which critters a hero getting about each way can meet (#75 item 14d): on
+ * foot, land critters; in the boat, sea critters. A `Record`, so a new travel
+ * mode doesn't compile until it says — Ember's flight (item 15b) will meet
+ * none (`null`: flying has no battles).
  */
-export function encounterHabitat(mode: TravelMode): Habitat {
-  return mode === 'boat' ? 'sea' : 'land';
+const ENCOUNTER_HABITAT: Record<TravelMode, Habitat | null> = { foot: 'land', boat: 'sea' };
+
+export function encounterHabitat(mode: TravelMode): Habitat | null {
+  return ENCOUNTER_HABITAT[mode];
 }
 
 /**
@@ -42,7 +45,8 @@ export function encounterHabitat(mode: TravelMode): Habitat {
  * the water, nor a sailing one from the shore (#108j).
  */
 export function meetsHero(habitat: Habitat | undefined, mode: TravelMode): boolean {
-  return (habitat ?? 'land') === encounterHabitat(mode);
+  const meets = encounterHabitat(mode);
+  return meets !== null && (habitat ?? 'land') === meets;
 }
 
 /** Can a boat put the hero ashore onto a cell holding `ch`? */

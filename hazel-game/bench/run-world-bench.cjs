@@ -536,8 +536,9 @@ async function sea(browser, outDir) {
   page = await ready('zone=silver-shallows&aboard=1&at=17,28');
   await page.waitForTimeout(2500);
   const idle = (await state(page)).encounters;
-  await hold(page, 'ArrowUp', 600); // clear of it…
-  await hunt(page); // …and back: it fights again
+  await hold(page, 'ArrowUp', 600); // sail off, clear of it…
+  await hold(page, 'ArrowDown', 550); // …and back: it fights again
+  await hunt(page);
   s = await state(page);
   await check(page, 'back on a critter after a Flee: it stands down until you sail clear, then fights again', idle === 0 && s.battles[0] === 'bubble-puffer', `idle ${idle} battles, then ${JSON.stringify(s.battles)}`);
 

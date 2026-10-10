@@ -253,8 +253,9 @@ zod, react-query. Add the package in the same change that first uses it.
   boat moored edge to edge with that shore (`onLand`, `landingMooring` — never
   only corner to corner, where nobody could climb back in); collision is
   boat-aware (`heroHit` / `blockerAt(…, afloat)`), and the boat is two
-  sprites — under the hero, and its hull's front over them. Return and a lost
-  battle leave the boat moored where it was (`moorBoat`); Old Marlow offers
+  sprites — under the hero, and its hull's front over them. Return leaves the
+  boat moored where it was (`moorBoat`), a battle lost at sea sends it home to
+  his dock (`boatAfterDefeat`, #75 item 14d); Old Marlow offers
   to row it home (a ⛵ Row her home button) when it's away from his dock. A
   boat only floats on open sea of a sea-linked map outside standing fog
   (`afloatAt`); a hero saved aboard anywhere else loads on the nearest open
@@ -274,13 +275,18 @@ zod, react-query. Add the package in the same change that first uses it.
   `hitBox(…, afloat)`, so never land, fog or off the map), with a faint ripple
   under it; each critter fights only a hero in its own element — sailing for a
   sea critter, on foot for a land one, bosses too (`meetsHero`, `lib/travel.ts`,
-  checked in the canvas's contact loop). The Silver Shallows has three (Bubble
+  checked in the canvas's contact loop through `lib/encounter.ts`'s
+  `startsBattle`, with Calm). Enemies already touching the hero as a scene
+  starts — back from a Flee — stand down until the hero has moved off and is
+  clear of them (`standDown` / `staysDown`). The Silver Shallows has three (Bubble
   Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
   beach, dock or the edge a boat sails in by. A battle at sea is fought over
   open water (`battleBackdrop(zone, 'sea')` → `/backgrounds/<zone>-sea.png`,
   `tiles.sea_backdrop`) from Marlow's boat (`BattleStage`'s `afloat`: the boat
-  behind hero and companion, its hull's front over their feet, decorative);
+  behind hero and companion, its hull's front over their feet, the companion
+  on deck (`DECK_LIFT`), all decorative; `SeaFloor` keeps water under their
+  feet down the whole screen, however much the menu squeezes the stage);
   losing one sends the boat home to Marlow's dock (`boatAfterDefeat`) and the
   defeat screen says so.
   Zone ids from a save are checked with `isZoneId` (own keys of `ZONES` —
@@ -420,6 +426,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # scre
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, Flee stand-down (#75 item 14d)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -429,7 +436,7 @@ python3 tools/tiled/tiled.py legend                                    # rebuild
 python3 tools/assets/build.py spells   # art for the field-spell places + keepers only (#75 item 9)
 python3 tools/assets/build.py dungeon  # the Depths' lower floors + the stairs sheet only (#75 item 10)
 python3 tools/assets/build.py inns     # the innkeepers + travelers' sprites only (#75 item 11)
-python3 tools/assets/build.py sea      # the Silver Shallows, the boat, the dock + Lamplighter Ness only (#75 item 14)
+python3 tools/assets/build.py sea      # the Silver Shallows (+ its battle-at-sea backdrop), the boat, the dock + Lamplighter Ness only (#75 item 14)
 python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
 python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallows, the fogbank (#75 item 14)
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
@@ -510,13 +517,44 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-10 — 14d code review, first fixes: encounter rules as pure helpers, a `bench … sea` mode (#75 item 14d)
-In progress (wired into the canvas with the rest of the review's fixes next):
-`lib/encounter.ts` — `CONTACT_RADIUS` / `contactRadius`, `touching`,
-`startsBattle` (Calm + `meetsHero`) and `standDown` (enemies already touching
-the hero as a scene starts wait until the hero steps clear — the Flee loop,
-ISSUES #112e); `bench/run-world-bench.cjs sea` checks sea critters on the
-real canvas. Tests +3 (encounter.test).
+### 2026-10-10 — 14d review fixes: water under the boat, no Flee loop, the boat easy to find (#75 item 14d)
+A fresh-context `/saas-code-review` (1 medium, 5 low) + `/saas-ux-review`
+(3 medium, 3 low; played in the real app with Supabase stubbed at four sizes,
+by keyboard and reduced motion). All fixed:
+- **Floating in the sky (UX, medium):** the stage shrinks as the menu or a
+  question grows, which lifted the boat and the critter off the backdrop's sea
+  into its sky for most of a fight. `BattleStage`'s `SeaFloor` keeps water from
+  a little above their feet down the whole screen, its top faded so it blends
+  with the backdrop's own sea (one horizon, not two).
+- **Friends hidden by the hull (UX, medium):** the rim covered Pip and Wisp up
+  to their mouths. The boat sits 8 px lower (`BOAT_BELOW` 38) and the
+  companion stands on deck (`DECK_LIFT` 6).
+- **Where's the boat? (UX, medium):** the defeat line names the place — "⛵ Old
+  Marlow rowed the Biscuit home to his dock by Starfall Coast. Find ⛵ on your
+  📜 Menu map!" — and the map's sea-edge labels ("Silver Shallows ▶") moved
+  down the edge (63%) and draw before the icons, so they never cover the dock's
+  ⛵ or Starfall Coast.
+- **Flee loop (code, medium; pre-existing, #112e):** a critter respawns at home,
+  so a hero saved where it touched them fought again at once, after every
+  Flee. `lib/encounter.ts`: enemies touching the hero as a scene starts stand
+  down (`standDown`) until the hero has moved off and is clear (`staysDown`) —
+  a critter wandering off and back into a hero still standing there doesn't
+  count. The contact loop asks `startsBattle` (Calm + `meetsHero`) and
+  `contactRadius` too.
+- **Code, low:** `encounterHabitat` is a `Record<TravelMode, Habitat | null>`
+  (a new travel mode won't compile until it says — Ember's flight will meet
+  none); a BattleArena test loses a battle at sea (it fails with `moorBoat`
+  back in); the placement test measures to any land, not just beaches; stale
+  docs ("a lost battle leaves the boat moored", TC-651, `moorBoat`'s comment).
+- **UX, low:** the sailing footer adds "…into a sea critter to battle!"; Ness
+  says they "only bother boats" (they never chase); Starfix's arms are
+  chunkier, so it reads at map size.
+- **`bench/run-world-bench.cjs sea`** (new): on the real canvas, sailing into
+  the puffer battles it, Calm passes it, arriving starts nothing, and back on a
+  critter after a Flee it stands down until you sail clear, then fights — 4/4.
+- Tests: +5 (encounter.test 4, BattleArena.test's defeat at sea); 787 green,
+  lint + build clean. Logged (pre-existing, #112): archetype callouts fade after
+  3 s, the defeat screen needs a scroll at 740×360, map labels at phone size.
 
 ### 2026-10-10 — Sea critters: three swim the Silver Shallows, met only from the boat (#75 item 14d)
 Roadmap sub-item 14d (ISSUES #108b, #108j), built before 14c — nothing in it
@@ -538,7 +576,7 @@ waits on 14c.
   regrows its arms). Tier 4 like the rest of the Shallows (14c moves it to 5).
   Placed well clear of the beaches, the docks and the edge you sail in by, so
   landing, climbing in or arriving never starts a fight (`seaCritters.test`).
-  Lamplighter Ness: "They only chase boats, so on the sand you're as safe as a
+  Lamplighter Ness: "They only bother boats — on the sand you're as safe as a
   shell!"
 - **A battle at sea:** open water to the horizon with a palm island mid-picture
   (`/backgrounds/silver-shallows-sea.png`, `tiles.sea_backdrop` —
@@ -548,7 +586,7 @@ waits on 14c.
   motion; the stacking of a land battle is unchanged). **Losing at sea** sends
   the boat home to Marlow's dock (`boatAfterDefeat`; a hero waking ashore at
   an inn could never reach a boat left in open water) and the defeat screen
-  says "⛵ Old Marlow rowed out and brought the Biscuit home…" (#108g).
+  says "⛵ Old Marlow rowed the Biscuit home to his dock by Starfall Coast…" (#108g).
 - **Art** (`python3 tools/assets/build.py seacritters`): new `puffer` and
   `starfish` drawers, the octopus drawer's opt-in ink squirt, the sea
   backdrop; `backdrop()`'s sky and sun/clouds became `_sky` /

@@ -1540,9 +1540,9 @@ def starfish(c: Canvas, p: Pose, s: dict):
     pts = []
     for i in range(10):
         if i % 2:
-            rr = 4.2
+            rr = 5.6  # chunky arms, so it reads at map size (#75 item 14d review)
         else:
-            rr = (7.5 if i == 4 else 11) - p.squash * 0.4  # arm 4 is the one regrowing
+            rr = (9 if i == 4 else 12.5) - p.squash * 0.4  # arm 4 is the one regrowing
         pts.append((cx + math.cos(arm_angle(i)) * rr, cy + math.sin(arm_angle(i)) * rr))
     L.poly(pts, col)
     for i in range(0, 10, 2):

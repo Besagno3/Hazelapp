@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CONTACT_RADIUS, contactRadius, standDown, startsBattle, touching } from './encounter';
+import { CONTACT_RADIUS, contactRadius, standDown, startsBattle, staysDown, touching } from './encounter';
 
 describe('bumping into enemies (#75 item 14d)', () => {
   it('a boss is touched from further off than a critter', () => {
@@ -35,5 +35,16 @@ describe('bumping into enemies (#75 item 14d)', () => {
     const clear = { id: 'slime', x: 100, y: 130, isBoss: false }; // 30 px: clear of a critter's 28
     const down = standDown([onTop, near, boss, clear], contactRadius, hero);
     expect([...down].map((f) => f.id)).toEqual(['puffer', 'bat', 'fiend']);
+  });
+
+  it('one that stood down stays down until the hero moves off and is clear — not when it wanders off and back', () => {
+    const start = { x: 100, y: 100 };
+    // The critter swims away and back while the hero stays put: still down.
+    expect(staysDown({ x: 160, y: 100 }, start, start, 28)).toBe(true);
+    expect(staysDown({ x: 110, y: 100 }, start, start, 28)).toBe(true);
+    // The hero has moved off, but the critter followed: still down.
+    expect(staysDown({ x: 140, y: 100 }, { x: 150, y: 100 }, start, 28)).toBe(true);
+    // Moved off and clear of it: it fights again.
+    expect(staysDown({ x: 100, y: 100 }, { x: 150, y: 100 }, start, 28)).toBe(false);
   });
 });
