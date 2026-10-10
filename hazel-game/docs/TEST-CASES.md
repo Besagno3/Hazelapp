@@ -67,8 +67,8 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-54 | C | ⬜ | TopicSelect | unlock copy reflects PASS_THRESHOLD / ROUNDS_TO_UNLOCK |
 | TC-55 | C | ✅ | StatusScreens | `LoadingScreen` renders the given label |
 | TC-56 | C | ✅ | StatusScreens | `ErrorScreen` shows message; omits actions when no handler |
-| TC-57 | U | ✅ | level | `playerLevel` is 1 at 0 XP and advances every 100 XP |
-| TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction for the level |
+| TC-57 | U | ✅ | level | RETIRED (#118) — the level is saved now; see TC-834–836 |
+| TC-58 | U | ✅ | level | `xpProgress` reports into/needed/fraction for the saved level (level 2 needs 125) |
 | TC-59 | U | ✅ | level | `npcDefeatXp` rewards more for higher-level NPCs |
 | TC-60 | U | ✅ | enemies | RETIRED with lib/npc (#37) — authored placements now, see TC-119/120 |
 | TC-61 | U | ✅ | enemies | RETIRED with lib/npc (#37) — see TC-119/120 |
@@ -83,7 +83,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-70 | E | ⬜ | generate-questions | caches freshly generated questions for later reuse |
 | TC-71 | E | ⬜ | generate-questions | bumps `times_asked` on every question returned |
 | TC-72 | C | ✅ | LevelBadge | renders nothing when no profile is loaded |
-| TC-73 | C | ✅ | LevelBadge | shows the level + XP progress derived from profile XP |
+| TC-73 | C | ✅ | LevelBadge | shows the saved level + XP into it; a profile with no saved level shows its old flat-100 level (250 XP → Level 3, 50/150 XP) |
 | TC-74 | U | ✅ | powerups | bonuses are zero with none, and scale with stack count |
 | TC-75 | U | ✅ | powerups | `totalPowerUps` sums every stack |
 | TC-76 | C | ⬜ | LevelUpModal | appears when a power-up is owed (level > chosen + 1) |
@@ -993,6 +993,11 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-831 | U | ✅ | danger colours (review) | tiers 5–7 are violet-400, fuchsia-300 and #ff66b8; each is readable (≥ 4.5:1) on the map's plate and the battle panel, tier 5 is a real purple (L* < 75), and every pair of tiers 4–7 is 15+ ΔE apart in normal vision and simulated deuteranopia, protanopia and tritanopia (regions.test) |
 | TC-832 | B | ✅ | battle top bar (review) | `bench … battle`: on the real app (Supabase stubbed) the hero walks into the Ringkeeper (Eldergrove's tier-5 warden) at 320×568, 360×640, 375×667, 390×844 and 1024×768 — the top bar (40 px on a phone) sits above the status boxes (none at 320 wide), the enemy's "!!!" is on top, nothing scrolls sideways, and the monologue, the 💪 line and every command fit on the screen (but a boss's disabled 🏃 Flee at 320×568, pre-existing, #117q): 5/5, twice |
 | TC-833 | M | ⬜ | Eldergrove (review) | on a real phone: lose to the Ringkeeper and wake in Fen's Hollow with the boat at the beach; watch Dawdle amble (his legs keep pace); check the purple / magenta / pink "!!!" in sunlight; Old Ringwood stands taller than the trees with his name plate under his roots, not over his trunk (seen on the bench) |
+| TC-834 | U | ✅ | level | `xpForLevel`: 100 at level 1, +25 each level after (125, 150, … 325 at level 10), always rising (level.test) |
+| TC-835 | U | ✅ | level | `gainXp` fills the level, rolls the extra over on a level-up, clears several levels at once, never lowers a saved level; a profile without a saved level keeps its old flat-100 level (`levelState`: 1000 XP → level 11) (level.test) |
+| TC-836 | U | ✅ | profile | `mergeProfiles` keeps the further saved level (higher level, then more XP into it); a pre-save local cache's old level beats a fresh remote row at level 1 (profile.test) |
+| TC-837 | M | ✅ | migrations | 0012 on a row with 1037 XP backfills level 11, 37 into it; applied twice changes nothing; a new sign-up starts at level 1 / 0 (`supabase/ci/level.test.sql`; local Postgres 16, 2026-10-10) |
+| TC-838 | M | ⬜ | profile | after 0012 in production, an existing player sees the same level as before; earning XP moves the bar toward the new, larger need; a refresh keeps both |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

@@ -1,5 +1,5 @@
 import { useProfileStore } from '../store/profileStore';
-import { playerLevel, xpProgress } from '../lib/level';
+import { levelState, xpProgress } from '../lib/level';
 
 /**
  * Where the medallion sits. Most screens float it top-left; the world and
@@ -31,10 +31,9 @@ export default function LevelBadge({
   dense?: boolean;
 }) {
   const profile = useProfileStore((s) => s.profile);
-  const xp = profile?.xp ?? 0;
-
-  const level = playerLevel(xp);
-  const { into, needed, fraction } = xpProgress(xp);
+  const state = levelState(profile);
+  const { level } = state;
+  const { into, needed, fraction } = xpProgress(state);
   const inline = placement === 'inline';
 
   return (
