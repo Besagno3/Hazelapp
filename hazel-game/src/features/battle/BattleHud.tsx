@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { CHARGE_MAX } from '../../content/abilities';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { STREAK_START } from '../../lib/battleTurn';
-import { BASE_TIER, dangerMarks, type DangerTier } from '../../content/regions';
+import { BASE_TIER, MAX_MARKS, dangerMarks, type DangerTier } from '../../content/regions';
 import type { Avatar, BattleEnemy } from '../../types';
 
 const hpPct = (hp: number, max: number) => `${Math.max(0, (hp / max) * 100)}%`;
@@ -24,8 +24,23 @@ const PANEL =
   'bg-indigo-950/90 border-2 border-white/70 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-white w-60 min-w-0';
 const TITLE_ROW = 'flex justify-between items-baseline gap-2 text-[13px] sm:text-sm font-bold';
 
-/** The "!" marks' colour, warmer the tougher — matching its label on the map (#75 item 12). */
-const DANGER_TEXT: Partial<Record<DangerTier, string>> = { 2: 'text-yellow-200', 3: 'text-orange-300', 4: 'text-red-300' };
+/**
+ * The "!" marks' colour, warmer the tougher — matching its label on the map
+ * (#75 item 12, `DANGER.mapColor`); past "!!!" it goes on, violet → magenta.
+ */
+const DANGER_TEXT: Record<DangerTier, string> = {
+  0: '',
+  1: '',
+  2: 'text-yellow-200',
+  3: 'text-orange-300',
+  4: 'text-red-300',
+  5: 'text-violet-300',
+  6: 'text-fuchsia-300',
+  7: 'text-fuchsia-400',
+};
+
+/** The first tier past the last "!" (tier 5), read aloud as "Very tough" (#75 item 14c). */
+const VERY_TOUGH = BASE_TIER + MAX_MARKS + 1;
 
 /**
  * FF-style status boxes: enemy (left) and hero with charge gauge (right).
@@ -127,9 +142,10 @@ export function BattleHud({
 function DangerMarks({ tier }: { tier: DangerTier }) {
   const marks = dangerMarks(tier);
   if (!marks) return null;
-  const says = 'Tough critter: it hits harder — and drops more coins';
+  // The marks stop at "!!!" (`MAX_MARKS`), so the words say what the colour does.
+  const says = `${tier >= VERY_TOUGH ? 'Very tough' : 'Tough'} critter: it hits harder — and drops more coins`;
   return (
-    <span className={`ml-1 font-extrabold ${DANGER_TEXT[tier] ?? ''}`} title={says}>
+    <span className={`ml-1 font-extrabold ${DANGER_TEXT[tier]}`} title={says}>
       <span aria-hidden="true">{marks}</span>
       <span className="sr-only">{says}</span>
     </span>

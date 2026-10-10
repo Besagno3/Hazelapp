@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   BASE_TIER,
   DANGER,
+  MAX_MARKS,
   REGIONS,
   WARN_AHEAD,
   arrivalWarning,
@@ -23,7 +24,7 @@ import { TOPIC_REGISTRY, crystalFlag } from './topics';
 import { GATE_KEYS, keyFlag, keyForZone } from './keys';
 import type { ZoneId } from '../types';
 
-const TIERS: DangerTier[] = [0, 1, 2, 3, 4];
+const TIERS: DangerTier[] = [0, 1, 2, 3, 4, 5, 6, 7];
 
 describe('regions and danger tiers (#75 item 12)', () => {
   it('every zone is in exactly one region', () => {
@@ -90,6 +91,22 @@ describe('regions and danger tiers (#75 item 12)', () => {
     }
     expect(overrides).toBe(4); // one critter by each corner region
   });
+
+  it('past "!!!" the colour tells the tiers apart, violet → magenta (#75 item 14c)', () => {
+    expect(dangerMarks(7)).toBe('!'.repeat(MAX_MARKS));
+    const colours = ([4, 5, 6, 7] as const).map((t) => DANGER[t].mapColor.join());
+    expect(new Set(colours).size).toBe(4);
+    for (const t of [5, 6, 7] as const) {
+      const [r, g, b] = DANGER[t].mapColor;
+      expect(b, `tier ${t} is violet–magenta`).toBeGreaterThan(g);
+      expect(Math.min(r, b), `tier ${t} is light enough for the dark plate`).toBeGreaterThan(180);
+    }
+  });
+
+  it('the Silver Shallows is tier 5, the first past Act I (#105g, #108d)', () => {
+    expect(zoneTier('silver-shallows')).toBe(5);
+    expect(Math.max(...REGIONS.filter((r) => r.id !== 'shallows').map((r) => r.tier))).toBe(4);
+  });
 });
 
 describe('scaling a battle by tier — never its questions', () => {
@@ -136,7 +153,7 @@ describe('scaling a battle by tier — never its questions', () => {
   });
 
   it('the map label shows the questions\' level and "!" marks for danger', () => {
-    expect(TIERS.map((t) => dangerMarks(t))).toEqual(['', '', '!', '!!', '!!!']);
+    expect(TIERS.map((t) => dangerMarks(t))).toEqual(['', '', '!', '!!', '!!!', '!!!', '!!!', '!!!']);
     expect(mapLabel(3, false, 0)).toBe('Lv 3');
     expect(mapLabel(4, false)).toBe('Lv 4');
     expect(mapLabel(4, false, 3)).toBe('Lv 4 !!');

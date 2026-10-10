@@ -78,7 +78,7 @@ describe('enemy behavior archetypes (Wave 0.5)', () => {
     const healers = Object.values(ENEMY_DEFS).filter((d) => d.behavior === 'healer');
     expect(healers.length).toBeGreaterThan(0);
     for (const def of healers) {
-      for (const tier of [0, 1, 2, 3, 4] as const) {
+      for (const tier of [0, 1, 2, 3, 4, 5, 6, 7] as const) {
         const e = spawnEnemy(def.id, 'starfall-coast', '0,0', 100, {}, tier);
         expect(
           healerRegen(e.maxHp),

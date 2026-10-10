@@ -860,6 +860,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-712 | C | ✅ | bosses | in the real arena: a keyless miniboss on `nature` with no lines fights (it crashed on the old code), and beating it sets only its boss flag, no crystal, no "shines again"; an echo on `math` keeps its name and never restores Numbers (it did on the old code); the Null Fiend still speaks first and restores Numbers (BattleArena.test) |
 | TC-713 | U | ✅ | quests | one person, several quests (stand-in quests pushed into `QUESTS`): their quests come one at a time, the next only once the last is done and its story flag is set; a step through them speaks before their own offer and while their own quest is mid-way (both fail on the old code); their own quest ready to finish goes before the step; a bring step through them waits for its item, and until then they offer their own (fails on the old code) (quests.test) |
 | TC-714 | U | ✅ | quests | today's people still give one quest each, and `questFor` gives it once its story flag is set — Marlow's boat only after `act2-seen` (quests.test, boat.test) |
+| TC-715 | U | ✅ | regions | danger tiers 0–7: each is at least as tough and pays at least as much as the last, HP and coins strictly rise, healers stay stall-proof at every tier; the marks stop at "!!!"; tiers 4–7 have four different map colours, 5–7 violet → magenta and light on the dark plate; the Silver Shallows is tier 5 and nothing else is past 4 (regions.test, enemies.test) |
+| TC-716 | C | ✅ | battle HUD | a tier-6 critter shows "!!!" in fuchsia and reads aloud "Very tough critter: …"; a tier-4 one shows "!!!" in red and reads "Tough critter" (BattleHud.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

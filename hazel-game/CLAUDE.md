@@ -123,8 +123,9 @@ zod, react-query. Add the package in the same change that first uses it.
   zones are floors of one dungeon, which way is deeper, floor labels B1… /
   Floor 1…, the boss at the bottom — floors are ordinary zones joined by
   `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
-  danger tier 0–4, the `DANGER` tuning per tier, map labels "Lv 4 !!", the
-  danger banner / defeat tip / arrival warning copy),
+  danger tier 0–7 — Act I 0–4, the Shallows 5 — the `DANGER` tuning per
+  tier, map labels "Lv 4 !!" (marks stop at "!!!", tiers 5–7 go violet →
+  magenta), the danger banner / defeat tip / arrival warning copy),
   `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
@@ -493,6 +494,22 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Danger tiers run to 7; the Shallows is tier 5 (#75 item 14c)
+Fourth slice of 14c (#105g, #108d). Acts II–IV need tougher places than
+Chromaria (tier 4), and the Silver Shallows sat at tier 4 as a placeholder.
+- **`DangerTier` 0–7** with `DANGER` rows 5–7 that keep rising (×1.6 / 1.75 /
+  1.9 HP, ×1.4 / 1.5 / 1.6 blows, 0.4 / 0.45 / 0.5 charge, ×2.4 / 2.8 / 3.2
+  coins); mercy is unchanged (two losses ease any far fight to tier 1).
+- **Marks stop at "!!!"** (`MAX_MARKS`, as decided); tiers 5–7 tell themselves
+  apart by colour, violet → magenta, on the map (`mapColor`) and in the battle
+  HUD (`DANGER_TEXT`, now a full `Record`), and read aloud as "Very tough
+  critter".
+- **The Shallows is tier 5.** It has no critters yet (14d), and the 🚩's road
+  tier is null after Act I's crystals, so nothing plays differently.
+- Tests: regions.test (tiers 0–7 through the existing "tougher and pays more"
+  checks; +2: colours and the Shallows), enemies.test (healers stall-proof to
+  tier 7), BattleHud.test (+2). 794 green, lint clean.
 
 ### 2026-10-10 — One person can give several quests (#75 item 14c)
 Third slice of 14c (nothing visible). `questFor(npcId)` returned a person's
