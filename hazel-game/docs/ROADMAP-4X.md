@@ -15,6 +15,17 @@ the *delivery plan*; STORY-4X.md is *what gets built*.
 > Dawnreach, exists (that roadmap's Phase 2); its zones will then be placed
 > on the map instead of built as edge-linked screens. STORY-4X.md content is
 > unchanged. See its §7.
+>
+> **Delivered as overworld items 14–16 (planned 2026-10-09):** Wave 1 (Act II)
+> is `ROADMAP-OVERWORLD.md` item 14 (14a — the boat and the Silver Shallows —
+> merged; 14b–14i to come), Wave 3 (Act III) is item 15 and Wave 5 (Act IV)
+> is item 16, each split into one-PR sub-items there (§5.1). Wave 0.1 (open
+> the crystal system) finishes inside them (14c, 14h); Wave 0.4 (topics out
+> of the edge function) is covered for now by item 15a's redeploy. **Not**
+> part of items 14–16, so still waves of their own here: Wave 2's companion
+> work beyond Pip / Wisp (Vela), Wave 3's economy (charms, ~20 shop items,
+> inn upgrades), and Wave 4 (New Game+, Aster as a companion, side dungeons,
+> the daily loop, the parent dashboard).
 
 ---
 
