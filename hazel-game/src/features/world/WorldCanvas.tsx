@@ -36,6 +36,7 @@ import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
 import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
+import { arrived, dropCrumb, startEscort, stepEscort, type EscortState } from '../../lib/escort';
 import { CONTACT_RADIUS, contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, staysDown, touching, type Rest } from '../../lib/encounter';
 import {
   EMBER_COST,
@@ -231,6 +232,23 @@ export interface WorldCanvasCallbacks {
    * there's no sea that close either.
    */
   onAshore?: (boat: { x: number; y: number } | null) => void;
+  /** An escort (#75 item 14g, Posy) stopped to wait: a critter is near them. */
+  onEscortWait?: () => void;
+  /** …moved on — where they stand now (px), kept so a battle mid-walk leaves them there. */
+  onEscortMove?: (x: number, y: number) => void;
+  /** …reached their goal. */
+  onEscortArrive?: () => void;
+}
+
+/**
+ * A walk under way here (#75 item 14g): who follows the hero, the cell they're
+ * heading for, and where they last stood (a battle mid-walk), or null to start
+ * where they wait.
+ */
+export interface EscortWalk {
+  npcId: string;
+  goal: { x: number; y: number };
+  from: { x: number; y: number } | null;
 }
 
 /** A Return (#75 item 9) waiting to be flown: where to, and the landing cell. */
@@ -274,6 +292,7 @@ export default function WorldCanvas({
   calmRef,
   boat = null,
   aboard = false,
+  escort = null,
 }: {
   zoneId: ZoneId;
   avatar: Avatar;
@@ -307,6 +326,8 @@ export default function WorldCanvas({
   boat?: BoatSpot | null;
   /** …and whether the hero is sailing it (read when the zone builds; the canvas keeps it after). */
   aboard?: boolean;
+  /** An escort's walk under way here (#75 item 14g), read live. */
+  escort?: EscortWalk | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -391,7 +412,9 @@ export default function WorldCanvas({
   const darkRef = useRef<HTMLDivElement>(null);
   const boatRef = useRef(boat);
   const aboardRef = useRef(aboard);
+  const escortRef = useRef(escort);
   useEffect(() => {
+    escortRef.current = escort;
     boatRef.current = boat;
     aboardRef.current = aboard;
     cbRef.current = callbacks;
@@ -850,6 +873,8 @@ export default function WorldCanvas({
       parts?: { pos: WorldVec }[];
       /** Footprint radius (px) for actor↔actor overlap avoidance. */
       radius: number;
+      /** Walking with the hero (#75 item 14g, an escort): never bumped into to talk. */
+      follower?: boolean;
     }
     const actors: Actor[] = [];
 
@@ -1068,11 +1093,14 @@ export default function WorldCanvas({
     // where they stand: a sleeper's "z Z" rise clear of them (`zzPath`) and
     // fade while crossing them (#114e).
     const looks = new Map<Actor, { face: number; label: { dy: number; w: number; h: number } }>();
-    /** Puts an NPC in the world; `remove()` takes them out again. */
-    function spawnNpc(p: NpcPlacement): { remove: () => void } {
+    /** Puts an NPC in the world (at `at` px, else its cell); `remove()` takes them out again. */
+    function spawnNpc(
+      p: NpcPlacement,
+      at?: { x: number; y: number },
+    ): { remove: () => void; actor: Actor; face: WorldActor; anims: Record<string, unknown> | undefined } {
       const def = NPC_DEFS[p.defId];
-      const px = p.x * TILE + TILE / 2;
-      const py = p.y * TILE + TILE / 2;
+      const px = at?.x ?? p.x * TILE + TILE / 2;
+      const py = at?.y ?? p.y * TILE + TILE / 2;
       // All visual pieces move together when the NPC wanders.
       const parts: Part[] = [];
       const pieces: { destroy: () => void }[] = [];
@@ -1114,7 +1142,7 @@ export default function WorldCanvas({
       const nameW = (label as unknown as { width?: number }).width ?? def.name.length * 6;
       looks.set(actor, { face: 32, label: { dy: 24, w: nameW + 4, h: 12 } });
       // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
-      if (npcWanders(def)) {
+      if (npcWanders(def) && !at) {
         attachWander(face, {
           actor,
           parts,
@@ -1128,6 +1156,9 @@ export default function WorldCanvas({
       }
       if (def.ambient?.length) attachAmbient(face, def.ambient);
       return {
+        actor,
+        face,
+        anims: npcView?.anims,
         remove: () => {
           const i = actors.indexOf(actor);
           if (i >= 0) actors.splice(i, 1);
@@ -1143,7 +1174,56 @@ export default function WorldCanvas({
       .filter((p) => p.ifFlag || p.unlessFlag)
       .map((p) => ({ p, here: null as { remove: () => void } | null }));
     for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
-    for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
+    // Someone walking with the hero (#75 item 14g) isn't also standing where they wait.
+    const standsHere = (p: NpcPlacement) => npcPresent(p, flagsRef.current) && p.defId !== escortRef.current?.npcId;
+    for (const c of comings) if (standsHere(c.p)) c.here = spawnNpc(c.p);
+
+    // An escort walking with the hero (#75 item 14g): drawn like anyone else,
+    // moved by the main loop, a worried "!" over them while they wait.
+    type Follower = { remove: () => void; place: (at: { x: number; y: number }, dx: number, dy: number, waiting: boolean) => void };
+    function spawnFollower(defId: string, at: { x: number; y: number }): Follower {
+      const here = spawnNpc({ defId, x: Math.floor(at.x / TILE), y: Math.floor(at.y / TILE) }, at);
+      here.actor.follower = true;
+      const worry = k.add([k.text('!', { size: 16 }), k.pos(at.x, at.y - 30), k.anchor('center'), k.color(255, 214, 90), k.opacity(0), k.z(21)]) as unknown as {
+        pos: WorldVec;
+        opacity: number;
+        destroy: () => void;
+      };
+      const spr = here.anims ? (here.face as unknown as { play: (n: string) => void; flipX: boolean }) : null;
+      let facing: Facing = 'down';
+      let anim = '';
+      return {
+        remove: () => {
+          here.remove();
+          worry.destroy();
+        },
+        place: (to, dx, dy, waiting) => {
+          const mx = to.x - here.actor.x;
+          const my = to.y - here.actor.y;
+          here.actor.x = to.x;
+          here.actor.y = to.y;
+          for (const part of here.actor.parts ?? []) {
+            part.pos.x += mx;
+            part.pos.y += my;
+          }
+          worry.pos = k.vec2(to.x, to.y - 30 + (reducedMotion ? 0 : Math.sin(k.time() * 6) * 2));
+          worry.opacity = waiting ? 1 : 0;
+          if (!spr || !here.anims) return;
+          const moving = Math.hypot(dx, dy) > 0.01;
+          facing = facingFor(dx, dy, facing);
+          if (facing === 'side' && dx !== 0) spr.flipX = dx < 0;
+          const want = animFor(facing, moving, here.anims);
+          if (want !== anim) {
+            anim = want;
+            spr.play(want);
+          }
+        },
+      };
+    }
+    let follower: Follower | null = null;
+    let escortState: EscortState | null = null;
+    let escortArrived = false;
+    let escortSaid = { x: -1e9, y: -1e9 };
 
     // Each roaming critter's parts, with their own full opacity — faded under
     // Calm, and less while it sleeps (`resting`, #75 item 14d). Bosses never
@@ -2079,6 +2159,7 @@ export default function WorldCanvas({
 
       // Actor contact: NPCs talk, enemies start battles.
       for (const a of actors) {
+        if (a.follower) continue; // walking with the hero, not in their way
         if (a.kind === 'enemy' && a.enemy) {
           const onHero = touching(a, player.pos, contactRadius(a.enemy));
           const asleep = resting.has(a);
@@ -2209,9 +2290,47 @@ export default function WorldCanvas({
         if (f === 'side') emberSprite.flipX = lastDir.x < 0;
       }
 
+      // --- An escort's walk (#75 item 14g) ------------------------------------
+      // Talked to where they wait, they step out and follow the hero's
+      // footsteps (`lib/escort.ts`), waiting while an awake critter is near.
+      const walk = escortRef.current;
+      if (walk && !follower && !escortArrived) {
+        // From where a battle left them, else from where they stood waiting.
+        const waitingHere = actors.find((a) => a.kind === 'npc' && a.npcId === walk.npcId && !a.follower);
+        const from = walk.from ?? (waitingHere ? { x: waitingHere.x, y: waitingHere.y } : { x: player.pos.x, y: player.pos.y });
+        follower = spawnFollower(walk.npcId, from);
+        escortState = startEscort(from);
+      } else if (!walk && follower) {
+        follower.remove();
+        follower = null;
+        escortState = null;
+      }
+      if (walk && follower && escortState && !escortArrived) {
+        escortState = dropCrumb(escortState, player.pos);
+        // Awake critters that could fight someone on foot — not sleepers, not under Calm.
+        const threats = calm
+          ? []
+          : actors.flatMap((a) =>
+              a.enemy && !resting.has(a) && meetsHero(a.enemy.habitat, 'foot') ? [{ x: a.x, y: a.y }] : [],
+            );
+        const wasWaiting = escortState.waiting;
+        const before = escortState.at;
+        escortState = stepEscort(escortState, player.pos, threats, dt);
+        follower.place(escortState.at, escortState.at.x - before.x, escortState.at.y - before.y, escortState.waiting);
+        if (escortState.waiting && !wasWaiting) cbRef.current.onEscortWait?.();
+        if (Math.hypot(escortState.at.x - escortSaid.x, escortState.at.y - escortSaid.y) > TILE / 2) {
+          escortSaid = escortState.at;
+          cbRef.current.onEscortMove?.(escortState.at.x, escortState.at.y);
+        }
+        if (arrived(escortState.at, walk.goal, TILE)) {
+          escortArrived = true;
+          cbRef.current.onEscortArrive?.();
+        }
+      }
+
       // NPCs who come and go with the story (a flag set in a conversation).
       for (const c of comings) {
-        const present = npcPresent(c.p, flagsRef.current);
+        const present = standsHere(c.p);
         if (present && !c.here) c.here = spawnNpc(c.p);
         else if (!present && c.here) {
           c.here.remove();

@@ -49,6 +49,8 @@ export interface CombatState {
   lucky: boolean;
   /** Forget-Me-Knot (#75 item 14e): the next wrong answer gets a second try. */
   knotted: boolean;
+  /** Glimmer Candle (#75 item 14g): Hint Feathers work even on a trickster this fight. */
+  candleLit: boolean;
   /** Fox Sense (Kira): a free Hint Feather still to use this fight. */
   freeHint: boolean;
   /** Second Wind (Talon): a knockout blow leaves 1 HP instead — once a fight. */
@@ -214,6 +216,8 @@ const POWER_MOVE_NAMES: Record<string, string> = {
   'clockwork-titan': 'Gear Grinder',
   // Act II (#75 item 14f).
   ringkeeper: 'Thousand-Year Charge',
+  // Foglight Marsh's miniboss (#75 item 14g): a sneeze of thick grey fog.
+  'last-fogbank': 'Pea-Soup Puff',
 };
 
 export function powerMoveName(enemyId: string): string {
@@ -392,6 +396,7 @@ export function itemBlocked(s: CombatState, id: ConsumableId, count: number): st
   if (id === 'tea' && s.focused) return 'Already focused';
   if (id === 'clover' && s.lucky) return 'Already lucky';
   if (id === 'knot' && s.knotted) return 'Already tied on';
+  if (id === 'candle' && s.candleLit) return 'Already lit';
   return null;
 }
 
@@ -422,6 +427,8 @@ export function resolveItem(s: CombatState, id: ConsumableId): ItemResult {
   if (id === 'tea') return { state: { ...s, focused: true }, healed: 0, chargeGained: 0 };
   if (id === 'clover') return { state: { ...s, lucky: true }, healed: 0, chargeGained: 0 };
   if (id === 'knot') return { state: { ...s, knotted: true }, healed: 0, chargeGained: 0 };
+  // A free hint now, and hints that work on tricksters for the rest of the fight.
+  if (id === 'candle') return { state: { ...s, candleLit: true, freeHint: true }, healed: 0, chargeGained: 0 };
   return { state: s, healed: 0, chargeGained: 0 };
 }
 

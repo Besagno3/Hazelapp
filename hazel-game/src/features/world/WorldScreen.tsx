@@ -64,7 +64,12 @@ import {
   GREAT_FOGBANK_SEEN,
   MEMORIA_PANELS,
   MEMORIA_SEEN,
+  POSY_STONE_PANELS,
+  POSY_STONE_SEEN,
 } from '../../content/story';
+import { activeEscort, escortsAway } from '../../content/quests';
+import { POSY_WALK, stepFlag, withoutEscorts } from '../../content/questFlags';
+import { NPC_DEFS } from '../../content/npcs';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import LevelBadge from '../../components/LevelBadge';
@@ -184,6 +189,23 @@ export default function WorldScreen() {
   const hp = Math.min(save?.hp ?? maxHp, maxHp);
   const flags = save?.flags ?? {};
   const { crystals, stage: ember } = emberStatus(flags);
+  // An escort's walk under way here (#75 item 14g, Posy through Foglight Marsh).
+  const walk = save && !spireTheme ? activeEscort(save, zoneId) : null;
+  const escortWaitSaid = useRef(false);
+  useEffect(() => {
+    if (!walk) escortWaitSaid.current = false;
+  }, [walk]);
+  // Leaving the place mid-walk (an exit, a Return): they go back to wait where they started.
+  const awayKey = save ? escortsAway(save, zoneId).join(',') : '';
+  useEffect(() => {
+    if (!awayKey) return;
+    useBattleStore.getState().setEscortAt(null);
+    update((s) => ({ ...s, flags: withoutEscorts(s.flags) }));
+    const name = NPC_DEFS[awayKey.split(',')[0]]?.name ?? 'Your friend';
+    showToast(`🌼 ${name} runs back to wait for you where you met.`);
+    // Only when someone's left behind.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awayKey]);
   // The HUD counts the crystals of the acts that have opened (#75 item 14c).
   const inPlay = crystalsInPlay(flags);
 
@@ -214,6 +236,8 @@ export default function WorldScreen() {
   const fogbankDue = flags[GREAT_FOGBANK_MET] === true && !flags[GREAT_FOGBANK_SEEN];
   // The Memoria Key, won from the Ringkeeper (#75 item 14f).
   const memoriaDue = flags[keyFlag('memoria')] === true && !flags[MEMORIA_SEEN];
+  // Posy lays her flower at the Nameless Stone (#75 item 14g).
+  const posyDue = flags[stepFlag(POSY_WALK)] === true && !flags[POSY_STONE_SEEN];
 
   const activeScene:
     | 'spireVictory'
@@ -228,6 +252,7 @@ export default function WorldScreen() {
     | 'voyage'
     | 'fogbank'
     | 'memoria'
+    | 'posy'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -252,7 +277,9 @@ export default function WorldScreen() {
                         ? 'fogbank'
                         : memoriaDue
                           ? 'memoria'
-                          : null;
+                          : posyDue
+                            ? 'posy'
+                            : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
@@ -517,6 +544,20 @@ export default function WorldScreen() {
           onWard: (id) => spireBump({ kind: 'ward', id }),
           onStairs: () => spireBump({ kind: 'stairs' }),
           onUmbra: () => spireBump({ kind: 'umbra' }),
+          // An escort's walk (#75 item 14g): the first stop of a walk says why; where
+          // they stand is kept (a battle mid-walk leaves them there); arriving ends it.
+          onEscortWait: () => {
+            if (escortWaitSaid.current || toastUp.current || !walk) return;
+            escortWaitSaid.current = true;
+            showToast(`${NPC_DEFS[walk.npcId]?.name ?? 'Your friend'} waits — a critter is too close! Lead them around it, or chase it off.`);
+          },
+          onEscortMove: (x, y) => useBattleStore.getState().setEscortAt({ x, y }),
+          onEscortArrive: () => {
+            if (!walk) return;
+            useBattleStore.getState().setEscortAt(null);
+            sfx('chest');
+            update((s) => ({ ...s, flags: { ...withoutEscorts(s.flags), [stepFlag(walk.stepId)]: true } }));
+          },
           onSecret: (id) => {
             const secret = secretById(id);
             if (!secret || save.flags[secretFlag(id)]) return;
@@ -532,6 +573,7 @@ export default function WorldScreen() {
         calmRef={calmRef}
         boat={boatSpot(save)}
         aboard={save.aboard}
+        escort={walk ? { npcId: walk.npcId, goal: walk.goal, from: useBattleStore.getState().escortAt } : null}
       />
 
       <p className="text-white/50 text-xs mt-2">
@@ -659,6 +701,9 @@ export default function WorldScreen() {
       )}
       {activeScene === 'fogbank' && (
         <StoryPanels panels={GREAT_FOGBANK_PANELS} doneLabel="🧭 Sail on" onDone={() => setFlag(GREAT_FOGBANK_SEEN)} />
+      )}
+      {activeScene === 'posy' && (
+        <StoryPanels panels={POSY_STONE_PANELS} doneLabel="🌼 Talk to Posy" onDone={() => setFlag(POSY_STONE_SEEN)} />
       )}
       {activeScene === 'memoria' && (
         <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />

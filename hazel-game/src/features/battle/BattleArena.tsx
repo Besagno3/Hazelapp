@@ -70,7 +70,8 @@ import { CLOVER_COIN_MULT, CONSUMABLES, type ConsumableId } from '../../content/
 import { topicInfo, crystalFlag } from '../../content/topics';
 import { emberStatus, EMBER_HATCHED } from '../../content/story';
 import { bossFlag, keyForBoss, keyFlag } from '../../content/keys';
-import { bossScript } from '../../content/enemies';
+import { BOSS_BADGES, ENEMY_DEFS, bossScript } from '../../content/enemies';
+import { withoutEscorts } from '../../content/questFlags';
 import { resolveSprite } from '../../content/sprites';
 import { BASE_TIER, dangerMarks, defeatTip, toughCallout, toughKey } from '../../content/regions';
 import { roadTier } from '../../lib/wayfinding';
@@ -112,7 +113,7 @@ type Turn =
   | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number; seq?: number }
   | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
-  | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null }
+  | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null }
   | { kind: 'defeat'; xp: number; atSea: boolean };
 
 type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
@@ -129,6 +130,7 @@ const ITEM_SOUND: Record<ConsumableId, SfxName> = {
   mirror: 'guard',
   clover: 'streak',
   knot: 'spell',
+  candle: 'spell',
   hint: 'select',
 };
 
@@ -172,6 +174,7 @@ export default function BattleArena() {
     focused,
     lucky,
     knotted,
+    candleLit,
     freeHint,
     secondWind,
     applyCombat,
@@ -192,6 +195,7 @@ export default function BattleArena() {
       focused: s.focused,
       lucky: s.lucky,
       knotted: s.knotted,
+      candleLit: s.candleLit,
       freeHint: s.freeHint,
       secondWind: s.secondWind,
       applyCombat: s.applyCombat,
@@ -919,6 +923,9 @@ export default function BattleArena() {
     // First-win bonus, then a Lucky Clover (#80) doubles the lot.
     const coins = victoryCoins(enemy!.coins, killsBefore) * (wonLucky ? CLOVER_COIN_MULT : 1);
     const drop = rollDrop(enemy!.isBoss);
+    // A boss's own badge (#75 item 14g: the Last Fogbank's Foglight Badge), the first time.
+    const bossBadge = ENEMY_DEFS[enemy!.id]?.badge;
+    const badge = bossBadge && !save!.badges.includes(bossBadge) ? bossBadge : null;
     updateSave((s) => ({
       ...s,
       hp: finalHp,
@@ -928,7 +935,7 @@ export default function BattleArena() {
       kills: { ...s.kills, [enemy!.id]: (s.kills[enemy!.id] ?? 0) + 1 },
       library: pushLibrary(s.library, misses.current),
       // A warden boss (#58) awards its gate key as a trophy badge too.
-      badges: keyBoss ? [...new Set([...s.badges, keyBoss.id])] : s.badges,
+      badges: [...new Set([...s.badges, ...(keyBoss ? [keyBoss.id] : []), ...(badge ? [badge] : [])])],
       flags: {
         ...s.flags,
         // The first victory warms the egg — the hatch scene plays back in
@@ -941,7 +948,7 @@ export default function BattleArena() {
         ...(enemy!.isBoss && enemy!.role !== 'fiend' && !keyBoss ? { [bossFlag(enemy!.id)]: true } : {}),
       },
     }));
-    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop });
+    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge });
   }
 
   function defeat() {
@@ -960,8 +967,11 @@ export default function BattleArena() {
       // dock — a hero waking ashore could never reach it out on open water.
       ...boatAfterDefeat(s),
       ...wakeAfterDefeat(s),
+      // An escort's walk ends (#75 item 14g): they wait at the start again.
+      flags: withoutEscorts(s.flags),
       library: pushLibrary(s.library, misses.current),
     }));
+    useBattleStore.getState().setEscortAt(null);
     setTurn({ kind: 'defeat', xp, atSea });
   }
 
@@ -990,6 +1000,7 @@ export default function BattleArena() {
     focused,
     lucky,
     knotted,
+    candleLit,
     freeHint,
     secondWind,
   };
@@ -1195,8 +1206,9 @@ export default function BattleArena() {
               key={qKey}
               question={turn.question}
               // Fox Sense (Kira): a free hint on top of the feathers, used first.
-              hints={enemy.behavior === 'trickster' ? 0 : save.items.hint + (freeHint ? 1 : 0)}
-              hintLabel={freeHint ? '🦊 Fox Sense — use a free hint!' : undefined}
+              // A trickster blocks hints — unless a Glimmer Candle is lit (#75 item 14g).
+              hints={enemy.behavior === 'trickster' && !candleLit ? 0 : save.items.hint + (freeHint ? 1 : 0)}
+              hintLabel={freeHint ? (candleLit ? '🕯️ Glimmer Candle — use a free hint!' : '🦊 Fox Sense — use a free hint!') : undefined}
               preHidden={turn.hide ?? 0}
               // Forget-Me-Knot (#75 item 14e): a wrong pick is crossed out and the hero picks again.
               secondChance={knotted}
@@ -1258,6 +1270,7 @@ export default function BattleArena() {
             lucky={turn.kind === 'victory' && turn.lucky}
             firstWin={turn.kind === 'victory' && turn.firstWin}
             drop={turn.kind === 'victory' ? turn.drop : null}
+            badge={turn.kind === 'victory' && turn.badge ? BOSS_BADGES[turn.badge] ?? null : null}
             wakeInn={save ? wakeInnName(save) : null}
             shelter={save ? wakeShelter(save) : null}
             tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}

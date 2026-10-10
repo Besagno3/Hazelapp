@@ -4,6 +4,9 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
+import { POSY_QUEST, POSY_WALK, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+
+export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
 /**
  * Zone quests (#37 story pass, #42 variety). Quests are ordered steps over
@@ -17,6 +20,8 @@ import { BOAT_QUEST_ID } from './boat';
  * - have steps    — carry a quest item, e.g. from a key-item chest (#75 item 13)
  * - bring steps   — hand a carried item to another NPC, who may give back
  *                   something new — the item, changed (#75 item 13)
+ * - escort steps  — walk someone through a place: they follow the hero and
+ *                   wait while a critter is near (#75 item 14g, Posy)
  *
  * Conversations resolve through `questConversation(npcId, save)`:
  * the giver speaks offer / current-step hint / completion; step-target NPCs
@@ -50,6 +55,8 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'acorn-speckled': { id: 'acorn-speckled', name: 'Speckled Acorn', emoji: '🌰' },
   'acorn-striped': { id: 'acorn-striped', name: 'Striped Acorn', emoji: '🌰' },
   'acorn-golden': { id: 'acorn-golden', name: 'Golden Acorn', emoji: '🌰' },
+  // The Lantern Ledger (#75 item 14g): Brume's little book, in a key-item chest in Foglight Marsh.
+  'lantern-ledger': { id: 'lantern-ledger', name: 'Lantern Ledger', emoji: '📒' },
 };
 
 /**
@@ -89,6 +96,23 @@ export interface QuestStep {
   trade?: { takes: string; gives?: string };
   /** A have step's items (#75 item 13), every form of every target — for the content tests. */
   needs?: string[];
+  /** An escort step's walk (#75 item 14g). */
+  escort?: EscortDef;
+}
+
+/**
+ * An escort (#75 item 14g): talk to `npcId` in `zoneId` and they follow the
+ * hero (`lib/escort.ts`) — waiting while a critter is near — until they reach
+ * `goal` (a cell), which completes the step. Their walk is never saved:
+ * leaving the place, losing a battle or reloading sends them back to wait
+ * where they started (`escortWalkingFlag`).
+ */
+export interface EscortDef {
+  npcId: string;
+  zoneId: ZoneId;
+  goal: { x: number; y: number };
+  /** What they say as the walk starts. */
+  lines: string[];
 }
 
 export interface QuestDef {
@@ -223,14 +247,19 @@ function bringStep(
   };
 }
 
+/**
+ * Walk someone through a place (#75 item 14g): done once they reach the goal
+ * (`stepFlag`, set by the world as they arrive).
+ */
+function escortStep(id: string, escort: EscortDef, hint: string): QuestStep {
+  return { id, hint, escort, isComplete: (save) => save.flags[stepFlag(id)] === true };
+}
+
 /** Save flag: this quest item was handed over in a bring step (#75 item 13). */
 export function handedOverFlag(item: string): string {
   return `quest-item:${item}:handed-over`;
 }
 
-export function stepFlag(stepId: string): string {
-  return `quest-step:${stepId}`;
-}
 
 // --- The quests -----------------------------------------------------------------
 
@@ -775,6 +804,92 @@ export const QUESTS: QuestDef[] = [
     reward: { coins: 35, items: { hint: 1 } },
   },
 
+  // --- Foglight Marsh (#75 item 14g) -----------------------------------------
+
+  // Multi-step: find the Ledger, light its three lanterns in order, report back.
+  {
+    id: 'marsh-lanterns',
+    zoneId: 'foglight-marsh',
+    giverNpcId: 'marsh-brume',
+    side: true,
+    title: 'The Lantern Ledger',
+    offer: [
+      "Oh! A visitor. Lightkeeper Brume. I keep the Marsh's lanterns — or I did, until I lost my Lantern Ledger.",
+      "It's the little book that says which lantern to light, and when. It's stuck in a riddle-chest up in the north-east reeds.",
+      'Find my Ledger, light the three lanterns it lists, then come and tell me. The Marsh has been dark far too long!',
+    ],
+    steps: [
+      haveStep(
+        'ledger-find',
+        [{ items: ['lantern-ledger'], label: 'the Lantern Ledger' }],
+        'My Lantern Ledger is in a riddle-chest 🎁 in the reeds, at the top of the east boardwalk.',
+      ),
+      talkStep(
+        'lantern-west',
+        'marsh-lantern-west',
+        ['You open the Ledger. "First: the WEST lantern."', 'You strike a match… *fwoomp!* The west lantern glows warm and gold. ✨'],
+        'The Ledger says: light the WEST lantern first. It\'s by the boardwalk north of my lamp-house.',
+      ),
+      talkStep(
+        'lantern-north',
+        'marsh-lantern-north',
+        ['The Ledger says: "Second: the NORTH lantern."', '*Fwoomp!* The north lantern glows. Its light dances on the reed pools. ✨'],
+        'Next, the NORTH lantern — up the middle boardwalk, past the reed pools.',
+      ),
+      talkStep(
+        'lantern-east',
+        'marsh-lantern-east',
+        ['The Ledger says: "Last of all: the EAST lantern."', '*Fwoomp!* The east lantern glows. That\'s all three! Go and tell Brume. ✨'],
+        'Last, the EAST lantern — up the east boardwalk, beside the reeds.',
+      ),
+    ],
+    takesItems: ['lantern-ledger'],
+    complete: [
+      'All three lanterns lit! Look at the water — every lantern shines twice, once up and once down.',
+      'The Marsh remembers how to glow. And I remember where my Ledger lives: right here, in my pocket.',
+      '✨ Reward: 35 coins and a Hint Feather!',
+    ],
+    reward: { coins: 35, hint: 1 },
+  },
+
+  // Escort: walk Posy through Foglight Marsh to the Nameless Stone.
+  {
+    id: POSY_QUEST,
+    zoneId: 'remembrance-hill',
+    giverNpcId: 'hill-posy',
+    side: true,
+    title: 'The Flower for No Name',
+    // She needs Marlow's boat to get there — and so do you.
+    requires: questDoneFlag({ id: BOAT_QUEST_ID }),
+    offer: [
+      "Hi! I'm Posy. I bring flowers to the names nobody remembers.",
+      'There\'s a stone in Foglight Marsh with NO name on it at all. It needs a flower most of all!',
+      'Ferryman Slosh will pole me over on his raft. Will you meet me at the Marsh\'s landing and walk me to the stone? The critters scare me a little.',
+    ],
+    steps: [
+      escortStep(
+        POSY_WALK,
+        {
+          npcId: 'hill-posy',
+          zoneId: 'foglight-marsh',
+          // The end of the north-west boardwalk, beside the Nameless Stone.
+          goal: { x: 6, y: 4 },
+          lines: [
+            "You came! The stone is at the end of the boardwalk, way up in the north-west.",
+            "I'll follow right behind you. If a critter gets close, I'll wait until it's gone!",
+          ],
+        },
+        "Sail to Foglight Marsh, on the Silver Shallows' north coast. Posy waits at the landing — walk her to the Nameless Stone!",
+      ),
+    ],
+    complete: [
+      'The stone has a flower now. I think it likes it!',
+      'Thank you for walking with me. You were very brave. I was… medium brave.',
+      '✨ Reward: 35 coins and a Berry Potion!',
+    ],
+    reward: { coins: 35, potion: 1 },
+  },
+
   // --- Item chains (#75 item 13) ----------------------------------------------
 
   // Find a key item in a dungeon chest (behind the Echo Mine's dark — Glow),
@@ -900,13 +1015,6 @@ export function questFor(npcId: string, save: SaveData): QuestDef | undefined {
   return mine.find((q) => save.flags[questOfferedFlag(q)]) ?? mine.find((q) => !q.requires || save.flags[q.requires]);
 }
 
-export function questOfferedFlag(q: Pick<QuestDef, 'id'>): string {
-  return `quest:${q.id}:offered`;
-}
-
-export function questDoneFlag(q: Pick<QuestDef, 'id'>): string {
-  return `quest:${q.id}:done`;
-}
 
 /** The first incomplete step, or null when every step is done. */
 export function activeStep(q: QuestDef, save: SaveData): QuestStep | null {
@@ -988,6 +1096,17 @@ function stepConversation(npcId: string, save: SaveData): QuestConversation | nu
   for (const q of QUESTS) {
     if (!save.flags[questOfferedFlag(q)] || save.flags[questDoneFlag(q)]) continue;
     const step = activeStep(q, save);
+    // An escort starts when you talk to them — not while they're already walking with you (#75 item 14g).
+    if (step?.escort && step.escort.npcId === npcId) {
+      const walking = escortWalkingFlag(step.id);
+      if (save.flags[walking]) continue;
+      return {
+        lines: step.escort.lines,
+        badge: q.title,
+        finishKind: 'step',
+        finish: (s) => ({ ...s, flags: { ...s.flags, [walking]: true } }),
+      };
+    }
     if (step?.npc && step.npc.id === npcId) {
       const flag = stepFlag(step.id);
       const trade = step.trade;
@@ -1051,6 +1170,29 @@ export function chestWantedLine(save: SaveData, chestId: string): string | null 
   if (!quest || save.flags[questDoneFlag(quest)]) return null;
   if (!save.flags[questOfferedFlag(quest)]) return chest.wantedBy;
   return quest.foundNote?.(save) ?? null;
+}
+
+/**
+ * The walk under way in this place, if any (#75 item 14g): whose, where to,
+ * and the step it finishes. The canvas leads them while it lasts.
+ */
+export function activeEscort(save: SaveData, zoneId: ZoneId): { stepId: string; npcId: string; goal: { x: number; y: number } } | null {
+  for (const q of QUESTS) {
+    if (!save.flags[questOfferedFlag(q)] || save.flags[questDoneFlag(q)]) continue;
+    const step = activeStep(q, save);
+    if (step?.escort && step.escort.zoneId === zoneId && save.flags[escortWalkingFlag(step.id)]) {
+      return { stepId: step.id, npcId: step.escort.npcId, goal: step.escort.goal };
+    }
+  }
+  return null;
+}
+
+/** Who is walking with the hero somewhere other than `zoneId` (#75 item 14g) — they go back to wait. */
+export function escortsAway(save: SaveData, zoneId: ZoneId): string[] {
+  return QUESTS.flatMap((q) => {
+    const step = save.flags[questDoneFlag(q)] ? null : activeStep(q, save);
+    return step?.escort && step.escort.zoneId !== zoneId && save.flags[escortWalkingFlag(step.id)] ? [step.escort.npcId] : [];
+  });
 }
 
 /** Quests accepted but not finished — for the menu's quest log. */

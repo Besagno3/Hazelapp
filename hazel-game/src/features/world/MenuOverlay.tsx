@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { spellsKnown } from '../../content/spells';
 import { ALL_SHOP_ITEMS, CONSUMABLES, CONSUMABLE_IDS } from '../../content/items';
 import { GATE_KEYS } from '../../content/keys';
+import { BOSS_BADGES } from '../../content/enemies';
 import { avatarById, HERO_ABILITIES, STYLE_LABEL } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_STAGE_LABEL } from '../../content/story';
 import { COMPANIONS, COMPANION_IDS, companionsInParty } from '../../content/companion';
@@ -166,6 +167,7 @@ export default function MenuOverlay({
                 (b) =>
                   ALL_SHOP_ITEMS.find((i) => i.id === b)?.emoji ??
                   GATE_KEYS.find((k) => k.id === b)?.emoji ??
+                  BOSS_BADGES[b]?.emoji ??
                   '🏅',
               )
               .join(' ')}

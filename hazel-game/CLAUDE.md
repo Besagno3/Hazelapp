@@ -137,7 +137,12 @@ zod, react-query. Add the package in the same change that first uses it.
   signposts and the menu map; Act II's **Eldergrove**, #75 item 14f, is
   an island of the Silver Shallows — a history field at tier 5 whose warden,
   the Ringkeeper, gives the Memoria Key, a `GateKey` whose gate isn't on any
-  map until the Sunken Archive (14h): `unlocksZone: null`, `opens` instead),
+  map until the Sunken Archive (14h): `unlocksZone: null`, `opens` instead;
+  and **Foglight Marsh**, #75 item 14g, is the Shallows' north coast — a
+  history field where Posy's escort walks (`escortStep`, `lib/escort.ts`: an
+  escort follows the hero's footsteps and waits near critters; its walk is
+  never saved, `escortWalkingFlag`) and a miniboss gives its own badge
+  (`EnemyDef.badge`)),
   `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
@@ -516,6 +521,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit (#75 item 14f)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
+# (…and escort=1 — an escort's walk under way, by its flags — and __bench.walkTo(x, y), #75 item 14g)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
 python3 tools/tiled/tiled.py to-ascii src/content/maps/dawnreach.tmj    # a Tiled map as ASCII rows
@@ -531,6 +537,7 @@ python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#7
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
 python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
+python3 tools/assets/build.py marsh    # Foglight Marsh: its tiles, the stilt town sheet, the marsh icon, its critters, people and lanterns (#75 item 14g)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
 
@@ -607,6 +614,59 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Foglight Marsh: Posy's walk, Brume's lanterns, the Last Fogbank (#75 item 14g)
+Roadmap sub-item 14g — Act II's marsh on the Silver Shallows' north coast.
+- **On the Shallows:** a coast along the top edge (x 23–46, rows 0–4, a beach
+  below, `maps/silver-shallows.tmj`) with a lotus icon (`marsh`, frame 18,
+  appended; 🪷 on the menu map). Every land cell is within 6 of open sea, so a
+  hero saved aboard on it still loads afloat.
+- **The Marsh** (`foglight-marsh`, 44×28, `kind: 'field'`, history, tier 5 with
+  the Shallows): boardwalks from the landing up to a long walk across, reed
+  pools, **Brume's Lamp-House** (a new **stilt** style; the Marsh's shelter —
+  beaten here, you wake inside), **Slosh's Raft Shop**, the Nameless Stone at
+  the end of the north-west boardwalk, and a reedy cove in the south-east where
+  **the Last Fogbank** sits in front of the riddle-chest. Critters: Mist Newt 🦎,
+  Bog Lantern (trickster) and Murk Toad 🐸, two of each. People: Lightkeeper
+  Brume, Puddle the frog, Ferryman Slosh. Lamplighter Ness names the Marsh.
+- **The Flower for No Name** (Posy's escort; `requires` Marlow's boat): she asks
+  on Remembrance Hill, waits at the Marsh's landing, and — talked to there —
+  walks with you to the Nameless Stone. A new **`escortStep`**
+  (`QuestStep.escort`, `EscortDef`): `lib/escort.ts` has her follow the hero's
+  own footsteps (crumbs, a 44 px gap, quicker when far behind) and **wait while
+  an awake land critter is within 80 px** (a "!" over her; the first stop of a
+  walk says why); `WorldCanvas` takes `escort` (`EscortWalk`) and calls
+  `onEscortWait` / `onEscortMove` / `onEscortArrive`. The walk is never saved
+  (`escortWalkingFlag`): a battle mid-walk keeps her place for the session
+  (`battleStore.escortAt`); leaving the Marsh (`escortsAway`), a lost battle or a
+  reload (`normalizeSave` → `withoutEscorts`) sends her back to the landing.
+  Arriving plays two panels (`POSY_STONE_PANELS`); she pays 35 coins + a potion.
+  Quest flag names live in a leaf module, `content/questFlags.ts`, so the maps
+  can place her by the quest's progress.
+- **The Lantern Ledger** (Brume): the Ledger from a key-item chest, then the
+  west, north and east lanterns lit in turn (talk steps; each lantern is an NPC
+  placed dark and lit on one spot, swapped by its step flag), then report —
+  35 coins + a Hint Feather.
+- **The Last Fogbank** (`miniboss`, "Pea-Soup Puff"): a shy puff of fog with
+  its own lines; its first defeat gives the **🔆 Foglight Badge**
+  (`EnemyDef.badge`, `BOSS_BADGES`; on the victory panel and the menu's shelf).
+- **Slosh's shop** (roadmap decision 12): the new **🕯️ Glimmer Candle** — a free
+  hint now, and Hint Feathers work on tricksters for the rest of the fight
+  (`CombatState.candleLit`) — and the 🪷 Lily Pad Badge.
+- **Art** (`python3 tools/assets/build.py marsh`): the zone's tileset (new
+  `reeds` scenery and `lotus` decoration), blend sheet and backdrop,
+  `town-stilt.png`, the overworld sheet and ten sprites (new drawers `newt`,
+  `bog_lantern`, `shy_cloud`, `lantern_post`, `nameless_stone`); the manifest only
+  gained entries.
+- **Bench:** `escort=1` runs the walk the flags say is under way;
+  `__bench.walkTo(x, y)` walks the hero to a cell; `state()` reports
+  `escortWaits` / `escortAt` / `escortArrived`.
+- Tests: +23 (zones.test: the Marsh, Posy's places — the "one place at a time"
+  check now tries every order of an NPC's flags; escort.test; quests.test: the
+  Ledger and the escort; BattleArena.test: the badge, the candle;
+  battleTurn.test; story.test). 969 green, lint + build clean. On the real
+  canvas (bench): Posy follows the boardwalks from the landing to the stone and
+  arrives; near the Mist Newt's patch she stops. Follow-ups: #120.
 
 ### 2026-10-10 — Every Training Grounds topic stays open (#119)
 Passing a topic round no longer greys that topic out for the rest of the

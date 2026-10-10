@@ -17,6 +17,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py seacritters # only the sea critters + the battle-at-sea backdrop (#75 item 14d)
     python3 tools/assets/build.py hill       # only Remembrance Hill (#75 item 14e)
     python3 tools/assets/build.py elder      # only Eldergrove: its tiles, critters and people (#75 item 14f)
+    python3 tools/assets/build.py marsh      # only Foglight Marsh: its tiles, critters, people and lanterns (#75 item 14g)
     python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
@@ -43,6 +44,10 @@ PUBLIC = ROOT / 'public'
 MANIFEST = ROOT / 'src' / 'content' / 'sprites.generated.ts'
 
 # Eldergrove's critters and people (#75 item 14f), for `build.py elder`.
+# Foglight Marsh's critters, people and props (#75 item 14g), for `build.py marsh`.
+MARSH_SPRITES = ('mist-newt', 'bog-lantern', 'murk-toad', 'last-fogbank', 'marsh-brume', 'marsh-puddle', 'marsh-slosh',
+                 'marsh-stone', 'marsh-lantern', 'marsh-lantern-lit')
+
 ELDER_SPRITES = ('ring-beetle', 'sap-sprite', 'hollow-acorn', 'ringkeeper', 'elder-fen', 'elder-ringwood', 'elder-dawdle')
 
 
@@ -105,6 +110,14 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(SEA_CRITTERS)))
         tiles.build_sea_backdrops(PUBLIC)
         print('sea critters ✓')
+        return
+    if 'marsh' in only:
+        # Just Foglight Marsh (#75 item 14g): its critters, people and lanterns, its
+        # tiles, the stilt town sheet and the overworld sheet with the marsh icon
+        # appended — every other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only=set(MARSH_SPRITES)))
+        tiles.build_marsh(PUBLIC)
+        print('marsh ✓')
         return
     if 'elder' in only:
         # Just Eldergrove (#75 item 14f): its critters and people, its tiles, the

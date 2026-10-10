@@ -1,4 +1,5 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
+import { withoutEscorts } from '../content/questFlags';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
 import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, shelterOf } from '../content/zones';
 import { BOAT_SPAWN_REACH, safeSpawn } from './reach';
@@ -159,7 +160,7 @@ export function defaultSave(): SaveData {
     pos: null,
     hp: null,
     coins: 0,
-    items: { potion: 1, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0, knot: 0 },
+    items: { potion: 1, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0, knot: 0, candle: 0 },
     badges: [],
     sages: [],
     flags: { [SAVE_V2_FLAG]: true },
@@ -194,7 +195,8 @@ export function normalizeSave(raw: unknown): SaveData {
   const savedPos = zoneKnown && isPos(r.pos) ? { x: r.pos.x, y: r.pos.y } : null;
   // Every known consumable gets a count; ids added later (#73: elixir, spark,
   // ward) simply default in for older saves.
-  const flags = { ...(isRecord(r.flags) ? (r.flags as Record<string, boolean>) : {}), [SAVE_V2_FLAG]: true };
+  // An escort's walk is never kept (#75 item 14g): reloaded, they wait at the start again.
+  const flags = withoutEscorts({ ...(isRecord(r.flags) ? (r.flags as Record<string, boolean>) : {}), [SAVE_V2_FLAG]: true });
   const rawItems = typeof r.items === 'object' && r.items !== null ? (r.items as Record<string, unknown>) : {};
   const items = Object.fromEntries(
     CONSUMABLE_IDS.map((id) => [id, numberOr(rawItems[id], d.items[id])]),

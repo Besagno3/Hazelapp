@@ -40,6 +40,11 @@ export interface EnemyDef {
    * never fights a sailing hero (`meetsHero`, lib/travel.ts).
    */
   habitat?: Habitat;
+  /**
+   * A badge for the trophy shelf, won with this boss's first defeat (#75 item
+   * 14g: the Last Fogbank's Foglight Badge) — its id in `save.badges`.
+   */
+  badge?: string;
 }
 
 const HP_BASE = 60;
@@ -123,6 +128,37 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'hollow-acorn': { id: 'hollow-acorn', name: 'Hollow Acorn', sprite: '🫥', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
   // The warden of the Great Ring: beat it for the Memoria Key (keys.ts).
   ringkeeper: { id: 'ringkeeper', name: 'The Ringkeeper', sprite: '🦌', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true, role: 'warden' },
+
+  // --- Foglight Marsh (history, #75 item 14g): critters of the last fog ---
+  'mist-newt': { id: 'mist-newt', name: 'Mist Newt', sprite: '🦎', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
+  // Trickster: its flicker hides the Hint Feather's work (STORY-4X §4 "decoy options").
+  'bog-lantern': { id: 'bog-lantern', name: 'Bog Lantern', sprite: '🎃', topic: 'history', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster' },
+  'murk-toad': { id: 'murk-toad', name: 'Murk Toad', sprite: '🐸', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
+  // A leftover puddle of fog with stage fright — optional, restores nothing,
+  // gives the Foglight Badge (a miniboss, #75 item 14c roles).
+  'last-fogbank': {
+    id: 'last-fogbank',
+    name: 'The Last Fogbank',
+    sprite: '☁️',
+    topic: 'history',
+    levelOffset: 1,
+    hpPerLevel: 15,
+    isBoss: true,
+    role: 'miniboss',
+    badge: 'foglight',
+    lines: {
+      intro: [
+        "Oh! Oh no. Somebody's LOOKING at me. I'm the Last Fogbank. All the other fog went home…",
+        "…so I'll make you forget you ever saw me! Um. Answer my questions about long ago — if you can REMEMBER!",
+      ],
+      defeat: "You remembered everything… Fine. I'll drift off and be a nice little cloud. Take this badge — it's shiny, like you.",
+    },
+  },
+};
+
+/** Badges a boss gives (#75 item 14g), for the menu's trophy shelf: id → name and emoji. */
+export const BOSS_BADGES: Record<string, { name: string; emoji: string }> = {
+  foglight: { name: 'Foglight Badge', emoji: '🔆' },
 };
 
 /** Where an enemy lives (#75 item 14d): its def's habitat, else land. */

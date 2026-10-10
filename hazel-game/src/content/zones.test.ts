@@ -23,7 +23,9 @@ import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS } from './npcs';
-import { ENEMY_DEFS, fiendFor } from './enemies';
+import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
+import { POSY_QUEST, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import type { ZoneDef } from './zones';
 import {
@@ -415,17 +417,23 @@ describe('every place is unique (#73)', () => {
     }
   });
 
-  it('no NPC is ever in two places at once: one placed twice hands over on a flag (#75 item 8)', () => {
+  it('no NPC is ever in two places at once: one placed twice hands over on a flag (#75 items 8, 14g)', () => {
     const byDef = new Map<string, typeof placed>();
     for (const x of placed) byDef.set(x.p.defId, [...(byDef.get(x.p.defId) ?? []), x]);
+    // The flags turn on one at a time, in story order — some order where they're
+    // always in exactly one place (Posy: offered → at the stone → done, #75 item 14g).
+    const orders = (xs: string[]): string[][] => (xs.length <= 1 ? [xs] : xs.flatMap((x) => orders(xs.filter((y) => y !== x)).map((o) => [x, ...o])));
     for (const [id, spots] of byDef) {
       if (spots.length === 1) continue;
       const flagNames = [...new Set(spots.flatMap(({ p }) => [p.ifFlag, p.unlessFlag].filter(Boolean) as string[]))];
-      expect(flagNames.length, `${id} hands over on one flag`).toBe(1);
-      for (const on of [false, true]) {
-        const present = spots.filter(({ p }) => npcPresent(p, { [flagNames[0]]: on }));
-        expect(present.length, `${id} with ${flagNames[0]}=${on}`).toBe(1);
-      }
+      expect(flagNames.length, `${id} hands over on flags`).toBeGreaterThanOrEqual(1);
+      const oneAtATime = orders(flagNames).some((order) =>
+        order.every((_, n) => {
+          const flags = Object.fromEntries(order.map((f, i) => [f, i < n]));
+          return spots.filter(({ p }) => npcPresent(p, flags)).length === 1;
+        }) && spots.filter(({ p }) => npcPresent(p, Object.fromEntries(order.map((f) => [f, true])))).length === 1,
+      );
+      expect(oneAtATime, `${id} is in exactly one place at every step`).toBe(true);
     }
   });
 
@@ -806,7 +814,7 @@ describe('Eldergrove (#75 item 14f)', () => {
     expect(grove.exits.some((e) => out.has(`${e.x},${e.y}`))).toBe(true);
     // A shelter, not an inn: no Rest, and only Eldergrove has one.
     expect(innOf(grove)).toBeUndefined();
-    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove']);
+    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh']);
   });
 
   it("Fen, Old Ringwood and Dawdle live here — Dawdle the slowest wanderer in the game", () => {
@@ -818,5 +826,97 @@ describe('Eldergrove (#75 item 14f)', () => {
     }
     expect(NPC_DEFS['elder-ringwood'].stationary).toBe(true);
     expect(NPC_DEFS['elder-fen'].stationary).toBe(true);
+  });
+});
+
+describe('Foglight Marsh (#75 item 14g)', () => {
+  const marsh = ZONES['foglight-marsh'];
+  const sea = ZONES['silver-shallows'];
+  const icon = sea.places!.find((p) => p.name === 'Foglight Marsh')!;
+  const cells = (ch: string) =>
+    marsh.map.flatMap((row, y) => [...row].flatMap((c, x) => (c === ch ? [{ x, y }] : [])));
+  const placed = (defId: string) => marsh.npcs.filter((p) => p.defId === defId);
+
+  it("is a history field on the Shallows' north coast, as tough as the Shallows", () => {
+    expect(marsh.kind).toBe('field');
+    expect(marsh.topic).toBe('history');
+    expect(zoneTier('foglight-marsh')).toBe(zoneTier('silver-shallows'));
+    expect(icon.icon).toBe('marsh');
+    expect(icon.y).toBeLessThan(sea.map.length / 4);
+  });
+
+  it('a boat lands on its beach and the hero walks to its icon; its exits lead back beside it', () => {
+    const path = reachPath(sea, (x, y) => x === icon.x && y === icon.y, { from: { x: 1, y: 22 }, aboard: true, modes: ['boat', 'foot'] });
+    expect(path, 'sail in and land below the Marsh').not.toBeNull();
+    expect(path!.at(-1)!.mode).toBe('foot');
+    for (const e of marsh.exits) expect(Math.abs(e.spawnX - icon.x) + Math.abs(e.spawnY - icon.y), 'lands beside the icon').toBe(1);
+  });
+
+  it('three critters of the last fog — the Bog Lantern a trickster — and the Last Fogbank, a miniboss with a badge', () => {
+    const kinds = [...new Set(marsh.enemies.filter((e) => !ENEMY_DEFS[e.defId].isBoss).map((e) => e.defId))].sort();
+    expect(kinds).toEqual(['bog-lantern', 'mist-newt', 'murk-toad']);
+    for (const id of kinds) expect(ENEMY_DEFS[id].topic).toBe('history');
+    expect(ENEMY_DEFS['bog-lantern'].behavior).toBe('trickster');
+    expect(kinds.map((id) => ENEMY_DEFS[id].levelOffset).sort()).toEqual([-1, 0, 1]);
+    const fog = ENEMY_DEFS['last-fogbank'];
+    expect([fog.isBoss, fog.role]).toEqual([true, 'miniboss']);
+    expect(BOSS_BADGES[fog.badge!].name).toBe('Foglight Badge');
+    expect(fog.lines?.intro.length).toBeGreaterThan(0);
+  });
+
+  it('the Last Fogbank sits in the way of the cove\'s riddle-chest: past it, or not at all', () => {
+    const boss = marsh.enemies.find((e) => e.defId === 'last-fogbank')!;
+    const [chest] = cells('C').filter((c) => c.y > 20);
+    expect(chest).toBeDefined();
+    expect(touches(reach(marsh), chest.x, chest.y)).toBe(true);
+    expect(touches(reach(marsh, { blocked: (x, y) => x === boss.x && y === boss.y }), chest.x, chest.y)).toBe(false);
+  });
+
+  it("Posy's walk: from the landing to the Nameless Stone on foot, the goal beside the stone", () => {
+    const landing = placed('hill-posy').find((p) => p.ifFlag === questOfferedFlag({ id: POSY_QUEST }))!;
+    const quest = QUESTS.find((q) => q.id === POSY_QUEST)!;
+    const escort = quest.steps[0].escort!;
+    expect(escort.zoneId).toBe('foglight-marsh');
+    expect(reach(marsh, { from: landing }).has(`${escort.goal.x},${escort.goal.y}`)).toBe(true);
+    const stone = placed('marsh-stone')[0];
+    expect(Math.abs(stone.x - escort.goal.x) + Math.abs(stone.y - escort.goal.y)).toBe(1);
+    // The landing is a step from where the hero arrives.
+    expect(Math.abs(landing.x - marsh.spawn.x) + Math.abs(landing.y - marsh.spawn.y)).toBeLessThanOrEqual(3);
+  });
+
+  it('Posy is on the Hill, then at the landing, then by the stone, then home — one place at a time', () => {
+    const offered = questOfferedFlag({ id: POSY_QUEST });
+    const arrived = stepFlag(POSY_WALK);
+    const done = questDoneFlag({ id: POSY_QUEST });
+    const where = (flags: Record<string, boolean>) =>
+      allZones.flatMap((z) => z.npcs.filter((p) => p.defId === 'hill-posy' && npcPresent(p, flags)).map((p) => `${z.id}@${p.x},${p.y}`));
+    expect(where({})).toEqual(['remembrance-hill@14,23']);
+    expect(where({ [offered]: true })).toEqual(['foglight-marsh@22,25']);
+    expect(where({ [offered]: true, [arrived]: true })).toEqual(['foglight-marsh@6,3']);
+    expect(where({ [offered]: true, [arrived]: true, [done]: true })).toEqual(['remembrance-hill@14,23']);
+  });
+
+  it("Brume's lanterns stand by the boardwalks, dark until lit, and her Ledger's chest is in reach", () => {
+    const open = reach(marsh);
+    for (const side of ['west', 'north', 'east']) {
+      const [dark] = placed(`marsh-lantern-${side}`);
+      const [lit] = placed(`marsh-lantern-${side}-lit`);
+      expect([dark.x, dark.y]).toEqual([lit.x, lit.y]);
+      expect(dark.unlessFlag).toBe(stepFlag(`lantern-${side}`));
+      expect(lit.ifFlag).toBe(stepFlag(`lantern-${side}`));
+      expect(touches(open, dark.x, dark.y), side).toBe(true);
+    }
+    const ledger = marsh.keyChests![0];
+    expect(ledger.item).toBe('lantern-ledger');
+    expect(touches(open, ledger.x, ledger.y)).toBe(true);
+  });
+
+  it("Brume's Lamp-House is the Marsh's shelter; Slosh keeps his raft shop", () => {
+    const shelter = shelterOf(marsh)!;
+    expect(shelter.building.name).toBe("Brume's Lamp-House");
+    expect(tileAt(marsh, shelter.cell.x, shelter.cell.y)).toBe('F');
+    expect(marsh.exits.some((e) => reach(marsh, { from: shelter.cell }).has(`${e.x},${e.y}`))).toBe(true);
+    const slosh = placed('marsh-slosh')[0];
+    expect(buildingInside(marsh, slosh.x, slosh.y)?.name).toBe("Slosh's Raft Shop");
   });
 });

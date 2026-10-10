@@ -63,6 +63,7 @@ describe('save items (#73)', () => {
       coil: 0,
       mirror: 0,
       knot: 0,
+      candle: 0,
     });
   });
   it('new item counts round-trip', () => {

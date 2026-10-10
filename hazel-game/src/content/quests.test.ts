@@ -17,7 +17,12 @@ import {
   handedOverFlag,
   zoneChestOpened,
   chestWantedLine,
+  activeEscort,
+  escortsAway,
 } from './quests';
+import { BOAT_QUEST_ID } from './boat';
+import { POSY_QUEST, POSY_WALK, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
 import { fieldSpellFlag } from './fieldSpells';
@@ -657,5 +662,90 @@ describe("Fen's Forgotten Acorns (#75 item 14f)", () => {
     expect(save.questItems).toEqual(['acorn-striped']);
     expect(chestWantedLine(save, STRIPED)).toMatch(/Fen the Forager.*acorns/);
     expect(chestRewardText(STRIPED)).toBe('25 coins and the 🌰 Striped Acorn!');
+  });
+});
+
+describe('The Lantern Ledger (#75 item 14g)', () => {
+  const LEDGER = pathTargetId('foglight-marsh', 'chest', 40, 3);
+  const hint = (save: SaveData) => questConversation('marsh-brume', save)!.lines[0];
+
+  it('find the Ledger, light the west, north and east lanterns in turn, then Brume pays', () => {
+    const quest = byId('marsh-lanterns');
+    expect(quest).toMatchObject({ giverNpcId: 'marsh-brume', side: true, zoneId: 'foglight-marsh' });
+    let save = converse('marsh-brume', defaultSave());
+    expect(hint(save)).toMatch(/riddle-chest 🎁/);
+    // A lantern before the Ledger is found is just a dark lantern.
+    expect(questConversation('marsh-lantern-west', save)).toBeNull();
+    save = openChest(save, LEDGER);
+    expect(save.questItems).toContain('lantern-ledger');
+    expect(hint(save)).toMatch(/WEST/);
+    // Out of order: the north lantern waits its turn.
+    expect(questConversation('marsh-lantern-north', save)).toBeNull();
+    for (const side of ['west', 'north', 'east']) {
+      save = converse(`marsh-lantern-${side}`, save);
+      expect(save.flags[stepFlag(`lantern-${side}`)], side).toBe(true);
+    }
+    const coins = save.coins;
+    const feathers = save.items.hint;
+    const done = questConversation('marsh-brume', save)!;
+    expect(done.finishKind).toBe('complete');
+    save = done.finish!(save);
+    expect([save.coins, save.items.hint, save.questItems]).toEqual([coins + 35, feathers + 1, []]);
+  });
+
+  it("the Ledger found first says it's Brume's", () => {
+    expect(chestWantedLine(openChest(defaultSave(), LEDGER), LEDGER)).toMatch(/Lightkeeper Brume/);
+  });
+
+  it('every hint is short enough for a young reader (≤ 30 words)', () => {
+    for (const st of byId('marsh-lanterns').steps) {
+      const text = resolveHint(st, defaultSave());
+      expect(text.split(/\s+/).length, text).toBeLessThanOrEqual(30);
+    }
+  });
+});
+
+describe('The Flower for No Name: an escort (#75 item 14g)', () => {
+  const withBoat = (): SaveData => ({ ...defaultSave(), flags: { ...defaultSave().flags, [questDoneFlag({ id: BOAT_QUEST_ID })]: true } });
+  const walking = escortWalkingFlag(POSY_WALK);
+
+  it('Posy asks only once there\'s a boat to sail there in', () => {
+    expect(questConversation('hill-posy', defaultSave())).toBeNull();
+    const offer = questConversation('hill-posy', withBoat())!;
+    expect(offer.finishKind).toBe('offer');
+    expect(offer.lines.join(' ')).toMatch(/Foglight Marsh/);
+  });
+
+  it('talk to her at the landing and she walks with you; arriving at the stone finishes it; she pays', () => {
+    let save = converse('hill-posy', withBoat());
+    expect(activeEscort(save, 'foglight-marsh')).toBeNull();
+    // At the landing: she says she'll follow, and the walk begins.
+    const start = questConversation('hill-posy', save)!;
+    expect(start.finishKind).toBe('step');
+    save = start.finish!(save);
+    expect(save.flags[walking]).toBe(true);
+    expect(activeEscort(save, 'foglight-marsh')).toEqual({ stepId: POSY_WALK, npcId: 'hill-posy', goal: { x: 6, y: 4 } });
+    // Walking with you she isn't asked again.
+    expect(questConversation('hill-posy', save)?.finishKind ?? null).toBeNull();
+    // The world marks the arrival (WorldScreen.onEscortArrive).
+    save = { ...save, flags: { ...withoutEscorts(save.flags), [stepFlag(POSY_WALK)]: true } };
+    expect(activeEscort(save, 'foglight-marsh')).toBeNull();
+    const coins = save.coins;
+    const potions = save.items.potion;
+    const done = questConversation('hill-posy', save)!;
+    expect(done.finishKind).toBe('complete');
+    save = done.finish!(save);
+    expect([save.coins, save.items.potion, save.flags[questDoneFlag({ id: POSY_QUEST })]]).toEqual([coins + 35, potions + 1, true]);
+  });
+
+  it('a walk is never kept: a reload, or leaving the Marsh, and she waits at the landing again', () => {
+    let save = converse('hill-posy', withBoat());
+    save = converse('hill-posy', save);
+    expect(normalizeSave(save).flags[walking]).toBeUndefined();
+    expect(escortsAway(save, 'foglight-marsh')).toEqual([]);
+    expect(escortsAway(save, 'silver-shallows')).toEqual(['hill-posy']);
+    expect(withoutEscorts(save.flags)[walking]).toBeUndefined();
+    // Nothing else is touched.
+    expect(withoutEscorts(save.flags)[questOfferedFlag({ id: POSY_QUEST })]).toBe(true);
   });
 });

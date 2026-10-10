@@ -74,6 +74,9 @@ ZONES = {
     # Eldergrove (#75 item 14f): ancient ring-trees in late-summer gold, on an island of the Shallows.
     'eldergrove': dict(ground=(96, 132, 84), path=(176, 150, 108), solid='eldertree', deco='leaves', deco_c='#e0a03a',
                        sky=('#c8a050', '#fff0c0'), far='#7a8a50', mid='tree', water='#3a8a9a'),
+    # Foglight Marsh (#75 item 14g): a misty green bog of reeds, boardwalks and lotus pools.
+    'foglight-marsh': dict(ground=(104, 128, 100), path=(150, 122, 84), solid='reeds', deco='lotus', deco_c='#ffa8c8',
+                           sky=('#8a9aa8', '#e8ecef'), far='#7a8a88', mid='tree', water='#4a7a7a'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -86,6 +89,10 @@ HILL_ZONES = ('remembrance-hill',)
 # Added with Eldergrove (#75 item 14f) — `build_elder` writes only these
 # (+ the bark town sheet and the overworld sheet with the elder icon appended).
 ELDER_ZONES = ('eldergrove',)
+
+# Added with Foglight Marsh (#75 item 14g) — `build_marsh` writes only these
+# (+ the stilt town sheet and the overworld sheet with the marsh icon appended).
+MARSH_ZONES = ('foglight-marsh',)
 
 # Added for the field spells (#75 item 9) — `build_spell_places` writes only these.
 SPELL_ZONES = ('wayfarer-shrine', 'quiet-shrine', 'echo-mine')
@@ -205,6 +212,13 @@ def solid(kind, zone):
         c.dot(11, 4, '#e0b040', w=2, h=1)
         c.dot(4, 8, '#e0a03a')
         c.dot(12, 9, '#e0a03a')
+    elif kind == 'reeds':
+        # A bed of cattails (#75 item 14g): tall green blades, brown seed heads.
+        for (x, h, lean) in ((3, 11, -0.6), (6, 14, 0.2), (9, 12, -0.2), (12, 13, 0.5), (14, 9, 0.8)):
+            c.line(x, 16, x + lean * 3, 16 - h, '#4a8a3a', w=1.2)
+        for (x, y) in ((5.8, 3), (11.6, 4), (8.6, 5)):
+            c.rect(x, y, x + 1.6, y + 3.6, '#7a4a28')
+        c.line(2, 16, 1, 9, '#6aa04a', w=0.8)
     elif kind == 'palm':
         # An island palm (#75 item 14): a leaning trunk, fronds, a coconut or two.
         c.poly([(7, 16), (9.5, 16), (10, 9), (9, 5), (7.8, 5.5), (8.6, 9)], '#a8783e')
@@ -265,6 +279,12 @@ def deco(kind, colr):
             c.ellipse(x, y - 1.2, 0.9, 1.6, '#ff8a3a', shade=False)
             c.dot(x, y - 1, colr)
         return c
+    elif kind == 'lotus':
+        # Lotus flowers on lily pads (#75 item 14g).
+        for (x, y) in ((5, 6), (11, 11)):
+            c.ellipse(x, y + 1, 2.8, 1.6, '#4a9a5a')
+            c.ellipse(x, y, 1.4, 1.1, colr)
+            c.dot(x, y - 0.4, '#fff0a0')
     elif kind == 'sparkle':
         for (x, y) in ((5, 5), (11, 10)):
             c.dot(x, y - 2, colr, h=5)
@@ -354,6 +374,8 @@ STYLES = {
     'marble':    ('#eee8f4', '#7a6aa8', 'bricks',  'arch',   'checker', ('#f6f2fa', '#dcd4ea')),
     # Eldergrove (#75 item 14f): a hut in a hollow ring-tree — bark walls, a round window.
     'bark':      ('#6a4a30', '#3e2a1a', 'bark',    'round',  'planks', ('#b08a5a',)),
+    # Foglight Marsh (#75 item 14g): weathered stilt huts over the bog — grey-green planks.
+    'stilt':     ('#8a8a6a', '#4a4a3a', 'planks',  'square', 'planks', ('#a89870',)),
 }
 
 
@@ -1140,6 +1162,17 @@ def ow_icon(kind):
         c.ellipse(13, 13.5, 2.4, 1.6, '#c8a070')
         c.ellipse(13, 13.5, 1.4, 0.9, '#a07a4a', shade=False)
         c.dot(13, 13.5, '#6a4428', w=1, h=1)
+    elif kind == 'marsh':
+        # Foglight Marsh (#75 item 14g): reeds round a pool, a glowing lantern on a post.
+        c.ellipse(8, 13, 7, 2.6, '#4a7a7a')
+        for (x, h) in ((2.5, 8), (4.5, 10), (13, 9), (14.6, 7)):
+            c.line(x, 14, x, 14 - h, '#4a8a3a', w=1)
+        for x in (4.2, 12.6):
+            c.rect(x, 4, x + 1.2, 6.6, '#7a4a28')
+        c.rect(7.4, 5, 8.6, 14, '#6a4a30')
+        c.rect(6, 2, 10, 6, '#2a2a30')
+        c.rect(6.8, 2.8, 9.2, 5.2, '#ffd860')
+        c.dot(8, 1, '#2a2a30')
     return _outlined(c)
 
 
@@ -1274,9 +1307,10 @@ OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'cit
 
 def overworld_sheet():
     # Frame 15 (#75 item 14): the dock; frame 16 (#75 item 14e): Remembrance Hill;
-    # frame 17 (#75 item 14f): Eldergrove — each appended, so every earlier frame keeps its place.
+    # frame 17 (#75 item 14f): Eldergrove; frame 18 (#75 item 14g): Foglight Marsh — each
+    # appended, so every earlier frame keeps its place.
     return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
-            + [ow_dock(), ow_icon('hill'), ow_icon('elder')])
+            + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
@@ -1483,6 +1517,20 @@ def build_elder(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('bark')]).save(tdir / 'town-bark.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_marsh(public: Path):
+    """Write only Foglight Marsh's art (#75 item 14g): its tileset, blend sheet,
+    backdrop, the stilt town sheet and the overworld sheet with the marsh icon."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in MARSH_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('stilt')]).save(tdir / 'town-stilt.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 

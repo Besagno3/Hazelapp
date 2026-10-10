@@ -285,6 +285,24 @@ describe('what beating a boss does follows its role (#75 item 14c)', () => {
     expect(screen.queryByText(/shines again/)).toBeNull();
   });
 
+  it('the Last Fogbank gives its Foglight Badge the first time it falls, and only then (#75 item 14g)', () => {
+    const fogbank = boss({ id: 'last-fogbank', name: 'The Last Fogbank', topic: 'history', role: 'miniboss' });
+    useBattleStore.getState().start(fogbank, 60, 100);
+    const flags = winIt();
+    expect(flags['boss:last-fogbank:defeated']).toBe(true);
+    expect(useSaveStore.getState().save!.badges).toEqual(['foglight']);
+    expect(screen.getByText(/You won the Foglight Badge/)).toBeInTheDocument();
+  });
+
+  it('a boss badge already on the shelf is not won again', () => {
+    const save = useSaveStore.getState().save!;
+    useSaveStore.setState({ save: { ...save, badges: ['foglight'] } });
+    useBattleStore.getState().start(boss({ id: 'last-fogbank', name: 'The Last Fogbank', topic: 'history', role: 'miniboss' }), 60, 100);
+    winIt();
+    expect(useSaveStore.getState().save!.badges).toEqual(['foglight']);
+    expect(screen.queryByText(/You won the Foglight Badge/)).toBeNull();
+  });
+
   it("an echo on a crystal topic keeps its own name and never restores that crystal", () => {
     useBattleStore.getState().start(boss({ id: 'test-echo', name: 'Echo of the Null Fiend', topic: 'math', role: 'echo' }), 60, 100);
     const flags = winIt();
@@ -416,5 +434,25 @@ describe('signature abilities in battle', () => {
     fireEvent.click(screen.getByText('▶ Go!'));
     expect(screen.getByText(/Second Wind! Talon hangs on with 1 HP/)).toBeInTheDocument();
     expect(useBattleStore.getState()).toMatchObject({ playerHp: 1, secondWind: false });
+  });
+});
+
+describe('the Glimmer Candle (#75 item 14g)', () => {
+  it('lights a free hint that works even on a trickster', () => {
+    const save = useSaveStore.getState().save!;
+    useSaveStore.setState({ save: { ...save, items: { ...save.items, candle: 1, hint: 0 } } });
+    useBattleStore.getState().start({ ...enemy, behavior: 'trickster' } as BattleEnemy, 60, 100);
+    render(<BattleArena />);
+    for (let i = 0; i < 4 && !screen.queryByText('Items'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('Items'));
+    fireEvent.click(screen.getByText('Glimmer Candle'));
+    expect(useBattleStore.getState().candleLit).toBe(true);
+    expect(useSaveStore.getState().save!.items.candle).toBe(0);
+    // The enemy's turn: its defend question offers the candle's free hint.
+    for (let i = 0; i < 4 && !screen.queryByText(/Glimmer Candle — use a free hint/); i++) {
+      const next = screen.queryByText(/tap to continue/);
+      if (next) fireEvent.click(next);
+    }
+    expect(screen.getByText(/Glimmer Candle — use a free hint/)).toBeInTheDocument();
   });
 });
