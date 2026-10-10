@@ -238,8 +238,8 @@ const HUD_USER = 'u-hud';
  * Signs in a stub player and answers Supabase for them: their profile, `save`
  * as their saved game, canned questions; every write succeeds.
  */
-async function stubbedApp(browser, viewport, save, profile) {
-  const page = await browser.newPage({ viewport });
+async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = {}) {
+  const page = await browser.newPage({ viewport, reducedMotion });
   const session = {
     access_token: 'stub',
     refresh_token: 'stub',
@@ -319,6 +319,35 @@ function topBarCovered() {
   });
 }
 
+/** In the page: what has focus, as a short label (the top bar's items say so). */
+function focusLabel() {
+  const el = document.activeElement;
+  if (!el || el === document.body) return 'body';
+  const where = el.closest('[data-testid=world-topbar]') ? 'top bar: ' : el.closest('[role=dialog]') ? 'dialog: ' : '';
+  return `${where}${el.tagName.toLowerCase()} ${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 18)}`;
+}
+
+/** In the page: does a tap 20 px above and below the button's centre still land on it (44 px targets)? */
+function tapsLand(name) {
+  const b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes(name));
+  if (!b) return `no "${name}"`;
+  const r = b.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+  const miss = [cy - 20, cy + 20].filter((y) => document.elementFromPoint(cx, y)?.closest('button') !== b);
+  return miss.length ? `"${name}" ${Math.round(r.height)}px tall: a tap at y ${miss.map(Math.round)} misses` : '';
+}
+
+/** Tab `n` times, noting where focus lands each time. */
+async function tabs(page, n) {
+  const seen = [];
+  for (let i = 0; i < n; i++) {
+    await page.keyboard.press('Tab');
+    seen.push(await page.evaluate(focusLabel));
+  }
+  return seen;
+}
+
 /**
  * The world HUD on the real app at phone, sideways-phone and desktop sizes
  * (#75 item 14b, #102i): no two of its pieces overlap, no sideways scroll,
@@ -349,18 +378,52 @@ async function hud(browser, outDir) {
     const size = `${width}×${height}`;
     const page = await stubbedApp(browser, { width, height }, depths, profile);
     const errors = page.errors;
+    const problems = []; // keyboard, tap-target and Sign-out checks (#75 item 14b review)
     const layout = await page.evaluate(hudLayout);
     await page.screenshot({ path: path.join(outDir, `hud-${size}.png`) });
-    await page.getByRole('button', { name: '📜 Menu' }).click();
+    // Tab never sticks: the canvas isn't focusable, and a dozen Tabs move on.
+    if (await page.evaluate(() => document.querySelector('canvas')?.hasAttribute('tabindex'))) problems.push('the canvas can take focus');
+    await page.evaluate(() => document.activeElement?.blur());
+    const walk = await tabs(page, 12);
+    if (walk.some((f) => f.startsWith('canvas'))) problems.push(`Tab reached the canvas: ${walk.join(' → ')}`);
+    if (new Set(walk.slice(-4)).size === 1) problems.push(`Tab stuck on ${walk.at(-1)}`);
+    const tap = await page.evaluate(tapsLand, '📜 Menu');
+    if (tap) problems.push(tap);
+    // Asking "Sign out?" doesn't move anything on a phone.
+    if (width <= 375) {
+      const before = await page.evaluate(hudLayout);
+      await page.getByRole('button', { name: 'Sign out' }).click();
+      await page.waitForTimeout(150);
+      const armed = await page.evaluate(hudLayout);
+      await page.screenshot({ path: path.join(outDir, `hud-${size}-signout-armed.png`) });
+      if (armed.barHeight !== before.barHeight || armed.stage !== before.stage)
+        problems.push(`asking "Sign out?" moved the page: bar ${before.barHeight}→${armed.barHeight}px, stage ${before.stage} → ${armed.stage}`);
+    }
+    // 📜 Menu by keyboard: focus moves in and stays in; closing brings it back to 📜 Menu.
+    await page.getByRole('button', { name: '📜 Menu' }).focus();
+    await page.keyboard.press('Enter');
     await page.waitForTimeout(400);
+    const into = await page.evaluate(focusLabel);
+    if (!into.startsWith('dialog')) problems.push(`opening the Menu left focus on ${into}`);
+    const inMenu = await tabs(page, 6);
+    const strays = inMenu.filter((f) => !f.startsWith('dialog') && f !== 'body');
+    if (strays.length) problems.push(`Tab left the open Menu: ${strays.join(', ')}`);
     const covered = await page.evaluate(topBarCovered);
     await page.screenshot({ path: path.join(outDir, `hud-${size}-menu.png`) });
+    await page.getByRole('button', { name: 'Back to the world' }).first().click();
+    await page.waitForTimeout(300);
+    const back = await page.evaluate(focusLabel);
+    if (!back.includes('Menu')) problems.push(`closing the Menu left focus on ${back}`);
     await page.close();
     // The Spire: walk into its icon, read through the door's lines, and look at the HUD on floor 1.
     const sp = await stubbedApp(browser, { width, height }, spire, profile);
     await sp.keyboard.down('ArrowDown');
     await sp.waitForTimeout(900);
     await sp.keyboard.up('ArrowDown');
+    // The door's lines: Tab, Tab, Tab never reaches the top bar's Sign out under the panel.
+    await sp.waitForSelector('[role=dialog][aria-label="The Crystal Spire"]', { timeout: 5000 }).catch(() => {});
+    const underPanel = (await tabs(sp, 4)).filter((f) => f.startsWith('top bar'));
+    if (underPanel.length) problems.push(`Tab reached the top bar under a Spire panel: ${underPanel.join(', ')}`);
     for (let i = 0; i < 8 && !(await sp.locator('[data-testid=spire-hud-slot] button').count()); i++) {
       const next = sp.locator('.fixed.inset-0 button').last();
       if (await next.count()) await next.click().catch(() => {});
@@ -369,19 +432,47 @@ async function hud(browser, outDir) {
     const inSpire = (await sp.locator('[data-testid=spire-hud-slot] button').count()) > 0;
     const spireLayout = inSpire ? await sp.evaluate(hudLayout) : null;
     await sp.screenshot({ path: path.join(outDir, `hud-${size}-spire.png`) });
+    if (inSpire) {
+      const leaveTap = await sp.evaluate(tapsLand, 'Leave the Spire');
+      if (leaveTap) problems.push(leaveTap);
+      // "Leave the Spire?": the top bar out of reach; Escape keeps climbing, focus back on Leave.
+      await sp.getByRole('button', { name: '🚪 Leave the Spire' }).click();
+      await sp.waitForTimeout(300);
+      await sp.screenshot({ path: path.join(outDir, `hud-${size}-spire-leave.png`) });
+      const underAsk = (await tabs(sp, 4)).filter((f) => f.startsWith('top bar'));
+      if (underAsk.length) problems.push(`Tab reached the top bar under "Leave the Spire?": ${underAsk.join(', ')}`);
+      await sp.keyboard.press('Escape');
+      await sp.waitForTimeout(300);
+      const after = await sp.evaluate(focusLabel);
+      if (await sp.locator('[role=alertdialog]').count()) problems.push('Escape left "Leave the Spire?" open');
+      else if (!after.includes('Leave the Spire')) problems.push(`after Escape focus is on ${after}`);
+    }
     errors.push(...sp.errors);
     await sp.close();
     const cut = Math.max(layout.mapCut, spireLayout?.mapCut ?? 0);
     const ok =
-      !layout.overlaps.length && !layout.hscroll && covered.every(Boolean) && inSpire && !spireLayout.overlaps.length && !spireLayout.hscroll && !cut && !errors.length;
+      !layout.overlaps.length && !layout.hscroll && covered.every(Boolean) && inSpire && !spireLayout.overlaps.length && !spireLayout.hscroll && !cut && !errors.length && !problems.length;
     if (!ok) bad += 1;
     console.log(`${ok ? '✓' : '✗'} ${size}  top bar ${layout.barHeight}px, stage ${layout.stage}; menu covers the bar: ${covered.every(Boolean) ? 'yes' : `no (${covered})`}; Spire HUD: ${inSpire ? 'in the row' : 'never reached'}`);
     for (const o of [...layout.overlaps, ...(spireLayout?.overlaps ?? [])]) console.log(`    overlap: ${o}`);
     if (layout.hscroll || spireLayout?.hscroll) console.log('    scrolls sideways');
     if (cut) console.log(`    the map runs ${cut}px off the bottom of the screen${spireLayout?.mapCut ? ' (in the Spire)' : ''}`);
     for (const e of errors) console.log(`    page error: ${e}`);
+    for (const p of problems) console.log(`    ${p}`);
   }
-  console.log(`\n${sizes.length - bad}/${sizes.length} sizes clean. Screenshots in ${outDir}.`);
+  // Reduced motion: panels appear without scaling in (they may still fade).
+  const still = await stubbedApp(browser, { width: 375, height: 667 }, depths, profile, { reducedMotion: 'reduce' });
+  const firstFrame = await still.evaluate(async () => {
+    [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Menu')).click();
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const panel = document.querySelector('[role=dialog][aria-label=Menu] > div');
+    return panel ? getComputedStyle(panel).transform : 'no menu';
+  });
+  await still.close();
+  const steady = firstFrame === 'none' || firstFrame === 'matrix(1, 0, 0, 1, 0, 0)';
+  console.log(`${steady ? '✓' : '✗'} reduced motion: the Menu's first frame has transform ${firstFrame}`);
+  if (!steady) bad += 1;
+  console.log(`\n${sizes.length + 1 - bad}/${sizes.length + 1} checks clean. Screenshots in ${outDir}.`);
   if (bad) process.exitCode = 1;
 }
 

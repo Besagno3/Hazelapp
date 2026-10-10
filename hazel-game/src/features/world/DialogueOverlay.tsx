@@ -9,6 +9,7 @@ import { wayfindingLines } from '../../lib/wayfinding';
 import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
+import ModalLayer from '../../components/ModalLayer';
 
 /** Resolves which lines apply given the current story flags. */
 function visibleLines(lines: DialogueLine[], flags: Record<string, boolean>): DialogueLine[] {
@@ -106,7 +107,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
+    <ModalLayer label={npc.name} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
       <motion.div
         initial={{ y: 30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -144,7 +145,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               ⛵ Row her home
             </button>
           )}
+          {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}
           <button
+            autoFocus
             onClick={advance}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
           >
@@ -160,6 +163,6 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           </button>
         </div>
       </motion.div>
-    </div>
+    </ModalLayer>
   );
 }

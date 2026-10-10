@@ -27,6 +27,7 @@ import type { SaveData } from '../types';
 import { HUB_ZONE, TILE, ZONES, buildingInside, chestTopicAt, gateFlag, gateIdAt, innWakeCell, tileAt } from '../content/zones';
 import type { LibraryEntry, Question } from '../types';
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN } from '../content/story';
+import { avatarById } from '../content/avatars';
 
 function q(id: string): Question {
   return { id, topic: 'math', level: 3, text: '?', options: ['a', 'b', 'c', 'd'], correctIndex: 0 };
@@ -355,6 +356,9 @@ describe('old saves load (#75 item 14b)', () => {
     expect(s.coins).toBe(raw.coins);
     for (const flag of Object.keys(raw.flags as object)) expect(s.flags[flag], flag).toBe(true);
     expect(s.kills).toEqual(raw.kills);
+    // The hero they picked comes back — not the "Pick an avatar first" screen.
+    expect(s.avatarId).toBe(raw.avatarId);
+    expect(avatarById(s.avatarId), String(raw.avatarId)).not.toBeNull();
   });
 
   it.each(cases)('$name: loading it twice changes nothing more (a re-save never drifts)', ({ raw }) => {

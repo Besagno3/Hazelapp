@@ -21,6 +21,7 @@ import { boatSpot } from '../../content/boat';
 import WorldMapPanel from './WorldMapPanel';
 import FieldSpellsPanel from './FieldSpellsPanel';
 import type { FieldCast } from '../../content/fieldSpells';
+import ModalLayer from '../../components/ModalLayer';
 
 /**
  * The pause/party menu (#37): hero status, inventory, Sage equipping,
@@ -68,7 +69,7 @@ export default function MenuOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+    <ModalLayer label="Menu" className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -303,6 +304,6 @@ export default function MenuOverlay({
           </button>
         </div>
       </motion.div>
-    </div>
+    </ModalLayer>
   );
 }

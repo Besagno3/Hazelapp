@@ -14,6 +14,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 import type { PathTarget, Question } from '../../types';
+import ModalLayer from '../../components/ModalLayer';
 
 /**
  * "Questions along the path" (#37): a gatekeeper's challenge or a question-
@@ -98,7 +99,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   return (
     // Scrolls when a long riddle doesn't fit (a phone, landscape); the inner
     // column still centres when it does.
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
+    <ModalLayer label={target.kind === 'gate' ? 'Gate question' : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
       <div className="min-h-full flex flex-col items-center justify-center">
         <motion.h2
           initial={{ y: -16, opacity: 0 }}
@@ -149,6 +150,6 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
           />
         )}
       </div>
-    </div>
+    </ModalLayer>
   );
 }

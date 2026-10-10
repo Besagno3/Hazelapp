@@ -8,6 +8,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { sfx } from '../../lib/audio';
 import { sendFlow } from '../../machines/gameFlow';
 import type { PathTarget } from '../../types';
+import ModalLayer from '../../components/ModalLayer';
 
 /**
  * A warden-keyed Fiend gate (#58). Unlike the gatekeeper question, this gate
@@ -36,7 +37,7 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
+    <ModalLayer label="Locked gate" className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -79,6 +80,6 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
           </button>
         </div>
       </motion.div>
-    </div>
+    </ModalLayer>
   );
 }

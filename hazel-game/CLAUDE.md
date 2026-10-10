@@ -190,7 +190,19 @@ zod, react-query. Add the package in the same change that first uses it.
   name and every overlay (z-40) draws over them. Exploring a Spire floor,
   `SpireOverlay` portals its seals, candles and 🚪 Leave the Spire into the
   HUD row (`hudSlot`, in 📜 Menu's place). Other screens keep the floating
-  badges.
+  badges. Sign out there asks "Sign out?" first (same size; the hint floats
+  below it), and any other tap or key takes the question back.
+  **Overlays are modal** (#75 item 14b review): every world overlay (dialogue,
+  services, path questions, key gates, menu, the Spire's panels) and the
+  level-up sit in `components/ModalLayer` — `role="dialog"` + `aria-modal`,
+  the rest of the page `inert` (`hooks/useInertOutside`, which counts its
+  holders, so a story over an overlay never un-inerts the page early), focus
+  moved in (a button that `autoFocus`es, else the layer itself, so a stray
+  Enter never buys or answers) and back out to where it was. Nothing else
+  sets `inert`: the top bar is live exactly when no layer is up, as on a
+  Spire floor. KaPlay's canvas is never focusable (`WorldCanvas` strips its
+  `tabindex`; keys are read from `window`). New overlays go in a
+  `ModalLayer` too.
   **Field spells** (#75 item 9, `content/fieldSpells.ts`): a shrine keeper
   (`NpcRole` `keeper` → service `trial`, `ShrineTrial`) teaches one by 3 right
   answers; the menu's ✨ Field spells (`FieldSpellsPanel`) casts them through
@@ -418,7 +430,9 @@ python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#7
 
 ## Conventions
 
-- TypeScript strict mode; `noUnusedLocals`/`noUnusedParameters` are on.
+- TypeScript: `noUnusedLocals`/`noUnusedParameters` are on, but **`strict` is
+  not** (so no `strictNullChecks`) — ISSUES #111. Handle `null`/`undefined`
+  as if it were.
 - Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
   for conditional class merging.
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
@@ -459,6 +473,49 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14b second review: keyboard reaches every overlay, Sign out never moves the map (#75 item 14b)
+A second fresh-context `/saas-code-review` (3 low) + `/saas-ux-review` (1
+critical, 1 high, 4 medium, 1 low; played in headless Chromium at five sizes,
+by touch, keyboard and reduced motion). Fixed, as chosen:
+- **Keyboard players couldn't use overlays (UX, critical, pre-existing):**
+  KaPlay's canvas took focus and swallowed Tab, and no overlay took focus —
+  📜 Menu opened by Enter left focus behind it, and the next Tab got stuck on
+  the covered canvas. `WorldCanvas` strips the canvas's `tabindex`; new
+  `components/ModalLayer` wraps every overlay (Dialogue, Service, Path, KeyGate,
+  Menu, the Spire's panels, LevelUpModal): `aria-modal`, the page behind
+  inert, focus in (the dialogue's ▼ Next and the Spire's "▼ tap to continue"
+  take it, so Enter reads on) and back out to where it was.
+- **Sign out mid-climb, unseen (UX high / code low, new in 14b):** the top
+  bar's `inert` exempted every Spire panel, so in the Spire's opening lines
+  Tab, Enter, Enter signed a child out — and the same effect stripped the
+  `inert` StoryPanels set when both changed in one commit. The effect is
+  gone (the layers set it); `useInertOutside` counts holders. The Leave
+  confirm closes on Escape, and Keep climbing / Escape put focus back on
+  🚪 Leave the Spire.
+- **Asking "Sign out?" moved the map (UX, medium):** the armed label doubled
+  the button's width, wrapping the bar (44 → 80 px) and dropping the map and
+  d-pad 36 px for 3 s. Now the same-size button says "Sign out?" and "Tap
+  again to sign out" floats under it (read out by a status line); any other
+  tap or key, or leaving the button, takes it back; a second tap within 400 ms
+  (`SIGN_OUT_CONFIRM_GAP_MS`) is a double-tap, not a yes; taps while signing
+  out do nothing (the floating one too). No longer bright red.
+- **44 px HUD targets (UX, medium):** 📜 Menu, 🔆 Glow and 🚪 Leave the Spire
+  were 28 px tall; an invisible `::after` makes the tap target 44 px without a
+  taller HUD row (`HUD_TAP`).
+- **Fixtures (code, low):** every save fixture used a sprite name as its
+  `avatarId`, so in the real app each opened "Pick an avatar first" — they
+  use `a1` / `a3` now and save.test checks the hero comes back; that screen
+  (no top bar) shows Sign out.
+- **Reduced motion (UX, low):** `MotionConfig reducedMotion="user"` in
+  `main.tsx` — panels stop scaling in, Umbra stops bobbing; fades stay.
+- The Spire panel's header wraps whole at 320 px (the candles on their own line).
+- Logged: #110 (m)–(q) and **#111** (TypeScript `strict` is off — CLAUDE.md
+  had said it was on; corrected in Conventions).
+- Tests: +11 (useInertOutside.test, WorldScreen.focus.test — 5 of them fail
+  on the old code — SignOutButton.test, save.test); `bench … hud` gains
+  keyboard, tap-target, Sign-out and reduced-motion checks. 769 green, lint +
+  build clean.
 
 ### 2026-10-10 — 14b closed out: the final commit walked and diffed (#75 item 14b, docs only)
 On the final 14b commit, in a clean worktree: `bench … journey` 13/13 for the

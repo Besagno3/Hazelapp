@@ -13,7 +13,7 @@ const ITEMS = { potion: 2, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea
 /** v1, before the overworld's save bump: standing on the retired Lumina Field (#75 item 8). */
 export const V1 = {
   version: 1,
-  avatarId: 'blaze',
+  avatarId: 'a1',
   zoneId: 'lumina-field',
   pos: { x: 336, y: 368 },
   hp: 80,
@@ -40,7 +40,7 @@ export const V1 = {
  */
 export const V2_FIRST_BUILD = {
   version: 2,
-  avatarId: 'blaze',
+  avatarId: 'a1',
   zoneId: 'dawnreach',
   pos: centre(48, 36),
   hp: 70,
@@ -73,7 +73,7 @@ export const V2_FIRST_BUILD = {
  */
 export const V2_PRE_ITEM10 = {
   version: 2,
-  avatarId: 'nova',
+  avatarId: 'a3',
   zoneId: 'clockwork-depths',
   pos: centre(19, 10),
   hp: 64,
@@ -115,7 +115,7 @@ export const V2_PRE_ITEM10 = {
  */
 export const V2_PRE_14A = {
   version: 2,
-  avatarId: 'blaze',
+  avatarId: 'a1',
   zoneId: 'verdara',
   pos: centre(10, 12),
   hp: null,

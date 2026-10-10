@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
+import ModalLayer from '../../components/ModalLayer';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
@@ -106,6 +107,20 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     spire().setExploring(phase.kind === 'explore');
     msgShownAt.current = performance.now();
   }, [phase, spire]);
+
+  // Back from "Leave the Spire?" (Keep climbing, or Escape) the keyboard keeps
+  // its place: focus returns to 🚪 Leave the Spire in the HUD (#75 item 14b review).
+  const leaveButton = useRef<HTMLButtonElement>(null);
+  const refocusLeave = useRef(false);
+  function keepClimbing() {
+    refocusLeave.current = true;
+    setPhase({ kind: 'explore' });
+  }
+  useEffect(() => {
+    if (phase.kind !== 'explore' || !refocusLeave.current) return;
+    refocusLeave.current = false;
+    leaveButton.current?.focus();
+  }, [phase]);
 
   /** Ignore the tail of a double-tap that would skip the panel that just opened. */
   function advance(next: () => void) {
@@ -320,7 +335,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   if (!save) return null;
 
   const candles = (
-    <span title="Candle-lights" className="text-sm" role="img" aria-label={`${lives} of ${SPIRE_LIVES} candle-lights left`}>
+    <span title="Candle-lights" className="text-sm whitespace-nowrap" role="img" aria-label={`${lives} of ${SPIRE_LIVES} candle-lights left`}>
       {Array.from({ length: SPIRE_LIVES }).map((_, i) => (
         <span key={i} aria-hidden className={i < lives ? '' : 'opacity-25 grayscale'}>
           🕯️
@@ -344,9 +359,11 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
             {status}
           </span>
           {candles}
+          {/* A 44 px tap target (the ::after reaches 8 px above and below) without a taller HUD row. */}
           <button
+            ref={leaveButton}
             onClick={() => setPhase({ kind: 'leave' })}
-            className="shrink-0 bg-slate-950/60 hover:bg-slate-800 rounded-lg px-3 py-1.5 text-xs font-semibold text-white/90"
+            className="relative shrink-0 bg-slate-950/60 hover:bg-slate-800 rounded-lg px-3 py-1.5 text-xs font-semibold text-white/90 after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']"
           >
             🚪 Leave the Spire
           </button>
@@ -379,7 +396,11 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   const umbraScale = typeof window !== 'undefined' && window.innerHeight < 720 ? 1.5 : 2.5;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/60 p-4 overflow-y-auto">
+    <ModalLayer
+      label="The Crystal Spire"
+      focusKey={phase.kind === 'question' ? `question-${phase.index}` : phase.kind}
+      className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/60 p-4 overflow-y-auto"
+    >
       {showUmbra && (
         <motion.div
           initial={{ y: -30, opacity: 0, scale: 0.8 }}
@@ -400,8 +421,9 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
       >
         {/* Header: floor + candle-lights (hidden on locked / end panels) */}
         {phase.kind !== 'locked' && phase.kind !== 'win' && phase.kind !== 'lose' && (
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-extrabold text-violet-200">🗼 The Crystal Spire</h2>
+          // On a narrow phone the candles drop to their own line, all four together.
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4">
+            <h2 className="text-lg font-extrabold text-violet-200 whitespace-nowrap">🗼 The Crystal Spire</h2>
             {candles}
           </div>
         )}
@@ -452,7 +474,16 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
 
         {/* One tap on Leave doesn't end a climb: it sits where 📜 Menu usually is (#75 item 14b review). */}
         {phase.kind === 'leave' && (
-          <div role="alertdialog" aria-labelledby="spire-leave-q" aria-describedby="spire-leave-why">
+          <div
+            role="alertdialog"
+            aria-labelledby="spire-leave-q"
+            aria-describedby="spire-leave-why"
+            onKeyDown={(e) => {
+              if (e.key !== 'Escape') return;
+              e.stopPropagation();
+              keepClimbing();
+            }}
+          >
             <p id="spire-leave-q" className="font-extrabold text-lg">
               Leave the Spire?
             </p>
@@ -462,7 +493,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 autoFocus
-                onClick={() => setPhase({ kind: 'explore' })}
+                onClick={keepClimbing}
                 className="flex-1 min-h-11 bg-violet-500 hover:bg-violet-400 rounded-xl px-4 py-2 font-bold"
               >
                 🗼 Keep climbing
@@ -480,6 +511,8 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
         {phase.kind === 'message' && (
           <motion.button
             key={phase.text}
+            // Focused, so Enter reads on (its 250 ms guard stops a held key skipping a panel).
+            autoFocus
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             onClick={() => advance(phase.next)}
@@ -546,7 +579,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
           </div>
         )}
       </motion.div>
-    </div>
+    </ModalLayer>
   );
 }
 

@@ -417,6 +417,11 @@ export default function WorldCanvas({
       });
       const canvas = host.querySelector('canvas');
       if (!canvas) return; // should never happen — kaplay() just made it
+      // KaPlay makes its canvas focusable (tabindex 0), and its key handler
+      // swallows Tab — a keyboard player who landed on it could never Tab out.
+      // Movement keys are read from `window`, so the canvas never needs focus
+      // (#75 item 14b review).
+      canvas.removeAttribute('tabindex');
       sharedKaplay = { k, canvas };
       loadWorldSprites(k);
     } else {
