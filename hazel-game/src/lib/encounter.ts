@@ -50,19 +50,34 @@ export function idleReach(foe: Pick<BattleEnemy, 'isBoss'>, leash: number): numb
  * a touch from a hero saved where it swam into them (a step back is no step at
  * all when they stood still) — so it would otherwise wander straight back into
  * the same fight, again after every Flee; and the same after a reload, an
- * arrival, or with a neighbour's patch (#112e). A resting enemy is drawn faded,
- * like under Calm, and like under Calm it lets the hero pass (`staysDown`).
+ * arrival, landing or climbing aboard, or with a neighbour's patch (#112e). A
+ * resting enemy is drawn faded, like under Calm, and like under Calm it lets
+ * the hero pass (`staysDown`).
  */
 export function standDown<T extends Point>(foes: readonly T[], reachOf: (foe: NoInfer<T>) => number, hero: Point): Set<T> {
   return new Set(foes.filter((f) => touching(f, hero, reachOf(f))));
 }
 
 /**
- * Does a resting enemy (`standDown`) stay resting? While the hero is still
- * within its reach of its home — inside its patch. It wakes once they've left,
- * so it never wakes beside them: by then it can't touch them without the hero
- * steering back in.
+ * A resting enemy (`standDown`): its home, how near the hero can be and keep
+ * it resting (`idleReach`), and — a boss — how near they were when it began.
  */
-export function staysDown(home: Point, hero: Point, reach: number): boolean {
-  return touching(home, hero, reach);
+export type Rest = Point & { reach: number; near?: number };
+
+export function restOf(foe: Pick<BattleEnemy, 'isBoss'>, home: Point, hero: Point, leash: number): Rest {
+  const reach = idleReach(foe, leash);
+  return foe.isBoss ? { x: home.x, y: home.y, reach, near: Math.hypot(hero.x - home.x, hero.y - home.y) } : { x: home.x, y: home.y, reach };
+}
+
+/**
+ * Does a resting enemy stay resting? While the hero is still within its reach
+ * of its home — inside its patch. It wakes once they've left, so it never
+ * wakes beside them: by then it can't touch them without the hero steering
+ * back. A boss holds its ground, often across a way on, so it wakes too the
+ * moment the hero steps nearer than they began (by half a pixel — standing
+ * still never wakes it): they can back away from it, not walk through it.
+ */
+export function staysDown(rest: Rest, hero: Point): boolean {
+  if (rest.near !== undefined && touching(rest, hero, Math.max(0, rest.near - 0.5))) return false;
+  return touching(rest, hero, rest.reach);
 }

@@ -12,8 +12,10 @@
  *                                                      overlaps, overlays cover the top bar (#102i)
  *   node bench/run-world-bench.cjs sea [outDir]        sea critters on the real canvas (#75 item 14d):
  *                                                      sailing into one battles it, Calm passes it,
- *                                                      arriving starts none, and one already touching
- *                                                      the hero (back from a Flee) stands down
+ *                                                      arriving starts none; one that could reach the
+ *                                                      hero where a scene starts (back from a Flee)
+ *                                                      or where they land rests — lets them pass —
+ *                                                      until they leave its patch
  *
  * Playwright isn't a project dependency; a global install works:
  *   NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps
@@ -506,6 +508,12 @@ async function sea(browser, outDir) {
       await hold(page, ...moves[i % moves.length]);
     }
   };
+  // Back in an awake critter's patch: stand still (it wanders into you sooner or later),
+  // then sweep — a sweep alone can miss a critter on the move.
+  const meet = async (page) => {
+    for (let t = 0; t < 30 && !(await state(page)).encounters; t++) await page.waitForTimeout(500);
+    await hunt(page);
+  };
   const checks = [];
   const check = async (page, name, ok, detail) => {
     checks.push(ok);
@@ -532,8 +540,11 @@ async function sea(browser, outDir) {
   s = await state(page);
   await check(page, 'sailing onto the Shallows from Dawnreach starts no fight', s.zoneId === 'silver-shallows' && s.encounters === 0, `${s.zoneId}, ${s.encounters} battles`);
 
-  // Back from a Flee: saved right where the puffer touched you, and it respawns at home.
+  // Back from a Flee: saved right where the puffer touched you, and it respawns at home —
+  // on top of the hero (0 px) as the scene starts, a battle from the first frame unless
+  // it rests (`ready` has run a second of frames by now).
   page = await ready('zone=silver-shallows&aboard=1&at=17,28');
+  const onTop = (await state(page)).encounters;
   await page.waitForTimeout(2500);
   // Resting, it lets you pass, like under Calm: nudge about inside its patch.
   await hold(page, 'ArrowRight', 150);
@@ -542,9 +553,14 @@ async function sea(browser, outDir) {
   const idle = (await state(page)).encounters;
   await hold(page, 'ArrowUp', 600); // sail out of its patch: it wakes…
   await hold(page, 'ArrowDown', 550); // …and back: it fights
-  await hunt(page);
+  await meet(page);
   s = await state(page);
-  await check(page, 'back on a critter after a Flee: it rests (and lets you pass) until you leave its patch, then fights', idle === 0 && s.battles[0] === 'bubble-puffer', `resting ${idle} battles, then ${JSON.stringify(s.battles)}`);
+  await check(
+    page,
+    'back on a critter after a Flee: it rests — on top of the hero (0 px) and nudging about its patch start nothing — until you leave its patch, then fights',
+    onTop === 0 && idle === 0 && s.battles[0] === 'bubble-puffer',
+    `on top ${onTop}, resting ${idle} battles, then ${JSON.stringify(s.battles)}`,
+  );
 
   // Back from a Flee a little off its home (a critter that swam into a hero standing still
   // saves them wherever they touched — or a reload there): it waits for the hero to move.
@@ -553,9 +569,28 @@ async function sea(browser, outDir) {
   const waited = (await state(page)).encounters;
   await hold(page, 'ArrowUp', 600);
   await hold(page, 'ArrowDown', 550);
-  await hunt(page);
+  await meet(page);
   s = await state(page);
   await check(page, 'back from a Flee 32 px off its home: 8 s idle start nothing; sailing off and back it fights', waited === 0 && s.battles[0] === 'bubble-puffer', `idle ${waited} battles, then ${JSON.stringify(s.battles)}`);
+
+  // Going ashore beside a land critter: Dawnreach's Bolt Mouse lives at 67,19, a step up
+  // from the beach at 67,20. Land there, then stand still: it rests. Walk off along the
+  // beach out of its patch and back: it fights.
+  page = await ready('zone=dawnreach&aboard=1&at=67,22');
+  await hold(page, 'ArrowUp', 900);
+  const landed = (await state(page)).landings;
+  await page.waitForTimeout(5000);
+  const ashore = (await state(page)).encounters;
+  await hold(page, 'ArrowLeft', 1400); // off the beach, out of its patch: it wakes…
+  await hold(page, 'ArrowRight', 1350); // …and back
+  await meet(page);
+  s = await state(page);
+  await check(
+    page,
+    'going ashore beside a land critter: it rests while you stand there (5 s), then fights once you leave its patch and come back',
+    landed === 1 && ashore === 0 && s.battles[0] === 'bolt-mouse',
+    `landed ${landed}, resting ${ashore} battles, then ${JSON.stringify(s.battles)}`,
+  );
 
   const bad = checks.filter((ok) => !ok).length;
   console.log(`\n${checks.length - bad}/${checks.length} sea checks passed. Screenshots in ${outDir}.`);

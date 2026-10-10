@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CONTACT_RADIUS, contactRadius, idleReach, standDown, startsBattle, staysDown, touching } from './encounter';
+import { CONTACT_RADIUS, contactRadius, idleReach, restOf, standDown, startsBattle, staysDown, touching } from './encounter';
 
 describe('bumping into enemies (#75 item 14d)', () => {
   it('a boss is touched from further off than a critter', () => {
@@ -39,13 +39,29 @@ describe('bumping into enemies (#75 item 14d)', () => {
 
   it('a resting critter lets the hero pass until they leave its patch — it never wakes beside them', () => {
     const home = { x: 100, y: 100 };
-    const reach = 92;
+    const rest = restOf({ isBoss: false }, home, home, 64);
+    expect(rest).toEqual({ x: 100, y: 100, reach: 92 });
     // Still inside its patch, wherever it has wandered: resting.
-    expect(staysDown(home, home, reach)).toBe(true);
-    expect(staysDown(home, { x: 150, y: 100 }, reach)).toBe(true);
-    expect(staysDown(home, { x: 191, y: 100 }, reach)).toBe(true);
+    expect(staysDown(rest, home)).toBe(true);
+    expect(staysDown(rest, { x: 150, y: 100 })).toBe(true);
+    expect(staysDown(rest, { x: 191, y: 100 })).toBe(true);
     // Out of its reach: awake — and it can't touch the hero from its leash (64 + 28 = 92).
-    expect(staysDown(home, { x: 193, y: 100 }, reach)).toBe(false);
+    expect(staysDown(rest, { x: 193, y: 100 })).toBe(false);
+  });
+
+  it('a resting boss lets the hero back away, but not walk through it (#112e)', () => {
+    const home = { x: 100, y: 100 };
+    const rest = restOf({ isBoss: true }, home, { x: 120, y: 100 }, 64); // began 20 px off
+    expect(rest).toEqual({ x: 100, y: 100, reach: 34, near: 20 });
+    expect(staysDown(rest, { x: 120, y: 100 })).toBe(true); // standing still
+    expect(staysDown(rest, { x: 100, y: 120 })).toBe(true); // round it, no nearer
+    expect(staysDown(rest, { x: 125, y: 100 })).toBe(true); // backing away…
+    expect(staysDown(rest, { x: 135, y: 100 })).toBe(false); // …clear of it: awake, and out of its touch
+    expect(staysDown(rest, { x: 115, y: 100 })).toBe(false); // a step towards it: awake, and touching — it fights
+    // Standing still never wakes it, whatever the rounding.
+    for (const hero of [{ x: 103.7, y: 77.1 }, { x: 81.3, y: 109.9 }, { x: 100.1, y: 100.2 }]) {
+      expect(staysDown(restOf({ isBoss: true }, home, hero, 64), hero)).toBe(true);
+    }
   });
 
   it('every critter that could wander into a hero standing still stands down at the start — a Flee, a reload, a neighbour (#112e)', () => {

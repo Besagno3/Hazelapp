@@ -167,11 +167,11 @@ export function seaEdgeLabel(side: 'north' | 'south' | 'east' | 'west', toName: 
 export const EDGE_LABEL_SPOTS = [0.63, 0.8, 0.37, 0.5, 0.2, 0.9, 0.06, 0.95] as const;
 
 /**
- * The narrowest the menu map is drawn (a 360 px phone). Labels and icons keep
- * their pixel size while the map shrinks, so a label clear of a marker here is
- * clear at every size.
+ * The narrowest the menu map is drawn (a 320 px phone, the narrowest the game
+ * is played on). Labels and icons keep their pixel size while the map shrinks,
+ * so a label clear of a marker here is clear at every size.
  */
-export const MAP_MIN_PX = 248;
+export const MAP_MIN_PX = 208;
 /** Half a label's height (10 px text, 2 px padding each side) and half an icon's (13–16 px). */
 const LABEL_HALF_PX = 7;
 const ICON_HALF_PX = 8;

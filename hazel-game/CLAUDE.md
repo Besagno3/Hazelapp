@@ -278,11 +278,14 @@ zod, react-query. Add the package in the same change that first uses it.
   checked in the canvas's contact loop through `lib/encounter.ts`'s
   `startsBattle`, with Calm). Every enemy that could reach a hero standing
   where a scene starts, and could fight them as they're getting about
-  (`idleReach`: a critter's leash + its touch, a boss's touch), rests: drawn
-  faded like under Calm (bosses too), and like Calm it lets the hero pass,
-  until they've left its patch — then it can't touch them unless they steer
-  back (`standDown` / `staysDown`). So a Flee, a reload or an arrival never
-  drops the hero straight into a fight. The Silver Shallows has three (Bubble
+  (`idleReach`: a critter's leash + its touch, a boss's touch), rests — asked
+  again on landing or climbing aboard, for the new way of getting about: drawn
+  faded like under Calm (bosses too) with a "Zz" over it, and like Calm it lets
+  the hero pass, until they've left its patch — then it can't touch them
+  unless they steer back (`standDown` / `restOf` / `staysDown`, checked every
+  frame). A resting boss also wakes the moment the hero steps nearer it than
+  they began: they can back away, not walk through it. So a Flee, a reload,
+  an arrival or a landing never drops the hero straight into a fight. The Silver Shallows has three (Bubble
   Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
   land or the edge a boat sails in by. A battle at sea is fought over
@@ -430,7 +433,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # scre
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
-NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, Flee stand-down (#75 item 14d)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, resting after a Flee / a landing (#75 item 14d)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -520,6 +523,33 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14d fifth review: resting shows "Zz", wakes every frame, holds after a landing; bosses can't be walked through (#75 item 14d)
+Round 5 — fresh `/saas-code-review` (5 low) + `/saas-ux-review` (1 low; every
+earlier fix re-checked in the real app). All fixed:
+- **A resting critter gave no sign (UX, low):** steering into a faded critter
+  did nothing, with nothing to say why — it could read as broken or a ghost.
+  Now a white "Zz" on a dark plate (like the level's) floats over each resting
+  enemy and goes the moment it wakes.
+- **Landing beside a land critter (code, low; pre-existing):** resting was
+  only worked out as the scene began, so going ashore next to one (Dawnreach's
+  Bolt Mouse, a step up from the beach at 67,20) could fight a hero held still
+  by the arrival lock — on the bench 2 of 4 landings fought within 5 s.
+  Landing and climbing aboard now ask again for the new way of getting about,
+  from where the hero is (`restAround`, measured from each enemy's home):
+  0 of 6 in 8 s.
+- **Code, low:** a resting boss could be walked through (it rested until the
+  hero left its 34 px touch) — now it wakes too if they step nearer than they
+  began (`restOf`'s `near`, `staysDown`), so they can back away but not slip
+  past (no arrival is within a boss's touch today); a resting enemy's waking
+  was only checked when no bump was cooling down — now every frame; the
+  narrowest map is a 320 px phone's (`MAP_MIN_PX` 208, was 360's 248) — the
+  every-cell ⭐ test still passes; `bench … sea`'s resting check proves the
+  pass (the hero starts on top of the puffer, 0 px, a battle from the first
+  frame unless it rests), its header comment is current, waits in the patch
+  before sweeping (a sweep alone missed a moving critter), and a sixth check
+  lands beside the Bolt Mouse.
+- Tests: 795 green (+1), lint + build clean; `bench … sea` 6/6.
 
 ### 2026-10-10 — 14d fourth review: resting critters let you pass until you leave their patch (#75 item 14d)
 Round 4 — fresh `/saas-code-review` (5 low) + `/saas-ux-review` (1 medium, 4

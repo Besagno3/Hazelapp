@@ -25,6 +25,7 @@ import {
   type BuildingDef,
   type FogDef,
   type NpcPlacement,
+  type TravelMode,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
 import { safeSpawn } from '../../lib/reach';
@@ -35,7 +36,7 @@ import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
 import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
-import { CONTACT_RADIUS, contactRadius, idleReach, standDown, startsBattle, staysDown } from '../../lib/encounter';
+import { CONTACT_RADIUS, contactRadius, idleReach, restOf, standDown, startsBattle, staysDown, type Rest } from '../../lib/encounter';
 import { BOAT_REMOOR_REACH } from '../../content/boat';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
@@ -799,6 +800,8 @@ export default function WorldCanvas({
       kind: 'npc' | 'enemy' | 'spire' | 'umbra';
       npcId?: string;
       enemy?: BattleEnemy;
+      /** Where an enemy roams from (it rests by its home, `resting`). */
+      home?: { x: number; y: number };
       /** Sprite pieces — moved together when a wanderer is pushed off the player. */
       parts?: { pos: WorldVec }[];
       /** Footprint radius (px) for actor↔actor overlap avoidance. */
@@ -1082,6 +1085,9 @@ export default function WorldCanvas({
     // Each enemy's parts, with their own full opacity — faded under
     // Calm, and while it rests (`resting`, #75 item 14d).
     const critters: { obj: { opacity: number }; opacity: number; actor: Actor; boss: boolean }[] = [];
+    // …and a "Zz" over each, shown only while it rests: a faded critter that
+    // lets you pass is asleep, not a ghost (#112e).
+    const sleepers: { zzz: { hidden: boolean }[]; actor: Actor }[] = [];
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
@@ -1146,15 +1152,31 @@ export default function WorldCanvas({
         k.z(LABEL_Z),
       ]) as unknown as Part;
       parts.push(label, labelPlate);
+      // White on a plate like the level's, so it reads on sea and grass alike.
+      const zzY = py - (enemy.isBoss ? 30 : 24);
+      const zzz = [
+        k.add([k.text('Zz', { size: 11 }), k.pos(px + 12, zzY), k.anchor('center'), k.color(255, 255, 255), k.z(LABEL_Z + 0.5)]),
+        k.add([
+          k.rect(22, 15, { radius: 3 }),
+          k.pos(px + 12, zzY),
+          k.anchor('center'),
+          k.color(20, 16, 36),
+          k.opacity(LABEL_PLATE_OPACITY),
+          k.z(LABEL_Z),
+        ]),
+      ] as unknown as (Part & { hidden: boolean })[];
+      for (const z of zzz) z.hidden = true;
       const actor: Actor = {
         x: px,
         y: py,
         kind: 'enemy',
         enemy,
+        home: { x: px, y: py },
         parts,
         radius: enemy.isBoss ? ACTOR_RADIUS.boss : ACTOR_RADIUS.enemy,
       };
       actors.push(actor);
+      sleepers.push({ zzz, actor });
       // Every part fades with the critter — under Calm (not a boss) and while
       // it rests (`resting`, #75 items 9 and 14d).
       for (const part of parts) {
@@ -1162,6 +1184,7 @@ export default function WorldCanvas({
         if (part !== labelPlate && part !== ripple) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
         critters.push({ obj: part as unknown as { opacity: number }, opacity: base, actor, boss: enemy.isBoss });
       }
+      parts.push(...zzz); // moves with it, but never fades
       if (enemy.isBoss) {
         // Bosses hold their ground — gentle idle hover only (collision fixed).
         let t = Math.random() * Math.PI * 2;
@@ -1254,25 +1277,29 @@ export default function WorldCanvas({
     // a Flee (the critter respawns at home, maybe right beside them), a
     // reload, an arrival, a neighbour's patch — rest: faded like under Calm,
     // and like Calm they let the hero pass, until the hero has left their
-    // patch (#112e). Only those that could fight the hero as they're getting
-    // about; the rest couldn't anyway. They're all at home now.
+    // patch (a boss: or steps nearer it, `staysDown`, #112e). Only those that
+    // could fight the hero as they travel now; landing or climbing aboard
+    // asks again, for the new way of getting about, from where the hero is.
     const leash = TILE * WANDER_TUNING.enemy.leashTiles;
-    const resting = new Map(
-      [
-        ...standDown(
-          actors.filter((a) => a.kind === 'enemy' && a.enemy && meetsHero(a.enemy.habitat, aboard ? 'boat' : 'foot')),
-          (a) => idleReach(a.enemy!, leash),
-          spawn,
-        ),
-      ].map((a) => [a, { x: a.x, y: a.y, reach: idleReach(a.enemy!, leash) }]),
-    );
+    const resting = new Map<Actor, Rest>();
+    let restings = 0; // bumped on every change, so `fadeCritters` redraws
+    const restAround = (hero: { x: number; y: number }, mode: TravelMode) => {
+      resting.clear();
+      const foes = actors.flatMap((a) => (a.enemy && a.home && meetsHero(a.enemy.habitat, mode) ? [{ a, ...a.home }] : []));
+      for (const f of standDown(foes, (f) => idleReach(f.a.enemy!, leash), hero)) {
+        resting.set(f.a, restOf(f.a.enemy!, f.a.home!, hero, leash));
+      }
+      restings += 1;
+    };
+    restAround(spawn, aboard ? 'boat' : 'foot');
     // Faded critters let you pass: all but bosses under Calm, and any resting.
     let critterFade = '';
     const fadeCritters = (calm: boolean) => {
-      const key = `${calm}|${resting.size}`;
+      const key = `${calm}|${restings}`;
       if (key === critterFade) return;
       critterFade = key;
       for (const c of critters) c.obj.opacity = c.opacity * ((calm && !c.boss) || resting.has(c.actor) ? CALM_OPACITY : 1);
+      for (const s of sleepers) for (const z of s.zzz) z.hidden = !resting.has(s.actor);
     };
     // From the first frame — even while the world waits (a level-up, a slide).
     fadeCritters((calmRef?.current ?? 0) > 0);
@@ -1747,6 +1774,7 @@ export default function WorldCanvas({
         mooring = null;
         cooldown = TRIGGER_COOLDOWN;
         cbRef.current.onBoard?.(player.pos.x, player.pos.y);
+        restAround(player.pos, 'boat');
         bumped = null;
       } else if (bumped && landAt) {
         aboard = false;
@@ -1755,6 +1783,7 @@ export default function WorldCanvas({
         cooldown = TRIGGER_COOLDOWN;
         needsRelease = true; // don't sail straight back into the boat
         cbRef.current.onLand?.(landAt, player.pos.x, player.pos.y);
+        restAround(player.pos, 'foot');
         bumped = null;
       }
 
@@ -1815,17 +1844,20 @@ export default function WorldCanvas({
         }
       }
 
+      // A resting enemy wakes once the hero has left its patch (a boss: or
+      // stepped nearer it) — checked every frame, a bump cooling down or not.
+      for (const [a, rest] of resting) {
+        if (staysDown(rest, player.pos)) continue;
+        resting.delete(a);
+        restings += 1;
+      }
+
       // Actor contact: NPCs talk, enemies start battles.
       if (cooldown === 0) {
         for (const a of actors) {
           if (a.kind === 'enemy' && a.enemy) {
-            // One resting since the scene began (it could reach where the hero
-            // started) lets them pass until they've left its patch (#112e)…
-            const rest = resting.get(a);
-            if (rest) {
-              if (staysDown(rest, player.pos, rest.reach)) continue;
-              resting.delete(a);
-            }
+            // One resting lets the hero pass (#112e)…
+            if (resting.has(a)) continue;
             // …and a touch fights only in the enemy's own element, and no
             // roaming critter under Calm (`startsBattle`, #75 items 9, 14d).
             if (!startsBattle(a.enemy, { mode: aboard ? 'boat' : 'foot', calm })) continue;
