@@ -6,8 +6,8 @@ import { crystalFlag, TOPICS } from './topics';
 import { NPC_DEFS, type DialogueLine } from './npcs';
 import { bossScript } from './enemies';
 
-/** Act I's keys (#58): each opens a Fiend's gate on the map today. */
-const ACT_ONE_KEYS = GATE_KEYS.filter((k) => k.id !== 'memoria');
+/** The keys whose gates are on the map today (#58: Act I's) — the Memoria Key's comes in 14h. */
+const ACT_ONE_KEYS = GATE_KEYS.filter((k) => k.unlocksZone !== null);
 
 describe('warden keys (#58)', () => {
   it('every key is dropped by a real boss living in its themed zone', () => {
@@ -69,13 +69,16 @@ describe('warden keys (#58)', () => {
     expect(k.fromZone).toBe('eldergrove');
     expect(k.unlocksZone).toBeNull(); // the Sunken Archive comes in 14h
     expect(k.opens).toBe('It opens a door the whole world forgot.');
-    // No gate on any map asks for it yet.
-    expect(Object.values(ZONES).some((z) => z.keyGate && keyForZone(z.id)?.id === k.id)).toBe(false);
+    // A null zone never finds it (`strict` is off, so a null type-checks as a ZoneId).
+    expect(keyForZone(null as never)).toBeUndefined();
     const boss = ENEMY_DEFS[k.bossId];
     expect(boss).toMatchObject({ role: 'warden', topic: 'history', isBoss: true, levelOffset: 1 });
     expect(bossScript(boss)).toEqual({ intro: k.bossIntro, defeat: k.bossDefeat });
     expect(bossDefeated(boss, {})).toBe(false);
     expect(bossDefeated(boss, { [keyFlag(k.id)]: true })).toBe(true);
+    // After it, Old Ringwood says its door turns up later — not to go looking (review fix).
+    const after = NPC_DEFS['elder-ringwood'].lines.filter((l) => typeof l !== 'string' && l.ifFlag === keyFlag(k.id));
+    expect(after.map((l) => (l as { text: string }).text).join(' ')).toMatch(/turn up later in your adventure/);
     // It stands in the Great Ring, south of Old Ringwood.
     const at = ZONES.eldergrove.enemies.find((e) => e.defId === k.bossId)!;
     const ringwood = ZONES.eldergrove.npcs.find((n) => n.defId === 'elder-ringwood')!;

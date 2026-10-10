@@ -67,6 +67,16 @@ describe('BattleArena (smoke)', () => {
     vi.useRealTimers();
   });
 
+  it('the level and streak sit in their own row above the status boxes, in the page (#75 item 14f review)', () => {
+    render(<BattleArena />);
+    const bar = screen.getByTestId('battle-topbar');
+    expect(bar.querySelector('.fixed')).toBeNull();
+    expect(bar.textContent).toMatch(/LEVEL|Level/);
+    // Before the enemy's status box, not floating over it.
+    const enemyName = screen.getByTitle('Count Bat');
+    expect(bar.compareDocumentPosition(enemyName) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('a potion used right after an enemy hit keeps both (#70)', () => {
     // Fake timers so the test can prove no delayed write lands afterwards —
     // the original bug was an HP write 260ms after the hit.

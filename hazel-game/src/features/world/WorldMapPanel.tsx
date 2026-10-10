@@ -62,12 +62,12 @@ export default function WorldMapPanel({
   const emojiOf = (p: (typeof places)[number]) => placeEmoji(world, p, flags);
   const anyHidden = places.some((p) => emojiOf(p) === HIDDEN_PLACE_EMOJI);
   const goal = nextObjective(flags);
-  // A goal across the sea flags where it starts (Marlow's dock) on its own map.
-  const flagAt = goal.at
-    ? goal.at.zoneId === world.id
-      ? { x: goal.at.x, y: goal.at.y, exact: true, place: undefined }
-      : null
-    : goal.zoneId
+  // A goal across the sea flags where it starts (Marlow's dock) on its own map;
+  // out on the goal's own sea, its place (Eldergrove, #75 item 14f).
+  const flagAtStart = !!goal.at && goal.at.zoneId === world.id;
+  const flagAt = flagAtStart
+    ? { x: goal.at!.x, y: goal.at!.y, exact: true, place: undefined }
+    : goal.zoneId && goal.zoneId !== world.id
       ? whereOnMap(ZONES, world, goal.zoneId, null)
       : null;
   const boatHere = boat && boat.zoneId === world.id ? boat : null;
@@ -98,8 +98,8 @@ export default function WorldMapPanel({
   const caption = aboard
     ? `You're sailing ${world.name.startsWith('The ') ? `the ${world.name.slice(4)}` : `off ${world.name}`} in the Biscuit`
     : mapCaption(here, floorTitle(ZONES, zoneId) ?? ZONES[zoneId].name, world.name);
-  const nextLabel = goal.zoneId ? `Next: ${goal.title}` : goal.why;
-  const flagName = goal.at?.name ?? flagAt?.place ?? (goal.zoneId ? ZONES[goal.zoneId].name : '');
+  const nextLabel = goal.zoneId ? `Next: ${goal.title}.` : goal.why;
+  const flagName = flagAtStart ? goal.at!.name : (flagAt?.place ?? (goal.zoneId ? ZONES[goal.zoneId].name : ''));
   const boatLine = boatElsewhere
     ? `⛵ The Biscuit is moored out in ${mid(ZONES[boatElsewhere.zoneId].name)} — Old Marlow on Starfall Coast can row her home.`
     : boatHere
@@ -119,7 +119,7 @@ export default function WorldMapPanel({
           width={cols * PX}
           height={rows * PX}
           role="img"
-          aria-label={`Map of ${mid(world.name)}. ${caption}. ${goal.zoneId && flagAt ? `${nextLabel}, flagged at ${flagName}.` : nextLabel}${boatLine ? ` ${boatLine.replace(/^⛵ (= )?/, boatElsewhere ? '' : 'The boat: ').replace(/([^.])$/, '$1.')}` : ''}${seaWayText ? ` ${seaWayText}` : ''}`}
+          aria-label={`Map of ${mid(world.name)}. ${caption}. ${goal.zoneId && flagAt ? `${nextLabel.replace(/\.$/, '')}, flagged at ${flagName}.` : nextLabel}${boatLine ? ` ${boatLine.replace(/^⛵ (= )?/, boatElsewhere ? '' : 'The boat: ').replace(/([^.])$/, '$1.')}` : ''}${seaWayText ? ` ${seaWayText}` : ''}`}
           className="block w-full rounded-md"
           style={{ imageRendering: 'pixelated' }}
         />

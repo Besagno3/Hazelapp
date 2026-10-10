@@ -129,7 +129,8 @@ zod, react-query. Add the package in the same change that first uses it.
   `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
   danger tier 0–7 — Act I 0–4, the Shallows 5 — the `DANGER` tuning per
   tier, map labels "Lv 4 !!" (marks stop at "!!!", tiers 5–7 go violet →
-  magenta), the danger banner / defeat tip / arrival warning copy),
+  magenta → pink, kept apart for colour-blind kids — #75 item 14f review),
+  the danger banner / defeat tip / arrival warning copy),
   (Act II's **Remembrance Hill**, #75 item 14e, is a town on Dawnreach behind
   the Grove-road fog — `hill-fog`, lifted by `act2-seen` — and a place nobody
   names before then: `PlaceDef.knownFrom` / `placeKnown` keep it off the
@@ -203,9 +204,13 @@ zod, react-query. Add the package in the same change that first uses it.
   tall (pt-3 + bar + mb-2 = the old pt-16), so they never cover the place
   name and every overlay (z-40) draws over them. Exploring a Spire floor,
   `SpireOverlay` portals its seals, candles and 🚪 Leave the Spire into the
-  HUD row (`hudSlot`, in 📜 Menu's place). Other screens keep the floating
-  badges. Sign out there asks "Sign out?" first (same size; the hint floats
-  below it), and any other tap or key takes the question back.
+  HUD row (`hudSlot`, in 📜 Menu's place). The battle screen has a top bar
+  too (#75 item 14f review, `data-testid="battle-topbar"`): the level and
+  streak in a row above the status boxes (no Sign out in battle, as before),
+  hidden below 360 px wide or 500 px tall, where there's no room for it
+  without pushing 🏃 Flee off the screen (`bench … battle`). Other screens
+  keep the floating badges. Sign out there asks "Sign out?" first (same size;
+  the hint floats below it), and any other tap or key takes the question back.
   **Overlays are modal** (#75 item 14b review): every world overlay (dialogue,
   services, path questions, key gates, menu, the Spire's panels) and the
   level-up sit in `components/ModalLayer` — `role="dialog"` + `aria-modal`,
@@ -419,6 +424,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # scre
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit (#75 item 14f)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -509,6 +515,37 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14f review fixes: Fen's Hollow, the dock 🚩, a battle top bar, a real purple (#75 item 14f)
+A fresh `/saas-code-review` (1 medium, 3 low) and `/saas-ux-review` (3 high,
+2 medium, 4 low; played on the stubbed app at 320–800 px). Fixed, as chosen:
+- **A loss in Eldergrove wakes you in Fen's Hollow** (code medium / UX high):
+  a place can have a shelter (`ZoneDef.shelter`, `shelterOf`, `wakeShelter`)
+  — beaten there, you wake on its floor, healed, the boat still at the
+  beach, so a retry isn't a voyage away. Not an inn: `lastRest` is kept, so
+  a defeat elsewhere never strands you on the island. 14d's boat rule is
+  untouched.
+- **The Memoria 🚩 starts at Marlow's dock** off the Shallows (UX high):
+  flagged on the dock on Dawnreach's map, "Go … to Marlow's dock and sail
+  east to the Silver Shallows, then go south-east to Eldergrove."
+- **Copy:** Fen's hints match what's drawn, count down, ≤ 30 words, simpler
+  words, and a found acorn says Fen might remember the next
+  (`QuestDef.foundNote`, `haveStep` `listLeft`); after the key, its door
+  "will turn up later in your adventure" (🚩, Lumen, Ringwood, the panel);
+  the Ringkeeper's intro; "First time beating the Ringkeeper" (was "a The …"
+  for every "The" boss); a boss is a "very tough boss".
+- **The battle's top bar** (UX high, pre-existing): the level and streak
+  in a row above the status boxes, not floating over the enemy's "!!!";
+  hidden below 360 × 500, where it pushed 🏃 Flee off the screen. Measured
+  by a new `bench … battle` (5/5).
+- **A real purple:** tier 5 is violet-400 (violet-200 read white), tier 7
+  #ff66b8, so 4–7 stay apart for colour-blind kids (a simulated test).
+- **Art:** Dawdle's face toward you and his walk at his pace (`animSpeed`),
+  Old Ringwood taller than the trees, the Hollow Acorn 🫥.
+- **Code:** `keyForZone` ignores null; tests that couldn't fail.
+- Logged (#114 m–p): a battle never fit a sideways phone (pre-existing), the
+  crowded island on the in-grove menu map, a real-phone check, the dock 🚩
+  after a Return. Tests: +9 net (one old LevelBadge test removed). 850 green.
 
 ### 2026-10-10 — The 🚩 leads to Eldergrove for the Memoria Key (#75 item 14f)
 Fourth slice of 14f. After "Visit Remembrance Hill" the 🚩 reads **"Win the

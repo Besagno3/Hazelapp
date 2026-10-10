@@ -1345,6 +1345,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'You won the Memoria Key! Nine hundred years, and the Ringkeeper never shared a thing before. Hrrm. Well done.',
         ifFlag: keyFlag('memoria'),
       },
+      {
+        text: "Its door? Nobody remembers where it is yet. It will turn up later in your adventure — mark my rings.",
+        ifFlag: keyFlag('memoria'),
+      },
     ],
     ambient: ['…nine hundred and… hrrm.', '🍂'],
   },

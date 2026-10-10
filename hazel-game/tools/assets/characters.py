@@ -2862,11 +2862,14 @@ def tree_folk(c: Canvas, p: Pose, s: dict):
 
 
 def turtle(c: Canvas, p: Pose, s: dict):
-    """A very slow tortoise (Dawdle): a domed shell, stubby legs, sleepy eyes."""
+    """A very slow tortoise (Dawdle): a domed shell, stubby legs, sleepy eyes.
+    Facing you, the shell sits higher and his head pokes out in front of it,
+    so his face reads at map size (#75 item 14f review)."""
     d = D(c, p)
     shell = hexc(s.get('shell', '#6a8a3a'))
     skin = hexc(s.get('skin', '#a8c070'))
     lean, bob = d.lean, d.bob
+    front = p.facing == 'down'
     Lg = d.part(lean * 0.3, 0)
     for i, lx in enumerate((9.5, 13, 18.5, 22)):
         off = p.step * (0.8 if i % 2 else -0.8)
@@ -2876,25 +2879,32 @@ def turtle(c: Canvas, p: Pose, s: dict):
     Hd = None
     if p.facing != 'up':
         Hd = d.part(lean, bob)
-        hx, hy = (25.5, 21.5) if p.facing == 'side' else (16, 25.5)
-        Hd.ellipse(hx, hy, 3.8, 3.2, skin)
-        if p.facing == 'side':
+        if front:
+            hx, hy = 16, 24.4
+            Hd.ellipse(hx, hy, 5, 4.2, skin)
+            d.eyes(Hd, [(hx - 2, hy - 1.4), (hx + 2, hy - 1.4)], h=2, shine=False)
+            if d.sep and not p.hurt:
+                Hd.line(hx - 1.4, hy + 1.6, hx + 1.4, hy + 1.6, dark(skin, 0.45), w=0.6)  # a sleepy smile
+        else:
+            hx, hy = 25.5, 21.5
+            Hd.ellipse(hx, hy, 3.8, 3.2, skin)
             Hd.rect(21, hy - 1.6, 24, hy + 1.8, skin)  # the neck
-        ex = [hx + 1.2] if p.facing == 'side' else [hx - 1.6, hx + 1.6]
-        d.eyes(Hd, [(x, hy - 1.2) for x in ex], h=1, shine=False)  # half asleep
-        if d.sep:
-            Hd.dot(hx + (2.4 if p.facing == 'side' else 0), hy + 1.4, dark(skin, 0.4), w=2, h=1)
-        if p.facing == 'side':
-            d.put(Hd)  # behind the shell's edge; facing us, in front of it (below)
+            d.eyes(Hd, [(hx + 1.2, hy - 1.2)], h=1, shine=False)  # half asleep
+            if d.sep:
+                Hd.dot(hx + 2.4, hy + 1.4, dark(skin, 0.4), w=2, h=1)
+        if not front:
+            d.put(Hd)  # behind the shell's edge; facing us, in front of it
     B = d.part(lean, bob)
-    B.ellipse(15, 20.5, 9.6, 7.2, shell)
+    sy = 17.5 if front else 20.5
+    B.ellipse(16 if front else 15, sy, 9.6, 6.8 if front else 7.2, shell)
     if d.sep:
-        for (x, y) in ((11, 18), (15, 15.6), (19, 18), (13, 21.6), (17.4, 21.6)):  # shell plates
-            B.ellipse(x, y, 1.9, 1.5, dark(shell, 0.2), shade=False)
-            B.ellipse(x, y, 1.1, 0.8, light(shell, 0.12), shade=False)
-    B.ellipse(15, 26, 9.4, 1.6, '#d8c890')  # the rim
+        for (x, y) in ((11, sy - 2.5), (15, sy - 4.9), (19, sy - 2.5), (13, sy + 1.1), (17.4, sy + 1.1)):  # shell plates
+            px = x + (1 if front else 0)
+            B.ellipse(px, y, 1.9, 1.5, dark(shell, 0.2), shade=False)
+            B.ellipse(px, y, 1.1, 0.8, light(shell, 0.12), shade=False)
+    B.ellipse(16 if front else 15, sy + 5.5, 9.4, 1.6, '#d8c890')  # the rim
     d.put(B)
-    if Hd is not None and p.facing == 'down':
+    if Hd is not None and front:
         d.put(Hd)
     finish(c, d, shadow=(16, 30.6, 9, 1.3))
 
@@ -3047,7 +3057,7 @@ ROSTER: list[Char] = [
     # ── Eldergrove (history, #75 item 14f) ──
     Char('ring-beetle', '🪲', 'ring_beetle', H(color='#7a4a2a', ring='#d8b07a')),
     Char('sap-sprite', '✨', 'sap_sprite', H(color='#e8a030')),
-    Char('hollow-acorn', '🌰', 'hollow_acorn', H(color='#b8783a', cap='#6a4a2a', shield=True)),
+    Char('hollow-acorn', '🫥', 'hollow_acorn', H(color='#b8783a', cap='#6a4a2a', shield=True)),
     Char('ringkeeper', '🦌', 'beast', H(kind='stag', fur='#cdb894', belly='#efe4c8', antler='#8a6440', leaves=True, leaf='#e8a838',
                                      rings='#8a6440', key=True), boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
@@ -3148,7 +3158,8 @@ NPCS: list[Char] = [
     Char('hill-jam', '🧺', 'humanoid', H(hair='bob', hair_color='#8a3a2a', outfit='#3a7ab0', apron='#ffd0e0', item='ladle')),
     # ── Act II: Eldergrove (#75 item 14f) ──
     Char('elder-fen', '🧺', 'humanoid', H(hair='ponytail', hair_color='#a0522d', hat='straw', outfit='#7a8a3a', trim='#c8a060', pack='#b08040', scarf='#e0a040', item='staff', item_color='#8a6a3a')),
-    Char('elder-ringwood', '🌳', 'tree_folk', H(bark='#7a5232', leaf='#5a8a3a')),
+    # Taller than the grove's scenery trees (boss-sized), so he reads as someone to talk to.
+    Char('elder-ringwood', '🌳', 'tree_folk', H(bark='#7a5232', leaf='#5a8a3a'), boss=True),
     Char('elder-dawdle', '🐢', 'turtle', H(shell='#6a8a3a', skin='#a8c070')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle

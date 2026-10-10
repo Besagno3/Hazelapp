@@ -103,7 +103,7 @@ export const GATE_KEYS: GateKey[] = [
     bossId: 'ringkeeper',
     bossName: 'The Ringkeeper',
     bossIntro: [
-      'The oldest tree in the Great Ring shakes itself awake. It is no tree — it is a great stag with rings in its bark, and a silver key hangs from its antlers.',
+      'The great stag by the old stump lifts its head. Its bark is ringed like an ancient tree, and a silver key hangs from its antlers.',
       '"Every ring is a year, and every year is MINE. You want the Memoria Key, little spark? Then tell me about the long-ago!"',
     ],
     bossDefeat: '"…take the key. Some years are meant to be given away."',
@@ -121,7 +121,8 @@ export function keyForBoss(bossId: string): GateKey | undefined {
 
 /** The key required to open a given crystal zone's Fiend gate. */
 export function keyForZone(zoneId: ZoneId): GateKey | undefined {
-  return GATE_KEYS.find((k) => k.unlocksZone === zoneId);
+  // Never the Memoria Key's null (#75 item 14f): `strict` is off, so a null zone type-checks.
+  return zoneId ? GATE_KEYS.find((k) => k.unlocksZone === zoneId) : undefined;
 }
 
 /** Save-flag set when the player holds a key. */

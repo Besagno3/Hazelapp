@@ -7,8 +7,8 @@ import { AVATARS } from '../../content/avatars';
 import { atTier, spawnEnemy } from '../../content/enemies';
 import type { DangerTier } from '../../content/regions';
 
-function hud(tier: DangerTier, powerMoveNext: string | null = null) {
-  const enemy = spawnEnemy('count-bat', 'numbria', 'a', 8, {}, tier);
+function hud(tier: DangerTier, powerMoveNext: string | null = null, defId = 'count-bat') {
+  const enemy = spawnEnemy(defId, 'numbria', 'a', 8, {}, tier);
   return render(
     <BattleHud
       enemy={enemy}
@@ -39,6 +39,11 @@ describe('BattleHud danger marks (#75 item 12)', () => {
     const marks = screen.getByText('!!!');
     expect(marks.parentElement).toHaveClass('text-fuchsia-300');
     expect(screen.getByText(/^Very tough critter: it hits harder/)).toHaveClass('sr-only');
+  });
+
+  it('a warden reads aloud as a very tough boss, not a critter (#75 item 14f review)', () => {
+    hud(5, null, 'ringkeeper');
+    expect(screen.getByText(/^Very tough boss: it hits harder/)).toHaveClass('sr-only');
   });
 
   it('up to "!!!" it reads aloud as tough, not very tough', () => {
@@ -108,6 +113,31 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
     render(<BattleResult {...base} result="victory" enemy={spawnEnemy('ringkeeper', 'eldergrove', 'r', 8)} keyBoss={keyForBoss('ringkeeper')} />);
     expect(screen.getByText(/You won the Memoria Key! It opens a door the whole world forgot\./)).toBeInTheDocument();
     expect(screen.queryByText(/Hollow Fiend/)).toBeNull();
+  });
+  it("a defeat in Eldergrove says Fen tucks you up in her hollow (#75 item 14f)", () => {
+    render(
+      <BattleResult
+        {...base}
+        result="defeat"
+        enemy={spawnEnemy('ring-beetle', 'eldergrove', 'b', 8)}
+        wakeInn="the Wound-Down Inn in Gearfall Canyon"
+        shelter={{ line: "Fen the Forager finds you and tucks you up in Fen's Hollow.", place: "Fen's Hollow" }}
+      />,
+    );
+    expect(screen.getByText(/Fen the Forager finds you and tucks you up in Fen's Hollow\. You're safe, rested/)).toBeInTheDocument();
+    expect(screen.queryByText(/Wound-Down Inn/)).toBeNull();
+    expect(screen.getByRole('button', { name: "To Fen's Hollow" })).toBeInTheDocument();
+  });
+  it('a first win names the enemy mid-sentence: "the Ringkeeper", "an Oak Owl", "a Count Bat" (#75 item 14f review)', () => {
+    const first = (defId: string) => {
+      const { unmount } = render(<BattleResult {...base} firstWin result="victory" enemy={spawnEnemy(defId, 'eldergrove', 'f', 8)} />);
+      const text = screen.getByText(/First time beating/).textContent;
+      unmount();
+      return text;
+    };
+    expect(first('ringkeeper')).toBe('⭐ First time beating the Ringkeeper — bonus coins!');
+    expect(first('oak-owl')).toBe('⭐ First time beating an Oak Owl — bonus coins!');
+    expect(first('count-bat')).toBe('⭐ First time beating a Count Bat — bonus coins!');
   });
   it('a defeat shows its tip', () => {
     render(<BattleResult {...base} result="defeat" enemy={spawnEnemy('count-bat', 'gearfall', 'a', 8)} tip="Follow the 🚩!" />);

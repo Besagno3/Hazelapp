@@ -309,7 +309,8 @@ export const GREAT_FOGBANK_PANELS: StoryPanel[] = [
 
 /**
  * After the Ringkeeper (#75 item 14f): the key, and the door it opens — the
- * Sunken Archive, not on the map until 14h, so nobody knows where it is yet.
+ * Sunken Archive, not on the map until 14h, so nobody knows where it is yet,
+ * and it "will turn up later" (not a hunt across the Shallows, review fix).
  */
 export const MEMORIA_PANELS: StoryPanel[] = [
   {
@@ -318,7 +319,7 @@ export const MEMORIA_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🌳',
-    text: 'Old Ringwood creaks: "That key opens a door the whole world forgot — somewhere out on the Silver Shallows. Nobody remembers where. Not yet!"',
+    text: 'Old Ringwood creaks: "That key opens a door the whole world forgot. Nobody remembers where it is — but it will turn up later in your adventure!"',
   },
 ];
 

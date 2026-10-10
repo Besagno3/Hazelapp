@@ -5,6 +5,12 @@ import { BASE_TIER, dangerMarks } from '../../content/regions';
 import type { BattleEnemy } from '../../types';
 
 /** The end-of-battle panel: victory spoils (crystal / key / coins / XP) or a gentle defeat. */
+/** "a Count Bat", "an Oak Owl", "the Ringkeeper" — a name mid-sentence (#75 item 14f review: not "a The Ringkeeper"). */
+function aName(name: string): string {
+  if (name.startsWith('The ')) return `the ${name.slice(4)}`;
+  return `${/^[AEIOU]/i.test(name) ? 'an' : 'a'} ${name}`;
+}
+
 export function BattleResult({
   result,
   enemy,
@@ -18,6 +24,7 @@ export function BattleResult({
   firstWin,
   drop,
   wakeInn = null,
+  shelter = null,
   tip = null,
   onLeave,
 }: {
@@ -42,6 +49,8 @@ export function BattleResult({
   drop: ConsumableId | null;
   /** Defeat: the inn the hero wakes at ("the Square Root Inn in Numbria"), or null for home (#75 item 11). */
   wakeInn?: string | null;
+  /** Defeat somewhere with a shelter (#75 item 14f, Fen's Hollow): who looks after the hero, and where — over `wakeInn`. */
+  shelter?: { line: string; place: string } | null;
   /** Defeat: a tip after losing to a critter with "!" marks (`defeatTip`, #75 item 12). */
   tip?: string | null;
   onLeave: () => void;
@@ -81,7 +90,7 @@ export function BattleResult({
           </p>
           {farBonus && <p className="text-sm text-orange-200 font-semibold mt-1">💪 Tough-critter bonus: extra coins and XP!</p>}
           {firstWin && (
-            <p className="text-sm text-yellow-200 font-semibold mt-1">⭐ First time beating a {enemy.name} — bonus coins!</p>
+            <p className="text-sm text-yellow-200 font-semibold mt-1">⭐ First time beating {aName(enemy.name)} — bonus coins!</p>
           )}
           {drop && (
             <p className="text-sm text-emerald-200 font-semibold mt-1">
@@ -94,7 +103,9 @@ export function BattleResult({
           <div className="text-5xl mb-2">😴</div>
           <h2 className="text-xl font-extrabold mb-1">Whew — that was close!</h2>
           <p className="text-sm text-white/80">
-            Friendly hands carry you {wakeInn ? `back to ${wakeInn}, where you last rested` : 'home to Lumina Village'}.
+            {shelter
+              ? shelter.line
+              : `Friendly hands carry you ${wakeInn ? `back to ${wakeInn}, where you last rested` : 'home to Lumina Village'}.`}{' '}
             You're safe, rested, and{' '}
             {correctCount > 0 ? `kept ${correctCount} answers' worth of XP!` : 'ready to try again!'}
           </p>
@@ -105,7 +116,7 @@ export function BattleResult({
         onClick={onLeave}
         className="mt-4 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-2.5"
       >
-        {won ? 'Onward!' : wakeInn ? 'To the inn' : 'Back home'}
+        {won ? 'Onward!' : shelter ? `To ${shelter.place}` : wakeInn ? 'To the inn' : 'Back home'}
       </button>
     </motion.div>
   );

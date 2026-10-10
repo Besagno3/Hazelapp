@@ -30,7 +30,11 @@ export interface DangerDef {
   xp: number;
   /**
    * Its "Lv" label on the map (RGB) — warmer the tougher, alongside the "!"
-   * marks; past tier 4, where the marks stop at "!!!", violet → magenta.
+   * marks; past tier 4, where the marks stop at "!!!", violet → magenta →
+   * pink. Tier 5 is a real purple (violet-400) — the 💪 line calls it "purple"
+   * — and tier 7 a bright pink, so 4–7 stay apart for red-green and
+   * blue-yellow colour-blind kids too (#75 item 14f review; regions.test
+   * simulates them).
    */
   mapColor: [number, number, number];
 }
@@ -45,9 +49,9 @@ export const DANGER: Record<DangerTier, DangerDef> = {
   2: { hp: 1.15, attack: 1.1, chargeChance: 0.25, coins: 1.3, xp: 1.15, mapColor: [255, 226, 120] },
   3: { hp: 1.3, attack: 1.2, chargeChance: 0.3, coins: 1.6, xp: 1.3, mapColor: [255, 170, 80] },
   4: { hp: 1.45, attack: 1.3, chargeChance: 0.35, coins: 2, xp: 1.45, mapColor: [255, 150, 140] },
-  5: { hp: 1.6, attack: 1.4, chargeChance: 0.4, coins: 2.4, xp: 1.6, mapColor: [221, 214, 254] },
+  5: { hp: 1.6, attack: 1.4, chargeChance: 0.4, coins: 2.4, xp: 1.6, mapColor: [167, 139, 250] },
   6: { hp: 1.75, attack: 1.5, chargeChance: 0.45, coins: 2.8, xp: 1.75, mapColor: [240, 171, 252] },
-  7: { hp: 1.9, attack: 1.6, chargeChance: 0.5, coins: 3.2, xp: 1.9, mapColor: [232, 121, 249] },
+  7: { hp: 1.9, attack: 1.6, chargeChance: 0.5, coins: 3.2, xp: 1.9, mapColor: [255, 102, 184] },
 };
 
 /** The tier the game was balanced at before regions (tests and hand-built enemies default to it). */
@@ -127,9 +131,10 @@ export function mapLabel(level: number, isBoss: boolean, tier: DangerTier = BASE
  * so tiers 5–7 say what the colour means (#75 item 14c) — once for all
  * three (`toughKey`).
  */
-export function toughCallout(tier: DangerTier): string {
+export function toughCallout(tier: DangerTier, boss = false): string {
   if (tier >= VERY_TOUGH_TIER) {
-    return 'See its purple !!! by its level? A very tough critter — it hits even harder than a red !!!, and drops even more coins!';
+    // A warden like the Ringkeeper is a boss, not a critter (#75 item 14f review).
+    return `See its purple !!! by its level? A very tough ${boss ? 'boss' : 'critter'} — it hits even harder than a red !!!, and drops even more coins!`;
   }
   return `See the ${dangerMarks(tier)} by its level? Critters with ! marks hit harder — but they drop more coins!`;
 }

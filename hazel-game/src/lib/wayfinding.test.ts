@@ -150,7 +150,14 @@ describe('nextObjective', () => {
     expect(g.crystal).toBeUndefined();
     expect(g.why).toMatch(/Eldergrove.*the Ringkeeper guards the Memoria Key.*a door the whole world forgot/);
     expect(g.why).not.toMatch(/Hollow Fiend|Archive/);
-    expect(goalDirections(ZONES, g, 'remembrance-hill')).toBe('Sail east to the Silver Shallows, then go south-east to Eldergrove.');
+    // Off the Shallows the way starts at the boat, and the 🚩 sits on Marlow's dock (14f review).
+    expect(g.at).toEqual({ zoneId: 'dawnreach', x: 70, y: 30, name: "Marlow's dock" });
+    expect(goalDirections(ZONES, g, 'remembrance-hill')).toBe(
+      "Go north-east to Marlow's dock and sail east to the Silver Shallows, then go south-east to Eldergrove.",
+    );
+    expect(goalDirections(ZONES, g, 'dawnreach', { x: 70, y: 30 })).toBe(
+      "Climb into Marlow's boat at the end of the dock and sail east to the Silver Shallows, then go south-east to Eldergrove.",
+    );
     expect(goalDirections(ZONES, g, 'silver-shallows', { x: 30, y: 20 })).toBe('Go south-west to Eldergrove.');
     expect(goalDirections(ZONES, g, 'eldergrove')).toBe("It's right here in Eldergrove!");
     // Act II's errands aren't a danger road: no arrival warnings or "gentler road" tips.
@@ -160,6 +167,8 @@ describe('nextObjective', () => {
     expect(plan).toMatch(/Eldergrove, an island of trees older than anyone remembers\. The Ringkeeper there guards the Memoria Key/);
     expect(tip).toMatch(/purple !!!.*Forget-Me-Knot/);
     expect(nextObjective(storyDone).kind).toBe('explore');
+    // …whose why says the key's door turns up later, not to search the Shallows (review fix).
+    expect(nextObjective(storyDone).why).toMatch(/^You hold the Memoria Key 🗝️! Its door will turn up later in your adventure\./);
   });
 
   // Doing what it says must finish the story: every step is one the hero can
@@ -180,7 +189,8 @@ describe('nextObjective', () => {
     expect(seen.at(-1)?.kind).toBe('explore');
     // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage,
     // Remembrance Hill (#75 item 14e), the Memoria Key (#75 item 14f), explore.
-    expect(seen).toHaveLength(actCrystals(1).length + GATE_KEYS.length + 1 + 5 + 1 + 1 + 1);
+    const actOneKeys = GATE_KEYS.filter((k) => k.unlocksZone !== null && actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
+    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -351,7 +361,9 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     ]);
     expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true })[0]).toMatch(/Old Marlow.*mend his boat/);
     expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true })[0]).toMatch(/Silver Shallows/);
-    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/Lumina is safe/);
+    expect(mentorTips(ZONES, { ...met, ...storyDone, [keyFlag('memoria')]: false })[0]).toMatch(/^Out in the Silver Shallows lies Eldergrove/);
+    // With the Memoria Key: its door comes later — no hunt (#75 item 14f review).
+    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^You hold the Memoria Key! Its door will turn up later in your adventure\./);
   });
   it('is the big picture, not the road: no "go …" or "take the … path" steps', () => {
     const stages = [met, math, { ...math, [keyFlag('verdara-key')]: true }, { ...met, ...allCrystals }];

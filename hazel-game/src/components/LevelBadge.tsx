@@ -2,16 +2,16 @@ import { useProfileStore } from '../store/profileStore';
 import { playerLevel, xpProgress } from '../lib/level';
 
 /**
- * Where the medallion sits. Battle uses top-center to clear the combatant
- * status panels; most screens float it top-left; the world screen puts it in
- * its own top bar (`inline`, #75 item 14b / #102i), so it never covers the
- * place name and every overlay draws over it.
+ * Where the medallion sits. Most screens float it top-left; the world and
+ * battle screens put it in their own top bar (`inline`, #75 item 14b / #102i;
+ * battle since the 14f review — floating top-centre, it and the streak covered
+ * the enemy's "!!!" on a phone), so it never covers the place name or the
+ * status boxes, and every overlay draws over it.
  */
-type Placement = 'top-left' | 'top-center' | 'inline';
+type Placement = 'top-left' | 'inline';
 
 const PLACEMENT: Record<Placement, string> = {
   'top-left': 'fixed top-3 left-3 z-50',
-  'top-center': 'fixed top-3 left-1/2 -translate-x-1/2 z-50',
   inline: 'shrink-0',
 };
 

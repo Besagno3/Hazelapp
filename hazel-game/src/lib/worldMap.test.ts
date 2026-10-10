@@ -63,6 +63,9 @@ describe('whereOnMap', () => {
     expect(overworldOf(ZONES, 'clockwork-depths-b3').id).toBe('dawnreach');
     expect(overworldOf(ZONES, 'remembrance-hill').id).toBe('dawnreach');
     expect(whereOnMap(ZONES, ZONES['silver-shallows'], 'eldergrove', null)).toMatchObject({ x: 12, y: 39, place: 'Eldergrove' });
+    // The search follows exits, not a fallback: a floor below Eldergrove is on the Shallows too.
+    const below = { ...ZONES, numbria: { ...ZONES.numbria, exits: [{ x: 0, y: 0, to: 'eldergrove' as const, spawnX: 20, spawnY: 1 }] } };
+    expect(overworldOf(below, 'numbria').id).toBe('silver-shallows');
   });
 });
 

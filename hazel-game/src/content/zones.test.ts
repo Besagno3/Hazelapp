@@ -38,6 +38,7 @@ import {
   litFlag,
   innOf,
   innWakeCell,
+  shelterOf,
 } from './zones';
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
@@ -793,6 +794,18 @@ describe('Eldergrove (#75 item 14f)', () => {
     expect(hollow).toBeDefined();
     expect(touches(reach(grove), hollow.x, hollow.y)).toBe(false);
     for (const c of cells('C')) expect(touches(reach(grove, { gates: 'open' }), c.x, c.y), `${c.x},${c.y}`).toBe(true);
+  });
+
+  it("Fen's Hollow is the grove's shelter: a beaten hero wakes on its floor, the door below, the way out open (#75 item 14f)", () => {
+    const shelter = shelterOf(grove)!;
+    expect(shelter.building.name).toBe("Fen's Hollow");
+    expect(tileAt(grove, shelter.cell.x, shelter.cell.y)).toBe('F');
+    expect(tileAt(grove, shelter.cell.x, shelter.cell.y + 1)).toBe('D');
+    const out = reach(grove, { from: shelter.cell });
+    expect(grove.exits.some((e) => out.has(`${e.x},${e.y}`))).toBe(true);
+    // A shelter, not an inn: no Rest, and only Eldergrove has one.
+    expect(innOf(grove)).toBeUndefined();
+    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove']);
   });
 
   it("Fen, Old Ringwood and Dawdle live here — Dawdle the slowest wanderer in the game", () => {

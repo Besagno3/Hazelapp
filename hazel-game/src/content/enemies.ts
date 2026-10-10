@@ -105,8 +105,9 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   // --- Eldergrove (history, #75 item 14f): critters of the ring-trees ---
   'ring-beetle': { id: 'ring-beetle', name: 'Ring Beetle', sprite: '🪲', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
   'sap-sprite': { id: 'sap-sprite', name: 'Sap Sprite', sprite: '✨', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
-  // Shielded: its cap takes the first hit (Guard first, STORY-4X §4).
-  'hollow-acorn': { id: 'hollow-acorn', name: 'Hollow Acorn', sprite: '🌰', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
+  // Shielded: its cap takes the first hit (Guard first, STORY-4X §4). An empty
+  // face for its emoji, so it's never Fen's 🌰 acorns (#75 item 14f review).
+  'hollow-acorn': { id: 'hollow-acorn', name: 'Hollow Acorn', sprite: '🫥', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
   // The warden of the Great Ring: beat it for the Memoria Key (keys.ts).
   ringkeeper: { id: 'ringkeeper', name: 'The Ringkeeper', sprite: '🦌', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true, role: 'warden' },
 };

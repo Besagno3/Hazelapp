@@ -3485,7 +3485,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "hollow-acorn": {
-    "emoji": "🌰",
+    "emoji": "🫥",
     "world": {
       "sheet": "/sprites/hollow-acorn/world.png",
       "frameW": 32,
@@ -7305,8 +7305,8 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     "emoji": "🌳",
     "world": {
       "sheet": "/sprites/elder-ringwood/world.png",
-      "frameW": 32,
-      "frameH": 32,
+      "frameW": 48,
+      "frameH": 48,
       "frames": 18,
       "anims": {
         "idle": {

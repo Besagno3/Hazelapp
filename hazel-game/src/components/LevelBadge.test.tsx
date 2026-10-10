@@ -14,12 +14,6 @@ describe('LevelBadge', () => {
     expect(screen.getByText('0/100 XP')).toBeInTheDocument();
   });
 
-  it('uses a top-center placement in battle (clears the combatant panels)', () => {
-    const { container } = render(<LevelBadge placement="top-center" />);
-    const badge = container.firstElementChild as HTMLElement;
-    expect(badge.className).toContain('left-1/2');
-    expect(badge.className).not.toContain('left-3');
-  });
 
   it('inline (the world top bar, #102i): in the page, a smaller medallion, the XP read aloud and on hover', () => {
     const { container } = render(<LevelBadge placement="inline" />);

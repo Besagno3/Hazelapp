@@ -824,12 +824,15 @@ export default function WorldCanvas({
       speed: number;
       /** The anchor's sprite anims (omit for emoji faces — no animation). */
       anims?: Record<string, unknown>;
+      /** How fast its walk cycle plays — a slow wanderer's slower, so it never treads water (#75 item 14f, Dawdle). */
+      animSpeed?: number;
     }
     function attachWander(anchor: WorldActor, o: WanderOpts) {
       let dir = { x: 0, y: 0 };
       let timer = 0.3 + Math.random() * 1.2;
       // Sprite wanderers play their walk cycle and face their heading (4-way).
-      const spr = o.anims ? (anchor as unknown as { play: (n: string) => void; flipX: boolean }) : null;
+      const spr = o.anims ? (anchor as unknown as { play: (n: string) => void; flipX: boolean; animSpeed: number }) : null;
+      if (spr && o.animSpeed) spr.animSpeed = o.animSpeed;
       let facing: Facing = 'down';
       let curAnim = '';
       const homeBuilding = buildingAt(z, Math.floor(o.homeX / TILE), Math.floor(o.homeY / TILE));
@@ -1053,6 +1056,7 @@ export default function WorldCanvas({
           leash: TILE * WANDER_TUNING.npc.leashTiles,
           speed: WANDER_TUNING.npc.speed * (def.pace ?? 1),
           anims: npcView?.anims,
+          animSpeed: def.pace,
         });
       }
       if (def.ambient?.length) attachAmbient(face, def.ambient);

@@ -408,6 +408,14 @@ export interface ZoneDef {
    */
   keyChests?: KeyChestDef[];
   /**
+   * Somewhere far from any inn (#75 item 14f, Eldergrove): a hero beaten here
+   * wakes healed just inside this building, looked after by `host`, instead
+   * of at their last inn — so a retry isn't a voyage away, and the boat is
+   * still at the beach. It isn't an inn: resting isn't offered and
+   * `lastRest` doesn't change.
+   */
+  shelter?: { building: string; host: string };
+  /**
    * Tileset key override (default: the zone id). The Spire's floor maps
    * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
    */
@@ -1814,6 +1822,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Built into a hollow ring-tree — Eldergrove's own style.
       { id: 'fen-hut', name: "Fen's Hollow", x: 3, y: 2, w: 7, h: 5, roof: 'leaf', style: 'bark', sign: 'house' },
     ],
+    // Beaten anywhere in the grove, Fen finds you and tucks you up in her hollow.
+    shelter: { building: 'fen-hut', host: 'Fen the Forager' },
     npcs: [
       { defId: 'elder-fen', x: 8, y: 7 },
       { defId: 'elder-ringwood', x: 23, y: 17 },
@@ -1949,10 +1959,21 @@ export function innOf(z: ZoneDef): BuildingDef | undefined {
 /** Where a hero wakes in a town's inn: just inside its door. */
 export function innWakeCell(z: ZoneDef): { x: number; y: number } | null {
   const inn = innOf(z);
-  if (!inn) return null;
-  const facade = inn.y + inn.h - 1;
-  for (let x = inn.x; x < inn.x + inn.w; x++) if (z.map[facade][x] === 'D') return { x, y: facade - 1 };
+  return inn ? insideDoor(z, inn) : null;
+}
+
+/** The floor just inside a building's facade door. */
+function insideDoor(z: ZoneDef, b: BuildingDef): { x: number; y: number } | null {
+  const facade = b.y + b.h - 1;
+  for (let x = b.x; x < b.x + b.w; x++) if (z.map[facade][x] === 'D') return { x, y: facade - 1 };
   return null;
+}
+
+/** A place's shelter, if it has one (#75 item 14f): the building and who looks after you there. */
+export function shelterOf(z: ZoneDef): { building: BuildingDef; host: string; cell: { x: number; y: number } } | null {
+  const b = z.shelter && z.buildings?.find((x) => x.id === z.shelter!.building);
+  const cell = b ? insideDoor(z, b) : null;
+  return b && cell ? { building: b, host: z.shelter!.host, cell } : null;
 }
 
 /** Save flag: the Glow field spell has lit this dark place, for good (#75 item 9). */
