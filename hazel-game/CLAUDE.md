@@ -449,6 +449,28 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — Act I as a journey: every leg walks on the maps (#75 item 14b)
+Second slice of 14b — the Phase 2 exit check as a test (`lib/journey.ts`).
+- **`actOneJourney()`** plays the 🚩 from a brand-new save: each leg
+  (`walkLeg`) crosses the zones `routeTo` names and, in each, walks
+  (`reachPath`) from where you arrive to the exit onward, then to the boss or
+  the Spire — by a player's rules (`playerRules`): gatekeepers answered, a
+  warden's key gate only with its key, fog and dark as the story leaves them,
+  no secret passages, never through another place's icon or stairs, around
+  people who stand still and bosses not yet beaten. Each leg starts beside
+  the boss the last one beat.
+- **`journey.test.ts`:** the 8 legs in order (Numbria, the Verdant Key,
+  Verdara, the Gearwright Key three floors down, Gearfall, the Prism Key,
+  Chromaria, the Spire) and then Act II's 🚩; every hop has a path; no step
+  crosses fog, dark, `H` or another exit; each key gate really guards its
+  Fiend (no path without the key); and every leg still walks from every
+  town visited so far — its Return landing and its inn's wake cell — so a
+  Return or a defeat never strands the hero mid-act.
+- `advanceGoal` (what a player does to meet a goal) moved here from
+  `wayfinding.test`, which now shares it.
+- All 8 legs walk today: Phase 2's exit check passes on the maps (the real
+  hero walks them next, on the bench). Tests +5; 717 green.
+
 ### 2026-10-10 — One reachability search for every map question (#75 item 14b)
 First slice of sub-item 14b (groundwork for Acts II–IV): `lib/reach.ts`.
 - **`reach` / `reachPath` / `touches`** replace eight hand-written searches:

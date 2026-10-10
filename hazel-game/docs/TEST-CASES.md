@@ -826,6 +826,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-678 | U | ✅ | reach | the boat: climb in only at its mooring, sail open sea, go ashore on a beach or a dock (never grass); afloat-only stays at sea; `reachPath` gives the fewest steps with their modes; on Dawnreach Marlow's dock reaches the Shallows' edge and Numbria's lake stays land-locked (reach.test) |
 | TC-679 | U | ✅ | reach | `exits: 'stop'` reaches an exit and goes no further (a start on one still moves); with every fog lifted, Dawnreach's open ground is the same either way — no road runs through a place (reach.test) |
 | TC-680 | U | ✅ | saves | a save standing on an exit (the Depths' B1 stairs, drawn after a vault save could stand there) loads on the open floor beside it, not the zone spawn; no save on any exit of any map loads onto it (reach.test) |
+| TC-681 | U | ✅ | journey | from a fresh save the 🚩 hands out Act I's 8 legs in order (4 crystals, 3 keys, the Spire) and then Act II's boat; every leg walks zone by zone from where the last one ended to beside its boss / the Spire (journey.test) |
+| TC-682 | U | ✅ | journey | no step of Act I crosses fog, pitch dark, a secret passage (`H`) or another place's door; without its warden's key there's no way to Verdara's, Gearfall's or Chromaria's Fiend (journey.test) |
+| TC-683 | U | ✅ | journey | every Act I leg still walks from each town visited so far — from its Return landing and from its inn's wake cell — so Return or a defeat never strands the hero (journey.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MET_ELDER, ZONES, type ZoneDef, type ZoneId } from '../content/zones';
 import { reach } from './reach';
+import { advanceGoal } from './journey';
 import { whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
@@ -24,7 +25,6 @@ import {
 } from './wayfinding';
 import { FIELD_SPELL_IDS, fieldSpellFlag, visitedFlag } from '../content/fieldSpells';
 import { BOAT_MENDED } from '../content/boat';
-import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
 
 const dawn = ZONES.dawnreach;
 const ALL_ZONES = Object.keys(ZONES) as ZoneId[];
@@ -33,21 +33,6 @@ const allCrystals = Object.fromEntries(TOPIC_REGISTRY.map((t) => [crystalFlag(t.
 const actTwoDone = { [BOAT_MENDED]: true, [visitedFlag('silver-shallows')]: true };
 /** The whole story so far: every crystal, the Spire, the boat, the voyage. */
 const storyDone = { ...allCrystals, [SPIRE_CLEARED]: true, ...actTwoDone };
-
-/** Does what the goal asks — the way a player would — by setting the flags it leads to. */
-function advance(g: Objective, flags: Record<string, boolean>) {
-  if (g.kind === 'crystal') flags[crystalFlag(TOPIC_REGISTRY.find((t) => t.zoneId === g.zoneId)!.id)] = true;
-  else if (g.kind === 'key') flags[keyFlag(GATE_KEYS.find((k) => k.fromZone === g.zoneId)!.id)] = true;
-  else if (g.kind === 'spire') flags[SPIRE_CLEARED] = true;
-  else if (g.kind === 'sail') flags[visitedFlag('silver-shallows')] = true;
-  else if (g.kind === 'boat') {
-    const quest = QUESTS.find((q) => q.id === 'marlows-boat')!;
-    const step = ['boat-sail', 'boat-compass', 'boat-rudder'].find((id) => !flags[stepFlag(id)]);
-    if (!flags[questOfferedFlag(quest)]) flags[questOfferedFlag(quest)] = true;
-    else if (step) flags[stepFlag(step)] = true;
-    else flags[BOAT_MENDED] = true;
-  }
-}
 
 describe('compass', () => {
   it('names all eight directions (y grows southward)', () => {
@@ -107,7 +92,7 @@ describe('nextObjective', () => {
       const g = nextObjective(flags);
       if (g.kind === 'explore') break;
       path.push([g.title, g.zoneId]);
-      advance(g, flags);
+      Object.assign(flags, advanceGoal(g, flags));
     }
     expect(path).toEqual([
       ['Help Old Marlow', 'starfall-coast'],
@@ -142,7 +127,7 @@ describe('nextObjective', () => {
         const key = keyForZone(g.zoneId!);
         if (key) expect(flags[keyFlag(key.id)], `${g.title} needs ${key.name}`).toBe(true);
       }
-      advance(g, flags);
+      Object.assign(flags, advanceGoal(g, flags));
     }
     expect(seen.at(-1)?.kind).toBe('explore');
     // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage, explore.
@@ -167,7 +152,7 @@ describe('fog and the story', () => {
       // A goal across the sea starts at a spot on Dawnreach (Marlow's dock).
       const entrance = g.at ?? whereOnMap(ZONES, dawn, g.zoneId, null)!;
       expect(reach(dawn, { flags }).has(`${entrance.x},${entrance.y}`), `${g.title}`).toBe(true);
-      advance(g, flags);
+      Object.assign(flags, advanceGoal(g, flags));
     }
     expect(nextObjective(flags).kind).toBe('explore');
   });
