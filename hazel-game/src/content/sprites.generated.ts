@@ -3,10 +3,10 @@
 import type { SpriteDef } from './sprites';
 
 export const GENERATED_SPRITES: Record<string, SpriteDef> = {
-  "blaze": {
+  "valor": {
     "emoji": "🦁",
     "world": {
-      "sheet": "/sprites/blaze/world.png",
+      "sheet": "/sprites/valor/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -44,7 +44,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/blaze/battle.png",
+      "sheet": "/sprites/valor/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -69,10 +69,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "shield": {
+  "bastion": {
     "emoji": "🐢",
     "world": {
-      "sheet": "/sprites/shield/world.png",
+      "sheet": "/sprites/bastion/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -110,7 +110,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/shield/battle.png",
+      "sheet": "/sprites/bastion/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,
@@ -135,10 +135,10 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
-  "nova": {
+  "talon": {
     "emoji": "🦅",
     "world": {
-      "sheet": "/sprites/nova/world.png",
+      "sheet": "/sprites/talon/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
@@ -176,7 +176,139 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     },
     "battle": {
-      "sheet": "/sprites/nova/battle.png",
+      "sheet": "/sprites/talon/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "kira": {
+    "emoji": "🦊",
+    "world": {
+      "sheet": "/sprites/kira/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/kira/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "selene": {
+    "emoji": "🐈",
+    "world": {
+      "sheet": "/sprites/selene/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/selene/battle.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 7,

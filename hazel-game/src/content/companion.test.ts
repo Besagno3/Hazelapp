@@ -16,6 +16,7 @@ import { pairDamage, spellDamage } from '../lib/battleMath';
 import { CHARGE_MAX } from './abilities';
 import { QUESTS, questDoneFlag } from './quests';
 import { GENERATED_SPRITES } from './sprites.generated';
+import { FIGHT_STYLES } from '../types';
 
 describe('companions', () => {
   it('Ember only fights once hatched; the others always can', () => {
@@ -59,13 +60,15 @@ describe('companions', () => {
     expect(new Set(PAIR_ATTACKS.map((p) => p.id)).size).toBe(PAIR_ATTACKS.length);
   });
 
-  it('a Pair Attack outdamages any solo damage spell of the same (or lower) cost', () => {
+  it('a Pair Attack outdamages any solo damage spell of the same (or lower) cost — for every hero type', () => {
     const solo = [sageSpell('math'), EMBER_BREATH];
-    for (const pair of PAIR_ATTACKS) {
-      const pd = pairDamage('balanced', {}, companionPower(pair.companion, pair.unlock ?? 'hatchling'), pair.multiplier);
-      for (const spell of solo) {
-        if (spell.effect.kind !== 'damage' || spell.cost > pair.cost) continue;
-        expect(pd, `${pair.id} vs ${spell.id}`).toBeGreaterThan(spellDamage('balanced', {}, spell.effect.multiplier));
+    for (const style of FIGHT_STYLES) {
+      for (const pair of PAIR_ATTACKS) {
+        const pd = pairDamage(style, {}, companionPower(pair.companion, pair.unlock ?? 'hatchling'), pair.multiplier);
+        for (const spell of solo) {
+          if (spell.effect.kind !== 'damage' || spell.cost > pair.cost) continue;
+          expect(pd, `${style}: ${pair.id} vs ${spell.id}`).toBeGreaterThan(spellDamage(style, {}, spell.effect.multiplier));
+        }
       }
     }
   });

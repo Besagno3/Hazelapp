@@ -8,7 +8,9 @@ import {
   defendTimeMs,
   fastAnswerMs,
   FAST_STREAK,
+  heroOpening,
   itemBlocked,
+  NO_OPENING,
   MAX_SPEED_BOOST,
   MERCY_AFTER,
   mercyFor,
@@ -17,6 +19,7 @@ import {
   powerMoveName,
   rollDrop,
   skillAfterBattle,
+  SPARK_START_CHARGE,
   speedStep,
   STREAK_MAX,
   STREAK_START,
@@ -28,7 +31,7 @@ import {
   resolveSpell,
   type CombatState,
 } from './battleTurn';
-import { defendReduction, enemyAttack, healerRegen } from './battleMath';
+import { counterDamage, defendReduction, enemyAttack, healerRegen } from './battleMath';
 import { CHARGE_MAX } from '../content/abilities';
 import { POTION_HEAL, SNACK_HEAL, SPARK_CHARGE, TEA_DAMAGE_MULT } from '../content/items';
 import { AEGIS, EMBER_BREATH, MEND } from '../content/spells';
@@ -50,6 +53,8 @@ const base: CombatState = {
   focused: false,
   lucky: false,
   knotted: false,
+  freeHint: false,
+  secondWind: false,
 };
 
 const enemyInput = {
@@ -430,5 +435,111 @@ describe('the Forget-Me-Knot (#75 item 14e)', () => {
     expect(itemBlocked(base, 'knot', 1)).toBeNull();
     expect(itemBlocked({ ...base, knotted: true }, 'knot', 1)).toBe('Already tied on');
     expect(itemBlocked(base, 'knot', 0)).toBe('None left');
+  });
+});
+
+describe('hero types: Kira (swift) and Selene (mystic)', () => {
+  const skye = { ...enemyInput, wasCorrect: true, style: 'swift' as const, counter: counterDamage('swift', {}) };
+
+  it('each hero type opens a fight with its own perk, and only that one', () => {
+    const none = { charge: 0, freeHint: false, focused: false, guarded: false, secondWind: false };
+    // No hero, no perk (WorldScreen's fallback — not the balanced type's Second Wind).
+    expect(NO_OPENING).toEqual(none);
+    expect(heroOpening('mystic')).toEqual({ ...none, charge: SPARK_START_CHARGE });
+    expect(heroOpening('swift')).toEqual({ ...none, freeHint: true });
+    expect(heroOpening('aggressive')).toEqual({ ...none, focused: true });
+    expect(heroOpening('defensive')).toEqual({ ...none, guarded: true });
+    expect(heroOpening('balanced')).toEqual({ ...none, secondWind: true });
+  });
+
+  it('start() applies the opening; with none it is a fresh fight as before', () => {
+    const enemy = { id: 'count-bat', instanceId: 'o1', name: 'Count Bat', sprite: '🦇', level: 3, maxHp: 90, topic: 'math', zoneId: 'numbria', isBoss: false, coins: 10 } as BattleEnemy;
+    useBattleStore.getState().start(enemy, 100, 110, heroOpening('mystic'));
+    expect(combatState()).toMatchObject({ charge: SPARK_START_CHARGE, freeHint: false });
+    useBattleStore.getState().start({ ...enemy, instanceId: 'o2' }, 100, 100, heroOpening('swift'));
+    expect(combatState()).toMatchObject({ charge: 0, freeHint: true });
+    useBattleStore.getState().start({ ...enemy, instanceId: 'o3' }, 100, 100);
+    expect(combatState()).toMatchObject({ charge: 0, freeHint: false, focused: false, guarded: false, secondWind: false });
+    useBattleStore.getState().start({ ...enemy, instanceId: 'o4' }, 100, 140, heroOpening('defensive'));
+    expect(combatState()).toMatchObject({ guarded: true });
+  });
+
+  it('only a swift hero counters, and the counter is a share of her attack', () => {
+    expect(counterDamage('swift', {})).toBeGreaterThan(0);
+    expect(counterDamage('swift', { attack: 3 })).toBeGreaterThan(counterDamage('swift', {}));
+    for (const style of ['aggressive', 'defensive', 'balanced', 'mystic'] as const) expect(counterDamage(style, {})).toBe(0);
+  });
+
+  it('a right defend answer strikes back; a wrong one (or a timeout) does not', () => {
+    const hit = resolveEnemyTurn(base, skye);
+    expect(hit.countered).toBe(skye.counter);
+    expect(hit.state.enemyHp).toBe(base.enemyHp - skye.counter);
+    expect(hit.dmg).toBe(resolveEnemyTurn(base, { ...skye, counter: 0 }).dmg);
+    const miss = resolveEnemyTurn(base, { ...skye, wasCorrect: false });
+    expect(miss.countered).toBe(0);
+    expect(miss.state.enemyHp).toBe(base.enemyHp);
+  });
+
+  it('she counters a power blow, and past a standing guard', () => {
+    expect(resolveEnemyTurn(base, { ...skye, intent: 'power' }).countered).toBe(skye.counter);
+    const guarded = resolveEnemyTurn({ ...base, guarded: true }, skye);
+    expect(guarded.dmg).toBe(0);
+    expect(guarded.countered).toBe(skye.counter);
+  });
+
+  it('a counter shatters a stony shield instead of hurting', () => {
+    const r = resolveEnemyTurn({ ...base, enemyShielded: true }, skye);
+    expect(r.counterShattered).toBe(true);
+    expect(r.countered).toBe(0);
+    expect(r.state.enemyShielded).toBe(false);
+    expect(r.state.enemyHp).toBe(base.enemyHp);
+  });
+
+  it('a counter can win the battle — and a knocked-out hero never counters', () => {
+    const win = resolveEnemyTurn({ ...base, enemyHp: 5 }, skye);
+    expect(win.enemyDown).toBe(true);
+    expect(win.countered).toBe(5);
+    const down = resolveEnemyTurn({ ...base, playerHp: 1 }, { ...skye, intent: 'power', wasCorrect: true, style: 'swift' });
+    expect(down.heroDown).toBe(true);
+    expect(down.countered).toBe(0);
+  });
+
+  it('a counter can tip a healer below half, and it mends after it', () => {
+    const r = resolveEnemyTurn({ ...base, enemyHp: 50 }, { ...skye, behavior: 'healer' });
+    expect(r.countered).toBe(skye.counter);
+    expect(r.mended).toBe(healerRegen(base.enemyMaxHp));
+  });
+
+  it('a counter crossing a boss phase announces it', () => {
+    const r = resolveEnemyTurn({ ...base, enemyHp: 61 }, { ...skye, isBoss: true });
+    expect(r.newPhase).toBe(1);
+  });
+});
+
+describe('signature abilities: Valor, Bastion, Talon', () => {
+  it("Battle Cry (Valor): his opening focus doubles the first landed Attack, then it's spent", () => {
+    const open = { ...base, focused: heroOpening('aggressive').focused };
+    const first = applyFocus(open, 40);
+    expect(first.dmg).toBe(40 * TEA_DAMAGE_MULT);
+    expect(applyFocus(first.state, 40).dmg).toBe(40);
+  });
+
+  it("Shell Up (Bastion): the first blow is fully blocked, the next isn't", () => {
+    const first = resolveEnemyTurn({ ...base, guarded: heroOpening('defensive').guarded }, { ...enemyInput, style: 'defensive' });
+    expect(first.dmg).toBe(0);
+    expect(resolveEnemyTurn(first.state, { ...enemyInput, intent: 'power', style: 'defensive' }).dmg).toBeGreaterThan(0);
+  });
+
+  it('Second Wind (Talon): a knockout blow leaves 1 HP once a fight; the next knockout is real', () => {
+    const blow = { ...enemyInput, intent: 'power' as const };
+    const caught = resolveEnemyTurn({ ...base, playerHp: 5, secondWind: true }, blow);
+    expect(caught).toMatchObject({ secondWind: true, heroDown: false });
+    expect(caught.state).toMatchObject({ playerHp: 1, secondWind: false });
+    const next = resolveEnemyTurn(caught.state, blow);
+    expect(next).toMatchObject({ secondWind: false, heroDown: true });
+    // A blow that doesn't knock out never spends it.
+    const light = resolveEnemyTurn({ ...base, secondWind: true }, enemyInput);
+    expect(light.secondWind).toBe(false);
+    expect(light.state.secondWind).toBe(true);
   });
 });

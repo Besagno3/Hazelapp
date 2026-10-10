@@ -15,6 +15,7 @@ import type { Question } from '../types';
 export default function QuestionCard({
   question,
   hints = 0,
+  hintLabel,
   preHidden = 0,
   onUseHint,
   onAnswered,
@@ -27,6 +28,8 @@ export default function QuestionCard({
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
   hints?: number;
+  /** The hint button's words in place of "Use a Hint Feather (N left)" (Kira's Fox Sense). */
+  hintLabel?: string;
   /** Wrong options crossed out from the start (a companion's peek). */
   preHidden?: number;
   onUseHint?: () => void;
@@ -165,7 +168,7 @@ export default function QuestionCard({
           onClick={useHint}
           className="mt-2 -ml-2 min-h-[44px] px-2 inline-flex items-center rounded-lg text-sm text-purple-600 hover:text-purple-800 hover:bg-purple-50 font-semibold"
         >
-          🪶 Use a Hint Feather ({hints} left)
+          {hintLabel ?? `🪶 Use a Hint Feather (${hints} left)`}
         </button>
       )}
 
