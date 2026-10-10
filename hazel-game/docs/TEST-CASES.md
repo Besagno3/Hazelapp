@@ -937,27 +937,27 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-772 | U | ✅ | encounters | `meetFoe` (encounter.test): walking into a foe fights, a boss too, cooldown or not; nothing happens to a resting one or in the two held frames; one coming onto a still, guarded hero is spared (never a boss); a spared one lets the hero stand or step away, even after the cooldown, but walking into it fights, and out of touch it's no longer spared; a touch fights only in the enemy's element, no critter under Calm |
 | TC-770 | U | ✅ | world map | with the ⭐ at any east-half cell of Dawnreach, "Silver Shallows ▶" covers no place — covering a marker costs far more than coming within the 3 px gap (worldMap.test) |
 
-## Fair questions and sign-in (#115–#117)
+## Fair questions and sign-in (#121–#123)
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-786 | U | ✅ | questions | `shuffleAnswers` keeps the right answer right and every option exactly once (questions.test) |
-| TC-787 | U | ✅ | questions | over 400 seeded shuffles the right answer lands in each of the four spots 70–130 times — no "always B" (questions.test) |
-| TC-788 | U | ✅ | questions | `shuffleAnswers` leaves its input untouched, keeps the other fields, and leaves a question with an out-of-range `correctIndex` as it is (questions.test) |
-| TC-789 | U | ✅ | questions | `fetchQuestions` returns every question with its options shuffled and `correctIndex` on the right answer (questions.test) |
-| TC-790 | M | ⬜ | Library | re-asking a miss shows its options in a new order each time; beating it still takes it off the shelf and pays the XP |
-| TC-791 | M | ⬜ | battle | in a battle long enough to ask a question twice, the repeat comes in a new order and the right answer still wins |
-| TC-792 | M | ⬜ | edge function | after redeploying `generate-questions`, newly cached rows spread `correct_index` over 0–3 (`select correct_index, count(*) from questions where created_at > '<deploy time>' group by 1`) |
-| TC-793 | C | ✅ | QuizRound | an opening round (world still locked) pays no XP for right answers, and still counts toward the unlock (QuizRound.test) |
-| TC-794 | C | ✅ | QuizRound | the round that opens the world pays no XP either (QuizRound.test) |
-| TC-795 | C | ✅ | QuizRound | a practice round after the world is open still pays XP (QuizRound.test) |
-| TC-796 | C | ✅ | PasswordInput | starts hidden; the eye shows what was typed, the 🙈 hides it again (PasswordInput.test) |
-| TC-797 | C | ✅ | PasswordInput | the eye never sends the form (PasswordInput.test) |
-| TC-798 | C | ✅ | PasswordInput | sending the form hides a shown password first (PasswordInput.test) |
-| TC-799 | C | ✅ | PasswordInput | autocapitalize / autocorrect / spellcheck are off and `autoComplete` passes through (PasswordInput.test) |
-| TC-800 | C | ✅ | AuthPage | the password field has an eye; switching sign in → sign up hides a shown password again (PasswordReset.test) |
-| TC-801 | C | ✅ | ResetPasswordPage | both new-password fields have their own eye, each showing only its own field (PasswordReset.test) |
-| TC-802 | M | ⬜ | PasswordInput | on a real phone (iOS Safari, Android Chrome): tapping the eye keeps the keyboard up and the caret in place; a shown password isn't auto-capitalised; on Edge only one eye shows |
+| TC-850 | U | ✅ | questions | `shuffleAnswers` keeps the right answer right and every option exactly once (questions.test) |
+| TC-851 | U | ✅ | questions | over 400 seeded shuffles the right answer lands in each of the four spots 70–130 times — no "always B" (questions.test) |
+| TC-852 | U | ✅ | questions | `shuffleAnswers` leaves its input untouched, keeps the other fields, and leaves a question with an out-of-range `correctIndex` as it is (questions.test) |
+| TC-853 | U | ✅ | questions | `fetchQuestions` returns every question with its options shuffled and `correctIndex` on the right answer (questions.test) |
+| TC-854 | M | ⬜ | Library | re-asking a miss shows its options in a new order each time; beating it still takes it off the shelf and pays the XP |
+| TC-855 | M | ⬜ | battle | in a battle long enough to ask a question twice, the repeat comes in a new order and the right answer still wins |
+| TC-856 | M | ⬜ | edge function | after redeploying `generate-questions`, newly cached rows spread `correct_index` over 0–3 (`select correct_index, count(*) from questions where created_at > '<deploy time>' group by 1`) |
+| TC-857 | C | ✅ | QuizRound | an opening round (world still locked) pays no XP for right answers, and still counts toward the unlock (QuizRound.test) |
+| TC-858 | C | ✅ | QuizRound | the round that opens the world pays no XP either (QuizRound.test) |
+| TC-859 | C | ✅ | QuizRound | a practice round after the world is open still pays XP (QuizRound.test) |
+| TC-860 | C | ✅ | PasswordInput | starts hidden; the eye shows what was typed, the 🙈 hides it again (PasswordInput.test) |
+| TC-861 | C | ✅ | PasswordInput | the eye never sends the form (PasswordInput.test) |
+| TC-862 | C | ✅ | PasswordInput | sending the form hides a shown password first (PasswordInput.test) |
+| TC-863 | C | ✅ | PasswordInput | autocapitalize / autocorrect / spellcheck are off and `autoComplete` passes through (PasswordInput.test) |
+| TC-864 | C | ✅ | AuthPage | the password field has an eye; switching sign in → sign up hides a shown password again (PasswordReset.test) |
+| TC-865 | C | ✅ | ResetPasswordPage | both new-password fields have their own eye, each showing only its own field (PasswordReset.test) |
+| TC-866 | M | ⬜ | PasswordInput | on a real phone (iOS Safari, Android Chrome): tapping the eye keeps the keyboard up and the caret in place; a shown password isn't auto-capitalised; on Edge only one eye shows |
 
 ## Regression cases (tied to ISSUES.md)
 

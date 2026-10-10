@@ -51,7 +51,7 @@ async function playPerfectRound() {
 
 beforeEach(() => addXp.mockReset());
 
-describe('QuizRound — XP only once the world is open (#116)', () => {
+describe('QuizRound — XP only once the world is open (#122)', () => {
   it('an opening round pays no XP for right answers', async () => {
     start(0, false);
     await playPerfectRound();

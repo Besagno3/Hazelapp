@@ -48,7 +48,7 @@ zod, react-query. Add the package in the same change that first uses it.
   battle questions and enemy levels. **XP / player level** only tracks
   progress and grants power-ups — leveling up never makes anything harder.
   The Training Grounds' opening rounds (before the world opens) pay **no
-  XP** — XP starts in the world (#116, 2026-10-10).
+  XP** — XP starts in the world (#122, 2026-10-10).
   The defend countdown is age-based only. **Where an enemy roams scales how
   it fights, never what it asks (#75 item 12, 2026-10-08):** each zone's
   danger tier (`content/regions.ts`, by story leg) scales its HP, blows,
@@ -449,7 +449,7 @@ zod, react-query. Add the package in the same change that first uses it.
   budgets of *fresh* Claude questions. Over budget it serves the cache
   (seen questions as a last resort). Fails OPEN with a loud log if 0009 isn't
   applied. Limits: `QUOTA_DEFAULTS` in the function, overridable by secrets.
-- **Answer order is random (#115):** the model that writes questions favours
+- **Answer order is random (#121):** the model that writes questions favours
   one spot for the right answer (most often B), so `shuffleAnswers`
   (`lib/questions.ts`) shuffles every question's options as it arrives
   (cached rows too); a battle reshuffles each ask (a long battle repeats its
@@ -526,7 +526,7 @@ python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble
 - Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
   for conditional class merging.
 - Password fields use `PasswordInput` (`src/components/`, the 👁️ show /
-  🙈 hide button, #117) — not a bare `<input type="password">`.
+  🙈 hide button, #123) — not a bare `<input type="password">`.
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
   `ROUNDS_TO_UNLOCK`); battle math in `src/lib/battleMath.ts`; economy in
   `src/content/items.ts`.
@@ -586,7 +586,7 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-10 — Show password: an eye on every password field (#117)
+### 2026-10-10 — Show password: an eye on every password field (#123)
 Kids mistype passwords and couldn't see why sign-in failed. New
 `components/PasswordInput`: a 👁️ button inside the field's right edge shows
 what's been typed (🙈 hides it again). It is `type="button"` (never sends
@@ -604,10 +604,10 @@ submit, hidden again on submit — fails with the listener removed, phone
 keyboard attributes) and two in `PasswordReset.test` (both pages). 883 tests
 green, lint + tsc + build clean.
 
-### 2026-10-10 — No XP for the opening rounds (#116)
+### 2026-10-10 — No XP for the opening rounds (#122)
 The Training Grounds' first rounds are the way into the world, but they paid
 10 XP (plus the power-up bonus) for every right answer, so kids levelled up
-just by getting in — and, with #115, by tapping B. `QuizRound.finishRound`
+just by getting in — and, with #121, by tapping B. `QuizRound.finishRound`
 now pays XP only if the world was already open before the round, so the
 round that opens it pays none; practice rounds later (from the world menu)
 still pay. The skill level and the daily streak still move — they describe
@@ -616,7 +616,7 @@ the child, they aren't a reward. XP already earned is kept. New
 round, the round that opens the world, a practice round. 877 tests green,
 lint + tsc clean.
 
-### 2026-10-10 — Answers come in a random order: no more "it's always B" (#115)
+### 2026-10-10 — Answers come in a random order: no more "it's always B" (#121)
 The model that writes the questions put the right answer in the same spot
 most of the time (players noticed it was nearly always B), and nothing ever
 reordered the options — the edge function shuffles *which* questions you
