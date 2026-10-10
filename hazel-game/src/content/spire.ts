@@ -238,8 +238,17 @@ export function floorZone(theme: SpireTheme): ZoneDef {
 /** Candle-lights (wrong answers allowed) for the whole climb. */
 export const SPIRE_LIVES = 4;
 
-/** XP awarded for clearing the Spire and beating Umbra. */
+/** XP awarded for clearing the Spire and beating Umbra — the first time only (#109). */
 export const SPIRE_CLEAR_XP = 600;
+
+/**
+ * XP for a climb that beats Umbra: every right answer, plus the clear bonus
+ * on the first clear only (#109). Replaying the Spire is fine (#56); it just
+ * doesn't pay the hero's reward twice.
+ */
+export function spireClearXp(correct: number, perCorrect: number, clearedBefore: boolean): number {
+  return correct * perCorrect + (clearedBefore ? 0 : SPIRE_CLEAR_XP);
+}
 
 /** Spoken before the first floor (one box at a time). */
 export const SPIRE_INTRO: string[] = [

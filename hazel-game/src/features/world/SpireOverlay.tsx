@@ -18,7 +18,7 @@ import {
   SPIRE_FLOORS,
   SPIRE_INTRO,
   SPIRE_LIVES,
-  SPIRE_CLEAR_XP,
+  spireClearXp,
   SPIRE_BOSS_DEFEAT,
   floorWards,
   spireFloorTitle,
@@ -55,7 +55,8 @@ type Phase =
   | { kind: 'leave' }
   | { kind: 'question'; mode: 'ward'; wardId: string; index: number }
   | { kind: 'question'; mode: 'boss'; index: number }
-  | { kind: 'win' }
+  /** `firstClear`: the hero's reward and the ending are still to come (#109). */
+  | { kind: 'win'; firstClear: boolean }
   | { kind: 'lose' };
 
 /**
@@ -82,6 +83,8 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   // Act I's crystals open the door — a later act's crystal never re-seals it (#75 item 14c).
   const crystals = save ? actRestored(save.flags, 1) : 0;
   const unlocked = !!save && actComplete(save.flags, 1);
+  // Umbra beaten before (#109): he says so, and the clear bonus isn't paid again.
+  const clearedBefore = !!save?.flags[SPIRE_CLEARED];
 
   const [phase, setPhase] = useState<Phase>(unlocked ? { kind: 'loading' } : { kind: 'locked' });
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -181,7 +184,10 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
       } else if (b.kind === 'umbra' && floor.isBoss) {
         setPhase({
           kind: 'message',
-          text: '"So. The little spark reaches the top." Umbra rises from the throne, and the candles lean away from him…',
+          // Beaten before (#109): Umbra remembers you, even if no one remembers him.
+          text: clearedBefore
+            ? '"You again, little spark? I remember YOU." Umbra rises from the throne once more — he never could stay forgotten…'
+            : '"So. The little spark reaches the top." Umbra rises from the throne, and the candles lean away from him…',
           next: () => setPhase({ kind: 'question', mode: 'boss', index: 0 }),
         });
       } else {
@@ -227,7 +233,9 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
           f.isBoss
             ? {
                 kind: 'message',
-                text: 'At the far end of the hall, on a throne of shadow, something waits. Walk up to it — if you dare.',
+                text: clearedBefore
+                  ? "At the far end of the hall, Umbra is back on his throne of shadow. You've beaten him once — walk up to him if you'd like to again."
+                  : 'At the far end of the hall, on a throne of shadow, something waits. Walk up to it — if you dare.',
                 next: () => setPhase({ kind: 'explore' }),
               }
             : {
@@ -291,13 +299,15 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
 
   function win() {
     confetti({ particleCount: 260, spread: 110, origin: { y: 0.4 } });
-    const xp = correctCount.current * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)) + SPIRE_CLEAR_XP;
-    void addXp(xp);
+    // Read at the moment it's won (the save store, not a render's copy): the
+    // 600 XP clear bonus is for the first clear only (#109).
+    const firstClear = !useSaveStore.getState().save?.flags[SPIRE_CLEARED];
+    void addXp(spireClearXp(correctCount.current, XP_PER_CORRECT + xpBonusPerCorrect(powerUps), !firstClear));
     void recordActivity();
     updateSave((s) => ({ ...s, library: pushLibrary(s.library, misses.current) }));
     setFlag(SPIRE_CLEARED);
     void useSaveStore.getState().flush();
-    setPhase({ kind: 'win' });
+    setPhase({ kind: 'win', firstClear });
   }
 
   function lose() {
@@ -545,7 +555,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
           </div>
         )}
 
-        {phase.kind === 'win' && (
+        {phase.kind === 'win' && phase.firstClear && (
           <div className="text-center">
             <div className="text-6xl mb-2">🌅</div>
             <h2 className="text-2xl font-extrabold text-amber-300 mb-2">The Spire is yours!</h2>
@@ -558,6 +568,23 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
               className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-2.5"
             >
               🌟 See how it ends
+            </button>
+          </div>
+        )}
+
+        {phase.kind === 'win' && !phase.firstClear && (
+          <div className="text-center">
+            <div className="text-6xl mb-2">🌅</div>
+            <h2 className="text-2xl font-extrabold text-amber-300 mb-2">You beat Umbra again!</h2>
+            <p className="text-sm text-white/85 mb-5">
+              Every floor, every seal, and the Forgotten One fades back into the dark. Your right
+              answers earned XP — the hero's reward was yours the first time.
+            </p>
+            <button
+              onClick={close}
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-2.5"
+            >
+              🚪 Back to the Spire door
             </button>
           </div>
         )}

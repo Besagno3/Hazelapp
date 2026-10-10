@@ -865,6 +865,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-717 | U | ✅ | quests | finish what you started: a giver's quest already accepted comes before one listed first whose story flag turns on later — its hint, then its completion, then the next one's offer (fails on the old `questFor`) (quests.test) |
 | TC-718 | U/C | ✅ | danger tiers | tiers 5–7 share one 💪 line ("See its purple !!! … harder than a red !!!") and one `toughKey`; tier 4's line is unchanged; in the real arena a tier-6 fight opens with it and records tier 5, and a tier-7 fight after it opens with none (regions.test, BattleArena.test) |
 | TC-719 | U | ✅ | crystals | `actComplete` is false for an act with no crystals yet (crystals.test) |
+| TC-720 | U/C | ✅ | Spire | the Spire's 600 XP clear bonus is paid on the first clear only (`spireClearXp`); in the real overlay, a climb to Umbra with no `spire-cleared` pays the bonus and offers "🌟 See how it ends", one with it pays only the right answers, says "You beat Umbra again!" and offers "🚪 Back to the Spire door" (fails on the old code) (spire.test, SpireOverlay.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

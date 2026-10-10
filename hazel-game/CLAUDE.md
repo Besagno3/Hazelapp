@@ -501,6 +501,20 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The Spire pays its 600 XP once (#75 item 14e, #109)
+First slice of 14e. Replaying the Spire is fine (#56), but every re-clear
+paid the 600 XP clear bonus again, and in Act II Umbra still waits on the
+throne.
+- **`spireClearXp(correct, perCorrect, clearedBefore)`** (`content/spire.ts`):
+  the right answers always; `SPIRE_CLEAR_XP` only on the first clear.
+  `SpireOverlay.win` reads `spire-cleared` from the save store as Umbra falls.
+- **A re-clear says so:** "You beat Umbra again! … the hero's reward was yours
+  the first time", with 🚪 Back to the Spire door (the finale doesn't replay,
+  so no "See how it ends"); the throne room and Umbra remember a hero who has
+  beaten him ("You again, little spark? I remember YOU.").
+- Tests: spire.test (+1), SpireOverlay.test (+2: the real climb to Umbra, first
+  and second time — the second fails on the old code). 800 green.
+
 ### 2026-10-10 — 14c review fixes: finish what you started, the purple !!! explained (#75 item 14c)
 A fresh `/saas-code-review` (1 medium, 1 low) and a light `/saas-ux-review`
 (1 medium, 1 low) of 14c. Both confirmed nothing a player sees in Act I
