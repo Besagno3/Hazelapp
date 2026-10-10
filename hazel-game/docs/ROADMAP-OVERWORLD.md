@@ -5,7 +5,7 @@
 > shrines are places you walk into, and the map opens up in stages by foot,
 > by boat and on Ember's wings.
 
-Status: **items 0–13, 14a and 14b done; 14c–16f planned** (2026-10-10; §5) ·
+Status: **items 0–13, 14a, 14b and 14d done; 14c and 14e–16f planned** (2026-10-10; §5 — 14d was built before 14c, which it doesn't need) ·
 Date: 2026-10-04
 
 Companion docs: `STORY.md` (Act I bible, tone rules still binding),
@@ -172,7 +172,7 @@ enough to feel like a journey and short enough for a young player.
 | Act | Mode | How you get it | What it opens | Speed | Battles |
 |---|---|---|---|---|---|
 | I | **On foot** | from the start | Dawnreach; bridges and passes opened by gatekeepers and warden keys; fog lifts per crystal | 1× | visible roaming critters |
-| II | **Boat** ✅ | Old Marlow's boat, the *Biscuit*, mended in "Marlow's Boat" after `act2-seen` (a sail from Willow, his compass from Atlas, a rudder from Sage Cog — item 14a) | the Silver Shallows: its coasts and islands; lands only at docks and beaches | 1.5× | visible sea critters (item 14d) |
+| II | **Boat** ✅ | Old Marlow's boat, the *Biscuit*, mended in "Marlow's Boat" after `act2-seen` (a sail from Willow, his compass from Atlas, a rudder from Sage Cog — item 14a) | the Silver Shallows: its coasts and islands; lands only at docks and beaches | 1.5× | visible sea critters ✅ (item 14d): only a sailing hero meets them, and a land critter never fights one |
 | III | **Ember (flight)** | Ember full-grown + crystal #5 restored (`flight-unlocked`, `STORY-4X.md` §5) | over mountains, and over the Great Fogbank on the Starfall Sea to Taleshore; sky-only ledges | 2.5× | none (the reward for getting there) |
 | IV | **Down** | the Blank Chart (`STORY-4X.md` §6) | the Dream Root beneath the Spire | — | dungeon |
 
@@ -502,7 +502,7 @@ dungeons stay in `ROADMAP-4X.md` Waves 2–4 (§7).
 | 14a | ✅ **The boat + the Silver Shallows** (PR #30) | L | **Done (2026-10-09):** the morning after the Spire (the walk home, a night at the Sleepy Sheep Inn, `act2-seen`), Marlow's Boat quest (a sail from Willow, his compass from Atlas, a rudder from Sage Cog; `QuestDef.requires`), the boat (board, sail at 1.5×, land on beaches and docks, it waits; Marlow rows it home), the Silver Shallows (64×44, sea-linked east of Dawnreach: Gull Rock's lighthouse, Sandpiper Cay, the Great Fogbank), sea music, Act II 🚩 steps and routes across the sea (ISSUES #108) |
 | 14b | ✅ **Phase 2 exit + groundwork** | M | **Done (2026-10-10):** Phase 2's exit check passes — `lib/journey.ts` walks Act I's 8 legs on the maps by a player's rules (journey.test, CI), and the real hero walks them all in headless Chromium, plus every seal, stairs and Umbra on the five Spire floors (`run-world-bench.cjs journey`: 13/13, three times — the last on the final commit; the bench mounts only the canvas, so no Supabase is involved); every save shape since v1 loads where it stood, is never stranded, and the story's next step walks from it (`test/saveFixtures.ts`); one `lib/reach.ts` search over (cell, mode) replaced `reachableOnFoot`, `reachableBySea` and six copies in tests, and `safeSpawn` steps a save off an exit; the LEVEL / STREAK badges and Sign out sit in the world's own top bar and the Spire's status in the HUD row (#102i) — measured on the real app with Supabase stubbed at five sizes (`… hud`). (Estimated S; the journey walker and the HUD measure made it M.) |
 | 14c | **Crystals, bosses and quests ready for more acts** (nothing visible) | M | `CRYSTAL_ACT`: with a test registry holding a fake Act II crystal, Act I's Spire seal, ending, HUD count, 🚩 order and corner / fog-pocket rules are unchanged; `EnemyDef.role` (`fiend / warden / miniboss / echo / finale`) replaces "any boss without a key restores its topic's crystal" (`BattleArena`, `bossDefeated`, `spawnEnemy`'s naming, `BOSS_LINES`); one person can give several quests (`questFor(npcId, save)`) and a step may go through a giver; `DangerTier` runs to 7, the Shallows moves to tier 5 (#105g, #108d) |
-| 14d | **Sea critters** | S–M | `EnemyDef.habitat: 'land' \| 'sea'`; sea critters wander only on water and fight only a sailing hero (and a land critter never a sailing one — #108j); a sea battle backdrop; 2–3 roam the Shallows |
+| 14d | ✅ **Sea critters** | S–M | **Done (2026-10-10, before 14c):** `EnemyDef.habitat: 'land' \| 'sea'`; sea critters wander only on open water and fight only a sailing hero, and a land critter never a sailing one (`meetsHero`, #108j); a battle at sea over open water, the hero in Marlow's boat (`/backgrounds/silver-shallows-sea.png`), and losing one sends the boat home to his dock; 3 roam the Shallows — Bubble Puffer, Inkling, Starfix (ISSUES #112) |
 | 14e | **Remembrance Hill** | M | on Dawnreach behind the Grove-road fog, which lifts on `act2-seen` with the on-screen reveal; the Hall of Names, Keeper Mnem, Posy, Trader Knack, an inn and enough townsfolk for the town tests; a Return town; the 🚩 after "Sail the Silver Shallows" leads here; the Spire pays its 600 XP on the first clear only (#109) |
 | 14f | **Eldergrove + the Ringkeeper** | M | the first place icon on the Shallows (south): gate, riddle-chest, 3 critters (the Hollow Acorn shielded), Old Ringwood's warning, Fen and Moss; the Ringkeeper gives the Memoria Key (+2 panels); Fen's acorns as a collection quest (3 key-item chests + a have step) |
 | 14g | **Foglight Marsh** | M | on the Shallows' north coast: a new `escortStep` — Posy follows you through the Marsh (Ember's trail code), stops near critters, keeps her place through a battle, resets gently; the Lantern Ledger; the Last Fogbank (`miniboss`) gives the Foglight Badge and restores nothing |
@@ -639,6 +639,10 @@ version bump). Decision 8 taken as recommended: the boat comes in Act II.
 sub-items 14b–14i (§5.1) — the Phase 2 exit check and the groundwork for a
 fifth crystal first, then sea critters, Remembrance Hill, Eldergrove,
 Foglight Marsh, the Sunken Archive (crystal #5) and the reactive pass.
+*14d (2026-10-10):* sea critters — three swim the Shallows and fight only a
+sailing hero (a land critter never does); a battle at sea is fought from the
+boat over open water, and losing one sends the boat home. Built before 14c,
+which it doesn't need: the Shallows stays tier 4 until 14c makes it 5.
 *Exit:* Act II plays start to finish on the map, and the per-act, per-mode
 no-softlock test passes.
 

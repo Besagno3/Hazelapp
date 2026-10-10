@@ -30,11 +30,11 @@ import { bossDefeated } from '../../content/keys';
 import { safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
-import { spawnPlaced } from '../../content/enemies';
+import { habitatOf, spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
-import { BOAT_SPEED, canBoard, canLand, landingMooring, nearestSea, seaCrossing } from '../../lib/travel';
+import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
 import { BOAT_REMOOR_REACH } from '../../content/boat';
 import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
@@ -113,6 +113,8 @@ const CALM_OPACITY = 0.45;
  */
 const LABEL_Z = 7;
 const LABEL_PLATE_OPACITY = 0.85;
+/** The ripples under a sea critter (#75 item 14d): faint, so the critter reads first. */
+const RIPPLE_OPACITY = 0.35;
 /** Seconds after Calm wears off before a critter you're touching starts a battle. */
 const CALM_GRACE = 1.5;
 /**
@@ -824,6 +826,8 @@ export default function WorldCanvas({
       speed: number;
       /** The anchor's sprite anims (omit for emoji faces — no animation). */
       anims?: Record<string, unknown>;
+      /** A sea critter (#75 item 14d): it swims open sea only. */
+      afloat?: boolean;
     }
     function attachWander(anchor: WorldActor, o: WanderOpts) {
       let dir = { x: 0, y: 0 };
@@ -868,7 +872,8 @@ export default function WorldCanvas({
         // wanderers, stationary NPCs, the boss, the Spire — not the player or
         // Ember) block the step; on a bump, stop and repick a direction.
         if (
-          hitBox(c.x, c.y, WANDER_WALL_HALF, true) ||
+          // A sea critter's whole box stays on open sea (#75 item 14d).
+          hitBox(c.x, c.y, WANDER_WALL_HALF, true, o.afloat) ||
           // Townsfolk stay on their side of a building wall (no strolling in
           // or out of shops through the door).
           buildingAt(z, Math.floor(c.x / TILE), Math.floor(c.y / TILE)) !== homeBuilding ||
@@ -1085,6 +1090,19 @@ export default function WorldCanvas({
       const enemyView = resolveSprite(enemy.spriteId, enemy.sprite).def?.world;
       const enemyHasSprite = !!enemyView;
       const parts: Part[] = [];
+      // A sea critter (#75 item 14d) swims: a soft ring of ripples on the water under it.
+      const afloat = habitatOf(enemy) === 'sea';
+      const ripple = afloat
+        ? (k.add([
+            k.rect(28, 8, { radius: 4 }),
+            k.pos(px, py + 11),
+            k.anchor('center'),
+            k.color(225, 245, 255),
+            k.opacity(RIPPLE_OPACITY),
+            k.z(5),
+          ]) as unknown as Part)
+        : null;
+      if (ripple) parts.push(ripple);
       const body = enemyHasSprite
         ? null
         : k.add([
@@ -1148,8 +1166,8 @@ export default function WorldCanvas({
         // Regular critters roam their patch (slightly wider leash than NPCs),
         // and fade while Calm is on (#75 item 9).
         for (const part of parts) {
-          const base = part === labelPlate ? LABEL_PLATE_OPACITY : 1;
-          if (part !== labelPlate) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
+          const base = part === labelPlate ? LABEL_PLATE_OPACITY : part === ripple ? RIPPLE_OPACITY : 1;
+          if (part !== labelPlate && part !== ripple) (part as unknown as { use: (c: unknown) => void }).use(k.opacity(1));
           critters.push({ obj: part as unknown as { opacity: number }, opacity: base });
         }
         attachWander(face, {
@@ -1160,6 +1178,7 @@ export default function WorldCanvas({
           leash: TILE * WANDER_TUNING.enemy.leashTiles,
           speed: WANDER_TUNING.enemy.speed,
           anims: enemyView?.anims,
+          afloat,
         });
       }
     }
@@ -1776,6 +1795,9 @@ export default function WorldCanvas({
         for (const a of actors) {
           // Calm: roaming critters let the hero pass (bosses don't).
           if (calm && a.kind === 'enemy' && !a.enemy?.isBoss) continue;
+          // Each critter fights only a hero in its own element (#75 item 14d):
+          // a sea critter a sailing one, a land critter one on foot (#108j).
+          if (a.kind === 'enemy' && a.enemy && !meetsHero(a.enemy.habitat, aboard ? 'boat' : 'foot')) continue;
           const r = a.kind === 'enemy' && a.enemy?.isBoss ? 34 : 28;
           const dxa = player.pos.x - a.x;
           const dya = player.pos.y - a.y;

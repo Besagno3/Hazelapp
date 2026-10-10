@@ -67,7 +67,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName } from '../../lib/save';
-import { moorBoat } from '../../content/boat';
+import { boatAfterDefeat } from '../../content/boat';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
@@ -875,8 +875,9 @@ export default function BattleArena() {
     updateSave((s) => ({
       ...s,
       hp: null,
-      // Beaten at sea (#75 item 14): the boat stays moored where it floated.
-      ...moorBoat(s),
+      // Beaten at sea (#75 item 14d): Old Marlow rows the boat home to his
+      // dock — a hero waking ashore could never reach it out on open water.
+      ...boatAfterDefeat(s),
       ...wakeAfterDefeat(s),
       library: pushLibrary(s.library, misses.current),
     }));
@@ -920,21 +921,27 @@ export default function BattleArena() {
     <div
       className={`min-h-screen flex flex-col bg-gradient-to-b ${info.skyGradient} overflow-hidden supports-[overflow:clip]:overflow-clip relative`}
     >
-      {/* 16-bit zone backdrop (the sky gradient stays underneath as a fallback) */}
+      {/* 16-bit zone backdrop (the sky gradient stays underneath as a fallback);
+          out at sea against a sea critter, open water (#75 item 14d) */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `url(${battleBackdrop(enemy.zoneId)})`,
+          backgroundImage: `url(${battleBackdrop(enemy.zoneId, enemy.habitat)})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center bottom',
           imageRendering: 'pixelated',
         }}
       />
-      {/* Parallax backdrop + pseudo-3D ground plane */}
+      {/* Parallax backdrop + pseudo-3D ground plane (its ground shadows only on land —
+          over open water they'd read as smoke, #75 item 14d) */}
       <div className="absolute inset-x-0 bottom-0 h-[46%] pointer-events-none">
-        <div className="absolute -top-10 left-[8%] w-52 h-24 bg-black/20 rounded-full blur-md" />
-        <div className="absolute -top-6 right-[12%] w-64 h-20 bg-black/25 rounded-full blur-md" />
+        {enemy.habitat !== 'sea' && (
+          <>
+            <div className="absolute -top-10 left-[8%] w-52 h-24 bg-black/20 rounded-full blur-md" />
+            <div className="absolute -top-6 right-[12%] w-64 h-20 bg-black/25 rounded-full blur-md" />
+          </>
+        )}
         <div
           className="absolute inset-x-[-20%] bottom-0 h-full rounded-[100%_100%_0_0]"
           style={{
@@ -992,6 +999,7 @@ export default function BattleArena() {
         guarded={guarded}
         charging={charging}
         won={turn.kind === 'victory'}
+        afloat={enemy.habitat === 'sea'}
       />
 
       {/* Bottom box: commands / question / message / results */}
@@ -1143,6 +1151,7 @@ export default function BattleArena() {
             drop={turn.kind === 'victory' ? turn.drop : null}
             wakeInn={save ? wakeInnName(save) : null}
             tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
+            boatHome={turn.kind === 'defeat' && enemy.habitat === 'sea'}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

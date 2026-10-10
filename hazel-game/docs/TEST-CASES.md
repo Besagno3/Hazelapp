@@ -852,6 +852,25 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-704 | M | ✅ | HUD | `bench … hud` (the real app, Supabase stubbed) at 320×568 / 360×640 / 375×667 / 740×360 / 1024×768: the canvas has no tabindex and 12 Tabs never stick or reach it; 📜 Menu by Enter takes focus, Tab stays in it, closing returns to 📜 Menu; a tap 20 px above or below 📜 Menu / 🚪 Leave the Spire still lands on it; asking "Sign out?" leaves the bar at 44 px and the map where it was (≤ 375 px); under the Spire's door lines and "Leave the Spire?" Tab never reaches the top bar; Escape returns focus to Leave; with reduced motion the Menu's first frame isn't scaled — 6/6; the reviewer's own probes now pass (Menu reachable by Tab, the Spire's Tab-Enter-Enter no longer signs out, Keep climbing / Escape keep focus, arming Sign out moves nothing, no scale-in under reduced motion); `… journey` 13/13 after the change (2026-10-10) |
 | TC-705 | M | ⏳ | HUD | on a real phone with VoiceOver / TalkBack: "Sign out?" then "Tap again to sign out" is announced; an overlay opening moves the reader into it; Safari's Tab (buttons skipped by default) still reaches the overlay's buttons with Option+Tab |
 
+## Sea critters (#75 item 14d)
+
+| ID | Type | Status | Feature | Case |
+|---|---|---|---|---|
+| TC-706 | U | ✅ | sea critters | on foot a hero meets land critters, sailing only sea critters (`encounterHabitat`, `meetsHero`); a critter with no habitat is a land critter; `HABITATS` is land, sea (seaCritters.test) |
+| TC-707 | U | ✅ | sea critters | every enemy's habitat rides from its def into battle (`spawnEnemy`, `habitatOf`); mercy (`atTier`) keeps a sea critter at sea; a land enemy carries none (seaCritters.test) |
+| TC-708 | U | ✅ | sea critters | the Shallows has 2–3 sea critters and no other map has any; they are Bubble Puffer, Inkling (trickster) and Starfix (healer) — nature, never bosses, −1 / 0 / +1, each with world + battle art (seaCritters.test) |
+| TC-709 | U | ✅ | sea critters | each swims open sea on a sea-linked map: its 5×5 leash square is all '~' and clear of fog (the Great Fogbank included); a sailing hero reaches each from where the boat sails in (`reach`, aboard) (seaCritters.test) |
+| TC-710 | U | ✅ | sea critters | no sea critter's leash comes within 3 cells of a beach or dock, or of a cell a boat sails in at along a linked edge — no fight on landing, climbing in or arriving (seaCritters.test) |
+| TC-711 | U | ✅ | zones | land enemies stand on walkable tiles, sea critters on open sea (zones.test placements) |
+| TC-712 | U | ✅ | battle at sea | a map with sea critters has `/backgrounds/<zone>-sea.png` (256×144); a land battle keeps the zone's (seaCritters.test) |
+| TC-713 | C | ✅ | battle at sea | a sea critter's battle shows the sea backdrop and Marlow's boat behind the hero, its hull's front over them (both `aria-hidden`); a land battle has neither (BattleArena.test) |
+| TC-714 | U/C | ✅ | battle at sea | lost at sea, the boat goes home to Marlow's dock (`boatAfterDefeat`; lost ashore it stays moored) and the defeat screen says "Old Marlow rowed out and brought the Biscuit home…" (seaCritters.test, BattleHud.test) |
+| TC-715 | U | ✅ | sea critters | Lamplighter Ness says sea critters only chase boats (seaCritters.test) |
+| TC-716 | M | ✅ | sea critters | real `WorldCanvas` in headless Chromium (bench): sailing into the Bubble Puffer starts a battle with it; under Calm the boat passes it; idling mid-sea 25 s and sailing onto the Shallows from Dawnreach start none; 5 sailing heroes idling 20 s beside Dawnreach's coastal land critters meet none (on `main` too — see ISSUES #112f); no page errors (2026-10-10) |
+| TC-717 | M | ✅ | battle at sea | the real app (Supabase stubbed) at 375×667, 360×640, 740×360 and 1024×768, with Ember, Pip and Wisp: sailing into the puffer opens the battle over open water, hero and companion in the boat, the palm island in view on a phone, no sideways scroll, no page errors; under reduced motion the boat holds still (2026-10-10) |
+| TC-718 | M | ✅ | art | `python3 tools/assets/build.py seacritters` writes only the three sea critters' sheets and the sea backdrop; a full rebuild of tiles + sprites into a temp dir matches every PNG in `public/` (269 files, byte for byte) — `backdrop()`'s sky refactor changed no backdrop (2026-10-10) |
+| TC-719 | M | ⏳ | sea critters | on a real phone: sea critters read as swimming (ripple, sprite), the sea battle's boat and backdrop look right in portrait and sideways, and a defeat at sea → the inn → the boat waiting at Marlow's dock feels fair |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

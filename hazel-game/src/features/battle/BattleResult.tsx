@@ -3,6 +3,7 @@ import type { GateKey } from '../../content/keys';
 import { CONSUMABLES, type ConsumableId } from '../../content/items';
 import { BASE_TIER, dangerMarks } from '../../content/regions';
 import type { BattleEnemy } from '../../types';
+import { SEA_DEFEAT_LINE } from '../../content/boat';
 
 /** The end-of-battle panel: victory spoils (crystal / key / coins / XP) or a gentle defeat. */
 export function BattleResult({
@@ -19,6 +20,7 @@ export function BattleResult({
   drop,
   wakeInn = null,
   tip = null,
+  boatHome = false,
   onLeave,
 }: {
   result: 'victory' | 'defeat';
@@ -43,6 +45,8 @@ export function BattleResult({
   wakeInn?: string | null;
   /** Defeat: a tip after losing to a critter with "!" marks (`defeatTip`, #75 item 12). */
   tip?: string | null;
+  /** Defeat at sea (#75 item 14d): Old Marlow brought the boat home to his dock (`boatAfterDefeat`). */
+  boatHome?: boolean;
   onLeave: () => void;
 }) {
   const won = result === 'victory';
@@ -95,6 +99,7 @@ export function BattleResult({
             You're safe, rested, and{' '}
             {correctCount > 0 ? `kept ${correctCount} answers' worth of XP!` : 'ready to try again!'}
           </p>
+          {boatHome && <p className="text-sm text-sky-200 font-semibold mt-2">{SEA_DEFEAT_LINE}</p>}
           {tip && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
         </>
       )}

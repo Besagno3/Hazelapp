@@ -126,3 +126,27 @@ describe('opening lines (#75 item 12)', () => {
     expect(screen.queryByText(/💪/)).toBeNull(); // it fights at tier 1 now: no marks to explain
   });
 });
+
+describe('a battle at sea (#75 item 14d)', () => {
+  const backdrop = (c: HTMLElement) =>
+    Array.from(c.querySelectorAll<HTMLElement>('[aria-hidden]')).map((el) => el.style.backgroundImage).find((b) => b.includes('/backgrounds/'));
+
+  it('a sea critter is fought from Marlow\'s boat, out on the open water', () => {
+    const puffer = { ...enemy, id: 'bubble-puffer', instanceId: 'sea1', name: 'Bubble Puffer', topic: 'nature', zoneId: 'silver-shallows', habitat: 'sea' } as BattleEnemy;
+    useBattleStore.getState().start(puffer, 60, 100);
+    const { container } = render(<BattleArena />);
+    expect(backdrop(container)).toContain('/backgrounds/silver-shallows-sea.png');
+    // The boat behind the hero and the front of its hull over their feet — decoration only.
+    const boat = screen.getByTestId('battle-boat');
+    expect(boat).toHaveAttribute('aria-hidden');
+    expect(boat.style.backgroundImage).toContain('/tiles/boat.png');
+    expect(screen.getByTestId('battle-boat-front')).toHaveAttribute('aria-hidden');
+  });
+
+  it('a land critter keeps its zone\'s backdrop and no boat', () => {
+    const { container } = render(<BattleArena />);
+    expect(backdrop(container)).toContain('/backgrounds/numbria.png');
+    expect(screen.queryByTestId('battle-boat')).toBeNull();
+    expect(screen.queryByTestId('battle-boat-front')).toBeNull();
+  });
+});

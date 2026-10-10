@@ -14,6 +14,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py quests     # only Hermit Moss (#75 item 13)
     python3 tools/assets/build.py seamusic   # only the sea music: sailing, the Shallows, the fogbank (#75 item 14)
     python3 tools/assets/build.py lighthouse # only Gull Rock's lighthouse tower (#75 item 14)
+    python3 tools/assets/build.py seacritters # only the sea critters + the battle-at-sea backdrop (#75 item 14d)
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -33,6 +34,8 @@ import build_sprites  # noqa: E402
 import tiles  # noqa: E402
 
 ROOT = HERE.parent.parent  # hazel-game/
+# The sea critters (#75 item 14d) — `build.py seacritters` writes only these sheets.
+SEA_CRITTERS = ('bubble-puffer', 'inkling', 'starfix')
 PUBLIC = ROOT / 'public'
 MANIFEST = ROOT / 'src' / 'content' / 'sprites.generated.ts'
 
@@ -75,6 +78,13 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only={'gull-lamplighter'}))
         tiles.build_sea(PUBLIC)
         print('sea ✓')
+        return
+    if 'seacritters' in only:
+        # Just the Silver Shallows' sea critters and the battle-at-sea backdrop
+        # (#75 item 14d) — every other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only=set(SEA_CRITTERS)))
+        tiles.build_sea_backdrops(PUBLIC)
+        print('sea critters ✓')
         return
     if 'lighthouse' in only:
         # Just Gull Rock's lighthouse tower (#75 item 14) — every other file untouched.

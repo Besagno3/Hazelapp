@@ -6,6 +6,7 @@ import type { EmberStage } from '../../content/story';
 import type { CompanionId } from '../../content/companion';
 import type { RefObject } from 'react';
 import type { FloatText, FxSide, StageFx } from './useBattleFx';
+import { BOAT_FRAME, BOAT_FRAMES, BOAT_SHEET } from '../../content/tiles';
 
 /** Framer props for a choreography motion (null or reduced motion = at rest). */
 function motionProps(k: Keyframes | null, reduceMotion: boolean) {
@@ -37,10 +38,48 @@ function Floats({ floats, side, reduceMotion }: { floats: FloatText[]; side: FxS
   );
 }
 
+/** Marlow's boat in a battle at sea (#75 item 14d): its 32 px frames drawn this many times bigger. */
+const BOAT_SCALE = 4;
+const BOAT_PX = 32 * BOAT_SCALE;
+/** How far the boat sits below the hero's feet, so the hull's rim covers only their legs. */
+const BOAT_BELOW = 30;
+
+/**
+ * One piece of Marlow's boat under the hero (and the companion): the whole
+ * boat behind them, or the front of its hull over their feet so they sit in
+ * it. Facing the enemy (the sheet faces right), bobbing gently — still under
+ * reduced motion — and never moving with a lunge.
+ */
+function BoatPiece({ front, reduceMotion }: { front: boolean; reduceMotion: boolean }) {
+  const frame = front ? BOAT_FRAME.hullFront[0] : BOAT_FRAME.whole[0];
+  return (
+    <motion.div
+      aria-hidden
+      data-testid={front ? 'battle-boat-front' : 'battle-boat'}
+      {...(reduceMotion ? {} : { animate: { y: [0, 2, 0] }, transition: { repeat: Infinity, duration: 2.4 } })}
+      // Behind everyone on the stage, or (the hull's front) over the hero and
+      // companion by coming after them — land battles' stacking is unchanged.
+      className={`pointer-events-none absolute -left-1.5 ${front ? '' : '-z-10'}`}
+      style={{
+        bottom: -BOAT_BELOW,
+        width: BOAT_PX,
+        height: BOAT_PX,
+        backgroundImage: `url(${BOAT_SHEET})`,
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: `${BOAT_FRAMES * BOAT_PX}px ${BOAT_PX}px`,
+        backgroundPosition: `${-frame * BOAT_PX}px 0px`,
+        imageRendering: 'pixelated',
+        scaleX: -1, // a motion value, so the bob's transform keeps the flip
+      }}
+    />
+  );
+}
+
 /**
  * The combatants on the pseudo-3D ground plane: enemy left, hero + the active
  * companion right. Every motion comes from `fx` (`useBattleFx().stage`) and the
  * per-move keyframes in `./choreography`; reduced motion keeps everyone still.
+ * Against a sea critter (`afloat`, #75 item 14d) they fight from Marlow's boat.
  */
 export function BattleStage({
   fx,
@@ -57,6 +96,7 @@ export function BattleStage({
   guarded,
   charging,
   won,
+  afloat = false,
 }: {
   fx: StageFx;
   /** Measured to fit dives to the screen (`useBattleFx` reads them in event handlers). */
@@ -75,6 +115,8 @@ export function BattleStage({
   charging: boolean;
   /** The battle is won — the companion cheers (the egg wobbles). */
   won: boolean;
+  /** A battle at sea (#75 item 14d): the hero and companion stand in Marlow's boat. */
+  afloat?: boolean;
 }) {
   const { reduceMotion } = fx;
   const bob = (y: number, duration: number) =>
@@ -125,6 +167,7 @@ export function BattleStage({
       </div>
 
       <div className="relative" ref={heroRef}>
+        {afloat && <BoatPiece front={false} reduceMotion={reduceMotion} />}
         <motion.div
           key={`hl${fx.heroLunge}`}
           {...motionProps(fx.heroLunge ? fitReach(HERO_MOTION[fx.heroMotion], fx.reachGap) : null, reduceMotion)}
@@ -183,6 +226,7 @@ export function BattleStage({
             </motion.span>
           </motion.div>
         </motion.div>
+        {afloat && <BoatPiece front reduceMotion={reduceMotion} />}
         <Floats floats={fx.floats} side="hero" reduceMotion={reduceMotion} />
       </div>
 

@@ -1635,7 +1635,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'gull-lighthouse', name: 'Gull Rock Lighthouse', x: 9, y: 16, w: 5, h: 4, roof: 'red', style: 'cottage', sign: 'star' },
     ],
     npcs: [{ defId: 'gull-lamplighter', x: 11, y: 17 }],
-    enemies: [],
+    // Sea critters (#75 item 14d): they swim open water and fight only a
+    // sailing hero — well clear of the beaches, the dock-side moorings and the
+    // western edge you sail in by, so landing, climbing in or arriving never
+    // starts a fight (zones.test).
+    enemies: [
+      { defId: 'bubble-puffer', x: 17, y: 28 },
+      { defId: 'inkling', x: 38, y: 16 },
+      { defId: 'starfix', x: 44, y: 34 },
+    ],
     exits: [],
     // Its tower stands on the rock just east of Ness's cottage.
     lighthouse: { x: 15, y: 16 },

@@ -79,6 +79,19 @@ export function moorBoat(save: Pick<SaveData, 'aboard' | 'boat' | 'zoneId' | 'po
   return { aboard: false, boat: cell ? { zoneId: save.zoneId, ...cell } : null };
 }
 
+/**
+ * Beaten out at sea (#75 item 14d — only a sea critter fights a sailing
+ * hero): the hero wakes ashore at an inn, where nobody could climb back into
+ * a boat left in open water, so Old Marlow rows out and brings the Biscuit
+ * home to his dock. Beaten ashore, the boat stays where it's moored.
+ */
+export function boatAfterDefeat(save: Pick<SaveData, 'aboard' | 'boat'>): Pick<SaveData, 'aboard' | 'boat'> {
+  return save.aboard ? { aboard: false, boat: null } : { aboard: false, boat: save.boat };
+}
+
+/** The defeat screen's line after a battle lost at sea (`boatAfterDefeat`). */
+export const SEA_DEFEAT_LINE = '⛵ Old Marlow rowed out and brought the Biscuit home to his dock — she\'s waiting there for you.';
+
 /** A boat moored this close to Marlow's dock (cells, either way) is home already. */
 export const DOCK_NEAR = 2;
 

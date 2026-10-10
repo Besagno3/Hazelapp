@@ -1,0 +1,157 @@
+import { describe, it, expect } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { LANDING_CHARS, SEA_CHARS, ZONES, fogAt, tileAt, type ZoneDef } from './zones';
+import { ENEMY_DEFS, atTier, habitatOf, spawnEnemy, spawnPlaced } from './enemies';
+import { battleBackdrop } from './tiles';
+import { BOAT_HOME, boatAfterDefeat, boatSpot, BOAT_MENDED } from './boat';
+import { NPC_DEFS } from './npcs';
+import { reach } from '../lib/reach';
+import { encounterHabitat, meetsHero, seaEntryCell } from '../lib/travel';
+import { WANDER_TUNING } from '../lib/wander';
+import { HABITATS } from '../types';
+
+/**
+ * Sea critters (#75 roadmap item 14d): they swim the Silver Shallows' open
+ * water, and each critter fights only a hero in its own element — a sea
+ * critter a sailing hero, a land critter one on foot (#108j).
+ */
+
+const allZones = Object.values(ZONES);
+const leash = WANDER_TUNING.enemy.leashTiles;
+const seaFoes = allZones.flatMap((z) =>
+  z.enemies.filter((p) => ENEMY_DEFS[p.defId]?.habitat === 'sea').map((p) => ({ z, p })),
+);
+const cheb = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+
+/** Every open-sea cell along a sea-linked edge where a boat sails in — one in from the edge. */
+function arrivals(z: ZoneDef): { x: number; y: number }[] {
+  const cols = z.map[0].length;
+  const rows = z.map.length;
+  const cells: { x: number; y: number }[] = [];
+  for (const l of z.seaLinks ?? []) {
+    const along = l.side === 'east' || l.side === 'west' ? rows : cols;
+    for (let i = 0; i < along; i++) {
+      const c =
+        l.side === 'west' ? { x: 1, y: i } : l.side === 'east' ? { x: cols - 2, y: i } : l.side === 'north' ? { x: i, y: 1 } : { x: i, y: rows - 2 };
+      if (SEA_CHARS.has(tileAt(z, c.x, c.y))) cells.push(c);
+    }
+  }
+  return cells;
+}
+
+describe('who fights whom (#75 item 14d, #108j)', () => {
+  it('on foot you meet land critters; sailing, sea critters — never the other', () => {
+    expect(encounterHabitat('foot')).toBe('land');
+    expect(encounterHabitat('boat')).toBe('sea');
+    expect(meetsHero('land', 'foot')).toBe(true);
+    expect(meetsHero('land', 'boat')).toBe(false);
+    expect(meetsHero('sea', 'boat')).toBe(true);
+    expect(meetsHero('sea', 'foot')).toBe(false);
+    // A critter with no habitat is a land critter (every one before 14d).
+    expect(meetsHero(undefined, 'foot')).toBe(true);
+    expect(meetsHero(undefined, 'boat')).toBe(false);
+    expect([...HABITATS]).toEqual(['land', 'sea']);
+  });
+
+  it('every enemy lives on land unless it says otherwise; the habitat rides into battle', () => {
+    for (const def of Object.values(ENEMY_DEFS)) {
+      const e = spawnEnemy(def.id, 'silver-shallows', 'x', 9);
+      expect(habitatOf(e), def.id).toBe(def.habitat ?? 'land');
+      expect(habitatOf(def)).toBe(habitatOf(e));
+    }
+    const puffer = spawnPlaced('silver-shallows', ZONES['silver-shallows'].enemies[0], 9);
+    expect(puffer.habitat).toBe('sea');
+    // Mercy easing a fight keeps it at sea.
+    expect(atTier(puffer, 1).habitat).toBe('sea');
+    expect(spawnEnemy('count-bat', 'numbria', 'x', 9).habitat).toBeUndefined();
+  });
+});
+
+describe('the sea critters of the Silver Shallows (#75 item 14d)', () => {
+  it('two or three roam the Shallows, and none swim anywhere else yet', () => {
+    const shallows = seaFoes.filter((f) => f.z.id === 'silver-shallows');
+    expect(shallows.length).toBeGreaterThanOrEqual(2);
+    expect(shallows.length).toBeLessThanOrEqual(3);
+    expect(seaFoes.length).toBe(shallows.length);
+    expect(new Set(shallows.map((f) => f.p.defId)).size).toBe(shallows.length);
+  });
+
+  it('are sea-life (nature) critters, never bosses, each with a name and a look of its own', () => {
+    const defs = Object.values(ENEMY_DEFS).filter((d) => d.habitat === 'sea');
+    expect(defs.map((d) => d.id).sort()).toEqual(['bubble-puffer', 'inkling', 'starfix']);
+    for (const d of defs) {
+      expect(d.topic, d.id).toBe('nature');
+      expect(d.isBoss ?? false, d.id).toBe(false);
+      expect(existsSync(join(process.cwd(), 'public', 'sprites', d.id, 'world.png')), d.id).toBe(true);
+      expect(existsSync(join(process.cwd(), 'public', 'sprites', d.id, 'battle.png')), d.id).toBe(true);
+    }
+    // −1 / 0 / +1, like every zone's trio; the tougher two have a twist.
+    expect(defs.map((d) => d.levelOffset).sort()).toEqual([-1, 0, 1]);
+    expect(ENEMY_DEFS.inkling.behavior).toBe('trickster');
+    expect(ENEMY_DEFS.starfix.behavior).toBe('healer');
+  });
+
+  it('swim open sea on a sea-linked map: home and whole leash on open water, clear of fog', () => {
+    for (const { z, p } of seaFoes) {
+      expect(z.seaLinks?.length, `${z.id} is a sea a boat can reach`).toBeGreaterThan(0);
+      for (let y = p.y - leash; y <= p.y + leash; y++) {
+        for (let x = p.x - leash; x <= p.x + leash; x++) {
+          expect(SEA_CHARS.has(tileAt(z, x, y)), `${p.defId}: ${x},${y} is open sea`).toBe(true);
+          // Every fog lifted or none: the Great Fogbank only thins in Act III.
+          expect(fogAt(z, x, y, {}), `${p.defId}: ${x},${y} clear of fog`).toBeNull();
+        }
+      }
+    }
+  });
+
+  it('a sailing hero can reach every one of them from where the boat sails in', () => {
+    for (const { z, p } of seaFoes) {
+      const entry = (z.seaLinks ?? []).map((l) => seaEntryCell(z, l.side)).find((c) => c !== null)!;
+      expect(reach(z, { from: entry, aboard: true }).has(`${p.x},${p.y}`), `${p.defId} at ${p.x},${p.y}`).toBe(true);
+    }
+  });
+
+  it('never swim up to a shore you land on, or the edge you sail in by — no fight on landing or arriving', () => {
+    for (const { z, p } of seaFoes) {
+      for (let y = 0; y < z.map.length; y++) {
+        for (let x = 0; x < z.map[0].length; x++) {
+          if (!LANDING_CHARS.has(tileAt(z, x, y))) continue;
+          expect(cheb(p, { x, y }), `${p.defId} at ${p.x},${p.y} vs the shore at ${x},${y}`).toBeGreaterThan(leash + 1);
+        }
+      }
+      for (const a of arrivals(z)) {
+        expect(cheb(p, a), `${p.defId} at ${p.x},${p.y} vs where a boat sails in at ${a.x},${a.y}`).toBeGreaterThan(leash + 1);
+      }
+    }
+  });
+
+  it("Lamplighter Ness says why they never bother you on the sand", () => {
+    const said = NPC_DEFS['gull-lamplighter'].lines.map((l) => (typeof l === 'string' ? l : l.text)).join(' ');
+    expect(said).toMatch(/only chase boats/);
+  });
+});
+
+describe('a battle at sea (#75 item 14d)', () => {
+  it('lost at sea, the hero wakes ashore and Old Marlow has rowed the boat home to his dock', () => {
+    const flags = { [BOAT_MENDED]: true };
+    const afloat = { aboard: true, boat: null, flags };
+    const after = boatAfterDefeat(afloat);
+    expect(after).toEqual({ aboard: false, boat: null });
+    expect(boatSpot({ ...after, flags })).toEqual(BOAT_HOME);
+    // Lost ashore (a land critter): the boat stays wherever it's moored.
+    const moored = { zoneId: 'silver-shallows' as const, x: 19, y: 20 };
+    expect(boatAfterDefeat({ aboard: false, boat: moored })).toEqual({ aboard: false, boat: moored });
+  });
+
+  it('every map with sea critters has a battle-at-sea backdrop (256×144); land battles keep the zone one', () => {
+    for (const id of new Set(seaFoes.map((f) => f.z.id))) {
+      const path = battleBackdrop(id, 'sea');
+      expect(path).toBe(`/backgrounds/${id}-sea.png`);
+      const buf = readFileSync(join(process.cwd(), 'public', path));
+      expect({ w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) }).toEqual({ w: 256, h: 144 });
+    }
+    expect(battleBackdrop('silver-shallows')).toBe('/backgrounds/silver-shallows.png');
+    expect(battleBackdrop('numbria', 'land')).toBe('/backgrounds/numbria.png');
+  });
+});

@@ -97,7 +97,11 @@ old road appears → Wick's line → call to the Archive.
 >   ("Even Old Marlow won't sail into *that*", `great-fogbank-seen`).
 > - **Already on the Shallows:** Gull Rock (Lamplighter **Ness** and a
 >   lighthouse), Sandpiper Cay (a riddle-chest), the Great Fogbank on its east
->   side (lifts on `crystal-words-restored`).
+>   side (lifts on `crystal-words-restored`), and three **sea critters** (item
+>   14d — nature, met only from the boat): Bubble Puffer 🐡, Inkling 🐙
+>   (trickster: its ink hides the Hint Feather's work) and Starfix ⭐ (healer:
+>   a sea star regrows its arms). Ness: "They only chase boats, so on the sand
+>   you're as safe as a shell!"
 > - **Posy's escort stays inside Foglight Marsh** (the Hill and the Marsh are
 >   on different maps). **Ferryman Slosh** can't stock potions (Berry Potion
 >   already has its two sellers) — his stock is decision 12 in the roadmap's

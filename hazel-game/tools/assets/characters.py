@@ -1447,6 +1447,13 @@ def octopus(c: Canvas, p: Pose, s: dict):
     if d.sep:
         L.dot(20, 17, dark(col, 0.4), w=2, h=1)
     d.put(L)
+    if s.get('ink') and p.arm in ('strike', 'follow'):
+        # A squirt of ink ahead of it as it strikes (#75 item 14d: the Inkling).
+        ink = d.part(d.lean, d.bob)
+        spread = 1.0 if p.arm == 'follow' else 0.0
+        for (x, y, r) in ((25, 17, 2.2), (28, 15, 2.6 + spread), (29.5, 19, 2.0 + spread)):
+            ink.ellipse(x, y, r, r * 0.85, '#2a2440', shade=False)
+        d.put(ink, outline=False)
     if s.get('loot'):
         grab = d.part(d.lean, d.bob)
         tip = {'raise': (25, 4), 'strike': (30, 14), 'follow': (28, 17)}.get(p.arm, (27, 8))
@@ -1474,6 +1481,79 @@ def seal(c: Canvas, p: Pose, s: dict):
     if s.get('hat'):
         L.ellipse(20, 9, 8, 1.8, '#e8c86a')
         L.ellipse(20, 7.5, 4.5, 2.5, '#e8c86a')
+    d.put(L)
+    finish(c, d)
+
+
+# ─── Sea critters (#75 item 14d) — they swim the Silver Shallows ─────────────
+
+
+def puffer(c: Canvas, p: Pose, s: dict):
+    """A round puffer fish with little spikes, a fan tail and a pursed "o" — it
+    puffs up bigger to attack, and a couple of bubbles rise beside it."""
+    d = D(c, p)
+    col = hexc(s['color'])
+    belly = hexc(s.get('belly', '#fff2c8'))
+    L = d.part(d.lean, d.bob)
+    puff = 1 if p.arm in ('raise', 'strike') else 0
+    r = 8.5 + puff * 1.5 - p.squash * 0.3
+    cx, cy = 15, 17
+    wag = 1.5 if p.frame % 2 else -1.5
+    L.poly([(cx - r + 1, cy), (cx - r - 6, cy - 5 + wag), (cx - r - 4.5, cy), (cx - r - 6, cy + 5 + wag)], dark(col, 0.12))
+    for i in range(12):
+        a = i * math.tau / 12 + 0.13
+        L.line(cx + math.cos(a) * (r - 1), cy + math.sin(a) * (r - 1),
+               cx + math.cos(a) * (r + 2.2 + puff), cy + math.sin(a) * (r + 2.2 + puff), dark(col, 0.25), w=1.0)
+    L.ellipse(cx, cy, r, r * 0.92, col)
+    L.ellipse(cx + 1, cy + r * 0.45, r * 0.75, r * 0.4, belly)
+    for (x, y) in ((cx - 4, cy - 4), (cx - 1, cy - 6), (cx - 5.5, cy), (cx + 2, cy - 3)):
+        L.dot(x, y, dark(col, 0.2), w=2, h=2)
+    L.poly([(cx - 1, cy + 1), (cx - 5, cy + 4 - wag * 0.5), (cx - 1.5, cy + 4)], light(col, 0.15))
+    ex = face_x(p, [cx + 4.5], [cx - 3, cx + 3])
+    d.eyes(L, [(x, cy - 2.5) for x in ex])
+    if d.sep and p.facing == 'side':
+        L.ellipse(cx + r - 1, cy + 1.5, 1.1, 1.2, dark(col, 0.45), shade=False)
+    d.put(L)
+    if d.sep:  # bubbles only at battle size — on the map the outline pass turns them into a smudge
+        b = d.part(d.lean, 0)
+        rise = (p.frame % 3) * 2
+        for (x, y0, rr) in ((27, 12, 1.2), (29, 7, 0.9)):
+            y = y0 - rise
+            b.ellipse(x, y, rr, rr, '#d8f2ff', shade=False)
+            b.erase_ellipse(x - rr * 0.3, y - rr * 0.3, rr * 0.4, rr * 0.4)
+        d.put(b, outline=False)
+    finish(c, d)
+
+
+def starfish(c: Canvas, p: Pose, s: dict):
+    """A five-armed sea star that turns a little as it moves. One arm is a
+    short stub with a bandage: it's regrowing — sea stars really do."""
+    d = D(c, p)
+    col = hexc(s['color'])
+    L = d.part(d.lean, d.bob)
+    cx, cy = 16, 18
+    spin = (p.frame % 2) * 0.12 + {'strike': 0.25, 'raise': -0.2}.get(p.arm, 0)
+
+    def arm_angle(i):
+        return -math.pi / 2 + i * math.pi / 5 + spin
+
+    pts = []
+    for i in range(10):
+        if i % 2:
+            rr = 4.2
+        else:
+            rr = (7.5 if i == 4 else 11) - p.squash * 0.4  # arm 4 is the one regrowing
+        pts.append((cx + math.cos(arm_angle(i)) * rr, cy + math.sin(arm_angle(i)) * rr))
+    L.poly(pts, col)
+    for i in range(0, 10, 2):
+        for k in ((4.5,) if i == 4 else (4.5, 7.5)):
+            L.dot(cx + math.cos(arm_angle(i)) * k, cy + math.sin(arm_angle(i)) * k, light(col, 0.3))
+    bx, by = cx + math.cos(arm_angle(4)) * 5.5, cy + math.sin(arm_angle(4)) * 5.5
+    L.rect(bx - 1.6, by - 1, bx + 1.6, by + 1, '#fff4e8', shade=False)
+    if p.facing != 'up':
+        d.eyes(L, [(cx - 2, cy - 2), (cx + 2, cy - 2)])
+        if d.sep:
+            L.line(cx - 1.5, cy + 1.5, cx + 1.5, cy + 1.5, dark(col, 0.5), w=0.6)
     d.put(L)
     finish(c, d)
 
@@ -2749,6 +2829,8 @@ DRAWERS = {
     'eclipse_fox': eclipse_fox,
     'ironhorn': ironhorn,
     'oak_owl': oak_owl,
+    'puffer': puffer,
+    'starfish': starfish,
 }
 
 
@@ -2854,6 +2936,10 @@ ROSTER: list[Char] = [
     Char('tut-tut', '🧟', 'mummy', H()),
     Char('knight-mare', '🐴', 'knight_mare', H(steel='#a8b4c4', coat='#ece6da', mane='#c8343a', plume='#7a4ad0')),
     Char('clockwork-titan', '🦾', 'golem', H(color='#c89040', accent='#ff6a3a', glow='#ffe066', bolts=True, crown=True), boss=True),
+    # ── The Silver Shallows' sea critters (nature — sea life; #75 item 14d) ──
+    Char('bubble-puffer', '🐡', 'puffer', H(color='#f2b13a', belly='#fff2c8')),
+    Char('inkling', '🐙', 'octopus', H(color='#b86ad8', brow=True, ink=True)),
+    Char('starfix', '⭐', 'starfish', H(color='#ff7a5a')),
 ]
 
 NPCS: list[Char] = [

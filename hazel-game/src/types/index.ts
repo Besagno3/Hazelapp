@@ -90,6 +90,14 @@ export type { ZoneId };
 export const ENEMY_BEHAVIORS = ['shielded', 'trickster', 'healer'] as const;
 export type EnemyBehavior = (typeof ENEMY_BEHAVIORS)[number];
 
+/**
+ * Where a critter lives (#75 item 14d): on land it roams walkable ground and
+ * fights a hero on foot; at sea it swims open water and fights only a hero
+ * sailing Marlow's boat (`meetsHero`, lib/travel.ts).
+ */
+export const HABITATS = ['land', 'sea'] as const;
+export type Habitat = (typeof HABITATS)[number];
+
 /** An enemy instance the player bumped into on the map. */
 export interface BattleEnemy extends NPC {
   /** Unique per placement — used to keep defeated enemies off the map this session. */
@@ -99,6 +107,8 @@ export interface BattleEnemy extends NPC {
   /** Coins dropped on victory. */
   coins: number;
   behavior?: EnemyBehavior;
+  /** Where it lives (#75 item 14d) — missing = land. A sea critter's battle is fought from the boat. */
+  habitat?: Habitat;
   /**
    * Danger tier of where it roams (#75 item 12, content/regions.ts): scales
    * its HP, blows, power moves and rewards — never its questions (`level`).
