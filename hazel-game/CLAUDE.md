@@ -586,6 +586,38 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — Parent accounts, server side: grown-ups own their kids (#118, #89)
+Decided with the owner (2026-10-10): one grown-up login, many kids (no
+child email or login); a secret picture per kid on shared devices; draft
+privacy/consent text for a lawyer to review; the parent area behind the
+grown-up's password; the question budget per login. This commit is the
+server half — backward compatible, so today's app keeps working on it:
+- **Migration 0012** (`0012_parent_accounts.sql`): a `parents` table (one row
+  per login: `consent_at`, `consent_version`; the app writes it only through
+  `record_consent()`, stamped with the server clock). `profiles` are kids:
+  `parent_id` (default `auth.uid()`), `display_name` (1–20 chars), `icon`,
+  `picture_password`; new kids get their own id (`profiles.id` no longer
+  references `auth.users`). RLS on `profiles`, `saves` and `question_flags`
+  is now "belongs to my kid" (`parent_id = auth.uid()`), and a grown-up may
+  remove a kid (their save, seen questions and flags go with them).
+  `handle_new_user` makes every login a grown-up (consent from the sign-up
+  metadata), and still gives an old-app sign-up (birth date in the
+  metadata) its first kid with the login's id.
+- **Old accounts** become a grown-up with one kid: the profile keeps its id,
+  so its save, seen questions and local caches still match; no consent yet,
+  so the new app will ask.
+- **Edge function:** takes an optional `profileId` (the kid), checks it
+  belongs to the caller (403 if not), and keys seen questions to the kid; the
+  quota stays per login (a family). No `profileId` = the login is the kid.
+- Tests: `supabase/ci/parent_accounts.test.sql` acts as two grown-ups through
+  the `authenticated` role (sees/adds/changes/removes only their own kids,
+  saves and flags; consent can't be written by hand; removing a kid removes
+  their save; an old account agrees later). It fails with the "add kids" rule
+  loosened. Upgrading an old account through 0012 was checked by hand on
+  Postgres 16 (XP and save still read and write; deleting the login still
+  removes everything). All four SQL tests, migrations in order and the bundle
+  twice pass locally; `deno check` clean.
+
 ### 2026-10-10 — Show password: an eye on every password field (#117)
 Kids mistype passwords and couldn't see why sign-in failed. New
 `components/PasswordInput`: a 👁️ button inside the field's right edge shows

@@ -959,6 +959,17 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-801 | C | ✅ | ResetPasswordPage | both new-password fields have their own eye, each showing only its own field (PasswordReset.test) |
 | TC-802 | M | ⬜ | PasswordInput | on a real phone (iOS Safari, Android Chrome): tapping the eye keeps the keyboard up and the caret in place; a shown password isn't auto-capitalised; on Edge only one eye shows |
 
+## Parent accounts (#118)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-803 | U | ✅ | migration 0012 | a sign-up with `consent_version` records consent (server time) and no kid; an old-app sign-up (birth date) gets no consent yet and its first kid with the login's id; a junk version isn't recorded (parent_accounts.test.sql) |
+| TC-804 | U | ✅ | migration 0012 | as a grown-up through `authenticated`: new kids get their own id and the caller as `parent_id`; only their own kids are visible; a kid can't be added under another grown-up (parent_accounts.test.sql) |
+| TC-805 | U | ✅ | migration 0012 | another grown-up's kid can't be changed, removed, saved to or flagged as; their own kid can be saved (and saved again) and flagged as (parent_accounts.test.sql) |
+| TC-806 | U | ✅ | migration 0012 | a blank nickname is refused; `parents` can't be written by hand, only `record_consent()` (which also creates a missing row); removing a kid removes their save (parent_accounts.test.sql) |
+| TC-807 | M | ✅ | migration 0012 | an account from before 0012 (kid = login, XP, a save, seen questions) upgrades: it becomes its own grown-up's kid with no consent, its XP and save still read and write through `authenticated`, and deleting the login still removes everything (local Postgres 16, 2026-10-10) |
+| TC-808 | M | ⬜ | edge function | with `profileId` of the caller's kid: questions come back and `question_views` rows carry the kid's id; another account's kid → 403; a malformed id → 400; no `profileId` → works as before (the login is the player) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
