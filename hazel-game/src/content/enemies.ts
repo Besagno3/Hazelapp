@@ -114,6 +114,15 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'inkling': { id: 'inkling', name: 'Inkling', sprite: '🐙', topic: 'nature', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster', habitat: 'sea' },
   // A sea star regrows its arms — this one mends itself (healer).
   'starfix': { id: 'starfix', name: 'Starfix', sprite: '⭐', topic: 'nature', levelOffset: 1, hpPerLevel: 13, behavior: 'healer', habitat: 'sea' },
+
+  // --- Eldergrove (history, #75 item 14f): critters of the ring-trees ---
+  'ring-beetle': { id: 'ring-beetle', name: 'Ring Beetle', sprite: '🪲', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
+  'sap-sprite': { id: 'sap-sprite', name: 'Sap Sprite', sprite: '✨', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
+  // Shielded: its cap takes the first hit (Guard first, STORY-4X §4). An empty
+  // face for its emoji, so it's never Fen's 🌰 acorns (#75 item 14f review).
+  'hollow-acorn': { id: 'hollow-acorn', name: 'Hollow Acorn', sprite: '🫥', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
+  // The warden of the Great Ring: beat it for the Memoria Key (keys.ts).
+  ringkeeper: { id: 'ringkeeper', name: 'The Ringkeeper', sprite: '🦌', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true, role: 'warden' },
 };
 
 /** Where an enemy lives (#75 item 14d): its def's habitat, else land. */

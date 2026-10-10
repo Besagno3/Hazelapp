@@ -28,6 +28,22 @@ import type { ZoneId } from '../types';
 
 const TIERS: DangerTier[] = [0, 1, 2, 3, 4, 5, 6, 7];
 
+/** sRGB channel (0–255) → linear light, and back. */
+const lin = (c: number) => (c / 255 <= 0.04045 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
+const unlin = (c: number) => 255 * (Math.max(0, Math.min(1, c)) <= 0.0031308 ? 12.92 * Math.max(0, c) : 1.055 * Math.min(1, c) ** (1 / 2.4) - 0.055);
+const luminance = (rgb: number[]) => 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+function contrast(a: number[], b: number[]): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+/** CIELAB (D65) of an sRGB colour. */
+function lab(rgb: number[]): number[] {
+  const [r, g, b] = rgb.map(lin);
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  const [x, y, z] = [(0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, 0.2126 * r + 0.7152 * g + 0.0722 * b, (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883];
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+
 describe('regions and danger tiers (#75 item 12)', () => {
   it('every zone is in exactly one region', () => {
     for (const id of ZONE_IDS) {
@@ -94,14 +110,40 @@ describe('regions and danger tiers (#75 item 12)', () => {
     expect(overrides).toBe(4); // one critter by each corner region
   });
 
-  it('past "!!!" the colour tells the tiers apart, violet → magenta (#75 item 14c)', () => {
+  it('past "!!!" the colour tells the tiers apart, violet → magenta → pink (#75 item 14c)', () => {
     expect(dangerMarks(7)).toBe('!'.repeat(MAX_MARKS));
     const colours = ([4, 5, 6, 7] as const).map((t) => DANGER[t].mapColor.join());
     expect(new Set(colours).size).toBe(4);
     for (const t of [5, 6, 7] as const) {
-      const [r, g, b] = DANGER[t].mapColor;
-      expect(b, `tier ${t} is violet–magenta`).toBeGreaterThan(g);
-      expect(Math.min(r, b), `tier ${t} is light enough for the dark plate`).toBeGreaterThan(180);
+      const [, g, b] = DANGER[t].mapColor;
+      expect(b, `tier ${t} is violet–magenta–pink`).toBeGreaterThan(g);
+      // Readable on the map's dark plate and the battle panel (WCAG AA for text).
+      expect(contrast(DANGER[t].mapColor, [20, 18, 24]), `tier ${t} on the plate`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(DANGER[t].mapColor, [30, 27, 75]), `tier ${t} on the panel`).toBeGreaterThanOrEqual(4.5);
+    }
+    // Tier 5 is a real purple, not near-white: the 💪 line calls it purple (#75 item 14f review).
+    expect(lab(DANGER[5].mapColor)[0]).toBeLessThan(75);
+  });
+
+  it('tiers 4–7 stay apart for colour-blind kids too (#75 item 14f review)', () => {
+    // Machado et al. (2009) at full strength; ΔE76 in CIELAB, 15+ apart.
+    const DEU = [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]];
+    const PRO = [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]];
+    const TRI = [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3049]];
+    const see = (rgb: number[], m: number[][] | null) => {
+      if (!m) return rgb;
+      const l = rgb.map(lin);
+      return m.map((row) => unlin(row[0] * l[0] + row[1] * l[1] + row[2] * l[2]));
+    };
+    const tiers = [4, 5, 6, 7] as const;
+    for (const m of [null, DEU, PRO, TRI]) {
+      for (let i = 0; i < tiers.length; i++) {
+        for (let j = i + 1; j < tiers.length; j++) {
+          const [a, b] = [see(DANGER[tiers[i]].mapColor, m), see(DANGER[tiers[j]].mapColor, m)];
+          const de = Math.hypot(...lab(a).map((v, k) => v - lab(b)[k]));
+          expect(de, `tiers ${tiers[i]} and ${tiers[j]}`).toBeGreaterThan(15);
+        }
+      }
     }
   });
 
@@ -111,6 +153,9 @@ describe('regions and danger tiers (#75 item 12)', () => {
     expect(new Set(veryTough).size).toBe(1);
     expect(veryTough[0]).toMatch(/purple !!!.*very tough.*harder than a red !!!/);
     expect(toughCallout(4)).toBe('See the !!! by its level? Critters with ! marks hit harder — but they drop more coins!');
+    // A boss at those tiers is called one (#75 item 14f review: the Ringkeeper).
+    expect(toughCallout(5, true)).toMatch(/A very tough boss — /);
+    expect(toughCallout(5)).toMatch(/A very tough critter — /);
     expect(TIERS.map((t) => toughKey(t))).toEqual([0, 1, 2, 3, 4, 5, 5, 5]);
   });
 

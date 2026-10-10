@@ -15,6 +15,8 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py seamusic   # only the sea music: sailing, the Shallows, the fogbank (#75 item 14)
     python3 tools/assets/build.py lighthouse # only Gull Rock's lighthouse tower (#75 item 14)
     python3 tools/assets/build.py seacritters # only the sea critters + the battle-at-sea backdrop (#75 item 14d)
+    python3 tools/assets/build.py hill       # only Remembrance Hill (#75 item 14e)
+    python3 tools/assets/build.py elder      # only Eldergrove: its tiles, critters and people (#75 item 14f)
     python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
@@ -39,6 +41,9 @@ ROOT = HERE.parent.parent  # hazel-game/
 SEA_CRITTERS = ('bubble-puffer', 'inkling', 'starfix')
 PUBLIC = ROOT / 'public'
 MANIFEST = ROOT / 'src' / 'content' / 'sprites.generated.ts'
+
+# Eldergrove's critters and people (#75 item 14f), for `build.py elder`.
+ELDER_SPRITES = ('ring-beetle', 'sap-sprite', 'hollow-acorn', 'ringkeeper', 'elder-fen', 'elder-ringwood', 'elder-dawdle')
 
 
 def write_manifest(data: dict):
@@ -100,6 +105,14 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(SEA_CRITTERS)))
         tiles.build_sea_backdrops(PUBLIC)
         print('sea critters ✓')
+        return
+    if 'elder' in only:
+        # Just Eldergrove (#75 item 14f): its critters and people, its tiles, the
+        # bark town sheet and the overworld sheet with the elder icon appended —
+        # every other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only=set(ELDER_SPRITES)))
+        tiles.build_elder(PUBLIC)
+        print('elder ✓')
         return
     if 'lighthouse' in only:
         # Just Gull Rock's lighthouse tower (#75 item 14) — every other file untouched.

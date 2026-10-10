@@ -2,16 +2,16 @@ import { useProfileStore } from '../store/profileStore';
 import { playerLevel, xpProgress } from '../lib/level';
 
 /**
- * Where the medallion sits. Battle uses top-center to clear the combatant
- * status panels; most screens float it top-left; the world screen puts it in
- * its own top bar (`inline`, #75 item 14b / #102i), so it never covers the
- * place name and every overlay draws over it.
+ * Where the medallion sits. Most screens float it top-left; the world and
+ * battle screens put it in their own top bar (`inline`, #75 item 14b / #102i;
+ * battle since the 14f review — floating top-centre, it and the streak covered
+ * the enemy's "!!!" on a phone), so it never covers the place name or the
+ * status boxes, and every overlay draws over it.
  */
-type Placement = 'top-left' | 'top-center' | 'inline';
+type Placement = 'top-left' | 'inline';
 
 const PLACEMENT: Record<Placement, string> = {
   'top-left': 'fixed top-3 left-3 z-50',
-  'top-center': 'fixed top-3 left-1/2 -translate-x-1/2 z-50',
   inline: 'shrink-0',
 };
 
@@ -22,7 +22,14 @@ const PLACEMENT: Record<Placement, string> = {
  * is smaller — at most 44 px tall, the XP numbers read aloud (and on hover)
  * rather than shown — to fit a phone's top bar beside the streak and Sign out.
  */
-export default function LevelBadge({ placement = 'top-left' }: { placement?: Placement }) {
+export default function LevelBadge({
+  placement = 'top-left',
+  dense = false,
+}: {
+  placement?: Placement;
+  /** A little shorter on a phone (the battle's top bar, #75 item 14f review: every command still fits at 360×640). */
+  dense?: boolean;
+}) {
   const profile = useProfileStore((s) => s.profile);
   const xp = profile?.xp ?? 0;
 
@@ -32,12 +39,12 @@ export default function LevelBadge({ placement = 'top-left' }: { placement?: Pla
 
   return (
     <div
-      className={`${PLACEMENT[placement]} flex items-center gap-2 bg-black/35 backdrop-blur rounded-full pl-1.5 pr-3 py-1.5 text-white shadow-lg`}
+      className={`${PLACEMENT[placement]} flex items-center gap-2 bg-black/35 backdrop-blur rounded-full pl-1.5 pr-3 ${dense ? 'py-1 sm:py-1.5' : 'py-1.5'} text-white shadow-lg`}
       title={inline ? `${into}/${needed} XP` : undefined}
     >
       {/* Circular level medallion */}
       <div
-        className={`grid place-items-center ${inline ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-gradient-to-br from-amber-300 to-yellow-600 ring-2 ring-yellow-200 shadow-inner`}
+        className={`grid place-items-center ${inline ? (dense ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-8 h-8') : 'w-10 h-10'} rounded-full bg-gradient-to-br from-amber-300 to-yellow-600 ring-2 ring-yellow-200 shadow-inner`}
       >
         <span className="text-base font-extrabold leading-none text-yellow-950" aria-hidden>
           {level}

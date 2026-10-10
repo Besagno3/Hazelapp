@@ -111,10 +111,12 @@ export default function App() {
   return (
     <>
       {/* The world screen puts the badges and Sign out in its own top bar, so
-          they never cover the place name or an overlay (#75 item 14b, #102i). */}
-      {screen !== 'world' && (
+          they never cover the place name or an overlay (#75 item 14b, #102i);
+          the battle screen puts the badges in its own too, so they never cover
+          the enemy's "!!!" on a phone (#75 item 14f review). */}
+      {screen !== 'world' && screen !== 'battle' && (
         <>
-          <LevelBadge placement={screen === 'battle' ? 'top-center' : 'top-left'} />
+          <LevelBadge />
           <StreakBadge />
         </>
       )}

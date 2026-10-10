@@ -749,6 +749,11 @@ def beast(c: Canvas, p: Pose, s: dict):
     if s.get('thorns'):
         for x in (9, 12, 15, 18):
             body.poly([(x, by - 2), (x + 1, by - 6), (x + 2, by - 2)], '#6a8a3a')
+    if s.get('rings'):
+        # Tree rings in its bark (the Ringkeeper, #75 item 14f): a cut log on its flank.
+        rc = hexc(s['rings'])
+        for k, r in enumerate((4.2, 3.0, 1.8, 0.8)):
+            body.ellipse(14, by + 1.5, r * 1.2, r * 0.8, rc if k % 2 == 0 else dark(rc, 0.2), shade=False)
     d.put(body)
     head = d.part(lean, bob)
     hx, hy = (23, by - 2) if kind != 'stag' else (24, by - 5)
@@ -769,8 +774,18 @@ def beast(c: Canvas, p: Pose, s: dict):
         head.line(hx + 1, hy - 4, hx + 3, hy - 13, ac, w=1.3)
         head.line(hx + 2.5, hy - 10, hx + 6, hy - 12, ac, w=1.1)
         if s.get('leaves'):
-            head.ellipse(hx - 8, hy - 11, 1.8, 1.4, '#6fcf5a')
-            head.ellipse(hx + 6, hy - 12, 1.8, 1.4, '#6fcf5a')
+            lc = s.get('leaf', '#6fcf5a')
+            head.ellipse(hx - 8, hy - 11, 1.8, 1.4, lc)
+            head.ellipse(hx + 6, hy - 12, 1.8, 1.4, lc)
+            if s.get('leaf'):
+                head.ellipse(hx - 4.5, hy - 12.5, 1.4, 1.1, lc)
+                head.ellipse(hx + 3.6, hy - 14, 1.4, 1.1, lc)
+        if s.get('key'):
+            # A silver key hanging from its antler (the Memoria Key, #75 item 14f).
+            head.line(hx + 4.5, hy - 11, hx + 4.5, hy - 8.5, '#c8ccd8', w=0.4)
+            head.ellipse(hx + 4.5, hy - 7.6, 1.1, 1.1, '#e8ecf4')
+            head.rect(hx + 4.1, hy - 6.6, hx + 4.9, hy - 3.6, '#e8ecf4')
+            head.rect(hx + 4.9, hy - 4.6, hx + 5.9, hy - 3.8, '#e8ecf4')
     head.ellipse(hx, hy, 5.2, 4.8, fur)
     head.ellipse(hx + 4, hy + 1.5, 2.6, 2.0, belly)
     head.dot(hx + 6, hy + 0.5, (40, 25, 35), w=2, h=1)
@@ -2786,6 +2801,194 @@ def oak_owl(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.9, 7, 1.1))
 
 
+# ─── Eldergrove (#75 item 14f) ───────────────────────────────────────────────
+
+
+def ring_beetle(c: Canvas, p: Pose, s: dict):
+    """A ground beetle whose shell is cut like a log — you can count its rings."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#7a4a2a'))
+    ring = hexc(s.get('ring', '#d8b07a'))
+    lean, bob = d.lean, d.bob
+    Lg = d.part(lean * 0.4, 0)
+    for i, x in enumerate((10.5, 15.5, 20.5)):  # six legs, scuttling
+        off = p.step * (1.2 if i % 2 else -1.2)
+        Lg.line(x + off, 22, x - 1.6 + off, 28.8, dark(col, 0.35), w=0.9)
+        Lg.line(x + 1 - off, 22, x + 2.6 - off, 28.8, dark(col, 0.25), w=0.9)
+    d.put(Lg)
+    B = d.part(lean, bob)
+    B.ellipse(15, 20, 9.5, 6.4, col)
+    for k, r in enumerate((7.2, 5.4, 3.7, 2.0)):  # the rings, like a cut log
+        B.ellipse(14.5, 19.2, r * 1.12, r * 0.72, ring if k % 2 == 0 else dark(ring, 0.18), shade=False)
+    B.ellipse(14.5, 19.2, 0.8, 0.6, dark(col, 0.2), shade=False)  # the heart of the log
+    B.ellipse(14.5, 25, 8, 1.6, dark(col, 0.15))  # underbelly
+    d.put(B)
+    H = d.part(lean, bob)
+    hx, hy = 24.6, 21
+    H.ellipse(hx, hy, 3.6, 3.2, dark(col, 0.25))
+    pinch = {'raise': 1.0, 'strike': 1.8, 'follow': 1.4}.get(p.arm, 0.6)
+    H.poly([(hx + 2.4, hy - 1.4), (hx + 5.6 + pinch, hy - 1.2), (hx + 3, hy - 0.2)], '#3a2010')  # pincers
+    H.poly([(hx + 2.4, hy + 1.4), (hx + 5.6 + pinch, hy + 1.2), (hx + 3, hy + 0.2)], '#3a2010')
+    if p.facing != 'up':
+        d.eyes(H, [(hx + 0.6, hy - 1.4)], color=(255, 230, 140), h=1, shine=False)
+        H.line(hx - 0.4, hy - 2.8, hx - 2.4, hy - 7, '#3a2010', w=0.5)  # antennae
+        H.line(hx + 1.2, hy - 2.8, hx + 2.6, hy - 7.2, '#3a2010', w=0.5)
+    d.put(H)
+    finish(c, d, shadow=(16, 30.4, 8, 1.2))
+
+
+def sap_sprite(c: Canvas, p: Pose, s: dict):
+    """A drop of golden tree sap that floats, glows and glitters."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#e8a030'))
+    hover = (-1.2 if p.frame % 2 else 0.0)
+    L = d.part(d.lean, d.bob + hover - 2)
+    L.ellipse(16, 19, 7, 7, col)
+    L.poly([(10.4, 16), (16, 6.4), (21.6, 16)], col)  # the point of the drop
+    L.ellipse(13, 15.5, 1.8, 3, light(col, 0.4), shade=False)  # shine
+    L.ellipse(16.5, 23.4, 4.4, 1.8, dark(col, 0.12), shade=False)
+    L.ellipse(18.6, 6.6, 2.6, 1.2, '#6aaf4a', rot=-0.5)  # a leaf stuck to its tip
+    ex = face_x(p, [17.5, 20.6], [13.6, 18.4])
+    d.eyes(L, [(x, 18) for x in ex])
+    if ex and d.sep and not p.hurt:
+        L.dot(ex[0] + 1.4, 21, dark(col, 0.45), w=2, h=1)  # a little smile
+    d.put(L)
+    G = d.part(d.lean, d.bob + hover - 2)  # sparkles that come and go
+    for k, (x, y) in enumerate(((6, 10), (26, 13), (8, 24), (25, 25))):
+        if (k + p.frame) % 2:
+            G.dot(x, y, '#fff4b0')
+            if d.sep:  # a twinkle cross in battle; one bright dot on the map
+                for (dx, dy) in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    G.dot(x + dx, y + dy, '#ffe066')
+    d.put(G, outline=False)
+    finish(c, d, shadow=(16, 30.2, 5 + hover * 0.5, 1.1))
+
+
+def hollow_acorn(c: Canvas, p: Pose, s: dict):
+    """An acorn with nobody home: two eyes glint in its hollow, and its cap is
+    a helmet that takes the first hit."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#b8783a'))
+    cap = hexc(s.get('cap', '#6a4a2a'))
+    lean, bob = d.lean, d.bob
+    Lg = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((13, 19)):  # two stubby legs
+        off = p.step * (1.6 if i % 2 else -1.6)
+        Lg.rect(lx - 1 + off, 25, lx + 1 + off, 29.6, dark(col, 0.3))
+        Lg.rect(lx - 1.4 + off, 28.8, lx + 1.8 + off, 30.4, dark(col, 0.45))
+    d.put(Lg)
+    B = d.part(lean, bob)
+    B.ellipse(16, 19.5, 7.6, 7.4, col)
+    B.poly([(11, 23), (16, 28.6), (21, 23)], col)  # the acorn's point
+    B.ellipse(13, 18.5, 1.6, 3, light(col, 0.25), shade=False)
+    hx = 17.6 if p.facing == 'side' else 16
+    if p.facing != 'up':
+        B.ellipse(hx, 20.5, 3.4, 3.8, (34, 18, 10), shade=False)  # the hollow
+        glint = (255, 214, 90) if not p.hurt else WHITE
+        for x in (hx - 1.2, hx + 1.2):
+            B.dot(x, 19.6, glint)
+    d.put(B)
+    C = d.part(lean, bob)  # the cap: its shield
+    lift = {'raise': -1.2, 'strike': 0.4}.get(p.arm, 0.0)
+    C.ellipse(16, 12.6 + lift, 9.2, 4.6, cap)
+    if d.sep:
+        for (x, y) in ((10, 12), (13, 10.5), (16, 12), (19, 10.5), (22, 12), (13, 13.6), (19, 13.6)):
+            C.dot(x, y + lift, dark(cap, 0.3))  # scales
+    C.rect(15.2, 6.4 + lift, 16.8, 9 + lift, dark(cap, 0.2))  # the stem
+    if s.get('shield'):
+        C.ellipse(16, 15.6 + lift, 8.6, 1.2, light(cap, 0.3), shade=False)  # a bright rim: it's armour
+    d.put(C)
+    finish(c, d, shadow=(16, 30.6, 6.5, 1.2))
+
+
+def tree_folk(c: Canvas, p: Pose, s: dict):
+    """A talking tree (Old Ringwood): a broad trunk with a kind old face, a
+    crown of leaves and roots for feet. It sways; it never walks."""
+    d = D(c, p)
+    bark = hexc(s.get('bark', '#7a5232'))
+    leaf = hexc(s.get('leaf', '#5a8a3a'))
+    sway = (0.5 if p.frame % 2 else -0.5) * d.u
+    R = d.part(0, 0)
+    R.poly([(8, 30.6), (11, 25), (21, 25), (24, 30.6), (19, 28.6), (16, 30.6), (13, 28.6)], dark(bark, 0.15))
+    d.put(R)
+    T = d.part(sway * 0.4, 0)
+    T.rect(10, 13, 22, 28, bark)
+    if d.sep:
+        for x in (11.5, 14.5, 18.5, 20.8):
+            T.line(x, 14, x + 0.4, 27, dark(bark, 0.3), w=0.5)  # grooves
+    if p.facing == 'side':
+        T.ellipse(12.5, 24, 2, 1.6, '#c8a070', shade=False)  # a ring-knot
+        T.ellipse(12.5, 24, 1, 0.8, dark(bark, 0.2), shade=False)
+    d.put(T)
+    F = d.part(sway, 0)
+    F.ellipse(16, 9, 11.5, 7.6, leaf)
+    F.ellipse(10, 7, 4.4, 3.2, light(leaf, 0.18))
+    F.ellipse(22, 6.4, 3.6, 2.6, light(leaf, 0.12))
+    for (x, y) in ((7, 11), (24, 12), (15, 3.4), (20, 10)):
+        F.dot(x, y, '#e0a03a', w=2 if d.sep else 1, h=1)  # golden leaves
+    d.put(F)
+    if p.facing != 'up':
+        E = d.part(sway * 0.4, 0)
+        ex = [18.5, 21] if p.facing == 'side' else [13.4, 18.6]
+        for x in ex:
+            E.line(x - 1.6, 16.4, x + 1.4, 16.8, '#5aaf4a', w=0.9)  # mossy brows
+        d.eyes(E, [(x, 18.4) for x in ex], h=2 if not p.blink else 1)
+        mx = (ex[0] + ex[1]) / 2
+        E.line(mx - 2, 22.6, mx + 2, 22.6, dark(bark, 0.45), w=0.7)  # a slow smile
+        E.dot(mx - 2.4, 22, dark(bark, 0.45))
+        E.dot(mx + 2.4, 22, dark(bark, 0.45))
+        d.put(E, outline=False)
+    finish(c, d, shadow=(16, 30.9, 9, 1.4))
+
+
+def turtle(c: Canvas, p: Pose, s: dict):
+    """A very slow tortoise (Dawdle): a domed shell, stubby legs, sleepy eyes.
+    Facing you, the shell sits higher and his head pokes out in front of it,
+    so his face reads at map size (#75 item 14f review)."""
+    d = D(c, p)
+    shell = hexc(s.get('shell', '#6a8a3a'))
+    skin = hexc(s.get('skin', '#a8c070'))
+    lean, bob = d.lean, d.bob
+    front = p.facing == 'down'
+    Lg = d.part(lean * 0.3, 0)
+    for i, lx in enumerate((9.5, 13, 18.5, 22)):
+        off = p.step * (0.8 if i % 2 else -0.8)
+        Lg.rect(lx - 1.5 + off, 24, lx + 1.5 + off, 29.4, skin if i % 2 else dark(skin, 0.1))
+        Lg.rect(lx - 1.6 + off, 28.6, lx + 1.8 + off, 30.2, dark(skin, 0.35))
+    d.put(Lg)
+    Hd = None
+    if p.facing != 'up':
+        Hd = d.part(lean, bob)
+        if front:
+            hx, hy = 16, 24.4
+            Hd.ellipse(hx, hy, 5, 4.2, skin)
+            d.eyes(Hd, [(hx - 2, hy - 1.4), (hx + 2, hy - 1.4)], h=2, shine=False)
+            if d.sep and not p.hurt:
+                Hd.line(hx - 1.4, hy + 1.6, hx + 1.4, hy + 1.6, dark(skin, 0.45), w=0.6)  # a sleepy smile
+        else:
+            hx, hy = 25.5, 21.5
+            Hd.ellipse(hx, hy, 3.8, 3.2, skin)
+            Hd.rect(21, hy - 1.6, 24, hy + 1.8, skin)  # the neck
+            d.eyes(Hd, [(hx + 1.2, hy - 1.2)], h=1, shine=False)  # half asleep
+            if d.sep:
+                Hd.dot(hx + 2.4, hy + 1.4, dark(skin, 0.4), w=2, h=1)
+        if not front:
+            d.put(Hd)  # behind the shell's edge; facing us, in front of it
+    B = d.part(lean, bob)
+    sy = 17.5 if front else 20.5
+    B.ellipse(16 if front else 15, sy, 9.6, 6.8 if front else 7.2, shell)
+    if d.sep:
+        for (x, y) in ((11, sy - 2.5), (15, sy - 4.9), (19, sy - 2.5), (13, sy + 1.1), (17.4, sy + 1.1)):  # shell plates
+            px = x + (1 if front else 0)
+            B.ellipse(px, y, 1.9, 1.5, dark(shell, 0.2), shade=False)
+            B.ellipse(px, y, 1.1, 0.8, light(shell, 0.12), shade=False)
+    B.ellipse(16 if front else 15, sy + 5.5, 9.4, 1.6, '#d8c890')  # the rim
+    d.put(B)
+    if Hd is not None and front:
+        d.put(Hd)
+    finish(c, d, shadow=(16, 30.6, 9, 1.3))
+
+
 # ─── Roster ──────────────────────────────────────────────────────────────────
 
 DRAWERS = {
@@ -2831,6 +3034,11 @@ DRAWERS = {
     'oak_owl': oak_owl,
     'puffer': puffer,
     'starfish': starfish,
+    'ring_beetle': ring_beetle,
+    'sap_sprite': sap_sprite,
+    'hollow_acorn': hollow_acorn,
+    'tree_folk': tree_folk,
+    'turtle': turtle,
 }
 
 
@@ -2936,6 +3144,12 @@ ROSTER: list[Char] = [
     Char('eclipse-fox', '🦊', 'eclipse_fox', H(fur='#2e2848', glow='#ffb02a')),
     Char('ironhorn-rampager', '🦏', 'ironhorn', H(color='#6a6878')),
     Char('oak-owl', '🦉', 'oak_owl', H(color='#5a4030', glow='#ffd23a')),
+    # ── Eldergrove (history, #75 item 14f) ──
+    Char('ring-beetle', '🪲', 'ring_beetle', H(color='#7a4a2a', ring='#d8b07a')),
+    Char('sap-sprite', '✨', 'sap_sprite', H(color='#e8a030')),
+    Char('hollow-acorn', '🫥', 'hollow_acorn', H(color='#b8783a', cap='#6a4a2a', shield=True)),
+    Char('ringkeeper', '🦌', 'beast', H(kind='stag', fur='#cdb894', belly='#efe4c8', antler='#8a6440', leaves=True, leaf='#e8a838',
+                                     rings='#8a6440', key=True), boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
@@ -3036,6 +3250,11 @@ NPCS: list[Char] = [
     Char('hill-carver', '🔨', 'humanoid', H(hair='short', hair_color='#3a2a1a', outfit='#a8a8b4', apron='#8a6a4a', item='hammer')),
     Char('hill-elder', '👴', 'humanoid', H(hair='fringe', hair_color='#e8e8e8', beard='#f0f0f0', outfit='#7a8a6a', glasses=True, item='rod', item_color='#8a6a4a')),
     Char('hill-jam', '🧺', 'humanoid', H(hair='bob', hair_color='#8a3a2a', outfit='#3a7ab0', apron='#ffd0e0', item='ladle')),
+    # ── Act II: Eldergrove (#75 item 14f) ──
+    Char('elder-fen', '🧺', 'humanoid', H(hair='ponytail', hair_color='#a0522d', hat='straw', outfit='#7a8a3a', trim='#c8a060', pack='#b08040', scarf='#e0a040', item='staff', item_color='#8a6a3a')),
+    # Taller than the grove's scenery trees (boss-sized), so he reads as someone to talk to.
+    Char('elder-ringwood', '🌳', 'tree_folk', H(bark='#7a5232', leaf='#5a8a3a'), boss=True),
+    Char('elder-dawdle', '🐢', 'turtle', H(shell='#6a8a3a', skin='#a8c070')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

@@ -212,6 +212,8 @@ const POWER_MOVE_NAMES: Record<string, string> = {
   'thicket-warden': 'Bramble Charge',
   'tide-colossus': 'Tidal Slam',
   'clockwork-titan': 'Gear Grinder',
+  // Act II (#75 item 14f).
+  ringkeeper: 'Thousand-Year Charge',
 };
 
 export function powerMoveName(enemyId: string): string {

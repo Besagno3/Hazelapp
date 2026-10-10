@@ -46,7 +46,34 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   // Item chains (#75 item 13): found in a key-item chest, cut by Miner Mabel.
   moonstone: { id: 'moonstone', name: 'Moonstone', emoji: '🌙' },
   'cut-moonstone': { id: 'cut-moonstone', name: 'Cut Moonstone', emoji: '💠' },
+  // Fen's Forgotten Acorns (#75 item 14f): three key-item chests in Eldergrove.
+  'acorn-speckled': { id: 'acorn-speckled', name: 'Speckled Acorn', emoji: '🌰' },
+  'acorn-striped': { id: 'acorn-striped', name: 'Striped Acorn', emoji: '🌰' },
+  'acorn-golden': { id: 'acorn-golden', name: 'Golden Acorn', emoji: '🌰' },
 };
+
+/**
+ * Fen's acorns in the order she remembers them (#75 item 14f): each one found
+ * jogs her memory about the next, so her hint always points at the first
+ * still missing — the "hints chain" of STORY-4X.
+ */
+const FEN_ACORNS = [
+  {
+    item: 'acorn-speckled',
+    label: 'the Speckled Acorn',
+    where: 'The Speckled Acorn is in a 🎁 on the far west side of the grove, between the trees.',
+  },
+  {
+    item: 'acorn-striped',
+    label: 'the Striped Acorn',
+    where: 'The Striped Acorn is in a 🎁 on the east side. Follow the path east, between the two ponds!',
+  },
+  {
+    item: 'acorn-golden',
+    label: 'the Golden Acorn',
+    where: 'The Golden Acorn is in a 🎁 in a little circle of trees in the south-west corner — not the Great Ring!',
+  },
+] as const;
 
 export interface QuestStep {
   id: string;
@@ -76,6 +103,12 @@ export interface QuestDef {
   takesItems?: string[];
   /** A town side quest (village expansion) rather than a zone's main quest. */
   side?: boolean;
+  /**
+   * The line under one of its key-item chests' finds while the quest is on
+   * (#75 item 14f: Fen will remember the next acorn) — before the quest is
+   * offered, the chest's `wantedBy` says who wants it instead.
+   */
+  foundNote?: (save: SaveData) => string;
   /** Only offered once this story flag is set (Act II's quests wait for `act2-seen`, #75 item 14). */
   requires?: string;
   steps: QuestStep[];
@@ -152,6 +185,8 @@ function haveStep(
   id: string,
   targets: { items: string[]; label: string }[],
   intro: string | ((save: SaveData) => string),
+  /** `listLeft: false` when the intro already says what's left (Fen's acorns, #75 item 14f). */
+  { listLeft = true }: { listLeft?: boolean } = {},
 ): QuestStep {
   const carrying = (save: SaveData, t: { items: string[] }) =>
     t.items.some((i) => save.questItems.includes(i) || save.flags[handedOverFlag(i)] === true);
@@ -161,7 +196,7 @@ function haveStep(
     hint: (save) => {
       const lead = typeof intro === 'function' ? intro(save) : intro;
       const left = targets.filter((t) => !carrying(save, t));
-      return left.length === 0 || targets.length === 1 ? lead : `${lead} Still to find: ${left.map((t) => t.label).join(', ')}.`;
+      return left.length === 0 || targets.length === 1 || !listLeft ? lead : `${lead} Still to find: ${left.map((t) => t.label).join(', ')}.`;
     },
     isComplete: (save) => targets.every((t) => carrying(save, t)),
   };
@@ -695,6 +730,51 @@ export const QUESTS: QuestDef[] = [
     reward: { coins: 40, items: { ward: 1 } },
   },
 
+  // --- Act II: Eldergrove (#75 item 14f) ---------------------------------------
+
+  // A collection quest: three key-item chests across Eldergrove, the hint
+  // chaining from one acorn to the next.
+  {
+    id: 'fen-acorns',
+    zoneId: 'eldergrove',
+    giverNpcId: 'elder-fen',
+    side: true,
+    title: "Fen's Forgotten Acorns",
+    offer: [
+      "Oh! A visitor! I'm Fen. I gather nuts. I remember where I hid my acorns. All 4,000. Roughly.",
+      "Well… my three BEST ones, anyway — Speckled, Striped and Golden. I hid them in chests so the squirrels couldn't find them.",
+      "Then I forgot which chests! Could you find them? I remember where the first one is — and finding it might help me remember the next!",
+    ],
+    steps: [
+      haveStep(
+        'fen-acorns-find',
+        FEN_ACORNS.map((a) => ({ items: [a.item], label: a.label })),
+        (save) => {
+          // The step is done once all three are carried, so one is always missing here.
+          const left = FEN_ACORNS.filter((a) => !save.questItems.includes(a.item));
+          const next = left[0];
+          // Each one found helps her remember the next — the first she knows already.
+          const remembered = FEN_ACORNS.indexOf(next) > 0 ? 'Ooh, now I remember! ' : '';
+          const togo = left.length === 1 ? "It's the last one!" : `${left.length === 3 ? 'Three' : 'Two'} to go!`;
+          return `${remembered}${next.where} ${togo}`;
+        },
+        { listLeft: false },
+      ),
+    ],
+    // Under each acorn's chest while her quest is on: she'll remember the next.
+    foundNote: (save) =>
+      FEN_ACORNS.every((a) => save.questItems.includes(a.item))
+        ? "🧺 That's all three! Take them back to Fen."
+        : '🧺 Fen might remember where the next one is now — ask her!',
+    takesItems: FEN_ACORNS.map((a) => a.item),
+    complete: [
+      'Speckled, Striped AND Golden! My three best acorns, home at last!',
+      "I'd forget my own tail if it weren't attached. It is. I checked.",
+      '✨ Reward: 35 coins and a Hint Feather!',
+    ],
+    reward: { coins: 35, items: { hint: 1 } },
+  },
+
   // --- Item chains (#75 item 13) ----------------------------------------------
 
   // Find a key item in a dungeon chest (behind the Echo Mine's dark — Glow),
@@ -957,9 +1037,10 @@ export function chestRewardText(chestId: string): string {
 }
 
 /**
- * A key-item chest's "who wants this" line (#75 item 13), shown with the
- * find — only while the quest that needs the item hasn't been offered, so a
- * kid who opens the chest first knows where to take it. Null otherwise.
+ * The line shown with a key-item chest's find: before its quest is offered,
+ * who wants it (#75 item 13), so a kid who opens the chest first knows where
+ * to take it; while the quest is on, its `foundNote`, if any (#75 item 14f:
+ * Fen will remember the next acorn). Null otherwise.
  */
 export function chestWantedLine(save: SaveData, chestId: string): string | null {
   const chest = keyChestFor(chestId);
@@ -967,7 +1048,9 @@ export function chestWantedLine(save: SaveData, chestId: string): string | null 
   const quest = QUESTS.find(
     (q) => q.takesItems?.includes(chest.item) || q.steps.some((st) => st.needs?.includes(chest.item) || st.trade?.takes === chest.item),
   );
-  return quest && !save.flags[questOfferedFlag(quest)] && !save.flags[questDoneFlag(quest)] ? chest.wantedBy : null;
+  if (!quest || save.flags[questDoneFlag(quest)]) return null;
+  if (!save.flags[questOfferedFlag(quest)]) return chest.wantedBy;
+  return quest.foundNote?.(save) ?? null;
 }
 
 /** Quests accepted but not finished — for the menu's quest log. */

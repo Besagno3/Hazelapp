@@ -64,6 +64,11 @@ export interface WorldNpcDef {
    */
   ambient?: string[];
   /**
+   * How fast a wanderer ambles, against everyone else's (default 1) — Dawdle
+   * the turtle (#75 item 14f) is the slowest wanderer in the game.
+   */
+  pace?: number;
+  /**
    * Tells you where to go next (#75 item 6): after their own lines, a "where
    * to next?" line keyed to the story, with the way there from where they
    * stand. See `lib/wayfinding.ts`.
@@ -1304,5 +1309,61 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       "One spoonful and you'll never forget the taste. Everything else, maybe.",
     ],
     ambient: ['Jam! Lovely jam!', '🍓'],
+  },
+
+  // --- Act II: Eldergrove (#75 item 14f) ---
+  'elder-fen': {
+    id: 'elder-fen',
+    name: 'Fen the Forager',
+    sprite: '🧺',
+    role: 'villager',
+    stationary: true,
+    // Her quest's offer comes first ("Fen's Forgotten Acorns"); these follow it.
+    lines: [
+      "My three best acorns are safe in my hollow now. I won't forget where. I wrote it down!",
+      '…Has anybody seen where I put the note?',
+    ],
+    ambient: ['Acorns, acorns…', '🌰'],
+  },
+  'elder-ringwood': {
+    id: 'elder-ringwood',
+    name: 'Old Ringwood',
+    sprite: '🌳',
+    role: 'villager',
+    stationary: true,
+    // The Ringkeeper's signpost (#59's pattern): a warning until its key is won.
+    lines: [
+      'Hrrrm. A visitor. Stand still while I count my rings. One… two… three…',
+      '…eight hundred and ninety-nine… nine hundred… nine hundred and… oh, bother. Lost count again.',
+      {
+        text: 'Mind the Great Ring, just south of me. The Ringkeeper lives there — older than me, older than this whole grove.',
+        unlessFlag: keyFlag('memoria'),
+      },
+      {
+        text: 'It wears the Memoria Key on its antlers. Answer its riddles about long ago, and it might give the key away.',
+        unlessFlag: keyFlag('memoria'),
+      },
+      {
+        text: 'You won the Memoria Key! Nine hundred years, and the Ringkeeper never shared a thing before. Hrrm. Well done.',
+        ifFlag: keyFlag('memoria'),
+      },
+      {
+        text: "Its door? Nobody remembers where it is yet. It will turn up later in your adventure — mark my rings.",
+        ifFlag: keyFlag('memoria'),
+      },
+    ],
+    ambient: ['…nine hundred and… hrrm.', '🍂'],
+  },
+  'elder-dawdle': {
+    id: 'elder-dawdle',
+    name: 'Dawdle',
+    sprite: '🐢',
+    role: 'villager',
+    pace: 0.15,
+    lines: [
+      "Oh… hello. I'm… Dawdle.",
+      "I'm going… for a… walk. Around the pond. I started… on Tuesday.",
+    ],
+    ambient: ['Almost… there…', '…', '🐢'],
   },
 };

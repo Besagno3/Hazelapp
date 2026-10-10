@@ -591,3 +591,71 @@ describe('one person, several quests (#75 item 14c)', () => {
     }
   });
 });
+
+describe("Fen's Forgotten Acorns (#75 item 14f)", () => {
+  const chest = (x: number, y: number) => pathTargetId('eldergrove', 'chest', x, y);
+  const SPECKLED = chest(2, 15);
+  const STRIPED = chest(41, 14);
+  const GOLDEN = chest(5, 24);
+  const hint = (save: SaveData) => questConversation('elder-fen', save)!.lines[0];
+
+  it('three acorns in three key-item chests across Eldergrove, none behind the gate', () => {
+    expect(ZONES.eldergrove.keyChests!.map((c) => c.item)).toEqual(['acorn-speckled', 'acorn-striped', 'acorn-golden']);
+    for (const c of ZONES.eldergrove.keyChests!) {
+      expect(touches(reach(ZONES.eldergrove), c.x, c.y), `${c.item} in reach without the gate`).toBe(true);
+    }
+    expect(byId('fen-acorns')).toMatchObject({ giverNpcId: 'elder-fen', side: true, zoneId: 'eldergrove' });
+  });
+
+  it('offer → each acorn helps her remember the next → she takes all three and pays', () => {
+    const quest = byId('fen-acorns');
+    let save = converse('elder-fen', defaultSave());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    // The first she remembers already; how many are left, never the whole list again.
+    expect(hint(save)).toBe('The Speckled Acorn is in a 🎁 on the far west side of the grove, between the trees. Three to go!');
+
+    save = openChest(save, SPECKLED);
+    expect(chestWantedLine(save, SPECKLED)).toBe('🧺 Fen might remember where the next one is now — ask her!');
+    expect(hint(save)).toBe('Ooh, now I remember! The Striped Acorn is in a 🎁 on the east side. Follow the path east, between the two ponds! Two to go!');
+    save = openChest(save, STRIPED);
+    expect(hint(save)).toMatch(/^Ooh, now I remember! The Golden Acorn is in a 🎁 .*not the Great Ring! It's the last one!$/);
+    save = openChest(save, GOLDEN);
+    expect(chestWantedLine(save, GOLDEN)).toBe("🧺 That's all three! Take them back to Fen.");
+
+    const coins = save.coins;
+    const feathers = save.items.hint;
+    const done = questConversation('elder-fen', save)!;
+    expect(done.finishKind).toBe('complete');
+    save = done.finish!(save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual([]);
+    expect(save.coins).toBe(coins + 35);
+    expect(save.items.hint).toBe(feathers + 1);
+    // Afterwards she says her own lines, and a chest says nothing more.
+    expect(questConversation('elder-fen', save)).toBeNull();
+    expect(chestWantedLine(save, GOLDEN)).toBeNull();
+  });
+
+  it("found out of order, she names the first still missing — and only says she remembers when she's past the first", () => {
+    let save = converse('elder-fen', defaultSave());
+    save = openChest(save, GOLDEN);
+    expect(hint(save)).toBe('The Speckled Acorn is in a 🎁 on the far west side of the grove, between the trees. Two to go!');
+    save = openChest(save, SPECKLED);
+    expect(hint(save)).toMatch(/^Ooh, now I remember! The Striped Acorn .* It's the last one!$/);
+  });
+
+  it('every hint is short enough for a young reader (≤ 30 words)', () => {
+    let save = converse('elder-fen', defaultSave());
+    for (const c of [SPECKLED, STRIPED, GOLDEN]) {
+      expect(hint(save).split(/\s+/).length, hint(save)).toBeLessThanOrEqual(30);
+      save = openChest(save, c);
+    }
+  });
+
+  it('an acorn found before meeting Fen says who wants it', () => {
+    const save = openChest(defaultSave(), STRIPED);
+    expect(save.questItems).toEqual(['acorn-striped']);
+    expect(chestWantedLine(save, STRIPED)).toMatch(/Fen the Forager.*acorns/);
+    expect(chestRewardText(STRIPED)).toBe('25 coins and the 🌰 Striped Acorn!');
+  });
+});
