@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import StreakBadge from './StreakBadge';
 import { useProfileStore } from '../store/profileStore';
 import type { Profile } from '../types';
@@ -24,6 +24,20 @@ function setProfile(overrides: Partial<Profile> = {}) {
 describe('StreakBadge', () => {
   beforeEach(() => {
     useProfileStore.getState().clearProfile();
+  });
+
+  it('inline (the world top bar, #102i): in the page, "🔥 5" on a phone with the words read aloud', () => {
+    setProfile({ currentStreak: 5, longestStreak: 7 });
+    const { container } = render(<StreakBadge inline />);
+    const badge = container.firstElementChild as HTMLElement;
+    expect(badge.className).not.toMatch(/(^|\s)(fixed|z-50)(\s|$)/);
+    // "🔥 5 days" on a phone ("days" from 360 px up), hidden from screen readers…
+    const shown = screen.getByText((_, el) => el?.tagName === 'SPAN' && el.className.includes('sm:hidden') && el.textContent === '5 days');
+    expect(shown.getAttribute('aria-hidden')).toBe('true');
+    expect(within(shown).getByText('days').className).toContain('min-[360px]:inline');
+    expect(screen.getByText('Streak: 5 days').className).toContain('sr-only');
+    // The full words come back from `sm` up.
+    expect(screen.getByText('5 days').parentElement!.className).toContain('hidden sm:block');
   });
 
   it('renders nothing without a profile', () => {

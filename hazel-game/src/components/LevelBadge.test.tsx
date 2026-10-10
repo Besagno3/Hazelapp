@@ -21,6 +21,14 @@ describe('LevelBadge', () => {
     expect(badge.className).not.toContain('left-3');
   });
 
+  it('inline (the world top bar, #102i): in the page, a smaller medallion, the XP read aloud and on hover', () => {
+    const { container } = render(<LevelBadge placement="inline" />);
+    const badge = container.firstElementChild as HTMLElement;
+    expect(badge.className).not.toMatch(/(^|\s)(fixed|z-50)(\s|$)/);
+    expect(badge.title).toBe('0/100 XP');
+    expect(screen.getByText('0/100 XP').className).toContain('sr-only');
+  });
+
   it('shows the level derived from the profile XP', () => {
     useProfileStore.setState({
       profile: {

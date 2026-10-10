@@ -182,6 +182,27 @@ zod, react-query. Add the package in the same change that first uses it.
   floors are walkable themed maps drawn by `WorldCanvas`, state in
   `spireStore`, #74). `TouchPad`
   is the mobile d-pad.
+  **The world's top bar** (#75 item 14b, #102i): on the world screen `App`
+  draws no floating badges — `WorldScreen` puts the level (`LevelBadge`
+  `inline`), the streak (`StreakBadge inline`, "🔥 5" on a phone) and Sign out
+  (`SignOutButton inline`) in a full-width row above the HUD, at most 44 px
+  tall (pt-3 + bar + mb-2 = the old pt-16), so they never cover the place
+  name and every overlay (z-40) draws over them. Exploring a Spire floor,
+  `SpireOverlay` portals its seals, candles and 🚪 Leave the Spire into the
+  HUD row (`hudSlot`, in 📜 Menu's place). Other screens keep the floating
+  badges. Sign out there asks "Sign out?" first (same size; the hint floats
+  below it), and any other tap or key takes the question back.
+  **Overlays are modal** (#75 item 14b review): every world overlay (dialogue,
+  services, path questions, key gates, menu, the Spire's panels) and the
+  level-up sit in `components/ModalLayer` — `role="dialog"` + `aria-modal`,
+  the rest of the page `inert` (`hooks/useInertOutside`, which counts its
+  holders, so a story over an overlay never un-inerts the page early), focus
+  moved in (a button that `autoFocus`es, else the layer itself, so a stray
+  Enter never buys or answers) and back out to where it was. Nothing else
+  sets `inert`: the top bar is live exactly when no layer is up, as on a
+  Spire floor. KaPlay's canvas is never focusable (`WorldCanvas` strips its
+  `tabindex`; keys are read from `window`). New overlays go in a
+  `ModalLayer` too.
   **Field spells** (#75 item 9, `content/fieldSpells.ts`): a shrine keeper
   (`NpcRole` `keeper` → service `trial`, `ShrineTrial`) teaches one by 3 right
   answers; the menu's ✨ Field spells (`FieldSpellsPanel`) casts them through
@@ -208,6 +229,18 @@ zod, react-query. Add the package in the same change that first uses it.
   Spire — goes through `wakeAfterDefeat` (`lib/save.ts`): that inn's
   `innWakeCell` (the floor just inside its door), or home (`HUB_ZONE`, saved
   start) when `lastRest` is null. `wakeInnName` words it for the defeat screens.
+  **Reachability** (#75 item 14b, `lib/reach.ts`): one search answers every
+  "can the hero get there?" — `reach(z, opts)` walks 4-way over (cell, travel
+  mode) from the spawn (or `from`): on foot over walkable tiles, afloat over
+  open sea, climbing into the boat only at its mooring (`boat`) and going
+  ashore on a beach or dock; fog and pitch dark block unless lifted / lit
+  (`flags`, default `{}`; `null` ignores both); gates closed / open / by
+  `gate:` flag / per gate; `exits: 'stop'` makes exits and linked sea edges
+  end points; `passable` / `blocked` override tiles and cells. `reachPath`
+  gives the shortest steps (with modes), `touches` asks "is a cell beside it
+  reached?" (bump targets). `behindFog` and `safeSpawn` live there too —
+  `safeSpawn` now also steps a save off an exit cell onto open floor beside
+  it. Don't write another BFS over a zone's tiles: use these.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -370,6 +403,8 @@ npm test         # Vitest suite (test:watch / test:ui also available)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps [cols rows]   # frame times on a big test map
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -395,7 +430,9 @@ python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#7
 
 ## Conventions
 
-- TypeScript strict mode; `noUnusedLocals`/`noUnusedParameters` are on.
+- TypeScript: `noUnusedLocals`/`noUnusedParameters` are on, but **`strict` is
+  not** (so no `strictNullChecks`) — ISSUES #111. Handle `null`/`undefined`
+  as if it were.
 - Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
   for conditional class merging.
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
@@ -456,6 +493,223 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14b second review: keyboard reaches every overlay, Sign out never moves the map (#75 item 14b)
+A second fresh-context `/saas-code-review` (3 low) + `/saas-ux-review` (1
+critical, 1 high, 4 medium, 1 low; played in headless Chromium at five sizes,
+by touch, keyboard and reduced motion). Fixed, as chosen:
+- **Keyboard players couldn't use overlays (UX, critical, pre-existing):**
+  KaPlay's canvas took focus and swallowed Tab, and no overlay took focus —
+  📜 Menu opened by Enter left focus behind it, and the next Tab got stuck on
+  the covered canvas. `WorldCanvas` strips the canvas's `tabindex`; new
+  `components/ModalLayer` wraps every overlay (Dialogue, Service, Path, KeyGate,
+  Menu, the Spire's panels, LevelUpModal): `aria-modal`, the page behind
+  inert, focus in (the dialogue's ▼ Next and the Spire's "▼ tap to continue"
+  take it, so Enter reads on) and back out to where it was.
+- **Sign out mid-climb, unseen (UX high / code low, new in 14b):** the top
+  bar's `inert` exempted every Spire panel, so in the Spire's opening lines
+  Tab, Enter, Enter signed a child out — and the same effect stripped the
+  `inert` StoryPanels set when both changed in one commit. The effect is
+  gone (the layers set it); `useInertOutside` counts holders. The Leave
+  confirm closes on Escape, and Keep climbing / Escape put focus back on
+  🚪 Leave the Spire.
+- **Asking "Sign out?" moved the map (UX, medium):** the armed label doubled
+  the button's width, wrapping the bar (44 → 80 px) and dropping the map and
+  d-pad 36 px for 3 s. Now the same-size button says "Sign out?" and "Tap
+  again to sign out" floats under it (read out by a status line); any other
+  tap or key, or leaving the button, takes it back; a second tap within 400 ms
+  (`SIGN_OUT_CONFIRM_GAP_MS`) is a double-tap, not a yes; taps while signing
+  out do nothing (the floating one too). No longer bright red.
+- **44 px HUD targets (UX, medium):** 📜 Menu, 🔆 Glow and 🚪 Leave the Spire
+  were 28 px tall; an invisible `::after` makes the tap target 44 px without a
+  taller HUD row (`HUD_TAP`).
+- **Fixtures (code, low):** every save fixture used a sprite name as its
+  `avatarId`, so in the real app each opened "Pick an avatar first" — they
+  use `a1` / `a3` now and save.test checks the hero comes back; that screen
+  (no top bar) shows Sign out.
+- **Reduced motion (UX, low):** `MotionConfig reducedMotion="user"` in
+  `main.tsx` — panels stop scaling in, Umbra stops bobbing; fades stay.
+- The Spire panel's header wraps whole at 320 px (the candles on their own line).
+- Logged: #110 (m)–(q) and **#111** (TypeScript `strict` is off — CLAUDE.md
+  had said it was on; corrected in Conventions).
+- Tests: +11 (useInertOutside.test, WorldScreen.focus.test — 5 of them fail
+  on the old code — SignOutButton.test, save.test); `bench … hud` gains
+  keyboard, tap-target, Sign-out and reduced-motion checks. 769 green, lint +
+  build clean.
+
+### 2026-10-10 — 14b closed out: the final commit walked and diffed (#75 item 14b, docs only)
+On the final 14b commit, in a clean worktree: `bench … journey` 13/13 for the
+third time (all 8 Act I legs and the 5 Spire floors, no page errors), and
+`shots` before (main) and after + `diff`: 66 of 72 screens identical. The other
+six differ only by effects the diff doesn't mask: a dark place's light
+flicker (the Depths' B2, the Echo Mine), the lighthouse's lamp and beams (the
+Shallows), and a Dawnreach critter idling off its mask box. Each was checked
+by eye. Logged as ISSUES #110l (freeze those on the bench before the next
+clean diff is needed); TC-696.
+
+### 2026-10-10 — 14b review fixes: Leave the Spire asks first, Sign out takes two taps (#75 item 14b)
+Fresh-context `/saas-code-review` (no high or medium findings; 7 low) and
+`/saas-ux-review` (1 high, 3 medium, 3 low) of 14b. Fixed:
+- **Leaving the Spire asks first (UX, high):** "🚪 Leave the Spire" now sits
+  where 📜 Menu always is, and one tap ended the climb — and every climb
+  starts again from Floor 1. Leave opens "Leave the Spire? Next time, the
+  climb starts again from the first floor." with 🗼 Keep climbing (focused)
+  and 🚪 Leave; the button is quieter than Menu's; the way-out line no
+  longer says "the climb will wait".
+- **Sign out takes two taps in the world (UX, medium):** the first turns it
+  into "Tap again to sign out" for 3 s (`SIGN_OUT_ARM_MS`), and it's 44 px
+  tall — a slip (or Tab + Enter) never lands a child on the sign-in page.
+- **"🔥 12 days" on a phone (UX, medium):** the bare "🔥 12" (🔥 also means
+  answers in a row in battle) says "days" from 360 px up.
+- **Numbers for touch players (UX, low):** the Menu's hero card shows
+  "⭐ Level 13 · 50/100 XP"; the medallion's number is hidden from screen
+  readers (it read "13 Level 13"); the candles read "3 of 4 candle-lights
+  left".
+- **Under an overlay the top bar is inert** (UX, low): Tab and screen readers
+  no longer reach a hidden Sign out (the Spire's explore HUD stays live).
+- **`reach` (code, low):** a start off the map is dropped (it wrapped onto
+  another cell); `gates: 'flags'` with `flags: null` shuts every gate
+  (documented). **`safeSpawn`'s step off an exit is walked** (`reachPath`,
+  ≤ `EXIT_STEP_OFF` = 3 steps, never across a wall or through another exit;
+  else the spawn) — it took the nearest cell in a 5×5 box, walls or not.
+- **Tests that couldn't fail (code, low):** "no save loads onto an exit" now
+  checks the walk off it (≤ 3 steps, or the spawn when fog shuts it in); a
+  wall case; the vault fixture now holds its gate's flag (no player could
+  stand there without it); saveStore checks the row written back (v2, once);
+  a new `SpireOverlay.test` drives the real climb to the HUD slot and the
+  Leave question; `SignOutButton.test` (+3).
+- **Bench (code, low):** page errors are caught from the first script (they
+  were only listened for after boot); `hud` also fails when the map runs
+  off the bottom of the screen. Re-measured: 5/5 sizes.
+- Logged (#110): the topics screen's floating badges still cover "Training
+  Grounds" on a phone; no d-pad at 640 px and up (TouchPad is `sm:hidden`
+  — iPads and sideways phones can't walk by touch); the Spire's HUD row
+  wraps on phones.
+- 758 green, lint + build clean.
+
+### 2026-10-10 — Nothing covers the place name: the world's top bar (#75 item 14b, #102i)
+Fifth slice of 14b. On a phone the floating LEVEL / STREAK badges covered
+the place name ("B2 —") and the top of every overlay (a shrine trial's
+title) — logged since item 9's review.
+- **A top bar in the page:** on the world screen the level, the streak and
+  Sign out sit in a full-width row above the HUD (`data-testid="world-
+  topbar"`), at most 44 px tall, so the HUD and the map stay exactly where
+  they were (pt-3 + 44 + mb-2 = the old pt-16). Overlays (z-40) now draw
+  over it. `LevelBadge placement="inline"` (a 32 px medallion; the XP numbers
+  read aloud and on hover), `StreakBadge inline` ("🔥 12" on a phone, the
+  words read aloud, shown from `sm` up), `SignOutButton inline`; `App` skips
+  its floating ones on the world screen. Battle, quiz, topics and avatar
+  screens are unchanged.
+- **The Spire's status moves into the HUD:** exploring a floor, the seals,
+  candles and 🚪 Leave the Spire sit in the HUD row in 📜 Menu's place
+  (`SpireOverlay hudSlot`, a portal into a `contents` slot) instead of a
+  500 px pill floating over the top of a 375 px phone; the floor's name is
+  the HUD's title already.
+- **Measured on the real app** (`bench/run-world-bench.cjs hud`: Vite with
+  a stub Supabase host, a signed-in stub session, profile, save and canned
+  questions answered by Playwright): at 320×568, 360×640, 375×667, 740×360
+  and 1024×768 — no two HUD pieces overlap, no sideways scroll, the top bar
+  44 px, the 📜 Menu covers every top-bar item, and walking into the Spire
+  icon puts its status in the HUD row. 5/5. (On a sideways phone the bar
+  first wrapped inside the 216 px stage column — it now spans the page.)
+- Tests: LevelBadge / StreakBadge inline (+2), `WorldScreen.hud.test` (+2:
+  the bar holds the badges and Sign out in the page, before the title; in
+  the Spire, Leave takes Menu's place in the HUD row). 751 green, lint +
+  build clean.
+
+### 2026-10-10 — Every save shape since v1 still loads (#75 item 14b)
+Fourth slice of 14b: "old saves load" as fixtures and tests.
+- **`src/test/saveFixtures.ts`:** one save per shape the game has written,
+  rebuilt from that build's `defaultSave` / `SaveData` (commit named on
+  each) and standing where a player of the time could stand — v1 on the
+  retired Lumina Field (moved from save.test); v2 from its first build (no
+  `save:v2` marker, on Dawnreach's road); v2 after the field spells in the
+  Depths' vault on the cell item 10 later made stairs; v2 with an inn
+  (`lastRest`) before the boat; today's shape afloat on the Shallows; and a
+  save that saw the finale but not Act II.
+- **save.test** (table-driven, +23): each loads as v2 with the marker,
+  where it stood (or safe beside it), keeping coins, flags and kills;
+  loading twice changes nothing more; from where it loads there's a way out
+  (an exit or a sea edge, by foot or boat — `reach`); and the story's next
+  step still walks from there (`walkLeg`). The vault save loads beside the
+  stairs, not on them (the `safeSpawn` fix).
+- **saveStore.test** (+7): each fixture served by the server loads `ready`,
+  equals `normalizeSave`, is written back once as v2; a v2 save kept only on
+  the device loads the same.
+- 747 green.
+
+### 2026-10-10 — The real hero walks Act I in headless Chromium (#75 item 14b)
+Third slice of 14b: the journey's paths walked by the real `WorldCanvas` —
+real hitboxes, gates, exits, slides and fades — on the bench.
+- **`bench/walker.ts`** steers the hero through the bench's touch-pad ref (no
+  game hooks): it holds a direction for as long as the distance takes at
+  walking speed, pauses the world to read where the hero really is (the
+  canvas reports its position on a pause), and corrects with short taps to
+  within 4 px of each corner — enough to turn into a one-tile corridor. It
+  waits out the canvas's post-pause trigger cooldown before bumping a gate or
+  a boss, holds into an exit until the zone changes, then lets the slide /
+  fade finish.
+- **`bench/world.tsx`:** `leg=<n>` loads Act I's leg n (zone, start cell, story
+  flags, every lifted fog already watched); `floor=…&walk=1` a Spire floor;
+  `__bench.walkLeg()` / `walkFloor()` walk them; bumping a gatekeeper's gate
+  opens it (as an answered question would), a warden's key gate only with its
+  key flag; battles, the Spire icon, seals, stairs and Umbra are recorded;
+  walks run under Calm from the first frame (a critter wandering into the
+  hero while the page loads would start a battle and stop the world).
+- **`run-world-bench.cjs journey [outDir]`:** each leg and each Spire floor on
+  a fresh page; one line per walk; a screenshot, the stuck cell and the last
+  probes on a failure; turns that took more than three tries; exit code 1.
+- **Result:** 13/13 — all 8 Act I legs from a new save to the Spire (lumina-
+  village → … → crystal-spire, ~710 cells, ~3 min of walking) and every seal,
+  stairs and Umbra on all five Spire floors. No snag in the maps: the two
+  failures on the way were the walker's (it pushed into a target from a
+  stale position, and at a different stairs tile than the one it stood by).
+
+### 2026-10-10 — Act I as a journey: every leg walks on the maps (#75 item 14b)
+Second slice of 14b — the Phase 2 exit check as a test (`lib/journey.ts`).
+- **`actOneJourney()`** plays the 🚩 from a brand-new save: each leg
+  (`walkLeg`) crosses the zones `routeTo` names and, in each, walks
+  (`reachPath`) from where you arrive to the exit onward, then to the boss or
+  the Spire — by a player's rules (`playerRules`): gatekeepers answered, a
+  warden's key gate only with its key, fog and dark as the story leaves them,
+  no secret passages, never through another place's icon or stairs, around
+  people who stand still and bosses not yet beaten. Each leg starts beside
+  the boss the last one beat.
+- **`journey.test.ts`:** the 8 legs in order (Numbria, the Verdant Key,
+  Verdara, the Gearwright Key three floors down, Gearfall, the Prism Key,
+  Chromaria, the Spire) and then Act II's 🚩; every hop has a path; no step
+  crosses fog, dark, `H` or another exit; each key gate really guards its
+  Fiend (no path without the key); and every leg still walks from every
+  town visited so far — its Return landing and its inn's wake cell — so a
+  Return or a defeat never strands the hero mid-act.
+- `advanceGoal` (what a player does to meet a goal) moved here from
+  `wayfinding.test`, which now shares it.
+- All 8 legs walk today: Phase 2's exit check passes on the maps (the real
+  hero walks them next, on the bench). Tests +5; 717 green.
+
+### 2026-10-10 — One reachability search for every map question (#75 item 14b)
+First slice of sub-item 14b (groundwork for Acts II–IV): `lib/reach.ts`.
+- **`reach` / `reachPath` / `touches`** replace eight hand-written searches:
+  `reachableOnFoot` (zones.ts), `reachableBySea` (travel.ts) and the copies in
+  zones / secrets / dungeons / fieldSpells / spire / boat tests (each now a
+  `reach` call with its own options — gates open in dungeons.test, a narrower
+  tile rule for the lighthouse test, a Spire floor through `floorZone`). The
+  old functions are gone; the app's callers (`safeSpawn` / `behindFog`, the
+  guides' `shrineToVisit`) use it too. A temporary test checked the new search
+  gave exactly the old answers on every zone, flag set and cell before the old
+  code was deleted.
+- **Travel modes built in:** a search can start afloat, climb into the boat
+  only at its mooring and go ashore on a beach or dock — the canvas's rules,
+  minus corner boardings — ready for 14i's per-act "no softlock" test.
+- **`exits: 'stop'`:** exits and linked sea edges are end points; a new test
+  checks no road on Dawnreach runs through a place icon (stopping at exits
+  reaches the same open ground).
+- **`behindFog` / `safeSpawn` moved** to `lib/reach.ts` (zones.ts can't import
+  the search without a cycle). **Fix:** a save standing on an exit — the
+  Clockwork Depths' B1 stairs were drawn in item 10 where a vault save could
+  stand — now steps onto the nearest open floor instead of being whisked
+  down to B2 on load (and no save on any exit of any map loads onto it).
+- Tests: `reach.test.ts` (+13); 712 green, lint + tsc clean.
 
 ### 2026-10-10 — Draft PRs skip CI and Vercel previews
 

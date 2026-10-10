@@ -1,4 +1,5 @@
-import { HUB_ZONE, MET_ELDER, ZONES, reachableOnFoot, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { HUB_ZONE, MET_ELDER, ZONES, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { reach } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
@@ -390,7 +391,7 @@ function bearingFromHome(zones: Record<ZoneId, ZoneDef>, to: ZoneId): string | n
 export function shrineToVisit(zones: Record<ZoneId, ZoneDef>, flags: Record<string, boolean>): FieldSpell | null {
   const world = zones.dawnreach;
   if (!world) return null;
-  const open = reachableOnFoot(world, flags);
+  const open = reach(world, { flags });
   for (const id of FIELD_SPELL_IDS) {
     const spell = FIELD_SPELLS[id];
     const door = world.exits.find((e) => e.to === spell.shrine);

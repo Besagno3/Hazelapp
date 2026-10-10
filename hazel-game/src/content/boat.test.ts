@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { LANDING_CHARS, SEA_CHARS, TILE, ZONES, GREAT_FOGBANK, fogAt, safeSpawn, tileAt } from './zones';
+import { LANDING_CHARS, SEA_CHARS, TILE, ZONES, GREAT_FOGBANK, fogAt, tileAt } from './zones';
+import { reach, safeSpawn } from '../lib/reach';
 import {
   BOAT_HOME,
   BOAT_MENDED,
@@ -31,7 +32,6 @@ import {
   nearestSea,
   oppositeSide,
   passable,
-  reachableBySea,
   seaCrossing,
   seaEntryCell,
 } from '../lib/travel';
@@ -111,7 +111,7 @@ describe('travel by sea (#75 item 14)', () => {
     expect(nearestSea(dawn, 70, 30)).not.toEqual({ x: 70, y: 30 }); // the dock itself isn't sea
     expect(nearestSea(dawn, 40, 30)).toBeNull(); // the Village, far inland
     expect(seaEntryCell(sea, 'west')).toEqual({ x: 1, y: 22 });
-    const fromDock = reachableBySea(dawn, BOAT_HOME);
+    const fromDock = reach(dawn, { from: BOAT_HOME, aboard: true, flags: null });
     expect(fromDock.has('79,30')).toBe(true); // out to the Shallows' edge
     expect(fromDock.has('13,8')).toBe(false); // Numbria's lake is land-locked
   });
@@ -146,7 +146,7 @@ describe("Marlow's dock, the Silver Shallows and its islands (#75 item 14)", () 
 
   it('every island beach can be reached by boat from where it sails in; the Great Fogbank holds the far side', () => {
     const entry = seaEntryCell(sea, 'west')!;
-    const open = reachableBySea(sea, entry, (x, y) => !!fogAt(sea, x, y, {}));
+    const open = reach(sea, { from: entry, aboard: true, flags: {} });
     const landings: string[] = [];
     sea.map.forEach((row, y) =>
       [...row].forEach((ch, x) => {
@@ -258,16 +258,8 @@ describe("Gull Rock's lighthouse (#75 item 14 review)", () => {
       for (const x of [lh.x, lh.x + 1]) expect([':', '~', '.']).toContain(tileAt(sea, x, y));
     }
     // The rock doesn't cut Gull Rock in two: west of it to east of it on foot.
-    const seen = new Set<string>([`${lh.x - 1},${lh.y + 1}`]);
-    const queue: [number, number][] = [[lh.x - 1, lh.y + 1]];
-    while (queue.length) {
-      const [x, y] = queue.shift()!;
-      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-        if (seen.has(`${nx},${ny}`) || !['.', ',', '=', ':'].includes(tileAt(sea, nx, ny))) continue;
-        seen.add(`${nx},${ny}`);
-        queue.push([nx, ny]);
-      }
-    }
+    // (Over open ground and beach only — not through the cottage or a dock.)
+    const seen = reach(sea, { from: { x: lh.x - 1, y: lh.y + 1 }, flags: null, passable: (ch) => '.,=:'.includes(ch) });
     expect(seen.has(`${lh.x + 2},${lh.y + 1}`)).toBe(true);
   });
 });

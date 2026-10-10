@@ -12,6 +12,7 @@ import { ALL_SECRETS, secretFlag, secretProgress } from '../../content/secrets';
 import { zone } from '../../content/zones';
 import { NPC_DEFS } from '../../content/npcs';
 import { heroMaxHp } from '../../lib/powerups';
+import { playerLevel, xpProgress } from '../../lib/level';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -20,6 +21,7 @@ import { boatSpot } from '../../content/boat';
 import WorldMapPanel from './WorldMapPanel';
 import FieldSpellsPanel from './FieldSpellsPanel';
 import type { FieldCast } from '../../content/fieldSpells';
+import ModalLayer from '../../components/ModalLayer';
 
 /**
  * The pause/party menu (#37): hero status, inventory, Sage equipping,
@@ -50,6 +52,7 @@ export default function MenuOverlay({
 
   const avatar = avatarById(save.avatarId);
   const maxHp = heroMaxHp(avatar, profile?.powerUps ?? {});
+  const xp = profile?.xp ?? 0;
   const hp = save.hp ?? maxHp;
   const { stage: ember } = emberStatus(save.flags);
   const quests = activeQuests(save);
@@ -66,7 +69,7 @@ export default function MenuOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+    <ModalLayer label="Menu" className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -94,6 +97,10 @@ export default function MenuOverlay({
           />
           <div className="flex-1">
             <div className="font-bold text-sm">{avatar?.name ?? 'Hero'}</div>
+            {/* The top bar's medallion shows only a bar; here are its numbers (#75 item 14b review). */}
+            <div className="text-xs text-yellow-200">
+              ⭐ Level {playerLevel(xp)} · {xpProgress(xp).into}/{xpProgress(xp).needed} XP
+            </div>
             <div className="text-xs text-white/70">
               ❤️ {hp}/{maxHp} · 🪙 {save.coins}
               {CONSUMABLE_IDS.filter((id) => id === 'potion' || id === 'hint' || save.items[id] > 0).map((id) => (
@@ -297,6 +304,6 @@ export default function MenuOverlay({
           </button>
         </div>
       </motion.div>
-    </div>
+    </ModalLayer>
   );
 }

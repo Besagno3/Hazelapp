@@ -64,6 +64,9 @@ import {
 } from '../../content/story';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
+import LevelBadge from '../../components/LevelBadge';
+import StreakBadge from '../../components/StreakBadge';
+import SignOutButton from '../auth/SignOutButton';
 import { claimSecret, rewardSummary, secretById, secretFlag } from '../../content/secrets';
 import type { SecretDef } from '../../content/zones';
 import { sfx } from '../../lib/audio';
@@ -75,6 +78,13 @@ import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useBattleStore } from '../../store/battleStore';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
+
+/**
+ * A HUD button's tap target reaches 44 px tall (an invisible ::after 8 px
+ * above and below it) without making the HUD row taller — the map keeps its
+ * room on a sideways phone (#75 item 14b review).
+ */
+const HUD_TAP = "relative after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']";
 
 /**
  * The world of Lumina (#37): KaPlay canvas + JRPG HUD + DOM overlays
@@ -137,6 +147,8 @@ export default function WorldScreen() {
   const travelRef = useRef<Travel | null>(null);
   const calmRef = useRef(0);
   const [calmLeft, setCalmLeft] = useState(0);
+  /** Where the Spire climb shows its seals, candles and Leave button: the HUD, in Menu's place (#75 item 14b). */
+  const [hudSlot, setHudSlot] = useState<HTMLElement | null>(null);
   // After the Spire's finale the hero is carried home to bed; this is the
   // morning fading in at the inn, before Act II begins (#75 item 14).
   const [waking, setWaking] = useState(false);
@@ -263,6 +275,8 @@ export default function WorldScreen() {
   if (!save || !avatar) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-emerald-700 to-teal-900 p-6">
+        {/* App draws no floating Sign out on the world screen; this screen has no top bar. */}
+        <SignOutButton />
         <p className="text-white mb-4">Pick an avatar first to enter the world.</p>
         <button
           onClick={() => sendFlow({ type: 'EXIT_TO_TOPICS' })}
@@ -315,7 +329,19 @@ export default function WorldScreen() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-16">
+    <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-3">
+      {/* Top bar (#75 item 14b, #102i): the level, the streak and Sign out sit
+          here, in the page — not floating over the place name, and under every
+          overlay. The page's full width (not the stage's, which is narrow on a
+          sideways phone), at most 44 px tall: with pt-3 + mb-2 it takes the
+          room the old pt-16 left for the floating badges. */}
+      <div data-testid="world-topbar" className="w-full flex items-start justify-between gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+          <LevelBadge placement="inline" />
+          <StreakBadge inline />
+        </div>
+        <SignOutButton inline />
+      </div>
       {/* Responsive stage: as wide as the viewport allows while keeping the
           11:7 zone fully on screen (cap leaves room for top bar + footer). */}
       <div
@@ -363,18 +389,20 @@ export default function WorldScreen() {
               onClick={() => castFieldSpell({ spell: 'glow' })}
               aria-label="Cast Glow"
               title="Cast Glow"
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 rounded-lg px-3 py-1.5 text-xs font-bold"
+              className={`min-w-11 bg-amber-400 hover:bg-amber-300 text-amber-950 rounded-lg px-3 py-1.5 text-xs font-bold ${HUD_TAP}`}
             >
               {/* Just the lamp on a phone, so the place name keeps its room. */}
               🔆<span className="hidden sm:inline"> Glow</span>
             </button>
           )}
           {/* The machine's Spire state ignores OPEN_MENU, so don't offer it
-              mid-climb — the Spire HUD has its own "Leave the Spire". */}
+              mid-climb — in its place the climb shows its seals, candles and
+              "Leave the Spire" (SpireOverlay portals them into this slot). */}
+          {overlay === 'spire' && <span ref={setHudSlot} className="contents" data-testid="spire-hud-slot" />}
           {overlay !== 'spire' && (
             <button
               onClick={() => sendFlow({ type: 'OPEN_MENU' })}
-              className="shrink-0 bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold"
+              className={`shrink-0 bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold ${HUD_TAP}`}
             >
               📜 Menu
             </button>
@@ -520,7 +548,7 @@ export default function WorldScreen() {
           <PathQuestionOverlay target={pathTarget} />
         ))}
       {overlay === 'menu' && <MenuOverlay calmLeft={calmLeft} onCast={castFieldSpell} />}
-      {overlay === 'spire' && <SpireOverlay />}
+      {overlay === 'spire' && <SpireOverlay hudSlot={hudSlot} />}
 
       {/* Story cutscenes (#37 story pass + expansion) — one at a time. */}
       {activeScene === 'intro' && (

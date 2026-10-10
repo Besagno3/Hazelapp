@@ -8,37 +8,13 @@ import {
   floorTitle,
   stairsChars,
 } from './dungeons';
-import { STAIRS_CHARS, WALKABLE_CHARS, ZONES, darkAt, tileAt, type ZoneDef } from './zones';
+import { STAIRS_CHARS, ZONES, tileAt, type ZoneDef } from './zones';
+import { reach } from '../lib/reach';
 import { GATE_KEYS } from './keys';
 import { SPIRE_FLOORS, spireFloorTitle } from './spire';
 import type { ZoneId } from '../types';
 
 const allZones = Object.values(ZONES);
-
-/**
- * Cells you can walk to from (x, y) on a floor — through gates (you answer
- * them), never through pitch dark (no Glow yet).
- */
-function walk(z: ZoneDef, x: number, y: number): Set<string> {
-  const seen = new Set([`${x},${y}`]);
-  const queue: [number, number][] = [[x, y]];
-  while (queue.length) {
-    const [cx, cy] = queue.shift()!;
-    for (const [nx, ny] of [
-      [cx + 1, cy],
-      [cx - 1, cy],
-      [cx, cy + 1],
-      [cx, cy - 1],
-    ]) {
-      const key = `${nx},${ny}`;
-      const ch = tileAt(z, nx, ny);
-      if (seen.has(key) || !(WALKABLE_CHARS.has(ch) || ch === 'G') || darkAt(z, nx, ny, {})) continue;
-      seen.add(key);
-      queue.push([nx, ny]);
-    }
-  }
-  return seen;
-}
 
 function stairsOf(z: ZoneDef, ch: string) {
   return z.exits.filter((e) => tileAt(z, e.x, e.y) === ch);
@@ -99,7 +75,8 @@ describe('dungeons (#75 item 10)', () => {
         const z = ZONES[d.floors[i]];
         const from = ZONES[i === 0 ? 'dawnreach' : d.floors[i - 1]];
         const arrive = from.exits.find((e) => e.to === z.id)!;
-        const open = walk(z, arrive.spawnX, arrive.spawnY);
+        // Through gates (you answer them), never through pitch dark (no Glow yet).
+        const open = reach(z, { from: { x: arrive.spawnX, y: arrive.spawnY }, flags: {}, gates: 'open' });
         const next = stairsOf(z, onward)[0];
         if (i + 1 < d.floors.length) expect(open.has(`${next.x},${next.y}`), `${z.id}: the stairs on`).toBe(true);
         // Nothing on the floor is walled off for good — the deepest floor too

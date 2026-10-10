@@ -18,7 +18,7 @@ the *delivery plan*; STORY-4X.md is *what gets built*.
 >
 > **Delivered as overworld items 14–16 (planned 2026-10-09):** Wave 1 (Act II)
 > is `ROADMAP-OVERWORLD.md` item 14 (14a — the boat and the Silver Shallows —
-> merged; 14b–14i to come), Wave 3 (Act III) is item 15 and Wave 5 (Act IV)
+> and 14b — the groundwork — done; 14c–14i to come), Wave 3 (Act III) is item 15 and Wave 5 (Act IV)
 > is item 16, each split into one-PR sub-items there (§5.1). Wave 0.1 (open
 > the crystal system) finishes inside them (14c, 14h); Wave 0.4 (topics out
 > of the edge function) is covered for now by item 15a's redeploy. **Not**

@@ -6,6 +6,7 @@ import { playerLevel } from '../lib/level';
 import { choicesForLevel, totalPowerUps } from '../lib/powerups';
 import { sfx } from '../lib/audio';
 import type { PowerUpId } from '../types';
+import ModalLayer from './ModalLayer';
 
 /**
  * Level-up celebration. Shows whenever the player owes a power-up choice —
@@ -36,7 +37,7 @@ export default function LevelUpModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-6">
+    <ModalLayer label="Level up!" className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-6">
       <motion.div
         key={celebrating}
         initial={{ scale: 0.7, opacity: 0, y: 20 }}
@@ -71,6 +72,6 @@ export default function LevelUpModal() {
           })}
         </div>
       </motion.div>
-    </div>
+    </ModalLayer>
   );
 }

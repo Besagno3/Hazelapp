@@ -1728,15 +1728,6 @@ export function buildingInside(z: ZoneDef, x: number, y: number): BuildingDef | 
   );
 }
 
-/**
- * A position (pixels) the hero can safely stand on, else the zone spawn. With
- * `flags`, a spot shut in behind fog that hasn't lifted counts as unsafe too:
- * a save from before the fog (or an exit that lands inside it) must never
- * leave the hero sealed in (#75 item 7).
- */
-/** How far (cells) a hero saved afloat may be moved to stay afloat (`safeSpawn`). */
-export const BOAT_SPAWN_REACH = 6;
-
 /** The cell nearest (x, y), within `reach` cells, that `ok` accepts (the cell itself first). */
 export function nearestCell(
   x: number,
@@ -1753,61 +1744,6 @@ export function nearestCell(
     }
   }
   return best ? { x: best.x, y: best.y } : null;
-}
-
-export function safeSpawn(
-  z: ZoneDef,
-  pos: { x: number; y: number } | null,
-  flags?: Record<string, boolean>,
-  mode: TravelMode = 'foot',
-): { x: number; y: number } {
-  const fallback = { x: z.spawn.x * TILE + TILE / 2, y: z.spawn.y * TILE + TILE / 2 };
-  if (!pos) return fallback;
-  const cx = Math.floor(pos.x / TILE);
-  const cy = Math.floor(pos.y / TILE);
-  // Afloat (#75 item 14): any open sea will do — fog still counts as solid. A
-  // map repainted (or fogged) under the boat puts it on the nearest open sea,
-  // so the hero stays afloat rather than landing wherever the spawn is.
-  if (mode === 'boat') {
-    const afloat = (x: number, y: number) => SEA_CHARS.has(tileAt(z, x, y)) && !(flags && fogAt(z, x, y, flags));
-    if (afloat(cx, cy)) return pos;
-    const near = nearestCell(cx, cy, BOAT_SPAWN_REACH, afloat);
-    return near ? { x: near.x * TILE + TILE / 2, y: near.y * TILE + TILE / 2 } : fallback;
-  }
-  if (!WALKABLE_CHARS.has(tileAt(z, cx, cy))) return fallback;
-  if (flags && z.fogs?.length && behindFog(z, flags).has(`${cx},${cy}`)) return fallback;
-  return pos;
-}
-
-/**
- * Cells you can walk to from the zone's spawn (4-way), with fog (and pitch
- * dark) in the way unless `flags` lift it; `flags` null ignores both.
- */
-export function reachableOnFoot(z: ZoneDef, flags: Record<string, boolean> | null): Set<string> {
-  const seen = new Set<string>([`${z.spawn.x},${z.spawn.y}`]);
-  const queue: [number, number][] = [[z.spawn.x, z.spawn.y]];
-  while (queue.length) {
-    const [x, y] = queue.shift()!;
-    for (const [nx, ny] of [
-      [x + 1, y],
-      [x - 1, y],
-      [x, y + 1],
-      [x, y - 1],
-    ]) {
-      const key = `${nx},${ny}`;
-      if (seen.has(key) || !WALKABLE_CHARS.has(tileAt(z, nx, ny))) continue;
-      if (flags && (fogAt(z, nx, ny, flags) || darkAt(z, nx, ny, flags))) continue;
-      seen.add(key);
-      queue.push([nx, ny]);
-    }
-  }
-  return seen;
-}
-
-/** Cells only reachable through fog that hasn't lifted (the fog itself included). */
-export function behindFog(z: ZoneDef, flags: Record<string, boolean>): Set<string> {
-  const open = reachableOnFoot(z, flags);
-  return new Set([...reachableOnFoot(z, null)].filter((c) => !open.has(c)));
 }
 
 /** Has any of this bank's flags been earned? */

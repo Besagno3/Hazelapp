@@ -12,6 +12,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
 import type { CrystalTopic, LibraryEntry, ServiceType } from '../../types';
+import ModalLayer from '../../components/ModalLayer';
 
 /**
  * Town services (#37): Shop (coins → potions/hints/badges), Inn (free full
@@ -20,6 +21,15 @@ import type { CrystalTopic, LibraryEntry, ServiceType } from '../../types';
  * Special Attack), and a shrine keeper's Trial (#75 item 9: a few questions
  * to learn a field spell, `ShrineTrial`).
  */
+/** What a screen reader calls each service's panel. */
+const SERVICE_LABEL: Record<ServiceType, string> = {
+  shop: 'Shop',
+  inn: 'Inn',
+  library: 'Library',
+  sage: 'Sage',
+  trial: 'Shrine trial',
+};
+
 export default function ServiceOverlay({
   service,
   npcId,
@@ -28,7 +38,7 @@ export default function ServiceOverlay({
   npcId: string | null;
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+    <ModalLayer label={SERVICE_LABEL[service]} className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -46,7 +56,7 @@ export default function ServiceOverlay({
           Leave
         </button>
       </motion.div>
-    </div>
+    </ModalLayer>
   );
 }
 

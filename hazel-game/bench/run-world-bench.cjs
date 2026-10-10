@@ -5,26 +5,33 @@
  *   node bench/run-world-bench.cjs fps [cols] [rows]   frame times on the stress map
  *   node bench/run-world-bench.cjs shots <outDir>      screenshot every zone screen + Spire floor
  *   node bench/run-world-bench.cjs diff <dirA> <dirB>  pixel-compare two shots dirs
+ *   node bench/run-world-bench.cjs journey [outDir]    walk Act I's legs and the Spire's floors
+ *                                                      with the real hero (#75 item 14b)
+ *   node bench/run-world-bench.cjs hud [outDir]        the real app (Supabase stubbed) at phone to
+ *                                                      desktop sizes: nothing in the world HUD
+ *                                                      overlaps, overlays cover the top bar (#102i)
  *
  * Playwright isn't a project dependency; a global install works:
  *   NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps
- * Starts its own Vite dev server on port 5199.
+ * Starts its own Vite dev server on port 5199 (or `BENCH_PORT`).
  */
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
 
-const PORT = 5199;
+/** Its own Vite dev server's port (`BENCH_PORT` to run two at once). */
+const PORT = Number(process.env.BENCH_PORT ?? 5199);
 const ROOT = path.resolve(__dirname, '..');
 const BASE = `http://localhost:${PORT}/bench/world.html`;
 
-function startVite() {
+function startVite(env = {}) {
   // stderr goes straight to the terminal: a piped-but-unread stream can fill
   // up and stall Vite on a long, noisy run (#77).
   const p = spawn(path.join(ROOT, 'node_modules/.bin/vite'), ['--port', String(PORT), '--strictPort'], {
     cwd: ROOT,
     stdio: ['ignore', 'pipe', 'inherit'],
+    env: { ...process.env, ...env },
   });
   return new Promise((resolve, reject) => {
     // If Vite never says it's ready, stop it — the caller never gets a handle to kill (#77).
@@ -48,6 +55,9 @@ async function openBench(browser, query, { rate = 1 } = {}) {
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate });
   }
+  // Every page error from the very first script on (a walk or a check reads `page.errors`).
+  page.errors = [];
+  page.on('pageerror', (e) => page.errors.push(String(e)));
   await page.goto(`${BASE}?${query}`);
   await page.waitForFunction(() => window.__bench && document.querySelector('canvas'), null, { timeout: 180000 });
   return page;
@@ -177,15 +187,307 @@ async function diff(browser, dirA, dirB) {
   if (worst !== 0) process.exitCode = 1;
 }
 
+/**
+ * Act I walked by the real hero (#75 item 14b): each leg of `lib/journey.ts` on
+ * a fresh page — zone by zone, through gates and exits, into its boss or the
+ * Spire — then every Spire floor's seals and stairs (or Umbra). One line per
+ * walk; a failure saves a screenshot to `outDir`. Exit code 1 on any failure.
+ */
+async function journey(browser, outDir) {
+  fs.mkdirSync(outDir, { recursive: true });
+  const first = await openBench(browser, 'leg=0');
+  const titles = await first.evaluate(() => window.__bench.legs());
+  const themes = await first.evaluate(() => window.__bench.info().spireThemes);
+  await first.close();
+  const walks = [
+    ...titles.map((title, i) => ({ name: `leg ${i + 1}: ${title}`, query: `leg=${i}`, fn: 'walkLeg' })),
+    ...themes.map((t) => ({ name: `Spire floor: ${t}`, query: `zone=crystal-spire&floor=${t}&walk=1`, fn: 'walkFloor' })),
+  ];
+  let failed = 0;
+  const tight = [];
+  for (const w of walks) {
+    const page = await openBench(browser, w.query);
+    const errors = page.errors;
+    const r = await page.evaluate((fn) => window.__bench[fn](), w.fn);
+    const ok = r.ok && errors.length === 0;
+    const hops = r.hops.map((h) => `${h.zoneId}${h.ok ? '' : ' ✗'}`).join(' → ');
+    const cells = r.hops.reduce((n, h) => n + h.cells, 0);
+    console.log(`${ok ? '✓' : '✗'} ${w.name}  (${r.hops.length} hops, ${cells} cells, ${r.seconds}s)  ${hops}`);
+    for (const h of r.hops) for (const c of h.tightTurns) tight.push(`${w.name}: ${h.zoneId} ${c.x},${c.y}`);
+    if (!ok) {
+      failed += 1;
+      const bad = r.hops.find((h) => !h.ok);
+      if (r.error) console.log(`    ${r.error}`);
+      if (bad) console.log(`    stuck in ${bad.zoneId} at ${bad.stuck?.at ? `${bad.stuck.at.x},${bad.stuck.at.y}` : '?'} (step ${bad.stuck?.step}): ${bad.stuck?.reason}`);
+      if (bad?.trace) console.log(`    trace: ${bad.trace.join(' | ')}`);
+      for (const e of errors) console.log(`    page error: ${e}`);
+      await page.screenshot({ path: path.join(outDir, `${w.query.replace(/[^a-z0-9]+/gi, '_')}.png`) });
+    }
+    await page.close();
+  }
+  console.log(`\n${walks.length - failed}/${walks.length} walks made it.`);
+  if (tight.length) console.log(`Turns that took more than three tries:\n  ${tight.join('\n  ')}`);
+  if (failed) process.exitCode = 1;
+}
+
+/** Where the `hud` mode points the app's Supabase client — every request is answered here. */
+const STUB = 'http://supabase.stub';
+const HUD_USER = 'u-hud';
+
+/**
+ * Signs in a stub player and answers Supabase for them: their profile, `save`
+ * as their saved game, canned questions; every write succeeds.
+ */
+async function stubbedApp(browser, viewport, save, profile, { reducedMotion } = {}) {
+  const page = await browser.newPage({ viewport, reducedMotion });
+  const session = {
+    access_token: 'stub',
+    refresh_token: 'stub',
+    token_type: 'bearer',
+    expires_in: 31536000,
+    expires_at: Math.floor(Date.now() / 1000) + 31536000,
+    user: { id: HUD_USER, aud: 'authenticated', role: 'authenticated', email: 'kid@example.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' },
+  };
+  await page.addInitScript((s) => localStorage.setItem('sb-supabase-auth-token', s), JSON.stringify(session));
+  page.errors = [];
+  page.on('pageerror', (e) => page.errors.push(String(e)));
+  await page.route(`${STUB}/**`, async (route) => {
+    const req = route.request();
+    const url = req.url();
+    const one = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
+    const json = (body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    if (req.method() !== 'GET' && url.includes('/rest/v1/')) return route.fulfill({ status: 201, body: '' });
+    if (url.includes('/rest/v1/profiles')) return json(one ? profile : [profile]);
+    if (url.includes('/rest/v1/saves')) return json(one ? { data: save } : [{ data: save }]);
+    if (url.includes('/functions/v1/generate-questions')) {
+      const questions = Array.from({ length: 6 }, (_, i) => ({
+        id: `q${i}`, level: 3, text: `What is ${i} + 2?`, options: [`${i + 2}`, `${i + 3}`, `${i + 4}`, `${i + 5}`],
+        correctIndex: 0, explanation: 'Count on two.', timesAsked: 0,
+      }));
+      return json({ questions });
+    }
+    return json({});
+  });
+  await page.goto(`http://localhost:${PORT}/`);
+  await page.waitForSelector('[data-testid=world-topbar]', { timeout: 120000 });
+  await page.waitForTimeout(1500);
+  return page;
+}
+
+/** In the page: the HUD's pieces, and every pair of them that overlaps. */
+function hudLayout() {
+  const named = [];
+  const bar = document.querySelector('[data-testid=world-topbar]');
+  for (const el of bar.querySelectorAll(':scope > div > *, :scope > button')) named.push([`top bar: ${el.textContent.trim().slice(0, 14)}`, el]);
+  const h1 = document.querySelector('h1');
+  named.push(['place name', h1], ['crystals line', h1.nextElementSibling]);
+  const stats = h1.parentElement.nextElementSibling;
+  for (const el of stats.children) {
+    // The Spire's seals, candles and Leave button sit in a `contents` slot (they lay out as the HUD's own).
+    if (el.classList.contains('contents')) for (const c of el.children ?? []) named.push([`Spire: ${c.textContent.trim().slice(0, 14)}`, c]);
+    else named.push([`HUD: ${el.textContent.trim().slice(0, 14) || el.title}`, el]);
+  }
+  const boxes = named.map(([name, el]) => ({ name, r: el.getBoundingClientRect() })).filter((b) => b.r.width > 0 && b.r.height > 0);
+  const overlaps = [];
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i].r;
+      const b = boxes[j].r;
+      const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      if (w > 1 && h > 1) overlaps.push(`${boxes[i].name} × ${boxes[j].name}`);
+    }
+  }
+  const canvas = document.querySelector('canvas')?.getBoundingClientRect();
+  return {
+    overlaps,
+    hscroll: document.documentElement.scrollWidth > window.innerWidth + 1,
+    // The whole map on screen without scrolling (the d-pad below it may need a scroll).
+    mapCut: canvas ? Math.max(0, Math.round(canvas.bottom - window.innerHeight)) : 0,
+    barHeight: Math.round(bar.getBoundingClientRect().height),
+    stage: canvas ? `${Math.round(canvas.width)}×${Math.round(canvas.height)} @ y ${Math.round(canvas.top)}` : 'no canvas',
+  };
+}
+
+/** In the page: is each top-bar item covered (by whatever is on top at its centre)? */
+function topBarCovered() {
+  const bar = document.querySelector('[data-testid=world-topbar]');
+  return [...bar.querySelectorAll(':scope > div > *, :scope > button')].map((el) => {
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !bar.contains(top);
+  });
+}
+
+/** In the page: what has focus, as a short label (the top bar's items say so). */
+function focusLabel() {
+  const el = document.activeElement;
+  if (!el || el === document.body) return 'body';
+  const where = el.closest('[data-testid=world-topbar]') ? 'top bar: ' : el.closest('[role=dialog]') ? 'dialog: ' : '';
+  return `${where}${el.tagName.toLowerCase()} ${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 18)}`;
+}
+
+/** In the page: does a tap 20 px above and below the button's centre still land on it (44 px targets)? */
+function tapsLand(name) {
+  const b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes(name));
+  if (!b) return `no "${name}"`;
+  const r = b.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+  const miss = [cy - 20, cy + 20].filter((y) => document.elementFromPoint(cx, y)?.closest('button') !== b);
+  return miss.length ? `"${name}" ${Math.round(r.height)}px tall: a tap at y ${miss.map(Math.round)} misses` : '';
+}
+
+/** Tab `n` times, noting where focus lands each time. */
+async function tabs(page, n) {
+  const seen = [];
+  for (let i = 0; i < n; i++) {
+    await page.keyboard.press('Tab');
+    seen.push(await page.evaluate(focusLabel));
+  }
+  return seen;
+}
+
+/**
+ * The world HUD on the real app at phone, sideways-phone and desktop sizes
+ * (#75 item 14b, #102i): no two of its pieces overlap, no sideways scroll,
+ * and with the menu open the overlay covers the whole top bar. Then the same
+ * in the Spire, its seals and Leave button in the HUD row.
+ */
+async function hud(browser, outDir) {
+  fs.mkdirSync(outDir, { recursive: true });
+  const crystals = ['math', 'science', 'engineering', 'creativity'];
+  const seen = { 'intro-seen': true, 'dawnreach-seen': true, 'ember-hatched': true, 'ember-hatch-seen': true, 'spire-awake-seen': true, 'save:v2': true };
+  const base = {
+    version: 2, avatarId: 'a1', hp: null, coins: 340, items: { potion: 2, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0 },
+    badges: [], sages: ['math', 'science'], openedChests: [], kills: {}, questItems: [], passedRounds: 6, worldUnlocked: true,
+    library: [], companionId: 'ember', defendTimer: true, lastRest: null, boat: null, aboard: false,
+  };
+  const depths = {
+    ...base, zoneId: 'clockwork-depths-b2', pos: null,
+    flags: { ...seen, 'crystal-math-restored': true, 'crystal-math-scene-seen': true, 'crystal-science-restored': true, 'crystal-science-scene-seen': true, 'key-verdara-key': true },
+  };
+  const spire = {
+    ...base, zoneId: 'crystal-spire', pos: { x: 10 * 32 + 16, y: 4 * 32 + 16 },
+    flags: { ...seen, 'ending-seen': true, 'key-verdara-key': true, 'key-gearfall-key': true, 'key-chromaria-key': true, ...Object.fromEntries(crystals.flatMap((t) => [[`crystal-${t}-restored`, true], [`crystal-${t}-scene-seen`, true]])) },
+  };
+  const profile = { id: HUD_USER, birth_year: 2016, birth_month: 3, skill_levels: {}, xp: 1250, power_ups: { attack: 4, defense: 4, vitality: 2, scholar: 2 }, current_streak: 12, longest_streak: 12, last_played_on: new Date().toISOString().slice(0, 10) };
+  const sizes = [[320, 568], [360, 640], [375, 667], [740, 360], [1024, 768]];
+  let bad = 0;
+  for (const [width, height] of sizes) {
+    const size = `${width}×${height}`;
+    const page = await stubbedApp(browser, { width, height }, depths, profile);
+    const errors = page.errors;
+    const problems = []; // keyboard, tap-target and Sign-out checks (#75 item 14b review)
+    const layout = await page.evaluate(hudLayout);
+    await page.screenshot({ path: path.join(outDir, `hud-${size}.png`) });
+    // Tab never sticks: the canvas isn't focusable, and a dozen Tabs move on.
+    if (await page.evaluate(() => document.querySelector('canvas')?.hasAttribute('tabindex'))) problems.push('the canvas can take focus');
+    await page.evaluate(() => document.activeElement?.blur());
+    const walk = await tabs(page, 12);
+    if (walk.some((f) => f.startsWith('canvas'))) problems.push(`Tab reached the canvas: ${walk.join(' → ')}`);
+    if (new Set(walk.slice(-4)).size === 1) problems.push(`Tab stuck on ${walk.at(-1)}`);
+    const tap = await page.evaluate(tapsLand, '📜 Menu');
+    if (tap) problems.push(tap);
+    // Asking "Sign out?" doesn't move anything on a phone.
+    if (width <= 375) {
+      const before = await page.evaluate(hudLayout);
+      await page.getByRole('button', { name: 'Sign out' }).click();
+      await page.waitForTimeout(150);
+      const armed = await page.evaluate(hudLayout);
+      await page.screenshot({ path: path.join(outDir, `hud-${size}-signout-armed.png`) });
+      if (armed.barHeight !== before.barHeight || armed.stage !== before.stage)
+        problems.push(`asking "Sign out?" moved the page: bar ${before.barHeight}→${armed.barHeight}px, stage ${before.stage} → ${armed.stage}`);
+    }
+    // 📜 Menu by keyboard: focus moves in and stays in; closing brings it back to 📜 Menu.
+    await page.getByRole('button', { name: '📜 Menu' }).focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(400);
+    const into = await page.evaluate(focusLabel);
+    if (!into.startsWith('dialog')) problems.push(`opening the Menu left focus on ${into}`);
+    const inMenu = await tabs(page, 6);
+    const strays = inMenu.filter((f) => !f.startsWith('dialog') && f !== 'body');
+    if (strays.length) problems.push(`Tab left the open Menu: ${strays.join(', ')}`);
+    const covered = await page.evaluate(topBarCovered);
+    await page.screenshot({ path: path.join(outDir, `hud-${size}-menu.png`) });
+    await page.getByRole('button', { name: 'Back to the world' }).first().click();
+    await page.waitForTimeout(300);
+    const back = await page.evaluate(focusLabel);
+    if (!back.includes('Menu')) problems.push(`closing the Menu left focus on ${back}`);
+    await page.close();
+    // The Spire: walk into its icon, read through the door's lines, and look at the HUD on floor 1.
+    const sp = await stubbedApp(browser, { width, height }, spire, profile);
+    await sp.keyboard.down('ArrowDown');
+    await sp.waitForTimeout(900);
+    await sp.keyboard.up('ArrowDown');
+    // The door's lines: Tab, Tab, Tab never reaches the top bar's Sign out under the panel.
+    await sp.waitForSelector('[role=dialog][aria-label="The Crystal Spire"]', { timeout: 5000 }).catch(() => {});
+    const underPanel = (await tabs(sp, 4)).filter((f) => f.startsWith('top bar'));
+    if (underPanel.length) problems.push(`Tab reached the top bar under a Spire panel: ${underPanel.join(', ')}`);
+    for (let i = 0; i < 8 && !(await sp.locator('[data-testid=spire-hud-slot] button').count()); i++) {
+      const next = sp.locator('.fixed.inset-0 button').last();
+      if (await next.count()) await next.click().catch(() => {});
+      await sp.waitForTimeout(500);
+    }
+    const inSpire = (await sp.locator('[data-testid=spire-hud-slot] button').count()) > 0;
+    const spireLayout = inSpire ? await sp.evaluate(hudLayout) : null;
+    await sp.screenshot({ path: path.join(outDir, `hud-${size}-spire.png`) });
+    if (inSpire) {
+      const leaveTap = await sp.evaluate(tapsLand, 'Leave the Spire');
+      if (leaveTap) problems.push(leaveTap);
+      // "Leave the Spire?": the top bar out of reach; Escape keeps climbing, focus back on Leave.
+      await sp.getByRole('button', { name: '🚪 Leave the Spire' }).click();
+      await sp.waitForTimeout(300);
+      await sp.screenshot({ path: path.join(outDir, `hud-${size}-spire-leave.png`) });
+      const underAsk = (await tabs(sp, 4)).filter((f) => f.startsWith('top bar'));
+      if (underAsk.length) problems.push(`Tab reached the top bar under "Leave the Spire?": ${underAsk.join(', ')}`);
+      await sp.keyboard.press('Escape');
+      await sp.waitForTimeout(300);
+      const after = await sp.evaluate(focusLabel);
+      if (await sp.locator('[role=alertdialog]').count()) problems.push('Escape left "Leave the Spire?" open');
+      else if (!after.includes('Leave the Spire')) problems.push(`after Escape focus is on ${after}`);
+    }
+    errors.push(...sp.errors);
+    await sp.close();
+    const cut = Math.max(layout.mapCut, spireLayout?.mapCut ?? 0);
+    const ok =
+      !layout.overlaps.length && !layout.hscroll && covered.every(Boolean) && inSpire && !spireLayout.overlaps.length && !spireLayout.hscroll && !cut && !errors.length && !problems.length;
+    if (!ok) bad += 1;
+    console.log(`${ok ? '✓' : '✗'} ${size}  top bar ${layout.barHeight}px, stage ${layout.stage}; menu covers the bar: ${covered.every(Boolean) ? 'yes' : `no (${covered})`}; Spire HUD: ${inSpire ? 'in the row' : 'never reached'}`);
+    for (const o of [...layout.overlaps, ...(spireLayout?.overlaps ?? [])]) console.log(`    overlap: ${o}`);
+    if (layout.hscroll || spireLayout?.hscroll) console.log('    scrolls sideways');
+    if (cut) console.log(`    the map runs ${cut}px off the bottom of the screen${spireLayout?.mapCut ? ' (in the Spire)' : ''}`);
+    for (const e of errors) console.log(`    page error: ${e}`);
+    for (const p of problems) console.log(`    ${p}`);
+  }
+  // Reduced motion: panels appear without scaling in (they may still fade).
+  const still = await stubbedApp(browser, { width: 375, height: 667 }, depths, profile, { reducedMotion: 'reduce' });
+  const firstFrame = await still.evaluate(async () => {
+    [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Menu')).click();
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const panel = document.querySelector('[role=dialog][aria-label=Menu] > div');
+    return panel ? getComputedStyle(panel).transform : 'no menu';
+  });
+  await still.close();
+  const steady = firstFrame === 'none' || firstFrame === 'matrix(1, 0, 0, 1, 0, 0)';
+  console.log(`${steady ? '✓' : '✗'} reduced motion: the Menu's first frame has transform ${firstFrame}`);
+  if (!steady) bad += 1;
+  console.log(`\n${sizes.length + 1 - bad}/${sizes.length + 1} checks clean. Screenshots in ${outDir}.`);
+  if (bad) process.exitCode = 1;
+}
+
 (async () => {
   const [mode = 'fps', ...args] = process.argv.slice(2);
   const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] });
   let vite = null;
   try {
-    if (mode !== 'diff') vite = await startVite();
+    if (mode === 'hud') vite = await startVite({ VITE_SUPABASE_URL: STUB, VITE_SUPABASE_ANON_KEY: 'stub-anon-key' });
+    else if (mode !== 'diff') vite = await startVite();
     if (mode === 'fps') await fps(browser, Number(args[0] ?? 160), Number(args[1] ?? 112));
     else if (mode === 'shots') await shots(browser, args[0] ?? 'bench-shots');
     else if (mode === 'diff') await diff(browser, args[0], args[1]);
+    else if (mode === 'journey') await journey(browser, args[0] ?? 'bench-journey');
+    else if (mode === 'hud') await hud(browser, args[0] ?? 'bench-hud');
     else throw new Error(`unknown mode ${mode}`);
   } finally {
     await browser.close();

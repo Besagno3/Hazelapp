@@ -5,7 +5,7 @@
 > shrines are places you walk into, and the map opens up in stages by foot,
 > by boat and on Ember's wings.
 
-Status: **items 0–13 and 14a done; 14b–16f planned** (2026-10-09; §5) ·
+Status: **items 0–13, 14a and 14b done; 14c–16f planned** (2026-10-10; §5) ·
 Date: 2026-10-04
 
 Companion docs: `STORY.md` (Act I bible, tone rules still binding),
@@ -444,10 +444,11 @@ How-to: `docs/MAP-AUTHORING.md`.
 ### 4.7 Tests to add
 
 - **No softlocks:** for each act, every place the act needs is reachable
-  with the travel modes available by then (BFS per mode). *Plan:* one search
-  over (cell, mode) in `lib/reach.ts` (item 14b) replaces `reachableOnFoot`,
-  `reachableBySea` and the five copies in test files; the per-act test lands
-  with Act II's exit (item 14i).
+  with the travel modes available by then (BFS per mode). *Built (14b):* one
+  search over (cell, mode) in `lib/reach.ts` replaced `reachableOnFoot`,
+  `reachableBySea` and six copies in test files, and `lib/journey.ts` walks
+  Act I's legs by a player's rules (journey.test); the per-act, per-mode
+  test for Acts II–IV lands with Act II's exit (item 14i), on top of it.
 - Every place icon has an inside, and its return exit lands on a walkable
   overworld cell beside the icon.
 - Every fog region has a lifting flag that can be earned before the fog is in
@@ -499,7 +500,7 @@ dungeons stay in `ROADMAP-4X.md` Waves 2–4 (§7).
 | # | Sub-item | Effort | Done when |
 |---|---|---|---|
 | 14a | ✅ **The boat + the Silver Shallows** (PR #30) | L | **Done (2026-10-09):** the morning after the Spire (the walk home, a night at the Sleepy Sheep Inn, `act2-seen`), Marlow's Boat quest (a sail from Willow, his compass from Atlas, a rudder from Sage Cog; `QuestDef.requires`), the boat (board, sail at 1.5×, land on beaches and docks, it waits; Marlow rows it home), the Silver Shallows (64×44, sea-linked east of Dawnreach: Gull Rock's lighthouse, Sandpiper Cay, the Great Fogbank), sea music, Act II 🚩 steps and routes across the sea (ISSUES #108) |
-| 14b | **Phase 2 exit + groundwork** | S | each Act I leg walked in headless Chromium (stubbed Supabase, flags set per leg); real v1/v2 saves load; one `lib/reach.ts` search over (cell, mode) replaces `reachableOnFoot`, `reachableBySea` and the five copies in tests; the LEVEL / STREAK badges no longer cover the HUD on phones (#102i) — the HUD gains buttons in 14–15 |
+| 14b | ✅ **Phase 2 exit + groundwork** | M | **Done (2026-10-10):** Phase 2's exit check passes — `lib/journey.ts` walks Act I's 8 legs on the maps by a player's rules (journey.test, CI), and the real hero walks them all in headless Chromium, plus every seal, stairs and Umbra on the five Spire floors (`run-world-bench.cjs journey`: 13/13, three times — the last on the final commit; the bench mounts only the canvas, so no Supabase is involved); every save shape since v1 loads where it stood, is never stranded, and the story's next step walks from it (`test/saveFixtures.ts`); one `lib/reach.ts` search over (cell, mode) replaced `reachableOnFoot`, `reachableBySea` and six copies in tests, and `safeSpawn` steps a save off an exit; the LEVEL / STREAK badges and Sign out sit in the world's own top bar and the Spire's status in the HUD row (#102i) — measured on the real app with Supabase stubbed at five sizes (`… hud`). (Estimated S; the journey walker and the HUD measure made it M.) |
 | 14c | **Crystals, bosses and quests ready for more acts** (nothing visible) | M | `CRYSTAL_ACT`: with a test registry holding a fake Act II crystal, Act I's Spire seal, ending, HUD count, 🚩 order and corner / fog-pocket rules are unchanged; `EnemyDef.role` (`fiend / warden / miniboss / echo / finale`) replaces "any boss without a key restores its topic's crystal" (`BattleArena`, `bossDefeated`, `spawnEnemy`'s naming, `BOSS_LINES`); one person can give several quests (`questFor(npcId, save)`) and a step may go through a giver; `DangerTier` runs to 7, the Shallows moves to tier 5 (#105g, #108d) |
 | 14d | **Sea critters** | S–M | `EnemyDef.habitat: 'land' \| 'sea'`; sea critters wander only on water and fight only a sailing hero (and a land critter never a sailing one — #108j); a sea battle backdrop; 2–3 roam the Shallows |
 | 14e | **Remembrance Hill** | M | on Dawnreach behind the Grove-road fog, which lifts on `act2-seen` with the on-screen reveal; the Hall of Names, Keeper Mnem, Posy, Trader Knack, an inn and enough townsfolk for the town tests; a Return town; the 🚩 after "Sail the Silver Shallows" leads here; the Spire pays its 600 XP on the first clear only (#109) |
@@ -618,6 +619,11 @@ critters say so on the map (ISSUES #105).
 *Item 13 (2026-10-08):* side-quest item chains done (ISSUES #106).
 Next: Phase 2's exit check (Act I start to finish as a journey; old saves
 load) — scheduled as sub-item **14b** (§5.1), since 14a was built first.
+*Exit check met (2026-10-10, 14b):* Act I walks start to finish on the maps
+— the 8 legs the 🚩 hands out, by a player's rules (`lib/journey.ts`, in CI),
+and by the real hero in headless Chromium (`run-world-bench.cjs journey`,
+13/13 with the Spire's floors); every save shape since v1 loads and is never
+stranded (`test/saveFixtures.ts`). Phase 2 is closed.
 
 **Phase 3 — The sea (Act II).** Marlow's boat, the Silver Shallows and its islands,
 the Act II zones from `STORY-4X.md` §4 placed per §3.6.

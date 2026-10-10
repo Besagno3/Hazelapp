@@ -14,7 +14,8 @@ import {
   zoneChestOpened,
   chestWantedLine,
 } from './quests';
-import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, reachableOnFoot, tileAt } from './zones';
+import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
+import { reach, touches } from '../lib/reach';
 import { fieldSpellFlag } from './fieldSpells';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS } from './enemies';
@@ -308,7 +309,6 @@ describe('town side quests (village expansion)', () => {
 
 describe('item chains (#75 item 13)', () => {
   const MOONSTONE_CHEST = pathTargetId('echo-mine', 'chest', 8, 7);
-  const neighbours = (x: number, y: number) => [`${x + 1},${y}`, `${x - 1},${y}`, `${x},${y + 1}`, `${x},${y - 1}`];
 
   it('each key-item chest is a riddle-chest you can reach, holding a known item some quest needs', () => {
     expect(KEY_CHESTS.length).toBeGreaterThan(0);
@@ -317,8 +317,7 @@ describe('item chains (#75 item 13)', () => {
       expect(c.z.topic, `${c.z.id} has a riddle topic`).toBeDefined();
       expect(QUEST_ITEMS[c.item], `${c.item} is a quest item`).toBeDefined();
       // Reachable with every fog lifted and every dark place lit.
-      const open = reachableOnFoot(c.z, null);
-      expect(neighbours(c.x, c.y).some((k) => open.has(k)), `${c.z.id} chest reachable`).toBe(true);
+      expect(touches(reach(c.z, { flags: null }), c.x, c.y), `${c.z.id} chest reachable`).toBe(true);
       const needed = QUESTS.some((q) => q.takesItems?.includes(c.item) || q.steps.some((st) => st.trade?.takes === c.item));
       expect(needed, `${c.item} is needed by a quest`).toBe(true);
     }
@@ -335,9 +334,9 @@ describe('item chains (#75 item 13)', () => {
   it("the Moonstone's chest sits behind the Echo Mine's dark until Glow lights it", () => {
     const mine = ZONES['echo-mine'];
     expect(mine.keyChests!.map(({ x, y, item }) => ({ x, y, item }))).toEqual([{ x: 8, y: 7, item: 'moonstone' }]);
-    const reach = (flags: Record<string, boolean>) => neighbours(8, 7).some((k) => reachableOnFoot(mine, flags).has(k));
-    expect(reach({})).toBe(false);
-    expect(reach({ [litFlag('echo-mine')]: true })).toBe(true);
+    const reached = (flags: Record<string, boolean>) => touches(reach(mine, { flags }), 8, 7);
+    expect(reached({})).toBe(false);
+    expect(reached({ [litFlag('echo-mine')]: true })).toBe(true);
   });
 
   it('Hermit Moss stands on open ground on Dawnreach', () => {

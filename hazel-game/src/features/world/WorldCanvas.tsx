@@ -20,7 +20,6 @@ import {
   gateIdAt,
   litFlag,
   npcPresent,
-  safeSpawn,
   tileAt,
   zone,
   type BuildingDef,
@@ -28,6 +27,7 @@ import {
   type NpcPlacement,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
+import { safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnPlaced } from '../../content/enemies';
@@ -417,6 +417,11 @@ export default function WorldCanvas({
       });
       const canvas = host.querySelector('canvas');
       if (!canvas) return; // should never happen — kaplay() just made it
+      // KaPlay makes its canvas focusable (tabindex 0), and its key handler
+      // swallows Tab — a keyboard player who landed on it could never Tab out.
+      // Movement keys are read from `window`, so the canvas never needs focus
+      // (#75 item 14b review).
+      canvas.removeAttribute('tabindex');
       sharedKaplay = { k, canvas };
       loadWorldSprites(k);
     } else {

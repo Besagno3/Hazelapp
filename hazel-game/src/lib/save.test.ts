@@ -17,9 +17,17 @@ import {
   type MigrationLadder,
 } from './save';
 import { LIBRARY_MAX } from '../content/items';
-import { HUB_ZONE, TILE, ZONES, buildingInside, chestTopicAt, innWakeCell, tileAt } from '../content/zones';
+import { CURRENT_ABOARD, FINALE_NOT_ACT2, V1, V2_FIRST_BUILD, V2_PRE_14A, V2_PRE_ITEM10 } from '../test/saveFixtures';
+import { reach, safeSpawn } from './reach';
+import { seaCrossing } from './travel';
+import { walkLeg } from './journey';
+import { nextObjective } from './wayfinding';
+import { boatSpot } from '../content/boat';
+import type { SaveData } from '../types';
+import { HUB_ZONE, TILE, ZONES, buildingInside, chestTopicAt, gateFlag, gateIdAt, innWakeCell, tileAt } from '../content/zones';
 import type { LibraryEntry, Question } from '../types';
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN } from '../content/story';
+import { avatarById } from '../content/avatars';
 
 function q(id: string): Question {
   return { id, topic: 'math', level: 3, text: '?', options: ['a', 'b', 'c', 'd'], correctIndex: 0 };
@@ -83,28 +91,7 @@ describe('runMigrations (Wave 0.2 versioned ladder)', () => {
     expect(out.coins).toBe(9);
   });
 
-  // A real v1 save, as v1 wrote it (#75 item 8 bumps to v2).
-  const V1 = {
-    version: 1,
-    avatarId: 'blaze',
-    zoneId: 'lumina-field',
-    pos: { x: 336, y: 368 },
-    hp: 80,
-    coins: 120,
-    items: { potion: 2, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0 },
-    badges: ['badge-numbria'],
-    sages: ['math'],
-    sageEquipped: 'math',
-    flags: { 'crystal-math-restored': true, 'intro-seen': true },
-    openedChests: ['numbria:chest:12,4', 'dawnreach:chest:13,9'],
-    kills: { 'count-bat': 1 },
-    questItems: [],
-    passedRounds: 3,
-    worldUnlocked: true,
-    library: [],
-    companionId: 'ember',
-    defendTimer: true,
-  };
+  // A v1 save, as v1 wrote it (#75 item 8 bumps to v2) — `test/saveFixtures.ts`.
   const centre = (x: number, y: number) => ({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 });
 
   it('v1 → v2: a save on the retired Lumina Field wakes at home, keeping everything else (#75 item 8)', () => {
@@ -343,3 +330,85 @@ describe('home to bed after the Spire (#75 item 14)', () => {
   });
 });
 
+
+// #75 item 14b: every shape a save has had since v1 still loads — where it
+// stood (or somewhere safe beside it), with nothing lost, never stranded,
+// and the story's next step still walkable from there.
+describe('old saves load (#75 item 14b)', () => {
+  const cellOf = (p: { x: number; y: number }) => ({ x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) });
+  const cases: { name: string; raw: Record<string, unknown>; zone: string; at?: { x: number; y: number }; keeps?: Partial<SaveData> }[] = [
+    { name: 'v1 on the retired Lumina Field', raw: V1, zone: HUB_ZONE },
+    { name: 'v2 from its first build (no marker)', raw: V2_FIRST_BUILD, zone: 'dawnreach', at: V2_FIRST_BUILD.pos, keeps: { lastRest: null, boat: null, aboard: false } },
+    { name: 'v2 in the Depths vault, before the stairs', raw: V2_PRE_ITEM10, zone: 'clockwork-depths', at: V2_PRE_ITEM10.pos, keeps: { companionId: 'pip', lastRest: null } },
+    { name: 'v2 with an inn, before the boat', raw: V2_PRE_14A, zone: 'verdara', at: V2_PRE_14A.pos, keeps: { lastRest: 'numbria', boat: null, aboard: false, defendTimer: false } },
+    { name: 'today: sailing the Silver Shallows', raw: CURRENT_ABOARD, zone: 'silver-shallows', at: CURRENT_ABOARD.pos, keeps: { aboard: true } },
+    { name: "the finale seen, Act II not", raw: FINALE_NOT_ACT2, zone: HUB_ZONE, keeps: { lastRest: HUB_ZONE } },
+  ];
+
+  it.each(cases)('$name: loads as v2 where it stood, keeping what it had', ({ raw, zone, at, keeps }) => {
+    const s = normalizeSave(raw);
+    expect(s.version).toBe(SAVE_VERSION);
+    expect(s.flags[SAVE_V2_FLAG]).toBe(true);
+    expect(s.zoneId).toBe(zone);
+    if (at) expect(s.pos).toEqual(at);
+    if (keeps) expect(s).toMatchObject(keeps);
+    // Coins, items, story and kills come through untouched.
+    expect(s.coins).toBe(raw.coins);
+    for (const flag of Object.keys(raw.flags as object)) expect(s.flags[flag], flag).toBe(true);
+    expect(s.kills).toEqual(raw.kills);
+    // The hero they picked comes back — not the "Pick an avatar first" screen.
+    expect(s.avatarId).toBe(raw.avatarId);
+    expect(avatarById(s.avatarId), String(raw.avatarId)).not.toBeNull();
+  });
+
+  it.each(cases)('$name: loading it twice changes nothing more (a re-save never drifts)', ({ raw }) => {
+    const once = normalizeSave(raw);
+    expect(normalizeSave(JSON.parse(JSON.stringify(once)))).toEqual(once);
+  });
+
+  it.each(cases)('$name: never stranded — a way out of where it stands', ({ raw }) => {
+    const s = normalizeSave(raw);
+    const z = ZONES[s.zoneId];
+    const pos = safeSpawn(z, s.pos, s.flags, s.aboard ? 'boat' : 'foot');
+    const boat = boatSpot(s);
+    const open = reach(z, {
+      from: cellOf(pos),
+      aboard: s.aboard,
+      modes: ['foot', 'boat'],
+      boat: boat && boat.zoneId === z.id ? boat : null,
+      flags: s.flags,
+      gates: 'flags',
+      exits: 'stop',
+    });
+    const out = [...open].some((k) => {
+      const [x, y] = k.split(',').map(Number);
+      return z.exits.some((e) => e.x === x && e.y === y) || seaCrossing(z, x, y, ZONES) !== null;
+    });
+    expect(out, `${s.zoneId} from ${cellOf(pos).x},${cellOf(pos).y}`).toBe(true);
+  });
+
+  it.each(cases.filter((c) => ['crystal', 'key', 'spire'].includes(nextObjective(normalizeSave(c.raw).flags).kind)))(
+    "$name: the story's next step walks from where it loads",
+    ({ raw }) => {
+      const s = normalizeSave(raw);
+      const pos = safeSpawn(ZONES[s.zoneId], s.pos, s.flags);
+      const leg = walkLeg(nextObjective(s.flags), s.flags, { zoneId: s.zoneId, cell: cellOf(pos) });
+      for (const h of leg.hops) expect(h.path, `${leg.goal.title}: across ${h.zoneId}`).not.toBeNull();
+    },
+  );
+
+  it("the vault save holds the vault gate's flag (it couldn't stand there otherwise)", () => {
+    const b1 = ZONES['clockwork-depths'];
+    expect(tileAt(b1, 10, 8)).toBe('G');
+    expect(V2_PRE_ITEM10.flags).toHaveProperty(gateFlag(gateIdAt('clockwork-depths', b1.map, 11, 8)), true);
+  });
+
+  it('the save standing where the Depths\' stairs were drawn later loads beside them, not on them', () => {
+    const s = normalizeSave(V2_PRE_ITEM10);
+    const pos = safeSpawn(ZONES[s.zoneId], s.pos, s.flags);
+    const cell = cellOf(pos);
+    expect(tileAt(ZONES[s.zoneId], 19, 10)).toBe('>');
+    expect(cell).not.toEqual({ x: 19, y: 10 });
+    expect(Math.max(Math.abs(cell.x - 19), Math.abs(cell.y - 10))).toBeLessThanOrEqual(2);
+  });
+});

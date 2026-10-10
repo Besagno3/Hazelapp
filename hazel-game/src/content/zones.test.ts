@@ -13,13 +13,13 @@ import {
   gateIdAt,
   buildingAt,
   buildingInside,
-  safeSpawn,
   npcPresent,
   MET_ELDER,
   SEA_CHARS,
 } from './zones';
 import { edgeLinkProblem, exitSide } from '../lib/transition';
-import { reachableBySea, seaEntryCell } from '../lib/travel';
+import { seaEntryCell } from '../lib/travel';
+import { behindFog, reach, safeSpawn, touches } from '../lib/reach';
 import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
@@ -27,13 +27,11 @@ import { TOPIC_REGISTRY } from './topics';
 import type { ZoneDef } from './zones';
 import {
   ANY_CRYSTAL,
-  behindFog,
   chestTopicAt,
   fogAt,
   fogSeenFlag,
   fogsToReveal,
   placeAt,
-  reachableOnFoot,
   darkAt,
   litFlag,
   innOf,
@@ -242,22 +240,6 @@ describe('zone maps', () => {
   });
 });
 
-/** Cells reachable on foot from (sx,sy). */
-function reachable(z: ZoneDef, sx: number, sy: number): Set<string> {
-  const seen = new Set<string>([`${sx},${sy}`]);
-  const queue = [[sx, sy]];
-  while (queue.length) {
-    const [x, y] = queue.shift()!;
-    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-      const key = `${nx},${ny}`;
-      if (seen.has(key) || !isWalkable(z, nx, ny)) continue;
-      seen.add(key);
-      queue.push([nx, ny]);
-    }
-  }
-  return seen;
-}
-
 describe('town buildings (#72)', () => {
   const withBuildings = allZones.filter((z) => z.buildings?.length);
 
@@ -309,7 +291,7 @@ describe('town buildings (#72)', () => {
 
   it('every door is reachable from the spawn, and every indoor NPC can be talked to', () => {
     for (const z of withBuildings) {
-      const open = reachable(z, z.spawn.x, z.spawn.y);
+      const open = reach(z, { flags: null });
       for (const b of z.buildings!) {
         const fy = b.y + b.h - 1;
         const dx = z.map[fy].indexOf('D', b.x);
@@ -404,7 +386,7 @@ describe('every place is unique (#73)', () => {
       const door = { x: cell.x, y: cell.y + 1 };
       expect(tileAt(z, door.x, door.y)).toBe('D');
       // Out of the door and into town: the town's own front door is walkable from there.
-      const around = reachable(z, door.x, door.y);
+      const around = reach(z, { from: door, flags: null });
       const out = z.exits.filter((e) => ZONES[e.to].kind === 'overworld');
       expect(out.some((e) => around.has(`${e.x},${e.y}`)), `${id}: from the inn you can walk out of town`).toBe(true);
     }
@@ -511,7 +493,7 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
 
   const allLifted = Object.fromEntries(ANY_CRYSTAL.map((f) => [f, true]));
   /** Cells reachable on foot from the spawn, with fog blocking unless `lifted`. */
-  const onFoot = (z: ZoneDef, lifted: boolean) => reachableOnFoot(z, lifted ? allLifted : {});
+  const onFoot = (z: ZoneDef, lifted: boolean) => reach(z, { flags: lifted ? allLifted : {} });
 
   it('is an overworld with places (and the Silver Shallows, the sea beyond it, #75 item 14)', () => {
     expect(overworlds.map((z) => z.id)).toEqual(['dawnreach', 'silver-shallows']);
@@ -596,19 +578,20 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
         if (SEA_CHARS.has(tileAt(z, f.guards.x, f.guards.y))) {
           const entry = (z.seaLinks ?? []).map((l) => seaEntryCell(z, l.side)).find((c) => c !== null)!;
           expect(entry, `${z.id} has a way in by sea`).toBeTruthy();
-          const bySea = (flags: Record<string, boolean>) => reachableBySea(z, entry, (x, y) => !!fogAt(z, x, y, flags)).has(key);
+          const bySea = (flags: Record<string, boolean>) => reach(z, { from: entry, aboard: true, flags }).has(key);
           expect(bySea({}), `${f.id}: sea beyond it reachable through the fog`).toBe(false);
           for (const flag of f.liftedBy) expect(bySea({ [flag]: true }), `${f.id}: ${flag} opens the way`).toBe(true);
           continue;
         }
         expect(isWalkable(z, f.guards.x, f.guards.y) || tileAt(z, f.guards.x, f.guards.y) === 'C', `${f.id} guards something real`).toBe(true);
         // Reach the reward by its neighbours (a chest is bumped, not stood on).
-        const reach = (open: Set<string>) =>
-          open.has(key) ||
-          [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => open.has(`${f.guards.x + dx},${f.guards.y + dy}`));
-        expect(reach(reachableOnFoot(z, {})), `${f.id}: reward reachable through the fog`).toBe(false);
+        const reached = (flags: Record<string, boolean>) => {
+          const open = reach(z, { flags });
+          return open.has(key) || touches(open, f.guards.x, f.guards.y);
+        };
+        expect(reached({}), `${f.id}: reward reachable through the fog`).toBe(false);
         for (const flag of f.liftedBy) {
-          expect(reach(reachableOnFoot(z, { [flag]: true })), `${f.id}: ${flag} opens the way`).toBe(true);
+          expect(reached({ [flag]: true }), `${f.id}: ${flag} opens the way`).toBe(true);
         }
       }
     }
@@ -678,15 +661,8 @@ describe('dark places (#75 item 9)', () => {
       const { x, y } = z.dark!.guards;
       expect(tileAt(z, x, y), `${z.id} guards a chest`).toBe('C');
       expect(z.topic, `${z.id}'s chest has a topic`).toBeDefined();
-      const besideChest = (open: Set<string>) =>
-        [
-          [x + 1, y],
-          [x - 1, y],
-          [x, y + 1],
-          [x, y - 1],
-        ].some(([cx, cy]) => open.has(`${cx},${cy}`));
-      expect(besideChest(reachableOnFoot(z, {})), `${z.id} unlit`).toBe(false);
-      expect(besideChest(reachableOnFoot(z, lit(z))), `${z.id} lit`).toBe(true);
+      expect(touches(reach(z, { flags: {} }), x, y), `${z.id} unlit`).toBe(false);
+      expect(touches(reach(z, { flags: lit(z) }), x, y), `${z.id} lit`).toBe(true);
     }
   });
 
@@ -697,14 +673,14 @@ describe('dark places (#75 item 9)', () => {
     expect(darkAt(mine, r.x, r.y, lit(mine))).toBe(false);
     expect(darkAt(ZONES.dawnreach, 10, 10, {})).toBe(false);
     // Lit, every walkable cell is reachable from the door (nothing left behind).
-    const open = reachableOnFoot(mine, lit(mine));
+    const open = reach(mine, { flags: lit(mine) });
     const walkable = mine.map.flatMap((row, y) => [...row].map((_, x) => [x, y])).filter(([x, y]) => isWalkable(mine, x, y));
     expect(walkable.filter(([x, y]) => !open.has(`${x},${y}`))).toEqual([]);
   });
 
   it('the hero waits outside the dark: the door, the spawn and Miner Mabel are in the light', () => {
     const mine = ZONES['echo-mine'];
-    const open = reachableOnFoot(mine, {});
+    const open = reach(mine, { flags: {} });
     for (const e of mine.exits) expect(open.has(`${e.x},${e.y}`)).toBe(true);
     const mabel = mine.npcs.find((p) => p.defId === 'mine-miner')!;
     expect(open.has(`${mabel.x},${mabel.y}`)).toBe(true);

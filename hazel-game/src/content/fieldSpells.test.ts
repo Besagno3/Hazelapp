@@ -12,32 +12,12 @@ import {
   returnSpots,
   visitedFlag,
 } from './fieldSpells';
-import { HUB_ZONE, WALKABLE_CHARS, ZONES, litFlag, reachableOnFoot, tileAt, type ZoneDef } from './zones';
+import { HUB_ZONE, WALKABLE_CHARS, ZONES, litFlag, tileAt } from './zones';
+import { reach } from '../lib/reach';
 import { NPC_DEFS } from './npcs';
 import { crystalFlag } from './topics';
 
 const dawn = ZONES.dawnreach;
-
-/** Cells walkable from (x, y) without opening any gate or crossing fog. */
-function walkFrom(z: ZoneDef, x: number, y: number): Set<string> {
-  const seen = new Set([`${x},${y}`]);
-  const queue: [number, number][] = [[x, y]];
-  while (queue.length) {
-    const [cx, cy] = queue.shift()!;
-    for (const [nx, ny] of [
-      [cx + 1, cy],
-      [cx - 1, cy],
-      [cx, cy + 1],
-      [cx, cy - 1],
-    ]) {
-      const key = `${nx},${ny}`;
-      if (seen.has(key) || !WALKABLE_CHARS.has(tileAt(z, nx, ny))) continue;
-      seen.add(key);
-      queue.push([nx, ny]);
-    }
-  }
-  return seen;
-}
 
 describe('field spells (#75 item 9)', () => {
   it('each is taught by its own shrine keeper, standing in its own shrine on Dawnreach', () => {
@@ -72,11 +52,11 @@ describe('field spells (#75 item 9)', () => {
       const e = dawn.exits.find((x) => x.to === FIELD_SPELLS[id].shrine)!;
       return `${e.x},${e.y}`;
     };
-    const fresh = reachableOnFoot(dawn, {});
+    const fresh = reach(dawn, { flags: {} });
     expect(fresh.has(doorOf('return'))).toBe(true);
     expect(fresh.has(doorOf('calm'))).toBe(true);
     expect(fresh.has(doorOf('glow'))).toBe(false);
-    expect(reachableOnFoot(dawn, { [crystalFlag('math')]: true }).has(doorOf('glow'))).toBe(true);
+    expect(reach(dawn, { flags: { [crystalFlag('math')]: true } }).has(doorOf('glow'))).toBe(true);
   });
 });
 
@@ -112,7 +92,8 @@ describe('Return (#75 item 9)', () => {
       const z = ZONES[id];
       const at = returnLanding(ZONES, id);
       expect(WALKABLE_CHARS.has(tileAt(z, at.x, at.y)), `${id} landing`).toBe(true);
-      const area = walkFrom(z, at.x, at.y);
+      // Walkable from the landing without opening any gate (towns have no fog).
+      const area = reach(z, { from: at, flags: null });
       const out = z.exits.filter((e) => ZONES[e.to].kind === 'overworld');
       expect(
         out.some((e) => area.has(`${e.x},${e.y}`)),

@@ -11,6 +11,7 @@ import {
   floorZone,
 } from './spire';
 import { LEGEND_CHARS, WALKABLE_CHARS, VIEW_COLS, VIEW_ROWS } from './zones';
+import { reach, touches } from '../lib/reach';
 import { ALL_TOPICS } from './topics';
 
 describe('Spire climb (#55)', () => {
@@ -54,23 +55,6 @@ describe('Spire climb (#55)', () => {
 
 const FLOOR_CHARS = new Set([...LEGEND_CHARS, 'Q', 'U', 'Y']);
 
-function reachableFrom(map: string[], sx: number, sy: number): Set<string> {
-  const seen = new Set([`${sx},${sy}`]);
-  const q = [[sx, sy]];
-  while (q.length) {
-    const [x, y] = q.shift()!;
-    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-      const k = `${nx},${ny}`;
-      if (seen.has(k) || !WALKABLE_CHARS.has(map[ny]?.[nx] ?? '#')) continue;
-      seen.add(k);
-      q.push([nx, ny]);
-    }
-  }
-  return seen;
-}
-const touches = (open: Set<string>, x: number, y: number) =>
-  [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => open.has(`${x + dx},${y + dy}`));
-
 describe('Spire floor maps (#74)', () => {
   it('every floor has its own theme and its own music', () => {
     expect(new Set(SPIRE_FLOORS.map((f) => f.theme)).size).toBe(SPIRE_FLOORS.length);
@@ -93,7 +77,7 @@ describe('Spire floor maps (#74)', () => {
   it('each climbing floor has one rune seal per question, all reachable, plus reachable stairs', () => {
     for (const floor of SPIRE_FLOORS.filter((f) => !f.isBoss)) {
       const f = SPIRE_FLOOR_MAPS[floor.theme];
-      const open = reachableFrom(f.map, f.spawn.x, f.spawn.y);
+      const open = reach(floorZone(floor.theme), { flags: null });
       const wards = floorWards(floor.theme);
       expect(wards.length, `${floor.theme} seals`).toBe(floor.questions);
       for (const w of wards) expect(touches(open, w.x, w.y), `${floor.theme} seal ${w.id}`).toBe(true);
@@ -109,7 +93,7 @@ describe('Spire floor maps (#74)', () => {
     expect(floorWards(boss.theme)).toHaveLength(0);
     expect(f.map.join('')).not.toContain('U');
     expect(f.umbra).toBeDefined();
-    const open = reachableFrom(f.map, f.spawn.x, f.spawn.y);
+    const open = reach(floorZone(boss.theme), { flags: null });
     expect(open.has(`${f.umbra!.x},${f.umbra!.y}`) || touches(open, f.umbra!.x, f.umbra!.y)).toBe(true);
   });
 
