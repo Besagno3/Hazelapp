@@ -833,6 +833,10 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-685 | U | ✅ | saves | every save shape since v1 (`test/saveFixtures.ts`: v1, v2's first build without its marker, v2 before the stairs, v2 with an inn before the boat, today afloat, the finale seen without Act II) loads as v2 where it stood or safe beside it, keeping coins / flags / kills; loading twice changes nothing more (save.test) |
 | TC-686 | U | ✅ | saves | from where each fixture loads there's a way out — an exit or a linked sea edge, on foot or by boat — and the story's next step still walks from there (save.test) |
 | TC-687 | U | ✅ | saves | each fixture served by the server loads `ready`, equals `normalizeSave`, is written back once as v2; a v2 save kept only on the device loads the same (saveStore.test) |
+| TC-688 | U | ✅ | HUD | `LevelBadge placement="inline"` and `StreakBadge inline` aren't fixed / z-50; inline the XP numbers are read aloud (sr-only) and on hover; the streak is "🔥 5" on a phone with "Streak: 5 days" read aloud, the words shown from `sm` up (LevelBadge.test, StreakBadge.test) |
+| TC-689 | C | ✅ | HUD | on the world screen the level, streak and Sign out sit in the page's top bar (no fixed ancestor), before the place name; in the Spire, 🚪 Leave the Spire takes 📜 Menu's place in the HUD row (WorldScreen.hud.test) |
+| TC-690 | M | ✅ | HUD | `bench/run-world-bench.cjs hud` — the real app with Supabase stubbed, at 320×568, 360×640, 375×667, 740×360 and 1024×768: no two HUD pieces overlap (badges, Sign out, title, crystals line, stats, Menu / Spire status), no sideways scroll, top bar 44 px, the open Menu covers every top-bar item, the Spire's status sits in the HUD row: 5/5 (2026-10-10) |
+| TC-691 | M | ⏳ | HUD | on a real phone (portrait and sideways): the top bar reads at a glance, Sign out is easy to hit but hard to hit by accident, VoiceOver / TalkBack read "Level 13", "Streak: 12 days" |
 
 ## Regression cases (tied to ISSUES.md)
 

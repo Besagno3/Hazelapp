@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -54,7 +55,13 @@ type Phase =
   | { kind: 'win' }
   | { kind: 'lose' };
 
-export default function SpireOverlay() {
+/**
+ * `hudSlot`: an element in the world HUD (in 📜 Menu's place) where, while
+ * the hero explores a floor, the climb shows its seals, candles and "Leave
+ * the Spire" — part of the HUD row, so nothing floats over the top bar
+ * (#75 item 14b, #102i). Without one, a slim pill floats at the top.
+ */
+export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement | null } = {}) {
   const save = useSaveStore((s) => s.save);
   const updateSave = useSaveStore((s) => s.update);
   const setFlag = useSaveStore((s) => s.setFlag);
@@ -322,17 +329,34 @@ export default function SpireOverlay() {
 
   // Exploring: just a slim HUD over the map — the world stays playable.
   if (phase.kind === 'explore' && floor) {
+    const status = floor.isBoss
+      ? '👑 Walk up to Umbra'
+      : broken.length >= wardTotal
+        ? '🪜 The stairs are free!'
+        : `🔮 Seals ${broken.length}/${wardTotal}`;
+    if (hudSlot) {
+      // In the HUD row (the floor's name is already its title): the seals, the candles, a way out.
+      return createPortal(
+        <>
+          <span className="text-xs text-violet-100" role="status">
+            {status}
+          </span>
+          {candles}
+          <button
+            onClick={leave}
+            className="shrink-0 bg-slate-950/85 hover:bg-slate-800 border border-white/30 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            🚪 Leave the Spire
+          </button>
+        </>,
+        hudSlot,
+      );
+    }
     return (
       <div className="fixed top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex items-center gap-2">
         <div className="bg-slate-950/85 border-2 border-violet-400/60 rounded-xl px-4 py-2 text-white shadow-xl flex items-center gap-4 whitespace-nowrap">
           <span className="text-xs font-bold text-violet-200">{spireFloorTitle(floorIndex!)}</span>
-          <span className="text-xs text-white/80">
-            {floor.isBoss
-              ? '👑 Walk up to Umbra'
-              : broken.length >= wardTotal
-                ? '🪜 The stairs are free!'
-                : `🔮 Seals ${broken.length}/${wardTotal}`}
-          </span>
+          <span className="text-xs text-white/80">{status}</span>
           {candles}
         </div>
         <button

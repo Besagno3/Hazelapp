@@ -26,6 +26,17 @@ describe('StreakBadge', () => {
     useProfileStore.getState().clearProfile();
   });
 
+  it('inline (the world top bar, #102i): in the page, "🔥 5" on a phone with the words read aloud', () => {
+    setProfile({ currentStreak: 5, longestStreak: 7 });
+    const { container } = render(<StreakBadge inline />);
+    const badge = container.firstElementChild as HTMLElement;
+    expect(badge.className).not.toMatch(/(^|\s)(fixed|z-50)(\s|$)/);
+    expect(screen.getByText('5').className).toContain('sm:hidden');
+    expect(screen.getByText('Streak: 5 days').className).toContain('sr-only');
+    // The full words come back from `sm` up.
+    expect(screen.getByText('5 days').parentElement!.className).toContain('hidden sm:block');
+  });
+
   it('renders nothing without a profile', () => {
     const { container } = render(<StreakBadge />);
     expect(container).toBeEmptyDOMElement();

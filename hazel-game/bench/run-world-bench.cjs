@@ -7,6 +7,9 @@
  *   node bench/run-world-bench.cjs diff <dirA> <dirB>  pixel-compare two shots dirs
  *   node bench/run-world-bench.cjs journey [outDir]    walk Act I's legs and the Spire's floors
  *                                                      with the real hero (#75 item 14b)
+ *   node bench/run-world-bench.cjs hud [outDir]        the real app (Supabase stubbed) at phone to
+ *                                                      desktop sizes: nothing in the world HUD
+ *                                                      overlaps, overlays cover the top bar (#102i)
  *
  * Playwright isn't a project dependency; a global install works:
  *   NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps
@@ -21,12 +24,13 @@ const PORT = 5199;
 const ROOT = path.resolve(__dirname, '..');
 const BASE = `http://localhost:${PORT}/bench/world.html`;
 
-function startVite() {
+function startVite(env = {}) {
   // stderr goes straight to the terminal: a piped-but-unread stream can fill
   // up and stall Vite on a long, noisy run (#77).
   const p = spawn(path.join(ROOT, 'node_modules/.bin/vite'), ['--port', String(PORT), '--strictPort'], {
     cwd: ROOT,
     stdio: ['ignore', 'pipe', 'inherit'],
+    env: { ...process.env, ...env },
   });
   return new Promise((resolve, reject) => {
     // If Vite never says it's ready, stop it — the caller never gets a handle to kill (#77).
@@ -223,16 +227,166 @@ async function journey(browser, outDir) {
   if (failed) process.exitCode = 1;
 }
 
+/** Where the `hud` mode points the app's Supabase client — every request is answered here. */
+const STUB = 'http://supabase.stub';
+const HUD_USER = 'u-hud';
+
+/**
+ * Signs in a stub player and answers Supabase for them: their profile, `save`
+ * as their saved game, canned questions; every write succeeds.
+ */
+async function stubbedApp(browser, viewport, save, profile) {
+  const page = await browser.newPage({ viewport });
+  const session = {
+    access_token: 'stub',
+    refresh_token: 'stub',
+    token_type: 'bearer',
+    expires_in: 31536000,
+    expires_at: Math.floor(Date.now() / 1000) + 31536000,
+    user: { id: HUD_USER, aud: 'authenticated', role: 'authenticated', email: 'kid@example.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' },
+  };
+  await page.addInitScript((s) => localStorage.setItem('sb-supabase-auth-token', s), JSON.stringify(session));
+  await page.route(`${STUB}/**`, async (route) => {
+    const req = route.request();
+    const url = req.url();
+    const one = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
+    const json = (body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    if (req.method() !== 'GET' && url.includes('/rest/v1/')) return route.fulfill({ status: 201, body: '' });
+    if (url.includes('/rest/v1/profiles')) return json(one ? profile : [profile]);
+    if (url.includes('/rest/v1/saves')) return json(one ? { data: save } : [{ data: save }]);
+    if (url.includes('/functions/v1/generate-questions')) {
+      const questions = Array.from({ length: 6 }, (_, i) => ({
+        id: `q${i}`, level: 3, text: `What is ${i} + 2?`, options: [`${i + 2}`, `${i + 3}`, `${i + 4}`, `${i + 5}`],
+        correctIndex: 0, explanation: 'Count on two.', timesAsked: 0,
+      }));
+      return json({ questions });
+    }
+    return json({});
+  });
+  await page.goto(`http://localhost:${PORT}/`);
+  await page.waitForSelector('[data-testid=world-topbar]', { timeout: 120000 });
+  await page.waitForTimeout(1500);
+  return page;
+}
+
+/** In the page: the HUD's pieces, and every pair of them that overlaps. */
+function hudLayout() {
+  const named = [];
+  const bar = document.querySelector('[data-testid=world-topbar]');
+  for (const el of bar.querySelectorAll(':scope > div > *, :scope > button')) named.push([`top bar: ${el.textContent.trim().slice(0, 14)}`, el]);
+  const h1 = document.querySelector('h1');
+  named.push(['place name', h1], ['crystals line', h1.nextElementSibling]);
+  const stats = h1.parentElement.nextElementSibling;
+  for (const el of stats.children) {
+    // The Spire's seals, candles and Leave button sit in a `contents` slot (they lay out as the HUD's own).
+    if (el.classList.contains('contents')) for (const c of el.children ?? []) named.push([`Spire: ${c.textContent.trim().slice(0, 14)}`, c]);
+    else named.push([`HUD: ${el.textContent.trim().slice(0, 14) || el.title}`, el]);
+  }
+  const boxes = named.map(([name, el]) => ({ name, r: el.getBoundingClientRect() })).filter((b) => b.r.width > 0 && b.r.height > 0);
+  const overlaps = [];
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i].r;
+      const b = boxes[j].r;
+      const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      if (w > 1 && h > 1) overlaps.push(`${boxes[i].name} × ${boxes[j].name}`);
+    }
+  }
+  const canvas = document.querySelector('canvas')?.getBoundingClientRect();
+  return {
+    overlaps,
+    hscroll: document.documentElement.scrollWidth > window.innerWidth + 1,
+    barHeight: Math.round(bar.getBoundingClientRect().height),
+    stage: canvas ? `${Math.round(canvas.width)}×${Math.round(canvas.height)} @ y ${Math.round(canvas.top)}` : 'no canvas',
+  };
+}
+
+/** In the page: is each top-bar item covered (by whatever is on top at its centre)? */
+function topBarCovered() {
+  const bar = document.querySelector('[data-testid=world-topbar]');
+  return [...bar.querySelectorAll(':scope > div > *, :scope > button')].map((el) => {
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !bar.contains(top);
+  });
+}
+
+/**
+ * The world HUD on the real app at phone, sideways-phone and desktop sizes
+ * (#75 item 14b, #102i): no two of its pieces overlap, no sideways scroll,
+ * and with the menu open the overlay covers the whole top bar. Then the same
+ * in the Spire, its seals and Leave button in the HUD row.
+ */
+async function hud(browser, outDir) {
+  fs.mkdirSync(outDir, { recursive: true });
+  const crystals = ['math', 'science', 'engineering', 'creativity'];
+  const seen = { 'intro-seen': true, 'dawnreach-seen': true, 'ember-hatched': true, 'ember-hatch-seen': true, 'spire-awake-seen': true, 'save:v2': true };
+  const base = {
+    version: 2, avatarId: 'a1', hp: null, coins: 340, items: { potion: 2, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0 },
+    badges: [], sages: ['math', 'science'], openedChests: [], kills: {}, questItems: [], passedRounds: 6, worldUnlocked: true,
+    library: [], companionId: 'ember', defendTimer: true, lastRest: null, boat: null, aboard: false,
+  };
+  const depths = {
+    ...base, zoneId: 'clockwork-depths-b2', pos: null,
+    flags: { ...seen, 'crystal-math-restored': true, 'crystal-math-scene-seen': true, 'crystal-science-restored': true, 'crystal-science-scene-seen': true, 'key-verdara-key': true },
+  };
+  const spire = {
+    ...base, zoneId: 'crystal-spire', pos: { x: 10 * 32 + 16, y: 4 * 32 + 16 },
+    flags: { ...seen, 'ending-seen': true, 'key-verdara-key': true, 'key-gearfall-key': true, 'key-chromaria-key': true, ...Object.fromEntries(crystals.flatMap((t) => [[`crystal-${t}-restored`, true], [`crystal-${t}-scene-seen`, true]])) },
+  };
+  const profile = { id: HUD_USER, birth_year: 2016, birth_month: 3, skill_levels: {}, xp: 1250, power_ups: { attack: 4, defense: 4, vitality: 2, scholar: 2 }, current_streak: 12, longest_streak: 12, last_played_on: new Date().toISOString().slice(0, 10) };
+  const sizes = [[320, 568], [360, 640], [375, 667], [740, 360], [1024, 768]];
+  let bad = 0;
+  for (const [width, height] of sizes) {
+    const size = `${width}×${height}`;
+    const page = await stubbedApp(browser, { width, height }, depths, profile);
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    const layout = await page.evaluate(hudLayout);
+    await page.screenshot({ path: path.join(outDir, `hud-${size}.png`) });
+    await page.getByRole('button', { name: '📜 Menu' }).click();
+    await page.waitForTimeout(400);
+    const covered = await page.evaluate(topBarCovered);
+    await page.screenshot({ path: path.join(outDir, `hud-${size}-menu.png`) });
+    await page.close();
+    // The Spire: walk into its icon, read through the door's lines, and look at the HUD on floor 1.
+    const sp = await stubbedApp(browser, { width, height }, spire, profile);
+    await sp.keyboard.down('ArrowDown');
+    await sp.waitForTimeout(900);
+    await sp.keyboard.up('ArrowDown');
+    for (let i = 0; i < 8 && !(await sp.locator('[data-testid=spire-hud-slot] button').count()); i++) {
+      const next = sp.locator('.fixed.inset-0 button').last();
+      if (await next.count()) await next.click().catch(() => {});
+      await sp.waitForTimeout(500);
+    }
+    const inSpire = (await sp.locator('[data-testid=spire-hud-slot] button').count()) > 0;
+    const spireLayout = inSpire ? await sp.evaluate(hudLayout) : null;
+    await sp.screenshot({ path: path.join(outDir, `hud-${size}-spire.png`) });
+    await sp.close();
+    const ok = !layout.overlaps.length && !layout.hscroll && covered.every(Boolean) && inSpire && !spireLayout.overlaps.length && !spireLayout.hscroll && !errors.length;
+    if (!ok) bad += 1;
+    console.log(`${ok ? '✓' : '✗'} ${size}  top bar ${layout.barHeight}px, stage ${layout.stage}; menu covers the bar: ${covered.every(Boolean) ? 'yes' : `no (${covered})`}; Spire HUD: ${inSpire ? 'in the row' : 'never reached'}`);
+    for (const o of [...layout.overlaps, ...(spireLayout?.overlaps ?? [])]) console.log(`    overlap: ${o}`);
+    if (layout.hscroll || spireLayout?.hscroll) console.log('    scrolls sideways');
+    for (const e of errors) console.log(`    page error: ${e}`);
+  }
+  console.log(`\n${sizes.length - bad}/${sizes.length} sizes clean. Screenshots in ${outDir}.`);
+  if (bad) process.exitCode = 1;
+}
+
 (async () => {
   const [mode = 'fps', ...args] = process.argv.slice(2);
   const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] });
   let vite = null;
   try {
-    if (mode !== 'diff') vite = await startVite();
+    if (mode === 'hud') vite = await startVite({ VITE_SUPABASE_URL: STUB, VITE_SUPABASE_ANON_KEY: 'stub-anon-key' });
+    else if (mode !== 'diff') vite = await startVite();
     if (mode === 'fps') await fps(browser, Number(args[0] ?? 160), Number(args[1] ?? 112));
     else if (mode === 'shots') await shots(browser, args[0] ?? 'bench-shots');
     else if (mode === 'diff') await diff(browser, args[0], args[1]);
     else if (mode === 'journey') await journey(browser, args[0] ?? 'bench-journey');
+    else if (mode === 'hud') await hud(browser, args[0] ?? 'bench-hud');
     else throw new Error(`unknown mode ${mode}`);
   } finally {
     await browser.close();

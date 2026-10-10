@@ -182,6 +182,15 @@ zod, react-query. Add the package in the same change that first uses it.
   floors are walkable themed maps drawn by `WorldCanvas`, state in
   `spireStore`, #74). `TouchPad`
   is the mobile d-pad.
+  **The world's top bar** (#75 item 14b, #102i): on the world screen `App`
+  draws no floating badges — `WorldScreen` puts the level (`LevelBadge`
+  `inline`), the streak (`StreakBadge inline`, "🔥 5" on a phone) and Sign out
+  (`SignOutButton inline`) in a full-width row above the HUD, at most 44 px
+  tall (pt-3 + bar + mb-2 = the old pt-16), so they never cover the place
+  name and every overlay (z-40) draws over them. Exploring a Spire floor,
+  `SpireOverlay` portals its seals, candles and 🚪 Leave the Spire into the
+  HUD row (`hudSlot`, in 📜 Menu's place). Other screens keep the floating
+  badges.
   **Field spells** (#75 item 9, `content/fieldSpells.ts`): a shrine keeper
   (`NpcRole` `keeper` → service `trial`, `ShrineTrial`) teaches one by 3 right
   answers; the menu's ✨ Field spells (`FieldSpellsPanel`) casts them through
@@ -383,6 +392,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps [cols rows]   # fram
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -449,6 +459,36 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Nothing covers the place name: the world's top bar (#75 item 14b, #102i)
+Fifth slice of 14b. On a phone the floating LEVEL / STREAK badges covered
+the place name ("B2 —") and the top of every overlay (a shrine trial's
+title) — logged since item 9's review.
+- **A top bar in the page:** on the world screen the level, the streak and
+  Sign out sit in a full-width row above the HUD (`data-testid="world-
+  topbar"`), at most 44 px tall, so the HUD and the map stay exactly where
+  they were (pt-3 + 44 + mb-2 = the old pt-16). Overlays (z-40) now draw
+  over it. `LevelBadge placement="inline"` (a 32 px medallion; the XP numbers
+  read aloud and on hover), `StreakBadge inline` ("🔥 12" on a phone, the
+  words read aloud, shown from `sm` up), `SignOutButton inline`; `App` skips
+  its floating ones on the world screen. Battle, quiz, topics and avatar
+  screens are unchanged.
+- **The Spire's status moves into the HUD:** exploring a floor, the seals,
+  candles and 🚪 Leave the Spire sit in the HUD row in 📜 Menu's place
+  (`SpireOverlay hudSlot`, a portal into a `contents` slot) instead of a
+  500 px pill floating over the top of a 375 px phone; the floor's name is
+  the HUD's title already.
+- **Measured on the real app** (`bench/run-world-bench.cjs hud`: Vite with
+  a stub Supabase host, a signed-in stub session, profile, save and canned
+  questions answered by Playwright): at 320×568, 360×640, 375×667, 740×360
+  and 1024×768 — no two HUD pieces overlap, no sideways scroll, the top bar
+  44 px, the 📜 Menu covers every top-bar item, and walking into the Spire
+  icon puts its status in the HUD row. 5/5. (On a sideways phone the bar
+  first wrapped inside the 216 px stage column — it now spans the page.)
+- Tests: LevelBadge / StreakBadge inline (+2), `WorldScreen.hud.test` (+2:
+  the bar holds the badges and Sign out in the page, before the title; in
+  the Spire, Leave takes Menu's place in the HUD row). 751 green, lint +
+  build clean.
 
 ### 2026-10-10 — Every save shape since v1 still loads (#75 item 14b)
 Fourth slice of 14b: "old saves load" as fixtures and tests.
