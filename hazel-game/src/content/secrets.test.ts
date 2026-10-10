@@ -1,26 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_SECRETS, claimSecret, rewardSummary, secretAt, secretById, secretFlag, secretProgress } from './secrets';
-import { ZONES, WALKABLE_CHARS, tileAt, type ZoneDef } from './zones';
+import { ZONES, WALKABLE_CHARS, tileAt } from './zones';
+import { reach } from '../lib/reach';
 import { QUEST_ITEMS } from './quests';
 import { defaultSave } from '../lib/save';
 
 const TOWNS = ['lumina-village', 'numbria', 'verdara', 'gearfall', 'chromaria'] as const;
-
-/** Cells the hero can reach on foot from the zone spawn (closed gates block). */
-function reachable(z: ZoneDef): Set<string> {
-  const seen = new Set<string>([`${z.spawn.x},${z.spawn.y}`]);
-  const queue = [[z.spawn.x, z.spawn.y]];
-  while (queue.length) {
-    const [x, y] = queue.shift()!;
-    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-      const key = `${nx},${ny}`;
-      if (seen.has(key) || !WALKABLE_CHARS.has(tileAt(z, nx, ny))) continue;
-      seen.add(key);
-      queue.push([nx, ny]);
-    }
-  }
-  return seen;
-}
 
 describe('secrets (village expansion)', () => {
   it('every town hides at least three secrets', () => {
@@ -39,7 +24,8 @@ describe('secrets (village expansion)', () => {
   it('every secret can be found from the spawn without opening a gate', () => {
     for (const { zoneId, secret } of ALL_SECRETS) {
       const z = ZONES[zoneId];
-      const open = reachable(z);
+      // On foot from the spawn — closed gates block.
+      const open = reach(z, { flags: null });
       const ch = tileAt(z, secret.x, secret.y);
       expect('KDEGSC'.includes(ch), `${secret.id} sits on a '${ch}' tile`).toBe(false);
       const found = WALKABLE_CHARS.has(ch)

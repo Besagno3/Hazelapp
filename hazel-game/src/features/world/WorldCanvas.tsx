@@ -20,7 +20,6 @@ import {
   gateIdAt,
   litFlag,
   npcPresent,
-  safeSpawn,
   tileAt,
   zone,
   type BuildingDef,
@@ -28,6 +27,7 @@ import {
   type NpcPlacement,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
+import { safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { spawnPlaced } from '../../content/enemies';

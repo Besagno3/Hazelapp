@@ -144,34 +144,6 @@ export function canBoard(hero: Cell, bumped: Cell, boat: Cell): boolean {
 }
 
 /**
- * Cells a boat can reach from (x, y) on this map (4-way, open sea only),
- * with fog in the way unless `flags` has lifted it.
- */
-export function reachableBySea(
-  z: ZoneDef,
-  from: { x: number; y: number },
-  fogAt: (x: number, y: number) => boolean = () => false,
-): Set<string> {
-  const seen = new Set<string>([`${from.x},${from.y}`]);
-  const queue: [number, number][] = [[from.x, from.y]];
-  while (queue.length) {
-    const [x, y] = queue.shift()!;
-    for (const [nx, ny] of [
-      [x + 1, y],
-      [x - 1, y],
-      [x, y + 1],
-      [x, y - 1],
-    ]) {
-      const key = `${nx},${ny}`;
-      if (seen.has(key) || !SEA_CHARS.has(tileAt(z, nx, ny)) || fogAt(nx, ny)) continue;
-      seen.add(key);
-      queue.push([nx, ny]);
-    }
-  }
-  return seen;
-}
-
-/**
  * Where a boat sailing in across this map's `side` edge first floats: an open
  * sea cell one in from that edge, nearest the middle of it. Null when that
  * whole edge is land.

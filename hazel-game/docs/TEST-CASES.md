@@ -817,6 +817,16 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-674 | M | ✅ | story | headless Chromium, real `WorldScreen`: double taps 250 ms apart at every panel — all six panels seen in order; the button on screen without scrolling on every panel at 375×667, 667×375, 844×390 and 568×320 (touch); Tab ×3 leaves focus on the button; tapping 📜 Menu or Tab+Enter during the wake opens nothing; Act II not up at ~3.7 s, up at ~4.4 s; reduced motion: the morning shows from ~1.2 s, Act II by ~3.3 s; no inert left after Act II; no page errors |
 | TC-675 | M | ⏳ | story | on a real phone and tablet: the fades and the tap lock feel right (not sluggish), sideways too; VoiceOver / TalkBack read each new panel and "The next morning…" |
 
+## Groundwork for Acts II–IV: reachability, the Act I journey, saves, the HUD (#75 item 14b)
+
+| ID | Type | Status | Feature | Case |
+|---|---|---|---|---|
+| TC-676 | U | ✅ | reach | `reach` walks 4-way from the spawn or any start (a start always counts), never through walls or between two corners; a custom tile rule and blocked cells (reach.test) |
+| TC-677 | U | ✅ | reach | gates: closed walls, `open` passes, `flags` opens one once its `gate:` flag is set (as the canvas does), or decide per gate id; fog and pitch dark block until lifted / lit, `null` flags ignore both; `behindFog` is what fog still shuts away (reach.test) |
+| TC-678 | U | ✅ | reach | the boat: climb in only at its mooring, sail open sea, go ashore on a beach or a dock (never grass); afloat-only stays at sea; `reachPath` gives the fewest steps with their modes; on Dawnreach Marlow's dock reaches the Shallows' edge and Numbria's lake stays land-locked (reach.test) |
+| TC-679 | U | ✅ | reach | `exits: 'stop'` reaches an exit and goes no further (a start on one still moves); with every fog lifted, Dawnreach's open ground is the same either way — no road runs through a place (reach.test) |
+| TC-680 | U | ✅ | saves | a save standing on an exit (the Depths' B1 stairs, drawn after a vault save could stand there) loads on the open floor beside it, not the zone spawn; no save on any exit of any map loads onto it (reach.test) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

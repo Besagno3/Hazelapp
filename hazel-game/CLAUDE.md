@@ -208,6 +208,18 @@ zod, react-query. Add the package in the same change that first uses it.
   Spire — goes through `wakeAfterDefeat` (`lib/save.ts`): that inn's
   `innWakeCell` (the floor just inside its door), or home (`HUB_ZONE`, saved
   start) when `lastRest` is null. `wakeInnName` words it for the defeat screens.
+  **Reachability** (#75 item 14b, `lib/reach.ts`): one search answers every
+  "can the hero get there?" — `reach(z, opts)` walks 4-way over (cell, travel
+  mode) from the spawn (or `from`): on foot over walkable tiles, afloat over
+  open sea, climbing into the boat only at its mooring (`boat`) and going
+  ashore on a beach or dock; fog and pitch dark block unless lifted / lit
+  (`flags`, default `{}`; `null` ignores both); gates closed / open / by
+  `gate:` flag / per gate; `exits: 'stop'` makes exits and linked sea edges
+  end points; `passable` / `blocked` override tiles and cells. `reachPath`
+  gives the shortest steps (with modes), `touches` asks "is a cell beside it
+  reached?" (bump targets). `behindFog` and `safeSpawn` live there too —
+  `safeSpawn` now also steps a save off an exit cell onto open floor beside
+  it. Don't write another BFS over a zone's tiles: use these.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -436,6 +448,30 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — One reachability search for every map question (#75 item 14b)
+First slice of sub-item 14b (groundwork for Acts II–IV): `lib/reach.ts`.
+- **`reach` / `reachPath` / `touches`** replace eight hand-written searches:
+  `reachableOnFoot` (zones.ts), `reachableBySea` (travel.ts) and the copies in
+  zones / secrets / dungeons / fieldSpells / spire / boat tests (each now a
+  `reach` call with its own options — gates open in dungeons.test, a narrower
+  tile rule for the lighthouse test, a Spire floor through `floorZone`). The
+  old functions are gone; the app's callers (`safeSpawn` / `behindFog`, the
+  guides' `shrineToVisit`) use it too. A temporary test checked the new search
+  gave exactly the old answers on every zone, flag set and cell before the old
+  code was deleted.
+- **Travel modes built in:** a search can start afloat, climb into the boat
+  only at its mooring and go ashore on a beach or dock — the canvas's rules,
+  minus corner boardings — ready for 14i's per-act "no softlock" test.
+- **`exits: 'stop'`:** exits and linked sea edges are end points; a new test
+  checks no road on Dawnreach runs through a place icon (stopping at exits
+  reaches the same open ground).
+- **`behindFog` / `safeSpawn` moved** to `lib/reach.ts` (zones.ts can't import
+  the search without a cycle). **Fix:** a save standing on an exit — the
+  Clockwork Depths' B1 stairs were drawn in item 10 where a vault save could
+  stand — now steps onto the nearest open floor instead of being whisked
+  down to B2 on load (and no save on any exit of any map loads onto it).
+- Tests: `reach.test.ts` (+13); 712 green, lint + tsc clean.
 
 ### 2026-10-09 — Items 14–16 planned: one PR per sub-item, built on the boat (#75, docs only)
 A review of the overworld roadmap's last three rows (14 the boat + islands,

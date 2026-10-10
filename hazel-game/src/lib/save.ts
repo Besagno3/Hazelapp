@@ -1,6 +1,7 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
-import { BOAT_SPAWN_REACH, HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, safeSpawn } from '../content/zones';
+import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId } from '../content/zones';
+import { BOAT_SPAWN_REACH, safeSpawn } from './reach';
 import { BOAT_REMOOR_REACH, hasBoat, seaBeside, validMooring } from '../content/boat';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN } from '../content/story';

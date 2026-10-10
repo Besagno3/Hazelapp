@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MET_ELDER, ZONES, reachableOnFoot, type ZoneDef, type ZoneId } from '../content/zones';
+import { MET_ELDER, ZONES, type ZoneDef, type ZoneId } from '../content/zones';
+import { reach } from './reach';
 import { whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
@@ -165,7 +166,7 @@ describe('fog and the story', () => {
       if (!g.zoneId) break;
       // A goal across the sea starts at a spot on Dawnreach (Marlow's dock).
       const entrance = g.at ?? whereOnMap(ZONES, dawn, g.zoneId, null)!;
-      expect(reachableOnFoot(dawn, flags).has(`${entrance.x},${entrance.y}`), `${g.title}`).toBe(true);
+      expect(reach(dawn, { flags }).has(`${entrance.x},${entrance.y}`), `${g.title}`).toBe(true);
       advance(g, flags);
     }
     expect(nextObjective(flags).kind).toBe('explore');
