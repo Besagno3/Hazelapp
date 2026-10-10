@@ -4,6 +4,10 @@ import { crystalFlag } from '../content/topics';
 import {
   ANY_CRYSTAL_EMOJI,
   HIDDEN_PLACE_EMOJI,
+  STAR_HALF_W,
+  edgeLabelCovers,
+  edgeLabelSpot,
+  seaEdgeLabel,
   PLACE_EMOJI,
   fogMarker,
   fogMarkerAt,
@@ -124,6 +128,64 @@ describe('fog markers (#75 item 7)', () => {
     expect(fogMarkerAt(bank('math-fog'), dawn.places!)).toEqual({ x: 21, y: 17.5 });
     const spire = fogMarkerAt(bank('spire-fog'), dawn.places!);
     expect(spire).toEqual({ x: 40, y: 42 });
+  });
+});
+
+describe('sea-edge labels keep clear of the map\'s markers (#75 item 14d review)', () => {
+  const shallows = ZONES['silver-shallows'];
+  const toShallows = seaEdgeLabel('east', shallows.name);
+  const toDawnreach = seaEdgeLabel('west', dawn.name);
+
+  it('say where the sea leads', () => {
+    expect(toShallows).toBe('Silver Shallows ▶');
+    expect(toDawnreach).toBe('◀ Dawnreach');
+  });
+
+  it('on Dawnreach sit clear of every place and Marlow\'s dock — the Quiet Paws shrine too — on the narrowest map', () => {
+    const marks = [...(dawn.places ?? []), { x: 71, y: 30 }];
+    const spot = edgeLabelSpot('east', 80, 60, marks, null, toShallows);
+    for (const m of marks) expect(edgeLabelCovers('east', 80, 60, spot, m, toShallows), `${m.x},${m.y}`).toBe(false);
+    const west = edgeLabelSpot('west', 64, 44, shallows.landmarks ?? [], null, toDawnreach);
+    for (const m of shallows.landmarks ?? []) expect(edgeLabelCovers('west', 64, 44, west, m, toDawnreach), m.name).toBe(false);
+  });
+
+  it('never sit on the ⭐, wherever on either map the hero is, at the narrowest map\'s pixel sizes', () => {
+    for (const z of [dawn, shallows]) {
+      const cols = z.map[0].length;
+      const rows = z.map.length;
+      const marks = [...(z.places ?? []), ...(z.landmarks ?? [])];
+      for (const link of z.seaLinks ?? []) {
+        if (link.side !== 'west' && link.side !== 'east') continue;
+        const text = seaEdgeLabel(link.side, ZONES[link.to].name);
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const here = { x, y };
+            const spot = edgeLabelSpot(link.side, cols, rows, marks, here, text);
+            expect(edgeLabelCovers(link.side, cols, rows, spot, here, text, STAR_HALF_W), `${z.id} label vs ⭐ at ${x},${y}`).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it('on Dawnreach never land on a place to keep a gap from something else, wherever the ⭐ is in the east half', () => {
+    const marks = [...(dawn.places ?? []), { x: 71, y: 30 }];
+    for (let y = 0; y < 60; y++) {
+      for (let x = 40; x < 80; x++) {
+        const spot = edgeLabelSpot('east', 80, 60, marks, { x, y }, toShallows);
+        for (const m of marks) expect(edgeLabelCovers('east', 80, 60, spot, m, toShallows, undefined, 0), `⭐ ${x},${y} vs ${m.x},${m.y}`).toBe(false);
+      }
+    }
+  });
+
+  it('move off the ⭐ by the puffer, and not onto Gull Rock', () => {
+    const here = { x: 3, y: 27 };
+    const marks = shallows.landmarks ?? [];
+    const spot = edgeLabelSpot('west', 64, 44, marks, here, toDawnreach);
+    expect(edgeLabelCovers('west', 64, 44, spot, here, toDawnreach, STAR_HALF_W)).toBe(false);
+    for (const m of marks) expect(edgeLabelCovers('west', 64, 44, spot, m, toDawnreach), m.name).toBe(false);
+    // A ⭐ on the far side of the map doesn't move it.
+    expect(edgeLabelSpot('west', 64, 44, marks, { x: 60, y: 27 }, toDawnreach)).toBe(edgeLabelSpot('west', 64, 44, marks, null, toDawnreach));
   });
 });
 

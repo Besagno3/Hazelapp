@@ -1112,8 +1112,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'tide-sprite', x: 13, y: 6 },
-      { defId: 'meteor-mite', x: 11, y: 5 },
-      { defId: 'moon-moth', x: 5, y: 7 },
+      // A row below the Tide Colossus's crown label, so a sleeping one's "z Z" have a way up clear of
+      // it — not only toward the hero (sleepMark.test).
+      { defId: 'meteor-mite', x: 11, y: 6 },
+      // Out of reach of Old Marlow's spot (5,8) and Vela's door (8,4) and its
+      // doorstep — walking up to him, chatting, or stepping out never meets it
+      // (#114w).
+      { defId: 'moon-moth', x: 9, y: 8 },
       { defId: 'orbit-otter', x: 2, y: 2 },
       { defId: 'gravity-beetle', x: 14, y: 2 },
       { defId: 'eclipse-fox', x: 19, y: 5 },
@@ -1165,7 +1170,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'cog-sprite', x: 6, y: 5 },
-      { defId: 'hourglass-imp', x: 14, y: 6 },
+      // In the corridor east of the Tinkery's door: clear of Echo (14,5) and the roof, so a
+      // sleeping one's "z Z" show and read as its own, and out of reach of the vault gate, the
+      // Tinkery's doorstep, the way out — and the walk from the arrival to the save crystal
+      // (sleepMark.test, seaCritters.test).
+      { defId: 'hourglass-imp', x: 20, y: 7 },
       { defId: 'relic-golem', x: 8, y: 2 },
       { defId: 'tut-tut', x: 3, y: 7 },
     ],
@@ -1309,7 +1318,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     enemies: [
       { defId: 'mossback-cub', x: 4, y: 9 },
       { defId: 'thornhare', x: 16, y: 8 },
-      { defId: 'grumblebee', x: 16, y: 9 },
+      // Not right under the Thornhare (16,8), so a sleeping one's "z Z" rise clear of it (sleepMark.test).
+      { defId: 'grumblebee', x: 18, y: 9 },
     ],
     exits: [
       // Back out through the gap in the trees (#75 Phase 1).
@@ -1670,7 +1680,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { id: 'gull-lighthouse', name: 'Gull Rock Lighthouse', x: 9, y: 16, w: 5, h: 4, roof: 'red', style: 'cottage', sign: 'star' },
     ],
     npcs: [{ defId: 'gull-lamplighter', x: 11, y: 17 }],
-    enemies: [],
+    // Sea critters (#75 item 14d): they swim open water and fight only a
+    // sailing hero — well clear of any land and of the western edge you sail
+    // in by, so landing, climbing in or arriving never starts a fight
+    // (seaCritters.test checks every placement).
+    enemies: [
+      { defId: 'bubble-puffer', x: 17, y: 28 },
+      { defId: 'inkling', x: 38, y: 16 },
+      { defId: 'starfix', x: 44, y: 34 },
+    ],
     exits: [],
     // Its tower stands on the rock just east of Ness's cottage.
     lighthouse: { x: 15, y: 16 },

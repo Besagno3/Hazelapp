@@ -6,6 +6,7 @@ import type { EmberStage } from '../../content/story';
 import type { CompanionId } from '../../content/companion';
 import type { RefObject } from 'react';
 import type { FloatText, FxSide, StageFx } from './useBattleFx';
+import { BOAT_FRAME, BOAT_FRAMES, BOAT_SHEET } from '../../content/tiles';
 
 /** Framer props for a choreography motion (null or reduced motion = at rest). */
 function motionProps(k: Keyframes | null, reduceMotion: boolean) {
@@ -37,10 +38,80 @@ function Floats({ floats, side, reduceMotion }: { floats: FloatText[]; side: FxS
   );
 }
 
+/** Marlow's boat in a battle at sea (#75 item 14d): its 32 px frames drawn this many times bigger. */
+const BOAT_SCALE = 4;
+const BOAT_PX = 32 * BOAT_SCALE;
+/** How far the boat sits below the hero's feet, so the hull's rim covers only their feet. */
+const BOAT_BELOW = 38;
+/** At sea the companion stands this much higher, on the deck behind the rim rather than hidden by it. */
+const DECK_LIFT = 6;
+
+/**
+ * The sea under a battle at sea (#75 item 14d): water from a little above the
+ * combatants' feet all the way down the screen (under the menu), so the boat
+ * and the sea critter always float in it — the stage shrinks as the menu or a
+ * question grows, which would otherwise lift them off the backdrop's water
+ * into its sky. Its top fades in, so wherever it meets the backdrop (its sky,
+ * or its own sea) there's one soft horizon, not a hard second one. Sized by
+ * padding: its bottom edge follows the stage's own bottom padding (pb-1,
+ * sm:pb-[8%] — % padding is of the width either way) plus a screen's height.
+ */
+function SeaFloor() {
+  return (
+    <div
+      aria-hidden
+      data-testid="battle-sea"
+      className="pointer-events-none absolute inset-x-0 -bottom-[100vh] -z-20 pt-10 pb-[calc(4px_+_100vh)] sm:pt-14 sm:pb-[calc(8%_+_100vh)]"
+      style={{
+        backgroundImage: [
+          'repeating-linear-gradient(to bottom, transparent 0 9px, rgba(255,255,255,0.14) 9px 11px)',
+          'linear-gradient(to bottom, rgba(114,176,225,0) 0, #72b0e1 16px, #4f97cf 90px, #3d7eb1 220px)',
+        ].join(', '),
+        // The wave lines start below the fade, so none float in the sky.
+        backgroundSize: '100% 100%, 100% 100%',
+        backgroundPosition: '0 18px, 0 0',
+        backgroundRepeat: 'no-repeat',
+      }}
+    />
+  );
+}
+
+/**
+ * One piece of Marlow's boat under the hero (and the companion): the whole
+ * boat behind them, or the front of its hull over their feet so they sit in
+ * it. Facing the enemy (the sheet faces right), bobbing gently — still under
+ * reduced motion — and never moving with a lunge.
+ */
+function BoatPiece({ front, reduceMotion }: { front: boolean; reduceMotion: boolean }) {
+  const frame = front ? BOAT_FRAME.hullFront[0] : BOAT_FRAME.whole[0];
+  return (
+    <motion.div
+      aria-hidden
+      data-testid={front ? 'battle-boat-front' : 'battle-boat'}
+      {...(reduceMotion ? {} : { animate: { y: [0, 2, 0] }, transition: { repeat: Infinity, duration: 2.4 } })}
+      // Behind everyone on the stage, or (the hull's front) over the hero and
+      // companion by coming after them — land battles' stacking is unchanged.
+      className={`pointer-events-none absolute -left-1.5 ${front ? '' : '-z-10'}`}
+      style={{
+        bottom: -BOAT_BELOW,
+        width: BOAT_PX,
+        height: BOAT_PX,
+        backgroundImage: `url(${BOAT_SHEET})`,
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: `${BOAT_FRAMES * BOAT_PX}px ${BOAT_PX}px`,
+        backgroundPosition: `${-frame * BOAT_PX}px 0px`,
+        imageRendering: 'pixelated',
+        scaleX: -1, // a motion value, so the bob's transform keeps the flip
+      }}
+    />
+  );
+}
+
 /**
  * The combatants on the pseudo-3D ground plane: enemy left, hero + the active
  * companion right. Every motion comes from `fx` (`useBattleFx().stage`) and the
  * per-move keyframes in `./choreography`; reduced motion keeps everyone still.
+ * Against a sea critter (`afloat`, #75 item 14d) they fight from Marlow's boat.
  */
 export function BattleStage({
   fx,
@@ -57,6 +128,7 @@ export function BattleStage({
   guarded,
   charging,
   won,
+  afloat = false,
 }: {
   fx: StageFx;
   /** Measured to fit dives to the screen (`useBattleFx` reads them in event handlers). */
@@ -75,6 +147,8 @@ export function BattleStage({
   charging: boolean;
   /** The battle is won — the companion cheers (the egg wobbles). */
   won: boolean;
+  /** A battle at sea (#75 item 14d): the hero and companion stand in Marlow's boat. */
+  afloat?: boolean;
 }) {
   const { reduceMotion } = fx;
   const bob = (y: number, duration: number) =>
@@ -92,6 +166,7 @@ export function BattleStage({
     // Phones: a smaller floor so menus + question cards fit on screen; flex-1
     // still grows it into any spare height (e.g. while a message shows).
     <div className="relative z-10 flex-1 flex items-end justify-between px-[12%] min-h-[112px] pb-1 sm:min-h-[220px] sm:pb-[8%]">
+      {afloat && <SeaFloor />}
       <div className="relative" ref={enemyRef}>
         <motion.div
           key={`el${fx.enemyLunge}`}
@@ -125,6 +200,7 @@ export function BattleStage({
       </div>
 
       <div className="relative" ref={heroRef}>
+        {afloat && <BoatPiece front={false} reduceMotion={reduceMotion} />}
         <motion.div
           key={`hl${fx.heroLunge}`}
           {...motionProps(fx.heroLunge ? fitReach(HERO_MOTION[fx.heroMotion], fx.reachGap) : null, reduceMotion)}
@@ -155,6 +231,7 @@ export function BattleStage({
             reduceMotion,
           )}
           className="absolute -right-10 bottom-0"
+          style={afloat ? { bottom: DECK_LIFT } : undefined}
         >
           {/* A swapped-in companion drops into place */}
           <motion.div
@@ -183,6 +260,7 @@ export function BattleStage({
             </motion.span>
           </motion.div>
         </motion.div>
+        {afloat && <BoatPiece front reduceMotion={reduceMotion} />}
         <Floats floats={fx.floats} side="hero" reduceMotion={reduceMotion} />
       </div>
 

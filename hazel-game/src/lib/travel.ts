@@ -9,6 +9,7 @@ import {
   type ZoneDef,
   type ZoneId,
 } from '../content/zones';
+import type { Habitat } from '../types';
 
 /**
  * Getting about on land and sea (#75 roadmap item 14, §2.2–2.3). On foot the
@@ -23,6 +24,29 @@ export const BOAT_SPEED = 1.5;
 /** Can this mode cross a cell holding `ch`? (Fog, dark and gates are the canvas's business.) */
 export function passable(ch: string, mode: TravelMode): boolean {
   return mode === 'boat' ? SEA_CHARS.has(ch) : WALKABLE_CHARS.has(ch);
+}
+
+/**
+ * Which critters a hero getting about each way can meet (#75 item 14d): on
+ * foot, land critters; in the boat, sea critters. A `Record`, so a new travel
+ * mode doesn't compile until it says — Ember's flight (item 15b) will meet
+ * none (`null`: flying has no battles).
+ */
+const ENCOUNTER_HABITAT: Record<TravelMode, Habitat | null> = { foot: 'land', boat: 'sea' };
+
+export function encounterHabitat(mode: TravelMode): Habitat | null {
+  return ENCOUNTER_HABITAT[mode];
+}
+
+/**
+ * Does a critter living in `habitat` (missing = land) fight a hero getting
+ * about this way? A sea critter only fights a sailing hero, and a land
+ * critter never does — so a hero on a beach is never bumped into battle from
+ * the water, nor a sailing one from the shore (#108j).
+ */
+export function meetsHero(habitat: Habitat | undefined, mode: TravelMode): boolean {
+  const meets = encounterHabitat(mode);
+  return meets !== null && (habitat ?? 'land') === meets;
 }
 
 /** Can a boat put the hero ashore onto a cell holding `ch`? */

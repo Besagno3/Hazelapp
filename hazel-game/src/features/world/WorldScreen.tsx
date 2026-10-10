@@ -80,6 +80,10 @@ import { useProfileStore } from '../../store/profileStore';
 import { useBattleStore } from '../../store/battleStore';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
 
+/** Said once a session, as the hero heads up to a sleeping critter (#114e)… */
+const SLEEPER_HINT = '💤 Sleepy critters let you pass. They wake up when you move away.';
+/** …once it's been up this long (ms): long enough to read, not cut off by a battle. */
+const SLEEPER_HINT_READ_MS = 2500;
 /**
  * A HUD button's tap target reaches 44 px tall (an invisible ::after 8 px
  * above and below it) without making the HUD row taller — the map keeps its
@@ -136,9 +140,16 @@ export default function WorldScreen() {
   // One timer for whichever toast is up: a new toast replaces the old one's
   // timer, so an earlier toast can't hide a newer one early.
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Is a toast up? A hint can wait for the next chance rather than knock one
+  // off before it's been read (a first-arrival warning; `onSleeper`).
+  const toastUp = useRef(false);
+  // The 💤 hint counts as said once it's been up long enough to read — cut
+  // short (a battle, another toast) it's said again the next time (#114e).
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
       if (toastTimer.current) clearTimeout(toastTimer.current);
+      if (hintTimer.current) clearTimeout(hintTimer.current);
     },
     [],
   );
@@ -294,8 +305,13 @@ export default function WorldScreen() {
 
   function showToast(text: string) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
+    if (hintTimer.current) clearTimeout(hintTimer.current);
     setToast(text);
-    toastTimer.current = setTimeout(() => setToast(null), toastMs(text));
+    toastUp.current = true;
+    toastTimer.current = setTimeout(() => {
+      setToast(null);
+      toastUp.current = false;
+    }, toastMs(text));
   }
 
   /** A field spell cast from the menu, or Glow from the HUD (#75 item 9). */
@@ -476,6 +492,16 @@ export default function WorldScreen() {
             showToast(
               knowsGlow ? '🌑 Too dark to go on! Tap 🔆 Glow at the top to light the way.' : `🌑 ${z.dark?.hint ?? "It's too dark!"}`,
             ),
+          // Said once a session, as they head up to a sleeper — or, with a
+          // toast up, the next time they do. It only counts once it's been up
+          // long enough to read (`SLEEPER_HINT_READ_MS`).
+          onSleeper: () => {
+            if (useBattleStore.getState().sleeperHintSaid) return true;
+            if (toastUp.current) return false;
+            showToast(SLEEPER_HINT);
+            hintTimer.current = setTimeout(() => useBattleStore.getState().saySleeperHint(), SLEEPER_HINT_READ_MS);
+            return false;
+          },
           onCalmTick: (left) => {
             setCalmLeft(left);
             if (left === 0) showToast('🕊️ The calm wears off — the critters are curious again!');
@@ -502,7 +528,7 @@ export default function WorldScreen() {
 
       <p className="text-white/50 text-xs mt-2">
         {save.aboard
-          ? 'Sail: arrow keys / WASD · sail into a beach or a dock to go ashore'
+          ? 'Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!'
           : 'Walk: arrow keys / WASD · bump into friends to talk, foes to battle!'}
       </p>
       </div>
@@ -520,7 +546,7 @@ export default function WorldScreen() {
           <motion.div
             initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="max-w-md text-center bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl"
+            className="max-w-md text-center text-balance bg-white text-gray-800 font-semibold rounded-xl px-5 py-2.5 shadow-2xl"
           >
             {toast}
           </motion.div>

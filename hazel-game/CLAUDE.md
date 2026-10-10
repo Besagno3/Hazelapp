@@ -222,7 +222,8 @@ zod, react-query. Add the package in the same change that first uses it.
   `pitch` rects that block like fog until lit; a 🔆 HUD button appears there);
   **Calm** fills `calmRef` (seconds, counted down by the canvas while the world
   runs) — critters fade and don't start battles, bosses still do; when it
-  wears off a critter you're touching waits `CALM_GRACE` (1.5 s). Arriving
+  wears off, `CALM_GRACE` (1.5 s) of cooldown: a critter the hero is standing
+  in lets them step away from it — walking on into it fights. Arriving
   anywhere sets `visited:<zone>`.
   **Dungeons** (#75 item 10, `content/dungeons.ts`): a floor is an ordinary
   `dungeon` zone (saves your place, critters, chests, NPCs, maybe bigger than
@@ -263,8 +264,9 @@ zod, react-query. Add the package in the same change that first uses it.
   boat moored edge to edge with that shore (`onLand`, `landingMooring` — never
   only corner to corner, where nobody could climb back in); collision is
   boat-aware (`heroHit` / `blockerAt(…, afloat)`), and the boat is two
-  sprites — under the hero, and its hull's front over them. Return and a lost
-  battle leave the boat moored where it was (`moorBoat`); Old Marlow offers
+  sprites — under the hero, and its hull's front over them. Return leaves the
+  boat moored where it was (`moorBoat`), a battle lost at sea sends it home to
+  his dock (`boatAfterDefeat`, #75 item 14d); Old Marlow offers
   to row it home (a ⛵ Row her home button) when it's away from his dock. A
   boat only floats on open sea of a sea-linked map outside standing fog
   (`afloatAt`); a hero saved aboard anywhere else loads on the nearest open
@@ -278,6 +280,72 @@ zod, react-query. Add the package in the same change that first uses it.
   the zone kind's track): a shanty while sailing Dawnreach's waters, the
   Silver Shallows' theme anywhere on that map, a misty loop near the Great
   Fogbank while it stands (in at `FOGBANK_NEAR`, out past `FOGBANK_LEAVE`).
+  **Sea critters** (#75 item 14d): an enemy lives on land or at sea
+  (`EnemyDef.habitat`, carried onto `BattleEnemy`; missing = land). A sea
+  critter wanders open sea only (`attachWander`'s `afloat` — its box through
+  `hitBox(…, afloat)`, so never land, fog or off the map), with a faint ripple
+  under it; each critter fights only a hero in its own element — sailing for a
+  sea critter, on foot for a land one, bosses too (`meetsHero`, `lib/travel.ts`,
+  checked in the canvas's contact loop through `lib/encounter.ts`'s
+  `startsBattle`, with Calm). Every enemy that could reach a hero standing
+  where a scene starts, and could fight them as they're getting about
+  (`idleReach`: a critter's leash + its touch, a boss's touch), rests — asked
+  again on landing or climbing aboard, for the new way of getting about. A
+  critter falls asleep: it holds still, drawn a little faded (`SLEEP_OPACITY`,
+  less than Calm's), its level hidden, with a little "z" and "Z" rising from
+  its head and fading on a loop (held still under reduced motion), drawn
+  over the hero and the boat — by the way up (up-right, up-left, straight up,
+  out to a side) that reads most surely as its own as it falls asleep
+  (`lib/sleepMark.ts` `zzPath`, by `markCost`: covering a boss — or coming
+  within `BOSS_MARGIN` (8 px) of it — worst, then anyone else, a roof, the
+  lighthouse or the map's edge (`edgeBoxes`), then the hero — each of those
+  outweighing all that follows, however much adds up — then, added up, where
+  an awake critter roams (`patchBox`), Ember's spot, the room round the hero,
+  coming near anything (a twentieth of covering it) and a letter nearer
+  someone else's face (an awake critter's double, `FOE_FACE`); a sleeper's
+  hidden level counts for nothing; ways away from the hero first — tested on
+  every map, with the hero anywhere within reach, on a cell or between, on
+  foot or sailing),
+  fading right down while they cross anyone or come nearer anyone's face than
+  their sleeper's — hidden by an awake critter's or a boss's, eased so a
+  passer-by doesn't make them flicker — and hidden with the hero (or the boat)
+  on it; as a scene starts, or on landing or boarding, Ember sits on a
+  sleeper's far side (or a side: on ground she can stand on, outdoors, her box
+  off anyone's face or shown label; else the first of those off the sleeper at
+  least — never on it — `emberSpot`), and the letters are planned round her
+  spot. Like Calm it lets the hero
+  pass — heading towards one says, once a session (`battleStore`, so sign-out
+  resets it), "💤 Sleepy critters let you pass. They wake up when you move
+  away." (`onSleeper`; with another toast up, the next time; it counts once
+  it's been up 2.5 s, so a battle cutting it short leaves it to say again) —
+  until they've left its patch; then it
+  can't touch them unless they steer back (`standDown` / `restOf` /
+  `staysDown`, checked every frame). A boss is drawn as ever — it never lets
+  the hero past: it only holds back while they stand still, back away or step
+  aside, and fights the moment they head past it (measured along the line
+  from it to where they began). So a Flee, a reload, an arrival or a landing
+  never drops the hero straight into a fight. One frame's meeting with an
+  enemy is `meetFoe` (`lib/encounter.ts`, table-tested): a bump's cooldown
+  (`arm`: a menu closed, a chest, the save crystal, a landing, Calm wearing
+  off — never shortening one already running) spares only `spared` critters
+  — those touching the hero as it's armed (`graceOf`) and any that comes onto
+  a hero standing still (not moved this frame) while they're `guard`ed (the
+  cooldown, or 3 s after saving, as long as "💎 Game saved!") — each while
+  the hero stands or steps away, until it steps clear; walking into one
+  fights, and a boss is never spared (#114t: the cooldown used to let the
+  hero walk through anything, bosses too); and none fights in the two frames
+  after a cooldown is armed, while its menu or talk takes the world's pause. The Silver Shallows has three (Bubble
+  Puffer, Inkling, Starfix — nature, tier 5 since 14c), placed by
+  `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
+  land or the edge a boat sails in by. A battle at sea is fought over
+  open water (`battleBackdrop(zone, 'sea')` → `/backgrounds/<zone>-sea.png`,
+  `tiles.sea_backdrop`) from Marlow's boat (`BattleStage`'s `afloat`: the boat
+  behind hero and companion, its hull's front over their feet, the companion
+  on deck (`DECK_LIFT`), all decorative; `SeaFloor` keeps water under their
+  feet down the whole screen, however much the menu squeezes the stage);
+  losing one sends the boat home to Marlow's dock (`boatAfterDefeat`) and the
+  defeat screen says so (in place of its 💡 tip, so the button fits a 320 px
+  phone).
   Zone ids from a save are checked with `isZoneId` (own keys of `ZONES` —
   never `in`, which lets `constructor` through). A zone can have a
   lighthouse (`ZoneDef.lighthouse`: the 2×2 rock it stands on): the canvas
@@ -415,6 +483,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # scre
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -424,10 +493,11 @@ python3 tools/tiled/tiled.py legend                                    # rebuild
 python3 tools/assets/build.py spells   # art for the field-spell places + keepers only (#75 item 9)
 python3 tools/assets/build.py dungeon  # the Depths' lower floors + the stairs sheet only (#75 item 10)
 python3 tools/assets/build.py inns     # the innkeepers + travelers' sprites only (#75 item 11)
-python3 tools/assets/build.py sea      # the Silver Shallows, the boat, the dock + Lamplighter Ness only (#75 item 14)
+python3 tools/assets/build.py sea      # the Silver Shallows (+ its battle-at-sea backdrop), the boat, the dock + Lamplighter Ness only (#75 item 14)
 python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
 python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallows, the fogbank (#75 item 14)
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
+python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
 ```
 
@@ -504,6 +574,515 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Merge main (14c groundwork, 14e Remembrance Hill) into the sea-critters branch (#75 item 14d)
+`main` took 14c and 14e while 14d was in review. Both used ISSUES **#112**
+(14c kept it, 14e is #113), so 14d's follow-ups moved **#112 → #114**,
+and its test cases **TC-706–760 → TC-731–785** (14c and 14e took
+TC-706–730). Conflicts were all additive:
+`types` keeps `HABITATS` and `BOSS_ROLES`; `enemies.ts` gives the Clockwork
+Titan its `warden` role and keeps the sea critters and `habitatOf`;
+`build.py` keeps the `hill` and `seacritters` builds; the menu map keeps
+14d's sea-edge labels (`edgeLabelSpot`) and 14e's "no marker on a bank no
+crystal lifts". 14c made the Shallows tier 5, so its sea critters now read
+"Lv N !!!" in violet; 14e's Remembrance Hill has no critters, and its people
+go through the "z Z" sweep like everyone else's.
+
+### 2026-10-10 — 14d fifteenth review: Ember never starts on a sleeper; hidden levels count for nothing; the "z Z" cost tiers weighed in turn (#75 item 14d)
+Round 15 — fresh `/saas-code-review` (1 medium, 2 low). The UX review was
+stopped partway, by request, and the review loop ended here. All three fixed:
+- **Ember on top of the sleeper (code, medium; a regression from round 14):**
+  her start spot had to keep off every label, the sleeper's own hidden level
+  too, and with nothing free she fell back to where she trails — straight onto
+  a sleeper just above the hero (14% of starts 16–28 px off one; Starfall's
+  shore row, on the real canvas). `emberSpot` now tries the far side, then a
+  side: first on ground she can stand on, clear of everyone; then on ground
+  she can stand on, off the sleeper at least; then off the sleeper anywhere
+  (a dragon flies) — never on it. A sleeper's hidden level isn't in anyone's
+  way (`lookBoxes`), and only an awake critter's face weighs `FOE_FACE`.
+- **Hidden levels in the way (code, low):** a sleeping neighbour's hidden level
+  still pushed letters across the hero, and dimmed a letter crossing it. Same
+  fix.
+- **"Never the hero where a clearer way was there" held only on cell centres
+  (code, low):** a hero left between cells (after a Flee or a reload) could get
+  letters on them when the lesser costs added up past the hero's. `zzPath`
+  now weighs covering a boss, then anyone (or a roof, or the edge), then the
+  hero, each in turn — the rest added up after — and the sweep test moves the
+  hero on an 8 px grid, with Ember's spot checked off the sleeper.
+- Tests: 816 green, lint + build clean; `bench … sea` 7/7; Ember off the
+  sleeper on the bench page (Starfall from 11,7 and 13,7).
+
+### 2026-10-10 — 14d fourteenth review: "z Z" keep clear of bosses, the map's edge and awake critters' patches; the hint counts once read; the Imp moved off the crystal walk (#75 item 14d)
+Round 14 — fresh `/saas-code-review` (1 medium, 4 low) + `/saas-ux-review` (1
+medium, 1 low-medium, 2 low, notes). All fixed:
+- **Letters just under a boss's label (code, medium):** on Starfall's corridor
+  the Mite's and Sprite's "z Z" ended 4 px under the Tide Colossus's crown
+  label (it looked asleep), and the sweep test, with 17 px plates where the
+  canvas draws 15, couldn't see it. `zzPath` keeps `BOSS_MARGIN` (8 px) off a
+  boss; the test uses the canvas's plate (`levelPlate`) and fails a path within
+  8 px of a boss where a clear one was there.
+- **A sleeper beside an awake critter's patch (UX, medium):** planned round
+  where neighbours stood, its letters went where an awake critter wandered,
+  faded to 25% by its head (it looked asleep) while the sleeper showed
+  nothing. Letters now keep out of awake critters' patches (`patchBox`, a
+  little cheaper than the hero), a letter by an awake critter's face weighs
+  double (`FOE_FACE`), and by an awake critter or a boss they hide rather than
+  fade — eased (`ZZ_EASE`) so a passer-by doesn't make them flicker.
+- **The 💤 hint used up in a flash (UX, low-medium):** it counted as said the
+  moment it showed, so a battle a second later took it for the session. It
+  counts once it's been up 2.5 s (`SLEEPER_HINT_READ_MS`), and shows only
+  heading towards a sleeper (`WorldScreen.sleeper.test`).
+- **Off the top of the map (code low; UX low):** the Imp's (5,1) and Chromaria's
+  Flicker Goblin's "Z" rose past the top edge, cut off. The map's edges count
+  like a roof (`edgeBoxes`).
+- **The crystal walk (UX, low):** the Imp at 5,1 took away the Depths' one
+  fight-free walk from the arrival to the save crystal. It's at 20,7 now, in
+  the corridor east of the Tinkery's door, and `seaCritters.test` walks from
+  the arrival to the crystal clear of every awake critter's reach (the Depths
+  and Starfall).
+- **Ember (code, low):** with no spot free she trailed somewhere the letters
+  weren't planned round (now the fallback is where she trails: the way the
+  hero last went), and her 20 px rule let her sit on the Tide Colossus's face
+  (now her box off everyone's face and label).
+- **Tests (code, low ×2):** the sweep's checks ignored roofs where the cost
+  model doesn't, used the hero's box at sea and left Ember's fog check out —
+  `HERO_BOX` / `HERO_AFLOAT_BOX` are shared now.
+- Logged (#114ee): on boarding a held key resets `lastDir` the next frame
+  (latent); wanderers could keep a wider berth round sleepers (optional).
+- Tests: 816 green (+3), lint + build clean; `bench … sea` 7/7.
+
+### 2026-10-10 — 14d thirteenth review: "z Z" never at full strength on anyone else; roofs counted; the Imp and the Mite moved clear (#75 item 14d)
+Round 13 — fresh `/saas-code-review` (1 medium, 5 low) + `/saas-ux-review` (2
+medium, 1 low-medium, notes). All fixed:
+- **"z Z" read as an awake neighbour's (UX, medium):** a sleeper's letters
+  could sit by an awake critter's head (the Grove's Thornhare, Starfall's
+  Meteor Mite) — it looked asleep and a child walked into a fight. A letter
+  now fades right down while it's nearer anyone's face than its own
+  sleeper's — the hero, Ember, people, awake critters and wanderers alike.
+- **The Imp under the Tinkery's roof (code, medium):** at 14,2 its "z Z" (and,
+  awake, its "!") were hidden by the roof; `zzPath` knew nothing of roofs. It
+  counts roofs (but the one the hero is in) and the lighthouse now
+  (`roofBoxes`), and the Imp moved to 5,1, clear of the roof, the vault gate,
+  the Tinkery's doorstep, Echo, the way out and the arrival.
+- **Starfall's Meteor Mite only ever rose toward the hero (UX, medium):** under
+  the Tide Colossus every way up but one crossed its crown label. It moved
+  a row down (11,6).
+- **Costs (code, low):** the room round the hero cost as much as a neighbour,
+  so letters went onto an awake critter instead; and a near miss of a boss
+  cost as much as covering one. Now each letter's own swept box is measured,
+  a near miss costs a twentieth, and the order is boss, anyone or a roof, the
+  hero, Ember's spot, the hero's room (`markCost`, tested).
+- **Ember (code low ×2; UX notes):** on landing or boarding the letters were
+  planned round a spot she never went to (she goes there now); her start
+  ignored other faces — Wisp, the Tide Colossus — (`emberSpot` keeps 20 px off
+  everyone, and is shared with the test).
+- **At sea (UX, low-medium):** with the boat on a sleeper its letters showed
+  beside the boat — the boat counts as the hero now (`HERO_AFLOAT_BOX`, hidden
+  within 28 px).
+- **Tests (code, low ×2):** the hero sweep skipped the sea critters (it sails
+  their water now) and modelled Ember wrongly (it uses `emberSpot` and the
+  nearest sleeper); it checks never a boss, a neighbour, the hero or a roof
+  where a clearer way was there. The bench's landing check could wander off
+  south — its search stays by the mouse's home.
+- Tests: 813 green (+1), lint + build clean; `bench … sea` 7/7.
+
+### 2026-10-10 — 14d twelfth review: "z Z" read as their sleeper's own; Ember starts on solid ground; the Imp off the vault gate (#75 item 14d)
+Round 12 — fresh `/saas-code-review` (1 medium, 3 low) + `/saas-ux-review` (1
+medium, 1 low-medium, 1 low, 2 notes). All fixed:
+- **"z Z" read as the hero's (UX, medium):** the path picker only kept 4 px off
+  the hero, so letters rose into the gap by their face (2–3% of start spots).
+  `zzPath` now scores what reads as whose: covering a boss worst, then anyone
+  (room round the hero, and Ember's start spot), then a letter nearer someone
+  else's face than its own sleeper's; ways away from the hero first. At run
+  time a letter nearer the hero's face than its sleeper's fades right down. A
+  test sweeps the hero over every cell within reach of every sleeper: never a
+  boss, never the hero where a way clear of both was there.
+- **Ember (code low; UX low):** she was made at the old spot and only walked
+  to the far side once the world ran — over the sleeper through any opening
+  pause — and could settle in the sea or under a roof; right on top of a
+  sleeper she vanished into the boat. `emberStart` puts her on the far side
+  from the first frame, else a side, on walkable ground outdoors (sea when
+  sailing), else as before. The hero doesn't turn — the docs said it did.
+- **The hint's "once a session" outlived a sign-out (code, medium):** a module
+  flag; now `battleStore.sleeperHintSaid`, cleared by `reset()` (tested).
+- **The moved Hourglass Imp guarded the Depths' vault gate (code low; UX
+  low-medium):** 12,6 put the only way down in its reach. It's at 14,2 now,
+  clear of the gate, the Tinkery's doorstep and Echo (tested).
+- **The wander unfreeze was untested (code, low):** `nextWanderDir`
+  (`lib/wander.ts`), table-tested.
+- Tests: 812 green (+6), lint + build clean; `bench … sea` 7/7.
+
+### 2026-10-10 — 14d eleventh review: "z Z" take a way up clear of everyone; wanderers never freeze; Ember trails clear of a sleeper (#75 item 14d)
+Round 11 — fresh `/saas-code-review` (1 medium, 2 low) + `/saas-ux-review` (1
+high, 1 medium, 2 low). Fixed, one kept:
+- **"z Z" on a neighbour (UX high; code medium):** they rose on a fixed path up
+  and to the right, so the sleeping Meteor Mite's sat on the Tide Colossus's
+  crown label (the boss looked asleep, even right after fleeing it), and the
+  Woods Grumblebee's on Wisp's name. `lib/sleepMark.ts` `zzPath` (back, with
+  paths now) picks the first way up — up-right, up-left, straight up, out to
+  a side — clear of everyone else's face and label, and of the hero, as it
+  falls asleep; a boss is crossed last of all; a test checks every critter on
+  every map. Two pairs had no way clear: the Depths' Hourglass Imp moved from
+  under Echo (14,6 → 12,6) and the Grove's Grumblebee from under the
+  Thornhare (16,9 → 18,9).
+- **The hero, Ember or the boat over the sign (UX, medium):** after a Flee the
+  sleeper hid under Ember or the boat while its letters rose from the hero. The
+  letters fade right down while they cross anyone (hero, Ember, a villager, a
+  label) and hide with the hero standing on the sleeper; the hero faces the
+  nearest sleeper as a scene starts, so Ember trails on its far side; the hint
+  shows as the hero heads up to one (44 px), while it's still there to see,
+  and once a session.
+- **Critters froze for good (code, low; pre-existing):** beyond 85% of its
+  leash a wanderer steered straight home, and if that step was blocked it tried
+  the same step forever — the Moon Moth's new 9,8 froze in 193 of 200
+  simulated runs, the Orbit Otter beside Starfall's crystal in 200 of 200. Now a
+  blocked step makes the next pick a random wander.
+- **Calm's grace (code, low):** its comment and this file promised 1.5 s for a
+  critter you're touching; `meetFoe` spares it only while you step away. The
+  words now say so.
+- **Small at 1× (UX, low):** "z" 20 px and "Z" 27 px.
+- **Kept (UX, low): Vela's doorstep → Old Marlow** crosses a corner of the
+  moth's patch — visible and avoidable; his spot, the door and the crystal
+  stay clear (tested).
+- Tests: 806 green (+3), lint + build clean; `bench … sea` 7/7.
+
+### 2026-10-10 — 14d tenth review: "z Z" rise from a sleeper's head; walking into a spared critter fights; contact rules table-tested (#75 item 14d)
+Round 10 — fresh `/saas-code-review` (1 medium, 5 low) + `/saas-ux-review` (1
+medium, 2 low-medium — one pre-existing — and 1 low). Fixed, one logged:
+- **The sleep sign (UX medium; code medium):** drawn under every face, the
+  "Zz" plate was hidden by whoever stood on or below the sleeper (the hero
+  after a Flee, Ember, the boat), read as the hero's name tag under the hint,
+  and framed an awake Grumblebee under a sleeping Thornhare; and people's
+  faces (z 5) were under it after all. Now a sleeper's level is hidden and a
+  little "z" and "Z" rise from its head and fade on a loop, drawn over the
+  hero and boat (held still under reduced motion) — no box to frame anyone,
+  and nobody standing by hides it.
+- **Walking through a spared critter (code low ×1, UX low):** one spared while
+  the hero stood still could be walked through, looking awake. `meetFoe` now
+  spares it only while the hero stands or steps away; walking into it
+  (`closing`) fights.
+- **Cooldowns (code, low ×2):** `arm` never shortens a running cooldown (a menu
+  closed just after saving cut the crystal's 3 s to 0.8); the crystal's bump
+  cooldown is back to 2 s (people could be walked through for 3 s) and its
+  3 s "standing still is safe" is a separate `guard`.
+- **The Moon Moth's new home was on Vela's doorstep (UX low-medium; code
+  low):** 4 of 22 walks to the observatory fought it there. It's at 9,8 now,
+  and the test keeps every Starfall Coast critter off Marlow's spot and the
+  door and doorstep.
+- **Contact rules untested (code, low):** the frame's meeting with an enemy is
+  `meetFoe`, with table tests.
+- **Copy:** the hint reads "💤 Sleepy critters let you pass. They wake up when
+  you move away." (a fact, not an order); the "Zz"'s "77" at DPR 1 is gone with
+  the plate.
+- **Logged (UX, low-medium; pre-existing):** Chromaria's Doodle stands inside the
+  Off-Key Bird's patch — 4 of 10 walks to him fought it first (#114aa).
+- Tests: 803 green (+5), lint + build clean; `bench … sea` 7/7; standing still
+  at Starfall's crystal 0 of 30.
+
+### 2026-10-10 — 14d ninth review: a sleeper's "Zz" never sits on anyone's head; a still hero stays safe past a cooldown; Marlow out of the moth's reach (#75 item 14d)
+Round 9 — fresh `/saas-code-review` (1 medium, 3 low) + `/saas-ux-review` (3
+medium, 1 low). All fixed:
+- **A still hero was only spared until the cooldown ended (code, medium):** a
+  critter that came onto them fought the moment it did — 3 of 52 save-crystal
+  trials at 2.03–2.10 s, with "💎 Game saved!" still up. Now it joins
+  `spared` (with those touching the hero as a cooldown is armed) and is
+  spared until it steps clear, even past the cooldown; "still" means the hero
+  didn't move this frame, not no key held (code, low: a thumb on the d-pad
+  against the crystal counted as moving); the crystal's cooldown lasts its
+  toast (3 s). 0 of 30 trials fought in 4.5 s.
+- **The hint (UX medium; code low):** it named a sleeper the child couldn't see
+  (under the hero or boat) and said "asleep" for 5 s after it woke; queued, it
+  could show late or in the next zone. Now it states the rule — "💤 Sleepy
+  critters let you pass. Move away to wake them!" — true whenever it shows;
+  with another toast up it waits for the next bump instead of a queue; the toast
+  wraps balanced.
+- **A "Zz" on someone else's head (UX, medium ×2):** at the sleeper's feet it
+  sat on whoever stood a tile below — Old Marlow, Doodle, the hero, Ember.
+  It's drawn under every character now (`ZZ_Z` 5.5), and sleepers fade less
+  than under Calm (`SLEEP_OPACITY` 0.7), so the "Zz" has a visible critter to
+  belong to. The Moon Moth moved from right above Old Marlow (5,7) to 9,6
+  (#114w), and a test keeps every Starfall Coast critter out of his reach.
+- **"7z" at 320 px on a 2× screen (UX, low):** the "Zz" is 20 px on a 36×24
+  plate.
+- **Code, low:** a critter that came onto a still hero could later be walked
+  through after a menu toggle — now by design: `spared` until it steps clear.
+- Tests: 798 green (+1), lint + build clean; `bench … sea` 7/7.
+
+### 2026-10-10 — 14d eighth review: a sleeper's own level reads "Zz"; a still hero is safe through a cooldown; Calm's grace holds (#75 item 14d)
+Round 8 — fresh `/saas-code-review` (1 medium, 3 low) + `/saas-ux-review` (3
+medium, 2 low-medium, 2 low). Fixed, one logged:
+- **A "Zz" read as a neighbour's (UX, medium):** clear of overlaps, the
+  floating "Zz" still sat flush under the unbeaten Tide Colossus's crown label
+  (the boss looked asleep) and beside the Thornhare's and Pulley Spider's
+  levels; it also darkened the hero's face (UX, low) and could land on a
+  villager wandering by (code, low). Gone: a sleeper's own level plate now
+  reads "Zz" (16 px, white, never faded) — under the critter it belongs to,
+  under the hero like any level. `lib/sleepMark.ts` and its placement are
+  removed.
+- **Calm wearing off mid-cooldown fought at once (code, medium):** the spared
+  set was worked out once per run of cooldown, so Calm ending inside another
+  cooldown spared nothing (2 of 14 trials battled in that frame). Every
+  cooldown now works it out afresh (`arm` → `graceOf`, never a boss): 0 of 14.
+- **A still child bumped while reading "💎 Game saved!" (UX, medium):** round
+  7's fix let a critter wander into a hero standing still during a cooldown
+  (3 of 31 saves at Starfall Coast). Now a hero standing still is never fought
+  during one; only their own step is.
+- **A battle sent as an overlay opens (code, low):** none fights in the two
+  frames after a cooldown is armed, so a menu or talk takes the world's pause
+  first (a dropped ENCOUNTER would freeze the world).
+- **The toast (code low, UX low + low-medium):** "Walk" at sea, "the Sir
+  Sumsalot", 8 s over the HUD, and it knocked other toasts off — now "💤 Shh,
+  it's asleep! Move away to wake it." (short, no name), and it waits for any
+  toast already up (`queueToast`).
+- **Map (UX, low-medium):** with the 3 px gap every Dawnreach spot counted as
+  "covered" when the ⭐ was in the south, so the label fell back onto the
+  shrine (400 of 474 cells). Covering a marker now costs far more than coming
+  near one (the ⭐ most); tested with the ⭐ at every east-half cell.
+- **Logged (UX, medium; pre-existing): Old Marlow stands a tile below the Moon
+  Moth's home** at Starfall Coast, so walking to him can meet it (#114w).
+- Tests: 797 green, lint + build clean; `bench … sea` 7/7.
+
+### 2026-10-10 — 14d seventh review: a bump's cooldown no longer lets you walk through enemies; every "Zz" sits clear and says how to wake it (#75 item 14d)
+Round 7 — fresh `/saas-code-review` (1 medium pre-existing, 1 low) +
+`/saas-ux-review` (2 medium, 1 low-medium, 2 low). Fixed, one kept:
+- **Walking through enemies (code, medium; pre-existing):** the contact loop
+  only ran with no cooldown, so for 0.8–2 s after a menu, a chest, the save
+  crystal, a landing or Calm wearing off the hero walked through anything —
+  past the Thicket Warden after bumping the Woods' save crystal, 0 of 4
+  fought. Now a cooldown spares only the enemies touching the hero as it
+  began (`graced`, until they step clear); people and places still wait it
+  out. 4 of 4 fight, and `bench … sea` checks it.
+- **A "Zz" on a neighbour (UX, medium):** the fixed spot put the Meteor
+  Mite's "Zz" on the Tide Colossus's crown label (the boss looked asleep) and
+  the Hourglass Imp's on Echo. `lib/sleepMark.ts` `zzSpot` picks the first of
+  six spots clear of everyone else's face, level and name (and its own
+  level); a test checks every critter on every map has one (the old spot
+  failed 5).
+- **Nothing said how to wake a sleeper (UX, medium):** the first sleeping
+  critter the hero walks into in a scene shows "💤 Shh — the … is asleep.
+  Walk a few steps away and it'll wake up!" (`onSleeper`; never a boss).
+- **The hero hidden or tinted (UX, low-medium; code, low):** round 6 drew a
+  sleeper over the hero and over neighbours' labels and fog. It's drawn in its
+  own place again, and its "Zz" fades to 35% while over the hero, like a roof.
+- **Map, 320 px (UX, low):** "◀ Dawnreach" touched the ⭐ (0.3 px) and Sandpiper
+  Cay — a 3 px keep-clear gap now.
+- **Kept (UX, low): no 💡 tip after losing at sea.** With it the button falls
+  off a 320×568 phone even with a shorter tip (582 of 568), and a sticky button
+  covered the heading at 740×360; the tip's news isn't lost — a critter that
+  eases off says so in the battle itself.
+- Tests: 797 green (+2), lint + build clean; `bench … sea` 7/7.
+
+### 2026-10-10 — 14d sixth review: sleeping critters hold still and show; bosses never look passable; the sea defeat fits a 320 px phone (#75 item 14d)
+Round 6 — fresh `/saas-code-review` (2 low) + `/saas-ux-review` (2 medium, 1
+low-medium, 3 low). All fixed:
+- **Lost at sea on a 320×568 phone (UX, medium):** the Marlow line plus the
+  💡 tip pushed "To the inn" off the screen (558–602 of 568). At sea the line
+  takes the tip's place: the button now sits at 490–534, as on land.
+- **A resting boss looked passable (UX, medium):** faded with a "Zz", but a
+  step towards it fought. A boss is now drawn as ever while it holds back —
+  bosses never fade (as before 14d) — and it wakes the moment the hero heads
+  past it, measured along the line from it to where they began (code, low: by
+  distance alone it could be walked round, and a sideways step could wake it).
+- **The "Zz" (code low, UX low-medium + low ×2):** it drew under the hero and
+  the boat (now `ZZ_Z` 12, over them, under place names and roofs); with the
+  hero stood on a sleeper it floated on the hero's head (the sleeper now draws
+  over the hero, faded, `RESTING_Z`); it was ~5 px on phones (16 px, on a
+  30×20 plate); and sleepers kept wandering, so when they'd wake couldn't be
+  told — now they hold still (`attachWander`'s `asleep`) until the hero has
+  left their patch.
+- **Map, 320 px (UX, low):** "◀ Dawnreach" touched the ⭐'s edge west of
+  Sandpiper Cay — the ⭐ is 20 px wide, not 16 (`STAR_HALF_W`).
+- Tests: 795 green, lint + build clean; `bench … sea` 6/6.
+
+### 2026-10-10 — 14d fifth review: resting shows "Zz", wakes every frame, holds after a landing; bosses can't be walked through (#75 item 14d)
+Round 5 — fresh `/saas-code-review` (5 low) + `/saas-ux-review` (1 low; every
+earlier fix re-checked in the real app). All fixed:
+- **A resting critter gave no sign (UX, low):** steering into a faded critter
+  did nothing, with nothing to say why — it could read as broken or a ghost.
+  Now a white "Zz" on a dark plate (like the level's) floats over each resting
+  enemy and goes the moment it wakes.
+- **Landing beside a land critter (code, low; pre-existing):** resting was
+  only worked out as the scene began, so going ashore next to one (Dawnreach's
+  Bolt Mouse, a step up from the beach at 67,20) could fight a hero held still
+  by the arrival lock — on the bench 2 of 4 landings fought within 5 s.
+  Landing and climbing aboard now ask again for the new way of getting about,
+  from where the hero is (`restAround`, measured from each enemy's home):
+  0 of 6 in 8 s.
+- **Code, low:** a resting boss could be walked through (it rested until the
+  hero left its 34 px touch) — now it wakes too if they step nearer than they
+  began (`restOf`'s `near`, `staysDown`), so they can back away but not slip
+  past (no arrival is within a boss's touch today); a resting enemy's waking
+  was only checked when no bump was cooling down — now every frame; the
+  narrowest map is a 320 px phone's (`MAP_MIN_PX` 208, was 360's 248) — the
+  every-cell ⭐ test still passes; `bench … sea`'s resting check proves the
+  pass (the hero starts on top of the puffer, 0 px, a battle from the first
+  frame unless it rests), its header comment is current, waits in the patch
+  before sweeping (a sweep alone missed a moving critter), and a sixth check
+  lands beside the Bolt Mouse.
+- Tests: 795 green (+1), lint + build clean; `bench … sea` 6/6.
+
+### 2026-10-10 — 14d fourth review: resting critters let you pass until you leave their patch (#75 item 14d)
+Round 4 — fresh `/saas-code-review` (5 low) + `/saas-ux-review` (1 medium, 4
+low). All fixed:
+- **"Resting" said one thing and did another (UX, medium):** it looked like
+  Calm ("critters let you pass") but woke after one step inside its patch —
+  steering at it fought, still faded, or slid through, by chance; a golem by
+  the Depths door could jump a child who'd taken one step. Now a resting
+  critter (or boss) lets the hero pass until they've left its patch
+  (`staysDown(home, hero, reach)`), so it wakes out of reach and never beside
+  them; on the bench, nudging about inside its patch starts nothing, 8 of 8
+  Depths arrivals + a step start nothing, and leaving and coming back fights.
+- **Code, low:** the fade is applied as the scene starts, not only once the
+  world runs (`fadeCritters`); bosses fade while resting too; only enemies
+  that could fight the hero as they're getting about rest (a sailing hero's
+  land critters don't); a BattleArena test loses ashore (no Marlow line, the
+  boat stays moored); a guard test: every inn is a town on Marlow's own map,
+  so `boatAfterDefeat` can't strand a hero — 14h's island inn will trip it.
+- **Map labels on phones (UX, low ×2):** the keep-clear check was in map
+  cells, but labels and icons keep their pixel size as the map shrinks: on a
+  360 px phone the label still met the ⭐ (rows 49–58) and the Quiet Paws
+  shrine. `edgeLabelCovers` now works in pixels on the narrowest map
+  (`MAP_MIN_PX` 248) with the label's real width (`seaEdgeLabel`, shared with
+  the panel), with spots near the top and bottom too; the every-cell ⭐ test
+  uses the same geometry. Checked in the real app at 360 / 375: no overlap.
+- Tests: 794 green (+3), lint + build clean; `bench … sea` 5/5.
+
+### 2026-10-10 — 14d third review: nearby critters rest (faded) until you move; map labels never on the ⭐ (#75 item 14d)
+Round 3 — fresh `/saas-code-review` (4 low) + `/saas-ux-review` (2 low, every
+earlier fix checked in the real app). All fixed:
+- **Flee, by geometry (code, low):** round 2's `fledFrom` was lost on a reload
+  (the hero saved 28–92 px off the critter's home could be swum into once) and
+  never reached the canvas in a test. Instead, every enemy that could reach a
+  hero standing where the scene starts stands down (`idleReach` — a roaming
+  critter's 64 px leash + its 28 px touch, a boss's 34 px), covering a Flee, a
+  reload and a neighbour's patch; `fledFrom` / `recordFlee` are gone.
+- **…and it shows (UX, open question):** a critter standing down is drawn
+  faded like under Calm, so a child can see why "sail into a critter to
+  battle!" didn't start one; it brightens once they've moved off.
+- **One fact for a sea defeat (code, low):** the defeat screen's Marlow line
+  and the boat going home both follow whether the hero was sailing when they
+  lost (`atSea` on the defeat turn, from `save.aboard`).
+- **Map labels (UX, low ×2):** on Dawnreach the "Silver Shallows ▶" label still
+  sat on the ⭐ along the coast south of the dock (every spot was taken), and
+  on phones clipped the Quiet Paws shrine. A sixth spot (90% down), a box sized
+  to the label on a phone (42% of the map), and when every spot holds
+  something, the one covering least — never the ⭐ (`edgeLabelSpot`,
+  `edgeLabelCovers`); a test checks the ⭐ at every cell of both maps.
+- Docs: TC-742 (no palm), the store's fields.
+- Tests: 791 green (+1 −1: the ⭐ at every cell in, the `fledFrom` check out), lint + build clean; `bench … sea` 5/5.
+
+### 2026-10-10 — 14d second review: the critter you fled from waits, labels move off the ⭐ (#75 item 14d)
+Round 2 — fresh `/saas-code-review` (1 medium, 2 low) + `/saas-ux-review` (3
+low; every round-1 fix checked in the real app). All fixed:
+- **Flee, still (code, medium):** round 1's stand-down only caught a critter
+  touching the hero as the scene starts, but one that swam into a hero
+  standing still saves them anywhere up to its leash + a touch from its home
+  (0–92 px), and from 28–92 px it wandered back in (6 of 6 idle heroes 32 px
+  off within 10 s on the bench). Flee now records the enemy
+  (`battleStore.recordFlee` → `fledFrom`, cleared when the next battle
+  starts); `WorldCanvas` stands that one down wherever it is (`standDown`'s
+  `fled`) until the hero moves off and is clear — 0 of 6.
+- **Code, low:** the sea-battle tests restore real timers (`afterEach`); the
+  Shallows' comment and CLAUDE.md point at `seaCritters.test` and "any land".
+- **UX, low:** the map's "◀ Dawnreach" label sat under the ⭐ while you sailed
+  by the puffer (round 1 had moved it to 63% for Dawnreach's dock) — each
+  sea-edge label now takes the first spot down its edge with no marker in
+  its box (`edgeLabelSpot`: ⭐, ⛵, 🚩, places, landmarks); the sailing footer
+  fits two lines on a sideways phone again ("…into a beach or dock to land, a
+  critter to battle!"); the sea backdrop's palm is gone (the water band could
+  leave it standing in the sea; plain humps still read as islands). Ness:
+  "…and you can always steer round them."
+- `bench … sea` gains "back from a Flee 32 px off its home" (5/5); the bench
+  page takes `fled=<instanceId>`.
+- Tests: +4 (encounter.test, BattleArena.test's Flee, worldMap.test ×2); 791
+  green, lint + build clean.
+
+### 2026-10-10 — 14d review fixes: water under the boat, no Flee loop, the boat easy to find (#75 item 14d)
+A fresh-context `/saas-code-review` (1 medium, 5 low) + `/saas-ux-review`
+(3 medium, 3 low; played in the real app with Supabase stubbed at four sizes,
+by keyboard and reduced motion). All fixed:
+- **Floating in the sky (UX, medium):** the stage shrinks as the menu or a
+  question grows, which lifted the boat and the critter off the backdrop's sea
+  into its sky for most of a fight. `BattleStage`'s `SeaFloor` keeps water from
+  a little above their feet down the whole screen, its top faded so it blends
+  with the backdrop's own sea (one horizon, not two).
+- **Friends hidden by the hull (UX, medium):** the rim covered Pip and Wisp up
+  to their mouths. The boat sits 8 px lower (`BOAT_BELOW` 38) and the
+  companion stands on deck (`DECK_LIFT` 6).
+- **Where's the boat? (UX, medium):** the defeat line names the place — "⛵ Old
+  Marlow rowed the Biscuit home to his dock by Starfall Coast. Find ⛵ on your
+  📜 Menu map!" — and the map's sea-edge labels ("Silver Shallows ▶") moved
+  down the edge (63%) and draw before the icons, so they never cover the dock's
+  ⛵ or Starfall Coast.
+- **Flee loop (code, medium; pre-existing, #114e):** a critter respawns at home,
+  so a hero saved where it touched them fought again at once, after every
+  Flee. `lib/encounter.ts`: enemies touching the hero as a scene starts stand
+  down (`standDown`) until the hero has moved off and is clear (`staysDown`) —
+  a critter wandering off and back into a hero still standing there doesn't
+  count. The contact loop asks `startsBattle` (Calm + `meetsHero`) and
+  `contactRadius` too.
+- **Code, low:** `encounterHabitat` is a `Record<TravelMode, Habitat | null>`
+  (a new travel mode won't compile until it says — Ember's flight will meet
+  none); a BattleArena test loses a battle at sea (it fails with `moorBoat`
+  back in); the placement test measures to any land, not just beaches; stale
+  docs ("a lost battle leaves the boat moored", TC-651, `moorBoat`'s comment).
+- **UX, low:** the sailing footer adds "…into a sea critter to battle!"; Ness
+  says they "only bother boats" (they never chase); Starfix's arms are
+  chunkier, so it reads at map size.
+- **`bench/run-world-bench.cjs sea`** (new): on the real canvas, sailing into
+  the puffer battles it, Calm passes it, arriving starts nothing, and back on a
+  critter after a Flee it stands down until you sail clear, then fights — 4/4.
+- Tests: +5 (encounter.test 4, BattleArena.test's defeat at sea); 787 green,
+  lint + build clean. Logged (pre-existing, #114): archetype callouts fade after
+  3 s, the defeat screen needs a scroll at 740×360, map labels at phone size.
+
+### 2026-10-10 — Sea critters: three swim the Silver Shallows, met only from the boat (#75 item 14d)
+Roadmap sub-item 14d (ISSUES #108b, #108j), built before 14c — nothing in it
+waits on 14c.
+- **Where a critter lives** (`types` `HABITATS`, `EnemyDef.habitat`,
+  `BattleEnemy.habitat`, `habitatOf`): land (the default) or sea. **Who fights
+  whom** (`lib/travel.ts` `encounterHabitat`, `meetsHero`): on foot, land
+  critters; sailing, sea critters — so a hero in the boat is never pulled into
+  a fight with a critter on the beach (#108j), nor one on the sand with
+  anything in the water. The canvas's contact loop skips any enemy (bosses
+  included) whose habitat doesn't match.
+- **Swimming:** a sea critter wanders like any critter but its box must stay on
+  open sea (`attachWander`'s `afloat` → `hitBox(…, afloat)`: never land, fog
+  or off the map); a faint ripple under it (`RIPPLE_OPACITY`, faded with
+  Calm like the rest of it).
+- **Three on the Silver Shallows** (nature — sea life, the Shallows' chest
+  topic): 🐡 **Bubble Puffer** (−1), 🐙 **Inkling** (0, trickster — its ink
+  hides the Hint Feather's work), ⭐ **Starfix** (+1, healer — a sea star
+  regrows its arms). Tier 4 like the rest of the Shallows (14c moves it to 5).
+  Placed well clear of the beaches, the docks and the edge you sail in by, so
+  landing, climbing in or arriving never starts a fight (`seaCritters.test`).
+  Lamplighter Ness: "They only bother boats, and you can always steer round
+  them. On the sand you're as safe as a shell!"
+- **A battle at sea:** open water to the horizon with a palm island mid-picture
+  (`/backgrounds/silver-shallows-sea.png`, `tiles.sea_backdrop` —
+  `battleBackdrop(zone, 'sea')`), no land shadows; the hero and companion
+  stand in Marlow's boat (`BattleStage` `afloat`: the boat behind them, its
+  hull's front over their feet — absolute, decorative, still under reduced
+  motion; the stacking of a land battle is unchanged). **Losing at sea** sends
+  the boat home to Marlow's dock (`boatAfterDefeat`; a hero waking ashore at
+  an inn could never reach a boat left in open water) and the defeat screen
+  says "⛵ Old Marlow rowed the Biscuit home to his dock by Starfall Coast…" (#108g).
+- **Art** (`python3 tools/assets/build.py seacritters`): new `puffer` and
+  `starfish` drawers, the octopus drawer's opt-in ink squirt, the sea
+  backdrop; `backdrop()`'s sky and sun/clouds became `_sky` /
+  `_sun_and_clouds` (no randomness — a full rebuild matches all 269 PNGs).
+- **Plan review** (fresh context, before building; all fixed): a lost sea
+  battle stranded the boat mid-sea with nothing said (now home to the dock);
+  the Calm fade would have made the ripple opaque (per-part base opacity); a
+  runtime "keep clear of the moored boat" rule was redundant with the placement
+  test (dropped); the battle boat needed to be absolute, decorative and still
+  under reduced motion; the backdrop's islands were cropped on phones and the
+  land's ground shadows read as smoke at sea.
+- Tests: +13 (`seaCritters.test`, BattleArena.test, BattleHud.test; zones.test's
+  placements check sea critters on open sea). Checked in headless Chromium:
+  the real canvas (sailing into a critter battles it, Calm passes it, arrival
+  and idling start none) and the real app's battle at sea at four sizes with
+  Ember, Pip and Wisp. Follow-ups: ISSUES #114.
 
 ### 2026-10-10 — 14e review fixes: the knot waits for you, praise on a re-clear, a hazy bay (#75 item 14e)
 A fresh `/saas-code-review` (2 low) and `/saas-ux-review` (3 medium, 10 low;
