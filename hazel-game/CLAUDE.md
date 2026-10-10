@@ -447,6 +447,13 @@ zod, react-query. Add the package in the same change that first uses it.
   budgets of *fresh* Claude questions. Over budget it serves the cache
   (seen questions as a last resort). Fails OPEN with a loud log if 0009 isn't
   applied. Limits: `QUOTA_DEFAULTS` in the function, overridable by secrets.
+- **Answer order is random (#115):** the model that writes questions favours
+  one spot for the right answer (most often B), so `shuffleAnswers`
+  (`lib/questions.ts`) shuffles every question's options as it arrives
+  (cached rows too); a battle reshuffles each ask (a long battle repeats its
+  9 questions) and the Library each retry. The edge function also shuffles
+  fresh questions before caching them (`shuffleOptions`). Never rely on the
+  order options come back in.
 - **Password reset (#88):** `AuthPage` "Forgot password?" →
   `resetPasswordForEmail` (redirects back to the app). A recovery link sets
   `authStore.passwordRecovery` (PASSWORD_RECOVERY event or `type=recovery` in
@@ -574,6 +581,28 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Answers come in a random order: no more "it's always B" (#115)
+The model that writes the questions put the right answer in the same spot
+most of the time (players noticed it was nearly always B), and nothing ever
+reordered the options — the edge function shuffles *which* questions you
+get, never their answers. A kid tapping B every time could pass the Training
+Grounds without reading. Now:
+- `shuffleAnswers` (`lib/questions.ts`) shuffles each question's options and
+  moves `correctIndex` with the right one as every question arrives
+  (`invokeGenerate` — quiz, battles, gates, chests, shrines, the Spire), so
+  rows already cached in the model's order are fixed too.
+- A battle reshuffles each question as it asks it (a long battle goes round
+  its 9 again), and the Library reshuffles a miss on every retry (its stored
+  `picked` index isn't shown anywhere, so nothing reads it in the old order).
+- The edge function shuffles fresh questions before caching them
+  (`shuffleOptions`), so the stored data is balanced — needs
+  `supabase functions deploy generate-questions`; the app's shuffle doesn't
+  wait on it.
+- Tests: `questions.test` — the right answer stays right, lands in each of
+  the four spots about equally (seeded), the input is untouched, a broken
+  index is left alone, `fetchQuestions` shuffles what it returns. 874 tests
+  green (three runs), lint + tsc clean, `deno check` of the function clean.
 
 ### 2026-10-10 — Merge main (14c groundwork, 14e Remembrance Hill) into the sea-critters branch (#75 item 14d)
 `main` took 14c and 14e while 14d was in review. Both used ISSUES **#112**

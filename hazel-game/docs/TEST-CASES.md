@@ -937,6 +937,18 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-772 | U | ✅ | encounters | `meetFoe` (encounter.test): walking into a foe fights, a boss too, cooldown or not; nothing happens to a resting one or in the two held frames; one coming onto a still, guarded hero is spared (never a boss); a spared one lets the hero stand or step away, even after the cooldown, but walking into it fights, and out of touch it's no longer spared; a touch fights only in the enemy's element, no critter under Calm |
 | TC-770 | U | ✅ | world map | with the ⭐ at any east-half cell of Dawnreach, "Silver Shallows ▶" covers no place — covering a marker costs far more than coming within the 3 px gap (worldMap.test) |
 
+## Fair questions and sign-in (#115–#117)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-786 | U | ✅ | questions | `shuffleAnswers` keeps the right answer right and every option exactly once (questions.test) |
+| TC-787 | U | ✅ | questions | over 400 seeded shuffles the right answer lands in each of the four spots 70–130 times — no "always B" (questions.test) |
+| TC-788 | U | ✅ | questions | `shuffleAnswers` leaves its input untouched, keeps the other fields, and leaves a question with an out-of-range `correctIndex` as it is (questions.test) |
+| TC-789 | U | ✅ | questions | `fetchQuestions` returns every question with its options shuffled and `correctIndex` on the right answer (questions.test) |
+| TC-790 | M | ⬜ | Library | re-asking a miss shows its options in a new order each time; beating it still takes it off the shelf and pays the XP |
+| TC-791 | M | ⬜ | battle | in a battle long enough to ask a question twice, the repeat comes in a new order and the right answer still wins |
+| TC-792 | M | ⬜ | edge function | after redeploying `generate-questions`, newly cached rows spread `correct_index` over 0–3 (`select correct_index, count(*) from questions where created_at > '<deploy time>' group by 1`) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
