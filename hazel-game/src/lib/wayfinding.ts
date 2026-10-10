@@ -1,4 +1,4 @@
-import { HUB_ZONE, MET_ELDER, ZONES, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { HUB_ZONE, MET_ELDER, ZONES, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import { reach } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
@@ -473,9 +473,10 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
  * direction, clockwise from north, each naming the places that way (nearest
  * first). A place right beside the sign isn't listed.
  */
-export function signpostLines(z: ZoneDef, x: number, y: number): string[] {
+export function signpostLines(z: ZoneDef, x: number, y: number, flags: Record<string, boolean> = {}): string[] {
   const byDir = new Map<Compass, { name: string; d: number }[]>();
-  for (const p of z.places ?? []) {
+  // A place nobody remembers yet isn't on any sign (#75 item 14e).
+  for (const p of (z.places ?? []).filter((pl) => placeKnown(pl, flags))) {
     const dir = compass(p.x - x, p.y - y);
     if (!dir) continue;
     byDir.set(dir, [...(byDir.get(dir) ?? []), { name: p.name, d: Math.hypot(p.x - x, p.y - y) }]);
@@ -518,7 +519,7 @@ export function wayfindingLines(
   const goal = nextObjective(flags);
   const how = goalDirections(zones, goal, home.zoneId, home);
   if (npc.signpost) {
-    const read = signpostLines(zones[home.zoneId], home.x, home.y).join('\n');
+    const read = signpostLines(zones[home.zoneId], home.x, home.y, flags).join('\n');
     return [read, goal.zoneId ? `🚩 Next: ${goal.title}. ${how}`.trim() : `🎉 ${goal.why}`];
   }
   return [goal.zoneId ? `Where to next? ${goal.why} ${how}`.trim() : goal.why];

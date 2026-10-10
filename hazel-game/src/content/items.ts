@@ -106,6 +106,14 @@ export const SHOPS: Record<string, ShopDef> = {
       { id: 'badge:palette', name: 'Palette Badge', emoji: '🎨', description: 'Every colour at once!', price: 90 },
     ],
   },
+  // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.
+  'hill-merchant': {
+    name: "Knack's Pre-Remembered Goods",
+    emoji: '🧳',
+    items: [
+      { id: 'badge:forgetmenot', name: 'Forget-Me-Not Badge', emoji: '🌼', description: "You won't forget this one. Probably.", price: 100 },
+    ],
+  },
   'village-shopkeeper': {
     name: "Clove's Curios",
     emoji: '🏮',

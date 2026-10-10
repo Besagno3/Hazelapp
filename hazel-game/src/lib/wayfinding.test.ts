@@ -6,7 +6,7 @@ import { whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { actCrystals, crystalFlag } from '../content/topics';
 import { GATE_KEYS, keyFlag, keyForZone } from '../content/keys';
-import { SPIRE_CLEARED } from '../content/story';
+import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
 import {
   compass,
   exitSide,
@@ -253,10 +253,16 @@ describe('signpostLines', () => {
   it('names every place once, by direction, clockwise from north, nearest first', () => {
     const lines = signpostLines(dawn, 44, 31);
     const names = lines.flatMap((l) => l.replace(/^\S+ /, '').split(' · '));
-    expect(names.sort()).toEqual(dawn.places!.map((p) => p.name).sort());
+    // Before Act II nobody has heard of Remembrance Hill (#75 item 14e).
+    expect(names.sort()).toEqual(dawn.places!.filter((p) => !p.knownFrom).map((p) => p.name).sort());
+    expect(names).not.toContain('Remembrance Hill');
     expect(lines[0]).toBe('↗️ Echo Mine · Shrine of First Light · Gearfall Canyon');
     expect(lines.find((l) => l.startsWith('⬅️'))).toBe('⬅️ Lumina Village · Whispering Woods');
     expect(lines.at(-1)).toBe("↖️ Wayfarer's Shrine · Numbria");
+  });
+  it('names Remembrance Hill once Lumina starts remembering (#75 item 14e)', () => {
+    const lines = signpostLines(dawn, 44, 31, { [ACT2_SEEN]: true });
+    expect(lines.find((l) => l.includes('Remembrance Hill'))).toMatch(/^↙️/);
   });
   it("leaves out a place you're standing beside", () => {
     const village = dawn.places!.find((p) => p.name === 'Lumina Village')!;

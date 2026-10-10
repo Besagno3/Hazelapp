@@ -501,6 +501,35 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — Remembrance Hill: a town in old fog past Moonwell Grove (#75 item 14e)
+Second slice of 14e — the town Act II's 🚩 leads to next (the 🚩 itself comes
+in the next commit).
+- **On Dawnreach:** a road leaves the Grove's south beach for a little
+  headland in the bay (`maps/dawnreach.tmj`), under a new bank, `hill-fog`
+  (lifted by `act2-seen`, so it lifts on screen the first time a hero is on
+  Dawnreach in Act II — and on the next visit for saves already in Act II).
+  No crystal lifts it; its hint says so, and the map marks it with nothing
+  (`fogMarker` → null; legend "Fog with nothing on it lifts later…").
+- **Nobody names it before Act II:** `PlaceDef.knownFrom` / `placeKnown` —
+  signposts (`signpostLines(…, flags)`) and the menu map leave it out, so Act
+  I's signs read exactly as before. Its icon (a new `hill` frame, appended at
+  16 after the dock) hides in the fog till then.
+- **The town** (`remembrance-hill`, 34×26, `kind: 'town'`, home region, no
+  critters, a new **marble** style): the Hall of Names (Keeper Mnem 🗿 reads one
+  plaque per Act I crystal, then the blank ones; his greeting sets
+  `met-mnem`), the Tip-of-the-Tongue Inn (Innkeeper Hettie 🫖 — a Return town
+  and a wake spot), Knack's Pre-Remembered Goods (Trader Knack 🧳 — "Lightly
+  forgotten. Deep discount."; the 🌼 Forget-Me-Not Badge), Chisel's Workshop,
+  Grandpa Dew's Cottage, Posy 👧 by the Hall's flower beds, Traveler Sorrel
+  and Mira the jam-maker.
+- **Art** (`python3 tools/assets/build.py hill`): the zone's tileset, blend
+  sheet and backdrop, `town-marble.png`, the overworld sheet (frames 0–15
+  byte-identical) and eight sprites; the manifest only gained entries.
+- Tests: +9 (zones.test: the town, the fog, nobody names it, Mnem;
+  wayfinding.test: the sign in Act II; worldMap.test; WorldMapPanel.test: +2);
+  the guarded-places and signpost tests know about it. 810 green. Looked at
+  on the bench: the town's four screens, the bay fogged and open.
+
 ### 2026-10-10 — The Spire pays its 600 XP once (#75 item 14e, #109)
 First slice of 14e. Replaying the Spire is fine (#56), but every re-clear
 paid the 600 XP clear bonus again, and in Act II Umbra still waits on the

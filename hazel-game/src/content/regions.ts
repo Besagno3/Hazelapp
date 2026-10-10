@@ -67,7 +67,7 @@ export const REGIONS: RegionDef[] = [
     id: 'home',
     name: 'Home ground — Lumina Village and the roads around it',
     tier: 0,
-    zones: ['lumina-village', 'dawnreach', 'moonwell-grove', 'dawn-shrine', 'wayfarer-shrine', 'quiet-shrine', 'crystal-spire'],
+    zones: ['lumina-village', 'dawnreach', 'moonwell-grove', 'dawn-shrine', 'wayfarer-shrine', 'quiet-shrine', 'crystal-spire', 'remembrance-hill'],
   },
   { id: 'numbria', name: 'Numbria and the Whispering Woods', tier: 1, zones: ['numbria', 'whispering-woods'] },
   {

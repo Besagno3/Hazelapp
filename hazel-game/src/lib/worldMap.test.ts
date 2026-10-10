@@ -76,7 +76,8 @@ describe('placeEmoji (#75 item 7)', () => {
     expect(placeEmoji(dawn, spire, { [crystalFlag('science')]: true })).toBe(PLACE_EMOJI.tower);
   });
   it('leaves places outside the fog alone, even one just past a bank (the shrine)', () => {
-    for (const p of dawn.places!.filter((p) => p.name !== 'The Crystal Spire')) {
+    // The Spire stands in its ring of fog, Remembrance Hill in its own (#75 item 14e).
+    for (const p of dawn.places!.filter((p) => !['The Crystal Spire', 'Remembrance Hill'].includes(p.name))) {
       expect(placeEmoji(dawn, p, {}), p.name).toBe(PLACE_EMOJI[p.icon]);
     }
   });
@@ -123,5 +124,12 @@ describe('fog markers (#75 item 7)', () => {
     expect(fogMarkerAt(bank('math-fog'), dawn.places!)).toEqual({ x: 21, y: 17.5 });
     const spire = fogMarkerAt(bank('spire-fog'), dawn.places!);
     expect(spire).toEqual({ x: 40, y: 42 });
+  });
+});
+
+describe('the road to Remembrance Hill (#75 item 14e)', () => {
+  const bank = ZONES.dawnreach.fogs!.find((f) => f.id === 'hill-fog')!;
+  it('its bank shows no crystal: no crystal clears it', () => {
+    expect(fogMarker(bank)).toBeNull();
   });
 });

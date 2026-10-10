@@ -76,6 +76,16 @@ def main():
         tiles.build_sea(PUBLIC)
         print('sea ✓')
         return
+    if 'hill' in only:
+        # Just Remembrance Hill (#75 item 14e): its people, its tiles, the marble
+        # town sheet and the overworld sheet with the hill icon appended —
+        # every other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only={
+            'hill-keeper', 'hill-posy', 'hill-merchant', 'hill-innkeeper',
+            'hill-traveler', 'hill-carver', 'hill-elder', 'hill-jam'}))
+        tiles.build_hill(PUBLIC)
+        print('hill ✓')
+        return
     if 'lighthouse' in only:
         # Just Gull Rock's lighthouse tower (#75 item 14) — every other file untouched.
         tiles.build_lighthouse(PUBLIC)

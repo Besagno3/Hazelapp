@@ -37,11 +37,14 @@ export const ANY_CRYSTAL_EMOJI = '💎';
 /**
  * What the map shows on a fog bank (#75 item 7): the emoji of the one crystal
  * that clears it, or 💎 when any crystal will do — so the map shows which
- * crystal opens which part of the world.
+ * crystal opens which part of the world. A bank the story lifts instead
+ * (the road to Remembrance Hill, #75 item 14e) shows nothing: no crystal
+ * will clear it.
  */
-export function fogMarker(f: FogDef): string {
-  const own = f.liftedBy.length === 1 ? TOPIC_REGISTRY.find((t) => crystalFlag(t.id) === f.liftedBy[0]) : undefined;
-  return own?.emoji ?? ANY_CRYSTAL_EMOJI;
+export function fogMarker(f: FogDef): string | null {
+  const crystal = (flag: string) => TOPIC_REGISTRY.find((t) => crystalFlag(t.id) === flag);
+  if (!f.liftedBy.every((flag) => crystal(flag))) return null;
+  return f.liftedBy.length === 1 ? crystal(f.liftedBy[0])!.emoji : ANY_CRYSTAL_EMOJI;
 }
 
 /**
@@ -74,6 +77,8 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   canyon: '🕰️',
   garden: '🌻',
   pavilion: '🎪',
+  // Act II (#75 item 14e).
+  hill: '⛰️',
 };
 
 /** Stands in for a place that's still hidden in fog. */

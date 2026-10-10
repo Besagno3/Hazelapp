@@ -31,6 +31,7 @@ import {
   fogAt,
   fogSeenFlag,
   fogsToReveal,
+  placeKnown,
   placeAt,
   darkAt,
   litFlag,
@@ -40,6 +41,7 @@ import {
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
+import { ACT2_SEEN } from './story';
 
 const allZones = Object.values(ZONES);
 
@@ -492,7 +494,8 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
   const overworlds = allZones.filter((z) => z.kind === 'overworld');
   const dawn = ZONES.dawnreach;
 
-  const allLifted = Object.fromEntries(ANY_CRYSTAL.map((f) => [f, true]));
+  // Every crystal's bank, and the road to Remembrance Hill that Act II opens (#75 item 14e).
+  const allLifted = Object.fromEntries([...ANY_CRYSTAL, ACT2_SEEN].map((f) => [f, true]));
   /** Cells reachable on foot from the spawn, with fog blocking unless `lifted`. */
   const onFoot = (z: ZoneDef, lifted: boolean) => reach(z, { flags: lifted ? allLifted : {} });
 
@@ -519,6 +522,7 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
     const up = onFoot(dawn, true);
     const guarded = new Set((dawn.fogs ?? []).map((f) => `${f.guards.x},${f.guards.y}`));
     expect(dawn.places!.filter((p) => guarded.has(`${p.x},${p.y}`)).map((p) => p.name).sort()).toEqual([
+      'Remembrance Hill',
       'Shrine of First Light',
       'The Crystal Spire',
     ]);
@@ -685,5 +689,59 @@ describe('dark places (#75 item 9)', () => {
     for (const e of mine.exits) expect(open.has(`${e.x},${e.y}`)).toBe(true);
     const mabel = mine.npcs.find((p) => p.defId === 'mine-miner')!;
     expect(open.has(`${mabel.x},${mabel.y}`)).toBe(true);
+  });
+});
+
+describe('Remembrance Hill (#75 item 14e)', () => {
+  const hill = ZONES['remembrance-hill'];
+  const dawn = ZONES.dawnreach;
+  const icon = dawn.places!.find((p) => p.name === 'Remembrance Hill')!;
+  const bank = dawn.fogs!.find((f) => f.id === 'hill-fog')!;
+  const allCrystals = Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.id), true]));
+
+  it('is a safe town past Moonwell Grove: an inn, a Return spot, no critters', () => {
+    expect(hill.kind).toBe('town');
+    expect(hill.enemies).toEqual([]);
+    expect(RETURN_TOWNS).toContain('remembrance-hill');
+    expect(hill.buildings!.map((b) => b.name)).toContain('The Hall of Names');
+    expect(new Set(hill.buildings!.map((b) => b.style))).toEqual(new Set(['marble']));
+  });
+
+  it("stays in old fog through Act I — four crystals don't lift it — and opens with act2-seen", () => {
+    const cell = `${icon.x},${icon.y}`;
+    expect(reach(dawn, { flags: allCrystals }).has(cell)).toBe(false);
+    expect(reach(dawn, { flags: { ...allCrystals, [ACT2_SEEN]: true } }).has(cell)).toBe(true);
+    expect(bank.liftedBy).toEqual([ACT2_SEEN]);
+    expect(bank.guards).toEqual({ x: icon.x, y: icon.y });
+    // The icon sits inside its bank, so it emerges as the fog lifts on screen.
+    expect(icon.x >= bank.x && icon.x < bank.x + bank.w && icon.y >= bank.y && icon.y < bank.y + bank.h).toBe(true);
+    expect(fogsToReveal(dawn, { ...allCrystals, [ACT2_SEEN]: true }).map((f) => f.id)).toContain('hill-fog');
+  });
+
+  it('the fog sits on the sea and the new road only: nothing Act I walks on is covered', () => {
+    const before = reach(dawn, { flags: null });
+    for (let y = bank.y; y < bank.y + bank.h; y++) {
+      for (let x = bank.x; x < bank.x + bank.w; x++) {
+        // Every cell under the bank is on the headland — reached only through the bank.
+        if (before.has(`${x},${y}`)) expect(reach(dawn, { flags: allCrystals }).has(`${x},${y}`), `${x},${y}`).toBe(false);
+      }
+    }
+    // The Grove's own beach, where the road starts, is open from the start.
+    expect(reach(dawn).has('30,47')).toBe(true);
+  });
+
+  it('nobody names it before Act II', () => {
+    expect(icon.knownFrom).toBe(ACT2_SEEN);
+    expect(placeKnown(icon, allCrystals)).toBe(false);
+    expect(placeKnown(icon, { [ACT2_SEEN]: true })).toBe(true);
+  });
+
+  it('Keeper Mnem reads one plaque per crystal remembered, then the blank ones', () => {
+    const mnem = NPC_DEFS['hill-keeper'];
+    const first = mnem.lines[0];
+    expect(typeof first !== 'string' && first.setFlag).toBe('met-mnem');
+    const plaques = mnem.lines.filter((l) => typeof l !== 'string' && l.ifFlag && /^Plaque/.test(l.text));
+    expect(plaques.map((l) => (typeof l === 'string' ? '' : l.ifFlag))).toEqual(actCrystals(1).map((t) => crystalFlag(t.id)));
+    expect(mnem.lines.at(-1)).toMatch(/blank/);
   });
 });

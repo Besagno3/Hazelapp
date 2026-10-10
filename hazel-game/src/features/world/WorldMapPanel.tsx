@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { GREAT_FOGBANK, TILE, ZONES, fogAt, fogLifted } from '../../content/zones';
+import { GREAT_FOGBANK, TILE, ZONES, fogAt, fogLifted, placeKnown } from '../../content/zones';
 import { floorTitle } from '../../content/dungeons';
 import type { BoatSpot, ZoneId } from '../../types';
 import {
@@ -51,7 +51,8 @@ export default function WorldMapPanel({
   const world = ZONES[zoneId].kind === 'overworld' ? ZONES[zoneId] : ZONES.dawnreach;
   const cols = world.map[0].length;
   const rows = world.map.length;
-  const places = world.places ?? [];
+  // A place nobody has heard of yet stays off the map (Remembrance Hill before Act II, #75 item 14e).
+  const places = (world.places ?? []).filter((p) => placeKnown(p, flags));
   const here = whereOnMap(ZONES, world, zoneId, pos);
   // Banks a crystal will clear get its marker; the Great Fogbank has a line of its own.
   const greatFogbank = (world.fogs ?? []).find((f) => f.id === GREAT_FOGBANK && !fogLifted(f, flags));
@@ -159,7 +160,7 @@ export default function WorldMapPanel({
             {l.side === 'west' ? `◀ ${bare(ZONES[l.to].name)}` : l.side === 'east' ? `${bare(ZONES[l.to].name)} ▶` : l.side === 'north' ? `▲ ${bare(ZONES[l.to].name)}` : `▼ ${bare(ZONES[l.to].name)}`}
           </span>
         ))}
-        {foggedBanks.map((f) => (
+        {foggedBanks.filter((f) => fogMarker(f)).map((f) => (
           <span
             key={f.id}
             aria-hidden
@@ -241,6 +242,7 @@ export default function WorldMapPanel({
           <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1" style={{ background: FOG_COLOR }} />
           Fog — restore the crystal shown on it to clear it
           {foggedBanks.some((f) => fogMarker(f) === ANY_CRYSTAL_EMOJI) && <span> ({ANY_CRYSTAL_EMOJI} = any crystal)</span>}
+          {foggedBanks.some((f) => !fogMarker(f)) && <span className="block">Fog with nothing on it lifts later in your adventure</span>}
           {anyHidden && <span className="block">{HIDDEN_PLACE_EMOJI} = a place still hidden in the fog</span>}
         </p>
       )}
