@@ -810,11 +810,14 @@ export function questsBy(npcId: string): QuestDef[] {
 }
 
 /**
- * The quest this person is on now: their first that isn't done and whose
- * story flag (`requires`) is set. The next one waits until this one's done.
+ * The quest this person is on now. Finish what you started: one already
+ * accepted and not done comes first — even before a story quest that has
+ * just unlocked — then their first not done whose story flag (`requires`)
+ * is set. The next one waits until this one's done.
  */
 export function questFor(npcId: string, save: SaveData): QuestDef | undefined {
-  return questsBy(npcId).find((q) => !save.flags[questDoneFlag(q)] && (!q.requires || save.flags[q.requires]));
+  const mine = questsBy(npcId).filter((q) => !save.flags[questDoneFlag(q)]);
+  return mine.find((q) => save.flags[questOfferedFlag(q)]) ?? mine.find((q) => !q.requires || save.flags[q.requires]);
 }
 
 export function questOfferedFlag(q: Pick<QuestDef, 'id'>): string {

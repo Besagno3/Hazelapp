@@ -43,6 +43,9 @@ describe('crystals belong to an act (#75 item 14c)', () => {
     expect(actComplete({ [crystalFlag('math')]: true }, 1)).toBe(false);
     expect(actRestored(ACT_ONE, 1)).toBe(4);
     expect(actComplete(ACT_ONE, 1)).toBe(true);
+    // An act with no crystals yet isn't complete (review fix): no "Act II done" before Act II exists.
+    expect(actComplete(ACT_ONE, 2)).toBe(false);
+    expect(actComplete({}, 3)).toBe(false);
   });
 
   describe('with an Act II crystal added, Act I is unchanged', () => {

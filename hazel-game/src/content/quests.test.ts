@@ -500,7 +500,10 @@ describe('one person, several quests (#75 item 14c)', () => {
     QUESTS.push(...added);
   });
   afterEach(() => {
-    for (const q of added) QUESTS.splice(QUESTS.indexOf(q), 1);
+    for (const q of added) {
+      const i = QUESTS.indexOf(q);
+      if (i >= 0) QUESTS.splice(i, 1);
+    }
   });
 
   const talk = (npc: string, save: SaveData) => {
@@ -559,6 +562,25 @@ describe('one person, several quests (#75 item 14c)', () => {
     } finally {
       BEA_FIRST.steps[0] = talkStep;
     }
+  });
+
+  it('finish what you started: a quest under way comes before one listed first that unlocks later', () => {
+    // Bea's second quest is listed before a third that needs no story flag — swap them in for this test.
+    const third = quest('bea-third', BEA, [flagged('bea-third-x', 'Bea waits on her third.')]);
+    QUESTS.splice(QUESTS.indexOf(BEA_FIRST), 1);
+    added = [BEA_SECOND, third, MOE_OWN];
+    QUESTS.push(third);
+    expect(questsBy(BEA)).toEqual([BEA_SECOND, third]);
+    let save = talk(BEA, defaultSave()).save; // the third is the one on offer before the story flag
+    expect(save.flags[questOfferedFlag(third)]).toBe(true);
+    save = set(save, LATER); // now the second (listed first) has unlocked too
+    expect(questFor(BEA, save)).toBe(third);
+    expect(talk(BEA, save).c.lines).toEqual(['Bea waits on her third.']);
+    save = set(save, stepFlag('bea-third-x'));
+    const done = talk(BEA, save);
+    expect(done.c.finishKind).toBe('complete');
+    expect(done.c.badge).toBe('bea-third');
+    expect(talk(BEA, done.save).c.lines).toEqual(['bea-second offer']);
   });
 
   it("today's people give one quest each, and each is theirs once its story flag is set", () => {

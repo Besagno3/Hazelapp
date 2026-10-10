@@ -59,7 +59,7 @@ import { emberStatus, EMBER_HATCHED } from '../../content/story';
 import { bossFlag, keyForBoss, keyFlag } from '../../content/keys';
 import { bossScript } from '../../content/enemies';
 import { resolveSprite } from '../../content/sprites';
-import { BASE_TIER, dangerMarks, defeatTip, toughCallout } from '../../content/regions';
+import { BASE_TIER, dangerMarks, defeatTip, toughCallout, toughKey } from '../../content/regions';
 import { roadTier } from '../../lib/wayfinding';
 import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
@@ -326,7 +326,9 @@ export default function BattleArena() {
     const lines: { text: string; shown?: () => void }[] = [];
     // A boss's monologue by its role (#75 item 14c) — a boss with no lines just fights.
     if (enemy.isBoss) for (const text of bossScript(enemy)?.intro ?? []) lines.push({ text });
-    if (dangerMarks(tier) && !toughMet.includes(tier)) lines.push({ text: `💪 ${toughCallout(tier)}`, shown: () => meetTough(tier) });
+    // Tiers 5–7 share one line (`toughKey`); below that, one per tier.
+    const toughAs = toughKey(tier);
+    if (dangerMarks(tier) && !toughMet.includes(toughAs)) lines.push({ text: `💪 ${toughCallout(tier)}`, shown: () => meetTough(toughAs) });
     if (mercyDrop > 0) lines.push({ text: `💛 ${mercyCallout(enemy)}` });
     if (lines.length === 0) return;
     const chain = lines.reduceRight<() => void>(

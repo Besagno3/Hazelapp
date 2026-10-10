@@ -27,7 +27,8 @@ export function BattleResult({
   keyBoss?: GateKey;
   /** A crystal Fiend's last words. */
   fiendDefeatLine?: string;
-  crystalName: string;
+  /** Set only for a Fiend (#75 item 14c): its crystal shines again. */
+  crystalName?: string;
   correctCount: number;
   /** XP awarded for the whole fight. */
   xp: number;

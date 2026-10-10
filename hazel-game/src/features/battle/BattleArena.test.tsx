@@ -115,6 +115,20 @@ describe('opening lines (#75 item 12)', () => {
     expect(screen.getByText('Attack')).toBeInTheDocument();
   });
 
+  it('past "!!!" one line explains the colour, once for tiers 5–7 (#75 item 14c)', () => {
+    const veryTough = { ...enemy, instanceId: 'e6', tier: 6 } as BattleEnemy;
+    useBattleStore.getState().start(veryTough, 60, 100);
+    const first = render(<BattleArena />);
+    expect(screen.getByText(/💪 See its purple !!! by its level\? A very tough critter/)).toBeInTheDocument();
+    expect(useBattleStore.getState().toughMet).toEqual([5]);
+    first.unmount();
+
+    useBattleStore.getState().start({ ...veryTough, instanceId: 'e7', tier: 7 }, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByText(/💪/)).toBeNull();
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+  });
+
   it("after two losses a far critter's fight is eased, and a 💛 line says how", () => {
     useBattleStore.getState().recordLoss('count-bat@3');
     useBattleStore.getState().recordLoss('count-bat@3');

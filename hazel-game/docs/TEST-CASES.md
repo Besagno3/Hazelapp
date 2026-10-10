@@ -862,6 +862,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-714 | U | ✅ | quests | today's people still give one quest each, and `questFor` gives it once its story flag is set — Marlow's boat only after `act2-seen` (quests.test, boat.test) |
 | TC-715 | U | ✅ | regions | danger tiers 0–7: each is at least as tough and pays at least as much as the last, HP and coins strictly rise, healers stay stall-proof at every tier; the marks stop at "!!!"; tiers 4–7 have four different map colours, 5–7 violet → magenta and light on the dark plate; the Silver Shallows is tier 5 and nothing else is past 4 (regions.test, enemies.test) |
 | TC-716 | C | ✅ | battle HUD | a tier-6 critter shows "!!!" in fuchsia and reads aloud "Very tough critter: …"; a tier-4 one shows "!!!" in red and reads "Tough critter" (BattleHud.test) |
+| TC-717 | U | ✅ | quests | finish what you started: a giver's quest already accepted comes before one listed first whose story flag turns on later — its hint, then its completion, then the next one's offer (fails on the old `questFor`) (quests.test) |
+| TC-718 | U/C | ✅ | danger tiers | tiers 5–7 share one 💪 line ("See its purple !!! … harder than a red !!!") and one `toughKey`; tier 4's line is unchanged; in the real arena a tier-6 fight opens with it and records tier 5, and a tier-7 fight after it opens with none (regions.test, BattleArena.test) |
+| TC-719 | U | ✅ | crystals | `actComplete` is false for an act with no crystals yet (crystals.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

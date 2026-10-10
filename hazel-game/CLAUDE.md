@@ -141,8 +141,8 @@ zod, react-query. Add the package in the same change that first uses it.
   hand back something new) steps; `openChest` pays a key-item chest's
   `ZoneDef.keyChests` item and `zoneChestOpened` ignores those chests; each
   quest item belongs to one quest; one person may give several quests in
-  turn — `questFor(npcId, save)` — and a step may go through a giver, #75
-  item 14c), `secrets.ts` (hidden secrets per
+  turn — `questFor(npcId, save)`, the one you've started first — and a step
+  may go through a giver, #75 item 14c), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
@@ -500,6 +500,27 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14c review fixes: finish what you started, the purple !!! explained (#75 item 14c)
+A fresh `/saas-code-review` (1 medium, 1 low) and a light `/saas-ux-review`
+(1 medium, 1 low) of 14c. Both confirmed nothing a player sees in Act I
+changes. Fixed, as chosen:
+- **`questFor` finishes what you started (code, medium):** it picked by list
+  order, so a quest listed first whose story flag turned on later hid one
+  already under way, which then couldn't be handed in. An accepted quest now
+  comes first, even before a story quest (decided; #112i).
+- **Tiers 5–7 explain the colour (UX, medium):** they repeated tier 4's
+  "See the !!!" line word for word. Now one line for all three ("See its
+  purple !!! by its level? A very tough critter — it hits even harder than a
+  red !!!…"), shown once (`toughKey`; `VERY_TOUGH_TIER` moved to
+  `regions.ts`). Tiers 0–4 are unchanged.
+- **Tier 5 is violet-200 (UX, low):** violet-300 and fuchsia-300 merged for
+  red-green colour-blind kids.
+- **Tidy-ups (code, low):** `actComplete` is false for an act with no
+  crystals; `BattleResult.crystalName` is optional; `BattleEnemy` got its doc
+  comment back.
+- Tests: +4 (quests.test fails on the old `questFor`; regions.test,
+  BattleArena.test, crystals.test). 797 green, lint + build clean.
 
 ### 2026-10-10 — Danger tiers run to 7; the Shallows is tier 5 (#75 item 14c)
 Fourth slice of 14c (#105g, #108d). Acts II–IV need tougher places than

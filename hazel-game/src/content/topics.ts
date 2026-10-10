@@ -172,5 +172,7 @@ export function actRestored(flags: Record<string, boolean>, act: Act): number {
 
 /** Every crystal of the act restored — Act I's opens the Spire and plays the ending. */
 export function actComplete(flags: Record<string, boolean>, act: Act): boolean {
-  return actRestored(flags, act) >= actCrystals(act).length;
+  // An act with no crystals yet isn't complete — it hasn't been written.
+  const crystals = actCrystals(act);
+  return crystals.length > 0 && actRestored(flags, act) >= crystals.length;
 }

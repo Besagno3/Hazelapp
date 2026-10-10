@@ -45,7 +45,7 @@ export const DANGER: Record<DangerTier, DangerDef> = {
   2: { hp: 1.15, attack: 1.1, chargeChance: 0.25, coins: 1.3, xp: 1.15, mapColor: [255, 226, 120] },
   3: { hp: 1.3, attack: 1.2, chargeChance: 0.3, coins: 1.6, xp: 1.3, mapColor: [255, 170, 80] },
   4: { hp: 1.45, attack: 1.3, chargeChance: 0.35, coins: 2, xp: 1.45, mapColor: [255, 150, 140] },
-  5: { hp: 1.6, attack: 1.4, chargeChance: 0.4, coins: 2.4, xp: 1.6, mapColor: [196, 181, 253] },
+  5: { hp: 1.6, attack: 1.4, chargeChance: 0.4, coins: 2.4, xp: 1.6, mapColor: [221, 214, 254] },
   6: { hp: 1.75, attack: 1.5, chargeChance: 0.45, coins: 2.8, xp: 1.75, mapColor: [240, 171, 252] },
   7: { hp: 1.9, attack: 1.6, chargeChance: 0.5, coins: 3.2, xp: 1.9, mapColor: [232, 121, 249] },
 };
@@ -108,6 +108,9 @@ export function dangerMarks(tier: DangerTier = BASE_TIER): string {
   return '!'.repeat(Math.min(MAX_MARKS, Math.max(0, tier - BASE_TIER)));
 }
 
+/** The first tier past the last "!" (5): its marks are coloured, and it reads "Very tough" (#75 item 14c). */
+export const VERY_TOUGH_TIER = (BASE_TIER + MAX_MARKS + 1) as DangerTier;
+
 /** A critter's map label: "Lv 4", "👑 Lv 5 !!" — the level is its questions', the marks its danger. */
 export function mapLabel(level: number, isBoss: boolean, tier: DangerTier = BASE_TIER): string {
   const marks = dangerMarks(tier);
@@ -119,10 +122,20 @@ export function mapLabel(level: number, isBoss: boolean, tier: DangerTier = BASE
  * tier a session (#75 item 12) — so a child who taps into a fight, never
  * having read the map, still learns what the marks mean. The copy talks
  * about the marks, not distance: tiers follow the story's road, and the
- * Coast is a short walk from home.
+ * Coast is a short walk from home. Past "!!!" the marks only change colour,
+ * so tiers 5–7 say what the colour means (#75 item 14c) — once for all
+ * three (`toughKey`).
  */
 export function toughCallout(tier: DangerTier): string {
+  if (tier >= VERY_TOUGH_TIER) {
+    return 'See its purple !!! by its level? A very tough critter — it hits even harder than a red !!!, and drops even more coins!';
+  }
   return `See the ${dangerMarks(tier)} by its level? Critters with ! marks hit harder — but they drop more coins!`;
+}
+
+/** The tier a 💪 line counts as explained under (`battleStore.toughMet`): tiers 5–7 share one line. */
+export function toughKey(tier: DangerTier): DangerTier {
+  return tier >= VERY_TOUGH_TIER ? VERY_TOUGH_TIER : tier;
 }
 
 /** Where the 🚩 is, in the words of the buttons a child can see. */

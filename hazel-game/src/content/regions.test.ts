@@ -11,6 +11,8 @@ import {
   mapLabel,
   placementTier,
   toughCallout,
+  toughKey,
+  VERY_TOUGH_TIER,
   zoneTier,
   type DangerTier,
 } from './regions';
@@ -101,6 +103,15 @@ describe('regions and danger tiers (#75 item 12)', () => {
       expect(b, `tier ${t} is violet–magenta`).toBeGreaterThan(g);
       expect(Math.min(r, b), `tier ${t} is light enough for the dark plate`).toBeGreaterThan(180);
     }
+  });
+
+  it('tiers 5–7 share one 💪 line that says what the colour means; tiers up to 4 keep theirs (#75 item 14c)', () => {
+    expect(VERY_TOUGH_TIER).toBe(5);
+    const veryTough = ([5, 6, 7] as const).map((t) => toughCallout(t));
+    expect(new Set(veryTough).size).toBe(1);
+    expect(veryTough[0]).toMatch(/purple !!!.*very tough.*harder than a red !!!/);
+    expect(toughCallout(4)).toBe('See the !!! by its level? Critters with ! marks hit harder — but they drop more coins!');
+    expect(TIERS.map((t) => toughKey(t))).toEqual([0, 1, 2, 3, 4, 5, 5, 5]);
   });
 
   it('the Silver Shallows is tier 5, the first past Act I (#105g, #108d)', () => {

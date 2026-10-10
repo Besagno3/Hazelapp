@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { CHARGE_MAX } from '../../content/abilities';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { STREAK_START } from '../../lib/battleTurn';
-import { BASE_TIER, MAX_MARKS, dangerMarks, type DangerTier } from '../../content/regions';
+import { BASE_TIER, VERY_TOUGH_TIER, dangerMarks, type DangerTier } from '../../content/regions';
 import type { Avatar, BattleEnemy } from '../../types';
 
 const hpPct = (hp: number, max: number) => `${Math.max(0, (hp / max) * 100)}%`;
@@ -34,13 +34,10 @@ const DANGER_TEXT: Record<DangerTier, string> = {
   2: 'text-yellow-200',
   3: 'text-orange-300',
   4: 'text-red-300',
-  5: 'text-violet-300',
+  5: 'text-violet-200',
   6: 'text-fuchsia-300',
   7: 'text-fuchsia-400',
 };
-
-/** The first tier past the last "!" (tier 5), read aloud as "Very tough" (#75 item 14c). */
-const VERY_TOUGH = BASE_TIER + MAX_MARKS + 1;
 
 /**
  * FF-style status boxes: enemy (left) and hero with charge gauge (right).
@@ -143,7 +140,7 @@ function DangerMarks({ tier }: { tier: DangerTier }) {
   const marks = dangerMarks(tier);
   if (!marks) return null;
   // The marks stop at "!!!" (`MAX_MARKS`), so the words say what the colour does.
-  const says = `${tier >= VERY_TOUGH ? 'Very tough' : 'Tough'} critter: it hits harder — and drops more coins`;
+  const says = `${tier >= VERY_TOUGH_TIER ? 'Very tough' : 'Tough'} critter: it hits harder — and drops more coins`;
   return (
     <span className={`ml-1 font-extrabold ${DANGER_TEXT[tier]}`} title={says}>
       <span aria-hidden="true">{marks}</span>
