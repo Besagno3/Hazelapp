@@ -947,6 +947,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-789 | U | ✅ | music | a track left before it's heard (still loading) is unloaded at once and never starts; picked again within its fade-out, a track plays on at full volume while the other stops (audio.music.test; both fail on the old code) |
 | TC-790 | U | ✅ | music | refused by autoplay, a track plays and fades in on the next gesture (audio.music.test) |
 | TC-791 | M | ✅ | music | the real Howler + `audio.ts` + shipped tracks in headless Chromium: a battle begun at the overworld's loop point — before, both tracks played on at 0.6; after, only the battle. A random fuzz of switches, key presses and waits (1–2 s loops, a throttled network): before, 8–9 of 12 rounds left a non-current track running; after, none in 9 seeds. The real app (Supabase stubbed), music on: walking into a critter on Dawnreach plays only the battle theme, and fleeing brings the overworld back at 0.6 with no key pressed (before: at 0) |
+| TC-793 | U | ✅ | audio | every audio file under `public/audio/` is one `SFX_SOURCES` / `MUSIC_SOURCES` names — the unused originals are gone, and a stray file fails with its path (audio.test) |
+| TC-794 | M | ✅ | music | with a track left behind by the old engine (a battle begun at the overworld's loop point), turning Music off silenced only the battle music; with the fix nothing is left behind, and Music off leaves silence (real Howler in headless Chromium) |
 | TC-792 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

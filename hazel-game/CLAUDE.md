@@ -575,6 +575,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The unused original mp3s are deleted (#115)
+The player-supplied mp3s from #60 (`Overworld.mp3`, `Battle_Music.mp3`,
+`Boss_Battle.mp3`, `Boss_Battle - Final Battle.mp3`, `Spire_Music.mp3`,
+`Character_Grunt.mp3`, `Level_Up.mp3`, `Victory-jingle.mp3`,
+`Wrong_Answer.mp3` — 3.7 MB) sat in `public/audio/` with nothing playing them
+since the 16-bit set (#71). With #115's leftover track playing on after Music
+was turned off, they made it look as if the old and new music were both in
+use. Deleted; `public/audio/README.md` and `audio.ts` no longer point at them,
+and a new `audio.test` case fails on any audio file under `public/audio/` that
+`SFX_SOURCES` / `MUSIC_SOURCES` doesn't name.
+
 ### 2026-10-10 — The overworld music no longer plays on under the battle music (#115)
 Howler's html5 mode queues any `fade()` / `volume()` / `stop()` asked for
 while a `play()` is starting — the first one, and the restart at every loop
