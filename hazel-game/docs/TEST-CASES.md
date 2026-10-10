@@ -870,6 +870,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-722 | U | ✅ | Remembrance Hill | nobody names it before Act II: `placeKnown`, signposts skip it (Act I's signpost lines unchanged) and name it ↙️ from the crossroads once `act2-seen` is set; its bank shows no crystal marker; the menu map leaves it out (with "Fog with nothing on it lifts later in your adventure") until Act II, then lists it (zones.test, wayfinding.test, worldMap.test, WorldMapPanel.test) |
 | TC-723 | U | ✅ | Remembrance Hill | Keeper Mnem's first line sets `met-mnem`; he reads one plaque per Act I crystal (by its flag), then the blank ones (zones.test) |
 | TC-724 | M | ⬜ | Remembrance Hill | in the app, after Act II opens: step onto Dawnreach — the camera glides to the bank south of Moonwell Grove, it lifts with "a road nobody remembered…" and the hill's icon fades in; walk the road from the Grove's beach onto the icon; inside, talk to all eight people, rest at the inn, buy the badge, then Return there from another town |
+| TC-725 | U | ✅ | wayfinding | after "Sail the Silver Shallows" the 🚩 reads "Visit Remembrance Hill" (`kind: 'visit'`) until `visited:remembrance-hill`, then "Explore"; from the Shallows the way reads "Sail west to Dawnreach, then … Remembrance Hill."; Elder Lumen's plan names it "to the south"; the walk from a new save now has one more step and still ends; the fog never stands between the hero and a goal (`advanceGoal` sets `act2-seen` with the Spire) (wayfinding.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

@@ -59,8 +59,12 @@ export function placeName(z: ZoneDef): string {
 // --- The next goal ---------------------------------------------------------------
 
 export interface Objective {
-  /** Act II adds `boat` (help Old Marlow mend his boat) and `sail` (take it to the Silver Shallows), #75 item 14. */
-  kind: 'crystal' | 'key' | 'spire' | 'boat' | 'sail' | 'explore';
+  /**
+   * Act II adds `boat` (help Old Marlow mend his boat) and `sail` (take it to
+   * the Silver Shallows), #75 item 14, and `visit` (go and see a place the
+   * world has just remembered — Remembrance Hill, #75 item 14e).
+   */
+  kind: 'crystal' | 'key' | 'spire' | 'boat' | 'sail' | 'visit' | 'explore';
   /** Short, for the map and signposts: "Free the Crystal of Numbers". */
   title: string;
   /** One or two sentences for the guides. Never says where: the route does. */
@@ -100,8 +104,9 @@ const BOAT_STEPS: Record<string, { title: string; why: string }> = {
 
 /**
  * Act II's next step (#75 item 14), once the Spire is cleared: help Old Marlow
- * mend his boat (step by step — each step's friend is the goal), then sail it
- * to the Silver Shallows. Null once you've been there (explore from then on).
+ * mend his boat (step by step — each step's friend is the goal), sail it to
+ * the Silver Shallows, then visit Remembrance Hill (#75 item 14e). Null once
+ * you've been there — explore from then on, until Act II's next places exist.
  */
 function actTwoObjective(flags: Record<string, boolean>): Objective | null {
   if (!hasBoat(flags)) {
@@ -138,6 +143,14 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
       why: "Marlow's boat waits at his dock, just east of Starfall Coast. Climb in and sail east, off the edge of the sea!",
       zoneId: 'silver-shallows',
       at: { zoneId: BOAT_HOME.zoneId, x: BOAT_HOME.x - 1, y: BOAT_HOME.y, name: "Marlow's dock" },
+    };
+  }
+  if (!flags[visitedFlag('remembrance-hill')]) {
+    return {
+      kind: 'visit',
+      title: 'Visit Remembrance Hill',
+      why: 'Lumina is remembering! Where the old fog sat past Moonwell Grove, a road nobody remembered has appeared. Where does it lead?',
+      zoneId: 'remembrance-hill',
     };
   }
   return null;
@@ -433,6 +446,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = 'The Spire is cleared, and Lumina is remembering! Old Marlow on Starfall Coast remembers he was a sailor. Help him mend his boat, and the Silver Shallows — islands the world forgot — will be yours to explore.';
   } else if (goal.kind === 'sail') {
     plan = "Marlow's boat is mended! Out past his dock lie the Silver Shallows, islands nobody has seen since the fog. Go and see them — and tell me everything!";
+  } else if (goal.kind === 'visit') {
+    plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
   } else {
@@ -447,6 +462,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
       : 'Many townsfolk have little quests for you. Talk to everyone — and look for twinkles ✦!';
   } else if (goal.kind === 'sail') {
     tip = 'In the boat, bump into a beach or a dock to go ashore. The boat waits right where you leave it — and Old Marlow can always row it home.';
+  } else if (goal.kind === 'visit') {
+    tip = "Every town has an inn. Rest at a new one, and if a battle goes badly, that's where you'll wake up.";
   } else if (goal.kind === 'explore') {
     tip = 'Many townsfolk have little quests for you. Talk to everyone — and look for twinkles ✦!';
   } else if (restored === 0) {

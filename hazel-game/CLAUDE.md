@@ -501,6 +501,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The 🚩 leads to Remembrance Hill after the Shallows (#75 item 14e)
+Third slice of 14e. Once the Silver Shallows are visited, the 🚩 reads
+**"Visit Remembrance Hill"** (`Objective.kind: 'visit'`; "Where the old fog sat
+past Moonwell Grove, a road nobody remembered has appeared…"), routed back
+across the sea ("Sail west to Dawnreach, then …"), until the hero has been
+there — then "Explore", as before, until 14f adds Eldergrove. Elder Lumen's
+plan names it ("a town called Remembrance Hill, to the south … a keeper there
+never forgets a name"). `advanceGoal` (tests and bench) sets `act2-seen`
+with the Spire, as the walk home does. Tests: wayfinding.test (+1; the walks
+and story fixtures know the new step). 811 green.
+
 ### 2026-10-10 — Remembrance Hill: a town in old fog past Moonwell Grove (#75 item 14e)
 Second slice of 14e — the town Act II's 🚩 leads to next (the 🚩 itself comes
 in the next commit).
