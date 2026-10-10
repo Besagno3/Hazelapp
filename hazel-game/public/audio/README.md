@@ -41,6 +41,11 @@ in-game menu (📜 → 🔊 Audio).
 today 45–116 s) so it doesn't feel like one phrase on repeat.
 The sea has one loop per sea area (`SEA_TRACK`): `sailing`, `shallows`,
 `fogbank` — hand-written tunes in the same song form (38–64 s).
+The sign-in screen (and the screen after signing out) has its own `intro`
+(72 s): a harp-like arpeggio sweeping up and down three octaves, one chord a
+bar, that swells from soft ripples to a full climax — a pad, then a tune and
+a bass, then a timpani roll — and back down, so the loop comes round without
+a jump. Rebuild it alone with `python3 tools/assets/build.py intro`.
 
 ## Only what the game plays
 Every audio file here is one `SFX_SOURCES` / `MUSIC_SOURCES` points at

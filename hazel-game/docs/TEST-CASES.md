@@ -977,6 +977,17 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-815 | M | ✅ | music | real Howler in headless Chromium, after the review fixes: the fuzz clean in 8 seeds (6 with 1–2 s loops and a throttled network); a Howl-volume comparison left the current track silent in 5 rounds over 6 seeds; re-picking a track at once, the loop-point battle and Music off all hold |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
+## The sign-in screen's intro music (#117)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-816 | U | ✅ | music | the sign-in screen (`'auth'`) plays `intro`, not the title theme; `intro.mp3` ships and is named in `MUSIC_SOURCES` (audio.test) |
+| TC-817 | U | ✅ | music | `musicScreen`: no music while the session is checked (a refresh mid-game never plays the intro), the intro whenever nobody is signed in (or a new password is being set), else the game's screen (audio.test) |
+| TC-818 | M | ✅ | music | the real app in headless Chromium, Supabase stubbed, music on: the sign-in page plays only the intro at full volume; in the world the overworld theme; Sign out → the overworld stops and the intro plays — 4 runs, one on a cold server |
+| TC-819 | M | ✅ | music | `python3 tools/assets/build.py intro` writes only `intro.mp3` (72 s), byte-identical on a rebuild; loudness by bar rises 15% → 100% by bar 17 and falls to 19% by bar 24, meeting the loop's start |
+| TC-820 | M | ⬜ | music | by ear: a harp arpeggio rising and falling, swelling from soft ripples to a full climax and back; the loop comes round without a jump |
+| TC-821 | M | ⬜ | music | in a real browser with Music on, open the sign-in page fresh: silent until the first tap or key (the browser's rule), then the intro starts; sign out from the world → the intro replaces the world's music |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

@@ -517,6 +517,7 @@ python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallo
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
+python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#117)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
 
@@ -593,6 +594,30 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — The sign-in screen gets its own intro music (#117)
+The sign-in screen played the title theme. Now it has an intro of its own,
+heard there and on the screen after signing out (and while choosing a new
+password): **`intro`** (`public/audio/16bit/music/intro.mp3`, 72 s,
+`compose_intro` in `tools/assets/audio.py`, `python3 tools/assets/build.py
+intro`). A harp-like arpeggio sweeps up three octaves and back each bar over
+E♭–Cm–A♭–B♭-style progressions; it begins as small ripples, alone and soft,
+widens into full sweeps as a string pad joins, gains a tune and a bass, swells
+through a timpani roll into a climax (the tune an octave up with a line below
+it, the harp doubled), then thins back to the ripples, so the loop meets its
+own soft start (loudness by bar 15% → 100% → 19%). Original — written in the
+spirit of a 16-bit RPG prelude, not a copy of one.
+- **Wiring:** `musicScreen(initialized, signedIn, gameScreen)` (`lib/audio.ts`)
+  picks the screen whose music plays — `'loading'` (none) while the session is
+  checked, so a refresh mid-game never blips the intro; `'auth'` → `intro`
+  until someone signs in, again after signing out; else the game's screen.
+  `App` passes it to `useScreenMusic`. Music stays off by default (#117).
+- **Checked:** the real app in headless Chromium (Supabase stubbed, music on)
+  — the sign-in page plays only the intro; in the world the overworld theme;
+  Sign out → the overworld stops and the intro plays (4 runs, a cold server
+  included). `build.py intro` writes only `intro.mp3`, byte-identical on a
+  rebuild (and the sea music rebuilds byte-identical here, so the toolchain
+  matches). Tests +2 (audio.test); the shipped-file guards cover the new file.
 
 ### 2026-10-10 — Merge main (the heroines and hero roster, #39) into the music-fix branch (#116)
 `main` took ISSUES **#115** and TC-786–803 for the hero roster while the

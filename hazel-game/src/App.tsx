@@ -3,7 +3,7 @@ import { useAuthInit } from './features/auth/useAuthInit';
 import { useAuthStore } from './store/authStore';
 import { useSaveStore } from './store/saveStore';
 import { useBattleStore } from './store/battleStore';
-import { useScreenMusic } from './lib/audio';
+import { musicScreen, useScreenMusic } from './lib/audio';
 import { HUB_ZONE, zone } from './content/zones';
 import { seaAreaAt, type SeaArea } from './content/boat';
 import { sendFlow, useFlow } from './machines/gameFlow';
@@ -68,9 +68,10 @@ export default function App() {
   const zoneKind = useSaveStore((s) => zone(s.save?.zoneId ?? HUB_ZONE).kind);
   const sea = useSeaArea();
 
-  // Background music follows the screen — and, in the world, the sea area or
-  // the kind of place you're in (silent until enabled in the menu).
-  useScreenMusic(screen, isBoss, inSpire, zoneKind, sea);
+  // Background music follows the screen — the sign-in screen has its own intro;
+  // in the world, the sea area or the kind of place you're in (silent until
+  // enabled in the menu).
+  useScreenMusic(musicScreen(initialized, !!session && !passwordRecovery, screen), isBoss, inSpire, zoneKind, sea);
 
   // Wake the machine once auth + save have loaded (guards read the save).
   useEffect(() => {
