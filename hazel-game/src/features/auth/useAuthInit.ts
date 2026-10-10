@@ -2,24 +2,17 @@ import { useEffect } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { useProfileStore } from '../../store/profileStore';
-import { useSaveStore } from '../../store/saveStore';
-import { useBattleStore } from '../../store/battleStore';
-import { useQuizSessionStore } from '../../store/quizSessionStore';
-import { sendFlow } from '../../machines/gameFlow';
+import { putAwayGame, useFamilyStore } from '../../store/familyStore';
 
 /**
- * Loads the current Supabase session on mount and keeps the auth, profile,
- * and save stores in sync with sign-in / sign-out / token-refresh events.
- * Call once, at the app root.
+ * Loads the current Supabase session on mount and keeps the auth and family
+ * stores in sync with sign-in / sign-out / token-refresh events. A login is a
+ * grown-up's (#118): signing in loads their kids; a kid's profile and save
+ * load when they're picked on "Who's playing?". Call once, at the app root.
  */
 export function useAuthInit() {
   const setSession = useAuthStore((s) => s.setSession);
   const setInitialized = useAuthStore((s) => s.setInitialized);
-  const loadProfile = useProfileStore((s) => s.loadProfile);
-  const clearProfile = useProfileStore((s) => s.clearProfile);
-  const loadSave = useSaveStore((s) => s.load);
-  const clearSave = useSaveStore((s) => s.clear);
 
   useEffect(() => {
     let userId: string | null = null;
@@ -30,16 +23,12 @@ export function useAuthInit() {
         // Token refreshes fire this too — only reload on an actual user change.
         if (session.user.id !== userId) {
           userId = session.user.id;
-          void loadProfile(session.user.id);
-          void loadSave(session.user.id);
+          void useFamilyStore.getState().load(session.user.id);
         }
       } else {
         userId = null;
-        clearProfile();
-        clearSave();
-        useBattleStore.getState().reset();
-        useQuizSessionStore.getState().reset();
-        sendFlow({ type: 'RESET' });
+        useFamilyStore.getState().clear();
+        putAwayGame();
       }
     }
 
@@ -63,7 +52,7 @@ export function useAuthInit() {
     });
 
     return () => sub.subscription.unsubscribe();
-  }, [setSession, setInitialized, loadProfile, clearProfile, loadSave, clearSave]);
+  }, [setSession, setInitialized]);
 }
 
 /** Whether the page was opened from a Supabase password-reset email link. */

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { errorMessage, resolveErrorMessage } from './errors';
+import { useFamilyStore } from '../store/familyStore';
 import type { Question, Topic } from '../types';
 
 /** Questions per quiz round. */
@@ -26,8 +27,10 @@ async function invokeGenerate(
   count: number,
   context?: string,
 ): Promise<Question[]> {
+  // The kid playing (#118): their seen questions are their own.
+  const profileId = useFamilyStore.getState().activeKidId;
   const { data, error } = await supabase.functions.invoke('generate-questions', {
-    body: { topic, age, skillLevel, count, ...(context ? { context } : {}) },
+    body: { topic, age, skillLevel, count, ...(context ? { context } : {}), ...(profileId ? { profileId } : {}) },
   });
   // Surface the edge function's real {error, detail} body, not the generic
   // "non-2xx status code" message (see lib/errors.ts).
@@ -80,7 +83,8 @@ export function shuffleAnswers<T extends Pick<Question, 'options' | 'correctInde
 const prefetched = new Map<string, Promise<Question[]>>();
 
 function cacheKey(topic: Topic, skillLevel: number, count: number, context?: string): string {
-  return `${topic}|${skillLevel}|${count}|${context ?? ''}`;
+  // Per kid, so a batch warmed for one never goes to a sibling after a switch.
+  return `${useFamilyStore.getState().activeKidId ?? ''}|${topic}|${skillLevel}|${count}|${context ?? ''}`;
 }
 
 /** Warms a question request so it is ready before the screen needs it. */
@@ -127,17 +131,16 @@ export type FlagReason = 'wrong_answer' | 'confusing' | 'difficulty';
 
 /**
  * Flags a question for review. Any single flag quarantines the question from
- * the cache pool (see edge function). Requires an authenticated session — the
- * `question_flags` RLS policy enforces `profile_id = auth.uid()`.
+ * the cache pool (see edge function). Sent as the kid playing — the
+ * `question_flags` RLS policy only accepts one of the signed-in grown-up's
+ * kids (#118).
  */
 export async function flagQuestion(questionId: string, reason?: FlagReason): Promise<void> {
   // Synthetic IDs ("fresh-…") come from a question that failed to cache; it
   // doesn't exist server-side, so the FK insert would fail. Treat as no-op.
   if (questionId.startsWith('fresh-')) return;
 
-  const { data: userData, error: authErr } = await supabase.auth.getUser();
-  if (authErr) throw new Error(`Couldn't flag question — ${errorMessage(authErr)}`);
-  const profile_id = userData?.user?.id;
+  const profile_id = useFamilyStore.getState().activeKidId;
   if (!profile_id) throw new Error('Please sign in to flag a question.');
 
   const { error } = await supabase

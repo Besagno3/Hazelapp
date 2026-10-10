@@ -2,20 +2,18 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { errorMessage } from '../../lib/errors';
 import PasswordInput from '../../components/PasswordInput';
+import PrivacyNotice from '../family/PrivacyNotice';
+import { CONSENT_VERSION } from '../../content/family';
 
-const CURRENT_YEAR = new Date().getFullYear();
-// Birth years offered at sign-up: a few years back through ~100 years.
-const BIRTH_YEARS = Array.from({ length: 98 }, (_, i) => CURRENT_YEAR - 3 - i);
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
+/**
+ * Sign in / sign up. An account is a grown-up's (#118): they sign up with
+ * their own email and agree to the privacy notice, then add their kids —
+ * kids never type an email or a password.
+ */
 export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [birthYear, setBirthYear] = useState('');
-  const [birthMonth, setBirthMonth] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   // "Forgot password?" mode: email only, sends a reset link (#88).
   const [isForgot, setIsForgot] = useState(false);
@@ -47,19 +45,17 @@ export default function AuthPage() {
     }
 
     if (isSignUp) {
-      if (!birthYear || !birthMonth) {
-        setError('Please select your birth year and month.');
+      if (!agreed) {
+        setError('Please tick the box to agree as the parent or guardian.');
         return;
       }
       setLoading(true);
-      // birth_year / birth_month flow into the profiles row via the
-      // handle_new_user() trigger (see supabase/migrations/0001).
+      // handle_new_user() (migration 0012) makes the login a grown-up and
+      // stamps their consent with this version; their kids come next.
       const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { birth_year: Number(birthYear), birth_month: Number(birthMonth) },
-        },
+        options: { data: { consent_version: CONSENT_VERSION } },
       });
       setLoading(false);
       if (authError) {
@@ -92,12 +88,16 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-blue-500">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
         <h1 className="text-3xl font-bold text-center text-purple-700 mb-2">Hazel Quest</h1>
-        <p className="text-center text-gray-500 mb-6 text-sm">Learn. Battle. Conquer.</p>
+        <p className="text-center text-gray-500 mb-6 text-sm">
+          {isSignUp
+            ? "Grown-ups: make your family's account. You'll add your kids next."
+            : "Learn. Battle. Conquer. A grown-up signs in, then picks who's playing."}
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"
-            placeholder="Email"
+            placeholder={isSignUp ? "Grown-up's email" : 'Email'}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -117,38 +117,17 @@ export default function AuthPage() {
           )}
 
           {isSignUp && (
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Birth date — used to pick age-appropriate questions
+            <div className="space-y-3">
+              <PrivacyNotice />
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-1 h-4 w-4 shrink-0 accent-purple-600"
+                />
+                <span>I'm the parent or guardian, I'm 18 or older, and I agree to the privacy notice.</span>
               </label>
-              <div className="flex gap-2">
-                <select
-                  value={birthMonth}
-                  onChange={(e) => setBirthMonth(e.target.value)}
-                  required
-                  className={fieldClass}
-                >
-                  <option value="">Month</option>
-                  {MONTHS.map((name, i) => (
-                    <option key={name} value={i + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={birthYear}
-                  onChange={(e) => setBirthYear(e.target.value)}
-                  required
-                  className={fieldClass}
-                >
-                  <option value="">Year</option>
-                  {BIRTH_YEARS.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
           )}
 
@@ -159,7 +138,7 @@ export default function AuthPage() {
             disabled={loading}
             className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
           >
-            {loading ? 'Loading…' : isForgot ? 'Send reset link' : isSignUp ? 'Create Account' : 'Sign In'}
+            {loading ? 'Loading…' : isForgot ? 'Send reset link' : isSignUp ? 'Create family account' : 'Sign In'}
           </button>
         </form>
 
@@ -185,7 +164,7 @@ export default function AuthPage() {
           }}
           className="mt-4 w-full text-center text-sm text-purple-600 hover:underline"
         >
-          {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+          {isSignUp ? 'Already have an account? Sign in' : "New here? Grown-ups sign up"}
         </button>
       </div>
     </div>

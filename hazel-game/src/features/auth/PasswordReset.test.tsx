@@ -14,6 +14,7 @@ const { default: AuthPage } = await import('./AuthPage');
 const { default: ResetPasswordPage } = await import('./ResetPasswordPage');
 const { isRecoveryUrl } = await import('./useAuthInit');
 const { useAuthStore } = await import('../../store/authStore');
+const { CONSENT_VERSION } = await import('../../content/family');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -55,13 +56,44 @@ describe('AuthPage — forgot password', () => {
   });
 });
 
+describe('AuthPage — a grown-up signs up (#118)', () => {
+  function signUpWith(email: string, password: string) {
+    fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
+    fireEvent.change(screen.getByPlaceholderText("Grown-up's email"), { target: { value: email } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: password } });
+  }
+
+  it('asks no birth date, and needs the grown-up to agree first', () => {
+    render(<AuthPage />);
+    signUpWith('mum@example.com', 'dragonfire');
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Create family account'));
+    expect(screen.getByText(/tick the box/)).toBeInTheDocument();
+    expect(auth.signUp).not.toHaveBeenCalled();
+  });
+
+  it('sends the version of the notice they agreed to', async () => {
+    auth.signUp.mockResolvedValue({ data: { session: null }, error: null });
+    render(<AuthPage />);
+    signUpWith('mum@example.com', 'dragonfire');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByText('Create family account'));
+    await screen.findByText(/check your email/);
+    expect(auth.signUp).toHaveBeenCalledWith({
+      email: 'mum@example.com',
+      password: 'dragonfire',
+      options: { data: { consent_version: CONSENT_VERSION } },
+    });
+  });
+});
+
 describe('show password (#117)', () => {
   it('sign in and sign up each have an eye; switching between them hides the password again', () => {
     render(<AuthPage />);
     const field = () => screen.getByPlaceholderText('Password') as HTMLInputElement;
     fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
     expect(field().type).toBe('text');
-    fireEvent.click(screen.getByText("Don't have an account? Sign up"));
+    fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
     expect(field().type).toBe('password');
     expect(screen.getByRole('button', { name: 'Show password' })).toBeInTheDocument();
   });

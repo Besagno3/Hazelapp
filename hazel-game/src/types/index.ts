@@ -174,6 +174,31 @@ export interface Profile {
   lastPlayedOn: string | null;
 }
 
+/**
+ * One of a grown-up's kids (#118): a `profiles` row as the family screens see
+ * it. `icon` / `picture` are ids from `content/family.ts` (null for a kid from
+ * before parent accounts, until a grown-up picks them).
+ */
+export interface Kid {
+  id: string;
+  /** Nickname (null for a kid from before parent accounts). */
+  name: string | null;
+  icon: string | null;
+  /** Secret picture that opens this kid's profile; null = no lock. */
+  picture: string | null;
+  birthYear: number;
+  birthMonth: number;
+}
+
+/** What a grown-up fills in to add or change a kid. */
+export interface KidInput {
+  name: string;
+  icon: string;
+  picture: string;
+  birthYear: number;
+  birthMonth: number;
+}
+
 /** A missed question queued for re-answering at the Library. */
 export interface LibraryEntry {
   question: Question;

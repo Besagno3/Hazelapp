@@ -67,7 +67,7 @@ import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../cont
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import LevelBadge from '../../components/LevelBadge';
 import StreakBadge from '../../components/StreakBadge';
-import SignOutButton from '../auth/SignOutButton';
+import SwitchPlayerButton from '../auth/SwitchPlayerButton';
 import { claimSecret, rewardSummary, secretById, secretFlag } from '../../content/secrets';
 import type { SecretDef } from '../../content/zones';
 import { sfx } from '../../lib/audio';
@@ -290,8 +290,8 @@ export default function WorldScreen() {
   if (!save || !avatar) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-emerald-700 to-teal-900 p-6">
-        {/* App draws no floating Sign out on the world screen; this screen has no top bar. */}
-        <SignOutButton />
+        {/* App draws no floating Switch player on the world screen; this screen has no top bar. */}
+        <SwitchPlayerButton />
         <p className="text-white mb-4">Pick an avatar first to enter the world.</p>
         <button
           onClick={() => sendFlow({ type: 'EXIT_TO_TOPICS' })}
@@ -350,7 +350,7 @@ export default function WorldScreen() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-3">
-      {/* Top bar (#75 item 14b, #102i): the level, the streak and Sign out sit
+      {/* Top bar (#75 item 14b, #102i): the level, the streak and Switch sit
           here, in the page — not floating over the place name, and under every
           overlay. The page's full width (not the stage's, which is narrow on a
           sideways phone), at most 44 px tall: with pt-3 + mb-2 it takes the
@@ -360,7 +360,7 @@ export default function WorldScreen() {
           <LevelBadge placement="inline" />
           <StreakBadge inline />
         </div>
-        <SignOutButton inline />
+        <SwitchPlayerButton inline />
       </div>
       {/* Responsive stage: as wide as the viewport allows while keeping the
           11:7 zone fully on screen (cap leaves room for top bar + footer). */}

@@ -47,22 +47,24 @@ function toRow(p: Profile): ProfileRow {
   };
 }
 
+type Birth = Pick<Profile, 'birthYear' | 'birthMonth'>;
+
 /**
  * A working profile to use when the Supabase `profiles` row is missing (the
  * auto-create trigger never ran, the migration isn't applied, or we're
- * offline). Birth date comes from the auth user's sign-up metadata so age-based
- * difficulty stays correct; everything else starts fresh. Without this, a
- * missing row left `profile` null and silently dropped all XP — the level gauge
- * never moved.
+ * offline). Birth date comes from the kid's family row (or an old account's
+ * sign-up metadata) so age-based difficulty stays correct; everything else
+ * starts fresh. Without this, a missing row left `profile` null and silently
+ * dropped all XP — the level gauge never moved.
  */
-function defaultProfile(userId: string): Profile {
+function defaultProfile(userId: string, birth?: Birth): Profile {
   const meta = useAuthStore.getState().session?.user?.user_metadata as
     | { birth_year?: number; birth_month?: number }
     | undefined;
   return {
     id: userId,
-    birthYear: meta?.birth_year ?? new Date().getFullYear() - 10,
-    birthMonth: meta?.birth_month ?? 1,
+    birthYear: birth?.birthYear ?? meta?.birth_year ?? new Date().getFullYear() - 10,
+    birthMonth: birth?.birthMonth ?? meta?.birth_month ?? 1,
     skillLevels: {},
     xp: 0,
     powerUps: {},
@@ -78,8 +80,8 @@ interface ProfileStore {
   error: string | null;
   /** Set when remote persistence is failing (local progress still works). */
   remoteError: string | null;
-  /** Fetch the signed-in user's profile row. */
-  loadProfile: (userId: string) => Promise<void>;
+  /** Fetch a kid's profile row; `birth` seeds a fresh profile if the read fails. */
+  loadProfile: (userId: string, birth?: Birth) => Promise<void>;
   /** Persist a new skill level for one topic (optimistic update). */
   setSkillLevel: (topic: Topic, level: number) => Promise<void>;
   /** Add experience points (optimistic update). */
@@ -97,7 +99,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   error: null,
   remoteError: null,
 
-  loadProfile: async (userId) => {
+  loadProfile: async (userId, birth) => {
     set({ loading: true, error: null });
     const local = readLocalProfile(userId);
     const { data, error } = await supabase
@@ -133,7 +135,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       // The read FAILED — never overwrite the remote row with a zeroed default
       // (the old bug that destroyed XP). Fall back to the local cache if we have
       // one, else an in-memory default; surface the failure.
-      const profile = local ?? defaultProfile(userId);
+      const profile = local ?? defaultProfile(userId, birth);
       set({ profile, loading: false, remoteError: errorMessage(error) });
       writeLocalProfile(profile);
       return;
@@ -141,7 +143,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
     // Genuinely no row. Seed from local progress if we have any, and create it
     // with DO-NOTHING-on-conflict so a racing/existing row is never clobbered.
-    const seed = local ?? defaultProfile(userId);
+    const seed = local ?? defaultProfile(userId, birth);
     set({ profile: seed, loading: false, remoteError: null });
     writeLocalProfile(seed);
     void supabase
