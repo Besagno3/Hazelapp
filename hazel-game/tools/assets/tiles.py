@@ -874,20 +874,18 @@ def sea_backdrop(z: dict, seed: int) -> Image.Image:
     water = hexc(z['water'])
     deep = dark(water, 0.18)
     far_sea = light(water, 0.22)
-    # Low islands on the horizon: the Shallows' own sandy humps. The one with a
-    # palm sits mid-picture, so a phone's narrow crop of the backdrop
-    # (background-size: cover — only about x 88–168 shows at 375×667) has it.
+    # Low islands on the horizon: the Shallows' own sandy humps, one mid-picture
+    # so a phone's narrow crop (background-size: cover — only about x 88–168
+    # shows at 375×667) has one. Just humps, nothing standing on them: the
+    # battle screen's water band (`SeaFloor`) rises over the horizon as the
+    # menu squeezes the stage, and a hump half-covered still reads as an island
+    # — a palm left standing on the water wouldn't (#75 item 14d review).
     isl = mix(hexc(z['far']), hexc(z['ground']), 0.4)
     for (cx, w, h) in ((30, 22, 5), (128, 15, 4), (218, 30, 6)):
         for x in range(max(0, cx - w), min(BW, cx + w)):
             t = (x - cx) / w
             for y in range(int(HORIZON - h * (1 - t * t)), HORIZON):
                 img[y, x] = isl
-    trunk = dark(isl, 0.25)
-    for y in range(HORIZON - 13, HORIZON - 4):
-        img[y, 126 + (HORIZON - 4 - y) // 4] = trunk
-    for (dx, dy) in ((-4, 0), (-3, -1), (-2, -1), (-1, -1), (1, -1), (2, -1), (3, -1), (4, 0), (-5, 1), (5, 1), (0, -2)):
-        img[HORIZON - 14 + dy, 128 + dx] = dark(isl, 0.1)
     # The sea, horizon to front.
     shade = lambda t: mix(far_sea, deep, t ** 0.8)  # noqa: E731
     for y in range(HORIZON, BH):

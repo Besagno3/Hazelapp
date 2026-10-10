@@ -34,15 +34,21 @@ export function startsBattle(foe: Pick<BattleEnemy, 'isBoss' | 'habitat'>, hero:
 }
 
 /**
- * The enemies a hero is already touching as a scene starts — back from a
- * Flee, a reload, an arrival — which stand down until the hero has stepped
- * clear of them (`staysDown`). A critter respawns at its home, so a hero
- * saved where it touched them (still, a step back is no step at all) would
- * otherwise be pulled straight back into the same fight, again after every
- * Flee (#112e).
+ * The enemies that stand down as a scene starts, until the hero has stepped
+ * clear of them (`staysDown`): any already touching the hero — back from a
+ * reload, an arrival — and the one just fled from (`fled`), wherever it is. A
+ * critter respawns at its home, anywhere up to its leash plus a touch from a
+ * hero saved where it swam into them (still, a step back is no step at all),
+ * so it would otherwise wander straight back into the same fight, again after
+ * every Flee (#112e).
  */
-export function standDown<T extends Point>(foes: readonly T[], radiusOf: (foe: NoInfer<T>) => number, hero: Point): Set<T> {
-  return new Set(foes.filter((f) => touching(f, hero, radiusOf(f))));
+export function standDown<T extends Point>(
+  foes: readonly T[],
+  radiusOf: (foe: NoInfer<T>) => number,
+  hero: Point,
+  fled: (foe: NoInfer<T>) => boolean = () => false,
+): Set<T> {
+  return new Set(foes.filter((f) => fled(f) || touching(f, hero, radiusOf(f))));
 }
 
 /**

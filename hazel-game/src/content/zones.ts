@@ -1636,9 +1636,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     npcs: [{ defId: 'gull-lamplighter', x: 11, y: 17 }],
     // Sea critters (#75 item 14d): they swim open water and fight only a
-    // sailing hero — well clear of the beaches, the dock-side moorings and the
-    // western edge you sail in by, so landing, climbing in or arriving never
-    // starts a fight (zones.test).
+    // sailing hero — well clear of any land and of the western edge you sail
+    // in by, so landing, climbing in or arriving never starts a fight
+    // (seaCritters.test checks every placement).
     enemies: [
       { defId: 'bubble-puffer', x: 17, y: 28 },
       { defId: 'inkling', x: 38, y: 16 },

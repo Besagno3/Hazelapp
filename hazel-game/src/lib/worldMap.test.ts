@@ -3,7 +3,9 @@ import { PLACE_ICONS, TILE, ZONES } from '../content/zones';
 import { crystalFlag } from '../content/topics';
 import {
   ANY_CRYSTAL_EMOJI,
+  EDGE_LABEL_SPOTS,
   HIDDEN_PLACE_EMOJI,
+  edgeLabelSpot,
   PLACE_EMOJI,
   fogMarker,
   fogMarkerAt,
@@ -123,5 +125,23 @@ describe('fog markers (#75 item 7)', () => {
     expect(fogMarkerAt(bank('math-fog'), dawn.places!)).toEqual({ x: 21, y: 17.5 });
     const spire = fogMarkerAt(bank('spire-fog'), dawn.places!);
     expect(spire).toEqual({ x: 40, y: 42 });
+  });
+});
+
+describe('sea-edge labels keep clear of the map\'s markers (#75 item 14d review)', () => {
+  it('sit below the middle by default — on Dawnreach clear of Starfall Coast and Marlow\'s dock', () => {
+    expect(edgeLabelSpot('west', 64, 44, [])).toBe(EDGE_LABEL_SPOTS[0]);
+    const marks = [...(dawn.places ?? []), { x: 71, y: 30 }];
+    expect(edgeLabelSpot('east', 80, 60, marks)).toBe(0.63);
+  });
+  it('move off the ⭐ wherever the hero sails', () => {
+    // Sailing by the puffer, near the Shallows' west edge (row 28 = 63% down).
+    const here = { x: 3, y: 27 };
+    const spot = edgeLabelSpot('west', 64, 44, [...(ZONES['silver-shallows'].landmarks ?? []), here]);
+    expect(spot).not.toBe(0.63);
+    // …and not onto Gull Rock (12,18) either.
+    expect(Math.abs(spot * 44 - 18.5)).toBeGreaterThan(3);
+    // A marker on the far side of the map doesn't move it.
+    expect(edgeLabelSpot('west', 64, 44, [{ x: 60, y: 27 }])).toBe(0.63);
   });
 });

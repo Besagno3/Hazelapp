@@ -15,6 +15,8 @@
  *                                      `__bench.setFlag(f)` sets one later, as a conversation would
  *   boat=zone,x,y                      Marlow's boat moored there (#75 item 14)
  *   aboard=1                           start in the boat (with `at` on open sea)
+ *   fled=<instanceId>                  just fled from this enemy ("silver-shallows:bubble-puffer@17,28"):
+ *                                      it stands down until the hero moves off (#75 item 14d review)
  *   leg=<n>                            Act I's leg n (`lib/journey.ts`): its zone, start
  *                                      cell and story flags; `__bench.walkLeg()` walks it
  *   walk=1                             (with floor=…) `__bench.walkFloor()` walks the Spire
@@ -521,6 +523,7 @@ function Bench() {
         calmRef={benchCalm}
         boat={boat.aboard ? null : boat.spot}
         aboard={boat.aboard}
+        fledFrom={q.get('fled')}
       />
     </div>
   );

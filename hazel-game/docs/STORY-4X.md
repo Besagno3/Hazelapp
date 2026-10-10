@@ -100,8 +100,8 @@ old road appears → Wick's line → call to the Archive.
 >   side (lifts on `crystal-words-restored`), and three **sea critters** (item
 >   14d — nature, met only from the boat): Bubble Puffer 🐡, Inkling 🐙
 >   (trickster: its ink hides the Hint Feather's work) and Starfix ⭐ (healer:
->   a sea star regrows its arms). Ness: "They only bother boats — on the sand
->   you're as safe as a shell!"
+>   a sea star regrows its arms). Ness: "They only bother boats, and you can
+>   always steer round them. On the sand you're as safe as a shell!"
 > - **Posy's escort stays inside Foglight Marsh** (the Hill and the Marsh are
 >   on different maps). **Ferryman Slosh** can't stock potions (Berry Potion
 >   already has its two sellers) — his stock is decision 12 in the roadmap's

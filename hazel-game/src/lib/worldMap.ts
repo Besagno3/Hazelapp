@@ -150,3 +150,29 @@ export function mapCaption(here: MapMarker | null, zoneName: string, worldName: 
   }
   return `You're here: ${zoneName} (past ${here.place})`;
 }
+
+/**
+ * Where down its edge a map's sea-edge label ("◀ Dawnreach", "Silver Shallows
+ * ▶") sits — as a fraction of the map's height (#75 item 14d review). The
+ * first of these spots whose label box no marker falls in: below the middle
+ * by default, clear of Starfall Coast and Marlow's dock on Dawnreach, and
+ * moving off the ⭐ (or the ⛵, the 🚩, a place) wherever it is.
+ */
+export const EDGE_LABEL_SPOTS = [0.63, 0.8, 0.37, 0.5, 0.2] as const;
+
+export function edgeLabelSpot(
+  side: 'west' | 'east',
+  cols: number,
+  rows: number,
+  marks: readonly { x: number; y: number }[],
+): number {
+  // The label's box, generously: ~a third of the map wide, a few rows tall.
+  const wide = cols * 0.36;
+  const tall = 3;
+  const inBox = (f: number, m: { x: number; y: number }) => {
+    const cx = m.x + 0.5;
+    const nearRow = Math.abs(m.y + 0.5 - f * rows) <= tall;
+    return nearRow && (side === 'west' ? cx <= wide : cx >= cols - wide);
+  };
+  return EDGE_LABEL_SPOTS.find((f) => !marks.some((m) => inBox(f, m))) ?? EDGE_LABEL_SPOTS[0];
+}

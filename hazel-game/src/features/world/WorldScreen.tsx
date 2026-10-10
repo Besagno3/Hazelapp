@@ -99,6 +99,7 @@ export default function WorldScreen() {
   const flush = useSaveStore((s) => s.flush);
   const profile = useProfileStore((s) => s.profile);
   const defeatedIds = useBattleStore((s) => s.defeatedIds);
+  const fledFrom = useBattleStore((s) => s.fledFrom);
   const startBattle = useBattleStore((s) => s.start);
 
   const overlay = useFlow((s) =>
@@ -494,11 +495,12 @@ export default function WorldScreen() {
         calmRef={calmRef}
         boat={boatSpot(save)}
         aboard={save.aboard}
+        fledFrom={fledFrom}
       />
 
       <p className="text-white/50 text-xs mt-2">
         {save.aboard
-          ? 'Sail: arrow keys / WASD · sail into a beach or a dock to go ashore, into a sea critter to battle!'
+          ? 'Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!'
           : 'Walk: arrow keys / WASD · bump into friends to talk, foes to battle!'}
       </p>
       </div>

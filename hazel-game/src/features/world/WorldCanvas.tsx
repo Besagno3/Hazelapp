@@ -229,6 +229,7 @@ export default function WorldCanvas({
   calmRef,
   boat = null,
   aboard = false,
+  fledFrom = null,
 }: {
   zoneId: ZoneId;
   avatar: Avatar;
@@ -262,6 +263,8 @@ export default function WorldCanvas({
   boat?: BoatSpot | null;
   /** …and whether the hero is sailing it (read when the zone builds; the canvas keeps it after). */
   aboard?: boolean;
+  /** The enemy instance just fled from (#75 item 14d review): it stands down until the hero moves off (`standDown`). */
+  fledFrom?: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1247,13 +1250,15 @@ export default function WorldCanvas({
     }
     let curAnim = heroView ? animFor('down', false, heroView.anims) : 'idle';
     let heroFacing: Facing = 'down';
-    // Enemies already touching the hero as the scene starts — back from a
-    // Flee, where a critter respawns at home beside them — stand down until
-    // the hero steps clear, so they're never pulled straight back in (#112e).
+    // Enemies already touching the hero as the scene starts, and the one just
+    // fled from (it respawns at home, maybe right beside them), stand down
+    // until the hero has moved off and is clear — never pulled straight back
+    // into the same fight (#112e).
     const standingDown = standDown(
       actors.filter((a) => a.kind === 'enemy' && a.enemy),
       (a) => contactRadius(a.enemy!),
       spawn,
+      (a) => a.enemy!.instanceId === fledFrom,
     );
 
     // Ember trails the hero (no collision — dragons walk where they please).

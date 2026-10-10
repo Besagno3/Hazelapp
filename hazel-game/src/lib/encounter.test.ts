@@ -47,4 +47,14 @@ describe('bumping into enemies (#75 item 14d)', () => {
     // Moved off and clear of it: it fights again.
     expect(staysDown({ x: 100, y: 100 }, { x: 150, y: 100 }, start, 28)).toBe(false);
   });
+
+  it('the critter just fled from stands down wherever it respawns, until the hero moves off and is clear (#112e)', () => {
+    const start = { x: 100, y: 100 };
+    const puffer = { id: 'puffer', x: 140, y: 100, isBoss: false }; // its home, 40 px off: not touching
+    const bat = { id: 'bat', x: 140, y: 140, isBoss: false };
+    const down = standDown([puffer, bat], contactRadius, start, (f) => f.id === 'puffer');
+    expect([...down].map((f) => f.id)).toEqual(['puffer']);
+    // It wanders into the hero, who hasn't moved: still down.
+    expect(staysDown({ x: 105, y: 100 }, start, start, 28)).toBe(true);
+  });
 });

@@ -491,6 +491,8 @@ export default function BattleArena() {
   }
   function commandFlee() {
     updateSave((s) => ({ ...s, hp: combatState().playerHp }));
+    // Back on the map it waits until the hero has moved off (#75 item 14d review).
+    useBattleStore.getState().recordFlee(enemy!.instanceId);
     // Fleeing skips the battle ramp, but a level the speed trigger earned stays earned.
     if (profile && speedBoost.current > 0) {
       const current = skillLevelFor(profile.skillLevels, topic, age);

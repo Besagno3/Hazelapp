@@ -277,11 +277,13 @@ zod, react-query. Add the package in the same change that first uses it.
   sea critter, on foot for a land one, bosses too (`meetsHero`, `lib/travel.ts`,
   checked in the canvas's contact loop through `lib/encounter.ts`'s
   `startsBattle`, with Calm). Enemies already touching the hero as a scene
-  starts — back from a Flee — stand down until the hero has moved off and is
-  clear of them (`standDown` / `staysDown`). The Silver Shallows has three (Bubble
+  starts, and the one just fled from wherever it respawns (`battleStore.fledFrom`,
+  set by Flee, cleared by the next battle; `WorldCanvas`'s `fledFrom`), stand
+  down until the hero has moved off and is clear of them (`standDown` /
+  `staysDown`). The Silver Shallows has three (Bubble
   Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
-  beach, dock or the edge a boat sails in by. A battle at sea is fought over
+  land or the edge a boat sails in by. A battle at sea is fought over
   open water (`battleBackdrop(zone, 'sea')` → `/backgrounds/<zone>-sea.png`,
   `tiles.sea_backdrop`) from Marlow's boat (`BattleStage`'s `afloat`: the boat
   behind hero and companion, its hull's front over their feet, the companion
@@ -517,6 +519,32 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — 14d second review: the critter you fled from waits, labels move off the ⭐ (#75 item 14d)
+Round 2 — fresh `/saas-code-review` (1 medium, 2 low) + `/saas-ux-review` (3
+low; every round-1 fix checked in the real app). All fixed:
+- **Flee, still (code, medium):** round 1's stand-down only caught a critter
+  touching the hero as the scene starts, but one that swam into a hero
+  standing still saves them anywhere up to its leash + a touch from its home
+  (0–92 px), and from 28–92 px it wandered back in (6 of 6 idle heroes 32 px
+  off within 10 s on the bench). Flee now records the enemy
+  (`battleStore.recordFlee` → `fledFrom`, cleared when the next battle
+  starts); `WorldCanvas` stands that one down wherever it is (`standDown`'s
+  `fled`) until the hero moves off and is clear — 0 of 6.
+- **Code, low:** the sea-battle tests restore real timers (`afterEach`); the
+  Shallows' comment and CLAUDE.md point at `seaCritters.test` and "any land".
+- **UX, low:** the map's "◀ Dawnreach" label sat under the ⭐ while you sailed
+  by the puffer (round 1 had moved it to 63% for Dawnreach's dock) — each
+  sea-edge label now takes the first spot down its edge with no marker in
+  its box (`edgeLabelSpot`: ⭐, ⛵, 🚩, places, landmarks); the sailing footer
+  fits two lines on a sideways phone again ("…into a beach or dock to land, a
+  critter to battle!"); the sea backdrop's palm is gone (the water band could
+  leave it standing in the sea; plain humps still read as islands). Ness:
+  "…and you can always steer round them."
+- `bench … sea` gains "back from a Flee 32 px off its home" (5/5); the bench
+  page takes `fled=<instanceId>`.
+- Tests: +4 (encounter.test, BattleArena.test's Flee, worldMap.test ×2); 791
+  green, lint + build clean.
+
 ### 2026-10-10 — 14d review fixes: water under the boat, no Flee loop, the boat easy to find (#75 item 14d)
 A fresh-context `/saas-code-review` (1 medium, 5 low) + `/saas-ux-review`
 (3 medium, 3 low; played in the real app with Supabase stubbed at four sizes,
@@ -576,8 +604,8 @@ waits on 14c.
   regrows its arms). Tier 4 like the rest of the Shallows (14c moves it to 5).
   Placed well clear of the beaches, the docks and the edge you sail in by, so
   landing, climbing in or arriving never starts a fight (`seaCritters.test`).
-  Lamplighter Ness: "They only bother boats — on the sand you're as safe as a
-  shell!"
+  Lamplighter Ness: "They only bother boats, and you can always steer round
+  them. On the sand you're as safe as a shell!"
 - **A battle at sea:** open water to the horizon with a palm island mid-picture
   (`/backgrounds/silver-shallows-sea.png`, `tiles.sea_backdrop` —
   `battleBackdrop(zone, 'sea')`), no land shadows; the hero and companion
