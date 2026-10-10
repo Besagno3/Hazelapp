@@ -130,7 +130,10 @@ zod, react-query. Add the package in the same change that first uses it.
   danger tier 0–7 — Act I 0–4, the Shallows 5 — the `DANGER` tuning per
   tier, map labels "Lv 4 !!" (marks stop at "!!!", tiers 5–7 go violet →
   magenta), the danger banner / defeat tip / arrival warning copy),
-  `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
+  (Act II's **Remembrance Hill**, #75 item 14e, is a town on Dawnreach behind
+  the Grove-road fog — `hill-fog`, lifted by `act2-seen` — and a place nobody
+  names before then: `PlaceDef.knownFrom` / `placeKnown` keep it off the
+  signposts and the menu map), `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
@@ -425,6 +428,7 @@ python3 tools/assets/build.py sea      # the Silver Shallows, the boat, the dock
 python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
 python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallows, the fogbank (#75 item 14)
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
+python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
 ```
 
 ## Error handling
@@ -500,6 +504,15 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14e checked: the reveal, the journey, the HUD (#75 item 14e, docs only)
+Roadmap row 14e ✅ and decisions 11 and 12 recorded as taken; #75 and #56
+noted. Verified on the final code: 818 tests, lint, typecheck and build
+clean; `bench … journey` 13/13 (Act I's legs and the Spire's floors on the
+repainted Dawnreach), `bench … hud` 6/6; on the bench, an Act II save on
+Dawnreach plays the Grove-road fog's reveal (the camera glides to the bay,
+the fog clears, the Hill's icon appears, the camera comes back), and the
+town's four screens and the bay fogged / open look right.
 
 ### 2026-10-10 — The Forget-Me-Knot: a second try on a wrong answer (#75 item 14e)
 Fourth slice of 14e — Trader Knack's new item (roadmap decision 12, as
