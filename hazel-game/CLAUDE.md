@@ -510,6 +510,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — 14d code review, first fixes: encounter rules as pure helpers, a `bench … sea` mode (#75 item 14d)
+In progress (wired into the canvas with the rest of the review's fixes next):
+`lib/encounter.ts` — `CONTACT_RADIUS` / `contactRadius`, `touching`,
+`startsBattle` (Calm + `meetsHero`) and `standDown` (enemies already touching
+the hero as a scene starts wait until the hero steps clear — the Flee loop,
+ISSUES #112e); `bench/run-world-bench.cjs sea` checks sea critters on the
+real canvas. Tests +3 (encounter.test).
+
 ### 2026-10-10 — Sea critters: three swim the Silver Shallows, met only from the boat (#75 item 14d)
 Roadmap sub-item 14d (ISSUES #108b, #108j), built before 14c — nothing in it
 waits on 14c.

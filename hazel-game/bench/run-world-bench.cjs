@@ -10,6 +10,10 @@
  *   node bench/run-world-bench.cjs hud [outDir]        the real app (Supabase stubbed) at phone to
  *                                                      desktop sizes: nothing in the world HUD
  *                                                      overlaps, overlays cover the top bar (#102i)
+ *   node bench/run-world-bench.cjs sea [outDir]        sea critters on the real canvas (#75 item 14d):
+ *                                                      sailing into one battles it, Calm passes it,
+ *                                                      arriving starts none, and one already touching
+ *                                                      the hero (back from a Flee) stands down
  *
  * Playwright isn't a project dependency; a global install works:
  *   NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps
@@ -476,6 +480,72 @@ async function hud(browser, outDir) {
   if (bad) process.exitCode = 1;
 }
 
+/**
+ * Sea critters on the real `WorldCanvas` (#75 item 14d), on the bench page:
+ * each check on a fresh page, a screenshot of each in `outDir`, exit 1 on a
+ * failure. (The Bubble Puffer's home is 17,28 on the Silver Shallows.)
+ */
+async function sea(browser, outDir) {
+  fs.mkdirSync(outDir, { recursive: true });
+  const state = (page) => page.evaluate(() => window.__bench.state());
+  const ready = async (query) => {
+    const page = await openBench(browser, query);
+    await page.waitForFunction(() => window.__bench.stats().frames > 60, null, { timeout: 180000 });
+    return page;
+  };
+  const hold = async (page, key, ms) => {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(ms);
+    await page.keyboard.up(key);
+  };
+  // Sweep round the puffer's patch (it wanders ±2 tiles) until a battle starts.
+  const hunt = async (page, rounds = 6) => {
+    const moves = [['ArrowRight', 300], ['ArrowDown', 250], ['ArrowUp', 500], ['ArrowDown', 250], ['ArrowLeft', 300], ['ArrowUp', 250], ['ArrowDown', 500], ['ArrowUp', 250]];
+    for (let i = 0; i < rounds * moves.length; i++) {
+      if ((await state(page)).encounters) return;
+      await hold(page, ...moves[i % moves.length]);
+    }
+  };
+  const checks = [];
+  const check = async (page, name, ok, detail) => {
+    checks.push(ok);
+    console.log(`${ok ? '✓' : '✗'} ${name} — ${detail}`);
+    await page.locator('canvas').screenshot({ path: path.join(outDir, `${checks.length}.png`) });
+    if (page.errors.length) console.log(`    page errors: ${page.errors.join(' | ')}`);
+    await page.close();
+  };
+
+  let page = await ready('zone=silver-shallows&aboard=1&at=14,28');
+  await hunt(page);
+  let s = await state(page);
+  await check(page, 'sailing into the Bubble Puffer battles it', s.battles[0] === 'bubble-puffer' && !page.errors.length, JSON.stringify(s.battles));
+
+  page = await ready('zone=silver-shallows&aboard=1&at=14,28');
+  await page.evaluate(() => window.__bench.calm(60));
+  await hunt(page, 2);
+  s = await state(page);
+  await check(page, 'under Calm the boat sails past it', s.encounters === 0, `${s.encounters} battles`);
+
+  page = await ready('zone=dawnreach&aboard=1&at=77,30');
+  await hold(page, 'ArrowRight', 1500);
+  await page.waitForTimeout(3000);
+  s = await state(page);
+  await check(page, 'sailing onto the Shallows from Dawnreach starts no fight', s.zoneId === 'silver-shallows' && s.encounters === 0, `${s.zoneId}, ${s.encounters} battles`);
+
+  // Back from a Flee: saved right where the puffer touched you, and it respawns at home.
+  page = await ready('zone=silver-shallows&aboard=1&at=17,28');
+  await page.waitForTimeout(2500);
+  const idle = (await state(page)).encounters;
+  await hold(page, 'ArrowUp', 600); // clear of it…
+  await hunt(page); // …and back: it fights again
+  s = await state(page);
+  await check(page, 'back on a critter after a Flee: it stands down until you sail clear, then fights again', idle === 0 && s.battles[0] === 'bubble-puffer', `idle ${idle} battles, then ${JSON.stringify(s.battles)}`);
+
+  const bad = checks.filter((ok) => !ok).length;
+  console.log(`\n${checks.length - bad}/${checks.length} sea checks passed. Screenshots in ${outDir}.`);
+  if (bad) process.exitCode = 1;
+}
+
 (async () => {
   const [mode = 'fps', ...args] = process.argv.slice(2);
   const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] });
@@ -488,6 +558,7 @@ async function hud(browser, outDir) {
     else if (mode === 'diff') await diff(browser, args[0], args[1]);
     else if (mode === 'journey') await journey(browser, args[0] ?? 'bench-journey');
     else if (mode === 'hud') await hud(browser, args[0] ?? 'bench-hud');
+    else if (mode === 'sea') await sea(browser, args[0] ?? 'bench-sea');
     else throw new Error(`unknown mode ${mode}`);
   } finally {
     await browser.close();

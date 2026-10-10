@@ -870,6 +870,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-717 | M | ✅ | battle at sea | the real app (Supabase stubbed) at 375×667, 360×640, 740×360 and 1024×768, with Ember, Pip and Wisp: sailing into the puffer opens the battle over open water, hero and companion in the boat, the palm island in view on a phone, no sideways scroll, no page errors; under reduced motion the boat holds still (2026-10-10) |
 | TC-718 | M | ✅ | art | `python3 tools/assets/build.py seacritters` writes only the three sea critters' sheets and the sea backdrop; a full rebuild of tiles + sprites into a temp dir matches every PNG in `public/` (269 files, byte for byte) — `backdrop()`'s sky refactor changed no backdrop (2026-10-10) |
 | TC-719 | M | ⏳ | sea critters | on a real phone: sea critters read as swimming (ripple, sprite), the sea battle's boat and backdrop look right in portrait and sideways, and a defeat at sea → the inn → the boat waiting at Marlow's dock feels fair |
+| TC-720 | U | ✅ | encounters | `lib/encounter.ts`: a boss is touched from 34 px, a critter from 28; a touch starts a battle only in the enemy's own element and not with a critter under Calm (a boss still only in its element); enemies already touching the hero as a scene starts stand down, by their own reach (encounter.test) |
 
 ## Regression cases (tied to ISSUES.md)
 
