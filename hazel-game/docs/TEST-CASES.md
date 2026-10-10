@@ -937,6 +937,18 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-772 | U | ✅ | encounters | `meetFoe` (encounter.test): walking into a foe fights, a boss too, cooldown or not; nothing happens to a resting one or in the two held frames; one coming onto a still, guarded hero is spared (never a boss); a spared one lets the hero stand or step away, even after the cooldown, but walking into it fights, and out of touch it's no longer spared; a touch fights only in the enemy's element, no critter under Calm |
 | TC-770 | U | ✅ | world map | with the ⭐ at any east-half cell of Dawnreach, "Silver Shallows ▶" covers no place — covering a marker costs far more than coming within the 3 px gap (worldMap.test) |
 
+## Music: a left track always stops (#115)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-786 | U | ✅ | music | a battle that starts as the overworld loops (Howler restarts it with stop() + play(); the fade-out asked for meanwhile is queued and never runs) still stops the overworld — a left track is unloaded once its fade-out is over (audio.music.test; fails on the old code) |
+| TC-787 | U | ✅ | music | back from a battle, the overworld fades in to full volume with no key pressed — it fades in on its 'play' event (audio.music.test; fails on the old code, which left it at volume 0) |
+| TC-788 | U | ✅ | music | asked for again while it loads (a re-render, the gesture listener on each key press), a track is played once (audio.music.test; fails on the old code) |
+| TC-789 | U | ✅ | music | a track left before it's heard (still loading) is unloaded at once and never starts; picked again within its fade-out, a track plays on at full volume while the other stops (audio.music.test; both fail on the old code) |
+| TC-790 | U | ✅ | music | refused by autoplay, a track plays and fades in on the next gesture (audio.music.test) |
+| TC-791 | M | ✅ | music | the real Howler + `audio.ts` + shipped tracks in headless Chromium: a battle begun at the overworld's loop point — before, both tracks played on at 0.6; after, only the battle. A random fuzz of switches, key presses and waits (1–2 s loops, a throttled network): before, 8–9 of 12 rounds left a non-current track running; after, none in 9 seeds. The real app (Supabase stubbed), music on: walking into a critter on Dawnreach plays only the battle theme, and fleeing brings the overworld back at 0.6 with no key pressed (before: at 0) |
+| TC-792 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
@@ -949,6 +961,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-R6 | M | ⬜ | #24 | after 0006, two back-to-back rounds return non-overlapping question IDs |
 | TC-R7 | M | ⬜ | #26 | flagging a question removes it from the next call's cache pool |
 | TC-R8 | C | ✅ | #70 | enemy hit then an immediate potion (tapping through before the 260ms impact) keeps both the damage and the heal, and HP stays put after all pending timers fire (fake timers; BattleArena.test + battleTurn.test) |
+| TC-R9 | U | ✅ | #115 | a battle begun as the overworld loops leaves only the battle music playing (audio.music.test) |
 
 ---
 

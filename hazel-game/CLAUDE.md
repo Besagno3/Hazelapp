@@ -575,6 +575,35 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — The overworld music no longer plays on under the battle music (#115)
+Howler's html5 mode queues any `fade()` / `volume()` / `stop()` asked for
+while a `play()` is starting — the first one, and the restart at every loop
+point (html5 loops are `stop()` + `play()`) — and after a `play()` on a loaded
+track that queue never runs. `lib/audio.ts` stopped a left track when its
+fade-out fired `'fade'`, so a battle that began as the overworld looped never
+stopped it: both tracks played on. And a track played again (the overworld
+after a battle) had its fade-in queued, so it came back at volume 0 until a key
+press set its volume.
+- **A left track is unloaded** (`retire`): faded out, then unloaded on a timer
+  (`RETIRE_MS`) unless it's picked again first; unloaded at once if it isn't
+  audible yet. Unloading stops it even mid-`play()`. Picking it again builds a
+  fresh Howl (`musicCache` holds `{ howl, started }`).
+- **A track fades in on its `'play'` event**, not along with the `play()`.
+- **One play per track** until autoplay refuses it (`started`, cleared on
+  `'playerror'`): keys pressed while it loads no longer queue a play + fade each.
+- **Checked:** the real Howler and shipped tracks in headless Chromium — a
+  battle at the overworld's loop point (before: both at full volume, for
+  good; after: only the battle), a random fuzz of switches with 1–2 s loops
+  and a throttled network (before: 8–9 of 12 rounds left a track running;
+  after: none in 9 seeds), and the real app (Supabase stubbed): a critter on
+  Dawnreach plays only the battle theme, and Flee brings the overworld back at
+  full volume with no key pressed (before: at 0).
+- Tests: `audio.music.test`'s stand-in Howl now queues like Howler's; +5 (a
+  loop-point battle, the comeback, one play while loading, a track left before
+  it's heard, autoplay refused); the first four fail on the old code, and so
+  does the re-pick test, which now lets the left track load. 874 green, lint +
+  build clean.
+
 ### 2026-10-10 — Merge main (14c groundwork, 14e Remembrance Hill) into the sea-critters branch (#75 item 14d)
 `main` took 14c and 14e while 14d was in review. Both used ISSUES **#112**
 (14c kept it, 14e is #113), so 14d's follow-ups moved **#112 → #114**,
