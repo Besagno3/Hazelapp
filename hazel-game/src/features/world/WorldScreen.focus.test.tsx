@@ -49,8 +49,9 @@ const { default: WorldScreen } = await import('./WorldScreen');
 const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
-const { INTRO_SEEN, DAWNREACH_SEEN, EMBER_HATCHED, SPIRE_CLEARED } = await import('../../content/story');
-const { TOPIC_REGISTRY, crystalFlag } = await import('../../content/topics');
+const { INTRO_SEEN, DAWNREACH_SEEN, EMBER_HATCHED, SPIRE_CLEARED, ENDING_SEEN, ACT2_SEEN } = await import('../../content/story');
+const { addFakeActTwoCrystal } = await import('../../test/fakeCrystal');
+const { actCrystals, crystalFlag } = await import('../../content/topics');
 
 const signOut = () => within(screen.getByTestId('world-topbar')).getByRole('button', { name: /Sign out/, hidden: true });
 const isInert = (el: Element) => el.closest('[inert]') !== null;
@@ -64,7 +65,7 @@ const ALL_CRYSTALS: Record<string, boolean> = {
   'spire-awake-seen': true,
   'ending-seen': true,
   ...Object.fromEntries(
-    TOPIC_REGISTRY.flatMap((t) => [
+    actCrystals(1).flatMap((t) => [
       [crystalFlag(t.id), true],
       [crystalFlag(t.id).replace('-restored', '-scene-seen'), true],
     ]),
@@ -166,6 +167,38 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     act(() => flow.setState({ overlay: null }));
     expect(screen.getByRole('dialog', { name: 'Story' })).toBeInTheDocument();
     expect(isInert(signOut())).toBe(true);
+  });
+
+  it('with an Act II crystal in the game, Act I\'s four still play the ending, and the HUD counts 4/4 (#75 item 14c)', () => {
+    const remove = addFakeActTwoCrystal();
+    try {
+      const { [ENDING_SEEN]: _seen, ...beforeEnding } = ALL_CRYSTALS;
+      void _seen;
+      useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a3', zoneId: 'dawnreach', flags: beforeEnding } });
+      render(<WorldScreen />);
+      expect(screen.getByText('💎 4/4 crystals restored')).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Story' })).toHaveTextContent('The four Crystals of Knowing rise');
+    } finally {
+      remove();
+    }
+  });
+
+  it('once Act II opens, the HUD counts its crystal too: 4/5 (#75 item 14c)', () => {
+    const remove = addFakeActTwoCrystal();
+    try {
+      useSaveStore.setState({
+        save: {
+          ...defaultSave(),
+          avatarId: 'a3',
+          zoneId: 'dawnreach',
+          flags: { ...ALL_CRYSTALS, [SPIRE_CLEARED]: true, 'spire-victory-seen': true, [ACT2_SEEN]: true },
+        },
+      });
+      render(<WorldScreen />);
+      expect(screen.getByText('💎 4/5 crystals restored')).toBeInTheDocument();
+    } finally {
+      remove();
+    }
   });
 
   it('"Pick an avatar first" still has a way to sign out', () => {

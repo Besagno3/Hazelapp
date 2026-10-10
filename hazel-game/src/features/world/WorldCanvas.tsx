@@ -1078,7 +1078,7 @@ export default function WorldCanvas({
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       // Bosses stay gone once beaten (crystal restored / warden's key held);
       // regular enemies stay gone for the session (they respawn next visit).
-      if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, flagsRef.current)) continue;
+      if (enemy.isBoss && bossDefeated(enemy, flagsRef.current)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       const px = p.x * TILE + TILE / 2;
       const py = p.y * TILE + TILE / 2;

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import WorldMapPanel from './WorldMapPanel';
 import { BOAT_MENDED, BOAT_HOME } from '../../content/boat';
-import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
+import { actCrystals, crystalFlag } from '../../content/topics';
 import { SPIRE_CLEARED } from '../../content/story';
 import { TILE } from '../../content/zones';
 
@@ -11,7 +11,7 @@ beforeAll(() => {
   HTMLCanvasElement.prototype.getContext = (() => null) as never;
 });
 
-const allCrystals = Object.fromEntries(TOPIC_REGISTRY.map((t) => [crystalFlag(t.id), true]));
+const allCrystals = Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.id), true]));
 const px = (x: number, y: number) => ({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 });
 
 describe('the menu map at sea (#75 item 14)', () => {

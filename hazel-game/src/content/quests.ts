@@ -20,7 +20,9 @@ import { BOAT_QUEST_ID } from './boat';
  *
  * Conversations resolve through `questConversation(npcId, save)`:
  * the giver speaks offer / current-step hint / completion; step-target NPCs
- * speak their step lines while that step is active.
+ * speak their step lines while that step is active. One person may give
+ * several quests, one after another (`questFor`), and a step may go through
+ * someone who gives quests of their own (#75 item 14c).
  */
 
 export interface QuestItemInfo {
@@ -802,8 +804,20 @@ export const QUESTS: QuestDef[] = [
 
 // --- Resolution -----------------------------------------------------------------
 
-export function questFor(npcId: string): QuestDef | undefined {
-  return QUESTS.find((q) => q.giverNpcId === npcId);
+/** Every quest this person gives, in order (#75 item 14c: one person can give several). */
+export function questsBy(npcId: string): QuestDef[] {
+  return QUESTS.filter((q) => q.giverNpcId === npcId);
+}
+
+/**
+ * The quest this person is on now. Finish what you started: one already
+ * accepted and not done comes first — even before a story quest that has
+ * just unlocked — then their first not done whose story flag (`requires`)
+ * is set. The next one waits until this one's done.
+ */
+export function questFor(npcId: string, save: SaveData): QuestDef | undefined {
+  const mine = questsBy(npcId).filter((q) => !save.flags[questDoneFlag(q)]);
+  return mine.find((q) => save.flags[questOfferedFlag(q)]) ?? mine.find((q) => !q.requires || save.flags[q.requires]);
 }
 
 export function questOfferedFlag(q: Pick<QuestDef, 'id'>): string {
@@ -835,53 +849,62 @@ export interface QuestConversation {
 
 /**
  * The quest conversation an NPC holds right now, or null when normal
- * dialogue applies: the giver offers / reminds / completes; a step-target
- * NPC speaks their step lines while that step is active. Completion works
- * even if the player finished the steps before hearing the offer.
+ * dialogue applies. In order (#75 item 14c):
+ *   1. their quest is ready to **complete** — even if the player finished
+ *      the steps before hearing the offer;
+ *   2. a **step** goes through them (any quest's, while that step is active;
+ *      a bring step only once its item is in hand);
+ *   3. they **offer** their quest;
+ *   4. they **remind** you of its current step.
  */
 export function questConversation(npcId: string, save: SaveData): QuestConversation | null {
-  const quest = questFor(npcId);
-  // A quest that waits for the story (`requires`) isn't offered yet: normal dialogue.
-  if (quest && !save.flags[questDoneFlag(quest)] && (!quest.requires || save.flags[quest.requires])) {
-    const step = activeStep(quest, save);
-    if (!step) {
-      return {
-        lines: quest.complete,
-        badge: quest.title,
-        finishKind: 'complete',
-        finish: (s) => {
-          const { coins, potion = 0, hint = 0, items = {} } = quest.reward;
-          const nextItems = { ...s.items, potion: s.items.potion + potion, hint: s.items.hint + hint };
-          for (const [id, n] of Object.entries(items) as [ConsumableId, number][]) nextItems[id] += n;
-          return {
-            ...s,
-            coins: s.coins + coins,
-            items: nextItems,
-            questItems: s.questItems.filter((i) => i !== quest.givesItem && !quest.takesItems?.includes(i)),
-            flags: { ...s.flags, [questDoneFlag(quest)]: true, [questOfferedFlag(quest)]: true },
-          };
-        },
-      };
-    }
-    if (!save.flags[questOfferedFlag(quest)]) {
-      return {
-        lines: quest.offer,
-        badge: quest.title,
-        finishKind: 'offer',
-        finish: (s) => ({
-          ...s,
-          questItems:
-            quest.givesItem && !s.questItems.includes(quest.givesItem)
-              ? [...s.questItems, quest.givesItem]
-              : s.questItems,
-          flags: { ...s.flags, [questOfferedFlag(quest)]: true },
-        }),
-      };
-    }
-    return { lines: [resolveHint(step, save)], badge: quest.title, finishKind: null, finish: null };
+  const quest = questFor(npcId, save);
+  const step = quest ? activeStep(quest, save) : null;
+  if (quest && !step) return completeConversation(quest);
+  const through = stepConversation(npcId, save);
+  if (through) return through;
+  if (!quest || !step) return null;
+  if (!save.flags[questOfferedFlag(quest)]) {
+    return {
+      lines: quest.offer,
+      badge: quest.title,
+      finishKind: 'offer',
+      finish: (s) => ({
+        ...s,
+        questItems:
+          quest.givesItem && !s.questItems.includes(quest.givesItem)
+            ? [...s.questItems, quest.givesItem]
+            : s.questItems,
+        flags: { ...s.flags, [questOfferedFlag(quest)]: true },
+      }),
+    };
   }
+  return { lines: [resolveHint(step, save)], badge: quest.title, finishKind: null, finish: null };
+}
 
-  // Step-target NPCs (deliveries, multi-step middles).
+/** The giver hands out the reward and takes back what the quest lent or needed. */
+function completeConversation(quest: QuestDef): QuestConversation {
+  return {
+    lines: quest.complete,
+    badge: quest.title,
+    finishKind: 'complete',
+    finish: (s) => {
+      const { coins, potion = 0, hint = 0, items = {} } = quest.reward;
+      const nextItems = { ...s.items, potion: s.items.potion + potion, hint: s.items.hint + hint };
+      for (const [id, n] of Object.entries(items) as [ConsumableId, number][]) nextItems[id] += n;
+      return {
+        ...s,
+        coins: s.coins + coins,
+        items: nextItems,
+        questItems: s.questItems.filter((i) => i !== quest.givesItem && !quest.takesItems?.includes(i)),
+        flags: { ...s.flags, [questDoneFlag(quest)]: true, [questOfferedFlag(quest)]: true },
+      };
+    },
+  };
+}
+
+/** A step that goes through this NPC (deliveries, multi-step middles), or null. */
+function stepConversation(npcId: string, save: SaveData): QuestConversation | null {
   for (const q of QUESTS) {
     if (!save.flags[questOfferedFlag(q)] || save.flags[questDoneFlag(q)]) continue;
     const step = activeStep(q, save);

@@ -115,6 +115,20 @@ describe('opening lines (#75 item 12)', () => {
     expect(screen.getByText('Attack')).toBeInTheDocument();
   });
 
+  it('past "!!!" one line explains the colour, once for tiers 5–7 (#75 item 14c)', () => {
+    const veryTough = { ...enemy, instanceId: 'e6', tier: 6 } as BattleEnemy;
+    useBattleStore.getState().start(veryTough, 60, 100);
+    const first = render(<BattleArena />);
+    expect(screen.getByText(/💪 See its purple !!! by its level\? A very tough critter/)).toBeInTheDocument();
+    expect(useBattleStore.getState().toughMet).toEqual([5]);
+    first.unmount();
+
+    useBattleStore.getState().start({ ...veryTough, instanceId: 'e7', tier: 7 }, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByText(/💪/)).toBeNull();
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+  });
+
   it("after two losses a far critter's fight is eased, and a 💛 line says how", () => {
     useBattleStore.getState().recordLoss('count-bat@3');
     useBattleStore.getState().recordLoss('count-bat@3');
@@ -124,5 +138,49 @@ describe('opening lines (#75 item 12)', () => {
       screen.getByText('💛 Tough one last time? Count Bat will go easier on you now — gentler hits and easier questions.'),
     ).toBeInTheDocument();
     expect(screen.queryByText(/💪/)).toBeNull(); // it fights at tier 1 now: no marks to explain
+  });
+});
+
+describe('what beating a boss does follows its role (#75 item 14c)', () => {
+  const boss = (over: Partial<BattleEnemy>) =>
+    ({ ...enemy, instanceId: `boss-${over.id}`, isBoss: true, maxHp: 1, coins: 50, ...over }) as BattleEnemy;
+
+  /** Tap through any opening lines, land one right answer, and read on to the result. */
+  function winIt() {
+    render(<BattleArena />);
+    for (let i = 0; i < 8 && !screen.queryByText('Attack'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('Attack'));
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    for (let i = 0; i < 8 && !screen.queryByText('Victory!'); i++) {
+      const next = screen.queryByText(/tap to continue/);
+      if (next) fireEvent.click(next);
+    }
+    expect(screen.getByText('Victory!')).toBeInTheDocument();
+    return useSaveStore.getState().save!.flags;
+  }
+
+  it('a miniboss with no key and no lines, on a topic with no Fiend, fights without a crash and restores nothing', () => {
+    useBattleStore.getState().start(boss({ id: 'test-miniboss', name: 'Mossback', topic: 'nature', role: 'miniboss' }), 60, 100);
+    const flags = winIt();
+    expect(flags['boss:test-miniboss:defeated']).toBe(true);
+    expect(Object.keys(flags).filter((f) => f.startsWith('crystal-'))).toEqual([]);
+    expect(screen.queryByText(/shines again/)).toBeNull();
+  });
+
+  it("an echo on a crystal topic keeps its own name and never restores that crystal", () => {
+    useBattleStore.getState().start(boss({ id: 'test-echo', name: 'Echo of the Null Fiend', topic: 'math', role: 'echo' }), 60, 100);
+    const flags = winIt();
+    expect(screen.getAllByText(/Echo of the Null Fiend/).length).toBeGreaterThan(0);
+    expect(flags['crystal-math-restored']).toBeUndefined();
+    expect(flags['boss:test-echo:defeated']).toBe(true);
+  });
+
+  it('a Fiend still speaks first and restores its crystal', () => {
+    useBattleStore.getState().start(boss({ id: 'null-fiend', name: 'The Null Fiend', topic: 'math', role: 'fiend' }), 60, 100);
+    const flags = winIt();
+    expect(flags['crystal-math-restored']).toBe(true);
+    expect(flags['boss:null-fiend:defeated']).toBeUndefined();
+    expect(screen.getByText(/The Crystal of Numbers shines again!/)).toBeInTheDocument();
   });
 });

@@ -90,12 +90,24 @@ export type { ZoneId };
 export const ENEMY_BEHAVIORS = ['shielded', 'trickster', 'healer'] as const;
 export type EnemyBehavior = (typeof ENEMY_BEHAVIORS)[number];
 
+/**
+ * What a boss is to the story (#75 item 14c) — this, not "a boss without a
+ * key", decides what beating it does: a `fiend` restores its topic's crystal,
+ * a `warden` gives up its gate key (`content/keys.ts`); a `miniboss`, an
+ * `echo` (Act IV's memories of the wardens) or the `finale` restore nothing
+ * and stay beaten by their own flag (`bossFlag`).
+ */
+export const BOSS_ROLES = ['fiend', 'warden', 'miniboss', 'echo', 'finale'] as const;
+export type BossRole = (typeof BOSS_ROLES)[number];
+
 /** An enemy instance the player bumped into on the map. */
 export interface BattleEnemy extends NPC {
   /** Unique per placement — used to keep defeated enemies off the map this session. */
   instanceId: string;
   zoneId: ZoneId;
   isBoss: boolean;
+  /** A boss's part in the story (#75 item 14c); every boss has one. */
+  role?: BossRole;
   /** Coins dropped on victory. */
   coins: number;
   behavior?: EnemyBehavior;

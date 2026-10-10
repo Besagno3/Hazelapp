@@ -98,7 +98,9 @@ zod, react-query. Add the package in the same change that first uses it.
   machine owns *where the player is*; Zustand stores own *what they have*.
 - **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
-  `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
+  `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone,
+  each in an act (`act`; `actCrystals` / `actRestored` / `actComplete` —
+  the Spire, the ending and the 🚩 read Act I's, #75 item 14c);
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
   resolves all seven, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
   overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
@@ -114,7 +116,9 @@ zod, react-query. Add the package in the same change that first uses it.
   Dawnreach's terrain is painted in **Tiled** — `content/maps/dawnreach.tmj`
   with the `legend.tsj` tileset, read by `tiledRows` (`lib/tiled.ts`); see
   `docs/MAP-AUTHORING.md`), `npcs.ts` (dialogue trees),
-  `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
+  `enemies.ts` (archetypes + fiends, age-scaled at spawn; a boss's `role` —
+  `fiend / warden / miniboss / echo / finale` — decides what beating it does
+  and what it says, `bossScript`, #75 item 14c), `abilities.ts`
   (Sage personas + charge tuning), `companion.ts` (battle companions — Ember /
   Pip / Wisp — their strikes, perks + Pair Attacks), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `fieldSpells.ts` (#75 item 9: the field
@@ -123,8 +127,9 @@ zod, react-query. Add the package in the same change that first uses it.
   zones are floors of one dungeon, which way is deeper, floor labels B1… /
   Floor 1…, the boss at the bottom — floors are ordinary zones joined by
   `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
-  danger tier 0–4, the `DANGER` tuning per tier, map labels "Lv 4 !!", the
-  danger banner / defeat tip / arrival warning copy),
+  danger tier 0–7 — Act I 0–4, the Shallows 5 — the `DANGER` tuning per
+  tier, map labels "Lv 4 !!" (marks stop at "!!!", tiers 5–7 go violet →
+  magenta), the danger banner / defeat tip / arrival warning copy),
   `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
@@ -135,7 +140,9 @@ zod, react-query. Add the package in the same change that first uses it.
   (carry an item, any of its forms) and *bring* (hand it to an NPC, who may
   hand back something new) steps; `openChest` pays a key-item chest's
   `ZoneDef.keyChests` item and `zoneChestOpened` ignores those chests; each
-  quest item belongs to one quest), `secrets.ts` (hidden secrets per
+  quest item belongs to one quest; one person may give several quests in
+  turn — `questFor(npcId, save)`, the one you've started first — and a step
+  may go through a giver, #75 item 14c), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
@@ -493,6 +500,95 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — 14c review fixes: finish what you started, the purple !!! explained (#75 item 14c)
+A fresh `/saas-code-review` (1 medium, 1 low) and a light `/saas-ux-review`
+(1 medium, 1 low) of 14c. Both confirmed nothing a player sees in Act I
+changes. Fixed, as chosen:
+- **`questFor` finishes what you started (code, medium):** it picked by list
+  order, so a quest listed first whose story flag turned on later hid one
+  already under way, which then couldn't be handed in. An accepted quest now
+  comes first, even before a story quest (decided; #112i).
+- **Tiers 5–7 explain the colour (UX, medium):** they repeated tier 4's
+  "See the !!!" line word for word. Now one line for all three ("See its
+  purple !!! by its level? A very tough critter — it hits even harder than a
+  red !!!…"), shown once (`toughKey`; `VERY_TOUGH_TIER` moved to
+  `regions.ts`). Tiers 0–4 are unchanged.
+- **Tier 5 is violet-200 (UX, low):** violet-300 and fuchsia-300 merged for
+  red-green colour-blind kids.
+- **Tidy-ups (code, low):** `actComplete` is false for an act with no
+  crystals; `BattleResult.crystalName` is optional; `BattleEnemy` got its doc
+  comment back.
+- Tests: +4 (quests.test fails on the old `questFor`; regions.test,
+  BattleArena.test, crystals.test). 797 green, lint + build clean.
+
+### 2026-10-10 — Danger tiers run to 7; the Shallows is tier 5 (#75 item 14c)
+Fourth slice of 14c (#105g, #108d). Acts II–IV need tougher places than
+Chromaria (tier 4), and the Silver Shallows sat at tier 4 as a placeholder.
+- **`DangerTier` 0–7** with `DANGER` rows 5–7 that keep rising (×1.6 / 1.75 /
+  1.9 HP, ×1.4 / 1.5 / 1.6 blows, 0.4 / 0.45 / 0.5 charge, ×2.4 / 2.8 / 3.2
+  coins); mercy is unchanged (two losses ease any far fight to tier 1).
+- **Marks stop at "!!!"** (`MAX_MARKS`, as decided); tiers 5–7 tell themselves
+  apart by colour, violet → magenta, on the map (`mapColor`) and in the battle
+  HUD (`DANGER_TEXT`, now a full `Record`), and read aloud as "Very tough
+  critter".
+- **The Shallows is tier 5.** It has no critters yet (14d), and the 🚩's road
+  tier is null after Act I's crystals, so nothing plays differently.
+- Tests: regions.test (tiers 0–7 through the existing "tougher and pays more"
+  checks; +2: colours and the Shallows), enemies.test (healers stall-proof to
+  tier 7), BattleHud.test (+2). 794 green, lint clean.
+
+### 2026-10-10 — One person can give several quests (#75 item 14c)
+Third slice of 14c (nothing visible). `questFor(npcId)` returned a person's
+first quest only, and their own quest always spoke before any step aimed at
+them, so Act II–IV people who give more than one quest, or help with someone
+else's, couldn't be written (two tests forbade both).
+- **`questsBy(npcId)`** lists a person's quests; **`questFor(npcId, save)`** is
+  the first not done whose `requires` is set — the next waits for the last.
+- **`questConversation` order:** their quest ready to finish → a step through
+  them (any quest's; a bring step only with its item) → their offer → their
+  hint. Split into `completeConversation` / `stepConversation`.
+- Tests: quests.test (+5 with stand-in quests; 3 fail on the old code), the
+  one-giver-per-quest and no-step-at-a-giver tests removed, boat.test's
+  "friends aren't givers" removed. 790 green, lint clean.
+
+### 2026-10-10 — Bosses have roles: only a Fiend restores a crystal (#75 item 14c)
+Second slice of 14c (nothing visible). "Any boss without a key restores its
+topic's crystal" broke every boss Acts II–IV need: a keyless boss on a topic
+with no Fiend lines crashed the battle as it opened; one on a crystal topic was
+renamed that Fiend, restored that crystal and despawned the real Fiend with
+it; `fiendFor('history')` already returned the Clockwork Titan.
+- **`BossRole`** (`types`, `BOSS_ROLES`): `fiend / warden / miniboss / echo /
+  finale` on `EnemyDef.role`, carried to `BattleEnemy.role`; the four Fiends
+  and three wardens are tagged.
+- **By role:** victory restores a crystal only for a Fiend, gives a key for a
+  warden, and sets `bossFlag(id)` for any other boss (`BattleArena`);
+  `bossDefeated(boss, flags)` (`keys.ts`) the same; `bossScript` (`enemies.ts`)
+  gives the monologue — Fiend → `BOSS_LINES`, warden → its key's lines, other →
+  `EnemyDef.lines` or none; "💎 … shines again!" only for a Fiend; `spawnEnemy`
+  names only a Fiend after its crystal; `fiendFor` finds the `fiend`.
+- Tests: enemies.test (+4), keys.test (rewritten for roles), BattleArena.test
+  (+3: a keyless miniboss and an echo in the real arena — both fail on the old
+  code — and the Null Fiend unchanged). 787 green, lint clean.
+
+### 2026-10-10 — Crystals belong to an act: Act I stays Act I when more come (#75 item 14c)
+First slice of 14c (nothing a player sees changes). Every "all crystals"
+rule assumed the registry's four, so a fifth crystal would have re-sealed the
+Spire after Act I (a softlock: Act II opens only after the Spire), stopped the
+ending, read "x/5" in Act I and sent the 🚩 to the new crystal right after
+Numbria.
+- **`CrystalTopicInfo.act`** (the roadmap's `CRYSTAL_ACT`; required, so a new
+  crystal can't compile without one) and `actCrystals` / `actRestored` /
+  `actComplete` (`content/topics.ts`, read the registry when called).
+- **The Spire's seal and its "3/4"**, **the ending**, **the 🚩's order** and
+  **Elder Lumen's plans** read Act I's crystals; the **HUD** counts the
+  crystals of the acts that have opened (`crystalsInPlay`, `ACT_OPENS` in
+  `content/story.ts`: Act II on `act2-seen`). Ember still grows with any.
+- Tests: `test/fakeCrystal.ts` adds a stand-in Act II crystal;
+  `crystals.test` (+7), SpireOverlay.test (+2) and WorldScreen.focus.test (+2)
+  check Act I is unchanged with it — 4 of them fail on the old code. The
+  "Spire open" fixtures and the corner / fog-pocket rules now use Act I's
+  crystals. 780 green, lint clean. Follow-ups: #112.
 
 ### 2026-10-10 — 14b second review: keyboard reaches every overlay, Sign out never moves the map (#75 item 14b)
 A second fresh-context `/saas-code-review` (3 low) + `/saas-ux-review` (1

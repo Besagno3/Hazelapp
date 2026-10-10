@@ -4,7 +4,7 @@ import { reach } from './reach';
 import { advanceGoal } from './journey';
 import { whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
-import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
+import { actCrystals, crystalFlag } from '../content/topics';
 import { GATE_KEYS, keyFlag, keyForZone } from '../content/keys';
 import { SPIRE_CLEARED } from '../content/story';
 import {
@@ -28,7 +28,7 @@ import { BOAT_MENDED } from '../content/boat';
 
 const dawn = ZONES.dawnreach;
 const ALL_ZONES = Object.keys(ZONES) as ZoneId[];
-const allCrystals = Object.fromEntries(TOPIC_REGISTRY.map((t) => [crystalFlag(t.id), true]));
+const allCrystals = Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.id), true]));
 /** Act II's errands done (#75 item 14): Marlow's boat mended and sailed to the Silver Shallows. */
 const actTwoDone = { [BOAT_MENDED]: true, [visitedFlag('silver-shallows')]: true };
 /** The whole story so far: every crystal, the Spire, the boat, the voyage. */
@@ -131,7 +131,7 @@ describe('nextObjective', () => {
     }
     expect(seen.at(-1)?.kind).toBe('explore');
     // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage, explore.
-    expect(seen).toHaveLength(TOPIC_REGISTRY.length + GATE_KEYS.length + 1 + 5 + 1 + 1);
+    expect(seen).toHaveLength(actCrystals(1).length + GATE_KEYS.length + 1 + 5 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {

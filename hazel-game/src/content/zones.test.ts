@@ -23,7 +23,7 @@ import { behindFog, reach, safeSpawn, touches } from '../lib/reach';
 import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS, fiendFor } from './enemies';
-import { TOPIC_REGISTRY } from './topics';
+import { TOPIC_REGISTRY, actCrystals } from './topics';
 import type { ZoneDef } from './zones';
 import {
   ANY_CRYSTAL,
@@ -200,7 +200,8 @@ describe('zone maps', () => {
     const dawn = ZONES.dawnreach;
     const [w, h] = [dawn.map[0].length, dawn.map.length];
     const corners = new Set<string>();
-    for (const t of TOPIC_REGISTRY) {
+    // Act I's crystals (#75 item 14c): later acts' crystals live past the sea.
+    for (const t of actCrystals(1)) {
       const exit = dawn.exits.find((e) => e.to === t.zoneId);
       expect(exit, `${t.zoneId} is entered from Dawnreach`).toBeDefined();
       const { x, y } = exit!;
@@ -209,7 +210,7 @@ describe('zone maps', () => {
       corners.add(corner);
       expect(new Set(ZONES[t.zoneId].exits.map((e) => e.to)), t.zoneId).toEqual(new Set(['dawnreach']));
     }
-    expect(corners.size).toBe(TOPIC_REGISTRY.length);
+    expect(corners.size).toBe(actCrystals(1).length);
   });
 
   it('every zone is reachable from the hub by walking exits (or sailing across a sea link, #75 item 14)', () => {
@@ -597,8 +598,8 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
     }
   });
 
-  it('every crystal clears exactly one pocket of its own, with a chest on its topic inside', () => {
-    for (const topic of CRYSTAL_TOPIC_IDS) {
+  it('every Act I crystal clears exactly one pocket of its own, with a chest on its topic inside', () => {
+    for (const topic of actCrystals(1).map((t) => t.id)) {
       const own = (dawn.fogs ?? []).filter((f) => f.liftedBy.length === 1 && f.liftedBy[0] === crystalFlag(topic));
       expect(own.length, topic).toBe(1);
       const f = own[0];

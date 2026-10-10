@@ -12,8 +12,8 @@ import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { pushLibrary, wakeAfterDefeat, wakeInnName } from '../../lib/save';
 import { playMusic } from '../../lib/audio';
-import { emberStatus, SPIRE_CLEARED } from '../../content/story';
-import { TOPIC_REGISTRY } from '../../content/topics';
+import { SPIRE_CLEARED } from '../../content/story';
+import { actComplete, actCrystals, actRestored } from '../../content/topics';
 import {
   SPIRE_FLOORS,
   SPIRE_INTRO,
@@ -79,8 +79,9 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
 
   const age = playerAge(profile);
   const powerUps = profile?.powerUps ?? {};
-  const crystals = save ? emberStatus(save.flags).crystals : 0;
-  const unlocked = crystals >= TOPIC_REGISTRY.length;
+  // Act I's crystals open the door — a later act's crystal never re-seals it (#75 item 14c).
+  const crystals = save ? actRestored(save.flags, 1) : 0;
+  const unlocked = !!save && actComplete(save.flags, 1);
 
   const [phase, setPhase] = useState<Phase>(unlocked ? { kind: 'loading' } : { kind: 'locked' });
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -434,7 +435,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
             <h2 className="text-xl font-extrabold text-violet-200 mb-2">The Spire is sealed</h2>
             <p className="text-sm text-white/80 mb-5">
               The Spire door will only open to a hero who has restored all four Crystals of
-              Knowing. You have <strong>{crystals}/{TOPIC_REGISTRY.length}</strong>. Bring them all,
+              Knowing. You have <strong>{crystals}/{actCrystals(1).length}</strong>. Bring them all,
               then return — the one at the top is waiting.
             </p>
             <button

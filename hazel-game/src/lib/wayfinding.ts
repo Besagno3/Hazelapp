@@ -6,7 +6,7 @@ import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
-import { TOPIC_REGISTRY, crystalFlag, type CrystalTopicInfo } from '../content/topics';
+import { actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForZone, type GateKey } from '../content/keys';
 import { SPIRE_CLEARED } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
@@ -150,7 +150,9 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
  * still locked. Then the Spire; then the whole world is yours to explore.
  */
 export function nextObjective(flags: Record<string, boolean>): Objective {
-  const left = TOPIC_REGISTRY.filter((t) => !flags[crystalFlag(t.id)]);
+  // Act I's crystals (#75 item 14c): a later act's crystal never jumps the queue.
+  // Its goal joins Act II's flow with the crystal itself (sub-item 14h).
+  const left = actCrystals(1).filter((t) => !flags[crystalFlag(t.id)]);
   if (left.length === 0) {
     if (flags[SPIRE_CLEARED]) {
       const actTwo = actTwoObjective(flags);
@@ -408,7 +410,7 @@ export function shrineToVisit(zones: Record<ZoneId, ZoneDef>, flags: Record<stri
  */
 export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string, boolean>): [string, string] {
   const goal = nextObjective(flags);
-  const restored = TOPIC_REGISTRY.filter((t) => flags[crystalFlag(t.id)]).length;
+  const restored = actRestored(flags, 1);
   const place = (id: ZoneId) => {
     // A floor deep in a dungeon (#75 item 10) is found by its entrance.
     const entrance = dungeonEntrance(id);
