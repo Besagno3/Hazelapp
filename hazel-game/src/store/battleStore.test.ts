@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { useBattleStore } from './battleStore';
 
 describe('battleStore — a session’s one-off hints', () => {
-  it('the "💤 Sleepy critters…" hint is said once a session, and again for whoever signs in next (#112e)', () => {
+  it('the "💤 Sleepy critters…" hint is said once a session, and again for whoever signs in next (#114e)', () => {
     const s = useBattleStore.getState();
     s.reset();
     expect(useBattleStore.getState().sleeperHintSaid).toBe(false);

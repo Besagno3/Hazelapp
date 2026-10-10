@@ -62,6 +62,7 @@ describe('save items (#73)', () => {
       snack: 0,
       coil: 0,
       mirror: 0,
+      knot: 0,
     });
   });
   it('new item counts round-trip', () => {

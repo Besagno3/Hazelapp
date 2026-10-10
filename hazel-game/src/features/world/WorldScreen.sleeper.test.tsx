@@ -29,7 +29,7 @@ const { INTRO_SEEN, DAWNREACH_SEEN } = await import('../../content/story');
 
 const HINT = /Sleepy critters let you pass/;
 
-describe('the 💤 sleeping-critter hint (#112e)', () => {
+describe('the 💤 sleeping-critter hint (#114e)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     useBattleStore.getState().reset();

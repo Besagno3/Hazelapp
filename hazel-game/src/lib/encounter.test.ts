@@ -49,7 +49,7 @@ describe('bumping into enemies (#75 item 14d)', () => {
     expect(staysDown(rest, { x: 193, y: 100 })).toBe(false);
   });
 
-  it('a resting boss lets the hero back away or step aside, but not get past it (#112e)', () => {
+  it('a resting boss lets the hero back away or step aside, but not get past it (#114e)', () => {
     const home = { x: 100, y: 100 };
     const rest = restOf({ isBoss: true }, home, { x: 120, y: 100 }, 64); // began 20 px east of it
     expect(rest).toEqual({ x: 100, y: 100, reach: 34, from: { x: 120, y: 100 } });
@@ -72,7 +72,7 @@ describe('bumping into enemies (#75 item 14d)', () => {
     expect(staysDown(onTop, { x: 135, y: 100 })).toBe(false);
   });
 
-  it('every critter that could wander into a hero standing still stands down at the start — a Flee, a reload, a neighbour (#112e)', () => {
+  it('every critter that could wander into a hero standing still stands down at the start — a Flee, a reload, a neighbour (#114e)', () => {
     const LEASH = 64;
     expect(idleReach({ isBoss: false }, LEASH)).toBe(CONTACT_RADIUS.critter + LEASH); // 92
     expect(idleReach({ isBoss: true }, LEASH)).toBe(CONTACT_RADIUS.boss); // bosses hold their ground
@@ -85,7 +85,7 @@ describe('bumping into enemies (#75 item 14d)', () => {
     expect([...down].map((f) => f.id)).toEqual(['puffer', 'bat']);
   });
 
-  it('a cooldown spares only the critters touching the hero as it\'s armed — never a boss, never a person (#112t)', () => {
+  it('a cooldown spares only the critters touching the hero as it\'s armed — never a boss, never a person (#114t)', () => {
     const hero = { x: 100, y: 100 };
     const on = { id: 'puffer', x: 110, y: 100, enemy: { isBoss: false } }; // touching
     const near = { id: 'bat', x: 130, y: 100, enemy: { isBoss: false } }; // 30 px: not yet
@@ -96,7 +96,7 @@ describe('bumping into enemies (#75 item 14d)', () => {
     expect([...graceOf([on, near, boss, person], { x: 128, y: 100 })].map((a) => a.id)).toEqual(['puffer', 'bat']);
   });
 
-  describe('meeting one foe in a frame (`meetFoe`, #112e, #112t)', () => {
+  describe('meeting one foe in a frame (`meetFoe`, #114e, #114t)', () => {
     const critter = { isBoss: false };
     const boss = { isBoss: true };
     const base = {

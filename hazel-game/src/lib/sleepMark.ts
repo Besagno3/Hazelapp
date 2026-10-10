@@ -1,5 +1,5 @@
 /**
- * A sleeping critter's "z Z" (#112e): which way they rise from its head. They
+ * A sleeping critter's "z Z" (#114e): which way they rise from its head. They
  * must read as its own — never cross someone else's face or label, a boss's
  * above all, or that one looks asleep and a child walks into a fight. Pure, so
  * every map's sleepers are tested.
@@ -116,7 +116,7 @@ export const EMBER_COST = 3;
 export const HERO_ROOM_COST = 1;
 
 /**
- * Where an awake critter roams (#112e): everywhere its leash lets it wander,
+ * Where an awake critter roams (#114e): everywhere its leash lets it wander,
  * with its face, and its level plate riding 26 px below it. Letters rising
  * there would sit by it whenever it came by.
  */
@@ -221,7 +221,7 @@ export function edgeBoxes(cols: number, rows: number, tile: number): Mark[] {
 export const FACE_BOX = { w: 32, h: 32 } as const;
 
 /**
- * Where Ember starts, back beside a sleeper (#112e), and the way she then
+ * Where Ember starts, back beside a sleeper (#114e), and the way she then
  * trails (`lastDir`): on its far side from the hero, else either side — on
  * ground she can stand on (`ok`: walkable, or sea when sailing; outdoors), her
  * box (`HERO_BOX`) off everyone's face and shown label (`crowd`, the

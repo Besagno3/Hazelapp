@@ -50,7 +50,7 @@ export function idleReach(foe: Pick<BattleEnemy, 'isBoss'>, leash: number): numb
  * a touch from a hero saved where it swam into them (a step back is no step at
  * all when they stood still) — so it would otherwise wander straight back into
  * the same fight, again after every Flee; and the same after a reload, an
- * arrival, landing or climbing aboard, or with a neighbour's patch (#112e). A
+ * arrival, landing or climbing aboard, or with a neighbour's patch (#114e). A
  * resting enemy is drawn faded, like under Calm, and like under Calm it lets
  * the hero pass (`staysDown`).
  */
@@ -62,7 +62,7 @@ export function standDown<T extends Point>(foes: readonly T[], reachOf: (foe: No
  * The enemies a cooldown spares (a menu closed, a landing, a chest, Calm
  * wearing off…): the critters touching the hero as it's armed, so they've a
  * moment to step clear — never a boss, and never one they walk into after
- * (#112t: the cooldown used to let the hero walk through anything).
+ * (#114t: the cooldown used to let the hero walk through anything).
  */
 export function graceOf<T extends Point & { enemy?: Pick<BattleEnemy, 'isBoss'> }>(actors: readonly T[], hero: Point): Set<T> {
   return standDown(
@@ -73,7 +73,7 @@ export function graceOf<T extends Point & { enemy?: Pick<BattleEnemy, 'isBoss'> 
 }
 
 /**
- * One enemy, this frame, in the canvas's contact loop (#112e, #112t) — does
+ * One enemy, this frame, in the canvas's contact loop (#114e, #114t) — does
  * it fight, and is it `spared` after? Pure, so the rules are tested.
  * - Resting, or in the two frames after a cooldown is armed (`held`, while
  *   its menu or talk takes the world's pause): nothing changes.

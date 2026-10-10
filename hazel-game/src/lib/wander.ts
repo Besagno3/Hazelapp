@@ -129,7 +129,7 @@ export function withinLeash(
  * A wanderer's next heading: near its leash's edge (beyond 85%) it steers
  * straight home — unless its last step was blocked (`bumped`), when it wanders
  * instead: the straight way home past a wall or the shore would stop it for
- * good, trying the same blocked step forever (#112bb).
+ * good, trying the same blocked step forever (#114bb).
  */
 export function nextWanderDir(
   o: { x: number; y: number; homeX: number; homeY: number; leash: number; bumped: boolean },

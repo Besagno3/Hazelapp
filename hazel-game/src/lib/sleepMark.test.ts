@@ -59,7 +59,7 @@ function cast(z: ZoneDef) {
 
 const hits = (c: { x: number; y: number }, p: ZzPath, marks: readonly Box[]) => sweptBoxes(c, p).some((b) => marks.some((m) => overlaps(b, m)));
 
-describe('a sleeping critter\'s rising "z Z" (#112e)', () => {
+describe('a sleeping critter\'s rising "z Z" (#114e)', () => {
   it('rise up and to the right when nothing is there, and take another way round a neighbour', () => {
     const me = { x: 100, y: 100 };
     expect(zzPath(me, [])).toBe(ZZ_PATHS[0]);

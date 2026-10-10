@@ -4,6 +4,7 @@ import {
   SPIRE_INTRO,
   SPIRE_LIVES,
   SPIRE_CLEAR_XP,
+  spireClearXp,
   SPIRE_BOSS_DEFEAT,
   SPIRE_FLOOR_MAPS,
   SPIRE_THEMES,
@@ -21,6 +22,12 @@ describe('Spire climb (#55)', () => {
     expect(SPIRE_LIVES).toBeGreaterThan(0);
     expect(SPIRE_CLEAR_XP).toBeGreaterThan(0);
     expect(SPIRE_BOSS_DEFEAT.length).toBeGreaterThan(10);
+  });
+
+  it('the clear bonus is paid on the first clear only (#109)', () => {
+    expect(spireClearXp(19, 10, false)).toBe(190 + SPIRE_CLEAR_XP);
+    expect(spireClearXp(19, 10, true)).toBe(190);
+    expect(spireClearXp(0, 10, true)).toBe(0);
   });
 
   it('floors escalate in difficulty and end in a single boss floor', () => {

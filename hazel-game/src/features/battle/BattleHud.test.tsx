@@ -33,6 +33,19 @@ describe('BattleHud danger marks (#75 item 12)', () => {
     expect(screen.getByText(/Tough critter: it hits harder/)).toHaveClass('sr-only');
   });
 
+  it('past "!!!" the marks stay three and change colour; it reads aloud as very tough (#75 item 14c)', () => {
+    hud(6);
+    const marks = screen.getByText('!!!');
+    expect(marks.parentElement).toHaveClass('text-fuchsia-300');
+    expect(screen.getByText(/^Very tough critter: it hits harder/)).toHaveClass('sr-only');
+  });
+
+  it('up to "!!!" it reads aloud as tough, not very tough', () => {
+    hud(4);
+    expect(screen.getByText('!!!').parentElement).toHaveClass('text-red-300');
+    expect(screen.getByText(/^Tough critter/)).toBeInTheDocument();
+  });
+
   it('near home there are none', () => {
     hud(1);
     hud(0);

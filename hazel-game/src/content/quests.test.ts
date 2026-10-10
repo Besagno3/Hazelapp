@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   QUESTS,
   questConversation,
+  questFor,
+  questsBy,
+  stepFlag,
+  type QuestDef,
   questOfferedFlag,
   questDoneFlag,
   activeStep,
@@ -229,12 +233,10 @@ describe('grove side-quest (grove-moonwell)', () => {
 describe('town side quests (village expansion)', () => {
   const TOWNS = ['lumina-village', 'numbria', 'verdara', 'gearfall', 'chromaria'] as const;
 
-  it('each of the five towns has two side quests, each with its own giver', () => {
+  it('each of the five towns has two side quests', () => {
     for (const town of TOWNS) {
       expect(QUESTS.filter((q) => q.side && q.zoneId === town), town).toHaveLength(2);
     }
-    const givers = QUESTS.map((q) => q.giverNpcId);
-    expect(new Set(givers).size).toBe(givers.length);
   });
 
   it('items a quest takes back exist, and are found in a secret or chest, or handed over', () => {
@@ -452,11 +454,6 @@ describe('item chains (#75 item 13)', () => {
     }
   });
 
-  it("no step is aimed at a quest giver (their own quest would speak first, and the step could never fire)", () => {
-    const givers = new Set(QUESTS.map((q) => q.giverNpcId));
-    for (const q of QUESTS) for (const st of q.steps) if (st.npc) expect(givers.has(st.npc.id), `${q.id} step ${st.id} → ${st.npc.id}`).toBe(false);
-  });
-
   it('every quest item a step, chest or hand-over names is a registered quest item', () => {
     const named = [
       ...KEY_CHESTS.map((c) => c.item),
@@ -468,5 +465,129 @@ describe('item chains (#75 item 13)', () => {
     ];
     expect(named).toContain('moonstone');
     for (const id of named) expect(QUEST_ITEMS[id], `quest item ${id}`).toBeDefined();
+  });
+});
+
+describe('one person, several quests (#75 item 14c)', () => {
+  // Two stand-in people: Bea gives two quests, Moe gives one, and Bea's first goes through Moe.
+  const BEA = 'test-bea';
+  const MOE = 'test-moe';
+  const LATER = 'test-later-act';
+  const flagged = (id: string, hint: string, npc?: QuestDef['steps'][number]['npc']): QuestDef['steps'][number] => ({
+    id,
+    hint,
+    npc,
+    isComplete: (save) => save.flags[stepFlag(id)] === true,
+  });
+  const quest = (id: string, giverNpcId: string, steps: QuestDef['steps'], requires?: string): QuestDef => ({
+    id,
+    zoneId: 'lumina-village',
+    giverNpcId,
+    title: id,
+    offer: [`${id} offer`],
+    requires,
+    steps,
+    complete: [`${id} done`],
+    reward: { coins: 1 },
+  });
+  const BEA_FIRST = quest('bea-first', BEA, [flagged('bea-first-moe', 'Go and see Moe.', { id: MOE, lines: ['Moe helps Bea.'] })]);
+  const BEA_SECOND = quest('bea-second', BEA, [flagged('bea-second-x', 'Bea waits on her second.')], LATER);
+  const MOE_OWN = quest('moe-own', MOE, [flagged('moe-own-x', 'Moe waits on his own.')]);
+
+  let added: QuestDef[] = [];
+  beforeEach(() => {
+    added = [BEA_FIRST, BEA_SECOND, MOE_OWN];
+    QUESTS.push(...added);
+  });
+  afterEach(() => {
+    for (const q of added) {
+      const i = QUESTS.indexOf(q);
+      if (i >= 0) QUESTS.splice(i, 1);
+    }
+  });
+
+  const talk = (npc: string, save: SaveData) => {
+    const c = questConversation(npc, save);
+    expect(c, npc).not.toBeNull();
+    return { c: c!, save: c!.finish ? c!.finish(save) : save };
+  };
+  const set = (save: SaveData, flag: string): SaveData => ({ ...save, flags: { ...save.flags, [flag]: true } });
+
+  it("a giver's quests come one at a time, and the next waits for its story flag", () => {
+    expect(questsBy(BEA)).toEqual([BEA_FIRST, BEA_SECOND]);
+    let save = defaultSave();
+    expect(questFor(BEA, save)).toBe(BEA_FIRST);
+    save = talk(BEA, save).save;
+    save = set(save, stepFlag('bea-first-moe'));
+    const done = talk(BEA, save);
+    expect(done.c.finishKind).toBe('complete');
+    save = done.save;
+    // The second waits for the story: nothing to say, until the flag is set.
+    expect(questFor(BEA, save)).toBeUndefined();
+    expect(questConversation(BEA, save)).toBeNull();
+    save = set(save, LATER);
+    expect(questFor(BEA, save)).toBe(BEA_SECOND);
+    expect(talk(BEA, save).c.lines).toEqual(['bea-second offer']);
+  });
+
+  it("a step through a giver speaks first — before their own offer, and while their own quest is mid-way", () => {
+    let save = talk(BEA, defaultSave()).save;
+    // Moe hasn't offered his own yet: Bea's step still goes first.
+    expect(questConversation(MOE, save)!.lines).toEqual(['Moe helps Bea.']);
+    // Moe's own quest under way (mid-hint): Bea's step still goes first, then his hint.
+    save = set(save, questOfferedFlag(MOE_OWN));
+    const step = talk(MOE, save);
+    expect(step.c.finishKind).toBe('step');
+    expect(step.c.badge).toBe('bea-first');
+    expect(step.save.flags[stepFlag('bea-first-moe')]).toBe(true);
+    expect(talk(MOE, step.save).c.lines).toEqual(['Moe waits on his own.']);
+  });
+
+  it('a giver whose own quest is ready to finish finishes it first, then the step', () => {
+    let save = talk(BEA, defaultSave()).save;
+    save = set(set(save, questOfferedFlag(MOE_OWN)), stepFlag('moe-own-x'));
+    const done = talk(MOE, save);
+    expect(done.c.finishKind).toBe('complete');
+    expect(done.c.badge).toBe('moe-own');
+    expect(talk(MOE, done.save).c.finishKind).toBe('step');
+  });
+
+  it("a bring step through a giver waits for its item: until then they talk about their own", () => {
+    const talkStep = BEA_FIRST.steps[0];
+    BEA_FIRST.steps[0] = { ...talkStep, trade: { takes: 'test-parcel' } };
+    try {
+      const save = talk(BEA, defaultSave()).save;
+      expect(questConversation(MOE, save)!.lines).toEqual(['moe-own offer']);
+      expect(questConversation(MOE, { ...save, questItems: ['test-parcel'] })!.finishKind).toBe('step');
+    } finally {
+      BEA_FIRST.steps[0] = talkStep;
+    }
+  });
+
+  it('finish what you started: a quest under way comes before one listed first that unlocks later', () => {
+    // Bea's second quest is listed before a third that needs no story flag — swap them in for this test.
+    const third = quest('bea-third', BEA, [flagged('bea-third-x', 'Bea waits on her third.')]);
+    QUESTS.splice(QUESTS.indexOf(BEA_FIRST), 1);
+    added = [BEA_SECOND, third, MOE_OWN];
+    QUESTS.push(third);
+    expect(questsBy(BEA)).toEqual([BEA_SECOND, third]);
+    let save = talk(BEA, defaultSave()).save; // the third is the one on offer before the story flag
+    expect(save.flags[questOfferedFlag(third)]).toBe(true);
+    save = set(save, LATER); // now the second (listed first) has unlocked too
+    expect(questFor(BEA, save)).toBe(third);
+    expect(talk(BEA, save).c.lines).toEqual(['Bea waits on her third.']);
+    save = set(save, stepFlag('bea-third-x'));
+    const done = talk(BEA, save);
+    expect(done.c.finishKind).toBe('complete');
+    expect(done.c.badge).toBe('bea-third');
+    expect(talk(BEA, done.save).c.lines).toEqual(['bea-second offer']);
+  });
+
+  it("today's people give one quest each, and each is theirs once its story flag is set", () => {
+    for (const q of QUESTS.filter((x) => !added.includes(x))) {
+      const save = q.requires ? set(defaultSave(), q.requires) : defaultSave();
+      expect(questsBy(q.giverNpcId), q.giverNpcId).toEqual([q]);
+      expect(questFor(q.giverNpcId, save), q.id).toBe(q);
+    }
   });
 });

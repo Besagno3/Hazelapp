@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GATE_KEYS, keyForBoss, keyForZone, keyFlag, bossDefeated } from './keys';
+import { GATE_KEYS, keyForBoss, keyForZone, keyFlag, bossDefeated, bossFlag } from './keys';
 import { ENEMY_DEFS } from './enemies';
 import { ZONES } from './zones';
 import { crystalFlag, TOPICS } from './topics';
@@ -57,15 +57,21 @@ describe('warden keys (#58)', () => {
     expect(new Set(GATE_KEYS.map((k) => k.unlocksZone)).size).toBe(3);
   });
 
-  it('bossDefeated: crystal Fiends key off the crystal flag, wardens off the key flag', () => {
+  it('bossDefeated, by role (#75 item 14c): a Fiend on its crystal, a warden on its key, any other boss on its own flag', () => {
     // A warden is only "gone" once its key is held — not its (unused) crystal flag.
     const warden = GATE_KEYS[0];
-    const wardenTopic = ENEMY_DEFS[warden.bossId].topic;
-    expect(bossDefeated(warden.bossId, wardenTopic, {})).toBe(false);
-    expect(bossDefeated(warden.bossId, wardenTopic, { [crystalFlag(wardenTopic)]: true })).toBe(false);
-    expect(bossDefeated(warden.bossId, wardenTopic, { [keyFlag(warden.id)]: true })).toBe(true);
+    const wd = ENEMY_DEFS[warden.bossId];
+    expect(bossDefeated(wd, {})).toBe(false);
+    expect(bossDefeated(wd, { [crystalFlag(wd.topic)]: true })).toBe(false);
+    expect(bossDefeated(wd, { [keyFlag(warden.id)]: true })).toBe(true);
     // A crystal Fiend keys off its crystal flag.
-    expect(bossDefeated('null-fiend', 'math', {})).toBe(false);
-    expect(bossDefeated('null-fiend', 'math', { [crystalFlag('math')]: true })).toBe(true);
+    const fiend = ENEMY_DEFS['null-fiend'];
+    expect(bossDefeated(fiend, {})).toBe(false);
+    expect(bossDefeated(fiend, { [crystalFlag('math')]: true })).toBe(true);
+    // A miniboss on a crystal topic with no key: its own flag, never the crystal's.
+    const miniboss = { id: 'test-miniboss', topic: 'math' as const, role: 'miniboss' as const };
+    expect(bossDefeated(miniboss, { [crystalFlag('math')]: true })).toBe(false);
+    expect(bossDefeated(miniboss, { [bossFlag('test-miniboss')]: true })).toBe(true);
+    expect(bossFlag('test-miniboss')).toBe('boss:test-miniboss:defeated');
   });
 });

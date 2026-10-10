@@ -1,5 +1,5 @@
 import type { CrystalTopic, Topic } from '../types';
-import { TOPIC_REGISTRY, crystalFlag } from './topics';
+import { TOPIC_REGISTRY, crystalFlag, type Act } from './topics';
 
 /**
  * The story layer (#37 story pass — see docs/STORY.md for the full bible).
@@ -118,6 +118,26 @@ export function emberStatus(flags: Record<string, boolean>): {
 } {
   const crystals = TOPIC_REGISTRY.filter((t) => flags[crystalFlag(t.id)]).length;
   return { crystals, stage: emberStage(crystals, flags) };
+}
+
+/**
+ * The flag that opens each act (#75 item 14c): Act I is open from the start;
+ * Act II opens the morning after the Spire. (Act III's flag comes with
+ * Taleshore, 15c — until then no Act III crystal is in play.)
+ */
+export const ACT_OPENS: Record<Act, string | null> = { 1: null, 2: ACT2_SEEN, 3: 'act3-seen' };
+
+/**
+ * The crystals the hero can be working towards: every crystal of every act
+ * that has opened. The HUD counts these ("💎 3/4" all through Act I, "4/5"
+ * once Act II opens with its crystal).
+ */
+export function crystalsInPlay(flags: Record<string, boolean>): { restored: number; total: number } {
+  const open = TOPIC_REGISTRY.filter((t) => {
+    const opens = ACT_OPENS[t.act];
+    return opens === null || flags[opens] === true;
+  });
+  return { restored: open.filter((t) => flags[crystalFlag(t.id)]).length, total: open.length };
 }
 
 // --- Cutscenes ----------------------------------------------------------------

@@ -3019,6 +3019,15 @@ NPCS: list[Char] = [
     Char('chromaria-traveler', '🗺️', 'humanoid', H(hair='long', hair_color='#e8c040', hat='beret', hat_color='#3ab0a0', outfit='#c05a8a', scarf='#4ad0c0', item='book')),
     # ── Item chains (#75 item 13) ──
     Char('dawnreach-hermit', '🏮', 'humanoid', H(hair='long', hair_color='#b8b8c8', beard='#d8d8e4', hat='hood', hat_color='#4a3a6a', outfit='#5a4a7a', trim='#c8b0ff', robe=True, item='lantern')),
+    # ── Act II: Remembrance Hill (#75 item 14e) ──
+    Char('hill-keeper', '🗿', 'humanoid', H(skin='#b4b0c0', hair='long', hair_color='#f0f0f4', beard='#f4f4f8', hat='hood', hat_color='#6a5aa0', outfit='#8a7ab8', trim='#e8e0ff', robe=True, item='book')),
+    Char('hill-posy', '👧', 'humanoid', H(hair='ponytail', hair_color='#e0a040', hat='flower', outfit='#ff9ad0', trim='#7aa8ff')),
+    Char('hill-merchant', '🧳', 'humanoid', H(hair='spiky', hair_color='#6a4a3a', hat='tricorn', hat_color='#5a3a2a', outfit='#8a5a3a', pack='#a07040', scarf='#e0a040', glasses=True)),
+    Char('hill-innkeeper', '🫖', 'humanoid', H(hair='bun', hair_color='#c87a3a', outfit='#6a5ab0', apron='#f4ecd8', trim='#ffd24a')),
+    Char('hill-traveler', '🎒', 'humanoid', H(hair='short', hair_color='#2a3a4a', hat='straw', outfit='#4a7ab0', pack='#8a5a30', item='staff', item_color='#c8a070')),
+    Char('hill-carver', '🔨', 'humanoid', H(hair='short', hair_color='#3a2a1a', outfit='#a8a8b4', apron='#8a6a4a', item='hammer')),
+    Char('hill-elder', '👴', 'humanoid', H(hair='fringe', hair_color='#e8e8e8', beard='#f0f0f0', outfit='#7a8a6a', glasses=True, item='rod', item_color='#8a6a4a')),
+    Char('hill-jam', '🧺', 'humanoid', H(hair='bob', hair_color='#8a3a2a', outfit='#3a7ab0', apron='#ffd0e0', item='ladle')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

@@ -305,7 +305,7 @@ const live: {
   /** Battles the hero walked into, and pitch-dark bumps (#75 item 9). */
   encounters: number;
   darkBumps: number;
-  /** "It's asleep" hints from walking into a resting critter (#112e). */
+  /** "It's asleep" hints from walking into a resting critter (#114e). */
   sleeperHints: number;
   /** The last whole seconds of Calm the world reported. */
   calmLeft: number;

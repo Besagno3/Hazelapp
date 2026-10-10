@@ -1,4 +1,4 @@
-import type { Topic, ZoneId } from '../types';
+import type { BossRole, Topic, ZoneId } from '../types';
 import { crystalFlag } from './topics';
 
 /**
@@ -101,15 +101,23 @@ export function keyFlag(id: string): string {
   return `key-${id}`;
 }
 
+/** Set when a boss that restores nothing and holds no key is beaten (#75 item 14c): a miniboss, an echo, the finale. */
+export function bossFlag(enemyId: string): string {
+  return `boss:${enemyId}:defeated`;
+}
+
 /**
- * Whether a boss is permanently beaten (so the world stops spawning it): crystal
- * Fiends despawn once their crystal is restored, wardens once their key is held.
+ * Whether a boss is permanently beaten (so the world stops spawning it), by
+ * its role (#75 item 14c): a Fiend once its crystal is restored, a warden once
+ * its key is held, any other boss once its own `bossFlag` is set — never on
+ * another boss's crystal.
  */
 export function bossDefeated(
-  enemyId: string,
-  topic: Topic,
+  boss: { id: string; topic: Topic; role?: BossRole },
   flags: Record<string, boolean>,
 ): boolean {
-  const key = keyForBoss(enemyId);
-  return key ? flags[keyFlag(key.id)] === true : flags[crystalFlag(topic)] === true;
+  if (boss.role === 'fiend') return flags[crystalFlag(boss.topic)] === true;
+  const key = keyForBoss(boss.id);
+  if (key) return flags[keyFlag(key.id)] === true;
+  return flags[bossFlag(boss.id)] === true;
 }

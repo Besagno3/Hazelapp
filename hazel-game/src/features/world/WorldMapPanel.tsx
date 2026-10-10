@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { GREAT_FOGBANK, TILE, ZONES, fogAt, fogLifted } from '../../content/zones';
+import { GREAT_FOGBANK, TILE, ZONES, fogAt, fogLifted, placeKnown } from '../../content/zones';
 import { floorTitle } from '../../content/dungeons';
 import type { BoatSpot, ZoneId } from '../../types';
 import {
@@ -51,7 +51,8 @@ export default function WorldMapPanel({
   const world = ZONES[zoneId].kind === 'overworld' ? ZONES[zoneId] : ZONES.dawnreach;
   const cols = world.map[0].length;
   const rows = world.map.length;
-  const places = world.places ?? [];
+  // A place nobody has heard of yet stays off the map (Remembrance Hill before Act II, #75 item 14e).
+  const places = (world.places ?? []).filter((p) => placeKnown(p, flags));
   const here = whereOnMap(ZONES, world, zoneId, pos);
   // Banks a crystal will clear get its marker; the Great Fogbank has a line of its own.
   const greatFogbank = (world.fogs ?? []).find((f) => f.id === GREAT_FOGBANK && !fogLifted(f, flags));
@@ -119,7 +120,7 @@ export default function WorldMapPanel({
           width={cols * PX}
           height={rows * PX}
           role="img"
-          aria-label={`Map of ${mid(world.name)}. ${caption}. ${goal.zoneId ? `${nextLabel}, flagged at ${flagName}.` : nextLabel}${boatLine ? ` ${boatLine.replace(/^⛵ (= )?/, boatElsewhere ? '' : 'The boat: ').replace(/([^.])$/, '$1.')}` : ''}${seaWayText ? ` ${seaWayText}` : ''}`}
+          aria-label={`Map of ${mid(world.name)}. ${caption}. ${goal.zoneId && flagAt ? `${nextLabel}, flagged at ${flagName}.` : nextLabel}${boatLine ? ` ${boatLine.replace(/^⛵ (= )?/, boatElsewhere ? '' : 'The boat: ').replace(/([^.])$/, '$1.')}` : ''}${seaWayText ? ` ${seaWayText}` : ''}`}
           className="block w-full rounded-md"
           style={{ imageRendering: 'pixelated' }}
         />
@@ -164,7 +165,7 @@ export default function WorldMapPanel({
             {l.emoji}
           </span>
         ))}
-        {foggedBanks.map((f) => (
+        {foggedBanks.filter((f) => fogMarker(f)).map((f) => (
           <span
             key={f.id}
             aria-hidden
@@ -244,8 +245,12 @@ export default function WorldMapPanel({
       {fogged && (
         <p className="text-[11px] text-white/60 mt-1">
           <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1" style={{ background: FOG_COLOR }} />
-          Fog — restore the crystal shown on it to clear it
+          {/* Only when a bank shows a crystal; the Hill's bank (#75 item 14e) has its own line. */}
+          {foggedBanks.some((f) => fogMarker(f)) && 'Fog — restore the crystal shown on it to clear it'}
           {foggedBanks.some((f) => fogMarker(f) === ANY_CRYSTAL_EMOJI) && <span> ({ANY_CRYSTAL_EMOJI} = any crystal)</span>}
+          {foggedBanks.some((f) => !fogMarker(f)) && (
+            <span className={foggedBanks.some((f) => fogMarker(f)) ? 'block' : ''}>Fog with nothing on it lifts later in your adventure</span>
+          )}
           {anyHidden && <span className="block">{HIDDEN_PLACE_EMOJI} = a place still hidden in the fog</span>}
         </p>
       )}

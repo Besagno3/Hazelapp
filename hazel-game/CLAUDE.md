@@ -98,7 +98,9 @@ zod, react-query. Add the package in the same change that first uses it.
   machine owns *where the player is*; Zustand stores own *what they have*.
 - **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
-  `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone;
+  `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone,
+  each in an act (`act`; `actCrystals` / `actRestored` / `actComplete` —
+  the Spire, the ending and the 🚩 read Act I's, #75 item 14c);
   `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
   resolves all seven, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
   overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
@@ -114,7 +116,9 @@ zod, react-query. Add the package in the same change that first uses it.
   Dawnreach's terrain is painted in **Tiled** — `content/maps/dawnreach.tmj`
   with the `legend.tsj` tileset, read by `tiledRows` (`lib/tiled.ts`); see
   `docs/MAP-AUTHORING.md`), `npcs.ts` (dialogue trees),
-  `enemies.ts` (archetypes + fiends, age-scaled at spawn), `abilities.ts`
+  `enemies.ts` (archetypes + fiends, age-scaled at spawn; a boss's `role` —
+  `fiend / warden / miniboss / echo / finale` — decides what beating it does
+  and what it says, `bossScript`, #75 item 14c), `abilities.ts`
   (Sage personas + charge tuning), `companion.ts` (battle companions — Ember /
   Pip / Wisp — their strikes, perks + Pair Attacks), `spells.ts` (the Spellbook — castable
   abilities derived from the save), `fieldSpells.ts` (#75 item 9: the field
@@ -123,9 +127,13 @@ zod, react-query. Add the package in the same change that first uses it.
   zones are floors of one dungeon, which way is deeper, floor labels B1… /
   Floor 1…, the boss at the bottom — floors are ordinary zones joined by
   `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
-  danger tier 0–4, the `DANGER` tuning per tier, map labels "Lv 4 !!", the
-  danger banner / defeat tip / arrival warning copy),
-  `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
+  danger tier 0–7 — Act I 0–4, the Shallows 5 — the `DANGER` tuning per
+  tier, map labels "Lv 4 !!" (marks stop at "!!!", tiers 5–7 go violet →
+  magenta), the danger banner / defeat tip / arrival warning copy),
+  (Act II's **Remembrance Hill**, #75 item 14e, is a town on Dawnreach behind
+  the Grove-road fog — `hill-fog`, lifted by `act2-seen` — and a place nobody
+  names before then: `PlaceDef.knownFrom` / `placeKnown` keep it off the
+  signposts and the menu map), `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
@@ -135,7 +143,9 @@ zod, react-query. Add the package in the same change that first uses it.
   (carry an item, any of its forms) and *bring* (hand it to an NPC, who may
   hand back something new) steps; `openChest` pays a key-item chest's
   `ZoneDef.keyChests` item and `zoneChestOpened` ignores those chests; each
-  quest item belongs to one quest), `secrets.ts` (hidden secrets per
+  quest item belongs to one quest; one person may give several quests in
+  turn — `questFor(npcId, save)`, the one you've started first — and a step
+  may go through a giver, #75 item 14c), `secrets.ts` (hidden secrets per
   zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
@@ -322,10 +332,10 @@ zod, react-query. Add the package in the same change that first uses it.
   a hero standing still (not moved this frame) while they're `guard`ed (the
   cooldown, or 3 s after saving, as long as "💎 Game saved!") — each while
   the hero stands or steps away, until it steps clear; walking into one
-  fights, and a boss is never spared (#112t: the cooldown used to let the
+  fights, and a boss is never spared (#114t: the cooldown used to let the
   hero walk through anything, bosses too); and none fights in the two frames
   after a cooldown is armed, while its menu or talk takes the world's pause. The Silver Shallows has three (Bubble
-  Puffer, Inkling, Starfix — nature, tier 4 until 14c), placed by
+  Puffer, Inkling, Starfix — nature, tier 5 since 14c), placed by
   `seaCritters.test`'s rules: a 5×5 leash square of open sea, 3+ cells from any
   land or the edge a boat sails in by. A battle at sea is fought over
   open water (`battleBackdrop(zone, 'sea')` → `/backgrounds/<zone>-sea.png`,
@@ -488,6 +498,7 @@ python3 tools/assets/build.py quests   # Hermit Moss's sprite only (#75 item 13)
 python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallows, the fogbank (#75 item 14)
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
+python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
 ```
 
 ## Error handling
@@ -564,6 +575,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — Merge main (14c groundwork, 14e Remembrance Hill) into the sea-critters branch (#75 item 14d)
+`main` took 14c and 14e while 14d was in review. Both used ISSUES **#112**
+(14c kept it, 14e is #113), so 14d's follow-ups moved **#112 → #114**,
+and its test cases **TC-706–760 → TC-731–785** (14c and 14e took
+TC-706–730). Conflicts were all additive:
+`types` keeps `HABITATS` and `BOSS_ROLES`; `enemies.ts` gives the Clockwork
+Titan its `warden` role and keeps the sea critters and `habitatOf`;
+`build.py` keeps the `hill` and `seacritters` builds; the menu map keeps
+14d's sea-edge labels (`edgeLabelSpot`) and 14e's "no marker on a bank no
+crystal lifts". 14c made the Shallows tier 5, so its sea critters now read
+"Lv N !!!" in violet; 14e's Remembrance Hill has no critters, and its people
+go through the "z Z" sweep like everyone else's.
+
 ### 2026-10-10 — 14d fifteenth review: Ember never starts on a sleeper; hidden levels count for nothing; the "z Z" cost tiers weighed in turn (#75 item 14d)
 Round 15 — fresh `/saas-code-review` (1 medium, 2 low). The UX review was
 stopped partway, by request, and the review loop ended here. All three fixed:
@@ -623,7 +647,7 @@ medium, 1 low-medium, 2 low, notes). All fixed:
 - **Tests (code, low ×2):** the sweep's checks ignored roofs where the cost
   model doesn't, used the hero's box at sea and left Ember's fog check out —
   `HERO_BOX` / `HERO_AFLOAT_BOX` are shared now.
-- Logged (#112ee): on boarding a held key resets `lastDir` the next frame
+- Logged (#114ee): on boarding a held key resets `lastDir` the next frame
   (latent); wanderers could keep a wider berth round sleepers (optional).
 - Tests: 816 green (+3), lint + build clean; `bench … sea` 7/7.
 
@@ -751,7 +775,7 @@ medium, 2 low-medium — one pre-existing — and 1 low). Fixed, one logged:
   you move away." (a fact, not an order); the "Zz"'s "77" at DPR 1 is gone with
   the plate.
 - **Logged (UX, low-medium; pre-existing):** Chromaria's Doodle stands inside the
-  Off-Key Bird's patch — 4 of 10 walks to him fought it first (#112aa).
+  Off-Key Bird's patch — 4 of 10 walks to him fought it first (#114aa).
 - Tests: 803 green (+5), lint + build clean; `bench … sea` 7/7; standing still
   at Starfall's crystal 0 of 30.
 
@@ -777,7 +801,7 @@ medium, 1 low). All fixed:
   It's drawn under every character now (`ZZ_Z` 5.5), and sleepers fade less
   than under Calm (`SLEEP_OPACITY` 0.7), so the "Zz" has a visible critter to
   belong to. The Moon Moth moved from right above Old Marlow (5,7) to 9,6
-  (#112w), and a test keeps every Starfall Coast critter out of his reach.
+  (#114w), and a test keeps every Starfall Coast critter out of his reach.
 - **"7z" at 320 px on a 2× screen (UX, low):** the "Zz" is 20 px on a 36×24
   plate.
 - **Code, low:** a critter that came onto a still hero could later be walked
@@ -815,7 +839,7 @@ medium, 2 low-medium, 2 low). Fixed, one logged:
   shrine (400 of 474 cells). Covering a marker now costs far more than coming
   near one (the ⭐ most); tested with the ⭐ at every east-half cell.
 - **Logged (UX, medium; pre-existing): Old Marlow stands a tile below the Moon
-  Moth's home** at Starfall Coast, so walking to him can meet it (#112w).
+  Moth's home** at Starfall Coast, so walking to him can meet it (#114w).
 - Tests: 797 green, lint + build clean; `bench … sea` 7/7.
 
 ### 2026-10-10 — 14d seventh review: a bump's cooldown no longer lets you walk through enemies; every "Zz" sits clear and says how to wake it (#75 item 14d)
@@ -944,7 +968,7 @@ earlier fix checked in the real app). All fixed:
   to the label on a phone (42% of the map), and when every spot holds
   something, the one covering least — never the ⭐ (`edgeLabelSpot`,
   `edgeLabelCovers`); a test checks the ⭐ at every cell of both maps.
-- Docs: TC-717 (no palm), the store's fields.
+- Docs: TC-742 (no palm), the store's fields.
 - Tests: 791 green (+1 −1: the ⭐ at every cell in, the `fledFrom` check out), lint + build clean; `bench … sea` 5/5.
 
 ### 2026-10-10 — 14d second review: the critter you fled from waits, labels move off the ⭐ (#75 item 14d)
@@ -990,7 +1014,7 @@ by keyboard and reduced motion). All fixed:
   📜 Menu map!" — and the map's sea-edge labels ("Silver Shallows ▶") moved
   down the edge (63%) and draw before the icons, so they never cover the dock's
   ⛵ or Starfall Coast.
-- **Flee loop (code, medium; pre-existing, #112e):** a critter respawns at home,
+- **Flee loop (code, medium; pre-existing, #114e):** a critter respawns at home,
   so a hero saved where it touched them fought again at once, after every
   Flee. `lib/encounter.ts`: enemies touching the hero as a scene starts stand
   down (`standDown`) until the hero has moved off and is clear (`staysDown`) —
@@ -1009,7 +1033,7 @@ by keyboard and reduced motion). All fixed:
   the puffer battles it, Calm passes it, arriving starts nothing, and back on a
   critter after a Flee it stands down until you sail clear, then fights — 4/4.
 - Tests: +5 (encounter.test 4, BattleArena.test's defeat at sea); 787 green,
-  lint + build clean. Logged (pre-existing, #112): archetype callouts fade after
+  lint + build clean. Logged (pre-existing, #114): archetype callouts fade after
   3 s, the defeat screen needs a scroll at 740×360, map labels at phone size.
 
 ### 2026-10-10 — Sea critters: three swim the Silver Shallows, met only from the boat (#75 item 14d)
@@ -1058,7 +1082,197 @@ waits on 14c.
   placements check sea critters on open sea). Checked in headless Chromium:
   the real canvas (sailing into a critter battles it, Calm passes it, arrival
   and idling start none) and the real app's battle at sea at four sizes with
-  Ember, Pip and Wisp. Follow-ups: ISSUES #112.
+  Ember, Pip and Wisp. Follow-ups: ISSUES #114.
+
+### 2026-10-10 — 14e review fixes: the knot waits for you, praise on a re-clear, a hazy bay (#75 item 14e)
+A fresh `/saas-code-review` (2 low) and `/saas-ux-review` (3 medium, 10 low;
+played at 375×667 and 320×568). Fixed, as chosen:
+- **The Forget-Me-Knot (UX, medium):** a second try on a defend question
+  **pauses its timer** until the second pick (`DefendTimer` `paused`, decided);
+  the cross-out keeps keyboard focus (`aria-disabled`), its line sits above the
+  options (it fell below the fold on a small phone) and says "Take your time!",
+  with a soft sound; after a Hint Feather leaves one wrong option a wrong pick
+  is final and the knot stays tied (code, low — it left only the right
+  answer); "Already tied on"; `DefendTimer` has its own key (a duplicate-key
+  warning since #95).
+- **The Spire's re-clear (UX, medium):** "You climbed every floor and beat
+  Umbra again! Your bright answers earned ⭐ N XP. (The big hero's prize comes
+  once — and it's already yours!)"; both win panels show the XP; simpler
+  throne-room lines.
+- **The Hill (UX, low):** the bay's bank is `dense` (a second, staggered grid
+  of puffs — no more hollow middle; other banks unchanged); its hint promises
+  "It will roll away later in your adventure!"; 🏡 on the menu map; Mnem reads
+  the plaques in one line; the legend's crystal line only when a bank has one;
+  the 🚩's why says where the road leads; the spoken map no longer names a 🚩
+  it doesn't draw (code, low).
+- Logged (#113i): the reveal toast over the map on phones, an older tab
+  dropping a bought knot, two pre-existing nits. Tests: +4, several pinned
+  to the new copy. 822 green, lint clean.
+
+### 2026-10-10 — 14e checked: the reveal, the journey, the HUD (#75 item 14e, docs only)
+Roadmap row 14e ✅ and decisions 11 and 12 recorded as taken; #75 and #56
+noted. Verified on the final code: 818 tests, lint, typecheck and build
+clean; `bench … journey` 13/13 (Act I's legs and the Spire's floors on the
+repainted Dawnreach), `bench … hud` 6/6; on the bench, an Act II save on
+Dawnreach plays the Grove-road fog's reveal (the camera glides to the bay,
+the fog clears, the Hill's icon appears, the camera comes back), and the
+town's four screens and the bay fogged / open look right.
+
+### 2026-10-10 — The Forget-Me-Knot: a second try on a wrong answer (#75 item 14e)
+Fourth slice of 14e — Trader Knack's new item (roadmap decision 12, as
+chosen: "badges + one new item"). **🎗️ Forget-Me-Knot** (`knot`, 35 coins at
+Knack's Pre-Remembered Goods): from the battle Items menu it spends the turn
+and ties on (`CombatState.knotted` / `battleStore`, "Already tied" while it
+is); the next wrong pick on any battle question is crossed out instead of
+answered and the hero picks again, once (`QuestionCard` `secondChance` /
+`onSecondChance`, with a status line). Only the final pick counts; a second
+try breaks the speed trigger's quick run, like a Hint Feather; a Hint Feather
+after the cross-out still leaves a wrong option. Old saves gain a zero slot
+(`CONSUMABLE_IDS`). Tests: +9 (QuestionCard.test, new: 4; BattleArena.test: 2;
+battleTurn.test: 1; items/save fixtures). 818 green.
+
+### 2026-10-10 — The 🚩 leads to Remembrance Hill after the Shallows (#75 item 14e)
+Third slice of 14e. Once the Silver Shallows are visited, the 🚩 reads
+**"Visit Remembrance Hill"** (`Objective.kind: 'visit'`; "Where the old fog sat
+past Moonwell Grove, a road nobody remembered has appeared…"), routed back
+across the sea ("Sail west to Dawnreach, then …"), until the hero has been
+there — then "Explore", as before, until 14f adds Eldergrove. Elder Lumen's
+plan names it ("a town called Remembrance Hill, to the south … a keeper there
+never forgets a name"). `advanceGoal` (tests and bench) sets `act2-seen`
+with the Spire, as the walk home does. Tests: wayfinding.test (+1; the walks
+and story fixtures know the new step). 811 green.
+
+### 2026-10-10 — Remembrance Hill: a town in old fog past Moonwell Grove (#75 item 14e)
+Second slice of 14e — the town Act II's 🚩 leads to next (the 🚩 itself comes
+in the next commit).
+- **On Dawnreach:** a road leaves the Grove's south beach for a little
+  headland in the bay (`maps/dawnreach.tmj`), under a new bank, `hill-fog`
+  (lifted by `act2-seen`, so it lifts on screen the first time a hero is on
+  Dawnreach in Act II — and on the next visit for saves already in Act II).
+  No crystal lifts it; its hint says so, and the map marks it with nothing
+  (`fogMarker` → null; legend "Fog with nothing on it lifts later…").
+- **Nobody names it before Act II:** `PlaceDef.knownFrom` / `placeKnown` —
+  signposts (`signpostLines(…, flags)`) and the menu map leave it out, so Act
+  I's signs read exactly as before. Its icon (a new `hill` frame, appended at
+  16 after the dock) hides in the fog till then.
+- **The town** (`remembrance-hill`, 34×26, `kind: 'town'`, home region, no
+  critters, a new **marble** style): the Hall of Names (Keeper Mnem 🗿 reads one
+  plaque per Act I crystal, then the blank ones; his greeting sets
+  `met-mnem`), the Tip-of-the-Tongue Inn (Innkeeper Hettie 🫖 — a Return town
+  and a wake spot), Knack's Pre-Remembered Goods (Trader Knack 🧳 — "Lightly
+  forgotten. Deep discount."; the 🌼 Forget-Me-Not Badge), Chisel's Workshop,
+  Grandpa Dew's Cottage, Posy 👧 by the Hall's flower beds, Traveler Sorrel
+  and Mira the jam-maker.
+- **Art** (`python3 tools/assets/build.py hill`): the zone's tileset, blend
+  sheet and backdrop, `town-marble.png`, the overworld sheet (frames 0–15
+  byte-identical) and eight sprites; the manifest only gained entries.
+- Tests: +9 (zones.test: the town, the fog, nobody names it, Mnem;
+  wayfinding.test: the sign in Act II; worldMap.test; WorldMapPanel.test: +2);
+  the guarded-places and signpost tests know about it. 810 green. Looked at
+  on the bench: the town's four screens, the bay fogged and open.
+
+### 2026-10-10 — The Spire pays its 600 XP once (#75 item 14e, #109)
+First slice of 14e. Replaying the Spire is fine (#56), but every re-clear
+paid the 600 XP clear bonus again, and in Act II Umbra still waits on the
+throne.
+- **`spireClearXp(correct, perCorrect, clearedBefore)`** (`content/spire.ts`):
+  the right answers always; `SPIRE_CLEAR_XP` only on the first clear.
+  `SpireOverlay.win` reads `spire-cleared` from the save store as Umbra falls.
+- **A re-clear says so:** "You beat Umbra again! … the hero's reward was yours
+  the first time", with 🚪 Back to the Spire door (the finale doesn't replay,
+  so no "See how it ends"); the throne room and Umbra remember a hero who has
+  beaten him ("You again, little spark? I remember YOU.").
+- Tests: spire.test (+1), SpireOverlay.test (+2: the real climb to Umbra, first
+  and second time — the second fails on the old code). 800 green.
+
+### 2026-10-10 — 14c review fixes: finish what you started, the purple !!! explained (#75 item 14c)
+A fresh `/saas-code-review` (1 medium, 1 low) and a light `/saas-ux-review`
+(1 medium, 1 low) of 14c. Both confirmed nothing a player sees in Act I
+changes. Fixed, as chosen:
+- **`questFor` finishes what you started (code, medium):** it picked by list
+  order, so a quest listed first whose story flag turned on later hid one
+  already under way, which then couldn't be handed in. An accepted quest now
+  comes first, even before a story quest (decided; #112i).
+- **Tiers 5–7 explain the colour (UX, medium):** they repeated tier 4's
+  "See the !!!" line word for word. Now one line for all three ("See its
+  purple !!! by its level? A very tough critter — it hits even harder than a
+  red !!!…"), shown once (`toughKey`; `VERY_TOUGH_TIER` moved to
+  `regions.ts`). Tiers 0–4 are unchanged.
+- **Tier 5 is violet-200 (UX, low):** violet-300 and fuchsia-300 merged for
+  red-green colour-blind kids.
+- **Tidy-ups (code, low):** `actComplete` is false for an act with no
+  crystals; `BattleResult.crystalName` is optional; `BattleEnemy` got its doc
+  comment back.
+- Tests: +4 (quests.test fails on the old `questFor`; regions.test,
+  BattleArena.test, crystals.test). 797 green, lint + build clean.
+
+### 2026-10-10 — Danger tiers run to 7; the Shallows is tier 5 (#75 item 14c)
+Fourth slice of 14c (#105g, #108d). Acts II–IV need tougher places than
+Chromaria (tier 4), and the Silver Shallows sat at tier 4 as a placeholder.
+- **`DangerTier` 0–7** with `DANGER` rows 5–7 that keep rising (×1.6 / 1.75 /
+  1.9 HP, ×1.4 / 1.5 / 1.6 blows, 0.4 / 0.45 / 0.5 charge, ×2.4 / 2.8 / 3.2
+  coins); mercy is unchanged (two losses ease any far fight to tier 1).
+- **Marks stop at "!!!"** (`MAX_MARKS`, as decided); tiers 5–7 tell themselves
+  apart by colour, violet → magenta, on the map (`mapColor`) and in the battle
+  HUD (`DANGER_TEXT`, now a full `Record`), and read aloud as "Very tough
+  critter".
+- **The Shallows is tier 5.** It has no critters yet (14d), and the 🚩's road
+  tier is null after Act I's crystals, so nothing plays differently.
+- Tests: regions.test (tiers 0–7 through the existing "tougher and pays more"
+  checks; +2: colours and the Shallows), enemies.test (healers stall-proof to
+  tier 7), BattleHud.test (+2). 794 green, lint clean.
+
+### 2026-10-10 — One person can give several quests (#75 item 14c)
+Third slice of 14c (nothing visible). `questFor(npcId)` returned a person's
+first quest only, and their own quest always spoke before any step aimed at
+them, so Act II–IV people who give more than one quest, or help with someone
+else's, couldn't be written (two tests forbade both).
+- **`questsBy(npcId)`** lists a person's quests; **`questFor(npcId, save)`** is
+  the first not done whose `requires` is set — the next waits for the last.
+- **`questConversation` order:** their quest ready to finish → a step through
+  them (any quest's; a bring step only with its item) → their offer → their
+  hint. Split into `completeConversation` / `stepConversation`.
+- Tests: quests.test (+5 with stand-in quests; 3 fail on the old code), the
+  one-giver-per-quest and no-step-at-a-giver tests removed, boat.test's
+  "friends aren't givers" removed. 790 green, lint clean.
+
+### 2026-10-10 — Bosses have roles: only a Fiend restores a crystal (#75 item 14c)
+Second slice of 14c (nothing visible). "Any boss without a key restores its
+topic's crystal" broke every boss Acts II–IV need: a keyless boss on a topic
+with no Fiend lines crashed the battle as it opened; one on a crystal topic was
+renamed that Fiend, restored that crystal and despawned the real Fiend with
+it; `fiendFor('history')` already returned the Clockwork Titan.
+- **`BossRole`** (`types`, `BOSS_ROLES`): `fiend / warden / miniboss / echo /
+  finale` on `EnemyDef.role`, carried to `BattleEnemy.role`; the four Fiends
+  and three wardens are tagged.
+- **By role:** victory restores a crystal only for a Fiend, gives a key for a
+  warden, and sets `bossFlag(id)` for any other boss (`BattleArena`);
+  `bossDefeated(boss, flags)` (`keys.ts`) the same; `bossScript` (`enemies.ts`)
+  gives the monologue — Fiend → `BOSS_LINES`, warden → its key's lines, other →
+  `EnemyDef.lines` or none; "💎 … shines again!" only for a Fiend; `spawnEnemy`
+  names only a Fiend after its crystal; `fiendFor` finds the `fiend`.
+- Tests: enemies.test (+4), keys.test (rewritten for roles), BattleArena.test
+  (+3: a keyless miniboss and an echo in the real arena — both fail on the old
+  code — and the Null Fiend unchanged). 787 green, lint clean.
+
+### 2026-10-10 — Crystals belong to an act: Act I stays Act I when more come (#75 item 14c)
+First slice of 14c (nothing a player sees changes). Every "all crystals"
+rule assumed the registry's four, so a fifth crystal would have re-sealed the
+Spire after Act I (a softlock: Act II opens only after the Spire), stopped the
+ending, read "x/5" in Act I and sent the 🚩 to the new crystal right after
+Numbria.
+- **`CrystalTopicInfo.act`** (the roadmap's `CRYSTAL_ACT`; required, so a new
+  crystal can't compile without one) and `actCrystals` / `actRestored` /
+  `actComplete` (`content/topics.ts`, read the registry when called).
+- **The Spire's seal and its "3/4"**, **the ending**, **the 🚩's order** and
+  **Elder Lumen's plans** read Act I's crystals; the **HUD** counts the
+  crystals of the acts that have opened (`crystalsInPlay`, `ACT_OPENS` in
+  `content/story.ts`: Act II on `act2-seen`). Ember still grows with any.
+- Tests: `test/fakeCrystal.ts` adds a stand-in Act II crystal;
+  `crystals.test` (+7), SpireOverlay.test (+2) and WorldScreen.focus.test (+2)
+  check Act I is unchanged with it — 4 of them fail on the old code. The
+  "Spire open" fixtures and the corner / fog-pocket rules now use Act I's
+  crystals. 780 green, lint clean. Follow-ups: #112.
 
 ### 2026-10-10 — 14b second review: keyboard reaches every overlay, Sign out never moves the map (#75 item 14b)
 A second fresh-context `/saas-code-review` (3 low) + `/saas-ux-review` (1

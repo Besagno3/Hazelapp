@@ -151,7 +151,7 @@ describe('a battle at sea (#75 item 14d)', () => {
   it('every inn is a town on Marlow\'s own map, so a hero woken there after a sea defeat can walk to the boat', () => {
     // `boatAfterDefeat` sends the boat to Marlow's dock on Dawnreach. An inn on
     // an island (14h plans Binder's, in the Sunken Archive) would strand the
-    // hero there — moor the boat at that town instead when one comes (#112o).
+    // hero there — moor the boat at that town instead when one comes (#114o).
     const innTowns = Object.values(ZONES).filter((z) => innOf(z));
     expect(innTowns.length).toBeGreaterThan(0);
     for (const z of innTowns) {
@@ -160,7 +160,7 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect([...RETURN_TOWNS].sort()).toEqual(innTowns.map((z) => z.id).sort());
   });
 
-  it("Old Marlow, who gives and mends the boat, and Vela's door stand out of every Starfall Coast critter's reach (#112w)", () => {
+  it("Old Marlow, who gives and mends the boat, and Vela's door stand out of every Starfall Coast critter's reach (#114w)", () => {
     const coast = ZONES['starfall-coast'];
     const marlow = coast.npcs.find((p) => p.defId === 'coast-fisher')!;
     // Each door and the doorstep below it.
@@ -175,7 +175,7 @@ describe('a battle at sea (#75 item 14d)', () => {
     }
   });
 
-  it('critters moved so a sleeping one\'s "z Z" are its own stay out of reach of the way on, doors and people (#112e)', () => {
+  it('critters moved so a sleeping one\'s "z Z" are its own stay out of reach of the way on, doors and people (#114e)', () => {
     const reachPx = 32 * WANDER_TUNING.enemy.leashTiles + 28;
     const clear = (zoneId: keyof typeof ZONES, defId: string, cells: { x: number; y: number }[]) => {
       const e = ZONES[zoneId].enemies.find((p) => p.defId === defId)!;
@@ -203,7 +203,7 @@ describe('a battle at sea (#75 item 14d)', () => {
     ]);
   });
 
-  it("from where you arrive, a walk to the save crystal clear of every awake critter's reach (#112e)", () => {
+  it("from where you arrive, a walk to the save crystal clear of every awake critter's reach (#114e)", () => {
     // Critters within reach of the arrival are asleep there (they let you pass); the rest are awake.
     const reachPx = 32 * WANDER_TUNING.enemy.leashTiles + 28;
     const px = (c: { x: number; y: number }) => ({ x: c.x * 32 + 16, y: c.y * 32 + 16 });

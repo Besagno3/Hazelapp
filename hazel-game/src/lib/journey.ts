@@ -2,8 +2,8 @@ import { HUB_ZONE, ZONES, gateIdAt, npcPresent, type ZoneDef, type ZoneId } from
 import { NPC_DEFS } from '../content/npcs';
 import { ENEMY_DEFS, fiendFor } from '../content/enemies';
 import { GATE_KEYS, bossDefeated, keyFlag, keyForZone } from '../content/keys';
-import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
-import { SPIRE_CLEARED } from '../content/story';
+import { crystalFlag } from '../content/topics';
+import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
 import { BOAT_MENDED, BOAT_QUEST_ID } from '../content/boat';
 import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
 import { visitedFlag } from '../content/fieldSpells';
@@ -33,10 +33,12 @@ const ACT_ONE: readonly Objective['kind'][] = ['crystal', 'key', 'spire'];
 /** Does what a goal asks — the way a player would — and returns the flags it leads to. */
 export function advanceGoal(g: Objective, flags: Record<string, boolean>): Record<string, boolean> {
   const next = { ...flags };
-  if (g.kind === 'crystal') next[crystalFlag(TOPIC_REGISTRY.find((t) => t.zoneId === g.zoneId)!.id)] = true;
+  if (g.kind === 'crystal') next[crystalFlag(g.crystal!.id)] = true;
   else if (g.kind === 'key') next[keyFlag(GATE_KEYS.find((k) => k.fromZone === g.zoneId)!.id)] = true;
-  else if (g.kind === 'spire') next[SPIRE_CLEARED] = true;
+  // Beating Umbra ends in a night at the inn and Act II's morning (act2-seen), which lifts the Grove-road fog.
+  else if (g.kind === 'spire') Object.assign(next, { [SPIRE_CLEARED]: true, [ACT2_SEEN]: true });
   else if (g.kind === 'sail') next[visitedFlag('silver-shallows')] = true;
+  else if (g.kind === 'visit') next[visitedFlag(g.zoneId!)] = true;
   else if (g.kind === 'boat') {
     const quest = QUESTS.find((q) => q.id === BOAT_QUEST_ID)!;
     const step = quest.steps.find((st) => !next[stepFlag(st.id)]);
@@ -73,7 +75,7 @@ export function playerRules(z: ZoneDef, flags: Record<string, boolean>, target?:
   }
   for (const p of z.enemies) {
     const def = ENEMY_DEFS[p.defId];
-    if (!def?.isBoss || bossDefeated(def.id, def.topic, flags)) continue;
+    if (!def?.isBoss || bossDefeated(def, flags)) continue;
     if (target && p.x === target.x && p.y === target.y) continue;
     standing.add(`${p.x},${p.y}`);
   }

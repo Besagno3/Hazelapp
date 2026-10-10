@@ -598,7 +598,7 @@ async function sea(browser, outDir) {
     `landed ${landed}, resting ${ashore} battles, then ${JSON.stringify(s.battles)}`,
   );
 
-  // A bump's cooldown spares only an enemy already touching the hero (#112t): bump the
+  // A bump's cooldown spares only an enemy already touching the hero (#114t): bump the
   // Whispering Woods save crystal (18,2) from 18,3 — a 2 s cooldown — then head down-left
   // past the Thicket Warden (16,4). It fights; it used to let the hero walk through.
   page = await ready('zone=whispering-woods&at=18,3');

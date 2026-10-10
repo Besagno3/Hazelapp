@@ -149,7 +149,7 @@ describe('pickAmbientLine', () => {
   });
 });
 
-describe('nextWanderDir (#112bb)', () => {
+describe('nextWanderDir (#114bb)', () => {
   const home = { homeX: 100, homeY: 100, leash: 64 };
   const rng = () => 0.9; // pickWanderDir: a step, not a pause
   it('wanders freely inside 85% of its leash', () => {

@@ -55,10 +55,11 @@ import {
 } from '../../content/companion';
 import { CLOVER_COIN_MULT, CONSUMABLES, type ConsumableId } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
-import { BOSS_LINES, emberStatus, EMBER_HATCHED } from '../../content/story';
-import { keyForBoss, keyFlag } from '../../content/keys';
+import { emberStatus, EMBER_HATCHED } from '../../content/story';
+import { bossFlag, keyForBoss, keyFlag } from '../../content/keys';
+import { bossScript } from '../../content/enemies';
 import { resolveSprite } from '../../content/sprites';
-import { BASE_TIER, dangerMarks, defeatTip, toughCallout } from '../../content/regions';
+import { BASE_TIER, dangerMarks, defeatTip, toughCallout, toughKey } from '../../content/regions';
 import { roadTier } from '../../lib/wayfinding';
 import { battleBackdrop } from '../../content/tiles';
 import { avatarById } from '../../content/avatars';
@@ -111,6 +112,7 @@ const ITEM_SOUND: Record<ConsumableId, SfxName> = {
   ward: 'guard',
   mirror: 'guard',
   clover: 'streak',
+  knot: 'spell',
   hint: 'select',
 };
 
@@ -153,6 +155,7 @@ export default function BattleArena() {
     mirrored,
     focused,
     lucky,
+    knotted,
     applyCombat,
     markDefeated,
     recordLoss,
@@ -170,6 +173,7 @@ export default function BattleArena() {
       mirrored: s.mirrored,
       focused: s.focused,
       lucky: s.lucky,
+      knotted: s.knotted,
       applyCombat: s.applyCombat,
       markDefeated: s.markDefeated,
       recordLoss: s.recordLoss,
@@ -266,6 +270,8 @@ export default function BattleArena() {
   // The question (by card key) the player has picked an answer for — stops
   // the defend countdown.
   const [answeredKey, setAnsweredKey] = useState<string | null>(null);
+  /** The question whose defend timer a Forget-Me-Knot's second try paused (#75 item 14e). */
+  const [pausedKey, setPausedKey] = useState<string | null>(null);
   // Displayed HP while a blow is still in the air (null = show the store's).
   // Cosmetic only: the store already holds the real numbers.
   const [shownHp, setShownHp] = useState<{ p: number; e: number } | null>(null);
@@ -323,11 +329,11 @@ export default function BattleArena() {
     const tier = enemy.tier ?? BASE_TIER;
     const { toughMet, meetTough } = useBattleStore.getState();
     const lines: { text: string; shown?: () => void }[] = [];
-    if (enemy.isBoss) {
-      const intro = keyBoss ? keyBoss.bossIntro : BOSS_LINES[enemy.topic as keyof typeof BOSS_LINES].intro;
-      for (const text of intro) lines.push({ text });
-    }
-    if (dangerMarks(tier) && !toughMet.includes(tier)) lines.push({ text: `💪 ${toughCallout(tier)}`, shown: () => meetTough(tier) });
+    // A boss's monologue by its role (#75 item 14c) — a boss with no lines just fights.
+    if (enemy.isBoss) for (const text of bossScript(enemy)?.intro ?? []) lines.push({ text });
+    // Tiers 5–7 share one line (`toughKey`); below that, one per tier.
+    const toughAs = toughKey(tier);
+    if (dangerMarks(tier) && !toughMet.includes(toughAs)) lines.push({ text: `💪 ${toughCallout(tier)}`, shown: () => meetTough(toughAs) });
     if (mercyDrop > 0) lines.push({ text: `💛 ${mercyCallout(enemy)}` });
     if (lines.length === 0) return;
     const chain = lines.reduceRight<() => void>(
@@ -483,6 +489,7 @@ export default function BattleArena() {
       mirror: ['🪞', 'text-sky-300'],
       tea: ['🍵 Focus!', 'text-lime-300'],
       clover: ['🍀 Lucky!', 'text-emerald-300'],
+      knot: ['🎗️', 'text-violet-300'],
     };
     const bf = buffFloat[id];
     if (bf) float(bf[0], 'hero', bf[1]);
@@ -857,9 +864,11 @@ export default function BattleArena() {
         // The first victory warms the egg — the hatch scene plays back in
         // the world (#37 story pass).
         [EMBER_HATCHED]: true,
-        // Crystal Fiends restore a crystal; wardens grant a gate key instead.
-        ...(enemy!.isBoss && !keyBoss ? { [crystalFlag(topic)]: true } : {}),
+        // By its role (#75 item 14c): a Fiend restores its crystal, a warden
+        // gives up its gate key, any other boss is marked beaten on its own.
+        ...(enemy!.role === 'fiend' ? { [crystalFlag(topic)]: true } : {}),
         ...(keyBoss ? { [keyFlag(keyBoss.id)]: true } : {}),
+        ...(enemy!.isBoss && enemy!.role !== 'fiend' && !keyBoss ? { [bossFlag(enemy!.id)]: true } : {}),
       },
     }));
     setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop });
@@ -910,6 +919,7 @@ export default function BattleArena() {
     mirrored,
     focused,
     lucky,
+    knotted,
   };
   const perkLabel = { charge: `+${EMBER_BONUS_CHARGE}◆`, peek: '👀 peek', mend: `+${WISP_MEND} HP` }[companion.perk];
   // Identifies the current question card (remounts QuestionCard + DefendTimer).
@@ -1069,9 +1079,11 @@ export default function BattleArena() {
           <div className="w-full max-w-xl">
             {turn.kind === 'enemy-question' && save.defendTimer ? (
               <DefendTimer
-                key={qKey}
+                // Its own key: it sits beside the QuestionCard keyed by `qKey`.
+                key={`${qKey}:timer`}
                 durationMs={defendTimeMs(age, mercy.levelDrop > 0)}
                 stopped={answeredKey === qKey}
+                paused={pausedKey === qKey}
                 onExpire={() => defendTimedOut(turn.question)}
                 label={charging ? `💢 ${powerMove} — answer to soften it!` : `🛡️ ${enemy.name} attacks — answer to block!`}
               />
@@ -1100,6 +1112,15 @@ export default function BattleArena() {
               question={turn.question}
               hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
               preHidden={turn.hide ?? 0}
+              // Forget-Me-Knot (#75 item 14e): a wrong pick is crossed out and the hero picks again.
+              secondChance={knotted}
+              onSecondChance={() => {
+                // A second try isn't evidence the questions are too easy (the speed trigger).
+                helped.current = true;
+                applyCombat({ ...combatState(), knotted: false });
+                // A defend question's clock waits for the second pick: take your time.
+                setPausedKey(qKey);
+              }}
               onUseHint={() => {
                 helped.current = true;
                 useSaveStore.getState().spendHint();
@@ -1141,10 +1162,8 @@ export default function BattleArena() {
             result={turn.kind}
             enemy={enemy}
             keyBoss={keyBoss}
-            fiendDefeatLine={
-              enemy.isBoss && !keyBoss ? BOSS_LINES[topic as keyof typeof BOSS_LINES]?.defeat : undefined
-            }
-            crystalName={info.crystalName}
+            fiendDefeatLine={enemy.isBoss && !keyBoss ? bossScript(enemy)?.defeat : undefined}
+            crystalName={enemy.role === 'fiend' ? info.crystalName : undefined}
             correctCount={answers.filter(Boolean).length}
             xp={turn.xp}
             coins={turn.kind === 'victory' ? turn.coins : enemy.coins}

@@ -7,7 +7,7 @@
  */
 
 /** Carried consumables. The save stores a count for each id. */
-export const CONSUMABLE_IDS = ['potion', 'hint', 'elixir', 'spark', 'ward', 'clover', 'tea', 'snack', 'coil', 'mirror'] as const;
+export const CONSUMABLE_IDS = ['potion', 'hint', 'elixir', 'spark', 'ward', 'clover', 'tea', 'snack', 'coil', 'mirror', 'knot'] as const;
 export type ConsumableId = (typeof CONSUMABLE_IDS)[number];
 
 export interface ShopItem {
@@ -47,10 +47,12 @@ export const CONSUMABLES: Record<ConsumableId, { name: string; emoji: string; de
   snack: { name: 'Sunseed Snack', emoji: '🌻', description: `Restores ${SNACK_HEAL} HP and adds 1 ◆ charge.` },
   coil: { name: 'Turbo Coil', emoji: '🌀', description: 'Fills your ◆ charge all the way up.' },
   mirror: { name: 'Mirror Charm', emoji: '🪞', description: "Bounces the enemy's next hit back at it." },
+  // Act II (#75 item 14e): Trader Knack's — tie it on and you won't forget the answer twice.
+  knot: { name: 'Forget-Me-Knot', emoji: '🎗️', description: 'Your next wrong answer in this battle gets a second try.' },
 };
 
 /** Consumables that can be used from the battle Items menu (not Hint Feathers). */
-export const BATTLE_ITEMS: readonly ConsumableId[] = ['potion', 'elixir', 'snack', 'spark', 'coil', 'ward', 'mirror', 'tea', 'clover'];
+export const BATTLE_ITEMS: readonly ConsumableId[] = ['potion', 'elixir', 'snack', 'spark', 'coil', 'ward', 'mirror', 'tea', 'clover', 'knot'];
 
 function stock(id: ConsumableId, price: number): ShopItem {
   return { id, ...CONSUMABLES[id], price };
@@ -104,6 +106,15 @@ export const SHOPS: Record<string, ShopDef> = {
     items: [
       stock('ward', 40),
       { id: 'badge:palette', name: 'Palette Badge', emoji: '🎨', description: 'Every colour at once!', price: 90 },
+    ],
+  },
+  // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.
+  'hill-merchant': {
+    name: "Knack's Pre-Remembered Goods",
+    emoji: '🧳',
+    items: [
+      stock('knot', 35),
+      { id: 'badge:forgetmenot', name: 'Forget-Me-Not Badge', emoji: '🌼', description: "You won't forget this one. Probably.", price: 100 },
     ],
   },
   'village-shopkeeper': {

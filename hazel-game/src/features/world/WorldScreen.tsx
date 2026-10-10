@@ -29,9 +29,10 @@ import { lossKey, mercyFor } from '../../lib/battleTurn';
 import { roadTier } from '../../lib/wayfinding';
 import { arrivalWarning, zoneTier } from '../../content/regions';
 import { avatarById } from '../../content/avatars';
-import { TOPIC_REGISTRY, crystalFlag } from '../../content/topics';
+import { TOPIC_REGISTRY, actComplete, crystalFlag } from '../../content/topics';
 import { bossDefeated } from '../../content/keys';
 import {
+  crystalsInPlay,
   emberStatus,
   endingPanels,
   EMBER_SPRITES,
@@ -79,7 +80,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { useBattleStore } from '../../store/battleStore';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
 
-/** Said once a session, as the hero heads up to a sleeping critter (#112e)… */
+/** Said once a session, as the hero heads up to a sleeping critter (#114e)… */
 const SLEEPER_HINT = '💤 Sleepy critters let you pass. They wake up when you move away.';
 /** …once it's been up this long (ms): long enough to read, not cut off by a battle. */
 const SLEEPER_HINT_READ_MS = 2500;
@@ -143,7 +144,7 @@ export default function WorldScreen() {
   // off before it's been read (a first-arrival warning; `onSleeper`).
   const toastUp = useRef(false);
   // The 💤 hint counts as said once it's been up long enough to read — cut
-  // short (a battle, another toast) it's said again the next time (#112e).
+  // short (a battle, another toast) it's said again the next time (#114e).
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -181,6 +182,8 @@ export default function WorldScreen() {
   const hp = Math.min(save?.hp ?? maxHp, maxHp);
   const flags = save?.flags ?? {};
   const { crystals, stage: ember } = emberStatus(flags);
+  // The HUD counts the crystals of the acts that have opened (#75 item 14c).
+  const inPlay = crystalsInPlay(flags);
 
   // Story moments (#37 story pass + expansion + #55 Spire finale). Exactly one
   // plays at a time; priority: Spire victory (true finale) → intro → hatch →
@@ -195,7 +198,8 @@ export default function WorldScreen() {
     TOPIC_REGISTRY.find((t) => flags[crystalFlag(t.id)] && !flags[crystalSceneFlag(t.id)])?.id ??
     null;
   const spireAwakeDue = crystals >= 1 && !flags[SPIRE_AWAKE_SEEN];
-  const endingDue = crystals === TOPIC_REGISTRY.length && !flags[ENDING_SEEN];
+  // The call to climb the Spire: Act I's crystals all restored (a later act's never delay it).
+  const endingDue = actComplete(flags, 1) && !flags[ENDING_SEEN];
   // Location-triggered: plays once on first stepping into the hidden grove,
   // and once on the first step out onto Dawnreach (#75 Phase 1).
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
@@ -268,7 +272,7 @@ export default function WorldScreen() {
     if (!save) return;
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
-      if (enemy.isBoss && bossDefeated(enemy.id, enemy.topic, save.flags)) continue;
+      if (enemy.isBoss && bossDefeated(enemy, save.flags)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
       prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT);
     }
@@ -381,7 +385,7 @@ export default function WorldScreen() {
             )}
           </h1>
           <p className="text-[11px] text-white/60">
-            💎 {crystals}/{TOPIC_REGISTRY.length} crystals restored
+            💎 {inPlay.restored}/{inPlay.total} crystals restored
           </p>
         </div>
         {/* Wraps rather than pushing 📜 Menu off a phone's screen (Calm's timer, Glow). */}

@@ -55,7 +55,7 @@ const { HUB_ZONE } = await import('../../content/zones');
 const { SPIRE_FLOORS } = await import('../../content/spire');
 const { WAKE_MS } = await import('../../components/WakeFade');
 const story = await import('../../content/story');
-const { TOPIC_REGISTRY, crystalFlag } = await import('../../content/topics');
+const { actCrystals, crystalFlag } = await import('../../content/topics');
 
 /** Every story beat of Act I seen, and Umbra just beaten. */
 function umbraBeaten(): Record<string, boolean> {
@@ -68,7 +68,7 @@ function umbraBeaten(): Record<string, boolean> {
     [story.DAWNREACH_SEEN]: true,
     [story.SPIRE_CLEARED]: true,
   };
-  for (const t of TOPIC_REGISTRY) {
+  for (const t of actCrystals(1)) {
     flags[crystalFlag(t.id)] = true;
     flags[story.crystalSceneFlag(t.id)] = true;
   }

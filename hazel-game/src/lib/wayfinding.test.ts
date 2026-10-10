@@ -4,9 +4,9 @@ import { reach } from './reach';
 import { advanceGoal } from './journey';
 import { whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
-import { TOPIC_REGISTRY, crystalFlag } from '../content/topics';
+import { actCrystals, crystalFlag } from '../content/topics';
 import { GATE_KEYS, keyFlag, keyForZone } from '../content/keys';
-import { SPIRE_CLEARED } from '../content/story';
+import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
 import {
   compass,
   exitSide,
@@ -28,10 +28,18 @@ import { BOAT_MENDED } from '../content/boat';
 
 const dawn = ZONES.dawnreach;
 const ALL_ZONES = Object.keys(ZONES) as ZoneId[];
-const allCrystals = Object.fromEntries(TOPIC_REGISTRY.map((t) => [crystalFlag(t.id), true]));
-/** Act II's errands done (#75 item 14): Marlow's boat mended and sailed to the Silver Shallows. */
-const actTwoDone = { [BOAT_MENDED]: true, [visitedFlag('silver-shallows')]: true };
-/** The whole story so far: every crystal, the Spire, the boat, the voyage. */
+const allCrystals = Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.id), true]));
+/**
+ * Act II's errands done (#75 item 14): Act II's morning, Marlow's boat mended
+ * and sailed to the Silver Shallows, Remembrance Hill visited (#75 item 14e).
+ */
+const actTwoDone = {
+  [ACT2_SEEN]: true,
+  [BOAT_MENDED]: true,
+  [visitedFlag('silver-shallows')]: true,
+  [visitedFlag('remembrance-hill')]: true,
+};
+/** The whole story so far: every crystal, the Spire, the boat, the voyage, the Hill. */
 const storyDone = { ...allCrystals, [SPIRE_CLEARED]: true, ...actTwoDone };
 
 describe('compass', () => {
@@ -85,7 +93,7 @@ describe('nextObjective', () => {
     expect(nextObjective(storyDone)).toMatchObject({ kind: 'explore', zoneId: null });
   });
 
-  it("Marlow's boat (#75 item 14): each friend in turn, then back to Marlow, then sail from his dock", () => {
+  it("Marlow's boat (#75 item 14): each friend in turn, then back to Marlow, then sail from his dock — then the Hill", () => {
     const flags: Record<string, boolean> = { ...allCrystals, [SPIRE_CLEARED]: true };
     const path: [string, ZoneId | null][] = [];
     for (let i = 0; i < 10; i++) {
@@ -101,6 +109,8 @@ describe('nextObjective', () => {
       ["Get a rudder built for Marlow's boat", 'gearfall'],
       ['Tell Old Marlow his boat is ready', 'starfall-coast'],
       ['Sail the Silver Shallows', 'silver-shallows'],
+      // #75 item 14e: then the town the world just remembered.
+      ['Visit Remembrance Hill', 'remembrance-hill'],
     ]);
     // The voyage starts at Marlow's dock: its 🚩 sits there, and the way says so.
     const sail = nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true });
@@ -112,6 +122,19 @@ describe('nextObjective', () => {
     // Already on the dock: just climb in (review fix).
     expect(goalDirections(ZONES, sail, 'dawnreach', { x: 70, y: 30 })).toBe("Climb into Marlow's boat at the end of the dock and sail east.");
     expect(goalDirections(ZONES, sail, 'dawnreach', { x: 60, y: 30 })).toBe("Go east to Marlow's dock and sail east.");
+  });
+
+  it('after the Silver Shallows, the 🚩 leads back across the sea to Remembrance Hill (#75 item 14e)', () => {
+    const afterVoyage = { ...allCrystals, [SPIRE_CLEARED]: true, [ACT2_SEEN]: true, [BOAT_MENDED]: true, [visitedFlag('silver-shallows')]: true };
+    const g = nextObjective(afterVoyage);
+    expect(g).toMatchObject({ kind: 'visit', title: 'Visit Remembrance Hill', zoneId: 'remembrance-hill' });
+    expect(g.at).toBeUndefined();
+    expect(goalDirections(ZONES, g, 'silver-shallows')).toMatch(/^Sail west to Dawnreach, then .*Remembrance Hill\.$/);
+    expect(goalDirections(ZONES, g, 'moonwell-grove')).toMatch(/Remembrance Hill/);
+    // Once you've been, it's the open world again until Act II's next places exist.
+    expect(nextObjective({ ...afterVoyage, [visitedFlag('remembrance-hill')]: true }).kind).toBe('explore');
+    // Elder Lumen points the way in his own words.
+    expect(mentorTips(ZONES, afterVoyage)[0]).toMatch(/Remembrance Hill, to the south.*never forgets a name/);
   });
 
   // Doing what it says must finish the story: every step is one the hero can
@@ -130,8 +153,9 @@ describe('nextObjective', () => {
       Object.assign(flags, advanceGoal(g, flags));
     }
     expect(seen.at(-1)?.kind).toBe('explore');
-    // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage, explore.
-    expect(seen).toHaveLength(TOPIC_REGISTRY.length + GATE_KEYS.length + 1 + 5 + 1 + 1);
+    // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage,
+    // Remembrance Hill (#75 item 14e), explore.
+    expect(seen).toHaveLength(actCrystals(1).length + GATE_KEYS.length + 1 + 5 + 1 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -253,10 +277,16 @@ describe('signpostLines', () => {
   it('names every place once, by direction, clockwise from north, nearest first', () => {
     const lines = signpostLines(dawn, 44, 31);
     const names = lines.flatMap((l) => l.replace(/^\S+ /, '').split(' · '));
-    expect(names.sort()).toEqual(dawn.places!.map((p) => p.name).sort());
+    // Before Act II nobody has heard of Remembrance Hill (#75 item 14e).
+    expect(names.sort()).toEqual(dawn.places!.filter((p) => !p.knownFrom).map((p) => p.name).sort());
+    expect(names).not.toContain('Remembrance Hill');
     expect(lines[0]).toBe('↗️ Echo Mine · Shrine of First Light · Gearfall Canyon');
     expect(lines.find((l) => l.startsWith('⬅️'))).toBe('⬅️ Lumina Village · Whispering Woods');
     expect(lines.at(-1)).toBe("↖️ Wayfarer's Shrine · Numbria");
+  });
+  it('names Remembrance Hill once Lumina starts remembering (#75 item 14e)', () => {
+    const lines = signpostLines(dawn, 44, 31, { [ACT2_SEEN]: true });
+    expect(lines.find((l) => l.includes('Remembrance Hill'))).toMatch(/^↙️/);
   });
   it("leaves out a place you're standing beside", () => {
     const village = dawn.places!.find((p) => p.name === 'Lumina Village')!;

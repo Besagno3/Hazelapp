@@ -29,7 +29,8 @@ export function BattleResult({
   keyBoss?: GateKey;
   /** A crystal Fiend's last words. */
   fiendDefeatLine?: string;
-  crystalName: string;
+  /** Set only for a Fiend (#75 item 14c): its crystal shines again. */
+  crystalName?: string;
   correctCount: number;
   /** XP awarded for the whole fight. */
   xp: number;
@@ -73,7 +74,8 @@ export function BattleResult({
           {enemy.isBoss && !keyBoss && (
             <>
               {fiendDefeatLine && <p className="text-white/60 italic text-sm mb-1">"{fiendDefeatLine}"</p>}
-              <p className="text-emerald-300 font-bold mb-1">💎 The {crystalName} shines again!</p>
+              {/* Only a Fiend restores a crystal (#75 item 14c). */}
+              {crystalName && <p className="text-emerald-300 font-bold mb-1">💎 The {crystalName} shines again!</p>}
             </>
           )}
           <p className="text-sm text-white/80">
@@ -102,7 +104,7 @@ export function BattleResult({
           {boatHome && <p className="text-sm text-sky-200 font-semibold mt-2">{SEA_DEFEAT_LINE}</p>}
           {/* Lost at sea, where the boat went comes first: with the tip too, a
               320×568 phone pushed the button off the screen. Nothing's lost —
-              a critter that eases off says so in the battle itself (#112). */}
+              a critter that eases off says so in the battle itself (#114). */}
           {tip && !boatHome && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
         </>
       )}

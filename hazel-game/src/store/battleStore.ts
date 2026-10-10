@@ -25,10 +25,11 @@ interface BattleStore {
   enemyShielded: boolean;
   /** Highest boss enrage phase already announced. */
   lastPhase: number;
-  /** Battle-item buffs (Mirror Charm / Focus Tea / Lucky Clover), per fight. */
+  /** Battle-item buffs (Mirror Charm / Focus Tea / Lucky Clover / Forget-Me-Knot), per fight. */
   mirrored: boolean;
   focused: boolean;
   lucky: boolean;
+  knotted: boolean;
   /** Enemy instances beaten this session — kept off the map until reload. */
   defeatedIds: string[];
   /**
@@ -42,7 +43,7 @@ interface BattleStore {
    * battle against a critter with "!" marks says what they mean, once per tier.
    */
   toughMet: number[];
-  /** The "💤 Sleepy critters let you pass…" hint has been said this session (#112e). */
+  /** The "💤 Sleepy critters let you pass…" hint has been said this session (#114e). */
   sleeperHintSaid: boolean;
 
   start: (enemy: BattleEnemy, playerHp: number, playerMaxHp: number) => void;
@@ -63,6 +64,7 @@ const FRESH_COMBAT = {
   mirrored: false,
   focused: false,
   lucky: false,
+  knotted: false,
 };
 
 export const useBattleStore = create<BattleStore>((set) => ({
@@ -97,6 +99,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
       mirrored: s.mirrored,
       focused: s.focused,
       lucky: s.lucky,
+      knotted: s.knotted,
     }),
 
   markDefeated: (instanceId) =>
@@ -139,5 +142,6 @@ export function combatState(): CombatState {
     mirrored: s.mirrored,
     focused: s.focused,
     lucky: s.lucky,
+    knotted: s.knotted,
   };
 }

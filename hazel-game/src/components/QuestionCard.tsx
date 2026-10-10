@@ -8,6 +8,8 @@ import type { Question } from '../types';
  * locks, and the Library. Reveals correct/wrong styling on pick, shows the
  * explanation, and supports spending a Hint Feather (hides two wrong options).
  * `preHidden` crosses out wrong options before the player starts (Pip's peek).
+ * `secondChance` (a Forget-Me-Knot, #75 item 14e): the first wrong pick is
+ * crossed out instead of answered, and the player picks again.
  * The parent advances via `onContinue` so reading is never rushed.
  */
 export default function QuestionCard({
@@ -19,6 +21,8 @@ export default function QuestionCard({
   continueLabel = 'Continue',
   onContinue,
   note,
+  secondChance = false,
+  onSecondChance,
 }: {
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
@@ -37,10 +41,16 @@ export default function QuestionCard({
    * the line when it appears; the parent decides when it has text.
    */
   note?: string;
+  /** A wrong pick is crossed out and the player picks again — once (a Forget-Me-Knot). */
+  secondChance?: boolean;
+  /** Fires when the second try is spent (the parent unties the knot). */
+  onSecondChance?: () => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [hidden, setHidden] = useState<number[]>(() => pickWrong(question, [], preHidden));
   const [hintUsed, setHintUsed] = useState(false);
+  /** The wrong pick a Forget-Me-Knot crossed out, if it has been spent on this card. */
+  const [retried, setRetried] = useState<number | null>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
 
   // On a phone the explanation can push Continue below the fold — bring it
@@ -57,9 +67,18 @@ export default function QuestionCard({
   const [continued, setContinued] = useState(false);
 
   function pick(idx: number) {
-    if (selected !== null) return;
-    setSelected(idx);
+    if (selected !== null || idx === retried) return;
     const correct = idx === question.correctIndex;
+    // A Forget-Me-Knot: the first wrong pick doesn't count — cross it out and try
+    // again. Only while that leaves a real choice: after a Hint Feather or a peek
+    // has crossed out the rest, the pick is final and the knot stays tied.
+    if (!correct && secondChance && retried === null && wrongLeft(question, hidden).length > 1) {
+      setRetried(idx);
+      sfx('select');
+      onSecondChance?.();
+      return;
+    }
+    setSelected(idx);
     sfx(correct ? 'correct' : 'wrong');
     onAnswered(correct, idx);
   }
@@ -71,9 +90,13 @@ export default function QuestionCard({
     onContinue(selected === question.correctIndex);
   }
 
+  // Options already out of play: hidden by a hint or a peek, or crossed out by a Forget-Me-Knot.
+  const out = retried === null ? hidden : [...hidden, retried];
+
   function useHint() {
     if (selected !== null || hintUsed || !onUseHint) return;
-    setHidden((h) => [...h, ...pickWrong(question, h, 2)]);
+    // A hint never leaves only the right answer standing — the knot's cross-out counts.
+    setHidden((h) => [...h, ...pickWrong(question, retried === null ? h : [...h, retried], 2)]);
     setHintUsed(true);
     onUseHint();
   }
@@ -85,8 +108,34 @@ export default function QuestionCard({
       className="bg-white text-gray-800 rounded-2xl p-4 sm:p-5 w-full max-w-lg shadow-2xl"
     >
       <h2 className="font-semibold text-lg mb-4">{question.text}</h2>
+      {/*
+        The Forget-Me-Knot's line sits above the options, where a small phone
+        still shows it. Mounted up front while a knot is tied, so a screen
+        reader reads the line when it appears.
+      */}
+      {(secondChance || retried !== null) && (
+        <p
+          role="status"
+          className={retried !== null && selected === null ? '-mt-2 mb-3 text-sm font-semibold text-violet-800' : 'sr-only'}
+        >
+          {retried !== null && selected === null ? '🎗️ Not that one — your Forget-Me-Knot gives you a second try. Take your time!' : ''}
+        </p>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {question.options.map((opt, idx) => {
+          if (idx === retried && selected === null) {
+            // aria-disabled, not disabled: focus stays here (a disabled button drops it to the page).
+            return (
+              <button
+                key={idx}
+                aria-disabled="true"
+                aria-label={`${opt} — not this one`}
+                className="min-h-[44px] border-2 border-red-200 bg-red-50 rounded-lg px-3 py-2 text-sm text-red-400 line-through text-left"
+              >
+                {opt}
+              </button>
+            );
+          }
           if (hidden.includes(idx)) {
             return (
               <div
@@ -110,7 +159,8 @@ export default function QuestionCard({
         })}
       </div>
 
-      {selected === null && hints > 0 && onUseHint && !hintUsed && canHideMore(question, hidden) && (
+
+      {selected === null && hints > 0 && onUseHint && !hintUsed && canHideMore(question, out) && (
         <button
           onClick={useHint}
           className="mt-2 -ml-2 min-h-[44px] px-2 inline-flex items-center rounded-lg text-sm text-purple-600 hover:text-purple-800 hover:bg-purple-50 font-semibold"
