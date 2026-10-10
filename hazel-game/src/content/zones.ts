@@ -457,6 +457,9 @@ function crystalPocket(
   };
 }
 
+/** Who wants an acorn found in Eldergrove before her quest is offered (#75 item 14f). */
+const FEN_WANTS = "🧺 Fen the Forager, by her hollow in the grove's north-west, has lost her three best acorns!";
+
 export const ZONES: Record<ZoneId, ZoneDef> = {
   numbria: {
     id: 'numbria',
@@ -1825,6 +1828,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'hollow-acorn', x: 31, y: 14 },
       // In the Great Ring, beside the stump.
       { defId: 'ringkeeper', x: 25, y: 23 },
+    ],
+    // Fen's three best acorns, each in a riddle-chest (#75 item 14f, "Fen's Forgotten Acorns").
+    keyChests: [
+      { x: 2, y: 15, item: 'acorn-speckled', wantedBy: FEN_WANTS },
+      { x: 41, y: 14, item: 'acorn-striped', wantedBy: FEN_WANTS },
+      { x: 5, y: 24, item: 'acorn-golden', wantedBy: FEN_WANTS },
     ],
     exits: [
       // Back out to the island's path, just north of Eldergrove's icon on the Shallows.

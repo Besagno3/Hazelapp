@@ -1316,9 +1316,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🧺',
     role: 'villager',
     stationary: true,
+    // Her quest's offer comes first ("Fen's Forgotten Acorns"); these follow it.
     lines: [
-      "Oh! A visitor! I'm Fen. I forage.",
-      'I remember where I hid my acorns. All 4,000. Roughly.',
+      "My three best acorns are safe in my hollow now. I won't forget where. I wrote it down!",
+      '…Has anybody seen where I put the note?',
     ],
     ambient: ['Acorns, acorns…', '🌰'],
   },

@@ -506,6 +506,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — Fen's Forgotten Acorns: a collection quest (#75 item 14f)
+Third slice of 14f. Fen the Forager hid her three best acorns — Speckled,
+Striped and Golden — in chests and forgot which (`fen-acorns`, side quest):
+three key-item chests across Eldergrove (`ZoneDef.keyChests`, items
+`acorn-*`) and one have step. Her hint always names the first acorn still
+missing and where it is, and each find "jogs her memory" for the next
+(`FEN_ACORNS`). She takes all three for 35 coins and a Hint Feather. An acorn
+found before meeting her says who wants it. Tests: quests.test +4. 838 green.
+
 ### 2026-10-10 — The Ringkeeper and the Memoria Key (#75 item 14f)
 Second slice of 14f — Eldergrove's warden.
 - **The Ringkeeper** 🦌 (`ringkeeper`, a history warden, +1; "Thousand-Year

@@ -46,7 +46,34 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   // Item chains (#75 item 13): found in a key-item chest, cut by Miner Mabel.
   moonstone: { id: 'moonstone', name: 'Moonstone', emoji: '🌙' },
   'cut-moonstone': { id: 'cut-moonstone', name: 'Cut Moonstone', emoji: '💠' },
+  // Fen's Forgotten Acorns (#75 item 14f): three key-item chests in Eldergrove.
+  'acorn-speckled': { id: 'acorn-speckled', name: 'Speckled Acorn', emoji: '🌰' },
+  'acorn-striped': { id: 'acorn-striped', name: 'Striped Acorn', emoji: '🌰' },
+  'acorn-golden': { id: 'acorn-golden', name: 'Golden Acorn', emoji: '🌰' },
 };
+
+/**
+ * Fen's acorns in the order she remembers them (#75 item 14f): each one found
+ * jogs her memory about the next, so her hint always points at the first
+ * still missing — the "hints chain" of STORY-4X.
+ */
+const FEN_ACORNS = [
+  {
+    item: 'acorn-speckled',
+    label: 'the Speckled Acorn',
+    where: "I tucked the Speckled Acorn in a hollow log, way over on the west side of the grove.",
+  },
+  {
+    item: 'acorn-striped',
+    label: 'the Striped Acorn',
+    where: 'The Striped Acorn is across the stream — take the little bridge east, then look by the edge of the grove.',
+  },
+  {
+    item: 'acorn-golden',
+    label: 'the Golden Acorn',
+    where: 'The Golden Acorn is in the ring of old trees in the south-west corner. My very best one!',
+  },
+] as const;
 
 export interface QuestStep {
   id: string;
@@ -693,6 +720,42 @@ export const QUESTS: QuestDef[] = [
       '✨ Reward: 40 coins and a Rainbow Ward!',
     ],
     reward: { coins: 40, items: { ward: 1 } },
+  },
+
+  // --- Act II: Eldergrove (#75 item 14f) ---------------------------------------
+
+  // A collection quest: three key-item chests across Eldergrove, the hint
+  // chaining from one acorn to the next.
+  {
+    id: 'fen-acorns',
+    zoneId: 'eldergrove',
+    giverNpcId: 'elder-fen',
+    side: true,
+    title: "Fen's Forgotten Acorns",
+    offer: [
+      "Oh! A visitor! I'm Fen. I forage. I remember where I hid my acorns. All 4,000. Roughly.",
+      'Well… my three BEST ones, anyway — Speckled, Striped and Golden. I hid them in chests so the squirrels couldn\'t find them.',
+      'Then I forgot which chests. Could you find them? I\'ll remember where the first one is — and finding it might jog my memory for the next!',
+    ],
+    steps: [
+      haveStep(
+        'fen-acorns-find',
+        FEN_ACORNS.map((a) => ({ items: [a.item], label: a.label })),
+        (save) => {
+          const next = FEN_ACORNS.find((a) => !save.questItems.includes(a.item));
+          const found = FEN_ACORNS.length - FEN_ACORNS.filter((a) => !save.questItems.includes(a.item)).length;
+          if (!next) return 'All three acorns! Bring them here!';
+          return found === 0 ? next.where : `Ooh, that jogs my memory! ${next.where}`;
+        },
+      ),
+    ],
+    takesItems: FEN_ACORNS.map((a) => a.item),
+    complete: [
+      'Speckled, Striped AND Golden! My three best acorns, home at last!',
+      "I'd forget my own tail if it weren't attached. It is. I checked.",
+      '✨ Reward: 35 coins and a Hint Feather!',
+    ],
+    reward: { coins: 35, items: { hint: 1 } },
   },
 
   // --- Item chains (#75 item 13) ----------------------------------------------
