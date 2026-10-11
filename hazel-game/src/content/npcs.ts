@@ -1414,7 +1414,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'A smooth grey stone at the end of the boardwalk. There is no name on it — only a tiny flower, carved at the top.',
       { text: "A daisy is tucked into the crack at the top. Posy's.", ifFlag: stepFlag(POSY_WALK) },
       // Here without her (#75 item 14g review): where is she?
-      { text: "Posy isn't here yet! Go back and find her — look for her ❗.", ifFlag: escortWalkingFlag(POSY_WALK) },
+      { text: "Posy is on her way! If a critter is holding her up, look for her ❗.", ifFlag: escortWalkingFlag(POSY_WALK) },
     ],
   },
   'marsh-lantern-west': {

@@ -615,6 +615,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g code review round 2: "go back for her" only when she's held up (#75 item 14g)
+A fresh `/saas-code-review` (1 medium, 5 low). Fixed: the "Posy isn't here
+yet! Go back and find her" toast fired on nearly every walk (she walks a
+little slower than the hero) — now only while a critter holds her up
+(`stuckBehind`, `lib/escort.ts`, tested on her real route); the wait toast no
+longer says "lead her another way" (she stands still while waiting); a stop
+is asked about each second while it lasts, so a toast already up doesn't
+swallow it; the stone's walking line; a test that feathers work on a
+trickster after the candle's free hint; a stale doc comment. Asked (#120k):
+Posy vanishes from the Hill the moment her offer closes.
+
 ### 2026-10-10 — 14g UX review round 1: Posy's "!" you can see, the lanterns named (#75 item 14g)
 A fresh `/saas-ux-review` (2 high, 4 medium, 3 low; played on the stubbed app
 at 320–1024 px). Fixed:

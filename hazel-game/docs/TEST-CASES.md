@@ -1013,7 +1013,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-851 | M | ✅ | world (review) | Posy stopped by a critter for 1.5 s shows a yellow "!" on a dark plate above her and a toast saying why; a second stop more than 15 s later says it again (bench escort=1) |
 | TC-852 | U | ✅ | quests (review) | talking to the north lantern before the west one says "Not this one yet!" and the Ledger's next step (quests.test) |
 | TC-853 | U | ✅ | quests (review) | a reload or a lost battle mid-walk turns the walking flag into a back flag; the world shows "Posy ran back to the landing" once and clears it (quests.test) |
-| TC-854 | M | ⬜ | world (review) | reaching the stone with Posy more than 3 tiles behind says "Posy is still on her way" (at most every 8 s) |
+| TC-854 | M | ✅ | world (review) | reaching the stone with Posy held up by a critter more than 3 tiles back says "Posy is still on her way" (at most every 8 s); just walking a little behind never does (escort.test) |
+| TC-855 | U | ✅ | battle (review) | after the Glimmer Candle's free hint is used on a trickster, the next question still offers "Use a Hint Feather (1 left)" (BattleArena.test) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

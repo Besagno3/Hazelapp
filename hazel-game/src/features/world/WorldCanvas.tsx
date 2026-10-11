@@ -36,7 +36,7 @@ import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
 import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
-import { arrived, dropCrumb, startEscort, stepEscort, type EscortState } from '../../lib/escort';
+import { arrived, dropCrumb, startEscort, stepEscort, stuckBehind, type EscortState } from '../../lib/escort';
 import { CONTACT_RADIUS, contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, staysDown, touching, type Rest } from '../../lib/encounter';
 import {
   EMBER_COST,
@@ -1231,6 +1231,7 @@ export default function WorldCanvas({
     // How long they've been waiting this stop, and when the hero at the goal without them was last said.
     let escortWaitFor = 0;
     let escortBehindAt = -1e9;
+    let escortWaitAskedAt = -1e9;
 
     // Each roaming critter's parts, with their own full opacity — faded under
     // Calm, and less while it sleeps (`resting`, #75 item 14d). Bosses never
@@ -2333,13 +2334,16 @@ export default function WorldCanvas({
         const before = escortState.at;
         escortState = stepEscort(escortState, player.pos, threats, dt);
         follower.place(escortState.at, escortState.at.x - before.x, escortState.at.y - before.y, escortState.waiting);
-        // A stop says why once it's lasted a moment (a passer-by doesn't make it chatter).
+        // A stop says why once it's lasted a moment (a passer-by doesn't make it
+        // chatter) — asked again each second while it lasts, so a toast already
+        // up doesn't swallow it (`WorldScreen` keeps it to one every 15 s).
         escortWaitFor = escortState.waiting ? escortWaitFor + dt : 0;
-        if (escortState.waiting && wasWaiting && escortWaitFor >= 1.5 && escortWaitFor - dt < 1.5) cbRef.current.onEscortWait?.();
-        // The hero at the goal, them far behind: say where they are.
-        const goalPx = { x: walk.goal.x * TILE + TILE / 2, y: walk.goal.y * TILE + TILE / 2 };
-        const heroAtGoal = Math.hypot(player.pos.x - goalPx.x, player.pos.y - goalPx.y) < TILE * 1.5;
-        if (heroAtGoal && Math.hypot(escortState.at.x - goalPx.x, escortState.at.y - goalPx.y) > TILE * 3 && k.time() - escortBehindAt > 8) {
+        if (escortState.waiting && wasWaiting && escortWaitFor >= 1.5 && k.time() - escortWaitAskedAt >= 1) {
+          escortWaitAskedAt = k.time();
+          cbRef.current.onEscortWait?.();
+        }
+        // The hero at the goal, them held up far behind: say where they are.
+        if (stuckBehind(escortState, player.pos, walk.goal, TILE) && k.time() - escortBehindAt > 8) {
           escortBehindAt = k.time();
           cbRef.current.onEscortBehind?.();
         }

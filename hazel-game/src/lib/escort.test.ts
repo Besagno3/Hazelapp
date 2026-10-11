@@ -7,16 +7,18 @@ import {
   dropCrumb,
   startEscort,
   stepEscort,
+  stuckBehind,
   trailLength,
   waitsFor,
   type EscortState,
 } from './escort';
 
 /** The hero walks from `from` along `to`, a frame at a time at 170 px/s; the escort follows. */
-function walk(s: EscortState, path: { x: number; y: number }[], threats: { x: number; y: number }[] = [], frames = 400) {
+function walk(s: EscortState, path: { x: number; y: number }[], threats: { x: number; y: number }[] = [], frames = 400, goal?: { x: number; y: number }) {
   let hero = path[0];
   let i = 1;
   const seen: { x: number; y: number }[] = [];
+  let behind = false;
   for (let f = 0; f < frames; f++) {
     const next = path[i];
     if (next) {
@@ -28,8 +30,9 @@ function walk(s: EscortState, path: { x: number; y: number }[], threats: { x: nu
     s = dropCrumb(s, hero);
     s = stepEscort(s, hero, threats, 1 / 60);
     seen.push(s.at);
+    if (goal && stuckBehind(s, hero, goal, 32)) behind = true;
   }
-  return { s, hero, seen };
+  return { s, hero, seen, behind };
 }
 
 describe("an escort's walk (#75 item 14g)", () => {
@@ -69,5 +72,18 @@ describe("an escort's walk (#75 item 14g)", () => {
   it('arrives within reach of the goal cell', () => {
     expect(arrived({ x: 6 * 32 + 16, y: 4 * 32 + 16 + ESCORT_ARRIVE_PX - 1 }, { x: 6, y: 4 }, 32)).toBe(true);
     expect(arrived({ x: 6 * 32 + 16, y: 4 * 32 + 16 + ESCORT_ARRIVE_PX + 1 }, { x: 6, y: 4 }, 32)).toBe(false);
+  });
+
+  it("on Posy's walk to the stone, a little way behind is never \"stuck\" — only a critter holding her up is", () => {
+    // The landing up the boardwalks to the Nameless Stone (cells → px centres).
+    const c = (x: number, y: number) => ({ x: x * 32 + 16, y: y * 32 + 16 });
+    const route = [c(20, 22), c(20, 14), c(11, 14), c(11, 4), c(6, 4)];
+    const goal = { x: 6, y: 4 };
+    const free = walk(startEscort(c(20, 23)), route, [], 900, goal);
+    expect(free.behind).toBe(false);
+    expect(arrived(free.s.at, goal, 32)).toBe(true);
+    // A critter by the long boardwalk: she stops there while the hero walks on to the stone.
+    const held = walk(startEscort(c(20, 23)), route, [c(15, 12)], 900, goal);
+    expect(held.behind).toBe(true);
   });
 });

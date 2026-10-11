@@ -102,3 +102,14 @@ export function stepEscort(s: EscortState, hero: Pt, threats: Pt[], dt: number):
 export function arrived(at: Pt, goal: Pt, tile: number): boolean {
   return dist(at, { x: goal.x * tile + tile / 2, y: goal.y * tile + tile / 2 }) < ESCORT_ARRIVE_PX;
 }
+
+/**
+ * Should the hero be told they've left them behind? With the hero at the goal
+ * and them far off — but only while a critter holds them up: one just walking
+ * a little behind (a slower pace, so the gap grows on a long walk) catches up
+ * on their own (#75 item 14g review).
+ */
+export function stuckBehind(s: EscortState, hero: Pt, goal: Pt, tile: number): boolean {
+  const g = { x: goal.x * tile + tile / 2, y: goal.y * tile + tile / 2 };
+  return s.waiting && dist(hero, g) < tile * 1.5 && dist(s.at, g) > tile * 3;
+}

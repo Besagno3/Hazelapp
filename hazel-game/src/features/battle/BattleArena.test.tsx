@@ -455,4 +455,30 @@ describe('the Glimmer Candle (#75 item 14g)', () => {
     }
     expect(screen.getByText(/Glimmer Candle — use a free hint/)).toBeInTheDocument();
   });
+
+  it('after its free hint, Hint Feathers still work on the trickster', () => {
+    const save = useSaveStore.getState().save!;
+    useSaveStore.setState({ save: { ...save, items: { ...save.items, candle: 1, hint: 1 } } });
+    useBattleStore.getState().start({ ...enemy, behavior: 'trickster' } as BattleEnemy, 60, 100);
+    render(<BattleArena />);
+    for (let i = 0; i < 4 && !screen.queryByText('Items'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('Items'));
+    fireEvent.click(screen.getByText('Glimmer Candle'));
+    for (let i = 0; i < 4 && !screen.queryByText(/Glimmer Candle — use a free hint/); i++) {
+      const next = screen.queryByText(/tap to continue/);
+      if (next) fireEvent.click(next);
+    }
+    fireEvent.click(screen.getByText(/Glimmer Candle — use a free hint/));
+    expect(useBattleStore.getState().candleHint).toBe(false);
+    expect(useSaveStore.getState().save!.items.hint).toBe(1);
+    // The next question: the trickster can't block the feather now.
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    for (let i = 0; i < 4 && !screen.queryByText('Attack'); i++) {
+      const next = screen.queryByText(/tap to continue/);
+      if (next) fireEvent.click(next);
+    }
+    fireEvent.click(screen.getByText('Attack'));
+    expect(screen.getByText(/Use a Hint Feather \(1 left\)/)).toBeInTheDocument();
+  });
 });

@@ -27,7 +27,7 @@ export const POSY_WALK = 'posy-walk';
 /**
  * Set while an escort's walk is under way. Never kept: leaving the place,
  * a lost battle or a reload clears it, and the one being walked waits at the
- * start again (`normalizeSave`, `endEscorts`).
+ * start again (`normalizeSave` → `escortsBack`, `withoutEscorts`).
  */
 export function escortWalkingFlag(stepId: string): string {
   return `escort:${stepId}:walking`;
