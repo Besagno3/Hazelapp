@@ -1042,6 +1042,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-881 | U | ✅ | zones (owner) | no Marsh critter's patch reaches Posy's boardwalk walk or the grass shortcut from the north boardwalk's top (zones.test; fails with the Newt at 16,8) |
 | TC-882 | M | ✅ | art (owner) | on the bench: the Bog Lantern reads as a flame-spirit (no lantern post), Puddle as a lily-hatted friendly frog unlike the Murk Toad, the Last Fogbank as a scowling storm cloud |
 | TC-883 | M | ⬜ | battle (owner) | the Last Fogbank's fight: menacing intro, "swallows the light" at half HP, "forget your own NAME!" near the end, "Forgetting Fog" power move |
+| TC-884 | U | ✅ | battle (#120j) | below `sm` the enemy's name drops a leading "The" (full name sr-only, shown from `sm` up); the hero's panel shows "◆N/4" not the diamonds (BattleHud.test) |
+| TC-885 | M | ✅ | battle (#120j) | a boss fight at 320×568: "👑 Ringkeeper Lv 6 !!!" whole, all commands on screen; 5/5 sizes (`bench … battle`) |
+| TC-886 | M | ⬜ | map (#120) | the 🪷 Foglight Marsh icon on the Shallows map reads as a pink lotus on a bright pool at 320 px |
 | TC-872 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 

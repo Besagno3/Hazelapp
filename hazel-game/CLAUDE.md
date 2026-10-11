@@ -616,6 +616,20 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g: names fit a phone's battle, a brighter marsh icon (#120j)
+The last two #120 items. **Names in battle on a phone:** at 320–360 px both
+status panels were squeezed to ~148 px, so "The Ringkeeper" read "The
+Ringkee…" (and the hero's "V…"). Below `sm` the hero's panel now takes only
+what it needs — portrait and a compact "◆0/4" (the diamonds from `sm` up; the
+hero's name is read aloud) — the enemy's the rest, and its name drops a
+leading "The" (`shortName`, 12 px; the full name for screen readers and from
+`sm` up): ~115 px for the name, so every boss fits ("Clockwork Titan"). A
+two-line name was tried first and pushed 🏃 Flee off a 320×568 phone in a boss
+fight — this adds no height (`bench … battle` 5/5). **The marsh icon** on the
+map (overworld frame 18) is redrawn bright — a light-blue pool, a pink lotus
+on its lily pad, cattails and a glowing lantern; frames 0–17 byte-identical.
+Tests: BattleHud.test +2. 981 green.
+
 ### 2026-10-11 — 14g: the owner's six calls (#75 item 14g, #120 j/k/m/n/o/u)
 - **The Bog Lantern looks like a critter (#120j):** a teal flame-spirit with
   a wispy tail and a sly grin (`bog_lantern` redrawn) — no cage, handle or

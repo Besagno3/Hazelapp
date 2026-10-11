@@ -1163,16 +1163,22 @@ def ow_icon(kind):
         c.ellipse(13, 13.5, 1.4, 0.9, '#a07a4a', shade=False)
         c.dot(13, 13.5, '#6a4428', w=1, h=1)
     elif kind == 'marsh':
-        # Foglight Marsh (#75 item 14g): reeds round a pool, a glowing lantern on a post.
-        c.ellipse(8, 13, 7, 2.6, '#4a7a7a')
-        for (x, h) in ((2.5, 8), (4.5, 10), (13, 9), (14.6, 7)):
-            c.line(x, 14, x, 14 - h, '#4a8a3a', w=1)
-        for x in (4.2, 12.6):
-            c.rect(x, 4, x + 1.2, 6.6, '#7a4a28')
-        c.rect(7.4, 5, 8.6, 14, '#6a4a30')
-        c.rect(6, 2, 10, 6, '#2a2a30')
-        c.rect(6.8, 2.8, 9.2, 5.2, '#ffd860')
-        c.dot(8, 1, '#2a2a30')
+        # Foglight Marsh (#75 item 14g): a bright pool with a pink lotus on its lily
+        # pad, reeds, and a lit lantern — light enough to read on the map's grass (#120).
+        c.ellipse(8, 12.5, 7.4, 3, '#6ac0d8')
+        c.ellipse(6, 11.8, 3.4, 1, '#c0ecf6')  # a glint on the water
+        c.ellipse(9.5, 12.8, 3.2, 1.6, '#5cc04a')  # the lily pad
+        for (dx, dy) in ((-1.4, 0), (1.4, 0), (0, -1.3), (-0.9, -0.9), (0.9, -0.9)):
+            c.ellipse(9.5 + dx, 11.4 + dy, 1.1, 1.1, '#ff8ab8')  # lotus petals
+        c.dot(9.5, 11.2, '#ffe25a')
+        for (x, h) in ((1.6, 7), (3, 9), (14.6, 8)):
+            c.line(x, 14, x, 14 - h, '#6ab84a', w=1)
+            c.ellipse(x, 14 - h, 0.7, 1.2, '#a06a3a')  # cattail heads
+        c.rect(12, 4.4, 12.9, 11, '#7a5a38')  # the lantern's post
+        c.rect(10.8, 1.4, 14.1, 4.6, '#3a3a44')
+        c.rect(11.4, 2, 13.5, 4, '#ffe680')
+        for (x, y) in ((9.8, 1.6), (15.1, 2.4), (12.4, 0.4)):
+            c.dot(x, y, '#fff6c0')  # its glow
     return _outlined(c)
 
 
