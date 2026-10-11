@@ -146,6 +146,8 @@ export interface QuestDef {
   playedIn?: ZoneId;
   /** The menu's line once every step is done, in place of "go back to <giver>" (the giver waits somewhere else). */
   doneLine?: string;
+  /** The offer when you already carry one of `items` (found the thing before meeting them). */
+  offerHaving?: { items: string[]; lines: string[] };
   /** Only offered once this story flag is set (Act II's quests wait for `act2-seen`, #75 item 14). */
   requires?: string;
   steps: QuestStep[];
@@ -275,6 +277,9 @@ export function handedOverFlag(item: string): string {
 
 
 // --- The quests -----------------------------------------------------------------
+
+/** Where Posy's walk is — its escort, the menu's tag and its "you're here" hint share it. */
+const POSY_ZONE: ZoneId = 'foglight-marsh';
 
 export const QUESTS: QuestDef[] = [
   // Classic riddle-chest fetch.
@@ -831,6 +836,16 @@ export const QUESTS: QuestDef[] = [
       "It's the little book that says which lantern to light, and when. It's stuck in a riddle-chest in the reeds, at the top of the east boardwalk.",
       'Find my Ledger, light the three lanterns it lists, then come and tell me. The Marsh has been dark far too long!',
     ],
+    // Found first (#75 item 14g UX review): no sending you after a second one.
+    offerHaving: {
+      items: ['lantern-ledger'],
+      lines: [
+        "Oh! A visitor. Lightkeeper Brume — and is that my Lantern Ledger?! You found it already!",
+        'It says which lantern to light, and when. Light the three lanterns it lists, then come and tell me. The Marsh has been dark far too long!',
+      ],
+    },
+    // What the Ledger says when you find it — where to go first (#75 item 14g UX review).
+    foundNote: () => "📒 You open the Ledger: first, the WEST lantern — on the boardwalk just above Brume's lamp-house!",
     steps: [
       haveStep(
         'ledger-find',
@@ -843,7 +858,7 @@ export const QUESTS: QuestDef[] = [
         'lantern-west',
         'marsh-lantern-west',
         ['You open the Ledger. "First: the WEST lantern."', 'You strike a match… *fwoomp!* The west lantern glows warm and gold. ✨'],
-        'The Ledger says: light the WEST lantern first. It stands up the boardwalk from Brume\'s lamp-house.',
+        'The Ledger says: light the WEST lantern first. It\'s on the boardwalk just above Brume\'s lamp-house.',
         ),
       },
       {
@@ -882,7 +897,7 @@ export const QUESTS: QuestDef[] = [
     side: true,
     title: 'The Flower for No Name',
     // Asked on the Hill, but walked — and thanked — in the Marsh (#75 item 14g UX review).
-    playedIn: 'foglight-marsh',
+    playedIn: POSY_ZONE,
     doneLine: 'Posy is waiting by the Nameless Stone in Foglight Marsh — talk to her there!',
     // She needs Marlow's boat to get there — and so do you.
     requires: questDoneFlag({ id: BOAT_QUEST_ID }),
@@ -896,7 +911,7 @@ export const QUESTS: QuestDef[] = [
         POSY_WALK,
         {
           npcId: 'hill-posy',
-          zoneId: 'foglight-marsh',
+          zoneId: POSY_ZONE,
           // The end of the north-west boardwalk, beside the Nameless Stone.
           goal: { x: 6, y: 4 },
           lines: [
@@ -909,8 +924,8 @@ export const QUESTS: QuestDef[] = [
         },
         (save) =>
           save.flags[escortWalkingFlag(POSY_WALK)]
-            ? 'Walk Posy to the Nameless Stone, at the end of the north-west boardwalk. Stay close — she stops if a critter is near!'
-            : save.zoneId === 'foglight-marsh'
+            ? 'Walk Posy to the Nameless Stone, at the top-left of the Marsh. Stay close — she stops if a critter is near!'
+            : save.zoneId === POSY_ZONE
               ? 'Posy is waiting at the landing — talk to her to walk her to the Nameless Stone!'
               : "Sail to Foglight Marsh, on the Silver Shallows' north coast. Posy waits at the landing — walk her to the Nameless Stone!",
       ),
@@ -1089,7 +1104,7 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
   if (!quest || !step) return null;
   if (!save.flags[questOfferedFlag(quest)]) {
     return {
-      lines: quest.offer,
+      lines: quest.offerHaving?.items.some((i) => save.questItems.includes(i)) ? quest.offerHaving.lines : quest.offer,
       badge: quest.title,
       finishKind: 'offer',
       finish: (s) => ({

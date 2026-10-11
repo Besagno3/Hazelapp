@@ -615,6 +615,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 5: the Ledger says where to start (#75 item 14g)
+Fresh `/saas-code-review` (1 low) and `/saas-ux-review` (1 medium, 3 low).
+Fixed: finding the Ledger now says "📒 You open the Ledger: first, the WEST
+lantern — on the boardwalk just above Brume's lamp-house!" (`foundNote`;
+before, nothing said which lantern, and the nearest one refused); a Ledger
+found before meeting Brume gets "You found it already!" instead of being sent
+after it (`QuestDef.offerHaving`); plainer hints for the West Lantern and the
+walk; Posy's zone is one constant (`POSY_ZONE`) shared by the escort, the
+menu tag and the "you're here" hint. Asked (#120o): light the lanterns east →
+north → west (from the chest back toward Brume) instead of west first?
+
 ### 2026-10-11 — 14g review round 4: whose voice, "next turn" (#75 item 14g)
 Fresh `/saas-code-review` (2 low) and `/saas-ux-review` (6 low) — no critical,
 high or medium. Fixed: the Ledger's hint is a narrator's ("Brume's Lantern

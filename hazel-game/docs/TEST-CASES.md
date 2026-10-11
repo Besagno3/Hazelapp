@@ -1023,6 +1023,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-861 | M | ⬜ | menu (review) | the badge shelf lists each badge with its name under it (Foglight Badge, Lily Pad Badge) at 320 px |
 | TC-862 | M | ⬜ | battle (review) | vs a Bog Lantern with a candle and no feathers, a question says "Too slippery for feathers! Next turn, light a 🕯️ candle from Items." on attack and block questions alike; lighting the candle shows "🕯️ Your Glimmer Candle is lit!" |
 | TC-863 | U | ✅ | quests (review) | in the Marsh with the walk not under way, Posy's quest hint says she's waiting at the landing (quests.test) |
+| TC-864 | U | ✅ | quests (review) | opening the Ledger's chest with Brume's quest on says "first, the WEST lantern — on the boardwalk just above Brume's lamp-house" (quests.test) |
+| TC-865 | U | ✅ | quests (review) | Brume met while carrying the Ledger says "You found it already!" and asks only for the lanterns (quests.test) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

@@ -670,6 +670,12 @@ describe('The Lantern Ledger (#75 item 14g)', () => {
   const LEDGER = pathTargetId('foglight-marsh', 'chest', 40, 3);
   const hint = (save: SaveData) => questConversation('marsh-brume', save)!.lines[0];
 
+  it('a Ledger found before meeting Brume: she knows, and asks for the lanterns only', () => {
+    const save = openChest(defaultSave(), LEDGER);
+    expect(questConversation('marsh-brume', save)!.lines[0]).toMatch(/You found it already/);
+    expect(questConversation('marsh-brume', defaultSave())!.lines[0]).not.toMatch(/already/);
+  });
+
   it('find the Ledger, light the west, north and east lanterns in turn, then Brume pays', () => {
     const quest = byId('marsh-lanterns');
     expect(quest).toMatchObject({ giverNpcId: 'marsh-brume', side: true, zoneId: 'foglight-marsh' });
@@ -679,6 +685,8 @@ describe('The Lantern Ledger (#75 item 14g)', () => {
     expect(questConversation('marsh-lantern-west', save)!.lines[0]).toMatch(/^Not yet! .*riddle-chest 🎁/);
     save = openChest(save, LEDGER);
     expect(save.questItems).toContain('lantern-ledger');
+    // The Ledger says where to start (#75 item 14g UX review).
+    expect(chestWantedLine(save, LEDGER)).toMatch(/first, the WEST lantern/);
     expect(hint(save)).toMatch(/WEST/);
     // Out of order: the north lantern waits its turn, and says which comes first (#75 item 14g review).
     expect(questConversation('marsh-lantern-north', save)!.lines[0]).toMatch(/^Not this one yet! The Ledger says: light the WEST lantern first/);
