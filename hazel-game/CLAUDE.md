@@ -615,6 +615,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 12: the last lows; the loop ends (#75 item 14g)
+Fresh `/saas-code-review` (nothing found) and `/saas-ux-review` (2 low; talked
+to every Marsh person and lantern from every side, then walked away, 48
+times; Lumina Village's people too). Fewer than 4 lows, so fixed and the loop
+stopped. Walking past a building's corner a pixel or two off the row (under
+Brume's lamp-house, coming down the north boardwalk) slid the hero to a dead
+stop — movement now slides round a corner clipped by up to 4 px
+(`CORNER_SLIDE_PX`, engine-wide; `bench … journey` still 13/13); the
+Ledger's note no longer reads "You open the Ledger" above the "chest pops
+open" button ("📒 Inside is Brume's Lantern Ledger! It says: first…").
+
 ### 2026-10-11 — 14g review round 11: never nudged into a wall (#75 item 14g)
 Fresh `/saas-code-review` (1 medium, 2 low) and `/saas-ux-review` (1 high).
 Fixed: talking to Brume from the boardwalk just above her (her lamp-house wall

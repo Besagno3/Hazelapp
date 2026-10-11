@@ -846,7 +846,7 @@ export const QUESTS: QuestDef[] = [
       ],
     },
     // What the Ledger says when you find it — where to go first (#75 item 14g UX review).
-    foundNote: () => "📒 You open the Ledger: first, the WEST lantern — beside the boardwalk, just up and to the right of Brume's lamp-house!",
+    foundNote: () => "📒 Inside is Brume's Lantern Ledger! It says: first, the WEST lantern — beside the boardwalk, just up and to the right of her lamp-house!",
     steps: [
       haveStep(
         'ledger-find',

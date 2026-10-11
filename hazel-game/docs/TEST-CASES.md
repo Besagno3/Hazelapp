@@ -1035,6 +1035,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-874 | U | ✅ | world (review) | Posy trailing ~4.5 tiles on the last stretch arrives as the hero reaches the stone, before its own line (escort.test) |
 | TC-875 | M | ✅ | world (review) | bump down into Brume from the boardwalk at (7,14), close her talk: the hero can walk left and right (never pushed into the lamp-house wall); stubbed app, 4/4 |
 | TC-876 | M | ⬜ | world (review) | go back for a held-up Posy twice, stopping on the same cell both times: when the critter leaves she follows the hero both times |
+| TC-877 | M | ✅ | world (review) | walking west along the boardwalk under Brume's lamp-house a pixel or two high, the hero slides past the hut's corner instead of stopping; the Act I journey walk still 13/13 (bench) |
 | TC-872 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 

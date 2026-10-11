@@ -1679,6 +1679,8 @@ export default function WorldCanvas({
     const hitAt = (px: number, py: number) => hitBox(px, py, HALF);
     /** The hero's own collision: on foot, or afloat while in the boat (#75 item 14). */
     const heroHit = (px: number, py: number) => hitBox(px, py, HALF, false, aboard);
+    /** How far off the line (px) a corner can be clipped and still slid round. */
+    const CORNER_SLIDE_PX = 4;
     // Step back from what was bumped, so closing its talk doesn't bump it again — never
     // into a wall: a hero pushed into one (Brume, just under her lamp-house) couldn't
     // walk any way but back into her (#75 item 14g UX review).
@@ -2071,17 +2073,33 @@ export default function WorldCanvas({
       // Axis-separated movement for wall sliding; remember what we bumped.
       let bumped: { ch: string; x: number; y: number } | null = null;
       const speed = SPEED * (aboard ? BOAT_SPEED : 1);
+      // Clipping a corner by a few px (walking straight past a building's corner,
+      // a touch off the row) slides round it rather than stopping dead (#75 item 14g UX review).
+      const slide = (tryAt: (o: number) => boolean) => {
+        for (let o = 1; o <= CORNER_SLIDE_PX; o++) {
+          for (const sgn of [1, -1]) if (tryAt(sgn * o)) return sgn * Math.min(o, speed * dt);
+        }
+        return 0;
+      };
       if (dx !== 0) {
         const nx = player.pos.x + dx * speed * dt;
         const hit = heroHit(nx, player.pos.y);
         if (!hit) player.pos.x = nx;
-        else bumped = hit;
+        else {
+          const off = dy === 0 ? slide((o) => !heroHit(player.pos.x, player.pos.y + o) && !heroHit(nx, player.pos.y + o)) : 0;
+          if (off) player.pos.y += off;
+          else bumped = hit;
+        }
       }
       if (dy !== 0) {
         const ny = player.pos.y + dy * speed * dt;
         const hit = heroHit(player.pos.x, ny);
         if (!hit) player.pos.y = ny;
-        else bumped = bumped ?? hit;
+        else {
+          const off = dx === 0 ? slide((o) => !heroHit(player.pos.x + o, player.pos.y) && !heroHit(player.pos.x + o, ny)) : 0;
+          if (off) player.pos.x += off;
+          else bumped = bumped ?? hit;
+        }
       }
 
       // Marlow's boat (#75 item 14): bump the water by it to climb in (from
