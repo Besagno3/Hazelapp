@@ -620,6 +620,12 @@ check to go green (fix and push on red), then merge.
   only if its branch has an open, non-draft PR. Marking ready doesn't push, so
   the first preview builds on the next push. Uses `GITHUB_PR_READ_TOKEN`
   (Vercel, Preview env); any lookup failure fails open (builds).
+- **`claude/**` branches never deploy on Vercel** (`vercel.json` →
+  `git.deploymentEnabled`, #126): Vercel Hobby allows 100 deployments a day,
+  and an ignored build still counts as a (cancelled) deployment, so the many
+  pushes from Claude sessions used it up and blocked production. Those PRs get
+  no Vercel preview; GitHub Actions still runs on them. Other branches keep
+  the `ignoreCommand` rule above, and `main` always deploys.
 - Dependabot / PRs opened as non-drafts run everything from the first push.
 
 ---
@@ -645,6 +651,14 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-11 — Vercel skips `claude/**` branches entirely (#126)
+The Hobby plan's 100 deployments a day ran out (`api-deployments-free-per-day`
+on PR #43). The Ignored Build Step skips the build but Vercel still creates a
+deployment per push, and Claude sessions push to many branches. `vercel.json`
+now sets `git.deploymentEnabled: { "claude/**": false }`, so those pushes
+create no deployment at all. Trade-off: `claude/*` PRs have no Vercel preview
+(CI still runs). Config + docs only.
 
 ### 2026-10-11 — Merge main (answer shuffle, password eye, parent accounts, sign-in music) into the Foglight Marsh branch (#75 item 14g)
 `main` took ISSUES **#120–#124** and TC-850–893 while 14g was in review
