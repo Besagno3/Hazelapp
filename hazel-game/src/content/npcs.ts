@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { POSY_QUEST, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals } from './topics';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
@@ -1379,7 +1379,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     // Her quest's offer comes first ("The Lantern Ledger"); these follow it.
     lines: [
       "Lightkeeper Brume. I keep the Marsh's lanterns. The fog and I were friends. Then it left.",
-      'Mind the Last Fogbank, down in the reedy cove at the bottom-right of the Marsh. It\'s more shy than scary. Mostly.',
+      'Beware the Last Fogbank, down in the reedy cove at the bottom-right of the Marsh. It swallowed every lantern here once. Don\'t let it swallow YOU!',
       "Ness says hello? Tell her my lamps are burning bright — and her lighthouse had better be too!",
     ],
     ambient: ['Wick trimmed, lamp filled.', '🏮'],
@@ -1403,7 +1403,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "Slosh's the name, rafts are the game! I ferry folk in from the sea, and I sell what a bog-walker needs.",
       // Only while she's here (#75 item 14g UX review).
-      { text: 'I brought a little girl called Posy over this morning. She had a flower for someone.', ifFlag: questOfferedFlag({ id: POSY_QUEST }), unlessFlag: questDoneFlag({ id: POSY_QUEST }) },
+      { text: 'I just ferried a little girl called Posy over, right behind you. She had a flower for someone.', ifFlag: POSY_SAILED, unlessFlag: questDoneFlag({ id: POSY_QUEST }) },
       'Glimmer Candles! Bog Lanterns are too slippery for Hint Feathers. Light one little candle, and your feathers work again.',
     ],
   },

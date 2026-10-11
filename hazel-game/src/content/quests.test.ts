@@ -9,6 +9,7 @@ import {
   questOfferedFlag,
   questDoneFlag,
   activeStep,
+  arrivalFlags,
   activeQuests,
   resolveHint,
   QUEST_ITEMS,
@@ -22,7 +23,7 @@ import {
   escortsBackLines,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -673,11 +674,11 @@ describe('The Lantern Ledger (#75 item 14g)', () => {
   it('a Ledger found before meeting Brume: she knows, and asks for the lanterns only', () => {
     const save = openChest(defaultSave(), LEDGER);
     expect(questConversation('marsh-brume', save)!.lines[0]).toMatch(/You found it already/);
-    expect(questConversation('marsh-brume', save)!.lines.join(' ')).toMatch(/First, the WEST lantern/);
+    expect(questConversation('marsh-brume', save)!.lines.join(' ')).toMatch(/First, the EAST lantern/);
     expect(questConversation('marsh-brume', defaultSave())!.lines[0]).not.toMatch(/already/);
   });
 
-  it('find the Ledger, light the west, north and east lanterns in turn, then Brume pays', () => {
+  it('find the Ledger, light the east, north and west lanterns in turn — from the chest back to Brume — then she pays', () => {
     const quest = byId('marsh-lanterns');
     expect(quest).toMatchObject({ giverNpcId: 'marsh-brume', side: true, zoneId: 'foglight-marsh' });
     let save = converse('marsh-brume', defaultSave());
@@ -687,12 +688,12 @@ describe('The Lantern Ledger (#75 item 14g)', () => {
     save = openChest(save, LEDGER);
     expect(save.questItems).toContain('lantern-ledger');
     // The Ledger says where to start (#75 item 14g UX review).
-    expect(chestWantedLine(save, LEDGER)).toMatch(/first, the WEST lantern/);
-    expect(hint(save)).toMatch(/WEST/);
+    expect(chestWantedLine(save, LEDGER)).toMatch(/first, the EAST lantern/);
+    expect(hint(save)).toMatch(/EAST/);
     // Out of order: the north lantern waits its turn, and says which comes first (#75 item 14g review).
-    expect(questConversation('marsh-lantern-north', save)!.lines[0]).toMatch(/^Not this one yet! The Ledger says: light the WEST lantern first/);
+    expect(questConversation('marsh-lantern-north', save)!.lines[0]).toMatch(/^Not this one yet! The Ledger says: light the EAST lantern first/);
     expect(questConversation('marsh-lantern-north', save)!.finish).toBeNull();
-    for (const side of ['west', 'north', 'east']) {
+    for (const side of ['east', 'north', 'west']) {
       save = converse(`marsh-lantern-${side}`, save);
       expect(save.flags[stepFlag(`lantern-${side}`)], side).toBe(true);
     }
@@ -747,6 +748,14 @@ describe('The Flower for No Name: an escort (#75 item 14g)', () => {
     expect(done.finishKind).toBe('complete');
     save = done.finish!(save);
     expect([save.coins, save.items.potion, save.flags[questDoneFlag({ id: POSY_QUEST })]]).toEqual([coins + 35, potions + 1, true]);
+  });
+
+  it('she comes over to the Marsh when the hero first gets there after she asks — not before (#75 item 14g)', () => {
+    const asked = converse('hill-posy', withBoat());
+    expect(arrivalFlags('foglight-marsh', withBoat().flags)).toEqual([]); // not asked yet
+    expect(arrivalFlags('silver-shallows', asked.flags)).toEqual([]); // not there yet
+    expect(arrivalFlags('foglight-marsh', asked.flags)).toEqual([POSY_SAILED]);
+    expect(arrivalFlags('foglight-marsh', { ...asked.flags, [POSY_SAILED]: true })).toEqual([]);
   });
 
   it('a walk is never kept: a reload, or leaving the Marsh, and she waits at the landing again', () => {

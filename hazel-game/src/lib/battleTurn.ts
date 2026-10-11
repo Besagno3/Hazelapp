@@ -218,8 +218,8 @@ const POWER_MOVE_NAMES: Record<string, string> = {
   'clockwork-titan': 'Gear Grinder',
   // Act II (#75 item 14f).
   ringkeeper: 'Thousand-Year Charge',
-  // Foglight Marsh's miniboss (#75 item 14g): a sneeze of thick grey fog.
-  'last-fogbank': 'Big Grey Puff',
+  // Foglight Marsh's miniboss (#75 item 14g): a wave of fog that makes you forget.
+  'last-fogbank': 'Forgetting Fog',
 };
 
 export function powerMoveName(enemyId: string): string {

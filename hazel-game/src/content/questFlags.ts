@@ -23,6 +23,12 @@ export function stepFlag(stepId: string): string {
  */
 export const POSY_QUEST = 'flower-noname';
 export const POSY_WALK = 'posy-walk';
+/**
+ * Set the first time the hero reaches the Marsh after Posy asks (#75 item 14g,
+ * the owner's call): until then she waits on the Hill, rather than vanishing
+ * the moment her offer closes — she "sailed over with Slosh" while you did.
+ */
+export const POSY_SAILED = 'posy:sailed';
 
 /**
  * Set while an escort's walk is under way. Never kept: leaving the place,

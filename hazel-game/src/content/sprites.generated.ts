@@ -3947,7 +3947,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "last-fogbank": {
-    "emoji": "☁️",
+    "emoji": "⛈️",
     "world": {
       "sheet": "/sprites/last-fogbank/world.png",
       "frameW": 48,

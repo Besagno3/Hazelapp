@@ -428,8 +428,9 @@ zod, react-query. Add the package in the same change that first uses it.
   session opens with a 💪 tap-to-continue line saying what they mean
   (`toughCallout`, chained after a boss's monologue, then the 💛 mercy line), a
   far defeat says what to do (`defeatTip`), and a healer's mend is capped
-  (`HEALER_REGEN_MAX`) so no region makes a fight stall. Fiends (bosses) have enrage phases and restore their
-  crystal on defeat. No game over — defeat wakes the player, healed, inside
+  (`HEALER_REGEN_MAX`) so no region makes a fight stall. Fiends (bosses) have enrage phases — every boss
+  says its own menacing line as it crosses into each (`BOSS_RAGE` / `rageLine`,
+  `content/enemies.ts`) — and restore their crystal on defeat. No game over — defeat wakes the player, healed, inside
   the last inn they rested at (`wakeAfterDefeat`; home to Lumina Village,
   `HUB_ZONE`, if they've never rested away from it). **Structure (#87, kept by the #99 port):** the rules of a turn are
   pure resolvers + tuning in `lib/battleTurn.ts` (damage formulas in
@@ -614,6 +615,37 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-11 — 14g: the owner's six calls (#75 item 14g, #120 j/k/m/n/o/u)
+- **The Bog Lantern looks like a critter (#120j):** a teal flame-spirit with
+  a wispy tail and a sly grin (`bog_lantern` redrawn) — no cage, handle or
+  post, so it never reads as one of Brume's lanterns.
+- **Posy waits on the Hill until you've been to the Marsh (#120k):** she no
+  longer vanishes as her offer closes. The first arrival in the Marsh after
+  she asks sets `POSY_SAILED` (`arrivalFlags`, `content/quests.ts`, set by
+  `WorldScreen` on every arrival); her Hill spot waits for it, her landing
+  spot needs it. Her hint says she'll meet you there; Slosh "just ferried her
+  over, right behind you".
+- **Puddle doesn't look like the Murk Toad (#120m):** a new `pond_frog`
+  drawer — round, lime, smiling, rosy-cheeked, with a lily-pad hat and a pink
+  flower.
+- **Bosses are menacing (#120n):** every boss says its own line at each
+  enrage phase (`BOSS_RAGE`, `rageLine`; the fallback is "… roars — it's
+  getting serious!" / "… is furious — watch out!"). The Last Fogbank is no
+  longer shy: a dark, scowling thundercloud with glowing eyes and sparks
+  (`storm_cloud`, ⛈️), new intro and defeat lines, "Forgetting Fog" for its
+  power move, and Brume warns "It swallowed every lantern here once."
+- **Lanterns east → north → west (#120o):** from the Ledger's chest back
+  toward Brume's lamp-house; the found note, the found-first offer, the hints
+  and the last lantern's line ("Brume's lamp-house is right there") follow.
+- **The Mist Newt moved again (#120u):** to (31,3), open grass between the
+  middle and east boardwalks; zones.test now checks the grass shortcut west
+  from the north boardwalk's top too (it fails with the Newt at 16,8).
+- Art: `python3 tools/assets/build.py marsh` (bog-lantern, last-fogbank,
+  marsh-puddle rebuilt; the manifest's Fogbank emoji ⛈️). Tests: +4
+  (enemies.test: every boss's rage lines, the fallback; quests.test: Posy
+  comes over on arrival; zones.test: her Hill → landing order with the new
+  flag). 979 green, lint + build clean; looked at on the bench.
 
 ### 2026-10-11 — 14g review round 12: the last lows; the loop ends (#75 item 14g)
 Fresh `/saas-code-review` (nothing found) and `/saas-ux-review` (2 low; talked

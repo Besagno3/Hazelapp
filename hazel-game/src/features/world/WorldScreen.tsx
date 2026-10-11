@@ -67,7 +67,7 @@ import {
   POSY_STONE_PANELS,
   POSY_STONE_SEEN,
 } from '../../content/story';
-import { activeEscort, escortsAway, escortsBackLines } from '../../content/quests';
+import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
 import { POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
@@ -310,6 +310,14 @@ export default function WorldScreen() {
     // Only on arriving somewhere new.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoneId, visitedHere]);
+
+  // Arriving somewhere can move the story on (#75 item 14g: Posy comes over to
+  // the Marsh once you do) — on every arrival, not only the first visit.
+  const arrives = save ? arrivalFlags(zoneId, save.flags).join(',') : '';
+  useEffect(() => {
+    if (arrives) for (const f of arrives.split(',')) setFlag(f);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrives]);
 
   // Warm each living enemy's battle questions while the player explores.
   useEffect(() => {

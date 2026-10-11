@@ -24,7 +24,7 @@ import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS } from './npcs';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
-import { POSY_QUEST, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import type { ZoneDef } from './zones';
@@ -873,7 +873,7 @@ describe('Foglight Marsh (#75 item 14g)', () => {
   });
 
   it("Posy's walk: from the landing to the Nameless Stone on foot, the goal beside the stone", () => {
-    const landing = placed('hill-posy').find((p) => p.ifFlag === questOfferedFlag({ id: POSY_QUEST }))!;
+    const landing = placed('hill-posy').find((p) => p.ifFlag === POSY_SAILED)!;
     const quest = QUESTS.find((q) => q.id === POSY_QUEST)!;
     const escort = quest.steps[0].escort!;
     expect(escort.zoneId).toBe('foglight-marsh');
@@ -893,21 +893,29 @@ describe('Foglight Marsh (#75 item 14g)', () => {
     const where = (flags: Record<string, boolean>) =>
       allZones.flatMap((z) => z.npcs.filter((p) => p.defId === 'hill-posy' && npcPresent(p, flags)).map((p) => `${z.id}@${p.x},${p.y}`));
     expect(where({})).toEqual(['remembrance-hill@14,23']);
-    expect(where({ [offered]: true })).toEqual(['foglight-marsh@21,23']);
-    expect(where({ [offered]: true, [arrived]: true })).toEqual(['foglight-marsh@6,3']);
-    expect(where({ [offered]: true, [arrived]: true, [done]: true })).toEqual(['remembrance-hill@14,23']);
+    // Asked, she stays on the Hill until the hero has been to the Marsh (#75 item 14g, the owner's call).
+    expect(where({ [offered]: true })).toEqual(['remembrance-hill@14,23']);
+    expect(where({ [offered]: true, [POSY_SAILED]: true })).toEqual(['foglight-marsh@21,23']);
+    expect(where({ [offered]: true, [POSY_SAILED]: true, [arrived]: true })).toEqual(['foglight-marsh@6,3']);
+    expect(where({ [offered]: true, [POSY_SAILED]: true, [arrived]: true, [done]: true })).toEqual(['remembrance-hill@14,23']);
   });
 
   it("no critter's patch reaches Posy's walk: she never waits on one that can't leave (#75 item 14g UX review)", () => {
     const TILE = 32;
     const leash = WANDER_TUNING.enemy.leashTiles * TILE;
-    // The walk she asks for: up the boardwalks from the landing to the stone.
-    const way = reachPath(marsh, (x, y) => x === 6 && y === 4, { from: { x: 21, y: 23 }, passable: (ch) => ch === '=' })!;
-    expect(way).toBeTruthy();
-    for (const e of marsh.enemies.filter((p) => !ENEMY_DEFS[p.defId].isBoss)) {
-      const near = Math.min(...way.map((c) => Math.hypot(c.x - e.x, c.y - e.y))) * TILE;
-      // Its patch's edge, plus how near a critter makes her wait (80 px).
-      expect(near, `${e.defId}@${e.x},${e.y}`).toBeGreaterThan(leash + 80);
+    // The walk she asks for, up the boardwalks from the landing to the stone — and the
+    // shortcut a child may take instead: up the middle boardwalk to its top, then west
+    // over the grass round the pool (the owner's call, #120u).
+    const walk = reachPath(marsh, (x, y) => x === 6 && y === 4, { from: { x: 21, y: 23 }, passable: (ch) => ch === '=' })!;
+    const up = reachPath(marsh, (x, y) => x === 21 && y === 3, { from: { x: 21, y: 23 }, passable: (ch) => ch === '=' })!;
+    const across = reachPath(marsh, (x, y) => x === 6 && y === 4, { from: { x: 21, y: 3 } })!;
+    for (const [route, way] of [['boardwalks', walk], ['shortcut', [...up, ...across]]] as const) {
+      expect(way, route).toBeTruthy();
+      for (const e of marsh.enemies.filter((p) => !ENEMY_DEFS[p.defId].isBoss)) {
+        const near = Math.min(...way.map((c) => Math.hypot(c.x - e.x, c.y - e.y))) * TILE;
+        // Its patch's edge, plus how near a critter makes her wait (80 px).
+        expect(near, `${route}: ${e.defId}@${e.x},${e.y}`).toBeGreaterThan(leash + 80);
+      }
     }
   });
 

@@ -71,7 +71,7 @@ import { CLOVER_COIN_MULT, CONSUMABLES, type ConsumableId } from '../../content/
 import { topicInfo, crystalFlag } from '../../content/topics';
 import { emberStatus, EMBER_HATCHED } from '../../content/story';
 import { bossFlag, keyForBoss, keyFlag } from '../../content/keys';
-import { BOSS_BADGES, ENEMY_DEFS, bossScript } from '../../content/enemies';
+import { BOSS_BADGES, ENEMY_DEFS, bossScript, rageLine } from '../../content/enemies';
 import { escortsBack } from '../../content/questFlags';
 import { resolveSprite } from '../../content/sprites';
 import { BASE_TIER, dangerMarks, defeatTip, toughCallout, toughKey } from '../../content/regions';
@@ -751,7 +751,8 @@ export default function BattleArena() {
 
   /** Boss enrage callout when the enemy's HP crosses into phase `p` (from any damage). */
   function announcePhase(p: 1 | 2) {
-    showBanner(p === 1 ? `${enemy!.name} growls — it's getting serious!` : `${enemy!.name} is furious!`);
+    // Each boss in its own words, and menacing (`rageLine`, #75 item 14g).
+    showBanner(rageLine(enemy!.id, enemy!.name, p));
   }
 
   /** Move the enemy's plan on to its next turn (lib/battleTurn nextIntent). */

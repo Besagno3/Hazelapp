@@ -4,7 +4,7 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -842,11 +842,13 @@ export const QUESTS: QuestDef[] = [
       lines: [
         "Oh! A visitor. Lightkeeper Brume — and is that my Lantern Ledger?! You found it already!",
         'It says which lantern to light, and when. Light all three, then come and tell me.',
-        'First, the WEST lantern — beside the boardwalk, just up and to the right of my lamp-house!',
+        'First, the EAST lantern — just down the east boardwalk from the chest, next to the big pond!',
       ],
     },
     // What the Ledger says when you find it — where to go first (#75 item 14g UX review).
-    foundNote: () => "📒 Inside is Brume's Lantern Ledger! It says: first, the WEST lantern — beside the boardwalk, just up and to the right of her lamp-house!",
+    foundNote: () => "📒 Inside is Brume's Lantern Ledger! It says: first, the EAST lantern — just down the east boardwalk, next to the big pond!",
+    // East → north → west: from the Ledger's chest (top right) back toward Brume's
+    // lamp-house, so the walk never crosses the Marsh and back (#75 item 14g, the owner's call).
     steps: [
       haveStep(
         'ledger-find',
@@ -856,10 +858,10 @@ export const QUESTS: QuestDef[] = [
       {
         early: true,
         ...talkStep(
-        'lantern-west',
-        'marsh-lantern-west',
-        ['You open the Ledger. "First: the WEST lantern."', 'You strike a match… *fwoomp!* The west lantern glows warm and gold. ✨'],
-        'The Ledger says: light the WEST lantern first. It\'s beside the boardwalk, just up and to the right of Brume\'s lamp-house.',
+        'lantern-east',
+        'marsh-lantern-east',
+        ['You open the Ledger. "First: the EAST lantern."', 'You strike a match… *fwoomp!* The east lantern glows warm and gold. ✨'],
+        'The Ledger says: light the EAST lantern first. It\'s down the east boardwalk from the chest, next to the big pond.',
         ),
       },
       {
@@ -874,10 +876,10 @@ export const QUESTS: QuestDef[] = [
       {
         early: true,
         ...talkStep(
-        'lantern-east',
-        'marsh-lantern-east',
-        ['The Ledger says: "Last of all: the EAST lantern."', '*Fwoomp!* The east lantern glows. That\'s all three! Go and tell Brume.'],
-        'Last, the EAST lantern — up the east boardwalk, next to the big pond.',
+        'lantern-west',
+        'marsh-lantern-west',
+        ['The Ledger says: "Last of all: the WEST lantern."', '*Fwoomp!* The west lantern glows. That\'s all three! Brume\'s lamp-house is right there — go and tell her.'],
+        'Last, the WEST lantern — beside the boardwalk, just up and to the right of Brume\'s lamp-house.',
         ),
       },
     ],
@@ -928,7 +930,9 @@ export const QUESTS: QuestDef[] = [
             ? 'Walk Posy to the Nameless Stone, at the top-left of the Marsh. Stay close — she stops if a critter is near!'
             : save.zoneId === POSY_ZONE
               ? 'Posy is waiting at the landing — talk to her to walk her to the Nameless Stone!'
-              : "Sail to Foglight Marsh, on the Silver Shallows' north coast. Posy waits at the landing — walk her to the Nameless Stone!",
+              : save.flags[POSY_SAILED]
+                ? "Sail to Foglight Marsh, on the Silver Shallows' north coast. Posy waits at the landing — walk her to the Nameless Stone!"
+                : "Sail to Foglight Marsh, on the Silver Shallows' north coast. Posy will meet you at its landing — then walk her to the Nameless Stone!",
       ),
     ],
     complete: [
@@ -1195,6 +1199,14 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
     }
   }
   return null;
+}
+
+/**
+ * Story flags that arriving in a zone sets, given the save's flags: reaching
+ * the Marsh after Posy asks means she's come over too (`POSY_SAILED`, #75 item 14g).
+ */
+export function arrivalFlags(zoneId: ZoneId, flags: Record<string, boolean>): string[] {
+  return zoneId === POSY_ZONE && flags[questOfferedFlag({ id: POSY_QUEST })] && !flags[POSY_SAILED] ? [POSY_SAILED] : [];
 }
 
 /** The world's line for each walk that ended short (`escortBackFlag`, #75 item 14g review). */

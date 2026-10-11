@@ -134,12 +134,12 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   // Trickster: its flicker hides the Hint Feather's work (STORY-4X §4 "decoy options").
   'bog-lantern': { id: 'bog-lantern', name: 'Bog Lantern', sprite: '🎃', topic: 'history', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster' },
   'murk-toad': { id: 'murk-toad', name: 'Murk Toad', sprite: '🐸', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
-  // A leftover puddle of fog with stage fright — optional, restores nothing,
-  // gives the Foglight Badge (a miniboss, #75 item 14c roles).
+  // The very last of the fog that made Lumina forget — optional, restores
+  // nothing, gives the Foglight Badge (a miniboss, #75 item 14c roles).
   'last-fogbank': {
     id: 'last-fogbank',
     name: 'The Last Fogbank',
-    sprite: '☁️',
+    sprite: '⛈️',
     topic: 'history',
     levelOffset: 1,
     hpPerLevel: 15,
@@ -148,13 +148,38 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     badge: 'foglight',
     lines: {
       intro: [
-        "Oh! Oh no. Somebody's LOOKING at me. I'm the Last Fogbank. All the other fog went home…",
-        "…so I'll make you forget you ever saw me! Um. Answer my questions about long ago — if you can REMEMBER!",
+        'So. Someone wandered into MY cove. I am the Last Fogbank — the very last of the fog that made Lumina forget.',
+        "I'll swallow your memories one by one. Answer my questions about long ago — if you can still REMEMBER them!",
       ],
-      defeat: "You remembered everything… Fine. I'll drift off and be a nice little cloud. Take this badge — it's shiny, like you.",
+      defeat: "No… you remembered it ALL. The light is too bright… I'm fading away. Take the badge — you've earned it, little lantern.",
     },
   },
 };
+
+/**
+ * A boss's own lines as it gets angrier — at half HP, then near the end (its
+ * enrage phases) — so each sounds like itself, and menacing (#75 item 14g,
+ * the owner's call: "bosses should be more menacing"). `rageLine` falls back
+ * to a general pair for a boss with none.
+ */
+export const BOSS_RAGE: Record<string, [string, string]> = {
+  'null-fiend': ["The Null Fiend's eyes go dark — it's starting to erase the numbers!", 'The Null Fiend roars: "ZERO! Everything becomes ZERO!"'],
+  'smog-fiend': ['The Smog Fiend swells up, thick and choking!', "The Smog Fiend bellows out a black cloud — it's furious!"],
+  'rust-fiend': ['The Rust Fiend grinds its gears and stomps closer!', "The Rust Fiend's eyes glow red-hot: \"I'll rust you right down to your boots!\""],
+  'gray-fiend': ['The Gray Fiend drains the color from the sky!', 'The Gray Fiend howls: "No more colors — EVER!"'],
+  'thicket-warden': ["The Thicket Warden's thorns grow longer and sharper!", 'The Thicket Warden stamps the ground — the whole wood shakes!'],
+  'tide-colossus': ['The Tide Colossus rises higher — the water churns!', 'The Tide Colossus roars like a storm at sea!'],
+  'clockwork-titan': ["The Clockwork Titan's gears spin faster and faster!", 'The Clockwork Titan booms: "YOUR TIME IS UP!"'],
+  ringkeeper: ['The Ringkeeper lowers its antlers and paws the ground!', 'The Ringkeeper bellows: "A THOUSAND YEARS, and nobody got past me!"'],
+  'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
+};
+
+/** What a boss says as it crosses into enrage phase `phase` (1: half HP, 2: near the end). */
+export function rageLine(enemyId: string, name: string, phase: 1 | 2): string {
+  const own = BOSS_RAGE[enemyId];
+  if (own) return own[phase - 1];
+  return phase === 1 ? `${name} roars — it's getting serious!` : `${name} is furious — watch out!`;
+}
 
 /** Badges a boss gives (#75 item 14g), for the menu's trophy shelf: id → name and emoji. */
 export const BOSS_BADGES: Record<string, { name: string; emoji: string }> = {

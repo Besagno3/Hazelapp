@@ -8,7 +8,7 @@ import shallowsTmj from './maps/silver-shallows.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 import { ACT2_SEEN } from './story';
-import { POSY_QUEST, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, stepFlag } from './questFlags';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -470,7 +470,6 @@ function crystalPocket(
 }
 
 /** Posy's walk through Foglight Marsh (#75 item 14g): offered, arrived at the stone, done. */
-const POSY_OFFERED = questOfferedFlag({ id: POSY_QUEST });
 const POSY_ARRIVED = stepFlag(POSY_WALK);
 const POSY_DONE = questDoneFlag({ id: POSY_QUEST });
 
@@ -1795,7 +1794,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [
       { defId: 'hill-keeper', x: 16, y: 18 },
       // Posy leaves the Hill for Foglight Marsh while her walk is on (#75 item 14g), and comes home after.
-      { defId: 'hill-posy', x: 14, y: 23, unlessFlag: POSY_OFFERED },
+      // She stays until the hero has been to the Marsh since she asked (#75 item 14g).
+      { defId: 'hill-posy', x: 14, y: 23, unlessFlag: POSY_SAILED },
       { defId: 'hill-posy', x: 14, y: 23, ifFlag: POSY_DONE },
       { defId: 'hill-merchant', x: 25, y: 3 },
       { defId: 'hill-innkeeper', x: 7, y: 5 },
@@ -1950,7 +1950,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'marsh-stone', x: 5, y: 4 },
       // Posy (#75 item 14g): she waits at the landing once she's asked you, walks
       // with you (the canvas leads her), then stays by the stone until you've talked.
-      { defId: 'hill-posy', x: 21, y: 23, ifFlag: POSY_OFFERED, unlessFlag: POSY_ARRIVED },
+      { defId: 'hill-posy', x: 21, y: 23, ifFlag: POSY_SAILED, unlessFlag: POSY_ARRIVED },
       { defId: 'hill-posy', x: 6, y: 3, ifFlag: POSY_ARRIVED, unlessFlag: POSY_DONE },
       // Brume's three lanterns: dark until the Ledger's step for each is done.
       { defId: 'marsh-lantern-west', x: 12, y: 8, unlessFlag: stepFlag('lantern-west') },
@@ -1961,9 +1961,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'marsh-lantern-east-lit', x: 39, y: 10, ifFlag: stepFlag('lantern-east') },
     ],
     enemies: [
-      // Clear of Posy's walk (its whole patch 3+ tiles off the boardwalks), so she never waits
-      // half a minute on a critter that can't leave (#75 item 14g UX review).
-      { defId: 'mist-newt', x: 16, y: 8 },
+      // Clear of Posy's walk — the boardwalks and the grass shortcut west from the
+      // north boardwalk's top — so she never waits on a critter that can't leave
+      // (#75 item 14g UX review; moved again by the owner's call).
+      { defId: 'mist-newt', x: 31, y: 3 },
       { defId: 'mist-newt', x: 30, y: 16 },
       { defId: 'bog-lantern', x: 26, y: 8 },
       { defId: 'bog-lantern', x: 8, y: 19 },
