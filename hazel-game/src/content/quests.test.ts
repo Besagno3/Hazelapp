@@ -750,6 +750,10 @@ describe('The Flower for No Name: an escort (#75 item 14g)', () => {
     // Said in the Marsh: left mid-walk, it waits for the next visit there.
     expect(escortsBackLines(normalizeSave(save).flags, 'silver-shallows')).toEqual([]);
     expect(escortsBackLines(normalizeSave(save).flags, 'foglight-marsh')).toHaveLength(1);
+    // In the Marsh, not walking: the log says where she waits, not "sail to the Marsh".
+    const inMarsh = normalizeSave({ ...save, zoneId: 'foglight-marsh' });
+    const quest = QUESTS.find((q) => q.id === POSY_QUEST)!;
+    expect(resolveHint(activeStep(quest, inMarsh)!, inMarsh)).toMatch(/waiting at the landing/);
     expect(escortsAway(save, 'foglight-marsh')).toEqual([]);
     expect(escortsAway(save, 'silver-shallows')).toEqual(['hill-posy']);
     expect(withoutEscorts(save.flags)[walking]).toBeUndefined();

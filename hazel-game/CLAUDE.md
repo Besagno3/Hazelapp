@@ -615,6 +615,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 4: whose voice, "next turn" (#75 item 14g)
+Fresh `/saas-code-review` (2 low) and `/saas-ux-review` (6 low) — no critical,
+high or medium. Fixed: the Ledger's hint is a narrator's ("Brume's Lantern
+Ledger…"), so a lantern no longer speaks in Brume's voice; the "too slippery"
+note says "Next turn, light a 🕯️ candle from Items." (Items opens when you
+pick your next move); the stone panels' button says "🌼 Go and say hi to
+Posy" (it closes the panels — she's beside you); plainer words for Brume and
+Posy (no "arrangement", no compass words); one ✨ not two; badge names 12 px
+white; a test that the Marsh quest log says Posy waits at the landing.
+Asked (#120n): should the shy Last Fogbank have its own mid-fight lines, not
+the standard "growls / is furious"?
+
 ### 2026-10-11 — 14g review round 3: the lows (#75 item 14g)
 Fresh `/saas-code-review` (3 low) and `/saas-ux-review` (7 low; played on the
 bench and the stubbed app at 320–360 px) — no critical, high or medium left.

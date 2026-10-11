@@ -1220,9 +1220,9 @@ export default function BattleArena() {
               hints={enemy.behavior === 'trickster' && !candleLit ? 0 : save.items.hint + (freeHint ? 1 : 0) + (candleHint ? 1 : 0)}
               hintLabel={freeHint ? '🦊 Fox Sense — use a free hint!' : candleHint ? '🕯️ Glimmer Candle — use a free hint!' : undefined}
               // Why there's no hint button, and the way round it (#75 item 14g UX review).
-              // (Items only opens on your own turn, so a block question says just the first half.)
+              // (Items only opens when you pick your next move, so it says "next turn".)
               hintNote={enemy.behavior === 'trickster' && !candleLit && (save.items.hint > 0 || save.items.candle > 0)
-                ? `🪶 Too slippery for feathers${save.items.candle && turn.kind !== 'enemy-question' ? ' — light a 🕯️ candle from Items!' : '!'}`
+                ? `🪶 Too slippery for feathers!${save.items.candle ? ' Next turn, light a 🕯️ candle from Items.' : ''}`
                 : undefined}
               preHidden={turn.hide ?? 0}
               // Forget-Me-Knot (#75 item 14e): a wrong pick is crossed out and the hero picks again.

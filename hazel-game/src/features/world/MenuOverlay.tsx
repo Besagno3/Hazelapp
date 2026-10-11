@@ -169,7 +169,7 @@ export default function MenuOverlay({
                 return (
                   <li key={b} className="flex flex-col items-center text-center w-16">
                     <span aria-hidden="true" className="text-lg leading-tight">{it?.emoji ?? '🏅'}</span>
-                    <span className="text-[11px] leading-tight text-white/80">{it?.name ?? b}</span>
+                    <span className="text-xs leading-tight text-white">{it?.name ?? b}</span>
                   </li>
                 );
               })}

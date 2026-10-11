@@ -1021,7 +1021,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-859 | U | ✅ | quests (review) | "Posy ran back to the landing" is held until the hero is back in the Marsh (quests.test) |
 | TC-860 | U | ✅ | quests (review) | with Brume's quest on and no Ledger, a lantern says "Not yet!" and where the Ledger's riddle-chest is (quests.test) |
 | TC-861 | M | ⬜ | menu (review) | the badge shelf lists each badge with its name under it (Foglight Badge, Lily Pad Badge) at 320 px |
-| TC-862 | M | ⬜ | battle (review) | vs a Bog Lantern with a candle and no feathers, a question says "Too slippery for feathers — light a 🕯️ candle from Items!"; a block question says only "Too slippery for feathers!"; lighting the candle shows "🕯️ Your Glimmer Candle is lit!" |
+| TC-862 | M | ⬜ | battle (review) | vs a Bog Lantern with a candle and no feathers, a question says "Too slippery for feathers! Next turn, light a 🕯️ candle from Items." on attack and block questions alike; lighting the candle shows "🕯️ Your Glimmer Candle is lit!" |
+| TC-863 | U | ✅ | quests (review) | in the Marsh with the walk not under way, Posy's quest hint says she's waiting at the landing (quests.test) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

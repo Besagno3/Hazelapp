@@ -828,14 +828,14 @@ export const QUESTS: QuestDef[] = [
     title: 'The Lantern Ledger',
     offer: [
       "Oh! A visitor. Lightkeeper Brume. I keep the Marsh's lanterns — or I did, until I lost my Lantern Ledger.",
-      "It's the little book that says which lantern to light, and when. It's stuck in a riddle-chest up in the north-east reeds.",
+      "It's the little book that says which lantern to light, and when. It's stuck in a riddle-chest in the reeds, at the top of the east boardwalk.",
       'Find my Ledger, light the three lanterns it lists, then come and tell me. The Marsh has been dark far too long!',
     ],
     steps: [
       haveStep(
         'ledger-find',
         [{ items: ['lantern-ledger'], label: 'the Lantern Ledger' }],
-        'My Lantern Ledger is in a riddle-chest 🎁 in the reeds, at the top of the east boardwalk.',
+        "Brume's Lantern Ledger is in a riddle-chest 🎁 in the reeds, at the top of the east boardwalk.",
       ),
       {
         early: true,
@@ -860,7 +860,7 @@ export const QUESTS: QuestDef[] = [
         ...talkStep(
         'lantern-east',
         'marsh-lantern-east',
-        ['The Ledger says: "Last of all: the EAST lantern."', '*Fwoomp!* The east lantern glows. That\'s all three! Go and tell Brume. ✨'],
+        ['The Ledger says: "Last of all: the EAST lantern."', '*Fwoomp!* The east lantern glows. That\'s all three! Go and tell Brume.'],
         'Last, the EAST lantern — up the east boardwalk, next to the big pond.',
         ),
       },
@@ -900,7 +900,7 @@ export const QUESTS: QuestDef[] = [
           // The end of the north-west boardwalk, beside the Nameless Stone.
           goal: { x: 6, y: 4 },
           lines: [
-            "You came! The stone is at the end of the boardwalk, way up in the north-west.",
+            "You came! The stone is at the far end of the boardwalk, way up at the top-left of the Marsh.",
             "I'll follow right behind you. If a critter gets close, I'll wait until it's gone!",
           ],
           waitLine: 'Posy stops — a critter is too close! Wait for it to wander off, or bump into it to battle.',

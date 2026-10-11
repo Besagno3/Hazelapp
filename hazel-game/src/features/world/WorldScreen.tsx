@@ -713,7 +713,7 @@ export default function WorldScreen() {
         <StoryPanels panels={GREAT_FOGBANK_PANELS} doneLabel="🧭 Sail on" onDone={() => setFlag(GREAT_FOGBANK_SEEN)} />
       )}
       {activeScene === 'posy' && (
-        <StoryPanels panels={POSY_STONE_PANELS} doneLabel="🌼 Talk to Posy" onDone={() => setFlag(POSY_STONE_SEEN)} />
+        <StoryPanels panels={POSY_STONE_PANELS} doneLabel="🌼 Go and say hi to Posy" onDone={() => setFlag(POSY_STONE_SEEN)} />
       )}
       {activeScene === 'memoria' && (
         <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />
