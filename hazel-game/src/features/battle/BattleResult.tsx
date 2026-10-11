@@ -24,6 +24,7 @@ export function BattleResult({
   lucky,
   firstWin,
   drop,
+  badge = null,
   wakeInn = null,
   shelter = null,
   tip = null,
@@ -49,6 +50,8 @@ export function BattleResult({
   firstWin: boolean;
   /** The item the enemy dropped, if any. */
   drop: ConsumableId | null;
+  /** A boss's own badge, won the first time (#75 item 14g: the Foglight Badge). */
+  badge?: { name: string; emoji: string } | null;
   /** Defeat: the inn the hero wakes at ("the Square Root Inn in Numbria"), or null for home (#75 item 11). */
   wakeInn?: string | null;
   /** Defeat somewhere with a shelter (#75 item 14f, Fen's Hollow): who looks after the hero, and where — over `wakeInn`. */
@@ -86,6 +89,11 @@ export function BattleResult({
               {fiendDefeatLine && <p className="text-white/60 italic text-sm mb-1">"{fiendDefeatLine}"</p>}
               {/* Only a Fiend restores a crystal (#75 item 14c). */}
               {crystalName && <p className="text-emerald-300 font-bold mb-1">💎 The {crystalName} shines again!</p>}
+              {badge && (
+                <p className="text-amber-300 font-bold mb-1">
+                  {badge.emoji} You won the {badge.name}! Find it on your 📜 Menu.
+                </p>
+              )}
             </>
           )}
           <p className="text-sm text-white/80">

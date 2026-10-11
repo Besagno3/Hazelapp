@@ -4,6 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals } from './topics';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
@@ -499,6 +500,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       // Sea critters (#75 item 14d): why the ones out there never bother you on the sand.
       "Puffers, inklings, starfish… sea critters splash about out there now. They only bother boats, and you can always steer round them. On the sand you're as safe as a shell!",
       "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
+      // Foglight Marsh (#75 item 14g): the rumor rule — name a place and what's there.
+      "Up on the north coast is Foglight Marsh, where the last of the fog pooled. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!",
     ],
     ambient: ['*polishes the lamp*', 'Ship ahoy? …Oh, it\'s you!', 'Shine on, little light.'],
   },
@@ -1365,5 +1368,110 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       "I'm going… for a… walk. Around the pond. I started… on Tuesday.",
     ],
     ambient: ['Almost… there…', '…', '🐢'],
+  },
+  // --- Foglight Marsh (#75 item 14g) ------------------------------------------
+  'marsh-brume': {
+    id: 'marsh-brume',
+    name: 'Lightkeeper Brume',
+    sprite: '🏮',
+    role: 'villager',
+    stationary: true,
+    // Her quest's offer comes first ("The Lantern Ledger"); these follow it.
+    lines: [
+      "Lightkeeper Brume. I keep the Marsh's lanterns. The fog and I were friends. Then it left.",
+      'Beware the Last Fogbank, down in the reedy cove at the bottom-right of the Marsh. It swallowed every lantern here once. Don\'t let it swallow YOU!',
+      "Ness says hello? Tell her my lamps are burning bright — and her lighthouse had better be too!",
+    ],
+    ambient: ['Wick trimmed, lamp filled.', '🏮'],
+  },
+  'marsh-puddle': {
+    id: 'marsh-puddle',
+    name: 'Puddle',
+    sprite: '🐸',
+    role: 'villager',
+    lines: [
+      "Ribbit! I'm Puddle. I remember being a tadpole like it was yesterday.",
+      'It WAS yesterday. I grow up fast.',
+    ],
+    ambient: ['Ribbit!', 'Was I a tadpole? Yes!', '🪷'],
+  },
+  'marsh-slosh': {
+    id: 'marsh-slosh',
+    name: 'Ferryman Slosh',
+    sprite: '⛵',
+    role: 'merchant',
+    lines: [
+      "Slosh's the name, rafts are the game! I ferry folk in from the sea, and I sell what a bog-walker needs.",
+      // Only while she's here (#75 item 14g UX review).
+      { text: 'I just ferried a little girl called Posy over, right behind you. She had a flower for someone.', ifFlag: POSY_SAILED, unlessFlag: questDoneFlag({ id: POSY_QUEST }) },
+      'Glimmer Candles! Bog Lanterns are too slippery for Hint Feathers. Light one little candle, and your feathers work again.',
+    ],
+  },
+  'marsh-stone': {
+    id: 'marsh-stone',
+    name: 'The Nameless Stone',
+    sprite: '🪨',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'A smooth grey stone at the end of the boardwalk. There is no name on it — only a tiny flower, carved at the top.',
+      { text: "A daisy is tucked into the crack at the top. Posy's.", ifFlag: stepFlag(POSY_WALK) },
+      // Here without her (#75 item 14g review): where is she?
+      { text: "Posy is on her way! If a critter is holding her up, look for her ❗.", ifFlag: escortWalkingFlag(POSY_WALK) },
+    ],
+  },
+  'marsh-lantern-west': {
+    id: 'marsh-lantern-west',
+    name: 'West Lantern',
+    sprite: '🏮',
+    spriteId: 'marsh-lantern',
+    role: 'villager',
+    stationary: true,
+    lines: ['A marsh lantern, cold and dark. Lightkeeper Brume keeps these — her Lantern Ledger says which to light, and when.'],
+  },
+  'marsh-lantern-west-lit': {
+    id: 'marsh-lantern-west-lit',
+    name: 'West Lantern',
+    sprite: '🏮',
+    spriteId: 'marsh-lantern-lit',
+    role: 'villager',
+    stationary: true,
+    lines: ['The west lantern glows warm and gold. Somewhere out on the water, a little fish is very grateful.'],
+  },
+  'marsh-lantern-north': {
+    id: 'marsh-lantern-north',
+    name: 'North Lantern',
+    sprite: '🏮',
+    spriteId: 'marsh-lantern',
+    role: 'villager',
+    stationary: true,
+    lines: ['A marsh lantern, cold and dark. Lightkeeper Brume keeps these — her Lantern Ledger says which to light, and when.'],
+  },
+  'marsh-lantern-north-lit': {
+    id: 'marsh-lantern-north-lit',
+    name: 'North Lantern',
+    sprite: '🏮',
+    spriteId: 'marsh-lantern-lit',
+    role: 'villager',
+    stationary: true,
+    lines: ['The north lantern glows warm and gold. Somewhere out on the water, a little fish is very grateful.'],
+  },
+  'marsh-lantern-east': {
+    id: 'marsh-lantern-east',
+    name: 'East Lantern',
+    sprite: '🏮',
+    spriteId: 'marsh-lantern',
+    role: 'villager',
+    stationary: true,
+    lines: ['A marsh lantern, cold and dark. Lightkeeper Brume keeps these — her Lantern Ledger says which to light, and when.'],
+  },
+  'marsh-lantern-east-lit': {
+    id: 'marsh-lantern-east-lit',
+    name: 'East Lantern',
+    sprite: '🏮',
+    spriteId: 'marsh-lantern-lit',
+    role: 'villager',
+    stationary: true,
+    lines: ['The east lantern glows warm and gold. Somewhere out on the water, a little fish is very grateful.'],
   },
 };

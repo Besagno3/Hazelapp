@@ -81,6 +81,8 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   hill: '🏡',
   // Act II (#75 item 14f): the island of ring-trees.
   elder: '🌳',
+  // Act II (#75 item 14g): a lotus on the bog (Gull Rock already has the 🏮).
+  marsh: '🪷',
 };
 
 /** Stands in for a place that's still hidden in fog. */

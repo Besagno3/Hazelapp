@@ -64,7 +64,11 @@ import {
   GREAT_FOGBANK_SEEN,
   MEMORIA_PANELS,
   MEMORIA_SEEN,
+  POSY_STONE_PANELS,
+  POSY_STONE_SEEN,
 } from '../../content/story';
+import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
+import { POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import LevelBadge from '../../components/LevelBadge';
@@ -142,6 +146,11 @@ export default function WorldScreen() {
   // One timer for whichever toast is up: a new toast replaces the old one's
   // timer, so an earlier toast can't hide a newer one early.
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The toast's words, while it's up — so an escort can take back its own out-of-date line. */
+  const toastText = useRef<string | null>(null);
+  const toastAt = useRef(0);
+  /** When Posy (an escort) last stopped for a critter — a line due to come down stays if she's stopped again. */
+  const escortStoppedAt = useRef(0);
   // Is a toast up? A hint can wait for the next chance rather than knock one
   // off before it's been read (a first-arrival warning; `onSleeper`).
   const toastUp = useRef(false);
@@ -184,6 +193,29 @@ export default function WorldScreen() {
   const hp = Math.min(save?.hp ?? maxHp, maxHp);
   const flags = save?.flags ?? {};
   const { crystals, stage: ember } = emberStatus(flags);
+  // An escort's walk under way here (#75 item 14g, Posy through Foglight Marsh).
+  const walk = save && !spireTheme ? activeEscort(save, zoneId) : null;
+  // When the walk last said something (a stop for a critter, the stone without them) — not more than every 15 s.
+  const escortSaidAt = useRef(0);
+  // Leaving the place mid-walk (an exit, a Return): they go back to wait where they started.
+  const awayKey = save ? escortsAway(save, zoneId).join(',') : '';
+  useEffect(() => {
+    if (!awayKey) return;
+    useBattleStore.getState().setEscortAt(null);
+    update((s) => ({ ...s, flags: escortsBack(s.flags) }));
+    // Only when someone's left behind.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awayKey]);
+  // A walk ended short — left, lost, reloaded — says so once, and how to start again (#75 item 14g review).
+  const backLines = escortsBackLines(flags, save?.zoneId);
+  const backKey = backLines.map((b) => b.flag).join(',');
+  useEffect(() => {
+    if (!backKey || !save) return;
+    useBattleStore.getState().setEscortAt(null);
+    showToast(backLines[0].line);
+    update((s) => ({ ...s, flags: Object.fromEntries(Object.entries(s.flags).filter(([f]) => !backKey.split(',').includes(f))) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backKey]);
   // The HUD counts the crystals of the acts that have opened (#75 item 14c).
   const inPlay = crystalsInPlay(flags);
 
@@ -214,6 +246,8 @@ export default function WorldScreen() {
   const fogbankDue = flags[GREAT_FOGBANK_MET] === true && !flags[GREAT_FOGBANK_SEEN];
   // The Memoria Key, won from the Ringkeeper (#75 item 14f).
   const memoriaDue = flags[keyFlag('memoria')] === true && !flags[MEMORIA_SEEN];
+  // Posy lays her flower at the Nameless Stone (#75 item 14g).
+  const posyDue = flags[stepFlag(POSY_WALK)] === true && !flags[POSY_STONE_SEEN];
 
   const activeScene:
     | 'spireVictory'
@@ -228,6 +262,7 @@ export default function WorldScreen() {
     | 'voyage'
     | 'fogbank'
     | 'memoria'
+    | 'posy'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -252,7 +287,9 @@ export default function WorldScreen() {
                         ? 'fogbank'
                         : memoriaDue
                           ? 'memoria'
-                          : null;
+                          : posyDue
+                            ? 'posy'
+                            : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
@@ -273,6 +310,14 @@ export default function WorldScreen() {
     // Only on arriving somewhere new.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoneId, visitedHere]);
+
+  // Arriving somewhere can move the story on (#75 item 14g: Posy comes over to
+  // the Marsh once you do) — on every arrival, not only the first visit.
+  const arrives = save ? arrivalFlags(zoneId, save.flags).join(',') : '';
+  useEffect(() => {
+    if (arrives) for (const f of arrives.split(',')) setFlag(f);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrives]);
 
   // Warm each living enemy's battle questions while the player explores.
   useEffect(() => {
@@ -313,12 +358,35 @@ export default function WorldScreen() {
   function showToast(text: string) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     if (hintTimer.current) clearTimeout(hintTimer.current);
+    toastText.current = text;
+    toastAt.current = Date.now();
     setToast(text);
     toastUp.current = true;
     toastTimer.current = setTimeout(() => {
       setToast(null);
       toastUp.current = false;
     }, toastMs(text));
+  }
+
+  /** Take down the toast if it's one of these lines (another's stays, its timers too). */
+  function clearToastOf(lines: string[], readMs = 0) {
+    if (!toastUp.current || !lines.includes(toastText.current ?? '')) return;
+    // Up long enough to have been read (a line gone in under a second helps nobody):
+    // too young, it comes down once it's had that long — if it's still the same line.
+    const young = readMs - (Date.now() - toastAt.current);
+    if (young > 0) {
+      const shownAt = toastAt.current;
+      const asked = Date.now();
+      setTimeout(() => {
+        // Still the same line, and she hasn't stopped again since (then it's right again).
+        if (toastAt.current === shownAt && escortStoppedAt.current < asked) clearToastOf(lines);
+      }, young);
+      return;
+    }
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(null);
+    toastUp.current = false;
+    toastText.current = null;
   }
 
   /** A field spell cast from the menu, or Glow from the HUD (#75 item 9). */
@@ -517,6 +585,37 @@ export default function WorldScreen() {
           onWard: (id) => spireBump({ kind: 'ward', id }),
           onStairs: () => spireBump({ kind: 'stairs' }),
           onUmbra: () => spireBump({ kind: 'umbra' }),
+          // An escort's walk (#75 item 14g): a stop says why (now and then); where
+          // they stand is kept (a battle mid-walk leaves them there); arriving ends it.
+          onEscortWait: (near) => {
+            if (!walk) return false;
+            // Back beside her: say it now, over her own "go back and find her" if that's still up;
+            // a passing stop waits for a quiet moment and 15 s since the last.
+            const ownUp = toastUp.current && (toastText.current === walk.behindLine || toastText.current === walk.waitLine);
+            if (near ? toastUp.current && !ownUp : toastUp.current || Date.now() - escortSaidAt.current < 15000) return false;
+            escortSaidAt.current = Date.now();
+            showToast(walk.waitLine);
+            return true;
+          },
+          // She walks on: a "why she stopped" line still up is out of date.
+          onEscortGo: () => walk && clearToastOf([walk.waitLine, walk.behindLine], 4000),
+          onEscortStop: () => {
+            escortStoppedAt.current = Date.now();
+          },
+          onEscortBehind: () => {
+            if (!walk || Date.now() - escortSaidAt.current < 8000) return;
+            escortSaidAt.current = Date.now();
+            showToast(walk.behindLine);
+          },
+          onEscortMove: (x, y) => useBattleStore.getState().setEscortAt({ x, y }),
+          onEscortArrive: () => {
+            if (!walk) return;
+            // Her own "isn't here yet" / "stopped" line is wrong now: cleared before her panels (#75 item 14g UX review).
+            clearToastOf([walk.waitLine, walk.behindLine]);
+            useBattleStore.getState().setEscortAt(null);
+            sfx('chest');
+            update((s) => ({ ...s, flags: { ...withoutEscorts(s.flags), [stepFlag(walk.stepId)]: true } }));
+          },
           onSecret: (id) => {
             const secret = secretById(id);
             if (!secret || save.flags[secretFlag(id)]) return;
@@ -532,6 +631,7 @@ export default function WorldScreen() {
         calmRef={calmRef}
         boat={boatSpot(save)}
         aboard={save.aboard}
+        escort={walk ? { npcId: walk.npcId, goal: walk.goal, from: useBattleStore.getState().escortAt } : null}
       />
 
       <p className="text-white/50 text-xs mt-2">
@@ -659,6 +759,9 @@ export default function WorldScreen() {
       )}
       {activeScene === 'fogbank' && (
         <StoryPanels panels={GREAT_FOGBANK_PANELS} doneLabel="🧭 Sail on" onDone={() => setFlag(GREAT_FOGBANK_SEEN)} />
+      )}
+      {activeScene === 'posy' && (
+        <StoryPanels panels={POSY_STONE_PANELS} doneLabel="🌼 Go and say hi to Posy" onDone={() => setFlag(POSY_STONE_SEEN)} />
       )}
       {activeScene === 'memoria' && (
         <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />

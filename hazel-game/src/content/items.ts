@@ -7,7 +7,7 @@
  */
 
 /** Carried consumables. The save stores a count for each id. */
-export const CONSUMABLE_IDS = ['potion', 'hint', 'elixir', 'spark', 'ward', 'clover', 'tea', 'snack', 'coil', 'mirror', 'knot'] as const;
+export const CONSUMABLE_IDS = ['potion', 'hint', 'elixir', 'spark', 'ward', 'clover', 'tea', 'snack', 'coil', 'mirror', 'knot', 'candle'] as const;
 export type ConsumableId = (typeof CONSUMABLE_IDS)[number];
 
 export interface ShopItem {
@@ -49,10 +49,12 @@ export const CONSUMABLES: Record<ConsumableId, { name: string; emoji: string; de
   mirror: { name: 'Mirror Charm', emoji: '🪞', description: "Bounces the enemy's next hit back at it." },
   // Act II (#75 item 14e): Trader Knack's — tie it on and you won't forget the answer twice.
   knot: { name: 'Forget-Me-Knot', emoji: '🎗️', description: 'Your next wrong answer in this battle gets a second try.' },
+  // Act II (#75 item 14g): Ferryman Slosh's — a light no trickster can play games with.
+  candle: { name: 'Glimmer Candle', emoji: '🕯️', description: "Light it in a battle: a free hint, and slippery critters like Bog Lanterns can't block your Hint Feathers." },
 };
 
 /** Consumables that can be used from the battle Items menu (not Hint Feathers). */
-export const BATTLE_ITEMS: readonly ConsumableId[] = ['potion', 'elixir', 'snack', 'spark', 'coil', 'ward', 'mirror', 'tea', 'clover', 'knot'];
+export const BATTLE_ITEMS: readonly ConsumableId[] = ['potion', 'elixir', 'snack', 'spark', 'coil', 'ward', 'mirror', 'tea', 'clover', 'knot', 'candle'];
 
 function stock(id: ConsumableId, price: number): ShopItem {
   return { id, ...CONSUMABLES[id], price };
@@ -115,6 +117,15 @@ export const SHOPS: Record<string, ShopDef> = {
     items: [
       stock('knot', 35),
       { id: 'badge:forgetmenot', name: 'Forget-Me-Not Badge', emoji: '🌼', description: "You won't forget this one. Probably.", price: 100 },
+    ],
+  },
+  // Act II (#75 item 14g): Ferryman Slosh's raft shop by Foglight Marsh's landing.
+  'marsh-slosh': {
+    name: "Slosh's Raft Shop",
+    emoji: '⛵',
+    items: [
+      stock('candle', 40),
+      { id: 'badge:lily', name: 'Lily Pad Badge', emoji: '🪷', description: 'Floats. Mostly.', price: 100 },
     ],
   },
   'village-shopkeeper': {

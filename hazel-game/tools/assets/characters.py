@@ -2402,6 +2402,46 @@ def gargoyle(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(15, 30.9, 9, 1.2))
 
 
+def pond_frog(c: Canvas, p: Pose, s: dict):
+    """A friendly pond frog: round, smiling, rosy-cheeked, with a lily-pad hat and a
+    little pink flower — nothing like a murky toad you'd fight (#75 item 14g: Puddle)."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#8ad84a'))
+    belly = hexc(s.get('belly', '#f4f0b0'))
+    L = d.part(d.lean, d.bob)
+    L.ellipse(9, 26.5, 4, 2.6, dark(col, 0.1))  # folded legs
+    L.ellipse(23, 26.5, 4, 2.6, dark(col, 0.1))
+    L.ellipse(16, 22, 8.6, 6.8, col)  # round body
+    if p.facing != 'up':
+        L.ellipse(16, 24.5, 5.4, 3.6, belly)
+    L.ellipse(11, 29.4, 2.6, 0.9, dark(col, 0.18))  # feet
+    L.ellipse(21, 29.4, 2.6, 0.9, dark(col, 0.18))
+    d.put(L)
+    H = d.part(d.lean, d.bob)
+    H.ellipse(11.5, 14.5, 3.2, 3.2, col)  # big eye bumps
+    H.ellipse(20.5, 14.5, 3.2, 3.2, col)
+    if p.facing != 'up':
+        ex = [11.5, 20.5] if p.facing == 'down' else [13, 21]
+        for x in ex:
+            H.ellipse(x, 14.5, 2.2, 2.2, '#ffffff', shade=False)
+            H.ellipse(x + 0.3, 14.8, 1.2, 1.3, hexc('#1a1a2a'), shade=False)
+            H.dot(x - 0.4, 13.8, '#ffffff')
+        if d.sep:
+            for x in (9.6, 22.4):
+                H.ellipse(x, 20, 1.6, 0.9, '#ffa0b0', shade=False)  # rosy cheeks
+        if not p.hurt:
+            H.line(13, 20.5, 16, 22, dark(col, 0.5), w=0.6)  # a big smile
+            H.line(16, 22, 19, 20.5, dark(col, 0.5), w=0.6)
+    d.put(H)
+    T = d.part(d.lean, d.bob)
+    T.ellipse(16, 10.4, 8.6, 2.2, hexc('#3a9a4a'))  # the lily-pad hat
+    T.poly([(16, 10.4), (23.5, 9.2), (23.5, 11.6)], dark(hexc('#3a9a4a'), 0.25))  # its notch
+    T.ellipse(14, 8.6, 1.8, 1.6, '#ff8ab8')  # a little pink flower
+    T.dot(14, 8.6, '#fff2a0')
+    d.put(T)
+    finish(c, d, shadow=(16, 30.6, 7, 1.2))
+
+
 def dart_frog(c: Canvas, p: Pose, s: dict):
     """A neon poison dart frog: bright colours mean DON'T TOUCH."""
     d = D(c, p)
@@ -2989,6 +3029,152 @@ def turtle(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.6, 9, 1.3))
 
 
+# ─── Foglight Marsh (#75 item 14g) ────────────────────────────────────────────
+
+def newt(c: Canvas, p: Pose, s: dict):
+    """A little mist newt: a long low body, a curling tail, wide damp eyes."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#8ab0b8'))
+    belly = hexc(s.get('belly', '#e8a050'))
+    lean, bob = d.lean, d.bob
+    Lg = d.part(lean * 0.4, 0)
+    for i, x in enumerate((10, 20)):  # two pairs of splayed legs
+        off = p.step * (1.0 if i % 2 else -1.0)
+        Lg.line(x + off, 24, x - 2 + off, 28.6, dark(col, 0.3), w=1)
+        Lg.line(x + 1 - off, 24, x + 3 - off, 28.6, dark(col, 0.2), w=1)
+    d.put(Lg)
+    B = d.part(lean, bob)
+    B.poly([(4, 24), (2.5, 21), (5, 19.5), (8, 23)], col)  # the tail
+    B.ellipse(14.5, 23, 9, 3.6, col)
+    B.ellipse(14.5, 25.4, 7.4, 1.4, belly, shade=False)
+    if d.sep:
+        for x in (9, 13, 17):  # misty spots
+            B.ellipse(x, 21.6, 1.2, 0.8, light(col, 0.25), shade=False)
+    d.put(B)
+    H = d.part(lean, bob)
+    hx, hy = 24, 21.6
+    H.ellipse(hx, hy, 4.6, 3.4, col)
+    if p.facing != 'up':
+        d.eyes(H, [(hx + 0.6, hy - 1.6), (hx + 3, hy - 1.4)] if p.facing == 'down' else [(hx + 1.6, hy - 1.4)], h=2)
+        if d.sep and not p.hurt:
+            H.line(hx + 1, hy + 1.4, hx + 3.6, hy + 1.2, dark(col, 0.45), w=0.5)  # a little smile
+    d.put(H)
+    finish(c, d, shadow=(15, 30.4, 9, 1.1))
+
+
+def bog_lantern(c: Canvas, p: Pose, s: dict):
+    """A will-o'-the-wisp: a teal flame-spirit with a wispy tail and a sly grin — no
+    cage, no post, so it never reads as one of Brume's lanterns (#75 item 14g)."""
+    d = D(c, p)
+    glow = hexc(s.get('glow', '#5ee8c0'))
+    hover = (-1.4 if p.frame % 2 else 0.0)
+    flick = 1 if p.frame % 2 else 0
+    L = d.part(d.lean, d.bob + hover - 2)
+    # The flame body: round below, licking up to a point, a tail curling under.
+    L.ellipse(16, 18, 7.2, 6.6, glow)
+    L.poly([(9.6, 16), (16, 3.5 + flick), (22.4, 16)], glow)
+    L.poly([(18, 9), (22.5, 4 - flick), (21, 13)], light(glow, 0.1))
+    L.poly([(11, 22), (16, 23), (8.5, 29.5)], dark(glow, 0.08))  # the tail
+    L.ellipse(16, 19, 4.4, 4.2, light(glow, 0.35), shade=False)  # the hot heart
+    ex = face_x(p, [16.6, 19.8], [13.6, 18.4])
+    d.eyes(L, [(x, 16.8) for x in ex], color=hexc('#10302a'), h=2.4, shine=True)
+    if ex and d.sep and not p.hurt:
+        L.line(ex[0] - 0.6, 20.2, ex[-1] + 0.6, 20.2, hexc('#10302a'), w=0.6)  # a sly grin
+        L.dot(ex[-1] + 0.6, 19.6, hexc('#10302a'))
+    for (hx, hy) in ((8.6, 19.5), (23.4, 19.5)):  # little flame hands
+        L.ellipse(hx, hy, 1.6, 1.3, dark(glow, 0.05))
+    d.put(L)
+    G = d.part(d.lean, d.bob + hover - 2)
+    for k, (x, y) in enumerate(((5, 11), (27, 13), (6, 24), (26, 25))):
+        if (k + p.frame) % 2:
+            G.dot(x, y, light(glow, 0.45))
+    d.put(G, outline=False)
+    finish(c, d, shadow=(16, 30.4, 5, 1.1))
+
+
+def storm_cloud(c: Canvas, p: Pose, s: dict):
+    """The Last Fogbank: a dark, scowling thundercloud with glowing eyes fixed on you
+    and sparks crackling round it — the last of the fog, and angry about it (#75 item 14g)."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#6e7488'))
+    L = d.part(d.lean, d.bob)
+    wob = 1 if p.frame % 2 else 0
+    for (x, y, r) in ((8, 19, 6.4), (16, 13 - wob, 9), (24, 18, 7), (12, 24, 6.4), (21, 24.5, 6.4), (5, 25, 3.8), (28, 25, 3.8)):
+        L.ellipse(x, y, r, r * 0.9, col)
+    for (x, y) in ((11, 9), (20, 7 - wob)):
+        L.ellipse(x, y, 2.4, 1.4, light(col, 0.12), shade=False)
+    if p.facing != 'up':
+        # Glowing eyes under heavy, angry brows — staring straight at you.
+        for (x, lean_y) in ((12.5, 1), (19.5, -1)):
+            L.ellipse(x, 18, 2.3, 1.7, '#fff2a0', shade=False)
+            L.ellipse(x, 18.2, 0.9, 1.2, hexc('#1a1a2a'), shade=False)
+            L.line(x - 2.8, 15.4 - lean_y, x + 2.8, 15.4 + lean_y, dark(col, 0.55), w=1.0)  # the brow
+        if not p.hurt:
+            # A jagged scowl.
+            pts = [(12.5, 23.6), (14, 22.6), (15.5, 23.6), (17, 22.6), (18.5, 23.6), (20, 22.6)]
+            for (a, b) in zip(pts, pts[1:]):
+                L.line(a[0], a[1], b[0], b[1], dark(col, 0.6), w=0.7)
+    d.put(L)
+    Z = d.part(d.lean, d.bob)
+    if p.frame % 2 == 0:  # sparks crackling round it
+        for (x0, y0) in ((3, 12), (27, 9)):
+            Z.line(x0, y0, x0 + 1.4, y0 + 2.2, '#ffe25a', w=0.6)
+            Z.line(x0 + 1.4, y0 + 2.2, x0 + 0.4, y0 + 2.6, '#ffe25a', w=0.6)
+            Z.line(x0 + 0.4, y0 + 2.6, x0 + 1.8, y0 + 4.8, '#ffe25a', w=0.6)
+    d.put(Z, outline=False)
+    finish(c, d)
+
+
+def lantern_post(c: Canvas, p: Pose, s: dict):
+    """One of Brume's marsh lanterns on a post (#75 item 14g): dark, or glowing gold once lit."""
+    d = D(c, p)
+    lit = s.get('lit', False)
+    wood = hexc('#6a4a30')
+    L = d.part(0, 0)
+    L.rect(15, 10, 17, 29.6, wood)
+    L.rect(12, 28.6, 20, 30.2, dark(wood, 0.2))
+    L.rect(16, 4.2, 22, 5.6, wood)  # the arm
+    # A big lamp head — pale glass even when dark, so it reads as a lantern on a phone,
+    # not a stick in the reeds (#75 item 14g UX review).
+    L.rect(16.6, 5.6, 23.4, 7.2, '#2a2a30')  # the cap
+    L.rect(16.2, 7.2, 23.8, 19, '#2a2a30')
+    glass = hexc('#ffd860') if lit else hexc('#c4d2e2')
+    L.rect(17.2, 8.2, 22.8, 18, glass)
+    L.rect(19.6, 8.2, 20.4, 18, '#2a2a30' if not lit else '#e8b840')  # the middle bar
+    if lit:
+        L.ellipse(20, 13.1, 1.6, 2.4, '#fff4c0', shade=False)
+    else:
+        L.rect(17.8, 8.8, 18.6, 12, '#f2f6fb')  # a glint
+    d.put(L)
+    if lit:
+        G = d.part(0, 0)
+        # A ring of light round the lamp, so a lit lantern reads at a glance on a phone (#75 item 14g review).
+        for k in range(16):
+            a = k * math.tau / 16
+            G.dot(20 + math.cos(a) * 7.4, 13.1 + math.sin(a) * 7.4, '#ffe680' if k % 2 else '#fff4c0')
+        for (x, y) in ((20, 2.6), (11.2, 13.1), (28.8, 13.1), (20, 23.6)):
+            G.dot(x, y, '#ffd84a')
+        d.put(G, outline=False)
+    finish(c, d, shadow=(16, 30.6, 5, 1.0))
+
+
+def nameless_stone(c: Canvas, p: Pose, s: dict):
+    """The Nameless Stone (#75 item 14g): a smooth grey standing stone, a tiny flower carved at the top."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#9aa0a8'))
+    L = d.part(0, 0)
+    L.rect(9, 12, 23, 29.5, col)
+    L.ellipse(16, 12, 7, 5, col)
+    L.rect(9, 27, 23, 29.5, dark(col, 0.15))
+    if d.sep:
+        L.ellipse(13, 18, 1.6, 4, light(col, 0.12), shade=False)
+    for (dx, dy) in ((0, -1.6), (1.6, 0), (0, 1.6), (-1.6, 0)):  # the carved flower
+        L.ellipse(16 + dx, 12 + dy, 1.1, 1.1, dark(col, 0.3), shade=False)
+    L.dot(16, 12, light(col, 0.3))
+    d.put(L)
+    finish(c, d, shadow=(16, 30.6, 8, 1.1))
+
+
 # ─── Roster ──────────────────────────────────────────────────────────────────
 
 DRAWERS = {
@@ -3026,6 +3212,7 @@ DRAWERS = {
     'gargoyle': gargoyle,
     'dog_knight': dog_knight,
     'dart_frog': dart_frog,
+    'pond_frog': pond_frog,
     'snapjaw': snapjaw,
     'orbit_otter': orbit_otter,
     'gravity_beetle': gravity_beetle,
@@ -3039,6 +3226,11 @@ DRAWERS = {
     'hollow_acorn': hollow_acorn,
     'tree_folk': tree_folk,
     'turtle': turtle,
+    'newt': newt,
+    'bog_lantern': bog_lantern,
+    'storm_cloud': storm_cloud,
+    'lantern_post': lantern_post,
+    'nameless_stone': nameless_stone,
 }
 
 
@@ -3150,6 +3342,11 @@ ROSTER: list[Char] = [
     Char('hollow-acorn', '🫥', 'hollow_acorn', H(color='#b8783a', cap='#6a4a2a', shield=True)),
     Char('ringkeeper', '🦌', 'beast', H(kind='stag', fur='#cdb894', belly='#efe4c8', antler='#8a6440', leaves=True, leaf='#e8a838',
                                      rings='#8a6440', key=True), boss=True),
+    # ── Act II: Foglight Marsh (#75 item 14g) ──
+    Char('mist-newt', '🦎', 'newt', H(color='#8ab0b8', belly='#e8a050')),
+    Char('bog-lantern', '🎃', 'bog_lantern', H(glow='#7af0c0', frame='#3a3a4a')),
+    Char('murk-toad', '🐸', 'dart_frog', H(color='#5a6a3a', spot='#2e3418')),
+    Char('last-fogbank', '⛈️', 'storm_cloud', H(color='#6e7488'), boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
@@ -3255,6 +3452,13 @@ NPCS: list[Char] = [
     # Taller than the grove's scenery trees (boss-sized), so he reads as someone to talk to.
     Char('elder-ringwood', '🌳', 'tree_folk', H(bark='#7a5232', leaf='#5a8a3a'), boss=True),
     Char('elder-dawdle', '🐢', 'turtle', H(shell='#6a8a3a', skin='#a8c070')),
+    # ── Act II: Foglight Marsh (#75 item 14g) ──
+    Char('marsh-brume', '🏮', 'humanoid', H(hair='bun', hair_color='#6a6a7a', hat='hood', hat_color='#3a4a5a', outfit='#4a6a7a', trim='#ffd860', robe=True, item='lantern')),
+    Char('marsh-puddle', '🐸', 'pond_frog', H(color='#8ad84a')),
+    Char('marsh-slosh', '⛵', 'humanoid', H(hair='short', hair_color='#8a5a3a', beard='#8a5a3a', hat='straw', outfit='#3a6a5a', trim='#d8c890', item='staff', item_color='#8a6a3a')),
+    Char('marsh-stone', '🪨', 'nameless_stone', H(color='#9aa0a8')),
+    Char('marsh-lantern', '🏮', 'lantern_post', H(lit=False)),
+    Char('marsh-lantern-lit', '🏮', 'lantern_post', H(lit=True)),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

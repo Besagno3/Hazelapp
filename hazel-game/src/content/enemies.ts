@@ -40,6 +40,11 @@ export interface EnemyDef {
    * never fights a sailing hero (`meetsHero`, lib/travel.ts).
    */
   habitat?: Habitat;
+  /**
+   * A badge for the trophy shelf, won with this boss's first defeat (#75 item
+   * 14g: the Last Fogbank's Foglight Badge) — its id in `save.badges`.
+   */
+  badge?: string;
 }
 
 const HP_BASE = 60;
@@ -123,6 +128,67 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'hollow-acorn': { id: 'hollow-acorn', name: 'Hollow Acorn', sprite: '🫥', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
   // The warden of the Great Ring: beat it for the Memoria Key (keys.ts).
   ringkeeper: { id: 'ringkeeper', name: 'The Ringkeeper', sprite: '🦌', topic: 'history', levelOffset: 1, hpPerLevel: 16, isBoss: true, role: 'warden' },
+
+  // --- Foglight Marsh (history, #75 item 14g): critters of the last fog ---
+  'mist-newt': { id: 'mist-newt', name: 'Mist Newt', sprite: '🦎', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
+  // Trickster: its flicker hides the Hint Feather's work (STORY-4X §4 "decoy options").
+  'bog-lantern': { id: 'bog-lantern', name: 'Bog Lantern', sprite: '🎃', topic: 'history', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster' },
+  'murk-toad': { id: 'murk-toad', name: 'Murk Toad', sprite: '🐸', topic: 'history', levelOffset: 1, hpPerLevel: 13 },
+  // The very last of the fog that made Lumina forget — optional, restores
+  // nothing, gives the Foglight Badge (a miniboss, #75 item 14c roles).
+  'last-fogbank': {
+    id: 'last-fogbank',
+    name: 'The Last Fogbank',
+    sprite: '⛈️',
+    topic: 'history',
+    levelOffset: 1,
+    hpPerLevel: 15,
+    isBoss: true,
+    role: 'miniboss',
+    badge: 'foglight',
+    lines: {
+      intro: [
+        'So. Someone wandered into MY cove. I am the Last Fogbank — the very last of the fog that made Lumina forget.',
+        "I'll swallow your memories one by one. Answer my questions about long ago — if you can still REMEMBER them!",
+      ],
+      defeat: "No… you remembered it ALL. The light is too bright… I'm fading away. Take the badge — you've earned it, little lantern.",
+    },
+  },
+};
+
+/**
+ * A boss's own lines as it gets angrier — at half HP, then near the end (its
+ * enrage phases) — so each sounds like itself, and menacing (#75 item 14g,
+ * the owner's call: "bosses should be more menacing"). `rageLine` falls back
+ * to a general pair for a boss with none.
+ */
+export const BOSS_RAGE: Record<string, [string, string]> = {
+  'null-fiend': ["The Null Fiend's eyes go dark — it's starting to erase the numbers!", 'The Null Fiend roars: "ZERO! Everything becomes ZERO!"'],
+  'smog-fiend': ['The Smog Fiend swells up, thick and choking!', "The Smog Fiend bellows out a black cloud — it's furious!"],
+  'rust-fiend': ['The Rust Fiend grinds its gears and stomps closer!', "The Rust Fiend's eyes glow red-hot: \"I'll rust you right down to your boots!\""],
+  'gray-fiend': ['The Gray Fiend drains the color from the sky!', 'The Gray Fiend howls: "No more colors — EVER!"'],
+  'thicket-warden': ["The Thicket Warden's thorns grow longer and sharper!", 'The Thicket Warden stamps the ground — the whole wood shakes!'],
+  'tide-colossus': ['The Tide Colossus rises higher — the water churns!', 'The Tide Colossus roars like a storm at sea!'],
+  'clockwork-titan': ["The Clockwork Titan's gears spin faster and faster!", 'The Clockwork Titan booms: "YOUR TIME IS UP!"'],
+  ringkeeper: ['The Ringkeeper lowers its antlers and paws the ground!', 'The Ringkeeper bellows: "A THOUSAND YEARS, and nobody got past me!"'],
+  'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
+};
+
+/** What a boss says as it crosses into enrage phase `phase` (1: half HP, 2: near the end). */
+export function rageLine(enemyId: string, name: string, phase: 1 | 2): string {
+  const own = BOSS_RAGE[enemyId];
+  if (own) return own[phase - 1];
+  return phase === 1 ? `${name} roars — it's getting serious!` : `${name} is furious — watch out!`;
+}
+
+/** A name without a leading "The", for a phone's narrow battle panel ("The Ringkeeper" → "Ringkeeper", #125j). */
+export function shortName(name: string): string {
+  return name.replace(/^The /, '');
+}
+
+/** Badges a boss gives (#75 item 14g), for the menu's trophy shelf: id → name and emoji. */
+export const BOSS_BADGES: Record<string, { name: string; emoji: string }> = {
+  foglight: { name: 'Foglight Badge', emoji: '🌤️' },
 };
 
 /** Where an enemy lives (#75 item 14d): its def's habitat, else land. */

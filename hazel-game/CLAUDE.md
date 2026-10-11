@@ -157,7 +157,12 @@ zod, react-query. Add the package in the same change that first uses it.
   signposts and the menu map; Act II's **Eldergrove**, #75 item 14f, is
   an island of the Silver Shallows — a history field at tier 5 whose warden,
   the Ringkeeper, gives the Memoria Key, a `GateKey` whose gate isn't on any
-  map until the Sunken Archive (14h): `unlocksZone: null`, `opens` instead),
+  map until the Sunken Archive (14h): `unlocksZone: null`, `opens` instead;
+  and **Foglight Marsh**, #75 item 14g, is the Shallows' north coast — a
+  history field where Posy's escort walks (`escortStep`, `lib/escort.ts`: an
+  escort follows the hero's footsteps and waits near critters; its walk is
+  never saved, `escortWalkingFlag`) and a miniboss gives its own badge
+  (`EnemyDef.badge`)),
   `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
@@ -443,8 +448,9 @@ zod, react-query. Add the package in the same change that first uses it.
   session opens with a 💪 tap-to-continue line saying what they mean
   (`toughCallout`, chained after a boss's monologue, then the 💛 mercy line), a
   far defeat says what to do (`defeatTip`), and a healer's mend is capped
-  (`HEALER_REGEN_MAX`) so no region makes a fight stall. Fiends (bosses) have enrage phases and restore their
-  crystal on defeat. No game over — defeat wakes the player, healed, inside
+  (`HEALER_REGEN_MAX`) so no region makes a fight stall. Fiends (bosses) have enrage phases — every boss
+  says its own menacing line as it crosses into each (`BOSS_RAGE` / `rageLine`,
+  `content/enemies.ts`) — and restore their crystal on defeat. No game over — defeat wakes the player, healed, inside
   the last inn they rested at (`wakeAfterDefeat`; home to Lumina Village,
   `HUB_ZONE`, if they've never rested away from it). **Structure (#87, kept by the #99 port):** the rules of a turn are
   pure resolvers + tuning in `lib/battleTurn.ts` (damage formulas in
@@ -543,6 +549,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit (#75 item 14f)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
+# (…and escort=1 — an escort's walk under way, by its flags — and __bench.walkTo(x, y), #75 item 14g)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
 python3 tools/tiled/tiled.py to-ascii src/content/maps/dawnreach.tmj    # a Tiled map as ASCII rows
@@ -558,6 +565,7 @@ python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#7
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
 python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
+python3 tools/assets/build.py marsh    # Foglight Marsh: its tiles, the stilt town sheet, the marsh icon, its critters, people and lanterns (#75 item 14g)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
@@ -638,6 +646,295 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — Merge main (answer shuffle, password eye, parent accounts, sign-in music) into the Foglight Marsh branch (#75 item 14g)
+`main` took ISSUES **#120–#124** and TC-850–893 while 14g was in review
+(#120 is the sign-in music's follow-ups), so 14g's follow-ups moved **#120 →
+#125** and its test cases **TC-840–886 → TC-894–940** (only 14g's own lines
+were renumbered). Only the three docs conflicted; the code merged cleanly
+(`build.py` keeps both the `marsh` and `intro` targets). `shortName` moved from
+`BattleHud.tsx` to `content/enemies.ts` (a component file may only export
+components — lint). 1050 tests green, lint + tsc + build clean.
+
+### 2026-10-11 — 14g: names fit a phone's battle, a brighter marsh icon (#125j)
+The last two #125 items. **Names in battle on a phone:** at 320–360 px both
+status panels were squeezed to ~148 px, so "The Ringkeeper" read "The
+Ringkee…" (and the hero's "V…"). Below `sm` the hero's panel now takes only
+what it needs — portrait and a compact "◆0/4" (the diamonds from `sm` up; the
+hero's name is read aloud) — the enemy's the rest, and its name drops a
+leading "The" (`shortName`, 12 px; the full name for screen readers and from
+`sm` up): ~115 px for the name, so every boss fits ("Clockwork Titan"). A
+two-line name was tried first and pushed 🏃 Flee off a 320×568 phone in a boss
+fight — this adds no height (`bench … battle` 5/5). **The marsh icon** on the
+map (overworld frame 18) is redrawn bright — a light-blue pool, a pink lotus
+on its lily pad, cattails and a glowing lantern; frames 0–17 byte-identical.
+Tests: BattleHud.test +2. 981 green.
+
+### 2026-10-11 — 14g: the owner's six calls (#75 item 14g, #125 j/k/m/n/o/u)
+- **The Bog Lantern looks like a critter (#125j):** a teal flame-spirit with
+  a wispy tail and a sly grin (`bog_lantern` redrawn) — no cage, handle or
+  post, so it never reads as one of Brume's lanterns.
+- **Posy waits on the Hill until you've been to the Marsh (#125k):** she no
+  longer vanishes as her offer closes. The first arrival in the Marsh after
+  she asks sets `POSY_SAILED` (`arrivalFlags`, `content/quests.ts`, set by
+  `WorldScreen` on every arrival); her Hill spot waits for it, her landing
+  spot needs it. Her hint says she'll meet you there; Slosh "just ferried her
+  over, right behind you".
+- **Puddle doesn't look like the Murk Toad (#125m):** a new `pond_frog`
+  drawer — round, lime, smiling, rosy-cheeked, with a lily-pad hat and a pink
+  flower.
+- **Bosses are menacing (#125n):** every boss says its own line at each
+  enrage phase (`BOSS_RAGE`, `rageLine`; the fallback is "… roars — it's
+  getting serious!" / "… is furious — watch out!"). The Last Fogbank is no
+  longer shy: a dark, scowling thundercloud with glowing eyes and sparks
+  (`storm_cloud`, ⛈️), new intro and defeat lines, "Forgetting Fog" for its
+  power move, and Brume warns "It swallowed every lantern here once."
+- **Lanterns east → north → west (#125o):** from the Ledger's chest back
+  toward Brume's lamp-house; the found note, the found-first offer, the hints
+  and the last lantern's line ("Brume's lamp-house is right there") follow.
+- **The Mist Newt moved again (#125u):** to (31,3), open grass between the
+  middle and east boardwalks; zones.test now checks the grass shortcut west
+  from the north boardwalk's top too (it fails with the Newt at 16,8).
+- Art: `python3 tools/assets/build.py marsh` (bog-lantern, last-fogbank,
+  marsh-puddle rebuilt; the manifest's Fogbank emoji ⛈️). Tests: +4
+  (enemies.test: every boss's rage lines, the fallback; quests.test: Posy
+  comes over on arrival; zones.test: her Hill → landing order with the new
+  flag). 979 green, lint + build clean; looked at on the bench.
+
+### 2026-10-11 — 14g review round 12: the last lows; the loop ends (#75 item 14g)
+Fresh `/saas-code-review` (nothing found) and `/saas-ux-review` (2 low; talked
+to every Marsh person and lantern from every side, then walked away, 48
+times; Lumina Village's people too). Fewer than 4 lows, so fixed and the loop
+stopped. Walking past a building's corner a pixel or two off the row (under
+Brume's lamp-house, coming down the north boardwalk) slid the hero to a dead
+stop — movement now slides round a corner clipped by up to 4 px
+(`CORNER_SLIDE_PX`, engine-wide; `bench … journey` still 13/13); the
+Ledger's note no longer reads "You open the Ledger" above the "chest pops
+open" button ("📒 Inside is Brume's Lantern Ledger! It says: first…").
+
+### 2026-10-11 — 14g review round 11: never nudged into a wall (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 2 low) and `/saas-ux-review` (1 high).
+Fixed: talking to Brume from the boardwalk just above her (her lamp-house wall
+one row up) nudged the hero back into the wall, so after her talk they could
+only walk down into her again (5 of 8 tries) — the step back after any bump
+(people, a shop counter, the Spire, Umbra) now goes as far back as there's
+room for, up to 10 px, never into a wall (`nudgeBack`; replayed: never stuck,
+the hero lands just clear of the wall); the reroute latch is cleared once she
+no longer needs it, so a second return for Posy reroutes too; a "she stopped"
+line due to come down stays if she's stopped again (`onEscortStop`). Asked
+(#125u): the Newt's new spot (16,8) sits on the grass shortcut west from the
+north boardwalk's top — move it again, or accept it?
+
+### 2026-10-11 — 14g review round 10: no waiting for ever, the Newt off her road (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 2 low) and `/saas-ux-review` (1 medium,
+2 low). Fixed: round 9's 100 px walk-on distance could keep Posy waiting for
+ever by a critter leashed near where she stopped (it can never get 100 px
+away) — she now walks on once no critter has been within 80 px for 0.6 s
+(`ESCORT_RESUME_S`, `EscortState.clearFor`); a child who waited as told stood
+20–40 s at the Mist Newt, whose patch reached the boardwalk — it now lives
+at (16,8), and zones.test checks no critter's patch (leash + 80 px) reaches
+Posy's boardwalk walk; on the last stretch she trails ~4.5 tiles, so the
+stone's own line often came first — she arrives up to 5 tiles behind a hero
+at the stone; a line she's walked on from is taken down once it's had 4 s
+(scheduled, not dropped); the way round to a hero who came back is worked
+out once per hero cell; Brume's found-first line split under 30 words.
+
+### 2026-10-11 — 14g review round 9: a wait line you can read (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (1 medium,
+1 low). Fixed: the Mist Newt drifting at the edge of Posy's 80 px made her
+stop-start, so her wait line was taken down after 0.6–0.8 s — once waiting,
+she now walks on only when no critter is within 100 px (`ESCORT_RESUME_PX`;
+the "!" no longer blinks, #125r), and her own line is taken down only after
+it's been up 4 s (`clearToastOf`'s `readMs`); replayed, it stays 5–8 s. Going
+back for her works from up to 4 tiles away, not only right beside her
+(`cameBack`: her footsteps run 3+ tiles further than the hero is), the "back
+beside her" line within 2.5 tiles; with no way round found she keeps her
+footsteps (never a straight line across a pool); "move away", not "wander
+off" (a leashed critter only drifts).
+
+### 2026-10-11 — 14g review round 8: go back for her, and she stays with you (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (1 medium,
+2 low; played with a live probe of Posy's state). Fixed: doing what "go back
+and find her" says made Posy, once the critter left, run past the hero back
+out along the old footsteps to the stone and arrive alone — now, when the
+hero comes back beside her, her out-and-back footsteps are dropped for a way
+round to the hero (`cameBack`, `reachPath`), and she never "arrives" with the
+hero more than 4 tiles from the stone; the "back beside her" line is spent
+only when it's said, and replaces her own "go back" line at once
+(`onEscortWait` returns whether it showed; `toastText`); her wait / "go back"
+lines are taken down when she walks on (`onEscortGo`) or arrives — and only
+hers (`clearToastOf`), so the sleeper hint keeps its timer. On the stubbed
+app: back beside her, the wait line replaced "go back" and she stayed put.
+
+### 2026-10-11 — 14g review round 7: say it once when you come back (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (4 low).
+Fixed: round 6's "back beside a waiting Posy" toast fired every ~9 s for a
+hero standing beside her all along (she follows 44 px behind, inside the
+48 px check) — it now needs the hero to have walked more than 3 tiles away
+during that wait, and says it once (`escortWentAway`); otherwise the 15 s
+rule holds. Her arrival clears a "she isn't here yet" toast before the
+panels; the "Not this one yet!" North line is under 30 words and says
+"nearby"; Brume's found-first West directions match the Ledger's; "bottom-right
+of the Marsh" for the Fogbank's cove; one doc comment on `onEscortWait`.
+
+### 2026-10-11 — 14g review round 6: lanterns you can see (#75 item 14g)
+Fresh `/saas-code-review` (2 low) and `/saas-ux-review` (1 medium, 3 low).
+Fixed: an unlit lantern was a thin brown post on a phone, and the North
+Lantern's hint ("by the big pond") pointed at the glowing Bog Lantern critter
+— the lanterns now have a big pale-glass head (`lantern_post`, both sprites
+rebuilt) and the hint says "on a post right beside the middle boardwalk…
+(the glowing thing by the pond is a Bog Lantern — a critter!)"; Brume's "you
+found it already" offer names the West lantern first; the West Lantern is
+"beside the boardwalk, just up and to the right of Brume's lamp-house" (it
+isn't above it); back beside a waiting Posy, the wait line shows at once
+(`onEscortWait(near)`, every 4 s) instead of up to 15 s later.
+
+### 2026-10-11 — 14g review round 5: the Ledger says where to start (#75 item 14g)
+Fresh `/saas-code-review` (1 low) and `/saas-ux-review` (1 medium, 3 low).
+Fixed: finding the Ledger now says "📒 You open the Ledger: first, the WEST
+lantern — on the boardwalk just above Brume's lamp-house!" (`foundNote`;
+before, nothing said which lantern, and the nearest one refused); a Ledger
+found before meeting Brume gets "You found it already!" instead of being sent
+after it (`QuestDef.offerHaving`); plainer hints for the West Lantern and the
+walk; Posy's zone is one constant (`POSY_ZONE`) shared by the escort, the
+menu tag and the "you're here" hint. Asked (#125o): light the lanterns east →
+north → west (from the chest back toward Brume) instead of west first?
+
+### 2026-10-11 — 14g review round 4: whose voice, "next turn" (#75 item 14g)
+Fresh `/saas-code-review` (2 low) and `/saas-ux-review` (6 low) — no critical,
+high or medium. Fixed: the Ledger's hint is a narrator's ("Brume's Lantern
+Ledger…"), so a lantern no longer speaks in Brume's voice; the "too slippery"
+note says "Next turn, light a 🕯️ candle from Items." (Items opens when you
+pick your next move); the stone panels' button says "🌼 Go and say hi to
+Posy" (it closes the panels — she's beside you); plainer words for Brume and
+Posy (no "arrangement", no compass words); one ✨ not two; badge names 12 px
+white; a test that the Marsh quest log says Posy waits at the landing.
+Asked (#125n): should the shy Last Fogbank have its own mid-fight lines, not
+the standard "growls / is furious"?
+
+### 2026-10-11 — 14g review round 3: the lows (#75 item 14g)
+Fresh `/saas-code-review` (3 low) and `/saas-ux-review` (7 low; played on the
+bench and the stubbed app at 320–360 px) — no critical, high or medium left.
+Fixed: the "too slippery" note shows with a candle and no feathers too, and on
+a block question only its first half (Items opens on your turn); lighting the
+candle replaces the "Light a candle!" banner; the note is bigger; badges are a
+list with each name under its emoji (a phone has no hover); in the Marsh the
+quest log says Posy waits at the landing (not "sail to the Marsh"); the
+candle's description says it's lit in a battle; Slosh mentions Posy only
+while she's in the Marsh; the East Lantern hint's "on the right" was wrong; a
+lantern before the Ledger is found says "Not yet!" and where the Ledger is.
+Asked (#125m): Puddle the frog and the Murk Toad look alike.
+
+### 2026-10-11 — 14g UX review round 2: Posy arrives however you reach the stone (#75 item 14g)
+A fresh `/saas-ux-review` (1 high, 2 medium, 4 low; played on the bench and
+the stubbed app at 320–1024 px). All fixed:
+- **Posy never arrived from the grass (high):** walking up under the stone,
+  or from the side, left her a gap short for ever. She now arrives too when
+  the hero is beside the goal and she's walking close behind, not held up
+  (`arrived`'s `hero`); on the bench all four ways in arrive (one did before).
+- **The menu sent you to the Hill (medium):** a quest can say where it's
+  played (`QuestDef.playedIn`) and who waits where once done (`doneLine`) —
+  "Posy is waiting by the Nameless Stone in Foglight Marsh…".
+- **The candle cue was gone in 3 s (medium):** the trickster banner stays as
+  long as a toast would (`toastMs`), and with feathers blocked the question
+  says "🪶 Too slippery for feathers — light a 🕯️ candle from Items!"
+  (`QuestionCard` `hintNote`).
+- **Low:** Posy's "!" is orange on a light bubble (a dark plate read as a
+  critter's level); the candle's line fits the critter; badges are named on
+  hover and for screen readers; Slosh brought Posy over, Brume answers Ness;
+  "Posy ran back to the landing" waits for your next Marsh visit.
+
+### 2026-10-11 — 14g code review round 2: "go back for her" only when she's held up (#75 item 14g)
+A fresh `/saas-code-review` (1 medium, 5 low). Fixed: the "Posy isn't here
+yet! Go back and find her" toast fired on nearly every walk (she walks a
+little slower than the hero) — now only while a critter holds her up
+(`stuckBehind`, `lib/escort.ts`, tested on her real route); the wait toast no
+longer says "lead her another way" (she stands still while waiting); a stop
+is asked about each second while it lasts, so a toast already up doesn't
+swallow it; the stone's walking line; a test that feathers work on a
+trickster after the candle's free hint; a stale doc comment. Asked (#125k):
+Posy vanishes from the Hill the moment her offer closes.
+
+### 2026-10-10 — 14g UX review round 1: Posy's "!" you can see, the lanterns named (#75 item 14g)
+A fresh `/saas-ux-review` (2 high, 4 medium, 3 low; played on the stubbed app
+at 320–1024 px). Fixed:
+- **Posy waiting reads on a phone (high):** her "!" sits on a dark plate with
+  a yellow rim, 24 px, and every stop that lasts 1.5 s says why (at most every
+  15 s), not only the first.
+- **Reaching the stone without her (high):** at the stone with Posy more than
+  3 tiles back, "Posy is still on her way…" (`onEscortBehind`, every 8 s).
+- **The wrong lantern (medium):** it says "Not this one yet!" and the Ledger's
+  next step (`QuestStep.early`), not a dead end; they're named West / North /
+  East Lantern.
+- **"Tricksters" (medium):** the candle and Slosh say "slippery critters, like
+  Bog Lanterns"; the trickster banner offers the candle when you carry one.
+- **Posy sent back without a word (medium):** a lost battle or a reload sets
+  a back flag (`escortBackFlag`, `escortsBack`) and the world says once
+  "🌼 Posy ran back to the landing. Talk to her there to walk again!"
+- **Low:** the wait toast's wording; Posy waits up the boardwalk (21,23), away
+  from the exit; the badge is 🌤️ (🔆 is Glow's); "Big Grey Puff"; Slosh's line.
+- Logged (#125j): the boss name truncating at 320 px, the marsh icon reading
+  dark; asked: should a Bog Lantern look less like a quest lantern?
+
+### 2026-10-10 — 14g review round 1: the candle's own hint, no waiting on a boss (#75 item 14g)
+A fresh `/saas-code-review` (1 medium, 4 low; no security surface). All fixed:
+the Glimmer Candle's free hint is its own (`CombatState.candleHint`) — for Kira
+it used to do nothing, Fox Sense's hint already up; an escort never waits on a
+boss (it never moves); a shop counter never opens a chat with a walking escort;
+back from a battle, Posy walks a way round the map to the hero (`reachPath`),
+not straight across a pool; two doc comments put back above their code.
+
+### 2026-10-10 — Foglight Marsh: Posy's walk, Brume's lanterns, the Last Fogbank (#75 item 14g)
+Roadmap sub-item 14g — Act II's marsh on the Silver Shallows' north coast.
+- **On the Shallows:** a coast along the top edge (x 23–46, rows 0–4, a beach
+  below, `maps/silver-shallows.tmj`) with a lotus icon (`marsh`, frame 18,
+  appended; 🪷 on the menu map). Every land cell is within 6 of open sea, so a
+  hero saved aboard on it still loads afloat.
+- **The Marsh** (`foglight-marsh`, 44×28, `kind: 'field'`, history, tier 5 with
+  the Shallows): boardwalks from the landing up to a long walk across, reed
+  pools, **Brume's Lamp-House** (a new **stilt** style; the Marsh's shelter —
+  beaten here, you wake inside), **Slosh's Raft Shop**, the Nameless Stone at
+  the end of the north-west boardwalk, and a reedy cove in the south-east where
+  **the Last Fogbank** sits in front of the riddle-chest. Critters: Mist Newt 🦎,
+  Bog Lantern (trickster) and Murk Toad 🐸, two of each. People: Lightkeeper
+  Brume, Puddle the frog, Ferryman Slosh. Lamplighter Ness names the Marsh.
+- **The Flower for No Name** (Posy's escort; `requires` Marlow's boat): she asks
+  on Remembrance Hill, waits at the Marsh's landing, and — talked to there —
+  walks with you to the Nameless Stone. A new **`escortStep`**
+  (`QuestStep.escort`, `EscortDef`): `lib/escort.ts` has her follow the hero's
+  own footsteps (crumbs, a 44 px gap, quicker when far behind) and **wait while
+  an awake land critter is within 80 px** (a "!" over her; the first stop of a
+  walk says why); `WorldCanvas` takes `escort` (`EscortWalk`) and calls
+  `onEscortWait` / `onEscortMove` / `onEscortArrive`. The walk is never saved
+  (`escortWalkingFlag`): a battle mid-walk keeps her place for the session
+  (`battleStore.escortAt`); leaving the Marsh (`escortsAway`), a lost battle or a
+  reload (`normalizeSave` → `withoutEscorts`) sends her back to the landing.
+  Arriving plays two panels (`POSY_STONE_PANELS`); she pays 35 coins + a potion.
+  Quest flag names live in a leaf module, `content/questFlags.ts`, so the maps
+  can place her by the quest's progress.
+- **The Lantern Ledger** (Brume): the Ledger from a key-item chest, then the
+  west, north and east lanterns lit in turn (talk steps; each lantern is an NPC
+  placed dark and lit on one spot, swapped by its step flag), then report —
+  35 coins + a Hint Feather.
+- **The Last Fogbank** (`miniboss`, "Pea-Soup Puff"): a shy puff of fog with
+  its own lines; its first defeat gives the **🔆 Foglight Badge**
+  (`EnemyDef.badge`, `BOSS_BADGES`; on the victory panel and the menu's shelf).
+- **Slosh's shop** (roadmap decision 12): the new **🕯️ Glimmer Candle** — a free
+  hint now, and Hint Feathers work on tricksters for the rest of the fight
+  (`CombatState.candleLit`) — and the 🪷 Lily Pad Badge.
+- **Art** (`python3 tools/assets/build.py marsh`): the zone's tileset (new
+  `reeds` scenery and `lotus` decoration), blend sheet and backdrop,
+  `town-stilt.png`, the overworld sheet and ten sprites (new drawers `newt`,
+  `bog_lantern`, `shy_cloud`, `lantern_post`, `nameless_stone`); the manifest only
+  gained entries.
+- **Bench:** `escort=1` runs the walk the flags say is under way;
+  `__bench.walkTo(x, y)` walks the hero to a cell; `state()` reports
+  `escortWaits` / `escortAt` / `escortArrived`.
+- Tests: +23 (zones.test: the Marsh, Posy's places — the "one place at a time"
+  check now tries every order of an NPC's flags; escort.test; quests.test: the
+  Ledger and the escort; BattleArena.test: the badge, the candle;
+  battleTurn.test; story.test). 969 green, lint + build clean. On the real
+  canvas (bench): Posy follows the boardwalks from the landing to the stone and
+  arrives; near the Mist Newt's patch she stops (since round 10 the Newt is off her road). Follow-ups: #125.
 ### 2026-10-11 — Merge main (via #37's branch) into the parent-accounts branch (#124)
 `main` took ISSUES #115–#120, TC-786–849 and **migration 0012** (the saved
 player level) while parent accounts were in review, so this branch's

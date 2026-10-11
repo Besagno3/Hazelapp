@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { spellsKnown } from '../../content/spells';
 import { ALL_SHOP_ITEMS, CONSUMABLES, CONSUMABLE_IDS } from '../../content/items';
 import { GATE_KEYS } from '../../content/keys';
+import { BOSS_BADGES } from '../../content/enemies';
 import { avatarById, HERO_ABILITIES, STYLE_LABEL } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_STAGE_LABEL } from '../../content/story';
 import { COMPANIONS, COMPANION_IDS, companionsInParty } from '../../content/companion';
@@ -160,15 +161,19 @@ export default function MenuOverlay({
 
         {save.badges.length > 0 && (
           <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
-            <span className="font-bold mr-2">Badges:</span>
-            {save.badges
-              .map(
-                (b) =>
-                  ALL_SHOP_ITEMS.find((i) => i.id === b)?.emoji ??
-                  GATE_KEYS.find((k) => k.id === b)?.emoji ??
-                  '🏅',
-              )
-              .join(' ')}
+            <div className="font-bold mb-1">Badges:</div>
+            {/* Each one named under it — a phone has no hover (#75 item 14g UX review). */}
+            <ul className="flex flex-wrap gap-x-3 gap-y-1">
+              {save.badges.map((b) => {
+                const it = ALL_SHOP_ITEMS.find((i) => i.id === b) ?? GATE_KEYS.find((k) => k.id === b) ?? BOSS_BADGES[b];
+                return (
+                  <li key={b} className="flex flex-col items-center text-center w-16">
+                    <span aria-hidden="true" className="text-lg leading-tight">{it?.emoji ?? '🏅'}</span>
+                    <span className="text-xs leading-tight text-white">{it?.name ?? b}</span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
 
@@ -194,11 +199,11 @@ export default function MenuOverlay({
                     <div className="font-semibold text-amber-300">
                       {q.title}
                       {q.side && (
-                        <span className="ml-1.5 text-[10px] font-normal text-white/50">side quest · {zone(q.zoneId).name}</span>
+                        <span className="ml-1.5 text-[10px] font-normal text-white/50">side quest · {zone(q.playedIn ?? q.zoneId).name}</span>
                       )}
                     </div>
                     <div className="text-white/70">
-                      {step ? resolveHint(step, save) : `Done — go back to ${NPC_DEFS[q.giverNpcId]?.name ?? 'them'} for your reward!`}
+                      {step ? resolveHint(step, save) : q.doneLine ?? `Done — go back to ${NPC_DEFS[q.giverNpcId]?.name ?? 'them'} for your reward!`}
                     </div>
                   </div>
                 );

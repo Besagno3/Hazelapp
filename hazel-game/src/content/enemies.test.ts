@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { BOSS_ROLES, ENEMY_BEHAVIORS } from '../types';
 import { attackDamage, healerRegen } from '../lib/battleMath';
-import { ENEMY_DEFS, bossScript, fiendFor, spawnEnemy } from './enemies';
+import { BOSS_RAGE, ENEMY_DEFS, bossScript, fiendFor, rageLine, spawnEnemy } from './enemies';
 import { keyForBoss } from './keys';
 import { BOSS_LINES } from './story';
 import { TOPIC_REGISTRY, crystalInfo } from './topics';
@@ -102,5 +102,25 @@ describe('enemy scaling: the player\'s question level for the topic', () => {
     expect(better.maxHp).toBeGreaterThan(base.maxHp);
     // a level earned in another topic doesn't carry over
     expect(spawnEnemy('count-bat', 'numbria', 'a', 8, { science: 9 }).level).toBe(base.level);
+  });
+});
+
+describe('bosses get angrier in their own words (#75 item 14g — "bosses should be more menacing")', () => {
+  it('every boss has two rage lines of its own, each naming it, under 30 words', () => {
+    for (const def of Object.values(ENEMY_DEFS).filter((d) => d.isBoss)) {
+      const lines = BOSS_RAGE[def.id];
+      expect(lines, def.id).toBeDefined();
+      for (const phase of [1, 2] as const) {
+        const line = rageLine(def.id, def.name, phase);
+        expect(line, `${def.id} ${phase}`).toContain(def.name);
+        expect(line.split(/\s+/).length, `${def.id} ${phase}`).toBeLessThanOrEqual(30);
+      }
+      expect(lines[0]).not.toBe(lines[1]);
+    }
+  });
+
+  it('a boss without its own falls back to a general pair', () => {
+    expect(rageLine('nobody', 'The Mystery Boss', 1)).toBe("The Mystery Boss roars — it's getting serious!");
+    expect(rageLine('nobody', 'The Mystery Boss', 2)).toBe('The Mystery Boss is furious — watch out!');
   });
 });

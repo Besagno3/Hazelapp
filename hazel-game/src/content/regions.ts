@@ -84,7 +84,7 @@ export const REGIONS: RegionDef[] = [
   { id: 'chromaria', name: 'Chromaria', tier: 4, zones: ['chromaria'] },
   // Act II (#75 item 14): the first place past Act I's tiers (#105g, #108d).
   // Its islands share its tier (#75 item 14f: Eldergrove).
-  { id: 'shallows', name: 'The Silver Shallows and its islands', tier: 5, zones: ['silver-shallows', 'eldergrove'] },
+  { id: 'shallows', name: 'The Silver Shallows and its islands', tier: 5, zones: ['silver-shallows', 'eldergrove', 'foglight-marsh'] },
 ];
 
 /** The danger tier of a zone (its region's). */

@@ -81,6 +81,9 @@ export const GREAT_FOGBANK_SEEN = 'great-fogbank-seen';
 /** Set once the Memoria Key's two panels have played, after the Ringkeeper (#75 item 14f). */
 export const MEMORIA_SEEN = 'memoria-seen';
 
+/** Set once Posy's flower panels have played at the Nameless Stone (#75 item 14g). */
+export const POSY_STONE_SEEN = 'posy-stone-seen';
+
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
   return `crystal-${topic}-scene-seen`;
@@ -304,6 +307,21 @@ export const GREAT_FOGBANK_PANELS: StoryPanel[] = [
   {
     emoji: '🐉',
     text: 'Old sailors say that past the Fogbank lies the Starfall Sea — and nobody has sailed it in a hundred years. Maybe not by boat… Ember is looking up at the sky.',
+  },
+];
+
+/**
+ * Posy lays her flower at the Nameless Stone in Foglight Marsh (#75 item 14g,
+ * "The Flower for No Name" — the escort's ending, 2 panels).
+ */
+export const POSY_STONE_PANELS: StoryPanel[] = [
+  {
+    emoji: '🌼',
+    text: 'Posy kneels by the Nameless Stone and tucks her daisy into a crack at the top. "Nobody remembers your name," she whispers. "So I brought you a flower instead."',
+  },
+  {
+    emoji: '✨',
+    text: "Out over the water, the last thin mist glows gold for a moment — like a smile. Posy grins at you. \"See? It liked that.\"",
   },
 ];
 

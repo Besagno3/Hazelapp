@@ -999,6 +999,53 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-837 | M | ✅ | migrations | 0012 on a row with 1037 XP backfills level 11, 37 into it; applied twice changes nothing; a new sign-up starts at level 1 / 0 (`supabase/ci/level.test.sql`; local Postgres 16, 2026-10-10) |
 | TC-838 | M | ⬜ | profile | after 0012 in production, an existing player sees the same level as before; earning XP moves the bar toward the new, larger need; a refresh keeps both |
 | TC-839 | C | ✅ | TopicSelect | every topic is an enabled button with no "Completed" tag, and the same topic can be picked again and again — each pick sends `PICK_TOPIC` (TopicSelect.test, #119) |
+| TC-894 | U | ✅ | Foglight Marsh | a history field on the Shallows' north coast at the Shallows' tier, with a lotus icon; a boat sails in from the west edge, lands on its beach and walks to the icon; its exits land beside the icon (zones.test) |
+| TC-895 | U | ✅ | Foglight Marsh | Mist Newt, Bog Lantern (trickster) and Murk Toad (−1 / 0 / +1, history); the Last Fogbank is a miniboss with intro lines and the Foglight Badge; it stands in the only way to the cove's riddle-chest (zones.test) |
+| TC-896 | U | ✅ | Foglight Marsh | Brume's Lamp-House is the Marsh's shelter (wake on its floor, the way out open); Slosh stands inside his Raft Shop; each lantern stands by a reachable boardwalk, dark and lit on the same spot, swapped by its step's flag; the Ledger's chest is in reach (zones.test) |
+| TC-897 | U | ✅ | Posy's walk | from the landing to the goal on foot, the goal beside the Nameless Stone, the landing a few steps from the arrival; Posy is on the Hill, then at the landing, then by the stone, then home — one place at a time (zones.test, with the generalised "one place at a time" check over every order of an NPC's flags) |
+| TC-898 | U | ✅ | escort | follows the hero's footsteps round a corner without cutting it (≤ a footstep), at a 44 px gap; waits while a critter is within 80 px and walks on (catching up) once it's gone; never crowds a still hero; arrives within 56 px of the goal (escort.test) |
+| TC-899 | U | ✅ | escort quest | Posy asks only once Marlow's boat is mended; talking to her at the landing starts the walk (`escortWalkingFlag`, `activeEscort`), she isn't asked again while walking; arriving finishes the step; she pays 35 coins + a Berry Potion; a reload (`normalizeSave`) or leaving the Marsh (`escortsAway`, `withoutEscorts`) ends the walk and touches nothing else (quests.test) |
+| TC-900 | U | ✅ | Lantern Ledger | Brume's offer → the Ledger from its key-item chest (who wants it, when found first) → the west, north, east lanterns in that order (an out-of-turn lantern says nothing of the quest) → 35 coins + a Hint Feather; every hint ≤ 30 words (quests.test) |
+| TC-901 | C | ✅ | battle | the Last Fogbank gives the Foglight Badge on its first defeat only (shown on the victory panel, on the shelf once); the Glimmer Candle lights a free hint that works on a trickster (BattleArena.test); `resolveItem` / `itemBlocked` for the candle (battleTurn.test) |
+| TC-902 | U | ✅ | story | Posy's two panels at the Nameless Stone, each ≤ 30 words (story.test) |
+| TC-903 | B | ✅ | escort (real canvas) | on the bench page (`escort=1`, Supabase-free): under Calm the hero walks landing → hub → west boardwalk → the stone and Posy follows the boardwalks and arrives (`escortArrived`); without Calm, standing near the Mist Newt's patch she stops once (`escortWaits`); no page errors |
+| TC-904 | U | ✅ | battle (review) | a Glimmer Candle used by Kira (Fox Sense already up) adds its own free hint: both are offered, Fox Sense's used first (battleTurn.test) |
+| TC-905 | M | ✅ | world (review) | Posy stopped by a critter for 1.5 s shows a yellow "!" on a dark plate above her and a toast saying why; a second stop more than 15 s later says it again (bench escort=1) |
+| TC-906 | U | ✅ | quests (review) | talking to the north lantern before the west one says "Not this one yet!" and the Ledger's next step (quests.test) |
+| TC-907 | U | ✅ | quests (review) | a reload or a lost battle mid-walk turns the walking flag into a back flag; the world shows "Posy ran back to the landing" once and clears it (quests.test) |
+| TC-908 | M | ✅ | world (review) | reaching the stone with Posy held up by a critter more than 3 tiles back says "Posy is still on her way" (at most every 8 s); just walking a little behind never does (escort.test) |
+| TC-909 | U | ✅ | battle (review) | after the Glimmer Candle's free hint is used on a trickster, the next question still offers "Use a Hint Feather (1 left)" (BattleArena.test) |
+| TC-910 | U | ✅ | world (review) | Posy arrives with the hero standing under the stone (5,5) or east of it (8,4), walking close behind; held up or with the hero away, she doesn't (escort.test); all four approaches arrive on the bench |
+| TC-911 | M | ✅ | menu (review) | mid-walk the quest log tags "The Flower for No Name" with Foglight Marsh, and once arrived says "Posy is waiting by the Nameless Stone in Foglight Marsh" |
+| TC-912 | M | ⬜ | battle (review) | against a Bog Lantern with feathers and no lit candle, the question shows "🪶 Too slippery for feathers — light a 🕯️ candle from Items!"; the opening banner stays ~7 s |
+| TC-913 | U | ✅ | quests (review) | "Posy ran back to the landing" is held until the hero is back in the Marsh (quests.test) |
+| TC-914 | U | ✅ | quests (review) | with Brume's quest on and no Ledger, a lantern says "Not yet!" and where the Ledger's riddle-chest is (quests.test) |
+| TC-915 | M | ⬜ | menu (review) | the badge shelf lists each badge with its name under it (Foglight Badge, Lily Pad Badge) at 320 px |
+| TC-916 | M | ⬜ | battle (review) | vs a Bog Lantern with a candle and no feathers, a question says "Too slippery for feathers! Next turn, light a 🕯️ candle from Items." on attack and block questions alike; lighting the candle shows "🕯️ Your Glimmer Candle is lit!" |
+| TC-917 | U | ✅ | quests (review) | in the Marsh with the walk not under way, Posy's quest hint says she's waiting at the landing (quests.test) |
+| TC-918 | U | ✅ | quests (review) | opening the Ledger's chest with Brume's quest on says "first, the WEST lantern — on the boardwalk just above Brume's lamp-house" (quests.test) |
+| TC-919 | U | ✅ | quests (review) | Brume met while carrying the Ledger says "You found it already!" and asks only for the lanterns, West first (quests.test) |
+| TC-920 | M | ⬜ | world (review) | at 320 px an unlit quest lantern shows a pale glass head on its post, distinct from the reeds and from a Bog Lantern critter |
+| TC-921 | M | ⬜ | world (review) | Posy held up by a critter: walking more than 3 tiles away and back to within 1.5 tiles shows the wait line within ~1 s, once; standing beside her the whole time shows it at most every 15 s |
+| TC-922 | M | ⬜ | world (review) | reaching the stone while Posy is held up ("isn't here yet" toast), then her arriving: the toast is gone before the stone panels open |
+| TC-923 | U | ✅ | world (review) | out-and-back footsteps with the hero beside them again count as a detour (`cameBack`); following a gap behind doesn't; no arrival with the hero far from the stone (escort.test) |
+| TC-924 | M | ✅ | world (review) | at the stone with Posy held up ("go back and find her"), walking back beside her: the wait line replaces it at once, and when the critter leaves she follows the hero instead of running on to the stone alone (stubbed app, round 8) |
+| TC-925 | U | ✅ | world (review) | a waiting escort stays waiting while a critter drifts in and out at 80 px, and walks on once none has been within 80 px for 0.6 s; going back to within 2.5 tiles counts as coming back (escort.test) |
+| TC-927 | U | ✅ | zones (review) | no non-boss critter in the Marsh has its patch (leash + 80 px) within reach of Posy's boardwalk walk from the landing to the stone (zones.test; fails with the Newt at 15,12) |
+| TC-928 | U | ✅ | world (review) | Posy trailing ~4.5 tiles on the last stretch arrives as the hero reaches the stone, before its own line (escort.test) |
+| TC-929 | M | ✅ | world (review) | bump down into Brume from the boardwalk at (7,14), close her talk: the hero can walk left and right (never pushed into the lamp-house wall); stubbed app, 4/4 |
+| TC-930 | M | ⬜ | world (review) | go back for a held-up Posy twice, stopping on the same cell both times: when the critter leaves she follows the hero both times |
+| TC-931 | M | ✅ | world (review) | walking west along the boardwalk under Brume's lamp-house a pixel or two high, the hero slides past the hut's corner instead of stopping; the Act I journey walk still 13/13 (bench) |
+| TC-932 | U | ✅ | quests (owner) | asked on the Hill, Posy stays there until the hero first arrives in the Marsh; that arrival sets `POSY_SAILED` once, and she's at the landing (quests.test, zones.test) |
+| TC-933 | U | ✅ | battle (owner) | every boss has two rage lines of its own, naming it, ≤ 30 words; a boss without falls back (enemies.test) |
+| TC-934 | U | ✅ | quests (owner) | the Ledger's lanterns go east → north → west; the found note and the found-first offer name EAST first (quests.test) |
+| TC-935 | U | ✅ | zones (owner) | no Marsh critter's patch reaches Posy's boardwalk walk or the grass shortcut from the north boardwalk's top (zones.test; fails with the Newt at 16,8) |
+| TC-936 | M | ✅ | art (owner) | on the bench: the Bog Lantern reads as a flame-spirit (no lantern post), Puddle as a lily-hatted friendly frog unlike the Murk Toad, the Last Fogbank as a scowling storm cloud |
+| TC-937 | M | ⬜ | battle (owner) | the Last Fogbank's fight: menacing intro, "swallows the light" at half HP, "forget your own NAME!" near the end, "Forgetting Fog" power move |
+| TC-938 | U | ✅ | battle (#125j) | below `sm` the enemy's name drops a leading "The" (full name sr-only, shown from `sm` up); the hero's panel shows "◆N/4" not the diamonds (BattleHud.test) |
+| TC-939 | M | ✅ | battle (#125j) | a boss fight at 320×568: "👑 Ringkeeper Lv 6 !!!" whole, all commands on screen; 5/5 sizes (`bench … battle`) |
+| TC-940 | M | ⬜ | map (#125) | the 🪷 Foglight Marsh icon on the Shallows map reads as a pink lotus on a bright pool at 320 px |
+| TC-926 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## The sign-in screen's intro music (#120)

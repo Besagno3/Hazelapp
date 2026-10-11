@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { CHARGE_MAX } from '../../content/abilities';
+import { shortName } from '../../content/enemies';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { STREAK_START } from '../../lib/battleTurn';
 import { BASE_TIER, VERY_TOUGH_TIER, dangerMarks, type DangerTier } from '../../content/regions';
@@ -73,12 +74,18 @@ export function BattleHud({
 }) {
   return (
     <div className="relative z-10 flex justify-between gap-2 p-2 sm:gap-4 sm:p-4">
-      <div className={PANEL}>
+      {/* On a phone the hero's panel takes only what it needs (portrait, "◆2/4"), the
+          enemy's the rest, and its name drops a leading "The" — "Clockwork Titan", not
+          "The Ringkee…" — with no extra height, so the commands still fit 320×568 (#125j). */}
+      <div className={`${PANEL} flex-1 sm:flex-initial`}>
         <div className={TITLE_ROW}>
-          <span className="min-w-0 truncate" title={enemy.name}>
+          <span className="min-w-0 truncate text-[12px] sm:text-sm" title={enemy.name}>
             {enemy.isBoss && '👑 '}
             {enemyShielded && '🛡️ '}
-            {enemy.name}
+            <span className="sm:hidden" aria-hidden="true">
+              {shortName(enemy.name)}
+            </span>
+            <span className="sr-only sm:not-sr-only">{enemy.name}</span>
           </span>
           <span className="shrink-0 whitespace-nowrap text-white/70">
             Lv {enemy.level}
@@ -100,7 +107,7 @@ export function BattleHud({
           </span>
         </div>
       </div>
-      <div className={PANEL}>
+      <div className={`${PANEL} !w-auto shrink-0 sm:!w-60 sm:shrink`}>
         <div className={TITLE_ROW}>
           <span className="min-w-0 truncate">
             <CharacterPortrait
@@ -109,10 +116,15 @@ export function BattleHud({
               scale={0.75}
               className="inline-block align-middle mr-1"
             />
-            {avatar.name}
+            {/* Just the portrait on a phone — it's you; the name is still read aloud. */}
+            <span className="sr-only sm:not-sr-only">{avatar.name}</span>
           </span>
-          <span className="shrink-0 flex gap-0.5 items-center" title="Special charge">
+          <span className="shrink-0 hidden sm:flex gap-0.5 items-center" title="Special charge">
             <ChargePips charge={charge} />
+          </span>
+          {/* A phone's compact charge, so the enemy's name gets the room (#125j). */}
+          <span className="shrink-0 sm:hidden text-amber-300" title="Special charge">
+            ◆<span className="text-white/80">{charge}/{CHARGE_MAX}</span>
           </span>
         </div>
         <div className="w-full bg-white/15 rounded-full h-3 mt-1 overflow-hidden">
