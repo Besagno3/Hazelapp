@@ -14,9 +14,11 @@ const q: Question = {
 vi.mock('../../hooks/useGeneratedQuestions', () => ({
   useGeneratedQuestions: () => ({ questions: [q], loading: false, error: null, reload: () => {} }),
 }));
+// The spell pool never arrives unless a test hands one over (Time Ripple, #75 item 14h).
+const fetchQuestionsMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>(() => new Promise(() => {})));
 vi.mock('../../lib/questions', async (orig) => ({
   ...(await orig<typeof import('../../lib/questions')>()),
-  fetchQuestions: () => new Promise(() => {}),
+  fetchQuestions: fetchQuestionsMock,
 }));
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
 vi.mock('../../machines/gameFlow', () => ({ sendFlow: vi.fn() }));
@@ -480,5 +482,56 @@ describe('the Glimmer Candle (#75 item 14g)', () => {
     }
     fireEvent.click(screen.getByText('Attack'));
     expect(screen.getByText(/Use a Hint Feather \(1 left\)/)).toBeInTheDocument();
+  });
+});
+
+describe('the Sunken Archive in battle (#75 item 14h)', () => {
+  afterEach(() => {
+    fetchQuestionsMock.mockImplementation(() => new Promise(() => {}));
+  });
+
+  it('a swift critter strikes first: the fight opens with its blow, blocked by a defend question as ever', () => {
+    const imp = { ...enemy, id: 'quill-imp', instanceId: 'qi', name: 'Quill Imp', behavior: 'swift' } as BattleEnemy;
+    useBattleStore.getState().start(imp, 60, 100);
+    render(<BattleArena />);
+    // No command menu yet: it darts in first.
+    expect(screen.getByText('⚡ Quill Imp darts in before you can move!')).toBeInTheDocument();
+    expect(screen.queryByText('Attack')).toBeNull();
+    fireEvent.click(screen.getByText(/tap to continue/));
+    // A defend question, the usual way: a wrong answer lets the blow land.
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(useBattleStore.getState().playerHp).toBeLessThan(60);
+    fireEvent.click(screen.getByText(/tap to continue/));
+    // Then the hero's turn.
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+  });
+
+  it('a critter that isn\'t swift lets the hero go first', () => {
+    render(<BattleArena />);
+    expect(screen.queryByText(/darts in/)).toBeNull();
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+  });
+
+  it("Sage Chronicle's Time Ripple lands a strike and the enemy loses its next turn", () => {
+    fetchQuestionsMock.mockResolvedValue([q, q, q, q]);
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1', sages: ['history'] } });
+    useBattleStore.getState().start(enemy, 60, 100);
+    useBattleStore.setState({ charge: 3 });
+    render(<BattleArena />);
+    return act(async () => {}).then(() => {
+      fireEvent.click(screen.getByText('Spells'));
+      fireEvent.click(screen.getByText(/Time Ripple/));
+      fireEvent.click(screen.getByText('4'));
+      fireEvent.click(screen.getByText('▶ Go!'));
+      expect(screen.getByText(/Time ripples round Count Bat — it loses its next turn!/)).toBeInTheDocument();
+      const s = useBattleStore.getState();
+      expect(s.enemyHp).toBeLessThan(200);
+      expect(s.charge).toBe(0);
+      fireEvent.click(screen.getByText(/tap to continue/));
+      // Straight back to the hero: no defend question, no blow.
+      expect(screen.getByText('Attack')).toBeInTheDocument();
+      expect(useBattleStore.getState().playerHp).toBe(60);
+    });
   });
 });

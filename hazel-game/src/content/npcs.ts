@@ -1351,7 +1351,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: keyFlag('memoria'),
       },
       {
-        text: "Its door? Nobody remembers where it is yet. It will turn up later in your adventure — mark my rings.",
+        text: "Its door is in the Sunken Archive, a library half under the sea in the Shallows' north-east. Mind the Hollow Fiend in there — mark my rings.",
         ifFlag: keyFlag('memoria'),
       },
     ],
@@ -1473,5 +1473,96 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: ['The east lantern glows warm and gold. Somewhere out on the water, a little fish is very grateful.'],
+  },
+
+  // ── Act II: the Sunken Archive (#75 item 14h) ──
+  'sage-chronicle': {
+    id: 'sage-chronicle',
+    name: 'Sage Chronicle',
+    sprite: '🦉',
+    role: 'sage',
+    topic: 'history',
+    lines: [
+      'Hoo. I am Sage Chronicle.¹ ¹See also: owl.',
+      'Every battle is a story, little spark. Mine can ripple time itself.¹ ¹See also: bravery.',
+    ],
+  },
+  'archive-index': {
+    id: 'archive-index',
+    name: 'Index',
+    sprite: '🐭',
+    role: 'villager',
+    stationary: true,
+    // Her quest's offer comes first ("A Letter, Long Overdue"); these follow it.
+    lines: [
+      "I'm Index! I put everything in alphabetical order. Even my sneezes. Ah… Bh… CHOO!",
+      { text: 'The Crystal of Memory shines! Every card in my catalog remembers its book again. A to Z!', ifFlag: 'crystal-history-restored' },
+    ],
+  },
+  'archive-binder': {
+    id: 'archive-binder',
+    name: 'Innkeeper Binder',
+    sprite: '📚',
+    role: 'innkeeper',
+    lines: [
+      'Welcome to the Quiet Shelf Inn. Quietest inn in Lumina. The books insist.',
+      "Brume keeps the lanterns lit in Foglight Marsh, up on the north coast. Tell her the Archive says hello — quietly.",
+    ],
+  },
+  'archive-traveler': {
+    id: 'archive-traveler',
+    name: 'Sailor Brine',
+    sprite: '🧭',
+    role: 'villager',
+    lines: [
+      "I rowed all the way from Remembrance Hill. Keeper Mnem said my name might be in a book here.",
+      "Found it! Page four hundred. Turns out I'm a sailor. I KNEW I liked boats.",
+    ],
+    ambient: ['Page four hundred…', 'Ahoy — quietly!', '🧭'],
+  },
+  'archive-hush': {
+    id: 'archive-hush',
+    name: 'Hush',
+    sprite: '🤫',
+    role: 'villager',
+    lines: [
+      "Shhh! …Oh, sorry. Habit. I've been the Reading Room's librarian for three hundred years.",
+      { text: "The books are whispering again, now the Crystal of Memory shines. I'll allow it. Just this once.", ifFlag: 'crystal-history-restored' },
+    ],
+    ambient: ['Shhh!', 'Shhhhh…', '🤫'],
+  },
+  'archive-quillon': {
+    id: 'archive-quillon',
+    name: 'Old Quillon',
+    sprite: '✒️',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "I'm Quillon, the Archive's oldest scribe. The silver door behind me leads to the Hollow.",
+      { text: 'The Hollow Fiend lives in there. It eats old stories — the before-times. Only the Memoria Key opens that door.', unlessFlag: 'key-memoria' },
+      { text: "You carry the Memoria Key! The silver door is right behind me. Be brave — the Hollow Fiend is hungry.", ifFlag: 'key-memoria', unlessFlag: 'crystal-history-restored' },
+      { text: 'The Crystal of Memory shines again! I can read my own handwriting. It is TERRIBLE.', ifFlag: 'crystal-history-restored' },
+    ],
+  },
+  'archive-margin': {
+    id: 'archive-margin',
+    name: 'Margin',
+    sprite: '🦋',
+    role: 'villager',
+    lines: [
+      "I'm Margin, a book moth. I nibble footnotes. Sage Chronicle says that's rude. See also: delicious.",
+    ],
+    ambient: ['Nibble, nibble.', 'See also: snacks.', '🦋'],
+  },
+  'archive-leaf': {
+    id: 'archive-leaf',
+    name: 'Leaf',
+    sprite: '🧒',
+    role: 'villager',
+    lines: [
+      "I'm Leaf, the Archive's page! I fetch books for everyone. Mostly the wrong ones.",
+      'The critters in the stacks are made of old books and spilt ink. The Quill Imps are FAST — they always strike first!',
+    ],
+    ambient: ['Wrong book again!', 'Fetch, fetch, fetch!', '📖'],
   },
 };

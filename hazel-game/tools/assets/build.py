@@ -18,6 +18,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py hill       # only Remembrance Hill (#75 item 14e)
     python3 tools/assets/build.py elder      # only Eldergrove: its tiles, critters and people (#75 item 14f)
     python3 tools/assets/build.py marsh      # only Foglight Marsh: its tiles, critters, people and lanterns (#75 item 14g)
+    python3 tools/assets/build.py archive    # only the Sunken Archive: its tiles, critters, Fiend and people (#75 item 14h)
     python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
     python3 tools/assets/build.py intro      # only the sign-in screen's intro music
 
@@ -48,6 +49,10 @@ MANIFEST = ROOT / 'src' / 'content' / 'sprites.generated.ts'
 # Foglight Marsh's critters, people and props (#75 item 14g), for `build.py marsh`.
 MARSH_SPRITES = ('mist-newt', 'bog-lantern', 'murk-toad', 'last-fogbank', 'marsh-brume', 'marsh-puddle', 'marsh-slosh',
                  'marsh-stone', 'marsh-lantern', 'marsh-lantern-lit')
+
+# The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
+ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',
+                   'archive-hush', 'archive-quillon', 'archive-margin', 'archive-leaf', 'archive-traveler')
 
 ELDER_SPRITES = ('ring-beetle', 'sap-sprite', 'hollow-acorn', 'ringkeeper', 'elder-fen', 'elder-ringwood', 'elder-dawdle')
 
@@ -119,6 +124,14 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(MARSH_SPRITES)))
         tiles.build_marsh(PUBLIC)
         print('marsh ✓')
+        return
+    if 'archive' in only:
+        # Just the Sunken Archive (#75 item 14h): its critters, Fiend and people, its
+        # tiles, the tome town sheet and the overworld sheet with the archive icon
+        # appended — every other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only=set(ARCHIVE_SPRITES)))
+        tiles.build_archive(PUBLIC)
+        print('archive ✓')
         return
     if 'elder' in only:
         # Just Eldergrove (#75 item 14f): its critters and people, its tiles, the

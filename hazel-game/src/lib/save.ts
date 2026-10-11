@@ -268,13 +268,16 @@ export function normalizeSave(raw: unknown): SaveData {
 export function wakeShelter(save: Partial<Pick<SaveData, 'zoneId'>>): { line: string; place: string } | null {
   const shelter = save.zoneId && isZoneId(save.zoneId) ? shelterOf(ZONES[save.zoneId]) : null;
   if (!shelter) return null;
-  return { line: `${shelter.host} finds you and tucks you up in ${shelter.building.name}.`, place: shelter.building.name };
+  // "Fen's Hollow" stands alone; "the Quiet Shelf Inn" (#75 item 14h) needs its "the".
+  const name = shelter.building.name;
+  const place = /'s /.test(name) ? name : `the ${name}`;
+  return { line: `${shelter.host} finds you and tucks you up in ${place}.`, place };
 }
 
 export function wakeInnName(save: Pick<SaveData, 'lastRest'>): string | null {
   const z = save.lastRest ? ZONES[save.lastRest] : null;
   const inn = z ? innOf(z) : undefined;
-  return z && inn ? `the ${inn.name} in ${z.name}` : null;
+  return z && inn ? `the ${inn.name} in ${z.the ? 'the ' : ''}${z.name}` : null;
 }
 
 /**

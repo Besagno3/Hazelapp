@@ -13,6 +13,8 @@ export const CRYSTAL_TOPIC_IDS = [
   'science',
   'engineering',
   'creativity',
+  // Act II (#75 item 14h): the Crystal of Memory, in the Sunken Archive.
+  'history',
 ] as const;
 
 export type CrystalTopic = (typeof CRYSTAL_TOPIC_IDS)[number];
@@ -22,8 +24,9 @@ export const TOTAL_CRYSTALS = CRYSTAL_TOPIC_IDS.length;
 
 /**
  * The expansion question-theme ids (#55) — styling only, no crystal/Fiend.
+ * (History was one until it became Act II's crystal, #75 item 14h.)
  */
-export const EXTRA_TOPIC_IDS = ['nature', 'space', 'history'] as const;
+export const EXTRA_TOPIC_IDS = ['nature', 'space'] as const;
 
 /**
  * Every question category the game can generate: the `CrystalTopic`s plus the
@@ -90,9 +93,10 @@ export type { ZoneId };
  * not just palette. shielded: the first landed hit shatters its shield
  * instead of dealing damage. trickster: too slippery for Hint Feathers.
  * healer: mends itself at the end of its turn while below half HP.
- * ("swift"/timed is an open decision — STORY-4X.md §12.)
+ * swift (#75 item 14h, roadmap decision 14): it strikes first — the battle
+ * opens with its turn. No new timers: a defend question blocks it as ever.
  */
-export const ENEMY_BEHAVIORS = ['shielded', 'trickster', 'healer'] as const;
+export const ENEMY_BEHAVIORS = ['shielded', 'trickster', 'healer', 'swift'] as const;
 export type EnemyBehavior = (typeof ENEMY_BEHAVIORS)[number];
 
 /**

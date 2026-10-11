@@ -22,7 +22,7 @@ const { default: SpireOverlay } = await import('./SpireOverlay');
 const { useSaveStore } = await import('../../store/saveStore');
 const { defaultSave } = await import('../../lib/save');
 const { actCrystals, crystalFlag } = await import('../../content/topics');
-const { addFakeActTwoCrystal } = await import('../../test/fakeCrystal');
+const { addFakeLaterCrystal } = await import('../../test/fakeCrystal');
 const { useProfileStore } = await import('../../store/profileStore');
 const { useSpireStore } = await import('../../store/spireStore');
 const { SPIRE_FLOORS, SPIRE_CLEAR_XP, floorWards } = await import('../../content/spire');
@@ -75,7 +75,7 @@ describe('leaving the Spire asks first (#75 item 14b review)', () => {
 
 describe('the Spire opens on Act I\'s crystals (#75 item 14c)', () => {
   it('a later act\'s crystal, not yet restored, never seals it again', async () => {
-    const remove = addFakeActTwoCrystal();
+    const remove = addFakeLaterCrystal();
     try {
       useSaveStore.setState({
         userId: null,

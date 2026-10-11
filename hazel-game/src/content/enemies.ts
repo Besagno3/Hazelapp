@@ -154,6 +154,14 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
       defeat: "No… you remembered it ALL. The light is too bright… I'm fading away. Take the badge — you've earned it, little lantern.",
     },
   },
+
+  // --- The Sunken Archive (history, #75 item 14h): critters of the forgotten library ---
+  'dust-tome': { id: 'dust-tome', name: 'Dust Tome', sprite: '📖', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
+  'ink-wisp': { id: 'ink-wisp', name: 'Ink Wisp', sprite: '🖋️', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
+  // Swift (roadmap decision 14: no new timers): it darts in and strikes first.
+  'quill-imp': { id: 'quill-imp', name: 'Quill Imp', sprite: '🪶', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'swift' },
+  // Act II's Fiend: beat it to restore the Crystal of Memory (BOSS_LINES.history).
+  'hollow-fiend': { id: 'hollow-fiend', name: 'The Hollow Fiend', sprite: '🕳️', topic: 'history', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
 };
 
 /**
@@ -172,6 +180,7 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   'clockwork-titan': ["The Clockwork Titan's gears spin faster and faster!", 'The Clockwork Titan booms: "YOUR TIME IS UP!"'],
   ringkeeper: ['The Ringkeeper lowers its antlers and paws the ground!', 'The Ringkeeper bellows: "A THOUSAND YEARS, and nobody got past me!"'],
   'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
+  'hollow-fiend': ['The Hollow Fiend yawns open — the pages round you start to go blank!', 'The Hollow Fiend howls: "I will EAT tomorrow too!"'],
 };
 
 /** What a boss says as it crosses into enrage phase `phase` (1: half HP, 2: near the end). */

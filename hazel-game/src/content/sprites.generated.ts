@@ -4012,6 +4012,270 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
+  "dust-tome": {
+    "emoji": "📖",
+    "world": {
+      "sheet": "/sprites/dust-tome/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/dust-tome/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "ink-wisp": {
+    "emoji": "🖋️",
+    "world": {
+      "sheet": "/sprites/ink-wisp/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/ink-wisp/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "quill-imp": {
+    "emoji": "🪶",
+    "world": {
+      "sheet": "/sprites/quill-imp/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/quill-imp/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "hollow-fiend": {
+    "emoji": "🕳️",
+    "world": {
+      "sheet": "/sprites/hollow-fiend/world.png",
+      "frameW": 48,
+      "frameH": 48,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/hollow-fiend/battle.png",
+      "frameW": 48,
+      "frameH": 48,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
   "raven-prince": {
     "emoji": "🐦‍⬛",
     "world": {
@@ -8186,6 +8450,334 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     "emoji": "🏮",
     "world": {
       "sheet": "/sprites/marsh-lantern-lit/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "sage-chronicle": {
+    "emoji": "🦉",
+    "world": {
+      "sheet": "/sprites/sage-chronicle/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "archive-index": {
+    "emoji": "🐭",
+    "world": {
+      "sheet": "/sprites/archive-index/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "archive-binder": {
+    "emoji": "📚",
+    "world": {
+      "sheet": "/sprites/archive-binder/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "archive-hush": {
+    "emoji": "🤫",
+    "world": {
+      "sheet": "/sprites/archive-hush/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "archive-quillon": {
+    "emoji": "✒️",
+    "world": {
+      "sheet": "/sprites/archive-quillon/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "archive-margin": {
+    "emoji": "🦋",
+    "world": {
+      "sheet": "/sprites/archive-margin/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "archive-leaf": {
+    "emoji": "🧒",
+    "world": {
+      "sheet": "/sprites/archive-leaf/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "archive-traveler": {
+    "emoji": "🧭",
+    "world": {
+      "sheet": "/sprites/archive-traveler/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,

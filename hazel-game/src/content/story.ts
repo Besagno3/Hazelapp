@@ -84,6 +84,9 @@ export const MEMORIA_SEEN = 'memoria-seen';
 /** Set once Posy's flower panels have played at the Nameless Stone (#75 item 14g). */
 export const POSY_STONE_SEEN = 'posy-stone-seen';
 
+/** Set once the Sunken Archive's discovery panels have played, on the first visit (#75 item 14h). */
+export const ARCHIVE_SEEN = 'archive-seen';
+
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
   return `crystal-${topic}-scene-seen`;
@@ -101,6 +104,19 @@ export const EMBER_STAGE_AT = {
   whelp: 2,
   dragon: 4,
 } as const;
+
+/**
+ * Ember's wings (roadmap decision 9, STORY-4X §8): flight unlocks with the
+ * fifth crystal, Act II's Crystal of Memory — its flag is the crystal's own
+ * (`crystal-history-restored`, #75 item 14h), not a stage. Flying itself comes
+ * in 15b; until then only the crystal's panel says Ember almost can.
+ */
+export const FLIGHT_FLAG = crystalFlag('history');
+
+/** Can Ember carry the hero yet? */
+export function canFly(flags: Record<string, boolean>): boolean {
+  return flags[FLIGHT_FLAG] === true;
+}
 
 /**
  * Ember grows on the player's deeds: the egg hatches after the first battle
@@ -326,9 +342,8 @@ export const POSY_STONE_PANELS: StoryPanel[] = [
 ];
 
 /**
- * After the Ringkeeper (#75 item 14f): the key, and the door it opens — the
- * Sunken Archive, not on the map until 14h, so nobody knows where it is yet,
- * and it "will turn up later" (not a hunt across the Shallows, review fix).
+ * After the Ringkeeper (#75 item 14f): the key, and the door it opens — in
+ * the Sunken Archive, out in the Shallows' north-east (#75 item 14h).
  */
 export const MEMORIA_PANELS: StoryPanel[] = [
   {
@@ -337,7 +352,26 @@ export const MEMORIA_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🌳',
-    text: 'Old Ringwood creaks: "That key opens a door the whole world forgot. Nobody remembers where it is — but it will turn up later in your adventure!"',
+    text: 'Old Ringwood creaks: "That key opens a door the whole world forgot — in the Sunken Archive, a great library half under the sea, out in the Shallows\' north-east."',
+  },
+];
+
+/**
+ * The first step into the Sunken Archive (#75 item 14h, STORY-4X's "Archive
+ * discovery", 3 panels): a library the world forgot, and what's eating it.
+ */
+export const ARCHIVE_PANELS: StoryPanel[] = [
+  {
+    emoji: '📚',
+    text: 'Down a stair slick with seawater, the island opens into a library so big its shelves vanish into the dark. Every book the world forgot ended up here.',
+  },
+  {
+    emoji: '🕳️',
+    text: 'But some pages have gone blank, as if something ate the words. Far to the north, behind a silver door, something hungry is chewing on the long-ago.',
+  },
+  {
+    emoji: '🗝️',
+    text: 'The Memoria Key hums in your pocket. A little mouse in spectacles peeks out from behind a card catalog. "Oh! A READER!"',
   },
 ];
 
@@ -461,6 +495,28 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
       text:
         'Four crystals. The shadow on the Spire stops whispering and simply… waits. "Come up, then," ' +
         'says the Forgotten One. "All the way to the top. Let us see whose answers last longer."',
+    },
+  ],
+  // Act II's crystal (#75 item 14h). Its last panel whispers "Aster" and explains
+  // nothing (STORY-4X §4) — Act IV says whose name it is.
+  history: [
+    {
+      emoji: '📜',
+      text:
+        'The Hollow Fiend folds in on itself like a closing book, and the Crystal of Memory ' +
+        'glows back to life. All through the Archive, blank pages fill with words again.',
+    },
+    {
+      emoji: '🐉',
+      text:
+        'Ember stretches its wings so wide the bookshelves rattle, and they beat — once, twice. ' +
+        'Strong enough to fly now, almost. Soon, little spark. Soon.',
+    },
+    {
+      emoji: '🌑',
+      text:
+        'From the deepest shelf, a voice like turning pages breathes one word: "…Aster…" ' +
+        'Then the Archive is quiet. Nobody here knows who that is. Not yet.',
     },
   ],
 };
@@ -596,5 +652,13 @@ export const BOSS_LINES: Record<CrystalTopic, BossScript> = {
       'I am the Gray Fiend! I drank every color and hushed every song — and your bright little brain is next!',
     ],
     defeat: 'So bright… so loud… so… beautiful…',
+  },
+  // Act II (#75 item 14h): an old hand of Umbra's that never got the news.
+  history: {
+    intro: [
+      'The master fell? Then I shall hoard what is left — the BEFORE-TIMES! Every lost story, every name, every yesterday. MINE.',
+      'I am the Hollow Fiend! I ate the day before yesterday — and you, little spark, will make a lovely tomorrow!',
+    ],
+    defeat: 'You… remembered me. That\'s… nobody ever…',
   },
 };
