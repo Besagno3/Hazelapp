@@ -36,7 +36,7 @@ import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
 import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
-import { arrived, dropCrumb, startEscort, stepEscort, stuckBehind, type EscortState } from '../../lib/escort';
+import { arrived, cameBack, dropCrumb, startEscort, stepEscort, stuckBehind, type EscortState } from '../../lib/escort';
 import { CONTACT_RADIUS, contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, staysDown, touching, type Rest } from '../../lib/encounter';
 import {
   EMBER_COST,
@@ -236,7 +236,9 @@ export interface WorldCanvasCallbacks {
    * An escort (#75 item 14g, Posy) has been waiting a moment: a critter is near
    * them. `near`: the hero walked away during this wait and has come back (say why now).
    */
-  onEscortWait?: (near?: boolean) => void;
+  onEscortWait?: (near?: boolean) => boolean | void;
+  /** …walks on again (the critter went): a "why she stopped" line is out of date. */
+  onEscortGo?: () => void;
   /** …the hero reached their goal without them. */
   onEscortBehind?: () => void;
   /** …moved on — where they stand now (px), kept so a battle mid-walk leaves them there. */
@@ -2327,6 +2329,14 @@ export default function WorldCanvas({
       }
       if (walk && follower && escortState && !escortArrived) {
         escortState = dropCrumb(escortState, player.pos);
+        // The hero came back for them: walk to the hero from here, a way round on the
+        // map, not back out along the old footsteps and past them (#75 item 14g UX review).
+        if (cameBack(escortState, player.pos, TILE)) {
+          const cell = (p: { x: number; y: number }) => ({ x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) });
+          const hero = cell(player.pos);
+          const way = reachPath(z, (x, y) => x === hero.x && y === hero.y, { from: cell(escortState.at), flags: flagsRef.current });
+          escortState = { ...escortState, crumbs: way ? way.slice(1).map((c) => ({ x: c.x * TILE + TILE / 2, y: c.y * TILE + TILE / 2 })) : [] };
+        }
         // Awake critters that could fight someone on foot — not sleepers, not under Calm.
         const threats = calm
           ? []
@@ -2349,9 +2359,10 @@ export default function WorldCanvas({
           // Came back to them after walking off: say why at once (#75 item 14g UX review) —
           // once; standing beside them all along keeps the usual 15 s (review round 7).
           const back = escortWentAway && Math.hypot(player.pos.x - escortState.at.x, player.pos.y - escortState.at.y) < TILE * 1.5;
-          if (back) escortWentAway = false;
-          cbRef.current.onEscortWait?.(back);
+          // Spent only once it's said (another toast up keeps it for the next ask — review round 8).
+          if (cbRef.current.onEscortWait?.(back) !== false && back) escortWentAway = false;
         }
+        if (wasWaiting && !escortState.waiting) cbRef.current.onEscortGo?.();
         // The hero at the goal, them held up far behind: say where they are.
         if (stuckBehind(escortState, player.pos, walk.goal, TILE) && k.time() - escortBehindAt > 8) {
           escortBehindAt = k.time();

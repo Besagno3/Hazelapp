@@ -615,6 +615,20 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 8: go back for her, and she stays with you (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (1 medium,
+2 low; played with a live probe of Posy's state). Fixed: doing what "go back
+and find her" says made Posy, once the critter left, run past the hero back
+out along the old footsteps to the stone and arrive alone — now, when the
+hero comes back beside her, her out-and-back footsteps are dropped for a way
+round to the hero (`cameBack`, `reachPath`), and she never "arrives" with the
+hero more than 4 tiles from the stone; the "back beside her" line is spent
+only when it's said, and replaces her own "go back" line at once
+(`onEscortWait` returns whether it showed; `toastText`); her wait / "go back"
+lines are taken down when she walks on (`onEscortGo`) or arrives — and only
+hers (`clearToastOf`), so the sleeper hint keeps its timer. On the stubbed
+app: back beside her, the wait line replaced "go back" and she stayed put.
+
 ### 2026-10-11 — 14g review round 7: say it once when you come back (#75 item 14g)
 Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (4 low).
 Fixed: round 6's "back beside a waiting Posy" toast fired every ~9 s for a

@@ -1028,6 +1028,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-866 | M | ⬜ | world (review) | at 320 px an unlit quest lantern shows a pale glass head on its post, distinct from the reeds and from a Bog Lantern critter |
 | TC-867 | M | ⬜ | world (review) | Posy held up by a critter: walking more than 3 tiles away and back to within 1.5 tiles shows the wait line within ~1 s, once; standing beside her the whole time shows it at most every 15 s |
 | TC-868 | M | ⬜ | world (review) | reaching the stone while Posy is held up ("isn't here yet" toast), then her arriving: the toast is gone before the stone panels open |
+| TC-869 | U | ✅ | world (review) | out-and-back footsteps with the hero beside them again count as a detour (`cameBack`); following a gap behind doesn't; no arrival with the hero far from the stone (escort.test) |
+| TC-870 | M | ✅ | world (review) | at the stone with Posy held up ("go back and find her"), walking back beside her: the wait line replaces it at once, and when the critter leaves she follows the hero instead of running on to the stone alone (stubbed app, round 8) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

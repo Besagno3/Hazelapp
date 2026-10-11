@@ -106,7 +106,8 @@ export function stepEscort(s: EscortState, hero: Pt, threats: Pt[], dt: number):
  */
 export function arrived(at: Pt, goal: Pt, tile: number, hero?: Pt, waiting = false): boolean {
   const g = { x: goal.x * tile + tile / 2, y: goal.y * tile + tile / 2 };
-  if (dist(at, g) < ESCORT_ARRIVE_PX) return true;
+  // With the hero there too: never "arrived" on their own while the hero is far off.
+  if (dist(at, g) < ESCORT_ARRIVE_PX && (!hero || dist(hero, g) < tile * 4)) return true;
   return !!hero && !waiting && dist(hero, g) < tile * 2.5 && dist(at, hero) < tile * 3 && dist(at, g) < tile * 5;
 }
 
@@ -119,4 +120,14 @@ export function arrived(at: Pt, goal: Pt, tile: number, hero?: Pt, waiting = fal
 export function stuckBehind(s: EscortState, hero: Pt, goal: Pt, tile: number): boolean {
   const g = { x: goal.x * tile + tile / 2, y: goal.y * tile + tile / 2 };
   return s.waiting && dist(hero, g) < tile * 1.5 && dist(s.at, g) > tile * 3;
+}
+
+/**
+ * The hero came back for them (told to go back and find them, or a detour):
+ * beside them now, but their footsteps still run out and back — walking those
+ * would take them past the hero and away. Drop them and go from here
+ * (#75 item 14g UX review).
+ */
+export function cameBack(s: EscortState, hero: Pt, tile: number): boolean {
+  return dist(s.at, hero) < tile * 1.5 && trailLength(s, hero) > tile * 3;
 }

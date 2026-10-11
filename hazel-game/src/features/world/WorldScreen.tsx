@@ -146,6 +146,8 @@ export default function WorldScreen() {
   // One timer for whichever toast is up: a new toast replaces the old one's
   // timer, so an earlier toast can't hide a newer one early.
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The toast's words, while it's up — so an escort can take back its own out-of-date line. */
+  const toastText = useRef<string | null>(null);
   // Is a toast up? A hint can wait for the next chance rather than knock one
   // off before it's been read (a first-arrival warning; `onSleeper`).
   const toastUp = useRef(false);
@@ -345,12 +347,22 @@ export default function WorldScreen() {
   function showToast(text: string) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     if (hintTimer.current) clearTimeout(hintTimer.current);
+    toastText.current = text;
     setToast(text);
     toastUp.current = true;
     toastTimer.current = setTimeout(() => {
       setToast(null);
       toastUp.current = false;
     }, toastMs(text));
+  }
+
+  /** Take down the toast if it's one of these lines (another's stays, its timers too). */
+  function clearToastOf(lines: string[]) {
+    if (!toastUp.current || !lines.includes(toastText.current ?? '')) return;
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(null);
+    toastUp.current = false;
+    toastText.current = null;
   }
 
   /** A field spell cast from the menu, or Glow from the HUD (#75 item 9). */
@@ -552,11 +564,17 @@ export default function WorldScreen() {
           // An escort's walk (#75 item 14g): a stop says why (now and then); where
           // they stand is kept (a battle mid-walk leaves them there); arriving ends it.
           onEscortWait: (near) => {
-            // Back beside her: say it now (at most every 4 s), not the 15 s a passing stop waits.
-            if (!walk || toastUp.current || Date.now() - escortSaidAt.current < (near ? 4000 : 15000)) return;
+            if (!walk) return false;
+            // Back beside her: say it now, over her own "go back and find her" if that's still up;
+            // a passing stop waits for a quiet moment and 15 s since the last.
+            const ownUp = toastUp.current && (toastText.current === walk.behindLine || toastText.current === walk.waitLine);
+            if (near ? toastUp.current && !ownUp : toastUp.current || Date.now() - escortSaidAt.current < 15000) return false;
             escortSaidAt.current = Date.now();
             showToast(walk.waitLine);
+            return true;
           },
+          // She walks on: a "why she stopped" line still up is out of date.
+          onEscortGo: () => walk && clearToastOf([walk.waitLine, walk.behindLine]),
           onEscortBehind: () => {
             if (!walk || Date.now() - escortSaidAt.current < 8000) return;
             escortSaidAt.current = Date.now();
@@ -565,10 +583,8 @@ export default function WorldScreen() {
           onEscortMove: (x, y) => useBattleStore.getState().setEscortAt({ x, y }),
           onEscortArrive: () => {
             if (!walk) return;
-            // A "she isn't here yet" toast is wrong now: clear it before her panels (#75 item 14g UX review).
-            if (toastTimer.current) clearTimeout(toastTimer.current);
-            setToast(null);
-            toastUp.current = false;
+            // Her own "isn't here yet" / "stopped" line is wrong now: cleared before her panels (#75 item 14g UX review).
+            clearToastOf([walk.waitLine, walk.behindLine]);
             useBattleStore.getState().setEscortAt(null);
             sfx('chest');
             update((s) => ({ ...s, flags: { ...withoutEscorts(s.flags), [stepFlag(walk.stepId)]: true } }));

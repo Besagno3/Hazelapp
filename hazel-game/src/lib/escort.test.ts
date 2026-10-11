@@ -4,6 +4,7 @@ import {
   ESCORT_GAP,
   ESCORT_WAIT_PX,
   arrived,
+  cameBack,
   dropCrumb,
   startEscort,
   stepEscort,
@@ -98,5 +99,17 @@ describe("an escort's walk (#75 item 14g)", () => {
     // A critter by the long boardwalk: she stops there while the hero walks on to the stone.
     const held = walk(startEscort(c(20, 23)), route, [c(15, 12)], 900, goal);
     expect(held.behind).toBe(true);
+  });
+
+  it('the hero who comes back for them: their out-and-back footsteps are a detour to drop', () => {
+    // Out to x=400 while they wait at 100, then back beside them.
+    let s = startEscort({ x: 100, y: 100 });
+    for (let x = 100; x <= 400; x += 4) s = dropCrumb(s, { x, y: 100 });
+    for (let x = 400; x >= 130; x -= 4) s = dropCrumb(s, { x, y: 100 });
+    expect(cameBack(s, { x: 130, y: 100 }, 32)).toBe(true);
+    // Just following a gap behind is not a detour.
+    expect(cameBack(startEscort({ x: 100, y: 100 }), { x: 140, y: 100 }, 32)).toBe(false);
+    // And they never "arrive" with the hero far from the goal.
+    expect(arrived({ x: 6 * 32 + 16, y: 4 * 32 + 16 }, { x: 6, y: 4 }, 32, { x: 20 * 32, y: 14 * 32 })).toBe(false);
   });
 });
