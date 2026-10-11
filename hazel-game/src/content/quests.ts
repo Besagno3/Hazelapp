@@ -916,9 +916,9 @@ export const QUESTS: QuestDef[] = [
           goal: { x: 6, y: 4 },
           lines: [
             "You came! The stone is at the far end of the boardwalk, way up at the top-left of the Marsh.",
-            "I'll follow right behind you. If a critter gets close, I'll wait until it's gone!",
+            "I'll follow right behind you. If a critter gets close, I'll wait until it moves away!",
           ],
-          waitLine: 'Posy stops — a critter is too close! Wait for it to wander off, or bump into it to battle.',
+          waitLine: 'Posy stops — a critter is too close! Wait for it to move away, or bump into it to battle.',
           behindLine: "Posy isn't here yet! Go back and find her — look for her ❗.",
           backLine: '🌼 Posy ran back to the landing. Talk to her there to walk again!',
         },

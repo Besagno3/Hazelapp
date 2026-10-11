@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ESCORT_ARRIVE_PX,
   ESCORT_GAP,
+  ESCORT_RESUME_PX,
   ESCORT_WAIT_PX,
   arrived,
   cameBack,
@@ -107,9 +108,22 @@ describe("an escort's walk (#75 item 14g)", () => {
     for (let x = 100; x <= 400; x += 4) s = dropCrumb(s, { x, y: 100 });
     for (let x = 400; x >= 130; x -= 4) s = dropCrumb(s, { x, y: 100 });
     expect(cameBack(s, { x: 130, y: 100 }, 32)).toBe(true);
+    // …or stopped a little short of them, keeping clear of the critter (2.5 tiles).
+    expect(cameBack(s, { x: 180, y: 100 }, 32)).toBe(true);
     // Just following a gap behind is not a detour.
     expect(cameBack(startEscort({ x: 100, y: 100 }), { x: 140, y: 100 }, 32)).toBe(false);
     // And they never "arrive" with the hero far from the goal.
     expect(arrived({ x: 6 * 32 + 16, y: 4 * 32 + 16 }, { x: 6, y: 4 }, 32, { x: 20 * 32, y: 14 * 32 })).toBe(false);
+  });
+
+  it('once waiting, they walk on only when the critter is well clear — no stop-start at the edge', () => {
+    let s = stepEscort(startEscort({ x: 0, y: 0 }), { x: 200, y: 0 }, [{ x: 0, y: 70 }], 1 / 60);
+    expect(s.waiting).toBe(true);
+    // Drifted just past the wait distance: still waiting.
+    s = stepEscort(s, { x: 200, y: 0 }, [{ x: 0, y: 90 }], 1 / 60);
+    expect(s.waiting).toBe(true);
+    // Well clear: on they go.
+    s = stepEscort(s, { x: 200, y: 0 }, [{ x: 0, y: ESCORT_RESUME_PX + 1 }], 1 / 60);
+    expect(s.waiting).toBe(false);
   });
 });

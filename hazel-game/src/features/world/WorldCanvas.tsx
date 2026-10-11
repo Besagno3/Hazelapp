@@ -2335,7 +2335,8 @@ export default function WorldCanvas({
           const cell = (p: { x: number; y: number }) => ({ x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) });
           const hero = cell(player.pos);
           const way = reachPath(z, (x, y) => x === hero.x && y === hero.y, { from: cell(escortState.at), flags: flagsRef.current });
-          escortState = { ...escortState, crumbs: way ? way.slice(1).map((c) => ({ x: c.x * TILE + TILE / 2, y: c.y * TILE + TILE / 2 })) : [] };
+          // No way round found: keep the footsteps (never a straight line across a pool).
+          if (way) escortState = { ...escortState, crumbs: way.slice(1).map((c) => ({ x: c.x * TILE + TILE / 2, y: c.y * TILE + TILE / 2 })) };
         }
         // Awake critters that could fight someone on foot — not sleepers, not under Calm.
         const threats = calm
@@ -2358,7 +2359,7 @@ export default function WorldCanvas({
           escortWaitAskedAt = k.time();
           // Came back to them after walking off: say why at once (#75 item 14g UX review) —
           // once; standing beside them all along keeps the usual 15 s (review round 7).
-          const back = escortWentAway && Math.hypot(player.pos.x - escortState.at.x, player.pos.y - escortState.at.y) < TILE * 1.5;
+          const back = escortWentAway && Math.hypot(player.pos.x - escortState.at.x, player.pos.y - escortState.at.y) < TILE * 2.5;
           // Spent only once it's said (another toast up keeps it for the next ask — review round 8).
           if (cbRef.current.onEscortWait?.(back) !== false && back) escortWentAway = false;
         }

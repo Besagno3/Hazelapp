@@ -23,6 +23,12 @@ export const ESCORT_CATCH_UP_AT = 160;
 export const ESCORT_CATCH_UP_SPEED = 230;
 /** A critter this near them (px) and they stop and wait. */
 export const ESCORT_WAIT_PX = 80;
+/**
+ * …and they walk on only once it's this far (px): a critter drifting at the
+ * edge of the wait distance doesn't make them stop-start (and the "!" blink —
+ * #75 item 14g UX review).
+ */
+export const ESCORT_RESUME_PX = 100;
 /** This near the goal's centre (px) and they've arrived — with the hero at the goal, they're a gap behind. */
 export const ESCORT_ARRIVE_PX = 56;
 /** A crumb every this many px the hero moves. */
@@ -55,8 +61,8 @@ export function dropCrumb(s: EscortState, hero: Pt): EscortState {
 }
 
 /** Is a critter near enough to make them wait? `threats`: where the awake critters are. */
-export function waitsFor(at: Pt, threats: Pt[]): boolean {
-  return threats.some((t) => dist(at, t) < ESCORT_WAIT_PX);
+export function waitsFor(at: Pt, threats: Pt[], within = ESCORT_WAIT_PX): boolean {
+  return threats.some((t) => dist(at, t) < within);
 }
 
 /** How far they'd walk to reach the hero along the crumbs (px). */
@@ -75,7 +81,7 @@ export function trailLength(s: EscortState, hero: Pt): number {
  * crumbs, keeping `ESCORT_GAP` of the path between them and the hero.
  */
 export function stepEscort(s: EscortState, hero: Pt, threats: Pt[], dt: number): EscortState {
-  if (waitsFor(s.at, threats)) return s.waiting ? s : { ...s, waiting: true };
+  if (waitsFor(s.at, threats, s.waiting ? ESCORT_RESUME_PX : ESCORT_WAIT_PX)) return s.waiting ? s : { ...s, waiting: true };
   let left = trailLength(s, hero);
   let budget = (left > ESCORT_CATCH_UP_AT ? ESCORT_CATCH_UP_SPEED : ESCORT_SPEED) * dt;
   let at = s.at;
@@ -129,5 +135,8 @@ export function stuckBehind(s: EscortState, hero: Pt, goal: Pt, tile: number): b
  * (#75 item 14g UX review).
  */
 export function cameBack(s: EscortState, hero: Pt, tile: number): boolean {
-  return dist(s.at, hero) < tile * 1.5 && trailLength(s, hero) > tile * 3;
+  // Near (not only right beside them — a child keeps clear of the critter) and the
+  // footsteps run much further than the hero is (review round 9).
+  const d = dist(s.at, hero);
+  return d < tile * 4 && trailLength(s, hero) > d + tile * 3;
 }

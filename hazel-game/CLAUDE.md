@@ -615,6 +615,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 9: a wait line you can read (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (1 medium,
+1 low). Fixed: the Mist Newt drifting at the edge of Posy's 80 px made her
+stop-start, so her wait line was taken down after 0.6–0.8 s — once waiting,
+she now walks on only when no critter is within 100 px (`ESCORT_RESUME_PX`;
+the "!" no longer blinks, #120r), and her own line is taken down only after
+it's been up 4 s (`clearToastOf`'s `readMs`); replayed, it stays 5–8 s. Going
+back for her works from up to 4 tiles away, not only right beside her
+(`cameBack`: her footsteps run 3+ tiles further than the hero is), the "back
+beside her" line within 2.5 tiles; with no way round found she keeps her
+footsteps (never a straight line across a pool); "move away", not "wander
+off" (a leashed critter only drifts).
+
 ### 2026-10-11 — 14g review round 8: go back for her, and she stays with you (#75 item 14g)
 Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (1 medium,
 2 low; played with a live probe of Posy's state). Fixed: doing what "go back

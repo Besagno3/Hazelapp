@@ -148,6 +148,7 @@ export default function WorldScreen() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The toast's words, while it's up — so an escort can take back its own out-of-date line. */
   const toastText = useRef<string | null>(null);
+  const toastAt = useRef(0);
   // Is a toast up? A hint can wait for the next chance rather than knock one
   // off before it's been read (a first-arrival warning; `onSleeper`).
   const toastUp = useRef(false);
@@ -348,6 +349,7 @@ export default function WorldScreen() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     if (hintTimer.current) clearTimeout(hintTimer.current);
     toastText.current = text;
+    toastAt.current = Date.now();
     setToast(text);
     toastUp.current = true;
     toastTimer.current = setTimeout(() => {
@@ -357,8 +359,10 @@ export default function WorldScreen() {
   }
 
   /** Take down the toast if it's one of these lines (another's stays, its timers too). */
-  function clearToastOf(lines: string[]) {
+  function clearToastOf(lines: string[], readMs = 0) {
     if (!toastUp.current || !lines.includes(toastText.current ?? '')) return;
+    // Up long enough to have been read (a line gone in under a second helps nobody).
+    if (Date.now() - toastAt.current < readMs) return;
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(null);
     toastUp.current = false;
@@ -574,7 +578,7 @@ export default function WorldScreen() {
             return true;
           },
           // She walks on: a "why she stopped" line still up is out of date.
-          onEscortGo: () => walk && clearToastOf([walk.waitLine, walk.behindLine]),
+          onEscortGo: () => walk && clearToastOf([walk.waitLine, walk.behindLine], 4000),
           onEscortBehind: () => {
             if (!walk || Date.now() - escortSaidAt.current < 8000) return;
             escortSaidAt.current = Date.now();
