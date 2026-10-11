@@ -113,7 +113,7 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
     expect(screen.getByText(/You won the Verdant Key! It unlocks the Smog Fiend's gate\./)).toBeInTheDocument();
     unmount();
     render(<BattleResult {...base} result="victory" enemy={spawnEnemy('ringkeeper', 'eldergrove', 'r', 8)} keyBoss={keyForBoss('ringkeeper')} />);
-    expect(screen.getByText(/You won the Memoria Key! It unlocks the Hollow Fiend's gate\./)).toBeInTheDocument();
+    expect(screen.getByText(/You won the Memoria Key! It unlocks the Hollow Fiend's silver door\./)).toBeInTheDocument();
   });
   it("a defeat in Eldergrove says Fen tucks you up in her hollow (#75 item 14f)", () => {
     render(
@@ -167,7 +167,8 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
     );
     expect(screen.getByText(/Innkeeper Binder finds you and tucks you up in the Quiet Shelf Inn\./)).toBeInTheDocument();
     expect(screen.getByText(/Old Marlow sailed the Biscuit round to the Sunken Archive's beach/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'To the Quiet Shelf Inn' })).toBeInTheDocument();
+    // The same button as after any rest at an inn (review fix).
+    expect(screen.getByRole('button', { name: 'To the inn' })).toBeInTheDocument();
   });
 });
 

@@ -234,7 +234,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
       kind: 'crystal',
       title: `Free the ${open.crystalName}`,
       why: key
-        ? `Your ${key.name} opens ${key.fiendName}'s gate. Free the ${open.crystalName}!`
+        ? `Your ${key.name} opens ${key.fiendName}'s ${key.door ?? 'gate'}. Free the ${open.crystalName}!`
         : `${open.fiendName} hoards the ${open.crystalName}.`,
       zoneId: open.zoneId,
       crystal: open,
@@ -246,7 +246,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
   return {
     kind: 'key',
     title: `Win the ${key.name}`,
-    why: `${key.bossName} guards the ${key.name}. It opens ${key.fiendName}'s gate.`,
+    why: `${key.bossName} guards the ${key.name}. It opens ${key.fiendName}'s ${key.door ?? 'gate'}.`,
     zoneId: key.fromZone,
     crystal: left[0],
     key,
@@ -479,7 +479,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   if (goal.kind === 'crystal' && goal.crystal && !goal.key) {
     plan = `Here is the plan: four Fiends hold the crystals, one at each far corner of Dawnreach. Start with ${midSentence(goal.crystal.fiendName)} in ${place(goal.crystal.zoneId)} — its gate needs no key, only brave answers.`;
   } else if (goal.kind === 'crystal' && goal.crystal && goal.key) {
-    plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s gate in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
+    plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s ${goal.key.door ?? 'gate'} in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
   } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
     // Act II's key (#75 item 14f): no Fiend to name yet.
     plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;

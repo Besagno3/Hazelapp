@@ -651,6 +651,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14h review round 2: she waits by the beach (#75 item 14h)
+Fresh `/saas-code-review` (3 low) and `/saas-ux-review` (1 medium, 2 low).
+All fixed: Return from the boat right beside the island's beach said she
+was "moored out at sea — Old Marlow can row her home", though she waits
+where the hero lands (`boatOnReturn`: "The Biscuit waits by the beach, right
+where you left her", medium); the 🚩, Elder Lumen and the Ringkeeper's
+victory line call the Archive's gate a silver door too (`GateKey.door`); the
+first-visit panels name the door once; an inn that's also a shelter has the
+"To the inn" button any inn has (`wakeShelter`). 1074 green, lint clean.
+
 ### 2026-10-11 — 14h review round 1: a boat you can board, panels without the key (#75 item 14h)
 Fresh `/saas-code-review` (1 medium, 3 low) and `/saas-ux-review` (3 medium,
 4 low; played on the stubbed app at 320–1024 px). All fixed:

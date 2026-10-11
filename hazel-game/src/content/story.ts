@@ -371,7 +371,7 @@ export const ARCHIVE_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🐭',
-    text: 'A silver door with no handle guards the way north. Then a little mouse in spectacles peeks out from behind a card catalog. "Oh! A READER!"',
+    text: 'Then, down the red carpet, a little mouse in spectacles peeks out from behind a card catalog. "Oh! A READER!"',
   },
 ];
 

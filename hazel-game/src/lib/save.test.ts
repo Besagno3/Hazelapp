@@ -321,7 +321,7 @@ describe('the last inn rested at (#75 item 11)', () => {
   it('beaten in the Sunken Archive, Binder tucks the hero up at the Quiet Shelf Inn — and it reads as a place (#75 item 14h)', () => {
     expect(wakeShelter({ zoneId: 'sunken-archive' })).toEqual({
       line: 'Innkeeper Binder finds you and tucks you up in the Quiet Shelf Inn.',
-      place: 'the Quiet Shelf Inn',
+      place: 'the inn',
     });
     expect(wakeAfterDefeat({ lastRest: 'gearfall', zoneId: 'sunken-archive' }).zoneId).toBe('sunken-archive');
     // Rested there, a defeat anywhere else wakes the hero there, named with its "the".

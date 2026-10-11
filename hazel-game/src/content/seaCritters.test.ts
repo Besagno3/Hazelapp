@@ -208,6 +208,13 @@ describe('a battle at sea (#75 item 14d)', () => {
     // sailing 3 cells off the beach and flying there, the boat still comes round to the beach.
     const offshore = { ...sailing, pos: { x: 49 * 32 + 16, y: 21 * 32 + 16 } };
     expect(boatOnReturn(offshore, 'sunken-archive')).toMatchObject({ aboard: false, boat: archive.mooring });
+    // Sailing right beside the island's beach and flying there: she stays, and the toast says she's waiting (review fix).
+    const beside = { ...sailing, pos: { x: 50 * 32 + 16, y: 18 * 32 + 16 } };
+    expect(boatOnReturn(beside, 'sunken-archive')).toEqual({
+      aboard: false,
+      boat: { zoneId: 'silver-shallows', x: 50, y: 18 },
+      note: ' The Biscuit waits by the beach, right where you left her.',
+    });
     const leftOff = { ...ashore, boat: { zoneId: 'silver-shallows' as const, x: 52, y: 22 } };
     expect(boatAfterDefeat(leftOff, 'sunken-archive').boat).toEqual(archive.mooring);
   });

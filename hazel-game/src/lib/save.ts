@@ -271,7 +271,8 @@ export function wakeShelter(save: Partial<Pick<SaveData, 'zoneId'>>): { line: st
   // "Fen's Hollow" stands alone; "the Quiet Shelf Inn" (#75 item 14h) needs its "the".
   const name = shelter.building.name;
   const place = /'s /.test(name) ? name : `the ${name}`;
-  return { line: `${shelter.host} finds you and tucks you up in ${place}.`, place };
+  // The button: an inn that's also a shelter is "the inn", as after any rest at an inn (#75 item 14h review).
+  return { line: `${shelter.host} finds you and tucks you up in ${place}.`, place: shelter.building.sign === 'inn' ? 'the inn' : place };
 }
 
 export function wakeInnName(save: Pick<SaveData, 'lastRest'>): string | null {

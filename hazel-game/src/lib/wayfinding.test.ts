@@ -189,7 +189,7 @@ describe('nextObjective', () => {
     expect(roadTier(memoriaWon)).toBeNull();
     // Elder Lumen: the Fiend's gate, and a tip for the swift Quill Imps and Time Ripple.
     const [plan, tip] = mentorTips(ZONES, { ...memoriaWon, [MET_ELDER]: true });
-    expect(plan).toBe("You hold the Memoria Key! It opens the Hollow Fiend's gate in the Sunken Archive. Free the Crystal of Memory there!");
+    expect(plan).toBe("You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive. Free the Crystal of Memory there!");
     expect(tip).toMatch(/Quill Imps.*strike first.*Time Ripple/);
     // Once Memory shines: explore, Ember's wings growing (flight is Act III's, 15b).
     expect(nextObjective(storyDone)).toMatchObject({ kind: 'explore', zoneId: null });
@@ -388,7 +388,7 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true })[0]).toMatch(/Silver Shallows/);
     expect(mentorTips(ZONES, { ...met, ...storyDone, [keyFlag('memoria')]: false })[0]).toMatch(/^Out in the Silver Shallows lies Eldergrove/);
     // With the Memoria Key, its door in the Archive (#75 item 14h); then five crystals shine.
-    expect(mentorTips(ZONES, { ...met, ...memoriaWon })[0]).toMatch(/^You hold the Memoria Key! It opens the Hollow Fiend's gate in the Sunken Archive/);
+    expect(mentorTips(ZONES, { ...met, ...memoriaWon })[0]).toMatch(/^You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive/);
     expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^The Crystal of Memory shines — five crystals now!/);
   });
   it('is the big picture, not the road: no "go …" or "take the … path" steps', () => {

@@ -1062,6 +1062,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-955 | U | ✅ | boat (#126m) | a boat left in open water near the island (3 cells off its beach) is brought round to the beach on Return or a wake there; one beside the island's beach stays put (seaCritters.test) |
 | TC-956 | C | ✅ | battle (#126m) | rested at the Quiet Shelf Inn and beaten in Numbria: "carry you back to the Quiet Shelf Inn in the Sunken Archive, where you last rested" — not "Binder finds you" (BattleArena.test) |
 | TC-957 | U | ✅ | world (#126m) | the Archive's key gate reads "silver door"; Hush and Brine stand still; the letter's quest log names the Sunken Archive (keys.test, zones.test, quests.test) |
+| TC-958 | U | ✅ | boat (#126n) | Return cast from the boat beside the island's beach to the Archive keeps her there and says "The Biscuit waits by the beach" (seaCritters.test) |
+| TC-959 | U | ✅ | wording (#126n) | the Archive's key is a "silver door" on the 🚩, in Elder Lumen's plan and on the Ringkeeper's victory panel; Act I's keys still open gates; the shelter-inn's button reads "To the inn" (wayfinding.test, BattleHud.test, save.test) |
 | TC-926 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
