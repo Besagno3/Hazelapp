@@ -3094,8 +3094,12 @@ def lantern_post(c: Canvas, p: Pose, s: dict):
     d.put(L)
     if lit:
         G = d.part(0, 0)
-        for (x, y) in ((14.5, 11), (25, 12.5), (19.9, 6.4), (16, 18.5), (23.5, 18)):
-            G.dot(x, y, '#ffe680')
+        # A ring of light round the lamp, so a lit lantern reads at a glance on a phone (#75 item 14g review).
+        for k in range(14):
+            a = k * math.tau / 14
+            G.dot(19.9 + math.cos(a) * 6.2, 13.6 + math.sin(a) * 6.2, '#ffe680' if k % 2 else '#fff4c0')
+        for (x, y) in ((19.9, 4.4), (12.4, 13.6), (27.4, 13.6), (19.9, 22.6)):
+            G.dot(x, y, '#ffd84a')
         d.put(G, outline=False)
     finish(c, d, shadow=(16, 30.6, 5, 1.0))
 

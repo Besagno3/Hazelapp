@@ -67,9 +67,8 @@ import {
   POSY_STONE_PANELS,
   POSY_STONE_SEEN,
 } from '../../content/story';
-import { activeEscort, escortsAway } from '../../content/quests';
-import { POSY_WALK, stepFlag, withoutEscorts } from '../../content/questFlags';
-import { NPC_DEFS } from '../../content/npcs';
+import { activeEscort, escortsAway, escortsBackLines } from '../../content/quests';
+import { POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import LevelBadge from '../../components/LevelBadge';
@@ -191,21 +190,27 @@ export default function WorldScreen() {
   const { crystals, stage: ember } = emberStatus(flags);
   // An escort's walk under way here (#75 item 14g, Posy through Foglight Marsh).
   const walk = save && !spireTheme ? activeEscort(save, zoneId) : null;
-  const escortWaitSaid = useRef(false);
-  useEffect(() => {
-    if (!walk) escortWaitSaid.current = false;
-  }, [walk]);
+  // When the walk last said something (a stop for a critter, the stone without them) — not more than every 15 s.
+  const escortSaidAt = useRef(0);
   // Leaving the place mid-walk (an exit, a Return): they go back to wait where they started.
   const awayKey = save ? escortsAway(save, zoneId).join(',') : '';
   useEffect(() => {
     if (!awayKey) return;
     useBattleStore.getState().setEscortAt(null);
-    update((s) => ({ ...s, flags: withoutEscorts(s.flags) }));
-    const name = NPC_DEFS[awayKey.split(',')[0]]?.name ?? 'Your friend';
-    showToast(`🌼 ${name} runs back to wait for you where you met.`);
+    update((s) => ({ ...s, flags: escortsBack(s.flags) }));
     // Only when someone's left behind.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awayKey]);
+  // A walk ended short — left, lost, reloaded — says so once, and how to start again (#75 item 14g review).
+  const backLines = escortsBackLines(flags);
+  const backKey = backLines.map((b) => b.flag).join(',');
+  useEffect(() => {
+    if (!backKey || !save) return;
+    useBattleStore.getState().setEscortAt(null);
+    showToast(backLines[0].line);
+    update((s) => ({ ...s, flags: Object.fromEntries(Object.entries(s.flags).filter(([f]) => !backKey.split(',').includes(f))) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backKey]);
   // The HUD counts the crystals of the acts that have opened (#75 item 14c).
   const inPlay = crystalsInPlay(flags);
 
@@ -544,12 +549,17 @@ export default function WorldScreen() {
           onWard: (id) => spireBump({ kind: 'ward', id }),
           onStairs: () => spireBump({ kind: 'stairs' }),
           onUmbra: () => spireBump({ kind: 'umbra' }),
-          // An escort's walk (#75 item 14g): the first stop of a walk says why; where
+          // An escort's walk (#75 item 14g): a stop says why (now and then); where
           // they stand is kept (a battle mid-walk leaves them there); arriving ends it.
           onEscortWait: () => {
-            if (escortWaitSaid.current || toastUp.current || !walk) return;
-            escortWaitSaid.current = true;
-            showToast(`${NPC_DEFS[walk.npcId]?.name ?? 'Your friend'} waits — a critter is too close! Lead them around it, or chase it off.`);
+            if (!walk || toastUp.current || Date.now() - escortSaidAt.current < 15000) return;
+            escortSaidAt.current = Date.now();
+            showToast(walk.waitLine);
+          },
+          onEscortBehind: () => {
+            if (!walk || Date.now() - escortSaidAt.current < 8000) return;
+            escortSaidAt.current = Date.now();
+            showToast(walk.behindLine);
           },
           onEscortMove: (x, y) => useBattleStore.getState().setEscortAt({ x, y }),
           onEscortArrive: () => {

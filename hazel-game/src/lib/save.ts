@@ -1,5 +1,5 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
-import { withoutEscorts } from '../content/questFlags';
+import { escortsBack } from '../content/questFlags';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
 import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, shelterOf } from '../content/zones';
 import { BOAT_SPAWN_REACH, safeSpawn } from './reach';
@@ -195,8 +195,8 @@ export function normalizeSave(raw: unknown): SaveData {
   const savedPos = zoneKnown && isPos(r.pos) ? { x: r.pos.x, y: r.pos.y } : null;
   // Every known consumable gets a count; ids added later (#73: elixir, spark,
   // ward) simply default in for older saves.
-  // An escort's walk is never kept (#75 item 14g): reloaded, they wait at the start again.
-  const flags = withoutEscorts({ ...(isRecord(r.flags) ? (r.flags as Record<string, boolean>) : {}), [SAVE_V2_FLAG]: true });
+  // An escort's walk is never kept (#75 item 14g): reloaded, they wait at the start again — and the world says so.
+  const flags = escortsBack({ ...(isRecord(r.flags) ? (r.flags as Record<string, boolean>) : {}), [SAVE_V2_FLAG]: true });
   const rawItems = typeof r.items === 'object' && r.items !== null ? (r.items as Record<string, unknown>) : {};
   const items = Object.fromEntries(
     CONSUMABLE_IDS.map((id) => [id, numberOr(rawItems[id], d.items[id])]),

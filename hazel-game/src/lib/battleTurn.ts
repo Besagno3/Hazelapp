@@ -219,7 +219,7 @@ const POWER_MOVE_NAMES: Record<string, string> = {
   // Act II (#75 item 14f).
   ringkeeper: 'Thousand-Year Charge',
   // Foglight Marsh's miniboss (#75 item 14g): a sneeze of thick grey fog.
-  'last-fogbank': 'Pea-Soup Puff',
+  'last-fogbank': 'Big Grey Puff',
 };
 
 export function powerMoveName(enemyId: string): string {

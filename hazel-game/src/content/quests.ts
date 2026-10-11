@@ -4,7 +4,7 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_WALK, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { POSY_QUEST, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -98,6 +98,11 @@ export interface QuestStep {
   needs?: string[];
   /** An escort step's walk (#75 item 14g). */
   escort?: EscortDef;
+  /**
+   * A talk step that says "not this one yet" when its NPC is talked to before
+   * its turn, with the step that's due (#75 item 14g review: Brume's lanterns).
+   */
+  early?: boolean;
 }
 
 /**
@@ -113,6 +118,10 @@ export interface EscortDef {
   goal: { x: number; y: number };
   /** What they say as the walk starts. */
   lines: string[];
+  /** The world's lines (#75 item 14g review): they stopped for a critter; the hero reached the goal without them; they went back to wait. */
+  waitLine: string;
+  behindLine: string;
+  backLine: string;
 }
 
 export interface QuestDef {
@@ -251,7 +260,7 @@ function bringStep(
  * Walk someone through a place (#75 item 14g): done once they reach the goal
  * (`stepFlag`, set by the world as they arrive).
  */
-function escortStep(id: string, escort: EscortDef, hint: string): QuestStep {
+function escortStep(id: string, escort: EscortDef, hint: string | ((save: SaveData) => string)): QuestStep {
   return { id, hint, escort, isComplete: (save) => save.flags[stepFlag(id)] === true };
 }
 
@@ -824,24 +833,33 @@ export const QUESTS: QuestDef[] = [
         [{ items: ['lantern-ledger'], label: 'the Lantern Ledger' }],
         'My Lantern Ledger is in a riddle-chest 🎁 in the reeds, at the top of the east boardwalk.',
       ),
-      talkStep(
+      {
+        early: true,
+        ...talkStep(
         'lantern-west',
         'marsh-lantern-west',
         ['You open the Ledger. "First: the WEST lantern."', 'You strike a match… *fwoomp!* The west lantern glows warm and gold. ✨'],
-        'The Ledger says: light the WEST lantern first. It\'s by the boardwalk north of my lamp-house.',
-      ),
-      talkStep(
+        'The Ledger says: light the WEST lantern first. It stands up the boardwalk from Brume\'s lamp-house.',
+        ),
+      },
+      {
+        early: true,
+        ...talkStep(
         'lantern-north',
         'marsh-lantern-north',
         ['The Ledger says: "Second: the NORTH lantern."', '*Fwoomp!* The north lantern glows. Its light dances on the reed pools. ✨'],
-        'Next, the NORTH lantern — up the middle boardwalk, past the reed pools.',
-      ),
-      talkStep(
+        'Next, the NORTH lantern — up the middle boardwalk, by the big pond at the top.',
+        ),
+      },
+      {
+        early: true,
+        ...talkStep(
         'lantern-east',
         'marsh-lantern-east',
         ['The Ledger says: "Last of all: the EAST lantern."', '*Fwoomp!* The east lantern glows. That\'s all three! Go and tell Brume. ✨'],
-        'Last, the EAST lantern — up the east boardwalk, beside the reeds.',
-      ),
+        'Last, the EAST lantern — up the east boardwalk, past the big pond on the right.',
+        ),
+      },
     ],
     takesItems: ['lantern-ledger'],
     complete: [
@@ -864,7 +882,7 @@ export const QUESTS: QuestDef[] = [
     offer: [
       "Hi! I'm Posy. I bring flowers to the names nobody remembers.",
       'There\'s a stone in Foglight Marsh with NO name on it at all. It needs a flower most of all!',
-      'Ferryman Slosh will pole me over on his raft. Will you meet me at the Marsh\'s landing and walk me to the stone? The critters scare me a little.',
+      'Ferryman Slosh will take me over on his raft. Will you meet me at the Marsh\'s landing and walk me to the stone? The critters scare me a little.',
     ],
     steps: [
       escortStep(
@@ -878,8 +896,14 @@ export const QUESTS: QuestDef[] = [
             "You came! The stone is at the end of the boardwalk, way up in the north-west.",
             "I'll follow right behind you. If a critter gets close, I'll wait until it's gone!",
           ],
+          waitLine: 'Posy stops — a critter is too close! Lead her another way, or bump into it to battle.',
+          behindLine: "Posy isn't here yet! Go back and find her — look for her ❗.",
+          backLine: '🌼 Posy ran back to the landing. Talk to her there to walk again!',
         },
-        "Sail to Foglight Marsh, on the Silver Shallows' north coast. Posy waits at the landing — walk her to the Nameless Stone!",
+        (save) =>
+          save.flags[escortWalkingFlag(POSY_WALK)]
+            ? 'Walk Posy to the Nameless Stone, at the end of the north-west boardwalk. Stay close — she stops if a critter is near!'
+            : "Sail to Foglight Marsh, on the Silver Shallows' north coast. Posy waits at the landing — walk her to the Nameless Stone!",
       ),
     ],
     complete: [
@@ -1051,6 +1075,8 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
   if (quest && !step) return completeConversation(quest);
   const through = stepConversation(npcId, save);
   if (through) return through;
+  const early = earlyConversation(npcId, save);
+  if (early) return early;
   if (!quest || !step) return null;
   if (!save.flags[questOfferedFlag(quest)]) {
     return {
@@ -1127,6 +1153,31 @@ function stepConversation(npcId: string, save: SaveData): QuestConversation | nu
   return null;
 }
 
+/**
+ * A talk step's NPC talked to before its turn (#75 item 14g review: the north
+ * lantern before the west one): "not this one yet", and the step that's due —
+ * once the steps before have reached the talking part.
+ */
+function earlyConversation(npcId: string, save: SaveData): QuestConversation | null {
+  for (const q of QUESTS) {
+    if (!save.flags[questOfferedFlag(q)] || save.flags[questDoneFlag(q)]) continue;
+    const step = activeStep(q, save);
+    if (!step?.npc) continue;
+    const later = q.steps.slice(q.steps.indexOf(step) + 1);
+    if (later.some((st) => st.early && st.npc?.id === npcId)) {
+      return { lines: [`Not this one yet! ${resolveHint(step, save)}`], badge: q.title, finishKind: null, finish: null };
+    }
+  }
+  return null;
+}
+
+/** The world's line for each walk that ended short (`escortBackFlag`, #75 item 14g review). */
+export function escortsBackLines(flags: Record<string, boolean>): { flag: string; line: string }[] {
+  return QUESTS.flatMap((q) =>
+    q.steps.flatMap((st) => (st.escort && flags[escortBackFlag(st.id)] ? [{ flag: escortBackFlag(st.id), line: st.escort.backLine }] : [])),
+  );
+}
+
 /** Carried items after a bring step's hand-over: `takes` goes, `gives` (if any) arrives once. */
 function tradeItems(items: string[], trade: { takes: string; gives?: string }): string[] {
   const kept = items.filter((i) => i !== trade.takes);
@@ -1176,12 +1227,16 @@ export function chestWantedLine(save: SaveData, chestId: string): string | null 
  * The walk under way in this place, if any (#75 item 14g): whose, where to,
  * and the step it finishes. The canvas leads them while it lasts.
  */
-export function activeEscort(save: SaveData, zoneId: ZoneId): { stepId: string; npcId: string; goal: { x: number; y: number } } | null {
+export function activeEscort(
+  save: SaveData,
+  zoneId: ZoneId,
+): { stepId: string; npcId: string; goal: { x: number; y: number }; waitLine: string; behindLine: string } | null {
   for (const q of QUESTS) {
     if (!save.flags[questOfferedFlag(q)] || save.flags[questDoneFlag(q)]) continue;
     const step = activeStep(q, save);
     if (step?.escort && step.escort.zoneId === zoneId && save.flags[escortWalkingFlag(step.id)]) {
-      return { stepId: step.id, npcId: step.escort.npcId, goal: step.escort.goal };
+      const { npcId, goal, waitLine, behindLine } = step.escort;
+      return { stepId: step.id, npcId, goal, waitLine, behindLine };
     }
   }
   return null;

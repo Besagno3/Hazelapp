@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { POSY_WALK, stepFlag } from './questFlags';
+import { POSY_WALK, escortWalkingFlag, stepFlag } from './questFlags';
 import { actCrystals } from './topics';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
@@ -1400,8 +1400,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '⛵',
     role: 'merchant',
     lines: [
-      "Slosh's the name, rafts are the game! I pole folk across the bog — and I sell what a bog-walker needs.",
-      'Glimmer Candles! The Bog Lanterns play tricks with your Hint Feathers. One little candle and their tricks stop working.',
+      "Slosh's the name, rafts are the game! I take folk across the bog on my raft — and I sell what a bog-walker needs.",
+      'Glimmer Candles! Bog Lanterns are too slippery for Hint Feathers. Light one little candle, and your feathers work again.',
     ],
   },
   'marsh-stone': {
@@ -1413,11 +1413,13 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'A smooth grey stone at the end of the boardwalk. There is no name on it — only a tiny flower, carved at the top.',
       { text: "A daisy is tucked into the crack at the top. Posy's.", ifFlag: stepFlag(POSY_WALK) },
+      // Here without her (#75 item 14g review): where is she?
+      { text: "Posy isn't here yet! Go back and find her — look for her ❗.", ifFlag: escortWalkingFlag(POSY_WALK) },
     ],
   },
   'marsh-lantern-west': {
     id: 'marsh-lantern-west',
-    name: 'Lantern',
+    name: 'West Lantern',
     sprite: '🏮',
     spriteId: 'marsh-lantern',
     role: 'villager',
@@ -1426,7 +1428,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'marsh-lantern-west-lit': {
     id: 'marsh-lantern-west-lit',
-    name: 'Lantern',
+    name: 'West Lantern',
     sprite: '🏮',
     spriteId: 'marsh-lantern-lit',
     role: 'villager',
@@ -1435,7 +1437,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'marsh-lantern-north': {
     id: 'marsh-lantern-north',
-    name: 'Lantern',
+    name: 'North Lantern',
     sprite: '🏮',
     spriteId: 'marsh-lantern',
     role: 'villager',
@@ -1444,7 +1446,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'marsh-lantern-north-lit': {
     id: 'marsh-lantern-north-lit',
-    name: 'Lantern',
+    name: 'North Lantern',
     sprite: '🏮',
     spriteId: 'marsh-lantern-lit',
     role: 'villager',
@@ -1453,7 +1455,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'marsh-lantern-east': {
     id: 'marsh-lantern-east',
-    name: 'Lantern',
+    name: 'East Lantern',
     sprite: '🏮',
     spriteId: 'marsh-lantern',
     role: 'villager',
@@ -1462,7 +1464,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'marsh-lantern-east-lit': {
     id: 'marsh-lantern-east-lit',
-    name: 'Lantern',
+    name: 'East Lantern',
     sprite: '🏮',
     spriteId: 'marsh-lantern-lit',
     role: 'villager',

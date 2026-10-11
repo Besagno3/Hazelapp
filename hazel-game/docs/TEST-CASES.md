@@ -1010,6 +1010,10 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-848 | U | ✅ | story | Posy's two panels at the Nameless Stone, each ≤ 30 words (story.test) |
 | TC-849 | B | ✅ | escort (real canvas) | on the bench page (`escort=1`, Supabase-free): under Calm the hero walks landing → hub → west boardwalk → the stone and Posy follows the boardwalks and arrives (`escortArrived`); without Calm, standing near the Mist Newt's patch she stops once (`escortWaits`); no page errors |
 | TC-850 | U | ✅ | battle (review) | a Glimmer Candle used by Kira (Fox Sense already up) adds its own free hint: both are offered, Fox Sense's used first (battleTurn.test) |
+| TC-851 | M | ✅ | world (review) | Posy stopped by a critter for 1.5 s shows a yellow "!" on a dark plate above her and a toast saying why; a second stop more than 15 s later says it again (bench escort=1) |
+| TC-852 | U | ✅ | quests (review) | talking to the north lantern before the west one says "Not this one yet!" and the Ledger's next step (quests.test) |
+| TC-853 | U | ✅ | quests (review) | a reload or a lost battle mid-walk turns the walking flag into a back flag; the world shows "Posy ran back to the landing" once and clears it (quests.test) |
+| TC-854 | M | ⬜ | world (review) | reaching the stone with Posy more than 3 tiles behind says "Posy is still on her way" (at most every 8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

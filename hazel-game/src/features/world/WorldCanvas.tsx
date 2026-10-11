@@ -232,8 +232,10 @@ export interface WorldCanvasCallbacks {
    * there's no sea that close either.
    */
   onAshore?: (boat: { x: number; y: number } | null) => void;
-  /** An escort (#75 item 14g, Posy) stopped to wait: a critter is near them. */
+  /** An escort (#75 item 14g, Posy) has been waiting a moment: a critter is near them. */
   onEscortWait?: () => void;
+  /** …the hero reached their goal without them. */
+  onEscortBehind?: () => void;
   /** …moved on — where they stand now (px), kept so a battle mid-walk leaves them there. */
   onEscortMove?: (x: number, y: number) => void;
   /** …reached their goal. */
@@ -1184,18 +1186,18 @@ export default function WorldCanvas({
     function spawnFollower(defId: string, at: { x: number; y: number }): Follower {
       const here = spawnNpc({ defId, x: Math.floor(at.x / TILE), y: Math.floor(at.y / TILE) }, at);
       here.actor.follower = true;
-      const worry = k.add([k.text('!', { size: 16 }), k.pos(at.x, at.y - 30), k.anchor('center'), k.color(255, 214, 90), k.opacity(0), k.z(21)]) as unknown as {
-        pos: WorldVec;
-        opacity: number;
-        destroy: () => void;
-      };
+      // Big enough to see on a phone (the map shrinks to ~0.4×): a "!" on a dark plate, like a level's (#75 item 14g review).
+      type Mark = { pos: WorldVec; opacity: number; destroy: () => void };
+      const plate = k.add([k.rect(22, 28, { radius: 6 }), k.pos(at.x, at.y - 36), k.anchor('center'), k.color(30, 24, 40), k.outline(2, k.rgb(255, 214, 90)), k.opacity(0), k.z(21)]) as unknown as Mark;
+      const bang = k.add([k.text('!', { size: 24 }), k.pos(at.x, at.y - 36), k.anchor('center'), k.color(255, 214, 90), k.opacity(0), k.z(22)]) as unknown as Mark;
       const spr = here.anims ? (here.face as unknown as { play: (n: string) => void; flipX: boolean }) : null;
       let facing: Facing = 'down';
       let anim = '';
       return {
         remove: () => {
           here.remove();
-          worry.destroy();
+          plate.destroy();
+          bang.destroy();
         },
         place: (to, dx, dy, waiting) => {
           const mx = to.x - here.actor.x;
@@ -1206,8 +1208,10 @@ export default function WorldCanvas({
             part.pos.x += mx;
             part.pos.y += my;
           }
-          worry.pos = k.vec2(to.x, to.y - 30 + (reducedMotion ? 0 : Math.sin(k.time() * 6) * 2));
-          worry.opacity = waiting ? 1 : 0;
+          const bob = reducedMotion ? 0 : Math.sin(k.time() * 6) * 2;
+          plate.pos = bang.pos = k.vec2(to.x, to.y - 36 + bob);
+          plate.opacity = waiting ? 0.9 : 0;
+          bang.opacity = waiting ? 1 : 0;
           if (!spr || !here.anims) return;
           const moving = Math.hypot(dx, dy) > 0.01;
           facing = facingFor(dx, dy, facing);
@@ -1224,6 +1228,9 @@ export default function WorldCanvas({
     let escortState: EscortState | null = null;
     let escortArrived = false;
     let escortSaid = { x: -1e9, y: -1e9 };
+    // How long they've been waiting this stop, and when the hero at the goal without them was last said.
+    let escortWaitFor = 0;
+    let escortBehindAt = -1e9;
 
     // Each roaming critter's parts, with their own full opacity — faded under
     // Calm, and less while it sleeps (`resting`, #75 item 14d). Bosses never
@@ -2326,7 +2333,16 @@ export default function WorldCanvas({
         const before = escortState.at;
         escortState = stepEscort(escortState, player.pos, threats, dt);
         follower.place(escortState.at, escortState.at.x - before.x, escortState.at.y - before.y, escortState.waiting);
-        if (escortState.waiting && !wasWaiting) cbRef.current.onEscortWait?.();
+        // A stop says why once it's lasted a moment (a passer-by doesn't make it chatter).
+        escortWaitFor = escortState.waiting ? escortWaitFor + dt : 0;
+        if (escortState.waiting && wasWaiting && escortWaitFor >= 1.5 && escortWaitFor - dt < 1.5) cbRef.current.onEscortWait?.();
+        // The hero at the goal, them far behind: say where they are.
+        const goalPx = { x: walk.goal.x * TILE + TILE / 2, y: walk.goal.y * TILE + TILE / 2 };
+        const heroAtGoal = Math.hypot(player.pos.x - goalPx.x, player.pos.y - goalPx.y) < TILE * 1.5;
+        if (heroAtGoal && Math.hypot(escortState.at.x - goalPx.x, escortState.at.y - goalPx.y) > TILE * 3 && k.time() - escortBehindAt > 8) {
+          escortBehindAt = k.time();
+          cbRef.current.onEscortBehind?.();
+        }
         if (Math.hypot(escortState.at.x - escortSaid.x, escortState.at.y - escortSaid.y) > TILE / 2) {
           escortSaid = escortState.at;
           cbRef.current.onEscortMove?.(escortState.at.x, escortState.at.y);

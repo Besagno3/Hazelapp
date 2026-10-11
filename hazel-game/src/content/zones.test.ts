@@ -881,7 +881,9 @@ describe('Foglight Marsh (#75 item 14g)', () => {
     const stone = placed('marsh-stone')[0];
     expect(Math.abs(stone.x - escort.goal.x) + Math.abs(stone.y - escort.goal.y)).toBe(1);
     // The landing is a step from where the hero arrives.
-    expect(Math.abs(landing.x - marsh.spawn.x) + Math.abs(landing.y - marsh.spawn.y)).toBeLessThanOrEqual(3);
+    expect(Math.abs(landing.x - marsh.spawn.x) + Math.abs(landing.y - marsh.spawn.y)).toBeLessThanOrEqual(4);
+    // …and up the boardwalk from the exit, so the walk starts heading away from it (#75 item 14g review).
+    expect(landing.y).toBeLessThan(marsh.exits[0].y - 3);
   });
 
   it('Posy is on the Hill, then at the landing, then by the stone, then home — one place at a time', () => {
@@ -891,7 +893,7 @@ describe('Foglight Marsh (#75 item 14g)', () => {
     const where = (flags: Record<string, boolean>) =>
       allZones.flatMap((z) => z.npcs.filter((p) => p.defId === 'hill-posy' && npcPresent(p, flags)).map((p) => `${z.id}@${p.x},${p.y}`));
     expect(where({})).toEqual(['remembrance-hill@14,23']);
-    expect(where({ [offered]: true })).toEqual(['foglight-marsh@22,25']);
+    expect(where({ [offered]: true })).toEqual(['foglight-marsh@21,23']);
     expect(where({ [offered]: true, [arrived]: true })).toEqual(['foglight-marsh@6,3']);
     expect(where({ [offered]: true, [arrived]: true, [done]: true })).toEqual(['remembrance-hill@14,23']);
   });

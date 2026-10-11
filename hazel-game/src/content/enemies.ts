@@ -158,7 +158,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
 
 /** Badges a boss gives (#75 item 14g), for the menu's trophy shelf: id → name and emoji. */
 export const BOSS_BADGES: Record<string, { name: string; emoji: string }> = {
-  foglight: { name: 'Foglight Badge', emoji: '🔆' },
+  foglight: { name: 'Foglight Badge', emoji: '🌤️' },
 };
 
 /** Where an enemy lives (#75 item 14d): its def's habitat, else land. */

@@ -615,6 +615,27 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-10 — 14g UX review round 1: Posy's "!" you can see, the lanterns named (#75 item 14g)
+A fresh `/saas-ux-review` (2 high, 4 medium, 3 low; played on the stubbed app
+at 320–1024 px). Fixed:
+- **Posy waiting reads on a phone (high):** her "!" sits on a dark plate with
+  a yellow rim, 24 px, and every stop that lasts 1.5 s says why (at most every
+  15 s), not only the first.
+- **Reaching the stone without her (high):** at the stone with Posy more than
+  3 tiles back, "Posy is still on her way…" (`onEscortBehind`, every 8 s).
+- **The wrong lantern (medium):** it says "Not this one yet!" and the Ledger's
+  next step (`QuestStep.early`), not a dead end; they're named West / North /
+  East Lantern.
+- **"Tricksters" (medium):** the candle and Slosh say "slippery critters, like
+  Bog Lanterns"; the trickster banner offers the candle when you carry one.
+- **Posy sent back without a word (medium):** a lost battle or a reload sets
+  a back flag (`escortBackFlag`, `escortsBack`) and the world says once
+  "🌼 Posy ran back to the landing. Talk to her there to walk again!"
+- **Low:** the wait toast's wording; Posy waits up the boardwalk (21,23), away
+  from the exit; the badge is 🌤️ (🔆 is Glow's); "Big Grey Puff"; Slosh's line.
+- Logged (#120j): the boss name truncating at 320 px, the marsh icon reading
+  dark; asked: should a Bog Lantern look less like a quest lantern?
+
 ### 2026-10-10 — 14g review round 1: the candle's own hint, no waiting on a boss (#75 item 14g)
 A fresh `/saas-code-review` (1 medium, 4 low; no security surface). All fixed:
 the Glimmer Candle's free hint is its own (`CombatState.candleHint`) — for Kira

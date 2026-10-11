@@ -71,7 +71,7 @@ import { topicInfo, crystalFlag } from '../../content/topics';
 import { emberStatus, EMBER_HATCHED } from '../../content/story';
 import { bossFlag, keyForBoss, keyFlag } from '../../content/keys';
 import { BOSS_BADGES, ENEMY_DEFS, bossScript } from '../../content/enemies';
-import { withoutEscorts } from '../../content/questFlags';
+import { escortsBack } from '../../content/questFlags';
 import { resolveSprite } from '../../content/sprites';
 import { BASE_TIER, dangerMarks, defeatTip, toughCallout, toughKey } from '../../content/regions';
 import { roadTier } from '../../lib/wayfinding';
@@ -345,7 +345,8 @@ export default function BattleArena() {
     if (enemy.behavior) {
       const callout = {
         shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
-        trickster: `${enemy.name} is too slippery for Hint Feathers!`,
+        // A Glimmer Candle in the bag gets you round it (#75 item 14g review).
+        trickster: `${enemy.name} is too slippery for Hint Feathers!${save?.items.candle ? ' Light a 🕯️ Glimmer Candle!' : ''}`,
         healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
       }[enemy.behavior];
       later(() => showBanner(callout, 3000), 250);
@@ -540,7 +541,9 @@ export default function BattleArena() {
     const bf = buffFloat[id];
     if (bf) float(bf[0], 'hero', bf[1]);
     const { name, emoji } = CONSUMABLES[id];
-    say(`${avatar!.name} uses a ${name}! ${emoji}`, enemyTurn);
+    // The candle says what it did: slippery critters can't block hints now (#75 item 14g review).
+    const did = id === 'candle' ? ' Hints work now — even on slippery critters!' : '';
+    say(`${avatar!.name} uses a ${name}! ${emoji}${did}`, enemyTurn);
   }
   function commandFlee() {
     updateSave((s) => ({ ...s, hp: combatState().playerHp }));
@@ -970,7 +973,7 @@ export default function BattleArena() {
       ...boatAfterDefeat(s),
       ...wakeAfterDefeat(s),
       // An escort's walk ends (#75 item 14g): they wait at the start again.
-      flags: withoutEscorts(s.flags),
+      flags: escortsBack(s.flags),
       library: pushLibrary(s.library, misses.current),
     }));
     useBattleStore.getState().setEscortAt(null);

@@ -33,10 +33,27 @@ export function escortWalkingFlag(stepId: string): string {
   return `escort:${stepId}:walking`;
 }
 
-/** Flags with every escort's walk ended (`escortWalkingFlag`): they wait at the start again. */
+/** Flags with every escort's walk ended (`escortWalkingFlag`) — they've arrived, or wait at the start again. */
 export function withoutEscorts(flags: Record<string, boolean>): Record<string, boolean> {
   if (!Object.keys(flags).some(isWalkingFlag)) return flags;
   return Object.fromEntries(Object.entries(flags).filter(([f]) => !isWalkingFlag(f)));
+}
+
+/**
+ * Set when a walk ended short (#75 item 14g review: a lost battle, a reload,
+ * leaving the place) — the world says once that they've gone back to wait,
+ * then clears it.
+ */
+export function escortBackFlag(stepId: string): string {
+  return `escort:${stepId}:back`;
+}
+
+/** Every walk under way ended short: each one walking goes back to wait (`escortBackFlag`). */
+export function escortsBack(flags: Record<string, boolean>): Record<string, boolean> {
+  const walking = Object.keys(flags).filter((f) => isWalkingFlag(f) && flags[f]);
+  if (!walking.length) return withoutEscorts(flags);
+  const back = Object.fromEntries(walking.map((f) => [escortBackFlag(f.slice('escort:'.length, -':walking'.length)), true]));
+  return { ...withoutEscorts(flags), ...back };
 }
 
 function isWalkingFlag(f: string): boolean {

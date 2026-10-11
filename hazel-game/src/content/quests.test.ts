@@ -19,9 +19,10 @@ import {
   chestWantedLine,
   activeEscort,
   escortsAway,
+  escortsBackLines,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_WALK, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { POSY_QUEST, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -679,8 +680,9 @@ describe('The Lantern Ledger (#75 item 14g)', () => {
     save = openChest(save, LEDGER);
     expect(save.questItems).toContain('lantern-ledger');
     expect(hint(save)).toMatch(/WEST/);
-    // Out of order: the north lantern waits its turn.
-    expect(questConversation('marsh-lantern-north', save)).toBeNull();
+    // Out of order: the north lantern waits its turn, and says which comes first (#75 item 14g review).
+    expect(questConversation('marsh-lantern-north', save)!.lines[0]).toMatch(/^Not this one yet! The Ledger says: light the WEST lantern first/);
+    expect(questConversation('marsh-lantern-north', save)!.finish).toBeNull();
     for (const side of ['west', 'north', 'east']) {
       save = converse(`marsh-lantern-${side}`, save);
       expect(save.flags[stepFlag(`lantern-${side}`)], side).toBe(true);
@@ -724,7 +726,7 @@ describe('The Flower for No Name: an escort (#75 item 14g)', () => {
     expect(start.finishKind).toBe('step');
     save = start.finish!(save);
     expect(save.flags[walking]).toBe(true);
-    expect(activeEscort(save, 'foglight-marsh')).toEqual({ stepId: POSY_WALK, npcId: 'hill-posy', goal: { x: 6, y: 4 } });
+    expect(activeEscort(save, 'foglight-marsh')).toMatchObject({ stepId: POSY_WALK, npcId: 'hill-posy', goal: { x: 6, y: 4 } });
     // Walking with you she isn't asked again.
     expect(questConversation('hill-posy', save)?.finishKind ?? null).toBeNull();
     // The world marks the arrival (WorldScreen.onEscortArrive).
@@ -742,6 +744,9 @@ describe('The Flower for No Name: an escort (#75 item 14g)', () => {
     let save = converse('hill-posy', withBoat());
     save = converse('hill-posy', save);
     expect(normalizeSave(save).flags[walking]).toBeUndefined();
+    // …and the world says once that she went back (#75 item 14g review).
+    expect(normalizeSave(save).flags[escortBackFlag(POSY_WALK)]).toBe(true);
+    expect(escortsBackLines(normalizeSave(save).flags)[0].line).toMatch(/Posy ran back to the landing/);
     expect(escortsAway(save, 'foglight-marsh')).toEqual([]);
     expect(escortsAway(save, 'silver-shallows')).toEqual(['hill-posy']);
     expect(withoutEscorts(save.flags)[walking]).toBeUndefined();

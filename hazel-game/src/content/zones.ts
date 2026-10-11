@@ -1950,7 +1950,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'marsh-stone', x: 5, y: 4 },
       // Posy (#75 item 14g): she waits at the landing once she's asked you, walks
       // with you (the canvas leads her), then stays by the stone until you've talked.
-      { defId: 'hill-posy', x: 22, y: 25, ifFlag: POSY_OFFERED, unlessFlag: POSY_ARRIVED },
+      { defId: 'hill-posy', x: 21, y: 23, ifFlag: POSY_OFFERED, unlessFlag: POSY_ARRIVED },
       { defId: 'hill-posy', x: 6, y: 3, ifFlag: POSY_ARRIVED, unlessFlag: POSY_DONE },
       // Brume's three lanterns: dark until the Ledger's step for each is done.
       { defId: 'marsh-lantern-west', x: 12, y: 8, unlessFlag: stepFlag('lantern-west') },
