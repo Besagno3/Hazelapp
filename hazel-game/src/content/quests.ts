@@ -841,7 +841,7 @@ export const QUESTS: QuestDef[] = [
       items: ['lantern-ledger'],
       lines: [
         "Oh! A visitor. Lightkeeper Brume — and is that my Lantern Ledger?! You found it already!",
-        'It says which lantern to light, and when. Light all three, then come and tell me. First, the WEST lantern — just up the boardwalk from my door!',
+        'It says which lantern to light, and when. Light all three, then come and tell me. First, the WEST lantern — beside the boardwalk, just up and to the right of my lamp-house!',
       ],
     },
     // What the Ledger says when you find it — where to go first (#75 item 14g UX review).
@@ -867,7 +867,7 @@ export const QUESTS: QuestDef[] = [
         'lantern-north',
         'marsh-lantern-north',
         ['The Ledger says: "Second: the NORTH lantern."', '*Fwoomp!* The north lantern glows. Its light dances on the reed pools. ✨'],
-        'Next, the NORTH lantern — on a post right beside the middle boardwalk, near its top. (The glowing thing by the pond is a Bog Lantern — a critter!)',
+        'Next, the NORTH lantern — on a post beside the middle boardwalk, near its top. The glowing thing nearby is a Bog Lantern, a critter!',
         ),
       },
       {

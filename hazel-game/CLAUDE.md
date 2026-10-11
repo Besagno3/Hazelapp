@@ -615,6 +615,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 7: say it once when you come back (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (4 low).
+Fixed: round 6's "back beside a waiting Posy" toast fired every ~9 s for a
+hero standing beside her all along (she follows 44 px behind, inside the
+48 px check) — it now needs the hero to have walked more than 3 tiles away
+during that wait, and says it once (`escortWentAway`); otherwise the 15 s
+rule holds. Her arrival clears a "she isn't here yet" toast before the
+panels; the "Not this one yet!" North line is under 30 words and says
+"nearby"; Brume's found-first West directions match the Ledger's; "bottom-right
+of the Marsh" for the Fogbank's cove; one doc comment on `onEscortWait`.
+
 ### 2026-10-11 — 14g review round 6: lanterns you can see (#75 item 14g)
 Fresh `/saas-code-review` (2 low) and `/saas-ux-review` (1 medium, 3 low).
 Fixed: an unlit lantern was a thin brown post on a phone, and the North

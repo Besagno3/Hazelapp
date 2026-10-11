@@ -565,6 +565,10 @@ export default function WorldScreen() {
           onEscortMove: (x, y) => useBattleStore.getState().setEscortAt({ x, y }),
           onEscortArrive: () => {
             if (!walk) return;
+            // A "she isn't here yet" toast is wrong now: clear it before her panels (#75 item 14g UX review).
+            if (toastTimer.current) clearTimeout(toastTimer.current);
+            setToast(null);
+            toastUp.current = false;
             useBattleStore.getState().setEscortAt(null);
             sfx('chest');
             update((s) => ({ ...s, flags: { ...withoutEscorts(s.flags), [stepFlag(walk.stepId)]: true } }));

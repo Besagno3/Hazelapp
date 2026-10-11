@@ -232,8 +232,10 @@ export interface WorldCanvasCallbacks {
    * there's no sea that close either.
    */
   onAshore?: (boat: { x: number; y: number } | null) => void;
-  /** An escort (#75 item 14g, Posy) has been waiting a moment: a critter is near them. */
-  /** They've stopped for a critter; `near`: the hero has come back to them (say why now). */
+  /**
+   * An escort (#75 item 14g, Posy) has been waiting a moment: a critter is near
+   * them. `near`: the hero walked away during this wait and has come back (say why now).
+   */
   onEscortWait?: (near?: boolean) => void;
   /** …the hero reached their goal without them. */
   onEscortBehind?: () => void;
@@ -1233,6 +1235,7 @@ export default function WorldCanvas({
     let escortWaitFor = 0;
     let escortBehindAt = -1e9;
     let escortWaitAskedAt = -1e9;
+    let escortWentAway = false;
 
     // Each roaming critter's parts, with their own full opacity — faded under
     // Calm, and less while it sleeps (`resting`, #75 item 14d). Bosses never
@@ -2339,10 +2342,15 @@ export default function WorldCanvas({
         // chatter) — asked again each second while it lasts, so a toast already
         // up doesn't swallow it (`WorldScreen` keeps it to one every 15 s).
         escortWaitFor = escortState.waiting ? escortWaitFor + dt : 0;
+        if (!escortState.waiting) escortWentAway = false;
+        else if (Math.hypot(player.pos.x - escortState.at.x, player.pos.y - escortState.at.y) > TILE * 3) escortWentAway = true;
         if (escortState.waiting && wasWaiting && escortWaitFor >= 1.5 && k.time() - escortWaitAskedAt >= 1) {
           escortWaitAskedAt = k.time();
-          // Back beside them: you came to find them, so say why at once (#75 item 14g UX review).
-          cbRef.current.onEscortWait?.(Math.hypot(player.pos.x - escortState.at.x, player.pos.y - escortState.at.y) < TILE * 1.5);
+          // Came back to them after walking off: say why at once (#75 item 14g UX review) —
+          // once; standing beside them all along keeps the usual 15 s (review round 7).
+          const back = escortWentAway && Math.hypot(player.pos.x - escortState.at.x, player.pos.y - escortState.at.y) < TILE * 1.5;
+          if (back) escortWentAway = false;
+          cbRef.current.onEscortWait?.(back);
         }
         // The hero at the goal, them held up far behind: say where they are.
         if (stuckBehind(escortState, player.pos, walk.goal, TILE) && k.time() - escortBehindAt > 8) {

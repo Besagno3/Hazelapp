@@ -1026,7 +1026,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-864 | U | ✅ | quests (review) | opening the Ledger's chest with Brume's quest on says "first, the WEST lantern — on the boardwalk just above Brume's lamp-house" (quests.test) |
 | TC-865 | U | ✅ | quests (review) | Brume met while carrying the Ledger says "You found it already!" and asks only for the lanterns, West first (quests.test) |
 | TC-866 | M | ⬜ | world (review) | at 320 px an unlit quest lantern shows a pale glass head on its post, distinct from the reeds and from a Bog Lantern critter |
-| TC-867 | M | ⬜ | world (review) | Posy held up by a critter: walking back to within 1.5 tiles of her shows the wait line within ~1 s (at most every 4 s) |
+| TC-867 | M | ⬜ | world (review) | Posy held up by a critter: walking more than 3 tiles away and back to within 1.5 tiles shows the wait line within ~1 s, once; standing beside her the whole time shows it at most every 15 s |
+| TC-868 | M | ⬜ | world (review) | reaching the stone while Posy is held up ("isn't here yet" toast), then her arriving: the toast is gone before the stone panels open |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)

@@ -1379,7 +1379,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     // Her quest's offer comes first ("The Lantern Ledger"); these follow it.
     lines: [
       "Lightkeeper Brume. I keep the Marsh's lanterns. The fog and I were friends. Then it left.",
-      'Mind the Last Fogbank, down in the reedy cove to the south-east. It\'s more shy than scary. Mostly.',
+      'Mind the Last Fogbank, down in the reedy cove at the bottom-right of the Marsh. It\'s more shy than scary. Mostly.',
       "Ness says hello? Tell her my lamps are burning bright — and her lighthouse had better be too!",
     ],
     ambient: ['Wick trimmed, lamp filled.', '🏮'],
