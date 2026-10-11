@@ -247,7 +247,7 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     }),
 }));
 
-/** The screens before the game (#118), in the order they're checked. */
+/** The screens before the game (#124), in the order they're checked. */
 export type FamilyScreen = 'loading' | 'error' | 'consent' | 'grownUps' | 'firstKid' | 'kidSetup' | 'pick' | 'play';
 
 /** The first kid still without a PIN (one from before PINs, or whose PIN didn't save). */

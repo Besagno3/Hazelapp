@@ -1,6 +1,6 @@
 import { PRIVACY_IS_DRAFT, PRIVACY_NOTICE } from '../../content/family';
 
-/** The privacy notice a grown-up agrees to (#118), folded away until opened. */
+/** The privacy notice a grown-up agrees to (#124), folded away until opened. */
 export default function PrivacyNotice({ open = false }: { open?: boolean }) {
   return (
     <details open={open} className="text-sm text-gray-600 border border-gray-200 rounded-lg">

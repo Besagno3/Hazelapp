@@ -62,7 +62,7 @@ beforeEach(() => {
   useSaveStore.setState({ load: loadSave, flush, clear: clearSave });
 });
 
-describe('familyScreen — the gates before the game, in order (#118)', () => {
+describe('familyScreen — the gates before the game, in order (#124)', () => {
   const kid = { id: 'k', name: 'Sam', icon: null, hasPin: true, birthYear: 2017, birthMonth: 3 };
   const noPin = { ...kid, id: 'old', hasPin: false };
   const ready = { status: 'ready' as const, consentAt: '2026-10-10', kids: [kid], activeKidId: 'k', grownUpsOpen: false };

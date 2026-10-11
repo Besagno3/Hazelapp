@@ -14,7 +14,7 @@ function fill({ name = 'Sam', month = '3', year = String(KID_BIRTH_YEARS[5]), ic
 }
 const pinField = () => screen.getByLabelText('PIN') as HTMLInputElement;
 
-describe('KidForm (#118)', () => {
+describe('KidForm (#124)', () => {
   it('asks for each thing it needs, in turn, before saving', () => {
     const onSubmit = vi.fn(async () => {});
     render(<KidForm submitLabel="Add player" onSubmit={onSubmit} />);

@@ -56,7 +56,7 @@ export default function App() {
   const initialized = useAuthStore((s) => s.initialized);
   const session = useAuthStore((s) => s.session);
   const passwordRecovery = useAuthStore((s) => s.passwordRecovery);
-  // Before the game: the grown-up's consent, their kids, who's playing (#118).
+  // Before the game: the grown-up's consent, their kids, who's playing (#124).
   const family = useFamilyStore((s) => familyScreen(s));
   const familyError = useFamilyStore((s) => s.error);
   const saveStatus = useSaveStore((s) => s.status);

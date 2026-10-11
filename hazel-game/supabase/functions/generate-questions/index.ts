@@ -17,9 +17,9 @@
 // Access (#88): callers must be signed in (401 otherwise), and every call goes
 // through `begin_question_request` (migration 0009) — a per-login rate limit
 // (429 when exceeded) plus per-login and project-wide daily budgets of FRESH
-// questions. A login is a grown-up's family account (#118); the app names the
+// questions. A login is a grown-up's family account (#124); the app names the
 // kid playing (`profileId`), and each kid has their own budget and seen
-// questions (migration 0013). When a budget is spent the call is served from the cache
+// questions (migration 0014). When a budget is spent the call is served from the cache
 // (re-using already-seen questions if it must), so play continues without
 // spending more on Claude. Limits are tunable via env (see QUOTA_DEFAULTS).
 //
@@ -338,7 +338,7 @@ Deno.serve(async (req) => {
   }
   if (!callerId) return json({ error: 'Please sign in to play.' }, 401);
 
-  // Which kid is playing (#118): the app names one of the grown-up's kids, and
+  // Which kid is playing (#124): the app names one of the grown-up's kids, and
   // the per-kid budget and dedupe (#24) follow them. An app from before parent
   // accounts sends none — its login is the kid. A failed lookup keeps the
   // login (the quota fails open below if that isn't a kid); only someone
@@ -354,7 +354,7 @@ Deno.serve(async (req) => {
       .eq('id', body.profileId)
       .eq('parent_id', callerId)
       .maybeSingle();
-    if (kidErr) console.error('player lookup failed (is migration 0012 applied?):', kidErr.message);
+    if (kidErr) console.error('player lookup failed (is migration 0013 applied?):', kidErr.message);
     else if (!kid) return json({ error: 'That player belongs to another account.' }, 403);
     else profileId = kid.id as string;
   }

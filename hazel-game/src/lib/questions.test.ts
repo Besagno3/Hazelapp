@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 describe('flagQuestion', () => {
-  it('inserts a flag row as the kid playing, with the chosen reason (#118)', async () => {
+  it('inserts a flag row as the kid playing, with the chosen reason (#124)', async () => {
     insertMock.mockResolvedValue({ error: null });
 
     await flagQuestion('q-123', 'wrong_answer');
@@ -133,7 +133,7 @@ describe('fetchQuestions', () => {
     }));
     invokeMock.mockResolvedValue({ data: { questions: api }, error: null });
     const out = await fetchQuestions('math', 9, 3, api.length);
-    // …and asks as the kid playing, so their seen questions are their own (#118).
+    // …and asks as the kid playing, so their seen questions are their own (#124).
     expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'math', profileId: 'kid-1' });
     expect(out).toHaveLength(api.length);
     for (const question of out) expect(question.options[question.correctIndex]).toBe('right');

@@ -6,7 +6,7 @@ import FamilyCard from './FamilyCard';
 import PrivacyNotice from './PrivacyNotice';
 
 /**
- * A grown-up agrees before anyone plays (#118). Shown to a login with no
+ * A grown-up agrees before anyone plays (#124). Shown to a login with no
  * consent on record: an account from before parent accounts (often a kid's
  * own — hence "get a grown-up"), or a sign-up that didn't send it.
  */

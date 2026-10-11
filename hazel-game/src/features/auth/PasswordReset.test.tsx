@@ -56,7 +56,7 @@ describe('AuthPage — forgot password', () => {
   });
 });
 
-describe('AuthPage — a grown-up signs up (#118)', () => {
+describe('AuthPage — a grown-up signs up (#124)', () => {
   function signUpWith(email: string, password: string) {
     fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
     fireEvent.change(screen.getByPlaceholderText("Grown-up's email"), { target: { value: email } });
@@ -87,7 +87,7 @@ describe('AuthPage — a grown-up signs up (#118)', () => {
   });
 });
 
-describe('show password (#117)', () => {
+describe('show password (#123)', () => {
   it('sign in and sign up each have an eye; switching between them hides the password again', () => {
     render(<AuthPage />);
     const field = () => screen.getByPlaceholderText('Password') as HTMLInputElement;

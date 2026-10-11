@@ -6,7 +6,7 @@ import PinPad from './PinPad';
 import type { Kid } from '../../types';
 
 /**
- * "Who's playing?" (#118): each kid taps their own tile, then types their
+ * "Who's playing?" (#124): each kid taps their own tile, then types their
  * 4-digit PIN. Grown-ups manage the family from 👪 Grown-ups, behind their
  * own PIN or password.
  */

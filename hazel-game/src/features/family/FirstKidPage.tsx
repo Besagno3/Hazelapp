@@ -3,7 +3,7 @@ import { useFamilyStore } from '../../store/familyStore';
 import FamilyCard from './FamilyCard';
 import KidForm from './KidForm';
 
-/** A new family's first step (#118): add the first player. More come from 👪 Grown-ups. */
+/** A new family's first step (#124): add the first player. More come from 👪 Grown-ups. */
 export default function FirstKidPage() {
   const addKid = useFamilyStore((s) => s.addKid);
   return (

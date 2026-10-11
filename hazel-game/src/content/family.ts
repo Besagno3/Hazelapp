@@ -1,7 +1,7 @@
 /**
- * Parent accounts (#118): the pictures a grown-up picks for each kid's tile on
+ * Parent accounts (#124): the pictures a grown-up picks for each kid's tile on
  * "Who's playing?", and the privacy notice they agree to. Each kid opens their
- * profile with a 4-digit PIN (stored hashed by the database, migration 0013);
+ * profile with a 4-digit PIN (stored hashed by the database, migration 0014);
  * the database stores the picture's id.
  */
 
@@ -46,7 +46,7 @@ export const KID_BIRTH_YEARS = Array.from({ length: 16 }, (_, i) => new Date().g
 export const CONSENT_VERSION = '2026-10-draft';
 
 /**
- * DRAFT, not yet reviewed by a lawyer (#118). Shown with a "Draft" badge
+ * DRAFT, not yet reviewed by a lawyer (#124). Shown with a "Draft" badge
  * while this is true; replace the text, set a new CONSENT_VERSION and turn
  * this off before the game is offered to other families. Words in
  * [BRACKETS] are for the owner to fill in.

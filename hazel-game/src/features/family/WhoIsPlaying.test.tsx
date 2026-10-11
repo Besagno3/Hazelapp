@@ -20,7 +20,7 @@ beforeEach(() => {
   useFamilyStore.setState({ kids: [sam, kit], choose, setGrownUpsOpen, checkKidPin });
 });
 
-describe('WhoIsPlaying (#118)', () => {
+describe('WhoIsPlaying (#124)', () => {
   it('shows a tile for each kid, with their picture and nickname', () => {
     render(<WhoIsPlaying />);
     expect(screen.getByRole('button', { name: 'Sam' })).toHaveTextContent('🦊');

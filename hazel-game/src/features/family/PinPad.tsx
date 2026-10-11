@@ -11,7 +11,7 @@ export const PIN_BREAK_MS = 30_000;
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
 
 /**
- * Four dots and a big number pad (#118): how a kid opens their profile, and a
+ * Four dots and a big number pad (#124): how a kid opens their profile, and a
  * grown-up 👪 Grown-ups. The last digit sends the PIN to `onSubmit` (true =
  * right; the screen moves on). A wrong one clears the dots and says so; after
  * PIN_TRIES wrong in a row the pad rests for PIN_BREAK_MS — a brake on a

@@ -4,7 +4,7 @@ import FamilyCard from './FamilyCard';
 import KidForm from './KidForm';
 
 /**
- * Every kid needs a PIN before anyone plays (#118). A kid from before PINs
+ * Every kid needs a PIN before anyone plays (#124). A kid from before PINs
  * (an old account's — often with no nickname or picture either), or one whose
  * PIN didn't save, is finished here by a grown-up.
  */

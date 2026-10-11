@@ -7,7 +7,7 @@ const { useFamilyStore } = await import('../../store/familyStore');
 /** A second tap, a beat after the first (not the tail of a double-tap). */
 const pause = () => act(() => vi.advanceTimersByTime(SWITCH_CONFIRM_GAP_MS + 50));
 
-describe('SwitchPlayerButton (#118, was Sign out)', () => {
+describe('SwitchPlayerButton (#124, was Sign out)', () => {
   let switchPlayer: ReturnType<typeof vi.fn<() => Promise<void>>>;
   beforeEach(() => {
     vi.useFakeTimers();

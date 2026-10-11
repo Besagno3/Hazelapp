@@ -1,4 +1,4 @@
--- CI test for migration 0013 (#118): PINs are 4 digits, hashed, hidden, and
+-- CI test for migration 0014 (#124): PINs are 4 digits, hashed, hidden, and
 -- only the caller's; the question budget is per kid; a family has at most 8
 -- players. Any failed assertion raises and exits non-zero under
 -- `psql -v ON_ERROR_STOP=1`.

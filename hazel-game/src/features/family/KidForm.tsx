@@ -14,7 +14,7 @@ const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
 
 /**
- * Add or change a kid (#118): a nickname, a birth date (it picks questions
+ * Add or change a kid (#124): a nickname, a birth date (it picks questions
  * that suit their age), the picture on their tile and their 4-digit PIN. A new
  * kid (or one without a PIN yet) needs a PIN; changing one, a blank PIN keeps
  * theirs. `onSubmit` throws with a message to show.

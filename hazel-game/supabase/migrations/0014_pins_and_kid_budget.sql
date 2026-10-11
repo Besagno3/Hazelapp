@@ -1,9 +1,9 @@
--- Hazel Quest — PINs and a question budget per kid (#118)
--- Run in the Supabase SQL Editor (or `supabase db push`) after 0012.
+-- Hazel Quest — PINs and a question budget per kid (#124)
+-- Run in the Supabase SQL Editor (or `supabase db push`) after 0013.
 -- Re-runnable, like every migration (see CLAUDE.md → migrations rules).
 --
 -- The owner's calls (2026-10-10): every kid opens their profile with a
--- 4-digit PIN (replacing 0012's secret picture); 👪 Grown-ups opens with the
+-- 4-digit PIN (replacing 0013's secret picture); 👪 Grown-ups opens with the
 -- grown-up's own PIN or their password; the question budget is per kid.
 --
 -- PINs are stored hashed (bcrypt, pgcrypto) in tables no client can read or

@@ -16,7 +16,7 @@ const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
 
 /**
- * 👪 Grown-ups (#118): add, change and remove kids, set the grown-up PIN, see
+ * 👪 Grown-ups (#124): add, change and remove kids, set the grown-up PIN, see
  * the privacy notice, and sign out. Opens only with the grown-up's own PIN
  * (if they've set one) or their password, so a kid can't remove a sibling or
  * sign the family out.

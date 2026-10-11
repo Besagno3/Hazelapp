@@ -13,7 +13,7 @@ beforeEach(() => {
   useFamilyStore.setState({ agree });
 });
 
-describe('ConsentPage (#118)', () => {
+describe('ConsentPage (#124)', () => {
   it("shows the notice and can't be agreed to without ticking the box", () => {
     render(<ConsentPage />);
     expect(screen.getByText('Who we are')).toBeInTheDocument();

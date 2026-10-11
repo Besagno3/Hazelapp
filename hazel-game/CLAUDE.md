@@ -48,7 +48,7 @@ zod, react-query. Add the package in the same change that first uses it.
   battle questions and enemy levels. **XP / player level** only tracks
   progress and grants power-ups — leveling up never makes anything harder.
   The Training Grounds' opening rounds (before the world opens) pay **no
-  XP** — XP starts in the world (#116, 2026-10-10).
+  XP** — XP starts in the world (#122, 2026-10-10).
   The defend countdown is age-based only. **Where an enemy roams scales how
   it fights, never what it asks (#75 item 12, 2026-10-08):** each zone's
   danger tier (`content/regions.ts`, by story leg) scales its HP, blows,
@@ -92,7 +92,7 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Auth gates the app.** `App.tsx` calls `useAuthInit()` (loads the Supabase
   session + subscribes to auth changes). No valid session → only `AuthPage` is
   reachable.
-- **A login is a grown-up's; kids are profiles (#118).** Signing in loads the
+- **A login is a grown-up's; kids are profiles (#124).** Signing in loads the
   family (`familyStore`: consent + kids). Before the game, `familyScreen()`
   picks, in order: consent (`ConsentPage`) → 👪 Grown-ups if open
   (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password:
@@ -100,7 +100,7 @@ zod, react-query. Add the package in the same change that first uses it.
   Sign out) → the first kid (`FirstKidPage`) → any kid without a PIN
   (`KidSetupPage`) → "Who's playing?" (`WhoIsPlaying`: a kid's tile, then
   their 4-digit PIN on `PinPad`). **PINs are hashed in the database**
-  (migration 0013: `kid_pins` / `parent_pins`, readable by no client; set and
+  (migration 0014: `kid_pins` / `parent_pins`, readable by no client; set and
   checked only by `set_/check_kid_pin`, `set_/check_parent_pin`); the app
   only sees `has_pin`. Picking a kid (`choose`) loads *their* profile and
   save, keyed by the kid's id; the kid playing in a tab survives a reload
@@ -467,7 +467,7 @@ zod, react-query. Add the package in the same change that first uses it.
   budgets of *fresh* Claude questions. Over budget it serves the cache
   (seen questions as a last resort). Fails OPEN with a loud log if 0009 isn't
   applied. Limits: `QUOTA_DEFAULTS` in the function, overridable by secrets.
-- **Answer order is random (#115):** the model that writes questions favours
+- **Answer order is random (#121):** the model that writes questions favours
   one spot for the right answer (most often B), so `shuffleAnswers`
   (`lib/questions.ts`) shuffles every question's options as it arrives
   (cached rows too); a battle reshuffles each ask (a long battle repeats its
@@ -544,7 +544,7 @@ python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble
 - Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
   for conditional class merging.
 - Password fields use `PasswordInput` (`src/components/`, the 👁️ show /
-  🙈 hide button, #117) — not a bare `<input type="password">`.
+  🙈 hide button, #123) — not a bare `<input type="password">`.
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
   `ROUNDS_TO_UNLOCK`); battle math in `src/lib/battleMath.ts`; economy in
   `src/content/items.ts`.
@@ -604,10 +604,10 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-10 — Every kid has a PIN; a grown-up PIN; the question budget per kid (#118)
+### 2026-10-10 — Every kid has a PIN; a grown-up PIN; the question budget per kid (#124)
 The owner's answers (2026-10-10) changed three of the earlier calls:
 - **Each kid opens their profile with a 4-digit PIN** (replacing the secret
-  picture). Migration 0013 keeps PINs bcrypt-hashed (pgcrypto, `extensions`
+  picture). Migration 0014 keeps PINs bcrypt-hashed (pgcrypto, `extensions`
   schema) in `kid_pins`, a table with RLS on, no policies and no grants:
   `set_kid_pin` (4 digits, only for the caller's kid) and `check_kid_pin`
   (false for anyone else's kid) are the only way in; `profiles.has_pin` tells
@@ -643,8 +643,8 @@ The owner's answers (2026-10-10) changed three of the earlier calls:
   password → set a grown-up PIN → the gate by grown-up PIN — no sideways
   scroll, no page errors.
 
-### 2026-10-10 — Parent accounts in the app: a grown-up signs up, kids pick themselves (#118, #89)
-The app half of #118 (the server half is the entry below):
+### 2026-10-10 — Parent accounts in the app: a grown-up signs up, kids pick themselves (#124, #89)
+The app half of #124 (the server half is the entry below):
 - **Sign-up is a grown-up's:** email, password and one box — "I'm the parent
   or guardian, I'm 18 or older, and I agree to the privacy notice" (the
   notice folds open above it). No birth date: that moves to the kid. The
@@ -691,13 +691,13 @@ The app half of #118 (the server half is the entry below):
   `SwitchPlayerButton.test` (the old sign-out tests, re-aimed). 922 tests
   green, lint + tsc + build clean.
 
-### 2026-10-10 — Parent accounts, server side: grown-ups own their kids (#118, #89)
+### 2026-10-10 — Parent accounts, server side: grown-ups own their kids (#124, #89)
 Decided with the owner (2026-10-10): one grown-up login, many kids (no
 child email or login); a secret picture per kid on shared devices; draft
 privacy/consent text for a lawyer to review; the parent area behind the
 grown-up's password; the question budget per login. This commit is the
 server half — backward compatible, so today's app keeps working on it:
-- **Migration 0012** (`0012_parent_accounts.sql`): a `parents` table (one row
+- **Migration 0013** (`0013_parent_accounts.sql`): a `parents` table (one row
   per login: `consent_at`, `consent_version`; the app writes it only through
   `record_consent()`, stamped with the server clock). `profiles` are kids:
   `parent_id` (default `auth.uid()`), `display_name` (1–20 chars), `icon`,
@@ -718,12 +718,12 @@ server half — backward compatible, so today's app keeps working on it:
   the `authenticated` role (sees/adds/changes/removes only their own kids,
   saves and flags; consent can't be written by hand; removing a kid removes
   their save; an old account agrees later). It fails with the "add kids" rule
-  loosened. Upgrading an old account through 0012 was checked by hand on
+  loosened. Upgrading an old account through 0013 was checked by hand on
   Postgres 16 (XP and save still read and write; deleting the login still
   removes everything). All four SQL tests, migrations in order and the bundle
   twice pass locally; `deno check` clean.
 
-### 2026-10-10 — Show password: an eye on every password field (#117)
+### 2026-10-10 — Show password: an eye on every password field (#123)
 Kids mistype passwords and couldn't see why sign-in failed. New
 `components/PasswordInput`: a 👁️ button inside the field's right edge shows
 what's been typed (🙈 hides it again). It is `type="button"` (never sends
@@ -741,10 +741,10 @@ submit, hidden again on submit — fails with the listener removed, phone
 keyboard attributes) and two in `PasswordReset.test` (both pages). 883 tests
 green, lint + tsc + build clean.
 
-### 2026-10-10 — No XP for the opening rounds (#116)
+### 2026-10-10 — No XP for the opening rounds (#122)
 The Training Grounds' first rounds are the way into the world, but they paid
 10 XP (plus the power-up bonus) for every right answer, so kids levelled up
-just by getting in — and, with #115, by tapping B. `QuizRound.finishRound`
+just by getting in — and, with #121, by tapping B. `QuizRound.finishRound`
 now pays XP only if the world was already open before the round, so the
 round that opens it pays none; practice rounds later (from the world menu)
 still pay. The skill level and the daily streak still move — they describe
@@ -753,7 +753,7 @@ the child, they aren't a reward. XP already earned is kept. New
 round, the round that opens the world, a practice round. 877 tests green,
 lint + tsc clean.
 
-### 2026-10-10 — Answers come in a random order: no more "it's always B" (#115)
+### 2026-10-10 — Answers come in a random order: no more "it's always B" (#121)
 The model that writes the questions put the right answer in the same spot
 most of the time (players noticed it was nearly always B), and nothing ever
 reordered the options — the edge function shuffles *which* questions you

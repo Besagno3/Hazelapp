@@ -5,7 +5,7 @@ import type { Kid } from '../../types';
 const { default: KidSetupPage } = await import('./KidSetupPage');
 const { useFamilyStore } = await import('../../store/familyStore');
 
-describe('KidSetupPage (#118)', () => {
+describe('KidSetupPage (#124)', () => {
   it("finishes a kid from before PINs: it can't be saved without one", async () => {
     const old: Kid = { id: 'kid-old', name: null, icon: null, hasPin: false, birthYear: 2015, birthMonth: 1 };
     const done: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };

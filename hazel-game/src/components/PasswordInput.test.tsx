@@ -16,7 +16,7 @@ function inForm(onSubmit = vi.fn()) {
   return { field: screen.getByPlaceholderText('Password') as HTMLInputElement, onSubmit };
 }
 
-describe('PasswordInput (#117)', () => {
+describe('PasswordInput (#123)', () => {
   it('starts hidden; the eye shows what was typed, and hides it again', () => {
     const { field } = inForm();
     expect(field.type).toBe('password');

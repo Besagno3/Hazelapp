@@ -10,7 +10,7 @@ async function type(pin: string) {
 
 afterEach(() => vi.useRealTimers());
 
-describe('PinPad (#118)', () => {
+describe('PinPad (#124)', () => {
   it('fills a dot per digit, ⌫ takes one back, and the 4th digit sends the PIN', async () => {
     const onSubmit = vi.fn(async () => true);
     render(<PinPad onSubmit={onSubmit} />);

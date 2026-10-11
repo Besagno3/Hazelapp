@@ -242,7 +242,7 @@ const STUB = 'http://supabase.stub';
 const HUD_USER = 'u-hud';
 
 /**
- * Signs in a stub grown-up whose one kid is already playing in this tab (#118)
+ * Signs in a stub grown-up whose one kid is already playing in this tab (#124)
  * and answers Supabase for them: consent given, the kid's profile, `save` as
  * their saved game, canned questions; every write succeeds.
  */

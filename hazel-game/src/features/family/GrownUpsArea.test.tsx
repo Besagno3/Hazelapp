@@ -47,7 +47,7 @@ async function unlock() {
   await screen.findByText('Sam');
 }
 
-describe('GrownUpsArea (#118)', () => {
+describe('GrownUpsArea (#124)', () => {
   it("stays shut without the grown-up's password", async () => {
     auth.signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } });
     render(<GrownUpsArea />);

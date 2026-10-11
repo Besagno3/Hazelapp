@@ -1,5 +1,5 @@
--- Hazel Quest — parent accounts (#118, ISSUES #89)
--- Run in the Supabase SQL Editor (or `supabase db push`) after 0011.
+-- Hazel Quest — parent accounts (#124, ISSUES #89)
+-- Run in the Supabase SQL Editor (or `supabase db push`) after 0012.
 -- Re-runnable, like every migration (see CLAUDE.md → migrations rules).
 --
 -- A login now belongs to a grown-up, who adds their kids. Each kid is a row in

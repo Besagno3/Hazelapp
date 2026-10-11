@@ -1,4 +1,4 @@
--- CI test for migration 0012 (parent accounts, #118): a grown-up's kids and
+-- CI test for migration 0013 (parent accounts, #124): a grown-up's kids and
 -- everything they own are that grown-up's alone. Any failed assertion raises
 -- and exits non-zero under `psql -v ON_ERROR_STOP=1`.
 begin;

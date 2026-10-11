@@ -6,7 +6,7 @@ import PrivacyNotice from '../family/PrivacyNotice';
 import { CONSENT_VERSION } from '../../content/family';
 
 /**
- * Sign in / sign up. An account is a grown-up's (#118): they sign up with
+ * Sign in / sign up. An account is a grown-up's (#124): they sign up with
  * their own email and agree to the privacy notice, then add their kids —
  * kids never type an email or a password.
  */
@@ -50,7 +50,7 @@ export default function AuthPage() {
         return;
       }
       setLoading(true);
-      // handle_new_user() (migration 0012) makes the login a grown-up and
+      // handle_new_user() (migration 0013) makes the login a grown-up and
       // stamps their consent with this version; their kids come next.
       const { data, error: authError } = await supabase.auth.signUp({
         email,

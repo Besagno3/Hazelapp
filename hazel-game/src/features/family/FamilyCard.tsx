@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 
-/** The white card on the purple sky that every family screen sits in (#118), like sign-in. */
+/** The white card on the purple sky that every family screen sits in (#124), like sign-in. */
 export default function FamilyCard({
   title,
   subtitle,

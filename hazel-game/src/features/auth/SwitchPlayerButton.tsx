@@ -7,7 +7,7 @@ export const SWITCH_ARM_MS = 3000;
 export const SWITCH_CONFIRM_GAP_MS = 400;
 
 /**
- * Switch player (#118): saves and goes back to "Who's playing?". It replaced
+ * Switch player (#124): saves and goes back to "Who's playing?". It replaced
  * Sign out in the game — the login is the grown-up's, so signing out lives in
  * 👪 Grown-ups, behind their password. Shown on every game screen: floating
  * top-right, or `inline` in the world screen's top bar (#75 item 14b / #102i).

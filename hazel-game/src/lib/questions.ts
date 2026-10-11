@@ -27,7 +27,7 @@ async function invokeGenerate(
   count: number,
   context?: string,
 ): Promise<Question[]> {
-  // The kid playing (#118): their seen questions are their own.
+  // The kid playing (#124): their seen questions are their own.
   const profileId = useFamilyStore.getState().activeKidId;
   const { data, error } = await supabase.functions.invoke('generate-questions', {
     body: { topic, age, skillLevel, count, ...(context ? { context } : {}), ...(profileId ? { profileId } : {}) },
@@ -133,7 +133,7 @@ export type FlagReason = 'wrong_answer' | 'confusing' | 'difficulty';
  * Flags a question for review. Any single flag quarantines the question from
  * the cache pool (see edge function). Sent as the kid playing — the
  * `question_flags` RLS policy only accepts one of the signed-in grown-up's
- * kids (#118).
+ * kids (#124).
  */
 export async function flagQuestion(questionId: string, reason?: FlagReason): Promise<void> {
   // Synthetic IDs ("fresh-…") come from a question that failed to cache; it

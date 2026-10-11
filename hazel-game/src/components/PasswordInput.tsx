@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { cn } from '../lib/utils';
 
 /**
- * A password field with an eye button that shows what's been typed (#117) —
+ * A password field with an eye button that shows what's been typed (#123) —
  * a kid who mistypes a password can see why sign-in fails. Shown, it is plain
  * text with phone autocorrect and capitals off, so the keyboard can't change
  * the password. Sending the form hides it again first, so browsers don't keep

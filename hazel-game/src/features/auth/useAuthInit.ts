@@ -7,7 +7,7 @@ import { putAwayGame, useFamilyStore } from '../../store/familyStore';
 /**
  * Loads the current Supabase session on mount and keeps the auth and family
  * stores in sync with sign-in / sign-out / token-refresh events. A login is a
- * grown-up's (#118): signing in loads their kids; a kid's profile and save
+ * grown-up's (#124): signing in loads their kids; a kid's profile and save
  * load when they're picked on "Who's playing?". Call once, at the app root.
  */
 export function useAuthInit() {

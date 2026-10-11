@@ -175,7 +175,7 @@ export interface Profile {
 }
 
 /**
- * One of a grown-up's kids (#118): a `profiles` row as the family screens see
+ * One of a grown-up's kids (#124): a `profiles` row as the family screens see
  * it. `icon` is an id from `content/family.ts` (null for a kid from before
  * parent accounts, until a grown-up picks one).
  */
