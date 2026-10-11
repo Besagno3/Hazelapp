@@ -1076,6 +1076,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-898 | U | ✅ | interact | across a counter: the nearest one on its far side, never someone on the hero's side or two tiles along (interact.test) |
 | TC-899 | E | ✅ | world | real canvas (`bench … use`): across the village shop's counter a click on the shopkeeper talks to them; from a corner of the counter Space does |
 | TC-900 | M | ⬜ | world | put an innkeeper behind a desk (`T`) in a test map: standing across it, Space and a tap on them both talk; the prompt floats over the innkeeper |
+| TC-901 | C | ✅ | TouchPad | a click on ✋ that isn't a tap's own (a screen reader's double-tap) uses it too (TouchPad.test) |
+| TC-902 | M | ⬜ | TouchPad | with VoiceOver (iOS) and TalkBack (Android): double-tap ✋ beside a chest — it opens, once |
+| TC-903 | M | ⬜ | world | on a phone: tap a shopkeeper, walk away, then press ✋ next to a chest — the chest opens (not the shopkeeper) |
 
 ## Regression cases (tied to ISSUES.md)
 

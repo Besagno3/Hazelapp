@@ -490,7 +490,8 @@ export default function WorldCanvas({
   /** A click or tap on the world uses what the hero faces, as Space does (#124). */
   const onWorldPointer = (e: React.PointerEvent) => {
     if (e.button !== 0 || pausedRef.current || slidingRef.current) return;
-    const r = e.currentTarget.getBoundingClientRect();
+    // The canvas itself, not the wrapper and its 2 px border.
+    const r = (containerRef.current?.querySelector('canvas') ?? e.currentTarget).getBoundingClientRect();
     clickRef.current = r.width && r.height ? { fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height } : null;
     usesRef.current += 1;
   };
@@ -2185,6 +2186,7 @@ export default function WorldCanvas({
         if (!wasPaused && pausedRef.current) cbRef.current.onMove(player.pos.x, player.pos.y);
         wasPaused = true;
         usesSeen = uses(); // a ✋ tapped mid-slide uses nothing
+        clickRef.current = null;
         showPrompt(null);
         push = null;
         return;
@@ -2236,6 +2238,7 @@ export default function WorldCanvas({
         arm(TRIGGER_COOLDOWN);
         needsRelease = true; // a key held through the reveal doesn't walk off at once
         usesSeen = uses(); // nor does the Space that skipped it use anything
+        clickRef.current = null;
       }
 
       // Return (#75 item 9): cast from the menu, flown once the world runs —
@@ -2428,12 +2431,15 @@ export default function WorldCanvas({
       // was armed, while its menu or talk takes the world's pause.
       const targets = targetsNow();
       showPrompt(targets[0] ?? null);
-      const pressed = uses() !== usesSeen;
-      usesSeen = uses();
-      if (pressed && held === 0) {
+      // A press in the two frames after an arm waits them out rather than being lost.
+      const pressed = uses() !== usesSeen && held === 0;
+      if (pressed) {
+        usesSeen = uses();
         // A click on something usable from here uses it (a shopkeeper across
-        // the counter, say); anywhere else, what the hero faces.
+        // the counter, say); anywhere else, what the hero faces. A click
+        // counts for its own press only — never a later ✋.
         const click = clickRef.current;
+        clickRef.current = null;
         const at = click ? k.toWorld(k.vec2(click.fx * VIEW_W, click.fy * VIEW_H)) : null;
         const target = (at && targets.find((t) => t.hit(at.x, at.y))) || targets[0];
         if (target) {

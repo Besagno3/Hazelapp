@@ -211,7 +211,8 @@ zod, react-query. Add the package in the same change that first uses it.
   `USE_REACH` px past the hero's box) — then beside, then behind; a click on one of those (its `hit` area) uses that one instead. Counters and desks (`COUNTER_CHARS`: `K`, `T`) talk to the nearest person on their far side (`acrossCounter`). A yellow
   pill over it says "Space: Open chest" ("Tap: …" on a coarse pointer,
   `promptText`), and `onPrompt` gives ✋ its label. A press in the two frames
-  after an `arm` is dropped (`held`), like a battle. Still on a bump: secrets
+  after an `arm` waits them out (`held`), like a battle. A click's point
+  (`clickRef`, measured on the canvas) counts for its own press only. Still on a bump: secrets
   in the scenery, the fog / dark hints, boarding and landing, battles.
   **People are solid** (`personHit`: `approachBlocked` at `radius + HALF`, at most a tile, so
   a hero already overlapping can always step away), and so are the Spire icon
@@ -648,6 +649,18 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-11 — #124 code review fixes: clicks count once, quick presses wait, ✋ for screen readers
+A `/saas-code-review` of the press-to-use branch (no data or auth surface;
+2 medium, 2 low), all fixed: a click's point was kept until the next Space,
+so a later ✋ could use something clicked on long before — it's cleared once
+its press is handled, and whenever presses are dropped (a pause, a slide, a
+fog reveal); a press in the two frames after an `arm` was swallowed — it now
+waits them out; clicks are measured on the canvas, not its bordered wrapper;
+✋ now works on any click that isn't a tap's own (within 500 ms of its
+press), so a screen reader's double-tap works it whatever the click's
+`detail`. Tests: `TouchPad.test` +1 case; `bench … use` 15/15; 986 green,
+lint + build clean.
 
 ### 2026-10-11 — Talk across a counter or a desk, by Space or a click on the keeper (#124)
 Every shopkeeper stands a tile behind a `K` counter (checked over every

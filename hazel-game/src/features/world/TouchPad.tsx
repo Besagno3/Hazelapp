@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+
 /**
  * On-screen d-pad for tablets/phones (#37, from the #36 follow-up list).
  * Reports the held direction via `onDirChange`; the parent stores it in a
@@ -5,6 +7,9 @@
  * Beside it, the ✋ button uses what the hero faces (#124) — opens a chest,
  * talks to someone — and says what it would do (`action`, from the canvas).
  */
+/** A click this soon (ms) after the button's press is that tap's own click. */
+const TAP_CLICK_MS = 500;
+
 export default function TouchPad({
   onDirChange,
   onAction,
@@ -15,6 +20,8 @@ export default function TouchPad({
   /** What ✋ would do now ("Open chest", "Talk"), or null with nothing to use. */
   action?: string | null;
 }) {
+  // When ✋ was last pressed: the click a tap makes just after is that same tap.
+  const pressedAt = useRef(0);
   function hold(dx: number, dy: number) {
     return {
       onPointerDown: (e: React.PointerEvent) => {
@@ -47,14 +54,18 @@ export default function TouchPad({
         <button
           type="button"
           aria-label={action ?? 'Use (nothing here yet)'}
-          // On the press, like the d-pad — a tap's click would come late. A
-          // keyboard's Enter / Space click (detail 0) still works it.
+          // On the press, like the d-pad — a tap's click would come late. Any
+          // other click works it too: a keyboard's Enter / Space, or a screen
+          // reader's double-tap, which may send a click with no press.
           onPointerDown={(e) => {
             e.preventDefault();
+            pressedAt.current = performance.now();
             onAction();
           }}
-          onClick={(e) => {
-            if (e.detail === 0) onAction();
+          onClick={() => {
+            const ownTap = pressedAt.current && performance.now() - pressedAt.current < TAP_CLICK_MS;
+            pressedAt.current = 0;
+            if (!ownTap) onAction();
           }}
           onContextMenu={(e) => e.preventDefault()}
           className={`w-20 h-20 rounded-full flex flex-col items-center justify-center select-none touch-none font-extrabold shadow-lg transition-opacity ${

@@ -14,7 +14,7 @@ describe('the touch pad’s ✋ button (#124)', () => {
     expect(ready.className).toContain('bg-amber-300');
   });
 
-  it('a tap uses once — on the press, not again on its click — and a keyboard click works it too', () => {
+  it('a tap uses once — on the press, not again on its click — and a keyboard or screen-reader click works it too', () => {
     const onAction = vi.fn();
     render(<TouchPad onDirChange={() => {}} onAction={onAction} action="Talk" />);
     const btn = screen.getByRole('button', { name: 'Talk' });
@@ -23,6 +23,8 @@ describe('the touch pad’s ✋ button (#124)', () => {
     expect(onAction).toHaveBeenCalledTimes(1);
     fireEvent.click(btn, { detail: 0 }); // Enter / Space on the focused button
     expect(onAction).toHaveBeenCalledTimes(2);
+    fireEvent.click(btn, { detail: 1 }); // a screen reader's double-tap: a click with no press
+    expect(onAction).toHaveBeenCalledTimes(3);
   });
 
   it('the d-pad still steers, and there is no ✋ where nobody listens for it', () => {
