@@ -99,3 +99,48 @@ describe('Remembrance Hill on the menu map (#75 item 14e)', () => {
     expect(screen.queryByText('Fog with nothing on it lifts later in your adventure')).toBeNull();
   });
 });
+
+describe('Eldergrove on the menu map (#75 item 14f)', () => {
+  const afterHill = {
+    ...allCrystals,
+    [SPIRE_CLEARED]: true,
+    [ACT2_SEEN]: true,
+    [BOAT_MENDED]: true,
+    'visited:silver-shallows': true,
+    'visited:remembrance-hill': true,
+  };
+
+  it('out on the Shallows, the 🚩 for the Memoria Key sits on Eldergrove', () => {
+    const { container } = render(<WorldMapPanel zoneId="silver-shallows" pos={px(30, 20)} flags={afterHill} aboard />);
+    expect(screen.getByText('Eldergrove')).toBeInTheDocument();
+    expect(screen.getByText(/Next: Win the Memoria Key/)).toBeInTheDocument();
+    expect(screen.getByText('Go south-west to Eldergrove.')).toBeInTheDocument();
+    const marks = Array.from(container.querySelectorAll('span[aria-hidden]'), (s) => s.textContent);
+    expect(marks).toContain('🚩');
+    expect(container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/flagged at Eldergrove\./);
+  });
+
+  it("on Dawnreach its 🚩 sits on Marlow's dock, and the way starts there (14f review)", () => {
+    const { container } = render(<WorldMapPanel zoneId="remembrance-hill" pos={null} flags={afterHill} boat={BOAT_HOME} />);
+    expect(screen.getByText(/Next: Win the Memoria Key/)).toBeInTheDocument();
+    expect(screen.getByText("Go north-east to Marlow's dock and sail east to the Silver Shallows, then go south-east to Eldergrove.")).toBeInTheDocument();
+    const marks = Array.from(container.querySelectorAll('span[aria-hidden]'), (s) => s.textContent);
+    expect(marks).toContain('🚩');
+    expect(container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/Next: Win the Memoria Key, flagged at Marlow's dock\./);
+  });
+
+  it('a goal with no 🚩 on this map ends with a full stop before the boat line (review fix)', () => {
+    const beforeHill = { ...afterHill, 'visited:remembrance-hill': false };
+    const { container } = render(
+      <WorldMapPanel zoneId="silver-shallows" pos={px(30, 20)} flags={beforeHill} boat={{ zoneId: 'silver-shallows', x: 11, y: 23 }} />,
+    );
+    expect(container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/Next: Visit Remembrance Hill\. The boat: /);
+  });
+
+  it('inside Eldergrove the map is the Shallows, with you on its island', () => {
+    render(<WorldMapPanel zoneId="eldergrove" pos={px(20, 1)} flags={afterHill} />);
+    expect(screen.getByText('🗺️ The Silver Shallows')).toBeInTheDocument();
+    expect(screen.getByText("⭐ You're here: Eldergrove")).toBeInTheDocument();
+    expect(screen.getByText("It's right here in Eldergrove!")).toBeInTheDocument();
+  });
+});

@@ -65,7 +65,9 @@ One register for everyone (decided 2026-06-12): playful, warm, ~ages 7–11.
 
 ## 3. The hero & Ember 🐲
 
-**The hero** (player's avatar — Blaze/Shield/Nova) is a curious kid from
+**The hero** (player's avatar — Valor the lion warrior, Bastion the turtle
+guardian, Talon the eagle ranger, Kira the fox duelist or Selene the moon-cat
+mystic; the story says "you", so it fits any of them) is a curious kid from
 Lumina Village, at the edge of Lumina Field (settled in #75 item 8: home is
 the Village; the Field is the open country around it). Personal stake: on the morning the fog arrived, the hero found
 **the last dragon egg of Lumina** — the one thing the fog couldn't touch.

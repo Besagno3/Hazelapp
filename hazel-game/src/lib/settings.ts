@@ -4,8 +4,10 @@
  * should behave, so they live only in localStorage. Pure read/normalize logic
  * here; the React-facing store is `store/settingsStore.ts`.
  *
- * Audio ships OFF by default: a kids' game is often opened in classrooms and
- * shared spaces, so sound is opt-in (toggled in the in-game menu).
+ * Music ships ON by default, so the sign-in screen greets everyone with its
+ * intro (from their first tap or key — browsers hold sound until then) and
+ * the game's music follows. Sound effects ship OFF. Both are switched in the
+ * in-game menu, and a choice sticks: whoever turned music off keeps it off.
  */
 
 export interface AudioSettings {
@@ -20,13 +22,17 @@ export interface AudioSettings {
 }
 
 export const DEFAULT_SETTINGS: AudioSettings = {
-  music: false,
+  music: true,
   sfx: false,
   musicVolume: 0.4,
   sfxVolume: 0.7,
 };
 
 export const SETTINGS_KEY = 'hazel-settings';
+
+function bool(v: unknown, fallback: boolean): boolean {
+  return typeof v === 'boolean' ? v : fallback;
+}
 
 function clamp01(n: unknown, fallback: number): number {
   return typeof n === 'number' && n >= 0 && n <= 1 ? n : fallback;
@@ -36,8 +42,8 @@ function clamp01(n: unknown, fallback: number): number {
 export function normalizeSettings(raw: unknown): AudioSettings {
   const r = (raw ?? {}) as Partial<AudioSettings>;
   return {
-    music: r.music === true,
-    sfx: r.sfx === true,
+    music: bool(r.music, DEFAULT_SETTINGS.music), // an explicit "off" is kept
+    sfx: bool(r.sfx, DEFAULT_SETTINGS.sfx),
     musicVolume: clamp01(r.musicVolume, DEFAULT_SETTINGS.musicVolume),
     sfxVolume: clamp01(r.sfxVolume, DEFAULT_SETTINGS.sfxVolume),
   };

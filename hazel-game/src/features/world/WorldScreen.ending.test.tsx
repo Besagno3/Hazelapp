@@ -148,3 +148,39 @@ describe('after Umbra: the walk home, a night at the inn, Act II in the morning 
     expect(flow.getState().overlay).toBeNull();
   });
 });
+
+describe('the Memoria Key (#75 item 14f)', () => {
+  const inEldergrove = (extra: Record<string, boolean>) => {
+    const flags = { ...umbraBeaten(), [story.SPIRE_VICTORY_SEEN]: true, [story.ACT2_SEEN]: true, ...extra };
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: { ...defaultSave(), avatarId: 'a3', zoneId: 'eldergrove', flags },
+      flush: vi.fn(async () => {}),
+    });
+  };
+  beforeEach(() => {
+    vi.useFakeTimers();
+    flow.setState({ overlay: null });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('plays its two panels once the Ringkeeper gives it up — and only once', () => {
+    inEldergrove({ 'key-memoria': true });
+    const { unmount } = render(<WorldScreen />);
+    expect(screen.getByText(/The Memoria Key is cold and silver/)).toBeInTheDocument();
+    readOn(story.MEMORIA_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🗝️ Keep it safe' }));
+    expect(useSaveStore.getState().save!.flags[story.MEMORIA_SEEN]).toBe(true);
+    expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
+    unmount();
+    render(<WorldScreen />);
+    expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
+  });
+
+  it('says nothing before the key is won', () => {
+    inEldergrove({});
+    render(<WorldScreen />);
+    expect(screen.queryByText(/The Memoria Key is cold and silver/)).toBeNull();
+  });
+});

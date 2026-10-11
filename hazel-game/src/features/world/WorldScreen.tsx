@@ -25,12 +25,12 @@ import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx, spireFloorTitle } from '../../
 import { dungeonFloor, floorLabel } from '../../content/dungeons';
 import { useSpireStore } from '../../store/spireStore';
 import { atTier, spawnPlaced } from '../../content/enemies';
-import { lossKey, mercyFor } from '../../lib/battleTurn';
+import { heroOpening, lossKey, mercyFor, NO_OPENING } from '../../lib/battleTurn';
 import { roadTier } from '../../lib/wayfinding';
 import { arrivalWarning, zoneTier } from '../../content/regions';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, actComplete, crystalFlag } from '../../content/topics';
-import { bossDefeated } from '../../content/keys';
+import { bossDefeated, keyFlag } from '../../content/keys';
 import {
   crystalsInPlay,
   emberStatus,
@@ -62,6 +62,8 @@ import {
   GREAT_FOGBANK_MET,
   GREAT_FOGBANK_PANELS,
   GREAT_FOGBANK_SEEN,
+  MEMORIA_PANELS,
+  MEMORIA_SEEN,
 } from '../../content/story';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
@@ -210,6 +212,8 @@ export default function WorldScreen() {
   const act2Due = flags[SPIRE_VICTORY_SEEN] === true && !flags[ACT2_SEEN] && !waking;
   const voyageDue = save?.aboard === true && !flags[FIRST_VOYAGE_SEEN];
   const fogbankDue = flags[GREAT_FOGBANK_MET] === true && !flags[GREAT_FOGBANK_SEEN];
+  // The Memoria Key, won from the Ringkeeper (#75 item 14f).
+  const memoriaDue = flags[keyFlag('memoria')] === true && !flags[MEMORIA_SEEN];
 
   const activeScene:
     | 'spireVictory'
@@ -223,6 +227,7 @@ export default function WorldScreen() {
     | 'act2'
     | 'voyage'
     | 'fogbank'
+    | 'memoria'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -245,7 +250,9 @@ export default function WorldScreen() {
                       ? 'voyage'
                       : fogbankDue
                         ? 'fogbank'
-                        : null;
+                        : memoriaDue
+                          ? 'memoria'
+                          : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
@@ -463,7 +470,8 @@ export default function WorldScreen() {
             // Mercy far from home (#75 item 12): a critter that has beaten the
             // hero a couple of times fights like a Numbria one from then on.
             const losses = useBattleStore.getState().losses[lossKey(enemy)] ?? 0;
-            startBattle(atTier(enemy, mercyFor(losses, enemy.tier).fightTier), hp, maxHp);
+            // The hero type's opening perks (Battle Cry, Shell Up, Second Wind, Fox Sense, Spark Start).
+            startBattle(atTier(enemy, mercyFor(losses, enemy.tier).fightTier), hp, maxHp, avatar ? heroOpening(avatar.fightStyle) : NO_OPENING);
             sendFlow({ type: 'ENCOUNTER' });
           },
           onSpire: () => sendFlow({ type: 'OPEN_SPIRE' }),
@@ -651,6 +659,9 @@ export default function WorldScreen() {
       )}
       {activeScene === 'fogbank' && (
         <StoryPanels panels={GREAT_FOGBANK_PANELS} doneLabel="🧭 Sail on" onDone={() => setFlag(GREAT_FOGBANK_SEEN)} />
+      )}
+      {activeScene === 'memoria' && (
+        <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />
       )}
       {activeScene === 'grove' && (
         <StoryPanels

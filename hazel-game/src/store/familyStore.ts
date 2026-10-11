@@ -8,7 +8,6 @@ import { sendFlow } from '../machines/gameFlow';
 import { useProfileStore } from './profileStore';
 import { useSaveStore } from './saveStore';
 import { useBattleStore } from './battleStore';
-import { useQuizSessionStore } from './quizSessionStore';
 import type { Kid, KidInput } from '../types';
 
 /** A kid's `profiles` row, as the family screens read it (snake_case). */
@@ -72,12 +71,11 @@ function writeActive(userId: string, kidId: string | null): void {
   }
 }
 
-/** Put away the game in progress: profile, save, battle, quiz round, flow. */
+/** Put away the game in progress: profile, save, battle, flow. */
 export function putAwayGame(): void {
   useProfileStore.getState().clearProfile();
   useSaveStore.getState().clear();
   useBattleStore.getState().reset();
-  useQuizSessionStore.getState().reset();
   sendFlow({ type: 'RESET' });
 }
 

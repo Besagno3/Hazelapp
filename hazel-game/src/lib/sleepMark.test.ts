@@ -129,6 +129,8 @@ describe('a sleeping critter\'s rising "z Z" (#114e)', () => {
     expect(crowded).toEqual([]);
   });
 
+  // Every critter on every map, the hero at every spot round it: it grows with each island's critters
+  // (3 s here, past Vitest's 5 s default on CI once Eldergrove's were added).
   it('with the hero anywhere within reach — on a cell or between, sailing by a sea critter — the way read is the clearest there was, and Ember starts off the sleeper', () => {
     const problems: string[] = [];
     const STEP = 8; // px: a Flee or a reload leaves the hero anywhere, not only on a cell's centre
@@ -197,5 +199,5 @@ describe('a sleeping critter\'s rising "z Z" (#114e)', () => {
       }
     }
     expect(problems).toEqual([]);
-  });
+  }, 20000);
 });

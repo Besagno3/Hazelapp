@@ -78,6 +78,8 @@ export const ACT2_SEEN = 'act2-seen';
 /** The first time the boat bumps the Great Fogbank, its panel plays once. */
 export const GREAT_FOGBANK_MET = 'great-fogbank-met';
 export const GREAT_FOGBANK_SEEN = 'great-fogbank-seen';
+/** Set once the Memoria Key's two panels have played, after the Ringkeeper (#75 item 14f). */
+export const MEMORIA_SEEN = 'memoria-seen';
 
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
@@ -302,6 +304,22 @@ export const GREAT_FOGBANK_PANELS: StoryPanel[] = [
   {
     emoji: '🐉',
     text: 'Old sailors say that past the Fogbank lies the Starfall Sea — and nobody has sailed it in a hundred years. Maybe not by boat… Ember is looking up at the sky.',
+  },
+];
+
+/**
+ * After the Ringkeeper (#75 item 14f): the key, and the door it opens — the
+ * Sunken Archive, not on the map until 14h, so nobody knows where it is yet,
+ * and it "will turn up later" (not a hunt across the Shallows, review fix).
+ */
+export const MEMORIA_PANELS: StoryPanel[] = [
+  {
+    emoji: '🗝️',
+    text: 'The Memoria Key is cold and silver, and it hums like a song you almost remember. Its teeth are shaped like tiny tree rings.',
+  },
+  {
+    emoji: '🌳',
+    text: 'Old Ringwood creaks: "That key opens a door the whole world forgot. Nobody remembers where it is — but it will turn up later in your adventure!"',
   },
 ];
 

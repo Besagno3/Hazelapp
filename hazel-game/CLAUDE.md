@@ -17,10 +17,10 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `quizSessionStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
-| Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
+| Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
 | CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build on every non-draft PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests); draft PRs skip CI and Vercel previews (see Pull requests) |
@@ -149,11 +149,16 @@ zod, react-query. Add the package in the same change that first uses it.
   `>` / `<` stairs exits), `regions.ts` (#75 item 12: every zone's region and
   danger tier 0–7 — Act I 0–4, the Shallows 5 — the `DANGER` tuning per
   tier, map labels "Lv 4 !!" (marks stop at "!!!", tiers 5–7 go violet →
-  magenta), the danger banner / defeat tip / arrival warning copy),
+  magenta → pink, kept apart for colour-blind kids — #75 item 14f review),
+  the danger banner / defeat tip / arrival warning copy),
   (Act II's **Remembrance Hill**, #75 item 14e, is a town on Dawnreach behind
   the Grove-road fog — `hill-fog`, lifted by `act2-seen` — and a place nobody
   names before then: `PlaceDef.knownFrom` / `placeKnown` keep it off the
-  signposts and the menu map), `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
+  signposts and the menu map; Act II's **Eldergrove**, #75 item 14f, is
+  an island of the Silver Shallows — a history field at tier 5 whose warden,
+  the Ringkeeper, gives the Memoria Key, a `GateKey` whose gate isn't on any
+  map until the Sunken Archive (14h): `unlocksZone: null`, `opens` instead),
+  `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
@@ -166,7 +171,10 @@ zod, react-query. Add the package in the same change that first uses it.
   quest item belongs to one quest; one person may give several quests in
   turn — `questFor(npcId, save)`, the one you've started first — and a step
   may go through a giver, #75 item 14c), `secrets.ts` (hidden secrets per
-  zone — claim + progress; `ZoneDef.secrets`), `avatars.ts`.
+  zone — claim + progress; `ZoneDef.secrets`), `avatars.ts` (the five heroes —
+  Valor, Bastion, Talon, Kira, Selene (ids a1–a5) — each a hero type
+  (`FIGHT_STYLES`), with `STYLE_LABEL` / `STYLE_DESC` and every type's two
+  signature abilities, `HERO_ABILITIES`).
 - **`saveStore`** (`src/store/saveStore.ts`, #12): the per-player save file —
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
@@ -188,11 +196,8 @@ zod, react-query. Add the package in the same change that first uses it.
   instance ids, losses per enemy kind + tier for mercy (`lossKey`), the danger
   tiers already explained) — deliberately not persisted, so a reload is a
   fresh start for mercy.
-- **`quizSessionStore`** holds the ephemeral Training-Grounds session — the
-  topics passed (80%+) this session, so `TopicSelect` greys them out and stops
-  re-picking. Not persisted; reset on sign-out (#64).
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
-  `profiles` row (birth date, skill levels, xp, power-ups, streak).
+  `profiles` row (birth date, skill levels, xp, saved level, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
   wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
   the Spire icon, remounted per zone, paused under overlays via ref). Terrain
@@ -214,14 +219,19 @@ zod, react-query. Add the package in the same change that first uses it.
   is the mobile d-pad.
   **The world's top bar** (#75 item 14b, #102i): on the world screen `App`
   draws no floating badges — `WorldScreen` puts the level (`LevelBadge`
-  `inline`), the streak (`StreakBadge inline`, "🔥 5" on a phone) and Sign out
-  (`SignOutButton inline`) in a full-width row above the HUD, at most 44 px
+  `inline`), the streak (`StreakBadge inline`, "🔥 5" on a phone) and Switch
+  (`SwitchPlayerButton inline`, #124 — was Sign out) in a full-width row above the HUD, at most 44 px
   tall (pt-3 + bar + mb-2 = the old pt-16), so they never cover the place
   name and every overlay (z-40) draws over them. Exploring a Spire floor,
   `SpireOverlay` portals its seals, candles and 🚪 Leave the Spire into the
-  HUD row (`hudSlot`, in 📜 Menu's place). Other screens keep the floating
-  badges. Sign out there asks "Sign out?" first (same size; the hint floats
-  below it), and any other tap or key takes the question back.
+  HUD row (`hudSlot`, in 📜 Menu's place). The battle screen has a top bar
+  too (#75 item 14f review, `data-testid="battle-topbar"`): the level and
+  streak in a row above the status boxes (no Switch player in battle, as before;
+  40 px on a phone — `LevelBadge` / `StreakBadge` `dense`), hidden below
+  360 px wide or 500 px tall, where there's no room for it without pushing
+  🏃 Flee off the screen (`bench … battle`, a boss fight). Other screens
+  keep the floating badges. Switch there asks "Switch?" first (same size;
+  the hint floats below it), and any other tap or key takes the question back.
   **Overlays are modal** (#75 item 14b review): every world overlay (dialogue,
   services, path questions, key gates, menu, the Spire's panels) and the
   level-up sit in `components/ModalLayer` — `role="dialog"` + `aria-modal`,
@@ -397,7 +407,22 @@ zod, react-query. Add the package in the same change that first uses it.
   fights beside the hero: a strike with a perk (Ember +◆, Pip crosses out a
   wrong answer on the next question, Wisp mends) and **Pair Attacks** (hero +
   companion power combined, super-hard question, charge cost, fizzle on a
-  miss). **🔄 Swap** changes companion as a free action. Enemies sometimes
+  miss). **🔄 Swap** changes companion as a free action. **Hero types**
+  (`FightStyle`) set attack / block (`STYLE_ATTACK` / `STYLE_BLOCK`) and spell
+  power (`STYLE_MAGIC` — what spells and Pair Attacks scale from; the original
+  three's equals their attack); every type has two signature abilities —
+  **Valor** (aggressive): **Battle Cry** (opens focused: the first landed
+  Attack ×2, via `applyFocus`) and **Lionheart** (Attacks ×1.5 below half HP,
+  `lionheartMultiplier`); **Bastion** (defensive): **Shell Up** (opens
+  guarded) and **Rock Steady** (a wrong defend answer still blocks half his
+  block, `defendReduction`); **Talon** (balanced): **Second Wind** (once a
+  fight a knockout leaves 1 HP, `CombatState.secondWind` in `resolveEnemyTurn`)
+  and **Keen Eye** (+3 HP per right answer, `keenEyeHeal`); **Kira** (swift):
+  **Counter Strike** (`counterDamage` → `resolveEnemyTurn`'s `counter`) and
+  **Fox Sense** (a free hint a fight, `CombatState.freeHint`); **Selene**
+  (mystic): **Spark Start** (opens with 2◆) and **Spell Power** (the highest
+  spell power) — the opening perks come from `heroOpening(style)`, handed to
+  `battleStore.start` by `WorldScreen`. Enemies sometimes
   **telegraph a power move** (charge turn → 2× blow; Guard blocks it), Sage
   spells are **super effective** vs their topic, **answer streaks** power up
   hits, and after two losses to the same enemy its questions get easier
@@ -488,8 +513,13 @@ zod, react-query. Add the package in the same change that first uses it.
   with loading and error/retry states.
 - Two progression systems: (1) per-topic **skill ramp** — `nextSkillLevel`
   (`lib/age.ts`) tunes quiz difficulty after each quiz round, persisted via
-  `profileStore.setSkillLevel`; (2) overall **player level** — derived from XP
-  (`lib/level.ts`), earned from correct answers + NPC defeats, in `profiles.xp`.
+  `profileStore.setSkillLevel`; (2) overall **player level** — saved in
+  `profiles.level` with the XP earned toward the next one in `profiles.level_xp`
+  (migration 0012; `xp` stays the lifetime total), earned from correct answers
+  + NPC defeats. Level n takes `xpForLevel(n)` = 100 + 25×(n−1) XP
+  (`lib/level.ts`). Retuning the curve never lowers anyone's level — only how
+  far the next one is. Read it with `levelState(profile)` (a profile cached
+  before levels were saved falls back to the old flat-100 curve).
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter). The edge function randomly
   mixes cached questions (reused from a ±2 level band) with fresh ones.
@@ -511,6 +541,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pix
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit (#75 item 14f)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
@@ -526,6 +557,9 @@ python3 tools/assets/build.py seamusic # the sea music only: sailing, the Shallo
 python3 tools/assets/build.py lighthouse # Gull Rock's lighthouse tower only (#75 item 14)
 python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea backdrop only (#75 item 14d)
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
+python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
+python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
+python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
 
 ## Error handling
@@ -603,6 +637,17 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-11 — Merge main (via #37's branch) into the parent-accounts branch (#124)
+`main` took ISSUES #115–#120, TC-786–849 and **migration 0012** (the saved
+player level) while parent accounts were in review, so this branch's
+migrations moved **0012 → 0013** (parent accounts) and **0013 → 0014** (PINs
+and the kid budget), its issue **#118 → #124** and its test cases **TC-803–829
+→ TC-867–893** (#37's own moved to #121–#123 / TC-850–866). Code: main
+removed `quizSessionStore` (#119), so `putAwayGame` and `useAuthInit` no
+longer reset it; the battle screen's own top bar (main) keeps the badges off
+the floating row, and it has no Switch player either. The world's top-bar
+note above now says Switch.
 
 ### 2026-10-10 — Every kid has a PIN; a grown-up PIN; the question budget per kid (#124)
 The owner's answers (2026-10-10) changed three of the earlier calls:
@@ -723,6 +768,15 @@ server half — backward compatible, so today's app keeps working on it:
   removes everything). All four SQL tests, migrations in order and the bundle
   twice pass locally; `deno check` clean.
 
+### 2026-10-10 — Merge main (heroes #39, music #40/#44, Eldergrove #42, the saved level #41, open Training Grounds #43) into the fair-questions branch (#121–#123)
+`main` took ISSUES **#115–#120** and TC-786–849 while this branch was open, so
+its issues moved **#115–#117 → #121–#123** and its test cases **TC-786–802 →
+TC-850–866** (renumbered before the merge). One code conflict: `QuizRound`'s
+round end — main removed the per-session topic lock (#119), this branch made
+XP wait for the world to open (#122); both kept. Main's saved player level
+(#118) changes how `addXp` stores XP, not when it's called, so the opening
+rounds still pay none.
+
 ### 2026-10-10 — Show password: an eye on every password field (#123)
 Kids mistype passwords and couldn't see why sign-in failed. New
 `components/PasswordInput`: a 👁️ button inside the field's right edge shows
@@ -774,6 +828,384 @@ Grounds without reading. Now:
   the four spots about equally (seeded), the input is untouched, a broken
   index is left alone, `fetchQuestions` shuffles what it returns. 874 tests
   green (three runs), lint + tsc clean, `deno check` of the function clean.
+
+### 2026-10-10 — Merge main (Eldergrove #42, the saved player level #41, open Training
+Grounds #43) into the sign-in-music branch (#120)
+`main` took ISSUES **#117–#119** and TC-816–839 while the sign-in music was in
+review, so it moved **#117 → #120** and its test cases **TC-816–825 → TC-840–849**.
+Only the docs conflicted; `App.tsx` and `build.py` merged cleanly (the `intro`
+build target sits beside 14f's `elder`).
+
+### 2026-10-10 — The sign-in intro's climax: a celesta joins the harp (#120)
+The climax (0:48–1:00, bars 17–20, after a timpani roll from 0:45) only made
+the harp louder, which didn't land. Now a new colour comes in: a celesta (a
+soft music-box bell, `_celesta`) plays with the harp, note for note at the
+same pitch, while the tune rises an octave. The other option is built in —
+`INTRO_CLIMAX_VOICE = 'high'` (`tools/assets/audio.py`) lifts the harp's
+sweeps an octave for the climax instead; both were rendered for the owner
+to choose by ear. Loudness by bar 13% → 100% → 18%; rebuilt with
+`build.py intro`.
+
+### 2026-10-10 — Music is on by default (#120)
+So everyone hears the sign-in screen's intro, Music now defaults to **on**
+(`DEFAULT_SETTINGS.music`, `lib/settings.ts`); sound effects stay off. It
+starts on the first tap or key (browsers hold sound until then), and the
+game's music follows after signing in. A choice sticks: `normalizeSettings`
+keeps a saved `music: false` (anyone who turned it off — the owner's device
+included — stays silent until they turn it back on in 📜 → 🔊 Audio); a saved
+value that isn't a boolean falls back to the default instead of to "off".
+Checked in the real app (Supabase stubbed): a new device hears the intro on
+the sign-in page and the overworld theme after signing in; a device with
+music saved off hears nothing. Tests: settings.test rewritten (+2).
+
+### 2026-10-10 — The sign-in intro, an octave lower and mellower (#120)
+Liked the tune, tempo and notes; it was too high-pitched. Same notes and
+shape, an octave down — the harp's sweeps now start between D2 and C#3 (top
+note ≈ 1.1 kHz, was ≈ 2.2 kHz), the tune sits in G4–Ab5 (was G5–Ab6) — and a
+rounder sound: the harp is a triangle with a touch of square (was a narrow,
+nasal pulse), the tune a square-and-triangle blend, the pad square waves an
+octave down, the cymbal wash darker, and the harp and tune go through a warm
+filter (≈ 1.8 kHz, was ≈ 4 kHz). The climax's harp no longer doubles an
+octave up; it plays louder instead. Brightness (spectral centroid) 3070 →
+1740 Hz, energy above 2 kHz 40% → 22%; loudness by bar still 14% → 100% →
+19%. Rebuilt with `build.py intro` (byte-identical on a rebuild).
+
+### 2026-10-10 — The sign-in screen gets its own intro music (#120)
+The sign-in screen played the title theme. Now it has an intro of its own,
+heard there and on the screen after signing out (and while choosing a new
+password): **`intro`** (`public/audio/16bit/music/intro.mp3`, 72 s,
+`compose_intro` in `tools/assets/audio.py`, `python3 tools/assets/build.py
+intro`). A harp-like arpeggio sweeps up three octaves and back each bar over
+E♭–Cm–A♭–B♭-style progressions; it begins as small ripples, alone and soft,
+widens into full sweeps as a string pad joins, gains a tune and a bass, swells
+through a timpani roll into a climax (the tune an octave up with a line below
+it), then thins back to the ripples, so the loop meets its
+own soft start (loudness by bar 15% → 100% → 19%). Original — written in the
+spirit of a 16-bit RPG prelude, not a copy of one.
+- **Wiring:** `musicScreen(initialized, signedIn, gameScreen)` (`lib/audio.ts`)
+  picks the screen whose music plays — `'loading'` (none) while the session is
+  checked, so a refresh mid-game never blips the intro; `'auth'` → `intro`
+  until someone signs in, again after signing out; else the game's screen.
+  `App` passes it to `useScreenMusic`. Music stays off by default (#120).
+- **Checked:** the real app in headless Chromium (Supabase stubbed, music on)
+  — the sign-in page plays only the intro; in the world the overworld theme;
+  Sign out → the overworld stops and the intro plays (4 runs, a cold server
+  included). `build.py intro` writes only `intro.mp3`, byte-identical on a
+  rebuild (and the sea music rebuilds byte-identical here, so the toolchain
+  matches). Tests +2 (audio.test); the shipped-file guards cover the new file.
+
+### 2026-10-10 — Every Training Grounds topic stays open (#119)
+Passing a topic round no longer greys that topic out for the rest of the
+session — kids can pick any topic, as often as they like, for more questions.
+`store/quizSessionStore.ts` (and its test) existed only for that lock and is
+gone; `QuizRound` no longer marks topics, `useAuthInit` no longer resets it,
+and `TopicSelect` renders every topic as a live button. New
+`TopicSelect.test` picks a topic three times and checks every button stays
+enabled with no "Completed" tag. Reverses #91's per-session completion.
+
+### 2026-10-10 — The player level is saved; each level takes a little more XP (#118)
+Levels used to be worked out from total XP at a flat 100 XP each, so every
+level came just as fast, and any change to the curve would have moved every
+player's level.
+- **Saved:** migration `0012_save_player_level.sql` adds `profiles.level` and
+  `profiles.level_xp` (XP into the current level), backfilled from the old
+  flat curve so everyone keeps the level they had; new players start at 1 / 0.
+  `profileStore.addXp` rolls XP over levels (`gainXp`) and writes all three;
+  `loadProfile` pushes a row back up when it has no level yet or the local
+  cache is further along (`mergeProfiles` keeps the further level,
+  `furthestLevel`).
+- **A gentle curve that keeps climbing:** level n takes 100 + 25×(n−1) XP
+  (`xpForLevel`: 100, 125, 150 … 325 at level 10, 575 at 20).
+- **Readers:** `LevelBadge`, the Menu's hero card and `LevelUpModal` read
+  `levelState(profile)`; `playerLevel(xp)` and `XP_PER_LEVEL` are gone. A
+  profile cached before this (no `level`) uses the old flat-100 level.
+- Tests: level.test (rewritten), profile.test (+2), LevelBadge.test (+1),
+  `supabase/ci/level.test.sql`. Migrations applied in order and the bundle
+  twice on Postgres 16; a 1037-XP row backfills to level 11, 37 in.
+- ⚠️ Deploy: apply 0012 (or re-run `apply_all_migrations.sql`) **before**
+  shipping this build.
+### 2026-10-10 — The "z Z" hero sweep gets a 20 s budget (#75 item 14f, #117s)
+On PR #42's CI the sleepMark.test sweep (every critter on every map, the hero
+at every spot round it) timed out at Vitest's 5 s default: Eldergrove's six
+critters made it ~3 s locally and more on CI's runner. It takes 20 s now, like
+the Spire's long tests; nothing it checks changed.
+
+### 2026-10-10 — Merge main (the hero roster, PR #39; the music fix, PR #40) into the Eldergrove branch (#75 item 14f)
+`main` took the hero roster (#115, TC-786–803) and then the music fix (#116,
+TC-804–815) while 14f waited, so 14f's follow-ups moved on again,
+**#115 → #117**, and its test cases **TC-786–803 → TC-816–833** (only 14f's
+own lines were renumbered). The only code conflict was `build.py`'s list of
+targets (both kept); the music fix merged cleanly (`lib/audio.ts` only).
+
+### 2026-10-10 — The battle row fits a boss fight at 360×640 (#75 item 14f, after merging 14d)
+After the merge, 14d's resting critters (one that could reach the hero where
+they arrive rests until they leave its patch) meant `bench … battle` — which
+started the hero on a beetle — never got a fight. It now walks the hero into
+the Ringkeeper, who stands still; a boss's 🏃 Flee row ("No escape!") then
+showed the battle row 10 px too tall at 360×640, so on a phone the row is
+40 px (`LevelBadge` / `StreakBadge` `dense`, `pt-1`). 5/5 twice; a boss's
+Flee at 320×568 was off the screen before 14f too (#117q).
+
+### 2026-10-10 — Merge main (14d sea critters) into the Eldergrove branch (#75 items 14d + 14f)
+`main` took 14d (PR #36) while 14f was built. Its #114 and TC-731–785 came
+first, so 14f's follow-ups moved **#114 → #115** and its test cases
+**TC-731–748 → TC-786–803** (then on again, below). Code: both sides kept — the Shallows has 14d's
+three sea critters and 14f's island (placed clear of them from the start:
+seaCritters.test passes unchanged), `ENEMY_DEFS`, the art drawers and build
+targets have both, `WanderOpts` has `afloat`/`asleep` and `animSpeed`, and a
+defeat runs 14d's `boatAfterDefeat` then 14f's shelter-aware
+`wakeAfterDefeat`. Eldergrove's art rebuilds byte-identical, the sprite
+manifest unchanged. 897 tests green, lint + tsc clean.
+
+### 2026-10-10 — 14f review fixes: Fen's Hollow, the dock 🚩, a battle top bar, a real purple (#75 item 14f)
+A fresh `/saas-code-review` (1 medium, 3 low) and `/saas-ux-review` (3 high,
+2 medium, 4 low; played on the stubbed app at 320–800 px). Fixed, as chosen:
+- **A loss in Eldergrove wakes you in Fen's Hollow** (code medium / UX high):
+  a place can have a shelter (`ZoneDef.shelter`, `shelterOf`, `wakeShelter`)
+  — beaten there, you wake on its floor, healed, the boat still at the
+  beach, so a retry isn't a voyage away. Not an inn: `lastRest` is kept, so
+  a defeat elsewhere never strands you on the island. 14d's boat rule is
+  untouched.
+- **The Memoria 🚩 starts at Marlow's dock** off the Shallows (UX high):
+  flagged on the dock on Dawnreach's map, "Go … to Marlow's dock and sail
+  east to the Silver Shallows, then go south-east to Eldergrove."
+- **Copy:** Fen's hints match what's drawn, count down, ≤ 30 words, simpler
+  words, and a found acorn says Fen might remember the next
+  (`QuestDef.foundNote`, `haveStep` `listLeft`); after the key, its door
+  "will turn up later in your adventure" (🚩, Lumen, Ringwood, the panel);
+  the Ringkeeper's intro; "First time beating the Ringkeeper" (was "a The …"
+  for every "The" boss); a boss is a "very tough boss".
+- **The battle's top bar** (UX high, pre-existing): the level and streak
+  in a row above the status boxes, not floating over the enemy's "!!!";
+  hidden below 360 × 500, where it pushed 🏃 Flee off the screen. Measured
+  by a new `bench … battle` (5/5).
+- **A real purple:** tier 5 is violet-400 (violet-200 read white), tier 7
+  #ff66b8, so 4–7 stay apart for colour-blind kids (a simulated test).
+- **Art:** Dawdle's face toward you and his walk at his pace (`animSpeed`),
+  Old Ringwood taller than the trees (a tall NPC's name plate sits under its
+  feet), the Hollow Acorn 🫥.
+- **Code:** `keyForZone` ignores null; tests that couldn't fail.
+- Logged (#117 m–p): a battle never fit a sideways phone (pre-existing), the
+  crowded island on the in-grove menu map, a real-phone check, the dock 🚩
+  after a Return. Tests: +9 net (one old LevelBadge test removed). 850 green.
+
+### 2026-10-10 — The 🚩 leads to Eldergrove for the Memoria Key (#75 item 14f)
+Fourth slice of 14f. After "Visit Remembrance Hill" the 🚩 reads **"Win the
+Memoria Key"** (`kind: 'key'`, no `crystal`): "On Eldergrove, an island of
+ancient ring-trees out in the Silver Shallows, the Ringkeeper guards the
+Memoria Key…", routed "Sail east to the Silver Shallows, then go south-east to
+Eldergrove."; on the Shallows' menu map the 🚩 sits on Eldergrove. Once the key
+is won, "Explore" until 14g. Elder Lumen's plan names Eldergrove and the
+Ringkeeper; his tip, the purple !!! and Knack's Forget-Me-Knot. `roadTier`
+stays Act I's (no arrival warnings in Act II). Tests: wayfinding.test (+1; the
+walks know the new step, and walk Eldergrove's by boat), WorldMapPanel.test
+(+2). 841 green.
+
+### 2026-10-10 — Fen's Forgotten Acorns: a collection quest (#75 item 14f)
+Third slice of 14f. Fen the Forager hid her three best acorns — Speckled,
+Striped and Golden — in chests and forgot which (`fen-acorns`, side quest):
+three key-item chests across Eldergrove (`ZoneDef.keyChests`, items
+`acorn-*`) and one have step. Her hint always names the first acorn still
+missing and where it is, and each find "jogs her memory" for the next
+(`FEN_ACORNS`). She takes all three for 35 coins and a Hint Feather. An acorn
+found before meeting her says who wants it. Tests: quests.test +4. 838 green.
+
+### 2026-10-10 — The Ringkeeper and the Memoria Key (#75 item 14f)
+Second slice of 14f — Eldergrove's warden.
+- **The Ringkeeper** 🦌 (`ringkeeper`, a history warden, +1; "Thousand-Year
+  Charge") stands in the Great Ring: a pale birch stag with tree rings in its
+  bark, golden leaves and a silver key on its antlers (`beast` gained `rings`,
+  `leaf` and `key`). "Every ring is a year, and every year is MINE."
+- **The Memoria Key** 🗝️ (`GateKey` `memoria`, flag `key-memoria`): its gate
+  is the Sunken Archive's, which comes in 14h, so `GateKey.unlocksZone` may
+  be null; winning it then says what it `opens` — "It opens a door the whole
+  world forgot." — instead of naming a Fiend nobody has met.
+- **Old Ringwood** is its signpost: he warns of the Ringkeeper until the key
+  is won, then congratulates. **Two panels** play once after the key
+  (`MEMORIA_PANELS`, `memoria-seen`).
+- Tests: +5 (keys.test: the Memoria Key; Act I's naming and gate checks
+  scoped to Act I; the signpost check by key flag; BattleHud.test: the
+  victory line; story.test; WorldScreen.ending.test: the panels play once).
+  834 green.
+
+### 2026-10-10 — Eldergrove: an island of ring-trees in the Silver Shallows (#75 item 14f)
+First slice of 14f — Act II's first island (the Ringkeeper, Fen's quest and
+the 🚩 come in the next commits).
+- **On the Shallows:** an island in the south-west (6–19, 34–42,
+  `maps/silver-shallows.tmj`) with a north beach to land on and a path to its
+  icon (a new `elder` frame, a great ring-tree, appended at 17 after the hill;
+  frames 0–16 byte-identical). Placed clear of 14d's sea critters (its
+  branch isn't merged yet; its test wants them 4+ cells from land, #117a).
+- **The grove** (`eldergrove`, 44×28, `kind: 'field'`, history, tier 5 with
+  the Shallows — "The Silver Shallows and its islands"): Fen's Hollow (a new
+  **bark** style: a hut in a hollow ring-tree), the gated Ring Hollow with
+  the riddle-chest, a stream and its bridge, three acorn chests, and the
+  Great Ring — the oldest trees round a stump — in the south.
+- **Critters:** Ring Beetle 🪲 (its shell cut like a log), Sap Sprite ✨ and
+  the shielded Hollow Acorn 🌰, two of each. **People:** Fen the Forager 🧺,
+  Old Ringwood 🌳 (a talking tree who loses count of his rings) and **Dawdle**
+  🐢 (STORY-4X's Moss, renamed — Hermit Moss already exists), the slowest
+  wanderer in the game (`WorldNpcDef.pace`).
+- **The menu map** from inside a place draws the overworld it opens onto
+  (`overworldOf`): Eldergrove's is the Shallows.
+- **Art** (`python3 tools/assets/build.py elder`): the zone's tileset (a new
+  `eldertree` scenery), blend sheet and backdrop, `town-bark.png`, the
+  overworld sheet and six sprites (new drawers `ring_beetle`, `sap_sprite`,
+  `hollow_acorn`, `tree_folk`, `turtle`); the manifest only gained entries.
+- Tests: +6 (zones.test: the island, sailing there, the critters, the gate,
+  the people; worldMap.test: `overworldOf`). 829 green. Looked at on the
+  bench: the island, the grove's four corners, inside Fen's Hollow.
+### 2026-10-10 — Merge main (the heroines and hero roster, #39) into the music-fix branch (#116)
+`main` took ISSUES **#115** and TC-786–803 for the hero roster while the
+music fix was in review, so the music fix moved **#115 → #116** and its test
+cases **TC-786–797 → TC-804–815**. Only the three docs conflicted; the code
+merged cleanly (the roster touches battle code, the fix only `lib/audio.ts`).
+
+### 2026-10-10 — #116 code review: key presses leave nothing in Howler's queue; volume read off the sound
+A `/saas-code-review` of the music fix (no security surface: no Supabase, no
+keys). Two low findings, both fixed:
+- **Every key press re-set the current track's volume** (`armUnlock` →
+  `startTrack` → `volume()`), and one landing as the track looped was queued
+  by Howler (the #116 mechanism); two queued could later undo a volume-slider
+  change. Now `volume()` is called only to stop a fade-out (`keep` says it was
+  fading) or when the volume differs. The first try compared the Howl's own
+  `volume()` — but a loop point mid-fade-out ends the fade at its target,
+  dropping the sound to 0 while the Howl still says 0.6, so that track then
+  stayed silent for good (the fuzz caught it: 5 rounds over 6 seeds). It
+  compares the sound's own volume (`playingAt`, `Music.id`), which is what's
+  heard; `retire` reads it too.
+- `audio.test`'s guard named "the game plays" where it checks "a source
+  names" (`16bit/music/victory.mp3` is named but reserved) — renamed.
+- Tests: the stand-in Howl keeps the sound's volume apart from the Howl's;
+  +2 (a key press at a loop point queues nothing and a new volume still
+  applies; back as it loops mid-fade-out, it's heard on the next key press —
+  the second fails on the group-volume try). Real Howler in Chromium: the
+  fuzz clean in 8 seeds, re-picking at once, the loop-point battle and Music
+  off all hold.
+
+### 2026-10-10 — The unused original mp3s are deleted (#116)
+The player-supplied mp3s from #60 (`Overworld.mp3`, `Battle_Music.mp3`,
+`Boss_Battle.mp3`, `Boss_Battle - Final Battle.mp3`, `Spire_Music.mp3`,
+`Character_Grunt.mp3`, `Level_Up.mp3`, `Victory-jingle.mp3`,
+`Wrong_Answer.mp3` — 3.7 MB) sat in `public/audio/` with nothing playing them
+since the 16-bit set (#71). With #116's leftover track playing on after Music
+was turned off, they made it look as if the old and new music were both in
+use. Deleted; `public/audio/README.md` and `audio.ts` no longer point at them,
+and a new `audio.test` case fails on any audio file under `public/audio/` that
+`SFX_SOURCES` / `MUSIC_SOURCES` doesn't name.
+
+### 2026-10-10 — The overworld music no longer plays on under the battle music (#116)
+Howler's html5 mode queues any `fade()` / `volume()` / `stop()` asked for
+while a `play()` is starting — the first one, and the restart at every loop
+point (html5 loops are `stop()` + `play()`) — and after a `play()` on a loaded
+track that queue never runs. `lib/audio.ts` stopped a left track when its
+fade-out fired `'fade'`, so a battle that began as the overworld looped never
+stopped it: both tracks played on. And a track played again (the overworld
+after a battle) had its fade-in queued, so it came back at volume 0 until a key
+press set its volume.
+- **A left track is unloaded** (`retire`): faded out, then unloaded on a timer
+  (`RETIRE_MS`) unless it's picked again first; unloaded at once if it isn't
+  audible yet. Unloading stops it even mid-`play()`. Picking it again builds a
+  fresh Howl (`musicCache` holds `{ howl, started }`).
+- **A track fades in on its `'play'` event**, not along with the `play()`.
+- **One play per track** until autoplay refuses it (`started`, cleared on
+  `'playerror'`): keys pressed while it loads no longer queue a play + fade each.
+- **Checked:** the real Howler and shipped tracks in headless Chromium — a
+  battle at the overworld's loop point (before: both at full volume, for
+  good; after: only the battle), a random fuzz of switches with 1–2 s loops
+  and a throttled network (before: 8–9 of 12 rounds left a track running;
+  after: none in 9 seeds), and the real app (Supabase stubbed): a critter on
+  Dawnreach plays only the battle theme, and Flee brings the overworld back at
+  full volume with no key pressed (before: at 0).
+- Tests: `audio.music.test`'s stand-in Howl now queues like Howler's; +5 (a
+  loop-point battle, the comeback, one play while loading, a track left before
+  it's heard, autoplay refused); the first four fail on the old code, and so
+  does the re-pick test, which now lets the left track load. 874 green, lint +
+  build clean.
+### 2026-10-10 — Every hero gets signature abilities, a new name and a new look (#115)
+All five heroes now have two signature abilities each, and all five were
+renamed and redrawn. Ids a1–a5 (what saves store), types and HP are
+unchanged, so every save keeps its hero under the new name.
+- **Names, types, looks:** Blaze → **Valor** 🦁 (Warrior; a crowned lion
+  knight in red with a gold cape and a flaming sword), Shield → **Bastion** 🐢
+  (Guardian; silver helm, purple armour, amber shell), Nova → **Talon** 🦅
+  (Ranger; green hood, spear, red scarf), Skye → **Kira** 🦊 (Duelist; white
+  fox, red ponytail, navy tunic) and Nyx → **Selene** 🐈 (Mystic; a cream moon
+  cat with midnight-blue hair, a blue robe and a golden orb). `STYLE_LABEL`
+  now names the types Warrior / Guardian / Ranger / Duelist / Mystic. Sprite
+  ids follow the names (`valor` … `selene`); the old sheets are gone and
+  `build.py heroes` writes the five.
+- **Valor:** 💥 **Battle Cry** — opens every fight focused, so his first
+  landed Attack hits double (Focus Tea's rule; its note now reads "💥
+  Focused", naming neither source); 🦁 **Lionheart** — below half HP his
+  Attacks hit ×1.5 (`LIONHEART_MULT`).
+- **Bastion:** 🛡️ **Shell Up** — opens every fight guarded (the first blow is
+  fully blocked; the stage shows his guard); 🪨 **Rock Steady** — a wrong
+  defend answer still blocks half his block (`ROCK_STEADY_SHARE`).
+- **Talon:** 🌬️ **Second Wind** — once a fight, a knockout blow leaves 1 HP
+  ("🌬️ Second Wind! Talon hangs on with 1 HP!"); 🎯 **Keen Eye** — every right
+  answer mends 3 HP (`KEEN_EYE_HEAL`, floats "🎯 +3").
+- Kira and Selene keep Counter Strike / Fox Sense and Spark Start / Spell Power.
+- **Opening perks** (`heroOpening`) now cover all five (`HeroOpening` gains
+  `focused` / `guarded` / `secondWind`; `NO_OPENING` is the explicit
+  none); each floats a short line as the fight opens ("💥 Battle Cry!",
+  "🛡️ Shell Up!", "✨ +2◆").
+- **Review** (`/saas-code-review`): no security surface (no Supabase change); one
+  low fix — a battle with no hero gets `NO_OPENING`, not Talon's Second Wind.
+- Tests: 901 green (+8 net: every type has two distinct abilities, each
+  type's opening, Lionheart / Rock Steady / Keen Eye math, Battle Cry /
+  Shell Up / Second Wind turns, and Battle Cry, Lionheart, Shell Up, Keen
+  Eye and Second Wind in the real arena); lint + build clean. Checked in
+  headless Chromium: the hero select at 375 and 1280 px (no sideways scroll)
+  and Valor's Battle Cry landing 80 in a real battle.
+
+### 2026-10-10 — Two heroines: Skye (swift) and Nyx (mystic), each with special abilities (#115)
+The hero select offers five heroes. The new two each bring a new hero type
+(`FIGHT_STYLES` in `types` now derives `FightStyle`) with two abilities:
+- **Skye** 🦊 (`a4`, **Swift**, 100 HP; attack 32, block 28): an arctic-fox
+  duelist. **⚡ Counter Strike** — after a defend question answered right
+  (guarded, power blow and all), a still-standing Skye strikes back for 40% of
+  her attack (`COUNTER_SHARE`, `counterDamage`; streak-boosted like any hit),
+  inside `resolveEnemyTurn` (`counter` in, `countered` / `counterShattered`
+  out): a stony shield shatters instead, a counter can win the fight or cross
+  a boss phase, and a healer mends after it. In the arena she lunges back once
+  the blow lands ("⚡ -13"), and the enemy's HP waits for it (`commit`'s
+  `enemyRevealMs`). A timeout or wrong answer never counters. **🦊 Fox Sense** —
+  one free Hint Feather per battle (`CombatState.freeHint`), used before her
+  own feathers ("🦊 Fox Sense — use a free hint!", `QuestionCard`'s new
+  `hintLabel`); trickster enemies still block hints.
+- **Nyx** 🐈‍⬛ (`a5`, **Mystic**, 110 HP; attack 26, block 30, spell power
+  50): a starry black-cat spellcaster. **✨ Spark Start** — every battle opens
+  with 2◆ (`SPARK_START_CHARGE`, floats "✨ +2◆"), so Mend is castable on turn
+  one. **🔮 Spell Power** — spells and Pair Attacks scale from a new spell-power
+  stat, `STYLE_MAGIC` (50 for her; for Blaze, Shield and Nova it equals their
+  attack, so their spells and Pair Attacks hit exactly as before). Pair Attacks
+  use it too, so "a Pair Attack beats a solo spell of the same cost" holds for
+  every type (companion.test now checks all five).
+- **Opening perks** (`heroOpening(style)`, `lib/battleTurn.ts`) reach the fight
+  through `battleStore.start(…, opening)` from `WorldScreen`'s encounter; the
+  original three get none.
+- **Hero select** (`AvatarSelect`): wide cards in a list on a phone, a
+  wrapping row (3 + 2, then all five) from `sm` up; each shows its type
+  (`STYLE_LABEL`), description, HP and any abilities. The 📜 Menu's hero card
+  shows the type and the ability names.
+- **Art** (`python3 tools/assets/build.py heroes`): Skye (sky-blue ponytail, a
+  pink flower and scarf, a teal tunic, a sword) and Nyx (silver hair, a starry
+  robe and cape, a glowing orb held low so it never hides her face), drawn
+  with the existing humanoid drawer; the manifest only gained entries, and a
+  full sprite rebuild into a temp dir matches every committed sheet.
+- **Fix (pre-existing):** battle floats were never centred — Motion's
+  transform replaced the Tailwind `-translate-x-1/2`, so every number hung off
+  to the right of its fighter and long ones ("Blocked!") were cut off at a
+  phone's edge. `BattleStage`'s floats centre through Motion's own `x`.
+- Story text is all "you", so nothing needed rewording for the heroines.
+- Tests: 893 green (+24: battleTurn.test 9, battleMath.test 2,
+  BattleArena.test 5, AvatarSelect.test 4, avatars.test 4; companion.test's
+  pair-vs-spell check over every type), lint + build clean. Checked in
+  headless Chromium (a temporary harness page, Supabase stubbed): the hero
+  select at 320 / 375 / 820 / 1280 px with no sideways scroll; Skye's Fox
+  Sense and Counter Strike and Nyx's Spark Start and Spells menu in the real
+  arena at 375×667; both heroines walking Lumina Village on the bench.
 
 ### 2026-10-10 — Merge main (14c groundwork, 14e Remembrance Hill) into the sea-critters branch (#75 item 14d)
 `main` took 14c and 14e while 14d was in review. Both used ISSUES **#112**

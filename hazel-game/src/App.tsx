@@ -3,7 +3,7 @@ import { useAuthInit } from './features/auth/useAuthInit';
 import { useAuthStore } from './store/authStore';
 import { useSaveStore } from './store/saveStore';
 import { useBattleStore } from './store/battleStore';
-import { useScreenMusic } from './lib/audio';
+import { musicScreen, useScreenMusic } from './lib/audio';
 import { HUB_ZONE, zone } from './content/zones';
 import { seaAreaAt, type SeaArea } from './content/boat';
 import { sendFlow, useFlow } from './machines/gameFlow';
@@ -77,9 +77,12 @@ export default function App() {
   const zoneKind = useSaveStore((s) => zone(s.save?.zoneId ?? HUB_ZONE).kind);
   const sea = useSeaArea();
 
-  // Background music follows the screen — and, in the world, the sea area or
-  // the kind of place you're in (silent until enabled in the menu).
-  useScreenMusic(screen, isBoss, inSpire, zoneKind, sea);
+  // Background music follows the screen — the sign-in screen has its own intro,
+  // which plays on through the family screens until a kid is playing (#124);
+  // in the world, the sea area or the kind of place you're in (on by default;
+  // the menu turns it off).
+  const playing = !!session && !passwordRecovery && family === 'play';
+  useScreenMusic(musicScreen(initialized, playing, screen), isBoss, inSpire, zoneKind, sea);
 
   // Wake the machine once auth + save have loaded (guards read the save).
   useEffect(() => {
@@ -138,10 +141,12 @@ export default function App() {
   return (
     <>
       {/* The world screen puts the badges and Switch player in its own top bar, so
-          they never cover the place name or an overlay (#75 item 14b, #102i). */}
-      {screen !== 'world' && (
+          they never cover the place name or an overlay (#75 item 14b, #102i);
+          the battle screen puts the badges in its own too, so they never cover
+          the enemy's "!!!" on a phone (#75 item 14f review). */}
+      {screen !== 'world' && screen !== 'battle' && (
         <>
-          <LevelBadge placement={screen === 'battle' ? 'top-center' : 'top-left'} />
+          <LevelBadge />
           <StreakBadge />
         </>
       )}

@@ -14,12 +14,6 @@ describe('LevelBadge', () => {
     expect(screen.getByText('0/100 XP')).toBeInTheDocument();
   });
 
-  it('uses a top-center placement in battle (clears the combatant panels)', () => {
-    const { container } = render(<LevelBadge placement="top-center" />);
-    const badge = container.firstElementChild as HTMLElement;
-    expect(badge.className).toContain('left-1/2');
-    expect(badge.className).not.toContain('left-3');
-  });
 
   it('inline (the world top bar, #102i): in the page, a smaller medallion, the XP read aloud and on hover', () => {
     const { container } = render(<LevelBadge placement="inline" />);
@@ -44,8 +38,31 @@ describe('LevelBadge', () => {
       },
     });
     render(<LevelBadge />);
-    // 250 XP → floor(250/100) + 1 = level 3
+    // No saved level yet: 250 XP on the old flat-100 curve is level 3 with 50
+    // over, and level 3 now needs 150.
     expect(screen.getByText('Level 3')).toBeInTheDocument();
-    expect(screen.getByText('50/100 XP')).toBeInTheDocument();
+    expect(screen.getByText('50/150 XP')).toBeInTheDocument();
+  });
+
+  it('shows the saved level, not one worked out from total XP', () => {
+    useProfileStore.setState({
+      profile: {
+        id: 'u1',
+        birthYear: 2014,
+        birthMonth: 6,
+        skillLevels: {},
+        xp: 1000,
+        level: 11,
+        levelXp: 40,
+        powerUps: {},
+        currentStreak: 0,
+        longestStreak: 0,
+        lastPlayedOn: null,
+      },
+    });
+    render(<LevelBadge />);
+    // Level 11 needs 100 + 10 × 25 = 350 XP
+    expect(screen.getByText('Level 11')).toBeInTheDocument();
+    expect(screen.getByText('40/350 XP')).toBeInTheDocument();
   });
 });

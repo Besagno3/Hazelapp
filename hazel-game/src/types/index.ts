@@ -45,7 +45,12 @@ export interface Question {
   timesAsked?: number;
 }
 
-export type FightStyle = 'aggressive' | 'defensive' | 'balanced';
+/**
+ * A hero's type — sets their attack, block and spell power (`lib/battleMath.ts`)
+ * and its two signature abilities (`HERO_ABILITIES`, `content/avatars.ts`).
+ */
+export const FIGHT_STYLES = ['aggressive', 'defensive', 'balanced', 'swift', 'mystic'] as const;
+export type FightStyle = (typeof FIGHT_STYLES)[number];
 
 export interface Avatar {
   id: string;
@@ -162,8 +167,15 @@ export interface Profile {
   birthYear: number;
   birthMonth: number;
   skillLevels: SkillLevels;
-  /** Total experience points; player level is derived from this (lib/level.ts). */
+  /** Lifetime experience points. */
   xp: number;
+  /**
+   * Saved player level, and the XP earned toward the next one (lib/level.ts).
+   * Absent on a profile cached before levels were saved — `levelState`
+   * derives them from `xp` then.
+   */
+  level?: number;
+  levelXp?: number;
   /** Power-ups chosen on level-ups. */
   powerUps: PowerUps;
   /** Consecutive days played (#28). */
