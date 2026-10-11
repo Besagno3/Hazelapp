@@ -20,7 +20,7 @@
  *                                                      or where they land rests — lets them pass —
  *                                                      until they leave its patch; a bump's cooldown
  *                                                      never lets the hero through a boss
- *   node bench/run-world-bench.cjs use [outDir]        press to use on the real canvas (#124): a door
+ *   node bench/run-world-bench.cjs use [outDir]        press to use on the real canvas (#127): a door
  *                                                      from up to 18 px off its middle lets the hero in;
  *                                                      chests, gates and people wait for Space / Enter /
  *                                                      a click; a person kept walking into steps aside;
@@ -250,8 +250,9 @@ const STUB = 'http://supabase.stub';
 const HUD_USER = 'u-hud';
 
 /**
- * Signs in a stub player and answers Supabase for them: their profile, `save`
- * as their saved game, canned questions; every write succeeds.
+ * Signs in a stub grown-up whose one kid is already playing in this tab (#124)
+ * and answers Supabase for them: consent given, the kid's profile, `save` as
+ * their saved game, canned questions; every write succeeds.
  */
 async function stubbedApp(browser, viewport, save, profile, { reducedMotion, ready = '[data-testid=world-topbar]' } = {}) {
   const page = await browser.newPage({ viewport, reducedMotion });
@@ -263,7 +264,13 @@ async function stubbedApp(browser, viewport, save, profile, { reducedMotion, rea
     expires_at: Math.floor(Date.now() / 1000) + 31536000,
     user: { id: HUD_USER, aud: 'authenticated', role: 'authenticated', email: 'kid@example.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' },
   };
-  await page.addInitScript((s) => localStorage.setItem('sb-supabase-auth-token', s), JSON.stringify(session));
+  await page.addInitScript(
+    ([s, kid]) => {
+      localStorage.setItem('sb-supabase-auth-token', s);
+      sessionStorage.setItem(`hazel-active-kid-${kid}`, kid); // past "Who's playing?"
+    },
+    [JSON.stringify(session), profile.id],
+  );
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(String(e)));
   await page.route(`${STUB}/**`, async (route) => {
@@ -272,7 +279,8 @@ async function stubbedApp(browser, viewport, save, profile, { reducedMotion, rea
     const one = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
     const json = (body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     if (req.method() !== 'GET' && url.includes('/rest/v1/')) return route.fulfill({ status: 201, body: '' });
-    if (url.includes('/rest/v1/profiles')) return json(one ? profile : [profile]);
+    if (url.includes('/rest/v1/parents')) return json([{ consent_at: '2026-10-10T00:00:00Z', has_pin: false }]);
+    if (url.includes('/rest/v1/profiles')) return json(one ? profile : [{ display_name: 'Hud', icon: 'fox', has_pin: true, ...profile }]);
     if (url.includes('/rest/v1/saves')) return json(one ? { data: save } : [{ data: save }]);
     if (url.includes('/functions/v1/generate-questions')) {
       const questions = Array.from({ length: 6 }, (_, i) => ({
@@ -490,7 +498,7 @@ async function hud(browser, outDir) {
     const size = `${width}×${height}`;
     const page = await stubbedApp(browser, { width, height }, depths, profile);
     const errors = page.errors;
-    const problems = []; // keyboard, tap-target and Sign-out checks (#75 item 14b review)
+    const problems = []; // keyboard, tap-target and Switch-player checks (#75 item 14b review)
     const layout = await page.evaluate(hudLayout);
     await page.screenshot({ path: path.join(outDir, `hud-${size}.png`) });
     // Tab never sticks: the canvas isn't focusable, and a dozen Tabs move on.
@@ -501,15 +509,15 @@ async function hud(browser, outDir) {
     if (new Set(walk.slice(-4)).size === 1) problems.push(`Tab stuck on ${walk.at(-1)}`);
     const tap = await page.evaluate(tapsLand, '📜 Menu');
     if (tap) problems.push(tap);
-    // Asking "Sign out?" doesn't move anything on a phone.
+    // Asking "Switch?" doesn't move anything on a phone.
     if (width <= 375) {
       const before = await page.evaluate(hudLayout);
-      await page.getByRole('button', { name: 'Sign out' }).click();
+      await page.getByRole('button', { name: 'Switch player' }).click();
       await page.waitForTimeout(150);
       const armed = await page.evaluate(hudLayout);
-      await page.screenshot({ path: path.join(outDir, `hud-${size}-signout-armed.png`) });
+      await page.screenshot({ path: path.join(outDir, `hud-${size}-switch-armed.png`) });
       if (armed.barHeight !== before.barHeight || armed.stage !== before.stage)
-        problems.push(`asking "Sign out?" moved the page: bar ${before.barHeight}→${armed.barHeight}px, stage ${before.stage} → ${armed.stage}`);
+        problems.push(`asking "Switch?" moved the page: bar ${before.barHeight}→${armed.barHeight}px, stage ${before.stage} → ${armed.stage}`);
     }
     // 📜 Menu by keyboard: focus moves in and stays in; closing brings it back to 📜 Menu.
     await page.getByRole('button', { name: '📜 Menu' }).focus();
@@ -532,8 +540,8 @@ async function hud(browser, outDir) {
     await sp.keyboard.down('ArrowDown');
     await sp.waitForTimeout(900);
     await sp.keyboard.up('ArrowDown');
-    await sp.keyboard.press('Space'); // the Spire's door waits to be used (#124)
-    // The door's lines: Tab, Tab, Tab never reaches the top bar's Sign out under the panel.
+    await sp.keyboard.press('Space'); // the Spire's door waits to be used (#127)
+    // The door's lines: Tab, Tab, Tab never reaches the top bar's Switch under the panel.
     await sp.waitForSelector('[role=dialog][aria-label="The Crystal Spire"]', { timeout: 5000 }).catch(() => {});
     const underPanel = (await tabs(sp, 4)).filter((f) => f.startsWith('top bar'));
     if (underPanel.length) problems.push(`Tab reached the top bar under a Spire panel: ${underPanel.join(', ')}`);
@@ -705,7 +713,7 @@ async function sea(browser, outDir) {
   );
 
   // A bump's cooldown spares only an enemy already touching the hero (#114t): use the
-  // Whispering Woods save crystal (18,2) from 18,3 (a press since #124) — a 2 s cooldown —
+  // Whispering Woods save crystal (18,2) from 18,3 (a press since #127) — a 2 s cooldown —
   // then head down-left past the Thicket Warden (16,4). It fights; it used to let the hero
   // walk through.
   page = await ready('zone=whispering-woods&at=18,3');
@@ -724,7 +732,7 @@ async function sea(browser, outDir) {
 }
 
 /**
- * Press to use (#124), on the real canvas with real keys: doorways a few pixels
+ * Press to use (#127), on the real canvas with real keys: doorways a few pixels
  * off still let the hero in (the corner assist); chests, gates and people wait
  * for Space / Enter / a click, and a person stops the hero; one walked into
  * for ~1.5 s steps aside.
@@ -766,7 +774,7 @@ async function use(browser, outDir) {
   };
 
   // Numbria's south-west shop door (28,5): walk straight up from a little off its middle.
-  // The hero's box only fits a one-tile door within ±5 px; before #124 6 px off stopped them.
+  // The hero's box only fits a one-tile door within ±5 px; before #127 6 px off stopped them.
   for (const off of [0, 6, 10, 14, 18, -10, -18]) {
     const page = await ready(`zone=numbria&at=${28 + off / TILE},6`);
     await hold(page, 'ArrowUp', 1200);
@@ -825,7 +833,7 @@ async function use(browser, outDir) {
   s = await where(page);
   await check(page, 'someone walked into for ~1.5 s steps aside, and the hero walks on past', after1 > 20 * TILE + TILE / 2 + 20 && s.pos.y < 20 * TILE && s.talks.length === 0, `y ${Math.round(after1)} after 1 s, then ${Math.round(s.pos.y)}; ${s.talks.length} talks`);
 
-  // The village shop (#124): the keeper (village-shopkeeper, 8,5) stands behind the counter
+  // The village shop (#127): the keeper (village-shopkeeper, 8,5) stands behind the counter
   // row (y 6). Straight across from (8,7), a click on the keeper talks to them; from a
   // corner (9,7) Space does. (The camera sits 16 px down here: the map's top is off screen.)
   page = await ready('zone=lumina-village&at=8,7');

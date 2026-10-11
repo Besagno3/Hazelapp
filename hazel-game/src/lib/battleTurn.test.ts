@@ -53,6 +53,8 @@ const base: CombatState = {
   focused: false,
   lucky: false,
   knotted: false,
+  candleLit: false,
+  candleHint: false,
   freeHint: false,
   secondWind: false,
 };
@@ -541,5 +543,17 @@ describe('signature abilities: Valor, Bastion, Talon', () => {
     const light = resolveEnemyTurn({ ...base, secondWind: true }, enemyInput);
     expect(light.secondWind).toBe(false);
     expect(light.state.secondWind).toBe(true);
+  });
+});
+
+describe('the Glimmer Candle (#75 item 14g)', () => {
+  it('a free hint now, and hints that work on a trickster for the rest of the fight', () => {
+    const lit = resolveItem(base, 'candle').state;
+    expect([lit.candleLit, lit.candleHint]).toEqual([true, true]);
+    // Kira's Fox Sense hint stays her own: the candle's is one more (#75 item 14g review).
+    expect(resolveItem({ ...base, freeHint: true }, 'candle').state).toMatchObject({ freeHint: true, candleHint: true });
+    expect(itemBlocked(base, 'candle', 1)).toBeNull();
+    expect(itemBlocked({ ...base, candleLit: true }, 'candle', 1)).toBe('Already lit');
+    expect(itemBlocked(base, 'candle', 0)).toBe('None left');
   });
 });

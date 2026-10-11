@@ -4,7 +4,7 @@ import { useRef } from 'react';
  * On-screen d-pad for tablets/phones (#37, from the #36 follow-up list).
  * Reports the held direction via `onDirChange`; the parent stores it in a
  * ref the KaPlay loop reads each frame — no React re-renders while walking.
- * Beside it, the ✋ button uses what the hero faces (#124) — opens a chest,
+ * Beside it, the ✋ button uses what the hero faces (#127) — opens a chest,
  * talks to someone — and says what it would do (`action`, from the canvas).
  */
 /** A click this soon (ms) after the button's press is that tap's own click. */

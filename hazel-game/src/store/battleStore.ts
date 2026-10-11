@@ -30,6 +30,9 @@ interface BattleStore {
   focused: boolean;
   lucky: boolean;
   knotted: boolean;
+  /** Glimmer Candle (#75 item 14g): Hint Feathers work on tricksters this fight. */
+  candleLit: boolean;
+  candleHint: boolean;
   /** Fox Sense (Kira): a free Hint Feather still to use this fight. */
   freeHint: boolean;
   /** Second Wind (Talon): a knockout blow leaves 1 HP — once a fight. */
@@ -49,6 +52,11 @@ interface BattleStore {
   toughMet: number[];
   /** The "💤 Sleepy critters let you pass…" hint has been said this session (#114e). */
   sleeperHintSaid: boolean;
+  /**
+   * Where an escort (#75 item 14g, Posy) last stood, so a battle mid-walk
+   * leaves her where she was — session only, and cleared whenever the walk ends.
+   */
+  escortAt: { x: number; y: number } | null;
 
   /** `opening`: the hero type's perks as the fight opens (`heroOpening`) — none by default. */
   start: (enemy: BattleEnemy, playerHp: number, playerMaxHp: number, opening?: HeroOpening) => void;
@@ -57,6 +65,7 @@ interface BattleStore {
   recordLoss: (key: string) => void;
   meetTough: (tier: number) => void;
   saySleeperHint: () => void;
+  setEscortAt: (at: { x: number; y: number } | null) => void;
   endBattle: () => void;
   reset: () => void;
 }
@@ -70,6 +79,8 @@ const FRESH_COMBAT = {
   focused: false,
   lucky: false,
   knotted: false,
+  candleLit: false,
+  candleHint: false,
   freeHint: false,
   secondWind: false,
 };
@@ -84,6 +95,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
   losses: {},
   toughMet: [],
   sleeperHintSaid: false,
+  escortAt: null,
 
   start: (enemy, playerHp, playerMaxHp, opening = NO_OPENING) =>
     set({
@@ -113,6 +125,8 @@ export const useBattleStore = create<BattleStore>((set) => ({
       focused: s.focused,
       lucky: s.lucky,
       knotted: s.knotted,
+      candleLit: s.candleLit,
+      candleHint: s.candleHint,
       freeHint: s.freeHint,
       secondWind: s.secondWind,
     }),
@@ -125,6 +139,8 @@ export const useBattleStore = create<BattleStore>((set) => ({
   meetTough: (tier) => set((s) => (s.toughMet.includes(tier) ? s : { toughMet: [...s.toughMet, tier] })),
 
   saySleeperHint: () => set({ sleeperHintSaid: true }),
+
+  setEscortAt: (at) => set({ escortAt: at }),
 
   endBattle: () => set({ enemy: null }),
 
@@ -139,6 +155,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
       losses: {},
       toughMet: [],
       sleeperHintSaid: false,
+      escortAt: null,
     }),
 }));
 
@@ -158,6 +175,8 @@ export function combatState(): CombatState {
     focused: s.focused,
     lucky: s.lucky,
     knotted: s.knotted,
+    candleLit: s.candleLit,
+    candleHint: s.candleHint,
     freeHint: s.freeHint,
     secondWind: s.secondWind,
   };

@@ -2,7 +2,7 @@ import { WALKABLE_CHARS, buildingAt, type TravelMode, type ZoneDef } from '../co
 import { reach, reachPath, type Cell, type ReachOptions } from './reach';
 
 /**
- * Using things in the world (#124): chests, gates, the save crystal, Spire
+ * Using things in the world (#127): chests, gates, the save crystal, Spire
  * seals and stairs, shop counters and people all wait for the hero to press
  * to use them — Space, Enter, a click or tap on the world, or the ✋ button —
  * instead of going off the moment they're bumped. Pure helpers, unit-tested
@@ -116,7 +116,7 @@ export function promptText(label: string, touch: boolean): string {
 export const CORNER_ASSIST = 20;
 
 /**
- * Doorway corner assist (#124). The hero's box (22 px) is narrower than a
+ * Doorway corner assist (#127). The hero's box (22 px) is narrower than a
  * tile (32 px), so a one-tile door, gate or corridor only lets them through
  * while they're within ±5 px of its middle — a few frames of a held arrow
  * key, and a corner clipping the frame stopped them dead. Walking straight
@@ -144,7 +144,7 @@ export function slideStep(centre: number, target: number, max: number): number {
   return Math.sign(d) * Math.min(Math.abs(d), max);
 }
 
-/** Walking into the same person this long (seconds) and they step out of the way (#124). */
+/** Walking into the same person this long (seconds) and they step out of the way (#127). */
 export const SCOOT_AFTER_S = 1.5;
 /** How fast they step aside (px/s) — quicker than the hero walks (170). */
 export const SCOOT_SPEED = 260;
@@ -175,7 +175,7 @@ const chebyshev = (a: Cell, b: Cell) => Math.max(Math.abs(a.x - b.x), Math.abs(a
 
 /**
  * The way a person steps aside for a hero who keeps walking into them
- * (#124): cell by cell (start included) to a spot a few steps away — off the
+ * (#127): cell by cell (start included) to a spot a few steps away — off the
  * line the hero is walking (`push`, from their cell `hero`) if there is one,
  * at least two cells from them, never past a wall, into or out of a building
  * (`buildingAt` stays the same), onto an exit or into fog. Cells `blocked`
@@ -234,7 +234,7 @@ export function scootPath(
   return null;
 }
 
-/** Tiles someone can be talked to across (#72, #124): a shop counter, and a desk or table — an innkeeper's, say. */
+/** Tiles someone can be talked to across (#72, #127): a shop counter, and a desk or table — an innkeeper's, say. */
 export const COUNTER_CHARS = new Set(['K', 'T']);
 
 /**

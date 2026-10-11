@@ -8,6 +8,7 @@ import shallowsTmj from './maps/silver-shallows.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 import { ACT2_SEEN } from './story';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, stepFlag } from './questFlags';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -48,6 +49,9 @@ export const ZONE_IDS = [
   // Act II (#75 item 14f): an island of ring-trees on the Shallows' south side,
   // where the Ringkeeper keeps the Memoria Key.
   'eldergrove',
+  // Act II (#75 item 14g): a marshy coast on the Shallows' north edge, where the
+  // last of the fog pooled — Posy's walk, Brume's lanterns, the Last Fogbank.
+  'foglight-marsh',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -135,7 +139,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -200,7 +204,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -464,6 +468,12 @@ function crystalPocket(
     lifted: `✨ The fog lifts! A treasure chest was hiding ${where}.`,
   };
 }
+
+/** Posy's walk through Foglight Marsh (#75 item 14g): offered, arrived at the stone, done. */
+const POSY_ARRIVED = stepFlag(POSY_WALK);
+const POSY_DONE = questDoneFlag({ id: POSY_QUEST });
+
+const BRUME_WANTS = "🏮 Lightkeeper Brume, by the lamp-house in the Marsh's west, has lost her Lantern Ledger!";
 
 /** Who wants an acorn found in Eldergrove before her quest is offered (#75 item 14f). */
 const FEN_WANTS = "🧺 Fen the Forager, by her hollow in the grove's north-west, has lost her three best acorns!";
@@ -1704,8 +1714,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'starfix', x: 44, y: 34 },
     ],
     // Eldergrove (#75 item 14f): an island in the south-west, with a beach on its north side.
-    places: [{ x: 12, y: 39, icon: 'elder', name: 'Eldergrove' }],
-    exits: [{ x: 12, y: 39, to: 'eldergrove', spawnX: 20, spawnY: 1 }],
+    places: [
+      { x: 12, y: 39, icon: 'elder', name: 'Eldergrove' },
+      // Foglight Marsh (#75 item 14g): the north coast, a beach below it.
+      { x: 34, y: 1, icon: 'marsh', name: 'Foglight Marsh' },
+    ],
+    exits: [
+      { x: 12, y: 39, to: 'eldergrove', spawnX: 20, spawnY: 1 },
+      { x: 34, y: 1, to: 'foglight-marsh', spawnX: 20, spawnY: 26 },
+    ],
     // Its tower stands on the rock just east of Ness's cottage.
     lighthouse: { x: 15, y: 16 },
     landmarks: [
@@ -1776,7 +1793,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     npcs: [
       { defId: 'hill-keeper', x: 16, y: 18 },
-      { defId: 'hill-posy', x: 14, y: 23 },
+      // Posy leaves the Hill for Foglight Marsh while her walk is on (#75 item 14g), and comes home after.
+      // She stays until the hero has been to the Marsh since she asked (#75 item 14g).
+      { defId: 'hill-posy', x: 14, y: 23, unlessFlag: POSY_SAILED },
+      { defId: 'hill-posy', x: 14, y: 23, ifFlag: POSY_DONE },
       { defId: 'hill-merchant', x: 25, y: 3 },
       { defId: 'hill-innkeeper', x: 7, y: 5 },
       { defId: 'hill-traveler', x: 19, y: 9 },
@@ -1867,6 +1887,98 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Back out to the island's path, just north of Eldergrove's icon on the Shallows.
       { x: 20, y: 0, to: 'silver-shallows', spawnX: 12, spawnY: 38 },
       { x: 21, y: 0, to: 'silver-shallows', spawnX: 12, spawnY: 38 },
+    ],
+  },
+  // Foglight Marsh (#75 item 14g): the Shallows' north coast, where the last
+  // of the fog pooled. Boardwalks run from the landing in the south up to a
+  // long walk across the middle: west to Brume's lamp-house and on north to
+  // the Nameless Stone (Posy's walk), north past the reed pools, east to the
+  // Lantern Ledger's chest — and south-east into a cove where the Last
+  // Fogbank sulks in front of the riddle-chest. Slosh's raft shop is by the landing.
+  'foglight-marsh': {
+    id: 'foglight-marsh',
+    name: 'Foglight Marsh',
+    kind: 'field',
+    topic: 'history',
+    map: [
+      '############################################',
+      '#..........................................#',
+      '#..#.....#...~~~~.#..........#............##',
+      '#............~~~~....=...~~~~....#...#..C..#',
+      '#...,.======.~~~~..,.=...~~~~..............#',
+      '#..........=.........=...~~~~.......#...=..#',
+      '#.,........=.........=...~~~~.#.........=..#',
+      '#.......#..=....,.#..=.#...........,....=..#',
+      '#..........=.........=........~~~~~~..#.=..#',
+      '#.WWWWWWW..=.....#...=.....,..~~~~~~....=..#',
+      '#.WZFFFBW..=.........=...#....~~~~~~....=..#',
+      '#.WFFFFFW..=..#......=.,......~~~~~~....=..#',
+      '#.WTFFFFW..=.........=......#.........,.=..#',
+      '#.WWWDWWW..=.........=.........,.#......=..#',
+      '#....====================================..#',
+      '#...................==....#.........#...=..#',
+      '#.#..........#......==.........#........=..#',
+      '#........#..........==..#...............=..#',
+      '#.............~~~~~.==............######=###',
+      '#.............~~~~~.==............######=###',
+      '#..#....,...#.~~~~~.==...WWWWWWW..######=###',
+      '#.............~~~~~.==...WBFFFBW..######=###',
+      '#.............~~~~~.==..#WKKKKKW..######=###',
+      '#.~~~~~.............==...WFFFFFW..######=###',
+      '#.~~~~~...#.........==...WWWDWWW..######=.##',
+      '#.~~~~~.........#...=========.....#####.=C##',
+      '#...........,.......==............##########',
+      '####################EE######################',
+    ],
+    ground: [104, 128, 100],
+    path: [150, 122, 84],
+    solidEmoji: '🌾',
+    decoEmoji: '🪷',
+    spawn: { x: 20, y: 26 },
+    buildings: [
+      // Stilt huts over the bog — the Marsh's own style.
+      { id: 'brume-lamphouse', name: "Brume's Lamp-House", x: 2, y: 9, w: 7, h: 5, roof: 'slate', style: 'stilt', sign: 'star' },
+      { id: 'slosh-raft-shop', name: "Slosh's Raft Shop", x: 25, y: 20, w: 7, h: 5, roof: 'thatch', style: 'stilt', sign: 'shop' },
+    ],
+    // Beaten in the Marsh, Brume finds you with her lantern and brings you in to dry off.
+    shelter: { building: 'brume-lamphouse', host: 'Lightkeeper Brume' },
+    npcs: [
+      { defId: 'marsh-brume', x: 7, y: 15 },
+      { defId: 'marsh-puddle', x: 17, y: 16 },
+      { defId: 'marsh-slosh', x: 28, y: 21 },
+      // The Nameless Stone, at the end of the boardwalk in the north-west.
+      { defId: 'marsh-stone', x: 5, y: 4 },
+      // Posy (#75 item 14g): she waits at the landing once she's asked you, walks
+      // with you (the canvas leads her), then stays by the stone until you've talked.
+      { defId: 'hill-posy', x: 21, y: 23, ifFlag: POSY_SAILED, unlessFlag: POSY_ARRIVED },
+      { defId: 'hill-posy', x: 6, y: 3, ifFlag: POSY_ARRIVED, unlessFlag: POSY_DONE },
+      // Brume's three lanterns: dark until the Ledger's step for each is done.
+      { defId: 'marsh-lantern-west', x: 12, y: 8, unlessFlag: stepFlag('lantern-west') },
+      { defId: 'marsh-lantern-west-lit', x: 12, y: 8, ifFlag: stepFlag('lantern-west') },
+      { defId: 'marsh-lantern-north', x: 22, y: 5, unlessFlag: stepFlag('lantern-north') },
+      { defId: 'marsh-lantern-north-lit', x: 22, y: 5, ifFlag: stepFlag('lantern-north') },
+      { defId: 'marsh-lantern-east', x: 39, y: 10, unlessFlag: stepFlag('lantern-east') },
+      { defId: 'marsh-lantern-east-lit', x: 39, y: 10, ifFlag: stepFlag('lantern-east') },
+    ],
+    enemies: [
+      // Clear of Posy's walk — the boardwalks and the grass shortcut west from the
+      // north boardwalk's top — so she never waits on a critter that can't leave
+      // (#75 item 14g UX review; moved again by the owner's call).
+      { defId: 'mist-newt', x: 31, y: 3 },
+      { defId: 'mist-newt', x: 30, y: 16 },
+      { defId: 'bog-lantern', x: 26, y: 8 },
+      { defId: 'bog-lantern', x: 8, y: 19 },
+      { defId: 'murk-toad', x: 15, y: 25 },
+      { defId: 'murk-toad', x: 35, y: 13 },
+      // In its cove, in front of the riddle-chest (optional).
+      { defId: 'last-fogbank', x: 40, y: 22 },
+    ],
+    // Brume's Lantern Ledger, in the reeds up the east boardwalk.
+    keyChests: [{ x: 40, y: 3, item: 'lantern-ledger', wantedBy: BRUME_WANTS }],
+    exits: [
+      // Back out to the beach path, just south of the Marsh's icon on the Shallows.
+      { x: 20, y: 27, to: 'silver-shallows', spawnX: 34, spawnY: 2 },
+      { x: 21, y: 27, to: 'silver-shallows', spawnX: 34, spawnY: 2 },
     ],
   },
 };

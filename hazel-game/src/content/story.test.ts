@@ -19,6 +19,7 @@ import {
   EMBER_MAP_SIZE,
   EMBER_HATCHED,
   MEMORIA_PANELS,
+  POSY_STONE_PANELS,
 } from './story';
 import { TOPICS } from './topics';
 import { NPC_DEFS, type DialogueLine } from './npcs';
@@ -201,6 +202,9 @@ describe('the Memoria Key (#75 item 14f)', () => {
   it('two short panels: the key, and the door it opens — nobody knows where yet', () => {
     expect(MEMORIA_PANELS).toHaveLength(2);
     for (const p of MEMORIA_PANELS) expect(p.text.split(/\s+/).length, p.text).toBeLessThanOrEqual(30);
+    // Posy's flower at the Nameless Stone (#75 item 14g): the escort's ending, two short panels.
+    expect(POSY_STONE_PANELS).toHaveLength(2);
+    for (const p of POSY_STONE_PANELS) expect(p.text.split(/\s+/).length, p.text).toBeLessThanOrEqual(30);
     expect(MEMORIA_PANELS[1].text).toMatch(/door the whole world forgot/);
     // The Sunken Archive and its Fiend aren't on the map yet (#75 item 14h).
     expect(MEMORIA_PANELS.map((p) => p.text).join(' ')).not.toMatch(/Archive|Hollow Fiend/);

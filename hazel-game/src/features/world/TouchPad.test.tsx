@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import TouchPad from './TouchPad';
 
-describe('the touch pad’s ✋ button (#124)', () => {
+describe('the touch pad’s ✋ button (#127)', () => {
   it('says what it would do, and is a dim "Use" with nothing to use', () => {
     const { rerender } = render(<TouchPad onDirChange={() => {}} onAction={() => {}} action={null} />);
     const idle = screen.getByRole('button', { name: 'Use (nothing here yet)' });

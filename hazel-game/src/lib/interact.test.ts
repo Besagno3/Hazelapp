@@ -46,7 +46,7 @@ function walkable(z: ZoneDef, path: Cell[]) {
 }
 const last = (p: Cell[] | null) => p?.[p.length - 1];
 
-describe('the use keys (#124)', () => {
+describe('the use keys (#127)', () => {
   it('Space and Enter use things; other keys never do', () => {
     expect(isInteractKey({ key: ' ', code: 'Space' })).toBe(true);
     expect(isInteractKey({ key: 'Spacebar', code: '' })).toBe(true);
@@ -69,7 +69,7 @@ describe('the use keys (#124)', () => {
   });
 });
 
-describe('what the hero would use (#124)', () => {
+describe('what the hero would use (#127)', () => {
   it('looks the way they face first, then to the sides, then behind', () => {
     expect(probeDirs({ x: 0, y: 1 })).toEqual([
       { x: 0, y: 1 },
@@ -114,7 +114,7 @@ describe('what the hero would use (#124)', () => {
   });
 });
 
-describe('doorway corner assist (#124)', () => {
+describe('doorway corner assist (#127)', () => {
   const T = 32;
   const door = 5; // the one open cell in the wall, centred at 176 px
   const open = (c: number) => c === door;
@@ -144,7 +144,7 @@ describe('doorway corner assist (#124)', () => {
   });
 });
 
-describe('stepping aside for the hero (#124)', () => {
+describe('stepping aside for the hero (#127)', () => {
   it('counts how long the hero keeps walking into the same person', () => {
     let push = pushOn(null, 'mabel', 0.5);
     push = pushOn(push, 'mabel', 0.5);
@@ -219,7 +219,7 @@ describe('stepping aside for the hero (#124)', () => {
   });
 });
 
-describe('talking across a counter or a desk (#72, #124)', () => {
+describe('talking across a counter or a desk (#72, #127)', () => {
   const T = 32;
   const counter = { x: 144, y: 208 }; // the counter tile's centre; the keeper stands a tile beyond it
   const keeper = { x: 144, y: 176 };

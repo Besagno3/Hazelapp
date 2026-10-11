@@ -30,7 +30,7 @@ const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
 const { INTRO_SEEN, DAWNREACH_SEEN } = await import('../../content/story');
 
-describe('using things from the world screen (#124)', () => {
+describe('using things from the world screen (#127)', () => {
   beforeEach(() => {
     useSaveStore.setState({
       userId: null,

@@ -30,7 +30,7 @@
  * many times it has bumped a fog bank, who it has talked to, and which fog
  * banks it has watched clear). Using a gatekeeper's gate opens it, as an
  * answered question would; a warden's key gate opens only with its key flag.
- * `__bench.use()` presses ✋ (#124); `state().paths` lists the chests and
+ * `__bench.use()` presses ✋ (#127); `state().paths` lists the chests and
  * gates used, and `state().prompt` what ✋ would do now.
  *
  * The walker (#75 item 14b, `bench/walker.ts`, the runner's `journey` mode)
@@ -52,6 +52,9 @@ import { actOneJourney, goalTarget } from '../src/lib/journey';
 import { reachPath, type Cell } from '../src/lib/reach';
 import { floorWards } from '../src/content/spire';
 import { makeWalker, type HopReport } from './walker';
+import { activeEscort } from '../src/content/quests';
+import { stepFlag, withoutEscorts } from '../src/content/questFlags';
+import { defaultSave } from '../src/lib/save';
 import '../src/index.css';
 
 const q = new URLSearchParams(location.search);
@@ -320,13 +323,17 @@ const live: {
   moves: number;
   /** Who the hero walked into (enemy def ids), the Spire icon, seals, stairs, Umbra (#75 item 14b). */
   battles: string[];
-  /** Chests and gates used ("chest:<id>", #124), and what ✋ would do now. */
+  /** Chests and gates used ("chest:<id>", #127), and what ✋ would do now. */
   paths: string[];
   prompt: string | null;
   spire: number;
   wards: string[];
   stairs: number;
   umbra: number;
+  /** An escort's walk (#75 item 14g, `escort=1`): stops to wait, where they stand, arrived. */
+  escortWaits: number;
+  escortAt: { x: number; y: number } | null;
+  escortArrived: boolean;
 } = {
   zoneId,
   exits: 0,
@@ -338,6 +345,9 @@ const live: {
   darkBumps: 0,
   sleeperHints: 0,
   calmLeft: 0,
+  escortWaits: 0,
+  escortAt: null,
+  escortArrived: false,
   aboard: q.get('aboard') === '1',
   boat: boatParam,
   boardings: 0,
@@ -354,7 +364,7 @@ const live: {
 
 /** The direction held — the touch pad's, so the walker can steer the hero. */
 const benchTouch = { current: { dx: 0, dy: 0 } };
-/** Presses of ✋ (#124). */
+/** Presses of ✋ (#127). */
 const benchUse = { current: 0 };
 const useHere = () => {
   benchUse.current += 1;
@@ -402,6 +412,15 @@ bench.walkLeg = async () => {
     talks: live.talks.length,
   };
 };
+/** Walk the hero to cell (x, y) on this zone (#75 item 14g: leading an escort). */
+bench.walkTo = async (x: number, y: number) => {
+  if (!(await walker.ready())) return { ok: false, error: 'the world never started' };
+  const at = await walker.probe();
+  const from = { x: Math.floor(at.x / TILE), y: Math.floor(at.y / TILE) };
+  const path = reachPath(ZONES[live.zoneId], (cx, cy) => cx === x && cy === y, { from, flags: null });
+  if (!path) return { ok: false, error: 'no path' };
+  return walker.walk(path, {});
+};
 /** Walk this page's Spire floor (`floor=…&walk=1`): every seal, then the stairs — or up to Umbra. */
 bench.walkFloor = async () => {
   if (!floor) throw new Error('no floor= param');
@@ -447,6 +466,8 @@ function Bench() {
     zoneId,
     pos: startPos,
   });
+  // `escort=1` (#75 item 14g): the walk the flags say is under way here, as the game works it out.
+  const walk = q.get('escort') === '1' ? activeEscort({ ...defaultSave(), flags: benchFlags }, where.zoneId) : null;
   const [boat, setBoat] = useState<{ aboard: boolean; spot: BoatSpot | null }>({ aboard: live.aboard, spot: live.boat });
   const noop = () => {};
   return (
@@ -528,6 +549,17 @@ function Bench() {
             live.pos = { x, y };
             setBoat({ aboard: true, spot: null });
           },
+          // An escort's walk (#75 item 14g, `escort=1` with its flags).
+          onEscortWait: () => {
+            live.escortWaits += 1;
+          },
+          onEscortMove: (x, y) => {
+            live.escortAt = { x, y };
+          },
+          onEscortArrive: () => {
+            live.escortArrived = true;
+            if (walk) setBenchFlags((f) => ({ ...withoutEscorts(f), [stepFlag(walk.stepId)]: true }));
+          },
           onLand: (spot, x, y) => {
             live.aboard = false;
             live.landings += 1;
@@ -547,6 +579,7 @@ function Bench() {
         actionRef={benchUse}
         boat={boat.aboard ? null : boat.spot}
         aboard={boat.aboard}
+        escort={walk ? { npcId: walk.npcId, goal: walk.goal, from: null } : null}
       />
     </div>
   );

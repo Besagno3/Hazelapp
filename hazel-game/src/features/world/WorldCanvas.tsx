@@ -28,7 +28,7 @@ import {
   type TravelMode,
 } from '../../content/zones';
 import { bossDefeated } from '../../content/keys';
-import { safeSpawn } from '../../lib/reach';
+import { reachPath, safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { habitatOf, spawnPlaced } from '../../content/enemies';
@@ -36,6 +36,7 @@ import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
 import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
+import { arrived, cameBack, dropCrumb, startEscort, stepEscort, stuckBehind, type EscortState } from '../../lib/escort';
 import { contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, staysDown, touching, type Rest } from '../../lib/encounter';
 import {
   EMBER_COST,
@@ -142,7 +143,7 @@ const VIEW_H = VIEW_ROWS * TILE;
 const ROOF_FADE = 10;
 /** Seconds after closing an overlay before a bump (a secret, fog) can trigger again, or a critter beside you fight. */
 const TRIGGER_COOLDOWN = 0.8;
-/** The "Space: Open chest" prompt over what the hero would use (#124): over everyone's bubbles (20–21), under nothing. */
+/** The "Space: Open chest" prompt over what the hero would use (#127): over everyone's bubbles (20–21), under nothing. */
 const PROMPT_Z = 22;
 /** A dark place's circle of light (px): unlit — a few steps around you — and lit by Glow (#75 item 9). */
 const DIM_RADIUS = 80;
@@ -254,9 +255,35 @@ export interface WorldCanvasCallbacks {
   onAshore?: (boat: { x: number; y: number } | null) => void;
   /**
    * What pressing Space / Enter / ✋ would do now — "Open chest", "Talk" — or
-   * null with nothing to use (#124); called when it changes, for the ✋ button.
+   * null with nothing to use (#127); called when it changes, for the ✋ button.
    */
   onPrompt?: (label: string | null) => void;
+  /**
+   * An escort (#75 item 14g, Posy) has been waiting a moment: a critter is near
+   * them. `near`: the hero walked away during this wait and has come back (say why now).
+   */
+  onEscortWait?: (near?: boolean) => boolean | void;
+  /** …walks on again (the critter went): a "why she stopped" line is out of date. */
+  onEscortGo?: () => void;
+  /** …stops for a critter (again). */
+  onEscortStop?: () => void;
+  /** …the hero reached their goal without them. */
+  onEscortBehind?: () => void;
+  /** …moved on — where they stand now (px), kept so a battle mid-walk leaves them there. */
+  onEscortMove?: (x: number, y: number) => void;
+  /** …reached their goal. */
+  onEscortArrive?: () => void;
+}
+
+/**
+ * A walk under way here (#75 item 14g): who follows the hero, the cell they're
+ * heading for, and where they last stood (a battle mid-walk), or null to start
+ * where they wait.
+ */
+export interface EscortWalk {
+  npcId: string;
+  goal: { x: number; y: number };
+  from: { x: number; y: number } | null;
 }
 
 /** A Return (#75 item 9) waiting to be flown: where to, and the landing cell. */
@@ -269,7 +296,7 @@ export interface Travel {
 /**
  * Renders one zone of Lumina on a KaPlay canvas (#37, supersedes the #36
  * single-screen MVP). Tile-grid collision, press-to-use people / gates /
- * chests / crystals (#124 — they used to go off on a bump), walk-into enemies
+ * chests / crystals (#127 — they used to go off on a bump), walk-into enemies
  * to battle, edge exits between zones.
  * 16-bit tile art from the zone's generated tileset (`content/tiles.ts`).
  *
@@ -302,6 +329,7 @@ export default function WorldCanvas({
   actionRef,
   boat = null,
   aboard = false,
+  escort = null,
 }: {
   zoneId: ZoneId;
   avatar: Avatar;
@@ -331,12 +359,14 @@ export default function WorldCanvas({
   travelRef?: MutableRefObject<Travel | null>;
   /** …and the seconds of Calm left, counted down here while the world runs. */
   calmRef?: MutableRefObject<number>;
-  /** Presses of the on-screen ✋ button, counted by the parent (#124): each uses what the hero faces. */
+  /** Presses of the on-screen ✋ button, counted by the parent (#127): each uses what the hero faces. */
   actionRef?: MutableRefObject<number>;
   /** Marlow's boat (#75 item 14): where it's moored, if it is (any map — drawn when it's this one)… */
   boat?: BoatSpot | null;
   /** …and whether the hero is sailing it (read when the zone builds; the canvas keeps it after). */
   aboard?: boolean;
+  /** An escort's walk under way here (#75 item 14g), read live. */
+  escort?: EscortWalk | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -421,7 +451,9 @@ export default function WorldCanvas({
   const darkRef = useRef<HTMLDivElement>(null);
   const boatRef = useRef(boat);
   const aboardRef = useRef(aboard);
+  const escortRef = useRef(escort);
   useEffect(() => {
+    escortRef.current = escort;
     boatRef.current = boat;
     aboardRef.current = aboard;
     cbRef.current = callbacks;
@@ -438,7 +470,7 @@ export default function WorldCanvas({
   // Fresh presses — any key (not auto-repeats), click or tap, the d-pad
   // included: a fog reveal skips on one.
   const pressesRef = useRef(0);
-  // Fresh presses of Space or Enter, and clicks or taps on the world (#124):
+  // Fresh presses of Space or Enter, and clicks or taps on the world (#127):
   // each uses what the hero faces. Counted only while the world runs and no
   // modal layer has made it inert (the level-up doesn't pause it) — the Enter
   // that closes a dialogue must not open it again — and never when a focused
@@ -487,7 +519,7 @@ export default function WorldCanvas({
     };
     // The parent's ref never changes.
   }, [pausedRef]);
-  /** A click or tap on the world uses what the hero faces, as Space does (#124). */
+  /** A click or tap on the world uses what the hero faces, as Space does (#127). */
   const onWorldPointer = (e: React.PointerEvent) => {
     if (e.button !== 0 || pausedRef.current || slidingRef.current) return;
     // The canvas itself, not the wrapper and its 2 px border.
@@ -910,11 +942,13 @@ export default function WorldCanvas({
       parts?: { pos: WorldVec }[];
       /** Footprint radius (px) for actor↔actor overlap avoidance. */
       radius: number;
-      /** How far (px) above its centre its head is — the "Space: Talk" prompt floats just over it (#124). */
+      /** How far (px) above its centre its head is — the "Space: Talk" prompt floats just over it (#127). */
       top?: number;
+      /** Walking with the hero (#75 item 14g, an escort): never bumped into to talk. */
+      follower?: boolean;
     }
     const actors: Actor[] = [];
-    // People stepping out of the hero's way (#124): the cells' centres (px)
+    // People stepping out of the hero's way (#127): the cells' centres (px)
     // they're walking through, and how far along they are. A wanderer holds
     // its stroll meanwhile, then roams round where it stopped.
     const scoots = new Map<Actor, { path: { x: number; y: number }[]; i: number }>();
@@ -951,7 +985,7 @@ export default function WorldCanvas({
       afloat?: boolean;
       /** Holds still while this says so — a resting critter is asleep (`resting`, #114e). */
       asleep?: () => boolean;
-      /** A person (#124): never walks into the hero, who can't walk through them either. */
+      /** A person (#127): never walks into the hero, who can't walk through them either. */
       avoidHero?: boolean;
     }
     /** Plays a sprite character's walk cycle / idle, facing its heading (4-way); emoji faces have none. */
@@ -986,7 +1020,7 @@ export default function WorldCanvas({
       const homeBuilding = buildingAt(z, Math.floor(o.homeX / TILE), Math.floor(o.homeY / TILE));
       const animate = (moving: boolean) => anim.play(moving);
       animate(false);
-      // Stepped aside for the hero (#124): roam round where it stopped.
+      // Stepped aside for the hero (#127): roam round where it stopped.
       rehomes.set(o.actor, (x, y) => {
         o.homeX = x;
         o.homeY = y;
@@ -1162,11 +1196,14 @@ export default function WorldCanvas({
     // where they stand: a sleeper's "z Z" rise clear of them (`zzPath`) and
     // fade while crossing them (#114e).
     const looks = new Map<Actor, { face: number; label: { dy: number; w: number; h: number } }>();
-    /** Puts an NPC in the world; `remove()` takes them out again. */
-    function spawnNpc(p: NpcPlacement): { remove: () => void } {
+    /** Puts an NPC in the world (at `at` px, else its cell); `remove()` takes them out again. */
+    function spawnNpc(
+      p: NpcPlacement,
+      at?: { x: number; y: number },
+    ): { remove: () => void; actor: Actor; face: WorldActor; anims: Record<string, unknown> | undefined } {
       const def = NPC_DEFS[p.defId];
-      const px = p.x * TILE + TILE / 2;
-      const py = p.y * TILE + TILE / 2;
+      const px = at?.x ?? p.x * TILE + TILE / 2;
+      const py = at?.y ?? p.y * TILE + TILE / 2;
       // All visual pieces move together when the NPC wanders.
       const parts: Part[] = [];
       const pieces: { destroy: () => void }[] = [];
@@ -1209,7 +1246,7 @@ export default function WorldCanvas({
       const nameW = (label as unknown as { width?: number }).width ?? def.name.length * 6;
       looks.set(actor, { face: 32, label: { dy: 24, w: nameW + 4, h: 12 } });
       // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
-      if (npcWanders(def)) {
+      if (npcWanders(def) && !at) {
         attachWander(face, {
           actor,
           parts,
@@ -1222,11 +1259,14 @@ export default function WorldCanvas({
           avoidHero: true,
         });
       } else {
-        // Ready for stepping out of the hero's way (#124); untouched until then.
+        // Ready for stepping out of the hero's way (#127); untouched until then.
         animators.set(actor, makeAnimator(face, npcView?.anims));
       }
       if (def.ambient?.length) attachAmbient(face, def.ambient);
       return {
+        actor,
+        face,
+        anims: npcView?.anims,
         remove: () => {
           const i = actors.indexOf(actor);
           if (i >= 0) actors.splice(i, 1);
@@ -1245,7 +1285,64 @@ export default function WorldCanvas({
       .filter((p) => p.ifFlag || p.unlessFlag)
       .map((p) => ({ p, here: null as { remove: () => void } | null }));
     for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
-    for (const c of comings) if (npcPresent(c.p, flagsRef.current)) c.here = spawnNpc(c.p);
+    // Someone walking with the hero (#75 item 14g) isn't also standing where they wait.
+    const standsHere = (p: NpcPlacement) => npcPresent(p, flagsRef.current) && p.defId !== escortRef.current?.npcId;
+    for (const c of comings) if (standsHere(c.p)) c.here = spawnNpc(c.p);
+
+    // An escort walking with the hero (#75 item 14g): drawn like anyone else,
+    // moved by the main loop, a worried "!" over them while they wait.
+    type Follower = { remove: () => void; place: (at: { x: number; y: number }, dx: number, dy: number, waiting: boolean) => void };
+    function spawnFollower(defId: string, at: { x: number; y: number }): Follower {
+      const here = spawnNpc({ defId, x: Math.floor(at.x / TILE), y: Math.floor(at.y / TILE) }, at);
+      here.actor.follower = true;
+      // Big enough to see on a phone (the map shrinks to ~0.4×): an orange "!" on a light bubble — not a dark plate like a critter's level (#75 item 14g reviews).
+      type Mark = { pos: WorldVec; opacity: number; destroy: () => void };
+      const plate = k.add([k.rect(22, 28, { radius: 6 }), k.pos(at.x, at.y - 36), k.anchor('center'), k.color(255, 250, 235), k.outline(2, k.rgb(240, 150, 40)), k.opacity(0), k.z(21)]) as unknown as Mark;
+      const bang = k.add([k.text('!', { size: 24 }), k.pos(at.x, at.y - 36), k.anchor('center'), k.color(225, 110, 20), k.opacity(0), k.z(22)]) as unknown as Mark;
+      const spr = here.anims ? (here.face as unknown as { play: (n: string) => void; flipX: boolean }) : null;
+      let facing: Facing = 'down';
+      let anim = '';
+      return {
+        remove: () => {
+          here.remove();
+          plate.destroy();
+          bang.destroy();
+        },
+        place: (to, dx, dy, waiting) => {
+          const mx = to.x - here.actor.x;
+          const my = to.y - here.actor.y;
+          here.actor.x = to.x;
+          here.actor.y = to.y;
+          for (const part of here.actor.parts ?? []) {
+            part.pos.x += mx;
+            part.pos.y += my;
+          }
+          const bob = reducedMotion ? 0 : Math.sin(k.time() * 6) * 2;
+          plate.pos = bang.pos = k.vec2(to.x, to.y - 36 + bob);
+          plate.opacity = waiting ? 0.9 : 0;
+          bang.opacity = waiting ? 1 : 0;
+          if (!spr || !here.anims) return;
+          const moving = Math.hypot(dx, dy) > 0.01;
+          facing = facingFor(dx, dy, facing);
+          if (facing === 'side' && dx !== 0) spr.flipX = dx < 0;
+          const want = animFor(facing, moving, here.anims);
+          if (want !== anim) {
+            anim = want;
+            spr.play(want);
+          }
+        },
+      };
+    }
+    let follower: Follower | null = null;
+    let escortState: EscortState | null = null;
+    let escortArrived = false;
+    let escortSaid = { x: -1e9, y: -1e9 };
+    // How long they've been waiting this stop, and when the hero at the goal without them was last said.
+    let escortWaitFor = 0;
+    let escortBehindAt = -1e9;
+    let escortWaitAskedAt = -1e9;
+    let escortWentAway = false;
+    let escortReroutedAt = '';
 
     // Each roaming critter's parts, with their own full opacity — faded under
     // Calm, and less while it sleeps (`resting`, #75 item 14d). Bosses never
@@ -1683,13 +1780,16 @@ export default function WorldCanvas({
 
     /** The hero's own collision: on foot, or afloat while in the boat (#75 item 14). */
     const heroHit = (px: number, py: number) => hitBox(px, py, HALF, false, aboard);
-
-    // --- People are solid; things wait to be used (#124) -------------------
+    /** How far off the line (px) a corner can be clipped and still slid round. */
+    const CORNER_SLIDE_PX = 4;
+    // --- People are solid; things wait to be used (#127) -------------------
     // People (and the Spire, and Umbra) stop the hero like a wall — walking
     // into someone no longer talks to them — and everything the hero can use
     // waits for Space / Enter / a click or tap on the world / ✋, with a
     // "Space: Open chest" prompt over the thing they face.
-    const solid = (a: Actor) => (a.kind === 'npc' ? !!a.npcId : a.kind === 'spire' || a.kind === 'umbra') && !scoots.has(a);
+    // An escort walking with the hero (#75 item 14g) is never in their way, nor talked to.
+    const solid = (a: Actor) =>
+      (a.kind === 'npc' ? !!a.npcId && !a.follower : a.kind === 'spire' || a.kind === 'umbra') && !scoots.has(a);
     /**
      * Who a step to (px, py) would walk into (`approachBlocked`: never stuck on
      * someone already overlapping). Never kept more than a tile off, so the
@@ -1770,8 +1870,8 @@ export default function WorldCanvas({
       const usable = (label: string, act: () => void): Use => ({ label, at: { x: cx * TILE + TILE / 2, y: cy * TILE - 6 }, act, hit: onCell(cx, cy) });
       const ch = tileAt(z, cx, cy);
       if (COUNTER_CHARS.has(ch)) {
-        // Talk across a shop counter (#72), or a desk or table (#124), to whoever stands behind it.
-        const people = actors.filter((a) => a.kind === 'npc' && a.npcId && !scoots.has(a));
+        // Talk across a shop counter (#72), or a desk or table (#127), to whoever stands behind it.
+        const people = actors.filter((a) => a.kind === 'npc' && a.npcId && !a.follower && !scoots.has(a));
         const i = acrossCounter({ x: cx * TILE + TILE / 2, y: cy * TILE + TILE / 2 }, player.pos, people, TILE);
         return i >= 0 ? talkTo(people[i], { x: cx, y: cy }) : null;
       }
@@ -2169,7 +2269,7 @@ export default function WorldCanvas({
     };
     let sleeperHinted = false;
     let moveSaveTimer = 0;
-    // Presses that use things (#124): the keyboard's and the world's, and the ✋ button's.
+    // Presses that use things (#127): the keyboard's and the world's, and the ✋ button's.
     const uses = () => usesRef.current + (actionRef?.current ?? 0);
     let usesSeen = uses();
     // Who the hero has been walking into, and for how long (`SCOOT_AFTER_S`).
@@ -2337,20 +2437,32 @@ export default function WorldCanvas({
       }
 
       // Axis-separated movement for wall sliding; remember what we bumped —
-      // and who: people stop the hero too (#124). Walking straight into a
+      // and who: people stop the hero too (#127). Walking straight into a
       // wall beside a doorway slides them over into it (`assistCorner`).
       let bumped: { ch: string; x: number; y: number } | null = null;
       let into: Actor | null = null;
       let intoDir: Dir = { x: 0, y: 0 };
       const speed = SPEED * (aboard ? BOAT_SPEED : 1);
+      // Clipping a corner by a few px (walking straight past a building's corner,
+      // a touch off the row) slides round it rather than stopping dead (#75 item 14g UX review).
+      const slide = (tryAt: (o: number) => boolean) => {
+        for (let o = 1; o <= CORNER_SLIDE_PX; o++) {
+          for (const sgn of [1, -1]) if (tryAt(sgn * o)) return sgn * Math.min(o, speed * dt);
+        }
+        return 0;
+      };
       if (dx !== 0) {
         const nx = player.pos.x + dx * speed * dt;
         const hit = heroHit(nx, player.pos.y);
         const who = hit ? null : personHit(nx, player.pos.y);
         if (!hit && !who) player.pos.x = nx;
         else if (hit) {
-          bumped = hit;
-          if (dy === 0) assistCorner('x', nx, Math.sign(dx), speed * dt);
+          const off = dy === 0 ? slide((o) => !heroHit(player.pos.x, player.pos.y + o) && !heroHit(nx, player.pos.y + o)) : 0;
+          if (off) player.pos.y += off;
+          else {
+            bumped = hit;
+            if (dy === 0) assistCorner('x', nx, Math.sign(dx), speed * dt);
+          }
         } else {
           into = who;
           intoDir = { x: Math.sign(dx), y: 0 };
@@ -2362,14 +2474,18 @@ export default function WorldCanvas({
         const who = hit ? null : personHit(player.pos.x, ny);
         if (!hit && !who) player.pos.y = ny;
         else if (hit) {
-          bumped = bumped ?? hit;
-          if (dx === 0) assistCorner('y', ny, Math.sign(dy), speed * dt);
+          const off = dx === 0 ? slide((o) => !heroHit(player.pos.x + o, player.pos.y) && !heroHit(player.pos.x + o, ny)) : 0;
+          if (off) player.pos.x += off;
+          else {
+            bumped = bumped ?? hit;
+            if (dx === 0) assistCorner('y', ny, Math.sign(dy), speed * dt);
+          }
         } else if (!into) {
           into = who;
           intoDir = { x: 0, y: Math.sign(dy) };
         }
       }
-      // Kept walking into someone in the way: they step aside (#124).
+      // Kept walking into someone in the way: they step aside (#127).
       push = pushOn(push, into?.kind === 'npc' ? into : null, dt);
       if (push && push.t >= SCOOT_AFTER_S) {
         scoot(push.who, intoDir);
@@ -2409,7 +2525,7 @@ export default function WorldCanvas({
 
       // Bumps that still go off on their own: a secret found in the scenery,
       // and why fog or the dark won't let you on. (Chests, gates, the save
-      // crystal and the rest wait to be used — below, #124.)
+      // crystal and the rest wait to be used — below, #127.)
       const bumpedSecret = bumped ? secretAt(z, bumped.x, bumped.y) : undefined;
       if (bumped && cooldown === 0) {
         if (bumpedSecret && !flagsRef.current[secretFlag(bumpedSecret.id)]) {
@@ -2426,7 +2542,7 @@ export default function WorldCanvas({
         }
       }
 
-      // Using things (#124): a fresh Space / Enter / click / tap / ✋ uses
+      // Using things (#127): a fresh Space / Enter / click / tap / ✋ uses
       // what the hero faces — never in the two frames after something else
       // was armed, while its menu or talk takes the world's pause.
       const targets = targetsNow();
@@ -2465,8 +2581,9 @@ export default function WorldCanvas({
       held = Math.max(0, held - 1);
 
       // Walking into a foe starts a battle. (People, the Spire and Umbra are
-      // used, not bumped — above, #124.)
+      // used, not bumped — above, #127.)
       for (const a of actors) {
+        if (a.follower) continue; // walking with the hero, not in their way
         if (a.kind === 'enemy' && a.enemy) {
           const onHero = touching(a, player.pos, contactRadius(a.enemy));
           const asleep = resting.has(a);
@@ -2556,9 +2673,91 @@ export default function WorldCanvas({
         if (f === 'side') emberSprite.flipX = lastDir.x < 0;
       }
 
+      // --- An escort's walk (#75 item 14g) ------------------------------------
+      // Talked to where they wait, they step out and follow the hero's
+      // footsteps (`lib/escort.ts`), waiting while an awake critter is near.
+      const walk = escortRef.current;
+      if (walk && !follower && !escortArrived) {
+        // From where a battle left them, else from where they stood waiting.
+        const waitingHere = actors.find((a) => a.kind === 'npc' && a.npcId === walk.npcId && !a.follower);
+        const from = walk.from ?? (waitingHere ? { x: waitingHere.x, y: waitingHere.y } : { x: player.pos.x, y: player.pos.y });
+        follower = spawnFollower(walk.npcId, from);
+        escortState = startEscort(from);
+        // Back from a battle: her footsteps to the hero are gone — walk her a way
+        // round on the map, never straight across a pool (#75 item 14g review).
+        if (walk.from) {
+          const cell = (p: { x: number; y: number }) => ({ x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) });
+          const hero = cell(player.pos);
+          const way = reachPath(z, (x, y) => x === hero.x && y === hero.y, { from: cell(from), flags: flagsRef.current });
+          if (way) escortState = { ...escortState, crumbs: way.slice(1).map((c) => ({ x: c.x * TILE + TILE / 2, y: c.y * TILE + TILE / 2 })) };
+        }
+      } else if (!walk && follower) {
+        follower.remove();
+        follower = null;
+        escortState = null;
+      }
+      if (walk && follower && escortState && !escortArrived) {
+        escortState = dropCrumb(escortState, player.pos);
+        // The hero came back for them: walk to the hero from here, a way round on the
+        // map, not back out along the old footsteps and past them (#75 item 14g UX review).
+        // Once per return: not again until the hero has moved a tile (equal ways round can't flip her about).
+        // (The latch lasts one return: cleared once she no longer needs it, so a second return reroutes too.)
+        const heroCell = `${Math.floor(player.pos.x / TILE)},${Math.floor(player.pos.y / TILE)}`;
+        const isBack = cameBack(escortState, player.pos, TILE);
+        if (!isBack) escortReroutedAt = '';
+        if (isBack && heroCell !== escortReroutedAt) {
+          escortReroutedAt = heroCell;
+          const cell = (p: { x: number; y: number }) => ({ x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) });
+          const hero = cell(player.pos);
+          const way = reachPath(z, (x, y) => x === hero.x && y === hero.y, { from: cell(escortState.at), flags: flagsRef.current });
+          // No way round found: keep the footsteps (never a straight line across a pool).
+          if (way) escortState = { ...escortState, crumbs: way.slice(1).map((c) => ({ x: c.x * TILE + TILE / 2, y: c.y * TILE + TILE / 2 })) };
+        }
+        // Awake critters that could fight someone on foot — not sleepers, not under Calm.
+        const threats = calm
+          ? []
+          : actors.flatMap((a) =>
+              // Not a boss: it never moves, so waiting for it would be waiting for ever (#75 item 14g review).
+              a.enemy && !a.enemy.isBoss && !resting.has(a) && meetsHero(a.enemy.habitat, 'foot') ? [{ x: a.x, y: a.y }] : [],
+            );
+        const wasWaiting = escortState.waiting;
+        const before = escortState.at;
+        escortState = stepEscort(escortState, player.pos, threats, dt);
+        follower.place(escortState.at, escortState.at.x - before.x, escortState.at.y - before.y, escortState.waiting);
+        // A stop says why once it's lasted a moment (a passer-by doesn't make it
+        // chatter) — asked again each second while it lasts, so a toast already
+        // up doesn't swallow it (`WorldScreen` keeps it to one every 15 s).
+        escortWaitFor = escortState.waiting ? escortWaitFor + dt : 0;
+        if (!escortState.waiting) escortWentAway = false;
+        else if (Math.hypot(player.pos.x - escortState.at.x, player.pos.y - escortState.at.y) > TILE * 3) escortWentAway = true;
+        if (escortState.waiting && wasWaiting && escortWaitFor >= 1.5 && k.time() - escortWaitAskedAt >= 1) {
+          escortWaitAskedAt = k.time();
+          // Came back to them after walking off: say why at once (#75 item 14g UX review) —
+          // once; standing beside them all along keeps the usual 15 s (review round 7).
+          const back = escortWentAway && Math.hypot(player.pos.x - escortState.at.x, player.pos.y - escortState.at.y) < TILE * 2.5;
+          // Spent only once it's said (another toast up keeps it for the next ask — review round 8).
+          if (cbRef.current.onEscortWait?.(back) !== false && back) escortWentAway = false;
+        }
+        if (wasWaiting && !escortState.waiting) cbRef.current.onEscortGo?.();
+        if (!wasWaiting && escortState.waiting) cbRef.current.onEscortStop?.();
+        // The hero at the goal, them held up far behind: say where they are.
+        if (stuckBehind(escortState, player.pos, walk.goal, TILE) && k.time() - escortBehindAt > 8) {
+          escortBehindAt = k.time();
+          cbRef.current.onEscortBehind?.();
+        }
+        if (Math.hypot(escortState.at.x - escortSaid.x, escortState.at.y - escortSaid.y) > TILE / 2) {
+          escortSaid = escortState.at;
+          cbRef.current.onEscortMove?.(escortState.at.x, escortState.at.y);
+        }
+        if (arrived(escortState.at, walk.goal, TILE, player.pos, escortState.waiting)) {
+          escortArrived = true;
+          cbRef.current.onEscortArrive?.();
+        }
+      }
+
       // NPCs who come and go with the story (a flag set in a conversation).
       for (const c of comings) {
-        const present = npcPresent(c.p, flagsRef.current);
+        const present = standsHere(c.p);
         if (present && !c.here) c.here = spawnNpc(c.p);
         else if (!present && c.here) {
           c.here.remove();

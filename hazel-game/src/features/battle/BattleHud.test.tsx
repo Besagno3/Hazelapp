@@ -4,7 +4,7 @@ import { BattleHud } from './BattleHud';
 import { BattleResult } from './BattleResult';
 import { keyForBoss } from '../../content/keys';
 import { AVATARS } from '../../content/avatars';
-import { atTier, spawnEnemy } from '../../content/enemies';
+import { atTier, shortName, spawnEnemy } from '../../content/enemies';
 import type { DangerTier } from '../../content/regions';
 
 function hud(tier: DangerTier, powerMoveNext: string | null = null, defId = 'count-bat') {
@@ -153,5 +153,21 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
     sea.unmount();
     render(<BattleResult {...base} result="defeat" enemy={spawnEnemy('count-bat', 'gearfall', 'a', 8)} />);
     expect(screen.queryByText(/Old Marlow/)).toBeNull();
+  });
+});
+
+describe('names on a phone (#125j)', () => {
+  it('a boss drops a leading "The" on a phone; its full name stays for screen readers and wider screens', () => {
+    expect(shortName('The Clockwork Titan')).toBe('Clockwork Titan');
+    expect(shortName('Bog Lantern')).toBe('Bog Lantern');
+    hud(5, null, 'clockwork-titan');
+    expect(screen.getByText('Clockwork Titan')).toHaveClass('sm:hidden');
+    expect(screen.getByText('The Clockwork Titan')).toHaveClass('sr-only', 'sm:not-sr-only');
+  });
+
+  it("the hero's panel shows a compact charge on a phone, the diamonds from sm up, the name read aloud", () => {
+    hud(1);
+    expect(screen.getByText('0/4').parentElement).toHaveClass('sm:hidden');
+    expect(screen.getByText(AVATARS[0].name)).toHaveClass('sr-only', 'sm:not-sr-only');
   });
 });

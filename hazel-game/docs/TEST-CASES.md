@@ -999,6 +999,53 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-837 | M | ✅ | migrations | 0012 on a row with 1037 XP backfills level 11, 37 into it; applied twice changes nothing; a new sign-up starts at level 1 / 0 (`supabase/ci/level.test.sql`; local Postgres 16, 2026-10-10) |
 | TC-838 | M | ⬜ | profile | after 0012 in production, an existing player sees the same level as before; earning XP moves the bar toward the new, larger need; a refresh keeps both |
 | TC-839 | C | ✅ | TopicSelect | every topic is an enabled button with no "Completed" tag, and the same topic can be picked again and again — each pick sends `PICK_TOPIC` (TopicSelect.test, #119) |
+| TC-894 | U | ✅ | Foglight Marsh | a history field on the Shallows' north coast at the Shallows' tier, with a lotus icon; a boat sails in from the west edge, lands on its beach and walks to the icon; its exits land beside the icon (zones.test) |
+| TC-895 | U | ✅ | Foglight Marsh | Mist Newt, Bog Lantern (trickster) and Murk Toad (−1 / 0 / +1, history); the Last Fogbank is a miniboss with intro lines and the Foglight Badge; it stands in the only way to the cove's riddle-chest (zones.test) |
+| TC-896 | U | ✅ | Foglight Marsh | Brume's Lamp-House is the Marsh's shelter (wake on its floor, the way out open); Slosh stands inside his Raft Shop; each lantern stands by a reachable boardwalk, dark and lit on the same spot, swapped by its step's flag; the Ledger's chest is in reach (zones.test) |
+| TC-897 | U | ✅ | Posy's walk | from the landing to the goal on foot, the goal beside the Nameless Stone, the landing a few steps from the arrival; Posy is on the Hill, then at the landing, then by the stone, then home — one place at a time (zones.test, with the generalised "one place at a time" check over every order of an NPC's flags) |
+| TC-898 | U | ✅ | escort | follows the hero's footsteps round a corner without cutting it (≤ a footstep), at a 44 px gap; waits while a critter is within 80 px and walks on (catching up) once it's gone; never crowds a still hero; arrives within 56 px of the goal (escort.test) |
+| TC-899 | U | ✅ | escort quest | Posy asks only once Marlow's boat is mended; talking to her at the landing starts the walk (`escortWalkingFlag`, `activeEscort`), she isn't asked again while walking; arriving finishes the step; she pays 35 coins + a Berry Potion; a reload (`normalizeSave`) or leaving the Marsh (`escortsAway`, `withoutEscorts`) ends the walk and touches nothing else (quests.test) |
+| TC-900 | U | ✅ | Lantern Ledger | Brume's offer → the Ledger from its key-item chest (who wants it, when found first) → the west, north, east lanterns in that order (an out-of-turn lantern says nothing of the quest) → 35 coins + a Hint Feather; every hint ≤ 30 words (quests.test) |
+| TC-901 | C | ✅ | battle | the Last Fogbank gives the Foglight Badge on its first defeat only (shown on the victory panel, on the shelf once); the Glimmer Candle lights a free hint that works on a trickster (BattleArena.test); `resolveItem` / `itemBlocked` for the candle (battleTurn.test) |
+| TC-902 | U | ✅ | story | Posy's two panels at the Nameless Stone, each ≤ 30 words (story.test) |
+| TC-903 | B | ✅ | escort (real canvas) | on the bench page (`escort=1`, Supabase-free): under Calm the hero walks landing → hub → west boardwalk → the stone and Posy follows the boardwalks and arrives (`escortArrived`); without Calm, standing near the Mist Newt's patch she stops once (`escortWaits`); no page errors |
+| TC-904 | U | ✅ | battle (review) | a Glimmer Candle used by Kira (Fox Sense already up) adds its own free hint: both are offered, Fox Sense's used first (battleTurn.test) |
+| TC-905 | M | ✅ | world (review) | Posy stopped by a critter for 1.5 s shows a yellow "!" on a dark plate above her and a toast saying why; a second stop more than 15 s later says it again (bench escort=1) |
+| TC-906 | U | ✅ | quests (review) | talking to the north lantern before the west one says "Not this one yet!" and the Ledger's next step (quests.test) |
+| TC-907 | U | ✅ | quests (review) | a reload or a lost battle mid-walk turns the walking flag into a back flag; the world shows "Posy ran back to the landing" once and clears it (quests.test) |
+| TC-908 | M | ✅ | world (review) | reaching the stone with Posy held up by a critter more than 3 tiles back says "Posy is still on her way" (at most every 8 s); just walking a little behind never does (escort.test) |
+| TC-909 | U | ✅ | battle (review) | after the Glimmer Candle's free hint is used on a trickster, the next question still offers "Use a Hint Feather (1 left)" (BattleArena.test) |
+| TC-910 | U | ✅ | world (review) | Posy arrives with the hero standing under the stone (5,5) or east of it (8,4), walking close behind; held up or with the hero away, she doesn't (escort.test); all four approaches arrive on the bench |
+| TC-911 | M | ✅ | menu (review) | mid-walk the quest log tags "The Flower for No Name" with Foglight Marsh, and once arrived says "Posy is waiting by the Nameless Stone in Foglight Marsh" |
+| TC-912 | M | ⬜ | battle (review) | against a Bog Lantern with feathers and no lit candle, the question shows "🪶 Too slippery for feathers — light a 🕯️ candle from Items!"; the opening banner stays ~7 s |
+| TC-913 | U | ✅ | quests (review) | "Posy ran back to the landing" is held until the hero is back in the Marsh (quests.test) |
+| TC-914 | U | ✅ | quests (review) | with Brume's quest on and no Ledger, a lantern says "Not yet!" and where the Ledger's riddle-chest is (quests.test) |
+| TC-915 | M | ⬜ | menu (review) | the badge shelf lists each badge with its name under it (Foglight Badge, Lily Pad Badge) at 320 px |
+| TC-916 | M | ⬜ | battle (review) | vs a Bog Lantern with a candle and no feathers, a question says "Too slippery for feathers! Next turn, light a 🕯️ candle from Items." on attack and block questions alike; lighting the candle shows "🕯️ Your Glimmer Candle is lit!" |
+| TC-917 | U | ✅ | quests (review) | in the Marsh with the walk not under way, Posy's quest hint says she's waiting at the landing (quests.test) |
+| TC-918 | U | ✅ | quests (review) | opening the Ledger's chest with Brume's quest on says "first, the WEST lantern — on the boardwalk just above Brume's lamp-house" (quests.test) |
+| TC-919 | U | ✅ | quests (review) | Brume met while carrying the Ledger says "You found it already!" and asks only for the lanterns, West first (quests.test) |
+| TC-920 | M | ⬜ | world (review) | at 320 px an unlit quest lantern shows a pale glass head on its post, distinct from the reeds and from a Bog Lantern critter |
+| TC-921 | M | ⬜ | world (review) | Posy held up by a critter: walking more than 3 tiles away and back to within 1.5 tiles shows the wait line within ~1 s, once; standing beside her the whole time shows it at most every 15 s |
+| TC-922 | M | ⬜ | world (review) | reaching the stone while Posy is held up ("isn't here yet" toast), then her arriving: the toast is gone before the stone panels open |
+| TC-923 | U | ✅ | world (review) | out-and-back footsteps with the hero beside them again count as a detour (`cameBack`); following a gap behind doesn't; no arrival with the hero far from the stone (escort.test) |
+| TC-924 | M | ✅ | world (review) | at the stone with Posy held up ("go back and find her"), walking back beside her: the wait line replaces it at once, and when the critter leaves she follows the hero instead of running on to the stone alone (stubbed app, round 8) |
+| TC-925 | U | ✅ | world (review) | a waiting escort stays waiting while a critter drifts in and out at 80 px, and walks on once none has been within 80 px for 0.6 s; going back to within 2.5 tiles counts as coming back (escort.test) |
+| TC-927 | U | ✅ | zones (review) | no non-boss critter in the Marsh has its patch (leash + 80 px) within reach of Posy's boardwalk walk from the landing to the stone (zones.test; fails with the Newt at 15,12) |
+| TC-928 | U | ✅ | world (review) | Posy trailing ~4.5 tiles on the last stretch arrives as the hero reaches the stone, before its own line (escort.test) |
+| TC-929 | M | ✅ | world (review) | bump down into Brume from the boardwalk at (7,14), close her talk: the hero can walk left and right (never pushed into the lamp-house wall); stubbed app, 4/4 |
+| TC-930 | M | ⬜ | world (review) | go back for a held-up Posy twice, stopping on the same cell both times: when the critter leaves she follows the hero both times |
+| TC-931 | M | ✅ | world (review) | walking west along the boardwalk under Brume's lamp-house a pixel or two high, the hero slides past the hut's corner instead of stopping; the Act I journey walk still 13/13 (bench) |
+| TC-932 | U | ✅ | quests (owner) | asked on the Hill, Posy stays there until the hero first arrives in the Marsh; that arrival sets `POSY_SAILED` once, and she's at the landing (quests.test, zones.test) |
+| TC-933 | U | ✅ | battle (owner) | every boss has two rage lines of its own, naming it, ≤ 30 words; a boss without falls back (enemies.test) |
+| TC-934 | U | ✅ | quests (owner) | the Ledger's lanterns go east → north → west; the found note and the found-first offer name EAST first (quests.test) |
+| TC-935 | U | ✅ | zones (owner) | no Marsh critter's patch reaches Posy's boardwalk walk or the grass shortcut from the north boardwalk's top (zones.test; fails with the Newt at 16,8) |
+| TC-936 | M | ✅ | art (owner) | on the bench: the Bog Lantern reads as a flame-spirit (no lantern post), Puddle as a lily-hatted friendly frog unlike the Murk Toad, the Last Fogbank as a scowling storm cloud |
+| TC-937 | M | ⬜ | battle (owner) | the Last Fogbank's fight: menacing intro, "swallows the light" at half HP, "forget your own NAME!" near the end, "Forgetting Fog" power move |
+| TC-938 | U | ✅ | battle (#125j) | below `sm` the enemy's name drops a leading "The" (full name sr-only, shown from `sm` up); the hero's panel shows "◆N/4" not the diamonds (BattleHud.test) |
+| TC-939 | M | ✅ | battle (#125j) | a boss fight at 320×568: "👑 Ringkeeper Lv 6 !!!" whole, all commands on screen; 5/5 sizes (`bench … battle`) |
+| TC-940 | M | ⬜ | map (#125) | the 🪷 Foglight Marsh icon on the Shallows map reads as a pink lotus on a bright pool at 320 px |
+| TC-926 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## The sign-in screen's intro music (#120)
@@ -1038,47 +1085,79 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-865 | C | ✅ | ResetPasswordPage | both new-password fields have their own eye, each showing only its own field (PasswordReset.test) |
 | TC-866 | M | ⬜ | PasswordInput | on a real phone (iOS Safari, Android Chrome): tapping the eye keeps the keyboard up and the caret in place; a shown password isn't auto-capitalised; on Edge only one eye shows |
 
-## Press to use, doorways, stepping aside (#124)
+## Parent accounts (#124)
 
 | ID    | Type | Status | Feature | Case |
 |-------|------|--------|---------|------|
-| TC-867 | U | ✅ | interact | Space (by key or code) and Enter use things; arrows, letters, Escape and Tab never do (interact.test) |
-| TC-868 | U | ✅ | interact | a focused button (or something inside one), link, input, textarea or anything in a dialog keeps Space / Enter for itself; the page body doesn't (`ownsKeys`, interact.test) |
-| TC-869 | U | ✅ | interact | what gets used is looked for the way the hero faces first, then to the sides, then behind; a diagonal looks both its ways first; a hero who never moved faces the camera (`probeDirs`, interact.test) |
-| TC-870 | U | ✅ | interact | tiles are probed just past the side of the hero's box they face — the middle first, then by each corner (`probePoints`, interact.test) |
-| TC-871 | U | ✅ | interact | a person counts when within reach and on the side faced (±53°), not off to the side, behind or too far (`inFront`, interact.test) |
-| TC-872 | U | ✅ | interact | the prompt reads "Space: …" on a keyboard, "Tap: …" on a touch screen (`promptText`, interact.test) |
-| TC-873 | U | ✅ | interact | doorway assist: a hero up to 20 px off a one-tile opening is slid into line with it; 21 px off, or a plain wall, isn't; of two openings the nearer; at most a step a frame (`cornerTarget` / `slideStep`, interact.test) |
-| TC-874 | U | ✅ | interact | walking into the same person adds up; someone else starts over; stopping or turning away clears it (`pushOn`, interact.test) |
-| TC-875 | U | ✅ | interact | in the open, someone stepping aside goes 2–5 cells, off the line the hero walks, at least 2 cells from them (`scootPath`, interact.test) |
-| TC-876 | U | ✅ | interact | in a corridor they go on through it and step aside in the room beyond (interact.test) |
-| TC-877 | U | ✅ | interact | at a dead end they squeeze past the hero to the other side (interact.test) |
-| TC-878 | U | ✅ | interact | inside a building they stay inside, on its floor — never its doorway (interact.test) |
-| TC-879 | U | ✅ | interact | they keep off exits, hidden passages, stairs and cells other people stand on (interact.test) |
-| TC-880 | U | ✅ | interact | boxed in with nowhere to go, they stay put (interact.test) |
-| TC-881 | C | ✅ | TouchPad | ✋ is a dim "Use" with nothing to use, and says what it would do ("Open chest") when there is (TouchPad.test) |
-| TC-882 | C | ✅ | TouchPad | a tap uses once — on the press, not again on its click; Enter / Space on the focused button works it too (TouchPad.test) |
-| TC-883 | C | ✅ | TouchPad | the d-pad still steers; no ✋ without an `onAction` (TouchPad.test) |
-| TC-884 | C | ✅ | WorldScreen | ✋ takes its label from the canvas's `onPrompt`, and a press counts in the `actionRef` the canvas reads (WorldScreen.use.test) |
-| TC-885 | C | ✅ | WorldScreen | the footer says Space, Enter or a click talks, opens and uses — no "bump into friends" (WorldScreen.use.test) |
-| TC-886 | E | ✅ | world | real canvas, real keys (`bench … use`): walking straight up from 0, ±6, ±10, +14 and ±18 px off a Numbria door's middle goes in (on `main` only 0 px did) |
-| TC-887 | E | ✅ | world | real canvas (`bench … use`): walking into Eldergrove's chest opens nothing and its prompt says "Open chest"; Space opens it |
-| TC-888 | E | ✅ | world | real canvas (`bench … use`): walking into Moonwell Grove's gate asks nothing; Enter opens it and the hero walks through |
-| TC-889 | E | ✅ | world | real canvas (`bench … use`): walking into Pip stops the hero and says nothing, the prompt says "Talk"; Space, Enter, a click and a held Space talk once each |
-| TC-890 | E | ✅ | world | real canvas (`bench … use`): Pip walked into for 1 s is still in the way; by ~1.5 s Pip steps aside and the hero walks on past, with no talk |
-| TC-891 | E | ✅ | world | the Act I journey (`bench … journey`) still walks every leg and Spire floor, the walker pressing ✋ at gates, seals, the stairs, the Spire and Umbra |
-| TC-892 | M | ⬜ | world | on a phone: ✋ sits beside the d-pad, its label follows what's in front ("Talk", "Open chest"); a tap on the map uses it too; the d-pad and ✋ work held together |
-| TC-893 | M | ⬜ | world | with a keyboard: after closing 📜 Menu with the mouse, walk to a chest and press Space — the chest opens (the walk blurred the Menu button), the menu doesn't reopen |
-| TC-894 | M | ⬜ | world | close a dialogue with Enter while still facing the person: it doesn't open again; press Enter once more and it does |
-| TC-895 | M | ⬜ | world | in town, walk at a wanderer: it never walks into the hero; hold into it ~1.5 s and it hops a few cells aside, then strolls round there; inside a shop, the keeper never leaves the shop |
-| TC-896 | M | ⬜ | world | the 1-tile ways in feel easy on a real keyboard and the d-pad: doors, Numbria's gate, the Depths' corridors, stairs — and a hidden passage ('H') is never slid into |
-| TC-897 | U | ✅ | interact | across a counter or desk: the person right behind it — straight across or from a corner — is talked to (`acrossCounter`, interact.test) |
-| TC-898 | U | ✅ | interact | across a counter: the nearest one on its far side, never someone on the hero's side or two tiles along (interact.test) |
-| TC-899 | E | ✅ | world | real canvas (`bench … use`): across the village shop's counter a click on the shopkeeper talks to them; from a corner of the counter Space does |
-| TC-900 | M | ⬜ | world | put an innkeeper behind a desk (`T`) in a test map: standing across it, Space and a tap on them both talk; the prompt floats over the innkeeper |
-| TC-901 | C | ✅ | TouchPad | a click on ✋ that isn't a tap's own (a screen reader's double-tap) uses it too (TouchPad.test) |
-| TC-902 | M | ⬜ | TouchPad | with VoiceOver (iOS) and TalkBack (Android): double-tap ✋ beside a chest — it opens, once |
-| TC-903 | M | ⬜ | world | on a phone: tap a shopkeeper, walk away, then press ✋ next to a chest — the chest opens (not the shopkeeper) |
+| TC-867 | U | ✅ | migration 0013 | a sign-up with `consent_version` records consent (server time) and no kid; an old-app sign-up (birth date) gets no consent yet and its first kid with the login's id; a junk version isn't recorded (parent_accounts.test.sql) |
+| TC-868 | U | ✅ | migration 0013 | as a grown-up through `authenticated`: new kids get their own id and the caller as `parent_id`; only their own kids are visible; a kid can't be added under another grown-up (parent_accounts.test.sql) |
+| TC-869 | U | ✅ | migration 0013 | another grown-up's kid can't be changed, removed, saved to or flagged as; their own kid can be saved (and saved again) and flagged as (parent_accounts.test.sql) |
+| TC-870 | U | ✅ | migration 0013 | a blank nickname is refused; `parents` can't be written by hand, only `record_consent()` (which also creates a missing row); removing a kid removes their save (parent_accounts.test.sql) |
+| TC-871 | M | ✅ | migration 0013 | an account from before 0013 (kid = login, XP, a save, seen questions) upgrades: it becomes its own grown-up's kid with no consent, its XP and save still read and write through `authenticated`, and deleting the login still removes everything (local Postgres 16, 2026-10-10) |
+| TC-872 | M | ⬜ | edge function | with `profileId` of the caller's kid: questions come back and `question_views` rows carry the kid's id; another account's kid → 403; a malformed id → 400; no `profileId` → works as before (the login is the player) |
+| TC-873 | U | ✅ | familyStore | `familyScreen` checks, in order: loading, error, consent, 👪 Grown-ups, first kid, "Who's playing?" (also when the active kid is gone), play (familyStore.test) |
+| TC-874 | U | ✅ | familyStore | `load` reads consent and only the grown-up's kids, oldest first, and picks nobody; no `parents` row = not agreed; a failed read is an error to retry (familyStore.test) |
+| TC-875 | U | ✅ | familyStore | `choose` loads the kid's profile (seeded with their birth date) and save; a reload in the same tab keeps the kid playing (familyStore.test) |
+| TC-876 | U | ✅ | familyStore | `switchPlayer` flushes the save before clearing it, clears the profile and the active kid, and a reload then asks again (familyStore.test) |
+| TC-877 | U | ✅ | familyStore | `addKid` inserts the trimmed nickname, tile picture and birth date (id and grown-up from the database; never the PIN), then sets the PIN through `set_kid_pin`; a PIN that didn't save leaves the kid listed without one; a refused insert (e.g. the 8-player cap) throws its reason; `updateKid` sets a new PIN and a blank one keeps theirs; `checkKidPin` / `checkParentPin` / `setParentPin` go through the database; `removeKid` deletes the row and this device's copies of that kid's save and profile only; `agree` calls `record_consent` with `CONSENT_VERSION` (familyStore.test) |
+| TC-878 | C | ✅ | WhoIsPlaying | a tile per kid (picture + nickname); the kid's PIN gets them in, a wrong one says try again and doesn't; "That's not me" goes back; 👪 Grown-ups opens the area (WhoIsPlaying.test) |
+| TC-879 | C | ✅ | KidForm | asks for a nickname, a birth date, a tile picture and a 4-digit PIN in turn; the PIN field takes digits only (≤ 4) and can be shown; sends the trimmed kid; shows a save error; changing a kid starts from what they have (an older birth year included) and a blank PIN keeps theirs; a kid without a PIN must get one; ages ~3–18 (KidForm.test) |
+| TC-880 | C | ✅ | GrownUpsArea | shut without the right password (the error shows, no kids); "Forgot it?" sends a reset link; with a grown-up PIN the PIN pad opens it, a wrong PIN doesn't, and "Use my password instead" / "…PIN instead" switch; without one, only the password; open: each kid with age and "PIN set" / "no PIN yet", the consent date; set a grown-up PIN (4 numbers only); Remove asks first and Keep keeps; Sign out is here; Add a player opens the form and Cancel returns (GrownUpsArea.test) |
+| TC-881 | C | ✅ | ConsentPage | shows the notice; "I agree" needs the box ticked and calls `agree`; a failure shows; "Not now — sign out" signs out (ConsentPage.test) |
+| TC-882 | C | ✅ | AuthPage | sign-up asks no birth date and needs the parent/guardian box; it sends `consent_version` (PasswordReset.test) |
+| TC-883 | C | ✅ | SwitchPlayerButton | floating: one tap switches; in the world's top bar: "Switch" asks "Switch?" (read out "Switch player?", "Tap again to switch player"), the second tap switches; the double-tap, take-back and busy guards hold (SwitchPlayerButton.test, was SignOutButton.test) |
+| TC-884 | M | ✅ | world HUD | `bench … hud`: the real app with its kid already picked — top bar 44 px at 5 sizes, "Switch?" moves nothing on a phone, Tab never reaches the bar under a panel (6/6, 2026-10-10) |
+| TC-885 | M | ✅ | family screens | headless Chromium, stubbed Supabase, 375×667 and 320×568: sign-up, consent, first kid with a PIN, an old kid finished (nickname, picture, PIN), Who's playing, a wrong then the right PIN, the game with Switch player, a reload keeps the kid, 👪 by password, set a grown-up PIN, the remove confirm, 👪 by grown-up PIN — no sideways scroll, no page errors (2026-10-10) |
+| TC-886 | M | ⬜ | family screens | on a real phone after deploying 0013 + the function: sign up as a grown-up (confirm email), add two kids, each opens with their picture, Switch player between them keeps each one's progress, removing one deletes their save (check `saves` in the SQL Editor) |
+| TC-887 | M | ⬜ | old accounts | an account from before 0013 signs in: the consent page shows; after agreeing, "Finish setting up your player" asks a grown-up for a nickname, picture and PIN; then its kid opens with that PIN and still has their XP and save |
+| TC-888 | U | ✅ | migration 0014 | a PIN is exactly 4 digits; `set_kid_pin` marks `has_pin`; `check_kid_pin` opens with the right PIN only; a new PIN replaces the old; the API role can't read or write `kid_pins` / `parent_pins`; the grown-up PIN sets `parents.has_pin` and checks (pins.test.sql) |
+| TC-889 | U | ✅ | migration 0014 | another grown-up's `check_kid_pin` never opens my kid and their `set_kid_pin` is refused (`not_your_kid`); my grown-up PIN doesn't work for them; a 9th player is refused (`kid_limit`) (pins.test.sql; fails with the ownership test taken out of `check_kid_pin`) |
+| TC-890 | U | ✅ | migration 0014 | the question budget is per kid: one kid using up their calls leaves another's budget whole; only a kid has a budget (FK); removing a kid removes their requests and PIN (pins.test.sql) |
+| TC-891 | C | ✅ | PinPad | a dot per digit, ⌫ takes one back, the 4th digit sends it; a wrong PIN clears and says try again; after 5 wrong in a row the pad rests 30 s, then works; an offline check shows why and isn't a wrong try; keyboard digits work, not while typing in a field (PinPad.test) |
+| TC-892 | C | ✅ | KidSetupPage | a kid without a PIN is finished here and can't be saved without one; it sends the nickname, picture, PIN and birth date (KidSetupPage.test) |
+| TC-893 | M | ⬜ | PINs | after deploying 0014: in the SQL Editor `kid_pins.pin_hash` starts with `$2a$` (bcrypt) and no PIN is stored in plain text; a kid's wrong PIN 5 times rests the pad 30 s on a real phone |
+
+## Press to use, doorways, stepping aside (#127)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-941 | U | ✅ | interact | Space (by key or code) and Enter use things; arrows, letters, Escape and Tab never do (interact.test) |
+| TC-942 | U | ✅ | interact | a focused button (or something inside one), link, input, textarea or anything in a dialog keeps Space / Enter for itself; the page body doesn't (`ownsKeys`, interact.test) |
+| TC-943 | U | ✅ | interact | what gets used is looked for the way the hero faces first, then to the sides, then behind; a diagonal looks both its ways first; a hero who never moved faces the camera (`probeDirs`, interact.test) |
+| TC-944 | U | ✅ | interact | tiles are probed just past the side of the hero's box they face — the middle first, then by each corner (`probePoints`, interact.test) |
+| TC-945 | U | ✅ | interact | a person counts when within reach and on the side faced (±53°), not off to the side, behind or too far (`inFront`, interact.test) |
+| TC-946 | U | ✅ | interact | the prompt reads "Space: …" on a keyboard, "Tap: …" on a touch screen (`promptText`, interact.test) |
+| TC-947 | U | ✅ | interact | doorway assist: a hero up to 20 px off a one-tile opening is slid into line with it; 21 px off, or a plain wall, isn't; of two openings the nearer; at most a step a frame (`cornerTarget` / `slideStep`, interact.test) |
+| TC-948 | U | ✅ | interact | walking into the same person adds up; someone else starts over; stopping or turning away clears it (`pushOn`, interact.test) |
+| TC-949 | U | ✅ | interact | in the open, someone stepping aside goes 2–5 cells, off the line the hero walks, at least 2 cells from them (`scootPath`, interact.test) |
+| TC-950 | U | ✅ | interact | in a corridor they go on through it and step aside in the room beyond (interact.test) |
+| TC-951 | U | ✅ | interact | at a dead end they squeeze past the hero to the other side (interact.test) |
+| TC-952 | U | ✅ | interact | inside a building they stay inside, on its floor — never its doorway (interact.test) |
+| TC-953 | U | ✅ | interact | they keep off exits, hidden passages, stairs and cells other people stand on (interact.test) |
+| TC-954 | U | ✅ | interact | boxed in with nowhere to go, they stay put (interact.test) |
+| TC-955 | C | ✅ | TouchPad | ✋ is a dim "Use" with nothing to use, and says what it would do ("Open chest") when there is (TouchPad.test) |
+| TC-956 | C | ✅ | TouchPad | a tap uses once — on the press, not again on its click; Enter / Space on the focused button works it too (TouchPad.test) |
+| TC-957 | C | ✅ | TouchPad | the d-pad still steers; no ✋ without an `onAction` (TouchPad.test) |
+| TC-958 | C | ✅ | WorldScreen | ✋ takes its label from the canvas's `onPrompt`, and a press counts in the `actionRef` the canvas reads (WorldScreen.use.test) |
+| TC-959 | C | ✅ | WorldScreen | the footer says Space, Enter or a click talks, opens and uses — no "bump into friends" (WorldScreen.use.test) |
+| TC-960 | E | ✅ | world | real canvas, real keys (`bench … use`): walking straight up from 0, ±6, ±10, +14 and ±18 px off a Numbria door's middle goes in (on `main` only 0 px did) |
+| TC-961 | E | ✅ | world | real canvas (`bench … use`): walking into Eldergrove's chest opens nothing and its prompt says "Open chest"; Space opens it |
+| TC-962 | E | ✅ | world | real canvas (`bench … use`): walking into Moonwell Grove's gate asks nothing; Enter opens it and the hero walks through |
+| TC-963 | E | ✅ | world | real canvas (`bench … use`): walking into Pip stops the hero and says nothing, the prompt says "Talk"; Space, Enter, a click and a held Space talk once each |
+| TC-964 | E | ✅ | world | real canvas (`bench … use`): Pip walked into for 1 s is still in the way; by ~1.5 s Pip steps aside and the hero walks on past, with no talk |
+| TC-965 | E | ✅ | world | the Act I journey (`bench … journey`) still walks every leg and Spire floor, the walker pressing ✋ at gates, seals, the stairs, the Spire and Umbra |
+| TC-966 | M | ⬜ | world | on a phone: ✋ sits beside the d-pad, its label follows what's in front ("Talk", "Open chest"); a tap on the map uses it too; the d-pad and ✋ work held together |
+| TC-967 | M | ⬜ | world | with a keyboard: after closing 📜 Menu with the mouse, walk to a chest and press Space — the chest opens (the walk blurred the Menu button), the menu doesn't reopen |
+| TC-968 | M | ⬜ | world | close a dialogue with Enter while still facing the person: it doesn't open again; press Enter once more and it does |
+| TC-969 | M | ⬜ | world | in town, walk at a wanderer: it never walks into the hero; hold into it ~1.5 s and it hops a few cells aside, then strolls round there; inside a shop, the keeper never leaves the shop |
+| TC-970 | M | ⬜ | world | the 1-tile ways in feel easy on a real keyboard and the d-pad: doors, Numbria's gate, the Depths' corridors, stairs — and a hidden passage ('H') is never slid into |
+| TC-971 | U | ✅ | interact | across a counter or desk: the person right behind it — straight across or from a corner — is talked to (`acrossCounter`, interact.test) |
+| TC-972 | U | ✅ | interact | across a counter: the nearest one on its far side, never someone on the hero's side or two tiles along (interact.test) |
+| TC-973 | E | ✅ | world | real canvas (`bench … use`): across the village shop's counter a click on the shopkeeper talks to them; from a corner of the counter Space does |
+| TC-974 | M | ⬜ | world | put an innkeeper behind a desk (`T`) in a test map: standing across it, Space and a tap on them both talk; the prompt floats over the innkeeper |
+| TC-975 | C | ✅ | TouchPad | a click on ✋ that isn't a tap's own (a screen reader's double-tap) uses it too (TouchPad.test) |
+| TC-976 | M | ⬜ | TouchPad | with VoiceOver (iOS) and TalkBack (Android): double-tap ✋ beside a chest — it opens, once |
+| TC-977 | M | ⬜ | world | on a phone: tap a shopkeeper, walk away, then press ✋ next to a chest — the chest opens (not the shopkeeper) |
 
 ## Regression cases (tied to ISSUES.md)
 
