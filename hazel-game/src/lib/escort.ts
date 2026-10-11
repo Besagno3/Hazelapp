@@ -24,11 +24,12 @@ export const ESCORT_CATCH_UP_SPEED = 230;
 /** A critter this near them (px) and they stop and wait. */
 export const ESCORT_WAIT_PX = 80;
 /**
- * …and they walk on only once it's this far (px): a critter drifting at the
- * edge of the wait distance doesn't make them stop-start (and the "!" blink —
- * #75 item 14g UX review).
+ * …and walk on once no critter has been that near for this long (s): one
+ * drifting at the edge doesn't make them stop-start (and the "!" blink). A
+ * time, not a wider distance — a critter leashed near where they stopped
+ * could never get far enough away, and they'd wait for ever (#75 item 14g reviews).
  */
-export const ESCORT_RESUME_PX = 100;
+export const ESCORT_RESUME_S = 0.6;
 /** This near the goal's centre (px) and they've arrived — with the hero at the goal, they're a gap behind. */
 export const ESCORT_ARRIVE_PX = 56;
 /** A crumb every this many px the hero moves. */
@@ -43,6 +44,8 @@ export interface EscortState {
   crumbs: Pt[];
   /** Waiting for a critter to go away. */
   waiting: boolean;
+  /** While waiting: how long no critter has been near (s). */
+  clearFor?: number;
 }
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -81,7 +84,8 @@ export function trailLength(s: EscortState, hero: Pt): number {
  * crumbs, keeping `ESCORT_GAP` of the path between them and the hero.
  */
 export function stepEscort(s: EscortState, hero: Pt, threats: Pt[], dt: number): EscortState {
-  if (waitsFor(s.at, threats, s.waiting ? ESCORT_RESUME_PX : ESCORT_WAIT_PX)) return s.waiting ? s : { ...s, waiting: true };
+  if (waitsFor(s.at, threats)) return s.waiting && !s.clearFor ? s : { ...s, waiting: true, clearFor: 0 };
+  if (s.waiting && (s.clearFor ?? 0) + dt < ESCORT_RESUME_S) return { ...s, clearFor: (s.clearFor ?? 0) + dt };
   let left = trailLength(s, hero);
   let budget = (left > ESCORT_CATCH_UP_AT ? ESCORT_CATCH_UP_SPEED : ESCORT_SPEED) * dt;
   let at = s.at;
@@ -101,7 +105,7 @@ export function stepEscort(s: EscortState, hero: Pt, threats: Pt[], dt: number):
     left -= step;
     if (step < d) break;
   }
-  return { at, crumbs: n ? s.crumbs.slice(n) : s.crumbs, waiting: false };
+  return { at, crumbs: n ? s.crumbs.slice(n) : s.crumbs, waiting: false, clearFor: 0 };
 }
 
 /**
@@ -114,7 +118,8 @@ export function arrived(at: Pt, goal: Pt, tile: number, hero?: Pt, waiting = fal
   const g = { x: goal.x * tile + tile / 2, y: goal.y * tile + tile / 2 };
   // With the hero there too: never "arrived" on their own while the hero is far off.
   if (dist(at, g) < ESCORT_ARRIVE_PX && (!hero || dist(hero, g) < tile * 4)) return true;
-  return !!hero && !waiting && dist(hero, g) < tile * 2.5 && dist(at, hero) < tile * 3 && dist(at, g) < tile * 5;
+  // (Up to 5 tiles back: on the last stretch they trail ~4.5 at their slower pace — UX review round 10.)
+  return !!hero && !waiting && dist(hero, g) < tile * 2.5 && dist(at, hero) < tile * 5 && dist(at, g) < tile * 7;
 }
 
 /**

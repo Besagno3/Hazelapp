@@ -1238,6 +1238,7 @@ export default function WorldCanvas({
     let escortBehindAt = -1e9;
     let escortWaitAskedAt = -1e9;
     let escortWentAway = false;
+    let escortReroutedAt = '';
 
     // Each roaming critter's parts, with their own full opacity — faded under
     // Calm, and less while it sleeps (`resting`, #75 item 14d). Bosses never
@@ -2331,7 +2332,10 @@ export default function WorldCanvas({
         escortState = dropCrumb(escortState, player.pos);
         // The hero came back for them: walk to the hero from here, a way round on the
         // map, not back out along the old footsteps and past them (#75 item 14g UX review).
-        if (cameBack(escortState, player.pos, TILE)) {
+        // Once per return: not again until the hero has moved a tile (equal ways round can't flip her about).
+        const heroCell = `${Math.floor(player.pos.x / TILE)},${Math.floor(player.pos.y / TILE)}`;
+        if (heroCell !== escortReroutedAt && cameBack(escortState, player.pos, TILE)) {
+          escortReroutedAt = heroCell;
           const cell = (p: { x: number; y: number }) => ({ x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) });
           const hero = cell(player.pos);
           const way = reachPath(z, (x, y) => x === hero.x && y === hero.y, { from: cell(escortState.at), flags: flagsRef.current });

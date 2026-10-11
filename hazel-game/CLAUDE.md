@@ -615,6 +615,20 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 10: no waiting for ever, the Newt off her road (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 2 low) and `/saas-ux-review` (1 medium,
+2 low). Fixed: round 9's 100 px walk-on distance could keep Posy waiting for
+ever by a critter leashed near where she stopped (it can never get 100 px
+away) — she now walks on once no critter has been within 80 px for 0.6 s
+(`ESCORT_RESUME_S`, `EscortState.clearFor`); a child who waited as told stood
+20–40 s at the Mist Newt, whose patch reached the boardwalk — it now lives
+at (16,8), and zones.test checks no critter's patch (leash + 80 px) reaches
+Posy's boardwalk walk; on the last stretch she trails ~4.5 tiles, so the
+stone's own line often came first — she arrives up to 5 tiles behind a hero
+at the stone; a line she's walked on from is taken down once it's had 4 s
+(scheduled, not dropped); the way round to a hero who came back is worked
+out once per hero cell; Brume's found-first line split under 30 words.
+
 ### 2026-10-11 — 14g review round 9: a wait line you can read (#75 item 14g)
 Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (1 medium,
 1 low). Fixed: the Mist Newt drifting at the edge of Posy's 80 px made her
@@ -811,7 +825,7 @@ Roadmap sub-item 14g — Act II's marsh on the Silver Shallows' north coast.
   Ledger and the escort; BattleArena.test: the badge, the candle;
   battleTurn.test; story.test). 969 green, lint + build clean. On the real
   canvas (bench): Posy follows the boardwalks from the landing to the stone and
-  arrives; near the Mist Newt's patch she stops. Follow-ups: #120.
+  arrives; near the Mist Newt's patch she stops (since round 10 the Newt is off her road). Follow-ups: #120.
 
 ### 2026-10-10 — Every Training Grounds topic stays open (#119)
 Passing a topic round no longer greys that topic out for the rest of the

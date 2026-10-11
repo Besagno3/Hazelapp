@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ESCORT_ARRIVE_PX,
   ESCORT_GAP,
-  ESCORT_RESUME_PX,
+  ESCORT_RESUME_S,
   ESCORT_WAIT_PX,
   arrived,
   cameBack,
@@ -84,6 +84,8 @@ describe("an escort's walk (#75 item 14g)", () => {
     expect(arrived(c(5.9, 6.4), goal, 32, c(5, 5))).toBe(true);
     // From the east (8,4), Posy behind on the boardwalk: there.
     expect(arrived(c(10.3, 4.4), goal, 32, c(8, 4))).toBe(true);
+    // Trailing ~4.5 tiles on the last stretch, walking: there, before the hero bumps the stone.
+    expect(arrived(c(11.1, 4), goal, 32, c(6.6, 4))).toBe(true);
     // Held up by a critter, or the hero not at the goal: not yet.
     expect(arrived(c(5.9, 6.4), goal, 32, c(5, 5), true)).toBe(false);
     expect(arrived(c(5.9, 6.4), goal, 32, c(12, 9))).toBe(false);
@@ -116,14 +118,14 @@ describe("an escort's walk (#75 item 14g)", () => {
     expect(arrived({ x: 6 * 32 + 16, y: 4 * 32 + 16 }, { x: 6, y: 4 }, 32, { x: 20 * 32, y: 14 * 32 })).toBe(false);
   });
 
-  it('once waiting, they walk on only when the critter is well clear — no stop-start at the edge', () => {
+  it('once waiting, they walk on only after a moment with no critter near — never stuck by a leashed one', () => {
     let s = stepEscort(startEscort({ x: 0, y: 0 }), { x: 200, y: 0 }, [{ x: 0, y: 70 }], 1 / 60);
     expect(s.waiting).toBe(true);
-    // Drifted just past the wait distance: still waiting.
-    s = stepEscort(s, { x: 200, y: 0 }, [{ x: 0, y: 90 }], 1 / 60);
+    // Drifting in and out at the edge: still waiting.
+    for (let i = 0; i < 20; i++) s = stepEscort(s, { x: 200, y: 0 }, [{ x: 0, y: i % 2 ? 79 : 81 }], 1 / 60);
     expect(s.waiting).toBe(true);
-    // Well clear: on they go.
-    s = stepEscort(s, { x: 200, y: 0 }, [{ x: 0, y: ESCORT_RESUME_PX + 1 }], 1 / 60);
+    // Just past the wait distance (where a leashed critter can get to) long enough: on they go.
+    for (let t = 0; t < ESCORT_RESUME_S + 0.1; t += 1 / 60) s = stepEscort(s, { x: 200, y: 0 }, [{ x: 0, y: 81 }], 1 / 60);
     expect(s.waiting).toBe(false);
   });
 });

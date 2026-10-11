@@ -361,8 +361,16 @@ export default function WorldScreen() {
   /** Take down the toast if it's one of these lines (another's stays, its timers too). */
   function clearToastOf(lines: string[], readMs = 0) {
     if (!toastUp.current || !lines.includes(toastText.current ?? '')) return;
-    // Up long enough to have been read (a line gone in under a second helps nobody).
-    if (Date.now() - toastAt.current < readMs) return;
+    // Up long enough to have been read (a line gone in under a second helps nobody):
+    // too young, it comes down once it's had that long — if it's still the same line.
+    const young = readMs - (Date.now() - toastAt.current);
+    if (young > 0) {
+      const shownAt = toastAt.current;
+      setTimeout(() => {
+        if (toastAt.current === shownAt) clearToastOf(lines);
+      }, young);
+      return;
+    }
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(null);
     toastUp.current = false;

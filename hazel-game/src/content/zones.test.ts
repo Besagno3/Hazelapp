@@ -898,6 +898,19 @@ describe('Foglight Marsh (#75 item 14g)', () => {
     expect(where({ [offered]: true, [arrived]: true, [done]: true })).toEqual(['remembrance-hill@14,23']);
   });
 
+  it("no critter's patch reaches Posy's walk: she never waits on one that can't leave (#75 item 14g UX review)", () => {
+    const TILE = 32;
+    const leash = WANDER_TUNING.enemy.leashTiles * TILE;
+    // The walk she asks for: up the boardwalks from the landing to the stone.
+    const way = reachPath(marsh, (x, y) => x === 6 && y === 4, { from: { x: 21, y: 23 }, passable: (ch) => ch === '=' })!;
+    expect(way).toBeTruthy();
+    for (const e of marsh.enemies.filter((p) => !ENEMY_DEFS[p.defId].isBoss)) {
+      const near = Math.min(...way.map((c) => Math.hypot(c.x - e.x, c.y - e.y))) * TILE;
+      // Its patch's edge, plus how near a critter makes her wait (80 px).
+      expect(near, `${e.defId}@${e.x},${e.y}`).toBeGreaterThan(leash + 80);
+    }
+  });
+
   it("Brume's lanterns stand by the boardwalks, dark until lit, and her Ledger's chest is in reach", () => {
     const open = reach(marsh);
     for (const side of ['west', 'north', 'east']) {

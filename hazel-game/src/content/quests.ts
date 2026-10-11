@@ -841,7 +841,8 @@ export const QUESTS: QuestDef[] = [
       items: ['lantern-ledger'],
       lines: [
         "Oh! A visitor. Lightkeeper Brume — and is that my Lantern Ledger?! You found it already!",
-        'It says which lantern to light, and when. Light all three, then come and tell me. First, the WEST lantern — beside the boardwalk, just up and to the right of my lamp-house!',
+        'It says which lantern to light, and when. Light all three, then come and tell me.',
+        'First, the WEST lantern — beside the boardwalk, just up and to the right of my lamp-house!',
       ],
     },
     // What the Ledger says when you find it — where to go first (#75 item 14g UX review).

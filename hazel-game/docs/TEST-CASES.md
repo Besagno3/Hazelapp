@@ -1030,7 +1030,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-868 | M | ⬜ | world (review) | reaching the stone while Posy is held up ("isn't here yet" toast), then her arriving: the toast is gone before the stone panels open |
 | TC-869 | U | ✅ | world (review) | out-and-back footsteps with the hero beside them again count as a detour (`cameBack`); following a gap behind doesn't; no arrival with the hero far from the stone (escort.test) |
 | TC-870 | M | ✅ | world (review) | at the stone with Posy held up ("go back and find her"), walking back beside her: the wait line replaces it at once, and when the critter leaves she follows the hero instead of running on to the stone alone (stubbed app, round 8) |
-| TC-871 | U | ✅ | world (review) | a waiting escort stays waiting while the critter drifts between 80 and 100 px, and walks on past 100 px; going back to within 2.5 tiles counts as coming back (escort.test) |
+| TC-871 | U | ✅ | world (review) | a waiting escort stays waiting while a critter drifts in and out at 80 px, and walks on once none has been within 80 px for 0.6 s; going back to within 2.5 tiles counts as coming back (escort.test) |
+| TC-873 | U | ✅ | zones (review) | no non-boss critter in the Marsh has its patch (leash + 80 px) within reach of Posy's boardwalk walk from the landing to the stone (zones.test; fails with the Newt at 15,12) |
+| TC-874 | U | ✅ | world (review) | Posy trailing ~4.5 tiles on the last stretch arrives as the hero reaches the stone, before its own line (escort.test) |
 | TC-872 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 

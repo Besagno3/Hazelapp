@@ -1961,7 +1961,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'marsh-lantern-east-lit', x: 39, y: 10, ifFlag: stepFlag('lantern-east') },
     ],
     enemies: [
-      { defId: 'mist-newt', x: 15, y: 12 },
+      // Clear of Posy's walk (its whole patch 3+ tiles off the boardwalks), so she never waits
+      // half a minute on a critter that can't leave (#75 item 14g UX review).
+      { defId: 'mist-newt', x: 16, y: 8 },
       { defId: 'mist-newt', x: 30, y: 16 },
       { defId: 'bog-lantern', x: 26, y: 8 },
       { defId: 'bog-lantern', x: 8, y: 19 },
