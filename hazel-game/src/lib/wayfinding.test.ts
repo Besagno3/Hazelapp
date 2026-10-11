@@ -179,7 +179,10 @@ describe('nextObjective', () => {
     expect(g).toMatchObject({ kind: 'crystal', title: 'Free the Crystal of Memory', zoneId: 'sunken-archive' });
     expect(g.crystal?.id).toBe('history');
     expect(g.key?.id).toBe('memoria');
-    expect(g.why).toBe("Your Memoria Key opens the Hollow Fiend's silver door. Free the Crystal of Memory!");
+    expect(g.why).toBe('Your Memoria Key opens its silver door!');
+    // Wick's "Where to next?" — the reason and the way there — stays within 30 words (review fix).
+    const wick = wayfindingLines(ZONES, NPC_DEFS['village-elder'], memoriaWon).join(' ');
+    expect(wick.split(/\s+/).length, wick).toBeLessThanOrEqual(30);
     // Off the Shallows the way starts at the boat, as for the key.
     expect(g.at).toEqual({ zoneId: 'dawnreach', x: 70, y: 30, name: "Marlow's dock" });
     expect(goalDirections(ZONES, g, 'lumina-village')).toMatch(/^Go east to Marlow's dock and sail east to the Silver Shallows, then go .*to the Sunken Archive\.$/);

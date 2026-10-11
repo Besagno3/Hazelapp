@@ -1064,7 +1064,7 @@ export const QUESTS: QuestDef[] = [
     title: 'A Letter, Long Overdue',
     offer: [
       "Oh! A reader! I'm Index. I was putting the W's in order, and look — a letter that was never sent!",
-      "It's sixty years old, and it says: To Wick, Lumina Village. Wick… Grandmother Wick? She lives there still!",
+      "It's sixty years old. The name it was written to has faded right off — but it's signed: Wick, Lumina Village. Grandmother Wick? She lives there still!",
       "Could you carry it home to her? A letter is meant to be read. That's practically the first rule of the alphabet!",
     ],
     givesItem: 'old-letter',

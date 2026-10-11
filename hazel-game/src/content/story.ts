@@ -371,7 +371,7 @@ export const ARCHIVE_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🐭',
-    text: 'Then, down the red carpet, a little mouse in spectacles peeks out from behind a card catalog. "Oh! A READER!"',
+    text: 'Then a little mouse in spectacles peeks out of the Card Catalog, up the red carpet on the left. "Oh! A READER! I\'m Index!"',
   },
 ];
 
@@ -509,7 +509,7 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
     {
       emoji: '🐉',
       text:
-        'Ember stretches its wings so wide the bookshelves rattle, and they beat — once, twice. ' +
+        'Ember stretches its wings so wide the bookshelves rattle. Its wings beat — once, twice. ' +
         'Strong enough to fly now, almost. Soon, little spark. Soon.',
     },
     {

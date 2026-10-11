@@ -792,6 +792,10 @@ describe("A Letter, Long Overdue (#75 item 14h)", () => {
     save = converse('archive-index', save);
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
     expect(save.questItems).toEqual(['old-letter']);
+    // Signed by Wick, written to someone whose name has faded — as she tells it (review fix).
+    expect(questConversation('village-elder', save)!.lines[0]).toMatch(/MY handwriting/);
+    expect(quest.offer.join(' ')).toMatch(/signed: Wick/);
+    expect(quest.offer.join(' ')).not.toMatch(/To Wick/);
     expect(resolveHint(activeStep(quest, save)!, save)).toMatch(/Grandmother Wick.*Lumina Village/);
 
     // Wick reads it — her own handwriting, to a teacher whose name she's forgotten — and sends a note back.

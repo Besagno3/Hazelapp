@@ -651,6 +651,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14h review round 4: the last lows; the loop ends (#75 item 14h)
+Fresh `/saas-code-review` (nothing found) and `/saas-ux-review` (3 low).
+Fewer than 4 lows, so fixed and the loop stopped: Index reads the letter's
+signature (Wick's, its addressee's name faded), not "To Wick" — which
+clashed with Wick writing it to her teacher; the 🚩's Memory reason is "Your
+Memoria Key opens its silver door!", so Wick's "Where to next?" is ≤ 30
+words; the first-visit panel says where Index is and her name; Ember's
+panel loses an unclear "they". 1074 green, lint + build clean.
+
 ### 2026-10-11 — 14h review round 3: shorter lines, "waits by the island" (#75 item 14h)
 Fresh `/saas-code-review` (2 low) and `/saas-ux-review` (3 low) — no
 critical, high or medium; five lows, so fixed and one more round: the Return

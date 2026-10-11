@@ -181,7 +181,8 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'crystal',
       title: `Free the ${crystal.crystalName}`,
-      why: `Your ${key.name} opens ${midSentence(key.fiendName)}'s ${key.door ?? 'gate'}. Free the ${crystal.crystalName}!`,
+      // Short: guides add the way there after it (#75 item 14h review).
+      why: `Your ${key.name} opens its ${key.door ?? 'gate'}!`,
       zoneId: crystal.zoneId,
       crystal,
       key,
