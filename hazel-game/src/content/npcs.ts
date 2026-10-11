@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { POSY_WALK, escortWalkingFlag, stepFlag } from './questFlags';
+import { POSY_QUEST, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals } from './topics';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
@@ -1401,7 +1401,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '⛵',
     role: 'merchant',
     lines: [
-      "Slosh's the name, rafts are the game! I ferry folk in from the sea — I brought Posy over! — and I sell what a bog-walker needs.",
+      "Slosh's the name, rafts are the game! I ferry folk in from the sea, and I sell what a bog-walker needs.",
+      // Only while she's here (#75 item 14g UX review).
+      { text: 'I brought a little girl called Posy over this morning. She had a flower for someone.', ifFlag: questOfferedFlag({ id: POSY_QUEST }), unlessFlag: questDoneFlag({ id: POSY_QUEST }) },
       'Glimmer Candles! Bog Lanterns are too slippery for Hint Feathers. Light one little candle, and your feathers work again.',
     ],
   },

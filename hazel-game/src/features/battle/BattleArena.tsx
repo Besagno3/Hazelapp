@@ -545,6 +545,8 @@ export default function BattleArena() {
     const { name, emoji } = CONSUMABLES[id];
     // The candle says what it did: slippery critters can't block hints now (#75 item 14g review).
     const did = id === 'candle' ? (enemy.behavior === 'trickster' ? ' Hints work now — even on this slippery critter!' : ' A free hint is ready!') : '';
+    // "Light a candle!" is done: the banner says so instead of still asking.
+    if (id === 'candle' && enemy.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️');
     say(`${avatar!.name} uses a ${name}! ${emoji}${did}`, enemyTurn);
   }
   function commandFlee() {
@@ -1218,8 +1220,9 @@ export default function BattleArena() {
               hints={enemy.behavior === 'trickster' && !candleLit ? 0 : save.items.hint + (freeHint ? 1 : 0) + (candleHint ? 1 : 0)}
               hintLabel={freeHint ? '🦊 Fox Sense — use a free hint!' : candleHint ? '🕯️ Glimmer Candle — use a free hint!' : undefined}
               // Why there's no hint button, and the way round it (#75 item 14g UX review).
-              hintNote={enemy.behavior === 'trickster' && !candleLit && save.items.hint > 0
-                ? `🪶 Too slippery for feathers${save.items.candle ? ' — light a 🕯️ candle from Items!' : '!'}`
+              // (Items only opens on your own turn, so a block question says just the first half.)
+              hintNote={enemy.behavior === 'trickster' && !candleLit && (save.items.hint > 0 || save.items.candle > 0)
+                ? `🪶 Too slippery for feathers${save.items.candle && turn.kind !== 'enemy-question' ? ' — light a 🕯️ candle from Items!' : '!'}`
                 : undefined}
               preHidden={turn.hide ?? 0}
               // Forget-Me-Knot (#75 item 14e): a wrong pick is crossed out and the hero picks again.

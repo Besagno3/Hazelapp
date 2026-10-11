@@ -675,8 +675,8 @@ describe('The Lantern Ledger (#75 item 14g)', () => {
     expect(quest).toMatchObject({ giverNpcId: 'marsh-brume', side: true, zoneId: 'foglight-marsh' });
     let save = converse('marsh-brume', defaultSave());
     expect(hint(save)).toMatch(/riddle-chest 🎁/);
-    // A lantern before the Ledger is found is just a dark lantern.
-    expect(questConversation('marsh-lantern-west', save)).toBeNull();
+    // A lantern before the Ledger is found says to find it first (#75 item 14g UX review).
+    expect(questConversation('marsh-lantern-west', save)!.lines[0]).toMatch(/^Not yet! .*riddle-chest 🎁/);
     save = openChest(save, LEDGER);
     expect(save.questItems).toContain('lantern-ledger');
     expect(hint(save)).toMatch(/WEST/);

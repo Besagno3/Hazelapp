@@ -161,17 +161,19 @@ export default function MenuOverlay({
 
         {save.badges.length > 0 && (
           <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
-            <span className="font-bold mr-2">Badges:</span>
-            {save.badges.map((b) => {
-              // Each one named on hover and for screen readers (#75 item 14g UX review).
-              const it = ALL_SHOP_ITEMS.find((i) => i.id === b) ?? GATE_KEYS.find((k) => k.id === b) ?? BOSS_BADGES[b];
-              return (
-                <span key={b} title={it?.name} className="mr-1">
-                  <span aria-hidden="true">{it?.emoji ?? '🏅'}</span>
-                  <span className="sr-only">{it?.name ?? b}</span>
-                </span>
-              );
-            })}
+            <div className="font-bold mb-1">Badges:</div>
+            {/* Each one named under it — a phone has no hover (#75 item 14g UX review). */}
+            <ul className="flex flex-wrap gap-x-3 gap-y-1">
+              {save.badges.map((b) => {
+                const it = ALL_SHOP_ITEMS.find((i) => i.id === b) ?? GATE_KEYS.find((k) => k.id === b) ?? BOSS_BADGES[b];
+                return (
+                  <li key={b} className="flex flex-col items-center text-center w-16">
+                    <span aria-hidden="true" className="text-lg leading-tight">{it?.emoji ?? '🏅'}</span>
+                    <span className="text-[11px] leading-tight text-white/80">{it?.name ?? b}</span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
 

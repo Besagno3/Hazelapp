@@ -50,7 +50,7 @@ export const CONSUMABLES: Record<ConsumableId, { name: string; emoji: string; de
   // Act II (#75 item 14e): Trader Knack's — tie it on and you won't forget the answer twice.
   knot: { name: 'Forget-Me-Knot', emoji: '🎗️', description: 'Your next wrong answer in this battle gets a second try.' },
   // Act II (#75 item 14g): Ferryman Slosh's — a light no trickster can play games with.
-  candle: { name: 'Glimmer Candle', emoji: '🕯️', description: "A free hint. Slippery critters, like Bog Lanterns, can't block your Hint Feathers in that battle." },
+  candle: { name: 'Glimmer Candle', emoji: '🕯️', description: "Light it in a battle: a free hint, and slippery critters like Bog Lanterns can't block your Hint Feathers." },
 };
 
 /** Consumables that can be used from the battle Items menu (not Hint Feathers). */

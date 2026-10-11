@@ -174,7 +174,7 @@ export default function QuestionCard({
           {hintLabel ?? `🪶 Use a Hint Feather (${hints} left)`}
         </button>
       )}
-      {selected === null && hints === 0 && hintNote && <p className="mt-2 text-xs text-gray-500">{hintNote}</p>}
+      {selected === null && hints === 0 && hintNote && <p className="mt-2 text-sm font-semibold text-gray-600">{hintNote}</p>}
 
       {selected !== null && selected !== question.correctIndex && (
         <motion.p

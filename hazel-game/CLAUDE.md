@@ -615,6 +615,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 3: the lows (#75 item 14g)
+Fresh `/saas-code-review` (3 low) and `/saas-ux-review` (7 low; played on the
+bench and the stubbed app at 320–360 px) — no critical, high or medium left.
+Fixed: the "too slippery" note shows with a candle and no feathers too, and on
+a block question only its first half (Items opens on your turn); lighting the
+candle replaces the "Light a candle!" banner; the note is bigger; badges are a
+list with each name under its emoji (a phone has no hover); in the Marsh the
+quest log says Posy waits at the landing (not "sail to the Marsh"); the
+candle's description says it's lit in a battle; Slosh mentions Posy only
+while she's in the Marsh; the East Lantern hint's "on the right" was wrong; a
+lantern before the Ledger is found says "Not yet!" and where the Ledger is.
+Asked (#120m): Puddle the frog and the Murk Toad look alike.
+
 ### 2026-10-11 — 14g UX review round 2: Posy arrives however you reach the stone (#75 item 14g)
 A fresh `/saas-ux-review` (1 high, 2 medium, 4 low; played on the bench and
 the stubbed app at 320–1024 px). All fixed:

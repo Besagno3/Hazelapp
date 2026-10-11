@@ -861,7 +861,7 @@ export const QUESTS: QuestDef[] = [
         'lantern-east',
         'marsh-lantern-east',
         ['The Ledger says: "Last of all: the EAST lantern."', '*Fwoomp!* The east lantern glows. That\'s all three! Go and tell Brume. ✨'],
-        'Last, the EAST lantern — up the east boardwalk, past the big pond on the right.',
+        'Last, the EAST lantern — up the east boardwalk, next to the big pond.',
         ),
       },
     ],
@@ -910,7 +910,9 @@ export const QUESTS: QuestDef[] = [
         (save) =>
           save.flags[escortWalkingFlag(POSY_WALK)]
             ? 'Walk Posy to the Nameless Stone, at the end of the north-west boardwalk. Stay close — she stops if a critter is near!'
-            : "Sail to Foglight Marsh, on the Silver Shallows' north coast. Posy waits at the landing — walk her to the Nameless Stone!",
+            : save.zoneId === 'foglight-marsh'
+              ? 'Posy is waiting at the landing — talk to her to walk her to the Nameless Stone!'
+              : "Sail to Foglight Marsh, on the Silver Shallows' north coast. Posy waits at the landing — walk her to the Nameless Stone!",
       ),
     ],
     complete: [
@@ -1169,10 +1171,11 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
   for (const q of QUESTS) {
     if (!save.flags[questOfferedFlag(q)] || save.flags[questDoneFlag(q)]) continue;
     const step = activeStep(q, save);
-    if (!step?.npc) continue;
+    if (!step) continue;
     const later = q.steps.slice(q.steps.indexOf(step) + 1);
     if (later.some((st) => st.early && st.npc?.id === npcId)) {
-      return { lines: [`Not this one yet! ${resolveHint(step, save)}`], badge: q.title, finishKind: null, finish: null };
+      // Another of its kind first ("Not this one yet!"), or something to find first — the Ledger (#75 item 14g UX review).
+      return { lines: [`${step.npc ? 'Not this one yet!' : 'Not yet!'} ${resolveHint(step, save)}`], badge: q.title, finishKind: null, finish: null };
     }
   }
   return null;
