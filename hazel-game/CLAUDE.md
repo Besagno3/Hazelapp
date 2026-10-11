@@ -615,6 +615,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 6: lanterns you can see (#75 item 14g)
+Fresh `/saas-code-review` (2 low) and `/saas-ux-review` (1 medium, 3 low).
+Fixed: an unlit lantern was a thin brown post on a phone, and the North
+Lantern's hint ("by the big pond") pointed at the glowing Bog Lantern critter
+— the lanterns now have a big pale-glass head (`lantern_post`, both sprites
+rebuilt) and the hint says "on a post right beside the middle boardwalk…
+(the glowing thing by the pond is a Bog Lantern — a critter!)"; Brume's "you
+found it already" offer names the West lantern first; the West Lantern is
+"beside the boardwalk, just up and to the right of Brume's lamp-house" (it
+isn't above it); back beside a waiting Posy, the wait line shows at once
+(`onEscortWait(near)`, every 4 s) instead of up to 15 s later.
+
 ### 2026-10-11 — 14g review round 5: the Ledger says where to start (#75 item 14g)
 Fresh `/saas-code-review` (1 low) and `/saas-ux-review` (1 medium, 3 low).
 Fixed: finding the Ledger now says "📒 You open the Ledger: first, the WEST

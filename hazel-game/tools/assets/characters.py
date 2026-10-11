@@ -3082,23 +3082,28 @@ def lantern_post(c: Canvas, p: Pose, s: dict):
     lit = s.get('lit', False)
     wood = hexc('#6a4a30')
     L = d.part(0, 0)
-    L.rect(15, 12, 17, 29.6, wood)
+    L.rect(15, 10, 17, 29.6, wood)
     L.rect(12, 28.6, 20, 30.2, dark(wood, 0.2))
-    L.rect(16, 7.5, 22, 8.8, wood)  # the arm
-    L.rect(19.4, 8.8, 20.4, 10, '#2a2a30')
-    glass = hexc('#ffd860') if lit else hexc('#4a5060')
-    L.rect(17.4, 10, 22.4, 17, '#2a2a30')
-    L.rect(18.2, 10.8, 21.6, 16.2, glass)
+    L.rect(16, 4.2, 22, 5.6, wood)  # the arm
+    # A big lamp head — pale glass even when dark, so it reads as a lantern on a phone,
+    # not a stick in the reeds (#75 item 14g UX review).
+    L.rect(16.6, 5.6, 23.4, 7.2, '#2a2a30')  # the cap
+    L.rect(16.2, 7.2, 23.8, 19, '#2a2a30')
+    glass = hexc('#ffd860') if lit else hexc('#c4d2e2')
+    L.rect(17.2, 8.2, 22.8, 18, glass)
+    L.rect(19.6, 8.2, 20.4, 18, '#2a2a30' if not lit else '#e8b840')  # the middle bar
     if lit:
-        L.ellipse(19.9, 13.6, 1.2, 1.8, '#fff4c0', shade=False)
+        L.ellipse(20, 13.1, 1.6, 2.4, '#fff4c0', shade=False)
+    else:
+        L.rect(17.8, 8.8, 18.6, 12, '#f2f6fb')  # a glint
     d.put(L)
     if lit:
         G = d.part(0, 0)
         # A ring of light round the lamp, so a lit lantern reads at a glance on a phone (#75 item 14g review).
-        for k in range(14):
-            a = k * math.tau / 14
-            G.dot(19.9 + math.cos(a) * 6.2, 13.6 + math.sin(a) * 6.2, '#ffe680' if k % 2 else '#fff4c0')
-        for (x, y) in ((19.9, 4.4), (12.4, 13.6), (27.4, 13.6), (19.9, 22.6)):
+        for k in range(16):
+            a = k * math.tau / 16
+            G.dot(20 + math.cos(a) * 7.4, 13.1 + math.sin(a) * 7.4, '#ffe680' if k % 2 else '#fff4c0')
+        for (x, y) in ((20, 2.6), (11.2, 13.1), (28.8, 13.1), (20, 23.6)):
             G.dot(x, y, '#ffd84a')
         d.put(G, outline=False)
     finish(c, d, shadow=(16, 30.6, 5, 1.0))

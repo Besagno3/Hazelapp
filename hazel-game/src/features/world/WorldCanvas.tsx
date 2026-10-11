@@ -233,7 +233,8 @@ export interface WorldCanvasCallbacks {
    */
   onAshore?: (boat: { x: number; y: number } | null) => void;
   /** An escort (#75 item 14g, Posy) has been waiting a moment: a critter is near them. */
-  onEscortWait?: () => void;
+  /** They've stopped for a critter; `near`: the hero has come back to them (say why now). */
+  onEscortWait?: (near?: boolean) => void;
   /** …the hero reached their goal without them. */
   onEscortBehind?: () => void;
   /** …moved on — where they stand now (px), kept so a battle mid-walk leaves them there. */
@@ -2340,7 +2341,8 @@ export default function WorldCanvas({
         escortWaitFor = escortState.waiting ? escortWaitFor + dt : 0;
         if (escortState.waiting && wasWaiting && escortWaitFor >= 1.5 && k.time() - escortWaitAskedAt >= 1) {
           escortWaitAskedAt = k.time();
-          cbRef.current.onEscortWait?.();
+          // Back beside them: you came to find them, so say why at once (#75 item 14g UX review).
+          cbRef.current.onEscortWait?.(Math.hypot(player.pos.x - escortState.at.x, player.pos.y - escortState.at.y) < TILE * 1.5);
         }
         // The hero at the goal, them held up far behind: say where they are.
         if (stuckBehind(escortState, player.pos, walk.goal, TILE) && k.time() - escortBehindAt > 8) {

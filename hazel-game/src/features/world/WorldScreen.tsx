@@ -551,8 +551,9 @@ export default function WorldScreen() {
           onUmbra: () => spireBump({ kind: 'umbra' }),
           // An escort's walk (#75 item 14g): a stop says why (now and then); where
           // they stand is kept (a battle mid-walk leaves them there); arriving ends it.
-          onEscortWait: () => {
-            if (!walk || toastUp.current || Date.now() - escortSaidAt.current < 15000) return;
+          onEscortWait: (near) => {
+            // Back beside her: say it now (at most every 4 s), not the 15 s a passing stop waits.
+            if (!walk || toastUp.current || Date.now() - escortSaidAt.current < (near ? 4000 : 15000)) return;
             escortSaidAt.current = Date.now();
             showToast(walk.waitLine);
           },

@@ -673,6 +673,7 @@ describe('The Lantern Ledger (#75 item 14g)', () => {
   it('a Ledger found before meeting Brume: she knows, and asks for the lanterns only', () => {
     const save = openChest(defaultSave(), LEDGER);
     expect(questConversation('marsh-brume', save)!.lines[0]).toMatch(/You found it already/);
+    expect(questConversation('marsh-brume', save)!.lines.join(' ')).toMatch(/First, the WEST lantern/);
     expect(questConversation('marsh-brume', defaultSave())!.lines[0]).not.toMatch(/already/);
   });
 
