@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { CHARGE_MAX } from '../../content/abilities';
+import { shortName } from '../../content/enemies';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { STREAK_START } from '../../lib/battleTurn';
 import { BASE_TIER, VERY_TOUGH_TIER, dangerMarks, type DangerTier } from '../../content/regions';
@@ -22,10 +23,6 @@ export function ChargePips({ charge }: { charge: number }) {
 
 const PANEL =
   'bg-indigo-950/90 border-2 border-white/70 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-white w-60 min-w-0';
-/** A name without a leading "The", for a phone's narrow panel ("The Ringkeeper" → "Ringkeeper"). */
-export function shortName(name: string): string {
-  return name.replace(/^The /, '');
-}
 const TITLE_ROW = 'flex justify-between items-baseline gap-2 text-[13px] sm:text-sm font-bold';
 
 /**
@@ -79,7 +76,7 @@ export function BattleHud({
     <div className="relative z-10 flex justify-between gap-2 p-2 sm:gap-4 sm:p-4">
       {/* On a phone the hero's panel takes only what it needs (portrait, "◆2/4"), the
           enemy's the rest, and its name drops a leading "The" — "Clockwork Titan", not
-          "The Ringkee…" — with no extra height, so the commands still fit 320×568 (#120j). */}
+          "The Ringkee…" — with no extra height, so the commands still fit 320×568 (#125j). */}
       <div className={`${PANEL} flex-1 sm:flex-initial`}>
         <div className={TITLE_ROW}>
           <span className="min-w-0 truncate text-[12px] sm:text-sm" title={enemy.name}>
@@ -125,7 +122,7 @@ export function BattleHud({
           <span className="shrink-0 hidden sm:flex gap-0.5 items-center" title="Special charge">
             <ChargePips charge={charge} />
           </span>
-          {/* A phone's compact charge, so the enemy's name gets the room (#120j). */}
+          {/* A phone's compact charge, so the enemy's name gets the room (#125j). */}
           <span className="shrink-0 sm:hidden text-amber-300" title="Special charge">
             ◆<span className="text-white/80">{charge}/{CHARGE_MAX}</span>
           </span>

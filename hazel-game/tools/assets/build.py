@@ -19,6 +19,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py elder      # only Eldergrove: its tiles, critters and people (#75 item 14f)
     python3 tools/assets/build.py marsh      # only Foglight Marsh: its tiles, critters, people and lanterns (#75 item 14g)
     python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
+    python3 tools/assets/build.py intro      # only the sign-in screen's intro music
 
 Writes public/sprites/**, public/tiles/**, public/backgrounds/**,
 public/audio/16bit/** and the sprite manifest src/content/sprites.generated.ts.
@@ -132,6 +133,11 @@ def main():
         tiles.build_lighthouse(PUBLIC)
         print('lighthouse ✓')
         return
+    if 'intro' in only:
+        # Just the sign-in screen's intro music — every other file untouched.
+        audio.build_intro_music(PUBLIC)
+        print('intro music ✓')
+        return
     if 'seamusic' in only:
         # Just the sea music (#75 item 14) — every other file untouched.
         audio.build_sea_music(PUBLIC)
@@ -176,6 +182,7 @@ def main():
     if 'audio' in only:
         audio.build(PUBLIC)
         audio.build_sea_music(PUBLIC)
+        audio.build_intro_music(PUBLIC)
         print('audio ✓')
 
 

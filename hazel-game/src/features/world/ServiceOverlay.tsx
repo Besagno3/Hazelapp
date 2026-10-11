@@ -8,6 +8,7 @@ import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { ZONES, innOf } from '../../content/zones';
 import ShrineTrial from './ShrineTrial';
+import { shuffleAnswers } from '../../lib/questions';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
@@ -212,7 +213,8 @@ function Library() {
           {library.map((entry) => (
             <button
               key={entry.question.id}
-              onClick={() => setActive(entry)}
+              // A fresh order each try, so a retry tests the answer, not where it sat.
+              onClick={() => setActive({ ...entry, question: shuffleAnswers(entry.question) })}
               className="w-full text-left bg-white/10 hover:bg-white/20 rounded-xl p-3 text-sm transition"
             >
               <span className="capitalize text-xs text-amber-300 font-bold mr-2">

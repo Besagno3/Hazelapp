@@ -905,7 +905,7 @@ describe('Foglight Marsh (#75 item 14g)', () => {
     const leash = WANDER_TUNING.enemy.leashTiles * TILE;
     // The walk she asks for, up the boardwalks from the landing to the stone — and the
     // shortcut a child may take instead: up the middle boardwalk to its top, then west
-    // over the grass round the pool (the owner's call, #120u).
+    // over the grass round the pool (the owner's call, #125u).
     const walk = reachPath(marsh, (x, y) => x === 6 && y === 4, { from: { x: 21, y: 23 }, passable: (ch) => ch === '=' })!;
     const up = reachPath(marsh, (x, y) => x === 21 && y === 3, { from: { x: 21, y: 23 }, passable: (ch) => ch === '=' })!;
     const across = reachPath(marsh, (x, y) => x === 6 && y === 4, { from: { x: 21, y: 3 } })!;

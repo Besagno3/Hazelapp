@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { errorMessage, resolveErrorMessage } from './errors';
+import { useFamilyStore } from '../store/familyStore';
 import type { Question, Topic } from '../types';
 
 /** Questions per quiz round. */
@@ -26,24 +27,50 @@ async function invokeGenerate(
   count: number,
   context?: string,
 ): Promise<Question[]> {
+  // The kid playing (#124): their seen questions are their own.
+  const profileId = useFamilyStore.getState().activeKidId;
   const { data, error } = await supabase.functions.invoke('generate-questions', {
-    body: { topic, age, skillLevel, count, ...(context ? { context } : {}) },
+    body: { topic, age, skillLevel, count, ...(context ? { context } : {}), ...(profileId ? { profileId } : {}) },
   });
   // Surface the edge function's real {error, detail} body, not the generic
   // "non-2xx status code" message (see lib/errors.ts).
   if (error) throw new Error(`Question generation failed — ${await resolveErrorMessage(error)}`);
 
   const api = (data?.questions ?? []) as ApiQuestion[];
-  return api.map((q) => ({
-    id: q.id,
-    topic,
-    level: q.level,
-    text: q.text,
-    options: q.options,
-    correctIndex: q.correctIndex,
-    explanation: q.explanation,
-    timesAsked: q.timesAsked,
-  }));
+  return api.map((q) =>
+    shuffleAnswers({
+      id: q.id,
+      topic,
+      level: q.level,
+      text: q.text,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      explanation: q.explanation,
+      timesAsked: q.timesAsked,
+    }),
+  );
+}
+
+/**
+ * The same question with its options in a random order and `correctIndex`
+ * following the right answer. The model that writes the questions tends to
+ * put the right answer in the same spot (most often B), so a kid could learn
+ * the position instead of the answer. Every question is shuffled as it
+ * arrives — cached ones too, which were stored in the model's order — and the
+ * Library shuffles again each time it re-asks a miss.
+ */
+export function shuffleAnswers<T extends Pick<Question, 'options' | 'correctIndex'>>(
+  q: T,
+  random: () => number = Math.random,
+): T {
+  // A malformed index would make every option wrong once shuffled; leave it be.
+  if (!Number.isInteger(q.correctIndex) || q.correctIndex < 0 || q.correctIndex >= q.options.length) return q;
+  const order = q.options.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return { ...q, options: order.map((i) => q.options[i]), correctIndex: order.indexOf(q.correctIndex) };
 }
 
 // --- Prefetch cache ---------------------------------------------------------
@@ -56,7 +83,8 @@ async function invokeGenerate(
 const prefetched = new Map<string, Promise<Question[]>>();
 
 function cacheKey(topic: Topic, skillLevel: number, count: number, context?: string): string {
-  return `${topic}|${skillLevel}|${count}|${context ?? ''}`;
+  // Per kid, so a batch warmed for one never goes to a sibling after a switch.
+  return `${useFamilyStore.getState().activeKidId ?? ''}|${topic}|${skillLevel}|${count}|${context ?? ''}`;
 }
 
 /** Warms a question request so it is ready before the screen needs it. */
@@ -103,17 +131,16 @@ export type FlagReason = 'wrong_answer' | 'confusing' | 'difficulty';
 
 /**
  * Flags a question for review. Any single flag quarantines the question from
- * the cache pool (see edge function). Requires an authenticated session — the
- * `question_flags` RLS policy enforces `profile_id = auth.uid()`.
+ * the cache pool (see edge function). Sent as the kid playing — the
+ * `question_flags` RLS policy only accepts one of the signed-in grown-up's
+ * kids (#124).
  */
 export async function flagQuestion(questionId: string, reason?: FlagReason): Promise<void> {
   // Synthetic IDs ("fresh-…") come from a question that failed to cache; it
   // doesn't exist server-side, so the FK insert would fail. Treat as no-op.
   if (questionId.startsWith('fresh-')) return;
 
-  const { data: userData, error: authErr } = await supabase.auth.getUser();
-  if (authErr) throw new Error(`Couldn't flag question — ${errorMessage(authErr)}`);
-  const profile_id = userData?.user?.id;
+  const profile_id = useFamilyStore.getState().activeKidId;
   if (!profile_id) throw new Error('Please sign in to flag a question.');
 
   const { error } = await supabase

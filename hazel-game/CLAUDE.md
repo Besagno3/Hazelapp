@@ -17,10 +17,10 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `profileStore`, `settingsStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
-| Audio       | Howler 2 (`lib/audio.ts` — music + SFX, off by default) |
+| Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
 | CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build on every non-draft PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests); draft PRs skip CI and Vercel previews (see Pull requests) |
@@ -47,6 +47,8 @@ zod, react-query. Add the package in the same change that first uses it.
   answers in a row → +1 mid-battle). It sets quiz, gate, chest, Spire and
   battle questions and enemy levels. **XP / player level** only tracks
   progress and grants power-ups — leveling up never makes anything harder.
+  The Training Grounds' opening rounds (before the world opens) pay **no
+  XP** — XP starts in the world (#122, 2026-10-10).
   The defend countdown is age-based only. **Where an enemy roams scales how
   it fights, never what it asks (#75 item 12, 2026-10-08):** each zone's
   danger tier (`content/regions.ts`, by story leg) scales its HP, blows,
@@ -90,13 +92,31 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Auth gates the app.** `App.tsx` calls `useAuthInit()` (loads the Supabase
   session + subscribes to auth changes). No valid session → only `AuthPage` is
   reachable.
+- **A login is a grown-up's; kids are profiles (#124).** Signing in loads the
+  family (`familyStore`: consent + kids). Before the game, `familyScreen()`
+  picks, in order: consent (`ConsentPage`) → 👪 Grown-ups if open
+  (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password:
+  add / change / remove kids, set the grown-up PIN, the privacy notice,
+  Sign out) → the first kid (`FirstKidPage`) → any kid without a PIN
+  (`KidSetupPage`) → "Who's playing?" (`WhoIsPlaying`: a kid's tile, then
+  their 4-digit PIN on `PinPad`). **PINs are hashed in the database**
+  (migration 0014: `kid_pins` / `parent_pins`, readable by no client; set and
+  checked only by `set_/check_kid_pin`, `set_/check_parent_pin`); the app
+  only sees `has_pin`. Picking a kid (`choose`) loads *their* profile and
+  save, keyed by the kid's id; the kid playing in a tab survives a reload
+  (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
+  taps in the world's top bar) replaces Sign out. The active kid's id goes to
+  the question function (`profileId`) — **the question budget is per kid**
+  (a family has at most 8) — and on flags. The privacy notice and the tile
+  pictures live in `content/family.ts` (the notice is a **draft** until a
+  lawyer reviews it — `PRIVACY_IS_DRAFT`).
 - **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
   `boot → topicSelect ⇄ quiz → avatarSelect → world ⇄ battle`, with world
   substates `exploring / dialogue / service / path / menu` driving DOM
   overlays. App sends `READY` once session + save are loaded; sign-out sends
   `RESET`. Guards (world unlock, avatar chosen) read the save store. The
   machine owns *where the player is*; Zustand stores own *what they have*.
-- **Feature folders** under `src/features/`: `auth`, `quiz`, `battle`, `world`.
+- **Feature folders** under `src/features/`: `auth`, `family`, `quiz`, `battle`, `world`.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone,
   each in an act (`act`; `actCrystals` / `actRestored` / `actComplete` —
@@ -204,18 +224,18 @@ zod, react-query. Add the package in the same change that first uses it.
   is the mobile d-pad.
   **The world's top bar** (#75 item 14b, #102i): on the world screen `App`
   draws no floating badges — `WorldScreen` puts the level (`LevelBadge`
-  `inline`), the streak (`StreakBadge inline`, "🔥 5" on a phone) and Sign out
-  (`SignOutButton inline`) in a full-width row above the HUD, at most 44 px
+  `inline`), the streak (`StreakBadge inline`, "🔥 5" on a phone) and Switch
+  (`SwitchPlayerButton inline`, #124 — was Sign out) in a full-width row above the HUD, at most 44 px
   tall (pt-3 + bar + mb-2 = the old pt-16), so they never cover the place
   name and every overlay (z-40) draws over them. Exploring a Spire floor,
   `SpireOverlay` portals its seals, candles and 🚪 Leave the Spire into the
   HUD row (`hudSlot`, in 📜 Menu's place). The battle screen has a top bar
   too (#75 item 14f review, `data-testid="battle-topbar"`): the level and
-  streak in a row above the status boxes (no Sign out in battle, as before;
+  streak in a row above the status boxes (no Switch player in battle, as before;
   40 px on a phone — `LevelBadge` / `StreakBadge` `dense`), hidden below
   360 px wide or 500 px tall, where there's no room for it without pushing
   🏃 Flee off the screen (`bench … battle`, a boss fight). Other screens
-  keep the floating badges. Sign out there asks "Sign out?" first (same size;
+  keep the floating badges. Switch there asks "Switch?" first (same size;
   the hint floats below it), and any other tap or key takes the question back.
   **Overlays are modal** (#75 item 14b review): every world overlay (dialogue,
   services, path questions, key gates, menu, the Spire's panels) and the
@@ -478,6 +498,13 @@ zod, react-query. Add the package in the same change that first uses it.
   budgets of *fresh* Claude questions. Over budget it serves the cache
   (seen questions as a last resort). Fails OPEN with a loud log if 0009 isn't
   applied. Limits: `QUOTA_DEFAULTS` in the function, overridable by secrets.
+- **Answer order is random (#121):** the model that writes questions favours
+  one spot for the right answer (most often B), so `shuffleAnswers`
+  (`lib/questions.ts`) shuffles every question's options as it arrives
+  (cached rows too); a battle reshuffles each ask (a long battle repeats its
+  9 questions) and the Library each retry. The edge function also shuffles
+  fresh questions before caching them (`shuffleOptions`). Never rely on the
+  order options come back in.
 - **Password reset (#88):** `AuthPage` "Forgot password?" →
   `resetPasswordForEmail` (redirects back to the app). A recovery link sets
   `authStore.passwordRecovery` (PASSWORD_RECOVERY event or `type=recovery` in
@@ -539,6 +566,7 @@ python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
 python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
 python3 tools/assets/build.py marsh    # Foglight Marsh: its tiles, the stilt town sheet, the marsh icon, its critters, people and lanterns (#75 item 14g)
+python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
 
@@ -557,6 +585,8 @@ python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, T
   as if it were.
 - Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
   for conditional class merging.
+- Password fields use `PasswordInput` (`src/components/`, the 👁️ show /
+  🙈 hide button, #123) — not a bare `<input type="password">`.
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
   `ROUNDS_TO_UNLOCK`); battle math in `src/lib/battleMath.ts`; economy in
   `src/content/items.ts`.
@@ -616,8 +646,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-11 — 14g: names fit a phone's battle, a brighter marsh icon (#120j)
-The last two #120 items. **Names in battle on a phone:** at 320–360 px both
+### 2026-10-11 — Merge main (answer shuffle, password eye, parent accounts, sign-in music) into the Foglight Marsh branch (#75 item 14g)
+`main` took ISSUES **#120–#124** and TC-850–893 while 14g was in review
+(#120 is the sign-in music's follow-ups), so 14g's follow-ups moved **#120 →
+#125** and its test cases **TC-840–886 → TC-894–940** (only 14g's own lines
+were renumbered). Only the three docs conflicted; the code merged cleanly
+(`build.py` keeps both the `marsh` and `intro` targets). `shortName` moved from
+`BattleHud.tsx` to `content/enemies.ts` (a component file may only export
+components — lint). 1050 tests green, lint + tsc + build clean.
+
+### 2026-10-11 — 14g: names fit a phone's battle, a brighter marsh icon (#125j)
+The last two #125 items. **Names in battle on a phone:** at 320–360 px both
 status panels were squeezed to ~148 px, so "The Ringkeeper" read "The
 Ringkee…" (and the hero's "V…"). Below `sm` the hero's panel now takes only
 what it needs — portrait and a compact "◆0/4" (the diamonds from `sm` up; the
@@ -630,29 +669,29 @@ map (overworld frame 18) is redrawn bright — a light-blue pool, a pink lotus
 on its lily pad, cattails and a glowing lantern; frames 0–17 byte-identical.
 Tests: BattleHud.test +2. 981 green.
 
-### 2026-10-11 — 14g: the owner's six calls (#75 item 14g, #120 j/k/m/n/o/u)
-- **The Bog Lantern looks like a critter (#120j):** a teal flame-spirit with
+### 2026-10-11 — 14g: the owner's six calls (#75 item 14g, #125 j/k/m/n/o/u)
+- **The Bog Lantern looks like a critter (#125j):** a teal flame-spirit with
   a wispy tail and a sly grin (`bog_lantern` redrawn) — no cage, handle or
   post, so it never reads as one of Brume's lanterns.
-- **Posy waits on the Hill until you've been to the Marsh (#120k):** she no
+- **Posy waits on the Hill until you've been to the Marsh (#125k):** she no
   longer vanishes as her offer closes. The first arrival in the Marsh after
   she asks sets `POSY_SAILED` (`arrivalFlags`, `content/quests.ts`, set by
   `WorldScreen` on every arrival); her Hill spot waits for it, her landing
   spot needs it. Her hint says she'll meet you there; Slosh "just ferried her
   over, right behind you".
-- **Puddle doesn't look like the Murk Toad (#120m):** a new `pond_frog`
+- **Puddle doesn't look like the Murk Toad (#125m):** a new `pond_frog`
   drawer — round, lime, smiling, rosy-cheeked, with a lily-pad hat and a pink
   flower.
-- **Bosses are menacing (#120n):** every boss says its own line at each
+- **Bosses are menacing (#125n):** every boss says its own line at each
   enrage phase (`BOSS_RAGE`, `rageLine`; the fallback is "… roars — it's
   getting serious!" / "… is furious — watch out!"). The Last Fogbank is no
   longer shy: a dark, scowling thundercloud with glowing eyes and sparks
   (`storm_cloud`, ⛈️), new intro and defeat lines, "Forgetting Fog" for its
   power move, and Brume warns "It swallowed every lantern here once."
-- **Lanterns east → north → west (#120o):** from the Ledger's chest back
+- **Lanterns east → north → west (#125o):** from the Ledger's chest back
   toward Brume's lamp-house; the found note, the found-first offer, the hints
   and the last lantern's line ("Brume's lamp-house is right there") follow.
-- **The Mist Newt moved again (#120u):** to (31,3), open grass between the
+- **The Mist Newt moved again (#125u):** to (31,3), open grass between the
   middle and east boardwalks; zones.test now checks the grass shortcut west
   from the north boardwalk's top too (it fails with the Newt at 16,8).
 - Art: `python3 tools/assets/build.py marsh` (bog-lantern, last-fogbank,
@@ -682,7 +721,7 @@ room for, up to 10 px, never into a wall (`nudgeBack`; replayed: never stuck,
 the hero lands just clear of the wall); the reroute latch is cleared once she
 no longer needs it, so a second return for Posy reroutes too; a "she stopped"
 line due to come down stays if she's stopped again (`onEscortStop`). Asked
-(#120u): the Newt's new spot (16,8) sits on the grass shortcut west from the
+(#125u): the Newt's new spot (16,8) sits on the grass shortcut west from the
 north boardwalk's top — move it again, or accept it?
 
 ### 2026-10-11 — 14g review round 10: no waiting for ever, the Newt off her road (#75 item 14g)
@@ -704,7 +743,7 @@ Fresh `/saas-code-review` (1 medium, 1 low) and `/saas-ux-review` (1 medium,
 1 low). Fixed: the Mist Newt drifting at the edge of Posy's 80 px made her
 stop-start, so her wait line was taken down after 0.6–0.8 s — once waiting,
 she now walks on only when no critter is within 100 px (`ESCORT_RESUME_PX`;
-the "!" no longer blinks, #120r), and her own line is taken down only after
+the "!" no longer blinks, #125r), and her own line is taken down only after
 it's been up 4 s (`clearToastOf`'s `readMs`); replayed, it stays 5–8 s. Going
 back for her works from up to 4 tiles away, not only right beside her
 (`cameBack`: her footsteps run 3+ tiles further than the hero is), the "back
@@ -757,7 +796,7 @@ before, nothing said which lantern, and the nearest one refused); a Ledger
 found before meeting Brume gets "You found it already!" instead of being sent
 after it (`QuestDef.offerHaving`); plainer hints for the West Lantern and the
 walk; Posy's zone is one constant (`POSY_ZONE`) shared by the escort, the
-menu tag and the "you're here" hint. Asked (#120o): light the lanterns east →
+menu tag and the "you're here" hint. Asked (#125o): light the lanterns east →
 north → west (from the chest back toward Brume) instead of west first?
 
 ### 2026-10-11 — 14g review round 4: whose voice, "next turn" (#75 item 14g)
@@ -769,7 +808,7 @@ pick your next move); the stone panels' button says "🌼 Go and say hi to
 Posy" (it closes the panels — she's beside you); plainer words for Brume and
 Posy (no "arrangement", no compass words); one ✨ not two; badge names 12 px
 white; a test that the Marsh quest log says Posy waits at the landing.
-Asked (#120n): should the shy Last Fogbank have its own mid-fight lines, not
+Asked (#125n): should the shy Last Fogbank have its own mid-fight lines, not
 the standard "growls / is furious"?
 
 ### 2026-10-11 — 14g review round 3: the lows (#75 item 14g)
@@ -783,7 +822,7 @@ quest log says Posy waits at the landing (not "sail to the Marsh"); the
 candle's description says it's lit in a battle; Slosh mentions Posy only
 while she's in the Marsh; the East Lantern hint's "on the right" was wrong; a
 lantern before the Ledger is found says "Not yet!" and where the Ledger is.
-Asked (#120m): Puddle the frog and the Murk Toad look alike.
+Asked (#125m): Puddle the frog and the Murk Toad look alike.
 
 ### 2026-10-11 — 14g UX review round 2: Posy arrives however you reach the stone (#75 item 14g)
 A fresh `/saas-ux-review` (1 high, 2 medium, 4 low; played on the bench and
@@ -812,7 +851,7 @@ little slower than the hero) — now only while a critter holds her up
 longer says "lead her another way" (she stands still while waiting); a stop
 is asked about each second while it lasts, so a toast already up doesn't
 swallow it; the stone's walking line; a test that feathers work on a
-trickster after the candle's free hint; a stale doc comment. Asked (#120k):
+trickster after the candle's free hint; a stale doc comment. Asked (#125k):
 Posy vanishes from the Hill the moment her offer closes.
 
 ### 2026-10-10 — 14g UX review round 1: Posy's "!" you can see, the lanterns named (#75 item 14g)
@@ -833,7 +872,7 @@ at 320–1024 px). Fixed:
   "🌼 Posy ran back to the landing. Talk to her there to walk again!"
 - **Low:** the wait toast's wording; Posy waits up the boardwalk (21,23), away
   from the exit; the badge is 🌤️ (🔆 is Glow's); "Big Grey Puff"; Slosh's line.
-- Logged (#120j): the boss name truncating at 320 px, the marsh icon reading
+- Logged (#125j): the boss name truncating at 320 px, the marsh icon reading
   dark; asked: should a Bog Lantern look less like a quest lantern?
 
 ### 2026-10-10 — 14g review round 1: the candle's own hint, no waiting on a boss (#75 item 14g)
@@ -895,7 +934,262 @@ Roadmap sub-item 14g — Act II's marsh on the Silver Shallows' north coast.
   Ledger and the escort; BattleArena.test: the badge, the candle;
   battleTurn.test; story.test). 969 green, lint + build clean. On the real
   canvas (bench): Posy follows the boardwalks from the landing to the stone and
-  arrives; near the Mist Newt's patch she stops (since round 10 the Newt is off her road). Follow-ups: #120.
+  arrives; near the Mist Newt's patch she stops (since round 10 the Newt is off her road). Follow-ups: #125.
+### 2026-10-11 — Merge main (via #37's branch) into the parent-accounts branch (#124)
+`main` took ISSUES #115–#120, TC-786–849 and **migration 0012** (the saved
+player level) while parent accounts were in review, so this branch's
+migrations moved **0012 → 0013** (parent accounts) and **0013 → 0014** (PINs
+and the kid budget), its issue **#118 → #124** and its test cases **TC-803–829
+→ TC-867–893** (#37's own moved to #121–#123 / TC-850–866). Code: main
+removed `quizSessionStore` (#119), so `putAwayGame` and `useAuthInit` no
+longer reset it; the battle screen's own top bar (main) keeps the badges off
+the floating row, and it has no Switch player either. The world's top-bar
+note above now says Switch.
+
+### 2026-10-10 — Every kid has a PIN; a grown-up PIN; the question budget per kid (#124)
+The owner's answers (2026-10-10) changed three of the earlier calls:
+- **Each kid opens their profile with a 4-digit PIN** (replacing the secret
+  picture). Migration 0014 keeps PINs bcrypt-hashed (pgcrypto, `extensions`
+  schema) in `kid_pins`, a table with RLS on, no policies and no grants:
+  `set_kid_pin` (4 digits, only for the caller's kid) and `check_kid_pin`
+  (false for anyone else's kid) are the only way in; `profiles.has_pin` tells
+  the app one is set. `picture_password` is dropped. In the app: `PinPad`
+  (four dots, a big number pad, keyboard digits; after 5 wrong in a row it
+  rests 30 s — a brake on a sibling, kept in the screen), `KidForm` takes a
+  PIN (digits only, the 👁️ shows it; blank keeps a kid's PIN when changing
+  them), and **a kid without a PIN is set up before anyone plays**
+  (`KidSetupPage`; an old account's kid gets a nickname, picture and PIN
+  there).
+- **👪 Grown-ups opens with a grown-up PIN or the password.** The grown-up
+  can set an optional PIN (`set_parent_pin`, hashed in `parent_pins`;
+  `parents.has_pin`, which only that function writes). With one set, the
+  gate shows the PIN pad and "Use my password instead"; the password always
+  works.
+- **The question budget is per kid:** the edge function passes the kid's id
+  to `begin_question_request`; `question_requests` now points at `profiles`
+  (on delete cascade; `not valid`, so rows logged under a login before stay).
+  Since every kid adds a budget, a family has **at most 8 players**
+  (`profiles_kid_limit` trigger).
+- Tests: `supabase/ci/pins.test.sql` (4 digits only, set/check, a new PIN
+  replaces the old, hashes unreadable and unwritable by the API role,
+  another grown-up can't check or set my kid's PIN or pass my grown-up PIN,
+  a 9th player refused, each kid's own budget, a removed kid's requests and
+  PIN go) — it fails with `check_kid_pin`'s ownership test removed;
+  `parent_accounts.test.sql` updated. `PinPad`, `KidSetupPage` tests;
+  `familyStore`, `WhoIsPlaying`, `KidForm`, `GrownUpsArea` tests moved to
+  PINs. 935 tests green; lint + tsc + build clean; the five SQL tests, the
+  migrations in order and the bundle twice pass on local Postgres 16;
+  `deno check` clean. Headless Chromium walk (stubbed Supabase, 375×667 and
+  320×568): sign-up → consent → first kid with a PIN → an old kid finished
+  → Who's playing → a wrong then right PIN → the game → Grown-ups by
+  password → set a grown-up PIN → the gate by grown-up PIN — no sideways
+  scroll, no page errors.
+
+### 2026-10-10 — Parent accounts in the app: a grown-up signs up, kids pick themselves (#124, #89)
+The app half of #124 (the server half is the entry below):
+- **Sign-up is a grown-up's:** email, password and one box — "I'm the parent
+  or guardian, I'm 18 or older, and I agree to the privacy notice" (the
+  notice folds open above it). No birth date: that moves to the kid. The
+  consent version (`CONSENT_VERSION`) rides in the sign-up metadata and the
+  database stamps it.
+- **Before the game** (`familyScreen` in `familyStore`): a login with no
+  consent sees `ConsentPage` (old accounts — often a kid's own, so it says
+  "fetch a grown-up"; it can sign out); a family with no kids adds the first
+  (`FirstKidPage` → `KidForm`: nickname ≤ 20, birth month/year for ages ~3–18,
+  a tile picture from 12 animals, a secret picture from 9 things); then
+  "Who's playing?" — tap your tile, then your secret picture (shuffled each
+  time; a wrong one says try again; an old kid with none goes straight in).
+- **👪 Grown-ups** (from "Who's playing?"): opens only after re-entering the
+  grown-up's password (`signInWithPassword` with their email; "Forgot it?"
+  sends a reset link). Lists each kid (age, secret picture), adds / changes
+  them, removes one after a "for good" confirm (the database cascades their
+  save, seen questions and flags; their copies on this device go too), shows
+  when consent was given and the notice, and holds **Sign out**.
+- **In the game, Switch player replaces Sign out** (`SwitchPlayerButton`,
+  renamed from `SignOutButton`; same two-tap guard and width in the world's
+  top bar, "Switch player" read out): saves, puts the game away
+  (`putAwayGame`, shared with sign-out) and returns to "Who's playing?". A
+  kid can no longer sign the family out.
+- The kid playing in a tab survives a reload (sessionStorage); the
+  question function gets `profileId`, flags go in as the kid, and prefetched
+  questions are keyed per kid. `profileStore.loadProfile` takes the kid's
+  birth date to seed a profile it can't read.
+- **The privacy notice is a draft** (`content/family.ts`): plain-language
+  sections a lawyer should review, with [BRACKETS] to fill; it shows a
+  "Draft" badge while `PRIVACY_IS_DRAFT` is on.
+- Bench: `hud` mode's stub now answers `parents` and the kid list and starts
+  with its kid picked; 6/6 checks clean, including "asking Switch? doesn't
+  move the page" on phones. The 5 s gotrue "Lock … not released" warning in
+  the bench log is there on the branch before this too (the stub session).
+- Checked in headless Chromium against a stubbed Supabase at 375×667 and
+  320×568: sign-up, consent, first kid, Who's playing, a wrong then right
+  secret picture, the game with Switch player, a reload keeping the kid,
+  Grown-ups gate and home, the remove confirm — no sideways scroll, no page
+  errors. Two layout fixes came from it (Change / Remove on their own line;
+  title spacing without a subtitle).
+- Tests: `familyStore.test` (gate order, load, choose, reload keeps the kid,
+  switch saves first, add / remove / agree), `WhoIsPlaying`, `KidForm`,
+  `GrownUpsArea`, `ConsentPage` tests, sign-up tests in `PasswordReset.test`,
+  `SwitchPlayerButton.test` (the old sign-out tests, re-aimed). 922 tests
+  green, lint + tsc + build clean.
+
+### 2026-10-10 — Parent accounts, server side: grown-ups own their kids (#124, #89)
+Decided with the owner (2026-10-10): one grown-up login, many kids (no
+child email or login); a secret picture per kid on shared devices; draft
+privacy/consent text for a lawyer to review; the parent area behind the
+grown-up's password; the question budget per login. This commit is the
+server half — backward compatible, so today's app keeps working on it:
+- **Migration 0013** (`0013_parent_accounts.sql`): a `parents` table (one row
+  per login: `consent_at`, `consent_version`; the app writes it only through
+  `record_consent()`, stamped with the server clock). `profiles` are kids:
+  `parent_id` (default `auth.uid()`), `display_name` (1–20 chars), `icon`,
+  `picture_password`; new kids get their own id (`profiles.id` no longer
+  references `auth.users`). RLS on `profiles`, `saves` and `question_flags`
+  is now "belongs to my kid" (`parent_id = auth.uid()`), and a grown-up may
+  remove a kid (their save, seen questions and flags go with them).
+  `handle_new_user` makes every login a grown-up (consent from the sign-up
+  metadata), and still gives an old-app sign-up (birth date in the
+  metadata) its first kid with the login's id.
+- **Old accounts** become a grown-up with one kid: the profile keeps its id,
+  so its save, seen questions and local caches still match; no consent yet,
+  so the new app will ask.
+- **Edge function:** takes an optional `profileId` (the kid), checks it
+  belongs to the caller (403 if not), and keys seen questions to the kid; the
+  quota stays per login (a family). No `profileId` = the login is the kid.
+- Tests: `supabase/ci/parent_accounts.test.sql` acts as two grown-ups through
+  the `authenticated` role (sees/adds/changes/removes only their own kids,
+  saves and flags; consent can't be written by hand; removing a kid removes
+  their save; an old account agrees later). It fails with the "add kids" rule
+  loosened. Upgrading an old account through 0013 was checked by hand on
+  Postgres 16 (XP and save still read and write; deleting the login still
+  removes everything). All four SQL tests, migrations in order and the bundle
+  twice pass locally; `deno check` clean.
+
+### 2026-10-10 — Merge main (heroes #39, music #40/#44, Eldergrove #42, the saved level #41, open Training Grounds #43) into the fair-questions branch (#121–#123)
+`main` took ISSUES **#115–#120** and TC-786–849 while this branch was open, so
+its issues moved **#115–#117 → #121–#123** and its test cases **TC-786–802 →
+TC-850–866** (renumbered before the merge). One code conflict: `QuizRound`'s
+round end — main removed the per-session topic lock (#119), this branch made
+XP wait for the world to open (#122); both kept. Main's saved player level
+(#118) changes how `addXp` stores XP, not when it's called, so the opening
+rounds still pay none.
+
+### 2026-10-10 — Show password: an eye on every password field (#123)
+Kids mistype passwords and couldn't see why sign-in failed. New
+`components/PasswordInput`: a 👁️ button inside the field's right edge shows
+what's been typed (🙈 hides it again). It is `type="button"` (never sends
+the form), keeps the caret and a phone's keyboard in the field, turns
+autocorrect / capitals / spellcheck off so a shown password can't be
+changed by the keyboard, and hides the password again when the form is sent
+(a native `submit` listener on the form runs before React's `onSubmit`) so
+browsers don't keep it in their plain-text autofill history. Used for the
+sign-in / sign-up field (`key`ed on the mode, so switching hides it again)
+and both fields on the reset page (an eye each). Edge's own reveal button is
+hidden (`index.css`) so there aren't two. Checked in headless Chromium at
+375×667 with a touch tap: the eye sits in the field (44×42 tap target), the
+caret stays put, no sticky hover. Tests: `PasswordInput.test` (show/hide, no
+submit, hidden again on submit — fails with the listener removed, phone
+keyboard attributes) and two in `PasswordReset.test` (both pages). 883 tests
+green, lint + tsc + build clean.
+
+### 2026-10-10 — No XP for the opening rounds (#122)
+The Training Grounds' first rounds are the way into the world, but they paid
+10 XP (plus the power-up bonus) for every right answer, so kids levelled up
+just by getting in — and, with #121, by tapping B. `QuizRound.finishRound`
+now pays XP only if the world was already open before the round, so the
+round that opens it pays none; practice rounds later (from the world menu)
+still pay. The skill level and the daily streak still move — they describe
+the child, they aren't a reward. XP already earned is kept. New
+`QuizRound.test` (two of its three cases fail without the fix): an opening
+round, the round that opens the world, a practice round. 877 tests green,
+lint + tsc clean.
+
+### 2026-10-10 — Answers come in a random order: no more "it's always B" (#121)
+The model that writes the questions put the right answer in the same spot
+most of the time (players noticed it was nearly always B), and nothing ever
+reordered the options — the edge function shuffles *which* questions you
+get, never their answers. A kid tapping B every time could pass the Training
+Grounds without reading. Now:
+- `shuffleAnswers` (`lib/questions.ts`) shuffles each question's options and
+  moves `correctIndex` with the right one as every question arrives
+  (`invokeGenerate` — quiz, battles, gates, chests, shrines, the Spire), so
+  rows already cached in the model's order are fixed too.
+- A battle reshuffles each question as it asks it (a long battle goes round
+  its 9 again), and the Library reshuffles a miss on every retry (its stored
+  `picked` index isn't shown anywhere, so nothing reads it in the old order).
+- The edge function shuffles fresh questions before caching them
+  (`shuffleOptions`), so the stored data is balanced — needs
+  `supabase functions deploy generate-questions`; the app's shuffle doesn't
+  wait on it.
+- Tests: `questions.test` — the right answer stays right, lands in each of
+  the four spots about equally (seeded), the input is untouched, a broken
+  index is left alone, `fetchQuestions` shuffles what it returns. 874 tests
+  green (three runs), lint + tsc clean, `deno check` of the function clean.
+
+### 2026-10-10 — Merge main (Eldergrove #42, the saved player level #41, open Training
+Grounds #43) into the sign-in-music branch (#120)
+`main` took ISSUES **#117–#119** and TC-816–839 while the sign-in music was in
+review, so it moved **#117 → #120** and its test cases **TC-816–825 → TC-840–849**.
+Only the docs conflicted; `App.tsx` and `build.py` merged cleanly (the `intro`
+build target sits beside 14f's `elder`).
+
+### 2026-10-10 — The sign-in intro's climax: a celesta joins the harp (#120)
+The climax (0:48–1:00, bars 17–20, after a timpani roll from 0:45) only made
+the harp louder, which didn't land. Now a new colour comes in: a celesta (a
+soft music-box bell, `_celesta`) plays with the harp, note for note at the
+same pitch, while the tune rises an octave. The other option is built in —
+`INTRO_CLIMAX_VOICE = 'high'` (`tools/assets/audio.py`) lifts the harp's
+sweeps an octave for the climax instead; both were rendered for the owner
+to choose by ear. Loudness by bar 13% → 100% → 18%; rebuilt with
+`build.py intro`.
+
+### 2026-10-10 — Music is on by default (#120)
+So everyone hears the sign-in screen's intro, Music now defaults to **on**
+(`DEFAULT_SETTINGS.music`, `lib/settings.ts`); sound effects stay off. It
+starts on the first tap or key (browsers hold sound until then), and the
+game's music follows after signing in. A choice sticks: `normalizeSettings`
+keeps a saved `music: false` (anyone who turned it off — the owner's device
+included — stays silent until they turn it back on in 📜 → 🔊 Audio); a saved
+value that isn't a boolean falls back to the default instead of to "off".
+Checked in the real app (Supabase stubbed): a new device hears the intro on
+the sign-in page and the overworld theme after signing in; a device with
+music saved off hears nothing. Tests: settings.test rewritten (+2).
+
+### 2026-10-10 — The sign-in intro, an octave lower and mellower (#120)
+Liked the tune, tempo and notes; it was too high-pitched. Same notes and
+shape, an octave down — the harp's sweeps now start between D2 and C#3 (top
+note ≈ 1.1 kHz, was ≈ 2.2 kHz), the tune sits in G4–Ab5 (was G5–Ab6) — and a
+rounder sound: the harp is a triangle with a touch of square (was a narrow,
+nasal pulse), the tune a square-and-triangle blend, the pad square waves an
+octave down, the cymbal wash darker, and the harp and tune go through a warm
+filter (≈ 1.8 kHz, was ≈ 4 kHz). The climax's harp no longer doubles an
+octave up; it plays louder instead. Brightness (spectral centroid) 3070 →
+1740 Hz, energy above 2 kHz 40% → 22%; loudness by bar still 14% → 100% →
+19%. Rebuilt with `build.py intro` (byte-identical on a rebuild).
+
+### 2026-10-10 — The sign-in screen gets its own intro music (#120)
+The sign-in screen played the title theme. Now it has an intro of its own,
+heard there and on the screen after signing out (and while choosing a new
+password): **`intro`** (`public/audio/16bit/music/intro.mp3`, 72 s,
+`compose_intro` in `tools/assets/audio.py`, `python3 tools/assets/build.py
+intro`). A harp-like arpeggio sweeps up three octaves and back each bar over
+E♭–Cm–A♭–B♭-style progressions; it begins as small ripples, alone and soft,
+widens into full sweeps as a string pad joins, gains a tune and a bass, swells
+through a timpani roll into a climax (the tune an octave up with a line below
+it), then thins back to the ripples, so the loop meets its
+own soft start (loudness by bar 15% → 100% → 19%). Original — written in the
+spirit of a 16-bit RPG prelude, not a copy of one.
+- **Wiring:** `musicScreen(initialized, signedIn, gameScreen)` (`lib/audio.ts`)
+  picks the screen whose music plays — `'loading'` (none) while the session is
+  checked, so a refresh mid-game never blips the intro; `'auth'` → `intro`
+  until someone signs in, again after signing out; else the game's screen.
+  `App` passes it to `useScreenMusic`. Music stays off by default (#120).
+- **Checked:** the real app in headless Chromium (Supabase stubbed, music on)
+  — the sign-in page plays only the intro; in the world the overworld theme;
+  Sign out → the overworld stops and the intro plays (4 runs, a cold server
+  included). `build.py intro` writes only `intro.mp3`, byte-identical on a
+  rebuild (and the sea music rebuilds byte-identical here, so the toolchain
+  matches). Tests +2 (audio.test); the shipped-file guards cover the new file.
 
 ### 2026-10-10 — Every Training Grounds topic stays open (#119)
 Passing a topic round no longer greys that topic out for the rest of the

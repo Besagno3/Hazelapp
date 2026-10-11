@@ -1164,7 +1164,7 @@ def ow_icon(kind):
         c.dot(13, 13.5, '#6a4428', w=1, h=1)
     elif kind == 'marsh':
         # Foglight Marsh (#75 item 14g): a bright pool with a pink lotus on its lily
-        # pad, reeds, and a lit lantern — light enough to read on the map's grass (#120).
+        # pad, reeds, and a lit lantern — light enough to read on the map's grass (#125).
         c.ellipse(8, 12.5, 7.4, 3, '#6ac0d8')
         c.ellipse(6, 11.8, 3.4, 1, '#c0ecf6')  # a glint on the water
         c.ellipse(9.5, 12.8, 3.2, 1.6, '#5cc04a')  # the lily pad

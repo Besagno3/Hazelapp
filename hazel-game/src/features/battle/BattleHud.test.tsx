@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { BattleHud, shortName } from './BattleHud';
+import { BattleHud } from './BattleHud';
 import { BattleResult } from './BattleResult';
 import { keyForBoss } from '../../content/keys';
 import { AVATARS } from '../../content/avatars';
-import { atTier, spawnEnemy } from '../../content/enemies';
+import { atTier, shortName, spawnEnemy } from '../../content/enemies';
 import type { DangerTier } from '../../content/regions';
 
 function hud(tier: DangerTier, powerMoveNext: string | null = null, defId = 'count-bat') {
@@ -156,7 +156,7 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
   });
 });
 
-describe('names on a phone (#120j)', () => {
+describe('names on a phone (#125j)', () => {
   it('a boss drops a leading "The" on a phone; its full name stays for screen readers and wider screens', () => {
     expect(shortName('The Clockwork Titan')).toBe('Clockwork Titan');
     expect(shortName('Bog Lantern')).toBe('Bog Lantern');

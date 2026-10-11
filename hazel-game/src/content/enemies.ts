@@ -181,6 +181,11 @@ export function rageLine(enemyId: string, name: string, phase: 1 | 2): string {
   return phase === 1 ? `${name} roars — it's getting serious!` : `${name} is furious — watch out!`;
 }
 
+/** A name without a leading "The", for a phone's narrow battle panel ("The Ringkeeper" → "Ringkeeper", #125j). */
+export function shortName(name: string): string {
+  return name.replace(/^The /, '');
+}
+
 /** Badges a boss gives (#75 item 14g), for the menu's trophy shelf: id → name and emoji. */
 export const BOSS_BADGES: Record<string, { name: string; emoji: string }> = {
   foglight: { name: 'Foglight Badge', emoji: '🌤️' },

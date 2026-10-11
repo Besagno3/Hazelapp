@@ -67,12 +67,12 @@ describe('the world top bar (#75 item 14b, #102i)', () => {
     });
   });
 
-  it('holds the level, the streak and Sign out in the page — nothing floats over the place name', () => {
+  it('holds the level, the streak and Switch player in the page — nothing floats over the place name', () => {
     render(<WorldScreen />);
     const bar = screen.getByTestId('world-topbar');
     expect(within(bar).getByText('Level 3')).toBeInTheDocument();
     expect(within(bar).getByText('Streak: 5 days')).toBeInTheDocument(); // read aloud; "🔥 5" on a phone
-    expect(within(bar).getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
     expect(floats(bar)).toBe(false);
     // The floor's title comes after the bar, in the HUD, uncovered.
     const title = screen.getByRole('heading', { level: 1 });

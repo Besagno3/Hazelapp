@@ -7,9 +7,9 @@ import type { SeaArea } from '../content/boat';
 /**
  * The game's audio engine (Howler.js). Two responsibilities: fire one-shot
  * **sound effects** (`sfx`) and play looping **background music** that follows
- * the current screen (`useScreenMusic`). Both honour the device settings —
- * audio is off by default, so every call here is a silent no-op until the
- * player enables Music / Sound in the menu.
+ * the current screen (`useScreenMusic`). Both honour the device settings
+ * (music on, sound effects off by default; switched in the menu): whichever is
+ * off, its calls here are silent no-ops.
  *
  * Files live in `public/audio/16bit/` (see `public/audio/README.md`). Load
  * errors are swallowed, so a missing file never breaks gameplay.
@@ -40,6 +40,7 @@ export type SfxName =
   | 'streak';
 
 export type MusicTrack =
+  | 'intro'
   | 'title'
   | 'overworld'
   | 'town'
@@ -105,6 +106,7 @@ export const MUSIC_SOURCES: Record<MusicTrack, string> = {
   finalBoss: '/audio/16bit/music/finalBoss.mp3', // the Umbra fight (Spire boss floor)
   battle: '/audio/16bit/music/battle.mp3', // regular battles
   boss: '/audio/16bit/music/boss.mp3', // area bosses (Fiends, wardens)
+  intro: '/audio/16bit/music/intro.mp3', // the sign-in screen (and after signing out): a rising harp arpeggio
   title: '/audio/16bit/music/title.mp3', // menu screens
   victory: '/audio/16bit/music/victory.mp3', // looping victory theme — unused; the win uses the sfx jingle
 };
@@ -346,7 +348,19 @@ export function stopMusic(): void {
   playMusic(null);
 }
 
-type Screen = 'topics' | 'quiz' | 'avatar' | 'world' | 'battle';
+type GameScreen = 'topics' | 'quiz' | 'avatar' | 'world' | 'battle';
+/** A game screen, or before one: the session still being checked, or nobody signed in. */
+type Screen = 'loading' | 'auth' | GameScreen;
+
+/**
+ * Whose music plays: none while the session is still being checked, the sign-in
+ * screen's intro until someone signs in (and again once they sign out, or while
+ * they set a new password), else the game screen's own. Pure — unit-tested.
+ */
+export function musicScreen(initialized: boolean, signedIn: boolean, game: GameScreen): Screen {
+  if (!initialized) return 'loading';
+  return signedIn ? game : 'auth';
+}
 
 /** Music for each kind of place in the world (#75 Phase 1). */
 export const ZONE_KIND_TRACK: Record<ZoneKind, MusicTrack> = {
@@ -376,6 +390,8 @@ export function trackForScreen(
   sea: SeaArea | null = null,
 ): MusicTrack | null {
   switch (screen) {
+    case 'auth':
+      return 'intro';
     case 'topics':
     case 'quiz':
     case 'avatar':
