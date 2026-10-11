@@ -9,6 +9,8 @@
  * for the time the distance takes at walking speed, pauses to see where it
  * got to, and corrects with short taps. Resuming starts the canvas's 0.8 s
  * trigger cooldown, so before bumping a gate or a boss it waits that out.
+ * Gates, seals, the stairs, the Spire and Umbra wait to be used (#127): at
+ * one, the walker presses ✋ (`use`), as a child would.
  */
 import { TILE, tileAt, type ZoneDef, type ZoneId } from '../src/content/zones';
 import type { Cell, Step } from '../src/lib/reach';
@@ -26,6 +28,8 @@ export interface WalkerIO {
   /** The direction held, as the touch pad sets it. */
   touch: { current: { dx: number; dy: number } };
   pause: (on: boolean) => void;
+  /** Press ✋: use what the hero faces (#127). */
+  use: () => void;
   /** Where the canvas last said the hero is, and how often it has said so. */
   where: () => { zoneId: ZoneId; pos: { x: number; y: number } | null; moves: number };
   zone: (id: ZoneId) => ZoneDef;
@@ -81,6 +85,13 @@ export function makeWalker(io: WalkerIO) {
     await frame();
   }
 
+  /** Press ✋ and give the world a few frames to answer it. */
+  async function used() {
+    note('use');
+    io.use();
+    for (let w = 0; w < 4; w++) await frame();
+  }
+
   /** Let the post-pause cooldown run out, so the next bump counts. */
   async function cooled() {
     const left = COOLDOWN_MS - (performance.now() - lastProbe);
@@ -90,7 +101,7 @@ export function makeWalker(io: WalkerIO) {
   /**
    * Walk a straight run to `goal` (moving along `d`), arriving within NEAR px
    * of its centre. `bump`: the run crosses a gate, so let the cooldown lapse
-   * first (the bump is what opens it).
+   * first, and press ✋ at it (#127) — that's what opens it.
    */
   async function run(goal: Cell, d: Cell, bump: boolean, turns: Cell[], done?: () => boolean): Promise<string | null> {
     const g = centre(goal);
@@ -112,6 +123,7 @@ export function makeWalker(io: WalkerIO) {
       const ms = (Math.abs(along) / SPEED) * 1000;
       if (d.x !== 0) await hold(Math.sign(along), 0, ms);
       else await hold(0, Math.sign(along), ms);
+      if (bump) await used();
     }
     if (tries >= 10) return 'never reached the cell';
     if (tries > 3) turns.push(goal);
@@ -149,6 +161,7 @@ export function makeWalker(io: WalkerIO) {
       let j = i;
       while (j + 1 < path.length && path[j + 1].x - path[j].x === d.x && path[j + 1].y - path[j].y === d.y) j++;
       const isExit = opts.to && j === path.length - 1;
+      const crossesGate = path.slice(i, j + 1).some((c) => tileAt(z, c.x, c.y) === 'G');
       if (isExit) {
         // Into the exit: hold on until the zone changes (exits don't wait for the cooldown).
         const goal = centre(path[j]);
@@ -159,19 +172,20 @@ export function makeWalker(io: WalkerIO) {
           const ms = ((Math.abs(along) + TILE / 2) / SPEED) * 1000;
           if (d.x !== 0) await hold(Math.sign(along) || d.x, 0, ms);
           else await hold(0, Math.sign(along) || d.y, ms);
+          // A gate on the way out waits to be used (#127).
+          if (crossesGate && io.where().zoneId === from) await used();
         }
         if (io.where().zoneId === from) return report(false, { reason: 'exit never fired', at: cellOf((await probe())), step: j });
         if (io.where().zoneId !== opts.to) return report(false, { reason: `came out in ${io.where().zoneId}`, at: null, step: j });
         await sleep(ARRIVE_MS);
         return report(true);
       }
-      const crossesGate = path.slice(i, j + 1).some((c) => tileAt(z, c.x, c.y) === 'G');
       const why = await run(path[j], d, crossesGate, turns, opts.touched);
       if (why) return report(false, { reason: why, at: cellOf(await probe()), step: j });
       i = j + 1;
     }
     if (opts.target && opts.touched) {
-      // Beside the target: wait out the cooldown, then walk into it until the game notices.
+      // Beside the target: wait out the cooldown, then walk into it — pressing ✋ there (#127) — until the game notices.
       for (let tries = 0; tries < 4 && !opts.touched(); tries++) {
         await cooled();
         if (opts.touched()) break;
@@ -180,6 +194,7 @@ export function makeWalker(io: WalkerIO) {
         const dx = Math.sign(opts.target.x - last.x);
         const dy = dx ? 0 : Math.sign(opts.target.y - last.y);
         await hold(dx, dy, 400);
+        if (!opts.touched()) await used();
         for (let w = 0; w < 10 && !opts.touched(); w++) await frame();
         if (!opts.touched()) await probe();
       }

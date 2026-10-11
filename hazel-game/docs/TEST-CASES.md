@@ -1117,6 +1117,48 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-892 | C | ✅ | KidSetupPage | a kid without a PIN is finished here and can't be saved without one; it sends the nickname, picture, PIN and birth date (KidSetupPage.test) |
 | TC-893 | M | ⬜ | PINs | after deploying 0014: in the SQL Editor `kid_pins.pin_hash` starts with `$2a$` (bcrypt) and no PIN is stored in plain text; a kid's wrong PIN 5 times rests the pad 30 s on a real phone |
 
+## Press to use, doorways, stepping aside (#127)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-941 | U | ✅ | interact | Space (by key or code) and Enter use things; arrows, letters, Escape and Tab never do (interact.test) |
+| TC-942 | U | ✅ | interact | a focused button (or something inside one), link, input, textarea or anything in a dialog keeps Space / Enter for itself; the page body doesn't (`ownsKeys`, interact.test) |
+| TC-943 | U | ✅ | interact | what gets used is looked for the way the hero faces first, then to the sides, then behind; a diagonal looks both its ways first; a hero who never moved faces the camera (`probeDirs`, interact.test) |
+| TC-944 | U | ✅ | interact | tiles are probed just past the side of the hero's box they face — the middle first, then by each corner (`probePoints`, interact.test) |
+| TC-945 | U | ✅ | interact | a person counts when within reach and on the side faced (±53°), not off to the side, behind or too far (`inFront`, interact.test) |
+| TC-946 | U | ✅ | interact | the prompt reads "Space: …" on a keyboard, "Tap: …" on a touch screen (`promptText`, interact.test) |
+| TC-947 | U | ✅ | interact | doorway assist: a hero up to 20 px off a one-tile opening is slid into line with it; 21 px off, or a plain wall, isn't; of two openings the nearer; at most a step a frame (`cornerTarget` / `slideStep`, interact.test) |
+| TC-948 | U | ✅ | interact | walking into the same person adds up; someone else starts over; stopping or turning away clears it (`pushOn`, interact.test) |
+| TC-949 | U | ✅ | interact | in the open, someone stepping aside goes 2–5 cells, off the line the hero walks, at least 2 cells from them (`scootPath`, interact.test) |
+| TC-950 | U | ✅ | interact | in a corridor they go on through it and step aside in the room beyond (interact.test) |
+| TC-951 | U | ✅ | interact | at a dead end they squeeze past the hero to the other side (interact.test) |
+| TC-952 | U | ✅ | interact | inside a building they stay inside, on its floor — never its doorway (interact.test) |
+| TC-953 | U | ✅ | interact | they keep off exits, hidden passages, stairs and cells other people stand on (interact.test) |
+| TC-954 | U | ✅ | interact | boxed in with nowhere to go, they stay put (interact.test) |
+| TC-955 | C | ✅ | TouchPad | ✋ is a dim "Use" with nothing to use, and says what it would do ("Open chest") when there is (TouchPad.test) |
+| TC-956 | C | ✅ | TouchPad | a tap uses once — on the press, not again on its click; Enter / Space on the focused button works it too (TouchPad.test) |
+| TC-957 | C | ✅ | TouchPad | the d-pad still steers; no ✋ without an `onAction` (TouchPad.test) |
+| TC-958 | C | ✅ | WorldScreen | ✋ takes its label from the canvas's `onPrompt`, and a press counts in the `actionRef` the canvas reads (WorldScreen.use.test) |
+| TC-959 | C | ✅ | WorldScreen | the footer says Space, Enter or a click talks, opens and uses — no "bump into friends" (WorldScreen.use.test) |
+| TC-960 | E | ✅ | world | real canvas, real keys (`bench … use`): walking straight up from 0, ±6, ±10, +14 and ±18 px off a Numbria door's middle goes in (on `main` only 0 px did) |
+| TC-961 | E | ✅ | world | real canvas (`bench … use`): walking into Eldergrove's chest opens nothing and its prompt says "Open chest"; Space opens it |
+| TC-962 | E | ✅ | world | real canvas (`bench … use`): walking into Moonwell Grove's gate asks nothing; Enter opens it and the hero walks through |
+| TC-963 | E | ✅ | world | real canvas (`bench … use`): walking into Pip stops the hero and says nothing, the prompt says "Talk"; Space, Enter, a click and a held Space talk once each |
+| TC-964 | E | ✅ | world | real canvas (`bench … use`): Pip walked into for 1 s is still in the way; by ~1.5 s Pip steps aside and the hero walks on past, with no talk |
+| TC-965 | E | ✅ | world | the Act I journey (`bench … journey`) still walks every leg and Spire floor, the walker pressing ✋ at gates, seals, the stairs, the Spire and Umbra |
+| TC-966 | M | ⬜ | world | on a phone: ✋ sits beside the d-pad, its label follows what's in front ("Talk", "Open chest"); a tap on the map uses it too; the d-pad and ✋ work held together |
+| TC-967 | M | ⬜ | world | with a keyboard: after closing 📜 Menu with the mouse, walk to a chest and press Space — the chest opens (the walk blurred the Menu button), the menu doesn't reopen |
+| TC-968 | M | ⬜ | world | close a dialogue with Enter while still facing the person: it doesn't open again; press Enter once more and it does |
+| TC-969 | M | ⬜ | world | in town, walk at a wanderer: it never walks into the hero; hold into it ~1.5 s and it hops a few cells aside, then strolls round there; inside a shop, the keeper never leaves the shop |
+| TC-970 | M | ⬜ | world | the 1-tile ways in feel easy on a real keyboard and the d-pad: doors, Numbria's gate, the Depths' corridors, stairs — and a hidden passage ('H') is never slid into |
+| TC-971 | U | ✅ | interact | across a counter or desk: the person right behind it — straight across or from a corner — is talked to (`acrossCounter`, interact.test) |
+| TC-972 | U | ✅ | interact | across a counter: the nearest one on its far side, never someone on the hero's side or two tiles along (interact.test) |
+| TC-973 | E | ✅ | world | real canvas (`bench … use`): across the village shop's counter a click on the shopkeeper talks to them; from a corner of the counter Space does |
+| TC-974 | M | ⬜ | world | put an innkeeper behind a desk (`T`) in a test map: standing across it, Space and a tap on them both talk; the prompt floats over the innkeeper |
+| TC-975 | C | ✅ | TouchPad | a click on ✋ that isn't a tap's own (a screen reader's double-tap) uses it too (TouchPad.test) |
+| TC-976 | M | ⬜ | TouchPad | with VoiceOver (iOS) and TalkBack (Android): double-tap ✋ beside a chest — it opens, once |
+| TC-977 | M | ⬜ | world | on a phone: tap a shopkeeper, walk away, then press ✋ next to a chest — the chest opens (not the shopkeeper) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
