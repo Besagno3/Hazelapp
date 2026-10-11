@@ -26,7 +26,7 @@ Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing
 | TC-14 | C | ⬜ | AuthPage | submit button disabled while `loading` |
 | TC-15 | C | ⬜ | TopicSelect | picking a topic moves to the quiz phase |
 | TC-16 | C | ⬜ | QuizRound | selecting an answer locks further selection |
-| TC-17 | C | ⬜ | QuizRound | perfect score shows "Round Passed!" |
+| TC-17 | C | ✅ | QuizRound | perfect score shows "Round Passed!" (QuizRound.test) |
 | TC-18 | C | ⬜ | QuizRound | sub-threshold score shows "Keep Trying!" |
 | TC-19 | C | ⬜ | AvatarSelect | picking an avatar stores it and enters `world` |
 | TC-20 | C | ⬜ | WorldMap | "Challenge!" starts a battle with that NPC |
@@ -1015,6 +1015,28 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-849 | M | ✅ | music | the climax (bars 17–20, 0:48–1:00) brings a new colour, not just volume: `INTRO_CLIMAX_VOICE = 'celesta'` adds a bell on every harp note at the same pitch; `'high'` lifts the harp's sweeps an octave; both rendered (loudness by bar 13% → 100% → 18% and 15% → 100% → 21%), the game's `intro.mp3` is the celesta one, byte-identical on a rebuild |
 | TC-844 | M | ⬜ | music | by ear: a harp arpeggio rising and falling, swelling from soft ripples to a full climax and back; the loop comes round without a jump |
 | TC-845 | M | ⬜ | music | in a real browser with Music on, open the sign-in page fresh: silent until the first tap or key (the browser's rule), then the intro starts; sign out from the world → the intro replaces the world's music |
+
+## Fair questions and sign-in (#121–#123)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-850 | U | ✅ | questions | `shuffleAnswers` keeps the right answer right and every option exactly once (questions.test) |
+| TC-851 | U | ✅ | questions | over 400 seeded shuffles the right answer lands in each of the four spots 70–130 times — no "always B" (questions.test) |
+| TC-852 | U | ✅ | questions | `shuffleAnswers` leaves its input untouched, keeps the other fields, and leaves a question with an out-of-range `correctIndex` as it is (questions.test) |
+| TC-853 | U | ✅ | questions | `fetchQuestions` returns every question with its options shuffled and `correctIndex` on the right answer (questions.test) |
+| TC-854 | M | ⬜ | Library | re-asking a miss shows its options in a new order each time; beating it still takes it off the shelf and pays the XP |
+| TC-855 | M | ⬜ | battle | in a battle long enough to ask a question twice, the repeat comes in a new order and the right answer still wins |
+| TC-856 | M | ⬜ | edge function | after redeploying `generate-questions`, newly cached rows spread `correct_index` over 0–3 (`select correct_index, count(*) from questions where created_at > '<deploy time>' group by 1`) |
+| TC-857 | C | ✅ | QuizRound | an opening round (world still locked) pays no XP for right answers, and still counts toward the unlock (QuizRound.test) |
+| TC-858 | C | ✅ | QuizRound | the round that opens the world pays no XP either (QuizRound.test) |
+| TC-859 | C | ✅ | QuizRound | a practice round after the world is open still pays XP (QuizRound.test) |
+| TC-860 | C | ✅ | PasswordInput | starts hidden; the eye shows what was typed, the 🙈 hides it again (PasswordInput.test) |
+| TC-861 | C | ✅ | PasswordInput | the eye never sends the form (PasswordInput.test) |
+| TC-862 | C | ✅ | PasswordInput | sending the form hides a shown password first (PasswordInput.test) |
+| TC-863 | C | ✅ | PasswordInput | autocapitalize / autocorrect / spellcheck are off and `autoComplete` passes through (PasswordInput.test) |
+| TC-864 | C | ✅ | AuthPage | the password field has an eye; switching sign in → sign up hides a shown password again (PasswordReset.test) |
+| TC-865 | C | ✅ | ResetPasswordPage | both new-password fields have their own eye, each showing only its own field (PasswordReset.test) |
+| TC-866 | M | ⬜ | PasswordInput | on a real phone (iOS Safari, Android Chrome): tapping the eye keeps the keyboard up and the caret in place; a shown password isn't auto-capitalised; on Edge only one eye shows |
 
 ## Regression cases (tied to ISSUES.md)
 

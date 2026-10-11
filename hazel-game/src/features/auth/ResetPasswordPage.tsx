@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { errorMessage } from '../../lib/errors';
 import { useAuthStore } from '../../store/authStore';
+import PasswordInput from '../../components/PasswordInput';
 
 /** Supabase's default minimum; the server enforces its own setting too. */
 const MIN_PASSWORD_LENGTH = 6;
@@ -49,8 +50,7 @@ export default function ResetPasswordPage() {
         <h1 className="text-2xl font-bold text-center text-purple-700 mb-2">Choose a new password</h1>
         <p className="text-center text-gray-500 mb-6 text-sm">Then it's straight back to your adventure.</p>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="password"
+          <PasswordInput
             placeholder="New password"
             autoComplete="new-password"
             value={password}
@@ -58,8 +58,7 @@ export default function ResetPasswordPage() {
             required
             className={fieldClass}
           />
-          <input
-            type="password"
+          <PasswordInput
             placeholder="Type it again"
             autoComplete="new-password"
             value={confirm}

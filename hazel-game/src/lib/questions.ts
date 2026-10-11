@@ -34,16 +34,40 @@ async function invokeGenerate(
   if (error) throw new Error(`Question generation failed — ${await resolveErrorMessage(error)}`);
 
   const api = (data?.questions ?? []) as ApiQuestion[];
-  return api.map((q) => ({
-    id: q.id,
-    topic,
-    level: q.level,
-    text: q.text,
-    options: q.options,
-    correctIndex: q.correctIndex,
-    explanation: q.explanation,
-    timesAsked: q.timesAsked,
-  }));
+  return api.map((q) =>
+    shuffleAnswers({
+      id: q.id,
+      topic,
+      level: q.level,
+      text: q.text,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      explanation: q.explanation,
+      timesAsked: q.timesAsked,
+    }),
+  );
+}
+
+/**
+ * The same question with its options in a random order and `correctIndex`
+ * following the right answer. The model that writes the questions tends to
+ * put the right answer in the same spot (most often B), so a kid could learn
+ * the position instead of the answer. Every question is shuffled as it
+ * arrives — cached ones too, which were stored in the model's order — and the
+ * Library shuffles again each time it re-asks a miss.
+ */
+export function shuffleAnswers<T extends Pick<Question, 'options' | 'correctIndex'>>(
+  q: T,
+  random: () => number = Math.random,
+): T {
+  // A malformed index would make every option wrong once shuffled; leave it be.
+  if (!Number.isInteger(q.correctIndex) || q.correctIndex < 0 || q.correctIndex >= q.options.length) return q;
+  const order = q.options.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return { ...q, options: order.map((i) => q.options[i]), correctIndex: order.indexOf(q.correctIndex) };
 }
 
 // --- Prefetch cache ---------------------------------------------------------

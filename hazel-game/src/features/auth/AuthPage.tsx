@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { errorMessage } from '../../lib/errors';
+import PasswordInput from '../../components/PasswordInput';
 
 const CURRENT_YEAR = new Date().getFullYear();
 // Birth years offered at sign-up: a few years back through ~100 years.
@@ -103,8 +104,9 @@ export default function AuthPage() {
             className={fieldClass}
           />
           {!isForgot && (
-            <input
-              type="password"
+            <PasswordInput
+              // A new field (hidden again) when switching sign in ↔ sign up.
+              key={isSignUp ? 'new' : 'current'}
               placeholder="Password"
               autoComplete={isSignUp ? 'new-password' : 'current-password'}
               value={password}

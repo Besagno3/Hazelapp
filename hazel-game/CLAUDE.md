@@ -47,6 +47,8 @@ zod, react-query. Add the package in the same change that first uses it.
   answers in a row → +1 mid-battle). It sets quiz, gate, chest, Spire and
   battle questions and enemy levels. **XP / player level** only tracks
   progress and grants power-ups — leveling up never makes anything harder.
+  The Training Grounds' opening rounds (before the world opens) pay **no
+  XP** — XP starts in the world (#122, 2026-10-10).
   The defend countdown is age-based only. **Where an enemy roams scales how
   it fights, never what it asks (#75 item 12, 2026-10-08):** each zone's
   danger tier (`content/regions.ts`, by story leg) scales its HP, blows,
@@ -472,6 +474,13 @@ zod, react-query. Add the package in the same change that first uses it.
   budgets of *fresh* Claude questions. Over budget it serves the cache
   (seen questions as a last resort). Fails OPEN with a loud log if 0009 isn't
   applied. Limits: `QUOTA_DEFAULTS` in the function, overridable by secrets.
+- **Answer order is random (#121):** the model that writes questions favours
+  one spot for the right answer (most often B), so `shuffleAnswers`
+  (`lib/questions.ts`) shuffles every question's options as it arrives
+  (cached rows too); a battle reshuffles each ask (a long battle repeats its
+  9 questions) and the Library each retry. The edge function also shuffles
+  fresh questions before caching them (`shuffleOptions`). Never rely on the
+  order options come back in.
 - **Password reset (#88):** `AuthPage` "Forgot password?" →
   `resetPasswordForEmail` (redirects back to the app). A recovery link sets
   `authStore.passwordRecovery` (PASSWORD_RECOVERY event or `type=recovery` in
@@ -550,6 +559,8 @@ python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, T
   as if it were.
 - Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
   for conditional class merging.
+- Password fields use `PasswordInput` (`src/components/`, the 👁️ show /
+  🙈 hide button, #123) — not a bare `<input type="password">`.
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
   `ROUNDS_TO_UNLOCK`); battle math in `src/lib/battleMath.ts`; economy in
   `src/content/items.ts`.
@@ -608,6 +619,67 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-10 — Merge main (heroes #39, music #40/#44, Eldergrove #42, the saved level #41, open Training Grounds #43) into the fair-questions branch (#121–#123)
+`main` took ISSUES **#115–#120** and TC-786–849 while this branch was open, so
+its issues moved **#115–#117 → #121–#123** and its test cases **TC-786–802 →
+TC-850–866** (renumbered before the merge). One code conflict: `QuizRound`'s
+round end — main removed the per-session topic lock (#119), this branch made
+XP wait for the world to open (#122); both kept. Main's saved player level
+(#118) changes how `addXp` stores XP, not when it's called, so the opening
+rounds still pay none.
+
+### 2026-10-10 — Show password: an eye on every password field (#123)
+Kids mistype passwords and couldn't see why sign-in failed. New
+`components/PasswordInput`: a 👁️ button inside the field's right edge shows
+what's been typed (🙈 hides it again). It is `type="button"` (never sends
+the form), keeps the caret and a phone's keyboard in the field, turns
+autocorrect / capitals / spellcheck off so a shown password can't be
+changed by the keyboard, and hides the password again when the form is sent
+(a native `submit` listener on the form runs before React's `onSubmit`) so
+browsers don't keep it in their plain-text autofill history. Used for the
+sign-in / sign-up field (`key`ed on the mode, so switching hides it again)
+and both fields on the reset page (an eye each). Edge's own reveal button is
+hidden (`index.css`) so there aren't two. Checked in headless Chromium at
+375×667 with a touch tap: the eye sits in the field (44×42 tap target), the
+caret stays put, no sticky hover. Tests: `PasswordInput.test` (show/hide, no
+submit, hidden again on submit — fails with the listener removed, phone
+keyboard attributes) and two in `PasswordReset.test` (both pages). 883 tests
+green, lint + tsc + build clean.
+
+### 2026-10-10 — No XP for the opening rounds (#122)
+The Training Grounds' first rounds are the way into the world, but they paid
+10 XP (plus the power-up bonus) for every right answer, so kids levelled up
+just by getting in — and, with #121, by tapping B. `QuizRound.finishRound`
+now pays XP only if the world was already open before the round, so the
+round that opens it pays none; practice rounds later (from the world menu)
+still pay. The skill level and the daily streak still move — they describe
+the child, they aren't a reward. XP already earned is kept. New
+`QuizRound.test` (two of its three cases fail without the fix): an opening
+round, the round that opens the world, a practice round. 877 tests green,
+lint + tsc clean.
+
+### 2026-10-10 — Answers come in a random order: no more "it's always B" (#121)
+The model that writes the questions put the right answer in the same spot
+most of the time (players noticed it was nearly always B), and nothing ever
+reordered the options — the edge function shuffles *which* questions you
+get, never their answers. A kid tapping B every time could pass the Training
+Grounds without reading. Now:
+- `shuffleAnswers` (`lib/questions.ts`) shuffles each question's options and
+  moves `correctIndex` with the right one as every question arrives
+  (`invokeGenerate` — quiz, battles, gates, chests, shrines, the Spire), so
+  rows already cached in the model's order are fixed too.
+- A battle reshuffles each question as it asks it (a long battle goes round
+  its 9 again), and the Library reshuffles a miss on every retry (its stored
+  `picked` index isn't shown anywhere, so nothing reads it in the old order).
+- The edge function shuffles fresh questions before caching them
+  (`shuffleOptions`), so the stored data is balanced — needs
+  `supabase functions deploy generate-questions`; the app's shuffle doesn't
+  wait on it.
+- Tests: `questions.test` — the right answer stays right, lands in each of
+  the four spots about equally (seeded), the input is untouched, a broken
+  index is left alone, `fetchQuestions` shuffles what it returns. 874 tests
+  green (three runs), lint + tsc clean, `deno check` of the function clean.
 
 ### 2026-10-10 — Merge main (Eldergrove #42, the saved player level #41, open Training
 Grounds #43) into the sign-in-music branch (#120)
