@@ -73,6 +73,9 @@ describe('warden keys (#58)', () => {
     const archive = ZONES['sunken-archive'];
     expect(archive.map[archive.keyGate!.y][archive.keyGate!.x]).toBe('G');
     expect(k.fiendName).toBe('the Hollow Fiend');
+    // Bumped, it's the silver door everyone calls it (review fix); Act I's stay gates.
+    expect(k.door).toBe('silver door');
+    for (const a of ACT_ONE_KEYS) expect(a.door).toBeUndefined();
     expect(ENEMY_DEFS[fiendFor('history').id].role).toBe('fiend');
     const boss = ENEMY_DEFS[k.bossId];
     expect(boss).toMatchObject({ role: 'warden', topic: 'history', isBoss: true, levelOffset: 1 });

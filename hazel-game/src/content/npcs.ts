@@ -1483,8 +1483,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'sage',
     topic: 'history',
     lines: [
-      'Hoo. I am Sage Chronicle.¹ ¹See also: owl.',
-      'Every battle is a story, little spark. Mine can ripple time itself.¹ ¹See also: bravery.',
+      'Hoo. I am Sage Chronicle. (See also: owl.)',
+      'Every battle is a story, little spark. Mine can ripple time itself. (See also: bravery.)',
     ],
   },
   'archive-index': {
@@ -1514,6 +1514,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Sailor Brine',
     sprite: '🧭',
     role: 'villager',
+    // Among the inn's beds and tables there's no room to step back after a talk (#75 item 14h review).
+    stationary: true,
     lines: [
       "I rowed all the way from Remembrance Hill. Keeper Mnem said my name might be in a book here.",
       "Found it! Page four hundred. Turns out I'm a sailor. I KNEW I liked boats.",
@@ -1525,6 +1527,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Hush',
     sprite: '🤫',
     role: 'villager',
+    // Boxed in by the Reading Room's tables, a wanderer kept walking back into you (#75 item 14h review).
+    stationary: true,
     lines: [
       "Shhh! …Oh, sorry. Habit. I've been the Reading Room's librarian for three hundred years.",
       { text: "The books are whispering again, now the Crystal of Memory shines. I'll allow it. Just this once.", ifFlag: 'crystal-history-restored' },

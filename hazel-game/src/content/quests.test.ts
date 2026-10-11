@@ -801,6 +801,8 @@ describe("A Letter, Long Overdue (#75 item 14h)", () => {
     save = wick.finish!(save);
     expect(save.questItems).toEqual(['wick-note']);
     expect(activeStep(quest, save)).toBeNull();
+    // Index is a sea away: the quest log says where (review fix).
+    expect(quest.doneLine).toMatch(/Index in the Sunken Archive/);
 
     const coins = save.coins;
     const potions = save.items.potion;

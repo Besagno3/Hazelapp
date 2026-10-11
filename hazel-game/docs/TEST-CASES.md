@@ -1059,6 +1059,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-952 | U | ✅ | keys (#126) | the Memoria Key opens the Archive's key gate and names the Hollow Fiend on the victory panel; Old Ringwood and the Memoria panel say where the door is (keys.test, story.test, BattleHud.test) |
 | TC-953 | M | ⬜ | world (#126) | play it: sail to the Archive, the three discovery panels; Binder, Index, Chronicle (learn Time Ripple), the silver door with and without the key; beat the Hollow Fiend: its menacing lines, the three crystal panels (…Aster…), the HUD 5/5 |
 | TC-954 | M | ⬜ | world (#126) | lose a fight at sea after resting at the Quiet Shelf Inn: you wake there and the boat is at the island's beach; Return to the Archive from Lumina Village: the boat meets you there |
+| TC-955 | U | ✅ | boat (#126m) | a boat left in open water near the island (3 cells off its beach) is brought round to the beach on Return or a wake there; one beside the island's beach stays put (seaCritters.test) |
+| TC-956 | C | ✅ | battle (#126m) | rested at the Quiet Shelf Inn and beaten in Numbria: "carry you back to the Quiet Shelf Inn in the Sunken Archive, where you last rested" — not "Binder finds you" (BattleArena.test) |
+| TC-957 | U | ✅ | world (#126m) | the Archive's key gate reads "silver door"; Hush and Brine stand still; the letter's quest log names the Sunken Archive (keys.test, zones.test, quests.test) |
 | TC-926 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 

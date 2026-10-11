@@ -651,6 +651,27 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14h review round 1: a boat you can board, panels without the key (#75 item 14h)
+Fresh `/saas-code-review` (1 medium, 3 low) and `/saas-ux-review` (3 medium,
+4 low; played on the stubbed app at 320–1024 px). All fixed:
+- **The boat by the island (medium):** a boat left out in open water within 6
+  cells of the Archive's beach counted as "there", so Return or a wake there
+  left it where nobody on the island could climb in. Now a boat stays put only
+  beside ground walkable from the town's door (`islandBoat`, `reach`).
+- **Arriving before the key (medium):** the island can be reached before the
+  Ringkeeper, so the first-visit panel no longer says the key is in your pocket.
+- **Where's Index? (medium):** the quest log says to take Wick's note back to
+  the Sunken Archive (`doneLine`).
+- **Hush and Sailor Brine (medium)** stand still: boxed in by tables and beds,
+  they kept walking back into a hero who'd just talked to them.
+- **Low:** the defeat line is the shelter where you were beaten, read before
+  the hero is moved; the Time Ripple battle test really runs (`npm test`
+  exited 1); "the Hollow Fiend" mid-sentence; "soon you'll fly!"; Chronicle's
+  footnotes in brackets; the key gate is a "silver door" (`GateKey.door`).
+- Act I's journey walk on the first 14h commit: 13/13 (`bench … journey`).
+- Tests: +1, and new checks in four more. 1074 green, lint + build clean. Asked (#126m): the Hollow
+  Fiend's Gulp of Ages can knock out a hero who doesn't Guard.
+
 ### 2026-10-11 — The Sunken Archive: the Crystal of Memory (#75 item 14h)
 Roadmap sub-item 14h — Act II's crystal zone.
 - **History is the fifth crystal** (Act II's): `CRYSTAL_TOPIC_IDS` gains it

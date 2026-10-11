@@ -1018,6 +1018,9 @@ describe('the Sunken Archive (#75 item 14h)', () => {
     for (const id of ['sage-chronicle', 'archive-index', 'archive-binder']) expect(ids).toContain(id);
     expect(NPC_DEFS['sage-chronicle']).toMatchObject({ role: 'sage', topic: 'history' });
     expect(NPC_DEFS['archive-index'].stationary).toBe(true);
+    // Hush and Brine stand among tables and beds, with no room to step back after a talk (review fix).
+    expect(NPC_DEFS['archive-hush'].stationary).toBe(true);
+    expect(NPC_DEFS['archive-traveler'].stationary).toBe(true);
     // Old Quillon stands by the silver door, warning of the Fiend until it falls.
     const quillon = archive.npcs.find((n) => n.defId === 'archive-quillon')!;
     expect(Math.abs(quillon.x - archive.keyGate!.x) + Math.abs(quillon.y - archive.keyGate!.y)).toBeLessThanOrEqual(3);

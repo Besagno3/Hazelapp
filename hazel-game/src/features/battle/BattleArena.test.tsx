@@ -513,25 +513,42 @@ describe('the Sunken Archive in battle (#75 item 14h)', () => {
     expect(screen.getByText('Attack')).toBeInTheDocument();
   });
 
-  it("Sage Chronicle's Time Ripple lands a strike and the enemy loses its next turn", () => {
+  it("Sage Chronicle's Time Ripple lands a strike and the enemy loses its next turn", async () => {
     fetchQuestionsMock.mockResolvedValue([q, q, q, q]);
     useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1', sages: ['history'] } });
     useBattleStore.getState().start(enemy, 60, 100);
     useBattleStore.setState({ charge: 3 });
     render(<BattleArena />);
-    return act(async () => {}).then(() => {
-      fireEvent.click(screen.getByText('Spells'));
-      fireEvent.click(screen.getByText(/Time Ripple/));
-      fireEvent.click(screen.getByText('4'));
-      fireEvent.click(screen.getByText('▶ Go!'));
-      expect(screen.getByText(/Time ripples round Count Bat — it loses its next turn!/)).toBeInTheDocument();
-      const s = useBattleStore.getState();
-      expect(s.enemyHp).toBeLessThan(200);
-      expect(s.charge).toBe(0);
-      fireEvent.click(screen.getByText(/tap to continue/));
-      // Straight back to the hero: no defend question, no blow.
-      expect(screen.getByText('Attack')).toBeInTheDocument();
-      expect(useBattleStore.getState().playerHp).toBe(60);
-    });
+    // Let the spell pool arrive.
+    await act(async () => {});
+    fireEvent.click(screen.getByText('Spells'));
+    fireEvent.click(screen.getByText(/Time Ripple/));
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/Time ripples round Count Bat — it loses its next turn!/)).toBeInTheDocument();
+    const s = useBattleStore.getState();
+    expect(s.enemyHp).toBeLessThan(200);
+    // 3◆ spent, and the right answer earns one back, as every right answer does.
+    expect(s.charge).toBe(1);
+    fireEvent.click(screen.getByText(/tap to continue/));
+    // Straight back to the hero: no defend question, no blow.
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+    expect(useBattleStore.getState().playerHp).toBe(60);
+  });
+
+  it('rested at the Quiet Shelf Inn and beaten elsewhere: carried back there, not "Binder finds you" (review fix)', () => {
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1', zoneId: 'numbria', lastRest: 'sunken-archive' } });
+    useBattleStore.getState().start(enemy, 1, 100);
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText(/carry you back to the Quiet Shelf Inn in the Sunken Archive, where you last rested/)).toBeInTheDocument();
+    expect(screen.queryByText(/Binder finds you/)).toBeNull();
+    expect(useSaveStore.getState().save!.zoneId).toBe('sunken-archive');
   });
 });

@@ -1,6 +1,7 @@
 import type { BoatSpot, SaveData, ZoneId } from '../types';
 import { GREAT_FOGBANK, SEA_CHARS, TILE, ZONES, fogAt, fogLifted, isZoneId, tileAt } from './zones';
 import { nearestSea } from '../lib/travel';
+import { reach } from '../lib/reach';
 
 /**
  * Old Marlow's boat (#75 roadmap item 14, Act II): mended in his quest
@@ -80,9 +81,6 @@ export function moorBoat(save: Pick<SaveData, 'aboard' | 'boat' | 'zoneId' | 'po
   return { aboard: false, boat: cell ? { zoneId: save.zoneId, ...cell } : null };
 }
 
-/** A boat moored this close (cells, either way) to an island town's `mooring` is at its beach already. */
-export const ISLAND_BEACH_NEAR = 6;
-
 /**
  * Where the boat should be for a hero who wakes in — or flies with Return to —
  * `townZone`: an island town's `mooring` (#75 item 14h, #114o), so they're
@@ -93,8 +91,23 @@ export function islandBoat(save: Pick<SaveData, 'aboard' | 'boat'>, townZone: Zo
   const mooring = townZone && isZoneId(townZone) ? ZONES[townZone].mooring : undefined;
   if (!mooring) return null;
   const at = save.aboard ? null : (save.boat ?? BOAT_HOME);
-  const there = at && at.zoneId === mooring.zoneId && Math.max(Math.abs(at.x - mooring.x), Math.abs(at.y - mooring.y)) <= ISLAND_BEACH_NEAR;
+  // Already there only if the hero can climb in from the island: the boat is
+  // right beside ground they can walk to from the town's door (`canBoard`) —
+  // not just somewhere near, out in open water (#75 item 14h review).
+  const there = at && at.zoneId === mooring.zoneId && boardableFrom(islandGround(townZone!, mooring.zoneId), at);
   return there ? null : mooring;
+}
+
+/** The ground a hero can walk to from an island town's door, on the map the boat floats on. */
+function islandGround(townZone: ZoneId, sea: ZoneId): Set<string> {
+  const out = ZONES[townZone].exits.find((e) => e.to === sea);
+  return out ? reach(ZONES[sea], { from: { x: out.spawnX, y: out.spawnY }, flags: null }) : new Set();
+}
+
+/** Can a hero standing somewhere in `ground` climb into a boat moored at `boat` (beside it, corners too)? */
+function boardableFrom(ground: Set<string>, boat: { x: number; y: number }): boolean {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (ground.has(`${boat.x + dx},${boat.y + dy}`)) return true;
+  return false;
 }
 
 /**

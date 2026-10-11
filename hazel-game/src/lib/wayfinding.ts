@@ -210,7 +210,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         title: 'Explore Lumina',
         // Once Act II's crystal shines, Ember's wings are nearly ready (flight comes with Act III, 15b).
         why: actComplete(flags, 2)
-          ? 'The Crystal of Memory shines! Ember\'s wings grow stronger every day. Until then, hunt for secrets ✨ and help everyone you meet.'
+          ? 'The Crystal of Memory shines! Ember\'s wings grow stronger every day — soon you\'ll fly! Until then, hunt for secrets ✨ and help everyone you meet.'
           : flags[visitedFlag('silver-shallows')]
             ? 'Lumina is safe, thanks to you! Sail the Silver Shallows, hunt for secrets ✨ and help everyone you meet.'
             : 'Lumina is safe, thanks to you! Hunt for secrets ✨ and help everyone you meet.',
@@ -498,7 +498,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
   } else if (actComplete(flags, 2)) {
-    plan = 'The Crystal of Memory shines — five crystals now! Ember\'s wings grow stronger every day. Until then, there are secrets ✦ hidden in every town, and friends who would love your help.';
+    plan = 'The Crystal of Memory shines — five crystals now! Ember\'s wings grow stronger every day — soon you\'ll fly! Until then, there are secrets ✦ hidden in every town, and friends who would love your help.';
   } else {
     plan = 'Lumina is safe, thanks to you! But there are still secrets ✦ hidden in every town, and friends who would love your help.';
   }

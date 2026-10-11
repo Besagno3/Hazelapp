@@ -28,6 +28,7 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
   const entrance = dungeonEntrance(key.fromZone);
   const where = `${entrance === key.fromZone ? 'in' : 'deep in'} ${placeName(ZONES[entrance])}`;
   const bossName = key.bossName.replace(/^The /, 'the ');
+  const door = key.door ?? 'gate';
 
   function open() {
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
@@ -37,7 +38,7 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
   }
 
   return (
-    <ModalLayer label="Locked gate" className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
+    <ModalLayer label={`Locked ${door}`} className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -45,17 +46,17 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
       >
         <div className="text-5xl mb-2">{hasKey ? key.emoji : '🔒'}</div>
         <h2 className="text-lg font-extrabold text-gray-800 mb-2">
-          {hasKey ? `The ${key.name} fits!` : 'A sealed gate'}
+          {hasKey ? `The ${key.name} fits!` : `A sealed ${door}`}
         </h2>
         <p className="text-sm text-gray-600 mb-5">
           {hasKey ? (
             <>
-              The {key.name} {key.emoji} hums and the gate grinds open — the path to{' '}
+              The {key.name} {key.emoji} hums and the {door} grinds open — the path to{' '}
               {key.fiendName} lies beyond.
             </>
           ) : (
             <>
-              Ancient magic seals this gate. It will only open to the{' '}
+              Ancient magic seals this {door}. It will only open to the{' '}
               <strong>
                 {key.name} {key.emoji}
               </strong>{' '}

@@ -115,7 +115,7 @@ type Turn =
   | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
   | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null }
-  | { kind: 'defeat'; xp: number; boatLine: string | null };
+  | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null };
 
 type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
 
@@ -762,7 +762,7 @@ export default function BattleArena() {
       // Time Ripple (#75 item 14h): the enemy is caught in the ripple and loses
       // its turn — its plan (a power move gathering, say) waits for the next one.
       later(() => float('⏳ Frozen!', 'enemy', 'text-teal-200'), choreo.hitMs + 200);
-      say(`${text} ⏳ Time ripples round ${enemy!.name} — it loses its next turn!`, () => setTurn({ kind: 'command' }));
+      say(`${text} ⏳ Time ripples round ${enemy!.name.replace(/^The /, 'the ')} — it loses its next turn!`, () => setTurn({ kind: 'command' }));
       return;
     }
     say(text, enemyTurn);
@@ -990,6 +990,10 @@ export default function BattleArena() {
     // the boat goes home too — and the defeat screen says so, from the same fact.
     const before = useSaveStore.getState().save!;
     const boatLine = defeatBoatLine(before, wakeAfterDefeat(before).zoneId);
+    // Who looks after the hero is the shelter where they were beaten — read
+    // before the hero is moved (after it, a rest at an inn that's also a
+    // shelter would read "Binder finds you" for a loss anywhere, #75 item 14h review).
+    const shelter = wakeShelter(before);
     updateSave((s) => ({
       ...s,
       hp: null,
@@ -1003,7 +1007,7 @@ export default function BattleArena() {
       library: pushLibrary(s.library, misses.current),
     }));
     useBattleStore.getState().setEscortAt(null);
-    setTurn({ kind: 'defeat', xp, boatLine });
+    setTurn({ kind: 'defeat', xp, boatLine, shelter });
   }
 
   function leave(result: 'win' | 'lose') {
@@ -1311,7 +1315,7 @@ export default function BattleArena() {
             drop={turn.kind === 'victory' ? turn.drop : null}
             badge={turn.kind === 'victory' && turn.badge ? BOSS_BADGES[turn.badge] ?? null : null}
             wakeInn={save ? wakeInnName(save) : null}
-            shelter={save ? wakeShelter(save) : null}
+            shelter={turn.kind === 'defeat' ? turn.shelter : null}
             tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
             boatLine={turn.kind === 'defeat' ? turn.boatLine : null}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}

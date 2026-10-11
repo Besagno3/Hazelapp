@@ -39,6 +39,8 @@ export interface GateKey {
   unlocksZone: ZoneId;
   /** That zone's Fiend, named in the locked-gate message. */
   fiendName: string;
+  /** What its gate is called when bumped, if not a "gate" (the Archive's silver door, #75 item 14h review). */
+  door?: string;
 }
 
 export const GATE_KEYS: GateKey[] = [
@@ -105,6 +107,7 @@ export const GATE_KEYS: GateKey[] = [
     fromZone: 'eldergrove',
     unlocksZone: 'sunken-archive',
     fiendName: 'the Hollow Fiend',
+    door: 'silver door',
   },
 ];
 

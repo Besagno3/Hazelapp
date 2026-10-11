@@ -1082,6 +1082,8 @@ export const QUESTS: QuestDef[] = [
       ),
     ],
     takesItems: ['wick-note'],
+    // Index is a sea away from Wick: the quest log says where (#75 item 14h review).
+    doneLine: "Take Wick's thank-you note back to Index in the Sunken Archive — sail out to the Silver Shallows' north-east!",
     complete: [
       'A thank-you note from Wick! I shall file it under T, for Thank you. And under W, for Wonderful!',
       'Sixty years late, and still it found its way home. That is the best kind of letter.',

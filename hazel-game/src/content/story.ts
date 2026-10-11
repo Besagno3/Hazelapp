@@ -370,8 +370,8 @@ export const ARCHIVE_PANELS: StoryPanel[] = [
     text: 'But some pages have gone blank, as if something ate the words. Far to the north, behind a silver door, something hungry is chewing on the long-ago.',
   },
   {
-    emoji: '🗝️',
-    text: 'The Memoria Key hums in your pocket. A little mouse in spectacles peeks out from behind a card catalog. "Oh! A READER!"',
+    emoji: '🐭',
+    text: 'A silver door with no handle guards the way north. Then a little mouse in spectacles peeks out from behind a card catalog. "Oh! A READER!"',
   },
 ];
 
