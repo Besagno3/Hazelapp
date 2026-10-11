@@ -1033,6 +1033,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-871 | U | ✅ | world (review) | a waiting escort stays waiting while a critter drifts in and out at 80 px, and walks on once none has been within 80 px for 0.6 s; going back to within 2.5 tiles counts as coming back (escort.test) |
 | TC-873 | U | ✅ | zones (review) | no non-boss critter in the Marsh has its patch (leash + 80 px) within reach of Posy's boardwalk walk from the landing to the stone (zones.test; fails with the Newt at 15,12) |
 | TC-874 | U | ✅ | world (review) | Posy trailing ~4.5 tiles on the last stretch arrives as the hero reaches the stone, before its own line (escort.test) |
+| TC-875 | M | ✅ | world (review) | bump down into Brume from the boardwalk at (7,14), close her talk: the hero can walk left and right (never pushed into the lamp-house wall); stubbed app, 4/4 |
+| TC-876 | M | ⬜ | world (review) | go back for a held-up Posy twice, stopping on the same cell both times: when the critter leaves she follows the hero both times |
 | TC-872 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 

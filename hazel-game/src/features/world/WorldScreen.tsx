@@ -149,6 +149,8 @@ export default function WorldScreen() {
   /** The toast's words, while it's up — so an escort can take back its own out-of-date line. */
   const toastText = useRef<string | null>(null);
   const toastAt = useRef(0);
+  /** When Posy (an escort) last stopped for a critter — a line due to come down stays if she's stopped again. */
+  const escortStoppedAt = useRef(0);
   // Is a toast up? A hint can wait for the next chance rather than knock one
   // off before it's been read (a first-arrival warning; `onSleeper`).
   const toastUp = useRef(false);
@@ -366,8 +368,10 @@ export default function WorldScreen() {
     const young = readMs - (Date.now() - toastAt.current);
     if (young > 0) {
       const shownAt = toastAt.current;
+      const asked = Date.now();
       setTimeout(() => {
-        if (toastAt.current === shownAt) clearToastOf(lines);
+        // Still the same line, and she hasn't stopped again since (then it's right again).
+        if (toastAt.current === shownAt && escortStoppedAt.current < asked) clearToastOf(lines);
       }, young);
       return;
     }
@@ -587,6 +591,9 @@ export default function WorldScreen() {
           },
           // She walks on: a "why she stopped" line still up is out of date.
           onEscortGo: () => walk && clearToastOf([walk.waitLine, walk.behindLine], 4000),
+          onEscortStop: () => {
+            escortStoppedAt.current = Date.now();
+          },
           onEscortBehind: () => {
             if (!walk || Date.now() - escortSaidAt.current < 8000) return;
             escortSaidAt.current = Date.now();

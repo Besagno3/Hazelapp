@@ -615,6 +615,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g review round 11: never nudged into a wall (#75 item 14g)
+Fresh `/saas-code-review` (1 medium, 2 low) and `/saas-ux-review` (1 high).
+Fixed: talking to Brume from the boardwalk just above her (her lamp-house wall
+one row up) nudged the hero back into the wall, so after her talk they could
+only walk down into her again (5 of 8 tries) — the step back after any bump
+(people, a shop counter, the Spire, Umbra) now goes as far back as there's
+room for, up to 10 px, never into a wall (`nudgeBack`; replayed: never stuck,
+the hero lands just clear of the wall); the reroute latch is cleared once she
+no longer needs it, so a second return for Posy reroutes too; a "she stopped"
+line due to come down stays if she's stopped again (`onEscortStop`). Asked
+(#120u): the Newt's new spot (16,8) sits on the grass shortcut west from the
+north boardwalk's top — move it again, or accept it?
+
 ### 2026-10-11 — 14g review round 10: no waiting for ever, the Newt off her road (#75 item 14g)
 Fresh `/saas-code-review` (1 medium, 2 low) and `/saas-ux-review` (1 medium,
 2 low). Fixed: round 9's 100 px walk-on distance could keep Posy waiting for

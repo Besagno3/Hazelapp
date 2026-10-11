@@ -239,6 +239,8 @@ export interface WorldCanvasCallbacks {
   onEscortWait?: (near?: boolean) => boolean | void;
   /** …walks on again (the critter went): a "why she stopped" line is out of date. */
   onEscortGo?: () => void;
+  /** …stops for a critter (again). */
+  onEscortStop?: () => void;
   /** …the hero reached their goal without them. */
   onEscortBehind?: () => void;
   /** …moved on — where they stand now (px), kept so a battle mid-walk leaves them there. */
@@ -1677,6 +1679,21 @@ export default function WorldCanvas({
     const hitAt = (px: number, py: number) => hitBox(px, py, HALF);
     /** The hero's own collision: on foot, or afloat while in the boat (#75 item 14). */
     const heroHit = (px: number, py: number) => hitBox(px, py, HALF, false, aboard);
+    // Step back from what was bumped, so closing its talk doesn't bump it again — never
+    // into a wall: a hero pushed into one (Brume, just under her lamp-house) couldn't
+    // walk any way but back into her (#75 item 14g UX review).
+    // (As far back as there's room for, up to 10 px — a few px still clears the contact radius.)
+    const nudgeBack = (dx: number, dy: number) => {
+      for (let k = 10; k > 0; k--) {
+        const nx = player.pos.x - dx * k;
+        const ny = player.pos.y - dy * k;
+        if (!heroHit(nx, ny)) {
+          player.pos.x = nx;
+          player.pos.y = ny;
+          return;
+        }
+      }
+    };
 
     // --- Fog reveal (#75 item 7) ------------------------------------------
     // A bank that has lifted but not been watched clearing gets a moment of
@@ -2147,8 +2164,7 @@ export default function WorldCanvas({
             (a) => a.kind === 'npc' && a.npcId && !a.follower && Math.hypot(a.x - cx, a.y - cy) < TILE * 1.6,
           );
           if (clerk?.npcId) {
-            player.pos.x -= dx * 10;
-            player.pos.y -= dy * 10;
+            nudgeBack(dx, dy);
             arm(TRIGGER_COOLDOWN);
             cbRef.current.onMove(player.pos.x, player.pos.y);
             cbRef.current.onTalk(clerk.npcId);
@@ -2224,20 +2240,17 @@ export default function WorldCanvas({
               }
             }
             // Nudge back so closing the dialogue doesn't instantly re-bump.
-            player.pos.x -= dx * 10;
-            player.pos.y -= dy * 10;
+            nudgeBack(dx, dy);
             arm(TRIGGER_COOLDOWN);
             cbRef.current.onMove(player.pos.x, player.pos.y);
             cbRef.current.onTalk(a.npcId);
           } else if (a.kind === 'spire') {
-            player.pos.x -= dx * 10;
-            player.pos.y -= dy * 10;
+            nudgeBack(dx, dy);
             arm(TRIGGER_COOLDOWN);
             cbRef.current.onMove(player.pos.x, player.pos.y);
             cbRef.current.onSpire();
           } else if (a.kind === 'umbra') {
-            player.pos.x -= dx * 10;
-            player.pos.y -= dy * 10;
+            nudgeBack(dx, dy);
             arm(TRIGGER_COOLDOWN);
             cbRef.current.onUmbra?.();
           } else if (a.kind === 'enemy' && a.enemy) {
@@ -2333,8 +2346,11 @@ export default function WorldCanvas({
         // The hero came back for them: walk to the hero from here, a way round on the
         // map, not back out along the old footsteps and past them (#75 item 14g UX review).
         // Once per return: not again until the hero has moved a tile (equal ways round can't flip her about).
+        // (The latch lasts one return: cleared once she no longer needs it, so a second return reroutes too.)
         const heroCell = `${Math.floor(player.pos.x / TILE)},${Math.floor(player.pos.y / TILE)}`;
-        if (heroCell !== escortReroutedAt && cameBack(escortState, player.pos, TILE)) {
+        const isBack = cameBack(escortState, player.pos, TILE);
+        if (!isBack) escortReroutedAt = '';
+        if (isBack && heroCell !== escortReroutedAt) {
           escortReroutedAt = heroCell;
           const cell = (p: { x: number; y: number }) => ({ x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) });
           const hero = cell(player.pos);
@@ -2368,6 +2384,7 @@ export default function WorldCanvas({
           if (cbRef.current.onEscortWait?.(back) !== false && back) escortWentAway = false;
         }
         if (wasWaiting && !escortState.waiting) cbRef.current.onEscortGo?.();
+        if (!wasWaiting && escortState.waiting) cbRef.current.onEscortStop?.();
         // The hero at the goal, them held up far behind: say where they are.
         if (stuckBehind(escortState, player.pos, walk.goal, TILE) && k.time() - escortBehindAt > 8) {
           escortBehindAt = k.time();
