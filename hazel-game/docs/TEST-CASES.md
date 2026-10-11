@@ -1038,6 +1038,41 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-865 | C | ✅ | ResetPasswordPage | both new-password fields have their own eye, each showing only its own field (PasswordReset.test) |
 | TC-866 | M | ⬜ | PasswordInput | on a real phone (iOS Safari, Android Chrome): tapping the eye keeps the keyboard up and the caret in place; a shown password isn't auto-capitalised; on Edge only one eye shows |
 
+## Press to use, doorways, stepping aside (#124)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-867 | U | ✅ | interact | Space (by key or code) and Enter use things; arrows, letters, Escape and Tab never do (interact.test) |
+| TC-868 | U | ✅ | interact | a focused button (or something inside one), link, input, textarea or anything in a dialog keeps Space / Enter for itself; the page body doesn't (`ownsKeys`, interact.test) |
+| TC-869 | U | ✅ | interact | what gets used is looked for the way the hero faces first, then to the sides, then behind; a diagonal looks both its ways first; a hero who never moved faces the camera (`probeDirs`, interact.test) |
+| TC-870 | U | ✅ | interact | tiles are probed just past the side of the hero's box they face — the middle first, then by each corner (`probePoints`, interact.test) |
+| TC-871 | U | ✅ | interact | a person counts when within reach and on the side faced (±53°), not off to the side, behind or too far (`inFront`, interact.test) |
+| TC-872 | U | ✅ | interact | the prompt reads "Space: …" on a keyboard, "Tap: …" on a touch screen (`promptText`, interact.test) |
+| TC-873 | U | ✅ | interact | doorway assist: a hero up to 20 px off a one-tile opening is slid into line with it; 21 px off, or a plain wall, isn't; of two openings the nearer; at most a step a frame (`cornerTarget` / `slideStep`, interact.test) |
+| TC-874 | U | ✅ | interact | walking into the same person adds up; someone else starts over; stopping or turning away clears it (`pushOn`, interact.test) |
+| TC-875 | U | ✅ | interact | in the open, someone stepping aside goes 2–5 cells, off the line the hero walks, at least 2 cells from them (`scootPath`, interact.test) |
+| TC-876 | U | ✅ | interact | in a corridor they go on through it and step aside in the room beyond (interact.test) |
+| TC-877 | U | ✅ | interact | at a dead end they squeeze past the hero to the other side (interact.test) |
+| TC-878 | U | ✅ | interact | inside a building they stay inside, on its floor — never its doorway (interact.test) |
+| TC-879 | U | ✅ | interact | they keep off exits, hidden passages, stairs and cells other people stand on (interact.test) |
+| TC-880 | U | ✅ | interact | boxed in with nowhere to go, they stay put (interact.test) |
+| TC-881 | C | ✅ | TouchPad | ✋ is a dim "Use" with nothing to use, and says what it would do ("Open chest") when there is (TouchPad.test) |
+| TC-882 | C | ✅ | TouchPad | a tap uses once — on the press, not again on its click; Enter / Space on the focused button works it too (TouchPad.test) |
+| TC-883 | C | ✅ | TouchPad | the d-pad still steers; no ✋ without an `onAction` (TouchPad.test) |
+| TC-884 | C | ✅ | WorldScreen | ✋ takes its label from the canvas's `onPrompt`, and a press counts in the `actionRef` the canvas reads (WorldScreen.use.test) |
+| TC-885 | C | ✅ | WorldScreen | the footer says Space, Enter or a click talks, opens and uses — no "bump into friends" (WorldScreen.use.test) |
+| TC-886 | E | ✅ | world | real canvas, real keys (`bench … use`): walking straight up from 0, ±6, ±10, +14 and ±18 px off a Numbria door's middle goes in (on `main` only 0 px did) |
+| TC-887 | E | ✅ | world | real canvas (`bench … use`): walking into Eldergrove's chest opens nothing and its prompt says "Open chest"; Space opens it |
+| TC-888 | E | ✅ | world | real canvas (`bench … use`): walking into Moonwell Grove's gate asks nothing; Enter opens it and the hero walks through |
+| TC-889 | E | ✅ | world | real canvas (`bench … use`): walking into Pip stops the hero and says nothing, the prompt says "Talk"; Space, Enter, a click and a held Space talk once each |
+| TC-890 | E | ✅ | world | real canvas (`bench … use`): Pip walked into for 1 s is still in the way; by ~1.5 s Pip steps aside and the hero walks on past, with no talk |
+| TC-891 | E | ✅ | world | the Act I journey (`bench … journey`) still walks every leg and Spire floor, the walker pressing ✋ at gates, seals, the stairs, the Spire and Umbra |
+| TC-892 | M | ⬜ | world | on a phone: ✋ sits beside the d-pad, its label follows what's in front ("Talk", "Open chest"); a tap on the map uses it too; the d-pad and ✋ work held together |
+| TC-893 | M | ⬜ | world | with a keyboard: after closing 📜 Menu with the mouse, walk to a chest and press Space — the chest opens (the walk blurred the Menu button), the menu doesn't reopen |
+| TC-894 | M | ⬜ | world | close a dialogue with Enter while still facing the person: it doesn't open again; press Enter once more and it does |
+| TC-895 | M | ⬜ | world | in town, walk at a wanderer: it never walks into the hero; hold into it ~1.5 s and it hops a few cells aside, then strolls round there; inside a shop, the keeper never leaves the shop |
+| TC-896 | M | ⬜ | world | the 1-tile ways in feel easy on a real keyboard and the d-pad: doors, Numbria's gate, the Depths' corridors, stairs — and a hidden passage ('H') is never slid into |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

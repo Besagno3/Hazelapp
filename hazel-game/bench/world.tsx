@@ -28,8 +28,10 @@
  * Exits really change zones (so a script can walk through slides, fades and
  * the arrival lock); `window.__bench.state()` reports where the hero is (how
  * many times it has bumped a fog bank, who it has talked to, and which fog
- * banks it has watched clear). Bumping a gatekeeper's gate opens it, as an
+ * banks it has watched clear). Using a gatekeeper's gate opens it, as an
  * answered question would; a warden's key gate opens only with its key flag.
+ * `__bench.use()` presses ✋ (#124); `state().paths` lists the chests and
+ * gates used, and `state().prompt` what ✋ would do now.
  *
  * The walker (#75 item 14b, `bench/walker.ts`, the runner's `journey` mode)
  * steers the real hero along the journey's paths through the touch pad.
@@ -250,7 +252,7 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
     p95: pct(deltas, 0.95),
     max: maxDelta,
   }),
-  state: () => ({ ...live, talks: [...live.talks], fogReveals: [...live.fogReveals] }),
+  state: () => ({ ...live, talks: [...live.talks], fogReveals: [...live.fogReveals], paths: [...live.paths] }),
   /** Pause / resume the world, as a menu or dialogue would. */
   pause: (on: boolean) => {
     benchPaused.current = on;
@@ -318,6 +320,9 @@ const live: {
   moves: number;
   /** Who the hero walked into (enemy def ids), the Spire icon, seals, stairs, Umbra (#75 item 14b). */
   battles: string[];
+  /** Chests and gates used ("chest:<id>", #124), and what ✋ would do now. */
+  paths: string[];
+  prompt: string | null;
   spire: number;
   wards: string[];
   stairs: number;
@@ -339,6 +344,8 @@ const live: {
   landings: 0,
   moves: 0,
   battles: [],
+  paths: [],
+  prompt: null,
   spire: 0,
   wards: [],
   stairs: 0,
@@ -347,11 +354,18 @@ const live: {
 
 /** The direction held — the touch pad's, so the walker can steer the hero. */
 const benchTouch = { current: { dx: 0, dy: 0 } };
+/** Presses of ✋ (#124). */
+const benchUse = { current: 0 };
+const useHere = () => {
+  benchUse.current += 1;
+};
+(window as unknown as { __bench: Record<string, unknown> }).__bench.use = useHere;
 const walker = makeWalker({
   touch: benchTouch,
   pause: (on) => {
     benchPaused.current = on;
   },
+  use: useHere,
   where: () => ({ zoneId: live.zoneId, pos: live.pos, moves: live.moves }),
   zone: (id) => (floor ? z : ZONES[id]),
 });
@@ -470,6 +484,7 @@ function Bench() {
             live.calmLeft = left;
           },
           onPath: (t) => {
+            live.paths.push(`${t.kind}:${t.id}`);
             // A gatekeeper's question, answered; a warden's key gate opens only with its key (#58).
             if (t.kind === 'gate') setFlagRef.current?.(gateFlag(t.id));
             else if (t.kind === 'keygate') {
@@ -520,12 +535,16 @@ function Bench() {
             live.boat = { zoneId: live.zoneId, ...spot };
             setBoat({ aboard: false, spot: live.boat });
           },
+          onPrompt: (label) => {
+            live.prompt = label;
+          },
         }}
         spireFloor={floor}
         spireBroken={[]}
         spireLight={null}
         travelRef={benchTravel}
         calmRef={benchCalm}
+        actionRef={benchUse}
         boat={boat.aboard ? null : boat.spot}
         aboard={boat.aboard}
       />

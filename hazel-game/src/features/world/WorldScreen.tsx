@@ -138,6 +138,13 @@ export default function WorldScreen() {
   const onDirChange = useCallback((dx: number, dy: number) => {
     touchDirRef.current = { dx, dy };
   }, []);
+  // The ✋ button (#124): its presses, counted for the canvas to use what the
+  // hero faces, and what that would be ("Open chest") — its label.
+  const actionRef = useRef(0);
+  const onAction = useCallback(() => {
+    actionRef.current += 1;
+  }, []);
+  const [action, setAction] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // One timer for whichever toast is up: a new toast replaces the old one's
   // timer, so an earlier toast can't hide a newer one early.
@@ -524,12 +531,14 @@ export default function WorldScreen() {
             sfx('chest');
             setFound(secret);
           },
+          onPrompt: setAction,
         }}
         spireFloor={spireTheme}
         spireBroken={spireBroken}
         spireLight={spireTheme ? { lives: spireLives, max: SPIRE_LIVES } : null}
         travelRef={travelRef}
         calmRef={calmRef}
+        actionRef={actionRef}
         boat={boatSpot(save)}
         aboard={save.aboard}
       />
@@ -537,10 +546,10 @@ export default function WorldScreen() {
       <p className="text-white/50 text-xs mt-2">
         {save.aboard
           ? 'Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!'
-          : 'Walk: arrow keys / WASD · bump into friends to talk, foes to battle!'}
+          : 'Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!'}
       </p>
       </div>
-      <TouchPad onDirChange={onDirChange} />
+      <TouchPad onDirChange={onDirChange} onAction={onAction} action={action} />
 
       {/* Toast — inside a live region that's always there, so screen readers
           announce each one as it appears. Centred, and on a phone up top, so it

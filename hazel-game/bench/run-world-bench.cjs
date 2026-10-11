@@ -20,6 +20,10 @@
  *                                                      or where they land rests — lets them pass —
  *                                                      until they leave its patch; a bump's cooldown
  *                                                      never lets the hero through a boss
+ *   node bench/run-world-bench.cjs use [outDir]        press to use on the real canvas (#124): a door
+ *                                                      from up to 18 px off its middle lets the hero in;
+ *                                                      chests, gates and people wait for Space / Enter /
+ *                                                      a click; a person kept walking into steps aside
  *
  * Playwright isn't a project dependency; a global install works:
  *   NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps
@@ -522,11 +526,12 @@ async function hud(browser, outDir) {
     const back = await page.evaluate(focusLabel);
     if (!back.includes('Menu')) problems.push(`closing the Menu left focus on ${back}`);
     await page.close();
-    // The Spire: walk into its icon, read through the door's lines, and look at the HUD on floor 1.
+    // The Spire: walk up to its icon and use it, read through the door's lines, and look at the HUD on floor 1.
     const sp = await stubbedApp(browser, { width, height }, spire, profile);
     await sp.keyboard.down('ArrowDown');
     await sp.waitForTimeout(900);
     await sp.keyboard.up('ArrowDown');
+    await sp.keyboard.press('Space'); // the Spire's door waits to be used (#124)
     // The door's lines: Tab, Tab, Tab never reaches the top bar's Sign out under the panel.
     await sp.waitForSelector('[role=dialog][aria-label="The Crystal Spire"]', { timeout: 5000 }).catch(() => {});
     const underPanel = (await tabs(sp, 4)).filter((f) => f.startsWith('top bar'));
@@ -698,11 +703,13 @@ async function sea(browser, outDir) {
     `landed ${landed}, resting ${ashore} battles, then ${JSON.stringify(s.battles)}`,
   );
 
-  // A bump's cooldown spares only an enemy already touching the hero (#114t): bump the
-  // Whispering Woods save crystal (18,2) from 18,3 — a 2 s cooldown — then head down-left
-  // past the Thicket Warden (16,4). It fights; it used to let the hero walk through.
+  // A bump's cooldown spares only an enemy already touching the hero (#114t): use the
+  // Whispering Woods save crystal (18,2) from 18,3 (a press since #124) — a 2 s cooldown —
+  // then head down-left past the Thicket Warden (16,4). It fights; it used to let the hero
+  // walk through.
   page = await ready('zone=whispering-woods&at=18,3');
   await hold(page, 'ArrowUp', 300);
+  await page.keyboard.press('Space');
   await page.keyboard.down('ArrowLeft');
   await hold(page, 'ArrowDown', 800);
   await page.keyboard.up('ArrowLeft');
@@ -712,6 +719,113 @@ async function sea(browser, outDir) {
 
   const bad = checks.filter((ok) => !ok).length;
   console.log(`\n${checks.length - bad}/${checks.length} sea checks passed. Screenshots in ${outDir}.`);
+  if (bad) process.exitCode = 1;
+}
+
+/**
+ * Press to use (#124), on the real canvas with real keys: doorways a few pixels
+ * off still let the hero in (the corner assist); chests, gates and people wait
+ * for Space / Enter / a click, and a person stops the hero; one walked into
+ * for ~1.5 s steps aside.
+ */
+async function use(browser, outDir) {
+  fs.mkdirSync(outDir, { recursive: true });
+  const TILE = 32;
+  const state = (page) => page.evaluate(() => window.__bench.state());
+  const ready = async (query) => {
+    const page = await openBench(browser, query);
+    await page.waitForFunction(() => window.__bench.stats().frames > 60, null, { timeout: 180000 });
+    return page;
+  };
+  const hold = async (page, key, ms) => {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(ms);
+    await page.keyboard.up(key);
+    await page.waitForTimeout(100);
+  };
+  // Pausing makes the canvas say where the hero is; resuming starts the 0.8 s cooldown, waited out.
+  const where = (page) =>
+    page.evaluate(async () => {
+      const b = window.__bench;
+      const before = b.state().moves;
+      b.pause(true);
+      for (let i = 0; i < 40 && b.state().moves === before; i++) await new Promise((r) => requestAnimationFrame(r));
+      const s = b.state();
+      b.pause(false);
+      await new Promise((r) => setTimeout(r, 900));
+      return s;
+    });
+  const checks = [];
+  const check = async (page, name, ok, detail, { close = true } = {}) => {
+    checks.push(ok);
+    console.log(`${ok ? '✓' : '✗'} ${name} — ${detail}`);
+    await page.locator('canvas').screenshot({ path: path.join(outDir, `${checks.length}.png`) });
+    if (page.errors.length) console.log(`    page errors: ${page.errors.join(' | ')}`);
+    if (close) await page.close();
+  };
+
+  // Numbria's south-west shop door (28,5): walk straight up from a little off its middle.
+  // The hero's box only fits a one-tile door within ±5 px; before #124 6 px off stopped them.
+  for (const off of [0, 6, 10, 14, 18, -10, -18]) {
+    const page = await ready(`zone=numbria&at=${28 + off / TILE},6`);
+    await hold(page, 'ArrowUp', 1200);
+    const s = await where(page);
+    await check(page, `${off > 0 ? '+' : ''}${off} px off a door's middle, walking up goes in`, s.pos.y < 5 * TILE, `y ${Math.round(s.pos.y)}`);
+  }
+
+  // Eldergrove's chest (5,24): bumping opens nothing, the prompt says so, Space opens it.
+  let page = await ready('zone=eldergrove&at=5,25');
+  await hold(page, 'ArrowUp', 900);
+  let s = await where(page);
+  const bumped = s.paths.length;
+  s = await state(page);
+  await check(page, 'walking into a chest opens nothing; its prompt says "Open chest"', bumped === 0 && s.prompt === 'Open chest', `${bumped} opened, prompt ${s.prompt}`, { close: false });
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+  s = await state(page);
+  await check(page, 'Space opens it', s.paths.some((p) => p.startsWith('chest:')), JSON.stringify(s.paths));
+
+  // Moonwell Grove's gate (11,10): bumping asks nothing; Enter does; then the hero walks through.
+  page = await ready('zone=moonwell-grove&at=11,11');
+  await hold(page, 'ArrowUp', 900);
+  s = await where(page);
+  const asked = s.paths.length;
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(400);
+  await hold(page, 'ArrowUp', 900);
+  s = await where(page);
+  await check(page, 'a gate asks nothing on a bump; Enter opens it and the hero walks through', asked === 0 && s.paths.some((p) => p.startsWith('gate:')) && s.pos.y < 10 * TILE, `${asked} on the bump, then ${JSON.stringify(s.paths)}, y ${Math.round(s.pos.y)}`);
+
+  // Pip (hub-kid, 76,20) in the village: solid, talks on Space / Enter / a click, once per press.
+  page = await ready('zone=lumina-village&at=76,21');
+  await hold(page, 'ArrowUp', 500);
+  s = await where(page);
+  const blocked = s.pos.y > 20 * TILE + TILE / 2 + 20;
+  const talked = s.talks.length;
+  s = await state(page);
+  await check(page, 'walking into someone stops the hero and says nothing; the prompt says "Talk"', blocked && talked === 0 && s.prompt === 'Talk', `y ${Math.round(s.pos.y)}, ${talked} talks, prompt ${s.prompt}`, { close: false });
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  await page.locator('canvas').click({ position: { x: 100, y: 100 } });
+  await page.waitForTimeout(300);
+  await page.keyboard.down('Space'); // held: its auto-repeats aren't fresh presses
+  await page.waitForTimeout(600);
+  await page.keyboard.up('Space');
+  s = await state(page);
+  await check(page, 'Space, Enter, a click and a held Space talk once each', s.talks.length === 4, JSON.stringify(s.talks));
+
+  // Keep walking into Pip: still in the way after 1 s; by ~1.5 s Pip steps aside and the hero walks on.
+  page = await ready('zone=lumina-village&at=76,21');
+  await hold(page, 'ArrowUp', 1000);
+  const after1 = (await where(page)).pos.y;
+  await hold(page, 'ArrowUp', 2600);
+  s = await where(page);
+  await check(page, 'someone walked into for ~1.5 s steps aside, and the hero walks on past', after1 > 20 * TILE + TILE / 2 + 20 && s.pos.y < 20 * TILE && s.talks.length === 0, `y ${Math.round(after1)} after 1 s, then ${Math.round(s.pos.y)}; ${s.talks.length} talks`);
+
+  const bad = checks.filter((ok) => !ok).length;
+  console.log(`\n${checks.length - bad}/${checks.length} use checks passed. Screenshots in ${outDir}.`);
   if (bad) process.exitCode = 1;
 }
 
@@ -729,6 +843,7 @@ async function sea(browser, outDir) {
     else if (mode === 'journey') await journey(browser, args[0] ?? 'bench-journey');
     else if (mode === 'hud') await hud(browser, args[0] ?? 'bench-hud');
     else if (mode === 'sea') await sea(browser, args[0] ?? 'bench-sea');
+    else if (mode === 'use') await use(browser, args[0] ?? 'bench-use');
     else throw new Error(`unknown mode ${mode}`);
   } finally {
     await browser.close();
