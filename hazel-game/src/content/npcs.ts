@@ -1380,6 +1380,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "Lightkeeper Brume. I keep the Marsh's lanterns. The fog and I had an arrangement. It left.",
       'Mind the Last Fogbank, down in the reedy cove to the south-east. It\'s more shy than scary. Mostly.',
+      "Ness says hello? Tell her my lamps are burning bright — and her lighthouse had better be too!",
     ],
     ambient: ['Wick trimmed, lamp filled.', '🏮'],
   },
@@ -1400,7 +1401,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '⛵',
     role: 'merchant',
     lines: [
-      "Slosh's the name, rafts are the game! I take folk across the bog on my raft — and I sell what a bog-walker needs.",
+      "Slosh's the name, rafts are the game! I ferry folk in from the sea — I brought Posy over! — and I sell what a bog-walker needs.",
       'Glimmer Candles! Bog Lanterns are too slippery for Hint Feathers. Light one little candle, and your feathers work again.',
     ],
   },

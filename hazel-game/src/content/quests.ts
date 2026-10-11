@@ -142,6 +142,10 @@ export interface QuestDef {
    * offered, the chest's `wantedBy` says who wants it instead.
    */
   foundNote?: (save: SaveData) => string;
+  /** Where it's played once accepted, when not where it was offered (Posy's walk: the Marsh) — the menu's tag. */
+  playedIn?: ZoneId;
+  /** The menu's line once every step is done, in place of "go back to <giver>" (the giver waits somewhere else). */
+  doneLine?: string;
   /** Only offered once this story flag is set (Act II's quests wait for `act2-seen`, #75 item 14). */
   requires?: string;
   steps: QuestStep[];
@@ -877,6 +881,9 @@ export const QUESTS: QuestDef[] = [
     giverNpcId: 'hill-posy',
     side: true,
     title: 'The Flower for No Name',
+    // Asked on the Hill, but walked — and thanked — in the Marsh (#75 item 14g UX review).
+    playedIn: 'foglight-marsh',
+    doneLine: 'Posy is waiting by the Nameless Stone in Foglight Marsh — talk to her there!',
     // She needs Marlow's boat to get there — and so do you.
     requires: questDoneFlag({ id: BOAT_QUEST_ID }),
     offer: [
@@ -1172,9 +1179,14 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
 }
 
 /** The world's line for each walk that ended short (`escortBackFlag`, #75 item 14g review). */
-export function escortsBackLines(flags: Record<string, boolean>): { flag: string; line: string }[] {
+export function escortsBackLines(flags: Record<string, boolean>, zoneId?: ZoneId): { flag: string; line: string }[] {
+  // Said in the escort's own place (left mid-walk, it waits for your next visit — #75 item 14g UX review).
   return QUESTS.flatMap((q) =>
-    q.steps.flatMap((st) => (st.escort && flags[escortBackFlag(st.id)] ? [{ flag: escortBackFlag(st.id), line: st.escort.backLine }] : [])),
+    q.steps.flatMap((st) =>
+      st.escort && flags[escortBackFlag(st.id)] && (!zoneId || st.escort.zoneId === zoneId)
+        ? [{ flag: escortBackFlag(st.id), line: st.escort.backLine }]
+        : [],
+    ),
   );
 }
 

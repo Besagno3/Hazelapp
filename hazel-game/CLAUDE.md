@@ -615,6 +615,25 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14g UX review round 2: Posy arrives however you reach the stone (#75 item 14g)
+A fresh `/saas-ux-review` (1 high, 2 medium, 4 low; played on the bench and
+the stubbed app at 320–1024 px). All fixed:
+- **Posy never arrived from the grass (high):** walking up under the stone,
+  or from the side, left her a gap short for ever. She now arrives too when
+  the hero is beside the goal and she's walking close behind, not held up
+  (`arrived`'s `hero`); on the bench all four ways in arrive (one did before).
+- **The menu sent you to the Hill (medium):** a quest can say where it's
+  played (`QuestDef.playedIn`) and who waits where once done (`doneLine`) —
+  "Posy is waiting by the Nameless Stone in Foglight Marsh…".
+- **The candle cue was gone in 3 s (medium):** the trickster banner stays as
+  long as a toast would (`toastMs`), and with feathers blocked the question
+  says "🪶 Too slippery for feathers — light a 🕯️ candle from Items!"
+  (`QuestionCard` `hintNote`).
+- **Low:** Posy's "!" is orange on a light bubble (a dark plate read as a
+  critter's level); the candle's line fits the critter; badges are named on
+  hover and for screen readers; Slosh brought Posy over, Brume answers Ness;
+  "Posy ran back to the landing" waits for your next Marsh visit.
+
 ### 2026-10-11 — 14g code review round 2: "go back for her" only when she's held up (#75 item 14g)
 A fresh `/saas-code-review` (1 medium, 5 low). Fixed: the "Posy isn't here
 yet! Go back and find her" toast fired on nearly every walk (she walks a

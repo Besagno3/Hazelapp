@@ -49,6 +49,7 @@ import {
   type CombatState,
   type EnemyIntent,
 } from '../../lib/battleTurn';
+import { toastMs } from '../../lib/toast';
 import { CHARGE_MAX } from '../../content/abilities';
 import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells';
 import {
@@ -349,7 +350,8 @@ export default function BattleArena() {
         trickster: `${enemy.name} is too slippery for Hint Feathers!${save?.items.candle ? ' Light a 🕯️ Glimmer Candle!' : ''}`,
         healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
       }[enemy.behavior];
-      later(() => showBanner(callout, 3000), 250);
+      // Long enough to read (a young reader's two words a second), as a toast is.
+      later(() => showBanner(callout, Math.max(3000, toastMs(callout))), 250);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemy?.instanceId, loading]);
@@ -542,7 +544,7 @@ export default function BattleArena() {
     if (bf) float(bf[0], 'hero', bf[1]);
     const { name, emoji } = CONSUMABLES[id];
     // The candle says what it did: slippery critters can't block hints now (#75 item 14g review).
-    const did = id === 'candle' ? ' Hints work now — even on slippery critters!' : '';
+    const did = id === 'candle' ? (enemy.behavior === 'trickster' ? ' Hints work now — even on this slippery critter!' : ' A free hint is ready!') : '';
     say(`${avatar!.name} uses a ${name}! ${emoji}${did}`, enemyTurn);
   }
   function commandFlee() {
@@ -1215,6 +1217,10 @@ export default function BattleArena() {
               // A trickster blocks hints — unless a Glimmer Candle is lit (#75 item 14g).
               hints={enemy.behavior === 'trickster' && !candleLit ? 0 : save.items.hint + (freeHint ? 1 : 0) + (candleHint ? 1 : 0)}
               hintLabel={freeHint ? '🦊 Fox Sense — use a free hint!' : candleHint ? '🕯️ Glimmer Candle — use a free hint!' : undefined}
+              // Why there's no hint button, and the way round it (#75 item 14g UX review).
+              hintNote={enemy.behavior === 'trickster' && !candleLit && save.items.hint > 0
+                ? `🪶 Too slippery for feathers${save.items.candle ? ' — light a 🕯️ candle from Items!' : '!'}`
+                : undefined}
               preHidden={turn.hide ?? 0}
               // Forget-Me-Knot (#75 item 14e): a wrong pick is crossed out and the hero picks again.
               secondChance={knotted}

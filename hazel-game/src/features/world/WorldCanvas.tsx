@@ -1186,10 +1186,10 @@ export default function WorldCanvas({
     function spawnFollower(defId: string, at: { x: number; y: number }): Follower {
       const here = spawnNpc({ defId, x: Math.floor(at.x / TILE), y: Math.floor(at.y / TILE) }, at);
       here.actor.follower = true;
-      // Big enough to see on a phone (the map shrinks to ~0.4×): a "!" on a dark plate, like a level's (#75 item 14g review).
+      // Big enough to see on a phone (the map shrinks to ~0.4×): an orange "!" on a light bubble — not a dark plate like a critter's level (#75 item 14g reviews).
       type Mark = { pos: WorldVec; opacity: number; destroy: () => void };
-      const plate = k.add([k.rect(22, 28, { radius: 6 }), k.pos(at.x, at.y - 36), k.anchor('center'), k.color(30, 24, 40), k.outline(2, k.rgb(255, 214, 90)), k.opacity(0), k.z(21)]) as unknown as Mark;
-      const bang = k.add([k.text('!', { size: 24 }), k.pos(at.x, at.y - 36), k.anchor('center'), k.color(255, 214, 90), k.opacity(0), k.z(22)]) as unknown as Mark;
+      const plate = k.add([k.rect(22, 28, { radius: 6 }), k.pos(at.x, at.y - 36), k.anchor('center'), k.color(255, 250, 235), k.outline(2, k.rgb(240, 150, 40)), k.opacity(0), k.z(21)]) as unknown as Mark;
+      const bang = k.add([k.text('!', { size: 24 }), k.pos(at.x, at.y - 36), k.anchor('center'), k.color(225, 110, 20), k.opacity(0), k.z(22)]) as unknown as Mark;
       const spr = here.anims ? (here.face as unknown as { play: (n: string) => void; flipX: boolean }) : null;
       let facing: Facing = 'down';
       let anim = '';
@@ -2351,7 +2351,7 @@ export default function WorldCanvas({
           escortSaid = escortState.at;
           cbRef.current.onEscortMove?.(escortState.at.x, escortState.at.y);
         }
-        if (arrived(escortState.at, walk.goal, TILE)) {
+        if (arrived(escortState.at, walk.goal, TILE, player.pos, escortState.waiting)) {
           escortArrived = true;
           cbRef.current.onEscortArrive?.();
         }

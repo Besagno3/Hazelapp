@@ -202,7 +202,7 @@ export default function WorldScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awayKey]);
   // A walk ended short — left, lost, reloaded — says so once, and how to start again (#75 item 14g review).
-  const backLines = escortsBackLines(flags);
+  const backLines = escortsBackLines(flags, save?.zoneId);
   const backKey = backLines.map((b) => b.flag).join(',');
   useEffect(() => {
     if (!backKey || !save) return;

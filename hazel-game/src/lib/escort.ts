@@ -98,9 +98,16 @@ export function stepEscort(s: EscortState, hero: Pt, threats: Pt[], dt: number):
   return { at, crumbs: n ? s.crumbs.slice(n) : s.crumbs, waiting: false };
 }
 
-/** Have they reached the goal cell (`TILE`-px cells)? */
-export function arrived(at: Pt, goal: Pt, tile: number): boolean {
-  return dist(at, { x: goal.x * tile + tile / 2, y: goal.y * tile + tile / 2 }) < ESCORT_ARRIVE_PX;
+/**
+ * Have they reached the goal cell (`TILE`-px cells)? Within reach of it — or,
+ * with the hero beside the goal (`hero`), walking on behind them and not held
+ * up: the hero came at it another way (over the grass, from the side), and
+ * the gap would keep them a step short for ever (#75 item 14g UX review).
+ */
+export function arrived(at: Pt, goal: Pt, tile: number, hero?: Pt, waiting = false): boolean {
+  const g = { x: goal.x * tile + tile / 2, y: goal.y * tile + tile / 2 };
+  if (dist(at, g) < ESCORT_ARRIVE_PX) return true;
+  return !!hero && !waiting && dist(hero, g) < tile * 2.5 && dist(at, hero) < tile * 3 && dist(at, g) < tile * 5;
 }
 
 /**

@@ -74,6 +74,19 @@ describe("an escort's walk (#75 item 14g)", () => {
     expect(arrived({ x: 6 * 32 + 16, y: 4 * 32 + 16 + ESCORT_ARRIVE_PX + 1 }, { x: 6, y: 4 }, 32)).toBe(false);
   });
 
+  it('arrives with the hero who came at the goal another way — over the grass or from the side', () => {
+    const c = (x: number, y: number) => ({ x: x * 32 + 16, y: y * 32 + 16 });
+    const goal = { x: 6, y: 4 };
+    // The hero under the stone (5,5), Posy a gap behind on the grass: there.
+    expect(arrived(c(5.9, 6.4), goal, 32)).toBe(false);
+    expect(arrived(c(5.9, 6.4), goal, 32, c(5, 5))).toBe(true);
+    // From the east (8,4), Posy behind on the boardwalk: there.
+    expect(arrived(c(10.3, 4.4), goal, 32, c(8, 4))).toBe(true);
+    // Held up by a critter, or the hero not at the goal: not yet.
+    expect(arrived(c(5.9, 6.4), goal, 32, c(5, 5), true)).toBe(false);
+    expect(arrived(c(5.9, 6.4), goal, 32, c(12, 9))).toBe(false);
+  });
+
   it("on Posy's walk to the stone, a little way behind is never \"stuck\" — only a critter holding her up is", () => {
     // The landing up the boardwalks to the Nameless Stone (cells → px centres).
     const c = (x: number, y: number) => ({ x: x * 32 + 16, y: y * 32 + 16 });

@@ -747,6 +747,9 @@ describe('The Flower for No Name: an escort (#75 item 14g)', () => {
     // …and the world says once that she went back (#75 item 14g review).
     expect(normalizeSave(save).flags[escortBackFlag(POSY_WALK)]).toBe(true);
     expect(escortsBackLines(normalizeSave(save).flags)[0].line).toMatch(/Posy ran back to the landing/);
+    // Said in the Marsh: left mid-walk, it waits for the next visit there.
+    expect(escortsBackLines(normalizeSave(save).flags, 'silver-shallows')).toEqual([]);
+    expect(escortsBackLines(normalizeSave(save).flags, 'foglight-marsh')).toHaveLength(1);
     expect(escortsAway(save, 'foglight-marsh')).toEqual([]);
     expect(escortsAway(save, 'silver-shallows')).toEqual(['hill-posy']);
     expect(withoutEscorts(save.flags)[walking]).toBeUndefined();

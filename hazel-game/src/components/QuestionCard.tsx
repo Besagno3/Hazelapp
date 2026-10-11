@@ -16,6 +16,7 @@ export default function QuestionCard({
   question,
   hints = 0,
   hintLabel,
+  hintNote,
   preHidden = 0,
   onUseHint,
   onAnswered,
@@ -30,6 +31,8 @@ export default function QuestionCard({
   hints?: number;
   /** The hint button's words in place of "Use a Hint Feather (N left)" (Kira's Fox Sense). */
   hintLabel?: string;
+  /** Said where the hint button would be while there are no hints to use (a trickster blocks them). */
+  hintNote?: string;
   /** Wrong options crossed out from the start (a companion's peek). */
   preHidden?: number;
   onUseHint?: () => void;
@@ -171,6 +174,7 @@ export default function QuestionCard({
           {hintLabel ?? `🪶 Use a Hint Feather (${hints} left)`}
         </button>
       )}
+      {selected === null && hints === 0 && hintNote && <p className="mt-2 text-xs text-gray-500">{hintNote}</p>}
 
       {selected !== null && selected !== question.correctIndex && (
         <motion.p

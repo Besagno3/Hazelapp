@@ -1015,6 +1015,10 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-853 | U | ✅ | quests (review) | a reload or a lost battle mid-walk turns the walking flag into a back flag; the world shows "Posy ran back to the landing" once and clears it (quests.test) |
 | TC-854 | M | ✅ | world (review) | reaching the stone with Posy held up by a critter more than 3 tiles back says "Posy is still on her way" (at most every 8 s); just walking a little behind never does (escort.test) |
 | TC-855 | U | ✅ | battle (review) | after the Glimmer Candle's free hint is used on a trickster, the next question still offers "Use a Hint Feather (1 left)" (BattleArena.test) |
+| TC-856 | U | ✅ | world (review) | Posy arrives with the hero standing under the stone (5,5) or east of it (8,4), walking close behind; held up or with the hero away, she doesn't (escort.test); all four approaches arrive on the bench |
+| TC-857 | M | ✅ | menu (review) | mid-walk the quest log tags "The Flower for No Name" with Foglight Marsh, and once arrived says "Posy is waiting by the Nameless Stone in Foglight Marsh" |
+| TC-858 | M | ⬜ | battle (review) | against a Bog Lantern with feathers and no lit candle, the question shows "🪶 Too slippery for feathers — light a 🕯️ candle from Items!"; the opening banner stays ~7 s |
+| TC-859 | U | ✅ | quests (review) | "Posy ran back to the landing" is held until the hero is back in the Marsh (quests.test) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
 ## Regression cases (tied to ISSUES.md)
