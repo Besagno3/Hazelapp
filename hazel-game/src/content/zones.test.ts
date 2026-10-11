@@ -1021,6 +1021,9 @@ describe('the Sunken Archive (#75 item 14h)', () => {
     // Hush and Brine stand among tables and beds, with no room to step back after a talk (review fix).
     expect(NPC_DEFS['archive-hush'].stationary).toBe(true);
     expect(NPC_DEFS['archive-traveler'].stationary).toBe(true);
+    // In Act II Elder Lumen no longer says "All four crystals" beside a HUD that counts five (review fix).
+    const four = NPC_DEFS['elder-lumen'].lines.find((l) => typeof l !== 'string' && l.text.startsWith('All four crystals'));
+    expect(four && typeof four !== 'string' && four.unlessFlag).toBe(ACT2_SEEN);
     // Old Quillon stands by the silver door, warning of the Fiend until it falls.
     const quillon = archive.npcs.find((n) => n.defId === 'archive-quillon')!;
     expect(Math.abs(quillon.x - archive.keyGate!.x) + Math.abs(quillon.y - archive.keyGate!.y)).toBeLessThanOrEqual(3);

@@ -179,7 +179,7 @@ describe('nextObjective', () => {
     expect(g).toMatchObject({ kind: 'crystal', title: 'Free the Crystal of Memory', zoneId: 'sunken-archive' });
     expect(g.crystal?.id).toBe('history');
     expect(g.key?.id).toBe('memoria');
-    expect(g.why).toBe("Your Memoria Key opens the Hollow Fiend's silver door in the Sunken Archive, a great library half under the sea. Free the Crystal of Memory!");
+    expect(g.why).toBe("Your Memoria Key opens the Hollow Fiend's silver door. Free the Crystal of Memory!");
     // Off the Shallows the way starts at the boat, as for the key.
     expect(g.at).toEqual({ zoneId: 'dawnreach', x: 70, y: 30, name: "Marlow's dock" });
     expect(goalDirections(ZONES, g, 'lumina-village')).toMatch(/^Go east to Marlow's dock and sail east to the Silver Shallows, then go .*to the Sunken Archive\.$/);
@@ -389,7 +389,7 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...storyDone, [keyFlag('memoria')]: false })[0]).toMatch(/^Out in the Silver Shallows lies Eldergrove/);
     // With the Memoria Key, its door in the Archive (#75 item 14h); then five crystals shine.
     expect(mentorTips(ZONES, { ...met, ...memoriaWon })[0]).toMatch(/^You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive/);
-    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^The Crystal of Memory shines — five crystals now!/);
+    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toBe('Five crystals shine now! Ember\'s wings grow stronger every day — soon you\'ll fly. Until then, help everyone you meet.');
   });
   it('is the big picture, not the road: no "go …" or "take the … path" steps', () => {
     const stages = [met, math, { ...math, [keyFlag('verdara-key')]: true }, { ...met, ...allCrystals }];

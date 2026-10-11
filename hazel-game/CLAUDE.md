@@ -651,6 +651,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-11 — 14h review round 3: shorter lines, "waits by the island" (#75 item 14h)
+Fresh `/saas-code-review` (2 low) and `/saas-ux-review` (3 low) — no
+critical, high or medium; five lows, so fixed and one more round: the Return
+note says the Biscuit "waits by the island" (she may be at another shore),
+ashore too; Elder Lumen's "All four crystals" line stays in Act I
+(`unlessFlag: act2-seen`) and his Memory plan is ~20 words; the 🚩's Memory
+reason is short, so Grandmother Wick's "Where to next?" isn't ~48 words; the
+letter is the "Old Letter" in the bag. 1074 green, lint clean.
+
 ### 2026-10-11 — 14h review round 2: she waits by the beach (#75 item 14h)
 Fresh `/saas-code-review` (3 low) and `/saas-ux-review` (1 medium, 2 low).
 All fixed: Return from the boat right beside the island's beach said she

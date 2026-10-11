@@ -181,7 +181,7 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'crystal',
       title: `Free the ${crystal.crystalName}`,
-      why: `Your ${key.name} opens ${midSentence(key.fiendName)}'s silver door in the ${ZONES[crystal.zoneId].name}, a great library half under the sea. Free the ${crystal.crystalName}!`,
+      why: `Your ${key.name} opens ${midSentence(key.fiendName)}'s ${key.door ?? 'gate'}. Free the ${crystal.crystalName}!`,
       zoneId: crystal.zoneId,
       crystal,
       key,
@@ -498,7 +498,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
   } else if (actComplete(flags, 2)) {
-    plan = 'The Crystal of Memory shines — five crystals now! Ember\'s wings grow stronger every day — soon you\'ll fly! Until then, there are secrets ✦ hidden in every town, and friends who would love your help.';
+    plan = 'Five crystals shine now! Ember\'s wings grow stronger every day — soon you\'ll fly. Until then, help everyone you meet.';
   } else {
     plan = 'Lumina is safe, thanks to you! But there are still secrets ✦ hidden in every town, and friends who would love your help.';
   }

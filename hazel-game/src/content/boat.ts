@@ -139,9 +139,10 @@ export function boatOnReturn(
   const moored = moorBoat(save);
   const island = hasBoat(save.flags) ? islandBoat(moored, to) : null;
   if (island) return { aboard: false, boat: island, note: ' Old Marlow will sail the Biscuit round to meet you there.' };
-  // Flying to an island town from a boat left right by it: she's waiting there (#75 item 14h review).
-  const byTheIsland = save.aboard && moored.boat && isZoneId(to) && ZONES[to].mooring?.zoneId === moored.boat.zoneId;
-  if (byTheIsland) return { ...moored, note: ' The Biscuit waits by the beach, right where you left her.' };
+  // Flying to an island town with the boat already moored by it (left there now
+  // or before): she's waiting there, and the toast says so (#75 item 14h review).
+  const byTheIsland = hasBoat(save.flags) && moored.boat && isZoneId(to) && ZONES[to].mooring?.zoneId === moored.boat.zoneId;
+  if (byTheIsland) return { ...moored, note: ' The Biscuit waits by the island, right where you left her.' };
   return { ...moored, note: save.aboard ? ' The Biscuit stays moored out at sea — Old Marlow can row her home.' : '' };
 }
 

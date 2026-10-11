@@ -145,8 +145,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       {
         text: 'All four crystals shine again… you truly are the Hero of Lumina!',
-        // Once all four are back (the ending scene sets it), not after the first.
+        // Once all four are back (the ending scene sets it), not after the first —
+        // and not in Act II, where the HUD counts a fifth (#75 item 14h review).
         ifFlag: 'ending-seen',
+        unlessFlag: 'act2-seen',
       },
       {
         text: 'You climbed the Spire and faced Umbra itself. Lumina will tell your story for a thousand years, brave one.',

@@ -203,7 +203,8 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect(left.note).toMatch(/stays moored out at sea/);
     // Already at the island's beach: it stays put.
     const near = { ...ashore, boat: { zoneId: 'silver-shallows' as const, x: 48, y: 18 } };
-    expect(boatOnReturn(near, 'sunken-archive')).toEqual({ aboard: false, boat: near.boat, note: '' });
+    // …and the toast says she's there (review fix).
+    expect(boatOnReturn(near, 'sunken-archive')).toEqual({ aboard: false, boat: near.boat, note: ' The Biscuit waits by the island, right where you left her.' });
     // Out in open water near the island, where nobody on the island could climb in (review fix):
     // sailing 3 cells off the beach and flying there, the boat still comes round to the beach.
     const offshore = { ...sailing, pos: { x: 49 * 32 + 16, y: 21 * 32 + 16 } };
@@ -213,7 +214,7 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect(boatOnReturn(beside, 'sunken-archive')).toEqual({
       aboard: false,
       boat: { zoneId: 'silver-shallows', x: 50, y: 18 },
-      note: ' The Biscuit waits by the beach, right where you left her.',
+      note: ' The Biscuit waits by the island, right where you left her.',
     });
     const leftOff = { ...ashore, boat: { zoneId: 'silver-shallows' as const, x: 52, y: 22 } };
     expect(boatAfterDefeat(leftOff, 'sunken-archive').boat).toEqual(archive.mooring);

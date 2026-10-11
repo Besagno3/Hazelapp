@@ -58,7 +58,7 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   // The Lantern Ledger (#75 item 14g): Brume's little book, in a key-item chest in Foglight Marsh.
   'lantern-ledger': { id: 'lantern-ledger', name: 'Lantern Ledger', emoji: '📒' },
   // A Letter, Long Overdue (#75 item 14h): Index's find, and Wick's note back.
-  'old-letter': { id: 'old-letter', name: 'Unsent Letter', emoji: '📜' },
+  'old-letter': { id: 'old-letter', name: 'Old Letter', emoji: '📜' },
   'wick-note': { id: 'wick-note', name: "Wick's Thank-You Note", emoji: '💌' },
 };
 
