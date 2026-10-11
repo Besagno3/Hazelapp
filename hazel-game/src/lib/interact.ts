@@ -233,3 +233,26 @@ export function scootPath(
   }
   return null;
 }
+
+/** Tiles someone can be talked to across (#72, #124): a shop counter, and a desk or table — an innkeeper's, say. */
+export const COUNTER_CHARS = new Set(['K', 'T']);
+
+/**
+ * Who the hero at `hero` talks to across the counter or desk centred at
+ * `counter` (px): the nearest of `people` within 1.6 tiles of it, on its far
+ * side from the hero — never someone standing on the hero's own side of it.
+ * The index into `people`, or -1.
+ */
+export function acrossCounter(counter: Dir, hero: Dir, people: readonly Dir[], tile: number): number {
+  let best = -1;
+  let bestD = Infinity;
+  people.forEach((p, i) => {
+    const d = Math.hypot(p.x - counter.x, p.y - counter.y);
+    const beyond = (p.x - counter.x) * (counter.x - hero.x) + (p.y - counter.y) * (counter.y - hero.y) > 0;
+    if (d < tile * 1.6 && beyond && d < bestD) {
+      best = i;
+      bestD = d;
+    }
+  });
+  return best;
+}

@@ -115,7 +115,9 @@ import {
 import {
   SCOOT_AFTER_S,
   SCOOT_SPEED,
+  COUNTER_CHARS,
   TALK_REACH,
+  acrossCounter,
   cornerTarget,
   inFront,
   isInteractKey,
@@ -442,6 +444,9 @@ export default function WorldCanvas({
   // that closes a dialogue must not open it again — and never when a focused
   // button or field takes the key itself.
   const usesRef = useRef(0);
+  // Where on the world the last click or tap landed, as a fraction of the view — a click on
+  // someone (or a chest) uses them, if the hero can from where they stand.
+  const clickRef = useRef<{ fx: number; fy: number } | null>(null);
   useEffect(() => {
     const worldLive = () => !pausedRef.current && !slidingRef.current && !containerRef.current?.closest('[inert]');
     const down = (e: KeyboardEvent) => {
@@ -449,6 +454,7 @@ export default function WorldCanvas({
       if (isInteractKey(e)) {
         if (e.repeat || ownsKeys(e.target) || !worldLive()) return;
         e.preventDefault(); // Space would scroll the page
+        clickRef.current = null;
         usesRef.current += 1;
         return;
       }
@@ -484,6 +490,8 @@ export default function WorldCanvas({
   /** A click or tap on the world uses what the hero faces, as Space does (#124). */
   const onWorldPointer = (e: React.PointerEvent) => {
     if (e.button !== 0 || pausedRef.current || slidingRef.current) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    clickRef.current = r.width && r.height ? { fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height } : null;
     usesRef.current += 1;
   };
 
@@ -1713,10 +1721,14 @@ export default function WorldCanvas({
     }
 
     /** Something the hero can use: what the prompt over it says, where it floats, and what using it does. */
-    type Use = { label: string; at: { x: number; y: number }; act: () => void };
-    const talkTo = (a: Actor): Use => ({
+    type Use = { label: string; at: { x: number; y: number }; act: () => void; hit: (x: number, y: number) => boolean };
+    /** Is (x, y) on the cell (cx, cy)? */
+    const onCell = (cx: number, cy: number) => (x: number, y: number) => Math.floor(x / TILE) === cx && Math.floor(y / TILE) === cy;
+    /** Talking to someone — clicked on, or on the counter or desk between you (`via`). */
+    const talkTo = (a: Actor, via?: { x: number; y: number }): Use => ({
       label: 'Talk',
       at: { x: a.x, y: a.y - (a.top ?? TILE / 2) - 10 },
+      hit: (x, y) => Math.hypot(x - a.x, y - a.y) < 20 || (!!via && onCell(via.x, via.y)(x, y)),
       act: () => {
         arm(TRIGGER_COOLDOWN);
         cbRef.current.onMove(player.pos.x, player.pos.y);
@@ -1730,6 +1742,7 @@ export default function WorldCanvas({
         return {
           label: 'Enter the Spire',
           at: { x: a.x, y: a.y - 56 }, // over the tower
+          hit: (x, y) => Math.abs(x - a.x) < 18 && y > a.y - 48 && y < a.y + 18,
           act: () => {
             arm(TRIGGER_COOLDOWN);
             cbRef.current.onMove(player.pos.x, player.pos.y);
@@ -1741,6 +1754,7 @@ export default function WorldCanvas({
         return {
           label: 'Face Umbra',
           at: { x: a.x, y: a.y - 40 },
+          hit: (x, y) => Math.hypot(x - a.x, y - a.y) < 30,
           act: () => {
             arm(TRIGGER_COOLDOWN);
             cbRef.current.onUmbra?.();
@@ -1752,8 +1766,15 @@ export default function WorldCanvas({
     /** Using the tile at (cx, cy): a chest, a gate, the save crystal, a Spire seal or its stairs, a shop counter. */
     function tileUse(cx: number, cy: number): Use | null {
       if (fogAt(z, cx, cy, flagsRef.current) || darkAt(z, cx, cy, flagsRef.current)) return null;
-      const usable = (label: string, act: () => void): Use => ({ label, at: { x: cx * TILE + TILE / 2, y: cy * TILE - 6 }, act });
-      switch (tileAt(z, cx, cy)) {
+      const usable = (label: string, act: () => void): Use => ({ label, at: { x: cx * TILE + TILE / 2, y: cy * TILE - 6 }, act, hit: onCell(cx, cy) });
+      const ch = tileAt(z, cx, cy);
+      if (COUNTER_CHARS.has(ch)) {
+        // Talk across a shop counter (#72), or a desk or table (#124), to whoever stands behind it.
+        const people = actors.filter((a) => a.kind === 'npc' && a.npcId && !scoots.has(a));
+        const i = acrossCounter({ x: cx * TILE + TILE / 2, y: cy * TILE + TILE / 2 }, player.pos, people, TILE);
+        return i >= 0 ? talkTo(people[i], { x: cx, y: cy }) : null;
+      }
+      switch (ch) {
         case 'C': {
           const id = pathTargetId(zoneId, 'chest', cx, cy);
           if (chestsRef.current.includes(id)) return null;
@@ -1794,20 +1815,18 @@ export default function WorldCanvas({
             arm(TRIGGER_COOLDOWN);
             cbRef.current.onStairs?.();
           });
-        case 'K': {
-          // Talk across a shop counter to whoever stands behind it (#72).
-          const mx = cx * TILE + TILE / 2;
-          const my = cy * TILE + TILE / 2;
-          const clerk = actors.find((a) => a.kind === 'npc' && a.npcId && Math.hypot(a.x - mx, a.y - my) < TILE * 1.6);
-          return clerk ? talkTo(clerk) : null;
-        }
       }
       return null;
     }
-    /** What Space would use now: what the hero faces — a person before a tile — else what's beside, then behind, them. */
-    function targetNow(): Use | null {
+    /**
+     * Everything the hero could use from where they stand, best first: what
+     * they face — a person before a tile — then what's beside, then behind
+     * them. Space uses the first; a click uses the one clicked on, if any.
+     */
+    function targetsNow(): Use[] {
       const hero = { x: player.pos.x, y: player.pos.y };
       const away = (a: Actor) => Math.hypot(a.x - hero.x, a.y - hero.y);
+      const found: Use[] = [];
       for (const dir of probeDirs(lastDir)) {
         let near: Actor | null = null;
         for (const a of actors) {
@@ -1815,13 +1834,13 @@ export default function WorldCanvas({
           if (!near || away(a) < away(near)) near = a;
         }
         const person = near ? personUse(near) : null;
-        if (person) return person;
+        if (person) found.push(person);
         for (const p of probePoints(hero.x, hero.y, dir, HALF)) {
           const thing = tileUse(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
-          if (thing) return thing;
+          if (thing) found.push(thing);
         }
       }
-      return null;
+      return found;
     }
 
     // The prompt, rebuilt only when its words change (KaPlay measures text as it's made), kept on the map.
@@ -2407,13 +2426,20 @@ export default function WorldCanvas({
       // Using things (#124): a fresh Space / Enter / click / tap / ✋ uses
       // what the hero faces — never in the two frames after something else
       // was armed, while its menu or talk takes the world's pause.
-      const target = targetNow();
-      showPrompt(target);
+      const targets = targetsNow();
+      showPrompt(targets[0] ?? null);
       const pressed = uses() !== usesSeen;
       usesSeen = uses();
-      if (pressed && target && held === 0) {
-        push = null;
-        target.act();
+      if (pressed && held === 0) {
+        // A click on something usable from here uses it (a shopkeeper across
+        // the counter, say); anywhere else, what the hero faces.
+        const click = clickRef.current;
+        const at = click ? k.toWorld(k.vec2(click.fx * VIEW_W, click.fy * VIEW_H)) : null;
+        const target = (at && targets.find((t) => t.hit(at.x, at.y))) || targets[0];
+        if (target) {
+          push = null;
+          target.act();
+        }
       }
 
       // A resting enemy wakes once the hero has left its patch (a boss: or

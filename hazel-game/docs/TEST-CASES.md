@@ -1072,6 +1072,10 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-894 | M | ⬜ | world | close a dialogue with Enter while still facing the person: it doesn't open again; press Enter once more and it does |
 | TC-895 | M | ⬜ | world | in town, walk at a wanderer: it never walks into the hero; hold into it ~1.5 s and it hops a few cells aside, then strolls round there; inside a shop, the keeper never leaves the shop |
 | TC-896 | M | ⬜ | world | the 1-tile ways in feel easy on a real keyboard and the d-pad: doors, Numbria's gate, the Depths' corridors, stairs — and a hidden passage ('H') is never slid into |
+| TC-897 | U | ✅ | interact | across a counter or desk: the person right behind it — straight across or from a corner — is talked to (`acrossCounter`, interact.test) |
+| TC-898 | U | ✅ | interact | across a counter: the nearest one on its far side, never someone on the hero's side or two tiles along (interact.test) |
+| TC-899 | E | ✅ | world | real canvas (`bench … use`): across the village shop's counter a click on the shopkeeper talks to them; from a corner of the counter Space does |
+| TC-900 | M | ⬜ | world | put an innkeeper behind a desk (`T`) in a test map: standing across it, Space and a tap on them both talk; the prompt floats over the innkeeper |
 
 ## Regression cases (tied to ISSUES.md)
 

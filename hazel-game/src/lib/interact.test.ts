@@ -3,6 +3,7 @@ import { ZONES, buildingAt, tileAt, type ZoneDef } from '../content/zones';
 import {
   CORNER_ASSIST,
   SCOOT_AFTER_S,
+  acrossCounter,
   inFront,
   isInteractKey,
   ownsKeys,
@@ -215,5 +216,22 @@ describe('stepping aside for the hero (#124)', () => {
   it('with nowhere to go at all, they stay put', () => {
     const z = mk(['###', '#.#', '###']);
     expect(scootPath(z, { from: { x: 1, y: 1 }, hero: { x: 1, y: 2 }, heroCells: [], push: { x: 0, y: -1 }, flags: {} })).toBeNull();
+  });
+});
+
+describe('talking across a counter or a desk (#72, #124)', () => {
+  const T = 32;
+  const counter = { x: 144, y: 208 }; // the counter tile's centre; the keeper stands a tile beyond it
+  const keeper = { x: 144, y: 176 };
+  it('reaches whoever stands right behind it — straight across or from a corner', () => {
+    expect(acrossCounter(counter, { x: 144, y: 240 }, [keeper], T)).toBe(0);
+    expect(acrossCounter({ x: 176, y: 208 }, { x: 176, y: 240 }, [keeper], T)).toBe(0); // one tile along the counter
+  });
+  it('the nearest one behind it, never someone on the hero\'s own side or too far along', () => {
+    const shopper = { x: 150, y: 236 }; // in the queue beside the hero
+    const far = { x: 208, y: 176 }; // two tiles along, behind the counter
+    expect(acrossCounter(counter, { x: 144, y: 240 }, [shopper, far, keeper], T)).toBe(2);
+    expect(acrossCounter(counter, { x: 144, y: 240 }, [shopper, far], T)).toBe(-1);
+    expect(acrossCounter(counter, { x: 144, y: 240 }, [], T)).toBe(-1);
   });
 });

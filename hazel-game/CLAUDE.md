@@ -208,7 +208,7 @@ zod, react-query. Add the package in the same change that first uses it.
   (counted in `WorldScreen`'s `actionRef`). What gets used is the canvas's
   `targetNow`: the way the hero last moved first (`probeDirs`) — a person
   (`inFront`, within `TALK_REACH` of touching) before a tile (`probePoints`,
-  `USE_REACH` px past the hero's box) — then beside, then behind. A yellow
+  `USE_REACH` px past the hero's box) — then beside, then behind; a click on one of those (its `hit` area) uses that one instead. Counters and desks (`COUNTER_CHARS`: `K`, `T`) talk to the nearest person on their far side (`acrossCounter`). A yellow
   pill over it says "Space: Open chest" ("Tap: …" on a coarse pointer,
   `promptText`), and `onPrompt` gives ✋ its label. A press in the two frames
   after an `arm` is dropped (`held`), like a battle. Still on a bump: secrets
@@ -648,6 +648,21 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-11 — Talk across a counter or a desk, by Space or a click on the keeper (#124)
+Every shopkeeper stands a tile behind a `K` counter (checked over every
+zone: all 12; no innkeeper is behind a desk yet — they stand in the open).
+Using a counter already talked to the clerk, but only whoever came first in
+the actor list within 1.6 tiles. Now a desk or table (`T`) works like a
+counter too (`COUNTER_CHARS`), so an innkeeper put behind a desk is talked to
+across it, and it's the nearest person on the *far* side (`acrossCounter` —
+never someone queueing beside the hero). And a click or tap on someone (or
+on the counter, a chest, a gate…) uses that thing if the hero can from where
+they stand (`targetsNow` lists them all, each with a `hit` area; the click's
+point is mapped through the camera, `k.toWorld`) — anywhere else it still
+uses what the hero faces. Tests: `interact.test` +2 (`acrossCounter`),
+`bench … use` +2 (a click on the village shopkeeper across the counter; Space
+from a corner of it) — 15/15. 986 tests green, lint + build clean.
 
 ### 2026-10-11 — Press to use: chests, gates and people wait for Space / Enter / a click; doors let you in; people step aside (#124)
 Three asks, all in `WorldCanvas` and the new `lib/interact.ts`:

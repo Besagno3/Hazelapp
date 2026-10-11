@@ -23,7 +23,8 @@
  *   node bench/run-world-bench.cjs use [outDir]        press to use on the real canvas (#124): a door
  *                                                      from up to 18 px off its middle lets the hero in;
  *                                                      chests, gates and people wait for Space / Enter /
- *                                                      a click; a person kept walking into steps aside
+ *                                                      a click; a person kept walking into steps aside;
+ *                                                      a shopkeeper is talked to across the counter
  *
  * Playwright isn't a project dependency; a global install works:
  *   NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps
@@ -823,6 +824,25 @@ async function use(browser, outDir) {
   await hold(page, 'ArrowUp', 2600);
   s = await where(page);
   await check(page, 'someone walked into for ~1.5 s steps aside, and the hero walks on past', after1 > 20 * TILE + TILE / 2 + 20 && s.pos.y < 20 * TILE && s.talks.length === 0, `y ${Math.round(after1)} after 1 s, then ${Math.round(s.pos.y)}; ${s.talks.length} talks`);
+
+  // The village shop (#124): the keeper (village-shopkeeper, 8,5) stands behind the counter
+  // row (y 6). Straight across from (8,7), a click on the keeper talks to them; from a
+  // corner (9,7) Space does. (The camera sits 16 px down here: the map's top is off screen.)
+  page = await ready('zone=lumina-village&at=8,7');
+  await hold(page, 'ArrowUp', 300);
+  await where(page);
+  await page.locator('canvas').click({ position: { x: 8 * TILE + TILE / 2, y: 5 * TILE + TILE / 2 - 16 } });
+  await page.waitForTimeout(300);
+  const clicked = (await state(page)).talks;
+  await check(page, 'across the counter, a click on the shopkeeper talks to them', clicked[0] === 'village-shopkeeper', JSON.stringify(clicked));
+  page = await ready('zone=lumina-village&at=9,7');
+  await hold(page, 'ArrowUp', 300);
+  await where(page);
+  const prompt = (await state(page)).prompt; // read with the world running (a pause hides it)
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+  s = await state(page);
+  await check(page, 'from a corner of the counter, Space talks to the shopkeeper', prompt === 'Talk' && s.talks[0] === 'village-shopkeeper', `prompt ${prompt}, ${JSON.stringify(s.talks)}`);
 
   const bad = checks.filter((ok) => !ok).length;
   console.log(`\n${checks.length - bad}/${checks.length} use checks passed. Screenshots in ${outDir}.`);
