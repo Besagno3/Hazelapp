@@ -874,6 +874,8 @@ export default function WorldCanvas({
       speed: number;
       /** The anchor's sprite anims (omit for emoji faces — no animation). */
       anims?: Record<string, unknown>;
+      /** How fast its walk cycle plays — a slow wanderer's slower, so it never treads water (#75 item 14f, Dawdle). */
+      animSpeed?: number;
       /** A sea critter (#75 item 14d): it swims open sea only. */
       afloat?: boolean;
       /** Holds still while this says so — a resting critter is asleep (`resting`, #114e). */
@@ -886,7 +888,8 @@ export default function WorldCanvas({
       // the straight way home past a wall or the shore would stop it for good.
       let bumped = false;
       // Sprite wanderers play their walk cycle and face their heading (4-way).
-      const spr = o.anims ? (anchor as unknown as { play: (n: string) => void; flipX: boolean }) : null;
+      const spr = o.anims ? (anchor as unknown as { play: (n: string) => void; flipX: boolean; animSpeed: number }) : null;
+      if (spr && o.animSpeed) spr.animSpeed = o.animSpeed;
       let facing: Facing = 'down';
       let curAnim = '';
       const homeBuilding = buildingAt(z, Math.floor(o.homeX / TILE), Math.floor(o.homeY / TILE));
@@ -1090,9 +1093,10 @@ export default function WorldCanvas({
         .obj as unknown as WorldActor;
       parts.push(face);
       pieces.push(face);
+      // Under its feet: a sprite taller than a tile (Old Ringwood, #75 item 14f) pushes it down.
       const label = k.add([
         k.text(def.name, { size: 10 }),
-        k.pos(px, py + 24),
+        k.pos(px, py + 24 + Math.max(0, (npcView?.frameH ?? TILE) - TILE) / 2),
         k.anchor('center'),
         k.color(255, 255, 255),
       ]);
@@ -1117,8 +1121,9 @@ export default function WorldCanvas({
           homeX: px,
           homeY: py,
           leash: TILE * WANDER_TUNING.npc.leashTiles,
-          speed: WANDER_TUNING.npc.speed,
+          speed: WANDER_TUNING.npc.speed * (def.pace ?? 1),
           anims: npcView?.anims,
+          animSpeed: def.pace,
         });
       }
       if (def.ambient?.length) attachAmbient(face, def.ambient);

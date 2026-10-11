@@ -7,9 +7,10 @@ import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
-import { keyFlag, keyForZone, type GateKey } from '../content/keys';
+import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
 import { SPIRE_CLEARED } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
+import { overworldOf } from './worldMap';
 
 /**
  * Wayfinding (#75 roadmap item 6), so a kid can always answer "where do I
@@ -77,7 +78,9 @@ export interface Objective {
   key?: GateKey;
   /**
    * A spot on an overworld to flag instead of `zoneId`'s place — where a
-   * goal across the sea starts (Marlow's dock for the Silver Shallows).
+   * goal across the sea starts (Marlow's dock for the Silver Shallows). Out
+   * on the goal's own sea (Eldergrove, #75 item 14f) its place is flagged
+   * and the way goes there as usual.
    */
   at?: { zoneId: ZoneId; x: number; y: number; name: string };
 }
@@ -102,11 +105,15 @@ const BOAT_STEPS: Record<string, { title: string; why: string }> = {
   },
 };
 
+/** Where a voyage starts (#75 item 14): the end of Marlow's dock, flagged on Dawnreach's map. */
+const MARLOWS_DOCK = { zoneId: BOAT_HOME.zoneId, x: BOAT_HOME.x - 1, y: BOAT_HOME.y, name: "Marlow's dock" };
+
 /**
  * Act II's next step (#75 item 14), once the Spire is cleared: help Old Marlow
  * mend his boat (step by step — each step's friend is the goal), sail it to
- * the Silver Shallows, then visit Remembrance Hill (#75 item 14e). Null once
- * you've been there — explore from then on, until Act II's next places exist.
+ * the Silver Shallows, then visit Remembrance Hill (#75 item 14e), then win
+ * the Memoria Key from Eldergrove's Ringkeeper (#75 item 14f). Null after
+ * that — explore from then on, until Act II's next places exist.
  */
 function actTwoObjective(flags: Record<string, boolean>): Objective | null {
   if (!hasBoat(flags)) {
@@ -142,7 +149,7 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
       title: 'Sail the Silver Shallows',
       why: "Marlow's boat waits at his dock, just east of Starfall Coast. Climb in and sail east, off the edge of the sea!",
       zoneId: 'silver-shallows',
-      at: { zoneId: BOAT_HOME.zoneId, x: BOAT_HOME.x - 1, y: BOAT_HOME.y, name: "Marlow's dock" },
+      at: MARLOWS_DOCK,
     };
   }
   if (!flags[visitedFlag('remembrance-hill')]) {
@@ -151,6 +158,20 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
       title: 'Visit Remembrance Hill',
       why: 'Lumina is remembering! Where the old fog sat past Moonwell Grove, a road nobody remembered has appeared. It leads to a town called Remembrance Hill.',
       zoneId: 'remembrance-hill',
+    };
+  }
+  // Eldergrove's warden (#75 item 14f). Its key's door comes in 14h; until
+  // then, once it's won, the 🚩 says explore.
+  const memoria = keyForBoss('ringkeeper')!;
+  if (!flags[keyFlag(memoria.id)]) {
+    return {
+      kind: 'key',
+      title: `Win the ${memoria.name}`,
+      why: `On Eldergrove, an island of ancient ring-trees out in the Silver Shallows, ${midSentence(memoria.bossName)} guards the ${memoria.name}. They say it opens a door the whole world forgot.`,
+      zoneId: memoria.fromZone,
+      key: memoria,
+      // Off the Shallows the way starts at the boat (14f review).
+      at: MARLOWS_DOCK,
     };
   }
   return null;
@@ -173,9 +194,12 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
       return {
         kind: 'explore',
         title: 'Explore Lumina',
-        why: flags[visitedFlag('silver-shallows')]
-          ? 'Lumina is safe, thanks to you! Sail the Silver Shallows, hunt for secrets ✨ and help everyone you meet.'
-          : 'Lumina is safe, thanks to you! Hunt for secrets ✨ and help everyone you meet.',
+        // With the Memoria Key, say its door comes later — not to go looking for it (#75 item 14f review).
+        why: flags[keyFlag('memoria')]
+          ? 'You hold the Memoria Key 🗝️! Its door will turn up later in your adventure. Until then, hunt for secrets ✨ and help everyone you meet.'
+          : flags[visitedFlag('silver-shallows')]
+            ? 'Lumina is safe, thanks to you! Sail the Silver Shallows, hunt for secrets ✨ and help everyone you meet.'
+            : 'Lumina is safe, thanks to you! Hunt for secrets ✨ and help everyone you meet.',
         zoneId: null,
       };
     }
@@ -222,8 +246,9 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
  */
 export function roadTier(flags: Record<string, boolean>): DangerTier | null {
   const goal = nextObjective(flags);
-  // After the Act I crystals (the Spire, then Act II's errands) everywhere is fair game.
-  if ((goal.kind !== 'crystal' && goal.kind !== 'key') || !goal.zoneId) return null;
+  // After the Act I crystals (the Spire, then Act II's errands — the Memoria
+  // Key's too, #75 item 14f, which has no crystal) everywhere is fair game.
+  if ((goal.kind !== 'crystal' && goal.kind !== 'key') || !goal.zoneId || !goal.crystal) return null;
   return zoneTier(goal.zoneId);
 }
 
@@ -361,18 +386,23 @@ export function goalDirections(
 ): string {
   if (!goal.zoneId) return '';
   if (goal.zoneId === here) return `It's right here in ${placeName(zones[here])}!`;
-  // A goal across the sea (#75 item 14): the way to where it starts, then sail.
-  if (goal.at) {
+  // A goal across the sea (#75 item 14): the way to where it starts, then sail
+  // — unless you're already out on its sea (Eldergrove's, #75 item 14f).
+  const sea = overworldOf(zones, goal.zoneId);
+  if (goal.at && (sea.id === goal.zoneId || overworldOf(zones, here).id !== sea.id)) {
+    // Past the dock: just "sail east" to the sea itself, or on to a place out there.
+    const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at) ?? [];
+    const sail = beyond.length > 1 ? beyond.join(', then ') : 'sail east';
     const steps = routeSteps(zones, here, goal.at.zoneId, at) ?? [];
     const route = routeTo(zones, here, goal.at.zoneId) ?? [];
     const last = route.length ? route[route.length - 1].exit : null;
     const from = here === goal.at.zoneId ? (at ?? zones[here].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
     // Already on the dock (or right by it): just climb in.
     if (here === goal.at.zoneId && from && Math.max(Math.abs(goal.at.x - from.x), Math.abs(goal.at.y - from.y)) <= 1) {
-      return "Climb into Marlow's boat at the end of the dock and sail east.";
+      return sentence([`climb into Marlow's boat at the end of the dock and ${sail}`]);
     }
     const dir = from ? compass(goal.at.x - from.x, goal.at.y - from.y) : null;
-    steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and sail east`);
+    steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
     return sentence(steps);
   }
   return sentence(routeSteps(zones, here, goal.zoneId, at) ?? []);
@@ -436,6 +466,9 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `Here is the plan: four Fiends hold the crystals, one at each far corner of Dawnreach. Start with ${midSentence(goal.crystal.fiendName)} in ${place(goal.crystal.zoneId)} — its gate needs no key, only brave answers.`;
   } else if (goal.kind === 'crystal' && goal.crystal && goal.key) {
     plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s gate in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
+  } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
+    // Act II's key (#75 item 14f): no Fiend to name yet.
+    plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;
   } else if (goal.kind === 'key' && goal.key) {
     const keeper = `${midSentence(goal.key.bossName)} in ${place(goal.key.fromZone)}`;
     plan =
@@ -450,6 +483,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
+  } else if (flags[keyFlag('memoria')]) {
+    plan = 'You hold the Memoria Key! Its door will turn up later in your adventure. Until then, there are secrets ✦ hidden in every town, and friends who would love your help.';
   } else {
     plan = 'Lumina is safe, thanks to you! But there are still secrets ✦ hidden in every town, and friends who would love your help.';
   }
@@ -462,6 +497,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
       : 'Many townsfolk have little quests for you. Talk to everyone — and look for twinkles ✦!';
   } else if (goal.kind === 'sail') {
     tip = 'In the boat, bump into a beach or a dock to go ashore. The boat waits right where you leave it — and Old Marlow can always row it home.';
+  } else if (goal.kind === 'key' && !goal.crystal) {
+    tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit') {
     tip = "Every town has an inn. Rest at a new one, and if a battle goes badly, that's where you'll wake up.";
   } else if (goal.kind === 'explore') {

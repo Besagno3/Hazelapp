@@ -4,6 +4,7 @@ import { errorMessage } from '../lib/errors';
 import { nextStreak, todayIso } from '../lib/streak';
 import { mergeProfiles, readLocalProfile, writeLocalProfile } from '../lib/profile';
 import { useAuthStore } from './authStore';
+import { gainXp, levelState } from '../lib/level';
 import type { PowerUpId, PowerUps, Profile, SkillLevels, Topic } from '../types';
 
 /** Shape of a row in the Supabase `profiles` table (snake_case). */
@@ -13,6 +14,8 @@ interface ProfileRow {
   birth_month: number;
   skill_levels: SkillLevels | null;
   xp: number | null;
+  level: number | null;
+  level_xp: number | null;
   power_ups: PowerUps | null;
   current_streak: number | null;
   longest_streak: number | null;
@@ -26,6 +29,8 @@ function fromRow(row: ProfileRow): Profile {
     birthMonth: row.birth_month,
     skillLevels: row.skill_levels ?? {},
     xp: row.xp ?? 0,
+    // Null until migration 0012 backfills it — levelState falls back to xp.
+    ...(row.level != null && row.level_xp != null ? { level: row.level, levelXp: row.level_xp } : {}),
     powerUps: row.power_ups ?? {},
     currentStreak: row.current_streak ?? 0,
     longestStreak: row.longest_streak ?? 0,
@@ -34,12 +39,15 @@ function fromRow(row: ProfileRow): Profile {
 }
 
 function toRow(p: Profile): ProfileRow {
+  const { level, levelXp } = levelState(p);
   return {
     id: p.id,
     birth_year: p.birthYear,
     birth_month: p.birthMonth,
     skill_levels: p.skillLevels,
     xp: p.xp,
+    level,
+    level_xp: levelXp,
     power_ups: p.powerUps,
     current_streak: p.currentStreak,
     longest_streak: p.longestStreak,
@@ -65,6 +73,8 @@ function defaultProfile(userId: string): Profile {
     birthMonth: meta?.birth_month ?? 1,
     skillLevels: {},
     xp: 0,
+    level: 1,
+    levelXp: 0,
     powerUps: {},
     currentStreak: 0,
     longestStreak: 0,
@@ -103,7 +113,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'id, birth_year, birth_month, skill_levels, xp, power_ups, current_streak, longest_streak, last_played_on',
+        'id, birth_year, birth_month, skill_levels, xp, level, level_xp, power_ups, current_streak, longest_streak, last_played_on',
       )
       .eq('id', userId)
       .maybeSingle();
@@ -117,7 +127,17 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       set({ profile: merged, loading: false, remoteError: null });
       writeLocalProfile(merged);
       // If the local cache was ahead, best-effort push the merge back up.
-      if (local && merged.xp > (fromRow(data as ProfileRow).xp ?? 0)) {
+      const remote = fromRow(data as ProfileRow);
+      const remoteLevel = levelState(remote);
+      const mergedLevel = levelState(merged);
+      // Also push when the row has no saved level yet (migration 0012 not run
+      // when it was last written) or the local cache's level is ahead.
+      if (
+        (local && merged.xp > remote.xp) ||
+        remote.level == null ||
+        mergedLevel.level !== remoteLevel.level ||
+        mergedLevel.levelXp !== remoteLevel.levelXp
+      ) {
         void supabase
           .from('profiles')
           .update({ ...toRow(merged), updated_at: new Date().toISOString() })
@@ -169,12 +189,13 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   addXp: async (amount) => {
     const profile = get().profile;
     if (!profile || amount <= 0) return;
-    const updated = { ...profile, xp: profile.xp + amount };
+    const { level, levelXp } = gainXp(levelState(profile), amount);
+    const updated = { ...profile, xp: profile.xp + amount, level, levelXp };
     set({ profile: updated }); // optimistic
     writeLocalProfile(updated);
     const { error } = await supabase
       .from('profiles')
-      .update({ xp: updated.xp, updated_at: new Date().toISOString() })
+      .update({ xp: updated.xp, level, level_xp: levelXp, updated_at: new Date().toISOString() })
       .eq('id', profile.id);
     if (error) set({ remoteError: errorMessage(error) });
   },

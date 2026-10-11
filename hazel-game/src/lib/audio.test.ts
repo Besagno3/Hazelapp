@@ -1,8 +1,8 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { MUSIC_SOURCES, SEA_TRACK, SFX_SOURCES, ZONE_KIND_TRACK, trackForScreen } from './audio';
+import { MUSIC_SOURCES, SEA_TRACK, SFX_SOURCES, ZONE_KIND_TRACK, musicScreen, trackForScreen } from './audio';
 import { SEA_AREAS } from '../content/boat';
 
 describe('trackForScreen', () => {
@@ -45,10 +45,34 @@ describe('trackForScreen', () => {
   });
 });
 
+describe('the sign-in screen', () => {
+  it('plays its own intro, not the title theme', () => {
+    expect(trackForScreen('auth')).toBe('intro');
+    expect(trackForScreen('topics')).toBe('title');
+  });
+
+  it('has the intro from sign-in to signing out — and nothing while the session is checked', () => {
+    expect(musicScreen(false, false, 'topics')).toBe('loading');
+    expect(trackForScreen(musicScreen(false, true, 'world'))).toBeNull(); // a refresh mid-game: no intro blip
+    expect(musicScreen(true, false, 'topics')).toBe('auth'); // signed out (or never in), or choosing a new password
+    expect(musicScreen(true, true, 'battle')).toBe('battle');
+    expect(musicScreen(true, true, 'world')).toBe('world');
+  });
+});
+
 describe('16-bit audio set', () => {
   it('every SFX and music source points at a shipped file', () => {
     for (const src of [...Object.values(SFX_SOURCES), ...Object.values(MUSIC_SOURCES)]) {
       expect(existsSync(join(process.cwd(), 'public', decodeURI(src))), src).toBe(true);
     }
+  });
+
+  it('every audio file shipped is one SFX_SOURCES / MUSIC_SOURCES names — no leftover files (#116)', () => {
+    const used = new Set([...Object.values(SFX_SOURCES), ...Object.values(MUSIC_SOURCES)].map(decodeURI));
+    const root = join(process.cwd(), 'public');
+    const shipped = readdirSync(join(root, 'audio'), { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.(mp3|ogg|wav|m4a)$/i.test(f))
+      .map((f) => `/audio/${f.split('\\').join('/')}`);
+    expect(shipped.filter((f) => !used.has(f))).toEqual([]);
   });
 });

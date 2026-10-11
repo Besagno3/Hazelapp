@@ -4,8 +4,8 @@ import { CharacterPortrait } from './CharacterPortrait';
 
 describe('CharacterPortrait', () => {
   it("uses a fighter's battle sheet", () => {
-    render(<CharacterPortrait spriteId="blaze" emoji="🦁" />);
-    expect(screen.getByRole('img').style.backgroundImage).toContain('/sprites/blaze/battle.png');
+    render(<CharacterPortrait spriteId="valor" emoji="🦁" />);
+    expect(screen.getByRole('img').style.backgroundImage).toContain('/sprites/valor/battle.png');
   });
 
   it("uses a world-only NPC's world sheet, facing the player", () => {

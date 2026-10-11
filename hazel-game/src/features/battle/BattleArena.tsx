@@ -3,6 +3,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
+import LevelBadge from '../../components/LevelBadge';
+import StreakBadge from '../../components/StreakBadge';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { fetchQuestions, shuffleAnswers, BATTLE_QUESTION_COUNT } from '../../lib/questions';
@@ -10,11 +12,22 @@ import { sfx, stopMusic, type SfxName } from '../../lib/audio';
 import { playerAge, clampLevel, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
-import { attackDamage, spellDamage, companionAttackDamage, pairDamage, BOSS_XP_BONUS, defeatXp } from '../../lib/battleMath';
+import {
+  attackDamage,
+  spellDamage,
+  companionAttackDamage,
+  counterDamage,
+  keenEyeHeal,
+  lionheartMultiplier,
+  pairDamage,
+  BOSS_XP_BONUS,
+  defeatXp,
+} from '../../lib/battleMath';
 import {
   applyFocus,
   chargeAfterAnswer,
   defendTimeMs,
+  heroOpening,
   itemBlocked,
   lossKey,
   mercyCallout,
@@ -67,7 +80,7 @@ import { combatState, useBattleStore } from '../../store/battleStore';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
-import { pushLibrary, wakeAfterDefeat, wakeInnName } from '../../lib/save';
+import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat } from '../../content/boat';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
@@ -77,6 +90,9 @@ import { BattleResult } from './BattleResult';
 import { DefendTimer } from './DefendTimer';
 import { COMPANION_STRIKE, EMBER_BREATH, HERO_STRIKE, pairChoreo, type Choreo } from './choreography';
 import { IMPACT_MS, useBattleFx } from './useBattleFx';
+
+/** Kira's Counter Strike sets off this long after the enemy's blow lands. */
+const COUNTER_DELAY_MS = 280;
 
 /** Wall-clock ms for answer timing (module-level so it's never called during render). */
 const nowMs = () => performance.now();
@@ -156,6 +172,8 @@ export default function BattleArena() {
     focused,
     lucky,
     knotted,
+    freeHint,
+    secondWind,
     applyCombat,
     markDefeated,
     recordLoss,
@@ -174,6 +192,8 @@ export default function BattleArena() {
       focused: s.focused,
       lucky: s.lucky,
       knotted: s.knotted,
+      freeHint: s.freeHint,
+      secondWind: s.secondWind,
       applyCombat: s.applyCombat,
       markDefeated: s.markDefeated,
       recordLoss: s.recordLoss,
@@ -306,6 +326,16 @@ export default function BattleArena() {
   useEffect(() => {
     if (loading || !enemy || calloutShownFor.current === enemy.instanceId) return;
     calloutShownFor.current = enemy.instanceId;
+    // The hero type's opening perk, shown as the fight opens (short: it floats over the hero).
+    const opening = heroOpening(style);
+    const perk = opening.charge > 0
+      ? `✨ +${opening.charge}◆`
+      : opening.focused
+        ? '💥 Battle Cry!'
+        : opening.guarded
+          ? '🛡️ Shell Up!'
+          : null;
+    if (perk) later(() => float(perk, 'hero', 'text-amber-300'), 400);
     if (enemy.behavior) {
       const callout = {
         shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
@@ -333,7 +363,7 @@ export default function BattleArena() {
     if (enemy.isBoss) for (const text of bossScript(enemy)?.intro ?? []) lines.push({ text });
     // Tiers 5–7 share one line (`toughKey`); below that, one per tier.
     const toughAs = toughKey(tier);
-    if (dangerMarks(tier) && !toughMet.includes(toughAs)) lines.push({ text: `💪 ${toughCallout(tier)}`, shown: () => meetTough(toughAs) });
+    if (dangerMarks(tier) && !toughMet.includes(toughAs)) lines.push({ text: `💪 ${toughCallout(tier, enemy.isBoss)}`, shown: () => meetTough(toughAs) });
     if (mercyDrop > 0) lines.push({ text: `💛 ${mercyCallout(enemy)}` });
     if (lines.length === 0) return;
     const chain = lines.reduceRight<() => void>(
@@ -398,16 +428,23 @@ export default function BattleArena() {
 
   /**
    * Write the combat state NOW (the source of truth every later action reads,
-   * #70), but keep showing the old HP until the blow lands `revealMs` later.
+   * #70), but keep showing the old HP until the blow lands `revealMs` later —
+   * the enemy's until `enemyRevealMs`, when a counter lands after the blow.
    * A newer commit supersedes an older pending reveal.
    */
-  function commit(next: CombatState, revealMs: number) {
+  function commit(next: CombatState, revealMs: number, enemyRevealMs = revealMs) {
     const seq = ++shownSeq.current;
-    if (revealMs > 0) {
-      setShownHp({ p: viewPlayerHp, e: viewEnemyHp });
+    if (revealMs > 0 || enemyRevealMs > 0) {
+      const enemyBefore = viewEnemyHp;
+      setShownHp({ p: viewPlayerHp, e: enemyBefore });
+      if (enemyRevealMs > revealMs) {
+        later(() => {
+          if (shownSeq.current === seq) setShownHp({ p: next.playerHp, e: enemyBefore });
+        }, revealMs);
+      }
       later(() => {
         if (shownSeq.current === seq) setShownHp(null);
-      }, revealMs);
+      }, Math.max(revealMs, enemyRevealMs));
     } else {
       setShownHp(null);
     }
@@ -417,7 +454,10 @@ export default function BattleArena() {
   function recordAnswer(correct: boolean, q: Question, picked: number) {
     setAnswers((a) => [...a, correct]);
     const s = combatState();
-    applyCombat({ ...s, charge: chargeAfterAnswer(s.charge, correct) });
+    // Keen Eye (Talon): a right answer also mends a little.
+    const mend = correct ? Math.min(s.playerMaxHp, s.playerHp + keenEyeHeal(style)) - s.playerHp : 0;
+    applyCombat({ ...s, charge: chargeAfterAnswer(s.charge, correct), playerHp: s.playerHp + mend });
+    if (mend > 0) float(`🎯 +${mend}`, 'hero', 'text-emerald-300');
     // A hinted / peeked answer isn't evidence the questions are too easy.
     const ms = helped.current ? Infinity : nowMs() - askedAt.current;
     const step = speedStep(speedRun.current, correct, ms, age, speedBoost.current);
@@ -525,10 +565,16 @@ export default function BattleArena() {
       }
       return;
     }
-    // Focus Tea (#80): a landed Attack hits TEA_DAMAGE_MULT× and spends the focus.
-    const focus = applyFocus(combatState(), boost(attackDamage(wasCorrect, style, powerUps)));
+    // Lionheart (Valor): below half HP his Attacks hit harder.
+    const now = combatState();
+    const heart = lionheartMultiplier(style, now.playerHp, now.playerMaxHp);
+    // Focus Tea (#80) or Battle Cry: a landed Attack hits TEA_DAMAGE_MULT× and spends the focus.
+    const focus = applyFocus(now, boost(Math.round(attackDamage(wasCorrect, style, powerUps) * heart)));
     applyCombat(focus.state);
-    const text = (wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…') + focus.note;
+    const text =
+      (wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…') +
+      (heart > 1 ? ' 🦁 Lionheart — hits harder when hurt!' : '') +
+      focus.note;
     heroStrike(focus.dmg, text, 'text-red-300', { sound: 'attack' });
   }
 
@@ -743,8 +789,12 @@ export default function BattleArena() {
       tier: enemy!.tier,
       style,
       powerUps,
+      // Counter Strike (Kira): a right answer strikes back — streaks power it up like any hit.
+      counter: boost(counterDamage(style, powerUps)),
     });
-    commit(r.state, IMPACT_MS);
+    const counterHit = r.countered > 0 || r.counterShattered;
+    const counterSets = IMPACT_MS + COUNTER_DELAY_MS;
+    commit(r.state, IMPACT_MS, counterHit ? counterSets + HERO_STRIKE.hitMs : IMPACT_MS);
     advanceIntent(blow);
     fx.lungeEnemy();
     sfx('enemyAttack');
@@ -760,8 +810,22 @@ export default function BattleArena() {
       if (r.mended > 0) float(`+${r.mended}`, 'enemy', 'text-emerald-300');
       sfx(r.dmg === 0 ? 'block' : 'hit');
     }, IMPACT_MS);
-    // A healer's mend chimes just after the hit lands, so the two don't blur.
-    if (r.mended > 0) later(() => sfx('heal'), 600);
+    if (counterHit) {
+      later(() => fx.perform(HERO_STRIKE, 'attack'), counterSets);
+      later(() => {
+        fx.hitEnemy();
+        if (r.counterShattered) {
+          sfx('shatter');
+          float('Shield shattered!', 'enemy', 'text-amber-300');
+        } else {
+          sfx('impact');
+          float(`⚡ -${r.countered}`, 'enemy', 'text-cyan-300');
+        }
+      }, counterSets + HERO_STRIKE.hitMs);
+    }
+    // A healer's mend chimes just after the hit lands, so the two don't blur
+    // (after a counter, once that has landed too).
+    if (r.mended > 0) later(() => sfx('heal'), counterHit ? counterSets + HERO_STRIKE.hitMs + 340 : 600);
     // Boss enrage callout from a Mirror Charm bounce (#80: any damage source).
     if (r.newPhase) announcePhase(r.newPhase);
 
@@ -777,7 +841,13 @@ export default function BattleArena() {
             : wasCorrect
               ? `${who} — you soften the hit!`
               : `${who} and lands a hit!`) +
-      (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '');
+      (r.counterShattered
+        ? ` ⚡ Counter Strike! ${avatar!.name} strikes back — and its stony shield SHATTERS!`
+        : r.countered > 0
+          ? ` ⚡ Counter Strike! ${avatar!.name} strikes right back for ${r.countered}!`
+          : '') +
+      (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '') +
+      (r.secondWind ? ` 🌬️ Second Wind! ${avatar!.name} hangs on with 1 HP!` : '');
     // A bounced hit can win the battle (checked first: a mirrored hero takes no damage).
     say(text, r.enemyDown ? victory : r.heroDown ? defeat : () => setTurn({ kind: 'command' }));
   }
@@ -922,6 +992,8 @@ export default function BattleArena() {
     focused,
     lucky,
     knotted,
+    freeHint,
+    secondWind,
   };
   const perkLabel = { charge: `+${EMBER_BONUS_CHARGE}◆`, peek: '👀 peek', mend: `+${WISP_MEND} HP` }[companion.perk];
   // Identifies the current question card (remounts QuestionCard + DefendTimer).
@@ -966,6 +1038,18 @@ export default function BattleArena() {
         />
       </div>
 
+      {/* The level and streak in their own row above the status boxes, as in
+          the world's top bar — floating, they covered the enemy's "!!!" on a
+          phone (#75 item 14f review). Below 360 px wide or 500 px tall there's
+          no room for the row without pushing 🏃 Flee off the screen (measured,
+          `bench … battle`), so a fight there shows neither. */}
+      <div
+        data-testid="battle-topbar"
+        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-1 sm:px-4 sm:pt-3 max-[359px]:hidden [@media(max-height:500px)]:hidden"
+      >
+        <LevelBadge placement="inline" dense />
+        <StreakBadge inline dense />
+      </div>
       <BattleHud
         enemy={enemy}
         enemyHp={viewEnemyHp}
@@ -1112,7 +1196,9 @@ export default function BattleArena() {
             <QuestionCard
               key={qKey}
               question={turn.question}
-              hints={enemy.behavior === 'trickster' ? 0 : save.items.hint}
+              // Fox Sense (Kira): a free hint on top of the feathers, used first.
+              hints={enemy.behavior === 'trickster' ? 0 : save.items.hint + (freeHint ? 1 : 0)}
+              hintLabel={freeHint ? '🦊 Fox Sense — use a free hint!' : undefined}
               preHidden={turn.hide ?? 0}
               // Forget-Me-Knot (#75 item 14e): a wrong pick is crossed out and the hero picks again.
               secondChance={knotted}
@@ -1125,7 +1211,9 @@ export default function BattleArena() {
               }}
               onUseHint={() => {
                 helped.current = true;
-                useSaveStore.getState().spendHint();
+                const s = combatState();
+                if (s.freeHint) applyCombat({ ...s, freeHint: false });
+                else useSaveStore.getState().spendHint();
               }}
               onAnswered={(correct, picked) => {
                 setAnsweredKey(qKey);
@@ -1173,6 +1261,7 @@ export default function BattleArena() {
             firstWin={turn.kind === 'victory' && turn.firstWin}
             drop={turn.kind === 'victory' ? turn.drop : null}
             wakeInn={save ? wakeInnName(save) : null}
+            shelter={save ? wakeShelter(save) : null}
             tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
             boatHome={turn.kind === 'defeat' && turn.atSea}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}

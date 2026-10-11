@@ -34,9 +34,9 @@ const DANGER_TEXT: Record<DangerTier, string> = {
   2: 'text-yellow-200',
   3: 'text-orange-300',
   4: 'text-red-300',
-  5: 'text-violet-200',
+  5: 'text-violet-400',
   6: 'text-fuchsia-300',
-  7: 'text-fuchsia-400',
+  7: 'text-[#ff66b8]', // DANGER[7].mapColor
 };
 
 /**
@@ -82,7 +82,7 @@ export function BattleHud({
           </span>
           <span className="shrink-0 whitespace-nowrap text-white/70">
             Lv {enemy.level}
-            {enemy.eased !== undefined ? <EasedMark /> : <DangerMarks tier={enemy.tier ?? BASE_TIER} />}
+            {enemy.eased !== undefined ? <EasedMark /> : <DangerMarks tier={enemy.tier ?? BASE_TIER} boss={!!enemy.isBoss} />}
             {speedBoost > 0 && (
               <span className="ml-1 text-yellow-300" title="Questions raised by quick answers">
                 ⚡+{speedBoost}
@@ -136,11 +136,12 @@ export function BattleHud({
  * harder than the critters near home — its questions are still the player's
  * own level. Nothing near home.
  */
-function DangerMarks({ tier }: { tier: DangerTier }) {
+function DangerMarks({ tier, boss = false }: { tier: DangerTier; boss?: boolean }) {
   const marks = dangerMarks(tier);
   if (!marks) return null;
-  // The marks stop at "!!!" (`MAX_MARKS`), so the words say what the colour does.
-  const says = `${tier >= VERY_TOUGH_TIER ? 'Very tough' : 'Tough'} critter: it hits harder — and drops more coins`;
+  // The marks stop at "!!!" (`MAX_MARKS`), so the words say what the colour does —
+  // and a warden like the Ringkeeper is a boss, not a critter (#75 item 14f review).
+  const says = `${tier >= VERY_TOUGH_TIER ? 'Very tough' : 'Tough'} ${boss ? 'boss' : 'critter'}: it hits harder — and drops more coins`;
   return (
     <span className={`ml-1 font-extrabold ${DANGER_TEXT[tier]}`} title={says}>
       <span aria-hidden="true">{marks}</span>
