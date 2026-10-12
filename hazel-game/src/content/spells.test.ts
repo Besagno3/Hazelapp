@@ -24,6 +24,13 @@ describe('spellsKnown', () => {
     expect(spells.filter((s) => s.id.startsWith('sage-'))).toHaveLength(1);
   });
 
+  it("meeting Sage Chronicle adds Time Ripple: a strike, and the enemy loses its next turn (#75 item 14h)", () => {
+    const ripple = spellsKnown(saveWith({ sages: ['history'] })).find((s) => s.id === 'sage-history')!;
+    expect(ripple).toMatchObject({ name: 'Time Ripple', cost: 3, topic: 'history' });
+    expect(ripple.effect).toEqual({ kind: 'damage', multiplier: 2.2, skipsTurn: true });
+    expect(ripple.description).toMatch(/loses its next turn/);
+  });
+
   it('restoring the first crystal unlocks Aegis', () => {
     expect(spellsKnown(defaultSave()).some((s) => s.id === AEGIS.id)).toBe(false);
     const oneCrystal = saveWith({ flags: { [crystalFlag('math')]: true } });

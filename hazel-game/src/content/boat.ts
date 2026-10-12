@@ -1,6 +1,7 @@
 import type { BoatSpot, SaveData, ZoneId } from '../types';
 import { GREAT_FOGBANK, SEA_CHARS, TILE, ZONES, fogAt, fogLifted, isZoneId, tileAt } from './zones';
 import { nearestSea } from '../lib/travel';
+import { reach } from '../lib/reach';
 
 /**
  * Old Marlow's boat (#75 roadmap item 14, Act II): mended in his quest
@@ -81,17 +82,86 @@ export function moorBoat(save: Pick<SaveData, 'aboard' | 'boat' | 'zoneId' | 'po
 }
 
 /**
- * Beaten out at sea (#75 item 14d — only a sea critter fights a sailing
- * hero): the hero wakes ashore at an inn, where nobody could climb back into
- * a boat left in open water, so Old Marlow rows out and brings the Biscuit
- * home to his dock. Beaten ashore, the boat stays where it's moored.
+ * Where the boat should be for a hero who wakes in — or flies with Return to —
+ * `townZone`: an island town's `mooring` (#75 item 14h, #114o), so they're
+ * never on the island without it. Null when it can stay where it is: not an
+ * island, or moored at that beach already.
  */
-export function boatAfterDefeat(save: Pick<SaveData, 'aboard' | 'boat'>): Pick<SaveData, 'aboard' | 'boat'> {
+export function islandBoat(save: Pick<SaveData, 'aboard' | 'boat'>, townZone: ZoneId | undefined): BoatSpot | null {
+  const mooring = townZone && isZoneId(townZone) ? ZONES[townZone].mooring : undefined;
+  if (!mooring) return null;
+  const at = save.aboard ? null : (save.boat ?? BOAT_HOME);
+  // Already there only if the hero can climb in from the island: the boat is
+  // right beside ground they can walk to from the town's door (`canBoard`) —
+  // not just somewhere near, out in open water (#75 item 14h review).
+  const there = at && at.zoneId === mooring.zoneId && boardableFrom(islandGround(townZone!, mooring.zoneId), at);
+  return there ? null : mooring;
+}
+
+/** The ground a hero can walk to from an island town's door, on the map the boat floats on. */
+function islandGround(townZone: ZoneId, sea: ZoneId): Set<string> {
+  const out = ZONES[townZone].exits.find((e) => e.to === sea);
+  return out ? reach(ZONES[sea], { from: { x: out.spawnX, y: out.spawnY }, flags: null }) : new Set();
+}
+
+/** Can a hero standing somewhere in `ground` climb into a boat moored at `boat` (beside it, corners too)? */
+function boardableFrom(ground: Set<string>, boat: { x: number; y: number }): boolean {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (ground.has(`${boat.x + dx},${boat.y + dy}`)) return true;
+  return false;
+}
+
+/**
+ * The boat after a defeat (#75 item 14d). Beaten out at sea (only a sea critter
+ * fights a sailing hero), the hero wakes ashore at an inn, where nobody could
+ * climb back into a boat left in open water, so Old Marlow rows out and brings
+ * the Biscuit home to his dock; beaten ashore, it stays where it's moored. But a
+ * hero who wakes in a town on an island (`wakeZone` with a `mooring`, #114o: the
+ * Sunken Archive) would be stranded without it, so Marlow brings it round to
+ * that town's beach instead.
+ */
+export function boatAfterDefeat(save: Pick<SaveData, 'aboard' | 'boat'>, wakeZone?: ZoneId): Pick<SaveData, 'aboard' | 'boat'> {
+  const island = islandBoat(save, wakeZone);
+  if (island) return { aboard: false, boat: island };
   return save.aboard ? { aboard: false, boat: null } : { aboard: false, boat: save.boat };
+}
+
+/**
+ * The boat when the hero casts Return to `to` (#75 item 9): flying off
+ * mid-voyage leaves it moored where it floats (`moorBoat`, #75 item 14), and
+ * flying to a town on an island brings it round to that town's beach (#75
+ * item 14h, #114o). `note` is what the toast adds, so the boat never seems to
+ * vanish — or to be left behind.
+ */
+export function boatOnReturn(
+  save: Pick<SaveData, 'aboard' | 'boat' | 'zoneId' | 'pos' | 'flags'>,
+  to: ZoneId,
+): Pick<SaveData, 'aboard' | 'boat'> & { note: string } {
+  const moored = moorBoat(save);
+  const island = hasBoat(save.flags) ? islandBoat(moored, to) : null;
+  if (island) return { aboard: false, boat: island, note: ' Old Marlow will sail the Biscuit round to meet you there.' };
+  // Flying to an island town with the boat already moored by it (left there now
+  // or before): she's waiting there, and the toast says so (#75 item 14h review).
+  const byTheIsland = hasBoat(save.flags) && moored.boat && isZoneId(to) && ZONES[to].mooring?.zoneId === moored.boat.zoneId;
+  if (byTheIsland) return { ...moored, note: ' The Biscuit waits by the island, right where you left her.' };
+  return { ...moored, note: save.aboard ? ' The Biscuit stays moored out at sea — Old Marlow can row her home.' : '' };
 }
 
 /** The defeat screen's line after a battle lost at sea (`boatAfterDefeat`). */
 export const SEA_DEFEAT_LINE = '⛵ Old Marlow rowed the Biscuit home to his dock by Starfall Coast. Find ⛵ on your 📜 Menu map!';
+
+/**
+ * What a defeat screen says about the boat (`boatAfterDefeat`, from the save
+ * before it): brought round to an island town's beach, rowed home from the
+ * sea, or nothing (it stayed where it was moored). Null before it's mended.
+ */
+export function defeatBoatLine(save: Pick<SaveData, 'aboard' | 'boat' | 'flags'>, wakeZone: ZoneId): string | null {
+  if (!hasBoat(save.flags)) return null;
+  if (islandBoat(save, wakeZone)) {
+    const z = ZONES[wakeZone];
+    return `⛵ Old Marlow sailed the Biscuit round to ${z.the ? 'the ' : ''}${z.name}'s beach for you.`;
+  }
+  return save.aboard ? SEA_DEFEAT_LINE : null;
+}
 
 /** A boat moored this close to Marlow's dock (cells, either way) is home already. */
 export const DOCK_NEAR = 2;

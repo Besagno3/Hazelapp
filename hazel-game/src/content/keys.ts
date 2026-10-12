@@ -17,8 +17,8 @@ import { crystalFlag } from './topics';
  * warden→Gearwright Key (Gearfall), starfall warden→Prism Key (Chromaria).
  *
  * Act II (#75 item 14f): the Ringkeeper of Eldergrove gives the **Memoria
- * Key**, whose gate — the Sunken Archive's — isn't on any map until 14h
- * (`unlocksZone: null`); winning it says what it `opens` instead.
+ * Key**, which opens the Hollow Fiend's silver door in the Sunken Archive
+ * (#75 item 14h — until then it had no gate on any map).
  */
 export interface GateKey {
   id: string;
@@ -35,15 +35,12 @@ export interface GateKey {
   bossDefeat: string;
   /** The themed zone the warden lives in (for "go beat X" hints). */
   fromZone: ZoneId;
-  /**
-   * The crystal zone whose Fiend gate this key unlocks — null while that gate
-   * isn't on any map yet (the Memoria Key's Sunken Archive comes in #75 item 14h).
-   */
-  unlocksZone: ZoneId | null;
+  /** The crystal zone whose Fiend gate this key unlocks. */
+  unlocksZone: ZoneId;
   /** That zone's Fiend, named in the locked-gate message. */
   fiendName: string;
-  /** What winning it says the key opens, while its gate isn't on any map yet (`unlocksZone` null). */
-  opens?: string;
+  /** What its gate is called when bumped, if not a "gate" (the Archive's silver door, #75 item 14h review). */
+  door?: string;
 }
 
 export const GATE_KEYS: GateKey[] = [
@@ -94,8 +91,8 @@ export const GATE_KEYS: GateKey[] = [
     fiendName: 'the Gray Fiend',
   },
   // Act II (#75 item 14f): the Ringkeeper of Eldergrove keeps the key to the
-  // Sunken Archive, whose gate comes with the Archive itself (14h). Named for
-  // memory, not its zone, as STORY-4X's flag `key-memoria` has it.
+  // Sunken Archive's silver door (#75 item 14h). Named for memory, not its
+  // zone, as STORY-4X's flag `key-memoria` has it.
   {
     id: 'memoria',
     name: 'Memoria Key',
@@ -108,9 +105,9 @@ export const GATE_KEYS: GateKey[] = [
     ],
     bossDefeat: '"…take the key. Some years are meant to be given away."',
     fromZone: 'eldergrove',
-    unlocksZone: null,
+    unlocksZone: 'sunken-archive',
     fiendName: 'the Hollow Fiend',
-    opens: 'It opens a door the whole world forgot.',
+    door: 'silver door',
   },
 ];
 
@@ -121,8 +118,7 @@ export function keyForBoss(bossId: string): GateKey | undefined {
 
 /** The key required to open a given crystal zone's Fiend gate. */
 export function keyForZone(zoneId: ZoneId): GateKey | undefined {
-  // Never the Memoria Key's null (#75 item 14f): `strict` is off, so a null zone type-checks.
-  return zoneId ? GATE_KEYS.find((k) => k.unlocksZone === zoneId) : undefined;
+  return GATE_KEYS.find((k) => k.unlocksZone === zoneId);
 }
 
 /** Save-flag set when the player holds a key. */

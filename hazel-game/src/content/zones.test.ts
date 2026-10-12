@@ -22,7 +22,8 @@ import { seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
-import { NPC_DEFS } from './npcs';
+import { NPC_DEFS, lineText, visibleLines } from './npcs';
+import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
 import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
@@ -45,7 +46,7 @@ import {
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
-import { ACT2_SEEN } from './story';
+import { ACT2_SEEN, HALL_CALLED } from './story';
 
 const allZones = Object.values(ZONES);
 
@@ -751,9 +752,23 @@ describe('Remembrance Hill (#75 item 14e)', () => {
     const mnem = NPC_DEFS['hill-keeper'];
     const first = mnem.lines[0];
     expect(typeof first !== 'string' && first.setFlag).toBe('met-mnem');
-    expect(mnem.lines).toContain('Four plaques shine again: Numbers, Nature, Gears and Wonder!');
-    expect(mnem.lines.at(-1)).toMatch(/blank/);
-    expect(mnem.lines.length).toBeLessThanOrEqual(4);
+    const said = (flags: Record<string, boolean>) => visibleLines(mnem.lines, flags).map(lineText);
+    const act2 = { 'met-mnem': true, [ACT2_SEEN]: true };
+    expect(said(act2)).toContain('Four plaques shine again: Numbers, Nature, Gears and Wonder!');
+    expect(said(act2).at(-1)).toMatch(/blank/);
+    expect(said(act2).length).toBeLessThanOrEqual(4);
+    // With Memory restored (#75 item 14i): five plaques, and he calls you in to dedicate the new one.
+    const memory = { ...act2, 'crystal-history-restored': true };
+    // Memory's plaque lights itself at the dedication: no count until then (the panels show it), five after.
+    expect(said(memory).join(' ')).not.toMatch(/plaques shine/);
+    // He says hello only the first time.
+    expect(said(memory).join(' ')).not.toMatch(/Welcome to the Hall/);
+    expect(said({ ...memory, [HALL_DEDICATED]: true })).toContain('Five plaques shine now: Numbers, Nature, Gears, Wonder and Memory!');
+    expect(said(act2).join(' ')).toMatch(/first Sage/);
+    const call = visibleLines(mnem.lines, memory).at(-1);
+    expect(typeof call !== 'string' && call.setFlag).toBe(HALL_CALLED);
+    // Once dedicated, no call — your name is in the Hall's heart.
+    expect(said({ ...memory, [HALL_DEDICATED]: true }).at(-1)).toMatch(/Hall's heart/);
   });
 });
 
@@ -812,9 +827,9 @@ describe('Eldergrove (#75 item 14f)', () => {
     expect(tileAt(grove, shelter.cell.x, shelter.cell.y + 1)).toBe('D');
     const out = reach(grove, { from: shelter.cell });
     expect(grove.exits.some((e) => out.has(`${e.x},${e.y}`))).toBe(true);
-    // A shelter, not an inn: no Rest, and only Eldergrove has one.
+    // A shelter, not an inn: no Rest. The Marsh has one too, and the Archive's is its inn (#75 item 14h).
     expect(innOf(grove)).toBeUndefined();
-    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh']);
+    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh', 'sunken-archive']);
   });
 
   it("Fen, Old Ringwood and Dawdle live here — Dawdle the slowest wanderer in the game", () => {
@@ -941,5 +956,146 @@ describe('Foglight Marsh (#75 item 14g)', () => {
     expect(marsh.exits.some((e) => reach(marsh, { from: shelter.cell }).has(`${e.x},${e.y}`))).toBe(true);
     const slosh = placed('marsh-slosh')[0];
     expect(buildingInside(marsh, slosh.x, slosh.y)?.name).toBe("Slosh's Raft Shop");
+  });
+});
+
+describe('the Sunken Archive (#75 item 14h)', () => {
+  const archive = ZONES['sunken-archive'];
+  const sea = ZONES['silver-shallows'];
+  const icon = sea.places!.find((p) => p.name === 'Sunken Archive')!;
+  const fiend = archive.enemies.find((e) => e.defId === 'hollow-fiend')!;
+  const cells = (ch: string) =>
+    archive.map.flatMap((row, y) => [...row].flatMap((c, x) => (c === ch ? [{ x, y }] : [])));
+
+  it("is Act II's crystal zone, a history field in the Shallows' north-east, as tough as the Shallows", () => {
+    expect(archive.kind).toBe('field');
+    expect(archive.topic).toBe('history');
+    expect(TOPIC_REGISTRY.find((t) => t.id === 'history')?.zoneId).toBe('sunken-archive');
+    expect(zoneTier('sunken-archive')).toBe(zoneTier('silver-shallows'));
+    expect(icon.icon).toBe('archive');
+    expect(icon.x).toBeGreaterThan(sea.map[0].length / 2);
+    expect(icon.y).toBeLessThan(sea.map.length / 2);
+    // Its island stands alone in the sea, west of the Great Fogbank.
+    const island = reach(sea, { from: icon, flags: null });
+    expect([...island].every((k) => {
+      const [x, y] = k.split(',').map(Number);
+      return Math.abs(x - icon.x) <= 6 && Math.abs(y - icon.y) <= 5;
+    })).toBe(true);
+    const bank = sea.fogs!.find((f) => f.id === 'great-fogbank')!;
+    expect(Math.max(...[...island].map((k) => Number(k.split(',')[0])))).toBeLessThan(bank.x - 2);
+  });
+
+  it('a boat sails in from Dawnreach, lands on its beach and the hero walks to its icon; its exits lead back beside it', () => {
+    const path = reachPath(sea, (x, y) => x === icon.x && y === icon.y, { from: { x: 1, y: 22 }, aboard: true, modes: ['boat', 'foot'] });
+    expect(path, 'sail in and land on the Archive').not.toBeNull();
+    expect(path!.at(-1)!.mode).toBe('foot');
+    for (const e of archive.exits) expect(Math.abs(e.spawnX - icon.x) + Math.abs(e.spawnY - icon.y), 'lands beside the icon').toBe(1);
+  });
+
+  it('three critters of the forgotten library — the Quill Imp swift — and the Hollow Fiend, its crystal\'s Fiend', () => {
+    const kinds = [...new Set(archive.enemies.filter((e) => !ENEMY_DEFS[e.defId].isBoss).map((e) => e.defId))].sort();
+    expect(kinds).toEqual(['dust-tome', 'ink-wisp', 'quill-imp']);
+    for (const id of kinds) expect(ENEMY_DEFS[id].topic).toBe('history');
+    expect(ENEMY_DEFS['quill-imp'].behavior).toBe('swift');
+    expect(kinds.map((id) => ENEMY_DEFS[id].levelOffset).sort()).toEqual([-1, 0, 1]);
+    expect(fiendFor('history').id).toBe('hollow-fiend');
+  });
+
+  it('the Hollow Fiend waits behind the silver door — the Memoria Key\'s gate — and nowhere else lets you in', () => {
+    const gate = gateIdAt('sunken-archive', archive.map, archive.keyGate!.x, archive.keyGate!.y);
+    expect(touches(reach(archive), fiend.x, fiend.y)).toBe(false);
+    // Every other gate open, the silver door shut: still no way in.
+    expect(touches(reach(archive, { gates: (id) => id !== gate }), fiend.x, fiend.y)).toBe(false);
+    expect(touches(reach(archive, { gates: (id) => id === gate }), fiend.x, fiend.y)).toBe(true);
+  });
+
+  it("the Silent Stacks' riddle-chest waits behind its gate; every chest is in reach once gates open", () => {
+    const chests = cells('C');
+    expect(chests).toHaveLength(1);
+    expect(touches(reach(archive), chests[0].x, chests[0].y)).toBe(false);
+    expect(touches(reach(archive, { gates: 'open' }), chests[0].x, chests[0].y)).toBe(true);
+  });
+
+  it("an island town: Binder's inn, a Return spot, and a beaten hero wakes there — the boat comes round to its beach", () => {
+    expect(RETURN_TOWNS).toContain('sunken-archive');
+    const inn = innOf(archive)!;
+    expect(inn.name).toBe('Quiet Shelf Inn');
+    expect(shelterOf(archive)!.building).toBe(inn);
+    expect(innWakeCell(archive)).toEqual(shelterOf(archive)!.cell);
+    // Its mooring floats at the island's beach, next to the path down from the icon.
+    expect(archive.mooring!.zoneId).toBe('silver-shallows');
+    expect(tileAt(sea, archive.mooring!.x, archive.mooring!.y)).toBe('~');
+    expect(tileAt(sea, archive.mooring!.x, archive.mooring!.y - 1)).toBe(':');
+  });
+
+  it('Sage Chronicle, Index, Binder and five more live here — the people a town needs', () => {
+    const ids = archive.npcs.map((n) => n.defId);
+    for (const id of ['sage-chronicle', 'archive-index', 'archive-binder']) expect(ids).toContain(id);
+    expect(NPC_DEFS['sage-chronicle']).toMatchObject({ role: 'sage', topic: 'history' });
+    expect(NPC_DEFS['archive-index'].stationary).toBe(true);
+    // Hush and Brine stand among tables and beds, with no room to step back after a talk (review fix).
+    expect(NPC_DEFS['archive-hush'].stationary).toBe(true);
+    expect(NPC_DEFS['archive-traveler'].stationary).toBe(true);
+    // In Act II Elder Lumen no longer says "All four crystals" beside a HUD that counts five (review fix).
+    const four = NPC_DEFS['elder-lumen'].lines.find((l) => typeof l !== 'string' && l.text.startsWith('All four crystals'));
+    expect(four && typeof four !== 'string' && four.unlessFlag).toBe(ACT2_SEEN);
+    // Old Quillon stands by the silver door, warning of the Fiend until it falls.
+    const quillon = archive.npcs.find((n) => n.defId === 'archive-quillon')!;
+    expect(Math.abs(quillon.x - archive.keyGate!.x) + Math.abs(quillon.y - archive.keyGate!.y)).toBeLessThanOrEqual(3);
+  });
+
+  it('arriving starts no fight: every critter is out of reach of the landing and the carpet up to the plaza', () => {
+    const reachTiles = WANDER_TUNING.enemy.leashTiles + 1;
+    for (const foe of archive.enemies.filter((e) => !ENEMY_DEFS[e.defId].isBoss)) {
+      for (let y = 9; y <= 26; y++) {
+        for (const x of [21, 22]) {
+          const gap = Math.max(Math.abs(foe.x - x), Math.abs(foe.y - y));
+          expect(gap, `${foe.defId} at ${foe.x},${foe.y} vs the carpet ${x},${y}`).toBeGreaterThan(reachTiles);
+        }
+      }
+    }
+  });
+});
+
+describe('the world remembers (#75 item 14i)', () => {
+  const homeIds = [...new Set(ZONES['lumina-village'].npcs.map((p) => p.defId))];
+
+  it('every person in Lumina Village has a "now I remember" line, only in Act II, under 30 words', () => {
+    expect(homeIds.length).toBeGreaterThanOrEqual(14);
+    for (const id of homeIds) {
+      const lines = NPC_DEFS[id].lines;
+      const act2 = lines.filter((l) => typeof l !== 'string' && l.ifFlag === ACT2_SEEN);
+      expect(act2.length, id).toBeGreaterThan(0);
+      for (const l of act2) expect(lineText(l).split(/\s+/).length, id).toBeLessThanOrEqual(30);
+      // Before Act II nobody says them.
+      const before = visibleLines(lines, { 'ember-hatched': true, 'spire-cleared': true }).map(lineText);
+      for (const l of act2) expect(before, id).not.toContain(lineText(l));
+    }
+  });
+
+  it("Grandmother Wick and Elder Lumen begin Aster's breadcrumbs once you've met Keeper Mnem", () => {
+    const flags = { [ACT2_SEEN]: true, 'met-wick': true };
+    const wick = (f: Record<string, boolean>) => visibleLines(NPC_DEFS['village-elder'].lines, f).map(lineText).join(' ');
+    expect(wick(flags)).not.toMatch(/first Sage/);
+    expect(wick({ ...flags, 'met-mnem': true })).toMatch(/nobody remembers the first Sage/);
+    const lumen = (f: Record<string, boolean>) => visibleLines(NPC_DEFS['elder-lumen'].lines, { [MET_ELDER]: true, ...f }).map(lineText).join(' ');
+    expect(lumen({ ...flags, 'met-mnem': true })).toMatch(/first Sage/);
+    expect(lumen({ ...flags, 'met-mnem': true })).not.toMatch(/Aster/);
+    expect(lumen({ ...flags, 'met-mnem': true, 'crystal-history-restored': true })).toMatch(/Aster/);
+    // Only his newest memory line — even for a hero who never met Mnem (review round 3).
+    const memoryLines = (f: Record<string, boolean>) => visibleLines(NPC_DEFS['elder-lumen'].lines, { [MET_ELDER]: true, ...f })
+      .filter((l) => /Pudding|first Sage|Aster/.test(lineText(l))).length;
+    expect(memoryLines({ ...flags, 'crystal-history-restored': true })).toBe(1);
+    expect(memoryLines(flags)).toBe(1);
+  });
+
+  it('Act I lines that would contradict Act II stop, and Mnem never opens mid-sentence (review round 3)', () => {
+    const act2 = { [ACT2_SEEN]: true, 'ember-hatched': true };
+    const say = (id: string, f: Record<string, boolean>) => visibleLines(NPC_DEFS[id].lines, f).map(lineText).join(' ');
+    expect(say('village-keeper', act2)).not.toMatch(/sputter/);
+    expect(say('village-friend', act2)).not.toMatch(/Fiends/);
+    expect(say('village-keeper', {})).toMatch(/sputter/);
+    const mnem = visibleLines(NPC_DEFS['hill-keeper'].lines, { ...act2, 'met-mnem': true, 'crystal-history-restored': true }).map(lineText);
+    expect(mnem[0]).not.toMatch(/^And\b/);
   });
 });

@@ -186,6 +186,7 @@ export function SpellMenu({
   charge,
   spellsLoaded,
   enemyTopic,
+  blocked = () => null,
   onCast,
   onBack,
 }: {
@@ -194,6 +195,8 @@ export function SpellMenu({
   spellsLoaded: boolean;
   /** Sage spells of this topic are super effective here. */
   enemyTopic: Topic;
+  /** Why a spell can't be cast right now, apart from its ◆ (null = it can). */
+  blocked?: (spell: Spell) => string | null;
   onCast: (spell: Spell) => void;
   onBack: () => void;
 }) {
@@ -203,7 +206,8 @@ export function SpellMenu({
       <ChargeRow charge={charge} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {spells.map((spell) => {
-          const affordable = charge >= spell.cost && spellsLoaded;
+          const why = blocked(spell);
+          const affordable = charge >= spell.cost && spellsLoaded && !why;
           const weak = spell.topic !== undefined && spell.topic === enemyTopic;
           return (
             <button key={spell.id} onClick={() => onCast(spell)} disabled={!affordable} className={OPTION}>
@@ -214,7 +218,11 @@ export function SpellMenu({
               </span>
               {weak && <span className="block text-xs font-bold text-yellow-200">✨ Super effective here!</span>}
               <span className="block text-xs text-white/70 mt-0.5">{spell.description}</span>
-              <NeedMore cost={spell.cost} charge={charge} loading={!spellsLoaded} />
+              {why ? (
+                <span className="block text-xs text-white/70 mt-0.5">{why}</span>
+              ) : (
+                <NeedMore cost={spell.cost} charge={charge} loading={!spellsLoaded} />
+              )}
             </button>
           );
         })}

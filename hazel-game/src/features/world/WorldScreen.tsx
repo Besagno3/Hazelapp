@@ -26,7 +26,7 @@ import { dungeonFloor, floorLabel } from '../../content/dungeons';
 import { useSpireStore } from '../../store/spireStore';
 import { atTier, spawnPlaced } from '../../content/enemies';
 import { heroOpening, lossKey, mercyFor, NO_OPENING } from '../../lib/battleTurn';
-import { roadTier } from '../../lib/wayfinding';
+import { placeName, roadTier } from '../../lib/wayfinding';
 import { arrivalWarning, zoneTier } from '../../content/regions';
 import { avatarById } from '../../content/avatars';
 import { TOPIC_REGISTRY, actComplete, crystalFlag } from '../../content/topics';
@@ -54,6 +54,8 @@ import {
   crystalSceneFlag,
   GROVE_PANELS,
   GROVE_SEEN,
+  ARCHIVE_PANELS,
+  ARCHIVE_SEEN,
   DAWNREACH_PANELS,
   DAWNREACH_SEEN,
   ACT2_PANELS,
@@ -66,10 +68,16 @@ import {
   MEMORIA_SEEN,
   POSY_STONE_PANELS,
   POSY_STONE_SEEN,
+  HALL_CALLED,
+  HALL_PANELS,
+  WISP_PANELS,
+  WISP_STIRRING,
 } from '../../content/story';
+import { HALL_DEDICATED } from '../../content/spells';
+import { companionsInParty } from '../../content/companion';
 import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
 import { POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
-import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatSpot, moorBoat } from '../../content/boat';
+import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatOnReturn, boatSpot } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import LevelBadge from '../../components/LevelBadge';
 import StreakBadge from '../../components/StreakBadge';
@@ -244,6 +252,8 @@ export default function WorldScreen() {
   // Location-triggered: plays once on first stepping into the hidden grove,
   // and once on the first step out onto Dawnreach (#75 Phase 1).
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
+  // The first step into the Sunken Archive (#75 item 14h).
+  const archiveDue = zoneId === 'sunken-archive' && !flags[ARCHIVE_SEEN];
   const dawnreachDue = zoneId === 'dawnreach' && !flags[DAWNREACH_SEEN];
   // Act II (#75 item 14): the morning after the Spire's finale, once the hero
   // has woken at the inn; the first time in the boat; the first bump into the
@@ -255,6 +265,18 @@ export default function WorldScreen() {
   const memoriaDue = flags[keyFlag('memoria')] === true && !flags[MEMORIA_SEEN];
   // Posy lays her flower at the Nameless Stone (#75 item 14g).
   const posyDue = flags[stepFlag(POSY_WALK)] === true && !flags[POSY_STONE_SEEN];
+  // The Hall of Names' dedication (#75 item 14i): once Keeper Mnem has called
+  // you in, as his talk closes.
+  const hallDue = flags[HALL_CALLED] === true && !flags[HALL_DEDICATED] && overlay === null;
+  // Wisp's "remembering me" beat: after Memory, the first time Wisp is with
+  // you — in the Whispering Woods, or fighting beside you (the active
+  // companion, not only in the party: #75 item 14i review) — and never right
+  // on top of the Memory crystal's own panels in the Archive.
+  const wispDue =
+    flags[crystalFlag('history')] === true &&
+    !flags[WISP_STIRRING] &&
+    zoneId !== 'sunken-archive' &&
+    (zoneId === 'whispering-woods' || (save !== null && save.companionId === 'wisp' && companionsInParty(save).includes('wisp')));
 
   const activeScene:
     | 'spireVictory'
@@ -264,12 +286,15 @@ export default function WorldScreen() {
     | 'spire'
     | 'ending'
     | 'grove'
+    | 'archive'
     | 'dawnreach'
     | 'act2'
     | 'voyage'
     | 'fogbank'
     | 'memoria'
     | 'posy'
+    | 'hall'
+    | 'wisp'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -286,17 +311,23 @@ export default function WorldScreen() {
                 ? 'act2'
                 : groveDue
                   ? 'grove'
-                  : dawnreachDue
-                    ? 'dawnreach'
-                    : voyageDue
-                      ? 'voyage'
-                      : fogbankDue
-                        ? 'fogbank'
-                        : memoriaDue
-                          ? 'memoria'
-                          : posyDue
-                            ? 'posy'
-                            : null;
+                  : archiveDue
+                    ? 'archive'
+                    : dawnreachDue
+                      ? 'dawnreach'
+                      : voyageDue
+                        ? 'voyage'
+                        : fogbankDue
+                          ? 'fogbank'
+                          : memoriaDue
+                            ? 'memoria'
+                            : posyDue
+                              ? 'posy'
+                              : hallDue
+                                ? 'hall'
+                                : wispDue
+                                  ? 'wisp'
+                                  : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
@@ -400,15 +431,17 @@ export default function WorldScreen() {
   function castFieldSpell(cast: FieldCast) {
     sfx('spell');
     if (cast.spell === 'return') {
-      // Flying off mid-voyage leaves the boat moored where it floats (#75 item 14)
-      // — and says so, so it doesn't seem to vanish.
-      const leftAtSea = !!save?.aboard;
-      if (leftAtSea) update((s) => ({ ...s, ...moorBoat(s) }));
+      // Flying off mid-voyage leaves the boat moored where it floats (#75 item
+      // 14); flying to an island town brings it round to its beach (#75 item
+      // 14h) — and the toast says which, so it never seems to vanish.
+      const note = save ? boatOnReturn(save, cast.to).note : '';
+      update((s) => {
+        const { aboard, boat } = boatOnReturn(s, cast.to);
+        return { ...s, aboard, boat };
+      });
       const at = returnLanding(ZONES, cast.to);
       travelRef.current = { to: cast.to, x: at.x, y: at.y };
-      showToast(
-        `🏠 Return! Off to ${zone(cast.to).name}…${leftAtSea ? ' The Biscuit stays moored out at sea — Old Marlow can row her home.' : ''}`,
-      );
+      showToast(`🏠 Return! Off to ${placeName(zone(cast.to))}…${note}`);
     } else if (cast.spell === 'glow') {
       setFlag(litFlag(zoneId));
       showToast(z.dark?.lit ?? '🔆 Glow!');
@@ -772,8 +805,17 @@ export default function WorldScreen() {
       {activeScene === 'posy' && (
         <StoryPanels panels={POSY_STONE_PANELS} doneLabel="🌼 Go and say hi to Posy" onDone={() => setFlag(POSY_STONE_SEEN)} />
       )}
+      {activeScene === 'hall' && (
+        <StoryPanels panels={HALL_PANELS} doneLabel="🏛️ Thank you, Mnem" onDone={() => setFlag(HALL_DEDICATED)} />
+      )}
+      {activeScene === 'wisp' && (
+        <StoryPanels panels={WISP_PANELS} doneLabel="🧚 I'll remember for you" onDone={() => setFlag(WISP_STIRRING)} />
+      )}
       {activeScene === 'memoria' && (
         <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />
+      )}
+      {activeScene === 'archive' && (
+        <StoryPanels panels={ARCHIVE_PANELS} doneLabel="📚 Explore the Archive" onDone={() => setFlag(ARCHIVE_SEEN)} />
       )}
       {activeScene === 'grove' && (
         <StoryPanels

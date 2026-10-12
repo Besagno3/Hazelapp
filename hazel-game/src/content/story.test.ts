@@ -3,6 +3,9 @@ import { TOTAL_CRYSTALS } from '../types';
 import {
   emberStage,
   EMBER_STAGE_AT,
+  FLIGHT_FLAG,
+  canFly,
+  ARCHIVE_PANELS,
   endingPanels,
   BOSS_LINES,
   INTRO_PANELS,
@@ -22,7 +25,7 @@ import {
   POSY_STONE_PANELS,
 } from './story';
 import { TOPICS } from './topics';
-import { NPC_DEFS, type DialogueLine } from './npcs';
+import { NPC_DEFS, lineText, visibleLines, type DialogueLine } from './npcs';
 import { fogSeenFlag } from './zones';
 
 describe('emberStage', () => {
@@ -45,12 +48,19 @@ describe('emberStage', () => {
     // dragon 4 — even at 6 crystals). This assertion is meant to FAIL when a
     // new act changes TOTAL_CRYSTALS: do not "fix" it by deriving the stages —
     // decide them against the spec (a live player's dragon must not regress),
-    // then update this pin.
-    expect(TOTAL_CRYSTALS).toBe(4);
+    // then update this pin. Retuned at 5 (#75 item 14h, #64): the stages stay
+    // put, and the fifth crystal's flag is flight's (15b flies); 6 brings the
+    // Radiant stage (15g).
+    expect(TOTAL_CRYSTALS).toBe(5);
     expect(EMBER_STAGE_AT).toEqual({ whelp: 2, dragon: 4 });
     const hatched = { [EMBER_HATCHED]: true };
     expect(emberStage(EMBER_STAGE_AT.whelp, hatched)).toBe('whelp');
     expect(emberStage(EMBER_STAGE_AT.dragon, hatched)).toBe('dragon');
+    expect(emberStage(5, hatched)).toBe('dragon');
+    expect(FLIGHT_FLAG).toBe('crystal-history-restored');
+    expect(canFly({ [FLIGHT_FLAG]: true })).toBe(true);
+    // Act I's four alone never fly.
+    expect(canFly(Object.fromEntries(['math', 'science', 'engineering', 'creativity'].map((t) => [`crystal-${t}-restored`, true])))).toBe(false);
   });
 
   it('every stage has a sprite and a map size', () => {
@@ -113,10 +123,7 @@ describe('cutscene panels', () => {
 
 describe('the script matches the fog over the Spire (#75 item 7)', () => {
   const shown = (lines: DialogueLine[], flags: Record<string, boolean>) =>
-    lines
-      .filter((l) => typeof l === 'string' || ((!l.ifFlag || flags[l.ifFlag]) && (!l.unlessFlag || !flags[l.unlessFlag])))
-      .map((l) => (typeof l === 'string' ? l : l.text))
-      .join(' ');
+    visibleLines(lines, flags).map(lineText).join(' ');
 
   it('leaving home (always before any crystal) says the Spire is hidden in fog, not that it shows the way', () => {
     const text = DAWNREACH_PANELS.map((p) => p.text).join(' ');
@@ -199,14 +206,16 @@ describe('after the Spire: the finale, the walk home, and Act II at the inn (#75
 
 
 describe('the Memoria Key (#75 item 14f)', () => {
-  it('two short panels: the key, and the door it opens — nobody knows where yet', () => {
+  it('two short panels: the key, and the door it opens — in the Sunken Archive (#75 item 14h)', () => {
     expect(MEMORIA_PANELS).toHaveLength(2);
     for (const p of MEMORIA_PANELS) expect(p.text.split(/\s+/).length, p.text).toBeLessThanOrEqual(30);
     // Posy's flower at the Nameless Stone (#75 item 14g): the escort's ending, two short panels.
     expect(POSY_STONE_PANELS).toHaveLength(2);
     for (const p of POSY_STONE_PANELS) expect(p.text.split(/\s+/).length, p.text).toBeLessThanOrEqual(30);
-    expect(MEMORIA_PANELS[1].text).toMatch(/door the whole world forgot/);
-    // The Sunken Archive and its Fiend aren't on the map yet (#75 item 14h).
-    expect(MEMORIA_PANELS.map((p) => p.text).join(' ')).not.toMatch(/Archive|Hollow Fiend/);
+    expect(MEMORIA_PANELS[1].text).toMatch(/door the whole world forgot — in the Sunken Archive/);
+    // The Archive's own discovery panels (#75 item 14h): three short ones, its Fiend hinted, not named.
+    expect(ARCHIVE_PANELS).toHaveLength(3);
+    for (const p of ARCHIVE_PANELS) expect(p.text.split(/\s+/).length, p.text).toBeLessThanOrEqual(30);
+    expect(ARCHIVE_PANELS.map((p) => p.text).join(' ')).not.toMatch(/Hollow Fiend/);
   });
 });

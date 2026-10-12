@@ -117,7 +117,7 @@ describe('QuizRound — the recap keeps the round it was played with (Act I revi
   });
 });
 
-describe('QuizRound — the results keep the next round\'s warm-up (#128 review)', () => {
+describe('QuizRound — the results keep the next round\'s warm-up (#130 review)', () => {
   it('plays at the profile\'s level, then pins the round\'s level once it ends', async () => {
     start(3, true);
     render(<QuizRound />);

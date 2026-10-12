@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BattleEnemy } from '../types';
-import { NO_OPENING, type CombatState, type HeroOpening } from '../lib/battleTurn';
+import { NO_OPENING, type CombatState, type HeroOpening, type RemembranceState } from '../lib/battleTurn';
 
 /**
  * Ephemeral battle-session state (#37). Deliberately NOT persisted — a
@@ -37,6 +37,8 @@ interface BattleStore {
   freeHint: boolean;
   /** Second Wind (Talon): a knockout blow leaves 1 HP — once a fight. */
   secondWind: boolean;
+  /** Remembrance (#75 item 14i): cast and waiting, or used up this fight. */
+  remembrance: RemembranceState;
   /** Enemy instances beaten this session — kept off the map until reload. */
   defeatedIds: string[];
   /**
@@ -83,6 +85,7 @@ const FRESH_COMBAT = {
   candleHint: false,
   freeHint: false,
   secondWind: false,
+  remembrance: null,
 };
 
 export const useBattleStore = create<BattleStore>((set) => ({
@@ -129,6 +132,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
       candleHint: s.candleHint,
       freeHint: s.freeHint,
       secondWind: s.secondWind,
+      remembrance: s.remembrance,
     }),
 
   markDefeated: (instanceId) =>
@@ -179,5 +183,6 @@ export function combatState(): CombatState {
     candleHint: s.candleHint,
     freeHint: s.freeHint,
     secondWind: s.secondWind,
+    remembrance: s.remembrance,
   };
 }

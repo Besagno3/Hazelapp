@@ -3,7 +3,6 @@ import type { GateKey } from '../../content/keys';
 import { CONSUMABLES, type ConsumableId } from '../../content/items';
 import { BASE_TIER, dangerMarks } from '../../content/regions';
 import type { BattleEnemy } from '../../types';
-import { SEA_DEFEAT_LINE } from '../../content/boat';
 
 /** The end-of-battle panel: victory spoils (crystal / key / coins / XP) or a gentle defeat. */
 /** "a Count Bat", "an Oak Owl", "the Ringkeeper" — a name mid-sentence (#75 item 14f review: not "a The Ringkeeper"). */
@@ -28,7 +27,7 @@ export function BattleResult({
   wakeInn = null,
   shelter = null,
   tip = null,
-  boatHome = false,
+  boatLine = null,
   onLeave,
 }: {
   result: 'victory' | 'defeat';
@@ -58,8 +57,11 @@ export function BattleResult({
   shelter?: { line: string; place: string } | null;
   /** Defeat: a tip after losing to a critter with "!" marks (`defeatTip`, #75 item 12). */
   tip?: string | null;
-  /** Defeat at sea (#75 item 14d): Old Marlow brought the boat home to his dock (`boatAfterDefeat`). */
-  boatHome?: boolean;
+  /**
+   * Defeat: where Old Marlow took the boat (`defeatBoatLine`) — home to his dock
+   * from the sea (#75 item 14d), or round to an island town's beach (#114o).
+   */
+  boatLine?: string | null;
   onLeave: () => void;
 }) {
   const won = result === 'victory';
@@ -80,7 +82,7 @@ export function BattleResult({
               <p className="text-white/60 italic text-sm mb-1">"{keyBoss.bossDefeat}"</p>
               <p className="text-amber-300 font-bold mb-1">
                 {keyBoss.emoji} You won the {keyBoss.name}!{' '}
-                {keyBoss.unlocksZone ? `It unlocks ${keyBoss.fiendName}'s gate.` : keyBoss.opens}
+                {`It unlocks ${keyBoss.fiendName}'s ${keyBoss.door ?? 'gate'}.`}
               </p>
             </>
           )}
@@ -121,11 +123,11 @@ export function BattleResult({
             You're safe, rested, and{' '}
             {correctCount > 0 ? `kept ${correctCount} answers' worth of XP!` : 'ready to try again!'}
           </p>
-          {boatHome && <p className="text-sm text-sky-200 font-semibold mt-2">{SEA_DEFEAT_LINE}</p>}
+          {boatLine && <p className="text-sm text-sky-200 font-semibold mt-2">{boatLine}</p>}
           {/* Lost at sea, where the boat went comes first: with the tip too, a
               320×568 phone pushed the button off the screen. Nothing's lost —
               a critter that eases off says so in the battle itself (#114). */}
-          {tip && !boatHome && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
+          {tip && !boatLine && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
         </>
       )}
       <button

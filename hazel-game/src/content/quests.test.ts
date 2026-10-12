@@ -326,7 +326,10 @@ describe('item chains (#75 item 13)', () => {
       expect(c.z.topic, `${c.z.id} has a riddle topic`).toBeDefined();
       expect(QUEST_ITEMS[c.item], `${c.item} is a quest item`).toBeDefined();
       // Reachable with every fog lifted and every dark place lit.
-      expect(touches(reach(c.z, { flags: null }), c.x, c.y), `${c.z.id} chest reachable`).toBe(true);
+      // Out at sea (#75 item 14i: Sandpiper Cay), from the boat sailing in at the map's edge.
+      const sea = c.z.seaLinks ? c.z.map.findIndex((row) => row[0] === '~') : -1;
+      const opts = sea >= 0 ? { flags: null, from: { x: 0, y: sea }, aboard: true, modes: ['boat', 'foot'] as const } : { flags: null };
+      expect(touches(reach(c.z, opts), c.x, c.y), `${c.z.id} chest reachable`).toBe(true);
       const needed = QUESTS.some((q) => q.takesItems?.includes(c.item) || q.steps.some((st) => st.trade?.takes === c.item));
       expect(needed, `${c.item} is needed by a quest`).toBe(true);
     }
@@ -406,6 +409,52 @@ describe('item chains (#75 item 13)', () => {
     // Afterwards Moss speaks his own lines and Mabel hers.
     expect(questConversation('dawnreach-hermit', save)).toBeNull();
     expect(questConversation('mine-miner', save)).toBeNull();
+  });
+
+  it("Ness's Lens (#75 item 14i): Ness → the Cay's sea-glass chest → Shelby grinds it → Ness fits it", () => {
+    const quest = byId('ness-lens');
+    const chest = pathTargetId('silver-shallows', 'chest', 25, 32);
+    // Her first talk is the offer, and it still carries her hello, the safety line and her rumors
+    // (#75 item 14i review rounds 1–2), so one trip does it: Ness → the Cay → Ness.
+    const first = questConversation('gull-lamplighter', defaultSave())!.lines.join(' ');
+    expect(first).toMatch(/I'm Ness/);
+    expect(first).toMatch(/only bother boats/);
+    expect(first).toMatch(/Great Fogbank/);
+    expect(first).toMatch(/Foglight Marsh/);
+    // The ask is the last thing she says before the button (review round 3).
+    const offerLines = questConversation('gull-lamplighter', defaultSave())!.lines;
+    expect(offerLines.at(-1)).toMatch(/bring the lens to me/);
+    // Found the glass first? She says so (offerHaving), rumors and all.
+    const having = questConversation('gull-lamplighter', { ...defaultSave(), questItems: ['sea-glass'] })!.lines.join(' ');
+    expect(having).toMatch(/is that sea glass/);
+    expect(having).toMatch(/Foglight Marsh/);
+    expect(questConversation('gull-lamplighter', { ...defaultSave(), questItems: ['sea-glass'] })!.lines.at(-1)).toMatch(/bring the lens to me/);
+    let save: SaveData = converse('gull-lamplighter', defaultSave());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    expect(questConversation('gull-lamplighter', save)!.lines[0]).toMatch(/Sandpiper Cay/);
+    expect(questConversation('cay-hermit', save)).toBeNull();
+    save = openChest(save, chest);
+    expect(save.questItems).toEqual(['sea-glass']);
+    const grind = questConversation('cay-hermit', save)!;
+    expect(grind.finishKind).toBe('step');
+    save = grind.finish!(save);
+    expect(save.questItems).toEqual(['sea-glass-lens']);
+    expect(activeStep(quest, save)).toBeNull();
+    const coins = save.coins;
+    const hints = save.items.hint;
+    save = converse('gull-lamplighter', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual([]);
+    expect(save.coins).toBe(coins + 40);
+    expect(save.items.hint).toBe(hints + 1);
+    // Afterwards: no stale chest rumor, no repeated rumors (review round 3).
+    const after = NPC_DEFS['gull-lamplighter'].lines.map((l) => (typeof l === 'string' ? l : l.text)).join(' ');
+    expect(after).not.toMatch(/chest on it|Foglight Marsh|only bother boats/);
+    expect(after).toMatch(/whale/);
+    // The sea-glass chest says Shelby is right there.
+    expect(chestWantedLine(defaultSave(), pathTargetId('silver-shallows', 'chest', 25, 32))).toMatch(/Shelby, right here/);
+    // The Cay's old riddle-chest is still an ordinary one.
+    expect(chestRewardText(pathTargetId('silver-shallows', 'chest', 26, 31))).toBe('25 coins! 🪙');
   });
 
   it('a Moonstone found before meeting Moss: he offers, then sends you to Mabel', () => {
@@ -777,5 +826,45 @@ describe('The Flower for No Name: an escort (#75 item 14g)', () => {
     expect(withoutEscorts(save.flags)[walking]).toBeUndefined();
     // Nothing else is touched.
     expect(withoutEscorts(save.flags)[questOfferedFlag({ id: POSY_QUEST })]).toBe(true);
+  });
+});
+
+describe("A Letter, Long Overdue (#75 item 14h)", () => {
+  it("Index's letter across the sea: offered in the Archive, read by Grandmother Wick, her note back to Index", () => {
+    const quest = byId('archive-letter');
+    expect(quest.zoneId).toBe('sunken-archive');
+    expect(ZONES['sunken-archive'].npcs.some((n) => n.defId === quest.giverNpcId)).toBe(true);
+    // Wick has nothing to say about a letter before there is one.
+    let save = defaultSave();
+    expect(questConversation('village-elder', save)).toBeNull();
+
+    save = converse('archive-index', save);
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual(['old-letter']);
+    // Signed by Wick, written to someone whose name has faded — as she tells it (review fix).
+    expect(questConversation('village-elder', save)!.lines[0]).toMatch(/MY handwriting/);
+    expect(quest.offer.join(' ')).toMatch(/signed: Wick/);
+    expect(quest.offer.join(' ')).not.toMatch(/To Wick/);
+    expect(resolveHint(activeStep(quest, save)!, save)).toMatch(/Grandmother Wick.*Lumina Village/);
+
+    // Wick reads it — her own handwriting, to a teacher whose name she's forgotten — and sends a note back.
+    const wick = questConversation('village-elder', save)!;
+    expect(wick.finishKind).toBe('step');
+    expect(wick.lines.join(' ')).toMatch(/MY handwriting.*teacher.*can't even remember her name/);
+    save = wick.finish!(save);
+    expect(save.questItems).toEqual(['wick-note']);
+    expect(activeStep(quest, save)).toBeNull();
+    // Index is a sea away: the quest log says where (review fix).
+    expect(quest.doneLine).toMatch(/Index in the Sunken Archive/);
+
+    const coins = save.coins;
+    const potions = save.items.potion;
+    save = converse('archive-index', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual([]);
+    expect(save.coins).toBe(coins + 40);
+    expect(save.items.potion).toBe(potions + 1);
+    expect(questConversation('archive-index', save)).toBeNull();
+    expect(questConversation('village-elder', save)).toBeNull();
   });
 });

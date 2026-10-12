@@ -22,10 +22,11 @@ describe('topic registry (#55 crystal vs question topics)', () => {
     }
   });
 
-  it('the current crystal ids are the shipped four (intent snapshot)', () => {
+  it("the current crystal ids are Act I's four and Act II's history (intent snapshot, #75 item 14h)", () => {
     expect([...CRYSTAL_TOPIC_IDS].sort()).toEqual([
       'creativity',
       'engineering',
+      'history',
       'math',
       'science',
     ]);

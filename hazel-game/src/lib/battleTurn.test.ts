@@ -29,12 +29,14 @@ import {
   resolveHeroHit,
   resolveItem,
   resolveSpell,
+  spellBlocked,
   type CombatState,
 } from './battleTurn';
 import { counterDamage, defendReduction, enemyAttack, healerRegen } from './battleMath';
 import { CHARGE_MAX } from '../content/abilities';
 import { POTION_HEAL, SNACK_HEAL, SPARK_CHARGE, TEA_DAMAGE_MULT } from '../content/items';
-import { AEGIS, EMBER_BREATH, MEND } from '../content/spells';
+import { AEGIS, EMBER_BREATH, HALL_DEDICATED, MEND, REMEMBRANCE, sageSpell, spellsKnown } from '../content/spells';
+import { defaultSave } from './save';
 import { combatState, useBattleStore } from '../store/battleStore';
 import { ENEMY_DEFS } from '../content/enemies';
 import { CONSUMABLE_IDS } from '../content/items';
@@ -57,6 +59,7 @@ const base: CombatState = {
   candleHint: false,
   freeHint: false,
   secondWind: false,
+  remembrance: null,
 };
 
 const enemyInput = {
@@ -221,6 +224,17 @@ describe('resolveSpell', () => {
     const r = resolveSpell({ ...base, charge: 4 }, EMBER_BREATH, true);
     expect(r.kind).toBe('strike');
     expect(r.state.charge).toBe(4 - EMBER_BREATH.cost);
+    expect(r.kind === 'strike' && r.skipsTurn).toBe(false);
+  });
+
+  it("Time Ripple (#75 item 14h): a 2.2× strike that costs the enemy its next turn; a miss still fizzles", () => {
+    const ripple = sageSpell('history');
+    const r = resolveSpell({ ...base, charge: 4 }, ripple, true);
+    expect(r).toMatchObject({ kind: 'strike', multiplier: 2.2, skipsTurn: true });
+    expect(r.state.charge).toBe(4 - 3);
+    expect(resolveSpell({ ...base, charge: 4 }, ripple, false).kind).toBe('fizzle');
+    // The other Sages' strikes don't skip a turn.
+    expect(resolveSpell({ ...base, charge: 4 }, sageSpell('math'), true)).toMatchObject({ multiplier: 2.5, skipsTurn: false });
   });
 });
 
@@ -543,6 +557,42 @@ describe('signature abilities: Valor, Bastion, Talon', () => {
     const light = resolveEnemyTurn({ ...base, secondWind: true }, enemyInput);
     expect(light.secondWind).toBe(false);
     expect(light.state.secondWind).toBe(true);
+  });
+});
+
+describe('Remembrance, the Hall of Names spell (#75 item 14i)', () => {
+  const blow = { ...enemyInput, intent: 'power' as const };
+
+  it('is known only after the dedication, after Aegis', () => {
+    const save = { ...defaultSave(), flags: { 'crystal-math-restored': true } };
+    expect(spellsKnown(save).map((s) => s.id)).not.toContain('remembrance');
+    const ids = spellsKnown({ ...save, flags: { ...save.flags, [HALL_DEDICATED]: true } }).map((s) => s.id);
+    expect(ids.slice(-2)).toEqual(['aegis', 'remembrance']);
+  });
+
+  it('a cast arms it; the next knockout leaves 1 HP and spends it for the fight', () => {
+    const cast = resolveSpell({ ...base, charge: 3 }, REMEMBRANCE, true);
+    expect(cast).toMatchObject({ kind: 'remember' });
+    expect(cast.state).toMatchObject({ charge: 1, remembrance: 'ready' });
+    expect(spellBlocked(cast.state, REMEMBRANCE)).toBe('Already cast');
+    const caught = resolveEnemyTurn({ ...cast.state, playerHp: 5 }, blow);
+    expect(caught).toMatchObject({ remembered: true, secondWind: false, heroDown: false });
+    expect(caught.state).toMatchObject({ playerHp: 1, remembrance: 'spent' });
+    expect(spellBlocked(caught.state, REMEMBRANCE)).toBe('Used up this battle');
+    expect(resolveEnemyTurn(caught.state, blow).heroDown).toBe(true);
+  });
+
+  it("a miss fizzles and keeps the charge; other spells are never blocked by it", () => {
+    expect(resolveSpell({ ...base, charge: 3 }, REMEMBRANCE, false)).toMatchObject({ kind: 'fizzle', state: { charge: 3, remembrance: null } });
+    expect(spellBlocked({ ...base, remembrance: 'spent' }, MEND)).toBeNull();
+  });
+
+  it("Talon's Second Wind catches first, so Remembrance waits for the next knockout", () => {
+    const first = resolveEnemyTurn({ ...base, playerHp: 5, secondWind: true, remembrance: 'ready' }, blow);
+    expect(first).toMatchObject({ secondWind: true, remembered: false });
+    expect(first.state.remembrance).toBe('ready');
+    const second = resolveEnemyTurn(first.state, blow);
+    expect(second).toMatchObject({ remembered: true, heroDown: false });
   });
 });
 

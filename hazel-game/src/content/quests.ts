@@ -57,6 +57,12 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'acorn-golden': { id: 'acorn-golden', name: 'Golden Acorn', emoji: '🌰' },
   // The Lantern Ledger (#75 item 14g): Brume's little book, in a key-item chest in Foglight Marsh.
   'lantern-ledger': { id: 'lantern-ledger', name: 'Lantern Ledger', emoji: '📒' },
+  // Ness's Lens (#75 item 14i): sea glass from Sandpiper Cay, ground by Shelby.
+  'sea-glass': { id: 'sea-glass', name: 'Sea Glass', emoji: '🧊' },
+  'sea-glass-lens': { id: 'sea-glass-lens', name: 'Sea-Glass Lens', emoji: '🔍' },
+  // A Letter, Long Overdue (#75 item 14h): Index's find, and Wick's note back.
+  'old-letter': { id: 'old-letter', name: 'Old Letter', emoji: '📜' },
+  'wick-note': { id: 'wick-note', name: "Wick's Thank-You Note", emoji: '💌' },
 };
 
 /**
@@ -280,6 +286,16 @@ export function handedOverFlag(item: string): string {
 
 /** Where Posy's walk is — its escort, the menu's tag and its "you're here" hint share it. */
 const POSY_ZONE: ZoneId = 'foglight-marsh';
+
+/**
+ * What Lamplighter Ness tells a first visitor besides her lens (#75 item 14i):
+ * the sea critters (14d), the Great Fogbank, Foglight Marsh (14g's rumor).
+ */
+const NESS_RUMORS = [
+  "Sea critters splash about out there now. They only bother boats, and you can always steer round them. On the sand you're as safe as a shell!",
+  "East, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
+  'Up on the north coast is Foglight Marsh. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!',
+];
 
 export const QUESTS: QuestDef[] = [
   // Classic riddle-chest fetch.
@@ -991,6 +1007,61 @@ export const QUESTS: QuestDef[] = [
     reward: { coins: 50, items: { elixir: 1 } },
   },
 
+  // An island hermit chain (#75 item 14i, #106a): Ness on Gull Rock wants a
+  // new lens; the sea glass is in a key-item chest on Sandpiper Cay, and
+  // Shelby, the Cay's hermit crab, grinds it.
+  {
+    id: 'ness-lens',
+    zoneId: 'silver-shallows',
+    giverNpcId: 'gull-lamplighter',
+    side: true,
+    // Her first talk is this offer, so it carries her hello, the sea-critter safety line and her
+    // rumors (#75 item 14i review round 2: one trip — Ness, the Cay's chest and Shelby, back to Ness).
+    title: "Ness's Lens",
+    // Her rumors first, so the lens ask is the last thing said before the button (round 3).
+    offer: [
+      "A visitor! By BOAT! I'm Ness. I kept this lighthouse lit all through the fog, just in case somebody came.",
+      ...NESS_RUMORS,
+      "But my lamp's lens cracked in the fog. Now it only shines about as far as my nose.",
+      'Shelby, the hermit crab on Sandpiper Cay — the sandbar to the south-east — grinds lenses from sea glass. Sea glass washes up in a chest there.',
+      'Find some, ask Shelby to grind it into a lens, and bring the lens to me?',
+    ],
+    offerHaving: {
+      items: ['sea-glass', 'sea-glass-lens'],
+      lines: [
+        "A visitor! By BOAT! I'm Ness, the lamplighter.",
+        ...NESS_RUMORS,
+        "And is that sea glass from the Cay? My lamp's lens cracked in the fog — it's just what I need!",
+        'Ask Shelby, the hermit crab on Sandpiper Cay, to grind it into a lens, then bring the lens to me?',
+      ],
+    },
+    steps: [
+      haveStep(
+        'lens-glass',
+        [{ items: ['sea-glass', 'sea-glass-lens'], label: 'the sea glass' }],
+        () => 'The sea glass is in a chest on Sandpiper Cay, the sandbar south-east of Gull Rock. The Cay has two chests — try both!',
+      ),
+      bringStep(
+        'lens-grind',
+        'cay-hermit',
+        { takes: 'sea-glass', gives: 'sea-glass-lens' },
+        [
+          'Sea glass! Smooth as a whisper. A lens? For Ness? Hmm, hmm.',
+          "*scritch, scritch, scritch*… There! Polished on my very own shell. Don't tell the shell.",
+          '✨ You got the Sea-Glass Lens! Sail it back to Ness on Gull Rock.',
+        ],
+        'You have the sea glass! Ask Shelby on Sandpiper Cay to grind it into a lens.',
+      ),
+    ],
+    takesItems: ['sea-glass-lens'],
+    complete: [
+      "Shelby's work! Hold the ladder… *click*.",
+      'Look at that beam! Ships will see Gull Rock from three islands away. Mostly they\'ll see me waving.',
+      '✨ Reward: 40 coins and a Hint Feather!',
+    ],
+    reward: { coins: 40, hint: 1 },
+  },
+
   // --- Act II (#75 item 14) ---------------------------------------------------
 
   // Marlow's Boat: the morning after the Spire, Old Marlow remembers he's a
@@ -1047,6 +1118,46 @@ export const QUESTS: QuestDef[] = [
       '✨ Reward: Marlow\'s boat, the Biscuit — and 50 coins!',
     ],
     reward: { coins: 50 },
+  },
+
+  // --- The Sunken Archive (#75 item 14h) ---------------------------------------
+
+  // A delivery across the sea: Index's long-lost letter, home to Grandmother Wick
+  // in Lumina Village — the Act I friend, written to long ago (STORY-4X's
+  // cross-act nostalgia beat). Wick sends a thank-you note back.
+  {
+    id: 'archive-letter',
+    zoneId: 'sunken-archive',
+    giverNpcId: 'archive-index',
+    title: 'A Letter, Long Overdue',
+    offer: [
+      "Oh! A reader! I'm Index. I was putting the W's in order, and look — a letter that was never sent!",
+      "It's sixty years old. The name it was written to has faded right off — but it's signed: Wick, Lumina Village. Grandmother Wick? She lives there still!",
+      "Could you carry it home to her? A letter is meant to be read. That's practically the first rule of the alphabet!",
+    ],
+    givesItem: 'old-letter',
+    steps: [
+      bringStep(
+        'letter-to-wick',
+        'village-elder',
+        { takes: 'old-letter', gives: 'wick-note' },
+        [
+          'A letter… for me? Oh, my spark. This is MY handwriting. I wrote it when I was just your age — to my teacher.',
+          "I never sent it. And now I can't even remember her name. Isn't that strange? …Thank you for bringing it home.",
+          'Here — a note for whoever found it. Tell them an old lady says thank you.',
+        ],
+        'Carry the old letter to Grandmother Wick, at her house in Lumina Village — sail west to Dawnreach!',
+      ),
+    ],
+    takesItems: ['wick-note'],
+    // Index is a sea away from Wick: the quest log says where (#75 item 14h review).
+    doneLine: "Take Wick's thank-you note back to Index in the Sunken Archive — sail out to the Silver Shallows' north-east!",
+    complete: [
+      'A thank-you note from Wick! I shall file it under T, for Thank you. And under W, for Wonderful!',
+      'Sixty years late, and still it found its way home. That is the best kind of letter.',
+      '✨ Reward: 40 coins and a Berry Potion!',
+    ],
+    reward: { coins: 40, potion: 1 },
   },
 ];
 

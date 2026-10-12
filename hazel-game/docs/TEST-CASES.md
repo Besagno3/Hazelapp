@@ -1045,6 +1045,27 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-938 | U | ✅ | battle (#125j) | below `sm` the enemy's name drops a leading "The" (full name sr-only, shown from `sm` up); the hero's panel shows "◆N/4" not the diamonds (BattleHud.test) |
 | TC-939 | M | ✅ | battle (#125j) | a boss fight at 320×568: "👑 Ringkeeper Lv 6 !!!" whole, all commands on screen; 5/5 sizes (`bench … battle`) |
 | TC-940 | M | ⬜ | map (#125) | the 🪷 Foglight Marsh icon on the Shallows map reads as a pink lotus on a bright pool at 320 px |
+| TC-978 | U | ✅ | crystals (#128) | Act I's four crystals are Act I's in the 🚩's order and Act II's is history (the Crystal of Memory, the Hollow Fiend, the Sunken Archive); Act II completes with Memory alone; the HUD counts 4/4, 4/5 once Act II opens, 5/5 with Memory; Ember is a dragon at 5 (crystals.test) |
+| TC-979 | U | ✅ | crystals (#128) | with a later act's stand-in crystal added, Acts I and II are unchanged: the Spire, the HUD count, the 🚩 and Elder Lumen's plans step for step, Act I's 8 journey legs (crystals.test, SpireOverlay.test, WorldScreen.focus.test) |
+| TC-980 | U | ✅ | story (#64) | the tripwire pins 5 crystals: whelp 2 / dragon 4 stay, `FLIGHT_FLAG` is `crystal-history-restored` and Act I's four alone never fly (story.test) |
+| TC-981 | U | ✅ | zones (#128) | the Sunken Archive: a history field at the Shallows' tier, an island in the north-east west of the Great Fogbank; a boat sails in from Dawnreach and lands; its exits land beside its icon (zones.test) |
+| TC-982 | U | ✅ | zones (#128) | the Hollow Fiend is behind the Memoria Key's gate only (every other gate open, still no way in); the Silent Stacks' chest is behind its gate; no critter can reach the carpet from the landing to the plaza (zones.test) |
+| TC-983 | U | ✅ | zones (#128) | the Archive is a Return town with the Quiet Shelf Inn, whose shelter is the inn; 8+ people; Sage Chronicle teaches history; Old Quillon stands by the silver door (zones.test) |
+| TC-984 | C | ✅ | battle (#128) | a swift Quill Imp opens the fight: "darts in before you can move!", then a defend question, then the hero's turn; a critter that isn't swift lets the hero go first (BattleArena.test) |
+| TC-985 | C | ✅ | battle (#128) | Time Ripple lands, spends 3◆, says the enemy loses its next turn, and the next screen is the hero's command — no blow; a miss fizzles; the other Sages' strikes don't skip (BattleArena.test, battleTurn.test, spells.test) |
+| TC-986 | U | ✅ | boat (#114o) | waking in the Archive — after a sea defeat or ashore, or after the Spire — or Returning there brings the boat to its beach and says so; a boat already at that beach stays put; elsewhere it's as before (seaCritters.test, BattleHud.test) |
+| TC-987 | U | ✅ | quests (#128) | A Letter, Long Overdue: Index gives the letter, Wick reads it and sends a note back, Index takes it: 40 coins and a Berry Potion (quests.test) |
+| TC-988 | U | ✅ | wayfinding (#128) | after the Memoria Key the 🚩 reads "Free the Crystal of Memory" in the Sunken Archive (from Marlow's dock off the Shallows), then "Explore"; no danger road for it; Elder Lumen's plan and tip (wayfinding.test) |
+| TC-989 | U | ✅ | keys (#128) | the Memoria Key opens the Archive's key gate and names the Hollow Fiend on the victory panel; Old Ringwood and the Memoria panel say where the door is (keys.test, story.test, BattleHud.test) |
+| TC-990 | M | ⬜ | world (#128) | play it: sail to the Archive, the three discovery panels; Binder, Index, Chronicle (learn Time Ripple), the silver door with and without the key; beat the Hollow Fiend: its menacing lines, the three crystal panels (…Aster…), the HUD 5/5 |
+| TC-991 | M | ⬜ | world (#128) | lose a fight at sea after resting at the Quiet Shelf Inn: you wake there and the boat is at the island's beach; Return to the Archive from Lumina Village: the boat meets you there |
+| TC-992 | U | ✅ | boat (#128m) | a boat left in open water near the island (3 cells off its beach) is brought round to the beach on Return or a wake there; one beside the island's beach stays put (seaCritters.test) |
+| TC-993 | C | ✅ | battle (#128m) | rested at the Quiet Shelf Inn and beaten in Numbria: "carry you back to the Quiet Shelf Inn in the Sunken Archive, where you last rested" — not "Binder finds you" (BattleArena.test) |
+| TC-994 | U | ✅ | world (#128m) | the Archive's key gate reads "silver door"; Hush and Brine stand still; the letter's quest log names the Sunken Archive (keys.test, zones.test, quests.test) |
+| TC-995 | U | ✅ | boat (#128n) | Return cast from the boat beside the island's beach to the Archive keeps her there and says "The Biscuit waits by the beach" (seaCritters.test) |
+| TC-996 | U | ✅ | wording (#128n) | the Archive's key is a "silver door" on the 🚩, in Elder Lumen's plan and on the Ringkeeper's victory panel; Act I's keys still open gates; the shelter-inn's button reads "To the inn" (wayfinding.test, BattleHud.test, save.test) |
+| TC-997 | U | ✅ | copy (#128o) | Return to the Archive with the boat by the island says "waits by the island", sailing or ashore; Elder Lumen's "All four crystals" stays in Act I; his Memory plan and the 🚩's reason are short (seaCritters.test, zones.test, wayfinding.test) |
+| TC-998 | U | ✅ | copy (#128p) | Index reads the letter as signed by Wick, never "To Wick"; Wick's "Where to next?" for Memory is ≤ 30 words (quests.test, wayfinding.test) |
 | TC-926 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
@@ -1159,21 +1180,21 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-976 | M | ⬜ | TouchPad | with VoiceOver (iOS) and TalkBack (Android): double-tap ✋ beside a chest — it opens, once |
 | TC-977 | M | ⬜ | world | on a phone: tap a shopkeeper, walk away, then press ✋ next to a chest — the chest opens (not the shopkeeper) |
 
-## Act I launch review quick fixes (#128)
+## Act I launch review quick fixes (#130)
 
 | ID     | Type | Status | Feature | Case |
 |--------|------|--------|------|------|
-| TC-978 | C | ✅ | quiz | miss one question, get four right, while saving the skill level swaps in the next batch: the results say "Round Passed!" and 80%, and "What you missed" shows the round's own question, the answer picked and the right one — nothing from the next batch, no loading screen (QuizRound.test) |
-| TC-979 | M | ✅ | TouchPad | with touch (Playwright `hasTouch`) at 820×1180 the d-pad and ✋ sit under the map; holding ▶ moves the hero; the page doesn't scroll |
-| TC-980 | M | ✅ | TouchPad | with touch at 1024×768 and 844×390 (sideways) the d-pad docks bottom-left and ✋ bottom-right; holding ▶ moves the hero |
-| TC-981 | M | ✅ | TouchPad | at 1366×768 with a mouse only, no d-pad shows; at 375×667 with touch it shows under the map as before |
-| TC-988 | C | ✅ | quiz | while a round is played the question hook gets no level override; once it ends the hook is pinned to the round's own level (3), so a new skill level can't re-key it and use up the next round's prefetched batch (QuizRound.test) |
-| TC-987 | M | ⬜ | TouchPad | on a touchscreen laptop or Chromebook used as a laptop, no d-pad shows and prompts say "Space:"; folded into tablet mode, the pad shows and prompts say "Tap:" |
-| TC-982 | M | ⬜ | TouchPad | on a real iPad (both ways round) and an Android phone held sideways: walk, ✋ opens a chest, a dialogue covers the pad and the pad can't be pressed under it |
-| TC-983 | M | ⬜ | world | on a touch screen, a toast shows near the top and never over the d-pad |
-| TC-984 | M | ⬜ | npcs | Wisp says the Clockwork Depths are a cave south of the Whispering Woods; Hazel (after Ember hatches) says Ember's Breath comes with all four crystals |
-| TC-985 | M | ⬜ | menu | with the cloud save failing, 📜 Menu says "Couldn't reach the cloud just now…" with no error code; hovering it shows the error |
-| TC-986 | M | ⬜ | page | the browser tab reads "Hazel Quest" |
+| TC-1015 | C | ✅ | quiz | miss one question, get four right, while saving the skill level swaps in the next batch: the results say "Round Passed!" and 80%, and "What you missed" shows the round's own question, the answer picked and the right one — nothing from the next batch, no loading screen (QuizRound.test) |
+| TC-1016 | M | ✅ | TouchPad | with touch (Playwright `hasTouch`) at 820×1180 the d-pad and ✋ sit under the map; holding ▶ moves the hero; the page doesn't scroll |
+| TC-1017 | M | ✅ | TouchPad | with touch at 1024×768 and 844×390 (sideways) the d-pad docks bottom-left and ✋ bottom-right; holding ▶ moves the hero |
+| TC-1018 | M | ✅ | TouchPad | at 1366×768 with a mouse only, no d-pad shows; at 375×667 with touch it shows under the map as before |
+| TC-1019 | M | ⬜ | TouchPad | on a real iPad (both ways round) and an Android phone held sideways: walk, ✋ opens a chest, a dialogue covers the pad and the pad can't be pressed under it |
+| TC-1020 | M | ⬜ | world | on a touch screen, a toast shows near the top and never over the d-pad |
+| TC-1021 | M | ⬜ | npcs | Wisp says the Clockwork Depths are a cave south of the Whispering Woods; Hazel (after Ember hatches) says Ember's Breath comes with all four crystals |
+| TC-1022 | M | ⬜ | menu | with the cloud save failing, 📜 Menu says "Couldn't reach the cloud just now…" with no error code; hovering it shows the error |
+| TC-1023 | M | ⬜ | page | the browser tab reads "Hazel Quest" |
+| TC-1024 | M | ⬜ | TouchPad | on a touchscreen laptop or Chromebook used as a laptop, no d-pad shows and prompts say "Space:"; folded into tablet mode, the pad shows and prompts say "Tap:" |
+| TC-1025 | C | ✅ | quiz | while a round is played the question hook gets no level override; once it ends the hook is pinned to the round's own level (3), so a new skill level can't re-key it and use up the next round's prefetched batch (QuizRound.test) |
 
 ## Regression cases (tied to ISSUES.md)
 
@@ -1197,3 +1218,19 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 - 21 cases automated (30 `it` blocks); the rest are written but not yet
   implemented (⬜).
 - When a case is automated, change its status to ✅.
+| TC-999 | U | ✅ | spells (#129a) | Remembrance is known only after the Hall's dedication (after Aegis); a cast arms it, the next knockout leaves 1 HP and spends it; a third knockout is real; greyed "Already cast" / "Once a battle"; a miss fizzles; Talon's Second Wind catches first (battleTurn.test) |
+| TC-1000 | U | ✅ | dialogue (#129b) | Keeper Mnem: four plaques before Memory, five after, then "Let us dedicate it" (sets hall-called), and "the Hall holds you up" once dedicated (zones.test) |
+| TC-1001 | C | ✅ | story (#129b) | the dedication's 3 panels play once Mnem has called you in — not while his talk is open — and teach Remembrance (WorldScreen.ending.test) |
+| TC-1002 | C | ✅ | story (#129c) | Wisp's 2 panels: after Memory, in the Whispering Woods or with Wisp in the party; not elsewhere without her; once (WorldScreen.ending.test) |
+| TC-1003 | U | ✅ | dialogue (#129d) | every Lumina Village person has an act2-seen line, ≤ 30 words, never before Act II; Wick's and Lumen's first-Sage lines wait for met-mnem, Lumen's "Aster" for Memory (zones.test) |
+| TC-1004 | U | ✅ | wayfinding (#129b) | after Memory the 🚩 is "Dedicate the Hall of Names" on Remembrance Hill, then "Explore"; Lumen's plan names the Hall (wayfinding.test) |
+| TC-1005 | U | ✅ | quests (#129e) | Ness's Lens end to end: offer, the Cay's sea-glass chest, Shelby grinds it, Ness pays 40 coins + a Hint Feather; the Cay's old chest still pays coins only; the key chest is reached by boat (quests.test) |
+| TC-1006 | U | ✅ | journey (#129f) | Act II as a journey: Marlow's friends → the Shallows → the Hill → Eldergrove → the Archive → the Hall, every hop with a way, sailing where it crosses the sea (journey.test) |
+| TC-1007 | U | ✅ | journey (#129f) | per travel mode: Act I and Marlow's errands never use the boat; Eldergrove and the Archive always do; the Hill walks without one; every Shallows place, landmark and key chest is reached from the boat and walks back to a beach (journey.test) |
+| TC-1008 | M | ⬜ | world (#129) | play it: talk to every Lumina Village person in Act II; meet Mnem, then Wick; free Memory, talk to Mnem — the dedication — and cast Remembrance in a fight that would knock you out; Ness's Lens from Gull Rock to the Cay and back; Wisp's beat in the Woods |
+| TC-1009 | U | ✅ | quests (#129h) | Ness says her hello and rumors first; the lens quest waits for the next talk (met-ness); with sea glass already in the bag her offer says so; Mnem: four plaques until the dedication, and he names the first Sage (quests.test, zones.test) |
+| TC-1010 | C | ✅ | story (#129h) | Wisp's beat: not with Wisp only in the party — only with Wisp fighting beside you, or in the Woods (WorldScreen.ending.test) |
+| TC-1011 | U | ✅ | journey (#129h) | Act I and Marlow's errands, walked with the boat mended and docked, still never sail (journey.test) |
+| TC-1012 | U | ✅ | quests (#129i) | Ness's own Act II lines include one that sets met-ness (quests.test); the Act II journey's Hall leg ends with Mnem's line that sets hall-called (journey.test) |
+| TC-1013 | U | ✅ | quests (#129j) | Ness's first talk is the lens offer with her hello, the safety line, the Fogbank and the Marsh rumor; with the glass already found she says so; Mnem: hello only once, no plaque count between Memory and the dedication, "the Hall's heart" after (quests.test, zones.test) |
+| TC-1014 | U | ✅ | dialogue (#129k) | Ness's offer (both versions) ends on the lens ask; after the quest no chest rumor or repeated rumors; the sea-glass chest names Shelby; Sol and Bramble's Act I lines stop in Act II; Mnem never opens with "And"; Lumen says one memory line, met Mnem or not (quests.test, zones.test) |

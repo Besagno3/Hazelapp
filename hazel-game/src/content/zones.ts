@@ -1,4 +1,4 @@
-import type { CrystalTopic, Topic } from '../types';
+import type { BoatSpot, CrystalTopic, Topic } from '../types';
 import type { ConsumableId } from './items';
 import { crystalFlag, crystalInfo } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
@@ -52,6 +52,9 @@ export const ZONE_IDS = [
   // Act II (#75 item 14g): a marshy coast on the Shallows' north edge, where the
   // last of the fog pooled — Posy's walk, Brume's lanterns, the Last Fogbank.
   'foglight-marsh',
+  // Act II (#75 item 14h): a great library half sunk on an island in the
+  // Shallows' north-east — the Crystal of Memory, the Hollow Fiend, Sage Chronicle.
+  'sunken-archive',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -139,7 +142,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -204,7 +207,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -419,6 +422,12 @@ export interface ZoneDef {
    * `lastRest` doesn't change.
    */
   shelter?: { building: string; host: string };
+  /**
+   * A town on an island (#75 item 14h, #114o): where Old Marlow brings the boat
+   * for a hero who wakes at its inn or shelter, so they're never stranded on
+   * the island without it (`boatAfterDefeat`). Open sea beside its beach.
+   */
+  mooring?: BoatSpot;
   /**
    * Tileset key override (default: the zone id). The Spire's floor maps
    * (#74) borrow the 'crystal-spire' id but draw with `spire-<theme>` sets.
@@ -1703,7 +1712,20 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Whitewashed like the old Lumina Field cottages (that style's free since the Field retired).
       { id: 'gull-lighthouse', name: 'Gull Rock Lighthouse', x: 9, y: 16, w: 5, h: 4, roof: 'red', style: 'cottage', sign: 'star' },
     ],
-    npcs: [{ defId: 'gull-lamplighter', x: 11, y: 17 }],
+    npcs: [
+      { defId: 'gull-lamplighter', x: 11, y: 17 },
+      // Sandpiper Cay's hermit crab (#75 item 14i).
+      { defId: 'cay-hermit', x: 27, y: 32 },
+    ],
+    // Ness's Lens (#75 item 14i): the sea glass, in a new chest on Sandpiper Cay.
+    keyChests: [
+      {
+        x: 25,
+        y: 32,
+        item: 'sea-glass',
+        wantedBy: "🏮 Lamplighter Ness, on Gull Rock, needs sea glass for her lighthouse's lens — and Shelby, right here, can grind it into one!",
+      },
+    ],
     // Sea critters (#75 item 14d): they swim open water and fight only a
     // sailing hero — well clear of any land and of the western edge you sail
     // in by, so landing, climbing in or arriving never starts a fight
@@ -1718,10 +1740,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 12, y: 39, icon: 'elder', name: 'Eldergrove' },
       // Foglight Marsh (#75 item 14g): the north coast, a beach below it.
       { x: 34, y: 1, icon: 'marsh', name: 'Foglight Marsh' },
+      // The Sunken Archive (#75 item 14h): an island in the north-east, a beach on its south side.
+      { x: 49, y: 13, icon: 'archive', name: 'Sunken Archive' },
     ],
     exits: [
       { x: 12, y: 39, to: 'eldergrove', spawnX: 20, spawnY: 1 },
       { x: 34, y: 1, to: 'foglight-marsh', spawnX: 20, spawnY: 26 },
+      { x: 49, y: 13, to: 'sunken-archive', spawnX: 21, spawnY: 26 },
     ],
     // Its tower stands on the rock just east of Ness's cottage.
     lighthouse: { x: 15, y: 16 },
@@ -1980,6 +2005,98 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 20, y: 27, to: 'silver-shallows', spawnX: 34, spawnY: 2 },
       { x: 21, y: 27, to: 'silver-shallows', spawnX: 34, spawnY: 2 },
     ],
+  },
+  // Act II (#75 item 14h): the Sunken Archive — a great library the world forgot,
+  // half under the sea on an island in the Shallows' north-east. Its reading rooms
+  // in the middle (Binder's inn, Index's Card Catalog, Sage Chronicle's study and
+  // the Great Reading Room); the Drowned Stacks to the north-west, the Silent
+  // Stacks' riddle-chest behind a gate to the north-east, the Sunken Aisles to
+  // the south — and, behind the Memoria Key's silver door, the Hollow, where the
+  // Hollow Fiend keeps the Crystal of Memory.
+  'sunken-archive': {
+    id: 'sunken-archive',
+    name: 'Sunken Archive',
+    the: true,
+    kind: 'field',
+    topic: 'history',
+    map: [
+      '############################################',
+      '#............,..####...######..............#',
+      '#.~~~~...##.##..###.......###.##.##.##..C..#',
+      '#.~~~~..........##.........##..............#',
+      '#........##.##..##.##...##.##.##.##.##.....#',
+      '#...,...........##.........##..........,...#',
+      '#....~~~.##.##..##.##...##.##.##.##.##.....#',
+      '#....~~~........##.........##..............#',
+      '######..#############GG############GG#######',
+      '#.........,..........==..........,.........#',
+      '#WWWWWWWWW..WWWWWWW..==..WWWWWWWW.WWWWWWWWW#',
+      '#WZFZFZFZW..WBBFBBW..==..WBFFFFBW.WBBFFFBBW#',
+      '#WFFFFFFFW..WFFFFFW..==S.WFFFFFFW.WFFFFFFFW#',
+      '#WTFFFFFTW..WFTFFFW..==..WTFFFFTW.WFTFFFTFW#',
+      '#WFFFFFFFW..WWWDWWW..==..WWWDWWWW.WFFFFFFFW#',
+      '#WWWWDWWWW.....=.....==.....=.....WWWWDWWWW#',
+      '#==========================================#',
+      '#....................==....................#',
+      '#.###.####.####.####.==##.####.####.####.###',
+      '#....................==....................#',
+      '#..~~~~~~............==.....##..##.........#',
+      '#..~~~~~~...##..##...==............~~~~~~..#',
+      '#....................==.....##..##.~~~~~~..#',
+      '#...........##..##...==....................#',
+      '#...#...,............==...,................#',
+      '#................,...==.............,..#...#',
+      '#....................==....................#',
+      '#####################EE#####################',
+    ],
+    ground: [122, 128, 140],
+    path: [158, 60, 64],
+    solidEmoji: '📚',
+    decoEmoji: '📄',
+    spawn: { x: 21, y: 26 },
+    buildings: [
+      // Every town has an inn (#75 item 11): beds between the stacks.
+      { id: 'archive-inn', name: 'Quiet Shelf Inn', x: 1, y: 10, w: 9, h: 6, roof: 'dusk', style: 'tome', sign: 'inn' },
+      { id: 'card-catalog', name: "Index's Card Catalog", x: 12, y: 10, w: 7, h: 5, roof: 'red', style: 'tome', sign: 'house' },
+      { id: 'footnote-study', name: "Chronicle's Footnote Study", x: 25, y: 10, w: 8, h: 5, roof: 'slate', style: 'tome', sign: 'sage' },
+      { id: 'reading-room', name: 'The Great Reading Room', x: 34, y: 10, w: 9, h: 6, roof: 'teal', style: 'tome', sign: 'star' },
+    ],
+    // Beaten anywhere in the Archive, Binder finds you and tucks you up at the
+    // inn — it's an island, so the boat comes round for you too (`mooring`).
+    shelter: { building: 'archive-inn', host: 'Innkeeper Binder' },
+    npcs: [
+      { defId: 'sage-chronicle', x: 29, y: 11 },
+      { defId: 'archive-index', x: 16, y: 12 },
+      { defId: 'archive-binder', x: 3, y: 12 },
+      { defId: 'archive-traveler', x: 7, y: 12 },
+      { defId: 'archive-hush', x: 38, y: 12 },
+      // Old Quillon stands by the silver door and warns of the Hollow Fiend.
+      { defId: 'archive-quillon', x: 19, y: 9 },
+      { defId: 'archive-margin', x: 31, y: 17 },
+      { defId: 'archive-leaf', x: 9, y: 17 },
+    ],
+    enemies: [
+      // The Drowned Stacks (north-west).
+      { defId: 'dust-tome', x: 6, y: 4 },
+      { defId: 'ink-wisp', x: 12, y: 5 },
+      // The Silent Stacks, round the riddle-chest (north-east).
+      { defId: 'quill-imp', x: 38, y: 5 },
+      // The Sunken Aisles (south), clear of the carpet up from the landing.
+      { defId: 'dust-tome', x: 8, y: 23 },
+      { defId: 'ink-wisp', x: 31, y: 21 },
+      { defId: 'quill-imp', x: 39, y: 24 },
+      // Behind the Memoria Key's silver door.
+      { defId: 'hollow-fiend', x: 22, y: 3 },
+    ],
+    exits: [
+      // Back out to the island's path, just south of its icon on the Shallows.
+      { x: 21, y: 27, to: 'silver-shallows', spawnX: 49, spawnY: 14 },
+      { x: 22, y: 27, to: 'silver-shallows', spawnX: 49, spawnY: 14 },
+    ],
+    // The Hollow Fiend's silver door opens to the Memoria Key (Eldergrove's Ringkeeper).
+    keyGate: { x: 21, y: 8 },
+    // An island town (#114o): a hero who wakes here finds the boat at its beach.
+    mooring: { zoneId: 'silver-shallows', x: 49, y: 18 },
   },
 };
 

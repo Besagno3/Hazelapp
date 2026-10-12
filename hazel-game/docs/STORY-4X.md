@@ -470,7 +470,7 @@ Derived from `crystalCount / TOTAL_CRYSTALS` thresholds, not literals
 | **Time Ripple** | Sage Chronicle | meet (Act II) | 2.2× + skip the enemy's next turn (3) |
 | **Chorus Call** | Sage Aria | meet (Act III) | 2.5× + refund 1 ◆ on a correct cast (2) |
 | **Beacon** | Lighthouse quest (Act III) | quest reward | next 3 questions show one fewer wrong option (2) |
-| **Second Wind** | Hall of Names (Act II) | dedication scene | once per battle: survive a KO at 1 HP (2) |
+| **Remembrance** (was "Second Wind" — Talon's hero ability took the name; 14i) | Hall of Names (Act II) | dedication scene | once per battle: survive a KO at 1 HP (2) |
 | **Starlight** | Vela (companion bond) | Vela joined | 3.0×, always available at night-themed zones flavor (3) |
 | **Radiant Breath** | Ember | radiant stage | upgrades Ember's Breath, 4.2× (3) |
 | **The First Lesson** | Aster | NG+ | convert one wrong answer to right (4) — spell twin of her companion action |

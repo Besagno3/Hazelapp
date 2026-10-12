@@ -5,11 +5,12 @@ import { CRYSTAL_TOPIC_IDS, type CrystalTopic, type Topic, type ZoneId } from '.
  * (crystals/fiends/zones), and styling all hang off this registry.
  *
  * Two tiers (#50/#55):
- * - `TOPIC_REGISTRY` — the four **crystal** main-quest topics (math/science/
- *   engineering/creativity). Each bears a crystal, a Fiend, a Sage and a topic
- *   zone; all crystal/ending logic iterates this.
- * - `EXTRA_TOPICS` — the expansion question themes (nature, space, history)
- *   that flavour the new zones. Styling only — no crystal/fiend.
+ * - `TOPIC_REGISTRY` — the **crystal** main-quest topics: Act I's four
+ *   (math/science/engineering/creativity) and Act II's history (#75 item 14h).
+ *   Each bears a crystal, a Fiend, a Sage and a topic zone; all crystal/ending
+ *   logic iterates this, an act at a time (`actCrystals`).
+ * - `EXTRA_TOPICS` — the expansion question themes (nature, space) that
+ *   flavour the new zones. Styling only — no crystal/fiend.
  *
  * `topicInfo(id)` resolves either tier. Adding a topic: an id in
  * `CRYSTAL_TOPIC_IDS`/`EXTRA_TOPIC_IDS` (types), an entry here, a persona line
@@ -102,6 +103,20 @@ export const TOPIC_REGISTRY: CrystalTopicInfo[] = [
     zoneId: 'chromaria',
     act: 1,
   },
+  // Act II's crystal (#75 item 14h): Memory, in the Sunken Archive. Time & History
+  // was an extra theme until now — its label, colours and questions are unchanged.
+  {
+    id: 'history',
+    label: 'Time & History',
+    emoji: '⏳',
+    buttonColor: 'bg-amber-600 hover:bg-amber-700',
+    skyGradient: 'from-stone-900 via-yellow-900 to-amber-700',
+    groundTint: [150, 130, 110],
+    crystalName: 'Crystal of Memory',
+    fiendName: 'The Hollow Fiend',
+    zoneId: 'sunken-archive',
+    act: 2,
+  },
 ];
 
 /** Expansion question themes (#55) — styling only, no crystal. */
@@ -121,14 +136,6 @@ export const EXTRA_TOPICS: TopicInfo[] = [
     buttonColor: 'bg-indigo-600 hover:bg-indigo-700',
     skyGradient: 'from-slate-950 via-indigo-900 to-violet-700',
     groundTint: [120, 110, 170],
-  },
-  {
-    id: 'history',
-    label: 'Time & History',
-    emoji: '⏳',
-    buttonColor: 'bg-amber-600 hover:bg-amber-700',
-    skyGradient: 'from-stone-900 via-yellow-900 to-amber-700',
-    groundTint: [150, 130, 110],
   },
 ];
 
