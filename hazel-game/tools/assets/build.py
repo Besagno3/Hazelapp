@@ -156,6 +156,11 @@ def main():
         audio.build_sea_music(PUBLIC)
         print('sea music ✓')
         return
+    if 'cay' in only:
+        # Just Shelby, Sandpiper Cay's hermit crab (#75 item 14i).
+        write_manifest(build_sprites.build(PUBLIC, only={'cay-hermit'}))
+        print('cay ✓')
+        return
     if 'quests' in only:
         # Just Hermit Moss (#75 item 13) — every other file untouched.
         write_manifest(build_sprites.build(PUBLIC, only={'dawnreach-hermit'}))

@@ -5,7 +5,9 @@ import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
 import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
-import { actCrystals } from './topics';
+import { actCrystals, crystalFlag } from './topics';
+import { HALL_DEDICATED } from './spells';
+import { ACT2_SEEN, HALL_CALLED, WISP_STIRRING } from './story';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -90,6 +92,21 @@ export interface WorldNpcDef {
   signpost?: boolean;
 }
 
+/** Resolves which lines apply given the current story flags. */
+export function visibleLines(lines: DialogueLine[], flags: Record<string, boolean>): DialogueLine[] {
+  return lines.filter((l) => {
+    if (typeof l === 'string') return true;
+    if (l.ifFlag && !flags[l.ifFlag]) return false;
+    if (l.unlessFlag && flags[l.unlessFlag]) return false;
+    return true;
+  });
+}
+
+/** What a line says, string or not. */
+export function lineText(l: DialogueLine): string {
+  return typeof l === 'string' ? l : l.text;
+}
+
 /** The sprite-manifest key for an NPC (explicit `spriteId`, else its id). */
 export function npcSpriteId(def: WorldNpcDef): string {
   return def.spriteId ?? def.id;
@@ -154,6 +171,19 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'You climbed the Spire and faced Umbra itself. Lumina will tell your story for a thousand years, brave one.',
         ifFlag: 'spire-cleared',
       },
+      // Act II (#75 item 14i): Lumina remembers — and the first Aster breadcrumbs.
+      {
+        text: "Since the Spire fell, I remember things I forgot I'd forgotten. My first day in this Library. A cat called Pudding.",
+        ifFlag: ACT2_SEEN,
+      },
+      {
+        text: "Keeper Mnem has blank plaques? I've read every book here, and not one names the very first Sage. Odd. VERY odd.",
+        ifFlag: 'met-mnem',
+      },
+      {
+        text: 'The Crystal of Memory whispered a name, you say? "Aster." I don\'t know it… yet my heart skipped, as if it should.',
+        ifFlag: crystalFlag('history'),
+      },
     ],
   },
   'hub-kid': {
@@ -177,6 +207,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'You beat the SPIRE?! You are the bravest kid EVER. Teach me everything someday, okay?',
         ifFlag: 'spire-cleared',
       },
+      {
+        text: "Now I remember! I lost a tooth last year and NOBODY came. The fog ate the Tooth Fairy's map!",
+        ifFlag: ACT2_SEEN,
+      },
     ],
   },
   'hub-innkeeper': {
@@ -194,6 +228,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'Travelers say the Echo Mine, in the ridge north-east of here, went pitch dark when the fog came. Nobody\'s been down since.',
         unlessFlag: litFlag('echo-mine'),
       },
+      {
+        text: 'Since the fog lifted, my guests remember their dreams at breakfast. One dreamed of a boat — and then Old Marlow went and mended his!',
+        ifFlag: ACT2_SEEN,
+      },
     ],
   },
   'hub-librarian': {
@@ -202,6 +240,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🦉',
     role: 'librarian',
     lines: [
+      {
+        text: 'Now I remember why I love books: someone read to me once, under a big tree. I wish I knew who.',
+        ifFlag: ACT2_SEEN,
+      },
       'Every question you ever missed waits in my library. Beat it here, and it makes you stronger!',
     ],
   },
@@ -210,7 +252,13 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Merchant Maple',
     sprite: '🦝',
     role: 'merchant',
-    lines: ['Potions! Hint feathers! Shiny badges! Coins well spent, friend.'],
+    lines: [
+      {
+        text: 'Ha! I remember where I put my good scales — under the counter, all along. Sorry for every short-weighed berry!',
+        ifFlag: ACT2_SEEN,
+      },
+      'Potions! Hint feathers! Shiny badges! Coins well spent, friend.',
+    ],
   },
 
   // --- Numbria (math) ---
@@ -354,6 +402,15 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'When the Spire calls you, child, do not be afraid. A keeper waits there who has watched over the crystals since before the fog. Go when you are ready.',
         ifFlag: 'crystal-math-restored',
       },
+      {
+        text: 'My memories come back like birds to a feeder. This morning: the smell of chalk, and a kind voice asking, "Why do YOU think so?"',
+        ifFlag: ACT2_SEEN,
+      },
+      // The first Aster breadcrumb (STORY-4X Act II), once you've met Keeper Mnem.
+      {
+        text: 'The first Sage? Oh, spark… nobody remembers the first Sage. Not even me. *Especially* me.',
+        ifFlag: 'met-mnem',
+      },
     ],
   },
   'village-friend': {
@@ -367,6 +424,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'A real dragon. Hatched right here. I told everyone you were special and NObody believed me. Ha!',
         ifFlag: 'ember-hatched',
+      },
+      {
+        text: "Now I remember: YOU taught me to race. Then I won once and you said you let me. You didn't. I won.",
+        ifFlag: ACT2_SEEN,
       },
     ],
     ambient: ['*kneads bread*', 'Off racing again?', 'Mind the burnt loaf!'],
@@ -383,6 +444,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'Four crystals home, and the whole village glows like a held breath finally let go. You did this. A child from our own little field.',
         ifFlag: 'crystal-creativity-restored',
       },
+      {
+        text: "I remember now who taught me to trim a wick: Grandmother Wick! Ha. So THAT's why everyone calls her that.",
+        ifFlag: ACT2_SEEN,
+      },
     ],
     ambient: ['*trims a wick*', 'A little more light…', 'The lanterns sputter.'],
   },
@@ -396,6 +461,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'merchant',
     lines: [
       "Welcome to Clove's Curios! Nothing useful, everything wonderful — badges from every corner of Lumina.",
+      {
+        text: 'Business is booming! Everyone suddenly remembers the badges they collected as kids, and wants a new one.',
+        ifFlag: ACT2_SEEN,
+      },
     ],
   },
   'woods-hermit': {
@@ -426,6 +495,16 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Down past the roots there is a stair, and past the stair, the Clockwork Depths. Old machines sleep there. Be gentle, they dream of working again.',
       'I am made of leftover questions, you know. The ones nobody answered. When you answer yours, a little of me lights up. Thank you for that.',
+      // Act II (#75 item 14i): Wisp is starting to remember itself.
+      {
+        text: 'Something is different since the Spire. I keep ALMOST remembering things. It tickles.',
+        ifFlag: ACT2_SEEN,
+        unlessFlag: WISP_STIRRING,
+      },
+      {
+        text: "I feel… alphabetized. Something is remembering ME. Keep going, little spark — I think it's you.",
+        ifFlag: WISP_STIRRING,
+      },
     ],
     ambient: ['*flickers softly*', 'Ooh, a riddle!', '✨', 'The trees whisper.'],
   },
@@ -504,8 +583,30 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
       // Foglight Marsh (#75 item 14g): the rumor rule — name a place and what's there.
       "Up on the north coast is Foglight Marsh, where the last of the fog pooled. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!",
+      {
+        text: "My new lens! Last night I saw a whale wave at me. I waved back. We're friends now.",
+        ifFlag: questDoneFlag({ id: 'ness-lens' }),
+      },
     ],
     ambient: ['*polishes the lamp*', 'Ship ahoy? …Oh, it\'s you!', 'Shine on, little light.'],
+  },
+
+  // Sandpiper Cay's hermit (#75 item 14i): grinds Ness's lens.
+  'cay-hermit': {
+    id: 'cay-hermit',
+    name: 'Shelby',
+    sprite: '🐚',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "I'm Shelby. A hermit. A hermit CRAB. That's twice as hermit-y as anybody.",
+      'This shell? Borrowed. Everything a hermit crab owns is borrowed. Except my opinions.',
+      {
+        text: "Ness's lamp is so bright now, I can read at night. I don't have any books. I read the sand.",
+        ifFlag: questDoneFlag({ id: 'ness-lens' }),
+      },
+    ],
+    ambient: ['*scritch, scritch*', 'Lovely sand today.', '🐚'],
   },
 
   // Warns the player before the Tide Colossus — and points the reward home (#59).
@@ -677,6 +778,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'Thank you again for finding my seal. The paperwork is flowing like a river! A very boring river.',
         ifFlag: 'quest:mayor-seal:done',
       },
+      {
+        text: "Since the fog lifted, I remember every speech I've ever given. All of them. That's… a LOT of speeches.",
+        ifFlag: ACT2_SEEN,
+      },
     ],
   },
   'village-clover-merchant': {
@@ -684,7 +789,13 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Grocer Clover',
     sprite: '🧺',
     role: 'merchant',
-    lines: ["Fresh from the hills! Lucky clovers, picked at dawn. Win a battle holding one and the coins just pour in!"],
+    lines: [
+      {
+        text: 'The hills remember spring again — the clovers have never grown so lucky!',
+        ifFlag: ACT2_SEEN,
+      },
+      "Fresh from the hills! Lucky clovers, picked at dawn. Win a battle holding one and the coins just pour in!",
+    ],
   },
   'village-baker': {
     id: 'village-baker',
@@ -698,6 +809,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'Grandmother Wick and Keeper Sol both loved their buns. You are the fastest delivery hero in Lumina!',
         ifFlag: 'quest:bakery-deliveries:done',
       },
+      {
+        text: "I remembered Grandma's secret recipe! The secret is… more butter. It was always more butter.",
+        ifFlag: ACT2_SEEN,
+      },
     ],
   },
   'village-guard': {
@@ -709,6 +824,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Guard Rook, on patrol! Nothing gets past me. Except butterflies. And bees. And, once, a very polite goose.',
       'Psst. When the sun hits the plaza fountain just right, I swear something golden glints at the bottom.',
       'The Mayor keeps old books in the Town Hall. Some of them are not books at all… if you know what I mean. I do not know what I mean.',
+      {
+        text: "I remember now! The polite goose was called Gerald. Gerald, if you're out there: you still owe me a sandwich.",
+        ifFlag: ACT2_SEEN,
+      },
     ],
     ambient: ['*marches*', 'All clear!', 'Was that a goose?'],
   },
@@ -723,6 +842,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'You found the secret garden?! I KNEW it was real. Best day ever.',
         ifFlag: 'secret:village-secret-garden',
+      },
+      {
+        text: 'I remembered where I buried my treasure box! It had… one pebble in it. A GOOD pebble.',
+        ifFlag: ACT2_SEEN,
       },
     ],
     ambient: ['✦?', '*hops*', 'Secrets everywhere!'],
@@ -1232,8 +1355,27 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Faces, though… Have we met? You have a very brave sort of face.',
       // One plaque per crystal remembered (STORY-4X: the Hall of Names) — read
       // in one breath. The Hill only opens once all of Act I's are restored.
-      `${numberWord(actCrystals(1).length)} plaques shine again: ${listOf(actCrystals(1).map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
+      {
+        text: `${numberWord(actCrystals(1).length)} plaques shine again: ${listOf(actCrystals(1).map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
+        unlessFlag: crystalFlag('history'),
+      },
+      {
+        text: `${numberWord(actCrystals(1).length + actCrystals(2).length)} plaques shine now: ${listOf([...actCrystals(1), ...actCrystals(2)].map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
+        ifFlag: crystalFlag('history'),
+      },
       'And these plaques are blank. Names nobody remembers… yet.',
+      // The dedication (#75 item 14i): Memory's plaque lights itself, and Mnem
+      // calls you in — the panels play as his talk closes (WorldScreen).
+      {
+        text: 'Wait — do you hear that? A new plaque is humming in the Hall. Come, come! Let us dedicate it together.',
+        ifFlag: crystalFlag('history'),
+        unlessFlag: HALL_DEDICATED,
+        setFlag: HALL_CALLED,
+      },
+      {
+        text: 'The Hall holds you up now, little spark. Even I won\'t forget THAT name. Probably.',
+        ifFlag: HALL_DEDICATED,
+      },
     ],
     ambient: ['Names, always…', '🗿'],
   },

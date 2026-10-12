@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { ZONES, fogAt, darkAt, innWakeCell, tileAt, type ZoneId } from '../content/zones';
+import { LANDING_CHARS, ZONES, fogAt, darkAt, innWakeCell, tileAt, type ZoneId } from '../content/zones';
 import { RETURN_TOWNS, returnLanding } from '../content/fieldSpells';
 import { keyFlag, keyForZone } from '../content/keys';
-import { actOneJourney, advanceGoal, walkLeg, type Leg } from './journey';
+import { actOneJourney, actTwoJourney, advanceGoal, walkLeg, type Leg } from './journey';
+import { reach, touches } from './reach';
 import { nextObjective } from './wayfinding';
 
 const legs = actOneJourney();
@@ -78,5 +79,59 @@ describe('Act I as a journey (#75 item 14b, the Phase 2 exit check)', () => {
         }
       }
     });
+  });
+});
+
+describe('Act II as a journey (#75 item 14i, the Phase 3 exit check)', () => {
+  const act2 = actTwoJourney();
+
+  it('the 🚩 leads from Old Marlow to the Hall of Names, in order — then "Explore"', () => {
+    expect(act2.map((l) => `${l.goal.kind}:${l.target.zoneId}`)).toEqual([
+      'boat:starfall-coast',
+      'boat:verdara',
+      'boat:chromaria',
+      'boat:gearfall',
+      'boat:starfall-coast',
+      'sail:silver-shallows',
+      'visit:remembrance-hill',
+      'key:eldergrove',
+      'crystal:sunken-archive',
+      'visit:remembrance-hill',
+    ]);
+    const after = act2.reduce((f, l) => advanceGoal(l.goal, f), act2[0].flags);
+    expect(nextObjective(after).kind).toBe('explore');
+  });
+
+  it('every leg walks — or sails — from where the last one ended to whoever it is for', () => {
+    for (const leg of act2) {
+      for (const h of leg.hops) expect(h.path, `${leg.goal.title}: across ${h.zoneId} to ${h.to ?? 'the target'}`).not.toBeNull();
+      expect(leg.hops.at(-1)!.zoneId, leg.goal.title).toBe(leg.target.zoneId);
+    }
+  });
+
+  it('per travel mode (roadmap §4.7): Act I and Marlow\'s errands on foot; the boat only once it\'s mended', () => {
+    const sails = (leg: Leg) => leg.hops.some((h) => h.path!.some((st) => st.mode === 'boat'));
+    for (const leg of legs) expect(sails(leg), leg.goal.title).toBe(false);
+    for (const leg of act2.filter((l) => l.goal.kind === 'boat')) expect(sails(leg), leg.goal.title).toBe(false);
+    // The islands are only ever reached by boat; Remembrance Hill is on Dawnreach, so it walks without one.
+    for (const leg of act2.filter((l) => l.goal.kind === 'key' || l.goal.kind === 'crystal')) expect(sails(leg), leg.goal.title).toBe(true);
+    const hill = act2.find((l) => l.goal.title === 'Visit Remembrance Hill')!;
+    const onFoot = walkLeg(hill.goal, hill.flags, { zoneId: 'lumina-village', cell: ZONES['lumina-village'].spawn }, null);
+    expect(walkable(onFoot)).toBe(true);
+  });
+
+  it('never stranded on the Shallows: every place and landmark island is reached from the boat, and walks back to a beach', () => {
+    const z = ZONES['silver-shallows'];
+    const entry = z.map.findIndex((row) => row[0] === '~');
+    const sailed = reach(z, { from: { x: 0, y: entry }, aboard: true, modes: ['boat', 'foot'], flags: {} });
+    const beachSpots = [...sailed].map((k) => k.split(',').map(Number)).filter(([x, y]) => LANDING_CHARS.has(tileAt(z, x, y)));
+    for (const e of z.exits) {
+      expect(touches(sailed, e.x, e.y) || sailed.has(`${e.x},${e.y}`), `${e.to} reached`).toBe(true);
+      // Back out of the place, on foot: some beach the boat could have landed on is in walking reach.
+      const back = reach(z, { from: { x: e.x, y: e.y }, exits: 'stop', flags: {} });
+      expect(beachSpots.some(([x, y]) => back.has(`${x},${y}`)), `a beach from ${e.to}`).toBe(true);
+    }
+    for (const m of z.landmarks ?? []) expect(touches(sailed, m.x, m.y), `${m.name} reached`).toBe(true);
+    for (const c of [...(z.keyChests ?? [])]) expect(touches(sailed, c.x, c.y), `chest at ${c.x},${c.y}`).toBe(true);
   });
 });

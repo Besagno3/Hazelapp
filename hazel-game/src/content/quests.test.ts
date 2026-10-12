@@ -326,7 +326,10 @@ describe('item chains (#75 item 13)', () => {
       expect(c.z.topic, `${c.z.id} has a riddle topic`).toBeDefined();
       expect(QUEST_ITEMS[c.item], `${c.item} is a quest item`).toBeDefined();
       // Reachable with every fog lifted and every dark place lit.
-      expect(touches(reach(c.z, { flags: null }), c.x, c.y), `${c.z.id} chest reachable`).toBe(true);
+      // Out at sea (#75 item 14i: Sandpiper Cay), from the boat sailing in at the map's edge.
+      const sea = c.z.seaLinks ? c.z.map.findIndex((row) => row[0] === '~') : -1;
+      const opts = sea >= 0 ? { flags: null, from: { x: 0, y: sea }, aboard: true, modes: ['boat', 'foot'] as const } : { flags: null };
+      expect(touches(reach(c.z, opts), c.x, c.y), `${c.z.id} chest reachable`).toBe(true);
       const needed = QUESTS.some((q) => q.takesItems?.includes(c.item) || q.steps.some((st) => st.trade?.takes === c.item));
       expect(needed, `${c.item} is needed by a quest`).toBe(true);
     }
@@ -406,6 +409,31 @@ describe('item chains (#75 item 13)', () => {
     // Afterwards Moss speaks his own lines and Mabel hers.
     expect(questConversation('dawnreach-hermit', save)).toBeNull();
     expect(questConversation('mine-miner', save)).toBeNull();
+  });
+
+  it("Ness's Lens (#75 item 14i): Ness → the Cay's sea-glass chest → Shelby grinds it → Ness fits it", () => {
+    const quest = byId('ness-lens');
+    const chest = pathTargetId('silver-shallows', 'chest', 25, 32);
+    let save = converse('gull-lamplighter', defaultSave());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    expect(questConversation('gull-lamplighter', save)!.lines[0]).toMatch(/Sandpiper Cay/);
+    expect(questConversation('cay-hermit', save)).toBeNull();
+    save = openChest(save, chest);
+    expect(save.questItems).toEqual(['sea-glass']);
+    const grind = questConversation('cay-hermit', save)!;
+    expect(grind.finishKind).toBe('step');
+    save = grind.finish!(save);
+    expect(save.questItems).toEqual(['sea-glass-lens']);
+    expect(activeStep(quest, save)).toBeNull();
+    const coins = save.coins;
+    const hints = save.items.hint;
+    save = converse('gull-lamplighter', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual([]);
+    expect(save.coins).toBe(coins + 40);
+    expect(save.items.hint).toBe(hints + 1);
+    // The Cay's old riddle-chest is still an ordinary one.
+    expect(chestRewardText(pathTargetId('silver-shallows', 'chest', 26, 31))).toBe('25 coins! 🪙');
   });
 
   it('a Moonstone found before meeting Moss: he offers, then sends you to Mabel', () => {

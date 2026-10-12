@@ -1712,7 +1712,20 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Whitewashed like the old Lumina Field cottages (that style's free since the Field retired).
       { id: 'gull-lighthouse', name: 'Gull Rock Lighthouse', x: 9, y: 16, w: 5, h: 4, roof: 'red', style: 'cottage', sign: 'star' },
     ],
-    npcs: [{ defId: 'gull-lamplighter', x: 11, y: 17 }],
+    npcs: [
+      { defId: 'gull-lamplighter', x: 11, y: 17 },
+      // Sandpiper Cay's hermit crab (#75 item 14i).
+      { defId: 'cay-hermit', x: 27, y: 32 },
+    ],
+    // Ness's Lens (#75 item 14i): the sea glass, in a new chest on Sandpiper Cay.
+    keyChests: [
+      {
+        x: 25,
+        y: 32,
+        item: 'sea-glass',
+        wantedBy: "🏮 Lamplighter Ness, on Gull Rock, needs sea glass for her lighthouse's lens!",
+      },
+    ],
     // Sea critters (#75 item 14d): they swim open water and fight only a
     // sailing hero — well clear of any land and of the western edge you sail
     // in by, so landing, climbing in or arriving never starts a fight

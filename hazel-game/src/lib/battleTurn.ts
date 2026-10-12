@@ -57,7 +57,15 @@ export interface CombatState {
   freeHint: boolean;
   /** Second Wind (Talon): a knockout blow leaves 1 HP instead — once a fight. */
   secondWind: boolean;
+  /**
+   * Remembrance (the Hall of Names' spell, #75 item 14i): 'ready' once cast —
+   * the next knockout blow leaves 1 HP — then 'spent'; once a fight.
+   */
+  remembrance: RemembranceState;
 }
+
+/** Remembrance this fight: not cast (null), cast and waiting, or used up. */
+export type RemembranceState = 'ready' | 'spent' | null;
 
 // --- A hero type's opening perks ---------------------------------------------------
 
@@ -265,6 +273,8 @@ export interface EnemyTurnResult {
   mended: number;
   /** Second Wind (Talon) caught a knockout blow: the hero hangs on at 1 HP. */
   secondWind: boolean;
+  /** Remembrance caught a knockout blow (only when Second Wind didn't). */
+  remembered: boolean;
   /** The hero is out of HP. */
   heroDown: boolean;
   /** A Mirror Charm bounce or a Counter Strike defeated the enemy (checked before heroDown). */
@@ -318,6 +328,12 @@ export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTu
     playerHp = 1;
     next.secondWind = false;
   }
+  // Remembrance (#75 item 14i): the same catch, from a spell — Second Wind goes first.
+  const remembered = playerHp <= 0 && s.remembrance === 'ready';
+  if (remembered) {
+    playerHp = 1;
+    next.remembrance = 'spent';
+  }
 
   // Counter Strike: after a right defend answer, a standing hero strikes back.
   let countered = 0;
@@ -347,6 +363,7 @@ export function resolveEnemyTurn(s: CombatState, input: EnemyTurnInput): EnemyTu
     countered,
     counterShattered,
     secondWind: caught,
+    remembered,
     mended: enemyHp - afterBounce,
     heroDown: playerHp <= 0,
     enemyDown: enemyHp <= 0,
@@ -360,6 +377,8 @@ export type SpellResult =
   | { kind: 'fizzle'; state: CombatState }
   | { kind: 'heal'; state: CombatState; healed: number }
   | { kind: 'shield'; state: CombatState; healed: number }
+  /** Remembrance: the next knockout blow this fight leaves 1 HP. */
+  | { kind: 'remember'; state: CombatState }
   /**
    * Offensive spell: charge is spent; feed `multiplier` into spellDamage →
    * resolveHeroHit. `skipsTurn`: a landed hit costs the enemy its next turn
@@ -387,7 +406,18 @@ export function resolveSpell(s: CombatState, spell: Spell, wasCorrect: boolean):
       healed: playerHp - s.playerHp,
     };
   }
+  if (effect.kind === 'remember') {
+    return { kind: 'remember', state: { ...spent, remembrance: 'ready' } };
+  }
   return { kind: 'strike', state: spent, multiplier: effect.multiplier, skipsTurn: effect.skipsTurn === true };
+}
+
+/** Why a known spell can't be cast right now (null = castable, given the charge). */
+export function spellBlocked(s: CombatState, spell: Spell): string | null {
+  if (spell.effect.kind !== 'remember') return null;
+  if (s.remembrance === 'ready') return 'Already cast';
+  if (s.remembrance === 'spent') return 'Once a battle';
+  return null;
 }
 
 // --- Battle items ----------------------------------------------------------------

@@ -22,7 +22,8 @@ import { seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
-import { NPC_DEFS } from './npcs';
+import { NPC_DEFS, lineText, visibleLines } from './npcs';
+import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
 import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
@@ -45,7 +46,7 @@ import {
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
-import { ACT2_SEEN } from './story';
+import { ACT2_SEEN, HALL_CALLED } from './story';
 
 const allZones = Object.values(ZONES);
 
@@ -751,9 +752,18 @@ describe('Remembrance Hill (#75 item 14e)', () => {
     const mnem = NPC_DEFS['hill-keeper'];
     const first = mnem.lines[0];
     expect(typeof first !== 'string' && first.setFlag).toBe('met-mnem');
-    expect(mnem.lines).toContain('Four plaques shine again: Numbers, Nature, Gears and Wonder!');
-    expect(mnem.lines.at(-1)).toMatch(/blank/);
-    expect(mnem.lines.length).toBeLessThanOrEqual(4);
+    const said = (flags: Record<string, boolean>) => visibleLines(mnem.lines, flags).map(lineText);
+    const act2 = { 'met-mnem': true, [ACT2_SEEN]: true };
+    expect(said(act2)).toContain('Four plaques shine again: Numbers, Nature, Gears and Wonder!');
+    expect(said(act2).at(-1)).toMatch(/blank/);
+    expect(said(act2).length).toBeLessThanOrEqual(4);
+    // With Memory restored (#75 item 14i): five plaques, and he calls you in to dedicate the new one.
+    const memory = { ...act2, 'crystal-history-restored': true };
+    expect(said(memory)).toContain('Five plaques shine now: Numbers, Nature, Gears, Wonder and Memory!');
+    const call = visibleLines(mnem.lines, memory).at(-1);
+    expect(typeof call !== 'string' && call.setFlag).toBe(HALL_CALLED);
+    // Once dedicated, no call — the Hall holds you up.
+    expect(said({ ...memory, [HALL_DEDICATED]: true }).at(-1)).toMatch(/holds you up/);
   });
 });
 
@@ -1039,5 +1049,33 @@ describe('the Sunken Archive (#75 item 14h)', () => {
         }
       }
     }
+  });
+});
+
+describe('the world remembers (#75 item 14i)', () => {
+  const homeIds = [...new Set(ZONES['lumina-village'].npcs.map((p) => p.defId))];
+
+  it('every person in Lumina Village has a "now I remember" line, only in Act II, under 30 words', () => {
+    expect(homeIds.length).toBeGreaterThanOrEqual(14);
+    for (const id of homeIds) {
+      const lines = NPC_DEFS[id].lines;
+      const act2 = lines.filter((l) => typeof l !== 'string' && l.ifFlag === ACT2_SEEN);
+      expect(act2.length, id).toBeGreaterThan(0);
+      for (const l of act2) expect(lineText(l).split(/\s+/).length, id).toBeLessThanOrEqual(30);
+      // Before Act II nobody says them.
+      const before = visibleLines(lines, { 'ember-hatched': true, 'spire-cleared': true }).map(lineText);
+      for (const l of act2) expect(before, id).not.toContain(lineText(l));
+    }
+  });
+
+  it("Grandmother Wick and Elder Lumen begin Aster's breadcrumbs once you've met Keeper Mnem", () => {
+    const flags = { [ACT2_SEEN]: true, 'met-wick': true };
+    const wick = (f: Record<string, boolean>) => visibleLines(NPC_DEFS['village-elder'].lines, f).map(lineText).join(' ');
+    expect(wick(flags)).not.toMatch(/first Sage/);
+    expect(wick({ ...flags, 'met-mnem': true })).toMatch(/nobody remembers the first Sage/);
+    const lumen = (f: Record<string, boolean>) => visibleLines(NPC_DEFS['elder-lumen'].lines, { MET_ELDER: true, ...f }).map(lineText).join(' ');
+    expect(lumen({ ...flags, 'met-mnem': true })).toMatch(/first Sage/);
+    expect(lumen({ ...flags, 'met-mnem': true })).not.toMatch(/Aster/);
+    expect(lumen({ ...flags, 'met-mnem': true, 'crystal-history-restored': true })).toMatch(/Aster/);
   });
 });

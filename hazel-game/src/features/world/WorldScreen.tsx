@@ -68,7 +68,13 @@ import {
   MEMORIA_SEEN,
   POSY_STONE_PANELS,
   POSY_STONE_SEEN,
+  HALL_CALLED,
+  HALL_PANELS,
+  WISP_PANELS,
+  WISP_STIRRING,
 } from '../../content/story';
+import { HALL_DEDICATED } from '../../content/spells';
+import { companionsInParty } from '../../content/companion';
 import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
 import { POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatOnReturn, boatSpot } from '../../content/boat';
@@ -259,6 +265,15 @@ export default function WorldScreen() {
   const memoriaDue = flags[keyFlag('memoria')] === true && !flags[MEMORIA_SEEN];
   // Posy lays her flower at the Nameless Stone (#75 item 14g).
   const posyDue = flags[stepFlag(POSY_WALK)] === true && !flags[POSY_STONE_SEEN];
+  // The Hall of Names' dedication (#75 item 14i): once Keeper Mnem has called
+  // you in, as his talk closes.
+  const hallDue = flags[HALL_CALLED] === true && !flags[HALL_DEDICATED] && overlay === null;
+  // Wisp's "remembering me" beat: after Memory, the first time Wisp is with
+  // you — in your party, or in the Whispering Woods.
+  const wispDue =
+    flags[crystalFlag('history')] === true &&
+    !flags[WISP_STIRRING] &&
+    (zoneId === 'whispering-woods' || (save !== null && companionsInParty(save).includes('wisp')));
 
   const activeScene:
     | 'spireVictory'
@@ -275,6 +290,8 @@ export default function WorldScreen() {
     | 'fogbank'
     | 'memoria'
     | 'posy'
+    | 'hall'
+    | 'wisp'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -303,7 +320,11 @@ export default function WorldScreen() {
                             ? 'memoria'
                             : posyDue
                               ? 'posy'
-                              : null;
+                              : hallDue
+                                ? 'hall'
+                                : wispDue
+                                  ? 'wisp'
+                                  : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
@@ -780,6 +801,12 @@ export default function WorldScreen() {
       )}
       {activeScene === 'posy' && (
         <StoryPanels panels={POSY_STONE_PANELS} doneLabel="🌼 Go and say hi to Posy" onDone={() => setFlag(POSY_STONE_SEEN)} />
+      )}
+      {activeScene === 'hall' && (
+        <StoryPanels panels={HALL_PANELS} doneLabel="🏛️ Thank you, Mnem" onDone={() => setFlag(HALL_DEDICATED)} />
+      )}
+      {activeScene === 'wisp' && (
+        <StoryPanels panels={WISP_PANELS} doneLabel="🧚 I'll remember for you" onDone={() => setFlag(WISP_STIRRING)} />
       )}
       {activeScene === 'memoria' && (
         <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />

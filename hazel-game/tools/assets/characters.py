@@ -958,6 +958,13 @@ def crab(c: Canvas, p: Pose, s: dict):
         wig = (1 if (i + p.frame) % 2 else -1) * 0.8
         L.line(lx, 24, lx + (-3 if i < 2 else 3), 29 + wig, dark(col, 0.1), w=1.1)
     L.ellipse(16, 22, 9.5, 5.5, col)
+    if s.get('shell'):
+        # A hermit crab's borrowed shell (#75 item 14i): a big spiral on its back.
+        sh = hexc(s['shell'])
+        L.poly([(2, 22), (4, 9), (10, 4), (16, 8), (17, 20)], sh)
+        L.line(5, 18, 14, 9, dark(sh, 0.35), w=1.4)
+        L.line(4, 13, 11, 6, dark(sh, 0.35), w=1.2)
+        L.line(8, 21, 16, 13, dark(sh, 0.35), w=1.2)
     if s.get('stars'):
         L.dot(12, 20, '#ffe066', w=2, h=2)
         L.dot(19, 19, '#ffffff')
@@ -3591,6 +3598,8 @@ NPCS: list[Char] = [
     # Taller than the grove's scenery trees (boss-sized), so he reads as someone to talk to.
     Char('elder-ringwood', '🌳', 'tree_folk', H(bark='#7a5232', leaf='#5a8a3a'), boss=True),
     Char('elder-dawdle', '🐢', 'turtle', H(shell='#6a8a3a', skin='#a8c070')),
+    # Sandpiper Cay's hermit — a hermit crab (#75 item 14i).
+    Char('cay-hermit', '🐚', 'crab', H(color='#e8784a', shell='#e8d6b0')),
     # ── Act II: Foglight Marsh (#75 item 14g) ──
     Char('marsh-brume', '🏮', 'humanoid', H(hair='bun', hair_color='#6a6a7a', hat='hood', hat_color='#3a4a5a', outfit='#4a6a7a', trim='#ffd860', robe=True, item='lantern')),
     Char('marsh-puddle', '🐸', 'pond_frog', H(color='#8ad84a')),

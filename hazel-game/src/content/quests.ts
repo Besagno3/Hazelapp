@@ -57,6 +57,9 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'acorn-golden': { id: 'acorn-golden', name: 'Golden Acorn', emoji: '🌰' },
   // The Lantern Ledger (#75 item 14g): Brume's little book, in a key-item chest in Foglight Marsh.
   'lantern-ledger': { id: 'lantern-ledger', name: 'Lantern Ledger', emoji: '📒' },
+  // Ness's Lens (#75 item 14i): sea glass from Sandpiper Cay, ground by Shelby.
+  'sea-glass': { id: 'sea-glass', name: 'Sea Glass', emoji: '🧊' },
+  'sea-glass-lens': { id: 'sea-glass-lens', name: 'Sea-Glass Lens', emoji: '🔍' },
   // A Letter, Long Overdue (#75 item 14h): Index's find, and Wick's note back.
   'old-letter': { id: 'old-letter', name: 'Old Letter', emoji: '📜' },
   'wick-note': { id: 'wick-note', name: "Wick's Thank-You Note", emoji: '💌' },
@@ -992,6 +995,47 @@ export const QUESTS: QuestDef[] = [
       '✨ Reward: 50 coins and a Honey Elixir!',
     ],
     reward: { coins: 50, items: { elixir: 1 } },
+  },
+
+  // An island hermit chain (#75 item 14i, #106a): Ness on Gull Rock wants a
+  // new lens; the sea glass is in a key-item chest on Sandpiper Cay, and
+  // Shelby, the Cay's hermit crab, grinds it.
+  {
+    id: 'ness-lens',
+    zoneId: 'silver-shallows',
+    giverNpcId: 'gull-lamplighter',
+    side: true,
+    title: "Ness's Lens",
+    offer: [
+      "Oh! Before you sail off — my lamp's lens cracked in the fog. It shines, but only about as far as my nose.",
+      'Shelby, the hermit on Sandpiper Cay, grinds lenses from sea glass. And sea glass washes up in a chest on the Cay.',
+      'Find some, have Shelby grind it, and bring the lens to me?',
+    ],
+    steps: [
+      haveStep(
+        'lens-glass',
+        [{ items: ['sea-glass', 'sea-glass-lens'], label: 'the sea glass' }],
+        () => 'The sea glass is in a chest on Sandpiper Cay, the sandbar south-east of Gull Rock. The Cay has two chests — try both!',
+      ),
+      bringStep(
+        'lens-grind',
+        'cay-hermit',
+        { takes: 'sea-glass', gives: 'sea-glass-lens' },
+        [
+          'Sea glass! Smooth as a whisper. A lens? For Ness? Hmm, hmm.',
+          "*scritch, scritch, scritch*… There! Polished on my very own shell. Don't tell the shell.",
+          '✨ You got the Sea-Glass Lens! Sail it back to Ness on Gull Rock.',
+        ],
+        'You have the sea glass! Ask Shelby on Sandpiper Cay to grind it into a lens.',
+      ),
+    ],
+    takesItems: ['sea-glass-lens'],
+    complete: [
+      "Shelby's work! Hold the ladder… *click*.",
+      'Look at that beam! Ships will see Gull Rock from three islands away. Mostly they\'ll see me waving.',
+      '✨ Reward: 40 coins and a Hint Feather!',
+    ],
+    reward: { coins: 40, hint: 1 },
   },
 
   // --- Act II (#75 item 14) ---------------------------------------------------

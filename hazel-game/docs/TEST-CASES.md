@@ -1202,3 +1202,13 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 - 21 cases automated (30 `it` blocks); the rest are written but not yet
   implemented (⬜).
 - When a case is automated, change its status to ✅.
+| TC-999 | U | ✅ | spells (#129a) | Remembrance is known only after the Hall's dedication (after Aegis); a cast arms it, the next knockout leaves 1 HP and spends it; a third knockout is real; greyed "Already cast" / "Once a battle"; a miss fizzles; Talon's Second Wind catches first (battleTurn.test) |
+| TC-1000 | U | ✅ | dialogue (#129b) | Keeper Mnem: four plaques before Memory, five after, then "Let us dedicate it" (sets hall-called), and "the Hall holds you up" once dedicated (zones.test) |
+| TC-1001 | C | ✅ | story (#129b) | the dedication's 3 panels play once Mnem has called you in — not while his talk is open — and teach Remembrance (WorldScreen.ending.test) |
+| TC-1002 | C | ✅ | story (#129c) | Wisp's 2 panels: after Memory, in the Whispering Woods or with Wisp in the party; not elsewhere without her; once (WorldScreen.ending.test) |
+| TC-1003 | U | ✅ | dialogue (#129d) | every Lumina Village person has an act2-seen line, ≤ 30 words, never before Act II; Wick's and Lumen's first-Sage lines wait for met-mnem, Lumen's "Aster" for Memory (zones.test) |
+| TC-1004 | U | ✅ | wayfinding (#129b) | after Memory the 🚩 is "Dedicate the Hall of Names" on Remembrance Hill, then "Explore"; Lumen's plan names the Hall (wayfinding.test) |
+| TC-1005 | U | ✅ | quests (#129e) | Ness's Lens end to end: offer, the Cay's sea-glass chest, Shelby grinds it, Ness pays 40 coins + a Hint Feather; the Cay's old chest still pays coins only; the key chest is reached by boat (quests.test) |
+| TC-1006 | U | ✅ | journey (#129f) | Act II as a journey: Marlow's friends → the Shallows → the Hill → Eldergrove → the Archive → the Hall, every hop with a way, sailing where it crosses the sea (journey.test) |
+| TC-1007 | U | ✅ | journey (#129f) | per travel mode: Act I and Marlow's errands never use the boat; Eldergrove and the Archive always do; the Hill walks without one; every Shallows place, landmark and key chest is reached from the boat and walks back to a beach (journey.test) |
+| TC-1008 | M | ⬜ | world (#129) | play it: talk to every Lumina Village person in Act II; meet Mnem, then Wick; free Memory, talk to Mnem — the dedication — and cast Remembrance in a fight that would knock you out; Ness's Lens from Gull Rock to the Cay and back; Wisp's beat in the Woods |

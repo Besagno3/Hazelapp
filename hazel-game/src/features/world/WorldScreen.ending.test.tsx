@@ -56,6 +56,7 @@ const { SPIRE_FLOORS } = await import('../../content/spire');
 const { WAKE_MS } = await import('../../components/WakeFade');
 const story = await import('../../content/story');
 const { actCrystals, crystalFlag } = await import('../../content/topics');
+const spellsMod = await import('../../content/spells');
 
 /** Every story beat of Act I seen, and Umbra just beaten. */
 function umbraBeaten(): Record<string, boolean> {
@@ -182,5 +183,68 @@ describe('the Memoria Key (#75 item 14f)', () => {
     inEldergrove({});
     render(<WorldScreen />);
     expect(screen.queryByText(/The Memoria Key is cold and silver/)).toBeNull();
+  });
+});
+
+describe('the Hall of Names and Wisp (#75 item 14i)', () => {
+  const { HALL_DEDICATED, spellsKnown } = spellsMod;
+  const at = (zoneId: 'remembrance-hill' | 'lumina-village' | 'whispering-woods', extra: Record<string, boolean>) => {
+    const flags = {
+      ...umbraBeaten(),
+      [story.SPIRE_VICTORY_SEEN]: true,
+      [story.ACT2_SEEN]: true,
+      [crystalFlag('history')]: true,
+      [story.crystalSceneFlag('history')]: true,
+      ...extra,
+    };
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: { ...defaultSave(), avatarId: 'a3', zoneId, flags },
+      flush: vi.fn(async () => {}),
+    });
+  };
+  beforeEach(() => {
+    vi.useFakeTimers();
+    flow.setState({ overlay: null });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("plays the dedication once Mnem has called you in, and teaches Remembrance", () => {
+    at('remembrance-hill', { [story.WISP_STIRRING]: true });
+    const { unmount } = render(<WorldScreen />);
+    expect(screen.queryByText(/letters glow all by themselves/)).toBeNull();
+    unmount();
+    at('remembrance-hill', { [story.WISP_STIRRING]: true, [story.HALL_CALLED]: true });
+    render(<WorldScreen />);
+    expect(screen.getByText(/letters glow all by themselves/)).toBeInTheDocument();
+    readOn(story.HALL_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🏛️ Thank you, Mnem' }));
+    const save = useSaveStore.getState().save!;
+    expect(save.flags[HALL_DEDICATED]).toBe(true);
+    expect(spellsKnown(save).map((s) => s.name)).toContain('Remembrance');
+  });
+
+  it('waits for his talk to close', () => {
+    at('remembrance-hill', { [story.WISP_STIRRING]: true, [story.HALL_CALLED]: true });
+    flow.setState({ overlay: 'dialogue' });
+    render(<WorldScreen />);
+    expect(screen.queryByText(/letters glow all by themselves/)).toBeNull();
+  });
+
+  it("Wisp stirs in the Whispering Woods after Memory — not elsewhere unless Wisp's in the party", () => {
+    at('lumina-village', { [HALL_DEDICATED]: true });
+    const { unmount } = render(<WorldScreen />);
+    expect(screen.queryByText(/alphabetized/)).toBeNull();
+    unmount();
+    at('lumina-village', { [HALL_DEDICATED]: true, 'quest:grove-moonwell:done': true });
+    const second = render(<WorldScreen />);
+    expect(screen.getByText(/alphabetized/)).toBeInTheDocument();
+    second.unmount();
+    at('whispering-woods', { [HALL_DEDICATED]: true });
+    render(<WorldScreen />);
+    readOn(story.WISP_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: "🧚 I'll remember for you" }));
+    expect(useSaveStore.getState().save!.flags[story.WISP_STIRRING]).toBe(true);
   });
 });
