@@ -8,6 +8,7 @@ import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, s
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, HALL_CALLED, WISP_STIRRING } from './story';
+import { MET_NESS } from './questFlags';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -170,15 +171,18 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'You climbed the Spire and faced Umbra itself. Lumina will tell your story for a thousand years, brave one.',
         ifFlag: 'spire-cleared',
+        unlessFlag: ACT2_SEEN,
       },
       // Act II (#75 item 14i): Lumina remembers — and the first Aster breadcrumbs.
       {
         text: "Since the Spire fell, I remember things I forgot I'd forgotten. My first day in this Library. A cat called Pudding.",
         ifFlag: ACT2_SEEN,
+        unlessFlag: 'met-mnem',
       },
       {
         text: "Keeper Mnem has blank plaques? I've read every book here, and not one names the very first Sage. Odd. VERY odd.",
         ifFlag: 'met-mnem',
+        unlessFlag: crystalFlag('history'),
       },
       {
         text: 'The Crystal of Memory whispered a name, you say? "Aster." I don\'t know it… yet my heart skipped, as if it should.',
@@ -229,7 +233,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         unlessFlag: litFlag('echo-mine'),
       },
       {
-        text: 'Since the fog lifted, my guests remember their dreams at breakfast. One dreamed of a boat — and then Old Marlow went and mended his!',
+        text: "Since the fog lifted, my guests remember their dreams at breakfast. One dreamed of a boat! Have you seen Old Marlow? He's acting very sailor-ish.",
         ifFlag: ACT2_SEEN,
       },
     ],
@@ -401,6 +405,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'When the Spire calls you, child, do not be afraid. A keeper waits there who has watched over the crystals since before the fog. Go when you are ready.',
         ifFlag: 'crystal-math-restored',
+        unlessFlag: 'spire-cleared',
       },
       {
         text: 'My memories come back like birds to a feeder. This morning: the smell of chalk, and a kind voice asking, "Why do YOU think so?"',
@@ -408,7 +413,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       // The first Aster breadcrumb (STORY-4X Act II), once you've met Keeper Mnem.
       {
-        text: 'The first Sage? Oh, spark… nobody remembers the first Sage. Not even me. *Especially* me.',
+        text: 'Keeper Mnem told you about the first Sage? Oh, spark… nobody remembers the first Sage. Not even me. Especially me.',
         ifFlag: 'met-mnem',
       },
     ],
@@ -502,7 +507,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         unlessFlag: WISP_STIRRING,
       },
       {
-        text: "I feel… alphabetized. Something is remembering ME. Keep going, little spark — I think it's you.",
+        text: "Since the Crystal of Memory, I dream in words. Mostly one word. I can't quite hear it yet. Keep going, little spark!",
         ifFlag: WISP_STIRRING,
       },
     ],
@@ -582,7 +587,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       "Puffers, inklings, starfish… sea critters splash about out there now. They only bother boats, and you can always steer round them. On the sand you're as safe as a shell!",
       "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
       // Foglight Marsh (#75 item 14g): the rumor rule — name a place and what's there.
-      "Up on the north coast is Foglight Marsh, where the last of the fog pooled. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!",
+      // Her intro and rumors come first; her lens quest waits for the next talk (#75 item 14i review).
+      {
+        text: "Up on the north coast is Foglight Marsh, where the last of the fog pooled. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!",
+        setFlag: MET_NESS,
+      },
       {
         text: "My new lens! Last night I saw a whale wave at me. I waved back. We're friends now.",
         ifFlag: questDoneFlag({ id: 'ness-lens' }),
@@ -601,6 +610,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "I'm Shelby. A hermit. A hermit CRAB. That's twice as hermit-y as anybody.",
       'This shell? Borrowed. Everything a hermit crab owns is borrowed. Except my opinions.',
+      {
+        text: 'Sea glass for Ness? Try the chests right beside me! Bring it here, and I\'ll grind it.',
+        ifFlag: questOfferedFlag({ id: 'ness-lens' }),
+        unlessFlag: handedOverFlag('sea-glass'),
+      },
       {
         text: "Ness's lamp is so bright now, I can read at night. I don't have any books. I read the sand.",
         ifFlag: questDoneFlag({ id: 'ness-lens' }),
@@ -1355,15 +1369,17 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Faces, though… Have we met? You have a very brave sort of face.',
       // One plaque per crystal remembered (STORY-4X: the Hall of Names) — read
       // in one breath. The Hill only opens once all of Act I's are restored.
+      // Memory's plaque lights itself at the dedication (#75 item 14i), so it's four until then.
       {
         text: `${numberWord(actCrystals(1).length)} plaques shine again: ${listOf(actCrystals(1).map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
-        unlessFlag: crystalFlag('history'),
+        unlessFlag: HALL_DEDICATED,
       },
       {
         text: `${numberWord(actCrystals(1).length + actCrystals(2).length)} plaques shine now: ${listOf([...actCrystals(1), ...actCrystals(2)].map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
-        ifFlag: crystalFlag('history'),
+        ifFlag: HALL_DEDICATED,
       },
-      'And these plaques are blank. Names nobody remembers… yet.',
+      // Plants the first Sage, for Wick's and Lumen's breadcrumbs.
+      'And these plaques are blank — even the very first Sage\'s. Names nobody remembers… yet.',
       // The dedication (#75 item 14i): Memory's plaque lights itself, and Mnem
       // calls you in — the panels play as his talk closes (WorldScreen).
       {

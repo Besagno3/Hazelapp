@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { LANDING_CHARS, ZONES, fogAt, darkAt, innWakeCell, tileAt, type ZoneId } from '../content/zones';
 import { RETURN_TOWNS, returnLanding } from '../content/fieldSpells';
 import { keyFlag, keyForZone } from '../content/keys';
-import { actOneJourney, actTwoJourney, advanceGoal, walkLeg, type Leg } from './journey';
+import { actOneJourney, actTwoJourney, advanceGoal, walkLeg, type BoatState, type Leg } from './journey';
+import { BOAT_HOME, BOAT_MENDED } from '../content/boat';
 import { reach, touches } from './reach';
 import { nextObjective } from './wayfinding';
 
@@ -111,8 +112,15 @@ describe('Act II as a journey (#75 item 14i, the Phase 3 exit check)', () => {
 
   it('per travel mode (roadmap §4.7): Act I and Marlow\'s errands on foot; the boat only once it\'s mended', () => {
     const sails = (leg: Leg) => leg.hops.some((h) => h.path!.some((st) => st.mode === 'boat'));
-    for (const leg of legs) expect(sails(leg), leg.goal.title).toBe(false);
-    for (const leg of act2.filter((l) => l.goal.kind === 'boat')) expect(sails(leg), leg.goal.title).toBe(false);
+    // Even with the boat mended and moored at Marlow's dock, Act I and Marlow's errands are walked:
+    // every place they need is on Dawnreach, on foot (code review: a check without the boat couldn't fail).
+    const docked: BoatState = { aboard: false, zoneId: BOAT_HOME.zoneId, cell: { x: BOAT_HOME.x, y: BOAT_HOME.y } };
+    for (const leg of [...legs, ...act2.filter((l) => l.goal.kind === 'boat')]) {
+      const start = leg.hops[0];
+      const withBoat = walkLeg(leg.goal, { ...leg.flags, [BOAT_MENDED]: true }, { zoneId: start.zoneId, cell: start.from }, docked);
+      expect(walkable(withBoat), leg.goal.title).toBe(true);
+      expect(sails(withBoat), leg.goal.title).toBe(false);
+    }
     // The islands are only ever reached by boat; Remembrance Hill is on Dawnreach, so it walks without one.
     for (const leg of act2.filter((l) => l.goal.kind === 'key' || l.goal.kind === 'crystal')) expect(sails(leg), leg.goal.title).toBe(true);
     const hill = act2.find((l) => l.goal.title === 'Visit Remembrance Hill')!;

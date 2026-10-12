@@ -269,11 +269,14 @@ export default function WorldScreen() {
   // you in, as his talk closes.
   const hallDue = flags[HALL_CALLED] === true && !flags[HALL_DEDICATED] && overlay === null;
   // Wisp's "remembering me" beat: after Memory, the first time Wisp is with
-  // you — in your party, or in the Whispering Woods.
+  // you — in the Whispering Woods, or fighting beside you (the active
+  // companion, not only in the party: #75 item 14i review) — and never right
+  // on top of the Memory crystal's own panels in the Archive.
   const wispDue =
     flags[crystalFlag('history')] === true &&
     !flags[WISP_STIRRING] &&
-    (zoneId === 'whispering-woods' || (save !== null && companionsInParty(save).includes('wisp')));
+    zoneId !== 'sunken-archive' &&
+    (zoneId === 'whispering-woods' || (save !== null && save.companionId === 'wisp' && companionsInParty(save).includes('wisp')));
 
   const activeScene:
     | 'spireVictory'

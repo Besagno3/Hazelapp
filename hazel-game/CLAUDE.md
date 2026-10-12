@@ -688,6 +688,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — 14i review round 1: Ness says hello first, four plaques until the dedication (#75 item 14i)
+Fresh `/saas-code-review` (1 medium, 1 low) and UX read (1 high, 4 medium,
+5 low). All fixed: Ness's new quest hid her hello, safety lines and Marsh
+rumor until done — her lines come first (`MET_NESS`), the offer on the next
+talk (`offerHaving` if the glass is already found; Shelby points at the
+chests); Mnem reads four plaques until the dedication and plants "the very
+first Sage"; Poppy, Wick, Lumen and Wisp lines that came too early, ran long
+or repeated; Wisp's beat waits for the Woods or Wisp as the active
+companion; Remembrance's plainer copy and a 🏛️ over the hero while it
+waits; the 🚩 "See the new plaque" and its tip; the travel-mode test walks
+with the boat docked. `bench … journey` 13/13. 1112 green, lint clean.
+
 ### 2026-10-12 — The world remembers: Act II's reactive pass and the Phase 3 exit (#75 item 14i)
 Roadmap sub-item 14i.
 - **Lumina remembers:** every Lumina Village person (14) has an `act2-seen`

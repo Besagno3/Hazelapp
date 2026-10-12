@@ -686,7 +686,7 @@ export default function BattleArena() {
     if (r.kind === 'remember') {
       sfx('spell');
       float('🏛️', 'hero', spell.color);
-      say(`${spell.emoji} ${spell.name}! Every name in the Hall stands with you — the next knockout blow will leave you 1 HP.`, enemyTurn);
+      say(`${spell.emoji} ${spell.name}! Every name in the Hall stands with you. If a hit would make you fall, you'll stay up with 1 HP!`, enemyTurn);
       return;
     }
     if (r.kind === 'shield') {
@@ -1151,6 +1151,7 @@ export default function BattleArena() {
         ember={ember}
         isBoss={enemy.isBoss}
         guarded={guarded}
+        remembered={remembrance === 'ready'}
         charging={charging}
         won={turn.kind === 'victory'}
         afloat={enemy.habitat === 'sea'}

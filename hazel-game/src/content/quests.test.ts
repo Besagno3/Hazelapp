@@ -23,7 +23,7 @@ import {
   escortsBackLines,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts, MET_NESS } from './questFlags';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -414,7 +414,11 @@ describe('item chains (#75 item 13)', () => {
   it("Ness's Lens (#75 item 14i): Ness → the Cay's sea-glass chest → Shelby grinds it → Ness fits it", () => {
     const quest = byId('ness-lens');
     const chest = pathTargetId('silver-shallows', 'chest', 25, 32);
-    let save = converse('gull-lamplighter', defaultSave());
+    // Her hello and rumors first; the lens on the next talk (#75 item 14i review).
+    expect(questConversation('gull-lamplighter', defaultSave())).toBeNull();
+    let save: SaveData = { ...defaultSave(), flags: { [MET_NESS]: true } };
+    expect(questConversation('cay-hermit', converse('gull-lamplighter', save))).toBeNull();
+    save = converse('gull-lamplighter', save);
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
     expect(questConversation('gull-lamplighter', save)!.lines[0]).toMatch(/Sandpiper Cay/);
     expect(questConversation('cay-hermit', save)).toBeNull();

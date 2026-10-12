@@ -416,7 +416,7 @@ export function resolveSpell(s: CombatState, spell: Spell, wasCorrect: boolean):
 export function spellBlocked(s: CombatState, spell: Spell): string | null {
   if (spell.effect.kind !== 'remember') return null;
   if (s.remembrance === 'ready') return 'Already cast';
-  if (s.remembrance === 'spent') return 'Once a battle';
+  if (s.remembrance === 'spent') return 'Used up this battle';
   return null;
 }
 

@@ -127,7 +127,7 @@ describe('nextObjective', () => {
       // #75 item 14h: then Act II's crystal, behind the key's silver door.
       ['Free the Crystal of Memory', 'sunken-archive'],
       // #75 item 14i: then the Hall of Names' dedication, back on the Hill.
-      ['Dedicate the Hall of Names', 'remembrance-hill'],
+      ['See the new plaque', 'remembrance-hill'],
     ]);
     // The voyage starts at Marlow's dock: its 🚩 sits there, and the way says so.
     const sail = nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true });

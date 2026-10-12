@@ -394,7 +394,7 @@ export const ARCHIVE_PANELS: StoryPanel[] = [
 export const HALL_PANELS: StoryPanel[] = [
   {
     emoji: '🏛️',
-    text: 'Keeper Mnem leads you into the Hall of Names. On a new plaque, letters glow all by themselves: MEMORY. Chisel drops his hammer. "I didn\'t carve that!"',
+    text: 'Keeper Mnem waves you over to a new plaque. Letters glow on it all by themselves: MEMORY. Chisel drops his hammer. "I didn\'t carve that!"',
   },
   {
     emoji: '🗿',
@@ -410,7 +410,7 @@ export const HALL_PANELS: StoryPanel[] = [
 export const WISP_PANELS: StoryPanel[] = [
   {
     emoji: '🧚',
-    text: 'Wisp flickers bright, then dim, then bright again. "I feel… alphabetized," it whispers. "Something is remembering ME."',
+    text: 'Wisp flickers bright, then dim, then bright again. "I feel all sorted out, like books on a shelf," it whispers. "Something is remembering ME."',
   },
   {
     emoji: '🌼',

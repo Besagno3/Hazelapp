@@ -578,7 +578,7 @@ describe('Remembrance, the Hall of Names spell (#75 item 14i)', () => {
     const caught = resolveEnemyTurn({ ...cast.state, playerHp: 5 }, blow);
     expect(caught).toMatchObject({ remembered: true, secondWind: false, heroDown: false });
     expect(caught.state).toMatchObject({ playerHp: 1, remembrance: 'spent' });
-    expect(spellBlocked(caught.state, REMEMBRANCE)).toBe('Once a battle');
+    expect(spellBlocked(caught.state, REMEMBRANCE)).toBe('Used up this battle');
     expect(resolveEnemyTurn(caught.state, blow).heroDown).toBe(true);
   });
 

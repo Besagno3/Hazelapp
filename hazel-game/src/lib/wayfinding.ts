@@ -199,7 +199,7 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
   if (!flags[HALL_DEDICATED]) {
     return {
       kind: 'visit',
-      title: 'Dedicate the Hall of Names',
+      title: 'See the new plaque',
       why: "A new plaque is humming in the Hall of Names on Remembrance Hill. Keeper Mnem can't wait to show you!",
       zoneId: 'remembrance-hill',
       doneFlag: HALL_DEDICATED,
@@ -535,6 +535,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "In the Archive, Quill Imps are so quick they strike first. Sage Chronicle's ⏳ Time Ripple makes an enemy lose its next turn!";
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
+  } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
+    tip = 'Keeper Mnem stands inside the Hall of Names, the big white building on Remembrance Hill. Talk to him!';
   } else if (goal.kind === 'visit') {
     tip = "Every town has an inn. Rest at a new one, and if a battle goes badly, that's where you'll wake up.";
   } else if (goal.kind === 'explore') {

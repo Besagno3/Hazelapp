@@ -4,7 +4,7 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag, MET_NESS } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -1005,12 +1005,21 @@ export const QUESTS: QuestDef[] = [
     zoneId: 'silver-shallows',
     giverNpcId: 'gull-lamplighter',
     side: true,
+    // Her hello and rumors first (the sea critters, the Fogbank): the lens on the next talk.
+    requires: MET_NESS,
     title: "Ness's Lens",
     offer: [
       "Oh! Before you sail off — my lamp's lens cracked in the fog. It shines, but only about as far as my nose.",
       'Shelby, the hermit on Sandpiper Cay, grinds lenses from sea glass. And sea glass washes up in a chest on the Cay.',
       'Find some, have Shelby grind it, and bring the lens to me?',
     ],
+    offerHaving: {
+      items: ['sea-glass', 'sea-glass-lens'],
+      lines: [
+        "Oh! Before you sail off — my lamp's lens cracked in the fog. It shines, but only about as far as my nose.",
+        "Is that sea glass? From the Cay? Perfect! Shelby, the hermit crab there, grinds lenses. Bring me one?",
+      ],
+    },
     steps: [
       haveStep(
         'lens-glass',

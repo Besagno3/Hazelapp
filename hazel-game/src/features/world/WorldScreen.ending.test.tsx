@@ -213,11 +213,11 @@ describe('the Hall of Names and Wisp (#75 item 14i)', () => {
   it("plays the dedication once Mnem has called you in, and teaches Remembrance", () => {
     at('remembrance-hill', { [story.WISP_STIRRING]: true });
     const { unmount } = render(<WorldScreen />);
-    expect(screen.queryByText(/letters glow all by themselves/)).toBeNull();
+    expect(screen.queryByText(/Letters glow on it all by themselves/)).toBeNull();
     unmount();
     at('remembrance-hill', { [story.WISP_STIRRING]: true, [story.HALL_CALLED]: true });
     render(<WorldScreen />);
-    expect(screen.getByText(/letters glow all by themselves/)).toBeInTheDocument();
+    expect(screen.getByText(/Letters glow on it all by themselves/)).toBeInTheDocument();
     readOn(story.HALL_PANELS.length - 1);
     fireEvent.click(screen.getByRole('button', { name: '🏛️ Thank you, Mnem' }));
     const save = useSaveStore.getState().save!;
@@ -229,17 +229,23 @@ describe('the Hall of Names and Wisp (#75 item 14i)', () => {
     at('remembrance-hill', { [story.WISP_STIRRING]: true, [story.HALL_CALLED]: true });
     flow.setState({ overlay: 'dialogue' });
     render(<WorldScreen />);
-    expect(screen.queryByText(/letters glow all by themselves/)).toBeNull();
+    expect(screen.queryByText(/Letters glow on it all by themselves/)).toBeNull();
   });
 
   it("Wisp stirs in the Whispering Woods after Memory — not elsewhere unless Wisp's in the party", () => {
     at('lumina-village', { [HALL_DEDICATED]: true });
     const { unmount } = render(<WorldScreen />);
-    expect(screen.queryByText(/alphabetized/)).toBeNull();
+    expect(screen.queryByText(/Something is remembering ME/)).toBeNull();
     unmount();
+    // In the party but not fighting beside you: still not here.
     at('lumina-village', { [HALL_DEDICATED]: true, 'quest:grove-moonwell:done': true });
+    const benched = render(<WorldScreen />);
+    expect(screen.queryByText(/Something is remembering ME/)).toBeNull();
+    benched.unmount();
+    at('lumina-village', { [HALL_DEDICATED]: true, 'quest:grove-moonwell:done': true });
+    useSaveStore.setState((st) => ({ save: { ...st.save!, companionId: 'wisp' } }));
     const second = render(<WorldScreen />);
-    expect(screen.getByText(/alphabetized/)).toBeInTheDocument();
+    expect(screen.getByText(/Something is remembering ME/)).toBeInTheDocument();
     second.unmount();
     at('whispering-woods', { [HALL_DEDICATED]: true });
     render(<WorldScreen />);
