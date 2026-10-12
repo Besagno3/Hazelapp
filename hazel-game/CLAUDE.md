@@ -702,6 +702,12 @@ stair under them), and Hazel says Ember's Breath comes when all four crystals
 are home. **S6 (part):** the menu's cloud-save warnings drop the raw error
 (now a `title`) and "apply the latest database migrations". **B7 (part):**
 `index.html` has the title "Hazel Quest", a description and a theme colour.
+**Review fix:** the results screen used up the next round's warm-up — the
+new level re-keyed the hook, whose fetch took the batch `finishRound` had just
+prefetched (consume-once, `lib/questions.ts`) and threw it away, after the
+server had marked it seen. `FinishedRound` now keeps the round's `level`, and
+`QuizRound` passes `finished?.level` as the hook's `levelOverride`, so a
+finished round asks for nothing new.
 
 ### 2026-10-11 — Merge main (Vercel #126, Foglight Marsh #125, parent accounts #124) into the press-to-use branch (#127)
 `main` took ISSUES **#124–#126** and TC-867–940 while press-to-use was in

@@ -19,6 +19,8 @@ interface FinishedRound {
   questions: Question[];
   answers: boolean[];
   picks: number[];
+  /** The question level the round was played at. */
+  level: number;
 }
 
 export default function QuizRound() {
@@ -29,9 +31,17 @@ export default function QuizRound() {
   const addXp = useProfileStore((s) => s.addXp);
   const recordActivity = useProfileStore((s) => s.recordActivity);
   const powerUps = useProfileStore((s) => s.profile?.powerUps) ?? {};
+  /** Held once the round ends (Act I review B3): saving the new skill level
+   *  re-keys `useGeneratedQuestions`, which fetches the next batch under the
+   *  results screen. The recap must keep showing this round's questions. */
+  const [finished, setFinished] = useState<FinishedRound | null>(null);
   const { questions, loading, error, age, skillLevel, reload } = useGeneratedQuestions(
     topic,
     QUIZ_QUESTION_COUNT,
+    // Once the round is over, keep asking at the level it was played at: the
+    // new level would re-key the hook, which would fetch (and so use up) the
+    // batch finishRound just prefetched for the next round.
+    finished?.level,
   );
 
   const [current, setCurrent] = useState(0);
@@ -39,10 +49,6 @@ export default function QuizRound() {
   const [answers, setAnswers] = useState<boolean[]>([]);
   /** The option index the player picked, per question — for the missed-questions recap (#25). */
   const [picks, setPicks] = useState<number[]>([]);
-  /** Held once the round ends (Act I review B3): saving the new skill level
-   *  re-keys `useGeneratedQuestions`, which fetches the next batch under the
-   *  results screen. The recap must keep showing this round's questions. */
-  const [finished, setFinished] = useState<FinishedRound | null>(null);
 
   if (finished) return <RoundResults round={finished} worldUnlocked={worldUnlocked} />;
   if (loading) return <LoadingScreen label="Building your questions…" topic={topic} />;
@@ -71,7 +77,7 @@ export default function QuizRound() {
     if (finalPassed) {
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     }
-    setFinished({ questions, answers, picks });
+    setFinished({ questions, answers, picks, level: skillLevel });
     // Misses feed the Library in town (#37) on top of the on-screen recap.
     const misses = questions
       .map((question, i) => ({ question, picked: picks[i] }))

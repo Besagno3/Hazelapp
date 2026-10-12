@@ -15,8 +15,13 @@ const questions: Question[] = Array.from({ length: 5 }, (_, i) => ({
 }));
 // What the hook hands back; a test may swap it, as a re-keyed fetch would.
 const hook = { questions, loading: false };
+/** The level override the hook was last called with. */
+let lastLevelOverride: number | undefined;
 vi.mock('../../hooks/useGeneratedQuestions', () => ({
-  useGeneratedQuestions: () => ({ ...hook, error: null, age: 9, skillLevel: 3, reload: () => {} }),
+  useGeneratedQuestions: (_topic: string, _count: number, levelOverride?: number) => {
+    lastLevelOverride = levelOverride;
+    return { ...hook, error: null, age: 9, skillLevel: 3, reload: () => {} };
+  },
 }));
 vi.mock('../../lib/questions', async (orig) => ({
   ...(await orig<typeof import('../../lib/questions')>()),
@@ -55,6 +60,7 @@ beforeEach(() => {
   addXp.mockReset();
   hook.questions = questions;
   hook.loading = false;
+  lastLevelOverride = undefined;
 });
 
 describe('QuizRound — XP only once the world is open (#122)', () => {
@@ -108,5 +114,21 @@ describe('QuizRound — the recap keeps the round it was played with (Act I revi
     expect(screen.getByText('Right 0')).toBeInTheDocument();
     expect(screen.queryByText('Next 0?')).toBeNull();
     expect(screen.queryByText(/Building your questions/)).toBeNull();
+  });
+});
+
+describe('QuizRound — the results keep the next round\'s warm-up (#128 review)', () => {
+  it('plays at the profile\'s level, then pins the round\'s level once it ends', async () => {
+    start(3, true);
+    render(<QuizRound />);
+    expect(lastLevelOverride).toBeUndefined();
+    for (let i = 0; i < questions.length; i++) {
+      fireEvent.click(await screen.findByText(`Right ${i}`));
+      fireEvent.click(screen.getByText(i === questions.length - 1 ? 'See Results' : 'Next Question'));
+    }
+    await screen.findByText('Round Passed!');
+    // The round was played at level 3: the hook keeps asking for 3, so the new
+    // level can't re-key it and use up the batch prefetched for the next round.
+    expect(lastLevelOverride).toBe(3);
   });
 });
