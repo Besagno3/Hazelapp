@@ -87,6 +87,21 @@ export const POSY_STONE_SEEN = 'posy-stone-seen';
 /** Set once the Sunken Archive's discovery panels have played, on the first visit (#75 item 14h). */
 export const ARCHIVE_SEEN = 'archive-seen';
 
+/**
+ * The Hall of Names' dedication (#75 item 14i, STORY-4X's 3 panels): Keeper
+ * Mnem calls the hero in once Memory is restored (`HALL_CALLED`, set by his
+ * line), and the panels end by teaching Remembrance (`HALL_DEDICATED`, in
+ * spells.ts — what the Spellbook reads).
+ */
+export const HALL_CALLED = 'hall-called';
+
+/**
+ * Wisp's "remembering me" beat (#75 item 14i, 2 panels): after the Crystal of
+ * Memory, the first time Wisp is with you — fighting beside you, or in the
+ * Whispering Woods.
+ */
+export const WISP_STIRRING = 'wisp-stirring';
+
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
   return `crystal-${topic}-scene-seen`;
@@ -372,6 +387,34 @@ export const ARCHIVE_PANELS: StoryPanel[] = [
   {
     emoji: '🐭',
     text: 'Then a little mouse in spectacles peeks out of the Card Catalog, up the red carpet on the left. "Oh! A READER! I\'m Index!"',
+  },
+];
+
+/** The Hall of Names' dedication (#75 item 14i): the fifth plaque, and Remembrance. */
+export const HALL_PANELS: StoryPanel[] = [
+  {
+    emoji: '🏛️',
+    text: 'Keeper Mnem waves you over to a new plaque. Letters glow on it all by themselves: MEMORY. Chisel drops his hammer. "I didn\'t carve that!"',
+  },
+  {
+    emoji: '🗿',
+    text: 'Mnem reads every plaque aloud. When he reaches the blank ones, they glimmer — as if a name is trying very hard to come back.',
+  },
+  {
+    emoji: '✨',
+    text: '"The Hall remembers YOU now," says Mnem. "Cast Remembrance in a battle, and when you\'re about to fall, it will hold you up." Find it in your 📖 Spells!',
+  },
+];
+
+/** Wisp's "remembering me" beat (#75 item 14i). */
+export const WISP_PANELS: StoryPanel[] = [
+  {
+    emoji: '🧚',
+    text: 'Wisp flickers bright, then dim, then bright again. "I feel all sorted out, like books on a shelf," it whispers. "Something is remembering ME."',
+  },
+  {
+    emoji: '🌼',
+    text: '"There was a name once. A teacher\'s? A flower\'s? It\'s on the tip of my tongue… do I have a tongue?" Wisp shivers. "Keep remembering for me, okay?"',
   },
 ];
 

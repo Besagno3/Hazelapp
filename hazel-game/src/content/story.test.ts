@@ -25,7 +25,7 @@ import {
   POSY_STONE_PANELS,
 } from './story';
 import { TOPICS } from './topics';
-import { NPC_DEFS, type DialogueLine } from './npcs';
+import { NPC_DEFS, lineText, visibleLines, type DialogueLine } from './npcs';
 import { fogSeenFlag } from './zones';
 
 describe('emberStage', () => {
@@ -123,10 +123,7 @@ describe('cutscene panels', () => {
 
 describe('the script matches the fog over the Spire (#75 item 7)', () => {
   const shown = (lines: DialogueLine[], flags: Record<string, boolean>) =>
-    lines
-      .filter((l) => typeof l === 'string' || ((!l.ifFlag || flags[l.ifFlag]) && (!l.unlessFlag || !flags[l.unlessFlag])))
-      .map((l) => (typeof l === 'string' ? l : l.text))
-      .join(' ');
+    visibleLines(lines, flags).map(lineText).join(' ');
 
   it('leaving home (always before any crystal) says the Spire is hidden in fog, not that it shows the way', () => {
     const text = DAWNREACH_PANELS.map((p) => p.text).join(' ');

@@ -1,4 +1,5 @@
 import { HUB_ZONE, MET_ELDER, ZONES, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { HALL_DEDICATED } from '../content/spells';
 import { reach } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
@@ -83,6 +84,11 @@ export interface Objective {
    * and the way goes there as usual.
    */
   at?: { zoneId: ZoneId; x: number; y: number; name: string };
+  /**
+   * The story flag that meets a `visit` goal, when going there isn't enough —
+   * the Hall of Names' dedication (#75 item 14i). Default: having been there.
+   */
+  doneFlag?: string;
 }
 
 /**
@@ -187,6 +193,16 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
       crystal,
       key,
       at: MARLOWS_DOCK,
+    };
+  }
+  // The Hall of Names' dedication (#75 item 14i): Memory's plaque lights itself.
+  if (!flags[HALL_DEDICATED]) {
+    return {
+      kind: 'visit',
+      title: 'See the new plaque',
+      why: 'Something new is happening in the Hall of Names on Remembrance Hill!',
+      zoneId: 'remembrance-hill',
+      doneFlag: HALL_DEDICATED,
     };
   }
   return null;
@@ -494,6 +510,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = 'The Spire is cleared, and Lumina is remembering! Old Marlow on Starfall Coast remembers he was a sailor. Help him mend his boat, and the Silver Shallows — islands the world forgot — will be yours to explore.';
   } else if (goal.kind === 'sail') {
     plan = "Marlow's boat is mended! Out past his dock lie the Silver Shallows, islands nobody has seen since the fog. Go and see them — and tell me everything!";
+  } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
+    plan = 'Five crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!';
   } else if (goal.kind === 'visit') {
     plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
@@ -517,6 +535,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "In the Archive, Quill Imps are so quick they strike first. Sage Chronicle's ⏳ Time Ripple makes an enemy lose its next turn!";
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
+  } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
+    tip = 'Keeper Mnem stands inside the Hall of Names — the biggest building on Remembrance Hill, with the purple roof. Talk to him!';
   } else if (goal.kind === 'visit') {
     tip = "Every town has an inn. Rest at a new one, and if a battle goes badly, that's where you'll wake up.";
   } else if (goal.kind === 'explore') {

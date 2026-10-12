@@ -21,7 +21,9 @@ export type SpellEffect =
   // Restores `amount` HP (no enemy turn lost — the enemy still strikes after).
   | { kind: 'heal'; amount: number }
   // Fully blocks the enemy's next hit and restores `heal` HP.
-  | { kind: 'shield'; heal: number };
+  | { kind: 'shield'; heal: number }
+  // The next knockout blow this fight leaves 1 HP — once a battle (Remembrance).
+  | { kind: 'remember' };
 
 export interface Spell {
   id: string;
@@ -76,6 +78,24 @@ export const EMBER_BREATH: Spell = {
   color: 'text-orange-300',
 };
 
+/** The flag the Hall of Names' dedication sets — and teaches Remembrance (#75 item 14i). */
+export const HALL_DEDICATED = 'hall-dedicated';
+
+/**
+ * Remembrance (#75 item 14i; STORY-4X §9's "Second Wind", renamed — Talon's
+ * hero ability already has that name): learned at the Hall of Names'
+ * dedication. Once a battle, the next knockout blow leaves 1 HP.
+ */
+export const REMEMBRANCE: Spell = {
+  id: 'remembrance',
+  name: 'Remembrance',
+  emoji: '🏛️',
+  description: 'Cast it, and the next hit that would make you fall leaves you with 1 HP. Once a battle.',
+  cost: 2,
+  effect: { kind: 'remember' },
+  color: 'text-violet-200',
+};
+
 /** Time Ripple's strike (STORY-4X §9): a little less than the other Sages' 2.5×, for the turn it takes away. */
 export const TIME_RIPPLE_MULTIPLIER = 2.2;
 
@@ -109,13 +129,14 @@ export function sageSpell(topic: CrystalTopic): Spell {
 
 /**
  * The spells a save currently knows, in cast-menu order: the basic Mend, each
- * met Sage's signature, then the progression unlocks (Aegis, Ember's Breath).
+ * met Sage's signature, then the progression unlocks (Aegis, Remembrance, Ember's Breath).
  */
 export function spellsKnown(save: SaveData): Spell[] {
   const spells: Spell[] = [MEND];
   for (const topic of save.sages) spells.push(sageSpell(topic));
   const { crystals, stage } = emberStatus(save.flags);
   if (crystals >= 1) spells.push(AEGIS);
+  if (save.flags[HALL_DEDICATED]) spells.push(REMEMBRANCE);
   if (stage === 'dragon') spells.push(EMBER_BREATH);
   return spells;
 }

@@ -1,14 +1,14 @@
-import { HUB_ZONE, ZONES, gateIdAt, npcPresent, type ZoneDef, type ZoneId } from '../content/zones';
+import { HUB_ZONE, ZONES, gateIdAt, innWakeCell, npcPresent, type TravelMode, type ZoneDef, type ZoneId } from '../content/zones';
 import { NPC_DEFS } from '../content/npcs';
 import { ENEMY_DEFS, fiendFor } from '../content/enemies';
 import { GATE_KEYS, bossDefeated, keyFlag, keyForZone } from '../content/keys';
 import { crystalFlag } from '../content/topics';
 import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
-import { BOAT_MENDED, BOAT_QUEST_ID } from '../content/boat';
+import { BOAT_HOME, BOAT_MENDED, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
 import { visitedFlag } from '../content/fieldSpells';
-import { nextObjective, routeTo, type Objective } from './wayfinding';
-import { passable as tilePassable } from './travel';
+import { nextObjective, npcHome, routeTo, type Objective } from './wayfinding';
+import { passable as tilePassable, seaCrossing } from './travel';
 import { npcWanders } from './wander';
 import { reachPath, type Cell, type ReachOptions, type Step } from './reach';
 import { defaultSave } from './save';
@@ -38,7 +38,7 @@ export function advanceGoal(g: Objective, flags: Record<string, boolean>): Recor
   // Beating Umbra ends in a night at the inn and Act II's morning (act2-seen), which lifts the Grove-road fog.
   else if (g.kind === 'spire') Object.assign(next, { [SPIRE_CLEARED]: true, [ACT2_SEEN]: true });
   else if (g.kind === 'sail') next[visitedFlag('silver-shallows')] = true;
-  else if (g.kind === 'visit') next[visitedFlag(g.zoneId!)] = true;
+  else if (g.kind === 'visit') next[g.doneFlag ?? visitedFlag(g.zoneId!)] = true;
   else if (g.kind === 'boat') {
     const quest = QUESTS.find((q) => q.id === BOAT_QUEST_ID)!;
     const step = quest.steps.find((st) => !next[stepFlag(st.id)]);
@@ -49,9 +49,26 @@ export function advanceGoal(g: Objective, flags: Record<string, boolean>): Recor
   return next;
 }
 
-/** Where a goal is met: the boss to beat (on its own cell), or the Spire. */
-export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell } {
+/**
+ * Where a goal is met: the boss to beat (on its own cell), the Spire, the
+ * person to talk to (Act II: Marlow's friends, Keeper Mnem) — or, with no
+ * cell, just arriving in the zone (sailing the Shallows, visiting the Hill).
+ */
+export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } {
   if (g.kind === 'spire') return { zoneId: 'crystal-spire', cell: ZONES['crystal-spire'].spire! };
+  if (g.kind === 'boat') {
+    const quest = QUESTS.find((q) => q.id === BOAT_QUEST_ID)!;
+    const npc = g.zoneId === quest.zoneId ? quest.giverNpcId : quest.steps.find((st) => st.npc && npcHome(ZONES, st.npc.id)?.zoneId === g.zoneId)?.npc?.id;
+    const home = npc ? npcHome(ZONES, npc) : null;
+    if (!home) throw new Error(`nobody to talk to in ${g.zoneId}`);
+    return { zoneId: home.zoneId, cell: { x: home.x, y: home.y } };
+  }
+  if (g.kind === 'sail' || (g.kind === 'visit' && !g.doneFlag)) return { zoneId: g.zoneId!, cell: null };
+  if (g.kind === 'visit') {
+    // The Hall of Names' dedication (#75 item 14i): Keeper Mnem calls you in.
+    const mnem = npcHome(ZONES, 'hill-keeper')!;
+    return { zoneId: mnem.zoneId, cell: { x: mnem.x, y: mnem.y } };
+  }
   const zoneId = g.kind === 'key' ? g.key!.fromZone : g.zoneId!;
   const bossId = g.kind === 'key' ? g.key!.bossId : fiendFor(g.crystal!.id).id;
   const at = ZONES[zoneId].enemies.find((p) => p.defId === bossId);
@@ -101,37 +118,81 @@ export interface Leg {
   goal: Objective;
   /** The story flags while the leg is walked (before its goal is met). */
   flags: Record<string, boolean>;
-  target: { zoneId: ZoneId; cell: Cell };
+  target: { zoneId: ZoneId; cell: Cell | null };
   hops: Hop[];
+  /** Where the leg ended: in the boat, or on foot with the boat moored here (null: no boat yet). */
+  boat: BoatState;
 }
+
+/** Where Marlow's boat is as the hero walks (#75 item 14i): with them, or moored on a map. */
+export type BoatState = { aboard: boolean; zoneId?: ZoneId; cell?: Cell } | null;
 
 /** Is (x, y) the target or beside it (a boss is bumped, not stood on)? */
 const atOrBeside = (t: Cell) => (x: number, y: number) => Math.abs(x - t.x) + Math.abs(y - t.y) <= 1;
 
-/** Walk one goal from `from` with these flags: every zone the 🚩's route crosses, then the target. */
-export function walkLeg(goal: Objective, flags: Record<string, boolean>, from: { zoneId: ZoneId; cell: Cell }): Leg {
+/**
+ * How a hop ends for the boat: sailed off the map (still aboard), or ashore
+ * with the boat moored where the hero last sat in it.
+ */
+function boatAfter(path: Step[], zoneId: ZoneId, before: BoatState): BoatState {
+  const last = path.at(-1)!;
+  if (last.mode === 'boat') return { aboard: true };
+  const sat = path.findLastIndex((st) => st.mode === 'boat');
+  if (sat < 0) return before;
+  return { aboard: false, zoneId, cell: { x: path[sat].x, y: path[sat].y } };
+}
+
+/**
+ * Walk one goal from `from` with these flags: every zone the 🚩's route
+ * crosses, then the target. With Marlow's boat (`boat`, Act II, #75 item
+ * 14i) a hop may sail: climb in where it's moored, sail off a linked edge of
+ * the sea onto the next map, go ashore on a beach or a dock — the boat stays
+ * where the hero got out.
+ */
+export function walkLeg(goal: Objective, flags: Record<string, boolean>, from: { zoneId: ZoneId; cell: Cell }, boat: BoatState = null): Leg {
   const target = goalTarget(goal);
   const route = routeTo(ZONES, from.zoneId, target.zoneId);
   const hops: Hop[] = [];
   let here = from;
+  const sailing = (z: ZoneDef): ReachOptions => {
+    if (!boat || !hasBoat(flags)) return {};
+    const modes: TravelMode[] = ['foot', 'boat'];
+    if (boat.aboard) return { aboard: true, modes };
+    return { modes, boat: boat.zoneId === z.id ? boat.cell : null };
+  };
   for (const step of route ?? []) {
     const z = ZONES[here.zoneId];
     const onward = z.exits.filter((e) => e.to === step.exit.to);
-    const path = reachPath(z, (x, y) => onward.some((e) => e.x === x && e.y === y), { ...playerRules(z, flags), from: here.cell });
+    const sails = !z.exits.includes(step.exit);
+    const goalCell = sails
+      ? (x: number, y: number) => seaCrossing(z, x, y, ZONES)?.to === step.exit.to
+      : (x: number, y: number) => onward.some((e) => e.x === x && e.y === y);
+    const path = reachPath(z, goalCell, { ...playerRules(z, flags), ...sailing(z), from: here.cell });
     hops.push({ zoneId: here.zoneId, from: here.cell, to: step.exit.to, path });
-    // Out of the exit you reached (or, with no way, the one the route meant) into the next zone.
     const end = path?.at(-1);
+    if (path) boat = boatAfter(path, z.id, boat);
+    if (sails) {
+      // Off the edge: the boat comes out one cell in on the next map.
+      const out = end ? seaCrossing(z, end.x, end.y, ZONES) : null;
+      here = { zoneId: step.exit.to, cell: out ? { x: out.x, y: out.y } : { x: step.exit.spawnX, y: step.exit.spawnY } };
+      continue;
+    }
+    // Out of the exit you reached (or, with no way, the one the route meant) into the next zone.
     const out = onward.find((e) => end && e.x === end.x && e.y === end.y) ?? step.exit;
     here = { zoneId: step.exit.to, cell: { x: out.spawnX, y: out.spawnY } };
   }
   if (route) {
     const z = ZONES[here.zoneId];
-    const path = reachPath(z, atOrBeside(target.cell), { ...playerRules(z, flags, target.cell), from: here.cell });
+    const arrived = target.cell === null;
+    const path = arrived
+      ? [{ ...here.cell, mode: (boat?.aboard ? 'boat' : 'foot') as TravelMode }]
+      : reachPath(z, atOrBeside(target.cell!), { ...playerRules(z, flags, target.cell!), ...sailing(z), from: here.cell });
+    if (path && !arrived) boat = boatAfter(path, z.id, boat);
     hops.push({ zoneId: here.zoneId, from: here.cell, to: null, path });
   } else {
     hops.push({ zoneId: here.zoneId, from: here.cell, to: target.zoneId, path: null });
   }
-  return { goal, flags, target, hops };
+  return { goal, flags, target, hops, boat };
 }
 
 /**
@@ -148,7 +209,36 @@ export function actOneJourney(): Leg[] {
     const leg = walkLeg(goal, flags, at);
     legs.push(leg);
     const end = leg.hops.at(-1)?.path?.at(-1);
-    at = { zoneId: leg.target.zoneId, cell: end ? { x: end.x, y: end.y } : leg.target.cell };
+    at = { zoneId: leg.target.zoneId, cell: end ? { x: end.x, y: end.y } : leg.target.cell! };
+    flags = advanceGoal(goal, flags);
+  }
+  return legs;
+}
+
+/**
+ * Act II from the morning after the Spire (#75 item 14i, the Phase 3 exit):
+ * the hero wakes at the Sleepy Sheep Inn with Act I done, and walks every leg
+ * the 🚩 gives — Marlow's friends, then (with his boat, moored at his dock)
+ * the Shallows, Remembrance Hill, Eldergrove, the Sunken Archive and the Hall
+ * of Names — each from where the last one ended, sailing where a leg crosses
+ * the sea, until the 🚩 says "Explore".
+ */
+export function actTwoJourney(): Leg[] {
+  let flags: Record<string, boolean> = {};
+  for (const leg of actOneJourney()) flags = advanceGoal(leg.goal, leg.flags);
+  let at: { zoneId: ZoneId; cell: Cell } = { zoneId: HUB_ZONE, cell: innWakeCell(ZONES[HUB_ZONE])! };
+  let boat: BoatState = null;
+  const legs: Leg[] = [];
+  for (let goal = nextObjective(flags); goal.kind !== 'explore'; goal = nextObjective(flags)) {
+    if (legs.length >= 16) throw new Error('Act II never ends');
+    // The boat is mended at Marlow's dock.
+    if (!boat && hasBoat(flags)) boat = { aboard: false, zoneId: BOAT_HOME.zoneId, cell: { x: BOAT_HOME.x, y: BOAT_HOME.y } };
+    const leg = walkLeg(goal, flags, at, boat);
+    legs.push(leg);
+    const last = leg.hops.at(-1)!;
+    const end = last.path?.at(-1);
+    at = { zoneId: leg.target.zoneId, cell: end ? { x: end.x, y: end.y } : last.from };
+    boat = leg.boat;
     flags = advanceGoal(goal, flags);
   }
   return legs;

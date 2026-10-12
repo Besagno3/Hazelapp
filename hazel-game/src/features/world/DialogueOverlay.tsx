@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { NPC_DEFS, ROLE_SERVICE, npcSpriteId, type DialogueLine } from '../../content/npcs';
+import { NPC_DEFS, ROLE_SERVICE, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { questConversation, type QuestConversation } from '../../content/quests';
 import { boatFetchOffer, fetchBoatHome } from '../../content/boat';
@@ -10,16 +10,6 @@ import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 import ModalLayer from '../../components/ModalLayer';
-
-/** Resolves which lines apply given the current story flags. */
-function visibleLines(lines: DialogueLine[], flags: Record<string, boolean>): DialogueLine[] {
-  return lines.filter((l) => {
-    if (typeof l === 'string') return true;
-    if (l.ifFlag && !flags[l.ifFlag]) return false;
-    if (l.unlessFlag && flags[l.unlessFlag]) return false;
-    return true;
-  });
-}
 
 /**
  * Classic JRPG text box (#37) — one line at a time, player-paced. Quest

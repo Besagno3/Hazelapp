@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { HALL_DEDICATED } from '../content/spells';
 import { MET_ELDER, ZONES, type ZoneDef, type ZoneId } from '../content/zones';
 import { reach } from './reach';
 import { advanceGoal } from './journey';
@@ -34,7 +35,8 @@ const allCrystals = Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.
  * Act II's errands done (#75 item 14): Act II's morning, Marlow's boat mended
  * and sailed to the Silver Shallows, Remembrance Hill visited (#75 item 14e),
  * the Memoria Key won from Eldergrove's Ringkeeper (#75 item 14f), and the
- * Crystal of Memory restored in the Sunken Archive (#75 item 14h).
+ * Crystal of Memory restored in the Sunken Archive (#75 item 14h), and the
+ * Hall of Names dedicated (#75 item 14i).
  */
 const actTwoDone = {
   [ACT2_SEEN]: true,
@@ -43,6 +45,8 @@ const actTwoDone = {
   [visitedFlag('remembrance-hill')]: true,
   [keyFlag('memoria')]: true,
   [crystalFlag('history')]: true,
+  // The Hall of Names' dedication (#75 item 14i).
+  [HALL_DEDICATED]: true,
 };
 /** The whole story so far: Act I's crystals, the Spire, the boat, the voyage, the Hill, the Memoria Key, Memory. */
 const storyDone = { ...allCrystals, [SPIRE_CLEARED]: true, ...actTwoDone };
@@ -122,6 +126,8 @@ describe('nextObjective', () => {
       ['Win the Memoria Key', 'eldergrove'],
       // #75 item 14h: then Act II's crystal, behind the key's silver door.
       ['Free the Crystal of Memory', 'sunken-archive'],
+      // #75 item 14i: then the Hall of Names' dedication, back on the Hill.
+      ['See the new plaque', 'remembrance-hill'],
     ]);
     // The voyage starts at Marlow's dock: its 🚩 sits there, and the way says so.
     const sail = nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true });
@@ -216,9 +222,10 @@ describe('nextObjective', () => {
     }
     expect(seen.at(-1)?.kind).toBe('explore');
     // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage,
-    // Remembrance Hill (#75 item 14e), the Memoria Key (#75 item 14f), the Crystal of Memory (#75 item 14h), explore.
+    // Remembrance Hill (#75 item 14e), the Memoria Key (#75 item 14f), the Crystal of Memory (#75 item 14h),
+    // the Hall of Names (#75 item 14i), explore.
     const actOneKeys = GATE_KEYS.filter((k) => actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
-    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1);
+    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -393,6 +400,8 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     // With the Memoria Key, its door in the Archive (#75 item 14h); then five crystals shine.
     expect(mentorTips(ZONES, { ...met, ...memoriaWon })[0]).toMatch(/^You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive/);
     expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toBe('Five crystals shine now! Ember\'s wings grow stronger every day — soon you\'ll fly. Until then, help everyone you meet.');
+    // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
+    expect(mentorTips(ZONES, { ...met, ...storyDone, [HALL_DEDICATED]: false })[0]).toMatch(/Hall of Names/);
   });
   it('is the big picture, not the road: no "go …" or "take the … path" steps', () => {
     const stages = [met, math, { ...math, [keyFlag('verdara-key')]: true }, { ...met, ...allCrystals }];

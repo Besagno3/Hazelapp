@@ -29,6 +29,7 @@ import {
   defendTimeMs,
   heroOpening,
   itemBlocked,
+  spellBlocked,
   lossKey,
   mercyCallout,
   mercyFor,
@@ -179,6 +180,7 @@ export default function BattleArena() {
     candleHint,
     freeHint,
     secondWind,
+    remembrance,
     applyCombat,
     markDefeated,
     recordLoss,
@@ -201,6 +203,7 @@ export default function BattleArena() {
       candleHint: s.candleHint,
       freeHint: s.freeHint,
       secondWind: s.secondWind,
+      remembrance: s.remembrance,
       applyCombat: s.applyCombat,
       markDefeated: s.markDefeated,
       recordLoss: s.recordLoss,
@@ -519,7 +522,7 @@ export default function BattleArena() {
     ask({ kind: 'question', mode: 'pair', pair, question: nextSpellQuestion() });
   }
   function castSpell(spell: Spell) {
-    if (combatState().charge < spell.cost || spellQs.length === 0) return;
+    if (combatState().charge < spell.cost || spellQs.length === 0 || spellBlocked(combatState(), spell)) return;
     ask({ kind: 'question', mode: 'spell', spell, question: nextSpellQuestion() });
   }
   /** Swap companions — a free action: the turn stays on the command menu. */
@@ -678,6 +681,12 @@ export default function BattleArena() {
         float(`+${r.healed}`, 'hero', spell.color);
       }, IMPACT_MS);
       say(`${spell.emoji} ${spell.name}! Bright knowing knits your wounds.`, enemyTurn);
+      return;
+    }
+    if (r.kind === 'remember') {
+      sfx('spell');
+      float('🏛️', 'hero', spell.color);
+      say(`${spell.emoji} ${spell.name}! Every name in the Hall stands with you. If a hit would make you fall, you'll stay up with 1 HP!`, enemyTurn);
       return;
     }
     if (r.kind === 'shield') {
@@ -878,7 +887,8 @@ export default function BattleArena() {
           ? ` ⚡ Counter Strike! ${avatar!.name} strikes right back for ${r.countered}!`
           : '') +
       (r.mended > 0 ? ` It glows softly and mends ${r.mended} HP!` : '') +
-      (r.secondWind ? ` 🌬️ Second Wind! ${avatar!.name} hangs on with 1 HP!` : '');
+      (r.secondWind ? ` 🌬️ Second Wind! ${avatar!.name} hangs on with 1 HP!` : '') +
+      (r.remembered ? ` 🏛️ Remembrance! The Hall's names hold you up — ${avatar!.name} hangs on with 1 HP!` : '');
     // A bounced hit can win the battle (checked first: a mirrored hero takes no damage).
     say(text, r.enemyDown ? victory : r.heroDown ? defeat : () => setTurn({ kind: 'command' }));
   }
@@ -1039,6 +1049,7 @@ export default function BattleArena() {
     candleHint,
     freeHint,
     secondWind,
+    remembrance,
   };
   const perkLabel = { charge: `+${EMBER_BONUS_CHARGE}◆`, peek: '👀 peek', mend: `+${WISP_MEND} HP` }[companion.perk];
   // Identifies the current question card (remounts QuestionCard + DefendTimer).
@@ -1140,6 +1151,7 @@ export default function BattleArena() {
         ember={ember}
         isBoss={enemy.isBoss}
         guarded={guarded}
+        remembered={remembrance === 'ready'}
         charging={charging}
         won={turn.kind === 'victory'}
         afloat={enemy.habitat === 'sea'}
@@ -1201,6 +1213,7 @@ export default function BattleArena() {
             charge={charge}
             spellsLoaded={spellQs.length > 0}
             enemyTopic={enemy.topic}
+            blocked={(sp) => spellBlocked(liveState, sp)}
             onCast={castSpell}
             onBack={toCommand}
           />

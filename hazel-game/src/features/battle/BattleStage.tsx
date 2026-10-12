@@ -129,6 +129,7 @@ export function BattleStage({
   ember,
   isBoss,
   guarded,
+  remembered = false,
   charging,
   won,
   afloat = false,
@@ -146,6 +147,8 @@ export function BattleStage({
   ember: EmberStage;
   isBoss: boolean;
   guarded: boolean;
+  /** Remembrance is cast and waiting (#75 item 14i review): a 🏛️ over the hero, like the guard's 🛡️. */
+  remembered?: boolean;
   /** The enemy is about to land a charged power move (it glows). */
   charging: boolean;
   /** The battle is won — the companion cheers (the egg wobbles). */
@@ -227,6 +230,11 @@ export function BattleStage({
           </motion.div>
         </motion.div>
         {guarded && <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl">🛡️</span>}
+        {remembered && (
+          <span className="absolute -top-5 right-0 text-xl" role="img" aria-label="Remembrance is ready">
+            🏛️
+          </span>
+        )}
         <motion.div
           key={`ml${fx.companionLunge}`}
           {...motionProps(

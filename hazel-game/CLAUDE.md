@@ -438,7 +438,7 @@ zod, react-query. Add the package in the same change that first uses it.
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
   (the Spellbook, `content/spells.ts`): the hero casts any learned spell
-  (Mend / Aegis / Sage strikes / Ember's Breath) by answering one *super-hard*
+  (Mend / Aegis / Sage strikes / Remembrance / Ember's Breath) by answering one *super-hard*
   question (`SPELL_LEVEL_BONUS` = 3 levels up); each spends charge (◆, the mana
   gauge filled by correct answers, `CHARGE_MAX` = 4) and a miss fizzles +
   refunds the charge. **Companions** (`content/companion.ts`): Ember (always;
@@ -601,6 +601,7 @@ python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble
 python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
 python3 tools/assets/build.py marsh    # Foglight Marsh: its tiles, the stilt town sheet, the marsh icon, its critters, people and lanterns (#75 item 14g)
 python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome town sheet, the archive icon, its critters, Fiend and people (#75 item 14h)
+python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
@@ -686,6 +687,75 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-12 — 14i review round 3: Ness asks last, nothing stale (#75 item 14i)
+A report-only round (code 2 low, UX 1 medium, 6 low), then all fixed on the
+owner's say-so: Ness's rumors come before her lens ask, and after her quest
+she doesn't repeat them or the opened chest; the sea-glass chest names
+Shelby; Mnem's line without a dangling "And"; Sol's and Bramble's Act I
+lines stop in Act II; Lumen's one memory line holds without meeting Mnem
+(`DialogueLine.unlessFlag` takes several flags); Remembrance reads as a
+spell you cast; the `MET_ELDER` test fixed; Chisel's plaque line; Wick's
+"Go… Go". 1113 green, lint clean.
+
+### 2026-10-12 — 14i UX round 2: one trip for Ness's Lens, Mnem keeps his surprise (#75 item 14i)
+Fresh UX read (1 medium, 6 low), all fixed: Ness's first talk is the lens
+offer again, now carrying her hello, safety line and rumors (`NESS_RUMORS`;
+round 1's `MET_NESS` gate cost two extra crossings and is gone); Mnem says
+hello once, skips the plaque count until the dedication shows it, and keeps
+his voice after; the 🚩 and Lumen don't spoil the plaque; Lumen's tip names
+the purple-roofed Hall; Maple and Poppy lines. 1112 green, lint clean. The
+review loop stopped here (time box); no round 3 on these changes.
+
+### 2026-10-12 — 14i code review round 2: two test gaps closed (#75 item 14i)
+Fresh `/saas-code-review` (2 low, both tests): Ness's own Act II lines are
+checked to set `met-ness`; the Act II journey's Hall leg checks Mnem's last
+line sets `hall-called`. Nothing else found.
+
+### 2026-10-12 — 14i review round 1: Ness says hello first, four plaques until the dedication (#75 item 14i)
+Fresh `/saas-code-review` (1 medium, 1 low) and UX read (1 high, 4 medium,
+5 low). All fixed: Ness's new quest hid her hello, safety lines and Marsh
+rumor until done — her lines come first (`MET_NESS`), the offer on the next
+talk (`offerHaving` if the glass is already found; Shelby points at the
+chests); Mnem reads four plaques until the dedication and plants "the very
+first Sage"; Poppy, Wick, Lumen and Wisp lines that came too early, ran long
+or repeated; Wisp's beat waits for the Woods or Wisp as the active
+companion; Remembrance's plainer copy and a 🏛️ over the hero while it
+waits; the 🚩 "See the new plaque" and its tip; the travel-mode test walks
+with the boat docked. `bench … journey` 13/13. 1112 green, lint clean.
+
+### 2026-10-12 — The world remembers: Act II's reactive pass and the Phase 3 exit (#75 item 14i)
+Roadmap sub-item 14i.
+- **Lumina remembers:** every Lumina Village person (14) has an `act2-seen`
+  "now I remember…" line. **Aster's breadcrumbs:** once you've met Keeper
+  Mnem, Grandmother Wick ("nobody remembers the first Sage… *Especially*
+  me") and Elder Lumen (no book names the first Sage); after Memory, Lumen
+  half-knows the name "Aster". `visibleLines` / `lineText` moved to `npcs.ts`.
+- **The Hall of Names' dedication:** with Memory restored, Keeper Mnem reads
+  five plaques and calls you in (`hall-called`); as his talk closes, three
+  panels (`HALL_PANELS`) end by teaching **🏛️ Remembrance** (`HALL_DEDICATED`;
+  roadmap decision 13 taken, renamed from Second Wind — Talon's ability):
+  cost 2, once a battle the next knockout blow leaves 1 HP
+  (`SpellEffect` `remember`, `CombatState.remembrance`, `spellBlocked`;
+  Talon's Second Wind catches first). The 🚩 says "Dedicate the Hall of
+  Names" after Memory (`Objective.doneFlag`), then "Explore".
+- **Wisp stirs** (`WISP_PANELS`, `wisp-stirring`): after Memory, the first
+  time Wisp is with you (party or the Whispering Woods) — "I feel…
+  alphabetized. Something is remembering ME." Wisp's Woods lines follow.
+- **Ness's Lens** (#106a, the island hermit chain): Lamplighter Ness's lens
+  cracked; the sea glass is in a new key-item chest on Sandpiper Cay
+  (25,32), Shelby the hermit crab grinds it on his shell, Ness pays 40 coins
+  + a Hint Feather. Shelby's sprite: the crab drawer's new `shell`
+  (`python3 tools/assets/build.py cay`).
+- **The Phase 3 exit check:** `actTwoJourney` (`lib/journey.ts`) walks Act II
+  from the morning after the Spire to "Explore" — `walkLeg` now sails
+  (`BoatState`: climb in where she's moored, off a linked edge, ashore on a
+  beach), and `goalTarget` knows people and arrivals. journey.test: every
+  leg has a way; per travel mode (roadmap §4.7) Act I and Marlow's errands
+  are on foot, the islands by boat, the Hill on foot; every Shallows place,
+  landmark and key chest is reached from the boat and walks back to a beach.
+- Tests: +13 (battleTurn, zones, quests, wayfinding, journey,
+  WorldScreen.ending). 1112 green, lint + build clean. Follow-ups #129.
 
 ### 2026-10-12 — Merge main (press to use #127, Vercel #126) into the Sunken Archive branch (#75 item 14h)
 `main` took ISSUES **#126** (the Vercel deployment cap) and **#127** (press to
