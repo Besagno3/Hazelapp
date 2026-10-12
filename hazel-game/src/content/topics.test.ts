@@ -5,6 +5,7 @@ import {
   EXTRA_TOPICS,
   TOPICS,
   ALL_TOPICS,
+  ALL_TOPIC_INFO,
   topicInfo,
   crystalInfo,
 } from './topics';
@@ -49,6 +50,20 @@ describe('topic registry (#55 crystal vs question topics)', () => {
       const info = topicInfo(id);
       expect(info.id).toBe(id);
       expect(info.emoji).toBeTruthy();
+    }
+  });
+
+  it('every topic has its own emoji, button colour and label (#75 item 15a)', () => {
+    for (const key of ['emoji', 'buttonColor', 'label', 'skyGradient'] as const) {
+      const values = ALL_TOPIC_INFO.map((t) => t[key]);
+      expect(new Set(values).size, key).toBe(values.length);
+    }
+  });
+
+  it("Act III's themes are expansion topics, ready before any zone asks them (#75 item 15a)", () => {
+    for (const id of ['geography', 'words', 'music'] as const) {
+      expect(EXTRA_TOPIC_IDS).toContain(id);
+      expect(topicInfo(id).emoji).toBeTruthy();
     }
   });
 

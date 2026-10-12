@@ -122,7 +122,8 @@ zod, react-query. Add the package in the same change that first uses it.
   an act (`act`; `actCrystals` / `actRestored` / `actComplete` — the Spire,
   the ending and the 🚩 read Act I's, #75 item 14c): Act I's four and, since
   #75 item 14h, Act II's history (the Crystal of Memory); `EXTRA_TOPICS` =
-  the expansion themes nature/space; `topicInfo` resolves all seven, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
+  the expansion themes nature/space and Act III's geography/words/music
+  (#75 item 15a); `topicInfo` resolves all ten, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
   overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
   #75 — the four crystal regions sit at its corners, item 8) + three roadside
   shrines and the dark Echo Mine (item 9) + 4 crystal zones + Lumina Village (home and `HUB_ZONE`: safe,
@@ -687,6 +688,17 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-12 — New topics: geography, words and music (#75 item 15a)
+Roadmap sub-item 15a, the code half. `EXTRA_TOPIC_IDS` gains geography,
+words and music; both topic tables (`_shared/topics.ts` and the edge
+function's inline copy) have their persona lines; `EXTRA_TOPICS` styles them
+(🧭 Maps & Places, 📚 Words & Stories, 🎵 Music) and `FUN_FACTS` has five
+each. The Training Grounds lists all ten. No zone asks them yet (15d–15f).
+⚠️ Deploy: `supabase functions deploy generate-questions`, then check a
+round of each in production (#130b) — until then those three buttons show
+the question-load error. Tests: topics.test +2 (each topic looks different;
+Act III's themes are there). 1115 green, lint + tsc clean.
 
 ### 2026-10-12 — 14i review round 3: Ness asks last, nothing stale (#75 item 14i)
 A report-only round (code 2 low, UX 1 medium, 6 low), then all fixed on the

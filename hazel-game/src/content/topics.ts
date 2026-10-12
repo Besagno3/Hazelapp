@@ -9,8 +9,9 @@ import { CRYSTAL_TOPIC_IDS, type CrystalTopic, type Topic, type ZoneId } from '.
  *   (math/science/engineering/creativity) and Act II's history (#75 item 14h).
  *   Each bears a crystal, a Fiend, a Sage and a topic zone; all crystal/ending
  *   logic iterates this, an act at a time (`actCrystals`).
- * - `EXTRA_TOPICS` — the expansion question themes (nature, space) that
- *   flavour the new zones. Styling only — no crystal/fiend.
+ * - `EXTRA_TOPICS` — the expansion question themes (nature, space, and Act
+ *   III's geography, words and music) that flavour the new zones. Styling
+ *   only — no crystal/fiend.
  *
  * `topicInfo(id)` resolves either tier. Adding a topic: an id in
  * `CRYSTAL_TOPIC_IDS`/`EXTRA_TOPIC_IDS` (types), an entry here, a persona line
@@ -137,6 +138,31 @@ export const EXTRA_TOPICS: TopicInfo[] = [
     skyGradient: 'from-slate-950 via-indigo-900 to-violet-700',
     groundTint: [120, 110, 170],
   },
+  // Act III's themes (#75 item 15a) — Taleshore's zones ask them from 15d on.
+  {
+    id: 'geography',
+    label: 'Maps & Places',
+    emoji: '🧭',
+    buttonColor: 'bg-teal-600 hover:bg-teal-700',
+    skyGradient: 'from-sky-950 via-teal-800 to-cyan-600',
+    groundTint: [118, 160, 138],
+  },
+  {
+    id: 'words',
+    label: 'Words & Stories',
+    emoji: '📚',
+    buttonColor: 'bg-red-600 hover:bg-red-700',
+    skyGradient: 'from-rose-950 via-red-900 to-amber-700',
+    groundTint: [172, 124, 112],
+  },
+  {
+    id: 'music',
+    label: 'Music',
+    emoji: '🎵',
+    buttonColor: 'bg-violet-600 hover:bg-violet-700',
+    skyGradient: 'from-violet-950 via-purple-800 to-sky-600',
+    groundTint: [140, 120, 176],
+  },
 ];
 
 /** Every topic (crystal + expansion) — the Training Grounds offers all of these. */
@@ -145,7 +171,7 @@ export const ALL_TOPIC_INFO: TopicInfo[] = [...TOPIC_REGISTRY, ...EXTRA_TOPICS];
 /** The crystal topics (BOSS_LINES / SAGES / crystal logic iterate this). */
 export const TOPICS: CrystalTopic[] = [...CRYSTAL_TOPIC_IDS];
 
-/** Every question topic id (all seven). */
+/** Every question topic id (crystal + expansion). */
 export const ALL_TOPICS: Topic[] = ALL_TOPIC_INFO.map((t) => t.id);
 
 export function topicInfo(id: Topic): TopicInfo {

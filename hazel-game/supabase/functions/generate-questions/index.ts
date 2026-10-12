@@ -46,6 +46,9 @@ const TOPIC_PROMPTS: Record<string, string> = {
   space: 'planets, stars, moons, the solar system, astronauts, rockets, the night sky.',
   history:
     'world history, ancient civilizations, famous inventions, important people, the measurement of time.',
+  geography: 'maps, countries, continents, oceans, rivers, mountains, landmarks, compass directions.',
+  words: 'reading, spelling, rhymes, word meanings, opposites, stories, grammar basics.',
+  music: 'rhythm, instruments, notes, songs, famous composers, how sound works.',
 };
 const TOPICS = Object.keys(TOPIC_PROMPTS);
 const TOPIC_PROMPT_BLOCK = TOPICS.map((id) => `- ${id}: ${TOPIC_PROMPTS[id]}`).join('\n');
