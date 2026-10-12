@@ -4,6 +4,8 @@ import { RETURN_TOWNS, returnLanding } from '../content/fieldSpells';
 import { keyFlag, keyForZone } from '../content/keys';
 import { actOneJourney, actTwoJourney, advanceGoal, walkLeg, type BoatState, type Leg } from './journey';
 import { BOAT_HOME, BOAT_MENDED } from '../content/boat';
+import { NPC_DEFS, visibleLines } from '../content/npcs';
+import { HALL_CALLED } from '../content/story';
 import { reach, touches } from './reach';
 import { nextObjective } from './wayfinding';
 
@@ -101,6 +103,11 @@ describe('Act II as a journey (#75 item 14i, the Phase 3 exit check)', () => {
     ]);
     const after = act2.reduce((f, l) => advanceGoal(l.goal, f), act2[0].flags);
     expect(nextObjective(after).kind).toBe('explore');
+    // The Hall leg is met by Keeper Mnem's call (his last line sets hall-called, which plays the
+    // dedication — WorldScreen.ending.test), not just by reaching him (code review round 2).
+    const hall = act2.at(-1)!;
+    const call = visibleLines(NPC_DEFS['hill-keeper'].lines, hall.flags).at(-1)!;
+    expect(typeof call !== 'string' && call.setFlag).toBe(HALL_CALLED);
   });
 
   it('every leg walks — or sails — from where the last one ended to whoever it is for', () => {

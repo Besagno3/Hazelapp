@@ -688,6 +688,11 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — 14i code review round 2: two test gaps closed (#75 item 14i)
+Fresh `/saas-code-review` (2 low, both tests): Ness's own Act II lines are
+checked to set `met-ness`; the Act II journey's Hall leg checks Mnem's last
+line sets `hall-called`. Nothing else found.
+
 ### 2026-10-12 — 14i review round 1: Ness says hello first, four plaques until the dedication (#75 item 14i)
 Fresh `/saas-code-review` (1 medium, 1 low) and UX read (1 high, 4 medium,
 5 low). All fixed: Ness's new quest hid her hello, safety lines and Marsh

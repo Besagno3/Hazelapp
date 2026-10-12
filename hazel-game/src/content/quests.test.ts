@@ -28,7 +28,8 @@ import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
 import { fieldSpellFlag } from './fieldSpells';
-import { NPC_DEFS } from './npcs';
+import { NPC_DEFS, visibleLines } from './npcs';
+import { ACT2_SEEN } from './story';
 import { ENEMY_DEFS } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
 import { defaultSave } from '../lib/save';
@@ -416,6 +417,9 @@ describe('item chains (#75 item 13)', () => {
     const chest = pathTargetId('silver-shallows', 'chest', 25, 32);
     // Her hello and rumors first; the lens on the next talk (#75 item 14i review).
     expect(questConversation('gull-lamplighter', defaultSave())).toBeNull();
+    // …and those lines (Act II, before the quest) really do set met-ness (code review round 2).
+    const hello = visibleLines(NPC_DEFS['gull-lamplighter'].lines, { [ACT2_SEEN]: true });
+    expect(hello.some((l) => typeof l !== 'string' && l.setFlag === MET_NESS)).toBe(true);
     let save: SaveData = { ...defaultSave(), flags: { [MET_NESS]: true } };
     expect(questConversation('cay-hermit', converse('gull-lamplighter', save))).toBeNull();
     save = converse('gull-lamplighter', save);

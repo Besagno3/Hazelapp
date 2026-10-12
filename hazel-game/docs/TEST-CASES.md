@@ -1215,3 +1215,4 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1009 | U | ✅ | quests (#129h) | Ness says her hello and rumors first; the lens quest waits for the next talk (met-ness); with sea glass already in the bag her offer says so; Mnem: four plaques until the dedication, and he names the first Sage (quests.test, zones.test) |
 | TC-1010 | C | ✅ | story (#129h) | Wisp's beat: not with Wisp only in the party — only with Wisp fighting beside you, or in the Woods (WorldScreen.ending.test) |
 | TC-1011 | U | ✅ | journey (#129h) | Act I and Marlow's errands, walked with the boat mended and docked, still never sail (journey.test) |
+| TC-1012 | U | ✅ | quests (#129i) | Ness's own Act II lines include one that sets met-ness (quests.test); the Act II journey's Hall leg ends with Mnem's line that sets hall-called (journey.test) |
