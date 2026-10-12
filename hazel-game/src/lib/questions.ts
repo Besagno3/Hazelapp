@@ -131,11 +131,13 @@ export async function fetchQuestions(
 }
 
 /** Reasons surfaced in the flag UI; free-form `reason` strings are also accepted. */
-export type FlagReason = 'wrong_answer' | 'confusing' | 'difficulty';
+export type FlagReason = 'not_for_kids' | 'wrong_answer' | 'confusing' | 'difficulty';
 
 /**
- * Flags a question for review. Any single flag quarantines the question from
- * the cache pool (see edge function). Sent as the kid playing — the
+ * Flags a question for review (B10). The reporting family never gets it again
+ * (the edge function); everyone else stops getting it once it's held back for
+ * review — at once for "not OK for kids", after three families for any other
+ * reason (migration 0015's trigger). Sent as the kid playing — the
  * `question_flags` RLS policy only accepts one of the signed-in grown-up's
  * kids (#124).
  */

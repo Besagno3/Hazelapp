@@ -51,4 +51,15 @@ describe('FlagButton', () => {
       expect(screen.getByText(/permission denied/i)).toBeInTheDocument();
     });
   });
+
+  it('offers "Not OK for kids" first, and sends it as not_for_kids (B10)', async () => {
+    flagQuestionMock.mockResolvedValue(undefined);
+    render(<FlagButton questionId="q-7" />);
+    fireEvent.click(screen.getByRole('button', { name: /report this question/i }));
+    const reasons = screen.getAllByRole('button').map((b) => b.textContent);
+    expect(reasons[0]).toBe('Not OK for kids');
+    fireEvent.click(screen.getByRole('button', { name: 'Not OK for kids' }));
+    await waitFor(() => expect(screen.getByText(/We'll take a look/)).toBeInTheDocument());
+    expect(flagQuestionMock).toHaveBeenCalledWith('q-7', 'not_for_kids');
+  });
 });

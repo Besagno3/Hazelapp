@@ -544,6 +544,29 @@ zod, react-query. Add the package in the same change that first uses it.
   from the cache (unseen first, then seen); only with nothing to give does
   the kid see a friendly "try again" (503) or, when today's budget is spent,
   "come back tomorrow" (429). Raw errors go to the log, never to the reply.
+- **Questions are screened for kids (B10, #133):** three layers in the
+  function, canonical in `_shared/questionScreen.ts` (an identical inline copy
+  between `// --- screen:start` / `screen:end` markers, word-for-word checked
+  by `questionScreen.test.ts`): `CONTENT_RULES` in the writer's system prompt
+  (no violence, scary or sad topics, religion, politics, living or
+  controversial people, romance, medical or body-weight topics, brands,
+  links; facts only); `screenQuestion` on every fresh *and* saved question
+  (four different non-empty options, length caps, no links / emails / phone
+  numbers, a blocked-word list); and a **blind second check** — one more
+  call answers each fresh question without the answer and says whether it
+  keeps the rules (`checkFresh`, `keepChecked`): only those it agrees with are
+  served, and a failed or mismatched check keeps none (the cache fills in).
+  It asks for a third more questions than it needs to cover drops; secret
+  `QUESTION_SECOND_CHECK=off` turns the check off. **Reports** (`FlagButton`,
+  on every question screen through `QuestionCard`, "Not OK for kids" first)
+  hide a question from the reporting family; for everyone it's held back only
+  through `questions.status` (migration 0015: `active` / `review` / `retired`
+  / `approved`): "not OK for kids" sends an active question to review at
+  once, two families an approved one, any three families' reports an active
+  one. Only active and approved questions are served, approved first. The
+  owner reviews with `select * from question_review_queue` and
+  `select review_question(id, 'approved' | 'retired' | 'active')` (service
+  role / SQL editor only).
 - **Answer order is random (#121):** the model that writes questions favours
   one spot for the right answer (most often B), so `shuffleAnswers`
   (`lib/questions.ts`) shuffles every question's options as it arrives
@@ -650,7 +673,8 @@ python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, T
   sibling import fails to bundle on dashboard/API deploys (#67). The `_shared`
   copy is canonical for the app; `topicPrompts.test.ts` (`?raw`) fails if the
   function's inline copy drifts from it. The question flavours work the same
-  way (`_shared/flavors.ts`, `questionFlavors.test.ts`, #131).
+  way (`_shared/flavors.ts`, `questionFlavors.test.ts`, #131), and so does the
+  kids' screen (`_shared/questionScreen.ts`, `questionScreen.test.ts`, #133).
 
 ---
 
@@ -701,6 +725,47 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-12 — Screen AI questions for kids, and act on reports (#133)
+Act I launch review B10 (the code part), built on #131's lockdown.
+- **Rules in the prompt:** `CONTENT_RULES` joins the writer's system prompt;
+  the history line drops "world history" and "important people" (never wars,
+  battles, disasters or religion) and creativity is facts only
+  (`_shared/topics.ts` and the inline copy).
+- **A screen on every question** (`screenQuestion`): four different non-empty
+  options, a right answer, length caps (220 / 80 / 280 characters), no links,
+  emails or phone numbers, no word from a short blocked list (kept narrow:
+  "killer whale", "shell", "grape", "dam" pass). Saved questions go through it
+  too, so rows cached before the rules are screened as they're read.
+- **The blind second check** (`checkFresh`): one more Haiku call gets the
+  fresh questions without their answers, picks an answer for each and says
+  whether it keeps the rules (`CHECK_SCHEMA`); only those it agrees with are
+  served (`keepChecked`). The function asks for a third more than it needs to
+  cover drops. If the check fails or its reply doesn't line up, no fresh
+  questions are served — the cache fills the batch, as for a failed
+  generation. About a third more Claude cost per fresh batch; secret
+  `QUESTION_SECOND_CHECK=off` turns it off.
+- **Reports:** 🚩 Report this question now sits on every question screen
+  (`QuestionCard` — battles, gates, chests, shrines, the Library, the Spire —
+  as well as the quiz), with **"Not OK for kids"** as the first reason and
+  bigger tap targets. A report hides the question from the reporting family
+  (all their kids); migration **0015** adds `questions.status`
+  (`active` / `review` / `retired` / `approved`, `reviewed_at`) and a trigger:
+  "not OK for kids" sends an active question to review at once, two families
+  an approved one, three families' reports of any kind an active one. Only
+  active and approved questions are served, approved first.
+  `question_review_queue` (a view) and `review_question()` are the owner's
+  (service role / SQL editor; no app role can read or call them). Before,
+  one report from any family hid a question from everyone for good.
+- Tests: `questionScreen.test.ts` (drift, the screen, `keepChecked`, the
+  wiring), FlagButton / QuestionCard (+2), `supabase/ci/question_review.test.sql`
+  (fails without the trigger). 1144 green, lint + build + `deno check` clean;
+  the SQL tests, migrations in order and the bundle twice pass on Postgres 16;
+  the function run locally against a stand-in Supabase + Claude: 42/42 checks
+  (14 new for B10).
+- ⚠️ Deploy: apply `0015_question_review.sql` **before** deploying the
+  function (it reads `questions.status`), then
+  `supabase functions deploy generate-questions`. Follow-ups #133.
 
 ### 2026-10-12 — Lock down the question service: fixed prompt text, the kid's id required, Claude failures fall back to the cache (#131)
 Act I launch review B8, B9 (code part) and B5 (server part), all in

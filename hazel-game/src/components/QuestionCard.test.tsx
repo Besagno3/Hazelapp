@@ -85,3 +85,13 @@ describe('QuestionCard — a Forget-Me-Knot gives a second try (#75 item 14e)', 
     }
   });
 });
+
+describe('QuestionCard — any question can be reported (B10)', () => {
+  it('shows 🚩 Report this question once answered, not before', () => {
+    render(<QuestionCard question={q} onAnswered={() => {}} onContinue={() => {}} />);
+    expect(screen.queryByRole('button', { name: /report this question/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '4' }));
+    fireEvent.click(screen.getByRole('button', { name: /report this question/i }));
+    expect(screen.getByRole('button', { name: 'Not OK for kids' })).toBeInTheDocument();
+  });
+});
