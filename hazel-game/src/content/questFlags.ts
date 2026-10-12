@@ -65,6 +65,3 @@ export function escortsBack(flags: Record<string, boolean>): Record<string, bool
 function isWalkingFlag(f: string): boolean {
   return f.startsWith('escort:') && f.endsWith(':walking');
 }
-
-/** Lamplighter Ness has said hello (#75 item 14i review): her lens quest waits for it. */
-export const MET_NESS = 'met-ness';

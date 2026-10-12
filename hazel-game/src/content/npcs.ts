@@ -8,7 +8,6 @@ import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, s
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, HALL_CALLED, WISP_STIRRING } from './story';
-import { MET_NESS } from './questFlags';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -235,6 +234,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: "Since the fog lifted, my guests remember their dreams at breakfast. One dreamed of a boat! Have you seen Old Marlow? He's acting very sailor-ish.",
         ifFlag: ACT2_SEEN,
+        unlessFlag: BOAT_MENDED,
       },
     ],
   },
@@ -258,7 +258,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'merchant',
     lines: [
       {
-        text: 'Ha! I remember where I put my good scales — under the counter, all along. Sorry for every short-weighed berry!',
+        text: 'Ha! I found my good scales — under the counter, all along! So THAT\'s why I gave everyone too few berries. Sorry!',
         ifFlag: ACT2_SEEN,
       },
       'Potions! Hint feathers! Shiny badges! Coins well spent, friend.',
@@ -578,24 +578,20 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🏮',
     role: 'villager',
     stationary: true,
+    // Her lens quest (#75 item 14i) is her first talk — its offer carries her hello, the
+    // sea-critter safety line and her rumors (quests.ts). These lines are for after it.
     lines: [
-      "A visitor! By BOAT! Oh, my lamp hasn't had anyone to shine for in a hundred years.",
-      "I'm Ness. I kept this lighthouse lit all through the fog, just in case somebody came. Nobody did. I'd do it again.",
+      {
+        text: "My new lens! Last night I saw a whale wave at me. I waved back. We're friends now.",
+        ifFlag: questDoneFlag({ id: 'ness-lens' }),
+      },
       'These islands are only now remembering they exist. Some mornings I count a new one! Yesterday it was a rock shaped like a sneeze.',
       'See the little sandbar to the south-east? Sandpiper Cay. The sandpipers say there\'s a chest on it. Sandpipers say a LOT of things.',
       // Sea critters (#75 item 14d): why the ones out there never bother you on the sand.
       "Puffers, inklings, starfish… sea critters splash about out there now. They only bother boats, and you can always steer round them. On the sand you're as safe as a shell!",
       "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
       // Foglight Marsh (#75 item 14g): the rumor rule — name a place and what's there.
-      // Her intro and rumors come first; her lens quest waits for the next talk (#75 item 14i review).
-      {
-        text: "Up on the north coast is Foglight Marsh, where the last of the fog pooled. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!",
-        setFlag: MET_NESS,
-      },
-      {
-        text: "My new lens! Last night I saw a whale wave at me. I waved back. We're friends now.",
-        ifFlag: questDoneFlag({ id: 'ness-lens' }),
-      },
+      "Up on the north coast is Foglight Marsh, where the last of the fog pooled. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!",
     ],
     ambient: ['*polishes the lamp*', 'Ship ahoy? …Oh, it\'s you!', 'Shine on, little light.'],
   },
@@ -1365,14 +1361,15 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      { text: "Welcome to the Hall of Names. I'm Keeper Mnem. I never forget a name. Names, ALWAYS.", setFlag: 'met-mnem' },
-      'Faces, though… Have we met? You have a very brave sort of face.',
+      // His hello is for the first meeting (lines freeze as a talk opens, so both show then).
+      { text: "Welcome to the Hall of Names. I'm Keeper Mnem. I never forget a name. Names, ALWAYS.", unlessFlag: 'met-mnem', setFlag: 'met-mnem' },
+      { text: 'Faces, though… Have we met? You have a very brave sort of face.', unlessFlag: 'met-mnem' },
       // One plaque per crystal remembered (STORY-4X: the Hall of Names) — read
       // in one breath. The Hill only opens once all of Act I's are restored.
       // Memory's plaque lights itself at the dedication (#75 item 14i), so it's four until then.
       {
         text: `${numberWord(actCrystals(1).length)} plaques shine again: ${listOf(actCrystals(1).map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
-        unlessFlag: HALL_DEDICATED,
+        unlessFlag: crystalFlag('history'),
       },
       {
         text: `${numberWord(actCrystals(1).length + actCrystals(2).length)} plaques shine now: ${listOf([...actCrystals(1), ...actCrystals(2)].map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
@@ -1389,7 +1386,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         setFlag: HALL_CALLED,
       },
       {
-        text: 'The Hall holds you up now, little spark. Even I won\'t forget THAT name. Probably.',
+        text: "Your name is in the Hall's heart now. I'll never forget it — names, ALWAYS! (Faces, though…)",
         ifFlag: HALL_DEDICATED,
       },
     ],

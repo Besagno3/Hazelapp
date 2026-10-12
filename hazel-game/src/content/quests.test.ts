@@ -23,13 +23,12 @@ import {
   escortsBackLines,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts, MET_NESS } from './questFlags';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
 import { fieldSpellFlag } from './fieldSpells';
-import { NPC_DEFS, visibleLines } from './npcs';
-import { ACT2_SEEN } from './story';
+import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS } from './enemies';
 import { TOPIC_REGISTRY } from './topics';
 import { defaultSave } from '../lib/save';
@@ -415,14 +414,18 @@ describe('item chains (#75 item 13)', () => {
   it("Ness's Lens (#75 item 14i): Ness → the Cay's sea-glass chest → Shelby grinds it → Ness fits it", () => {
     const quest = byId('ness-lens');
     const chest = pathTargetId('silver-shallows', 'chest', 25, 32);
-    // Her hello and rumors first; the lens on the next talk (#75 item 14i review).
-    expect(questConversation('gull-lamplighter', defaultSave())).toBeNull();
-    // …and those lines (Act II, before the quest) really do set met-ness (code review round 2).
-    const hello = visibleLines(NPC_DEFS['gull-lamplighter'].lines, { [ACT2_SEEN]: true });
-    expect(hello.some((l) => typeof l !== 'string' && l.setFlag === MET_NESS)).toBe(true);
-    let save: SaveData = { ...defaultSave(), flags: { [MET_NESS]: true } };
-    expect(questConversation('cay-hermit', converse('gull-lamplighter', save))).toBeNull();
-    save = converse('gull-lamplighter', save);
+    // Her first talk is the offer, and it still carries her hello, the safety line and her rumors
+    // (#75 item 14i review rounds 1–2), so one trip does it: Ness → the Cay → Ness.
+    const first = questConversation('gull-lamplighter', defaultSave())!.lines.join(' ');
+    expect(first).toMatch(/I'm Ness/);
+    expect(first).toMatch(/only bother boats/);
+    expect(first).toMatch(/Great Fogbank/);
+    expect(first).toMatch(/Foglight Marsh/);
+    // Found the glass first? She says so (offerHaving), rumors and all.
+    const having = questConversation('gull-lamplighter', { ...defaultSave(), questItems: ['sea-glass'] })!.lines.join(' ');
+    expect(having).toMatch(/is that sea glass/);
+    expect(having).toMatch(/Foglight Marsh/);
+    let save: SaveData = converse('gull-lamplighter', defaultSave());
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
     expect(questConversation('gull-lamplighter', save)!.lines[0]).toMatch(/Sandpiper Cay/);
     expect(questConversation('cay-hermit', save)).toBeNull();

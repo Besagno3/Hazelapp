@@ -200,7 +200,7 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'visit',
       title: 'See the new plaque',
-      why: "A new plaque is humming in the Hall of Names on Remembrance Hill. Keeper Mnem can't wait to show you!",
+      why: 'Something new is happening in the Hall of Names on Remembrance Hill. Go and see!',
       zoneId: 'remembrance-hill',
       doneFlag: HALL_DEDICATED,
     };
@@ -511,7 +511,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'sail') {
     plan = "Marlow's boat is mended! Out past his dock lie the Silver Shallows, islands nobody has seen since the fog. Go and see them — and tell me everything!";
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
-    plan = 'Five crystals shine now! And Keeper Mnem says a new plaque is humming in the Hall of Names. Go and see — the Hall has a gift for you.';
+    plan = 'Five crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!';
   } else if (goal.kind === 'visit') {
     plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
@@ -536,7 +536,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
-    tip = 'Keeper Mnem stands inside the Hall of Names, the big white building on Remembrance Hill. Talk to him!';
+    tip = 'Keeper Mnem stands inside the Hall of Names — the biggest building on Remembrance Hill, with the purple roof. Talk to him!';
   } else if (goal.kind === 'visit') {
     tip = "Every town has an inn. Rest at a new one, and if a battle goes badly, that's where you'll wake up.";
   } else if (goal.kind === 'explore') {

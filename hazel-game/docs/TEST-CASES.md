@@ -1216,3 +1216,4 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1010 | C | ✅ | story (#129h) | Wisp's beat: not with Wisp only in the party — only with Wisp fighting beside you, or in the Woods (WorldScreen.ending.test) |
 | TC-1011 | U | ✅ | journey (#129h) | Act I and Marlow's errands, walked with the boat mended and docked, still never sail (journey.test) |
 | TC-1012 | U | ✅ | quests (#129i) | Ness's own Act II lines include one that sets met-ness (quests.test); the Act II journey's Hall leg ends with Mnem's line that sets hall-called (journey.test) |
+| TC-1013 | U | ✅ | quests (#129j) | Ness's first talk is the lens offer with her hello, the safety line, the Fogbank and the Marsh rumor; with the glass already found she says so; Mnem: hello only once, no plaque count between Memory and the dedication, "the Hall's heart" after (quests.test, zones.test) |

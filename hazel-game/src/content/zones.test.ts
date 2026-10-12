@@ -759,14 +759,16 @@ describe('Remembrance Hill (#75 item 14e)', () => {
     expect(said(act2).length).toBeLessThanOrEqual(4);
     // With Memory restored (#75 item 14i): five plaques, and he calls you in to dedicate the new one.
     const memory = { ...act2, 'crystal-history-restored': true };
-    // Memory's plaque lights itself at the dedication: four until then, five after.
-    expect(said(memory)).toContain('Four plaques shine again: Numbers, Nature, Gears and Wonder!');
+    // Memory's plaque lights itself at the dedication: no count until then (the panels show it), five after.
+    expect(said(memory).join(' ')).not.toMatch(/plaques shine/);
+    // He says hello only the first time.
+    expect(said(memory).join(' ')).not.toMatch(/Welcome to the Hall/);
     expect(said({ ...memory, [HALL_DEDICATED]: true })).toContain('Five plaques shine now: Numbers, Nature, Gears, Wonder and Memory!');
     expect(said(act2).join(' ')).toMatch(/first Sage/);
     const call = visibleLines(mnem.lines, memory).at(-1);
     expect(typeof call !== 'string' && call.setFlag).toBe(HALL_CALLED);
-    // Once dedicated, no call — the Hall holds you up.
-    expect(said({ ...memory, [HALL_DEDICATED]: true }).at(-1)).toMatch(/holds you up/);
+    // Once dedicated, no call — your name is in the Hall's heart.
+    expect(said({ ...memory, [HALL_DEDICATED]: true }).at(-1)).toMatch(/Hall's heart/);
   });
 });
 

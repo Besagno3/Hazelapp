@@ -688,6 +688,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — 14i UX round 2: one trip for Ness's Lens, Mnem keeps his surprise (#75 item 14i)
+Fresh UX read (1 medium, 6 low), all fixed: Ness's first talk is the lens
+offer again, now carrying her hello, safety line and rumors (`NESS_RUMORS`;
+round 1's `MET_NESS` gate cost two extra crossings and is gone); Mnem says
+hello once, skips the plaque count until the dedication shows it, and keeps
+his voice after; the 🚩 and Lumen don't spoil the plaque; Lumen's tip names
+the purple-roofed Hall; Maple and Poppy lines. 1112 green, lint clean. The
+review loop stopped here (time box); no round 3 on these changes.
+
 ### 2026-10-12 — 14i code review round 2: two test gaps closed (#75 item 14i)
 Fresh `/saas-code-review` (2 low, both tests): Ness's own Act II lines are
 checked to set `met-ness`; the Act II journey's Hall leg checks Mnem's last

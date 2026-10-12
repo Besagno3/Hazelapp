@@ -4,7 +4,7 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag, MET_NESS } from './questFlags';
+import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -286,6 +286,16 @@ export function handedOverFlag(item: string): string {
 
 /** Where Posy's walk is — its escort, the menu's tag and its "you're here" hint share it. */
 const POSY_ZONE: ZoneId = 'foglight-marsh';
+
+/**
+ * What Lamplighter Ness tells a first visitor besides her lens (#75 item 14i):
+ * the sea critters (14d), the Great Fogbank, Foglight Marsh (14g's rumor).
+ */
+const NESS_RUMORS = [
+  "Sea critters splash about out there now. They only bother boats, and you can always steer round them. On the sand you're as safe as a shell!",
+  "East, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
+  'Up on the north coast is Foglight Marsh. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!',
+];
 
 export const QUESTS: QuestDef[] = [
   // Classic riddle-chest fetch.
@@ -1005,19 +1015,22 @@ export const QUESTS: QuestDef[] = [
     zoneId: 'silver-shallows',
     giverNpcId: 'gull-lamplighter',
     side: true,
-    // Her hello and rumors first (the sea critters, the Fogbank): the lens on the next talk.
-    requires: MET_NESS,
+    // Her first talk is this offer, so it carries her hello, the sea-critter safety line and her
+    // rumors (#75 item 14i review round 2: one trip — Ness, the Cay's chest and Shelby, back to Ness).
     title: "Ness's Lens",
     offer: [
-      "Oh! Before you sail off — my lamp's lens cracked in the fog. It shines, but only about as far as my nose.",
-      'Shelby, the hermit on Sandpiper Cay, grinds lenses from sea glass. And sea glass washes up in a chest on the Cay.',
-      'Find some, have Shelby grind it, and bring the lens to me?',
+      "A visitor! By BOAT! I'm Ness. I kept this lighthouse lit all through the fog, just in case somebody came.",
+      "But my lamp's lens cracked in the fog. Now it only shines about as far as my nose.",
+      'Shelby, the hermit crab on Sandpiper Cay — the sandbar to the south-east — grinds lenses from sea glass. Sea glass washes up in a chest there.',
+      'Find some, ask Shelby to grind it into a lens, and bring the lens to me?',
+      ...NESS_RUMORS,
     ],
     offerHaving: {
       items: ['sea-glass', 'sea-glass-lens'],
       lines: [
-        "Oh! Before you sail off — my lamp's lens cracked in the fog. It shines, but only about as far as my nose.",
-        "Is that sea glass? From the Cay? Perfect! Shelby, the hermit crab there, grinds lenses. Bring me one?",
+        "A visitor! By BOAT! I'm Ness. And is that sea glass from the Cay? My lamp's lens cracked in the fog!",
+        'Ask Shelby, the hermit crab on Sandpiper Cay, to grind it into a lens, then bring the lens to me?',
+        ...NESS_RUMORS,
       ],
     },
     steps: [
