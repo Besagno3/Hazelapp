@@ -421,10 +421,14 @@ describe('item chains (#75 item 13)', () => {
     expect(first).toMatch(/only bother boats/);
     expect(first).toMatch(/Great Fogbank/);
     expect(first).toMatch(/Foglight Marsh/);
+    // The ask is the last thing she says before the button (review round 3).
+    const offerLines = questConversation('gull-lamplighter', defaultSave())!.lines;
+    expect(offerLines.at(-1)).toMatch(/bring the lens to me/);
     // Found the glass first? She says so (offerHaving), rumors and all.
     const having = questConversation('gull-lamplighter', { ...defaultSave(), questItems: ['sea-glass'] })!.lines.join(' ');
     expect(having).toMatch(/is that sea glass/);
     expect(having).toMatch(/Foglight Marsh/);
+    expect(questConversation('gull-lamplighter', { ...defaultSave(), questItems: ['sea-glass'] })!.lines.at(-1)).toMatch(/bring the lens to me/);
     let save: SaveData = converse('gull-lamplighter', defaultSave());
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
     expect(questConversation('gull-lamplighter', save)!.lines[0]).toMatch(/Sandpiper Cay/);
@@ -443,6 +447,12 @@ describe('item chains (#75 item 13)', () => {
     expect(save.questItems).toEqual([]);
     expect(save.coins).toBe(coins + 40);
     expect(save.items.hint).toBe(hints + 1);
+    // Afterwards: no stale chest rumor, no repeated rumors (review round 3).
+    const after = NPC_DEFS['gull-lamplighter'].lines.map((l) => (typeof l === 'string' ? l : l.text)).join(' ');
+    expect(after).not.toMatch(/chest on it|Foglight Marsh|only bother boats/);
+    expect(after).toMatch(/whale/);
+    // The sea-glass chest says Shelby is right there.
+    expect(chestWantedLine(defaultSave(), pathTargetId('silver-shallows', 'chest', 25, 32))).toMatch(/Shelby, right here/);
     // The Cay's old riddle-chest is still an ordinary one.
     expect(chestRewardText(pathTargetId('silver-shallows', 'chest', 26, 31))).toBe('25 coins! 🪙');
   });

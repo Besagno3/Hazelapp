@@ -90,7 +90,7 @@ export const REMEMBRANCE: Spell = {
   id: 'remembrance',
   name: 'Remembrance',
   emoji: '🏛️',
-  description: 'Once a battle: if a hit would make you fall, you stay up with 1 HP.',
+  description: 'Cast it, and the next hit that would make you fall leaves you with 1 HP. Once a battle.',
   cost: 2,
   effect: { kind: 'remember' },
   color: 'text-violet-200',

@@ -688,6 +688,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — 14i review round 3: Ness asks last, nothing stale (#75 item 14i)
+A report-only round (code 2 low, UX 1 medium, 6 low), then all fixed on the
+owner's say-so: Ness's rumors come before her lens ask, and after her quest
+she doesn't repeat them or the opened chest; the sea-glass chest names
+Shelby; Mnem's line without a dangling "And"; Sol's and Bramble's Act I
+lines stop in Act II; Lumen's one memory line holds without meeting Mnem
+(`DialogueLine.unlessFlag` takes several flags); Remembrance reads as a
+spell you cast; the `MET_ELDER` test fixed; Chisel's plaque line; Wick's
+"Go… Go". 1113 green, lint clean.
+
 ### 2026-10-12 — 14i UX round 2: one trip for Ness's Lens, Mnem keeps his surprise (#75 item 14i)
 Fresh UX read (1 medium, 6 low), all fixed: Ness's first talk is the lens
 offer again, now carrying her hello, safety line and rumors (`NESS_RUMORS`;

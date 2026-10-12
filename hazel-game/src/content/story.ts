@@ -402,7 +402,7 @@ export const HALL_PANELS: StoryPanel[] = [
   },
   {
     emoji: '✨',
-    text: '"The Hall remembers YOU now," says Mnem. "When you\'re about to fall, it will hold you up." You learned Remembrance! Find it in your 📖 Spells.',
+    text: '"The Hall remembers YOU now," says Mnem. "Cast Remembrance in a battle, and when you\'re about to fall, it will hold you up." Find it in your 📖 Spells!',
   },
 ];
 

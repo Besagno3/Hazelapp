@@ -31,8 +31,8 @@ export type DialogueLine =
       text: string;
       /** Show only when this save flag is set… */
       ifFlag?: string;
-      /** …or only when it is NOT set. */
-      unlessFlag?: string;
+      /** …or only when it is NOT set (or, given several, none of them is). */
+      unlessFlag?: string | string[];
       /** Set this flag after the line is shown. */
       setFlag?: string;
     };
@@ -97,7 +97,7 @@ export function visibleLines(lines: DialogueLine[], flags: Record<string, boolea
   return lines.filter((l) => {
     if (typeof l === 'string') return true;
     if (l.ifFlag && !flags[l.ifFlag]) return false;
-    if (l.unlessFlag && flags[l.unlessFlag]) return false;
+    if (l.unlessFlag && [l.unlessFlag].flat().some((f) => flags[f])) return false;
     return true;
   });
 }
@@ -176,7 +176,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: "Since the Spire fell, I remember things I forgot I'd forgotten. My first day in this Library. A cat called Pudding.",
         ifFlag: ACT2_SEEN,
-        unlessFlag: 'met-mnem',
+        // Only his newest memory line (#75 item 14i review round 3).
+        unlessFlag: ['met-mnem', crystalFlag('history')],
       },
       {
         text: "Keeper Mnem has blank plaques? I've read every book here, and not one names the very first Sage. Odd. VERY odd.",
@@ -424,7 +425,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🧑',
     role: 'villager',
     lines: [
-      'You and me, we used to race to the field and back before supper. Remember? You always won. Show those Fiends the same heels!',
+      {
+        text: 'You and me, we used to race to the field and back before supper. Remember? You always won. Show those Fiends the same heels!',
+        unlessFlag: ACT2_SEEN,
+      },
       'I would come adventuring, but SOMEbody has to keep the village bread from burning. That somebody is me. The bread, it… does not forgive.',
       {
         text: 'A real dragon. Hatched right here. I told everyone you were special and NObody believed me. Ha!',
@@ -443,7 +447,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🧓',
     role: 'villager',
     lines: [
-      'I keep every lantern in the village lit. Lately they sputter — the fog drinks light the way a thirsty traveler drinks water.',
+      {
+        text: 'I keep every lantern in the village lit. Lately they sputter — the fog drinks light the way a thirsty traveler drinks water.',
+        unlessFlag: ACT2_SEEN,
+      },
       'Each crystal you restore, my lanterns burn a little brighter. I can almost read by them again!',
       {
         text: 'Four crystals home, and the whole village glows like a held breath finally let go. You did this. A child from our own little field.',
@@ -586,12 +593,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: questDoneFlag({ id: 'ness-lens' }),
       },
       'These islands are only now remembering they exist. Some mornings I count a new one! Yesterday it was a rock shaped like a sneeze.',
-      'See the little sandbar to the south-east? Sandpiper Cay. The sandpipers say there\'s a chest on it. Sandpipers say a LOT of things.',
-      // Sea critters (#75 item 14d): why the ones out there never bother you on the sand.
-      "Puffers, inklings, starfish… sea critters splash about out there now. They only bother boats, and you can always steer round them. On the sand you're as safe as a shell!",
+      // After her quest (#75 item 14i review round 3): no stale chest rumor, no repeat of the
+      // offer's rumors — just the Fogbank warning, which still matters.
+      'Shelby, over on Sandpiper Cay, says my beam lights up his whole sandbar now. He reads the sand by it!',
       "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
-      // Foglight Marsh (#75 item 14g): the rumor rule — name a place and what's there.
-      "Up on the north coast is Foglight Marsh, where the last of the fog pooled. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!",
     ],
     ambient: ['*polishes the lamp*', 'Ship ahoy? …Oh, it\'s you!', 'Shine on, little light.'],
   },
@@ -1376,7 +1381,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: HALL_DEDICATED,
       },
       // Plants the first Sage, for Wick's and Lumen's breadcrumbs.
-      'And these plaques are blank — even the very first Sage\'s. Names nobody remembers… yet.',
+      'These plaques are still blank — even the very first Sage\'s. Names nobody remembers… yet.',
       // The dedication (#75 item 14i): Memory's plaque lights itself, and Mnem
       // calls you in — the panels play as his talk closes (WorldScreen).
       {
@@ -1445,6 +1450,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "I'm Chisel. I carve the names on the Hall's plaques, one letter at a time.",
       "I carved my own name so small, I can't find it!",
+      // The dedication (#75 item 14i): MEMORY carved itself.
+      {
+        text: "That MEMORY plaque? It carved itself! Best letters in the Hall, too. I'm a little jealous.",
+        ifFlag: HALL_DEDICATED,
+      },
     ],
     ambient: ['Tap, tap, tap…', '🔨'],
   },

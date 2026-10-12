@@ -1723,7 +1723,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
         x: 25,
         y: 32,
         item: 'sea-glass',
-        wantedBy: "🏮 Lamplighter Ness, on Gull Rock, needs sea glass for her lighthouse's lens!",
+        wantedBy: "🏮 Lamplighter Ness, on Gull Rock, needs sea glass for her lighthouse's lens — and Shelby, right here, can grind it into one!",
       },
     ],
     // Sea critters (#75 item 14d): they swim open water and fight only a

@@ -1078,9 +1078,24 @@ describe('the world remembers (#75 item 14i)', () => {
     const wick = (f: Record<string, boolean>) => visibleLines(NPC_DEFS['village-elder'].lines, f).map(lineText).join(' ');
     expect(wick(flags)).not.toMatch(/first Sage/);
     expect(wick({ ...flags, 'met-mnem': true })).toMatch(/nobody remembers the first Sage/);
-    const lumen = (f: Record<string, boolean>) => visibleLines(NPC_DEFS['elder-lumen'].lines, { MET_ELDER: true, ...f }).map(lineText).join(' ');
+    const lumen = (f: Record<string, boolean>) => visibleLines(NPC_DEFS['elder-lumen'].lines, { [MET_ELDER]: true, ...f }).map(lineText).join(' ');
     expect(lumen({ ...flags, 'met-mnem': true })).toMatch(/first Sage/);
     expect(lumen({ ...flags, 'met-mnem': true })).not.toMatch(/Aster/);
     expect(lumen({ ...flags, 'met-mnem': true, 'crystal-history-restored': true })).toMatch(/Aster/);
+    // Only his newest memory line — even for a hero who never met Mnem (review round 3).
+    const memoryLines = (f: Record<string, boolean>) => visibleLines(NPC_DEFS['elder-lumen'].lines, { [MET_ELDER]: true, ...f })
+      .filter((l) => /Pudding|first Sage|Aster/.test(lineText(l))).length;
+    expect(memoryLines({ ...flags, 'crystal-history-restored': true })).toBe(1);
+    expect(memoryLines(flags)).toBe(1);
+  });
+
+  it('Act I lines that would contradict Act II stop, and Mnem never opens mid-sentence (review round 3)', () => {
+    const act2 = { [ACT2_SEEN]: true, 'ember-hatched': true };
+    const say = (id: string, f: Record<string, boolean>) => visibleLines(NPC_DEFS[id].lines, f).map(lineText).join(' ');
+    expect(say('village-keeper', act2)).not.toMatch(/sputter/);
+    expect(say('village-friend', act2)).not.toMatch(/Fiends/);
+    expect(say('village-keeper', {})).toMatch(/sputter/);
+    const mnem = visibleLines(NPC_DEFS['hill-keeper'].lines, { ...act2, 'met-mnem': true, 'crystal-history-restored': true }).map(lineText);
+    expect(mnem[0]).not.toMatch(/^And\b/);
   });
 });

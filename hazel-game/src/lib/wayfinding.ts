@@ -200,7 +200,7 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'visit',
       title: 'See the new plaque',
-      why: 'Something new is happening in the Hall of Names on Remembrance Hill. Go and see!',
+      why: 'Something new is happening in the Hall of Names on Remembrance Hill!',
       zoneId: 'remembrance-hill',
       doneFlag: HALL_DEDICATED,
     };

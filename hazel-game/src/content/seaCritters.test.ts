@@ -7,7 +7,8 @@ import { battleBackdrop } from './tiles';
 import { BOAT_HOME, boatAfterDefeat, boatOnReturn, boatSpot, BOAT_MENDED, defeatBoatLine, SEA_DEFEAT_LINE, validMooring } from './boat';
 import { RETURN_TOWNS } from './fieldSpells';
 import { innOf } from './zones';
-import { NPC_DEFS } from './npcs';
+import { questConversation } from './quests';
+import { defaultSave } from '../lib/save';
 import { reach, touches } from '../lib/reach';
 import { encounterHabitat, meetsHero, seaEntryCell } from '../lib/travel';
 import { WANDER_TUNING } from '../lib/wander';
@@ -131,7 +132,8 @@ describe('the sea critters of the Silver Shallows (#75 item 14d)', () => {
   });
 
   it("Lamplighter Ness says why they never bother you on the sand", () => {
-    const said = NPC_DEFS['gull-lamplighter'].lines.map((l) => (typeof l === 'string' ? l : l.text)).join(' ');
+    // On first meeting — her first talk is her lens quest's offer, which carries it (#75 item 14i).
+    const said = questConversation('gull-lamplighter', defaultSave())!.lines.join(' ');
     expect(said).toMatch(/only bother boats/);
   });
 });

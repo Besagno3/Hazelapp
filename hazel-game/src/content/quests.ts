@@ -1018,19 +1018,21 @@ export const QUESTS: QuestDef[] = [
     // Her first talk is this offer, so it carries her hello, the sea-critter safety line and her
     // rumors (#75 item 14i review round 2: one trip — Ness, the Cay's chest and Shelby, back to Ness).
     title: "Ness's Lens",
+    // Her rumors first, so the lens ask is the last thing said before the button (round 3).
     offer: [
       "A visitor! By BOAT! I'm Ness. I kept this lighthouse lit all through the fog, just in case somebody came.",
+      ...NESS_RUMORS,
       "But my lamp's lens cracked in the fog. Now it only shines about as far as my nose.",
       'Shelby, the hermit crab on Sandpiper Cay — the sandbar to the south-east — grinds lenses from sea glass. Sea glass washes up in a chest there.',
       'Find some, ask Shelby to grind it into a lens, and bring the lens to me?',
-      ...NESS_RUMORS,
     ],
     offerHaving: {
       items: ['sea-glass', 'sea-glass-lens'],
       lines: [
-        "A visitor! By BOAT! I'm Ness. And is that sea glass from the Cay? My lamp's lens cracked in the fog!",
-        'Ask Shelby, the hermit crab on Sandpiper Cay, to grind it into a lens, then bring the lens to me?',
+        "A visitor! By BOAT! I'm Ness, the lamplighter.",
         ...NESS_RUMORS,
+        "And is that sea glass from the Cay? My lamp's lens cracked in the fog — it's just what I need!",
+        'Ask Shelby, the hermit crab on Sandpiper Cay, to grind it into a lens, then bring the lens to me?',
       ],
     },
     steps: [
