@@ -70,7 +70,7 @@ export const FUN_FACTS: Record<Topic, string[]> = {
     'A sentence with every letter of the alphabet is called a pangram.',
   ],
   music: [
-    'Did you know? Sound travels about four times faster through water than through air.',
+    'Did you know? A violin is made from about 70 pieces of wood.',
     'A piano has 88 keys — 52 white and 36 black.',
     'The oldest instrument ever found is a flute made from bone, over 40,000 years old.',
     'Beethoven kept writing music even after he lost his hearing.',

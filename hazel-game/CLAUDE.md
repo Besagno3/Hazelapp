@@ -689,6 +689,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — 15a review round 2: five across, "Pick another topic", Wick points to Wisp (#130f, #129m)
+A report-only `/saas-code-review` (2 medium, 3 low) and UX review (3 medium,
+4 low); the owner chose eight to fix: the not-ready test goes through a real
+`FunctionsHttpError` and the function's 400 wording is marked as matched;
+Grandmother Wick nudges you back to Wisp after Memory (the beat is Woods-only
+now, #129l — `story.ts`'s comment says so); five topic columns from `lg`;
+"Coming soon!" has one main button, "Pick another topic" (`ErrorScreen`
+`backLabel`); "🗺️ Enter Lumina"; a centred title; a violin fact. 1120 green,
+lint + tsc clean.
+
 ### 2026-10-12 — The owner's calls: Wisp waits for the Woods; roadmap decisions 15–18 (#129l)
 Wisp's "remembering me" beat now plays only in the Whispering Woods after
 Memory, never for Wisp fighting beside you (`wispDue`). Recorded: save v3

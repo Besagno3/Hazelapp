@@ -80,14 +80,14 @@ describe('QuizRound — XP only once the world is open (#122)', () => {
 });
 
 describe('QuizRound — a topic the server does not know yet (#130)', () => {
-  it('says it is coming soon, with Back and no Try again', () => {
+  it('says it is coming soon, with Pick another topic and no Try again', () => {
     start(3, true);
     hook.error = TOPIC_NOT_READY;
     render(<QuizRound />);
     expect(screen.getByText('Coming soon!')).toBeInTheDocument();
     expect(screen.getByText(TOPIC_NOT_READY)).toBeInTheDocument();
     expect(screen.queryByText('Try again')).toBeNull();
-    expect(screen.getByText('Back')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pick another topic' })).toBeInTheDocument();
   });
 
   it('any other failure keeps Try again', () => {

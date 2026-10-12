@@ -28,7 +28,7 @@ export default function TopicSelect() {
       <motion.h1
         initial={{ y: -30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="text-4xl font-extrabold text-white mb-2"
+        className="text-4xl font-extrabold text-white mb-2 text-center"
       >
         Training Grounds
       </motion.h1>
@@ -52,11 +52,11 @@ export default function TopicSelect() {
           onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
           className="mb-6 bg-amber-400 hover:bg-amber-300 text-amber-950 font-extrabold rounded-2xl px-8 py-4 text-lg shadow-xl"
         >
-          🗺️ Enter the world of Lumina
+          🗺️ Enter Lumina
         </motion.button>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 auto-rows-fr gap-3 sm:gap-4 w-full max-w-md sm:max-w-2xl">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 auto-rows-fr gap-3 sm:gap-4 w-full max-w-md sm:max-w-2xl lg:max-w-5xl">
         {/* Every topic stays open: a child can train the same topic as often as they like. */}
         {ALL_TOPIC_INFO.map((t, i) => (
           <motion.button

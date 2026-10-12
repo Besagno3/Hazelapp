@@ -232,6 +232,12 @@ describe('the Hall of Names and Wisp (#75 item 14i)', () => {
     expect(screen.queryByText(/Letters glow on it all by themselves/)).toBeNull();
   });
 
+  it('the Woods before Memory plays no Wisp beat (#129l)', () => {
+    at('whispering-woods', { [crystalFlag('history')]: false });
+    render(<WorldScreen />);
+    expect(screen.queryByText(/Something is remembering ME/)).toBeNull();
+  });
+
   it('Wisp stirs in the Whispering Woods after Memory — nowhere else, even fighting beside you (#129l)', () => {
     at('lumina-village', { [HALL_DEDICATED]: true });
     const { unmount } = render(<WorldScreen />);

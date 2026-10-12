@@ -1224,3 +1224,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1018 | U | ✅ | questions (#130e) | the function's "topic must be one of" error becomes TOPIC_NOT_READY; any other error keeps its reason (questions.test) |
 | TC-1019 | C | ✅ | quiz (#130e) | a TOPIC_NOT_READY round shows "Coming soon!" with Back and no Try again; other errors keep Try again (QuizRound.test) |
 | TC-1020 | C | ✅ | story (#129l) | after Memory, Wisp's beat plays in the Whispering Woods only — not in Lumina Village, even with Wisp as the active companion (WorldScreen.ending.test) |
+| TC-1021 | U | ✅ | questions (#130f) | the not-ready mapping holds on a real FunctionsHttpError with the function's JSON 400 body (questions.test) |
+| TC-1022 | C | ✅ | quiz (#130f) | "Coming soon!" offers one main button, "Pick another topic" (QuizRound.test) |
+| TC-1023 | U | ✅ | story (#129m) | Wick's Wisp nudge shows after Memory and goes once Wisp has stirred; the Woods before Memory plays no beat (story.test, WorldScreen.ending.test) |
+| TC-1024 | M | ⬜ | Training Grounds (#130f) | at 1024 px the ten topics are two full rows of five; at 320 px "🗺️ Enter Lumina" is one line and the title centred |

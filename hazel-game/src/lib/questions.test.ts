@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 // Mocked supabase client — replaces the real module (which would throw at
 // import time without VITE_SUPABASE_URL / _ANON_KEY set). vi.hoisted lifts
@@ -142,7 +143,10 @@ describe('fetchQuestions', () => {
   });
 
   it("says a topic isn't ready yet, not the server's whitelist, when the function doesn't know it (#130)", async () => {
-    invokeMock.mockResolvedValue({ data: null, error: new Error('topic must be one of: math, science') });
+    // The real path: a FunctionsHttpError whose JSON body carries the function's own 400 text.
+    const body = { error: 'topic must be one of: math, science' };
+    const response = new Response(JSON.stringify(body), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    invokeMock.mockResolvedValue({ data: null, error: new FunctionsHttpError(response) });
     await expect(fetchQuestions('music', 9, 3, 5)).rejects.toThrow(TOPIC_NOT_READY);
     // Any other failure keeps its real reason.
     invokeMock.mockResolvedValue({ data: null, error: new Error('rate limited') });

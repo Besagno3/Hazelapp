@@ -305,6 +305,8 @@ Deno.serve(async (req) => {
       : undefined;
 
   if (!topic || !TOPICS.includes(topic as (typeof TOPICS)[number])) {
+    // The app matches this wording (`UNKNOWN_TOPIC`, src/lib/questions.ts) to tell a
+    // child a topic isn't ready yet — keep it, and add no `detail`, or they see this text.
     return json({ error: `topic must be one of: ${TOPICS.join(', ')}` }, 400);
   }
   if (typeof age !== 'number' || age < 3 || age > 100) {

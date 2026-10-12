@@ -19,7 +19,10 @@ interface ApiQuestion {
   timesAsked: number;
 }
 
-/** The start of the edge function's error for a topic it doesn't accept. */
+/**
+ * The start of the edge function's error for a topic it doesn't accept
+ * (generate-questions/index.ts — the two must keep the same wording).
+ */
 const UNKNOWN_TOPIC = 'topic must be one of';
 
 /** What a child sees when their topic isn't ready on the server yet (#130). */

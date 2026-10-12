@@ -40,7 +40,7 @@ export default function QuizRound() {
       <ErrorScreen
         message={error}
         {...(error === TOPIC_NOT_READY
-          ? { title: 'Coming soon!', emoji: '🚧' }
+          ? { title: 'Coming soon!', emoji: '🚧', backLabel: 'Pick another topic' }
           : { onRetry: reload })}
         onBack={() => sendFlow({ type: 'EXIT_QUIZ' })}
       />

@@ -68,6 +68,7 @@ export function ErrorScreen({
   title = 'Something went wrong',
   emoji = '😕',
   retryLabel = 'Try again',
+  backLabel = 'Back',
 }: {
   message: string;
   onRetry?: () => void;
@@ -75,6 +76,7 @@ export function ErrorScreen({
   title?: string;
   emoji?: string;
   retryLabel?: string;
+  backLabel?: string;
 }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6">
@@ -96,9 +98,14 @@ export function ErrorScreen({
           {onBack && (
             <button
               onClick={onBack}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg px-5 py-2 transition"
+              // The only way on when there's nothing to retry: the main button (#130).
+              className={
+                onRetry
+                  ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg px-5 py-2 transition'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-5 py-3 min-h-[44px] transition'
+              }
             >
-              Back
+              {backLabel}
             </button>
           )}
         </div>
