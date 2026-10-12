@@ -688,6 +688,39 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — Merge main (Sunken Archive #48, 14i #50) into the Act I quick-fixes branch (#130)
+`main` took ISSUES **#128–#129** and TC-978–1014 while the quick fixes were in
+review, so they moved **#128 → #130** and their test cases **TC-978–988 →
+TC-1015–1025** (only their own lines). No code conflicts: `npcs.ts` and
+`WorldScreen.tsx` merged on their own.
+
+### 2026-10-12 — Act I launch review: quick fixes B3, B2, S14, S6, B7 (#130)
+The first quick fixes from the Act I launch review (the checklist's item
+codes in brackets). **B3:** the quiz's "What you missed" recap showed the
+wrong question — saving the new skill level re-keys `useGeneratedQuestions`,
+which fetched the next batch under the results screen (and could show its
+spinner instead). `QuizRound` now holds the finished round (`FinishedRound`:
+questions, answers, picks) and renders `RoundResults` from it, before the
+loading check. **B2:** tablets and sideways phones couldn't walk — the
+`TouchPad` hid at `sm`. Two Tailwind screens (`tailwind.config.js`):
+`touch` = `(pointer: coarse)` (the main pointer, like `WorldCanvas`'s "Tap:"
+prompts — `any-pointer` would also catch touchscreen laptops used with a
+keyboard, a review finding), `touch-wide` = touch + landscape; the pad
+shows on narrow windows and every touch screen, and on a sideways touch screen
+it docks in the bottom corners (`fixed`, pad left, ✋ right, `z-30`, under
+the overlays); the toast stays up top on touch screens so it never covers the
+pad. **S14:** Wisp now says the Depths are a cave south of the woods (not a
+stair under them), and Hazel says Ember's Breath comes when all four crystals
+are home. **S6 (part):** the menu's cloud-save warnings drop the raw error
+(now a `title`) and "apply the latest database migrations". **B7 (part):**
+`index.html` has the title "Hazel Quest", a description and a theme colour.
+**Review fix:** the results screen used up the next round's warm-up — the
+new level re-keyed the hook, whose fetch took the batch `finishRound` had just
+prefetched (consume-once, `lib/questions.ts`) and threw it away, after the
+server had marked it seen. `FinishedRound` now keeps the round's `level`, and
+`QuizRound` passes `finished?.level` as the hook's `levelOverride`, so a
+finished round asks for nothing new.
+
 ### 2026-10-12 — 14i review round 3: Ness asks last, nothing stale (#75 item 14i)
 A report-only round (code 2 low, UX 1 medium, 6 low), then all fixed on the
 owner's say-so: Ness's rumors come before her lens ask, and after her quest
