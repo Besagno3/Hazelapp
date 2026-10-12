@@ -15,13 +15,24 @@
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase.
 //
 // Access (#88): callers must be signed in (401 otherwise), and every call goes
-// through `begin_question_request` (migration 0009) — a per-login rate limit
-// (429 when exceeded) plus per-login and project-wide daily budgets of FRESH
-// questions. A login is a grown-up's family account (#124); the app names the
-// kid playing (`profileId`), and each kid has their own budget and seen
-// questions (migration 0014). When a budget is spent the call is served from the cache
-// (re-using already-seen questions if it must), so play continues without
-// spending more on Claude. Limits are tunable via env (see QUOTA_DEFAULTS).
+// through `begin_question_request` (migration 0009) — a per-kid rate limit
+// (429 when exceeded) plus per-kid and project-wide daily budgets of FRESH
+// questions. A login is a grown-up's family account (#124); the app must name
+// the kid playing (`profileId`, one of the caller's kids — 400 without it), and
+// each kid has their own budget and seen questions (migration 0014). When a
+// budget is spent — or the quota check itself fails — the call is served from
+// the cache only (re-using already-seen questions if it must), so play
+// continues without spending more on Claude. Limits are tunable via env (see
+// QUOTA_DEFAULTS).
+//
+// What reaches the prompt (Act I launch review B8): the topic (whitelisted),
+// the level (1-10), the kid's age worked out HERE from their birth date, and
+// at most one fixed flavour line picked by key (`flavor`). Nothing the caller
+// types goes into the prompt; the old free-text `context` is ignored.
+//
+// When Claude fails (B5): a timeout, an API error, a cut-off or refused reply,
+// or unparseable JSON — the batch is filled from the cache instead, and only
+// when nothing is left does the kid see a friendly "try again" message.
 //
 // Deploy:  supabase functions deploy generate-questions
 // ----------------------------------------------------------------------------
@@ -48,6 +59,18 @@ const TOPIC_PROMPTS: Record<string, string> = {
     'world history, ancient civilizations, famous inventions, important people, the measurement of time.',
 };
 const TOPICS = Object.keys(TOPIC_PROMPTS);
+
+// Question flavours (B8): the app sends a key, never text. Kept INLINE like
+// TOPIC_PROMPTS (single-file deploys, #67); the canonical copy for the app is
+// `_shared/flavors.ts`, and `questionFlavors.test.ts` fails if these drift.
+const QUESTION_FLAVORS: Record<string, string> = {
+  battle: 'a quick-thinking hero battling a critter',
+  spell: 'a hero casting a powerful spell in battle',
+  gate: "a gatekeeper's challenge on a path through a fantasy world",
+  chest: "a magical treasure chest's riddle",
+  shrine: 'a riddle from a shrine keeper teaching a spell',
+  spire: "the final climb up a dark wizard's tower",
+};
 const TOPIC_PROMPT_BLOCK = TOPICS.map((id) => `- ${id}: ${TOPIC_PROMPTS[id]}`).join('\n');
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
@@ -73,11 +96,24 @@ function quotaSetting(name: keyof typeof QUOTA_DEFAULTS): number {
   const n = Number(Deno.env.get(name));
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : QUOTA_DEFAULTS[name];
 }
+/** Claude calls give up after this long, with one retry (B5): a slow reply
+ *  falls back to the cache well inside the function's own time limit. */
+const ANTHROPIC_TIMEOUT_MS = 20_000;
+const ANTHROPIC_MAX_RETRIES = 1;
+/** Ages a kid profile can have (family.ts); a birth date outside is clamped. */
+const MIN_AGE = 3;
+const MAX_AGE = 18;
 /** A player id as the app sends it (a uuid). */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Kid-facing message when the per-minute limit trips (shown on the retry screen). */
 const SLOW_DOWN = 'The question wizards need a short rest — try again in a minute!';
+/** Kid-facing message when questions can't be had right now (Claude down, quota
+ *  check failed, nothing saved to fall back on). Never a raw error (B5, S6). */
+const TRY_LATER = 'The question wizards are busy right now — try again in a minute!';
+/** Kid-facing message when today's budget is spent and nothing saved is left. */
+const COME_BACK_TOMORROW =
+  "You've answered so many questions today that the question wizards need to write more! Try another topic, or come back tomorrow.";
 
 const SYSTEM_PROMPT = `You are a question writer for "Hazel Quest", an educational quiz-battle game for children.
 
@@ -142,6 +178,25 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+/** Whole-years age from a birth year + month (1-12), as the app's `calcAge`
+ *  works it out (lib/age.ts), clamped to the ages a kid profile can have. */
+function ageFrom(birthYear: number, birthMonth: number, now = new Date()): number {
+  let age = now.getUTCFullYear() - birthYear;
+  if (now.getUTCMonth() + 1 < birthMonth) age -= 1;
+  return Math.min(MAX_AGE, Math.max(MIN_AGE, age));
+}
+
+/** Logs why a Claude call failed, most specific first (the SDK's typed errors). */
+function logGenerationError(err: unknown): void {
+  if (err instanceof Anthropic.APIConnectionError) {
+    console.error('Claude unreachable or timed out:', err.message);
+  } else if (err instanceof Anthropic.APIError) {
+    console.error(`Claude API error ${err.status}:`, err.message);
+  } else {
+    console.error('Question generation failed:', err instanceof Error ? err.message : String(err));
+  }
 }
 
 function randInt(min: number, max: number): number {
@@ -217,13 +272,14 @@ async function generateFresh(
   age: number,
   level: number,
   n: number,
-  context?: string,
+  flavorLine?: string,
 ): Promise<FreshQuestion[]> {
-  // Optional flavor hint from the game (#37): lightly themes fresh questions
+  // Optional flavour from the game (#37): lightly themes fresh questions
   // (gatekeeper riddles, boss battles…). Questions must stay self-contained —
-  // the flavor is tone, not content — so cached reuse elsewhere still works.
-  const flavor = context
-    ? ` Give the questions a light, fun adventure-story tone fitting this moment: ${context}. ` +
+  // the flavour is tone, not content — so cached reuse elsewhere still works.
+  // `flavorLine` is always one of QUESTION_FLAVORS, never caller text (B8).
+  const flavor = flavorLine
+    ? ` Give the questions a light, fun adventure-story tone fitting this moment: ${flavorLine}. ` +
       'The questions must still stand alone and test the topic.'
     : '';
   const message = await anthropic.messages.create({
@@ -241,6 +297,12 @@ async function generateFresh(
       },
     ],
   });
+
+  // A reply cut off at max_tokens is broken JSON, and a refusal has no
+  // questions: either way the caller falls back to the cache (B5).
+  if (message.stop_reason !== 'end_turn') {
+    throw new Error(`Claude stopped early (stop_reason: ${message.stop_reason})`);
+  }
 
   const textBlock = message.content.find((b) => b.type === 'text');
   if (!textBlock || textBlock.type !== 'text') {
@@ -284,6 +346,9 @@ Deno.serve(async (req) => {
     age?: number;
     skillLevel?: number;
     count?: number;
+    /** One of QUESTION_FLAVORS' keys (B8). */
+    flavor?: string;
+    /** Free-text flavour from apps before B8 — ignored, never sent to Claude. */
     context?: string;
     profileId?: string;
   };
@@ -293,23 +358,25 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { topic, age, skillLevel } = body;
-  const count = Math.min(Math.max(body.count ?? 5, 1), 15);
-  // Optional flavor hint (#37) — clamp length so it can't bloat the prompt.
-  const context =
-    typeof body.context === 'string' && body.context.trim()
-      ? body.context.trim().slice(0, 300)
+  const { topic, skillLevel } = body;
+  const count = Math.min(Math.max(Math.round(Number(body.count ?? 5)) || 1, 1), 15);
+  // Flavour by key only (B8): an unknown key, or the old free-text `context`,
+  // just means no flavour. `Object.hasOwn` so "constructor" isn't a key.
+  const flavorLine =
+    typeof body.flavor === 'string' && Object.hasOwn(QUESTION_FLAVORS, body.flavor)
+      ? QUESTION_FLAVORS[body.flavor]
       : undefined;
 
   if (!topic || !TOPICS.includes(topic as (typeof TOPICS)[number])) {
     return json({ error: `topic must be one of: ${TOPICS.join(', ')}` }, 400);
   }
-  if (typeof age !== 'number' || age < 3 || age > 100) {
-    return json({ error: 'age must be a number between 3 and 100' }, 400);
-  }
-  if (typeof skillLevel !== 'number' || skillLevel < 1 || skillLevel > 10) {
+  if (typeof skillLevel !== 'number' || !Number.isFinite(skillLevel) || skillLevel < 1 || skillLevel > 10) {
     return json({ error: 'skillLevel must be a number between 1 and 10' }, 400);
   }
+  // Levels are whole numbers 1-10; the cache is keyed by them.
+  const level = Math.round(skillLevel);
+  // The caller's `age` is not trusted: it's worked out from the kid's birth
+  // date below (B8). It's still accepted so older apps don't get a 400.
 
   // Service-role client for the question cache (bypasses RLS).
   const dbUrl = Deno.env.get('SUPABASE_URL');
@@ -338,32 +405,38 @@ Deno.serve(async (req) => {
   }
   if (!callerId) return json({ error: 'Please sign in to play.' }, 401);
 
-  // Which kid is playing (#124): the app names one of the grown-up's kids, and
-  // the per-kid budget and dedupe (#24) follow them. An app from before parent
-  // accounts sends none — its login is the kid. A failed lookup keeps the
-  // login (the quota fails open below if that isn't a kid); only someone
-  // else's kid is refused.
-  let profileId: string = callerId;
-  if (body.profileId !== undefined) {
-    if (typeof body.profileId !== 'string' || !UUID_RE.test(body.profileId)) {
-      return json({ error: 'profileId must be a player id' }, 400);
-    }
-    const { data: kid, error: kidErr } = await db
-      .from('profiles')
-      .select('id')
-      .eq('id', body.profileId)
-      .eq('parent_id', callerId)
-      .maybeSingle();
-    if (kidErr) console.error('player lookup failed (is migration 0013 applied?):', kidErr.message);
-    else if (!kid) return json({ error: 'That player belongs to another account.' }, 403);
-    else profileId = kid.id as string;
+  // Which kid is playing (#124): the app must name one of the grown-up's kids
+  // (B9). The per-kid budget, the dedupe (#24) and the age in the prompt all
+  // follow them. Without a kid there is no budget to charge, so the call is
+  // refused rather than let through unlimited; an app from before parent
+  // accounts (the only one that sent none) needs a refresh anyway.
+  if (body.profileId === undefined) {
+    return json({ error: 'profileId is required', detail: 'Please refresh the page to keep playing.' }, 400);
   }
+  if (typeof body.profileId !== 'string' || !UUID_RE.test(body.profileId)) {
+    return json({ error: 'profileId must be a player id' }, 400);
+  }
+  const { data: kid, error: kidErr } = await db
+    .from('profiles')
+    .select('id, birth_year, birth_month')
+    .eq('id', body.profileId)
+    .eq('parent_id', callerId)
+    .maybeSingle();
+  if (kidErr) {
+    console.error('player lookup failed (is migration 0013 applied?):', kidErr.message);
+    return json({ error: 'player_lookup_failed', detail: TRY_LATER }, 503);
+  }
+  if (!kid) return json({ error: 'That player belongs to another account.' }, 403);
+  const profileId = kid.id as string;
+  const age = ageFrom(Number(kid.birth_year), Number(kid.birth_month));
 
-  // Rate limit + fresh-question budget (#88). If the quota migration isn't
-  // applied yet the RPC errors — fail OPEN (logged loudly) so a deploy-order
-  // slip can't lock every kid out; sign-in is still required either way.
+  // Rate limit + fresh-question budget (#88). If the check itself fails (the
+  // migration isn't applied, the database is unwell) it fails CLOSED (B9):
+  // no fresh questions from Claude, only the cache — so a broken check can
+  // never mean an unlimited bill. Logged loudly either way.
   let freshAllowance = count;
   let requestId: number | null = null;
+  let quotaUnavailable = false;
   {
     const { data: quota, error: quotaErr } = await db.rpc('begin_question_request', {
       p_profile: profileId,
@@ -373,7 +446,12 @@ Deno.serve(async (req) => {
     });
     const row = Array.isArray(quota) ? quota[0] : quota;
     if (quotaErr || !row) {
-      console.error('QUOTA CHECK FAILED (is migration 0009 applied?):', quotaErr?.message ?? 'no row');
+      console.error(
+        'QUOTA CHECK FAILED — serving saved questions only (is migration 0009 applied?):',
+        quotaErr?.message ?? 'no row',
+      );
+      freshAllowance = 0;
+      quotaUnavailable = true;
     } else if (!row.allowed) {
       return json({ error: 'rate_limited', detail: SLOW_DOWN }, 429);
     } else {
@@ -390,8 +468,8 @@ Deno.serve(async (req) => {
         .from('questions')
         .select('id, level, text, options, correct_index, explanation, times_asked')
         .eq('topic', topic)
-        .gte('level', skillLevel - LEVEL_BAND)
-        .lte('level', skillLevel + LEVEL_BAND)
+        .gte('level', level - LEVEL_BAND)
+        .lte('level', level + LEVEL_BAND)
         .limit(CACHE_LOOKUP_LIMIT);
       if (error) console.error('cache read failed:', error.message);
       else cached = (data ?? []) as CacheRow[];
@@ -411,17 +489,14 @@ Deno.serve(async (req) => {
       if (flagErr) console.error('flag read failed:', flagErr.message);
       const flaggedSet = new Set((flagRows ?? []).map((r) => r.question_id as string));
 
-      let seenSet = new Set<string>();
-      if (profileId) {
-        const { data: viewRows, error: viewErr } = await db
-          .from('question_views')
-          .select('question_id')
-          .eq('profile_id', profileId)
-          .order('seen_at', { ascending: false })
-          .limit(SEEN_HISTORY_LIMIT);
-        if (viewErr) console.error('view read failed:', viewErr.message);
-        seenSet = new Set((viewRows ?? []).map((r) => r.question_id as string));
-      }
+      const { data: viewRows, error: viewErr } = await db
+        .from('question_views')
+        .select('question_id')
+        .eq('profile_id', profileId)
+        .order('seen_at', { ascending: false })
+        .limit(SEEN_HISTORY_LIMIT);
+      if (viewErr) console.error('view read failed:', viewErr.message);
+      const seenSet = new Set((viewRows ?? []).map((r) => r.question_id as string));
 
       seenFallback = cached.filter((r) => !flaggedSet.has(r.id) && seenSet.has(r.id));
       cached = cached.filter((r) => !flaggedSet.has(r.id) && !seenSet.has(r.id));
@@ -440,16 +515,29 @@ Deno.serve(async (req) => {
       reused.push(...shuffle(seenFallback).slice(0, reuseCount - reused.length));
     }
 
-    // 3. Generate the fresh questions (at the exact level) and cache them.
+    // 3. Generate the fresh questions (at the exact level) and cache them. A
+    //    failed call is not the kid's problem (B5): it's logged, and the batch
+    //    is filled from the cache below.
     let fresh: OutQuestion[] = [];
+    let generated: FreshQuestion[] = [];
+    let generationFailed = false;
     if (freshCount > 0) {
-      const anthropic = new Anthropic({ apiKey });
-      const generated = await generateFresh(anthropic, topic, age, skillLevel, freshCount, context);
+      try {
+        const anthropic = new Anthropic({
+          apiKey,
+          timeout: ANTHROPIC_TIMEOUT_MS,
+          maxRetries: ANTHROPIC_MAX_RETRIES,
+        });
+        generated = await generateFresh(anthropic, topic, age, level, freshCount, flavorLine);
+      } catch (err) {
+        generationFailed = true;
+        logGenerationError(err);
+      }
 
       if (db && generated.length > 0) {
         const rows = generated.map((q) => ({
           topic,
-          level: skillLevel,
+          level,
           text: q.text,
           options: q.options,
           correct_index: q.correctIndex,
@@ -465,7 +553,7 @@ Deno.serve(async (req) => {
           fresh = generated.map((q, i) => ({
             ...q,
             id: `fresh-${Date.now()}-${i}`,
-            level: skillLevel,
+            level,
             timesAsked: 1,
           }));
         } else {
@@ -475,10 +563,19 @@ Deno.serve(async (req) => {
         fresh = generated.map((q, i) => ({
           ...q,
           id: `fresh-${Date.now()}-${i}`,
-          level: skillLevel,
+          level,
           timesAsked: 0,
         }));
       }
+    }
+
+    // 3a. Claude delivered fewer than asked (it failed, or dropped malformed
+    //     ones): top the batch up from the bank — unseen first, then seen.
+    const shortBy = freshCount - fresh.length;
+    if (shortBy > 0) {
+      const taken = new Set(reused.map((r) => r.id));
+      const spare = [...shuffle(cached), ...shuffle(seenFallback)].filter((r) => !taken.has(r.id));
+      reused.push(...spare.slice(0, shortBy));
     }
 
     // 4. Bump the ask-counter on every reused question.
@@ -502,15 +599,18 @@ Deno.serve(async (req) => {
     const reusedOut = reused.map((r) => ({ ...rowToOut(r), timesAsked: r.times_asked + 1 }));
     const questions = shuffle([...reusedOut, ...fresh]);
 
-    // Budget spent and the bank has nothing left for this topic/level.
-    if (questions.length === 0 && freshAllowance === 0) {
-      return json({ error: 'budget_exhausted', detail: SLOW_DOWN }, 429);
+    // Nothing to give: say why in words a kid can read (never a raw error).
+    if (questions.length === 0) {
+      if (!generationFailed && !quotaUnavailable && freshAllowance === 0) {
+        return json({ error: 'budget_exhausted', detail: COME_BACK_TOMORROW }, 429);
+      }
+      return json({ error: 'questions_unavailable', detail: TRY_LATER }, 503);
     }
 
     // 6. Record this delivery in question_views so the player won't see the
     // same ones for the next SEEN_HISTORY_LIMIT views (#24). Best-effort —
     // a write failure is logged but does not break the response.
-    if (db && profileId && questions.length > 0) {
+    if (db) {
       // Synthetic IDs (fresh-…) only appear when the cache insert failed and
       // the question isn't in the questions table — skip those so the FK holds.
       const viewRows = questions
@@ -525,21 +625,15 @@ Deno.serve(async (req) => {
     return json({
       topic,
       age,
-      skillLevel,
+      skillLevel: level,
       reused: reused.length,
       generated: fresh.length,
       questions,
     });
   } catch (err) {
-    if (err instanceof Anthropic.APIError) {
-      console.error(`Anthropic API error ${err.status}:`, err.message);
-      return json(
-        { error: 'Question generation failed', detail: `Anthropic ${err.status}: ${err.message}` },
-        502,
-      );
-    }
-    const detail = err instanceof Error ? err.message : String(err);
-    console.error('Unexpected error generating questions:', err);
-    return json({ error: 'Unexpected server error', detail }, 500);
+    // Claude's own failures are handled above; this is anything else. The
+    // details go to the log, never to a kid's screen (S6).
+    console.error('Unexpected error serving questions:', err);
+    return json({ error: 'Unexpected server error', detail: TRY_LATER }, 500);
   }
 });

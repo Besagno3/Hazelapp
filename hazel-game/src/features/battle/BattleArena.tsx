@@ -317,7 +317,7 @@ export default function BattleArena() {
       age,
       clampLevel(enemy.level + SPELL_LEVEL_BONUS - mercy.levelDrop),
       4,
-      `a hero casting a powerful spell against ${enemy.name}`,
+      'spell',
     )
       .then((qs) => active && setSpellQs(qs))
       .catch(() => {
@@ -906,12 +906,11 @@ export default function BattleArena() {
     if (to === from) return; // already at the top level
     speedBoost.current += 1;
     const wanted = speedBoost.current;
-    const name = enemy!.name;
     const announce = (text: string) => {
       sfx('streak');
       showBanner(text, 3200, '⚡');
     };
-    fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, `a quick-thinking hero battling ${name}`)
+    fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, 'battle')
       .then((qs) => {
         // Gone, or a newer boost superseded this one (an older, easier pool
         // arriving late must never replace a harder one).

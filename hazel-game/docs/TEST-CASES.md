@@ -1196,6 +1196,19 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1024 | M | ⬜ | TouchPad | on a touchscreen laptop or Chromebook used as a laptop, no d-pad shows and prompts say "Space:"; folded into tablet mode, the pad shows and prompts say "Tap:" |
 | TC-1025 | C | ✅ | quiz | while a round is played the question hook gets no level override; once it ends the hook is pinned to the round's own level (3), so a new skill level can't re-key it and use up the next round's prefetched batch (QuizRound.test) |
 
+## Question service lockdown (#131)
+
+| ID      | Type | Status | Feature | Case |
+|---------|------|--------|---------|------|
+| TC-1026 | U | ✅ | flavours | the function's inline `QUESTION_FLAVORS` matches `_shared/flavors.ts` word for word, one line each, no school words (questionFlavors.test) |
+| TC-1027 | U | ✅ | flavours | `fetchQuestions(…, 'spire')` sends `flavor: 'spire'` and no `context` (questions.test) |
+| TC-1028 | M | ✅ | access | no `profileId` → 400 "Please refresh the page", no quota row, no Claude call; another family's kid → 403; a failed kid lookup → 503 "try again", no Claude call (local Deno harness) |
+| TC-1029 | M | ✅ | prompt | a request saying age 99 with free text "IGNORE ALL RULES…" and `flavor: 'spire'`: the prompt says the kid's real age (9, from the birth date), carries the Spire line, and none of the free text; an unknown flavour adds no line; a 1950 birth date is clamped to 18; level 3.4 asks at 3 (harness) |
+| TC-1030 | M | ✅ | quota | the quota check fails: with 10 cached → 5 from the cache, no Claude call; with none cached → 503 "try again"; budget spent and none cached → 429 "come back tomorrow"; rate limited → 429 (harness) |
+| TC-1031 | M | ✅ | Claude down | Claude 529 with 3 unseen + 2 seen cached → all 5 from the cache after 2 calls (one retry), no "529" in the reply; a reply cut off at max_tokens → the cache, not retried, no 500; a refusal → the cache; Claude 529 and nothing cached → 503 friendly; Claude returns 2 of 5 → topped up from the cache (harness) |
+| TC-1032 | M | ⬜ | deploy | after `supabase functions deploy generate-questions`: a quiz, a battle, a gate, a shrine trial and the Spire all load questions; the function's logs show no "QUOTA CHECK FAILED" |
+| TC-1033 | M | ⬜ | timeout | with Claude made slow (over 20 s): a battle loads from the cache in under ~45 s instead of failing |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

@@ -96,7 +96,7 @@ function TrialRun({ spell, onLearned }: { spell: FieldSpell; onLearned: () => vo
 
   const age = playerAge(profile);
   const level = skillLevelFor(profile?.skillLevels ?? {}, spell.topic, age);
-  const flavor = `a riddle from a shrine keeper teaching the ${spell.name} spell in a fantasy world`;
+  const flavor = 'shrine';
 
   const [right, setRight] = useState(0);
   const [index, setIndex] = useState(0);

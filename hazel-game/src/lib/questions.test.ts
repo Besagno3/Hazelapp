@@ -140,4 +140,12 @@ describe('fetchQuestions', () => {
     // 40 questions all left in place would be a 1-in-4^40 fluke.
     expect(out.some((question) => question.correctIndex !== 1)).toBe(true);
   });
+
+  it('names its flavour by key and sends no free text (Act I launch review B8)', async () => {
+    invokeMock.mockResolvedValue({ data: { questions: [] }, error: null });
+    await fetchQuestions('math', 9, 3, 1, 'spire');
+    const body = invokeMock.mock.calls[0][1].body;
+    expect(body).toMatchObject({ flavor: 'spire' });
+    expect(body).not.toHaveProperty('context');
+  });
 });
