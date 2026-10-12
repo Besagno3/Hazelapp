@@ -232,7 +232,7 @@ describe('the Hall of Names and Wisp (#75 item 14i)', () => {
     expect(screen.queryByText(/Letters glow on it all by themselves/)).toBeNull();
   });
 
-  it("Wisp stirs in the Whispering Woods after Memory — not elsewhere unless Wisp's in the party", () => {
+  it('Wisp stirs in the Whispering Woods after Memory — nowhere else, even fighting beside you (#129l)', () => {
     at('lumina-village', { [HALL_DEDICATED]: true });
     const { unmount } = render(<WorldScreen />);
     expect(screen.queryByText(/Something is remembering ME/)).toBeNull();
@@ -245,7 +245,7 @@ describe('the Hall of Names and Wisp (#75 item 14i)', () => {
     at('lumina-village', { [HALL_DEDICATED]: true, 'quest:grove-moonwell:done': true });
     useSaveStore.setState((st) => ({ save: { ...st.save!, companionId: 'wisp' } }));
     const second = render(<WorldScreen />);
-    expect(screen.getByText(/Something is remembering ME/)).toBeInTheDocument();
+    expect(screen.queryByText(/Something is remembering ME/)).toBeNull();
     second.unmount();
     at('whispering-woods', { [HALL_DEDICATED]: true });
     render(<WorldScreen />);

@@ -1223,3 +1223,4 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1017 | M | ⬜ | deploy (#130b) | after `supabase functions deploy generate-questions`: a geography, a words and a music round each load 5 questions in production |
 | TC-1018 | U | ✅ | questions (#130e) | the function's "topic must be one of" error becomes TOPIC_NOT_READY; any other error keeps its reason (questions.test) |
 | TC-1019 | C | ✅ | quiz (#130e) | a TOPIC_NOT_READY round shows "Coming soon!" with Back and no Try again; other errors keep Try again (QuizRound.test) |
+| TC-1020 | C | ✅ | story (#129l) | after Memory, Wisp's beat plays in the Whispering Woods only — not in Lumina Village, even with Wisp as the active companion (WorldScreen.ending.test) |

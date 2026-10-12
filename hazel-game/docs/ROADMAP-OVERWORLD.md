@@ -732,14 +732,15 @@ sub-item starts, as decisions 5–7 were):
     add new timers. *Recommended: no new timers — swift means "strikes
     first", and the song just restarts.* Before 14h / 15f. **Taken
     (2026-10-11, for 14h):** swift = strikes first, no new timers.
-15. **Save v3 with flight** (`aboard` → `vehicle`, §4.5)? *Recommended: yes.*
-    Before 15b.
-16. **The Port Lantern ferry** after the Hush Fiend? *Recommended: defer.*
-    Before 15c.
-17. **`name-learned`:** gate the whole descent, or only the name question?
-    *Recommended: only the question.* Before 16d.
-18. **Young Wick and young Lumen:** share their elders' sprites, or new ones?
-    *Recommended: new sprites.* Before 16b.
+15. ✅ **Save v3 with flight** (`aboard` → `vehicle`, §4.5)? *Recommended: yes.*
+    Before 15b. **Taken (2026-10-12): yes, bump to v3.**
+16. ✅ **The Port Lantern ferry** after the Hush Fiend? *Recommended: defer.*
+    Before 15c. **Taken (2026-10-12): deferred.**
+17. ✅ **`name-learned`:** gate the whole descent, or only the name question?
+    *Recommended: only the question.* Before 16d. **Taken (2026-10-12): only
+    the question.**
+18. ✅ **Young Wick and young Lumen:** share their elders' sprites, or new ones?
+    *Recommended: new sprites.* Before 16b. **Taken (2026-10-12): new sprites.**
 
 ---
 

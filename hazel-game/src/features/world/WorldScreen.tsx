@@ -74,7 +74,6 @@ import {
   WISP_STIRRING,
 } from '../../content/story';
 import { HALL_DEDICATED } from '../../content/spells';
-import { companionsInParty } from '../../content/companion';
 import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
 import { POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatOnReturn, boatSpot } from '../../content/boat';
@@ -268,15 +267,11 @@ export default function WorldScreen() {
   // The Hall of Names' dedication (#75 item 14i): once Keeper Mnem has called
   // you in, as his talk closes.
   const hallDue = flags[HALL_CALLED] === true && !flags[HALL_DEDICATED] && overlay === null;
-  // Wisp's "remembering me" beat: after Memory, the first time Wisp is with
-  // you — in the Whispering Woods, or fighting beside you (the active
-  // companion, not only in the party: #75 item 14i review) — and never right
-  // on top of the Memory crystal's own panels in the Archive.
+  // Wisp's "remembering me" beat: after Memory, the first time the hero is in
+  // the Whispering Woods, Wisp's home (the owner's call, 2026-10-12, #129l) —
+  // never anywhere else, so never right after the Memory crystal's own panels.
   const wispDue =
-    flags[crystalFlag('history')] === true &&
-    !flags[WISP_STIRRING] &&
-    zoneId !== 'sunken-archive' &&
-    (zoneId === 'whispering-woods' || (save !== null && save.companionId === 'wisp' && companionsInParty(save).includes('wisp')));
+    flags[crystalFlag('history')] === true && !flags[WISP_STIRRING] && zoneId === 'whispering-woods';
 
   const activeScene:
     | 'spireVictory'

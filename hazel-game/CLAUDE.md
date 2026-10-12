@@ -689,6 +689,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — The owner's calls: Wisp waits for the Woods; roadmap decisions 15–18 (#129l)
+Wisp's "remembering me" beat now plays only in the Whispering Woods after
+Memory, never for Wisp fighting beside you (`wispDue`). Recorded: save v3
+with flight (decision 15, yes), the ferry deferred (16), `name-learned`
+gates only the name question (17), new sprites for young Wick and Lumen
+(18); the Gulp of Ages, the letter copy and the Gull Rock / Cay drafts kept;
+the older topic cards' contrast left alone.
+
 ### 2026-10-12 — 15a review round 1: "Coming soon!", colours you can see, Enter the world up top (#75 item 15a)
 Fresh `/saas-code-review` (1 high, 4 low) and UX review (1 high, 3 medium,
 3 low), all fixed: a new topic the deployed function doesn't know yet shows
