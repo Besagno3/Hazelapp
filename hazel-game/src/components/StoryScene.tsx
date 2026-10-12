@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { SpriteSheet } from '../features/battle/SpriteSheet';
 import { resolveSprite } from '../content/sprites';
-import { SPIRE_SHEET } from '../content/tiles';
+import { BOAT_FRAME, BOAT_FRAMES, BOAT_SHEET, SPIRE_SHEET } from '../content/tiles';
 import type { StorySceneId } from '../content/story';
 
 /** Who appears in a story scene: the hero and Ember, by sprite (emoji fallback). */
@@ -78,6 +78,36 @@ function Sheep({ flip }: { flip: boolean }) {
   );
 }
 
+/** The Great Fogbank's puffs at dusk (left %, bottom %, size % of the width), back to front. */
+const FOG_PUFFS = [
+  [62, 30, 30],
+  [80, 38, 34],
+  [70, 50, 26],
+  [88, 58, 28],
+  [58, 18, 24],
+  [76, 14, 30],
+  [92, 22, 26],
+] as const;
+
+/** Marlow's boat drawn this many times its 32 px frame in a story picture. */
+const BOAT_PX = 32 * 3;
+
+/** One frame of Marlow's boat (the whole boat, or its hull's front), facing right. */
+function BoatFrame({ frame }: { frame: number }) {
+  return (
+    <div
+      className="absolute inset-0"
+      style={{
+        backgroundImage: `url(${BOAT_SHEET})`,
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: `${BOAT_FRAMES * BOAT_PX}px ${BOAT_PX}px`,
+        backgroundPosition: `${-frame * BOAT_PX}px 0px`,
+        imageRendering: 'pixelated',
+      }}
+    />
+  );
+}
+
 function Backdrop({ zone }: { zone: string }) {
   return (
     <img
@@ -91,8 +121,9 @@ function Backdrop({ zone }: { zone: string }) {
 
 /**
  * A little picture for a storybook panel (#75 item 14): the walk home after
- * the Spire, drawn from the game's own art — zone backdrops, the Spire tower,
- * the hero's, Ember's and the villagers' sprites. Decorative: the panel's text
+ * the Spire, and Ember at the Great Fogbank as Act II ends (#132), drawn from
+ * the game's own art — zone backdrops, the Spire tower, Marlow's boat, the
+ * hero's, Ember's and the villagers' sprites. Decorative: the panel's text
  * says what happens, so the picture is hidden from screen readers. Under
  * reduced motion nothing walks, hops or sways.
  */
@@ -180,6 +211,57 @@ export default function StoryScene({ id, cast }: { id: StorySceneId; cast: Story
           <motion.div className="absolute bottom-[10%] left-[44%] flex items-end gap-1" {...hop(0.3)}>
             <Figure spriteId={cast.hero.spriteId} emoji={cast.hero.emoji} anim="idleDown" />
             <Figure spriteId={cast.ember.spriteId} emoji={cast.ember.emoji} anim="idleDown" />
+          </motion.div>
+        </>
+      )}
+
+      {id === 'fogbank-dusk' && (
+        <>
+          <Backdrop zone="silver-shallows-sea" />
+          {/* Dusk over the Shallows: a violet sky down to a warm horizon. */}
+          <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/85 via-violet-800/45 to-orange-400/25" />
+          {STARS.slice(0, 5).map(([x, y], i) => (
+            <motion.div
+              key={`${x},${y}`}
+              className="absolute h-1 w-1 bg-white"
+              style={{ left: `${x}%`, top: `${y}%` }}
+              animate={still ? undefined : { opacity: [0.3, 1, 0.3] }}
+              transition={still ? undefined : { duration: 2, repeat: Infinity, delay: i * 0.4 }}
+            />
+          ))}
+          {/* The Great Fogbank, a wall of soft puffs over the right of the sea. */}
+          {FOG_PUFFS.map(([x, y, w], i) => (
+            <motion.div
+              key={`${x},${y}`}
+              className="absolute aspect-square -translate-x-1/2 rounded-full bg-slate-100/80 blur-[3px]"
+              style={{ left: `${x}%`, bottom: `${y}%`, width: `${w}%` }}
+              animate={still ? undefined : { x: [0, i % 2 ? 6 : -6, 0] }}
+              transition={still ? undefined : { duration: 5 + i, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          ))}
+          {/* The Biscuit on the water, the hero at the bow facing the fog, and
+              Ember hovering off the bow — placed on the boat (fixed size), not
+              the picture (which shrinks on a short screen), so they never
+              overlap or leave the frame. */}
+          <motion.div
+            className="absolute bottom-[8%] left-[12%]"
+            style={{ width: BOAT_PX, height: BOAT_PX }}
+            {...(still ? {} : { animate: { y: [0, 3, 0] }, transition: { duration: 2.4, repeat: Infinity } })}
+          >
+            <BoatFrame frame={BOAT_FRAME.whole[0]} />
+            <div className="absolute bottom-[30%] left-[48%]">
+              <Figure spriteId={cast.hero.spriteId} emoji={cast.hero.emoji} anim="idle" />
+            </div>
+            <BoatFrame frame={BOAT_FRAME.hullFront[0]} />
+            {/* Ember, wings out, lifting off the deck for one wobbly moment. */}
+            <motion.div
+              className="absolute bottom-[38%] left-[80%]"
+              initial={still ? { y: -6 } : { y: 0 }}
+              animate={still ? { y: -6 } : { y: [0, -14, -8, -18, -6], rotate: [0, -6, 4, -4, 0] }}
+              transition={still ? { duration: 0 } : { duration: 4, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' }}
+            >
+              <Figure spriteId={cast.ember.spriteId} emoji={cast.ember.emoji} anim={still ? 'idle' : 'walk'} />
+            </motion.div>
           </motion.div>
         </>
       )}

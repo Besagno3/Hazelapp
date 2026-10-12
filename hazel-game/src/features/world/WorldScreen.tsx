@@ -9,6 +9,7 @@ import PathQuestionOverlay from './PathQuestionOverlay';
 import KeyGateOverlay from './KeyGateOverlay';
 import MenuOverlay from './MenuOverlay';
 import SpireOverlay from './SpireOverlay';
+import ActCompleteCard from './ActCompleteCard';
 import StoryPanels from '../../components/StoryPanels';
 import WakeFade from '../../components/WakeFade';
 import { restAtHomeInn } from '../../lib/save';
@@ -72,6 +73,8 @@ import {
   HALL_PANELS,
   WISP_PANELS,
   WISP_STIRRING,
+  ACT2_END_PANELS,
+  ACT2_END_SEEN,
 } from '../../content/story';
 import { HALL_DEDICATED } from '../../content/spells';
 import { companionsInParty } from '../../content/companion';
@@ -191,6 +194,8 @@ export default function WorldScreen() {
   // morning fading in at the inn, before Act II begins (#75 item 14).
   const [waking, setWaking] = useState(false);
   const wakeUp = useCallback(() => setWaking(false), []);
+  // Act II's ending (#132): once its panels close, the "Act II complete" card.
+  const [actCard, setActCard] = useState(false);
   // The secret just found — shown in a small celebration card.
   const [found, setFound] = useState<SecretDef | null>(null);
   useEffect(() => {
@@ -277,6 +282,10 @@ export default function WorldScreen() {
     !flags[WISP_STIRRING] &&
     zoneId !== 'sunken-archive' &&
     (zoneId === 'whispering-woods' || (save !== null && save.companionId === 'wisp' && companionsInParty(save).includes('wisp')));
+  // Act II's ending (#132): right after the Hall's dedication — the last step
+  // of the story so far — and for a save that dedicated it before the ending
+  // existed. Last of all, so Wisp's beat (if due) comes first.
+  const act2EndDue = flags[HALL_DEDICATED] === true && !flags[ACT2_END_SEEN] && overlay === null && !actCard && !waking;
 
   const activeScene:
     | 'spireVictory'
@@ -295,6 +304,7 @@ export default function WorldScreen() {
     | 'posy'
     | 'hall'
     | 'wisp'
+    | 'act2End'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -327,14 +337,16 @@ export default function WorldScreen() {
                                 ? 'hall'
                                 : wispDue
                                   ? 'wisp'
-                                  : null;
+                                  : act2EndDue
+                                    ? 'act2End'
+                                    : null;
   const cutscene = activeScene !== null;
 
   const pausedRef = useRef(false);
   useEffect(() => {
     const spireFree = overlay === 'spire' && spireExploring;
-    pausedRef.current = (overlay !== null && !spireFree) || cutscene || waking;
-  }, [overlay, cutscene, spireExploring, waking]);
+    pausedRef.current = (overlay !== null && !spireFree) || cutscene || waking || actCard;
+  }, [overlay, cutscene, spireExploring, waking, actCard]);
 
   // Remember every place the hero has been: Return flies to the towns (#75 item 9).
   // Arriving somewhere new that fights far tougher than the 🚩's road (the
@@ -810,6 +822,27 @@ export default function WorldScreen() {
       )}
       {activeScene === 'wisp' && (
         <StoryPanels panels={WISP_PANELS} doneLabel="🧚 I'll remember for you" onDone={() => setFlag(WISP_STIRRING)} />
+      )}
+      {activeScene === 'act2End' && (
+        <StoryPanels
+          panels={ACT2_END_PANELS}
+          doneLabel="🏁 See your adventure"
+          cast={{
+            hero: { spriteId: avatar.spriteId, emoji: avatar.sprite },
+            ember: { spriteId: EMBER_SPRITE_IDS[ember], emoji: EMBER_SPRITES[ember] },
+          }}
+          onDone={() => setActCard(true)}
+        />
+      )}
+      {actCard && (
+        <ActCompleteCard
+          save={save}
+          onClose={() => {
+            setActCard(false);
+            setFlag(ACT2_END_SEEN);
+            void flush();
+          }}
+        />
       )}
       {activeScene === 'memoria' && (
         <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />

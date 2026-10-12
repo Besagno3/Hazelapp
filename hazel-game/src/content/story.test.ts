@@ -17,6 +17,8 @@ import {
   spireVictoryPanels,
   HOMECOMING_PANELS,
   ACT2_PANELS,
+  ACT2_END_PANELS,
+  ACT2_END_SEEN,
   VILLAIN_NAME,
   EMBER_SPRITES,
   EMBER_MAP_SIZE,
@@ -217,5 +219,19 @@ describe('the Memoria Key (#75 item 14f)', () => {
     expect(ARCHIVE_PANELS).toHaveLength(3);
     for (const p of ARCHIVE_PANELS) expect(p.text.split(/\s+/).length, p.text).toBeLessThanOrEqual(30);
     expect(ARCHIVE_PANELS.map((p) => p.text).join(' ')).not.toMatch(/Hollow Fiend/);
+  });
+});
+
+describe("Act II's ending (#132)", () => {
+  it('four short panels — one picture at the Great Fogbank — that end the act and say Act III is coming', () => {
+    expect(ACT2_END_PANELS).toHaveLength(4);
+    for (const p of ACT2_END_PANELS) expect(p.text.split(/\s+/).length, p.text).toBeLessThanOrEqual(30);
+    expect(ACT2_END_PANELS.map((p) => p.scene).filter(Boolean)).toEqual(['fogbank-dusk']);
+    const last = ACT2_END_PANELS[ACT2_END_PANELS.length - 1].text;
+    expect(last).toMatch(/End of Act II/);
+    expect(last).toMatch(/Act III: The Starfall Sea, coming soon/);
+    // Flight isn't built yet (15b): the panels tease it, never promise it now.
+    expect(ACT2_END_PANELS.map((p) => p.text).join(' ')).not.toMatch(/you can fly|you can now fly/i);
+    expect(ACT2_END_SEEN).toBe('act2-end-seen');
   });
 });

@@ -200,9 +200,10 @@ describe('nextObjective', () => {
     const [plan, tip] = mentorTips(ZONES, { ...memoriaWon, [MET_ELDER]: true });
     expect(plan).toBe("You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive. Free the Crystal of Memory there!");
     expect(tip).toMatch(/Quill Imps.*strike first.*Time Ripple/);
-    // Once Memory shines: explore, Ember's wings growing (flight is Act III's, 15b).
+    // Past the Hall's dedication: the end of Act II, and Act III on its way (#132).
     expect(nextObjective(storyDone)).toMatchObject({ kind: 'explore', zoneId: null });
-    expect(nextObjective(storyDone).why).toMatch(/^The Crystal of Memory shines! Ember's wings grow stronger/);
+    expect(nextObjective(storyDone).why).toMatch(/^Act II is complete! Act III, where you and Ember fly, is coming soon\./);
+    expect(mentorTips(ZONES, { ...storyDone, [MET_ELDER]: true })[0]).toMatch(/That's the end of Act II\. Act III, across the Great Fogbank, is coming soon/);
   });
 
   // Doing what it says must finish the story: every step is one the hero can
@@ -399,7 +400,7 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...storyDone, [keyFlag('memoria')]: false })[0]).toMatch(/^Out in the Silver Shallows lies Eldergrove/);
     // With the Memoria Key, its door in the Archive (#75 item 14h); then five crystals shine.
     expect(mentorTips(ZONES, { ...met, ...memoriaWon })[0]).toMatch(/^You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive/);
-    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toBe('Five crystals shine now! Ember\'s wings grow stronger every day — soon you\'ll fly. Until then, help everyone you meet.');
+    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toBe('Five crystals shine, and the Hall of Names remembers you! That\'s the end of Act II. Act III, across the Great Fogbank, is coming soon. Until then, help everyone you meet.');
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
     expect(mentorTips(ZONES, { ...met, ...storyDone, [HALL_DEDICATED]: false })[0]).toMatch(/Hall of Names/);
   });

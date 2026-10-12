@@ -1196,6 +1196,18 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1024 | M | ⬜ | TouchPad | on a touchscreen laptop or Chromebook used as a laptop, no d-pad shows and prompts say "Space:"; folded into tablet mode, the pad shows and prompts say "Tap:" |
 | TC-1025 | C | ✅ | quiz | while a round is played the question hook gets no level override; once it ends the hook is pinned to the round's own level (3), so a new skill level can't re-key it and use up the next round's prefetched batch (QuizRound.test) |
 
+## Act II's ending (#132)
+
+| ID     | Type | Status | Feature | Case |
+|--------|------|--------|------|------|
+| TC-1034 | U | ✅ | story | `ACT2_END_PANELS`: four panels of ≤ 30 words, one picture (`fogbank-dusk`), the last says "End of Act II" and "Act III: The Starfall Sea, coming soon"; no panel says the hero can fly now (story.test) |
+| TC-1035 | C | ✅ | ending | at Remembrance Hill, after "🏛️ Thank you, Mnem" the ending's panels follow; "🏁 See your adventure" opens the "Act II complete" card (Crystals 5/5, "Act III … coming soon"); `act2-end-seen` is set (and the save flushed) only on 🗺️ Keep exploring; reopening the world plays nothing (WorldScreen.ending.test) |
+| TC-1036 | C | ✅ | ending | a save that dedicated the Hall before the ending existed gets it on load, once no overlay is open; with Wisp's beat due too, Wisp's comes first; before the dedication nothing plays (WorldScreen.ending.test) |
+| TC-1037 | U | ✅ | progress | `adventureProgress`: a new save counts 0 of 4 crystals, every secret and quest in the game, 0 badges; Act II's crystal counts once `act2-seen`; `whileYouWait` names the secrets and quests left ("1 secret", "1 more quest"), drops what's done, and always ends with the Spire and the Library (adventure.test) |
+| TC-1038 | U | ✅ | wayfinding | past the dedication the 🚩 reads "Act II is complete! Act III, where you and Ember fly, is coming soon…", and Elder Lumen says "That's the end of Act II. Act III, across the Great Fogbank, is coming soon" (wayfinding.test) |
+| TC-1039 | M | ✅ | ending | real app (Supabase stubbed) at 375×667, 320×568, 667×375 (sideways), 1024×768 and 360×640 with reduced motion: the four panels, the picture (the Biscuit, the hero at the bow, Ember hovering off it, the Great Fogbank) and the card fit with no sideways scroll; the card's button is on screen and focused without scrolling the title away; the 📜 Menu map then says "🎉 Act II is complete!…" |
+| TC-1040 | M | ⬜ | ending | on a real phone: the picture's Ember reads as lifting off, not falling; a child understands "coming soon" means the story stops here for now |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

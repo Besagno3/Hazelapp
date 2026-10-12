@@ -254,3 +254,78 @@ describe('the Hall of Names and Wisp (#75 item 14i)', () => {
     expect(useSaveStore.getState().save!.flags[story.WISP_STIRRING]).toBe(true);
   });
 });
+
+describe("Act II's ending (#132)", () => {
+  const { HALL_DEDICATED } = spellsMod;
+  const flush = vi.fn(async () => {});
+  const at = (zoneId: 'remembrance-hill' | 'lumina-village' | 'whispering-woods', extra: Record<string, boolean>) => {
+    const flags = {
+      ...umbraBeaten(),
+      [story.SPIRE_VICTORY_SEEN]: true,
+      [story.ACT2_SEEN]: true,
+      [crystalFlag('history')]: true,
+      [story.crystalSceneFlag('history')]: true,
+      ...extra,
+    };
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: { ...defaultSave(), avatarId: 'a3', zoneId, flags },
+      flush,
+    });
+  };
+  beforeEach(() => {
+    vi.useFakeTimers();
+    flush.mockClear();
+    flow.setState({ overlay: null });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('follows the dedication, then the "Act II complete" card; closing it ends the act for good', () => {
+    at('remembrance-hill', { [story.WISP_STIRRING]: true, [story.HALL_CALLED]: true });
+    const { unmount } = render(<WorldScreen />);
+    readOn(story.HALL_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🏛️ Thank you, Mnem' }));
+    expect(screen.getByText(/That evening, all of Remembrance Hill/)).toBeInTheDocument();
+    readOn(story.ACT2_END_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🏁 See your adventure' }));
+    const card = screen.getByRole('dialog', { name: 'Act II complete' });
+    expect(card).toHaveTextContent('Act III: The Starfall Sea is coming soon!');
+    expect(screen.getByTestId('act-stats')).toHaveTextContent('Crystals5/5');
+    // Not over until the card is closed: a reload here plays the ending again.
+    expect(useSaveStore.getState().save!.flags[story.ACT2_END_SEEN]).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: '🗺️ Keep exploring' }));
+    expect(useSaveStore.getState().save!.flags[story.ACT2_END_SEEN]).toBe(true);
+    expect(flush).toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    unmount();
+    render(<WorldScreen />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('plays on load for a save that dedicated the Hall before the ending existed — once nothing is open', () => {
+    at('lumina-village', { [story.WISP_STIRRING]: true, [HALL_DEDICATED]: true });
+    flow.setState({ overlay: 'menu' });
+    const { unmount } = render(<WorldScreen />);
+    expect(screen.queryByText(/That evening, all of Remembrance Hill/)).toBeNull();
+    unmount();
+    flow.setState({ overlay: null });
+    render(<WorldScreen />);
+    expect(screen.getByText(/That evening, all of Remembrance Hill/)).toBeInTheDocument();
+  });
+
+  it("comes after Wisp's beat when both are due", () => {
+    at('whispering-woods', { [HALL_DEDICATED]: true });
+    render(<WorldScreen />);
+    expect(screen.getByText(/Something is remembering ME/)).toBeInTheDocument();
+    readOn(story.WISP_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: "🧚 I'll remember for you" }));
+    expect(screen.getByText(/That evening, all of Remembrance Hill/)).toBeInTheDocument();
+  });
+
+  it('says nothing before the Hall is dedicated', () => {
+    at('remembrance-hill', { [story.WISP_STIRRING]: true });
+    render(<WorldScreen />);
+    expect(screen.queryByText(/That evening, all of Remembrance Hill/)).toBeNull();
+  });
+});

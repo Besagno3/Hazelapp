@@ -688,6 +688,39 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — Act II's ending: "The End of Act II", and an "Act II complete" card (#132)
+Launch checklist item B1, reframed now that Act II is on `main`: after the
+Hall of Names' dedication — the last step of the story built so far —
+nothing said the story had stopped, so a child could hunt for an Act III
+that isn't there.
+- **The ending** (`ACT2_END_PANELS`, flag `ACT2_END_SEEN` = `act2-end-seen`,
+  `content/story.ts`): four panels right after "🏛️ Thank you, Mnem" — the
+  Hill's evening in the Hall; a picture of Ember lifting off the Biscuit's
+  deck at the Great Fogbank (new `StoryScene` `fogbank-dusk`: the Shallows'
+  sea backdrop at dusk, fog puffs, Marlow's boat with the hero at the bow and
+  Ember hovering off it — placed on the boat, so they never overlap on a
+  small picture); Taleshore and the Forgotten One's name; "✨ The End of
+  Act II ✨ … Act III: The Starfall Sea, coming soon". `WorldScreen` plays it
+  last in its one-at-a-time chain (`act2EndDue`: Hall dedicated, nothing
+  open, not waking), so Wisp's beat comes first if due, and a save already
+  past the dedication gets it on its next load.
+- **"Act II complete!"** (`features/world/ActCompleteCard.tsx`, in a
+  `ModalLayer`): crystals, secrets, quests and badges (`adventureProgress`,
+  new `lib/adventure.ts`), "Act III: The Starfall Sea is coming soon!", and
+  what's left meanwhile (`whileYouWait`: the secrets and quests left, the
+  Spire again, the Library). Its button takes focus without scrolling, so a
+  sideways phone opens at the title; on short screens it tightens, and
+  sideways the stats sit in one row. `act2-end-seen` is set (and the save
+  flushed) when it closes; the world stays paused while it's up.
+- **The 🚩 and the guides:** past the dedication the 🚩's line (map, Wick,
+  signposts) is "Act II is complete! Act III, where you and Ember fly, is
+  coming soon. Until then…", and Elder Lumen's plan says it's the end of
+  Act II.
+- Tests: +9 (story.test, adventure.test, wayfinding.test,
+  WorldScreen.ending.test ×4). 1124 green, lint + build clean.
+  Played in the real app (Supabase stubbed) at 375×667, 320×568, 667×375,
+  1024×768 and 360×640 with reduced motion. Follow-ups #132.
+
 ### 2026-10-12 — Merge main (Sunken Archive #48, 14i #50) into the Act I quick-fixes branch (#130)
 `main` took ISSUES **#128–#129** and TC-978–1014 while the quick fixes were in
 review, so they moved **#128 → #130** and their test cases **TC-978–988 →

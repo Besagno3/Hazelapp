@@ -19,7 +19,7 @@ export interface StoryPanel {
 }
 
 /** The pictures `StoryScene` can draw. */
-export type StorySceneId = 'spire-stairs' | 'village-cheer' | 'inn-night';
+export type StorySceneId = 'spire-stairs' | 'village-cheer' | 'inn-night' | 'fogbank-dusk';
 
 // --- Ember, the last dragon ---------------------------------------------------
 
@@ -101,6 +101,13 @@ export const HALL_CALLED = 'hall-called';
  * Whispering Woods.
  */
 export const WISP_STIRRING = 'wisp-stirring';
+
+/**
+ * Act II's ending (#132): set once `ACT2_END_PANELS` have played and the
+ * "Act II complete" card has been closed — after the Hall of Names'
+ * dedication, the last step of the story built so far.
+ */
+export const ACT2_END_SEEN = 'act2-end-seen';
 
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
@@ -403,6 +410,33 @@ export const HALL_PANELS: StoryPanel[] = [
   {
     emoji: '✨',
     text: '"The Hall remembers YOU now," says Mnem. "Cast Remembrance in a battle, and when you\'re about to fall, it will hold you up." Find it in your 📖 Spells!',
+  },
+];
+
+/**
+ * Act II's ending (#132): plays right after the Hall of Names' dedication, the
+ * last step of the story so far. The evening on the Hill, Ember's wings at the
+ * Great Fogbank (a picture), a glimpse of Taleshore, and "End of Act II" —
+ * Act III (the Starfall Sea, 15a–15h) isn't built yet, so the story says it's
+ * coming rather than leaving a child wondering what to do.
+ */
+export const ACT2_END_PANELS: StoryPanel[] = [
+  {
+    emoji: '🏛️',
+    text: 'That evening, all of Remembrance Hill crowds into the Hall of Names. Posy brings a daisy for the new plaque. Mira brings jam tarts. Ember brings a very loud yawn.',
+  },
+  {
+    emoji: '🐉',
+    scene: 'fogbank-dusk',
+    text: 'Later, out on the Silver Shallows, Ember stares at the Great Fogbank. Then Ember spreads both wings — and, for one wobbly moment, floats right off the deck!',
+  },
+  {
+    emoji: '🌟',
+    text: 'Far past the Fogbank lies Taleshore, where people never stopped telling stories. Someone there still remembers a name: the true name of the Forgotten One.',
+  },
+  {
+    emoji: '📖',
+    text: '✨ The End of Act II ✨ Your story goes on in Act III: The Starfall Sea, coming soon. Soon, you and Ember will fly!',
   },
 ];
 
