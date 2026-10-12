@@ -16,11 +16,17 @@ import { useFamilyStore } from '../store/familyStore';
 export const SEEN_FLUSH_MS = 1500;
 /** `mark_questions_seen` takes at most this many ids a call. */
 export const SEEN_BATCH_MAX = 20;
+/**
+ * A question shown again sooner than this isn't sent again (a battle asks its
+ * 9 round and round); later it is, so it stays in the kid's recent window.
+ * The server skips a repeat within the same half hour too.
+ */
+export const SEEN_RESEND_MS = 30 * 60 * 1000;
 
 let pending: { kid: string; ids: Set<string> } | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
-/** Ids already sent for this kid this session: a battle asks its 9 again and again. */
-let sent: { kid: string; ids: Set<string> } | null = null;
+/** When each id was last sent for this kid. */
+let sent: { kid: string; at: Map<string, number> } | null = null;
 
 /** Notes that a question is on screen for the kid playing now. */
 export function markSeen(questionId: string): void {
@@ -28,9 +34,11 @@ export function markSeen(questionId: string): void {
   if (!questionId || questionId.startsWith('fresh-')) return;
   const kid = useFamilyStore.getState().activeKidId;
   if (!kid) return;
-  if (sent?.kid !== kid) sent = { kid, ids: new Set() };
-  if (sent.ids.has(questionId)) return;
-  sent.ids.add(questionId);
+  if (sent?.kid !== kid) sent = { kid, at: new Map() };
+  const now = Date.now();
+  const last = sent.at.get(questionId);
+  if (last !== undefined && now - last < SEEN_RESEND_MS) return;
+  sent.at.set(questionId, now);
   // A switch of player: send the last kid's first, as theirs.
   if (pending && pending.kid !== kid) flushSeen();
   if (!pending) pending = { kid, ids: new Set() };
@@ -52,10 +60,14 @@ export function flushSeen(): void {
 }
 
 async function sendSeen(kid: string, ids: string[]): Promise<void> {
+  let failure: unknown;
   try {
-    const { error } = await supabase.rpc('mark_questions_seen', { p_profile: kid, p_ids: ids });
-    if (error) console.error('Could not mark questions seen:', errorMessage(error));
+    ({ error: failure } = await supabase.rpc('mark_questions_seen', { p_profile: kid, p_ids: ids }));
   } catch (e) {
-    console.error('Could not mark questions seen:', errorMessage(e));
+    failure = e;
   }
+  if (!failure) return;
+  console.error('Could not mark questions seen:', errorMessage(failure));
+  // Not sent after all: the next time one of them shows, try again.
+  if (sent?.kid === kid) for (const id of ids) sent.at.delete(id);
 }

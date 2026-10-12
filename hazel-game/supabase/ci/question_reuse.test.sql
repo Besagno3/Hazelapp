@@ -98,6 +98,28 @@ begin
     'p_limit caps the rows';
 end $$;
 
+-- The window reads only the kid's latest 10 × p_seen_limit shown views (of
+-- any topic), so a call costs the same however long they've played: ten
+-- newer science views push math's c051 out of a window of 1, not out of 2.
+reset role;
+insert into public.question_views (profile_id, question_id, shown, seen_at)
+  select '00000000-0000-0000-0000-000000005a03', '00000000-0000-0000-0000-00000000c5c1', true,
+         now() - make_interval(secs => g)
+    from generate_series(1, 10) g;
+set local role service_role;
+
+do $$
+declare
+  sam constant uuid := '00000000-0000-0000-0000-000000005a03';
+begin
+  assert not (select seen from pick_cached_questions('math', 3, 7, 10, sam, 1, interval '1 hour', 200)
+               where id = '00000000-0000-0000-0000-00000000c051'),
+    'a window of 1 reads only the latest 10 shown views';
+  assert (select seen from pick_cached_questions('math', 3, 7, 10, sam, 2, interval '1 hour', 200)
+           where id = '00000000-0000-0000-0000-00000000c051'),
+    'a window of 2 reads the latest 20 and finds it';
+end $$;
+
 -- The whole band is sampled: 400 more level-6 questions, 30 calls of 10.
 -- The old lookup (LIMIT with no ORDER BY) returned the same rows every time.
 reset role;
@@ -138,6 +160,14 @@ end $$;
 reset role;
 select array_agg(id)::text as bulk25
   from (select id from public.questions where text like 'bulk-%' order by text limit 25) b \gset
+-- The next 50 as a 25×2 array: PostgREST turns nested JSON arrays into one.
+select array_agg(pair)::text as bulk2d
+  from (select array[a.id, b.id] as pair
+          from (select id, row_number() over (order by text) n from public.questions
+                 where text like 'bulk-%' order by text offset 25 limit 50) a
+          join (select id, row_number() over (order by text) n from public.questions
+                 where text like 'bulk-%' order by text offset 25 limit 50) b on b.n = a.n + 1
+         where a.n % 2 = 1) p \gset
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
 select public.mark_questions_seen('00000000-0000-0000-0000-000000005a03',
@@ -146,6 +176,9 @@ select public.mark_questions_seen('00000000-0000-0000-0000-000000005a03',
 select public.mark_questions_seen('00000000-0000-0000-0000-000000005b03',
   array['00000000-0000-0000-0000-00000000c005']::uuid[]);
 select public.mark_questions_seen('00000000-0000-0000-0000-000000005a03', :'bulk25'::uuid[]);
+select public.mark_questions_seen('00000000-0000-0000-0000-000000005a03', :'bulk2d'::uuid[]);
+select public.mark_questions_seen('00000000-0000-0000-0000-000000005a03',
+  array['00000000-0000-0000-0000-00000000c003']::uuid[]);
 reset role;
 
 do $$
@@ -155,15 +188,15 @@ declare
 begin
   assert (select count(*) from public.question_views
            where profile_id = sam and question_id = '00000000-0000-0000-0000-00000000c003' and shown) = 1,
-    'a question marked twice in one call is one view';
+    'a question marked twice in one call, then again in the same half hour, is one view';
   assert not exists (select 1 from public.question_views
                       where question_id = '00000000-0000-0000-0000-0000deadbeef'),
     'an id not in the bank is ignored';
   assert not exists (select 1 from public.question_views where profile_id = kit),
     'another grown-up''s kid gets nothing';
   assert (select count(*) from public.question_views v join public.questions q on q.id = v.question_id
-           where v.profile_id = sam and q.text like 'bulk-%') = 20,
-    'at most 20 questions a call';
+           where v.profile_id = sam and q.text like 'bulk-%') = 40,
+    'at most 20 questions a call — a 25-id list and a 25×2 nested array each write 20';
   assert (select seen from pick_cached_questions('math', 3, 7, 10, sam, 200, interval '1 hour', 1000)
            where id = '00000000-0000-0000-0000-00000000c003'),
     'a question marked shown is held back from that kid';

@@ -570,7 +570,8 @@ zod, react-query. Add the package in the same change that first uses it.
   screen (`markSeen`, `lib/seen.ts`, from `QuestionCard` and `QuizRound`, as
   `mark_questions_seen`); what the function hands over is only held back for
   an hour (`question_views.shown = false`), so prefetches don't fill a kid's
-  seen window — the last 200 distinct questions shown in that topic.
+  seen window — the last 100 distinct questions shown in that topic (read
+  from their latest 1,000 shown views, so the cost doesn't grow with play).
   `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need.
 
 ## Commands
@@ -695,6 +696,31 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-12 — #130 code review round 1: a bounded window, a real 20-id cap, ages kept on errors
+A fresh-context `/saas-code-review` of PR #55 (1 medium, 1 low-medium, 2 low;
+no security hole between families). All fixed:
+- **The picker read a kid's whole history (medium):** the seen window
+  grouped every shown view they'd ever had, so a call grew with play —
+  measured 440–560 ms at 75k shown views. It now reads only their latest
+  `10 × p_seen_limit` shown views off the `(profile_id, seen_at desc)`
+  index: ~95 ms with 150k views and a 40k-row band (most of it the band's
+  sort).
+- **A nested array slipped past the 20-id cap (low-medium):** `p_ids[1:20]`
+  cut only the first dimension (a 25×2 array wrote 40 rows); now
+  `unnest(p_ids) limit 20`. A question already marked shown for that kid in
+  the last half hour isn't written again.
+- **Any picker error dropped ages (low):** only "no such function"
+  (`PGRST202` / `42883`, `PICKER_MISSING`) means 0015 isn't applied; a
+  timeout still stores ages and holds, so no question escapes the age rule.
+- **The app never re-sent an id in a long-lived tab (low):** `markSeen`
+  re-sends a question shown again after `SEEN_RESEND_MS` (30 min), and a
+  failed send is retried the next time the question shows.
+- **The window is 100 per topic** (round 1 made it 200): the same as before
+  for a kid playing one topic, so Claude spend per kid doesn't rise.
+- Tests: question_reuse.test.sql (+ the scan cap, a 25×2 array, a repeat
+  within half an hour — each fails with its fix reverted), seen.test (+2).
+  1123 green, lint + build clean, `deno check` clean.
 
 ### 2026-10-12 — Fairer question reuse: the whole bank, the right age, seen = shown (#130)
 A review of how questions are picked and reused (with the owner) found three

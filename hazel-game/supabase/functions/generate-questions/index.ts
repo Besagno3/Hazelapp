@@ -57,12 +57,17 @@ const TOPIC_PROMPT_BLOCK = TOPICS.map((id) => `- ${id}: ${TOPIC_PROMPTS[id]}`).j
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
 const LEVEL_BAND = 2;
-/** A kid's most recently shown questions in a topic held back from reuse (#24, #130). */
-const SEEN_HISTORY_LIMIT = 200;
+/**
+ * A kid's most recently shown questions in a topic held back from reuse (#24,
+ * #130) — per topic now; the old window was this many views of any topic.
+ */
+const SEEN_HISTORY_LIMIT = 100;
 /** A question handed over but not shown yet is held back from that kid this long (#130). */
 const RESERVE_MINUTES = 60;
 /** Reuse skips questions written for a child more than this many years older (#130). */
 const AGE_SLACK = 1;
+/** Error codes for "pick_cached_questions doesn't exist" (PostgREST, Postgres): 0015 not applied. */
+const PICKER_MISSING = ['PGRST202', '42883'];
 /** Cache is "rich" once it has this many eligible rows per requested question (#30). */
 const RICH_CACHE_MULTIPLE = 3;
 /** Fraction of a batch that comes fresh from Claude when the cache is rich (#30). */
@@ -467,7 +472,17 @@ Deno.serve(async (req) => {
       p_limit: CACHE_LOOKUP_LIMIT,
     });
     if (pickErr) {
-      console.error('QUESTION PICKER FAILED (is migration 0015 applied?) — using the old lookup:', pickErr.message);
+      // Only "no such function" means 0015 isn't applied. Any other failure
+      // (a timeout, say) still stores ages and holds, or the questions made
+      // now would escape the age rule for good.
+      has0015 = !PICKER_MISSING.includes(pickErr.code ?? '');
+      console.error(
+        has0015
+          ? 'QUESTION PICKER FAILED — using the old lookup:'
+          : 'QUESTION PICKER MISSING (is migration 0015 applied?) — using the old lookup:',
+        pickErr.code,
+        pickErr.message,
+      );
       pool = await legacyCachePool(db, topic, skillLevel, profileId);
     } else {
       has0015 = true;

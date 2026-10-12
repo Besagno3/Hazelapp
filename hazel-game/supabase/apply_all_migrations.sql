@@ -946,16 +946,25 @@ returns table (
 language sql
 set search_path = public
 as $$
-  with shown as (
-    select v.question_id
+  with recent as (
+    -- The kid's latest shown views of any topic, read newest first off the
+    -- (profile_id, seen_at desc) index and capped, so a call costs the same
+    -- however long they've played (no scan of their whole history).
+    select v.question_id, v.seen_at
       from question_views v
-      join questions q on q.id = v.question_id
      where v.profile_id = p_profile
        and v.shown
-       and q.topic = p_topic
+     order by v.seen_at desc
+     limit greatest(p_seen_limit, 0) * 10
+  ),
+  shown as (
+    select r.question_id
+      from recent r
+      join questions q on q.id = r.question_id
+     where q.topic = p_topic
      -- A question shown again (a battle goes round its pool) counts once.
-     group by v.question_id
-     order by max(v.seen_at) desc
+     group by r.question_id
+     order by max(r.seen_at) desc
      limit greatest(p_seen_limit, 0)
   ),
   held as (
@@ -990,7 +999,8 @@ grant execute on function public.pick_cached_questions(text, integer, integer, i
 
 -- 3) The app marks questions seen as they're shown, as the kid playing. Only
 -- one of the signed-in grown-up's kids (anyone else's: nothing is written),
--- only questions in the bank, at most 20 a call.
+-- only questions in the bank, at most 20 a call (counted after unnest, so a
+-- nested array can't slip more through), and not again within half an hour.
 create or replace function public.mark_questions_seen(p_profile uuid, p_ids uuid[])
 returns void
 language sql
@@ -1000,10 +1010,17 @@ as $$
   insert into public.question_views (profile_id, question_id, shown)
   select p_profile, q.id, true
     from public.questions q
-   where q.id = any (p_ids[1:20])
+   where q.id in (select x from unnest(p_ids) as x limit 20)
      and exists (
        select 1 from public.profiles p
         where p.id = p_profile and p.parent_id = auth.uid()
+     )
+     and not exists (
+       select 1 from public.question_views v
+        where v.profile_id = p_profile
+          and v.question_id = q.id
+          and v.shown
+          and v.seen_at > now() - interval '30 minutes'
      );
 $$;
 

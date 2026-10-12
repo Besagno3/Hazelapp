@@ -45,6 +45,17 @@ describe('markSeen — the app tells the server what was on screen (#130)', () =
     expect(rpcMock.mock.calls[0]).toEqual(call('kid-1', ['q-1']));
   });
 
+  it('…but sent again once it shows after SEEN_RESEND_MS, so it stays in the recent window (review fix)', async () => {
+    const { markSeen, SEEN_FLUSH_MS, SEEN_RESEND_MS } = await fresh();
+    markSeen('q-1');
+    vi.advanceTimersByTime(SEEN_FLUSH_MS);
+    vi.advanceTimersByTime(SEEN_RESEND_MS);
+    markSeen('q-1');
+    vi.advanceTimersByTime(SEEN_FLUSH_MS);
+    expect(rpcMock).toHaveBeenCalledTimes(2);
+    expect(rpcMock.mock.calls[1]).toEqual(call('kid-1', ['q-1']));
+  });
+
   it('a full batch goes at once, never more than the server takes', async () => {
     const { markSeen, SEEN_BATCH_MAX } = await fresh();
     for (let i = 0; i < SEEN_BATCH_MAX; i++) markSeen(`q-${i}`);
@@ -75,13 +86,30 @@ describe('markSeen — the app tells the server what was on screen (#130)', () =
     expect(rpcMock.mock.calls[1]).toEqual(call('kid-2', ['q-2']));
   });
 
-  it('a failed send is logged, never thrown', async () => {
+  it('a failed send is logged, never thrown, and tried again the next time it shows (review fix)', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    rpcMock.mockResolvedValue({ error: { message: 'permission denied' } });
+    rpcMock.mockResolvedValueOnce({ error: { message: 'permission denied' } });
     const { markSeen, flushSeen } = await fresh();
     markSeen('q-1');
     flushSeen();
     await vi.waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Could not mark questions seen:', 'permission denied'));
+    markSeen('q-1');
+    flushSeen();
+    expect(rpcMock).toHaveBeenCalledTimes(2);
+    expect(rpcMock.mock.calls[1]).toEqual(call('kid-1', ['q-1']));
+    errorSpy.mockRestore();
+  });
+
+  it('a thrown network error is handled the same way', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    rpcMock.mockRejectedValueOnce(new Error('Failed to fetch'));
+    const { markSeen, flushSeen } = await fresh();
+    markSeen('q-1');
+    flushSeen();
+    await vi.waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Could not mark questions seen:', 'Failed to fetch'));
+    markSeen('q-1');
+    flushSeen();
+    expect(rpcMock).toHaveBeenCalledTimes(2);
     errorSpy.mockRestore();
   });
 });
