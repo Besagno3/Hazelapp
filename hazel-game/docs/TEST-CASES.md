@@ -1159,6 +1159,20 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-976 | M | ⬜ | TouchPad | with VoiceOver (iOS) and TalkBack (Android): double-tap ✋ beside a chest — it opens, once |
 | TC-977 | M | ⬜ | world | on a phone: tap a shopkeeper, walk away, then press ✋ next to a chest — the chest opens (not the shopkeeper) |
 
+## Act I launch review quick fixes (#128)
+
+| ID     | Type | Status | Feature | Case |
+|--------|------|--------|------|------|
+| TC-978 | C | ✅ | quiz | miss one question, get four right, while saving the skill level swaps in the next batch: the results say "Round Passed!" and 80%, and "What you missed" shows the round's own question, the answer picked and the right one — nothing from the next batch, no loading screen (QuizRound.test) |
+| TC-979 | M | ✅ | TouchPad | with touch (Playwright `hasTouch`) at 820×1180 the d-pad and ✋ sit under the map; holding ▶ moves the hero; the page doesn't scroll |
+| TC-980 | M | ✅ | TouchPad | with touch at 1024×768 and 844×390 (sideways) the d-pad docks bottom-left and ✋ bottom-right; holding ▶ moves the hero |
+| TC-981 | M | ✅ | TouchPad | at 1366×768 with a mouse only, no d-pad shows; at 375×667 with touch it shows under the map as before |
+| TC-982 | M | ⬜ | TouchPad | on a real iPad (both ways round) and an Android phone held sideways: walk, ✋ opens a chest, a dialogue covers the pad and the pad can't be pressed under it |
+| TC-983 | M | ⬜ | world | on a touch screen, a toast shows near the top and never over the d-pad |
+| TC-984 | M | ⬜ | npcs | Wisp says the Clockwork Depths are a cave south of the Whispering Woods; Hazel (after Ember hatches) says Ember's Breath comes with all four crystals |
+| TC-985 | M | ⬜ | menu | with the cloud save failing, 📜 Menu says "Couldn't reach the cloud just now…" with no error code; hovering it shows the error |
+| TC-986 | M | ⬜ | page | the browser tab reads "Hazel Quest" |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

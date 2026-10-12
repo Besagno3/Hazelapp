@@ -682,6 +682,25 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — Act I launch review: quick fixes B3, B2, S14, S6, B7 (#128)
+The first quick fixes from the Act I launch review (the checklist's item
+codes in brackets). **B3:** the quiz's "What you missed" recap showed the
+wrong question — saving the new skill level re-keys `useGeneratedQuestions`,
+which fetched the next batch under the results screen (and could show its
+spinner instead). `QuizRound` now holds the finished round (`FinishedRound`:
+questions, answers, picks) and renders `RoundResults` from it, before the
+loading check. **B2:** tablets and sideways phones couldn't walk — the
+`TouchPad` hid at `sm`. Two Tailwind screens (`tailwind.config.js`):
+`touch` = `(any-pointer: coarse)`, `touch-wide` = touch + landscape; the pad
+shows on narrow windows and every touch screen, and on a sideways touch screen
+it docks in the bottom corners (`fixed`, pad left, ✋ right, `z-30`, under
+the overlays); the toast stays up top on touch screens so it never covers the
+pad. **S14:** Wisp now says the Depths are a cave south of the woods (not a
+stair under them), and Hazel says Ember's Breath comes when all four crystals
+are home. **S6 (part):** the menu's cloud-save warnings drop the raw error
+(now a `title`) and "apply the latest database migrations". **B7 (part):**
+`index.html` has the title "Hazel Quest", a description and a theme colour.
+
 ### 2026-10-11 — Merge main (Vercel #126, Foglight Marsh #125, parent accounts #124) into the press-to-use branch (#127)
 `main` took ISSUES **#124–#126** and TC-867–940 while press-to-use was in
 review, so it moved **#124 → #127** and its test cases **TC-867–903 →
