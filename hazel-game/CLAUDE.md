@@ -208,7 +208,7 @@ zod, react-query. Add the package in the same change that first uses it.
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, saved level, power-ups, streak).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
-  wraps `WorldCanvas` (KaPlay; tile collision, bump-to-interact, zone exits,
+  wraps `WorldCanvas` (KaPlay; tile collision, press-to-use (#127), zone exits,
   the Spire icon, remounted per zone, paused under overlays via ref). Terrain
   is ONE object that draws only the cells in view each frame, from frames
   worked out once per zone by `lib/terrain.ts` — never add one KaPlay object
@@ -222,10 +222,40 @@ zod, react-query. Add the package in the same change that first uses it.
   dialogue, services (shop/inn/library/sage), path questions (gates/chests),
   key gates (`KeyGateOverlay` — warden-key Fiend gates, #58),
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
-  opened by bumping the Spire icon — the all-crystals-gated endgame; its five
+  opened by using the Spire icon — the all-crystals-gated endgame; its five
   floors are walkable themed maps drawn by `WorldCanvas`, state in
   `spireStore`, #74). `TouchPad`
-  is the mobile d-pad.
+  is the mobile d-pad, with the ✋ use button beside it (#127).
+  **Using things** (#127, `lib/interact.ts`): nothing the hero can use goes
+  off on a bump. Chests, gates (both kinds), the save crystal, Spire seals and
+  stairs, shop counters, people, the Spire icon and Umbra wait for a fresh
+  Space / Enter (a window keydown — not an auto-repeat, not while the world is
+  paused or sliding, and not when a focused button, link or field or an open
+  dialog owns the key, `ownsKeys`), a left click or tap on the world, or ✋
+  (counted in `WorldScreen`'s `actionRef`). What gets used is the canvas's
+  `targetNow`: the way the hero last moved first (`probeDirs`) — a person
+  (`inFront`, within `TALK_REACH` of touching) before a tile (`probePoints`,
+  `USE_REACH` px past the hero's box) — then beside, then behind; a click on one of those (its `hit` area) uses that one instead. Counters and desks (`COUNTER_CHARS`: `K`, `T`) talk to the nearest person on their far side (`acrossCounter`). A yellow
+  pill over it says "Space: Open chest" ("Tap: …" on a coarse pointer,
+  `promptText`), and `onPrompt` gives ✋ its label. A press in the two frames
+  after an `arm` waits them out (`held`), like a battle. A click's point
+  (`clickRef`, measured on the canvas) counts for its own press only. Still on a bump: secrets
+  in the scenery, the fog / dark hints, boarding and landing, battles.
+  **People are solid** (`personHit`: `approachBlocked` at `radius + HALF`, at most a tile, so
+  a hero already overlapping can always step away), and so are the Spire icon
+  and Umbra; wandering villagers steer round the hero (`avoidHero`) — critters
+  still walk into them to fight. Walking into the same person for
+  `SCOOT_AFTER_S` (1.5 s) makes them step 2–5 cells aside at `SCOOT_SPEED`
+  (`scootPath`, on `reach`: never through a wall, out of their building, onto
+  a door, exit, stairs, place icon, hidden passage or someone else; off the
+  hero's line if they can; at a dead end they squeeze past the hero); a
+  wanderer then roams round where it stopped (`rehomes`). **Doorway corner
+  assist:** the hero's 22 px box only fits a one-tile opening within ±5 px of
+  its middle, so walking straight (no sideways key) into a wall with an
+  opening within `CORNER_ASSIST` (20 px) slides them over into line
+  (`cornerTarget` / `assistCorner`; never towards a hidden passage, which
+  would give it away). A movement key blurs a focused HUD button, so the next
+  Space is the world's.
   **The world's top bar** (#75 item 14b, #102i): on the world screen `App`
   draws no floating badges — `WorldScreen` puts the level (`LevelBadge`
   `inline`), the streak (`StreakBadge inline`, "🔥 5" on a phone) and Switch
@@ -625,6 +655,12 @@ check to go green (fix and push on red), then merge.
   only if its branch has an open, non-draft PR. Marking ready doesn't push, so
   the first preview builds on the next push. Uses `GITHUB_PR_READ_TOKEN`
   (Vercel, Preview env); any lookup failure fails open (builds).
+- **`claude/**` branches never deploy on Vercel** (`vercel.json` →
+  `git.deploymentEnabled`, #126): Vercel Hobby allows 100 deployments a day,
+  and an ignored build still counts as a (cancelled) deployment, so the many
+  pushes from Claude sessions used it up and blocked production. Those PRs get
+  no Vercel preview; GitHub Actions still runs on them. Other branches keep
+  the `ignoreCommand` rule above, and `main` always deploys.
 - Dependabot / PRs opened as non-drafts run everything from the first push.
 
 ---
@@ -650,6 +686,13 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-12 — Merge main (press to use #127, Vercel #126) into the Sunken Archive branch (#75 item 14h)
+`main` took ISSUES **#126** (the Vercel deployment cap) and **#127** (press to
+use, doorways, people step aside) and TC-941–977 while 14h was in review, so
+14h's follow-ups moved **#126 → #128** and its test cases **TC-941–961 →
+TC-978–998** (only 14h's own lines were renumbered). Only the docs
+conflicted; `WorldScreen.tsx` merged cleanly.
 
 ### 2026-10-11 — 14h review round 4: the last lows; the loop ends (#75 item 14h)
 Fresh `/saas-code-review` (nothing found) and `/saas-ux-review` (3 low).
@@ -697,7 +740,7 @@ Fresh `/saas-code-review` (1 medium, 3 low) and `/saas-ux-review` (3 medium,
   exited 1); "the Hollow Fiend" mid-sentence; "soon you'll fly!"; Chronicle's
   footnotes in brackets; the key gate is a "silver door" (`GateKey.door`).
 - Act I's journey walk on the first 14h commit: 13/13 (`bench … journey`).
-- Tests: +1, and new checks in four more. 1074 green, lint + build clean. Asked (#126m): the Hollow
+- Tests: +1, and new checks in four more. 1074 green, lint + build clean. Asked (#128m): the Hollow
   Fiend's Gulp of Ages can knock out a hero who doesn't Guard.
 
 ### 2026-10-11 — The Sunken Archive: the Crystal of Memory (#75 item 14h)
@@ -752,7 +795,95 @@ Roadmap sub-item 14h — Act II's crystal zone.
 - Tests: +22 (crystals.test rewritten for a real Act II; zones.test: the
   Archive; seaCritters.test: island inns and Return; BattleArena.test: swift,
   Time Ripple; quests.test: the letter; wayfinding, keys, story, spells,
-  battleTurn, save, BattleHud). 1073 green, lint + build clean. Follow-ups #126.
+  battleTurn, save, BattleHud). 1073 green, lint + build clean. Follow-ups #128.
+### 2026-10-11 — Merge main (Vercel #126, Foglight Marsh #125, parent accounts #124) into the press-to-use branch (#127)
+`main` took ISSUES **#124–#126** and TC-867–940 while press-to-use was in
+review, so it moved **#124 → #127** and its test cases **TC-867–903 →
+TC-941–977** (only its own lines). Code: `WorldCanvas` keeps 14g's corner
+slide (`CORNER_SLIDE_PX`, tried first) beside the doorway assist; the escort
+(a `follower`) is never solid, talked to or talked to across a counter; 14g's
+bump-to-talk paths and `nudgeBack` went with talking on a bump. The `hud`
+bench presses Space at the Spire and tabs to Switch.
+
+### 2026-10-11 — #127 code review fixes: clicks count once, quick presses wait, ✋ for screen readers
+A `/saas-code-review` of the press-to-use branch (no data or auth surface;
+2 medium, 2 low), all fixed: a click's point was kept until the next Space,
+so a later ✋ could use something clicked on long before — it's cleared once
+its press is handled, and whenever presses are dropped (a pause, a slide, a
+fog reveal); a press in the two frames after an `arm` was swallowed — it now
+waits them out; clicks are measured on the canvas, not its bordered wrapper;
+✋ now works on any click that isn't a tap's own (within 500 ms of its
+press), so a screen reader's double-tap works it whatever the click's
+`detail`. Tests: `TouchPad.test` +1 case; `bench … use` 15/15; 986 green,
+lint + build clean.
+
+### 2026-10-11 — Talk across a counter or a desk, by Space or a click on the keeper (#127)
+Every shopkeeper stands a tile behind a `K` counter (checked over every
+zone: all 12; no innkeeper is behind a desk yet — they stand in the open).
+Using a counter already talked to the clerk, but only whoever came first in
+the actor list within 1.6 tiles. Now a desk or table (`T`) works like a
+counter too (`COUNTER_CHARS`), so an innkeeper put behind a desk is talked to
+across it, and it's the nearest person on the *far* side (`acrossCounter` —
+never someone queueing beside the hero). And a click or tap on someone (or
+on the counter, a chest, a gate…) uses that thing if the hero can from where
+they stand (`targetsNow` lists them all, each with a `hit` area; the click's
+point is mapped through the camera, `k.toWorld`) — anywhere else it still
+uses what the hero faces. Tests: `interact.test` +2 (`acrossCounter`),
+`bench … use` +2 (a click on the village shopkeeper across the counter; Space
+from a corner of it) — 15/15. 986 tests green, lint + build clean.
+
+### 2026-10-11 — Press to use: chests, gates and people wait for Space / Enter / a click; doors let you in; people step aside (#127)
+Three asks, all in `WorldCanvas` and the new `lib/interact.ts`:
+- **Nothing goes off on a bump.** Chests, gates (question and key gates),
+  the save crystal, Spire seals and stairs, shop counters, people, the Spire
+  icon and Umbra wait for Space or Enter, a click or tap on the world, or the
+  new ✋ button beside the phone d-pad (it says what it would do — "Talk",
+  "Open chest"). A yellow "Space: Open chest" pill ("Tap: …" on a touch
+  screen) floats over whatever the hero faces — in front first, then beside,
+  then behind. Presses count only while the world runs and nothing modal is
+  up: the Enter that closes a dialogue doesn't reopen it, a focused button
+  keeps its own Space / Enter, a held Space is one press, and walking blurs a
+  HUD button left focused. Secrets, the fog / dark hints, boarding and
+  landing, and battles still happen on a bump. People were asked about
+  (they talked on a bump too): press to talk, so holding into them means
+  something.
+- **Doorways, analysed:** the hero's box is 22 px in 32 px tiles, so a
+  one-tile door, gate or corridor only let them through within ±5 px of its
+  middle — about 3 frames of a held arrow key at 170 px/s — and with
+  axis-separated collision a clipped corner was a dead stop. Measured on
+  `main` in headless Chromium: walking up at a Numbria shop door from 6 px off
+  its middle never got in. Now walking straight (no sideways key) into a wall
+  within 20 px of an opening slides the hero over into line with it at walking
+  speed (`cornerTarget` / `assistCorner`), never towards a hidden passage. The
+  same door from 0, ±6, ±10, +14 and ±18 px off: every one goes in.
+- **People in the way:** people are solid (`personHit`) and wandering
+  villagers steer round the hero (`avoidHero`; critters still walk into them
+  to fight). Walking into the same person for 1.5 s (`SCOOT_AFTER_S`) makes
+  them step 2–5 cells aside at 260 px/s (`scootPath`, on `reach`: off the
+  hero's line if they can, never out of their building or onto a door, exit,
+  stairs, hidden passage or someone; at a dead end they squeeze past the
+  hero); a wanderer then roams round where it stopped. The old "push the
+  NPC clear and nudge the hero back" on talk is gone with talking on a bump.
+- Bench (dev): a new `bench … use` mode drives the real canvas with real
+  keys — the door from 7 offsets, a chest, a gate, Pip (blocked, talks once a
+  press, steps aside); the walker presses ✋ at gates (on an exit's run too),
+  seals, stairs, the Spire and Umbra; `state()` has `paths` and `prompt`;
+  `sea`'s save-crystal cooldown check presses Space now.
+- Tests: `interact.test` (17 — keys, focus, probe order, corner assist,
+  stepping aside in the open / a corridor / a dead end / a building / round
+  exits and people / boxed in), `TouchPad.test` (3), `WorldScreen.use.test`
+  (2). 984 tests green, lint + tsc + build clean. Benches: `use` 13/13,
+  `journey` 13/13 (the walker first got stuck at two gates right before an
+  exit, then 5 px short of Umbra — a 28 px giant kept the hero more than a tile
+  off; solid people now keep at most a tile, `Math.min(radius + HALF, TILE)`),
+  `sea` 7/7, `hud` 6/6 (it walked into the Spire icon; it presses Space now).
+### 2026-10-11 — Vercel skips `claude/**` branches entirely (#126)
+The Hobby plan's 100 deployments a day ran out (`api-deployments-free-per-day`
+on PR #43). The Ignored Build Step skips the build but Vercel still creates a
+deployment per push, and Claude sessions push to many branches. `vercel.json`
+now sets `git.deploymentEnabled: { "claude/**": false }`, so those pushes
+create no deployment at all. Trade-off: `claude/*` PRs have no Vercel preview
+(CI still runs). Config + docs only.
 
 ### 2026-10-11 — Merge main (answer shuffle, password eye, parent accounts, sign-in music) into the Foglight Marsh branch (#75 item 14g)
 `main` took ISSUES **#120–#124** and TC-850–893 while 14g was in review

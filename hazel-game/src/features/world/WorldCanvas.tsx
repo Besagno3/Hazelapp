@@ -37,7 +37,7 @@ import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
 import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
 import { arrived, cameBack, dropCrumb, startEscort, stepEscort, stuckBehind, type EscortState } from '../../lib/escort';
-import { CONTACT_RADIUS, contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, staysDown, touching, type Rest } from '../../lib/encounter';
+import { contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, staysDown, touching, type Rest } from '../../lib/encounter';
 import {
   EMBER_COST,
   FOE_FACE,
@@ -113,6 +113,25 @@ import {
   ACTOR_RADIUS,
   WANDER_WALL_HALF,
 } from '../../lib/wander';
+import {
+  SCOOT_AFTER_S,
+  SCOOT_SPEED,
+  COUNTER_CHARS,
+  TALK_REACH,
+  acrossCounter,
+  cornerTarget,
+  inFront,
+  isInteractKey,
+  ownsKeys,
+  probeDirs,
+  probePoints,
+  promptText,
+  pushOn,
+  scootPath,
+  slideStep,
+  type Dir,
+  type Push,
+} from '../../lib/interact';
 
 /** Player hitbox half-size (smaller than a tile so corridors feel forgiving). */
 const HALF = 11;
@@ -122,8 +141,10 @@ const VIEW_W = VIEW_COLS * TILE;
 const VIEW_H = VIEW_ROWS * TILE;
 /** Roof fade speed (per second) when the hero steps in / out of a building. */
 const ROOF_FADE = 10;
-/** Seconds after closing an overlay before bumps can trigger again. */
+/** Seconds after closing an overlay before a bump (a secret, fog) can trigger again, or a critter beside you fight. */
 const TRIGGER_COOLDOWN = 0.8;
+/** The "Space: Open chest" prompt over what the hero would use (#127): over everyone's bubbles (20–21), under nothing. */
+const PROMPT_Z = 22;
 /** A dark place's circle of light (px): unlit — a few steps around you — and lit by Glow (#75 item 9). */
 const DIM_RADIUS = 80;
 const LIT_RADIUS = 330;
@@ -233,6 +254,11 @@ export interface WorldCanvasCallbacks {
    */
   onAshore?: (boat: { x: number; y: number } | null) => void;
   /**
+   * What pressing Space / Enter / ✋ would do now — "Open chest", "Talk" — or
+   * null with nothing to use (#127); called when it changes, for the ✋ button.
+   */
+  onPrompt?: (label: string | null) => void;
+  /**
    * An escort (#75 item 14g, Posy) has been waiting a moment: a critter is near
    * them. `near`: the hero walked away during this wait and has come back (say why now).
    */
@@ -269,8 +295,9 @@ export interface Travel {
 
 /**
  * Renders one zone of Lumina on a KaPlay canvas (#37, supersedes the #36
- * single-screen MVP). Tile-grid collision, bump-to-interact NPCs/gates/
- * chests/crystals, walk-into enemies to battle, edge exits between zones.
+ * single-screen MVP). Tile-grid collision, press-to-use people / gates /
+ * chests / crystals (#127 — they used to go off on a bump), walk-into enemies
+ * to battle, edge exits between zones.
  * 16-bit tile art from the zone's generated tileset (`content/tiles.ts`).
  *
  * KaPlay teardown is fragile: its app state (`a`) is a module-level singleton,
@@ -299,6 +326,7 @@ export default function WorldCanvas({
   spireLight = null,
   travelRef,
   calmRef,
+  actionRef,
   boat = null,
   aboard = false,
   escort = null,
@@ -331,6 +359,8 @@ export default function WorldCanvas({
   travelRef?: MutableRefObject<Travel | null>;
   /** …and the seconds of Calm left, counted down here while the world runs. */
   calmRef?: MutableRefObject<number>;
+  /** Presses of the on-screen ✋ button, counted by the parent (#127): each uses what the hero faces. */
+  actionRef?: MutableRefObject<number>;
   /** Marlow's boat (#75 item 14): where it's moored, if it is (any map — drawn when it's this one)… */
   boat?: BoatSpot | null;
   /** …and whether the hero is sailing it (read when the zone builds; the canvas keeps it after). */
@@ -440,13 +470,34 @@ export default function WorldCanvas({
   // Fresh presses — any key (not auto-repeats), click or tap, the d-pad
   // included: a fog reveal skips on one.
   const pressesRef = useRef(0);
+  // Fresh presses of Space or Enter, and clicks or taps on the world (#127):
+  // each uses what the hero faces. Counted only while the world runs and no
+  // modal layer has made it inert (the level-up doesn't pause it) — the Enter
+  // that closes a dialogue must not open it again — and never when a focused
+  // button or field takes the key itself.
+  const usesRef = useRef(0);
+  // Where on the world the last click or tap landed, as a fraction of the view — a click on
+  // someone (or a chest) uses them, if the hero can from where they stand.
+  const clickRef = useRef<{ fx: number; fy: number } | null>(null);
   useEffect(() => {
+    const worldLive = () => !pausedRef.current && !slidingRef.current && !containerRef.current?.closest('[inert]');
     const down = (e: KeyboardEvent) => {
       if (!e.repeat) pressesRef.current += 1;
+      if (isInteractKey(e)) {
+        if (e.repeat || ownsKeys(e.target) || !worldLive()) return;
+        e.preventDefault(); // Space would scroll the page
+        clickRef.current = null;
+        usesRef.current += 1;
+        return;
+      }
       const key = e.key.toLowerCase();
       if (!MOVE_KEYS.has(key)) return;
       e.preventDefault(); // stop arrow keys from scrolling the page
       keysRef.current.add(key);
+      // Walking, the keys are the world's: a button left focused (📜 Menu,
+      // after closing it) would otherwise take the next Space for itself.
+      const focused = document.activeElement;
+      if (worldLive() && focused instanceof HTMLElement && focused.matches('button, a[href], [role="button"]')) focused.blur();
     };
     const up = (e: KeyboardEvent) => {
       keysRef.current.delete(e.key.toLowerCase());
@@ -466,7 +517,16 @@ export default function WorldCanvas({
       window.removeEventListener('pointerdown', point);
       window.removeEventListener('blur', clear);
     };
-  }, []);
+    // The parent's ref never changes.
+  }, [pausedRef]);
+  /** A click or tap on the world uses what the hero faces, as Space does (#127). */
+  const onWorldPointer = (e: React.PointerEvent) => {
+    if (e.button !== 0 || pausedRef.current || slidingRef.current) return;
+    // The canvas itself, not the wrapper and its 2 px border.
+    const r = (containerRef.current?.querySelector('canvas') ?? e.currentTarget).getBoundingClientRect();
+    clickRef.current = r.width && r.height ? { fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height } : null;
+    usesRef.current += 1;
+  };
 
   // A Spire floor (#74) borrows the Spire zone's id but brings its own map.
   const z = spireFloor ? floorZone(spireFloor) : zone(zoneId);
@@ -882,10 +942,21 @@ export default function WorldCanvas({
       parts?: { pos: WorldVec }[];
       /** Footprint radius (px) for actor↔actor overlap avoidance. */
       radius: number;
+      /** How far (px) above its centre its head is — the "Space: Talk" prompt floats just over it (#127). */
+      top?: number;
       /** Walking with the hero (#75 item 14g, an escort): never bumped into to talk. */
       follower?: boolean;
     }
     const actors: Actor[] = [];
+    // People stepping out of the hero's way (#127): the cells' centres (px)
+    // they're walking through, and how far along they are. A wanderer holds
+    // its stroll meanwhile, then roams round where it stopped.
+    const scoots = new Map<Actor, { path: { x: number; y: number }[]; i: number }>();
+    /** A character's facing (`turn`, to a heading) and walk cycle or idle (`play`, `animFor`). */
+    type Animator = { turn: (dx: number, dy: number) => void; play: (moving: boolean) => void };
+    const animators = new Map<Actor, Animator>();
+    /** A wanderer's leash, moved to wherever it stepped aside to. */
+    const rehomes = new Map<Actor, (x: number, y: number) => void>();
 
     // Set true once a battle/exit fires; freezes all ambient motion too.
     // Declared here (not by the main loop) so wander controllers can read it.
@@ -897,7 +968,7 @@ export default function WorldCanvas({
     // Contact/collision reads each actor's live x/y every frame (see the main
     // loop below), so a wanderer only has to keep its x/y in lockstep with its
     // sprites. Pure decision math lives in `lib/wander.ts`; this closure wires
-    // it to KaPlay (collision via the hoisted `hitAt`, freeze via `pausedRef`).
+    // it to KaPlay (collision via the hoisted `hitBox`, freeze via `pausedRef`).
     type Part = { pos: WorldVec };
     interface WanderOpts {
       actor: Actor;
@@ -914,6 +985,28 @@ export default function WorldCanvas({
       afloat?: boolean;
       /** Holds still while this says so — a resting critter is asleep (`resting`, #114e). */
       asleep?: () => boolean;
+      /** A person (#127): never walks into the hero, who can't walk through them either. */
+      avoidHero?: boolean;
+    }
+    /** Plays a sprite character's walk cycle / idle, facing its heading (4-way); emoji faces have none. */
+    function makeAnimator(anchor: WorldActor, anims?: Record<string, unknown>, animSpeed?: number): Animator {
+      const spr = anims ? (anchor as unknown as { play: (n: string) => void; flipX: boolean; animSpeed: number }) : null;
+      if (spr && animSpeed) spr.animSpeed = animSpeed;
+      let facing: Facing = 'down';
+      let curAnim = '';
+      return {
+        turn(dx, dy) {
+          facing = facingFor(dx, dy, facing);
+          if (spr && facing === 'side') spr.flipX = dx < 0;
+        },
+        play(moving) {
+          if (!spr || !anims) return;
+          const want = animFor(facing, moving, anims);
+          if (want === curAnim) return;
+          curAnim = want;
+          spr.play(want);
+        },
+      };
     }
     function attachWander(anchor: WorldActor, o: WanderOpts) {
       let dir = { x: 0, y: 0 };
@@ -922,21 +1015,21 @@ export default function WorldCanvas({
       // the straight way home past a wall or the shore would stop it for good.
       let bumped = false;
       // Sprite wanderers play their walk cycle and face their heading (4-way).
-      const spr = o.anims ? (anchor as unknown as { play: (n: string) => void; flipX: boolean; animSpeed: number }) : null;
-      if (spr && o.animSpeed) spr.animSpeed = o.animSpeed;
-      let facing: Facing = 'down';
-      let curAnim = '';
+      const anim = makeAnimator(anchor, o.anims, o.animSpeed);
+      animators.set(o.actor, anim);
       const homeBuilding = buildingAt(z, Math.floor(o.homeX / TILE), Math.floor(o.homeY / TILE));
-      const animate = (moving: boolean) => {
-        if (!spr || !o.anims) return;
-        const want = animFor(facing, moving, o.anims);
-        if (want === curAnim) return;
-        curAnim = want;
-        spr.play(want);
-      };
+      const animate = (moving: boolean) => anim.play(moving);
       animate(false);
+      // Stepped aside for the hero (#127): roam round where it stopped.
+      rehomes.set(o.actor, (x, y) => {
+        o.homeX = x;
+        o.homeY = y;
+        dir = { x: 0, y: 0 };
+        timer = 0.7 + Math.random() * 1.6;
+        bumped = false;
+      });
       anchor.onUpdate(() => {
-        if (pausedRef.current || triggered || cinematic) return;
+        if (pausedRef.current || triggered || cinematic || scoots.has(o.actor)) return;
         if (o.asleep?.()) {
           dir = { x: 0, y: 0 };
           animate(false);
@@ -949,8 +1042,7 @@ export default function WorldCanvas({
           dir = nextWanderDir({ x: o.actor.x, y: o.actor.y, homeX: o.homeX, homeY: o.homeY, leash: o.leash, bumped }, Math.random);
           bumped = false;
           timer = dir.x || dir.y ? 0.6 + Math.random() : 0.7 + Math.random() * 1.6;
-          facing = facingFor(dir.x, dir.y, facing);
-          if (spr && facing === 'side') spr.flipX = dir.x < 0;
+          anim.turn(dir.x, dir.y);
           animate(!!(dir.x || dir.y));
         }
         if (!dir.x && !dir.y) return;
@@ -960,14 +1052,16 @@ export default function WorldCanvas({
         // steer-home/leash correction can never seat the sprite inside a wall.
         const c = clampToLeash(nx, ny, o.homeX, o.homeY, o.leash);
         // Walls (full sprite footprint) and every *other* character (other
-        // wanderers, stationary NPCs, the boss, the Spire — not the player or
-        // Ember) block the step; on a bump, stop and repick a direction.
+        // wanderers, stationary NPCs, the boss, the Spire — not Ember, and the
+        // hero only for people: critters walk into them to fight) block the
+        // step; on a bump, stop and repick a direction.
         if (
           // A sea critter's whole box stays on open sea (#75 item 14d).
           hitBox(c.x, c.y, WANDER_WALL_HALF, true, o.afloat) ||
           // Townsfolk stay on their side of a building wall (no strolling in
           // or out of shops through the door).
           buildingAt(z, Math.floor(c.x / TILE), Math.floor(c.y / TILE)) !== homeBuilding ||
+          (o.avoidHero && approachBlocked(o.actor.x, o.actor.y, c.x, c.y, player.pos.x, player.pos.y, o.actor.radius + HALF)) ||
           actors.some(
             (other) =>
               other !== o.actor &&
@@ -1146,6 +1240,7 @@ export default function WorldCanvas({
         npcId: def.id,
         parts,
         radius: ACTOR_RADIUS.npc,
+        top: (npcView?.frameH ?? TILE) / 2,
       };
       actors.push(actor);
       const nameW = (label as unknown as { width?: number }).width ?? def.name.length * 6;
@@ -1161,7 +1256,11 @@ export default function WorldCanvas({
           speed: WANDER_TUNING.npc.speed * (def.pace ?? 1),
           anims: npcView?.anims,
           animSpeed: def.pace,
+          avoidHero: true,
         });
+      } else {
+        // Ready for stepping out of the hero's way (#127); untouched until then.
+        animators.set(actor, makeAnimator(face, npcView?.anims));
       }
       if (def.ambient?.length) attachAmbient(face, def.ambient);
       return {
@@ -1172,6 +1271,9 @@ export default function WorldCanvas({
           const i = actors.indexOf(actor);
           if (i >= 0) actors.splice(i, 1);
           looks.delete(actor);
+          scoots.delete(actor);
+          animators.delete(actor);
+          rehomes.delete(actor);
           for (const piece of pieces) piece.destroy();
         },
       };
@@ -1676,26 +1778,277 @@ export default function WorldCanvas({
       return null;
     }
 
-    const hitAt = (px: number, py: number) => hitBox(px, py, HALF);
     /** The hero's own collision: on foot, or afloat while in the boat (#75 item 14). */
     const heroHit = (px: number, py: number) => hitBox(px, py, HALF, false, aboard);
     /** How far off the line (px) a corner can be clipped and still slid round. */
     const CORNER_SLIDE_PX = 4;
-    // Step back from what was bumped, so closing its talk doesn't bump it again — never
-    // into a wall: a hero pushed into one (Brume, just under her lamp-house) couldn't
-    // walk any way but back into her (#75 item 14g UX review).
-    // (As far back as there's room for, up to 10 px — a few px still clears the contact radius.)
-    const nudgeBack = (dx: number, dy: number) => {
-      for (let k = 10; k > 0; k--) {
-        const nx = player.pos.x - dx * k;
-        const ny = player.pos.y - dy * k;
-        if (!heroHit(nx, ny)) {
-          player.pos.x = nx;
-          player.pos.y = ny;
-          return;
+    // --- People are solid; things wait to be used (#127) -------------------
+    // People (and the Spire, and Umbra) stop the hero like a wall — walking
+    // into someone no longer talks to them — and everything the hero can use
+    // waits for Space / Enter / a click or tap on the world / ✋, with a
+    // "Space: Open chest" prompt over the thing they face.
+    // An escort walking with the hero (#75 item 14g) is never in their way, nor talked to.
+    const solid = (a: Actor) =>
+      (a.kind === 'npc' ? !!a.npcId && !a.follower : a.kind === 'spire' || a.kind === 'umbra') && !scoots.has(a);
+    /**
+     * Who a step to (px, py) would walk into (`approachBlocked`: never stuck on
+     * someone already overlapping). Never kept more than a tile off, so the
+     * hero can always stand in the cell beside someone big (Umbra).
+     */
+    function personHit(px: number, py: number): Actor | null {
+      for (const a of actors) {
+        if (solid(a) && approachBlocked(player.pos.x, player.pos.y, px, py, a.x, a.y, Math.min(a.radius + HALF, TILE))) return a;
+      }
+      return null;
+    }
+    /**
+     * Walking straight into a wall with an opening just to one side — a door,
+     * a gate, a corridor a few pixels off — slide over into it (`cornerTarget`).
+     * `at` is where the blocked step would have put the hero along `axis`;
+     * never towards a hidden passage (`strict`), which would give it away.
+     */
+    function assistCorner(axis: 'x' | 'y', at: number, sign: number, max: number) {
+      const p = player.pos;
+      const line = Math.floor((at + sign * HALF) / TILE); // the column / row they walked into
+      if (axis === 'x') {
+        const t = cornerTarget(p.y, (row) => !blockerAt(line, row, true, aboard), TILE);
+        const step = t === null ? 0 : slideStep(p.y, t, max);
+        if (step && !heroHit(p.x, p.y + step) && !personHit(p.x, p.y + step)) p.y += step;
+      } else {
+        const t = cornerTarget(p.x, (col) => !blockerAt(col, line, true, aboard), TILE);
+        const step = t === null ? 0 : slideStep(p.x, t, max);
+        if (step && !heroHit(p.x + step, p.y) && !personHit(p.x + step, p.y)) p.x += step;
+      }
+    }
+
+    /** Something the hero can use: what the prompt over it says, where it floats, and what using it does. */
+    type Use = { label: string; at: { x: number; y: number }; act: () => void; hit: (x: number, y: number) => boolean };
+    /** Is (x, y) on the cell (cx, cy)? */
+    const onCell = (cx: number, cy: number) => (x: number, y: number) => Math.floor(x / TILE) === cx && Math.floor(y / TILE) === cy;
+    /** Talking to someone — clicked on, or on the counter or desk between you (`via`). */
+    const talkTo = (a: Actor, via?: { x: number; y: number }): Use => ({
+      label: 'Talk',
+      at: { x: a.x, y: a.y - (a.top ?? TILE / 2) - 10 },
+      hit: (x, y) => Math.hypot(x - a.x, y - a.y) < 20 || (!!via && onCell(via.x, via.y)(x, y)),
+      act: () => {
+        arm(TRIGGER_COOLDOWN);
+        cbRef.current.onMove(player.pos.x, player.pos.y);
+        cbRef.current.onTalk(a.npcId!);
+      },
+    });
+    /** Using a person, the Spire's door, Umbra. */
+    function personUse(a: Actor): Use | null {
+      if (a.kind === 'npc' && a.npcId) return talkTo(a);
+      if (a.kind === 'spire') {
+        return {
+          label: 'Enter the Spire',
+          at: { x: a.x, y: a.y - 56 }, // over the tower
+          hit: (x, y) => Math.abs(x - a.x) < 18 && y > a.y - 48 && y < a.y + 18,
+          act: () => {
+            arm(TRIGGER_COOLDOWN);
+            cbRef.current.onMove(player.pos.x, player.pos.y);
+            cbRef.current.onSpire();
+          },
+        };
+      }
+      if (a.kind === 'umbra') {
+        return {
+          label: 'Face Umbra',
+          at: { x: a.x, y: a.y - 40 },
+          hit: (x, y) => Math.hypot(x - a.x, y - a.y) < 30,
+          act: () => {
+            arm(TRIGGER_COOLDOWN);
+            cbRef.current.onUmbra?.();
+          },
+        };
+      }
+      return null;
+    }
+    /** Using the tile at (cx, cy): a chest, a gate, the save crystal, a Spire seal or its stairs, a shop counter. */
+    function tileUse(cx: number, cy: number): Use | null {
+      if (fogAt(z, cx, cy, flagsRef.current) || darkAt(z, cx, cy, flagsRef.current)) return null;
+      const usable = (label: string, act: () => void): Use => ({ label, at: { x: cx * TILE + TILE / 2, y: cy * TILE - 6 }, act, hit: onCell(cx, cy) });
+      const ch = tileAt(z, cx, cy);
+      if (COUNTER_CHARS.has(ch)) {
+        // Talk across a shop counter (#72), or a desk or table (#127), to whoever stands behind it.
+        const people = actors.filter((a) => a.kind === 'npc' && a.npcId && !a.follower && !scoots.has(a));
+        const i = acrossCounter({ x: cx * TILE + TILE / 2, y: cy * TILE + TILE / 2 }, player.pos, people, TILE);
+        return i >= 0 ? talkTo(people[i], { x: cx, y: cy }) : null;
+      }
+      switch (ch) {
+        case 'C': {
+          const id = pathTargetId(zoneId, 'chest', cx, cy);
+          if (chestsRef.current.includes(id)) return null;
+          return usable('Open chest', () => {
+            arm(TRIGGER_COOLDOWN);
+            cbRef.current.onPath({ kind: 'chest', id, topic: chestTopicAt(z, cx, cy), zoneId });
+          });
+        }
+        case 'G': {
+          if (isOpenGate(cx, cy)) return null;
+          const id = gateIdAt(zoneId, z.map, cx, cy);
+          // A warden-keyed Fiend gate checks a key instead of asking a question (#58).
+          // Match on the gate group so either tile of a double-wide gate counts.
+          const keyed = !!z.keyGate && gateIdAt(zoneId, z.map, z.keyGate.x, z.keyGate.y) === id;
+          return usable(keyed ? 'Unlock gate' : 'Open gate', () => {
+            arm(TRIGGER_COOLDOWN);
+            cbRef.current.onPath({ kind: keyed ? 'keygate' : 'gate', id, topic: z.topic ?? 'math', zoneId });
+          });
+        }
+        case 'S':
+          return usable('Save game', () => {
+            // A hero standing still isn't walked into for as long as "💎 Game
+            // saved!" takes to read (~2.9 s, `toastMs`).
+            arm(2, 3);
+            cbRef.current.onSaveCrystal();
+          });
+        case 'Q': {
+          // A rune seal on a Spire floor (#74): face its question.
+          const id = `${cx},${cy}`;
+          if (brokenRef.current.includes(id)) return null;
+          return usable('Break seal', () => {
+            arm(TRIGGER_COOLDOWN);
+            cbRef.current.onWard?.(id);
+          });
+        }
+        case 'U':
+          return usable('Climb stairs', () => {
+            arm(TRIGGER_COOLDOWN);
+            cbRef.current.onStairs?.();
+          });
+      }
+      return null;
+    }
+    /**
+     * Everything the hero could use from where they stand, best first: what
+     * they face — a person before a tile — then what's beside, then behind
+     * them. Space uses the first; a click uses the one clicked on, if any.
+     */
+    function targetsNow(): Use[] {
+      const hero = { x: player.pos.x, y: player.pos.y };
+      const away = (a: Actor) => Math.hypot(a.x - hero.x, a.y - hero.y);
+      const found: Use[] = [];
+      for (const dir of probeDirs(lastDir)) {
+        let near: Actor | null = null;
+        for (const a of actors) {
+          if (!solid(a) || !inFront(hero, a, dir, a.radius + HALF + TALK_REACH)) continue;
+          if (!near || away(a) < away(near)) near = a;
+        }
+        const person = near ? personUse(near) : null;
+        if (person) found.push(person);
+        for (const p of probePoints(hero.x, hero.y, dir, HALF)) {
+          const thing = tileUse(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
+          if (thing) found.push(thing);
         }
       }
-    };
+      return found;
+    }
+
+    // The prompt, rebuilt only when its words change (KaPlay measures text as it's made), kept on the map.
+    const touchScreen = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true;
+    type PromptPart = { pos: WorldVec; destroy: () => void };
+    let prompt: { words: string; w: number; parts: PromptPart[] } | null = null;
+    // What ✋ was last told — unset at first, so a new scene always tells it (the last one's may be stale).
+    let promptSaid: string | null | undefined;
+    function showPrompt(use: Use | null) {
+      const words = use ? promptText(use.label, touchScreen) : null;
+      if (prompt && prompt.words !== words) {
+        for (const part of prompt.parts) part.destroy();
+        prompt = null;
+      }
+      if (use && words) {
+        if (!prompt) {
+          const text = k.add([
+            k.text(words, { size: 10 }),
+            k.pos(0, 0),
+            k.anchor('center'),
+            k.color(45, 35, 65),
+            k.z(PROMPT_Z + 0.5),
+          ]) as unknown as PromptPart & { width?: number; height?: number };
+          const w = (text.width ?? words.length * 6) + 10;
+          const pill = k.add([
+            k.rect(w, (text.height ?? 11) + 6, { radius: 5 }),
+            k.pos(0, 0),
+            k.anchor('center'),
+            k.color(255, 236, 160),
+            k.outline(1, k.rgb(150, 110, 40)),
+            k.z(PROMPT_Z),
+          ]) as unknown as PromptPart;
+          prompt = { words, w, parts: [pill, text] };
+        }
+        const bob = reducedMotion ? 0 : Math.sin(k.time() * 4) * 1.5;
+        const x = Math.min(Math.max(use.at.x, prompt.w / 2 + 2), W - prompt.w / 2 - 2);
+        const y = Math.max(use.at.y, 12) + bob;
+        for (const part of prompt.parts) part.pos = k.vec2(x, y);
+      }
+      const said = use?.label ?? null;
+      if (said !== promptSaid) {
+        promptSaid = said;
+        cbRef.current.onPrompt?.(said);
+      }
+    }
+
+    /** Walked into someone long enough: they step a few cells out of the way, quickly (`scootPath`). */
+    function scoot(a: Actor, push: Dir) {
+      const cellOf = (x: number, y: number) => ({ x: Math.floor(x / TILE), y: Math.floor(y / TILE) });
+      const at = player.pos;
+      const heroCells = [-HALF, HALF].flatMap((ox) => [-HALF, HALF].map((oy) => cellOf(at.x + ox, at.y + oy)));
+      const others = new Set(
+        actors
+          .filter((o) => o !== a)
+          .map((o) => {
+            const c = cellOf(o.x, o.y);
+            return `${c.x},${c.y}`;
+          }),
+      );
+      const path = scootPath(z, {
+        from: cellOf(a.x, a.y),
+        hero: cellOf(at.x, at.y),
+        heroCells,
+        push,
+        flags: flagsRef.current,
+        blocked: (x, y) => others.has(`${x},${y}`),
+      });
+      if (path) scoots.set(a, { path: path.map((c) => ({ x: c.x * TILE + TILE / 2, y: c.y * TILE + TILE / 2 })), i: 0 });
+    }
+    /** Carry everyone stepping aside along their way; at its end a wanderer roams from there. */
+    function stepScoots(dt: number) {
+      for (const [a, s] of scoots) {
+        let left = SCOOT_SPEED * dt;
+        let mx = 0;
+        let my = 0;
+        while (left > 0 && s.i < s.path.length) {
+          const gx = s.path[s.i].x - (a.x + mx);
+          const gy = s.path[s.i].y - (a.y + my);
+          const d = Math.hypot(gx, gy);
+          if (d <= left) {
+            mx += gx;
+            my += gy;
+            left -= d;
+            s.i += 1;
+          } else {
+            mx += (gx / d) * left;
+            my += (gy / d) * left;
+            left = 0;
+          }
+        }
+        a.x += mx;
+        a.y += my;
+        for (const part of a.parts ?? []) {
+          part.pos.x += mx;
+          part.pos.y += my;
+        }
+        const anim = animators.get(a);
+        if (s.i < s.path.length) {
+          if (mx || my) anim?.turn(mx, my);
+          anim?.play(true);
+        } else {
+          scoots.delete(a);
+          anim?.play(false);
+          rehomes.get(a)?.(a.x, a.y);
+        }
+      }
+    }
 
     // --- Fog reveal (#75 item 7) ------------------------------------------
     // A bank that has lifted but not been watched clearing gets a moment of
@@ -1916,6 +2269,11 @@ export default function WorldCanvas({
     };
     let sleeperHinted = false;
     let moveSaveTimer = 0;
+    // Presses that use things (#127): the keyboard's and the world's, and the ✋ button's.
+    const uses = () => usesRef.current + (actionRef?.current ?? 0);
+    let usesSeen = uses();
+    // Who the hero has been walking into, and for how long (`SCOOT_AFTER_S`).
+    let push: Push<Actor> = null;
 
     const loop = k.onUpdate(() => {
       paintDark();
@@ -1927,6 +2285,10 @@ export default function WorldCanvas({
         // own step-back position and return above, via `triggered`.)
         if (!wasPaused && pausedRef.current) cbRef.current.onMove(player.pos.x, player.pos.y);
         wasPaused = true;
+        usesSeen = uses(); // a ✋ tapped mid-slide uses nothing
+        clickRef.current = null;
+        showPrompt(null);
+        push = null;
         return;
       }
       if (wasPaused) {
@@ -1957,6 +2319,8 @@ export default function WorldCanvas({
             hint: skipHint(),
           };
           cinematic = true;
+          showPrompt(null);
+          push = null;
           if (heroView) {
             curAnim = animFor(heroFacing, false, heroView.anims);
             player.play(curAnim);
@@ -1973,6 +2337,8 @@ export default function WorldCanvas({
         cinematic = false;
         arm(TRIGGER_COOLDOWN);
         needsRelease = true; // a key held through the reveal doesn't walk off at once
+        usesSeen = uses(); // nor does the Space that skipped it use anything
+        clickRef.current = null;
       }
 
       // Return (#75 item 9): cast from the menu, flown once the world runs —
@@ -2070,8 +2436,12 @@ export default function WorldCanvas({
         }
       }
 
-      // Axis-separated movement for wall sliding; remember what we bumped.
+      // Axis-separated movement for wall sliding; remember what we bumped —
+      // and who: people stop the hero too (#127). Walking straight into a
+      // wall beside a doorway slides them over into it (`assistCorner`).
       let bumped: { ch: string; x: number; y: number } | null = null;
+      let into: Actor | null = null;
+      let intoDir: Dir = { x: 0, y: 0 };
       const speed = SPEED * (aboard ? BOAT_SPEED : 1);
       // Clipping a corner by a few px (walking straight past a building's corner,
       // a touch off the row) slides round it rather than stopping dead (#75 item 14g UX review).
@@ -2084,23 +2454,44 @@ export default function WorldCanvas({
       if (dx !== 0) {
         const nx = player.pos.x + dx * speed * dt;
         const hit = heroHit(nx, player.pos.y);
-        if (!hit) player.pos.x = nx;
-        else {
+        const who = hit ? null : personHit(nx, player.pos.y);
+        if (!hit && !who) player.pos.x = nx;
+        else if (hit) {
           const off = dy === 0 ? slide((o) => !heroHit(player.pos.x, player.pos.y + o) && !heroHit(nx, player.pos.y + o)) : 0;
           if (off) player.pos.y += off;
-          else bumped = hit;
+          else {
+            bumped = hit;
+            if (dy === 0) assistCorner('x', nx, Math.sign(dx), speed * dt);
+          }
+        } else {
+          into = who;
+          intoDir = { x: Math.sign(dx), y: 0 };
         }
       }
       if (dy !== 0) {
         const ny = player.pos.y + dy * speed * dt;
         const hit = heroHit(player.pos.x, ny);
-        if (!hit) player.pos.y = ny;
-        else {
+        const who = hit ? null : personHit(player.pos.x, ny);
+        if (!hit && !who) player.pos.y = ny;
+        else if (hit) {
           const off = dx === 0 ? slide((o) => !heroHit(player.pos.x + o, player.pos.y) && !heroHit(player.pos.x + o, ny)) : 0;
           if (off) player.pos.x += off;
-          else bumped = bumped ?? hit;
+          else {
+            bumped = bumped ?? hit;
+            if (dx === 0) assistCorner('y', ny, Math.sign(dy), speed * dt);
+          }
+        } else if (!into) {
+          into = who;
+          intoDir = { x: 0, y: Math.sign(dy) };
         }
       }
+      // Kept walking into someone in the way: they step aside (#127).
+      push = pushOn(push, into?.kind === 'npc' ? into : null, dt);
+      if (push && push.t >= SCOOT_AFTER_S) {
+        scoot(push.who, intoDir);
+        push = null;
+      }
+      stepScoots(dt);
 
       // Marlow's boat (#75 item 14): bump the water by it to climb in (from
       // beside it, corners too — `canBoard`); sail into a beach or a dock to
@@ -2132,31 +2523,15 @@ export default function WorldCanvas({
         bumped = null;
       }
 
-      // Bump interactions (secret / gate / chest / save crystal).
+      // Bumps that still go off on their own: a secret found in the scenery,
+      // and why fog or the dark won't let you on. (Chests, gates, the save
+      // crystal and the rest wait to be used — below, #127.)
       const bumpedSecret = bumped ? secretAt(z, bumped.x, bumped.y) : undefined;
       if (bumped && cooldown === 0) {
         if (bumpedSecret && !flagsRef.current[secretFlag(bumpedSecret.id)]) {
           arm(TRIGGER_COOLDOWN);
           cbRef.current.onMove(player.pos.x, player.pos.y);
           cbRef.current.onSecret?.(bumpedSecret.id);
-        } else if (bumped.ch === 'G') {
-          const id = gateIdAt(zoneId, z.map, bumped.x, bumped.y);
-          arm(TRIGGER_COOLDOWN);
-          // A warden-keyed Fiend gate checks a key instead of asking a question (#58).
-          // Match on the gate group so either tile of a double-wide gate counts.
-          const keyed = z.keyGate && gateIdAt(zoneId, z.map, z.keyGate.x, z.keyGate.y) === id;
-          cbRef.current.onPath({ kind: keyed ? 'keygate' : 'gate', id, topic: z.topic ?? 'math', zoneId });
-        } else if (bumped.ch === 'C') {
-          const id = pathTargetId(zoneId, 'chest', bumped.x, bumped.y);
-          if (!chestsRef.current.includes(id)) {
-            arm(TRIGGER_COOLDOWN);
-            cbRef.current.onPath({ kind: 'chest', id, topic: chestTopicAt(z, bumped.x, bumped.y), zoneId });
-          }
-        } else if (bumped.ch === 'S') {
-          // A hero standing still isn't walked into for as long as "💎 Game
-          // saved!" takes to read (~2.9 s, `toastMs`).
-          arm(2, 3);
-          cbRef.current.onSaveCrystal();
         } else if (bumped.ch === 'fog') {
           const fog = fogAt(z, bumped.x, bumped.y, flagsRef.current);
           arm(2);
@@ -2164,29 +2539,28 @@ export default function WorldCanvas({
         } else if (bumped.ch === 'dark') {
           arm(2);
           cbRef.current.onDark?.();
-        } else if (bumped.ch === 'Q') {
-          // A rune seal on a Spire floor (#74): face its question.
-          const id = `${bumped.x},${bumped.y}`;
-          if (!brokenRef.current.includes(id)) {
-            arm(TRIGGER_COOLDOWN);
-            cbRef.current.onWard?.(id);
-          }
-        } else if (bumped.ch === 'U') {
-          arm(TRIGGER_COOLDOWN);
-          cbRef.current.onStairs?.();
-        } else if (bumped.ch === 'K') {
-          // Talk across a shop counter to whoever stands behind it (#72).
-          const cx = bumped.x * TILE + TILE / 2;
-          const cy = bumped.y * TILE + TILE / 2;
-          const clerk = actors.find(
-            (a) => a.kind === 'npc' && a.npcId && !a.follower && Math.hypot(a.x - cx, a.y - cy) < TILE * 1.6,
-          );
-          if (clerk?.npcId) {
-            nudgeBack(dx, dy);
-            arm(TRIGGER_COOLDOWN);
-            cbRef.current.onMove(player.pos.x, player.pos.y);
-            cbRef.current.onTalk(clerk.npcId);
-          }
+        }
+      }
+
+      // Using things (#127): a fresh Space / Enter / click / tap / ✋ uses
+      // what the hero faces — never in the two frames after something else
+      // was armed, while its menu or talk takes the world's pause.
+      const targets = targetsNow();
+      showPrompt(targets[0] ?? null);
+      // A press in the two frames after an arm waits them out rather than being lost.
+      const pressed = uses() !== usesSeen && held === 0;
+      if (pressed) {
+        usesSeen = uses();
+        // A click on something usable from here uses it (a shopkeeper across
+        // the counter, say); anywhere else, what the hero faces. A click
+        // counts for its own press only — never a later ✋.
+        const click = clickRef.current;
+        clickRef.current = null;
+        const at = click ? k.toWorld(k.vec2(click.fx * VIEW_W, click.fy * VIEW_H)) : null;
+        const target = (at && targets.find((t) => t.hit(at.x, at.y))) || targets[0];
+        if (target) {
+          push = null;
+          target.act();
         }
       }
 
@@ -2206,7 +2580,8 @@ export default function WorldCanvas({
       const holding = held > 0;
       held = Math.max(0, held - 1);
 
-      // Actor contact: NPCs talk, enemies start battles.
+      // Walking into a foe starts a battle. (People, the Spire and Umbra are
+      // used, not bumped — above, #127.)
       for (const a of actors) {
         if (a.follower) continue; // walking with the hero, not in their way
         if (a.kind === 'enemy' && a.enemy) {
@@ -2233,50 +2608,12 @@ export default function WorldCanvas({
           if (met.spared) spared.add(a);
           else spared.delete(a);
           if (!met.fight) continue;
-        } else if (cooldown > 0) continue; // people and places wait out a bump
-        const r = a.kind === 'enemy' && a.enemy ? contactRadius(a.enemy) : CONTACT_RADIUS.critter;
-        const dxa = player.pos.x - a.x;
-        const dya = player.pos.y - a.y;
-        if (dxa * dxa + dya * dya < r * r) {
-          if (a.kind === 'npc' && a.npcId) {
-            // Push a *wandering* NPC clear of the contact radius (along the
-            // player→NPC axis) so it can't re-open dialogue on a standing
-            // player after the cooldown; the player nudge alone is a no-op
-            // when the NPC walked into a motionless hero (dx/dy = 0).
-            const dist = Math.sqrt(dxa * dxa + dya * dya) || 1;
-            const need = r + 8 - dist;
-            if (need > 0 && a.parts) {
-              const ax = a.x - (dxa / dist) * need;
-              const ay = a.y - (dya / dist) * need;
-              if (!hitAt(ax, ay)) {
-                for (const part of a.parts) {
-                  part.pos.x += ax - a.x;
-                  part.pos.y += ay - a.y;
-                }
-                a.x = ax;
-                a.y = ay;
-              }
-            }
-            // Nudge back so closing the dialogue doesn't instantly re-bump.
-            nudgeBack(dx, dy);
-            arm(TRIGGER_COOLDOWN);
-            cbRef.current.onMove(player.pos.x, player.pos.y);
-            cbRef.current.onTalk(a.npcId);
-          } else if (a.kind === 'spire') {
-            nudgeBack(dx, dy);
-            arm(TRIGGER_COOLDOWN);
-            cbRef.current.onMove(player.pos.x, player.pos.y);
-            cbRef.current.onSpire();
-          } else if (a.kind === 'umbra') {
-            nudgeBack(dx, dy);
-            arm(TRIGGER_COOLDOWN);
-            cbRef.current.onUmbra?.();
-          } else if (a.kind === 'enemy' && a.enemy) {
+          if (onHero) {
             triggered = true;
             cbRef.current.onMove(player.pos.x - dx * 14, player.pos.y - dy * 14);
             cbRef.current.onEncounter(a.enemy);
+            break;
           }
-          break;
         }
       }
 
@@ -2533,6 +2870,7 @@ export default function WorldCanvas({
     <div
       className="relative w-full rounded-lg shadow-2xl border-2 border-white/20 overflow-hidden"
       style={{ aspectRatio: `${VIEW_W} / ${VIEW_H}`, imageRendering: 'pixelated' }}
+      onPointerDown={onWorldPointer}
     >
       <div
         ref={containerRef}

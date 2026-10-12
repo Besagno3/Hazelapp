@@ -1045,27 +1045,27 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-938 | U | ✅ | battle (#125j) | below `sm` the enemy's name drops a leading "The" (full name sr-only, shown from `sm` up); the hero's panel shows "◆N/4" not the diamonds (BattleHud.test) |
 | TC-939 | M | ✅ | battle (#125j) | a boss fight at 320×568: "👑 Ringkeeper Lv 6 !!!" whole, all commands on screen; 5/5 sizes (`bench … battle`) |
 | TC-940 | M | ⬜ | map (#125) | the 🪷 Foglight Marsh icon on the Shallows map reads as a pink lotus on a bright pool at 320 px |
-| TC-941 | U | ✅ | crystals (#126) | Act I's four crystals are Act I's in the 🚩's order and Act II's is history (the Crystal of Memory, the Hollow Fiend, the Sunken Archive); Act II completes with Memory alone; the HUD counts 4/4, 4/5 once Act II opens, 5/5 with Memory; Ember is a dragon at 5 (crystals.test) |
-| TC-942 | U | ✅ | crystals (#126) | with a later act's stand-in crystal added, Acts I and II are unchanged: the Spire, the HUD count, the 🚩 and Elder Lumen's plans step for step, Act I's 8 journey legs (crystals.test, SpireOverlay.test, WorldScreen.focus.test) |
-| TC-943 | U | ✅ | story (#64) | the tripwire pins 5 crystals: whelp 2 / dragon 4 stay, `FLIGHT_FLAG` is `crystal-history-restored` and Act I's four alone never fly (story.test) |
-| TC-944 | U | ✅ | zones (#126) | the Sunken Archive: a history field at the Shallows' tier, an island in the north-east west of the Great Fogbank; a boat sails in from Dawnreach and lands; its exits land beside its icon (zones.test) |
-| TC-945 | U | ✅ | zones (#126) | the Hollow Fiend is behind the Memoria Key's gate only (every other gate open, still no way in); the Silent Stacks' chest is behind its gate; no critter can reach the carpet from the landing to the plaza (zones.test) |
-| TC-946 | U | ✅ | zones (#126) | the Archive is a Return town with the Quiet Shelf Inn, whose shelter is the inn; 8+ people; Sage Chronicle teaches history; Old Quillon stands by the silver door (zones.test) |
-| TC-947 | C | ✅ | battle (#126) | a swift Quill Imp opens the fight: "darts in before you can move!", then a defend question, then the hero's turn; a critter that isn't swift lets the hero go first (BattleArena.test) |
-| TC-948 | C | ✅ | battle (#126) | Time Ripple lands, spends 3◆, says the enemy loses its next turn, and the next screen is the hero's command — no blow; a miss fizzles; the other Sages' strikes don't skip (BattleArena.test, battleTurn.test, spells.test) |
-| TC-949 | U | ✅ | boat (#114o) | waking in the Archive — after a sea defeat or ashore, or after the Spire — or Returning there brings the boat to its beach and says so; a boat already at that beach stays put; elsewhere it's as before (seaCritters.test, BattleHud.test) |
-| TC-950 | U | ✅ | quests (#126) | A Letter, Long Overdue: Index gives the letter, Wick reads it and sends a note back, Index takes it: 40 coins and a Berry Potion (quests.test) |
-| TC-951 | U | ✅ | wayfinding (#126) | after the Memoria Key the 🚩 reads "Free the Crystal of Memory" in the Sunken Archive (from Marlow's dock off the Shallows), then "Explore"; no danger road for it; Elder Lumen's plan and tip (wayfinding.test) |
-| TC-952 | U | ✅ | keys (#126) | the Memoria Key opens the Archive's key gate and names the Hollow Fiend on the victory panel; Old Ringwood and the Memoria panel say where the door is (keys.test, story.test, BattleHud.test) |
-| TC-953 | M | ⬜ | world (#126) | play it: sail to the Archive, the three discovery panels; Binder, Index, Chronicle (learn Time Ripple), the silver door with and without the key; beat the Hollow Fiend: its menacing lines, the three crystal panels (…Aster…), the HUD 5/5 |
-| TC-954 | M | ⬜ | world (#126) | lose a fight at sea after resting at the Quiet Shelf Inn: you wake there and the boat is at the island's beach; Return to the Archive from Lumina Village: the boat meets you there |
-| TC-955 | U | ✅ | boat (#126m) | a boat left in open water near the island (3 cells off its beach) is brought round to the beach on Return or a wake there; one beside the island's beach stays put (seaCritters.test) |
-| TC-956 | C | ✅ | battle (#126m) | rested at the Quiet Shelf Inn and beaten in Numbria: "carry you back to the Quiet Shelf Inn in the Sunken Archive, where you last rested" — not "Binder finds you" (BattleArena.test) |
-| TC-957 | U | ✅ | world (#126m) | the Archive's key gate reads "silver door"; Hush and Brine stand still; the letter's quest log names the Sunken Archive (keys.test, zones.test, quests.test) |
-| TC-958 | U | ✅ | boat (#126n) | Return cast from the boat beside the island's beach to the Archive keeps her there and says "The Biscuit waits by the beach" (seaCritters.test) |
-| TC-959 | U | ✅ | wording (#126n) | the Archive's key is a "silver door" on the 🚩, in Elder Lumen's plan and on the Ringkeeper's victory panel; Act I's keys still open gates; the shelter-inn's button reads "To the inn" (wayfinding.test, BattleHud.test, save.test) |
-| TC-960 | U | ✅ | copy (#126o) | Return to the Archive with the boat by the island says "waits by the island", sailing or ashore; Elder Lumen's "All four crystals" stays in Act I; his Memory plan and the 🚩's reason are short (seaCritters.test, zones.test, wayfinding.test) |
-| TC-961 | U | ✅ | copy (#126p) | Index reads the letter as signed by Wick, never "To Wick"; Wick's "Where to next?" for Memory is ≤ 30 words (quests.test, wayfinding.test) |
+| TC-978 | U | ✅ | crystals (#128) | Act I's four crystals are Act I's in the 🚩's order and Act II's is history (the Crystal of Memory, the Hollow Fiend, the Sunken Archive); Act II completes with Memory alone; the HUD counts 4/4, 4/5 once Act II opens, 5/5 with Memory; Ember is a dragon at 5 (crystals.test) |
+| TC-979 | U | ✅ | crystals (#128) | with a later act's stand-in crystal added, Acts I and II are unchanged: the Spire, the HUD count, the 🚩 and Elder Lumen's plans step for step, Act I's 8 journey legs (crystals.test, SpireOverlay.test, WorldScreen.focus.test) |
+| TC-980 | U | ✅ | story (#64) | the tripwire pins 5 crystals: whelp 2 / dragon 4 stay, `FLIGHT_FLAG` is `crystal-history-restored` and Act I's four alone never fly (story.test) |
+| TC-981 | U | ✅ | zones (#128) | the Sunken Archive: a history field at the Shallows' tier, an island in the north-east west of the Great Fogbank; a boat sails in from Dawnreach and lands; its exits land beside its icon (zones.test) |
+| TC-982 | U | ✅ | zones (#128) | the Hollow Fiend is behind the Memoria Key's gate only (every other gate open, still no way in); the Silent Stacks' chest is behind its gate; no critter can reach the carpet from the landing to the plaza (zones.test) |
+| TC-983 | U | ✅ | zones (#128) | the Archive is a Return town with the Quiet Shelf Inn, whose shelter is the inn; 8+ people; Sage Chronicle teaches history; Old Quillon stands by the silver door (zones.test) |
+| TC-984 | C | ✅ | battle (#128) | a swift Quill Imp opens the fight: "darts in before you can move!", then a defend question, then the hero's turn; a critter that isn't swift lets the hero go first (BattleArena.test) |
+| TC-985 | C | ✅ | battle (#128) | Time Ripple lands, spends 3◆, says the enemy loses its next turn, and the next screen is the hero's command — no blow; a miss fizzles; the other Sages' strikes don't skip (BattleArena.test, battleTurn.test, spells.test) |
+| TC-986 | U | ✅ | boat (#114o) | waking in the Archive — after a sea defeat or ashore, or after the Spire — or Returning there brings the boat to its beach and says so; a boat already at that beach stays put; elsewhere it's as before (seaCritters.test, BattleHud.test) |
+| TC-987 | U | ✅ | quests (#128) | A Letter, Long Overdue: Index gives the letter, Wick reads it and sends a note back, Index takes it: 40 coins and a Berry Potion (quests.test) |
+| TC-988 | U | ✅ | wayfinding (#128) | after the Memoria Key the 🚩 reads "Free the Crystal of Memory" in the Sunken Archive (from Marlow's dock off the Shallows), then "Explore"; no danger road for it; Elder Lumen's plan and tip (wayfinding.test) |
+| TC-989 | U | ✅ | keys (#128) | the Memoria Key opens the Archive's key gate and names the Hollow Fiend on the victory panel; Old Ringwood and the Memoria panel say where the door is (keys.test, story.test, BattleHud.test) |
+| TC-990 | M | ⬜ | world (#128) | play it: sail to the Archive, the three discovery panels; Binder, Index, Chronicle (learn Time Ripple), the silver door with and without the key; beat the Hollow Fiend: its menacing lines, the three crystal panels (…Aster…), the HUD 5/5 |
+| TC-991 | M | ⬜ | world (#128) | lose a fight at sea after resting at the Quiet Shelf Inn: you wake there and the boat is at the island's beach; Return to the Archive from Lumina Village: the boat meets you there |
+| TC-992 | U | ✅ | boat (#128m) | a boat left in open water near the island (3 cells off its beach) is brought round to the beach on Return or a wake there; one beside the island's beach stays put (seaCritters.test) |
+| TC-993 | C | ✅ | battle (#128m) | rested at the Quiet Shelf Inn and beaten in Numbria: "carry you back to the Quiet Shelf Inn in the Sunken Archive, where you last rested" — not "Binder finds you" (BattleArena.test) |
+| TC-994 | U | ✅ | world (#128m) | the Archive's key gate reads "silver door"; Hush and Brine stand still; the letter's quest log names the Sunken Archive (keys.test, zones.test, quests.test) |
+| TC-995 | U | ✅ | boat (#128n) | Return cast from the boat beside the island's beach to the Archive keeps her there and says "The Biscuit waits by the beach" (seaCritters.test) |
+| TC-996 | U | ✅ | wording (#128n) | the Archive's key is a "silver door" on the 🚩, in Elder Lumen's plan and on the Ringkeeper's victory panel; Act I's keys still open gates; the shelter-inn's button reads "To the inn" (wayfinding.test, BattleHud.test, save.test) |
+| TC-997 | U | ✅ | copy (#128o) | Return to the Archive with the boat by the island says "waits by the island", sailing or ashore; Elder Lumen's "All four crystals" stays in Act I; his Memory plan and the 🚩's reason are short (seaCritters.test, zones.test, wayfinding.test) |
+| TC-998 | U | ✅ | copy (#128p) | Index reads the letter as signed by Wick, never "To Wick"; Wick's "Where to next?" for Memory is ≤ 30 words (quests.test, wayfinding.test) |
 | TC-926 | M | ✅ | world (review) | Posy's wait line stays up 5–8 s even as the Mist Newt drifts by (stubbed app, round 9; was 0.6–0.8 s) |
 | TC-810 | M | ⬜ | music | by ear on a phone (iOS Safari, Android Chrome), music on: walk the overworld past a loop point (1–2 min) and into battles, flee, win, enter towns, sail — never two tracks at once, and the music comes back right after each battle |
 
@@ -1137,6 +1137,48 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-891 | C | ✅ | PinPad | a dot per digit, ⌫ takes one back, the 4th digit sends it; a wrong PIN clears and says try again; after 5 wrong in a row the pad rests 30 s, then works; an offline check shows why and isn't a wrong try; keyboard digits work, not while typing in a field (PinPad.test) |
 | TC-892 | C | ✅ | KidSetupPage | a kid without a PIN is finished here and can't be saved without one; it sends the nickname, picture, PIN and birth date (KidSetupPage.test) |
 | TC-893 | M | ⬜ | PINs | after deploying 0014: in the SQL Editor `kid_pins.pin_hash` starts with `$2a$` (bcrypt) and no PIN is stored in plain text; a kid's wrong PIN 5 times rests the pad 30 s on a real phone |
+
+## Press to use, doorways, stepping aside (#127)
+
+| ID    | Type | Status | Feature | Case |
+|-------|------|--------|---------|------|
+| TC-941 | U | ✅ | interact | Space (by key or code) and Enter use things; arrows, letters, Escape and Tab never do (interact.test) |
+| TC-942 | U | ✅ | interact | a focused button (or something inside one), link, input, textarea or anything in a dialog keeps Space / Enter for itself; the page body doesn't (`ownsKeys`, interact.test) |
+| TC-943 | U | ✅ | interact | what gets used is looked for the way the hero faces first, then to the sides, then behind; a diagonal looks both its ways first; a hero who never moved faces the camera (`probeDirs`, interact.test) |
+| TC-944 | U | ✅ | interact | tiles are probed just past the side of the hero's box they face — the middle first, then by each corner (`probePoints`, interact.test) |
+| TC-945 | U | ✅ | interact | a person counts when within reach and on the side faced (±53°), not off to the side, behind or too far (`inFront`, interact.test) |
+| TC-946 | U | ✅ | interact | the prompt reads "Space: …" on a keyboard, "Tap: …" on a touch screen (`promptText`, interact.test) |
+| TC-947 | U | ✅ | interact | doorway assist: a hero up to 20 px off a one-tile opening is slid into line with it; 21 px off, or a plain wall, isn't; of two openings the nearer; at most a step a frame (`cornerTarget` / `slideStep`, interact.test) |
+| TC-948 | U | ✅ | interact | walking into the same person adds up; someone else starts over; stopping or turning away clears it (`pushOn`, interact.test) |
+| TC-949 | U | ✅ | interact | in the open, someone stepping aside goes 2–5 cells, off the line the hero walks, at least 2 cells from them (`scootPath`, interact.test) |
+| TC-950 | U | ✅ | interact | in a corridor they go on through it and step aside in the room beyond (interact.test) |
+| TC-951 | U | ✅ | interact | at a dead end they squeeze past the hero to the other side (interact.test) |
+| TC-952 | U | ✅ | interact | inside a building they stay inside, on its floor — never its doorway (interact.test) |
+| TC-953 | U | ✅ | interact | they keep off exits, hidden passages, stairs and cells other people stand on (interact.test) |
+| TC-954 | U | ✅ | interact | boxed in with nowhere to go, they stay put (interact.test) |
+| TC-955 | C | ✅ | TouchPad | ✋ is a dim "Use" with nothing to use, and says what it would do ("Open chest") when there is (TouchPad.test) |
+| TC-956 | C | ✅ | TouchPad | a tap uses once — on the press, not again on its click; Enter / Space on the focused button works it too (TouchPad.test) |
+| TC-957 | C | ✅ | TouchPad | the d-pad still steers; no ✋ without an `onAction` (TouchPad.test) |
+| TC-958 | C | ✅ | WorldScreen | ✋ takes its label from the canvas's `onPrompt`, and a press counts in the `actionRef` the canvas reads (WorldScreen.use.test) |
+| TC-959 | C | ✅ | WorldScreen | the footer says Space, Enter or a click talks, opens and uses — no "bump into friends" (WorldScreen.use.test) |
+| TC-960 | E | ✅ | world | real canvas, real keys (`bench … use`): walking straight up from 0, ±6, ±10, +14 and ±18 px off a Numbria door's middle goes in (on `main` only 0 px did) |
+| TC-961 | E | ✅ | world | real canvas (`bench … use`): walking into Eldergrove's chest opens nothing and its prompt says "Open chest"; Space opens it |
+| TC-962 | E | ✅ | world | real canvas (`bench … use`): walking into Moonwell Grove's gate asks nothing; Enter opens it and the hero walks through |
+| TC-963 | E | ✅ | world | real canvas (`bench … use`): walking into Pip stops the hero and says nothing, the prompt says "Talk"; Space, Enter, a click and a held Space talk once each |
+| TC-964 | E | ✅ | world | real canvas (`bench … use`): Pip walked into for 1 s is still in the way; by ~1.5 s Pip steps aside and the hero walks on past, with no talk |
+| TC-965 | E | ✅ | world | the Act I journey (`bench … journey`) still walks every leg and Spire floor, the walker pressing ✋ at gates, seals, the stairs, the Spire and Umbra |
+| TC-966 | M | ⬜ | world | on a phone: ✋ sits beside the d-pad, its label follows what's in front ("Talk", "Open chest"); a tap on the map uses it too; the d-pad and ✋ work held together |
+| TC-967 | M | ⬜ | world | with a keyboard: after closing 📜 Menu with the mouse, walk to a chest and press Space — the chest opens (the walk blurred the Menu button), the menu doesn't reopen |
+| TC-968 | M | ⬜ | world | close a dialogue with Enter while still facing the person: it doesn't open again; press Enter once more and it does |
+| TC-969 | M | ⬜ | world | in town, walk at a wanderer: it never walks into the hero; hold into it ~1.5 s and it hops a few cells aside, then strolls round there; inside a shop, the keeper never leaves the shop |
+| TC-970 | M | ⬜ | world | the 1-tile ways in feel easy on a real keyboard and the d-pad: doors, Numbria's gate, the Depths' corridors, stairs — and a hidden passage ('H') is never slid into |
+| TC-971 | U | ✅ | interact | across a counter or desk: the person right behind it — straight across or from a corner — is talked to (`acrossCounter`, interact.test) |
+| TC-972 | U | ✅ | interact | across a counter: the nearest one on its far side, never someone on the hero's side or two tiles along (interact.test) |
+| TC-973 | E | ✅ | world | real canvas (`bench … use`): across the village shop's counter a click on the shopkeeper talks to them; from a corner of the counter Space does |
+| TC-974 | M | ⬜ | world | put an innkeeper behind a desk (`T`) in a test map: standing across it, Space and a tap on them both talk; the prompt floats over the innkeeper |
+| TC-975 | C | ✅ | TouchPad | a click on ✋ that isn't a tap's own (a screen reader's double-tap) uses it too (TouchPad.test) |
+| TC-976 | M | ⬜ | TouchPad | with VoiceOver (iOS) and TalkBack (Android): double-tap ✋ beside a chest — it opens, once |
+| TC-977 | M | ⬜ | world | on a phone: tap a shopkeeper, walk away, then press ✋ next to a chest — the chest opens (not the shopkeeper) |
 
 ## Regression cases (tied to ISSUES.md)
 
