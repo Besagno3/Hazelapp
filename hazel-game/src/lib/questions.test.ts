@@ -18,7 +18,7 @@ vi.mock('./supabase', () => ({
 }));
 
 // Import AFTER the mock is registered.
-import { fetchQuestions, flagQuestion, shuffleAnswers } from './questions';
+import { fetchQuestions, flagQuestion, shuffleAnswers, TOPIC_NOT_READY } from './questions';
 import { useFamilyStore } from '../store/familyStore';
 
 beforeEach(() => {
@@ -139,5 +139,13 @@ describe('fetchQuestions', () => {
     for (const question of out) expect(question.options[question.correctIndex]).toBe('right');
     // 40 questions all left in place would be a 1-in-4^40 fluke.
     expect(out.some((question) => question.correctIndex !== 1)).toBe(true);
+  });
+
+  it("says a topic isn't ready yet, not the server's whitelist, when the function doesn't know it (#130)", async () => {
+    invokeMock.mockResolvedValue({ data: null, error: new Error('topic must be one of: math, science') });
+    await expect(fetchQuestions('music', 9, 3, 5)).rejects.toThrow(TOPIC_NOT_READY);
+    // Any other failure keeps its real reason.
+    invokeMock.mockResolvedValue({ data: null, error: new Error('rate limited') });
+    await expect(fetchQuestions('math', 9, 3, 5)).rejects.toThrow('Question generation failed — rate limited');
   });
 });

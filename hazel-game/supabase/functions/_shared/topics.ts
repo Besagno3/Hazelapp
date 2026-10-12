@@ -18,7 +18,7 @@ export const TOPIC_PROMPTS = {
   math: 'arithmetic, geometry, fractions, word problems.',
   science: 'nature, biology, physics, space, chemistry basics.',
   engineering: 'how things work, computers, materials, structures, simple logic.',
-  creativity: 'art, music, colour, writing, design, imagination.',
+  creativity: 'art, colour, drawing, crafts, design, inventing, imagination.',
   nature: 'animals, plants, habitats, weather, the human body, the living world.',
   space: 'planets, stars, moons, the solar system, astronauts, rockets, the night sky.',
   history:

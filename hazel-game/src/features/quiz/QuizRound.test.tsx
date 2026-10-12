@@ -13,8 +13,9 @@ const questions: Question[] = Array.from({ length: 5 }, (_, i) => ({
   correctIndex: 0,
   explanation: '',
 }));
+const hook = vi.hoisted(() => ({ error: null as string | null }));
 vi.mock('../../hooks/useGeneratedQuestions', () => ({
-  useGeneratedQuestions: () => ({ questions, loading: false, error: null, age: 9, skillLevel: 3, reload: () => {} }),
+  useGeneratedQuestions: () => ({ questions, loading: false, error: hook.error, age: 9, skillLevel: 3, reload: () => {} }),
 }));
 vi.mock('../../lib/questions', async (orig) => ({
   ...(await orig<typeof import('../../lib/questions')>()),
@@ -26,6 +27,7 @@ const { default: QuizRound } = await import('./QuizRound');
 const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
+const { TOPIC_NOT_READY } = await import('../../lib/questions');
 
 const addXp = vi.fn();
 
@@ -49,7 +51,10 @@ async function playPerfectRound() {
   await screen.findByText('Round Passed!');
 }
 
-beforeEach(() => addXp.mockReset());
+beforeEach(() => {
+  addXp.mockReset();
+  hook.error = null;
+});
 
 describe('QuizRound — XP only once the world is open (#122)', () => {
   it('an opening round pays no XP for right answers', async () => {
@@ -71,5 +76,24 @@ describe('QuizRound — XP only once the world is open (#122)', () => {
     await playPerfectRound();
     expect(addXp).toHaveBeenCalledTimes(1);
     expect(addXp.mock.calls[0][0]).toBeGreaterThan(0);
+  });
+});
+
+describe('QuizRound — a topic the server does not know yet (#130)', () => {
+  it('says it is coming soon, with Back and no Try again', () => {
+    start(3, true);
+    hook.error = TOPIC_NOT_READY;
+    render(<QuizRound />);
+    expect(screen.getByText('Coming soon!')).toBeInTheDocument();
+    expect(screen.getByText(TOPIC_NOT_READY)).toBeInTheDocument();
+    expect(screen.queryByText('Try again')).toBeNull();
+    expect(screen.getByText('Back')).toBeInTheDocument();
+  });
+
+  it('any other failure keeps Try again', () => {
+    start(3, true);
+    hook.error = 'Question generation failed — rate limited';
+    render(<QuizRound />);
+    expect(screen.getByText('Try again')).toBeInTheDocument();
   });
 });

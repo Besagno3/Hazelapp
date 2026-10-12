@@ -689,11 +689,21 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — 15a review round 1: "Coming soon!", colours you can see, Enter the world up top (#75 item 15a)
+Fresh `/saas-code-review` (1 high, 4 low) and UX review (1 high, 3 medium,
+3 low), all fixed: a new topic the deployed function doesn't know yet shows
+"🚧 Coming soon! These questions aren't ready yet — pick another topic for
+now!" with Back only (`TOPIC_NOT_READY`), not the function's whitelist and a
+Try again that always fails; Music is fuchsia-700 🎸 (violet vanished on the
+page), Maps teal-700; 🗺️ Enter the world above the ten topics; three columns
+from `sm`, equal rows; creativity's persona drops music and writing; three
+fun facts softened. 1118 green, lint + tsc clean.
+
 ### 2026-10-12 — New topics: geography, words and music (#75 item 15a)
 Roadmap sub-item 15a, the code half. `EXTRA_TOPIC_IDS` gains geography,
 words and music; both topic tables (`_shared/topics.ts` and the edge
 function's inline copy) have their persona lines; `EXTRA_TOPICS` styles them
-(🧭 Maps & Places, 📚 Words & Stories, 🎵 Music) and `FUN_FACTS` has five
+(🧭 Maps & Places, 📚 Words & Stories, 🎸 Music) and `FUN_FACTS` has five
 each. The Training Grounds lists all ten. No zone asks them yet (15d–15f).
 ⚠️ Deploy: `supabase functions deploy generate-questions`, then check a
 round of each in production (#130b) — until then those three buttons show

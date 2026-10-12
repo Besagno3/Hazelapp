@@ -9,7 +9,7 @@ import { PASS_THRESHOLD } from '../../lib/utils';
 import { nextSkillLevel } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
-import { prefetchQuestions, QUIZ_QUESTION_COUNT } from '../../lib/questions';
+import { prefetchQuestions, QUIZ_QUESTION_COUNT, TOPIC_NOT_READY } from '../../lib/questions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import FlagButton from '../../components/FlagButton';
 
@@ -36,7 +36,14 @@ export default function QuizRound() {
   if (loading) return <LoadingScreen label="Building your questions…" topic={topic} />;
   if (error) {
     return (
-      <ErrorScreen message={error} onRetry={reload} onBack={() => sendFlow({ type: 'EXIT_QUIZ' })} />
+      // A topic the server doesn't know yet (#130) fails the same way every time: no Try again.
+      <ErrorScreen
+        message={error}
+        {...(error === TOPIC_NOT_READY
+          ? { title: 'Coming soon!', emoji: '🚧' }
+          : { onRetry: reload })}
+        onBack={() => sendFlow({ type: 'EXIT_QUIZ' })}
+      />
     );
   }
 

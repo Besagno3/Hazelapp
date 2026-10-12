@@ -1221,3 +1221,5 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1015 | U | ✅ | topics (#130a) | geography, words and music are expansion topics; every topic has its own emoji, button colour, label and sky (topics.test); both topic tables list all ten with persona lines and match (topicPrompts.test); every topic has 3+ fun facts (funFacts.test) |
 | TC-1016 | C | ✅ | Training Grounds (#130a) | all ten topics are buttons, each stays open after a pick (TopicSelect.test) |
 | TC-1017 | M | ⬜ | deploy (#130b) | after `supabase functions deploy generate-questions`: a geography, a words and a music round each load 5 questions in production |
+| TC-1018 | U | ✅ | questions (#130e) | the function's "topic must be one of" error becomes TOPIC_NOT_READY; any other error keeps its reason (questions.test) |
+| TC-1019 | C | ✅ | quiz (#130e) | a TOPIC_NOT_READY round shows "Coming soon!" with Back and no Try again; other errors keep Try again (QuizRound.test) |
