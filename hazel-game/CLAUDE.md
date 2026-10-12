@@ -563,10 +563,10 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter, the `age` they were written
   for). The edge function mixes cached questions with fresh ones; the cached
-  ones come from `pick_cached_questions` (migration 0015, #130): the whole ±2
+  ones come from `pick_cached_questions` (migration 0015, #134): the whole ±2
   level band at random, leaning to less-asked, none written for a child more
   than a year older (`AGE_SLACK`; old rows have no age and stay in), none
-  flagged. **Seen = shown (#130):** the app tells the server what was on
+  flagged. **Seen = shown (#134):** the app tells the server what was on
   screen (`markSeen`, `lib/seen.ts`, from `QuestionCard` and `QuizRound`, as
   `mark_questions_seen`); what the function hands over is only held back for
   an hour (`question_views.shown = false`), so prefetches don't fill a kid's
@@ -697,7 +697,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-12 — #130 code review round 1: a bounded window, a real 20-id cap, ages kept on errors
+### 2026-10-12 — Merge main (Act I quick fixes, PR #49) into the question-reuse branch (#134)
+`main` took ISSUES **#130** and TC-1015–1025 for the Act I launch review's
+quick fixes while this branch was in review, and open PRs #52–#54 hold
+#131–#133 and up to TC-1048, so this branch's issue moved **#130 → #134**
+and its test cases **TC-1015–1026 → TC-1049–1060** (only its own lines).
+One code conflict: `QuizRound` — main keeps a finished round for its
+results screen (`FinishedRound`, the level pinned so the next round's
+warm-up isn't used up); this branch's "mark seen" hook sits above that early
+return and marks nothing on the results screen. QuizRound.test checks none
+of the next batch is marked.
+
+### 2026-10-12 — #134 code review round 1: a bounded window, a real 20-id cap, ages kept on errors
 A fresh-context `/saas-code-review` of PR #55 (1 medium, 1 low-medium, 2 low;
 no security hole between families). All fixed:
 - **The picker read a kid's whole history (medium):** the seen window
@@ -722,7 +733,7 @@ no security hole between families). All fixed:
   within half an hour — each fails with its fix reverted), seen.test (+2).
   1123 green, lint + build clean, `deno check` clean.
 
-### 2026-10-12 — Fairer question reuse: the whole bank, the right age, seen = shown (#130)
+### 2026-10-12 — Fairer question reuse: the whole bank, the right age, seen = shown (#134)
 A review of how questions are picked and reused (with the owner) found three
 problems; this is batch 1 of the fixes, as the owner chose them.
 - **The whole bank:** the edge function read 200 rows of a ±2 level band
@@ -759,7 +770,40 @@ problems; this is batch 1 of the fixes, as the owner chose them.
   `seen.test` (+6), QuestionCard.test (+1), QuizRound.test (+1),
   questions.test. 1121 green, lint + build clean, `deno check` clean; the
   migrations in order and the bundle twice on Postgres 16, all seven SQL
-  tests pass. Batch 2 and follow-ups: ISSUES #130.
+  tests pass. Batch 2 and follow-ups: ISSUES #134.
+
+### 2026-10-12 — Merge main (Sunken Archive #48, 14i #50) into the Act I quick-fixes branch (#130)
+`main` took ISSUES **#128–#129** and TC-978–1014 while the quick fixes were in
+review, so they moved **#128 → #130** and their test cases **TC-978–988 →
+TC-1015–1025** (only their own lines). No code conflicts: `npcs.ts` and
+`WorldScreen.tsx` merged on their own.
+
+### 2026-10-12 — Act I launch review: quick fixes B3, B2, S14, S6, B7 (#130)
+The first quick fixes from the Act I launch review (the checklist's item
+codes in brackets). **B3:** the quiz's "What you missed" recap showed the
+wrong question — saving the new skill level re-keys `useGeneratedQuestions`,
+which fetched the next batch under the results screen (and could show its
+spinner instead). `QuizRound` now holds the finished round (`FinishedRound`:
+questions, answers, picks) and renders `RoundResults` from it, before the
+loading check. **B2:** tablets and sideways phones couldn't walk — the
+`TouchPad` hid at `sm`. Two Tailwind screens (`tailwind.config.js`):
+`touch` = `(pointer: coarse)` (the main pointer, like `WorldCanvas`'s "Tap:"
+prompts — `any-pointer` would also catch touchscreen laptops used with a
+keyboard, a review finding), `touch-wide` = touch + landscape; the pad
+shows on narrow windows and every touch screen, and on a sideways touch screen
+it docks in the bottom corners (`fixed`, pad left, ✋ right, `z-30`, under
+the overlays); the toast stays up top on touch screens so it never covers the
+pad. **S14:** Wisp now says the Depths are a cave south of the woods (not a
+stair under them), and Hazel says Ember's Breath comes when all four crystals
+are home. **S6 (part):** the menu's cloud-save warnings drop the raw error
+(now a `title`) and "apply the latest database migrations". **B7 (part):**
+`index.html` has the title "Hazel Quest", a description and a theme colour.
+**Review fix:** the results screen used up the next round's warm-up — the
+new level re-keyed the hook, whose fetch took the batch `finishRound` had just
+prefetched (consume-once, `lib/questions.ts`) and threw it away, after the
+server had marked it seen. `FinishedRound` now keeps the round's `level`, and
+`QuizRound` passes `finished?.level` as the hook's `levelOverride`, so a
+finished round asks for nothing new.
 
 ### 2026-10-12 — 14i review round 3: Ness asks last, nothing stale (#75 item 14i)
 A report-only round (code 2 low, UX 1 medium, 6 low), then all fixed on the

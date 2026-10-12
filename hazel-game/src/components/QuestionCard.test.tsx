@@ -9,7 +9,7 @@ vi.mock('../lib/seen', () => ({ markSeen }));
 
 const q: Question = { id: 'q', topic: 'math', level: 3, text: 'What is 2 + 2?', options: ['4', '5', '6', '7'], correctIndex: 0 };
 
-describe('QuestionCard — on screen = seen (#130)', () => {
+describe('QuestionCard — on screen = seen (#134)', () => {
   it('marks its question seen once it shows, and the next one when it changes', () => {
     markSeen.mockClear();
     const { rerender } = render(<QuestionCard question={q} onAnswered={() => {}} onContinue={() => {}} />);

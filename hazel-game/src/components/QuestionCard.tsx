@@ -60,7 +60,7 @@ export default function QuestionCard({
   const [retried, setRetried] = useState<number | null>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
 
-  // On screen = seen, so the next batches leave it out for this kid (#130).
+  // On screen = seen, so the next batches leave it out for this kid (#134).
   useEffect(() => markSeen(question.id), [question.id]);
 
   // On a phone the explanation can push Continue below the fold — bring it

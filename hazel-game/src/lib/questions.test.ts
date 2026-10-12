@@ -134,7 +134,7 @@ describe('fetchQuestions', () => {
     invokeMock.mockResolvedValue({ data: { questions: api }, error: null });
     const out = await fetchQuestions('math', 9, 3, api.length);
     // …and asks as the kid playing, so their seen questions are their own (#124).
-    // reportsSeen: this app marks what it shows, so a batch is only held back (#130).
+    // reportsSeen: this app marks what it shows, so a batch is only held back (#134).
     expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'math', profileId: 'kid-1', reportsSeen: true });
     expect(out).toHaveLength(api.length);
     for (const question of out) expect(question.options[question.correctIndex]).toBe('right');

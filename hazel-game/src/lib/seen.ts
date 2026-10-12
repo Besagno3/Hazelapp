@@ -3,7 +3,7 @@ import { errorMessage } from './errors';
 import { useFamilyStore } from '../store/familyStore';
 
 /**
- * Tells the server which questions the kid playing has actually seen (#130).
+ * Tells the server which questions the kid playing has actually seen (#134).
  * The question function only holds back what it hands over for an hour (a
  * batch fetched ahead for a battle that never happens shouldn't count); a
  * question counts as seen, and stays out of that kid's next batches in the

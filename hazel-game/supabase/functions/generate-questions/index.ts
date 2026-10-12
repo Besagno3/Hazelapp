@@ -7,14 +7,14 @@
 //   skill level (a level-5 player may see level 3-7 questions), sampled from
 //   the whole band at random, leaning toward less-asked ones, and never one
 //   written for a child more than AGE_SLACK years older
-//   (`pick_cached_questions`, migration 0015, #130).
+//   (`pick_cached_questions`, migration 0015, #134).
 // - Fresh questions are generated at the exact skill level and inserted into
 //   the cache with the age they were written for, then available for reuse.
 // - Every question returned has its `times_asked` counter bumped.
 // - The combined set is shuffled, so cache + fresh are randomly sprinkled.
 // - A kid's recently SHOWN questions in the topic are held back (#24). The app
 //   reports what it shows (`reportsSeen`, `mark_questions_seen`); what this
-//   function hands over is only held back for RESERVE_MINUTES (#130).
+//   function hands over is only held back for RESERVE_MINUTES (#134).
 //
 // The Anthropic API key stays server-side (ANTHROPIC_API_KEY secret).
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase.
@@ -59,12 +59,12 @@ const CACHE_LOOKUP_LIMIT = 200;
 const LEVEL_BAND = 2;
 /**
  * A kid's most recently shown questions in a topic held back from reuse (#24,
- * #130) — per topic now; the old window was this many views of any topic.
+ * #134) — per topic now; the old window was this many views of any topic.
  */
 const SEEN_HISTORY_LIMIT = 100;
-/** A question handed over but not shown yet is held back from that kid this long (#130). */
+/** A question handed over but not shown yet is held back from that kid this long (#134). */
 const RESERVE_MINUTES = 60;
-/** Reuse skips questions written for a child more than this many years older (#130). */
+/** Reuse skips questions written for a child more than this many years older (#134). */
 const AGE_SLACK = 1;
 /** Error codes for "pick_cached_questions doesn't exist" (PostgREST, Postgres): 0015 not applied. */
 const PICKER_MISSING = ['PGRST202', '42883'];
@@ -354,7 +354,7 @@ Deno.serve(async (req) => {
     count?: number;
     context?: string;
     profileId?: string;
-    /** The app marks what it shows (#130); an older app doesn't. */
+    /** The app marks what it shows (#134); an older app doesn't. */
     reportsSeen?: boolean;
   };
   try {
@@ -454,7 +454,7 @@ Deno.serve(async (req) => {
 
   try {
     // 1. Reusable questions for this topic within ±LEVEL_BAND of the player,
-    // sampled from the whole band (#130): no flagged ones (#26), none written
+    // sampled from the whole band (#134): no flagged ones (#26), none written
     // for a child more than AGE_SLACK years older, and the kid's recently
     // shown ones in the topic (#24) set aside as a last resort for when the
     // fresh budget (#88) can't cover the batch. Without migration 0015 the
@@ -516,7 +516,7 @@ Deno.serve(async (req) => {
         const rows = generated.map((q) => ({
           topic,
           level: skillLevel,
-          // The age it was written for (#130) — only once 0015 added the column.
+          // The age it was written for (#134) — only once 0015 added the column.
           ...(has0015 ? { age: Math.floor(age) } : {}),
           text: q.text,
           options: q.options,
@@ -576,7 +576,7 @@ Deno.serve(async (req) => {
     }
 
     // 6. Record this delivery in question_views (#24). An app that reports
-    // what it shows (#130) gets a hold for RESERVE_MINUTES (`shown: false`) —
+    // what it shows (#134) gets a hold for RESERVE_MINUTES (`shown: false`) —
     // a batch fetched ahead for a battle that never happens doesn't count as
     // seen; an older app's delivery counts as seen, as before. Best-effort —
     // a write failure is logged but does not break the response.

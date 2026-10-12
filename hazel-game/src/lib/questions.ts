@@ -28,7 +28,7 @@ async function invokeGenerate(
   context?: string,
 ): Promise<Question[]> {
   // The kid playing (#124): their seen questions are their own. This app tells
-  // the server what it shows (`markSeen`, #130), so a batch handed over here is
+  // the server what it shows (`markSeen`, #134), so a batch handed over here is
   // only held back, not counted as seen.
   const profileId = useFamilyStore.getState().activeKidId;
   const { data, error } = await supabase.functions.invoke('generate-questions', {

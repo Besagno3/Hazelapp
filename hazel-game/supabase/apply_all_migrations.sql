@@ -889,7 +889,7 @@ on conflict (version) do nothing;
 -- ============================================================================
 -- 0015_fair_question_reuse.sql
 -- ============================================================================
--- Hazel Quest — fairer question reuse (#130)
+-- Hazel Quest — fairer question reuse (#134)
 -- Run in the Supabase SQL Editor (or `supabase db push`) after 0014.
 -- Re-runnable, like every migration (see CLAUDE.md → migration rules).
 --

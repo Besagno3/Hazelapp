@@ -13,6 +13,16 @@ import { prefetchQuestions, QUIZ_QUESTION_COUNT } from '../../lib/questions';
 import { markSeen } from '../../lib/seen';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import FlagButton from '../../components/FlagButton';
+import type { Question } from '../../types';
+
+/** A round as it was played, kept for its results screen. */
+interface FinishedRound {
+  questions: Question[];
+  answers: boolean[];
+  picks: number[];
+  /** The question level the round was played at. */
+  level: number;
+}
 
 export default function QuizRound() {
   const topic = useFlow((s) => s.context.topic) ?? 'math';
@@ -22,9 +32,17 @@ export default function QuizRound() {
   const addXp = useProfileStore((s) => s.addXp);
   const recordActivity = useProfileStore((s) => s.recordActivity);
   const powerUps = useProfileStore((s) => s.profile?.powerUps) ?? {};
+  /** Held once the round ends (Act I review B3): saving the new skill level
+   *  re-keys `useGeneratedQuestions`, which fetches the next batch under the
+   *  results screen. The recap must keep showing this round's questions. */
+  const [finished, setFinished] = useState<FinishedRound | null>(null);
   const { questions, loading, error, age, skillLevel, reload } = useGeneratedQuestions(
     topic,
     QUIZ_QUESTION_COUNT,
+    // Once the round is over, keep asking at the level it was played at: the
+    // new level would re-key the hook, which would fetch (and so use up) the
+    // batch finishRound just prefetched for the next round.
+    finished?.level,
   );
 
   const [current, setCurrent] = useState(0);
@@ -32,14 +50,15 @@ export default function QuizRound() {
   const [answers, setAnswers] = useState<boolean[]>([]);
   /** The option index the player picked, per question — for the missed-questions recap (#25). */
   const [picks, setPicks] = useState<number[]>([]);
-  const [done, setDone] = useState(false);
 
-  // On screen = seen, so the next batches leave it out for this kid (#130).
-  const shownId = loading || error ? null : (questions[current]?.id ?? null);
+  // On screen = seen, so the next batches leave it out for this kid (#134).
+  // Not on the results screen: the next round's batch may be loading under it.
+  const shownId = finished || loading || error ? null : (questions[current]?.id ?? null);
   useEffect(() => {
     if (shownId) markSeen(shownId);
   }, [shownId]);
 
+  if (finished) return <RoundResults round={finished} worldUnlocked={worldUnlocked} />;
   if (loading) return <LoadingScreen label="Building your questions…" topic={topic} />;
   if (error) {
     return (
@@ -49,8 +68,6 @@ export default function QuizRound() {
 
   const total = questions.length;
   const q = questions[current];
-  const score = total > 0 ? answers.filter(Boolean).length / total : 0;
-  const passed = score >= PASS_THRESHOLD;
   const isLastQuestion = current + 1 >= total;
 
   /** Reveal the result — the player then advances at their own pace via Next. */
@@ -68,7 +85,7 @@ export default function QuizRound() {
     if (finalPassed) {
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     }
-    setDone(true);
+    setFinished({ questions, answers, picks, level: skillLevel });
     // Misses feed the Library in town (#37) on top of the on-screen recap.
     const misses = questions
       .map((question, i) => ({ question, picked: picks[i] }))
@@ -93,79 +110,6 @@ export default function QuizRound() {
       setCurrent((c) => c + 1);
       setSelected(null);
     }
-  }
-
-  if (done) {
-    const missed = questions
-      .map((question, i) => ({ question, picked: picks[i], correct: answers[i] }))
-      .filter((m) => m.correct === false);
-
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6">
-        <motion.div
-          initial={{ scale: 0.7, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-2xl p-8 shadow-2xl max-w-lg w-full"
-        >
-          <div className="text-center">
-            <div className="text-6xl mb-4">{passed ? '🏆' : '😅'}</div>
-            <h2 className="text-2xl font-bold mb-2">
-              {passed ? 'Round Passed!' : 'Keep Trying!'}
-            </h2>
-            <p className="text-gray-500 mb-6">Score: {Math.round(score * 100)}%</p>
-          </div>
-
-          {missed.length > 0 && (
-            <div className="mb-6 text-left">
-              <h3 className="text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide">
-                What you missed
-              </h3>
-              <ul className="space-y-3">
-                {missed.map(({ question, picked }) => (
-                  <li
-                    key={question.id}
-                    className="border border-gray-200 rounded-lg p-3 text-sm"
-                  >
-                    <p className="font-medium text-gray-800 mb-2">{question.text}</p>
-                    {picked !== undefined && (
-                      <p className="text-red-600 mb-1">
-                        Your answer: <span className="font-medium">{question.options[picked]}</span>
-                      </p>
-                    )}
-                    <p className="text-green-700 mb-1">
-                      Correct:{' '}
-                      <span className="font-medium">
-                        {question.options[question.correctIndex]}
-                      </span>
-                    </p>
-                    {question.explanation && (
-                      <p className="text-gray-500 mt-1">💡 {question.explanation}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2 items-center">
-            {worldUnlocked && (
-              <button
-                onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
-                className="w-full bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-6 py-2.5 transition"
-              >
-                🗺️ Enter the world of Lumina
-              </button>
-            )}
-            <button
-              onClick={() => sendFlow({ type: 'EXIT_QUIZ' })}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-6 py-2 transition"
-            >
-              Back to Topics
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
   }
 
   return (
@@ -238,6 +182,83 @@ export default function QuizRound() {
           </motion.div>
         </AnimatePresence>
       </div>
+    </div>
+  );
+}
+
+/** The results of a finished round: score, the questions missed, and the way on. */
+function RoundResults({ round, worldUnlocked }: { round: FinishedRound; worldUnlocked: boolean }) {
+  const { questions, answers, picks } = round;
+  const score = questions.length > 0 ? answers.filter(Boolean).length / questions.length : 0;
+  const passed = score >= PASS_THRESHOLD;
+  const missed = questions
+    .map((question, i) => ({ question, picked: picks[i], correct: answers[i] }))
+    .filter((m) => m.correct === false);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6">
+      <motion.div
+        initial={{ scale: 0.7, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-white rounded-2xl p-8 shadow-2xl max-w-lg w-full"
+      >
+        <div className="text-center">
+          <div className="text-6xl mb-4">{passed ? '🏆' : '😅'}</div>
+          <h2 className="text-2xl font-bold mb-2">
+            {passed ? 'Round Passed!' : 'Keep Trying!'}
+          </h2>
+          <p className="text-gray-500 mb-6">Score: {Math.round(score * 100)}%</p>
+        </div>
+
+        {missed.length > 0 && (
+          <div className="mb-6 text-left">
+            <h3 className="text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide">
+              What you missed
+            </h3>
+            <ul className="space-y-3">
+              {missed.map(({ question, picked }) => (
+                <li
+                  key={question.id}
+                  className="border border-gray-200 rounded-lg p-3 text-sm"
+                >
+                  <p className="font-medium text-gray-800 mb-2">{question.text}</p>
+                  {picked !== undefined && (
+                    <p className="text-red-600 mb-1">
+                      Your answer: <span className="font-medium">{question.options[picked]}</span>
+                    </p>
+                  )}
+                  <p className="text-green-700 mb-1">
+                    Correct:{' '}
+                    <span className="font-medium">
+                      {question.options[question.correctIndex]}
+                    </span>
+                  </p>
+                  {question.explanation && (
+                    <p className="text-gray-500 mt-1">💡 {question.explanation}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 items-center">
+          {worldUnlocked && (
+            <button
+              onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
+              className="w-full bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-6 py-2.5 transition"
+            >
+              🗺️ Enter the world of Lumina
+            </button>
+          )}
+          <button
+            onClick={() => sendFlow({ type: 'EXIT_QUIZ' })}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-6 py-2 transition"
+          >
+            Back to Topics
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }

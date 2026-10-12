@@ -2,6 +2,10 @@ import { useRef } from 'react';
 
 /**
  * On-screen d-pad for tablets/phones (#37, from the #36 follow-up list).
+ * Shown on any touch screen, whatever its width (Act I review B2: it used to
+ * hide at `sm`, which left tablets and sideways phones unable to walk), and
+ * on narrow windows. On a sideways touch screen it docks in the bottom
+ * corners — pad left, ✋ right — since there's no room below the map.
  * Reports the held direction via `onDirChange`; the parent stores it in a
  * ref the KaPlay loop reads each frame — no React re-renders while walking.
  * Beside it, the ✋ button uses what the hero faces (#127) — opens a chest,
@@ -38,8 +42,11 @@ export default function TouchPad({
     'w-12 h-12 bg-white/20 active:bg-white/40 rounded-xl text-white text-xl font-bold select-none touch-none flex items-center justify-center';
 
   return (
-    <div className="flex items-center gap-6 sm:hidden mt-3">
-      <div className="grid grid-cols-3 gap-1" aria-label="movement pad">
+    <div
+      data-testid="touch-pad"
+      className="flex items-center gap-6 mt-3 sm:hidden touch:flex touch-wide:fixed touch-wide:inset-x-0 touch-wide:bottom-0 touch-wide:z-30 touch-wide:mt-0 touch-wide:justify-between touch-wide:items-end touch-wide:px-4 touch-wide:pb-[max(1rem,env(safe-area-inset-bottom))] touch-wide:pointer-events-none"
+    >
+      <div className="grid grid-cols-3 gap-1 pointer-events-auto" aria-label="movement pad">
         <div />
         <button className={btn} {...hold(0, -1)} aria-label="up">▲</button>
         <div />
@@ -68,7 +75,7 @@ export default function TouchPad({
             if (!ownTap) onAction();
           }}
           onContextMenu={(e) => e.preventDefault()}
-          className={`w-20 h-20 rounded-full flex flex-col items-center justify-center select-none touch-none font-extrabold shadow-lg transition-opacity ${
+          className={`pointer-events-auto w-20 h-20 rounded-full flex flex-col items-center justify-center select-none touch-none font-extrabold shadow-lg transition-opacity ${
             action ? 'bg-amber-300 active:bg-amber-200 text-amber-950' : 'bg-white/20 text-white/60'
           }`}
         >

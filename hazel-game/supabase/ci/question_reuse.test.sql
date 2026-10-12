@@ -1,4 +1,4 @@
--- CI test for migration 0015 (#130): the bank is sampled whole, leaning to
+-- CI test for migration 0015 (#134): the bank is sampled whole, leaning to
 -- less-asked questions; questions written for older kids, flagged ones and
 -- ones this kid saw lately in the topic are held back; a delivery not shown
 -- yet is held back only for a while; the app marks shown questions for its

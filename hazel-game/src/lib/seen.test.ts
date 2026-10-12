@@ -23,7 +23,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-describe('markSeen — the app tells the server what was on screen (#130)', () => {
+describe('markSeen — the app tells the server what was on screen (#134)', () => {
   it('sends questions shown close together in one call, a moment later', async () => {
     const { markSeen, SEEN_FLUSH_MS } = await fresh();
     markSeen('q-1');
