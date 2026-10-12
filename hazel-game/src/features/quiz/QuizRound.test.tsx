@@ -21,6 +21,8 @@ vi.mock('../../lib/questions', async (orig) => ({
   prefetchQuestions: () => {},
 }));
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
+const { markSeen } = vi.hoisted(() => ({ markSeen: vi.fn() }));
+vi.mock('../../lib/seen', () => ({ markSeen }));
 
 const { default: QuizRound } = await import('./QuizRound');
 const { useSaveStore } = await import('../../store/saveStore');
@@ -49,7 +51,18 @@ async function playPerfectRound() {
   await screen.findByText('Round Passed!');
 }
 
-beforeEach(() => addXp.mockReset());
+beforeEach(() => {
+  addXp.mockReset();
+  markSeen.mockClear();
+});
+
+describe('QuizRound — on screen = seen (#130)', () => {
+  it('marks each question seen as it comes up, in order', async () => {
+    start(3, true);
+    await playPerfectRound();
+    expect(markSeen.mock.calls.map((c) => c[0])).toEqual(questions.map((q) => q.id));
+  });
+});
 
 describe('QuizRound — XP only once the world is open (#122)', () => {
   it('an opening round pays no XP for right answers', async () => {

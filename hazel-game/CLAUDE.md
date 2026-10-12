@@ -561,8 +561,16 @@ zod, react-query. Add the package in the same change that first uses it.
   far the next one is. Read it with `levelState(profile)` (a profile cached
   before levels were saved falls back to the old flat-100 curve).
 - **Question cache:** generated questions are stored in a Supabase `questions`
-  table (level-tagged, `times_asked` counter). The edge function randomly
-  mixes cached questions (reused from a ±2 level band) with fresh ones.
+  table (level-tagged, `times_asked` counter, the `age` they were written
+  for). The edge function mixes cached questions with fresh ones; the cached
+  ones come from `pick_cached_questions` (migration 0015, #130): the whole ±2
+  level band at random, leaning to less-asked, none written for a child more
+  than a year older (`AGE_SLACK`; old rows have no age and stay in), none
+  flagged. **Seen = shown (#130):** the app tells the server what was on
+  screen (`markSeen`, `lib/seen.ts`, from `QuestionCard` and `QuizRound`, as
+  `mark_questions_seen`); what the function hands over is only held back for
+  an hour (`question_views.shown = false`), so prefetches don't fill a kid's
+  seen window — the last 200 distinct questions shown in that topic.
   `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need.
 
 ## Commands
@@ -687,6 +695,45 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-12 — Fairer question reuse: the whole bank, the right age, seen = shown (#130)
+A review of how questions are picked and reused (with the owner) found three
+problems; this is batch 1 of the fixes, as the owner chose them.
+- **The whole bank:** the edge function read 200 rows of a ±2 level band
+  with no ORDER BY, so Postgres returned the same oldest 200 on every call
+  (measured: 15,037 rows in a band, the same 200 every time, all from the
+  oldest ~1,700) — past 200 a band's new questions were never reused. New
+  `pick_cached_questions` (migration 0015) samples the whole band, weighted
+  random leaning to less-asked (1/sqrt(1 + `times_asked`) — the owner's
+  pick over purely random), unseen first, flagged never.
+- **The right age:** new questions store the age they were written for
+  (`questions.age`); reuse skips ones written for a child more than a year
+  older (`AGE_SLACK`). Questions from before have no age and stay reusable
+  (the owner's call).
+- **Seen = shown:** prefetches (every enemy in a zone, each battle's 4 spell
+  questions, the next quiz round) counted as seen though never shown, and the
+  seen window was the last 100 of any topic. Now the app marks a question
+  seen when it's on screen (`lib/seen.ts` `markSeen` — batched every 1.5 s,
+  at most 20 a call, each id once a session per kid — called from
+  `QuestionCard` and `QuizRound`; `mark_questions_seen` writes only for the
+  signed-in grown-up's own kid), the app sends `reportsSeen: true`, and the
+  function's deliveries are only held back for an hour
+  (`question_views.shown = false`, `RESERVE_MINUTES`). The window is the
+  last 200 distinct questions shown in that topic.
+- **Deploy order is free:** without 0015 the function falls back to the old
+  lookup (`legacyCachePool`, logged "QUESTION PICKER FAILED") and stores no
+  age; an app without `reportsSeen` keeps "delivered = seen".
+- ⚠️ Deploy: apply `0015_fair_question_reuse.sql` (or re-run
+  `apply_all_migrations.sql`), then `supabase functions deploy
+  generate-questions`.
+- Tests: `supabase/ci/question_reuse.test.sql` (band, age, flags, the
+  per-topic distinct window, the hold, per kid, whole-band sampling, the lean,
+  `mark_questions_seen`'s ownership / cap, grants) — checked to fail with no
+  random order, plain random, no ownership check and no topic filter;
+  `seen.test` (+6), QuestionCard.test (+1), QuizRound.test (+1),
+  questions.test. 1121 green, lint + build clean, `deno check` clean; the
+  migrations in order and the bundle twice on Postgres 16, all seven SQL
+  tests pass. Batch 2 and follow-ups: ISSUES #130.
 
 ### 2026-10-12 — 14i review round 3: Ness asks last, nothing stale (#75 item 14i)
 A report-only round (code 2 low, UX 1 medium, 6 low), then all fixed on the

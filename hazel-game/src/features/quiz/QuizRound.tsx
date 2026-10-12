@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useSaveStore } from '../../store/saveStore';
@@ -10,6 +10,7 @@ import { nextSkillLevel } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { prefetchQuestions, QUIZ_QUESTION_COUNT } from '../../lib/questions';
+import { markSeen } from '../../lib/seen';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import FlagButton from '../../components/FlagButton';
 
@@ -32,6 +33,12 @@ export default function QuizRound() {
   /** The option index the player picked, per question — for the missed-questions recap (#25). */
   const [picks, setPicks] = useState<number[]>([]);
   const [done, setDone] = useState(false);
+
+  // On screen = seen, so the next batches leave it out for this kid (#130).
+  const shownId = loading || error ? null : (questions[current]?.id ?? null);
+  useEffect(() => {
+    if (shownId) markSeen(shownId);
+  }, [shownId]);
 
   if (loading) return <LoadingScreen label="Building your questions…" topic={topic} />;
   if (error) {
