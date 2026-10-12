@@ -317,6 +317,16 @@ describe('the last inn rested at (#75 item 11)', () => {
     expect(wakeShelter({ zoneId: 'silver-shallows' })).toBeNull();
     expect(wakeShelter({ zoneId: 'constructor' as never })).toBeNull();
   });
+
+  it('beaten in the Sunken Archive, Binder tucks the hero up at the Quiet Shelf Inn — and it reads as a place (#75 item 14h)', () => {
+    expect(wakeShelter({ zoneId: 'sunken-archive' })).toEqual({
+      line: 'Innkeeper Binder finds you and tucks you up in the Quiet Shelf Inn.',
+      place: 'the inn',
+    });
+    expect(wakeAfterDefeat({ lastRest: 'gearfall', zoneId: 'sunken-archive' }).zoneId).toBe('sunken-archive');
+    // Rested there, a defeat anywhere else wakes the hero there, named with its "the".
+    expect(wakeInnName({ lastRest: 'sunken-archive' })).toBe('the Quiet Shelf Inn in the Sunken Archive');
+  });
 });
 
 describe('home to bed after the Spire (#75 item 14)', () => {

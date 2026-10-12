@@ -49,6 +49,15 @@ export const SAGES: Record<CrystalTopic, SageInfo> = {
     specialEmoji: '🌈',
     flashColor: 'text-pink-300',
   },
+  // Act II (#75 item 14h): the owl of the Sunken Archive, who speaks in footnotes.
+  history: {
+    topic: 'history',
+    name: 'Sage Chronicle',
+    sprite: '🦉',
+    specialName: 'Time Ripple',
+    specialEmoji: '⏳',
+    flashColor: 'text-teal-300',
+  },
 };
 
 /** Damage multiplier for a landed Sage spell vs a basic attack. */

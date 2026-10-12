@@ -50,7 +50,7 @@ const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
 const { INTRO_SEEN, DAWNREACH_SEEN, EMBER_HATCHED, SPIRE_CLEARED, ENDING_SEEN, ACT2_SEEN } = await import('../../content/story');
-const { addFakeActTwoCrystal } = await import('../../test/fakeCrystal');
+const { addFakeLaterCrystal } = await import('../../test/fakeCrystal');
 const { actCrystals, crystalFlag } = await import('../../content/topics');
 
 const switchPlayer = () => within(screen.getByTestId('world-topbar')).getByRole('button', { name: /Switch player/, hidden: true });
@@ -169,8 +169,8 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     expect(isInert(switchPlayer())).toBe(true);
   });
 
-  it('with an Act II crystal in the game, Act I\'s four still play the ending, and the HUD counts 4/4 (#75 item 14c)', () => {
-    const remove = addFakeActTwoCrystal();
+  it('with a later act\'s crystal in the game, Act I\'s four still play the ending, and the HUD counts 4/4 (#75 items 14c, 14h)', () => {
+    const remove = addFakeLaterCrystal();
     try {
       const { [ENDING_SEEN]: _seen, ...beforeEnding } = ALL_CRYSTALS;
       void _seen;
@@ -183,8 +183,8 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     }
   });
 
-  it('once Act II opens, the HUD counts its crystal too: 4/5 (#75 item 14c)', () => {
-    const remove = addFakeActTwoCrystal();
+  it('once Act II opens, the HUD counts its crystal — the Crystal of Memory — too: 4/5, and a later act\'s not yet (#75 items 14c, 14h)', () => {
+    const remove = addFakeLaterCrystal();
     try {
       useSaveStore.setState({
         save: {

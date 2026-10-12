@@ -118,11 +118,11 @@ zod, react-query. Add the package in the same change that first uses it.
   machine owns *where the player is*; Zustand stores own *what they have*.
 - **Feature folders** under `src/features/`: `auth`, `family`, `quiz`, `battle`, `world`.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
-  `TOPIC_REGISTRY` = the four **crystal** topics with crystal/Fiend/zone,
-  each in an act (`act`; `actCrystals` / `actRestored` / `actComplete` —
-  the Spire, the ending and the 🚩 read Act I's, #75 item 14c);
-  `EXTRA_TOPICS` = the expansion themes nature/space/history; `topicInfo`
-  resolves all seven, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
+  `TOPIC_REGISTRY` = the **crystal** topics with crystal/Fiend/zone, each in
+  an act (`act`; `actCrystals` / `actRestored` / `actComplete` — the Spire,
+  the ending and the 🚩 read Act I's, #75 item 14c): Act I's four and, since
+  #75 item 14h, Act II's history (the Crystal of Memory); `EXTRA_TOPICS` =
+  the expansion themes nature/space; `topicInfo` resolves all seven, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
   overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
   #75 — the four crystal regions sit at its corners, item 8) + three roadside
   shrines and the dark Echo Mine (item 9) + 4 crystal zones + Lumina Village (home and `HUB_ZONE`: safe,
@@ -162,7 +162,11 @@ zod, react-query. Add the package in the same change that first uses it.
   history field where Posy's escort walks (`escortStep`, `lib/escort.ts`: an
   escort follows the hero's footsteps and waits near critters; its walk is
   never saved, `escortWalkingFlag`) and a miniboss gives its own badge
-  (`EnemyDef.badge`)),
+  (`EnemyDef.badge`); and **the Sunken Archive**, #75 item 14h, Act II's
+  crystal zone on an island in the Shallows' north-east — a Return town
+  with an inn that is also its shelter, and a `mooring`: waking or Returning
+  in a town on an island brings Marlow's boat round to its beach
+  (`islandBoat`, `boatAfterDefeat`, `boatOnReturn`, #114o)),
   `boat.ts` (#75 item 14: Old Marlow's boat — where it's moored
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
@@ -596,6 +600,7 @@ python3 tools/assets/build.py seacritters # the sea critters + the battle-at-sea
 python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble town sheet, the hill icon, its people (#75 item 14e)
 python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
 python3 tools/assets/build.py marsh    # Foglight Marsh: its tiles, the stilt town sheet, the marsh icon, its critters, people and lanterns (#75 item 14g)
+python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome town sheet, the archive icon, its critters, Fiend and people (#75 item 14h)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 ```
@@ -682,6 +687,115 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-12 — Merge main (press to use #127, Vercel #126) into the Sunken Archive branch (#75 item 14h)
+`main` took ISSUES **#126** (the Vercel deployment cap) and **#127** (press to
+use, doorways, people step aside) and TC-941–977 while 14h was in review, so
+14h's follow-ups moved **#126 → #128** and its test cases **TC-941–961 →
+TC-978–998** (only 14h's own lines were renumbered). Only the docs
+conflicted; `WorldScreen.tsx` merged cleanly.
+
+### 2026-10-11 — 14h review round 4: the last lows; the loop ends (#75 item 14h)
+Fresh `/saas-code-review` (nothing found) and `/saas-ux-review` (3 low).
+Fewer than 4 lows, so fixed and the loop stopped: Index reads the letter's
+signature (Wick's, its addressee's name faded), not "To Wick" — which
+clashed with Wick writing it to her teacher; the 🚩's Memory reason is "Your
+Memoria Key opens its silver door!", so Wick's "Where to next?" is ≤ 30
+words; the first-visit panel says where Index is and her name; Ember's
+panel loses an unclear "they". 1074 green, lint + build clean.
+
+### 2026-10-11 — 14h review round 3: shorter lines, "waits by the island" (#75 item 14h)
+Fresh `/saas-code-review` (2 low) and `/saas-ux-review` (3 low) — no
+critical, high or medium; five lows, so fixed and one more round: the Return
+note says the Biscuit "waits by the island" (she may be at another shore),
+ashore too; Elder Lumen's "All four crystals" line stays in Act I
+(`unlessFlag: act2-seen`) and his Memory plan is ~20 words; the 🚩's Memory
+reason is short, so Grandmother Wick's "Where to next?" isn't ~48 words; the
+letter is the "Old Letter" in the bag. 1074 green, lint clean.
+
+### 2026-10-11 — 14h review round 2: she waits by the beach (#75 item 14h)
+Fresh `/saas-code-review` (3 low) and `/saas-ux-review` (1 medium, 2 low).
+All fixed: Return from the boat right beside the island's beach said she
+was "moored out at sea — Old Marlow can row her home", though she waits
+where the hero lands (`boatOnReturn`: "The Biscuit waits by the beach, right
+where you left her", medium); the 🚩, Elder Lumen and the Ringkeeper's
+victory line call the Archive's gate a silver door too (`GateKey.door`); the
+first-visit panels name the door once; an inn that's also a shelter has the
+"To the inn" button any inn has (`wakeShelter`). 1074 green, lint clean.
+
+### 2026-10-11 — 14h review round 1: a boat you can board, panels without the key (#75 item 14h)
+Fresh `/saas-code-review` (1 medium, 3 low) and `/saas-ux-review` (3 medium,
+4 low; played on the stubbed app at 320–1024 px). All fixed:
+- **The boat by the island (medium):** a boat left out in open water within 6
+  cells of the Archive's beach counted as "there", so Return or a wake there
+  left it where nobody on the island could climb in. Now a boat stays put only
+  beside ground walkable from the town's door (`islandBoat`, `reach`).
+- **Arriving before the key (medium):** the island can be reached before the
+  Ringkeeper, so the first-visit panel no longer says the key is in your pocket.
+- **Where's Index? (medium):** the quest log says to take Wick's note back to
+  the Sunken Archive (`doneLine`).
+- **Hush and Sailor Brine (medium)** stand still: boxed in by tables and beds,
+  they kept walking back into a hero who'd just talked to them.
+- **Low:** the defeat line is the shelter where you were beaten, read before
+  the hero is moved; the Time Ripple battle test really runs (`npm test`
+  exited 1); "the Hollow Fiend" mid-sentence; "soon you'll fly!"; Chronicle's
+  footnotes in brackets; the key gate is a "silver door" (`GateKey.door`).
+- Act I's journey walk on the first 14h commit: 13/13 (`bench … journey`).
+- Tests: +1, and new checks in four more. 1074 green, lint + build clean. Asked (#128m): the Hollow
+  Fiend's Gulp of Ages can knock out a hero who doesn't Guard.
+
+### 2026-10-11 — The Sunken Archive: the Crystal of Memory (#75 item 14h)
+Roadmap sub-item 14h — Act II's crystal zone.
+- **History is the fifth crystal** (Act II's): `CRYSTAL_TOPIC_IDS` gains it
+  (out of `EXTRA_TOPIC_IDS`; its label, colours and questions unchanged — no
+  edge-function redeploy), `TOPIC_REGISTRY` gives it the Crystal of Memory,
+  the Hollow Fiend and the Sunken Archive, `act: 2`. Act I's Spire seal,
+  ending, 🚩 order and journey are unchanged (crystals.test; the 14c stand-in
+  crystal now plays Act III's, `addFakeLaterCrystal`); the HUD reads 4/5 in
+  Act II, 5/5 with Memory. The #64 tripwire pins 5: whelp 2 / dragon 4 stay,
+  and flight's flag is this crystal's (`FLIGHT_FLAG`, `canFly` — 15b flies).
+- **On the Shallows:** an island in the north-east (x 44–53, y 11–17), west
+  of the Great Fogbank, a beach to its south and a domed-library icon
+  (`archive`, overworld frame 19, appended).
+- **The Archive** (`sunken-archive`, 44×28, `kind: 'field'`, history, tier 5):
+  the reading rooms in the middle — the **Quiet Shelf Inn** (Innkeeper
+  Binder; a Return town, and its shelter: beaten here, you wake there),
+  **Index's Card Catalog**, **Chronicle's Footnote Study** and the Great
+  Reading Room (a new **tome** style) — the Drowned Stacks (north-west), the
+  Silent Stacks' riddle-chest behind a gate (north-east), the Sunken Aisles
+  (south), and the **Hollow** behind the Memoria Key's silver door
+  (`keyGate`; `GateKey.unlocksZone` is now `sunken-archive`, so the key's
+  `opens` / null zone are gone). People: Sage Chronicle, Index, Binder, Old
+  Quillon (the Fiend's signpost), Hush, Margin, Leaf and Sailor Brine.
+  Critters: Dust Tome, Ink Wisp and the **swift** Quill Imp. Three discovery
+  panels on the first visit (`ARCHIVE_PANELS`).
+- **Swift** (roadmap decision 14 taken: no new timers): a swift critter
+  strikes first — the battle opens with its turn, a defend question as ever
+  (`ENEMY_BEHAVIORS` gains `swift`).
+- **The Hollow Fiend** (`fiend`): STORY-4X's sneer and concession, its own
+  rage lines and "Gulp of Ages"; beating it restores the Crystal of Memory,
+  whose three panels end with a whisper of "…Aster…".
+- **Sage Chronicle's Time Ripple** (`sageSpell('history')`): 2.2× and the
+  enemy loses its next turn (`SpellEffect.skipsTurn`, `SpellResult.skipsTurn`).
+- **A Letter, Long Overdue** (Index): a letter sixty years late, carried to
+  Grandmother Wick (her own, to a teacher whose name she can't remember),
+  her thank-you note back — 40 coins and a Berry Potion.
+- **The boat follows you to an island town** (#114o): `ZoneDef.mooring`;
+  a defeat (battle or Spire) that wakes the hero there, or Return there,
+  brings the boat round to its beach and says so (`defeatBoatLine`;
+  `BattleResult`'s `boatLine` replaces `boatHome`).
+- **The 🚩:** after the Memoria Key, "Free the Crystal of Memory" (from
+  Marlow's dock off the Shallows), then "Explore"; Elder Lumen's plan and a
+  tip about the Quill Imps and Time Ripple; Old Ringwood and the Memoria
+  panel say where the door is.
+- **Art** (`python3 tools/assets/build.py archive`): the zone's tileset (new
+  `bookshelf` scenery, `pages` decoration), blend sheet and backdrop
+  (`shelves`), `town-tome.png`, the overworld sheet and 12 sprites (new
+  drawers `flying_tome`, `ink_wisp`, `quill_imp`, `hollow_fiend`); frames
+  0–18 byte-identical, the manifest only gained entries.
+- Tests: +22 (crystals.test rewritten for a real Act II; zones.test: the
+  Archive; seaCritters.test: island inns and Return; BattleArena.test: swift,
+  Time Ripple; quests.test: the letter; wayfinding, keys, story, spells,
+  battleTurn, save, BattleHud). 1073 green, lint + build clean. Follow-ups #128.
 ### 2026-10-11 — Merge main (Vercel #126, Foglight Marsh #125, parent accounts #124) into the press-to-use branch (#127)
 `main` took ISSUES **#124–#126** and TC-867–940 while press-to-use was in
 review, so it moved **#124 → #127** and its test cases **TC-867–903 →

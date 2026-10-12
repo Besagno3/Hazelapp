@@ -83,7 +83,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
-import { boatAfterDefeat } from '../../content/boat';
+import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
@@ -115,7 +115,7 @@ type Turn =
   | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
   | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null }
-  | { kind: 'defeat'; xp: number; atSea: boolean };
+  | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null };
 
 type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
 
@@ -349,6 +349,8 @@ export default function BattleArena() {
         // A Glimmer Candle in the bag gets you round it (#75 item 14g review).
         trickster: `${enemy.name} is too slippery for Hint Feathers!${save?.items.candle ? ' Light a 🕯️ Glimmer Candle!' : ''}`,
         healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
+        // Swift (#75 item 14h, decision 14: no new timers) — it strikes first.
+        swift: `${enemy.name} is swift — it strikes first! Get ready to block!`,
       }[enemy.behavior];
       // Long enough to read (a young reader's two words a second), as a toast is.
       later(() => showBanner(callout, Math.max(3000, toastMs(callout))), 250);
@@ -374,15 +376,21 @@ export default function BattleArena() {
     const toughAs = toughKey(tier);
     if (dangerMarks(tier) && !toughMet.includes(toughAs)) lines.push({ text: `💪 ${toughCallout(tier, enemy.isBoss)}`, shown: () => meetTough(toughAs) });
     if (mercyDrop > 0) lines.push({ text: `💛 ${mercyCallout(enemy)}` });
-    if (lines.length === 0) return;
+    // A swift critter (#75 item 14h) takes the first turn: its blow, blocked by a
+    // defend question as ever, comes before the hero's first command.
+    const swift = enemy.behavior === 'swift';
+    if (lines.length === 0 && !swift) return;
     const chain = lines.reduceRight<() => void>(
       (next, line) => () => {
         line.shown?.();
         setTurn({ kind: 'message', text: line.text, next });
       },
-      () => setTurn({ kind: 'command' }),
+      swift ? () => setTurn({ kind: 'message', text: `⚡ ${enemy.name} darts in before you can move!`, next: enemyTurn }) : () => setTurn({ kind: 'command' }),
     );
     chain();
+    // `enemyTurn` (a swift critter's first move) is made afresh each render; the
+    // opening runs once a battle, so the one from this render is the one wanted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, enemy, keyBoss, mercyDrop]);
 
   // Battle entered without an encounter (e.g. stale reload) — bail out.
@@ -697,6 +705,7 @@ export default function BattleArena() {
       choreo: breath && emberActive ? EMBER_BREATH : HERO_STRIKE,
       sound: 'spell',
       superEffective: weak,
+      skipsTurn: r.skipsTurn,
     });
   }
 
@@ -718,7 +727,8 @@ export default function BattleArena() {
       sound,
       heal = 0,
       superEffective = false,
-    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; superEffective?: boolean },
+      skipsTurn = false,
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; superEffective?: boolean; skipsTurn?: boolean },
   ) {
     fx.perform(choreo, sound, ember === 'dragon');
     const r = resolveHeroHit(combatState(), dmg, { isBoss: enemy!.isBoss, refundCharge });
@@ -748,6 +758,13 @@ export default function BattleArena() {
       return;
     }
     if (r.newPhase) announcePhase(r.newPhase);
+    if (skipsTurn) {
+      // Time Ripple (#75 item 14h): the enemy is caught in the ripple and loses
+      // its turn — its plan (a power move gathering, say) waits for the next one.
+      later(() => float('⏳ Frozen!', 'enemy', 'text-teal-200'), choreo.hitMs + 200);
+      say(`${text} ⏳ Time ripples round ${enemy!.name.replace(/^The /, 'the ')} — it loses its next turn!`, () => setTurn({ kind: 'command' }));
+      return;
+    }
     say(text, enemyTurn);
   }
 
@@ -971,20 +988,26 @@ export default function BattleArena() {
     // No game over (#37): wake up safe and fully healed — at the last inn
     // rested at, or home in Lumina Village (#75 item 11). Lost while sailing,
     // the boat goes home too — and the defeat screen says so, from the same fact.
-    const atSea = useSaveStore.getState().save?.aboard === true;
+    const before = useSaveStore.getState().save!;
+    const boatLine = defeatBoatLine(before, wakeAfterDefeat(before).zoneId);
+    // Who looks after the hero is the shelter where they were beaten — read
+    // before the hero is moved (after it, a rest at an inn that's also a
+    // shelter would read "Binder finds you" for a loss anywhere, #75 item 14h review).
+    const shelter = wakeShelter(before);
     updateSave((s) => ({
       ...s,
       hp: null,
       // Beaten at sea (#75 item 14d): Old Marlow rows the boat home to his
-      // dock — a hero waking ashore could never reach it out on open water.
-      ...boatAfterDefeat(s),
+      // dock — a hero waking ashore could never reach it out on open water;
+      // waking on an island, he brings it to that town's beach (#114o).
+      ...boatAfterDefeat(s, wakeAfterDefeat(s).zoneId),
       ...wakeAfterDefeat(s),
       // An escort's walk ends (#75 item 14g): they wait at the start again.
       flags: escortsBack(s.flags),
       library: pushLibrary(s.library, misses.current),
     }));
     useBattleStore.getState().setEscortAt(null);
-    setTurn({ kind: 'defeat', xp, atSea });
+    setTurn({ kind: 'defeat', xp, boatLine, shelter });
   }
 
   function leave(result: 'win' | 'lose') {
@@ -1292,9 +1315,9 @@ export default function BattleArena() {
             drop={turn.kind === 'victory' ? turn.drop : null}
             badge={turn.kind === 'victory' && turn.badge ? BOSS_BADGES[turn.badge] ?? null : null}
             wakeInn={save ? wakeInnName(save) : null}
-            shelter={save ? wakeShelter(save) : null}
+            shelter={turn.kind === 'defeat' ? turn.shelter : null}
             tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
-            boatHome={turn.kind === 'defeat' && turn.atSea}
+            boatLine={turn.kind === 'defeat' ? turn.boatLine : null}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

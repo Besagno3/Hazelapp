@@ -15,8 +15,9 @@ import { emberStatus } from './story';
  */
 
 export type SpellEffect =
-  // A landed hit dealing `multiplier` × the hero's basic attack damage.
-  | { kind: 'damage'; multiplier: number }
+  // A landed hit dealing `multiplier` × the hero's basic attack damage — and,
+  // with `skipsTurn` (Time Ripple, #75 item 14h), the enemy loses its next turn.
+  | { kind: 'damage'; multiplier: number; skipsTurn?: boolean }
   // Restores `amount` HP (no enemy turn lost — the enemy still strikes after).
   | { kind: 'heal'; amount: number }
   // Fully blocks the enemy's next hit and restores `heal` HP.
@@ -75,9 +76,25 @@ export const EMBER_BREATH: Spell = {
   color: 'text-orange-300',
 };
 
+/** Time Ripple's strike (STORY-4X §9): a little less than the other Sages' 2.5×, for the turn it takes away. */
+export const TIME_RIPPLE_MULTIPLIER = 2.2;
+
 /** A Sage's signature spell (the FF6-Esper homage), learned by meeting them. */
 export function sageSpell(topic: CrystalTopic): Spell {
   const s = SAGES[topic];
+  // Sage Chronicle's Time Ripple (#75 item 14h): a strike that also costs the enemy its next turn.
+  if (topic === 'history') {
+    return {
+      id: `sage-${topic}`,
+      name: s.specialName,
+      emoji: s.specialEmoji,
+      description: `${s.name}'s ripple in time — a strong strike, and the enemy loses its next turn!`,
+      cost: 3,
+      effect: { kind: 'damage', multiplier: TIME_RIPPLE_MULTIPLIER, skipsTurn: true },
+      color: s.flashColor,
+      topic,
+    };
+  }
   return {
     id: `sage-${topic}`,
     name: s.specialName,

@@ -34,7 +34,7 @@ import {
 import { counterDamage, defendReduction, enemyAttack, healerRegen } from './battleMath';
 import { CHARGE_MAX } from '../content/abilities';
 import { POTION_HEAL, SNACK_HEAL, SPARK_CHARGE, TEA_DAMAGE_MULT } from '../content/items';
-import { AEGIS, EMBER_BREATH, MEND } from '../content/spells';
+import { AEGIS, EMBER_BREATH, MEND, sageSpell } from '../content/spells';
 import { combatState, useBattleStore } from '../store/battleStore';
 import { ENEMY_DEFS } from '../content/enemies';
 import { CONSUMABLE_IDS } from '../content/items';
@@ -221,6 +221,17 @@ describe('resolveSpell', () => {
     const r = resolveSpell({ ...base, charge: 4 }, EMBER_BREATH, true);
     expect(r.kind).toBe('strike');
     expect(r.state.charge).toBe(4 - EMBER_BREATH.cost);
+    expect(r.kind === 'strike' && r.skipsTurn).toBe(false);
+  });
+
+  it("Time Ripple (#75 item 14h): a 2.2× strike that costs the enemy its next turn; a miss still fizzles", () => {
+    const ripple = sageSpell('history');
+    const r = resolveSpell({ ...base, charge: 4 }, ripple, true);
+    expect(r).toMatchObject({ kind: 'strike', multiplier: 2.2, skipsTurn: true });
+    expect(r.state.charge).toBe(4 - 3);
+    expect(resolveSpell({ ...base, charge: 4 }, ripple, false).kind).toBe('fizzle');
+    // The other Sages' strikes don't skip a turn.
+    expect(resolveSpell({ ...base, charge: 4 }, sageSpell('math'), true)).toMatchObject({ multiplier: 2.5, skipsTurn: false });
   });
 });
 

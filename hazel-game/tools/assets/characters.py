@@ -3177,6 +3177,136 @@ def nameless_stone(c: Canvas, p: Pose, s: dict):
 
 # ─── Roster ──────────────────────────────────────────────────────────────────
 
+def flying_tome(c: Canvas, p: Pose, s: dict):
+    """The Dust Tome (#75 item 14h): an old book flapping its covers like wings,
+    a sulky face on the spine and dust puffing off it."""
+    d = D(c, p)
+    cover = hexc(s.get('color', '#8a5a3a'))
+    flap = 3.0 if p.frame % 2 else 0.0
+    L = d.part(d.lean, d.bob - 2 - (1 if p.frame % 2 else 0))
+    # The covers, open like wings (they flap), the pages in the middle.
+    L.poly([(16, 12), (4, 8 + flap), (5, 22 - flap * 0.4), (16, 24)], cover)
+    L.poly([(16, 12), (28, 8 + flap), (27, 22 - flap * 0.4), (16, 24)], dark(cover, 0.08))
+    L.poly([(16, 13), (7, 10.5 + flap), (8, 21 - flap * 0.4), (16, 23)], '#f4ecd8')
+    L.poly([(16, 13), (25, 10.5 + flap), (24, 21 - flap * 0.4), (16, 23)], '#e8dcc0')
+    for k in range(3):  # lines of writing
+        L.line(9, 13.5 + k * 2.4 + flap * 0.4, 14, 14.5 + k * 2.4, '#9a8a7a', w=0.5)
+        L.line(18, 14.5 + k * 2.4, 23, 13.5 + k * 2.4 + flap * 0.4, '#9a8a7a', w=0.5)
+    L.rect(14.6, 11, 17.4, 25, dark(cover, 0.2))  # the spine
+    L.rect(14.6, 14, 17.4, 15, '#d0a848', shade=False)
+    ex = face_x(p, [16.8], [15.2, 16.8])
+    if ex:
+        d.eyes(L, [(x, 18) for x in ex], color=hexc('#1e1410'), h=1.6, shine=False)
+    d.put(L)
+    if p.frame % 2 == 0:  # dust puffing off it
+        Z = d.part(d.lean, d.bob)
+        for (x, y) in ((5, 26), (27, 25), (9, 28)):
+            Z.ellipse(x, y, 1.6, 1.2, '#c8bca8', shade=False)
+        d.put(Z, outline=False)
+    finish(c, d, shadow=(16, 30.4, 6, 1.1))
+
+
+def ink_wisp(c: Canvas, p: Pose, s: dict):
+    """The Ink Wisp (#75 item 14h): a drip of living ink with a pen-nib hat,
+    trailing blots, big white eyes."""
+    d = D(c, p)
+    ink = hexc(s.get('color', '#2a2a5a'))
+    hover = -1.2 if p.frame % 2 else 0.0
+    L = d.part(d.lean, d.bob + hover - 1)
+    L.ellipse(16, 18, 7.4, 7.2, ink)
+    L.poly([(9, 18), (16, 6), (23, 18)], ink)
+    for i, x in enumerate((10.5, 15, 19.5)):  # drips
+        dy = 1.6 if (i + p.frame) % 2 else 0
+        L.ellipse(x, 24.5 + dy, 1.8, 2.4, ink)
+    L.poly([(13.6, 7.5), (16, 1.5), (18.4, 7.5)], '#c8a040')  # the nib
+    L.line(16, 3.4, 16, 7, '#5a4a20', w=0.5)
+    L.ellipse(12.5, 15, 1.8, 1.2, light(ink, 0.3), shade=False)  # a shine
+    ex = face_x(p, [17, 20.4], [13.4, 18.6])
+    d.eyes(L, [(x, 17) for x in ex], color=hexc('#ffffff'), h=2.6, shine=False)
+    for x in ex:
+        L.dot(x + (0.4 if p.facing == 'right' else 0), 17.6, hexc('#10102a'))
+    d.put(L)
+    Z = d.part(d.lean, d.bob)
+    for k, (x, y) in enumerate(((6, 27), (25, 28), (21, 30))):  # blots on the floor
+        if (k + p.frame) % 2:
+            Z.ellipse(x, y, 1.4, 0.8, ink, shade=False)
+    d.put(Z, outline=False)
+    finish(c, d, shadow=(16, 30.6, 5, 1.0))
+
+
+def quill_imp(c: Canvas, p: Pose, s: dict):
+    """The Quill Imp (#75 item 14h): a quick little imp riding a big feather quill,
+    horns, a pointy tail, a cheeky grin — swift: it strikes first."""
+    d = D(c, p)
+    skin = hexc(s.get('color', '#c84a5a'))
+    feather = hexc(s.get('feather', '#f4f0e0'))
+    zoom = -1.6 if p.frame % 2 else 0.0
+    Q = d.part(d.lean, d.bob + zoom)
+    # The quill it rides, sweeping up behind it, barbs along its vane.
+    Q.poly([(3, 26), (22, 10), (29, 4), (26, 13), (8, 27)], feather)
+    for k in range(5):
+        x = 9 + k * 4
+        Q.line(x, 24 - k * 3.4, x + 2.6, 21.4 - k * 3.4, dark(feather, 0.15), w=0.5)
+    Q.line(2, 27.5, 27, 6, '#8a7a5a', w=0.6)  # the shaft
+    Q.poly([(1, 27), (3.6, 26), (2, 29.5)], '#2a2a3a')  # the inky nib
+    d.put(Q)
+    L = d.part(d.lean, d.bob + zoom - 2)
+    L.ellipse(16, 17, 5.6, 5.0, skin)  # body
+    L.ellipse(16, 11, 5.2, 4.6, skin)  # head
+    L.poly([(12, 8.4), (11, 3.6), (14, 7.2)], dark(skin, 0.3))  # horns
+    L.poly([(20, 8.4), (21, 3.6), (18, 7.2)], dark(skin, 0.3))
+    L.line(20.5, 19.5, 25.5, 22, dark(skin, 0.1), w=0.8)  # tail
+    L.poly([(25, 21), (27.5, 21.5), (25.8, 23.6)], dark(skin, 0.1))
+    ex = face_x(p, [17, 19.6], [14.2, 17.8])
+    d.eyes(L, [(x, 11) for x in ex], color=hexc('#1a1010'), h=1.8)
+    if ex and not p.hurt:
+        L.line(ex[0] - 0.4, 13.6, ex[-1] + 0.6, 13.2, hexc('#3a1010'), w=0.5)  # grin
+    arm_x = {'strike': 23, 'follow': 22}.get(p.arm, 21)
+    L.ellipse(arm_x, 16, 1.6, 1.3, skin)
+    d.put(L)
+    if p.frame % 2 == 0:  # speed lines — it's quick
+        Z = d.part(d.lean, d.bob + zoom)
+        for y in (12, 17, 22):
+            Z.line(0.5, y, 4.5, y, '#ffffff', w=0.5)
+        d.put(Z, outline=False)
+    finish(c, d, shadow=(15, 30.4, 6, 1.1))
+
+
+def hollow_fiend(c: Canvas, p: Pose, s: dict):
+    """The Hollow Fiend (#75 item 14h): a Fiend-shaped hole in the world — a black
+    void in a ragged cloak of torn pages, cold violet eyes and grasping claws."""
+    d = D(c, p)
+    void = hexc(s.get('color', '#141020'))
+    rim = hexc(s.get('rim', '#7a5ac8'))
+    sway = 1 if p.frame % 2 else 0
+    L = d.part(d.lean, d.bob)
+    # The tattered cloak of old pages, a hood over the hole.
+    L.poly([(16, 2), (27, 12), (29, 30), (24, 27.5), (20, 30.5), (16, 27.5), (12, 30.5), (8, 27.5), (3, 30), (5, 12)], '#d8ccb0')
+    for k in range(5):  # writing on the pages, faded
+        L.line(8 + k * 3.6, 16 + k % 2, 10 + k * 3.6, 26, '#a89a80', w=0.5)
+    # The absence: a void where a body should be, ringed with violet light.
+    L.ellipse(16, 15, 9.2, 10.6, rim)
+    L.ellipse(16, 15.2, 8.0, 9.6, void, shade=False)
+    for (x, y) in ((11, 20), (21, 11), (14, 9), (20, 21)):
+        L.dot(x, y, '#3a2a5a')  # specks of forgotten things falling in
+    if p.facing != 'up':
+        for (x, tilt) in ((12.6, 1), (19.4, -1)):
+            L.ellipse(x, 13.4, 2.0, 1.3, '#c8a8ff', shade=False)
+            L.ellipse(x, 13.5, 0.7, 1.1, '#ffffff', shade=False)
+            L.line(x - 2.6, 11.2 - tilt, x + 2.6, 11.2 + tilt, '#c8a8ff', w=0.7)  # an angry brow
+        if not p.hurt:
+            L.poly([(12, 19), (20, 19), (18.5, 21.6), (16, 20.4), (13.5, 21.6)], '#c8a8ff')  # a jagged maw
+            L.poly([(13.2, 19.4), (18.8, 19.4), (17.6, 20.8), (16, 20), (14.4, 20.8)], void)
+    # Claws reaching out of the cloak.
+    arm = {'strike': 4, 'follow': 2}.get(p.arm, 0)
+    for (x0, side) in ((5, -1), (27, 1)):
+        x = x0 + side * (arm + sway)
+        for k in (-1.4, 0, 1.4):
+            L.line(x, 18, x + side * 2.2, 18 + k * 1.6, '#2a2038', w=0.8)
+    d.put(L)
+    finish(c, d, shadow=(16, 30.8, 8, 1.3))
+
+
 DRAWERS = {
     'fireball': fireball,
     'humanoid': humanoid,
@@ -3231,6 +3361,10 @@ DRAWERS = {
     'storm_cloud': storm_cloud,
     'lantern_post': lantern_post,
     'nameless_stone': nameless_stone,
+    'flying_tome': flying_tome,
+    'ink_wisp': ink_wisp,
+    'quill_imp': quill_imp,
+    'hollow_fiend': hollow_fiend,
 }
 
 
@@ -3347,6 +3481,11 @@ ROSTER: list[Char] = [
     Char('bog-lantern', '🎃', 'bog_lantern', H(glow='#7af0c0', frame='#3a3a4a')),
     Char('murk-toad', '🐸', 'dart_frog', H(color='#5a6a3a', spot='#2e3418')),
     Char('last-fogbank', '⛈️', 'storm_cloud', H(color='#6e7488'), boss=True),
+    # ── Act II: the Sunken Archive (#75 item 14h) ──
+    Char('dust-tome', '📖', 'flying_tome', H(color='#8a5a3a')),
+    Char('ink-wisp', '🖋️', 'ink_wisp', H(color='#2a2a5a')),
+    Char('quill-imp', '🪶', 'quill_imp', H(color='#c84a5a', feather='#f4f0e0')),
+    Char('hollow-fiend', '🕳️', 'hollow_fiend', H(color='#141020', rim='#7a5ac8'), boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
@@ -3459,6 +3598,18 @@ NPCS: list[Char] = [
     Char('marsh-stone', '🪨', 'nameless_stone', H(color='#9aa0a8')),
     Char('marsh-lantern', '🏮', 'lantern_post', H(lit=False)),
     Char('marsh-lantern-lit', '🏮', 'lantern_post', H(lit=True)),
+    # ── Act II: the Sunken Archive (#75 item 14h) ──
+    Char('sage-chronicle', '🦉', 'humanoid', H(skin='#c8b89a', ears='tufts', snout='beak', beak='#e0a030', outfit='#2a7a7a', trim='#e8c860',
+         robe=True, glasses=True, item='book', cape='#1e5a5a')),
+    Char('archive-index', '🐭', 'humanoid', H(skin='#c8bcc8', ears='round', snout='muzzle', tail='long', hair='bob', hair_color='#8a6a5a',
+         outfit='#a84a6a', apron='#f4ecd8', glasses=True, item='book')),
+    Char('archive-binder', '📚', 'humanoid', H(hair='bun', hair_color='#5a3a2a', outfit='#6a4a8a', apron='#e8dcc0', trim='#d0a848', glasses=True, item='book')),
+    Char('archive-hush', '🤫', 'ghost', H(color='#d8e4f4', eye='#3a4a6a')),
+    Char('archive-quillon', '✒️', 'humanoid', H(hair='fringe', hair_color='#d8d8e0', beard='#e8e8f0', hat='hood', hat_color='#4a3a2a', outfit='#5a4a3a',
+         trim='#c8a040', robe=True, item='staff', item_color='#f4f0e0')),
+    Char('archive-margin', '🦋', 'flyer', H(kind='moth', color='#c8b89a', wing='#e8dcc0', spot='#8a6a4a')),
+    Char('archive-leaf', '🧒', 'humanoid', H(hair='spiky', hair_color='#c87a3a', outfit='#3a8a6a', pants='#5a4a3a', scarf='#f4ecd8', item='book')),
+    Char('archive-traveler', '🧭', 'humanoid', H(hair='short', hair_color='#2a2a2a', beard='#2a2a2a', hat='tricorn', hat_color='#2a3a5a', outfit='#3a5a8a', scarf='#d84a3a', pack='#8a5a30')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

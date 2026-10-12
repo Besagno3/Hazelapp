@@ -13,6 +13,7 @@ import { xpBonusPerCorrect } from '../../lib/powerups';
 import { pushLibrary, wakeAfterDefeat, wakeInnName } from '../../lib/save';
 import { playMusic } from '../../lib/audio';
 import { SPIRE_CLEARED } from '../../content/story';
+import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import { actComplete, actCrystals, actRestored } from '../../content/topics';
 import {
   SPIRE_FLOORS,
@@ -57,7 +58,7 @@ type Phase =
   | { kind: 'question'; mode: 'boss'; index: number }
   /** `firstClear`: the hero's reward and the ending are still to come (#109); `xp`: what this climb earned. */
   | { kind: 'win'; firstClear: boolean; xp: number }
-  | { kind: 'lose' };
+  | { kind: 'lose'; boatLine: string | null };
 
 /**
  * `hudSlot`: an element in the world HUD (in 📜 Menu's place) where, while
@@ -315,14 +316,18 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     // Cast out, gently: wake fully healed at the last inn rested at, or home
     // in Lumina Village (#75 item 11). Keep XP earned.
     void addXp(correctCount.current * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
+    // Waking at an island town's inn (#114o), the boat comes round to its beach.
+    const before = useSaveStore.getState().save!;
+    const boatLine = defeatBoatLine(before, wakeAfterDefeat(before).zoneId);
     updateSave((s) => ({
       ...s,
       hp: null,
+      ...boatAfterDefeat(s, wakeAfterDefeat(s).zoneId),
       ...wakeAfterDefeat(s),
       library: pushLibrary(s.library, misses.current),
     }));
     void useSaveStore.getState().flush();
-    setPhase({ kind: 'lose' });
+    setPhase({ kind: 'lose', boatLine });
   }
 
   /** Stop climbing: back to the Spire door, keeping the XP earned so far. */
@@ -600,6 +605,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
               {wakeInn ? `at ${wakeInn}, where you last rested` : 'back home in Lumina Village'}, healed. The
               door stays open — rest up, and climb again whenever you're ready.
             </p>
+            {phase.boatLine && <p className="text-sm text-sky-200 font-semibold -mt-3 mb-5">{phase.boatLine}</p>}
             <button
               onClick={close}
               className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-6 py-2.5 text-sm"

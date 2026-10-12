@@ -33,7 +33,8 @@ const allCrystals = Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.
 /**
  * Act II's errands done (#75 item 14): Act II's morning, Marlow's boat mended
  * and sailed to the Silver Shallows, Remembrance Hill visited (#75 item 14e),
- * the Memoria Key won from Eldergrove's Ringkeeper (#75 item 14f).
+ * the Memoria Key won from Eldergrove's Ringkeeper (#75 item 14f), and the
+ * Crystal of Memory restored in the Sunken Archive (#75 item 14h).
  */
 const actTwoDone = {
   [ACT2_SEEN]: true,
@@ -41,9 +42,12 @@ const actTwoDone = {
   [visitedFlag('silver-shallows')]: true,
   [visitedFlag('remembrance-hill')]: true,
   [keyFlag('memoria')]: true,
+  [crystalFlag('history')]: true,
 };
-/** The whole story so far: every crystal, the Spire, the boat, the voyage, the Hill, the Memoria Key. */
+/** The whole story so far: Act I's crystals, the Spire, the boat, the voyage, the Hill, the Memoria Key, Memory. */
 const storyDone = { ...allCrystals, [SPIRE_CLEARED]: true, ...actTwoDone };
+/** …all but the last: the Memoria Key won, the Crystal of Memory still to free. */
+const memoriaWon = { ...storyDone, [crystalFlag('history')]: false };
 
 describe('compass', () => {
   it('names all eight directions (y grows southward)', () => {
@@ -116,6 +120,8 @@ describe('nextObjective', () => {
       ['Visit Remembrance Hill', 'remembrance-hill'],
       // #75 item 14f: then Eldergrove's warden.
       ['Win the Memoria Key', 'eldergrove'],
+      // #75 item 14h: then Act II's crystal, behind the key's silver door.
+      ['Free the Crystal of Memory', 'sunken-archive'],
     ]);
     // The voyage starts at Marlow's dock: its 🚩 sits there, and the way says so.
     const sail = nextObjective({ ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true });
@@ -142,7 +148,7 @@ describe('nextObjective', () => {
     expect(mentorTips(ZONES, afterVoyage)[0]).toMatch(/Remembrance Hill, to the south.*never forgets a name/);
   });
 
-  it('after Remembrance Hill, the 🚩 leads to Eldergrove for the Memoria Key — then the open world (#75 item 14f)', () => {
+  it('after Remembrance Hill, the 🚩 leads to Eldergrove for the Memoria Key (#75 item 14f)', () => {
     const afterHill = { ...storyDone, [keyFlag('memoria')]: false };
     const g = nextObjective(afterHill);
     expect(g).toMatchObject({ kind: 'key', title: 'Win the Memoria Key', zoneId: 'eldergrove' });
@@ -166,9 +172,31 @@ describe('nextObjective', () => {
     const [plan, tip] = mentorTips(ZONES, { ...afterHill, [MET_ELDER]: true });
     expect(plan).toMatch(/Eldergrove, an island of trees older than anyone remembers\. The Ringkeeper there guards the Memoria Key/);
     expect(tip).toMatch(/purple !!!.*Forget-Me-Knot/);
-    expect(nextObjective(storyDone).kind).toBe('explore');
-    // …whose why says the key's door turns up later, not to search the Shallows (review fix).
-    expect(nextObjective(storyDone).why).toMatch(/^You hold the Memoria Key 🗝️! Its door will turn up later in your adventure\./);
+  });
+
+  it("with the Memoria Key, the 🚩 leads to the Sunken Archive for the Crystal of Memory — then the open world (#75 item 14h)", () => {
+    const g = nextObjective(memoriaWon);
+    expect(g).toMatchObject({ kind: 'crystal', title: 'Free the Crystal of Memory', zoneId: 'sunken-archive' });
+    expect(g.crystal?.id).toBe('history');
+    expect(g.key?.id).toBe('memoria');
+    expect(g.why).toBe('Your Memoria Key opens its silver door!');
+    // Wick's "Where to next?" — the reason and the way there — stays within 30 words (review fix).
+    const wick = wayfindingLines(ZONES, NPC_DEFS['village-elder'], memoriaWon).join(' ');
+    expect(wick.split(/\s+/).length, wick).toBeLessThanOrEqual(30);
+    // Off the Shallows the way starts at the boat, as for the key.
+    expect(g.at).toEqual({ zoneId: 'dawnreach', x: 70, y: 30, name: "Marlow's dock" });
+    expect(goalDirections(ZONES, g, 'lumina-village')).toMatch(/^Go east to Marlow's dock and sail east to the Silver Shallows, then go .*to the Sunken Archive\.$/);
+    expect(goalDirections(ZONES, g, 'silver-shallows', { x: 35, y: 30 })).toBe('Go north-east to the Sunken Archive.');
+    expect(goalDirections(ZONES, g, 'sunken-archive')).toBe("It's right here in the Sunken Archive!");
+    // Still no danger road for Act II: no arrival warnings or "gentler road" tips.
+    expect(roadTier(memoriaWon)).toBeNull();
+    // Elder Lumen: the Fiend's gate, and a tip for the swift Quill Imps and Time Ripple.
+    const [plan, tip] = mentorTips(ZONES, { ...memoriaWon, [MET_ELDER]: true });
+    expect(plan).toBe("You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive. Free the Crystal of Memory there!");
+    expect(tip).toMatch(/Quill Imps.*strike first.*Time Ripple/);
+    // Once Memory shines: explore, Ember's wings growing (flight is Act III's, 15b).
+    expect(nextObjective(storyDone)).toMatchObject({ kind: 'explore', zoneId: null });
+    expect(nextObjective(storyDone).why).toMatch(/^The Crystal of Memory shines! Ember's wings grow stronger/);
   });
 
   // Doing what it says must finish the story: every step is one the hero can
@@ -188,9 +216,9 @@ describe('nextObjective', () => {
     }
     expect(seen.at(-1)?.kind).toBe('explore');
     // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage,
-    // Remembrance Hill (#75 item 14e), the Memoria Key (#75 item 14f), explore.
-    const actOneKeys = GATE_KEYS.filter((k) => k.unlocksZone !== null && actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
-    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1);
+    // Remembrance Hill (#75 item 14e), the Memoria Key (#75 item 14f), the Crystal of Memory (#75 item 14h), explore.
+    const actOneKeys = GATE_KEYS.filter((k) => actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
+    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -362,8 +390,9 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true })[0]).toMatch(/Old Marlow.*mend his boat/);
     expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true })[0]).toMatch(/Silver Shallows/);
     expect(mentorTips(ZONES, { ...met, ...storyDone, [keyFlag('memoria')]: false })[0]).toMatch(/^Out in the Silver Shallows lies Eldergrove/);
-    // With the Memoria Key: its door comes later — no hunt (#75 item 14f review).
-    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^You hold the Memoria Key! Its door will turn up later in your adventure\./);
+    // With the Memoria Key, its door in the Archive (#75 item 14h); then five crystals shine.
+    expect(mentorTips(ZONES, { ...met, ...memoriaWon })[0]).toMatch(/^You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive/);
+    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toBe('Five crystals shine now! Ember\'s wings grow stronger every day — soon you\'ll fly. Until then, help everyone you meet.');
   });
   it('is the big picture, not the road: no "go …" or "take the … path" steps', () => {
     const stages = [met, math, { ...math, [keyFlag('verdara-key')]: true }, { ...met, ...allCrystals }];

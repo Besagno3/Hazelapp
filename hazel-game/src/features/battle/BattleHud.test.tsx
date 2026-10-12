@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { BattleHud } from './BattleHud';
 import { BattleResult } from './BattleResult';
 import { keyForBoss } from '../../content/keys';
+import { BOAT_MENDED, defeatBoatLine, SEA_DEFEAT_LINE } from '../../content/boat';
+import { wakeShelter } from '../../lib/save';
 import { AVATARS } from '../../content/avatars';
 import { atTier, shortName, spawnEnemy } from '../../content/enemies';
 import type { DangerTier } from '../../content/regions';
@@ -106,13 +108,12 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
     render(<BattleResult {...base} result="victory" enemy={spawnEnemy('count-bat', 'numbria', 'a', 8)} />);
     expect(screen.queryByText(/Tough-critter bonus/)).toBeNull();
   });
-  it('a warden whose gate is on the map names the Fiend it unlocks; the Ringkeeper the door nobody remembers (#75 item 14f)', () => {
+  it('a warden names the Fiend its key unlocks — the Ringkeeper the Hollow Fiend, in the Sunken Archive (#75 items 14f, 14h)', () => {
     const { unmount } = render(<BattleResult {...base} result="victory" enemy={spawnEnemy('thicket-warden', 'whispering-woods', 'w', 8)} keyBoss={keyForBoss('thicket-warden')} />);
     expect(screen.getByText(/You won the Verdant Key! It unlocks the Smog Fiend's gate\./)).toBeInTheDocument();
     unmount();
     render(<BattleResult {...base} result="victory" enemy={spawnEnemy('ringkeeper', 'eldergrove', 'r', 8)} keyBoss={keyForBoss('ringkeeper')} />);
-    expect(screen.getByText(/You won the Memoria Key! It opens a door the whole world forgot\./)).toBeInTheDocument();
-    expect(screen.queryByText(/Hollow Fiend/)).toBeNull();
+    expect(screen.getByText(/You won the Memoria Key! It unlocks the Hollow Fiend's silver door\./)).toBeInTheDocument();
   });
   it("a defeat in Eldergrove says Fen tucks you up in her hollow (#75 item 14f)", () => {
     render(
@@ -145,7 +146,7 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
   });
   it('a defeat at sea says Old Marlow brought the boat home (#75 item 14d); one ashore says nothing of it', () => {
     const sea = render(
-      <BattleResult {...base} result="defeat" enemy={spawnEnemy('bubble-puffer', 'silver-shallows', 'a', 8)} boatHome tip="Follow the 🚩!" />,
+      <BattleResult {...base} result="defeat" enemy={spawnEnemy('bubble-puffer', 'silver-shallows', 'a', 8)} boatLine={SEA_DEFEAT_LINE} tip="Follow the 🚩!" />,
     );
     expect(screen.getByText(/Old Marlow rowed the Biscuit home to his dock by Starfall Coast/)).toBeInTheDocument();
     // …in place of the tip, which pushed the button off a 320×568 phone.
@@ -153,6 +154,21 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
     sea.unmount();
     render(<BattleResult {...base} result="defeat" enemy={spawnEnemy('count-bat', 'gearfall', 'a', 8)} />);
     expect(screen.queryByText(/Old Marlow/)).toBeNull();
+  });
+  it("a defeat in the Sunken Archive: Binder tucks you up at the inn, and the boat's brought round to its beach (#75 item 14h, #114o)", () => {
+    render(
+      <BattleResult
+        {...base}
+        result="defeat"
+        enemy={spawnEnemy('quill-imp', 'sunken-archive', 'q', 8)}
+        shelter={wakeShelter({ zoneId: 'sunken-archive' })}
+        boatLine={defeatBoatLine({ aboard: false, boat: null, flags: { [BOAT_MENDED]: true } }, 'sunken-archive')}
+      />,
+    );
+    expect(screen.getByText(/Innkeeper Binder finds you and tucks you up in the Quiet Shelf Inn\./)).toBeInTheDocument();
+    expect(screen.getByText(/Old Marlow sailed the Biscuit round to the Sunken Archive's beach/)).toBeInTheDocument();
+    // The same button as after any rest at an inn (review fix).
+    expect(screen.getByRole('button', { name: 'To the inn' })).toBeInTheDocument();
   });
 });
 

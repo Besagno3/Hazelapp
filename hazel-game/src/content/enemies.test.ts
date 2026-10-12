@@ -45,8 +45,9 @@ describe('enemy behavior archetypes (Wave 0.5)', () => {
       if (def.role === 'fiend') expect(TOPIC_REGISTRY.map((t) => t.id), def.id).toContain(def.topic);
       expect(def.role === 'warden', def.id).toBe(!!keyForBoss(def.id));
     }
-    // The Clockwork Titan is a history warden, not history's Fiend (Memory gets its own, 14h).
-    expect(() => fiendFor('history')).toThrow();
+    // The Clockwork Titan is a history warden, not history's Fiend: Memory has its own (#75 item 14h).
+    expect(fiendFor('history').id).toBe('hollow-fiend');
+    expect(fiendFor('history').id).not.toBe('clockwork-titan');
   });
 
   it("a Fiend goes by its crystal's Fiend name, every other boss by its own", () => {

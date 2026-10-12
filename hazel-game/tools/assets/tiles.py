@@ -77,6 +77,10 @@ ZONES = {
     # Foglight Marsh (#75 item 14g): a misty green bog of reeds, boardwalks and lotus pools.
     'foglight-marsh': dict(ground=(104, 128, 100), path=(150, 122, 84), solid='reeds', deco='lotus', deco_c='#ffa8c8',
                            sky=('#8a9aa8', '#e8ecef'), far='#7a8a88', mid='tree', water='#4a7a7a'),
+    # The Sunken Archive (#75 item 14h): a great library half under the sea — tall
+    # bookshelves, a red carpet, scattered pages and flooded aisles of sea-green water.
+    'sunken-archive': dict(ground=(122, 128, 140), path=(158, 60, 64), solid='bookshelf', deco='pages', deco_c='#f4ecd8',
+                           sky=('#2a3a5a', '#8aa8c8'), far='#3a4a6a', mid='shelves', water='#3a8a8a'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -93,6 +97,10 @@ ELDER_ZONES = ('eldergrove',)
 # Added with Foglight Marsh (#75 item 14g) — `build_marsh` writes only these
 # (+ the stilt town sheet and the overworld sheet with the marsh icon appended).
 MARSH_ZONES = ('foglight-marsh',)
+
+# Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
+# (+ the tome town sheet and the overworld sheet with the archive icon appended).
+ARCHIVE_ZONES = ('sunken-archive',)
 
 # Added for the field spells (#75 item 9) — `build_spell_places` writes only these.
 SPELL_ZONES = ('wayfarer-shrine', 'quiet-shrine', 'echo-mine')
@@ -219,6 +227,16 @@ def solid(kind, zone):
         for (x, y) in ((5.8, 3), (11.6, 4), (8.6, 5)):
             c.rect(x, y, x + 1.6, y + 3.6, '#7a4a28')
         c.line(2, 16, 1, 9, '#6aa04a', w=0.8)
+    elif kind == 'bookshelf':
+        # A tall library bookshelf (#75 item 14h): dark wood, three rows of coloured spines.
+        c.rect(1, 0.5, 15, 16, '#5a3a22')
+        c.rect(1, 0.5, 15, 1.6, '#7a5232', shade=False)
+        for y0 in (2.2, 7, 11.6):
+            c.rect(2, y0, 14, y0 + 3.8, '#2a1a10', shade=False)
+            for i, col in enumerate(('#a83a3a', '#3a5aa0', '#4a8a3a', '#c8a040', '#7a4a9a')):
+                top = y0 + 0.3 + ((i + int(y0)) % 3) * 0.5
+                c.rect(2.3 + i * 2.35, top, 4.1 + i * 2.35, y0 + 3.8, col, shade=False)
+        c.rect(1, 15, 15, 16, '#3a2414', shade=False)
     elif kind == 'palm':
         # An island palm (#75 item 14): a leaning trunk, fronds, a coconut or two.
         c.poly([(7, 16), (9.5, 16), (10, 9), (9, 5), (7.8, 5.5), (8.6, 9)], '#a8783e')
@@ -285,6 +303,13 @@ def deco(kind, colr):
             c.ellipse(x, y + 1, 2.8, 1.6, '#4a9a5a')
             c.ellipse(x, y, 1.4, 1.1, colr)
             c.dot(x, y - 0.4, '#fff0a0')
+    elif kind == 'pages':
+        # Loose pages on the floor (#75 item 14h): two sheets with lines of writing.
+        for (x, y) in ((1.5, 2.5), (8, 8.5)):
+            c.rect(x, y, x + 6, y + 5, colr)
+            c.rect(x + 6, y + 0.6, x + 6.6, y + 5, '#c8bca0', shade=False)  # a page's edge
+            for k in range(3):
+                c.rect(x + 1, y + 1 + k * 1.3, x + 5, y + 1.5 + k * 1.3, '#8a7a6a', shade=False)
     elif kind == 'sparkle':
         for (x, y) in ((5, 5), (11, 10)):
             c.dot(x, y - 2, colr, h=5)
@@ -376,6 +401,8 @@ STYLES = {
     'bark':      ('#6a4a30', '#3e2a1a', 'bark',    'round',  'planks', ('#b08a5a',)),
     # Foglight Marsh (#75 item 14g): weathered stilt huts over the bog — grey-green planks.
     'stilt':     ('#8a8a6a', '#4a4a3a', 'planks',  'square', 'planks', ('#a89870',)),
+    # The Sunken Archive (#75 item 14h): old library wood panels with gold trim, a checked floor.
+    'tome':      ('#7a5a3e', '#d0a848', 'panels',  'arch',   'checker', ('#c8b48a', '#a89068')),
 }
 
 
@@ -915,6 +942,11 @@ def _mid_shape(img, kind, x0, base, col, rnd):
         cx = x0 + 8
         fill(lambda x, y: abs(x - cx) * 3 < (y - (base - h - 6)) and y < base, cx - 8, cx + 8, base - h - 6, base,
              c=light(col, 0.08))
+    elif kind == 'shelves':
+        # The Archive's towering bookshelves (#75 item 14h), shelf lines lighter.
+        top = base - h - 14
+        fill(lambda x, y: True, x0, x0 + 16, top, base)
+        fill(lambda x, y: (y - top) % 6 == 0, x0, x0 + 16, top, base, c=light(col, 0.12))
     elif kind == 'sea':
         fill(lambda x, y: True, x0 - 2, x0 + 22, base - 8, base, c=mix(col, (60, 120, 200), 0.5))
         fill(lambda x, y: (x + y) % 7 == 0, x0 - 2, x0 + 22, base - 8, base - 6, c=(200, 230, 255))
@@ -1179,6 +1211,21 @@ def ow_icon(kind):
         c.rect(11.4, 2, 13.5, 4, '#ffe680')
         for (x, y) in ((9.8, 1.6), (15.1, 2.4), (12.4, 0.4)):
             c.dot(x, y, '#fff6c0')  # its glow
+    elif kind == 'archive':
+        # The Sunken Archive (#75 item 14h): a domed library sinking into a bright
+        # pool, columns and a door above the water, an open book on the dome.
+        c.ellipse(8, 13.2, 7.6, 2.6, '#6ac0d8')
+        c.ellipse(5, 12.8, 2.8, 0.8, '#c0ecf6', shade=False)
+        c.rect(3, 7, 13, 13, '#e8dcc0')
+        for x in (3.8, 6.4, 9, 11.6):
+            c.rect(x, 7.6, x + 0.9, 12.6, '#c8b490', shade=False)
+        c.rect(2.4, 6, 13.6, 7.4, '#b8a070')
+        c.ellipse(8, 5.6, 4.6, 3.6, '#6a8ac8')
+        c.rect(3.4, 5.6, 12.6, 6.2, '#b8a070', shade=False)
+        c.rect(7, 9.4, 9, 13, '#4a3a2a', shade=False)
+        c.poly([(5.6, 2.6), (8, 3.4), (10.4, 2.6), (10.4, 0.8), (8, 1.6), (5.6, 0.8)], '#fff8e0')
+        c.line(8, 1.6, 8, 3.4, '#8a7a6a', w=0.4)
+        c.ellipse(8, 14, 6.6, 1, '#4aa0c0', shade=False)  # water over the steps
     return _outlined(c)
 
 
@@ -1313,10 +1360,11 @@ OW_ICONS = ('town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'cit
 
 def overworld_sheet():
     # Frame 15 (#75 item 14): the dock; frame 16 (#75 item 14e): Remembrance Hill;
-    # frame 17 (#75 item 14f): Eldergrove; frame 18 (#75 item 14g): Foglight Marsh — each
-    # appended, so every earlier frame keeps its place.
+    # frame 17 (#75 item 14f): Eldergrove; frame 18 (#75 item 14g): Foglight Marsh;
+    # frame 19 (#75 item 14h): the Sunken Archive — each appended, so every earlier
+    # frame keeps its place.
     return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
-            + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh')])
+            + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
@@ -1537,6 +1585,20 @@ def build_marsh(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('stilt')]).save(tdir / 'town-stilt.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_archive(public: Path):
+    """Write only the Sunken Archive's art (#75 item 14h): its tileset, blend sheet,
+    backdrop, the tome town sheet and the overworld sheet with the archive icon."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in ARCHIVE_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('tome')]).save(tdir / 'town-tome.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 

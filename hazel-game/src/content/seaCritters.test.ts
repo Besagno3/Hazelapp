@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { SEA_CHARS, ZONES, fogAt, tileAt, type ZoneDef } from './zones';
 import { ENEMY_DEFS, atTier, habitatOf, spawnEnemy, spawnPlaced } from './enemies';
 import { battleBackdrop } from './tiles';
-import { BOAT_HOME, boatAfterDefeat, boatSpot, BOAT_MENDED } from './boat';
+import { BOAT_HOME, boatAfterDefeat, boatOnReturn, boatSpot, BOAT_MENDED, defeatBoatLine, SEA_DEFEAT_LINE, validMooring } from './boat';
 import { RETURN_TOWNS } from './fieldSpells';
 import { innOf } from './zones';
 import { NPC_DEFS } from './npcs';
@@ -148,16 +148,76 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect(boatAfterDefeat({ aboard: false, boat: moored })).toEqual({ aboard: false, boat: moored });
   });
 
-  it('every inn is a town on Marlow\'s own map, so a hero woken there after a sea defeat can walk to the boat', () => {
-    // `boatAfterDefeat` sends the boat to Marlow's dock on Dawnreach. An inn on
-    // an island (14h plans Binder's, in the Sunken Archive) would strand the
-    // hero there — moor the boat at that town instead when one comes (#114o).
+  it('every inn is a town on Marlow\'s own map, or an island town the boat comes round to, so a woken hero can always reach it (#114o)', () => {
+    // `boatAfterDefeat` sends the boat to Marlow's dock on Dawnreach — or, for a
+    // hero who wakes in a town on an island (#75 item 14h: Binder's inn in the
+    // Sunken Archive), to that town's beach (`ZoneDef.mooring`).
     const innTowns = Object.values(ZONES).filter((z) => innOf(z));
     expect(innTowns.length).toBeGreaterThan(0);
     for (const z of innTowns) {
-      expect(z.exits.some((e) => e.to === BOAT_HOME.zoneId), `${z.id}'s inn opens onto ${BOAT_HOME.zoneId}`).toBe(true);
+      if (z.exits.some((e) => e.to === BOAT_HOME.zoneId)) continue;
+      const m = z.mooring!;
+      expect(m, `${z.id} is an island town with a mooring`).toBeDefined();
+      expect(validMooring(m), `${z.id}'s mooring floats`).toBe(true);
+      // From the town's door out onto its island, the hero walks to a beach cell beside the mooring.
+      const out = z.exits.find((e) => e.to === m.zoneId)!;
+      const island = reach(ZONES[m.zoneId], { from: { x: out.spawnX, y: out.spawnY }, flags: null });
+      const beside = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => island.has(`${m.x + dx},${m.y + dy}`));
+      expect(beside, `${z.id}: the boat is moored edge to edge with the island`).toBe(true);
     }
     expect([...RETURN_TOWNS].sort()).toEqual(innTowns.map((z) => z.id).sort());
+  });
+
+  it('a hero who wakes in the Sunken Archive finds the boat at its beach — after a sea defeat or ashore (#114o)', () => {
+    const archive = ZONES['sunken-archive'];
+    const flags = { [BOAT_MENDED]: true };
+    // Lost at sea, waking at Binder's inn: the boat comes round to the Archive, not home to Marlow's dock.
+    const afloat = { aboard: true, boat: null, flags };
+    expect(boatAfterDefeat(afloat, 'sunken-archive')).toEqual({ aboard: false, boat: archive.mooring });
+    expect(defeatBoatLine(afloat, 'sunken-archive')).toMatch(/round to the Sunken Archive's beach/);
+    // Lost ashore with the boat back on Dawnreach: it comes round too.
+    const home = { aboard: false, boat: null, flags };
+    expect(boatAfterDefeat(home, 'sunken-archive').boat).toEqual(archive.mooring);
+    // Already moored at the island's beach: it stays put, and nothing is said.
+    const near = { aboard: false, boat: { zoneId: 'silver-shallows' as const, x: 47, y: 18 }, flags };
+    expect(boatAfterDefeat(near, 'sunken-archive')).toEqual({ aboard: false, boat: near.boat });
+    expect(defeatBoatLine(near, 'sunken-archive')).toBeNull();
+    // Waking anywhere else, as before: home from the sea, untouched ashore.
+    expect(boatAfterDefeat(afloat, 'numbria')).toEqual({ aboard: false, boat: null });
+    expect(defeatBoatLine(afloat, 'numbria')).toBe(SEA_DEFEAT_LINE);
+    expect(defeatBoatLine(home, 'numbria')).toBeNull();
+    // No boat yet: nothing to say.
+    expect(defeatBoatLine({ aboard: false, boat: null, flags: {} }, 'sunken-archive')).toBeNull();
+  });
+
+  it('Return to the Sunken Archive brings the boat round to its beach; elsewhere it stays where it was (#75 items 9, 14h)', () => {
+    const archive = ZONES['sunken-archive'];
+    const flags = { [BOAT_MENDED]: true };
+    const ashore = { aboard: false, boat: null, zoneId: 'lumina-village' as const, pos: null, flags };
+    expect(boatOnReturn(ashore, 'sunken-archive')).toEqual({ aboard: false, boat: archive.mooring, note: ' Old Marlow will sail the Biscuit round to meet you there.' });
+    expect(boatOnReturn(ashore, 'numbria')).toEqual({ aboard: false, boat: null, note: '' });
+    // From mid-voyage to an ordinary town: moored where it floats, and the toast says so.
+    const sailing = { aboard: true, boat: null, zoneId: 'silver-shallows' as const, pos: { x: 30 * 32 + 16, y: 20 * 32 + 16 }, flags };
+    const left = boatOnReturn(sailing, 'numbria');
+    expect(left).toMatchObject({ aboard: false, boat: { zoneId: 'silver-shallows', x: 30, y: 20 } });
+    expect(left.note).toMatch(/stays moored out at sea/);
+    // Already at the island's beach: it stays put.
+    const near = { ...ashore, boat: { zoneId: 'silver-shallows' as const, x: 48, y: 18 } };
+    // …and the toast says she's there (review fix).
+    expect(boatOnReturn(near, 'sunken-archive')).toEqual({ aboard: false, boat: near.boat, note: ' The Biscuit waits by the island, right where you left her.' });
+    // Out in open water near the island, where nobody on the island could climb in (review fix):
+    // sailing 3 cells off the beach and flying there, the boat still comes round to the beach.
+    const offshore = { ...sailing, pos: { x: 49 * 32 + 16, y: 21 * 32 + 16 } };
+    expect(boatOnReturn(offshore, 'sunken-archive')).toMatchObject({ aboard: false, boat: archive.mooring });
+    // Sailing right beside the island's beach and flying there: she stays, and the toast says she's waiting (review fix).
+    const beside = { ...sailing, pos: { x: 50 * 32 + 16, y: 18 * 32 + 16 } };
+    expect(boatOnReturn(beside, 'sunken-archive')).toEqual({
+      aboard: false,
+      boat: { zoneId: 'silver-shallows', x: 50, y: 18 },
+      note: ' The Biscuit waits by the island, right where you left her.',
+    });
+    const leftOff = { ...ashore, boat: { zoneId: 'silver-shallows' as const, x: 52, y: 22 } };
+    expect(boatAfterDefeat(leftOff, 'sunken-archive').boat).toEqual(archive.mooring);
   });
 
   it("Old Marlow, who gives and mends the boat, and Vela's door stand out of every Starfall Coast critter's reach (#114w)", () => {

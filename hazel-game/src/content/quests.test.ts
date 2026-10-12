@@ -779,3 +779,43 @@ describe('The Flower for No Name: an escort (#75 item 14g)', () => {
     expect(withoutEscorts(save.flags)[questOfferedFlag({ id: POSY_QUEST })]).toBe(true);
   });
 });
+
+describe("A Letter, Long Overdue (#75 item 14h)", () => {
+  it("Index's letter across the sea: offered in the Archive, read by Grandmother Wick, her note back to Index", () => {
+    const quest = byId('archive-letter');
+    expect(quest.zoneId).toBe('sunken-archive');
+    expect(ZONES['sunken-archive'].npcs.some((n) => n.defId === quest.giverNpcId)).toBe(true);
+    // Wick has nothing to say about a letter before there is one.
+    let save = defaultSave();
+    expect(questConversation('village-elder', save)).toBeNull();
+
+    save = converse('archive-index', save);
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual(['old-letter']);
+    // Signed by Wick, written to someone whose name has faded — as she tells it (review fix).
+    expect(questConversation('village-elder', save)!.lines[0]).toMatch(/MY handwriting/);
+    expect(quest.offer.join(' ')).toMatch(/signed: Wick/);
+    expect(quest.offer.join(' ')).not.toMatch(/To Wick/);
+    expect(resolveHint(activeStep(quest, save)!, save)).toMatch(/Grandmother Wick.*Lumina Village/);
+
+    // Wick reads it — her own handwriting, to a teacher whose name she's forgotten — and sends a note back.
+    const wick = questConversation('village-elder', save)!;
+    expect(wick.finishKind).toBe('step');
+    expect(wick.lines.join(' ')).toMatch(/MY handwriting.*teacher.*can't even remember her name/);
+    save = wick.finish!(save);
+    expect(save.questItems).toEqual(['wick-note']);
+    expect(activeStep(quest, save)).toBeNull();
+    // Index is a sea away: the quest log says where (review fix).
+    expect(quest.doneLine).toMatch(/Index in the Sunken Archive/);
+
+    const coins = save.coins;
+    const potions = save.items.potion;
+    save = converse('archive-index', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual([]);
+    expect(save.coins).toBe(coins + 40);
+    expect(save.items.potion).toBe(potions + 1);
+    expect(questConversation('archive-index', save)).toBeNull();
+    expect(questConversation('village-elder', save)).toBeNull();
+  });
+});

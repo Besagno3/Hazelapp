@@ -57,6 +57,9 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'acorn-golden': { id: 'acorn-golden', name: 'Golden Acorn', emoji: '🌰' },
   // The Lantern Ledger (#75 item 14g): Brume's little book, in a key-item chest in Foglight Marsh.
   'lantern-ledger': { id: 'lantern-ledger', name: 'Lantern Ledger', emoji: '📒' },
+  // A Letter, Long Overdue (#75 item 14h): Index's find, and Wick's note back.
+  'old-letter': { id: 'old-letter', name: 'Old Letter', emoji: '📜' },
+  'wick-note': { id: 'wick-note', name: "Wick's Thank-You Note", emoji: '💌' },
 };
 
 /**
@@ -1047,6 +1050,46 @@ export const QUESTS: QuestDef[] = [
       '✨ Reward: Marlow\'s boat, the Biscuit — and 50 coins!',
     ],
     reward: { coins: 50 },
+  },
+
+  // --- The Sunken Archive (#75 item 14h) ---------------------------------------
+
+  // A delivery across the sea: Index's long-lost letter, home to Grandmother Wick
+  // in Lumina Village — the Act I friend, written to long ago (STORY-4X's
+  // cross-act nostalgia beat). Wick sends a thank-you note back.
+  {
+    id: 'archive-letter',
+    zoneId: 'sunken-archive',
+    giverNpcId: 'archive-index',
+    title: 'A Letter, Long Overdue',
+    offer: [
+      "Oh! A reader! I'm Index. I was putting the W's in order, and look — a letter that was never sent!",
+      "It's sixty years old. The name it was written to has faded right off — but it's signed: Wick, Lumina Village. Grandmother Wick? She lives there still!",
+      "Could you carry it home to her? A letter is meant to be read. That's practically the first rule of the alphabet!",
+    ],
+    givesItem: 'old-letter',
+    steps: [
+      bringStep(
+        'letter-to-wick',
+        'village-elder',
+        { takes: 'old-letter', gives: 'wick-note' },
+        [
+          'A letter… for me? Oh, my spark. This is MY handwriting. I wrote it when I was just your age — to my teacher.',
+          "I never sent it. And now I can't even remember her name. Isn't that strange? …Thank you for bringing it home.",
+          'Here — a note for whoever found it. Tell them an old lady says thank you.',
+        ],
+        'Carry the old letter to Grandmother Wick, at her house in Lumina Village — sail west to Dawnreach!',
+      ),
+    ],
+    takesItems: ['wick-note'],
+    // Index is a sea away from Wick: the quest log says where (#75 item 14h review).
+    doneLine: "Take Wick's thank-you note back to Index in the Sunken Archive — sail out to the Silver Shallows' north-east!",
+    complete: [
+      'A thank-you note from Wick! I shall file it under T, for Thank you. And under W, for Wonderful!',
+      'Sixty years late, and still it found its way home. That is the best kind of letter.',
+      '✨ Reward: 40 coins and a Berry Potion!',
+    ],
+    reward: { coins: 40, potion: 1 },
   },
 ];
 

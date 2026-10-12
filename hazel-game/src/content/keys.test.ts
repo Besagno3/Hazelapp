@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { GATE_KEYS, keyForBoss, keyForZone, keyFlag, bossDefeated, bossFlag } from './keys';
-import { ENEMY_DEFS } from './enemies';
+import { ENEMY_DEFS, fiendFor } from './enemies';
 import { ZONES } from './zones';
-import { crystalFlag, TOPICS } from './topics';
+import { actCrystals, crystalFlag, TOPICS } from './topics';
 import { NPC_DEFS, type DialogueLine } from './npcs';
 import { bossScript } from './enemies';
 
-/** The keys whose gates are on the map today (#58: Act I's) — the Memoria Key's comes in 14h. */
-const ACT_ONE_KEYS = GATE_KEYS.filter((k) => k.unlocksZone !== null);
+/** Act I's three wardens' keys (#58): the ones that open an Act I crystal zone (not the Memoria Key, #75 item 14h). */
+const ACT_ONE_KEYS = GATE_KEYS.filter((k) => actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
 
 describe('warden keys (#58)', () => {
   it('every key is dropped by a real boss living in its themed zone', () => {
@@ -63,22 +63,28 @@ describe('warden keys (#58)', () => {
     expect(new Set(ACT_ONE_KEYS.map((k) => k.unlocksZone)).size).toBe(3);
   });
 
-  it("the Memoria Key (#75 item 14f): the Ringkeeper's, in Eldergrove, opening a door not on any map yet", () => {
+  it("the Memoria Key (#75 items 14f, 14h): the Ringkeeper's, in Eldergrove, opening the Sunken Archive's silver door", () => {
     const k = GATE_KEYS.find((g) => g.id === 'memoria')!;
     expect(keyFlag(k.id)).toBe('key-memoria'); // STORY-4X's flag
     expect(k.fromZone).toBe('eldergrove');
-    expect(k.unlocksZone).toBeNull(); // the Sunken Archive comes in 14h
-    expect(k.opens).toBe('It opens a door the whole world forgot.');
-    // A null zone never finds it (`strict` is off, so a null type-checks as a ZoneId).
-    expect(keyForZone(null as never)).toBeUndefined();
+    expect(k.unlocksZone).toBe('sunken-archive');
+    expect(keyForZone('sunken-archive')).toBe(k);
+    // Its gate is the Hollow Fiend's: a key gate on the Archive's map, in front of the Fiend.
+    const archive = ZONES['sunken-archive'];
+    expect(archive.map[archive.keyGate!.y][archive.keyGate!.x]).toBe('G');
+    expect(k.fiendName).toBe('the Hollow Fiend');
+    // Bumped, it's the silver door everyone calls it (review fix); Act I's stay gates.
+    expect(k.door).toBe('silver door');
+    for (const a of ACT_ONE_KEYS) expect(a.door).toBeUndefined();
+    expect(ENEMY_DEFS[fiendFor('history').id].role).toBe('fiend');
     const boss = ENEMY_DEFS[k.bossId];
     expect(boss).toMatchObject({ role: 'warden', topic: 'history', isBoss: true, levelOffset: 1 });
     expect(bossScript(boss)).toEqual({ intro: k.bossIntro, defeat: k.bossDefeat });
     expect(bossDefeated(boss, {})).toBe(false);
     expect(bossDefeated(boss, { [keyFlag(k.id)]: true })).toBe(true);
-    // After it, Old Ringwood says its door turns up later — not to go looking (review fix).
+    // After it, Old Ringwood says where its door is (#75 item 14h).
     const after = NPC_DEFS['elder-ringwood'].lines.filter((l) => typeof l !== 'string' && l.ifFlag === keyFlag(k.id));
-    expect(after.map((l) => (l as { text: string }).text).join(' ')).toMatch(/turn up later in your adventure/);
+    expect(after.map((l) => (l as { text: string }).text).join(' ')).toMatch(/Sunken Archive/);
     // It stands in the Great Ring, south of Old Ringwood.
     const at = ZONES.eldergrove.enemies.find((e) => e.defId === k.bossId)!;
     const ringwood = ZONES.eldergrove.npcs.find((n) => n.defId === 'elder-ringwood')!;

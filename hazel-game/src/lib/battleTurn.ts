@@ -220,6 +220,8 @@ const POWER_MOVE_NAMES: Record<string, string> = {
   ringkeeper: 'Thousand-Year Charge',
   // Foglight Marsh's miniboss (#75 item 14g): a wave of fog that makes you forget.
   'last-fogbank': 'Forgetting Fog',
+  // The Sunken Archive's Fiend (#75 item 14h): it swallows whole years.
+  'hollow-fiend': 'Gulp of Ages',
 };
 
 export function powerMoveName(enemyId: string): string {
@@ -358,8 +360,12 @@ export type SpellResult =
   | { kind: 'fizzle'; state: CombatState }
   | { kind: 'heal'; state: CombatState; healed: number }
   | { kind: 'shield'; state: CombatState; healed: number }
-  /** Offensive spell: charge is spent; feed `multiplier` into spellDamage → resolveHeroHit. */
-  | { kind: 'strike'; state: CombatState; multiplier: number };
+  /**
+   * Offensive spell: charge is spent; feed `multiplier` into spellDamage →
+   * resolveHeroHit. `skipsTurn`: a landed hit costs the enemy its next turn
+   * (Time Ripple, #75 item 14h).
+   */
+  | { kind: 'strike'; state: CombatState; multiplier: number; skipsTurn: boolean };
 
 /**
  * A spell's super-hard question resolved. A miss never punishes effort: the
@@ -381,7 +387,7 @@ export function resolveSpell(s: CombatState, spell: Spell, wasCorrect: boolean):
       healed: playerHp - s.playerHp,
     };
   }
-  return { kind: 'strike', state: spent, multiplier: effect.multiplier };
+  return { kind: 'strike', state: spent, multiplier: effect.multiplier, skipsTurn: effect.skipsTurn === true };
 }
 
 // --- Battle items ----------------------------------------------------------------

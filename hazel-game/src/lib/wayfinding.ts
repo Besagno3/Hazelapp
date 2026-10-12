@@ -6,7 +6,7 @@ import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
-import { actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
+import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
 import { SPIRE_CLEARED } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
@@ -160,8 +160,8 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
       zoneId: 'remembrance-hill',
     };
   }
-  // Eldergrove's warden (#75 item 14f). Its key's door comes in 14h; until
-  // then, once it's won, the 🚩 says explore.
+  // Eldergrove's warden (#75 item 14f): its key opens the Sunken Archive's
+  // silver door, where Act II's crystal waits (#75 item 14h).
   const memoria = keyForBoss('ringkeeper')!;
   if (!flags[keyFlag(memoria.id)]) {
     return {
@@ -171,6 +171,21 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
       zoneId: memoria.fromZone,
       key: memoria,
       // Off the Shallows the way starts at the boat (14f review).
+      at: MARLOWS_DOCK,
+    };
+  }
+  // Act II's crystal (#75 item 14h): the Crystal of Memory, behind the silver door.
+  const crystal = actCrystals(2).find((t) => !flags[crystalFlag(t.id)]);
+  if (crystal) {
+    const key = keyForZone(crystal.zoneId)!;
+    return {
+      kind: 'crystal',
+      title: `Free the ${crystal.crystalName}`,
+      // Short: guides add the way there after it (#75 item 14h review).
+      why: `Your ${key.name} opens its ${key.door ?? 'gate'}!`,
+      zoneId: crystal.zoneId,
+      crystal,
+      key,
       at: MARLOWS_DOCK,
     };
   }
@@ -194,9 +209,9 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
       return {
         kind: 'explore',
         title: 'Explore Lumina',
-        // With the Memoria Key, say its door comes later — not to go looking for it (#75 item 14f review).
-        why: flags[keyFlag('memoria')]
-          ? 'You hold the Memoria Key 🗝️! Its door will turn up later in your adventure. Until then, hunt for secrets ✨ and help everyone you meet.'
+        // Once Act II's crystal shines, Ember's wings are nearly ready (flight comes with Act III, 15b).
+        why: actComplete(flags, 2)
+          ? 'The Crystal of Memory shines! Ember\'s wings grow stronger every day — soon you\'ll fly! Until then, hunt for secrets ✨ and help everyone you meet.'
           : flags[visitedFlag('silver-shallows')]
             ? 'Lumina is safe, thanks to you! Sail the Silver Shallows, hunt for secrets ✨ and help everyone you meet.'
             : 'Lumina is safe, thanks to you! Hunt for secrets ✨ and help everyone you meet.',
@@ -220,7 +235,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
       kind: 'crystal',
       title: `Free the ${open.crystalName}`,
       why: key
-        ? `Your ${key.name} opens ${key.fiendName}'s gate. Free the ${open.crystalName}!`
+        ? `Your ${key.name} opens ${key.fiendName}'s ${key.door ?? 'gate'}. Free the ${open.crystalName}!`
         : `${open.fiendName} hoards the ${open.crystalName}.`,
       zoneId: open.zoneId,
       crystal: open,
@@ -232,7 +247,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
   return {
     kind: 'key',
     title: `Win the ${key.name}`,
-    why: `${key.bossName} guards the ${key.name}. It opens ${key.fiendName}'s gate.`,
+    why: `${key.bossName} guards the ${key.name}. It opens ${key.fiendName}'s ${key.door ?? 'gate'}.`,
     zoneId: key.fromZone,
     crystal: left[0],
     key,
@@ -247,8 +262,8 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
 export function roadTier(flags: Record<string, boolean>): DangerTier | null {
   const goal = nextObjective(flags);
   // After the Act I crystals (the Spire, then Act II's errands — the Memoria
-  // Key's too, #75 item 14f, which has no crystal) everywhere is fair game.
-  if ((goal.kind !== 'crystal' && goal.kind !== 'key') || !goal.zoneId || !goal.crystal) return null;
+  // Key, #75 item 14f, and Act II's crystal, 14h, too) everywhere is fair game.
+  if ((goal.kind !== 'crystal' && goal.kind !== 'key') || !goal.zoneId || !goal.crystal || goal.crystal.act !== 1) return null;
   return zoneTier(goal.zoneId);
 }
 
@@ -465,7 +480,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   if (goal.kind === 'crystal' && goal.crystal && !goal.key) {
     plan = `Here is the plan: four Fiends hold the crystals, one at each far corner of Dawnreach. Start with ${midSentence(goal.crystal.fiendName)} in ${place(goal.crystal.zoneId)} — its gate needs no key, only brave answers.`;
   } else if (goal.kind === 'crystal' && goal.crystal && goal.key) {
-    plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s gate in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
+    plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s ${goal.key.door ?? 'gate'} in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
   } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
     // Act II's key (#75 item 14f): no Fiend to name yet.
     plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;
@@ -483,8 +498,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
-  } else if (flags[keyFlag('memoria')]) {
-    plan = 'You hold the Memoria Key! Its door will turn up later in your adventure. Until then, there are secrets ✦ hidden in every town, and friends who would love your help.';
+  } else if (actComplete(flags, 2)) {
+    plan = 'Five crystals shine now! Ember\'s wings grow stronger every day — soon you\'ll fly. Until then, help everyone you meet.';
   } else {
     plan = 'Lumina is safe, thanks to you! But there are still secrets ✦ hidden in every town, and friends who would love your help.';
   }
@@ -497,6 +512,9 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
       : 'Many townsfolk have little quests for you. Talk to everyone — and look for twinkles ✦!';
   } else if (goal.kind === 'sail') {
     tip = 'In the boat, bump into a beach or a dock to go ashore. The boat waits right where you leave it — and Old Marlow can always row it home.';
+  } else if (goal.kind === 'crystal' && goal.crystal && goal.crystal.act === 2) {
+    // The Sunken Archive (#75 item 14h): swift critters, and the spell that stops one.
+    tip = "In the Archive, Quill Imps are so quick they strike first. Sage Chronicle's ⏳ Time Ripple makes an enemy lose its next turn!";
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit') {
