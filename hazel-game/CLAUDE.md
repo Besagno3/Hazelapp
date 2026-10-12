@@ -691,7 +691,9 @@ spinner instead). `QuizRound` now holds the finished round (`FinishedRound`:
 questions, answers, picks) and renders `RoundResults` from it, before the
 loading check. **B2:** tablets and sideways phones couldn't walk — the
 `TouchPad` hid at `sm`. Two Tailwind screens (`tailwind.config.js`):
-`touch` = `(any-pointer: coarse)`, `touch-wide` = touch + landscape; the pad
+`touch` = `(pointer: coarse)` (the main pointer, like `WorldCanvas`'s "Tap:"
+prompts — `any-pointer` would also catch touchscreen laptops used with a
+keyboard, a review finding), `touch-wide` = touch + landscape; the pad
 shows on narrow windows and every touch screen, and on a sideways touch screen
 it docks in the bottom corners (`fixed`, pad left, ✋ right, `z-30`, under
 the overlays); the toast stays up top on touch screens so it never covers the

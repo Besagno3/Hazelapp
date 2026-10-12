@@ -1167,6 +1167,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-979 | M | ✅ | TouchPad | with touch (Playwright `hasTouch`) at 820×1180 the d-pad and ✋ sit under the map; holding ▶ moves the hero; the page doesn't scroll |
 | TC-980 | M | ✅ | TouchPad | with touch at 1024×768 and 844×390 (sideways) the d-pad docks bottom-left and ✋ bottom-right; holding ▶ moves the hero |
 | TC-981 | M | ✅ | TouchPad | at 1366×768 with a mouse only, no d-pad shows; at 375×667 with touch it shows under the map as before |
+| TC-987 | M | ⬜ | TouchPad | on a touchscreen laptop or Chromebook used as a laptop, no d-pad shows and prompts say "Space:"; folded into tablet mode, the pad shows and prompts say "Tap:" |
 | TC-982 | M | ⬜ | TouchPad | on a real iPad (both ways round) and an Android phone held sideways: walk, ✋ opens a chest, a dialogue covers the pad and the pad can't be pressed under it |
 | TC-983 | M | ⬜ | world | on a touch screen, a toast shows near the top and never over the d-pad |
 | TC-984 | M | ⬜ | npcs | Wisp says the Clockwork Depths are a cave south of the Whispering Woods; Hazel (after Ember hatches) says Ember's Breath comes with all four crystals |
