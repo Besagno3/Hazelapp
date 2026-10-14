@@ -531,8 +531,20 @@ zod, react-query. Add the package in the same change that first uses it.
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
   per-player calls/minute (429 over it) + per-player and project-wide daily
   budgets of *fresh* Claude questions. Over budget it serves the cache
-  (seen questions as a last resort). Fails OPEN with a loud log if 0009 isn't
-  applied. Limits: `QUOTA_DEFAULTS` in the function, overridable by secrets.
+  (seen questions as a last resort). **The kid's id is required** (400
+  without it) and the quota check **fails closed**: if it errors, the call is
+  served from the cache only, never from Claude (Act I launch review B9,
+  #131). Limits: `QUOTA_DEFAULTS` in the function, overridable by secrets.
+  **Only fixed text reaches the prompt** (B8): the whitelisted topic, the
+  level (rounded, 1–10), the kid's age worked out in the function from their
+  birth date (`ageFrom`, clamped 3–18; the caller's `age` is ignored) and at
+  most one flavour line chosen by key (`flavor`, `QUESTION_FLAVORS`); the old
+  free-text `context` is ignored. **Claude failing never reaches a kid** (B5):
+  the client times out after 20 s with one retry, a reply that didn't stop at
+  `end_turn` (cut off, refused) counts as a failure, and the batch is filled
+  from the cache (unseen first, then seen); only with nothing to give does
+  the kid see a friendly "try again" (503) or, when today's budget is spent,
+  "come back tomorrow" (429). Raw errors go to the log, never to the reply.
 - **Answer order is random (#121):** the model that writes questions favours
   one spot for the right answer (most often B), so `shuffleAnswers`
   (`lib/questions.ts`) shuffles every question's options as it arrives
@@ -547,8 +559,9 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Question generation** is a Deno edge function in
   `supabase/functions/generate-questions/` — it calls the Claude API
   server-side (API key never reaches the browser). `lib/questions.ts`
-  (`fetchQuestions`) invokes it from the client; the optional `context` arg
-  adds adventure flavor to fresh generations (#37).
+  (`fetchQuestions`) invokes it from the client; the optional `flavor` arg
+  (a `FlavorId` key — battle, spell, gate, chest, shrine, spire — never text,
+  #131) adds adventure flavour to fresh generations (#37).
 - Quiz and battle screens load **AI-generated questions** via the
   `useGeneratedQuestions` hook (age + per-topic skill level → `fetchQuestions`),
   with loading and error/retry states.
@@ -646,7 +659,8 @@ python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, T
   its topic table inline rather than importing `../_shared/topics.ts` — a
   sibling import fails to bundle on dashboard/API deploys (#67). The `_shared`
   copy is canonical for the app; `topicPrompts.test.ts` (`?raw`) fails if the
-  function's inline copy drifts from it.
+  function's inline copy drifts from it. The question flavours work the same
+  way (`_shared/flavors.ts`, `questionFlavors.test.ts`, #131).
 
 ---
 
@@ -697,6 +711,29 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-14 — Merge main (15a's new topics, PR #51) into the question-service branch (#131)
+`main` took PR #51 (#135: geography, words and music) while this branch
+waited. 15a had moved to **#135** and TC-1061–1070 on its own merge, so this
+branch's #131 and TC-1026–1033 stay as they are. One code conflict,
+`questions.test.ts`, kept both tests (flavour keys, B8; "not ready yet",
+#135). The edge function's inline topic table took 15a's three new lines
+beside this branch's lockdown; `fetchQuestions` keeps both the flavour key
+and 15a's "Coming soon!" message.
+
+### 2026-10-14 — Merge main (fairer question reuse #55) into the question-service branch (#131)
+`main` took PR #55 (#134: the whole bank, the right age, seen = shown) while
+this branch waited. Its issue (#131) and test cases (TC-1026–1033) don't
+collide. One code conflict, `generate-questions/index.ts`, resolved to keep
+both: the bank is read through `pick_cached_questions` (with the old lookup as
+the fail-open fallback) at this branch's rounded `level`, with the age worked
+out from the kid's birth date (B8) as the picker's age limit and the age
+stored on new questions; deliveries are written as holds (`shown = false`) for
+an app that sends `reportsSeen`, under this branch's guard (the kid's id is
+required, the batch is never empty there). The top-up after a failed Claude
+call (B5) takes the bank's questions in the picker's order instead of
+shuffling them again, so it keeps the lean toward less-asked questions. The
+app sends `flavor` (B8) and `reportsSeen` (#134).
 
 ### 2026-10-14 — Merge main (Act I quick fixes #49) into the 15a branch (#135)
 `main` took ISSUES **#130** and TC-1015–1025 for the Act I quick fixes while
@@ -817,6 +854,41 @@ problems; this is batch 1 of the fixes, as the owner chose them.
   questions.test. 1121 green, lint + build clean, `deno check` clean; the
   migrations in order and the bundle twice on Postgres 16, all seven SQL
   tests pass. Batch 2 and follow-ups: ISSUES #134.
+### 2026-10-12 — Lock down the question service: fixed prompt text, the kid's id required, Claude failures fall back to the cache (#131)
+Act I launch review B8, B9 (code part) and B5 (server part), all in
+`generate-questions/index.ts`, plus the app sending flavour keys.
+- **B8, nothing a caller types reaches the prompt:** the free-text `context`
+  (up to 300 characters, cached for every child) is gone. The app sends a
+  `flavor` key (`FlavorId`: battle, spell, gate, chest, shrine, spire) and the
+  function looks up its own line (`QUESTION_FLAVORS`, inline; canonical in
+  `_shared/flavors.ts`, drift-tested by `questionFlavors.test.ts`; an unknown
+  key, or `constructor`, means no flavour). The kid's age comes from their
+  birth date in `profiles` (`ageFrom`, clamped 3–18), not the request (which
+  allowed 3–100). The level is rounded to a whole number. Six call sites send
+  keys now (Spire, shrine trial, gate / chest, spell pool, speed boost).
+- **B9, no unlimited fresh questions:** a request without `profileId` gets a
+  400 ("Please refresh the page") instead of falling back to the login (which
+  has no budget, so the quota check errored and the call went through with no
+  limit); a failed kid lookup is a 503, not a fallback; and a failed quota
+  check now fails **closed** — cache only, no Claude call.
+- **B5, Claude failing doesn't stop play:** the Anthropic client times out at
+  20 s with one retry (was the SDK's 10 min and two); `stop_reason` other than
+  `end_turn` (cut off at `max_tokens`, refused) throws before `JSON.parse`; the
+  Claude call has its own try/catch, and whatever it didn't deliver is topped up
+  from the cache (unseen, then seen). Nothing left → 503 "The question wizards
+  are busy right now — try again in a minute!" (budget spent → 429 "…come back
+  tomorrow"). Raw Anthropic and parse errors are logged (typed: connection,
+  API, other), never returned.
+- **Checked:** `deno check` (CI's command) clean; the function run locally in
+  Deno against a stand-in Supabase and Claude API — 28 checks pass (signed-out,
+  no kid, another family's kid, lookup failure, the prompt's age / flavour /
+  no free text, rounding, quota failure with and without a cache, budget, rate
+  limit, Claude 529 with one retry, a cut-off reply, a refusal, a short batch).
+  `main`'s version fails 17 of them. Tests: `questionFlavors.test` (+3),
+  `questions.test` (+1). 1119 green, lint + build clean.
+- ⚠️ Deploy: `supabase functions deploy generate-questions` **before** the app
+  (the new app sends `flavor`; the old function ignores it, so either order
+  works, but only the new function closes the holes).
 
 ### 2026-10-12 — Merge main (Sunken Archive #48, 14i #50) into the Act I quick-fixes branch (#130)
 `main` took ISSUES **#128–#129** and TC-978–1014 while the quick fixes were in

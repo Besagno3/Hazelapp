@@ -9,7 +9,6 @@ import { XP_PER_CORRECT } from '../../lib/level';
 import { chestRewardText, chestWantedLine, openChest } from '../../content/quests';
 import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
-import { topicInfo } from '../../content/topics';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
@@ -36,11 +35,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const [solved, setSolved] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
-  const zoneName = topicInfo(target.topic).label;
-  const flavor =
-    target.kind === 'gate'
-      ? `a gatekeeper's challenge on the ${zoneName} path of a fantasy world`
-      : `a magical treasure chest's riddle in the ${zoneName} lands`;
+  const flavor = target.kind === 'gate' ? 'gate' : 'chest';
 
   // Loading derives from a request/fetched key mismatch (no setState-in-effect).
   const requestKey = `${target.id}|${level}|${attempt}`;

@@ -219,7 +219,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     const levelFor = (t: Topic) => clampLevel(skillLevelFor(profile?.skillLevels ?? {}, t, age) + f.levelBonus + 1);
     Promise.all(
       f.topics.map((t) =>
-        fetchQuestions(t, age, levelFor(t), perTopic, `the final ascent of a dark wizard's tower`),
+        fetchQuestions(t, age, levelFor(t), perTopic, 'spire'),
       ),
     )
       .then((batches) => {

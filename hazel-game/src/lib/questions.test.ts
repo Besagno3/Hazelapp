@@ -143,6 +143,14 @@ describe('fetchQuestions', () => {
     expect(out.some((question) => question.correctIndex !== 1)).toBe(true);
   });
 
+  it('names its flavour by key and sends no free text (Act I launch review B8)', async () => {
+    invokeMock.mockResolvedValue({ data: { questions: [] }, error: null });
+    await fetchQuestions('math', 9, 3, 1, 'spire');
+    const body = invokeMock.mock.calls[0][1].body;
+    expect(body).toMatchObject({ flavor: 'spire' });
+    expect(body).not.toHaveProperty('context');
+  });
+
   it("says a topic isn't ready yet, not the server's whitelist, when the function doesn't know it (#135)", async () => {
     // The real path: a FunctionsHttpError whose JSON body carries the function's own 400 text.
     const body = { error: 'topic must be one of: math, science' };

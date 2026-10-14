@@ -2,6 +2,9 @@ import { supabase } from './supabase';
 import { errorMessage, resolveErrorMessage } from './errors';
 import { useFamilyStore } from '../store/familyStore';
 import type { Question, Topic } from '../types';
+import type { FlavorId } from '../../supabase/functions/_shared/flavors';
+
+export type { FlavorId } from '../../supabase/functions/_shared/flavors';
 
 /** Questions per quiz round. */
 export const QUIZ_QUESTION_COUNT = 5;
@@ -34,7 +37,7 @@ async function invokeGenerate(
   age: number,
   skillLevel: number,
   count: number,
-  context?: string,
+  flavor?: FlavorId,
 ): Promise<Question[]> {
   // The kid playing (#124): their seen questions are their own. This app tells
   // the server what it shows (`markSeen`, #134), so a batch handed over here is
@@ -47,7 +50,7 @@ async function invokeGenerate(
       skillLevel,
       count,
       reportsSeen: true,
-      ...(context ? { context } : {}),
+      ...(flavor ? { flavor } : {}),
       ...(profileId ? { profileId } : {}),
     },
   });
@@ -107,9 +110,9 @@ export function shuffleAnswers<T extends Pick<Question, 'options' | 'correctInde
 
 const prefetched = new Map<string, Promise<Question[]>>();
 
-function cacheKey(topic: Topic, skillLevel: number, count: number, context?: string): string {
+function cacheKey(topic: Topic, skillLevel: number, count: number, flavor?: FlavorId): string {
   // Per kid, so a batch warmed for one never goes to a sibling after a switch.
-  return `${useFamilyStore.getState().activeKidId ?? ''}|${topic}|${skillLevel}|${count}|${context ?? ''}`;
+  return `${useFamilyStore.getState().activeKidId ?? ''}|${topic}|${skillLevel}|${count}|${flavor ?? ''}`;
 }
 
 /** Warms a question request so it is ready before the screen needs it. */
@@ -118,11 +121,11 @@ export function prefetchQuestions(
   age: number,
   skillLevel: number,
   count: number,
-  context?: string,
+  flavor?: FlavorId,
 ): void {
-  const key = cacheKey(topic, skillLevel, count, context);
+  const key = cacheKey(topic, skillLevel, count, flavor);
   if (prefetched.has(key)) return;
-  const promise = invokeGenerate(topic, age, skillLevel, count, context);
+  const promise = invokeGenerate(topic, age, skillLevel, count, flavor);
   prefetched.set(key, promise);
   // Drop a failed prefetch so a real request retries cleanly; this also marks
   // the rejection handled if the prefetch is never consumed.
@@ -131,24 +134,25 @@ export function prefetchQuestions(
 
 /**
  * Gets questions for a topic — consuming a prefetched batch if one is waiting,
- * otherwise requesting fresh. `context` is an optional flavor hint forwarded
- * to the edge function (e.g. "a gatekeeper's challenge on a fantasy path") —
- * it shapes freshly-generated questions only; cached reuse is unaffected (#37).
+ * otherwise requesting fresh. `flavor` optionally names the adventure moment
+ * (a gate, a spell, the Spire…) by key; the edge function picks its own words
+ * for it, so no text from here reaches the prompt (Act I launch review B8). It
+ * shapes freshly-generated questions only; cached reuse is unaffected (#37).
  */
 export async function fetchQuestions(
   topic: Topic,
   age: number,
   skillLevel: number,
   count = QUIZ_QUESTION_COUNT,
-  context?: string,
+  flavor?: FlavorId,
 ): Promise<Question[]> {
-  const key = cacheKey(topic, skillLevel, count, context);
+  const key = cacheKey(topic, skillLevel, count, flavor);
   const pre = prefetched.get(key);
   if (pre) {
     prefetched.delete(key); // consume once
     return pre;
   }
-  return invokeGenerate(topic, age, skillLevel, count, context);
+  return invokeGenerate(topic, age, skillLevel, count, flavor);
 }
 
 /** Reasons surfaced in the flag UI; free-form `reason` strings are also accepted. */
