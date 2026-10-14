@@ -135,14 +135,15 @@ describe('fetchQuestions', () => {
     invokeMock.mockResolvedValue({ data: { questions: api }, error: null });
     const out = await fetchQuestions('math', 9, 3, api.length);
     // …and asks as the kid playing, so their seen questions are their own (#124).
-    expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'math', profileId: 'kid-1' });
+    // reportsSeen: this app marks what it shows, so a batch is only held back (#134).
+    expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'math', profileId: 'kid-1', reportsSeen: true });
     expect(out).toHaveLength(api.length);
     for (const question of out) expect(question.options[question.correctIndex]).toBe('right');
     // 40 questions all left in place would be a 1-in-4^40 fluke.
     expect(out.some((question) => question.correctIndex !== 1)).toBe(true);
   });
 
-  it("says a topic isn't ready yet, not the server's whitelist, when the function doesn't know it (#131)", async () => {
+  it("says a topic isn't ready yet, not the server's whitelist, when the function doesn't know it (#135)", async () => {
     // The real path: a FunctionsHttpError whose JSON body carries the function's own 400 text.
     const body = { error: 'topic must be one of: math, science' };
     const response = new Response(JSON.stringify(body), { status: 400, headers: { 'Content-Type': 'application/json' } });

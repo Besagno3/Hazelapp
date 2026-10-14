@@ -98,7 +98,7 @@ export function ErrorScreen({
           {onBack && (
             <button
               onClick={onBack}
-              // The only way on when there's nothing to retry: the main button (#131).
+              // The only way on when there's nothing to retry: the main button (#135).
               className={
                 onRetry
                   ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg px-5 py-2 transition'

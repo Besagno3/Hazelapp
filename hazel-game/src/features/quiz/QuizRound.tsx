@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useSaveStore } from '../../store/saveStore';
@@ -10,6 +10,7 @@ import { nextSkillLevel } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { prefetchQuestions, QUIZ_QUESTION_COUNT, TOPIC_NOT_READY } from '../../lib/questions';
+import { markSeen } from '../../lib/seen';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import FlagButton from '../../components/FlagButton';
 import type { Question } from '../../types';
@@ -50,11 +51,18 @@ export default function QuizRound() {
   /** The option index the player picked, per question — for the missed-questions recap (#25). */
   const [picks, setPicks] = useState<number[]>([]);
 
+  // On screen = seen, so the next batches leave it out for this kid (#134).
+  // Not on the results screen: the next round's batch may be loading under it.
+  const shownId = finished || loading || error ? null : (questions[current]?.id ?? null);
+  useEffect(() => {
+    if (shownId) markSeen(shownId);
+  }, [shownId]);
+
   if (finished) return <RoundResults round={finished} worldUnlocked={worldUnlocked} />;
   if (loading) return <LoadingScreen label="Building your questions…" topic={topic} />;
   if (error) {
     return (
-      // A topic the server doesn't know yet (#131) fails the same way every time: no Try again.
+      // A topic the server doesn't know yet (#135) fails the same way every time: no Try again.
       <ErrorScreen
         message={error}
         {...(error === TOPIC_NOT_READY
