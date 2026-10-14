@@ -427,11 +427,11 @@ export const FLIGHT_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🛫',
-    text: 'Tap 🐉 Fly to take off from open ground. Fly over mountains, trees, water and fog! To come down, tap 🛬 Land, press Space or tap the world.',
+    text: 'Tap 🐉 Fly (or press F) to climb on. Fly over mountains, trees, water and fog! To come down over grass or sand, tap 🛬 Land or press Space.',
   },
   {
     emoji: '⛰️',
-    text: "Ember keeps looking at a lonely peak just east of Lumina Village. No path climbs it. Something up there smells like home…",
+    text: "Ember keeps looking at a lonely peak just east of Lumina Village. No path climbs it. Fly up, land on the grass at the top and walk in!",
   },
 ];
 

@@ -19,6 +19,7 @@ import {
   gateFlag,
   gateIdAt,
   litFlag,
+  nearestCell,
   npcPresent,
   tileAt,
   zone,
@@ -144,6 +145,8 @@ const VIEW_H = VIEW_ROWS * TILE;
 const ROOF_FADE = 10;
 /** Seconds after closing an overlay before a bump (a secret, fog) can trigger again, or a critter beside you fight. */
 const TRIGGER_COOLDOWN = 0.8;
+/** Flying, Ember is drawn this much bigger, so she shows round the hero on her back (#75 item 15b review). */
+const EMBER_FLY_SCALE = 1.7;
 /** The "Space: Open chest" prompt over what the hero would use (#127): over everyone's bubbles (20–21), under nothing. */
 const PROMPT_Z = 22;
 /** A dark place's circle of light (px): unlit — a few steps around you — and lit by Glow (#75 item 9). */
@@ -1720,6 +1723,9 @@ export default function WorldCanvas({
     }).obj as unknown as WorldActor;
     const emberView = resolveSprite(EMBER_SPRITE_IDS[emberStage], EMBER_SPRITES[emberStage]).def?.world ?? null;
     const emberSprite = ember as unknown as { play: (n: string) => void; flipX: boolean };
+    // Flying, Ember is drawn bigger than the hero riding her (#75 item 15b review).
+    (ember as unknown as { use: (c: unknown) => void }).use(k.scale(1));
+    const emberScale = ember as unknown as { scale: WorldVec };
     let emberAnim = '';
     lastDir = emberAt.dir;
 
@@ -2304,9 +2310,16 @@ export default function WorldCanvas({
     // fly; 🛬 Land (or Space / a tap / ✋ while flying) sets down on open ground
     // only. Flying, nothing is used, met or entered — only map edges stop her.
     const cellUnder = () => ({ x: Math.floor(player.pos.x / TILE), y: Math.floor(player.pos.y / TILE) });
-    const canSetDown = () => {
+    /**
+     * Where Ember would set the hero down: the open ground below, else the
+     * nearest open ground a step away — so flying onto a place's icon, or
+     * just past the edge of a little plateau, still lands beside it (#75 item
+     * 15b review). Null over water, mountains or fog.
+     */
+    const landingCell = () => {
       const c = cellUnder();
-      return landable(tileAt(z, c.x, c.y)) && !fogAt(z, c.x, c.y, flagsRef.current);
+      const ok = (x: number, y: number) => landable(tileAt(z, x, y)) && !fogAt(z, x, y, flagsRef.current);
+      return ok(c.x, c.y) ? c : nearestCell(c.x, c.y, 1, ok);
     };
     function takeOff() {
       if (flying || aboard || !canFlyOver(z) || !canFly(flagsRef.current)) return;
@@ -2316,11 +2329,11 @@ export default function WorldCanvas({
     }
     function touchDown() {
       if (!flying) return;
-      if (!canSetDown()) {
+      const c = landingCell();
+      if (!c) {
         cbRef.current.onNoLanding?.();
         return;
       }
-      const c = cellUnder();
       flying = false;
       player.pos = k.vec2(c.x * TILE + TILE / 2, c.y * TILE + TILE / 2);
       arm(TRIGGER_COOLDOWN);
@@ -2331,12 +2344,12 @@ export default function WorldCanvas({
     }
     /** Flying: the one thing to "use" is the ground below — if Ember can land there. */
     function landingUse(): Use[] {
-      if (!canSetDown()) return [];
+      if (!landingCell()) return [];
       return [{ label: 'Land', at: { x: player.pos.x, y: player.pos.y - 40 }, hit: () => true, act: touchDown }];
     }
     // Her shadow on the ground while she flies.
     const shadow = k.add([
-      k.rect(30, 9, { radius: 5 }),
+      k.rect(40, 12, { radius: 6 }),
       k.color(0, 0, 0),
       k.pos(spawn.x, spawn.y),
       k.anchor('center'),
@@ -2640,6 +2653,9 @@ export default function WorldCanvas({
         if (target) {
           push = null;
           target.act();
+        } else if (flying) {
+          // Nothing below to land on: say so, as 🛬 does (#75 item 15b review).
+          cbRef.current.onNoLanding?.();
         }
       }
 
@@ -2737,13 +2753,16 @@ export default function WorldCanvas({
       // Ember pads along behind the hero with a friendly bounce — or, flying
       // (#75 item 15b), carries them: the hero on her back, both over the fog
       // and the place names, her shadow on the ground below.
-      const lift = flying ? Math.sin(k.time() * 3) * 2 : 0;
+      // Big enough that her wings and head show round the rider; the shadow
+      // well below reads as height (#75 item 15b review).
+      const lift = flying && !reducedMotion ? Math.sin(k.time() * 3) * 2 : 0;
       (player as unknown as { z: number }).z = flying ? 17.5 : 10;
       (ember as unknown as { z: number }).z = flying ? 17 : 9;
-      shadow.opacity = flying ? 0.25 : 0;
-      if (flying) shadow.pos = k.vec2(player.pos.x, player.pos.y + 26);
+      emberScale.scale = k.vec2(flying ? EMBER_FLY_SCALE : 1);
+      shadow.opacity = flying ? 0.35 : 0;
+      if (flying) shadow.pos = k.vec2(player.pos.x, player.pos.y + 34);
       const trail = flying
-        ? k.vec2(player.pos.x, player.pos.y + 12 + lift)
+        ? k.vec2(player.pos.x, player.pos.y + 10 + lift)
         : k.vec2(player.pos.x - lastDir.x * 26, player.pos.y - lastDir.y * 26 + 8 + Math.sin(k.time() * 4) * 2);
       const emberGap = Math.hypot(trail.x - ember.pos.x, trail.y - ember.pos.y);
       ember.pos = flying ? trail : ember.pos.lerp(trail, Math.min(1, dt * 5));

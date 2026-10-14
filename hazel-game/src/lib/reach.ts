@@ -172,8 +172,8 @@ function explore(
       if (m === 1 && modes.has('foot') && LANDING_CHARS.has(tileAt(z, nx, ny)) && enterable(nx, ny, 0))
         visit(id(nx, ny, 0), s);
     }
-    // On open ground, Ember takes off; flying over open ground, she lands (#75 item 15b).
-    if (flyable && modes.has('ember') && m === 0 && landable(tileAt(z, x, y)) && enterable(x, y, 2)) visit(id(x, y, 2), s);
+    // On foot, Ember takes off from anywhere; flying, she lands only on open ground (#75 item 15b).
+    if (flyable && modes.has('ember') && m === 0 && enterable(x, y, 2)) visit(id(x, y, 2), s);
     if (m === 2 && modes.has('foot') && landable(tileAt(z, x, y)) && enterable(x, y, 0)) visit(id(x, y, 0), s);
   }
   return { cells, parent, found, cols };
@@ -235,6 +235,12 @@ export function safeSpawn(
   const cx = Math.floor(pos.x / TILE);
   const cy = Math.floor(pos.y / TILE);
   const centre = (c: Cell) => ({ x: c.x * TILE + TILE / 2, y: c.y * TILE + TILE / 2 });
+  // Flying (#75 item 15b): anywhere over a map Ember flies over — mountains,
+  // sea, fog — just as she crossed into it or was saved there.
+  if (mode === 'ember') {
+    const inMap = cx >= 0 && cy >= 0 && cx < z.map[0].length && cy < z.map.length;
+    return canFlyOver(z) && inMap ? pos : fallback;
+  }
   // Afloat (#75 item 14): any open sea will do — fog still counts as solid. A
   // map repainted (or fogged) under the boat puts it on the nearest open sea,
   // so the hero stays afloat rather than landing wherever the spawn is.

@@ -2132,7 +2132,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     mooring: { zoneId: 'silver-shallows', x: 49, y: 18 },
   },
   // The Dragon's Roost (#75 item 15b): a windy mountaintop of old stone nests
-  // just east of Lumina Village. No path climbs to it — only Ember flies there.
+  // (rings of rock round a flower bed) just east of Lumina Village. No path
+  // climbs to it — only Ember flies there.
   'dragon-roost': {
     id: 'dragon-roost',
     name: "Dragon's Roost",
@@ -2143,13 +2144,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '######################',
       '######,...==...,######',
       '####......==......####',
-      '###..##...==...##..###',
-      '##...##...==...##...##',
-      '#.........==.........#',
+      '###.###...==...###.###',
+      '##..#,#...==...#,#..##',
+      '#...###...==...###...#',
       '#..,......==.....,...#',
-      '#...##....==....##...#',
-      '#...##..C.==....##...#',
-      '#.........==.........#',
+      '#...###...==...###...#',
+      '#...#,#.C.==...#,#...#',
+      '#...###...==...###...#',
       '##..,.....==.....,..##',
       '###.......==.......###',
       '####......==......####',

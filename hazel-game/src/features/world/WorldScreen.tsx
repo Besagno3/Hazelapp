@@ -98,6 +98,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useBattleStore } from '../../store/battleStore';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
+import { ownsKeys } from '../../lib/interact';
 
 /** Said once a session, as the hero heads up to a sleeping critter (#114e)… */
 const SLEEPER_HINT = '💤 Sleepy critters let you pass. They wake up when you move away.';
@@ -342,6 +343,22 @@ export default function WorldScreen() {
                                   : null;
   const cutscene = activeScene !== null;
 
+  // 🐉 Fly / 🛬 Land is offered (#75 item 15b): over an overworld map once
+  // Memory is restored, never from the boat, never under an overlay or a story.
+  const flightOffered = canFly(flags) && canFlyOver(z) && save?.vehicle !== 'boat' && overlay === null && !cutscene;
+  const flightKeyRef = useRef({ offered: flightOffered, flying: save?.vehicle === 'ember' });
+  flightKeyRef.current = { offered: flightOffered, flying: save?.vehicle === 'ember' };
+  // F flies or lands too, for keyboard players (#75 item 15b review).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat || (e.key !== 'f' && e.key !== 'F') || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!flightKeyRef.current.offered || ownsKeys(e.target)) return;
+      flightRef.current = flightKeyRef.current.flying ? 'land' : 'fly';
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const pausedRef = useRef(false);
   useEffect(() => {
     const spireFree = overlay === 'spire' && spireExploring;
@@ -510,6 +527,13 @@ export default function WorldScreen() {
                 <span className="sr-only">(sailing Marlow's boat)</span>
               </span>
             )}
+            {save.vehicle === 'ember' && (
+              <span className="whitespace-nowrap">
+                {' '}
+                <span aria-hidden>🐉</span>
+                <span className="sr-only">(flying on Ember)</span>
+              </span>
+            )}
           </h1>
           <p className="text-[11px] text-white/60">
             💎 {inPlay.restored}/{inPlay.total} crystals restored
@@ -531,7 +555,7 @@ export default function WorldScreen() {
             </span>
           )}
           {/* Ember flies (#75 item 15b): over an overworld map once Memory is restored, never from the boat. */}
-          {canFly(flags) && canFlyOver(z) && save.vehicle !== 'boat' && overlay === null && !cutscene && (
+          {flightOffered && (
             <button
               onClick={() => {
                 flightRef.current = save.vehicle === 'ember' ? 'land' : 'fly';
@@ -716,10 +740,10 @@ export default function WorldScreen() {
 
       <p className="text-white/50 text-xs mt-2">
         {save.vehicle === 'ember'
-          ? 'Fly: arrow keys / WASD · Space, a tap or 🛬 to land on open ground'
+          ? 'Fly: arrow keys / WASD · Space, F, a tap or 🛬 to land on grass, sand or a road'
           : save.vehicle === 'boat'
           ? 'Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!'
-          : 'Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!'}
+          : `Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!${flightOffered ? ' · F or 🐉 to fly' : ''}`}
       </p>
       </div>
       <TouchPad onDirChange={onDirChange} onAction={onAction} action={action} />

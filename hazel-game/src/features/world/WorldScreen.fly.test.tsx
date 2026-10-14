@@ -79,7 +79,8 @@ describe('🐉 Fly / 🛬 Land on the world HUD (#75 item 15b)', () => {
     act(() => canvas.callbacks!.onTakeOff!(41, 30));
     expect(useSaveStore.getState().save!.vehicle).toBe('ember');
     expect(canvas.flying).toBe(true);
-    expect(screen.getByText(/Space, a tap or 🛬 to land on open ground/)).toBeInTheDocument();
+    expect(screen.getByText(/Space, F, a tap or 🛬 to land on grass, sand or a road/)).toBeInTheDocument();
+    expect(screen.getByText('(flying on Ember)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Land' }));
     expect(canvas.flightRef!.current).toBe('land');
     act(() => canvas.callbacks!.onTouchDown!(44, 31));

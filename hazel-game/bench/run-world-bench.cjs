@@ -905,17 +905,25 @@ async function fly(browser, outDir) {
   await hold(page, 'ArrowRight', 1300);
   s = await where(page);
   await check(page, 'flies over the mountains, faster than walking', cell(s).x >= 56, `now at ${JSON.stringify(cell(s))} after 1.3 s (on foot the mountains stop you at 51)`);
-  await hold(page, 'ArrowRight', 1250); // out over the sea (from x 75)
+  await hold(page, 'ArrowRight', 1400); // out over the sea, two cells past the beach (open ground within a step lands there)
   s = await where(page);
   const overSea = cell(s);
   await page.evaluate(() => window.__bench.land());
   await page.waitForTimeout(200);
   s = await state(page);
-  await check(page, 'no landing over the sea', s.noLandings === 1 && s.flying, `noLandings ${s.noLandings}, over ${JSON.stringify(overSea)}`);
-  await hold(page, 'ArrowRight', 1200);
+  await check(page, 'no landing over open sea', s.noLandings === 1 && s.flying && overSea.x >= 76, `noLandings ${s.noLandings}, over ${JSON.stringify(overSea)}`);
+  await hold(page, 'ArrowLeft', 180); // back over the water by the beach…
+  await page.evaluate(() => window.__bench.land());
+  await page.waitForTimeout(200);
+  s = await where(page);
+  await check(page, 'a step off the beach, Land sets down on the sand beside', s.touchDowns === 1 && !s.flying, `landed on the beach at ${JSON.stringify(cell(s))}`);
+  await page.evaluate(() => window.__bench.fly());
+  await page.waitForTimeout(200);
+  await hold(page, 'ArrowRight', 1000);
   await page.waitForTimeout(800);
-  s = await state(page);
-  await check(page, 'flies off the east edge onto the Silver Shallows', s.zoneId === 'silver-shallows', `zone ${s.zoneId}, exits ${s.exits}`);
+  s = await where(page);
+  // …arriving at the crossing, one cell in from the west edge — not at the map's spawn (code review, #136e).
+  await check(page, 'flies off the east edge onto the Silver Shallows, arriving where she crossed', s.zoneId === 'silver-shallows' && cell(s).x <= 3 && s.flying, `zone ${s.zoneId} at ${JSON.stringify(cell(s))}, flying ${s.flying}`);
   await page.close();
 
   // B: over the Bolt Mouse's patch (67,19) without a battle, then Space lands on grass.

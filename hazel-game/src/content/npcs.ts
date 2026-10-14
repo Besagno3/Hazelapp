@@ -1753,7 +1753,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'An old stone covered in claw marks. Someone carved a dragon on it, curled round an egg.',
       'Tiny letters under it say: "When the fog came, the dragons flew away. The last one carried her egg down to the village, where the fog had not come yet."',
-      'Ember presses its nose to the carving and gives a soft little rumble.',
+      'Ember presses its nose to the carving and rumbles softly. That egg was Ember — the very egg YOU found!',
     ],
   },
 };

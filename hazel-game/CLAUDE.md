@@ -189,13 +189,15 @@ zod, react-query. Add the package in the same change that first uses it.
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
   setting, the last inn rested at (`lastRest`, #75 item 11 — additive, so no
-  version bump; null = home), where Marlow's boat is moored and whether the
-  hero is in it (`boat` / `aboard`, #75 item 14 — additive too; `normalizeSave`
-  keeps a mooring only on open sea, and `aboard` only afloat with a boat). Write-through: localStorage immediately
+  version bump; null = home), where Marlow's boat is moored (`boat`, #75 item
+  14; `normalizeSave` keeps a mooring only on open sea) and how the hero is
+  getting about (`vehicle`: `foot` / `boat` / `ember`, #75 item 15b — save v3
+  replaced the boat's `aboard`; sailing only afloat with a boat, flying only
+  over an overworld map once Ember can fly). Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
   `flush()` on save crystals / sign-out. Supabase errors degrade to
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
-  the `MIGRATIONS` ladder — **`SAVE_VERSION` 2** since #75 item 8). A save
+  the `MIGRATIONS` ladder — **`SAVE_VERSION` 3** since #75 item 15b). A save
   from a *newer* version is never loaded or overwritten: loads check
   `saveIsTooNew`, and the server refuses any write that lowers a save's
   version (migration 0011's trigger → `save_version_conflict`, which `flush`
@@ -322,6 +324,13 @@ zod, react-query. Add the package in the same change that first uses it.
   reached?" (bump targets). `behindFog` and `safeSpawn` live there too —
   `safeSpawn` now also steps a save off an exit cell onto open floor beside
   it. Don't write another BFS over a zone's tiles: use these.
+  **Flying on Ember** (#75 item 15b): once the Crystal of Memory is restored
+  (`canFly`), an overworld map's HUD has 🐉 Fly / 🛬 Land (or `F`); the canvas
+  flies at 2.5× over any tile and fog, passes people, critters, exits, places
+  and secrets, lands on open ground (`LANDABLE_CHARS`) under the hero or a
+  step away (`landingCell`), and crosses any linked edge (`edgeCrossing`);
+  `safeSpawn(…, 'ember')` keeps a flying hero where they are on such a map.
+  The **Dragon's Roost** (`PlaceDef.byAir`) is a place only Ember reaches.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -738,6 +747,31 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-14 — 15b review round 1: arriving where you flew, a bigger Ember, landing beside (#75 item 15b, #136e)
+A fresh `/saas-code-review` (1 high, 2 low) and UX review (3 high, 4 medium,
+4 low). Fixed:
+- **Teleport on an edge or a reload (code, high):** `safeSpawn` had no
+  flying rule. Flying off Dawnreach's east edge put the hero at the
+  Shallows' spawn, and a reload over a mountain put them at Dawnreach's.
+  `safeSpawn(…, 'ember')` now keeps the position on any map Ember flies over.
+- **Ember hidden under the rider (UX, high):** flying, she is drawn 1.7×
+  (`EMBER_FLY_SCALE`) under the hero, with a bigger, darker shadow.
+- **Landing on a place's icon or just past the plateau (UX, high):** Land
+  sets down on the open ground below or a step away (`landingCell`).
+- **Medium:** Space or a tap over water says "Ember needs open ground"; 🐉
+  sits by the place name (read out "flying on Ember"); `F` flies and lands,
+  and the footers say so.
+- **Low:** take-off works anywhere on foot, in `reach` and the copy as on the
+  canvas; the flying bob holds still under reduced motion.
+- **The Roost:** its boulders are rings now, the nests the panels promise;
+  the stone says the egg was Ember, and the tutorial says how to get in.
+- **Tests:** the edge-crossing test uses a map with land on the edge; a
+  flying spawn keeps its place; `bench … fly` checks where the hero arrives
+  (14/14). 1184 green; lint and tsc clean; `bench … journey` 13/13 (an
+  earlier 12/13 was a hot reload from editing during the run).
+- **Logged:** the 320 px HUD row with Fly, Calm and Menu together is checked
+  only by reading the code.
 
 ### 2026-10-14 — Ember's first flight and the Dragon's Roost (#75 item 15b, #136d)
 Third slice of 15b.
