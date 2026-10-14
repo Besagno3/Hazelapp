@@ -4,8 +4,22 @@ import QuestionCard from './QuestionCard';
 import type { Question } from '../types';
 
 vi.mock('../lib/audio', () => ({ sfx: vi.fn() }));
+const { markSeen } = vi.hoisted(() => ({ markSeen: vi.fn() }));
+vi.mock('../lib/seen', () => ({ markSeen }));
 
 const q: Question = { id: 'q', topic: 'math', level: 3, text: 'What is 2 + 2?', options: ['4', '5', '6', '7'], correctIndex: 0 };
+
+describe('QuestionCard — on screen = seen (#134)', () => {
+  it('marks its question seen once it shows, and the next one when it changes', () => {
+    markSeen.mockClear();
+    const { rerender } = render(<QuestionCard question={q} onAnswered={() => {}} onContinue={() => {}} />);
+    expect(markSeen).toHaveBeenCalledWith('q');
+    fireEvent.click(screen.getByRole('button', { name: '4' }));
+    expect(markSeen).toHaveBeenCalledTimes(1);
+    rerender(<QuestionCard question={{ ...q, id: 'q2' }} onAnswered={() => {}} onContinue={() => {}} />);
+    expect(markSeen).toHaveBeenLastCalledWith('q2');
+  });
+});
 
 describe('QuestionCard — a Forget-Me-Knot gives a second try (#75 item 14e)', () => {
   it('a Hint Feather first, then a wrong pick on the last wrong option: final — the knot stays tied (review fix)', () => {
