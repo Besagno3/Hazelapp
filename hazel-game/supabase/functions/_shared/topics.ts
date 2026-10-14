@@ -18,11 +18,14 @@ export const TOPIC_PROMPTS = {
   math: 'arithmetic, geometry, fractions, word problems.',
   science: 'nature, biology, physics, space, chemistry basics.',
   engineering: 'how things work, computers, materials, structures, simple logic.',
-  creativity: 'art, music, colour, writing, design, imagination — facts only (how colours mix, instruments, art tools, parts of a story), never opinions.',
+  creativity: 'art, colour, drawing, crafts, design, inventing, imagination — facts only (how colours mix, art tools, how things are made), never opinions.',
   nature: 'animals, plants, habitats, weather, the human body, the living world.',
   space: 'planets, stars, moons, the solar system, astronauts, rockets, the night sky.',
   history:
     'ancient civilizations, everyday life long ago, famous inventions and inventors, explorers, great buildings, the measurement of time — never wars, battles, disasters or religion.',
+  geography: 'maps, countries, continents, oceans, rivers, mountains, landmarks, compass directions.',
+  words: 'reading, spelling, rhymes, word meanings, opposites, stories, grammar basics.',
+  music: 'rhythm, instruments, notes, songs, famous composers, how sound works.',
 } as const;
 
 export type TopicId = keyof typeof TOPIC_PROMPTS;

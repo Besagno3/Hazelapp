@@ -14,13 +14,13 @@ const questions: Question[] = Array.from({ length: 5 }, (_, i) => ({
   explanation: '',
 }));
 // What the hook hands back; a test may swap it, as a re-keyed fetch would.
-const hook = { questions, loading: false };
+const hook = { questions, loading: false, error: null as string | null };
 /** The level override the hook was last called with. */
 let lastLevelOverride: number | undefined;
 vi.mock('../../hooks/useGeneratedQuestions', () => ({
   useGeneratedQuestions: (_topic: string, _count: number, levelOverride?: number) => {
     lastLevelOverride = levelOverride;
-    return { ...hook, error: null, age: 9, skillLevel: 3, reload: () => {} };
+    return { ...hook, age: 9, skillLevel: 3, reload: () => {} };
   },
 }));
 vi.mock('../../lib/questions', async (orig) => ({
@@ -35,6 +35,7 @@ const { default: QuizRound } = await import('./QuizRound');
 const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
+const { TOPIC_NOT_READY } = await import('../../lib/questions');
 
 const addXp = vi.fn();
 
@@ -60,6 +61,7 @@ async function playPerfectRound() {
 
 beforeEach(() => {
   addXp.mockReset();
+  hook.error = null;
   markSeen.mockClear();
   hook.questions = questions;
   hook.loading = false;
@@ -99,6 +101,25 @@ describe('QuizRound — XP only once the world is open (#122)', () => {
     await playPerfectRound();
     expect(addXp).toHaveBeenCalledTimes(1);
     expect(addXp.mock.calls[0][0]).toBeGreaterThan(0);
+  });
+});
+
+describe('QuizRound — a topic the server does not know yet (#130)', () => {
+  it('says it is coming soon, with Pick another topic and no Try again', () => {
+    start(3, true);
+    hook.error = TOPIC_NOT_READY;
+    render(<QuizRound />);
+    expect(screen.getByText('Coming soon!')).toBeInTheDocument();
+    expect(screen.getByText(TOPIC_NOT_READY)).toBeInTheDocument();
+    expect(screen.queryByText('Try again')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pick another topic' })).toBeInTheDocument();
+  });
+
+  it('any other failure keeps Try again', () => {
+    start(3, true);
+    hook.error = 'Question generation failed — rate limited';
+    render(<QuizRound />);
+    expect(screen.getByText('Try again')).toBeInTheDocument();
   });
 });
 

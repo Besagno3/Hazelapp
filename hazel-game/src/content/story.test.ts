@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { TOTAL_CRYSTALS } from '../types';
 import {
+  WISP_STIRRING,
   emberStage,
   EMBER_STAGE_AT,
   FLIGHT_FLAG,
@@ -24,7 +25,7 @@ import {
   MEMORIA_PANELS,
   POSY_STONE_PANELS,
 } from './story';
-import { TOPICS } from './topics';
+import { TOPICS, crystalFlag } from './topics';
 import { NPC_DEFS, lineText, visibleLines, type DialogueLine } from './npcs';
 import { fogSeenFlag } from './zones';
 
@@ -217,5 +218,16 @@ describe('the Memoria Key (#75 item 14f)', () => {
     expect(ARCHIVE_PANELS).toHaveLength(3);
     for (const p of ARCHIVE_PANELS) expect(p.text.split(/\s+/).length, p.text).toBeLessThanOrEqual(30);
     expect(ARCHIVE_PANELS.map((p) => p.text).join(' ')).not.toMatch(/Hollow Fiend/);
+  });
+});
+
+describe("Grandmother Wick nudges you back to Wisp (#129l)", () => {
+  const wick = (flags: Record<string, boolean>) =>
+    visibleLines(NPC_DEFS['village-elder'].lines, flags).map(lineText).join(' ');
+
+  it('after Memory, until Wisp has stirred', () => {
+    expect(wick({})).not.toMatch(/Whispering Woods/);
+    expect(wick({ [crystalFlag('history')]: true })).toMatch(/Wisp in the Whispering Woods/);
+    expect(wick({ [crystalFlag('history')]: true, [WISP_STIRRING]: true })).not.toMatch(/Whispering Woods/);
   });
 });

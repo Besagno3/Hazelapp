@@ -97,8 +97,8 @@ export const HALL_CALLED = 'hall-called';
 
 /**
  * Wisp's "remembering me" beat (#75 item 14i, 2 panels): after the Crystal of
- * Memory, the first time Wisp is with you — fighting beside you, or in the
- * Whispering Woods.
+ * Memory, the first time the hero is in the Whispering Woods (only there —
+ * the owner's call, #129l; Grandmother Wick nudges you back).
  */
 export const WISP_STIRRING = 'wisp-stirring';
 

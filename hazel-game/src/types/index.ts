@@ -25,8 +25,10 @@ export const TOTAL_CRYSTALS = CRYSTAL_TOPIC_IDS.length;
 /**
  * The expansion question-theme ids (#55) — styling only, no crystal/Fiend.
  * (History was one until it became Act II's crystal, #75 item 14h.)
+ * Geography, words and music are Act III's (#75 item 15a); words becomes the
+ * sixth crystal, Voices, in 15g.
  */
-export const EXTRA_TOPIC_IDS = ['nature', 'space'] as const;
+export const EXTRA_TOPIC_IDS = ['nature', 'space', 'geography', 'words', 'music'] as const;
 
 /**
  * Every question category the game can generate: the `CrystalTopic`s plus the

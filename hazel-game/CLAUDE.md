@@ -122,7 +122,8 @@ zod, react-query. Add the package in the same change that first uses it.
   an act (`act`; `actCrystals` / `actRestored` / `actComplete` — the Spire,
   the ending and the 🚩 read Act I's, #75 item 14c): Act I's four and, since
   #75 item 14h, Act II's history (the Crystal of Memory); `EXTRA_TOPICS` =
-  the expansion themes nature/space; `topicInfo` resolves all seven, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
+  the expansion themes nature/space and Act III's geography/words/music
+  (#75 item 15a); `topicInfo` resolves all ten, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
   overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
   #75 — the four crystal regions sit at its corners, item 8) + three roadside
   shrines and the dark Echo Mine (item 9) + 4 crystal zones + Lumina Village (home and `HUB_ZONE`: safe,
@@ -736,6 +737,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-14 — Merge the question-service branch (with 15a's new topics, PR #51) into the screening branch (#133)
+`main` took PR #51 (#135, TC-1061–1070) and this branch's base (#52) merged
+it in. 15a's TC-1061 clashed with this branch's picker test case, which
+moved **TC-1061 → TC-1071** (only its own line). One code conflict, the topic
+table (`_shared/topics.ts` and the function's inline copy, kept identical):
+15a's geography, words and music lines join; creativity keeps this branch's
+"facts only, never opinions" on 15a's list (music and writing are their own
+topics now); history keeps "never wars, battles, disasters or religion".
+
 ### 2026-10-14 — Merge the question-service branch (with main's fairer question reuse #55) into the screening branch (#133)
 `main` took PR #55 (#134) and this branch's base (#52, #131) merged it in, so
 this merge brings both. #134 took migration **0015**
@@ -759,6 +769,15 @@ this merge brings both. #134 took migration **0015**
   0016 the picker serves by #134's rules (no review status yet, any report
   hides a question from everyone); without 0015 the old lookup runs.
 
+### 2026-10-14 — Merge main (15a's new topics, PR #51) into the question-service branch (#131)
+`main` took PR #51 (#135: geography, words and music) while this branch
+waited. 15a had moved to **#135** and TC-1061–1070 on its own merge, so this
+branch's #131 and TC-1026–1033 stay as they are. One code conflict,
+`questions.test.ts`, kept both tests (flavour keys, B8; "not ready yet",
+#135). The edge function's inline topic table took 15a's three new lines
+beside this branch's lockdown; `fetchQuestions` keeps both the flavour key
+and 15a's "Coming soon!" message.
+
 ### 2026-10-14 — Merge main (fairer question reuse #55) into the question-service branch (#131)
 `main` took PR #55 (#134: the whole bank, the right age, seen = shown) while
 this branch waited. Its issue (#131) and test cases (TC-1026–1033) don't
@@ -773,6 +792,51 @@ call (B5) takes the bank's questions in the picker's order instead of
 shuffling them again, so it keeps the lean toward less-asked questions. The
 app sends `flavor` (B8) and `reportsSeen` (#134).
 
+### 2026-10-14 — Merge main (Act I quick fixes #49) into the 15a branch (#135)
+`main` took ISSUES **#130** and TC-1015–1025 for the Act I quick fixes while
+15a was in review, so 15a moved **#130 → #135** and its test cases
+**TC-1015–1024 → TC-1061–1035** (only its own lines). `QuizRound.test` keeps
+both: the quick fixes' recap and level-override tests, and 15a's "Coming
+soon!" ones (one stand-in hook with questions, loading and an error).
+
+### 2026-10-12 — 15a review round 2: five across, "Pick another topic", Wick points to Wisp (#135f, #129m)
+A report-only `/saas-code-review` (2 medium, 3 low) and UX review (3 medium,
+4 low); the owner chose eight to fix: the not-ready test goes through a real
+`FunctionsHttpError` and the function's 400 wording is marked as matched;
+Grandmother Wick nudges you back to Wisp after Memory (the beat is Woods-only
+now, #129l — `story.ts`'s comment says so); five topic columns from `lg`;
+"Coming soon!" has one main button, "Pick another topic" (`ErrorScreen`
+`backLabel`); "🗺️ Enter Lumina"; a centred title; a violin fact. 1120 green,
+lint + tsc clean.
+
+### 2026-10-12 — The owner's calls: Wisp waits for the Woods; roadmap decisions 15–18 (#129l)
+Wisp's "remembering me" beat now plays only in the Whispering Woods after
+Memory, never for Wisp fighting beside you (`wispDue`). Recorded: save v3
+with flight (decision 15, yes), the ferry deferred (16), `name-learned`
+gates only the name question (17), new sprites for young Wick and Lumen
+(18); the Gulp of Ages, the letter copy and the Gull Rock / Cay drafts kept;
+the older topic cards' contrast left alone.
+
+### 2026-10-12 — 15a review round 1: "Coming soon!", colours you can see, Enter the world up top (#75 item 15a)
+Fresh `/saas-code-review` (1 high, 4 low) and UX review (1 high, 3 medium,
+3 low), all fixed: a new topic the deployed function doesn't know yet shows
+"🚧 Coming soon! These questions aren't ready yet — pick another topic for
+now!" with Back only (`TOPIC_NOT_READY`), not the function's whitelist and a
+Try again that always fails; Music is fuchsia-700 🎸 (violet vanished on the
+page), Maps teal-700; 🗺️ Enter the world above the ten topics; three columns
+from `sm`, equal rows; creativity's persona drops music and writing; three
+fun facts softened. 1118 green, lint + tsc clean.
+
+### 2026-10-12 — New topics: geography, words and music (#75 item 15a)
+Roadmap sub-item 15a, the code half. `EXTRA_TOPIC_IDS` gains geography,
+words and music; both topic tables (`_shared/topics.ts` and the edge
+function's inline copy) have their persona lines; `EXTRA_TOPICS` styles them
+(🧭 Maps & Places, 📚 Words & Stories, 🎸 Music) and `FUN_FACTS` has five
+each. The Training Grounds lists all ten. No zone asks them yet (15d–15f).
+⚠️ Deploy: `supabase functions deploy generate-questions`, then check a
+round of each in production (#135b) — until then those three buttons show
+the question-load error. Tests: topics.test +2 (each topic looks different;
+Act III's themes are there). 1115 green, lint + tsc clean.
 ### 2026-10-12 — Merge main (Act I quick fixes, PR #49) into the question-reuse branch (#134)
 `main` took ISSUES **#130** and TC-1015–1025 for the Act I launch review's
 quick fixes while this branch was in review, and open PRs #52–#54 hold
