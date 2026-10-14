@@ -27,10 +27,20 @@ async function invokeGenerate(
   count: number,
   context?: string,
 ): Promise<Question[]> {
-  // The kid playing (#124): their seen questions are their own.
+  // The kid playing (#124): their seen questions are their own. This app tells
+  // the server what it shows (`markSeen`, #134), so a batch handed over here is
+  // only held back, not counted as seen.
   const profileId = useFamilyStore.getState().activeKidId;
   const { data, error } = await supabase.functions.invoke('generate-questions', {
-    body: { topic, age, skillLevel, count, ...(context ? { context } : {}), ...(profileId ? { profileId } : {}) },
+    body: {
+      topic,
+      age,
+      skillLevel,
+      count,
+      reportsSeen: true,
+      ...(context ? { context } : {}),
+      ...(profileId ? { profileId } : {}),
+    },
   });
   // Surface the edge function's real {error, detail} body, not the generic
   // "non-2xx status code" message (see lib/errors.ts).
