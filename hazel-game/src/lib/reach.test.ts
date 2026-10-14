@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TILE, ZONES, gateFlag, gateIdAt, litFlag, tileAt, type ZoneDef } from '../content/zones';
+import { TILE, ZONES, fogAt, gateFlag, gateIdAt, litFlag, tileAt, type ZoneDef } from '../content/zones';
 import { BOAT_HOME } from '../content/boat';
 import { EXIT_STEP_OFF, behindFog, reach, reachPath, safeSpawn, touches } from './reach';
 import { edgeCrossing, landable, passable, travelSpeed } from './travel';
@@ -147,7 +147,7 @@ describe('safeSpawn on an exit (#75 item 14b)', () => {
         const cell = { x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) };
         const where = `${z.id} exit ${e.x},${e.y}`;
         expect(z.exits.some((o) => o.x === cell.x && o.y === cell.y), where).toBe(false);
-        if (shut.has(`${e.x},${e.y}`)) {
+        if (shut.has(`${e.x},${e.y}`) || fogAt(z, e.x, e.y, {})) {
           expect(cell, where).toEqual(z.spawn);
           continue;
         }

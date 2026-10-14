@@ -245,10 +245,13 @@ export function safeSpawn(
     return near ? centre(near) : fallback;
   }
   const shut = flags && z.fogs?.length ? behindFog(z, flags) : null;
+  // Inside a bank that hasn't lifted counts as shut too — even where no path
+  // reaches (the Dragon's Roost's plateau under its clouds, #75 item 15b).
+  const fogged = (x: number, y: number) => shut?.has(`${x},${y}`) || (!!flags && fogAt(z, x, y, flags));
   const standable = (x: number, y: number) =>
-    WALKABLE_CHARS.has(tileAt(z, x, y)) && !shut?.has(`${x},${y}`) && !z.exits.some((e) => e.x === x && e.y === y);
+    WALKABLE_CHARS.has(tileAt(z, x, y)) && !fogged(x, y) && !z.exits.some((e) => e.x === x && e.y === y);
   if (standable(cx, cy)) return pos;
-  if (!WALKABLE_CHARS.has(tileAt(z, cx, cy)) || shut?.has(`${cx},${cy}`)) return fallback;
+  if (!WALKABLE_CHARS.has(tileAt(z, cx, cy)) || fogged(cx, cy)) return fallback;
   // On an exit: the nearest open floor a few steps away — walked to, never across a wall or a shut gate.
   const off = reachPath(z, standable, { from: { x: cx, y: cy }, flags: flags ?? null, gates: 'flags', exits: 'stop' });
   return off && off.length - 1 <= EXIT_STEP_OFF ? centre(off[off.length - 1]) : fallback;

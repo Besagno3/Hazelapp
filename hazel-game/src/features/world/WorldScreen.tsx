@@ -66,6 +66,10 @@ import {
   GREAT_FOGBANK_SEEN,
   MEMORIA_PANELS,
   MEMORIA_SEEN,
+  FLIGHT_PANELS,
+  FLIGHT_TUTORIAL_SEEN,
+  ROOST_PANELS,
+  ROOST_SEEN,
   POSY_STONE_PANELS,
   POSY_STONE_SEEN,
   HALL_CALLED,
@@ -257,6 +261,9 @@ export default function WorldScreen() {
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
   // The first step into the Sunken Archive (#75 item 14h).
   const archiveDue = zoneId === 'sunken-archive' && !flags[ARCHIVE_SEEN];
+  const roostDue = zoneId === 'dragon-roost' && !flags[ROOST_SEEN];
+  // Ember's first flight (#75 item 15b): on a map Ember can fly over, where 🐉 Fly is.
+  const flightDue = canFly(flags) && !flags[FLIGHT_TUTORIAL_SEEN] && canFlyOver(ZONES[zoneId]);
   const dawnreachDue = zoneId === 'dawnreach' && !flags[DAWNREACH_SEEN];
   // Act II (#75 item 14): the morning after the Spire's finale, once the hero
   // has woken at the inn; the first time in the boat; the first bump into the
@@ -286,6 +293,8 @@ export default function WorldScreen() {
     | 'ending'
     | 'grove'
     | 'archive'
+    | 'roost'
+    | 'flight'
     | 'dawnreach'
     | 'act2'
     | 'voyage'
@@ -312,6 +321,10 @@ export default function WorldScreen() {
                   ? 'grove'
                   : archiveDue
                     ? 'archive'
+                    : roostDue
+                      ? 'roost'
+                      : flightDue
+                        ? 'flight'
                     : dawnreachDue
                       ? 'dawnreach'
                       : voyageDue
@@ -840,6 +853,12 @@ export default function WorldScreen() {
       )}
       {activeScene === 'memoria' && (
         <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />
+      )}
+      {activeScene === 'flight' && (
+        <StoryPanels panels={FLIGHT_PANELS} doneLabel="🐉 Let's fly!" onDone={() => setFlag(FLIGHT_TUTORIAL_SEEN)} />
+      )}
+      {activeScene === 'roost' && (
+        <StoryPanels panels={ROOST_PANELS} doneLabel="🪺 Look around" onDone={() => setFlag(ROOST_SEEN)} />
       )}
       {activeScene === 'archive' && (
         <StoryPanels panels={ARCHIVE_PANELS} doneLabel="📚 Explore the Archive" onDone={() => setFlag(ARCHIVE_SEEN)} />

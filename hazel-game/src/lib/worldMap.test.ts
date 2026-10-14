@@ -90,8 +90,9 @@ describe('placeEmoji (#75 item 7)', () => {
     expect(placeEmoji(dawn, spire, { [crystalFlag('science')]: true })).toBe(PLACE_EMOJI.tower);
   });
   it('leaves places outside the fog alone, even one just past a bank (the shrine)', () => {
-    // The Spire stands in its ring of fog, Remembrance Hill in its own (#75 item 14e).
-    for (const p of dawn.places!.filter((p) => !['The Crystal Spire', 'Remembrance Hill'].includes(p.name))) {
+    // The Spire stands in its ring of fog, Remembrance Hill in its own (#75 item 14e),
+    // the Dragon's Roost in its clouds (#75 item 15b).
+    for (const p of dawn.places!.filter((p) => !['The Crystal Spire', 'Remembrance Hill', "Dragon's Roost"].includes(p.name))) {
       expect(placeEmoji(dawn, p, {}), p.name).toBe(PLACE_EMOJI[p.icon]);
     }
   });

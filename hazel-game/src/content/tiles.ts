@@ -152,6 +152,8 @@ export const OVERWORLD_FRAME = {
     marsh: 18,
     // 19: the Sunken Archive (#75 item 14h) — a domed library in the water, appended after the marsh.
     archive: 19,
+    // 20: the Dragon's Roost (#75 item 15b) — a big nest on a peak, appended after the archive.
+    roost: 20,
   } satisfies Record<
     Exclude<PlaceIcon, 'tower'>,
     number
@@ -159,7 +161,7 @@ export const OVERWORLD_FRAME = {
 } as const;
 // 15: Marlow's dock (#75 item 14) — planks drawn over the water.
 export const OVERWORLD_DOCK_FRAME = 15;
-export const OVERWORLD_FRAMES = 20;
+export const OVERWORLD_FRAMES = 21;
 export const OVERWORLD_SHEET = '/tiles/overworld.png';
 export const OVERWORLD_KEY = 't_overworld';
 

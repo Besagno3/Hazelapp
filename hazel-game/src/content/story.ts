@@ -102,6 +102,16 @@ export const HALL_CALLED = 'hall-called';
  */
 export const WISP_STIRRING = 'wisp-stirring';
 
+/**
+ * Ember's first flight (#75 item 15b, STORY-4X's 3-panel flight tutorial):
+ * plays once Ember can fly, the next time the hero is on an overworld map —
+ * where the 🐉 Fly button is.
+ */
+export const FLIGHT_TUTORIAL_SEEN = 'flight-tutorial-seen';
+
+/** Set once the Dragon's Roost panels have played, on the first visit (#75 item 15b). */
+export const ROOST_SEEN = 'roost-seen';
+
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
   return `crystal-${topic}-scene-seen`;
@@ -403,6 +413,37 @@ export const HALL_PANELS: StoryPanel[] = [
   {
     emoji: '✨',
     text: '"The Hall remembers YOU now," says Mnem. "Cast Remembrance in a battle, and when you\'re about to fall, it will hold you up." Find it in your 📖 Spells!',
+  },
+];
+
+/**
+ * Ember's first flight (#75 item 15b): wings, how to fly and land, and the
+ * one peak no path climbs — the Dragon's Roost, east of Lumina Village.
+ */
+export const FLIGHT_PANELS: StoryPanel[] = [
+  {
+    emoji: '🐉',
+    text: 'Ember stretches its wings — wide, wider, wider than ever. It looks back at you and dips one wing to the ground. Climb on!',
+  },
+  {
+    emoji: '🛫',
+    text: 'Tap 🐉 Fly to take off from open ground. Fly over mountains, trees, water and fog! To come down, tap 🛬 Land, press Space or tap the world.',
+  },
+  {
+    emoji: '⛰️',
+    text: "Ember keeps looking at a lonely peak just east of Lumina Village. No path climbs it. Something up there smells like home…",
+  },
+];
+
+/** The first step onto the Dragon's Roost (#75 item 15b): where Ember's family lived. */
+export const ROOST_PANELS: StoryPanel[] = [
+  {
+    emoji: '🪺',
+    text: 'Wind whistles over a mountaintop of old stone nests, each one as big as a cart. Ember runs from nest to nest, sniffing every one.',
+  },
+  {
+    emoji: '🐉',
+    text: 'Ember curls up in the biggest nest and hums a happy rumble. Long ago, before the fog, the dragons of Lumina lived up here.',
   },
 ];
 

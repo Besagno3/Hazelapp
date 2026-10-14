@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { MutableRefObject } from 'react';
 import type { WorldCanvasCallbacks } from './WorldCanvas';
@@ -41,6 +41,7 @@ const SEEN: Record<string, boolean> = {
   [story.DAWNREACH_SEEN]: true,
   [story.SPIRE_AWAKE_SEEN]: true,
   [story.crystalSceneFlag('history')]: true,
+  [story.FLIGHT_TUTORIAL_SEEN]: true,
 };
 
 function start(zoneId: string, flags: Record<string, boolean>, vehicle: 'foot' | 'boat' | 'ember' = 'foot') {
@@ -92,6 +93,30 @@ describe('🐉 Fly / 🛬 Land on the world HUD (#75 item 15b)', () => {
     render(<WorldScreen />);
     act(() => canvas.callbacks!.onNoLanding!());
     expect(screen.getByText(/Ember needs open ground to land/)).toBeInTheDocument();
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("plays Ember's flight tutorial once, on a map Ember flies over — then the Fly button is there", () => {
+    vi.useFakeTimers();
+    start('dawnreach', { [story.FLIGHT_FLAG]: true, [story.FLIGHT_TUTORIAL_SEEN]: false });
+    render(<WorldScreen />);
+    expect(screen.getByText(/Ember stretches its wings/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fly on Ember' })).toBeNull();
+    for (let i = 0; i < story.FLIGHT_PANELS.length - 1; i++) {
+      act(() => vi.advanceTimersByTime(2000));
+      fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    }
+    act(() => vi.advanceTimersByTime(2000));
+    fireEvent.click(screen.getByRole('button', { name: "🐉 Let's fly!" }));
+    expect(useSaveStore.getState().save!.flags[story.FLIGHT_TUTORIAL_SEEN]).toBe(true);
+    expect(screen.getByRole('button', { name: 'Fly on Ember' })).toBeInTheDocument();
+  });
+
+  it('waits in a town: the tutorial plays only where Ember can fly', () => {
+    start('lumina-village', { [story.FLIGHT_FLAG]: true, [story.FLIGHT_TUTORIAL_SEEN]: false });
+    render(<WorldScreen />);
+    expect(screen.queryByText(/Ember stretches its wings/)).toBeNull();
   });
 
   it('has no Fly button while sailing', () => {

@@ -1742,4 +1742,18 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
     ambient: ['Wrong book again!', 'Fetch, fetch, fetch!', '📖'],
   },
+  // The Dragon's Roost (#75 item 15b): where Ember's egg came from.
+  'roost-stone': {
+    id: 'roost-stone',
+    name: 'The Roost Stone',
+    sprite: '🪨',
+    spriteId: 'marsh-stone',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'An old stone covered in claw marks. Someone carved a dragon on it, curled round an egg.',
+      'Tiny letters under it say: "When the fog came, the dragons flew away. The last one carried her egg down to the village, where the fog had not come yet."',
+      'Ember presses its nose to the carving and gives a soft little rumble.',
+    ],
+  },
 };

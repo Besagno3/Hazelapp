@@ -28,6 +28,8 @@ import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
 import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
+import { BOAT_HOME } from './boat';
+import { landable } from '../lib/travel';
 import type { ZoneDef } from './zones';
 import {
   ANY_CRYSTAL,
@@ -46,7 +48,7 @@ import {
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
-import { ACT2_SEEN, HALL_CALLED } from './story';
+import { ACT2_SEEN, FLIGHT_FLAG, HALL_CALLED, canFly } from './story';
 
 const allZones = Object.values(ZONES);
 
@@ -510,6 +512,9 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
   const allLifted = Object.fromEntries([...ANY_CRYSTAL, ACT2_SEEN].map((f) => [f, true]));
   /** Cells reachable on foot from the spawn, with fog blocking unless `lifted`. */
   const onFoot = (z: ZoneDef, lifted: boolean) => reach(z, { flags: lifted ? allLifted : {} });
+  // Walking, and flying once Ember can (#75 item 15b) — taking off from the spawn's ground.
+  const flying = (z: ZoneDef) => reach(z, { flags: allLifted, modes: ['foot', 'ember'] });
+  const airOnly = new Set(dawn.places!.filter((p) => p.byAir).map((p) => `${p.x},${p.y}`));
 
   it('is an overworld with places (and the Silver Shallows, the sea beyond it, #75 item 14)', () => {
     expect(overworlds.map((z) => z.id)).toEqual(['dawnreach', 'silver-shallows']);
@@ -534,11 +539,17 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
     const up = onFoot(dawn, true);
     const guarded = new Set((dawn.fogs ?? []).map((f) => `${f.guards.x},${f.guards.y}`));
     expect(dawn.places!.filter((p) => guarded.has(`${p.x},${p.y}`)).map((p) => p.name).sort()).toEqual([
+      "Dragon's Roost",
       'Remembrance Hill',
       'Shrine of First Light',
       'The Crystal Spire',
     ]);
     for (const p of dawn.places!) {
+      // A place only Ember reaches (#75 item 15b) is never reached on foot, fog or no fog.
+      if (p.byAir) {
+        expect(up.has(`${p.x},${p.y}`), `${p.name} walkable?`).toBe(false);
+        continue;
+      }
       expect(up.has(`${p.x},${p.y}`), `${p.name} reachable once the fog lifts`).toBe(true);
       expect(down.has(`${p.x},${p.y}`), `${p.name} reachable through the fog?`).toBe(!guarded.has(`${p.x},${p.y}`));
     }
@@ -553,6 +564,13 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
         const gap = Math.max(Math.abs(e.spawnX - icon!.x), Math.abs(e.spawnY - icon!.y));
         expect(gap, `${z.id} gate ${e.x},${e.y} lands ${gap} from its icon`).toBeLessThanOrEqual(2);
         expect(gap, `${z.id} gate lands ON its icon`).toBeGreaterThan(0);
+        if (airOnly.has(`${icon!.x},${icon!.y}`)) {
+          // Only Ember reaches it (#75 item 15b): the hero steps out onto ground
+          // Ember can take off from, and flying reaches it.
+          expect(landable(tileAt(dawn, e.spawnX, e.spawnY)), `${z.id} landing spot is open ground`).toBe(true);
+          expect(flying(dawn).has(`${e.spawnX},${e.spawnY}`), `${z.id} landing spot is reached by air`).toBe(true);
+          continue;
+        }
         expect(roam.has(`${e.spawnX},${e.spawnY}`), `${z.id} landing spot is connected`).toBe(true);
       }
     }
@@ -602,8 +620,9 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
         }
         expect(isWalkable(z, f.guards.x, f.guards.y) || tileAt(z, f.guards.x, f.guards.y) === 'C', `${f.id} guards something real`).toBe(true);
         // Reach the reward by its neighbours (a chest is bumped, not stood on).
+        // Once Ember can fly, the hero flies too (#75 item 15b).
         const reached = (flags: Record<string, boolean>) => {
-          const open = reach(z, { flags });
+          const open = reach(z, { flags, modes: canFly(flags) ? ['foot', 'ember'] : ['foot'] });
           return open.has(key) || touches(open, f.guards.x, f.guards.y);
         };
         expect(reached({}), `${f.id}: reward reachable through the fog`).toBe(false);
@@ -701,6 +720,50 @@ describe('dark places (#75 item 9)', () => {
     for (const e of mine.exits) expect(open.has(`${e.x},${e.y}`)).toBe(true);
     const mabel = mine.npcs.find((p) => p.defId === 'mine-miner')!;
     expect(open.has(`${mabel.x},${mabel.y}`)).toBe(true);
+  });
+});
+
+describe("the Dragon's Roost: a peak only Ember reaches (#75 item 15b)", () => {
+  const dawn = ZONES.dawnreach;
+  const roost = ZONES['dragon-roost'];
+  const icon = dawn.places!.find((p) => p.name === "Dragon's Roost")!;
+  const bank = dawn.fogs!.find((f) => f.id === 'roost-clouds')!;
+  const everything = Object.fromEntries(dawn.fogs!.flatMap((f) => f.liftedBy.map((fl) => [fl, true])));
+  const plateau: { x: number; y: number }[] = [];
+  for (let y = bank.y; y < bank.y + bank.h; y++) for (let x = bank.x; x < bank.x + bank.w; x++) if (x !== icon.x || y !== icon.y) plateau.push({ x, y });
+
+  it('is an air-only place, in clouds that lift with Ember\'s wings and show no crystal on the map', () => {
+    expect(icon.byAir).toBe(true);
+    expect(bank.guards).toEqual({ x: icon.x, y: icon.y });
+    expect(bank.liftedBy).toEqual([FLIGHT_FLAG]);
+    expect(bank.unmarked).toBe(true);
+    // Nobody names it before Ember can fly.
+    expect(icon.knownFrom).toBe(FLIGHT_FLAG);
+  });
+
+  it('no path climbs it: never on foot or by boat, whatever has lifted', () => {
+    const ground = reach(dawn, { flags: everything, modes: ['foot', 'boat'], boat: BOAT_HOME });
+    expect(ground.has(`${icon.x},${icon.y}`)).toBe(false);
+    for (const c of plateau) expect(ground.has(`${c.x},${c.y}`), `${c.x},${c.y}`).toBe(false);
+  });
+
+  it('by air: Ember lands on its open ground, and from there the icon is a walk away — and nothing else is', () => {
+    for (const c of plateau) expect(landable(tileAt(dawn, c.x, c.y)), `${c.x},${c.y} open ground`).toBe(true);
+    const air = reach(dawn, { flags: everything, modes: ['foot', 'ember'] });
+    for (const c of plateau) expect(air.has(`${c.x},${c.y}`)).toBe(true);
+    const top = reach(dawn, { from: plateau, flags: everything });
+    expect(top.has(`${icon.x},${icon.y}`)).toBe(true);
+    expect([...top].sort()).toEqual([...plateau.map((c) => `${c.x},${c.y}`), `${icon.x},${icon.y}`].sort());
+  });
+
+  it('is a quiet mountaintop: no critters, a riddle-chest on history, the Roost Stone', () => {
+    expect(roost.enemies).toEqual([]);
+    expect(roost.topic).toBe('history');
+    expect(roost.map.some((row) => row.includes('C'))).toBe(true);
+    expect(roost.npcs.map((n) => n.defId)).toEqual(['roost-stone']);
+    const open = reach(roost);
+    const chest = roost.map.flatMap((row, y) => [...row].map((ch, x) => ({ ch, x, y }))).find((c) => c.ch === 'C')!;
+    expect(touches(open, chest.x, chest.y)).toBe(true);
   });
 });
 

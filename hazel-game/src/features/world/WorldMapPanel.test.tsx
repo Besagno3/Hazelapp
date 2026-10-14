@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import WorldMapPanel from './WorldMapPanel';
 import { BOAT_MENDED, BOAT_HOME } from '../../content/boat';
 import { actCrystals, crystalFlag } from '../../content/topics';
-import { ACT2_SEEN, SPIRE_CLEARED } from '../../content/story';
+import { ACT2_SEEN, FLIGHT_FLAG, SPIRE_CLEARED } from '../../content/story';
 import { TILE } from '../../content/zones';
 
 // jsdom has no canvas: the map's squares are skipped, the markers still render.
@@ -96,6 +96,15 @@ describe('Remembrance Hill on the menu map (#75 item 14e)', () => {
   it('once Lumina starts remembering, it is listed with its own icon', () => {
     render(<WorldMapPanel zoneId="lumina-village" pos={null} flags={{ ...allCrystals, [SPIRE_CLEARED]: true, [ACT2_SEEN]: true }} />);
     expect(screen.getByText('Remembrance Hill')).toBeInTheDocument();
+    // The Dragon's Roost's clouds still stand, unmarked, until Ember can fly (#75 item 15b).
+    expect(screen.getByText('Fog with nothing on it lifts later in your adventure')).toBeInTheDocument();
+  });
+
+  it("once Ember can fly, no fog is left on Dawnreach and the Dragon's Roost is listed (#75 item 15b)", () => {
+    render(
+      <WorldMapPanel zoneId="lumina-village" pos={null} flags={{ ...allCrystals, [SPIRE_CLEARED]: true, [ACT2_SEEN]: true, [FLIGHT_FLAG]: true }} />,
+    );
+    expect(screen.getByText("Dragon's Roost")).toBeInTheDocument();
     expect(screen.queryByText('Fog with nothing on it lifts later in your adventure')).toBeNull();
   });
 });

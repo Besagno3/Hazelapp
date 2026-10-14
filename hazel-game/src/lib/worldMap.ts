@@ -39,9 +39,11 @@ export const ANY_CRYSTAL_EMOJI = '💎';
  * that clears it, or 💎 when any crystal will do — so the map shows which
  * crystal opens which part of the world. A bank the story lifts instead
  * (the road to Remembrance Hill, #75 item 14e) shows nothing: no crystal
- * will clear it.
+ * will clear it. Nor does an `unmarked` one (the Dragon's Roost's clouds, #75
+ * item 15b).
  */
 export function fogMarker(f: FogDef): string | null {
+  if (f.unmarked) return null;
   const crystal = (flag: string) => TOPIC_REGISTRY.find((t) => crystalFlag(t.id) === flag);
   if (!f.liftedBy.every((flag) => crystal(flag))) return null;
   return f.liftedBy.length === 1 ? crystal(f.liftedBy[0])!.emoji : ANY_CRYSTAL_EMOJI;
@@ -84,6 +86,7 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   // Act II (#75 item 14g): a lotus on the bog (Gull Rock already has the 🏮).
   marsh: '🪷',
   archive: '📚',
+  roost: '🪺',
 };
 
 /** Stands in for a place that's still hidden in fog. */

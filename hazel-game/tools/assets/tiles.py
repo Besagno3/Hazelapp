@@ -81,6 +81,10 @@ ZONES = {
     # bookshelves, a red carpet, scattered pages and flooded aisles of sea-green water.
     'sunken-archive': dict(ground=(122, 128, 140), path=(158, 60, 64), solid='bookshelf', deco='pages', deco_c='#f4ecd8',
                            sky=('#2a3a5a', '#8aa8c8'), far='#3a4a6a', mid='shelves', water='#3a8a8a'),
+    # The Dragon's Roost (#75 item 15b): a windy grey-green mountaintop of old stone
+    # nests and white mountain flowers, high above the clouds.
+    'dragon-roost': dict(ground=(150, 156, 140), path=(196, 182, 150), solid='rock', deco='flower', deco_c='#ffffff',
+                         sky=('#4a8ad8', '#eaf4ff'), far='#a8b8d0', mid='mountain', water='#4a8ad0'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -101,6 +105,10 @@ MARSH_ZONES = ('foglight-marsh',)
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
 ARCHIVE_ZONES = ('sunken-archive',)
+
+# Added with Ember's flight (#75 item 15b) — `build_roost` writes only these
+# (+ the overworld sheet with the roost icon appended).
+ROOST_ZONES = ('dragon-roost',)
 
 # Added for the field spells (#75 item 9) — `build_spell_places` writes only these.
 SPELL_ZONES = ('wayfarer-shrine', 'quiet-shrine', 'echo-mine')
@@ -1226,6 +1234,19 @@ def ow_icon(kind):
         c.poly([(5.6, 2.6), (8, 3.4), (10.4, 2.6), (10.4, 0.8), (8, 1.6), (5.6, 0.8)], '#fff8e0')
         c.line(8, 1.6, 8, 3.4, '#8a7a6a', w=0.4)
         c.ellipse(8, 14, 6.6, 1, '#4aa0c0', shade=False)  # water over the steps
+    elif kind == 'roost':
+        # The Dragon's Roost (#75 item 15b): a snowy peak with a big twig nest on
+        # top, a speckled egg in it, and a wisp of cloud — no path up.
+        c.poly([(0.5, 15.5), (5, 6), (8, 4.5), (11, 6), (15.5, 15.5)], '#8a8a90')
+        c.poly([(5, 6), (8, 4.5), (11, 6), (9.6, 7.8), (8, 7), (6.4, 7.8)], '#f4f6ff')  # snow
+        c.poly([(2.5, 15.5), (6, 9.5), (7.5, 15.5)], '#6e6e78', shade=False)  # the shadowed face
+        c.ellipse(8, 4.6, 4.6, 1.8, '#9a6a3a')  # the nest
+        c.line(4, 4.2, 12, 5.2, '#c8945a', w=0.6)
+        c.line(4.4, 5.4, 11.6, 3.8, '#6a4424', w=0.5)
+        c.ellipse(8.4, 2.8, 1.5, 1.9, '#ffe8c0')  # the egg
+        c.dot(8, 2.4, '#e0884a', w=1, h=1)
+        c.ellipse(2.6, 9.4, 2.4, 0.9, '#ffffff', shade=False)  # a wisp of cloud
+        c.ellipse(13.6, 11, 2, 0.8, '#ffffff', shade=False)
     return _outlined(c)
 
 
@@ -1364,7 +1385,7 @@ def overworld_sheet():
     # frame 19 (#75 item 14h): the Sunken Archive — each appended, so every earlier
     # frame keeps its place.
     return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
-            + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive')])
+            + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive'), ow_icon('roost')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
@@ -1599,6 +1620,19 @@ def build_archive(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('tome')]).save(tdir / 'town-tome.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_roost(public: Path):
+    """Write only the Dragon's Roost's art (#75 item 15b): its tileset, blend sheet,
+    backdrop and the overworld sheet with the roost icon."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in ROOST_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 

@@ -866,7 +866,7 @@ async function use(browser, outDir) {
 async function fly(browser, outDir) {
   fs.mkdirSync(outDir, { recursive: true });
   // Memory counts as a crystal, so banks lift: mark them watched, or their reveal freezes the hero.
-  const SEEN = ['shrine-fog', 'spire-fog', 'math-fog', 'science-fog', 'engineering-fog', 'creativity-fog', 'hill-fog'].map((id) => `fog-${id}-seen`);
+  const SEEN = ['shrine-fog', 'spire-fog', 'math-fog', 'science-fog', 'engineering-fog', 'creativity-fog', 'hill-fog', 'roost-clouds'].map((id) => `fog-${id}-seen`);
   const MEMORY = ['crystal-history-restored', ...SEEN].join(',');
   const state = (page) => page.evaluate(() => window.__bench.state());
   const ready = async (query) => {
@@ -947,6 +947,39 @@ async function fly(browser, outDir) {
   await page.waitForTimeout(200);
   s = await state(page);
   await check(page, 'no flight before the Crystal of Memory', s.takeOffs === 0 && !s.flying, `takeOffs ${s.takeOffs}`);
+  await page.close();
+
+  // E: with Memory, the clouds on the Dragon's Roost lift on screen (the camera shows where to fly).
+  page = await ready(`zone=dawnreach&at=44,27&flags=${['crystal-history-restored', ...SEEN.filter((f) => f !== 'fog-roost-clouds-seen')].join(',')}`);
+  await page.waitForFunction(() => window.__bench.state().fogReveals.includes('roost-clouds'), null, { timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(4500);
+  s = await state(page);
+  await check(page, "the clouds on the Dragon's Roost lift on screen", s.fogReveals.includes('roost-clouds'), `revealed ${JSON.stringify(s.fogReveals)}`);
+  await page.close();
+
+  // F: fly up to the Roost from the road, land on its plateau, walk in, come out, take off again.
+  page = await ready(`zone=dawnreach&at=44,27&flags=${MEMORY}`);
+  await page.evaluate(() => window.__bench.fly());
+  await page.waitForTimeout(200);
+  await hold(page, 'ArrowRight', 300);
+  s = await where(page);
+  const above = cell(s);
+  await page.evaluate(() => window.__bench.land());
+  await page.waitForTimeout(250);
+  s = await where(page);
+  await check(page, "lands on the Dragon's Roost's plateau", s.touchDowns === 1 && !s.flying && cell(s).y === 27 && cell(s).x >= 47 && cell(s).x <= 49, `over ${JSON.stringify(above)}, landed at ${JSON.stringify(cell(s))}`);
+  await hold(page, 'ArrowUp', 700);
+  await page.waitForTimeout(1500);
+  s = await state(page);
+  await check(page, "walks into the Dragon's Roost", s.zoneId === 'dragon-roost', `zone ${s.zoneId}`);
+  await hold(page, 'ArrowDown', 700);
+  await page.waitForTimeout(1500);
+  s = await where(page);
+  await check(page, 'steps back out onto the plateau', s.zoneId === 'dawnreach' && cell(s).y === 27, `zone ${s.zoneId} at ${JSON.stringify(cell(s))}`);
+  await page.evaluate(() => window.__bench.fly());
+  await page.waitForTimeout(250);
+  s = await state(page);
+  await check(page, 'takes off from the plateau again', s.takeOffs === 2 && s.flying, `takeOffs ${s.takeOffs}, flying ${s.flying}`);
   await page.close();
 
   const bad = checks.filter((ok) => !ok).length;

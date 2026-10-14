@@ -649,6 +649,7 @@ python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble
 python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
 python3 tools/assets/build.py marsh    # Foglight Marsh: its tiles, the stilt town sheet, the marsh icon, its critters, people and lanterns (#75 item 14g)
 python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome town sheet, the archive icon, its critters, Fiend and people (#75 item 14h)
+python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
@@ -737,6 +738,29 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-14 — Ember's first flight and the Dragon's Roost (#75 item 15b, #136d)
+Third slice of 15b.
+- **The flight tutorial** (`FLIGHT_PANELS`, three panels,
+  `flight-tutorial-seen`) plays once Ember can fly. It waits for a map Ember
+  flies over, so 🐉 Fly is there when it closes, and points at "a lonely peak
+  just east of Lumina Village".
+- **The Dragon's Roost:** a ring of mountains on Dawnreach (45–51, 24–29,
+  painted in Tiled) around a 3×2 grass plateau and the `roost` icon
+  (overworld frame 20, appended). No path climbs it (`PlaceDef.byAir`).
+  - Clouds sit on the summit until Memory (`roost-clouds`). They are
+    `unmarked`: the map draws no crystal on them and says "lifts later". They
+    lift on screen, and the camera shows where to fly.
+  - Nobody names the place before then (`knownFrom`).
+  - Inside (`dragon-roost`, a 22×14 shrine, history): two first-visit panels
+    (`ROOST_PANELS`), a riddle-chest, and the Roost Stone. Its carving says
+    the last dragon carried her egg down to the village.
+- **Code:** `safeSpawn` now treats a cell under fog that hasn't lifted as
+  unsafe even where no path reaches. The Roost's art comes from
+  `python3 tools/assets/build.py roost`; frames 0–19 are byte-identical.
+- **Tests:** +8 (`zones.test`, `WorldScreen.fly.test`, `WorldMapPanel.test`,
+  `tiles.test`). 1183 green; lint and tsc clean. `bench … fly` 13/13 (+5:
+  the clouds lift, then land on the plateau, walk in, walk out, take off).
 
 ### 2026-10-14 — Fly and land on Ember (#75 item 15b, #136c)
 Second slice of 15b. Once Ember can fly (the Crystal of Memory), an
