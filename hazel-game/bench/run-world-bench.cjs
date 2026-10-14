@@ -857,6 +857,103 @@ async function use(browser, outDir) {
   if (bad) process.exitCode = 1;
 }
 
+/**
+ * Ember's flight on the real `WorldCanvas` (#75 item 15b), on the bench page:
+ * take off, fly over mountains and sea at 2.5×, no landing over water, across
+ * the linked east edge, over a critter without a battle, Space to land, and
+ * on foot again the mountains stop you. Exit 1 on a failure.
+ */
+async function fly(browser, outDir) {
+  fs.mkdirSync(outDir, { recursive: true });
+  // Memory counts as a crystal, so banks lift: mark them watched, or their reveal freezes the hero.
+  const SEEN = ['shrine-fog', 'spire-fog', 'math-fog', 'science-fog', 'engineering-fog', 'creativity-fog', 'hill-fog'].map((id) => `fog-${id}-seen`);
+  const MEMORY = ['crystal-history-restored', ...SEEN].join(',');
+  const state = (page) => page.evaluate(() => window.__bench.state());
+  const ready = async (query) => {
+    const page = await openBench(browser, query);
+    await page.waitForFunction(() => window.__bench.stats().frames > 60, null, { timeout: 180000 });
+    return page;
+  };
+  const hold = async (page, key, ms) => {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(ms);
+    await page.keyboard.up(key);
+  };
+  const cell = (s) => ({ x: Math.floor(s.pos.x / 32), y: Math.floor(s.pos.y / 32) });
+  // The canvas reports where the hero is on a pause (as a menu opening would).
+  const where = async (page) => {
+    await page.evaluate(() => window.__bench.pause(true));
+    await page.waitForTimeout(100);
+    await page.evaluate(() => window.__bench.pause(false));
+    await page.waitForTimeout(50);
+    return state(page);
+  };
+  const checks = [];
+  const check = async (page, name, ok, detail) => {
+    checks.push(ok);
+    console.log(`${ok ? '✓' : '✗'} ${name} — ${detail}`);
+    await page.locator('canvas').screenshot({ path: path.join(outDir, `${checks.length}.png`) });
+    if (page.errors.length) console.log(`    page errors: ${page.errors.join(' | ')}`);
+  };
+
+  // A: take off on open ground, fly east over the mountains (52–61) and out over the sea.
+  let page = await ready(`zone=dawnreach&at=41,18&flags=${MEMORY}`);
+  await page.evaluate(() => window.__bench.fly());
+  await page.waitForTimeout(200);
+  let s = await state(page);
+  await check(page, 'takes off on open ground', s.takeOffs === 1 && s.flying, `takeOffs ${s.takeOffs}, flying ${s.flying}`);
+  await hold(page, 'ArrowRight', 1300);
+  s = await where(page);
+  await check(page, 'flies over the mountains, faster than walking', cell(s).x >= 56, `now at ${JSON.stringify(cell(s))} after 1.3 s (on foot the mountains stop you at 51)`);
+  await hold(page, 'ArrowRight', 1250); // out over the sea (from x 75)
+  s = await where(page);
+  const overSea = cell(s);
+  await page.evaluate(() => window.__bench.land());
+  await page.waitForTimeout(200);
+  s = await state(page);
+  await check(page, 'no landing over the sea', s.noLandings === 1 && s.flying, `noLandings ${s.noLandings}, over ${JSON.stringify(overSea)}`);
+  await hold(page, 'ArrowRight', 1200);
+  await page.waitForTimeout(800);
+  s = await state(page);
+  await check(page, 'flies off the east edge onto the Silver Shallows', s.zoneId === 'silver-shallows', `zone ${s.zoneId}, exits ${s.exits}`);
+  await page.close();
+
+  // B: over the Bolt Mouse's patch (67,19) without a battle, then Space lands on grass.
+  page = await ready(`zone=dawnreach&at=61,19&fly=1&flags=${MEMORY}`);
+  await hold(page, 'ArrowRight', 900);
+  s = await where(page);
+  await check(page, 'flies over a critter without a battle', s.encounters === 0 && cell(s).x > 67, `encounters ${s.encounters}, at ${JSON.stringify(cell(s))}`);
+  await hold(page, 'ArrowLeft', 250);
+  await page.waitForTimeout(150);
+  s = await state(page);
+  const prompt = s.prompt;
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+  s = await state(page);
+  await check(page, 'Space lands on open ground', prompt === 'Land' && s.touchDowns === 1 && !s.flying, `prompt ${prompt}, touchDowns ${s.touchDowns}, flying ${s.flying}`);
+  await page.close();
+
+  // C: on foot again, the mountains stop you.
+  page = await ready(`zone=dawnreach&at=41,18&flags=${MEMORY}`);
+  await hold(page, 'ArrowRight', 3500);
+  await page.waitForTimeout(150);
+  s = await state(page);
+  await check(page, 'on foot the mountains still stop you', cell(s).x <= 51, `at ${JSON.stringify(cell(s))}`);
+  await page.close();
+
+  // D: before Memory, 🐉 Fly does nothing.
+  page = await ready(`zone=dawnreach&at=41,18&flags=${SEEN.join(',')}`);
+  await page.evaluate(() => window.__bench.fly());
+  await page.waitForTimeout(200);
+  s = await state(page);
+  await check(page, 'no flight before the Crystal of Memory', s.takeOffs === 0 && !s.flying, `takeOffs ${s.takeOffs}`);
+  await page.close();
+
+  const bad = checks.filter((ok) => !ok).length;
+  console.log(`\n${checks.length - bad}/${checks.length} flight checks passed. Screenshots in ${outDir}.`);
+  if (bad) process.exitCode = 1;
+}
+
 (async () => {
   const [mode = 'fps', ...args] = process.argv.slice(2);
   const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] });
@@ -872,6 +969,7 @@ async function use(browser, outDir) {
     else if (mode === 'hud') await hud(browser, args[0] ?? 'bench-hud');
     else if (mode === 'sea') await sea(browser, args[0] ?? 'bench-sea');
     else if (mode === 'use') await use(browser, args[0] ?? 'bench-use');
+    else if (mode === 'fly') await fly(browser, args[0] ?? 'bench-fly');
     else throw new Error(`unknown mode ${mode}`);
   } finally {
     await browser.close();

@@ -72,7 +72,9 @@ import {
   HALL_PANELS,
   WISP_PANELS,
   WISP_STIRRING,
+  canFly,
 } from '../../content/story';
+import { canFlyOver } from '../../lib/travel';
 import { HALL_DEDICATED } from '../../content/spells';
 import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
 import { POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
@@ -182,6 +184,8 @@ export default function WorldScreen() {
   // once the menu has closed) and the seconds of Calm left (the canvas counts
   // them down while the world runs; `calmLeft` is the HUD's copy).
   const travelRef = useRef<Travel | null>(null);
+  /** 🐉 Fly / 🛬 Land (#75 item 15b): asked of the canvas, taken once the world runs. */
+  const flightRef = useRef<'fly' | 'land' | null>(null);
   const calmRef = useRef(0);
   const [calmLeft, setCalmLeft] = useState(0);
   /** Where the Spire climb shows its seals, candles and Leave button: the HUD, in Menu's place (#75 item 14b). */
@@ -513,6 +517,20 @@ export default function WorldScreen() {
               🕊️ {calmLeft}s
             </span>
           )}
+          {/* Ember flies (#75 item 15b): over an overworld map once Memory is restored, never from the boat. */}
+          {canFly(flags) && canFlyOver(z) && save.vehicle !== 'boat' && overlay === null && !cutscene && (
+            <button
+              onClick={() => {
+                flightRef.current = save.vehicle === 'ember' ? 'land' : 'fly';
+              }}
+              aria-label={save.vehicle === 'ember' ? 'Land' : 'Fly on Ember'}
+              title={save.vehicle === 'ember' ? 'Land' : 'Fly on Ember'}
+              className={`min-w-11 bg-orange-400 hover:bg-orange-300 text-orange-950 rounded-lg px-3 py-1.5 text-xs font-bold ${HUD_TAP}`}
+            >
+              {save.vehicle === 'ember' ? '🛬' : '🐉'}
+              <span className="hidden sm:inline">{save.vehicle === 'ember' ? ' Land' : ' Fly'}</span>
+            </button>
+          )}
           {/* In a dark place, Glow is one tap away (#75 item 9). */}
           {knowsGlow && canGlow(z, flags) && overlay === null && !cutscene && (
             <button
@@ -593,6 +611,16 @@ export default function WorldScreen() {
             update((s) => ({ ...s, vehicle: 'foot', boat: { zoneId: s.zoneId, ...boat }, pos: { x, y } }));
           },
           onAshore: (boat) => update((s) => ({ ...s, vehicle: 'foot', boat: boat ? { zoneId: s.zoneId, ...boat } : null })),
+          // Flying on Ember (#75 item 15b).
+          onTakeOff: (x, y) => {
+            sfx('roar');
+            update((s) => ({ ...s, vehicle: 'ember', pos: { x, y } }));
+          },
+          onTouchDown: (x, y) => {
+            sfx('select');
+            update((s) => ({ ...s, vehicle: 'foot', pos: { x, y } }));
+          },
+          onNoLanding: () => showToast('🐉 Ember needs open ground to land — grass, sand or a road.'),
           // The fog of Forgetting lifts on screen (#75 item 7), once per bank.
           onFogLift: (fog) => {
             sfx('gate'); // a way opening — not the level-up fanfare
@@ -668,11 +696,15 @@ export default function WorldScreen() {
         actionRef={actionRef}
         boat={boatSpot(save)}
         aboard={save.vehicle === 'boat'}
+        flying={save.vehicle === 'ember'}
+        flightRef={flightRef}
         escort={walk ? { npcId: walk.npcId, goal: walk.goal, from: useBattleStore.getState().escortAt } : null}
       />
 
       <p className="text-white/50 text-xs mt-2">
-        {save.vehicle === 'boat'
+        {save.vehicle === 'ember'
+          ? 'Fly: arrow keys / WASD · Space, a tap or 🛬 to land on open ground'
+          : save.vehicle === 'boat'
           ? 'Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!'
           : 'Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!'}
       </p>

@@ -1,0 +1,102 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import type { MutableRefObject } from 'react';
+import type { WorldCanvasCallbacks } from './WorldCanvas';
+
+// The canvas is KaPlay — stand in a div that keeps what the screen hands it.
+const canvas: {
+  callbacks?: WorldCanvasCallbacks;
+  flightRef?: MutableRefObject<'fly' | 'land' | null>;
+  flying?: boolean;
+} = {};
+vi.mock('./WorldCanvas', () => ({
+  default: (props: { callbacks: WorldCanvasCallbacks; flightRef?: MutableRefObject<'fly' | 'land' | null>; flying?: boolean }) => {
+    canvas.callbacks = props.callbacks;
+    canvas.flightRef = props.flightRef;
+    canvas.flying = props.flying;
+    return <div data-testid="canvas" />;
+  },
+}));
+vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
+vi.mock('../../lib/questions', () => ({
+  prefetchQuestions: vi.fn(),
+  fetchQuestions: vi.fn(() => new Promise(() => {})),
+  BATTLE_QUESTION_COUNT: 3,
+}));
+vi.mock('../../machines/gameFlow', () => ({
+  sendFlow: () => {},
+  useFlow: <T,>(sel: (s: unknown) => T) =>
+    sel({ matches: () => false, context: { npcId: null, service: null, pathTarget: null } }),
+}));
+
+const { default: WorldScreen } = await import('./WorldScreen');
+const { useSaveStore } = await import('../../store/saveStore');
+const { useProfileStore } = await import('../../store/profileStore');
+const { defaultSave } = await import('../../lib/save');
+const story = await import('../../content/story');
+
+/** Every story panel already seen, so no cutscene covers the HUD. */
+const SEEN: Record<string, boolean> = {
+  [story.INTRO_SEEN]: true,
+  [story.DAWNREACH_SEEN]: true,
+  [story.SPIRE_AWAKE_SEEN]: true,
+  [story.crystalSceneFlag('history')]: true,
+};
+
+function start(zoneId: string, flags: Record<string, boolean>, vehicle: 'foot' | 'boat' | 'ember' = 'foot') {
+  useSaveStore.setState({
+    userId: null,
+    status: 'ready',
+    save: { ...defaultSave(), avatarId: 'a3', zoneId: zoneId as never, pos: { x: 40, y: 30 }, vehicle, flags: { ...SEEN, ...flags } },
+  });
+}
+
+describe('🐉 Fly / 🛬 Land on the world HUD (#75 item 15b)', () => {
+  beforeEach(() => {
+    useProfileStore.setState({
+      profile: { id: 'u1', birthYear: 2016, birthMonth: 3, skillLevels: {}, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
+    });
+  });
+
+  it('has no Fly button before the Crystal of Memory', () => {
+    start('dawnreach', {});
+    render(<WorldScreen />);
+    expect(screen.queryByRole('button', { name: 'Fly on Ember' })).toBeNull();
+  });
+
+  it('has no Fly button in a town, even once Ember can fly', () => {
+    start('lumina-village', { [story.FLIGHT_FLAG]: true });
+    render(<WorldScreen />);
+    expect(screen.queryByRole('button', { name: 'Fly on Ember' })).toBeNull();
+  });
+
+  it('on an overworld map, Fly asks the canvas to take off; taking off flies, Land asks it to touch down', () => {
+    start('dawnreach', { [story.FLIGHT_FLAG]: true });
+    render(<WorldScreen />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fly on Ember' }));
+    expect(canvas.flightRef!.current).toBe('fly');
+    act(() => canvas.callbacks!.onTakeOff!(41, 30));
+    expect(useSaveStore.getState().save!.vehicle).toBe('ember');
+    expect(canvas.flying).toBe(true);
+    expect(screen.getByText(/Space, a tap or 🛬 to land on open ground/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Land' }));
+    expect(canvas.flightRef!.current).toBe('land');
+    act(() => canvas.callbacks!.onTouchDown!(44, 31));
+    const save = useSaveStore.getState().save!;
+    expect(save.vehicle).toBe('foot');
+    expect(save.pos).toEqual({ x: 44, y: 31 });
+  });
+
+  it('says where Ember can land when there is no open ground below', () => {
+    start('dawnreach', { [story.FLIGHT_FLAG]: true }, 'ember');
+    render(<WorldScreen />);
+    act(() => canvas.callbacks!.onNoLanding!());
+    expect(screen.getByText(/Ember needs open ground to land/)).toBeInTheDocument();
+  });
+
+  it('has no Fly button while sailing', () => {
+    start('silver-shallows', { [story.FLIGHT_FLAG]: true }, 'boat');
+    render(<WorldScreen />);
+    expect(screen.queryByRole('button', { name: 'Fly on Ember' })).toBeNull();
+  });
+});

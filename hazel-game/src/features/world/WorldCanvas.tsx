@@ -35,7 +35,8 @@ import { habitatOf, spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
 import type { Avatar, BattleEnemy, BoatSpot, PathTarget, Topic, ZoneId } from '../../types';
-import { BOAT_SPEED, canBoard, canLand, landingMooring, meetsHero, nearestSea, seaCrossing } from '../../lib/travel';
+import { canBoard, canFlyOver, canLand, edgeCrossing, landable, landingMooring, meetsHero, nearestSea, seaCrossing, travelSpeed } from '../../lib/travel';
+import { canFly } from '../../content/story';
 import { arrived, cameBack, dropCrumb, startEscort, stepEscort, stuckBehind, type EscortState } from '../../lib/escort';
 import { contactRadius, graceOf, idleReach, meetFoe, restOf, standDown, staysDown, touching, type Rest } from '../../lib/encounter';
 import {
@@ -253,6 +254,12 @@ export interface WorldCanvasCallbacks {
    * there's no sea that close either.
    */
   onAshore?: (boat: { x: number; y: number } | null) => void;
+  /** Ember took off with the hero (#75 item 15b) from (x, y) px. */
+  onTakeOff?: (x: number, y: number) => void;
+  /** Ember set the hero down at (x, y) px. */
+  onTouchDown?: (x: number, y: number) => void;
+  /** Asked to land where there's no open ground below. */
+  onNoLanding?: () => void;
   /**
    * What pressing Space / Enter / ✋ would do now — "Open chest", "Talk" — or
    * null with nothing to use (#127); called when it changes, for the ✋ button.
@@ -329,6 +336,8 @@ export default function WorldCanvas({
   actionRef,
   boat = null,
   aboard = false,
+  flying = false,
+  flightRef,
   escort = null,
 }: {
   zoneId: ZoneId;
@@ -365,6 +374,10 @@ export default function WorldCanvas({
   boat?: BoatSpot | null;
   /** …and whether the hero is sailing it (read when the zone builds; the canvas keeps it after). */
   aboard?: boolean;
+  /** Flying on Ember (#75 item 15b) — read when the zone builds, like `aboard`. */
+  flying?: boolean;
+  /** 🐉 Fly / 🛬 Land from the HUD (#75 item 15b): taken by the loop once the world runs. */
+  flightRef?: MutableRefObject<'fly' | 'land' | null>;
   /** An escort's walk under way here (#75 item 14g), read live. */
   escort?: EscortWalk | null;
 }) {
@@ -451,11 +464,13 @@ export default function WorldCanvas({
   const darkRef = useRef<HTMLDivElement>(null);
   const boatRef = useRef(boat);
   const aboardRef = useRef(aboard);
+  const flyingRef = useRef(flying);
   const escortRef = useRef(escort);
   useEffect(() => {
     escortRef.current = escort;
     boatRef.current = boat;
     aboardRef.current = aboard;
+    flyingRef.current = flying;
     cbRef.current = callbacks;
     flagsRef.current = flags;
     chestsRef.current = openedChests;
@@ -1513,7 +1528,11 @@ export default function WorldCanvas({
     // A saved position that no longer fits the map (e.g. a save from before a
     // zone was redrawn) falls back to the zone spawn instead of a wall.
     // In Marlow's boat (#75 item 14) the hero spawns afloat — on open sea.
-    const spawn = safeSpawn(z, startPos, flagsRef.current, aboardRef.current ? 'boat' : 'foot');
+    // On Ember (#75 item 15b) the hero arrives in the air — only over a map she flies over.
+    let flying = flyingRef.current && canFlyOver(z);
+    const spawn = safeSpawn(z, startPos, flagsRef.current, flying ? 'ember' : aboardRef.current ? 'boat' : 'foot');
+    // Asked to arrive flying where she can't fly: down on firm ground.
+    if (flyingRef.current && !flying) cbRef.current.onTouchDown?.(spawn.x, spawn.y);
     // Arriving indoors — waking at an inn after a defeat or the walk home from
     // the Spire — the roof over you is off from the first frame, not faded
     // away once the world runs (it stays paused while the morning fades in).
@@ -1631,7 +1650,7 @@ export default function WorldCanvas({
       }
       restings += 1;
     };
-    restAround(spawn, aboard ? 'boat' : 'foot');
+    restAround(spawn, flying ? 'ember' : aboard ? 'boat' : 'foot');
     // Faded critters let you pass: under Calm, and any asleep.
     let critterFade = '';
     const fadeCritters = (calm: boolean) => {
@@ -1779,7 +1798,11 @@ export default function WorldCanvas({
     }
 
     /** The hero's own collision: on foot, or afloat while in the boat (#75 item 14). */
-    const heroHit = (px: number, py: number) => hitBox(px, py, HALF, false, aboard);
+    const heroHit = (px: number, py: number) => {
+      // Flying (#75 item 15b): only the map's edges stop Ember.
+      if (flying) return px < HALF || py < HALF || px > cols * TILE - HALF || py > rows * TILE - HALF ? { ch: 'edge', x: -1, y: -1 } : null;
+      return hitBox(px, py, HALF, false, aboard);
+    };
     /** How far off the line (px) a corner can be clipped and still slid round. */
     const CORNER_SLIDE_PX = 4;
     // --- People are solid; things wait to be used (#127) -------------------
@@ -1796,6 +1819,7 @@ export default function WorldCanvas({
      * hero can always stand in the cell beside someone big (Umbra).
      */
     function personHit(px: number, py: number): Actor | null {
+      if (flying) return null; // Ember flies over everyone
       for (const a of actors) {
         if (solid(a) && approachBlocked(player.pos.x, player.pos.y, px, py, a.x, a.y, Math.min(a.radius + HALF, TILE))) return a;
       }
@@ -2275,6 +2299,51 @@ export default function WorldCanvas({
     // Who the hero has been walking into, and for how long (`SCOOT_AFTER_S`).
     let push: Push<Actor> = null;
 
+    // --- Flying on Ember (#75 item 15b) -------------------------------------
+    // 🐉 Fly from the HUD lifts off anywhere on an overworld map once she can
+    // fly; 🛬 Land (or Space / a tap / ✋ while flying) sets down on open ground
+    // only. Flying, nothing is used, met or entered — only map edges stop her.
+    const cellUnder = () => ({ x: Math.floor(player.pos.x / TILE), y: Math.floor(player.pos.y / TILE) });
+    const canSetDown = () => {
+      const c = cellUnder();
+      return landable(tileAt(z, c.x, c.y)) && !fogAt(z, c.x, c.y, flagsRef.current);
+    };
+    function takeOff() {
+      if (flying || aboard || !canFlyOver(z) || !canFly(flagsRef.current)) return;
+      flying = true;
+      push = null;
+      cbRef.current.onTakeOff?.(player.pos.x, player.pos.y);
+    }
+    function touchDown() {
+      if (!flying) return;
+      if (!canSetDown()) {
+        cbRef.current.onNoLanding?.();
+        return;
+      }
+      const c = cellUnder();
+      flying = false;
+      player.pos = k.vec2(c.x * TILE + TILE / 2, c.y * TILE + TILE / 2);
+      arm(TRIGGER_COOLDOWN);
+      needsRelease = true; // a held key doesn't walk off at once
+      cbRef.current.onTouchDown?.(player.pos.x, player.pos.y);
+      restAround(player.pos, 'foot');
+      lastDir = emberStart(player.pos).dir;
+    }
+    /** Flying: the one thing to "use" is the ground below — if Ember can land there. */
+    function landingUse(): Use[] {
+      if (!canSetDown()) return [];
+      return [{ label: 'Land', at: { x: player.pos.x, y: player.pos.y - 40 }, hit: () => true, act: touchDown }];
+    }
+    // Her shadow on the ground while she flies.
+    const shadow = k.add([
+      k.rect(30, 9, { radius: 5 }),
+      k.color(0, 0, 0),
+      k.pos(spawn.x, spawn.y),
+      k.anchor('center'),
+      k.opacity(0),
+      k.z(2.5),
+    ]) as unknown as { pos: WorldVec; opacity: number };
+
     const loop = k.onUpdate(() => {
       paintDark();
       if (triggered) return;
@@ -2352,6 +2421,7 @@ export default function WorldCanvas({
           aboard = false;
           mooring = mooredHere();
         }
+        flying = false; // Return lands you at the town
         if (travel.to === zoneId) {
           // Already here (the menu doesn't offer it): just step to the landing.
           player.pos = k.vec2(travel.x * TILE + TILE / 2, travel.y * TILE + TILE / 2);
@@ -2382,6 +2452,14 @@ export default function WorldCanvas({
           if (whole === 0) arm(CALM_GRACE);
         }
       }
+      // 🐉 Fly / 🛬 Land (#75 item 15b), asked for from the HUD (or Space, flying).
+      const ask = flightRef?.current;
+      if (ask && flightRef) {
+        flightRef.current = null;
+        if (ask === 'fly') takeOff();
+        else touchDown();
+      }
+
       const calm = (calmRef?.current ?? 0) > 0;
       fadeCritters(calm);
       riseSleepMarks(dt, () => [heroBox(), { x: ember.pos.x, y: ember.pos.y, ...HERO_BOX, face: true }, ...lookBoxes()]);
@@ -2415,7 +2493,7 @@ export default function WorldCanvas({
       if (dx !== 0 || dy !== 0) lastDir = { x: dx, y: dy };
 
       // Sitting in the boat, the hero doesn't walk — the boat does the moving.
-      const moving = (dx !== 0 || dy !== 0) && !aboard;
+      const moving = (dx !== 0 || dy !== 0) && !aboard && !flying;
       if (heroView) {
         heroFacing = facingFor(dx, dy, heroFacing);
         const want = animFor(heroFacing, moving, heroView.anims);
@@ -2442,7 +2520,7 @@ export default function WorldCanvas({
       let bumped: { ch: string; x: number; y: number } | null = null;
       let into: Actor | null = null;
       let intoDir: Dir = { x: 0, y: 0 };
-      const speed = SPEED * (aboard ? BOAT_SPEED : 1);
+      const speed = SPEED * travelSpeed(flying ? 'ember' : aboard ? 'boat' : 'foot');
       // Clipping a corner by a few px (walking straight past a building's corner,
       // a touch off the row) slides round it rather than stopping dead (#75 item 14g UX review).
       const slide = (tryAt: (o: number) => boolean) => {
@@ -2545,7 +2623,8 @@ export default function WorldCanvas({
       // Using things (#127): a fresh Space / Enter / click / tap / ✋ uses
       // what the hero faces — never in the two frames after something else
       // was armed, while its menu or talk takes the world's pause.
-      const targets = targetsNow();
+      // Flying (#75 item 15b): nothing to use below — Space, a tap or ✋ lands, over open ground.
+      const targets = flying ? landingUse() : targetsNow();
       showPrompt(targets[0] ?? null);
       // A press in the two frames after an arm waits them out rather than being lost.
       const pressed = uses() !== usesSeen && held === 0;
@@ -2602,7 +2681,7 @@ export default function WorldCanvas({
             guarded: guard > 0,
             still,
             closing: !still && stepX * (a.x - was.x) + stepY * (a.y - was.y) > 0,
-            mode: aboard ? 'boat' : 'foot',
+            mode: flying ? 'ember' : aboard ? 'boat' : 'foot',
             calm,
           });
           if (met.spared) spared.add(a);
@@ -2655,17 +2734,23 @@ export default function WorldCanvas({
         for (const part of r.parts) part.opacity = r.opacity;
       }
 
-      // Ember pads along behind the hero with a friendly bounce.
-      const trail = k.vec2(
-        player.pos.x - lastDir.x * 26,
-        player.pos.y - lastDir.y * 26 + 8 + Math.sin(k.time() * 4) * 2,
-      );
+      // Ember pads along behind the hero with a friendly bounce — or, flying
+      // (#75 item 15b), carries them: the hero on her back, both over the fog
+      // and the place names, her shadow on the ground below.
+      const lift = flying ? Math.sin(k.time() * 3) * 2 : 0;
+      (player as unknown as { z: number }).z = flying ? 17.5 : 10;
+      (ember as unknown as { z: number }).z = flying ? 17 : 9;
+      shadow.opacity = flying ? 0.25 : 0;
+      if (flying) shadow.pos = k.vec2(player.pos.x, player.pos.y + 26);
+      const trail = flying
+        ? k.vec2(player.pos.x, player.pos.y + 12 + lift)
+        : k.vec2(player.pos.x - lastDir.x * 26, player.pos.y - lastDir.y * 26 + 8 + Math.sin(k.time() * 4) * 2);
       const emberGap = Math.hypot(trail.x - ember.pos.x, trail.y - ember.pos.y);
-      ember.pos = ember.pos.lerp(trail, Math.min(1, dt * 5));
+      ember.pos = flying ? trail : ember.pos.lerp(trail, Math.min(1, dt * 5));
       if (emberView) {
         // Ember faces the way the hero is heading and walks while catching up.
         const f = facingFor(lastDir.x, lastDir.y, 'down');
-        const want = animFor(f, emberGap > 4, emberView.anims);
+        const want = animFor(f, flying || emberGap > 4, emberView.anims);
         if (want !== emberAnim) {
           emberAnim = want;
           emberSprite.play(want);
@@ -2795,13 +2880,14 @@ export default function WorldCanvas({
       const cellY = Math.floor(player.pos.y / TILE);
       // A secret on open ground is found by stepping onto its spot.
       const underfoot = secretAt(z, cellX, cellY);
-      if (underfoot && cooldown === 0 && !flagsRef.current[secretFlag(underfoot.id)]) {
+      if (underfoot && !flying && cooldown === 0 && !flagsRef.current[secretFlag(underfoot.id)]) {
         arm(TRIGGER_COOLDOWN);
         cbRef.current.onMove(player.pos.x, player.pos.y);
         cbRef.current.onSecret?.(underfoot.id);
       }
       // Sailing off an edge onto the next stretch of sea (#75 item 14).
-      const crossing = aboard ? seaCrossing(z, cellX, cellY, ZONES) : null;
+      // Flying off a linked edge too, over land or sea (#75 item 15b).
+      const crossing = aboard ? seaCrossing(z, cellX, cellY, ZONES) : flying ? edgeCrossing(z, cellX, cellY, ZONES, 'ember') : null;
       if (crossing) {
         triggered = true;
         const reduceMotion =
@@ -2813,7 +2899,8 @@ export default function WorldCanvas({
         cbRef.current.onExit(crossing.to, crossing.x, crossing.y);
         return;
       }
-      const exit = z.exits.find((e) => e.x === cellX && e.y === cellY);
+      // No places while flying: a place icon is just more ground below.
+      const exit = flying ? undefined : z.exits.find((e) => e.x === cellX && e.y === cellY);
       if (exit) {
         triggered = true;
         const side = exitSide(exit.x, exit.y, cols, rows);

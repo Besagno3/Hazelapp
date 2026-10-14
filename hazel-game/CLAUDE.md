@@ -629,6 +629,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit (#75 item 14f)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fly [outDir]       # flying on Ember on the real canvas: take off, over mountains and the sea, across an edge, over a critter, landing, no Fly before Memory (#75 item 15b)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 # (…and escort=1 — an escort's walk under way, by its flags — and __bench.walkTo(x, y), #75 item 14g)
 
@@ -736,6 +737,20 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-14 — Fly and land on Ember (#75 item 15b, #136c)
+Second slice of 15b. Once Ember can fly (the Crystal of Memory), an
+overworld map's HUD has **🐉 Fly** (🛬 **Land** while flying; never while
+sailing). `WorldScreen` asks through `flightRef`; `WorldCanvas` takes off
+or touches down only on open ground outside fog (`canSetDown`), else
+"🐉 Ember needs open ground to land…" (`onNoLanding`). In the air the hero
+rides above Ember at 2.5× with a shadow below. Only the map's edges block,
+and people, critters, bosses, exits, places and secrets are passed over.
+Space, a click or ✋ lands (use target "Land"), and a linked edge slides onto
+the next map. Saved as `vehicle: 'ember'` on take-off and `foot` on landing.
+**Bench:** `fly=1`, `__bench.fly()` / `land()`, and `run-world-bench.cjs fly`
+(8 checks). Results: 8/8; tests +5 (`WorldScreen.fly.test`); 1175 green;
+lint and tsc clean.
 
 ### 2026-10-14 — Save v3 and the flight rules (#75 item 15b, #136)
 First slice of 15b. **Save v3** (roadmap decision 15): `vehicle` (`foot` /
