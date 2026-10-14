@@ -111,8 +111,9 @@ export const BUILDING_CHARS = new Set(['W', 'D', 'F', 'K', 'B', 'T', 'Z']);
 export const STAIRS_CHARS = new Set(['>', '<']);
 export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', 'H', 'P', '^', ':', '|', ...BUILDING_CHARS, ...STAIRS_CHARS]);
 export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'H', 'P', ':', '|', 'D', 'F', ...STAIRS_CHARS]);
-/** How the hero gets about (#75 item 14): on foot, or in Marlow's boat (`lib/travel.ts`). */
-export type TravelMode = 'foot' | 'boat';
+/** How the hero gets about: on foot, in Marlow's boat (#75 item 14), or on Ember's back (#75 item 15b) — `lib/travel.ts`. */
+export const TRAVEL_MODES = ['foot', 'boat', 'ember'] as const;
+export type TravelMode = (typeof TRAVEL_MODES)[number];
 /** Where a boat can sail: the sea. */
 export const SEA_CHARS = new Set(['~']);
 /** Where a boat can put the hero ashore: a beach or a dock. */

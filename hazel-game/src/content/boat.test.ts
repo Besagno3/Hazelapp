@@ -188,39 +188,39 @@ describe('the boat in the save (#75 item 14)', () => {
     expect(boatSpot(mended())).toEqual(BOAT_HOME);
     const left = { zoneId: 'silver-shallows' as const, x: 3, y: 22 };
     expect(boatSpot(mended({ boat: left }))).toEqual(left);
-    expect(boatSpot(mended({ boat: left, aboard: true }))).toBeNull();
+    expect(boatSpot(mended({ boat: left, vehicle: 'boat' }))).toBeNull();
   });
 
   it('leaving the boat mid-voyage moors it on the sea under the hero — or the nearest sea, or home', () => {
-    expect(moorBoat(mended({ aboard: true, zoneId: 'silver-shallows', pos: px(3, 22) }))).toEqual({
-      aboard: false,
+    expect(moorBoat(mended({ vehicle: 'boat', zoneId: 'silver-shallows', pos: px(3, 22) }))).toEqual({
+      vehicle: 'foot',
       boat: { zoneId: 'silver-shallows', x: 3, y: 22 },
     });
     // Saved a step onto the dock: the sea beside it.
-    expect(moorBoat(mended({ aboard: true, zoneId: 'dawnreach', pos: px(70, 30) })).boat).toMatchObject({ zoneId: 'dawnreach' });
+    expect(moorBoat(mended({ vehicle: 'boat', zoneId: 'dawnreach', pos: px(70, 30) })).boat).toMatchObject({ zoneId: 'dawnreach' });
     // Nowhere near the sea: back to Marlow's dock (null = home).
-    expect(moorBoat(mended({ aboard: true, zoneId: 'dawnreach', pos: px(40, 30) }))).toEqual({ aboard: false, boat: null });
+    expect(moorBoat(mended({ vehicle: 'boat', zoneId: 'dawnreach', pos: px(40, 30) }))).toEqual({ vehicle: 'foot', boat: null });
     // Ashore already: nothing moves.
     const ashore = mended({ boat: { zoneId: 'silver-shallows', x: 3, y: 22 } });
-    expect(moorBoat(ashore)).toEqual({ aboard: false, boat: ashore.boat });
+    expect(moorBoat(ashore)).toEqual({ vehicle: 'foot', boat: ashore.boat });
   });
 
   it('a saved boat must float on open sea, and a hero is only aboard with a boat, afloat', () => {
     const d = defaultSave();
-    expect([d.boat, d.aboard]).toEqual([null, false]);
+    expect([d.boat, d.vehicle]).toEqual([null, 'foot']);
     const flags = { [BOAT_MENDED]: true };
     expect(normalizeSave({ flags, boat: { zoneId: 'silver-shallows', x: 3, y: 22 } }).boat).toEqual({ zoneId: 'silver-shallows', x: 3, y: 22 });
     expect(normalizeSave({ flags, boat: { zoneId: 'dawnreach', x: 40, y: 30 } }).boat).toBeNull(); // on land
     expect(normalizeSave({ flags, boat: { zoneId: 'nowhere', x: 1, y: 1 } }).boat).toBeNull();
     expect(normalizeSave({ flags, boat: 'yes' }).boat).toBeNull();
     const afloat = { flags, zoneId: 'silver-shallows', pos: px(3, 22), aboard: true };
-    expect(normalizeSave(afloat).aboard).toBe(true);
-    expect(normalizeSave({ ...afloat, flags: {} }).aboard).toBe(false); // no boat yet
+    expect(normalizeSave(afloat).vehicle).toBe('boat');
+    expect(normalizeSave({ ...afloat, flags: {} }).vehicle).toBe('foot'); // no boat yet
     // Saved aboard where it's land now (an island painted under them): afloat on the nearest open sea.
     const repainted = normalizeSave({ ...afloat, pos: px(11, 21) }); // Gull Rock's path
-    expect(repainted.aboard).toBe(true);
+    expect(repainted.vehicle).toBe('boat');
     expect(tileAt(sea, Math.floor(repainted.pos!.x / TILE), Math.floor(repainted.pos!.y / TILE))).toBe('~');
-    expect(normalizeSave({ flags, zoneId: 'dawnreach', pos: px(71, 30) }).aboard).toBe(false); // older saves
+    expect(normalizeSave({ flags, zoneId: 'dawnreach', pos: px(71, 30) }).vehicle).toBe('foot'); // older saves
   });
 
   it('Old Marlow offers to row the boat home when it was left away from his dock and the hero is ashore', () => {
@@ -228,7 +228,7 @@ describe('the boat in the save (#75 item 14)', () => {
     expect(boatFetchOffer(MARLOW, away)!.line).toMatch(/still out in the Silver Shallows\? .* row her home/);
     expect(boatSpot(fetchBoatHome(away))).toEqual(BOAT_HOME);
     expect(boatFetchOffer(MARLOW, mended())).toBeNull(); // already home
-    expect(boatFetchOffer(MARLOW, { ...away, aboard: true })).toBeNull();
+    expect(boatFetchOffer(MARLOW, { ...away, vehicle: 'boat' })).toBeNull();
     expect(boatFetchOffer(MARLOW, { ...away, flags: {} })).toBeNull();
     expect(boatFetchOffer('verdara-innkeeper', away)).toBeNull();
     // Moored down the coast: offered, worded for Dawnreach.
@@ -321,16 +321,16 @@ describe('never stranded: landing, boarding and loading (#75 item 14 review)', (
   it('a hero saved aboard loads afloat — out of the fog, never on a pond', () => {
     const flags = { [BOAT_MENDED]: true };
     const fogged = normalizeSave({ flags, zoneId: 'silver-shallows', pos: px(58, 20), aboard: true });
-    expect(fogged.aboard).toBe(true);
+    expect(fogged.vehicle).toBe('boat');
     expect(afloatAt('silver-shallows', Math.floor(fogged.pos!.x / TILE), Math.floor(fogged.pos!.y / TILE), flags)).toBe(true);
     const pond = normalizeSave({ flags, zoneId: 'chromaria', pos: px(11, 10), aboard: true, boat: BOAT_HOME });
-    expect([pond.aboard, pond.boat]).toEqual([false, BOAT_HOME]);
+    expect([pond.vehicle, pond.boat]).toEqual(['foot', BOAT_HOME]);
     // Anywhere on the Shallows, saved aboard: afloat — or, deep in the fog, ashore
     // with the boat on the sea right beside where they'll stand.
     for (let y = 0; y < sea.map.length; y += 3) {
       for (let x = 0; x < sea.map[0].length; x += 3) {
         const s = normalizeSave({ flags, zoneId: 'silver-shallows', pos: px(x, y), aboard: true });
-        if (s.aboard) continue;
+        if (s.vehicle === 'boat') continue;
         const stand = safeSpawn(sea, s.pos, flags);
         const cx = Math.floor(stand.x / TILE);
         const cy = Math.floor(stand.y / TILE);
@@ -348,7 +348,7 @@ describe('never stranded: landing, boarding and loading (#75 item 14 review)', (
   it("a hand-edited save naming 'constructor' or '__proto__' as a map loads instead of crashing", () => {
     for (const id of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
       const s = normalizeSave({ flags: { [BOAT_MENDED]: true }, zoneId: id, pos: px(1, 1), boat: { zoneId: id, x: 0, y: 0 }, lastRest: id, aboard: true });
-      expect([s.zoneId, s.boat, s.lastRest, s.aboard], id).toEqual([defaultSave().zoneId, null, null, false]);
+      expect([s.zoneId, s.boat, s.lastRest, s.vehicle], id).toEqual([defaultSave().zoneId, null, null, 'foot']);
     }
   });
 });
@@ -359,28 +359,28 @@ describe('sea areas, for the music (#75 item 14)', () => {
     seaAreaAt(mended({ zoneId, pos: px(x, y), ...s }));
 
   it("Dawnreach's waters only while sailing them", () => {
-    expect(at('dawnreach', BOAT_HOME.x, BOAT_HOME.y, { aboard: true })).toBe('dawnreach-waters');
+    expect(at('dawnreach', BOAT_HOME.x, BOAT_HOME.y, { vehicle: 'boat' })).toBe('dawnreach-waters');
     expect(at('dawnreach', 40, 30)).toBeNull(); // ashore: the overworld theme
     expect(at('lumina-village', 10, 10)).toBeNull();
   });
 
   it('the Silver Shallows, afloat or on an islet', () => {
-    expect(at('silver-shallows', 20, 26, { aboard: true })).toBe('silver-shallows');
+    expect(at('silver-shallows', 20, 26, { vehicle: 'boat' })).toBe('silver-shallows');
     expect(at('silver-shallows', 11, 21)).toBe('silver-shallows'); // Gull Rock, on foot
     expect(seaAreaAt(mended({ zoneId: 'silver-shallows', pos: null }))).toBe('silver-shallows');
   });
 
   it('the Great Fogbank within FOGBANK_NEAR cells of it, while it stands', () => {
     const edge = fog.x - FOGBANK_NEAR;
-    expect(at('silver-shallows', edge, 22, { aboard: true })).toBe('great-fogbank');
-    expect(at('silver-shallows', edge - 1, 22, { aboard: true })).toBe('silver-shallows');
-    expect(at('silver-shallows', fog.x - 1, 0, { aboard: true })).toBe('great-fogbank');
+    expect(at('silver-shallows', edge, 22, { vehicle: 'boat' })).toBe('great-fogbank');
+    expect(at('silver-shallows', edge - 1, 22, { vehicle: 'boat' })).toBe('silver-shallows');
+    expect(at('silver-shallows', fog.x - 1, 0, { vehicle: 'boat' })).toBe('great-fogbank');
     // Once in, the fog's music lasts until you're past FOGBANK_LEAVE — no flip-flopping along the edge.
-    expect(at('silver-shallows', edge - 2, 22, { aboard: true })).toBe('silver-shallows');
+    expect(at('silver-shallows', edge - 2, 22, { vehicle: 'boat' })).toBe('silver-shallows');
     expect(seaAreaAt(mended({ zoneId: 'silver-shallows', pos: px(edge - 2, 22) }), 'great-fogbank')).toBe('great-fogbank');
     expect(seaAreaAt(mended({ zoneId: 'silver-shallows', pos: px(fog.x - FOGBANK_LEAVE - 1, 22) }), 'great-fogbank')).toBe('silver-shallows');
     const lifted = { ...mended().flags, [fog.liftedBy[0]]: true };
-    expect(at('silver-shallows', fog.x - 1, 22, { aboard: true, flags: lifted })).toBe('silver-shallows');
+    expect(at('silver-shallows', fog.x - 1, 22, { vehicle: 'boat', flags: lifted })).toBe('silver-shallows');
   });
 });
 

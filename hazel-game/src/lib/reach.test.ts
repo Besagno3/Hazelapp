@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { TILE, ZONES, gateFlag, gateIdAt, litFlag, tileAt, type ZoneDef } from '../content/zones';
 import { BOAT_HOME } from '../content/boat';
 import { EXIT_STEP_OFF, behindFog, reach, reachPath, safeSpawn, touches } from './reach';
+import { edgeCrossing, landable, passable, travelSpeed } from './travel';
 
 /** A little test map: Lumina Village's details over our own rows (no buildings, exits or people of its own). */
 function mk(map: string[], extra: Partial<ZoneDef> = {}): ZoneDef {
@@ -176,5 +177,53 @@ describe('safeSpawn on an exit (#75 item 14b)', () => {
     const z = mk(['..', '..']);
     expect(reach(z, { from: { x: 2, y: 0 } }).size).toBe(0);
     expect(reach(z, { from: [{ x: 5, y: 5 }, { x: 0, y: 0 }] })).toEqual(new Set(['0,0', '1,0', '0,1', '1,1']));
+  });
+});
+
+describe('flying on Ember (#75 item 15b)', () => {
+  const dawn = ZONES.dawnreach;
+  const allCells = (z: ZoneDef) => z.map.length * z.map[0].length;
+
+  it('she flies over every cell of an overworld map, fog and mountains too', () => {
+    const flown = reach(dawn, { start: 'ember', from: { x: 40, y: 30 } });
+    expect(flown.size).toBe(allCells(dawn));
+    // On foot, fog and mountains keep plenty of it out.
+    expect(reach(dawn, { from: { x: 40, y: 30 } }).size).toBeLessThan(flown.size);
+  });
+
+  it('she never flies in a town, a field or a dungeon', () => {
+    const town = ZONES['lumina-village'];
+    expect(reach(town, { start: 'ember' }).size).toBe(1); // only where you stand
+  });
+
+  it('takes off from open ground and lands on it, with nothing in between', () => {
+    // A road cell on Dawnreach: on foot, add flight, and the whole map opens.
+    const road = reach(dawn, { from: dawn.spawn, modes: ['foot', 'ember'] });
+    expect(road.size).toBe(allCells(dawn));
+    // Every step that changes mode is on open ground.
+    const far = reachPath(dawn, (x, y) => x === 0 && y === 0, { from: dawn.spawn, modes: ['foot', 'ember'] })!;
+    for (let i = 1; i < far.length; i++) {
+      if (far[i].mode !== far[i - 1].mode) expect(landable(tileAt(dawn, far[i].x, far[i].y))).toBe(true);
+    }
+  });
+
+  it('a place icon is just more ground below — flying never stops at an exit', () => {
+    const flown = reach(dawn, { start: 'ember', from: { x: 40, y: 30 }, exits: 'stop' });
+    expect(flown.size).toBe(allCells(dawn));
+  });
+
+  it('crosses a linked edge over land as well as sea; on foot nothing crosses', () => {
+    const east = dawn.map[0].length - 1;
+    const rows = dawn.map.length;
+    const anyRow = Array.from({ length: rows }, (_, y) => y).filter((y) => edgeCrossing(dawn, east, y, ZONES, 'ember') !== null);
+    const seaRows = anyRow.filter((y) => edgeCrossing(dawn, east, y, ZONES, 'boat') !== null);
+    expect(anyRow.length).toBeGreaterThanOrEqual(seaRows.length);
+    expect(anyRow.length).toBeGreaterThan(0);
+    expect(edgeCrossing(dawn, east, anyRow[0], ZONES, 'foot')).toBeNull();
+  });
+
+  it('passes over any tile, 2.5× walking pace', () => {
+    for (const ch of ['^', '#', '~', 'P', 'W']) expect(passable(ch, 'ember')).toBe(true);
+    expect([travelSpeed('foot'), travelSpeed('boat'), travelSpeed('ember')]).toEqual([1, 1.5, 2.5]);
   });
 });

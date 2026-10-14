@@ -13,7 +13,7 @@ import {
   type TravelMode,
   type ZoneDef,
 } from '../content/zones';
-import { passable as tilePassable, seaCrossing } from './travel';
+import { canFlyOver, edgeCrossing, landable, passable as tilePassable } from './travel';
 
 /**
  * Where can the hero get to? (#75 item 14b) — the one search behind the game's
@@ -24,6 +24,8 @@ import { passable as tilePassable, seaCrossing } from './travel';
  * boat over open sea, climbing in at the boat's mooring and going ashore on a
  * beach or a dock — the rules `WorldCanvas` plays by, a little stricter (a
  * corner boarding isn't modelled), so "reachable" here is reachable there.
+ * On Ember (#75 item 15b) it flies over any cell of an overworld map, fog
+ * too, taking off from and landing on open ground (`landable`).
  */
 
 export type Cell = { x: number; y: number };
@@ -33,6 +35,8 @@ export interface ReachOptions {
   from?: Cell | readonly Cell[];
   /** The start is afloat (the hero is in the boat). */
   aboard?: boolean;
+  /** How the hero starts (overrides `aboard`): `ember` is flying. */
+  start?: TravelMode;
   /** Travel modes the hero may use. Default: just the one they start in. */
   modes?: readonly TravelMode[];
   /** Where the boat is moored on this map — climbing in happens only here. */
@@ -65,8 +69,10 @@ export interface ReachOptions {
 /** A step of a path: the cell, and how the hero is getting about there. */
 export type Step = Cell & { mode: TravelMode };
 
-const MODE_BIT: Record<TravelMode, number> = { foot: 0, boat: 1 };
-const BIT_MODE: TravelMode[] = ['foot', 'boat'];
+const MODE_BIT: Record<TravelMode, number> = { foot: 0, boat: 1, ember: 2 };
+const BIT_MODE: TravelMode[] = ['foot', 'boat', 'ember'];
+/** A state is one number: cell index * MODES + mode bit. */
+const MODES = 4;
 const DIRS: readonly [number, number][] = [
   [1, 0],
   [-1, 0],
@@ -83,20 +89,22 @@ function explore(
   const cols = Math.max(1, ...z.map.map((r) => r.length));
   const rows = z.map.length;
   const flags = opts.flags === undefined ? {} : opts.flags;
-  const startMode: TravelMode = opts.aboard ? 'boat' : 'foot';
+  const startMode: TravelMode = opts.start ?? (opts.aboard ? 'boat' : 'foot');
   const modes = new Set(opts.modes ?? [startMode]);
   modes.add(startMode);
   const passable = opts.passable ?? tilePassable;
   const gateCache = new Map<number, boolean>();
-  // A state is one number: cell index * 2 + mode bit.
-  const id = (x: number, y: number, m: number) => (y * cols + x) * 2 + m;
+  const id = (x: number, y: number, m: number) => (y * cols + x) * MODES + m;
+  const flyable = canFlyOver(z);
   const inMap = (x: number, y: number) => x >= 0 && y >= 0 && x < cols && y < rows;
 
   const exitCells = new Set<number>();
   if (opts.exits === 'stop') for (const e of z.exits) exitCells.add(e.y * cols + e.x);
   const exitAt = (x: number, y: number, m: number) =>
     opts.exits === 'stop' &&
-    (exitCells.has(y * cols + x) || (m === 1 && !!z.seaLinks?.length && seaCrossing(z, x, y, ZONES) !== null));
+    // Flying, a place icon or an exit is just more ground below (no places while flying).
+    ((m !== 2 && exitCells.has(y * cols + x)) ||
+      (m !== 0 && !!z.seaLinks?.length && edgeCrossing(z, x, y, ZONES, BIT_MODE[m]) !== null));
 
   function gateOpen(x: number, y: number): boolean {
     const g = opts.gates ?? 'closed';
@@ -115,6 +123,8 @@ function explore(
   /** Can the hero be at (x, y) in mode m (fog, dark, people and tiles allowing)? */
   function enterable(x: number, y: number, m: number): boolean {
     if (!inMap(x, y)) return false;
+    // Ember flies over fog (#75 item 15b) — only over an overworld map.
+    if (m === 2) return flyable && !opts.blocked?.(x, y) && passable(tileAt(z, x, y), 'ember');
     if (flags && (fogAt(z, x, y, flags) || darkAt(z, x, y, flags))) return false;
     if (opts.blocked?.(x, y)) return false;
     const ch = tileAt(z, x, y);
@@ -131,7 +141,7 @@ function explore(
     if (seen.has(s)) return;
     seen.add(s);
     if (from !== null) parent.set(s, from);
-    const cell = s >> 1;
+    const cell = Math.floor(s / MODES);
     const x = cell % cols;
     const y = Math.floor(cell / cols);
     cells.add(`${x},${y}`);
@@ -145,8 +155,8 @@ function explore(
 
   for (let head = 0; head < queue.length && found === null; head++) {
     const s = queue[head];
-    const m = s & 1;
-    const cell = s >> 1;
+    const m = s % MODES;
+    const cell = Math.floor(s / MODES);
     const x = cell % cols;
     const y = Math.floor(cell / cols);
     // An exit takes you away: reached, but nothing beyond it (a seed is where you stand, not an exit you stepped on).
@@ -162,6 +172,9 @@ function explore(
       if (m === 1 && modes.has('foot') && LANDING_CHARS.has(tileAt(z, nx, ny)) && enterable(nx, ny, 0))
         visit(id(nx, ny, 0), s);
     }
+    // On open ground, Ember takes off; flying over open ground, she lands (#75 item 15b).
+    if (flyable && modes.has('ember') && m === 0 && landable(tileAt(z, x, y)) && enterable(x, y, 2)) visit(id(x, y, 2), s);
+    if (m === 2 && modes.has('foot') && landable(tileAt(z, x, y)) && enterable(x, y, 0)) visit(id(x, y, 0), s);
   }
   return { cells, parent, found, cols };
 }
@@ -180,8 +193,8 @@ export function reachPath(z: ZoneDef, to: (x: number, y: number) => boolean, opt
   if (found === null) return null;
   const path: Step[] = [];
   for (let s: number | undefined = found; s !== undefined; s = parent.get(s)) {
-    const cell = s >> 1;
-    path.push({ x: cell % cols, y: Math.floor(cell / cols), mode: BIT_MODE[s & 1] });
+    const cell = Math.floor(s / MODES);
+    path.push({ x: cell % cols, y: Math.floor(cell / cols), mode: BIT_MODE[s % MODES] });
   }
   return path.reverse();
 }

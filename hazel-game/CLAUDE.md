@@ -737,6 +737,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-14 — Save v3 and the flight rules (#75 item 15b, #136)
+First slice of 15b. **Save v3** (roadmap decision 15): `vehicle` (`foot` /
+`boat` / `ember`) replaces `aboard` — `MIGRATIONS[2]`, `SAVE_VERSION` 3; the
+step also adopts `lastRest` and `boat` (#104a). A save flying stays flying
+only over an overworld map once Ember can fly. **Travel:** `TravelMode` gains
+`ember` — any tile, overworld maps only (`canFlyOver`), 2.5× (`EMBER_SPEED`),
+open ground to land on (`LANDABLE_CHARS`), any linked edge (`edgeCrossing`),
+no critters; `reach` takes `start` and flies (fog and exits don't stop it).
+Nothing a player sees changes yet. Tests +9 (save.test, reach.test); 1170
+green, lint + tsc clean.
+
 ### 2026-10-14 — Merge the question-service branch (with 15a's new topics, PR #51) into the screening branch (#133)
 `main` took PR #51 (#135, TC-1061–1070) and this branch's base (#52) merged
 it in. 15a's TC-1061 clashed with this branch's picker test case, which
@@ -795,7 +806,7 @@ app sends `flavor` (B8) and `reportsSeen` (#134).
 ### 2026-10-14 — Merge main (Act I quick fixes #49) into the 15a branch (#135)
 `main` took ISSUES **#130** and TC-1015–1025 for the Act I quick fixes while
 15a was in review, so 15a moved **#130 → #135** and its test cases
-**TC-1015–1024 → TC-1061–1035** (only its own lines). `QuizRound.test` keeps
+**TC-1015–1024 → TC-1061–1070** (only its own lines). `QuizRound.test` keeps
 both: the quick fixes' recap and level-override tests, and 15a's "Coming
 soon!" ones (one stand-in hook with questions, loading and an error).
 

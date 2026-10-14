@@ -5,9 +5,9 @@ import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, shelterOf } from '
 import { BOAT_SPAWN_REACH, safeSpawn } from './reach';
 import { BOAT_REMOOR_REACH, hasBoat, seaBeside, validMooring } from '../content/boat';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
-import { ACT2_SEEN, SPIRE_VICTORY_SEEN } from '../content/story';
+import { ACT2_SEEN, SPIRE_VICTORY_SEEN, canFly } from '../content/story';
 
-export const SAVE_VERSION = 2 as const;
+export const SAVE_VERSION = 3 as const;
 
 /**
  * Versioned save-migration ladder (Wave 0.2, ROADMAP-4X). Each step upgrades
@@ -82,6 +82,17 @@ export const MIGRATIONS: MigrationLadder = {
     if (Array.isArray(raw.openedChests)) {
       out.openedChests = raw.openedChests.map((id) => (typeof id === 'string' ? (MOVED_CHESTS[id] ?? id) : id));
     }
+    return out;
+  },
+  /**
+   * v2 → v3 (#75 item 15b, roadmap decision 15): Ember can fly, so how the
+   * hero gets about is one field, `vehicle`, not the boat's `aboard`. The same
+   * step adopts `lastRest` and `boat` as part of the save (#104a) — they were
+   * added to v2 without a bump and already have their shape.
+   */
+  2: (raw) => {
+    const out: RawSave = { ...raw, vehicle: raw.aboard === true ? 'boat' : 'foot' };
+    delete out.aboard;
     return out;
   },
 };
@@ -174,7 +185,7 @@ export function defaultSave(): SaveData {
     defendTimer: true,
     lastRest: null,
     boat: null,
-    aboard: false,
+    vehicle: 'foot',
   };
 }
 
@@ -207,13 +218,18 @@ export function normalizeSave(raw: unknown): SaveData {
   // nearest them rather than wherever they last climbed in, so a hero is
   // never left on an island without it.
   const cell = savedPos ? { x: Math.floor(savedPos.x / TILE), y: Math.floor(savedPos.y / TILE) } : null;
-  const wasAboard = r.aboard === true && hasBoat(flags) && cell !== null;
+  const wasAboard = r.vehicle === 'boat' && hasBoat(flags) && cell !== null;
   const afloat = wasAboard ? seaBeside(zoneId, cell.x, cell.y, flags, BOAT_SPAWN_REACH) : null;
   // Where they'll stand instead — that spot, or the zone's spawn (`safeSpawn`).
   const stand = wasAboard && !afloat ? safeSpawn(ZONES[zoneId], savedPos, flags) : null;
   const beside = stand ? seaBeside(zoneId, Math.floor(stand.x / TILE), Math.floor(stand.y / TILE), flags, BOAT_REMOOR_REACH) : null;
   const moved = afloat && (afloat.x !== cell?.x || afloat.y !== cell?.y);
   const pos = moved ? { x: afloat.x * TILE + TILE / 2, y: afloat.y * TILE + TILE / 2 } : savedPos;
+
+  // On Ember (#75 item 15b): she flies over any overworld map, so a hero saved
+  // in the air stays there — on a map she flies over, once she can fly.
+  // Anywhere else they're on foot (the canvas finds them firm ground).
+  const flying = r.vehicle === 'ember' && savedPos !== null && canFly(flags) && ZONES[zoneId].kind === 'overworld';
 
   const save: SaveData = {
     version: SAVE_VERSION,
@@ -225,7 +241,7 @@ export function normalizeSave(raw: unknown): SaveData {
     items,
     badges: stringArray(r.badges),
     sages: stringArray(r.sages) as CrystalTopic[],
-    // Every v2 save carries the marker (see SAVE_V2_FLAG), whatever it came with.
+    // Every v2-or-later save carries the marker (see SAVE_V2_FLAG), whatever it came with.
     flags,
     openedChests: stringArray(r.openedChests),
     kills: killCounts(r.kills),
@@ -249,7 +265,7 @@ export function normalizeSave(raw: unknown): SaveData {
       : validMooring(r.boat, flags)
         ? { zoneId: r.boat.zoneId, x: r.boat.x, y: r.boat.y }
         : null,
-    aboard: afloat !== null,
+    vehicle: afloat !== null ? 'boat' : flying ? 'ember' : 'foot',
   };
   // Between the Spire's finale and Act II the hero is asleep at the Sleepy
   // Sheep Inn (#75 item 14) — Act II opens "You wake to sunshine at the Sleepy
@@ -303,8 +319,8 @@ export function wakeAfterDefeat(save: Pick<SaveData, 'lastRest'> & Partial<Pick<
  * Sheep Inn in Lumina Village — healed, on its floor just inside the door,
  * and it's the inn they last rested at. Spread into the save.
  */
-export function restAtHomeInn(): Pick<SaveData, 'zoneId' | 'pos' | 'hp' | 'lastRest' | 'aboard'> {
-  return { ...wakeAfterDefeat({ lastRest: HUB_ZONE }), hp: null, lastRest: HUB_ZONE, aboard: false };
+export function restAtHomeInn(): Pick<SaveData, 'zoneId' | 'pos' | 'hp' | 'lastRest' | 'vehicle'> {
+  return { ...wakeAfterDefeat({ lastRest: HUB_ZONE }), hp: null, lastRest: HUB_ZONE, vehicle: 'foot' };
 }
 
 function numberOr(v: unknown, fallback: number): number {

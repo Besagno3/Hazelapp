@@ -258,7 +258,7 @@ export default function WorldScreen() {
   // has woken at the inn; the first time in the boat; the first bump into the
   // Great Fogbank.
   const act2Due = flags[SPIRE_VICTORY_SEEN] === true && !flags[ACT2_SEEN] && !waking;
-  const voyageDue = save?.aboard === true && !flags[FIRST_VOYAGE_SEEN];
+  const voyageDue = save?.vehicle === 'boat' && !flags[FIRST_VOYAGE_SEEN];
   const fogbankDue = flags[GREAT_FOGBANK_MET] === true && !flags[GREAT_FOGBANK_SEEN];
   // The Memoria Key, won from the Ringkeeper (#75 item 14f).
   const memoriaDue = flags[keyFlag('memoria')] === true && !flags[MEMORIA_SEEN];
@@ -431,8 +431,8 @@ export default function WorldScreen() {
       // 14h) — and the toast says which, so it never seems to vanish.
       const note = save ? boatOnReturn(save, cast.to).note : '';
       update((s) => {
-        const { aboard, boat } = boatOnReturn(s, cast.to);
-        return { ...s, aboard, boat };
+        const { vehicle, boat } = boatOnReturn(s, cast.to);
+        return { ...s, vehicle, boat };
       });
       const at = returnLanding(ZONES, cast.to);
       travelRef.current = { to: cast.to, x: at.x, y: at.y };
@@ -486,7 +486,7 @@ export default function WorldScreen() {
           <h1 className="text-lg font-extrabold leading-tight">
             {spireTheme ? spireFloorTitle(spireFloorIndex!) : hudTitle}
             {/* Sailing (#75 item 14): beside the name, so the stats keep their room. */}
-            {save.aboard && (
+            {save.vehicle === 'boat' && (
               <span className="whitespace-nowrap">
                 {' '}
                 <span aria-hidden>⛵</span>
@@ -586,13 +586,13 @@ export default function WorldScreen() {
           // Marlow's boat (#75 item 14): climbing in, going ashore.
           onBoard: (x, y) => {
             sfx('select');
-            update((s) => ({ ...s, aboard: true, pos: { x, y } }));
+            update((s) => ({ ...s, vehicle: 'boat', pos: { x, y } }));
           },
           onLand: (boat, x, y) => {
             sfx('select');
-            update((s) => ({ ...s, aboard: false, boat: { zoneId: s.zoneId, ...boat }, pos: { x, y } }));
+            update((s) => ({ ...s, vehicle: 'foot', boat: { zoneId: s.zoneId, ...boat }, pos: { x, y } }));
           },
-          onAshore: (boat) => update((s) => ({ ...s, aboard: false, boat: boat ? { zoneId: s.zoneId, ...boat } : null })),
+          onAshore: (boat) => update((s) => ({ ...s, vehicle: 'foot', boat: boat ? { zoneId: s.zoneId, ...boat } : null })),
           // The fog of Forgetting lifts on screen (#75 item 7), once per bank.
           onFogLift: (fog) => {
             sfx('gate'); // a way opening — not the level-up fanfare
@@ -667,12 +667,12 @@ export default function WorldScreen() {
         calmRef={calmRef}
         actionRef={actionRef}
         boat={boatSpot(save)}
-        aboard={save.aboard}
+        aboard={save.vehicle === 'boat'}
         escort={walk ? { npcId: walk.npcId, goal: walk.goal, from: useBattleStore.getState().escortAt } : null}
       />
 
       <p className="text-white/50 text-xs mt-2">
-        {save.aboard
+        {save.vehicle === 'boat'
           ? 'Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!'
           : 'Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!'}
       </p>

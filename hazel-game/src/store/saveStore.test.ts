@@ -87,13 +87,13 @@ describe('saveStore.load', () => {
     localStorage.clear();
   });
 
-  it('upgrades a v1 save from the server and saves it back as v2 (#75 item 8)', async () => {
+  it('upgrades a v1 save from the server and saves it back as today\'s version (#75 items 8, 15b)', async () => {
     remote.row = { data: { version: 1, zoneId: 'lumina-field', pos: { x: 5, y: 5 }, coins: 7, sageEquipped: 'math' } };
     await useSaveStore.getState().load('u1');
     const { save, status } = useSaveStore.getState();
     expect(status).toBe('ready');
-    expect(save).toMatchObject({ version: 2, zoneId: 'lumina-village', pos: null, coins: 7 });
-    expect(JSON.parse(localStorage.getItem(saveKey('u1'))!).version).toBe(2);
+    expect(save).toMatchObject({ version: SAVE_VERSION, zoneId: 'lumina-village', pos: null, coins: 7 });
+    expect(JSON.parse(localStorage.getItem(saveKey('u1'))!).version).toBe(SAVE_VERSION);
     expect(remote.upserts).toHaveLength(1);
   });
 
@@ -105,7 +105,7 @@ describe('saveStore.load', () => {
     ['v2 with an inn, before the boat', V2_PRE_14A],
     ['today, afloat', CURRENT_ABOARD],
     ['the finale seen, Act II not', FINALE_NOT_ACT2],
-  ])('loads %s from the server, ready to play, and writes it back once as v2', async (_name, raw) => {
+  ])('loads %s from the server, ready to play, and writes it back once as today\'s version', async (_name, raw) => {
     remote.row = { data: raw };
     await useSaveStore.getState().load('u-fixture');
     const { save, status, remoteError } = useSaveStore.getState();

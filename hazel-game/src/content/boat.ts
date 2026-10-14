@@ -29,8 +29,8 @@ export function hasBoat(flags: Record<string, boolean>): boolean {
 }
 
 /** Where the boat is moored now — null before it's mended (or while the hero is in it). */
-export function boatSpot(save: Pick<SaveData, 'boat' | 'aboard' | 'flags'>): BoatSpot | null {
-  if (!hasBoat(save.flags) || save.aboard) return null;
+export function boatSpot(save: Pick<SaveData, 'boat' | 'vehicle' | 'flags'>): BoatSpot | null {
+  if (!hasBoat(save.flags) || save.vehicle === 'boat') return null;
   return save.boat ?? BOAT_HOME;
 }
 
@@ -74,11 +74,11 @@ export function seaBeside(
  * hero out of the boat this way (a battle lost at sea sends it home instead —
  * `boatAfterDefeat`).
  */
-export function moorBoat(save: Pick<SaveData, 'aboard' | 'boat' | 'zoneId' | 'pos'>): Pick<SaveData, 'aboard' | 'boat'> {
-  if (!save.aboard) return { aboard: false, boat: save.boat };
+export function moorBoat(save: Pick<SaveData, 'vehicle' | 'boat' | 'zoneId' | 'pos'>): Pick<SaveData, 'vehicle' | 'boat'> {
+  if (save.vehicle !== 'boat') return { vehicle: 'foot', boat: save.boat };
   const z = ZONES[save.zoneId];
   const cell = save.pos ? nearestSea(z, Math.floor(save.pos.x / TILE), Math.floor(save.pos.y / TILE)) : null;
-  return { aboard: false, boat: cell ? { zoneId: save.zoneId, ...cell } : null };
+  return { vehicle: 'foot', boat: cell ? { zoneId: save.zoneId, ...cell } : null };
 }
 
 /**
@@ -87,10 +87,10 @@ export function moorBoat(save: Pick<SaveData, 'aboard' | 'boat' | 'zoneId' | 'po
  * never on the island without it. Null when it can stay where it is: not an
  * island, or moored at that beach already.
  */
-export function islandBoat(save: Pick<SaveData, 'aboard' | 'boat'>, townZone: ZoneId | undefined): BoatSpot | null {
+export function islandBoat(save: Pick<SaveData, 'vehicle' | 'boat'>, townZone: ZoneId | undefined): BoatSpot | null {
   const mooring = townZone && isZoneId(townZone) ? ZONES[townZone].mooring : undefined;
   if (!mooring) return null;
-  const at = save.aboard ? null : (save.boat ?? BOAT_HOME);
+  const at = save.vehicle === 'boat' ? null : (save.boat ?? BOAT_HOME);
   // Already there only if the hero can climb in from the island: the boat is
   // right beside ground they can walk to from the town's door (`canBoard`) —
   // not just somewhere near, out in open water (#75 item 14h review).
@@ -119,10 +119,10 @@ function boardableFrom(ground: Set<string>, boat: { x: number; y: number }): boo
  * Sunken Archive) would be stranded without it, so Marlow brings it round to
  * that town's beach instead.
  */
-export function boatAfterDefeat(save: Pick<SaveData, 'aboard' | 'boat'>, wakeZone?: ZoneId): Pick<SaveData, 'aboard' | 'boat'> {
+export function boatAfterDefeat(save: Pick<SaveData, 'vehicle' | 'boat'>, wakeZone?: ZoneId): Pick<SaveData, 'vehicle' | 'boat'> {
   const island = islandBoat(save, wakeZone);
-  if (island) return { aboard: false, boat: island };
-  return save.aboard ? { aboard: false, boat: null } : { aboard: false, boat: save.boat };
+  if (island) return { vehicle: 'foot', boat: island };
+  return save.vehicle === 'boat' ? { vehicle: 'foot', boat: null } : { vehicle: 'foot', boat: save.boat };
 }
 
 /**
@@ -133,17 +133,17 @@ export function boatAfterDefeat(save: Pick<SaveData, 'aboard' | 'boat'>, wakeZon
  * vanish — or to be left behind.
  */
 export function boatOnReturn(
-  save: Pick<SaveData, 'aboard' | 'boat' | 'zoneId' | 'pos' | 'flags'>,
+  save: Pick<SaveData, 'vehicle' | 'boat' | 'zoneId' | 'pos' | 'flags'>,
   to: ZoneId,
-): Pick<SaveData, 'aboard' | 'boat'> & { note: string } {
+): Pick<SaveData, 'vehicle' | 'boat'> & { note: string } {
   const moored = moorBoat(save);
   const island = hasBoat(save.flags) ? islandBoat(moored, to) : null;
-  if (island) return { aboard: false, boat: island, note: ' Old Marlow will sail the Biscuit round to meet you there.' };
+  if (island) return { vehicle: 'foot', boat: island, note: ' Old Marlow will sail the Biscuit round to meet you there.' };
   // Flying to an island town with the boat already moored by it (left there now
   // or before): she's waiting there, and the toast says so (#75 item 14h review).
   const byTheIsland = hasBoat(save.flags) && moored.boat && isZoneId(to) && ZONES[to].mooring?.zoneId === moored.boat.zoneId;
   if (byTheIsland) return { ...moored, note: ' The Biscuit waits by the island, right where you left her.' };
-  return { ...moored, note: save.aboard ? ' The Biscuit stays moored out at sea — Old Marlow can row her home.' : '' };
+  return { ...moored, note: save.vehicle === 'boat' ? ' The Biscuit stays moored out at sea — Old Marlow can row her home.' : '' };
 }
 
 /** The defeat screen's line after a battle lost at sea (`boatAfterDefeat`). */
@@ -154,13 +154,13 @@ export const SEA_DEFEAT_LINE = '⛵ Old Marlow rowed the Biscuit home to his doc
  * before it): brought round to an island town's beach, rowed home from the
  * sea, or nothing (it stayed where it was moored). Null before it's mended.
  */
-export function defeatBoatLine(save: Pick<SaveData, 'aboard' | 'boat' | 'flags'>, wakeZone: ZoneId): string | null {
+export function defeatBoatLine(save: Pick<SaveData, 'vehicle' | 'boat' | 'flags'>, wakeZone: ZoneId): string | null {
   if (!hasBoat(save.flags)) return null;
   if (islandBoat(save, wakeZone)) {
     const z = ZONES[wakeZone];
     return `⛵ Old Marlow sailed the Biscuit round to ${z.the ? 'the ' : ''}${z.name}'s beach for you.`;
   }
-  return save.aboard ? SEA_DEFEAT_LINE : null;
+  return save.vehicle === 'boat' ? SEA_DEFEAT_LINE : null;
 }
 
 /** A boat moored this close to Marlow's dock (cells, either way) is home already. */
@@ -171,8 +171,8 @@ export const DOCK_NEAR = 2;
  * than `DOCK_NEAR` cells off it — and the hero ashore. Null when it's home
  * (or there's no boat, or they're in it).
  */
-export function boatAway(save: Pick<SaveData, 'boat' | 'aboard' | 'flags'>): BoatSpot | null {
-  if (!hasBoat(save.flags) || save.aboard || save.boat === null) return null;
+export function boatAway(save: Pick<SaveData, 'boat' | 'vehicle' | 'flags'>): BoatSpot | null {
+  if (!hasBoat(save.flags) || save.vehicle === 'boat' || save.boat === null) return null;
   const { zoneId, x, y } = save.boat;
   const home = zoneId === BOAT_HOME.zoneId && Math.max(Math.abs(x - BOAT_HOME.x), Math.abs(y - BOAT_HOME.y)) <= DOCK_NEAR;
   return home ? null : save.boat;
@@ -227,10 +227,10 @@ export const FOGBANK_LEAVE = 9;
  * longer on the way out (`FOGBANK_LEAVE`).
  */
 export function seaAreaAt(
-  save: Pick<SaveData, 'zoneId' | 'pos' | 'aboard' | 'flags'>,
+  save: Pick<SaveData, 'zoneId' | 'pos' | 'vehicle' | 'flags'>,
   prev: SeaArea | null = null,
 ): SeaArea | null {
-  if (save.zoneId === 'dawnreach') return save.aboard ? 'dawnreach-waters' : null;
+  if (save.zoneId === 'dawnreach') return save.vehicle === 'boat' ? 'dawnreach-waters' : null;
   if (save.zoneId !== 'silver-shallows') return null;
   const fog = ZONES['silver-shallows'].fogs?.find((f) => f.id === GREAT_FOGBANK);
   if (fog && save.pos && !fogLifted(fog, save.flags)) {
