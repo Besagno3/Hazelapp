@@ -1180,6 +1180,22 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-976 | M | ⬜ | TouchPad | with VoiceOver (iOS) and TalkBack (Android): double-tap ✋ beside a chest — it opens, once |
 | TC-977 | M | ⬜ | world | on a phone: tap a shopkeeper, walk away, then press ✋ next to a chest — the chest opens (not the shopkeeper) |
 
+## Act I launch review quick fixes (#130)
+
+| ID     | Type | Status | Feature | Case |
+|--------|------|--------|------|------|
+| TC-1015 | C | ✅ | quiz | miss one question, get four right, while saving the skill level swaps in the next batch: the results say "Round Passed!" and 80%, and "What you missed" shows the round's own question, the answer picked and the right one — nothing from the next batch, no loading screen (QuizRound.test) |
+| TC-1016 | M | ✅ | TouchPad | with touch (Playwright `hasTouch`) at 820×1180 the d-pad and ✋ sit under the map; holding ▶ moves the hero; the page doesn't scroll |
+| TC-1017 | M | ✅ | TouchPad | with touch at 1024×768 and 844×390 (sideways) the d-pad docks bottom-left and ✋ bottom-right; holding ▶ moves the hero |
+| TC-1018 | M | ✅ | TouchPad | at 1366×768 with a mouse only, no d-pad shows; at 375×667 with touch it shows under the map as before |
+| TC-1019 | M | ⬜ | TouchPad | on a real iPad (both ways round) and an Android phone held sideways: walk, ✋ opens a chest, a dialogue covers the pad and the pad can't be pressed under it |
+| TC-1020 | M | ⬜ | world | on a touch screen, a toast shows near the top and never over the d-pad |
+| TC-1021 | M | ⬜ | npcs | Wisp says the Clockwork Depths are a cave south of the Whispering Woods; Hazel (after Ember hatches) says Ember's Breath comes with all four crystals |
+| TC-1022 | M | ⬜ | menu | with the cloud save failing, 📜 Menu says "Couldn't reach the cloud just now…" with no error code; hovering it shows the error |
+| TC-1023 | M | ⬜ | page | the browser tab reads "Hazel Quest" |
+| TC-1024 | M | ⬜ | TouchPad | on a touchscreen laptop or Chromebook used as a laptop, no d-pad shows and prompts say "Space:"; folded into tablet mode, the pad shows and prompts say "Tap:" |
+| TC-1025 | C | ✅ | quiz | while a round is played the question hook gets no level override; once it ends the hook is pinned to the round's own level (3), so a new skill level can't re-key it and use up the next round's prefetched batch (QuizRound.test) |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
@@ -1218,13 +1234,13 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1012 | U | ✅ | quests (#129i) | Ness's own Act II lines include one that sets met-ness (quests.test); the Act II journey's Hall leg ends with Mnem's line that sets hall-called (journey.test) |
 | TC-1013 | U | ✅ | quests (#129j) | Ness's first talk is the lens offer with her hello, the safety line, the Fogbank and the Marsh rumor; with the glass already found she says so; Mnem: hello only once, no plaque count between Memory and the dedication, "the Hall's heart" after (quests.test, zones.test) |
 | TC-1014 | U | ✅ | dialogue (#129k) | Ness's offer (both versions) ends on the lens ask; after the quest no chest rumor or repeated rumors; the sea-glass chest names Shelby; Sol and Bramble's Act I lines stop in Act II; Mnem never opens with "And"; Lumen says one memory line, met Mnem or not (quests.test, zones.test) |
-| TC-1015 | U | ✅ | topics (#130a) | geography, words and music are expansion topics; every topic has its own emoji, button colour, label and sky (topics.test); both topic tables list all ten with persona lines and match (topicPrompts.test); every topic has 3+ fun facts (funFacts.test) |
-| TC-1016 | C | ✅ | Training Grounds (#130a) | all ten topics are buttons, each stays open after a pick (TopicSelect.test) |
-| TC-1017 | M | ⬜ | deploy (#130b) | after `supabase functions deploy generate-questions`: a geography, a words and a music round each load 5 questions in production |
-| TC-1018 | U | ✅ | questions (#130e) | the function's "topic must be one of" error becomes TOPIC_NOT_READY; any other error keeps its reason (questions.test) |
-| TC-1019 | C | ✅ | quiz (#130e) | a TOPIC_NOT_READY round shows "Coming soon!" with Back and no Try again; other errors keep Try again (QuizRound.test) |
-| TC-1020 | C | ✅ | story (#129l) | after Memory, Wisp's beat plays in the Whispering Woods only — not in Lumina Village, even with Wisp as the active companion (WorldScreen.ending.test) |
-| TC-1021 | U | ✅ | questions (#130f) | the not-ready mapping holds on a real FunctionsHttpError with the function's JSON 400 body (questions.test) |
-| TC-1022 | C | ✅ | quiz (#130f) | "Coming soon!" offers one main button, "Pick another topic" (QuizRound.test) |
-| TC-1023 | U | ✅ | story (#129m) | Wick's Wisp nudge shows after Memory and goes once Wisp has stirred; the Woods before Memory plays no beat (story.test, WorldScreen.ending.test) |
-| TC-1024 | M | ⬜ | Training Grounds (#130f) | at 1024 px the ten topics are two full rows of five; at 320 px "🗺️ Enter Lumina" is one line and the title centred |
+| TC-1026 | U | ✅ | topics (#131a) | geography, words and music are expansion topics; every topic has its own emoji, button colour, label and sky (topics.test); both topic tables list all ten with persona lines and match (topicPrompts.test); every topic has 3+ fun facts (funFacts.test) |
+| TC-1027 | C | ✅ | Training Grounds (#131a) | all ten topics are buttons, each stays open after a pick (TopicSelect.test) |
+| TC-1028 | M | ⬜ | deploy (#131b) | after `supabase functions deploy generate-questions`: a geography, a words and a music round each load 5 questions in production |
+| TC-1029 | U | ✅ | questions (#131e) | the function's "topic must be one of" error becomes TOPIC_NOT_READY; any other error keeps its reason (questions.test) |
+| TC-1030 | C | ✅ | quiz (#131e) | a TOPIC_NOT_READY round shows "Coming soon!" with Back and no Try again; other errors keep Try again (QuizRound.test) |
+| TC-1031 | C | ✅ | story (#129l) | after Memory, Wisp's beat plays in the Whispering Woods only — not in Lumina Village, even with Wisp as the active companion (WorldScreen.ending.test) |
+| TC-1032 | U | ✅ | questions (#131f) | the not-ready mapping holds on a real FunctionsHttpError with the function's JSON 400 body (questions.test) |
+| TC-1033 | C | ✅ | quiz (#131f) | "Coming soon!" offers one main button, "Pick another topic" (QuizRound.test) |
+| TC-1034 | U | ✅ | story (#129m) | Wick's Wisp nudge shows after Memory and goes once Wisp has stirred; the Woods before Memory plays no beat (story.test, WorldScreen.ending.test) |
+| TC-1035 | M | ⬜ | Training Grounds (#131f) | at 1024 px the ten topics are two full rows of five; at 320 px "🗺️ Enter Lumina" is one line and the title centred |

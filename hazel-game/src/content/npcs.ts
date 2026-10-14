@@ -500,7 +500,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Here is the secret nobody tells you: a spell is just a hard question you were brave enough to answer. The harder the question, the brighter the spell.',
       'Mend a wound. Raise a shield. Or borrow Ember\'s own fire, once that dragon is fully grown. Every Sage you meet teaches you one more verse of the song.',
       {
-        text: 'You carry a true dragon now. When Ember is grown, ask the woods to teach you its Breath — the brightest spell of all.',
+        text: 'You carry a true dragon now. Bring all four crystals home and Ember will grow up big. Then Ember\'s Breath is yours — the brightest spell of all.',
         ifFlag: 'ember-hatched',
       },
     ],
@@ -511,7 +511,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🧚',
     role: 'villager',
     lines: [
-      'Down past the roots there is a stair, and past the stair, the Clockwork Depths. Old machines sleep there. Be gentle, they dream of working again.',
+      'South of these woods, a cave runs down into the Clockwork Depths. Old machines sleep there. Be gentle, they dream of working again.',
       'I am made of leftover questions, you know. The ones nobody answered. When you answer yours, a little of me lights up. Thank you for that.',
       // Act II (#75 item 14i): Wisp is starting to remember itself.
       {

@@ -689,7 +689,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-12 — 15a review round 2: five across, "Pick another topic", Wick points to Wisp (#130f, #129m)
+### 2026-10-14 — Merge main (Act I quick fixes #49) into the 15a branch (#131)
+`main` took ISSUES **#130** and TC-1015–1025 for the Act I quick fixes while
+15a was in review, so 15a moved **#130 → #131** and its test cases
+**TC-1015–1024 → TC-1026–1035** (only its own lines). `QuizRound.test` keeps
+both: the quick fixes' recap and level-override tests, and 15a's "Coming
+soon!" ones (one stand-in hook with questions, loading and an error).
+
+### 2026-10-12 — 15a review round 2: five across, "Pick another topic", Wick points to Wisp (#131f, #129m)
 A report-only `/saas-code-review` (2 medium, 3 low) and UX review (3 medium,
 4 low); the owner chose eight to fix: the not-ready test goes through a real
 `FunctionsHttpError` and the function's 400 wording is marked as matched;
@@ -724,9 +731,41 @@ function's inline copy) have their persona lines; `EXTRA_TOPICS` styles them
 (🧭 Maps & Places, 📚 Words & Stories, 🎸 Music) and `FUN_FACTS` has five
 each. The Training Grounds lists all ten. No zone asks them yet (15d–15f).
 ⚠️ Deploy: `supabase functions deploy generate-questions`, then check a
-round of each in production (#130b) — until then those three buttons show
+round of each in production (#131b) — until then those three buttons show
 the question-load error. Tests: topics.test +2 (each topic looks different;
 Act III's themes are there). 1115 green, lint + tsc clean.
+### 2026-10-12 — Merge main (Sunken Archive #48, 14i #50) into the Act I quick-fixes branch (#130)
+`main` took ISSUES **#128–#129** and TC-978–1014 while the quick fixes were in
+review, so they moved **#128 → #130** and their test cases **TC-978–988 →
+TC-1015–1025** (only their own lines). No code conflicts: `npcs.ts` and
+`WorldScreen.tsx` merged on their own.
+
+### 2026-10-12 — Act I launch review: quick fixes B3, B2, S14, S6, B7 (#130)
+The first quick fixes from the Act I launch review (the checklist's item
+codes in brackets). **B3:** the quiz's "What you missed" recap showed the
+wrong question — saving the new skill level re-keys `useGeneratedQuestions`,
+which fetched the next batch under the results screen (and could show its
+spinner instead). `QuizRound` now holds the finished round (`FinishedRound`:
+questions, answers, picks) and renders `RoundResults` from it, before the
+loading check. **B2:** tablets and sideways phones couldn't walk — the
+`TouchPad` hid at `sm`. Two Tailwind screens (`tailwind.config.js`):
+`touch` = `(pointer: coarse)` (the main pointer, like `WorldCanvas`'s "Tap:"
+prompts — `any-pointer` would also catch touchscreen laptops used with a
+keyboard, a review finding), `touch-wide` = touch + landscape; the pad
+shows on narrow windows and every touch screen, and on a sideways touch screen
+it docks in the bottom corners (`fixed`, pad left, ✋ right, `z-30`, under
+the overlays); the toast stays up top on touch screens so it never covers the
+pad. **S14:** Wisp now says the Depths are a cave south of the woods (not a
+stair under them), and Hazel says Ember's Breath comes when all four crystals
+are home. **S6 (part):** the menu's cloud-save warnings drop the raw error
+(now a `title`) and "apply the latest database migrations". **B7 (part):**
+`index.html` has the title "Hazel Quest", a description and a theme colour.
+**Review fix:** the results screen used up the next round's warm-up — the
+new level re-keyed the hook, whose fetch took the batch `finishRound` had just
+prefetched (consume-once, `lib/questions.ts`) and threw it away, after the
+server had marked it seen. `FinishedRound` now keeps the round's `level`, and
+`QuizRound` passes `finished?.level` as the hook's `levelOverride`, so a
+finished round asks for nothing new.
 
 ### 2026-10-12 — 14i review round 3: Ness asks last, nothing stale (#75 item 14i)
 A report-only round (code 2 low, UX 1 medium, 6 low), then all fixed on the

@@ -43,7 +43,7 @@ export default function TopicSelect() {
         )}
       </p>
 
-      {/* Above the topics, so ten cards never push it off a phone's screen (#130c). */}
+      {/* Above the topics, so ten cards never push it off a phone's screen (#131c). */}
       {worldUnlocked && (
         <motion.button
           initial={{ y: 16, opacity: 0 }}

@@ -299,14 +299,14 @@ export default function MenuOverlay({
             {saved ? '✅ Saved!' : '💾 Save game'}
           </button>
           {remoteError && (
-            <p className="text-[11px] text-orange-300">
-              Cloud save unavailable ({remoteError}) — progress is kept on this device.
+            <p className="text-[11px] text-orange-300" title={remoteError}>
+              Couldn't reach the cloud just now. Your progress is kept on this device for now.
             </p>
           )}
           {profileError && (
-            <p className="text-[11px] text-orange-300">
-              ⚠️ XP / level isn't saving to the cloud ({profileError}) — kept on this device
-              for now. Apply the latest database migrations to fix it.
+            <p className="text-[11px] text-orange-300" title={profileError}>
+              ⚠️ Your XP and level aren't reaching the cloud just now. They're kept on this
+              device for now.
             </p>
           )}
           <button

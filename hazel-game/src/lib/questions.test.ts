@@ -142,7 +142,7 @@ describe('fetchQuestions', () => {
     expect(out.some((question) => question.correctIndex !== 1)).toBe(true);
   });
 
-  it("says a topic isn't ready yet, not the server's whitelist, when the function doesn't know it (#130)", async () => {
+  it("says a topic isn't ready yet, not the server's whitelist, when the function doesn't know it (#131)", async () => {
     // The real path: a FunctionsHttpError whose JSON body carries the function's own 400 text.
     const body = { error: 'topic must be one of: math, science' };
     const response = new Response(JSON.stringify(body), { status: 400, headers: { 'Content-Type': 'application/json' } });

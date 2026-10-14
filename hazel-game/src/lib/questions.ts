@@ -25,7 +25,7 @@ interface ApiQuestion {
  */
 const UNKNOWN_TOPIC = 'topic must be one of';
 
-/** What a child sees when their topic isn't ready on the server yet (#130). */
+/** What a child sees when their topic isn't ready on the server yet (#131). */
 export const TOPIC_NOT_READY = "These questions aren't ready yet — pick another topic for now!";
 
 /** Calls the generate-questions edge function and adapts the result. */
@@ -46,7 +46,7 @@ async function invokeGenerate(
   if (error) {
     const reason = await resolveErrorMessage(error);
     // A topic the deployed function doesn't know yet (a new topic shipped
-    // before `generate-questions` was redeployed, #130): no developer text for a child.
+    // before `generate-questions` was redeployed, #131): no developer text for a child.
     if (reason.startsWith(UNKNOWN_TOPIC)) throw new Error(TOPIC_NOT_READY);
     throw new Error(`Question generation failed — ${reason}`);
   }

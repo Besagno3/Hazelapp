@@ -13,9 +13,15 @@ const questions: Question[] = Array.from({ length: 5 }, (_, i) => ({
   correctIndex: 0,
   explanation: '',
 }));
-const hook = vi.hoisted(() => ({ error: null as string | null }));
+// What the hook hands back; a test may swap it, as a re-keyed fetch would.
+const hook = { questions, loading: false, error: null as string | null };
+/** The level override the hook was last called with. */
+let lastLevelOverride: number | undefined;
 vi.mock('../../hooks/useGeneratedQuestions', () => ({
-  useGeneratedQuestions: () => ({ questions, loading: false, error: hook.error, age: 9, skillLevel: 3, reload: () => {} }),
+  useGeneratedQuestions: (_topic: string, _count: number, levelOverride?: number) => {
+    lastLevelOverride = levelOverride;
+    return { ...hook, age: 9, skillLevel: 3, reload: () => {} };
+  },
 }));
 vi.mock('../../lib/questions', async (orig) => ({
   ...(await orig<typeof import('../../lib/questions')>()),
@@ -54,6 +60,9 @@ async function playPerfectRound() {
 beforeEach(() => {
   addXp.mockReset();
   hook.error = null;
+  hook.questions = questions;
+  hook.loading = false;
+  lastLevelOverride = undefined;
 });
 
 describe('QuizRound — XP only once the world is open (#122)', () => {
@@ -95,5 +104,52 @@ describe('QuizRound — a topic the server does not know yet (#130)', () => {
     hook.error = 'Question generation failed — rate limited';
     render(<QuizRound />);
     expect(screen.getByText('Try again')).toBeInTheDocument();
+  });
+});
+
+describe('QuizRound — the recap keeps the round it was played with (Act I review B3)', () => {
+  // Saving the new skill level re-keys the question hook: the next batch is
+  // loading (then arrives) while the results are on screen.
+  const nextBatch: Question[] = questions.map((q, i) => ({ ...q, id: `next-${i}`, text: `Next ${i}?`, options: [`New ${i}`, 'x', 'y', 'z'] }));
+
+  it('shows the question the player missed, not one from the next batch', async () => {
+    start(3, true);
+    useProfileStore.setState({
+      setSkillLevel: vi.fn(async () => {
+        hook.questions = nextBatch;
+        hook.loading = true;
+      }),
+    });
+    render(<QuizRound />);
+    // Miss the first question, get the other four right (80%: passed).
+    fireEvent.click(await screen.findByText('Wrong 0a'));
+    fireEvent.click(screen.getByText('Next Question'));
+    for (let i = 1; i < questions.length; i++) {
+      fireEvent.click(await screen.findByText(`Right ${i}`));
+      fireEvent.click(screen.getByText(i === questions.length - 1 ? 'See Results' : 'Next Question'));
+    }
+    expect(await screen.findByText('Round Passed!')).toBeInTheDocument();
+    expect(screen.getByText('Score: 80%')).toBeInTheDocument();
+    expect(screen.getByText('Question 0?')).toBeInTheDocument();
+    expect(screen.getByText('Wrong 0a')).toBeInTheDocument();
+    expect(screen.getByText('Right 0')).toBeInTheDocument();
+    expect(screen.queryByText('Next 0?')).toBeNull();
+    expect(screen.queryByText(/Building your questions/)).toBeNull();
+  });
+});
+
+describe('QuizRound — the results keep the next round\'s warm-up (#130 review)', () => {
+  it('plays at the profile\'s level, then pins the round\'s level once it ends', async () => {
+    start(3, true);
+    render(<QuizRound />);
+    expect(lastLevelOverride).toBeUndefined();
+    for (let i = 0; i < questions.length; i++) {
+      fireEvent.click(await screen.findByText(`Right ${i}`));
+      fireEvent.click(screen.getByText(i === questions.length - 1 ? 'See Results' : 'Next Question'));
+    }
+    await screen.findByText('Round Passed!');
+    // The round was played at level 3: the hook keeps asking for 3, so the new
+    // level can't re-key it and use up the batch prefetched for the next round.
+    expect(lastLevelOverride).toBe(3);
   });
 });

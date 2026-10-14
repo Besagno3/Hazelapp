@@ -680,12 +680,12 @@ export default function WorldScreen() {
       <TouchPad onDirChange={onDirChange} onAction={onAction} action={action} />
 
       {/* Toast — inside a live region that's always there, so screen readers
-          announce each one as it appears. Centred, and on a phone up top, so it
-          never sits over the d-pad. */}
+          announce each one as it appears. Centred, and on a phone or any touch
+          screen up top, so it never sits over the d-pad. */}
       <div
         role="status"
         aria-live="polite"
-        className="fixed inset-x-0 top-24 sm:top-auto sm:bottom-8 z-50 flex justify-center px-4 pointer-events-none"
+        className="fixed inset-x-0 top-24 sm:top-auto sm:bottom-8 touch:top-24 touch:bottom-auto z-50 flex justify-center px-4 pointer-events-none"
       >
         {toast && (
           <motion.div
