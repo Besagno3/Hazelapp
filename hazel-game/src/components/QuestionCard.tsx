@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { sfx } from '../lib/audio';
 import { markSeen } from '../lib/seen';
+import FlagButton from './FlagButton';
 import type { Question } from '../types';
 
 /**
@@ -11,7 +12,8 @@ import type { Question } from '../types';
  * `preHidden` crosses out wrong options before the player starts (Pip's peek).
  * `secondChance` (a Forget-Me-Knot, #75 item 14e): the first wrong pick is
  * crossed out instead of answered, and the player picks again.
- * The parent advances via `onContinue` so reading is never rushed.
+ * The parent advances via `onContinue` so reading is never rushed. Once
+ * answered, any question can be reported (`FlagButton`, B10).
  */
 export default function QuestionCard({
   question,
@@ -203,6 +205,13 @@ export default function QuestionCard({
           💡 {selected === question.correctIndex ? '' : "Here's why: "}
           {question.explanation}
         </motion.p>
+      )}
+
+      {/* Any question can be reported once it's answered (B10). */}
+      {selected !== null && (
+        <div className="mt-3">
+          <FlagButton questionId={question.id} />
+        </div>
       )}
 
       {note !== undefined && (

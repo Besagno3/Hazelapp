@@ -545,6 +545,30 @@ zod, react-query. Add the package in the same change that first uses it.
   from the cache (unseen first, then seen); only with nothing to give does
   the kid see a friendly "try again" (503) or, when today's budget is spent,
   "come back tomorrow" (429). Raw errors go to the log, never to the reply.
+- **Questions are screened for kids (B10, #133):** three layers in the
+  function, canonical in `_shared/questionScreen.ts` (an identical inline copy
+  between `// --- screen:start` / `screen:end` markers, word-for-word checked
+  by `questionScreen.test.ts`): `CONTENT_RULES` in the writer's system prompt
+  (no violence, scary or sad topics, religion, politics, living or
+  controversial people, romance, medical or body-weight topics, brands,
+  links; facts only); `screenQuestion` on every fresh *and* saved question
+  (four different non-empty options, length caps, no links / emails / phone
+  numbers, a blocked-word list); and a **blind second check** — one more
+  call answers each fresh question without the answer and says whether it
+  keeps the rules (`checkFresh`, `keepChecked`): only those it agrees with are
+  served, and a failed or mismatched check keeps none (the cache fills in).
+  It asks for a third more questions than it needs to cover drops; secret
+  `QUESTION_SECOND_CHECK=off` turns the check off. **Reports** (`FlagButton`,
+  on every question screen through `QuestionCard`, "Not OK for kids" first)
+  hide a question from the reporting family; for everyone it's held back only
+  through `questions.status` (migration 0016: `active` / `review` / `retired`
+  / `approved`): "not OK for kids" sends an active question to review at
+  once, two families an approved one, any three families' reports an active
+  one. Only active and approved questions are served, approved first
+  (`pick_cached_questions`, as 0016 redefines it). The
+  owner reviews with `select * from question_review_queue` and
+  `select review_question(id, 'approved' | 'retired' | 'active')` (service
+  role / SQL editor only).
 - **Answer order is random (#121):** the model that writes questions favours
   one spot for the right answer (most often B), so `shuffleAnswers`
   (`lib/questions.ts`) shuffles every question's options as it arrives
@@ -660,7 +684,8 @@ python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, T
   sibling import fails to bundle on dashboard/API deploys (#67). The `_shared`
   copy is canonical for the app; `topicPrompts.test.ts` (`?raw`) fails if the
   function's inline copy drifts from it. The question flavours work the same
-  way (`_shared/flavors.ts`, `questionFlavors.test.ts`, #131).
+  way (`_shared/flavors.ts`, `questionFlavors.test.ts`, #131), and so does the
+  kids' screen (`_shared/questionScreen.ts`, `questionScreen.test.ts`, #133).
 
 ---
 
@@ -711,6 +736,38 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-14 — Merge the question-service branch (with 15a's new topics, PR #51) into the screening branch (#133)
+`main` took PR #51 (#135, TC-1061–1070) and this branch's base (#52) merged
+it in. 15a's TC-1061 clashed with this branch's picker test case, which
+moved **TC-1061 → TC-1071** (only its own line). One code conflict, the topic
+table (`_shared/topics.ts` and the function's inline copy, kept identical):
+15a's geography, words and music lines join; creativity keeps this branch's
+"facts only, never opinions" on 15a's list (music and writing are their own
+topics now); history keeps "never wars, battles, disasters or religion".
+
+### 2026-10-14 — Merge the question-service branch (with main's fairer question reuse #55) into the screening branch (#133)
+`main` took PR #55 (#134) and this branch's base (#52, #131) merged it in, so
+this merge brings both. #134 took migration **0015**
+(`0015_fair_question_reuse.sql`), so this branch's review migration is now
+**0016** (`0016_question_review.sql`, "after 0015"). Resolved to keep both:
+- **The picker follows the review rules:** 0016 also redefines
+  `pick_cached_questions` (same signature and columns) — only `active` and
+  `approved` questions, approved ones first, and a report hides a question
+  from the reporting family only (everyone else through its status). The
+  edge function's own status filter, family-report read and approved-first
+  sort (`byReview`) are gone with the old lookup they lived in; saved
+  questions still pass `screenQuestion` on both paths, keeping the picker's
+  order. Without 0015 the old lookup runs as before (no status column yet).
+- `QuestionCard` keeps both the 🚩 report button and "mark seen" (#134).
+- `question_reuse.test.sql`'s flag is now "not OK for kids" (one other
+  family's "wrong answer" no longer hides a question from everyone);
+  `question_review.test.sql` checks the picker's rules — each fails with its
+  rule removed.
+- ⚠️ Deploy: apply 0015 and then 0016 (or re-run `apply_all_migrations.sql`),
+  then `supabase functions deploy generate-questions`. Any order works: without
+  0016 the picker serves by #134's rules (no review status yet, any report
+  hides a question from everyone); without 0015 the old lookup runs.
 
 ### 2026-10-14 — Merge main (15a's new topics, PR #51) into the question-service branch (#131)
 `main` took PR #51 (#135: geography, words and music) while this branch
@@ -854,6 +911,47 @@ problems; this is batch 1 of the fixes, as the owner chose them.
   questions.test. 1121 green, lint + build clean, `deno check` clean; the
   migrations in order and the bundle twice on Postgres 16, all seven SQL
   tests pass. Batch 2 and follow-ups: ISSUES #134.
+### 2026-10-12 — Screen AI questions for kids, and act on reports (#133)
+Act I launch review B10 (the code part), built on #131's lockdown.
+- **Rules in the prompt:** `CONTENT_RULES` joins the writer's system prompt;
+  the history line drops "world history" and "important people" (never wars,
+  battles, disasters or religion) and creativity is facts only
+  (`_shared/topics.ts` and the inline copy).
+- **A screen on every question** (`screenQuestion`): four different non-empty
+  options, a right answer, length caps (220 / 80 / 280 characters), no links,
+  emails or phone numbers, no word from a short blocked list (kept narrow:
+  "killer whale", "shell", "grape", "dam" pass). Saved questions go through it
+  too, so rows cached before the rules are screened as they're read.
+- **The blind second check** (`checkFresh`): one more Haiku call gets the
+  fresh questions without their answers, picks an answer for each and says
+  whether it keeps the rules (`CHECK_SCHEMA`); only those it agrees with are
+  served (`keepChecked`). The function asks for a third more than it needs to
+  cover drops. If the check fails or its reply doesn't line up, no fresh
+  questions are served — the cache fills the batch, as for a failed
+  generation. About a third more Claude cost per fresh batch; secret
+  `QUESTION_SECOND_CHECK=off` turns it off.
+- **Reports:** 🚩 Report this question now sits on every question screen
+  (`QuestionCard` — battles, gates, chests, shrines, the Library, the Spire —
+  as well as the quiz), with **"Not OK for kids"** as the first reason and
+  bigger tap targets. A report hides the question from the reporting family
+  (all their kids); migration **0016** adds `questions.status`
+  (`active` / `review` / `retired` / `approved`, `reviewed_at`) and a trigger:
+  "not OK for kids" sends an active question to review at once, two families
+  an approved one, three families' reports of any kind an active one. Only
+  active and approved questions are served, approved first.
+  `question_review_queue` (a view) and `review_question()` are the owner's
+  (service role / SQL editor; no app role can read or call them). Before,
+  one report from any family hid a question from everyone for good.
+- Tests: `questionScreen.test.ts` (drift, the screen, `keepChecked`, the
+  wiring), FlagButton / QuestionCard (+2), `supabase/ci/question_review.test.sql`
+  (fails without the trigger). 1144 green, lint + build + `deno check` clean;
+  the SQL tests, migrations in order and the bundle twice pass on Postgres 16;
+  the function run locally against a stand-in Supabase + Claude: 42/42 checks
+  (14 new for B10).
+- ⚠️ Deploy: apply `0016_question_review.sql` **before** deploying the
+  function (it reads `questions.status`), then
+  `supabase functions deploy generate-questions`. Follow-ups #133.
+
 ### 2026-10-12 — Lock down the question service: fixed prompt text, the kid's id required, Claude failures fall back to the cache (#131)
 Act I launch review B8, B9 (code part) and B5 (server part), all in
 `generate-questions/index.ts`, plus the app sending flavour keys.

@@ -28,7 +28,7 @@ insert into public.questions (id, topic, level, age, text, options, correct_inde
   ('00000000-0000-0000-0000-00000000c5c1', 'science', 5, null, 'science',          '["a","b","c","d"]', 0);
 
 insert into public.question_flags (question_id, profile_id, reason)
-  values ('00000000-0000-0000-0000-00000000c0f1', '00000000-0000-0000-0000-000000005b03', 'wrong_answer');
+  values ('00000000-0000-0000-0000-00000000c0f1', '00000000-0000-0000-0000-000000005b03', 'not_for_kids');
 
 -- Sam's views: two math questions shown (c051 the newer, shown three times in
 -- one battle — it must count once), five science views shown after both

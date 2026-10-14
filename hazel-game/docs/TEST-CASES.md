@@ -1209,6 +1209,19 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1032 | M | ⬜ | deploy | after `supabase functions deploy generate-questions`: a quiz, a battle, a gate, a shrine trial and the Spire all load questions; the function's logs show no "QUOTA CHECK FAILED" |
 | TC-1033 | M | ⬜ | timeout | with Claude made slow (over 20 s): a battle loads from the cache in under ~45 s instead of failing |
 
+## Screening questions for kids (#133)
+
+| ID     | Type | Status | Feature | Case |
+|--------|------|--------|------|------|
+| TC-1041 | U | ✅ | screen | the function's inline screening block is word-for-word `_shared/questionScreen.ts`; the system prompt carries `CONTENT_RULES`; fresh and saved questions go through `screenQuestion`; only active / approved rows are read, approved first; the second check runs unless off, and its failure keeps nothing fresh (questionScreen.test) |
+| TC-1042 | U | ✅ | screen | `screenQuestion` passes a good question (and one saved with no explanation; "killer whale", "shell", "grape", "Hoover Dam") and drops: no text, too long, 3 options, an empty option, an option too long, two options the same (case / spaces), no right answer, an explanation too long, a link, an email, a phone number, a blocked word (questionScreen.test) |
+| TC-1043 | U | ✅ | check | `keepChecked` keeps only questions the check answered the same and called kid-safe; a reply with the wrong number of verdicts, or none, keeps nothing; the check schema is one `{answer 0–3, kidSafe}` per question (questionScreen.test) |
+| TC-1044 | C | ✅ | report | `FlagButton` offers "Not OK for kids" first and sends `not_for_kids`, then "We'll take a look"; `QuestionCard` shows 🚩 Report this question only once answered (FlagButton.test, QuestionCard.test) |
+| TC-1045 | I | ✅ | review | migration 0016 (SQL test): "not OK for kids" sends an active question to review at once; two families' other reports don't, three do (one family twice counts once); one family can't pull an approved question, two can; the queue lists held-back questions, "not OK for kids" first, counting families and reports; `review_question` retires / approves (and refuses "review"); a report after a review shows again, counting only the new ones; no app role can read the queue, call `review_question` or update a question (question_review.test.sql — fails without the trigger) |
+| TC-1046 | I | ✅ | function | run locally against a stand-in Supabase + Claude: the writer prompt has the rules; 5 asked → 7 generated → one blind check of all 7 without answers, told the age and the rules → 5 served; a disagreement or a "not for kids" verdict drops that question; a mismatched or failed check serves the cache (or a friendly 503 with none); blocked-word fresh questions never reach the check; saved questions with a blocked word aren't served; reports are read for the caller's family only (scratchpad harness, 42/42) |
+| TC-1047 | M | ⬜ | function | after deploy, on the real project: a battle and a quiz round load; the Supabase function log shows the check's drops (if any); `select * from question_review_queue` lists a question reported "Not OK for kids" from the app, and it's no longer served to another family |
+| TC-1048 | M | ⬜ | report | on a 320×568 phone in a battle: after answering, the 🚩 row and Continue are both reachable; the reason buttons are easy to tap |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
@@ -1269,3 +1282,4 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1068 | C | ✅ | quiz (#135f) | "Coming soon!" offers one main button, "Pick another topic" (QuizRound.test) |
 | TC-1069 | U | ✅ | story (#129m) | Wick's Wisp nudge shows after Memory and goes once Wisp has stirred; the Woods before Memory plays no beat (story.test, WorldScreen.ending.test) |
 | TC-1070 | M | ⬜ | Training Grounds (#135f) | at 1024 px the ten topics are two full rows of five; at 320 px "🗺️ Enter Lumina" is one line and the title centred |
+| TC-1071 | I | ✅ | review (#133, 2026-10-14 merge) | the question picker (0016's `pick_cached_questions`) serves only active and approved questions, approved first, and a sibling's report hides a question from their family only — another family still gets it; each fails with its rule removed (question_review.test.sql) |

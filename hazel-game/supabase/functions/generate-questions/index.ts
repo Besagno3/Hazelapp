@@ -57,11 +57,11 @@ const TOPIC_PROMPTS: Record<string, string> = {
   math: 'arithmetic, geometry, fractions, word problems.',
   science: 'nature, biology, physics, space, chemistry basics.',
   engineering: 'how things work, computers, materials, structures, simple logic.',
-  creativity: 'art, colour, drawing, crafts, design, inventing, imagination.',
+  creativity: 'art, colour, drawing, crafts, design, inventing, imagination — facts only (how colours mix, art tools, how things are made), never opinions.',
   nature: 'animals, plants, habitats, weather, the human body, the living world.',
   space: 'planets, stars, moons, the solar system, astronauts, rockets, the night sky.',
   history:
-    'world history, ancient civilizations, famous inventions, important people, the measurement of time.',
+    'ancient civilizations, everyday life long ago, famous inventions and inventors, explorers, great buildings, the measurement of time — never wars, battles, disasters or religion.',
   geography: 'maps, countries, continents, oceans, rivers, mountains, landmarks, compass directions.',
   words: 'reading, spelling, rhymes, word meanings, opposites, stories, grammar basics.',
   music: 'rhythm, instruments, notes, songs, famous composers, how sound works.',
@@ -79,6 +79,102 @@ const QUESTION_FLAVORS: Record<string, string> = {
   shrine: 'a riddle from a shrine keeper teaching a spell',
   spire: "the final climb up a dark wizard's tower",
 };
+// Screening for kids (B10): the content rules for the prompt, the checks every
+// question passes before a child sees it, and the blind second check. Kept
+// INLINE (single-file deploys, #67); the canonical, tested copy is
+// `_shared/questionScreen.ts`, and `questionScreen.test.ts` fails if the text
+// between the markers ever differs.
+// --- screen:start (identical in generate-questions/index.ts)
+const CONTENT_RULES = `Content rules — these questions are for young children. Never break them:
+- Nothing violent, scary or sad: no weapons, wars, fighting, death, injury, illness, disasters, crime or cruelty.
+- No religion, gods or beliefs; no politics, governments, elections, current events or rivalries between countries.
+- No real people who are alive today, and no one controversial. Famous people only from long ago, for what they made or discovered.
+- No romance or dating. The body only as simple science (what the heart or lungs do); nothing medical, about diets or about weight.
+- No brands, products, apps, video games, films, websites, links, phone numbers or email addresses.
+- Facts only, each with one clear right answer — never opinions, tastes or "the best".
+- The game's adventure tone (heroes, critters, riddles) is playful: nobody in a question is ever hurt.`;
+
+const MAX_TEXT_CHARS = 220;
+const MAX_OPTION_CHARS = 80;
+const MAX_EXPLANATION_CHARS = 280;
+
+/** Words a question for kids never needs (whole words, any case). The prompt's rules come first; this is the net. */
+const BLOCKED_WORDS =
+  /\b(kill(s|ed|ing)?|murder\w*|suicid\w*|rap(e|ed|es|ing|ist)|sex(y|ual\w*)?|porn\w*|nak(ed)|nude\w*|drugs?|cocaine|heroin|marijuana|alcohol\w*|beers?|wines?|vodka|whiske?y|cigarettes?|tobacco|guns?|rifles?|pistols?|shotguns?|bomb(s|ed|ing)?|terror\w*|genocide|holocaust|slave(s|ry)?|nazi\w*|hitler|wars?|warfare|bloody|corpses?|tortur\w*|execut(ed|ion|ions)|behead\w*|massacre\w*|stupid|idiots?|dumb|hell|damn\w*|crap|shit\w*|fuck\w*|bitch\w*|bastards?)\b/i;
+/** A link, an email address or a phone number. */
+const CONTACT_PATTERN =
+  /(https?:\/\/|www\.|\b[\w.-]+\.(com|org|net|io|co|uk|gov|edu)\b|\S+@\S+\.\w+|\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b)/i;
+
+interface ScreenableQuestion {
+  text: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string | null;
+}
+
+/** Why a question can't be shown to a child, or null when it passes. */
+function screenQuestion(q: ScreenableQuestion): string | null {
+  if (typeof q.text !== 'string' || q.text.trim() === '') return 'no question text';
+  if (q.text.length > MAX_TEXT_CHARS) return 'question too long';
+  if (!Array.isArray(q.options) || q.options.length !== 4) return 'not 4 options';
+  if (q.options.some((o) => typeof o !== 'string' || o.trim() === '')) return 'an empty option';
+  if (q.options.some((o) => o.length > MAX_OPTION_CHARS)) return 'an option too long';
+  if (new Set(q.options.map((o) => o.trim().toLowerCase())).size !== 4) return 'two options the same';
+  if (!Number.isInteger(q.correctIndex) || q.correctIndex < 0 || q.correctIndex > 3) return 'no right answer';
+  const explanation = q.explanation ?? '';
+  if (typeof explanation !== 'string' || explanation.length > MAX_EXPLANATION_CHARS) return 'explanation too long';
+  const all = [q.text, ...q.options, explanation].join('\n');
+  if (CONTACT_PATTERN.test(all)) return 'a link, email or phone number';
+  if (BLOCKED_WORDS.test(all)) return 'a word not for kids';
+  return null;
+}
+
+/** The blind second check's instructions: answer each question, and judge it against the rules. */
+function checkPrompt(age: number): string {
+  return (
+    `You check multiple-choice questions for a children's learning game, for a ${age}-year-old. ` +
+    'For each question, in order, pick the option you think is right (0-based index), ' +
+    'and say whether the question keeps every rule below and suits a child of that age.\n\n' +
+    CONTENT_RULES
+  );
+}
+
+const CHECK_SCHEMA = {
+  type: 'object',
+  properties: {
+    verdicts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          answer: { type: 'integer', enum: [0, 1, 2, 3], description: '0-based index of the option you think is right.' },
+          kidSafe: { type: 'boolean', description: 'True only if the question keeps every content rule.' },
+        },
+        required: ['answer', 'kidSafe'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['verdicts'],
+  additionalProperties: false,
+};
+
+interface CheckVerdict {
+  answer: number;
+  kidSafe: boolean;
+}
+
+/**
+ * The questions the second check agrees with: it picked the same answer and
+ * found the question fit for a child. A reply that doesn't line up one verdict
+ * per question keeps none — when unsure, a question isn't shown.
+ */
+function keepChecked<Q extends { correctIndex: number }>(questions: Q[], verdicts: CheckVerdict[] | null | undefined): Q[] {
+  if (!Array.isArray(verdicts) || verdicts.length !== questions.length) return [];
+  return questions.filter((q, i) => verdicts[i]?.kidSafe === true && verdicts[i]?.answer === q.correctIndex);
+}
+// --- screen:end
+
 const TOPIC_PROMPT_BLOCK = TOPICS.map((id) => `- ${id}: ${TOPIC_PROMPTS[id]}`).join('\n');
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
@@ -143,6 +239,8 @@ Generate multiple-choice questions that are:
 
 Each question has exactly 4 options. "correctIndex" is the 0-based index of the correct option.
 "explanation" is one short, encouraging, kid-friendly sentence explaining the answer.
+
+${CONTENT_RULES}
 
 Topics:
 ${TOPIC_PROMPT_BLOCK}
@@ -381,17 +479,53 @@ async function generateFresh(
   }
 
   const parsed = JSON.parse(textBlock.text) as { questions: FreshQuestion[] };
-  return parsed.questions
-    .filter(
-      (q) =>
-        typeof q.text === 'string' &&
-        Array.isArray(q.options) &&
-        q.options.length === 4 &&
-        Number.isInteger(q.correctIndex) &&
-        q.correctIndex >= 0 &&
-        q.correctIndex < 4,
-    )
+  // Only questions that pass the screen (B10): shape, lengths, four different
+  // options, no links or contact details, no words a kid's question never needs.
+  return (Array.isArray(parsed.questions) ? parsed.questions : [])
+    .filter((q) => {
+      const why = screenQuestion(q);
+      if (why) console.warn(`dropped a fresh question (${why}):`, JSON.stringify(q.text).slice(0, 120));
+      return why === null;
+    })
     .map(shuffleOptions);
+}
+
+/**
+ * The blind second check (B10): another call answers each question without
+ * being told the answer, and says whether it keeps the content rules. Only the
+ * questions it agrees with are kept (`keepChecked`); a reply that doesn't line
+ * up keeps none. A failed call throws, like a failed generation.
+ */
+async function checkFresh(anthropic: Anthropic, age: number, questions: FreshQuestion[]): Promise<FreshQuestion[]> {
+  if (questions.length === 0) return [];
+  const message = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 1024,
+    system: checkPrompt(age),
+    output_config: { format: { type: 'json_schema', schema: CHECK_SCHEMA } },
+    messages: [
+      {
+        role: 'user',
+        content: JSON.stringify(questions.map((q, i) => ({ number: i + 1, question: q.text, options: q.options }))),
+      },
+    ],
+  });
+  if (message.stop_reason !== 'end_turn') {
+    throw new Error(`The question check stopped early (stop_reason: ${message.stop_reason})`);
+  }
+  const textBlock = message.content.find((b) => b.type === 'text');
+  if (!textBlock || textBlock.type !== 'text') throw new Error('No content returned from the question check');
+  const { verdicts } = JSON.parse(textBlock.text) as { verdicts: CheckVerdict[] };
+  const kept = keepChecked(questions, verdicts);
+  if (kept.length < questions.length) {
+    console.warn(`the question check dropped ${questions.length - kept.length} of ${questions.length}`);
+  }
+  return kept;
+}
+
+/** The second check runs unless the QUESTION_SECOND_CHECK secret is "off". */
+function secondCheckOn(): boolean {
+  return (Deno.env.get('QUESTION_SECOND_CHECK') ?? '').toLowerCase() !== 'off';
 }
 
 /**
@@ -537,11 +671,13 @@ Deno.serve(async (req) => {
 
   try {
     // 1. Reusable questions for this topic within ±LEVEL_BAND of the player,
-    // sampled from the whole band (#134): no flagged ones (#26), none written
-    // for a child more than AGE_SLACK years older, and the kid's recently
-    // shown ones in the topic (#24) set aside as a last resort for when the
-    // fresh budget (#88) can't cover the batch. Without migration 0015 the
-    // old lookup runs instead (fail-open, logged loudly).
+    // sampled from the whole band (#134): only 'active' and 'approved' ones,
+    // approved first, none this kid's family has reported (B10, migration
+    // 0016 — a report hides a question from everyone only through its
+    // status), none written for a child more than AGE_SLACK years older, and
+    // the kid's recently shown ones in the topic (#24) set aside as a last
+    // resort for when the fresh budget (#88) can't cover the batch. Without
+    // migration 0015 the old lookup runs instead (fail-open, logged loudly).
     let pool: CachePool;
     let has0015 = false;
     const { data: picked, error: pickErr } = await db.rpc('pick_cached_questions', {
@@ -572,7 +708,11 @@ Deno.serve(async (req) => {
       const rows = (picked ?? []) as (CacheRow & { seen: boolean })[];
       pool = { cached: rows.filter((r) => !r.seen), seenFallback: rows.filter((r) => r.seen) };
     }
-    const { cached, seenFallback } = pool;
+    // Saved questions pass the same screen as fresh ones (B10), so rows cached
+    // before the screen existed are checked too. The lists keep their order.
+    const passes = (r: CacheRow) => screenQuestion(rowToOut(r)) === null;
+    const cached = pool.cached.filter(passes);
+    const seenFallback = pool.seenFallback.filter(passes);
 
     // 2. Split the batch using the cache-richness policy (#30): a rich cache
     //    leans heavily on reuse with a sprinkle of fresh for novelty; a thin
@@ -584,6 +724,7 @@ Deno.serve(async (req) => {
     //    less-asked questions), so take them from the front.
     const freshCount = Math.min(chooseFreshCount(count, cached.length), freshAllowance);
     const reuseCount = count - freshCount;
+    // Approved questions come first (B10) — the picker orders them so.
     const reused = cached.slice(0, reuseCount);
     if (reused.length < reuseCount) {
       reused.push(...seenFallback.slice(0, reuseCount - reused.length));
@@ -602,8 +743,13 @@ Deno.serve(async (req) => {
           timeout: ANTHROPIC_TIMEOUT_MS,
           maxRetries: ANTHROPIC_MAX_RETRIES,
         });
-        generated = await generateFresh(anthropic, topic, age, level, freshCount, flavorLine);
+        // A few spare, since the screen and the second check may drop some (B10).
+        const asked = freshCount + Math.ceil(freshCount / 3);
+        generated = await generateFresh(anthropic, topic, age, level, asked, flavorLine);
+        if (secondCheckOn()) generated = await checkFresh(anthropic, age, generated);
+        generated = generated.slice(0, freshCount);
       } catch (err) {
+        generated = [];
         generationFailed = true;
         logGenerationError(err);
       }
