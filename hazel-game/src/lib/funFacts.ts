@@ -55,6 +55,27 @@ export const FUN_FACTS: Record<Topic, string[]> = {
     'The first alarm clocks could only ring at one set time — 4 a.m.',
     'Ketchup was once sold in the 1830s as medicine.',
   ],
+  geography: [
+    'Did you know? Russia is so wide that it has 11 time zones.',
+    'The Pacific Ocean is bigger than all the land on Earth put together.',
+    'Canada has more lakes than the rest of the world combined.',
+    'The Nile and the Amazon are the two longest rivers — people still argue which is longer!',
+    'Mount Everest grows a few millimetres taller every year.',
+  ],
+  words: [
+    'Did you know? “Set” has more meanings than almost any other English word — over 400!',
+    'The dot over a lowercase “i” or “j” is called a tittle.',
+    '“Bookkeeper” has three double letters in a row: oo, kk, ee.',
+    'Shakespeare was the first to write down hundreds of words we still use, like “bedroom” and “lonely”.',
+    'A sentence with every letter of the alphabet is called a pangram.',
+  ],
+  music: [
+    'Did you know? A violin is made from about 70 pieces of wood.',
+    'A piano has 88 keys — 52 white and 36 black.',
+    'The oldest instrument ever found is a flute made from bone, over 40,000 years old.',
+    'Beethoven kept writing music even after he lost his hearing.',
+    'Your heartbeat can speed up or slow down with the music you listen to.',
+  ],
 };
 
 /** Shown when the loading screen doesn’t know which topic is loading. */

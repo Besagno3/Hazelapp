@@ -1246,3 +1246,13 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1058 | U | ✅ | question reuse SQL (#134h) | `mark_questions_seen` with a 25×2 nested array writes 20, not 40; a question marked again in the same half hour isn't written again — each fails with its fix reverted (question_reuse.test.sql) |
 | TC-1059 | U | ✅ | seen (#134h) | a question shown again after `SEEN_RESEND_MS` is sent again; a failed send (an error or a thrown network error) is logged and retried the next time the question shows — each fails with its fix reverted (seen.test) |
 | TC-1060 | M | ⬜ | question reuse (#134h) | after deploying: force a picker error other than "missing" (e.g. a short statement timeout on a test project) — the function logs "QUESTION PICKER FAILED", serves the old lookup, and still stores `age` and `shown = false` holds |
+| TC-1061 | U | ✅ | topics (#135a) | geography, words and music are expansion topics; every topic has its own emoji, button colour, label and sky (topics.test); both topic tables list all ten with persona lines and match (topicPrompts.test); every topic has 3+ fun facts (funFacts.test) |
+| TC-1062 | C | ✅ | Training Grounds (#135a) | all ten topics are buttons, each stays open after a pick (TopicSelect.test) |
+| TC-1063 | M | ⬜ | deploy (#135b) | after `supabase functions deploy generate-questions`: a geography, a words and a music round each load 5 questions in production |
+| TC-1064 | U | ✅ | questions (#135e) | the function's "topic must be one of" error becomes TOPIC_NOT_READY; any other error keeps its reason (questions.test) |
+| TC-1065 | C | ✅ | quiz (#135e) | a TOPIC_NOT_READY round shows "Coming soon!" with Back and no Try again; other errors keep Try again (QuizRound.test) |
+| TC-1066 | C | ✅ | story (#129l) | after Memory, Wisp's beat plays in the Whispering Woods only — not in Lumina Village, even with Wisp as the active companion (WorldScreen.ending.test) |
+| TC-1067 | U | ✅ | questions (#135f) | the not-ready mapping holds on a real FunctionsHttpError with the function's JSON 400 body (questions.test) |
+| TC-1068 | C | ✅ | quiz (#135f) | "Coming soon!" offers one main button, "Pick another topic" (QuizRound.test) |
+| TC-1069 | U | ✅ | story (#129m) | Wick's Wisp nudge shows after Memory and goes once Wisp has stirred; the Woods before Memory plays no beat (story.test, WorldScreen.ending.test) |
+| TC-1070 | M | ⬜ | Training Grounds (#135f) | at 1024 px the ten topics are two full rows of five; at 320 px "🗺️ Enter Lumina" is one line and the title centred |

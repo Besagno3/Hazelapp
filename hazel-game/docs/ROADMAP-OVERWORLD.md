@@ -513,7 +513,7 @@ dungeons stay in `ROADMAP-4X.md` Waves 2–4 (§7).
 
 | # | Sub-item | Effort | Done when |
 |---|---|---|---|
-| 15a | **New topics (code + ops)** | S | geography, words and music in both topic tables, fun facts, styling and the Training Grounds — **and** `generate-questions` redeployed and checked in production before any zone uses them (#61) |
+| 15a | 🟡 **New topics (code + ops)** — code done 2026-10-12 (#135); the redeploy and the production check are the owner's | S | geography, words and music in both topic tables, fun facts, styling and the Training Grounds — **and** `generate-questions` redeployed and checked in production before any zone uses them (#61) |
 | 15b | **Ember flight** | M | `TravelMode` gains `ember` and the canvas blocks only through `passable`; 🐉 Fly / 🛬 Land (open ground only); 2.5×, no battles, talk or places while flying; flight crosses map edges and fog; the 3-panel flight tutorial plays once after the history crystal; save v3 with `vehicle` (real-v2 fixture, #104a); one mountaintop place on Dawnreach only reachable by air |
 | 15c | **East to Taleshore** | M–L | a Taleshore overworld past the Great Fogbank, reached by Ember (an edge link that allows only flight while the fog stands); Port Lantern (inn, shop, a quest board — not a library — and 8+ people); `ACT3_PANELS` on first landing; Return and the world map include it (#82d); sea music for the Starfall Sea |
 | 15d | **Taleshore I: geography** | M–L | Driftwood Shallows, the Wayfinder Isles (Compass Golem → Chorus Key A), Gale Atoll; 9 critters; Salt's, Drift's and Juno's quests (Juno reuses the escort step) |
@@ -732,14 +732,15 @@ sub-item starts, as decisions 5–7 were):
     add new timers. *Recommended: no new timers — swift means "strikes
     first", and the song just restarts.* Before 14h / 15f. **Taken
     (2026-10-11, for 14h):** swift = strikes first, no new timers.
-15. **Save v3 with flight** (`aboard` → `vehicle`, §4.5)? *Recommended: yes.*
-    Before 15b.
-16. **The Port Lantern ferry** after the Hush Fiend? *Recommended: defer.*
-    Before 15c.
-17. **`name-learned`:** gate the whole descent, or only the name question?
-    *Recommended: only the question.* Before 16d.
-18. **Young Wick and young Lumen:** share their elders' sprites, or new ones?
-    *Recommended: new sprites.* Before 16b.
+15. ✅ **Save v3 with flight** (`aboard` → `vehicle`, §4.5)? *Recommended: yes.*
+    Before 15b. **Taken (2026-10-12): yes, bump to v3.**
+16. ✅ **The Port Lantern ferry** after the Hush Fiend? *Recommended: defer.*
+    Before 15c. **Taken (2026-10-12): deferred.**
+17. ✅ **`name-learned`:** gate the whole descent, or only the name question?
+    *Recommended: only the question.* Before 16d. **Taken (2026-10-12): only
+    the question.**
+18. ✅ **Young Wick and young Lumen:** share their elders' sprites, or new ones?
+    *Recommended: new sprites.* Before 16b. **Taken (2026-10-12): new sprites.**
 
 ---
 

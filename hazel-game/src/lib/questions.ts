@@ -19,6 +19,15 @@ interface ApiQuestion {
   timesAsked: number;
 }
 
+/**
+ * The start of the edge function's error for a topic it doesn't accept
+ * (generate-questions/index.ts — the two must keep the same wording).
+ */
+const UNKNOWN_TOPIC = 'topic must be one of';
+
+/** What a child sees when their topic isn't ready on the server yet (#135). */
+export const TOPIC_NOT_READY = "These questions aren't ready yet — pick another topic for now!";
+
 /** Calls the generate-questions edge function and adapts the result. */
 async function invokeGenerate(
   topic: Topic,
@@ -44,7 +53,13 @@ async function invokeGenerate(
   });
   // Surface the edge function's real {error, detail} body, not the generic
   // "non-2xx status code" message (see lib/errors.ts).
-  if (error) throw new Error(`Question generation failed — ${await resolveErrorMessage(error)}`);
+  if (error) {
+    const reason = await resolveErrorMessage(error);
+    // A topic the deployed function doesn't know yet (a new topic shipped
+    // before `generate-questions` was redeployed, #135): no developer text for a child.
+    if (reason.startsWith(UNKNOWN_TOPIC)) throw new Error(TOPIC_NOT_READY);
+    throw new Error(`Question generation failed — ${reason}`);
+  }
 
   const api = (data?.questions ?? []) as ApiQuestion[];
   return api.map((q) =>
