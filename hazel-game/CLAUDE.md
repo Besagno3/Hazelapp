@@ -560,10 +560,11 @@ zod, react-query. Add the package in the same change that first uses it.
   `QUESTION_SECOND_CHECK=off` turns the check off. **Reports** (`FlagButton`,
   on every question screen through `QuestionCard`, "Not OK for kids" first)
   hide a question from the reporting family; for everyone it's held back only
-  through `questions.status` (migration 0015: `active` / `review` / `retired`
+  through `questions.status` (migration 0016: `active` / `review` / `retired`
   / `approved`): "not OK for kids" sends an active question to review at
   once, two families an approved one, any three families' reports an active
-  one. Only active and approved questions are served, approved first. The
+  one. Only active and approved questions are served, approved first
+  (`pick_cached_questions`, as 0016 redefines it). The
   owner reviews with `select * from question_review_queue` and
   `select review_question(id, 'approved' | 'retired' | 'active')` (service
   role / SQL editor only).
@@ -597,8 +598,17 @@ zod, react-query. Add the package in the same change that first uses it.
   far the next one is. Read it with `levelState(profile)` (a profile cached
   before levels were saved falls back to the old flat-100 curve).
 - **Question cache:** generated questions are stored in a Supabase `questions`
-  table (level-tagged, `times_asked` counter). The edge function randomly
-  mixes cached questions (reused from a ±2 level band) with fresh ones.
+  table (level-tagged, `times_asked` counter, the `age` they were written
+  for). The edge function mixes cached questions with fresh ones; the cached
+  ones come from `pick_cached_questions` (migration 0015, #134): the whole ±2
+  level band at random, leaning to less-asked, none written for a child more
+  than a year older (`AGE_SLACK`; old rows have no age and stay in), none
+  flagged. **Seen = shown (#134):** the app tells the server what was on
+  screen (`markSeen`, `lib/seen.ts`, from `QuestionCard` and `QuizRound`, as
+  `mark_questions_seen`); what the function hands over is only held back for
+  an hour (`question_views.shown = false`), so prefetches don't fill a kid's
+  seen window — the last 100 distinct questions shown in that topic (read
+  from their latest 1,000 shown views, so the cost doesn't grow with play).
   `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need.
 
 ## Commands
@@ -726,6 +736,117 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-14 — Merge the question-service branch (with main's fairer question reuse #55) into the screening branch (#133)
+`main` took PR #55 (#134) and this branch's base (#52, #131) merged it in, so
+this merge brings both. #134 took migration **0015**
+(`0015_fair_question_reuse.sql`), so this branch's review migration is now
+**0016** (`0016_question_review.sql`, "after 0015"). Resolved to keep both:
+- **The picker follows the review rules:** 0016 also redefines
+  `pick_cached_questions` (same signature and columns) — only `active` and
+  `approved` questions, approved ones first, and a report hides a question
+  from the reporting family only (everyone else through its status). The
+  edge function's own status filter, family-report read and approved-first
+  sort (`byReview`) are gone with the old lookup they lived in; saved
+  questions still pass `screenQuestion` on both paths, keeping the picker's
+  order. Without 0015 the old lookup runs as before (no status column yet).
+- `QuestionCard` keeps both the 🚩 report button and "mark seen" (#134).
+- `question_reuse.test.sql`'s flag is now "not OK for kids" (one other
+  family's "wrong answer" no longer hides a question from everyone);
+  `question_review.test.sql` checks the picker's rules — each fails with its
+  rule removed.
+- ⚠️ Deploy: apply 0015 and then 0016 (or re-run `apply_all_migrations.sql`),
+  then `supabase functions deploy generate-questions`. Any order works: without
+  0016 the picker serves by #134's rules (no review status yet, any report
+  hides a question from everyone); without 0015 the old lookup runs.
+
+### 2026-10-14 — Merge main (fairer question reuse #55) into the question-service branch (#131)
+`main` took PR #55 (#134: the whole bank, the right age, seen = shown) while
+this branch waited. Its issue (#131) and test cases (TC-1026–1033) don't
+collide. One code conflict, `generate-questions/index.ts`, resolved to keep
+both: the bank is read through `pick_cached_questions` (with the old lookup as
+the fail-open fallback) at this branch's rounded `level`, with the age worked
+out from the kid's birth date (B8) as the picker's age limit and the age
+stored on new questions; deliveries are written as holds (`shown = false`) for
+an app that sends `reportsSeen`, under this branch's guard (the kid's id is
+required, the batch is never empty there). The top-up after a failed Claude
+call (B5) takes the bank's questions in the picker's order instead of
+shuffling them again, so it keeps the lean toward less-asked questions. The
+app sends `flavor` (B8) and `reportsSeen` (#134).
+
+### 2026-10-12 — Merge main (Act I quick fixes, PR #49) into the question-reuse branch (#134)
+`main` took ISSUES **#130** and TC-1015–1025 for the Act I launch review's
+quick fixes while this branch was in review, and open PRs #52–#54 hold
+#131–#133 and up to TC-1048, so this branch's issue moved **#130 → #134**
+and its test cases **TC-1015–1026 → TC-1049–1060** (only its own lines).
+One code conflict: `QuizRound` — main keeps a finished round for its
+results screen (`FinishedRound`, the level pinned so the next round's
+warm-up isn't used up); this branch's "mark seen" hook sits above that early
+return and marks nothing on the results screen. QuizRound.test checks none
+of the next batch is marked.
+
+### 2026-10-12 — #134 code review round 1: a bounded window, a real 20-id cap, ages kept on errors
+A fresh-context `/saas-code-review` of PR #55 (1 medium, 1 low-medium, 2 low;
+no security hole between families). All fixed:
+- **The picker read a kid's whole history (medium):** the seen window
+  grouped every shown view they'd ever had, so a call grew with play —
+  measured 440–560 ms at 75k shown views. It now reads only their latest
+  `10 × p_seen_limit` shown views off the `(profile_id, seen_at desc)`
+  index: ~95 ms with 150k views and a 40k-row band (most of it the band's
+  sort).
+- **A nested array slipped past the 20-id cap (low-medium):** `p_ids[1:20]`
+  cut only the first dimension (a 25×2 array wrote 40 rows); now
+  `unnest(p_ids) limit 20`. A question already marked shown for that kid in
+  the last half hour isn't written again.
+- **Any picker error dropped ages (low):** only "no such function"
+  (`PGRST202` / `42883`, `PICKER_MISSING`) means 0015 isn't applied; a
+  timeout still stores ages and holds, so no question escapes the age rule.
+- **The app never re-sent an id in a long-lived tab (low):** `markSeen`
+  re-sends a question shown again after `SEEN_RESEND_MS` (30 min), and a
+  failed send is retried the next time the question shows.
+- **The window is 100 per topic** (round 1 made it 200): the same as before
+  for a kid playing one topic, so Claude spend per kid doesn't rise.
+- Tests: question_reuse.test.sql (+ the scan cap, a 25×2 array, a repeat
+  within half an hour — each fails with its fix reverted), seen.test (+2).
+  1123 green, lint + build clean, `deno check` clean.
+
+### 2026-10-12 — Fairer question reuse: the whole bank, the right age, seen = shown (#134)
+A review of how questions are picked and reused (with the owner) found three
+problems; this is batch 1 of the fixes, as the owner chose them.
+- **The whole bank:** the edge function read 200 rows of a ±2 level band
+  with no ORDER BY, so Postgres returned the same oldest 200 on every call
+  (measured: 15,037 rows in a band, the same 200 every time, all from the
+  oldest ~1,700) — past 200 a band's new questions were never reused. New
+  `pick_cached_questions` (migration 0015) samples the whole band, weighted
+  random leaning to less-asked (1/sqrt(1 + `times_asked`) — the owner's
+  pick over purely random), unseen first, flagged never.
+- **The right age:** new questions store the age they were written for
+  (`questions.age`); reuse skips ones written for a child more than a year
+  older (`AGE_SLACK`). Questions from before have no age and stay reusable
+  (the owner's call).
+- **Seen = shown:** prefetches (every enemy in a zone, each battle's 4 spell
+  questions, the next quiz round) counted as seen though never shown, and the
+  seen window was the last 100 of any topic. Now the app marks a question
+  seen when it's on screen (`lib/seen.ts` `markSeen` — batched every 1.5 s,
+  at most 20 a call, each id once a session per kid — called from
+  `QuestionCard` and `QuizRound`; `mark_questions_seen` writes only for the
+  signed-in grown-up's own kid), the app sends `reportsSeen: true`, and the
+  function's deliveries are only held back for an hour
+  (`question_views.shown = false`, `RESERVE_MINUTES`). The window is the
+  last 200 distinct questions shown in that topic.
+- **Deploy order is free:** without 0015 the function falls back to the old
+  lookup (`legacyCachePool`, logged "QUESTION PICKER FAILED") and stores no
+  age; an app without `reportsSeen` keeps "delivered = seen".
+- ⚠️ Deploy: apply `0015_fair_question_reuse.sql` (or re-run
+  `apply_all_migrations.sql`), then `supabase functions deploy
+  generate-questions`.
+- Tests: `supabase/ci/question_reuse.test.sql` (band, age, flags, the
+  per-topic distinct window, the hold, per kid, whole-band sampling, the lean,
+  `mark_questions_seen`'s ownership / cap, grants) — checked to fail with no
+  random order, plain random, no ownership check and no topic filter;
+  `seen.test` (+6), QuestionCard.test (+1), QuizRound.test (+1),
+  questions.test. 1121 green, lint + build clean, `deno check` clean; the
+  migrations in order and the bundle twice on Postgres 16, all seven SQL
+  tests pass. Batch 2 and follow-ups: ISSUES #134.
 ### 2026-10-12 — Screen AI questions for kids, and act on reports (#133)
 Act I launch review B10 (the code part), built on #131's lockdown.
 - **Rules in the prompt:** `CONTENT_RULES` joins the writer's system prompt;
@@ -749,7 +870,7 @@ Act I launch review B10 (the code part), built on #131's lockdown.
   (`QuestionCard` — battles, gates, chests, shrines, the Library, the Spire —
   as well as the quiz), with **"Not OK for kids"** as the first reason and
   bigger tap targets. A report hides the question from the reporting family
-  (all their kids); migration **0015** adds `questions.status`
+  (all their kids); migration **0016** adds `questions.status`
   (`active` / `review` / `retired` / `approved`, `reviewed_at`) and a trigger:
   "not OK for kids" sends an active question to review at once, two families
   an approved one, three families' reports of any kind an active one. Only
@@ -763,7 +884,7 @@ Act I launch review B10 (the code part), built on #131's lockdown.
   the SQL tests, migrations in order and the bundle twice pass on Postgres 16;
   the function run locally against a stand-in Supabase + Claude: 42/42 checks
   (14 new for B10).
-- ⚠️ Deploy: apply `0015_question_review.sql` **before** deploying the
+- ⚠️ Deploy: apply `0016_question_review.sql` **before** deploying the
   function (it reads `questions.status`), then
   `supabase functions deploy generate-questions`. Follow-ups #133.
 

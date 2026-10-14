@@ -1,5 +1,5 @@
 -- Hazel Quest — reviewing questions for kids (Act I launch review B10)
--- Run in the Supabase SQL Editor (or `supabase db push`) after 0014.
+-- Run in the Supabase SQL Editor (or `supabase db push`) after 0015.
 -- Re-runnable, like every migration (see CLAUDE.md → migrations rules).
 --
 -- Before this, one report from any family hid a question from everyone, for
@@ -105,3 +105,95 @@ end;
 $$;
 revoke execute on function public.review_question(uuid, text) from public, anon, authenticated;
 grant execute on function public.review_question(uuid, text) to service_role;
+
+-- 5) The question picker (0015, #134) follows these rules too: only 'active'
+--    and 'approved' questions, approved ones first, and a report hides a
+--    question from the reporting family only (everyone else stops seeing it
+--    through its status). Same signature and columns as 0015's, so the edge
+--    function's call is unchanged; everything else it does — the age limit,
+--    the per-topic seen window, the hour's hold, the lean to less-asked — is
+--    as before.
+create or replace function public.pick_cached_questions(
+  p_topic      text,
+  p_min_level  integer,
+  p_max_level  integer,
+  p_max_age    integer,
+  p_profile    uuid,
+  p_seen_limit integer,
+  p_reserve    interval,
+  p_limit      integer
+)
+returns table (
+  id            uuid,
+  level         smallint,
+  text          text,
+  options       jsonb,
+  correct_index smallint,
+  explanation   text,
+  times_asked   integer,
+  seen          boolean
+)
+language sql
+set search_path = public
+as $$
+  with recent as (
+    -- The kid's latest shown views of any topic, read newest first off the
+    -- (profile_id, seen_at desc) index and capped, so a call costs the same
+    -- however long they've played (no scan of their whole history).
+    select v.question_id, v.seen_at
+      from question_views v
+     where v.profile_id = p_profile
+       and v.shown
+     order by v.seen_at desc
+     limit greatest(p_seen_limit, 0) * 10
+  ),
+  shown as (
+    select r.question_id
+      from recent r
+      join questions q on q.id = r.question_id
+     where q.topic = p_topic
+     -- A question shown again (a battle goes round its pool) counts once.
+     group by r.question_id
+     order by max(r.seen_at) desc
+     limit greatest(p_seen_limit, 0)
+  ),
+  held as (
+    select question_id from shown
+    union
+    select v.question_id
+      from question_views v
+     where v.profile_id = p_profile
+       and not v.shown
+       and v.seen_at > now() - p_reserve
+  ),
+  family as (
+    -- Every kid of the grown-up this kid belongs to.
+    select f.id
+      from profiles f
+     where f.parent_id = (select k.parent_id from profiles k where k.id = p_profile)
+  )
+  select q.id, q.level, q.text, q.options, q.correct_index, q.explanation, q.times_asked,
+         (h.question_id is not null) as seen
+    from questions q
+    left join held h on h.question_id = q.id
+   where q.topic = p_topic
+     and q.level between p_min_level and p_max_level
+     and q.status in ('active', 'approved')
+     and (p_max_age is null or q.age is null or q.age <= p_max_age)
+     and not exists (
+       select 1 from question_flags fl
+        where fl.question_id = q.id
+          and fl.profile_id in (select id from family)
+     )
+   order by (h.question_id is not null),
+            (q.status <> 'approved'),
+            -- Weighted random order (Efraimidis–Spirakis): the smallest key
+            -- wins; 1 - random() is never 0, so ln() always has an answer.
+            -ln(1 - random()) * sqrt(1 + greatest(q.times_asked, 0))
+   limit greatest(p_limit, 0);
+$$;
+
+revoke all on function public.pick_cached_questions(text, integer, integer, integer, uuid, integer, interval, integer)
+  from public, anon, authenticated;
+grant execute on function public.pick_cached_questions(text, integer, integer, integer, uuid, integer, interval, integer)
+  to service_role;

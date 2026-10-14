@@ -1,4 +1,4 @@
--- CI test for migration 0015 (reviewing questions for kids, B10): reports move
+-- CI test for migration 0016 (reviewing questions for kids, B10): reports move
 -- a question into review by the rules, the queue lists it, a review decides
 -- it, and none of that is reachable from the app's roles. Any failed
 -- assertion raises and exits non-zero under `psql -v ON_ERROR_STOP=1`.
@@ -106,6 +106,44 @@ begin
   assert (select status from public.questions where id = '00000000-0000-0000-0000-00000000f002') = 'approved',
     'one new report doesn''t pull an approved question';
 end $$;
+
+-- The question picker (0015, #134) follows the review rules (0016): only
+-- active and approved questions, approved first, and a report hides a
+-- question from the reporting family only. Family A gets a second kid, whose
+-- report counts for their sibling; family D never reported anything.
+insert into public.profiles (id, parent_id, display_name, birth_year, birth_month)
+  values ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000a1', 'Sib', 2019, 2);
+insert into public.questions (id, topic, level, status, text, options, correct_index) values
+  ('00000000-0000-0000-0000-00000000e001', 'space', 4, 'active',   'S1?', '["a", "b", "c", "d"]', 0),
+  ('00000000-0000-0000-0000-00000000e002', 'space', 4, 'approved', 'S2?', '["a", "b", "c", "d"]', 0),
+  ('00000000-0000-0000-0000-00000000e003', 'space', 4, 'review',   'S3?', '["a", "b", "c", "d"]', 0),
+  ('00000000-0000-0000-0000-00000000e004', 'space', 4, 'retired',  'S4?', '["a", "b", "c", "d"]', 0),
+  ('00000000-0000-0000-0000-00000000e005', 'space', 4, 'active',   'S5?', '["a", "b", "c", "d"]', 0);
+select pg_temp.report('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000e005', 'confusing');
+update public.question_flags set profile_id = '00000000-0000-0000-0000-0000000000a2'
+ where question_id = '00000000-0000-0000-0000-00000000e005';
+
+set local role service_role;
+do $$
+declare
+  kid_a constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  kid_d constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  got text[];
+begin
+  for i in 1..5 loop
+    select array_agg(right(id::text, 4) order by ord) into got
+      from (select id, row_number() over () as ord
+              from pick_cached_questions('space', 1, 10, null, kid_a, 100, interval '1 hour', 100)) x;
+    assert got = array['e002', 'e001'],
+      format('family A: approved first, then active; nothing in review or retired, nor what a sibling reported — got %s', got);
+    select array_agg(right(id::text, 4) order by ord) into got
+      from (select id, row_number() over () as ord
+              from pick_cached_questions('space', 1, 10, null, kid_d, 100, interval '1 hour', 100)) x;
+    assert got[1] = 'e002' and got[2:3] @> array['e001'] and got[2:3] @> array['e005'] and cardinality(got) = 3,
+      format('another family still gets the question family A reported — got %s', got);
+  end loop;
+end $$;
+reset role;
 
 -- None of it is the app's to read or change.
 do $$

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { sfx } from '../lib/audio';
+import { markSeen } from '../lib/seen';
 import FlagButton from './FlagButton';
 import type { Question } from '../types';
 
@@ -60,6 +61,9 @@ export default function QuestionCard({
   /** The wrong pick a Forget-Me-Knot crossed out, if it has been spent on this card. */
   const [retried, setRetried] = useState<number | null>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
+
+  // On screen = seen, so the next batches leave it out for this kid (#134).
+  useEffect(() => markSeen(question.id), [question.id]);
 
   // On a phone the explanation can push Continue below the fold — bring it
   // into view once an answer is picked ('nearest' = no scroll if it fits).

@@ -3,6 +3,9 @@ import { describe, it, expect } from 'vitest';
 // the canonical one without resolving its Deno `npm:` imports.
 import edgeFnSource from '../../supabase/functions/generate-questions/index.ts?raw';
 import sharedSource from '../../supabase/functions/_shared/questionScreen.ts?raw';
+// The question picker the function reads the bank through (0015, #134), as the
+// review migration redefines it with the review rules (0016).
+import reviewMigration from '../../supabase/migrations/0016_question_review.sql?raw';
 import {
   CHECK_SCHEMA,
   CONTENT_RULES,
@@ -32,15 +35,20 @@ describe('screening questions for kids (B10)', () => {
     expect(checkPrompt(8)).toContain('8-year-old');
     // Fresh questions, and rows read from the cache.
     expect(edgeFnSource).toMatch(/const why = screenQuestion\(q\)/);
-    expect(edgeFnSource).toMatch(/cached = cached\.filter\(\(r\) => screenQuestion\(rowToOut\(r\)\) === null\)/);
-    // Only active and approved questions are served; approved first.
-    expect(edgeFnSource).toMatch(/\.in\('status', \['active', 'approved'\]\)/);
-    expect(edgeFnSource).toMatch(/r\.status === 'approved'/);
+    expect(edgeFnSource).toMatch(/const passes = \(r: CacheRow\) => screenQuestion\(rowToOut\(r\)\) === null/);
+    expect(edgeFnSource).toMatch(/pool\.cached\.filter\(passes\)/);
+    expect(edgeFnSource).toMatch(/pool\.seenFallback\.filter\(passes\)/);
+    // The bank is read through the picker, which serves only active and
+    // approved questions, approved first (behaviour: question_review.test.sql).
+    expect(edgeFnSource).toMatch(/db\.rpc\('pick_cached_questions'/);
+    expect(reviewMigration).toMatch(/create or replace function public\.pick_cached_questions\(/);
+    expect(reviewMigration).toMatch(/and q\.status in \('active', 'approved'\)/);
+    expect(reviewMigration).toMatch(/\(q\.status <> 'approved'\),/);
     // The second check runs unless switched off, and a failure keeps nothing fresh.
     expect(edgeFnSource).toMatch(/if \(secondCheckOn\(\)\) generated = await checkFresh\(/);
     expect(edgeFnSource).toMatch(/catch \(err\) \{\s*generated = \[\];/);
     // A family's own reports hide a question from that family, not from everyone.
-    expect(edgeFnSource).toMatch(/\.eq\('parent_id', callerId\)/);
+    expect(reviewMigration).toMatch(/and fl\.profile_id in \(select id from family\)/);
   });
 
   it('the history and creativity lines steer away from what the rules forbid', () => {

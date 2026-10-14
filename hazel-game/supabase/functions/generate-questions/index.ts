@@ -1,15 +1,20 @@
 // Supabase Edge Function: generate-questions
 // ----------------------------------------------------------------------------
 // Returns N age/level-appropriate quiz questions, mixing CACHED questions with
-// freshly Claude-generated ones. The reuse split is random: each call randomly
-// reuses 0..min(count, available) cached questions and generates the rest.
+// freshly Claude-generated ones (how many of each: `chooseFreshCount`, #30).
 //
 // - Cached questions are reused from a ±2 level band around the requested
-//   skill level (a level-5 player may see level 3-7 questions).
+//   skill level (a level-5 player may see level 3-7 questions), sampled from
+//   the whole band at random, leaning toward less-asked ones, and never one
+//   written for a child more than AGE_SLACK years older
+//   (`pick_cached_questions`, migration 0015, #134).
 // - Fresh questions are generated at the exact skill level and inserted into
-//   the cache, then available for future reuse.
+//   the cache with the age they were written for, then available for reuse.
 // - Every question returned has its `times_asked` counter bumped.
 // - The combined set is shuffled, so cache + fresh are randomly sprinkled.
+// - A kid's recently SHOWN questions in the topic are held back (#24). The app
+//   reports what it shows (`reportsSeen`, `mark_questions_seen`); what this
+//   function hands over is only held back for RESERVE_MINUTES (#134).
 //
 // The Anthropic API key stays server-side (ANTHROPIC_API_KEY secret).
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase.
@@ -171,8 +176,17 @@ const TOPIC_PROMPT_BLOCK = TOPICS.map((id) => `- ${id}: ${TOPIC_PROMPTS[id]}`).j
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
 const LEVEL_BAND = 2;
-/** Most-recent views excluded per profile (see ISSUES.md #24). */
+/**
+ * A kid's most recently shown questions in a topic held back from reuse (#24,
+ * #134) — per topic now; the old window was this many views of any topic.
+ */
 const SEEN_HISTORY_LIMIT = 100;
+/** A question handed over but not shown yet is held back from that kid this long (#134). */
+const RESERVE_MINUTES = 60;
+/** Reuse skips questions written for a child more than this many years older (#134). */
+const AGE_SLACK = 1;
+/** Error codes for "pick_cached_questions doesn't exist" (PostgREST, Postgres): 0015 not applied. */
+const PICKER_MISSING = ['PGRST202', '42883'];
 /** Cache is "rich" once it has this many eligible rows per requested question (#30). */
 const RICH_CACHE_MULTIPLE = 3;
 /** Fraction of a batch that comes fresh from Claude when the cache is rich (#30). */
@@ -343,14 +357,66 @@ interface CacheRow {
   correct_index: number;
   explanation: string | null;
   times_asked: number;
-  /** Review state (migration 0015, B10): only 'active' and 'approved' are served. */
-  status?: string;
 }
 
 interface OutQuestion extends FreshQuestion {
   id: string;
   level: number;
   timesAsked: number;
+}
+
+/** Bank rows ready to reuse, each list in a random order. */
+interface CachePool {
+  /** Not seen by this kid lately. */
+  cached: CacheRow[];
+  /** Seen lately — used only when the fresh budget can't fill the batch (#88). */
+  seenFallback: CacheRow[];
+}
+
+/**
+ * The bank lookup from before migration 0015, used only when
+ * `pick_cached_questions` is missing (fail-open, like the quota): the first
+ * CACHE_LOOKUP_LIMIT rows of the band in whatever order Postgres returns them,
+ * minus flagged ones and the kid's last SEEN_HISTORY_LIMIT views of any topic.
+ */
+async function legacyCachePool(
+  db: SupabaseClient,
+  topic: string,
+  skillLevel: number,
+  profileId: string,
+): Promise<CachePool> {
+  const { data, error } = await db
+    .from('questions')
+    .select('id, level, text, options, correct_index, explanation, times_asked')
+    .eq('topic', topic)
+    .gte('level', skillLevel - LEVEL_BAND)
+    .lte('level', skillLevel + LEVEL_BAND)
+    .limit(CACHE_LOOKUP_LIMIT);
+  if (error) console.error('cache read failed:', error.message);
+  const rows = (data ?? []) as CacheRow[];
+  if (rows.length === 0) return { cached: [], seenFallback: [] };
+
+  const { data: flagRows, error: flagErr } = await db
+    .from('question_flags')
+    .select('question_id')
+    .in('question_id', rows.map((r) => r.id));
+  if (flagErr) console.error('flag read failed:', flagErr.message);
+  const flaggedSet = new Set((flagRows ?? []).map((r) => r.question_id as string));
+
+  const { data: viewRows, error: viewErr } = await db
+    .from('question_views')
+    .select('question_id')
+    .eq('profile_id', profileId)
+    .order('seen_at', { ascending: false })
+    .limit(SEEN_HISTORY_LIMIT);
+  if (viewErr) console.error('view read failed:', viewErr.message);
+  const seenSet = new Set((viewRows ?? []).map((r) => r.question_id as string));
+
+  const unflagged = rows.filter((r) => !flaggedSet.has(r.id));
+  return {
+    cached: shuffle(unflagged.filter((r) => !seenSet.has(r.id))),
+    seenFallback: shuffle(unflagged.filter((r) => seenSet.has(r.id))),
+  };
 }
 
 function rowToOut(r: CacheRow): OutQuestion {
@@ -487,6 +553,8 @@ Deno.serve(async (req) => {
     /** Free-text flavour from apps before B8 — ignored, never sent to Claude. */
     context?: string;
     profileId?: string;
+    /** The app marks what it shows (#134); an older app doesn't. */
+    reportsSeen?: boolean;
   };
   try {
     body = await req.json();
@@ -597,57 +665,49 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 1. Read cached questions for this topic, within ±LEVEL_BAND of the player.
-    let cached: CacheRow[] = [];
-    if (db) {
-      const { data, error } = await db
-        .from('questions')
-        .select('id, level, text, options, correct_index, explanation, times_asked, status')
-        .eq('topic', topic)
-        .in('status', ['active', 'approved'])
-        .gte('level', level - LEVEL_BAND)
-        .lte('level', level + LEVEL_BAND)
-        .limit(CACHE_LOOKUP_LIMIT);
-      if (error) console.error('cache read failed (is migration 0015 applied?):', error.message);
-      else cached = (data ?? []) as CacheRow[];
-      // Saved questions pass the same screen as fresh ones (B10), so rows
-      // cached before the screen existed are checked too.
-      cached = cached.filter((r) => screenQuestion(rowToOut(r)) === null);
+    // 1. Reusable questions for this topic within ±LEVEL_BAND of the player,
+    // sampled from the whole band (#134): only 'active' and 'approved' ones,
+    // approved first, none this kid's family has reported (B10, migration
+    // 0016 — a report hides a question from everyone only through its
+    // status), none written for a child more than AGE_SLACK years older, and
+    // the kid's recently shown ones in the topic (#24) set aside as a last
+    // resort for when the fresh budget (#88) can't cover the batch. Without
+    // migration 0015 the old lookup runs instead (fail-open, logged loudly).
+    let pool: CachePool;
+    let has0015 = false;
+    const { data: picked, error: pickErr } = await db.rpc('pick_cached_questions', {
+      p_topic: topic,
+      p_min_level: level - LEVEL_BAND,
+      p_max_level: level + LEVEL_BAND,
+      p_max_age: age + AGE_SLACK,
+      p_profile: profileId,
+      p_seen_limit: SEEN_HISTORY_LIMIT,
+      p_reserve: `${RESERVE_MINUTES} minutes`,
+      p_limit: CACHE_LOOKUP_LIMIT,
+    });
+    if (pickErr) {
+      // Only "no such function" means 0015 isn't applied. Any other failure
+      // (a timeout, say) still stores ages and holds, or the questions made
+      // now would escape the age rule for good.
+      has0015 = !PICKER_MISSING.includes(pickErr.code ?? '');
+      console.error(
+        has0015
+          ? 'QUESTION PICKER FAILED — using the old lookup:'
+          : 'QUESTION PICKER MISSING (is migration 0015 applied?) — using the old lookup:',
+        pickErr.code,
+        pickErr.message,
+      );
+      pool = await legacyCachePool(db, topic, level, profileId);
+    } else {
+      has0015 = true;
+      const rows = (picked ?? []) as (CacheRow & { seen: boolean })[];
+      pool = { cached: rows.filter((r) => !r.seen), seenFallback: rows.filter((r) => r.seen) };
     }
-
-    // 1a. Exclude questions this family has reported (#26, B10) and the
-    // player's recently-seen ones (#24). Reports hide a question from everyone
-    // only through its status (migration 0015: "not OK for kids" at once,
-    // other reasons once three families agree, or a grown-up's review).
-    // Seen-but-unflagged rows are kept aside as a last resort for when the
-    // fresh budget (#88) can't cover the batch.
-    let seenFallback: CacheRow[] = [];
-    if (db && cached.length > 0) {
-      const cachedIds = cached.map((r) => r.id);
-
-      const { data: familyRows, error: familyErr } = await db.from('profiles').select('id').eq('parent_id', callerId);
-      if (familyErr) console.error('family read failed:', familyErr.message);
-      const family = (familyRows ?? []).map((r) => r.id as string);
-      const { data: flagRows, error: flagErr } = await db
-        .from('question_flags')
-        .select('question_id')
-        .in('profile_id', family.length > 0 ? family : [profileId])
-        .in('question_id', cachedIds);
-      if (flagErr) console.error('flag read failed:', flagErr.message);
-      const flaggedSet = new Set((flagRows ?? []).map((r) => r.question_id as string));
-
-      const { data: viewRows, error: viewErr } = await db
-        .from('question_views')
-        .select('question_id')
-        .eq('profile_id', profileId)
-        .order('seen_at', { ascending: false })
-        .limit(SEEN_HISTORY_LIMIT);
-      if (viewErr) console.error('view read failed:', viewErr.message);
-      const seenSet = new Set((viewRows ?? []).map((r) => r.question_id as string));
-
-      seenFallback = cached.filter((r) => !flaggedSet.has(r.id) && seenSet.has(r.id));
-      cached = cached.filter((r) => !flaggedSet.has(r.id) && !seenSet.has(r.id));
-    }
+    // Saved questions pass the same screen as fresh ones (B10), so rows cached
+    // before the screen existed are checked too. The lists keep their order.
+    const passes = (r: CacheRow) => screenQuestion(rowToOut(r)) === null;
+    const cached = pool.cached.filter(passes);
+    const seenFallback = pool.seenFallback.filter(passes);
 
     // 2. Split the batch using the cache-richness policy (#30): a rich cache
     //    leans heavily on reuse with a sprinkle of fresh for novelty; a thin
@@ -655,16 +715,14 @@ Deno.serve(async (req) => {
     //    The fresh share is capped by the caller's remaining budget (#88);
     //    anything the budget can't cover is topped up from already-seen
     //    cached questions, so the batch stays full whenever the bank can.
+    //    Both lists are already in a random order (the picker's leans toward
+    //    less-asked questions), so take them from the front.
     const freshCount = Math.min(chooseFreshCount(count, cached.length), freshAllowance);
     const reuseCount = count - freshCount;
-    // Questions a grown-up has reviewed and approved come first (B10).
-    const byReview = (rows: CacheRow[]) => [
-      ...shuffle(rows.filter((r) => r.status === 'approved')),
-      ...shuffle(rows.filter((r) => r.status !== 'approved')),
-    ];
-    const reused = byReview(cached).slice(0, reuseCount);
+    // Approved questions come first (B10) — the picker orders them so.
+    const reused = cached.slice(0, reuseCount);
     if (reused.length < reuseCount) {
-      reused.push(...shuffle(seenFallback).slice(0, reuseCount - reused.length));
+      reused.push(...seenFallback.slice(0, reuseCount - reused.length));
     }
 
     // 3. Generate the fresh questions (at the exact level) and cache them. A
@@ -695,6 +753,8 @@ Deno.serve(async (req) => {
         const rows = generated.map((q) => ({
           topic,
           level,
+          // The age it was written for (#134) — only once 0015 added the column.
+          ...(has0015 ? { age } : {}),
           text: q.text,
           options: q.options,
           correct_index: q.correctIndex,
@@ -731,7 +791,8 @@ Deno.serve(async (req) => {
     const shortBy = freshCount - fresh.length;
     if (shortBy > 0) {
       const taken = new Set(reused.map((r) => r.id));
-      const spare = [...shuffle(cached), ...shuffle(seenFallback)].filter((r) => !taken.has(r.id));
+      // Already in a random order (the picker's leans toward less-asked ones, #134).
+      const spare = [...cached, ...seenFallback].filter((r) => !taken.has(r.id));
       reused.push(...spare.slice(0, shortBy));
     }
 
@@ -764,15 +825,18 @@ Deno.serve(async (req) => {
       return json({ error: 'questions_unavailable', detail: TRY_LATER }, 503);
     }
 
-    // 6. Record this delivery in question_views so the player won't see the
-    // same ones for the next SEEN_HISTORY_LIMIT views (#24). Best-effort —
+    // 6. Record this delivery in question_views (#24). An app that reports
+    // what it shows (#134) gets a hold for RESERVE_MINUTES (`shown: false`) —
+    // a batch fetched ahead for a battle that never happens doesn't count as
+    // seen; an older app's delivery counts as seen, as before. Best-effort —
     // a write failure is logged but does not break the response.
     if (db) {
+      const onlyHeld = has0015 && body.reportsSeen === true;
       // Synthetic IDs (fresh-…) only appear when the cache insert failed and
       // the question isn't in the questions table — skip those so the FK holds.
       const viewRows = questions
         .filter((q) => !q.id.startsWith('fresh-'))
-        .map((q) => ({ profile_id: profileId, question_id: q.id }));
+        .map((q) => ({ profile_id: profileId, question_id: q.id, ...(onlyHeld ? { shown: false } : {}) }));
       if (viewRows.length > 0) {
         const { error: viewInsErr } = await db.from('question_views').insert(viewRows);
         if (viewInsErr) console.error('view insert failed:', viewInsErr.message);
