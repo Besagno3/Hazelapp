@@ -417,6 +417,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'Keeper Mnem told you about the first Sage? Oh, spark… nobody remembers the first Sage. Not even me. Especially me.',
         ifFlag: 'met-mnem',
       },
+      // Wisp's beat plays only in the Woods (#129l) — a nudge back there after Memory.
+      {
+        text: 'Little Wisp in the Whispering Woods has been flickering like mad since the Memory crystal woke. Pay that wisp a visit, would you, spark?',
+        ifFlag: crystalFlag('history'),
+        unlessFlag: WISP_STIRRING,
+      },
     ],
   },
   'village-friend': {

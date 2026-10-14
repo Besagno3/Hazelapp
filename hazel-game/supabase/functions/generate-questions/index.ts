@@ -57,11 +57,14 @@ const TOPIC_PROMPTS: Record<string, string> = {
   math: 'arithmetic, geometry, fractions, word problems.',
   science: 'nature, biology, physics, space, chemistry basics.',
   engineering: 'how things work, computers, materials, structures, simple logic.',
-  creativity: 'art, music, colour, writing, design, imagination.',
+  creativity: 'art, colour, drawing, crafts, design, inventing, imagination.',
   nature: 'animals, plants, habitats, weather, the human body, the living world.',
   space: 'planets, stars, moons, the solar system, astronauts, rockets, the night sky.',
   history:
     'world history, ancient civilizations, famous inventions, important people, the measurement of time.',
+  geography: 'maps, countries, continents, oceans, rivers, mountains, landmarks, compass directions.',
+  words: 'reading, spelling, rhymes, word meanings, opposites, stories, grammar basics.',
+  music: 'rhythm, instruments, notes, songs, famous composers, how sound works.',
 };
 const TOPICS = Object.keys(TOPIC_PROMPTS);
 
@@ -438,6 +441,8 @@ Deno.serve(async (req) => {
       : undefined;
 
   if (!topic || !TOPICS.includes(topic as (typeof TOPICS)[number])) {
+    // The app matches this wording (`UNKNOWN_TOPIC`, src/lib/questions.ts) to tell a
+    // child a topic isn't ready yet — keep it, and add no `detail`, or they see this text.
     return json({ error: `topic must be one of: ${TOPICS.join(', ')}` }, 400);
   }
   if (typeof skillLevel !== 'number' || !Number.isFinite(skillLevel) || skillLevel < 1 || skillLevel > 10) {
