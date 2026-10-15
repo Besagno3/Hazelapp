@@ -167,7 +167,7 @@ export const OVERWORLD_FRAME = {
     cliffs: 27,
     quarter: 28,
     chorus: 29,
-    // 30: Chartmaker's Rest (#75 item 15h) — a parchment study and a rolled chart.
+    // 30: Chartmaker's Rest (#75 item 15h) — a parchment study and a chart with a red X.
     chart: 30,
   } satisfies Record<
     Exclude<PlaceIcon, 'tower'>,

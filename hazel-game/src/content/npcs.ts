@@ -254,7 +254,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       // The reactive pass (#75 item 15h): Act III's news reaches home.
       {
-        text: "A guest from Taleshore stayed last night! A whole land where nobody ever forgot a thing. She told me SIX bedtime stories.",
+        text: "A guest from Taleshore stayed last night! A whole land the fog never reached! She told me SIX bedtime stories.",
         ifFlag: crystalFlag('words'),
       },
     ],
@@ -286,7 +286,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       'Potions! Hint feathers! Shiny badges! Coins well spent, friend.',
       {
-        text: 'A boat full of Taleshore traders sailed in this morning, right where the Great Fogbank used to be! They pay in songs. I\'m RICH!',
+        text: 'A boat full of Taleshore traders sailed in this morning, right through the Great Fogbank\'s mist! They pay in songs. I\'m RICH!',
         ifFlag: crystalFlag('words'),
       },
     ],
@@ -1920,7 +1920,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'OLD SAILORS SAY: far out west, straight across the sea from Port Lantern, lies Chorus Isle, where everyone used to sing. Nobody has heard a note from it in years.', unlessFlag: crystalFlag('words') },
       { text: "GREAT NEWS: Chorus Isle is singing again — and the Great Fogbank has thinned! Boats from the Silver Shallows can sail right into Port Lantern now.", ifFlag: crystalFlag('words') },
       // Chartmaker's Rest (#75 item 15h review round 1): the board points the way too.
-      { text: "WANTED: a helper for the Chartmaker, on his little island north-west of here. He says he's missing one place. Just ONE!", ifFlag: crystalFlag('words'), unlessFlag: BLANK_CHART_HELD },
+      { text: "WANTED: a helper for the Chartmaker, on his little island far north of here. He says he's missing one place. Just ONE!", ifFlag: crystalFlag('words'), unlessFlag: BLANK_CHART_HELD },
       'Check back soon for more notices!',
     ],
   },
@@ -2525,7 +2525,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     // His quest's offer comes first ("The Blank Chart", once Voices rings); these follow it.
     lines: [
       {
-        text: "I'm the Chartmaker. I've charted every place in Lumina but one. And while the hush lies over the sea, my ink won't remember a thing. Free the Crystal of Voices, then come back!",
+        text: "I'm the Chartmaker! I've charted every place in Lumina but one. While the hush lies over the sea, my ink forgets everything. Free the Crystal of Voices — and keep anything shiny you find for me!",
         unlessFlag: crystalFlag('words'),
       },
       {
@@ -2552,7 +2552,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      "I'm Inka! I mix the Chartmaker's inks: sea-blue, forest-green, sunset-red. Today I'm trying starlight.",
+      { text: "I'm Inka! I mix the Chartmaker's inks: sea-blue, forest-green, sunset-red. Today I'm trying starlight.", unlessFlag: BLANK_CHART_HELD },
+      { text: 'Starlight ink worked! Now I want to try moonlight. Or puddle-light.', ifFlag: BLANK_CHART_HELD },
       { text: 'The chart even drew ME. Teeny tiny! I\'ve never been on a map before.', ifFlag: BLANK_CHART_HELD },
     ],
     ambient: ['Sea-blue… or sky-blue?', '🎨'],

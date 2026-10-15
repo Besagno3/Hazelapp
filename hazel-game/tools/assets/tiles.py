@@ -1494,7 +1494,7 @@ def ow_icon(kind):
             c.line(x + 0.8, y, x + 0.8, y - 2.4, '#ff6a9a', w=0.6)
     elif kind == 'chart':
         # Chartmaker's Rest (#75 item 15h): a little island with a parchment study, an
-        # ink-blue roof, and a big rolled chart with a red compass star beside it.
+        # ink-blue roof, and a parchment chart beside it with a red X marking the spot.
         c.ellipse(8, 13.6, 7.6, 2.2, '#3a8ad0')
         c.ellipse(8, 12, 6.4, 2.6, '#e8d8a8')
         c.ellipse(8, 11, 5.4, 2.0, '#96b278')
@@ -1507,8 +1507,8 @@ def ow_icon(kind):
         c.ellipse(14.6, 7, 0.9, 2.6, '#c8a868')
         for (x, y) in ((11, 8.6), (11.8, 8.0), (12.4, 7.4)):
             c.dot(x, y, '#6a4a2a')
-        c.line(12.6, 5.0, 14.2, 6.6, '#d02a2a', w=0.7)
-        c.line(14.2, 5.0, 12.6, 6.6, '#d02a2a', w=0.7)
+        c.line(11.4, 4.8, 14.4, 7.8, '#d02a2a', w=1.1)
+        c.line(14.4, 4.8, 11.4, 7.8, '#d02a2a', w=1.1)
     elif kind == 'quarter':
         # The Quiet Quarter (#75 item 15f): two grey-blue houses with lavender roofs and a crescent moon.
         for (x0, y0) in ((1, 7), (8, 6)):

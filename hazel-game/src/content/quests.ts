@@ -1370,8 +1370,9 @@ export const QUESTS: QuestDef[] = [
     offerHaving: {
       items: ['compass-quill', 'starlit-quill'],
       lines: [
-        "Ah, a visitor — with my Compass Quill! Pen hid it in her nest, didn't she? I'm the Chartmaker. I've charted every place in Lumina but ONE.",
-        "There's a place I can never name. My ink fades every time I try. But with the Crystal of Voices singing again, I think I can chart it at last!",
+        "A visitor — with my Compass Quill! Pen hid it in her nest, didn't she? I'm the Chartmaker.",
+        "I've charted every place in Lumina but ONE. My ink fades every time I try. With Voices singing, maybe now I can!",
+        "Oh — the quill's dry as a bone. Take it to Inka, on the left (west) side of the island. She mixes my inks.",
       ],
     },
     steps: [
@@ -1393,12 +1394,13 @@ export const QUESTS: QuestDef[] = [
           '🖌️ Inka dips the Compass Quill in a pot of ink that twinkles like the night sky.',
           '"Starlight ink! It remembers almost everything it touches. Take it back to the Chartmaker!"',
         ],
-        "The quill is dry! Bring it to Inka, on the west side of the island. She mixes the Chartmaker's inks.",
+        "The quill is dry! Bring it to Inka, on the left (west) side of the island. She mixes the Chartmaker's inks.",
         ),
-        remind: "My quill! Oh — it's dry as a bone. Take it to Inka, on the west side of the island. She mixes my inks.",
+        remind: "My quill! Oh — it's dry as a bone. Take it to Inka, on the left (west) side of the island. She mixes my inks.",
       },
     ],
     takesItems: ['starlit-quill'],
+    doneLine: 'Take the Starlit Quill back to the Chartmaker, in his study!',
     complete: [
       '✨ The Chartmaker dips the Starlit Quill and draws. Dawnreach… the Silver Shallows… Taleshore… every place you\'ve been, all at once!',
       'But look — right under the Crystal Spire, one spot stays blank. Nothing sticks there. Not even starlight ink.',

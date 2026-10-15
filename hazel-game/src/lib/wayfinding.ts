@@ -313,8 +313,6 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[BLANK_CHART_HELD]
           ? "The Blank Chart shows one place nobody remembers, under the Crystal Spire — a mystery for another day. Check 📜 Menu for quests you haven't finished!"
-          : flags[MET_GALE]
-          ? 'Six crystals shine, and the Great Fogbank has thinned — boats from the Silver Shallows can sail to Taleshore now! Check 📜 Menu for quests you haven\'t finished.'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -453,7 +451,7 @@ function chartInside(flags: Record<string, boolean>): string {
   if (!flags[questOfferedFlag(quest)]) return 'The Chartmaker is in his study, the blue-roofed house.';
   // The find step has no flag of its own (it's what you carry); Inka's step says the quill is inked.
   if (!flags[stepFlag(quest.steps[1].id)] && !flags[handedOverFlag('compass-quill')]) {
-    return "Pen's 🎁 nest is the chest just right of the study. Inka, on the west side of the island, inks the quill.";
+    return "Get the quill from Pen's 🎁 nest (the chest right of the study), then take it to Inka on the left (west) side.";
   }
   return 'Take the Starlit Quill back to the Chartmaker, in his study.';
 }
@@ -686,7 +684,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
-    plan = `${shining} crystals shine! Now fly to the Chartmaker's island, north-west of Port Lantern. He has drawn every place in Lumina but one. Which one? Go and ask him!`;
+    plan = `${shining} crystals shine! Now fly to the Chartmaker's little island, at the very top of Taleshore's map, north of Port Lantern. He's drawn every place but one. Which one? Go and ask!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     plan = `${shining} crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!`;
   } else if (goal.kind === 'visit') {
@@ -699,8 +697,6 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[BLANK_CHART_HELD]) {
     plan = 'You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, help the folk of Taleshore. Check 📜 Menu!';
-  } else if (flags[MET_GALE]) {
-    plan = "Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {

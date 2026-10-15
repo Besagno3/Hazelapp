@@ -4287,7 +4287,7 @@ NPCS: list[Char] = [
     # ── Act III: Chartmaker's Rest (#75 item 15h) ──
     Char('chart-chartmaker', '🧓', 'humanoid', H(hair='fringe', hair_color='#e8e8e8', beard='#f0f0f0', glasses=True, outfit='#2a4a8a', trim='#efe2bf',
          robe=True, item='book', item_color='#efe2bf')),
-    Char('chart-pen', '🐦', 'flyer', H(kind='bird', color='#3a3a4a')),
+    Char('chart-pen', '🐦', 'flyer', H(kind='bird', color='#f4f4f4', wing_color='#8a8a9a')),
     Char('chart-inka', '👩‍🎨', 'humanoid', H(hair='bun', hair_color='#2a1a3a', hat='beret', hat_color='#d03a3a', outfit='#3a6ad0', trim='#f0e0c0',
          apron='#f4ead0', item='brush', item_color='#2a4a8a')),
     Char('quiet-sotto', '🗣️', 'humanoid', H(hair='short', hair_color='#5a3a2a', hat='hood', hat_color='#5a3a6a', outfit='#6a4a7a', scarf='#c8a040', pack='#8a6a4a')),

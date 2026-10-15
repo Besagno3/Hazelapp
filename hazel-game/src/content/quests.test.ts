@@ -30,7 +30,7 @@ import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
 import { fieldSpellFlag } from './fieldSpells';
-import { NPC_DEFS } from './npcs';
+import { NPC_DEFS, lineText, visibleLines } from './npcs';
 import { ENEMY_DEFS } from './enemies';
 import { TOPIC_REGISTRY, crystalFlag } from './topics';
 import { defaultSave } from '../lib/save';
@@ -246,6 +246,10 @@ describe('town side quests (village expansion)', () => {
     for (const town of TOWNS) {
       expect(QUESTS.filter((q) => q.side && q.zoneId === town), town).toHaveLength(2);
     }
+  });
+
+  it('items a quest grants on completion exist (#75 item 15h review round 2)', () => {
+    for (const q of QUESTS) for (const i of q.grants?.items ?? []) expect(QUEST_ITEMS[i], `${q.id} grants ${i}`).toBeDefined();
   });
 
   it('items a quest takes back exist, and are found in a secret or chest, or handed over', () => {
@@ -1197,5 +1201,22 @@ describe("The Blank Chart (#75 item 15h): Pen's nest, Inka's ink, the Chartmaker
     const save = openChest(voices(), nest);
     expect(chestWantedLine(save, nest)).toMatch(/Chartmaker's Compass Quill/);
     expect(questConversation('chart-chartmaker', save)!.lines[0]).toMatch(/with my Compass Quill!/);
+  });
+
+  it('found before Voices, then played through: each reminder and the 🚩 say what comes next (round 2)', () => {
+    let save = openChest(defaultSave(), nest);
+    // Before Voices he has no quest; his own line asks for anything shiny.
+    expect(questConversation('chart-chartmaker', save)).toBeNull();
+    expect(visibleLines(NPC_DEFS['chart-chartmaker'].lines, save.flags).map(lineText).join(' ')).toMatch(/keep anything shiny/);
+    save = { ...save, flags: { ...save.flags, [crystalFlag('words')]: true } };
+    const offer = questConversation('chart-chartmaker', save)!;
+    expect(offer.lines.at(-1)).toMatch(/Take it to Inka/);
+    save = offer.finish!(save);
+    expect(questConversation('chart-chartmaker', save)!.lines.join(' ')).toMatch(/dry as a bone/);
+    save = converse('chart-inka', save);
+    expect(QUESTS.find((q) => q.id === BLANK_CHART_QUEST)!.doneLine).toMatch(/Starlit Quill back to the Chartmaker/);
+    save = converse('chart-chartmaker', save);
+    expect(save.flags[BLANK_CHART_HELD]).toBe(true);
+    expect(save.questItems).toEqual(['blank-chart']);
   });
 });

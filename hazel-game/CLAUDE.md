@@ -780,6 +780,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15h review round 2: north, not north-west; a quill found first (#75 item 15h, #142i)
+Fresh code (1 medium-low, 4 low, 5 nits) and UX (3 medium, 5 low, 3 nits)
+reviews, all fixed: "north of Port Lantern" (north-west fits the Wayfinder
+Isles too), the offer for a quill found first ends on Inka, before Voices
+he asks you to keep anything shiny, a `doneLine`, a 🚩 step right either
+way, "left (west)", Pen a white gull, a bigger X, `actThreeJourney` stops at
+the chart, dead Mnem branches removed. Tests +2; 1300 green.
+
 ### 2026-10-15 — 15h review round 1: a 🚩 that follows the quest, an X on the chart (#75 item 15h, #142h)
 Fresh code (4 low, 5 nits) and UX (6 medium, 7 low, 5 nits) reviews, all
 fixed but three kept (🌐, Pen's 🐦, no nest/easel props): the 🚩's

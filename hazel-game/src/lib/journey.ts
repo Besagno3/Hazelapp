@@ -7,6 +7,7 @@ import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
 import { BOAT_HOME, BOAT_MENDED, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
 import { visitedFlag } from '../content/fieldSpells';
+import { BLANK_CHART_HELD } from '../content/questFlags';
 import { nextObjective, npcHome, routeTo, type Objective } from './wayfinding';
 import { passable as tilePassable, seaCrossing } from './travel';
 import { npcWanders } from './wander';
@@ -267,6 +268,8 @@ export function actThreeJourney(): Leg[] {
       legs.push(walkLeg(goal, flags, { zoneId: target.zoneId, cell: ZONES[target.zoneId].spawn }));
     }
     flags = advanceGoal(goal, flags);
+    // Act III ends with the Blank Chart; what follows is Act IV's (item 16).
+    if (goal.doneFlag === BLANK_CHART_HELD) break;
   }
   return legs;
 }

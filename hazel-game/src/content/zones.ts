@@ -2905,7 +2905,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   // Chartmaker's Rest (#75 item 15h): a small calm island where the Chartmaker
   // keeps his study — he has charted every place in Lumina but one. No critters:
   // a story zone. Pen, his seabird, keeps a nest of shiny things by the north
-  // shore (the Blank Chart quest's key-item chest); Inka mixes ink by her easel.
+  // shore (the Blank Chart quest's key-item chest); Inka mixes his inks.
   'chartmakers-rest': {
     id: 'chartmakers-rest',
     name: "Chartmaker's Rest",
@@ -2922,9 +2922,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#~:.....WWWDWWW.....:#',
       '#~::.......=.....,.::#',
       '#~~::..,...=.......:~#',
-      '#~~~::.....==.....::~#',
-      '#~~~~:::...==...:::~~#',
-      '#~~~~~~::::==::::~~~~#',
+      '#~~~::....==......::~#',
+      '#~~~~:::..==....:::~~#',
+      '#~~~~~~:::==:::::~~~~#',
       '##########EE##########',
     ],
     ground: [150, 178, 120],
