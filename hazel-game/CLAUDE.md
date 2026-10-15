@@ -755,6 +755,27 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15c review round 1: fly home from Taleshore, meet Gale, props stay put (#75 item 15c, #137h)
+Fresh code (1 medium, 3 low) and UX reviews. All fixed:
+- **Fly, not sail:** from Taleshore every route said "sail" over the Great
+  Fogbank unless the goal was a fly one. `flownLink` (`lib/travel.ts`) is the
+  one rule: a hop to or from Taleshore is flown, and so is every sea after it;
+  the menu map uses it too.
+- **Things don't step aside:** `WorldNpcDef.prop` (the Quest Board, the
+  Marsh's lanterns, the carved stones; signposts too) — walking into one
+  never scoots it.
+- **Meet Harbormaster Gale:** a 🚩 step after arriving (`MET_GALE`,
+  `Objective.npc`; `goalTarget` meets whoever it names); Gale stands by the
+  road in, says hello, and points at the board and Skipper Juno. A guide who
+  is the goal points past it. Then "Explore" talks about Taleshore.
+- **The fogbank once Ember flies** says to go ashore and fly
+  (`GREAT_FOGBANK_FLY_HINT`), and so does the sailing footer on the Shallows.
+- **People:** Rambler Hob on Taleshore's road, Old Pike on the north dock
+  (new sprites, `build.py taleshore`). **Copy:** "🐉 Fly east!", docks not a
+  quay, Wick-Wax's Candle Shop, plainer lines for Juno, Fable and panel 5.
+- **Tests:** +6 (wayfinding, zones); 1205 green, lint and tsc clean;
+  `bench … fly` 17/17.
+
 ### 2026-10-15 — East to Taleshore: over the Great Fogbank to Port Lantern (#75 item 15c, #137)
 Roadmap sub-item 15c.
 - **Taleshore** (`taleshore`, 56×44, painted in Tiled): the far continent,

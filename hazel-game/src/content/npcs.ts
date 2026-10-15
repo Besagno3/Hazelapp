@@ -7,7 +7,7 @@ import { handedOverFlag, questOfferedFlag } from './quests';
 import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
-import { ACT2_SEEN, HALL_CALLED, WISP_STIRRING } from './story';
+import { ACT2_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -90,6 +90,12 @@ export interface WorldNpcDef {
    * Its `lines` stay empty. Place it beside a crossroads, off the road.
    */
   signpost?: boolean;
+  /**
+   * A thing, not a person — a quest board, a lantern, a carved stone (#75
+   * item 15c review): walking into it never makes it step aside. Signposts
+   * are things too.
+   */
+  prop?: boolean;
 }
 
 /** Resolves which lines apply given the current story flags. */
@@ -1585,6 +1591,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'The Nameless Stone',
     sprite: '🪨',
     role: 'villager',
+    prop: true,
     stationary: true,
     lines: [
       'A smooth grey stone at the end of the boardwalk. There is no name on it — only a tiny flower, carved at the top.',
@@ -1599,6 +1606,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🏮',
     spriteId: 'marsh-lantern',
     role: 'villager',
+    prop: true,
     stationary: true,
     lines: ['A marsh lantern, cold and dark. Lightkeeper Brume keeps these — her Lantern Ledger says which to light, and when.'],
   },
@@ -1608,6 +1616,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🏮',
     spriteId: 'marsh-lantern-lit',
     role: 'villager',
+    prop: true,
     stationary: true,
     lines: ['The west lantern glows warm and gold. Somewhere out on the water, a little fish is very grateful.'],
   },
@@ -1617,6 +1626,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🏮',
     spriteId: 'marsh-lantern',
     role: 'villager',
+    prop: true,
     stationary: true,
     lines: ['A marsh lantern, cold and dark. Lightkeeper Brume keeps these — her Lantern Ledger says which to light, and when.'],
   },
@@ -1626,6 +1636,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🏮',
     spriteId: 'marsh-lantern-lit',
     role: 'villager',
+    prop: true,
     stationary: true,
     lines: ['The north lantern glows warm and gold. Somewhere out on the water, a little fish is very grateful.'],
   },
@@ -1635,6 +1646,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🏮',
     spriteId: 'marsh-lantern',
     role: 'villager',
+    prop: true,
     stationary: true,
     lines: ['A marsh lantern, cold and dark. Lightkeeper Brume keeps these — her Lantern Ledger says which to light, and when.'],
   },
@@ -1644,6 +1656,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🏮',
     spriteId: 'marsh-lantern-lit',
     role: 'villager',
+    prop: true,
     stationary: true,
     lines: ['The east lantern glows warm and gold. Somewhere out on the water, a little fish is very grateful.'],
   },
@@ -1753,8 +1766,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     guide: true,
     lines: [
-      "Welcome to Port Lantern! I'm Harbormaster Gale. I've never lost a ship. Misplaced one, yes. Twice.",
+      { text: "Welcome to Port Lantern! I'm Harbormaster Gale. I've never lost a ship. Misplaced one, yes. Twice.", setFlag: MET_GALE },
       "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.",
+      "Taleshore is just waking up to visitors. Talk to everyone, and check the Quest Board in the square. Skipper Juno by the south dock could use a friend, too.",
     ],
   },
   'port-skipper': {
@@ -1764,17 +1778,17 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      "Ahoy! Skipper Juno. My ferry, the Puffin, runs round Taleshore's islands. Well — it will, once I find my nerve again.",
-      "You flew here? On a DRAGON? Then you're just the sailor I need. Come back soon!",
+      "Ahoy! Skipper Juno. My ferry, the Puffin, runs round Taleshore's islands. Well, it used to. I haven't sailed since a storm gave me a fright.",
+      "You flew here? On a DRAGON? Then you're brave enough for both of us. Come back soon!",
     ],
   },
   'port-merchant': {
     id: 'port-merchant',
-    name: 'Chandler Wick-Wax',
+    name: 'Candlemaker Wick-Wax',
     sprite: '🕯️',
     role: 'merchant',
     lines: [
-      "Candles, lanterns, potions! Wick-Wax's Chandlery keeps Port Lantern bright.",
+      "Candles, lanterns, potions! Wick-Wax's Candle Shop keeps Port Lantern bright.",
       'You know a Grandmother Wick? Never heard of her. No relation. Certainly not my cousin.',
     ],
   },
@@ -1828,8 +1842,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      "Over here the fog never came, little one, because we never stopped telling our stories. We remember everything.",
-      "Even the Forgotten One's real name. But it's rude to say a name its owner lost. You'll have to earn it.",
+      "The fog never came here, little one, because we never stopped telling our stories. We remember everything.",
+      "We even know the Forgotten One's real name. But here, we never say a name its owner has lost. Someday, you may hear it.",
     ],
   },
   // The quest board in the square (#75 item 15c): its notices change as Taleshore opens up.
@@ -1838,14 +1852,41 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Quest Board',
     sprite: '📋',
     role: 'villager',
+    prop: true,
     stationary: true,
     lines: [
       '📋 The Quest Board. Notices are pinned all over it.',
-      'NEW IN TOWN? Rest at the Driftlight Inn. Potions at Wick-Wax\'s Chandlery.',
+      'NEW IN TOWN? Say hello to Harbormaster Gale by the road in. Rest at the Driftlight Inn. Potions at Wick-Wax\'s Candle Shop.',
+      'WANTED: a brave friend for Skipper Juno, on the south dock. Ask Juno!',
       'NOTICE: Postmaster Pidge carries letters anywhere — even over the Great Fogbank!',
       'More notices will go up as Taleshore wakes to visitors. Check back soon!',
     ],
+  },  // Old Pike fishes off the north dock (15c review): Port Lantern's harbor has people on it.
+  'port-fisher': {
+    id: 'port-fisher',
+    name: 'Old Pike',
+    sprite: '🎣',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "Shh! You'll scare the fish. …Ah, never mind, they weren't biting anyway. I'm Old Pike.",
+      "Fifty years I've fished this dock. Out past the islands, the fish are as big as boats. Or so my grandpa said.",
+    ],
+    ambient: ['Bite, fishy, bite…', 'Any minute now…', '🎣'],
   },
+  // A rambler on Taleshore's road (15c review): someone out there besides the town.
+  'tale-rambler': {
+    id: 'tale-rambler',
+    name: 'Rambler Hob',
+    sprite: '🥾',
+    role: 'villager',
+    lines: [
+      "Hello, traveler! I'm Hob. I walk every road on Taleshore, and I've still not seen it all.",
+      "South there are little islands, and a big empty atoll the wind never leaves. Someday the ferry will run there again!",
+    ],
+    ambient: ['Left foot, right foot…', 'What a view!', '🥾'],
+  },
+
   // The Dragon's Roost (#75 item 15b): where Ember's egg came from.
   'roost-stone': {
     id: 'roost-stone',
@@ -1853,6 +1894,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🪨',
     spriteId: 'marsh-stone',
     role: 'villager',
+    prop: true,
     stationary: true,
     lines: [
       'An old stone covered in claw marks. Someone carved a dragon on it, curled round an egg.',

@@ -236,13 +236,14 @@ describe("Grandmother Wick nudges you back to Wisp (#129l)", () => {
 });
 
 describe('Act III opens: over the Great Fogbank to Taleshore (#75 item 15c)', () => {
-  it('five short panels — the flight, the sea, Port Lantern, the land that never forgot, the custom of the name', () => {
+  it('five short panels — the flight, the sea, Port Lantern, the land that never forgot, where to land', () => {
     expect(ACT3_PANELS).toHaveLength(5);
     for (const p of ACT3_PANELS) expect(p.text.split(/\s+/).length, p.text).toBeLessThanOrEqual(30);
     const all = ACT3_PANELS.map((p) => p.text).join(' ');
     expect(all).toMatch(/Great Fogbank/);
     expect(all).toMatch(/Port Lantern/);
-    expect(all).toMatch(/rude to say a name/);
+    expect(all).toMatch(/never forgot/);
+    expect(ACT3_PANELS.at(-1)!.text).toMatch(/^Fly east and land beside the harbor/);
     expect(ACT_OPENS[3]).toBe(ACT3_SEEN);
   });
 });

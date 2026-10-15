@@ -65,7 +65,7 @@ describe('the menu map at sea — review fixes (#75 item 14)', () => {
   });
 
   it('past the Great Fogbank, Taleshore — only once Ember can fly, and flown, not sailed (#75 item 15c)', () => {
-    const { container, unmount } = render(<WorldMapPanel zoneId="silver-shallows" pos={px(11, 21)} flags={flags} />);
+    const { unmount } = render(<WorldMapPanel zoneId="silver-shallows" pos={px(11, 21)} flags={flags} />);
     expect(screen.queryByText('Taleshore ▶')).toBeNull();
     expect(screen.getByText('The Great Fogbank — no boat can pass it')).toBeInTheDocument();
     unmount();
@@ -74,7 +74,6 @@ describe('the menu map at sea — review fixes (#75 item 14)', () => {
     expect(screen.getByText('Taleshore ▶')).toBeInTheDocument();
     expect(screen.getByText('The Great Fogbank — no boat can pass it, but Ember flies over it')).toBeInTheDocument();
     expect(again.container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/Fly off the east edge to Taleshore\./);
-    expect(container).toBeTruthy();
     again.unmount();
     // On Taleshore itself: Port Lantern, and the way back west over the fog.
     render(<WorldMapPanel zoneId="port-lantern" pos={null} flags={flying} />);

@@ -66,9 +66,10 @@ export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } 
   }
   if (g.kind === 'sail' || g.kind === 'fly' || (g.kind === 'visit' && !g.doneFlag)) return { zoneId: g.zoneId!, cell: null };
   if (g.kind === 'visit') {
-    // The Hall of Names' dedication (#75 item 14i): Keeper Mnem calls you in.
-    const mnem = npcHome(ZONES, 'hill-keeper')!;
-    return { zoneId: mnem.zoneId, cell: { x: mnem.x, y: mnem.y } };
+    // Someone to meet: Keeper Mnem calls you in for the Hall's dedication
+    // (#75 item 14i); Harbormaster Gale says hello in Port Lantern (15c).
+    const who = npcHome(ZONES, g.npc ?? 'hill-keeper')!;
+    return { zoneId: who.zoneId, cell: { x: who.x, y: who.y } };
   }
   const zoneId = g.kind === 'key' ? g.key!.fromZone : g.zoneId!;
   const bossId = g.kind === 'key' ? g.key!.bossId : fiendFor(g.crystal!.id).id;

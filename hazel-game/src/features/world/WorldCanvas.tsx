@@ -2635,7 +2635,9 @@ export default function WorldCanvas({
         }
       }
       // Kept walking into someone in the way: they step aside (#127).
-      push = pushOn(push, into?.kind === 'npc' ? into : null, dt);
+      // …never a thing (a quest board, a lantern, a signpost — 15c review).
+      const thing = into?.npcId ? NPC_DEFS[into.npcId]?.prop || NPC_DEFS[into.npcId]?.signpost : false;
+      push = pushOn(push, into?.kind === 'npc' && !thing ? into : null, dt);
       if (push && push.t >= SCOOT_AFTER_S) {
         scoot(push.who, intoDir);
         push = null;

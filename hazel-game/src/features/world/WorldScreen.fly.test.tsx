@@ -180,7 +180,7 @@ describe('🐉 Fly / 🛬 Land on the world HUD (#75 item 15b)', () => {
       fireEvent.click(screen.getByRole('button', { name: /Next/ }));
     }
     act(() => vi.advanceTimersByTime(2000));
-    fireEvent.click(screen.getByRole('button', { name: '🏮 To Port Lantern!' }));
+    fireEvent.click(screen.getByRole('button', { name: '🐉 Fly east!' }));
     expect(useSaveStore.getState().save!.flags[story.ACT3_SEEN]).toBe(true);
     unmount();
     render(<WorldScreen />);

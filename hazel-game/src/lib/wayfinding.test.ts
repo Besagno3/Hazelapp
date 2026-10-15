@@ -7,7 +7,7 @@ import { overworldOf, whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { actCrystals, crystalFlag } from '../content/topics';
 import { GATE_KEYS, keyFlag, keyForZone } from '../content/keys';
-import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
+import { ACT2_SEEN, MET_GALE, SPIRE_CLEARED } from '../content/story';
 import {
   compass,
   exitSide,
@@ -56,6 +56,8 @@ const memoriaWon = { ...storyDone, [crystalFlag('history')]: false };
 const roostVisited = { ...storyDone, [visitedFlag('dragon-roost')]: true };
 /** …and her flight east to Taleshore's Port Lantern (#75 item 15c). */
 const taleshoreReached = { ...roostVisited, [visitedFlag('port-lantern')]: true };
+/** …and said hello to Harbormaster Gale (15c review). */
+const galeMet = { ...taleshoreReached, [MET_GALE]: true };
 
 describe('compass', () => {
   it('names all eight directions (y grows southward)', () => {
@@ -107,7 +109,9 @@ describe('nextObjective', () => {
     });
     expect(nextObjective(storyDone)).toMatchObject({ kind: 'fly', zoneId: 'dragon-roost' });
     expect(nextObjective(roostVisited)).toMatchObject({ kind: 'fly', zoneId: 'port-lantern', title: 'Fly to Taleshore' });
-    expect(nextObjective(taleshoreReached)).toMatchObject({ kind: 'explore', zoneId: null });
+    // In Port Lantern, the harbormaster first (15c review), then the open world.
+    expect(nextObjective(taleshoreReached)).toMatchObject({ kind: 'visit', zoneId: 'port-lantern', title: 'Meet Harbormaster Gale', doneFlag: MET_GALE, npc: 'port-harbormaster' });
+    expect(nextObjective(galeMet)).toMatchObject({ kind: 'explore', zoneId: null });
   });
 
   it("Marlow's boat (#75 item 14): each friend in turn, then back to Marlow, then sail from his dock — then the Hill", () => {
@@ -210,8 +214,8 @@ describe('nextObjective', () => {
     expect(nextObjective(storyDone)).toMatchObject({ kind: 'fly', title: "Fly to the Dragon's Roost" });
     expect(nextObjective(storyDone).why).toMatch(/^Ember can fly! Tap 🐉 Fly/);
     // …then the whole sky: no "soon you'll fly" once she can.
-    expect(nextObjective(taleshoreReached).why).toMatch(/^Ember can fly! Soar anywhere/);
-    expect(mentorTips(ZONES, { ...taleshoreReached, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
+    expect(nextObjective(galeMet).why).toMatch(/^Taleshore is waking up!/);
+    expect(mentorTips(ZONES, { ...galeMet, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
   });
 
   // Doing what it says must finish the story: every step is one the hero can
@@ -232,9 +236,9 @@ describe('nextObjective', () => {
     expect(seen.at(-1)?.kind).toBe('explore');
     // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage,
     // Remembrance Hill (#75 item 14e), the Memoria Key (#75 item 14f), the Crystal of Memory (#75 item 14h),
-    // the Hall of Names (#75 item 14i), the Dragon's Roost (#75 item 15b), Taleshore (#75 item 15c), explore.
+    // the Hall of Names (#75 item 14i), the Dragon's Roost (#75 item 15b), Taleshore and Harbormaster Gale (#75 item 15c), explore.
     const actOneKeys = GATE_KEYS.filter((k) => actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
-    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
+    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -263,7 +267,7 @@ describe('fog and the story', () => {
       // lands — the Roost's plateau, Port Lantern's road — on foot.
       const landing = { 'dragon-roost': { x: 48, y: 27 }, 'port-lantern': { x: 30, y: 21 } } as Partial<Record<ZoneId, { x: number; y: number }>>;
       const reached =
-        g.kind === 'fly'
+        g.kind === 'fly' || world.id === 'taleshore'
           ? reach(world, { flags, from: landing[g.zoneId]! })
           : world.id === 'dawnreach'
             ? reach(dawn, { flags })
@@ -346,7 +350,7 @@ describe('routeSteps and goalDirections', () => {
   });
   it("says so when you're already there, and nothing once the story's done", () => {
     expect(goalDirections(ZONES, numbria, 'numbria')).toBe("It's right here in Numbria!");
-    expect(goalDirections(ZONES, nextObjective(taleshoreReached), 'numbria')).toBe('');
+    expect(goalDirections(ZONES, nextObjective(galeMet), 'numbria')).toBe('');
   });
   it("on Ember, the way to the Dragon's Roost is flown, not sailed (#75 item 15b)", () => {
     const fly = nextObjective(storyDone);
@@ -357,6 +361,11 @@ describe('routeSteps and goalDirections', () => {
     const fly = nextObjective(roostVisited);
     expect(goalDirections(ZONES, fly, 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then go .* to Port Lantern\.$/);
     expect(goalDirections(ZONES, fly, 'dragon-roost')).not.toMatch(/sail/i);
+  });
+  it('from Taleshore, the way home is flown back over the Great Fogbank, whatever the goal (15c review)', () => {
+    const hall = nextObjective({ ...storyDone, [HALL_DEDICATED]: false });
+    expect(hall.kind).toBe('visit');
+    expect(goalDirections(ZONES, hall, 'port-lantern')).toMatch(/^Fly west to the Silver Shallows, then fly west to Dawnreach, then /);
   });
   it('gives directions to every story goal from every zone', () => {
     const goals = [
@@ -427,7 +436,8 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...memoriaWon })[0]).toMatch(/^You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive/);
     expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost/);
     expect(mentorTips(ZONES, { ...met, ...roostVisited })[0]).toMatch(/^No boat gets past the Great Fogbank — but Ember can fly over it!/);
-    expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toBe('Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.');
+    expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
+    expect(mentorTips(ZONES, { ...met, ...galeMet })[0]).toBe('Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.');
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
     expect(mentorTips(ZONES, { ...met, ...storyDone, [HALL_DEDICATED]: false })[0]).toMatch(/Hall of Names/);
   });
@@ -476,8 +486,12 @@ describe('guides and signposts', () => {
       'Where to next? The Null Fiend hoards the Crystal of Numbers. Go north-west to Numbria.',
     ]);
   });
+  it("Harbormaster Gale, the 🚩's goal, points to what comes after meeting Gale (15c review)", () => {
+    expect(nextObjective(taleshoreReached).npc).toBe('port-harbormaster');
+    expect(wayfindingLines(ZONES, NPC_DEFS['port-harbormaster'], taleshoreReached)).toEqual([nextObjective(galeMet).why]);
+  });
   it("after the story, a guide just cheers you on", () => {
-    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], taleshoreReached)).toEqual([nextObjective(taleshoreReached).why]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], galeMet)).toEqual([nextObjective(galeMet).why]);
   });
   it('a signpost reads out the places around it, then the way to the next goal', () => {
     for (const n of wayfinders.filter((w) => w.signpost)) {

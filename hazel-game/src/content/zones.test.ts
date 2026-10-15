@@ -48,7 +48,7 @@ import {
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
-import { ACT2_SEEN, FLIGHT_FLAG, HALL_CALLED, canFly } from './story';
+import { ACT2_SEEN, FLIGHT_FLAG, HALL_CALLED, MET_GALE, canFly } from './story';
 
 const allZones = Object.values(ZONES);
 
@@ -407,7 +407,8 @@ describe('every place is unique (#73)', () => {
     const places = allZones.filter((z) => z.kind !== 'overworld').map((z) => z.name.replace(/^The /, ''));
     for (const id of RETURN_TOWNS) {
       const z = ZONES[id];
-      const people = new Set(z.npcs.map((p) => p.defId).filter((d) => !NPC_DEFS[d].signpost));
+      // People, not things: no signposts, quest boards or lanterns (15c review).
+      const people = new Set(z.npcs.map((p) => p.defId).filter((d) => !NPC_DEFS[d].signpost && !NPC_DEFS[d].prop));
       expect(people.size, `${id} people`).toBeGreaterThanOrEqual(8);
       const pointsOnward = [...people].some((d) =>
         NPC_DEFS[d].lines.some((l) => {
@@ -1195,7 +1196,28 @@ describe('Taleshore and Port Lantern (#75 item 15c)', () => {
     expect(touches(road, icon.x, icon.y)).toBe(true);
   });
 
-  it('is a safe harbor town: an inn (a Return town), a chandlery selling Berry Potions, a quest board — and no library', () => {
+  it('Harbormaster Gale greets you by the road in, and saying hello meets the 🚩 (15c review)', () => {
+    const gale = port.npcs.find((n) => n.defId === 'port-harbormaster')!;
+    const gate = port.exits.find((e) => e.to === 'taleshore')!;
+    expect(Math.abs(gale.x - gate.x) + Math.abs(gale.y - gate.y)).toBeLessThanOrEqual(6);
+    expect(touches(reach(port), gale.x, gale.y)).toBe(true);
+    const first = NPC_DEFS['port-harbormaster'].lines[0];
+    expect(typeof first !== 'string' && first.setFlag).toBe(MET_GALE);
+  });
+
+  it('things are props: they never step aside, and never wander (15c review)', () => {
+    for (const id of ['port-board', 'roost-stone', 'marsh-stone', 'marsh-lantern-west']) expect(NPC_DEFS[id].prop, id).toBe(true);
+    for (const def of Object.values(NPC_DEFS)) if (def.prop) expect(def.stationary, def.id).toBe(true);
+  });
+
+  it('someone is out on Taleshore, past the town (15c review)', () => {
+    const out = tale.npcs.map((n) => n.defId);
+    expect(out).toContain('tale-rambler');
+    const hob = tale.npcs.find((n) => n.defId === 'tale-rambler')!;
+    expect(touches(reach(tale, { from: { x: 30, y: 21 } }), hob.x, hob.y)).toBe(true);
+  });
+
+  it('is a safe harbor town: an inn (a Return town), a candle shop selling Berry Potions, a quest board — and no library', () => {
     expect(port.kind).toBe('town');
     expect(port.enemies).toEqual([]);
     expect(RETURN_TOWNS).toContain('port-lantern');

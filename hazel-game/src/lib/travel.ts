@@ -73,6 +73,15 @@ export function meetsHero(habitat: Habitat | undefined, mode: TravelMode): boole
   return meets !== null && (habitat ?? 'land') === meets;
 }
 
+/**
+ * A sea link only Ember crosses (#75 item 15c review): any link to or from
+ * Taleshore, past the Great Fogbank. Routes say "fly" across it, and the menu
+ * map shows it once Ember can fly.
+ */
+export function flownLink(from: ZoneId, to: ZoneId): boolean {
+  return from === 'taleshore' || to === 'taleshore';
+}
+
 /** Can a boat put the hero ashore onto a cell holding `ch`? */
 export function canLand(ch: string): boolean {
   return LANDING_CHARS.has(ch);

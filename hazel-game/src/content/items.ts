@@ -32,7 +32,7 @@ export const TEA_DAMAGE_MULT = 2;
 /**
  * Staples sold in more than one shop (everything else: one), always at one price.
  * Berry Potions: Maple's Trading Post (Lumina Village), Tadpole's Tonics
- * (Verdara) and, on the far continent, Wick-Wax's Chandlery (Port Lantern, #75 item 15c).
+ * (Verdara) and, on the far continent, Wick-Wax's Candle Shop (Port Lantern, #75 item 15c).
  */
 export const SHARED_STOCK: readonly ConsumableId[] = ['potion'];
 
@@ -111,16 +111,16 @@ export const SHOPS: Record<string, ShopDef> = {
       { id: 'badge:palette', name: 'Palette Badge', emoji: '🎨', description: 'Every colour at once!', price: 90 },
     ],
   },
-  // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.
   // Port Lantern (#75 item 15c): the far continent's Berry Potions — a long way from home.
   'port-merchant': {
-    name: "Wick-Wax's Chandlery",
+    name: "Wick-Wax's Candle Shop",
     emoji: '🕯️',
     items: [
       stock('potion', 30), // third potion seller (SHARED_STOCK)
       { id: 'badge:harbor', name: 'Harbor Light Badge', emoji: '⚓', description: 'A little anchor with a lantern on it. Ships find their way home by it.', price: 120 },
     ],
   },
+  // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.
   'hill-merchant': {
     name: "Knack's Pre-Remembered Goods",
     emoji: '🧳',

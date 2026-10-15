@@ -2196,14 +2196,14 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     solidEmoji: '🌲',
     decoEmoji: '🌺',
     spawn: { x: 30, y: 21 },
-    npcs: [],
+    npcs: [{ defId: 'tale-rambler', x: 35, y: 20 }],
     enemies: [],
     places: [{ x: 28, y: 21, icon: 'harbor', name: 'Port Lantern' }],
     exits: [{ x: 28, y: 21, to: 'port-lantern', spawnX: 32, spawnY: 11 }],
     seaLinks: [{ side: 'west', to: 'silver-shallows' }],
   },
   // Port Lantern (#75 item 15c): Taleshore's harbor town, lanterns along the
-  // quay and a lighthouse on the rock in its harbor. Its inn, a chandlery (the
+  // docks and a lighthouse on the rock in its harbor. Its inn, a candle shop (the
   // far continent's Berry Potions) and a quest board in the square; no library
   // — there is one Library in the world. No critters.
   'port-lantern': {
@@ -2242,20 +2242,22 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     spawn: { x: 32, y: 11 },
     buildings: [
       { id: 'lantern-inn', name: 'The Driftlight Inn', x: 9, y: 2, w: 9, h: 6, roof: 'sea', style: 'harbor', sign: 'inn' },
-      { id: 'chandlery', name: "Wick-Wax's Chandlery", x: 22, y: 2, w: 7, h: 5, roof: 'copper', style: 'harbor', sign: 'shop' },
+      { id: 'chandlery', name: "Wick-Wax's Candle Shop", x: 22, y: 2, w: 7, h: 5, roof: 'copper', style: 'harbor', sign: 'shop' },
       { id: 'harbor-office', name: "Harbormaster's Office", x: 9, y: 14, w: 7, h: 5, roof: 'blue', style: 'harbor', sign: 'house' },
       { id: 'net-loft', name: "Orla's Net Loft", x: 21, y: 14, w: 7, h: 5, roof: 'teal', style: 'harbor', sign: 'tools' },
     ],
     npcs: [
-      { defId: 'port-harbormaster', x: 12, y: 16 },
+      // Gale greets newcomers by the road in (15c review: the 🚩's first goal here).
+      { defId: 'port-harbormaster', x: 29, y: 13 },
       { defId: 'port-skipper', x: 6, y: 16 },
       { defId: 'port-merchant', x: 25, y: 3 },
       { defId: 'port-innkeeper', x: 13, y: 4 },
       { defId: 'port-netmender', x: 24, y: 16 },
       { defId: 'port-lamplighter', x: 19, y: 19 },
       { defId: 'port-postmaster', x: 29, y: 9 },
-      { defId: 'port-storyteller', x: 16, y: 13 },
+      { defId: 'port-storyteller', x: 11, y: 10 },
       { defId: 'port-board', x: 16, y: 10 },
+      { defId: 'port-fisher', x: 4, y: 8 },
     ],
     enemies: [],
     exits: [
