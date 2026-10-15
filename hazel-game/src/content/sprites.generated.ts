@@ -5333,7 +5333,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "kite-ray": {
-    "emoji": "🪁",
+    "emoji": "🎏",
     "world": {
       "sheet": "/sprites/kite-ray/world.png",
       "frameW": 32,

@@ -22,7 +22,7 @@ describe('shops (#73: every store is unique)', () => {
     // Glimmer Candles: the Marsh's raft shop, and Wick-Wax's for the Latitude Cats (#75 item 15d).
     expect(sellers('candle').map((s) => s.name).sort()).toEqual(["Slosh's Raft Shop", "Wick-Wax's Candle Shop"]);
     // Home, Verdara and — on the far continent — Port Lantern (#75 item 15c).
-    expect(sellers('potion').map((s) => s.name).sort()).toEqual(["Maple's Trading Post", "Tadpole's Tonics", "Wick-Wax's Candle Shop"]);
+    expect(sellers('potion').map((s) => s.name).sort()).toEqual(["Maple's Trading Post", "Tadpole's Tonics", "Tass's Kite Stall", "Wick-Wax's Candle Shop"]);
   });
   it('ALL_SHOP_ITEMS lists each item once', () => {
     const ids = ALL_SHOP_ITEMS.map((i) => i.id);

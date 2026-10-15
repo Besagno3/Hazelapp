@@ -128,6 +128,7 @@ export const SHOPS: Record<string, ShopDef> = {
     name: "Tass's Kite Stall",
     emoji: '🪁',
     items: [
+      stock('potion', 30), // a fourth potion seller, far out at sea (SHARED_STOCK, 15d review)
       { id: 'badge:kite', name: 'Kite Badge', emoji: '🪁', description: 'A tiny kite that flaps whenever the wind blows. So, always.', price: 110 },
     ],
   },

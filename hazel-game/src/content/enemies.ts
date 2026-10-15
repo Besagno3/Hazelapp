@@ -174,7 +174,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'globe-beetle': { id: 'globe-beetle', name: 'Globe Beetle', sprite: '🪲', topic: 'geography', levelOffset: 1, hpPerLevel: 13 },
   // Gale Atoll: the Squall Chick rides the wind and strikes first (swift).
   'zephyr-pup': { id: 'zephyr-pup', name: 'Zephyr Pup', sprite: '🌬️', topic: 'geography', levelOffset: -1, hpPerLevel: 10 },
-  'kite-ray': { id: 'kite-ray', name: 'Kite Ray', sprite: '🪁', topic: 'geography', levelOffset: 0, hpPerLevel: 12 },
+  'kite-ray': { id: 'kite-ray', name: 'Kite Ray', sprite: '🎏', topic: 'geography', levelOffset: 0, hpPerLevel: 12 },
   'squall-chick': { id: 'squall-chick', name: 'Squall Chick', sprite: '🐤', topic: 'geography', levelOffset: 1, hpPerLevel: 12, behavior: 'swift' },
   // The warden of the Wayfinder Isles' stone circle: beat it for the First Chorus Key (keys.ts).
   'compass-golem': { id: 'compass-golem', name: 'The Compass Golem', sprite: '🗿', topic: 'geography', levelOffset: 1, hpPerLevel: 17, isBoss: true, role: 'warden' },

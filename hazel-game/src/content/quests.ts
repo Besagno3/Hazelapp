@@ -132,6 +132,8 @@ export interface EscortDef {
   waitLine: string;
   behindLine: string;
   backLine: string;
+  /** What they say if talked to away from the walk (15d review: Juno in town). Default: the step's hint. */
+  remindLine?: string;
 }
 
 export interface QuestDef {
@@ -984,7 +986,7 @@ export const QUESTS: QuestDef[] = [
     playedIn: JUNO_ZONE,
     doneLine: 'Skipper Juno is waiting by her ferry on Driftwood Shallows — talk to her there!',
     offer: [
-      "My ferry, the Puffin, is still beached at the old dock on Driftwood Shallows. I'm too nervous to walk there alone.",
+      "Ahoy! I'm Skipper Juno. My ferry, the Puffin, is beached at the old dock on Driftwood Shallows. I'm too scared to go alone.",
       'Those critters on the beach give me the wobbles. Will you walk with me? The road south from town goes right there.',
       "I'll meet you where the road comes in to Driftwood Shallows!",
     ],
@@ -1003,18 +1005,19 @@ export const QUESTS: QuestDef[] = [
           waitLine: 'Juno stops — a critter is too close! Wait for it to move away, or bump into it to battle.',
           behindLine: "Juno isn't here yet! Go back and find her — look for her ❗.",
           backLine: '🧭 Juno went back to where the road comes in. Talk to her there to walk again!',
+          remindLine: "See you on the beach! Take the road south from town to Driftwood Shallows. I'll wait where it comes in.",
         },
         (save) =>
           save.flags[escortWalkingFlag(JUNO_WALK)]
             ? 'Walk Juno to the Puffin, by the old dock in the bottom-left corner of Driftwood Shallows. Stay close — she stops if a critter is near!'
             : save.zoneId === JUNO_ZONE
               ? 'Juno is waiting where the road comes in — talk to her to walk her to her ferry!'
-              : "See you on the beach! Take the road south from town to Driftwood Shallows. I'll wait where it comes in.",
+              : 'Take the road south from Port Lantern to Driftwood Shallows. Juno waits where the road comes in!',
       ),
     ],
     complete: [
       "There she is — the Puffin! Hello, old girl. A bit sandy, but not one plank missing.",
-      "You know what? I'm not scared any more. Soon the Puffin will sail Taleshore's islands again!",
+      "You know what? I'm not scared any more. I'll scrub her till she shines!",
       '✨ Reward: 40 coins and a Berry Potion!',
     ],
     reward: { coins: 40, potion: 1 },
@@ -1029,8 +1032,8 @@ export const QUESTS: QuestDef[] = [
     title: "Salt's Sea-Glass Set",
     offer: [
       "I'm Salt the Younger! I collect sea-glass: bits of old bottle the waves have polished smooth.",
-      "I hid my three best pieces in chests so the gulls wouldn't take them: green, blue and gold.",
-      'Then the tide moved everything around! Could you find them for me?',
+      "I hid my three best pieces in chests so the gulls wouldn't take them: green, blue and gold. Then I forgot which chests!",
+      'One is even out on Gale Atoll. Juno\'s ferry took me there, before the storm. Could you find all three?',
     ],
     steps: [
       haveStep(
@@ -1075,7 +1078,7 @@ export const QUESTS: QuestDef[] = [
         [
           { defId: 'compass-crab', label: 'a Compass Crab 🦀 (Driftwood Shallows)' },
           { defId: 'latitude-cat', label: 'a Latitude Cat 🐈 (the Wayfinder Isles)' },
-          { defId: 'kite-ray', label: 'a Kite Ray 🪁 (Gale Atoll)' },
+          { defId: 'kite-ray', label: 'a Kite Ray 🎏 (Gale Atoll)' },
         ],
         'My map still has blank spots.',
       ),
@@ -1397,7 +1400,10 @@ function stepConversation(npcId: string, save: SaveData): QuestConversation | nu
       if (save.flags[walking]) continue;
       // Only where the walk is (15d review: talked to again in town, Juno
       // started a walk that was over before it began) — elsewhere, the hint.
-      if (save.zoneId !== step.escort.zoneId) continue;
+      if (save.zoneId !== step.escort.zoneId) {
+        if (!step.escort.remindLine) continue;
+        return { lines: [step.escort.remindLine], badge: q.title, finish: null, finishKind: null };
+      }
       return {
         lines: step.escort.lines,
         badge: q.title,

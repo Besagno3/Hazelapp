@@ -760,6 +760,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15d review round 3: Juno says hello, routes from where you stand (#75 item 15d, #138j)
+Fresh code (3 low) and UX (2 medium, 7 low) reviews, all fixed: no "fly to"
+the island you're on, flights from islets, "stranded" only on dry ground;
+`EscortDef.remindLine` (Juno in town) keeps the quest log in the third
+person; Juno introduces herself, Gully is pink, Salt's story holds together,
+Tass sells potions too, the Kite Ray has a face, the Globe Beetle has lands.
+1225 green.
+
 ### 2026-10-15 — 15d review round 2: escorts start where they walk, flown off anywhere on an island (#75 item 15d, #138i)
 Fresh code (1 medium, 4 low) and UX (1 high, 2 medium, 9 low) reviews, all
 fixed: `stepConversation` starts an escort only in its own place (Juno in

@@ -373,6 +373,9 @@ describe('routeSteps and goalDirections', () => {
     expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 8, y: 10 })![0]).toMatch(/^fly south-east to Port Lantern/);
     expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 10, y: 30 })![0]).toMatch(/^fly north-east to Port Lantern/);
     expect(routeSteps(ZONES, 'dawnreach', 'lumina-village', { x: 47, y: 27 })![0]).toMatch(/^fly /);
+    // On the island already, its own icon is a walk (round 3); from a small islet, a flight.
+    expect(routeSteps(ZONES, 'taleshore', 'gale-atoll', { x: 8, y: 30 })![0]).toMatch(/^go .* to Gale Atoll$/);
+    expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 4, y: 5 })![0]).toMatch(/^fly south-east to Port Lantern/);
     // On the mainland it's still a walk.
     expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 40, y: 20 })![0]).toMatch(/^go west to Port Lantern/);
     // …and to the islands, "the Wayfinder Isles" are landed beside as "them".
@@ -461,7 +464,7 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost/);
     expect(mentorTips(ZONES, { ...met, ...roostVisited })[0]).toMatch(/^No boat gets past the Great Fogbank — but Ember can fly over it!/);
     expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
-    expect(mentorTips(ZONES, { ...met, ...chorusWon })[0]).toBe("You won the First Chorus Key! Its twin is out there somewhere. Until then, help everyone you meet on Taleshore — they have plenty to do!");
+    expect(mentorTips(ZONES, { ...met, ...chorusWon })[0]).toBe("You won the First Chorus Key! A second key opens the same gate. Until it turns up, help everyone you meet on Taleshore — they have plenty to do!");
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
     expect(mentorTips(ZONES, { ...met, ...storyDone, [HALL_DEDICATED]: false })[0]).toMatch(/Hall of Names/);
   });
@@ -512,7 +515,7 @@ describe('guides and signposts', () => {
   });
   it("Harbormaster Gale, the 🚩's goal, points to what comes after meeting Gale (15c review)", () => {
     expect(nextObjective(taleshoreReached).npc).toBe('port-harbormaster');
-    expect(wayfindingLines(ZONES, NPC_DEFS['port-harbormaster'], taleshoreReached)).toEqual([expect.stringMatching(/^Where to next\? The Compass Golem on the Wayfinder Isles guards the First Chorus Key\. Answer its questions about the world! /)]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['port-harbormaster'], taleshoreReached)).toEqual([expect.stringMatching(/^Where to next\? The Compass Golem on the Wayfinder Isles guards the First Chorus Key! /)]);
   });
   it("after the story, a guide just cheers you on", () => {
     expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], chorusWon)).toEqual([nextObjective(chorusWon).why]);

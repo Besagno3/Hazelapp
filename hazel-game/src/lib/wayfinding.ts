@@ -1,4 +1,4 @@
-import { HUB_ZONE, MET_ELDER, ZONES, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
@@ -263,7 +263,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         return {
           kind: 'key',
           title: `Win the ${chorusA.name}`,
-          why: `${capitalize(midSentence(chorusA.bossName))} on the Wayfinder Isles guards the ${chorusA.name}. Answer its questions about the world!`,
+          why: `${capitalize(midSentence(chorusA.bossName))} on the Wayfinder Isles guards the ${chorusA.name}!`,
           zoneId: chorusA.fromZone,
           key: chorusA,
         };
@@ -272,7 +272,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[MET_GALE]
-          ? 'You won the First Chorus Key! Its twin is out there somewhere. Until it turns up, fly anywhere and help everyone you meet on Taleshore!'
+          ? 'You won the First Chorus Key! A second key opens the same gate. Until it turns up, fly anywhere and help everyone on Taleshore!'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -434,12 +434,15 @@ export function routeSteps(
       // Starting anywhere on the ground round a place only Ember reaches (an
       // island, the Roost's plateau) with no walk to where you're going: you fly
       // off it (15d review rounds 1–2).
-      const around = z.places?.some((pl) => pl.byAir) ? reach(z, { from: o, flags: null }) : null;
-      const offIsland =
-        !!around && !touches(around, exit.x, exit.y) && z.places!.some((pl) => pl.byAir && touches(around, pl.x, pl.y));
+      // (Only on a map with such places — the Shallows' islands are sailed between.)
+      // From dry ground only: arriving off the sea, you sail or fly on as you came.
+      const ashore = WALKABLE_CHARS.has(z.map[o.y]?.[o.x] ?? '#');
+      const around = ashore && z.places?.some((pl) => pl.byAir) ? reach(z, { from: o, flags: null }) : null;
+      const walkable = !!around && touches(around, exit.x, exit.y);
+      const offIsland = !!around && !walkable;
       // "the Wayfinder Isles": land beside them (15d review).
       const them = dest.the && /s$/.test(dest.name) ? 'them' : 'it';
-      if ((flying || byAir || offIsland) && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
+      if ((flying || (byAir && !walkable) || offIsland) && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
       else steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
       const stairs = z.map[exit.y]?.[exit.x];
@@ -595,7 +598,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[MET_GALE]) {
-    plan = "You won the First Chorus Key! Its twin is out there somewhere. Until then, help everyone you meet on Taleshore — they have plenty to do!";
+    plan = "You won the First Chorus Key! A second key opens the same gate. Until it turns up, help everyone you meet on Taleshore — they have plenty to do!";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {

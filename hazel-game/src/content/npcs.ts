@@ -1785,9 +1785,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      { text: "I found the Puffin! I'm scrubbing her up. Soon she'll carry folk round Taleshore's islands again.", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
-      { text: "Ahoy! Skipper Juno. My ferry, the Puffin, used to run round Taleshore's islands. Then a storm gave me a fright.", unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
-      "You flew here? On a DRAGON? Then you're brave enough for both of us!",
+      { text: 'The Puffin is scrubbed and shining, down on the beach! Thank you for walking with me.', ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: "Next time a storm gives me a fright, I'll think of you and your dragon!", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: "You flew here? On a DRAGON? Then you're brave enough for both of us!", unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
     ],
   },
   'port-merchant': {
@@ -1907,7 +1907,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       { text: '⛵ The Puffin, Skipper Juno\'s little ferry. A bit sandy, but not one plank missing.', unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
-      { text: '⛵ The Puffin, scrubbed and shining. Juno says she\'ll sail again very soon!', ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: '⛵ The Puffin, scrubbed and shining. She looks happy to be near the sea again.', ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
     ],
   },
   'drift-sandy': {
@@ -1945,7 +1945,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "Hello there! I'm Lo. I'm drawing a map of every island in the Starfall Sea. These six took me a whole year!",
       { text: 'Careful! The Compass Golem stands in the stone circle, just south of me. It guards the First Chorus Key.', unlessFlag: keyFlag('chorus-a') },
-      { text: 'Answer its questions about places in the world, and it might give the key away. Rest at the inn in Port Lantern first!', unlessFlag: keyFlag('chorus-a') },
+      { text: 'Answer its questions about places in the world, and it might give the key away. If you\'re hurt, fly back to the Driftlight Inn first!', unlessFlag: keyFlag('chorus-a') },
       { text: 'You beat the Compass Golem! Now its needle points every way at once. I\'ll have to redraw my map.', ifFlag: keyFlag('chorus-a') },
     ],
   },
@@ -2000,8 +2000,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🪁',
     role: 'merchant',
     lines: [
-      "Kites! Kites! The windiest island in the world makes the best kites. I'm Tass, and these are mine!",
-      'The wind steals every kite I make! So I make Kite Badges instead. They never blow away.',
+      "Kites! Well, kite BADGES. I'm Tass. The windiest island in the world blows real kites away!",
+      'Kite Badges never blow away. And I keep Berry Potions for travelers — this island has no inn!',
     ],
   },
   // Old Pike fishes off the north dock (15c review): Port Lantern's harbor has people on it.

@@ -2654,6 +2654,10 @@ def gravity_beetle(c: Canvas, p: Pose, s: dict):
     B = d.part(lean, bob + lift)
     B.ellipse(15, 15.5, 9, 6.4, col)  # closed, domed shell: no wings
     B.line(8, 14.6, 22.5, 12.8, light(col, 0.2), w=0.35)  # shell seam
+    if s.get('land'):
+        # A globe (#75 item 15d review): green lands on its blue shell.
+        for (x, y, rx, ry) in ((11, 14, 2.6, 1.8), (17.5, 12, 2.2, 1.6), (19, 17, 1.8, 1.4), (13.5, 18, 1.6, 1.1)):
+            B.ellipse(x, y, rx, ry, '#5ab04a', shade=False)
     B.ellipse(12, 12.4, 3.2, 1.4, light(col, 0.3), shade=False)  # glossy shine
     if d.sep:
         for (x, y) in ((9.5, 16.5), (14, 18.5), (18.5, 16.5), (16.5, 11.5), (11.5, 19)):  # starry speckles
@@ -2969,8 +2973,13 @@ def kite_ray(c: Canvas, p: Pose, s: dict):
     B.line(16, 4, 16, 22, dark(col, 0.25), w=0.5)  # the kite's cross-sticks
     B.line(5, 14 + flap, 27, 14 + flap, dark(col, 0.25), w=0.5)
     d.put(B)
+    F = d.part(d.lean, d.bob - 3)  # a ray's face: big eyes and a smile
     if p.facing != 'up':
-        d.eyes(B, [(13.6, 14), (18.4, 14)])
+        for x in (12.8, 19.2):
+            F.ellipse(x, 12.6, 1.9, 1.9, '#ffffff', shade=False)
+            F.dot(x + 0.4, 12.8, '#1a1a24', w=2, h=2)
+        F.line(14.4, 16.4, 17.6, 16.4, dark(col, 0.45), w=0.6)
+    d.put(F, outline=False)
     Tl = d.part(d.lean, d.bob - 3)
     sway = 1.5 if p.frame % 2 else -1.5
     Tl.line(16, 22, 16 + sway, 26.5, dark(col, 0.3), w=0.6)
@@ -3666,9 +3675,9 @@ ROSTER: list[Char] = [
     Char('tide-snail', '🐌', 'snail', H(color='#d8c8a8', shell='#3a8ab8')),
     Char('marker-post', '🚩', 'marker_post', H(color='#a8743e', flag='#e04040')),
     Char('latitude-cat', '🐈', 'cat', H(fur='#e8963a', stripe='#3a7ac8')),
-    Char('globe-beetle', '🪲', 'gravity_beetle', H(color='#2a8ac8')),
+    Char('globe-beetle', '🪲', 'gravity_beetle', H(color='#2a8ac8', land=True)),
     Char('zephyr-pup', '🌬️', 'cloud_pup', H(color='#e8f2fa')),
-    Char('kite-ray', '🪁', 'kite_ray', H(color='#e05050', bow='#ffd23a')),
+    Char('kite-ray', '🎏', 'kite_ray', H(color='#e05050', bow='#ffd23a')),
     Char('squall-chick', '🐤', 'flyer', H(kind='bird', color='#ffd23a')),
     Char('compass-golem', '🗿', 'golem', H(color='#8a8a7a', accent='#d03a3a', glow='#ffd24a', runes=True, compass=True), boss=True),
 ]
@@ -3804,7 +3813,7 @@ NPCS: list[Char] = [
     Char('way-pebble', '🐧', 'humanoid', H(skin='#2a2a3a', snout='beak', beak='#f0a030', outfit='#f4f4f8', blush=False)),
     Char('way-drift', '✏️', 'humanoid', H(hair='spiky', hair_color='#e8c040', outfit='#e05050', scarf='#3a6ab0', pants='#3a3a5a', item='book')),
     Char('gale-sough', '🌬️', 'humanoid', H(hair='long', hair_color='#d8e8f4', outfit='#6aa0c8', trim='#ffffff', robe=True, item='staff', item_color='#c8e0f0')),
-    Char('gale-gully', '🕊️', 'flyer', H(kind='bird', color='#f4f2f8')),
+    Char('gale-gully', '🕊️', 'flyer', H(kind='bird', color='#f07aa8')),
     Char('gale-tass', '🪁', 'humanoid', H(hair='short', hair_color='#a83a2a', hat='bandana', hat_color='#ffd23a', outfit='#e04a4a', apron='#f4e8c8', item='brush')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
