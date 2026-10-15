@@ -2221,7 +2221,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Taleshore II (#75 item 15e): the reef at the end of the north road, and
       // the cove of black water in the east coast, along the road's branch.
       { x: 41, y: 3, icon: 'reef', name: 'Story Reef' },
-      { x: 51, y: 17, icon: 'inkwell', name: 'Inkwell Cove' },
+      { x: 48, y: 17, icon: 'inkwell', name: 'Inkwell Cove' },
     ],
     exits: [
       { x: 28, y: 21, to: 'port-lantern', spawnX: 32, spawnY: 11 },
@@ -2229,7 +2229,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 11, y: 11, to: 'wayfinder-isles', spawnX: 21, spawnY: 1 },
       { x: 13, y: 37, to: 'gale-atoll', spawnX: 21, spawnY: 2 },
       { x: 41, y: 3, to: 'story-reef', spawnX: 21, spawnY: 1 },
-      { x: 51, y: 17, to: 'inkwell-cove', spawnX: 21, spawnY: 1 },
+      { x: 48, y: 17, to: 'inkwell-cove', spawnX: 21, spawnY: 1 },
     ],
     seaLinks: [{ side: 'west', to: 'silver-shallows' }],
   },
@@ -2579,8 +2579,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
   },
   // Inkwell Cove (#75 item 15e): a cove of black, inky water on Taleshore's east
-  // coast. Barnacle Bess's shell shop by the landing, Scrivener Dot by the path,
-  // and the Riddle Leviathan on the rocky point — the Second Chorus Key.
+  // coast. Barnacle Bess's shell shop by the road in, Scrivener Dot by the path,
+  // and the Riddle Leviathan at the tip of the sandy point, guarding the chest — the Second Chorus Key.
   'inkwell-cove': {
     id: 'inkwell-cove',
     name: 'Inkwell Cove',
@@ -2601,7 +2601,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#####..............,...::=~~~~~~~~~~~~~~~~~#',
       '#####....#.............::=~#~~~#~~~~~~~~~~~#',
       '#####..................::=::::::::::~~~~~~~#',
-      '#####........,.........:~::::::::::::C:~~~~#',
+      '#####........,.........:~:::::::::::::C~~~~#',
       '#####.............#....:~::::::::::::::~~~~#',
       '#####.....,............:~:::::::::::~~~~~~~#',
       '#####...........,......:~~#~~~~~~~#~~~~~~~~#',
@@ -2637,13 +2637,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'cuttle-scribe', x: 35, y: 3 },
       { defId: 'margin-shrimp', x: 28, y: 2 },
       { defId: 'margin-shrimp', x: 9, y: 17 },
-      // On the rocky point out in the cove.
-      { defId: 'riddle-leviathan', x: 32, y: 14 },
+      // At the tip of the sandy point, in front of the chest — out of the ink (15e review).
+      { defId: 'riddle-leviathan', x: 36, y: 14 },
     ],
     exits: [
       // Back up the path, just west of the cove's icon on Taleshore.
-      { x: 21, y: 0, to: 'taleshore', spawnX: 50, spawnY: 17 },
-      { x: 22, y: 0, to: 'taleshore', spawnX: 50, spawnY: 17 },
+      { x: 21, y: 0, to: 'taleshore', spawnX: 47, spawnY: 17 },
+      { x: 22, y: 0, to: 'taleshore', spawnX: 47, spawnY: 17 },
     ],
   },
 };

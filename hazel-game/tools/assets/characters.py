@@ -305,7 +305,15 @@ def humanoid(c: Canvas, p: Pose, s: dict):
 
     # --- legs
     legs = d.part(up, 0)
-    if not robe:
+    if s.get('mermaid'):
+        # Verse (#75 item 15e): a mermaid's fish tail where the legs would be, a fin at its tip.
+        mt = hexc(s['mermaid'])
+        legs.poly([(11.5, 24), (20.5, 24), (19, 28), (16.5, 30)], mt)
+        legs.poly([(16.5, 29), (12, 31.4), (14.5, 28.4)], light(mt, 0.15))
+        legs.poly([(16.5, 29), (21, 31.4), (18.6, 28.4)], light(mt, 0.15))
+        for y in (25.6, 27.2):
+            legs.line(13.4, y, 18.6, y, dark(mt, 0.25), w=0.4)
+    elif not robe:
         for i, lx in enumerate((13.2, 18.2)):
             off = p.step * (1.8 if i == 1 else -1.8)
             lift = 1 if (p.step != 0 and ((i == 1) == (p.step > 0))) else 0
@@ -525,11 +533,20 @@ def humanoid_fb(c: Canvas, p: Pose, s: dict):
     for i, lx in enumerate((13.6, 18.4)):
         lift = 1 if (p.step == 1 and i == 0) or (p.step == -1 and i == 1) else 0
         col = pants if (i == 1) == front else dark(pants, 0.08)
+        if s.get('mermaid'):
+            break
         if robe:
             legs.rect(lx - 1.8, 28 - lift, lx + 1.8, 30.5 - lift, boots)
         else:
             legs.rect(lx - 1.8, 24.5, lx + 1.8, 29 - lift, col)
             legs.rect(lx - 2.0, 28 - lift, lx + 2.0, 30.5 - lift, boots)
+    if s.get('mermaid'):
+        mt = hexc(s['mermaid'])
+        legs.poly([(11.5, 24), (20.5, 24), (18.5, 29), (13.5, 29)], mt)
+        legs.poly([(16, 28.4), (10.5, 31.4), (13.4, 28)], light(mt, 0.15))
+        legs.poly([(16, 28.4), (21.5, 31.4), (18.6, 28)], light(mt, 0.15))
+        for y in (25.6, 27.2):
+            legs.line(13.4, y, 18.6, y, dark(mt, 0.25), w=0.4)
     d.put(legs)
 
     # --- arms (swing opposite the lifted leg)
@@ -829,6 +846,13 @@ def blob(c: Canvas, p: Pose, s: dict):
             L.ellipse(x, y, r, r * 0.85, WHITE)
     if s.get('crest'):
         L.poly([(9, cy - ry + 3), (15, cy - ry - 5), (17, cy - ry), (23, cy - ry - 2), (22, cy - ry + 3)], light(col, 0.15))
+    if s.get('splat'):
+        # Blot (#75 item 15e): an ink splat — drips and spatters round its edge, a shine on top.
+        for (x, y, r) in ((5, cy + 3, 2.4), (27, cy + 2, 2.2), (9, cy - ry + 1, 1.8), (24, cy - ry + 2, 1.6), (16, cy - ry - 1.5, 1.5)):
+            L.ellipse(x, y, r, r, col)
+        for (x, y) in ((2.5, cy - 4), (29.5, cy - 3), (20, cy - ry - 4)):
+            L.dot(x, y, col, w=1.6, h=1.6)
+        L.ellipse(12, cy - 3.5, 2.6, 1.4, light(col, 0.45), shade=False)
     if s.get('symbol') == 'plus':
         L.rect(12.5, cy + 1, 15.5, cy + 2, WHITE, shade=False)
         L.rect(13.5, cy, 14.5, cy + 3, WHITE, shade=False)
@@ -955,6 +979,34 @@ def flyer(c: Canvas, p: Pose, s: dict):
 
 
 # ─── Crab ────────────────────────────────────────────────────────────────────
+
+
+def shrimp(c: Canvas, p: Pose, s: dict):
+    """A Margin Shrimp (#75 item 15e): a curled, segmented shrimp — a fan tail
+    tucked under, little legs, long feelers sweeping forward, no claws."""
+    d = D(c, p)
+    col = hexc(s['color'])
+    flick = 1.2 if p.frame % 2 else 0.0
+    L = d.part(d.lean, d.bob)
+    # The body: overlapping segments in a curve, head on the right, tail curling under on the left.
+    segs = ((22, 17, 5.2, 4.6), (17.5, 15.6, 4.6, 4.4), (13, 16.2, 4.2, 4.0), (9.4, 18.6, 3.6, 3.4), (7.4, 22, 3.0, 2.8))
+    for (x, y, rx, ry) in segs:
+        L.ellipse(x, y, rx, ry, col)
+    for (x, y, _rx, ry) in segs[1:]:
+        L.line(x + 1.2, y - ry + 0.6, x + 1.8, y + ry - 0.8, dark(col, 0.22), w=0.5)
+    L.poly([(7.4, 24), (3.4, 27 + flick), (7.6, 26.2), (11.4, 27.8 + flick)], light(col, 0.12))  # the fan tail
+    for i, lx in enumerate((12, 15, 18, 21)):
+        wig = 0.8 if (i + p.frame) % 2 else -0.8
+        L.line(lx, 19.5, lx + wig, 23.5, dark(col, 0.15), w=0.7)
+    L.poly([(25.5, 14.6), (29.6, 12.6), (26.6, 16.6)], dark(col, 0.08))  # a pointy rostrum
+    d.eyes(L, [(23.4, 14.4)])
+    d.put(L)
+    F = d.part(d.lean, d.bob)
+    sweep = -1.5 if p.arm in ('raise', 'strike') else 0.0
+    for (y0, x1, y1) in ((13.4, 31, 4 + sweep), (14.2, 31.5, 9 + sweep)):
+        F.line(24.5, y0, x1, y1, dark(col, 0.3), w=0.4)
+    d.put(F, outline=False)
+    finish(c, d)
 
 
 def crab(c: Canvas, p: Pose, s: dict):
@@ -1450,6 +1502,17 @@ def whale(c: Canvas, p: Pose, s: dict):
     L.line(24, 22.5, 28, 22, dark(col, 0.45), w=0.6)
     if s.get('crown'):
         L.poly([(9, 13.5), (9, 9), (12, 11.5), (14.5, 7.5), (17, 11.5), (20, 8.5), (20, 13.5)], '#ff8fa3')
+    if s.get('leviathan'):
+        # The Riddle Leviathan (#75 item 15e): a long serpent tail curling up behind it,
+        # a row of fin-spikes along its back, and ink dripping from its jaw.
+        L.line(3, 20, 1, 13, col, w=3.2)
+        L.line(1, 13, 4, 6, col, w=2.6)
+        L.line(4, 6, 9, 4, col, w=2.0)
+        L.poly([(9, 4), (12, 1.5 + wave), (11, 5.4)], dark(col, 0.1))
+        for x in (11, 15, 19):
+            L.poly([(x - 1.6, 13.2), (x, 9.6), (x + 1.6, 13.2)], dark(col, 0.2))
+        for (x, y) in ((26, 25), (24.5, 27.5)):
+            L.ellipse(x, y, 0.9, 1.4, '#14142a', shade=False)
     if s.get('qmarks'):
         # The Riddle Leviathan (#75 item 15e): pale "?"s written along its inky side, a silver key on its tail.
         for (x, y) in ((8.5, 18), (13, 16.5)):
@@ -1491,9 +1554,28 @@ def octopus(c: Canvas, p: Pose, s: dict):
     if s.get('brow') and ex and not p.hurt:
         L.line(ex[0] - 1.2, 10.8, ex[0] + 1.2, 11.8, dark(col, 0.5), w=0.8)
         L.line(ex[1] + 1.2, 10.8, ex[1] - 1.2, 11.8, dark(col, 0.5), w=0.8)
-    if d.sep:
+    if s.get('fins'):
+        # A cuttlefish's frilly fin skirt round its mantle (#75 item 15e: the Cuttle-Scribe).
+        for (x, y) in ((6, 15), (7, 19), (24, 15), (23.5, 19)):
+            L.ellipse(x, y, 2.2, 1.4, light(col, 0.25), shade=False)
+    if s.get('friendly') and d.sep:
+        # Smudge (#75 item 15e): round pink cheeks and a big smile — a friend, not an Inkling.
+        L.ellipse(16, 16.4, 1.4, 1.4, '#ff9ab8', shade=False)
+        L.ellipse(23.4, 16.4, 1.4, 1.4, '#ff9ab8', shade=False)
+        L.line(18, 17.6, 21.6, 17.6, dark(col, 0.5), w=0.7)
+        L.dot(17.6, 17, dark(col, 0.5))
+        L.dot(22, 17, dark(col, 0.5))
+    elif d.sep:
         L.dot(20, 17, dark(col, 0.4), w=2, h=1)
     d.put(L)
+    if s.get('quill'):
+        # The Cuttle-Scribe writes with a white quill held in one tentacle (#75 item 15e).
+        q = d.part(d.lean, d.bob)
+        tip = (27, 5) if p.arm in ('raise', 'strike') else (26.5, 9)
+        q.line(21, 20, 24.5, 15, dark(col, 0.05), w=1.8)
+        q.poly([(24.5, 15.5), (tip[0], tip[1]), (tip[0] + 1.6, tip[1] + 1), (25.6, 16)], '#f4f4f8')
+        q.dot(24.6, 16, '#2a2440', w=1, h=1)
+        d.put(q)
     if s.get('ink') and p.arm in ('strike', 'follow'):
         # A squirt of ink ahead of it as it strikes (#75 item 14d: the Inkling).
         ink = d.part(d.lean, d.bob)
@@ -3512,6 +3594,7 @@ DRAWERS = {
     'jelly': jelly,
     'flyer': flyer,
     'crab': crab,
+    'shrimp': shrimp,
     'dragon': dragon,
     'egg': egg,
     'serpent': serpent,
@@ -3715,10 +3798,10 @@ ROSTER: list[Char] = [
     Char('word-eel', '🐍', 'serpent', H(color='#3aa088')),
     Char('riddle-jelly', '🪼', 'jelly', H(color='#c08ae8', qmark=True)),
     Char('page-ray', '📄', 'kite_ray', H(color='#f4ecd8', bow='#3a5ab0', page=True)),
-    Char('blot', '⚫', 'blob', H(color='#22223e')),
-    Char('cuttle-scribe', '🦑', 'octopus', H(color='#d8709a', ink=True)),
-    Char('margin-shrimp', '🦐', 'crab', H(color='#ff8a6a')),
-    Char('riddle-leviathan', '🐋', 'whale', H(color='#3a3a7a', qmarks=True), boss=True),
+    Char('blot', '⚫', 'blob', H(color='#22223e', splat=True)),
+    Char('cuttle-scribe', '🦑', 'octopus', H(color='#d8709a', ink=True, fins=True, quill=True)),
+    Char('margin-shrimp', '🦐', 'shrimp', H(color='#ff8a6a')),
+    Char('riddle-leviathan', '🐋', 'whale', H(color='#3a3a7a', qmarks=True, leviathan=True), boss=True),
 ]
 
 NPCS: list[Char] = [
@@ -3856,12 +3939,12 @@ NPCS: list[Char] = [
     Char('gale-tass', '🪁', 'humanoid', H(hair='short', hair_color='#a83a2a', hat='bandana', hat_color='#ffd23a', outfit='#e04a4a', apron='#f4e8c8', item='brush')),
     # Taleshore II (#75 item 15e)
     Char('reef-yarn', '🎏', 'humanoid', H(hair='bun', hair_color='#e8e0d0', hat='straw', hat_color='#e0c070', outfit='#3a8ab0', apron='#f4e8c8', item='rod', item_color='#8a6a3a')),
-    Char('reef-verse', '🧜', 'humanoid', H(hair='long', hair_color='#3ab0a0', outfit='#e86a9a', trim='#ffd860', pants='#2aa0a0')),
+    Char('reef-verse', '🧜', 'humanoid', H(hair='long', hair_color='#3ab0a0', outfit='#e86a9a', trim='#ffd860', mermaid='#2ab0a0')),
     Char('reef-bloop', '🐠', 'puffer', H(color='#ff9a3a', belly='#fff2c8')),
     Char('reef-stone', '🪨', 'nameless_stone', H(color='#a8b0b8', tale=True)),
     Char('reef-stone-lit', '🪨', 'nameless_stone', H(color='#c8d4dc', tale=True, glow='#ffd84a')),
     Char('ink-dot', '✒️', 'humanoid', H(hair='bob', hair_color='#2a2a3a', glasses=True, outfit='#3a3a6a', trim='#f4ecd8', item='book')),
-    Char('ink-smudge', '🦑', 'octopus', H(color='#6a5ab0', ink=True)),
+    Char('ink-smudge', '🦑', 'octopus', H(color='#8ac8e8', friendly=True)),
     Char('ink-bess', '🐚', 'humanoid', H(hair='long', hair_color='#e8a070', hat='bandana', hat_color='#3ab0a0', outfit='#e07a6a', apron='#f4e8d8', item='lantern')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle

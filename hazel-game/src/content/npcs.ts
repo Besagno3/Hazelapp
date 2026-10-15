@@ -1937,7 +1937,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: [
-      { text: '🪨 A smooth stone covered in faded words. They swirl like little fish, too faint to read.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
+      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe the Tale-Fisher nearby knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
       { text: "🪨 One of Yarn's tale-stones. The words on it are faint and still.", ifFlag: questOfferedFlag({ id: YARN_QUEST }) },
     ],
   },
@@ -1960,7 +1960,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: [
-      { text: '🪨 A smooth stone covered in faded words. They swirl like little fish, too faint to read.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
+      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe the Tale-Fisher nearby knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
       { text: "🪨 One of Yarn's tale-stones. The words on it are faint and still.", ifFlag: questOfferedFlag({ id: YARN_QUEST }) },
     ],
   },
@@ -1983,7 +1983,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: [
-      { text: '🪨 A smooth stone covered in faded words. They swirl like little fish, too faint to read.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
+      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe the Tale-Fisher nearby knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
       { text: "🪨 One of Yarn's tale-stones. The words on it are faint and still.", ifFlag: questOfferedFlag({ id: YARN_QUEST }) },
     ],
   },
@@ -2008,8 +2008,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     // The Riddle Leviathan's signpost (#59's pattern): a warning until its key is won.
     lines: [
       "Oh! A visitor. I'm Dot. I write down every word the cove says. It says a LOT.",
-      { text: "Out on the rocky point, the Riddle Leviathan guards the Second Chorus Key. It talks only in riddles. Even 'hello' is a riddle!", unlessFlag: keyFlag('chorus-b') },
-      { text: "Answer its word questions to win the key. If you're hurt, Bess sells Berry Potions — her shop is by the landing.", unlessFlag: keyFlag('chorus-b') },
+      { text: "At the tip of the sandy point, the Riddle Leviathan guards the Second Chorus Key. It talks only in riddles. Even 'hello' is a riddle!", unlessFlag: keyFlag('chorus-b') },
+      { text: "Answer its word questions to win the key. If you're hurt, Bess sells Berry Potions — her shop is up by the road into the cove.", unlessFlag: keyFlag('chorus-b') },
       { text: 'You beat the Riddle Leviathan! I wrote it all down. Twice. In my best letters.', ifFlag: keyFlag('chorus-b') },
     ],
   },

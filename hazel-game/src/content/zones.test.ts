@@ -1370,14 +1370,23 @@ describe('Taleshore II: the Story Reef and Inkwell Cove (#75 item 15e)', () => {
     }
   });
 
-  it('the Riddle Leviathan waits on the rocky point, reachable, a warden', () => {
+  it('the Riddle Leviathan waits at the tip of the point, a warden, in front of the chest (round 1)', () => {
     const lev = cove.enemies.find((e) => e.defId === 'riddle-leviathan')!;
     expect(touches(reach(cove), lev.x, lev.y)).toBe(true);
     expect(ENEMY_DEFS['riddle-leviathan'].role).toBe('warden');
+    // Out of the ink: water beside it.
+    expect([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => tileAt(cove, lev.x + dx, lev.y + dy) === '~')).toBe(true);
+    // Nobody reaches the chest without going through it.
+    const past = reach(cove, { blocked: (x, y) => Math.abs(x - lev.x) <= 1 && Math.abs(y - lev.y) <= 1 });
+    const chest = cove.map.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'C' ? [{ x, y }] : [])));
+    expect(chest).toHaveLength(1);
+    expect(touches(past, chest[0].x, chest[0].y)).toBe(false);
   });
 
   it("the reef's riddle-chest sits behind its gate, and the cove's on the point", () => {
     const chests = (z: ZoneDef) => z.map.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'C' ? [{ x, y }] : [])));
+    expect(chests(reef)).toHaveLength(1);
+    expect(chests(cove)).toHaveLength(1);
     for (const c of chests(reef)) {
       expect(touches(reach(reef), c.x, c.y)).toBe(false);
       expect(touches(reach(reef, { gates: 'open' }), c.x, c.y)).toBe(true);

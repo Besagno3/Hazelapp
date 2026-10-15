@@ -93,6 +93,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
 
   // A riddle step's thing asks its question (#75 item 15e).
   function askRiddle() {
+    applyLineFlag();
     const save = useSaveStore.getState().save;
     if (!quest?.riddle || !save) return;
     const topic = ZONES[save.zoneId]?.topic ?? 'words';
@@ -148,7 +149,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               onClick={advance}
               className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
             >
-              Not yet
+              Later
             </button>
           )}
           {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}

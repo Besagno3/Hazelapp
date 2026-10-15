@@ -1131,15 +1131,15 @@ export const QUESTS: QuestDef[] = [
         YARN_STONES[0],
         'reef-stone-1',
         ['🪨 A tale-stone. Faint words swirl over it like little fish.', 'A whisper comes out of the stone: "Answer my riddle, and I\'ll give back my chapter!"'],
-        'The first chapter is on the tale-stone by the tide pool, just west of here. Talk to it!',
-        '📜 The stone glows: "Once, a fish as big as an island swallowed the moon…" The words float EAST — the next stone is by the tide pool on the far east side of the reef!',
+        'The first chapter is on the tale-stone by the little pool west of Yarn, near the top of the reef. Talk to it!',
+        '📜 Chapter 1: "Once, a fish as big as an island swallowed the moon…" The words float EAST, across the road, to a tide pool. Find the next stone there!',
       ),
       riddleStep(
         YARN_STONES[1],
         'reef-stone-2',
         ['🪨 Another tale-stone. Its words shiver when you come close.', 'A whisper: "Answer my riddle, and you\'ll hear what happened next!"'],
-        'The second chapter is on the tale-stone by the tide pool on the far east side of the reef.',
-        '📜 The stone glows: "…and then the fish hiccupped stars for a whole week!" The words float SOUTH-WEST — the last stone is out on the sandbar in the sea!',
+        'The second chapter is on the tale-stone by the tide pool east of the road.',
+        '📜 Chapter 2: "…and then the fish hiccupped stars for a whole week!" The words float SOUTH-WEST, to the sandbar in the sea. The last stone is there!',
         true,
       ),
       riddleStep(
@@ -1147,7 +1147,7 @@ export const QUESTS: QuestDef[] = [
         'reef-stone-3',
         ['🪨 The last tale-stone, out on the sandbar. Waves splash its words.', 'A whisper: "Answer my riddle, and the tale is whole again!"'],
         'The last chapter is on the tale-stone out on the sandbar, in the south-west corner of the reef.',
-        '📜 The stone glows: "…and that is why the sea sparkles at night." The whole tale is back! Go and tell Yarn.',
+        '📜 Chapter 3: "…and that is why the sea sparkles at night." The whole tale is back! Go and tell Yarn.',
         true,
       ),
     ],
@@ -1576,9 +1576,16 @@ export function riddleSolvedLine(stepId: string): string | null {
   return null;
 }
 
-/** Is this the id of a riddle step (#75 item 15e)? */
-export function isRiddleStep(stepId: string): boolean {
-  return riddleSolvedLine(stepId) !== null;
+/**
+ * A riddle answered right (#75 item 15e): its step is done — but only while it
+ * is still the step due in an offered, unfinished quest (a stale question
+ * never finishes a step out of turn).
+ */
+export function solveRiddle(save: SaveData, stepId: string): SaveData {
+  const due = QUESTS.some(
+    (q) => save.flags[questOfferedFlag(q)] && !save.flags[questDoneFlag(q)] && activeStep(q, save)?.id === stepId && activeStep(q, save)?.riddle,
+  );
+  return due ? { ...save, flags: { ...save.flags, [stepFlag(stepId)]: true } } : save;
 }
 
 /** What a chest gives, for its "pops open" line: "25 coins! 🪙" or "25 coins and the 🌙 Moonstone!". */

@@ -766,6 +766,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15e review round 1: clues that point the right way, a Leviathan in the way (#75 item 15e, #139h)
+Fresh code (7 low/nit) and UX (2 high, 7 medium, 6 low) reviews, all fixed:
+the tale-stones' hints and clues name real places ("Chapter N:"), a wrong
+answer says to talk to the stone again, "Later", `solveRiddle` finishes only
+a riddle that's due, the Leviathan at the point's tip in front of the chest,
+the cove's icon clear of the map's edge, the 🚩 plan's directions; a shrimp
+drawer, a curled-tail Leviathan, a quill-armed Cuttle-Scribe, a friendly
+Smudge, an ink-splat Blot, a mermaid Verse, ink on the cove's ground. Tests
++3; 1244 green; `bench … fly` 20/20, `bench … journey` 13/13 (before the fixes).
+
 ### 2026-10-15 — Taleshore II: the Story Reef and Inkwell Cove (#75 item 15e, #139)
 Roadmap sub-item 15e (branch stacked on 15d's).
 - **Two places on Taleshore**, both walked to: the Story Reef at the end of a

@@ -159,11 +159,11 @@ describe("a tale-stone's riddle (#75 item 15e)", () => {
     expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
   });
 
-  it('"Not yet" walks away without asking', () => {
+  it('"Later" walks away without asking', () => {
     onReef({ 'quest:yarn-tale:offered': true });
     render(<DialogueOverlay npcId="reef-stone-1" />);
     fireEvent.click(screen.getByText('▼ Next'));
-    fireEvent.click(screen.getByText('Not yet'));
+    fireEvent.click(screen.getByText('Later'));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
     expect(sendFlow).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'OPEN_PATH' }));
   });

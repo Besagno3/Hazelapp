@@ -6,7 +6,7 @@ import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
-import { chestRewardText, chestWantedLine, openChest, riddleSolvedLine, stepFlag } from '../../content/quests';
+import { chestRewardText, chestWantedLine, openChest, riddleSolvedLine, solveRiddle } from '../../content/quests';
 import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
@@ -35,9 +35,12 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const level = skillLevelFor(profile?.skillLevels ?? {}, target.topic, age);
 
   const [solved, setSolved] = useState(false);
+  // Any answer picked (a wrong one too) — a tale-stone then says what to do next (15e review).
+  const [answered, setAnswered] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
-  const flavor = target.kind === 'gate' ? 'gate' : 'chest';
+  // A tale-stone's riddle reads as a challenge on the path, not a treasure chest's (15e review).
+  const flavor = target.kind === 'chest' ? 'chest' : 'gate';
 
   // Loading derives from a request/fetched key mismatch (no setState-in-effect).
   const requestKey = `${target.id}|${level}|${attempt}`;
@@ -69,6 +72,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
 
   const onAnswered = useCallback(
     (correct: boolean) => {
+      setAnswered(true);
       if (!correct) return;
       setSolved(true);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
@@ -78,7 +82,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         update((s) => ({ ...s, flags: { ...s.flags, [gateFlag(target.id)]: true } }));
       } else if (target.kind === 'riddle') {
         sfx('gate');
-        update((s) => ({ ...s, flags: { ...s.flags, [stepFlag(target.id)]: true } }));
+        update((s) => solveRiddle(s, target.id));
       } else {
         sfx('chest');
         // Coins, plus the quest item in a key-item chest (#75 item 13).
@@ -150,11 +154,23 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
             hints={hints}
             onUseHint={spendHint}
             onAnswered={onAnswered}
-            continueLabel={solved ? `✨ ${successText}` : 'Hmm… I’ll come back!'}
+            continueLabel={solved ? `✨ ${successText}` : target.kind === 'riddle' ? 'Hmm… I’ll try again!' : 'Hmm… I’ll come back!'}
             onContinue={() => sendFlow({ type: 'CLOSE' })}
             // A key item found before its quest (#75 item 13): say who wants it,
             // above the button, so it's read before the overlay closes.
-            note={target.kind === 'chest' || target.kind === 'riddle' ? (solved && wanted ? wanted : '') : undefined}
+            note={
+              target.kind === 'riddle'
+                ? solved
+                  ? (wanted ?? '')
+                  : answered
+                    ? 'The stone stays dim. Talk to it again for a new riddle!'
+                    : ''
+                : target.kind === 'chest'
+                  ? solved && wanted
+                    ? wanted
+                    : ''
+                  : undefined
+            }
           />
         )}
       </div>

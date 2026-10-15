@@ -29,6 +29,8 @@ const plainChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'c
 function withFlags(flags: Record<string, boolean>) {
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
 }
+/** Yarn has asked: the first tale-stone's riddle is due. */
+const YARN_ASKED = { 'quest:yarn-tale:offered': true };
 
 beforeEach(() => withFlags({}));
 
@@ -74,22 +76,33 @@ describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
   const stone: PathTarget = { kind: 'riddle', id: 'yarn-stone-1', topic: 'words', zoneId: 'story-reef' };
 
   it('a right answer lights the stone (its step) and says where the next one is, above the button', async () => {
+    withFlags(YARN_ASKED);
     render(<PathQuestionOverlay target={stone} />);
     expect(screen.getByRole('heading', { name: /tale-stone asks a riddle/ })).toBeInTheDocument();
     fireEvent.click(await screen.findByText('Right'));
     expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBe(true);
     const status = screen.getByRole('status');
-    expect(status).toHaveTextContent(/far east side of the reef/);
+    expect(status).toHaveTextContent(/^📜 Chapter 1:.*across the road/);
     const button = screen.getByRole('button', { name: /The stone glows!/ });
     expect(status.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // No coins: a stone isn't a chest.
     expect(useSaveStore.getState().save!.coins).toBe(0);
   });
 
-  it('a wrong answer leaves it dim, with no clue', async () => {
+  it('a wrong answer leaves it dim and says to ask again (round 1)', async () => {
+    withFlags(YARN_ASKED);
     render(<PathQuestionOverlay target={stone} />);
-    fireEvent.click(await screen.findByText('Wrong B'));
-    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
+    const wrong = await screen.findByText('Wrong B');
     expect(screen.getByRole('status')).toHaveTextContent('');
+    fireEvent.click(wrong);
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
+    expect(screen.getByRole('status')).toHaveTextContent('The stone stays dim. Talk to it again for a new riddle!');
+    expect(screen.getByRole('button', { name: /try again/ })).toBeInTheDocument();
+  });
+
+  it('a stale riddle (its step no longer due) finishes nothing (round 1)', async () => {
+    render(<PathQuestionOverlay target={stone} />); // Yarn hasn't asked
+    fireEvent.click(await screen.findByText('Right'));
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
   });
 });

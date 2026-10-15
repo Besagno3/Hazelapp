@@ -22,7 +22,7 @@ import {
   escortsAway,
   escortsBackLines,
   riddleSolvedLine,
-  isRiddleStep,
+  solveRiddle,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
 import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
@@ -957,11 +957,10 @@ describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
     expect(quest.steps.map((st) => st.npc?.id)).toEqual(stones);
     expect(quest.steps.every((st) => st.riddle)).toBe(true);
     // Each right answer points at the next stone's place, and the last sends you home to Yarn.
-    expect(riddleSolvedLine(YARN_STONES[0])).toMatch(/far east side of the reef/);
+    expect(riddleSolvedLine(YARN_STONES[0])).toMatch(/EAST, across the road, to a tide pool/);
     expect(riddleSolvedLine(YARN_STONES[1])).toMatch(/sandbar/);
     expect(riddleSolvedLine(YARN_STONES[2])).toMatch(/tell Yarn/);
-    expect(isRiddleStep(YARN_STONES[0])).toBe(true);
-    expect(isRiddleStep('juno-walk')).toBe(false);
+    expect(riddleSolvedLine('juno-walk')).toBeNull();
   });
 
   it("a stone talked to on its turn asks its riddle — the step finishes only on the answer", () => {
@@ -978,15 +977,18 @@ describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
     expect(questConversation('reef-stone-2', { ...defaultSave(), zoneId: 'story-reef' })).toBeNull();
     const early = questConversation('reef-stone-3', offered())!;
     expect(early.finishKind).toBeNull();
-    expect(early.lines[0]).toMatch(/^Not this one yet! The first chapter is on the tale-stone by the tide pool/);
+    // Said at another stone, so it names the place, not "here" (round 1).
+    expect(early.lines[0]).toMatch(/^Not this one yet! The first chapter is on the tale-stone by the little pool west of Yarn/);
+    expect(early.lines[0]).not.toMatch(/here/);
   });
 
   it('answered in order, Yarn pays 45 coins and a Hint Feather', () => {
     let save = offered();
     for (const [i, id] of YARN_STONES.entries()) {
       expect(questConversation(stones[i], save)!.riddle).toBe(id);
-      // The right answer (PathQuestionOverlay) sets the step's flag.
-      save = { ...save, flags: { ...save.flags, [stepFlag(id)]: true } };
+      // The right answer (PathQuestionOverlay) finishes the step.
+      save = solveRiddle(save, id);
+      expect(save.flags[stepFlag(id)]).toBe(true);
     }
     const { coins, items } = save;
     save = converse('reef-yarn', save);
@@ -995,5 +997,18 @@ describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
     expect(save.items.hint).toBe(items.hint + 1);
     // A lit stone is just a stone again.
     expect(questConversation('reef-stone-1', save)).toBeNull();
+  });
+});
+
+describe('solveRiddle (#75 item 15e, round 1)', () => {
+  it('finishes only the riddle step due now — never one out of turn, before the offer or after the quest', () => {
+    const fresh = { ...defaultSave(), zoneId: 'story-reef' as const };
+    expect(solveRiddle(fresh, YARN_STONES[0])).toBe(fresh); // not offered yet
+    const offered = converse('reef-yarn', fresh);
+    expect(solveRiddle(offered, YARN_STONES[1])).toBe(offered); // out of turn
+    expect(solveRiddle(offered, 'juno-walk')).toBe(offered); // not a riddle
+    const one = solveRiddle(offered, YARN_STONES[0]);
+    expect(one.flags[stepFlag(YARN_STONES[0])]).toBe(true);
+    expect(solveRiddle(one, YARN_STONES[0])).toBe(one); // already done
   });
 });

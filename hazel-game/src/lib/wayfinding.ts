@@ -597,7 +597,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-a') {
     plan = `On the Wayfinder Isles, out at sea north-west of Port Lantern, ${midSentence(goal.key.bossName)} guards the ${goal.key.name}. It knows every place in the world. Show it you do too!`;
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-b') {
-    plan = `You have the First Chorus Key! The second waits in Inkwell Cove, on Taleshore's east coast. ${capitalize(midSentence(goal.key.bossName))} guards it, and it speaks only in riddles. Take the road north from Port Lantern, then turn east!`;
+    plan = `You have the First Chorus Key! ${capitalize(midSentence(goal.key.bossName))} guards the second in Inkwell Cove. Follow the road east from Port Lantern, then north. Take the first road east!`;
   } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
     // Act II's key (#75 item 14f): no Fiend to name yet.
     plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;

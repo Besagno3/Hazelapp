@@ -187,7 +187,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   blot: { id: 'blot', name: 'Blot', sprite: '⚫', topic: 'words', levelOffset: -1, hpPerLevel: 10 },
   'cuttle-scribe': { id: 'cuttle-scribe', name: 'Cuttle-Scribe', sprite: '🦑', topic: 'words', levelOffset: 0, hpPerLevel: 13, behavior: 'healer' },
   'margin-shrimp': { id: 'margin-shrimp', name: 'Margin Shrimp', sprite: '🦐', topic: 'words', levelOffset: 1, hpPerLevel: 12 },
-  // The warden of Inkwell Cove's rocky point: beat it for the Second Chorus Key (keys.ts).
+  // The warden at the tip of Inkwell Cove's sandy point: beat it for the Second Chorus Key (keys.ts).
   'riddle-leviathan': { id: 'riddle-leviathan', name: 'The Riddle Leviathan', sprite: '🐋', topic: 'words', levelOffset: 1, hpPerLevel: 17, isBoss: true, role: 'warden' },
 };
 
@@ -211,7 +211,7 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   'compass-golem': ['The Compass Golem spins its needle — NORTH, SOUTH, NORTH!', 'The Compass Golem booms: "ALL DIRECTIONS LEAD TO ME!"'],
   // It speaks only in riddles (STORY-4X), even when it's angry.
   'riddle-leviathan': [
-    'The Riddle Leviathan rises out of the ink: "What gets BIGGER the more you take away? A HOLE — like the one I\'ll leave in your score!"',
+    'The Riddle Leviathan rises out of the ink: "What gets BIGGER the more you take away? A HOLE — like the one in your plan!"',
     'The Riddle Leviathan thrashes the black water: "What has no voice, yet SHOUTS from every page? MY WORDS! Now answer ME!"',
   ],
 };
