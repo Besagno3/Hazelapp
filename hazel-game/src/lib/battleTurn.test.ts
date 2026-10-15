@@ -256,14 +256,17 @@ describe('resolveSpell', () => {
     const start = { ...base, charge: 4, enemyShielded: true };
     const r = resolveSpell(start, call, true);
     if (r.kind !== 'strike') throw new Error('not a strike');
-    // As BattleArena's cast does: give back what the cast spent, less what it sang back.
-    const hit = resolveHeroHit(r.state, 50, { isBoss: false, refundCharge: call.cost - r.refunded });
+    // BattleArena hands the shield `shieldRefund`: the charge ends where it began.
+    expect(r.shieldRefund).toBe(call.cost - 1);
+    const hit = resolveHeroHit(r.state, 50, { isBoss: false, refundCharge: r.shieldRefund });
     expect(hit.outcome).toBe('shield-broken');
     expect(hit.state.charge).toBe(start.charge);
-    // From 2◆, refunding the whole cost on top of the song would end one ◆ up.
-    const low = resolveSpell({ ...start, charge: 3 }, call, true);
-    expect(resolveHeroHit(low.state, 50, { isBoss: false, refundCharge: call.cost - (low.kind === 'strike' ? low.refunded : 0) }).state.charge).toBe(3);
-    expect(resolveHeroHit(low.state, 50, { isBoss: false, refundCharge: call.cost }).state.charge).toBe(4);
+    // Any strike: a shield's refund puts the charge back exactly.
+    for (const spell of [sageSpell('math'), sageSpell('history'), EMBER_BREATH]) {
+      const s = resolveSpell(start, spell, true);
+      if (s.kind !== 'strike') throw new Error('not a strike');
+      expect(resolveHeroHit(s.state, 50, { isBoss: false, refundCharge: s.shieldRefund }).state.charge, spell.id).toBe(start.charge);
+    }
   });
 
   it('a refund never fills the gauge past full', () => {

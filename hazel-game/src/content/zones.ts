@@ -2887,9 +2887,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     keyGate: { x: 21, y: 8 },
     // Coda's three refrains (#75 item 15g), blown into chests when the island went quiet.
     keyChests: [
-      { x: 6, y: 8, item: 'refrain-sunrise', wantedBy: "🎵 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
-      { x: 37, y: 8, item: 'refrain-noon', wantedBy: "🎵 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
-      { x: 9, y: 22, item: 'refrain-bedtime', wantedBy: "🎵 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
+      { x: 6, y: 8, item: 'refrain-sunrise', wantedBy: "🎁 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
+      { x: 37, y: 8, item: 'refrain-noon', wantedBy: "🎁 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
+      { x: 9, y: 22, item: 'refrain-bedtime', wantedBy: "🎁 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
     ],
   },
 };

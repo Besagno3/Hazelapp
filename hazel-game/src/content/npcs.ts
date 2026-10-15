@@ -1399,6 +1399,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: `${numberWord(actCrystals(1).length + actCrystals(2).length)} plaques shine now: ${listOf([...actCrystals(1), ...actCrystals(2)].map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
         ifFlag: HALL_DEDICATED,
+        unlessFlag: crystalFlag('words'),
+      },
+      // The sixth plaque lights with Voices (#75 item 15g review round 2).
+      {
+        text: `${numberWord(actCrystals(1).length + actCrystals(2).length + actCrystals(3).length)} plaques shine now: ${listOf([...actCrystals(1), ...actCrystals(2), ...actCrystals(3)].map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
+        ifFlag: [HALL_DEDICATED, crystalFlag('words')],
       },
       // Plants the first Sage, for Wick's and Lumen's breadcrumbs.
       'These plaques are still blank — even the very first Sage\'s. Names nobody remembers… yet.',
@@ -2398,8 +2404,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     // Her quest's offer comes first ("Coda's Lost Refrains"); these follow it.
     lines: [
-      "I'm Coda! A coda is the bit at the very END of a song. Mum says I'm always the last one home.",
-      { text: 'Now we sing the sunrise song, the noon song AND the bedtime song. Every day!', ifFlag: questDoneFlag({ id: CODA_QUEST }) },
+      { text: "I hum all three songs every day — very quietly, until the Hush Fiend is gone.", ifFlag: questDoneFlag({ id: CODA_QUEST }), unlessFlag: crystalFlag('words') },
+      { text: 'Now we sing the sunrise song, the noon song AND the bedtime song — out loud. Every day!', ifFlag: [questDoneFlag({ id: CODA_QUEST }), crystalFlag('words')] },
     ],
   },
   'chorus-cadence': {
@@ -2409,8 +2415,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      "I'm Old Cadence. I led the island's choir, before the Hush Fiend came. It lives in the hollow behind this gate.",
-      { text: "The gate has two locks — one for each Chorus Key. You'll need BOTH: the Compass Golem on the Wayfinder Isles has one, the Riddle Leviathan in Inkwell Cove the other.", unlessFlag: [keyFlag('chorus-a'), keyFlag('chorus-b')] },
+      { text: "I'm Old Cadence. I led the island's choir, before the Hush Fiend came. It lives in the hollow behind this gate.", unlessFlag: crystalFlag('words') },
+      { text: "I'm Old Cadence. The hollow behind me is empty now — just echoes!", ifFlag: crystalFlag('words') },
+      { text: 'Two locks, two Chorus Keys! The Compass Golem (Wayfinder Isles) has one; the Riddle Leviathan (Inkwell Cove) has the other.', unlessFlag: [keyFlag('chorus-a'), keyFlag('chorus-b')] },
       { text: 'You have the First Chorus Key! The other lock needs the Second — the Riddle Leviathan in Inkwell Cove has it.', ifFlag: keyFlag('chorus-a'), unlessFlag: keyFlag('chorus-b') },
       { text: 'You have the Second Chorus Key! The other lock needs the First — the Compass Golem on the Wayfinder Isles has it.', ifFlag: keyFlag('chorus-b'), unlessFlag: keyFlag('chorus-a') },
       { text: "You hold BOTH Chorus Keys! The gate is right behind me. Be brave — and be LOUD!", ifFlag: [keyFlag('chorus-a'), keyFlag('chorus-b')], unlessFlag: crystalFlag('words') },
@@ -2423,7 +2430,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🐦',
     role: 'villager',
     lines: [
-      "Tweet-tweedle-tweet-… I only remember HALF my song. The Hush Fiend shushed the rest. Tweet-…?",
+      { text: 'Tweet-tweedle-tweet-… I only remember HALF my song. The Hush Fiend shushed the rest. Tweet-…?', unlessFlag: crystalFlag('words') },
       { text: 'Tweet-tweedle-tweet-TWEEEE! I remember the WHOLE song now! Tweedle!', ifFlag: crystalFlag('words') },
     ],
     ambient: ['Tweet-tweedle-…', '♪ …?', '🐦'],

@@ -90,6 +90,8 @@ export interface Objective {
    * the Hall of Names' dedication (#75 item 14i). Default: having been there.
    */
   doneFlag?: string;
+  /** Where in the place to look, once you're there (Chorus Isle's gate up the road, 15g review). */
+  inside?: string;
   /**
    * Who to talk to for a `visit` goal met by a flag (Keeper Mnem by default;
    * Harbormaster Gale in Port Lantern, #75 item 15c review).
@@ -289,13 +291,14 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           zoneId: voices.zoneId,
           crystal: voices,
           key: keyForZone(voices.zoneId),
+          inside: "The Hush Fiend's gate is at the top of the road, past Old Cadence.",
         };
       }
       return {
         kind: 'explore',
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[MET_GALE]
-          ? 'Six crystals shine, and the Great Fogbank has thinned — boats can cross to Taleshore now! Sail or fly anywhere, and help everyone you meet.'
+          ? 'Six crystals shine, and the Great Fogbank has thinned — boats from the Silver Shallows can sail to Taleshore now! Check 📜 Menu for quests you haven\'t finished.'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -425,6 +428,9 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
  * of a place onto the overworld needs no words. Null when there's no way.
  */
 /** Places named as many ("land beside them") — not every name ending in s (the Shrine of Quiet Paws, 15d review). */
+/** Islands you're "on", not "in" (15g review). */
+const ON_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['chorus-isle', 'gale-atoll']);
+
 const PLURAL_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['wayfinder-isles', 'whispering-woods', 'clockwork-depths']);
 
 export function routeSteps(
@@ -453,7 +459,11 @@ export function routeSteps(
   let stairsRun: { way: 'down' | 'up'; floors: number } | null = null;
   // A route over the Great Fogbank is flown all the way, on Ember: the seas
   // before and after it too — no boat waits on Taleshore (15c review).
-  const flying = stranded || route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to, flags));
+  // Leaving Taleshore by sea is flown even once the fog thins (15g review round
+  // 2): Ember brought the hero there, and the boat waits at Marlow's dock. (A
+  // hero who sailed over can still fly home — Taleshore is only reached on Ember.)
+  const offTaleshore = overworldOf(zones, from).id === 'taleshore';
+  const flying = stranded || offTaleshore || route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to, flags));
   for (const { from: id, exit } of route) {
     const z = zones[id];
     const dest = zones[exit.to];
@@ -523,7 +533,10 @@ export function goalDirections(
   flags: Record<string, boolean> | null = null,
 ): string {
   if (!goal.zoneId) return '';
-  if (goal.zoneId === here) return `It's right here in ${placeName(zones[here])}!`;
+  if (goal.zoneId === here) {
+    const where = `It's right here ${ON_PLACES.has(here) ? 'on' : 'in'} ${placeName(zones[here])}!`;
+    return goal.inside ? `${where} ${goal.inside}` : where;
+  }
   // A goal across the sea (#75 item 14): the way to where it starts, then sail
   // — unless you're already out on its sea (Eldergrove's, #75 item 14f).
   const sea = overworldOf(zones, goal.zoneId);

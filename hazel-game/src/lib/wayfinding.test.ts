@@ -124,6 +124,13 @@ describe('nextObjective', () => {
     expect(nextObjective(chorusBoth)).toMatchObject({ kind: 'crystal', zoneId: 'chorus-isle', title: 'Free the Crystal of Voices' });
     expect(nextObjective(chorusBoth).key?.id).toBe('chorus-a');
     expect(nextObjective(voicesFreed)).toMatchObject({ kind: 'explore', zoneId: null });
+    // On the isle, the way says where the gate is (round 2), and an island is "on".
+    expect(goalDirections(ZONES, nextObjective(chorusBoth), 'chorus-isle')).toBe("It's right here on Chorus Isle! The Hush Fiend's gate is at the top of the road, past Old Cadence.");
+    expect(goalDirections(ZONES, nextObjective({}), 'numbria')).toBe("It's right here in Numbria!");
+    // Off Taleshore after the fog thins, the way home is still flown — the boat is at Marlow's dock (round 2).
+    const home = routeSteps(ZONES, 'chorus-isle', 'remembrance-hill', undefined, voicesFreed)!;
+    expect(home.filter((st) => st.startsWith('sail'))).toEqual([]);
+    expect(home.some((st) => st.startsWith('fly west to the Silver Shallows'))).toBe(true);
   });
 
   it("Marlow's boat (#75 item 14): each friend in turn, then back to Marlow, then sail from his dock — then the Hill", () => {

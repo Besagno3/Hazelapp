@@ -140,7 +140,9 @@ export default function MenuOverlay({
             <div className="text-xs text-white/70">
               {ember === 'egg'
                 ? 'A warm egg — win a battle to hatch it!'
-                : `The last dragon of Lumina — ${EMBER_STAGE_LABEL[ember]}. Grows with each crystal!`}
+                : ember === 'radiant'
+                  ? `The last dragon of Lumina — ${EMBER_STAGE_LABEL[ember]}. She shines with all six crystals!`
+                  : `The last dragon of Lumina — ${EMBER_STAGE_LABEL[ember]}. Grows with each crystal!`}
             </div>
           </div>
         </div>

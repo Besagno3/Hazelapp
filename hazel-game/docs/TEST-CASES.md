@@ -1387,3 +1387,6 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1181 | A | ✅ | the double gate shows the key you hold (#141k) | `KeyGateOverlay.test`: with one key, 🎹🔒 and "fits one lock"; with none, the short two-locks line |
 | TC-1182 | A | ✅ | Chorus Call into a shield refunds exactly what was spent (#141l) | `battleTurn.test`: shield broken, charge back to its start; a full refund would end one ◆ up; a refund never passes full |
 | TC-1183 | M | ⬜ | the sailing footer after Voices (#141l) | sail the Shallows with Voices restored: no "go ashore, then 🐉 Fly" |
+| TC-1184 | A | ✅ | Coda's songs wait for the hush (#141m) | `zones.test`: done before Voices, Coda hums quietly; after, out loud; Cadence never warns about a beaten Fiend |
+| TC-1185 | A | ✅ | the way on Chorus Isle (#141m) | `wayfinding.test`: "It's right here on Chorus Isle! The Hush Fiend's gate is at the top of the road…"; Numbria still "in"; routes off Taleshore after Voices are flown |
+| TC-1186 | A | ✅ | a shield's refund puts the charge back (#141m) | `battleTurn.test`: `shieldRefund` for Chorus Call and every other strike returns the charge to where it began |

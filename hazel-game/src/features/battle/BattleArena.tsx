@@ -713,8 +713,8 @@ export default function BattleArena() {
     if (r.refunded > 0) later(() => float(`🎶 +${r.refunded}◆`, 'hero', spell.color), IMPACT_MS);
     const sung = r.refunded > 0 ? ` 🎶 The song sings ${r.refunded} ◆ back to you!` : '';
     heroStrike(dmg, (weak ? `${lead} It's super effective!` : lead) + sung, spell.color, {
-      // A shield takes the blow: give back what the cast spent (less what it sang back).
-      refundCharge: spell.cost - r.refunded,
+      // A shield takes the blow: the charge goes back to where it began.
+      refundCharge: r.shieldRefund,
       choreo: breath && emberActive ? EMBER_BREATH : HERO_STRIKE,
       sound: 'spell',
       superEffective: weak,

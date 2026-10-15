@@ -38,7 +38,7 @@ describe('KeyGateOverlay — the double gate on Chorus Isle (#75 item 15g)', () 
     render(<KeyGateOverlay target={gateOf('chorus-isle')} />);
     const body = document.body.textContent!;
     expect(body).toMatch(/The First Chorus Key 🎹 fits one lock!/);
-    expect(body).toMatch(/The other needs the Second Chorus Key 🎶/);
+    expect(body).toMatch(/The other needs the Second Chorus Key 🔔/);
     expect(body).toMatch(/the Riddle Leviathan \(Inkwell Cove\)/);
     expect(body).toMatch(/🎹🔒/); // the held key beside the lock still shut
     expect(screen.queryByRole('button', { name: /Use/ })).toBeNull();

@@ -76,7 +76,7 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'old-letter': { id: 'old-letter', name: 'Old Letter', emoji: '📜' },
   // Coda's Lost Refrains (#75 item 15g): three key-item chests on Chorus Isle.
   'refrain-sunrise': { id: 'refrain-sunrise', name: 'Sunrise Refrain', emoji: '🌅' },
-  'refrain-noon': { id: 'refrain-noon', name: 'Noon Refrain', emoji: '🎵' },
+  'refrain-noon': { id: 'refrain-noon', name: 'Noon Refrain', emoji: '☀️' },
   'refrain-bedtime': { id: 'refrain-bedtime', name: 'Bedtime Refrain', emoji: '🌙' },
   'wick-note': { id: 'wick-note', name: "Wick's Thank-You Note", emoji: '💌' },
 };
@@ -1296,7 +1296,7 @@ export const QUESTS: QuestDef[] = [
     giverNpcId: 'chorus-coda',
     title: "Coda's Lost Refrains",
     offer: [
-      "Hi! I'm Coda. Our island has three songs: one for sunrise, one for noon and one for bedtime.",
+      "Hi! I'm Coda — that's the bit at the very END of a song! Our island has three songs: one for sunrise, one for noon and one for bedtime.",
       'When the Hush Fiend came, all three refrains blew away! Mum thinks the wind tucked them into chests.',
       "Can you find them? One's by the top-left beach, one's by the top-right beach, and one's by the bottom-left shore. Then we'll sing them back!",
     ],
@@ -1314,7 +1314,7 @@ export const QUESTS: QuestDef[] = [
         'coda-sing-brio',
         'chorus-brio',
         [
-          '🌅 You sing the Sunrise Refrain… Maestro Brio grabs his violin and plays along! "THAT\'s the one! We woke the whole island with it!"',
+          '🌅 You sing the Sunrise Refrain… Maestro Brio plays along on his violin, very softly. "That\'s the one! We woke the whole island with it!"',
           'Next, sing the Noon Refrain to Sage Aria, in the Music Hall across the road.',
         ],
         'You found all three! Sing the Sunrise Refrain to Maestro Brio, at the Resting Note Inn.',
@@ -1323,7 +1323,7 @@ export const QUESTS: QuestDef[] = [
         'coda-sing-aria',
         'sage-aria',
         [
-          '🎵 You sing the Noon Refrain… Aria sings the harmony! ♪ Oh, how I MISSED that one! ♪',
+          '☀️ You sing the Noon Refrain… Aria hums the harmony, very softly. ♪ Oh, how I MISSED that one! ♪',
           '♪ The last one is the bedtime song… Sing it to Coda, by her cottage! ♪',
         ],
         "Sing the Noon Refrain to Sage Aria, in Aria's Music Hall.",
@@ -1333,7 +1333,7 @@ export const QUESTS: QuestDef[] = [
     doneLine: 'Last of all, sing the Bedtime Refrain to Coda, by her cottage!',
     complete: [
       '🌙 You sing the Bedtime Refrain… Coda sings it with you, very softly. Then she yawns. Then she giggles.',
-      'All three songs, home again! Tonight the whole island can sing itself to sleep.',
+      'All three songs, home again! The hush can\'t take a song you remember. When the Hush Fiend is gone, we\'ll sing them OUT LOUD!',
       '✨ Reward: 45 coins and a Berry Potion!',
     ],
     reward: { coins: 45, potion: 1 },

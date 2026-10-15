@@ -386,9 +386,11 @@ export type SpellResult =
    * Offensive spell: charge is spent; feed `multiplier` into spellDamage →
    * resolveHeroHit. `skipsTurn`: a landed hit costs the enemy its next turn
    * (Time Ripple, #75 item 14h). `refunded`: charge a landed cast sang back
-   * (Chorus Call, #75 item 15g) — already in `state`.
+   * (Chorus Call, #75 item 15g) — already in `state`. `shieldRefund`: what to
+   * give back if a shield takes the blow — what the cast spent, less what it
+   * sang back, so the charge ends where it began (15g review round 2).
    */
-  | { kind: 'strike'; state: CombatState; multiplier: number; skipsTurn: boolean; refunded: number };
+  | { kind: 'strike'; state: CombatState; multiplier: number; skipsTurn: boolean; refunded: number; shieldRefund: number };
 
 /**
  * A spell's super-hard question resolved. A miss never punishes effort: the
@@ -420,6 +422,7 @@ export function resolveSpell(s: CombatState, spell: Spell, wasCorrect: boolean):
     multiplier: effect.multiplier,
     skipsTurn: effect.skipsTurn === true,
     refunded: charge - spent.charge,
+    shieldRefund: s.charge - charge,
   };
 }
 

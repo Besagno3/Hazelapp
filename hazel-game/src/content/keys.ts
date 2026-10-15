@@ -144,7 +144,7 @@ export const GATE_KEYS: GateKey[] = [
   {
     id: 'chorus-b',
     name: 'Second Chorus Key',
-    emoji: '🎶',
+    emoji: '🔔',
     bossId: 'riddle-leviathan',
     bossName: 'The Riddle Leviathan',
     bossIntro: [

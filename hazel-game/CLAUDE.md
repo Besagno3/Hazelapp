@@ -774,6 +774,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15g review round 2: songs that wait for the hush (#75 item 15g, #141m)
+Fresh code (3 low, 2 nits) and UX (2 medium, 6 low, 3 nits) reviews, all
+fixed but one kept (no instrument tile for Aria's hall): Cadence and Coda
+match the story state, the way on the isle names the gate, routes off
+Taleshore stay flown, `SpellResult.shieldRefund`, the bench's double gate,
+Mnem's sixth plaque, distinct emoji. 1286 green; `bench … journey` 13/13.
+
 ### 2026-10-15 — 15g review round 1 (code): the footer after the fog thins (#75 item 15g, #141l)
 Fresh code review (2 low, 2 nits), all fixed: no "fly over the fog" footer
 once Voices has thinned it; Chorus Call into a shield is tested to end where

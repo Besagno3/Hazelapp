@@ -1563,12 +1563,26 @@ describe('Chorus Isle: the Crystal of Voices (#75 item 15g)', () => {
 
   it('Old Cadence names whichever Chorus Key is still missing', () => {
     const said = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['chorus-cadence'].lines, flags).map(lineText).join(' ');
-    expect(said({})).toMatch(/You'll need BOTH/);
+    expect(said({})).toMatch(/Two locks, two Chorus Keys!/);
     expect(said({ [keyFlag('chorus-a')]: true })).toMatch(/The other lock needs the Second/);
     expect(said({ [keyFlag('chorus-b')]: true })).toMatch(/The other lock needs the First/);
     const both = { [keyFlag('chorus-a')]: true, [keyFlag('chorus-b')]: true };
     expect(said(both)).toMatch(/You hold BOTH Chorus Keys/);
     expect(said(both)).not.toMatch(/other lock/);
-    expect(said({ ...both, [crystalFlag('words')]: true })).toMatch(/Crystal of Voices rings again/);
+    const after = said({ ...both, [crystalFlag('words')]: true });
+    expect(after).toMatch(/Crystal of Voices rings again/);
+    // Once the Fiend is gone he doesn't warn about it any more (round 2).
+    expect(after).not.toMatch(/It lives in the hollow/);
+  });
+});
+
+describe('Chorus Isle after round 2 (#75 item 15g)', () => {
+  it("Coda's songs wait for the hush to lift: hummed before Voices, sung out loud after", () => {
+    const done = { 'quest:coda-refrains:done': true };
+    const said = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['chorus-coda'].lines, flags).map(lineText).join(' ');
+    expect(questDoneFlag({ id: 'coda-refrains' })).toBe('quest:coda-refrains:done');
+    expect(said(done)).toMatch(/very quietly, until the Hush Fiend is gone/);
+    expect(said(done)).not.toMatch(/out loud/);
+    expect(said({ ...done, [crystalFlag('words')]: true })).toMatch(/out loud/);
   });
 });

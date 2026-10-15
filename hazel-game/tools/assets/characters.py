@@ -4028,7 +4028,7 @@ ROSTER: list[Char] = [
     Char('quill-imp', '🪶', 'quill_imp', H(color='#c84a5a', feather='#f4f0e0')),
     Char('hollow-fiend', '🕳️', 'hollow_fiend', H(color='#141020', rim='#7a5ac8'), boss=True),
     # ── Act III: Chorus Isle (#75 item 15g) ──
-    Char('hush-fiend', '🔇', 'hush_fiend', H(color='#9a96b0'), boss=True),
+    Char('hush-fiend', '🔇', 'hush_fiend', H(color='#6a5aa8'), boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
