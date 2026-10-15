@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LANDING_CHARS, ZONES, fogAt, darkAt, innWakeCell, tileAt, type ZoneId } from '../content/zones';
 import { RETURN_TOWNS, returnLanding } from '../content/fieldSpells';
 import { keyFlag, keyForBoss, keyForZone } from '../content/keys';
-import { actOneJourney, actTwoJourney, advanceGoal, walkLeg, type BoatState, type Leg } from './journey';
+import { actOneJourney, actThreeJourney, actTwoJourney, advanceGoal, walkLeg, type BoatState, type Leg } from './journey';
 import { BOAT_HOME, BOAT_MENDED } from '../content/boat';
 import { NPC_DEFS, visibleLines } from '../content/npcs';
 import { HALL_CALLED } from '../content/story';
@@ -185,5 +185,29 @@ describe("Taleshore's Chorus Keys as legs (#75 item 15e, round 2)", () => {
     expect(walkable(leg)).toBe(true);
     const oneKey = { ...CHORUS_BOTH, [keyFlag('chorus-b')]: false };
     expect(walkable(walkLeg(goal, oneKey, { zoneId: 'chorus-isle', cell: isle.spawn }))).toBe(false);
+  });
+});
+
+describe('Act III start to finish (#75 item 15h, the Phase 4 exit check)', () => {
+  const act3 = actThreeJourney();
+  it("walks every Act III goal inside its place, from Port Lantern to the Chartmaker", () => {
+    expect(act3.map((l) => l.goal.title)).toEqual([
+      'Fly to Port Lantern',
+      'Meet Harbormaster Gale',
+      'Win the First Chorus Key',
+      'Win the Second Chorus Key',
+      'Free the Crystal of Voices',
+      'Visit the Chartmaker',
+    ]);
+    for (const leg of act3) expect(walkable(leg), leg.goal.title).toBe(true);
+  });
+  it('ends at the Chartmaker, in his study, and the story goes on to explore', () => {
+    const last = act3.at(-1)!;
+    expect(last.target).toMatchObject({ zoneId: 'chartmakers-rest' });
+    const study = ZONES['chartmakers-rest'].buildings!.find((b) => b.id === 'chart-study')!;
+    const end = last.hops.at(-1)!.path!.at(-1)!;
+    expect(end.x >= study.x && end.x < study.x + study.w && end.y >= study.y && end.y < study.y + study.h).toBe(true);
+    const flags = advanceGoal(last.goal, last.flags);
+    expect(nextObjective(flags).kind).toBe('explore');
   });
 });

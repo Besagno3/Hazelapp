@@ -65,6 +65,14 @@ export const SHUSH_QUEST = 'shush-letters';
 /** Coda's Lost Refrains (#75 item 15g): the island's three songs, found and sung back. */
 export const CODA_QUEST = 'coda-refrains';
 
+/** The Blank Chart (#75 item 15h): the Chartmaker's story quest on Chartmaker's Rest. */
+export const BLANK_CHART_QUEST = 'blank-chart';
+/**
+ * Set as the Blank Chart is handed over (#75 item 15h, #106a): Act IV's key
+ * item is held — the Chartmaker's panels play, and item 16 opens the way down.
+ */
+export const BLANK_CHART_HELD = 'blank-chart-held';
+
 /**
  * Set while an escort's walk is under way. Never kept: leaving the place,
  * a lost battle or a reload clears it, and the one being walked waits at the

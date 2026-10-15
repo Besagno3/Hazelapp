@@ -353,6 +353,11 @@ zod, react-query. Add the package in the same change that first uses it.
   **both** Chorus Keys (`keysForZone`, `holdsKeysFor`; `keyForZone` is the
   first). Six crystals make Ember **radiant** (`emberGrown`: dragon or
   radiant), and Voices thins the Great Fogbank, so boats cross.
+  **Chartmaker's Rest** (#75 item 15h): Act III's last place, an island off
+  Taleshore with no critters. The Blank Chart quest waits for Voices; on
+  completion `QuestDef.grants` keeps the Blank Chart in the bag and sets
+  `blank-chart-held` — the flag Act IV checks (check the flag, not the item) —
+  then `CHART_PANELS` play (`chart-seen`). The 🚩 visits him after Voices.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -683,6 +688,7 @@ python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome
 python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
+python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
 python3 tools/assets/build.py cliffs   # Taleshore III: Songstone Cliffs, the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
 python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people, tale-stones (#75 item 15e)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
@@ -773,6 +779,79 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — 15h /saas-code-review + /saas-ux-review: an old tab asks for a refresh, shorter guides (#75 item 15h, #142n)
+All fixed on the owner's say-so. Code (1 low): `saveIsTooNew` also refuses a
+current-version save standing in (or resting at) a place this build doesn't
+know, so an old tab asks for a refresh instead of moving the hero home. UX (2
+medium, 2 low, 3 nits): a one-sentence 🚩 why, Lumen says Taleshore, Inka
+points back once inked, no pointing at an empty quest list, intros first, emoji
+off mid-sentence. 1300 green.
+
+### 2026-10-15 — 15h review round 4 (UX): hold on to the quill (#75 item 15h, #142m)
+The last round. Fresh UX review over 8 saves (2 medium, 3 low, 3 nits), all
+fixed: before Voices the quill is kept for him, a 🚩 why with no compass word,
+Inka asks for the quill, Pip told the chickens, no "Check 📜 Menu" in the
+Menu, a framed icon. Tests +1 check; 1300 green.
+
+### 2026-10-15 — 15h review round 4 (code): no sailing up to the Roost (#75 item 15h, #142l)
+Fresh code review (1 medium, 3 low, 1 nit), all fixed: from the boat, a
+place only Ember reaches is sailed to only with no fog in the way and a beach
+to land on (`boatLandsBy`) — round 3 had said "Sail… to the Dragon's Roost";
+stale docs. Tests +0 (2 new checks). 1300 green.
+
+### 2026-10-15 — 15h review round 3 (UX): one landmark, a dry quill (#75 item 15h, #142k)
+Fresh UX review, played at every quest stage (1 medium, 5 low, 3 nits), all
+fixed but one kept (the study's shared interior tiles): "north-west past the
+Wayfinder Isles" and 🌐 everywhere, Inka and Pen point at the study, the nest
+says the quill needs Inka's ink (`foundNote`), a shorter ending and
+before-Voices line, a bigger X. 1300 green.
+
+### 2026-10-15 — 15h review round 3 (code): flown all the way, sailed when sailing (#75 item 15h, #142j)
+Fresh code review (3 low-to-medium, 1 nit), all fixed: a byAir place is
+flown to all the way once Ember flies; aboard, it's sailed and landed; the
+island is "further than the Wayfinder Isles" everywhere. 1300 green.
+
+### 2026-10-15 — 15h review round 2: north, not north-west; a quill found first (#75 item 15h, #142i)
+Fresh code (1 medium-low, 4 low, 5 nits) and UX (3 medium, 5 low, 3 nits)
+reviews, all fixed: "north of Port Lantern" (north-west fits the Wayfinder
+Isles too), the offer for a quill found first ends on Inka, before Voices
+he asks you to keep anything shiny, a `doneLine`, a 🚩 step right either
+way, "left (west)", Pen a white gull, a bigger X, `actThreeJourney` stops at
+the chart, dead Mnem branches removed. Tests +2; 1300 green.
+
+### 2026-10-15 — 15h review round 1: a 🚩 that follows the quest, an X on the chart (#75 item 15h, #142h)
+Fresh code (4 low, 5 nits) and UX (6 medium, 7 low, 5 nits) reviews, all
+fixed but three kept (🌐, Pen's 🐦, no nest/easel props): the 🚩's
+`inside` follows the Blank Chart quest, the Chartmaker's reminders in his
+own voice, Lumen agrees with the 🚩 after the chart, the inn's guest waits
+for Voices, a red X on the icon, Inka in blue, the board's notice, an
+architecture note for `QuestDef.grants` / `blank-chart-held`. 1298 green.
+
+### 2026-10-15 — Chartmaker's Rest: the Blank Chart, and Act III start to finish (#75 item 15h, #142)
+Roadmap sub-item 15h, the Phase 4 exit.
+- **Chartmaker's Rest** (`chartmakers-rest`): a small island north-west of
+  Port Lantern only Ember reaches (`byAir`; icon `chart`, overworld frame 30,
+  🌐 on the map). A safe story zone (no critters): the Chartmaker's study (a
+  new `chart` style), the Chartmaker 🧓, Pen 🐦 and Inka 👩‍🎨.
+- **The Blank Chart** (`blank-chart`, waits for Voices): Pen's nest (a
+  key-item chest) holds the Compass Quill; Inka inks it with starlight
+  (Compass → Starlit Quill); the Chartmaker draws all Lumina — one place
+  under the Crystal Spire stays blank — and hands over the Blank Chart. New
+  `QuestDef.grants` keeps it in the bag and sets `blank-chart-held` (#106a);
+  60c + a Honey Elixir. Four panels follow (`CHART_PANELS`, `chart-seen`).
+- **The 🚩:** after Voices, "Visit the Chartmaker", then Explore; Elder
+  Lumen's plan and tip for both.
+- **The Act III reactive pass:** eight new lines at home and in Act II's
+  places once Taleshore is reached or Voices rings.
+- **#66 decided:** no lazy map loading — all zone content is ~37 KB gzipped
+  and every map search reads `ZONES` synchronously.
+- **Act III start to finish:** `actThreeJourney` (`lib/journey.ts`) walks
+  every Act III goal inside its place, ending in the Chartmaker's study.
+- **Art:** `python3 tools/assets/build.py chart` (overworld frames 0–29
+  byte-identical).
+- **Tests:** +11 (zones, quests, journey, WorldScreen.ending, wayfinding,
+  tiles); 1298 green, lint and tsc clean.
 
 ### 2026-10-15 — 15g review round 4: starfire, a shh not a nose (#75 item 15g, #141p)
 The last round. Fresh code (3 low, 2 nits) and UX (1 high, 2 medium, 2 low,

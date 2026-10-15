@@ -86,8 +86,8 @@ export const REGIONS: RegionDef[] = [
   // Its islands share its tier (#75 item 14f: Eldergrove).
   { id: 'shallows', name: 'The Silver Shallows and its islands', tier: 5, zones: ['silver-shallows', 'eldergrove', 'foglight-marsh', 'sunken-archive'] },
   // Act III (#75 item 15c): the far continent, a step tougher again. Port
-  // Lantern is a town (no critters); Taleshore's places come in 15d–15h.
-  { id: 'taleshore', name: 'Taleshore and the Starfall Sea', tier: 6, zones: ['taleshore', 'port-lantern', 'driftwood-shallows', 'wayfinder-isles', 'gale-atoll', 'story-reef', 'inkwell-cove', 'songstone-cliffs', 'quiet-quarter', 'chorus-isle'] },
+  // Lantern is a town (no critters); Taleshore's places came in 15d–15h.
+  { id: 'taleshore', name: 'Taleshore and the Starfall Sea', tier: 6, zones: ['taleshore', 'port-lantern', 'driftwood-shallows', 'wayfinder-isles', 'gale-atoll', 'story-reef', 'inkwell-cove', 'songstone-cliffs', 'quiet-quarter', 'chorus-isle', 'chartmakers-rest'] },
 ];
 
 /** The danger tier of a zone (its region's). */

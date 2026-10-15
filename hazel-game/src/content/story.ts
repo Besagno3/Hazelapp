@@ -130,6 +130,11 @@ export const ROOST_SEEN = 'roost-seen';
  * Taleshore, `ACT3_PANELS` play and this is set.
  */
 export const ACT3_SEEN = 'act3-seen';
+/**
+ * The Chartmaker's panels (#75 item 15h, STORY-4X's "Chartmaker 4"): once he has
+ * handed over the Blank Chart (`blank-chart-held`), as his talk closes.
+ */
+export const CHART_SEEN = 'chart-seen';
 /** Act IV's opening (item 16): nothing sets it yet — a stand-in crystal in tests belongs to it. */
 export const ACT4_SEEN = 'act4-seen';
 
@@ -506,6 +511,29 @@ export const ROOST_PANELS: StoryPanel[] = [
   {
     emoji: '🥚',
     text: 'This nest is the one. The last dragon carried her egg down from here to the village — the very egg you found. Ember is home!',
+  },
+];
+
+/**
+ * The Blank Chart (#75 item 15h): the Chartmaker's four panels — the whole
+ * world on one chart, and the one blank place under the Crystal Spire.
+ */
+export const CHART_PANELS: StoryPanel[] = [
+  {
+    emoji: '🗺️',
+    text: 'The Blank Chart is all of Lumina, drawn in starlight ink. Every place you\'ve been twinkles brightest — even the Dragon\'s Roost!',
+  },
+  {
+    emoji: '🗼',
+    text: 'All but one. Right under the Crystal Spire there is an empty space, as if someone rubbed it out.',
+  },
+  {
+    emoji: '🧓',
+    text: 'The Chartmaker taps the empty space. "The Spire reaches UP," he says. "So what\'s hiding DOWN below it?"',
+  },
+  {
+    emoji: '🎶',
+    text: 'Far away, a small voice hums. It is the voice from the Crystal of Voices: "You\'ve been to so many places… one day, find me."',
   },
 ];
 

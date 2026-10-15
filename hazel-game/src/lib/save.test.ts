@@ -151,6 +151,14 @@ describe('runMigrations (Wave 0.2 versioned ladder)', () => {
     expect(saveIsTooNew(V1)).toBe(false);
     expect(saveIsTooNew({ coins: 3 })).toBe(false); // no version: v1
     expect(saveIsTooNew(null)).toBe(false);
+    // A place a newer build added (15h review, #142n): an old tab would move the hero home, so it asks for a refresh.
+    expect(saveIsTooNew({ version: SAVE_VERSION, zoneId: 'a-newer-isle' })).toBe(true);
+    expect(saveIsTooNew({ version: SAVE_VERSION, zoneId: 'lumina-village', lastRest: 'a-newer-isle' })).toBe(true);
+    expect(saveIsTooNew({ version: SAVE_VERSION, zoneId: 'chartmakers-rest', lastRest: 'port-lantern' })).toBe(false);
+    // …but not an older save's retired place (migrated home), junk, or a prototype key.
+    expect(saveIsTooNew({ version: 1, zoneId: 'lumina-field' })).toBe(false);
+    expect(saveIsTooNew({ version: SAVE_VERSION, zoneId: 'Not A Place!' })).toBe(false);
+    expect(saveIsTooNew({ version: SAVE_VERSION, zoneId: 'constructor' })).toBe(false);
   });
 
   it('TRIPWIRE: the ladder has a step for every version below SAVE_VERSION', () => {

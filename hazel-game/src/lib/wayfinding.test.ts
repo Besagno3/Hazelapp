@@ -8,6 +8,7 @@ import { NPC_DEFS } from '../content/npcs';
 import { actCrystals, crystalFlag } from '../content/topics';
 import { GATE_KEYS, keyFlag, keyForZone } from '../content/keys';
 import { ACT2_SEEN, MET_GALE, SPIRE_CLEARED } from '../content/story';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, questOfferedFlag, stepFlag } from '../content/questFlags';
 import {
   compass,
   exitSide,
@@ -64,6 +65,8 @@ const chorusWon = { ...galeMet, [keyFlag('chorus-a')]: true };
 const chorusBoth = { ...chorusWon, [keyFlag('chorus-b')]: true };
 /** …and the Crystal of Voices restored on Chorus Isle: the story so far is done (#75 item 15g). */
 const voicesFreed = { ...chorusBoth, [crystalFlag('words')]: true };
+/** …and the Blank Chart from the Chartmaker (#75 item 15h): Act III is done. */
+const chartHeld = { ...voicesFreed, [BLANK_CHART_HELD]: true };
 
 describe('compass', () => {
   it('names all eight directions (y grows southward)', () => {
@@ -123,7 +126,15 @@ describe('nextObjective', () => {
     // Both keys: the 🚩 flies to Chorus Isle for the Crystal of Voices (#75 item 15g), then the open world.
     expect(nextObjective(chorusBoth)).toMatchObject({ kind: 'crystal', zoneId: 'chorus-isle', title: 'Free the Crystal of Voices' });
     expect(nextObjective(chorusBoth).key?.id).toBe('chorus-a');
-    expect(nextObjective(voicesFreed)).toMatchObject({ kind: 'explore', zoneId: null });
+    // Then the Chartmaker's island for the Blank Chart (#75 item 15h), then the open world.
+    expect(nextObjective(voicesFreed)).toMatchObject({ kind: 'visit', zoneId: 'chartmakers-rest', title: 'Visit the Chartmaker', doneFlag: BLANK_CHART_HELD, npc: 'chart-chartmaker' });
+    expect(nextObjective(chartHeld)).toMatchObject({ kind: 'explore', zoneId: null });
+    // On the island the way follows his quest: him, then Pen's nest and Inka, then back to him (round 1).
+    const offered = { ...voicesFreed, [questOfferedFlag({ id: BLANK_CHART_QUEST })]: true };
+    expect(nextObjective(voicesFreed).inside).toMatch(/^The Chartmaker is in his study/);
+    expect(nextObjective(offered).inside).toMatch(/^Take the Compass Quill \(it's in Pen's nest/);
+    expect(nextObjective({ ...offered, [stepFlag('chart-quill-ink')]: true }).inside).toMatch(/^Take the Starlit Quill back to the Chartmaker/);
+    expect(goalDirections(ZONES, nextObjective(offered), 'chartmakers-rest')).toMatch(/^It's right here on Chartmaker's Rest!/);
     // On the isle, the way says where the gate is (round 2), and an island is "on".
     expect(goalDirections(ZONES, nextObjective(chorusBoth), 'chorus-isle')).toBe("It's right here on Chorus Isle! The Hush Fiend's gate is at the top of the road, past Old Cadence.");
     expect(goalDirections(ZONES, nextObjective({}), 'numbria')).toBe("It's right here in Numbria!");
@@ -241,7 +252,8 @@ describe('nextObjective', () => {
     expect(nextObjective(storyDone).why).toMatch(/^Ember can fly! Tap 🐉 Fly/);
     // …then the whole sky: no "soon you'll fly" once she can.
     expect(nextObjective(chorusBoth).why).toMatch(/^Both Chorus Keys together open the Hush Fiend's gate on Chorus Isle/);
-    expect(nextObjective(voicesFreed).why).toMatch(/^Six crystals shine, and the Great Fogbank has thinned/);
+    expect(nextObjective(voicesFreed).why).toMatch(/^The Chartmaker has drawn every place but one!/);
+    expect(nextObjective(chartHeld).why).toMatch(/^The Blank Chart shows one place nobody remembers, under the Crystal Spire/);
     expect(mentorTips(ZONES, { ...voicesFreed, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
   });
 
@@ -264,9 +276,9 @@ describe('nextObjective', () => {
     // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage,
     // Remembrance Hill (#75 item 14e), the Memoria Key (#75 item 14f), the Crystal of Memory (#75 item 14h),
     // the Hall of Names (#75 item 14i), the Dragon's Roost (#75 item 15b), Taleshore and Harbormaster Gale (#75 item 15c), the First Chorus Key (#75 item 15d), the Second (#75 item 15e),
-    // the Crystal of Voices (#75 item 15g), explore.
+    // the Crystal of Voices (#75 item 15g), the Chartmaker (#75 item 15h), explore.
     const actOneKeys = GATE_KEYS.filter((k) => actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
-    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
+    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -293,7 +305,7 @@ describe('fog and the story', () => {
       const entrance = g.at ?? whereOnMap(ZONES, world, g.zoneId, null)!;
       // The Roost and Taleshore are flown to (#75 items 15b–c): from where Ember
       // lands — the Roost's plateau, Port Lantern's road — on foot.
-      const landing = { 'dragon-roost': { x: 48, y: 27 }, 'port-lantern': { x: 30, y: 21 }, 'wayfinder-isles': { x: 11, y: 12 }, 'chorus-isle': { x: 7, y: 22 } } as Partial<Record<ZoneId, { x: number; y: number }>>;
+      const landing = { 'dragon-roost': { x: 48, y: 27 }, 'port-lantern': { x: 30, y: 21 }, 'wayfinder-isles': { x: 11, y: 12 }, 'chorus-isle': { x: 7, y: 22 }, 'chartmakers-rest': { x: 17, y: 4 } } as Partial<Record<ZoneId, { x: number; y: number }>>;
       const reached =
         g.kind === 'fly' || world.id === 'taleshore'
           ? reach(world, { flags, from: landing[g.zoneId]! })
@@ -378,7 +390,7 @@ describe('routeSteps and goalDirections', () => {
   });
   it("says so when you're already there, and nothing once the story's done", () => {
     expect(goalDirections(ZONES, numbria, 'numbria')).toBe("It's right here in Numbria!");
-    expect(goalDirections(ZONES, nextObjective(voicesFreed), 'numbria')).toBe('');
+    expect(goalDirections(ZONES, nextObjective(chartHeld), 'numbria')).toBe('');
   });
   it("on Ember, the way to the Dragon's Roost is flown, not sailed (#75 item 15b)", () => {
     const fly = nextObjective(storyDone);
@@ -494,7 +506,21 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
     expect(mentorTips(ZONES, { ...met, ...chorusWon })[0]).toMatch(/^You have the First Chorus Key! The Riddle Leviathan guards the second in Inkwell Cove\. Follow the road east from Port Lantern, then north\./);
     expect(mentorTips(ZONES, { ...met, ...chorusBoth })[0]).toBe("You hold both Chorus Keys! Together they open the Hush Fiend's gate on Chorus Isle, far out at sea west of Port Lantern. Fly there, and free the Crystal of Voices!");
-    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe('Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.');
+    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe("Six crystals shine! Fly east, all the way to Taleshore. The Chartmaker's island is at the very top of its map — look for the globe there 🌐");
+    // The way there is flown from home, even though boats cross now — and sailed while aboard (round 3).
+    const chart = nextObjective(voicesFreed);
+    expect(goalDirections(ZONES, chart, 'lumina-village', undefined, voicesFreed)).toMatch(/fly east to Taleshore, then fly north-east to Chartmaker's Rest, then land beside it and walk in\.$/);
+    expect(goalDirections(ZONES, chart, 'lumina-village', undefined, voicesFreed)).not.toMatch(/sail/i);
+    expect(goalDirections(ZONES, chart, 'taleshore', { x: 30, y: 21 }, voicesFreed, true)).toMatch(/^Sail north-west to Chartmaker's Rest, then land beside it and walk in\.$/);
+    expect(goalDirections(ZONES, chart, 'taleshore', { x: 30, y: 21 }, voicesFreed)).toMatch(/^Fly north-west to Chartmaker's Rest/);
+    // …but never sailed up to where no boat lands, or over standing fog (round 4).
+    const seaCell = (z: ZoneDef) => { for (let y = 0; y < z.map.length; y++) for (let x = 0; x < z.map[y].length; x++) if (z.map[y][x] === '~') return { x, y }; return { x: 0, y: 0 }; };
+    expect(goalDirections(ZONES, nextObjective(storyDone), 'dawnreach', seaCell(ZONES.dawnreach), storyDone, true)).not.toMatch(/^Sail .*Dragon's Roost/);
+    expect(goalDirections(ZONES, nextObjective(galeMet), 'silver-shallows', seaCell(ZONES['silver-shallows']), galeMet, true)).not.toMatch(/sail north/);
+    // With the Blank Chart (#75 item 15h): its empty spot, a puzzle for later — like the 🚩 says (round 1).
+    expect(mentorTips(ZONES, { ...met, ...chartHeld })[0]).toBe('You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, fly anywhere, and help anyone who needs you!');
+    // The guides' "Where to next?" stays short (saas UX review): the why is a sentence or two.
+    expect(nextObjective(voicesFreed).why.split(/\s+/).length).toBeLessThanOrEqual(20);
     // Lumen counts every crystal shining: a skipped Hall dedication after Voices says six, not five (round 4).
     expect(mentorTips(ZONES, { ...met, ...voicesFreed, [HALL_DEDICATED]: false })[0]).toMatch(/^Six crystals shine now! And they say something new is happening in the Hall of Names/);
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
@@ -550,7 +576,7 @@ describe('guides and signposts', () => {
     expect(wayfindingLines(ZONES, NPC_DEFS['port-harbormaster'], taleshoreReached)).toEqual([expect.stringMatching(/^Where to next\? The Compass Golem on the Wayfinder Isles guards the First Chorus Key! /)]);
   });
   it("after the story, a guide just cheers you on", () => {
-    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], voicesFreed)).toEqual([nextObjective(voicesFreed).why]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], chartHeld)).toEqual([nextObjective(chartHeld).why]);
   });
   it('a signpost reads out the places around it, then the way to the next goal', () => {
     for (const n of wayfinders.filter((w) => w.signpost)) {

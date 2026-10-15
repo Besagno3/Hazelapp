@@ -124,7 +124,19 @@ export function saveVersionOf(raw: unknown): number {
  * store refuses it and asks for a refresh instead.
  */
 export function saveIsTooNew(raw: unknown): boolean {
-  return saveVersionOf(raw) > SAVE_VERSION;
+  if (saveVersionOf(raw) > SAVE_VERSION) return true;
+  // A place added after this code was built (15h review, #142n): new zones
+  // don't change the save's shape, so they don't bump SAVE_VERSION — but an
+  // old tab would move a hero standing there home and save that. A current
+  // save naming a place-shaped id this code doesn't know is newer than it.
+  if (saveVersionOf(raw) < SAVE_VERSION || typeof raw !== 'object' || raw === null) return false;
+  const r = raw as RawSave;
+  return unknownPlace(r.zoneId) || unknownPlace(r.lastRest);
+}
+
+/** A zone id from a newer build: shaped like one (`chartmakers-rest`), but not ours — and not a prototype key. */
+function unknownPlace(id: unknown): boolean {
+  return typeof id === 'string' && /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(id) && !isZoneId(id) && !(id in Object.prototype);
 }
 
 /**

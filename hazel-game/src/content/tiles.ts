@@ -167,6 +167,8 @@ export const OVERWORLD_FRAME = {
     cliffs: 27,
     quarter: 28,
     chorus: 29,
+    // 30: Chartmaker's Rest (#75 item 15h) — a parchment study and a chart with a red X.
+    chart: 30,
   } satisfies Record<
     Exclude<PlaceIcon, 'tower'>,
     number
@@ -174,7 +176,7 @@ export const OVERWORLD_FRAME = {
 } as const;
 // 15: Marlow's dock (#75 item 14) — planks drawn over the water.
 export const OVERWORLD_DOCK_FRAME = 15;
-export const OVERWORLD_FRAMES = 30;
+export const OVERWORLD_FRAMES = 31;
 export const OVERWORLD_SHEET = '/tiles/overworld.png';
 export const OVERWORLD_KEY = 't_overworld';
 

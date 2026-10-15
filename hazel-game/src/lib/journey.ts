@@ -7,6 +7,7 @@ import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
 import { BOAT_HOME, BOAT_MENDED, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
 import { visitedFlag } from '../content/fieldSpells';
+import { BLANK_CHART_HELD } from '../content/questFlags';
 import { nextObjective, npcHome, routeTo, type Objective } from './wayfinding';
 import { passable as tilePassable, seaCrossing } from './travel';
 import { npcWanders } from './wander';
@@ -242,6 +243,33 @@ export function actTwoJourney(): Leg[] {
     at = { zoneId: leg.target.zoneId, cell: end ? { x: end.x, y: end.y } : last.from };
     boat = leg.boat;
     flags = advanceGoal(goal, flags);
+  }
+  return legs;
+}
+
+/**
+ * Act III, the Phase 4 exit check (#75 item 15h): the story from where Act II
+ * ends — the Roost and Taleshore flown to — through both Chorus Keys, the
+ * Crystal of Voices and the Chartmaker, to "Explore". Ember flies from place to
+ * place over the Starfall Sea (`bench … fly` walks the flying), so each leg is
+ * walked inside its own place, from where you come in to whoever or whatever
+ * the 🚩 points at.
+ */
+export function actThreeJourney(): Leg[] {
+  let flags: Record<string, boolean> = {};
+  for (const leg of actOneJourney()) flags = advanceGoal(leg.goal, leg.flags);
+  for (const leg of actTwoJourney()) flags = advanceGoal(leg.goal, leg.flags);
+  const legs: Leg[] = [];
+  for (let goal = nextObjective(flags); goal.kind !== 'explore'; goal = nextObjective(flags)) {
+    if (legs.length >= 12) throw new Error('Act III never ends');
+    const target = goalTarget(goal);
+    // The Roost is Act II's last flight, not a place of Act III's.
+    if (goal.zoneId !== 'dragon-roost') {
+      legs.push(walkLeg(goal, flags, { zoneId: target.zoneId, cell: ZONES[target.zoneId].spawn }));
+    }
+    flags = advanceGoal(goal, flags);
+    // Act III ends with the Blank Chart; what follows is Act IV's (item 16).
+    if (goal.doneFlag === BLANK_CHART_HELD) break;
   }
   return legs;
 }

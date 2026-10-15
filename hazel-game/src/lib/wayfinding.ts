@@ -3,7 +3,8 @@ import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
-import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
+import { QUESTS, handedOverFlag, questOfferedFlag, stepFlag } from '../content/quests';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
@@ -295,11 +296,23 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           inside: flags[CHORUS_GATE_FLAG] ? undefined : "The Hush Fiend's gate is at the top of the road, past Old Cadence.",
         };
       }
+      // Act III's last step (#75 item 15h): the Chartmaker, who knows every place's name but one.
+      if (canFly(flags) && actComplete(flags, 3) && !flags[BLANK_CHART_HELD]) {
+        return {
+          kind: 'visit',
+          title: 'Visit the Chartmaker',
+          why: "The Chartmaker has drawn every place but one! His island is at the very top of Taleshore's map 🌐",
+          zoneId: 'chartmakers-rest',
+          doneFlag: BLANK_CHART_HELD,
+          npc: 'chart-chartmaker',
+          inside: chartInside(flags),
+        };
+      }
       return {
         kind: 'explore',
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
-        why: flags[MET_GALE]
-          ? 'Six crystals shine, and the Great Fogbank has thinned — boats from the Silver Shallows can sail to Taleshore now! Check 📜 Menu for quests you haven\'t finished.'
+        why: flags[BLANK_CHART_HELD]
+          ? "The Blank Chart shows one place nobody remembers, under the Crystal Spire — a mystery for another day. Fly anywhere, and help anyone who needs you!"
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -427,8 +440,38 @@ const CHORUS_GATE_FLAG = (() => {
   return gateFlag(gateIdAt('chorus-isle', isle.map, isle.keyGate!.x, isle.keyGate!.y));
 })();
 
+/**
+ * Where to look on Chartmaker's Rest (15h review round 1): the Chartmaker
+ * until he has asked, then whatever his quest needs next — Pen's nest, Inka,
+ * and back to him — so the 🚩 never sends you round in circles.
+ */
+function chartInside(flags: Record<string, boolean>): string {
+  const quest = QUESTS.find((q) => q.id === BLANK_CHART_QUEST)!;
+  if (!flags[questOfferedFlag(quest)]) return 'The Chartmaker is in his study, the blue-roofed house.';
+  // The find step has no flag of its own (it's what you carry); Inka's step says the quill is inked.
+  if (!flags[stepFlag('chart-quill-ink')] && !flags[handedOverFlag('compass-quill')]) {
+    return "Take the Compass Quill (it's in Pen's nest, the chest right of the study) to Inka, on the left (west) side.";
+  }
+  return 'Take the Starlit Quill back to the Chartmaker, in his study.';
+}
+
+/**
+ * Can a boat land by this place (15h review round 4)? Walking from its icon on
+ * foot reaches a beach right by open sea — an island's shore, not the Roost's
+ * plateau ringed by mountains.
+ */
+function boatLandsBy(z: ZoneDef, at: { x: number; y: number }): boolean {
+  const around = reach(z, { from: at, flags: null });
+  const sea = (x: number, y: number) => z.map[y]?.[x] === '~';
+  for (const key of around) {
+    const [x, y] = key.split(',').map(Number);
+    if (z.map[y]?.[x] === ':' && (sea(x + 1, y) || sea(x - 1, y) || sea(x, y + 1) || sea(x, y - 1))) return true;
+  }
+  return false;
+}
+
 /** Islands you're "on", not "in" (15g review). */
-const ON_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['chorus-isle', 'gale-atoll', 'wayfinder-isles']);
+const ON_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['chartmakers-rest', 'chorus-isle', 'gale-atoll', 'wayfinder-isles']);
 
 /** Places named as many ("land beside them") — not every name ending in s (the Shrine of Quiet Paws, 15d review). */
 const PLURAL_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['wayfinder-isles', 'whispering-woods', 'clockwork-depths']);
@@ -447,7 +490,12 @@ export function routeSteps(
   at?: { x: number; y: number },
   /** The story flags: once the Great Fogbank lifts (15g), Taleshore is sailed to (`flownLink`). */
   flags: Record<string, boolean> | null = null,
-  /** Sailing Marlow's boat right now (15g review round 3): a way off Taleshore is sailed, not flown. */
+  /**
+   * Sailing Marlow's boat right now (15g review round 3): a way off Taleshore is
+   * sailed, not flown — and a place only Ember reaches that has a beach a boat
+   * can land on (an island, once no fog is in the way) is sailed up to (15h
+   * review round 3); never the Roost's plateau or over standing fog (round 4).
+   */
   aboard = false,
 ): string[] | null {
   const route = routeTo(zones, from, to);
@@ -497,7 +545,9 @@ export function routeSteps(
       const offIsland = !!around && !walkable;
       // "the Wayfinder Isles": land beside them (15d review).
       const them = PLURAL_PLACES.has(dest.id) ? 'them' : 'it';
-      if (dir && !walkable && (flying || byAir || offIsland)) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
+      // Sailing right now (15h review round 3): no Fly button aboard, so sail up and go ashore.
+      if (dir && !walkable && aboard && !stranded && !flying && byAir && boatLandsBy(z, exit)) steps.push(`sail ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
+      else if (dir && !walkable && (flying || byAir || offIsland)) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
       else steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
       const stairs = z.map[exit.y]?.[exit.x];
@@ -570,7 +620,10 @@ export function goalDirections(
   const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
   // …unless the hero is sailing right now (15g review round 4).
-  return sentence(goal.kind === 'fly' && !aboard ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
+  // A place only Ember reaches is flown to all the way, once she flies — even
+  // after Voices lets boats cross (15h review round 3: "Sail east… then fly").
+  const byAirGoal = !!flags && canFly(flags) && Object.values(zones).some((z) => z.places?.some((pl) => pl.byAir && z.exits.some((e) => e.to === goal.zoneId && e.x === pl.x && e.y === pl.y)));
+  return sentence((goal.kind === 'fly' || byAirGoal) && !aboard ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
 }
 
 // --- The mentor (Elder Lumen, #75 item 8) ------------------------------------------
@@ -655,6 +708,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = "Marlow's boat is mended! Out past his dock lie the Silver Shallows, islands nobody has seen since the fog. Go and see them — and tell me everything!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
+  } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
+    plan = `${shining} crystals shine! Fly east, all the way to Taleshore. The Chartmaker's island is at the very top of its map — look for the globe there 🌐`;
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     plan = `${shining} crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!`;
   } else if (goal.kind === 'visit') {
@@ -665,8 +720,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `${shining} crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.`;
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
-  } else if (flags[MET_GALE]) {
-    plan = "Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.";
+  } else if (flags[BLANK_CHART_HELD]) {
+    plan = 'You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, fly anywhere, and help anyone who needs you!';
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -696,6 +751,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     tip = "Port Lantern has an inn, the Driftlight. Rest there, and if a battle ever goes badly, that's where you'll wake up.";
+  } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
+    tip = "Nobody fights on the Chartmaker's island — it's a quiet place. Talk to everyone there. Pen the seabird loves shiny things!";
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     tip = 'Keeper Mnem stands inside the Hall of Names — the biggest building on Remembrance Hill, with the purple roof. Talk to him!';
   } else if (goal.kind === 'visit') {

@@ -4,10 +4,10 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { CODA_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
-import { ACT2_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
+import { ACT2_SEEN, ACT3_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -226,6 +226,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: "Now I remember! I lost a tooth last year and NOBODY came. The fog ate the Tooth Fairy's map!",
         ifFlag: ACT2_SEEN,
       },
+      {
+        text: "You flew Ember right over the Great Fogbank?! I'm telling EVERYONE. I already told the chickens.",
+        ifFlag: ACT3_SEEN,
+      },
     ],
   },
   'hub-innkeeper': {
@@ -247,6 +251,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: "Since the fog lifted, my guests remember their dreams at breakfast. One dreamed of a boat! Have you seen Old Marlow? He's acting very sailor-ish.",
         ifFlag: ACT2_SEEN,
         unlessFlag: BOAT_MENDED,
+      },
+      // The reactive pass (#75 item 15h): Act III's news reaches home.
+      {
+        text: "A guest from Taleshore stayed last night! A whole land the fog never reached! She told me SIX bedtime stories.",
+        ifFlag: crystalFlag('words'),
       },
     ],
   },
@@ -276,6 +285,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: ACT2_SEEN,
       },
       'Potions! Hint feathers! Shiny badges! Coins well spent, friend.',
+      {
+        text: 'A boat full of Taleshore traders sailed in this morning, right through the Great Fogbank\'s mist! They pay in songs. I\'m RICH!',
+        ifFlag: crystalFlag('words'),
+      },
     ],
   },
 
@@ -436,6 +449,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: crystalFlag('history'),
         unlessFlag: WISP_STIRRING,
       },
+      {
+        text: 'Last night I heard singing on the wind, from far across the sea. An old, old song… I almost knew the words.',
+        ifFlag: crystalFlag('words'),
+      },
     ],
   },
   'village-friend': {
@@ -581,6 +598,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: "The Biscuit's yours whenever you like — my dock's just east of here. Sail off the edge of the sea to reach the Silver Shallows!",
         ifFlag: BOAT_MENDED,
+      },
+      {
+        text: "The Great Fogbank's thinned! The Biscuit can sail clear to Taleshore now. Mind the Starfall Sea, though — it's deep, and full of stars.",
+        ifFlag: [crystalFlag('words'), BOAT_MENDED],
       },
     ],
     ambient: ['*casts a line*', 'Caught a boot.', 'Tide is turning…'],
@@ -1434,6 +1455,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       "Hi! I'm Posy. I bring flowers to the Hall of Names.",
       'Some plaques have names nobody remembers. They get flowers too.',
       "That's the rule. I made it up!",
+      { text: "I sang to the Nameless Stone today. It didn't sing back… but I think it was listening.", ifFlag: crystalFlag('words') },
     ],
     ambient: ['Daisies for the blank plaques!', '🌼'],
   },
@@ -1519,6 +1541,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "My three best acorns are safe in my hollow now. I won't forget where. I wrote it down!",
       '…Has anybody seen where I put the note?',
+      { text: 'Gulls from Taleshore came to Eldergrove! They remember where every acorn is buried. Very annoying. Very helpful.', ifFlag: ACT3_SEEN },
     ],
     ambient: ['Acorns, acorns…', '🌰'],
   },
@@ -1686,6 +1709,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Hoo. I am Sage Chronicle. (See also: owl.)',
       'Every battle is a story, little spark. Mine can ripple time itself. (See also: bravery.)',
+      { text: "The Crystal of Voices rang! A new footnote: 'The Crystal of Voices rang, and the stories came home.' (Footnote to the footnote: hooray.)", ifFlag: crystalFlag('words') },
     ],
   },
   'archive-index': {
@@ -1895,6 +1919,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       // Chorus Isle (#75 item 15g): the double gate's island.
       { text: 'OLD SAILORS SAY: far out west, straight across the sea from Port Lantern, lies Chorus Isle, where everyone used to sing. Nobody has heard a note from it in years.', unlessFlag: crystalFlag('words') },
       { text: "GREAT NEWS: Chorus Isle is singing again — and the Great Fogbank has thinned! Boats from the Silver Shallows can sail right into Port Lantern now.", ifFlag: crystalFlag('words') },
+      // Chartmaker's Rest (#75 item 15h review round 1): the board points the way too.
+      { text: "WANTED: a helper for the Chartmaker, on his little island out at sea, north-west past the Wayfinder Isles. Look for the globe on your map 🌐 He says he's missing one place. Just ONE!", ifFlag: crystalFlag('words'), unlessFlag: BLANK_CHART_HELD },
       'Check back soon for more notices!',
     ],
   },
@@ -2487,5 +2513,53 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'BOOOOM-bom-bom! The fish are back! They LOVE the low notes.', ifFlag: crystalFlag('words') },
     ],
     ambient: ['Bom.', '🎣'],
+  },
+
+  // --- Chartmaker's Rest (#75 item 15h) ---
+  'chart-chartmaker': {
+    id: 'chart-chartmaker',
+    name: 'The Chartmaker',
+    sprite: '🧓',
+    role: 'villager',
+    stationary: true,
+    // His quest's offer comes first ("The Blank Chart", once Voices rings); these follow it.
+    lines: [
+      { text: "I'm the Chartmaker! I've charted every place in Lumina but one.", unlessFlag: crystalFlag('words') },
+      { text: 'My ink keeps fading until the Crystal of Voices sings again. Free it! If you\'ve found my Compass Quill, keep it safe for me till then.', unlessFlag: crystalFlag('words') },
+      {
+        text: "Keep the Blank Chart safe. Every chart has edges — but a blank in the MIDDLE? That's a mystery worth solving.",
+        ifFlag: BLANK_CHART_HELD,
+      },
+    ],
+  },
+  'chart-pen': {
+    id: 'chart-pen',
+    name: 'Pen',
+    sprite: '🐦',
+    role: 'villager',
+    lines: [
+      { text: 'Squawk! Shiny! Pen likes SHINY. Pen keeps shiny in the nest. Squawk!', unlessFlag: questDoneFlag({ id: BLANK_CHART_QUEST }) },
+      { text: 'Squawk! Chartmaker inside! Blue roof! Squawk!', unlessFlag: questOfferedFlag({ id: BLANK_CHART_QUEST }) },
+      { text: 'Squawk… shiny quill went home. Pen sad. Chart is shiny too! Pen happy. Squawk!', ifFlag: questDoneFlag({ id: BLANK_CHART_QUEST }) },
+    ],
+    ambient: ['Squawk!', 'Shiny?', '🐦'],
+  },
+  'chart-inka': {
+    id: 'chart-inka',
+    name: 'Inka',
+    sprite: '👩‍🎨',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      { text: "I'm Inka! I mix the Chartmaker's inks: sea-blue, forest-green, sunset-red. Today I'm trying starlight.", unlessFlag: stepFlag('chart-quill-ink') },
+      { text: "The Chartmaker's in the blue-roofed study — go say hi!", unlessFlag: questOfferedFlag({ id: BLANK_CHART_QUEST }) },
+      // Visited before the quill is found (round 4): she says what she needs.
+      { text: "Bring me his Compass Quill and I'll fill it with starlight ink! Pen hid it in her nest, the chest by the study.", ifFlag: questOfferedFlag({ id: BLANK_CHART_QUEST }), unlessFlag: stepFlag('chart-quill-ink') },
+      // Inked, she points back to him (saas UX review).
+      { text: 'It worked! Run the Starlit Quill back to the Chartmaker, in the blue-roofed study!', ifFlag: stepFlag('chart-quill-ink'), unlessFlag: BLANK_CHART_HELD },
+      { text: 'Starlight ink worked! Now I want to try moonlight. Or puddle-light.', ifFlag: BLANK_CHART_HELD },
+      { text: 'The chart even drew ME. Teeny tiny! I\'ve never been on a map before.', ifFlag: BLANK_CHART_HELD },
+    ],
+    ambient: ['Sea-blue… or sky-blue?', '🎨'],
   },
 };
