@@ -50,7 +50,7 @@ import {
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
-import { ACT2_SEEN, ACT4_SEEN, FLIGHT_FLAG, HALL_CALLED, MET_GALE, canFly } from './story';
+import { ACT2_SEEN, ACT4_SEEN, FLIGHT_FLAG, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, canFly } from './story';
 import { holdsKeysFor, keyFlag, keysForZone } from './keys';
 
 const allZones = Object.values(ZONES);
@@ -1696,6 +1696,13 @@ describe('the Dream Root Door (#75 item 16a)', () => {
     expect(say({})).not.toMatch(/Someone below/);
     // Gone once Young Wick has said it (16a code review round 2).
     expect(say({ [stepFlag('name-chronicle')]: true, [stepFlag('name-young-wick')]: true })).not.toMatch(/Someone below/);
+  });
+
+  it("Aurora's welcome is always her first line, and it says hello for the 🚩 (16a code review round 3)", () => {
+    for (const flags of [{}, { [ACT4_SEEN]: true }, { [stepFlag('name-chronicle')]: true }, { [NAME_LEARNED]: true }]) {
+      const first = visibleLines(NPC_DEFS['root-aurora'].lines, flags)[0];
+      expect(typeof first === 'string' ? null : first.setFlag).toBe(MET_ROOT_AURORA);
+    }
   });
 
   it('nobody still says the name is lost once it is learned (16a UX review round 2)', () => {

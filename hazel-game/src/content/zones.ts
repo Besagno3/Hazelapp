@@ -1451,7 +1451,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
         w: 5,
         h: 3,
         liftedBy: [ACT4_SEEN],
-        hint: 'A thick knot of old fog. Something is hidden underneath — but nobody remembers what.',
+        hint: 'A thick knot of old fog. Something is hidden underneath — nobody remembers what. It will roll away later in your adventure!',
         guards: { x: 10, y: 10 },
         lifted: '✨ The old fog lifts — and stairs lead down, under the Crystal Spire!',
         dense: true,

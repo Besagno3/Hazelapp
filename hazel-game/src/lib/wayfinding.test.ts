@@ -135,6 +135,9 @@ describe('nextObjective', () => {
     expect(nextObjective(chartHeld)).toMatchObject({ kind: 'visit', zoneId: 'crystal-spire', title: 'Find the way under the Spire', doneFlag: ACT4_SEEN });
     expect(nextObjective({ ...chartHeld, [ACT4_SEEN]: true })).toMatchObject({ kind: 'visit', zoneId: 'dreamroot-door', title: 'Say hello to Keeper Aurora', npc: 'root-aurora' });
     expect(nextObjective(nameLearned)).toMatchObject({ kind: 'explore', zoneId: null });
+    // Wisp asked first: the 🚩 follows Wisp's quest, not the hello (round 3).
+    const offeredFirst = { ...chartHeld, [ACT4_SEEN]: true, [questOfferedFlag({ id: SAY_HER_NAME_QUEST })]: true };
+    expect(nextObjective(offeredFirst)).toMatchObject({ title: 'Ask Grandmother Wick about the first Sage' });
     // On the island the way follows his quest: him, then Pen's nest and Inka, then back to him (round 1).
     const offered = { ...voicesFreed, [questOfferedFlag({ id: BLANK_CHART_QUEST })]: true };
     expect(nextObjective(voicesFreed).inside).toMatch(/^The Chartmaker is in his study/);

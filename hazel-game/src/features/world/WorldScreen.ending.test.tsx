@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import { create } from 'zustand';
 
 // The canvas is KaPlay — stand in a div that says which map it's drawing.
@@ -341,6 +341,11 @@ describe('Act IV opens (#75 item 16a)', () => {
     expect(screen.getByText(/The Blank Chart is all of Lumina/)).toBeInTheDocument();
     unmount();
     at('chartmakers-rest', {});
+    render(<WorldScreen />);
+    expect(screen.queryByText(/the Blank Chart grows warm/)).toBeNull();
+    // …and anywhere else, with the chart's panels long seen (round 3).
+    cleanup();
+    at('whispering-woods', {});
     render(<WorldScreen />);
     expect(screen.queryByText(/the Blank Chart grows warm/)).toBeNull();
   });

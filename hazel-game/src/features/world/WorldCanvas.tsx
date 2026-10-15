@@ -2949,10 +2949,12 @@ export default function WorldCanvas({
       for (const c of comings) {
         const present = standsHere(c.p);
         const look = lookOf(c.p);
-        // A new face: drawn again, right where they stand (#75 item 16a).
+        // A new face (#75 item 16a): drawn again at their own spot — or, for a
+        // wanderer, right where they stand (round 3: one who'd stepped aside
+        // would otherwise stay off their spot).
         let at: { x: number; y: number } | undefined;
         if (c.here && look !== c.look) {
-          at = { x: c.here.actor.x, y: c.here.actor.y };
+          if (npcWanders(NPC_DEFS[c.p.defId])) at = { x: c.here.actor.x, y: c.here.actor.y };
           c.here.remove();
           c.here = null;
         }

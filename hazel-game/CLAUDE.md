@@ -789,6 +789,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 16a review round 3: the 🚩 and Wisp agree, "not yet" out of turn (#75 item 16a, #143j)
+Fresh code (2 low, 4 nits) and UX (4 low, 4 nits) reviews, all fixed: the
+hello to Aurora is skipped once Wisp has asked; Mnem and the Chartmaker say
+"not yet" out of turn (`early`); Lumen names the next memory; the fog says it
+rolls away later; Chronicle's footnote; a new face redrawn at its own spot;
+tests for Aurora's welcome and the panels away from the grounds. 1323 green.
+
 ### 2026-10-15 — 16a review round 2: say hello to Aurora, nobody still forgets (#75 item 16a, #143i)
 Fresh code (2 low, 5 nits) and UX (3 medium, 3 low, 2 nits) reviews, all
 fixed but two kept (the Door's shelter waits for 16b; sail vs fly advice):

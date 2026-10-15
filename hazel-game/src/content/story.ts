@@ -557,7 +557,7 @@ export const ACT4_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🔮',
-    text: 'Keeper Aurora steps out of the Spire. "You found it," she says softly. "The one place I never dared to look."',
+    text: 'Keeper Aurora hurries over. "You found it," she says softly. "The one place I never dared to look."',
   },
   {
     emoji: '🌳',

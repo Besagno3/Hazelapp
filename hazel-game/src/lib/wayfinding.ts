@@ -168,8 +168,10 @@ function actFourObjective(flags: Record<string, boolean>): Objective | null {
       doneFlag: ACT4_SEEN,
     };
   }
-  // …then down them, to say hello to Keeper Aurora (review round 2: arriving alone skipped her).
-  if (!flags[MET_ROOT_AURORA]) {
+  // …then down them, to say hello to Keeper Aurora (review round 2: arriving alone
+  // skipped her) — unless Wisp has already asked for help (round 3: the 🚩 and Wisp agree).
+  const quest = QUESTS.find((q) => q.id === SAY_HER_NAME_QUEST)!;
+  if (!flags[MET_ROOT_AURORA] && !flags[questOfferedFlag(quest)]) {
     return {
       kind: 'visit',
       title: 'Say hello to Keeper Aurora',
@@ -179,7 +181,6 @@ function actFourObjective(flags: Record<string, boolean>): Objective | null {
       npc: 'root-aurora',
     };
   }
-  const quest = QUESTS.find((q) => q.id === SAY_HER_NAME_QUEST)!;
   if (!flags[questOfferedFlag(quest)]) {
     return {
       kind: 'visit',
@@ -815,7 +816,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST && goal.doneFlag === questOfferedFlag({ id: SAY_HER_NAME_QUEST })) {
     plan = 'Wisp, in the Whispering Woods, is trying to remember a name. Go and see Wisp — and help, if you can!';
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST) {
-    plan = 'Nobody remembers the very first Sage — not even me. But the oldest folk each remember a piece of her. Follow the 🚩, one memory at a time!';
+    plan = `Nobody remembers the very first Sage — not even me. But the oldest folk each remember a piece of her. Next: ${goal.title}!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
@@ -860,7 +861,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === ACT4_SEEN) {
-    tip = "Go to the Spire's grounds with the Blank Chart in your bag!";
+    tip = "The Crystal Spire's grounds are just south of our village. Nobody fights there — it's a quiet place.";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_ROOT_AURORA) {
     tip = 'Keeper Aurora keeps an inn down there, the Lamplight Rest. Rest whenever you need!';
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST) {

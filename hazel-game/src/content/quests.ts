@@ -1441,6 +1441,8 @@ export const QUESTS: QuestDef[] = [
         remind: 'Ask Grandmother Wick first, in Lumina Village. She has known me the longest!',
       },
       {
+        // Asked out of turn, they say "not yet" and who's first (16a UX review round 3).
+        early: true,
         ...talkStep(
           'name-mnem',
           'hill-keeper',
@@ -1453,6 +1455,7 @@ export const QUESTS: QuestDef[] = [
         remind: 'Keeper Mnem minds the Hall of Names on Remembrance Hill. Ask about the very first plaque!',
       },
       {
+        early: true,
         ...talkStep(
           'name-chartmaker',
           'chart-chartmaker',
@@ -1492,7 +1495,7 @@ export const QUESTS: QuestDef[] = [
     doneLine: 'Go back to Wisp, in the Whispering Woods, and say her name!',
     complete: [
       'A daisy… five letters, the first one pointy like an A… \'…ter\'… people stopped asking… and Young Wick said it right out loud.',
-      'It\'s right on the tip of my tongue! ✨ Reward: 60 coins and a Hint Feather!',
+      'It\'s right on the tip of my tongue… say it with me! ✨ Reward: 60 coins and a Hint Feather!',
     ],
     reward: { coins: 60, hint: 1 },
     grants: { flags: [NAME_LEARNED] },

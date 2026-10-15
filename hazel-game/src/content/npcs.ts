@@ -212,7 +212,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'The Crystal of Memory whispered a name, you say? "Aster." I don\'t know it… yet my heart skipped, as if it should.',
         ifFlag: crystalFlag('history'),
-        unlessFlag: ACT4_SEEN,
+        unlessFlag: NAME_LEARNED,
       },
     ],
   },
@@ -1741,7 +1741,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Hoo. I am Sage Chronicle. (See also: owl.)',
       'Every battle is a story, little spark. Mine can ripple time itself. (See also: bravery.)',
-      { text: "The Crystal of Voices rang! A new footnote: 'The Crystal of Voices rang, and the stories came home.' (Footnote to the footnote: hooray.)", ifFlag: crystalFlag('words') },
+      { text: "The Crystal of Voices rang! A new footnote: 'The Crystal of Voices rang, and the stories came home.' (Footnote to the footnote: hooray.)", ifFlag: crystalFlag('words'), unlessFlag: NAME_LEARNED },
+      { text: "A new footnote: 'see the First Sage: ASTER.' (Footnote to the footnote: FINALLY.)", ifFlag: NAME_LEARNED },
     ],
   },
   'archive-index': {

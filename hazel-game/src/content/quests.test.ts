@@ -1244,8 +1244,8 @@ describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first S
     const quest = byId(SAY_HER_NAME_QUEST);
     let save = converse('woods-sprite', act4());
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
-    // Out of turn, a memory keeper has nothing to say about it yet.
-    expect(questConversation('hill-keeper', save)).toBeNull();
+    // Out of turn, Mnem says "not yet" and who's first (round 3).
+    expect(questConversation('hill-keeper', save)!.lines.join(' ')).toMatch(/Grandmother Wick/);
     for (const st of quest.steps) {
       const convo = questConversation(st.npc!.id, save)!;
       expect(convo.lines, st.id).toEqual(st.npc!.lines);
