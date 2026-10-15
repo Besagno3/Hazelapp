@@ -146,7 +146,7 @@ const NAME_STEPS: Record<string, { title: string; why: string }> = {
   },
   'name-young-wick': {
     title: 'Find someone who remembers her',
-    why: 'Somebody down in the Dream Root still remembers the first Sage. Keeper Aurora waits at its door.',
+    why: 'Someone below the Spire remembers her! Ask Keeper Aurora.',
   },
 };
 
@@ -175,7 +175,7 @@ function actFourObjective(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'visit',
       title: 'Say hello to Keeper Aurora',
-      why: 'Stairs lead down under the Crystal Spire, to the Dream Root Door. Keeper Aurora waits there, in the Lamplight Rest!',
+      why: 'Keeper Aurora waits below the Crystal Spire, in the Lamplight Rest!',
       zoneId: 'dreamroot-door',
       doneFlag: MET_ROOT_AURORA,
       npc: 'root-aurora',
@@ -861,7 +861,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === ACT4_SEEN) {
-    tip = "The Crystal Spire's grounds are just south of our village. Nobody fights there — it's a quiet place.";
+    tip = "Nobody fights on the Spire's grounds — it's a quiet place. Take your time and look around!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_ROOT_AURORA) {
     tip = 'Keeper Aurora keeps an inn down there, the Lamplight Rest. Rest whenever you need!';
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST) {

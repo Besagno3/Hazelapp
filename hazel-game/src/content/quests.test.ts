@@ -1234,8 +1234,12 @@ describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first S
     expect(quest.steps.map((st) => st.npc?.id)).toEqual(['village-elder', 'hill-keeper', 'chart-chartmaker', 'sage-chronicle', 'memory-young-wick']);
     expect(questConversation('woods-sprite', defaultSave())).toBeNull();
     expect(questConversation('woods-sprite', act4())).not.toBeNull();
+    // Before Wisp asks, the memory keepers say nothing about it.
+    expect(questConversation('chart-chartmaker', { ...act4(), flags: { ...act4().flags, 'hall-dedicated': true } })).toBeNull();
+    // Each memory ends by saying where the next one is.
+    expect(quest.steps.slice(0, -1).every((st) => /Next|Ask Keeper Aurora/.test(st.npc!.lines.at(-1)!))).toBe(true);
     // Each memory is two lines, and only the last says the name.
-    for (const st of quest.steps) expect(st.npc!.lines.length, st.id).toBe(2);
+    for (const st of quest.steps) expect(st.npc!.lines.length, st.id).toBe(3);
     for (const st of quest.steps.slice(0, -1)) expect(st.npc!.lines.join(' '), st.id).not.toMatch(/aster/i);
     expect(quest.steps.at(-1)!.npc!.lines.join(' ')).toMatch(/ASTER/);
   });
@@ -1244,8 +1248,12 @@ describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first S
     const quest = byId(SAY_HER_NAME_QUEST);
     let save = converse('woods-sprite', act4());
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
-    // Out of turn, Mnem says "not yet" and who's first (round 3).
-    expect(questConversation('hill-keeper', save)!.lines.join(' ')).toMatch(/Grandmother Wick/);
+    // Out of turn, Mnem says "not yet" in his own voice and who's first (rounds 3–4) —
+    // but only once the Hall is dedicated: before that, his call to it comes first.
+    expect(questConversation('hill-keeper', save)).toBeNull();
+    save = { ...save, flags: { ...save.flags, 'hall-dedicated': true } };
+    expect(questConversation('hill-keeper', save)!.lines.join(' ')).toMatch(/^Not yet, little one\. Wisp wants Grandmother Wick asked first/);
+    expect(questConversation('chart-chartmaker', save)!.lines.join(' ')).toMatch(/Ask Grandmother Wick and Keeper Mnem first/);
     for (const st of quest.steps) {
       const convo = questConversation(st.npc!.id, save)!;
       expect(convo.lines, st.id).toEqual(st.npc!.lines);
@@ -1260,6 +1268,9 @@ describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first S
     expect(save.flags[NAME_LEARNED]).toBe(true);
     expect(save.coins).toBe(coins + 60);
     expect(questConversation('woods-sprite', save)).toBeNull();
+    // Afterwards nobody says "not yet" any more.
+    expect(questConversation('chart-chartmaker', save)).toBeNull();
+    expect(questConversation('hill-keeper', save)).toBeNull();
   });
 
   it("every memory's keeper stands somewhere — but Young Wick, who comes with Lumina-That-Was (16b)", () => {

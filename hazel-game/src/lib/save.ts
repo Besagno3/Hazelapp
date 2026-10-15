@@ -307,7 +307,9 @@ export function wakeShelter(save: Partial<Pick<SaveData, 'zoneId'>>): { line: st
 export function wakeInnName(save: Pick<SaveData, 'lastRest'>): string | null {
   const z = save.lastRest ? ZONES[save.lastRest] : null;
   const inn = z ? innOf(z) : undefined;
-  return z && inn ? `the ${inn.name.replace(/^The /, '')} in ${z.the ? 'the ' : ''}${z.name}` : null;
+  // "at the Dream Root Door" — nobody sleeps IN a door (16a UX review round 4).
+  const prep = z?.kind === 'dungeon' ? 'at' : 'in';
+  return z && inn ? `the ${inn.name.replace(/^The /, '')} ${prep} ${z.the ? 'the ' : ''}${z.name}` : null;
 }
 
 /**

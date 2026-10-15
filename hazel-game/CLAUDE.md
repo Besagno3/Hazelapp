@@ -789,6 +789,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 16a review round 4: who's next, "not yet" in their own voices (#75 item 16a, #143k)
+The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 3 low, 3 nits)
+reviews, all fixed but two kept (the shared stairs sprite, Wisp's pale wings):
+each memory names the next; `QuestStep.earlyLine` / `earlyAfter` (Mnem waits
+for the Hall's dedication); Lumen's "could that be HER name?"; "at the Dream
+Root Door"; shorter whys. 1323 green.
+
 ### 2026-10-15 — 16a review round 3: the 🚩 and Wisp agree, "not yet" out of turn (#75 item 16a, #143j)
 Fresh code (2 low, 4 nits) and UX (4 low, 4 nits) reviews, all fixed: the
 hello to Aurora is skipped once Wisp has asked; Mnem and the Chartmaker say

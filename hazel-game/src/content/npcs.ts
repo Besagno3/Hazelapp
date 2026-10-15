@@ -212,6 +212,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'The Crystal of Memory whispered a name, you say? "Aster." I don\'t know it… yet my heart skipped, as if it should.',
         ifFlag: crystalFlag('history'),
+        unlessFlag: ACT4_SEEN,
+      },
+      // In Act IV, an invitation to work it out (16a UX review round 4).
+      {
+        text: '"Aster," the Crystal of Memory whispered… could that be HER name? Gather the memories and see!',
+        ifFlag: [crystalFlag('history'), ACT4_SEEN],
         unlessFlag: NAME_LEARNED,
       },
     ],

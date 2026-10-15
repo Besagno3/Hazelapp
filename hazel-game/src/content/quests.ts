@@ -131,6 +131,16 @@ export interface QuestStep {
    */
   early?: boolean;
   /**
+   * A person's own words for "not yet", in place of "Not this one yet!" and the
+   * due step's hint (#75 item 16a review round 4: Keeper Mnem isn't a lantern).
+   */
+  earlyLine?: string;
+  /**
+   * "Not yet" only once this story flag is set (16a code review round 4): until
+   * then the NPC's own story beat comes first — Mnem's call to the Hall's dedication.
+   */
+  earlyAfter?: string;
+  /**
    * What the giver says while this step is active, when the hint (also the
    * quest log's, and said by other people) would have them talk about
    * themselves (15e review: Yarn saying "west of Yarn"). Default: the hint.
@@ -1435,20 +1445,25 @@ export const QUESTS: QuestDef[] = [
           [
             '*Wick sets down her rolling pin.* The very first Sage? I was small then. She let me ask \'why?\' five times in a row and never once sighed.',
             'She wore a daisy behind her ear, every single day. I can see that daisy, child. I just can\'t see her name.',
+            '✨ A piece of her! Next: Keeper Mnem, in the Hall of Names on Remembrance Hill.',
           ],
           'Ask Grandmother Wick, in Lumina Village, about the very first Sage.',
         ),
         remind: 'Ask Grandmother Wick first, in Lumina Village. She has known me the longest!',
       },
       {
-        // Asked out of turn, they say "not yet" and who's first (16a UX review round 3).
+        // Asked out of turn, they say "not yet" and who's first (16a UX review round 3) —
+        // Mnem only once the Hall is dedicated: his call to it comes first (round 4).
         early: true,
+        earlyAfter: 'hall-dedicated',
+        earlyLine: 'Not yet, little one. Wisp wants Grandmother Wick asked first — she is in Lumina Village. Then come and see me!',
         ...talkStep(
           'name-mnem',
           'hill-keeper',
           [
             'The first plaque in this Hall was blank when I came. I polish it anyway. Polishing is a kind of remembering.',
             'Once, under the dust, my thumb found letters. Five of them, I think. The first was pointy, like a little tent — an A.',
+            '✨ Another piece! Next: the Chartmaker, on his island at the top of Taleshore.',
           ],
           'Ask Keeper Mnem, in the Hall of Names on Remembrance Hill, about the first plaque.',
         ),
@@ -1456,12 +1471,14 @@ export const QUESTS: QuestDef[] = [
       },
       {
         early: true,
+        earlyLine: 'Not yet! Wisp has an order for these things, and I am third. Ask Grandmother Wick and Keeper Mnem first — then come back to me.',
         ...talkStep(
           'name-chartmaker',
           'chart-chartmaker',
           [
             'My oldest map has a little schoolhouse drawn where the Crystal Spire stands now. Someone wrote the teacher\'s name beside it…',
             '…and someone rubbed it out. Only the end is left: \'…ter\'. Like \'water\', or \'later\'.',
+            '✨ Another piece! Next: Sage Chronicle, in the Sunken Archive.',
           ],
           'Ask the Chartmaker, on his island at the top of Taleshore, about his oldest map.',
         ),
@@ -1474,6 +1491,7 @@ export const QUESTS: QuestDef[] = [
           [
             'Every history book here has a footnote that goes nowhere: \'see the First Sage\'. No page says who she was.',
             'But I know WHY she was forgotten. The questions got too hard, so people stopped asking her. Then they stopped saying her name.',
+            '✨ Four pieces! Someone below the Crystal Spire still remembers her. Ask Keeper Aurora, at the Dream Root Door.',
           ],
           'Ask Sage Chronicle, in the Sunken Archive, about the very first Sage.',
         ),
@@ -1486,6 +1504,7 @@ export const QUESTS: QuestDef[] = [
           [
             'Teacher? Oh, you mean ASTER! Everybody knows Aster. She says there\'s no such thing as a silly question.',
             'A-S-T-E-R, like the daisy flower! Why are you smiling like that? It\'s just her name.',
+            '✨ The last piece! Run back to Wisp, in the Whispering Woods, and say it!',
           ],
           'Find someone who still remembers her — down in the Dream Root, where Lumina keeps everything it forgot.',
         ),
@@ -1879,7 +1898,10 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
         finish: rung ? (s) => ({ ...s, flags: { ...s.flags, ...quiet } }) : null,
       };
     }
-    if (later.some((st) => (st.early || st.song) && st.npc?.id === npcId)) {
+    const mine = later.find((st) => (st.early || st.song) && st.npc?.id === npcId && (!st.earlyAfter || save.flags[st.earlyAfter]));
+    if (mine) {
+      // A person says it their own way (16a review round 4).
+      if (mine.earlyLine) return { lines: [mine.earlyLine], badge: q.title, finishKind: null, finish: null };
       // Another of its kind first ("Not this one yet!"), or something to find first — the Ledger (#75 item 14g UX review).
       return { lines: [`${step.npc ? 'Not this one yet!' : 'Not yet!'} ${resolveHint(step, save)}`], badge: q.title, finishKind: null, finish: null };
     }

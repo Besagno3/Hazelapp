@@ -301,7 +301,7 @@ describe('the last inn rested at (#75 item 11)', () => {
 
   it("the Dream Root Door's inn (#75 item 16a): rested there, a defeat wakes you inside; beaten there, Aurora tucks you up", () => {
     expect(normalizeSave({ version: 3, lastRest: 'dreamroot-door' }).lastRest).toBe('dreamroot-door');
-    expect(wakeInnName({ lastRest: 'dreamroot-door' })).toBe('the Lamplight Rest in the Dream Root Door');
+    expect(wakeInnName({ lastRest: 'dreamroot-door' })).toBe('the Lamplight Rest at the Dream Root Door');
     expect(wakeAfterDefeat({ lastRest: null, zoneId: 'dreamroot-door' }).zoneId).toBe('dreamroot-door');
     expect(wakeShelter({ zoneId: 'dreamroot-door' })).toEqual({ line: 'Keeper Aurora finds you and tucks you up in the Lamplight Rest.', place: 'the inn' });
   });
