@@ -88,7 +88,7 @@ export default function WorldMapPanel({
   const marks = [...places, ...landmarks, ...(boatHere ? [boatHere] : []), ...(flagAt ? [flagAt] : [])];
   // On the overworld, directions start from the hero's own tile.
   const heroTile = zoneId === world.id && pos ? { x: Math.floor(pos.x / TILE), y: Math.floor(pos.y / TILE) } : undefined;
-  const how = goalDirections(ZONES, goal, zoneId, heroTile, flags);
+  const how = goalDirections(ZONES, goal, zoneId, heroTile, flags, aboard);
   // Star and flag on the same place: the star steps aside so both show.
   const shared = !!here && !!flagAt && !here.exact && here.x === flagAt.x && here.y === flagAt.y;
 

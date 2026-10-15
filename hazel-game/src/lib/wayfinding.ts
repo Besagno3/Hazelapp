@@ -1,4 +1,4 @@
-import { HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, gateFlag, gateIdAt, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
@@ -9,7 +9,7 @@ import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
-import { MET_GALE, SPIRE_CLEARED, canFly } from '../content/story';
+import { MET_GALE, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
 import { overworldOf } from './worldMap';
 
@@ -90,6 +90,8 @@ export interface Objective {
    * the Hall of Names' dedication (#75 item 14i). Default: having been there.
    */
   doneFlag?: string;
+  /** Where in the place to look, once you're there (Chorus Isle's gate up the road, 15g review). */
+  inside?: string;
   /**
    * Who to talk to for a `visit` goal met by a flag (Keeper Mnem by default;
    * Harbormaster Gale in Port Lantern, #75 item 15c review).
@@ -279,11 +281,25 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           key: chorusB,
         };
       }
+      // Act III's crystal (#75 item 15g): the Crystal of Voices, behind the Hush Fiend's double gate.
+      const voices = actCrystals(3).find((t) => !flags[crystalFlag(t.id)]);
+      if (canFly(flags) && voices) {
+        return {
+          kind: 'crystal',
+          title: `Free the ${voices.crystalName}`,
+          why: "Both Chorus Keys together open the Hush Fiend's gate on Chorus Isle, an island far out west of Port Lantern!",
+          zoneId: voices.zoneId,
+          crystal: voices,
+          key: keyForZone(voices.zoneId),
+          // Once its gate is open, the way in needs no telling (15g review round 3).
+          inside: flags[CHORUS_GATE_FLAG] ? undefined : "The Hush Fiend's gate is at the top of the road, past Old Cadence.",
+        };
+      }
       return {
         kind: 'explore',
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[MET_GALE]
-          ? 'You hold both Chorus Keys! Their gate is far out at sea. Until you find it, fly anywhere and help everyone on Taleshore!'
+          ? 'Six crystals shine, and the Great Fogbank has thinned — boats from the Silver Shallows can sail to Taleshore now! Check 📜 Menu for quests you haven\'t finished.'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -405,6 +421,18 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
   return null;
 }
 
+/** Chorus Isle's double gate, open (15g review round 3). */
+const CHORUS_GATE_FLAG = (() => {
+  const isle = ZONES['chorus-isle'];
+  return gateFlag(gateIdAt('chorus-isle', isle.map, isle.keyGate!.x, isle.keyGate!.y));
+})();
+
+/** Islands you're "on", not "in" (15g review). */
+const ON_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['chorus-isle', 'gale-atoll', 'wayfinder-isles']);
+
+/** Places named as many ("land beside them") — not every name ending in s (the Shrine of Quiet Paws, 15d review). */
+const PLURAL_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['wayfinder-isles', 'whispering-woods', 'clockwork-depths']);
+
 /**
  * How to get from one zone to another, as short phrases: "go north to Lumina
  * Field", "take the west path to Numbria". On an overworld the direction is
@@ -412,9 +440,6 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
  * route starts there, else from where the last exit set you down. Walking out
  * of a place onto the overworld needs no words. Null when there's no way.
  */
-/** Places named as many ("land beside them") — not every name ending in s (the Shrine of Quiet Paws, 15d review). */
-const PLURAL_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['wayfinder-isles', 'whispering-woods', 'clockwork-depths']);
-
 export function routeSteps(
   zones: Record<ZoneId, ZoneDef>,
   from: ZoneId,
@@ -422,6 +447,8 @@ export function routeSteps(
   at?: { x: number; y: number },
   /** The story flags: once the Great Fogbank lifts (15g), Taleshore is sailed to (`flownLink`). */
   flags: Record<string, boolean> | null = null,
+  /** Sailing Marlow's boat right now (15g review round 3): a way off Taleshore is sailed, not flown. */
+  aboard = false,
 ): string[] | null {
   const route = routeTo(zones, from, to);
   if (!route) return null;
@@ -441,7 +468,11 @@ export function routeSteps(
   let stairsRun: { way: 'down' | 'up'; floors: number } | null = null;
   // A route over the Great Fogbank is flown all the way, on Ember: the seas
   // before and after it too — no boat waits on Taleshore (15c review).
-  const flying = stranded || route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to, flags));
+  // Leaving Taleshore by sea is flown even once the fog thins (15g review round
+  // 2): Ember brought the hero there, and the boat waits at Marlow's dock. (A
+  // hero who sailed over can still fly home — Taleshore is only reached on Ember.)
+  const offTaleshore = overworldOf(zones, from).id === 'taleshore' && !aboard;
+  const flying = stranded || offTaleshore || route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to, flags));
   for (const { from: id, exit } of route) {
     const z = zones[id];
     const dest = zones[exit.to];
@@ -509,9 +540,14 @@ export function goalDirections(
   here: ZoneId,
   at?: { x: number; y: number },
   flags: Record<string, boolean> | null = null,
+  /** Sailing the boat right now (15g review round 3). */
+  aboard = false,
 ): string {
   if (!goal.zoneId) return '';
-  if (goal.zoneId === here) return `It's right here in ${placeName(zones[here])}!`;
+  if (goal.zoneId === here) {
+    const where = `It's right here ${ON_PLACES.has(here) ? 'on' : 'in'} ${placeName(zones[here])}!`;
+    return goal.inside ? `${where} ${goal.inside}` : where;
+  }
   // A goal across the sea (#75 item 14): the way to where it starts, then sail
   // — unless you're already out on its sea (Eldergrove's, #75 item 14f).
   const sea = overworldOf(zones, goal.zoneId);
@@ -519,7 +555,7 @@ export function goalDirections(
     // Past the dock: just "sail east" to the sea itself, or on to a place out there.
     const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at, flags) ?? [];
     const sail = beyond.length > 1 ? beyond.join(', then ') : 'sail east';
-    const steps = routeSteps(zones, here, goal.at.zoneId, at, flags) ?? [];
+    const steps = routeSteps(zones, here, goal.at.zoneId, at, flags, aboard) ?? [];
     const route = routeTo(zones, here, goal.at.zoneId) ?? [];
     const last = route.length ? route[route.length - 1].exit : null;
     const from = here === goal.at.zoneId ? (at ?? zones[here].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
@@ -531,9 +567,10 @@ export function goalDirections(
     steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
     return sentence(steps);
   }
-  const steps = routeSteps(zones, here, goal.zoneId, at, flags) ?? [];
+  const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
-  return sentence(goal.kind === 'fly' ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
+  // …unless the hero is sailing right now (15g review round 4).
+  return sentence(goal.kind === 'fly' && !aboard ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
 }
 
 // --- The mentor (Elder Lumen, #75 item 8) ------------------------------------------
@@ -582,6 +619,8 @@ export function shrineToVisit(zones: Record<ZoneId, ZoneDef>, flags: Record<stri
 export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string, boolean>): [string, string] {
   const goal = nextObjective(flags);
   const restored = actRestored(flags, 1);
+  // Every crystal shining so far, in words — a skipped Act II step can come after Voices (15g review round 4).
+  const shining = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'][emberStatus(flags).crystals] ?? String(emberStatus(flags).crystals);
   const place = (id: ZoneId) => {
     // A floor deep in a dungeon (#75 item 10) is found by its entrance.
     const entrance = dungeonEntrance(id);
@@ -592,6 +631,9 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   let plan: string;
   if (goal.kind === 'crystal' && goal.crystal && !goal.key) {
     plan = `Here is the plan: four Fiends hold the crystals, one at each far corner of Dawnreach. Start with ${midSentence(goal.crystal.fiendName)} in ${place(goal.crystal.zoneId)} — its gate needs no key, only brave answers.`;
+  } else if (goal.kind === 'crystal' && goal.crystal && goal.crystal.act === 3) {
+    // Act III's crystal (#75 item 15g): a double gate, on an island only Ember reaches.
+    plan = `You hold both Chorus Keys! Together they open ${midSentence(goal.crystal.fiendName)}'s gate on Chorus Isle, far out at sea west of Port Lantern. Fly there, and free the ${goal.crystal.crystalName}!`;
   } else if (goal.kind === 'crystal' && goal.crystal && goal.key) {
     plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s ${goal.key.door ?? 'gate'} in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-a') {
@@ -614,17 +656,17 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
-    plan = 'Five crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!';
+    plan = `${shining} crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!`;
   } else if (goal.kind === 'visit') {
     plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
   } else if (goal.kind === 'fly' && goal.zoneId === 'dragon-roost') {
-    plan = "Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.";
+    plan = `${shining} crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.`;
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[MET_GALE]) {
-    plan = 'You hold both Chorus Keys! Together they open a gate far out at sea. Until you find it, help everyone you meet on Taleshore — they have plenty to do!';
+    plan = "Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -644,6 +686,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'crystal' && goal.crystal && goal.crystal.act === 2) {
     // The Sunken Archive (#75 item 14h): swift critters, and the spell that stops one.
     tip = "In the Archive, Quill Imps are so quick they strike first. Sage Chronicle's ⏳ Time Ripple makes an enemy lose its next turn!";
+  } else if (goal.kind === 'crystal' && goal.crystal && goal.crystal.act === 3) {
+    tip = "Maestro Brio's inn on Chorus Isle is a fine place to rest first. Sage Aria there teaches 🎶 Chorus Call — it sings a ◆ back to you!";
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-a') {
     tip = "Rest at the Driftlight Inn in Port Lantern first. On the isles, Latitude Cats muddle Hint Feathers — try a Glimmer Candle!";
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-b') {

@@ -15,6 +15,8 @@ export const CRYSTAL_TOPIC_IDS = [
   'creativity',
   // Act II (#75 item 14h): the Crystal of Memory, in the Sunken Archive.
   'history',
+  // Act III (#75 item 15g): the Crystal of Voices, on Chorus Isle.
+  'words',
 ] as const;
 
 export type CrystalTopic = (typeof CRYSTAL_TOPIC_IDS)[number];
@@ -25,10 +27,10 @@ export const TOTAL_CRYSTALS = CRYSTAL_TOPIC_IDS.length;
 /**
  * The expansion question-theme ids (#55) — styling only, no crystal/Fiend.
  * (History was one until it became Act II's crystal, #75 item 14h.)
- * Geography, words and music are Act III's (#75 item 15a); words becomes the
- * sixth crystal, Voices, in 15g.
+ * Geography and music are Act III's (#75 item 15a); so was words, until it
+ * became the sixth crystal, Voices (#75 item 15g).
  */
-export const EXTRA_TOPIC_IDS = ['nature', 'space', 'geography', 'words', 'music'] as const;
+export const EXTRA_TOPIC_IDS = ['nature', 'space', 'geography', 'music'] as const;
 
 /**
  * Every question category the game can generate: the `CrystalTopic`s plus the

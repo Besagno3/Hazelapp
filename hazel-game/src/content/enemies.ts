@@ -196,6 +196,8 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   hushling: { id: 'hushling', name: 'Hushling', sprite: '🤫', topic: 'words', levelOffset: -1, hpPerLevel: 10 },
   'muffle-moth': { id: 'muffle-moth', name: 'Muffle Moth', sprite: '🦋', topic: 'words', levelOffset: 0, hpPerLevel: 13, behavior: 'shielded' },
   'blank-sprite': { id: 'blank-sprite', name: 'Blank Sprite', sprite: '⬜', topic: 'words', levelOffset: 1, hpPerLevel: 12 },
+  // Act III's Fiend (#75 item 15g): beat it to restore the Crystal of Voices (BOSS_LINES.words).
+  'hush-fiend': { id: 'hush-fiend', name: 'The Hush Fiend', sprite: '🔇', topic: 'words', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
   // The warden at the tip of Inkwell Cove's sandy point: beat it for the Second Chorus Key (keys.ts).
   'riddle-leviathan': { id: 'riddle-leviathan', name: 'The Riddle Leviathan', sprite: '🐋', topic: 'words', levelOffset: 1, hpPerLevel: 17, isBoss: true, role: 'warden' },
 };
@@ -217,6 +219,7 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   ringkeeper: ['The Ringkeeper lowers its antlers and paws the ground!', 'The Ringkeeper bellows: "A THOUSAND YEARS, and nobody got past me!"'],
   'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
   'hollow-fiend': ['The Hollow Fiend yawns open — the pages round you start to go blank!', 'The Hollow Fiend howls: "I will EAT tomorrow too!"'],
+  'hush-fiend': ['The Hush Fiend puffs up like a big purple pillow — every sound goes muffled!', 'The Hush Fiend hisses: "SHHHHHH! Not ONE more word!"'],
   'compass-golem': ['The Compass Golem spins its needle — NORTH, SOUTH, NORTH!', 'The Compass Golem booms: "ALL DIRECTIONS LEAD TO ME!"'],
   // It speaks only in riddles (STORY-4X), even when it's angry.
   'riddle-leviathan': [

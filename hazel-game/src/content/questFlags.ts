@@ -62,6 +62,9 @@ export const RESO_STONES = ['reso-high', 'reso-middle', 'reso-low'] as const;
 /** The Pen-Pal Papers (#75 item 15f): Librarian Shush's letters to Librarian Sage. */
 export const SHUSH_QUEST = 'shush-letters';
 
+/** Coda's Lost Refrains (#75 item 15g): the island's three songs, found and sung back. */
+export const CODA_QUEST = 'coda-refrains';
+
 /**
  * Set while an escort's walk is under way. Never kept: leaving the place,
  * a lost battle or a reload clears it, and the one being walked waits at the

@@ -1373,3 +1373,24 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1167 | U | ✅ | song quests are whole songs (#140i) | every quest with song steps has `wrongNote`; its song steps run from the first to the end (quests.test) |
 | TC-1168 | U | ✅ | a song stone before its song is due (#140j) | a stand-in quest with a talk step first: the high stone says "Not this one yet! Talk to Hum first.", nothing un-done (quests.test) |
 | TC-1169 | M | ⬜ | the cliffs read as a climb (#140k) | on the canvas: the two-row walls read as one cliff face, the ramps as grey steps, both flights clear of critters |
+| TC-1170 | A | ✅ | words is crystal #6, Act III's (#141a) | `topics.test`, `crystals.test`: the Crystal of Voices on Chorus Isle, act 3; the 🚩's crystal order ends with Voices after both keys; Acts I–III unchanged with a stand-in Act IV crystal |
+| TC-1171 | A | ✅ | Chorus Isle's gate takes both Chorus Keys (#141b) | `zones.test`: `holdsKeysFor` false with none or one, true with both; the Hush Fiend out of reach until the gate opens; `journey.test`: the Voices leg walks with both keys, never with one |
+| TC-1172 | A | ✅ | the key gate says which key is missing (#141b) | `KeyGateOverlay.test`: neither → two locks, both keys and wardens; one → it fits one, the other named; both → "Both keys fit!", "Use both keys" opens it; the Memoria door reads as before |
+| TC-1173 | A | ✅ | Chorus Isle on Taleshore (#141c) | `zones.test`: an island only Ember reaches, the way back on grass beside the icon; words, tier 6; a Return town with Brio's inn, Aria's hall, Coda's cottage in the chorus style; 8+ people |
+| TC-1174 | A | ✅ | Old Cadence names the missing key (#141c) | `zones.test`: his lines with no key, either one, both, and after Voices |
+| TC-1175 | A | ✅ | Chorus Call sings a ◆ back (#141e) | `battleTurn.test`: 2.5×, `refunded: 1`, charge 4 → 2; a miss fizzles and keeps the charge; other Sage strikes refund nothing |
+| TC-1176 | A | ✅ | Radiant Ember (#141f) | `story.test` tripwire: 6 crystals, radiant at 6; `spells.test`: Radiant Breath (4.2×) replaces Ember's Breath, the combos stay, Starfire Tail hits harder |
+| TC-1177 | A | ✅ | the Hush Fiend's panels have no 🌑 (#141d) | `story.test`: every other crystal's last panel is 🌑; Voices' last says "she used to sing to us. the first sage. before you forgot her." |
+| TC-1178 | A | ✅ | Coda's Lost Refrains (#141h) | `quests.test`: offer → three chests → Brio → Aria (not before) → Coda takes them and pays 45c; a refrain found first says it's Coda's |
+| TC-1179 | A | ✅ | the fogbank thins with Voices (#141g) | `zones.test`: the Great Fogbank's `liftedBy` is the words crystal's flag; once set a boat crosses to Taleshore and the link isn't flown-only |
+| TC-1180 | M | ⬜ | Chorus Isle on the canvas (#141c) | fly to the isle west of Port Lantern, land, walk in: the inn, the hall, the cottage, the hollow and its double gate read clearly; the Hush Fiend fights; the crystal's panels; Ember shines |
+| TC-1181 | A | ✅ | the double gate shows the key you hold (#141k) | `KeyGateOverlay.test`: with one key, 🎹🔒 and "fits one lock"; with none, the short two-locks line |
+| TC-1182 | A | ✅ | Chorus Call into a shield refunds exactly what was spent (#141l) | `battleTurn.test`: shield broken, charge back to its start; a full refund would end one ◆ up; a refund never passes full |
+| TC-1183 | M | ⬜ | the sailing footer after Voices (#141l) | sail the Shallows with Voices restored: no "go ashore, then 🐉 Fly" |
+| TC-1184 | A | ✅ | Coda's songs wait for the hush (#141m) | `zones.test`: done before Voices, Coda hums quietly; after, out loud; Cadence never warns about a beaten Fiend |
+| TC-1185 | A | ✅ | the way on Chorus Isle (#141m) | `wayfinding.test`: "It's right here on Chorus Isle! The Hush Fiend's gate is at the top of the road…"; Numbria still "in"; routes off Taleshore after Voices are flown |
+| TC-1186 | A | ✅ | a shield's refund puts the charge back (#141m) | `battleTurn.test`: `shieldRefund` for Chorus Call and every other strike returns the charge to where it began |
+| TC-1187 | M | ⬜ | Taleshore after Voices (#141n) | talk to Gale, Pidge, Reso, Shush, Ness; walk into the hollow: the Crystal of Voices stands where the Fiend was |
+| TC-1188 | A | ✅ | sailing off Taleshore, the way is sailed (#141o) | `wayfinding.test`: aboard on Taleshore → "sail west…"; on foot → flown; with the isle's gate open, no gate hint |
+| TC-1189 | A | ✅ | the crystal in the hollow, and Lumen's count (#141p) | `zones.test`: the Crystal of Voices on the Fiend's cell, only after Voices; `wayfinding.test`: a Hall dedication left after Voices says "Six crystals" and Lumen sends you to Mnem |
+| TC-1190 | M | ⬜ | starfire (#141p) | with six crystals, cast Radiant Breath with Ember fighting: white-gold stars fly, "breathes starfire!"; the Hush Fiend's face reads as "shh", not a nose |

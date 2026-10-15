@@ -16,8 +16,9 @@ import { emberStatus } from './story';
 
 export type SpellEffect =
   // A landed hit dealing `multiplier` × the hero's basic attack damage — and,
-  // with `skipsTurn` (Time Ripple, #75 item 14h), the enemy loses its next turn.
-  | { kind: 'damage'; multiplier: number; skipsTurn?: boolean }
+  // with `skipsTurn` (Time Ripple, #75 item 14h), the enemy loses its next turn;
+  // with `refund` (Chorus Call, #75 item 15g), a landed cast gives back that much charge.
+  | { kind: 'damage'; multiplier: number; skipsTurn?: boolean; refund?: number }
   // Restores `amount` HP (no enemy turn lost — the enemy still strikes after).
   | { kind: 'heal'; amount: number }
   // Fully blocks the enemy's next hit and restores `heal` HP.
@@ -67,7 +68,7 @@ export const AEGIS: Spell = {
   color: 'text-sky-300',
 };
 
-/** Unlocked when Ember reaches full-grown (every crystal restored) — the capstone. */
+/** Unlocked when Ember reaches full-grown (four crystals) — the capstone until she shines. */
 export const EMBER_BREATH: Spell = {
   id: 'ember-breath',
   name: "Ember's Breath",
@@ -76,6 +77,20 @@ export const EMBER_BREATH: Spell = {
   cost: 4,
   effect: { kind: 'damage', multiplier: 3.6 },
   color: 'text-orange-300',
+};
+
+/**
+ * Radiant Breath (#75 item 15g, STORY-4X §8–9): Ember's Breath once she
+ * shines, with the sixth crystal — 4.2×, the same cost.
+ */
+export const RADIANT_BREATH: Spell = {
+  id: 'radiant-breath',
+  name: 'Radiant Breath',
+  emoji: '✨',
+  description: 'Radiant Ember breathes starlight and fire — the biggest blow there is.',
+  cost: 4,
+  effect: { kind: 'damage', multiplier: 4.2 },
+  color: 'text-yellow-200',
 };
 
 /** The flag the Hall of Names' dedication sets — and teaches Remembrance (#75 item 14i). */
@@ -99,6 +114,9 @@ export const REMEMBRANCE: Spell = {
 /** Time Ripple's strike (STORY-4X §9): a little less than the other Sages' 2.5×, for the turn it takes away. */
 export const TIME_RIPPLE_MULTIPLIER = 2.2;
 
+/** Charge a landed Chorus Call gives back (STORY-4X §9). */
+export const CHORUS_REFUND = 1;
+
 /** A Sage's signature spell (the FF6-Esper homage), learned by meeting them. */
 export function sageSpell(topic: CrystalTopic): Spell {
   const s = SAGES[topic];
@@ -111,6 +129,19 @@ export function sageSpell(topic: CrystalTopic): Spell {
       description: `${s.name}'s ripple in time — a strong strike, and the enemy loses its next turn!`,
       cost: 3,
       effect: { kind: 'damage', multiplier: TIME_RIPPLE_MULTIPLIER, skipsTurn: true },
+      color: s.flashColor,
+      topic,
+    };
+  }
+  // Sage Aria's Chorus Call (#75 item 15g): a Sage's strike that sings one ◆ back.
+  if (topic === 'words') {
+    return {
+      id: `sage-${topic}`,
+      name: s.specialName,
+      emoji: s.specialEmoji,
+      description: `${s.name}'s song — big damage, and it sings one ◆ back to you!`,
+      cost: 3,
+      effect: { kind: 'damage', multiplier: 2.5, refund: CHORUS_REFUND },
       color: s.flashColor,
       topic,
     };
@@ -129,7 +160,8 @@ export function sageSpell(topic: CrystalTopic): Spell {
 
 /**
  * The spells a save currently knows, in cast-menu order: the basic Mend, each
- * met Sage's signature, then the progression unlocks (Aegis, Remembrance, Ember's Breath).
+ * met Sage's signature, then the progression unlocks (Aegis, Remembrance, and
+ * Ember's Breath — Radiant Breath once she shines, #75 item 15g).
  */
 export function spellsKnown(save: SaveData): Spell[] {
   const spells: Spell[] = [MEND];
@@ -138,5 +170,6 @@ export function spellsKnown(save: SaveData): Spell[] {
   if (crystals >= 1) spells.push(AEGIS);
   if (save.flags[HALL_DEDICATED]) spells.push(REMEMBRANCE);
   if (stage === 'dragon') spells.push(EMBER_BREATH);
+  if (stage === 'radiant') spells.push(RADIANT_BREATH);
   return spells;
 }

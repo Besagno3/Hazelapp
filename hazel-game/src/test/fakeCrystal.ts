@@ -5,8 +5,9 @@ import type { CrystalTopic } from '../types';
  * A stand-in for a later act's crystal (#75 item 14c): one that isn't in the
  * game yet, for tests that check the acts before it don't change when it's
  * added — the Spire's seal, the ending, the HUD count, the 🚩's order. Since
- * Act II's Crystal of Memory arrived (#75 item 14h) it stands for Act III's
- * (Voices, item 15). Its id isn't a real topic (hence the cast).
+ * Act II's Crystal of Memory arrived (#75 item 14h) it stood for Act III's;
+ * since Voices arrived (#75 item 15g), for Act IV's. Its id isn't a real
+ * topic (hence the cast).
  */
 export const FAKE_LATER_CRYSTAL: CrystalTopicInfo = {
   id: 'voices-test' as CrystalTopic,
@@ -18,7 +19,7 @@ export const FAKE_LATER_CRYSTAL: CrystalTopicInfo = {
   crystalName: 'Crystal of Testing',
   fiendName: 'The Test Fiend',
   zoneId: 'silver-shallows',
-  act: 3,
+  act: 4,
 };
 
 /** Adds the stand-in crystal to the registry; call the returned function to take it out again. */

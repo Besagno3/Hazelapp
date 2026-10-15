@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { CODA_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
@@ -29,8 +29,8 @@ export type DialogueLine =
   | string
   | {
       text: string;
-      /** Show only when this save flag is set… */
-      ifFlag?: string;
+      /** Show only when this save flag is set (given several, every one of them)… */
+      ifFlag?: string | string[];
       /** …or only when it is NOT set (or, given several, none of them is). */
       unlessFlag?: string | string[];
       /** Set this flag after the line is shown. */
@@ -107,7 +107,7 @@ export function isThing(def: Pick<WorldNpcDef, 'prop' | 'signpost'> | undefined)
 export function visibleLines(lines: DialogueLine[], flags: Record<string, boolean>): DialogueLine[] {
   return lines.filter((l) => {
     if (typeof l === 'string') return true;
-    if (l.ifFlag && !flags[l.ifFlag]) return false;
+    if (l.ifFlag && ![l.ifFlag].flat().every((f) => flags[f])) return false;
     if (l.unlessFlag && [l.unlessFlag].flat().some((f) => flags[f])) return false;
     return true;
   });
@@ -615,7 +615,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       // After her quest (#75 item 14i review round 3): no stale chest rumor, no repeat of the
       // offer's rumors — just the Fogbank warning, which still matters.
       'Shelby, over on Sandpiper Cay, says my beam lights up his whole sandbar now. He reads the sand by it!',
-      "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
+      { text: "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.", unlessFlag: crystalFlag('words') },
+      { text: 'And the Great Fogbank, way out east? It has thinned to a mist! Boats sail right through it now.', ifFlag: crystalFlag('words') },
     ],
     ambient: ['*polishes the lamp*', 'Ship ahoy? …Oh, it\'s you!', 'Shine on, little light.'],
   },
@@ -1398,9 +1399,16 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: `${numberWord(actCrystals(1).length + actCrystals(2).length)} plaques shine now: ${listOf([...actCrystals(1), ...actCrystals(2)].map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
         ifFlag: HALL_DEDICATED,
+        unlessFlag: crystalFlag('words'),
+      },
+      // The sixth plaque lights with Voices (#75 item 15g review round 2).
+      {
+        text: `${numberWord(actCrystals(1).length + actCrystals(2).length + actCrystals(3).length)} plaques shine now: ${listOf([...actCrystals(1), ...actCrystals(2), ...actCrystals(3)].map((t) => t.crystalName.replace(/^Crystal of /, '')))}!`,
+        ifFlag: [HALL_DEDICATED, crystalFlag('words')],
       },
       // Plants the first Sage, for Wick's and Lumen's breadcrumbs.
-      'These plaques are still blank — even the very first Sage\'s. Names nobody remembers… yet.',
+      { text: 'These plaques are still blank — even the very first Sage\'s. Names nobody remembers… yet.', unlessFlag: crystalFlag('words') },
+      { text: "The crystal said \"she\"? Then the first blank plaque belongs to a SHE. Still no name… yet.", ifFlag: crystalFlag('words') },
       // The dedication (#75 item 14i): Memory's plaque lights itself, and Mnem
       // calls you in — the panels play as his talk closes (WorldScreen).
       {
@@ -1774,7 +1782,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     guide: true,
     lines: [
       { text: "Welcome to Port Lantern! I'm Harbormaster Gale. I've never lost a ship. Misplaced one, yes. Twice.", setFlag: MET_GALE },
-      "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.",
+      { text: "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.", unlessFlag: crystalFlag('words') },
+      { text: "I heard Chorus Isle singing from my dock! And the fog's thinned — boats sail in from the Silver Shallows again. I'm sailing over this summer!", ifFlag: crystalFlag('words') },
       { text: 'Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock needs a brave friend!', unlessFlag: questOfferedFlag({ id: JUNO_QUEST }) },
       { text: "Talk to everyone, and check the Quest Board in the square. And thank you for looking after Juno!", ifFlag: questOfferedFlag({ id: JUNO_QUEST }) },
       'Gale Atoll, out at sea? No relation! It\'s just VERY windy out there.',
@@ -1842,7 +1851,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "Coo! Postmaster Pidge. I carry letters over hills and over sea. But never over the fog. Until now!",
-      "I've years of letters for Lumina Village. Now a dragon's found the way, maybe they'll finally get there!",
+      { text: "I've years of letters for Lumina Village. Now a dragon's found the way, maybe they'll finally get there!", unlessFlag: crystalFlag('words') },
+      { text: 'The fog has thinned — the post boats sail again! Coo! My sack has never been so heavy.', ifFlag: crystalFlag('words') },
       { text: "Shush's letters? Far too precious for my sack — you carry them, dragon-rider!", ifFlag: questOfferedFlag({ id: SHUSH_QUEST }), unlessFlag: questDoneFlag({ id: SHUSH_QUEST }) },
     ],
     ambient: ['Coo!', 'Letters! Letters!', '✉️'],
@@ -1882,6 +1892,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: "CHOIR NEWS: the Songstone Cliffs' song is stuck! Take the north road past the Inkwell Cove turn, then turn east under the mountains. Reso needs a listener!", unlessFlag: questDoneFlag({ id: RESO_QUEST }) },
       { text: 'SHH: the Quiet Quarter is east off the south road. Please whisper there. Librarian Shush insists.' },
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
+      // Chorus Isle (#75 item 15g): the double gate's island.
+      { text: 'OLD SAILORS SAY: far out west, straight across the sea from Port Lantern, lies Chorus Isle, where everyone used to sing. Nobody has heard a note from it in years.', unlessFlag: crystalFlag('words') },
+      { text: "GREAT NEWS: Chorus Isle is singing again — and the Great Fogbank has thinned! Boats from the Silver Shallows can sail right into Port Lantern now.", ifFlag: crystalFlag('words') },
       'Check back soon for more notices!',
     ],
   },
@@ -1908,6 +1921,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Every stone on these cliffs hums. Put your ear to one and listen!',
       { text: 'High, middle, low — hear it? The cliffs sing again, every evening.', ifFlag: questDoneFlag({ id: RESO_QUEST }) },
+      { text: 'Chorus Isle is singing again — I can hear it from up here! My choir is learning their songs.', ifFlag: crystalFlag('words') },
     ],
   },
   'cliff-echo': {
@@ -2017,6 +2031,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Shh. Books are the loudest thing in the world, when you read them in your head.',
       { text: 'Five kittens! I\'m writing back right now. Shh — I\'m thinking.', ifFlag: questDoneFlag({ id: SHUSH_QUEST }) },
+      { text: '"The Hush Fiend is gone, and everyone is SO loud now. Shh! …Oh, all right. Hooray!" she whispers.', ifFlag: crystalFlag('words') },
     ],
   },
   'quiet-mime': {
@@ -2356,5 +2371,121 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Tiny letters under it say: "When the fog came, the dragons flew away. The last one carried her egg down to the village, where the fog had not come yet."',
       'Ember presses her nose to the carving and rumbles softly. That egg was Ember — the very egg YOU found!',
     ],
+  },
+
+  // --- Chorus Isle (#75 item 15g) ---------------------------------------------------
+  // Act III's crystal zone: Sage Aria, who speaks in song-fragments; Coda, who
+  // lost the island's refrains; Maestro Brio's inn; Old Cadence by the double
+  // gate; and Trill, a songbird who only knows half a song.
+  'sage-aria': {
+    id: 'sage-aria',
+    name: 'Sage Aria',
+    sprite: '🎼',
+    role: 'sage',
+    topic: 'words',
+    lines: [
+      '♪ La-la… hello, little singer! I am Sage Aria. Words are songs that forgot their tune. ♪',
+      { text: '♪ The Hush Fiend took our voices… but not this one. I only sing it very, VERY quietly. ♪', unlessFlag: crystalFlag('words') },
+      { text: '♪ Hear that? The whole island is singing! Thank you, thank you, thank YOU! ♪', ifFlag: crystalFlag('words') },
+    ],
+  },
+  'chorus-brio': {
+    id: 'chorus-brio',
+    name: 'Maestro Brio',
+    sprite: '🎻',
+    role: 'innkeeper',
+    lines: [
+      'Welcome to the Resting Note Inn! I am Maestro Brio. Rest here — rest is a note too, you know.',
+      "Harbormaster Gale used to sail over from Port Lantern every summer, just to hear us sing. That was before the hush came.",
+      { text: 'Every song needs a pause. Even a brave hero.', unlessFlag: crystalFlag('words') },
+      { text: "Listen to that racket — my whole island is singing! I haven't been this happy since my violin was a twig.", ifFlag: crystalFlag('words') },
+    ],
+  },
+  'chorus-coda': {
+    id: 'chorus-coda',
+    name: 'Coda',
+    sprite: '👧',
+    role: 'villager',
+    stationary: true,
+    // Her quest's offer comes first ("Coda's Lost Refrains"); these follow it.
+    lines: [
+      { text: "I hum all three songs every day — very quietly, until the Hush Fiend is gone.", ifFlag: questDoneFlag({ id: CODA_QUEST }), unlessFlag: crystalFlag('words') },
+      { text: 'Now we sing the sunrise song, the noon song AND the bedtime song — out loud. Every day!', ifFlag: [questDoneFlag({ id: CODA_QUEST }), crystalFlag('words')] },
+    ],
+  },
+  'chorus-cadence': {
+    id: 'chorus-cadence',
+    name: 'Old Cadence',
+    sprite: '👴',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      { text: "I'm Old Cadence. I led the island's choir, before the Hush Fiend came. It lives in the hollow behind this gate.", unlessFlag: crystalFlag('words') },
+      { text: "I'm Old Cadence. The hollow behind me is empty now — just echoes!", ifFlag: crystalFlag('words') },
+      { text: 'Two locks, two Chorus Keys! The Compass Golem (Wayfinder Isles) has one; the Riddle Leviathan (Inkwell Cove) has the other.', unlessFlag: [keyFlag('chorus-a'), keyFlag('chorus-b')] },
+      { text: 'You have the First Chorus Key! The other lock needs the Second — the Riddle Leviathan in Inkwell Cove has it.', ifFlag: keyFlag('chorus-a'), unlessFlag: keyFlag('chorus-b') },
+      { text: 'You have the Second Chorus Key! The other lock needs the First — the Compass Golem on the Wayfinder Isles has it.', ifFlag: keyFlag('chorus-b'), unlessFlag: keyFlag('chorus-a') },
+      { text: "You hold BOTH Chorus Keys! The gate is right behind me. Be brave — and be LOUD!", ifFlag: [keyFlag('chorus-a'), keyFlag('chorus-b')], unlessFlag: crystalFlag('words') },
+      { text: 'The Crystal of Voices rings again! My choir is back — and every one of them is singing too loudly. Wonderful!', ifFlag: crystalFlag('words') },
+    ],
+  },
+  'chorus-trill': {
+    id: 'chorus-trill',
+    name: 'Trill',
+    sprite: '🐦',
+    role: 'villager',
+    lines: [
+      { text: 'Tweet-tweedle-tweet-… I only remember HALF my song. The Hush Fiend shushed the rest. Tweet-…?', unlessFlag: crystalFlag('words') },
+      { text: 'Tweet-tweedle-tweet-TWEEEE! I remember the WHOLE song now! Tweedle!', ifFlag: crystalFlag('words') },
+    ],
+    ambient: ['Tweet-tweedle!', '♪', '🐦'],
+  },
+  // The Crystal of Voices, ringing in the empty hollow once it's freed.
+  'chorus-crystal': {
+    id: 'chorus-crystal',
+    name: 'Crystal of Voices',
+    sprite: '💎',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      '💎 The Crystal of Voices hums. Put your ear close: every song on Taleshore is in it — and one small voice, far away.',
+    ],
+  },
+  // Do and Re: twins who only ever say half a sentence each.
+  'chorus-do': {
+    id: 'chorus-do',
+    name: 'Do',
+    sprite: '🧒',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "I'm Do! And she's—",
+      { text: 'We used to sing in rounds. Now we just TALK in rounds. It isn\'t the same.', unlessFlag: crystalFlag('words') },
+      { text: 'Row, row, row your— Re, it\'s YOUR turn!', ifFlag: crystalFlag('words') },
+    ],
+  },
+  'chorus-re': {
+    id: 'chorus-re',
+    name: 'Re',
+    sprite: '👧',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "—Re! I'm Re. We're twins. Do always starts and I always finish.",
+      { text: '…boat, gently down the STREAM! Ha! We remember the whole round!', ifFlag: crystalFlag('words') },
+    ],
+  },
+  'chorus-baritone': {
+    id: 'chorus-baritone',
+    name: 'Old Baritone',
+    sprite: '🎣',
+    role: 'villager',
+    lines: [
+      'I fish. I used to sing the low notes. LOW. So low the fish came to listen.',
+      { text: 'Now I hum. Hmmmmm. The fish are not impressed.', unlessFlag: crystalFlag('words') },
+      { text: 'BOOOOM-bom-bom! The fish are back! They LOVE the low notes.', ifFlag: crystalFlag('words') },
+    ],
+    ambient: ['Bom.', '🎣'],
   },
 };

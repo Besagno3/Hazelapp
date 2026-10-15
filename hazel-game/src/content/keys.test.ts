@@ -63,12 +63,12 @@ describe('warden keys (#58)', () => {
     expect(new Set(ACT_ONE_KEYS.map((k) => k.unlocksZone)).size).toBe(3);
   });
 
-  it("the First Chorus Key (#75 item 15d): the Compass Golem's, on the Wayfinder Isles — its gate comes with Chorus Isle (15g)", () => {
+  it("the First Chorus Key (#75 item 15d): the Compass Golem's, on the Wayfinder Isles — one of Chorus Isle's two (15g)", () => {
     const k = GATE_KEYS.find((g) => g.id === 'chorus-a')!;
     expect(keyFlag(k.id)).toBe('key-chorus-a'); // STORY-4X's flag
     expect(k.fromZone).toBe('wayfinder-isles');
-    expect(k.unlocksZone).toBeNull();
-    expect(k.opens).toMatch(/one of two keys/);
+    expect(k.unlocksZone).toBe('chorus-isle');
+    expect(k.opens).toMatch(/one of the two Chorus Keys/);
     expect(keyForZone(null)).toBeUndefined();
     expect(ENEMY_DEFS[k.bossId]).toMatchObject({ role: 'warden', topic: 'geography', isBoss: true });
   });
@@ -77,7 +77,7 @@ describe('warden keys (#58)', () => {
     const k = GATE_KEYS.find((g) => g.id === 'chorus-b')!;
     expect(keyFlag(k.id)).toBe('key-chorus-b'); // STORY-4X's flag
     expect(k.fromZone).toBe('inkwell-cove');
-    expect(k.unlocksZone).toBeNull();
+    expect(k.unlocksZone).toBe('chorus-isle');
     expect(k.opens).toMatch(/one of the two Chorus Keys/);
     expect(k.fiendName).toBe(GATE_KEYS.find((g) => g.id === 'chorus-a')!.fiendName);
     expect(ENEMY_DEFS[k.bossId]).toMatchObject({ role: 'warden', topic: 'words', isBoss: true });

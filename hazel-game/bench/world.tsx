@@ -50,7 +50,7 @@ import { camAxis } from '../src/lib/camera';
 import { BLEND_OPS_PER_CORNER, blendLayer, blendsEdges } from '../src/lib/terrain';
 import { FOG_OVERHANG } from '../src/lib/fog';
 import { fogLifted, fogSeenFlag, gateFlag } from '../src/content/zones';
-import { keyFlag, keyForZone } from '../src/content/keys';
+import { holdsKeysFor } from '../src/content/keys';
 import { actOneJourney, goalTarget } from '../src/lib/journey';
 import { reachPath, type Cell } from '../src/lib/reach';
 import { floorWards } from '../src/content/spire';
@@ -528,8 +528,8 @@ function Bench() {
             // A gatekeeper's question, answered; a warden's key gate opens only with its key (#58).
             if (t.kind === 'gate') setFlagRef.current?.(gateFlag(t.id));
             else if (t.kind === 'keygate') {
-              const key = keyForZone(t.zoneId);
-              if (key && benchFlagsRef.current[keyFlag(key.id)]) setFlagRef.current?.(gateFlag(t.id));
+              // Every key the gate needs — both Chorus Keys on Chorus Isle (#75 item 15g).
+              if (holdsKeysFor(t.zoneId, benchFlagsRef.current)) setFlagRef.current?.(gateFlag(t.id));
             }
           },
           onExit: (to, sx, sy) => {

@@ -230,6 +230,12 @@ def draw_item(L: Canvas, item: str, hx: float, hy: float, arm: str, col=None):
     elif item == 'broom':
         L.line(hx - ca * 4, hy - sa * 4, hx + ca * 9, hy + sa * 9, '#8a5a30', w=1.2)
         L.ellipse(hx - ca * 6, hy - sa * 6, 2.6, 2.0, '#d8b050')
+    elif item == 'violin':
+        # Maestro Brio's (#75 item 15g): a little fiddle tucked under the arm, and its bow.
+        L.ellipse(hx + 2, hy - 1, 2.6, 3.4, col or '#b0602a')
+        L.ellipse(hx + 2, hy - 1, 1.0, 1.2, '#3a2010', shade=False)
+        L.line(hx + 2, hy - 4, hx + 2, hy - 8, '#3a2010', w=0.9)
+        L.line(hx - 2, hy + 3, hx + 7, hy - 5, '#e8d8b0', w=0.5)
     elif item == 'abacus':
         L.rect(hx - 1, hy - 4, hx + 6, hy + 2, '#8a5a30')
         for i in range(3):
@@ -1210,7 +1216,7 @@ def dragon(c: Canvas, p: Pose, s: dict):
     belly = hexc(s.get('belly', '#ffd98a'))
     stage = s.get('stage', 'dragon')
     lean, bob = d.lean, d.bob
-    size = {'hatchling': 0.72, 'whelp': 0.86, 'dragon': 1.0}[stage]
+    size = {'hatchling': 0.72, 'whelp': 0.86, 'dragon': 1.0, 'radiant': 1.0}[stage]
 
     def S(x, y):  # scale about the feet so smaller stages stay grounded
         return 16 + (x - 16) * size, 30 + (y - 30) * size
@@ -1274,13 +1280,27 @@ def dragon(c: Canvas, p: Pose, s: dict):
     if p.mouth == 'breath':  # a fire cone from the jaws to the frame edge
         fx, fy = hx + 7.5 * size, hy + 3.2 * size
         flick = 1.2 if p.frame % 2 else 0
-        head.poly([(fx, fy - 1.2), (32, fy - 4.5 - flick), (32, fy + 4.5 + flick), (fx, fy + 1.2)], '#ff6a2a')
-        head.poly([(fx, fy - 0.8), (32, fy - 2.6), (32, fy + 2.6), (fx, fy + 0.8)], '#ffb040')
-        head.poly([(fx, fy - 0.4), (31, fy - 1), (31, fy + 1), (fx, fy + 0.4)], '#fff2a0')
+        # Radiant Ember breathes starlight (15g review): gold and white, star specks in it.
+        outer, mid, core = ('#ffd040', '#fff4b0', '#ffffff') if stage == 'radiant' else ('#ff6a2a', '#ffb040', '#fff2a0')
+        head.poly([(fx, fy - 1.2), (32, fy - 4.5 - flick), (32, fy + 4.5 + flick), (fx, fy + 1.2)], outer)
+        head.poly([(fx, fy - 0.8), (32, fy - 2.6), (32, fy + 2.6), (fx, fy + 0.8)], mid)
+        head.poly([(fx, fy - 0.4), (31, fy - 1), (31, fy + 1), (fx, fy + 0.4)], core)
+        if stage == 'radiant':
+            for (sx, sy) in ((fx + 6, fy - 3), (fx + 11, fy + 2.6), (fx + 15, fy - 1.6)):
+                head.dot(sx, sy + (1 if p.frame % 2 else 0), '#ffffff')
     elif p.arm in ('strike',) or s.get('always_fire'):
         fx, fy = hx + 8 * size, hy + 2 * size
         head.poly([(fx, fy - 1.5), (fx + 5, fy - 3), (fx + 7, fy), (fx + 5, fy + 3), (fx, fy + 1.5)], '#ff8a2a')
         head.poly([(fx, fy - 0.8), (fx + 4, fy), (fx, fy + 0.8)], '#ffe066')
+    if stage == 'radiant':
+        # Radiant Ember (#75 item 15g): a few starry sparkles round her, twinkling frame to frame.
+        # A starry halo on every frame, half the stars swapping each frame so it twinkles (15g review: it read as plain orange).
+        for k, (x, y) in enumerate(((6, 9), (27, 7), (3, 22), (28, 20), (14, 4), (2, 14), (30, 13), (22, 3))):
+            big = (k + p.frame) % 2 == 0
+            head.dot(x, y, '#ffffff' if big else '#fff2a0')
+            if big:
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    head.dot(x + dx, y + dy, '#ffe060')
     d.put(head)
     if s.get('lance'):
         it = d.part(lean, bob)
@@ -1297,7 +1317,7 @@ def dragon_fb(c: Canvas, p: Pose, s: dict):
     col = hexc(s['color'])
     belly = hexc(s.get('belly', '#ffd98a'))
     stage = s.get('stage', 'dragon')
-    size = {'hatchling': 0.72, 'whelp': 0.86, 'dragon': 1.0}[stage]
+    size = {'hatchling': 0.72, 'whelp': 0.86, 'dragon': 1.0, 'radiant': 1.0}[stage]
     horn = s.get('horn', '#fff0c8')
     bob = d.bob
 
@@ -1354,6 +1374,14 @@ def dragon_fb(c: Canvas, p: Pose, s: dict):
     if s.get('helmet'):
         head.ellipse(hx, hy - 3, hr + 0.5, 4, '#c0c8d4')
         head.poly([(hx - 1, hy - 6), (hx, hy - 12), (hx + 1, hy - 6)], '#e84040')
+    if stage == 'radiant':
+        # Radiant Ember's star halo in the front and back views too (15g review round 3).
+        for k, (x, y) in enumerate(((5, 9), (27, 9), (3, 22), (29, 21), (16, 3), (9, 4), (23, 4))):
+            big = (k + p.frame) % 2 == 0
+            head.dot(x, y, '#ffffff' if big else '#fff2a0')
+            if big:
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    head.dot(x + dx, y + dy, '#ffe060')
     d.put(head)
     finish(c, d)
 
@@ -1382,6 +1410,22 @@ def fireball(c: Canvas, p: Pose, s: dict):
     L.ellipse(16, 16, 7.5, 6.5, '#ff6a2a')
     L.ellipse(18, 16, 5.5, 4.8, '#ffa53a')
     L.ellipse(19.5, 16, 3.2, 2.8, '#fff0a0')
+    d.put(L)
+    finish(c, d)
+
+
+def starfire(c: Canvas, p: Pose, s: dict):
+    """Battle FX (#75 item 15g review round 4): Radiant Ember's starfire — a white-gold
+    four-point star heading right, a gold sparkle tail twinkling behind it."""
+    d = D(c, p)
+    L = d.part(0, 0)
+    ph = p.frame * 1.7
+    for i, (x, y) in enumerate(((5, 16), (8, 12.5), (8, 19.5), (2.5, 14), (2.5, 18))):
+        wob = math.sin(ph + i * 1.3) * 1.1
+        L.ellipse(x + wob, y, 1.6, 1.3, '#ffd040' if (i + p.frame) % 2 else '#fff4b0')
+    L.poly([(18, 6), (20.4, 13.6), (28, 16), (20.4, 18.4), (18, 26), (15.6, 18.4), (8, 16), (15.6, 13.6)], '#ffd040')
+    L.poly([(18, 9.5), (19.6, 14.4), (24.5, 16), (19.6, 17.6), (18, 22.5), (16.4, 17.6), (11.5, 16), (16.4, 14.4)], '#fff4b0', shade=False)
+    L.ellipse(18, 16, 2, 2, '#ffffff', shade=False)
     d.put(L)
     finish(c, d)
 
@@ -3743,6 +3787,68 @@ def quill_imp(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(15, 30.4, 6, 1.1))
 
 
+def voice_crystal(c: Canvas, p: Pose, s: dict):
+    """The Crystal of Voices (#75 item 15g review round 3): a tall rose-gold gem on a
+    little stone, music notes rising off it, twinkling frame to frame."""
+    d = D(c, p)
+    L = d.part(0, d.bob)
+    L.rect(10, 26, 22, 30, '#8a8a96')  # the stone it stands on
+    L.poly([(16, 4), (22, 14), (19, 26), (13, 26), (10, 14)], '#ff8ab8')
+    L.poly([(16, 4), (16, 26), (13, 26), (10, 14)], '#ffc0dc', shade=False)
+    L.line(16, 4, 16, 26, '#ffffff', w=0.5)
+    up = 1 if p.frame % 2 else 0
+    for (x, y) in ((24, 8 - up), (6, 12 + up)):
+        L.ellipse(x, y, 1.2, 0.9, '#ffe070', shade=False)
+        L.line(x + 1, y, x + 1, y - 3, '#ffe070', w=0.6)
+    d.put(L)
+    finish(c, d, shadow=(16, 30.8, 6, 1))
+
+
+def hush_fiend(c: Canvas, p: Pose, s: dict):
+    """The Hush Fiend (#75 item 15g): a big grey pillow of a Fiend with stitched
+    seams and tassels, cross sleepy-angry eyes, one huge finger to its lips —
+    SHHH — and a crossed-out speaker stitched on its tummy."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#9a96b0'))
+    sway = 1 if p.frame % 2 else 0
+    L = d.part(d.lean * 0.4, d.bob)  # a small lunge, so it stays in its frame (review round 4)
+    # The cushion body, puffed at the corners, a tassel on each.
+    L.ellipse(16, 18, 12.6, 11.0, col)
+    for (x, y) in ((5, 8.5), (27, 8.5), (5, 28), (27, 28)):
+        L.ellipse(x, y, 2.6, 2.6, col)
+        L.dot(x + (1.6 if x > 16 else -1.6), y + (1.6 if y > 16 else -1.6), '#e8c860')
+    L.line(4.6, 18, 27.4, 18, dark(col, 0.18), w=0.5)  # the seam round its middle
+    for x in range(6, 27, 3):
+        L.dot(x, 18.6, dark(col, 0.25))  # stitches
+    if p.facing != 'up':
+        # Narrow, glaring eyes under heavy, slanting brows (15g review: it looked sleepy).
+        for (x, tilt) in ((11.4, 1), (20.6, -1)):
+            L.ellipse(x, 12.8, 2.4, 1.0, '#ffffff', shade=False)
+            L.ellipse(x, 12.9, 0.9, 0.8, '#2a1a4a', shade=False)
+            L.line(x - 3, 10.6 - tilt * 1.4, x + 3, 10.6 + tilt * 1.4, '#2a1a4a', w=1.0)
+        # A short, pursed mouth…
+        L.ellipse(16, 18.4, 1.8, 0.8, '#3a2050', shade=False)
+        if not p.hurt:
+            # …and a lilac mitten from the side, one finger up across the lips: SHHH
+            # (review round 4: the long skin-coloured finger read as a nose).
+            mit = dark(col, 0.12)
+            L.ellipse(19.4, 21.4, 2.8, 2.2, mit)  # the mitten fist
+            for k in range(3):
+                L.dot(21.6, 20.2 + k * 1.2, dark(col, 0.3))  # its knuckles
+            L.rect(16.8, 16 - sway * 0.5, 18.4, 20.6, mit)  # one finger, up over the lips
+            L.ellipse(17.6, 16 - sway * 0.5, 0.9, 0.7, mit)
+            # A little puff of "shh" breath.
+            L.ellipse(12.2, 17.2, 1.1, 0.8, '#e8e4f4', shade=False)
+            L.ellipse(10.4, 16.2, 0.7, 0.5, '#e8e4f4', shade=False)
+    # Little stubby arms reaching to shush.
+    arm = {'strike': 4, 'follow': 2}.get(p.arm, 0)
+    for (x0, side) in ((4, -1), (28, 1)):
+        x = x0 + side * (arm + sway)
+        L.ellipse(x, 21, 2.2, 1.8, col)
+    d.put(L)
+    finish(c, d, shadow=(16, 30.8, 9, 1.3))
+
+
 def hollow_fiend(c: Canvas, p: Pose, s: dict):
     """The Hollow Fiend (#75 item 14h): a Fiend-shaped hole in the world — a black
     void in a ragged cloak of torn pages, cold violet eyes and grasping claws."""
@@ -3846,6 +3952,9 @@ DRAWERS = {
     'ink_wisp': ink_wisp,
     'quill_imp': quill_imp,
     'hollow_fiend': hollow_fiend,
+    'hush_fiend': hush_fiend,
+    'voice_crystal': voice_crystal,
+    'starfire': starfire,
 }
 
 
@@ -3892,7 +4001,13 @@ ROSTER: list[Char] = [
          battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
     Char('ember-dragon', '🐉', 'dragon', H(color='#f0502a', stage='dragon', wing='#ffb05a'),
          battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
+    # Radiant Ember (#75 item 15g): the sixth crystal — sunrise-gold scales, starlit wings, sparkles.
+    Char('ember-radiant', '🐉', 'dragon', H(color='#e8a820', stage='radiant', wing='#fff0b0', belly='#fff4d0', horn='#ffffff'),
+         battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
     # ── Battle FX (not characters — reuse the battle-sheet pipeline) ──
+    Char('fx-starfire', '🌟', 'starfire', world=False,
+         battle_poses=[Pose(frame=i) for i in range(4)],
+         battle_anims={'idle': {'from': 0, 'to': 3, 'fps': 12}}),
     Char('fx-fireball', '🔥', 'fireball', world=False,
          battle_poses=[Pose(frame=i) for i in range(4)],
          battle_anims={'idle': {'from': 0, 'to': 3, 'fps': 12}}),
@@ -3967,6 +4082,8 @@ ROSTER: list[Char] = [
     Char('ink-wisp', '🖋️', 'ink_wisp', H(color='#2a2a5a')),
     Char('quill-imp', '🪶', 'quill_imp', H(color='#c84a5a', feather='#f4f0e0')),
     Char('hollow-fiend', '🕳️', 'hollow_fiend', H(color='#141020', rim='#7a5ac8'), boss=True),
+    # ── Act III: Chorus Isle (#75 item 15g) ──
+    Char('hush-fiend', '🔇', 'hush_fiend', H(color='#6a5aa8'), boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
@@ -4156,6 +4273,17 @@ NPCS: list[Char] = [
     Char('songstone-rung', '🪨', 'nameless_stone', H(color='#c0d4e8', notes=True, glow='#ffd84a')),
     Char('quiet-shush', '🤫', 'humanoid', H(hair='bun', hair_color='#8a8a98', glasses=True, outfit='#4a5a7a', trim='#c8d0e0', robe=True, item='book')),
     Char('quiet-mime', '🎭', 'humanoid', H(skin='#f4f0f0', hair='short', hair_color='#1a1a1a', hat='cap', hat_color='#1a1a1a', outfit='#f4f4f4', trim='#1a1a1a', pants='#1a1a1a')),
+    # ── Act III: Chorus Isle (#75 item 15g) ──
+    Char('sage-aria', '🎼', 'humanoid', H(hair='long', hair_color='#f0c040', outfit='#c84a7a', trim='#ffe0f0', robe=True, cape='#7a2a5a',
+         item='wand', item_color='#ffe0f0', tune=True)),
+    Char('chorus-brio', '🎻', 'humanoid', H(hair='short', hair_color='#e8e8e8', hat='beret', hat_color='#c8304a', outfit='#2a2a3a', trim='#ffd860', item='violin')),
+    Char('chorus-coda', '👧', 'humanoid', H(hair='bob', hair_color='#3a2a1a', outfit='#ffd040', trim='#ff6a8a', pants='#5a7ad0', tune=True)),
+    Char('chorus-cadence', '👴', 'humanoid', H(hair='fringe', hair_color='#c8c8d0', beard='#e0e0e8', outfit='#3a4a8a', trim='#ffd860', robe=True, item='wand', item_color='#f4f4f4')),
+    Char('chorus-crystal', '💎', 'voice_crystal'),
+    Char('chorus-trill', '🐦', 'flyer', H(kind='bird', color='#ffd040', tune=True)),
+    Char('chorus-do', '🧒', 'humanoid', H(hair='spiky', hair_color='#c84a2a', outfit='#4a8ad0', trim='#ffffff', pants='#2a3a6a')),
+    Char('chorus-re', '👧', 'humanoid', H(hair='ponytail', hair_color='#c84a2a', outfit='#5ab04a', trim='#ffffff', pants='#2a3a6a')),
+    Char('chorus-baritone', '🎣', 'humanoid', H(hair='short', hair_color='#5a4a3a', beard='#7a6a5a', hat='cap', hat_color='#2a4a6a', outfit='#3a6a8a', trim='#e8e0c8', item='rod')),
     Char('quiet-sotto', '🗣️', 'humanoid', H(hair='short', hair_color='#5a3a2a', hat='hood', hat_color='#5a3a6a', outfit='#6a4a7a', scarf='#c8a040', pack='#8a6a4a')),
     Char('ink-bess', '🐚', 'humanoid', H(hair='bun', hair_color='#6a4a3a', hat='flower', outfit='#3a9ab0', apron='#f8e0d0', trim='#ff9ab0', item='lantern', shells=True)),
 ]

@@ -230,6 +230,7 @@ const POWER_MOVE_NAMES: Record<string, string> = {
   'last-fogbank': 'Forgetting Fog',
   // The Sunken Archive's Fiend (#75 item 14h): it swallows whole years.
   'hollow-fiend': 'Gulp of Ages',
+  'hush-fiend': 'Great Shush',
   'compass-golem': 'Needle Spin',
   'riddle-leviathan': 'Ink Wave',
 };
@@ -384,9 +385,12 @@ export type SpellResult =
   /**
    * Offensive spell: charge is spent; feed `multiplier` into spellDamage →
    * resolveHeroHit. `skipsTurn`: a landed hit costs the enemy its next turn
-   * (Time Ripple, #75 item 14h).
+   * (Time Ripple, #75 item 14h). `refunded`: charge a landed cast sang back
+   * (Chorus Call, #75 item 15g) — already in `state`. `shieldRefund`: what to
+   * give back if a shield takes the blow — what the cast spent, less what it
+   * sang back, so the charge ends where it began (15g review round 2).
    */
-  | { kind: 'strike'; state: CombatState; multiplier: number; skipsTurn: boolean };
+  | { kind: 'strike'; state: CombatState; multiplier: number; skipsTurn: boolean; refunded: number; shieldRefund: number };
 
 /**
  * A spell's super-hard question resolved. A miss never punishes effort: the
@@ -411,7 +415,15 @@ export function resolveSpell(s: CombatState, spell: Spell, wasCorrect: boolean):
   if (effect.kind === 'remember') {
     return { kind: 'remember', state: { ...spent, remembrance: 'ready' } };
   }
-  return { kind: 'strike', state: spent, multiplier: effect.multiplier, skipsTurn: effect.skipsTurn === true };
+  const charge = Math.min(CHARGE_MAX, spent.charge + (effect.refund ?? 0));
+  return {
+    kind: 'strike',
+    state: { ...spent, charge },
+    multiplier: effect.multiplier,
+    skipsTurn: effect.skipsTurn === true,
+    refunded: charge - spent.charge,
+    shieldRefund: s.charge - charge,
+  };
 }
 
 /** Why a known spell can't be cast right now (null = castable, given the charge). */

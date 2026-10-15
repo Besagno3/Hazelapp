@@ -50,6 +50,7 @@ import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
 import { ACT2_SEEN, FLIGHT_FLAG, HALL_CALLED, MET_GALE, canFly } from './story';
+import { holdsKeysFor, keyFlag, keysForZone } from './keys';
 
 const allZones = Object.values(ZONES);
 
@@ -892,9 +893,9 @@ describe('Eldergrove (#75 item 14f)', () => {
     expect(tileAt(grove, shelter.cell.x, shelter.cell.y + 1)).toBe('D');
     const out = reach(grove, { from: shelter.cell });
     expect(grove.exits.some((e) => out.has(`${e.x},${e.y}`))).toBe(true);
-    // A shelter, not an inn: no Rest. The Marsh has one too, and the Archive's is its inn (#75 item 14h).
+    // A shelter, not an inn: no Rest. The Marsh has one too; the Archive's is its inn (#75 item 14h), and so is Chorus Isle's (15g).
     expect(innOf(grove)).toBeUndefined();
-    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh', 'sunken-archive']);
+    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh', 'sunken-archive', 'chorus-isle']);
   });
 
   it("Fen, Old Ringwood and Dawdle live here — Dawdle the slowest wanderer in the game", () => {
@@ -1217,6 +1218,9 @@ describe('Taleshore and Port Lantern (#75 item 15c)', () => {
     for (const y of rows) expect(boatReach.has(`${east},${y}`)).toBe(false);
     // Once the fog lifts (15g), boats cross, and the link isn't flown-only any more.
     const bank = sea.fogs!.find((f) => f.id === GREAT_FOGBANK)!;
+    // Lifted by the Crystal of Voices (#75 item 15g), which is now a real crystal.
+    expect(bank.liftedBy).toEqual([crystalFlag('words')]);
+    expect(TOPIC_REGISTRY.some((t) => crystalFlag(t.id) === bank.liftedBy[0])).toBe(true);
     const lifted = { [bank.liftedBy[0]]: true };
     expect(rows.some((y) => edgeCrossing(sea, east, y, ZONES, 'boat', lifted) !== null)).toBe(true);
     expect(flownLink('silver-shallows', 'taleshore')).toBe(true);
@@ -1500,5 +1504,96 @@ describe('Taleshore III: Songstone Cliffs and the Quiet Quarter (#75 item 15f)',
   it("the quarter's two buildings are its own style; Sotto sells there", () => {
     expect(quarter.buildings!.map((b) => b.style)).toEqual(['hush', 'hush']);
     expect(NPC_DEFS['quiet-sotto'].role).toBe('merchant');
+  });
+});
+
+describe('Chorus Isle: the Crystal of Voices (#75 item 15g)', () => {
+  const tale = ZONES.taleshore;
+  const isle = ZONES['chorus-isle'];
+  const place = tale.places!.find((p) => p.name === 'Chorus Isle')!;
+  const fiend = isle.enemies.find((e) => e.defId === 'hush-fiend')!;
+
+  it('an island far out west on Taleshore that only Ember reaches; the way back is grass she can take off from', () => {
+    expect(place.byAir).toBe(true);
+    expect(touches(reach(tale, { from: { x: 30, y: 21 } }), place.x, place.y)).toBe(false);
+    const back = isle.exits[0];
+    expect(Math.abs(back.spawnX - place.x) + Math.abs(back.spawnY - place.y)).toBe(1);
+    expect(landable(tileAt(tale, back.spawnX, back.spawnY))).toBe(true);
+    expect(tale.exits.find((e) => e.x === place.x && e.y === place.y)!.to).toBe('chorus-isle');
+  });
+
+  it("Act III's crystal zone: words, tier 6, the Hush Fiend restores the Crystal of Voices", () => {
+    expect(isle.topic).toBe('words');
+    expect(zoneTier(isle.id)).toBe(6);
+    expect(actCrystals(3).map((t) => t.zoneId)).toEqual(['chorus-isle']);
+    expect(fiendFor('words')?.id).toBe('hush-fiend');
+    expect(ENEMY_DEFS['hush-fiend']).toMatchObject({ role: 'fiend', isBoss: true, topic: 'words' });
+  });
+
+  it('its gate takes BOTH Chorus Keys: shut with one, open with two — and only the gate stands between', () => {
+    expect(keysForZone('chorus-isle').map((k) => k.id)).toEqual(['chorus-a', 'chorus-b']);
+    expect(holdsKeysFor('chorus-isle', {})).toBe(false);
+    expect(holdsKeysFor('chorus-isle', { [keyFlag('chorus-a')]: true })).toBe(false);
+    expect(holdsKeysFor('chorus-isle', { [keyFlag('chorus-b')]: true })).toBe(false);
+    expect(holdsKeysFor('chorus-isle', { [keyFlag('chorus-a')]: true, [keyFlag('chorus-b')]: true })).toBe(true);
+    // Single-key gates don't change.
+    expect(holdsKeysFor('sunken-archive', { [keyFlag('memoria')]: true })).toBe(true);
+    expect(holdsKeysFor('numbria', { [keyFlag('chorus-a')]: true })).toBe(false);
+    expect(tileAt(isle, isle.keyGate!.x, isle.keyGate!.y)).toBe('G');
+    expect(touches(reach(isle), fiend.x, fiend.y)).toBe(false);
+    expect(touches(reach(isle, { gates: 'open' }), fiend.x, fiend.y)).toBe(true);
+  });
+
+  it("a Return town: Brio's inn, Sage Aria's hall and Coda's cottage in its own chorus style, 8+ people", () => {
+    expect(RETURN_TOWNS).toContain('chorus-isle');
+    expect(innOf(isle)?.id).toBe('resting-note-inn');
+    expect(new Set(isle.buildings!.map((b) => b.style))).toEqual(new Set(['chorus']));
+    expect(NPC_DEFS['sage-aria']).toMatchObject({ role: 'sage', topic: 'words' });
+    expect(NPC_DEFS['chorus-brio'].role).toBe('innkeeper');
+  });
+
+  it("Coda's three refrains are in key-item chests in the open grass, no gate in the way", () => {
+    const open = reach(isle);
+    expect(isle.keyChests!.map((c) => c.item).sort()).toEqual(['refrain-bedtime', 'refrain-noon', 'refrain-sunrise']);
+    for (const c of isle.keyChests!) {
+      expect(tileAt(isle, c.x, c.y), `${c.item}`).toBe('C');
+      expect(touches(open, c.x, c.y), `${c.item}`).toBe(true);
+    }
+  });
+
+  it('Old Cadence names whichever Chorus Key is still missing', () => {
+    const said = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['chorus-cadence'].lines, flags).map(lineText).join(' ');
+    expect(said({})).toMatch(/Two locks, two Chorus Keys!/);
+    expect(said({ [keyFlag('chorus-a')]: true })).toMatch(/The other lock needs the Second/);
+    expect(said({ [keyFlag('chorus-b')]: true })).toMatch(/The other lock needs the First/);
+    const both = { [keyFlag('chorus-a')]: true, [keyFlag('chorus-b')]: true };
+    expect(said(both)).toMatch(/You hold BOTH Chorus Keys/);
+    expect(said(both)).not.toMatch(/other lock/);
+    const after = said({ ...both, [crystalFlag('words')]: true });
+    expect(after).toMatch(/Crystal of Voices rings again/);
+    // Once the Fiend is gone he doesn't warn about it any more (round 2).
+    expect(after).not.toMatch(/It lives in the hollow/);
+  });
+});
+
+describe('Chorus Isle after round 2 (#75 item 15g)', () => {
+  it("Coda's songs wait for the hush to lift: hummed before Voices, sung out loud after", () => {
+    const done = { 'quest:coda-refrains:done': true };
+    const said = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['chorus-coda'].lines, flags).map(lineText).join(' ');
+    expect(questDoneFlag({ id: 'coda-refrains' })).toBe('quest:coda-refrains:done');
+    expect(said(done)).toMatch(/very quietly, until the Hush Fiend is gone/);
+    expect(said(done)).not.toMatch(/out loud/);
+    expect(said({ ...done, [crystalFlag('words')]: true })).toMatch(/out loud/);
+  });
+});
+
+describe('the Crystal of Voices in the hollow (#75 item 15g, round 4)', () => {
+  it("stands on the Hush Fiend's own spot, only once Voices is restored", () => {
+    const isle = ZONES['chorus-isle'];
+    const crystal = isle.npcs.find((n) => n.defId === 'chorus-crystal')!;
+    const fiend = isle.enemies.find((e) => e.defId === 'hush-fiend')!;
+    expect({ x: crystal.x, y: crystal.y }).toEqual({ x: fiend.x, y: fiend.y });
+    expect(npcPresent(crystal, {})).toBe(false);
+    expect(npcPresent(crystal, { [crystalFlag('words')]: true })).toBe(true);
   });
 });

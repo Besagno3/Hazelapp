@@ -121,9 +121,9 @@ zod, react-query. Add the package in the same change that first uses it.
   `TOPIC_REGISTRY` = the **crystal** topics with crystal/Fiend/zone, each in
   an act (`act`; `actCrystals` / `actRestored` / `actComplete` — the Spire,
   the ending and the 🚩 read Act I's, #75 item 14c): Act I's four and, since
-  #75 item 14h, Act II's history (the Crystal of Memory); `EXTRA_TOPICS` =
-  the expansion themes nature/space and Act III's geography/words/music
-  (#75 item 15a); `topicInfo` resolves all ten, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
+  #75 item 14h, Act II's history (the Crystal of Memory) and, since 15g, Act
+  III's words (the Crystal of Voices); `EXTRA_TOPICS` = the expansion themes
+  nature/space and Act III's geography/music (#75 item 15a); `topicInfo` resolves all ten, #33/#55), `zones.ts` (17 tile maps: the **Dawnreach**
   overworld (80×60, `kind: 'overworld'`, with `places` icons and `fogs`,
   #75 — the four crystal regions sit at its corners, item 8) + three roadside
   shrines and the dark Echo Mine (item 9) + 4 crystal zones + Lumina Village (home and `HUB_ZONE`: safe,
@@ -172,8 +172,8 @@ zod, react-query. Add the package in the same change that first uses it.
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
-  villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
-  Fiends, #58), `items.ts` (shop + economy tuning), `quests.ts` (quests as
+  villain), `keys.ts` (warden bosses + the gate keys that unlock the Fiends' gates, #58 —
+  one key each, but Chorus Isle's takes both Chorus Keys, `keysForZone`, #75 item 15g), `items.ts` (shop + economy tuning), `quests.ts` (quests as
   ordered steps — chest / defeat / talk / secret, and since #75 item 13 *have*
   (carry an item, any of its forms) and *bring* (hand it to an NPC, who may
   hand back something new) steps; `openChest` pays a key-item chest's
@@ -348,7 +348,11 @@ zod, react-query. Add the package in the same change that first uses it.
   right answer finishes the step and says where the next one is. **Taleshore III** (#75 item 15f): Songstone Cliffs
   and the Quiet Quarter; Reso's songstones are **song steps** (`songStep`):
   talk steps in order, and one struck out of turn is a wrong note that un-does
-  them all (no timers, roadmap decision 14).
+  them all (no timers, roadmap decision 14). **Chorus Isle** (#75 item 15g):
+  Act III's crystal zone, an island only Ember reaches; its Fiend's gate takes
+  **both** Chorus Keys (`keysForZone`, `holdsKeysFor`; `keyForZone` is the
+  first). Six crystals make Ember **radiant** (`emberGrown`: dragon or
+  radiant), and Voices thins the Great Fogbank, so boats cross.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -466,7 +470,7 @@ zod, react-query. Add the package in the same change that first uses it.
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
   (the Spellbook, `content/spells.ts`): the hero casts any learned spell
-  (Mend / Aegis / Sage strikes / Remembrance / Ember's Breath) by answering one *super-hard*
+  (Mend / Aegis / Sage strikes — Sage Aria's Chorus Call sings a ◆ back, #75 item 15g — / Remembrance / Ember's Breath, Radiant Breath once Ember shines) by answering one *super-hard*
   question (`SPELL_LEVEL_BONUS` = 3 levels up); each spends charge (◆, the mana
   gauge filled by correct answers, `CHARGE_MAX` = 4) and a miss fizzles +
   refunds the charge. **Companions** (`content/companion.ts`): Ember (always;
@@ -769,6 +773,69 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — 15g review round 4: starfire, a shh not a nose (#75 item 15g, #141p)
+The last round. Fresh code (3 low, 2 nits) and UX (1 high, 2 medium, 2 low,
+3 nits) reviews, all fixed but one kept (a prop's "Talk" prompt): the Hush
+Fiend's mitten "shh", a deeper-gold Radiant Ember, starfire (`fx-starfire`),
+Mnem's "she", Lumen counts every crystal and points at Mnem, the crystal prop
+on the Fiend's own cell. Tests +1; 1286 green.
+
+### 2026-10-15 — 15g review round 3 (code): a halo all round, sailed when sailing (#75 item 15g, #141o)
+Fresh code review (3 low, 4 nits), all fixed: Radiant Ember's halo in every
+view, routes off Taleshore sailed while aboard (`aboard` through
+`goalDirections` / `routeSteps`), the gate hint gone once it's open, the
+Wayfinder Isles "on". 1285 green.
+
+### 2026-10-15 — 15g review round 3 (UX): Taleshore hears the isle sing (#75 item 15g, #141n)
+Fresh UX review (2 medium, 6 low, 2 nits), all fixed but one kept (the shared
+hurt tint): post-Voices lines across Taleshore, Coda's quest true in either
+order, a glaring Hush Fiend, starlight breath, the Crystal of Voices in the
+hollow (`chorus-crystal`). 1285 green.
+
+### 2026-10-15 — 15g review round 2: songs that wait for the hush (#75 item 15g, #141m)
+Fresh code (3 low, 2 nits) and UX (2 medium, 6 low, 3 nits) reviews, all
+fixed but one kept (no instrument tile for Aria's hall): Cadence and Coda
+match the story state, the way on the isle names the gate, routes off
+Taleshore stay flown, `SpellResult.shieldRefund`, the bench's double gate,
+Mnem's sixth plaque, distinct emoji. 1285 green; `bench … journey` 13/13.
+
+### 2026-10-15 — 15g review round 1 (code): the footer after the fog thins (#75 item 15g, #141l)
+Fresh code review (2 low, 2 nits), all fixed: no "fly over the fog" footer
+once Voices has thinned it; Chorus Call into a shield is tested to end where
+it began; stale comments and docs. 1284 green; `bench … fly` 20/20.
+
+### 2026-10-15 — 15g review round 1 (UX): a gold Ember, a shorter gate (#75 item 15g, #141k)
+Fresh UX review (3 medium, 7 low, 2 nits), all fixed but one kept (the key
+gate's shared art): Cadence's name clear of the roof, a short two-locks line
+and the held key beside the 🔒, a gold starry Radiant Ember, directions that
+match the map, stale fog lines, 🎹 for the First Chorus Key, distinct islanders.
+1282 green.
+
+### 2026-10-15 — Chorus Isle: the Crystal of Voices (#75 item 15g, #141)
+Roadmap sub-item 15g (branch stacked on 15f's).
+- **Words is crystal #6** (Act III's): the Crystal of Voices, the Hush Fiend,
+  Chorus Isle; the HUD reads 5/6 in Act III. The stand-in crystal of the
+  "later acts change nothing" tests is Act IV's now.
+- **A gate with two keys:** both Chorus Keys unlock Chorus Isle
+  (`keysForZone`, `holdsKeysFor`); the key gate names both and says which
+  still fits; the journey opens it only with both.
+- **Chorus Isle** (`chorus-isle`): an island far out west of Port Lantern only
+  Ember reaches — Brio's Resting Note Inn (a Return town and its shelter),
+  Aria's Music Hall, Coda's Cottage (a new `chorus` style), the Hush Fiend's
+  hollow behind the double gate; 8 people; Hushlings, Muffle Moths, Blank Sprites.
+- **The Hush Fiend:** its sneer, rage and Great Shush; its panels have no 🌑 —
+  a small voice: "she used to sing to us. the first sage. before you forgot her."
+- **Sage Aria's Chorus Call:** 2.5× and it sings a ◆ back.
+- **Radiant Ember** at six crystals (tripwire retuned): gold, sparkling,
+  Radiant Breath 4.2×.
+- **The Great Fogbank thins** (its flag is now a real crystal's): boats cross.
+- **Coda's Lost Refrains:** three refrains in chests, sung back to Brio, Aria
+  and Coda — 45c + a potion.
+- **The 🚩:** "Free the Crystal of Voices" after both keys, then Explore.
+- **Art:** `python3 tools/assets/build.py chorus` (overworld frames 0–28 byte-identical).
+- **Tests:** +17 (zones, quests, battleTurn, spells, story, journey,
+  wayfinding, crystals, new `KeyGateOverlay.test`); 1282 green, lint and tsc clean.
 
 ### 2026-10-15 — 15f review round 4: a seamless cliff, grey steps (#75 item 15f, #140k)
 The last round. Fresh code (1 low, 2 nits) and UX (1 medium, 8 low, 1 nit)

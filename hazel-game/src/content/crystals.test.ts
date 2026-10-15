@@ -32,12 +32,14 @@ describe('crystals belong to an act (#75 items 14c, 14h)', () => {
     remove = null;
   });
 
-  it("Act I's four, in the 🚩's order; Act II's one, the Crystal of Memory (#75 item 14h)", () => {
+  it("Act I's four, in the 🚩's order; Act II's one, the Crystal of Memory (#75 item 14h); Act III's, Voices (15g)", () => {
     expect(actCrystals(1).map((t) => t.id)).toEqual(['math', 'science', 'engineering', 'creativity']);
     expect(actCrystals(2).map((t) => t.id)).toEqual(['history']);
     expect(actCrystals(2)[0]).toMatchObject({ crystalName: 'Crystal of Memory', fiendName: 'The Hollow Fiend', zoneId: 'sunken-archive' });
-    expect(TOPIC_REGISTRY.every((t) => t.act === 1 || t.act === 2)).toBe(true);
-    expect(actCrystals(3)).toEqual([]);
+    expect(actCrystals(3).map((t) => t.id)).toEqual(['words']);
+    expect(actCrystals(3)[0]).toMatchObject({ crystalName: 'Crystal of Voices', fiendName: 'The Hush Fiend', zoneId: 'chorus-isle' });
+    expect(TOPIC_REGISTRY.every((t) => t.act <= 3)).toBe(true);
+    expect(actCrystals(4)).toEqual([]);
   });
 
   it('counts and completes one act at a time', () => {
@@ -49,8 +51,9 @@ describe('crystals belong to an act (#75 items 14c, 14h)', () => {
     expect(actComplete({ ...ACT_ONE, [crystalFlag('history')]: true }, 2)).toBe(true);
     // Memory alone completes Act II, not Act I — one act at a time.
     expect(actComplete({ [crystalFlag('history')]: true }, 1)).toBe(false);
-    // An act with no crystals yet isn't complete (review fix): no "Act III done" before Act III exists.
-    expect(actComplete({}, 3)).toBe(false);
+    // An act with no crystals yet isn't complete (review fix): no "Act IV done" before Act IV exists.
+    expect(actComplete({}, 4)).toBe(false);
+    expect(actComplete({ [crystalFlag('words')]: true }, 3)).toBe(true);
   });
 
   it('the HUD counts Act I alone until Act II opens, then Memory too', () => {
@@ -73,14 +76,18 @@ describe('crystals belong to an act (#75 items 14c, 14h)', () => {
       'crystal: Free the Crystal of Gears @ gearfall',
       'crystal: Free the Crystal of Wonder @ chromaria',
       'crystal: Free the Crystal of Memory @ sunken-archive',
+      'crystal: Free the Crystal of Voices @ chorus-isle',
     ]);
     const at = (title: string) => goals.findIndex((g) => g.includes(title));
     expect(at('Climb the Crystal Spire')).toBeGreaterThan(at('Crystal of Wonder'));
     expect(at('Crystal of Memory')).toBeGreaterThan(at('Win the Memoria Key'));
+    // Voices waits for BOTH Chorus Keys (#75 item 15g).
+    expect(at('Crystal of Voices')).toBeGreaterThan(at('Win the First Chorus Key'));
+    expect(at('Crystal of Voices')).toBeGreaterThan(at('Win the Second Chorus Key'));
     expect(goals.at(-1)).toMatch(/^explore:/);
   });
 
-  describe("with a later act's crystal added, Acts I and II are unchanged", () => {
+  describe("with a later act's crystal added, Acts I–III are unchanged", () => {
     it('Act I is still complete with its four — the Spire stays open and the ending still plays', () => {
       remove = addFakeLaterCrystal();
       expect(actCrystals(1)).toHaveLength(4);

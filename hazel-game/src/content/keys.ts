@@ -18,7 +18,10 @@ import { crystalFlag } from './topics';
  *
  * Act II (#75 item 14f): the Ringkeeper of Eldergrove gives the **Memoria
  * Key**, which opens the Hollow Fiend's silver door in the Sunken Archive
- * (#75 item 14h — until then it had no gate on any map).
+ * (#75 item 14h — until then it had no gate on any map). Act III (#75 items
+ * 15d–15g): the Compass Golem and the Riddle Leviathan each give one of the
+ * two **Chorus Keys**; the Hush Fiend's gate on Chorus Isle needs both
+ * (`keysForZone`, `holdsKeysFor`).
  */
 export interface GateKey {
   id: string;
@@ -37,11 +40,12 @@ export interface GateKey {
   fromZone: ZoneId;
   /**
    * The crystal zone whose Fiend gate this key unlocks — null while that zone
-   * isn't built yet (the First Chorus Key, #75 item 15d: Chorus Isle comes in 15g);
-   * `opens` says what it's for meanwhile.
+   * isn't built yet (the Chorus Keys were, #75 items 15d–15f, until Chorus
+   * Isle, 15g). Two keys may share a zone: its gate then needs both
+   * (`keysForZone`).
    */
   unlocksZone: ZoneId | null;
-  /** What a key whose zone isn't built yet opens, for its victory panel. */
+  /** What the key opens, for its victory panel, when "It unlocks X's gate" isn't the whole story (one of two keys). */
   opens?: string;
   /** That zone's Fiend, named in the locked-gate message. */
   fiendName: string;
@@ -116,12 +120,12 @@ export const GATE_KEYS: GateKey[] = [
     door: 'silver door',
   },
   // Act III (#75 item 15d): the Compass Golem of the Wayfinder Isles keeps one
-  // of the two keys to Chorus Isle's gate (15g builds the isle and its double
-  // lock). Named as STORY-4X has it, `key-chorus-a`.
+  // of the two keys to Chorus Isle's double gate (#75 item 15g). Named as
+  // STORY-4X has it, `key-chorus-a`.
   {
     id: 'chorus-a',
     name: 'First Chorus Key',
-    emoji: '🎼',
+    emoji: '🎹',
     bossId: 'compass-golem',
     bossName: 'The Compass Golem',
     bossIntro: [
@@ -130,17 +134,17 @@ export const GATE_KEYS: GateKey[] = [
     ],
     bossDefeat: '"…north was… that way… all along. Take the key, little traveler."',
     fromZone: 'wayfinder-isles',
-    unlocksZone: null,
-    opens: "It's one of two keys to a gate far out at sea. Keep it safe!",
+    unlocksZone: 'chorus-isle',
+    opens: "It's one of the two Chorus Keys. Together they open the Hush Fiend's gate on Chorus Isle!",
     fiendName: 'the Hush Fiend',
   },
   // Act III (#75 item 15e): the Riddle Leviathan of Inkwell Cove keeps the
-  // other key to Chorus Isle's gate (15g). It speaks only in riddles — its
-  // defeat line too (STORY-4X). `key-chorus-b`.
+  // other key to Chorus Isle's double gate (#75 item 15g). It speaks only in
+  // riddles — its defeat line too (STORY-4X). `key-chorus-b`.
   {
     id: 'chorus-b',
     name: 'Second Chorus Key',
-    emoji: '🎶',
+    emoji: '🔔',
     bossId: 'riddle-leviathan',
     bossName: 'The Riddle Leviathan',
     bossIntro: [
@@ -149,8 +153,8 @@ export const GATE_KEYS: GateKey[] = [
     ],
     bossDefeat: '"What has been beaten, yet feels lighter? …Me. Take the key, little reader."',
     fromZone: 'inkwell-cove',
-    unlocksZone: null,
-    opens: "It's one of the two Chorus Keys. Together they open a gate far out at sea!",
+    unlocksZone: 'chorus-isle',
+    opens: "It's one of the two Chorus Keys. Together they open the Hush Fiend's gate on Chorus Isle!",
     fiendName: 'the Hush Fiend',
   },
 ];
@@ -160,9 +164,23 @@ export function keyForBoss(bossId: string): GateKey | undefined {
   return GATE_KEYS.find((k) => k.bossId === bossId);
 }
 
-/** The key required to open a given crystal zone's Fiend gate. */
+/** The key required to open a given crystal zone's Fiend gate (the first, where it takes two). */
 export function keyForZone(zoneId: ZoneId | null): GateKey | undefined {
-  return zoneId ? GATE_KEYS.find((k) => k.unlocksZone === zoneId) : undefined;
+  return keysForZone(zoneId)[0];
+}
+
+/**
+ * Every key a crystal zone's Fiend gate needs (#75 item 15g): one, or — Chorus
+ * Isle's — both Chorus Keys. The gate opens only once all of them are held.
+ */
+export function keysForZone(zoneId: ZoneId | null): GateKey[] {
+  return zoneId ? GATE_KEYS.filter((k) => k.unlocksZone === zoneId) : [];
+}
+
+/** Does the hero hold every key this zone's Fiend gate needs? (False where there's no keyed gate.) */
+export function holdsKeysFor(zoneId: ZoneId | null, flags: Record<string, boolean>): boolean {
+  const keys = keysForZone(zoneId);
+  return keys.length > 0 && keys.every((k) => flags[keyFlag(k.id)] === true);
 }
 
 /** Save-flag set when the player holds a key. */

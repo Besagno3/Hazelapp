@@ -23,13 +23,14 @@ describe('topic registry (#55 crystal vs question topics)', () => {
     }
   });
 
-  it("the current crystal ids are Act I's four and Act II's history (intent snapshot, #75 item 14h)", () => {
+  it("the current crystal ids are Act I's four, Act II's history and Act III's words (intent snapshot, #75 items 14h, 15g)", () => {
     expect([...CRYSTAL_TOPIC_IDS].sort()).toEqual([
       'creativity',
       'engineering',
       'history',
       'math',
       'science',
+      'words',
     ]);
   });
 
@@ -60,11 +61,13 @@ describe('topic registry (#55 crystal vs question topics)', () => {
     }
   });
 
-  it("Act III's themes are expansion topics, ready before any zone asks them (#75 item 15a)", () => {
-    for (const id of ['geography', 'words', 'music'] as const) {
+  it("Act III's themes are expansion topics, ready before any zone asks them (#75 item 15a) — words became its crystal (15g)", () => {
+    for (const id of ['geography', 'music'] as const) {
       expect(EXTRA_TOPIC_IDS).toContain(id);
       expect(topicInfo(id).emoji).toBeTruthy();
     }
+    // Words & Stories keeps its label and look as the Crystal of Voices' topic.
+    expect(topicInfo('words')).toMatchObject({ label: 'Words & Stories', emoji: '📚', crystalName: 'Crystal of Voices', zoneId: 'chorus-isle' });
   });
 
   it('TOPICS mirrors the crystal ids; crystalInfo gives their fields', () => {

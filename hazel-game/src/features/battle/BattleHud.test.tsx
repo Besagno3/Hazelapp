@@ -115,9 +115,9 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
     render(<BattleResult {...base} result="victory" enemy={spawnEnemy('ringkeeper', 'eldergrove', 'r', 8)} keyBoss={keyForBoss('ringkeeper')} />);
     expect(screen.getByText(/You won the Memoria Key! It unlocks the Hollow Fiend's silver door\./)).toBeInTheDocument();
     cleanup();
-    // A key whose gate isn't built yet says what it's for (#75 item 15d).
+    // One of two keys to a gate says so (#75 items 15d, 15g).
     render(<BattleResult {...base} result="victory" enemy={spawnEnemy('compass-golem', 'wayfinder-isles', 'g', 8)} keyBoss={keyForBoss('compass-golem')} />);
-    expect(screen.getByText(/You won the First Chorus Key! It's one of two keys to a gate far out at sea\./)).toBeInTheDocument();
+    expect(screen.getByText(/You won the First Chorus Key! It's one of the two Chorus Keys\. Together they open the Hush Fiend's gate on Chorus Isle!/)).toBeInTheDocument();
   });
   it("a defeat in Eldergrove says Fen tucks you up in her hollow (#75 item 14f)", () => {
     render(

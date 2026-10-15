@@ -4,7 +4,7 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { CODA_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -74,6 +74,10 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'sea-glass-lens': { id: 'sea-glass-lens', name: 'Sea-Glass Lens', emoji: '🔍' },
   // A Letter, Long Overdue (#75 item 14h): Index's find, and Wick's note back.
   'old-letter': { id: 'old-letter', name: 'Old Letter', emoji: '📜' },
+  // Coda's Lost Refrains (#75 item 15g): three key-item chests on Chorus Isle.
+  'refrain-sunrise': { id: 'refrain-sunrise', name: 'Sunrise Refrain', emoji: '🌅' },
+  'refrain-noon': { id: 'refrain-noon', name: 'Noon Refrain', emoji: '☀️' },
+  'refrain-bedtime': { id: 'refrain-bedtime', name: 'Bedtime Refrain', emoji: '🌙' },
   'wick-note': { id: 'wick-note', name: "Wick's Thank-You Note", emoji: '💌' },
 };
 
@@ -367,7 +371,7 @@ const SALT_GLASS = [
  */
 const NESS_RUMORS = [
   "Sea critters splash about out there now. They only bother boats, and you can always steer round them. On the sand you're as safe as a shell!",
-  "East, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
+  "East, past everything, is the Great Fogbank. Mind how you go out there — even the gulls are careful!",
   'Up on the north coast is Foglight Marsh. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!',
 ];
 
@@ -1257,7 +1261,7 @@ export const QUESTS: QuestDef[] = [
     offer: [
       "Shh… hello. I'm Shush, keeper of the Quiet Quarter's books.",
       'I have a pen-pal far away: Librarian Sage, in Lumina Village. We wrote every week — until the fog came.',
-      'Would you carry my letter across the sea? Ember can fly over the fog. The post boats can\'t.',
+      'Would you carry my letter across the sea, on Ember? It\'s far too precious for the post!',
     ],
     givesItem: 'shush-letter',
     takesItems: ['sage-letter'],
@@ -1280,6 +1284,59 @@ export const QUESTS: QuestDef[] = [
       '✨ Reward: 50 coins and a Hint Feather!',
     ],
     reward: { coins: 50, hint: 1 },
+  },
+
+  // --- Chorus Isle (#75 item 15g) --------------------------------------------------
+
+  // Collection, then talk steps: find the island's three refrains, then sing
+  // each one back — to Brio, to Sage Aria, and last to Coda herself.
+  {
+    id: CODA_QUEST,
+    zoneId: 'chorus-isle',
+    giverNpcId: 'chorus-coda',
+    title: "Coda's Lost Refrains",
+    offer: [
+      "Hi! I'm Coda — that's the bit at the very END of a song! Our island has three songs: one for sunrise, one for noon and one for bedtime.",
+      'When the Hush Fiend came, all three refrains blew away! Mum thinks the wind tucked them into chests.',
+      "Can you find them? One's by the top-left beach, one's by the top-right beach, and one's by the bottom-left shore. Then we'll sing them back!",
+    ],
+    steps: [
+      haveStep(
+        'coda-refrains-find',
+        [
+          { items: ['refrain-sunrise'], label: 'the Sunrise Refrain (a 🎁 by the top-left beach)' },
+          { items: ['refrain-noon'], label: 'the Noon Refrain (a 🎁 by the top-right beach)' },
+          { items: ['refrain-bedtime'], label: 'the Bedtime Refrain (a 🎁 by the bottom-left shore)' },
+        ],
+        'The refrains are in chests round the island.',
+      ),
+      talkStep(
+        'coda-sing-brio',
+        'chorus-brio',
+        [
+          '🌅 You sing the Sunrise Refrain… Maestro Brio plays along on his violin! "That\'s the one! We woke the whole island with it!"',
+          'Next, sing the Noon Refrain to Sage Aria, in the Music Hall across the road.',
+        ],
+        'You found all three! Sing the Sunrise Refrain to Maestro Brio, at the Resting Note Inn.',
+      ),
+      talkStep(
+        'coda-sing-aria',
+        'sage-aria',
+        [
+          '☀️ You sing the Noon Refrain… Aria hums the harmony. ♪ Oh, how I MISSED that one! ♪',
+          '♪ The last one is the bedtime song… Sing it to Coda, by her cottage! ♪',
+        ],
+        "Sing the Noon Refrain to Sage Aria, in Aria's Music Hall.",
+      ),
+    ],
+    takesItems: ['refrain-sunrise', 'refrain-noon', 'refrain-bedtime'],
+    doneLine: 'Last of all, sing the Bedtime Refrain to Coda, by her cottage!',
+    complete: [
+      '🌙 You sing the Bedtime Refrain… Coda sings it with you, very softly. Then she yawns. Then she giggles.',
+      'All three songs, home again! The hush can\'t take a song you remember. Nobody can hush them away now!',
+      '✨ Reward: 45 coins and a Berry Potion!',
+    ],
+    reward: { coins: 45, potion: 1 },
   },
 
   // --- Item chains (#75 item 13) ----------------------------------------------

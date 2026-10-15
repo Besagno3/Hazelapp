@@ -70,7 +70,7 @@ import {
 } from '../../content/companion';
 import { CLOVER_COIN_MULT, CONSUMABLES, type ConsumableId } from '../../content/items';
 import { topicInfo, crystalFlag } from '../../content/topics';
-import { emberStatus, EMBER_HATCHED } from '../../content/story';
+import { emberGrown, emberStatus, EMBER_HATCHED } from '../../content/story';
 import { bossFlag, keyForBoss, keyFlag } from '../../content/keys';
 import { BOSS_BADGES, ENEMY_DEFS, bossScript, rageLine } from '../../content/enemies';
 import { escortsBack } from '../../content/questFlags';
@@ -259,7 +259,8 @@ export default function BattleArena() {
   const heroSprite = resolveSprite(avatar?.spriteId, avatar?.sprite ?? '❓');
   const cSpriteIds = companionSprite(companionId, ember);
   const cSprite = resolveSprite(cSpriteIds.spriteId, cSpriteIds.emoji);
-  const fireballSprite = resolveSprite('fx-fireball', '🔥');
+  // Radiant Ember breathes starfire (#75 item 15g review round 4).
+  const fireballSprite = resolveSprite(ember === 'radiant' ? 'fx-starfire' : 'fx-fireball', ember === 'radiant' ? '🌟' : '🔥');
 
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
@@ -699,18 +700,22 @@ export default function BattleArena() {
     // Offensive spell — super effective when a Sage's topic matches the enemy's.
     const weak = spell.topic !== undefined && spell.topic === enemy!.topic;
     const dmg = boost(Math.round(spellDamage(style, powerUps, r.multiplier) * (weak ? SUPER_EFFECTIVE : 1)));
-    const breath = spell.id === 'ember-breath';
+    const breath = spell.id === 'ember-breath' || spell.id === 'radiant-breath';
     const lead =
       breath && emberActive
-        ? `${spell.emoji} ${spell.name}! Ember rears back and breathes dragonfire!`
+        ? `${spell.emoji} ${spell.name}! Ember rears back and breathes ${ember === 'radiant' ? 'starfire' : 'dragonfire'}!`
         : breath
-          ? `${spell.emoji} ${spell.name}! Ember swoops in from the sidelines, breathing dragonfire!`
+          ? `${spell.emoji} ${spell.name}! Ember swoops in from the sidelines, breathing ${ember === 'radiant' ? 'starfire' : 'dragonfire'}!`
           : emberActive
             ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
             : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;
     // Ember's Breath is Ember's own move when Ember is fighting: inhale, then a fireball volley.
-    heroStrike(dmg, weak ? `${lead} It's super effective!` : lead, spell.color, {
-      refundCharge: spell.cost,
+    // Chorus Call (#75 item 15g) sings a ◆ back as it lands.
+    if (r.refunded > 0) later(() => float(`🎶 +${r.refunded}◆`, 'hero', spell.color), IMPACT_MS);
+    const sung = r.refunded > 0 ? ` 🎶 The song sings ${r.refunded} ◆ back to you!` : '';
+    heroStrike(dmg, (weak ? `${lead} It's super effective!` : lead) + sung, spell.color, {
+      // A shield takes the blow: the charge goes back to where it began.
+      refundCharge: r.shieldRefund,
       choreo: breath && emberActive ? EMBER_BREATH : HERO_STRIKE,
       sound: 'spell',
       superEffective: weak,
@@ -739,7 +744,7 @@ export default function BattleArena() {
       skipsTurn = false,
     }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; superEffective?: boolean; skipsTurn?: boolean },
   ) {
-    fx.perform(choreo, sound, ember === 'dragon');
+    fx.perform(choreo, sound, emberGrown(ember));
     const r = resolveHeroHit(combatState(), dmg, { isBoss: enemy!.isBoss, refundCharge });
     commit({ ...r.state, playerHp: Math.min(r.state.playerMaxHp, r.state.playerHp + heal) }, choreo.hitMs);
     later(() => {

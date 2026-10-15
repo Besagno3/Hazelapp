@@ -58,6 +58,15 @@ export const SAGES: Record<CrystalTopic, SageInfo> = {
     specialEmoji: '⏳',
     flashColor: 'text-teal-300',
   },
+  // Act III (#75 item 15g): the singer of Chorus Isle, who speaks in song-fragments.
+  words: {
+    topic: 'words',
+    name: 'Sage Aria',
+    sprite: '🎼',
+    specialName: 'Chorus Call',
+    specialEmoji: '🎶',
+    flashColor: 'text-rose-300',
+  },
 };
 
 /** Damage multiplier for a landed Sage spell vs a basic attack. */

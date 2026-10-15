@@ -236,6 +236,43 @@ describe('resolveSpell', () => {
     // The other Sages' strikes don't skip a turn.
     expect(resolveSpell({ ...base, charge: 4 }, sageSpell('math'), true)).toMatchObject({ multiplier: 2.5, skipsTurn: false });
   });
+
+  it('Chorus Call (#75 item 15g): a 2.5× strike that sings one ◆ back; a miss fizzles, no refund', () => {
+    const call = sageSpell('words');
+    expect(call).toMatchObject({ name: 'Chorus Call', cost: 3, topic: 'words' });
+    const r = resolveSpell({ ...base, charge: 4 }, call, true);
+    expect(r).toMatchObject({ kind: 'strike', multiplier: 2.5, skipsTurn: false, refunded: 1 });
+    expect(r.state.charge).toBe(4 - 3 + 1);
+    const miss = resolveSpell({ ...base, charge: 3 }, call, false);
+    expect(miss).toMatchObject({ kind: 'fizzle' });
+    expect(miss.state.charge).toBe(3);
+    // Other strikes sing nothing back.
+    expect(resolveSpell({ ...base, charge: 4 }, sageSpell('math'), true)).toMatchObject({ refunded: 0 });
+    expect(CHARGE_MAX).toBeGreaterThanOrEqual(call.cost);
+  });
+
+  it("Chorus Call into a shield (the isle's Muffle Moths): the shield breaks and the charge ends where it began", () => {
+    const call = sageSpell('words');
+    const start = { ...base, charge: 4, enemyShielded: true };
+    const r = resolveSpell(start, call, true);
+    if (r.kind !== 'strike') throw new Error('not a strike');
+    // BattleArena hands the shield `shieldRefund`: the charge ends where it began.
+    expect(r.shieldRefund).toBe(call.cost - 1);
+    const hit = resolveHeroHit(r.state, 50, { isBoss: false, refundCharge: r.shieldRefund });
+    expect(hit.outcome).toBe('shield-broken');
+    expect(hit.state.charge).toBe(start.charge);
+    // Any strike: a shield's refund puts the charge back exactly.
+    for (const spell of [sageSpell('math'), sageSpell('history'), EMBER_BREATH]) {
+      const s = resolveSpell(start, spell, true);
+      if (s.kind !== 'strike') throw new Error('not a strike');
+      expect(resolveHeroHit(s.state, 50, { isBoss: false, refundCharge: s.shieldRefund }).state.charge, spell.id).toBe(start.charge);
+    }
+  });
+
+  it('a refund never fills the gauge past full', () => {
+    const generous = { ...sageSpell('words'), cost: 1, effect: { kind: 'damage' as const, multiplier: 2, refund: 3 } };
+    expect(resolveSpell({ ...base, charge: CHARGE_MAX }, generous, true).state.charge).toBe(CHARGE_MAX);
+  });
 });
 
 describe('battle items', () => {
