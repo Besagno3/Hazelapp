@@ -2241,7 +2241,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     decoEmoji: '🏮',
     spawn: { x: 32, y: 11 },
     buildings: [
-      { id: 'lantern-inn', name: 'The Driftlight Inn', x: 9, y: 2, w: 9, h: 6, roof: 'sea', style: 'harbor', sign: 'inn' },
+      { id: 'lantern-inn', name: 'Driftlight Inn', x: 9, y: 2, w: 9, h: 6, roof: 'sea', style: 'harbor', sign: 'inn' },
       { id: 'chandlery', name: "Wick-Wax's Candle Shop", x: 22, y: 2, w: 7, h: 5, roof: 'copper', style: 'harbor', sign: 'shop' },
       { id: 'harbor-office', name: "Harbormaster's Office", x: 9, y: 14, w: 7, h: 5, roof: 'blue', style: 'harbor', sign: 'house' },
       { id: 'net-loft', name: "Orla's Net Loft", x: 21, y: 14, w: 7, h: 5, roof: 'teal', style: 'harbor', sign: 'tools' },

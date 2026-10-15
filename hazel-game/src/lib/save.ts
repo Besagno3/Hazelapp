@@ -295,7 +295,7 @@ export function wakeShelter(save: Partial<Pick<SaveData, 'zoneId'>>): { line: st
 export function wakeInnName(save: Pick<SaveData, 'lastRest'>): string | null {
   const z = save.lastRest ? ZONES[save.lastRest] : null;
   const inn = z ? innOf(z) : undefined;
-  return z && inn ? `the ${inn.name} in ${z.the ? 'the ' : ''}${z.name}` : null;
+  return z && inn ? `the ${inn.name.replace(/^The /, '')} in ${z.the ? 'the ' : ''}${z.name}` : null;
 }
 
 /**

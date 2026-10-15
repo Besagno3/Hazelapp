@@ -49,7 +49,7 @@ export default function WorldMapPanel({
   aboard?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // The map you're out on — Dawnreach, or the Silver Shallows (#75 item 14);
+  // The map you're out on — Dawnreach, the Silver Shallows (#75 item 14) or Taleshore (15c);
   // from inside a place, the overworld it's on (Eldergrove's is the Shallows, #75 item 14f).
   const world = overworldOf(ZONES, zoneId);
   const cols = world.map[0].length;
@@ -73,8 +73,10 @@ export default function WorldMapPanel({
       ? whereOnMap(ZONES, world, goal.zoneId, null)
       : null;
   const boatHere = boat && boat.zoneId === world.id ? boat : null;
-  // Moored on the other map (after a Return, say): the legend says where.
+  // Moored on another map (after a Return, say): the legend says where —
+  // out at sea, or home at Marlow's dock (15c review: from Taleshore it's usually home).
   const boatElsewhere = boat && boat.zoneId !== world.id ? boat : null;
+  const elsewhereHome = !!boatElsewhere && !boatAway({ boat: boatElsewhere, vehicle: 'foot', flags });
   const boatHome = !!boatHere && !boatAway({ boat: boatHere, vehicle: 'foot', flags });
   // Landmarks (#75 item 14): islets and rocks named on the map, not entered.
   const landmarks = world.landmarks ?? [];
@@ -107,7 +109,9 @@ export default function WorldMapPanel({
   const nextLabel = goal.zoneId ? `Next: ${goal.title}.` : goal.why;
   const flagName = flagAtStart ? goal.at!.name : (flagAt?.place ?? (goal.zoneId ? ZONES[goal.zoneId].name : ''));
   const boatLine = boatElsewhere
-    ? `⛵ The Biscuit is moored out in ${mid(ZONES[boatElsewhere.zoneId].name)} — Old Marlow on Starfall Coast can row her home.`
+    ? elsewhereHome
+      ? `⛵ The Biscuit is waiting at Marlow's dock, on ${mid(ZONES[boatElsewhere.zoneId].name)}.`
+      : `⛵ The Biscuit is moored out in ${mid(ZONES[boatElsewhere.zoneId].name)} — Old Marlow on Starfall Coast can row her home.`
     : boatHere
       ? boatHome
         ? "⛵ = the Biscuit, waiting at Marlow's dock"

@@ -1861,7 +1861,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'NOTICE: Postmaster Pidge carries letters anywhere — even over the Great Fogbank!',
       'More notices will go up as Taleshore wakes to visitors. Check back soon!',
     ],
-  },  // A note on the harbormaster's desk (15c review): Gale is out meeting the boats.
+  },
+  // A note on the harbormaster's desk (15c review): Gale is out meeting the boats.
   'port-office-note': {
     id: 'port-office-note',
     name: "Gale's Note",

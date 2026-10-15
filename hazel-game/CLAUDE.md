@@ -760,7 +760,11 @@ Fresh UX review (4 medium, 7 low), all fixed: a route over the Great
 Fogbank says "fly" for every sea hop; Hob, Orla, the board and Gale no longer
 point at islands or a Juno quest that aren't there yet; a note on Gale's desk
 (`port-office-note`); Gale clear of the Net Loft's roof; plainer explore,
-panel 5, footer, inn and Pidge lines. Tests +1; 1206 green.
+panel 5, footer, inn and Pidge lines. Fresh code review (2 medium, 4 low),
+all fixed: the menu map from Taleshore says a boat at home waits at Marlow's
+dock (not "moored out"); new tests for saves, the wake, Return and the music
+on the new maps — one caught "the The Driftlight Inn" (fixed); stale
+comments. Tests +7; 1207 green.
 
 ### 2026-10-15 — 15c review round 1: fly home from Taleshore, meet Gale, props stay put (#75 item 15c, #137h)
 Fresh code (1 medium, 3 low) and UX reviews. All fixed:

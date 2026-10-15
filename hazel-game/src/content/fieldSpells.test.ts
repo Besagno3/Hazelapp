@@ -85,6 +85,8 @@ describe('Return (#75 item 9)', () => {
     expect(returnLanding(ZONES, HUB_ZONE)).toEqual(ZONES[HUB_ZONE].spawn);
     const door = dawn.exits.find((e) => e.to === 'numbria')!;
     expect(returnLanding(ZONES, 'numbria')).toEqual({ x: door.spawnX, y: door.spawnY });
+    // Port Lantern (#75 item 15c review): just inside its gate, off Taleshore's road.
+    expect(returnLanding(ZONES, 'port-lantern')).toEqual({ x: 32, y: 11 });
   });
 
   it('every landing is open ground with a way back out — never shut in behind a gate', () => {

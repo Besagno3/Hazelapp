@@ -210,8 +210,9 @@ export const MARLOW = 'coast-fisher';
 /**
  * The sea areas, each with its own music (`SEA_TRACK`, lib/audio.ts):
  * Dawnreach's waters while you sail them (ashore it's the overworld theme),
- * the Silver Shallows — its islets too, specks in it — and the water near the
- * Great Fogbank while the fog stands.
+ * the Silver Shallows — its islets too, specks in it — the water near the
+ * Great Fogbank while the fog stands, and the Starfall Sea: anywhere on
+ * Taleshore's map (#75 item 15c).
  */
 export const SEA_AREAS = ['dawnreach-waters', 'silver-shallows', 'great-fogbank', 'starfall-sea'] as const;
 export type SeaArea = (typeof SEA_AREAS)[number];
