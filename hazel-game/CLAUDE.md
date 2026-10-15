@@ -345,7 +345,10 @@ zod, react-query. Add the package in the same change that first uses it.
   Leviathan gives the Second Chorus Key (`chorus-b`); Yarn's tale-stones are
   a **riddle step** (`riddleStep`): talked to on its turn, a thing asks a
   question (`PathTarget.kind: 'riddle'`, opened from the dialogue), and the
-  right answer finishes the step and says where the next one is.
+  right answer finishes the step and says where the next one is. **Taleshore III** (#75 item 15f): Songstone Cliffs
+  and the Quiet Quarter; Reso's songstones are **song steps** (`songStep`):
+  talk steps in order, and one struck out of turn is a wrong note that un-does
+  them all (no timers, roadmap decision 14).
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -676,6 +679,7 @@ python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome
 python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
+python3 tools/assets/build.py cliffs   # Taleshore III: Songstone Cliffs, the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
 python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people, tale-stones (#75 item 15e)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
@@ -765,6 +769,21 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — Taleshore III: Songstone Cliffs and the Quiet Quarter (#75 item 15f, #140)
+Roadmap sub-item 15f (branch stacked on 15e's).
+- **Two places on Taleshore**, walked to: Songstone Cliffs (music) east off
+  the north road, the Quiet Quarter (words) east off the south road; tier 6;
+  icons `cliffs`, `quarter` (overworld frames 27–28).
+- **6 critters** (the Chime Gull swift, the Muffle Moth shielded); Reso,
+  Echo-of-Echo, Hum; Shush, the Mime, Sotto (**Sotto's Whisper Shop**, a new
+  `hush` style: candles and three secret-recipe badges).
+- **The song step** (`songStep`): in order; out of turn, a wrong note un-does
+  the song. **Ring the Songstones** (high, middle, low) — 45c + a potion.
+- **The Pen-Pal Papers:** Shush's letter to Librarian Sage in Lumina Village
+  and back — 50c + a Hint Feather.
+- **Art:** `python3 tools/assets/build.py cliffs`.
+- **Tests:** +9 (zones, quests, items, tiles); 1261 green, lint and tsc clean.
 
 ### 2026-10-15 — 15e review round 4: a sea serpent, a cuttlefish, focus that follows (#75 item 15e, #139k)
 The last round. Fresh code (2 low, 3 nits) and UX (3 medium, 7 low) reviews,

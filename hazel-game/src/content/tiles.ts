@@ -163,6 +163,9 @@ export const OVERWORLD_FRAME = {
     // 25–26: Taleshore II (#75 item 15e) — the Story Reef's coral and its scroll, Inkwell Cove's ink pot.
     reef: 25,
     inkwell: 26,
+    // 27–28: Taleshore III (#75 item 15f) — a songstone on grey cliffs, the Quiet Quarter's houses.
+    cliffs: 27,
+    quarter: 28,
   } satisfies Record<
     Exclude<PlaceIcon, 'tower'>,
     number
@@ -170,7 +173,7 @@ export const OVERWORLD_FRAME = {
 } as const;
 // 15: Marlow's dock (#75 item 14) — planks drawn over the water.
 export const OVERWORLD_DOCK_FRAME = 15;
-export const OVERWORLD_FRAMES = 27;
+export const OVERWORLD_FRAMES = 29;
 export const OVERWORLD_SHEET = '/tiles/overworld.png';
 export const OVERWORLD_KEY = 't_overworld';
 

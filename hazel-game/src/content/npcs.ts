@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { JUNO_CAME, JUNO_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, RESO_QUEST, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
@@ -1875,6 +1875,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: "LOST: one tall tale, in three pieces, somewhere on the Story Reef. Ask Tale-Fisher Yarn, at the end of the north road!", unlessFlag: questDoneFlag({ id: YARN_QUEST }) },
       { text: 'BEWARE: a whale that talks in riddles lives in Inkwell Cove, where the water turns black as ink — east off the north road. Scrivener Dot says it has a key.', unlessFlag: keyFlag('chorus-b') },
       { text: 'NEWS: someone answered every one of the Riddle Leviathan\'s riddles! Scrivener Dot wrote it all down.', ifFlag: keyFlag('chorus-b') },
+      // Taleshore III (#75 item 15f).
+      { text: "CHOIR NEWS: the Songstone Cliffs' song is stuck! Choir-Mistress Reso needs a listener. East off the north road.", unlessFlag: questDoneFlag({ id: RESO_QUEST }) },
+      { text: 'SHH: the Quiet Quarter is east off the south road. Please whisper there. Librarian Shush insists.' },
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
       'Check back soon for more notices!',
     ],
@@ -1888,6 +1891,146 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: ['📝 "Out saying hello to visitors! Find me by the road into town, on the east side. — Gale"'],
+  },
+  // --- Taleshore III (#75 item 15f) --------------------------------------------
+  // Songstone Cliffs: Choir-Mistress Reso, a stone face that echoes, a bee who
+  // hums, and Reso's three songstones (a song you ring in order).
+  'cliff-reso': {
+    id: 'cliff-reso',
+    name: 'Choir-Mistress Reso',
+    sprite: '🎶',
+    role: 'villager',
+    stationary: true,
+    // Her quest's offer comes first ("Ring the Songstones"); these follow it.
+    lines: [
+      'Every stone on these cliffs hums. Put your ear to one and listen!',
+      { text: 'High, middle, low — hear it? The cliffs sing again, every evening.', ifFlag: questDoneFlag({ id: RESO_QUEST }) },
+    ],
+  },
+  'cliff-echo': {
+    id: 'cliff-echo',
+    name: 'Echo-of-Echo',
+    sprite: '🗿',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      '🗿 A stone face in the cliff. You say "Hello!" It says: "…llo! …llo!"',
+      'You ask "What\'s your name?" It says: "…name? …name?" It only ever repeats the LAST word.',
+      'You say "Goodbye!" It says: "…bye! …bye!" Then it smiles. Probably.',
+    ],
+  },
+  'cliff-hum': {
+    id: 'cliff-hum',
+    name: 'Hum',
+    sprite: '🐝',
+    role: 'villager',
+    lines: [
+      "Hmmm-hmm! I'm Hum. I hum because I never learned the words. Nobody minds!",
+      'The Chime Gulls are SO fast — they always strike first. Keep your guard up!',
+    ],
+    ambient: ['Hmmm…', 'Hmm-hmm!', '🎵'],
+  },
+  'songstone-high': {
+    id: 'songstone-high',
+    name: 'High Songstone',
+    sprite: '🪨',
+    spriteId: 'songstone',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      { text: '🪨 A tall blue stone covered in carved music notes. It hums, very quietly.', unlessFlag: questOfferedFlag({ id: RESO_QUEST }) },
+      { text: "🪨 The high songstone. Strike it when it's its turn in Reso's song.", ifFlag: questOfferedFlag({ id: RESO_QUEST }) },
+    ],
+  },
+  'songstone-high-rung': {
+    id: 'songstone-high-rung',
+    name: 'High Songstone',
+    sprite: '🪨',
+    spriteId: 'songstone-rung',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: ['🔔 The high songstone is still ringing: DIIING! A high, bright note, humming on and on.'],
+  },
+  'songstone-middle': {
+    id: 'songstone-middle',
+    name: 'Middle Songstone',
+    sprite: '🪨',
+    spriteId: 'songstone',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      { text: '🪨 A tall blue stone covered in carved music notes. It hums, very quietly.', unlessFlag: questOfferedFlag({ id: RESO_QUEST }) },
+      { text: "🪨 The middle songstone. Strike it when it's its turn in Reso's song.", ifFlag: questOfferedFlag({ id: RESO_QUEST }) },
+    ],
+  },
+  'songstone-middle-rung': {
+    id: 'songstone-middle-rung',
+    name: 'Middle Songstone',
+    sprite: '🪨',
+    spriteId: 'songstone-rung',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: ['🔔 The middle songstone is still ringing: DOOONG! A middle note, humming on and on.'],
+  },
+  'songstone-low': {
+    id: 'songstone-low',
+    name: 'Low Songstone',
+    sprite: '🪨',
+    spriteId: 'songstone',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      { text: '🪨 A tall blue stone covered in carved music notes. It hums, very quietly.', unlessFlag: questOfferedFlag({ id: RESO_QUEST }) },
+      { text: "🪨 The low songstone. Strike it when it's its turn in Reso's song.", ifFlag: questOfferedFlag({ id: RESO_QUEST }) },
+    ],
+  },
+  'songstone-low-rung': {
+    id: 'songstone-low-rung',
+    name: 'Low Songstone',
+    sprite: '🪨',
+    spriteId: 'songstone-rung',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: ['🔔 The low songstone is still ringing: BOOOM! A deep, low note, humming on and on.'],
+  },
+  // The Quiet Quarter: Librarian Shush (Librarian Sage's pen-pal), a mime, and
+  // Sotto, who sells secrets — mostly recipes.
+  'quiet-shush': {
+    id: 'quiet-shush',
+    name: 'Librarian Shush',
+    sprite: '🤫',
+    role: 'villager',
+    stationary: true,
+    // Her quest's offer comes first ("The Pen-Pal Papers"); these follow it.
+    lines: [
+      'Shh. Books are the loudest thing in the world, when you read them in your head.',
+      { text: 'Five kittens in the Library! I must write back at once. Shh — I\'m thinking.', ifFlag: questDoneFlag({ id: SHUSH_QUEST }) },
+    ],
+  },
+  'quiet-mime': {
+    id: 'quiet-mime',
+    name: 'Mime',
+    sprite: '🎭',
+    role: 'villager',
+    lines: ['🎭 👋 😊', '🎭 🤫 … 👉 📚 … 🤔 💭', '🎭 🧱 👐 🧱 👐 … 😮 🚪 ❓', '🎭 🙇 🎉'],
+    ambient: ['…', '🤐', '🎭'],
+  },
+  'quiet-sotto': {
+    id: 'quiet-sotto',
+    name: 'Whisper-Monger Sotto',
+    sprite: '🗣️',
+    role: 'merchant',
+    lines: [
+      'Psst. Over here. I sell secrets. Mostly recipes. VERY secret recipes.',
+      "And candles. It's dark in the Quarter, and the Muffle Moths love a candle.",
+    ],
   },
   // --- Taleshore II (#75 item 15e) --------------------------------------------
   // The Story Reef: Tale-Fisher Yarn, a mermaid who can't stop rhyming, a fish

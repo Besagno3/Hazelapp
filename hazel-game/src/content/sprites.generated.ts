@@ -5992,6 +5992,402 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
+  "echo-bat": {
+    "emoji": "🦇",
+    "world": {
+      "sheet": "/sprites/echo-bat/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/echo-bat/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "chime-gull": {
+    "emoji": "🔔",
+    "world": {
+      "sheet": "/sprites/chime-gull/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/chime-gull/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "drum-crab": {
+    "emoji": "🥁",
+    "world": {
+      "sheet": "/sprites/drum-crab/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/drum-crab/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "hushling": {
+    "emoji": "🤫",
+    "world": {
+      "sheet": "/sprites/hushling/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/hushling/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "muffle-moth": {
+    "emoji": "🦋",
+    "world": {
+      "sheet": "/sprites/muffle-moth/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/muffle-moth/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "blank-sprite": {
+    "emoji": "⬜",
+    "world": {
+      "sheet": "/sprites/blank-sprite/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/blank-sprite/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
   "elder-lumen": {
     "emoji": "👴",
     "world": {
@@ -11007,6 +11403,334 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     "emoji": "🦑",
     "world": {
       "sheet": "/sprites/ink-smudge/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "cliff-reso": {
+    "emoji": "🎶",
+    "world": {
+      "sheet": "/sprites/cliff-reso/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "cliff-echo": {
+    "emoji": "🗿",
+    "world": {
+      "sheet": "/sprites/cliff-echo/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "cliff-hum": {
+    "emoji": "🐝",
+    "world": {
+      "sheet": "/sprites/cliff-hum/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "songstone": {
+    "emoji": "🪨",
+    "world": {
+      "sheet": "/sprites/songstone/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "songstone-rung": {
+    "emoji": "🪨",
+    "world": {
+      "sheet": "/sprites/songstone-rung/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "quiet-shush": {
+    "emoji": "🤫",
+    "world": {
+      "sheet": "/sprites/quiet-shush/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "quiet-mime": {
+    "emoji": "🎭",
+    "world": {
+      "sheet": "/sprites/quiet-mime/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "quiet-sotto": {
+    "emoji": "🗣️",
+    "world": {
+      "sheet": "/sprites/quiet-sotto/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 18,
