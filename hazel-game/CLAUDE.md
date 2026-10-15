@@ -780,6 +780,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15h review round 4 (code): no sailing up to the Roost (#75 item 15h, #142l)
+Fresh code review (1 medium, 3 low, 1 nit), all fixed: from the boat, a
+place only Ember reaches is sailed to only with no fog in the way and a beach
+to land on (`boatLandsBy`) — round 3 had said "Sail… to the Dragon's Roost";
+stale docs. Tests +0 (2 new checks). 1300 green.
+
 ### 2026-10-15 — 15h review round 3 (UX): one landmark, a dry quill (#75 item 15h, #142k)
 Fresh UX review, played at every quest stage (1 medium, 5 low, 3 nits), all
 fixed but one kept (the study's shared interior tiles): "north-west past the

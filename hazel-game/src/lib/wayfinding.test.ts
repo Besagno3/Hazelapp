@@ -513,6 +513,10 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(goalDirections(ZONES, chart, 'lumina-village', undefined, voicesFreed)).not.toMatch(/sail/i);
     expect(goalDirections(ZONES, chart, 'taleshore', { x: 30, y: 21 }, voicesFreed, true)).toMatch(/^Sail north-west to Chartmaker's Rest, then land beside it and walk in\.$/);
     expect(goalDirections(ZONES, chart, 'taleshore', { x: 30, y: 21 }, voicesFreed)).toMatch(/^Fly north-west to Chartmaker's Rest/);
+    // …but never sailed up to where no boat lands, or over standing fog (round 4).
+    const seaCell = (z: ZoneDef) => { for (let y = 0; y < z.map.length; y++) for (let x = 0; x < z.map[y].length; x++) if (z.map[y][x] === '~') return { x, y }; return { x: 0, y: 0 }; };
+    expect(goalDirections(ZONES, nextObjective(storyDone), 'dawnreach', seaCell(ZONES.dawnreach), storyDone, true)).not.toMatch(/^Sail .*Dragon's Roost/);
+    expect(goalDirections(ZONES, nextObjective(galeMet), 'silver-shallows', seaCell(ZONES['silver-shallows']), galeMet, true)).not.toMatch(/sail north/);
     // With the Blank Chart (#75 item 15h): its empty spot, a puzzle for later — like the 🚩 says (round 1).
     expect(mentorTips(ZONES, { ...met, ...chartHeld })[0]).toBe('You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, help the folk of Taleshore. Check 📜 Menu!');
     // Lumen counts every crystal shining: a skipped Hall dedication after Voices says six, not five (round 4).

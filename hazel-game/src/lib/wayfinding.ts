@@ -440,7 +440,6 @@ const CHORUS_GATE_FLAG = (() => {
   return gateFlag(gateIdAt('chorus-isle', isle.map, isle.keyGate!.x, isle.keyGate!.y));
 })();
 
-/** Islands you're "on", not "in" (15g review). */
 /**
  * Where to look on Chartmaker's Rest (15h review round 1): the Chartmaker
  * until he has asked, then whatever his quest needs next — Pen's nest, Inka,
@@ -450,12 +449,28 @@ function chartInside(flags: Record<string, boolean>): string {
   const quest = QUESTS.find((q) => q.id === BLANK_CHART_QUEST)!;
   if (!flags[questOfferedFlag(quest)]) return 'The Chartmaker is in his study, the blue-roofed house.';
   // The find step has no flag of its own (it's what you carry); Inka's step says the quill is inked.
-  if (!flags[stepFlag(quest.steps[1].id)] && !flags[handedOverFlag('compass-quill')]) {
+  if (!flags[stepFlag('chart-quill-ink')] && !flags[handedOverFlag('compass-quill')]) {
     return "Get the quill from Pen's 🎁 nest (the chest right of the study), then take it to Inka on the left (west) side.";
   }
   return 'Take the Starlit Quill back to the Chartmaker, in his study.';
 }
 
+/**
+ * Can a boat land by this place (15h review round 4)? Walking from its icon on
+ * foot reaches a beach right by open sea — an island's shore, not the Roost's
+ * plateau ringed by mountains.
+ */
+function boatLandsBy(z: ZoneDef, at: { x: number; y: number }): boolean {
+  const around = reach(z, { from: at, flags: null });
+  const sea = (x: number, y: number) => z.map[y]?.[x] === '~';
+  for (const key of around) {
+    const [x, y] = key.split(',').map(Number);
+    if (z.map[y]?.[x] === ':' && (sea(x + 1, y) || sea(x - 1, y) || sea(x, y + 1) || sea(x, y - 1))) return true;
+  }
+  return false;
+}
+
+/** Islands you're "on", not "in" (15g review). */
 const ON_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['chartmakers-rest', 'chorus-isle', 'gale-atoll', 'wayfinder-isles']);
 
 /** Places named as many ("land beside them") — not every name ending in s (the Shrine of Quiet Paws, 15d review). */
@@ -475,7 +490,12 @@ export function routeSteps(
   at?: { x: number; y: number },
   /** The story flags: once the Great Fogbank lifts (15g), Taleshore is sailed to (`flownLink`). */
   flags: Record<string, boolean> | null = null,
-  /** Sailing Marlow's boat right now (15g review round 3): a way off Taleshore is sailed, not flown. */
+  /**
+   * Sailing Marlow's boat right now (15g review round 3): a way off Taleshore is
+   * sailed, not flown — and a place only Ember reaches that has a beach a boat
+   * can land on (an island, once no fog is in the way) is sailed up to (15h
+   * review round 3); never the Roost's plateau or over standing fog (round 4).
+   */
   aboard = false,
 ): string[] | null {
   const route = routeTo(zones, from, to);
@@ -526,7 +546,7 @@ export function routeSteps(
       // "the Wayfinder Isles": land beside them (15d review).
       const them = PLURAL_PLACES.has(dest.id) ? 'them' : 'it';
       // Sailing right now (15h review round 3): no Fly button aboard, so sail up and go ashore.
-      if (dir && !walkable && aboard && !stranded && byAir) steps.push(`sail ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
+      if (dir && !walkable && aboard && !stranded && !flying && byAir && boatLandsBy(z, exit)) steps.push(`sail ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
       else if (dir && !walkable && (flying || byAir || offIsland)) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
       else steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
