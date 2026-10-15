@@ -319,7 +319,7 @@ function escortStep(id: string, escort: EscortDef, hint: string | ((save: SaveDa
  * turn it's a wrong note, and the song starts again from its first step.
  */
 function songStep(id: string, npcId: string, lines: string[], hint: string, remind?: string): QuestStep {
-  return { id, hint, remind, npc: { id: npcId, lines }, song: true, early: true, isComplete: (save) => save.flags[stepFlag(id)] === true };
+  return { id, hint, remind, npc: { id: npcId, lines }, song: true, isComplete: (save) => save.flags[stepFlag(id)] === true };
 }
 
 /**
@@ -1213,7 +1213,7 @@ export const QUESTS: QuestDef[] = [
       'Strike them in order: the HIGH one on the top ledge, then the MIDDLE, then the LOW one down here. A wrong note? We just start again!',
     ],
     wrongNote: {
-      early: '🔔 Bwong… not yet! The song starts HIGH.',
+      early: '🔔 Bwong… not yet!',
       again: '🔔 BWOOONG! A wrong note — the song starts again from the top!',
     },
     steps: [
@@ -1221,7 +1221,7 @@ export const QUESTS: QuestDef[] = [
         RESO_STONES[0],
         'songstone-high',
         ['🔔 DIIING! The high songstone rings! Next: the MIDDLE songstone, on the middle ledge to the east.'],
-        'First the HIGH songstone — up on the top ledge, in the west. Climb the ramps!',
+        'First the HIGH songstone — up on the top ledge, in the west. Climb the steps!',
       ),
       songStep(
         RESO_STONES[1],
@@ -1232,7 +1232,7 @@ export const QUESTS: QuestDef[] = [
       songStep(
         RESO_STONES[2],
         'songstone-low',
-        ['🔔 You strike the low songstone. BOOOM! Three notes ring as one song — the cliffs are singing!'],
+        ['🔔 BOOOM! The low songstone rings. Three notes ring as one song — the cliffs are singing! Go tell Reso!'],
         'Last the LOW songstone — on the bottom ledge, just west of Reso.',
         'Last the LOW songstone — down here on the bottom ledge, just west of me!',
       ),
@@ -1259,7 +1259,7 @@ export const QUESTS: QuestDef[] = [
     ],
     givesItem: 'shush-letter',
     takesItems: ['sage-letter'],
-    doneLine: "Take Sage's reply back to Librarian Shush in the Quiet Quarter — fly to Taleshore, then go east off the south road!",
+    doneLine: "Take Sage's reply back to Librarian Shush in the Quiet Quarter! Cast 🏠 Return to Port Lantern, then go east off the south road.",
     steps: [
       bringStep(
         'shush-deliver',
@@ -1267,14 +1267,14 @@ export const QUESTS: QuestDef[] = [
         { takes: 'shush-letter', gives: 'sage-letter' },
         [
           '📨 A letter… from Shush? From Taleshore?! I thought the fog had swallowed every letter!',
-          "Wait right there… I've written back. A LONG reply — I had years of news. Please take it to Shush!",
+          'Wait right there… There! I\'ve written back — a LONG reply, years of news. Please take it to Shush!',
         ],
         'Take the letter to Librarian Sage, in the Library at the east end of Lumina Village. Cast 🏠 Return from 📜 Menu, or fly home on Ember!',
       ),
     ],
     complete: [
       '📨 A reply from Sage! Shh, let me read it… Oh. Oh, how lovely.',
-      'Sage says the Library cat had kittens. FIVE! I must write back at once.',
+      'Sage says Pudding, the Library cat, had kittens. FIVE!',
       '✨ Reward: 50 coins and a Hint Feather!',
     ],
     reward: { coins: 50, hint: 1 },
@@ -1640,11 +1640,13 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
     const step = activeStep(q, save);
     if (!step) continue;
     const later = q.steps.slice(q.steps.indexOf(step) + 1);
-    // A wrong note (#75 item 15f): every song step goes quiet and the song starts again.
-    if (later.some((st) => st.song && st.npc?.id === npcId)) {
+    // A wrong note (#75 item 15f): every song step goes quiet and the song starts again —
+    // only while the song itself is due (15f round 2: a step before it gets "not this one yet").
+    if (step.song && later.some((st) => st.song && st.npc?.id === npcId)) {
       const song = q.steps.filter((st) => st.song);
       const rung = song.some((st) => st.isComplete(save));
-      const note = rung ? (q.wrongNote?.again ?? 'A wrong note — start again from the first one!') : (q.wrongNote?.early ?? 'Not that one yet!');
+      // Every quest with song steps has its own wrong notes (quests.test checks).
+      const note = rung ? q.wrongNote!.again : q.wrongNote!.early;
       const quiet = Object.fromEntries(song.map((st) => [stepFlag(st.id), false]));
       return {
         lines: [`${note} ${resolveHint(song[0], save)}`],
@@ -1653,7 +1655,7 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
         finish: rung ? (s) => ({ ...s, flags: { ...s.flags, ...quiet } }) : null,
       };
     }
-    if (later.some((st) => st.early && st.npc?.id === npcId)) {
+    if (later.some((st) => (st.early || st.song) && st.npc?.id === npcId)) {
       // Another of its kind first ("Not this one yet!"), or something to find first — the Ledger (#75 item 14g UX review).
       return { lines: [`${step.npc ? 'Not this one yet!' : 'Not yet!'} ${resolveHint(step, save)}`], badge: q.title, finishKind: null, finish: null };
     }

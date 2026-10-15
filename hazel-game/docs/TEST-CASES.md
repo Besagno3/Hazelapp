@@ -1370,3 +1370,4 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1164 | U | ✅ | a wrong note with nothing rung (#140h) | "Bwong… not yet! The song starts HIGH." and the high stone's hint; no finish, nothing written (quests.test) |
 | TC-1165 | U | ✅ | a rung stone names the next (#140h) | the high one says "Next: the MIDDLE" until it rings, the middle one "Last: the LOW" (zones.test) |
 | TC-1166 | U | ✅ | 📚 Library still delivers Shush's letter (#140h) | holding the letter, Sage's last line → 📚 Library: the reply in hand, the step done, the Library opens (DialogueOverlay.test) |
+| TC-1167 | U | ✅ | song quests are whole songs (#140i) | every quest with song steps has `wrongNote`; its song steps run from the first to the end (quests.test) |

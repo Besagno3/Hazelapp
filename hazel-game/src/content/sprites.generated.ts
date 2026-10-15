@@ -5993,7 +5993,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "echo-bat": {
-    "emoji": "🦇",
+    "emoji": "🔊",
     "world": {
       "sheet": "/sprites/echo-bat/world.png",
       "frameW": 32,

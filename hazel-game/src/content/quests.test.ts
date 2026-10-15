@@ -1051,8 +1051,16 @@ describe('Taleshore III quests (#75 item 15f)', () => {
   it('struck out of turn before anything rings, it\'s just "not yet" — nothing to un-do (round 1)', () => {
     const save = onCliffs();
     const early = questConversation('songstone-low', save)!;
-    expect(early.lines[0]).toMatch(/^🔔 Bwong… not yet! The song starts HIGH\. First the HIGH songstone/);
+    expect(early.lines[0]).toMatch(/^🔔 Bwong… not yet! First the HIGH songstone/);
     expect(early.finish).toBeNull();
+  });
+
+  it('every quest with song steps has its own wrong notes, and its songs run from its first step (round 2)', () => {
+    for (const q of QUESTS.filter((x) => x.steps.some((st) => st.song))) {
+      expect(q.wrongNote, q.id).toBeTruthy();
+      const first = q.steps.findIndex((st) => st.song);
+      expect(q.steps.slice(first).every((st) => st.song), q.id).toBe(true);
+    }
   });
 
   it("Reso's own reminder for the low stone says \"me\", the quest log names her", () => {

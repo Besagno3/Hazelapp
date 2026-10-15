@@ -1877,7 +1877,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'BEWARE: a whale that talks in riddles lives in Inkwell Cove, where the water turns black as ink — east off the north road. Scrivener Dot says it has a key.', unlessFlag: keyFlag('chorus-b') },
       { text: 'NEWS: someone answered every one of the Riddle Leviathan\'s riddles! Scrivener Dot wrote it all down.', ifFlag: keyFlag('chorus-b') },
       // Taleshore III (#75 item 15f).
-      { text: "CHOIR NEWS: the Songstone Cliffs' song is stuck! Choir-Mistress Reso needs a listener. East off the north road.", unlessFlag: questDoneFlag({ id: RESO_QUEST }) },
+      { text: "CHOIR NEWS: the Songstone Cliffs' song is stuck! Take the north road up to the mountains, then turn east. Choir-Mistress Reso needs a listener.", unlessFlag: questDoneFlag({ id: RESO_QUEST }) },
       { text: 'SHH: the Quiet Quarter is east off the south road. Please whisper there. Librarian Shush insists.' },
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
       'Check back soon for more notices!',
@@ -1940,10 +1940,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     prop: true,
     stationary: true,
-    lines: [
-      { text: '🪨 A tall blue stone covered in carved music notes. It hums, very quietly.', unlessFlag: questOfferedFlag({ id: RESO_QUEST }) },
-      { text: "🪨 The high songstone. Strike it when it's its turn in Reso's song.", ifFlag: questOfferedFlag({ id: RESO_QUEST }) },
-    ],
+    // Before Reso asks: once she has, a struck stone is part of her song (quests.ts).
+    lines: ['🪨 A tall blue stone covered in carved music notes. It hums, very quietly.'],
   },
   'songstone-high-rung': {
     id: 'songstone-high-rung',
@@ -1955,7 +1953,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     // Says which stone is next until that one rings too (15f review).
     lines: [
-      { text: '🔔 The high songstone is still ringing. Next: the MIDDLE songstone, on the middle ledge to the east!', unlessFlag: stepFlag(RESO_STONES[1]) },
+      { text: '🔔 The high songstone is still ringing. Next: the MIDDLE songstone, on the middle ledge to the east — find it before you go down!', unlessFlag: stepFlag(RESO_STONES[1]) },
       { text: '🔔 The high songstone is still ringing: DIIING! A high, bright note, humming on and on.', ifFlag: stepFlag(RESO_STONES[1]) },
     ],
   },
@@ -1967,10 +1965,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     prop: true,
     stationary: true,
-    lines: [
-      { text: '🪨 A tall blue stone covered in carved music notes. It hums, very quietly.', unlessFlag: questOfferedFlag({ id: RESO_QUEST }) },
-      { text: "🪨 The middle songstone. Strike it when it's its turn in Reso's song.", ifFlag: questOfferedFlag({ id: RESO_QUEST }) },
-    ],
+    // Before Reso asks: once she has, a struck stone is part of her song (quests.ts).
+    lines: ['🪨 A tall blue stone covered in carved music notes. It hums, very quietly.'],
   },
   'songstone-middle-rung': {
     id: 'songstone-middle-rung',
@@ -1994,10 +1990,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     prop: true,
     stationary: true,
-    lines: [
-      { text: '🪨 A tall blue stone covered in carved music notes. It hums, very quietly.', unlessFlag: questOfferedFlag({ id: RESO_QUEST }) },
-      { text: "🪨 The low songstone. Strike it when it's its turn in Reso's song.", ifFlag: questOfferedFlag({ id: RESO_QUEST }) },
-    ],
+    // Before Reso asks: once she has, a struck stone is part of her song (quests.ts).
+    lines: ['🪨 A tall blue stone covered in carved music notes. It hums, very quietly.'],
   },
   'songstone-low-rung': {
     id: 'songstone-low-rung',
@@ -2020,7 +2014,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     // Her quest's offer comes first ("The Pen-Pal Papers"); these follow it.
     lines: [
       'Shh. Books are the loudest thing in the world, when you read them in your head.',
-      { text: 'Five kittens in the Library! I must write back at once. Shh — I\'m thinking.', ifFlag: questDoneFlag({ id: SHUSH_QUEST }) },
+      { text: 'Five kittens! I\'m writing back right now. Shh — I\'m thinking.', ifFlag: questDoneFlag({ id: SHUSH_QUEST }) },
     ],
   },
   'quiet-mime': {
@@ -2341,6 +2335,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "Hello, traveler! I'm Hob. I walk every road on Taleshore, and I've still not seen it all.",
       'Out at sea are the Wayfinder Isles, north-west of town, and Gale Atoll, south-west. No road goes there. You need wings!',
+      'Up the north road, by the mountains, the Songstone Cliffs sing. Down the south road, east into the woods, everyone whispers in the Quiet Quarter.',
     ],
     ambient: ['Left foot, right foot…', 'What a view!', '🥾'],
   },

@@ -108,9 +108,9 @@ ZONES = {
                          sky=('#3a3a6a', '#b8a8d8'), far='#4a4a7a', mid='sea', water='#1e2240'),
     # Taleshore III (#75 item 15f): windy grey cliffs of humming stone and music notes,
     # and a hushed old quarter of grey-blue stone, lavender and still water at dusk.
-    'songstone-cliffs': dict(ground=(118, 132, 116), path=(176, 166, 140), solid='cliff', deco='note', deco_c='#2a2a4a',
+    'songstone-cliffs': dict(steps=True, ground=(118, 132, 116), path=(176, 166, 140), solid='cliff', deco='note', deco_c='#f0d870',
                              sky=('#5a8ad8', '#f0e8ff'), far='#8a9ac0', mid='mountain', water='#4a8ad0'),
-    'quiet-quarter': dict(ground=(120, 136, 140), path=(170, 170, 180), solid='hedge', deco='lavender', deco_c='#b8a0e0',
+    'quiet-quarter': dict(ground=(120, 136, 140), path=(170, 170, 180), solid='hedge', deco='flower', deco_c='#c8a8f0',
                           sky=('#3a4a7a', '#c0b8d8'), far='#5a5a80', mid='houses', water='#4a6a8a'),
 }
 
@@ -188,9 +188,15 @@ def ground(base, seed):
     return c
 
 
-def path_tile(base):
+def path_tile(base, steps=False):
     c = _c()
     _speckle(c, base, 99, density=0.12, tufts=False)
+    if steps:
+        # Carved stone steps (15f review: Songstone Cliffs' ramps read as a climb).
+        for y in range(0, T, 4):
+            c.a[y, :, :3] = dark(base, 0.35)
+            c.a[y + 1, :, :3] = light(base, 0.15)
+        return c
     rnd = random.Random(7)
     for _ in range(4):
         x, y = rnd.randrange(1, T - 2), rnd.randrange(1, T - 2)
@@ -1788,7 +1794,7 @@ def blend_sheet(z: dict, i: int) -> Image.Image:
     tex = {
         1: _half_shift(ow_sand()),
         2: _half_shift(ground(z['ground'], 1 + i * 10)),
-        3: _half_shift(path_tile(z['path'])),
+        3: _half_shift(path_tile(z['path'], z.get('steps'))),
     }
     waters = [_half_shift(water(z['water'], f)) for f in (0, 1)]
     frames: list[Canvas] = []
@@ -1819,7 +1825,7 @@ def build_blend(public: Path):
 
 def _write_zone(tdir: Path, bdir: Path, i: int, zid: str, z: dict):
     g = z['ground']
-    frames = [ground(g, 1 + i * 10), ground(g, 2 + i * 10), ground(g, 3 + i * 10), path_tile(z['path']),
+    frames = [ground(g, 1 + i * 10), ground(g, 2 + i * 10), ground(g, 3 + i * 10), path_tile(z['path'], z.get('steps')),
               water(z['water'], 0), water(z['water'], 1), solid(z['solid'], z), deco(z['deco'], z['deco_c']),
               exit_marker()]
     strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'{zid}.png', optimize=True)

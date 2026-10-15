@@ -189,7 +189,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'margin-shrimp': { id: 'margin-shrimp', name: 'Margin Shrimp', sprite: '🦐', topic: 'words', levelOffset: 1, hpPerLevel: 12 },
   // --- Taleshore III (#75 item 15f) ---
   // Songstone Cliffs (music): the Chime Gull dives before you can blink (swift).
-  'echo-bat': { id: 'echo-bat', name: 'Echo Bat', sprite: '🦇', topic: 'music', levelOffset: -1, hpPerLevel: 11 },
+  'echo-bat': { id: 'echo-bat', name: 'Echo Bat', sprite: '🔊', topic: 'music', levelOffset: -1, hpPerLevel: 11 },
   'chime-gull': { id: 'chime-gull', name: 'Chime Gull', sprite: '🔔', topic: 'music', levelOffset: 0, hpPerLevel: 12, behavior: 'swift' },
   'drum-crab': { id: 'drum-crab', name: 'Drum Crab', sprite: '🥁', topic: 'music', levelOffset: 1, hpPerLevel: 13 },
   // The Quiet Quarter (words): the Muffle Moth's woolly scarf soaks up the first hit (shielded).

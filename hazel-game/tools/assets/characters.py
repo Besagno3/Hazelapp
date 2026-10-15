@@ -1100,9 +1100,12 @@ def blank_sprite(c: Canvas, p: Pose, s: dict):
     L.poly([(8, 8), (22, 7), (24, 22), (10, 24)], col)
     L.poly([(22, 7), (24, 22), (20.6, 19.4), (19.6, 9)], dark(col, 0.08))
     L.poly([(8, 8), (11.4, 8.2), (8.4, 11.4)], dark(col, 0.18))  # a curled corner
-    for x in (13.4, 18):
-        L.line(x - 1.2, 14, x + 1.2, 14, '#5a5a6a', w=0.7)  # sleepy shut eyes
-    L.line(14.4, 18.4, 17.2, 18.2, '#9a9aa8', w=0.6)
+    for y in (11.4, 20.4, 22.4):
+        L.line(10.6, y, 21.4, y - 0.4, '#c8d8f0', w=0.4)  # faint ruled lines: a blank page
+    for x in (13.6, 18):
+        L.dot(x, 14.6, '#3a3a4a', w=1.4, h=1.4)  # round dot eyes (15f review: not a skull)
+    L.line(14.4, 17.4, 15.8, 18.2, '#c86a7a', w=0.5)  # a small smile
+    L.line(15.8, 18.2, 17.4, 17.4, '#c86a7a', w=0.5)
     d.put(L)
     finish(c, d, shadow=(16, 30, 6, 1.1))
 
@@ -3601,10 +3604,10 @@ def nameless_stone(c: Canvas, p: Pose, s: dict):
     if s.get('notes'):
         # A songstone (#75 item 15f): music notes carved down its face — gold once it's rung.
         ink = s.get('glow') or dark(col, 0.35)
-        for (x, y) in ((13, 15), (18.5, 19.5), (13.5, 24)):
-            L.ellipse(x, y, 1.6, 1.2, ink, shade=False)
-            L.line(x + 1.4, y, x + 1.4, y - 4.4, ink, w=0.7)
-            L.line(x + 1.4, y - 4.4, x + 3.2, y - 3.2, ink, w=0.7)
+        for (x, y) in ((13, 17), (18, 24)):  # two big ♪ (15f review: they read as a lightning bolt)
+            L.ellipse(x, y, 2.2, 1.7, ink, shade=False)
+            L.line(x + 1.9, y, x + 1.9, y - 6, ink, w=0.9)
+            L.line(x + 1.9, y - 6, x + 4.2, y - 4.4, ink, w=0.9)
     elif s.get('face'):
         # Echo-of-Echo (#75 item 15f): a stone face with a big round mouth, always mid-echo.
         for x in (13, 19):
@@ -3981,11 +3984,11 @@ ROSTER: list[Char] = [
     Char('margin-shrimp', '🦐', 'shrimp', H(color='#ff8a6a')),
     Char('riddle-leviathan', '🐋', 'leviathan', H(color='#3a3a7a'), boss=True),
     # ── Act III: Taleshore III (#75 item 15f) ──
-    Char('echo-bat', '🦇', 'flyer', H(kind='bat', color='#7a5ab0', wing='#a88ad8', waves=True)),
+    Char('echo-bat', '🔊', 'flyer', H(kind='bat', color='#2a8a9a', wing='#5ac0c8', waves=True)),
     Char('chime-gull', '🔔', 'flyer', H(kind='bird', color='#f4f4f8', wing='#c8d0dc', bell=True)),
     Char('drum-crab', '🥁', 'crab', H(color='#e8a05a', drum=True)),
-    Char('hushling', '🤫', 'ghost', H(color='#c8c0e8', hush=True)),
-    Char('muffle-moth', '🦋', 'flyer', H(kind='moth', color='#a8a098', wing='#d8d0c4', scarf=True)),
+    Char('hushling', '🤫', 'ghost', H(color='#a8c8f0', eye='#2a3a5a', hush=True)),
+    Char('muffle-moth', '🦋', 'flyer', H(kind='moth', color='#6a5a4a', wing='#f0e4cc', spot='#c86a6a', scarf=True)),
     Char('blank-sprite', '⬜', 'blank_sprite', H(color='#f4f4f0')),
 ]
 
@@ -4133,7 +4136,7 @@ NPCS: list[Char] = [
     # Taleshore III (#75 item 15f)
     Char('cliff-reso', '🎶', 'humanoid', H(hair='bun', hair_color='#3a2a3a', outfit='#a03a6a', trim='#ffd860', robe=True, item='staff', item_color='#f4f4f8')),
     Char('cliff-echo', '🗿', 'nameless_stone', H(color='#a8a49a', face=True)),
-    Char('cliff-hum', '🐝', 'flyer', H(kind='bee', color='#ffd23a', stripes=True)),
+    Char('cliff-hum', '🐝', 'flyer', H(kind='bee', color='#fff0c0', stripes=True, scarf=True)),
     Char('songstone', '🪨', 'nameless_stone', H(color='#9ab0c8', notes=True)),
     Char('songstone-rung', '🪨', 'nameless_stone', H(color='#c0d4e8', notes=True, glow='#ffd84a')),
     Char('quiet-shush', '🤫', 'humanoid', H(hair='bun', hair_color='#8a8a98', glasses=True, outfit='#4a5a7a', trim='#c8d0e0', robe=True, item='book')),
