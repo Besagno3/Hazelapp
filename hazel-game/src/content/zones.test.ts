@@ -35,6 +35,7 @@ import type { ZoneDef } from './zones';
 import {
   ANY_CRYSTAL,
   chestTopicAt,
+  topicAt,
   fogAt,
   fogSeenFlag,
   fogsToReveal,
@@ -142,6 +143,9 @@ describe('zone maps', () => {
         if (z.kind === 'overworld') {
           // Critters wander out from the regions around them (#75 Phase 1).
           expect(ENEMY_DEFS[p.defId].isBoss ?? false, `${z.id} boss ${p.defId}`).toBe(false);
+        } else if (z.topics) {
+          // A mixed-topic zone (#75 item 16b): each critter brings one of its topics.
+          expect(z.topics, `${z.id} enemy ${p.defId} topic`).toContain(ENEMY_DEFS[p.defId].topic);
         } else {
           expect(ENEMY_DEFS[p.defId].topic, `${z.id} enemy ${p.defId} topic`).toBe(z.topic);
         }
@@ -151,7 +155,7 @@ describe('zone maps', () => {
 
   it("every gate and chest has a topic for its question: its zone's, or (a chest) its fog bank's", () => {
     for (const z of allZones) {
-      if (z.topic) continue;
+      if (z.topic || z.topics?.length) continue;
       z.map.forEach((row, y) =>
         [...row].forEach((ch, x) => {
           expect(ch === 'G', `${z.id} has a gate at ${x},${y} but no topic`).toBe(false);
@@ -470,8 +474,10 @@ describe('every place is unique (#73)', () => {
       const styles = new Set((z.buildings ?? []).map((b) => b.style));
       expect(styles.size, `${z.id} mixes styles`).toBeLessThanOrEqual(1);
       for (const st of styles) {
-        expect(styleOwner.get(st) ?? z.id, `style ${st} reused`).toBe(z.id);
-        styleOwner.set(st, z.id);
+        // A memory of a place (#75 item 16b) may build the way that place does.
+        const owner = styleOwner.get(st) ?? z.id;
+        expect(owner === z.id || owner === z.echoOf, `style ${st} reused by ${z.id}`).toBe(true);
+        if (!z.echoOf) styleOwner.set(st, z.id);
       }
     }
   });
@@ -1731,5 +1737,59 @@ describe("Wisp's new face (#75 item 16a)", () => {
     expect(npcSpriteId(wisp, { [NAME_LEARNED]: true })).toBe('wisp-named');
     expect(npcEmoji(wisp, { [NAME_LEARNED]: true })).toBe('🌼');
     expect(npcSpriteId(NPC_DEFS['village-elder'], { [NAME_LEARNED]: true })).toBe('village-elder');
+  });
+});
+
+describe('Lumina-That-Was (#75 item 16b)', () => {
+  const ids = ['memory-field', 'memory-village', 'first-classroom'] as const;
+
+  it('lies below the Dream Root Door: down past Old Knot, the three places joined edge to edge', () => {
+    const door = ZONES['dreamroot-door'];
+    const down = door.exits.filter((e) => e.to === 'memory-field');
+    expect(down.length).toBe(2);
+    const open = reach(door, { flags: {} });
+    for (const e of down) expect(open.has(`${e.x},${e.y}`)).toBe(true);
+    expect(ZONES['memory-field'].exits.map((e) => e.to).sort()).toEqual(['dreamroot-door', 'dreamroot-door', 'first-classroom', 'first-classroom', 'memory-village', 'memory-village']);
+    for (const id of ids) {
+      const z = ZONES[id];
+      const area = reach(z, { flags: {}, gates: 'open' });
+      for (const e of z.exits) expect(area.has(`${e.x},${e.y}`), `${id} exit to ${e.to}`).toBe(true);
+    }
+  });
+
+  it('mixed topics: each chest, gate and riddle keeps one of its zone\'s topics, every time', () => {
+    for (const id of ids) {
+      const z = ZONES[id];
+      expect(z.topic).toBeUndefined();
+      expect(z.topics!.length).toBeGreaterThanOrEqual(2);
+      for (let y = 0; y < z.map.length; y++)
+        for (let x = 0; x < z.map[y].length; x++) {
+          expect(z.topics).toContain(topicAt(z, x, y, 'math'));
+          expect(topicAt(z, x, y, 'math')).toBe(topicAt(z, x, y, 'math'));
+        }
+    }
+    const room = ZONES['first-classroom'];
+    expect(chestTopicAt(room, 17, 8)).toBe(topicAt(room, 17, 8, 'math'));
+    // A zone with one topic is unchanged.
+    expect(topicAt(ZONES.numbria, 3, 3, 'words')).toBe('math');
+  });
+
+  it('beaten anywhere down here, you wake at the Dream Root Door (#104g)', () => {
+    for (const id of ids) expect(ZONES[id].shelterIn, id).toBe('dreamroot-door');
+  });
+
+  it('Young Wick stands in the old village; the Unnamed Dog, Young Lumen, Monitor Prim and the slates are all placed', () => {
+    const at = (def: string) => ids.find((id) => ZONES[id].npcs.some((p) => p.defId === def));
+    expect(at('memory-young-wick')).toBe('memory-village');
+    expect(at('memory-dog')).toBe('memory-village');
+    expect(at('memory-young-lumen')).toBe('memory-field');
+    expect(at('class-prim')).toBe('first-classroom');
+    for (const n of [1, 2, 3]) expect(at(`class-slate-${n}`)).toBe('first-classroom');
+  });
+
+  it('Old Knot says the way down is open now', () => {
+    const say = visibleLines(NPC_DEFS['root-knot'].lines, {}).map(lineText).join(' ');
+    expect(say).toMatch(/untangled the way down/);
+    expect(say).not.toMatch(/knotted shut/);
   });
 });

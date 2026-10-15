@@ -4,7 +4,7 @@ import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcSpriteId, visibleLines, type Dialo
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { questConversation, type QuestConversation } from '../../content/quests';
 import { boatFetchOffer, fetchBoatHome } from '../../content/boat';
-import { ZONES } from '../../content/zones';
+import { ZONES, topicAt } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
 import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
@@ -85,6 +85,20 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     sendFlow({ type: 'CLOSE' });
   }
 
+  // A completion that ends on a choice (#75 item 16b: the Unnamed Dog's name).
+  function choose(flag: string) {
+    applyLineFlag();
+    if (quest?.finish) {
+      const finish = quest.finish;
+      update((s) => {
+        const done = finish(s);
+        return { ...done, flags: { ...done.flags, [flag]: true } };
+      });
+    }
+    sendFlow({ type: 'CLOSE' });
+  }
+  const choosing = isLast && !!quest?.choice?.length;
+
   function openService() {
     applyLineFlag();
     // Leaving via the service button must still advance the quest step —
@@ -98,7 +112,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     applyLineFlag();
     const save = useSaveStore.getState().save;
     if (!quest?.riddle || !save) return;
-    const topic = ZONES[save.zoneId]?.topic ?? 'words';
+    // In a mixed-topic zone (#75 item 16b) the thing's own cell picks its topic.
+    const z = ZONES[save.zoneId];
+    const at = z?.npcs.find((p) => p.defId === npcId);
+    const topic = z ? topicAt(z, at?.x ?? 0, at?.y ?? 0, 'words') : 'words';
     sendFlow({ type: 'OPEN_PATH', target: { kind: 'riddle', id: quest.riddle, topic, zoneId: save.zoneId } });
   }
 
@@ -125,7 +142,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
         </div>
         {/* pre-line: a signpost reads one direction per line. */}
         <p className="leading-relaxed min-h-[3rem] whitespace-pre-line">{text}</p>
-        <div className="flex justify-end gap-3 mt-3">
+        <div className="flex flex-wrap justify-end gap-3 mt-3">
           {offerService && (
             <button
               onClick={openService}
@@ -146,7 +163,19 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               ⛵ Row her home
             </button>
           )}
+          {choosing &&
+            quest!.choice!.map((c, i) => (
+              <button
+                key={c.flag}
+                autoFocus={i === 0}
+                onClick={() => choose(c.flag)}
+                className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"
+              >
+                {c.label}
+              </button>
+            ))}
           {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}
+          {!choosing && (
           <button
             autoFocus
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
@@ -164,6 +193,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
                       ? '📜 Hear the question'
                       : 'Bye!'}
           </button>
+          )}
           {isLast && quest?.finishKind === 'riddle' && (
             <button
               onClick={advance}

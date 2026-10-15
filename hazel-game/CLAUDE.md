@@ -366,6 +366,13 @@ zod, react-query. Add the package in the same change that first uses it.
   `INN_ONLY`). **Say Her Name** (Wisp): five memories, then `name-learned`
   (only Umbra's name question will check it) and Wisp's new face
   (`WorldNpcDef.face`, `npcSpriteId(def, flags)`).
+  **Lumina-That-Was** (#75 item 16b): below the Door, the old Field, the old
+  Village and the First Classroom — mixed-topic zones (`ZoneDef.topics`:
+  chests, gates and riddles take `topicAt(z, x, y)`), memories of real places
+  (`echoOf` lets them build in that place's style), and a defeat there wakes
+  you at the Door (`shelterIn`). A quest can end on a choice
+  (`QuestDef.choice`, the Unnamed Dog's name) and give a badge
+  (`grants.badge`, `QUEST_BADGES`).
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -697,6 +704,7 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+python3 tools/assets/build.py lumina    # Lumina-That-Was: three zones' tiles, the school sheet, its critters and people (#75 item 16b)
 python3 tools/assets/build.py dreamroot # the Dream Root Door: tiles, the root sheet, Old Knot, Young Wick, Wisp's new face (#75 item 16a)
 python3 tools/assets/build.py cliffs   # Taleshore III: Songstone Cliffs, the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
 python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people, tale-stones (#75 item 15e)
@@ -788,6 +796,25 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — Lumina-That-Was: the old Field, the old Village and the First Classroom (#75 item 16b, #144)
+Roadmap sub-item 16b (branch stacked on 16a's).
+- **Below the Dream Root Door**, past Old Knot: the old Field (the retired
+  Lumina Field's map — the Old Library, the First-Merchant Fair), the old
+  Village (Wick's Family Bakery) and the First Classroom, joined edge to edge,
+  in golden late-afternoon colours; tier 7.
+- **Mixed topics** (`ZoneDef.topics`, `topicAt`); **a defeat below wakes you
+  at the Door** (`shelterIn`, #104g).
+- **People:** Young Lumen, the Merchant Fair, a popcorn cart, Young Wick
+  (Say Her Name can be finished now), the Unnamed Dog, Monitor Prim, the
+  Lesson Bell; six memory critters (trickster and swift).
+- **Quests:** The Bell's Apology (three riddle slates, in order); One More
+  Name (three names, then the hero picks one — `QuestDef.choice` — and gets
+  the Dog Badge, `grants.badge`).
+- **Art:** `python3 tools/assets/build.py lumina` (new drawers: dog, key
+  critter, slate, bell, popcorn cart; a `school` style).
+- **Tests:** +14 (zones, quests, save, regions, journey, DialogueOverlay);
+  1336 green, lint and tsc clean.
 
 ### 2026-10-15 — 16a review round 4: who's next, "not yet" in their own voices (#75 item 16a, #143k)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 3 low, 3 nits)

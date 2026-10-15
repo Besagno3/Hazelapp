@@ -1237,7 +1237,7 @@ describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first S
     // Before Wisp asks, the memory keepers say nothing about it.
     expect(questConversation('chart-chartmaker', { ...act4(), flags: { ...act4().flags, 'hall-dedicated': true } })).toBeNull();
     // Each memory ends by saying where the next one is.
-    expect(quest.steps.slice(0, -1).every((st) => /Next|Ask Keeper Aurora/.test(st.npc!.lines.at(-1)!))).toBe(true);
+    expect(quest.steps.slice(0, -1).every((st) => /Next|Lumina-That-Was/.test(st.npc!.lines.at(-1)!))).toBe(true);
     // Each memory is two lines, and only the last says the name.
     for (const st of quest.steps) expect(st.npc!.lines.length, st.id).toBe(3);
     for (const st of quest.steps.slice(0, -1)) expect(st.npc!.lines.join(' '), st.id).not.toMatch(/aster/i);
@@ -1278,5 +1278,33 @@ describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first S
     const quest = byId(SAY_HER_NAME_QUEST);
     for (const st of quest.steps.slice(0, -1)) expect(placed.has(st.npc!.id), st.npc!.id).toBe(true);
     expect(NPC_DEFS['memory-young-wick']).toBeDefined();
+  });
+});
+
+describe('Lumina-That-Was quests (#75 item 16b)', () => {
+  const act4 = (): SaveData => ({ ...defaultSave(), flags: { [ACT4_SEEN]: true } });
+
+  it("One More Name: three children, three names, then the dog's own choice", () => {
+    const quest = byId('unnamed-dog');
+    expect(quest).toMatchObject({ giverNpcId: 'memory-dog', side: true, requires: ACT4_SEEN });
+    expect(quest.steps.map((st) => st.npc?.id)).toEqual(['memory-young-wick', 'memory-young-lumen', 'class-prim']);
+    expect(quest.choice!.map((c) => c.flag)).toEqual(['dog-named-pickles', 'dog-named-captain', 'dog-named-wigglesworth']);
+    let save = converse('memory-dog', act4());
+    for (const st of quest.steps) save = converse(st.npc!.id, save);
+    const done = questConversation('memory-dog', save)!;
+    expect(done.finishKind).toBe('complete');
+    expect(done.choice).toHaveLength(3);
+    save = done.finish!(save);
+    expect(save.badges).toContain('dog-badge');
+  });
+
+  it("The Bell's Apology: three slates answered left to right; the middle one first says not yet", () => {
+    const quest = byId('bell-apology');
+    expect(quest).toMatchObject({ giverNpcId: 'class-prim', zoneId: 'first-classroom', side: true });
+    expect(quest.steps.every((st) => !!st.riddle)).toBe(true);
+    const save = converse('class-prim', act4());
+    const early = questConversation('class-slate-2', save)!;
+    expect(early.finishKind).toBeNull();
+    expect(questConversation('class-slate-1', save)!.finishKind).toBe('riddle');
   });
 });

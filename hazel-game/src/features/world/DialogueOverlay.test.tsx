@@ -186,3 +186,22 @@ describe("a step through a service NPC (#75 item 15f: Shush's letter to Libraria
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_SERVICE', service: 'library', npcId: 'hub-librarian' });
   });
 });
+
+describe('One More Name (#75 item 16b): the dog\'s name is the hero\'s to choose', () => {
+  it('ends on one button per name; the one picked sticks, with the Dog Badge', () => {
+    const done = { 'act4-seen': true, 'quest:unnamed-dog:offered': true, 'quest-step:dog-wick': true, 'quest-step:dog-lumen': true, 'quest-step:dog-prim': true };
+    withFlags(done);
+    render(<DialogueOverlay npcId="memory-dog" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.queryByText('🎉 Thanks!')).toBeNull();
+    expect(screen.getByText('🥒 Pickles')).toBeInTheDocument();
+    expect(screen.getByText('🎩 Sir Wigglesworth')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('⚓ Captain'));
+    const save = useSaveStore.getState().save!;
+    expect(save.flags['dog-named-captain']).toBe(true);
+    expect(save.flags['dog-named-pickles']).toBeUndefined();
+    expect(save.flags['quest:unnamed-dog:done']).toBe(true);
+    expect(save.badges).toContain('dog-badge');
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+});

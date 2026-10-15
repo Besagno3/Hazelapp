@@ -5,7 +5,7 @@ import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN, ACT4_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
 import { crystalFlag } from './topics';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, DOG_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -222,8 +222,18 @@ export interface QuestDef {
    * Kept for good as the quest completes (#75 item 15h): quest items handed
    * over (the Blank Chart) and story flags set (`blank-chart-held`).
    */
-  grants?: { items?: string[]; flags?: string[] };
+  grants?: { items?: string[]; flags?: string[]; badge?: string };
+  /**
+   * The completion ends on a choice (#75 item 16b: the Unnamed Dog's name):
+   * the last line asks, a button per option, and the one picked sets its flag.
+   */
+  choice?: { label: string; flag: string }[];
 }
+
+/** Badges a quest gives (#75 item 16b) — shown on the menu's shelf. */
+export const QUEST_BADGES: Record<string, { name: string; emoji: string }> = {
+  'dog-badge': { name: 'Dog Badge', emoji: '🐕' },
+};
 
 // --- Step builders ------------------------------------------------------------
 
@@ -1491,7 +1501,7 @@ export const QUESTS: QuestDef[] = [
           [
             'Every history book here has a footnote that goes nowhere: \'see the First Sage\'. No page says who she was.',
             'But I know WHY she was forgotten. The questions got too hard, so people stopped asking her. Then they stopped saying her name.',
-            '✨ Four pieces! Someone below the Crystal Spire still remembers her. Ask Keeper Aurora, at the Dream Root Door.',
+            '✨ Four pieces! Someone below the Crystal Spire still remembers her — in Lumina-That-Was, past the Dream Root Door.',
           ],
           'Ask Sage Chronicle, in the Sunken Archive, about the very first Sage.',
         ),
@@ -1518,6 +1528,102 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { coins: 60, hint: 1 },
     grants: { flags: [NAME_LEARNED] },
+  },
+
+  // --- Lumina-That-Was (#75 item 16b) ---------------------------------------------
+  // The Lesson Bell rang too early and the class ran out before the last three
+  // questions were answered; answer the slates in order (the riddle chain) and
+  // the bell can say sorry.
+  {
+    id: BELL_QUEST,
+    zoneId: 'first-classroom',
+    giverNpcId: 'class-prim',
+    side: true,
+    title: "The Bell's Apology",
+    requires: ACT4_SEEN,
+    offer: [
+      "*Monitor Prim taps a ruler.* The Lesson Bell rang far too early today, and the whole class ran out to play!",
+      'Three slates still hold the last three questions. Answer them in order, left to right, and the lesson can end properly.',
+    ],
+    steps: [
+      riddleStep(
+        BELL_SLATES[0],
+        'class-slate-1',
+        ['📝 The first slate. A question is chalked on it, waiting.', 'Answer it, and the chalk turns gold!'],
+        'Answer the first slate — the one on the left, by the door end of the desks.',
+        '✨ The chalk turns gold! Now the second slate, in the middle.',
+        { remind: 'Start with the slate on the left, little one. Left to right!' },
+      ),
+      riddleStep(
+        BELL_SLATES[1],
+        'class-slate-2',
+        ['📝 The second slate. Its chalk wiggles as you come close.', 'Answer it, and the chalk turns gold!'],
+        'Answer the second slate, the middle one.',
+        '✨ Gold again! One more — the slate on the right.',
+        { early: true },
+      ),
+      riddleStep(
+        BELL_SLATES[2],
+        'class-slate-3',
+        ['📝 The last slate. Its question is the hardest-looking of all.', 'Answer it, and the lesson is finished!'],
+        'Answer the third slate, the one on the right.',
+        '✨ All three slates shine gold! Go and tell Monitor Prim.',
+        { early: true },
+      ),
+    ],
+    complete: [
+      '*Bwong…* The Lesson Bell rings very softly. "Sorry I rang so early. I was just SO excited about lunch."',
+      'Monitor Prim smiles — just a little. "Apology accepted. Lesson ended. Well done."',
+      '✨ Reward: 50 coins and two Hint Feathers!',
+    ],
+    reward: { coins: 50, hint: 2 },
+  },
+
+  // Every child in old Lumina called the dog a different name (STORY-4X §6):
+  // ask three of them, then pick the one that sticks.
+  {
+    id: DOG_QUEST,
+    zoneId: 'memory-village',
+    giverNpcId: 'memory-dog',
+    side: true,
+    title: 'One More Name',
+    requires: ACT4_SEEN,
+    offer: [
+      'Woof! *The dog sits on your foot and wags.*',
+      "(There's no name on its collar. Everyone here must call it something — ask around!)",
+    ],
+    steps: [
+      talkStep(
+        'dog-wick',
+        'memory-young-wick',
+        ["That dog? That's PICKLES! Because he steals pickles. Every. Single. Day."],
+        'Ask Young Wick, here in the village, what the dog is called.',
+      ),
+      talkStep(
+        'dog-lumen',
+        'memory-young-lumen',
+        ["That's Captain! He guards the whole field. Very serious. Mostly naps."],
+        'Ask Young Lumen, in the old library in the field, what the dog is called.',
+      ),
+      talkStep(
+        'dog-prim',
+        'class-prim',
+        ['That is Sir Wigglesworth. Obviously.'],
+        'Ask Monitor Prim, in the First Classroom, what the dog is called.',
+      ),
+    ],
+    doneLine: 'Three names! Go back to the dog, in the old village, and pick one.',
+    complete: [
+      'Woof? *The dog looks up at you, waiting.*',
+      'Pickles, Captain or Sir Wigglesworth — which name will stick?',
+    ],
+    choice: [
+      { label: '🥒 Pickles', flag: 'dog-named-pickles' },
+      { label: '⚓ Captain', flag: 'dog-named-captain' },
+      { label: '🎩 Sir Wigglesworth', flag: 'dog-named-wigglesworth' },
+    ],
+    reward: { coins: 20 },
+    grants: { badge: 'dog-badge' },
   },
 
   // --- Item chains (#75 item 13) ----------------------------------------------
@@ -1760,6 +1866,8 @@ export interface QuestConversation {
   finishKind: 'offer' | 'complete' | 'step' | 'riddle' | null;
   /** A riddle step's id (#75 item 15e): the closing button asks its question. */
   riddle?: string;
+  /** A completion that ends on a choice (#75 item 16b): one button per option, then `finish` and its flag. */
+  choice?: { label: string; flag: string }[];
 }
 
 /**
@@ -1805,6 +1913,7 @@ function completeConversation(quest: QuestDef): QuestConversation {
     lines: quest.complete,
     badge: quest.title,
     finishKind: 'complete',
+    choice: quest.choice,
     finish: (s) => {
       const { coins, potion = 0, hint = 0, items = {} } = quest.reward;
       const nextItems = { ...s.items, potion: s.items.potion + potion, hint: s.items.hint + hint };
@@ -1812,8 +1921,10 @@ function completeConversation(quest: QuestDef): QuestConversation {
       const kept = s.questItems.filter((i) => i !== quest.givesItem && !quest.takesItems?.includes(i));
       const granted = (quest.grants?.items ?? []).filter((i) => !kept.includes(i));
       const grantedFlags = Object.fromEntries((quest.grants?.flags ?? []).map((f) => [f, true]));
+      const badge = quest.grants?.badge;
       return {
         ...s,
+        badges: badge && !s.badges.includes(badge) ? [...s.badges, badge] : s.badges,
         coins: s.coins + coins,
         items: nextItems,
         questItems: [...kept, ...granted],

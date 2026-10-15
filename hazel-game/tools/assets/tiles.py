@@ -124,6 +124,14 @@ ZONES = {
     # ground a dusky violet-brown, dark rock walls, glowing mushrooms, a still pool.
     'dreamroot-door': dict(ground=(92, 76, 98), path=(146, 122, 150), solid='root', deco='glowshroom', deco_c='#ffe28a',
                            sky=('#120e1a', '#3a2a44'), far='#2a1e30', mid='mountain', water='#4a5a9a', cave=True),
+    # Lumina-That-Was (#75 item 16b): the world before the fog, in a golden
+    # late-afternoon light — honey grass, warm paths, dandelion flowers.
+    'memory-field': dict(ground=(176, 172, 96), path=(226, 196, 140), solid='tree', deco='flower', deco_c='#fff0a0',
+                         sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='tree', water='#5aa0c8'),
+    'memory-village': dict(ground=(170, 164, 100), path=(220, 188, 138), solid='hedge', deco='flower', deco_c='#ffb0c0',
+                           sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
+    'first-classroom': dict(ground=(164, 168, 104), path=(214, 192, 150), solid='tree', deco='flower', deco_c='#ffffff',
+                            sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -167,6 +175,9 @@ CHART_ZONES = ('chartmakers-rest',)
 
 # Added with the Dream Root Door (#75 item 16a) — `build_dreamroot` writes only this.
 DREAMROOT_ZONES = ('dreamroot-door',)
+
+# Added with Lumina-That-Was (#75 item 16b) — `build_lumina` writes only these (+ the school sheet).
+LUMINA_ZONES = ('memory-field', 'memory-village', 'first-classroom')
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -539,6 +550,8 @@ STYLES = {
     'chart':     ('#efe2bf', '#2a4a8a', 'chart',   'square', 'planks', ('#c8a070',)),
     # The Dream Root Door (#75 item 16a): walls of twisted dark root, violet buds glowing, a warm plank floor.
     'root':      ('#5a4234', '#b890e8', 'roots',   'arch',   'planks', ('#8a6450',)),
+    # The First Classroom (#75 item 16b): cream plaster, a brick-red trim, a warm plank floor.
+    'school':    ('#f2e6c8', '#b04a3a', 'plaster', 'square', 'planks', ('#c89a64',)),
 }
 
 
@@ -1650,6 +1663,19 @@ def build_dreamroot(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('root')]).save(tdir / 'town-root.png', optimize=True)
+
+
+def build_lumina(public: Path):
+    """Write only Lumina-That-Was's art (#75 item 16b): three zones' tilesets,
+    blend sheets and backdrops, and the school town sheet."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in LUMINA_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('school')]).save(tdir / 'town-school.png', optimize=True)
 
 
 def quest_board():

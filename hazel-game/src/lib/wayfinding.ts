@@ -145,8 +145,8 @@ const NAME_STEPS: Record<string, { title: string; why: string }> = {
     why: 'Sage Chronicle knows every old book in the Sunken Archive. Ask about the very first Sage!',
   },
   'name-young-wick': {
-    title: 'Find someone who remembers her',
-    why: 'Someone below the Spire remembers her! Ask Keeper Aurora.',
+    title: 'Ask Young Wick about her teacher',
+    why: 'Young Wick, in Lumina-That-Was below the Dream Root Door, still remembers her!',
   },
 };
 

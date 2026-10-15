@@ -3896,7 +3896,132 @@ def hollow_fiend(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.8, 8, 1.3))
 
 
+
+# ── Act IV: Lumina-That-Was (#75 item 16b) ──
+
+def dog(c: Canvas, p: Pose, s: dict):
+    """The Unnamed Dog (#75 item 16b): a friendly scruffy pup — floppy ears, a
+    patch over one eye, a wagging tail, a red neckerchief."""
+    d = D(c, p)
+    fur = hexc(s.get('fur', '#c8a070'))
+    patch = hexc(s.get('patch', '#7a5030'))
+    lean, bob = d.lean, d.bob
+    hx, hy = 21.5, 14.5
+    T = d.part(lean, bob)
+    wag = 1.6 if p.frame % 2 else -0.6
+    T.line(8.5, 19.5, 4.6, 14 - wag, fur, w=2.2)  # the wagging tail
+    d.put(T)
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((10.5, 12.5, 17, 19)):
+        off = p.step * (1 if i % 2 else -1)
+        legs.rect(lx - 1 + off, 22, lx + 1 + off, 29.6, fur if i % 2 else dark(fur, 0.15))
+    d.put(legs)
+    B = d.part(lean, bob)
+    B.ellipse(14.5, 20.5, 7.2, 4.6, fur)
+    B.ellipse(12, 19.5, 2.6, 2, patch)
+    d.put(B)
+    H = d.part(lean, bob)
+    H.ellipse(hx, hy, 4.8, 4.4, fur)
+    H.ellipse(hx - 3.6, hy + 0.6, 1.8, 3.4, patch, rot=0.3)  # floppy ears
+    H.ellipse(hx + 3.8, hy + 0.6, 1.6, 3.2, patch, rot=-0.3)
+    H.ellipse(hx + 2, hy + 2.4, 2.4, 1.6, light(fur, 0.35))  # muzzle
+    H.dot(hx + 3.2, hy + 1.6, '#2a1a1a', w=2, h=1)  # nose
+    H.ellipse(hx - 1.2, hy - 0.4, 1.6, 1.4, patch, shade=False)  # the eye patch
+    H.poly([(hx - 4, hy + 4), (hx + 4, hy + 4), (hx, hy + 6.6)], s.get('scarf', '#d04040'))
+    d.put(H)
+    if p.facing != 'up':
+        d.eyes(H, [(hx - 1.2, hy - 0.4), (hx + 2.2, hy - 0.4)])
+    finish(c, d, shadow=(15, 30.4, 8, 1.1))
+
+
+def key_critter(c: Canvas, p: Pose, s: dict):
+    """A Misplaced Key (#75 item 16b): a big brass key hopping on its teeth, a
+    googly-eyed round bow, a little ribbon tag still tied on."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#e0b040'))
+    hop = (-1.6 if p.frame % 2 else 0.0)
+    B = d.part(d.lean, d.bob + hop)
+    B.ellipse(16, 10, 6, 6, col)
+    B.ellipse(16, 10, 2.6, 2.6, dark(col, 0.45), shade=False)  # the bow's hole
+    B.rect(14.6, 15, 17.4, 28, col)
+    B.rect(17.4, 22, 21, 24, col)  # the teeth
+    B.rect(17.4, 26, 20, 28, col)
+    B.poly([(10.5, 12), (6, 15), (8.5, 17.5)], s.get('tag', '#e86a8a'))  # a ribbon tag
+    d.put(B)
+    if p.facing != 'up':
+        d.eyes(B, [(13.6, 7.6), (18.4, 7.6)])
+    finish(c, d, shadow=(16, 30.2, 5, 1.1))
+
+
+def slate(c: Canvas, p: Pose, s: dict):
+    """A class slate (#75 item 16b): a dark green chalkboard on an easel, a
+    question chalked on it in white."""
+    d = D(c, p)
+    board = hexc(s.get('board', '#2e5a3e'))
+    wood = hexc(s.get('wood', '#9a6a3a'))
+    B = d.part(0, 0)
+    B.line(11, 30, 13, 18, wood, w=1.4)  # easel legs
+    B.line(21, 30, 19, 18, wood, w=1.4)
+    B.rect(7, 6, 25, 20, wood)
+    B.rect(8.4, 7.4, 23.6, 18.6, board, shade=False)
+    for (x0, y0, x1) in ((10, 10, 18), (10, 13, 21), (10, 16, 15)):
+        B.line(x0, y0, x1, y0, '#f4f4ec', w=0.6)  # chalked lines
+    B.dot(21, 15.6, '#f4f4ec', w=2, h=2)  # a question mark's dot
+    d.put(B)
+    finish(c, d, shadow=(16, 30.4, 6, 1.0))
+
+
+def bell(c: Canvas, p: Pose, s: dict):
+    """The Lesson Bell (#75 item 16b): a brass school bell on a wooden stand,
+    swinging a little on its own, with a sheepish face."""
+    d = D(c, p)
+    brass = hexc(s.get('color', '#e0b040'))
+    wood = hexc(s.get('wood', '#8a5a32'))
+    swing = 0.8 if p.frame % 2 else -0.8
+    S = d.part(0, 0)
+    S.rect(14.6, 18, 17.4, 29, wood)
+    S.rect(10, 28, 22, 30, dark(wood, 0.2))
+    d.put(S)
+    B = d.part(swing, 0)
+    B.poly([(10, 19), (12.6, 8), (19.4, 8), (22, 19)], brass)
+    B.ellipse(16, 7.6, 3.6, 2, brass)
+    B.ellipse(16, 19.4, 6, 1.4, dark(brass, 0.25))
+    B.ellipse(16, 21, 1.4, 1.4, dark(brass, 0.4))  # the clapper
+    d.put(B)
+    if p.facing != 'up':
+        d.eyes(B, [(14, 13), (18, 13)])
+        B.line(14.6, 16, 17.4, 16, dark(brass, 0.5), w=0.5)
+    finish(c, d, shadow=(16, 30.6, 6, 1.0))
+
+
+def popcorn_cart(c: Canvas, p: Pose, s: dict):
+    """The Popcorn Cart (#75 item 16b): a red-and-white striped cart with a glass
+    box full of popcorn and two big wheels."""
+    d = D(c, p)
+    red = hexc(s.get('color', '#d04040'))
+    B = d.part(0, 0)
+    B.rect(7, 17, 25, 26, red)
+    for x in (9, 13, 17, 21):
+        B.rect(x, 17, x + 2, 26, '#f4f0e8', shade=False)  # stripes
+    B.rect(8, 6, 24, 17, '#d8eef4')  # the glass box
+    for (x, y) in ((10, 14), (13, 13), (16, 14.5), (19, 13), (22, 14), (12, 11), (15, 11.5), (18, 10.5), (21, 11)):
+        B.ellipse(x, y, 1.4, 1.2, '#fff4c0')  # popcorn
+    B.poly([(6, 6), (16, 1.5), (26, 6)], red)  # a little roof
+    d.put(B)
+    W = d.part(0, 0)
+    for wx in (10, 22):
+        W.ellipse(wx, 27, 3, 3, '#4a3a3a')
+        W.ellipse(wx, 27, 1, 1, '#c8c0b0', shade=False)
+    d.put(W)
+    finish(c, d, shadow=(16, 30.6, 10, 1.0))
+
+
 DRAWERS = {
+    'dog': dog,
+    'key_critter': key_critter,
+    'slate': slate,
+    'bell': bell,
+    'popcorn_cart': popcorn_cart,
     'fireball': fireball,
     'humanoid': humanoid,
     'beast': beast,
@@ -4093,6 +4218,13 @@ ROSTER: list[Char] = [
     Char('dust-tome', '📖', 'flying_tome', H(color='#8a5a3a')),
     Char('ink-wisp', '🖋️', 'ink_wisp', H(color='#2a2a5a')),
     Char('quill-imp', '🪶', 'quill_imp', H(color='#c84a5a', feather='#f4f0e0')),
+    # ── Act IV: Lumina-That-Was (#75 item 16b) ──
+    Char('faded-echo', '👥', 'ghost', H(color='#c8c4d8')),
+    Char('lost-sock-golem', '🧦', 'golem', H(color='#f0ece4', accent='#e04848')),
+    Char('misplaced-key', '🔑', 'key_critter', H(color='#e0b040', tag='#e86a8a')),
+    Char('chalk-wisp', '🖍️', 'ink_wisp', H(color='#eceae0')),
+    Char('eraser-imp', '🧽', 'quill_imp', H(color='#ff8fae', feather='#ffffff')),
+    Char('sum-gremlin', '➗', 'demon', H(color='#5aa86a')),
     Char('hollow-fiend', '🕳️', 'hollow_fiend', H(color='#141020', rim='#7a5ac8'), boss=True),
     # ── Act III: Chorus Isle (#75 item 15g) ──
     Char('hush-fiend', '🔇', 'hush_fiend', H(color='#6a5aa8'), boss=True),
@@ -4311,6 +4443,14 @@ NPCS: list[Char] = [
     # Grandmother Wick's bun — still brown — a flour-dusted apron and a rolling pin.
     Char('memory-young-wick', '👧', 'humanoid', H(hair='bun', hair_color='#8a5030', outfit='#9a5a8a', apron='#f8f0e0', trim='#ffb0d0', item='staff', item_color='#d8b080')),
     # Wisp's new face (Say Her Name): golden hair with a daisy, sunny wings, a white robe trimmed gold.
+    # ── Act IV: Lumina-That-Was (#75 item 16b) ──
+    Char('memory-young-lumen', '👦', 'humanoid', H(hair='spiky', hair_color='#5a3a2a', outfit='#3a6ad0', trim='#ffd060', pants='#4a3a2a', item='book')),
+    Char('memory-fair', '🎪', 'humanoid', H(hair='bun', hair_color='#c84a2a', hat='straw', outfit='#e86a8a', apron='#fff4d8', trim='#ffd060')),
+    Char('memory-popcorn', '🍿', 'popcorn_cart'),
+    Char('memory-dog', '🐕', 'dog', H(fur='#c8a070', patch='#7a5030', scarf='#d04040')),
+    Char('class-prim', '📏', 'humanoid', H(hair='bun', hair_color='#2a2a3a', glasses=True, outfit='#2e5a3e', trim='#f4f0e0', robe=True, item='wand', item_color='#e0c080')),
+    Char('class-bell', '🔔', 'bell'),
+    Char('class-slate', '📝', 'slate'),
     Char('wisp-named', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', flower_r=3.4, wings='fairy', wing_color='#fff2b0', wing_scale=1.6, outfit='#fffaf0', trim='#f0c040', robe=True)),
 ]
 # NPCs are world-only — except the ones who can join the party as battle

@@ -15,6 +15,7 @@ import {
   fogLifted,
   fogSeenFlag,
   chestTopicAt,
+  topicAt,
   pathTargetId,
   gateFlag,
   gateIdAt,
@@ -1968,7 +1969,7 @@ export default function WorldCanvas({
           const keyed = !!z.keyGate && gateIdAt(zoneId, z.map, z.keyGate.x, z.keyGate.y) === id;
           return usable(keyed ? 'Unlock gate' : 'Open gate', () => {
             arm(TRIGGER_COOLDOWN);
-            cbRef.current.onPath({ kind: keyed ? 'keygate' : 'gate', id, topic: z.topic ?? 'math', zoneId });
+            cbRef.current.onPath({ kind: keyed ? 'keygate' : 'gate', id, topic: topicAt(z, cx, cy, 'math'), zoneId });
           });
         }
         case 'S':
