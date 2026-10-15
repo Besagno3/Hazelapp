@@ -763,7 +763,8 @@ the journey passes flags to `seaCrossing`, Act III's panels only over
 Taleshore; the route says "fly … to Port Lantern, then land beside it and
 walk in", the explore line no longer promises secrets on an empty Taleshore,
 Gale's note tells the truth and stands by the desk, Ember is "her" in the
-flight lines, Hob has a cap and a scarf. Tests +3; 1210 green.
+flight lines, Hob has a cap and a scarf. Tests +3; 1210 green; `bench … fly`
+17/17, `bench … journey` 13/13.
 
 ### 2026-10-15 — 15c review round 3: "Fly to Port Lantern", Umbra's real name (#75 item 15c, #137k)
 Fresh UX review (4 medium, 5 low), all fixed: the 🚩 says "Fly to Port
