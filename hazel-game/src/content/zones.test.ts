@@ -26,7 +26,7 @@ import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
-import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import { BOAT_HOME } from './boat';
@@ -1252,3 +1252,87 @@ describe('Taleshore and Port Lantern (#75 item 15c)', () => {
     expect(zoneTier('taleshore')).toBe(6);
   });
 });
+
+describe('Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll (#75 item 15d)', () => {
+  const tale = ZONES.taleshore;
+  const drift = ZONES['driftwood-shallows'];
+  const isles = ZONES['wayfinder-isles'];
+  const atoll = ZONES['gale-atoll'];
+  const place = (name: string) => tale.places!.find((p) => p.name === name)!;
+
+  it('the beach is at the end of a road from Port Lantern; the two islands are out at sea, reached only on Ember', () => {
+    // On foot from the harbor's road to the beach's icon.
+    expect(touches(reach(tale, { from: { x: 30, y: 21 } }), place('Driftwood Shallows').x, place('Driftwood Shallows').y)).toBe(true);
+    for (const name of ['Wayfinder Isles', 'Gale Atoll']) {
+      const p = place(name);
+      expect(p.byAir, name).toBe(true);
+      // No walk from the mainland reaches it…
+      expect(touches(reach(tale, { from: { x: 30, y: 21 } }), p.x, p.y), name).toBe(false);
+      // …but there's open ground beside it to land on, and its gate leads back out there.
+      const back = ZONES[tale.exits.find((e) => e.x === p.x && e.y === p.y)!.to].exits[0];
+      expect(landable(tileAt(tale, back.spawnX, back.spawnY)), name).toBe(true);
+      expect(Math.abs(back.spawnX - p.x) + Math.abs(back.spawnY - p.y), name).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('three geography fields at tier 6, three critters each with one archetype a place', () => {
+    const behavior = { 'driftwood-shallows': 'shielded', 'wayfinder-isles': 'trickster', 'gale-atoll': 'swift' } as const;
+    for (const z of [drift, isles, atoll]) {
+      expect(z.kind).toBe('field');
+      expect(z.topic).toBe('geography');
+      expect(zoneTier(z.id)).toBe(6);
+      const critters = [...new Set(z.enemies.map((e) => e.defId).filter((d) => !ENEMY_DEFS[d].isBoss))];
+      expect(critters, z.id).toHaveLength(3);
+      expect(critters.filter((d) => ENEMY_DEFS[d].behavior).map((d) => ENEMY_DEFS[d].behavior), z.id).toEqual([behavior[z.id as keyof typeof behavior]]);
+    }
+  });
+
+  it('the Compass Golem stands in the stone circle, reachable, and guards the First Chorus Key', () => {
+    const golem = isles.enemies.find((e) => e.defId === 'compass-golem')!;
+    expect(touches(reach(isles), golem.x, golem.y)).toBe(true);
+    expect(ENEMY_DEFS['compass-golem'].role).toBe('warden');
+  });
+
+  it("each place's riddle-chest sits behind its gate, and Salt's sea-glass chests are in reach", () => {
+    for (const z of [drift, isles, atoll]) {
+      const closed = reach(z);
+      const open = reach(z, { gates: 'open' });
+      const chests = z.map.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'C' ? [{ x, y }] : [])));
+      const key = (c: { x: number; y: number }) => (z.keyChests ?? []).some((k) => k.x === c.x && k.y === c.y);
+      for (const c of chests) {
+        expect(touches(open, c.x, c.y), `${z.id} ${c.x},${c.y}`).toBe(true);
+        // The riddle-chest needs its gate; a sea-glass chest doesn't.
+        expect(touches(closed, c.x, c.y), `${z.id} ${c.x},${c.y}`).toBe(key(c));
+      }
+    }
+    expect([...(drift.keyChests ?? []), ...(atoll.keyChests ?? [])].map((k) => k.item).sort()).toEqual(['seaglass-blue', 'seaglass-gold', 'seaglass-green']);
+  });
+
+  it("no critter's patch reaches Juno's walk from the landing to her dock", () => {
+    const TILE = 32;
+    const leash = WANDER_TUNING.enemy.leashTiles * TILE;
+    const walk = reachPath(drift, (x, y) => x === 2 && y === 22, { from: { x: 23, y: 2 }, passable: (ch) => ch === '=' || ch === '|' || ch === '.' })!;
+    expect(walk).toBeTruthy();
+    for (const e of drift.enemies) {
+      const near = Math.min(...walk.map((c) => Math.hypot(c.x - e.x, c.y - e.y))) * TILE;
+      expect(near, `${e.defId}@${e.x},${e.y}`).toBeGreaterThan(leash + 80);
+    }
+  });
+
+  it("Juno waits in Port Lantern, then at the beach's landing, then by her ferry, then home again", () => {
+    const at = (flags: Record<string, boolean>) =>
+      (['port-lantern', 'driftwood-shallows'] as const).flatMap((zid) => ZONES[zid].npcs.filter((n) => n.defId === 'port-skipper' && npcPresent(n, flags)).map((n) => `${zid}@${n.x},${n.y}`));
+    const offered = { [questOfferedFlag({ id: JUNO_QUEST })]: true };
+    const arrived = { ...offered, [stepFlag(JUNO_WALK)]: true };
+    expect(at({})).toEqual(['port-lantern@6,16']);
+    expect(at(offered)).toEqual(['driftwood-shallows@23,2']);
+    expect(at(arrived)).toEqual(['driftwood-shallows@2,22']);
+    expect(at({ ...arrived, [questDoneFlag({ id: JUNO_QUEST })]: true })).toEqual(['port-lantern@6,16']);
+  });
+
+  it("Tass's kite stall has its own style and sells the Kite Badge", () => {
+    expect(atoll.buildings!.map((b) => b.style)).toEqual(['kite']);
+    expect(NPC_DEFS['gale-tass'].role).toBe('merchant');
+  });
+});
+

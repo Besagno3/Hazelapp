@@ -23,7 +23,7 @@ import {
   escortsBackLines,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -866,5 +866,60 @@ describe("A Letter, Long Overdue (#75 item 14h)", () => {
     expect(save.items.potion).toBe(potions + 1);
     expect(questConversation('archive-index', save)).toBeNull();
     expect(questConversation('village-elder', save)).toBeNull();
+  });
+});
+
+describe('Taleshore I quests (#75 item 15d)', () => {
+  const GREEN = pathTargetId('driftwood-shallows', 'chest', 4, 3);
+  const BLUE = pathTargetId('driftwood-shallows', 'chest', 36, 16);
+  const GOLD = pathTargetId('gale-atoll', 'chest', 6, 18);
+
+  it("Salt's sea-glass: three chests in two places; the hint names the next; she takes all three and pays", () => {
+    const quest = byId('salt-seaglass');
+    let save = converse('drift-salt', defaultSave());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    const hint = (s: SaveData) => questConversation('drift-salt', s)!.lines[0];
+    expect(hint(save)).toMatch(/^The next one is in a 🎁 in the top-left corner of Driftwood Shallows\./);
+    save = openChest(save, GREEN);
+    save = openChest(save, BLUE);
+    expect(hint(save)).toMatch(/Gale Atoll, far out to sea — only Ember can fly you there/);
+    save = openChest(save, GOLD);
+    expect(chestWantedLine(save, GOLD)).toBe("🧂 That's all three! Take them back to Salt on Driftwood Shallows.");
+    const coins = save.coins;
+    save = converse('drift-salt', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual([]);
+    expect(save.coins).toBe(coins + 40);
+  });
+
+  it("Drift's map: one critter from each of the three places, any order", () => {
+    const quest = byId('drift-map');
+    const zones = ['driftwood-shallows', 'wayfinder-isles', 'gale-atoll'] as const;
+    for (const [defId, zid] of [['compass-crab', zones[0]], ['latitude-cat', zones[1]], ['kite-ray', zones[2]]] as const) {
+      expect(ZONES[zid].enemies.some((e) => e.defId === defId), `${defId} in ${zid}`).toBe(true);
+    }
+    let save = converse('way-drift', defaultSave());
+    save = { ...save, kills: { 'kite-ray': 1, 'compass-crab': 2 } };
+    expect(questConversation('way-drift', save)!.lines[0]).toMatch(/Still out there: a Latitude Cat 🐈/);
+    save = { ...save, kills: { ...save.kills, 'latitude-cat': 1 } };
+    const coins = save.coins;
+    save = converse('way-drift', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.coins).toBe(coins + 45);
+  });
+
+  it("Juno's walk: offered in Port Lantern, walked on Driftwood Shallows to a dock cell", () => {
+    const quest = byId(JUNO_QUEST);
+    expect(quest).toMatchObject({ zoneId: 'port-lantern', giverNpcId: 'port-skipper', playedIn: 'driftwood-shallows' });
+    const walk = quest.steps[0].escort!;
+    expect(walk.zoneId).toBe('driftwood-shallows');
+    expect(tileAt(ZONES['driftwood-shallows'], walk.goal.x, walk.goal.y)).toBe('|');
+    let save = converse('port-skipper', defaultSave());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    save = { ...save, flags: { ...save.flags, [stepFlag(JUNO_WALK)]: true } };
+    const coins = save.coins;
+    save = converse('port-skipper', save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.coins).toBe(coins + 40);
   });
 });

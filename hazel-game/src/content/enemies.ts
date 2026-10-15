@@ -162,6 +162,22 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'quill-imp': { id: 'quill-imp', name: 'Quill Imp', sprite: '🪶', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'swift' },
   // Act II's Fiend: beat it to restore the Crystal of Memory (BOSS_LINES.history).
   'hollow-fiend': { id: 'hollow-fiend', name: 'The Hollow Fiend', sprite: '🕳️', topic: 'history', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
+
+  // --- Taleshore I (geography, #75 item 15d): three critters a place ---
+  // Driftwood Shallows: the Tide Snail's shell takes the first hit (shielded).
+  'compass-crab': { id: 'compass-crab', name: 'Compass Crab', sprite: '🦀', topic: 'geography', levelOffset: -1, hpPerLevel: 10 },
+  'gull-scout': { id: 'gull-scout', name: 'Gull Scout', sprite: '🕊️', topic: 'geography', levelOffset: 0, hpPerLevel: 12 },
+  'tide-snail': { id: 'tide-snail', name: 'Tide Snail', sprite: '🐌', topic: 'geography', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
+  // The Wayfinder Isles: the Latitude Cat's wandering lines muddle a Hint Feather (trickster).
+  'marker-post': { id: 'marker-post', name: 'Marker Post', sprite: '🚩', topic: 'geography', levelOffset: -1, hpPerLevel: 11 },
+  'latitude-cat': { id: 'latitude-cat', name: 'Latitude Cat', sprite: '🐈', topic: 'geography', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster' },
+  'globe-beetle': { id: 'globe-beetle', name: 'Globe Beetle', sprite: '🪲', topic: 'geography', levelOffset: 1, hpPerLevel: 13 },
+  // Gale Atoll: the Squall Chick rides the wind and strikes first (swift).
+  'zephyr-pup': { id: 'zephyr-pup', name: 'Zephyr Pup', sprite: '🌬️', topic: 'geography', levelOffset: -1, hpPerLevel: 10 },
+  'kite-ray': { id: 'kite-ray', name: 'Kite Ray', sprite: '🪁', topic: 'geography', levelOffset: 0, hpPerLevel: 12 },
+  'squall-chick': { id: 'squall-chick', name: 'Squall Chick', sprite: '🐤', topic: 'geography', levelOffset: 1, hpPerLevel: 12, behavior: 'swift' },
+  // The warden of the Wayfinder Isles' stone circle: beat it for the First Chorus Key (keys.ts).
+  'compass-golem': { id: 'compass-golem', name: 'The Compass Golem', sprite: '🗿', topic: 'geography', levelOffset: 1, hpPerLevel: 17, isBoss: true, role: 'warden' },
 };
 
 /**
@@ -181,6 +197,7 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   ringkeeper: ['The Ringkeeper lowers its antlers and paws the ground!', 'The Ringkeeper bellows: "A THOUSAND YEARS, and nobody got past me!"'],
   'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
   'hollow-fiend': ['The Hollow Fiend yawns open — the pages round you start to go blank!', 'The Hollow Fiend howls: "I will EAT tomorrow too!"'],
+  'compass-golem': ['The Compass Golem spins its needle — NORTH, SOUTH, NORTH!', 'The Compass Golem booms: "ALL DIRECTIONS LEAD TO ME!"'],
 };
 
 /** What a boss says as it crosses into enrage phase `phase` (1: half HP, 2: near the end). */

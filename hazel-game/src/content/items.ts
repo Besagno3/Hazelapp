@@ -121,6 +121,14 @@ export const SHOPS: Record<string, ShopDef> = {
     ],
   },
   // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.
+  // Taleshore I (#75 item 15d): Tass's kite stall on windy Gale Atoll.
+  'gale-tass': {
+    name: "Tass's Kite Stall",
+    emoji: '🪁',
+    items: [
+      { id: 'badge:kite', name: 'Kite Badge', emoji: '🪁', description: 'A tiny kite that flaps whenever the wind blows. So, always.', price: 110 },
+    ],
+  },
   'hill-merchant': {
     name: "Knack's Pre-Remembered Goods",
     emoji: '🧳',

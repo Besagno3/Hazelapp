@@ -1011,6 +1011,23 @@ async function fly(browser, outDir) {
   await check(page, 'walks into Port Lantern', s.zoneId === 'port-lantern', `zone ${s.zoneId} at ${JSON.stringify(cell(s))}`);
   await page.close();
 
+  // H (#75 item 15d): out over the sea to the Wayfinder Isles — land on the island beside its stone, walk in, walk out.
+  page = await ready(`zone=taleshore&at=13,11&fly=1&flags=${MEMORY}`);
+  await page.evaluate(() => window.__bench.land());
+  await page.waitForTimeout(250);
+  s = await where(page);
+  const isle = cell(s);
+  await check(page, 'lands on the Wayfinder Isles, beside its stone', s.touchDowns === 1 && !s.flying && isle.y === 11 && isle.x >= 12 && isle.x <= 14, `landed at ${JSON.stringify(isle)}`);
+  await hold(page, 'ArrowLeft', 900);
+  await page.waitForTimeout(1500);
+  s = await where(page);
+  await check(page, 'walks into the Wayfinder Isles', s.zoneId === 'wayfinder-isles', `zone ${s.zoneId} at ${JSON.stringify(cell(s))}`);
+  await hold(page, 'ArrowUp', 700);
+  await page.waitForTimeout(1500);
+  s = await where(page);
+  await check(page, 'steps back out beside the stone, on ground Ember can take off from', s.zoneId === 'taleshore' && cell(s).x === 11 && cell(s).y === 12, `zone ${s.zoneId} at ${JSON.stringify(cell(s))}`);
+  await page.close();
+
   const bad = checks.filter((ok) => !ok).length;
   console.log(`\n${checks.length - bad}/${checks.length} flight checks passed. Screenshots in ${outDir}.`);
   if (bad) process.exitCode = 1;

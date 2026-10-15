@@ -1325,3 +1325,11 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1119 | U | ✅ | routes after the fog lifts (#137m) | with the Great Fogbank's flag set, the way to Gale from Lumina Village is "Sail east to the Silver Shallows, then sail east to Taleshore, then go …" (wayfinding.test) |
 | TC-1120 | U | ✅ | people are pushed, things aren't (#137m) | `pushTarget` returns a person, null for a board, an enemy or nothing (interact.test) |
 | TC-1121 | U | ✅ | flown into town (#137m) | flying to Port Lantern: "…then fly east to Taleshore, then fly … to Port Lantern, then land beside it and walk in." (wayfinding.test) |
+| TC-1122 | U | ✅ | Taleshore I's places (#138a) | the beach is walkable from Port Lantern's road; the two islands are `byAir`, unreachable on foot, each gate landing beside its icon on landable ground (zones.test) |
+| TC-1123 | U | ✅ | three critters a place, one archetype each (#138b) | Driftwood shielded, the isles trickster, the atoll swift; all geography, tier 6 (zones.test) |
+| TC-1124 | U | ✅ | the First Chorus Key (#138c) | the Compass Golem is a reachable warden; `key-chorus-a`, no zone yet, `opens` on the victory panel (keys.test, BattleHud.test) |
+| TC-1125 | U | ✅ | riddle-chests and sea-glass (#138e) | each place's riddle-chest only behind its gate; Salt's three chests in reach without one (zones.test) |
+| TC-1126 | U | ✅ | Taleshore I's quests (#138e) | Salt's hint names the next chest, then Gale Atoll; she takes all three for 40c + a feather; Drift needs one crab, cat and ray; Juno's walk ends on the dock and pays 40c + a potion; Juno stands in one place at each step; no critter's patch reaches her walk (quests.test, zones.test) |
+| TC-1127 | U | ✅ | the 🚩 after Gale (#138f) | "Win the First Chorus Key" on the isles, then Explore; from Lumina Village "…fly east to Taleshore, then fly north-east to the Wayfinder Isles, then land beside it and walk in"; the Roost's route lands too (wayfinding.test) |
+| TC-1128 | B | ✅ | to the Wayfinder Isles on the real canvas (#138) | `bench … fly`: land on the isle beside its stone, walk in, walk back out to (11, 12) |
+| TC-1129 | M | ⬜ | Taleshore I by hand (#138) | walk Juno to her ferry with critters about; open the three sea-glass chests and both gates; beat the Compass Golem; buy the Kite Badge; read every new person |

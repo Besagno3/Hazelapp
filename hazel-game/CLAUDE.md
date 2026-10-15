@@ -336,7 +336,11 @@ zod, react-query. Add the package in the same change that first uses it.
   whole east edge, so no boat crosses — only Ember. Its harbor town, **Port
   Lantern** (a Return town, the `harbor` style, a quest board `port-board`),
   is where Act III opens (`ACT3_PANELS`, `ACT3_SEEN`); its map plays the
-  `starfall` sea loop (`seaAreaAt` → `starfall-sea`).
+  `starfall` sea loop (`seaAreaAt` → `starfall-sea`). **Taleshore I** (#75
+  item 15d): a road south to Driftwood Shallows; the Wayfinder Isles and Gale
+  Atoll are islands only Ember reaches (`byAir`); the Compass Golem gives the
+  First Chorus Key (`chorus-a`, `unlocksZone: null` + `opens` until Chorus
+  Isle, 15f); Juno's walk reuses the escort step.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -666,6 +670,7 @@ python3 tools/assets/build.py marsh    # Foglight Marsh: its tiles, the stilt to
 python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome town sheet, the archive icon, its critters, Fiend and people (#75 item 14h)
 python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
+python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
@@ -754,6 +759,28 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll (#75 item 15d, #138)
+Roadmap sub-item 15d (branch stacked on 15c's PR #57).
+- **Three places on Taleshore:** Driftwood Shallows at the end of a new road
+  south from Port Lantern; the Wayfinder Isles and Gale Atoll, islands out in
+  the Starfall Sea that only Ember reaches (`byAir`). Geography fields,
+  tier 6; icons `beach`, `compass`, `atoll` (overworld frames 22–24).
+- **9 critters**, one archetype a place (Tide Snail shielded, Latitude Cat
+  trickster, Squall Chick swift); new drawers `snail`, `marker_post`.
+- **The Compass Golem** (warden) → the **First Chorus Key** (`chorus-a`):
+  `GateKey.unlocksZone` may be null again, `opens` says what it's for
+  until Chorus Isle (15f). Cartographer Lo is its signpost.
+- **People and a shop:** Reel, Sandy, Salt; Lo, Pebble, Drift; Sough, Gully,
+  Tass (**Tass's Kite Stall**, a new `kite` style, the Kite Badge).
+- **Quests:** Juno's *Ferry the Fretful* (the escort step, walked on the
+  beach), Salt's *Sea-Glass Set* (key-item chests in two places), Drift's
+  *Unfinished Map* (a critter from each place).
+- **The 🚩:** after Gale, "Win the First Chorus Key", then Explore; routes
+  to a place only Ember reaches end "…then land beside it and walk in".
+- **Art:** `python3 tools/assets/build.py isles`.
+- **Tests:** +11 (zones, quests, keys, BattleHud, wayfinding, tiles); 1224
+  green, lint and tsc clean; `bench … fly` +3 checks (the isles).
 
 ### 2026-10-15 — 15c review round 4: land and walk in, routes that know the fog (#75 item 15c, #137m)
 The last round. Fresh code review (6 low) and UX review (3 medium, 9 low),

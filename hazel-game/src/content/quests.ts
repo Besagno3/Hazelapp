@@ -4,7 +4,7 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -55,6 +55,10 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'acorn-speckled': { id: 'acorn-speckled', name: 'Speckled Acorn', emoji: '🌰' },
   'acorn-striped': { id: 'acorn-striped', name: 'Striped Acorn', emoji: '🌰' },
   'acorn-golden': { id: 'acorn-golden', name: 'Golden Acorn', emoji: '🌰' },
+  // Salt's sea-glass (#75 item 15d): two chests on Driftwood Shallows, one on Gale Atoll.
+  'seaglass-green': { id: 'seaglass-green', name: 'Green Sea-Glass', emoji: '💚' },
+  'seaglass-blue': { id: 'seaglass-blue', name: 'Blue Sea-Glass', emoji: '💙' },
+  'seaglass-gold': { id: 'seaglass-gold', name: 'Gold Sea-Glass', emoji: '💛' },
   // The Lantern Ledger (#75 item 14g): Brume's little book, in a key-item chest in Foglight Marsh.
   'lantern-ledger': { id: 'lantern-ledger', name: 'Lantern Ledger', emoji: '📒' },
   // Ness's Lens (#75 item 14i): sea glass from Sandpiper Cay, ground by Shelby.
@@ -286,6 +290,15 @@ export function handedOverFlag(item: string): string {
 
 /** Where Posy's walk is — its escort, the menu's tag and its "you're here" hint share it. */
 const POSY_ZONE: ZoneId = 'foglight-marsh';
+/** Where Juno's walk is (#75 item 15d). */
+const JUNO_ZONE: ZoneId = 'driftwood-shallows';
+
+/** Salt's three pieces of sea-glass (#75 item 15d) — two on the beach, one out on Gale Atoll. */
+const SALT_GLASS = [
+  { item: 'seaglass-green', label: 'the green one 💚', where: 'a 🎁 in the top-left corner of Driftwood Shallows' },
+  { item: 'seaglass-blue', label: 'the blue one 💙', where: 'a 🎁 on the beach, near the right side of Driftwood Shallows' },
+  { item: 'seaglass-gold', label: 'the gold one 💛', where: 'a 🎁 on Gale Atoll, far out to sea — only Ember can fly you there' },
+];
 
 /**
  * What Lamplighter Ness tells a first visitor besides her lens (#75 item 14i):
@@ -957,6 +970,120 @@ export const QUESTS: QuestDef[] = [
       '✨ Reward: 35 coins and a Berry Potion!',
     ],
     reward: { coins: 35, potion: 1 },
+  },
+
+  // --- Taleshore I (#75 item 15d) ----------------------------------------------
+
+  // Escort: walk Skipper Juno along Driftwood Shallows to her beached ferry.
+  {
+    id: JUNO_QUEST,
+    zoneId: 'port-lantern',
+    giverNpcId: 'port-skipper',
+    side: true,
+    title: 'Ferry the Fretful',
+    playedIn: JUNO_ZONE,
+    doneLine: 'Skipper Juno is waiting by her ferry on Driftwood Shallows — talk to her there!',
+    offer: [
+      "My ferry, the Puffin, is still beached at the old dock on Driftwood Shallows. I'm too nervous to walk there alone.",
+      'Those critters on the beach give me the wobbles. Will you walk with me? The road south from town goes right there.',
+      "I'll meet you where the road reaches the beach!",
+    ],
+    steps: [
+      escortStep(
+        JUNO_WALK,
+        {
+          npcId: 'port-skipper',
+          zoneId: JUNO_ZONE,
+          // The end of the old dock in the south-west, where the Puffin waits.
+          goal: { x: 2, y: 22 },
+          lines: [
+            "You came! The Puffin is at the end of the old dock, in the bottom-left corner of the beach.",
+            "I'll follow right behind you. If a critter gets close, I'll wait until it moves away!",
+          ],
+          waitLine: 'Juno stops — a critter is too close! Wait for it to move away, or bump into it to battle.',
+          behindLine: "Juno isn't here yet! Go back and find her — look for her ❗.",
+          backLine: '🧭 Juno went back to the top of the beach. Talk to her there to walk again!',
+        },
+        (save) =>
+          save.flags[escortWalkingFlag(JUNO_WALK)]
+            ? 'Walk Juno to the old dock in the bottom-left corner of Driftwood Shallows. Stay close — she stops if a critter is near!'
+            : save.zoneId === JUNO_ZONE
+              ? 'Juno is waiting at the top of the beach — talk to her to walk her to her ferry!'
+              : 'Take the road south from Port Lantern to Driftwood Shallows. Juno waits at the top of the beach!',
+      ),
+    ],
+    complete: [
+      "There she is — the Puffin! Hello, old girl. A bit sandy, but not one plank missing.",
+      "You know what? I'm not scared any more. Soon the Puffin will sail Taleshore's islands again!",
+      '✨ Reward: 40 coins and a Berry Potion!',
+    ],
+    reward: { coins: 40, potion: 1 },
+  },
+
+  // Collection across two places: Salt's three pieces of sea-glass.
+  {
+    id: 'salt-seaglass',
+    zoneId: 'driftwood-shallows',
+    giverNpcId: 'drift-salt',
+    side: true,
+    title: "Salt's Sea-Glass Set",
+    offer: [
+      "I'm Salt the Younger! I collect sea-glass: bits of old bottle the waves have polished smooth.",
+      "I hid my three best pieces in chests so the gulls wouldn't take them: green, blue and gold.",
+      'Then the tide moved everything around! Could you find them for me?',
+    ],
+    steps: [
+      haveStep(
+        'salt-seaglass-find',
+        SALT_GLASS.map((g) => ({ items: [g.item], label: g.label })),
+        (save) => {
+          const left = SALT_GLASS.filter((g) => !save.questItems.includes(g.item));
+          return `The next one is in ${left[0].where}.`;
+        },
+      ),
+    ],
+    foundNote: (save) =>
+      SALT_GLASS.every((g) => save.questItems.includes(g.item))
+        ? "🧂 That's all three! Take them back to Salt on Driftwood Shallows."
+        : '🧂 Salt the Younger will be so pleased! Ask her where the next one is.',
+    takesItems: SALT_GLASS.map((g) => g.item),
+    complete: [
+      'Green, blue AND gold! My whole set!',
+      "Hold one up to the sun… see? It's like looking through the sea.",
+      '✨ Reward: 40 coins and a Hint Feather!',
+    ],
+    reward: { coins: 40, hint: 1 },
+  },
+
+  // Cross-place defeat: one critter from each of Taleshore I's three places.
+  {
+    id: 'drift-map',
+    zoneId: 'wayfinder-isles',
+    giverNpcId: 'way-drift',
+    side: true,
+    title: 'The Unfinished Map',
+    offer: [
+      "I'm Drift. I'm making a map of where every critter lives. It's nearly done — but three spots are blank!",
+      'A Compass Crab on Driftwood Shallows, a Latitude Cat here on the isles, and a Kite Ray out on Gale Atoll.',
+      'Battle one of each, and tell me what they were like. Then my map is finished!',
+    ],
+    steps: [
+      defeatStep(
+        'drift-map-critters',
+        [
+          { defId: 'compass-crab', label: 'a Compass Crab 🦀 (Driftwood Shallows)' },
+          { defId: 'latitude-cat', label: 'a Latitude Cat 🐈 (here on the isles)' },
+          { defId: 'kite-ray', label: 'a Kite Ray 🪁 (Gale Atoll)' },
+        ],
+        'My map still has blank spots.',
+      ),
+    ],
+    complete: [
+      'A crab that walks to the north, a cat that naps on the lines, a ray that flies like a kite… all on my map!',
+      'The best map of the Starfall Sea. Well — Lo says the second best.',
+      '✨ Reward: 45 coins and a Berry Potion!',
+    ],
+    reward: { coins: 45, potion: 1 },
   },
 
   // --- Item chains (#75 item 13) ----------------------------------------------

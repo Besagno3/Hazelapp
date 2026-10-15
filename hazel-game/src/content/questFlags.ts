@@ -31,6 +31,13 @@ export const POSY_WALK = 'posy-walk';
 export const POSY_SAILED = 'posy:sailed';
 
 /**
+ * "Ferry the Fretful" (#75 item 15d): Skipper Juno's walk along Driftwood
+ * Shallows to her old ferry, the Puffin. Its quest and its one walk.
+ */
+export const JUNO_QUEST = 'juno-ferry';
+export const JUNO_WALK = 'juno-walk';
+
+/**
  * Set while an escort's walk is under way. Never kept: leaving the place,
  * a lost battle or a reload clears it, and the one being walked waits at the
  * start again (`normalizeSave` → `escortsBack`, `withoutEscorts`).

@@ -9,7 +9,7 @@ import taleshoreTmj from './maps/taleshore.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 import { ACT2_SEEN, FLIGHT_FLAG } from './story';
-import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -62,6 +62,11 @@ export const ZONE_IDS = [
   // Ember's back, and its harbor town.
   'taleshore',
   'port-lantern',
+  // Act III, Taleshore I (#75 item 15d): geography — a beach on its south coast,
+  // and two island groups out in the Starfall Sea that only Ember reaches.
+  'driftwood-shallows',
+  'wayfinder-isles',
+  'gale-atoll',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -150,7 +155,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -215,7 +220,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor', 'beach', 'compass', 'atoll'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -502,6 +507,12 @@ function crystalPocket(
 /** Posy's walk through Foglight Marsh (#75 item 14g): offered, arrived at the stone, done. */
 const POSY_ARRIVED = stepFlag(POSY_WALK);
 const POSY_DONE = questDoneFlag({ id: POSY_QUEST });
+// Skipper Juno's walk to her ferry (#75 item 15d): offered in Port Lantern,
+// walked on Driftwood Shallows from its landing to the old dock.
+const JUNO_OFFERED = questOfferedFlag({ id: JUNO_QUEST });
+const JUNO_ARRIVED = stepFlag(JUNO_WALK);
+const JUNO_DONE = questDoneFlag({ id: JUNO_QUEST });
+const SALT_WANTS = '🧂 Salt the Younger, on Driftwood Shallows, is collecting sea-glass!';
 
 const BRUME_WANTS = "🏮 Lightkeeper Brume, by the lamp-house in the Marsh's west, has lost her Lantern Ledger!";
 
@@ -2198,8 +2209,20 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     spawn: { x: 30, y: 21 },
     npcs: [{ defId: 'tale-rambler', x: 35, y: 20 }],
     enemies: [],
-    places: [{ x: 28, y: 21, icon: 'harbor', name: 'Port Lantern' }],
-    exits: [{ x: 28, y: 21, to: 'port-lantern', spawnX: 32, spawnY: 11 }],
+    places: [
+      { x: 28, y: 21, icon: 'harbor', name: 'Port Lantern' },
+      // Taleshore I (#75 item 15d): the beach at the end of the south road,
+      // and two islands out at sea that only Ember reaches.
+      { x: 36, y: 37, icon: 'beach', name: 'Driftwood Shallows' },
+      { x: 11, y: 11, icon: 'compass', name: 'Wayfinder Isles', byAir: true },
+      { x: 13, y: 37, icon: 'atoll', name: 'Gale Atoll', byAir: true },
+    ],
+    exits: [
+      { x: 28, y: 21, to: 'port-lantern', spawnX: 32, spawnY: 11 },
+      { x: 36, y: 37, to: 'driftwood-shallows', spawnX: 21, spawnY: 1 },
+      { x: 11, y: 11, to: 'wayfinder-isles', spawnX: 21, spawnY: 1 },
+      { x: 13, y: 37, to: 'gale-atoll', spawnX: 21, spawnY: 2 },
+    ],
     seaLinks: [{ side: 'west', to: 'silver-shallows' }],
   },
   // Port Lantern (#75 item 15c): Taleshore's harbor town, lanterns along the
@@ -2250,7 +2273,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Gale greets newcomers by the road in (15c review: the 🚩's first goal here).
       { defId: 'port-harbormaster', x: 31, y: 13 },
       { defId: 'port-office-note', x: 13, y: 15 }, // beside the desk
-      { defId: 'port-skipper', x: 6, y: 16 },
+      // Away walking her ferry route while her quest is under way (#75 item 15d).
+      { defId: 'port-skipper', x: 6, y: 16, unlessFlag: JUNO_OFFERED },
+      { defId: 'port-skipper', x: 6, y: 16, ifFlag: JUNO_DONE },
       { defId: 'port-merchant', x: 25, y: 3 },
       { defId: 'port-innkeeper', x: 13, y: 4 },
       { defId: 'port-netmender', x: 24, y: 16 },
@@ -2268,6 +2293,209 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     // Its lighthouse stands on the rock in the harbor.
     lighthouse: { x: 2, y: 4 },
+  },
+  // Driftwood Shallows (#75 item 15d): Taleshore's south beach, at the end of
+  // the road from Port Lantern. A meadow, the long beach with its tide pools,
+  // a walled cove with the riddle-chest, and Skipper Juno's old dock in the
+  // south-west, where the Puffin is beached. Salt's sea-glass: two chests here.
+  'driftwood-shallows': {
+    id: 'driftwood-shallows',
+    name: 'Driftwood Shallows',
+    kind: 'field',
+    topic: 'geography',
+    map: [
+      '#####################EE#####################',
+      '#...,......#.........==....................#',
+      '#.....#.......,......==.........#########..#',
+      '#...C................==...,.....#...C...#..#',
+      '#...........#........==.....,...#.......#..#',
+      '#........,.......,...==.........#.......#..#',
+      '#....................==.........###GG####..#',
+      '#.====================================.....#',
+      '#.=..................==....................#',
+      '#.=..,........,...#..==.....#...........,..#',
+      '#.=....#.............==........,...........#',
+      '#:=::::::::::::::::::::::::::::::::::::::::#',
+      '#:=::::::::::~~~~:::::::::::::::::::::::#::#',
+      '#:=::::::::::~~~~::::::::::::::::::::::::::#',
+      '#:=::::::::::::::::::::::#:::::::::::::::::#',
+      '#:=:::::::::::::::::::::::::~~~::::::::::::#',
+      '#:=:::::#:::::::::::::::::::~~~:::::C::::::#',
+      '#:=::::::::::::::::::::::::::::::::::::::::#',
+      '#:=:::::::::::::::~~~::::::::::::::::::::::#',
+      '#:=::::::::::::::::::::::::::::::::::::::::#',
+      '#~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '############################################',
+    ],
+    ground: [150, 176, 110],
+    path: [214, 190, 140],
+    solidEmoji: '🪵',
+    decoEmoji: '🐚',
+    spawn: { x: 21, y: 1 },
+    npcs: [
+      { defId: 'drift-reel', x: 10, y: 8 },
+      { defId: 'drift-sandy', x: 30, y: 13 },
+      { defId: 'drift-salt', x: 6, y: 9 },
+      // Skipper Juno: waits at the landing once asked, walks to her dock (#75 item 15d).
+      { defId: 'port-skipper', x: 23, y: 2, ifFlag: JUNO_OFFERED, unlessFlag: JUNO_ARRIVED },
+      { defId: 'port-skipper', x: 2, y: 22, ifFlag: JUNO_ARRIVED, unlessFlag: JUNO_DONE },
+    ],
+    enemies: [
+      { defId: 'compass-crab', x: 12, y: 16 },
+      { defId: 'compass-crab', x: 33, y: 12 },
+      { defId: 'gull-scout', x: 28, y: 3 },
+      { defId: 'gull-scout', x: 41, y: 13 },
+      { defId: 'tide-snail', x: 22, y: 16 },
+      { defId: 'tide-snail', x: 38, y: 17 },
+    ],
+    keyChests: [
+      { x: 4, y: 3, item: 'seaglass-green', wantedBy: SALT_WANTS },
+      { x: 36, y: 16, item: 'seaglass-blue', wantedBy: SALT_WANTS },
+    ],
+    exits: [
+      // Back up the road, beside its icon on Taleshore's south coast.
+      { x: 21, y: 0, to: 'taleshore', spawnX: 36, spawnY: 36 },
+      { x: 22, y: 0, to: 'taleshore', spawnX: 36, spawnY: 36 },
+    ],
+  },
+  // The Wayfinder Isles (#75 item 15d): six little islands joined by sandbars,
+  // out in the Starfall Sea north-west of Port Lantern — only Ember reaches
+  // them. The Compass Golem stands in the stone circle on the big middle isle
+  // (the First Chorus Key); the riddle-chest is behind a gate on the east isle.
+  'wayfinder-isles': {
+    id: 'wayfinder-isles',
+    name: 'Wayfinder Isles',
+    the: true,
+    kind: 'field',
+    topic: 'geography',
+    map: [
+      '#####################EE#####################',
+      '#~~~~~~~~~~~~~~~~::::==::::~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~:...==...:~~~~~~~~~~~~~~~~#',
+      '#~::::::::::~~~~~:...==.#.:~~~~~~#::::::::~#',
+      '#~:........:~~~~~:...==...:::::::G.......:~#',
+      '#~:.,......:~~~~~:.,.==...:::::::G.......:~#',
+      '#~:..#.....:::::::...==...:~~~~~~#.......:~#',
+      '#~:........::::::::::==::::~~~~~~#....C..:~#',
+      '#~:.....,..:~~~~~~~~~::~~~~~~~~~~#.......:~#',
+      '#~:......#.:~~~~~~~~~::~~~~~~~~~~#.......:~#',
+      '#~:........:~:::::::::::::::::::~#::::::::~#',
+      '#~::::::::::~:.#...............:~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~:..............,..:~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~:..,..#.....#.....:~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~:.................:~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~:.................:~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~:...#.........#...:~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~:.................:~~~~~~~~~~~#',
+      '#~~::::::::~~:................,:~~~~~~~~~~~#',
+      '#~~:.....:::::,....#.....#.....:~~~~~~~~~~~#',
+      '#~~:......::::...............#.:~~::::::::~#',
+      '#~~:.,....:::::::::::::::::::::::~:......:~#',
+      '#~~:..#...:~~~~~~~~~~~~~~~~~~~~::::...#..:~#',
+      '#~~:......:~~~~~~~~~~~~~~~~~~~~~~~:.,....:~#',
+      '#~~:....,.:~~~~~~~~~~~~~~~~~~~~~~~:......:~#',
+      '#~~::::::::~~~~~~~~~~~~~~~~~~~~~~~::::::::~#',
+      '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '############################################',
+    ],
+    ground: [120, 168, 100],
+    path: [214, 190, 140],
+    solidEmoji: '🗿',
+    decoEmoji: '🌼',
+    spawn: { x: 21, y: 1 },
+    npcs: [
+      { defId: 'way-lo', x: 22, y: 12 },
+      { defId: 'way-pebble', x: 16, y: 14 },
+      { defId: 'way-drift', x: 6, y: 8 },
+    ],
+    enemies: [
+      { defId: 'marker-post', x: 6, y: 21 },
+      { defId: 'marker-post', x: 37, y: 23 },
+      { defId: 'latitude-cat', x: 15, y: 18 },
+      { defId: 'latitude-cat', x: 29, y: 15 },
+      { defId: 'globe-beetle', x: 4, y: 9 },
+      { defId: 'globe-beetle', x: 36, y: 24 },
+      // In the stone circle on the middle isle.
+      { defId: 'compass-golem', x: 22, y: 16 },
+    ],
+    exits: [
+      // Back out beside the isles' icon on Taleshore, on ground Ember can take off from.
+      { x: 21, y: 0, to: 'taleshore', spawnX: 11, spawnY: 12 },
+      { x: 22, y: 0, to: 'taleshore', spawnX: 11, spawnY: 12 },
+    ],
+  },
+  // Gale Atoll (#75 item 15d): a ring of sand and grass round a lagoon, far
+  // out in the Starfall Sea south-west of Port Lantern — only Ember reaches it.
+  // Tass's kite stall on the north-west of the ring, a gated nook with the
+  // riddle-chest in the south-east, and one of Salt's sea-glass chests.
+  'gale-atoll': {
+    id: 'gale-atoll',
+    name: 'Gale Atoll',
+    kind: 'field',
+    topic: 'geography',
+    map: [
+      '#####################EE#####################',
+      '#~~~~~~~~~~~~~~~~~~~:==:~~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~~:==:~~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~:,::==::::~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~:::#..........::::~~~~~~~~~~~~#',
+      '#~~~~~~~~~~::..............#...::~~~~~~~~~~#',
+      '#~~~~~~~~::......................::~~~~~~~~#',
+      '#~~~~~~:WWWWWWW...............,....::~~~~~~#',
+      '#~~~~~::WFFFFFW...::::::::..........::~~~~~#',
+      '#~~~~::.WKKKKKW:::~~~~~~~~:::........::~~~~#',
+      '#~~~~:..WFFFFFW:~~~~~~~~~~~~::.....#..:~~~~#',
+      '#~~~::..WWWDWWW~~~~~~~~~~~~~~::.......::~~~#',
+      '#~~~::......::~~~~~~~~~~~~~~~~::......::~~~#',
+      '#~~~:..,....:~~~~~~~~~~~~~~~~~~:.....,.:~~~#',
+      '#~~~:.......:~~~~~~~~~~~~~~~~~~:.......:~~~#',
+      '#~~~:.......:~~~~~~~~~~~~~~~~~~:.......:~~~#',
+      '#~~~::....#.::~~~~~~~~~~~~~~~~::......::~~~#',
+      '#~~~::.......::~~~~~~~~~~~~~~::.......::~~~#',
+      '#~~~~:C.......::~~~~~~~~~~~~::........:~~~~#',
+      '#~~~~::.....,..:::~~~~~~~~:::.##GG###::~~~~#',
+      '#~~~~~::..........::::::::....#.....#:~~~~~#',
+      '#~~~~~~::...................,.#..C.:#~~~~~~#',
+      '#~~~~~~~~::...#..........#....#..::~#~~~~~~#',
+      '#~~~~~~~~~~::......,..........#::~~~~~~~~~~#',
+      '#~~~~~~~~~~~~::::..........::::~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '############################################',
+    ],
+    ground: [140, 180, 110],
+    path: [222, 200, 150],
+    solidEmoji: '🌴',
+    decoEmoji: '🌺',
+    spawn: { x: 21, y: 2 },
+    buildings: [
+      { id: 'kite-stall', name: "Tass's Kite Stall", x: 8, y: 7, w: 7, h: 5, roof: 'teal', style: 'kite', sign: 'shop' },
+    ],
+    npcs: [
+      { defId: 'gale-tass', x: 11, y: 8 },
+      { defId: 'gale-sough', x: 30, y: 8 },
+      { defId: 'gale-gully', x: 12, y: 20 },
+    ],
+    enemies: [
+      { defId: 'zephyr-pup', x: 28, y: 5 },
+      { defId: 'zephyr-pup', x: 33, y: 15 },
+      { defId: 'kite-ray', x: 8, y: 14 },
+      { defId: 'kite-ray', x: 20, y: 22 },
+      { defId: 'squall-chick', x: 37, y: 12 },
+      { defId: 'squall-chick', x: 16, y: 20 },
+    ],
+    keyChests: [{ x: 6, y: 18, item: 'seaglass-gold', wantedBy: SALT_WANTS }],
+    exits: [
+      // Back out beside the atoll's icon on Taleshore.
+      { x: 21, y: 0, to: 'taleshore', spawnX: 13, spawnY: 36 },
+      { x: 22, y: 0, to: 'taleshore', spawnX: 13, spawnY: 36 },
+    ],
   },
 };
 

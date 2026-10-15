@@ -230,6 +230,7 @@ const POWER_MOVE_NAMES: Record<string, string> = {
   'last-fogbank': 'Forgetting Fog',
   // The Sunken Archive's Fiend (#75 item 14h): it swallows whole years.
   'hollow-fiend': 'Gulp of Ages',
+  'compass-golem': 'Needle Spin',
 };
 
 export function powerMoveName(enemyId: string): string {

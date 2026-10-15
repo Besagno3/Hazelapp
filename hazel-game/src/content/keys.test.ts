@@ -63,6 +63,16 @@ describe('warden keys (#58)', () => {
     expect(new Set(ACT_ONE_KEYS.map((k) => k.unlocksZone)).size).toBe(3);
   });
 
+  it("the First Chorus Key (#75 item 15d): the Compass Golem's, on the Wayfinder Isles — its gate comes with Chorus Isle (15f)", () => {
+    const k = GATE_KEYS.find((g) => g.id === 'chorus-a')!;
+    expect(keyFlag(k.id)).toBe('key-chorus-a'); // STORY-4X's flag
+    expect(k.fromZone).toBe('wayfinder-isles');
+    expect(k.unlocksZone).toBeNull();
+    expect(k.opens).toMatch(/one of two keys/);
+    expect(keyForZone(null)).toBeUndefined();
+    expect(ENEMY_DEFS[k.bossId]).toMatchObject({ role: 'warden', topic: 'geography', isBoss: true });
+  });
+
   it("the Memoria Key (#75 items 14f, 14h): the Ringkeeper's, in Eldergrove, opening the Sunken Archive's silver door", () => {
     const k = GATE_KEYS.find((g) => g.id === 'memoria')!;
     expect(keyFlag(k.id)).toBe('key-memoria'); // STORY-4X's flag

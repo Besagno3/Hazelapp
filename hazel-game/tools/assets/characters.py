@@ -2911,6 +2911,56 @@ def sap_sprite(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.2, 5 + hover * 0.5, 1.1))
 
 
+def snail(c: Canvas, p: Pose, s: dict):
+    """A tide snail (#75 item 15d): a soft body that slides along, a big
+    spiral shell on its back — the shell takes the first hit."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#c8b8a0'))
+    shell = hexc(s.get('shell', '#4a8ab0'))
+    lean, bob = d.lean, d.bob
+    slide = p.step * 1.2
+    B = d.part(lean, bob)
+    B.ellipse(16 + slide * 0.3, 26.5, 10, 3.4, col)  # the foot
+    B.ellipse(9 + slide * 0.3, 21.5, 3.6, 4.6, col)  # the head, up front
+    B.line(7.6, 17.6, 6.4, 13.4, col, w=1)  # eye stalks
+    B.line(10.4, 17.6, 11.4, 13.4, col, w=1)
+    d.put(B)
+    S = d.part(lean * 0.6, bob)
+    S.ellipse(19, 18.5, 7.4, 7.2, shell)
+    S.ellipse(19.6, 18.8, 4.6, 4.4, light(shell, 0.25), shade=False)
+    S.ellipse(20, 19, 2.2, 2.1, dark(shell, 0.25), shade=False)  # the spiral's middle
+    S.ellipse(16.4, 14.6, 1.6, 1.2, light(shell, 0.5), shade=False)  # shine
+    d.put(S)
+    E = d.part(lean, bob)
+    if p.facing != 'up':
+        E.dot(6.4, 13, '#1a1a24', w=2, h=2)
+        E.dot(11.4, 13, '#1a1a24', w=2, h=2)
+    d.put(E, outline=False)
+    finish(c, d, shadow=(16, 30.2, 9, 1.1))
+
+
+def marker_post(c: Canvas, p: Pose, s: dict):
+    """A Marker Post (#75 item 15d): a wooden waymark post that hops about,
+    a red flag on top and a grumpy face carved in the wood."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#a8743e'))
+    flag = hexc(s.get('flag', '#e04040'))
+    hop = (-1.6 if p.frame % 2 else 0.0)
+    B = d.part(d.lean, d.bob + hop)
+    B.rect(12, 9, 20, 28.6, col)
+    B.rect(12, 9, 14, 28.6, light(col, 0.2), shade=False)
+    B.rect(11, 27.4, 21, 29.6, dark(col, 0.3))
+    B.rect(19.4, 3, 20.6, 10, '#6a4424')  # the flagpole
+    B.poly([(20.6, 3), (28, 5.2), (20.6, 7.6)], flag)
+    if p.facing != 'up':
+        B.rect(13.6, 14, 15.6, 15, dark(col, 0.5), shade=False)  # cross brows
+        B.rect(16.6, 14, 18.6, 15, dark(col, 0.5), shade=False)
+    d.put(B)
+    if p.facing != 'up':
+        d.eyes(B, [(14.6, 17), (17.6, 17)])
+    finish(c, d, shadow=(16, 30.2, 5, 1.1))
+
+
 def hollow_acorn(c: Canvas, p: Pose, s: dict):
     """An acorn with nobody home: two eyes glint in its hollow, and its cap is
     a helmet that takes the first hit."""
@@ -3361,6 +3411,8 @@ DRAWERS = {
     'ring_beetle': ring_beetle,
     'sap_sprite': sap_sprite,
     'hollow_acorn': hollow_acorn,
+    'snail': snail,
+    'marker_post': marker_post,
     'tree_folk': tree_folk,
     'turtle': turtle,
     'newt': newt,
@@ -3505,6 +3557,17 @@ ROSTER: list[Char] = [
     Char('bubble-puffer', '🐡', 'puffer', H(color='#f2b13a', belly='#fff2c8')),
     Char('inkling', '🐙', 'octopus', H(color='#b86ad8', brow=True, ink=True)),
     Char('starfix', '⭐', 'starfish', H(color='#ff7a5a')),
+    # ── Act III: Taleshore I (geography, #75 item 15d) ──
+    Char('compass-crab', '🦀', 'crab', H(color='#e8a03a')),
+    Char('gull-scout', '🕊️', 'flyer', H(kind='bird', color='#eef2f6')),
+    Char('tide-snail', '🐌', 'snail', H(color='#d8c8a8', shell='#3a8ab8')),
+    Char('marker-post', '🚩', 'marker_post', H(color='#a8743e', flag='#e04040')),
+    Char('latitude-cat', '🐈', 'eclipse_fox', H(fur='#e8963a', glow='#3ac0e0')),
+    Char('globe-beetle', '🪲', 'gravity_beetle', H(color='#2a8ac8')),
+    Char('zephyr-pup', '🌬️', 'blob', H(color='#cfe8f8', crest=True)),
+    Char('kite-ray', '🪁', 'flyer', H(kind='moth', color='#e05050', wing='#ffb040', spot='#fff4b0')),
+    Char('squall-chick', '🐤', 'flyer', H(kind='bird', color='#ffd23a')),
+    Char('compass-golem', '🗿', 'golem', H(color='#8a8a7a', accent='#d03a3a', glow='#ffd24a', runes=True), boss=True),
 ]
 
 NPCS: list[Char] = [
@@ -3630,6 +3693,16 @@ NPCS: list[Char] = [
     Char('port-storyteller', '📖', 'humanoid', H(hair='long', hair_color='#5a3a6a', hat='hood', hat_color='#7a3a6a', outfit='#a84a7a', trim='#ffd860', robe=True, item='book')),
     Char('port-fisher', '🎣', 'humanoid', H(hair='short', hair_color='#d8d8d8', beard='#e8e8e8', hat='straw', hat_color='#d8b860', outfit='#5a7a4a', pants='#4a4a6a', item='rod', item_color='#8a6a3a')),
     Char('tale-rambler', '🥾', 'humanoid', H(hair='short', hair_color='#7a4a2a', hat='cap', hat_color='#3a7a4a', outfit='#a8784a', scarf='#3a6ab0', pants='#5a4a3a', pack='#6a8a4a', item='staff', item_color='#8a6a3a')),
+    # Taleshore I (#75 item 15d)
+    Char('drift-reel', '🎣', 'humanoid', H(hair='short', hair_color='#6a4a2a', hat='straw', hat_color='#e0c070', outfit='#3a8aa8', pants='#5a4a3a', item='rod', item_color='#8a6a3a')),
+    Char('drift-sandy', '🦀', 'crab', H(color='#f07a5a')),
+    Char('drift-salt', '🧂', 'humanoid', H(hair='ponytail', hair_color='#f0e8d8', outfit='#5ab0c0', trim='#ffffff', pants='#3a5a8a', pack='#c89a5a')),
+    Char('way-lo', '🗺️', 'humanoid', H(hair='bun', hair_color='#2a2a3a', glasses=True, outfit='#8a6a3a', trim='#e8d8a0', item='telescope')),
+    Char('way-pebble', '🐧', 'humanoid', H(skin='#2a2a3a', snout='beak', beak='#f0a030', outfit='#f4f4f8', blush=False)),
+    Char('way-drift', '🪁', 'humanoid', H(hair='spiky', hair_color='#e8c040', outfit='#e05050', scarf='#3a6ab0', pants='#3a3a5a', item='book')),
+    Char('gale-sough', '🌬️', 'humanoid', H(hair='long', hair_color='#d8e8f4', outfit='#6aa0c8', trim='#ffffff', robe=True, item='staff', item_color='#c8e0f0')),
+    Char('gale-gully', '🕊️', 'flyer', H(kind='bird', color='#d8d8e0')),
+    Char('gale-tass', '🪁', 'humanoid', H(hair='short', hair_color='#a83a2a', hat='bandana', hat_color='#ffd23a', outfit='#e04a4a', apron='#f4e8c8', item='brush')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

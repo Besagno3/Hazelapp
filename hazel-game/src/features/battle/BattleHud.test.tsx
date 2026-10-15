@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { BattleHud } from './BattleHud';
 import { BattleResult } from './BattleResult';
 import { keyForBoss } from '../../content/keys';
@@ -114,6 +114,10 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
     unmount();
     render(<BattleResult {...base} result="victory" enemy={spawnEnemy('ringkeeper', 'eldergrove', 'r', 8)} keyBoss={keyForBoss('ringkeeper')} />);
     expect(screen.getByText(/You won the Memoria Key! It unlocks the Hollow Fiend's silver door\./)).toBeInTheDocument();
+    cleanup();
+    // A key whose gate isn't built yet says what it's for (#75 item 15d).
+    render(<BattleResult {...base} result="victory" enemy={spawnEnemy('compass-golem', 'wayfinder-isles', 'g', 8)} keyBoss={keyForBoss('compass-golem')} />);
+    expect(screen.getByText(/You won the First Chorus Key! It's one of two keys to a gate far out at sea\./)).toBeInTheDocument();
   });
   it("a defeat in Eldergrove says Fen tucks you up in her hollow (#75 item 14f)", () => {
     render(

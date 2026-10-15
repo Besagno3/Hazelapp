@@ -257,11 +257,22 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           npc: 'port-harbormaster',
         };
       }
+      // Taleshore I (#75 item 15d): the Compass Golem's key, one of two to Chorus Isle's gate.
+      const chorusA = keyForBoss('compass-golem')!;
+      if (canFly(flags) && !flags[keyFlag(chorusA.id)]) {
+        return {
+          kind: 'key',
+          title: `Win the ${chorusA.name}`,
+          why: `Out at sea, on the Wayfinder Isles, ${midSentence(chorusA.bossName)} guards the ${chorusA.name}. Fly there on Ember and answer its questions about the world!`,
+          zoneId: chorusA.fromZone,
+          key: chorusA,
+        };
+      }
       return {
         kind: 'explore',
         title: 'Explore Lumina',
         why: flags[MET_GALE]
-          ? 'You found Taleshore! Its people are still getting ready for visitors. Until then, fly anywhere in Lumina, hunt for secrets ✨ and help everyone!'
+          ? 'You won the First Chorus Key! Its twin is out there somewhere. Until it turns up, fly anywhere and help everyone you meet on Taleshore!'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -417,8 +428,10 @@ export function routeSteps(
     } else if (z.kind === 'overworld') {
       const o = origin ?? z.spawn;
       const dir = compass(exit.x - o.x, exit.y - o.y);
-      // Still on Ember over Taleshore: say to land and walk in (15c review round 4).
-      if (flying && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside it and walk in`);
+      // Still on Ember over Taleshore (15c review round 4), or a place only
+      // Ember reaches (an island out at sea, #75 item 15d): say to land and walk in.
+      const byAir = z.places?.some((pl) => pl.x === exit.x && pl.y === exit.y && pl.byAir);
+      if ((flying || byAir) && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside it and walk in`);
       else steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
       const stairs = z.map[exit.y]?.[exit.x];
@@ -546,6 +559,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `Here is the plan: four Fiends hold the crystals, one at each far corner of Dawnreach. Start with ${midSentence(goal.crystal.fiendName)} in ${place(goal.crystal.zoneId)} — its gate needs no key, only brave answers.`;
   } else if (goal.kind === 'crystal' && goal.crystal && goal.key) {
     plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s ${goal.key.door ?? 'gate'} in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
+  } else if (goal.kind === 'key' && goal.key?.id === 'chorus-a') {
+    plan = `On the Wayfinder Isles, out at sea north-west of Port Lantern, ${midSentence(goal.key.bossName)} guards the ${goal.key.name}. It knows every place in the world. Show it you do too!`;
   } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
     // Act II's key (#75 item 14f): no Fiend to name yet.
     plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;
@@ -572,7 +587,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[MET_GALE]) {
-    plan = "You've seen Taleshore! Visit its people any time, and help everyone you meet there too.";
+    plan = "You won the First Chorus Key! Its twin is out there somewhere. Until then, help everyone you meet on Taleshore — they have plenty to do!";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -592,6 +607,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'crystal' && goal.crystal && goal.crystal.act === 2) {
     // The Sunken Archive (#75 item 14h): swift critters, and the spell that stops one.
     tip = "In the Archive, Quill Imps are so quick they strike first. Sage Chronicle's ⏳ Time Ripple makes an enemy lose its next turn!";
+  } else if (goal.kind === 'key' && goal.key?.id === 'chorus-a') {
+    tip = "Rest at the Driftlight Inn in Port Lantern first. On the isles, Latitude Cats muddle Hint Feathers — try a Glimmer Candle!";
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
