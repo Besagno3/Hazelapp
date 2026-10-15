@@ -1788,7 +1788,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🕯️',
     role: 'merchant',
     lines: [
-      "Candles, lanterns, potions! Wick-Wax's Candle Shop keeps Port Lantern bright.",
+      "Potions for the road, and a badge that glows! Wick-Wax's Candle Shop keeps Port Lantern bright.",
       'You know a Grandmother Wick? Never heard of her. No relation. Certainly not my cousin.',
     ],
   },
@@ -1809,7 +1809,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "I'm Orla. I mend the nets. Every knot in this loft has a story, and I remember them all.",
-      'Out on the Starfall Sea there are little islands. The sailors have a name for every one.',
+      'Every sailor on the Starfall Sea has a story. I\'ve heard them all, knot by knot.',
     ],
     ambient: ['Over, under, through…', 'Another knot, another story.', '🧶'],
   },
@@ -1830,8 +1830,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🐦',
     role: 'villager',
     lines: [
-      "Coo! Postmaster Pidge. I carry letters anywhere. Over hills, over sea, over fog, if I flap hard enough.",
-      'Nobody remembered to write to Lumina Village in years. Maybe someone will now!',
+      "Coo! Postmaster Pidge. I carry letters over hills and over sea. But never over the fog. Until now!",
+      "I've years of letters for Lumina Village. Now a dragon's found the way, maybe they'll finally get there!",
     ],
     ambient: ['Coo!', 'Letters! Letters!', '✉️'],
   },
@@ -1843,7 +1843,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       "The fog never came here, little one, because we never stopped telling our stories. We remember everything.",
-      "We even know the Forgotten One's real name. But here, we never say a name its owner has lost. Someday, you may hear it.",
+      "You call him Umbra. That isn't his real name. We know it, but here we never say a name its owner has lost.",
     ],
   },
   // The quest board in the square (#75 item 15c): its notices change as Taleshore opens up.
@@ -1858,8 +1858,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       '📋 The Quest Board. Notices are pinned all over it.',
       'NEW IN TOWN? Say hello to Harbormaster Gale by the road in. Rest at the Driftlight Inn. Potions at Wick-Wax\'s Candle Shop.',
       "SOON: Skipper Juno's ferry, the Puffin, will sail again! Watch this board.",
-      'NOTICE: Postmaster Pidge carries letters anywhere — even over the Great Fogbank!',
-      'More notices will go up as Taleshore wakes to visitors. Check back soon!',
+      'NOTICE: Letters for Lumina Village? Postmaster Pidge is ready to try again!',
+      'Check back soon for more notices!',
     ],
   },
   // A note on the harbormaster's desk (15c review): Gale is out meeting the boats.

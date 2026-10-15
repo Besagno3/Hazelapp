@@ -470,7 +470,7 @@ export const ACT3_PANELS: StoryPanel[] = [
   },
   {
     emoji: '📖',
-    text: "The fog never came to Taleshore. Its people kept telling their stories, so they never forgot. Not even the Forgotten One's name.",
+    text: "The fog never came to Taleshore. Its people kept telling their stories, so they never forgot. They even remember Umbra's real name!",
   },
   {
     emoji: '⚓',

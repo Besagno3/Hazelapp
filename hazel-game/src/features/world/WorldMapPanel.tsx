@@ -117,7 +117,7 @@ export default function WorldMapPanel({
         ? "⛵ = the Biscuit, waiting at Marlow's dock"
         : '⛵ = the Biscuit, moored where you left her'
       : null;
-  const seaWayText = seaWays.map((l) => `${flownOnly(l.to) ? 'Fly' : 'Sail'} off the ${l.side} edge to ${mid(ZONES[l.to].name)}.`).join(' ');
+  const seaWayText = seaWays.map((l) => `${flownOnly(l.to) ? 'Fly' : canFly(flags) ? 'Sail or fly' : 'Sail'} off the ${l.side} edge to ${mid(ZONES[l.to].name)}.`).join(' ');
   const at = (x: number, y: number) => ({ left: `${((x + 0.5) / cols) * 100}%`, top: `${((y + 0.5) / rows) * 100}%` });
 
   return (

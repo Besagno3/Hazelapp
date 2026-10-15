@@ -1320,3 +1320,4 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1114 | U | ✅ | back to Gale is flown from home (#137i) | the 🚩 "Meet Harbormaster Gale" from Lumina Village reads "Fly east to the Silver Shallows, then fly east to Taleshore, then …" (wayfinding.test) |
 | TC-1115 | U | ✅ | saves and defeats on Taleshore (#137j) | an Ember save on Taleshore loads flying, one in Port Lantern on foot (save.test); a defeat after resting at the Driftlight wakes on its floor, "the Driftlight Inn in Port Lantern"; Return lands at (32, 11) (fieldSpells.test); Taleshore plays `starfall` (audio.test) |
 | TC-1116 | U | ✅ | the boat at home, seen from Taleshore (#137j) | Port Lantern's menu map: "⛵ The Biscuit is waiting at Marlow's dock, on Dawnreach." — not "moored out" (WorldMapPanel.test) |
+| TC-1117 | U | ✅ | the 🚩 names the town, not the land (#137k) | after the Roost: "Fly to Port Lantern"; after Gale: "You found Taleshore! …" (wayfinding.test) |

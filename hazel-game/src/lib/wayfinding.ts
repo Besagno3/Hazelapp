@@ -241,7 +241,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
       if (canFly(flags) && !flags[visitedFlag('port-lantern')]) {
         return {
           kind: 'fly',
-          title: 'Fly to Taleshore',
+          title: 'Fly to Port Lantern',
           why: 'Past the Great Fogbank lies Taleshore, a land the fog never reached. Ride Ember over the fog to Port Lantern, its harbor town.',
           zoneId: 'port-lantern',
         };
@@ -261,7 +261,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: 'Explore Lumina',
         why: flags[MET_GALE]
-          ? 'Taleshore is waking up! More of it opens soon. Until then, fly anywhere, hunt for secrets ✨ and help everyone you meet.'
+          ? 'You found Taleshore! Fly anywhere, hunt for secrets ✨ and help everyone you meet.'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -565,9 +565,9 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'dragon-roost') {
     plan = "Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.";
   } else if (goal.kind === 'fly') {
-    plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Beyond it lies Taleshore. They say its people never forgot a single story.";
+    plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east, over the Silver Shallows. Beyond the fog lies Taleshore. They say its people never forgot a single story.";
   } else if (flags[MET_GALE]) {
-    plan = "You've seen Taleshore! Its people are just waking up to visitors. Visit them any time, and help everyone you meet here too.";
+    plan = "You've seen Taleshore! Visit its people any time, and help everyone you meet there too.";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {

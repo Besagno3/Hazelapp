@@ -108,7 +108,7 @@ describe('nextObjective', () => {
       title: 'Help Old Marlow',
     });
     expect(nextObjective(storyDone)).toMatchObject({ kind: 'fly', zoneId: 'dragon-roost' });
-    expect(nextObjective(roostVisited)).toMatchObject({ kind: 'fly', zoneId: 'port-lantern', title: 'Fly to Taleshore' });
+    expect(nextObjective(roostVisited)).toMatchObject({ kind: 'fly', zoneId: 'port-lantern', title: 'Fly to Port Lantern' });
     // In Port Lantern, the harbormaster first (15c review), then the open world.
     expect(nextObjective(taleshoreReached)).toMatchObject({ kind: 'visit', zoneId: 'port-lantern', title: 'Meet Harbormaster Gale', doneFlag: MET_GALE, npc: 'port-harbormaster' });
     expect(nextObjective(galeMet)).toMatchObject({ kind: 'explore', zoneId: null });
@@ -214,7 +214,7 @@ describe('nextObjective', () => {
     expect(nextObjective(storyDone)).toMatchObject({ kind: 'fly', title: "Fly to the Dragon's Roost" });
     expect(nextObjective(storyDone).why).toMatch(/^Ember can fly! Tap 🐉 Fly/);
     // …then the whole sky: no "soon you'll fly" once she can.
-    expect(nextObjective(galeMet).why).toMatch(/^Taleshore is waking up!/);
+    expect(nextObjective(galeMet).why).toMatch(/^You found Taleshore!/);
     expect(mentorTips(ZONES, { ...galeMet, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
   });
 
@@ -440,7 +440,7 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost/);
     expect(mentorTips(ZONES, { ...met, ...roostVisited })[0]).toMatch(/^No boat gets past the Great Fogbank — but Ember can fly over it!/);
     expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
-    expect(mentorTips(ZONES, { ...met, ...galeMet })[0]).toBe("You've seen Taleshore! Its people are just waking up to visitors. Visit them any time, and help everyone you meet here too.");
+    expect(mentorTips(ZONES, { ...met, ...galeMet })[0]).toBe("You've seen Taleshore! Visit its people any time, and help everyone you meet there too.");
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
     expect(mentorTips(ZONES, { ...met, ...storyDone, [HALL_DEDICATED]: false })[0]).toMatch(/Hall of Names/);
   });
