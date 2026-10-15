@@ -153,6 +153,14 @@ const SCOOT_MIN = 2;
 const SCOOT_IDEAL = 3;
 const SCOOT_MAX = 5;
 
+/**
+ * Who walking into counts as pushing (#127): a person, never a thing — a
+ * quest board, a lantern, a signpost (`isThing`, 15c review round 4).
+ */
+export function pushTarget<T extends { kind: string; npcId?: string }>(into: T | null, isThingId: (id: string) => boolean): T | null {
+  return into && into.kind === 'npc' && !(into.npcId && isThingId(into.npcId)) ? into : null;
+}
+
 /** Who the hero is walking into now, and for how long — null once they stop or turn away. */
 export type Push<T> = { who: T; t: number } | null;
 export function pushOn<T>(push: Push<T>, who: T | null, dt: number): Push<T> {

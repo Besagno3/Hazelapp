@@ -66,9 +66,10 @@ export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } 
   }
   if (g.kind === 'sail' || g.kind === 'fly' || (g.kind === 'visit' && !g.doneFlag)) return { zoneId: g.zoneId!, cell: null };
   if (g.kind === 'visit') {
-    // The Hall of Names' dedication (#75 item 14i): Keeper Mnem calls you in.
-    const mnem = npcHome(ZONES, 'hill-keeper')!;
-    return { zoneId: mnem.zoneId, cell: { x: mnem.x, y: mnem.y } };
+    // Someone to meet: Keeper Mnem calls you in for the Hall's dedication
+    // (#75 item 14i); Harbormaster Gale says hello in Port Lantern (15c).
+    const who = npcHome(ZONES, g.npc ?? 'hill-keeper')!;
+    return { zoneId: who.zoneId, cell: { x: who.x, y: who.y } };
   }
   const zoneId = g.kind === 'key' ? g.key!.fromZone : g.zoneId!;
   const bossId = g.kind === 'key' ? g.key!.bossId : fiendFor(g.crystal!.id).id;
@@ -166,7 +167,7 @@ export function walkLeg(goal: Objective, flags: Record<string, boolean>, from: {
     const onward = z.exits.filter((e) => e.to === step.exit.to);
     const sails = !z.exits.includes(step.exit);
     const goalCell = sails
-      ? (x: number, y: number) => seaCrossing(z, x, y, ZONES)?.to === step.exit.to
+      ? (x: number, y: number) => seaCrossing(z, x, y, ZONES, flags)?.to === step.exit.to
       : (x: number, y: number) => onward.some((e) => e.x === x && e.y === y);
     const path = reachPath(z, goalCell, { ...playerRules(z, flags), ...sailing(z), from: here.cell });
     hops.push({ zoneId: here.zoneId, from: here.cell, to: step.exit.to, path });
@@ -174,7 +175,7 @@ export function walkLeg(goal: Objective, flags: Record<string, boolean>, from: {
     if (path) boat = boatAfter(path, z.id, boat);
     if (sails) {
       // Off the edge: the boat comes out one cell in on the next map.
-      const out = end ? seaCrossing(z, end.x, end.y, ZONES) : null;
+      const out = end ? seaCrossing(z, end.x, end.y, ZONES, flags) : null;
       here = { zoneId: step.exit.to, cell: out ? { x: out.x, y: out.y } : { x: step.exit.spawnX, y: step.exit.spawnY } };
       continue;
     }

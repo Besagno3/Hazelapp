@@ -5,11 +5,11 @@ import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
-import { oppositeSide, seaEntryCell } from './travel';
+import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
-import { SPIRE_CLEARED, canFly } from '../content/story';
+import { MET_GALE, SPIRE_CLEARED, canFly } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
 import { overworldOf } from './worldMap';
 
@@ -90,6 +90,11 @@ export interface Objective {
    * the Hall of Names' dedication (#75 item 14i). Default: having been there.
    */
   doneFlag?: string;
+  /**
+   * Who to talk to for a `visit` goal met by a flag (Keeper Mnem by default;
+   * Harbormaster Gale in Port Lantern, #75 item 15c review).
+   */
+  npc?: string;
 }
 
 /**
@@ -232,10 +237,32 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           zoneId: 'dragon-roost',
         };
       }
+      // …then east, over the Great Fogbank, to Taleshore (#75 item 15c).
+      if (canFly(flags) && !flags[visitedFlag('port-lantern')]) {
+        return {
+          kind: 'fly',
+          title: 'Fly to Port Lantern',
+          why: 'Past the Great Fogbank lies Taleshore, a land the fog never reached. Ride Ember over the fog to Port Lantern, its harbor town.',
+          zoneId: 'port-lantern',
+        };
+      }
+      // In Port Lantern, the harbormaster says hello first (15c review).
+      if (canFly(flags) && !flags[MET_GALE]) {
+        return {
+          kind: 'visit',
+          title: 'Meet Harbormaster Gale',
+          why: `Harbormaster Gale knows everyone in Port Lantern. Say hello — Gale waits by the road into town!${knowsFieldSpell('return', flags) ? ' 🏠 Return flies you straight there.' : ''}`,
+          zoneId: 'port-lantern',
+          doneFlag: MET_GALE,
+          npc: 'port-harbormaster',
+        };
+      }
       return {
         kind: 'explore',
         title: 'Explore Lumina',
-        why: canFly(flags)
+        why: flags[MET_GALE]
+          ? 'You found Taleshore! Its people are still getting ready for visitors. Until then, fly anywhere in Lumina, hunt for secrets ✨ and help everyone!'
+          : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
           ? 'The Crystal of Memory shines! Hunt for secrets ✨ and help everyone you meet.'
@@ -368,6 +395,8 @@ export function routeSteps(
   from: ZoneId,
   to: ZoneId,
   at?: { x: number; y: number },
+  /** The story flags: once the Great Fogbank lifts (15g), Taleshore is sailed to (`flownLink`). */
+  flags: Record<string, boolean> | null = null,
 ): string[] | null {
   const route = routeTo(zones, from, to);
   if (!route) return null;
@@ -375,16 +404,22 @@ export function routeSteps(
   let origin = at ?? null;
   // A run of stairs the same way is one step: "take the stairs down two floors to …".
   let stairsRun: { way: 'down' | 'up'; floors: number } | null = null;
+  // A route over the Great Fogbank is flown all the way, on Ember: the seas
+  // before and after it too — no boat waits on Taleshore (15c review).
+  const flying = route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to, flags));
   for (const { from: id, exit } of route) {
     const z = zones[id];
     const dest = zones[exit.to];
     if (z.kind === 'overworld' && sails(zones, z, exit)) {
-      // Across the sea (#75 item 14): off the edge the boat sails over.
-      steps.push(`sail ${exitSide(z, exit) ?? 'on'} to ${placeName(dest)}`);
+      // Across the sea (#75 item 14): off the edge the boat sails over — or
+      // Ember flies, past the Great Fogbank (15c review).
+      steps.push(`${flying ? 'fly' : 'sail'} ${exitSide(z, exit) ?? 'on'} to ${placeName(dest)}`);
     } else if (z.kind === 'overworld') {
       const o = origin ?? z.spawn;
       const dir = compass(exit.x - o.x, exit.y - o.y);
-      steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
+      // Still on Ember over Taleshore: say to land and walk in (15c review round 4).
+      if (flying && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside it and walk in`);
+      else steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
       const stairs = z.map[exit.y]?.[exit.x];
       const side = exitSide(z, exit);
@@ -425,6 +460,7 @@ export function goalDirections(
   goal: Objective,
   here: ZoneId,
   at?: { x: number; y: number },
+  flags: Record<string, boolean> | null = null,
 ): string {
   if (!goal.zoneId) return '';
   if (goal.zoneId === here) return `It's right here in ${placeName(zones[here])}!`;
@@ -433,9 +469,9 @@ export function goalDirections(
   const sea = overworldOf(zones, goal.zoneId);
   if (goal.at && (sea.id === goal.zoneId || overworldOf(zones, here).id !== sea.id)) {
     // Past the dock: just "sail east" to the sea itself, or on to a place out there.
-    const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at) ?? [];
+    const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at, flags) ?? [];
     const sail = beyond.length > 1 ? beyond.join(', then ') : 'sail east';
-    const steps = routeSteps(zones, here, goal.at.zoneId, at) ?? [];
+    const steps = routeSteps(zones, here, goal.at.zoneId, at, flags) ?? [];
     const route = routeTo(zones, here, goal.at.zoneId) ?? [];
     const last = route.length ? route[route.length - 1].exit : null;
     const from = here === goal.at.zoneId ? (at ?? zones[here].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
@@ -447,7 +483,7 @@ export function goalDirections(
     steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
     return sentence(steps);
   }
-  const steps = routeSteps(zones, here, goal.zoneId, at) ?? [];
+  const steps = routeSteps(zones, here, goal.zoneId, at, flags) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
   return sentence(goal.kind === 'fly' ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
 }
@@ -523,14 +559,20 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = 'The Spire is cleared, and Lumina is remembering! Old Marlow on Starfall Coast remembers he was a sailor. Help him mend his boat, and the Silver Shallows — islands the world forgot — will be yours to explore.';
   } else if (goal.kind === 'sail') {
     plan = "Marlow's boat is mended! Out past his dock lie the Silver Shallows, islands nobody has seen since the fog. Go and see them — and tell me everything!";
+  } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
+    plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     plan = 'Five crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!';
   } else if (goal.kind === 'visit') {
     plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
-  } else if (goal.kind === 'fly') {
+  } else if (goal.kind === 'fly' && goal.zoneId === 'dragon-roost') {
     plan = "Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.";
+  } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
+    plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
+  } else if (flags[MET_GALE]) {
+    plan = "You've seen Taleshore! Visit its people any time, and help everyone you meet there too.";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -552,6 +594,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "In the Archive, Quill Imps are so quick they strike first. Sage Chronicle's ⏳ Time Ripple makes an enemy lose its next turn!";
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
+  } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
+    tip = "Port Lantern has an inn, the Driftlight. Rest there, and if a battle ever goes badly, that's where you'll wake up.";
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     tip = 'Keeper Mnem stands inside the Hall of Names — the biggest building on Remembrance Hill, with the purple roof. Talk to him!';
   } else if (goal.kind === 'visit') {
@@ -625,8 +669,11 @@ export function wayfindingLines(
   if (!npc.guide && !npc.signpost) return [];
   const home = npcHome(zones, npc.id);
   if (!home) return [];
-  const goal = nextObjective(flags);
-  const how = goalDirections(zones, goal, home.zoneId, home);
+  let goal = nextObjective(flags);
+  // A guide who IS the goal ("Meet Harbormaster Gale") points past it: by the
+  // time their lines end, you've met them.
+  if (goal.npc === npc.id && goal.doneFlag) goal = nextObjective({ ...flags, [goal.doneFlag]: true });
+  const how = goalDirections(zones, goal, home.zoneId, home, flags);
   if (npc.signpost) {
     const read = signpostLines(zones[home.zoneId], home.x, home.y, flags).join('\n');
     return [read, goal.zoneId ? `🚩 Next: ${goal.title}. ${how}`.trim() : `🎉 ${goal.why}`];

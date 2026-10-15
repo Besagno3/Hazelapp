@@ -331,6 +331,12 @@ zod, react-query. Add the package in the same change that first uses it.
   step away (`landingCell`), and crosses any linked edge (`edgeCrossing`);
   `safeSpawn(…, 'ember')` keeps a flying hero where they are on such a map.
   The **Dragon's Roost** (`PlaceDef.byAir`) is a place only Ember reaches.
+  **Taleshore** (#75 item 15c), the far continent, is the next overworld east
+  of the Silver Shallows (`seaLinks`): the Great Fogbank covers the Shallows'
+  whole east edge, so no boat crosses — only Ember. Its harbor town, **Port
+  Lantern** (a Return town, the `harbor` style, a quest board `port-board`),
+  is where Act III opens (`ACT3_PANELS`, `ACT3_SEEN`); its map plays the
+  `starfall` sea loop (`seaAreaAt` → `starfall-sea`).
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -638,7 +644,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit (#75 item 14f)
-NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fly [outDir]       # flying on Ember on the real canvas: take off, over mountains and the sea, across an edge, over a critter, landing, no Fly before Memory (#75 item 15b)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fly [outDir]       # flying on Ember on the real canvas: take off, over mountains and the sea, across an edge, over a critter, landing, no Fly before Memory, the Roost (#75 item 15b), over the Great Fogbank to Port Lantern (#75 item 15c)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 # (…and escort=1 — an escort's walk under way, by its flags — and __bench.walkTo(x, y), #75 item 14g)
 
@@ -659,6 +665,7 @@ python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sh
 python3 tools/assets/build.py marsh    # Foglight Marsh: its tiles, the stilt town sheet, the marsh icon, its critters, people and lanterns (#75 item 14g)
 python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome town sheet, the archive icon, its critters, Fiend and people (#75 item 14h)
 python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
+python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
@@ -747,6 +754,83 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — 15c review round 4: land and walk in, routes that know the fog (#75 item 15c, #137m)
+The last round. Fresh code review (6 low) and UX review (3 medium, 9 low),
+all fixed: `routeSteps` / `goalDirections` take the flags (sailed once 15g
+lifts the fog), `pushTarget` (lib/interact.ts) decides who a walk pushes,
+the journey passes flags to `seaCrossing`, Act III's panels only over
+Taleshore; the route says "fly … to Port Lantern, then land beside it and
+walk in", the explore line no longer promises secrets on an empty Taleshore,
+Gale's note tells the truth and stands by the desk, Ember is "her" in the
+flight lines, Hob has a cap and a scarf. Tests +3; 1210 green; `bench … fly`
+17/17, `bench … journey` 13/13.
+
+### 2026-10-15 — 15c review round 3: "Fly to Port Lantern", Umbra's real name (#75 item 15c, #137k)
+Fresh UX review (4 medium, 5 low), all fixed: the 🚩 says "Fly to Port
+Lantern" (it read "Fly to Taleshore" on Taleshore); panel 4 and Fable say
+Taleshore remembers Umbra's *real* name; Pidge, the board and Gale agree no
+one crossed the fog; the menu map says "Sail or fly" once Ember flies; no
+repeats of "waking up"; Wick-Wax sells what the shop has. Fresh code review
+(5 low), all fixed: a boat never sails off a fogged cell (`edgeCrossing` /
+`seaCrossing` take flags), `flownLink` knows when the fog lifts, `isThing`
+(npcs.ts), Gale's note has its own sprite (`tiles.desk_note`), no inn's
+name starts with "The". 1208 green.
+
+### 2026-10-15 — 15c review round 2: flown all the way, no promises the map can't keep (#75 item 15c, #137i)
+Fresh UX review (4 medium, 7 low), all fixed: a route over the Great
+Fogbank says "fly" for every sea hop; Hob, Orla, the board and Gale no longer
+point at islands or a Juno quest that aren't there yet; a note on Gale's desk
+(`port-office-note`); Gale clear of the Net Loft's roof; plainer explore,
+panel 5, footer, inn and Pidge lines. Fresh code review (2 medium, 4 low),
+all fixed: the menu map from Taleshore says a boat at home waits at Marlow's
+dock (not "moored out"); new tests for saves, the wake, Return and the music
+on the new maps — one caught "the The Driftlight Inn" (fixed); stale
+comments. Tests +7; 1207 green.
+
+### 2026-10-15 — 15c review round 1: fly home from Taleshore, meet Gale, props stay put (#75 item 15c, #137h)
+Fresh code (1 medium, 3 low) and UX reviews. All fixed:
+- **Fly, not sail:** from Taleshore every route said "sail" over the Great
+  Fogbank unless the goal was a fly one. `flownLink` (`lib/travel.ts`) is the
+  one rule: a hop to or from Taleshore is flown, and so is every sea after it;
+  the menu map uses it too.
+- **Things don't step aside:** `WorldNpcDef.prop` (the Quest Board, the
+  Marsh's lanterns, the carved stones; signposts too) — walking into one
+  never scoots it.
+- **Meet Harbormaster Gale:** a 🚩 step after arriving (`MET_GALE`,
+  `Objective.npc`; `goalTarget` meets whoever it names); Gale stands by the
+  road in, says hello, and points at the board and Skipper Juno. A guide who
+  is the goal points past it. Then "Explore" talks about Taleshore.
+- **The fogbank once Ember flies** says to go ashore and fly
+  (`GREAT_FOGBANK_FLY_HINT`), and so does the sailing footer on the Shallows.
+- **People:** Rambler Hob on Taleshore's road, Old Pike on the north dock
+  (new sprites, `build.py taleshore`). **Copy:** "🐉 Fly east!", docks not a
+  quay, Wick-Wax's Candle Shop, plainer lines for Juno, Fable and panel 5.
+- **Tests:** +6 (wayfinding, zones); 1205 green, lint and tsc clean;
+  `bench … fly` 17/17, `bench … journey` 13/13.
+
+### 2026-10-15 — East to Taleshore: over the Great Fogbank to Port Lantern (#75 item 15c, #137)
+Roadmap sub-item 15c.
+- **Taleshore** (`taleshore`, 56×44, painted in Tiled): the far continent,
+  its west third open Starfall Sea. The Silver Shallows' east edge links to
+  it; the Great Fogbank covers that whole edge and a boat can't enter fog,
+  so only Ember crosses (until the Hush Fiend, 15g). Region tier 6.
+- **Port Lantern** (`port-lantern`, a new `harbor` style): a harbor with two
+  docks and a lighthouse, the Driftlight Inn (a Return town), Wick-Wax's
+  Chandlery (Berry Potions — `SHARED_STOCK` allows more than two sellers —
+  and the Harbor Light Badge), the Harbormaster's Office, Orla's Net Loft and a
+  square with a save crystal and the **Quest Board** (a still prop). 8 people:
+  Harbormaster Gale (a guide), Skipper Juno, Chandler Wick-Wax, Innkeeper
+  Hollis, Netmender Orla, Tiko, Postmaster Pidge, Storyteller Fable.
+- **Act III opens** (`ACT3_PANELS`, five panels, `ACT3_SEEN`) the first time
+  over Taleshore. **The 🚩:** after the Roost, "Fly to Taleshore", then
+  "Explore". **The menu map:** "Taleshore ▶" on the Shallows once Ember flies.
+- **Music:** a new `starfall` sea loop anywhere on Taleshore.
+- **Art:** `python3 tools/assets/build.py taleshore` (frames 0–20 of the
+  overworld sheet byte-identical; the sea music rebuilds byte-identical).
+- **Tests:** +11 (zones, story, wayfinding, items, boat, regions, tiles,
+  WorldMapPanel, WorldScreen.fly); 1200 green, lint and tsc clean. `bench … fly`
+  17/17 (+3), `bench … journey` 13/13.
 
 ### 2026-10-15 — 15b review round 3: the 🚩 flies you to the Roost, a rim round Ember (#75 item 15b, #136g)
 Fresh code (2 low) and UX (2 high, 3 medium, 5 low) reviews. All fixed:

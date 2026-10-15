@@ -109,7 +109,7 @@ function explore(
     opts.exits === 'stop' &&
     // Flying, a place icon or an exit is just more ground below (no places while flying).
     ((m !== 2 && exitCells.has(y * cols + x)) ||
-      (m !== 0 && !!z.seaLinks?.length && edgeCrossing(z, x, y, ZONES, BIT_MODE[m]) !== null));
+      (m !== 0 && !!z.seaLinks?.length && edgeCrossing(z, x, y, ZONES, BIT_MODE[m], flags) !== null));
 
   function gateOpen(x: number, y: number): boolean {
     const g = opts.gates ?? 'closed';

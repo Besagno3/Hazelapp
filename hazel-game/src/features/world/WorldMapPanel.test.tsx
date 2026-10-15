@@ -64,6 +64,30 @@ describe('the menu map at sea — review fixes (#75 item 14)', () => {
     expect(container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/flagged at Marlow's dock\./);
   });
 
+  it("from Taleshore, a boat at home is waiting at Marlow's dock, not moored out (15c review round 2)", () => {
+    const flying = { ...flags, [FLIGHT_FLAG]: true };
+    render(<WorldMapPanel zoneId="port-lantern" pos={null} flags={flying} boat={BOAT_HOME} />);
+    expect(screen.getByText("⛵ The Biscuit is waiting at Marlow's dock, on Dawnreach.")).toBeInTheDocument();
+    expect(screen.queryByText(/moored out/)).toBeNull();
+  });
+
+  it('past the Great Fogbank, Taleshore — only once Ember can fly, and flown, not sailed (#75 item 15c)', () => {
+    const { unmount } = render(<WorldMapPanel zoneId="silver-shallows" pos={px(11, 21)} flags={flags} />);
+    expect(screen.queryByText('Taleshore ▶')).toBeNull();
+    expect(screen.getByText('The Great Fogbank — no boat can pass it')).toBeInTheDocument();
+    unmount();
+    const flying = { ...flags, [FLIGHT_FLAG]: true };
+    const again = render(<WorldMapPanel zoneId="silver-shallows" pos={px(11, 21)} flags={flying} />);
+    expect(screen.getByText('Taleshore ▶')).toBeInTheDocument();
+    expect(screen.getByText('The Great Fogbank — no boat can pass it, but Ember flies over it')).toBeInTheDocument();
+    expect(again.container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/Fly off the east edge to Taleshore\./);
+    again.unmount();
+    // On Taleshore itself: Port Lantern, and the way back west over the fog.
+    render(<WorldMapPanel zoneId="port-lantern" pos={null} flags={flying} />);
+    expect(screen.getByText('◀ Silver Shallows')).toBeInTheDocument();
+    expect(screen.getByText('Port Lantern')).toBeInTheDocument();
+  });
+
   it('no sea-edge marker before the boat is mended', () => {
     render(<WorldMapPanel zoneId="dawnreach" pos={px(40, 30)} flags={{ ...allCrystals, [SPIRE_CLEARED]: true }} />);
     expect(screen.queryByText('Silver Shallows ▶')).toBeNull();

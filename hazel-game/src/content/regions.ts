@@ -85,6 +85,9 @@ export const REGIONS: RegionDef[] = [
   // Act II (#75 item 14): the first place past Act I's tiers (#105g, #108d).
   // Its islands share its tier (#75 item 14f: Eldergrove).
   { id: 'shallows', name: 'The Silver Shallows and its islands', tier: 5, zones: ['silver-shallows', 'eldergrove', 'foglight-marsh', 'sunken-archive'] },
+  // Act III (#75 item 15c): the far continent, a step tougher again. Port
+  // Lantern is a town (no critters); Taleshore's places come in 15d–15h.
+  { id: 'taleshore', name: 'Taleshore and the Starfall Sea', tier: 6, zones: ['taleshore', 'port-lantern'] },
 ];
 
 /** The danger tier of a zone (its region's). */

@@ -87,6 +87,7 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   marsh: '🪷',
   archive: '📚',
   roost: '🪺',
+  harbor: '🏮',
 };
 
 /** Stands in for a place that's still hidden in fog. */

@@ -49,6 +49,7 @@ export type MusicTrack =
   | 'sailing'
   | 'shallows'
   | 'fogbank'
+  | 'starfall'
   | 'spire'
   | 'spireArchive'
   | 'spireThicket'
@@ -97,6 +98,7 @@ export const MUSIC_SOURCES: Record<MusicTrack, string> = {
   sailing: '/audio/16bit/music/sailing.mp3', // a shanty: sailing Dawnreach's waters
   shallows: '/audio/16bit/music/shallows.mp3', // the Silver Shallows, afloat or on its islets
   fogbank: '/audio/16bit/music/fogbank.mp3', // misty: near the Great Fogbank
+  starfall: '/audio/16bit/music/starfall.mp3', // soaring: the Starfall Sea and Taleshore (#75 item 15c)
   spire: '/audio/16bit/music/spire.mp3', // the Spire's entrance + intro
   // One spooky loop per Spire floor (#74); the throne floor uses finalBoss.
   spireArchive: '/audio/16bit/music/spireArchive.mp3',
@@ -376,6 +378,7 @@ export const SEA_TRACK: Record<SeaArea, MusicTrack> = {
   'dawnreach-waters': 'sailing',
   'silver-shallows': 'shallows',
   'great-fogbank': 'fogbank',
+  'starfall-sea': 'starfall',
 };
 
 /**

@@ -8,6 +8,7 @@ import { SEA_AREAS } from '../content/boat';
 describe('trackForScreen', () => {
   it('maps menu-ish screens to the title theme', () => {
     expect(trackForScreen('topics')).toBe('title');
+    expect(trackForScreen('world', false, 'overworld', 'starfall-sea')).toBe('starfall'); // Taleshore (#75 item 15c)
     expect(trackForScreen('quiz')).toBe('title');
     expect(trackForScreen('avatar')).toBe('title');
   });

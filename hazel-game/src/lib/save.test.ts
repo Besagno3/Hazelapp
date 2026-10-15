@@ -298,6 +298,11 @@ describe('the last inn rested at (#75 item 11)', () => {
       pos: { x: cell.x * TILE + TILE / 2, y: cell.y * TILE + TILE / 2 },
     });
     expect(wakeInnName({ lastRest: 'gearfall' })).toBe('the Wound-Down Inn in Gearfall Canyon');
+    // Port Lantern's Driftlight Inn (#75 item 15c review).
+    const drift = innWakeCell(ZONES['port-lantern'])!;
+    expect(tileAt(ZONES['port-lantern'], drift.x, drift.y)).toBe('F');
+    expect(wakeAfterDefeat({ lastRest: 'port-lantern' })).toEqual({ zoneId: 'port-lantern', pos: { x: drift.x * TILE + TILE / 2, y: drift.y * TILE + TILE / 2 } });
+    expect(wakeInnName({ lastRest: 'port-lantern' })).toBe('the Driftlight Inn in Port Lantern');
     expect(wakeInnName({ lastRest: 'lumina-village' })).toBe('the Sleepy Sheep Inn in Lumina Village');
   });
 
@@ -410,7 +415,7 @@ describe('old saves load (#75 item 14b)', () => {
     });
     const out = [...open].some((k) => {
       const [x, y] = k.split(',').map(Number);
-      return z.exits.some((e) => e.x === x && e.y === y) || seaCrossing(z, x, y, ZONES) !== null;
+      return z.exits.some((e) => e.x === x && e.y === y) || seaCrossing(z, x, y, ZONES, s.flags) !== null;
     });
     expect(out, `${s.zoneId} from ${cellOf(pos).x},${cellOf(pos).y}`).toBe(true);
   });
@@ -457,6 +462,9 @@ describe('save v3: how the hero gets about (#75 item 15b)', () => {
 
   it('a hero saved flying stays in the air — over a map Ember flies, once she can', () => {
     expect(normalizeSave(V3_FLYING)).toMatchObject({ vehicle: 'ember', zoneId: 'dawnreach', pos: V3_FLYING.pos });
+    // Taleshore is an overworld Ember flies over; Port Lantern is a town (#75 item 15c review).
+    expect(normalizeSave({ ...V3_FLYING, zoneId: 'taleshore', pos: { x: 10 * TILE + 16, y: 10 * TILE + 16 } })).toMatchObject({ vehicle: 'ember', zoneId: 'taleshore' });
+    expect(normalizeSave({ ...V3_FLYING, zoneId: 'port-lantern', pos: { x: 20 * TILE + 16, y: 11 * TILE + 16 } })).toMatchObject({ vehicle: 'foot', zoneId: 'port-lantern' });
     // Before Memory she can't fly: on foot (the canvas finds them firm ground).
     const noWings = { ...V3_FLYING, flags: { ...V3_FLYING.flags, 'crystal-history-restored': false } };
     expect(normalizeSave(noWings).vehicle).toBe('foot');

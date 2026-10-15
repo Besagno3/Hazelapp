@@ -662,6 +662,15 @@ FOGBANK_A = ('r:2 A4:3 F4:1 A4:2 | Bb4:6 A4:2 | G4:3 Bb4:1 D5:4 | C#5:8 | '
 FOGBANK_B = ('r:2 D5:3 Bb4:1 G4:2 | A4:6 r:2 | F4:3 G4:1 Bb4:4 | A4:4 r:4 | '
              'r:8 | r:8 | r:8 | r:8')
 
+# The Starfall Sea (#75 item 15c): wide open water on Ember's back — a broad,
+# soaring 6/8 tune in G that climbs like a long glide, over the rolling arpeggio.
+STARFALL_A = ('D5:3 B4:2 D5:1 | G5:4 F#5:2 | E5:3 G5:2 E5:1 | D5:6 | '
+              'C5:3 E5:2 G5:1 | B4:3 D5:3 | A4:2 C5:1 E5:2 F#5:1 | G5:6')
+STARFALL_A2 = ('D5:3 G5:2 B5:1 | D6:4 B5:2 | C6:3 A5:2 E5:1 | G5:6 | '
+               'E5:3 G5:2 C6:1 | B5:3 G5:3 | A5:2 F#5:1 D5:2 A5:1 | G5:6')
+STARFALL_B = ('E5:3 D5:2 B4:1 | C5:3 E5:3 | D5:2 B4:1 G4:3 | A4:6 | '
+              'E5:3 F#5:2 G5:1 | A5:3 B5:3 | C6:2 B5:1 A5:2 F#5:1 | D5:6')
+
 SEA = {
     'sailing': dict(bpm=100, meter=6, key='D', scale=MAJOR, style='shanty', seed=113, parts=[
         dict(chords='D D G A D Bm G/A D', tune=SHANTY_A),
@@ -674,6 +683,12 @@ SEA = {
         dict(chords='A F#m D E F#m D E A', tune=SHALLOWS_A2),
         dict(chords='D A Bm E D C#m Bm E', tune=SHALLOWS_B),
         dict(chords='A F#m D E A C#m D E', tune=SHALLOWS_A, duet=True),
+    ]),
+    'starfall': dict(bpm=76, meter=6, key='G', scale=MAJOR, style='roll', seed=137, parts=[
+        dict(chords='G G C G C G D G', tune=STARFALL_A),
+        dict(chords='G G Am Em C G D G', tune=STARFALL_A2),
+        dict(chords='Em C G D Em D Am D', tune=STARFALL_B),
+        dict(chords='G G C G C G D G', tune=STARFALL_A, duet=True),
     ]),
     'fogbank': dict(bpm=60, meter=8, key='D', scale=MINOR, style='mist', seed=131, parts=[
         dict(chords='Dm Bb Gm A Dm Bb Eb A', tune=FOGBANK_A),

@@ -210,10 +210,11 @@ export const MARLOW = 'coast-fisher';
 /**
  * The sea areas, each with its own music (`SEA_TRACK`, lib/audio.ts):
  * Dawnreach's waters while you sail them (ashore it's the overworld theme),
- * the Silver Shallows — its islets too, specks in it — and the water near the
- * Great Fogbank while the fog stands.
+ * the Silver Shallows — its islets too, specks in it — the water near the
+ * Great Fogbank while the fog stands, and the Starfall Sea: anywhere on
+ * Taleshore's map (#75 item 15c).
  */
-export const SEA_AREAS = ['dawnreach-waters', 'silver-shallows', 'great-fogbank'] as const;
+export const SEA_AREAS = ['dawnreach-waters', 'silver-shallows', 'great-fogbank', 'starfall-sea'] as const;
 export type SeaArea = (typeof SEA_AREAS)[number];
 
 /** Within this many cells of the standing Great Fogbank, its music takes over… */
@@ -222,8 +223,9 @@ export const FOGBANK_NEAR = 6;
 export const FOGBANK_LEAVE = 9;
 
 /**
- * Which sea area the hero is in — null on land (and anywhere off the two sea
- * maps). `prev`, the area they were in, keeps the fogbank's music a little
+ * Which sea area the hero is in — null on Dawnreach's land and anywhere off
+ * the sea maps (all of Taleshore's map is the Starfall Sea's, #75 item 15c).
+ * `prev`, the area they were in, keeps the fogbank's music a little
  * longer on the way out (`FOGBANK_LEAVE`).
  */
 export function seaAreaAt(
@@ -231,6 +233,8 @@ export function seaAreaAt(
   prev: SeaArea | null = null,
 ): SeaArea | null {
   if (save.zoneId === 'dawnreach') return save.vehicle === 'boat' ? 'dawnreach-waters' : null;
+  // Taleshore (#75 item 15c): the Starfall Sea's music anywhere on its map, like the Shallows'.
+  if (save.zoneId === 'taleshore') return 'starfall-sea';
   if (save.zoneId !== 'silver-shallows') return null;
   const fog = ZONES['silver-shallows'].fogs?.find((f) => f.id === GREAT_FOGBANK);
   if (fog && save.pos && !fogLifted(fog, save.flags)) {

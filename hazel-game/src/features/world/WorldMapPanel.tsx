@@ -18,6 +18,8 @@ import {
 } from '../../lib/worldMap';
 import { goalDirections, nextObjective } from '../../lib/wayfinding';
 import { boatAway, hasBoat } from '../../content/boat';
+import { canFly } from '../../content/story';
+import { flownLink } from '../../lib/travel';
 
 /** A map's name mid-sentence: "the Silver Shallows", "Dawnreach" (on the map's edges: `seaEdgeLabel`). */
 const mid = (name: string) => (name.startsWith('The ') ? `the ${name.slice(4)}` : name);
@@ -47,7 +49,7 @@ export default function WorldMapPanel({
   aboard?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // The map you're out on — Dawnreach, or the Silver Shallows (#75 item 14);
+  // The map you're out on — Dawnreach, the Silver Shallows (#75 item 14) or Taleshore (15c);
   // from inside a place, the overworld it's on (Eldergrove's is the Shallows, #75 item 14f).
   const world = overworldOf(ZONES, zoneId);
   const cols = world.map[0].length;
@@ -71,18 +73,22 @@ export default function WorldMapPanel({
       ? whereOnMap(ZONES, world, goal.zoneId, null)
       : null;
   const boatHere = boat && boat.zoneId === world.id ? boat : null;
-  // Moored on the other map (after a Return, say): the legend says where.
+  // Moored on another map (after a Return, say): the legend says where —
+  // out at sea, or home at Marlow's dock (15c review: from Taleshore it's usually home).
   const boatElsewhere = boat && boat.zoneId !== world.id ? boat : null;
+  const elsewhereHome = !!boatElsewhere && !boatAway({ boat: boatElsewhere, vehicle: 'foot', flags });
   const boatHome = !!boatHere && !boatAway({ boat: boatHere, vehicle: 'foot', flags });
   // Landmarks (#75 item 14): islets and rocks named on the map, not entered.
   const landmarks = world.landmarks ?? [];
-  // Which way the sea leads off this map, once there's a boat to sail it.
-  const seaWays = hasBoat(flags) ? (world.seaLinks ?? []) : [];
+  // Which way the sea leads off this map, once there's a boat to sail it — or,
+  // past the Great Fogbank to Taleshore, once Ember can fly there (#75 item 15c).
+  const flownOnly = (to: ZoneId) => flownLink(world.id, to, flags);
+  const seaWays = (world.seaLinks ?? []).filter((l) => (flownOnly(l.to) ? canFly(flags) : hasBoat(flags)));
   // Everything drawn on the map that a sea-edge label keeps clear of — the ⭐ above all.
   const marks = [...places, ...landmarks, ...(boatHere ? [boatHere] : []), ...(flagAt ? [flagAt] : [])];
   // On the overworld, directions start from the hero's own tile.
   const heroTile = zoneId === world.id && pos ? { x: Math.floor(pos.x / TILE), y: Math.floor(pos.y / TILE) } : undefined;
-  const how = goalDirections(ZONES, goal, zoneId, heroTile);
+  const how = goalDirections(ZONES, goal, zoneId, heroTile, flags);
   // Star and flag on the same place: the star steps aside so both show.
   const shared = !!here && !!flagAt && !here.exact && here.x === flagAt.x && here.y === flagAt.y;
 
@@ -103,13 +109,15 @@ export default function WorldMapPanel({
   const nextLabel = goal.zoneId ? `Next: ${goal.title}.` : goal.why;
   const flagName = flagAtStart ? goal.at!.name : (flagAt?.place ?? (goal.zoneId ? ZONES[goal.zoneId].name : ''));
   const boatLine = boatElsewhere
-    ? `⛵ The Biscuit is moored out in ${mid(ZONES[boatElsewhere.zoneId].name)} — Old Marlow on Starfall Coast can row her home.`
+    ? elsewhereHome
+      ? `⛵ The Biscuit is waiting at Marlow's dock, on ${mid(ZONES[boatElsewhere.zoneId].name)}.`
+      : `⛵ The Biscuit is moored out in ${mid(ZONES[boatElsewhere.zoneId].name)} — Old Marlow on Starfall Coast can row her home.`
     : boatHere
       ? boatHome
         ? "⛵ = the Biscuit, waiting at Marlow's dock"
         : '⛵ = the Biscuit, moored where you left her'
       : null;
-  const seaWayText = seaWays.map((l) => `Sail off the ${l.side} edge to ${mid(ZONES[l.to].name)}.`).join(' ');
+  const seaWayText = seaWays.map((l) => `${flownOnly(l.to) ? 'Fly' : canFly(flags) ? 'Sail or fly' : 'Sail'} off the ${l.side} edge to ${mid(ZONES[l.to].name)}.`).join(' ');
   const at = (x: number, y: number) => ({ left: `${((x + 0.5) / cols) * 100}%`, top: `${((y + 0.5) / rows) * 100}%` });
 
   return (
@@ -238,7 +246,7 @@ export default function WorldMapPanel({
           {greatFogbank && (
             <span className="block">
               <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1" style={{ background: FOG_COLOR }} />
-              The Great Fogbank — no boat can pass it
+              {canFly(flags) ? 'The Great Fogbank — no boat can pass it, but Ember flies over it' : 'The Great Fogbank — no boat can pass it'}
             </span>
           )}
         </p>

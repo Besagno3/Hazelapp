@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  GREAT_FOGBANK,
   ZONES,
   ZONE_IDS,
   LEGEND_CHARS,
@@ -18,11 +19,11 @@ import {
   SEA_CHARS,
 } from './zones';
 import { edgeLinkProblem, exitSide } from '../lib/transition';
-import { seaEntryCell } from '../lib/travel';
+import { edgeCrossing, flownLink, seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
-import { NPC_DEFS, lineText, visibleLines } from './npcs';
+import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
 import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
@@ -48,7 +49,7 @@ import {
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
-import { ACT2_SEEN, FLIGHT_FLAG, HALL_CALLED, canFly } from './story';
+import { ACT2_SEEN, FLIGHT_FLAG, HALL_CALLED, MET_GALE, canFly } from './story';
 
 const allZones = Object.values(ZONES);
 
@@ -407,7 +408,8 @@ describe('every place is unique (#73)', () => {
     const places = allZones.filter((z) => z.kind !== 'overworld').map((z) => z.name.replace(/^The /, ''));
     for (const id of RETURN_TOWNS) {
       const z = ZONES[id];
-      const people = new Set(z.npcs.map((p) => p.defId).filter((d) => !NPC_DEFS[d].signpost));
+      // People, not things: no signposts, quest boards or lanterns (15c review).
+      const people = new Set(z.npcs.map((p) => p.defId).filter((d) => !NPC_DEFS[d].signpost && !NPC_DEFS[d].prop));
       expect(people.size, `${id} people`).toBeGreaterThanOrEqual(8);
       const pointsOnward = [...people].some((d) =>
         NPC_DEFS[d].lines.some((l) => {
@@ -516,8 +518,8 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
   const flying = (z: ZoneDef) => reach(z, { flags: allLifted, modes: ['foot', 'ember'] });
   const airOnly = new Set(dawn.places!.filter((p) => p.byAir).map((p) => `${p.x},${p.y}`));
 
-  it('is an overworld with places (and the Silver Shallows, the sea beyond it, #75 item 14)', () => {
-    expect(overworlds.map((z) => z.id)).toEqual(['dawnreach', 'silver-shallows']);
+  it('is an overworld with places (and the Silver Shallows, the sea beyond it, #75 item 14; Taleshore past the fog, #75 item 15c)', () => {
+    expect(overworlds.map((z) => z.id)).toEqual(['dawnreach', 'silver-shallows', 'taleshore']);
     expect(dawn.places?.length).toBeGreaterThanOrEqual(8);
   });
 
@@ -1160,5 +1162,93 @@ describe('the world remembers (#75 item 14i)', () => {
     expect(say('village-keeper', {})).toMatch(/sputter/);
     const mnem = visibleLines(NPC_DEFS['hill-keeper'].lines, { ...act2, 'met-mnem': true, 'crystal-history-restored': true }).map(lineText);
     expect(mnem[0]).not.toMatch(/^And\b/);
+  });
+});
+
+describe('Taleshore and Port Lantern (#75 item 15c)', () => {
+  const sea = ZONES['silver-shallows'];
+  const tale = ZONES.taleshore;
+  const port = ZONES['port-lantern'];
+  const icon = tale.places!.find((p) => p.name === 'Port Lantern')!;
+
+  it("is a far overworld past the Great Fogbank: no boat sails off the Shallows' east edge while the fog stands", () => {
+    expect(tale.kind).toBe('overworld');
+    const east = sea.map[0].length - 1;
+    for (let y = 0; y < sea.map.length; y++) {
+      // Every cell of the east edge is fog until the Hush Fiend falls…
+      expect(fogAt(sea, east, y, {}), `row ${y} fogged`).toBeTruthy();
+      // …and a boat can't enter fog, so only Ember crosses — onto Taleshore, the same row, one cell in.
+      expect(edgeCrossing(sea, east, y, ZONES, 'ember')).toEqual({ side: 'east', to: 'taleshore', x: 1, y });
+    }
+    // Taleshore's west side is open Starfall Sea, so whatever row she crosses on, she arrives over water.
+    for (let y = 0; y < tale.map.length; y++) expect(tileAt(tale, 1, y)).toBe('~');
+  });
+
+  it("Port Lantern sits on the coast, beside ground Ember can land on, and its gate lands back on that road", () => {
+    expect(icon.icon).toBe('harbor');
+    const out = port.exits.filter((e) => e.to === 'taleshore');
+    expect(out.length).toBe(2);
+    for (const e of out) {
+      expect(landable(tileAt(tale, e.spawnX, e.spawnY)), 'Ember can take off where you come out').toBe(true);
+      expect(Math.abs(e.spawnX - icon.x) + Math.abs(e.spawnY - icon.y)).toBeLessThanOrEqual(2);
+    }
+    // From that road, the town's icon is a step away on foot.
+    const road = reach(tale, { from: { x: out[0].spawnX, y: out[0].spawnY } });
+    expect(touches(road, icon.x, icon.y)).toBe(true);
+  });
+
+  it('Harbormaster Gale greets you by the road in, and saying hello meets the 🚩 (15c review)', () => {
+    const gale = port.npcs.find((n) => n.defId === 'port-harbormaster')!;
+    const gate = port.exits.find((e) => e.to === 'taleshore')!;
+    expect(Math.abs(gale.x - gate.x) + Math.abs(gale.y - gate.y)).toBeLessThanOrEqual(6);
+    expect(touches(reach(port), gale.x, gale.y)).toBe(true);
+    const first = NPC_DEFS['port-harbormaster'].lines[0];
+    expect(typeof first !== 'string' && first.setFlag).toBe(MET_GALE);
+  });
+
+  it('only Ember crosses the Great Fogbank: a boat never sails off a fogged cell (15c review round 3)', () => {
+    const sea = ZONES['silver-shallows'];
+    const east = sea.map[0].length - 1;
+    const rows = sea.map.flatMap((r, y) => (r[east] === '~' ? [y] : []));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const y of rows) expect(edgeCrossing(sea, east, y, ZONES, 'boat', {}), `row ${y}`).toBeNull();
+    // …and no boat reaches that edge at all.
+    const boatReach = reach(sea, { from: { x: 1, y: 22 }, aboard: true, modes: ['boat'] });
+    for (const y of rows) expect(boatReach.has(`${east},${y}`)).toBe(false);
+    // Once the fog lifts (15g), boats cross, and the link isn't flown-only any more.
+    const bank = sea.fogs!.find((f) => f.id === GREAT_FOGBANK)!;
+    const lifted = { [bank.liftedBy[0]]: true };
+    expect(rows.some((y) => edgeCrossing(sea, east, y, ZONES, 'boat', lifted) !== null)).toBe(true);
+    expect(flownLink('silver-shallows', 'taleshore')).toBe(true);
+    expect(flownLink('silver-shallows', 'taleshore', lifted)).toBe(false);
+    expect(flownLink('dawnreach', 'silver-shallows')).toBe(false);
+  });
+
+  it('things are props: they never step aside, and never wander (15c review)', () => {
+    expect(isThing(NPC_DEFS['port-board'])).toBe(true);
+    expect(isThing(NPC_DEFS['dawn-sign-west'] ?? Object.values(NPC_DEFS).find((d) => d.signpost))).toBe(true);
+    expect(isThing(NPC_DEFS['port-harbormaster'])).toBe(false);
+    for (const id of ['port-board', 'roost-stone', 'marsh-stone', 'marsh-lantern-west']) expect(NPC_DEFS[id].prop, id).toBe(true);
+    for (const def of Object.values(NPC_DEFS)) if (def.prop) expect(def.stationary, def.id).toBe(true);
+  });
+
+  it('someone is out on Taleshore, past the town (15c review)', () => {
+    const out = tale.npcs.map((n) => n.defId);
+    expect(out).toContain('tale-rambler');
+    const hob = tale.npcs.find((n) => n.defId === 'tale-rambler')!;
+    expect(touches(reach(tale, { from: { x: 30, y: 21 } }), hob.x, hob.y)).toBe(true);
+  });
+
+  it('is a safe harbor town: an inn (a Return town), a candle shop selling Berry Potions, a quest board — and no library', () => {
+    expect(port.kind).toBe('town');
+    expect(port.enemies).toEqual([]);
+    expect(RETURN_TOWNS).toContain('port-lantern');
+    expect(port.buildings!.filter((b) => b.sign === 'inn')).toHaveLength(1);
+    // "the … Inn in …" reads right for every inn (15c review: "the The Driftlight Inn").
+    for (const id of RETURN_TOWNS) for (const b of ZONES[id].buildings ?? []) if (b.sign === 'inn') expect(b.name, id).not.toMatch(/^The /);
+    expect(port.npcs.map((n) => NPC_DEFS[n.defId].role)).not.toContain('librarian');
+    expect(port.npcs.map((n) => n.defId)).toContain('port-board');
+    expect(new Set(port.buildings!.map((b) => b.style))).toEqual(new Set(['harbor']));
+    expect(zoneTier('taleshore')).toBe(6);
   });
 });

@@ -61,6 +61,7 @@ import {
   ACT2_PANELS,
   ACT2_SEEN,
   FIRST_VOYAGE_PANELS,
+  GREAT_FOGBANK_FLY_HINT,
   GREAT_FOGBANK_MET,
   GREAT_FOGBANK_PANELS,
   GREAT_FOGBANK_SEEN,
@@ -70,6 +71,8 @@ import {
   FLIGHT_TUTORIAL_SEEN,
   ROOST_PANELS,
   ROOST_SEEN,
+  ACT3_PANELS,
+  ACT3_SEEN,
   POSY_STONE_PANELS,
   POSY_STONE_SEEN,
   HALL_CALLED,
@@ -264,6 +267,9 @@ export default function WorldScreen() {
   // The first step into the Sunken Archive (#75 item 14h).
   const archiveDue = zoneId === 'sunken-archive' && !flags[ARCHIVE_SEEN];
   const roostDue = zoneId === 'dragon-roost' && !flags[ROOST_SEEN];
+  // Act III (#75 item 15c): the first time over Taleshore, flown in past the Great Fogbank.
+  // Over Taleshore only: its last panel says to land and walk in (15c review round 4).
+  const act3Due = zoneId === 'taleshore' && !flags[ACT3_SEEN];
   // Ember's first flight (#75 item 15b): on a map Ember can fly over, where 🐉 Fly is.
   // Never from the boat: its "Tap 🐉 Fly" would point at a button that isn't there.
   const flightDue = canFly(flags) && !flags[FLIGHT_TUTORIAL_SEEN] && canFlyOver(ZONES[zoneId]) && save?.vehicle !== 'boat';
@@ -297,6 +303,7 @@ export default function WorldScreen() {
     | 'grove'
     | 'archive'
     | 'roost'
+    | 'act3'
     | 'flight'
     | 'dawnreach'
     | 'act2'
@@ -326,6 +333,8 @@ export default function WorldScreen() {
                     ? 'archive'
                     : roostDue
                       ? 'roost'
+                      : act3Due
+                        ? 'act3'
                       : flightDue
                         ? 'flight'
                     : dawnreachDue
@@ -642,6 +651,8 @@ export default function WorldScreen() {
           onFog: (hint, id) => {
             // The Great Fogbank's first bump plays its panels instead (#75 item 14).
             if (id === GREAT_FOGBANK && !save.flags[GREAT_FOGBANK_MET]) setFlag(GREAT_FOGBANK_MET);
+            // Once Ember flies, the fogbank says how to get past it (15c review).
+            else if (id === GREAT_FOGBANK && canFly(save.flags)) showToast(GREAT_FOGBANK_FLY_HINT);
             else showToast(`🌫️ ${hint}`);
           },
           // Marlow's boat (#75 item 14): climbing in, going ashore.
@@ -750,7 +761,7 @@ export default function WorldScreen() {
         {save.vehicle === 'ember'
           ? 'Fly: arrow keys / WASD · Land: Space, F or 🛬 (over grass, sand or a road)'
           : save.vehicle === 'boat'
-          ? 'Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!'
+          ? `Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!${zoneId === 'silver-shallows' && canFly(flags) ? ' · to cross the fog: go ashore, then 🐉 Fly' : ''}`
           : `Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!${flightOffered ? ' · F or 🐉 to fly' : ''}`}
       </p>
       </div>
@@ -898,6 +909,9 @@ export default function WorldScreen() {
             flightRef.current = 'fly';
           }}
         />
+      )}
+      {activeScene === 'act3' && (
+        <StoryPanels panels={ACT3_PANELS} doneLabel="🐉 Fly east!" onDone={() => setFlag(ACT3_SEEN)} />
       )}
       {activeScene === 'roost' && (
         <StoryPanels panels={ROOST_PANELS} doneLabel="🪺 Look around" onDone={() => setFlag(ROOST_SEEN)} />

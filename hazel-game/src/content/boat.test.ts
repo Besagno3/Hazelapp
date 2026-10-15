@@ -83,7 +83,7 @@ describe('travel by sea (#75 item 14)', () => {
       for (const link of z.seaLinks ?? []) {
         const back = ZONES[link.to].seaLinks?.find((l) => l.side === oppositeSide(link.side) && l.to === z.id);
         expect(back, `${z.id} → ${link.to} has a way back`).toBeDefined();
-        expect(back!.shift ?? 0, `${z.id} ↔ ${link.to} shift`).toBe(-(link.shift ?? 0));
+        expect((back!.shift ?? 0) + (link.shift ?? 0), `${z.id} ↔ ${link.to} shift`).toBe(0);
         const cols = z.map[0].length;
         const rows = z.map.length;
         const edge =
@@ -368,6 +368,12 @@ describe('sea areas, for the music (#75 item 14)', () => {
     expect(at('silver-shallows', 20, 26, { vehicle: 'boat' })).toBe('silver-shallows');
     expect(at('silver-shallows', 11, 21)).toBe('silver-shallows'); // Gull Rock, on foot
     expect(seaAreaAt(mended({ zoneId: 'silver-shallows', pos: null }))).toBe('silver-shallows');
+  });
+
+  it("the Starfall Sea's anywhere on Taleshore — flying over the water or on its coast — but not in Port Lantern (#75 item 15c)", () => {
+    expect(at('taleshore', 1, 21, { vehicle: 'ember' })).toBe('starfall-sea');
+    expect(at('taleshore', 30, 21)).toBe('starfall-sea');
+    expect(at('port-lantern', 20, 11)).toBeNull(); // the town's own music
   });
 
   it('the Great Fogbank within FOGBANK_NEAR cells of it, while it stands', () => {

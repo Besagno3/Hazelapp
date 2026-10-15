@@ -3619,6 +3619,17 @@ NPCS: list[Char] = [
     Char('archive-margin', '🦋', 'flyer', H(kind='moth', color='#c8b89a', wing='#e8dcc0', spot='#8a6a4a')),
     Char('archive-leaf', '🧒', 'humanoid', H(hair='spiky', hair_color='#c87a3a', outfit='#3a8a6a', pants='#5a4a3a', scarf='#f4ecd8', item='book')),
     Char('archive-traveler', '🧭', 'humanoid', H(hair='short', hair_color='#2a2a2a', beard='#2a2a2a', hat='tricorn', hat_color='#2a3a5a', outfit='#3a5a8a', scarf='#d84a3a', pack='#8a5a30')),
+    # ── Act III: Port Lantern (#75 item 15c) ──
+    Char('port-harbormaster', '⚓', 'humanoid', H(hair='short', hair_color='#e8e8e8', beard='#f0f0f0', hat='cap', hat_color='#1e3a6a', outfit='#2a4a7a', trim='#ffd24a', item='staff', item_color='#8a6a3a')),
+    Char('port-skipper', '🧭', 'humanoid', H(hair='ponytail', hair_color='#3a2a1a', hat='tricorn', hat_color='#8a2a2a', outfit='#f4eee2', scarf='#3a8aa8', pants='#2a3a5a')),
+    Char('port-merchant', '🕯️', 'humanoid', H(hair='bun', hair_color='#a8a8b4', outfit='#8a3a5a', apron='#f4e8c8', trim='#ffd860', glasses=True, item='lantern')),
+    Char('port-innkeeper', '🍲', 'humanoid', H(hair='short', hair_color='#8a4a2a', beard='#8a4a2a', outfit='#3a6a5a', apron='#f4ecd8', item='ladle')),
+    Char('port-netmender', '🧶', 'humanoid', H(hair='long', hair_color='#d8d8e0', hat='hood', hat_color='#5a6a8a', outfit='#6a7a9a', trim='#e8c860', robe=True)),
+    Char('port-lamplighter', '👦', 'humanoid', H(hair='spiky', hair_color='#e0a040', hat='cap', hat_color='#3a8aa8', outfit='#e8784a', pants='#3a3a5a', item='lantern')),
+    Char('port-postmaster', '🐦', 'humanoid', H(skin='#c8c8d4', snout='beak', beak='#e0a030', hat='cap', hat_color='#3a5aa8', outfit='#5a7ab0', pack='#a07040')),
+    Char('port-storyteller', '📖', 'humanoid', H(hair='long', hair_color='#5a3a6a', hat='hood', hat_color='#7a3a6a', outfit='#a84a7a', trim='#ffd860', robe=True, item='book')),
+    Char('port-fisher', '🎣', 'humanoid', H(hair='short', hair_color='#d8d8d8', beard='#e8e8e8', hat='straw', hat_color='#d8b860', outfit='#5a7a4a', pants='#4a4a6a', item='rod', item_color='#8a6a3a')),
+    Char('tale-rambler', '🥾', 'humanoid', H(hair='short', hair_color='#7a4a2a', hat='cap', hat_color='#3a7a4a', outfit='#a8784a', scarf='#3a6ab0', pants='#5a4a3a', pack='#6a8a4a', item='staff', item_color='#8a6a3a')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

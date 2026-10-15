@@ -5,6 +5,7 @@ import { CRYSTAL_TOPIC_IDS } from '../types';
 import { tiledRows } from '../lib/tiled';
 import dawnreachTmj from './maps/dawnreach.tmj?raw';
 import shallowsTmj from './maps/silver-shallows.tmj?raw';
+import taleshoreTmj from './maps/taleshore.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 import { ACT2_SEEN, FLIGHT_FLAG } from './story';
@@ -57,6 +58,10 @@ export const ZONE_IDS = [
   'sunken-archive',
   // #75 item 15b: a mountaintop east of Lumina Village that only Ember's wings reach.
   'dragon-roost',
+  // Act III (#75 item 15c): the far continent past the Great Fogbank, reached on
+  // Ember's back, and its harbor town.
+  'taleshore',
+  'port-lantern',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -145,7 +150,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -210,7 +215,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -459,6 +464,8 @@ export const HUB_ZONE: ZoneId = 'lumina-village';
 const DAWNREACH_MAP = tiledRows(JSON.parse(dawnreachTmj), JSON.parse(legendTsj), 'dawnreach');
 /** The Silver Shallows (#75 item 14), painted in Tiled too. */
 const SHALLOWS_MAP = tiledRows(JSON.parse(shallowsTmj), JSON.parse(legendTsj), 'silver-shallows');
+/** Taleshore (#75 item 15c), the far continent, painted in Tiled as well. */
+const TALESHORE_MAP = tiledRows(JSON.parse(taleshoreTmj), JSON.parse(legendTsj), 'taleshore');
 
 /**
  * The fog bank across the far side of the Silver Shallows, where the Starfall
@@ -1787,7 +1794,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 12, y: 18, emoji: '🏮', name: 'Gull Rock' },
       { x: 26, y: 31, emoji: '🏝️', name: 'Sandpiper Cay' },
     ],
-    seaLinks: [{ side: 'west', to: 'dawnreach', shift: 8 }],
+    // East, past the Great Fogbank, the Starfall Sea runs on to Taleshore (#75
+    // item 15c). No boat gets through the fog, so only Ember crosses — until
+    // the Hush Fiend falls and the fog thins (item 15g).
+    seaLinks: [
+      { side: 'west', to: 'dawnreach', shift: 8 },
+      { side: 'east', to: 'taleshore' },
+    ],
     fogs: [
       {
         id: GREAT_FOGBANK,
@@ -2167,6 +2180,94 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 10, y: 13, to: 'dawnreach', spawnX: 48, spawnY: 27 },
       { x: 11, y: 13, to: 'dawnreach', spawnX: 48, spawnY: 27 },
     ],
+  },
+  // Taleshore (#75 item 15c): the far continent, past the Great Fogbank on the
+  // Starfall Sea. Its west side is open sea — Ember flies in off the Shallows'
+  // east edge and lands on its coast — and Port Lantern's harbor faces home.
+  // The rest of Act III's places come in 15d–15h. Painted in Tiled
+  // (maps/taleshore.tmj).
+  taleshore: {
+    id: 'taleshore',
+    name: 'Taleshore',
+    kind: 'overworld',
+    map: TALESHORE_MAP,
+    ground: [126, 170, 96],
+    path: [214, 190, 140],
+    solidEmoji: '🌲',
+    decoEmoji: '🌺',
+    spawn: { x: 30, y: 21 },
+    npcs: [{ defId: 'tale-rambler', x: 35, y: 20 }],
+    enemies: [],
+    places: [{ x: 28, y: 21, icon: 'harbor', name: 'Port Lantern' }],
+    exits: [{ x: 28, y: 21, to: 'port-lantern', spawnX: 32, spawnY: 11 }],
+    seaLinks: [{ side: 'west', to: 'silver-shallows' }],
+  },
+  // Port Lantern (#75 item 15c): Taleshore's harbor town, lanterns along the
+  // docks and a lighthouse on the rock in its harbor. Its inn, a candle shop (the
+  // far continent's Berry Potions) and a quest board in the square; no library
+  // — there is one Library in the world. No critters.
+  'port-lantern': {
+    id: 'port-lantern',
+    name: 'Port Lantern',
+    kind: 'town',
+    map: [
+      '##################################',
+      '#~~~~~~:.......,.........#.......#',
+      '#~~~~~~:.WWWWWWWWW....WWWWWWW....#',
+      '#~~~~~~:.WZFZFZFZW....WBFFFBW..,.#',
+      '#~^^~~~:.WFFFFFFFW....WKKKKKW....#',
+      '#~^^~~~:.WTFFFFFTW....WFFFFFW....#',
+      '#~~~~~~:.WFFFFFFFW....WWWDWWW....#',
+      '#~~~~~~:.WWWWDWWWW......=....,...#',
+      '#~~||||:=====================....#',
+      '#~~~~~~:.....=.......=.....=.....#',
+      '#~~~~~~:..,..=.......=.....=..#..#',
+      '#~~~~~~:.....=.....S.=.....======E',
+      '#~~~~~~:.....========......======E',
+      '#~~~~~~:.....=.............=.....#',
+      '#~~~~~~:.WWWWWWW.....WWWWWWW.....#',
+      '#~~~~~~:.WBFFFTW..,..WTFFFBW..,..#',
+      '#~~||||:.WFFFFFW.....WFFFFFW.....#',
+      '#~~~~~~:.WFFFFFW.....WFFFFFW.....#',
+      '#~~~~~~:.WWWDWWW.....WWWDWWW.....#',
+      '#~~~~~~:..,.=...........=........#',
+      '#~~~~~~:....==============....#..#',
+      '#~~~~~~:.,.......,..........,....#',
+      '##################################',
+    ],
+    ground: [128, 160, 110],
+    path: [196, 178, 140],
+    solidEmoji: '🪨',
+    decoEmoji: '🏮',
+    spawn: { x: 32, y: 11 },
+    buildings: [
+      { id: 'lantern-inn', name: 'Driftlight Inn', x: 9, y: 2, w: 9, h: 6, roof: 'sea', style: 'harbor', sign: 'inn' },
+      { id: 'chandlery', name: "Wick-Wax's Candle Shop", x: 22, y: 2, w: 7, h: 5, roof: 'copper', style: 'harbor', sign: 'shop' },
+      { id: 'harbor-office', name: "Harbormaster's Office", x: 9, y: 14, w: 7, h: 5, roof: 'blue', style: 'harbor', sign: 'house' },
+      { id: 'net-loft', name: "Orla's Net Loft", x: 21, y: 14, w: 7, h: 5, roof: 'teal', style: 'harbor', sign: 'tools' },
+    ],
+    npcs: [
+      // Gale greets newcomers by the road in (15c review: the 🚩's first goal here).
+      { defId: 'port-harbormaster', x: 31, y: 13 },
+      { defId: 'port-office-note', x: 13, y: 15 }, // beside the desk
+      { defId: 'port-skipper', x: 6, y: 16 },
+      { defId: 'port-merchant', x: 25, y: 3 },
+      { defId: 'port-innkeeper', x: 13, y: 4 },
+      { defId: 'port-netmender', x: 24, y: 16 },
+      { defId: 'port-lamplighter', x: 19, y: 19 },
+      { defId: 'port-postmaster', x: 29, y: 9 },
+      { defId: 'port-storyteller', x: 11, y: 10 },
+      { defId: 'port-board', x: 16, y: 10 },
+      { defId: 'port-fisher', x: 4, y: 8 },
+    ],
+    enemies: [],
+    exits: [
+      // Out onto Taleshore, on the road just east of the town's icon.
+      { x: 33, y: 11, to: 'taleshore', spawnX: 30, spawnY: 21 },
+      { x: 33, y: 12, to: 'taleshore', spawnX: 30, spawnY: 21 },
+    ],
+    // Its lighthouse stands on the rock in the harbor.
+    lighthouse: { x: 2, y: 4 },
   },
 };
 

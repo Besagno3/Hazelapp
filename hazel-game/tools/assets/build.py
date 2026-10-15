@@ -20,6 +20,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py marsh      # only Foglight Marsh: its tiles, critters, people and lanterns (#75 item 14g)
     python3 tools/assets/build.py archive    # only the Sunken Archive: its tiles, critters, Fiend and people (#75 item 14h)
     python3 tools/assets/build.py roost      # only the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
+    python3 tools/assets/build.py taleshore  # only Taleshore + Port Lantern: tiles, harbor sheet, icon, people (#75 item 15c)
     python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
     python3 tools/assets/build.py intro      # only the sign-in screen's intro music
 
@@ -50,6 +51,10 @@ MANIFEST = ROOT / 'src' / 'content' / 'sprites.generated.ts'
 # Foglight Marsh's critters, people and props (#75 item 14g), for `build.py marsh`.
 MARSH_SPRITES = ('mist-newt', 'bog-lantern', 'murk-toad', 'last-fogbank', 'marsh-brume', 'marsh-puddle', 'marsh-slosh',
                  'marsh-stone', 'marsh-lantern', 'marsh-lantern-lit')
+
+# Port Lantern's people and quest board (#75 item 15c), for `build.py taleshore`.
+TALESHORE_SPRITES = ('port-harbormaster', 'port-skipper', 'port-merchant', 'port-innkeeper', 'port-netmender',
+                     'port-lamplighter', 'port-postmaster', 'port-storyteller', 'port-board', 'port-fisher', 'tale-rambler', 'port-office-note')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',
@@ -133,6 +138,14 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(ARCHIVE_SPRITES)))
         tiles.build_archive(PUBLIC)
         print('archive ✓')
+        return
+    if 'taleshore' in only:
+        # Just Taleshore and Port Lantern (#75 item 15c): their tiles, the harbor
+        # town sheet, the overworld sheet with the harbor icon appended, and Port
+        # Lantern's people and quest board — every other file untouched.
+        write_manifest(build_sprites.build(PUBLIC, only=set(TALESHORE_SPRITES)))
+        tiles.build_taleshore(PUBLIC)
+        print('taleshore ✓')
         return
     if 'roost' in only:
         # Just the Dragon's Roost (#75 item 15b): its tiles and the overworld sheet

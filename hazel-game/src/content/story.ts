@@ -78,6 +78,9 @@ export const ACT2_SEEN = 'act2-seen';
 /** The first time the boat bumps the Great Fogbank, its panel plays once. */
 export const GREAT_FOGBANK_MET = 'great-fogbank-met';
 export const GREAT_FOGBANK_SEEN = 'great-fogbank-seen';
+
+/** What the Great Fogbank says once Ember can fly (#75 item 15c review). */
+export const GREAT_FOGBANK_FLY_HINT = '🌫️ No boat can pass the Great Fogbank — but Ember can fly over it! Go ashore, then tap 🐉 Fly.';
 /** Set once the Memoria Key's two panels have played, after the Ringkeeper (#75 item 14f). */
 export const MEMORIA_SEEN = 'memoria-seen';
 
@@ -111,6 +114,18 @@ export const FLIGHT_TUTORIAL_SEEN = 'flight-tutorial-seen';
 
 /** Set once the Dragon's Roost panels have played, on the first visit (#75 item 15b). */
 export const ROOST_SEEN = 'roost-seen';
+
+/**
+ * Act III opens (#75 item 15c, STORY-4X §5): the first time the hero is over
+ * Taleshore, `ACT3_PANELS` play and this is set.
+ */
+export const ACT3_SEEN = 'act3-seen';
+
+/**
+ * Set as Harbormaster Gale says hello in Port Lantern (#75 item 15c review):
+ * the 🚩's first goal on Taleshore.
+ */
+export const MET_GALE = 'met-gale';
 
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
@@ -168,10 +183,10 @@ export function emberStatus(flags: Record<string, boolean>): {
 
 /**
  * The flag that opens each act (#75 item 14c): Act I is open from the start;
- * Act II opens the morning after the Spire. (Act III's flag comes with
- * Taleshore, 15c — until then no Act III crystal is in play.)
+ * Act II opens the morning after the Spire; Act III the first time over
+ * Taleshore (#75 item 15c).
  */
-export const ACT_OPENS: Record<Act, string | null> = { 1: null, 2: ACT2_SEEN, 3: 'act3-seen' };
+export const ACT_OPENS: Record<Act, string | null> = { 1: null, 2: ACT2_SEEN, 3: ACT3_SEEN };
 
 /**
  * The crystals the hero can be working towards: every crystal of every act
@@ -423,7 +438,7 @@ export const HALL_PANELS: StoryPanel[] = [
 export const FLIGHT_PANELS: StoryPanel[] = [
   {
     emoji: '🐉',
-    text: 'Ember stretches its wings — wide, wider, wider than ever. It looks back at you and dips one wing to the ground. Climb on!',
+    text: 'Ember stretches her wings — wide, wider, wider than ever. She looks back at you and dips one wing to the ground. Climb on!',
   },
   {
     emoji: '☁️',
@@ -432,6 +447,34 @@ export const FLIGHT_PANELS: StoryPanel[] = [
   {
     emoji: '⛰️',
     text: 'Ember keeps looking toward a lonely peak on Dawnreach, just east of Lumina Village. No path climbs it. Fly there, land on the grass at the top and walk in!',
+  },
+];
+
+/**
+ * Act III opens (#75 item 15c, STORY-4X §5): Ember carries the hero over the
+ * Great Fogbank, across the Starfall Sea, to Taleshore — where the fog never
+ * came, and where it's rude to say a name its owner lost.
+ */
+export const ACT3_PANELS: StoryPanel[] = [
+  {
+    emoji: '🌫️',
+    text: 'Ember beats her wings and climbs above the Great Fogbank. Below, the fog rolls like a white sea. Then — sunshine!',
+  },
+  {
+    emoji: '🌊',
+    text: 'The Starfall Sea sparkles all the way to the sky. And on the far side, a whole new land: Taleshore!',
+  },
+  {
+    emoji: '🏮',
+    text: 'Lanterns twinkle round a harbor on the coast. That is Port Lantern! People run to the docks, pointing up at Ember.',
+  },
+  {
+    emoji: '📖',
+    text: "The fog never came to Taleshore. Its people kept telling their stories, so they never forgot. They even remember Umbra's real name!",
+  },
+  {
+    emoji: '⚓',
+    text: 'Fly east to the harbor 🏮. Land beside it, then walk in. The people of Port Lantern are waiting to meet you!',
   },
 ];
 
@@ -552,7 +595,7 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
     },
     {
       emoji: '🐲',
-      text: 'Ember warms its claws on the glowing crystal and stretches, just a touch taller. Keep going!',
+      text: 'Ember warms her claws on the glowing crystal and stretches, just a touch taller. Keep going!',
     },
     {
       emoji: '🌑',
@@ -597,7 +640,7 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
     {
       emoji: '🐉',
       text:
-        'Ember stretches its wings so wide the bookshelves rattle. Its wings beat — once, twice. ' +
+        'Ember stretches her wings so wide the bookshelves rattle. Her wings beat — once, twice. ' +
         'Strong enough to fly now! Ember looks at you and grins.',
     },
     {
