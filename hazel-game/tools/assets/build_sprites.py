@@ -18,6 +18,7 @@ STILL_PROPS = {
     'signpost': ('🪧', tiles.signpost),
     # Port Lantern's quest board (#75 item 15c).
     'port-board': ('📋', tiles.quest_board),
+    'port-office-note': ('📝', tiles.desk_note),
 }
 
 

@@ -1299,6 +1299,20 @@ def quest_board():
     return _outlined(c)
 
 
+def desk_note():
+    """Gale's note (#75 item 15c review): a sheet of paper on a little stand
+    in the Harbormaster's Office, a red pin at its top — talk to it."""
+    c = _c()
+    c.shadow(8, 15.2, 4, 1)
+    c.rect(7.2, 10, 8.8, 15.5, '#7a4a2a', shade=False)
+    c.rect(3, 3, 13, 11, '#f8f0dc', shade=False)
+    c.rect(3, 10, 13, 11, '#e0d4bc', shade=False)
+    c.dot(8, 3.6, '#d03a3a')
+    for (x, y, w) in ((4.4, 5, 7), (4.4, 6.6, 6), (4.4, 8.2, 5)):
+        c.rect(x, y, x + w, y + 0.5, '#5a6a8a', shade=False)
+    return _outlined(c)
+
+
 def signpost():
     """A crossroads signpost (#75 item 6): a post with two arrow boards, one
     pointing each way. Stands in the world like an NPC — talk to it."""

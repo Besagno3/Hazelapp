@@ -54,7 +54,7 @@ MARSH_SPRITES = ('mist-newt', 'bog-lantern', 'murk-toad', 'last-fogbank', 'marsh
 
 # Port Lantern's people and quest board (#75 item 15c), for `build.py taleshore`.
 TALESHORE_SPRITES = ('port-harbormaster', 'port-skipper', 'port-merchant', 'port-innkeeper', 'port-netmender',
-                     'port-lamplighter', 'port-postmaster', 'port-storyteller', 'port-board', 'port-fisher', 'tale-rambler')
+                     'port-lamplighter', 'port-postmaster', 'port-storyteller', 'port-board', 'port-fisher', 'tale-rambler', 'port-office-note')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',

@@ -82,7 +82,7 @@ export default function WorldMapPanel({
   const landmarks = world.landmarks ?? [];
   // Which way the sea leads off this map, once there's a boat to sail it — or,
   // past the Great Fogbank to Taleshore, once Ember can fly there (#75 item 15c).
-  const flownOnly = (to: ZoneId) => flownLink(world.id, to);
+  const flownOnly = (to: ZoneId) => flownLink(world.id, to, flags);
   const seaWays = (world.seaLinks ?? []).filter((l) => (flownOnly(l.to) ? canFly(flags) : hasBoat(flags)));
   // Everything drawn on the map that a sea-edge label keeps clear of — the ⭐ above all.
   const marks = [...places, ...landmarks, ...(boatHere ? [boatHere] : []), ...(flagAt ? [flagAt] : [])];

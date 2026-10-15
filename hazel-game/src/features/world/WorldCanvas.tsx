@@ -31,7 +31,7 @@ import {
 import { bossDefeated } from '../../content/keys';
 import { reachPath, safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
-import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
+import { NPC_DEFS, isThing, npcSpriteId } from '../../content/npcs';
 import { habitatOf, spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
@@ -2636,8 +2636,7 @@ export default function WorldCanvas({
       }
       // Kept walking into someone in the way: they step aside (#127).
       // …never a thing (a quest board, a lantern, a signpost — 15c review).
-      const thing = into?.npcId ? NPC_DEFS[into.npcId]?.prop || NPC_DEFS[into.npcId]?.signpost : false;
-      push = pushOn(push, into?.kind === 'npc' && !thing ? into : null, dt);
+      push = pushOn(push, into?.kind === 'npc' && !isThing(NPC_DEFS[into.npcId!]) ? into : null, dt);
       if (push && push.t >= SCOOT_AFTER_S) {
         scoot(push.who, intoDir);
         push = null;
@@ -2989,7 +2988,7 @@ export default function WorldCanvas({
       }
       // Sailing off an edge onto the next stretch of sea (#75 item 14).
       // Flying off a linked edge too, over land or sea (#75 item 15b).
-      const crossing = aboard ? seaCrossing(z, cellX, cellY, ZONES) : flying ? edgeCrossing(z, cellX, cellY, ZONES, 'ember') : null;
+      const crossing = aboard ? seaCrossing(z, cellX, cellY, ZONES, flagsRef.current) : flying ? edgeCrossing(z, cellX, cellY, ZONES, 'ember') : null;
       if (crossing) {
         triggered = true;
         const reduceMotion =

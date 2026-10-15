@@ -760,7 +760,11 @@ Fresh UX review (4 medium, 5 low), all fixed: the 🚩 says "Fly to Port
 Lantern" (it read "Fly to Taleshore" on Taleshore); panel 4 and Fable say
 Taleshore remembers Umbra's *real* name; Pidge, the board and Gale agree no
 one crossed the fog; the menu map says "Sail or fly" once Ember flies; no
-repeats of "waking up"; Wick-Wax sells what the shop has. 1207 green.
+repeats of "waking up"; Wick-Wax sells what the shop has. Fresh code review
+(5 low), all fixed: a boat never sails off a fogged cell (`edgeCrossing` /
+`seaCrossing` take flags), `flownLink` knows when the fog lifts, `isThing`
+(npcs.ts), Gale's note has its own sprite (`tiles.desk_note`), no inn's
+name starts with "The". 1208 green.
 
 ### 2026-10-15 — 15c review round 2: flown all the way, no promises the map can't keep (#75 item 15c, #137i)
 Fresh UX review (4 medium, 7 low), all fixed: a route over the Great

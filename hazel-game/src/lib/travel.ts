@@ -2,6 +2,10 @@ import {
   LANDING_CHARS,
   SEA_CHARS,
   WALKABLE_CHARS,
+  GREAT_FOGBANK,
+  ZONES as ALL_ZONES,
+  fogAt,
+  fogLifted,
   nearestCell,
   tileAt,
   type Side,
@@ -75,11 +79,15 @@ export function meetsHero(habitat: Habitat | undefined, mode: TravelMode): boole
 
 /**
  * A sea link only Ember crosses (#75 item 15c review): any link to or from
- * Taleshore, past the Great Fogbank. Routes say "fly" across it, and the menu
- * map shows it once Ember can fly.
+ * Taleshore, past the Great Fogbank — while the fog stands (given `flags`;
+ * without them, as it stands today). Routes say "fly" across it, and the
+ * menu map shows it once Ember can fly. (15g lifts the fog: routes will need
+ * the flags then.)
  */
-export function flownLink(from: ZoneId, to: ZoneId): boolean {
-  return from === 'taleshore' || to === 'taleshore';
+export function flownLink(from: ZoneId, to: ZoneId, flags: Record<string, boolean> | null = null): boolean {
+  if (from !== 'taleshore' && to !== 'taleshore') return false;
+  const bank = ALL_ZONES['silver-shallows'].fogs?.find((f) => f.id === GREAT_FOGBANK);
+  return !(flags && bank && fogLifted(bank, flags));
 }
 
 /** Can a boat put the hero ashore onto a cell holding `ch`? */
@@ -117,8 +125,14 @@ export interface SeaCrossing {
  * isn't on a linked edge (or the far side isn't open sea — then the edge is
  * simply the end of the water, like any other).
  */
-export function seaCrossing(z: ZoneDef, x: number, y: number, zones: Record<ZoneId, ZoneDef>): SeaCrossing | null {
-  return edgeCrossing(z, x, y, zones, 'boat');
+export function seaCrossing(
+  z: ZoneDef,
+  x: number,
+  y: number,
+  zones: Record<ZoneId, ZoneDef>,
+  flags: Record<string, boolean> | null = null,
+): SeaCrossing | null {
+  return edgeCrossing(z, x, y, zones, 'boat', flags);
 }
 
 /**
@@ -132,10 +146,13 @@ export function edgeCrossing(
   y: number,
   zones: Record<ZoneId, ZoneDef>,
   mode: TravelMode,
+  /** The story flags: a boat never sails off a cell under standing fog (null: fog ignored). */
+  flags: Record<string, boolean> | null = null,
 ): SeaCrossing | null {
   if (mode === 'foot') return null;
   const sea = mode === 'boat';
   if (!z.seaLinks?.length || (sea && !SEA_CHARS.has(tileAt(z, x, y)))) return null;
+  if (sea && flags && fogAt(z, x, y, flags)) return null;
   const cols = z.map[0].length;
   const rows = z.map.length;
   const sides: Side[] = [];

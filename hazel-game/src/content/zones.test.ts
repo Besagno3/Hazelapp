@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  GREAT_FOGBANK,
   ZONES,
   ZONE_IDS,
   LEGEND_CHARS,
@@ -18,11 +19,11 @@ import {
   SEA_CHARS,
 } from './zones';
 import { edgeLinkProblem, exitSide } from '../lib/transition';
-import { edgeCrossing, seaEntryCell } from '../lib/travel';
+import { edgeCrossing, flownLink, seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
-import { NPC_DEFS, lineText, visibleLines } from './npcs';
+import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
 import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
@@ -1205,7 +1206,28 @@ describe('Taleshore and Port Lantern (#75 item 15c)', () => {
     expect(typeof first !== 'string' && first.setFlag).toBe(MET_GALE);
   });
 
+  it('only Ember crosses the Great Fogbank: a boat never sails off a fogged cell (15c review round 3)', () => {
+    const sea = ZONES['silver-shallows'];
+    const east = sea.map[0].length - 1;
+    const rows = sea.map.flatMap((r, y) => (r[east] === '~' ? [y] : []));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const y of rows) expect(edgeCrossing(sea, east, y, ZONES, 'boat', {}), `row ${y}`).toBeNull();
+    // …and no boat reaches that edge at all.
+    const boatReach = reach(sea, { from: { x: 1, y: 22 }, aboard: true, modes: ['boat'] });
+    for (const y of rows) expect(boatReach.has(`${east},${y}`)).toBe(false);
+    // Once the fog lifts (15g), boats cross, and the link isn't flown-only any more.
+    const bank = sea.fogs!.find((f) => f.id === GREAT_FOGBANK)!;
+    const lifted = { [bank.liftedBy[0]]: true };
+    expect(rows.some((y) => edgeCrossing(sea, east, y, ZONES, 'boat', lifted) !== null)).toBe(true);
+    expect(flownLink('silver-shallows', 'taleshore')).toBe(true);
+    expect(flownLink('silver-shallows', 'taleshore', lifted)).toBe(false);
+    expect(flownLink('dawnreach', 'silver-shallows')).toBe(false);
+  });
+
   it('things are props: they never step aside, and never wander (15c review)', () => {
+    expect(isThing(NPC_DEFS['port-board'])).toBe(true);
+    expect(isThing(NPC_DEFS['dawn-sign-west'] ?? Object.values(NPC_DEFS).find((d) => d.signpost))).toBe(true);
+    expect(isThing(NPC_DEFS['port-harbormaster'])).toBe(false);
     for (const id of ['port-board', 'roost-stone', 'marsh-stone', 'marsh-lantern-west']) expect(NPC_DEFS[id].prop, id).toBe(true);
     for (const def of Object.values(NPC_DEFS)) if (def.prop) expect(def.stationary, def.id).toBe(true);
   });
@@ -1222,6 +1244,8 @@ describe('Taleshore and Port Lantern (#75 item 15c)', () => {
     expect(port.enemies).toEqual([]);
     expect(RETURN_TOWNS).toContain('port-lantern');
     expect(port.buildings!.filter((b) => b.sign === 'inn')).toHaveLength(1);
+    // "the … Inn in …" reads right for every inn (15c review: "the The Driftlight Inn").
+    for (const id of RETURN_TOWNS) for (const b of ZONES[id].buildings ?? []) if (b.sign === 'inn') expect(b.name, id).not.toMatch(/^The /);
     expect(port.npcs.map((n) => NPC_DEFS[n.defId].role)).not.toContain('librarian');
     expect(port.npcs.map((n) => n.defId)).toContain('port-board');
     expect(new Set(port.buildings!.map((b) => b.style))).toEqual(new Set(['harbor']));

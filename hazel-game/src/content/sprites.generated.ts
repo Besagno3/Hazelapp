@@ -9347,5 +9347,46 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
         }
       }
     }
+  },
+  "port-office-note": {
+    "emoji": "📝",
+    "world": {
+      "sheet": "/sprites/port-office-note/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 1,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "walk": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "idleDown": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "walkDown": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "idleUp": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "walkUp": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        }
+      }
+    }
   }
 };

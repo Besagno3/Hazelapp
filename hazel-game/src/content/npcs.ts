@@ -98,6 +98,11 @@ export interface WorldNpcDef {
   prop?: boolean;
 }
 
+/** A thing, not a person — a prop or a signpost (15c review): it never steps aside. */
+export function isThing(def: Pick<WorldNpcDef, 'prop' | 'signpost'> | undefined): boolean {
+  return !!(def?.prop || def?.signpost);
+}
+
 /** Resolves which lines apply given the current story flags. */
 export function visibleLines(lines: DialogueLine[], flags: Record<string, boolean>): DialogueLine[] {
   return lines.filter((l) => {
@@ -1867,7 +1872,6 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     id: 'port-office-note',
     name: "Gale's Note",
     sprite: '📝',
-    spriteId: 'port-board',
     role: 'villager',
     prop: true,
     stationary: true,
