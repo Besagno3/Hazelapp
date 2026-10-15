@@ -506,7 +506,7 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
     expect(mentorTips(ZONES, { ...met, ...chorusWon })[0]).toMatch(/^You have the First Chorus Key! The Riddle Leviathan guards the second in Inkwell Cove\. Follow the road east from Port Lantern, then north\./);
     expect(mentorTips(ZONES, { ...met, ...chorusBoth })[0]).toBe("You hold both Chorus Keys! Together they open the Hush Fiend's gate on Chorus Isle, far out at sea west of Port Lantern. Fly there, and free the Crystal of Voices!");
-    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe("Six crystals shine! Now fly to the Chartmaker's little island, at the very top of Taleshore's map — even further north than the Wayfinder Isles. He's drawn every place but one. Which one? Go and ask!");
+    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe("Six crystals shine! Fly to the Chartmaker's little island — look for 🌐 on your map. He's drawn every place but one. Which one? Go and ask!");
     // The way there is flown from home, even though boats cross now — and sailed while aboard (round 3).
     const chart = nextObjective(voicesFreed);
     expect(goalDirections(ZONES, chart, 'lumina-village', undefined, voicesFreed)).toMatch(/fly east to Taleshore, then fly north-east to Chartmaker's Rest, then land beside it and walk in\.$/);

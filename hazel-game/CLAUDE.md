@@ -780,6 +780,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15h review round 3 (UX): one landmark, a dry quill (#75 item 15h, #142k)
+Fresh UX review, played at every quest stage (1 medium, 5 low, 3 nits), all
+fixed but one kept (the study's shared interior tiles): "north-west past the
+Wayfinder Isles" and 🌐 everywhere, Inka and Pen point at the study, the nest
+says the quill needs Inka's ink (`foundNote`), a shorter ending and
+before-Voices line, a bigger X. 1300 green.
+
 ### 2026-10-15 — 15h review round 3 (code): flown all the way, sailed when sailing (#75 item 15h, #142j)
 Fresh code review (3 low-to-medium, 1 nit), all fixed: a byAir place is
 flown to all the way once Ember flies; aboard, it's sailed and landed; the

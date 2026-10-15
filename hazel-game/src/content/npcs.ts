@@ -1920,7 +1920,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'OLD SAILORS SAY: far out west, straight across the sea from Port Lantern, lies Chorus Isle, where everyone used to sing. Nobody has heard a note from it in years.', unlessFlag: crystalFlag('words') },
       { text: "GREAT NEWS: Chorus Isle is singing again — and the Great Fogbank has thinned! Boats from the Silver Shallows can sail right into Port Lantern now.", ifFlag: crystalFlag('words') },
       // Chartmaker's Rest (#75 item 15h review round 1): the board points the way too.
-      { text: "WANTED: a helper for the Chartmaker, on his little island far up north-west — even further than the Wayfinder Isles. He says he's missing one place. Just ONE!", ifFlag: crystalFlag('words'), unlessFlag: BLANK_CHART_HELD },
+      { text: "WANTED: a helper for the Chartmaker, on his little island out at sea, north-west past the Wayfinder Isles. Look for 🌐 on your map! He says he's missing one place. Just ONE!", ifFlag: crystalFlag('words'), unlessFlag: BLANK_CHART_HELD },
       'Check back soon for more notices!',
     ],
   },
@@ -2524,10 +2524,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     // His quest's offer comes first ("The Blank Chart", once Voices rings); these follow it.
     lines: [
-      {
-        text: "I'm the Chartmaker! I've charted every place in Lumina but one. While the hush lies over the sea, my ink forgets everything. Free the Crystal of Voices — and keep anything shiny you find for me!",
-        unlessFlag: crystalFlag('words'),
-      },
+      { text: "I'm the Chartmaker! I've charted every place in Lumina but one.", unlessFlag: crystalFlag('words') },
+      { text: 'My ink keeps fading until the Crystal of Voices sings again. Free it — and keep anything shiny you find for me!', unlessFlag: crystalFlag('words') },
       {
         text: "Keep the Blank Chart safe. Every chart has edges — but a blank in the MIDDLE? That's a mystery worth solving.",
         ifFlag: BLANK_CHART_HELD,
@@ -2540,6 +2538,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🐦',
     role: 'villager',
     lines: [
+      { text: 'Squawk! Chartmaker inside! Blue roof! Squawk!', unlessFlag: questOfferedFlag({ id: BLANK_CHART_QUEST }) },
       { text: 'Squawk! Shiny! Pen likes SHINY. Pen keeps shiny in the nest. Squawk!', unlessFlag: questDoneFlag({ id: BLANK_CHART_QUEST }) },
       { text: 'Squawk… shiny quill went home. Pen sad. Chart is shiny too! Pen happy. Squawk!', ifFlag: questDoneFlag({ id: BLANK_CHART_QUEST }) },
     ],
@@ -2552,6 +2551,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
+      { text: "The Chartmaker's in the blue-roofed study — go say hi!", unlessFlag: questOfferedFlag({ id: BLANK_CHART_QUEST }) },
       { text: "I'm Inka! I mix the Chartmaker's inks: sea-blue, forest-green, sunset-red. Today I'm trying starlight.", unlessFlag: BLANK_CHART_HELD },
       { text: 'Starlight ink worked! Now I want to try moonlight. Or puddle-light.', ifFlag: BLANK_CHART_HELD },
       { text: 'The chart even drew ME. Teeny tiny! I\'ve never been on a map before.', ifFlag: BLANK_CHART_HELD },

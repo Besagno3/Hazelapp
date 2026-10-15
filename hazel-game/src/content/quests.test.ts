@@ -1176,6 +1176,8 @@ describe("The Blank Chart (#75 item 15h): Pen's nest, Inka's ink, the Chartmaker
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
     // Mid-quest he reminds you in his own voice (round 1).
     expect(questConversation('chart-chartmaker', save)!.lines.join(' ')).toMatch(/right of my study/);
+    // Opened after he asks, the nest says the quill is dry and where Inka is (round 3).
+    expect(chestWantedLine(save, nest)).toMatch(/bone dry! Inka/);
     // Inka has nothing to ink until the quill is found.
     expect(questConversation('chart-inka', save)).toBeNull();
     save = openChest(save, nest);

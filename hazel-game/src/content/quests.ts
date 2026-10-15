@@ -1383,7 +1383,7 @@ export const QUESTS: QuestDef[] = [
           "Pen hid the Compass Quill in her 🎁 nest — the chest just right of the Chartmaker's study.",
         ),
         // In his own voice when you talk to him (15h review round 1).
-        remind: "Pen's 🎁 nest is the chest just right of my study. Please bring my quill back!",
+        remind: "Pen's 🎁 nest is the chest just right of my study. Find my quill — it'll need Inka's ink!",
       },
       {
         ...bringStep(
@@ -1399,11 +1399,13 @@ export const QUESTS: QuestDef[] = [
         remind: "My quill! Oh — it's dry as a bone. Take it to Inka, on the left (west) side of the island. She mixes my inks.",
       },
     ],
+    // Opened once he's asked: the quill is dry, so on to Inka (15h review round 3).
+    foundNote: () => "✒️ The Chartmaker's Compass Quill — bone dry! Inka, on the left (west) side of the island, mixes his inks.",
     takesItems: ['starlit-quill'],
     doneLine: 'Take the Starlit Quill back to the Chartmaker, in his study!',
     complete: [
       '✨ The Chartmaker dips the Starlit Quill and draws. Dawnreach… the Silver Shallows… Taleshore… every place you\'ve been, all at once!',
-      'But look — right under the Crystal Spire, one spot stays blank. Nothing sticks there. Not even starlight ink.',
+      'Hmm… one spot won\'t take the ink. Not even starlight ink.',
       '"Take it! I\'ll call it the Blank Chart, for its one blank spot. A blank like that isn\'t NOTHING — it\'s something the whole world forgot."',
       '🗺️ You got the Blank Chart! ✨ Reward: 60 coins and a Honey Elixir!',
     ],

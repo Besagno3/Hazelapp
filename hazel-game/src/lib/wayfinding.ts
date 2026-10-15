@@ -301,7 +301,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         return {
           kind: 'visit',
           title: 'Visit the Chartmaker',
-          why: "The Chartmaker has drawn every place in Lumina but one. His little island is out at sea, at the top of Taleshore's map. Fly there on Ember!",
+          why: "The Chartmaker has drawn every place in Lumina but one. His little island is out at sea, north-west past the Wayfinder Isles — look for 🌐 on your 📜 Menu map. Fly there on Ember!",
           zoneId: 'chartmakers-rest',
           doneFlag: BLANK_CHART_HELD,
           npc: 'chart-chartmaker',
@@ -689,7 +689,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
-    plan = `${shining} crystals shine! Now fly to the Chartmaker's little island, at the very top of Taleshore's map — even further north than the Wayfinder Isles. He's drawn every place but one. Which one? Go and ask!`;
+    plan = `${shining} crystals shine! Fly to the Chartmaker's little island — look for 🌐 on your map. He's drawn every place but one. Which one? Go and ask!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     plan = `${shining} crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!`;
   } else if (goal.kind === 'visit') {

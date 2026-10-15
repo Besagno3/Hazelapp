@@ -1498,17 +1498,17 @@ def ow_icon(kind):
         c.ellipse(8, 13.6, 7.6, 2.2, '#3a8ad0')
         c.ellipse(8, 12, 6.4, 2.6, '#e8d8a8')
         c.ellipse(8, 11, 5.4, 2.0, '#96b278')
-        c.rect(2.6, 6.6, 8.6, 11, '#efe2bf')
-        c.poly([(1.8, 7.0), (5.6, 3.6), (9.4, 7.0)], '#2a4a8a')
-        c.rect(4.8, 8.6, 6.4, 11, '#6a4a2a', shade=False)
-        # A tan parchment chart, a dotted path and a red X marks the spot (not a "+": round 1 read it as a hospital).
-        c.rect(10, 4.4, 14.6, 9.6, '#e8cf98')
-        c.ellipse(10, 7, 0.9, 2.6, '#c8a868')
-        c.ellipse(14.6, 7, 0.9, 2.6, '#c8a868')
-        for (x, y) in ((11, 8.6), (11.8, 8.0), (12.4, 7.4)):
+        c.rect(1.8, 8.0, 5.8, 11, '#efe2bf')
+        c.poly([(1.2, 8.3), (3.8, 5.8), (6.4, 8.3)], '#2a4a8a')
+        # A big tan parchment chart, a dotted path and a red X marks the spot (not a "+":
+        # round 1 read it as a hospital; round 3 wanted it bigger and plainer).
+        c.rect(6.6, 1.6, 15.2, 9.8, '#ead2a0')
+        c.rect(6.6, 1.6, 15.2, 2.4, '#c8a868', shade=False)
+        c.rect(6.6, 9.0, 15.2, 9.8, '#c8a868', shade=False)
+        for (x, y) in ((8, 8.0), (9, 7.2), (10, 6.4)):
             c.dot(x, y, '#6a4a2a')
-        c.line(11.4, 4.8, 14.4, 7.8, '#d02a2a', w=1.1)
-        c.line(14.4, 4.8, 11.4, 7.8, '#d02a2a', w=1.1)
+        c.line(10.6, 3.0, 14.0, 6.6, '#d02a2a', w=1.4)
+        c.line(14.0, 3.0, 10.6, 6.6, '#d02a2a', w=1.4)
     elif kind == 'quarter':
         # The Quiet Quarter (#75 item 15f): two grey-blue houses with lavender roofs and a crescent moon.
         for (x0, y0) in ((1, 7), (8, 6)):

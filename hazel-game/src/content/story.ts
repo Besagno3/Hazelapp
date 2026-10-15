@@ -521,7 +521,7 @@ export const ROOST_PANELS: StoryPanel[] = [
 export const CHART_PANELS: StoryPanel[] = [
   {
     emoji: '🗺️',
-    text: 'The Blank Chart is all of Lumina, drawn in starlight ink. Every place you have been twinkles on it — even the Dragon\'s Roost!',
+    text: 'The Blank Chart is all of Lumina, drawn in starlight ink. Every place you\'ve been twinkles brightest — even the Dragon\'s Roost!',
   },
   {
     emoji: '🗼',
@@ -533,7 +533,7 @@ export const CHART_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🎶',
-    text: 'Far away, a small voice hums. It is the voice from the Crystal of Voices: "You found every place… one day, find me."',
+    text: 'Far away, a small voice hums. It is the voice from the Crystal of Voices: "You\'ve been to so many places… one day, find me."',
   },
 ];
 

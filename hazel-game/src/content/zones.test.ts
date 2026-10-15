@@ -1614,8 +1614,8 @@ describe("Chartmaker's Rest: Act III's last place (#75 item 15h)", () => {
 
   it('before Voices the Chartmaker says to free it first; with the chart, he says to keep it safe', () => {
     const said = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['chart-chartmaker'].lines, flags).map(lineText).join(' ');
-    expect(said({})).toMatch(/Free the Crystal of Voices/);
-    expect(said({ [crystalFlag('words')]: true })).not.toMatch(/Free the Crystal of Voices/);
+    expect(said({})).toMatch(/Crystal of Voices sings again\. Free it/);
+    expect(said({ [crystalFlag('words')]: true })).not.toMatch(/Free it/);
     expect(said({ [crystalFlag('words')]: true, [BLANK_CHART_HELD]: true })).toMatch(/Keep the Blank Chart safe/);
   });
 });
