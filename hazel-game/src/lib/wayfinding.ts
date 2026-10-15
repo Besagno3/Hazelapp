@@ -525,7 +525,9 @@ export function routeSteps(
       const offIsland = !!around && !walkable;
       // "the Wayfinder Isles": land beside them (15d review).
       const them = PLURAL_PLACES.has(dest.id) ? 'them' : 'it';
-      if (dir && !walkable && (flying || byAir || offIsland)) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
+      // Sailing right now (15h review round 3): no Fly button aboard, so sail up and go ashore.
+      if (dir && !walkable && aboard && !stranded && byAir) steps.push(`sail ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
+      else if (dir && !walkable && (flying || byAir || offIsland)) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
       else steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
       const stairs = z.map[exit.y]?.[exit.x];
@@ -598,7 +600,10 @@ export function goalDirections(
   const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
   // …unless the hero is sailing right now (15g review round 4).
-  return sentence(goal.kind === 'fly' && !aboard ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
+  // A place only Ember reaches is flown to all the way, once she flies — even
+  // after Voices lets boats cross (15h review round 3: "Sail east… then fly").
+  const byAirGoal = !!flags && canFly(flags) && Object.values(zones).some((z) => z.places?.some((pl) => pl.byAir && z.exits.some((e) => e.to === goal.zoneId && e.x === pl.x && e.y === pl.y)));
+  return sentence((goal.kind === 'fly' || byAirGoal) && !aboard ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
 }
 
 // --- The mentor (Elder Lumen, #75 item 8) ------------------------------------------
@@ -684,7 +689,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
-    plan = `${shining} crystals shine! Now fly to the Chartmaker's little island, at the very top of Taleshore's map, north of Port Lantern. He's drawn every place but one. Which one? Go and ask!`;
+    plan = `${shining} crystals shine! Now fly to the Chartmaker's little island, at the very top of Taleshore's map — even further north than the Wayfinder Isles. He's drawn every place but one. Which one? Go and ask!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     plan = `${shining} crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!`;
   } else if (goal.kind === 'visit') {

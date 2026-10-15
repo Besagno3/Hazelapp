@@ -1920,7 +1920,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'OLD SAILORS SAY: far out west, straight across the sea from Port Lantern, lies Chorus Isle, where everyone used to sing. Nobody has heard a note from it in years.', unlessFlag: crystalFlag('words') },
       { text: "GREAT NEWS: Chorus Isle is singing again — and the Great Fogbank has thinned! Boats from the Silver Shallows can sail right into Port Lantern now.", ifFlag: crystalFlag('words') },
       // Chartmaker's Rest (#75 item 15h review round 1): the board points the way too.
-      { text: "WANTED: a helper for the Chartmaker, on his little island far north of here. He says he's missing one place. Just ONE!", ifFlag: crystalFlag('words'), unlessFlag: BLANK_CHART_HELD },
+      { text: "WANTED: a helper for the Chartmaker, on his little island far up north-west — even further than the Wayfinder Isles. He says he's missing one place. Just ONE!", ifFlag: crystalFlag('words'), unlessFlag: BLANK_CHART_HELD },
       'Check back soon for more notices!',
     ],
   },

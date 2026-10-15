@@ -2239,7 +2239,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Great Fogbank thins (then a boat can land on its beach, as on the other isles).
       { x: 7, y: 21, icon: 'chorus', name: 'Chorus Isle', byAir: true },
       // Act III's last place (#75 item 15h): the Chartmaker's island, out at sea
-      // north-west of Port Lantern — only Ember reaches it (boats too, once Voices thins the fog).
+      // north-west of Port Lantern, at the top of the map past the Wayfinder Isles — only Ember reaches it (boats too, once Voices thins the fog).
       { x: 17, y: 3, icon: 'chart', name: "Chartmaker's Rest", byAir: true },
     ],
     exits: [

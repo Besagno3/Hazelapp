@@ -780,6 +780,11 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15h review round 3 (code): flown all the way, sailed when sailing (#75 item 15h, #142j)
+Fresh code review (3 low-to-medium, 1 nit), all fixed: a byAir place is
+flown to all the way once Ember flies; aboard, it's sailed and landed; the
+island is "further than the Wayfinder Isles" everywhere. 1300 green.
+
 ### 2026-10-15 — 15h review round 2: north, not north-west; a quill found first (#75 item 15h, #142i)
 Fresh code (1 medium-low, 4 low, 5 nits) and UX (3 medium, 5 low, 3 nits)
 reviews, all fixed: "north of Port Lantern" (north-west fits the Wayfinder
