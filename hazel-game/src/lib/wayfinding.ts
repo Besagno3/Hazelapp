@@ -301,7 +301,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         return {
           kind: 'visit',
           title: 'Visit the Chartmaker',
-          why: "The Chartmaker has drawn every place in Lumina but one. His little island is out at sea at the very top of Taleshore's map, above the Wayfinder Isles — look for 🌐 on your 📜 Menu map.",
+          why: "The Chartmaker has drawn every place but one! His island is at the very top of Taleshore's map 🌐",
           zoneId: 'chartmakers-rest',
           doneFlag: BLANK_CHART_HELD,
           npc: 'chart-chartmaker',
@@ -312,7 +312,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[BLANK_CHART_HELD]
-          ? "The Blank Chart shows one place nobody remembers, under the Crystal Spire — a mystery for another day. Look in your quest list for anyone still waiting for help!"
+          ? "The Blank Chart shows one place nobody remembers, under the Crystal Spire — a mystery for another day. Fly anywhere, and help anyone who needs you!"
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -450,7 +450,7 @@ function chartInside(flags: Record<string, boolean>): string {
   if (!flags[questOfferedFlag(quest)]) return 'The Chartmaker is in his study, the blue-roofed house.';
   // The find step has no flag of its own (it's what you carry); Inka's step says the quill is inked.
   if (!flags[stepFlag('chart-quill-ink')] && !flags[handedOverFlag('compass-quill')]) {
-    return "Take the Compass Quill (it's in Pen's 🎁 nest, the chest right of the study) to Inka, on the left (west) side.";
+    return "Take the Compass Quill (it's in Pen's nest, the chest right of the study) to Inka, on the left (west) side.";
   }
   return 'Take the Starlit Quill back to the Chartmaker, in his study.';
 }
@@ -709,7 +709,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
-    plan = `${shining} crystals shine! Fly to the Chartmaker's little island — look for 🌐 on your map. He's drawn every place but one. Which one? Go and ask!`;
+    plan = `${shining} crystals shine! Fly east, all the way to Taleshore. The Chartmaker's island is at the very top of its map — look for the globe there 🌐`;
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     plan = `${shining} crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!`;
   } else if (goal.kind === 'visit') {
@@ -721,7 +721,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[BLANK_CHART_HELD]) {
-    plan = 'You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, help the folk of Taleshore. Check 📜 Menu!';
+    plan = 'You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, fly anywhere, and help anyone who needs you!';
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {

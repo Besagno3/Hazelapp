@@ -780,6 +780,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15h /saas-code-review + /saas-ux-review: an old tab asks for a refresh, shorter guides (#75 item 15h, #142n)
+All fixed on the owner's say-so. Code (1 low): `saveIsTooNew` also refuses a
+current-version save standing in (or resting at) a place this build doesn't
+know, so an old tab asks for a refresh instead of moving the hero home. UX (2
+medium, 2 low, 3 nits): a one-sentence 🚩 why, Lumen says Taleshore, Inka
+points back once inked, no pointing at an empty quest list, intros first, emoji
+off mid-sentence. 1300 green.
+
 ### 2026-10-15 — 15h review round 4 (UX): hold on to the quill (#75 item 15h, #142m)
 The last round. Fresh UX review over 8 saves (2 medium, 3 low, 3 nits), all
 fixed: before Voices the quill is kept for him, a 🚩 why with no compass word,

@@ -132,7 +132,7 @@ describe('nextObjective', () => {
     // On the island the way follows his quest: him, then Pen's nest and Inka, then back to him (round 1).
     const offered = { ...voicesFreed, [questOfferedFlag({ id: BLANK_CHART_QUEST })]: true };
     expect(nextObjective(voicesFreed).inside).toMatch(/^The Chartmaker is in his study/);
-    expect(nextObjective(offered).inside).toMatch(/^Take the Compass Quill \(it's in Pen's 🎁 nest/);
+    expect(nextObjective(offered).inside).toMatch(/^Take the Compass Quill \(it's in Pen's nest/);
     expect(nextObjective({ ...offered, [stepFlag('chart-quill-ink')]: true }).inside).toMatch(/^Take the Starlit Quill back to the Chartmaker/);
     expect(goalDirections(ZONES, nextObjective(offered), 'chartmakers-rest')).toMatch(/^It's right here on Chartmaker's Rest!/);
     // On the isle, the way says where the gate is (round 2), and an island is "on".
@@ -252,7 +252,7 @@ describe('nextObjective', () => {
     expect(nextObjective(storyDone).why).toMatch(/^Ember can fly! Tap 🐉 Fly/);
     // …then the whole sky: no "soon you'll fly" once she can.
     expect(nextObjective(chorusBoth).why).toMatch(/^Both Chorus Keys together open the Hush Fiend's gate on Chorus Isle/);
-    expect(nextObjective(voicesFreed).why).toMatch(/^The Chartmaker has drawn every place in Lumina but one/);
+    expect(nextObjective(voicesFreed).why).toMatch(/^The Chartmaker has drawn every place but one!/);
     expect(nextObjective(chartHeld).why).toMatch(/^The Blank Chart shows one place nobody remembers, under the Crystal Spire/);
     expect(mentorTips(ZONES, { ...voicesFreed, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
   });
@@ -506,7 +506,7 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
     expect(mentorTips(ZONES, { ...met, ...chorusWon })[0]).toMatch(/^You have the First Chorus Key! The Riddle Leviathan guards the second in Inkwell Cove\. Follow the road east from Port Lantern, then north\./);
     expect(mentorTips(ZONES, { ...met, ...chorusBoth })[0]).toBe("You hold both Chorus Keys! Together they open the Hush Fiend's gate on Chorus Isle, far out at sea west of Port Lantern. Fly there, and free the Crystal of Voices!");
-    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe("Six crystals shine! Fly to the Chartmaker's little island — look for 🌐 on your map. He's drawn every place but one. Which one? Go and ask!");
+    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe("Six crystals shine! Fly east, all the way to Taleshore. The Chartmaker's island is at the very top of its map — look for the globe there 🌐");
     // The way there is flown from home, even though boats cross now — and sailed while aboard (round 3).
     const chart = nextObjective(voicesFreed);
     expect(goalDirections(ZONES, chart, 'lumina-village', undefined, voicesFreed)).toMatch(/fly east to Taleshore, then fly north-east to Chartmaker's Rest, then land beside it and walk in\.$/);
@@ -518,7 +518,9 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(goalDirections(ZONES, nextObjective(storyDone), 'dawnreach', seaCell(ZONES.dawnreach), storyDone, true)).not.toMatch(/^Sail .*Dragon's Roost/);
     expect(goalDirections(ZONES, nextObjective(galeMet), 'silver-shallows', seaCell(ZONES['silver-shallows']), galeMet, true)).not.toMatch(/sail north/);
     // With the Blank Chart (#75 item 15h): its empty spot, a puzzle for later — like the 🚩 says (round 1).
-    expect(mentorTips(ZONES, { ...met, ...chartHeld })[0]).toBe('You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, help the folk of Taleshore. Check 📜 Menu!');
+    expect(mentorTips(ZONES, { ...met, ...chartHeld })[0]).toBe('You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, fly anywhere, and help anyone who needs you!');
+    // The guides' "Where to next?" stays short (saas UX review): the why is a sentence or two.
+    expect(nextObjective(voicesFreed).why.split(/\s+/).length).toBeLessThanOrEqual(20);
     // Lumen counts every crystal shining: a skipped Hall dedication after Voices says six, not five (round 4).
     expect(mentorTips(ZONES, { ...met, ...voicesFreed, [HALL_DEDICATED]: false })[0]).toMatch(/^Six crystals shine now! And they say something new is happening in the Hall of Names/);
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.

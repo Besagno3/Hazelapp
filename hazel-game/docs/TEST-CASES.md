@@ -1411,3 +1411,5 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1205 | A | ✅ | aboard, never sailed to where no boat lands (#142l) | `wayfinding.test`: aboard on Dawnreach's sea, the Roost isn't "Sail…"; aboard in the Shallows before Voices, no "sail north" to the Wayfinder Isles (fails without the fix) |
 | TC-1206 | A | ✅ | Inka says what she needs (#142m) | `zones.test`: with the quest offered and the quill not inked, Inka asks for his Compass Quill; once inked, she doesn't |
 | TC-1207 | M | ⬜ | before Voices, the quill is kept for him (#142m) | fly to the Rest before Chorus Isle, open Pen's nest: "Keep it safe — he'll need it once the Crystal of Voices sings"; he says to hold on to it till then |
+| TC-1208 | A | ✅ | an old tab doesn't move a hero out of a newer place (#142n) | `save.test`: `saveIsTooNew` for a current save naming an unknown place (zone or `lastRest`); not for a v1 retired place, junk, or `constructor` |
+| TC-1209 | A | ✅ | short guide lines, Inka points back (#142n) | `wayfinding.test`: the Chartmaker goal's why ≤ 20 words, Lumen's new lines; `zones.test`: Inka's "It worked!" once inked, "I'm Inka!" first |

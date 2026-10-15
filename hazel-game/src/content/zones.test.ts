@@ -1622,6 +1622,9 @@ describe("Chartmaker's Rest: Act III's last place (#75 item 15h)", () => {
     const offered = { [crystalFlag('words')]: true, [questOfferedFlag({ id: 'blank-chart' })]: true };
     expect(inka(offered)).toMatch(/Bring me his Compass Quill/);
     expect(inka({ ...offered, [stepFlag('chart-quill-ink')]: true })).not.toMatch(/Bring me his Compass Quill/);
+    // Inked, she points back to him, and says who she is first before he's asked (saas UX review).
+    expect(inka({ ...offered, [stepFlag('chart-quill-ink')]: true })).toMatch(/^It worked! Run the Starlit Quill back/);
+    expect(inka({})).toMatch(/^I'm Inka!/);
   });
 });
 

@@ -1365,7 +1365,7 @@ export const QUESTS: QuestDef[] = [
       "Ah, a visitor! I'm the Chartmaker. I've drawn a chart of every place in Lumina — every town, every island, every hill.",
       "Every place but ONE. There's a place I can never name. Each time I try, my ink fades away, as if the world forgot it.",
       'Now the Crystal of Voices sings, I think I can chart it at last! But my seabird Pen flew off with my Compass Quill.',
-      'Pen hides shiny things in her 🎁 nest — the chest just right of my study.',
+      'Pen hides shiny things in her nest — the chest just right of my study.',
     ],
     offerHaving: {
       items: ['compass-quill', 'starlit-quill'],
@@ -1380,10 +1380,10 @@ export const QUESTS: QuestDef[] = [
         ...haveStep(
           'chart-quill-find',
           [{ items: ['compass-quill', 'starlit-quill'], label: 'the Compass Quill' }],
-          "Pen hid the Compass Quill in her 🎁 nest — the chest just right of the Chartmaker's study.",
+          "Pen hid the Compass Quill in her nest — the chest just right of the Chartmaker's study.",
         ),
         // In his own voice when you talk to him (15h review round 1).
-        remind: "Pen's 🎁 nest is the chest just right of my study. Find my quill — it'll need Inka's ink!",
+        remind: "Pen's nest is the chest just right of my study. Find my quill — it'll need Inka's ink!",
       },
       {
         ...bringStep(
