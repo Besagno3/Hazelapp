@@ -770,11 +770,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15f review round 3: one tall cliff, steps with walls (#75 item 15f, #140j)
+Fresh code (1 low, 2 nits) and UX (2 medium, 11 low) reviews, all fixed but
+one kept (rounded ramp ends): a cliff tile that stacks into one face, walled
+stair treads, the Drum Crab off the stairs, a stand-in test for a song stone
+before its song, clearer directions, bell / finger / scarf / notes that read
+on the map, Sage remembers Shush. Tests +1; 1265 green.
+
 ### 2026-10-15 — 15f review round 2: steps up the cliffs, a page not a skull (#75 item 15f, #140i)
 Fresh code (1 latent low, 4 nits) and UX (3 medium, 9 low) reviews, all
 fixed but one kept (one ground colour a zone): double cliff walls and carved
 stair ramps (`steps`), a wrong note only while the song is due, `wrongNote`
-required, the Blank Sprite a page, directions on the board and from Hob,
+required by quests.test, the Blank Sprite a page, directions on the board and from Hob,
 clearer stones and critters. Tests +1; 1264 green.
 
 ### 2026-10-15 — 15f review round 1: cliffs that look like cliffs, a song that says what's next (#75 item 15f, #140h)

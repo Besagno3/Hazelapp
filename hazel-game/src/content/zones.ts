@@ -2718,7 +2718,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'echo-bat', x: 40, y: 13 },
       { defId: 'chime-gull', x: 25, y: 7 },
       { defId: 'chime-gull', x: 38, y: 18 },
-      { defId: 'drum-crab', x: 5, y: 17 },
+      { defId: 'drum-crab', x: 14, y: 15 }, // clear of both stair mouths (15f round 3)
       { defId: 'drum-crab', x: 37, y: 22 },
     ],
     exits: [

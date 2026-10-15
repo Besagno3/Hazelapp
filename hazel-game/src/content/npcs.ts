@@ -261,6 +261,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: ACT2_SEEN,
       },
       'Every question you ever missed waits in my library. Beat it here, and it makes you stronger!',
+      // The Pen-Pal Papers (#75 item 15f round 3): Sage remembers Shush.
+      { text: "Shush's letters always smell of candle wax. I've started my next one already!", ifFlag: questDoneFlag({ id: SHUSH_QUEST }) },
     ],
   },
   'hub-merchant': {
@@ -1877,7 +1879,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'BEWARE: a whale that talks in riddles lives in Inkwell Cove, where the water turns black as ink — east off the north road. Scrivener Dot says it has a key.', unlessFlag: keyFlag('chorus-b') },
       { text: 'NEWS: someone answered every one of the Riddle Leviathan\'s riddles! Scrivener Dot wrote it all down.', ifFlag: keyFlag('chorus-b') },
       // Taleshore III (#75 item 15f).
-      { text: "CHOIR NEWS: the Songstone Cliffs' song is stuck! Take the north road up to the mountains, then turn east. Choir-Mistress Reso needs a listener.", unlessFlag: questDoneFlag({ id: RESO_QUEST }) },
+      { text: "CHOIR NEWS: the Songstone Cliffs' song is stuck! Take the north road past the Inkwell Cove turn, then turn east under the mountains. Reso needs a listener!", unlessFlag: questDoneFlag({ id: RESO_QUEST }) },
       { text: 'SHH: the Quiet Quarter is east off the south road. Please whisper there. Librarian Shush insists.' },
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
       'Check back soon for more notices!',
@@ -1953,7 +1955,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     // Says which stone is next until that one rings too (15f review).
     lines: [
-      { text: '🔔 The high songstone is still ringing. Next: the MIDDLE songstone, on the middle ledge to the east — find it before you go down!', unlessFlag: stepFlag(RESO_STONES[1]) },
+      { text: '🔔 The high songstone is still ringing. Next: the MIDDLE songstone, on the middle ledge — go down the east steps. Ring it before the low one!', unlessFlag: stepFlag(RESO_STONES[1]) },
       { text: '🔔 The high songstone is still ringing: DIIING! A high, bright note, humming on and on.', ifFlag: stepFlag(RESO_STONES[1]) },
     ],
   },
@@ -2032,7 +2034,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'merchant',
     lines: [
       'Psst. Over here. I sell secrets. Mostly recipes. VERY secret recipes.',
-      "And candles. Light one in a tricky battle for a free hint. Shh — that one's free advice.",
+      "And candles — for slippery critters, like the Latitude Cats out on the Wayfinder Isles. Shh!",
     ],
   },
   // --- Taleshore II (#75 item 15e) --------------------------------------------

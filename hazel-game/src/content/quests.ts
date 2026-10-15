@@ -134,9 +134,10 @@ export interface QuestStep {
    */
   riddle?: { solved: string };
   /**
-   * A song step (#75 item 15f): talked to out of turn, its thing is a wrong
-   * note — every song step of its quest is un-done and the song starts again
-   * (roadmap decision 14: no timers, the song just restarts).
+   * A song step (#75 item 15f): talked to out of turn while the song is due,
+   * its thing is a wrong note — every song step of its quest is un-done and the
+   * song starts again (roadmap decision 14: no timers, the song just restarts).
+   * Before the song is due, it's an ordinary "not this one yet".
    */
   song?: boolean;
 }
@@ -189,7 +190,8 @@ export interface QuestDef {
   /**
    * A song quest's wrong notes (#75 item 15f review): struck out of turn before
    * anything rings (`early`), and after something has rung, so the song starts
-   * again (`again`). Each is followed by the first song step's hint.
+   * again (`again`). Each is followed by the first song step's hint. Every
+   * quest with song steps needs one (quests.test checks).
    */
   wrongNote?: { early: string; again: string };
   /** Only offered once this story flag is set (Act II's quests wait for `act2-seen`, #75 item 14). */
@@ -1221,7 +1223,7 @@ export const QUESTS: QuestDef[] = [
         RESO_STONES[0],
         'songstone-high',
         ['🔔 DIIING! The high songstone rings! Next: the MIDDLE songstone, on the middle ledge to the east.'],
-        'First the HIGH songstone — up on the top ledge, in the west. Climb the steps!',
+        'First the HIGH songstone — on the top ledge, in the west. Climb the west steps, then the east steps!',
       ),
       songStep(
         RESO_STONES[1],

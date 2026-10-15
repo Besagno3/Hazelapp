@@ -193,9 +193,13 @@ def path_tile(base, steps=False):
     _speckle(c, base, 99, density=0.12, tufts=False)
     if steps:
         # Carved stone steps (15f review: Songstone Cliffs' ramps read as a climb).
-        for y in range(0, T, 4):
-            c.a[y, :, :3] = dark(base, 0.35)
-            c.a[y + 1, :, :3] = light(base, 0.15)
+        for i, y in enumerate(range(0, T, 4)):
+            tread = dark(base, 0.05 * i)  # treads darken going down
+            c.a[y:y + 4, :, :3] = tread
+            c.a[y, :, :3] = dark(base, 0.4)
+            c.a[y + 1, :, :3] = light(tread, 0.15)
+        c.a[:, 0, :3] = dark(base, 0.3)  # side walls
+        c.a[:, T - 1, :3] = dark(base, 0.3)
         return c
     rnd = random.Random(7)
     for _ in range(4):
@@ -237,14 +241,16 @@ def solid(kind, zone):
         c.ellipse(8, 10, 7, 5.5, '#9a8a7a')
         c.ellipse(6, 8, 3, 2, '#b8a898')
     elif kind == 'cliff':
-        # Songstone Cliffs (15f review): a cliff face that fills the tile — a lit grassy
-        # lip on top, grey rock with cracks, a dark shadow at its foot.
-        c.rect(0, 0, 16, 16, '#7a7a84')
-        c.rect(0, 0, 16, 3, '#8aa070')
-        c.rect(0, 3, 16, 4.2, '#a8a8b0', shade=False)
-        for (x0, y0, x1, y1) in ((4, 4.2, 3, 10), (3, 10, 5, 14), (10, 4.2, 11.4, 9), (11.4, 9, 10, 13.6)):
+        # Songstone Cliffs (15f review): a cliff face that fills the tile and stacks
+        # seamlessly — two rows read as one tall cliff, not two fences. Grey rock with
+        # long cracks that run on through the next tile, lighter ledges of stone.
+        c.rect(0, 0, 16, 16, '#74747e')
+        for (y0, y1) in ((2, 3.2), (9, 10.2)):
+            c.rect(0, y0, 16, y1, '#8e8e98', shade=False)  # bands of lighter stone
+        for (x0, y0, x1, y1) in ((4, 0, 3, 7), (3, 7, 5, 16), (11, 0, 12.4, 9), (12.4, 9, 11, 16)):
             c.line(x0, y0, x1, y1, '#4a4a56', w=0.6)
-        c.rect(0, 14, 16, 16, '#4a4a56', shade=False)
+        for (x, y) in ((7.6, 5), (14, 13), (1.6, 12.4)):
+            c.dot(x, y, '#5a5a66', w=1.4, h=1)
     elif kind == 'hedge':
         c.ellipse(8, 9, 7.5, 6.5, '#3a8a4a')
         c.ellipse(5, 7, 3, 2.5, '#4aa05a')

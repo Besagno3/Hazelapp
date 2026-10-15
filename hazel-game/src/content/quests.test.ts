@@ -1063,7 +1063,30 @@ describe('Taleshore III quests (#75 item 15f)', () => {
     }
   });
 
-  it("Reso's own reminder for the low stone says \"me\", the quest log names her", () => {
+  it('a song stone before its song is due is just "not this one yet" — nothing un-done (round 3)', () => {
+    // A stand-in quest: talk to Hum first, then Reso's song.
+    const reso = byId(RESO_QUEST);
+    const standIn: QuestDef = {
+      ...reso,
+      id: 'stand-in-song',
+      giverNpcId: 'stand-in-giver',
+      steps: [
+        { id: 'stand-in-hum', hint: 'Talk to Hum first.', npc: { id: 'cliff-hum', lines: ['Hmm!'] }, isComplete: (sv) => sv.flags[stepFlag('stand-in-hum')] === true },
+        ...reso.steps,
+      ],
+    };
+    QUESTS.push(standIn);
+    try {
+      const save = { ...defaultSave(), flags: { [questOfferedFlag(standIn)]: true } };
+      const said = questConversation('songstone-high', save)!;
+      expect(said.lines).toEqual(['Not this one yet! Talk to Hum first.']);
+      expect(said.finish).toBeNull();
+    } finally {
+      QUESTS.pop();
+    }
+  });
+
+    it("Reso's own reminder for the low stone says \"me\", the quest log names her", () => {
     let save = onCliffs();
     save = converse('songstone-high', save);
     save = converse('songstone-middle', save);

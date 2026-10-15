@@ -478,8 +478,15 @@ def humanoid(c: Canvas, p: Pose, s: dict):
 
 
 def _shell_bits(d, s, lean, bob):
-    """Barnacle Bess (#75 item 15e review): a pink scallop clip in her hair and
-    two grey barnacles on her apron — only for a character with `shells`."""
+    """Little extras on a person: Barnacle Bess's pink scallop clip and two grey
+    barnacles (`shells`, #75 item 15e review); Reso's music note (`tune`, 15f)."""
+    if s.get('tune'):
+        # Choir-Mistress Reso (15f round 3): a gold music note by her head.
+        n = d.part(lean, bob)
+        n.ellipse(24.6, 7.4, 1.6, 1.3, '#ffc828', shade=False)
+        n.line(25.9, 7.4, 25.9, 2.4, '#ffc828', w=0.8)
+        n.line(25.9, 2.4, 28, 3.6, '#ffc828', w=0.8)
+        d.put(n)
     if not s.get('shells'):
         return
     sh = d.part(lean, bob)
@@ -995,15 +1002,21 @@ def flyer(c: Canvas, p: Pose, s: dict):
         L.ellipse(14, 18 + flap * 0.5, 4.5, 3.4, wc, rot=0.3)
     if s.get('bell'):
         # A Chime Gull (#75 item 15f): a big gold bell hung under its beak (15f review: bigger).
-        L.line(23.4, 19.6, 23.4, 21.6, '#6a4a1a', w=0.7)
-        L.poly([(20.6, 27), (21.8, 21.4), (25, 21.4), (26.2, 27)], '#ffc828')
-        L.rect(20.2, 26.4, 26.6, 27.4, '#c89a1a')
-        L.dot(23.4, 28.2, '#6a4a1a', w=1.2, h=1.2)
+        L.line(23.4, 19, 23.4, 21, '#6a4a1a', w=0.8)
+        L.poly([(19.4, 28), (21, 21), (25.8, 21), (27.4, 28)], '#ffc828')
+        L.rect(19, 27.2, 27.8, 28.6, '#c89a1a')
+        L.dot(23.4, 29.4, '#6a4a1a', w=1.4, h=1.4)
+        L.poly([(17, 13.4), (18.4, 9.6), (19.8, 13.2)], '#ffc828')  # a gold crest (15f round 3: tell it from the Gull Scout)
     if s.get('waves'):
         # An Echo Bat (15f review): sound waves rippling out from its ears.
         for r in (2.6, 4.4):
             L.line(11 - r, 9.4 - r * 0.4, 11 - r * 0.6, 7 - r, '#e8e0ff', w=0.6)
             L.line(24 + r * 0.6, 7 - r, 24 + r, 9.4 - r * 0.4, '#e8e0ff', w=0.6)
+    if s.get('tune'):
+        # Hum (15f round 3): a gold music note floating by its head — a friend who hums.
+        L.ellipse(25.6, 9.4, 1.8, 1.4, '#ffc828', shade=False)
+        L.line(27, 9.4, 27, 3.6, '#ffc828', w=0.9)
+        L.line(27, 3.6, 29.4, 5, '#ffc828', w=0.9)
     if s.get('stripes') and kind == 'bee':
         # Hum (15f review): black stripes and a little stinger, so it reads as a bee.
         for x in (14, 17.5):
@@ -1011,9 +1024,9 @@ def flyer(c: Canvas, p: Pose, s: dict):
         L.poly([(9.6, 19), (6.4, 20), (9.6, 21)], '#2a2230')
     if s.get('scarf'):
         # A Muffle Moth (#75 item 15f): wrapped in a woolly scarf, so its wings make no sound.
-        L.rect(12.6, 13.4, 19.4, 15.2, '#c86a6a')
-        L.rect(17.4, 15, 19, 19.4, '#c86a6a')
-        L.line(13.6, 14.3, 18.4, 14.3, '#a84a4a', w=0.3)
+        for i, x in enumerate(range(11, 21, 2)):  # a red-and-green striped scarf, wide enough to see on the map
+            L.rect(x, 13, x + 2, 16, '#d03a3a' if i % 2 == 0 else '#3a9a4a')
+        L.rect(17.4, 15.6, 19.6, 21, '#d03a3a')
     d.put(L)
     finish(c, d, shadow=(16, 30.5, 5.5, 1.3))
 
@@ -1550,9 +1563,9 @@ def ghost(c: Canvas, p: Pose, s: dict):
         # A Hushling (#75 item 15f): a finger held to its closed lips — shhh! (15f review: a
         # warm finger that shows on its pale body, and a little "shh" squiggle).
         mx = ex[0] + 1.6
-        L.line(mx - 1.8, 17, mx + 1.8, 17, dark(col, 0.55), w=0.8)
-        L.line(mx, 20.6, mx, 15, '#f0c8a0', w=1.6)
-        L.ellipse(mx, 21.4, 1.8, 1.5, '#f0c8a0')
+        L.line(mx - 2.2, 17, mx + 2.2, 17, dark(col, 0.6), w=1.0)
+        L.line(mx, 22, mx, 14.4, '#e8b088', w=2.4)  # a big finger to its lips (round 3: it showed only in battle)
+        L.ellipse(mx, 22.8, 2.4, 2, '#e8b088')
         if d.sep:
             for i in range(3):
                 L.line(25 + i * 1.2, 9 + (i % 2), 26 + i * 1.2, 8 - (i % 2), dark(col, 0.4), w=0.5)
@@ -4134,9 +4147,9 @@ NPCS: list[Char] = [
     Char('ink-dot', '✒️', 'humanoid', H(hair='bob', hair_color='#2a2a3a', glasses=True, outfit='#3a3a6a', trim='#f4ecd8', item='book')),
     Char('ink-smudge', '🦑', 'octopus', H(color='#8ac8e8', friendly=True)),
     # Taleshore III (#75 item 15f)
-    Char('cliff-reso', '🎶', 'humanoid', H(hair='bun', hair_color='#3a2a3a', outfit='#a03a6a', trim='#ffd860', robe=True, item='staff', item_color='#f4f4f8')),
+    Char('cliff-reso', '🎶', 'humanoid', H(hair='bun', hair_color='#3a2a3a', outfit='#a03a6a', trim='#ffd860', robe=True, item='wand', item_color='#ffd860', tune=True)),
     Char('cliff-echo', '🗿', 'nameless_stone', H(color='#a8a49a', face=True)),
-    Char('cliff-hum', '🐝', 'flyer', H(kind='bee', color='#fff0c0', stripes=True, scarf=True)),
+    Char('cliff-hum', '🐝', 'flyer', H(kind='bee', color='#fff0c0', stripes=True, scarf=True, tune=True)),
     Char('songstone', '🪨', 'nameless_stone', H(color='#9ab0c8', notes=True)),
     Char('songstone-rung', '🪨', 'nameless_stone', H(color='#c0d4e8', notes=True, glow='#ffd84a')),
     Char('quiet-shush', '🤫', 'humanoid', H(hair='bun', hair_color='#8a8a98', glasses=True, outfit='#4a5a7a', trim='#c8d0e0', robe=True, item='book')),

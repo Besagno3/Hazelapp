@@ -36,8 +36,8 @@ export const TEA_DAMAGE_MULT = 2;
  * and Tass's Kite Stall (Gale Atoll, an island with no inn — #75 item 15d review).
  * Glimmer Candles: Slosh's Raft Shop (Foglight Marsh) and Wick-Wax's (#75 item 15d review —
  * the Latitude Cats on the Wayfinder Isles are slippery too).
- * Glimmer Candles too at Sotto's Whisper Shop (the Quiet Quarter, #75 item 15f — the
- * Quarter is dark).
+ * Glimmer Candles too at Sotto's Whisper Shop (the Quiet Quarter, #75 item 15f), a short
+ * flight from the Wayfinder Isles' slippery Latitude Cats.
  * Berry Potions and Hint Feathers: Barnacle Bess's Shell Shop (Inkwell Cove, #75 item 15e)
  * too — the Riddle Leviathan's riddles are twisty, and Plus's Quill & Count is a sea away.
  */
@@ -143,7 +143,7 @@ export const SHOPS: Record<string, ShopDef> = {
     emoji: '🗣️',
     items: [
       stock('candle', 40), // a third candle seller (SHARED_STOCK)
-      { id: 'badge:recipe-soup', name: 'Secret: Fog Soup', emoji: '🍲', description: "The Driftlight Inn's fish soup. The secret is: more fish. Shh!", price: 60 },
+      { id: 'badge:recipe-soup', name: 'Secret: Fog Soup', emoji: '🍲', description: "The Driftlight Inn's fish soup. Why 'fog'? Nobody can see the fish. Shh!", price: 60 },
       { id: 'badge:recipe-pie', name: 'Secret: Starfall Pie', emoji: '🥧', description: 'Bake it under a full moon. Or a lamp. A lamp is fine.', price: 60 },
       { id: 'badge:recipe-tea', name: 'Secret: Hush Tea', emoji: '🫖', description: 'Steep it quietly. If it hears you, it goes bitter.', price: 60 },
     ],
