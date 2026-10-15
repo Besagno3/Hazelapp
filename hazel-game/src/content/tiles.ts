@@ -156,6 +156,10 @@ export const OVERWORLD_FRAME = {
     roost: 20,
     // 21: Port Lantern (#75 item 15c) — a harbor with a lit lantern, appended after the roost.
     harbor: 21,
+    // 22–24: Taleshore I (#75 item 15d) — a driftwood beach, the Wayfinder Isles' compass stone, Gale Atoll's ring.
+    beach: 22,
+    compass: 23,
+    atoll: 24,
   } satisfies Record<
     Exclude<PlaceIcon, 'tower'>,
     number
@@ -163,7 +167,7 @@ export const OVERWORLD_FRAME = {
 } as const;
 // 15: Marlow's dock (#75 item 14) — planks drawn over the water.
 export const OVERWORLD_DOCK_FRAME = 15;
-export const OVERWORLD_FRAMES = 22;
+export const OVERWORLD_FRAMES = 25;
 export const OVERWORLD_SHEET = '/tiles/overworld.png';
 export const OVERWORLD_KEY = 't_overworld';
 

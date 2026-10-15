@@ -82,7 +82,7 @@ export function BattleResult({
               <p className="text-white/60 italic text-sm mb-1">"{keyBoss.bossDefeat}"</p>
               <p className="text-amber-300 font-bold mb-1">
                 {keyBoss.emoji} You won the {keyBoss.name}!{' '}
-                {`It unlocks ${keyBoss.fiendName}'s ${keyBoss.door ?? 'gate'}.`}
+                {keyBoss.unlocksZone ? `It unlocks ${keyBoss.fiendName}'s ${keyBoss.door ?? 'gate'}.` : keyBoss.opens}
               </p>
             </>
           )}

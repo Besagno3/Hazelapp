@@ -58,6 +58,8 @@ const roostVisited = { ...storyDone, [visitedFlag('dragon-roost')]: true };
 const taleshoreReached = { ...roostVisited, [visitedFlag('port-lantern')]: true };
 /** …and said hello to Harbormaster Gale (15c review). */
 const galeMet = { ...taleshoreReached, [MET_GALE]: true };
+/** …and won the First Chorus Key from the Compass Golem (#75 item 15d). */
+const chorusWon = { ...galeMet, [keyFlag('chorus-a')]: true };
 
 describe('compass', () => {
   it('names all eight directions (y grows southward)', () => {
@@ -111,7 +113,9 @@ describe('nextObjective', () => {
     expect(nextObjective(roostVisited)).toMatchObject({ kind: 'fly', zoneId: 'port-lantern', title: 'Fly to Port Lantern' });
     // In Port Lantern, the harbormaster first (15c review), then the open world.
     expect(nextObjective(taleshoreReached)).toMatchObject({ kind: 'visit', zoneId: 'port-lantern', title: 'Meet Harbormaster Gale', doneFlag: MET_GALE, npc: 'port-harbormaster' });
-    expect(nextObjective(galeMet)).toMatchObject({ kind: 'explore', zoneId: null });
+    // Then the Compass Golem's key (#75 item 15d), then the open world.
+    expect(nextObjective(galeMet)).toMatchObject({ kind: 'key', zoneId: 'wayfinder-isles', title: 'Win the First Chorus Key' });
+    expect(nextObjective(chorusWon)).toMatchObject({ kind: 'explore', zoneId: null });
   });
 
   it("Marlow's boat (#75 item 14): each friend in turn, then back to Marlow, then sail from his dock — then the Hill", () => {
@@ -214,8 +218,8 @@ describe('nextObjective', () => {
     expect(nextObjective(storyDone)).toMatchObject({ kind: 'fly', title: "Fly to the Dragon's Roost" });
     expect(nextObjective(storyDone).why).toMatch(/^Ember can fly! Tap 🐉 Fly/);
     // …then the whole sky: no "soon you'll fly" once she can.
-    expect(nextObjective(galeMet).why).toMatch(/^You found Taleshore!/);
-    expect(mentorTips(ZONES, { ...galeMet, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
+    expect(nextObjective(chorusWon).why).toMatch(/^You won the First Chorus Key!/);
+    expect(mentorTips(ZONES, { ...chorusWon, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
   });
 
   // Doing what it says must finish the story: every step is one the hero can
@@ -236,9 +240,9 @@ describe('nextObjective', () => {
     expect(seen.at(-1)?.kind).toBe('explore');
     // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage,
     // Remembrance Hill (#75 item 14e), the Memoria Key (#75 item 14f), the Crystal of Memory (#75 item 14h),
-    // the Hall of Names (#75 item 14i), the Dragon's Roost (#75 item 15b), Taleshore and Harbormaster Gale (#75 item 15c), explore.
+    // the Hall of Names (#75 item 14i), the Dragon's Roost (#75 item 15b), Taleshore and Harbormaster Gale (#75 item 15c), the First Chorus Key (#75 item 15d), explore.
     const actOneKeys = GATE_KEYS.filter((k) => actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
-    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
+    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -265,7 +269,7 @@ describe('fog and the story', () => {
       const entrance = g.at ?? whereOnMap(ZONES, world, g.zoneId, null)!;
       // The Roost and Taleshore are flown to (#75 items 15b–c): from where Ember
       // lands — the Roost's plateau, Port Lantern's road — on foot.
-      const landing = { 'dragon-roost': { x: 48, y: 27 }, 'port-lantern': { x: 30, y: 21 } } as Partial<Record<ZoneId, { x: number; y: number }>>;
+      const landing = { 'dragon-roost': { x: 48, y: 27 }, 'port-lantern': { x: 30, y: 21 }, 'wayfinder-isles': { x: 11, y: 12 } } as Partial<Record<ZoneId, { x: number; y: number }>>;
       const reached =
         g.kind === 'fly' || world.id === 'taleshore'
           ? reach(world, { flags, from: landing[g.zoneId]! })
@@ -350,17 +354,36 @@ describe('routeSteps and goalDirections', () => {
   });
   it("says so when you're already there, and nothing once the story's done", () => {
     expect(goalDirections(ZONES, numbria, 'numbria')).toBe("It's right here in Numbria!");
-    expect(goalDirections(ZONES, nextObjective(galeMet), 'numbria')).toBe('');
+    expect(goalDirections(ZONES, nextObjective(chorusWon), 'numbria')).toBe('');
   });
   it("on Ember, the way to the Dragon's Roost is flown, not sailed (#75 item 15b)", () => {
     const fly = nextObjective(storyDone);
-    expect(goalDirections(ZONES, fly, 'silver-shallows')).toMatch(/^Fly west to Dawnreach, then go .* to the Dragon's Roost\.$/);
+    expect(goalDirections(ZONES, fly, 'silver-shallows')).toMatch(/^Fly west to Dawnreach, then fly .* to the Dragon's Roost, then land beside it and walk in\.$/);
     expect(goalDirections(ZONES, fly, 'lumina-village')).not.toMatch(/sail/i);
   });
   it('on Ember, the way to Taleshore is flown over the Shallows and the Great Fogbank (#75 item 15c)', () => {
     const fly = nextObjective(roostVisited);
     expect(goalDirections(ZONES, fly, 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then fly .* to Port Lantern, then land beside it and walk in\.$/);
     expect(goalDirections(ZONES, fly, 'dragon-roost')).not.toMatch(/sail/i);
+  });
+  it('off an island only Ember reaches, the way on is flown (15d review)', () => {
+    expect(routeSteps(ZONES, 'wayfinder-isles', 'port-lantern')).toEqual(['fly south-east to Port Lantern, then land beside it and walk in']);
+    expect(routeSteps(ZONES, 'gale-atoll', 'driftwood-shallows')![0]).toMatch(/^fly east to Driftwood Shallows, then land beside it and walk in$/);
+    // Anywhere on the island, not only beside its icon (round 2) — and the Roost's plateau corners.
+    expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 8, y: 10 })![0]).toMatch(/^fly south-east to Port Lantern/);
+    expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 10, y: 30 })![0]).toMatch(/^fly north-east to Port Lantern/);
+    expect(routeSteps(ZONES, 'dawnreach', 'lumina-village', { x: 47, y: 27 })![0]).toMatch(/^fly /);
+    // On the island already, its own icon is a walk (round 3); from a small islet, a flight.
+    expect(routeSteps(ZONES, 'taleshore', 'gale-atoll', { x: 8, y: 30 })![0]).toMatch(/^go .* to Gale Atoll$/);
+    expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 4, y: 5 })![0]).toMatch(/^fly south-east to Port Lantern/);
+    // From the Roost's plateau, even the sea is flown — no boat up there (round 4).
+    expect(routeSteps(ZONES, 'dawnreach', 'silver-shallows', { x: 48, y: 27 })).toEqual(['fly east to the Silver Shallows']);
+    // "them" only for places named as many — not the Shrine of Quiet Paws.
+    expect(routeSteps(ZONES, 'dawnreach', 'quiet-shrine', { x: 48, y: 27 })![0]).toMatch(/land beside it and walk in$/);
+    // On the mainland it's still a walk.
+    expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 40, y: 20 })![0]).toMatch(/^go west to Port Lantern/);
+    // …and to the islands, "the Wayfinder Isles" are landed beside as "them".
+    expect(routeSteps(ZONES, 'port-lantern', 'wayfinder-isles')).toEqual(['fly north-west to the Wayfinder Isles, then land beside them and walk in']);
   });
   it('the way back to Gale after a Return home is flown from the start (15c review round 2)', () => {
     expect(goalDirections(ZONES, nextObjective(taleshoreReached), 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then /);
@@ -445,7 +468,7 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost/);
     expect(mentorTips(ZONES, { ...met, ...roostVisited })[0]).toMatch(/^No boat gets past the Great Fogbank — but Ember can fly over it!/);
     expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
-    expect(mentorTips(ZONES, { ...met, ...galeMet })[0]).toBe("You've seen Taleshore! Visit its people any time, and help everyone you meet there too.");
+    expect(mentorTips(ZONES, { ...met, ...chorusWon })[0]).toBe("You won the First Chorus Key! A second key opens the same gate. Until it turns up, help everyone you meet on Taleshore — they have plenty to do!");
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
     expect(mentorTips(ZONES, { ...met, ...storyDone, [HALL_DEDICATED]: false })[0]).toMatch(/Hall of Names/);
   });
@@ -496,10 +519,10 @@ describe('guides and signposts', () => {
   });
   it("Harbormaster Gale, the 🚩's goal, points to what comes after meeting Gale (15c review)", () => {
     expect(nextObjective(taleshoreReached).npc).toBe('port-harbormaster');
-    expect(wayfindingLines(ZONES, NPC_DEFS['port-harbormaster'], taleshoreReached)).toEqual([nextObjective(galeMet).why]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['port-harbormaster'], taleshoreReached)).toEqual([expect.stringMatching(/^Where to next\? The Compass Golem on the Wayfinder Isles guards the First Chorus Key! /)]);
   });
   it("after the story, a guide just cheers you on", () => {
-    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], galeMet)).toEqual([nextObjective(galeMet).why]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], chorusWon)).toEqual([nextObjective(chorusWon).why]);
   });
   it('a signpost reads out the places around it, then the way to the next goal', () => {
     for (const n of wayfinders.filter((w) => w.signpost)) {

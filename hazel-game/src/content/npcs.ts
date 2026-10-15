@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
@@ -1773,7 +1773,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       { text: "Welcome to Port Lantern! I'm Harbormaster Gale. I've never lost a ship. Misplaced one, yes. Twice.", setFlag: MET_GALE },
       "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.",
-      "Taleshore is just waking up to visitors. Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock loves visitors!",
+      { text: 'Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock needs a brave friend!', unlessFlag: questOfferedFlag({ id: JUNO_QUEST }) },
+      { text: "Talk to everyone, and check the Quest Board in the square. And thank you for looking after Juno!", ifFlag: questOfferedFlag({ id: JUNO_QUEST }) },
+      'Gale Atoll, out at sea? No relation! It\'s just VERY windy out there.',
     ],
   },
   'port-skipper': {
@@ -1783,8 +1785,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      "Ahoy! Skipper Juno. My ferry, the Puffin, runs round Taleshore's islands. Well, it used to. I haven't sailed since a storm gave me a fright.",
-      "You flew here? On a DRAGON? Then you're brave enough for both of us. Come back soon!",
+      { text: 'The Puffin is scrubbed and shining, down on the beach! Thank you for walking with me.', ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: "Next time a storm gives me a fright, I'll think of you and your dragon!", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: 'The Puffin needs new sails before she carries passengers. Until then, your dragon is the best ferry around!', ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: "You flew here? On a DRAGON? Then you're brave enough for both of us!", unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
     ],
   },
   'port-merchant': {
@@ -1793,7 +1797,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🕯️',
     role: 'merchant',
     lines: [
-      "Potions for the road, and a badge that glows! Wick-Wax's Candle Shop keeps Port Lantern bright.",
+      "Potions, Glimmer Candles, and a badge that glows! Wick-Wax's Candle Shop keeps Port Lantern bright.",
       'You know a Grandmother Wick? Never heard of her. No relation. Certainly not my cousin.',
     ],
   },
@@ -1862,7 +1866,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       '📋 The Quest Board. Notices are pinned all over it.',
       'NEW IN TOWN? Say hello to Harbormaster Gale by the road in. Rest at the Driftlight Inn. Potions at Wick-Wax\'s Candle Shop.',
-      "SOON: Skipper Juno's ferry, the Puffin, will sail again! Watch this board.",
+      { text: 'WANTED: a brave friend to walk Skipper Juno to her old ferry. Ask Juno on the south dock!', unlessFlag: questOfferedFlag({ id: JUNO_QUEST }) },
+      { text: 'NOTICE: Skipper Juno has gone down the south road to Driftwood Shallows, to find her old ferry.', ifFlag: JUNO_CAME, unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: "GOOD NEWS: Skipper Juno has found her nerve AND her ferry! Well done, whoever helped.", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: 'SEEN: a stone giant in the Wayfinder Isles. Cartographer Lo says it guards a key. Take care!', unlessFlag: keyFlag('chorus-a') },
+      { text: 'NEWS: someone beat the stone giant on the Wayfinder Isles! Cartographer Lo is redrawing her map.', ifFlag: keyFlag('chorus-a') },
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
       'Check back soon for more notices!',
     ],
@@ -1876,6 +1884,126 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: ['📝 "Out saying hello to visitors! Find me by the road into town, on the east side. — Gale"'],
+  },
+  // --- Taleshore I (#75 item 15d) ---------------------------------------------
+  // Driftwood Shallows: a beachcomber, a crab who walks sideways, and Salt the Younger.
+  'drift-reel': {
+    id: 'drift-reel',
+    name: 'Beachcomber Reel',
+    sprite: '🎣',
+    role: 'villager',
+    lines: [
+      "Morning! I'm Reel. Every tide brings something new up the beach. Yesterday, a boot. Today, the other boot!",
+      'Skipper Juno\'s old ferry is beached by the dock in the south-west corner. Poor Puffin. She misses the sea.',
+    ],
+    ambient: ['Ooh, a shell!', 'Another boot?', '🐚'],
+  },
+  // The Puffin, Skipper Juno's ferry, beached by the old dock (#75 item 15d review).
+  'drift-puffin': {
+    id: 'drift-puffin',
+    name: 'The Puffin',
+    sprite: '⛵',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      { text: '⛵ The Puffin, Skipper Juno\'s little ferry. A bit sandy, but not one plank missing.', unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: '⛵ The Puffin, scrubbed and shining. She looks happy to be near the sea again.', ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+    ],
+  },
+  'drift-sandy': {
+    id: 'drift-sandy',
+    name: 'Sandy',
+    sprite: '🪣',
+    role: 'villager',
+    lines: [
+      "Hi hi! I'm Sandy! I walk sideways, like the crabs. It takes ages to get anywhere, but I see SO much on the way!",
+      'The snails here wear their shells like shields. Hit one once and the shell cracks. Then it\'s just a snail!',
+    ],
+    ambient: ['Sideways, sideways…', 'Click click!', '🦀'],
+  },
+  'drift-salt': {
+    id: 'drift-salt',
+    name: 'Salt the Younger',
+    sprite: '🧂',
+    role: 'villager',
+    stationary: true,
+    // Her quest's offer comes first ("Salt's Sea-Glass Set"); these follow it.
+    lines: [
+      'My grandpa Salt the Elder will be SO jealous of my set!',
+      'Sea-glass is just old bottles the sea has polished for a hundred years. Imagine being that patient!',
+      'Next I\'m hunting for purple sea-glass. Nobody has EVER found a purple one!',
+    ],
+  },
+  // The Wayfinder Isles: a mapmaker (the Golem's signpost), a penguin who walks in straight lines, and Wim the Mapper.
+  'way-lo': {
+    id: 'way-lo',
+    name: 'Cartographer Lo',
+    sprite: '🗺️',
+    role: 'villager',
+    stationary: true,
+    // The Compass Golem's signpost (#59's pattern): a warning until its key is won.
+    lines: [
+      "Hello there! I'm Lo. I'm drawing a map of every island in the Starfall Sea. These six took me a whole year!",
+      { text: 'Careful! The Compass Golem stands in the stone circle, just south of me. It guards the First Chorus Key.', unlessFlag: keyFlag('chorus-a') },
+      { text: 'Answer its questions about places in the world, and it might give the key away. If you\'re hurt, fly back to the Driftlight Inn first!', unlessFlag: keyFlag('chorus-a') },
+      { text: 'You beat the Compass Golem! Now its needle points every way at once. I\'ll have to redraw my map.', ifFlag: keyFlag('chorus-a') },
+    ],
+  },
+  'way-pebble': {
+    id: 'way-pebble',
+    name: 'Pebble',
+    sprite: '🐧',
+    role: 'villager',
+    lines: [
+      'Waddle. Waddle. Turn. I only walk in straight lines. It is the proper way to walk.',
+      'North, south, east and west. Four directions. Very tidy. I do not trust diagonals.',
+    ],
+    ambient: ['Straight line…', 'Turn. Waddle.', '🐧'],
+  },
+  'way-drift': {
+    id: 'way-drift',
+    name: 'Wim the Mapper',
+    sprite: '✏️',
+    role: 'villager',
+    stationary: true,
+    // His quest's offer comes first ("The Unfinished Map"); these follow it.
+    lines: [
+      'Did you know a compass needle always points north? Except near the Golem. It points at the Golem.',
+    ],
+  },
+  // Gale Atoll: the windkeeper, a dove blown off course, and Tass's kites.
+  'gale-sough': {
+    id: 'gale-sough',
+    name: 'Windkeeper Sough',
+    sprite: '🌬️',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "Whoosh! I'm Sough, the Windkeeper. The wind never stops here, so I keep an eye on it. Somebody has to.",
+      'The Squall Chicks ride the gusts. They are so quick they always strike first. Keep your guard up!',
+    ],
+  },
+  'gale-gully': {
+    id: 'gale-gully',
+    name: 'Gully',
+    sprite: '🕊️',
+    role: 'villager',
+    lines: [
+      'Coo… I was flying to Port Lantern, and the wind blew me here. Three times. I think I live here now.',
+      "Salt the Younger hid something shiny in a chest on this island. I saw her! I didn't tell. Oops, I just told.",
+    ],
+    ambient: ['Whoooa, wind!', 'Coo?', '🕊️'],
+  },
+  'gale-tass': {
+    id: 'gale-tass',
+    name: 'Kite-Maker Tass',
+    sprite: '🪁',
+    role: 'merchant',
+    lines: [
+      "Kites! Well, kite BADGES. I'm Tass. The windiest island in the world blows real kites away!",
+      'Kite Badges never blow away. And I keep Berry Potions for travelers — this island has no inn!',
+    ],
   },
   // Old Pike fishes off the north dock (15c review): Port Lantern's harbor has people on it.
   'port-fisher': {
@@ -1898,7 +2026,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "Hello, traveler! I'm Hob. I walk every road on Taleshore, and I've still not seen it all.",
-      "Far out past the edge of the sea there are little islands. One day Skipper Juno's ferry will take you there!",
+      'Out at sea are the Wayfinder Isles, north-west of town, and Gale Atoll, south-west. No road goes there. You need wings!',
     ],
     ambient: ['Left foot, right foot…', 'What a view!', '🥾'],
   },

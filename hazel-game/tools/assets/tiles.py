@@ -92,6 +92,14 @@ ZONES = {
     # Port Lantern (#75 item 15c): a harbor town of tarred timber and lanterns at dusk.
     'port-lantern': dict(ground=(128, 160, 110), path=(196, 178, 140), solid='rock', deco='candle', deco_c='#ffd24a',
                          sky=('#e88a5a', '#ffe0b8'), far='#8a7aa0', mid='houses', water='#2a6ac8'),
+    # Taleshore I (#75 item 15d): a sunny beach of driftwood and shells, a ring of
+    # islands with standing stones, and a windy atoll of palms and red flowers.
+    'driftwood-shallows': dict(shore=True, ground=(150, 176, 110), path=(214, 190, 140), solid='driftwood', deco='shell', deco_c='#ffd8e0',
+                               sky=('#4aa0e8', '#fff4d8'), far='#8ab8e0', mid='sea', water='#2a8ad0'),
+    'wayfinder-isles': dict(shore=True, no_hills=True, ground=(120, 168, 100), path=(214, 190, 140), solid='statue', deco='flower', deco_c='#ffe060',
+                            sky=('#3a8ae0', '#e8f4ff'), far='#7aa8d8', mid='islets', water='#2a72c8'),
+    'gale-atoll': dict(shore=True, no_hills=True, wind=True, ground=(140, 180, 110), path=(222, 200, 150), solid='palm', deco='flower', deco_c='#ff6a6a',
+                       sky=('#5ab0f0', '#f0fbff'), far='#a8d0f0', mid='palms', water='#2aa0d8'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -112,6 +120,10 @@ MARSH_ZONES = ('foglight-marsh',)
 # Added with Taleshore (#75 item 15c) — `build_taleshore` writes only these
 # (+ the harbor town sheet and the overworld sheet with the harbor icon appended).
 TALESHORE_ZONES = ('taleshore', 'port-lantern')
+
+# Added with Taleshore I (#75 item 15d) — `build_isles` writes only these
+# (+ the kite town sheet and the overworld sheet with three icons appended).
+ISLES_ZONES = ('driftwood-shallows', 'wayfinder-isles', 'gale-atoll')
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -263,6 +275,13 @@ def solid(kind, zone):
             c.poly([(x0, y0 - 1), (x1, y1), (x0, y0 + 1.2)], '#3aa060')
         c.dot(8, 6, '#6a4020', w=1, h=1)
         c.dot(10, 6.4, '#6a4020', w=1, h=1)
+    elif kind == 'driftwood':
+        # Driftwood Shallows (#75 item 15d review): a bleached log washed up on the sand, a stub of branch.
+        c.poly([(1, 11), (13.6, 6.6), (15.4, 9.6), (2.8, 14.4)], '#d8ccb8')
+        c.poly([(1, 11), (13.6, 6.6), (14, 7.6), (1.4, 12.2)], '#ece4d4', shade=False)
+        c.line(3.4, 12, 13.4, 8.6, '#b4a690', w=0.4)
+        c.ellipse(14.4, 8.1, 1.2, 1.6, '#c8bca6')
+        c.poly([(7, 9.4), (6.2, 5.6), (7.6, 5.4), (8.4, 9)], '#d0c4ae')
     elif kind == 'pillar':
         c.rect(2, 13, 14, 16, '#9a8ad0')
         c.rect(4, 3, 12, 13, '#d8d0f8')
@@ -424,6 +443,8 @@ STYLES = {
     'tome':      ('#7a5a3e', '#d0a848', 'panels',  'arch',   'checker', ('#c8b48a', '#a89068')),
     # Port Lantern (#75 item 15c): tarred harbor timber, sea-teal trim, round porthole windows.
     'harbor':    ('#5a4a3e', '#3aa0a8', 'planks',  'round',  'planks', ('#b88a5a',)),
+    # Gale Atoll (#75 item 15d): Tass's kite stall — sun-bleached planks, bright kite-red trim.
+    'kite':      ('#d8c8a0', '#e04a4a', 'planks',  'kite',   'planks', ('#c8a878',)),
 }
 
 
@@ -512,6 +533,12 @@ def _wall_face(style, window=False, door=False):
             c.rect(4, 4, 12, 11, trim, shade=False)
             c.rect(5, 5, 11, 10, glass, shade=False)
             c.rect(7.5, 5, 8.5, 10, trim, shade=False)
+        elif win == 'kite':
+            # Tass's stall (#75 item 15d review): a kite hung on the wall, its tail fluttering.
+            c.poly([(8, 3), (12, 7), (8, 11), (4, 7)], '#ffd23a', shade=False)
+            c.poly([(8, 3), (8, 11), (4, 7)], '#4aa0e0', shade=False)
+            c.line(8, 11, 9, 13.4, '#3a3a44', w=0.4)
+            c.dot(9.4, 12.4, '#ff6a6a')
         elif win == 'arch':
             c.rect(4, 6, 12, 12, trim, shade=False)
             c.ellipse(8, 6.5, 4, 3, trim, shade=False)
@@ -906,13 +933,21 @@ def backdrop(z: dict, seed: int) -> Image.Image:
                     img[y, x] = (255, 244, 200)
     elif not z.get('stars') and not z.get('cave'):
         _sun_and_clouds(img)
-    # far hills
+    # far hills (none far out at sea, #75 item 15d review — the draw still happens, so seeds keep their place)
     far = hexc(z['far'])
     ph = rnd.random() * 10
     for x in range(BW):
         h = horizon - 18 - 10 * math.sin(x * 0.03 + ph) - 5 * math.sin(x * 0.09 + ph * 2)
+        if z.get('no_hills'):
+            continue
         for y in range(int(h), horizon):
             img[y, x] = far if y > h + 1 else light(far, 0.08)
+    if z.get('wind'):
+        # Gale Atoll: streaks of wind across the sky.
+        for k in range(9):
+            y0, x0 = 12 + (k * 23) % 50, (k * 61) % BW
+            for x in range(x0, min(BW, x0 + 30 + k % 3 * 10)):
+                img[y0, x] = (255, 255, 255)
     # mid layer silhouettes
     g = z['ground']
     midc = mix(dark(g, 0.2), far, 0.35)
@@ -930,6 +965,16 @@ def backdrop(z: dict, seed: int) -> Image.Image:
     for _ in range(90):
         x, y = rnd.randrange(BW), rnd.randrange(horizon + 2, BH)
         img[y, x] = dark(g, 0.18)
+    if z.get('shore'):
+        # A beach or an island (#75 item 15d review): the sea runs to the
+        # horizon, then a strip of sand before the grass.
+        water, sand = hexc(z['water']), (236, 216, 160)
+        for y in range(horizon, horizon + 10):
+            for x in range(BW):
+                img[y, x] = light(water, 0.18) if (x + y * 3) % 17 == 0 else water
+        for y in range(horizon + 10, horizon + 18):
+            for x in range(BW):
+                img[y, x] = dark(sand, 0.06) if (x * 7 + y) % 13 == 0 else sand
     return Image.fromarray(img, 'RGB')
 
 
@@ -968,6 +1013,24 @@ def _mid_shape(img, kind, x0, base, col, rnd):
         top = base - h - 14
         fill(lambda x, y: True, x0, x0 + 16, top, base)
         fill(lambda x, y: (y - top) % 6 == 0, x0, x0 + 16, top, base, c=light(col, 0.12))
+    elif kind == 'islets':
+        # The Wayfinder Isles (#75 item 15d review): low islet humps, now and then a standing stone.
+        fill(lambda x, y: True, x0 - 2, x0 + 22, base - 6, base, c=mix(col, (60, 120, 200), 0.6))
+        if rnd.random() < 0.5:
+            cx = x0 + 10
+            fill(lambda x, y: ((x - cx) / 9) ** 2 + ((y - base) / 6) ** 2 <= 1, cx - 9, cx + 9, base - 6, base, c=col)
+            if rnd.random() < 0.5:
+                fill(lambda x, y: True, cx - 1, cx + 2, base - 14, base - 4, c=(140, 140, 128))
+    elif kind == 'palms':
+        # Gale Atoll (#75 item 15d review): palms bent by the wind over the water.
+        fill(lambda x, y: True, x0 - 2, x0 + 22, base - 6, base, c=mix(col, (60, 120, 200), 0.6))
+        if rnd.random() < 0.6:
+            cx = x0 + 10
+            for k in range(h):
+                fill(lambda x, y: True, cx + k // 4, cx + k // 4 + 2, base - k - 1, base - k, c=(120, 90, 60))
+            tx, ty = cx + h // 4, base - h
+            for dx in range(-7, 9):
+                fill(lambda x, y: True, tx + dx, tx + dx + 1, ty + abs(dx) // 3, ty + abs(dx) // 3 + 2, c=(50, 140, 70))
     elif kind == 'sea':
         fill(lambda x, y: True, x0 - 2, x0 + 22, base - 8, base, c=mix(col, (60, 120, 200), 0.5))
         fill(lambda x, y: (x + y) % 7 == 0, x0 - 2, x0 + 22, base - 8, base - 6, c=(200, 230, 255))
@@ -1260,6 +1323,39 @@ def ow_icon(kind):
         c.dot(8, 2.4, '#e0884a', w=1, h=1)
         c.ellipse(2.6, 9.4, 2.4, 0.9, '#ffffff', shade=False)  # a wisp of cloud
         c.ellipse(13.6, 11, 2, 0.8, '#ffffff', shade=False)
+    elif kind == 'beach':
+        # Driftwood Shallows (#75 item 15d): a sandy shore, a bleached log and a pink shell.
+        c.ellipse(8, 13.4, 7.6, 2.4, '#3a8ad8')
+        c.ellipse(8, 10.6, 7.4, 4, '#ecd8a0')
+        c.ellipse(5.6, 9.6, 2.4, 0.8, '#f8ecc8', shade=False)
+        c.poly([(2.4, 9.6), (12.6, 6.4), (13.6, 8), (3.4, 11.4)], '#c8b4a0')  # the driftwood log
+        c.line(4.6, 9.8, 11.8, 7.4, '#9a8470', w=0.4)
+        c.ellipse(11.4, 11.2, 1.8, 1.4, '#ff9ab8')  # a shell
+        c.line(10.6, 11.6, 12.2, 10.6, '#d06a8a', w=0.3)
+        c.ellipse(5, 13.2, 2.2, 0.5, '#a8d8ff', shade=False)
+    elif kind == 'compass':
+        # The Wayfinder Isles (#75 item 15d): a standing stone with a compass rose on it, on a little island.
+        c.ellipse(8, 13.6, 7.6, 2.2, '#3a7ad8')
+        c.ellipse(8, 12.4, 6.4, 2.4, '#e8d098')
+        c.ellipse(8, 11.8, 5, 1.6, '#7ab05a', shade=False)
+        c.rect(4.6, 2, 11.4, 12, '#8a8a7a')
+        c.rect(4.6, 2, 6, 12, '#a8a898', shade=False)
+        c.ellipse(8, 6.6, 3.4, 3.4, '#d03a3a', shade=False)
+        c.ellipse(8, 6.6, 3, 3, '#f4ecd8', shade=False)  # a compass rose painted on it
+        c.poly([(8, 3.2), (8.8, 6.6), (8, 10), (7.2, 6.6)], '#3a3a44', shade=False)
+        c.poly([(4.6, 6.6), (8, 5.8), (11.4, 6.6), (8, 7.4)], '#3a3a44', shade=False)
+        c.poly([(8, 3.2), (8.8, 6.6), (7.2, 6.6)], '#d03a3a', shade=False)  # north, in red
+        c.dot(8, 6.6, '#ffd24a')
+    elif kind == 'atoll':
+        # Gale Atoll (#75 item 15d): a ring of sand round a turquoise lagoon, one palm bent by the wind.
+        c.ellipse(8, 9.6, 7.6, 5.6, '#ecd8a0')
+        c.ellipse(8, 9.8, 4.4, 3, '#4ad0d0', shade=False)
+        c.ellipse(6.6, 9, 1.6, 0.6, '#b8f4f0', shade=False)
+        c.line(12.6, 13, 13.6, 4.6, '#8a6a3a', w=0.8)  # the palm's trunk
+        for (x, y) in ((10.4, 3.4), (15.6, 3.8), (12, 2.2), (15.2, 6)):
+            c.line(13.6, 4.6, x, y, '#3aa84a', w=0.9)
+        for (x, y) in ((1.4, 5), (3.6, 3.4)):
+            c.line(x, y, x + 2.6, y - 0.6, '#ffffff', w=0.3)  # wind
     elif kind == 'harbor':
         # Port Lantern (#75 item 15c): a quay over blue water, a little house
         # behind it and a tall lantern post, lit.
@@ -1280,6 +1376,21 @@ def ow_icon(kind):
     return _outlined(c)
 
 
+def build_isles(public: Path):
+    """Write only Taleshore I's art (#75 item 15d): Driftwood Shallows', the
+    Wayfinder Isles' and Gale Atoll's tilesets, blend sheets and backdrops, the
+    kite town sheet and the overworld sheet with their three icons."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in ISLES_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('kite')]).save(tdir / 'town-kite.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
 def quest_board():
     """Port Lantern's quest board (#75 item 15c): a wooden board on two posts,
     notices pinned all over it. Stands in the world like a signpost — talk to it."""
@@ -1296,6 +1407,22 @@ def quest_board():
         c.dot(x0 + (x1 - x0) / 2, y0 + 0.4, '#d03a3a')  # a pin
     for (x, y) in ((3, 4.6), (3, 5.6), (8, 5), (8, 6.2), (12, 4.6), (4.2, 8.6), (9.4, 9)):
         c.rect(x, y, x + 2.4, y + 0.4, '#8a7a6a', shade=False)  # writing
+    return _outlined(c)
+
+
+def beached_boat():
+    """The Puffin (#75 item 15d review): Skipper Juno's little ferry, beached on
+    the sand — a round red hull, a white cabin, a puffin painted on its bow."""
+    c = _c()
+    c.shadow(8, 14.6, 7, 1.2)
+    c.poly([(0.6, 9), (15.4, 9), (13.6, 14), (2.4, 14)], '#c83a3a')  # the hull
+    c.rect(0.6, 9, 15.4, 10, '#f4f0e6', shade=False)  # its rail
+    c.rect(4.6, 4.6, 10.4, 9, '#f4f0e6')  # the cabin
+    c.rect(4.2, 3.8, 10.8, 4.8, '#2a4a7a', shade=False)  # its roof
+    c.rect(6, 6, 7.4, 7.6, '#8ad0ff', shade=False)
+    c.rect(8.4, 6, 9.8, 7.6, '#8ad0ff', shade=False)
+    c.ellipse(13.4, 11.4, 1.1, 1.2, '#1a1a24')  # the painted puffin
+    c.dot(14.3, 11.4, '#ff8a2a')
     return _outlined(c)
 
 
@@ -1449,7 +1576,7 @@ def overworld_sheet():
     # frame keeps its place.
     return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
             + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive'), ow_icon('roost'),
-               ow_icon('harbor')])
+               ow_icon('harbor'), ow_icon('beach'), ow_icon('compass'), ow_icon('atoll')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────

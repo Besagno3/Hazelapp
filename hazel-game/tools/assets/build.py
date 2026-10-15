@@ -21,6 +21,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py archive    # only the Sunken Archive: its tiles, critters, Fiend and people (#75 item 14h)
     python3 tools/assets/build.py roost      # only the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
     python3 tools/assets/build.py taleshore  # only Taleshore + Port Lantern: tiles, harbor sheet, icon, people (#75 item 15c)
+    python3 tools/assets/build.py isles      # only Taleshore I: three places' tiles, the kite sheet, icons, critters, people (#75 item 15d)
     python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
     python3 tools/assets/build.py intro      # only the sign-in screen's intro music
 
@@ -55,6 +56,11 @@ MARSH_SPRITES = ('mist-newt', 'bog-lantern', 'murk-toad', 'last-fogbank', 'marsh
 # Port Lantern's people and quest board (#75 item 15c), for `build.py taleshore`.
 TALESHORE_SPRITES = ('port-harbormaster', 'port-skipper', 'port-merchant', 'port-innkeeper', 'port-netmender',
                      'port-lamplighter', 'port-postmaster', 'port-storyteller', 'port-board', 'port-fisher', 'tale-rambler', 'port-office-note')
+
+# Taleshore I's critters, warden and people (#75 item 15d), for `build.py isles`.
+ISLES_SPRITES = ('compass-crab', 'gull-scout', 'tide-snail', 'marker-post', 'latitude-cat', 'globe-beetle', 'zephyr-pup',
+                 'kite-ray', 'squall-chick', 'compass-golem', 'drift-reel', 'drift-sandy', 'drift-salt', 'way-lo',
+                 'way-pebble', 'way-drift', 'gale-sough', 'gale-gully', 'gale-tass', 'drift-puffin')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',
@@ -138,6 +144,14 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(ARCHIVE_SPRITES)))
         tiles.build_archive(PUBLIC)
         print('archive ✓')
+        return
+    if 'isles' in only:
+        # Just Taleshore I (#75 item 15d): Driftwood Shallows, the Wayfinder Isles
+        # and Gale Atoll — their tiles, the kite town sheet, the overworld sheet
+        # with three icons appended, their critters, warden and people.
+        write_manifest(build_sprites.build(PUBLIC, only=set(ISLES_SPRITES)))
+        tiles.build_isles(PUBLIC)
+        print('isles ✓')
         return
     if 'taleshore' in only:
         # Just Taleshore and Port Lantern (#75 item 15c): their tiles, the harbor

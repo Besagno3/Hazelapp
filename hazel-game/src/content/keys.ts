@@ -35,8 +35,14 @@ export interface GateKey {
   bossDefeat: string;
   /** The themed zone the warden lives in (for "go beat X" hints). */
   fromZone: ZoneId;
-  /** The crystal zone whose Fiend gate this key unlocks. */
-  unlocksZone: ZoneId;
+  /**
+   * The crystal zone whose Fiend gate this key unlocks — null while that zone
+   * isn't built yet (the First Chorus Key, #75 item 15d: Chorus Isle comes in 15f);
+   * `opens` says what it's for meanwhile.
+   */
+  unlocksZone: ZoneId | null;
+  /** What a key whose zone isn't built yet opens, for its victory panel. */
+  opens?: string;
   /** That zone's Fiend, named in the locked-gate message. */
   fiendName: string;
   /** What its gate is called when bumped, if not a "gate" (the Archive's silver door, #75 item 14h review). */
@@ -109,6 +115,25 @@ export const GATE_KEYS: GateKey[] = [
     fiendName: 'the Hollow Fiend',
     door: 'silver door',
   },
+  // Act III (#75 item 15d): the Compass Golem of the Wayfinder Isles keeps one
+  // of the two keys to Chorus Isle's gate (15f builds the isle and its double
+  // lock). Named as STORY-4X has it, `key-chorus-a`.
+  {
+    id: 'chorus-a',
+    name: 'First Chorus Key',
+    emoji: '🎼',
+    bossId: 'compass-golem',
+    bossName: 'The Compass Golem',
+    bossIntro: [
+      'In the middle of the stone circle, a great stone figure creaks awake. A compass needle spins on its chest.',
+      '"ALL directions lead to ME, little traveler. You want the First Chorus Key? Then tell me where in the world things ARE!"',
+    ],
+    bossDefeat: '"…north was… that way… all along. Take the key, little traveler."',
+    fromZone: 'wayfinder-isles',
+    unlocksZone: null,
+    opens: "It's one of two keys to a gate far out at sea. Keep it safe!",
+    fiendName: 'the Hush Fiend',
+  },
 ];
 
 /** The key dropped by beating a given warden boss (by enemy def id). */
@@ -117,8 +142,8 @@ export function keyForBoss(bossId: string): GateKey | undefined {
 }
 
 /** The key required to open a given crystal zone's Fiend gate. */
-export function keyForZone(zoneId: ZoneId): GateKey | undefined {
-  return GATE_KEYS.find((k) => k.unlocksZone === zoneId);
+export function keyForZone(zoneId: ZoneId | null): GateKey | undefined {
+  return zoneId ? GATE_KEYS.find((k) => k.unlocksZone === zoneId) : undefined;
 }
 
 /** Save-flag set when the player holds a key. */
