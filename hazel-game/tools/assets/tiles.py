@@ -94,11 +94,11 @@ ZONES = {
                          sky=('#e88a5a', '#ffe0b8'), far='#8a7aa0', mid='houses', water='#2a6ac8'),
     # Taleshore I (#75 item 15d): a sunny beach of driftwood and shells, a ring of
     # islands with standing stones, and a windy atoll of palms and red flowers.
-    'driftwood-shallows': dict(ground=(150, 176, 110), path=(214, 190, 140), solid='rock', deco='shell', deco_c='#ffd8e0',
+    'driftwood-shallows': dict(shore=True, ground=(150, 176, 110), path=(214, 190, 140), solid='rock', deco='shell', deco_c='#ffd8e0',
                                sky=('#4aa0e8', '#fff4d8'), far='#8ab8e0', mid='sea', water='#2a8ad0'),
-    'wayfinder-isles': dict(ground=(120, 168, 100), path=(214, 190, 140), solid='statue', deco='flower', deco_c='#ffe060',
+    'wayfinder-isles': dict(shore=True, ground=(120, 168, 100), path=(214, 190, 140), solid='statue', deco='flower', deco_c='#ffe060',
                             sky=('#3a8ae0', '#e8f4ff'), far='#7aa8d8', mid='sea', water='#2a72c8'),
-    'gale-atoll': dict(ground=(140, 180, 110), path=(222, 200, 150), solid='palm', deco='flower', deco_c='#ff6a6a',
+    'gale-atoll': dict(shore=True, ground=(140, 180, 110), path=(222, 200, 150), solid='palm', deco='flower', deco_c='#ff6a6a',
                        sky=('#5ab0f0', '#f0fbff'), far='#a8d0f0', mid='sea', water='#2aa0d8'),
 }
 
@@ -944,6 +944,16 @@ def backdrop(z: dict, seed: int) -> Image.Image:
     for _ in range(90):
         x, y = rnd.randrange(BW), rnd.randrange(horizon + 2, BH)
         img[y, x] = dark(g, 0.18)
+    if z.get('shore'):
+        # A beach or an island (#75 item 15d review): the sea runs to the
+        # horizon, then a strip of sand before the grass.
+        water, sand = hexc(z['water']), (236, 216, 160)
+        for y in range(horizon, horizon + 10):
+            for x in range(BW):
+                img[y, x] = light(water, 0.18) if (x + y * 3) % 17 == 0 else water
+        for y in range(horizon + 10, horizon + 18):
+            for x in range(BW):
+                img[y, x] = dark(sand, 0.06) if (x * 7 + y) % 13 == 0 else sand
     return Image.fromarray(img, 'RGB')
 
 
@@ -1291,9 +1301,11 @@ def ow_icon(kind):
         c.ellipse(8, 11.8, 5, 1.6, '#7ab05a', shade=False)
         c.rect(4.6, 2, 11.4, 12, '#8a8a7a')
         c.rect(4.6, 2, 6, 12, '#a8a898', shade=False)
-        c.ellipse(8, 6.6, 2.6, 2.6, '#f4ecd8', shade=False)
-        c.poly([(8, 3.6), (8.9, 6.6), (8, 9.6), (7.1, 6.6)], '#d03a3a')  # the needle
-        c.dot(8, 6.6, '#3a3a44')
+        c.ellipse(8, 6.6, 3, 3, '#f4ecd8', shade=False)  # a compass rose painted on it
+        c.poly([(8, 3.2), (8.8, 6.6), (8, 10), (7.2, 6.6)], '#3a3a44', shade=False)
+        c.poly([(4.6, 6.6), (8, 5.8), (11.4, 6.6), (8, 7.4)], '#3a3a44', shade=False)
+        c.poly([(8, 3.2), (8.8, 6.6), (7.2, 6.6)], '#d03a3a', shade=False)  # north, in red
+        c.dot(8, 6.6, '#ffd24a')
     elif kind == 'atoll':
         # Gale Atoll (#75 item 15d): a ring of sand round a turquoise lagoon, one palm bent by the wind.
         c.ellipse(8, 9.6, 7.6, 5.6, '#ecd8a0')
@@ -1355,6 +1367,22 @@ def quest_board():
         c.dot(x0 + (x1 - x0) / 2, y0 + 0.4, '#d03a3a')  # a pin
     for (x, y) in ((3, 4.6), (3, 5.6), (8, 5), (8, 6.2), (12, 4.6), (4.2, 8.6), (9.4, 9)):
         c.rect(x, y, x + 2.4, y + 0.4, '#8a7a6a', shade=False)  # writing
+    return _outlined(c)
+
+
+def beached_boat():
+    """The Puffin (#75 item 15d review): Skipper Juno's little ferry, beached on
+    the sand — a round red hull, a white cabin, a puffin painted on its bow."""
+    c = _c()
+    c.shadow(8, 14.6, 7, 1.2)
+    c.poly([(0.6, 9), (15.4, 9), (13.6, 14), (2.4, 14)], '#c83a3a')  # the hull
+    c.rect(0.6, 9, 15.4, 10, '#f4f0e6', shade=False)  # its rail
+    c.rect(4.6, 4.6, 10.4, 9, '#f4f0e6')  # the cabin
+    c.rect(4.2, 3.8, 10.8, 4.8, '#2a4a7a', shade=False)  # its roof
+    c.rect(6, 6, 7.4, 7.6, '#8ad0ff', shade=False)
+    c.rect(8.4, 6, 9.8, 7.6, '#8ad0ff', shade=False)
+    c.ellipse(13.4, 11.4, 1.1, 1.2, '#1a1a24')  # the painted puffin
+    c.dot(14.3, 11.4, '#ff8a2a')
     return _outlined(c)
 
 

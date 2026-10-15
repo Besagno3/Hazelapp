@@ -431,7 +431,11 @@ export function routeSteps(
       // Still on Ember over Taleshore (15c review round 4), or a place only
       // Ember reaches (an island out at sea, #75 item 15d): say to land and walk in.
       const byAir = z.places?.some((pl) => pl.x === exit.x && pl.y === exit.y && pl.byAir);
-      if ((flying || byAir) && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside it and walk in`);
+      // Starting beside a place only Ember reaches (an island, the Roost): you fly off it (15d review).
+      const offIsland = z.places?.some((pl) => pl.byAir && Math.abs(pl.x - o.x) + Math.abs(pl.y - o.y) <= 1);
+      // "the Wayfinder Isles": land beside them (15d review).
+      const them = dest.the && /s$/.test(dest.name) ? 'them' : 'it';
+      if ((flying || byAir || offIsland) && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
       else steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
       const stairs = z.map[exit.y]?.[exit.x];

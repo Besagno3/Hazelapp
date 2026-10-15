@@ -366,6 +366,12 @@ describe('routeSteps and goalDirections', () => {
     expect(goalDirections(ZONES, fly, 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then fly .* to Port Lantern, then land beside it and walk in\.$/);
     expect(goalDirections(ZONES, fly, 'dragon-roost')).not.toMatch(/sail/i);
   });
+  it('off an island only Ember reaches, the way on is flown (15d review)', () => {
+    expect(routeSteps(ZONES, 'wayfinder-isles', 'port-lantern')).toEqual(['fly south-east to Port Lantern, then land beside it and walk in']);
+    expect(routeSteps(ZONES, 'gale-atoll', 'driftwood-shallows')![0]).toMatch(/^fly east to Driftwood Shallows, then land beside it and walk in$/);
+    // …and to the islands, "the Wayfinder Isles" are landed beside as "them".
+    expect(routeSteps(ZONES, 'port-lantern', 'wayfinder-isles')).toEqual(['fly north-west to the Wayfinder Isles, then land beside them and walk in']);
+  });
   it('the way back to Gale after a Return home is flown from the start (15c review round 2)', () => {
     expect(goalDirections(ZONES, nextObjective(taleshoreReached), 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then /);
   });

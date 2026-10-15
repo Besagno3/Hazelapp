@@ -1223,8 +1223,16 @@ def golem(c: Canvas, p: Pose, s: dict):
     d.put(ab)
     body = d.part(lean, bob)
     body.rect(8.5, 13.5, 24, 25.5, col)
-    body.rect(13, 17, 19.5, 22, acc)
-    body.dot(15.5, 18.5, light(acc, 0.25), w=2, h=2)
+    if s.get('compass'):
+        # A compass rose on its chest (#75 item 15d review): a pale dial, a red needle north.
+        body.ellipse(16.2, 19.5, 4.2, 4.2, '#f4ecd8', shade=False)
+        body.poly([(16.2, 15.6), (17.2, 19.5), (16.2, 23.4), (15.2, 19.5)], '#3a3a44', shade=False)
+        body.poly([(16.2, 15.6), (17.2, 19.5), (15.2, 19.5)], acc, shade=False)
+        body.poly([(12.4, 19.5), (16.2, 18.6), (20, 19.5), (16.2, 20.4)], '#8a8a7a', shade=False)
+        body.dot(16.2, 19.5, '#ffd24a')
+    else:
+        body.rect(13, 17, 19.5, 22, acc)
+        body.dot(15.5, 18.5, light(acc, 0.25), w=2, h=2)
     if s.get('rust'):
         for (x, y) in ((10, 15), (21, 23), (11, 23.5), (22, 16)):
             body.dot(x, y, '#a0502a', w=2, h=1)
@@ -2911,6 +2919,98 @@ def sap_sprite(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.2, 5 + hover * 0.5, 1.1))
 
 
+def cat(c: Canvas, p: Pose, s: dict):
+    """A Latitude Cat (#75 item 15d review): a round-headed cat with short
+    pointed ears, a little muzzle, a curled tail — and stripes that run round
+    it like lines of latitude."""
+    d = D(c, p)
+    fur = hexc(s.get('fur', '#e8963a'))
+    stripe = hexc(s.get('stripe', '#3ac0e0'))
+    lean, bob = d.lean, d.bob
+    hx, hy = 21.5, 14
+    T = d.part(lean, bob)
+    wag = 1.2 if p.frame % 2 else 0
+    T.line(8.5, 20, 5, 15 - wag, fur, w=2)
+    T.line(5, 15 - wag, 6.6, 11.6 - wag, fur, w=2)  # the curl
+    d.put(T)
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((10.5, 12.5, 17, 19)):
+        off = p.step * (1 if i % 2 else -1)
+        legs.rect(lx - 0.9 + off, 22, lx + 0.9 + off, 29.6, fur if i % 2 else dark(fur, 0.15))
+    d.put(legs)
+    B = d.part(lean, bob)
+    B.ellipse(14.5, 20.5, 7, 4.4, fur)
+    for y in (18.4, 20.6, 22.8):  # latitude lines
+        B.line(9, y, 20, y, stripe, w=0.7)
+    d.put(B)
+    H = d.part(lean, bob)
+    H.poly([(hx - 4, hy - 2), (hx - 3.4, hy - 7.4), (hx - 0.8, hy - 3.6)], fur)  # ears
+    H.poly([(hx + 0.8, hy - 3.6), (hx + 3.4, hy - 7.4), (hx + 4, hy - 2)], fur)
+    H.ellipse(hx, hy, 4.6, 4.2, fur)
+    H.line(hx - 4, hy - 1, hx + 4, hy - 1, stripe, w=0.6)
+    H.ellipse(hx + 1.8, hy + 2, 2, 1.4, light(fur, 0.35))  # little muzzle
+    H.dot(hx + 2.4, hy + 1.2, '#d0607a')
+    d.put(H)
+    if p.facing != 'up':
+        d.eyes(H, [(hx - 1.2, hy - 0.4), (hx + 2.2, hy - 0.4)])
+    finish(c, d, shadow=(15, 30.4, 8, 1.1))
+
+
+def kite_ray(c: Canvas, p: Pose, s: dict):
+    """A Kite Ray (#75 item 15d review): a flat diamond-shaped ray that flies
+    like a kite, a long string-tail with bows, a little face underneath."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#e05050'))
+    bow = hexc(s.get('bow', '#ffd23a'))
+    flap = (-1.2 if p.frame % 2 else 0.6)
+    B = d.part(d.lean, d.bob - 3)
+    B.poly([(16, 4 + flap * 0.3), (27, 14 + flap), (16, 22), (5, 14 + flap)], col)
+    B.poly([(16, 4 + flap * 0.3), (16, 22), (5, 14 + flap)], light(col, 0.12), shade=False)
+    B.line(16, 4, 16, 22, dark(col, 0.25), w=0.5)  # the kite's cross-sticks
+    B.line(5, 14 + flap, 27, 14 + flap, dark(col, 0.25), w=0.5)
+    d.put(B)
+    if p.facing != 'up':
+        d.eyes(B, [(13.6, 14), (18.4, 14)])
+    Tl = d.part(d.lean, d.bob - 3)
+    sway = 1.5 if p.frame % 2 else -1.5
+    Tl.line(16, 22, 16 + sway, 26.5, dark(col, 0.3), w=0.6)
+    Tl.line(16 + sway, 26.5, 16 - sway, 31, dark(col, 0.3), w=0.6)
+    for (x, y) in ((16 + sway * 0.5, 24.5), (16, 28.5)):
+        Tl.poly([(x - 1.6, y - 1), (x, y), (x - 1.6, y + 1)], bow, shade=False)
+        Tl.poly([(x + 1.6, y - 1), (x, y), (x + 1.6, y + 1)], bow, shade=False)
+    d.put(Tl, outline=False)
+    finish(c, d, shadow=(16, 31, 6, 1))
+
+
+def cloud_pup(c: Canvas, p: Pose, s: dict):
+    """A Zephyr Pup (#75 item 15d review): a puppy made of cloud — fluffy body,
+    floppy ears, a little snout and paws, puffs of wind for a tail."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#e8f2fa'))
+    lean, bob = d.lean, d.bob
+    legs = d.part(lean * 0.4, 0)
+    for i, lx in enumerate((10.5, 13, 18, 20.5)):
+        off = p.step * (1 if i % 2 else -1)
+        legs.ellipse(lx + off, 27.6, 1.5, 2.2, dark(col, 0.08) if i % 2 else dark(col, 0.14))
+    d.put(legs)
+    B = d.part(lean, bob)
+    for (x, y, r) in ((11, 20, 4.4), (15.5, 19, 5), (19.5, 21, 4.2), (14, 23, 4)):
+        B.ellipse(x, y, r, r * 0.9, col)
+    B.ellipse(6, 17.5, 2.4, 2, light(col, 0.1))  # a wind-puff tail
+    B.ellipse(3.6, 16, 1.6, 1.4, light(col, 0.1))
+    d.put(B)
+    H = d.part(lean, bob)
+    hx, hy = 22.5, 13.5
+    H.ellipse(hx, hy, 4.6, 4.2, col)
+    H.ellipse(hx - 3.6, hy + 0.4, 1.8, 3.2, dark(col, 0.12))  # floppy ear
+    H.ellipse(hx + 3.4, hy + 2.2, 2.4, 1.7, light(col, 0.15))  # snout
+    H.dot(hx + 5.2, hy + 1.6, '#3a4a5a', w=2, h=1)  # nose
+    d.put(H)
+    if p.facing != 'up':
+        d.eyes(H, [(hx - 0.6, hy - 0.8), (hx + 2.4, hy - 0.8)])
+    finish(c, d, shadow=(15, 30.4, 8, 1.1))
+
+
 def snail(c: Canvas, p: Pose, s: dict):
     """A tide snail (#75 item 15d): a soft body that slides along, a big
     spiral shell on its back — the shell takes the first hit."""
@@ -3412,6 +3512,9 @@ DRAWERS = {
     'sap_sprite': sap_sprite,
     'hollow_acorn': hollow_acorn,
     'snail': snail,
+    'cat': cat,
+    'kite_ray': kite_ray,
+    'cloud_pup': cloud_pup,
     'marker_post': marker_post,
     'tree_folk': tree_folk,
     'turtle': turtle,
@@ -3559,15 +3662,15 @@ ROSTER: list[Char] = [
     Char('starfix', '⭐', 'starfish', H(color='#ff7a5a')),
     # ── Act III: Taleshore I (geography, #75 item 15d) ──
     Char('compass-crab', '🦀', 'crab', H(color='#e8a03a')),
-    Char('gull-scout', '🕊️', 'flyer', H(kind='bird', color='#eef2f6')),
+    Char('gull-scout', '🐦', 'flyer', H(kind='bird', color='#9aa4b0')),
     Char('tide-snail', '🐌', 'snail', H(color='#d8c8a8', shell='#3a8ab8')),
     Char('marker-post', '🚩', 'marker_post', H(color='#a8743e', flag='#e04040')),
-    Char('latitude-cat', '🐈', 'eclipse_fox', H(fur='#e8963a', glow='#3ac0e0')),
+    Char('latitude-cat', '🐈', 'cat', H(fur='#e8963a', stripe='#3a7ac8')),
     Char('globe-beetle', '🪲', 'gravity_beetle', H(color='#2a8ac8')),
-    Char('zephyr-pup', '🌬️', 'blob', H(color='#cfe8f8', crest=True)),
-    Char('kite-ray', '🪁', 'flyer', H(kind='moth', color='#e05050', wing='#ffb040', spot='#fff4b0')),
+    Char('zephyr-pup', '🌬️', 'cloud_pup', H(color='#e8f2fa')),
+    Char('kite-ray', '🪁', 'kite_ray', H(color='#e05050', bow='#ffd23a')),
     Char('squall-chick', '🐤', 'flyer', H(kind='bird', color='#ffd23a')),
-    Char('compass-golem', '🗿', 'golem', H(color='#8a8a7a', accent='#d03a3a', glow='#ffd24a', runes=True), boss=True),
+    Char('compass-golem', '🗿', 'golem', H(color='#8a8a7a', accent='#d03a3a', glow='#ffd24a', runes=True, compass=True), boss=True),
 ]
 
 NPCS: list[Char] = [
@@ -3695,13 +3798,13 @@ NPCS: list[Char] = [
     Char('tale-rambler', '🥾', 'humanoid', H(hair='short', hair_color='#7a4a2a', hat='cap', hat_color='#3a7a4a', outfit='#a8784a', scarf='#3a6ab0', pants='#5a4a3a', pack='#6a8a4a', item='staff', item_color='#8a6a3a')),
     # Taleshore I (#75 item 15d)
     Char('drift-reel', '🎣', 'humanoid', H(hair='short', hair_color='#6a4a2a', hat='straw', hat_color='#e0c070', outfit='#3a8aa8', pants='#5a4a3a', item='rod', item_color='#8a6a3a')),
-    Char('drift-sandy', '🦀', 'crab', H(color='#f07a5a')),
-    Char('drift-salt', '🧂', 'humanoid', H(hair='ponytail', hair_color='#f0e8d8', outfit='#5ab0c0', trim='#ffffff', pants='#3a5a8a', pack='#c89a5a')),
+    Char('drift-sandy', '🪣', 'humanoid', H(hair='bob', hair_color='#e0a040', hat='straw', hat_color='#f0d890', outfit='#ff8ab0', pants='#3a8ab0', item='broom')),
+    Char('drift-salt', '🧂', 'humanoid', H(hair='ponytail', hair_color='#7a4a2a', outfit='#5ab0c0', trim='#ffffff', pants='#3a5a8a', pack='#c89a5a')),
     Char('way-lo', '🗺️', 'humanoid', H(hair='bun', hair_color='#2a2a3a', glasses=True, outfit='#8a6a3a', trim='#e8d8a0', item='telescope')),
     Char('way-pebble', '🐧', 'humanoid', H(skin='#2a2a3a', snout='beak', beak='#f0a030', outfit='#f4f4f8', blush=False)),
-    Char('way-drift', '🪁', 'humanoid', H(hair='spiky', hair_color='#e8c040', outfit='#e05050', scarf='#3a6ab0', pants='#3a3a5a', item='book')),
+    Char('way-drift', '✏️', 'humanoid', H(hair='spiky', hair_color='#e8c040', outfit='#e05050', scarf='#3a6ab0', pants='#3a3a5a', item='book')),
     Char('gale-sough', '🌬️', 'humanoid', H(hair='long', hair_color='#d8e8f4', outfit='#6aa0c8', trim='#ffffff', robe=True, item='staff', item_color='#c8e0f0')),
-    Char('gale-gully', '🕊️', 'flyer', H(kind='bird', color='#d8d8e0')),
+    Char('gale-gully', '🕊️', 'flyer', H(kind='bird', color='#e8b8cc')),
     Char('gale-tass', '🪁', 'humanoid', H(hair='short', hair_color='#a83a2a', hat='bandana', hat_color='#ffd23a', outfit='#e04a4a', apron='#f4e8c8', item='brush')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle

@@ -23,7 +23,7 @@ import {
   escortsBackLines,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -882,7 +882,7 @@ describe('Taleshore I quests (#75 item 15d)', () => {
     expect(hint(save)).toMatch(/^The next one is in a 🎁 in the top-left corner of Driftwood Shallows\./);
     save = openChest(save, GREEN);
     save = openChest(save, BLUE);
-    expect(hint(save)).toMatch(/Gale Atoll, far out to sea — only Ember can fly you there/);
+    expect(hint(save)).toBe('The next one is in a 🎁 on the west side of Gale Atoll, out at sea south-west of Port Lantern — only Ember can fly you there.');
     save = openChest(save, GOLD);
     expect(chestWantedLine(save, GOLD)).toBe("🧂 That's all three! Take them back to Salt on Driftwood Shallows.");
     const coins = save.coins;
@@ -892,7 +892,7 @@ describe('Taleshore I quests (#75 item 15d)', () => {
     expect(save.coins).toBe(coins + 40);
   });
 
-  it("Drift's map: one critter from each of the three places, any order", () => {
+  it("Wim's map: one critter from each of the three places, any order", () => {
     const quest = byId('drift-map');
     const zones = ['driftwood-shallows', 'wayfinder-isles', 'gale-atoll'] as const;
     for (const [defId, zid] of [['compass-crab', zones[0]], ['latitude-cat', zones[1]], ['kite-ray', zones[2]]] as const) {
@@ -908,15 +908,31 @@ describe('Taleshore I quests (#75 item 15d)', () => {
     expect(save.coins).toBe(coins + 45);
   });
 
-  it("Juno's walk: offered in Port Lantern, walked on Driftwood Shallows to a dock cell", () => {
+  it("Juno's walk: offered in Port Lantern, she comes over as you reach the beach, walked to the Puffin", () => {
     const quest = byId(JUNO_QUEST);
     expect(quest).toMatchObject({ zoneId: 'port-lantern', giverNpcId: 'port-skipper', playedIn: 'driftwood-shallows' });
     const walk = quest.steps[0].escort!;
     expect(walk.zoneId).toBe('driftwood-shallows');
-    expect(tileAt(ZONES['driftwood-shallows'], walk.goal.x, walk.goal.y)).toBe('|');
+    // Her goal is on the sand beside the Puffin (review: not on the one-wide dock).
+    expect(tileAt(ZONES['driftwood-shallows'], walk.goal.x, walk.goal.y)).toBe(':');
+    const puffin = ZONES['driftwood-shallows'].npcs.find((n) => n.defId === 'drift-puffin')!;
+    expect(Math.abs(puffin.x - walk.goal.x) + Math.abs(puffin.y - walk.goal.y)).toBe(1);
     let save = converse('port-skipper', defaultSave());
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
-    save = { ...save, flags: { ...save.flags, [stepFlag(JUNO_WALK)]: true } };
+    // Reaching the beach brings her over (review: she doesn't vanish as her offer closes).
+    expect(arrivalFlags('driftwood-shallows', save.flags)).toEqual([JUNO_CAME]);
+    expect(arrivalFlags('port-lantern', save.flags)).toEqual([]);
+    save = { ...save, zoneId: 'driftwood-shallows', flags: { ...save.flags, [JUNO_CAME]: true } };
+    // Talked to at the landing, she starts walking (the escort step).
+    const start = questConversation('port-skipper', save)!;
+    expect(start.lines[0]).toMatch(/^You came! The Puffin is by the old dock/);
+    save = start.finish ? start.finish(save) : save;
+    expect(save.flags[escortWalkingFlag(JUNO_WALK)]).toBe(true);
+    // A reload mid-walk sends her back to wait, and the world says so in Driftwood.
+    const back = normalizeSave(save);
+    expect(back.flags[escortWalkingFlag(JUNO_WALK)]).toBeFalsy();
+    expect(escortsBackLines(back.flags, 'driftwood-shallows').map((l) => l.line)).toEqual(['🧭 Juno went back to where the road comes in. Talk to her there to walk again!']);
+    save = { ...save, flags: { ...withoutEscorts(save.flags), [stepFlag(JUNO_WALK)]: true } };
     const coins = save.coins;
     save = converse('port-skipper', save);
     expect(save.flags[questDoneFlag(quest)]).toBe(true);

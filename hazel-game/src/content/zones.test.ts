@@ -26,7 +26,7 @@ import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
-import { JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import { BOAT_HOME } from './boat';
@@ -1311,7 +1311,7 @@ describe('Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll (#75 
   it("no critter's patch reaches Juno's walk from the landing to her dock", () => {
     const TILE = 32;
     const leash = WANDER_TUNING.enemy.leashTiles * TILE;
-    const walk = reachPath(drift, (x, y) => x === 2 && y === 22, { from: { x: 23, y: 2 }, passable: (ch) => ch === '=' || ch === '|' || ch === '.' })!;
+    const walk = reachPath(drift, (x, y) => x === 3 && y === 18, { from: { x: 23, y: 2 }, passable: (ch) => ch === '=' || ch === ':' || ch === '.' })!;
     expect(walk).toBeTruthy();
     for (const e of drift.enemies) {
       const near = Math.min(...walk.map((c) => Math.hypot(c.x - e.x, c.y - e.y))) * TILE;
@@ -1323,10 +1323,12 @@ describe('Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll (#75 
     const at = (flags: Record<string, boolean>) =>
       (['port-lantern', 'driftwood-shallows'] as const).flatMap((zid) => ZONES[zid].npcs.filter((n) => n.defId === 'port-skipper' && npcPresent(n, flags)).map((n) => `${zid}@${n.x},${n.y}`));
     const offered = { [questOfferedFlag({ id: JUNO_QUEST })]: true };
-    const arrived = { ...offered, [stepFlag(JUNO_WALK)]: true };
+    const came = { ...offered, [JUNO_CAME]: true };
+    const arrived = { ...came, [stepFlag(JUNO_WALK)]: true };
     expect(at({})).toEqual(['port-lantern@6,16']);
-    expect(at(offered)).toEqual(['driftwood-shallows@23,2']);
-    expect(at(arrived)).toEqual(['driftwood-shallows@2,22']);
+    expect(at(offered)).toEqual(['port-lantern@6,16']); // until you reach the beach
+    expect(at(came)).toEqual(['driftwood-shallows@23,2']);
+    expect(at(arrived)).toEqual(['driftwood-shallows@4,18']);
     expect(at({ ...arrived, [questDoneFlag({ id: JUNO_QUEST })]: true })).toEqual(['port-lantern@6,16']);
   });
 

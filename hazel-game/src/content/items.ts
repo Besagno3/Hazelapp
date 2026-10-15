@@ -33,8 +33,10 @@ export const TEA_DAMAGE_MULT = 2;
  * Staples sold in more than one shop (everything else: one), always at one price.
  * Berry Potions: Maple's Trading Post (Lumina Village), Tadpole's Tonics
  * (Verdara) and, on the far continent, Wick-Wax's Candle Shop (Port Lantern, #75 item 15c).
+ * Glimmer Candles: Slosh's Raft Shop (Foglight Marsh) and Wick-Wax's (#75 item 15d review —
+ * the Latitude Cats on the Wayfinder Isles are slippery too).
  */
-export const SHARED_STOCK: readonly ConsumableId[] = ['potion'];
+export const SHARED_STOCK: readonly ConsumableId[] = ['potion', 'candle'];
 
 /** Display info for each consumable (inventory, battle Items menu). */
 export const CONSUMABLES: Record<ConsumableId, { name: string; emoji: string; description: string }> = {
@@ -117,10 +119,10 @@ export const SHOPS: Record<string, ShopDef> = {
     emoji: '🕯️',
     items: [
       stock('potion', 30), // third potion seller (SHARED_STOCK)
+      stock('candle', 40), // a second candle seller (SHARED_STOCK)
       { id: 'badge:harbor', name: 'Harbor Light Badge', emoji: '⚓', description: 'A little anchor with a glowing lantern on it. Ships find their way home by its light.', price: 120 },
     ],
   },
-  // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.
   // Taleshore I (#75 item 15d): Tass's kite stall on windy Gale Atoll.
   'gale-tass': {
     name: "Tass's Kite Stall",
@@ -129,6 +131,7 @@ export const SHOPS: Record<string, ShopDef> = {
       { id: 'badge:kite', name: 'Kite Badge', emoji: '🪁', description: 'A tiny kite that flaps whenever the wind blows. So, always.', price: 110 },
     ],
   },
+  // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.
   'hill-merchant': {
     name: "Knack's Pre-Remembered Goods",
     emoji: '🧳',

@@ -4937,7 +4937,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "gull-scout": {
-    "emoji": "🕊️",
+    "emoji": "🐦",
     "world": {
       "sheet": "/sprites/gull-scout/world.png",
       "frameW": 32,
@@ -9968,7 +9968,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "drift-sandy": {
-    "emoji": "🦀",
+    "emoji": "🪣",
     "world": {
       "sheet": "/sprites/drift-sandy/world.png",
       "frameW": 32,
@@ -10132,7 +10132,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "way-drift": {
-    "emoji": "🪁",
+    "emoji": "✏️",
     "world": {
       "sheet": "/sprites/way-drift/world.png",
       "frameW": 32,
@@ -10381,6 +10381,47 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     "emoji": "📝",
     "world": {
       "sheet": "/sprites/port-office-note/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 1,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "walk": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "idleDown": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "walkDown": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "idleUp": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        },
+        "walkUp": {
+          "from": 0,
+          "to": 0,
+          "fps": 1
+        }
+      }
+    }
+  },
+  "drift-puffin": {
+    "emoji": "⛵",
+    "world": {
+      "sheet": "/sprites/drift-puffin/world.png",
       "frameW": 32,
       "frameH": 32,
       "frames": 1,

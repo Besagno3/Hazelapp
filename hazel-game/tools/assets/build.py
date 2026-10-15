@@ -60,7 +60,7 @@ TALESHORE_SPRITES = ('port-harbormaster', 'port-skipper', 'port-merchant', 'port
 # Taleshore I's critters, warden and people (#75 item 15d), for `build.py isles`.
 ISLES_SPRITES = ('compass-crab', 'gull-scout', 'tide-snail', 'marker-post', 'latitude-cat', 'globe-beetle', 'zephyr-pup',
                  'kite-ray', 'squall-chick', 'compass-golem', 'drift-reel', 'drift-sandy', 'drift-salt', 'way-lo',
-                 'way-pebble', 'way-drift', 'gale-sough', 'gale-gully', 'gale-tass')
+                 'way-pebble', 'way-drift', 'gale-sough', 'gale-gully', 'gale-tass', 'drift-puffin')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',

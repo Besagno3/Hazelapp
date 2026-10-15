@@ -4,7 +4,7 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -297,7 +297,7 @@ const JUNO_ZONE: ZoneId = 'driftwood-shallows';
 const SALT_GLASS = [
   { item: 'seaglass-green', label: 'the green one 💚', where: 'a 🎁 in the top-left corner of Driftwood Shallows' },
   { item: 'seaglass-blue', label: 'the blue one 💙', where: 'a 🎁 on the beach, near the right side of Driftwood Shallows' },
-  { item: 'seaglass-gold', label: 'the gold one 💛', where: 'a 🎁 on Gale Atoll, far out to sea — only Ember can fly you there' },
+  { item: 'seaglass-gold', label: 'the gold one 💛', where: 'a 🎁 on the west side of Gale Atoll, out at sea south-west of Port Lantern — only Ember can fly you there' },
 ];
 
 /**
@@ -986,7 +986,7 @@ export const QUESTS: QuestDef[] = [
     offer: [
       "My ferry, the Puffin, is still beached at the old dock on Driftwood Shallows. I'm too nervous to walk there alone.",
       'Those critters on the beach give me the wobbles. Will you walk with me? The road south from town goes right there.',
-      "I'll meet you where the road reaches the beach!",
+      "I'll meet you where the road comes in to Driftwood Shallows!",
     ],
     steps: [
       escortStep(
@@ -994,22 +994,22 @@ export const QUESTS: QuestDef[] = [
         {
           npcId: 'port-skipper',
           zoneId: JUNO_ZONE,
-          // The end of the old dock in the south-west, where the Puffin waits.
-          goal: { x: 2, y: 22 },
+          // On the sand by the old dock in the south-west, beside the Puffin.
+          goal: { x: 3, y: 18 },
           lines: [
-            "You came! The Puffin is at the end of the old dock, in the bottom-left corner of the beach.",
+            "You came! The Puffin is by the old dock, in the bottom-left corner of the beach.",
             "I'll follow right behind you. If a critter gets close, I'll wait until it moves away!",
           ],
           waitLine: 'Juno stops — a critter is too close! Wait for it to move away, or bump into it to battle.',
           behindLine: "Juno isn't here yet! Go back and find her — look for her ❗.",
-          backLine: '🧭 Juno went back to the top of the beach. Talk to her there to walk again!',
+          backLine: '🧭 Juno went back to where the road comes in. Talk to her there to walk again!',
         },
         (save) =>
           save.flags[escortWalkingFlag(JUNO_WALK)]
-            ? 'Walk Juno to the old dock in the bottom-left corner of Driftwood Shallows. Stay close — she stops if a critter is near!'
+            ? 'Walk Juno to the Puffin, by the old dock in the bottom-left corner of Driftwood Shallows. Stay close — she stops if a critter is near!'
             : save.zoneId === JUNO_ZONE
-              ? 'Juno is waiting at the top of the beach — talk to her to walk her to her ferry!'
-              : 'Take the road south from Port Lantern to Driftwood Shallows. Juno waits at the top of the beach!',
+              ? 'Juno is waiting where the road comes in — talk to her to walk her to her ferry!'
+              : 'Take the road south from Port Lantern to Driftwood Shallows. Juno waits where the road comes in!',
       ),
     ],
     complete: [
@@ -1040,6 +1040,8 @@ export const QUESTS: QuestDef[] = [
           const left = SALT_GLASS.filter((g) => !save.questItems.includes(g.item));
           return `The next one is in ${left[0].where}.`;
         },
+        // The hint names the next one already (review): no list after it.
+        { listLeft: false },
       ),
     ],
     foundNote: (save) =>
@@ -1063,7 +1065,7 @@ export const QUESTS: QuestDef[] = [
     side: true,
     title: 'The Unfinished Map',
     offer: [
-      "I'm Drift. I'm making a map of where every critter lives. It's nearly done — but three spots are blank!",
+      "I'm Wim. I'm making a map of where every critter lives. It's nearly done — but three spots are blank!",
       'A Compass Crab on Driftwood Shallows, a Latitude Cat here on the isles, and a Kite Ray out on Gale Atoll.',
       'Battle one of each, and tell me what they were like. Then my map is finished!',
     ],
@@ -1072,7 +1074,7 @@ export const QUESTS: QuestDef[] = [
         'drift-map-critters',
         [
           { defId: 'compass-crab', label: 'a Compass Crab 🦀 (Driftwood Shallows)' },
-          { defId: 'latitude-cat', label: 'a Latitude Cat 🐈 (here on the isles)' },
+          { defId: 'latitude-cat', label: 'a Latitude Cat 🐈 (the Wayfinder Isles)' },
           { defId: 'kite-ray', label: 'a Kite Ray 🪁 (Gale Atoll)' },
         ],
         'My map still has blank spots.',
@@ -1444,7 +1446,11 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
  * the Marsh after Posy asks means she's come over too (`POSY_SAILED`, #75 item 14g).
  */
 export function arrivalFlags(zoneId: ZoneId, flags: Record<string, boolean>): string[] {
-  return zoneId === POSY_ZONE && flags[questOfferedFlag({ id: POSY_QUEST })] && !flags[POSY_SAILED] ? [POSY_SAILED] : [];
+  const out: string[] = [];
+  if (zoneId === POSY_ZONE && flags[questOfferedFlag({ id: POSY_QUEST })] && !flags[POSY_SAILED]) out.push(POSY_SAILED);
+  // Juno walks over from town as you do (#75 item 15d review).
+  if (zoneId === JUNO_ZONE && flags[questOfferedFlag({ id: JUNO_QUEST })] && !flags[JUNO_CAME]) out.push(JUNO_CAME);
+  return out;
 }
 
 /** The world's line for each walk that ended short (`escortBackFlag`, #75 item 14g review). */

@@ -19,6 +19,7 @@ STILL_PROPS = {
     # Port Lantern's quest board (#75 item 15c).
     'port-board': ('📋', tiles.quest_board),
     'port-office-note': ('📝', tiles.desk_note),
+    'drift-puffin': ('⛵', tiles.beached_boat),
 }
 
 

@@ -36,6 +36,12 @@ export const POSY_SAILED = 'posy:sailed';
  */
 export const JUNO_QUEST = 'juno-ferry';
 export const JUNO_WALK = 'juno-walk';
+/**
+ * Set the first time the hero reaches Driftwood Shallows after Juno asks
+ * (#75 item 15d review, like Posy's `POSY_SAILED`): until then she waits on
+ * Port Lantern's dock rather than vanishing as her offer closes.
+ */
+export const JUNO_CAME = 'juno:came';
 
 /**
  * Set while an escort's walk is under way. Never kept: leaving the place,

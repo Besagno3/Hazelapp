@@ -9,7 +9,7 @@ import taleshoreTmj from './maps/taleshore.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 import { ACT2_SEEN, FLIGHT_FLAG } from './story';
-import { JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, stepFlag } from './questFlags';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -509,7 +509,6 @@ const POSY_ARRIVED = stepFlag(POSY_WALK);
 const POSY_DONE = questDoneFlag({ id: POSY_QUEST });
 // Skipper Juno's walk to her ferry (#75 item 15d): offered in Port Lantern,
 // walked on Driftwood Shallows from its landing to the old dock.
-const JUNO_OFFERED = questOfferedFlag({ id: JUNO_QUEST });
 const JUNO_ARRIVED = stepFlag(JUNO_WALK);
 const JUNO_DONE = questDoneFlag({ id: JUNO_QUEST });
 const SALT_WANTS = '🧂 Salt the Younger, on Driftwood Shallows, is collecting sea-glass!';
@@ -2274,7 +2273,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'port-harbormaster', x: 31, y: 13 },
       { defId: 'port-office-note', x: 13, y: 15 }, // beside the desk
       // Away walking her ferry route while her quest is under way (#75 item 15d).
-      { defId: 'port-skipper', x: 6, y: 16, unlessFlag: JUNO_OFFERED },
+      { defId: 'port-skipper', x: 6, y: 16, unlessFlag: JUNO_CAME },
       { defId: 'port-skipper', x: 6, y: 16, ifFlag: JUNO_DONE },
       { defId: 'port-merchant', x: 25, y: 3 },
       { defId: 'port-innkeeper', x: 13, y: 4 },
@@ -2343,8 +2342,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'drift-sandy', x: 30, y: 13 },
       { defId: 'drift-salt', x: 6, y: 9 },
       // Skipper Juno: waits at the landing once asked, walks to her dock (#75 item 15d).
-      { defId: 'port-skipper', x: 23, y: 2, ifFlag: JUNO_OFFERED, unlessFlag: JUNO_ARRIVED },
-      { defId: 'port-skipper', x: 2, y: 22, ifFlag: JUNO_ARRIVED, unlessFlag: JUNO_DONE },
+      { defId: 'port-skipper', x: 23, y: 2, ifFlag: JUNO_CAME, unlessFlag: JUNO_ARRIVED },
+      { defId: 'port-skipper', x: 4, y: 18, ifFlag: JUNO_ARRIVED, unlessFlag: JUNO_DONE },
+      { defId: 'drift-puffin', x: 3, y: 19 },
     ],
     enemies: [
       { defId: 'compass-crab', x: 12, y: 16 },

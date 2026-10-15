@@ -1773,7 +1773,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       { text: "Welcome to Port Lantern! I'm Harbormaster Gale. I've never lost a ship. Misplaced one, yes. Twice.", setFlag: MET_GALE },
       "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.",
-      "Taleshore is just waking up to visitors. Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock needs a brave friend!",
+      { text: 'Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock needs a brave friend!', unlessFlag: questOfferedFlag({ id: JUNO_QUEST }) },
+      { text: "Talk to everyone, and check the Quest Board in the square. And thank you for looking after Juno!", ifFlag: questOfferedFlag({ id: JUNO_QUEST }) },
     ],
   },
   'port-skipper': {
@@ -1794,7 +1795,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🕯️',
     role: 'merchant',
     lines: [
-      "Potions for the road, and a badge that glows! Wick-Wax's Candle Shop keeps Port Lantern bright.",
+      "Potions, Glimmer Candles, and a badge that glows! Wick-Wax's Candle Shop keeps Port Lantern bright.",
       'You know a Grandmother Wick? Never heard of her. No relation. Certainly not my cousin.',
     ],
   },
@@ -1863,7 +1864,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       '📋 The Quest Board. Notices are pinned all over it.',
       'NEW IN TOWN? Say hello to Harbormaster Gale by the road in. Rest at the Driftlight Inn. Potions at Wick-Wax\'s Candle Shop.',
-      { text: 'WANTED: a brave friend to walk Skipper Juno to her old ferry. Ask Juno on the south dock!', unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: 'WANTED: a brave friend to walk Skipper Juno to her old ferry. Ask Juno on the south dock!', unlessFlag: questOfferedFlag({ id: JUNO_QUEST }) },
+      { text: 'NOTICE: Skipper Juno has gone down the south road to Driftwood Shallows, to find her old ferry.', ifFlag: questOfferedFlag({ id: JUNO_QUEST }), unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
       { text: "GOOD NEWS: Skipper Juno has found her nerve AND her ferry! Well done, whoever helped.", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
       'SEEN: a stone giant in the Wayfinder Isles. Cartographer Lo says it guards a key. Take care!',
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
@@ -1893,13 +1895,26 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
     ambient: ['Ooh, a shell!', 'Another boot?', '🐚'],
   },
+  // The Puffin, Skipper Juno's ferry, beached by the old dock (#75 item 15d review).
+  'drift-puffin': {
+    id: 'drift-puffin',
+    name: 'The Puffin',
+    sprite: '⛵',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      { text: '⛵ The Puffin, Skipper Juno\'s little ferry. A bit sandy, but not one plank missing.', unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: '⛵ The Puffin, scrubbed and shining. Juno says she\'ll sail again very soon!', ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+    ],
+  },
   'drift-sandy': {
     id: 'drift-sandy',
     name: 'Sandy',
-    sprite: '🦀',
+    sprite: '🪣',
     role: 'villager',
     lines: [
-      "Hi hi! I'm Sandy! I only walk sideways. It takes ages to get anywhere, but I see SO much on the way!",
+      "Hi hi! I'm Sandy! I walk sideways, like the crabs. It takes ages to get anywhere, but I see SO much on the way!",
       'The snails here wear their shells like shields. Hit one once and the shell cracks. Then it\'s just a snail!',
     ],
     ambient: ['Sideways, sideways…', 'Click click!', '🦀'],
@@ -1916,7 +1931,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       'Sea-glass is just old bottles the sea has polished for a hundred years. Imagine being that patient!',
     ],
   },
-  // The Wayfinder Isles: a mapmaker (the Golem's signpost), a penguin who walks in straight lines, and Drift.
+  // The Wayfinder Isles: a mapmaker (the Golem's signpost), a penguin who walks in straight lines, and Wim the Mapper.
   'way-lo': {
     id: 'way-lo',
     name: 'Cartographer Lo',
@@ -1944,8 +1959,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'way-drift': {
     id: 'way-drift',
-    name: 'Drift',
-    sprite: '🪁',
+    name: 'Wim the Mapper',
+    sprite: '✏️',
     role: 'villager',
     stationary: true,
     // His quest's offer comes first ("The Unfinished Map"); these follow it.

@@ -760,6 +760,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15d review round 1: the Puffin, flown off islands, critters that look their names (#75 item 15d, #138h)
+Fresh code (1 medium, 7 low) and UX (5 medium, 7 low) reviews. Fixed: routes
+off an island are flown (`offIsland`); the Puffin on the beach (`drift-puffin`),
+Juno's walk ends beside it and she comes over as you arrive (`JUNO_CAME`);
+Wick-Wax sells Glimmer Candles too; Sandy a kid, Gully pink, the Gull Scout
+grey; new `cat`, `kite_ray`, `cloud_pup` drawers and a compass on the Golem;
+Drift is Wim the Mapper; sea-and-sand battle backdrops (`shore`); copy that
+matches where people are. Tests +2; 1225 green; `bench … journey` 13/13.
+
 ### 2026-10-15 — Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll (#75 item 15d, #138)
 Roadmap sub-item 15d (branch stacked on 15c's PR #57).
 - **Three places on Taleshore:** Driftwood Shallows at the end of a new road
