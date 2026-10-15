@@ -1039,13 +1039,20 @@ describe('Taleshore III quests (#75 item 15f)', () => {
     let save = converse('songstone-high', onCliffs());
     // The low stone before the middle one: a wrong note.
     const wrong = questConversation('songstone-low', save)!;
-    expect(wrong.lines[0]).toMatch(/^🔔 BWOOONG! A wrong note .* First the HIGH songstone/);
+    expect(wrong.lines[0]).toMatch(/^🔔 BWOOONG! A wrong note — the song starts again from the top! First the HIGH songstone/);
     save = wrong.finish!(save);
     for (const id of RESO_STONES) expect(save.flags[stepFlag(id)], id).toBeFalsy();
     expect(activeStep(byId(RESO_QUEST), save)!.id).toBe(RESO_STONES[0]);
     // …and it can be sung again from the top.
     for (const st of stones) save = converse(st, save);
     expect(activeStep(byId(RESO_QUEST), save)).toBeNull();
+  });
+
+  it('struck out of turn before anything rings, it\'s just "not yet" — nothing to un-do (round 1)', () => {
+    const save = onCliffs();
+    const early = questConversation('songstone-low', save)!;
+    expect(early.lines[0]).toMatch(/^🔔 Bwong… not yet! The song starts HIGH\. First the HIGH songstone/);
+    expect(early.finish).toBeNull();
   });
 
   it("Reso's own reminder for the low stone says \"me\", the quest log names her", () => {

@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { JUNO_CAME, JUNO_QUEST, RESO_QUEST, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
@@ -1841,6 +1841,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "Coo! Postmaster Pidge. I carry letters over hills and over sea. But never over the fog. Until now!",
       "I've years of letters for Lumina Village. Now a dragon's found the way, maybe they'll finally get there!",
+      { text: "Shush's letter? Far too precious for my sack — you carry it, dragon-rider!", ifFlag: questOfferedFlag({ id: SHUSH_QUEST }), unlessFlag: questDoneFlag({ id: SHUSH_QUEST }) },
     ],
     ambient: ['Coo!', 'Letters! Letters!', '✉️'],
   },
@@ -1915,9 +1916,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: [
-      '🗿 A stone face in the cliff. You say "Hello!" It says: "…llo! …llo!"',
+      '🗿 A stone face in the cliff. You say "Hello, rock!" It says: "…rock! …rock!"',
       'You ask "What\'s your name?" It says: "…name? …name?" It only ever repeats the LAST word.',
-      'You say "Goodbye!" It says: "…bye! …bye!" Then it smiles. Probably.',
+      'You say "See you later!" It says: "…later! …later!" Then it smiles. Probably.',
     ],
   },
   'cliff-hum': {
@@ -1952,7 +1953,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     prop: true,
     stationary: true,
-    lines: ['🔔 The high songstone is still ringing: DIIING! A high, bright note, humming on and on.'],
+    // Says which stone is next until that one rings too (15f review).
+    lines: [
+      { text: '🔔 The high songstone is still ringing. Next: the MIDDLE songstone, on the middle ledge to the east!', unlessFlag: stepFlag(RESO_STONES[1]) },
+      { text: '🔔 The high songstone is still ringing: DIIING! A high, bright note, humming on and on.', ifFlag: stepFlag(RESO_STONES[1]) },
+    ],
   },
   'songstone-middle': {
     id: 'songstone-middle',
@@ -1975,7 +1980,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     prop: true,
     stationary: true,
-    lines: ['🔔 The middle songstone is still ringing: DOOONG! A middle note, humming on and on.'],
+    // Says which stone is next until that one rings too (15f review).
+    lines: [
+      { text: '🔔 The middle songstone is still ringing. Last: the LOW songstone, on the bottom ledge just west of Reso!', unlessFlag: stepFlag(RESO_STONES[2]) },
+      { text: '🔔 The middle songstone is still ringing: DOOONG! A middle note, humming on and on.', ifFlag: stepFlag(RESO_STONES[2]) },
+    ],
   },
   'songstone-low': {
     id: 'songstone-low',
@@ -2019,7 +2028,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Mime',
     sprite: '🎭',
     role: 'villager',
-    lines: ['🎭 👋 😊', '🎭 🤫 … 👉 📚 … 🤔 💭', '🎭 🧱 👐 🧱 👐 … 😮 🚪 ❓', '🎭 🙇 🎉'],
+    lines: ['🎭 The Mime doesn\'t say a word. Instead…', '🎭 👋 😊', '🎭 🤫 … 👉 📚 … 🤔 💭', '🎭 👐 … 👐 … 😮 (an invisible wall!) … 🚪 🚶 🎉'],
     ambient: ['…', '🤐', '🎭'],
   },
   'quiet-sotto': {
@@ -2029,7 +2038,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'merchant',
     lines: [
       'Psst. Over here. I sell secrets. Mostly recipes. VERY secret recipes.',
-      "And candles. It's dark in the Quarter, and the Muffle Moths love a candle.",
+      "And candles. Light one in a tricky battle for a free hint. Shh — that one's free advice.",
     ],
   },
   // --- Taleshore II (#75 item 15e) --------------------------------------------

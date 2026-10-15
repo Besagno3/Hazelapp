@@ -1490,6 +1490,11 @@ describe('Taleshore III: Songstone Cliffs and the Quiet Quarter (#75 item 15f)',
     const shown = (flags: Record<string, boolean>) => cliffs.npcs.filter((n) => n.defId.startsWith('songstone') && npcPresent(n, flags)).map((n) => n.defId);
     expect(shown({})).toEqual(['songstone-high', 'songstone-middle', 'songstone-low']);
     expect(shown({ [stepFlag(RESO_STONES[0])]: true })).toEqual(['songstone-high-rung', 'songstone-middle', 'songstone-low']);
+    // A rung stone says which is next until that one rings too (round 1).
+    const said = (id: string, flags: Record<string, boolean>) => visibleLines(NPC_DEFS[id].lines, flags).map(lineText);
+    expect(said('songstone-high-rung', { [stepFlag(RESO_STONES[0])]: true })).toEqual([expect.stringMatching(/Next: the MIDDLE songstone/)]);
+    expect(said('songstone-high-rung', { [stepFlag(RESO_STONES[1])]: true })).toEqual([expect.stringMatching(/still ringing: DIIING/)]);
+    expect(said('songstone-middle-rung', {})).toEqual([expect.stringMatching(/Last: the LOW songstone/)]);
   });
 
   it("the quarter's two buildings are its own style; Sotto sells there", () => {

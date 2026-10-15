@@ -95,8 +95,8 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   reef: '🪸',
   inkwell: '🖋️',
   // Taleshore III (#75 item 15f).
-  cliffs: '🎶',
-  quarter: '🤫',
+  cliffs: '🪨',
+  quarter: '🏚️',
 };
 
 /** Stands in for a place that's still hidden in fog. */

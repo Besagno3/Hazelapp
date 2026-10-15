@@ -168,3 +168,21 @@ describe("a tale-stone's riddle (#75 item 15e)", () => {
     expect(sendFlow).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'OPEN_PATH' }));
   });
 });
+
+describe("a step through a service NPC (#75 item 15f: Shush's letter to Librarian Sage)", () => {
+  it('pressing 📚 Library on the last line still hands the letter over and takes the reply', () => {
+    useSaveStore.setState({
+      userId: null,
+      save: { ...defaultSave(), zoneId: 'lumina-village', questItems: ['shush-letter'], flags: { 'quest:shush-letters:offered': true } },
+      status: 'ready',
+      remoteError: null,
+    });
+    render(<DialogueOverlay npcId="hub-librarian" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    fireEvent.click(screen.getByText('📚 Library'));
+    const save = useSaveStore.getState().save!;
+    expect(save.questItems).toEqual(['sage-letter']);
+    expect(save.flags['quest-step:shush-deliver']).toBe(true);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_SERVICE', service: 'library', npcId: 'hub-librarian' });
+  });
+});

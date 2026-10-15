@@ -770,6 +770,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15f review round 1: cliffs that look like cliffs, a song that says what's next (#75 item 15f, #140h)
+Fresh code (3 low, 2 nits) and UX (1 high, 5 medium, 7 low) reviews, all
+fixed: a `cliff` solid between ledges, darker ground; struck and rung stones
+name the next; a wrong note before anything rings un-does nothing
+(`QuestDef.wrongNote`); Shush's Return hint and `doneLine`; Pidge, Echo, the
+Mime, Sotto; the gull's bell, the bat's waves, the Hushling's finger, Hum's
+stripes; map emoji. Tests +3; 1263 green.
+
 ### 2026-10-15 — Taleshore III: Songstone Cliffs and the Quiet Quarter (#75 item 15f, #140)
 Roadmap sub-item 15f (branch stacked on 15e's).
 - **Two places on Taleshore**, walked to: Songstone Cliffs (music) east off

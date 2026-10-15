@@ -186,6 +186,12 @@ export interface QuestDef {
   doneLine?: string;
   /** The offer when you already carry one of `items` (found the thing before meeting them). */
   offerHaving?: { items: string[]; lines: string[] };
+  /**
+   * A song quest's wrong notes (#75 item 15f review): struck out of turn before
+   * anything rings (`early`), and after something has rung, so the song starts
+   * again (`again`). Each is followed by the first song step's hint.
+   */
+  wrongNote?: { early: string; again: string };
   /** Only offered once this story flag is set (Act II's quests wait for `act2-seen`, #75 item 14). */
   requires?: string;
   steps: QuestStep[];
@@ -1206,17 +1212,21 @@ export const QUESTS: QuestDef[] = [
       'These cliffs sing a song on three songstones — high, middle, low. But the song is stuck!',
       'Strike them in order: the HIGH one on the top ledge, then the MIDDLE, then the LOW one down here. A wrong note? We just start again!',
     ],
+    wrongNote: {
+      early: '🔔 Bwong… not yet! The song starts HIGH.',
+      again: '🔔 BWOOONG! A wrong note — the song starts again from the top!',
+    },
     steps: [
       songStep(
         RESO_STONES[0],
         'songstone-high',
-        ['🔔 You strike the high songstone. DIIING! A high, bright note rings across the cliffs.'],
+        ['🔔 DIIING! The high songstone rings! Next: the MIDDLE songstone, on the middle ledge to the east.'],
         'First the HIGH songstone — up on the top ledge, in the west. Climb the ramps!',
       ),
       songStep(
         RESO_STONES[1],
         'songstone-middle',
-        ['🔔 You strike the middle songstone. DOOONG! Two notes ring together now.'],
+        ['🔔 DOOONG! Two notes ring together! Last: the LOW songstone, on the bottom ledge just west of Reso.'],
         'Next the MIDDLE songstone — on the middle ledge, to the east.',
       ),
       songStep(
@@ -1249,6 +1259,7 @@ export const QUESTS: QuestDef[] = [
     ],
     givesItem: 'shush-letter',
     takesItems: ['sage-letter'],
+    doneLine: "Take Sage's reply back to Librarian Shush in the Quiet Quarter — fly to Taleshore, then go east off the south road!",
     steps: [
       bringStep(
         'shush-deliver',
@@ -1258,7 +1269,7 @@ export const QUESTS: QuestDef[] = [
           '📨 A letter… from Shush? From Taleshore?! I thought the fog had swallowed every letter!',
           "Wait right there… I've written back. A LONG reply — I had years of news. Please take it to Shush!",
         ],
-        'Take the letter to Librarian Sage, in the Library at the east end of Lumina Village. Fly home on Ember!',
+        'Take the letter to Librarian Sage, in the Library at the east end of Lumina Village. Cast 🏠 Return from 📜 Menu, or fly home on Ember!',
       ),
     ],
     complete: [
@@ -1618,7 +1629,10 @@ function stepConversation(npcId: string, save: SaveData): QuestConversation | nu
 /**
  * A talk step's NPC talked to before its turn (#75 item 14g review: the north
  * lantern before the west one): "not this one yet", and the step that's due —
- * once the steps before have reached the talking part.
+ * once the steps before have reached the talking part. A song step struck out
+ * of turn (#75 item 15f) is a wrong note first: if any song step has rung they
+ * all go quiet and the song starts again; if none has, just "not yet". A step
+ * already done never counts — its thing is placed as another NPC (rung).
  */
 function earlyConversation(npcId: string, save: SaveData): QuestConversation | null {
   for (const q of QUESTS) {
@@ -1629,12 +1643,14 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
     // A wrong note (#75 item 15f): every song step goes quiet and the song starts again.
     if (later.some((st) => st.song && st.npc?.id === npcId)) {
       const song = q.steps.filter((st) => st.song);
+      const rung = song.some((st) => st.isComplete(save));
+      const note = rung ? (q.wrongNote?.again ?? 'A wrong note — start again from the first one!') : (q.wrongNote?.early ?? 'Not that one yet!');
       const quiet = Object.fromEntries(song.map((st) => [stepFlag(st.id), false]));
       return {
-        lines: [`🔔 BWOOONG! A wrong note — the songstones go quiet. No harm done: start the song again! ${resolveHint(song[0], save)}`],
+        lines: [`${note} ${resolveHint(song[0], save)}`],
         badge: q.title,
         finishKind: null,
-        finish: (s) => ({ ...s, flags: { ...s.flags, ...quiet } }),
+        finish: rung ? (s) => ({ ...s, flags: { ...s.flags, ...quiet } }) : null,
       };
     }
     if (later.some((st) => st.early && st.npc?.id === npcId)) {

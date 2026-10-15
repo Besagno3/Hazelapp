@@ -994,10 +994,21 @@ def flyer(c: Canvas, p: Pose, s: dict):
     else:
         L.ellipse(14, 18 + flap * 0.5, 4.5, 3.4, wc, rot=0.3)
     if s.get('bell'):
-        # A Chime Gull (#75 item 15f): a little gold bell hung round its neck.
-        L.line(21, 18, 21, 20, '#8a6a2a', w=0.5)
-        L.poly([(19.4, 23.4), (20.2, 20), (21.8, 20), (22.6, 23.4)], '#ffd24a')
-        L.dot(21, 23.8, '#8a6a2a', w=0.8, h=0.8)
+        # A Chime Gull (#75 item 15f): a big gold bell hung under its beak (15f review: bigger).
+        L.line(23.4, 19.6, 23.4, 21.6, '#6a4a1a', w=0.7)
+        L.poly([(20.6, 27), (21.8, 21.4), (25, 21.4), (26.2, 27)], '#ffc828')
+        L.rect(20.2, 26.4, 26.6, 27.4, '#c89a1a')
+        L.dot(23.4, 28.2, '#6a4a1a', w=1.2, h=1.2)
+    if s.get('waves'):
+        # An Echo Bat (15f review): sound waves rippling out from its ears.
+        for r in (2.6, 4.4):
+            L.line(11 - r, 9.4 - r * 0.4, 11 - r * 0.6, 7 - r, '#e8e0ff', w=0.6)
+            L.line(24 + r * 0.6, 7 - r, 24 + r, 9.4 - r * 0.4, '#e8e0ff', w=0.6)
+    if s.get('stripes') and kind == 'bee':
+        # Hum (15f review): black stripes and a little stinger, so it reads as a bee.
+        for x in (14, 17.5):
+            L.rect(x, 14, x + 1.6, 24, '#2a2230', shade=False)
+        L.poly([(9.6, 19), (6.4, 20), (9.6, 21)], '#2a2230')
     if s.get('scarf'):
         # A Muffle Moth (#75 item 15f): wrapped in a woolly scarf, so its wings make no sound.
         L.rect(12.6, 13.4, 19.4, 15.2, '#c86a6a')
@@ -1533,10 +1544,15 @@ def ghost(c: Canvas, p: Pose, s: dict):
     ex = face_x(p, [17, 20.5], [13.5, 18])
     d.eyes(L, [(x, 12) for x in ex], color=hexc(s.get('eye', '#1e1628')))
     if s.get('hush') and ex:
-        # A Hushling (#75 item 15f): a finger held to its lips — shhh!
-        L.line(ex[0] + 2, 13.6, ex[0] + 2, 19, light(col, 0.15), w=1.6)
-        L.ellipse(ex[0] + 2, 20, 1.6, 1.4, light(col, 0.15))
-        L.line(ex[0] + 0.6, 17, ex[0] + 3.4, 17, dark(col, 0.45), w=0.5)
+        # A Hushling (#75 item 15f): a finger held to its closed lips — shhh! (15f review: a
+        # warm finger that shows on its pale body, and a little "shh" squiggle).
+        mx = ex[0] + 1.6
+        L.line(mx - 1.8, 17, mx + 1.8, 17, dark(col, 0.55), w=0.8)
+        L.line(mx, 20.6, mx, 15, '#f0c8a0', w=1.6)
+        L.ellipse(mx, 21.4, 1.8, 1.5, '#f0c8a0')
+        if d.sep:
+            for i in range(3):
+                L.line(25 + i * 1.2, 9 + (i % 2), 26 + i * 1.2, 8 - (i % 2), dark(col, 0.4), w=0.5)
     elif d.sep and ex:
         L.ellipse(ex[0] + 2, 17, 1.4, 1.1, dark(col, 0.45), shade=False)
     d.put(L)
@@ -3965,7 +3981,7 @@ ROSTER: list[Char] = [
     Char('margin-shrimp', '🦐', 'shrimp', H(color='#ff8a6a')),
     Char('riddle-leviathan', '🐋', 'leviathan', H(color='#3a3a7a'), boss=True),
     # ── Act III: Taleshore III (#75 item 15f) ──
-    Char('echo-bat', '🦇', 'flyer', H(kind='bat', color='#7a5ab0', wing='#a88ad8')),
+    Char('echo-bat', '🦇', 'flyer', H(kind='bat', color='#7a5ab0', wing='#a88ad8', waves=True)),
     Char('chime-gull', '🔔', 'flyer', H(kind='bird', color='#f4f4f8', wing='#c8d0dc', bell=True)),
     Char('drum-crab', '🥁', 'crab', H(color='#e8a05a', drum=True)),
     Char('hushling', '🤫', 'ghost', H(color='#c8c0e8', hush=True)),
@@ -4117,7 +4133,7 @@ NPCS: list[Char] = [
     # Taleshore III (#75 item 15f)
     Char('cliff-reso', '🎶', 'humanoid', H(hair='bun', hair_color='#3a2a3a', outfit='#a03a6a', trim='#ffd860', robe=True, item='staff', item_color='#f4f4f8')),
     Char('cliff-echo', '🗿', 'nameless_stone', H(color='#a8a49a', face=True)),
-    Char('cliff-hum', '🐝', 'flyer', H(kind='bee', color='#ffd23a')),
+    Char('cliff-hum', '🐝', 'flyer', H(kind='bee', color='#ffd23a', stripes=True)),
     Char('songstone', '🪨', 'nameless_stone', H(color='#9ab0c8', notes=True)),
     Char('songstone-rung', '🪨', 'nameless_stone', H(color='#c0d4e8', notes=True, glow='#ffd84a')),
     Char('quiet-shush', '🤫', 'humanoid', H(hair='bun', hair_color='#8a8a98', glasses=True, outfit='#4a5a7a', trim='#c8d0e0', robe=True, item='book')),

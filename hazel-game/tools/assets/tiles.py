@@ -108,7 +108,7 @@ ZONES = {
                          sky=('#3a3a6a', '#b8a8d8'), far='#4a4a7a', mid='sea', water='#1e2240'),
     # Taleshore III (#75 item 15f): windy grey cliffs of humming stone and music notes,
     # and a hushed old quarter of grey-blue stone, lavender and still water at dusk.
-    'songstone-cliffs': dict(ground=(150, 160, 150), path=(196, 186, 160), solid='rock', deco='note', deco_c='#4a4a7a',
+    'songstone-cliffs': dict(ground=(118, 132, 116), path=(176, 166, 140), solid='cliff', deco='note', deco_c='#2a2a4a',
                              sky=('#5a8ad8', '#f0e8ff'), far='#8a9ac0', mid='mountain', water='#4a8ad0'),
     'quiet-quarter': dict(ground=(120, 136, 140), path=(170, 170, 180), solid='hedge', deco='lavender', deco_c='#b8a0e0',
                           sky=('#3a4a7a', '#c0b8d8'), far='#5a5a80', mid='houses', water='#4a6a8a'),
@@ -230,6 +230,15 @@ def solid(kind, zone):
     elif kind == 'rock':
         c.ellipse(8, 10, 7, 5.5, '#9a8a7a')
         c.ellipse(6, 8, 3, 2, '#b8a898')
+    elif kind == 'cliff':
+        # Songstone Cliffs (15f review): a cliff face that fills the tile — a lit grassy
+        # lip on top, grey rock with cracks, a dark shadow at its foot.
+        c.rect(0, 0, 16, 16, '#7a7a84')
+        c.rect(0, 0, 16, 3, '#8aa070')
+        c.rect(0, 3, 16, 4.2, '#a8a8b0', shade=False)
+        for (x0, y0, x1, y1) in ((4, 4.2, 3, 10), (3, 10, 5, 14), (10, 4.2, 11.4, 9), (11.4, 9, 10, 13.6)):
+            c.line(x0, y0, x1, y1, '#4a4a56', w=0.6)
+        c.rect(0, 14, 16, 16, '#4a4a56', shade=False)
     elif kind == 'hedge':
         c.ellipse(8, 9, 7.5, 6.5, '#3a8a4a')
         c.ellipse(5, 7, 3, 2.5, '#4aa05a')
