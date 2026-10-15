@@ -73,7 +73,7 @@ export default function WorldMapPanel({
   const boatHere = boat && boat.zoneId === world.id ? boat : null;
   // Moored on the other map (after a Return, say): the legend says where.
   const boatElsewhere = boat && boat.zoneId !== world.id ? boat : null;
-  const boatHome = !!boatHere && !boatAway({ boat: boatHere, aboard: false, flags });
+  const boatHome = !!boatHere && !boatAway({ boat: boatHere, vehicle: 'foot', flags });
   // Landmarks (#75 item 14): islets and rocks named on the map, not entered.
   const landmarks = world.landmarks ?? [];
   // Which way the sea leads off this map, once there's a boat to sail it.

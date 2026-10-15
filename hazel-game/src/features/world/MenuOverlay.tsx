@@ -128,7 +128,7 @@ export default function MenuOverlay({
           </div>
         </div>
 
-        <WorldMapPanel zoneId={save.zoneId} pos={save.pos} flags={save.flags} boat={boatSpot(save)} aboard={save.aboard} />
+        <WorldMapPanel zoneId={save.zoneId} pos={save.pos} flags={save.flags} boat={boatSpot(save)} aboard={save.vehicle === 'boat'} />
 
         {/* Field spells sit under the map: see where to go, then fly there with Return. */}
         <FieldSpellsPanel save={save} calmLeft={calmLeft} onCast={onCast} />

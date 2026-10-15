@@ -162,7 +162,7 @@ describe('the result screen after a critter with "!" marks (#75 item 12)', () =>
         result="defeat"
         enemy={spawnEnemy('quill-imp', 'sunken-archive', 'q', 8)}
         shelter={wakeShelter({ zoneId: 'sunken-archive' })}
-        boatLine={defeatBoatLine({ aboard: false, boat: null, flags: { [BOAT_MENDED]: true } }, 'sunken-archive')}
+        boatLine={defeatBoatLine({ vehicle: 'foot', boat: null, flags: { [BOAT_MENDED]: true } }, 'sunken-archive')}
       />,
     );
     expect(screen.getByText(/Innkeeper Binder finds you and tucks you up in the Quiet Shelf Inn\./)).toBeInTheDocument();

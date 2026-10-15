@@ -85,7 +85,7 @@ export interface NPC {
  * (Type-only circularity with zones.ts is fine — both directions are erased
  * at compile time.)
  */
-import type { ZoneId } from '../content/zones';
+import type { TravelMode, ZoneId } from '../content/zones';
 import type { ConsumableId } from '../content/items';
 import type { DangerTier } from '../content/regions';
 export type { ZoneId };
@@ -230,7 +230,7 @@ export interface LibraryEntry {
  * table with a localStorage write-through cache keyed by user id (#12).
  */
 export interface SaveData {
-  version: 2;
+  version: 3;
   avatarId: string | null;
   zoneId: ZoneId;
   /** Pixel position in the current zone; null → the zone's default spawn. */
@@ -266,11 +266,16 @@ export interface SaveData {
   lastRest: ZoneId | null;
   /**
    * Where Marlow's boat is moored (#75 item 14), in tiles — null = at his dock
-   * (once it's mended; see `content/boat.ts` `boatSpot`). Additive: no version bump.
+   * (once it's mended; see `content/boat.ts` `boatSpot`). Formally part of the
+   * save since v3 (#104a).
    */
   boat: BoatSpot | null;
-  /** Sailing: the hero is in the boat, at `pos` on the sea (#75 item 14). */
-  aboard: boolean;
+  /**
+   * How the hero is getting about at `pos` (save v3, #75 item 15b): on foot,
+   * sailing Marlow's boat (#75 item 14 — v2 called this `aboard`), or flying
+   * on Ember (#75 item 15b).
+   */
+  vehicle: TravelMode;
 }
 
 /** A boat's mooring (#75 item 14): a sea cell on a map, in tiles. */

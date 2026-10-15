@@ -52,6 +52,8 @@ const actTwoDone = {
 const storyDone = { ...allCrystals, [SPIRE_CLEARED]: true, ...actTwoDone };
 /** …all but the last: the Memoria Key won, the Crystal of Memory still to free. */
 const memoriaWon = { ...storyDone, [crystalFlag('history')]: false };
+/** …and Ember's first flight, to the Dragon's Roost (#75 item 15b): the story's end so far. */
+const roostVisited = { ...storyDone, [visitedFlag('dragon-roost')]: true };
 
 describe('compass', () => {
   it('names all eight directions (y grows southward)', () => {
@@ -101,7 +103,8 @@ describe('nextObjective', () => {
       zoneId: 'starfall-coast',
       title: 'Help Old Marlow',
     });
-    expect(nextObjective(storyDone)).toMatchObject({ kind: 'explore', zoneId: null });
+    expect(nextObjective(storyDone)).toMatchObject({ kind: 'fly', zoneId: 'dragon-roost' });
+    expect(nextObjective(roostVisited)).toMatchObject({ kind: 'explore', zoneId: null });
   });
 
   it("Marlow's boat (#75 item 14): each friend in turn, then back to Marlow, then sail from his dock — then the Hill", () => {
@@ -200,9 +203,12 @@ describe('nextObjective', () => {
     const [plan, tip] = mentorTips(ZONES, { ...memoriaWon, [MET_ELDER]: true });
     expect(plan).toBe("You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive. Free the Crystal of Memory there!");
     expect(tip).toMatch(/Quill Imps.*strike first.*Time Ripple/);
-    // Once Memory shines: explore, Ember's wings growing (flight is Act III's, 15b).
-    expect(nextObjective(storyDone)).toMatchObject({ kind: 'explore', zoneId: null });
-    expect(nextObjective(storyDone).why).toMatch(/^The Crystal of Memory shines! Ember's wings grow stronger/);
+    // Once Memory shines (and the Hall is dedicated): Ember flies, first to the Roost (#75 item 15b review round 3)…
+    expect(nextObjective(storyDone)).toMatchObject({ kind: 'fly', title: "Fly to the Dragon's Roost" });
+    expect(nextObjective(storyDone).why).toMatch(/^Ember can fly! Tap 🐉 Fly/);
+    // …then the whole sky: no "soon you'll fly" once she can.
+    expect(nextObjective(roostVisited).why).toMatch(/^Ember can fly! Soar anywhere/);
+    expect(mentorTips(ZONES, { ...roostVisited, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
   });
 
   // Doing what it says must finish the story: every step is one the hero can
@@ -223,9 +229,9 @@ describe('nextObjective', () => {
     expect(seen.at(-1)?.kind).toBe('explore');
     // Act I's crystals and keys, the Spire, Marlow's boat (offer, three friends, back to him), the voyage,
     // Remembrance Hill (#75 item 14e), the Memoria Key (#75 item 14f), the Crystal of Memory (#75 item 14h),
-    // the Hall of Names (#75 item 14i), explore.
+    // the Hall of Names (#75 item 14i), the Dragon's Roost (#75 item 15b), explore.
     const actOneKeys = GATE_KEYS.filter((k) => actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
-    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1);
+    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -250,8 +256,13 @@ describe('fog and the story', () => {
       // one out on the Shallows (Eldergrove, #75 item 14f) is reached by boat.
       const world = g.at ? ZONES[g.at.zoneId] : overworldOf(ZONES, g.zoneId);
       const entrance = g.at ?? whereOnMap(ZONES, world, g.zoneId, null)!;
+      // The Roost is flown to (#75 item 15b): from where Ember lands on its plateau, on foot.
       const reached =
-        world.id === 'dawnreach' ? reach(dawn, { flags }) : reach(world, { flags, from: sailIn, aboard: true, modes: ['boat', 'foot'] });
+        g.kind === 'fly'
+          ? reach(dawn, { flags, from: { x: 48, y: 27 } })
+          : world.id === 'dawnreach'
+            ? reach(dawn, { flags })
+            : reach(world, { flags, from: sailIn, aboard: true, modes: ['boat', 'foot'] });
       expect(reached.has(`${entrance.x},${entrance.y}`), `${g.title}`).toBe(true);
       Object.assign(flags, advanceGoal(g, flags));
     }
@@ -330,7 +341,12 @@ describe('routeSteps and goalDirections', () => {
   });
   it("says so when you're already there, and nothing once the story's done", () => {
     expect(goalDirections(ZONES, numbria, 'numbria')).toBe("It's right here in Numbria!");
-    expect(goalDirections(ZONES, nextObjective(storyDone), 'numbria')).toBe('');
+    expect(goalDirections(ZONES, nextObjective(roostVisited), 'numbria')).toBe('');
+  });
+  it("on Ember, the way to the Dragon's Roost is flown, not sailed (#75 item 15b)", () => {
+    const fly = nextObjective(storyDone);
+    expect(goalDirections(ZONES, fly, 'silver-shallows')).toMatch(/^Fly west to Dawnreach, then go .* to the Dragon's Roost\.$/);
+    expect(goalDirections(ZONES, fly, 'lumina-village')).not.toMatch(/sail/i);
   });
   it('gives directions to every story goal from every zone', () => {
     const goals = [
@@ -399,7 +415,8 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...storyDone, [keyFlag('memoria')]: false })[0]).toMatch(/^Out in the Silver Shallows lies Eldergrove/);
     // With the Memoria Key, its door in the Archive (#75 item 14h); then five crystals shine.
     expect(mentorTips(ZONES, { ...met, ...memoriaWon })[0]).toMatch(/^You hold the Memoria Key! It opens the Hollow Fiend's silver door in the Sunken Archive/);
-    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toBe('Five crystals shine now! Ember\'s wings grow stronger every day — soon you\'ll fly. Until then, help everyone you meet.');
+    expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost/);
+    expect(mentorTips(ZONES, { ...met, ...roostVisited })[0]).toBe('Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.');
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
     expect(mentorTips(ZONES, { ...met, ...storyDone, [HALL_DEDICATED]: false })[0]).toMatch(/Hall of Names/);
   });
@@ -449,7 +466,7 @@ describe('guides and signposts', () => {
     ]);
   });
   it("after the story, a guide just cheers you on", () => {
-    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], storyDone)).toEqual([nextObjective(storyDone).why]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], roostVisited)).toEqual([nextObjective(roostVisited).why]);
   });
   it('a signpost reads out the places around it, then the way to the next goal', () => {
     for (const n of wayfinders.filter((w) => w.signpost)) {

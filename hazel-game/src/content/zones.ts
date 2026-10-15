@@ -7,7 +7,7 @@ import dawnreachTmj from './maps/dawnreach.tmj?raw';
 import shallowsTmj from './maps/silver-shallows.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
-import { ACT2_SEEN } from './story';
+import { ACT2_SEEN, FLIGHT_FLAG } from './story';
 import { POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, stepFlag } from './questFlags';
 
 /**
@@ -55,6 +55,8 @@ export const ZONE_IDS = [
   // Act II (#75 item 14h): a great library half sunk on an island in the
   // Shallows' north-east — the Crystal of Memory, the Hollow Fiend, Sage Chronicle.
   'sunken-archive',
+  // #75 item 15b: a mountaintop east of Lumina Village that only Ember's wings reach.
+  'dragon-roost',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -111,8 +113,9 @@ export const BUILDING_CHARS = new Set(['W', 'D', 'F', 'K', 'B', 'T', 'Z']);
 export const STAIRS_CHARS = new Set(['>', '<']);
 export const LEGEND_CHARS = new Set(['#', '~', '.', ',', '=', 'S', 'C', 'G', 'E', 'H', 'P', '^', ':', '|', ...BUILDING_CHARS, ...STAIRS_CHARS]);
 export const WALKABLE_CHARS = new Set(['.', ',', '=', 'E', 'H', 'P', ':', '|', 'D', 'F', ...STAIRS_CHARS]);
-/** How the hero gets about (#75 item 14): on foot, or in Marlow's boat (`lib/travel.ts`). */
-export type TravelMode = 'foot' | 'boat';
+/** How the hero gets about: on foot, in Marlow's boat (#75 item 14), or on Ember's back (#75 item 15b) — `lib/travel.ts`. */
+export const TRAVEL_MODES = ['foot', 'boat', 'ember'] as const;
+export type TravelMode = (typeof TRAVEL_MODES)[number];
 /** Where a boat can sail: the sea. */
 export const SEA_CHARS = new Set(['~']);
 /** Where a boat can put the hero ashore: a beach or a dock. */
@@ -207,7 +210,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -222,6 +225,11 @@ export interface PlaceDef {
    * signposts skip it and the map leaves it off. Its icon hides in fog till then.
    */
   knownFrom?: string;
+  /**
+   * No path reaches it: only Ember's wings (#75 item 15b). Land beside it,
+   * then walk in; leaving puts the hero back on ground Ember can take off from.
+   */
+  byAir?: true;
 }
 
 /** Whether a place is known yet — named on signposts and the map (#75 item 14e). */
@@ -268,6 +276,12 @@ export interface FogDef {
    * otherwise show through (the road to Remembrance Hill).
    */
   dense?: boolean;
+  /**
+   * The menu map draws no crystal on it (#75 item 15b): the Dragon's Roost's
+   * clouds lift with the Crystal of Memory, which Act I hasn't heard of — they
+   * read as "fog that lifts later in your adventure" instead.
+   */
+  unmarked?: true;
 }
 
 /** A map edge. */
@@ -1435,6 +1449,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 57, y: 20, icon: 'cave', name: 'Echo Mine' },
       // Act II (#75 item 14e): on a headland past Moonwell Grove, in fog until Act II.
       { x: 30, y: 51, icon: 'hill', name: 'Remembrance Hill', knownFrom: ACT2_SEEN },
+      // Act II (#75 item 15b): a peak just east of the Village that no path
+      // climbs, in clouds until Ember can fly.
+      { x: 48, y: 26, icon: 'roost', name: "Dragon's Roost", knownFrom: FLIGHT_FLAG, byAir: true },
     ],
     exits: [
       { x: 40, y: 30, to: 'lumina-village', spawnX: 21, spawnY: 1 },
@@ -1452,6 +1469,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 50, y: 39, to: 'quiet-shrine', spawnX: 10, spawnY: 11 },
       { x: 57, y: 20, to: 'echo-mine', spawnX: 11, spawnY: 11 },
       { x: 30, y: 51, to: 'remembrance-hill', spawnX: 16, spawnY: 1 },
+      { x: 48, y: 26, to: 'dragon-roost', spawnX: 10, spawnY: 12 },
     ],
     // Fog of Forgetting (#75 item 7): the first crystal clears the way to the
     // shrine and the Spire grounds; each crystal also clears its own pocket.
@@ -1496,6 +1514,21 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
         guards: { x: 30, y: 51 },
         lifted: '✨ The old fog past Moonwell Grove rolls away — a road nobody remembered leads to Remembrance Hill!',
         dense: true,
+      },
+      // The Dragon's Roost (#75 item 15b): clouds sit on the summit until Ember
+      // can fly — then they part, and the camera shows where to fly.
+      {
+        id: 'roost-clouds',
+        x: 47,
+        y: 26,
+        w: 3,
+        h: 2,
+        liftedBy: [FLIGHT_FLAG],
+        hint: 'Clouds hide the top of this peak, and no path climbs it.',
+        guards: { x: 48, y: 26 },
+        lifted: "✨ The clouds on the lonely peak part — there's something on top! Only wings could reach it.",
+        dense: true,
+        unmarked: true,
       },
     ],
     // Off the east coast, past Marlow's dock (69–70, 30), the sea runs on
@@ -2097,6 +2130,43 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     keyGate: { x: 21, y: 8 },
     // An island town (#114o): a hero who wakes here finds the boat at its beach.
     mooring: { zoneId: 'silver-shallows', x: 49, y: 18 },
+  },
+  // The Dragon's Roost (#75 item 15b): a windy mountaintop of old stone nests
+  // (rings of rock round a flower bed) just east of Lumina Village. No path
+  // climbs to it — only Ember flies there.
+  'dragon-roost': {
+    id: 'dragon-roost',
+    name: "Dragon's Roost",
+    the: true,
+    kind: 'shrine',
+    topic: 'history',
+    map: [
+      '######################',
+      '######,...==...,######',
+      '####......==......####',
+      '###.###...==...###.###',
+      '##..#,#...==...#,#..##',
+      '#...###...==...###...#',
+      '#..,......==.....,...#',
+      '#...###...==.#####...#',
+      '#...#,#.C.==.#,,,#...#',
+      '#...###...==.#,,,#...#',
+      '##..,.....==.#,,,#..##',
+      '###.......==.#####.###',
+      '####......==......####',
+      '##########EE##########',
+    ],
+    ground: [150, 156, 140],
+    path: [196, 182, 150],
+    solidEmoji: '🪨',
+    decoEmoji: '🌼',
+    spawn: { x: 10, y: 12 },
+    npcs: [{ defId: 'roost-stone', x: 11, y: 1 }],
+    enemies: [],
+    exits: [
+      { x: 10, y: 13, to: 'dawnreach', spawnX: 48, spawnY: 27 },
+      { x: 11, y: 13, to: 'dawnreach', spawnX: 48, spawnY: 27 },
+    ],
   },
 };
 

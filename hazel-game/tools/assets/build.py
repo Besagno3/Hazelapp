@@ -19,6 +19,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py elder      # only Eldergrove: its tiles, critters and people (#75 item 14f)
     python3 tools/assets/build.py marsh      # only Foglight Marsh: its tiles, critters, people and lanterns (#75 item 14g)
     python3 tools/assets/build.py archive    # only the Sunken Archive: its tiles, critters, Fiend and people (#75 item 14h)
+    python3 tools/assets/build.py roost      # only the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
     python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
     python3 tools/assets/build.py intro      # only the sign-in screen's intro music
 
@@ -132,6 +133,13 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(ARCHIVE_SPRITES)))
         tiles.build_archive(PUBLIC)
         print('archive ✓')
+        return
+    if 'roost' in only:
+        # Just the Dragon's Roost (#75 item 15b): its tiles and the overworld sheet
+        # with the roost icon appended — every other file untouched (its stone
+        # borrows the Marsh's Nameless Stone sprite).
+        tiles.build_roost(PUBLIC)
+        print('roost ✓')
         return
     if 'elder' in only:
         # Just Eldergrove (#75 item 14f): its critters and people, its tiles, the

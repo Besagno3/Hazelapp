@@ -189,13 +189,15 @@ zod, react-query. Add the package in the same change that first uses it.
   zone, position, HP, coins, items, badges, sages, story flags, opened chests,
   quiz progress, Library queue, the active battle companion, the defend-timer
   setting, the last inn rested at (`lastRest`, #75 item 11 — additive, so no
-  version bump; null = home), where Marlow's boat is moored and whether the
-  hero is in it (`boat` / `aboard`, #75 item 14 — additive too; `normalizeSave`
-  keeps a mooring only on open sea, and `aboard` only afloat with a boat). Write-through: localStorage immediately
+  version bump; null = home), where Marlow's boat is moored (`boat`, #75 item
+  14; `normalizeSave` keeps a mooring only on open sea) and how the hero is
+  getting about (`vehicle`: `foot` / `boat` / `ember`, #75 item 15b — save v3
+  replaced the boat's `aboard`; sailing only afloat with a boat, flying only
+  over an overworld map once Ember can fly). Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
   `flush()` on save crystals / sign-out. Supabase errors degrade to
   local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
-  the `MIGRATIONS` ladder — **`SAVE_VERSION` 2** since #75 item 8). A save
+  the `MIGRATIONS` ladder — **`SAVE_VERSION` 3** since #75 item 15b). A save
   from a *newer* version is never loaded or overwritten: loads check
   `saveIsTooNew`, and the server refuses any write that lowers a save's
   version (migration 0011's trigger → `save_version_conflict`, which `flush`
@@ -322,6 +324,13 @@ zod, react-query. Add the package in the same change that first uses it.
   reached?" (bump targets). `behindFog` and `safeSpawn` live there too —
   `safeSpawn` now also steps a save off an exit cell onto open floor beside
   it. Don't write another BFS over a zone's tiles: use these.
+  **Flying on Ember** (#75 item 15b): once the Crystal of Memory is restored
+  (`canFly`), an overworld map's HUD has 🐉 Fly / 🛬 Land (or `F`); the canvas
+  flies at 2.5× over any tile and fog, passes people, critters, exits, places
+  and secrets, lands on open ground (`LANDABLE_CHARS`) under the hero or a
+  step away (`landingCell`), and crosses any linked edge (`edgeCrossing`);
+  `safeSpawn(…, 'ember')` keeps a flying hero where they are on such a map.
+  The **Dragon's Roost** (`PlaceDef.byAir`) is a place only Ember reaches.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -629,6 +638,7 @@ NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit (#75 item 14f)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fly [outDir]       # flying on Ember on the real canvas: take off, over mountains and the sea, across an edge, over a critter, landing, no Fly before Memory (#75 item 15b)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
 # (…and escort=1 — an escort's walk under way, by its flags — and __bench.walkTo(x, y), #75 item 14g)
 
@@ -648,6 +658,7 @@ python3 tools/assets/build.py hill     # Remembrance Hill: its tiles, the marble
 python3 tools/assets/build.py elder    # Eldergrove: its tiles, the bark town sheet, the elder icon, its critters and people (#75 item 14f)
 python3 tools/assets/build.py marsh    # Foglight Marsh: its tiles, the stilt town sheet, the marsh icon, its critters, people and lanterns (#75 item 14g)
 python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome town sheet, the archive icon, its critters, Fiend and people (#75 item 14h)
+python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
@@ -737,6 +748,112 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15b review round 3: the 🚩 flies you to the Roost, a rim round Ember (#75 item 15b, #136g)
+Fresh code (2 low) and UX (2 high, 3 medium, 5 low) reviews. All fixed:
+- **Where to fly:** a new 🚩 goal after the Hall, "Fly to the Dragon's
+  Roost" (`Objective.kind: 'fly'`; its directions fly, not sail), then
+  "Explore" says Ember can fly; Elder Lumen agrees. The tutorial's last panel
+  names Dawnreach (it usually plays on the Shallows); Memory's panel says
+  Ember is strong enough to fly now. `actTwoJourney` stops at the Roost goal.
+- **On screen:** a dark rim round Ember while flying (`EMBER_RIM`); a
+  place's name fades under her too; ✋ says "Land here", faint where there's
+  nowhere to land; panel 2 and the flying footer shorter.
+- **Code:** no sleeper hint mid-flight, and taking off wakes resting
+  critters; `reach`'s new `grounded` makes the fog and Roost tests able to
+  fail.
+- **Tests:** +3 (wayfinding.test, reach.test); 1189 green; lint and tsc
+  clean; `bench … fly` 14/14, `bench … journey` 13/13.
+
+### 2026-10-15 — 15b review round 2: no accidental flights, the button lets go, a name that steps aside (#75 item 15b, #136f)
+Fresh code and UX reviews of PR #56. All fixed:
+- **Code:** a press that skipped a fog reveal or came mid-slide also took
+  off or landed (`flightRef` cleared there); the HUD button kept focus, so
+  the next Space clicked it again (it blurs); Land never sets down on a
+  person (`landingCell`); the tutorial waits while sailing; `normalizeSave`
+  asks `canFlyOver`.
+- **UX:** ✋ always reads "Land" while flying and says why when it can't; a
+  rounder, lower shadow; "🐉 Let's fly!" takes off; "🐉 Fly" / "🛬 Land" at
+  every width; Ember's portrait by the title; take-off and landing announced
+  to screen readers; a place's name fades to a ghost over the hero
+  (`LABEL_UNDER_OPACITY`); the tutorial names grass, sand or a road; the
+  Roost has one big nest and a third panel (the egg was Ember's).
+- **Tests:** +6 (WorldScreen.fly.test: the blur, F in each place, the
+  tutorial while sailing, "Let's fly!", the announcements; reach.test's exit
+  test can fail now). 1187 green; lint and tsc clean; `bench … fly` 14/14, `bench … journey` 13/13.
+
+### 2026-10-14 — 15b review round 1: arriving where you flew, a bigger Ember, landing beside (#75 item 15b, #136e)
+A fresh `/saas-code-review` (1 high, 2 low) and UX review (3 high, 4 medium,
+4 low). Fixed:
+- **Teleport on an edge or a reload (code, high):** `safeSpawn` had no
+  flying rule. Flying off Dawnreach's east edge put the hero at the
+  Shallows' spawn, and a reload over a mountain put them at Dawnreach's.
+  `safeSpawn(…, 'ember')` now keeps the position on any map Ember flies over.
+- **Ember hidden under the rider (UX, high):** flying, she is drawn 1.7×
+  (`EMBER_FLY_SCALE`) under the hero, with a bigger, darker shadow.
+- **Landing on a place's icon or just past the plateau (UX, high):** Land
+  sets down on the open ground below or a step away (`landingCell`).
+- **Medium:** Space or a tap over water says "Ember needs open ground"; 🐉
+  sits by the place name (read out "flying on Ember"); `F` flies and lands,
+  and the footers say so.
+- **Low:** take-off works anywhere on foot, in `reach` and the copy as on the
+  canvas; the flying bob holds still under reduced motion.
+- **The Roost:** its boulders are rings now, the nests the panels promise;
+  the stone says the egg was Ember, and the tutorial says how to get in.
+- **Tests:** the edge-crossing test uses a map with land on the edge; a
+  flying spawn keeps its place; `bench … fly` checks where the hero arrives
+  (14/14). 1184 green; lint and tsc clean; `bench … journey` 13/13 (an
+  earlier 12/13 was a hot reload from editing during the run).
+- **Logged:** the 320 px HUD row with Fly, Calm and Menu together is checked
+  only by reading the code.
+
+### 2026-10-14 — Ember's first flight and the Dragon's Roost (#75 item 15b, #136d)
+Third slice of 15b.
+- **The flight tutorial** (`FLIGHT_PANELS`, three panels,
+  `flight-tutorial-seen`) plays once Ember can fly. It waits for a map Ember
+  flies over, so 🐉 Fly is there when it closes, and points at "a lonely peak
+  just east of Lumina Village".
+- **The Dragon's Roost:** a ring of mountains on Dawnreach (45–51, 24–29,
+  painted in Tiled) around a 3×2 grass plateau and the `roost` icon
+  (overworld frame 20, appended). No path climbs it (`PlaceDef.byAir`).
+  - Clouds sit on the summit until Memory (`roost-clouds`). They are
+    `unmarked`: the map draws no crystal on them and says "lifts later". They
+    lift on screen, and the camera shows where to fly.
+  - Nobody names the place before then (`knownFrom`).
+  - Inside (`dragon-roost`, a 22×14 shrine, history): two first-visit panels
+    (`ROOST_PANELS`), a riddle-chest, and the Roost Stone. Its carving says
+    the last dragon carried her egg down to the village.
+- **Code:** `safeSpawn` now treats a cell under fog that hasn't lifted as
+  unsafe even where no path reaches. The Roost's art comes from
+  `python3 tools/assets/build.py roost`; frames 0–19 are byte-identical.
+- **Tests:** +8 (`zones.test`, `WorldScreen.fly.test`, `WorldMapPanel.test`,
+  `tiles.test`). 1183 green; lint and tsc clean. `bench … fly` 13/13 (+5:
+  the clouds lift, then land on the plateau, walk in, walk out, take off).
+
+### 2026-10-14 — Fly and land on Ember (#75 item 15b, #136c)
+Second slice of 15b. Once Ember can fly (the Crystal of Memory), an
+overworld map's HUD has **🐉 Fly** (🛬 **Land** while flying; never while
+sailing). `WorldScreen` asks through `flightRef`; `WorldCanvas` takes off
+or touches down only on open ground outside fog (`canSetDown`), else
+"🐉 Ember needs open ground to land…" (`onNoLanding`). In the air the hero
+rides above Ember at 2.5× with a shadow below. Only the map's edges block,
+and people, critters, bosses, exits, places and secrets are passed over.
+Space, a click or ✋ lands (use target "Land"), and a linked edge slides onto
+the next map. Saved as `vehicle: 'ember'` on take-off and `foot` on landing.
+**Bench:** `fly=1`, `__bench.fly()` / `land()`, and `run-world-bench.cjs fly`
+(8 checks). Results: 8/8; tests +5 (`WorldScreen.fly.test`); 1175 green;
+lint and tsc clean.
+
+### 2026-10-14 — Save v3 and the flight rules (#75 item 15b, #136)
+First slice of 15b. **Save v3** (roadmap decision 15): `vehicle` (`foot` /
+`boat` / `ember`) replaces `aboard` — `MIGRATIONS[2]`, `SAVE_VERSION` 3; the
+step also adopts `lastRest` and `boat` (#104a). A save flying stays flying
+only over an overworld map once Ember can fly. **Travel:** `TravelMode` gains
+`ember` — any tile, overworld maps only (`canFlyOver`), 2.5× (`EMBER_SPEED`),
+open ground to land on (`LANDABLE_CHARS`), any linked edge (`edgeCrossing`),
+no critters; `reach` takes `start` and flies (fog and exits don't stop it).
+Nothing a player sees changes yet. Tests +9 (save.test, reach.test); 1170
+green, lint + tsc clean.
+
 ### 2026-10-14 — Merge the question-service branch (with 15a's new topics, PR #51) into the screening branch (#133)
 `main` took PR #51 (#135, TC-1061–1070) and this branch's base (#52) merged
 it in. 15a's TC-1061 clashed with this branch's picker test case, which
@@ -795,7 +912,7 @@ app sends `flavor` (B8) and `reportsSeen` (#134).
 ### 2026-10-14 — Merge main (Act I quick fixes #49) into the 15a branch (#135)
 `main` took ISSUES **#130** and TC-1015–1025 for the Act I quick fixes while
 15a was in review, so 15a moved **#130 → #135** and its test cases
-**TC-1015–1024 → TC-1061–1035** (only its own lines). `QuizRound.test` keeps
+**TC-1015–1024 → TC-1061–1070** (only its own lines). `QuizRound.test` keeps
 both: the quick fixes' recap and level-override tests, and 15a's "Coming
 soon!" ones (one stand-in hook with questions, loading and an error).
 

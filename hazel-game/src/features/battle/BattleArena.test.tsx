@@ -212,7 +212,7 @@ describe('a battle at sea (#75 item 14d)', () => {
     const puffer = { ...enemy, id: 'bubble-puffer', instanceId: 'sea2', name: 'Bubble Puffer', topic: 'nature', zoneId: 'silver-shallows', habitat: 'sea' } as BattleEnemy;
     const save = useSaveStore.getState().save!;
     useSaveStore.setState({
-      save: { ...save, zoneId: 'silver-shallows', pos: { x: 15 * 32 + 16, y: 28 * 32 + 16 }, aboard: true, boat: null, flags: { ...save.flags, [BOAT_MENDED]: true } },
+      save: { ...save, zoneId: 'silver-shallows', pos: { x: 15 * 32 + 16, y: 28 * 32 + 16 }, vehicle: 'boat', boat: null, flags: { ...save.flags, [BOAT_MENDED]: true } },
     });
     useBattleStore.getState().start(puffer, 1, 100);
     render(<BattleArena />);
@@ -228,7 +228,7 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect(screen.getByText(/Old Marlow rowed/)).toBeInTheDocument();
     // Not moored mid-sea where the fight was (`moorBoat` would leave it at 15,28): home.
     const after = useSaveStore.getState().save!;
-    expect(after.aboard).toBe(false);
+    expect(after.vehicle).toBe('foot');
     expect(after.boat).toBeNull();
     expect(after.zoneId).not.toBe('silver-shallows');
   });
@@ -237,7 +237,7 @@ describe('a battle at sea (#75 item 14d)', () => {
     vi.useFakeTimers();
     const save = useSaveStore.getState().save!;
     const moored = { zoneId: 'silver-shallows' as const, x: 19, y: 20 };
-    useSaveStore.setState({ save: { ...save, aboard: false, boat: moored, flags: { ...save.flags, [BOAT_MENDED]: true } } });
+    useSaveStore.setState({ save: { ...save, vehicle: 'foot', boat: moored, flags: { ...save.flags, [BOAT_MENDED]: true } } });
     useBattleStore.getState().start(enemy, 1, 100);
     render(<BattleArena />);
     fireEvent.click(screen.getByText('Guard'));

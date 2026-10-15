@@ -148,7 +148,7 @@ export const V2_PRE_14A = {
   lastRest: 'numbria',
 };
 
-/** v2 as written today (item 14a): Act II, sailing Marlow's boat on the Silver Shallows. */
+/** v2 as last written (items 14a–15a): Act II, sailing Marlow's boat on the Silver Shallows — `aboard`, before v3's `vehicle`. */
 export const CURRENT_ABOARD = {
   ...V2_PRE_14A,
   zoneId: 'silver-shallows',
@@ -184,4 +184,18 @@ export const FINALE_NOT_ACT2 = {
     'spire-cleared': true,
     'spire-victory-seen': true,
   },
+};
+
+/**
+ * v3 (item 15b): Memory restored, flying on Ember over Dawnreach's mountains —
+ * over a cell nobody could stand on.
+ */
+export const V3_FLYING = {
+  ...CURRENT_ABOARD,
+  version: 3,
+  zoneId: 'dawnreach',
+  pos: centre(30, 8),
+  flags: { ...CURRENT_ABOARD.flags, 'crystal-history-restored': true },
+  vehicle: 'ember',
+  aboard: undefined,
 };

@@ -102,6 +102,16 @@ export const HALL_CALLED = 'hall-called';
  */
 export const WISP_STIRRING = 'wisp-stirring';
 
+/**
+ * Ember's first flight (#75 item 15b, STORY-4X's 3-panel flight tutorial):
+ * plays once Ember can fly, the next time the hero is on an overworld map —
+ * where the 🐉 Fly button is.
+ */
+export const FLIGHT_TUTORIAL_SEEN = 'flight-tutorial-seen';
+
+/** Set once the Dragon's Roost panels have played, on the first visit (#75 item 15b). */
+export const ROOST_SEEN = 'roost-seen';
+
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
   return `crystal-${topic}-scene-seen`;
@@ -406,6 +416,41 @@ export const HALL_PANELS: StoryPanel[] = [
   },
 ];
 
+/**
+ * Ember's first flight (#75 item 15b): wings, how to fly and land, and the
+ * one peak no path climbs — the Dragon's Roost, east of Lumina Village.
+ */
+export const FLIGHT_PANELS: StoryPanel[] = [
+  {
+    emoji: '🐉',
+    text: 'Ember stretches its wings — wide, wider, wider than ever. It looks back at you and dips one wing to the ground. Climb on!',
+  },
+  {
+    emoji: '☁️',
+    text: 'Tap 🐉 Fly (or press F). Soar over mountains, water and fog! Over grass, sand or a road, tap 🛬 Land (or press Space) to come down.',
+  },
+  {
+    emoji: '⛰️',
+    text: 'Ember keeps looking toward a lonely peak on Dawnreach, just east of Lumina Village. No path climbs it. Fly there, land on the grass at the top and walk in!',
+  },
+];
+
+/** The first step onto the Dragon's Roost (#75 item 15b): where Ember's family lived. */
+export const ROOST_PANELS: StoryPanel[] = [
+  {
+    emoji: '🪺',
+    text: 'Wind whistles over a mountaintop of old stone nests, each one as big as a cart. Ember runs from nest to nest, sniffing every one.',
+  },
+  {
+    emoji: '🐉',
+    text: 'Ember curls up in the biggest nest and hums a happy rumble. Long ago, before the fog, the dragons of Lumina lived up here.',
+  },
+  {
+    emoji: '🥚',
+    text: 'This nest is the one. The last dragon carried her egg down from here to the village — the very egg you found. Ember is home!',
+  },
+];
+
 /** Wisp's "remembering me" beat (#75 item 14i). */
 export const WISP_PANELS: StoryPanel[] = [
   {
@@ -553,7 +598,7 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
       emoji: '🐉',
       text:
         'Ember stretches its wings so wide the bookshelves rattle. Its wings beat — once, twice. ' +
-        'Strong enough to fly now, almost. Soon, little spark. Soon.',
+        'Strong enough to fly now! Ember looks at you and grins.',
     },
     {
       emoji: '🌑',

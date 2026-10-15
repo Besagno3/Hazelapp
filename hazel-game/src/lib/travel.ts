@@ -20,19 +20,43 @@ import type { Habitat } from '../types';
 
 /** The boat is quicker than walking (§2.2): 1.5× the hero's pace. */
 export const BOAT_SPEED = 1.5;
+/** Ember flies (#75 item 15b): 2.5× the hero's pace. */
+export const EMBER_SPEED = 2.5;
 
-/** Can this mode cross a cell holding `ch`? (Fog, dark and gates are the canvas's business.) */
+/**
+ * Can this mode cross a cell holding `ch`? (Fog, dark and gates are the
+ * canvas's business.) Ember flies over anything — mountains, forest, water,
+ * place icons — on a map she can fly over (`canFlyOver`).
+ */
 export function passable(ch: string, mode: TravelMode): boolean {
+  if (mode === 'ember') return true;
   return mode === 'boat' ? SEA_CHARS.has(ch) : WALKABLE_CHARS.has(ch);
+}
+
+/** Open ground Ember can set the hero down on (and take off from): grass, road, sand, a dock (#75 item 15b). */
+export const LANDABLE_CHARS = new Set(['.', ',', '=', ':', '|']);
+
+export function landable(ch: string): boolean {
+  return LANDABLE_CHARS.has(ch);
+}
+
+/** Ember flies only over the overworld maps (#75 item 15b) — never in a town, a field or a dungeon. */
+export function canFlyOver(z: Pick<ZoneDef, 'kind'>): boolean {
+  return z.kind === 'overworld';
+}
+
+/** How much faster than walking each way of getting about is. */
+export function travelSpeed(mode: TravelMode): number {
+  return mode === 'ember' ? EMBER_SPEED : mode === 'boat' ? BOAT_SPEED : 1;
 }
 
 /**
  * Which critters a hero getting about each way can meet (#75 item 14d): on
  * foot, land critters; in the boat, sea critters. A `Record`, so a new travel
- * mode doesn't compile until it says — Ember's flight (item 15b) will meet
+ * mode doesn't compile until it says. Flying on Ember (item 15b) meets
  * none (`null`: flying has no battles).
  */
-const ENCOUNTER_HABITAT: Record<TravelMode, Habitat | null> = { foot: 'land', boat: 'sea' };
+const ENCOUNTER_HABITAT: Record<TravelMode, Habitat | null> = { foot: 'land', boat: 'sea', ember: null };
 
 export function encounterHabitat(mode: TravelMode): Habitat | null {
   return ENCOUNTER_HABITAT[mode];
@@ -85,7 +109,24 @@ export interface SeaCrossing {
  * simply the end of the water, like any other).
  */
 export function seaCrossing(z: ZoneDef, x: number, y: number, zones: Record<ZoneId, ZoneDef>): SeaCrossing | null {
-  if (!z.seaLinks?.length || !SEA_CHARS.has(tileAt(z, x, y))) return null;
+  return edgeCrossing(z, x, y, zones, 'boat');
+}
+
+/**
+ * Off a linked edge here, getting about this way (#75 item 15b): the boat
+ * needs open sea on both sides (`seaCrossing`); Ember flies over whatever is
+ * there, so she crosses any linked edge. On foot nothing crosses.
+ */
+export function edgeCrossing(
+  z: ZoneDef,
+  x: number,
+  y: number,
+  zones: Record<ZoneId, ZoneDef>,
+  mode: TravelMode,
+): SeaCrossing | null {
+  if (mode === 'foot') return null;
+  const sea = mode === 'boat';
+  if (!z.seaLinks?.length || (sea && !SEA_CHARS.has(tileAt(z, x, y)))) return null;
   const cols = z.map[0].length;
   const rows = z.map.length;
   const sides: Side[] = [];
@@ -109,7 +150,7 @@ export function seaCrossing(z: ZoneDef, x: number, y: number, zones: Record<Zone
             ? { x: x + shift, y: 1 }
             : { x: x + shift, y: tRows - 2 };
     if (out.x < 0 || out.y < 0 || out.x >= tCols || out.y >= tRows) continue;
-    if (!SEA_CHARS.has(tileAt(t, out.x, out.y))) continue;
+    if (sea && !SEA_CHARS.has(tileAt(t, out.x, out.y))) continue;
     return { side, to: link.to, ...out };
   }
   return null;

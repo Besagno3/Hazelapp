@@ -39,6 +39,7 @@ export function advanceGoal(g: Objective, flags: Record<string, boolean>): Recor
   else if (g.kind === 'spire') Object.assign(next, { [SPIRE_CLEARED]: true, [ACT2_SEEN]: true });
   else if (g.kind === 'sail') next[visitedFlag('silver-shallows')] = true;
   else if (g.kind === 'visit') next[g.doneFlag ?? visitedFlag(g.zoneId!)] = true;
+  else if (g.kind === 'fly') next[visitedFlag(g.zoneId!)] = true;
   else if (g.kind === 'boat') {
     const quest = QUESTS.find((q) => q.id === BOAT_QUEST_ID)!;
     const step = quest.steps.find((st) => !next[stepFlag(st.id)]);
@@ -63,7 +64,7 @@ export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } 
     if (!home) throw new Error(`nobody to talk to in ${g.zoneId}`);
     return { zoneId: home.zoneId, cell: { x: home.x, y: home.y } };
   }
-  if (g.kind === 'sail' || (g.kind === 'visit' && !g.doneFlag)) return { zoneId: g.zoneId!, cell: null };
+  if (g.kind === 'sail' || g.kind === 'fly' || (g.kind === 'visit' && !g.doneFlag)) return { zoneId: g.zoneId!, cell: null };
   if (g.kind === 'visit') {
     // The Hall of Names' dedication (#75 item 14i): Keeper Mnem calls you in.
     const mnem = npcHome(ZONES, 'hill-keeper')!;
@@ -229,7 +230,8 @@ export function actTwoJourney(): Leg[] {
   let at: { zoneId: ZoneId; cell: Cell } = { zoneId: HUB_ZONE, cell: innWakeCell(ZONES[HUB_ZONE])! };
   let boat: BoatState = null;
   const legs: Leg[] = [];
-  for (let goal = nextObjective(flags); goal.kind !== 'explore'; goal = nextObjective(flags)) {
+  // Act II ends where flying begins: the Roost leg is flown, which `bench … fly` walks (#75 item 15b).
+  for (let goal = nextObjective(flags); goal.kind !== 'explore' && goal.kind !== 'fly'; goal = nextObjective(flags)) {
     if (legs.length >= 16) throw new Error('Act II never ends');
     // The boat is mended at Marlow's dock.
     if (!boat && hasBoat(flags)) boat = { aboard: false, zoneId: BOAT_HOME.zoneId, cell: { x: BOAT_HOME.x, y: BOAT_HOME.y } };

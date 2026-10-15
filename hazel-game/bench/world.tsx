@@ -15,6 +15,9 @@
  *                                      `__bench.setFlag(f)` sets one later, as a conversation would
  *   boat=zone,x,y                      Marlow's boat moored there (#75 item 14)
  *   aboard=1                           start in the boat (with `at` on open sea)
+ *   fly=1                              start flying on Ember (#75 item 15b; set the
+ *                                      Memory crystal's flag too); `__bench.fly()` /
+ *                                      `__bench.land()` press 🐉 Fly / 🛬 Land
  *   leg=<n>                            Act I's leg n (`lib/journey.ts`): its zone, start
  *                                      cell and story flags; `__bench.walkLeg()` walks it
  *   walk=1                             (with floor=…) `__bench.walkFloor()` walks the Spire
@@ -239,6 +242,7 @@ requestAnimationFrame(tick);
 const benchPaused = { current: paused };
 /** Field spells (#75 item 9): a Return to fly (`__bench.travel`) and Calm seconds (`__bench.calm`). */
 const benchTravel: { current: Travel | null } = { current: null };
+const benchFlight: { current: 'fly' | 'land' | null } = { current: null };
 // A walk (#75 item 14b) runs under Calm from the first frame: a critter wandering into the
 // hero while the page loads would start a battle and stop the world.
 const benchCalm = { current: q.has('leg') || q.get('walk') === '1' ? 1e9 : 0 };
@@ -261,6 +265,12 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
     benchPaused.current = on;
   },
   /** Cast Return (#75 item 9): fly to `to`, landing on cell (x, y). */
+  fly: () => {
+    benchFlight.current = 'fly';
+  },
+  land: () => {
+    benchFlight.current = 'land';
+  },
   travel: (to: ZoneId, x: number, y: number) => {
     benchTravel.current = { to, x, y };
   },
@@ -319,6 +329,11 @@ const live: {
   boat: BoatSpot | null;
   boardings: number;
   landings: number;
+  /** Flying on Ember (#75 item 15b), take-offs, touch-downs and refused landings. */
+  flying: boolean;
+  takeOffs: number;
+  touchDowns: number;
+  noLandings: number;
   /** Position reports from the canvas (the walker's probe waits for a fresh one). */
   moves: number;
   /** Who the hero walked into (enemy def ids), the Spire icon, seals, stairs, Umbra (#75 item 14b). */
@@ -352,6 +367,10 @@ const live: {
   boat: boatParam,
   boardings: 0,
   landings: 0,
+  flying: q.get('fly') === '1',
+  takeOffs: 0,
+  touchDowns: 0,
+  noLandings: 0,
   moves: 0,
   battles: [],
   paths: [],
@@ -570,6 +589,19 @@ function Bench() {
           onPrompt: (label) => {
             live.prompt = label;
           },
+          onTakeOff: (x, y) => {
+            live.flying = true;
+            live.takeOffs += 1;
+            live.pos = { x, y };
+          },
+          onTouchDown: (x, y) => {
+            live.flying = false;
+            live.touchDowns += 1;
+            live.pos = { x, y };
+          },
+          onNoLanding: () => {
+            live.noLandings += 1;
+          },
         }}
         spireFloor={floor}
         spireBroken={[]}
@@ -579,6 +611,8 @@ function Bench() {
         actionRef={benchUse}
         boat={boat.aboard ? null : boat.spot}
         aboard={boat.aboard}
+        flying={live.flying}
+        flightRef={benchFlight}
         escort={walk ? { npcId: walk.npcId, goal: walk.goal, from: null } : null}
       />
     </div>

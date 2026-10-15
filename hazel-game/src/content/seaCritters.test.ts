@@ -141,13 +141,13 @@ describe('the sea critters of the Silver Shallows (#75 item 14d)', () => {
 describe('a battle at sea (#75 item 14d)', () => {
   it('lost at sea, the hero wakes ashore and Old Marlow has rowed the boat home to his dock', () => {
     const flags = { [BOAT_MENDED]: true };
-    const afloat = { aboard: true, boat: null, flags };
+    const afloat = { vehicle: 'boat' as const, boat: null, flags };
     const after = boatAfterDefeat(afloat);
-    expect(after).toEqual({ aboard: false, boat: null });
+    expect(after).toEqual({ vehicle: 'foot' as const, boat: null });
     expect(boatSpot({ ...after, flags })).toEqual(BOAT_HOME);
     // Lost ashore (a land critter): the boat stays wherever it's moored.
     const moored = { zoneId: 'silver-shallows' as const, x: 19, y: 20 };
-    expect(boatAfterDefeat({ aboard: false, boat: moored })).toEqual({ aboard: false, boat: moored });
+    expect(boatAfterDefeat({ vehicle: 'foot', boat: moored })).toEqual({ vehicle: 'foot', boat: moored });
   });
 
   it('every inn is a town on Marlow\'s own map, or an island town the boat comes round to, so a woken hero can always reach it (#114o)', () => {
@@ -174,47 +174,47 @@ describe('a battle at sea (#75 item 14d)', () => {
     const archive = ZONES['sunken-archive'];
     const flags = { [BOAT_MENDED]: true };
     // Lost at sea, waking at Binder's inn: the boat comes round to the Archive, not home to Marlow's dock.
-    const afloat = { aboard: true, boat: null, flags };
-    expect(boatAfterDefeat(afloat, 'sunken-archive')).toEqual({ aboard: false, boat: archive.mooring });
+    const afloat = { vehicle: 'boat' as const, boat: null, flags };
+    expect(boatAfterDefeat(afloat, 'sunken-archive')).toEqual({ vehicle: 'foot', boat: archive.mooring });
     expect(defeatBoatLine(afloat, 'sunken-archive')).toMatch(/round to the Sunken Archive's beach/);
     // Lost ashore with the boat back on Dawnreach: it comes round too.
-    const home = { aboard: false, boat: null, flags };
+    const home = { vehicle: 'foot' as const, boat: null, flags };
     expect(boatAfterDefeat(home, 'sunken-archive').boat).toEqual(archive.mooring);
     // Already moored at the island's beach: it stays put, and nothing is said.
-    const near = { aboard: false, boat: { zoneId: 'silver-shallows' as const, x: 47, y: 18 }, flags };
-    expect(boatAfterDefeat(near, 'sunken-archive')).toEqual({ aboard: false, boat: near.boat });
+    const near = { vehicle: 'foot' as const, boat: { zoneId: 'silver-shallows' as const, x: 47, y: 18 }, flags };
+    expect(boatAfterDefeat(near, 'sunken-archive')).toEqual({ vehicle: 'foot', boat: near.boat });
     expect(defeatBoatLine(near, 'sunken-archive')).toBeNull();
     // Waking anywhere else, as before: home from the sea, untouched ashore.
-    expect(boatAfterDefeat(afloat, 'numbria')).toEqual({ aboard: false, boat: null });
+    expect(boatAfterDefeat(afloat, 'numbria')).toEqual({ vehicle: 'foot', boat: null });
     expect(defeatBoatLine(afloat, 'numbria')).toBe(SEA_DEFEAT_LINE);
     expect(defeatBoatLine(home, 'numbria')).toBeNull();
     // No boat yet: nothing to say.
-    expect(defeatBoatLine({ aboard: false, boat: null, flags: {} }, 'sunken-archive')).toBeNull();
+    expect(defeatBoatLine({ vehicle: 'foot', boat: null, flags: {} }, 'sunken-archive')).toBeNull();
   });
 
   it('Return to the Sunken Archive brings the boat round to its beach; elsewhere it stays where it was (#75 items 9, 14h)', () => {
     const archive = ZONES['sunken-archive'];
     const flags = { [BOAT_MENDED]: true };
-    const ashore = { aboard: false, boat: null, zoneId: 'lumina-village' as const, pos: null, flags };
-    expect(boatOnReturn(ashore, 'sunken-archive')).toEqual({ aboard: false, boat: archive.mooring, note: ' Old Marlow will sail the Biscuit round to meet you there.' });
-    expect(boatOnReturn(ashore, 'numbria')).toEqual({ aboard: false, boat: null, note: '' });
+    const ashore = { vehicle: 'foot' as const, boat: null, zoneId: 'lumina-village' as const, pos: null, flags };
+    expect(boatOnReturn(ashore, 'sunken-archive')).toEqual({ vehicle: 'foot', boat: archive.mooring, note: ' Old Marlow will sail the Biscuit round to meet you there.' });
+    expect(boatOnReturn(ashore, 'numbria')).toEqual({ vehicle: 'foot', boat: null, note: '' });
     // From mid-voyage to an ordinary town: moored where it floats, and the toast says so.
-    const sailing = { aboard: true, boat: null, zoneId: 'silver-shallows' as const, pos: { x: 30 * 32 + 16, y: 20 * 32 + 16 }, flags };
+    const sailing = { vehicle: 'boat' as const, boat: null, zoneId: 'silver-shallows' as const, pos: { x: 30 * 32 + 16, y: 20 * 32 + 16 }, flags };
     const left = boatOnReturn(sailing, 'numbria');
-    expect(left).toMatchObject({ aboard: false, boat: { zoneId: 'silver-shallows', x: 30, y: 20 } });
+    expect(left).toMatchObject({ vehicle: 'foot' as const, boat: { zoneId: 'silver-shallows', x: 30, y: 20 } });
     expect(left.note).toMatch(/stays moored out at sea/);
     // Already at the island's beach: it stays put.
     const near = { ...ashore, boat: { zoneId: 'silver-shallows' as const, x: 48, y: 18 } };
     // …and the toast says she's there (review fix).
-    expect(boatOnReturn(near, 'sunken-archive')).toEqual({ aboard: false, boat: near.boat, note: ' The Biscuit waits by the island, right where you left her.' });
+    expect(boatOnReturn(near, 'sunken-archive')).toEqual({ vehicle: 'foot', boat: near.boat, note: ' The Biscuit waits by the island, right where you left her.' });
     // Out in open water near the island, where nobody on the island could climb in (review fix):
     // sailing 3 cells off the beach and flying there, the boat still comes round to the beach.
     const offshore = { ...sailing, pos: { x: 49 * 32 + 16, y: 21 * 32 + 16 } };
-    expect(boatOnReturn(offshore, 'sunken-archive')).toMatchObject({ aboard: false, boat: archive.mooring });
+    expect(boatOnReturn(offshore, 'sunken-archive')).toMatchObject({ vehicle: 'foot', boat: archive.mooring });
     // Sailing right beside the island's beach and flying there: she stays, and the toast says she's waiting (review fix).
     const beside = { ...sailing, pos: { x: 50 * 32 + 16, y: 18 * 32 + 16 } };
     expect(boatOnReturn(beside, 'sunken-archive')).toEqual({
-      aboard: false,
+      vehicle: 'foot' as const,
       boat: { zoneId: 'silver-shallows', x: 50, y: 18 },
       note: ' The Biscuit waits by the island, right where you left her.',
     });

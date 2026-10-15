@@ -9,7 +9,7 @@ import { oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
-import { SPIRE_CLEARED } from '../content/story';
+import { SPIRE_CLEARED, canFly } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
 import { overworldOf } from './worldMap';
 
@@ -64,9 +64,10 @@ export interface Objective {
   /**
    * Act II adds `boat` (help Old Marlow mend his boat) and `sail` (take it to
    * the Silver Shallows), #75 item 14, and `visit` (go and see a place the
-   * world has just remembered — Remembrance Hill, #75 item 14e).
+   * world has just remembered — Remembrance Hill, #75 item 14e). `fly`: ride
+   * Ember to the Dragon's Roost, once she can fly (#75 item 15b).
    */
-  kind: 'crystal' | 'key' | 'spire' | 'boat' | 'sail' | 'visit' | 'explore';
+  kind: 'crystal' | 'key' | 'spire' | 'boat' | 'sail' | 'visit' | 'fly' | 'explore';
   /** Short, for the map and signposts: "Free the Crystal of Numbers". */
   title: string;
   /** One or two sentences for the guides. Never says where: the route does. */
@@ -222,12 +223,22 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
     if (flags[SPIRE_CLEARED]) {
       const actTwo = actTwoObjective(flags);
       if (actTwo) return actTwo;
+      // Ember flies (#75 item 15b): her first trip is home, to the Dragon's Roost.
+      if (canFly(flags) && !flags[visitedFlag('dragon-roost')]) {
+        return {
+          kind: 'fly',
+          title: "Fly to the Dragon's Roost",
+          why: "Ember can fly! Tap 🐉 Fly and ride her to the Dragon's Roost, a lonely peak no path climbs, just east of Lumina Village.",
+          zoneId: 'dragon-roost',
+        };
+      }
       return {
         kind: 'explore',
         title: 'Explore Lumina',
-        // Once Act II's crystal shines, Ember's wings are nearly ready (flight comes with Act III, 15b).
-        why: actComplete(flags, 2)
-          ? 'The Crystal of Memory shines! Ember\'s wings grow stronger every day — soon you\'ll fly! Until then, hunt for secrets ✨ and help everyone you meet.'
+        why: canFly(flags)
+          ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
+          : actComplete(flags, 2)
+          ? 'The Crystal of Memory shines! Hunt for secrets ✨ and help everyone you meet.'
           : flags[visitedFlag('silver-shallows')]
             ? 'Lumina is safe, thanks to you! Sail the Silver Shallows, hunt for secrets ✨ and help everyone you meet.'
             : 'Lumina is safe, thanks to you! Hunt for secrets ✨ and help everyone you meet.',
@@ -436,7 +447,9 @@ export function goalDirections(
     steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
     return sentence(steps);
   }
-  return sentence(routeSteps(zones, here, goal.zoneId, at) ?? []);
+  const steps = routeSteps(zones, here, goal.zoneId, at) ?? [];
+  // On Ember, the sea is flown over, not sailed (#75 item 15b).
+  return sentence(goal.kind === 'fly' ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
 }
 
 // --- The mentor (Elder Lumen, #75 item 8) ------------------------------------------
@@ -516,8 +529,12 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
+  } else if (goal.kind === 'fly') {
+    plan = "Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.";
+  } else if (canFly(flags)) {
+    plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
-    plan = 'Five crystals shine now! Ember\'s wings grow stronger every day — soon you\'ll fly. Until then, help everyone you meet.';
+    plan = 'Five crystals shine now! Help everyone you meet.';
   } else {
     plan = 'Lumina is safe, thanks to you! But there are still secrets ✦ hidden in every town, and friends who would love your help.';
   }

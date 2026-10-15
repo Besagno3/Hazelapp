@@ -18,7 +18,7 @@ import {
   type MigrationLadder,
 } from './save';
 import { LIBRARY_MAX } from '../content/items';
-import { CURRENT_ABOARD, FINALE_NOT_ACT2, V1, V2_FIRST_BUILD, V2_PRE_14A, V2_PRE_ITEM10 } from '../test/saveFixtures';
+import { CURRENT_ABOARD, FINALE_NOT_ACT2, V1, V2_FIRST_BUILD, V2_PRE_14A, V2_PRE_ITEM10, V3_FLYING } from '../test/saveFixtures';
 import { reach, safeSpawn } from './reach';
 import { seaCrossing } from './travel';
 import { walkLeg } from './journey';
@@ -96,14 +96,14 @@ describe('runMigrations (Wave 0.2 versioned ladder)', () => {
   const centre = (x: number, y: number) => ({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 });
 
   it('v1 → v2: a save on the retired Lumina Field wakes at home, keeping everything else (#75 item 8)', () => {
-    expect(SAVE_VERSION).toBe(2);
-    const v2 = runMigrations(V1) as Record<string, unknown>;
+    expect(SAVE_VERSION).toBe(3);
+    const v2 = runMigrations(V1, MIGRATIONS, 2) as Record<string, unknown>;
     expect(v2.version).toBe(2);
     expect(v2.zoneId).toBe('lumina-village');
     expect(v2.pos).toBeNull();
     expect(v2).not.toHaveProperty('sageEquipped');
     const s = normalizeSave(V1);
-    expect(s).toMatchObject({ version: 2, zoneId: 'lumina-village', pos: null, coins: 120, sages: ['math'], kills: { 'count-bat': 1 } });
+    expect(s).toMatchObject({ version: SAVE_VERSION, zoneId: 'lumina-village', pos: null, coins: 120, sages: ['math'], kills: { 'count-bat': 1 } });
     expect(s.flags['crystal-math-restored']).toBe(true);
     expect(s).not.toHaveProperty('sageEquipped');
   });
@@ -132,7 +132,7 @@ describe('runMigrations (Wave 0.2 versioned ladder)', () => {
     const resavedByV1 = { ...v2, version: 1, sageEquipped: null };
     const again = normalizeSave(resavedByV1);
     expect(again.pos).toEqual(centre(40, 29));
-    expect(again.version).toBe(2);
+    expect(again.version).toBe(SAVE_VERSION);
   });
 
   it('v1 → v2: opened fog-pocket chests stay opened where the chests now are', () => {
@@ -332,7 +332,7 @@ describe('the last inn rested at (#75 item 11)', () => {
 describe('home to bed after the Spire (#75 item 14)', () => {
   it('puts the hero inside the Sleepy Sheep Inn in Lumina Village, healed, resting there', () => {
     const rest = restAtHomeInn();
-    expect([rest.zoneId, rest.hp, rest.lastRest, rest.aboard]).toEqual([HUB_ZONE, null, HUB_ZONE, false]);
+    expect([rest.zoneId, rest.hp, rest.lastRest, rest.vehicle]).toEqual([HUB_ZONE, null, HUB_ZONE, 'foot']);
     const cell = { x: Math.floor(rest.pos!.x / TILE), y: Math.floor(rest.pos!.y / TILE) };
     expect(buildingInside(ZONES[HUB_ZONE], cell.x, cell.y)?.name).toBe('Sleepy Sheep Inn');
     // …which is also where a later defeat wakes them, and it survives a reload.
@@ -366,14 +366,14 @@ describe('old saves load (#75 item 14b)', () => {
   const cellOf = (p: { x: number; y: number }) => ({ x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) });
   const cases: { name: string; raw: Record<string, unknown>; zone: string; at?: { x: number; y: number }; keeps?: Partial<SaveData> }[] = [
     { name: 'v1 on the retired Lumina Field', raw: V1, zone: HUB_ZONE },
-    { name: 'v2 from its first build (no marker)', raw: V2_FIRST_BUILD, zone: 'dawnreach', at: V2_FIRST_BUILD.pos, keeps: { lastRest: null, boat: null, aboard: false } },
+    { name: 'v2 from its first build (no marker)', raw: V2_FIRST_BUILD, zone: 'dawnreach', at: V2_FIRST_BUILD.pos, keeps: { lastRest: null, boat: null, vehicle: 'foot' } },
     { name: 'v2 in the Depths vault, before the stairs', raw: V2_PRE_ITEM10, zone: 'clockwork-depths', at: V2_PRE_ITEM10.pos, keeps: { companionId: 'pip', lastRest: null } },
-    { name: 'v2 with an inn, before the boat', raw: V2_PRE_14A, zone: 'verdara', at: V2_PRE_14A.pos, keeps: { lastRest: 'numbria', boat: null, aboard: false, defendTimer: false } },
-    { name: 'today: sailing the Silver Shallows', raw: CURRENT_ABOARD, zone: 'silver-shallows', at: CURRENT_ABOARD.pos, keeps: { aboard: true } },
+    { name: 'v2 with an inn, before the boat', raw: V2_PRE_14A, zone: 'verdara', at: V2_PRE_14A.pos, keeps: { lastRest: 'numbria', boat: null, vehicle: 'foot', defendTimer: false } },
+    { name: 'v2: sailing the Silver Shallows', raw: CURRENT_ABOARD, zone: 'silver-shallows', at: CURRENT_ABOARD.pos, keeps: { vehicle: 'boat' } },
     { name: "the finale seen, Act II not", raw: FINALE_NOT_ACT2, zone: HUB_ZONE, keeps: { lastRest: HUB_ZONE } },
   ];
 
-  it.each(cases)('$name: loads as v2 where it stood, keeping what it had', ({ raw, zone, at, keeps }) => {
+  it.each(cases)('$name: loads as today\'s version where it stood, keeping what it had', ({ raw, zone, at, keeps }) => {
     const s = normalizeSave(raw);
     expect(s.version).toBe(SAVE_VERSION);
     expect(s.flags[SAVE_V2_FLAG]).toBe(true);
@@ -397,11 +397,11 @@ describe('old saves load (#75 item 14b)', () => {
   it.each(cases)('$name: never stranded — a way out of where it stands', ({ raw }) => {
     const s = normalizeSave(raw);
     const z = ZONES[s.zoneId];
-    const pos = safeSpawn(z, s.pos, s.flags, s.aboard ? 'boat' : 'foot');
+    const pos = safeSpawn(z, s.pos, s.flags, s.vehicle);
     const boat = boatSpot(s);
     const open = reach(z, {
       from: cellOf(pos),
-      aboard: s.aboard,
+      start: s.vehicle,
       modes: ['foot', 'boat'],
       boat: boat && boat.zoneId === z.id ? boat : null,
       flags: s.flags,
@@ -438,5 +438,37 @@ describe('old saves load (#75 item 14b)', () => {
     expect(tileAt(ZONES[s.zoneId], 19, 10)).toBe('>');
     expect(cell).not.toEqual({ x: 19, y: 10 });
     expect(Math.max(Math.abs(cell.x - 19), Math.abs(cell.y - 10))).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('save v3: how the hero gets about (#75 item 15b)', () => {
+  it('v2 → v3: `aboard` becomes `vehicle`', () => {
+    const sailing = runMigrations(CURRENT_ABOARD) as Record<string, unknown>;
+    expect([sailing.version, sailing.vehicle]).toEqual([3, 'boat']);
+    expect(sailing).not.toHaveProperty('aboard');
+    const ashore = runMigrations({ ...CURRENT_ABOARD, aboard: false }) as Record<string, unknown>;
+    expect(ashore.vehicle).toBe('foot');
+    // A v2 save from before the boat (no `aboard` at all) is on foot.
+    expect((runMigrations(V2_PRE_14A) as Record<string, unknown>).vehicle).toBe('foot');
+    // Its boat and last inn come through unchanged (#104a).
+    const kept = runMigrations({ ...CURRENT_ABOARD, aboard: false, boat: { zoneId: 'silver-shallows', x: 19, y: 20 } }) as Record<string, unknown>;
+    expect([kept.boat, kept.lastRest]).toEqual([{ zoneId: 'silver-shallows', x: 19, y: 20 }, 'lumina-village']);
+  });
+
+  it('a hero saved flying stays in the air — over a map Ember flies, once she can', () => {
+    expect(normalizeSave(V3_FLYING)).toMatchObject({ vehicle: 'ember', zoneId: 'dawnreach', pos: V3_FLYING.pos });
+    // Before Memory she can't fly: on foot (the canvas finds them firm ground).
+    const noWings = { ...V3_FLYING, flags: { ...V3_FLYING.flags, 'crystal-history-restored': false } };
+    expect(normalizeSave(noWings).vehicle).toBe('foot');
+    // Inside a place (never flown over): on foot.
+    expect(normalizeSave({ ...V3_FLYING, zoneId: 'numbria' }).vehicle).toBe('foot');
+    // Nowhere to be: on foot.
+    expect(normalizeSave({ ...V3_FLYING, pos: null }).vehicle).toBe('foot');
+    // Anything else in the field: on foot.
+    expect(normalizeSave({ ...V3_FLYING, vehicle: 'dragon-cart' }).vehicle).toBe('foot');
+  });
+
+  it('a new save starts on foot', () => {
+    expect(defaultSave().vehicle).toBe('foot');
   });
 });

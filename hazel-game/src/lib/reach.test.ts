@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { TILE, ZONES, gateFlag, gateIdAt, litFlag, tileAt, type ZoneDef } from '../content/zones';
+import { TILE, ZONES, fogAt, gateFlag, gateIdAt, litFlag, tileAt, type ZoneDef } from '../content/zones';
 import { BOAT_HOME } from '../content/boat';
 import { EXIT_STEP_OFF, behindFog, reach, reachPath, safeSpawn, touches } from './reach';
+import { edgeCrossing, landable, passable, travelSpeed } from './travel';
 
 /** A little test map: Lumina Village's details over our own rows (no buildings, exits or people of its own). */
 function mk(map: string[], extra: Partial<ZoneDef> = {}): ZoneDef {
@@ -146,7 +147,7 @@ describe('safeSpawn on an exit (#75 item 14b)', () => {
         const cell = { x: Math.floor(p.x / TILE), y: Math.floor(p.y / TILE) };
         const where = `${z.id} exit ${e.x},${e.y}`;
         expect(z.exits.some((o) => o.x === cell.x && o.y === cell.y), where).toBe(false);
-        if (shut.has(`${e.x},${e.y}`)) {
+        if (shut.has(`${e.x},${e.y}`) || fogAt(z, e.x, e.y, {})) {
           expect(cell, where).toEqual(z.spawn);
           continue;
         }
@@ -176,5 +177,84 @@ describe('safeSpawn on an exit (#75 item 14b)', () => {
     const z = mk(['..', '..']);
     expect(reach(z, { from: { x: 2, y: 0 } }).size).toBe(0);
     expect(reach(z, { from: [{ x: 5, y: 5 }, { x: 0, y: 0 }] })).toEqual(new Set(['0,0', '1,0', '0,1', '1,1']));
+  });
+});
+
+describe('flying on Ember (#75 item 15b)', () => {
+  const dawn = ZONES.dawnreach;
+  const allCells = (z: ZoneDef) => z.map.length * z.map[0].length;
+
+  it('she flies over every cell of an overworld map, fog and mountains too', () => {
+    const flown = reach(dawn, { start: 'ember', from: { x: 40, y: 30 } });
+    expect(flown.size).toBe(allCells(dawn));
+    // On foot, fog and mountains keep plenty of it out.
+    expect(reach(dawn, { from: { x: 40, y: 30 } }).size).toBeLessThan(flown.size);
+  });
+
+  it('she never flies in a town, a field or a dungeon', () => {
+    const town = ZONES['lumina-village'];
+    expect(reach(town, { start: 'ember' }).size).toBe(1); // only where you stand
+  });
+
+  it('takes off from anywhere on foot', () => {
+    // A road cell on Dawnreach: on foot, add flight, and the whole map opens.
+    const road = reach(dawn, { from: dawn.spawn, modes: ['foot', 'ember'] });
+    expect(road.size).toBe(allCells(dawn));
+    // Take off from a bridge-like cell that isn't open ground (the Village's icon cell, say).
+    const icon = dawn.places!.find((p) => p.name === 'Lumina Village')!;
+    expect(landable(tileAt(dawn, icon.x, icon.y))).toBe(false);
+    // With walking ruled out, the only way anywhere is to take off right there.
+    const up = reach(dawn, { from: icon, modes: ['foot', 'ember'], passable: (_ch, mode) => mode === 'ember' });
+    expect(up.size).toBe(allCells(dawn));
+    // (Landing only on open ground: the Dragon's Roost's test in zones.test.)
+  });
+
+  it('a place icon is just more ground below — flying never stops at an exit', () => {
+    // One row, the exit the only way across: walking stops there, flying goes on.
+    const row = mk(['...'], { kind: 'overworld', exits: [{ x: 1, y: 0, to: 'dawnreach', spawnX: 0, spawnY: 0 }] });
+    expect(has(reach(row, { from: { x: 0, y: 0 }, exits: 'stop' }), [2, 0])).toBe(false);
+    expect(has(reach(row, { start: 'ember', from: { x: 0, y: 0 }, exits: 'stop' }), [2, 0])).toBe(true);
+    // And on Dawnreach itself, every cell.
+    expect(reach(dawn, { start: 'ember', from: { x: 40, y: 30 }, exits: 'stop' }).size).toBe(allCells(dawn));
+  });
+
+  it('`grounded` leaves out what is only flown over: a mountain (round 3 review)', () => {
+    const air = reach(dawn, { start: 'ember', from: { x: 40, y: 30 }, modes: ['ember', 'foot'] });
+    const ground = reach(dawn, { start: 'ember', from: { x: 40, y: 30 }, modes: ['ember', 'foot'], grounded: true });
+    expect(air.size).toBe(allCells(dawn));
+    expect(ground.size).toBeLessThan(air.size);
+    expect(tileAt(dawn, 46, 25)).toBe('^');
+    expect(ground.has('46,25')).toBe(false);
+  });
+
+  it('crosses a linked edge over land as well as sea; the boat only over sea; on foot nothing crosses', () => {
+    // Two little overworlds joined east–west: land along the edge on the first row, sea on the second.
+    const west = mk(['...', '~~~'], { id: 'dawnreach', kind: 'overworld', seaLinks: [{ side: 'east', to: 'silver-shallows' }] });
+    const east = mk(['...', '~~~'], { id: 'silver-shallows', kind: 'overworld', seaLinks: [{ side: 'west', to: 'dawnreach' }] });
+    const zones = { ...ZONES, dawnreach: west, 'silver-shallows': east };
+    expect(edgeCrossing(west, 2, 0, zones, 'ember')).toEqual({ side: 'east', to: 'silver-shallows', x: 1, y: 0 });
+    expect(edgeCrossing(west, 2, 0, zones, 'boat')).toBeNull(); // land: no boat
+    expect(edgeCrossing(west, 2, 1, zones, 'boat')).toEqual({ side: 'east', to: 'silver-shallows', x: 1, y: 1 });
+    expect(edgeCrossing(west, 2, 0, zones, 'foot')).toBeNull();
+  });
+
+  it('a hero flying in, or saved flying, stays where they are — over mountains, sea or fog (code review, #136e)', () => {
+    const at = (x: number, y: number) => ({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 });
+    // Off Dawnreach's east edge onto the Shallows: the crossing cell is open sea.
+    const shallows = ZONES['silver-shallows'];
+    expect(tileAt(shallows, 1, 12)).toBe('~');
+    expect(safeSpawn(shallows, at(1, 12), {}, 'ember')).toEqual(at(1, 12));
+    // A mountain and the roost's plateau under its standing clouds, on Dawnreach.
+    expect(tileAt(dawn, 46, 25)).toBe('^');
+    expect(safeSpawn(dawn, at(46, 25), {}, 'ember')).toEqual(at(46, 25));
+    expect(safeSpawn(dawn, at(48, 27), {}, 'ember')).toEqual(at(48, 27));
+    // Never in a town: the spawn.
+    const town = ZONES['lumina-village'];
+    expect(safeSpawn(town, at(3, 3), {}, 'ember')).toEqual(at(town.spawn.x, town.spawn.y));
+  });
+
+  it('passes over any tile, 2.5× walking pace', () => {
+    for (const ch of ['^', '#', '~', 'P', 'W']) expect(passable(ch, 'ember')).toBe(true);
+    expect([travelSpeed('foot'), travelSpeed('boat'), travelSpeed('ember')]).toEqual([1, 1.5, 2.5]);
   });
 });
