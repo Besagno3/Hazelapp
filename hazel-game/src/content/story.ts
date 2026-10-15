@@ -525,7 +525,7 @@ export const CHART_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🗼',
-    text: 'All but one. Right under the Crystal Spire there is an empty space, as if someone tore out a page.',
+    text: 'All but one. Right under the Crystal Spire there is an empty space, as if someone rubbed it out.',
   },
   {
     emoji: '🧓',
@@ -533,7 +533,7 @@ export const CHART_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🎶',
-    text: 'Far away, a small voice hums. It is the voice from the Crystal of Voices: "you found every place… now find me."',
+    text: 'Far away, a small voice hums. It is the voice from the Crystal of Voices: "You found every place… one day, find me."',
   },
 ];
 

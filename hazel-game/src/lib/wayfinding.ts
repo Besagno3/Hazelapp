@@ -3,8 +3,8 @@ import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
-import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
-import { BLANK_CHART_HELD } from '../content/questFlags';
+import { QUESTS, handedOverFlag, questOfferedFlag, stepFlag } from '../content/quests';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
@@ -301,11 +301,11 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         return {
           kind: 'visit',
           title: 'Visit the Chartmaker',
-          why: "The Chartmaker has charted every place in Lumina but one — a place nobody can name. His island is a little way out at sea, north-west of Port Lantern. Only Ember flies there!",
+          why: "The Chartmaker has drawn every place in Lumina but one. His little island is out at sea, at the top of Taleshore's map. Fly there on Ember!",
           zoneId: 'chartmakers-rest',
           doneFlag: BLANK_CHART_HELD,
           npc: 'chart-chartmaker',
-          inside: 'The Chartmaker is in his study, the blue-roofed house.',
+          inside: chartInside(flags),
         };
       }
       return {
@@ -443,7 +443,22 @@ const CHORUS_GATE_FLAG = (() => {
 })();
 
 /** Islands you're "on", not "in" (15g review). */
-const ON_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['chorus-isle', 'gale-atoll', 'wayfinder-isles']);
+/**
+ * Where to look on Chartmaker's Rest (15h review round 1): the Chartmaker
+ * until he has asked, then whatever his quest needs next — Pen's nest, Inka,
+ * and back to him — so the 🚩 never sends you round in circles.
+ */
+function chartInside(flags: Record<string, boolean>): string {
+  const quest = QUESTS.find((q) => q.id === BLANK_CHART_QUEST)!;
+  if (!flags[questOfferedFlag(quest)]) return 'The Chartmaker is in his study, the blue-roofed house.';
+  // The find step has no flag of its own (it's what you carry); Inka's step says the quill is inked.
+  if (!flags[stepFlag(quest.steps[1].id)] && !flags[handedOverFlag('compass-quill')]) {
+    return "Pen's 🎁 nest is the chest just right of the study. Inka, on the west side of the island, inks the quill.";
+  }
+  return 'Take the Starlit Quill back to the Chartmaker, in his study.';
+}
+
+const ON_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['chartmakers-rest', 'chorus-isle', 'gale-atoll', 'wayfinder-isles']);
 
 /** Places named as many ("land beside them") — not every name ending in s (the Shrine of Quiet Paws, 15d review). */
 const PLURAL_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['wayfinder-isles', 'whispering-woods', 'clockwork-depths']);
@@ -671,7 +686,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
-    plan = `${shining} crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? The Chartmaker, on a little island north-west of Port Lantern, knows every place's name but one. Go and ask him!`;
+    plan = `${shining} crystals shine! Now fly to the Chartmaker's island, north-west of Port Lantern. He has drawn every place in Lumina but one. Which one? Go and ask him!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     plan = `${shining} crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!`;
   } else if (goal.kind === 'visit') {
@@ -683,7 +698,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[BLANK_CHART_HELD]) {
-    plan = 'You hold the Blank Chart! Its empty space sits right under the Crystal Spire. And that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.';
+    plan = 'You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, help the folk of Taleshore. Check 📜 Menu!';
   } else if (flags[MET_GALE]) {
     plan = "Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.";
   } else if (canFly(flags)) {

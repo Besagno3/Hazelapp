@@ -8,7 +8,7 @@ import { NPC_DEFS } from '../content/npcs';
 import { actCrystals, crystalFlag } from '../content/topics';
 import { GATE_KEYS, keyFlag, keyForZone } from '../content/keys';
 import { ACT2_SEEN, MET_GALE, SPIRE_CLEARED } from '../content/story';
-import { BLANK_CHART_HELD } from '../content/questFlags';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, questOfferedFlag, stepFlag } from '../content/questFlags';
 import {
   compass,
   exitSide,
@@ -129,6 +129,12 @@ describe('nextObjective', () => {
     // Then the Chartmaker's island for the Blank Chart (#75 item 15h), then the open world.
     expect(nextObjective(voicesFreed)).toMatchObject({ kind: 'visit', zoneId: 'chartmakers-rest', title: 'Visit the Chartmaker', doneFlag: BLANK_CHART_HELD, npc: 'chart-chartmaker' });
     expect(nextObjective(chartHeld)).toMatchObject({ kind: 'explore', zoneId: null });
+    // On the island the way follows his quest: him, then Pen's nest and Inka, then back to him (round 1).
+    const offered = { ...voicesFreed, [questOfferedFlag({ id: BLANK_CHART_QUEST })]: true };
+    expect(nextObjective(voicesFreed).inside).toMatch(/^The Chartmaker is in his study/);
+    expect(nextObjective(offered).inside).toMatch(/^Pen's 🎁 nest is the chest just right of the study/);
+    expect(nextObjective({ ...offered, [stepFlag('chart-quill-ink')]: true }).inside).toMatch(/^Take the Starlit Quill back to the Chartmaker/);
+    expect(goalDirections(ZONES, nextObjective(offered), 'chartmakers-rest')).toMatch(/^It's right here on Chartmaker's Rest!/);
     // On the isle, the way says where the gate is (round 2), and an island is "on".
     expect(goalDirections(ZONES, nextObjective(chorusBoth), 'chorus-isle')).toBe("It's right here on Chorus Isle! The Hush Fiend's gate is at the top of the road, past Old Cadence.");
     expect(goalDirections(ZONES, nextObjective({}), 'numbria')).toBe("It's right here in Numbria!");
@@ -246,7 +252,7 @@ describe('nextObjective', () => {
     expect(nextObjective(storyDone).why).toMatch(/^Ember can fly! Tap 🐉 Fly/);
     // …then the whole sky: no "soon you'll fly" once she can.
     expect(nextObjective(chorusBoth).why).toMatch(/^Both Chorus Keys together open the Hush Fiend's gate on Chorus Isle/);
-    expect(nextObjective(voicesFreed).why).toMatch(/^The Chartmaker has charted every place in Lumina but one/);
+    expect(nextObjective(voicesFreed).why).toMatch(/^The Chartmaker has drawn every place in Lumina but one/);
     expect(nextObjective(chartHeld).why).toMatch(/^The Blank Chart shows one place nobody remembers, under the Crystal Spire/);
     expect(mentorTips(ZONES, { ...voicesFreed, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
   });
@@ -500,9 +506,9 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
     expect(mentorTips(ZONES, { ...met, ...chorusWon })[0]).toMatch(/^You have the First Chorus Key! The Riddle Leviathan guards the second in Inkwell Cove\. Follow the road east from Port Lantern, then north\./);
     expect(mentorTips(ZONES, { ...met, ...chorusBoth })[0]).toBe("You hold both Chorus Keys! Together they open the Hush Fiend's gate on Chorus Isle, far out at sea west of Port Lantern. Fly there, and free the Crystal of Voices!");
-    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe("Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? The Chartmaker, on a little island north-west of Port Lantern, knows every place's name but one. Go and ask him!");
-    // With the Blank Chart (#75 item 15h): its empty space, and Mnem's blank plaque.
-    expect(mentorTips(ZONES, { ...met, ...chartHeld })[0]).toBe('You hold the Blank Chart! Its empty space sits right under the Crystal Spire. And that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.');
+    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe("Six crystals shine! Now fly to the Chartmaker's island, north-west of Port Lantern. He has drawn every place in Lumina but one. Which one? Go and ask him!");
+    // With the Blank Chart (#75 item 15h): its empty spot, a puzzle for later — like the 🚩 says (round 1).
+    expect(mentorTips(ZONES, { ...met, ...chartHeld })[0]).toBe('You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, help the folk of Taleshore. Check 📜 Menu!');
     // Lumen counts every crystal shining: a skipped Hall dedication after Voices says six, not five (round 4).
     expect(mentorTips(ZONES, { ...met, ...voicesFreed, [HALL_DEDICATED]: false })[0]).toMatch(/^Six crystals shine now! And they say something new is happening in the Hall of Names/);
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.

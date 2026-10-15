@@ -292,10 +292,10 @@ export default function WorldScreen() {
   // Wisp's "remembering me" beat: after Memory, the first time the hero is in
   // the Whispering Woods, Wisp's home (the owner's call, 2026-10-12, #129l) —
   // never anywhere else, so never right after the Memory crystal's own panels.
-  // The Blank Chart (#75 item 15h): the Chartmaker's panels, as his talk closes.
-  const chartDue = flags[BLANK_CHART_HELD] === true && !flags[CHART_SEEN] && overlay === null;
   const wispDue =
     flags[crystalFlag('history')] === true && !flags[WISP_STIRRING] && zoneId === 'whispering-woods';
+  // The Blank Chart (#75 item 15h): the Chartmaker's panels, as his talk closes.
+  const chartDue = flags[BLANK_CHART_HELD] === true && !flags[CHART_SEEN] && overlay === null;
 
   const activeScene:
     | 'spireVictory'

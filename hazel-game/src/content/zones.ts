@@ -2205,7 +2205,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   // Taleshore (#75 item 15c): the far continent, past the Great Fogbank on the
   // Starfall Sea. Its west side is open sea — Ember flies in off the Shallows'
   // east edge and lands on its coast — and Port Lantern's harbor faces home.
-  // The rest of Act III's places come in 15d–15h. Painted in Tiled
+  // Act III's places followed in 15d–15h. Painted in Tiled
   // (maps/taleshore.tmj).
   taleshore: {
     id: 'taleshore',
@@ -2900,7 +2900,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 37, y: 8, item: 'refrain-noon', wantedBy: "🎁 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
       { x: 9, y: 22, item: 'refrain-bedtime', wantedBy: "🎁 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
     ],
-  },  // Chartmaker's Rest (#75 item 15h): a small calm island where the Chartmaker
+  },
+
+  // Chartmaker's Rest (#75 item 15h): a small calm island where the Chartmaker
   // keeps his study — he has charted every place in Lumina but one. No critters:
   // a story zone. Pen, his seabird, keeps a nest of shiny things by the north
   // shore (the Blank Chart quest's key-item chest); Inka mixes ink by her easel.
@@ -2946,7 +2948,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     // Pen's nest of shiny things (#75 item 15h): the Chartmaker's Compass Quill is in it.
     keyChests: [
-      { x: 17, y: 4, item: 'compass-quill', wantedBy: "🪶 It's the Chartmaker's Compass Quill! He'll want it back — he's in his study, the blue-roofed house." },
+      { x: 17, y: 4, item: 'compass-quill', wantedBy: "✒️ It's the Chartmaker's Compass Quill! He'll want it back — he's in his study, the blue-roofed house." },
     ],
   },
 };

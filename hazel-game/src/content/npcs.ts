@@ -255,7 +255,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       // The reactive pass (#75 item 15h): Act III's news reaches home.
       {
         text: "A guest from Taleshore stayed last night! A whole land where nobody ever forgot a thing. She told me SIX bedtime stories.",
-        ifFlag: ACT3_SEEN,
+        ifFlag: crystalFlag('words'),
       },
     ],
   },
@@ -1919,6 +1919,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       // Chorus Isle (#75 item 15g): the double gate's island.
       { text: 'OLD SAILORS SAY: far out west, straight across the sea from Port Lantern, lies Chorus Isle, where everyone used to sing. Nobody has heard a note from it in years.', unlessFlag: crystalFlag('words') },
       { text: "GREAT NEWS: Chorus Isle is singing again — and the Great Fogbank has thinned! Boats from the Silver Shallows can sail right into Port Lantern now.", ifFlag: crystalFlag('words') },
+      // Chartmaker's Rest (#75 item 15h review round 1): the board points the way too.
+      { text: "WANTED: a helper for the Chartmaker, on his little island north-west of here. He says he's missing one place. Just ONE!", ifFlag: crystalFlag('words'), unlessFlag: BLANK_CHART_HELD },
       'Check back soon for more notices!',
     ],
   },
@@ -2539,7 +2541,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       { text: 'Squawk! Shiny! Pen likes SHINY. Pen keeps shiny in the nest. Squawk!', unlessFlag: questDoneFlag({ id: BLANK_CHART_QUEST }) },
-      { text: 'Squawk… shiny pen went home. Pen sad. Chart is shiny too! Pen happy. Squawk!', ifFlag: questDoneFlag({ id: BLANK_CHART_QUEST }) },
+      { text: 'Squawk… shiny quill went home. Pen sad. Chart is shiny too! Pen happy. Squawk!', ifFlag: questDoneFlag({ id: BLANK_CHART_QUEST }) },
     ],
     ambient: ['Squawk!', 'Shiny?', '🐦'],
   },
@@ -2551,7 +2553,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       "I'm Inka! I mix the Chartmaker's inks: sea-blue, forest-green, sunset-red. Today I'm trying starlight.",
-      { text: 'The chart even drew MY easel. Teeny tiny! I\'ve never been on a map before.', ifFlag: BLANK_CHART_HELD },
+      { text: 'The chart even drew ME. Teeny tiny! I\'ve never been on a map before.', ifFlag: BLANK_CHART_HELD },
     ],
     ambient: ['Sea-blue… or sky-blue?', '🎨'],
   },

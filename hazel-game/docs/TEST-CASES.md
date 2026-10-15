@@ -1401,3 +1401,5 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1195 | A | ✅ | Act III plays start to finish (#142e) | `journey.test`: `actThreeJourney` walks Port Lantern, Gale, both Chorus Keys, Voices and the Chartmaker inside their places, ending in his study |
 | TC-1196 | M | ⬜ | Chartmaker's Rest on screen (#142a) | fly north-west from Port Lantern, land beside the 🌐, walk in: the parchment study, Pen and Inka, Pen's nest by the shore; talk to the Chartmaker before and after Voices |
 | TC-1197 | M | ⬜ | the Act III reactive pass (#142d) | after Taleshore and Voices, talk to Poppy, Maple, Pip, Grandmother Wick, Old Marlow, Fen, Sage Chronicle and Posy: each has a new line |
+| TC-1198 | A | ✅ | the 🚩 on the island follows the quest (#142h) | `wayfinding.test`: before the offer, him; after, Pen's nest and Inka; once inked, back to him; "on Chartmaker's Rest"; `quests.test`: his reminder says "my study" |
+| TC-1199 | M | ⬜ | the Chartmaker's island reads right (#142h) | the icon shows a red X on a chart; Inka in blue with a red beret; the board's WANTED notice after Voices; Lumen after the chart says the puzzle can wait |

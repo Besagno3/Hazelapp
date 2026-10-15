@@ -353,6 +353,11 @@ zod, react-query. Add the package in the same change that first uses it.
   **both** Chorus Keys (`keysForZone`, `holdsKeysFor`; `keyForZone` is the
   first). Six crystals make Ember **radiant** (`emberGrown`: dragon or
   radiant), and Voices thins the Great Fogbank, so boats cross.
+  **Chartmaker's Rest** (#75 item 15h): Act III's last place, an island off
+  Taleshore with no critters. The Blank Chart quest waits for Voices; on
+  completion `QuestDef.grants` keeps the Blank Chart in the bag and sets
+  `blank-chart-held` — the flag Act IV checks (check the flag, not the item) —
+  then `CHART_PANELS` play (`chart-seen`). The 🚩 visits him after Voices.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -774,6 +779,14 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — 15h review round 1: a 🚩 that follows the quest, an X on the chart (#75 item 15h, #142h)
+Fresh code (4 low, 5 nits) and UX (6 medium, 7 low, 5 nits) reviews, all
+fixed but three kept (🌐, Pen's 🐦, no nest/easel props): the 🚩's
+`inside` follows the Blank Chart quest, the Chartmaker's reminders in his
+own voice, Lumen agrees with the 🚩 after the chart, the inn's guest waits
+for Voices, a red X on the icon, Inka in blue, the board's notice, an
+architecture note for `QuestDef.grants` / `blank-chart-held`. 1298 green.
 
 ### 2026-10-15 — Chartmaker's Rest: the Blank Chart, and Act III start to finish (#75 item 15h, #142)
 Roadmap sub-item 15h, the Phase 4 exit.

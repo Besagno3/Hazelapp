@@ -1364,7 +1364,8 @@ export const QUESTS: QuestDef[] = [
     offer: [
       "Ah, a visitor! I'm the Chartmaker. I've drawn a chart of every place in Lumina — every town, every island, every hill.",
       "Every place but ONE. There's a place I can never name. Each time I try, my ink fades away, as if the world forgot it.",
-      'Now that the Crystal of Voices sings, I think I can chart it at last! But Pen, my seabird, flew off with my Compass Quill. She hides shiny things in a 🎁 nest by the shore, right of my study.',
+      'Now the Crystal of Voices sings, I think I can chart it at last! But my seabird Pen flew off with my Compass Quill.',
+      'Pen hides shiny things in her 🎁 nest — the chest just right of my study.',
     ],
     offerHaving: {
       items: ['compass-quill', 'starlit-quill'],
@@ -1374,27 +1375,34 @@ export const QUESTS: QuestDef[] = [
       ],
     },
     steps: [
-      haveStep(
-        'chart-quill-find',
-        [{ items: ['compass-quill', 'starlit-quill'], label: 'the Compass Quill' }],
-        "Pen hid the Compass Quill in her 🎁 nest by the shore, right of the Chartmaker's study.",
-      ),
-      bringStep(
+      {
+        ...haveStep(
+          'chart-quill-find',
+          [{ items: ['compass-quill', 'starlit-quill'], label: 'the Compass Quill' }],
+          "Pen hid the Compass Quill in her 🎁 nest — the chest just right of the Chartmaker's study.",
+        ),
+        // In his own voice when you talk to him (15h review round 1).
+        remind: "Pen's 🎁 nest is the chest just right of my study. Please bring my quill back!",
+      },
+      {
+        ...bringStep(
         'chart-quill-ink',
         'chart-inka',
         { takes: 'compass-quill', gives: 'starlit-quill' },
         [
           '🖌️ Inka dips the Compass Quill in a pot of ink that twinkles like the night sky.',
-          '"Starlight ink! It remembers everything it touches — even places the world forgot. Take it back to the Chartmaker!"',
+          '"Starlight ink! It remembers almost everything it touches. Take it back to the Chartmaker!"',
         ],
-        'Bring the Compass Quill to Inka, by her easel on the west side of the island. She mixes the Chartmaker\'s ink.',
-      ),
+        "The quill is dry! Bring it to Inka, on the west side of the island. She mixes the Chartmaker's inks.",
+        ),
+        remind: "My quill! Oh — it's dry as a bone. Take it to Inka, on the west side of the island. She mixes my inks.",
+      },
     ],
     takesItems: ['starlit-quill'],
     complete: [
       '✨ The Chartmaker dips the Starlit Quill and draws. Dawnreach… the Silver Shallows… Taleshore… every place you\'ve been, all at once!',
       'But look — right under the Crystal Spire, one spot stays blank. Nothing sticks there. Not even starlight ink.',
-      '"Take it. This is the Blank Chart. A blank like that isn\'t NOTHING — it\'s something the whole world forgot."',
+      '"Take it! I\'ll call it the Blank Chart, for its one blank spot. A blank like that isn\'t NOTHING — it\'s something the whole world forgot."',
       '🗺️ You got the Blank Chart! ✨ Reward: 60 coins and a Honey Elixir!',
     ],
     reward: { coins: 60, items: { elixir: 1 } },
