@@ -18,7 +18,10 @@ import { crystalFlag } from './topics';
  *
  * Act II (#75 item 14f): the Ringkeeper of Eldergrove gives the **Memoria
  * Key**, which opens the Hollow Fiend's silver door in the Sunken Archive
- * (#75 item 14h — until then it had no gate on any map).
+ * (#75 item 14h — until then it had no gate on any map). Act III (#75 items
+ * 15d–15g): the Compass Golem and the Riddle Leviathan each give one of the
+ * two **Chorus Keys**; the Hush Fiend's gate on Chorus Isle needs both
+ * (`keysForZone`, `holdsKeysFor`).
  */
 export interface GateKey {
   id: string;

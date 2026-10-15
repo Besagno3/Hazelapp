@@ -417,8 +417,9 @@ export interface ZoneDef {
   spire?: { x: number; y: number };
   /**
    * A Fiend gate locked by a warden's key (#58) instead of a gatekeeper
-   * question. The `G` tile at this position checks `keyForZone(id)`: bump it
-   * with the key to open it, or get told which warden boss holds it.
+   * question. The `G` tile at this position checks `keysForZone(id)` — one
+   * key, or both Chorus Keys on Chorus Isle (`holdsKeysFor`, #75 item 15g):
+   * bump it with them to open it, or get told which warden holds what's missing.
    */
   keyGate?: { x: number; y: number };
   /** Enterable buildings (#72) — see `BuildingDef`. */
@@ -2232,7 +2233,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 47, y: 10, icon: 'cliffs', name: 'Songstone Cliffs' },
       { x: 47, y: 26, icon: 'quarter', name: 'Quiet Quarter' },
       // Act III's crystal (#75 item 15g): an island far out west in the Starfall
-      // Sea, behind the Hush Fiend's double gate — only Ember reaches it.
+      // Sea, behind the Hush Fiend's double gate — only Ember reaches it until the
+      // Great Fogbank thins (then a boat can land on its beach, as on the other isles).
       { x: 7, y: 21, icon: 'chorus', name: 'Chorus Isle', byAir: true },
     ],
     exits: [

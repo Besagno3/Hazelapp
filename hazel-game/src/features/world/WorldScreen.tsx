@@ -761,7 +761,7 @@ export default function WorldScreen() {
         {save.vehicle === 'ember'
           ? 'Fly: arrow keys / WASD · Land: Space, F or 🛬 (over grass, sand or a road)'
           : save.vehicle === 'boat'
-          ? `Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!${zoneId === 'silver-shallows' && canFly(flags) ? ' · to cross the fog: go ashore, then 🐉 Fly' : ''}`
+          ? `Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!${zoneId === 'silver-shallows' && canFly(flags) && !flags[crystalFlag('words')] ? ' · to cross the fog: go ashore, then 🐉 Fly' : ''}`
           : `Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!${flightOffered ? ' · F or 🐉 to fly' : ''}`}
       </p>
       </div>

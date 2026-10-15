@@ -1385,3 +1385,5 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1179 | A | ✅ | the fogbank thins with Voices (#141g) | `zones.test`: the Great Fogbank's `liftedBy` is the words crystal's flag; once set a boat crosses to Taleshore and the link isn't flown-only |
 | TC-1180 | M | ⬜ | Chorus Isle on the canvas (#141c) | fly to the isle west of Port Lantern, land, walk in: the inn, the hall, the cottage, the hollow and its double gate read clearly; the Hush Fiend fights; the crystal's panels; Ember shines |
 | TC-1181 | A | ✅ | the double gate shows the key you hold (#141k) | `KeyGateOverlay.test`: with one key, 🎹🔒 and "fits one lock"; with none, the short two-locks line |
+| TC-1182 | A | ✅ | Chorus Call into a shield refunds exactly what was spent (#141l) | `battleTurn.test`: shield broken, charge back to its start; a full refund would end one ◆ up; a refund never passes full |
+| TC-1183 | M | ⬜ | the sailing footer after Voices (#141l) | sail the Shallows with Voices restored: no "go ashore, then 🐉 Fly" |

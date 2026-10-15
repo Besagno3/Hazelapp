@@ -172,8 +172,8 @@ zod, react-query. Add the package in the same change that first uses it.
   (`boatSpot`, home at his dock), leaving it mid-voyage (`moorBoat`), Marlow
   rowing it home (`boatFetch`)),
   `spire.ts` (the endgame climb floors +
-  villain), `keys.ts` (warden bosses + the gate keys that unlock 3 of the 4
-  Fiends, #58), `items.ts` (shop + economy tuning), `quests.ts` (quests as
+  villain), `keys.ts` (warden bosses + the gate keys that unlock the Fiends' gates, #58 —
+  one key each, but Chorus Isle's takes both Chorus Keys, `keysForZone`, #75 item 15g), `items.ts` (shop + economy tuning), `quests.ts` (quests as
   ordered steps — chest / defeat / talk / secret, and since #75 item 13 *have*
   (carry an item, any of its forms) and *bring* (hand it to an NPC, who may
   hand back something new) steps; `openChest` pays a key-item chest's
@@ -470,7 +470,7 @@ zod, react-query. Add the package in the same change that first uses it.
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
   (the Spellbook, `content/spells.ts`): the hero casts any learned spell
-  (Mend / Aegis / Sage strikes / Remembrance / Ember's Breath) by answering one *super-hard*
+  (Mend / Aegis / Sage strikes — Sage Aria's Chorus Call sings a ◆ back, #75 item 15g — / Remembrance / Ember's Breath, Radiant Breath once Ember shines) by answering one *super-hard*
   question (`SPELL_LEVEL_BONUS` = 3 levels up); each spends charge (◆, the mana
   gauge filled by correct answers, `CHARGE_MAX` = 4) and a miss fizzles +
   refunds the charge. **Companions** (`content/companion.ts`): Ember (always;
@@ -773,6 +773,11 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — 15g review round 1 (code): the footer after the fog thins (#75 item 15g, #141l)
+Fresh code review (2 low, 2 nits), all fixed: no "fly over the fog" footer
+once Voices has thinned it; Chorus Call into a shield is tested to end where
+it began; stale comments and docs. 1284 green; `bench … fly` 20/20.
 
 ### 2026-10-15 — 15g review round 1 (UX): a gold Ember, a shorter gate (#75 item 15g, #141k)
 Fresh UX review (3 medium, 7 low, 2 nits), all fixed but one kept (the key

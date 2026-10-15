@@ -237,7 +237,7 @@ describe('resolveSpell', () => {
     expect(resolveSpell({ ...base, charge: 4 }, sageSpell('math'), true)).toMatchObject({ multiplier: 2.5, skipsTurn: false });
   });
 
-  it('Chorus Call (#75 item 15g): a 2.5× strike that sings one ◆ back — never past full; a miss fizzles, no refund', () => {
+  it('Chorus Call (#75 item 15g): a 2.5× strike that sings one ◆ back; a miss fizzles, no refund', () => {
     const call = sageSpell('words');
     expect(call).toMatchObject({ name: 'Chorus Call', cost: 3, topic: 'words' });
     const r = resolveSpell({ ...base, charge: 4 }, call, true);
@@ -249,6 +249,26 @@ describe('resolveSpell', () => {
     // Other strikes sing nothing back.
     expect(resolveSpell({ ...base, charge: 4 }, sageSpell('math'), true)).toMatchObject({ refunded: 0 });
     expect(CHARGE_MAX).toBeGreaterThanOrEqual(call.cost);
+  });
+
+  it("Chorus Call into a shield (the isle's Muffle Moths): the shield breaks and the charge ends where it began", () => {
+    const call = sageSpell('words');
+    const start = { ...base, charge: 4, enemyShielded: true };
+    const r = resolveSpell(start, call, true);
+    if (r.kind !== 'strike') throw new Error('not a strike');
+    // As BattleArena's cast does: give back what the cast spent, less what it sang back.
+    const hit = resolveHeroHit(r.state, 50, { isBoss: false, refundCharge: call.cost - r.refunded });
+    expect(hit.outcome).toBe('shield-broken');
+    expect(hit.state.charge).toBe(start.charge);
+    // From 2◆, refunding the whole cost on top of the song would end one ◆ up.
+    const low = resolveSpell({ ...start, charge: 3 }, call, true);
+    expect(resolveHeroHit(low.state, 50, { isBoss: false, refundCharge: call.cost - (low.kind === 'strike' ? low.refunded : 0) }).state.charge).toBe(3);
+    expect(resolveHeroHit(low.state, 50, { isBoss: false, refundCharge: call.cost }).state.charge).toBe(4);
+  });
+
+  it('a refund never fills the gauge past full', () => {
+    const generous = { ...sageSpell('words'), cost: 1, effect: { kind: 'damage' as const, multiplier: 2, refund: 3 } };
+    expect(resolveSpell({ ...base, charge: CHARGE_MAX }, generous, true).state.charge).toBe(CHARGE_MAX);
   });
 });
 
