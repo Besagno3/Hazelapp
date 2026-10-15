@@ -748,7 +748,7 @@ export default function WorldScreen() {
 
       <p className="text-white/50 text-xs mt-2">
         {save.vehicle === 'ember'
-          ? 'Fly: arrow keys / WASD · Space, F, a tap or click, or 🛬 to land on grass, sand or a road'
+          ? 'Fly: arrow keys / WASD · Land: Space, F or 🛬 (over grass, sand or a road)'
           : save.vehicle === 'boat'
           ? 'Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!'
           : `Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!${flightOffered ? ' · F or 🐉 to fly' : ''}`}

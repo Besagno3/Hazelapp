@@ -218,6 +218,15 @@ describe('flying on Ember (#75 item 15b)', () => {
     expect(reach(dawn, { start: 'ember', from: { x: 40, y: 30 }, exits: 'stop' }).size).toBe(allCells(dawn));
   });
 
+  it('`grounded` leaves out what is only flown over: a mountain (round 3 review)', () => {
+    const air = reach(dawn, { start: 'ember', from: { x: 40, y: 30 }, modes: ['ember', 'foot'] });
+    const ground = reach(dawn, { start: 'ember', from: { x: 40, y: 30 }, modes: ['ember', 'foot'], grounded: true });
+    expect(air.size).toBe(allCells(dawn));
+    expect(ground.size).toBeLessThan(air.size);
+    expect(tileAt(dawn, 46, 25)).toBe('^');
+    expect(ground.has('46,25')).toBe(false);
+  });
+
   it('crosses a linked edge over land as well as sea; the boat only over sea; on foot nothing crosses', () => {
     // Two little overworlds joined east–west: land along the edge on the first row, sea on the second.
     const west = mk(['...', '~~~'], { id: 'dawnreach', kind: 'overworld', seaLinks: [{ side: 'east', to: 'silver-shallows' }] });

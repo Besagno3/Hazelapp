@@ -938,7 +938,7 @@ async function fly(browser, outDir) {
   await page.keyboard.press('Space');
   await page.waitForTimeout(300);
   s = await state(page);
-  await check(page, 'Space lands on open ground', prompt === 'Land' && s.touchDowns === 1 && !s.flying, `prompt ${prompt}, touchDowns ${s.touchDowns}, flying ${s.flying}`);
+  await check(page, 'Space lands on open ground', prompt === 'Land here' && s.touchDowns === 1 && !s.flying, `prompt ${prompt}, touchDowns ${s.touchDowns}, flying ${s.flying}`);
   await page.close();
 
   // C: on foot again, the mountains stop you.

@@ -61,7 +61,7 @@ import {
   type ZzPath,
 } from '../../lib/sleepMark';
 import { BOAT_REMOOR_REACH } from '../../content/boat';
-import { ensureBlendSheets, loadWorldSprites, worldFace } from './worldSprites';
+import { ensureBlendSheets, loadWorldSprites, worldFace, worldKey } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis, worldView } from '../../lib/camera';
@@ -145,6 +145,8 @@ const VIEW_H = VIEW_ROWS * TILE;
 const ROOF_FADE = 10;
 /** How faint a place's name gets with the hero standing under it. */
 const LABEL_UNDER_OPACITY = 0.2;
+/** How much bigger than Ember her dark rim is drawn while flying. */
+const EMBER_RIM = 1.1;
 /** Seconds after closing an overlay before a bump (a secret, fog) can trigger again, or a critter beside you fight. */
 const TRIGGER_COOLDOWN = 0.8;
 /** Flying, Ember is drawn this much bigger, so she shows round the hero on her back (#75 item 15b review). */
@@ -1744,6 +1746,21 @@ export default function WorldCanvas({
     // Flying, Ember is drawn bigger than the hero riding her (#75 item 15b review).
     (ember as unknown as { use: (c: unknown) => void }).use(k.scale(1));
     const emberScale = ember as unknown as { scale: WorldVec };
+    // A dark rim round her while she flies, so a rider in red still reads as
+    // sitting on a dragon at phone size (#75 item 15b review round 3).
+    type Rim = { pos: WorldVec; scale: WorldVec; frame: number; flipX: boolean; hidden: boolean };
+    const emberRim = emberView
+      ? (k.add([
+          k.sprite(worldKey(EMBER_SPRITE_IDS[emberStage])),
+          k.pos(ember.pos),
+          k.anchor('center'),
+          k.scale(1),
+          k.color(30, 16, 44),
+          k.opacity(0.8),
+          k.z(16.9),
+        ]) as unknown as Rim)
+      : null;
+    if (emberRim) emberRim.hidden = true;
     let emberAnim = '';
     lastDir = emberAt.dir;
 
@@ -1870,7 +1887,14 @@ export default function WorldCanvas({
     }
 
     /** Something the hero can use: what the prompt over it says, where it floats, and what using it does. */
-    type Use = { label: string; at: { x: number; y: number }; act: () => void; hit: (x: number, y: number) => boolean };
+    type Use = {
+      label: string;
+      at: { x: number; y: number };
+      act: () => void;
+      hit: (x: number, y: number) => boolean;
+      /** Drawn faint: it can be pressed, but only says why not (landing over water). */
+      faint?: boolean;
+    };
     /** Is (x, y) on the cell (cx, cy)? */
     const onCell = (cx: number, cy: number) => (x: number, y: number) => Math.floor(x / TILE) === cx && Math.floor(y / TILE) === cy;
     /** Talking to someone — clicked on, or on the counter or desk between you (`via`). */
@@ -1995,12 +2019,13 @@ export default function WorldCanvas({
     // The prompt, rebuilt only when its words change (KaPlay measures text as it's made), kept on the map.
     const touchScreen = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true;
     type PromptPart = { pos: WorldVec; destroy: () => void };
-    let prompt: { words: string; w: number; parts: PromptPart[] } | null = null;
+    let prompt: { words: string; w: number; faint: boolean; parts: PromptPart[] } | null = null;
     // What ✋ was last told — unset at first, so a new scene always tells it (the last one's may be stale).
     let promptSaid: string | null | undefined;
     function showPrompt(use: Use | null) {
       const words = use ? promptText(use.label, touchScreen) : null;
-      if (prompt && prompt.words !== words) {
+      const faint = use?.faint === true;
+      if (prompt && (prompt.words !== words || prompt.faint !== faint)) {
         for (const part of prompt.parts) part.destroy();
         prompt = null;
       }
@@ -2011,6 +2036,7 @@ export default function WorldCanvas({
             k.pos(0, 0),
             k.anchor('center'),
             k.color(45, 35, 65),
+            k.opacity(faint ? 0.5 : 1),
             k.z(PROMPT_Z + 0.5),
           ]) as unknown as PromptPart & { width?: number; height?: number };
           const w = (text.width ?? words.length * 6) + 10;
@@ -2020,9 +2046,10 @@ export default function WorldCanvas({
             k.anchor('center'),
             k.color(255, 236, 160),
             k.outline(1, k.rgb(150, 110, 40)),
+            k.opacity(faint ? 0.45 : 1),
             k.z(PROMPT_Z),
           ]) as unknown as PromptPart;
-          prompt = { words, w, parts: [pill, text] };
+          prompt = { words, w, faint, parts: [pill, text] };
         }
         const bob = reducedMotion ? 0 : Math.sin(k.time() * 4) * 1.5;
         const x = Math.min(Math.max(use.at.x, prompt.w / 2 + 2), W - prompt.w / 2 - 2);
@@ -2345,6 +2372,8 @@ export default function WorldCanvas({
       if (flying || aboard || !canFlyOver(z) || !canFly(flagsRef.current)) return;
       flying = true;
       push = null;
+      // Nothing below can meet a flying hero, so nobody needs to sleep (as on arriving flying).
+      resting.clear();
       cbRef.current.onTakeOff?.(player.pos.x, player.pos.y);
     }
     function touchDown() {
@@ -2364,10 +2393,12 @@ export default function WorldCanvas({
     }
     /**
      * Flying: the one thing to "use" is the ground below, so ✋ always says
-     * "Land" — over water it says why not instead (#75 item 15b review).
+     * "Land here" (the HUD's 🛬 is "Land") — over water or mountains its
+     * prompt is faint, and a press says why not (#75 item 15b reviews).
      */
     function landingUse(): Use[] {
-      return [{ label: 'Land', at: { x: player.pos.x, y: player.pos.y - 40 }, hit: () => true, act: touchDown }];
+      const faint = !landingCell();
+      return [{ label: 'Land here', at: { x: player.pos.x, y: player.pos.y - 40 }, hit: () => true, act: touchDown, faint }];
     }
     // Her shadow on the ground while she flies.
     const shadow = k.add([
@@ -2709,7 +2740,7 @@ export default function WorldCanvas({
           // Heading up to a sleeping critter — while it's still there to see,
           // not under them — says why it lets them pass (#114e).
           const towards = dx * (a.x - player.pos.x) + dy * (a.y - player.pos.y) > 0;
-          if (asleep && !holding && !sleeperHinted && !a.enemy.isBoss && towards && touching(a, player.pos, SLEEPER_HINT_PX)) {
+          if (asleep && !flying && !holding && !sleeperHinted && !a.enemy.isBoss && towards && touching(a, player.pos, SLEEPER_HINT_PX)) {
             sleeperHinted = cbRef.current.onSleeper?.() ?? true;
           }
           // Fight, pass, or spare (`meetFoe`, #114e, #114t).
@@ -2777,7 +2808,9 @@ export default function WorldCanvas({
       // A place's name fades to a ghost while the hero stands on it, so it
       // never hides them (the Roost's plateau is right under its label).
       for (const l of placeLabels) {
-        const over = Math.abs(player.pos.x - l.x) < l.halfW + HALF && Math.abs(player.pos.y - l.y) < TILE * 0.75;
+        // Flying, Ember is drawn below the rider (to ~44 px down): her too (round 3 review).
+        const dy = l.y - player.pos.y;
+        const over = Math.abs(player.pos.x - l.x) < l.halfW + HALF && (flying ? dy > -TILE * 0.75 && dy < 52 : Math.abs(dy) < TILE * 0.75);
         const target = over ? LABEL_UNDER_OPACITY : 1;
         const cur = l.parts[0].near ?? 1;
         if (cur === target) continue;
@@ -2814,6 +2847,15 @@ export default function WorldCanvas({
           emberSprite.play(want);
         }
         if (f === 'side') emberSprite.flipX = lastDir.x < 0;
+      }
+      if (emberRim) {
+        emberRim.hidden = !flying;
+        if (flying) {
+          emberRim.pos = ember.pos;
+          emberRim.scale = k.vec2(EMBER_FLY_SCALE * EMBER_RIM);
+          emberRim.frame = (ember as unknown as { frame: number }).frame;
+          emberRim.flipX = emberSprite.flipX;
+        }
       }
 
       // --- An escort's walk (#75 item 14g) ------------------------------------

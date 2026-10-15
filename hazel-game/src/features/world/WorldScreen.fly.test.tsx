@@ -79,7 +79,7 @@ describe('🐉 Fly / 🛬 Land on the world HUD (#75 item 15b)', () => {
     act(() => canvas.callbacks!.onTakeOff!(41, 30));
     expect(useSaveStore.getState().save!.vehicle).toBe('ember');
     expect(canvas.flying).toBe(true);
-    expect(screen.getByText(/Space, F, a tap or click, or 🛬 to land on grass, sand or a road/)).toBeInTheDocument();
+    expect(screen.getByText(/Land: Space, F or 🛬 \(over grass, sand or a road\)/)).toBeInTheDocument();
     expect(screen.getByText('(flying on Ember)')).toBeInTheDocument();
     // Heard too, in the status region (round 2 review).
     expect(screen.getByText("You're flying on Ember!").closest('[role=status]')).not.toBeNull();

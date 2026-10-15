@@ -622,7 +622,7 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
         // Reach the reward by its neighbours (a chest is bumped, not stood on).
         // Once Ember can fly, the hero flies too (#75 item 15b).
         const reached = (flags: Record<string, boolean>) => {
-          const open = reach(z, { flags, modes: canFly(flags) ? ['foot', 'ember'] : ['foot'] });
+          const open = reach(z, { flags, modes: canFly(flags) ? ['foot', 'ember'] : ['foot'], grounded: true });
           return open.has(key) || touches(open, f.guards.x, f.guards.y);
         };
         expect(reached({}), `${f.id}: reward reachable through the fog`).toBe(false);
@@ -749,7 +749,7 @@ describe("the Dragon's Roost: a peak only Ember reaches (#75 item 15b)", () => {
 
   it('by air: Ember lands on its open ground, and from there the icon is a walk away — and nothing else is', () => {
     for (const c of plateau) expect(landable(tileAt(dawn, c.x, c.y)), `${c.x},${c.y} open ground`).toBe(true);
-    const air = reach(dawn, { flags: everything, modes: ['foot', 'ember'] });
+    const air = reach(dawn, { flags: everything, modes: ['foot', 'ember'], grounded: true });
     for (const c of plateau) expect(air.has(`${c.x},${c.y}`)).toBe(true);
     const top = reach(dawn, { from: plateau, flags: everything });
     expect(top.has(`${icon.x},${icon.y}`)).toBe(true);

@@ -102,7 +102,8 @@ describe('Act II as a journey (#75 item 14i, the Phase 3 exit check)', () => {
       'visit:remembrance-hill',
     ]);
     const after = act2.reduce((f, l) => advanceGoal(l.goal, f), act2[0].flags);
-    expect(nextObjective(after).kind).toBe('explore');
+    // Then Ember's flight to the Roost (#75 item 15b), flown on the bench (`bench … fly`).
+    expect(nextObjective(after).kind).toBe('fly');
     // The Hall leg is met by Keeper Mnem's call (his last line sets hall-called, which plays the
     // dedication — WorldScreen.ending.test), not just by reaching him (code review round 2).
     const hall = act2.at(-1)!;

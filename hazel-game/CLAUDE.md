@@ -748,6 +748,22 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15b review round 3: the 🚩 flies you to the Roost, a rim round Ember (#75 item 15b, #136g)
+Fresh code (2 low) and UX (2 high, 3 medium, 5 low) reviews. All fixed:
+- **Where to fly:** a new 🚩 goal after the Hall, "Fly to the Dragon's
+  Roost" (`Objective.kind: 'fly'`; its directions fly, not sail), then
+  "Explore" says Ember can fly; Elder Lumen agrees. The tutorial's last panel
+  names Dawnreach (it usually plays on the Shallows); Memory's panel says
+  Ember is strong enough to fly now. `actTwoJourney` stops at the Roost goal.
+- **On screen:** a dark rim round Ember while flying (`EMBER_RIM`); a
+  place's name fades under her too; ✋ says "Land here", faint where there's
+  nowhere to land; panel 2 and the flying footer shorter.
+- **Code:** no sleeper hint mid-flight, and taking off wakes resting
+  critters; `reach`'s new `grounded` makes the fog and Roost tests able to
+  fail.
+- **Tests:** +3 (wayfinding.test, reach.test); 1189 green; lint and tsc
+  clean; `bench … fly` 14/14, `bench … journey` 13/13.
+
 ### 2026-10-15 — 15b review round 2: no accidental flights, the button lets go, a name that steps aside (#75 item 15b, #136f)
 Fresh code and UX reviews of PR #56. All fixed:
 - **Code:** a press that skipped a fog reveal or came mid-slide also took

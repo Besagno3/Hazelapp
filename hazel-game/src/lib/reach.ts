@@ -39,6 +39,11 @@ export interface ReachOptions {
   start?: TravelMode;
   /** Travel modes the hero may use. Default: just the one they start in. */
   modes?: readonly TravelMode[];
+  /**
+   * Only cells the hero can stand on or sail to count, not ones merely flown
+   * over — with `ember` in `modes`, "reached" otherwise means the whole map.
+   */
+  grounded?: boolean;
   /** Where the boat is moored on this map — climbing in happens only here. */
   boat?: Cell | null;
   /**
@@ -144,7 +149,7 @@ function explore(
     const cell = Math.floor(s / MODES);
     const x = cell % cols;
     const y = Math.floor(cell / cols);
-    cells.add(`${x},${y}`);
+    if (!opts.grounded || BIT_MODE[s % MODES] !== 'ember') cells.add(`${x},${y}`);
     if (found === null && goal?.(x, y)) found = s;
     queue.push(s);
   };

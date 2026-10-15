@@ -427,11 +427,11 @@ export const FLIGHT_PANELS: StoryPanel[] = [
   },
   {
     emoji: '☁️',
-    text: 'Tap 🐉 Fly (or press F) to climb on. Fly over mountains, trees, water and fog! To come down over grass, sand or a road, tap 🛬 Land or press Space.',
+    text: 'Tap 🐉 Fly (or press F). Soar over mountains, water and fog! Over grass, sand or a road, tap 🛬 Land (or press Space) to come down.',
   },
   {
     emoji: '⛰️',
-    text: "Ember keeps looking at a lonely peak just east of Lumina Village. No path climbs it. Fly up, land on the grass at the top and walk in!",
+    text: 'Ember keeps looking toward a lonely peak on Dawnreach, just east of Lumina Village. No path climbs it. Fly there, land on the grass at the top and walk in!',
   },
 ];
 
@@ -598,7 +598,7 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
       emoji: '🐉',
       text:
         'Ember stretches its wings so wide the bookshelves rattle. Its wings beat — once, twice. ' +
-        'Strong enough to fly now, almost. Soon, little spark. Soon.',
+        'Strong enough to fly now! Ember looks at you and grins.',
     },
     {
       emoji: '🌑',
