@@ -3934,6 +3934,26 @@ def dog(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(15, 30.4, 8, 1.1))
 
 
+def sock(c: Canvas, p: Pose, s: dict):
+    """A Lost Sock Golem (#75 item 16b review): a big striped sock standing on its
+    heel and toe, a hole worn in the toe, two button eyes near the cuff."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#f0ece4'))
+    stripe = hexc(s.get('stripe', '#e04848'))
+    hop = (-1.2 if p.frame % 2 else 0.0)
+    B = d.part(d.lean, d.bob + hop)
+    B.rect(11, 4, 20, 22, col)  # the leg of the sock
+    B.ellipse(17, 24, 8.4, 5, col)  # the foot
+    for y in (6.5, 10.5, 14.5):
+        B.rect(11, y, 20, y + 1.8, stripe, shade=False)
+    B.rect(10.4, 3, 20.6, 5.2, light(col, 0.12))  # the cuff
+    B.ellipse(23.6, 25.6, 1.4, 1.2, dark(col, 0.45), shade=False)  # a hole in the toe
+    d.put(B)
+    if p.facing != 'up':
+        d.eyes(B, [(13.6, 9), (17.6, 9)])
+    finish(c, d, shadow=(17, 30.2, 8, 1.1))
+
+
 def key_critter(c: Canvas, p: Pose, s: dict):
     """A Misplaced Key (#75 item 16b): a big brass key hopping on its teeth, a
     googly-eyed round bow, a little ribbon tag still tied on."""
@@ -4019,6 +4039,7 @@ def popcorn_cart(c: Canvas, p: Pose, s: dict):
 DRAWERS = {
     'dog': dog,
     'key_critter': key_critter,
+    'sock': sock,
     'slate': slate,
     'bell': bell,
     'popcorn_cart': popcorn_cart,
@@ -4220,7 +4241,7 @@ ROSTER: list[Char] = [
     Char('quill-imp', '🪶', 'quill_imp', H(color='#c84a5a', feather='#f4f0e0')),
     # ── Act IV: Lumina-That-Was (#75 item 16b) ──
     Char('faded-echo', '👥', 'ghost', H(color='#c8c4d8')),
-    Char('lost-sock-golem', '🧦', 'golem', H(color='#f0ece4', accent='#e04848')),
+    Char('lost-sock-golem', '🧦', 'sock', H(color='#f0ece4', stripe='#e04848')),
     Char('misplaced-key', '🔑', 'key_critter', H(color='#e0b040', tag='#e86a8a')),
     Char('chalk-wisp', '🖍️', 'ink_wisp', H(color='#eceae0')),
     Char('eraser-imp', '🧽', 'quill_imp', H(color='#ff8fae', feather='#ffffff')),

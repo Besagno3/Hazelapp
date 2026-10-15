@@ -104,6 +104,23 @@ export interface WorldNpcDef {
    * stationary (Wisp is).
    */
   face?: { flag: string; spriteId: string; sprite: string };
+  /**
+   * A new name once a story flag is set (#75 item 16b: the Unnamed Dog, once
+   * the hero has named him) — over their head and in talk (`npcName`).
+   */
+  names?: { flag: string; name: string }[];
+  /** Ambient bubbles that only float once a story flag is set (the dog's own name, #75 item 16b). */
+  ambientIf?: { flag: string; lines: string[] }[];
+}
+
+/** An NPC's name now (#75 item 16b): a new one once its flag is set, else their own. */
+export function npcName(def: WorldNpcDef, flags: Record<string, boolean> = {}): string {
+  return def.names?.find((n) => flags[n.flag])?.name ?? def.name;
+}
+
+/** The bubbles an NPC floats now (#75 item 16b): the flag's own, else their usual ones. */
+export function npcAmbient(def: WorldNpcDef, flags: Record<string, boolean> = {}): string[] | undefined {
+  return def.ambientIf?.find((a) => flags[a.flag])?.lines ?? def.ambient;
 }
 
 /** A thing, not a person — a prop or a signpost (15c review): it never steps aside. */
@@ -469,6 +486,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'Aster! With the daisy behind her ear. Fancy me forgetting a name like that, all these years.',
         ifFlag: NAME_LEARNED,
+      },
+      // The fifth memory is her own, as a girl (16b review round 1).
+      {
+        text: 'Me, as a little girl? Down below the Spire? Oh my! Go and ask her — and tell her the bread is burning.',
+        ifFlag: stepFlag('name-chronicle'),
+        unlessFlag: [stepFlag('name-young-wick'), NAME_LEARNED],
       },
       // Wisp's beat plays only in the Woods (#129l) — a nudge back there after Memory.
       {
@@ -2677,7 +2700,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'memory-fair': {
     id: 'memory-fair',
-    name: 'Merchant Fair',
+    name: 'First Merchant',
     sprite: '🎪',
     role: 'villager',
     stationary: true,
@@ -2702,13 +2725,24 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      'Woof! *wag wag wag*',
+      { text: 'Woof! *wag wag wag*', unlessFlag: ['dog-named-pickles', 'dog-named-captain', 'dog-named-wigglesworth'] },
       { text: 'WOOF! *Pickles wags so hard he falls right over.*', ifFlag: 'dog-named-pickles' },
       { text: 'Woof! *Captain stands up very straight, guarding you.*', ifFlag: 'dog-named-captain' },
       { text: 'Woof. *Sir Wigglesworth bows. Then wiggles.*', ifFlag: 'dog-named-wigglesworth' },
     ],
     // Every child in old Lumina called this dog something different (STORY-4X §6).
     ambient: ['Pickles!', 'Captain!', 'Sir Wigglesworth!', 'Woof!'],
+    // Once named, everyone calls him that (16b review round 1).
+    names: [
+      { flag: 'dog-named-pickles', name: 'Pickles' },
+      { flag: 'dog-named-captain', name: 'Captain' },
+      { flag: 'dog-named-wigglesworth', name: 'Sir Wigglesworth' },
+    ],
+    ambientIf: [
+      { flag: 'dog-named-pickles', lines: ['Pickles!', 'Woof!', '*wag wag*'] },
+      { flag: 'dog-named-captain', lines: ['Captain!', 'Woof!', '*salutes*'] },
+      { flag: 'dog-named-wigglesworth', lines: ['Sir Wigglesworth!', 'Woof!', '*wiggles*'] },
+    ],
   },
   'class-prim': {
     id: 'class-prim',
@@ -2732,32 +2766,41 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
   },
   'class-slate-1': {
     id: 'class-slate-1',
-    name: 'First Slate',
+    name: 'Slate 1',
     sprite: '📝',
     spriteId: 'class-slate',
     role: 'villager',
     stationary: true,
     prop: true,
-    lines: ['A slate with a question chalked on it, half rubbed out.'],
+    lines: [
+      { text: 'A slate with a question chalked on it, half rubbed out.', unlessFlag: stepFlag('bell-slate-1') },
+      { text: 'The chalk on this slate shines gold. ✨', ifFlag: stepFlag('bell-slate-1') },
+    ],
   },
   'class-slate-2': {
     id: 'class-slate-2',
-    name: 'Second Slate',
+    name: 'Slate 2',
     sprite: '📝',
     spriteId: 'class-slate',
     role: 'villager',
     stationary: true,
     prop: true,
-    lines: ['A slate with a question chalked on it, half rubbed out.'],
+    lines: [
+      { text: 'A slate with a question chalked on it, half rubbed out.', unlessFlag: stepFlag('bell-slate-2') },
+      { text: 'The chalk on this slate shines gold. ✨', ifFlag: stepFlag('bell-slate-2') },
+    ],
   },
   'class-slate-3': {
     id: 'class-slate-3',
-    name: 'Third Slate',
+    name: 'Slate 3',
     sprite: '📝',
     spriteId: 'class-slate',
     role: 'villager',
     stationary: true,
     prop: true,
-    lines: ['A slate with a question chalked on it, half rubbed out.'],
+    lines: [
+      { text: 'A slate with a question chalked on it, half rubbed out.', unlessFlag: stepFlag('bell-slate-3') },
+      { text: 'The chalk on this slate shines gold. ✨', ifFlag: stepFlag('bell-slate-3') },
+    ],
   },
 };

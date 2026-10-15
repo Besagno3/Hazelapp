@@ -797,6 +797,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 16b review round 1: no stray Enter names the dog, slates that say so (#75 item 16b, #144h)
+Fresh code (1 medium, 3 low, 4 nits) and UX (2 medium, 7 low, 1 nit)
+reviews, all fixed but four kept (the Lucky Plume, the Old Library's sign, a
+village landmark, the dog's steps in order): no focused choice, a Later, the
+pick answered; the dog's name follows (`names`, `ambientIf`); `RiddleWords` and
+per-slate topics; a proper `topicAt` mix; Young Wick pointed at everywhere; a
+sock-shaped golem, golden trees. 1340 green.
+
 ### 2026-10-15 — Lumina-That-Was: the old Field, the old Village and the First Classroom (#75 item 16b, #144)
 Roadmap sub-item 16b (branch stacked on 16a's).
 - **Below the Dream Root Door**, past Old Knot: the old Field (the retired

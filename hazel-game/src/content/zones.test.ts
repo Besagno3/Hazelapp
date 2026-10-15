@@ -23,7 +23,7 @@ import { edgeCrossing, flownLink, seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
-import { NPC_DEFS, isThing, lineText, npcEmoji, npcSpriteId, visibleLines } from './npcs';
+import { NPC_DEFS, isThing, lineText, npcAmbient, npcEmoji, npcName, npcSpriteId, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
 import { BLANK_CHART_HELD, NAME_LEARNED, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_STONES, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
@@ -1765,8 +1765,10 @@ describe('Lumina-That-Was (#75 item 16b)', () => {
       for (let y = 0; y < z.map.length; y++)
         for (let x = 0; x < z.map[y].length; x++) {
           expect(z.topics).toContain(topicAt(z, x, y, 'math'));
-          expect(topicAt(z, x, y, 'math')).toBe(topicAt(z, x, y, 'math'));
         }
+      // A real mix: along any row every topic turns up, not just two (16b review round 1).
+      const row = Array.from({ length: 20 }, (_, x) => topicAt(z, x + 1, 5, 'math'));
+      expect(new Set(row).size, id).toBe(z.topics!.length);
     }
     const room = ZONES['first-classroom'];
     expect(chestTopicAt(room, 17, 8)).toBe(topicAt(room, 17, 8, 'math'));
@@ -1785,6 +1787,20 @@ describe('Lumina-That-Was (#75 item 16b)', () => {
     expect(at('memory-young-lumen')).toBe('memory-field');
     expect(at('class-prim')).toBe('first-classroom');
     for (const n of [1, 2, 3]) expect(at(`class-slate-${n}`)).toBe('first-classroom');
+    // Left to right, three cells apart, so their names never run together.
+    const xs = [1, 2, 3].map((n) => ZONES['first-classroom'].npcs.find((p) => p.defId === `class-slate-${n}`)!.x);
+    expect(xs[1] - xs[0]).toBeGreaterThanOrEqual(3);
+    expect(xs[2] - xs[1]).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the dog answers to the name he's given — over his head, in his bubbles and his talk", () => {
+    const dog = NPC_DEFS['memory-dog'];
+    expect(npcName(dog, {})).toBe('The Unnamed Dog');
+    expect(npcName(dog, { 'dog-named-captain': true })).toBe('Captain');
+    expect(npcAmbient(dog, { 'dog-named-captain': true })).not.toContain('Pickles!');
+    const say = visibleLines(dog.lines, { 'dog-named-captain': true }).map(lineText).join(' ');
+    expect(say).toMatch(/Captain stands up very straight/);
+    expect(say).not.toMatch(/wag wag wag/);
   });
 
   it('Old Knot says the way down is open now', () => {

@@ -23,6 +23,8 @@ import {
   escortsBackLines,
   riddleSolvedLine,
   solveRiddle,
+  riddleTopic,
+  riddleWords,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
 import { BLANK_CHART_HELD, BLANK_CHART_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
@@ -1306,5 +1308,17 @@ describe('Lumina-That-Was quests (#75 item 16b)', () => {
     const early = questConversation('class-slate-2', save)!;
     expect(early.finishKind).toBeNull();
     expect(questConversation('class-slate-1', save)!.finishKind).toBe('riddle');
+    // Each slate asks its own topic, and the question screen calls it a slate (16b review round 1).
+    expect(quest.steps.map((st) => riddleTopic(st.id))).toEqual(['math', 'science', 'words']);
+    expect(riddleWords(quest.steps[0].id).title).toMatch(/slate/);
+    expect(riddleWords('yarn-stone-1').title).toMatch(/tale-stone/);
+  });
+
+  it('One More Name says who to ask, and Lumen and Prim say "not yet" before their turn', () => {
+    const quest = byId('unnamed-dog');
+    expect(quest.offer.join(' ')).toMatch(/Young Wick, Young Lumen and Monitor Prim/);
+    const save = converse('memory-dog', act4());
+    expect(questConversation('memory-young-lumen', save)!.lines.join(' ')).toMatch(/Ask Young Wick first/);
+    expect(questConversation('class-prim', save)!.lines.join(' ')).toMatch(/Ask the children first/);
   });
 });

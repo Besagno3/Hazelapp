@@ -196,12 +196,28 @@ describe('One More Name (#75 item 16b): the dog\'s name is the hero\'s to choose
     expect(screen.queryByText('🎉 Thanks!')).toBeNull();
     expect(screen.getByText('🥒 Pickles')).toBeInTheDocument();
     expect(screen.getByText('🎩 Sir Wigglesworth')).toBeInTheDocument();
+    // No name is focused: a stray Enter can't pick one (16b review round 1).
+    expect(['🥒 Pickles', '⚓ Captain', '🎩 Sir Wigglesworth']).not.toContain(document.activeElement?.textContent);
     fireEvent.click(screen.getByText('⚓ Captain'));
     const save = useSaveStore.getState().save!;
     expect(save.flags['dog-named-captain']).toBe(true);
     expect(save.flags['dog-named-pickles']).toBeUndefined();
     expect(save.flags['quest:unnamed-dog:done']).toBe(true);
     expect(save.badges).toContain('dog-badge');
+    // Then the dog's answer and the reward, before the box closes.
+    expect(screen.getByText(/Captain it is!.*Dog Badge/)).toBeInTheDocument();
+    expect(sendFlow).not.toHaveBeenCalledWith({ type: 'CLOSE' });
+    fireEvent.click(screen.getByText('🎉 Thanks!'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+    // Over its head and in talk, he's Captain now.
+  });
+
+  it('can be put off: Later closes without choosing', () => {
+    withFlags({ 'act4-seen': true, 'quest:unnamed-dog:offered': true, 'quest-step:dog-wick': true, 'quest-step:dog-lumen': true, 'quest-step:dog-prim': true });
+    render(<DialogueOverlay npcId="memory-dog" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    fireEvent.click(screen.getByText('Later'));
+    expect(useSaveStore.getState().save!.flags['quest:unnamed-dog:done']).toBeUndefined();
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 });

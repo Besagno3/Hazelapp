@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
+import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcName, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
-import { questConversation, type QuestConversation } from '../../content/quests';
+import { riddleTopic, questConversation, type QuestConversation } from '../../content/quests';
 import { boatFetchOffer, fetchBoatHome } from '../../content/boat';
 import { ZONES, topicAt } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
@@ -46,6 +46,8 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   });
   const { lines, quest, fetchOffer } = conversation;
   const [index, setIndex] = useState(0);
+  // A choice made (#75 item 16b): what's said after it, before the box closes.
+  const [picked, setPicked] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
 
   const invalid = !npc || lines.length === 0;
@@ -55,7 +57,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   if (invalid) return null;
 
   const line = lines[Math.min(index, lines.length - 1)];
-  const text = fetched && fetchOffer ? fetchOffer.done : typeof line === 'string' ? line : line.text;
+  const text = picked ?? (fetched && fetchOffer ? fetchOffer.done : typeof line === 'string' ? line : line.text);
   const isLast = index >= lines.length - 1;
   // Giver conversations don't double as service menus, but a service NPC who
   // is merely a quest STEP target (Sage Cog polishing, Sage Muse singing)
@@ -85,19 +87,20 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     sendFlow({ type: 'CLOSE' });
   }
 
-  // A completion that ends on a choice (#75 item 16b: the Unnamed Dog's name).
-  function choose(flag: string) {
+  // A completion that ends on a choice (#75 item 16b: the Unnamed Dog's name):
+  // the pick finishes the quest with its flag, then its own line is said.
+  function choose(c: { flag: string; line: string }) {
     applyLineFlag();
     if (quest?.finish) {
       const finish = quest.finish;
       update((s) => {
         const done = finish(s);
-        return { ...done, flags: { ...done.flags, [flag]: true } };
+        return { ...done, flags: { ...done.flags, [c.flag]: true } };
       });
     }
-    sendFlow({ type: 'CLOSE' });
+    setPicked(c.line);
   }
-  const choosing = isLast && !!quest?.choice?.length;
+  const choosing = isLast && !!quest?.choice?.length && picked === null;
 
   function openService() {
     applyLineFlag();
@@ -115,7 +118,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     // In a mixed-topic zone (#75 item 16b) the thing's own cell picks its topic.
     const z = ZONES[save.zoneId];
     const at = z?.npcs.find((p) => p.defId === npcId);
-    const topic = z ? topicAt(z, at?.x ?? 0, at?.y ?? 0, 'words') : 'words';
+    const topic = riddleTopic(quest.riddle) ?? (z && at ? topicAt(z, at.x, at.y, 'words') : z?.topic ?? 'words');
     sendFlow({ type: 'OPEN_PATH', target: { kind: 'riddle', id: quest.riddle, topic, zoneId: save.zoneId } });
   }
 
@@ -125,7 +128,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   }
 
   return (
-    <ModalLayer label={npc.name} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
+    <ModalLayer label={npcName(npc, flagsNow)} focusKey={`${index}-${picked ? 1 : 0}`} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
       <motion.div
         initial={{ y: 30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -133,7 +136,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
       >
         <div className="flex items-center gap-2 mb-2">
           <CharacterPortrait spriteId={npcSpriteId(npc, flagsNow)} emoji={npcEmoji(npc, flagsNow)} scale={1.25} className="text-3xl" />
-          <span className="font-bold text-amber-300">{npc.name}</span>
+          <span className="font-bold text-amber-300">{npcName(npc, flagsNow)}</span>
           {quest && (
             <span className="ml-auto text-[10px] uppercase tracking-wider bg-amber-400/20 text-amber-300 rounded px-2 py-0.5">
               ❗ {quest.badge}
@@ -163,19 +166,36 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               ⛵ Row her home
             </button>
           )}
+          {/* Never focused: a stray or held Enter mustn't pick a name for good (16b review round 1). */}
           {choosing &&
-            quest!.choice!.map((c, i) => (
+            quest!.choice!.map((c) => (
               <button
                 key={c.flag}
-                autoFocus={i === 0}
-                onClick={() => choose(c.flag)}
+                onClick={() => choose(c)}
                 className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"
               >
                 {c.label}
               </button>
             ))}
+          {choosing && (
+            <button
+              onClick={() => sendFlow({ type: 'CLOSE' })}
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+            >
+              Later
+            </button>
+          )}
+          {picked !== null && (
+            <button
+              autoFocus
+              onClick={() => sendFlow({ type: 'CLOSE' })}
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+            >
+              🎉 Thanks!
+            </button>
+          )}
           {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}
-          {!choosing && (
+          {!choosing && picked === null && (
           <button
             autoFocus
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}

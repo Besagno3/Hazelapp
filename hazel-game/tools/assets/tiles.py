@@ -126,11 +126,11 @@ ZONES = {
                            sky=('#120e1a', '#3a2a44'), far='#2a1e30', mid='mountain', water='#4a5a9a', cave=True),
     # Lumina-That-Was (#75 item 16b): the world before the fog, in a golden
     # late-afternoon light — honey grass, warm paths, dandelion flowers.
-    'memory-field': dict(ground=(176, 172, 96), path=(226, 196, 140), solid='tree', deco='flower', deco_c='#fff0a0',
+    'memory-field': dict(golden=True, ground=(176, 172, 96), path=(226, 196, 140), solid='tree', deco='flower', deco_c='#fff0a0',
                          sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='tree', water='#5aa0c8'),
-    'memory-village': dict(ground=(170, 164, 100), path=(220, 188, 138), solid='hedge', deco='flower', deco_c='#ffb0c0',
+    'memory-village': dict(golden=True, ground=(170, 164, 100), path=(220, 188, 138), solid='hedge', deco='flower', deco_c='#ffb0c0',
                            sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
-    'first-classroom': dict(ground=(164, 168, 104), path=(214, 192, 150), solid='tree', deco='flower', deco_c='#ffffff',
+    'first-classroom': dict(golden=True, ground=(164, 168, 104), path=(214, 192, 150), solid='tree', deco='flower', deco_c='#ffffff',
                             sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
 }
 
@@ -377,6 +377,12 @@ def solid(kind, zone):
         c.rect(2, 1, 14, 3.5, '#9a8ad0')
         for x in (5.5, 8, 10.5):
             c.rect(x, 4, x + 0.8, 12.5, '#b0a4e0', shade=False)
+    if zone.get('golden'):
+        # Lumina-That-Was (#75 item 16b review): leaves and bushes in late-afternoon gold.
+        import numpy as _np
+        rgb = c.a[..., :3].astype(_np.float32)
+        gold = _np.array([236, 196, 96], _np.float32)
+        c.a[..., :3] = (rgb * 0.62 + gold * 0.38).clip(0, 255).astype(c.a.dtype)
     return _outlined(c)
 
 

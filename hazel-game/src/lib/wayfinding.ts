@@ -146,7 +146,7 @@ const NAME_STEPS: Record<string, { title: string; why: string }> = {
   },
   'name-young-wick': {
     title: 'Ask Young Wick about her teacher',
-    why: 'Young Wick, in Lumina-That-Was below the Dream Root Door, still remembers her!',
+    why: 'Young Wick still remembers her!',
   },
 };
 
@@ -199,10 +199,10 @@ function actFourObjective(flags: Record<string, boolean>): Objective | null {
       kind: 'visit',
       title: NAME_STEPS[step.id]?.title ?? quest.title,
       why: NAME_STEPS[step.id]?.why ?? quest.title,
-      // Lumina-That-Was (16b) isn't here yet: Keeper Aurora, at the Dream Root's door.
-      zoneId: home?.zoneId ?? 'dreamroot-door',
+      // Every memory's keeper stands somewhere (journey.test checks); Wisp's woods if not.
+      zoneId: home?.zoneId ?? quest.zoneId,
       doneFlag: stepFlag(step.id),
-      npc: home ? step.npc.id : 'root-aurora',
+      npc: home ? step.npc.id : quest.giverNpcId,
       quest: quest.id,
     };
   }

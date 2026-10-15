@@ -3035,7 +3035,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Back up the stairs, beside them on the Spire's grounds.
       { x: 11, y: 1, to: 'crystal-spire', spawnX: 10, spawnY: 9 },
       // Down through the roots to Lumina-That-Was (#75 item 16b), Old Knot beside the way.
-      { x: 10, y: 13, to: 'memory-field', spawnX: 10, spawnY: 1 },
+      { x: 10, y: 13, to: 'memory-field', spawnX: 9, spawnY: 1 },
       { x: 11, y: 13, to: 'memory-field', spawnX: 10, spawnY: 1 },
     ],
     // Beaten here or anywhere below (`shelterIn`, #75 item 16b), you wake in the Lamplight Rest.
@@ -3091,7 +3091,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     exits: [
       // Up through the roots, beside Old Knot.
-      { x: 9, y: 0, to: 'dreamroot-door', spawnX: 11, spawnY: 12 },
+      { x: 9, y: 0, to: 'dreamroot-door', spawnX: 10, spawnY: 12 },
       { x: 10, y: 0, to: 'dreamroot-door', spawnX: 11, spawnY: 12 },
       { x: 0, y: 5, to: 'memory-village', spawnX: 20, spawnY: 5 },
       { x: 0, y: 6, to: 'memory-village', spawnX: 20, spawnY: 6 },
@@ -3110,11 +3110,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     map: [
       '######################',
       '#..,....WWWWWWW....,.#',
-      '#.......WZTFTZW......#',
+      '#.......WTTFTTW......#',
       '#..~~...WFFFFFW..#...#',
       '#..~~...WFFFFFW......#',
       '#.......WWWDWWW......E',
-      '#==========.=========E',
+      '#====================E',
       '#..........=.........#',
       '#..,.......=.....,...#',
       '#.....##...=.........#',
@@ -3170,10 +3170,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     buildings: [{ id: 'first-class', name: 'The First Classroom', x: 5, y: 1, w: 12, h: 6, roof: 'red', style: 'school', sign: 'house' }],
     npcs: [
       { defId: 'class-prim', x: 13, y: 4 },
-      { defId: 'class-bell', x: 15, y: 2 },
+      { defId: 'class-bell', x: 15, y: 4 },
+      // Three cells apart, so their names never run together (16b review round 1).
       { defId: 'class-slate-1', x: 7, y: 2 },
-      { defId: 'class-slate-2', x: 9, y: 2 },
-      { defId: 'class-slate-3', x: 11, y: 2 },
+      { defId: 'class-slate-2', x: 11, y: 2 },
+      { defId: 'class-slate-3', x: 14, y: 2 },
     ],
     enemies: [
       { defId: 'chalk-wisp', x: 3, y: 11 },
@@ -3364,7 +3365,8 @@ export function chestTopicAt(z: ZoneDef, x: number, y: number): Topic {
  * so each chest, gate or riddle keeps the same topic every time.
  */
 export function topicAt(z: ZoneDef, x: number, y: number, fallback: Topic): Topic {
-  if (z.topics?.length) return z.topics[(x * 7 + y * 3) % z.topics.length];
+  // A proper mix (16b review round 1: 7x + 3y only alternated two topics along a row).
+  if (z.topics?.length) return z.topics[(((x * 73856093) ^ (y * 19349663)) >>> 0) % z.topics.length];
   return z.topic ?? fallback;
 }
 

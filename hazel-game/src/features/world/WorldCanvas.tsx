@@ -32,7 +32,7 @@ import {
 import { bossDefeated } from '../../content/keys';
 import { reachPath, safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
-import { NPC_DEFS, isThing, npcEmoji, npcSpriteId } from '../../content/npcs';
+import { NPC_DEFS, isThing, npcAmbient, npcEmoji, npcName, npcSpriteId } from '../../content/npcs';
 import { habitatOf, spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
@@ -1266,7 +1266,7 @@ export default function WorldCanvas({
       pieces.push(face);
       // Under its feet: a sprite taller than a tile (Old Ringwood, #75 item 14f) pushes it down.
       const label = k.add([
-        k.text(def.name, { size: 10 }),
+        k.text(npcName(def, flagsRef.current), { size: 10 }),
         k.pos(px, py + 24 + Math.max(0, (npcView?.frameH ?? TILE) - TILE) / 2),
         k.anchor('center'),
         k.color(255, 255, 255),
@@ -1283,7 +1283,7 @@ export default function WorldCanvas({
         top: (npcView?.frameH ?? TILE) / 2,
       };
       actors.push(actor);
-      const nameW = (label as unknown as { width?: number }).width ?? def.name.length * 6;
+      const nameW = (label as unknown as { width?: number }).width ?? npcName(def, flagsRef.current).length * 6;
       looks.set(actor, { face: 32, label: { dy: 24, w: nameW + 4, h: 12 } });
       // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
       if (npcWanders(def) && !at) {
@@ -1302,7 +1302,8 @@ export default function WorldCanvas({
         // Ready for stepping out of the hero's way (#127); untouched until then.
         animators.set(actor, makeAnimator(face, npcView?.anims));
       }
-      if (def.ambient?.length) attachAmbient(face, def.ambient);
+      const ambient = npcAmbient(def, flagsRef.current);
+      if (ambient?.length) attachAmbient(face, ambient);
       return {
         actor,
         face,
@@ -1322,8 +1323,9 @@ export default function WorldCanvas({
     // (#75 item 8: Elder Lumen greets a new hero on the plaza, then keeps the
     // Library); the main loop keeps those in step with the flags.
     // Someone with a new face to come (#75 item 16a: Wisp) is kept in step too.
-    const comesAndGoes = (p: NpcPlacement) => !!(p.ifFlag || p.unlessFlag || NPC_DEFS[p.defId].face);
-    const lookOf = (p: NpcPlacement) => npcSpriteId(NPC_DEFS[p.defId], flagsRef.current);
+    // …and someone who gets a new name (#75 item 16b: the Unnamed Dog).
+    const comesAndGoes = (p: NpcPlacement) => !!(p.ifFlag || p.unlessFlag || NPC_DEFS[p.defId].face || NPC_DEFS[p.defId].names);
+    const lookOf = (p: NpcPlacement) => `${npcSpriteId(NPC_DEFS[p.defId], flagsRef.current)}|${npcName(NPC_DEFS[p.defId], flagsRef.current)}`;
     const comings = z.npcs
       .filter(comesAndGoes)
       .map((p) => ({ p, here: null as { remove: () => void; actor: Actor } | null, look: lookOf(p) }));
