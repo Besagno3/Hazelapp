@@ -74,6 +74,9 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
     (correct: boolean) => {
       setAnswered(true);
       if (!correct) return;
+      // A riddle whose step is no longer due (finished elsewhere) gives nothing — no glow, no XP (15e round 2).
+      const now = useSaveStore.getState().save;
+      if (target.kind === 'riddle' && (!now || solveRiddle(now, target.id) === now)) return;
       setSolved(true);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
       void addXp(XP_PER_CORRECT);

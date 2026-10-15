@@ -1376,8 +1376,12 @@ describe('Taleshore II: the Story Reef and Inkwell Cove (#75 item 15e)', () => {
     expect(ENEMY_DEFS['riddle-leviathan'].role).toBe('warden');
     // Out of the ink: water beside it.
     expect([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => tileAt(cove, lev.x + dx, lev.y + dy) === '~')).toBe(true);
-    // Nobody reaches the chest without going through it.
-    const past = reach(cove, { blocked: (x, y) => Math.abs(x - lev.x) <= 1 && Math.abs(y - lev.y) <= 1 });
+    // Nobody reaches the chest without going through its own cell (round 2: a 2-wide neck let a hero
+    // hug the water's edge 37 px from it, past its 34 px touch)…
+    const past = reach(cove, { blocked: (x, y) => x === lev.x && y === lev.y });
+    // …and that cell is a one-wide neck: water above and below, so a hero going through is within a few px of it.
+    expect(tileAt(cove, lev.x, lev.y - 1)).toBe('~');
+    expect(tileAt(cove, lev.x, lev.y + 1)).toBe('~');
     const chest = cove.map.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'C' ? [{ x, y }] : [])));
     expect(chest).toHaveLength(1);
     expect(touches(past, chest[0].x, chest[0].y)).toBe(false);

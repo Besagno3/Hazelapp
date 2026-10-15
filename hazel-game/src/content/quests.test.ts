@@ -957,7 +957,7 @@ describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
     expect(quest.steps.map((st) => st.npc?.id)).toEqual(stones);
     expect(quest.steps.every((st) => st.riddle)).toBe(true);
     // Each right answer points at the next stone's place, and the last sends you home to Yarn.
-    expect(riddleSolvedLine(YARN_STONES[0])).toMatch(/EAST, across the road, to a tide pool/);
+    expect(riddleSolvedLine(YARN_STONES[0])).toMatch(/EAST, across the road, to the tide pool near the top of the reef/);
     expect(riddleSolvedLine(YARN_STONES[1])).toMatch(/sandbar/);
     expect(riddleSolvedLine(YARN_STONES[2])).toMatch(/tell Yarn/);
     expect(riddleSolvedLine('juno-walk')).toBeNull();
@@ -969,6 +969,9 @@ describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
     expect(convo.finishKind).toBe('riddle');
     expect(convo.riddle).toBe(YARN_STONES[0]);
     expect(convo.finish).toBeNull();
+    // Yarn's own reminder talks about herself as "me" (round 2), the quest log's names her.
+    expect(questConversation('reef-yarn', save)!.lines).toEqual(['Start with the tale-stone by the little pool, just west of me!']);
+    expect(resolveHint(activeStep(byId(YARN_QUEST), save)!, save)).toMatch(/west of Yarn/);
     // Closing the talk without answering leaves the step open.
     expect(activeStep(byId(YARN_QUEST), save)!.id).toBe(YARN_STONES[0]);
   });

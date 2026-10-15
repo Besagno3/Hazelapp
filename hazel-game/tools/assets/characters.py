@@ -1248,8 +1248,19 @@ def serpent(c: Canvas, p: Pose, s: dict):
     L.ellipse(hx - 1, hy + 4, 3.5, 4.5, col)
     L.ellipse(hx, hy, 5.2, 4.6, col)
     L.ellipse(hx + 4, hy + 1.2, 2.8, 2.0, col)
-    d.eyes(L, [(hx + 1.2, hy - 1.5)], color=(255, 220, 60))
-    L.line(hx + 6, hy + 2.5, hx + 8.5, hy + 3.5, '#ff4f6b', w=0.6)
+    if s.get('eel'):
+        # A Word Eel (#75 item 15e review): a fin along its back, pale letter-spots, no snake's tongue.
+        for i, (x, y) in enumerate(segs[1:], 1):
+            L.poly([(x - 1.6, y - 2.6), (x, y - 5 + (i % 2) * 0.6), (x + 1.6, y - 2.6)], light(col, 0.25))
+        for (x, y) in segs[1::2]:
+            L.rect(x - 0.8, y - 0.4, x + 0.8, y + 0.4, '#f4f0d8', shade=False)
+            L.rect(x - 0.3, y - 1.2, x + 0.3, y + 1.2, '#f4f0d8', shade=False)
+        L.poly([(hx - 1, hy - 4.2), (hx + 2, hy - 7.4), (hx + 3, hy - 4)], light(col, 0.25))
+        d.eyes(L, [(hx + 1.2, hy - 1.5)])
+        L.line(hx + 5, hy + 2.4, hx + 7, hy + 2, dark(col, 0.45), w=0.6)
+    else:
+        d.eyes(L, [(hx + 1.2, hy - 1.5)], color=(255, 220, 60))
+        L.line(hx + 6, hy + 2.5, hx + 8.5, hy + 3.5, '#ff4f6b', w=0.6)
     if s.get('gears'):
         L.ellipse(hx - 2, hy - 4, 2.3, 2.3, '#c8a040')
         L.dot(hx - 2.5, hy - 4.5, '#6a5020', w=1, h=1)
@@ -1513,6 +1524,12 @@ def whale(c: Canvas, p: Pose, s: dict):
             L.poly([(x - 1.6, 13.2), (x, 9.6), (x + 1.6, 13.2)], dark(col, 0.2))
         for (x, y) in ((26, 25), (24.5, 27.5)):
             L.ellipse(x, y, 0.9, 1.4, '#14142a', shade=False)
+        # The Second Chorus Key, hung on the curl of its tail (15e review).
+        L.ellipse(6.2, 7.6, 1.6, 1.6, '#e8ecf4')
+        L.dot(6.2, 7.6, dark(col, 0.2), w=0.8, h=0.8)
+        L.line(6.2, 9, 6.2, 12.4, '#e8ecf4', w=0.8)
+        L.line(6.2, 11.2, 7.6, 11.2, '#e8ecf4', w=0.7)
+        L.line(6.2, 12.4, 7.4, 12.4, '#e8ecf4', w=0.7)
     if s.get('qmarks'):
         # The Riddle Leviathan (#75 item 15e): pale "?"s written along its inky side, a silver key on its tail.
         for (x, y) in ((8.5, 18), (13, 16.5)):
@@ -1629,11 +1646,21 @@ def puffer(c: Canvas, p: Pose, s: dict):
     cx, cy = 15, 17
     wag = 1.5 if p.frame % 2 else -1.5
     L.poly([(cx - r + 1, cy), (cx - r - 6, cy - 5 + wag), (cx - r - 4.5, cy), (cx - r - 6, cy + 5 + wag)], dark(col, 0.12))
-    for i in range(12):
-        a = i * math.tau / 12 + 0.13
-        L.line(cx + math.cos(a) * (r - 1), cy + math.sin(a) * (r - 1),
-               cx + math.cos(a) * (r + 2.2 + puff), cy + math.sin(a) * (r + 2.2 + puff), dark(col, 0.25), w=1.0)
+    if s.get('fish'):
+        # Bloop (#75 item 15e review): a plain round fish — a big tail fin and a fin on top, no spikes.
+        L.poly([(cx - r + 1, cy), (cx - r - 7, cy - 7 + wag), (cx - r - 4, cy), (cx - r - 7, cy + 7 + wag)], dark(col, 0.08))
+        L.poly([(cx - 4, cy - r + 1.5), (cx + 1, cy - r - 4), (cx + 4, cy - r + 1.5)], dark(col, 0.08))
+        for x in (cx - 2, cx + 2):
+            L.line(x, cy - r + 2, x, cy + r - 2, light(col, 0.3), w=1.2)
+    else:
+        for i in range(12):
+            a = i * math.tau / 12 + 0.13
+            L.line(cx + math.cos(a) * (r - 1), cy + math.sin(a) * (r - 1),
+                   cx + math.cos(a) * (r + 2.2 + puff), cy + math.sin(a) * (r + 2.2 + puff), dark(col, 0.25), w=1.0)
     L.ellipse(cx, cy, r, r * 0.92, col)
+    if s.get('fish'):
+        for x in (cx - 2.5, cx + 2):
+            L.line(x, cy - r + 2.2, x, cy + r - 2.2, '#ffffff', w=1.1)
     L.ellipse(cx + 1, cy + r * 0.45, r * 0.75, r * 0.4, belly)
     for (x, y) in ((cx - 4, cy - 4), (cx - 1, cy - 6), (cx - 5.5, cy), (cx + 2, cy - 3)):
         L.dot(x, y, dark(col, 0.2), w=2, h=2)
@@ -3059,6 +3086,34 @@ def cat(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(15, 30.4, 8, 1.1))
 
 
+def page_ray(c: Canvas, p: Pose, s: dict):
+    """A Page Ray (#75 item 15e review): a wide, flat ray made of paper — its wing
+    tips curl up like turning pages, lines of writing across its back, a short
+    ray's tail. Nothing like a kite."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#f4ecd8'))
+    ink = hexc(s.get('ink', '#5a6a9a'))
+    flap = 1.4 if p.frame % 2 else -0.6
+    lean = d.lean
+    B = d.part(lean, d.bob - 2)
+    B.poly([(17, 13), (29, 15 - flap), (25, 22), (17, 24), (9, 22), (5, 15 - flap)], col)
+    B.poly([(5, 15 - flap), (2.5, 11 - flap * 1.5), (7.5, 13.4 - flap)], light(col, 0.05))  # a page-corner curl
+    B.poly([(29, 15 - flap), (31, 11 - flap * 1.5), (26.5, 13.4 - flap)], light(col, 0.05))
+    B.line(17, 13.6, 17, 23.4, dark(col, 0.18), w=0.4)  # the spine of the book
+    for (x0, x1, y) in ((9, 15, 16.4), (19, 25, 16.4), (10, 15.4, 18.6), (18.6, 24, 18.6), (12, 15.6, 20.8), (18.4, 22, 20.8)):
+        B.line(x0, y, x1, y, ink, w=0.5)
+    B.line(17, 24, 15.6, 28.5, dark(col, 0.2), w=1.0)  # a short tail
+    B.ellipse(15.4, 29, 1, 0.8, dark(col, 0.2))
+    d.put(B)
+    F = d.part(lean, d.bob - 2)
+    if p.facing != 'up':
+        for x in (14.6, 19.4):
+            F.ellipse(x, 14.6, 1.4, 1.4, '#ffffff', shade=False)
+            F.dot(x + 0.3, 14.8, '#1a1a24', w=1.4, h=1.4)
+    d.put(F, outline=False)
+    finish(c, d, shadow=(17, 31, 7, 1))
+
+
 def kite_ray(c: Canvas, p: Pose, s: dict):
     """A Kite Ray (#75 item 15d review): a flat diamond-shaped ray that flies
     like a kite, a long string-tail with bows, a little face underneath."""
@@ -3637,6 +3692,7 @@ DRAWERS = {
     'snail': snail,
     'cat': cat,
     'kite_ray': kite_ray,
+    'page_ray': page_ray,
     'cloud_pup': cloud_pup,
     'marker_post': marker_post,
     'tree_folk': tree_folk,
@@ -3795,9 +3851,9 @@ ROSTER: list[Char] = [
     Char('squall-chick', '🐤', 'flyer', H(kind='bird', color='#ffd23a')),
     Char('compass-golem', '🗿', 'golem', H(color='#8a8a7a', accent='#d03a3a', glow='#ffd24a', runes=True, compass=True), boss=True),
     # ── Act III: Taleshore II (words, #75 item 15e) ──
-    Char('word-eel', '🐍', 'serpent', H(color='#3aa088')),
+    Char('word-eel', '🐍', 'serpent', H(color='#3aa088', eel=True)),
     Char('riddle-jelly', '🪼', 'jelly', H(color='#c08ae8', qmark=True)),
-    Char('page-ray', '📄', 'kite_ray', H(color='#f4ecd8', bow='#3a5ab0', page=True)),
+    Char('page-ray', '📄', 'page_ray', H(color='#f4ecd8', ink='#3a5ab0')),
     Char('blot', '⚫', 'blob', H(color='#22223e', splat=True)),
     Char('cuttle-scribe', '🦑', 'octopus', H(color='#d8709a', ink=True, fins=True, quill=True)),
     Char('margin-shrimp', '🦐', 'shrimp', H(color='#ff8a6a')),
@@ -3940,7 +3996,7 @@ NPCS: list[Char] = [
     # Taleshore II (#75 item 15e)
     Char('reef-yarn', '🎏', 'humanoid', H(hair='bun', hair_color='#e8e0d0', hat='straw', hat_color='#e0c070', outfit='#3a8ab0', apron='#f4e8c8', item='rod', item_color='#8a6a3a')),
     Char('reef-verse', '🧜', 'humanoid', H(hair='long', hair_color='#3ab0a0', outfit='#e86a9a', trim='#ffd860', mermaid='#2ab0a0')),
-    Char('reef-bloop', '🐠', 'puffer', H(color='#ff9a3a', belly='#fff2c8')),
+    Char('reef-bloop', '🐠', 'puffer', H(color='#ff9a3a', belly='#fff2c8', fish=True)),
     Char('reef-stone', '🪨', 'nameless_stone', H(color='#a8b0b8', tale=True)),
     Char('reef-stone-lit', '🪨', 'nameless_stone', H(color='#c8d4dc', tale=True, glow='#ffd84a')),
     Char('ink-dot', '✒️', 'humanoid', H(hair='bob', hair_color='#2a2a3a', glasses=True, outfit='#3a3a6a', trim='#f4ecd8', item='book')),

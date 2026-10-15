@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { LANDING_CHARS, ZONES, fogAt, darkAt, innWakeCell, tileAt, type ZoneId } from '../content/zones';
 import { RETURN_TOWNS, returnLanding } from '../content/fieldSpells';
-import { keyFlag, keyForZone } from '../content/keys';
+import { keyFlag, keyForBoss, keyForZone } from '../content/keys';
 import { actOneJourney, actTwoJourney, advanceGoal, walkLeg, type BoatState, type Leg } from './journey';
 import { BOAT_HOME, BOAT_MENDED } from '../content/boat';
 import { NPC_DEFS, visibleLines } from '../content/npcs';
@@ -149,5 +149,22 @@ describe('Act II as a journey (#75 item 14i, the Phase 3 exit check)', () => {
     }
     for (const m of z.landmarks ?? []) expect(touches(sailed, m.x, m.y), `${m.name} reached`).toBe(true);
     for (const c of [...(z.keyChests ?? [])]) expect(touches(sailed, c.x, c.y), `chest at ${c.x},${c.y}`).toBe(true);
+  });
+});
+
+describe("Taleshore's Chorus Keys as legs (#75 item 15e, round 2)", () => {
+  const keyGoal = (bossId: string) => {
+    const key = keyForBoss(bossId)!;
+    return { kind: 'key' as const, title: `Win the ${key.name}`, why: '', zoneId: key.fromZone, key };
+  };
+  it('the Second Chorus Key is walked from Port Lantern: up the road, east, into the cove and out to the Leviathan', () => {
+    const leg = walkLeg(keyGoal('riddle-leviathan'), {}, { zoneId: 'port-lantern', cell: { x: 32, y: 11 } });
+    expect(walkable(leg), JSON.stringify(leg.hops.map((h) => [h.zoneId, !!h.path]))).toBe(true);
+    expect(leg.hops.map((h) => h.zoneId)).toEqual(['port-lantern', 'taleshore', 'inkwell-cove']);
+  });
+  it('the First Chorus Key is walked from where Ember lands on the Wayfinder Isles', () => {
+    const isles = ZONES['wayfinder-isles'];
+    const leg = walkLeg(keyGoal('compass-golem'), {}, { zoneId: 'wayfinder-isles', cell: isles.spawn });
+    expect(walkable(leg)).toBe(true);
   });
 });

@@ -1873,7 +1873,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'NEWS: someone beat the stone giant on the Wayfinder Isles! Cartographer Lo is redrawing her map.', ifFlag: keyFlag('chorus-a') },
       // Taleshore II (#75 item 15e): up the north road.
       { text: "LOST: one tall tale, in three pieces, somewhere on the Story Reef. Ask Tale-Fisher Yarn, at the end of the north road!", unlessFlag: questDoneFlag({ id: YARN_QUEST }) },
-      { text: 'BEWARE: a whale that talks in riddles lives in Inkwell Cove, east off the north road. Scrivener Dot says it has a key.', unlessFlag: keyFlag('chorus-b') },
+      { text: 'BEWARE: a whale that talks in riddles lives in Inkwell Cove, where the water turns black as ink — east off the north road. Scrivener Dot says it has a key.', unlessFlag: keyFlag('chorus-b') },
       { text: 'NEWS: someone answered every one of the Riddle Leviathan\'s riddles! Scrivener Dot wrote it all down.', ifFlag: keyFlag('chorus-b') },
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
       'Check back soon for more notices!',
@@ -1911,7 +1911,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "Hello, hello, I'm Verse, you see — I rhyme all day, I can't stop, dear me!",
-      'The Riddle Jellies love a riddle game. Your Hint Feathers fizzle — what a shame!',
+      'The Riddle Jellies love a riddle game. Your Hint Feathers fizzle — a 🕯️ candle fixes that, no shame!',
       'Please ask me to stop, I really would try… but the rhymes just keep coming. Oh my, oh my!',
     ],
     ambient: ['Rhyme, chime…', 'Sea and me!', '🎶'],
@@ -1937,7 +1937,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: [
-      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe the Tale-Fisher nearby knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
+      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe Tale-Fisher Yarn, at the top of the reef, knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
       { text: "🪨 One of Yarn's tale-stones. The words on it are faint and still.", ifFlag: questOfferedFlag({ id: YARN_QUEST }) },
     ],
   },
@@ -1960,7 +1960,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: [
-      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe the Tale-Fisher nearby knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
+      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe Tale-Fisher Yarn, at the top of the reef, knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
       { text: "🪨 One of Yarn's tale-stones. The words on it are faint and still.", ifFlag: questOfferedFlag({ id: YARN_QUEST }) },
     ],
   },
@@ -1983,7 +1983,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: [
-      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe the Tale-Fisher nearby knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
+      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe Tale-Fisher Yarn, at the top of the reef, knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
       { text: "🪨 One of Yarn's tale-stones. The words on it are faint and still.", ifFlag: questOfferedFlag({ id: YARN_QUEST }) },
     ],
   },

@@ -117,6 +117,12 @@ export interface QuestStep {
    */
   early?: boolean;
   /**
+   * What the giver says while this step is active, when the hint (also the
+   * quest log's, and said by other people) would have them talk about
+   * themselves (15e review: Yarn saying "west of Yarn"). Default: the hint.
+   */
+  remind?: string;
+  /**
    * A riddle step (#75 item 15e): talking to `npc` opens a question on the
    * zone's topic instead of finishing the step; a right answer finishes it,
    * and `solved` — the clue to the next step — shows under the answer.
@@ -297,8 +303,15 @@ function escortStep(id: string, escort: EscortDef, hint: string | ((save: SaveDa
  * right answer sets the step flag and shows `solved`, which says where the
  * next riddle is — each hint comes from the last answer.
  */
-function riddleStep(id: string, npcId: string, lines: string[], hint: string, solved: string, early = false): QuestStep {
-  return { id, hint, npc: { id: npcId, lines }, riddle: { solved }, early, isComplete: (save) => save.flags[stepFlag(id)] === true };
+function riddleStep(
+  id: string,
+  npcId: string,
+  lines: string[],
+  hint: string,
+  solved: string,
+  { early = false, remind }: { early?: boolean; remind?: string } = {},
+): QuestStep {
+  return { id, hint, remind, npc: { id: npcId, lines }, riddle: { solved }, early, isComplete: (save) => save.flags[stepFlag(id)] === true };
 }
 
 /** Save flag: this quest item was handed over in a bring step (#75 item 13). */
@@ -1132,15 +1145,16 @@ export const QUESTS: QuestDef[] = [
         'reef-stone-1',
         ['🪨 A tale-stone. Faint words swirl over it like little fish.', 'A whisper comes out of the stone: "Answer my riddle, and I\'ll give back my chapter!"'],
         'The first chapter is on the tale-stone by the little pool west of Yarn, near the top of the reef. Talk to it!',
-        '📜 Chapter 1: "Once, a fish as big as an island swallowed the moon…" The words float EAST, across the road, to a tide pool. Find the next stone there!',
+        '📜 Chapter 1: "Once, a fish as big as an island swallowed the moon…" The words float EAST, across the road, to the tide pool near the top of the reef. Find the next stone there!',
+        { remind: 'Start with the tale-stone by the little pool, just west of me!' },
       ),
       riddleStep(
         YARN_STONES[1],
         'reef-stone-2',
         ['🪨 Another tale-stone. Its words shiver when you come close.', 'A whisper: "Answer my riddle, and you\'ll hear what happened next!"'],
-        'The second chapter is on the tale-stone by the tide pool east of the road.',
+        'The second chapter is on the tale-stone by the tide pool east of the road, near the top of the reef. Talk to it!',
         '📜 Chapter 2: "…and then the fish hiccupped stars for a whole week!" The words float SOUTH-WEST, to the sandbar in the sea. The last stone is there!',
-        true,
+        { early: true },
       ),
       riddleStep(
         YARN_STONES[2],
@@ -1148,7 +1162,7 @@ export const QUESTS: QuestDef[] = [
         ['🪨 The last tale-stone, out on the sandbar. Waves splash its words.', 'A whisper: "Answer my riddle, and the tale is whole again!"'],
         'The last chapter is on the tale-stone out on the sandbar, in the south-west corner of the reef.',
         '📜 Chapter 3: "…and that is why the sea sparkles at night." The whole tale is back! Go and tell Yarn.',
-        true,
+        { early: true },
       ),
     ],
     complete: [
@@ -1435,7 +1449,7 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
       }),
     };
   }
-  return { lines: [resolveHint(step, save)], badge: quest.title, finishKind: null, finish: null };
+  return { lines: [step.remind ?? resolveHint(step, save)], badge: quest.title, finishKind: null, finish: null };
 }
 
 /** The giver hands out the reward and takes back what the quest lent or needed. */

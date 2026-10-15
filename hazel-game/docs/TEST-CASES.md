@@ -1352,3 +1352,6 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1146 | U | ✅ | a stale riddle finishes nothing (#139h) | `solveRiddle` sets the step only while it's due — not before the offer, out of turn, for a non-riddle or twice; the overlay with Yarn not asked changes nothing (quests.test, PathQuestionOverlay.test) |
 | TC-1147 | U | ✅ | a wrong riddle answer says what next (#139h) | "The stone stays dim. Talk to it again for a new riddle!" and "Hmm… I'll try again!" (PathQuestionOverlay.test) |
 | TC-1148 | U | ✅ | the Leviathan guards the cove's chest (#139h) | at the point's tip beside water; with its cell and neighbours blocked, the chest can't be reached (zones.test) |
+| TC-1149 | U | ✅ | nobody slips past the Leviathan (#139i) | the point is one cell wide at the boss, water above and below; with only its cell blocked the chest is out of reach (zones.test) |
+| TC-1150 | U | ✅ | the Chorus Key legs walk (#139i) | the second from Port Lantern's road through Taleshore into the cove to the Leviathan; the first from the isles' landing to the Golem (journey.test) |
+| TC-1151 | U | ✅ | Yarn's reminder and a stale riddle (#139i) | Yarn says "just west of me", the quest log "west of Yarn"; a riddle not due shows no glow or clue (quests.test, PathQuestionOverlay.test) |

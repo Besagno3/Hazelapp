@@ -104,7 +104,7 @@ ZONES = {
     # a cove of black, inky water under a dusky sky, pages blowing about.
     'story-reef': dict(shore=True, no_hills=True, ground=(150, 184, 150), path=(222, 204, 160), solid='coral', deco='shell', deco_c='#ffb0c8',
                        sky=('#3aa0e0', '#e0f8ff'), far='#8ac8e8', mid='islets', water='#2aa8c8'),
-    'inkwell-cove': dict(shore=True, ground=(104, 124, 118), path=(196, 180, 150), solid='rock', deco='inksplat', deco_c='#f4ecd8',
+    'inkwell-cove': dict(shore=True, ground=(104, 124, 118), path=(196, 180, 150), solid='rock', deco='pages', deco_c='#f4ecd8',
                          sky=('#3a3a6a', '#b8a8d8'), far='#4a4a7a', mid='sea', water='#1e2240'),
 }
 
@@ -365,15 +365,6 @@ def deco(kind, colr):
             c.rect(x + 6, y + 0.6, x + 6.6, y + 5, '#c8bca0', shade=False)  # a page's edge
             for k in range(3):
                 c.rect(x + 1, y + 1 + k * 1.3, x + 5, y + 1.5 + k * 1.3, '#8a7a6a', shade=False)
-    elif kind == 'inksplat':
-        # Inkwell Cove (#75 item 15e review): a black splat of ink with spatters, and a loose page.
-        c.ellipse(5, 5.5, 3.4, 2.6, '#1e1e36', shade=False)
-        for (x, y, r) in ((1.6, 3.6, 0.9), (8.6, 4, 0.8), (6.6, 8.8, 1.0), (2.4, 8, 0.6)):
-            c.ellipse(x, y, r, r, '#1e1e36', shade=False)
-        c.ellipse(4.2, 4.8, 1, 0.6, '#4a4a6a', shade=False)
-        c.rect(9, 9.5, 14.5, 14, colr)
-        for k in range(2):
-            c.rect(10, 10.6 + k * 1.4, 13.6, 11.1 + k * 1.4, '#8a7a6a', shade=False)
     elif kind == 'sparkle':
         for (x, y) in ((5, 5), (11, 10)):
             c.dot(x, y - 2, colr, h=5)

@@ -766,6 +766,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15e review round 2: no way round the Leviathan, a paper Page Ray (#75 item 15e, #139i)
+Fresh code (1 medium, 1 low, 1 nit) and UX (4 medium, 8 low) reviews, all
+fixed but one kept: the point narrows to one cell at the Leviathan (a hero
+hugged the water past it), journey.test walks both Chorus Key legs, a stale
+riddle gives nothing, clearer stone hints and Yarn's own reminder
+(`QuestStep.remind`), the Leviathan's rage line and key, Verse's candle tip;
+`page_ray` and an eel's fin, Bloop a fish. Tests +3; 1246 green.
+
 ### 2026-10-15 — 15e review round 1: clues that point the right way, a Leviathan in the way (#75 item 15e, #139h)
 Fresh code (7 low/nit) and UX (2 high, 7 medium, 6 low) reviews, all fixed:
 the tale-stones' hints and clues name real places ("Chapter N:"), a wrong

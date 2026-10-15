@@ -82,7 +82,7 @@ describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
     fireEvent.click(await screen.findByText('Right'));
     expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBe(true);
     const status = screen.getByRole('status');
-    expect(status).toHaveTextContent(/^📜 Chapter 1:.*across the road/);
+    expect(status).toHaveTextContent(/^📜 Chapter 1:.*across the road, to the tide pool near the top of the reef/);
     const button = screen.getByRole('button', { name: /The stone glows!/ });
     expect(status.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // No coins: a stone isn't a chest.
@@ -100,9 +100,11 @@ describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
     expect(screen.getByRole('button', { name: /try again/ })).toBeInTheDocument();
   });
 
-  it('a stale riddle (its step no longer due) finishes nothing (round 1)', async () => {
+  it('a stale riddle (its step no longer due) finishes nothing, and says nothing about glowing (rounds 1–2)', async () => {
     render(<PathQuestionOverlay target={stone} />); // Yarn hasn't asked
     fireEvent.click(await screen.findByText('Right'));
     expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
+    expect(screen.queryByRole('button', { name: /The stone glows/ })).toBeNull();
+    expect(screen.getByRole('status')).not.toHaveTextContent(/Chapter 1/);
   });
 });
