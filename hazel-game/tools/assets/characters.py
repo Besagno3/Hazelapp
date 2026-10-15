@@ -1374,6 +1374,14 @@ def dragon_fb(c: Canvas, p: Pose, s: dict):
     if s.get('helmet'):
         head.ellipse(hx, hy - 3, hr + 0.5, 4, '#c0c8d4')
         head.poly([(hx - 1, hy - 6), (hx, hy - 12), (hx + 1, hy - 6)], '#e84040')
+    if stage == 'radiant':
+        # Radiant Ember's star halo in the front and back views too (15g review round 3).
+        for k, (x, y) in enumerate(((5, 9), (27, 9), (3, 22), (29, 21), (16, 3), (9, 4), (23, 4))):
+            big = (k + p.frame) % 2 == 0
+            head.dot(x, y, '#ffffff' if big else '#fff2a0')
+            if big:
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    head.dot(x + dx, y + dy, '#ffe060')
     d.put(head)
     finish(c, d)
 

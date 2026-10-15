@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HALL_DEDICATED } from '../content/spells';
-import { MET_ELDER, ZONES, type ZoneDef, type ZoneId } from '../content/zones';
+import { MET_ELDER, ZONES, gateFlag, gateIdAt, type ZoneDef, type ZoneId } from '../content/zones';
 import { reach } from './reach';
 import { advanceGoal } from './journey';
 import { overworldOf, whereOnMap } from './worldMap';
@@ -131,6 +131,13 @@ describe('nextObjective', () => {
     const home = routeSteps(ZONES, 'chorus-isle', 'remembrance-hill', undefined, voicesFreed)!;
     expect(home.filter((st) => st.startsWith('sail'))).toEqual([]);
     expect(home.some((st) => st.startsWith('fly west to the Silver Shallows'))).toBe(true);
+    // …unless the hero is sailing the boat right there (round 3): then it's sailed.
+    const sailed = routeSteps(ZONES, 'taleshore', 'remembrance-hill', { x: 1, y: 30 }, voicesFreed, true)!;
+    expect(sailed[0]).toMatch(/^sail west to the Silver Shallows/);
+    // With the double gate open, the way in needs no telling (round 3).
+    const isle = ZONES['chorus-isle'];
+    const opened = { ...chorusBoth, [gateFlag(gateIdAt('chorus-isle', isle.map, isle.keyGate!.x, isle.keyGate!.y))]: true };
+    expect(goalDirections(ZONES, nextObjective(opened), 'chorus-isle')).toBe("It's right here on Chorus Isle!");
   });
 
   it("Marlow's boat (#75 item 14): each friend in turn, then back to Marlow, then sail from his dock — then the Hill", () => {

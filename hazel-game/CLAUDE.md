@@ -774,6 +774,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15g review round 3 (code): a halo all round, sailed when sailing (#75 item 15g, #141o)
+Fresh code review (3 low, 4 nits), all fixed: Radiant Ember's halo in every
+view, routes off Taleshore sailed while aboard (`aboard` through
+`goalDirections` / `routeSteps`), the gate hint gone once it's open, the
+Wayfinder Isles "on". 1285 green.
+
 ### 2026-10-15 — 15g review round 3 (UX): Taleshore hears the isle sing (#75 item 15g, #141n)
 Fresh UX review (2 medium, 6 low, 2 nits), all fixed but one kept (the shared
 hurt tint): post-Voices lines across Taleshore, Coda's quest true in either

@@ -1,4 +1,4 @@
-import { HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, gateFlag, gateIdAt, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
@@ -291,7 +291,8 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           zoneId: voices.zoneId,
           crystal: voices,
           key: keyForZone(voices.zoneId),
-          inside: "The Hush Fiend's gate is at the top of the road, past Old Cadence.",
+          // Once its gate is open, the way in needs no telling (15g review round 3).
+          inside: flags[CHORUS_GATE_FLAG] ? undefined : "The Hush Fiend's gate is at the top of the road, past Old Cadence.",
         };
       }
       return {
@@ -420,6 +421,18 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
   return null;
 }
 
+/** Chorus Isle's double gate, open (15g review round 3). */
+const CHORUS_GATE_FLAG = (() => {
+  const isle = ZONES['chorus-isle'];
+  return gateFlag(gateIdAt('chorus-isle', isle.map, isle.keyGate!.x, isle.keyGate!.y));
+})();
+
+/** Islands you're "on", not "in" (15g review). */
+const ON_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['chorus-isle', 'gale-atoll', 'wayfinder-isles']);
+
+/** Places named as many ("land beside them") — not every name ending in s (the Shrine of Quiet Paws, 15d review). */
+const PLURAL_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['wayfinder-isles', 'whispering-woods', 'clockwork-depths']);
+
 /**
  * How to get from one zone to another, as short phrases: "go north to Lumina
  * Field", "take the west path to Numbria". On an overworld the direction is
@@ -427,12 +440,6 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
  * route starts there, else from where the last exit set you down. Walking out
  * of a place onto the overworld needs no words. Null when there's no way.
  */
-/** Places named as many ("land beside them") — not every name ending in s (the Shrine of Quiet Paws, 15d review). */
-/** Islands you're "on", not "in" (15g review). */
-const ON_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['chorus-isle', 'gale-atoll']);
-
-const PLURAL_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['wayfinder-isles', 'whispering-woods', 'clockwork-depths']);
-
 export function routeSteps(
   zones: Record<ZoneId, ZoneDef>,
   from: ZoneId,
@@ -440,6 +447,8 @@ export function routeSteps(
   at?: { x: number; y: number },
   /** The story flags: once the Great Fogbank lifts (15g), Taleshore is sailed to (`flownLink`). */
   flags: Record<string, boolean> | null = null,
+  /** Sailing Marlow's boat right now (15g review round 3): a way off Taleshore is sailed, not flown. */
+  aboard = false,
 ): string[] | null {
   const route = routeTo(zones, from, to);
   if (!route) return null;
@@ -462,7 +471,7 @@ export function routeSteps(
   // Leaving Taleshore by sea is flown even once the fog thins (15g review round
   // 2): Ember brought the hero there, and the boat waits at Marlow's dock. (A
   // hero who sailed over can still fly home — Taleshore is only reached on Ember.)
-  const offTaleshore = overworldOf(zones, from).id === 'taleshore';
+  const offTaleshore = overworldOf(zones, from).id === 'taleshore' && !aboard;
   const flying = stranded || offTaleshore || route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to, flags));
   for (const { from: id, exit } of route) {
     const z = zones[id];
@@ -531,6 +540,8 @@ export function goalDirections(
   here: ZoneId,
   at?: { x: number; y: number },
   flags: Record<string, boolean> | null = null,
+  /** Sailing the boat right now (15g review round 3). */
+  aboard = false,
 ): string {
   if (!goal.zoneId) return '';
   if (goal.zoneId === here) {
@@ -544,7 +555,7 @@ export function goalDirections(
     // Past the dock: just "sail east" to the sea itself, or on to a place out there.
     const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at, flags) ?? [];
     const sail = beyond.length > 1 ? beyond.join(', then ') : 'sail east';
-    const steps = routeSteps(zones, here, goal.at.zoneId, at, flags) ?? [];
+    const steps = routeSteps(zones, here, goal.at.zoneId, at, flags, aboard) ?? [];
     const route = routeTo(zones, here, goal.at.zoneId) ?? [];
     const last = route.length ? route[route.length - 1].exit : null;
     const from = here === goal.at.zoneId ? (at ?? zones[here].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
@@ -556,7 +567,7 @@ export function goalDirections(
     steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
     return sentence(steps);
   }
-  const steps = routeSteps(zones, here, goal.zoneId, at, flags) ?? [];
+  const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
   return sentence(goal.kind === 'fly' ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
 }
