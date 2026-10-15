@@ -494,7 +494,9 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
     expect(mentorTips(ZONES, { ...met, ...chorusWon })[0]).toMatch(/^You have the First Chorus Key! The Riddle Leviathan guards the second in Inkwell Cove\. Follow the road east from Port Lantern, then north\./);
     expect(mentorTips(ZONES, { ...met, ...chorusBoth })[0]).toBe("You hold both Chorus Keys! Together they open the Hush Fiend's gate on Chorus Isle, far out at sea west of Port Lantern. Fly there, and free the Crystal of Voices!");
-    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe('Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Help everyone you meet — maybe someone knows.');
+    expect(mentorTips(ZONES, { ...met, ...voicesFreed })[0]).toBe('Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.');
+    // Lumen counts every crystal shining: a skipped Hall dedication after Voices says six, not five (round 4).
+    expect(mentorTips(ZONES, { ...met, ...voicesFreed, [HALL_DEDICATED]: false })[0]).toMatch(/^Six crystals shine now! And they say something new is happening in the Hall of Names/);
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
     expect(mentorTips(ZONES, { ...met, ...storyDone, [HALL_DEDICATED]: false })[0]).toMatch(/Hall of Names/);
   });

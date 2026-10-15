@@ -707,6 +707,22 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
+  "fx-starfire": {
+    "emoji": "🌟",
+    "battle": {
+      "sheet": "/sprites/fx-starfire/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 4,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 3,
+          "fps": 12
+        }
+      }
+    }
+  },
   "fx-fireball": {
     "emoji": "🔥",
     "battle": {

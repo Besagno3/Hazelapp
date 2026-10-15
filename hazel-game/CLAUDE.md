@@ -774,6 +774,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15g review round 4: starfire, a shh not a nose (#75 item 15g, #141p)
+The last round. Fresh code (3 low, 2 nits) and UX (1 high, 2 medium, 2 low,
+3 nits) reviews, all fixed but one kept (a prop's "Talk" prompt): the Hush
+Fiend's mitten "shh", a deeper-gold Radiant Ember, starfire (`fx-starfire`),
+Mnem's "she", Lumen counts every crystal and points at Mnem, the crystal prop
+on the Fiend's own cell. Tests +1; 1286 green.
+
 ### 2026-10-15 — 15g review round 3 (code): a halo all round, sailed when sailing (#75 item 15g, #141o)
 Fresh code review (3 low, 4 nits), all fixed: Radiant Ember's halo in every
 view, routes off Taleshore sailed while aboard (`aboard` through

@@ -841,6 +841,6 @@ export const BOSS_LINES: Record<CrystalTopic, BossScript> = {
       'Shhh. SHHHH. I heard that dragon of yours roaring all the way across the sea. Rude. Very, very LOUD.',
       'I am the Hush Fiend! I shushed the sea! I shushed the singers! And now, little chatterbox, I shush YOU!',
     ],
-    defeat: '…say it, then. Say everything. Out loud…',
+    defeat: '…fine. Sing, then. Sing as LOUD as you like…',
   },
 };

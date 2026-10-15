@@ -2859,12 +2859,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'chorus-coda', x: 24, y: 18 },
       // Old Cadence stands by the double gate and warns of the Hush Fiend.
       { defId: 'chorus-cadence', x: 20, y: 9 },
-      { defId: 'chorus-trill', x: 12, y: 20 },
+      { defId: 'chorus-trill', x: 13, y: 19 },
       { defId: 'chorus-do', x: 16, y: 21 },
       { defId: 'chorus-re', x: 17, y: 21 },
       { defId: 'chorus-baritone', x: 17, y: 25 },
-      // Where the Hush Fiend sat, the Crystal of Voices rings once it's freed (15g review round 3).
-      { defId: 'chorus-crystal', x: 21, y: 4, ifFlag: 'crystal-words-restored' },
+      // On the Hush Fiend's own spot, the Crystal of Voices rings once it's freed
+      // (15g review round 3) — a cell the hero can't stand on during the fight (round 4).
+      { defId: 'chorus-crystal', x: 21, y: 5, ifFlag: crystalFlag('words') },
     ],
     enemies: [
       // The west grass.

@@ -1392,3 +1392,5 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1186 | A | ✅ | a shield's refund puts the charge back (#141m) | `battleTurn.test`: `shieldRefund` for Chorus Call and every other strike returns the charge to where it began |
 | TC-1187 | M | ⬜ | Taleshore after Voices (#141n) | talk to Gale, Pidge, Reso, Shush, Ness; walk into the hollow: the Crystal of Voices stands where the Fiend was |
 | TC-1188 | A | ✅ | sailing off Taleshore, the way is sailed (#141o) | `wayfinding.test`: aboard on Taleshore → "sail west…"; on foot → flown; with the isle's gate open, no gate hint |
+| TC-1189 | A | ✅ | the crystal in the hollow, and Lumen's count (#141p) | `zones.test`: the Crystal of Voices on the Fiend's cell, only after Voices; `wayfinding.test`: a Hall dedication left after Voices says "Six crystals" and Lumen sends you to Mnem |
+| TC-1190 | M | ⬜ | starfire (#141p) | with six crystals, cast Radiant Breath with Ember fighting: white-gold stars fly, "breathes starfire!"; the Hush Fiend's face reads as "shh", not a nose |

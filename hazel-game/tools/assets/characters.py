@@ -1414,6 +1414,22 @@ def fireball(c: Canvas, p: Pose, s: dict):
     finish(c, d)
 
 
+def starfire(c: Canvas, p: Pose, s: dict):
+    """Battle FX (#75 item 15g review round 4): Radiant Ember's starfire — a white-gold
+    four-point star heading right, a gold sparkle tail twinkling behind it."""
+    d = D(c, p)
+    L = d.part(0, 0)
+    ph = p.frame * 1.7
+    for i, (x, y) in enumerate(((5, 16), (8, 12.5), (8, 19.5), (2.5, 14), (2.5, 18))):
+        wob = math.sin(ph + i * 1.3) * 1.1
+        L.ellipse(x + wob, y, 1.6, 1.3, '#ffd040' if (i + p.frame) % 2 else '#fff4b0')
+    L.poly([(18, 6), (20.4, 13.6), (28, 16), (20.4, 18.4), (18, 26), (15.6, 18.4), (8, 16), (15.6, 13.6)], '#ffd040')
+    L.poly([(18, 9.5), (19.6, 14.4), (24.5, 16), (19.6, 17.6), (18, 22.5), (16.4, 17.6), (11.5, 16), (16.4, 14.4)], '#fff4b0', shade=False)
+    L.ellipse(18, 16, 2, 2, '#ffffff', shade=False)
+    d.put(L)
+    finish(c, d)
+
+
 def serpent(c: Canvas, p: Pose, s: dict):
     d = D(c, p)
     col = hexc(s['color'])
@@ -3795,7 +3811,7 @@ def hush_fiend(c: Canvas, p: Pose, s: dict):
     d = D(c, p)
     col = hexc(s.get('color', '#9a96b0'))
     sway = 1 if p.frame % 2 else 0
-    L = d.part(d.lean, d.bob)
+    L = d.part(d.lean * 0.4, d.bob)  # a small lunge, so it stays in its frame (review round 4)
     # The cushion body, puffed at the corners, a tassel on each.
     L.ellipse(16, 18, 12.6, 11.0, col)
     for (x, y) in ((5, 8.5), (27, 8.5), (5, 28), (27, 28)):
@@ -3810,14 +3826,20 @@ def hush_fiend(c: Canvas, p: Pose, s: dict):
             L.ellipse(x, 12.8, 2.4, 1.0, '#ffffff', shade=False)
             L.ellipse(x, 12.9, 0.9, 0.8, '#2a1a4a', shade=False)
             L.line(x - 3, 10.6 - tilt * 1.4, x + 3, 10.6 + tilt * 1.4, '#2a1a4a', w=1.0)
-        # Closed lips, pressed thin…
-        L.line(12.6, 18, 19.4, 18, '#3a2050', w=0.9)
+        # A short, pursed mouth…
+        L.ellipse(16, 18.4, 1.8, 0.8, '#3a2050', shade=False)
         if not p.hurt:
-            # …and a big hand pressing one finger across them: SHHH.
-            L.ellipse(16, 22.6, 3.4, 2.6, '#f0dcc8')  # the fist
-            L.rect(14.9, 13.6 - sway, 17.1, 21, '#f0dcc8')  # the finger, up over the lips
-            L.ellipse(16, 13.6 - sway, 1.1, 0.9, '#f8ece0', shade=False)  # its nail
-            L.line(14.9, 13.6 - sway, 14.9, 21, '#c8a890', w=0.4)
+            # …and a lilac mitten from the side, one finger up across the lips: SHHH
+            # (review round 4: the long skin-coloured finger read as a nose).
+            mit = dark(col, 0.12)
+            L.ellipse(19.4, 21.4, 2.8, 2.2, mit)  # the mitten fist
+            for k in range(3):
+                L.dot(21.6, 20.2 + k * 1.2, dark(col, 0.3))  # its knuckles
+            L.rect(16.8, 16 - sway * 0.5, 18.4, 20.6, mit)  # one finger, up over the lips
+            L.ellipse(17.6, 16 - sway * 0.5, 0.9, 0.7, mit)
+            # A little puff of "shh" breath.
+            L.ellipse(12.2, 17.2, 1.1, 0.8, '#e8e4f4', shade=False)
+            L.ellipse(10.4, 16.2, 0.7, 0.5, '#e8e4f4', shade=False)
     # Little stubby arms reaching to shush.
     arm = {'strike': 4, 'follow': 2}.get(p.arm, 0)
     for (x0, side) in ((4, -1), (28, 1)):
@@ -3932,6 +3954,7 @@ DRAWERS = {
     'hollow_fiend': hollow_fiend,
     'hush_fiend': hush_fiend,
     'voice_crystal': voice_crystal,
+    'starfire': starfire,
 }
 
 
@@ -3979,9 +4002,12 @@ ROSTER: list[Char] = [
     Char('ember-dragon', '🐉', 'dragon', H(color='#f0502a', stage='dragon', wing='#ffb05a'),
          battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
     # Radiant Ember (#75 item 15g): the sixth crystal — sunrise-gold scales, starlit wings, sparkles.
-    Char('ember-radiant', '🐉', 'dragon', H(color='#ffc830', stage='radiant', wing='#fffbe0', belly='#fffcf0', horn='#ffffff'),
+    Char('ember-radiant', '🐉', 'dragon', H(color='#e8a820', stage='radiant', wing='#fff0b0', belly='#fff4d0', horn='#ffffff'),
          battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
     # ── Battle FX (not characters — reuse the battle-sheet pipeline) ──
+    Char('fx-starfire', '🌟', 'starfire', world=False,
+         battle_poses=[Pose(frame=i) for i in range(4)],
+         battle_anims={'idle': {'from': 0, 'to': 3, 'fps': 12}}),
     Char('fx-fireball', '🔥', 'fireball', world=False,
          battle_poses=[Pose(frame=i) for i in range(4)],
          battle_anims={'idle': {'from': 0, 'to': 3, 'fps': 12}}),

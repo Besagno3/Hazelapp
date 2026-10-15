@@ -259,7 +259,8 @@ export default function BattleArena() {
   const heroSprite = resolveSprite(avatar?.spriteId, avatar?.sprite ?? '❓');
   const cSpriteIds = companionSprite(companionId, ember);
   const cSprite = resolveSprite(cSpriteIds.spriteId, cSpriteIds.emoji);
-  const fireballSprite = resolveSprite('fx-fireball', '🔥');
+  // Radiant Ember breathes starfire (#75 item 15g review round 4).
+  const fireballSprite = resolveSprite(ember === 'radiant' ? 'fx-starfire' : 'fx-fireball', ember === 'radiant' ? '🌟' : '🔥');
 
   const { questions, loading, error, reload } = useGeneratedQuestions(
     topic,
@@ -702,9 +703,9 @@ export default function BattleArena() {
     const breath = spell.id === 'ember-breath' || spell.id === 'radiant-breath';
     const lead =
       breath && emberActive
-        ? `${spell.emoji} ${spell.name}! Ember rears back and breathes dragonfire!`
+        ? `${spell.emoji} ${spell.name}! Ember rears back and breathes ${ember === 'radiant' ? 'starfire' : 'dragonfire'}!`
         : breath
-          ? `${spell.emoji} ${spell.name}! Ember swoops in from the sidelines, breathing dragonfire!`
+          ? `${spell.emoji} ${spell.name}! Ember swoops in from the sidelines, breathing ${ember === 'radiant' ? 'starfire' : 'dragonfire'}!`
           : emberActive
             ? `${spell.emoji} ${spell.name}! Ember roars as your answer blazes!`
             : `${spell.emoji} ${spell.name}! A brilliant answer erupts!`;

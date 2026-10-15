@@ -1407,7 +1407,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: [HALL_DEDICATED, crystalFlag('words')],
       },
       // Plants the first Sage, for Wick's and Lumen's breadcrumbs.
-      'These plaques are still blank — even the very first Sage\'s. Names nobody remembers… yet.',
+      { text: 'These plaques are still blank — even the very first Sage\'s. Names nobody remembers… yet.', unlessFlag: crystalFlag('words') },
+      { text: "The crystal said \"she\"? Then the first blank plaque belongs to a SHE. Still no name… yet.", ifFlag: crystalFlag('words') },
       // The dedication (#75 item 14i): Memory's plaque lights itself, and Mnem
       // calls you in — the panels play as his talk closes (WorldScreen).
       {
@@ -2030,7 +2031,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Shh. Books are the loudest thing in the world, when you read them in your head.',
       { text: 'Five kittens! I\'m writing back right now. Shh — I\'m thinking.', ifFlag: questDoneFlag({ id: SHUSH_QUEST }) },
-      { text: 'The Hush Fiend is gone, and everyone is SO loud now. Shh! …Oh, all right. Hooray. (Quietly.)', ifFlag: crystalFlag('words') },
+      { text: '"The Hush Fiend is gone, and everyone is SO loud now. Shh! …Oh, all right. Hooray!" she whispers.', ifFlag: crystalFlag('words') },
     ],
   },
   'quiet-mime': {

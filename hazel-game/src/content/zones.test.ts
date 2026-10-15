@@ -1586,3 +1586,14 @@ describe('Chorus Isle after round 2 (#75 item 15g)', () => {
     expect(said({ ...done, [crystalFlag('words')]: true })).toMatch(/out loud/);
   });
 });
+
+describe('the Crystal of Voices in the hollow (#75 item 15g, round 4)', () => {
+  it("stands on the Hush Fiend's own spot, only once Voices is restored", () => {
+    const isle = ZONES['chorus-isle'];
+    const crystal = isle.npcs.find((n) => n.defId === 'chorus-crystal')!;
+    const fiend = isle.enemies.find((e) => e.defId === 'hush-fiend')!;
+    expect({ x: crystal.x, y: crystal.y }).toEqual({ x: fiend.x, y: fiend.y });
+    expect(npcPresent(crystal, {})).toBe(false);
+    expect(npcPresent(crystal, { [crystalFlag('words')]: true })).toBe(true);
+  });
+});

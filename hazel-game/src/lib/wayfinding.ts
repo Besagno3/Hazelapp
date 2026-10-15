@@ -9,7 +9,7 @@ import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
-import { MET_GALE, SPIRE_CLEARED, canFly } from '../content/story';
+import { MET_GALE, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
 import { overworldOf } from './worldMap';
 
@@ -569,7 +569,8 @@ export function goalDirections(
   }
   const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
-  return sentence(goal.kind === 'fly' ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
+  // …unless the hero is sailing right now (15g review round 4).
+  return sentence(goal.kind === 'fly' && !aboard ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
 }
 
 // --- The mentor (Elder Lumen, #75 item 8) ------------------------------------------
@@ -618,6 +619,8 @@ export function shrineToVisit(zones: Record<ZoneId, ZoneDef>, flags: Record<stri
 export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string, boolean>): [string, string] {
   const goal = nextObjective(flags);
   const restored = actRestored(flags, 1);
+  // Every crystal shining so far, in words — a skipped Act II step can come after Voices (15g review round 4).
+  const shining = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'][emberStatus(flags).crystals] ?? String(emberStatus(flags).crystals);
   const place = (id: ZoneId) => {
     // A floor deep in a dungeon (#75 item 10) is found by its entrance.
     const entrance = dungeonEntrance(id);
@@ -653,17 +656,17 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
-    plan = 'Five crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!';
+    plan = `${shining} crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!`;
   } else if (goal.kind === 'visit') {
     plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
   } else if (goal.kind === 'fly' && goal.zoneId === 'dragon-roost') {
-    plan = "Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.";
+    plan = `${shining} crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.`;
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[MET_GALE]) {
-    plan = "Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Help everyone you meet — maybe someone knows.";
+    plan = "Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
