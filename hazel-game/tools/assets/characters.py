@@ -3005,15 +3005,16 @@ def cloud_pup(c: Canvas, p: Pose, s: dict):
     B = d.part(lean, bob)
     for (x, y, r) in ((11, 20, 4.4), (15.5, 19, 5), (19.5, 21, 4.2), (14, 23, 4)):
         B.ellipse(x, y, r, r * 0.9, col)
-    B.ellipse(6, 17.5, 2.4, 2, light(col, 0.1))  # a wind-puff tail
-    B.ellipse(3.6, 16, 1.6, 1.4, light(col, 0.1))
+    B.line(7, 18.5, 3.4, 13.6, '#9aaabc', w=1.4)  # a wagging tail
+    B.ellipse(3.2, 13, 1.6, 1.4, light(col, 0.1))  # a wind-puff at its tip
     d.put(B)
     H = d.part(lean, bob)
     hx, hy = 22.5, 13.5
     H.ellipse(hx, hy, 4.6, 4.2, col)
-    H.ellipse(hx - 3.6, hy + 0.4, 1.8, 3.2, dark(col, 0.12))  # floppy ear
-    H.ellipse(hx + 3.4, hy + 2.2, 2.4, 1.7, light(col, 0.15))  # snout
-    H.dot(hx + 5.2, hy + 1.6, '#3a4a5a', w=2, h=1)  # nose
+    H.ellipse(hx - 3.2, hy - 0.4, 1.9, 3.4, '#9aaabc')  # floppy ears, grey-blue
+    H.ellipse(hx + 0.6, hy - 3.6, 1.6, 2.4, '#9aaabc')
+    H.ellipse(hx + 3.6, hy + 2.2, 2.6, 1.9, light(col, 0.15))  # snout
+    H.dot(hx + 5.4, hy + 1.4, '#1a1a24', w=2, h=2)  # a dark nose
     d.put(H)
     if p.facing != 'up':
         d.eyes(H, [(hx - 0.6, hy - 0.8), (hx + 2.4, hy - 0.8)])
@@ -3673,10 +3674,10 @@ ROSTER: list[Char] = [
     Char('compass-crab', '🦀', 'crab', H(color='#e8a03a')),
     Char('gull-scout', '🐦', 'flyer', H(kind='bird', color='#9aa4b0')),
     Char('tide-snail', '🐌', 'snail', H(color='#d8c8a8', shell='#3a8ab8')),
-    Char('marker-post', '🚩', 'marker_post', H(color='#a8743e', flag='#e04040')),
+    Char('marker-post', '🪧', 'marker_post', H(color='#a8743e', flag='#e04040')),
     Char('latitude-cat', '🐈', 'cat', H(fur='#e8963a', stripe='#3a7ac8')),
     Char('globe-beetle', '🪲', 'gravity_beetle', H(color='#2a8ac8', land=True)),
-    Char('zephyr-pup', '🌬️', 'cloud_pup', H(color='#e8f2fa')),
+    Char('zephyr-pup', '☁️', 'cloud_pup', H(color='#e8f2fa')),
     Char('kite-ray', '🎏', 'kite_ray', H(color='#e05050', bow='#ffd23a')),
     Char('squall-chick', '🐤', 'flyer', H(kind='bird', color='#ffd23a')),
     Char('compass-golem', '🗿', 'golem', H(color='#8a8a7a', accent='#d03a3a', glow='#ffd24a', runes=True, compass=True), boss=True),

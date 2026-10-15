@@ -32,7 +32,8 @@ export const TEA_DAMAGE_MULT = 2;
 /**
  * Staples sold in more than one shop (everything else: one), always at one price.
  * Berry Potions: Maple's Trading Post (Lumina Village), Tadpole's Tonics
- * (Verdara) and, on the far continent, Wick-Wax's Candle Shop (Port Lantern, #75 item 15c).
+ * (Verdara) and, on the far continent, Wick-Wax's Candle Shop (Port Lantern, #75 item 15c)
+ * and Tass's Kite Stall (Gale Atoll, an island with no inn — #75 item 15d review).
  * Glimmer Candles: Slosh's Raft Shop (Foglight Marsh) and Wick-Wax's (#75 item 15d review —
  * the Latitude Cats on the Wayfinder Isles are slippery too).
  */

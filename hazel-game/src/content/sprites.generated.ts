@@ -5069,7 +5069,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "marker-post": {
-    "emoji": "🚩",
+    "emoji": "🪧",
     "world": {
       "sheet": "/sprites/marker-post/world.png",
       "frameW": 32,
@@ -5267,7 +5267,7 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     }
   },
   "zephyr-pup": {
-    "emoji": "🌬️",
+    "emoji": "☁️",
     "world": {
       "sheet": "/sprites/zephyr-pup/world.png",
       "frameW": 32,

@@ -923,7 +923,7 @@ describe('Taleshore I quests (#75 item 15d)', () => {
     // Talked to again in town, she says to meet on the beach — no walk starts there (round 2).
     const inTown = questConversation('port-skipper', { ...save, zoneId: 'port-lantern' })!;
     expect(inTown.lines[0]).toBe("See you on the beach! Take the road south from town to Driftwood Shallows. I'll wait where it comes in.");
-    expect(inTown.finish ? inTown.finish(save).flags[escortWalkingFlag(JUNO_WALK)] : undefined).toBeFalsy();
+    expect(inTown).toMatchObject({ finish: null, finishKind: null });
     // Reaching the beach brings her over (review: she doesn't vanish as her offer closes).
     expect(arrivalFlags('driftwood-shallows', save.flags)).toEqual([JUNO_CAME]);
     expect(arrivalFlags('port-lantern', save.flags)).toEqual([]);

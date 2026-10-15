@@ -760,6 +760,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15d review round 4: flown off the plateau, islands that look like islands (#75 item 15d, #138k)
+The last round. Fresh code (2 low, 2 nits) and UX (8 low) reviews, all fixed:
+a route that starts stranded is flown all the way, the sea too (`stranded`);
+`PLURAL_PLACES` for "them"; Juno's sails, Salt's lines, distinct emoji for
+three critters, the Zephyr Pup's face, island backdrops with no hills
+(`no_hills`, `wind`, `islets`, `palms`) and a driftwood log for Driftwood
+Shallows. Tests +2; 1225 green.
+
 ### 2026-10-15 — 15d review round 3: Juno says hello, routes from where you stand (#75 item 15d, #138j)
 Fresh code (3 low) and UX (2 medium, 7 low) reviews, all fixed: no "fly to"
 the island you're on, flights from islets, "stranded" only on dry ground;

@@ -376,6 +376,10 @@ describe('routeSteps and goalDirections', () => {
     // On the island already, its own icon is a walk (round 3); from a small islet, a flight.
     expect(routeSteps(ZONES, 'taleshore', 'gale-atoll', { x: 8, y: 30 })![0]).toMatch(/^go .* to Gale Atoll$/);
     expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 4, y: 5 })![0]).toMatch(/^fly south-east to Port Lantern/);
+    // From the Roost's plateau, even the sea is flown — no boat up there (round 4).
+    expect(routeSteps(ZONES, 'dawnreach', 'silver-shallows', { x: 48, y: 27 })).toEqual(['fly east to the Silver Shallows']);
+    // "them" only for places named as many — not the Shrine of Quiet Paws.
+    expect(routeSteps(ZONES, 'dawnreach', 'quiet-shrine', { x: 48, y: 27 })![0]).toMatch(/land beside it and walk in$/);
     // On the mainland it's still a walk.
     expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 40, y: 20 })![0]).toMatch(/^go west to Port Lantern/);
     // …and to the islands, "the Wayfinder Isles" are landed beside as "them".

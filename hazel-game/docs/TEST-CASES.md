@@ -1338,3 +1338,4 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1132 | U | ✅ | an escort starts only where it's walked (#138i) | Juno talked to again in Port Lantern says "See you on the beach!…" and no walk starts; Posy only at the Marsh (quests.test) |
 | TC-1133 | U | ✅ | off an island from anywhere on it (#138i) | from (8, 10) on the isles' island and (10, 30) on the atoll the way is flown; from a corner of the Roost's plateau too; on the mainland it's a walk (wayfinding.test) |
 | TC-1134 | U | ✅ | on the island already, a walk (#138j) | from (8, 30) on the atoll's ring its own icon is "go … to Gale Atoll"; from the islet at (4, 5) Port Lantern is flown to; arriving by sea still sails on (wayfinding.test) |
+| TC-1135 | U | ✅ | flown off the Roost, the sea too (#138k) | from (48, 27) on the plateau "fly east to the Silver Shallows"; to the Shrine of Quiet Paws "…land beside it" (wayfinding.test) |

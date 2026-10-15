@@ -94,12 +94,12 @@ ZONES = {
                          sky=('#e88a5a', '#ffe0b8'), far='#8a7aa0', mid='houses', water='#2a6ac8'),
     # Taleshore I (#75 item 15d): a sunny beach of driftwood and shells, a ring of
     # islands with standing stones, and a windy atoll of palms and red flowers.
-    'driftwood-shallows': dict(shore=True, ground=(150, 176, 110), path=(214, 190, 140), solid='rock', deco='shell', deco_c='#ffd8e0',
+    'driftwood-shallows': dict(shore=True, ground=(150, 176, 110), path=(214, 190, 140), solid='driftwood', deco='shell', deco_c='#ffd8e0',
                                sky=('#4aa0e8', '#fff4d8'), far='#8ab8e0', mid='sea', water='#2a8ad0'),
-    'wayfinder-isles': dict(shore=True, ground=(120, 168, 100), path=(214, 190, 140), solid='statue', deco='flower', deco_c='#ffe060',
-                            sky=('#3a8ae0', '#e8f4ff'), far='#7aa8d8', mid='sea', water='#2a72c8'),
-    'gale-atoll': dict(shore=True, ground=(140, 180, 110), path=(222, 200, 150), solid='palm', deco='flower', deco_c='#ff6a6a',
-                       sky=('#5ab0f0', '#f0fbff'), far='#a8d0f0', mid='sea', water='#2aa0d8'),
+    'wayfinder-isles': dict(shore=True, no_hills=True, ground=(120, 168, 100), path=(214, 190, 140), solid='statue', deco='flower', deco_c='#ffe060',
+                            sky=('#3a8ae0', '#e8f4ff'), far='#7aa8d8', mid='islets', water='#2a72c8'),
+    'gale-atoll': dict(shore=True, no_hills=True, wind=True, ground=(140, 180, 110), path=(222, 200, 150), solid='palm', deco='flower', deco_c='#ff6a6a',
+                       sky=('#5ab0f0', '#f0fbff'), far='#a8d0f0', mid='palms', water='#2aa0d8'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -275,6 +275,13 @@ def solid(kind, zone):
             c.poly([(x0, y0 - 1), (x1, y1), (x0, y0 + 1.2)], '#3aa060')
         c.dot(8, 6, '#6a4020', w=1, h=1)
         c.dot(10, 6.4, '#6a4020', w=1, h=1)
+    elif kind == 'driftwood':
+        # Driftwood Shallows (#75 item 15d review): a bleached log washed up on the sand, a stub of branch.
+        c.poly([(1, 11), (13.6, 6.6), (15.4, 9.6), (2.8, 14.4)], '#d8ccb8')
+        c.poly([(1, 11), (13.6, 6.6), (14, 7.6), (1.4, 12.2)], '#ece4d4', shade=False)
+        c.line(3.4, 12, 13.4, 8.6, '#b4a690', w=0.4)
+        c.ellipse(14.4, 8.1, 1.2, 1.6, '#c8bca6')
+        c.poly([(7, 9.4), (6.2, 5.6), (7.6, 5.4), (8.4, 9)], '#d0c4ae')
     elif kind == 'pillar':
         c.rect(2, 13, 14, 16, '#9a8ad0')
         c.rect(4, 3, 12, 13, '#d8d0f8')
@@ -926,13 +933,21 @@ def backdrop(z: dict, seed: int) -> Image.Image:
                     img[y, x] = (255, 244, 200)
     elif not z.get('stars') and not z.get('cave'):
         _sun_and_clouds(img)
-    # far hills
+    # far hills (none far out at sea, #75 item 15d review — the draw still happens, so seeds keep their place)
     far = hexc(z['far'])
     ph = rnd.random() * 10
     for x in range(BW):
         h = horizon - 18 - 10 * math.sin(x * 0.03 + ph) - 5 * math.sin(x * 0.09 + ph * 2)
+        if z.get('no_hills'):
+            continue
         for y in range(int(h), horizon):
             img[y, x] = far if y > h + 1 else light(far, 0.08)
+    if z.get('wind'):
+        # Gale Atoll: streaks of wind across the sky.
+        for k in range(9):
+            y0, x0 = 12 + (k * 23) % 50, (k * 61) % BW
+            for x in range(x0, min(BW, x0 + 30 + k % 3 * 10)):
+                img[y0, x] = (255, 255, 255)
     # mid layer silhouettes
     g = z['ground']
     midc = mix(dark(g, 0.2), far, 0.35)
@@ -998,6 +1013,24 @@ def _mid_shape(img, kind, x0, base, col, rnd):
         top = base - h - 14
         fill(lambda x, y: True, x0, x0 + 16, top, base)
         fill(lambda x, y: (y - top) % 6 == 0, x0, x0 + 16, top, base, c=light(col, 0.12))
+    elif kind == 'islets':
+        # The Wayfinder Isles (#75 item 15d review): low islet humps, now and then a standing stone.
+        fill(lambda x, y: True, x0 - 2, x0 + 22, base - 6, base, c=mix(col, (60, 120, 200), 0.6))
+        if rnd.random() < 0.5:
+            cx = x0 + 10
+            fill(lambda x, y: ((x - cx) / 9) ** 2 + ((y - base) / 6) ** 2 <= 1, cx - 9, cx + 9, base - 6, base, c=col)
+            if rnd.random() < 0.5:
+                fill(lambda x, y: True, cx - 1, cx + 2, base - 14, base - 4, c=(140, 140, 128))
+    elif kind == 'palms':
+        # Gale Atoll (#75 item 15d review): palms bent by the wind over the water.
+        fill(lambda x, y: True, x0 - 2, x0 + 22, base - 6, base, c=mix(col, (60, 120, 200), 0.6))
+        if rnd.random() < 0.6:
+            cx = x0 + 10
+            for k in range(h):
+                fill(lambda x, y: True, cx + k // 4, cx + k // 4 + 2, base - k - 1, base - k, c=(120, 90, 60))
+            tx, ty = cx + h // 4, base - h
+            for dx in range(-7, 9):
+                fill(lambda x, y: True, tx + dx, tx + dx + 1, ty + abs(dx) // 3, ty + abs(dx) // 3 + 2, c=(50, 140, 70))
     elif kind == 'sea':
         fill(lambda x, y: True, x0 - 2, x0 + 22, base - 8, base, c=mix(col, (60, 120, 200), 0.5))
         fill(lambda x, y: (x + y) % 7 == 0, x0 - 2, x0 + 22, base - 8, base - 6, c=(200, 230, 255))

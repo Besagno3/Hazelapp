@@ -401,6 +401,9 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
  * route starts there, else from where the last exit set you down. Walking out
  * of a place onto the overworld needs no words. Null when there's no way.
  */
+/** Places named as many ("land beside them") — not every name ending in s (the Shrine of Quiet Paws, 15d review). */
+const PLURAL_PLACES: ReadonlySet<ZoneId> = new Set<ZoneId>(['wayfinder-isles', 'whispering-woods', 'clockwork-depths']);
+
 export function routeSteps(
   zones: Record<ZoneId, ZoneDef>,
   from: ZoneId,
@@ -413,11 +416,21 @@ export function routeSteps(
   if (!route) return null;
   const steps: string[] = [];
   let origin = at ?? null;
+  // Starting on ground cut off from the mainland round a place only Ember
+  // reaches (an island, the Roost's plateau): every step from here is flown,
+  // the sea too — there's no boat up there (15d review round 4).
+  const start = zones[from];
+  const stranded =
+    !!at &&
+    start.kind === 'overworld' &&
+    !!start.places?.some((pl) => pl.byAir) &&
+    WALKABLE_CHARS.has(start.map[at.y]?.[at.x] ?? '#') &&
+    !reach(start, { from: at, flags: null }).has(`${start.spawn.x},${start.spawn.y}`);
   // A run of stairs the same way is one step: "take the stairs down two floors to …".
   let stairsRun: { way: 'down' | 'up'; floors: number } | null = null;
   // A route over the Great Fogbank is flown all the way, on Ember: the seas
   // before and after it too — no boat waits on Taleshore (15c review).
-  const flying = route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to, flags));
+  const flying = stranded || route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to, flags));
   for (const { from: id, exit } of route) {
     const z = zones[id];
     const dest = zones[exit.to];
@@ -441,8 +454,8 @@ export function routeSteps(
       const walkable = !!around && touches(around, exit.x, exit.y);
       const offIsland = !!around && !walkable;
       // "the Wayfinder Isles": land beside them (15d review).
-      const them = dest.the && /s$/.test(dest.name) ? 'them' : 'it';
-      if ((flying || (byAir && !walkable) || offIsland) && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
+      const them = PLURAL_PLACES.has(dest.id) ? 'them' : 'it';
+      if (dir && !walkable && (flying || byAir || offIsland)) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);
       else steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
       const stairs = z.map[exit.y]?.[exit.x];

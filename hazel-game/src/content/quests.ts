@@ -298,7 +298,7 @@ const JUNO_ZONE: ZoneId = 'driftwood-shallows';
 /** Salt's three pieces of sea-glass (#75 item 15d) — two on the beach, one out on Gale Atoll. */
 const SALT_GLASS = [
   { item: 'seaglass-green', label: 'the green one 💚', where: 'a 🎁 in the top-left corner of Driftwood Shallows' },
-  { item: 'seaglass-blue', label: 'the blue one 💙', where: 'a 🎁 on the beach, near the right side of Driftwood Shallows' },
+  { item: 'seaglass-blue', label: 'the blue one 💙', where: 'a 🎁 on the sand near the right side of Driftwood Shallows, below the walled cove' },
   { item: 'seaglass-gold', label: 'the gold one 💛', where: 'a 🎁 on the west side of Gale Atoll, out at sea south-west of Port Lantern — only Ember can fly you there' },
 ];
 
@@ -1016,7 +1016,7 @@ export const QUESTS: QuestDef[] = [
       ),
     ],
     complete: [
-      "There she is — the Puffin! Hello, old girl. A bit sandy, but not one plank missing.",
+      "There she is — the Puffin! Hello, old girl. I missed you!",
       "You know what? I'm not scared any more. I'll scrub her till she shines!",
       '✨ Reward: 40 coins and a Berry Potion!',
     ],

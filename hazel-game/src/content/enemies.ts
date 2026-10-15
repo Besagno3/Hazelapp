@@ -166,14 +166,14 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   // --- Taleshore I (geography, #75 item 15d): three critters a place ---
   // Driftwood Shallows: the Tide Snail's shell takes the first hit (shielded).
   'compass-crab': { id: 'compass-crab', name: 'Compass Crab', sprite: '🦀', topic: 'geography', levelOffset: -1, hpPerLevel: 10 },
-  'gull-scout': { id: 'gull-scout', name: 'Gull Scout', sprite: '🕊️', topic: 'geography', levelOffset: 0, hpPerLevel: 12 },
+  'gull-scout': { id: 'gull-scout', name: 'Gull Scout', sprite: '🐦', topic: 'geography', levelOffset: 0, hpPerLevel: 12 },
   'tide-snail': { id: 'tide-snail', name: 'Tide Snail', sprite: '🐌', topic: 'geography', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
   // The Wayfinder Isles: the Latitude Cat's wandering lines muddle a Hint Feather (trickster).
-  'marker-post': { id: 'marker-post', name: 'Marker Post', sprite: '🚩', topic: 'geography', levelOffset: -1, hpPerLevel: 11 },
+  'marker-post': { id: 'marker-post', name: 'Marker Post', sprite: '🪧', topic: 'geography', levelOffset: -1, hpPerLevel: 11 },
   'latitude-cat': { id: 'latitude-cat', name: 'Latitude Cat', sprite: '🐈', topic: 'geography', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster' },
   'globe-beetle': { id: 'globe-beetle', name: 'Globe Beetle', sprite: '🪲', topic: 'geography', levelOffset: 1, hpPerLevel: 13 },
   // Gale Atoll: the Squall Chick rides the wind and strikes first (swift).
-  'zephyr-pup': { id: 'zephyr-pup', name: 'Zephyr Pup', sprite: '🌬️', topic: 'geography', levelOffset: -1, hpPerLevel: 10 },
+  'zephyr-pup': { id: 'zephyr-pup', name: 'Zephyr Pup', sprite: '☁️', topic: 'geography', levelOffset: -1, hpPerLevel: 10 },
   'kite-ray': { id: 'kite-ray', name: 'Kite Ray', sprite: '🎏', topic: 'geography', levelOffset: 0, hpPerLevel: 12 },
   'squall-chick': { id: 'squall-chick', name: 'Squall Chick', sprite: '🐤', topic: 'geography', levelOffset: 1, hpPerLevel: 12, behavior: 'swift' },
   // The warden of the Wayfinder Isles' stone circle: beat it for the First Chorus Key (keys.ts).

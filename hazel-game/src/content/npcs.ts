@@ -1787,6 +1787,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       { text: 'The Puffin is scrubbed and shining, down on the beach! Thank you for walking with me.', ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
       { text: "Next time a storm gives me a fright, I'll think of you and your dragon!", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: 'The Puffin needs new sails before she carries passengers. Until then, your dragon is the best ferry around!', ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
       { text: "You flew here? On a DRAGON? Then you're brave enough for both of us!", unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
     ],
   },
@@ -1929,9 +1930,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     // Her quest's offer comes first ("Salt's Sea-Glass Set"); these follow it.
     lines: [
-      'Green, blue and gold — a whole set! My grandpa Salt the Elder will be SO jealous.',
+      'My grandpa Salt the Elder will be SO jealous of my set!',
       'Sea-glass is just old bottles the sea has polished for a hundred years. Imagine being that patient!',
-      "Juno's ferry used to take me everywhere, before the storm. That's how I hid a piece so far away!",
+      'Next I\'m hunting for purple sea-glass. Nobody has EVER found a purple one!',
     ],
   },
   // The Wayfinder Isles: a mapmaker (the Golem's signpost), a penguin who walks in straight lines, and Wim the Mapper.
