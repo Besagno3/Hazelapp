@@ -12,13 +12,15 @@ describe('shops (#73: every store is unique)', () => {
       expect(sellers(item.id).length, `${item.id} sellers`).toBe(1);
     }
   });
-  it('each shared staple (Berry Potion) has more than one seller, at the same price', () => {
+  it('each shared staple (Berry Potion, Glimmer Candle) has more than one seller, at the same price', () => {
     for (const id of SHARED_STOCK) {
       const shops = sellers(id);
       expect(shops.length, `${id} sellers`).toBeGreaterThan(1);
       const prices = shops.map((s) => s.items.find((i) => i.id === id)!.price);
       expect(new Set(prices).size, `${id} priced the same everywhere`).toBe(1);
     }
+    // Glimmer Candles: the Marsh's raft shop, and Wick-Wax's for the Latitude Cats (#75 item 15d).
+    expect(sellers('candle').map((s) => s.name).sort()).toEqual(["Slosh's Raft Shop", "Wick-Wax's Candle Shop"]);
     // Home, Verdara and — on the far continent — Port Lantern (#75 item 15c).
     expect(sellers('potion').map((s) => s.name).sort()).toEqual(["Maple's Trading Post", "Tadpole's Tonics", "Wick-Wax's Candle Shop"]);
   });

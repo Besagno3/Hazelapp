@@ -1009,7 +1009,7 @@ export const QUESTS: QuestDef[] = [
             ? 'Walk Juno to the Puffin, by the old dock in the bottom-left corner of Driftwood Shallows. Stay close — she stops if a critter is near!'
             : save.zoneId === JUNO_ZONE
               ? 'Juno is waiting where the road comes in — talk to her to walk her to her ferry!'
-              : 'Take the road south from Port Lantern to Driftwood Shallows. Juno waits where the road comes in!',
+              : "See you on the beach! Take the road south from town to Driftwood Shallows. I'll wait where it comes in.",
       ),
     ],
     complete: [
@@ -1047,7 +1047,7 @@ export const QUESTS: QuestDef[] = [
     foundNote: (save) =>
       SALT_GLASS.every((g) => save.questItems.includes(g.item))
         ? "🧂 That's all three! Take them back to Salt on Driftwood Shallows."
-        : '🧂 Salt the Younger will be so pleased! Ask her where the next one is.',
+        : '🧂 Salt the Younger will be so pleased! Your quest list says where the next one is.',
     takesItems: SALT_GLASS.map((g) => g.item),
     complete: [
       'Green, blue AND gold! My whole set!',
@@ -1395,6 +1395,9 @@ function stepConversation(npcId: string, save: SaveData): QuestConversation | nu
     if (step?.escort && step.escort.npcId === npcId) {
       const walking = escortWalkingFlag(step.id);
       if (save.flags[walking]) continue;
+      // Only where the walk is (15d review: talked to again in town, Juno
+      // started a walk that was over before it began) — elsewhere, the hint.
+      if (save.zoneId !== step.escort.zoneId) continue;
       return {
         lines: step.escort.lines,
         badge: q.title,

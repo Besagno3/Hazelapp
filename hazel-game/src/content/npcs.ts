@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { JUNO_QUEST, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
@@ -1775,6 +1775,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.",
       { text: 'Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock needs a brave friend!', unlessFlag: questOfferedFlag({ id: JUNO_QUEST }) },
       { text: "Talk to everyone, and check the Quest Board in the square. And thank you for looking after Juno!", ifFlag: questOfferedFlag({ id: JUNO_QUEST }) },
+      'Gale Atoll, out at sea? No relation! It\'s just VERY windy out there.',
     ],
   },
   'port-skipper': {
@@ -1784,7 +1785,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      { text: "The Puffin and me, back together! Soon she'll carry folk round Taleshore's islands again.", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: "I found the Puffin! I'm scrubbing her up. Soon she'll carry folk round Taleshore's islands again.", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
       { text: "Ahoy! Skipper Juno. My ferry, the Puffin, used to run round Taleshore's islands. Then a storm gave me a fright.", unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
       "You flew here? On a DRAGON? Then you're brave enough for both of us!",
     ],
@@ -1865,9 +1866,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       '📋 The Quest Board. Notices are pinned all over it.',
       'NEW IN TOWN? Say hello to Harbormaster Gale by the road in. Rest at the Driftlight Inn. Potions at Wick-Wax\'s Candle Shop.',
       { text: 'WANTED: a brave friend to walk Skipper Juno to her old ferry. Ask Juno on the south dock!', unlessFlag: questOfferedFlag({ id: JUNO_QUEST }) },
-      { text: 'NOTICE: Skipper Juno has gone down the south road to Driftwood Shallows, to find her old ferry.', ifFlag: questOfferedFlag({ id: JUNO_QUEST }), unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
+      { text: 'NOTICE: Skipper Juno has gone down the south road to Driftwood Shallows, to find her old ferry.', ifFlag: JUNO_CAME, unlessFlag: questDoneFlag({ id: JUNO_QUEST }) },
       { text: "GOOD NEWS: Skipper Juno has found her nerve AND her ferry! Well done, whoever helped.", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
-      'SEEN: a stone giant in the Wayfinder Isles. Cartographer Lo says it guards a key. Take care!',
+      { text: 'SEEN: a stone giant in the Wayfinder Isles. Cartographer Lo says it guards a key. Take care!', unlessFlag: keyFlag('chorus-a') },
+      { text: 'NEWS: someone beat the stone giant on the Wayfinder Isles! Cartographer Lo is redrawing her map.', ifFlag: keyFlag('chorus-a') },
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
       'Check back soon for more notices!',
     ],
@@ -1929,6 +1931,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Green, blue and gold — a whole set! My grandpa Salt the Elder will be SO jealous.',
       'Sea-glass is just old bottles the sea has polished for a hundred years. Imagine being that patient!',
+      "Juno's ferry used to take me everywhere, before the storm. That's how I hid a piece so far away!",
     ],
   },
   // The Wayfinder Isles: a mapmaker (the Golem's signpost), a penguin who walks in straight lines, and Wim the Mapper.
@@ -1965,7 +1968,6 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     // His quest's offer comes first ("The Unfinished Map"); these follow it.
     lines: [
-      "My map's finished! Every critter, every island. Lo says it's the best map of the Starfall Sea. Well, the second best.",
       'Did you know a compass needle always points north? Except near the Golem. It points at the Golem.',
     ],
   },
@@ -1999,7 +2001,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'merchant',
     lines: [
       "Kites! Kites! The windiest island in the world makes the best kites. I'm Tass, and these are mine!",
-      'Nobody buys kites, though. Everyone here gets blown away before they can fly them. Would you like a badge?',
+      'The wind steals every kite I make! So I make Kite Badges instead. They never blow away.',
     ],
   },
   // Old Pike fishes off the north dock (15c review): Port Lantern's harbor has people on it.

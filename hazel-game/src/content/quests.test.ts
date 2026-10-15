@@ -778,7 +778,7 @@ describe('The Flower for No Name: an escort (#75 item 14g)', () => {
   });
 
   it('talk to her at the landing and she walks with you; arriving at the stone finishes it; she pays', () => {
-    let save = converse('hill-posy', withBoat());
+    let save: SaveData = { ...converse('hill-posy', withBoat()), zoneId: 'foglight-marsh' };
     expect(activeEscort(save, 'foglight-marsh')).toBeNull();
     // At the landing: she says she'll follow, and the walk begins.
     const start = questConversation('hill-posy', save)!;
@@ -808,8 +808,9 @@ describe('The Flower for No Name: an escort (#75 item 14g)', () => {
   });
 
   it('a walk is never kept: a reload, or leaving the Marsh, and she waits at the landing again', () => {
-    let save = converse('hill-posy', withBoat());
+    let save: SaveData = { ...converse('hill-posy', withBoat()), zoneId: 'foglight-marsh' };
     save = converse('hill-posy', save);
+    expect(save.flags[walking]).toBe(true);
     expect(normalizeSave(save).flags[walking]).toBeUndefined();
     // …and the world says once that she went back (#75 item 14g review).
     expect(normalizeSave(save).flags[escortBackFlag(POSY_WALK)]).toBe(true);
@@ -919,6 +920,10 @@ describe('Taleshore I quests (#75 item 15d)', () => {
     expect(Math.abs(puffin.x - walk.goal.x) + Math.abs(puffin.y - walk.goal.y)).toBe(1);
     let save = converse('port-skipper', defaultSave());
     expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    // Talked to again in town, she says to meet on the beach — no walk starts there (round 2).
+    const inTown = questConversation('port-skipper', { ...save, zoneId: 'port-lantern' })!;
+    expect(inTown.lines[0]).toBe("See you on the beach! Take the road south from town to Driftwood Shallows. I'll wait where it comes in.");
+    expect(inTown.finish ? inTown.finish(save).flags[escortWalkingFlag(JUNO_WALK)] : undefined).toBeFalsy();
     // Reaching the beach brings her over (review: she doesn't vanish as her offer closes).
     expect(arrivalFlags('driftwood-shallows', save.flags)).toEqual([JUNO_CAME]);
     expect(arrivalFlags('port-lantern', save.flags)).toEqual([]);

@@ -369,6 +369,12 @@ describe('routeSteps and goalDirections', () => {
   it('off an island only Ember reaches, the way on is flown (15d review)', () => {
     expect(routeSteps(ZONES, 'wayfinder-isles', 'port-lantern')).toEqual(['fly south-east to Port Lantern, then land beside it and walk in']);
     expect(routeSteps(ZONES, 'gale-atoll', 'driftwood-shallows')![0]).toMatch(/^fly east to Driftwood Shallows, then land beside it and walk in$/);
+    // Anywhere on the island, not only beside its icon (round 2) — and the Roost's plateau corners.
+    expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 8, y: 10 })![0]).toMatch(/^fly south-east to Port Lantern/);
+    expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 10, y: 30 })![0]).toMatch(/^fly north-east to Port Lantern/);
+    expect(routeSteps(ZONES, 'dawnreach', 'lumina-village', { x: 47, y: 27 })![0]).toMatch(/^fly /);
+    // On the mainland it's still a walk.
+    expect(routeSteps(ZONES, 'taleshore', 'port-lantern', { x: 40, y: 20 })![0]).toMatch(/^go west to Port Lantern/);
     // …and to the islands, "the Wayfinder Isles" are landed beside as "them".
     expect(routeSteps(ZONES, 'port-lantern', 'wayfinder-isles')).toEqual(['fly north-west to the Wayfinder Isles, then land beside them and walk in']);
   });
@@ -506,7 +512,7 @@ describe('guides and signposts', () => {
   });
   it("Harbormaster Gale, the 🚩's goal, points to what comes after meeting Gale (15c review)", () => {
     expect(nextObjective(taleshoreReached).npc).toBe('port-harbormaster');
-    expect(wayfindingLines(ZONES, NPC_DEFS['port-harbormaster'], taleshoreReached)).toEqual([expect.stringMatching(/^Where to next\? Out at sea, on the Wayfinder Isles, the Compass Golem guards the First Chorus Key\./)]);
+    expect(wayfindingLines(ZONES, NPC_DEFS['port-harbormaster'], taleshoreReached)).toEqual([expect.stringMatching(/^Where to next\? The Compass Golem on the Wayfinder Isles guards the First Chorus Key\. Answer its questions about the world! /)]);
   });
   it("after the story, a guide just cheers you on", () => {
     expect(wayfindingLines(ZONES, NPC_DEFS['village-elder'], chorusWon)).toEqual([nextObjective(chorusWon).why]);

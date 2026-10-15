@@ -128,7 +128,7 @@ export const GATE_KEYS: GateKey[] = [
       'In the middle of the stone circle, a great stone figure creaks awake. A compass needle spins on its chest.',
       '"ALL directions lead to ME, little traveler. You want the First Chorus Key? Then tell me where in the world things ARE!"',
     ],
-    bossDefeat: '"…north was… that way… all along. Take the key. It is one of two."',
+    bossDefeat: '"…north was… that way… all along. Take the key, little traveler."',
     fromZone: 'wayfinder-isles',
     unlocksZone: null,
     opens: "It's one of two keys to a gate far out at sea. Keep it safe!",

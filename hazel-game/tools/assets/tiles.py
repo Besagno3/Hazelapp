@@ -437,7 +437,7 @@ STYLES = {
     # Port Lantern (#75 item 15c): tarred harbor timber, sea-teal trim, round porthole windows.
     'harbor':    ('#5a4a3e', '#3aa0a8', 'planks',  'round',  'planks', ('#b88a5a',)),
     # Gale Atoll (#75 item 15d): Tass's kite stall — sun-bleached planks, bright kite-red trim.
-    'kite':      ('#d8c8a0', '#e04a4a', 'planks',  'square', 'planks', ('#c8a878',)),
+    'kite':      ('#d8c8a0', '#e04a4a', 'planks',  'kite',   'planks', ('#c8a878',)),
 }
 
 
@@ -526,6 +526,12 @@ def _wall_face(style, window=False, door=False):
             c.rect(4, 4, 12, 11, trim, shade=False)
             c.rect(5, 5, 11, 10, glass, shade=False)
             c.rect(7.5, 5, 8.5, 10, trim, shade=False)
+        elif win == 'kite':
+            # Tass's stall (#75 item 15d review): a kite hung on the wall, its tail fluttering.
+            c.poly([(8, 3), (12, 7), (8, 11), (4, 7)], '#ffd23a', shade=False)
+            c.poly([(8, 3), (8, 11), (4, 7)], '#4aa0e0', shade=False)
+            c.line(8, 11, 9, 13.4, '#3a3a44', w=0.4)
+            c.dot(9.4, 12.4, '#ff6a6a')
         elif win == 'arch':
             c.rect(4, 6, 12, 12, trim, shade=False)
             c.ellipse(8, 6.5, 4, 3, trim, shade=False)
@@ -1301,6 +1307,7 @@ def ow_icon(kind):
         c.ellipse(8, 11.8, 5, 1.6, '#7ab05a', shade=False)
         c.rect(4.6, 2, 11.4, 12, '#8a8a7a')
         c.rect(4.6, 2, 6, 12, '#a8a898', shade=False)
+        c.ellipse(8, 6.6, 3.4, 3.4, '#d03a3a', shade=False)
         c.ellipse(8, 6.6, 3, 3, '#f4ecd8', shade=False)  # a compass rose painted on it
         c.poly([(8, 3.2), (8.8, 6.6), (8, 10), (7.2, 6.6)], '#3a3a44', shade=False)
         c.poly([(4.6, 6.6), (8, 5.8), (11.4, 6.6), (8, 7.4)], '#3a3a44', shade=False)

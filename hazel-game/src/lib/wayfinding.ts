@@ -1,6 +1,6 @@
 import { HUB_ZONE, MET_ELDER, ZONES, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import { HALL_DEDICATED } from '../content/spells';
-import { reach } from './reach';
+import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
@@ -263,14 +263,14 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         return {
           kind: 'key',
           title: `Win the ${chorusA.name}`,
-          why: `Out at sea, on the Wayfinder Isles, ${midSentence(chorusA.bossName)} guards the ${chorusA.name}. Fly there on Ember and answer its questions about the world!`,
+          why: `${capitalize(midSentence(chorusA.bossName))} on the Wayfinder Isles guards the ${chorusA.name}. Answer its questions about the world!`,
           zoneId: chorusA.fromZone,
           key: chorusA,
         };
       }
       return {
         kind: 'explore',
-        title: 'Explore Lumina',
+        title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[MET_GALE]
           ? 'You won the First Chorus Key! Its twin is out there somewhere. Until it turns up, fly anywhere and help everyone you meet on Taleshore!'
           : canFly(flags)
@@ -431,8 +431,12 @@ export function routeSteps(
       // Still on Ember over Taleshore (15c review round 4), or a place only
       // Ember reaches (an island out at sea, #75 item 15d): say to land and walk in.
       const byAir = z.places?.some((pl) => pl.x === exit.x && pl.y === exit.y && pl.byAir);
-      // Starting beside a place only Ember reaches (an island, the Roost): you fly off it (15d review).
-      const offIsland = z.places?.some((pl) => pl.byAir && Math.abs(pl.x - o.x) + Math.abs(pl.y - o.y) <= 1);
+      // Starting anywhere on the ground round a place only Ember reaches (an
+      // island, the Roost's plateau) with no walk to where you're going: you fly
+      // off it (15d review rounds 1–2).
+      const around = z.places?.some((pl) => pl.byAir) ? reach(z, { from: o, flags: null }) : null;
+      const offIsland =
+        !!around && !touches(around, exit.x, exit.y) && z.places!.some((pl) => pl.byAir && touches(around, pl.x, pl.y));
       // "the Wayfinder Isles": land beside them (15d review).
       const them = dest.the && /s$/.test(dest.name) ? 'them' : 'it';
       if ((flying || byAir || offIsland) && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside ${them} and walk in`);

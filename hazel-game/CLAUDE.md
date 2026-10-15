@@ -760,6 +760,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15d review round 2: escorts start where they walk, flown off anywhere on an island (#75 item 15d, #138i)
+Fresh code (1 medium, 4 low) and UX (1 high, 2 medium, 9 low) reviews, all
+fixed: `stepConversation` starts an escort only in its own place (Juno in
+town, and Posy before her, began a walk that ended at once); `offIsland` asks
+`reach` whether the walk exists, so the whole island and the Roost's plateau
+are flown off; a shorter 🚩 line; kites on Tass's walls; "Explore Taleshore";
+the board, Juno, Gale, Wim and Salt say what's true now. 1225 green.
+
 ### 2026-10-15 — 15d review round 1: the Puffin, flown off islands, critters that look their names (#75 item 15d, #138h)
 Fresh code (1 medium, 7 low) and UX (5 medium, 7 low) reviews. Fixed: routes
 off an island are flown (`offIsland`); the Puffin on the beach (`drift-puffin`),

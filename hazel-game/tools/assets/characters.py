@@ -3798,13 +3798,13 @@ NPCS: list[Char] = [
     Char('tale-rambler', '🥾', 'humanoid', H(hair='short', hair_color='#7a4a2a', hat='cap', hat_color='#3a7a4a', outfit='#a8784a', scarf='#3a6ab0', pants='#5a4a3a', pack='#6a8a4a', item='staff', item_color='#8a6a3a')),
     # Taleshore I (#75 item 15d)
     Char('drift-reel', '🎣', 'humanoid', H(hair='short', hair_color='#6a4a2a', hat='straw', hat_color='#e0c070', outfit='#3a8aa8', pants='#5a4a3a', item='rod', item_color='#8a6a3a')),
-    Char('drift-sandy', '🪣', 'humanoid', H(hair='bob', hair_color='#e0a040', hat='straw', hat_color='#f0d890', outfit='#ff8ab0', pants='#3a8ab0', item='broom')),
+    Char('drift-sandy', '🪣', 'humanoid', H(hair='bob', hair_color='#2a2a3a', hat='bandana', hat_color='#3ab0a0', outfit='#ff8ab0', pants='#3a8ab0', item='broom')),
     Char('drift-salt', '🧂', 'humanoid', H(hair='ponytail', hair_color='#7a4a2a', outfit='#5ab0c0', trim='#ffffff', pants='#3a5a8a', pack='#c89a5a')),
     Char('way-lo', '🗺️', 'humanoid', H(hair='bun', hair_color='#2a2a3a', glasses=True, outfit='#8a6a3a', trim='#e8d8a0', item='telescope')),
     Char('way-pebble', '🐧', 'humanoid', H(skin='#2a2a3a', snout='beak', beak='#f0a030', outfit='#f4f4f8', blush=False)),
     Char('way-drift', '✏️', 'humanoid', H(hair='spiky', hair_color='#e8c040', outfit='#e05050', scarf='#3a6ab0', pants='#3a3a5a', item='book')),
     Char('gale-sough', '🌬️', 'humanoid', H(hair='long', hair_color='#d8e8f4', outfit='#6aa0c8', trim='#ffffff', robe=True, item='staff', item_color='#c8e0f0')),
-    Char('gale-gully', '🕊️', 'flyer', H(kind='bird', color='#e8b8cc')),
+    Char('gale-gully', '🕊️', 'flyer', H(kind='bird', color='#f4f2f8')),
     Char('gale-tass', '🪁', 'humanoid', H(hair='short', hair_color='#a83a2a', hat='bandana', hat_color='#ffd23a', outfit='#e04a4a', apron='#f4e8c8', item='brush')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
