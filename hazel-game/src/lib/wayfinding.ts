@@ -301,7 +301,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         return {
           kind: 'visit',
           title: 'Visit the Chartmaker',
-          why: "The Chartmaker has drawn every place in Lumina but one. His little island is out at sea, north-west past the Wayfinder Isles — look for 🌐 on your 📜 Menu map. Fly there on Ember!",
+          why: "The Chartmaker has drawn every place in Lumina but one. His little island is out at sea at the very top of Taleshore's map, above the Wayfinder Isles — look for 🌐 on your 📜 Menu map.",
           zoneId: 'chartmakers-rest',
           doneFlag: BLANK_CHART_HELD,
           npc: 'chart-chartmaker',
@@ -312,7 +312,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[BLANK_CHART_HELD]
-          ? "The Blank Chart shows one place nobody remembers, under the Crystal Spire — a mystery for another day. Check 📜 Menu for quests you haven't finished!"
+          ? "The Blank Chart shows one place nobody remembers, under the Crystal Spire — a mystery for another day. Look in your quest list for anyone still waiting for help!"
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -450,7 +450,7 @@ function chartInside(flags: Record<string, boolean>): string {
   if (!flags[questOfferedFlag(quest)]) return 'The Chartmaker is in his study, the blue-roofed house.';
   // The find step has no flag of its own (it's what you carry); Inka's step says the quill is inked.
   if (!flags[stepFlag('chart-quill-ink')] && !flags[handedOverFlag('compass-quill')]) {
-    return "Get the quill from Pen's 🎁 nest (the chest right of the study), then take it to Inka on the left (west) side.";
+    return "Take the Compass Quill (it's in Pen's 🎁 nest, the chest right of the study) to Inka, on the left (west) side.";
   }
   return 'Take the Starlit Quill back to the Chartmaker, in his study.';
 }

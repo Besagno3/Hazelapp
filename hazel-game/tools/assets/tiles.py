@@ -1503,8 +1503,10 @@ def ow_icon(kind):
         # A big tan parchment chart, a dotted path and a red X marks the spot (not a "+":
         # round 1 read it as a hospital; round 3 wanted it bigger and plainer).
         c.rect(6.6, 1.6, 15.2, 9.8, '#ead2a0')
-        c.rect(6.6, 1.6, 15.2, 2.4, '#c8a868', shade=False)
-        c.rect(6.6, 9.0, 15.2, 9.8, '#c8a868', shade=False)
+        # A dark brown frame and a blue sea-line, so it reads apart from the Wayfinder Isles' marker (round 4).
+        c.rect(6.6, 1.6, 15.2, 2.4, '#6a4a22', shade=False)
+        c.rect(6.6, 9.0, 15.2, 9.8, '#6a4a22', shade=False)
+        c.line(7.2, 4.6, 9.6, 3.6, '#3a6ad0', w=0.6)
         for (x, y) in ((8, 8.0), (9, 7.2), (10, 6.4)):
             c.dot(x, y, '#6a4a2a')
         c.line(10.6, 3.0, 14.0, 6.6, '#d02a2a', w=1.4)

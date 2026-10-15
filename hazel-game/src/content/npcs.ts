@@ -227,7 +227,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: ACT2_SEEN,
       },
       {
-        text: "You flew Ember right over the Great Fogbank?! I'm telling EVERYONE. I already told my marble.",
+        text: "You flew Ember right over the Great Fogbank?! I'm telling EVERYONE. I already told the chickens.",
         ifFlag: ACT3_SEEN,
       },
     ],
@@ -1709,7 +1709,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Hoo. I am Sage Chronicle. (See also: owl.)',
       'Every battle is a story, little spark. Mine can ripple time itself. (See also: bravery.)',
-      { text: "Six crystals! A new footnote: 'The Crystal of Voices rang, and the stories came home.' (Footnote to the footnote: hooray.)", ifFlag: crystalFlag('words') },
+      { text: "The Crystal of Voices rang! A new footnote: 'The Crystal of Voices rang, and the stories came home.' (Footnote to the footnote: hooray.)", ifFlag: crystalFlag('words') },
     ],
   },
   'archive-index': {
@@ -2525,7 +2525,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     // His quest's offer comes first ("The Blank Chart", once Voices rings); these follow it.
     lines: [
       { text: "I'm the Chartmaker! I've charted every place in Lumina but one.", unlessFlag: crystalFlag('words') },
-      { text: 'My ink keeps fading until the Crystal of Voices sings again. Free it — and keep anything shiny you find for me!', unlessFlag: crystalFlag('words') },
+      { text: 'My ink keeps fading until the Crystal of Voices sings again. Free it! And if you find my Compass Quill, hold on to it for me till then.', unlessFlag: crystalFlag('words') },
       {
         text: "Keep the Blank Chart safe. Every chart has edges — but a blank in the MIDDLE? That's a mystery worth solving.",
         ifFlag: BLANK_CHART_HELD,
@@ -2552,6 +2552,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       { text: "The Chartmaker's in the blue-roofed study — go say hi!", unlessFlag: questOfferedFlag({ id: BLANK_CHART_QUEST }) },
+      // Visited before the quill is found (round 4): she says what she needs.
+      { text: "Bring me his Compass Quill and I'll fill it with starlight ink! Pen hid it in her 🎁 nest, the chest by the study.", ifFlag: questOfferedFlag({ id: BLANK_CHART_QUEST }), unlessFlag: stepFlag('chart-quill-ink') },
       { text: "I'm Inka! I mix the Chartmaker's inks: sea-blue, forest-green, sunset-red. Today I'm trying starlight.", unlessFlag: BLANK_CHART_HELD },
       { text: 'Starlight ink worked! Now I want to try moonlight. Or puddle-light.', ifFlag: BLANK_CHART_HELD },
       { text: 'The chart even drew ME. Teeny tiny! I\'ve never been on a map before.', ifFlag: BLANK_CHART_HELD },

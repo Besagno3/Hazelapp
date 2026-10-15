@@ -1409,3 +1409,5 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1203 | A | ✅ | the nest after the offer points at Inka (#142k) | `quests.test`: once he's asked, the nest's line says "bone dry! Inka"; `zones.test`: before Voices, two short boxes ending "Free it" |
 | TC-1204 | M | ⬜ | arriving on the Rest, round 3 (#142k) | before talking to him, Inka and Pen point at the blue-roofed study; the 🚩, Lumen and the board all say north-west past the Wayfinder Isles / 🌐; the icon's X reads at 1× |
 | TC-1205 | A | ✅ | aboard, never sailed to where no boat lands (#142l) | `wayfinding.test`: aboard on Dawnreach's sea, the Roost isn't "Sail…"; aboard in the Shallows before Voices, no "sail north" to the Wayfinder Isles (fails without the fix) |
+| TC-1206 | A | ✅ | Inka says what she needs (#142m) | `zones.test`: with the quest offered and the quill not inked, Inka asks for his Compass Quill; once inked, she doesn't |
+| TC-1207 | M | ⬜ | before Voices, the quill is kept for him (#142m) | fly to the Rest before Chorus Isle, open Pen's nest: "Keep it safe — he'll need it once the Crystal of Voices sings"; he says to hold on to it till then |

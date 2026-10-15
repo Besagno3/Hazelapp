@@ -780,6 +780,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15h review round 4 (UX): hold on to the quill (#75 item 15h, #142m)
+The last round. Fresh UX review over 8 saves (2 medium, 3 low, 3 nits), all
+fixed: before Voices the quill is kept for him, a 🚩 why with no compass word,
+Inka asks for the quill, Pip told the chickens, no "Check 📜 Menu" in the
+Menu, a framed icon. Tests +1 check; 1300 green.
+
 ### 2026-10-15 — 15h review round 4 (code): no sailing up to the Roost (#75 item 15h, #142l)
 Fresh code review (1 medium, 3 low, 1 nit), all fixed: from the boat, a
 place only Ember reaches is sailed to only with no fog in the way and a beach

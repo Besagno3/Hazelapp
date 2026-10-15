@@ -1617,6 +1617,11 @@ describe("Chartmaker's Rest: Act III's last place (#75 item 15h)", () => {
     expect(said({})).toMatch(/Crystal of Voices sings again\. Free it/);
     expect(said({ [crystalFlag('words')]: true })).not.toMatch(/Free it/);
     expect(said({ [crystalFlag('words')]: true, [BLANK_CHART_HELD]: true })).toMatch(/Keep the Blank Chart safe/);
+    // Inka, visited before the quill is found, says what she needs (round 4).
+    const inka = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['chart-inka'].lines, flags).map(lineText).join(' ');
+    const offered = { [crystalFlag('words')]: true, [questOfferedFlag({ id: 'blank-chart' })]: true };
+    expect(inka(offered)).toMatch(/Bring me his Compass Quill/);
+    expect(inka({ ...offered, [stepFlag('chart-quill-ink')]: true })).not.toMatch(/Bring me his Compass Quill/);
   });
 });
 

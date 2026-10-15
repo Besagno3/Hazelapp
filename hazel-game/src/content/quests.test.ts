@@ -1209,7 +1209,7 @@ describe("The Blank Chart (#75 item 15h): Pen's nest, Inka's ink, the Chartmaker
     let save = openChest(defaultSave(), nest);
     // Before Voices he has no quest; his own line asks for anything shiny.
     expect(questConversation('chart-chartmaker', save)).toBeNull();
-    expect(visibleLines(NPC_DEFS['chart-chartmaker'].lines, save.flags).map(lineText).join(' ')).toMatch(/keep anything shiny/);
+    expect(visibleLines(NPC_DEFS['chart-chartmaker'].lines, save.flags).map(lineText).join(' ')).toMatch(/hold on to it for me/);
     save = { ...save, flags: { ...save.flags, [crystalFlag('words')]: true } };
     const offer = questConversation('chart-chartmaker', save)!;
     expect(offer.lines.at(-1)).toMatch(/Take it to Inka/);

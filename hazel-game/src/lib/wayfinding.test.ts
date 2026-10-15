@@ -132,7 +132,7 @@ describe('nextObjective', () => {
     // On the island the way follows his quest: him, then Pen's nest and Inka, then back to him (round 1).
     const offered = { ...voicesFreed, [questOfferedFlag({ id: BLANK_CHART_QUEST })]: true };
     expect(nextObjective(voicesFreed).inside).toMatch(/^The Chartmaker is in his study/);
-    expect(nextObjective(offered).inside).toMatch(/^Get the quill from Pen's 🎁 nest/);
+    expect(nextObjective(offered).inside).toMatch(/^Take the Compass Quill \(it's in Pen's 🎁 nest/);
     expect(nextObjective({ ...offered, [stepFlag('chart-quill-ink')]: true }).inside).toMatch(/^Take the Starlit Quill back to the Chartmaker/);
     expect(goalDirections(ZONES, nextObjective(offered), 'chartmakers-rest')).toMatch(/^It's right here on Chartmaker's Rest!/);
     // On the isle, the way says where the gate is (round 2), and an island is "on".

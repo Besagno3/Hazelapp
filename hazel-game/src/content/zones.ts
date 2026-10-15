@@ -2948,7 +2948,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     // Pen's nest of shiny things (#75 item 15h): the Chartmaker's Compass Quill is in it.
     keyChests: [
-      { x: 17, y: 4, item: 'compass-quill', wantedBy: "✒️ It's the Chartmaker's Compass Quill! He'll want it back — he's in his study, the blue-roofed house." },
+      { x: 17, y: 4, item: 'compass-quill', wantedBy: "✒️ It's the Chartmaker's Compass Quill! Keep it safe — he'll need it once the Crystal of Voices sings. He's in the blue-roofed study." },
     ],
   },
 };
