@@ -615,7 +615,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       // After her quest (#75 item 14i review round 3): no stale chest rumor, no repeat of the
       // offer's rumors — just the Fogbank warning, which still matters.
       'Shelby, over on Sandpiper Cay, says my beam lights up his whole sandbar now. He reads the sand by it!',
-      "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
+      { text: "And east, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.", unlessFlag: crystalFlag('words') },
+      { text: 'And the Great Fogbank, way out east? It has thinned to a mist! Boats sail right through it now.', ifFlag: crystalFlag('words') },
     ],
     ambient: ['*polishes the lamp*', 'Ship ahoy? …Oh, it\'s you!', 'Shine on, little light.'],
   },
@@ -1883,7 +1884,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'SHH: the Quiet Quarter is east off the south road. Please whisper there. Librarian Shush insists.' },
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
       // Chorus Isle (#75 item 15g): the double gate's island.
-      { text: 'OLD SAILORS SAY: far out west, past the Wayfinder Isles, lies Chorus Isle, where everyone used to sing. Nobody has heard a note from it in years.', unlessFlag: crystalFlag('words') },
+      { text: 'OLD SAILORS SAY: far out west, straight across the sea from Port Lantern, lies Chorus Isle, where everyone used to sing. Nobody has heard a note from it in years.', unlessFlag: crystalFlag('words') },
       { text: "GREAT NEWS: Chorus Isle is singing again — and the Great Fogbank has thinned! Boats from the Silver Shallows can sail right into Port Lantern now.", ifFlag: crystalFlag('words') },
       'Check back soon for more notices!',
     ],
@@ -2372,9 +2373,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'sage',
     topic: 'words',
     lines: [
-      '♪ La-la… hello, little singer! ♪ I am Sage Aria. ♪ Words are songs that forgot their tune. ♪',
-      { text: '♪ The Hush Fiend took our voices… ♪ but not this one. ♪ I only sing it very, VERY quietly. ♪', unlessFlag: crystalFlag('words') },
-      { text: '♪ Hear that? ♪ The whole island is singing! ♪ Thank you, thank you, thank YOU! ♪', ifFlag: crystalFlag('words') },
+      '♪ La-la… hello, little singer! I am Sage Aria. Words are songs that forgot their tune. ♪',
+      { text: '♪ The Hush Fiend took our voices… but not this one. I only sing it very, VERY quietly. ♪', unlessFlag: crystalFlag('words') },
+      { text: '♪ Hear that? The whole island is singing! Thank you, thank you, thank YOU! ♪', ifFlag: crystalFlag('words') },
     ],
   },
   'chorus-brio': {
@@ -2384,7 +2385,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'innkeeper',
     lines: [
       'Welcome to the Resting Note Inn! I am Maestro Brio. Rest here — rest is a note too, you know.',
-      "Harbormaster Gale used to sail over from Port Lantern every summer, just to hear us sing. Before the fog, before the hush.",
+      "Harbormaster Gale used to sail over from Port Lantern every summer, just to hear us sing. That was before the hush came.",
       { text: 'Every song needs a pause. Even a brave hero.', unlessFlag: crystalFlag('words') },
       { text: "Listen to that racket — my whole island is singing! I haven't been this happy since my violin was a twig.", ifFlag: crystalFlag('words') },
     ],

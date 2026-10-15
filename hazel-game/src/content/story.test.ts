@@ -122,7 +122,7 @@ describe('cutscene panels', () => {
       const last = CRYSTAL_PANELS[topic][CRYSTAL_PANELS[topic].length - 1];
       if (topic === 'words') {
         expect(CRYSTAL_PANELS.words.some((p) => p.emoji === '🌑')).toBe(false);
-        expect(last.text).toContain('she used to sing to us. the first sage. before you forgot her.');
+        expect(last.text).toContain('She used to sing to us. The first Sage. Before the world forgot her.');
       } else expect(last.emoji).toBe('🌑');
     }
     const finale = spireVictoryPanels('Nova');

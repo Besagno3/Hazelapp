@@ -2856,7 +2856,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'chorus-brio', x: 13, y: 12 },
       { defId: 'chorus-coda', x: 24, y: 18 },
       // Old Cadence stands by the double gate and warns of the Hush Fiend.
-      { defId: 'chorus-cadence', x: 19, y: 9 },
+      { defId: 'chorus-cadence', x: 20, y: 9 },
       { defId: 'chorus-trill', x: 12, y: 20 },
       { defId: 'chorus-do', x: 16, y: 21 },
       { defId: 'chorus-re', x: 17, y: 21 },

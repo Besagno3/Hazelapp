@@ -114,7 +114,7 @@ ZONES = {
                           sky=('#3a4a7a', '#c0b8d8'), far='#5a5a80', mid='houses', water='#4a6a8a'),
     # Chorus Isle (#75 item 15g): a sunny island of singers — bright grass, warm sand,
     # boulders, music notes in the grass, a rosy evening sky over the sea.
-    'chorus-isle': dict(shore=True, no_hills=True, ground=(130, 172, 112), path=(226, 206, 168), solid='rock', deco='note', deco_c='#ff8ab0',
+    'chorus-isle': dict(shore=True, no_hills=True, ground=(130, 172, 112), path=(226, 206, 168), solid='rock', deco='note', deco_c='#ffd0e0',
                         sky=('#e87aa0', '#fff0d8'), far='#d8a0c0', mid='islets', water='#3a90d0'),
 }
 

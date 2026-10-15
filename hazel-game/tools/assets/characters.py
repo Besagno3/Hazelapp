@@ -1289,10 +1289,13 @@ def dragon(c: Canvas, p: Pose, s: dict):
         head.poly([(fx, fy - 0.8), (fx + 4, fy), (fx, fy + 0.8)], '#ffe066')
     if stage == 'radiant':
         # Radiant Ember (#75 item 15g): a few starry sparkles round her, twinkling frame to frame.
-        for k, (x, y) in enumerate(((6, 9), (27, 7), (3, 22), (28, 20), (14, 4))):
-            if (k + p.frame) % 2 == 0:
-                head.dot(x, y, '#fff6c0')
-                head.dot(x + 1, y, '#ffe070', w=0.6, h=0.6)
+        # A starry halo on every frame, half the stars swapping each frame so it twinkles (15g review: it read as plain orange).
+        for k, (x, y) in enumerate(((6, 9), (27, 7), (3, 22), (28, 20), (14, 4), (2, 14), (30, 13), (22, 3))):
+            big = (k + p.frame) % 2 == 0
+            head.dot(x, y, '#ffffff' if big else '#fff2a0')
+            if big:
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    head.dot(x + dx, y + dy, '#ffe060')
     d.put(head)
     if s.get('lance'):
         it = d.part(lean, bob)
@@ -3947,7 +3950,7 @@ ROSTER: list[Char] = [
     Char('ember-dragon', '🐉', 'dragon', H(color='#f0502a', stage='dragon', wing='#ffb05a'),
          battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
     # Radiant Ember (#75 item 15g): the sixth crystal — sunrise-gold scales, starlit wings, sparkles.
-    Char('ember-radiant', '🐉', 'dragon', H(color='#f8a030', stage='radiant', wing='#fff0a0', belly='#fff4c8', horn='#ffffff'),
+    Char('ember-radiant', '🐉', 'dragon', H(color='#ffc830', stage='radiant', wing='#fffbe0', belly='#fffcf0', horn='#ffffff'),
          battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
     # ── Battle FX (not characters — reuse the battle-sheet pipeline) ──
     Char('fx-fireball', '🔥', 'fireball', world=False,
@@ -4218,12 +4221,12 @@ NPCS: list[Char] = [
     # ── Act III: Chorus Isle (#75 item 15g) ──
     Char('sage-aria', '🎼', 'humanoid', H(hair='long', hair_color='#f0c040', outfit='#c84a7a', trim='#ffe0f0', robe=True, cape='#7a2a5a',
          item='wand', item_color='#ffe0f0', tune=True)),
-    Char('chorus-brio', '🎻', 'humanoid', H(hair='fringe', hair_color='#e8e8e8', beard='#e8e8e8', outfit='#7a2a3a', trim='#ffd860', item='violin')),
+    Char('chorus-brio', '🎻', 'humanoid', H(hair='short', hair_color='#e8e8e8', hat='beret', hat_color='#c8304a', outfit='#2a2a3a', trim='#ffd860', item='violin')),
     Char('chorus-coda', '👧', 'humanoid', H(hair='bob', hair_color='#3a2a1a', outfit='#ffd040', trim='#ff6a8a', pants='#5a7ad0', tune=True)),
     Char('chorus-cadence', '👴', 'humanoid', H(hair='fringe', hair_color='#c8c8d0', beard='#e0e0e8', outfit='#3a4a8a', trim='#ffd860', robe=True, item='wand', item_color='#f4f4f4')),
     Char('chorus-trill', '🐦', 'flyer', H(kind='bird', color='#ffd040', tune=True)),
     Char('chorus-do', '🧒', 'humanoid', H(hair='spiky', hair_color='#c84a2a', outfit='#4a8ad0', trim='#ffffff', pants='#2a3a6a')),
-    Char('chorus-re', '👧', 'humanoid', H(hair='ponytail', hair_color='#c84a2a', outfit='#d04a8a', trim='#ffffff', pants='#2a3a6a')),
+    Char('chorus-re', '👧', 'humanoid', H(hair='ponytail', hair_color='#c84a2a', outfit='#5ab04a', trim='#ffffff', pants='#2a3a6a')),
     Char('chorus-baritone', '🎣', 'humanoid', H(hair='short', hair_color='#5a4a3a', beard='#7a6a5a', hat='cap', hat_color='#2a4a6a', outfit='#3a6a8a', trim='#e8e0c8', item='rod')),
     Char('quiet-sotto', '🗣️', 'humanoid', H(hair='short', hair_color='#5a3a2a', hat='hood', hat_color='#5a3a6a', outfit='#6a4a7a', scarf='#c8a040', pack='#8a6a4a')),
     Char('ink-bess', '🐚', 'humanoid', H(hair='bun', hair_color='#6a4a3a', hat='flower', outfit='#3a9ab0', apron='#f8e0d0', trim='#ff9ab0', item='lantern', shells=True)),

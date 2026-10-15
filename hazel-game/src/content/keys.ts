@@ -122,7 +122,7 @@ export const GATE_KEYS: GateKey[] = [
   {
     id: 'chorus-a',
     name: 'First Chorus Key',
-    emoji: '🎼',
+    emoji: '🎹',
     bossId: 'compass-golem',
     bossName: 'The Compass Golem',
     bossIntro: [

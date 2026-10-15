@@ -774,6 +774,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15g review round 1 (UX): a gold Ember, a shorter gate (#75 item 15g, #141k)
+Fresh UX review (3 medium, 7 low, 2 nits), all fixed but one kept (the key
+gate's shared art): Cadence's name clear of the roof, a short two-locks line
+and the held key beside the 🔒, a gold starry Radiant Ember, directions that
+match the map, stale fog lines, 🎹 for the First Chorus Key, distinct islanders.
+1282 green.
+
 ### 2026-10-15 — Chorus Isle: the Crystal of Voices (#75 item 15g, #141)
 Roadmap sub-item 15g (branch stacked on 15f's).
 - **Words is crystal #6** (Act III's): the Crystal of Voices, the Hush Fiend,

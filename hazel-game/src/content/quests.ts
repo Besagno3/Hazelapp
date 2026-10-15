@@ -1298,15 +1298,15 @@ export const QUESTS: QuestDef[] = [
     offer: [
       "Hi! I'm Coda. Our island has three songs: one for sunrise, one for noon and one for bedtime.",
       'When the Hush Fiend came, all three refrains blew away! Mum thinks the wind tucked them into chests.',
-      "Can you find them? One's in the west grass, one's in the east grass, and one's down by the south-west shore. Then we'll sing them back!",
+      "Can you find them? One's by the top-left beach, one's by the top-right beach, and one's by the bottom-left shore. Then we'll sing them back!",
     ],
     steps: [
       haveStep(
         'coda-refrains-find',
         [
-          { items: ['refrain-sunrise'], label: 'the Sunrise Refrain (a 🎁 in the west grass, up by the shore)' },
-          { items: ['refrain-noon'], label: 'the Noon Refrain (a 🎁 in the east grass, up by the shore)' },
-          { items: ['refrain-bedtime'], label: 'the Bedtime Refrain (a 🎁 down by the south-west shore)' },
+          { items: ['refrain-sunrise'], label: 'the Sunrise Refrain (a 🎁 by the top-left beach)' },
+          { items: ['refrain-noon'], label: 'the Noon Refrain (a 🎁 by the top-right beach)' },
+          { items: ['refrain-bedtime'], label: 'the Bedtime Refrain (a 🎁 by the bottom-left shore)' },
         ],
         'The refrains are in chests round the island.',
       ),
@@ -1323,8 +1323,8 @@ export const QUESTS: QuestDef[] = [
         'coda-sing-aria',
         'sage-aria',
         [
-          '🎵 You sing the Noon Refrain… ♪ Aria sings the harmony! ♪ Oh, how I MISSED that one! ♪',
-          '♪ The last one is the bedtime song… ♪ Sing it to Coda! ♪ She is by her cottage. ♪',
+          '🎵 You sing the Noon Refrain… Aria sings the harmony! ♪ Oh, how I MISSED that one! ♪',
+          '♪ The last one is the bedtime song… Sing it to Coda, by her cottage! ♪',
         ],
         "Sing the Noon Refrain to Sage Aria, in Aria's Music Hall.",
       ),

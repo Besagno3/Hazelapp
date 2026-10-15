@@ -53,7 +53,8 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
         animate={{ scale: 1, opacity: 1 }}
         className="bg-white rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl"
       >
-        <div className="text-5xl mb-2">{hasKey ? keys.map((k) => k.emoji).join('') : '🔒'}</div>
+        {/* A held key of two sits beside the lock still shut (15g review). */}
+        <div className="text-5xl mb-2">{hasKey ? keys.map((k) => k.emoji).join('') : `${keys.filter(held).map((k) => k.emoji).join('')}🔒`}</div>
         <h2 className="text-lg font-extrabold text-gray-800 mb-2">
           {hasKey ? (both ? 'Both keys fit!' : `The ${key.name} fits!`) : `A sealed ${door}`}
         </h2>
@@ -65,19 +66,19 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
             </>
           ) : both && missing.length < keys.length ? (
             <>
-              This {door} has two locks. {names(keys.filter(held)).replace(/^t/, 'T')} fits one! The other needs{' '}
-              <strong>{names(missing)}</strong> — beat <strong>{bossName(missing[0])}</strong> {where(missing[0])} to claim it.
+              {names(keys.filter(held)).replace(/^t/, 'T')} fits one lock! The other needs <strong>{names(missing)}</strong> — beat{' '}
+              <strong>{bossName(missing[0])}</strong> ({placeName(ZONES[dungeonEntrance(missing[0].fromZone)])}).
             </>
           ) : both ? (
             <>
-              Ancient magic seals this {door} with two locks. It opens only to <strong>{names(keys)}</strong> — beat{' '}
+              This {door} has two locks. You need both Chorus Keys {keys.map((k) => k.emoji).join('')}! Beat{' '}
               {keys.map((k, i) => (
                 <span key={k.id}>
                   {i > 0 && ' and '}
-                  <strong>{bossName(k)}</strong> {where(k)}
+                  <strong>{bossName(k)}</strong> ({placeName(ZONES[dungeonEntrance(k.fromZone)])})
                 </span>
-              ))}{' '}
-              to claim them.
+              ))}
+              .
             </>
           ) : (
             <>

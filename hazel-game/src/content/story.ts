@@ -689,8 +689,8 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
     {
       emoji: '🌼',
       text:
-        'Then, very softly, a small voice from the crystal: "she used to sing to us. the first sage. ' +
-        'before you forgot her." And the crystal hums one note, and is still.',
+        'Then, very softly, a small voice from the crystal: "She used to sing to us. The first Sage. ' +
+        'Before the world forgot her." The crystal hums one note, and is still.',
     },
   ],
 };
