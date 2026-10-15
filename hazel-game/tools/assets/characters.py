@@ -4307,11 +4307,11 @@ NPCS: list[Char] = [
     # ── Act IV: the Dream Root Door (#75 item 16a) ──
     # Old Knot, a root of the Dream Root that talks: dark bark, pale violet buds.
     Char('root-knot', '🌳', 'tree_folk', H(bark='#6a4630', leaf='#d8b8ff', stump=True)),
-    # Wisp's new face (Say Her Name): golden hair with a daisy, sunny wings, a white robe trimmed gold.
     # Young Wick (16b's Memory Village; Say Her Name's fifth memory): a girl with
     # Grandmother Wick's bun — still brown — a flour-dusted apron and a rolling pin.
     Char('memory-young-wick', '👧', 'humanoid', H(hair='bun', hair_color='#8a5030', outfit='#9a5a8a', apron='#f8f0e0', trim='#ffb0d0', item='staff', item_color='#d8b080')),
-    Char('wisp-named', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', flower_r=3.4, wings='fairy', wing_color='#ffd84a', wing_scale=1.6, outfit='#fffaf0', trim='#f0c040', robe=True)),
+    # Wisp's new face (Say Her Name): golden hair with a daisy, sunny wings, a white robe trimmed gold.
+    Char('wisp-named', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', flower_r=3.4, wings='fairy', wing_color='#fff2b0', wing_scale=1.6, outfit='#fffaf0', trim='#f0c040', robe=True)),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

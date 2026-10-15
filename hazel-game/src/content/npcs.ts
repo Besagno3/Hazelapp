@@ -7,7 +7,7 @@ import { handedOverFlag, questOfferedFlag } from './quests';
 import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
-import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
+import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING } from './story';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -212,6 +212,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'The Crystal of Memory whispered a name, you say? "Aster." I don\'t know it… yet my heart skipped, as if it should.',
         ifFlag: crystalFlag('history'),
+        unlessFlag: ACT4_SEEN,
       },
     ],
   },
@@ -456,6 +457,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'Keeper Mnem told you about the first Sage? Oh, spark… nobody remembers the first Sage. Not even me. Especially me.',
         ifFlag: 'met-mnem',
+        // Once she has told her own memory of the daisy (#75 item 16a review round 2).
+        unlessFlag: stepFlag('name-wick'),
+      },
+      {
+        text: 'Aster! With the daisy behind her ear. Fancy me forgetting a name like that, all these years.',
+        ifFlag: NAME_LEARNED,
       },
       // Wisp's beat plays only in the Woods (#129l) — a nudge back there after Memory.
       {
@@ -563,7 +570,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'Something is different since the Spire. I keep ALMOST remembering things. It tickles.',
         ifFlag: ACT2_SEEN,
-        unlessFlag: WISP_STIRRING,
+        unlessFlag: [WISP_STIRRING, NAME_LEARNED],
       },
       {
         text: "Since the Crystal of Memory, I dream in words. Mostly one word. I can't quite hear it yet. Keep going, little spark!",
@@ -1453,7 +1460,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       // Plants the first Sage, for Wick's and Lumen's breadcrumbs.
       { text: 'These plaques are still blank — even the very first Sage\'s. Names nobody remembers… yet.', unlessFlag: crystalFlag('words') },
-      { text: "The crystal said \"she\"? Then the first blank plaque belongs to a SHE. Still no name… yet.", ifFlag: crystalFlag('words') },
+      { text: "The crystal said \"she\"? Then the first blank plaque belongs to a SHE. Still no name… yet.", ifFlag: crystalFlag('words'), unlessFlag: NAME_LEARNED },
+      { text: 'Aster. I shall carve it on the first plaque myself — and polish it every single day.', ifFlag: NAME_LEARNED },
       // The dedication (#75 item 14i): Memory's plaque lights itself, and Mnem
       // calls you in — the panels play as his talk closes (WorldScreen).
       {
@@ -2553,6 +2561,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: "Keep the Blank Chart safe. Every chart has edges — but a blank in the MIDDLE? That's a mystery worth solving.",
         ifFlag: BLANK_CHART_HELD,
+        unlessFlag: ACT4_SEEN,
+      },
+      {
+        text: 'So my blank was stairs under the Crystal Spire! I\'ll draw them in — the Dream Root Door. A chart is never finished, you know.',
+        ifFlag: ACT4_SEEN,
       },
     ],
   },
@@ -2596,7 +2609,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     spriteId: 'spire-keeper',
     role: 'innkeeper',
     lines: [
-      'Welcome to the Lamplight Rest, the last warm room before the Dream Root. Rest here whenever you need. I keep the lamps lit.',
+      { text: 'Welcome to the Lamplight Rest, the last warm room before the Dream Root. Rest here whenever you need. I keep the lamps lit.', setFlag: MET_ROOT_AURORA },
       'Long ago, before the fog, I kept a lamp for a teacher who worked late. Every night she asked me a question I could not answer.',
       {
         text: 'I forgot her name, like everyone. But Wisp, in the Whispering Woods, is trying so hard to remember it. Go and see Wisp, little one.',
@@ -2606,7 +2619,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'Someone below still remembers her — I am sure of it. But Old Knot has not untangled the way down yet. Rest here, and come back soon.',
         ifFlag: stepFlag('name-chronicle'),
-        unlessFlag: NAME_LEARNED,
+        unlessFlag: [NAME_LEARNED, stepFlag('name-young-wick')],
       },
       {
         text: 'Aster. Yes… ASTER. I can see her lamp-lit face again. Thank you for remembering, for all of us.',

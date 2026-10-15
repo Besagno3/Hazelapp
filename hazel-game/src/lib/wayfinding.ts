@@ -10,7 +10,7 @@ import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
-import { ACT4_SEEN, MET_GALE, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
+import { ACT4_SEEN, MET_GALE, MET_ROOT_AURORA, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
 import { overworldOf } from './worldMap';
 
@@ -168,13 +168,15 @@ function actFourObjective(flags: Record<string, boolean>): Objective | null {
       doneFlag: ACT4_SEEN,
     };
   }
-  // …then down them.
-  if (!flags[visitedFlag('dreamroot-door')]) {
+  // …then down them, to say hello to Keeper Aurora (review round 2: arriving alone skipped her).
+  if (!flags[MET_ROOT_AURORA]) {
     return {
       kind: 'visit',
-      title: 'Go down under the Spire',
-      why: 'Stairs lead down under the Crystal Spire, to the Dream Root Door. Keeper Aurora waits there!',
+      title: 'Say hello to Keeper Aurora',
+      why: 'Stairs lead down under the Crystal Spire, to the Dream Root Door. Keeper Aurora waits there, in the Lamplight Rest!',
       zoneId: 'dreamroot-door',
+      doneFlag: MET_ROOT_AURORA,
+      npc: 'root-aurora',
     };
   }
   const quest = QUESTS.find((q) => q.id === SAY_HER_NAME_QUEST)!;
@@ -806,12 +808,14 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = "Marlow's boat is mended! Out past his dock lie the Silver Shallows, islands nobody has seen since the fog. Go and see them — and tell me everything!";
   } else if (goal.kind === 'visit' && goal.doneFlag === ACT4_SEEN) {
     plan = "The Blank Chart's blank spot is right under the Crystal Spire! Take it to the Spire's grounds, south of our village, and see what's hiding below.";
-  } else if (goal.kind === 'visit' && goal.zoneId === 'dreamroot-door' && !goal.quest) {
+  } else if (goal.kind === 'visit' && goal.doneFlag === MET_ROOT_AURORA) {
     plan = 'Stairs under the Crystal Spire? In all my years! Go down, and say hello to Keeper Aurora for me.';
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST && goal.doneFlag === questDoneFlag({ id: SAY_HER_NAME_QUEST })) {
     plan = 'Five memories, and one name at the end of them! Go and say it to Wisp, in the Whispering Woods.';
+  } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST && goal.doneFlag === questOfferedFlag({ id: SAY_HER_NAME_QUEST })) {
+    plan = 'Wisp, in the Whispering Woods, is trying to remember a name. Go and see Wisp — and help, if you can!';
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST) {
-    plan = "Wisp is trying to remember the very first Sage — the one nobody remembers, not even me. The oldest folk in Lumina each remember a little piece of her. Start with Grandmother Wick, then follow the 🚩 one by one!";
+    plan = 'Nobody remembers the very first Sage — not even me. But the oldest folk each remember a piece of her. Follow the 🚩, one memory at a time!';
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
@@ -856,8 +860,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === ACT4_SEEN) {
-    tip = 'Keep the Blank Chart in your bag, and walk right up to the old fog by the Spire!';
-  } else if (goal.kind === 'visit' && goal.zoneId === 'dreamroot-door' && !goal.quest) {
+    tip = "Go to the Spire's grounds with the Blank Chart in your bag!";
+  } else if (goal.kind === 'visit' && goal.doneFlag === MET_ROOT_AURORA) {
     tip = 'Keeper Aurora keeps an inn down there, the Lamplight Rest. Rest whenever you need!';
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST) {
     tip = knowsFieldSpell('return', flags)

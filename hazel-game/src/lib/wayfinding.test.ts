@@ -7,7 +7,7 @@ import { overworldOf, whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { actCrystals, crystalFlag } from '../content/topics';
 import { GATE_KEYS, keyFlag, keyForZone } from '../content/keys';
-import { ACT2_SEEN, ACT4_SEEN, MET_GALE, SPIRE_CLEARED } from '../content/story';
+import { ACT2_SEEN, ACT4_SEEN, MET_GALE, MET_ROOT_AURORA, SPIRE_CLEARED } from '../content/story';
 import { BLANK_CHART_HELD, BLANK_CHART_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, questDoneFlag, questOfferedFlag, stepFlag } from '../content/questFlags';
 import {
   compass,
@@ -68,7 +68,7 @@ const voicesFreed = { ...chorusBoth, [crystalFlag('words')]: true };
 /** …and the Blank Chart from the Chartmaker (#75 item 15h): Act III is done. */
 const chartHeld = { ...voicesFreed, [BLANK_CHART_HELD]: true };
 // Act IV (#75 item 16a): the door found, then Wisp's five memories and the name.
-const doorFound = { ...chartHeld, [ACT4_SEEN]: true, [visitedFlag('dreamroot-door')]: true };
+const doorFound = { ...chartHeld, [ACT4_SEEN]: true, [MET_ROOT_AURORA]: true };
 const nameLearned = { ...doorFound, [questOfferedFlag({ id: SAY_HER_NAME_QUEST })]: true, [questDoneFlag({ id: SAY_HER_NAME_QUEST })]: true, [NAME_LEARNED]: true };
 
 describe('compass', () => {
@@ -133,7 +133,7 @@ describe('nextObjective', () => {
     expect(nextObjective(voicesFreed)).toMatchObject({ kind: 'visit', zoneId: 'chartmakers-rest', title: 'Visit the Chartmaker', doneFlag: BLANK_CHART_HELD, npc: 'chart-chartmaker' });
     // With the Blank Chart, Act IV (#75 item 16a): the Spire's grounds, then down the stairs.
     expect(nextObjective(chartHeld)).toMatchObject({ kind: 'visit', zoneId: 'crystal-spire', title: 'Find the way under the Spire', doneFlag: ACT4_SEEN });
-    expect(nextObjective({ ...chartHeld, [ACT4_SEEN]: true })).toMatchObject({ kind: 'visit', zoneId: 'dreamroot-door', title: 'Go down under the Spire' });
+    expect(nextObjective({ ...chartHeld, [ACT4_SEEN]: true })).toMatchObject({ kind: 'visit', zoneId: 'dreamroot-door', title: 'Say hello to Keeper Aurora', npc: 'root-aurora' });
     expect(nextObjective(nameLearned)).toMatchObject({ kind: 'explore', zoneId: null });
     // On the island the way follows his quest: him, then Pen's nest and Inka, then back to him (round 1).
     const offered = { ...voicesFreed, [questOfferedFlag({ id: BLANK_CHART_QUEST })]: true };

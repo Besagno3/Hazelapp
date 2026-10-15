@@ -1694,6 +1694,19 @@ describe('the Dream Root Door (#75 item 16a)', () => {
     expect(say({ [stepFlag('name-chronicle')]: true })).toMatch(/Someone below still remembers her/);
     expect(say({ [stepFlag('name-chronicle')]: true, [NAME_LEARNED]: true })).not.toMatch(/Someone below/);
     expect(say({})).not.toMatch(/Someone below/);
+    // Gone once Young Wick has said it (16a code review round 2).
+    expect(say({ [stepFlag('name-chronicle')]: true, [stepFlag('name-young-wick')]: true })).not.toMatch(/Someone below/);
+  });
+
+  it('nobody still says the name is lost once it is learned (16a UX review round 2)', () => {
+    const say = (id: string, flags: Record<string, boolean>) => visibleLines(NPC_DEFS[id].lines, flags).map(lineText).join(' ');
+    const learned = { [crystalFlag('history')]: true, [crystalFlag('words')]: true, 'met-mnem': true, [ACT2_SEEN]: true, [ACT4_SEEN]: true, [BLANK_CHART_HELD]: true, [stepFlag('name-wick')]: true, [NAME_LEARNED]: true };
+    expect(say('village-elder', learned)).not.toMatch(/Especially me/);
+    expect(say('village-elder', learned)).toMatch(/Aster! With the daisy/);
+    expect(say('hill-keeper', learned)).not.toMatch(/Still no name/);
+    expect(say('woods-sprite', learned)).not.toMatch(/ALMOST remembering/);
+    expect(say('chart-chartmaker', learned)).not.toMatch(/mystery worth solving/);
+    expect(say('elder-lumen', learned)).not.toMatch(/I don't know it/);
   });
 
   it('Keeper Aurora moves down as Act IV opens: on the grounds before, at the Door after', () => {

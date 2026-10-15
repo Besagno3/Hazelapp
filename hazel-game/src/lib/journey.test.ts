@@ -220,7 +220,7 @@ describe('Act IV so far (#75 item 16a)', () => {
   it("walks the Spire's grounds, down the stairs to the Dream Root Door, and to Wisp and every memory", () => {
     expect(act4.map((l) => l.goal.title)).toEqual([
       'Find the way under the Spire',
-      'Go down under the Spire',
+      'Say hello to Keeper Aurora',
       'Help Wisp remember',
       'Ask Grandmother Wick about the first Sage',
       'Ask Keeper Mnem about the first plaque',

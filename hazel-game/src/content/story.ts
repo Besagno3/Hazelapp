@@ -137,7 +137,8 @@ export const ACT3_SEEN = 'act3-seen';
 export const CHART_SEEN = 'chart-seen';
 /**
  * Act IV opens (#75 item 16a): the first time on the Crystal Spire's grounds
- * holding the Blank Chart, `ACT4_PANELS` play and this is set — Keeper Aurora
+ * holding the Blank Chart (once the Chartmaker's own panels have played,
+ * `CHART_SEEN`), `ACT4_PANELS` play and this is set — Keeper Aurora
  * goes down to the Dream Root Door, and the fog over its stairs lifts.
  */
 export const ACT4_SEEN = 'act4-seen';
@@ -149,6 +150,8 @@ export const WISP_FACE_SEEN = 'wisp-face-seen';
  * the 🚩's first goal on Taleshore.
  */
 export const MET_GALE = 'met-gale';
+/** Set as Keeper Aurora first welcomes the hero to the Lamplight Rest (#75 item 16a review round 2): a 🚩 goal. */
+export const MET_ROOT_AURORA = 'met-root-aurora';
 
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
@@ -558,7 +561,7 @@ export const ACT4_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🌳',
-    text: 'Beside her, a knot of old fog stirs. Under it, roots as thick as houses twist down into the dark.',
+    text: 'Beside her, a knot of old fog stirs. Under it, stairs lead down, down, down — into a tangle of old roots.',
   },
   {
     emoji: '🌑',
@@ -574,7 +577,7 @@ export const ACT4_PANELS: StoryPanel[] = [
 export const WISP_FACE_PANELS: StoryPanel[] = [
   {
     emoji: '🧚',
-    text: 'Wisp says the name out loud, slowly, as if tasting it: "Aster." All of the Whispering Woods goes quiet to listen.',
+    text: 'Wisp says it slowly, as if tasting it: "Aster." The very name the Crystal of Memory whispered! The whole wood goes quiet to listen.',
   },
   {
     emoji: '🌼',

@@ -355,7 +355,7 @@ describe('Act IV opens (#75 item 16a)', () => {
   it("Wisp's new face: three panels once the name is learned — once", () => {
     at('whispering-woods', { [story.ACT4_SEEN]: true, 'name-learned': true });
     const { unmount } = render(<WorldScreen />);
-    expect(screen.getByText(/Wisp says the name out loud/)).toBeInTheDocument();
+    expect(screen.getByText(/Wisp says it slowly/)).toBeInTheDocument();
     readOn(story.WISP_FACE_PANELS.length - 1);
     fireEvent.click(screen.getByRole('button', { name: '🌼 Aster!' }));
     expect(useSaveStore.getState().save!.flags[story.WISP_FACE_SEEN]).toBe(true);

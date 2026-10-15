@@ -3008,14 +3008,16 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     buildings: [{ id: 'root-lamp', name: 'Lamplight Rest', x: 2, y: 3, w: 7, h: 5, roof: 'dusk', style: 'root', sign: 'inn' }],
     npcs: [
       { defId: 'root-aurora', x: 5, y: 5 },
-      { defId: 'root-knot', x: 16, y: 10 },
+      // At the end of the path, where the way down will be (16b).
+      { defId: 'root-knot', x: 11, y: 12 },
     ],
     enemies: [],
     exits: [
       // Back up the stairs, beside them on the Spire's grounds.
       { x: 11, y: 1, to: 'crystal-spire', spawnX: 10, spawnY: 9 },
     ],
-    // Beaten down here, you wake in the Lamplight Rest — Aurora looks after you.
+    // Beaten here, you'd wake in the Lamplight Rest — nothing fights here yet; a
+    // defeat further down (16b on) needs a shelter in another zone (#143i).
     shelter: { building: 'root-lamp', host: 'Keeper Aurora' },
   },
 };

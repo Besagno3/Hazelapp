@@ -789,6 +789,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 16a review round 2: say hello to Aurora, nobody still forgets (#75 item 16a, #143i)
+Fresh code (2 low, 5 nits) and UX (3 medium, 3 low, 2 nits) reviews, all
+fixed but two kept (the Door's shelter waits for 16b; sail vs fly advice):
+lines that still said the name was lost stop once it's learned, Act IV lines
+for Wick, Mnem and the Chartmaker; "Say hello to Keeper Aurora"
+(`met-root-aurora`); Lumen's plan in two short texts; Old Knot at the path's
+end; paler wings. 1322 green.
+
 ### 2026-10-15 — 16a review round 1: Aurora says the way down waits, roots on the walls (#75 item 16a, #143h)
 Fresh code (1 high, 1 medium, 2 low, 4 nits) and UX (1 high, 3 medium, 5 low,
 1 nit) reviews, all fixed but one kept (the memories go in order): Aurora
