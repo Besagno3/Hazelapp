@@ -766,7 +766,7 @@ a route that starts stranded is flown all the way, the sea too (`stranded`);
 `PLURAL_PLACES` for "them"; Juno's sails, Salt's lines, distinct emoji for
 three critters, the Zephyr Pup's face, island backdrops with no hills
 (`no_hills`, `wind`, `islets`, `palms`) and a driftwood log for Driftwood
-Shallows. Tests +2; 1225 green.
+Shallows. Tests +2; 1225 green; `bench … fly` 20/20, `bench … journey` 13/13.
 
 ### 2026-10-15 — 15d review round 3: Juno says hello, routes from where you stand (#75 item 15d, #138j)
 Fresh code (3 low) and UX (2 medium, 7 low) reviews, all fixed: no "fly to"
