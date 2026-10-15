@@ -106,6 +106,12 @@ ZONES = {
                        sky=('#3aa0e0', '#e0f8ff'), far='#8ac8e8', mid='islets', water='#2aa8c8'),
     'inkwell-cove': dict(shore=True, ground=(124, 150, 134), path=(196, 180, 150), solid='rock', deco='pages', deco_c='#f4ecd8',
                          sky=('#3a3a6a', '#b8a8d8'), far='#4a4a7a', mid='sea', water='#1e2240'),
+    # Taleshore III (#75 item 15f): windy grey cliffs of humming stone and music notes,
+    # and a hushed old quarter of grey-blue stone, lavender and still water at dusk.
+    'songstone-cliffs': dict(steps=True, ground=(118, 132, 116), path=(168, 168, 176), solid='cliff', deco='note', deco_c='#f0d870',
+                             sky=('#5a8ad8', '#f0e8ff'), far='#8a9ac0', mid='mountain', water='#4a8ad0'),
+    'quiet-quarter': dict(ground=(120, 136, 140), path=(170, 170, 180), solid='hedge', deco='flower', deco_c='#c8a8f0',
+                          sky=('#3a4a7a', '#c0b8d8'), far='#5a5a80', mid='houses', water='#4a6a8a'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -134,6 +140,10 @@ ISLES_ZONES = ('driftwood-shallows', 'wayfinder-isles', 'gale-atoll')
 # Added with Taleshore II (#75 item 15e) — `build_reef` writes only these
 # (+ the shell town sheet and the overworld sheet with two icons appended).
 REEF_ZONES = ('story-reef', 'inkwell-cove')
+
+# Added with Taleshore III (#75 item 15f) — `build_cliffs` writes only these
+# (+ the hush town sheet and the overworld sheet with two icons appended).
+CLIFFS_ZONES = ('songstone-cliffs', 'quiet-quarter')
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -178,9 +188,18 @@ def ground(base, seed):
     return c
 
 
-def path_tile(base):
+def path_tile(base, steps=False):
     c = _c()
     _speckle(c, base, 99, density=0.12, tufts=False)
+    if steps:
+        # Grey stone steps (15f review): treads that darken going down, a light front edge
+        # on each — no side walls, so a two-wide flight has no seam down its middle.
+        for i, y in enumerate(range(0, T, 4)):
+            tread = dark(base, 0.06 * i)
+            c.a[y:y + 4, :, :3] = tread
+            c.a[y + 3, :, :3] = dark(base, 0.4)
+            c.a[y, :, :3] = light(tread, 0.2)
+        return c
     rnd = random.Random(7)
     for _ in range(4):
         x, y = rnd.randrange(1, T - 2), rnd.randrange(1, T - 2)
@@ -220,6 +239,15 @@ def solid(kind, zone):
     elif kind == 'rock':
         c.ellipse(8, 10, 7, 5.5, '#9a8a7a')
         c.ellipse(6, 8, 3, 2, '#b8a898')
+    elif kind == 'cliff':
+        # Songstone Cliffs (15f review): a cliff face that fills the tile and stacks with
+        # no seam — no bands, cracks that run off the top and bottom edges into the next
+        # tile — so two rows read as one tall cliff.
+        c.rect(0, 0, 16, 16, '#76767f')
+        for (x0, y0, x1, y1) in ((4, 0, 3, 7), (3, 7, 4, 16), (11, 0, 12.4, 9), (12.4, 9, 11, 16), (7.6, 3, 8.4, 12)):
+            c.line(x0, y0, x1, y1, '#50505c', w=0.6)
+        for (x, y) in ((5.6, 4), (9.6, 13), (14, 6), (1.4, 11)):
+            c.dot(x, y, '#8c8c96', w=1.6, h=1)
     elif kind == 'hedge':
         c.ellipse(8, 9, 7.5, 6.5, '#3a8a4a')
         c.ellipse(5, 7, 3, 2.5, '#4aa05a')
@@ -365,6 +393,12 @@ def deco(kind, colr):
             c.rect(x + 6, y + 0.6, x + 6.6, y + 5, '#c8bca0', shade=False)  # a page's edge
             for k in range(3):
                 c.rect(x + 1, y + 1 + k * 1.3, x + 5, y + 1.5 + k * 1.3, '#8a7a6a', shade=False)
+    elif kind == 'note':
+        # Songstone Cliffs (#75 item 15f): a music note carved in the grass, and a smaller one.
+        for (x, y, r) in ((5, 10, 1.8), (11.6, 7, 1.3)):
+            c.ellipse(x, y, r, r * 0.8, colr, shade=False)
+            c.line(x + r * 0.8, y, x + r * 0.8, y - r * 3, colr, w=0.7)
+            c.line(x + r * 0.8, y - r * 3, x + r * 2, y - r * 2.2, colr, w=0.7)
     elif kind == 'sparkle':
         for (x, y) in ((5, 5), (11, 10)):
             c.dot(x, y - 2, colr, h=5)
@@ -464,6 +498,8 @@ STYLES = {
     'kite':      ('#d8c8a0', '#e04a4a', 'planks',  'kite',   'planks', ('#c8a878',)),
     # Inkwell Cove (#75 item 15e): Bess's shell shop — pale pink plaster set with shells, coral trim.
     'shell':     ('#f4dcd0', '#e07a6a', 'shells',  'round',  'planks', ('#e0c8a0',)),
+    # The Quiet Quarter (#75 item 15f): grey-blue stone with soft lavender trim, felt-grey tiles underfoot.
+    'hush':      ('#8a94a8', '#a890c8', 'bricks',  'arch',   'tiles',  ('#9a9aa8', '#88889a')),
 }
 
 
@@ -1402,6 +1438,24 @@ def ow_icon(kind):
         c.ellipse(6.6, 9.4, 1, 1.6, '#5a5a8a', shade=False)  # a glint on the glass
         c.poly([(9.4, 6), (14.6, 0.4), (15.4, 1.2), (10.4, 6.4)], '#f4f4f8')  # the quill
         c.line(9.4, 6, 14.8, 0.8, '#c8c8d4', w=0.3)
+    elif kind == 'cliffs':
+        # Songstone Cliffs (#75 item 15f): grey cliffs with a tall blue songstone, notes floating off it.
+        c.poly([(0.6, 15), (4, 5), (8, 9), (12, 3.4), (15.4, 15)], '#8a8e96')
+        c.poly([(4, 5), (6, 9.6), (8, 9)], '#a8acb4', shade=False)
+        c.rect(7.4, 7, 10.4, 15, '#7aa0d0')
+        c.ellipse(8.9, 7, 1.5, 1.4, '#7aa0d0')
+        c.dot(8.9, 10.6, '#ffe070', w=1.2, h=1.2)
+        for (x, y) in ((12.6, 2.6), (14.6, 5.4)):
+            c.ellipse(x, y, 0.9, 0.7, '#3a3a6a', shade=False)
+            c.line(x + 0.7, y, x + 0.7, y - 2, '#3a3a6a', w=0.5)
+    elif kind == 'quarter':
+        # The Quiet Quarter (#75 item 15f): two grey-blue houses with lavender roofs and a crescent moon.
+        for (x0, y0) in ((1, 7), (8, 6)):
+            c.rect(x0 + 0.6, y0 + 3, x0 + 6.6, y0 + 8.4, '#8a94a8')
+            c.poly([(x0, y0 + 3.4), (x0 + 3.6, y0), (x0 + 7.2, y0 + 3.4)], '#a890c8')
+            c.rect(x0 + 2.8, y0 + 5.4, x0 + 4.2, y0 + 8.4, '#4a4a5a', shade=False)
+        c.ellipse(13.6, 2.6, 1.8, 1.8, '#fff4c0', shade=False)
+        c.erase_ellipse(14.4, 2.2, 1.4, 1.4)
     elif kind == 'harbor':
         # Port Lantern (#75 item 15c): a quay over blue water, a little house
         # behind it and a tall lantern post, lit.
@@ -1449,6 +1503,21 @@ def build_reef(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('shell')]).save(tdir / 'town-shell.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_cliffs(public: Path):
+    """Write only Taleshore III's art (#75 item 15f): Songstone Cliffs' and the
+    Quiet Quarter's tilesets, blend sheets and backdrops, the hush town sheet and
+    the overworld sheet with their two icons."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in CLIFFS_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('hush')]).save(tdir / 'town-hush.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 
@@ -1637,7 +1706,7 @@ def overworld_sheet():
     # frame keeps its place.
     return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
             + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive'), ow_icon('roost'),
-               ow_icon('harbor'), ow_icon('beach'), ow_icon('compass'), ow_icon('atoll'), ow_icon('reef'), ow_icon('inkwell')])
+               ow_icon('harbor'), ow_icon('beach'), ow_icon('compass'), ow_icon('atoll'), ow_icon('reef'), ow_icon('inkwell'), ow_icon('cliffs'), ow_icon('quarter')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
@@ -1728,7 +1797,7 @@ def blend_sheet(z: dict, i: int) -> Image.Image:
     tex = {
         1: _half_shift(ow_sand()),
         2: _half_shift(ground(z['ground'], 1 + i * 10)),
-        3: _half_shift(path_tile(z['path'])),
+        3: _half_shift(path_tile(z['path'], z.get('steps'))),
     }
     waters = [_half_shift(water(z['water'], f)) for f in (0, 1)]
     frames: list[Canvas] = []
@@ -1759,7 +1828,7 @@ def build_blend(public: Path):
 
 def _write_zone(tdir: Path, bdir: Path, i: int, zid: str, z: dict):
     g = z['ground']
-    frames = [ground(g, 1 + i * 10), ground(g, 2 + i * 10), ground(g, 3 + i * 10), path_tile(z['path']),
+    frames = [ground(g, 1 + i * 10), ground(g, 2 + i * 10), ground(g, 3 + i * 10), path_tile(z['path'], z.get('steps')),
               water(z['water'], 0), water(z['water'], 1), solid(z['solid'], z), deco(z['deco'], z['deco_c']),
               exit_marker()]
     strip([upscale(f.image(), 2) for f in frames]).save(tdir / f'{zid}.png', optimize=True)

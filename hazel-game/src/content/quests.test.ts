@@ -25,7 +25,7 @@ import {
   solveRiddle,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -1013,5 +1013,99 @@ describe('solveRiddle (#75 item 15e, round 1)', () => {
     const one = solveRiddle(offered, YARN_STONES[0]);
     expect(one.flags[stepFlag(YARN_STONES[0])]).toBe(true);
     expect(solveRiddle(one, YARN_STONES[0])).toBe(one); // already done
+  });
+});
+
+describe('Taleshore III quests (#75 item 15f)', () => {
+  const stones = ['songstone-high', 'songstone-middle', 'songstone-low'];
+  const onCliffs = () => converse('cliff-reso', { ...defaultSave(), zoneId: 'songstone-cliffs' });
+
+  it('Reso: strike the songstones high, middle, low — then 45 coins and a potion', () => {
+    let save = onCliffs();
+    expect(byId(RESO_QUEST).steps.map((st) => st.npc?.id)).toEqual(stones);
+    for (const [i, id] of RESO_STONES.entries()) {
+      expect(questConversation(stones[i], save)!.finishKind).toBe('step');
+      save = converse(stones[i], save);
+      expect(save.flags[stepFlag(id)]).toBe(true);
+    }
+    const { coins, items } = save;
+    save = converse('cliff-reso', save);
+    expect(save.flags[questDoneFlag(byId(RESO_QUEST))]).toBe(true);
+    expect(save.coins).toBe(coins + 45);
+    expect(save.items.potion).toBe(items.potion + 1);
+  });
+
+  it('a wrong note starts the song again: every songstone goes quiet, and the hint is the first again', () => {
+    let save = converse('songstone-high', onCliffs());
+    // The low stone before the middle one: a wrong note.
+    const wrong = questConversation('songstone-low', save)!;
+    expect(wrong.lines[0]).toMatch(/^🔔 BWOOONG! Wrong note — start again from the top! First the HIGH songstone/);
+    save = wrong.finish!(save);
+    for (const id of RESO_STONES) expect(save.flags[stepFlag(id)], id).toBeFalsy();
+    expect(activeStep(byId(RESO_QUEST), save)!.id).toBe(RESO_STONES[0]);
+    // …and it can be sung again from the top.
+    for (const st of stones) save = converse(st, save);
+    expect(activeStep(byId(RESO_QUEST), save)).toBeNull();
+  });
+
+  it('struck out of turn before anything rings, it\'s just "not yet" — nothing to un-do (round 1)', () => {
+    const save = onCliffs();
+    const early = questConversation('songstone-low', save)!;
+    expect(early.lines[0]).toMatch(/^🔔 Bwong… not yet! First the HIGH songstone/);
+    expect(early.finish).toBeNull();
+  });
+
+  it('every quest with song steps has its own wrong notes, and its songs run from its first step (round 2)', () => {
+    for (const q of QUESTS.filter((x) => x.steps.some((st) => st.song))) {
+      expect(q.wrongNote, q.id).toBeTruthy();
+      const first = q.steps.findIndex((st) => st.song);
+      expect(q.steps.slice(first).every((st) => st.song), q.id).toBe(true);
+    }
+  });
+
+  it('a song stone before its song is due is just "not this one yet" — nothing un-done (round 3)', () => {
+    // A stand-in quest: talk to Hum first, then Reso's song.
+    const reso = byId(RESO_QUEST);
+    const standIn: QuestDef = {
+      ...reso,
+      id: 'stand-in-song',
+      giverNpcId: 'stand-in-giver',
+      steps: [
+        { id: 'stand-in-hum', hint: 'Talk to Hum first.', npc: { id: 'cliff-hum', lines: ['Hmm!'] }, isComplete: (sv) => sv.flags[stepFlag('stand-in-hum')] === true },
+        ...reso.steps,
+      ],
+    };
+    QUESTS.push(standIn);
+    try {
+      const save = { ...defaultSave(), flags: { [questOfferedFlag(standIn)]: true } };
+      const said = questConversation('songstone-high', save)!;
+      expect(said.lines).toEqual(['Not this one yet! Talk to Hum first.']);
+      expect(said.finish).toBeNull();
+    } finally {
+      QUESTS.pop();
+    }
+  });
+
+  it("Reso's own reminder for the low stone says \"me\", the quest log names her", () => {
+    let save = onCliffs();
+    save = converse('songstone-high', save);
+    save = converse('songstone-middle', save);
+    expect(questConversation('cliff-reso', save)!.lines[0]).toMatch(/just west of me!$/);
+    expect(resolveHint(activeStep(byId(RESO_QUEST), save)!, save)).toMatch(/west of Reso\.$/);
+  });
+
+  it("Shush's letter goes to Librarian Sage in Lumina Village, whose reply goes back for 50 coins and a feather", () => {
+    let save = converse('quiet-shush', { ...defaultSave(), zoneId: 'quiet-quarter' });
+    expect(save.questItems).toEqual(['shush-letter']);
+    // In Lumina Village's Library, Sage takes the letter and hands back a reply.
+    save = { ...save, zoneId: 'lumina-village' };
+    expect(questConversation('hub-librarian', save)!.finishKind).toBe('step');
+    save = converse('hub-librarian', save);
+    expect(save.questItems).toEqual(['sage-letter']);
+    const { coins } = save;
+    save = converse('quiet-shush', { ...save, zoneId: 'quiet-quarter' });
+    expect(save.flags[questDoneFlag(byId(SHUSH_QUEST))]).toBe(true);
+    expect(save.questItems).toEqual([]);
+    expect(save.coins).toBe(coins + 50);
   });
 });

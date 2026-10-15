@@ -187,6 +187,15 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   blot: { id: 'blot', name: 'Blot', sprite: '⚫', topic: 'words', levelOffset: -1, hpPerLevel: 10 },
   'cuttle-scribe': { id: 'cuttle-scribe', name: 'Cuttle-Scribe', sprite: '🦑', topic: 'words', levelOffset: 0, hpPerLevel: 13, behavior: 'healer' },
   'margin-shrimp': { id: 'margin-shrimp', name: 'Margin Shrimp', sprite: '🦐', topic: 'words', levelOffset: 1, hpPerLevel: 12 },
+  // --- Taleshore III (#75 item 15f) ---
+  // Songstone Cliffs (music): the Chime Gull dives before you can blink (swift).
+  'echo-bat': { id: 'echo-bat', name: 'Echo Bat', sprite: '🔊', topic: 'music', levelOffset: -1, hpPerLevel: 11 },
+  'chime-gull': { id: 'chime-gull', name: 'Chime Gull', sprite: '🔔', topic: 'music', levelOffset: 0, hpPerLevel: 12, behavior: 'swift' },
+  'drum-crab': { id: 'drum-crab', name: 'Drum Crab', sprite: '🥁', topic: 'music', levelOffset: 1, hpPerLevel: 13 },
+  // The Quiet Quarter (words): the Muffle Moth's woolly scarf soaks up the first hit (shielded).
+  hushling: { id: 'hushling', name: 'Hushling', sprite: '🤫', topic: 'words', levelOffset: -1, hpPerLevel: 10 },
+  'muffle-moth': { id: 'muffle-moth', name: 'Muffle Moth', sprite: '🦋', topic: 'words', levelOffset: 0, hpPerLevel: 13, behavior: 'shielded' },
+  'blank-sprite': { id: 'blank-sprite', name: 'Blank Sprite', sprite: '⬜', topic: 'words', levelOffset: 1, hpPerLevel: 12 },
   // The warden at the tip of Inkwell Cove's sandy point: beat it for the Second Chorus Key (keys.ts).
   'riddle-leviathan': { id: 'riddle-leviathan', name: 'The Riddle Leviathan', sprite: '🐋', topic: 'words', levelOffset: 1, hpPerLevel: 17, isBoss: true, role: 'warden' },
 };

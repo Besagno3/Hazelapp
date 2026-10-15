@@ -26,7 +26,7 @@ import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_STONES, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import { BOAT_HOME } from './boat';
@@ -1436,5 +1436,69 @@ describe('Taleshore II: the Story Reef and Inkwell Cove (#75 item 15e)', () => {
   it("Bess's shell shop has its own style and sells potions and Hint Feathers", () => {
     expect(cove.buildings!.map((b) => b.style)).toEqual(['shell']);
     expect(NPC_DEFS['ink-bess'].role).toBe('merchant');
+  });
+});
+
+describe('Taleshore III: Songstone Cliffs and the Quiet Quarter (#75 item 15f)', () => {
+  const tale = ZONES.taleshore;
+  const cliffs = ZONES['songstone-cliffs'];
+  const quarter = ZONES['quiet-quarter'];
+  const place = (name: string) => tale.places!.find((p) => p.name === name)!;
+
+  it('both are at the ends of road branches from Port Lantern, the way back on the road beside each icon', () => {
+    const fromTown = reach(tale, { from: { x: 30, y: 21 } });
+    for (const name of ['Songstone Cliffs', 'Quiet Quarter']) {
+      const p = place(name);
+      expect(p.byAir, name).toBeFalsy();
+      expect(touches(fromTown, p.x, p.y), name).toBe(true);
+      const back = ZONES[tale.exits.find((e) => e.x === p.x && e.y === p.y)!.to].exits[0];
+      expect(Math.abs(back.spawnX - p.x) + Math.abs(back.spawnY - p.y), name).toBe(1);
+      expect(tileAt(tale, back.spawnX, back.spawnY), name).toBe('=');
+    }
+  });
+
+  it('a music field and a words field at tier 6: a swift critter on the cliffs, a shielded one in the quarter', () => {
+    expect(cliffs.topic).toBe('music');
+    expect(quarter.topic).toBe('words');
+    const behavior = { 'songstone-cliffs': 'swift', 'quiet-quarter': 'shielded' } as const;
+    for (const z of [cliffs, quarter]) {
+      expect(z.kind).toBe('field');
+      expect(zoneTier(z.id)).toBe(6);
+      const critters = [...new Set(z.enemies.map((e) => e.defId))];
+      expect(critters, z.id).toHaveLength(3);
+      expect(critters.filter((d) => ENEMY_DEFS[d].behavior).map((d) => ENEMY_DEFS[d].behavior), z.id).toEqual([behavior[z.id as keyof typeof behavior]]);
+    }
+  });
+
+  it("each place's riddle-chest is behind its gate", () => {
+    for (const z of [cliffs, quarter]) {
+      const chests = z.map.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'C' ? [{ x, y }] : [])));
+      expect(chests, z.id).toHaveLength(1);
+      expect(touches(reach(z), chests[0].x, chests[0].y), z.id).toBe(false);
+      expect(touches(reach(z, { gates: 'open' }), chests[0].x, chests[0].y), z.id).toBe(true);
+    }
+  });
+
+  it("Reso's songstones are high, middle and low ledges — top, middle, bottom — each in reach, rung by its step", () => {
+    const at = (id: string) => cliffs.npcs.find((n) => n.defId === id)!;
+    const [high, middle, low] = ['songstone-high', 'songstone-middle', 'songstone-low'].map(at);
+    expect(high.y).toBeLessThan(10); // the top ledge, above the first cliff
+    expect(middle.y).toBeGreaterThan(11);
+    expect(middle.y).toBeLessThan(20);
+    expect(low.y).toBeGreaterThan(20); // the bottom ledge, with Reso
+    for (const s of [high, middle, low]) expect(touches(reach(cliffs), s.x, s.y), s.defId).toBe(true);
+    const shown = (flags: Record<string, boolean>) => cliffs.npcs.filter((n) => n.defId.startsWith('songstone') && npcPresent(n, flags)).map((n) => n.defId);
+    expect(shown({})).toEqual(['songstone-high', 'songstone-middle', 'songstone-low']);
+    expect(shown({ [stepFlag(RESO_STONES[0])]: true })).toEqual(['songstone-high-rung', 'songstone-middle', 'songstone-low']);
+    // A rung stone says which is next until that one rings too (round 1).
+    const said = (id: string, flags: Record<string, boolean>) => visibleLines(NPC_DEFS[id].lines, flags).map(lineText);
+    expect(said('songstone-high-rung', { [stepFlag(RESO_STONES[0])]: true })).toEqual([expect.stringMatching(/Next: the MIDDLE songstone/)]);
+    expect(said('songstone-high-rung', { [stepFlag(RESO_STONES[1])]: true })).toEqual([expect.stringMatching(/still ringing: DIIING/)]);
+    expect(said('songstone-middle-rung', {})).toEqual([expect.stringMatching(/Last: the LOW songstone/)]);
+  });
+
+  it("the quarter's two buildings are its own style; Sotto sells there", () => {
+    expect(quarter.buildings!.map((b) => b.style)).toEqual(['hush', 'hush']);
+    expect(NPC_DEFS['quiet-sotto'].role).toBe('merchant');
   });
 });

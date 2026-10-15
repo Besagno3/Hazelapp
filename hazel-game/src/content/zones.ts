@@ -9,7 +9,7 @@ import taleshoreTmj from './maps/taleshore.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 import { ACT2_SEEN, FLIGHT_FLAG } from './story';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, YARN_STONES, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, RESO_STONES, YARN_STONES, questDoneFlag, stepFlag } from './questFlags';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -70,6 +70,9 @@ export const ZONE_IDS = [
   // Taleshore II (#75 item 15e): words.
   'story-reef',
   'inkwell-cove',
+  // Taleshore III (#75 item 15f): music, and the quiet.
+  'songstone-cliffs',
+  'quiet-quarter',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -158,7 +161,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell', 'hush'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -223,7 +226,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor', 'beach', 'compass', 'atoll', 'reef', 'inkwell'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor', 'beach', 'compass', 'atoll', 'reef', 'inkwell', 'cliffs', 'quarter'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -2222,6 +2225,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // the cove of black water in the east coast, along the road's branch.
       { x: 41, y: 3, icon: 'reef', name: 'Story Reef' },
       { x: 48, y: 17, icon: 'inkwell', name: 'Inkwell Cove' },
+      // Taleshore III (#75 item 15f): the cliffs at the foot of the mountains, east
+      // off the north road; the quarter in the eastern woods, east off the south road.
+      { x: 47, y: 10, icon: 'cliffs', name: 'Songstone Cliffs' },
+      { x: 47, y: 26, icon: 'quarter', name: 'Quiet Quarter' },
     ],
     exits: [
       { x: 28, y: 21, to: 'port-lantern', spawnX: 32, spawnY: 11 },
@@ -2230,6 +2237,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 13, y: 37, to: 'gale-atoll', spawnX: 21, spawnY: 2 },
       { x: 41, y: 3, to: 'story-reef', spawnX: 21, spawnY: 1 },
       { x: 48, y: 17, to: 'inkwell-cove', spawnX: 21, spawnY: 1 },
+      { x: 47, y: 10, to: 'songstone-cliffs', spawnX: 21, spawnY: 26 },
+      { x: 47, y: 26, to: 'quiet-quarter', spawnX: 21, spawnY: 1 },
     ],
     seaLinks: [{ side: 'west', to: 'silver-shallows' }],
   },
@@ -2645,6 +2654,145 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Back up the path, just west of the cove's icon on Taleshore.
       { x: 21, y: 0, to: 'taleshore', spawnX: 47, spawnY: 17 },
       { x: 22, y: 0, to: 'taleshore', spawnX: 47, spawnY: 17 },
+    ],
+  },
+  // Taleshore III (#75 item 15f): Songstone Cliffs, three ledges of humming stone
+  // climbed from the bottom up two stair ramps ('=', drawn as steps — the only
+  // path tiles here, 15f review). Choir-Mistress Reso's three songstones — high on the
+  // top ledge, middle, low — and the riddle-chest in a gated nook up top.
+  'songstone-cliffs': {
+    id: 'songstone-cliffs',
+    name: 'Songstone Cliffs',
+    kind: 'field',
+    topic: 'music',
+    map: [
+      '############################################',
+      '#....................................#######',
+      '#..,.................................#....##',
+      '#....................................#....##',
+      '#.................,..................#..C.##',
+      '#....................................G....##',
+      '#...........,...........,............G....##',
+      '#....................................#....##',
+      '#............................,.......#######',
+      '#..........................................#',
+      '##################################==########',
+      '##################################==########',
+      '#..........................................#',
+      '#...~~~....................................#',
+      '#...~~~....................................#',
+      '#...~~~.............,......................#',
+      '#..............,...........................#',
+      '#................................,.........#',
+      '#..........................................#',
+      '########==##################################',
+      '########==##################################',
+      '#..........................................#',
+      '#.......................................,..#',
+      '#.....,....................................#',
+      '#...............................~~~~~......#',
+      '#..........................,....~~~~~......#',
+      '#..............,................~~~~~......#',
+      '#####################EE#####################',
+    ],
+    ground: [118, 132, 116],
+    path: [168, 168, 176],
+    solidEmoji: '🪨',
+    decoEmoji: '🎵',
+    spawn: { x: 21, y: 26 },
+    npcs: [
+      { defId: 'cliff-reso', x: 18, y: 23 },
+      { defId: 'cliff-echo', x: 25, y: 12 },
+      { defId: 'cliff-hum', x: 28, y: 22 },
+      // Reso's songstones, high to low (#75 item 15f): each rings once struck in the
+      // song's order; a wrong note starts the song again, and they all go quiet.
+      { defId: 'songstone-high', x: 6, y: 6, unlessFlag: stepFlag(RESO_STONES[0]) },
+      { defId: 'songstone-high-rung', x: 6, y: 6, ifFlag: stepFlag(RESO_STONES[0]) },
+      { defId: 'songstone-middle', x: 30, y: 16, unlessFlag: stepFlag(RESO_STONES[1]) },
+      { defId: 'songstone-middle-rung', x: 30, y: 16, ifFlag: stepFlag(RESO_STONES[1]) },
+      { defId: 'songstone-low', x: 12, y: 24, unlessFlag: stepFlag(RESO_STONES[2]) },
+      { defId: 'songstone-low-rung', x: 12, y: 24, ifFlag: stepFlag(RESO_STONES[2]) },
+    ],
+    enemies: [
+      { defId: 'echo-bat', x: 14, y: 7 },
+      { defId: 'echo-bat', x: 40, y: 13 },
+      { defId: 'chime-gull', x: 25, y: 7 },
+      { defId: 'chime-gull', x: 38, y: 18 },
+      { defId: 'drum-crab', x: 14, y: 15 }, // clear of both stair mouths (15f round 3)
+      { defId: 'drum-crab', x: 37, y: 22 },
+    ],
+    exits: [
+      // Back down onto the north road, just west of the cliffs' icon.
+      { x: 21, y: 27, to: 'taleshore', spawnX: 46, spawnY: 10 },
+      { x: 22, y: 27, to: 'taleshore', spawnX: 46, spawnY: 10 },
+    ],
+  },
+  // The Quiet Quarter (#75 item 15f): an old town quarter in Taleshore's eastern
+  // woods where the Hush Fiend's silence pools — Librarian Shush's reading room,
+  // Sotto's whisper shop, hedged courtyards and a gated quiet garden with the
+  // riddle-chest. Everyone here talks in whispers.
+  'quiet-quarter': {
+    id: 'quiet-quarter',
+    name: 'Quiet Quarter',
+    the: true,
+    kind: 'field',
+    topic: 'words',
+    map: [
+      '#####################EE#####################',
+      '#....................==....................#',
+      '#..,.................==................,...#',
+      '#....WWWWWWWWW.......==......WWWWWWW.......#',
+      '#....WBFBFBFBW..#....==...,..WFBFBFW.......#',
+      '#....WFFFFFFFW.......==......WKKKKKW.......#',
+      '#....WFTFFFTFW....,..==......WFFFFFW.......#',
+      '#....WFFFFFFFW.......==......WWWDWWW.......#',
+      '#....WWWWDWWWW.......==.........=..........#',
+      '#........=...........==.........=..........#',
+      '#...#....=.......#...==...#.....=.....#....#',
+      '#........=...........==.........=..........#',
+      '#........=...........==.........=..........#',
+      '#..======================================..#',
+      '#..======================================..#',
+      '#....................==..,.................#',
+      '#.............,......==....................#',
+      '#..#####.####........==.......#####.#####..#',
+      '#..#.................==....#............#..#',
+      '#..#.,...............==.................#..#',
+      '#..#...........#.....==....,...##########..#',
+      '#..#..~~~~~..........==........#.......##..#',
+      '#..#..~~~~~..,.......==========G.......##..#',
+      '#..#..~~~~~..........==........G....C..##..#',
+      '#..#..~~~~~......#...==........#.......##..#',
+      '#..#.................==..#.....#.......##..#',
+      '#.................,..==........#########...#',
+      '############################################',
+    ],
+    ground: [120, 136, 140],
+    path: [170, 170, 180],
+    solidEmoji: '🌳',
+    decoEmoji: '🪻',
+    spawn: { x: 21, y: 1 },
+    buildings: [
+      { id: 'shush-room', name: "Shush's Reading Room", x: 5, y: 3, w: 9, h: 6, roof: 'purple', style: 'hush', sign: 'house' },
+      { id: 'whisper-shop', name: "Sotto's Whisper Shop", x: 29, y: 3, w: 7, h: 5, roof: 'dusk', style: 'hush', sign: 'shop' },
+    ],
+    npcs: [
+      { defId: 'quiet-shush', x: 9, y: 5 },
+      { defId: 'quiet-sotto', x: 32, y: 4 },
+      { defId: 'quiet-mime', x: 26, y: 16 },
+    ],
+    enemies: [
+      { defId: 'hushling', x: 6, y: 11 },
+      { defId: 'hushling', x: 37, y: 11 },
+      { defId: 'muffle-moth', x: 15, y: 22 },
+      { defId: 'muffle-moth', x: 27, y: 25 },
+      { defId: 'blank-sprite', x: 35, y: 19 },
+      { defId: 'blank-sprite', x: 12, y: 19 },
+    ],
+    exits: [
+      // Back out onto the south road's branch, just west of the quarter's icon.
+      { x: 21, y: 0, to: 'taleshore', spawnX: 46, spawnY: 26 },
+      { x: 22, y: 0, to: 'taleshore', spawnX: 46, spawnY: 26 },
     ],
   },
 };

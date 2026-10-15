@@ -1360,3 +1360,16 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1154 | U | ✅ | the last lit stone sends you to Yarn (#139k) | "Go and tell Tale-Fisher Yarn" until the quest is done, then "back where it belongs" (zones.test) |
 | TC-1155 | U | ✅ | focus on the tale-stone's screen (#139k) | after an answer focus is on "🔄 Ask me another!"; after it, the new question's dialog holds focus (PathQuestionOverlay.test) |
 | TC-1156 | U | ✅ | a stale riddle answered wrong (#139k) | no note, no "Ask me another", just "come back" (PathQuestionOverlay.test) |
+| TC-1157 | U | ✅ | Songstone Cliffs and the Quiet Quarter are walked to (#140a) | from Port Lantern's road; each exit lands on the road beside its icon (zones.test) |
+| TC-1158 | U | ✅ | music and words fields at tier 6, one archetype each (#140b) | the Chime Gull swift, the Muffle Moth shielded; each riddle-chest behind its gate (zones.test) |
+| TC-1159 | U | ✅ | Reso's song in order (#140d) | high, middle, low ledges, each rung by its step; struck in order, Reso pays 45 coins and a potion (zones.test, quests.test) |
+| TC-1160 | U | ✅ | a wrong note starts the song again (#140d) | the low stone before the middle: "BWOOONG! A wrong note…", every song step un-done, the hint the high stone's; then sung again from the top (quests.test) |
+| TC-1161 | U | ✅ | Shush's letter round trip (#140e) | the letter given on the offer; Librarian Sage in Lumina Village swaps it for a reply; Shush takes it for 50 coins (quests.test) |
+| TC-1162 | U | ✅ | Sotto's shop (#140c) | the quarter's two buildings are `hush`; candles have three sellers at one price (zones.test, items.test) |
+| TC-1163 | M | ⬜ | Reso's song on the real canvas | strike high → middle → low; the stones glow as they ring; strike the low one early: they all go quiet |
+| TC-1164 | U | ✅ | a wrong note with nothing rung (#140h) | "🔔 Bwong… not yet!" and the high stone's hint; no finish, nothing written (quests.test) |
+| TC-1165 | U | ✅ | a rung stone names the next (#140h) | the high one says "Next: the MIDDLE" until it rings, the middle one "Last: the LOW" (zones.test) |
+| TC-1166 | U | ✅ | 📚 Library still delivers Shush's letter (#140h) | holding the letter, Sage's last line → 📚 Library: the reply in hand, the step done, the Library opens (DialogueOverlay.test) |
+| TC-1167 | U | ✅ | song quests are whole songs (#140i) | every quest with song steps has `wrongNote`; its song steps run from the first to the end (quests.test) |
+| TC-1168 | U | ✅ | a song stone before its song is due (#140j) | a stand-in quest with a talk step first: the high stone says "Not this one yet! Talk to Hum first.", nothing un-done (quests.test) |
+| TC-1169 | M | ⬜ | the cliffs read as a climb (#140k) | on the canvas: the two-row walls read as one cliff face, the ramps as grey steps, both flights clear of critters |

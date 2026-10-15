@@ -20,7 +20,8 @@ describe('shops (#73: every store is unique)', () => {
       expect(new Set(prices).size, `${id} priced the same everywhere`).toBe(1);
     }
     // Glimmer Candles: the Marsh's raft shop, and Wick-Wax's for the Latitude Cats (#75 item 15d).
-    expect(sellers('candle').map((s) => s.name).sort()).toEqual(["Slosh's Raft Shop", "Wick-Wax's Candle Shop"]);
+    // …and Sotto's, for the dark Quiet Quarter (#75 item 15f).
+    expect(sellers('candle').map((s) => s.name).sort()).toEqual(["Slosh's Raft Shop", "Sotto's Whisper Shop", "Wick-Wax's Candle Shop"]);
     // Home, Verdara and — on the far continent — Port Lantern (#75 item 15c).
     expect(sellers('potion').map((s) => s.name).sort()).toEqual(["Bess's Shell Shop", "Maple's Trading Post", "Tadpole's Tonics", "Tass's Kite Stall", "Wick-Wax's Candle Shop"]);
     // Hint Feathers: Numbria, and Inkwell Cove for the Riddle Leviathan (#75 item 15e).

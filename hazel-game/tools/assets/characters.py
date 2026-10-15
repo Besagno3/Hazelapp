@@ -478,8 +478,15 @@ def humanoid(c: Canvas, p: Pose, s: dict):
 
 
 def _shell_bits(d, s, lean, bob):
-    """Barnacle Bess (#75 item 15e review): a pink scallop clip in her hair and
-    two grey barnacles on her apron — only for a character with `shells`."""
+    """Little extras on a person: Barnacle Bess's pink scallop clip and two grey
+    barnacles (`shells`, #75 item 15e review); Reso's music note (`tune`, 15f)."""
+    if s.get('tune'):
+        # Choir-Mistress Reso (15f round 3): a gold music note by her head.
+        n = d.part(lean, bob)
+        n.ellipse(24.6, 7.4, 1.6, 1.3, '#ffc828', shade=False)
+        n.line(25.9, 7.4, 25.9, 2.4, '#ffc828', w=0.8)
+        n.line(25.9, 2.4, 28, 3.6, '#ffc828', w=0.8)
+        d.put(n)
     if not s.get('shells'):
         return
     sh = d.part(lean, bob)
@@ -993,6 +1000,34 @@ def flyer(c: Canvas, p: Pose, s: dict):
         L.ellipse(14, 12 + flap * 0.5, 3.5, 5.0, (220, 240, 255), rot=-0.4)
     else:
         L.ellipse(14, 18 + flap * 0.5, 4.5, 3.4, wc, rot=0.3)
+    if s.get('bell'):
+        # A Chime Gull (#75 item 15f): a big gold bell hung under its beak (15f review: bigger).
+        L.line(23.4, 19, 23.4, 21, '#6a4a1a', w=0.8)
+        L.poly([(19.4, 28), (21, 21), (25.8, 21), (27.4, 28)], '#ffc828')
+        L.rect(19, 27.2, 27.8, 28.6, '#c89a1a')
+        L.dot(23.4, 29.4, '#6a4a1a', w=1.4, h=1.4)
+        L.poly([(17, 13.4), (18.4, 9.6), (19.8, 13.2)], '#ffc828')  # a gold crest (15f round 3: tell it from the Gull Scout)
+    if s.get('waves'):
+        # An Echo Bat (15f review): sound waves rippling out from its ears.
+        for r in (2.6, 4.4):
+            L.line(11 - r, 9.4 - r * 0.4, 11 - r * 0.6, 7 - r, '#e8e0ff', w=0.6)
+            L.line(24 + r * 0.6, 7 - r, 24 + r, 9.4 - r * 0.4, '#e8e0ff', w=0.6)
+    if s.get('tune'):
+        # Hum (15f round 3): a gold music note floating by its head — a friend who hums.
+        L.ellipse(25.6, 9.4, 1.8, 1.4, '#ffc828', shade=False)
+        L.line(27, 9.4, 27, 3.6, '#ffc828', w=0.9)
+        L.line(27, 3.6, 29.4, 5, '#ffc828', w=0.9)
+    if s.get('stripes') and kind == 'bee':
+        # Hum (15f review): black stripes and a little stinger, so it reads as a bee.
+        for x in (14, 17.5):
+            L.rect(x, 14, x + 1.6, 24, '#2a2230', shade=False)
+        L.poly([(9.6, 19), (6.4, 20), (9.6, 21)], '#2a2230')
+    if s.get('scarf'):
+        # A Muffle Moth (#75 item 15f): wrapped in a woolly scarf, so its wings make no sound.
+        L.rect(11, 13, 21, 16, '#9a9aa4')  # a grey woolly scarf, wide enough to see on the map
+        L.rect(17.4, 15.6, 19.6, 21, '#9a9aa4')
+        for x in (12.4, 15, 17.6):
+            L.line(x, 13.2, x, 15.8, '#7a7a84', w=0.4)  # its knit
     d.put(L)
     finish(c, d, shadow=(16, 30.5, 5.5, 1.3))
 
@@ -1069,6 +1104,27 @@ def cuttlefish(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(14, 30, 8, 1.2))
 
 
+def blank_sprite(c: Canvas, p: Pose, s: dict):
+    """A Blank Sprite (#75 item 15f): a floating sheet of empty paper, its corner
+    curled, a sleepy blank face — it wipes the words off things."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#f4f4f0'))
+    hover = -1.5 if p.frame % 2 else 0
+    L = d.part(d.lean, d.bob + hover)
+    L.poly([(8, 8), (22, 7), (24, 22), (10, 24)], col)
+    L.poly([(22, 7), (24, 22), (20.6, 19.4), (19.6, 9)], dark(col, 0.08))
+    L.poly([(8, 8), (11.4, 8.2), (8.4, 11.4)], dark(col, 0.18))  # a curled corner
+    for y in (11.4, 20.4, 22.4):
+        L.line(10.6, y, 21.4, y - 0.4, '#5a8ad8', w=0.6)  # clear blue ruled lines: a blank page
+    L.poly([(8, 8), (13, 8.2), (8.6, 13.4)], '#d8d8e0')  # a big folded corner
+    for x in (13.6, 18):
+        L.dot(x, 14.6, '#3a3a4a', w=1.4, h=1.4)  # round dot eyes (15f review: not a skull)
+    L.line(14.4, 17.4, 15.8, 18.2, '#c86a7a', w=0.5)  # a small smile
+    L.line(15.8, 18.2, 17.4, 17.4, '#c86a7a', w=0.5)
+    d.put(L)
+    finish(c, d, shadow=(16, 30, 6, 1.1))
+
+
 def shrimp(c: Canvas, p: Pose, s: dict):
     """A Margin Shrimp (#75 item 15e): a curled, segmented shrimp — a fan tail
     tucked under, little legs, long feelers sweeping forward, no claws."""
@@ -1116,6 +1172,14 @@ def crab(c: Canvas, p: Pose, s: dict):
         L.line(5, 18, 14, 9, dark(sh, 0.35), w=1.4)
         L.line(4, 13, 11, 6, dark(sh, 0.35), w=1.2)
         L.line(8, 21, 16, 13, dark(sh, 0.35), w=1.2)
+    if s.get('drum'):
+        # A Drum Crab (#75 item 15f): a little red drum on its back, two sticks.
+        L.rect(9, 9, 22, 17, '#d03a3a')
+        L.ellipse(15.5, 9, 6.6, 2, '#f4ecd8')
+        for x in (11, 15, 19):
+            L.line(x - 1.4, 10.6, x + 1.4, 16, '#ffd24a', w=0.5)
+        L.line(17, 6, 22, 2, '#8a5a2a', w=0.7)
+        L.line(14, 6, 10, 2.4, '#8a5a2a', w=0.7)
     if s.get('stars'):
         L.dot(12, 20, '#ffe066', w=2, h=2)
         L.dot(19, 19, '#ffffff')
@@ -1497,7 +1561,17 @@ def ghost(c: Canvas, p: Pose, s: dict):
     L.ellipse(arm_x, 17, 2.6, 2.0, col)
     ex = face_x(p, [17, 20.5], [13.5, 18])
     d.eyes(L, [(x, 12) for x in ex], color=hexc(s.get('eye', '#1e1628')))
-    if d.sep and ex:
+    if s.get('hush') and ex:
+        # A Hushling (#75 item 15f): a finger held to its closed lips — shhh! (15f review: a
+        # warm finger that shows on its pale body, and a little "shh" squiggle).
+        mx = ex[0] + 1.6
+        L.line(mx - 2.2, 17, mx + 2.2, 17, dark(col, 0.6), w=1.0)
+        L.line(mx, 18.6, mx, 14.6, '#e8b088', w=1.8)  # a short finger at its lips (round 4: not a long stripe)
+        L.ellipse(mx, 19.6, 2.2, 1.8, '#e8b088')  # and a little hand
+        if d.sep:
+            for i in range(3):
+                L.line(25 + i * 1.2, 9 + (i % 2), 26 + i * 1.2, 8 - (i % 2), dark(col, 0.4), w=0.5)
+    elif d.sep and ex:
         L.ellipse(ex[0] + 2, 17, 1.4, 1.1, dark(col, 0.45), shade=False)
     d.put(L)
     if s.get('moon'):
@@ -3542,7 +3616,21 @@ def nameless_stone(c: Canvas, p: Pose, s: dict):
     L.rect(9, 27, 23, 29.5, dark(col, 0.15))
     if d.sep:
         L.ellipse(13, 18, 1.6, 4, light(col, 0.12), shade=False)
-    if s.get('tale'):
+    if s.get('notes'):
+        # A songstone (#75 item 15f): music notes carved down its face — gold once it's rung.
+        ink = s.get('glow') or '#f4f8ff'  # white notes on the dim stone (15f round 4: it read as a gravestone)
+        for (x, y) in ((13, 17), (18, 24)):  # two big ♪ (15f review: they read as a lightning bolt)
+            L.ellipse(x, y, 2.2, 1.7, ink, shade=False)
+            L.line(x + 1.9, y, x + 1.9, y - 6, ink, w=0.9)
+            L.line(x + 1.9, y - 6, x + 4.2, y - 4.4, ink, w=0.9)
+    elif s.get('face'):
+        # Echo-of-Echo (#75 item 15f): a stone face with a big round mouth, always mid-echo.
+        for x in (13, 19):
+            L.ellipse(x, 15, 1.4, 1.2, '#2a2a34', shade=False)
+        L.ellipse(16, 21.5, 2.4, 2.8, '#2a2a34', shade=False)
+        L.line(11.4, 12.4, 14.4, 12.8, dark(col, 0.4), w=0.6)
+        L.line(17.6, 12.8, 20.6, 12.4, dark(col, 0.4), w=0.6)
+    elif s.get('tale'):
         # A tale-stone (#75 item 15e): lines of words carved down its face — gold once it glows.
         ink = s.get('glow') or dark(col, 0.35)
         for y in (13, 16, 19, 22, 25):
@@ -3699,6 +3787,7 @@ DRAWERS = {
     'flyer': flyer,
     'crab': crab,
     'shrimp': shrimp,
+    'blank_sprite': blank_sprite,
     'leviathan': leviathan,
     'cuttlefish': cuttlefish,
     'dragon': dragon,
@@ -3909,6 +3998,13 @@ ROSTER: list[Char] = [
     Char('cuttle-scribe', '🦑', 'cuttlefish', H(color='#d8709a')),
     Char('margin-shrimp', '🦐', 'shrimp', H(color='#ff8a6a')),
     Char('riddle-leviathan', '🐋', 'leviathan', H(color='#3a3a7a'), boss=True),
+    # ── Act III: Taleshore III (#75 item 15f) ──
+    Char('echo-bat', '🔊', 'flyer', H(kind='bat', color='#2a8a9a', wing='#5ac0c8', waves=True)),
+    Char('chime-gull', '🔔', 'flyer', H(kind='bird', color='#f4f4f8', wing='#c8d0dc', bell=True)),
+    Char('drum-crab', '🥁', 'crab', H(color='#e8a05a', drum=True)),
+    Char('hushling', '🤫', 'ghost', H(color='#a8c8f0', eye='#2a3a5a', hush=True)),
+    Char('muffle-moth', '🦋', 'flyer', H(kind='moth', color='#6a5a4a', wing='#fbf4e4', spot='#d8c8a8', scarf=True)),
+    Char('blank-sprite', '⬜', 'blank_sprite', H(color='#f4f4f0')),
 ]
 
 NPCS: list[Char] = [
@@ -4052,6 +4148,15 @@ NPCS: list[Char] = [
     Char('reef-stone-lit', '🪨', 'nameless_stone', H(color='#c8d4dc', tale=True, glow='#ffd84a')),
     Char('ink-dot', '✒️', 'humanoid', H(hair='bob', hair_color='#2a2a3a', glasses=True, outfit='#3a3a6a', trim='#f4ecd8', item='book')),
     Char('ink-smudge', '🦑', 'octopus', H(color='#8ac8e8', friendly=True)),
+    # Taleshore III (#75 item 15f)
+    Char('cliff-reso', '🎶', 'humanoid', H(hair='bun', hair_color='#3a2a3a', outfit='#a03a6a', trim='#ffd860', robe=True, item='wand', item_color='#ffd860', tune=True)),
+    Char('cliff-echo', '🗿', 'nameless_stone', H(color='#a8a49a', face=True)),
+    Char('cliff-hum', '🐝', 'flyer', H(kind='bee', color='#fff0c0', stripes=True, scarf=True, tune=True)),
+    Char('songstone', '🪨', 'nameless_stone', H(color='#9ab0c8', notes=True)),
+    Char('songstone-rung', '🪨', 'nameless_stone', H(color='#c0d4e8', notes=True, glow='#ffd84a')),
+    Char('quiet-shush', '🤫', 'humanoid', H(hair='bun', hair_color='#8a8a98', glasses=True, outfit='#4a5a7a', trim='#c8d0e0', robe=True, item='book')),
+    Char('quiet-mime', '🎭', 'humanoid', H(skin='#f4f0f0', hair='short', hair_color='#1a1a1a', hat='cap', hat_color='#1a1a1a', outfit='#f4f4f4', trim='#1a1a1a', pants='#1a1a1a')),
+    Char('quiet-sotto', '🗣️', 'humanoid', H(hair='short', hair_color='#5a3a2a', hat='hood', hat_color='#5a3a6a', outfit='#6a4a7a', scarf='#c8a040', pack='#8a6a4a')),
     Char('ink-bess', '🐚', 'humanoid', H(hair='bun', hair_color='#6a4a3a', hat='flower', outfit='#3a9ab0', apron='#f8e0d0', trim='#ff9ab0', item='lantern', shells=True)),
 ]
 # NPCs are world-only — except the ones who can join the party as battle

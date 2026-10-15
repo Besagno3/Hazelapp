@@ -4,7 +4,7 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -22,6 +22,8 @@ export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
  *                   something new — the item, changed (#75 item 13)
  * - escort steps  — walk someone through a place: they follow the hero and
  *                   wait while a critter is near (#75 item 14g, Posy)
+ * - song steps    — talk to things in order; talking to one out of turn is a
+ *                   wrong note that starts the song again (#75 item 15f, Reso)
  * - riddle steps  — talk to a thing that asks a question; a right answer
  *                   completes the step and says where the next one is — a
  *                   puzzle chain (#75 item 15e, Yarn's tale-stones)
@@ -64,6 +66,9 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'seaglass-gold': { id: 'seaglass-gold', name: 'Gold Sea-Glass', emoji: '💛' },
   // The Lantern Ledger (#75 item 14g): Brume's little book, in a key-item chest in Foglight Marsh.
   'lantern-ledger': { id: 'lantern-ledger', name: 'Lantern Ledger', emoji: '📒' },
+  // The Pen-Pal Papers (#75 item 15f): Shush's letter, and Librarian Sage's reply.
+  'shush-letter': { id: 'shush-letter', name: "Shush's Letter", emoji: '✉️' },
+  'sage-letter': { id: 'sage-letter', name: "Librarian Sage's Reply", emoji: '📨' },
   // Ness's Lens (#75 item 14i): sea glass from Sandpiper Cay, ground by Shelby.
   'sea-glass': { id: 'sea-glass', name: 'Sea Glass', emoji: '🧊' },
   'sea-glass-lens': { id: 'sea-glass-lens', name: 'Sea-Glass Lens', emoji: '🔍' },
@@ -128,6 +133,13 @@ export interface QuestStep {
    * and `solved` — the clue to the next step — shows under the answer.
    */
   riddle?: { solved: string };
+  /**
+   * A song step (#75 item 15f): talked to out of turn while the song is due,
+   * its thing is a wrong note — every song step of its quest is un-done and the
+   * song starts again (roadmap decision 14: no timers, the song just restarts).
+   * Before the song is due, it's an ordinary "not this one yet".
+   */
+  song?: boolean;
 }
 
 /**
@@ -175,6 +187,13 @@ export interface QuestDef {
   doneLine?: string;
   /** The offer when you already carry one of `items` (found the thing before meeting them). */
   offerHaving?: { items: string[]; lines: string[] };
+  /**
+   * A song quest's wrong notes (#75 item 15f review): struck out of turn before
+   * anything rings (`early`), and after something has rung, so the song starts
+   * again (`again`). Each is followed by the first song step's hint. Every
+   * quest with song steps needs one (quests.test checks).
+   */
+  wrongNote?: { early: string; again: string };
   /** Only offered once this story flag is set (Act II's quests wait for `act2-seen`, #75 item 14). */
   requires?: string;
   steps: QuestStep[];
@@ -295,6 +314,14 @@ function bringStep(
  */
 function escortStep(id: string, escort: EscortDef, hint: string | ((save: SaveData) => string)): QuestStep {
   return { id, hint, escort, isComplete: (save) => save.flags[stepFlag(id)] === true };
+}
+
+/**
+ * Strike a thing in a song (#75 item 15f): like a talk step, but struck out of
+ * turn it's a wrong note, and the song starts again from its first step.
+ */
+function songStep(id: string, npcId: string, lines: string[], hint: string, remind?: string): QuestStep {
+  return { id, hint, remind, npc: { id: npcId, lines }, song: true, isComplete: (save) => save.flags[stepFlag(id)] === true };
 }
 
 /**
@@ -1173,6 +1200,88 @@ export const QUESTS: QuestDef[] = [
     reward: { coins: 45, hint: 1 },
   },
 
+  // --- Taleshore III (#75 item 15f) -----------------------------------------------
+
+  // A song in order: three songstones, high to low. A wrong note just starts the song again.
+  {
+    id: RESO_QUEST,
+    zoneId: 'songstone-cliffs',
+    giverNpcId: 'cliff-reso',
+    side: true,
+    title: 'Ring the Songstones',
+    offer: [
+      "Ah, a listener! I'm Choir-Mistress Reso.",
+      'These cliffs sing a song on three songstones — high, middle, low. But the song is stuck!',
+      'Walk up to each stone and press Space to ring it: the HIGH one on the top ledge, then the MIDDLE, then the LOW one down here. A wrong note? We just start again!',
+    ],
+    wrongNote: {
+      early: '🔔 Bwong… not yet!',
+      again: '🔔 BWOOONG! Wrong note — start again from the top!',
+    },
+    steps: [
+      songStep(
+        RESO_STONES[0],
+        'songstone-high',
+        ['🔔 DIIING! The high songstone rings! Next: the MIDDLE songstone, on the middle ledge to the east.'],
+        'First the HIGH songstone — on the top ledge, in the west. Climb the west steps, then the east steps!',
+      ),
+      songStep(
+        RESO_STONES[1],
+        'songstone-middle',
+        ['🔔 DOOONG! Two notes ring together! Last: the LOW songstone — go down the west steps. It\'s just west of Reso.'],
+        'Next the MIDDLE songstone — on the middle ledge, near the east steps.',
+      ),
+      songStep(
+        RESO_STONES[2],
+        'songstone-low',
+        ['🔔 BOOOM! The low songstone rings. Three notes ring as one song — the cliffs are singing! Go tell Reso!'],
+        'Last the LOW songstone — on the bottom ledge, just west of Reso.',
+        'Last the LOW songstone — down here on the bottom ledge, just west of me!',
+      ),
+    ],
+    complete: [
+      'Listen! High, middle, low — the cliffs are singing again!',
+      'My choir can practise at last. Thank you, little listener.',
+      '✨ Reward: 45 coins and a Berry Potion!',
+    ],
+    reward: { coins: 45, potion: 1 },
+  },
+
+  // A letter across the sea: Shush's to Librarian Sage in Lumina Village, and Sage's reply back.
+  {
+    id: SHUSH_QUEST,
+    zoneId: 'quiet-quarter',
+    giverNpcId: 'quiet-shush',
+    side: true,
+    title: 'The Pen-Pal Papers',
+    offer: [
+      "Shh… hello. I'm Shush, keeper of the Quiet Quarter's books.",
+      'I have a pen-pal far away: Librarian Sage, in Lumina Village. We wrote every week — until the fog came.',
+      'Would you carry my letter across the sea? Ember can fly over the fog. The post boats can\'t.',
+    ],
+    givesItem: 'shush-letter',
+    takesItems: ['sage-letter'],
+    doneLine: "Take Sage's reply back to Librarian Shush! Cast 🏠 Return to Port Lantern, go down the south road, then turn east into the woods.",
+    steps: [
+      bringStep(
+        'shush-deliver',
+        'hub-librarian',
+        { takes: 'shush-letter', gives: 'sage-letter' },
+        [
+          '📨 A letter… from Shush? From Taleshore?! I thought the fog had swallowed every letter!',
+          'Wait right there… There! I\'ve written back — a LONG reply, years of news. Please take it to Shush!',
+        ],
+        'Take the letter to Librarian Sage, in the Library at the east end of Lumina Village. Cast 🏠 Return from 📜 Menu, or fly home on Ember!',
+      ),
+    ],
+    complete: [
+      '📨 A reply from Sage! Shh, let me read it… Oh. Oh, how lovely.',
+      'Sage says Pudding, the Library cat, had kittens. FIVE!',
+      '✨ Reward: 50 coins and a Hint Feather!',
+    ],
+    reward: { coins: 50, hint: 1 },
+  },
+
   // --- Item chains (#75 item 13) ----------------------------------------------
 
   // Find a key item in a dungeon chest (behind the Echo Mine's dark — Glow),
@@ -1522,7 +1631,10 @@ function stepConversation(npcId: string, save: SaveData): QuestConversation | nu
 /**
  * A talk step's NPC talked to before its turn (#75 item 14g review: the north
  * lantern before the west one): "not this one yet", and the step that's due —
- * once the steps before have reached the talking part.
+ * once the steps before have reached the talking part. A song step struck out
+ * of turn (#75 item 15f) is a wrong note first: if any song step has rung they
+ * all go quiet and the song starts again; if none has, just "not yet". A step
+ * already done never counts — its thing is placed as another NPC (rung).
  */
 function earlyConversation(npcId: string, save: SaveData): QuestConversation | null {
   for (const q of QUESTS) {
@@ -1530,7 +1642,22 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
     const step = activeStep(q, save);
     if (!step) continue;
     const later = q.steps.slice(q.steps.indexOf(step) + 1);
-    if (later.some((st) => st.early && st.npc?.id === npcId)) {
+    // A wrong note (#75 item 15f): every song step goes quiet and the song starts again —
+    // only while the song itself is due (15f round 2: a step before it gets "not this one yet").
+    if (step.song && later.some((st) => st.song && st.npc?.id === npcId)) {
+      const song = q.steps.filter((st) => st.song);
+      const rung = song.some((st) => st.isComplete(save));
+      // Every quest with song steps has its own wrong notes (quests.test checks).
+      const note = rung ? q.wrongNote!.again : q.wrongNote!.early;
+      const quiet = Object.fromEntries(song.map((st) => [stepFlag(st.id), false]));
+      return {
+        lines: [`${note} ${resolveHint(song[0], save)}`],
+        badge: q.title,
+        finishKind: null,
+        finish: rung ? (s) => ({ ...s, flags: { ...s.flags, ...quiet } }) : null,
+      };
+    }
+    if (later.some((st) => (st.early || st.song) && st.npc?.id === npcId)) {
       // Another of its kind first ("Not this one yet!"), or something to find first — the Ledger (#75 item 14g UX review).
       return { lines: [`${step.npc ? 'Not this one yet!' : 'Not yet!'} ${resolveHint(step, save)}`], badge: q.title, finishKind: null, finish: null };
     }

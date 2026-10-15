@@ -52,6 +52,17 @@ export const YARN_QUEST = 'yarn-tale';
 export const YARN_STONES = ['yarn-stone-1', 'yarn-stone-2', 'yarn-stone-3'] as const;
 
 /**
+ * Ring the Songstones (#75 item 15f): Reso's quest and its three song steps,
+ * high to low — each a songstone on Songstone Cliffs, rung (`stepFlag`) in
+ * order; a wrong note clears them all and the song starts again.
+ */
+export const RESO_QUEST = 'reso-songstones';
+export const RESO_STONES = ['reso-high', 'reso-middle', 'reso-low'] as const;
+
+/** The Pen-Pal Papers (#75 item 15f): Librarian Shush's letters to Librarian Sage. */
+export const SHUSH_QUEST = 'shush-letters';
+
+/**
  * Set while an escort's walk is under way. Never kept: leaving the place,
  * a lost battle or a reload clears it, and the one being walked waits at the
  * start again (`normalizeSave` → `escortsBack`, `withoutEscorts`).
