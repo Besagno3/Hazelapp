@@ -26,7 +26,7 @@ import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import { BOAT_HOME } from './boat';
@@ -1418,7 +1418,11 @@ describe('Taleshore II: the Story Reef and Inkwell Cove (#75 item 15e)', () => {
     const two = { ...one, [stepFlag(YARN_STONES[1])]: true };
     expect(said('reef-stone-1-lit', two)).toEqual([expect.stringMatching(/back where it belongs/)]);
     expect(said('reef-stone-2-lit', two)).toEqual([expect.stringMatching(/SOUTH-WEST, to the sandbar/)]);
-    expect(said('reef-stone-2-lit', { ...two, [stepFlag(YARN_STONES[2])]: true })).toEqual([expect.stringMatching(/back where it belongs/)]);
+    const three = { ...two, [stepFlag(YARN_STONES[2])]: true };
+    expect(said('reef-stone-2-lit', three)).toEqual([expect.stringMatching(/back where it belongs/)]);
+    // The last one sends you home to Yarn until her tale is done (round 4).
+    expect(said('reef-stone-3-lit', three)).toEqual([expect.stringMatching(/Go and tell Tale-Fisher Yarn/)]);
+    expect(said('reef-stone-3-lit', { ...three, [questDoneFlag({ id: YARN_QUEST })]: true })).toEqual([expect.stringMatching(/back where it belongs/)]);
   });
 
   it("the shop's name plate is on screen as you arrive (round 3)", () => {

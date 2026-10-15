@@ -211,7 +211,7 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   'compass-golem': ['The Compass Golem spins its needle — NORTH, SOUTH, NORTH!', 'The Compass Golem booms: "ALL DIRECTIONS LEAD TO ME!"'],
   // It speaks only in riddles (STORY-4X), even when it's angry.
   'riddle-leviathan': [
-    'The Riddle Leviathan rises out of the ink: "What gets BIGGER the more you take away? A HOLE! And my waves get BIGGER too!"',
+    'The Riddle Leviathan slaps its tail on the sand: "What gets BIGGER the more you take away? A HOLE! And my waves get BIGGER too!"',
     'The Riddle Leviathan thrashes the black water: "What has no voice, yet SHOUTS from every page? MY WORDS! Now answer ME!"',
   ],
 };

@@ -957,7 +957,7 @@ describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
     expect(quest.steps.map((st) => st.npc?.id)).toEqual(stones);
     expect(quest.steps.every((st) => st.riddle)).toBe(true);
     // Each right answer points at the next stone's place, and the last sends you home to Yarn.
-    expect(riddleSolvedLine(YARN_STONES[0])).toMatch(/EAST, over the road, to the pool near the top/);
+    expect(riddleSolvedLine(YARN_STONES[0])).toMatch(/EAST, over the road, to the tide pool near the top/);
     expect(riddleSolvedLine(YARN_STONES[1])).toMatch(/sandbar/);
     expect(riddleSolvedLine(YARN_STONES[2])).toMatch(/tell Yarn/);
     expect(riddleSolvedLine('juno-walk')).toBeNull();
@@ -970,7 +970,7 @@ describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
     expect(convo.riddle).toBe(YARN_STONES[0]);
     expect(convo.finish).toBeNull();
     // Yarn's own reminder talks about herself as "me" (round 2), the quest log's names her.
-    expect(questConversation('reef-yarn', save)!.lines).toEqual(['Start with the tale-stone by the little pool, just west of me!']);
+    expect(questConversation('reef-yarn', save)!.lines).toEqual(['Start with the tale-stone by the little tide pool, just west of me!']);
     expect(resolveHint(activeStep(byId(YARN_QUEST), save)!, save)).toMatch(/west of Yarn/);
     // Closing the talk without answering leaves the step open.
     expect(activeStep(byId(YARN_QUEST), save)!.id).toBe(YARN_STONES[0]);
@@ -981,7 +981,7 @@ describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
     const early = questConversation('reef-stone-3', offered())!;
     expect(early.finishKind).toBeNull();
     // Said at another stone, so it names the place, not "here" (round 1).
-    expect(early.lines[0]).toMatch(/^Not this one yet! The first chapter is on the tale-stone by the little pool west of Yarn/);
+    expect(early.lines[0]).toMatch(/^Not this one yet! The first chapter is on the tale-stone by the little tide pool west of Yarn/);
     expect(early.lines[0]).not.toMatch(/here/);
   });
 

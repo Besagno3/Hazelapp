@@ -21,7 +21,8 @@ import ModalLayer from '../../components/ModalLayer';
  * question at the player's topic skill level; a correct answer opens the way /
  * pops the chest / finishes the step (and says where the next riddle is), a
  * miss closes gently (walk back up and try again — no penalty, a new question
- * each time).
+ * each time) — except a tale-stone, which offers another question on the spot.
+ * After an answer, focus goes to the button that carries on.
  */
 export default function PathQuestionOverlay({ target }: { target: PathTarget }) {
   const profile = useProfileStore((s) => s.profile);
@@ -72,13 +73,14 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
 
   const onAnswered = useCallback(
     (correct: boolean) => {
+      // A riddle whose step is no longer due (finished elsewhere) gives nothing —
+      // no glow, no XP, no "ask me another" (15e rounds 2 and 4).
+      const now = useSaveStore.getState().save;
+      if (target.kind === 'riddle' && (!now || solveRiddle(now, target.id) === now)) return;
       if (!correct) {
         if (target.kind === 'riddle') setMissed(true);
         return;
       }
-      // A riddle whose step is no longer due (finished elsewhere) gives nothing — no glow, no XP (15e round 2).
-      const now = useSaveStore.getState().save;
-      if (target.kind === 'riddle' && (!now || solveRiddle(now, target.id) === now)) return;
       setSolved(true);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
       void addXp(XP_PER_CORRECT);
@@ -116,7 +118,10 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   return (
     // Scrolls when a long riddle doesn't fit (a phone, landscape); the inner
     // column still centres when it does.
-    <ModalLayer label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? 'Tale-stone riddle' : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
+    <ModalLayer
+      // A new question (after "Ask me another" or Try again) pulls focus back in (15e round 4).
+      focusKey={requestKey}
+      label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? 'Tale-stone riddle' : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
       <div className="min-h-full flex flex-col items-center justify-center">
         <motion.h2
           initial={{ y: -16, opacity: 0 }}
@@ -159,6 +164,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
             hints={hints}
             onUseHint={spendHint}
             onAnswered={onAnswered}
+            focusContinue
             continueLabel={solved ? `✨ ${successText}` : missed ? '🔄 Ask me another!' : 'Hmm… I’ll come back!'}
             // A tale-stone asks again on the spot (15e round 3) — no walking back up to it.
             onContinue={() => {

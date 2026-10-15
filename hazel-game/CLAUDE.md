@@ -766,6 +766,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15e review round 4: a sea serpent, a cuttlefish, focus that follows (#75 item 15e, #139k)
+The last round. Fresh code (2 low, 3 nits) and UX (3 medium, 7 low) reviews,
+all fixed: the Riddle Leviathan a sea serpent rising from ink (`leviathan`),
+the Cuttle-Scribe a cuttlefish (`cuttlefish`), a clearer shrimp, Bess's
+shells; the third lit stone sends you to Yarn; "tide pool" throughout; focus
+moves to "🔄 Ask me another!" and back into the dialog with a new question
+(`QuestionCard` `focusContinue`, `ModalLayer` `focusKey`); a stale riddle
+answered wrong offers nothing. Tests +2; 1250 green.
+
 ### 2026-10-15 — 15e review round 3: lit stones that point on, ask me another (#75 item 15e, #139j)
 Fresh code (3 low, 3 nits) and UX (2 medium, 8 low) reviews, all fixed: a
 lit stone repeats the way to the next; a wrong answer offers "🔄 Ask me

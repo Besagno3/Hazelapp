@@ -1923,6 +1923,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       'Bloop says hello! Bloop is a fish. Bloop is a very good fish.',
+      'Bloop is a fish on the sand. Bloop likes the view. Bloop will hop back in soon.',
       'Bloop saw a Word Eel today. Bloop swam away. Bloop is fast. Bloop is brave. Mostly fast.',
       { text: "Bloop heard Yarn's tale is lost on three stones. Bloop would help, but Bloop can't read. Bloop is a fish.", ifFlag: questOfferedFlag({ id: YARN_QUEST }), unlessFlag: questDoneFlag({ id: YARN_QUEST }) },
     ],
@@ -1951,7 +1952,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     // Says where the next stone is until that one glows too (15e round 3: the clue shows once, after the answer).
     lines: [
-      { text: '🪨 The stone glows. Its words float EAST, over the road, to the pool near the top of the reef!', unlessFlag: stepFlag(YARN_STONES[1]) },
+      { text: '🪨 The stone glows. Its words float EAST, over the road, to the tide pool near the top of the reef!', unlessFlag: stepFlag(YARN_STONES[1]) },
       { text: '🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.', ifFlag: stepFlag(YARN_STONES[1]) },
     ],
   },
@@ -2003,7 +2004,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     prop: true,
     stationary: true,
-    lines: ['🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.'],
+    // Sends you home to Yarn until her tale is done (15e round 4).
+    lines: [
+      { text: '🪨 The stone glows. The whole tale is back! Go and tell Tale-Fisher Yarn, at the top of the reef.', unlessFlag: questDoneFlag({ id: YARN_QUEST }) },
+      { text: '🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.', ifFlag: questDoneFlag({ id: YARN_QUEST }) },
+    ],
   },
   // Inkwell Cove: Scrivener Dot (the Leviathan's signpost), Smudge the little
   // squid, and Barnacle Bess's shell shop.

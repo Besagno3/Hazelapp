@@ -473,7 +473,22 @@ def humanoid(c: Canvas, p: Pose, s: dict):
     hand = d.part(lean, bob)
     hand.ellipse(hx, hy, 1.6, 1.6, skin)
     d.put(hand)
+    _shell_bits(d, s, lean, bob)
     finish(c, d)
+
+
+def _shell_bits(d, s, lean, bob):
+    """Barnacle Bess (#75 item 15e review): a pink scallop clip in her hair and
+    two grey barnacles on her apron — only for a character with `shells`."""
+    if not s.get('shells'):
+        return
+    sh = d.part(lean, bob)
+    sh.ellipse(19.5, 5.4, 1.8, 1.5, '#ff9ab8')
+    sh.line(19.5, 4.2, 19.5, 6.6, '#d0607a', w=0.4)
+    for (x, y) in ((14.2, 21.2), (16.8, 23.4)):
+        sh.ellipse(x, y, 1.2, 1.0, '#a8a8b0', shade=False)
+        sh.dot(x, y, '#5a5a66', w=0.6, h=0.6)
+    d.put(sh)
 
 
 def humanoid_fb(c: Canvas, p: Pose, s: dict):
@@ -723,6 +738,7 @@ def humanoid_fb(c: Canvas, p: Pose, s: dict):
         else:
             draw_item(it, item, hx, hy, 'rest', s.get('item_color'))
         d.put(it)
+    _shell_bits(d, s, 0, 0)
     finish(c, d)
 
 
@@ -984,6 +1000,75 @@ def flyer(c: Canvas, p: Pose, s: dict):
 # ─── Crab ────────────────────────────────────────────────────────────────────
 
 
+def leviathan(c: Canvas, p: Pose, s: dict):
+    """The Riddle Leviathan (#75 item 15e review): not a whale — a sea serpent
+    rising out of a puddle of ink, two coils of its back behind it, a long neck,
+    a jaw full of pages and a big white "?" crest. The Second Chorus Key hangs
+    from its first coil."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#3a3a7a'))
+    wave = p.frame % 2
+    rear = -2 if p.arm in ('raise', 'strike') else 0
+    L = d.part(d.lean, d.bob)
+    for (x, y, rx, ry) in ((5, 25.5, 3.6, 4.2), (11, 24.5, 3.8, 5.2)):  # coils of its back
+        L.ellipse(x, y, rx, ry, col)
+        L.poly([(x - 1.4, y - ry + 0.8), (x, y - ry - 2.4), (x + 1.4, y - ry + 0.8)], light(col, 0.2))
+    L.line(18, 27, 21, 13 + rear, col, w=5)  # the neck
+    L.line(19.4, 26, 22, 14 + rear, light(col, 0.18), w=1.2)
+    hy = 10 + rear
+    L.ellipse(23, hy, 6.4, 4.4, col)  # the head
+    L.poly([(25, hy + 1.6), (31, hy + 2.6 + wave), (25.6, hy + 4.8)], dark(col, 0.2))  # the lower jaw
+    L.rect(26, hy + 1.8, 29.6, hy + 2.8 + wave * 0.5, '#f4ecd8', shade=False)  # pages in its mouth
+    L.line(26.6, hy + 2.3, 29, hy + 2.3, '#8a7a6a', w=0.3)
+    # A big white "?" crest on its head.
+    L.line(19.4, hy - 6.4, 21.2, hy - 8.4, '#ffffff', w=1.3)
+    L.line(21.2, hy - 8.4, 23.4, hy - 7.4, '#ffffff', w=1.3)
+    L.line(23.4, hy - 7.4, 22.8, hy - 5.4, '#ffffff', w=1.3)
+    L.line(22.8, hy - 5.4, 21.6, hy - 4.6, '#ffffff', w=1.3)
+    L.dot(21.6, hy - 2.6, '#ffffff', w=1.4, h=1.4)
+    d.eyes(L, [(24.6, hy - 0.8)], color=(255, 220, 90))
+    # The key on its first coil.
+    L.ellipse(5, 19.6, 1.4, 1.4, '#e8ecf4')
+    L.line(5, 20.8, 5, 23.6, '#e8ecf4', w=0.8)
+    L.line(5, 22.6, 6.2, 22.6, '#e8ecf4', w=0.6)
+    d.put(L)
+    ink = d.part(0, 0)
+    ink.ellipse(13, 29.4, 13, 2.4, '#14142a', shade=False)  # the puddle of ink it rises from
+    ink.ellipse(8, 29, 3, 0.8, '#3a3a5a', shade=False)
+    d.put(ink, outline=False)
+    finish(c, d)
+
+
+def cuttlefish(c: Canvas, p: Pose, s: dict):
+    """A Cuttle-Scribe (#75 item 15e review): a cuttlefish, not an octopus — a flat
+    oval body with a frilly fin all round it, short arms in front, W-shaped eyes,
+    and a white quill held out to write with."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#d8709a'))
+    ripple = 0.6 if p.frame % 2 else -0.6
+    hover = -1 if p.frame % 2 else 0
+    L = d.part(d.lean, d.bob + hover)
+    L.ellipse(14, 17, 11.4, 6.4 + ripple * 0.3, light(col, 0.3))  # the fin skirt
+    L.ellipse(14, 17, 9.6, 5, col)  # the body
+    for (x, y) in ((8, 15.6), (12, 14.4), (16, 14.6)):
+        L.dot(x, y, dark(col, 0.18), w=1.6, h=1.2)  # its stripes
+    for i, ay in enumerate((15.4, 17.4, 19.4)):
+        L.line(23, ay, 28, ay + (ripple if i % 2 else -ripple), dark(col, 0.06), w=1.3)  # short arms in front
+    ex = 20.4
+    L.ellipse(ex, 15.6, 1.9, 1.6, '#ffffff', shade=False)
+    L.line(ex - 1.2, 15.2, ex - 0.4, 16.4, '#1a1a24', w=0.6)  # a W-shaped pupil
+    L.line(ex - 0.4, 16.4, ex, 15.6, '#1a1a24', w=0.6)
+    L.line(ex, 15.6, ex + 0.4, 16.4, '#1a1a24', w=0.6)
+    L.line(ex + 0.4, 16.4, ex + 1.2, 15.2, '#1a1a24', w=0.6)
+    d.put(L)
+    q = d.part(d.lean, d.bob + hover)  # the quill, held out in one arm
+    tip = (31, 6) if p.arm in ('raise', 'strike') else (30, 10)
+    q.poly([(27.6, 18), (tip[0], tip[1]), (tip[0] + 1.2, tip[1] + 1.4), (28.6, 18.6)], '#f4f4f8')
+    q.dot(28, 18.6, '#2a2440', w=1, h=1)
+    d.put(q)
+    finish(c, d, shadow=(14, 30, 8, 1.2))
+
+
 def shrimp(c: Canvas, p: Pose, s: dict):
     """A Margin Shrimp (#75 item 15e): a curled, segmented shrimp — a fan tail
     tucked under, little legs, long feelers sweeping forward, no claws."""
@@ -995,6 +1080,8 @@ def shrimp(c: Canvas, p: Pose, s: dict):
     segs = ((22, 17, 5.2, 4.6), (17.5, 15.6, 4.6, 4.4), (13, 16.2, 4.2, 4.0), (9.4, 18.6, 3.6, 3.4), (7.4, 22, 3.0, 2.8))
     for (x, y, rx, ry) in segs:
         L.ellipse(x, y, rx, ry, col)
+    for (x, y, rx, ry) in segs:
+        L.ellipse(x, y + ry * 0.45, rx * 0.8, ry * 0.4, light(col, 0.35), shade=False)  # a pale belly
     for (x, y, _rx, ry) in segs[1:]:
         L.line(x + 1.2, y - ry + 0.6, x + 1.8, y + ry - 0.8, dark(col, 0.22), w=0.5)
     L.poly([(7.4, 24), (3.4, 27 + flick), (7.6, 26.2), (11.4, 27.8 + flick)], light(col, 0.12))  # the fan tail
@@ -1006,8 +1093,10 @@ def shrimp(c: Canvas, p: Pose, s: dict):
     d.put(L)
     F = d.part(d.lean, d.bob)
     sweep = -1.5 if p.arm in ('raise', 'strike') else 0.0
-    for (y0, x1, y1) in ((13.4, 31, 4 + sweep), (14.2, 31.5, 9 + sweep)):
-        F.line(24.5, y0, x1, y1, dark(col, 0.3), w=0.4)
+    # Long sweeping feelers at battle size; on the map short ones, or the shrimp reads as a feather (15e round 4).
+    feelers = ((13.4, 31, 4 + sweep), (14.2, 31.5, 9 + sweep)) if d.sep else ((13.4, 28.5, 10.5), (14.2, 29, 13))
+    for (y0, x1, y1) in feelers:
+        F.line(24.5, y0, x1, y1, dark(col, 0.3), w=0.4 if d.sep else 0.7)
     d.put(F, outline=False)
     finish(c, d)
 
@@ -1516,35 +1605,6 @@ def whale(c: Canvas, p: Pose, s: dict):
     L.line(24, 22.5, 28, 22, dark(col, 0.45), w=0.6)
     if s.get('crown'):
         L.poly([(9, 13.5), (9, 9), (12, 11.5), (14.5, 7.5), (17, 11.5), (20, 8.5), (20, 13.5)], '#ff8fa3')
-    if s.get('leviathan'):
-        # The Riddle Leviathan (#75 item 15e): a long serpent tail curling up behind it,
-        # a row of fin-spikes along its back, and ink dripping from its jaw.
-        L.line(3, 20, 1, 13, col, w=3.2)
-        L.line(1, 13, 4, 6, col, w=2.6)
-        L.line(4, 6, 9, 4, col, w=2.0)
-        L.poly([(9, 4), (12, 1.5 + wave), (11, 5.4)], dark(col, 0.1))
-        for x in (11, 15, 19):
-            L.poly([(x - 1.6, 13.2), (x, 9.6), (x + 1.6, 13.2)], dark(col, 0.2))
-        for (x, y) in ((26, 25), (24.5, 27.5)):
-            L.ellipse(x, y, 0.9, 1.4, '#14142a', shade=False)
-        # The Second Chorus Key, hung on the curl of its tail (15e review).
-        L.ellipse(6.2, 7.6, 1.6, 1.6, '#e8ecf4')
-        L.dot(6.2, 7.6, dark(col, 0.2), w=0.8, h=0.8)
-        L.line(6.2, 9, 6.2, 12.4, '#e8ecf4', w=0.8)
-        L.line(6.2, 11.2, 7.6, 11.2, '#e8ecf4', w=0.7)
-        L.line(6.2, 12.4, 7.4, 12.4, '#e8ecf4', w=0.7)
-    if s.get('qmarks'):
-        # The Riddle Leviathan (#75 item 15e): pale "?"s written along its inky side, a silver key on its tail.
-        # One big white "?" on its side (15e round 3: the small ones didn't read at game size).
-        L.line(10, 16.4, 12.2, 14.6, '#ffffff', w=1.4)
-        L.line(12.2, 14.6, 14.6, 15.4, '#ffffff', w=1.4)
-        L.line(14.6, 15.4, 14.4, 17.6, '#ffffff', w=1.4)
-        L.line(14.4, 17.6, 12.6, 19, '#ffffff', w=1.4)
-        L.line(12.6, 19, 12.6, 20.6, '#ffffff', w=1.4)
-        L.ellipse(12.6, 23, 1.1, 1.1, '#ffffff', shade=False)
-        L.ellipse(1.6, 16.6, 1.3, 1.3, '#d8dce8')
-        L.line(1.6, 17.8, 1.6, 21, '#d8dce8', w=0.7)
-        L.line(1.6, 20.4, 2.8, 20.4, '#d8dce8', w=0.6)
     jet = 4 if p.arm in ('raise', 'strike') else 2 + wave
     L.line(13.5, 12, 13.5, 12 - jet, '#9ae0ff', w=1.2)
     L.ellipse(11.5, 12 - jet, 2, 1.4, '#c8f0ff')
@@ -1576,10 +1636,6 @@ def octopus(c: Canvas, p: Pose, s: dict):
     if s.get('brow') and ex and not p.hurt:
         L.line(ex[0] - 1.2, 10.8, ex[0] + 1.2, 11.8, dark(col, 0.5), w=0.8)
         L.line(ex[1] + 1.2, 10.8, ex[1] - 1.2, 11.8, dark(col, 0.5), w=0.8)
-    if s.get('fins'):
-        # A cuttlefish's frilly fin skirt round its mantle (#75 item 15e: the Cuttle-Scribe).
-        for (x, y) in ((6, 15), (7, 19), (24, 15), (23.5, 19)):
-            L.ellipse(x, y, 2.2, 1.4, light(col, 0.25), shade=False)
     if s.get('friendly') and d.sep:
         # Smudge (#75 item 15e): round pink cheeks and a big smile — a friend, not an Inkling.
         L.ellipse(16, 16.4, 1.4, 1.4, '#ff9ab8', shade=False)
@@ -1590,14 +1646,6 @@ def octopus(c: Canvas, p: Pose, s: dict):
     elif d.sep:
         L.dot(20, 17, dark(col, 0.4), w=2, h=1)
     d.put(L)
-    if s.get('quill'):
-        # The Cuttle-Scribe writes with a white quill held in one tentacle (#75 item 15e).
-        q = d.part(d.lean, d.bob)
-        tip = (27, 5) if p.arm in ('raise', 'strike') else (26.5, 9)
-        q.line(21, 20, 24.5, 15, dark(col, 0.05), w=1.8)
-        q.poly([(24.5, 15.5), (tip[0], tip[1]), (tip[0] + 1.6, tip[1] + 1), (25.6, 16)], '#f4f4f8')
-        q.dot(24.6, 16, '#2a2440', w=1, h=1)
-        d.put(q)
     if s.get('ink') and p.arm in ('strike', 'follow'):
         # A squirt of ink ahead of it as it strikes (#75 item 14d: the Inkling).
         ink = d.part(d.lean, d.bob)
@@ -3651,6 +3699,8 @@ DRAWERS = {
     'flyer': flyer,
     'crab': crab,
     'shrimp': shrimp,
+    'leviathan': leviathan,
+    'cuttlefish': cuttlefish,
     'dragon': dragon,
     'egg': egg,
     'serpent': serpent,
@@ -3856,9 +3906,9 @@ ROSTER: list[Char] = [
     Char('riddle-jelly', '🪼', 'jelly', H(color='#c08ae8', qmark=True)),
     Char('page-ray', '📄', 'page_ray', H(color='#f4ecd8', ink='#3a5ab0')),
     Char('blot', '⚫', 'blob', H(color='#22223e', splat=True)),
-    Char('cuttle-scribe', '🦑', 'octopus', H(color='#d8709a', ink=True, fins=True, quill=True)),
+    Char('cuttle-scribe', '🦑', 'cuttlefish', H(color='#d8709a')),
     Char('margin-shrimp', '🦐', 'shrimp', H(color='#ff8a6a')),
-    Char('riddle-leviathan', '🐋', 'whale', H(color='#3a3a7a', qmarks=True, leviathan=True), boss=True),
+    Char('riddle-leviathan', '🐋', 'leviathan', H(color='#3a3a7a'), boss=True),
 ]
 
 NPCS: list[Char] = [
@@ -4002,7 +4052,7 @@ NPCS: list[Char] = [
     Char('reef-stone-lit', '🪨', 'nameless_stone', H(color='#c8d4dc', tale=True, glow='#ffd84a')),
     Char('ink-dot', '✒️', 'humanoid', H(hair='bob', hair_color='#2a2a3a', glasses=True, outfit='#3a3a6a', trim='#f4ecd8', item='book')),
     Char('ink-smudge', '🦑', 'octopus', H(color='#8ac8e8', friendly=True)),
-    Char('ink-bess', '🐚', 'humanoid', H(hair='bun', hair_color='#6a4a3a', hat='flower', outfit='#3a9ab0', apron='#f8e0d0', trim='#ff9ab0', item='lantern')),
+    Char('ink-bess', '🐚', 'humanoid', H(hair='bun', hair_color='#6a4a3a', hat='flower', outfit='#3a9ab0', apron='#f8e0d0', trim='#ff9ab0', item='lantern', shells=True)),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

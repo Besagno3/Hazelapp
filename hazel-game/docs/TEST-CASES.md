@@ -1348,7 +1348,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1142 | U | ✅ | a right answer lights the stone and gives the next clue (#139e) | the step flag is set, the clue sits above "✨ The stone glows!", no coins; a wrong answer leaves it dim (see TC-1147) (PathQuestionOverlay.test) |
 | TC-1143 | U | ✅ | the 🚩 after the First Chorus Key (#139f) | "Win the Second Chorus Key" in Inkwell Cove; with both, "Explore Taleshore" — "You hold both Chorus Keys!"; Lumen's plan names the north road (wayfinding.test) |
 | TC-1144 | U | ✅ | Bess sells potions and Hint Feathers (#139d) | Hint Feathers have two sellers at one price (Plus's, Bess's), Berry Potions five; her shop is the only `shell` building (items.test, zones.test) |
-| TC-1145 | M | ⬜ | Yarn's tale on the real canvas | talk to Yarn, then the west stone: "📜 Hear the riddle" → a words question; answered, the stone glows on the map and the clue names the east pool; the sandbar stone needs the second first |
+| TC-1145 | M | ⬜ | Yarn's tale on the real canvas | talk to Yarn, then the west stone: "📜 Hear the question" → a words question; answered, the stone glows on the map and the clue names the east pool; the sandbar stone needs the second first |
 | TC-1146 | U | ✅ | a stale riddle finishes nothing (#139h) | `solveRiddle` sets the step only while it's due — not before the offer, out of turn, for a non-riddle or twice; the overlay with Yarn not asked changes nothing (quests.test, PathQuestionOverlay.test) |
 | TC-1147 | U | ✅ | a wrong riddle answer says what next (#139h) | "The stone stays dim. Want another question?", "🔄 Ask me another!" loads a new one, "Later" walks away (round 3) (PathQuestionOverlay.test) |
 | TC-1148 | U | ✅ | the Leviathan guards the cove's chest (#139h) | at the point's tip beside water; with its cell blocked (TC-1149), the chest can't be reached (zones.test) |
@@ -1357,3 +1357,6 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1151 | U | ✅ | Yarn's reminder and a stale riddle (#139i) | Yarn says "just west of me", the quest log "west of Yarn"; a riddle not due shows no glow or clue (quests.test, PathQuestionOverlay.test) |
 | TC-1152 | U | ✅ | a lit stone repeats the way on (#139j) | stone 1 lit says "EAST, over the road" until stone 2 glows, then "back where it belongs"; stone 2 says "SOUTH-WEST" until stone 3 (zones.test) |
 | TC-1153 | U | ✅ | Bess's shop is on screen as you arrive (#139j) | its left wall is inside the view centred on the cove's spawn; the cove's ground matches its tileset (zones.test) |
+| TC-1154 | U | ✅ | the last lit stone sends you to Yarn (#139k) | "Go and tell Tale-Fisher Yarn" until the quest is done, then "back where it belongs" (zones.test) |
+| TC-1155 | U | ✅ | focus on the tale-stone's screen (#139k) | after an answer focus is on "🔄 Ask me another!"; after it, the new question's dialog holds focus (PathQuestionOverlay.test) |
+| TC-1156 | U | ✅ | a stale riddle answered wrong (#139k) | no note, no "Ask me another", just "come back" (PathQuestionOverlay.test) |

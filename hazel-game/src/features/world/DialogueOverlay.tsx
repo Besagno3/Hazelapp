@@ -144,14 +144,6 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               ⛵ Row her home
             </button>
           )}
-          {isLast && quest?.finishKind === 'riddle' && (
-            <button
-              onClick={advance}
-              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
-            >
-              Later
-            </button>
-          )}
           {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}
           <button
             autoFocus
@@ -170,6 +162,14 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
                       ? '📜 Hear the question'
                       : 'Bye!'}
           </button>
+          {isLast && quest?.finishKind === 'riddle' && (
+            <button
+              onClick={advance}
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+            >
+              Later
+            </button>
+          )}
         </div>
       </motion.div>
     </ModalLayer>

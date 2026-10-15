@@ -1137,16 +1137,16 @@ export const QUESTS: QuestDef[] = [
     offer: [
       "Ahoy! I'm Yarn, the Tale-Fisher. I don't catch fish. I catch STORIES!",
       'Last night a big wave broke my tallest tale into three chapters. They washed up on three tale-stones round the reef.',
-      "Each stone asks a word question before it gives a chapter back. Start with the stone by the little pool, just west of here!",
+      "Each stone asks a word question before it gives a chapter back. Start with the stone by the little tide pool, just west of here!",
     ],
     steps: [
       riddleStep(
         YARN_STONES[0],
         'reef-stone-1',
         ['🪨 A tale-stone. Faint words swirl over it like little fish.', 'A whisper comes out of the stone: "Answer my word question, and I\'ll give back my chapter!"'],
-        'The first chapter is on the tale-stone by the little pool west of Yarn, near the top of the reef. Talk to it!',
-        '📜 Chapter 1: "Once, a fish as big as an island swallowed the moon…" The words float EAST, over the road, to the pool near the top. The next stone is there!',
-        { remind: 'Start with the tale-stone by the little pool, just west of me!' },
+        'The first chapter is on the tale-stone by the little tide pool west of Yarn, near the top of the reef. Talk to it!',
+        '📜 Chapter 1: "Once, a fish as big as an island swallowed the moon…" The words float EAST, over the road, to the tide pool near the top. The next stone is there!',
+        { remind: 'Start with the tale-stone by the little tide pool, just west of me!' },
       ),
       riddleStep(
         YARN_STONES[1],
@@ -1160,7 +1160,7 @@ export const QUESTS: QuestDef[] = [
         YARN_STONES[2],
         'reef-stone-3',
         ['🪨 The last tale-stone, out on the sandbar. Waves splash its words.', 'A whisper: "Answer my word question, and the tale is whole again!"'],
-        'The last chapter is on the tale-stone out on the sandbar, in the south-west corner of the reef.',
+        'The last chapter is on the tale-stone out on the sandbar, in the south-west corner of the reef. Talk to it!',
         '📜 Chapter 3: "…and that is why the sea sparkles at night." The whole tale is back! Go and tell Yarn.',
         { early: true },
       ),
