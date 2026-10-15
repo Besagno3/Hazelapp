@@ -774,7 +774,7 @@ Fresh code (1 medium, 3 low) and UX reviews. All fixed:
   (new sprites, `build.py taleshore`). **Copy:** "🐉 Fly east!", docks not a
   quay, Wick-Wax's Candle Shop, plainer lines for Juno, Fable and panel 5.
 - **Tests:** +6 (wayfinding, zones); 1205 green, lint and tsc clean;
-  `bench … fly` 17/17.
+  `bench … fly` 17/17, `bench … journey` 13/13.
 
 ### 2026-10-15 — East to Taleshore: over the Great Fogbank to Port Lantern (#75 item 15c, #137)
 Roadmap sub-item 15c.
