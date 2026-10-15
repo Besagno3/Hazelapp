@@ -748,6 +748,23 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15b review round 2: no accidental flights, the button lets go, a name that steps aside (#75 item 15b, #136f)
+Fresh code and UX reviews of PR #56. All fixed:
+- **Code:** a press that skipped a fog reveal or came mid-slide also took
+  off or landed (`flightRef` cleared there); the HUD button kept focus, so
+  the next Space clicked it again (it blurs); Land never sets down on a
+  person (`landingCell`); the tutorial waits while sailing; `normalizeSave`
+  asks `canFlyOver`.
+- **UX:** ✋ always reads "Land" while flying and says why when it can't; a
+  rounder, lower shadow; "🐉 Let's fly!" takes off; "🐉 Fly" / "🛬 Land" at
+  every width; Ember's portrait by the title; take-off and landing announced
+  to screen readers; a place's name fades to a ghost over the hero
+  (`LABEL_UNDER_OPACITY`); the tutorial names grass, sand or a road; the
+  Roost has one big nest and a third panel (the egg was Ember's).
+- **Tests:** +6 (WorldScreen.fly.test: the blur, F in each place, the
+  tutorial while sailing, "Let's fly!", the announcements; reach.test's exit
+  test can fail now). 1187 green; lint and tsc clean; `bench … fly` 14/14, `bench … journey` 13/13.
+
 ### 2026-10-14 — 15b review round 1: arriving where you flew, a bigger Ember, landing beside (#75 item 15b, #136e)
 A fresh `/saas-code-review` (1 high, 2 low) and UX review (3 high, 4 medium,
 4 low). Fixed:

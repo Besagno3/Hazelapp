@@ -210,8 +210,12 @@ describe('flying on Ember (#75 item 15b)', () => {
   });
 
   it('a place icon is just more ground below — flying never stops at an exit', () => {
-    const flown = reach(dawn, { start: 'ember', from: { x: 40, y: 30 }, exits: 'stop' });
-    expect(flown.size).toBe(allCells(dawn));
+    // One row, the exit the only way across: walking stops there, flying goes on.
+    const row = mk(['...'], { kind: 'overworld', exits: [{ x: 1, y: 0, to: 'dawnreach', spawnX: 0, spawnY: 0 }] });
+    expect(has(reach(row, { from: { x: 0, y: 0 }, exits: 'stop' }), [2, 0])).toBe(false);
+    expect(has(reach(row, { start: 'ember', from: { x: 0, y: 0 }, exits: 'stop' }), [2, 0])).toBe(true);
+    // And on Dawnreach itself, every cell.
+    expect(reach(dawn, { start: 'ember', from: { x: 40, y: 30 }, exits: 'stop' }).size).toBe(allCells(dawn));
   });
 
   it('crosses a linked edge over land as well as sea; the boat only over sea; on foot nothing crosses', () => {

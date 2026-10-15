@@ -426,8 +426,8 @@ export const FLIGHT_PANELS: StoryPanel[] = [
     text: 'Ember stretches its wings — wide, wider, wider than ever. It looks back at you and dips one wing to the ground. Climb on!',
   },
   {
-    emoji: '🛫',
-    text: 'Tap 🐉 Fly (or press F) to climb on. Fly over mountains, trees, water and fog! To come down over grass or sand, tap 🛬 Land or press Space.',
+    emoji: '☁️',
+    text: 'Tap 🐉 Fly (or press F) to climb on. Fly over mountains, trees, water and fog! To come down over grass, sand or a road, tap 🛬 Land or press Space.',
   },
   {
     emoji: '⛰️',
@@ -444,6 +444,10 @@ export const ROOST_PANELS: StoryPanel[] = [
   {
     emoji: '🐉',
     text: 'Ember curls up in the biggest nest and hums a happy rumble. Long ago, before the fog, the dragons of Lumina lived up here.',
+  },
+  {
+    emoji: '🥚',
+    text: 'This nest is the one. The last dragon carried her egg down from here to the village — the very egg you found. Ember is home!',
   },
 ];
 

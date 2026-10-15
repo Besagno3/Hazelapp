@@ -164,6 +164,7 @@ export default function WorldScreen() {
   }, []);
   const [action, setAction] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [flightNote, setFlightNote] = useState('');
   // One timer for whichever toast is up: a new toast replaces the old one's
   // timer, so an earlier toast can't hide a newer one early.
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -264,7 +265,8 @@ export default function WorldScreen() {
   const archiveDue = zoneId === 'sunken-archive' && !flags[ARCHIVE_SEEN];
   const roostDue = zoneId === 'dragon-roost' && !flags[ROOST_SEEN];
   // Ember's first flight (#75 item 15b): on a map Ember can fly over, where 🐉 Fly is.
-  const flightDue = canFly(flags) && !flags[FLIGHT_TUTORIAL_SEEN] && canFlyOver(ZONES[zoneId]);
+  // Never from the boat: its "Tap 🐉 Fly" would point at a button that isn't there.
+  const flightDue = canFly(flags) && !flags[FLIGHT_TUTORIAL_SEEN] && canFlyOver(ZONES[zoneId]) && save?.vehicle !== 'boat';
   const dawnreachDue = zoneId === 'dawnreach' && !flags[DAWNREACH_SEEN];
   // Act II (#75 item 14): the morning after the Spire's finale, once the hero
   // has woken at the inn; the first time in the boat; the first bump into the
@@ -530,7 +532,9 @@ export default function WorldScreen() {
             {save.vehicle === 'ember' && (
               <span className="whitespace-nowrap">
                 {' '}
-                <span aria-hidden>🐉</span>
+                <span aria-hidden className="inline-block align-middle">
+                  <CharacterPortrait spriteId={EMBER_SPRITE_IDS[ember]} emoji={EMBER_SPRITES[ember]} scale={0.6} />
+                </span>
                 <span className="sr-only">(flying on Ember)</span>
               </span>
             )}
@@ -557,15 +561,17 @@ export default function WorldScreen() {
           {/* Ember flies (#75 item 15b): over an overworld map once Memory is restored, never from the boat. */}
           {flightOffered && (
             <button
-              onClick={() => {
+              onClick={(e) => {
                 flightRef.current = save.vehicle === 'ember' ? 'land' : 'fly';
+                // Hand the keys back to the world: a focused button would take
+                // the next Space (landing) as another click (#75 item 15b review).
+                e.currentTarget.blur();
               }}
               aria-label={save.vehicle === 'ember' ? 'Land' : 'Fly on Ember'}
               title={save.vehicle === 'ember' ? 'Land' : 'Fly on Ember'}
               className={`min-w-11 bg-orange-400 hover:bg-orange-300 text-orange-950 rounded-lg px-3 py-1.5 text-xs font-bold ${HUD_TAP}`}
             >
-              {save.vehicle === 'ember' ? '🛬' : '🐉'}
-              <span className="hidden sm:inline">{save.vehicle === 'ember' ? ' Land' : ' Fly'}</span>
+              {save.vehicle === 'ember' ? '🛬 Land' : '🐉 Fly'}
             </button>
           )}
           {/* In a dark place, Glow is one tap away (#75 item 9). */}
@@ -651,10 +657,12 @@ export default function WorldScreen() {
           // Flying on Ember (#75 item 15b).
           onTakeOff: (x, y) => {
             sfx('roar');
+            setFlightNote("You're flying on Ember!");
             update((s) => ({ ...s, vehicle: 'ember', pos: { x, y } }));
           },
           onTouchDown: (x, y) => {
             sfx('select');
+            setFlightNote('You landed.');
             update((s) => ({ ...s, vehicle: 'foot', pos: { x, y } }));
           },
           onNoLanding: () => showToast('🐉 Ember needs open ground to land — grass, sand or a road.'),
@@ -740,7 +748,7 @@ export default function WorldScreen() {
 
       <p className="text-white/50 text-xs mt-2">
         {save.vehicle === 'ember'
-          ? 'Fly: arrow keys / WASD · Space, F, a tap or 🛬 to land on grass, sand or a road'
+          ? 'Fly: arrow keys / WASD · Space, F, a tap or click, or 🛬 to land on grass, sand or a road'
           : save.vehicle === 'boat'
           ? 'Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!'
           : `Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!${flightOffered ? ' · F or 🐉 to fly' : ''}`}
@@ -756,6 +764,8 @@ export default function WorldScreen() {
         aria-live="polite"
         className="fixed inset-x-0 top-24 sm:top-auto sm:bottom-8 touch:top-24 touch:bottom-auto z-50 flex justify-center px-4 pointer-events-none"
       >
+        {/* Taking off and landing are heard, not only seen (#75 item 15b review). */}
+        <span className="sr-only">{flightNote}</span>
         {toast && (
           <motion.div
             initial={{ y: 16, opacity: 0 }}
@@ -879,7 +889,15 @@ export default function WorldScreen() {
         <StoryPanels panels={MEMORIA_PANELS} doneLabel="🗝️ Keep it safe" onDone={() => setFlag(MEMORIA_SEEN)} />
       )}
       {activeScene === 'flight' && (
-        <StoryPanels panels={FLIGHT_PANELS} doneLabel="🐉 Let's fly!" onDone={() => setFlag(FLIGHT_TUTORIAL_SEEN)} />
+        <StoryPanels
+          panels={FLIGHT_PANELS}
+          doneLabel="🐉 Let's fly!"
+          onDone={() => {
+            setFlag(FLIGHT_TUTORIAL_SEEN);
+            // The button says "Let's fly!", so it does (#75 item 15b review).
+            flightRef.current = 'fly';
+          }}
+        />
       )}
       {activeScene === 'roost' && (
         <StoryPanels panels={ROOST_PANELS} doneLabel="🪺 Look around" onDone={() => setFlag(ROOST_SEEN)} />

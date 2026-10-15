@@ -143,6 +143,8 @@ const VIEW_W = VIEW_COLS * TILE;
 const VIEW_H = VIEW_ROWS * TILE;
 /** Roof fade speed (per second) when the hero steps in / out of a building. */
 const ROOF_FADE = 10;
+/** How faint a place's name gets with the hero standing under it. */
+const LABEL_UNDER_OPACITY = 0.2;
 /** Seconds after closing an overlay before a bump (a secret, fog) can trigger again, or a critter beside you fight. */
 const TRIGGER_COOLDOWN = 0.8;
 /** Flying, Ember is drawn this much bigger, so she shows round the hero on her back (#75 item 15b review). */
@@ -755,11 +757,16 @@ export default function WorldCanvas({
     // Each place's pieces (and how opaque each is normally) are kept, so a
     // place inside a fog bank can hide behind it and fade in as it lifts.
     type Faded = { opacity: number };
-    const placeParts = new Map<string, { obj: Faded; opacity: number }[]>();
+    // `seen` is how far a fog bank in front has cleared (1 with none), `near`
+    // fades a name off a hero standing under it (#75 item 15b review): the
+    // fog updater and the main loop both write `opacity × seen × near`.
+    type PlacePart = { obj: Faded; opacity: number; seen?: number; near?: number };
+    const placeParts = new Map<string, PlacePart[]>();
+    const placeLabels: { x: number; y: number; halfW: number; parts: PlacePart[] }[] = [];
     for (const p of z.places ?? []) {
       const cx = p.x * TILE + TILE / 2;
       const cy = p.y * TILE + TILE / 2;
-      const parts: { obj: Faded; opacity: number }[] = [];
+      const parts: PlacePart[] = [];
       if (p.icon === 'tower') {
         // The Spire is the landmark: the tall tower sprite, base on its tile.
         // Drawn under fog (z 8): hidden in its ring of clouds until they lift.
@@ -792,8 +799,13 @@ export default function WorldCanvas({
         k.opacity(0.55),
         k.z(12),
       ]);
-      parts.push({ obj: name, opacity: 1 }, { obj: plate as unknown as Faded, opacity: 0.55 });
+      const label: PlacePart[] = [
+        { obj: name, opacity: 1 },
+        { obj: plate as unknown as Faded, opacity: 0.55 },
+      ];
+      parts.push(...label);
       placeParts.set(`${p.x},${p.y}`, parts);
+      placeLabels.push({ x: cx, y: cy + 24, halfW: ((name.width ?? p.name.length * 7) + 8) / 2, parts: label });
     }
 
     // --- Fog of Forgetting (#75): drifting banks that lift for good ---------
@@ -821,7 +833,7 @@ export default function WorldCanvas({
       /** Off screen: its puffs are hidden and not moved (they're many). */
       offscreen: boolean;
       /** Places inside the bank (the Spire in its ring): hidden until it lifts. */
-      hides: { obj: Faded; opacity: number }[];
+      hides: PlacePart[];
     };
     const fogBanks: Bank[] = [];
     const lifted = (f: FogDef) => fogLifted(f, flagsRef.current);
@@ -848,7 +860,10 @@ export default function WorldCanvas({
         hides: placesInside(f, z.places ?? []).flatMap((p) => placeParts.get(`${p.x},${p.y}`) ?? []),
       });
       // Hidden from the first frame (the drift updater keeps it that way).
-      for (const h of fogBanks[fogBanks.length - 1].hides) h.obj.opacity = 0;
+      for (const h of fogBanks[fogBanks.length - 1].hides) {
+        h.seen = 0;
+        h.obj.opacity = 0;
+      }
     }
     if (fogBanks.length) {
       // One updater drifts every puff (an object, so it goes with the scene).
@@ -860,7 +875,10 @@ export default function WorldCanvas({
         for (const bank of fogBanks) {
           // A place hidden in the bank fades in only as the clouds clear.
           const seen = bank.puffs.length === 0 ? 1 : revealOpacity(bank.lift);
-          for (const h of bank.hides) h.obj.opacity = h.opacity * seen;
+          for (const h of bank.hides) {
+            h.seen = seen;
+            h.obj.opacity = h.opacity * seen * (h.near ?? 1);
+          }
           // Skip a bank that's off screen (with room for its drifting puffs,
           // and a tile more since the camera may move after this runs).
           const f = bank.def;
@@ -2318,7 +2336,9 @@ export default function WorldCanvas({
      */
     const landingCell = () => {
       const c = cellUnder();
-      const ok = (x: number, y: number) => landable(tileAt(z, x, y)) && !fogAt(z, x, y, flagsRef.current);
+      const taken = (x: number, y: number) =>
+        actors.some((a) => a.kind === 'npc' && !a.follower && Math.floor(a.x / TILE) === x && Math.floor(a.y / TILE) === y);
+      const ok = (x: number, y: number) => landable(tileAt(z, x, y)) && !fogAt(z, x, y, flagsRef.current) && !taken(x, y);
       return ok(c.x, c.y) ? c : nearestCell(c.x, c.y, 1, ok);
     };
     function takeOff() {
@@ -2342,14 +2362,16 @@ export default function WorldCanvas({
       restAround(player.pos, 'foot');
       lastDir = emberStart(player.pos).dir;
     }
-    /** Flying: the one thing to "use" is the ground below — if Ember can land there. */
+    /**
+     * Flying: the one thing to "use" is the ground below, so ✋ always says
+     * "Land" — over water it says why not instead (#75 item 15b review).
+     */
     function landingUse(): Use[] {
-      if (!landingCell()) return [];
       return [{ label: 'Land', at: { x: player.pos.x, y: player.pos.y - 40 }, hit: () => true, act: touchDown }];
     }
     // Her shadow on the ground while she flies.
     const shadow = k.add([
-      k.rect(40, 12, { radius: 6 }),
+      k.rect(46, 14, { radius: 7 }),
       k.color(0, 0, 0),
       k.pos(spawn.x, spawn.y),
       k.anchor('center'),
@@ -2369,6 +2391,9 @@ export default function WorldCanvas({
         wasPaused = true;
         usesSeen = uses(); // a ✋ tapped mid-slide uses nothing
         clickRef.current = null;
+        // …nor does an F / 🐉 pressed mid-slide fly on the next map (#75 item 15b review).
+        // (A pause keeps it: "🐉 Let's fly!" closes the tutorial and asks at once.)
+        if (slidingRef.current && flightRef) flightRef.current = null;
         showPrompt(null);
         push = null;
         return;
@@ -2410,6 +2435,8 @@ export default function WorldCanvas({
         }
       }
       if (reveal) {
+        // The F or 🐉 that skips a reveal skips it — it doesn't also fly or land.
+        if (flightRef) flightRef.current = null;
         // Skip on a fresh key press, click or tap (the d-pad too) — never on a
         // key or the d-pad already held when it began.
         if (pressesRef.current > reveal.presses) skipReveal(reveal);
@@ -2653,9 +2680,6 @@ export default function WorldCanvas({
         if (target) {
           push = null;
           target.act();
-        } else if (flying) {
-          // Nothing below to land on: say so, as 🛬 does (#75 item 15b review).
-          cbRef.current.onNoLanding?.();
         }
       }
 
@@ -2750,6 +2774,21 @@ export default function WorldCanvas({
         for (const part of r.parts) part.opacity = r.opacity;
       }
 
+      // A place's name fades to a ghost while the hero stands on it, so it
+      // never hides them (the Roost's plateau is right under its label).
+      for (const l of placeLabels) {
+        const over = Math.abs(player.pos.x - l.x) < l.halfW + HALF && Math.abs(player.pos.y - l.y) < TILE * 0.75;
+        const target = over ? LABEL_UNDER_OPACITY : 1;
+        const cur = l.parts[0].near ?? 1;
+        if (cur === target) continue;
+        const step = Math.min(1, dt * ROOF_FADE);
+        const near = Math.abs(target - cur) < 0.02 ? target : cur + (target - cur) * step;
+        for (const part of l.parts) {
+          part.near = near;
+          part.obj.opacity = part.opacity * (part.seen ?? 1) * near;
+        }
+      }
+
       // Ember pads along behind the hero with a friendly bounce — or, flying
       // (#75 item 15b), carries them: the hero on her back, both over the fog
       // and the place names, her shadow on the ground below.
@@ -2760,7 +2799,7 @@ export default function WorldCanvas({
       (ember as unknown as { z: number }).z = flying ? 17 : 9;
       emberScale.scale = k.vec2(flying ? EMBER_FLY_SCALE : 1);
       shadow.opacity = flying ? 0.35 : 0;
-      if (flying) shadow.pos = k.vec2(player.pos.x, player.pos.y + 34);
+      if (flying) shadow.pos = k.vec2(player.pos.x, player.pos.y + 48);
       const trail = flying
         ? k.vec2(player.pos.x, player.pos.y + 10 + lift)
         : k.vec2(player.pos.x - lastDir.x * 26, player.pos.y - lastDir.y * 26 + 8 + Math.sin(k.time() * 4) * 2);

@@ -3,6 +3,7 @@ import { escortsBack } from '../content/questFlags';
 import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
 import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, shelterOf } from '../content/zones';
 import { BOAT_SPAWN_REACH, safeSpawn } from './reach';
+import { canFlyOver } from './travel';
 import { BOAT_REMOOR_REACH, hasBoat, seaBeside, validMooring } from '../content/boat';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN, canFly } from '../content/story';
@@ -229,7 +230,7 @@ export function normalizeSave(raw: unknown): SaveData {
   // On Ember (#75 item 15b): she flies over any overworld map, so a hero saved
   // in the air stays there — on a map she flies over, once she can fly.
   // Anywhere else they're on foot (the canvas finds them firm ground).
-  const flying = r.vehicle === 'ember' && savedPos !== null && canFly(flags) && ZONES[zoneId].kind === 'overworld';
+  const flying = r.vehicle === 'ember' && savedPos !== null && canFly(flags) && canFlyOver(ZONES[zoneId]);
 
   const save: SaveData = {
     version: SAVE_VERSION,
