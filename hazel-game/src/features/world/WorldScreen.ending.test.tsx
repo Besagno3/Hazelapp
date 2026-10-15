@@ -260,3 +260,44 @@ describe('the Hall of Names and Wisp (#75 item 14i)', () => {
     expect(useSaveStore.getState().save!.flags[story.WISP_STIRRING]).toBe(true);
   });
 });
+
+describe('the Blank Chart (#75 item 15h)', () => {
+  const onTheRest = (extra: Record<string, boolean>) => {
+    const flags: Record<string, boolean> = { ...umbraBeaten(), [story.SPIRE_VICTORY_SEEN]: true, [story.ACT2_SEEN]: true, [story.MEMORIA_SEEN]: true, [spellsMod.HALL_DEDICATED]: true };
+    for (const id of ['history', 'words'] as const) {
+      flags[crystalFlag(id)] = true;
+      flags[story.crystalSceneFlag(id)] = true;
+    }
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: { ...defaultSave(), avatarId: 'a3', zoneId: 'chartmakers-rest', flags: { ...flags, ...extra } },
+      flush: vi.fn(async () => {}),
+    });
+  };
+  beforeEach(() => {
+    vi.useFakeTimers();
+    flow.setState({ overlay: null });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('plays the Chartmaker\'s four panels once the chart is handed over — and only once', () => {
+    onTheRest({ 'blank-chart-held': true });
+    const { unmount } = render(<WorldScreen />);
+    expect(story.CHART_PANELS).toHaveLength(4);
+    expect(screen.getByText(/The Blank Chart is all of Lumina/)).toBeInTheDocument();
+    readOn(story.CHART_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🗺️ Keep it safe' }));
+    expect(useSaveStore.getState().save!.flags[story.CHART_SEEN]).toBe(true);
+    expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
+    unmount();
+    render(<WorldScreen />);
+    expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
+  });
+
+  it('says nothing before the chart is held', () => {
+    onTheRest({});
+    render(<WorldScreen />);
+    expect(screen.queryByText(/The Blank Chart is all of Lumina/)).toBeNull();
+  });
+});

@@ -71,6 +71,8 @@ import {
   FLIGHT_TUTORIAL_SEEN,
   ROOST_PANELS,
   ROOST_SEEN,
+  CHART_PANELS,
+  CHART_SEEN,
   ACT3_PANELS,
   ACT3_SEEN,
   POSY_STONE_PANELS,
@@ -84,7 +86,7 @@ import {
 import { canFlyOver } from '../../lib/travel';
 import { HALL_DEDICATED } from '../../content/spells';
 import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
-import { POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
+import { BLANK_CHART_HELD, POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatOnReturn, boatSpot } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import LevelBadge from '../../components/LevelBadge';
@@ -290,6 +292,8 @@ export default function WorldScreen() {
   // Wisp's "remembering me" beat: after Memory, the first time the hero is in
   // the Whispering Woods, Wisp's home (the owner's call, 2026-10-12, #129l) —
   // never anywhere else, so never right after the Memory crystal's own panels.
+  // The Blank Chart (#75 item 15h): the Chartmaker's panels, as his talk closes.
+  const chartDue = flags[BLANK_CHART_HELD] === true && !flags[CHART_SEEN] && overlay === null;
   const wispDue =
     flags[crystalFlag('history')] === true && !flags[WISP_STIRRING] && zoneId === 'whispering-woods';
 
@@ -313,6 +317,7 @@ export default function WorldScreen() {
     | 'posy'
     | 'hall'
     | 'wisp'
+    | 'chart'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -351,7 +356,9 @@ export default function WorldScreen() {
                                 ? 'hall'
                                 : wispDue
                                   ? 'wisp'
-                                  : null;
+                                  : chartDue
+                                    ? 'chart'
+                                    : null;
   const cutscene = activeScene !== null;
 
   // 🐉 Fly / 🛬 Land is offered (#75 item 15b): over an overworld map once
@@ -892,6 +899,9 @@ export default function WorldScreen() {
       )}
       {activeScene === 'hall' && (
         <StoryPanels panels={HALL_PANELS} doneLabel="🏛️ Thank you, Mnem" onDone={() => setFlag(HALL_DEDICATED)} />
+      )}
+      {activeScene === 'chart' && (
+        <StoryPanels panels={CHART_PANELS} doneLabel="🗺️ Keep it safe" onDone={() => setFlag(CHART_SEEN)} />
       )}
       {activeScene === 'wisp' && (
         <StoryPanels panels={WISP_PANELS} doneLabel="🧚 I'll remember for you" onDone={() => setFlag(WISP_STIRRING)} />

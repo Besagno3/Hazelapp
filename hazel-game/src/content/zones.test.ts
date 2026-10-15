@@ -26,7 +26,7 @@ import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_STONES, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { BLANK_CHART_HELD, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_STONES, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import { BOAT_HOME } from './boat';
@@ -1573,6 +1573,50 @@ describe('Chorus Isle: the Crystal of Voices (#75 item 15g)', () => {
     expect(after).toMatch(/Crystal of Voices rings again/);
     // Once the Fiend is gone he doesn't warn about it any more (round 2).
     expect(after).not.toMatch(/It lives in the hollow/);
+  });
+});
+
+describe("Chartmaker's Rest: Act III's last place (#75 item 15h)", () => {
+  const tale = ZONES.taleshore;
+  const rest = ZONES['chartmakers-rest'];
+  const place = tale.places!.find((p) => p.name === "Chartmaker's Rest")!;
+
+  it('an island north-west of Port Lantern that only Ember reaches; the way back is grass she can take off from', () => {
+    expect(place.byAir).toBe(true);
+    expect(touches(reach(tale, { from: { x: 30, y: 21 } }), place.x, place.y)).toBe(false);
+    for (const back of rest.exits) {
+      expect(back.to).toBe('taleshore');
+      expect(Math.abs(back.spawnX - place.x) + Math.abs(back.spawnY - place.y)).toBe(1);
+      expect(landable(tileAt(tale, back.spawnX, back.spawnY))).toBe(true);
+    }
+    expect(tale.exits.find((e) => e.x === place.x && e.y === place.y)!.to).toBe('chartmakers-rest');
+    expect(zoneTier(rest.id)).toBe(6);
+  });
+
+  it('a safe story zone: no critters, the Chartmaker in his study, Pen and Inka outside', () => {
+    expect(rest.enemies).toEqual([]);
+    expect(RETURN_TOWNS).not.toContain('chartmakers-rest');
+    const study = rest.buildings!.find((b) => b.id === 'chart-study')!;
+    expect(study.style).toBe('chart');
+    const chartmaker = rest.npcs.find((n) => n.defId === 'chart-chartmaker')!;
+    expect(chartmaker.x >= study.x && chartmaker.x < study.x + study.w && chartmaker.y >= study.y && chartmaker.y < study.y + study.h).toBe(true);
+    expect(rest.npcs.map((n) => n.defId).sort()).toEqual(['chart-chartmaker', 'chart-inka', 'chart-pen']);
+    const open = reach(rest);
+    for (const n of rest.npcs) expect(touches(open, n.x, n.y), n.defId).toBe(true);
+  });
+
+  it("Pen's nest is a key-item chest holding the Compass Quill, open to walk to", () => {
+    expect(rest.keyChests!.map((c) => c.item)).toEqual(['compass-quill']);
+    const nest = rest.keyChests![0];
+    expect(tileAt(rest, nest.x, nest.y)).toBe('C');
+    expect(touches(reach(rest), nest.x, nest.y)).toBe(true);
+  });
+
+  it('before Voices the Chartmaker says to free it first; with the chart, he says to keep it safe', () => {
+    const said = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['chart-chartmaker'].lines, flags).map(lineText).join(' ');
+    expect(said({})).toMatch(/Free the Crystal of Voices/);
+    expect(said({ [crystalFlag('words')]: true })).not.toMatch(/Free the Crystal of Voices/);
+    expect(said({ [crystalFlag('words')]: true, [BLANK_CHART_HELD]: true })).toMatch(/Keep the Blank Chart safe/);
   });
 });
 

@@ -116,6 +116,10 @@ ZONES = {
     # boulders, music notes in the grass, a rosy evening sky over the sea.
     'chorus-isle': dict(shore=True, no_hills=True, ground=(130, 172, 112), path=(226, 206, 168), solid='rock', deco='note', deco_c='#ffd0e0',
                         sky=('#e87aa0', '#fff0d8'), far='#d8a0c0', mid='islets', water='#3a90d0'),
+    # Chartmaker's Rest (#75 item 15h): a small calm island of parchment-pale grass,
+    # sandy paths, wind-bent bushes and blue sea-flowers, under a clear morning sky.
+    'chartmakers-rest': dict(shore=True, no_hills=True, ground=(150, 178, 120), path=(222, 200, 156), solid='hedge', deco='flower', deco_c='#8ab8ff',
+                             sky=('#5a9ad8', '#f4f0e0'), far='#a8c0d8', mid='islets', water='#3a8ad0'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -152,6 +156,10 @@ CLIFFS_ZONES = ('songstone-cliffs', 'quiet-quarter')
 # Added with Chorus Isle (#75 item 15g) — `build_chorus` writes only this (+ the
 # chorus town sheet and the overworld sheet with its icon appended).
 CHORUS_ZONES = ('chorus-isle',)
+
+# Added with Chartmaker's Rest (#75 item 15h) — `build_chart` writes only this (+ the
+# chart town sheet and the overworld sheet with its icon appended).
+CHART_ZONES = ('chartmakers-rest',)
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -510,6 +518,8 @@ STYLES = {
     'hush':      ('#8a94a8', '#a890c8', 'bricks',  'arch',   'tiles',  ('#9a9aa8', '#88889a')),
     # Chorus Isle (#75 item 15g): sunny cream plaster with rose trim, a checked stage-floor.
     'chorus':    ('#f6ead0', '#d04a7a', 'stripes', 'arch',   'checker', ('#f8ecd4', '#e0c8a4')),
+    # Chartmaker's Rest (#75 item 15h): parchment walls ruled like a chart, ink-blue trim, plank floor.
+    'chart':     ('#efe2bf', '#2a4a8a', 'chart',   'square', 'planks', ('#c8a070',)),
 }
 
 
@@ -587,6 +597,19 @@ def _wall_face(style, window=False, door=False):
         for (x, y, col) in ((3, 5, '#ffb0a0'), (11, 4, '#ffe0b0'), (7, 10, '#f0a8c8'), (13, 11, '#ffb0a0'), (2, 12, '#ffe0b0')):
             c.ellipse(x, y, 1.4, 1.1, col, shade=False)
             c.dot(x, y + 0.6, dark(hexc(col), 0.25))
+    elif pattern == 'chart':
+        # The Chartmaker's study (#75 item 15h): a parchment wall ruled with a faint
+        # chart grid, a little coastline inked across it and a compass star.
+        for v in (4, 8, 12):
+            c.a[:, v, :3] = dark(base, 0.1)
+            c.a[v, :, :3] = dark(base, 0.1)
+        for (x, y) in ((2, 6), (3, 5), (4, 5), (5, 6), (6, 7), (7, 7)):
+            c.dot(x, y, '#6a7aa8')
+        c.dot(12, 10, '#c84a3a')
+        c.dot(11, 10, '#2a4a8a')
+        c.dot(13, 10, '#2a4a8a')
+        c.dot(12, 9, '#2a4a8a')
+        c.dot(12, 11, '#2a4a8a')
     elif pattern == 'bark':
         # A hollow ring-tree's wall (#75 item 14f): deep grooves and a knot.
         for x in (2, 6, 10, 13):
@@ -1469,6 +1492,20 @@ def ow_icon(kind):
         for (x, y) in ((12.4, 4.6), (14.4, 1.8)):
             c.ellipse(x, y, 1.0, 0.8, '#ff6a9a', shade=False)
             c.line(x + 0.8, y, x + 0.8, y - 2.4, '#ff6a9a', w=0.6)
+    elif kind == 'chart':
+        # Chartmaker's Rest (#75 item 15h): a little island with a parchment study, an
+        # ink-blue roof, and a big rolled chart with a red compass star beside it.
+        c.ellipse(8, 13.6, 7.6, 2.2, '#3a8ad0')
+        c.ellipse(8, 12, 6.4, 2.6, '#e8d8a8')
+        c.ellipse(8, 11, 5.4, 2.0, '#96b278')
+        c.rect(2.6, 6.6, 8.6, 11, '#efe2bf')
+        c.poly([(1.8, 7.0), (5.6, 3.6), (9.4, 7.0)], '#2a4a8a')
+        c.rect(4.8, 8.6, 6.4, 11, '#6a4a2a', shade=False)
+        c.rect(10, 4.4, 14.6, 9.6, '#f4ead0')
+        c.ellipse(10, 7, 0.9, 2.6, '#d8c8a0')
+        c.ellipse(14.6, 7, 0.9, 2.6, '#d8c8a0')
+        c.line(12.3, 5.2, 12.3, 8.8, '#c83a3a', w=0.6)
+        c.line(10.6, 7, 14, 7, '#c83a3a', w=0.6)
     elif kind == 'quarter':
         # The Quiet Quarter (#75 item 15f): two grey-blue houses with lavender roofs and a crescent moon.
         for (x0, y0) in ((1, 7), (8, 6)):
@@ -1553,6 +1590,20 @@ def build_chorus(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('chorus')]).save(tdir / 'town-chorus.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_chart(public: Path):
+    """Write only Chartmaker's Rest's art (#75 item 15h): its tileset, blend sheet
+    and backdrop, the chart town sheet and the overworld sheet with its icon."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in CHART_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('chart')]).save(tdir / 'town-chart.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 
@@ -1741,7 +1792,7 @@ def overworld_sheet():
     # frame keeps its place.
     return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
             + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive'), ow_icon('roost'),
-               ow_icon('harbor'), ow_icon('beach'), ow_icon('compass'), ow_icon('atoll'), ow_icon('reef'), ow_icon('inkwell'), ow_icon('cliffs'), ow_icon('quarter'), ow_icon('chorus')])
+               ow_icon('harbor'), ow_icon('beach'), ow_icon('compass'), ow_icon('atoll'), ow_icon('reef'), ow_icon('inkwell'), ow_icon('cliffs'), ow_icon('quarter'), ow_icon('chorus'), ow_icon('chart')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────

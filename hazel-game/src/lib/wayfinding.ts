@@ -4,6 +4,7 @@ import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
+import { BLANK_CHART_HELD } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
@@ -295,10 +296,24 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           inside: flags[CHORUS_GATE_FLAG] ? undefined : "The Hush Fiend's gate is at the top of the road, past Old Cadence.",
         };
       }
+      // Act III's last step (#75 item 15h): the Chartmaker, who knows every place's name but one.
+      if (canFly(flags) && actComplete(flags, 3) && !flags[BLANK_CHART_HELD]) {
+        return {
+          kind: 'visit',
+          title: 'Visit the Chartmaker',
+          why: "The Chartmaker has charted every place in Lumina but one — a place nobody can name. His island is a little way out at sea, north-west of Port Lantern. Only Ember flies there!",
+          zoneId: 'chartmakers-rest',
+          doneFlag: BLANK_CHART_HELD,
+          npc: 'chart-chartmaker',
+          inside: 'The Chartmaker is in his study, the blue-roofed house.',
+        };
+      }
       return {
         kind: 'explore',
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
-        why: flags[MET_GALE]
+        why: flags[BLANK_CHART_HELD]
+          ? "The Blank Chart shows one place nobody remembers, under the Crystal Spire — a mystery for another day. Check 📜 Menu for quests you haven't finished!"
+          : flags[MET_GALE]
           ? 'Six crystals shine, and the Great Fogbank has thinned — boats from the Silver Shallows can sail to Taleshore now! Check 📜 Menu for quests you haven\'t finished.'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
@@ -655,6 +670,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = "Marlow's boat is mended! Out past his dock lie the Silver Shallows, islands nobody has seen since the fog. Go and see them — and tell me everything!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
+  } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
+    plan = `${shining} crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? The Chartmaker, on a little island north-west of Port Lantern, knows every place's name but one. Go and ask him!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     plan = `${shining} crystals shine now! And they say something new is happening in the Hall of Names, on Remembrance Hill. Go and see!`;
   } else if (goal.kind === 'visit') {
@@ -665,6 +682,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `${shining} crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.`;
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
+  } else if (flags[BLANK_CHART_HELD]) {
+    plan = 'You hold the Blank Chart! Its empty space sits right under the Crystal Spire. And that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.';
   } else if (flags[MET_GALE]) {
     plan = "Six crystals shine now, and the Great Fogbank has thinned! But that small voice in the crystal… who WAS the first Sage? Ask Keeper Mnem on Remembrance Hill about the blank plaque.";
   } else if (canFly(flags)) {
@@ -696,6 +715,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     tip = "Port Lantern has an inn, the Driftlight. Rest there, and if a battle ever goes badly, that's where you'll wake up.";
+  } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
+    tip = "Nobody fights on the Chartmaker's island — it's a quiet place. Talk to everyone there. Pen the seabird loves shiny things!";
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     tip = 'Keeper Mnem stands inside the Hall of Names — the biggest building on Remembrance Hill, with the purple roof. Talk to him!';
   } else if (goal.kind === 'visit') {

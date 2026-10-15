@@ -75,6 +75,8 @@ export const ZONE_IDS = [
   'quiet-quarter',
   // Act III's crystal zone (#75 item 15g): words, the Crystal of Voices.
   'chorus-isle',
+  // Act III's last place (#75 item 15h): the Chartmaker's island, a story zone.
+  'chartmakers-rest',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -163,7 +165,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell', 'hush', 'chorus'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell', 'hush', 'chorus', 'chart'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -228,7 +230,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor', 'beach', 'compass', 'atoll', 'reef', 'inkwell', 'cliffs', 'quarter', 'chorus'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor', 'beach', 'compass', 'atoll', 'reef', 'inkwell', 'cliffs', 'quarter', 'chorus', 'chart'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -2236,6 +2238,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Sea, behind the Hush Fiend's double gate — only Ember reaches it until the
       // Great Fogbank thins (then a boat can land on its beach, as on the other isles).
       { x: 7, y: 21, icon: 'chorus', name: 'Chorus Isle', byAir: true },
+      // Act III's last place (#75 item 15h): the Chartmaker's island, out at sea
+      // north-west of Port Lantern — only Ember reaches it (boats too, once Voices thins the fog).
+      { x: 17, y: 3, icon: 'chart', name: "Chartmaker's Rest", byAir: true },
     ],
     exits: [
       { x: 28, y: 21, to: 'port-lantern', spawnX: 32, spawnY: 11 },
@@ -2247,6 +2252,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 47, y: 10, to: 'songstone-cliffs', spawnX: 21, spawnY: 26 },
       { x: 47, y: 26, to: 'quiet-quarter', spawnX: 21, spawnY: 1 },
       { x: 7, y: 21, to: 'chorus-isle', spawnX: 21, spawnY: 26 },
+      { x: 17, y: 3, to: 'chartmakers-rest', spawnX: 10, spawnY: 12 },
     ],
     seaLinks: [{ side: 'west', to: 'silver-shallows' }],
   },
@@ -2893,6 +2899,54 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 6, y: 8, item: 'refrain-sunrise', wantedBy: "🎁 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
       { x: 37, y: 8, item: 'refrain-noon', wantedBy: "🎁 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
       { x: 9, y: 22, item: 'refrain-bedtime', wantedBy: "🎁 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
+    ],
+  },  // Chartmaker's Rest (#75 item 15h): a small calm island where the Chartmaker
+  // keeps his study — he has charted every place in Lumina but one. No critters:
+  // a story zone. Pen, his seabird, keeps a nest of shiny things by the north
+  // shore (the Blank Chart quest's key-item chest); Inka mixes ink by her easel.
+  'chartmakers-rest': {
+    id: 'chartmakers-rest',
+    name: "Chartmaker's Rest",
+    kind: 'shrine',
+    topic: 'geography',
+    map: [
+      '######################',
+      '#~~~~~~~~~~~~~~~~~~~~#',
+      '#~~~~::::::::::::~~~~#',
+      '#~~::...WWWWWWW...::~#',
+      '#~::..,.WBTFTBW..C.::#',
+      '#~:.....WFFFFFW.....:#',
+      '#~:..#..WFFFFFW..#..:#',
+      '#~:.....WWWDWWW.....:#',
+      '#~::.......=.....,.::#',
+      '#~~::..,...=.......:~#',
+      '#~~~::.....==.....::~#',
+      '#~~~~:::...==...:::~~#',
+      '#~~~~~~::::==::::~~~~#',
+      '##########EE##########',
+    ],
+    ground: [150, 178, 120],
+    path: [222, 200, 156],
+    solidEmoji: '🌿',
+    decoEmoji: '💠',
+    spawn: { x: 10, y: 12 },
+    buildings: [
+      { id: 'chart-study', name: "The Chartmaker's Study", x: 8, y: 3, w: 7, h: 5, roof: 'blue', style: 'chart', sign: 'house' },
+    ],
+    npcs: [
+      { defId: 'chart-chartmaker', x: 11, y: 5 },
+      { defId: 'chart-pen', x: 16, y: 8 },
+      { defId: 'chart-inka', x: 5, y: 8 },
+    ],
+    enemies: [],
+    exits: [
+      // Back out beside the Rest's icon on Taleshore, on grass Ember can take off from.
+      { x: 10, y: 13, to: 'taleshore', spawnX: 17, spawnY: 4 },
+      { x: 11, y: 13, to: 'taleshore', spawnX: 17, spawnY: 4 },
+    ],
+    // Pen's nest of shiny things (#75 item 15h): the Chartmaker's Compass Quill is in it.
+    keyChests: [
+      { x: 17, y: 4, item: 'compass-quill', wantedBy: "🪶 It's the Chartmaker's Compass Quill! He'll want it back — he's in his study, the blue-roofed house." },
     ],
   },
 };

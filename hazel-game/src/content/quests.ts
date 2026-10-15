@@ -4,7 +4,8 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { CODA_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { crystalFlag } from './topics';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -79,6 +80,10 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   'refrain-noon': { id: 'refrain-noon', name: 'Noon Refrain', emoji: '☀️' },
   'refrain-bedtime': { id: 'refrain-bedtime', name: 'Bedtime Refrain', emoji: '🌙' },
   'wick-note': { id: 'wick-note', name: "Wick's Thank-You Note", emoji: '💌' },
+  // The Blank Chart (#75 item 15h): the Chartmaker's quill, inked by Inka — and the chart itself, kept for Act IV.
+  'compass-quill': { id: 'compass-quill', name: 'Compass Quill', emoji: '✒️' },
+  'starlit-quill': { id: 'starlit-quill', name: 'Starlit Quill', emoji: '✨' },
+  'blank-chart': { id: 'blank-chart', name: 'Blank Chart', emoji: '🗺️' },
 };
 
 /**
@@ -203,6 +208,11 @@ export interface QuestDef {
   steps: QuestStep[];
   complete: string[];
   reward: { coins: number; potion?: number; hint?: number; items?: Partial<Record<ConsumableId, number>> };
+  /**
+   * Kept for good as the quest completes (#75 item 15h): quest items handed
+   * over (the Blank Chart) and story flags set (`blank-chart-held`).
+   */
+  grants?: { items?: string[]; flags?: string[] };
 }
 
 // --- Step builders ------------------------------------------------------------
@@ -1339,6 +1349,58 @@ export const QUESTS: QuestDef[] = [
     reward: { coins: 45, potion: 1 },
   },
 
+  // --- Chartmaker's Rest (#75 item 15h) ----------------------------------------
+
+  // Act III's last story quest: find the Chartmaker's quill (Pen hid it in her
+  // nest), have Inka fill it with starlight ink, and bring it back — he charts
+  // all of Lumina, and one place stays blank. He gives you the Blank Chart,
+  // Act IV's key item (`blank-chart-held`).
+  {
+    id: BLANK_CHART_QUEST,
+    zoneId: 'chartmakers-rest',
+    giverNpcId: 'chart-chartmaker',
+    title: 'The Blank Chart',
+    requires: crystalFlag('words'),
+    offer: [
+      "Ah, a visitor! I'm the Chartmaker. I've drawn a chart of every place in Lumina — every town, every island, every hill.",
+      "Every place but ONE. There's a place I can never name. Each time I try, my ink fades away, as if the world forgot it.",
+      'Now that the Crystal of Voices sings, I think I can chart it at last! But Pen, my seabird, flew off with my Compass Quill. She hides shiny things in a 🎁 nest by the shore, right of my study.',
+    ],
+    offerHaving: {
+      items: ['compass-quill', 'starlit-quill'],
+      lines: [
+        "Ah, a visitor — with my Compass Quill! Pen hid it in her nest, didn't she? I'm the Chartmaker. I've charted every place in Lumina but ONE.",
+        "There's a place I can never name. My ink fades every time I try. But with the Crystal of Voices singing again, I think I can chart it at last!",
+      ],
+    },
+    steps: [
+      haveStep(
+        'chart-quill-find',
+        [{ items: ['compass-quill', 'starlit-quill'], label: 'the Compass Quill' }],
+        "Pen hid the Compass Quill in her 🎁 nest by the shore, right of the Chartmaker's study.",
+      ),
+      bringStep(
+        'chart-quill-ink',
+        'chart-inka',
+        { takes: 'compass-quill', gives: 'starlit-quill' },
+        [
+          '🖌️ Inka dips the Compass Quill in a pot of ink that twinkles like the night sky.',
+          '"Starlight ink! It remembers everything it touches — even places the world forgot. Take it back to the Chartmaker!"',
+        ],
+        'Bring the Compass Quill to Inka, by her easel on the west side of the island. She mixes the Chartmaker\'s ink.',
+      ),
+    ],
+    takesItems: ['starlit-quill'],
+    complete: [
+      '✨ The Chartmaker dips the Starlit Quill and draws. Dawnreach… the Silver Shallows… Taleshore… every place you\'ve been, all at once!',
+      'But look — right under the Crystal Spire, one spot stays blank. Nothing sticks there. Not even starlight ink.',
+      '"Take it. This is the Blank Chart. A blank like that isn\'t NOTHING — it\'s something the whole world forgot."',
+      '🗺️ You got the Blank Chart! ✨ Reward: 60 coins and a Honey Elixir!',
+    ],
+    reward: { coins: 60, items: { elixir: 1 } },
+    grants: { items: ['blank-chart'], flags: [BLANK_CHART_HELD] },
+  },
+
   // --- Item chains (#75 item 13) ----------------------------------------------
 
   // Find a key item in a dungeon chest (behind the Echo Mine's dark — Glow),
@@ -1628,12 +1690,15 @@ function completeConversation(quest: QuestDef): QuestConversation {
       const { coins, potion = 0, hint = 0, items = {} } = quest.reward;
       const nextItems = { ...s.items, potion: s.items.potion + potion, hint: s.items.hint + hint };
       for (const [id, n] of Object.entries(items) as [ConsumableId, number][]) nextItems[id] += n;
+      const kept = s.questItems.filter((i) => i !== quest.givesItem && !quest.takesItems?.includes(i));
+      const granted = (quest.grants?.items ?? []).filter((i) => !kept.includes(i));
+      const grantedFlags = Object.fromEntries((quest.grants?.flags ?? []).map((f) => [f, true]));
       return {
         ...s,
         coins: s.coins + coins,
         items: nextItems,
-        questItems: s.questItems.filter((i) => i !== quest.givesItem && !quest.takesItems?.includes(i)),
-        flags: { ...s.flags, [questDoneFlag(quest)]: true, [questOfferedFlag(quest)]: true },
+        questItems: [...kept, ...granted],
+        flags: { ...s.flags, ...grantedFlags, [questDoneFlag(quest)]: true, [questOfferedFlag(quest)]: true },
       };
     },
   };

@@ -98,6 +98,8 @@ export const PLACE_EMOJI: Record<PlaceIcon, string> = {
   cliffs: '⛰️',
   quarter: '🏚️',
   chorus: '🎼',
+  // Act III's last place (#75 item 15h).
+  chart: '🌐',
 };
 
 /** Stands in for a place that's still hidden in fog. */

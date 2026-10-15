@@ -25,14 +25,14 @@ import {
   solveRiddle,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
 import { fieldSpellFlag } from './fieldSpells';
 import { NPC_DEFS } from './npcs';
 import { ENEMY_DEFS } from './enemies';
-import { TOPIC_REGISTRY } from './topics';
+import { TOPIC_REGISTRY, crystalFlag } from './topics';
 import { defaultSave } from '../lib/save';
 import type { SaveData } from '../types';
 import { ALL_SECRETS, claimSecret, secretById } from './secrets';
@@ -1149,5 +1149,51 @@ describe("Coda's Lost Refrains (#75 item 15g): find three, then sing them back",
   it("a refrain found first says it's Coda's", () => {
     const save = openChest(defaultSave(), chest('refrain-noon'));
     expect(chestWantedLine(save, chest('refrain-noon'))).toMatch(/Coda's lost refrains/);
+  });
+});
+
+describe("The Blank Chart (#75 item 15h): Pen's nest, Inka's ink, the Chartmaker's chart", () => {
+  const rest = ZONES['chartmakers-rest'];
+  const nest = pathTargetId('chartmakers-rest', 'chest', rest.keyChests![0].x, rest.keyChests![0].y);
+  const voices = (): SaveData => ({ ...defaultSave(), flags: { [crystalFlag('words')]: true } });
+
+  it('a story quest from the Chartmaker, offered only once the Crystal of Voices rings', () => {
+    const quest = byId(BLANK_CHART_QUEST);
+    expect(quest).toMatchObject({ giverNpcId: 'chart-chartmaker', zoneId: 'chartmakers-rest', requires: crystalFlag('words') });
+    expect(quest.side).toBeFalsy();
+    expect(quest.steps.map((st) => st.npc?.id ?? null)).toEqual([null, 'chart-inka']);
+    expect(questConversation('chart-chartmaker', defaultSave())).toBeNull();
+    expect(questConversation('chart-chartmaker', voices())).not.toBeNull();
+  });
+
+  it("offer → Pen's nest → Inka inks the quill → the Chartmaker keeps the quill and hands over the Blank Chart", () => {
+    const quest = byId(BLANK_CHART_QUEST);
+    let save = converse('chart-chartmaker', voices());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    // Inka has nothing to ink until the quill is found.
+    expect(questConversation('chart-inka', save)).toBeNull();
+    save = openChest(save, nest);
+    expect(save.questItems).toContain('compass-quill');
+    save = converse('chart-inka', save);
+    expect(save.questItems).toContain('starlit-quill');
+    expect(save.questItems).not.toContain('compass-quill');
+    const { coins } = save;
+    const elixirs = save.items.elixir;
+    const done = questConversation('chart-chartmaker', save)!;
+    expect(done.finishKind).toBe('complete');
+    save = done.finish!(save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.flags[BLANK_CHART_HELD]).toBe(true);
+    expect(save.questItems).toEqual(['blank-chart']);
+    expect(save.coins).toBe(coins + 60);
+    expect(save.items.elixir).toBe(elixirs + 1);
+    // Talked to again, he has no more quest to give.
+    expect(questConversation('chart-chartmaker', save)).toBeNull();
+  });
+
+  it('the quill found first: the Chartmaker knows it, and the nest says whose it is', () => {
+    const save = openChest(voices(), nest);
+    expect(chestWantedLine(save, nest)).toMatch(/Chartmaker's Compass Quill/);
+    expect(questConversation('chart-chartmaker', save)!.lines[0]).toMatch(/with my Compass Quill!/);
   });
 });

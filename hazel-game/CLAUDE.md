@@ -683,6 +683,7 @@ python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome
 python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
+python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
 python3 tools/assets/build.py cliffs   # Taleshore III: Songstone Cliffs, the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
 python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people, tale-stones (#75 item 15e)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
@@ -773,6 +774,31 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — Chartmaker's Rest: the Blank Chart, and Act III start to finish (#75 item 15h, #142)
+Roadmap sub-item 15h, the Phase 4 exit.
+- **Chartmaker's Rest** (`chartmakers-rest`): a small island north-west of
+  Port Lantern only Ember reaches (`byAir`; icon `chart`, overworld frame 30,
+  🌐 on the map). A safe story zone (no critters): the Chartmaker's study (a
+  new `chart` style), the Chartmaker 🧓, Pen 🐦 and Inka 👩‍🎨.
+- **The Blank Chart** (`blank-chart`, waits for Voices): Pen's nest (a
+  key-item chest) holds the Compass Quill; Inka inks it with starlight
+  (Compass → Starlit Quill); the Chartmaker draws all Lumina — one place
+  under the Crystal Spire stays blank — and hands over the Blank Chart. New
+  `QuestDef.grants` keeps it in the bag and sets `blank-chart-held` (#106a);
+  60c + a Honey Elixir. Four panels follow (`CHART_PANELS`, `chart-seen`).
+- **The 🚩:** after Voices, "Visit the Chartmaker", then Explore; Elder
+  Lumen's plan and tip for both.
+- **The Act III reactive pass:** eight new lines at home and in Act II's
+  places once Taleshore is reached or Voices rings.
+- **#66 decided:** no lazy map loading — all zone content is ~37 KB gzipped
+  and every map search reads `ZONES` synchronously.
+- **Act III start to finish:** `actThreeJourney` (`lib/journey.ts`) walks
+  every Act III goal inside its place, ending in the Chartmaker's study.
+- **Art:** `python3 tools/assets/build.py chart` (overworld frames 0–29
+  byte-identical).
+- **Tests:** +11 (zones, quests, journey, WorldScreen.ending, wayfinding,
+  tiles); 1298 green, lint and tsc clean.
 
 ### 2026-10-15 — 15g review round 4: starfire, a shh not a nose (#75 item 15g, #141p)
 The last round. Fresh code (3 low, 2 nits) and UX (1 high, 2 medium, 2 low,
