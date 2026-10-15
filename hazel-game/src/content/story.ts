@@ -112,6 +112,12 @@ export const FLIGHT_TUTORIAL_SEEN = 'flight-tutorial-seen';
 /** Set once the Dragon's Roost panels have played, on the first visit (#75 item 15b). */
 export const ROOST_SEEN = 'roost-seen';
 
+/**
+ * Act III opens (#75 item 15c, STORY-4X §5): the first time the hero is over
+ * Taleshore, `ACT3_PANELS` play and this is set.
+ */
+export const ACT3_SEEN = 'act3-seen';
+
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
   return `crystal-${topic}-scene-seen`;
@@ -171,7 +177,7 @@ export function emberStatus(flags: Record<string, boolean>): {
  * Act II opens the morning after the Spire. (Act III's flag comes with
  * Taleshore, 15c — until then no Act III crystal is in play.)
  */
-export const ACT_OPENS: Record<Act, string | null> = { 1: null, 2: ACT2_SEEN, 3: 'act3-seen' };
+export const ACT_OPENS: Record<Act, string | null> = { 1: null, 2: ACT2_SEEN, 3: ACT3_SEEN };
 
 /**
  * The crystals the hero can be working towards: every crystal of every act
@@ -432,6 +438,34 @@ export const FLIGHT_PANELS: StoryPanel[] = [
   {
     emoji: '⛰️',
     text: 'Ember keeps looking toward a lonely peak on Dawnreach, just east of Lumina Village. No path climbs it. Fly there, land on the grass at the top and walk in!',
+  },
+];
+
+/**
+ * Act III opens (#75 item 15c, STORY-4X §5): Ember carries the hero over the
+ * Great Fogbank, across the Starfall Sea, to Taleshore — where the fog never
+ * came, and where it's rude to say a name its owner lost.
+ */
+export const ACT3_PANELS: StoryPanel[] = [
+  {
+    emoji: '🌫️',
+    text: 'Ember beats her wings and climbs above the Great Fogbank. Below, the fog rolls like a white sea. Then — sunshine!',
+  },
+  {
+    emoji: '🌊',
+    text: 'The Starfall Sea sparkles all the way to the sky. And on the far side, a whole new land: Taleshore!',
+  },
+  {
+    emoji: '🏮',
+    text: 'Lanterns twinkle round a harbor on the coast. That is Port Lantern! People run to the quay, pointing up at Ember.',
+  },
+  {
+    emoji: '📖',
+    text: "The fog never came to Taleshore. Its people kept telling their stories, so they never forgot. Not even the Forgotten One's name.",
+  },
+  {
+    emoji: '🤫',
+    text: "But here, it's rude to say a name its owner has lost. Fly east and land by the harbor. The people of Port Lantern are waiting!",
   },
 ];
 

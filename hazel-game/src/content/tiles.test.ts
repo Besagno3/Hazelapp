@@ -65,9 +65,10 @@ describe('16-bit tilesets', () => {
     expect(OVERWORLD_FRAME.icon.elder).toBe(17);
     expect(OVERWORLD_FRAME.icon.marsh).toBe(18);
     expect(OVERWORLD_FRAME.icon.archive).toBe(19);
-    // …then the Dragon's Roost's (#75 item 15b).
-    expect(OVERWORLD_FRAME.icon.roost).toBe(OVERWORLD_FRAMES - 1);
-    const appended = [OVERWORLD_FRAME.icon.hill, OVERWORLD_FRAME.icon.elder, OVERWORLD_FRAME.icon.marsh, OVERWORLD_FRAME.icon.archive, OVERWORLD_FRAME.icon.roost];
+    // …then the Dragon's Roost's (#75 item 15b), then Port Lantern's (#75 item 15c).
+    expect(OVERWORLD_FRAME.icon.roost).toBe(20);
+    expect(OVERWORLD_FRAME.icon.harbor).toBe(OVERWORLD_FRAMES - 1);
+    const appended = [OVERWORLD_FRAME.icon.hill, OVERWORLD_FRAME.icon.elder, OVERWORLD_FRAME.icon.marsh, OVERWORLD_FRAME.icon.archive, OVERWORLD_FRAME.icon.roost, OVERWORLD_FRAME.icon.harbor];
     expect(Math.max(...icons.filter((f) => !appended.includes(f)))).toBe(OVERWORLD_DOCK_FRAME - 1);
     // Marlow's boat: the whole boat, then its hull's front, two bob frames each.
     expect(pngSize(BOAT_SHEET)).toEqual({ w: BOAT_FRAMES * 32, h: 32 });

@@ -1742,6 +1742,110 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
     ambient: ['Wrong book again!', 'Fetch, fetch, fetch!', '📖'],
   },
+  // Port Lantern (#75 item 15c): Taleshore's harbor town. Its people never
+  // forgot — they kept telling the stories — and they know Umbra's name, but
+  // it's rude to say a name its owner lost.
+  'port-harbormaster': {
+    id: 'port-harbormaster',
+    name: 'Harbormaster Gale',
+    sprite: '⚓',
+    role: 'villager',
+    stationary: true,
+    guide: true,
+    lines: [
+      "Welcome to Port Lantern! I'm Harbormaster Gale. I've never lost a ship. Misplaced one, yes. Twice.",
+      "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.",
+    ],
+  },
+  'port-skipper': {
+    id: 'port-skipper',
+    name: 'Skipper Juno',
+    sprite: '🧭',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "Ahoy! Skipper Juno. My ferry, the Puffin, runs round Taleshore's islands. Well — it will, once I find my nerve again.",
+      "You flew here? On a DRAGON? Then you're just the sailor I need. Come back soon!",
+    ],
+  },
+  'port-merchant': {
+    id: 'port-merchant',
+    name: 'Chandler Wick-Wax',
+    sprite: '🕯️',
+    role: 'merchant',
+    lines: [
+      "Candles, lanterns, potions! Wick-Wax's Chandlery keeps Port Lantern bright.",
+      'You know a Grandmother Wick? Never heard of her. No relation. Certainly not my cousin.',
+    ],
+  },
+  'port-innkeeper': {
+    id: 'port-innkeeper',
+    name: 'Innkeeper Hollis',
+    sprite: '🍲',
+    role: 'innkeeper',
+    lines: [
+      "Welcome to the Driftlight Inn! Fish stew, soft beds, and a lantern in every window.",
+      "Sleep here and, if a battle goes badly anywhere on Taleshore, you'll wake right here. Safe and sound.",
+    ],
+  },
+  'port-netmender': {
+    id: 'port-netmender',
+    name: 'Netmender Orla',
+    sprite: '🧶',
+    role: 'villager',
+    lines: [
+      "I'm Orla. I mend the nets. Every knot in this loft has a story, and I remember them all.",
+      'Out west, the Starfall Sea is dotted with little islands. The sailors have names for every one.',
+    ],
+    ambient: ['Over, under, through…', 'Another knot, another story.', '🧶'],
+  },
+  'port-lamplighter': {
+    id: 'port-lamplighter',
+    name: 'Tiko',
+    sprite: '👦',
+    role: 'villager',
+    lines: [
+      "I'm Tiko! I light the lanterns every night, so ships can find their way home.",
+      'Is that a REAL dragon? Can I pat it? …It sneezed on me! Best day ever!',
+    ],
+    ambient: ['One lantern, two lanterns…', 'Dragon! A real dragon!', '🏮'],
+  },
+  'port-postmaster': {
+    id: 'port-postmaster',
+    name: 'Postmaster Pidge',
+    sprite: '🐦',
+    role: 'villager',
+    lines: [
+      "Coo! Postmaster Pidge. I carry letters anywhere. Over hills, over sea, over fog, if I flap hard enough.",
+      "Nobody has sent a letter to Lumina Village in years. Maybe someone will, now that you've come!",
+    ],
+    ambient: ['Coo!', 'Letters! Letters!', '✉️'],
+  },
+  'port-storyteller': {
+    id: 'port-storyteller',
+    name: 'Storyteller Fable',
+    sprite: '📖',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "Over here the fog never came, little one, because we never stopped telling our stories. We remember everything.",
+      "Even the Forgotten One's real name. But it's rude to say a name its owner lost. You'll have to earn it.",
+    ],
+  },
+  // The quest board in the square (#75 item 15c): its notices change as Taleshore opens up.
+  'port-board': {
+    id: 'port-board',
+    name: 'Quest Board',
+    sprite: '📋',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      '📋 The Quest Board. Notices are pinned all over it.',
+      'NEW IN TOWN? Rest at the Driftlight Inn. Potions at Wick-Wax\'s Chandlery.',
+      'NOTICE: Postmaster Pidge carries letters anywhere — even over the Great Fogbank!',
+      'More notices will go up as Taleshore wakes to visitors. Check back soon!',
+    ],
+  },
   // The Dragon's Roost (#75 item 15b): where Ember's egg came from.
   'roost-stone': {
     id: 'roost-stone',

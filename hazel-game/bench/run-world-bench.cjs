@@ -990,6 +990,27 @@ async function fly(browser, outDir) {
   await check(page, 'takes off from the plateau again', s.takeOffs === 2 && s.flying, `takeOffs ${s.takeOffs}, flying ${s.flying}`);
   await page.close();
 
+  // G (#75 item 15c): off the Shallows' east edge, over the Great Fogbank, onto Taleshore; land by Port Lantern and walk in.
+  page = await ready(`zone=silver-shallows&at=54,21&fly=1&flags=${MEMORY}`);
+  await hold(page, 'ArrowRight', 1100);
+  await page.waitForTimeout(900);
+  s = await where(page);
+  await check(page, 'flies over the Great Fogbank onto Taleshore, arriving where she crossed', s.zoneId === 'taleshore' && cell(s).x <= 3 && cell(s).y === 21 && s.flying, `zone ${s.zoneId} at ${JSON.stringify(cell(s))}, flying ${s.flying}`);
+  for (let i = 0; i < 12 && cell(s).x < 30; i++) {
+    await hold(page, 'ArrowRight', 200);
+    s = await where(page);
+  }
+  await page.evaluate(() => window.__bench.land());
+  await page.waitForTimeout(250);
+  s = await where(page);
+  const landed = cell(s);
+  await check(page, "lands on Port Lantern's road", s.touchDowns === 1 && !s.flying && landed.x >= 29 && landed.x <= 33, `landed at ${JSON.stringify(landed)}`);
+  await hold(page, 'ArrowLeft', 1500);
+  await page.waitForTimeout(1500);
+  s = await where(page);
+  await check(page, 'walks into Port Lantern', s.zoneId === 'port-lantern', `zone ${s.zoneId} at ${JSON.stringify(cell(s))}`);
+  await page.close();
+
   const bad = checks.filter((ok) => !ok).length;
   console.log(`\n${checks.length - bad}/${checks.length} flight checks passed. Screenshots in ${outDir}.`);
   if (bad) process.exitCode = 1;

@@ -161,7 +161,12 @@ describe('regions and danger tiers (#75 item 12)', () => {
 
   it('the Silver Shallows is tier 5, the first past Act I (#105g, #108d)', () => {
     expect(zoneTier('silver-shallows')).toBe(5);
-    expect(Math.max(...REGIONS.filter((r) => r.id !== 'shallows').map((r) => r.tier))).toBe(4);
+    expect(Math.max(...REGIONS.filter((r) => r.id !== 'shallows' && r.id !== 'taleshore').map((r) => r.tier))).toBe(4);
+  });
+
+  it('Taleshore, past the Shallows, is a step tougher again: tier 6 (#75 item 15c)', () => {
+    expect(zoneTier('taleshore')).toBe(6);
+    expect(zoneTier('port-lantern')).toBe(6);
   });
 });
 

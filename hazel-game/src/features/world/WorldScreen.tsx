@@ -70,6 +70,8 @@ import {
   FLIGHT_TUTORIAL_SEEN,
   ROOST_PANELS,
   ROOST_SEEN,
+  ACT3_PANELS,
+  ACT3_SEEN,
   POSY_STONE_PANELS,
   POSY_STONE_SEEN,
   HALL_CALLED,
@@ -264,6 +266,8 @@ export default function WorldScreen() {
   // The first step into the Sunken Archive (#75 item 14h).
   const archiveDue = zoneId === 'sunken-archive' && !flags[ARCHIVE_SEEN];
   const roostDue = zoneId === 'dragon-roost' && !flags[ROOST_SEEN];
+  // Act III (#75 item 15c): the first time over Taleshore, flown in past the Great Fogbank.
+  const act3Due = (zoneId === 'taleshore' || zoneId === 'port-lantern') && !flags[ACT3_SEEN];
   // Ember's first flight (#75 item 15b): on a map Ember can fly over, where 🐉 Fly is.
   // Never from the boat: its "Tap 🐉 Fly" would point at a button that isn't there.
   const flightDue = canFly(flags) && !flags[FLIGHT_TUTORIAL_SEEN] && canFlyOver(ZONES[zoneId]) && save?.vehicle !== 'boat';
@@ -297,6 +301,7 @@ export default function WorldScreen() {
     | 'grove'
     | 'archive'
     | 'roost'
+    | 'act3'
     | 'flight'
     | 'dawnreach'
     | 'act2'
@@ -326,6 +331,8 @@ export default function WorldScreen() {
                     ? 'archive'
                     : roostDue
                       ? 'roost'
+                      : act3Due
+                        ? 'act3'
                       : flightDue
                         ? 'flight'
                     : dawnreachDue
@@ -898,6 +905,9 @@ export default function WorldScreen() {
             flightRef.current = 'fly';
           }}
         />
+      )}
+      {activeScene === 'act3' && (
+        <StoryPanels panels={ACT3_PANELS} doneLabel="🏮 To Port Lantern!" onDone={() => setFlag(ACT3_SEEN)} />
       )}
       {activeScene === 'roost' && (
         <StoryPanels panels={ROOST_PANELS} doneLabel="🪺 Look around" onDone={() => setFlag(ROOST_SEEN)} />

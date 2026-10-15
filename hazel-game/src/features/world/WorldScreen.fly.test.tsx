@@ -170,6 +170,23 @@ describe('🐉 Fly / 🛬 Land on the world HUD (#75 item 15b)', () => {
     expect(screen.queryByText(/Ember stretches its wings/)).toBeNull();
   });
 
+  it('the first time over Taleshore, Act III opens — once (#75 item 15c)', () => {
+    vi.useFakeTimers();
+    start('taleshore', { [story.FLIGHT_FLAG]: true }, 'ember');
+    const { unmount } = render(<WorldScreen />);
+    expect(screen.getByText(/climbs above the Great Fogbank/)).toBeInTheDocument();
+    for (let i = 0; i < story.ACT3_PANELS.length - 1; i++) {
+      act(() => vi.advanceTimersByTime(2000));
+      fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    }
+    act(() => vi.advanceTimersByTime(2000));
+    fireEvent.click(screen.getByRole('button', { name: '🏮 To Port Lantern!' }));
+    expect(useSaveStore.getState().save!.flags[story.ACT3_SEEN]).toBe(true);
+    unmount();
+    render(<WorldScreen />);
+    expect(screen.queryByText(/climbs above the Great Fogbank/)).toBeNull();
+  });
+
   it('has no Fly button while sailing', () => {
     start('silver-shallows', { [story.FLIGHT_FLAG]: true }, 'boat');
     render(<WorldScreen />);

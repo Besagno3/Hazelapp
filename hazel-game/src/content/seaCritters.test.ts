@@ -10,7 +10,7 @@ import { innOf } from './zones';
 import { questConversation } from './quests';
 import { defaultSave } from '../lib/save';
 import { reach, touches } from '../lib/reach';
-import { encounterHabitat, meetsHero, seaEntryCell } from '../lib/travel';
+import { LANDABLE_CHARS, encounterHabitat, meetsHero, seaEntryCell } from '../lib/travel';
 import { WANDER_TUNING } from '../lib/wander';
 import { HABITATS } from '../types';
 
@@ -158,6 +158,14 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect(innTowns.length).toBeGreaterThan(0);
     for (const z of innTowns) {
       if (z.exits.some((e) => e.to === BOAT_HOME.zoneId)) continue;
+      // Port Lantern (#75 item 15c) is on Taleshore, which only Ember reaches —
+      // so a hero who wakes there can always fly home: from its door they walk
+      // out onto ground Ember takes off from.
+      const flown = z.exits.find((e) => e.to === 'taleshore');
+      if (flown) {
+        expect(LANDABLE_CHARS.has(tileAt(ZONES.taleshore, flown.spawnX, flown.spawnY)), `${z.id}: Ember takes off outside`).toBe(true);
+        continue;
+      }
       const m = z.mooring!;
       expect(m, `${z.id} is an island town with a mooring`).toBeDefined();
       expect(validMooring(m), `${z.id}'s mooring floats`).toBe(true);

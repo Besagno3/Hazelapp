@@ -16,6 +16,8 @@ WORLD_SCALE = 2  # world art is authored at 16px/tile and shown 2× (32px tiles)
 # or turn: one still frame, with every facing anim pointing at it (#75 item 6).
 STILL_PROPS = {
     'signpost': ('🪧', tiles.signpost),
+    # Port Lantern's quest board (#75 item 15c).
+    'port-board': ('📋', tiles.quest_board),
 }
 
 

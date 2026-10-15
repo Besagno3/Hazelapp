@@ -18,7 +18,7 @@ import {
   SEA_CHARS,
 } from './zones';
 import { edgeLinkProblem, exitSide } from '../lib/transition';
-import { seaEntryCell } from '../lib/travel';
+import { edgeCrossing, seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
@@ -516,8 +516,8 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
   const flying = (z: ZoneDef) => reach(z, { flags: allLifted, modes: ['foot', 'ember'] });
   const airOnly = new Set(dawn.places!.filter((p) => p.byAir).map((p) => `${p.x},${p.y}`));
 
-  it('is an overworld with places (and the Silver Shallows, the sea beyond it, #75 item 14)', () => {
-    expect(overworlds.map((z) => z.id)).toEqual(['dawnreach', 'silver-shallows']);
+  it('is an overworld with places (and the Silver Shallows, the sea beyond it, #75 item 14; Taleshore past the fog, #75 item 15c)', () => {
+    expect(overworlds.map((z) => z.id)).toEqual(['dawnreach', 'silver-shallows', 'taleshore']);
     expect(dawn.places?.length).toBeGreaterThanOrEqual(8);
   });
 
@@ -1160,5 +1160,49 @@ describe('the world remembers (#75 item 14i)', () => {
     expect(say('village-keeper', {})).toMatch(/sputter/);
     const mnem = visibleLines(NPC_DEFS['hill-keeper'].lines, { ...act2, 'met-mnem': true, 'crystal-history-restored': true }).map(lineText);
     expect(mnem[0]).not.toMatch(/^And\b/);
+  });
+});
+
+describe('Taleshore and Port Lantern (#75 item 15c)', () => {
+  const sea = ZONES['silver-shallows'];
+  const tale = ZONES.taleshore;
+  const port = ZONES['port-lantern'];
+  const icon = tale.places!.find((p) => p.name === 'Port Lantern')!;
+
+  it("is a far overworld past the Great Fogbank: no boat sails off the Shallows' east edge while the fog stands", () => {
+    expect(tale.kind).toBe('overworld');
+    const east = sea.map[0].length - 1;
+    for (let y = 0; y < sea.map.length; y++) {
+      // Every cell of the east edge is fog until the Hush Fiend falls…
+      expect(fogAt(sea, east, y, {}), `row ${y} fogged`).toBeTruthy();
+      // …and a boat can't enter fog, so only Ember crosses — onto Taleshore, the same row, one cell in.
+      expect(edgeCrossing(sea, east, y, ZONES, 'ember')).toEqual({ side: 'east', to: 'taleshore', x: 1, y });
+    }
+    // Taleshore's west side is open Starfall Sea, so whatever row she crosses on, she arrives over water.
+    for (let y = 0; y < tale.map.length; y++) expect(tileAt(tale, 1, y)).toBe('~');
+  });
+
+  it("Port Lantern sits on the coast, beside ground Ember can land on, and its gate lands back on that road", () => {
+    expect(icon.icon).toBe('harbor');
+    const out = port.exits.filter((e) => e.to === 'taleshore');
+    expect(out.length).toBe(2);
+    for (const e of out) {
+      expect(landable(tileAt(tale, e.spawnX, e.spawnY)), 'Ember can take off where you come out').toBe(true);
+      expect(Math.abs(e.spawnX - icon.x) + Math.abs(e.spawnY - icon.y)).toBeLessThanOrEqual(2);
+    }
+    // From that road, the town's icon is a step away on foot.
+    const road = reach(tale, { from: { x: out[0].spawnX, y: out[0].spawnY } });
+    expect(touches(road, icon.x, icon.y)).toBe(true);
+  });
+
+  it('is a safe harbor town: an inn (a Return town), a chandlery selling Berry Potions, a quest board — and no library', () => {
+    expect(port.kind).toBe('town');
+    expect(port.enemies).toEqual([]);
+    expect(RETURN_TOWNS).toContain('port-lantern');
+    expect(port.buildings!.filter((b) => b.sign === 'inn')).toHaveLength(1);
+    expect(port.npcs.map((n) => NPC_DEFS[n.defId].role)).not.toContain('librarian');
+    expect(port.npcs.map((n) => n.defId)).toContain('port-board');
+    expect(new Set(port.buildings!.map((b) => b.style))).toEqual(new Set(['harbor']));
+    expect(zoneTier('taleshore')).toBe(6);
   });
 });

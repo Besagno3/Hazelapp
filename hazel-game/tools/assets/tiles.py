@@ -85,6 +85,13 @@ ZONES = {
     # nests and white mountain flowers, high above the clouds.
     'dragon-roost': dict(ground=(150, 156, 140), path=(196, 182, 150), solid='rock', deco='flower', deco_c='#ffffff',
                          sky=('#4a8ad8', '#eaf4ff'), far='#a8b8d0', mid='mountain', water='#4a8ad0'),
+    # Taleshore (#75 item 15c): the far continent across the Starfall Sea — warm
+    # green meadows, dark pines, pink sea-flowers, a deep blue sea.
+    'taleshore': dict(ground=(126, 170, 96), path=(214, 190, 140), solid='pine', deco='flower', deco_c='#ff8ac0',
+                      sky=('#3a8ae0', '#fff0d8'), far='#7aa0d0', mid='sea', water='#2a6ac8'),
+    # Port Lantern (#75 item 15c): a harbor town of tarred timber and lanterns at dusk.
+    'port-lantern': dict(ground=(128, 160, 110), path=(196, 178, 140), solid='rock', deco='candle', deco_c='#ffd24a',
+                         sky=('#e88a5a', '#ffe0b8'), far='#8a7aa0', mid='houses', water='#2a6ac8'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -101,6 +108,10 @@ ELDER_ZONES = ('eldergrove',)
 # Added with Foglight Marsh (#75 item 14g) — `build_marsh` writes only these
 # (+ the stilt town sheet and the overworld sheet with the marsh icon appended).
 MARSH_ZONES = ('foglight-marsh',)
+
+# Added with Taleshore (#75 item 15c) — `build_taleshore` writes only these
+# (+ the harbor town sheet and the overworld sheet with the harbor icon appended).
+TALESHORE_ZONES = ('taleshore', 'port-lantern')
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -411,6 +422,8 @@ STYLES = {
     'stilt':     ('#8a8a6a', '#4a4a3a', 'planks',  'square', 'planks', ('#a89870',)),
     # The Sunken Archive (#75 item 14h): old library wood panels with gold trim, a checked floor.
     'tome':      ('#7a5a3e', '#d0a848', 'panels',  'arch',   'checker', ('#c8b48a', '#a89068')),
+    # Port Lantern (#75 item 15c): tarred harbor timber, sea-teal trim, round porthole windows.
+    'harbor':    ('#5a4a3e', '#3aa0a8', 'planks',  'round',  'planks', ('#b88a5a',)),
 }
 
 
@@ -1247,6 +1260,42 @@ def ow_icon(kind):
         c.dot(8, 2.4, '#e0884a', w=1, h=1)
         c.ellipse(2.6, 9.4, 2.4, 0.9, '#ffffff', shade=False)  # a wisp of cloud
         c.ellipse(13.6, 11, 2, 0.8, '#ffffff', shade=False)
+    elif kind == 'harbor':
+        # Port Lantern (#75 item 15c): a quay over blue water, a little house
+        # behind it and a tall lantern post, lit.
+        c.ellipse(8, 14, 7.6, 2, '#3a7ad8')
+        c.ellipse(4.6, 13.6, 2.4, 0.6, '#a8d8ff', shade=False)
+        c.rect(1.5, 10.5, 14.5, 12.4, '#a07040')  # the quay
+        for x in (2.5, 6.5, 10.5, 14):
+            c.line(x, 12.4, x, 14.6, '#6a4424', w=0.7)  # its posts
+        c.rect(2.6, 6, 8.4, 10.5, '#e8d8b8')
+        c.poly([(1.8, 6.4), (5.5, 3), (9.2, 6.4)], '#2a8a96')
+        c.rect(4.8, 8, 6.2, 10.5, '#6a4424', shade=False)
+        c.rect(11.2, 4, 12.8, 10.5, '#7a5432')  # the lantern post
+        c.rect(10, 0.8, 14, 4.4, '#6a4a2a')
+        c.rect(10.6, 1.4, 13.4, 3.8, '#ffe070', shade=False)
+        c.dot(11.4, 2, '#fffbe0')
+        for (x, y) in ((9.4, 1.4), (14.6, 2.2), (12, 0.2)):
+            c.dot(x, y, '#fff2b0')
+    return _outlined(c)
+
+
+def quest_board():
+    """Port Lantern's quest board (#75 item 15c): a wooden board on two posts,
+    notices pinned all over it. Stands in the world like a signpost — talk to it."""
+    c = _c()
+    c.shadow(8, 15.2, 5, 1)
+    for x in (3, 12):
+        c.rect(x, 6, x + 1.4, 15.5, '#7a4a2a', shade=False)
+    c.rect(1, 2, 15, 11, '#a8743e', shade=False)
+    c.rect(1.6, 2.6, 14.4, 10.4, '#c8904a', shade=False)
+    for (x0, y0, x1, y1, col) in ((2.4, 3.2, 6.4, 6.6, '#f8f0dc'), (7.2, 3.6, 10.6, 7.4, '#ffe8a0'),
+                                  (11.2, 3.2, 13.8, 6.2, '#e8f4ff'), (3.4, 7.4, 7.6, 9.8, '#ffd8e0'),
+                                  (8.6, 8, 13.4, 9.9, '#f8f0dc')):
+        c.rect(x0, y0, x1, y1, col, shade=False)
+        c.dot(x0 + (x1 - x0) / 2, y0 + 0.4, '#d03a3a')  # a pin
+    for (x, y) in ((3, 4.6), (3, 5.6), (8, 5), (8, 6.2), (12, 4.6), (4.2, 8.6), (9.4, 9)):
+        c.rect(x, y, x + 2.4, y + 0.4, '#8a7a6a', shade=False)  # writing
     return _outlined(c)
 
 
@@ -1385,7 +1434,8 @@ def overworld_sheet():
     # frame 19 (#75 item 14h): the Sunken Archive — each appended, so every earlier
     # frame keeps its place.
     return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
-            + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive'), ow_icon('roost')])
+            + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive'), ow_icon('roost'),
+               ow_icon('harbor')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
@@ -1633,6 +1683,21 @@ def build_roost(public: Path):
         i = ids.index(zid)
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_taleshore(public: Path):
+    """Write only Taleshore's art (#75 item 15c): the far continent's and Port
+    Lantern's tilesets, blend sheets and backdrops, the harbor town sheet and the
+    overworld sheet with the harbor icon."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in TALESHORE_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('harbor')]).save(tdir / 'town-harbor.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 

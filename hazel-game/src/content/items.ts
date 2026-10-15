@@ -1,8 +1,8 @@
 /**
  * The coin economy + shops (#37; per-shop stock since #73). Every merchant
  * runs their own store, and every item is sold in exactly ONE place — so each
- * town is worth visiting — except the `SHARED_STOCK` staples, which have a
- * second seller so a hero far from Lumina Village can restock (items.test
+ * town is worth visiting — except the `SHARED_STOCK` staples, which have
+ * more sellers so a hero far from Lumina Village can restock (items.test
  * enforces both rules). All tuning numbers live here.
  */
 
@@ -30,8 +30,9 @@ export const CLOVER_COIN_MULT = 2;
 export const TEA_DAMAGE_MULT = 2;
 
 /**
- * Staples deliberately sold in exactly TWO shops (everything else: one).
- * Berry Potions: Maple's Trading Post (Lumina Village) + Tadpole's Tonics (Verdara).
+ * Staples sold in more than one shop (everything else: one), always at one price.
+ * Berry Potions: Maple's Trading Post (Lumina Village), Tadpole's Tonics
+ * (Verdara) and, on the far continent, Wick-Wax's Chandlery (Port Lantern, #75 item 15c).
  */
 export const SHARED_STOCK: readonly ConsumableId[] = ['potion'];
 
@@ -111,6 +112,15 @@ export const SHOPS: Record<string, ShopDef> = {
     ],
   },
   // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.
+  // Port Lantern (#75 item 15c): the far continent's Berry Potions — a long way from home.
+  'port-merchant': {
+    name: "Wick-Wax's Chandlery",
+    emoji: '🕯️',
+    items: [
+      stock('potion', 30), // third potion seller (SHARED_STOCK)
+      { id: 'badge:harbor', name: 'Harbor Light Badge', emoji: '⚓', description: 'A little anchor with a lantern on it. Ships find their way home by it.', price: 120 },
+    ],
+  },
   'hill-merchant': {
     name: "Knack's Pre-Remembered Goods",
     emoji: '🧳',

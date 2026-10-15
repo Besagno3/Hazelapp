@@ -18,6 +18,7 @@ import {
 } from '../../lib/worldMap';
 import { goalDirections, nextObjective } from '../../lib/wayfinding';
 import { boatAway, hasBoat } from '../../content/boat';
+import { canFly } from '../../content/story';
 
 /** A map's name mid-sentence: "the Silver Shallows", "Dawnreach" (on the map's edges: `seaEdgeLabel`). */
 const mid = (name: string) => (name.startsWith('The ') ? `the ${name.slice(4)}` : name);
@@ -76,8 +77,10 @@ export default function WorldMapPanel({
   const boatHome = !!boatHere && !boatAway({ boat: boatHere, vehicle: 'foot', flags });
   // Landmarks (#75 item 14): islets and rocks named on the map, not entered.
   const landmarks = world.landmarks ?? [];
-  // Which way the sea leads off this map, once there's a boat to sail it.
-  const seaWays = hasBoat(flags) ? (world.seaLinks ?? []) : [];
+  // Which way the sea leads off this map, once there's a boat to sail it — or,
+  // past the Great Fogbank to Taleshore, once Ember can fly there (#75 item 15c).
+  const flownOnly = (to: ZoneId) => to === 'taleshore' || world.id === 'taleshore';
+  const seaWays = (world.seaLinks ?? []).filter((l) => (flownOnly(l.to) ? canFly(flags) : hasBoat(flags)));
   // Everything drawn on the map that a sea-edge label keeps clear of — the ⭐ above all.
   const marks = [...places, ...landmarks, ...(boatHere ? [boatHere] : []), ...(flagAt ? [flagAt] : [])];
   // On the overworld, directions start from the hero's own tile.
@@ -109,7 +112,7 @@ export default function WorldMapPanel({
         ? "⛵ = the Biscuit, waiting at Marlow's dock"
         : '⛵ = the Biscuit, moored where you left her'
       : null;
-  const seaWayText = seaWays.map((l) => `Sail off the ${l.side} edge to ${mid(ZONES[l.to].name)}.`).join(' ');
+  const seaWayText = seaWays.map((l) => `${flownOnly(l.to) ? 'Fly' : 'Sail'} off the ${l.side} edge to ${mid(ZONES[l.to].name)}.`).join(' ');
   const at = (x: number, y: number) => ({ left: `${((x + 0.5) / cols) * 100}%`, top: `${((y + 0.5) / rows) * 100}%` });
 
   return (
@@ -238,7 +241,7 @@ export default function WorldMapPanel({
           {greatFogbank && (
             <span className="block">
               <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1" style={{ background: FOG_COLOR }} />
-              The Great Fogbank — no boat can pass it
+              {canFly(flags) ? 'The Great Fogbank — no boat can pass it, but Ember flies over it' : 'The Great Fogbank — no boat can pass it'}
             </span>
           )}
         </p>

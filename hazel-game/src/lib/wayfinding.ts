@@ -232,6 +232,15 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           zoneId: 'dragon-roost',
         };
       }
+      // …then east, over the Great Fogbank, to Taleshore (#75 item 15c).
+      if (canFly(flags) && !flags[visitedFlag('port-lantern')]) {
+        return {
+          kind: 'fly',
+          title: 'Fly to Taleshore',
+          why: 'Past the Great Fogbank lies Taleshore, a land the fog never reached. Ride Ember over the fog to Port Lantern, its harbor town.',
+          zoneId: 'port-lantern',
+        };
+      }
       return {
         kind: 'explore',
         title: 'Explore Lumina',
@@ -529,8 +538,10 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `Lumina is remembering more every day! An old road has opened past Moonwell Grove, to a town called ${place('remembrance-hill')}. They say a keeper there never forgets a name.`;
   } else if (goal.kind === 'spire') {
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
-  } else if (goal.kind === 'fly') {
+  } else if (goal.kind === 'fly' && goal.zoneId === 'dragon-roost') {
     plan = "Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.";
+  } else if (goal.kind === 'fly') {
+    plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Beyond it lies Taleshore. They say its people never forgot a single story.";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
