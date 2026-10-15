@@ -154,7 +154,7 @@ describe("a tale-stone's riddle (#75 item 15e)", () => {
     onReef({ 'quest:yarn-tale:offered': true });
     render(<DialogueOverlay npcId="reef-stone-1" />);
     fireEvent.click(screen.getByText('▼ Next'));
-    fireEvent.click(screen.getByText('📜 Hear the riddle'));
+    fireEvent.click(screen.getByText('📜 Hear the question'));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_PATH', target: { kind: 'riddle', id: 'yarn-stone-1', topic: 'words', zoneId: 'story-reef' } });
     expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
   });

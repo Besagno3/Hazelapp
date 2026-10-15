@@ -78,11 +78,11 @@ describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
   it('a right answer lights the stone (its step) and says where the next one is, above the button', async () => {
     withFlags(YARN_ASKED);
     render(<PathQuestionOverlay target={stone} />);
-    expect(screen.getByRole('heading', { name: /tale-stone asks a riddle/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /tale-stone asks a word question/ })).toBeInTheDocument();
     fireEvent.click(await screen.findByText('Right'));
     expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBe(true);
     const status = screen.getByRole('status');
-    expect(status).toHaveTextContent(/^📜 Chapter 1:.*across the road, to the tide pool near the top of the reef/);
+    expect(status).toHaveTextContent(/^📜 Chapter 1:.*over the road, to the pool near the top/);
     const button = screen.getByRole('button', { name: /The stone glows!/ });
     expect(status.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // No coins: a stone isn't a chest.
@@ -96,8 +96,13 @@ describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
     expect(screen.getByRole('status')).toHaveTextContent('');
     fireEvent.click(wrong);
     expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
-    expect(screen.getByRole('status')).toHaveTextContent('The stone stays dim. Talk to it again for a new riddle!');
-    expect(screen.getByRole('button', { name: /try again/ })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('The stone stays dim. Want another question?');
+    // Another question right here (round 3): a new one loads; "Later" walks away.
+    expect(screen.getByRole('button', { name: 'Later' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Ask me another/ }));
+    fireEvent.click(await screen.findByText('Right'));
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Later' })).toBeNull();
   });
 
   it('a stale riddle (its step no longer due) finishes nothing, and says nothing about glowing (rounds 1–2)', async () => {
@@ -105,6 +110,7 @@ describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
     fireEvent.click(await screen.findByText('Right'));
     expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
     expect(screen.queryByRole('button', { name: /The stone glows/ })).toBeNull();
-    expect(screen.getByRole('status')).not.toHaveTextContent(/Chapter 1/);
+    // …and no "stays dim" after a right answer either (round 3).
+    expect(screen.getByRole('status')).toHaveTextContent('');
   });
 });

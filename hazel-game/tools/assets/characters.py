@@ -853,6 +853,9 @@ def blob(c: Canvas, p: Pose, s: dict):
         for (x, y) in ((2.5, cy - 4), (29.5, cy - 3), (20, cy - ry - 4)):
             L.dot(x, y, col, w=1.6, h=1.6)
         L.ellipse(12, cy - 3.5, 2.6, 1.4, light(col, 0.45), shade=False)
+        # Big white eyes, so it reads as a critter on dark ground (15e round 3).
+        for x in face_x(p, [18, 21.5], [13.5, 18]):
+            L.ellipse(x, cy - 2, 2.2, 2.4, '#ffffff', shade=False)
     if s.get('symbol') == 'plus':
         L.rect(12.5, cy + 1, 15.5, cy + 2, WHITE, shade=False)
         L.rect(13.5, cy, 14.5, cy + 3, WHITE, shade=False)
@@ -1532,11 +1535,13 @@ def whale(c: Canvas, p: Pose, s: dict):
         L.line(6.2, 12.4, 7.4, 12.4, '#e8ecf4', w=0.7)
     if s.get('qmarks'):
         # The Riddle Leviathan (#75 item 15e): pale "?"s written along its inky side, a silver key on its tail.
-        for (x, y) in ((8.5, 18), (13, 16.5)):
-            L.line(x - 1, y - 1.4, x, y - 2.2, '#e8e0ff', w=0.7)
-            L.line(x, y - 2.2, x + 1.1, y - 1.4, '#e8e0ff', w=0.7)
-            L.line(x + 1.1, y - 1.4, x, y, '#e8e0ff', w=0.7)
-            L.dot(x, y + 1.2, '#e8e0ff', w=0.8, h=0.8)
+        # One big white "?" on its side (15e round 3: the small ones didn't read at game size).
+        L.line(10, 16.4, 12.2, 14.6, '#ffffff', w=1.4)
+        L.line(12.2, 14.6, 14.6, 15.4, '#ffffff', w=1.4)
+        L.line(14.6, 15.4, 14.4, 17.6, '#ffffff', w=1.4)
+        L.line(14.4, 17.6, 12.6, 19, '#ffffff', w=1.4)
+        L.line(12.6, 19, 12.6, 20.6, '#ffffff', w=1.4)
+        L.ellipse(12.6, 23, 1.1, 1.1, '#ffffff', shade=False)
         L.ellipse(1.6, 16.6, 1.3, 1.3, '#d8dce8')
         L.line(1.6, 17.8, 1.6, 21, '#d8dce8', w=0.7)
         L.line(1.6, 20.4, 2.8, 20.4, '#d8dce8', w=0.6)
@@ -3126,10 +3131,6 @@ def kite_ray(c: Canvas, p: Pose, s: dict):
     B.poly([(16, 4 + flap * 0.3), (16, 22), (5, 14 + flap)], light(col, 0.12), shade=False)
     B.line(16, 4, 16, 22, dark(col, 0.25), w=0.5)  # the kite's cross-sticks
     B.line(5, 14 + flap, 27, 14 + flap, dark(col, 0.25), w=0.5)
-    if s.get('page'):
-        # A Page Ray (#75 item 15e): lines of writing across its paper wings.
-        for (x0, x1, y) in ((9, 14, 9.5), (18, 23, 9.5), (7.5, 13.5, 18), (18.5, 24.5, 18)):
-            B.line(x0, y + flap * 0.5, x1, y + flap * 0.5, '#5a6a9a', w=0.5)
     d.put(B)
     F = d.part(d.lean, d.bob - 3)  # a ray's face: big eyes and a smile
     if p.facing != 'up':
@@ -4001,7 +4002,7 @@ NPCS: list[Char] = [
     Char('reef-stone-lit', '🪨', 'nameless_stone', H(color='#c8d4dc', tale=True, glow='#ffd84a')),
     Char('ink-dot', '✒️', 'humanoid', H(hair='bob', hair_color='#2a2a3a', glasses=True, outfit='#3a3a6a', trim='#f4ecd8', item='book')),
     Char('ink-smudge', '🦑', 'octopus', H(color='#8ac8e8', friendly=True)),
-    Char('ink-bess', '🐚', 'humanoid', H(hair='long', hair_color='#e8a070', hat='bandana', hat_color='#3ab0a0', outfit='#e07a6a', apron='#f4e8d8', item='lantern')),
+    Char('ink-bess', '🐚', 'humanoid', H(hair='bun', hair_color='#6a4a3a', hat='flower', outfit='#3a9ab0', apron='#f8e0d0', trim='#ff9ab0', item='lantern')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

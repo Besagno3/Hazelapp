@@ -2580,7 +2580,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   },
   // Inkwell Cove (#75 item 15e): a cove of black, inky water on Taleshore's east
   // coast. Barnacle Bess's shell shop by the road in, Scrivener Dot by the path,
-  // and the Riddle Leviathan at the tip of the sandy point, guarding the chest — the Second Chorus Key.
+  // and the Riddle Leviathan at the tip of the sandy point, in front of the riddle-chest.
+  // Beating it wins the Second Chorus Key.
   'inkwell-cove': {
     id: 'inkwell-cove',
     name: 'Inkwell Cove',
@@ -2589,12 +2590,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     map: [
       '#####################EE#####################',
       '#######..............==....................#',
-      '#######.WWWWWWW......==....,.....,.........#',
-      '#######.WFBFBFW......==.............#......#',
-      '#######.WKKKKKW..#...==......#..........,..#',
-      '#######.WFFFFFW......==::::::::::::::::::::#',
-      '#######.WWWDWWW......==:~~~~~~~~~~~~~~~~~~~#',
-      '#######....============:~~~~~~~~~~~~~~~~~~~#',
+      '#######....WWWWWWW...==....,.....,.........#',
+      '#######....WFBFBFW...==.............#......#',
+      '#######....WKKKKKW...==......#..........,..#',
+      '#######....WFFFFFW...==::::::::::::::::::::#',
+      '#######....WWWDWWW...==:~~~~~~~~~~~~~~~~~~~#',
+      '#######.......=========:~~~~~~~~~~~~~~~~~~~#',
       '#######..............==:~~~~~~~~~~~~~~~~~~~#',
       '#####................=====~~~~~~~~~~~~~~~~~#',
       '#####..,.......#.......::=~~~~~~~~~~~~~~~~~#',
@@ -2616,16 +2617,16 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#####........:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
       '############################################',
     ],
-    ground: [112, 140, 120],
+    ground: [124, 150, 134],
     path: [196, 180, 150],
     solidEmoji: '🪨',
     decoEmoji: '🖋️',
     spawn: { x: 21, y: 1 },
     buildings: [
-      { id: 'shell-shop', name: "Bess's Shell Shop", x: 8, y: 2, w: 7, h: 5, roof: 'sea', style: 'shell', sign: 'shop' },
+      { id: 'shell-shop', name: "Bess's Shell Shop", x: 11, y: 2, w: 7, h: 5, roof: 'sea', style: 'shell', sign: 'shop' },
     ],
     npcs: [
-      { defId: 'ink-bess', x: 11, y: 3 },
+      { defId: 'ink-bess', x: 14, y: 3 },
       // The Riddle Leviathan's signpost (#59's pattern), where the path turns out to the point.
       { defId: 'ink-dot', x: 19, y: 9 },
       { defId: 'ink-smudge', x: 12, y: 14 },

@@ -167,7 +167,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
                   : quest?.finishKind === 'step'
                     ? '✨ Got it!'
                     : quest?.finishKind === 'riddle'
-                      ? '📜 Hear the riddle'
+                      ? '📜 Hear the question'
                       : 'Bye!'}
           </button>
         </div>

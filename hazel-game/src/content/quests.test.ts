@@ -957,7 +957,7 @@ describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
     expect(quest.steps.map((st) => st.npc?.id)).toEqual(stones);
     expect(quest.steps.every((st) => st.riddle)).toBe(true);
     // Each right answer points at the next stone's place, and the last sends you home to Yarn.
-    expect(riddleSolvedLine(YARN_STONES[0])).toMatch(/EAST, across the road, to the tide pool near the top of the reef/);
+    expect(riddleSolvedLine(YARN_STONES[0])).toMatch(/EAST, over the road, to the pool near the top/);
     expect(riddleSolvedLine(YARN_STONES[1])).toMatch(/sandbar/);
     expect(riddleSolvedLine(YARN_STONES[2])).toMatch(/tell Yarn/);
     expect(riddleSolvedLine('juno-walk')).toBeNull();

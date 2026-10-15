@@ -766,6 +766,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15e review round 3: lit stones that point on, ask me another (#75 item 15e, #139j)
+Fresh code (3 low, 3 nits) and UX (2 medium, 8 low) reviews, all fixed: a
+lit stone repeats the way to the next; a wrong answer offers "🔄 Ask me
+another!" on the spot; "word question" everywhere a stone asks one; Bess's
+shop on screen at arrival; a big "?" on the Leviathan, eyes on Blot, a
+lighter cove; stale docs. Tests +2; 1248 green; `bench … fly` 20/20,
+`bench … journey` 13/13.
+
 ### 2026-10-15 — 15e review round 2: no way round the Leviathan, a paper Page Ray (#75 item 15e, #139i)
 Fresh code (1 medium, 1 low, 1 nit) and UX (4 medium, 8 low) reviews, all
 fixed but one kept: the point narrows to one cell at the Leviathan (a hero
@@ -781,7 +789,7 @@ answer says to talk to the stone again, "Later", `solveRiddle` finishes only
 a riddle that's due, the Leviathan at the point's tip in front of the chest,
 the cove's icon clear of the map's edge, the 🚩 plan's directions; a shrimp
 drawer, a curled-tail Leviathan, a quill-armed Cuttle-Scribe, a friendly
-Smudge, an ink-splat Blot, a mermaid Verse, ink on the cove's ground. Tests
+Smudge, an ink-splat Blot, a mermaid Verse (round 2 took the cove's ground splats back out). Tests
 +3; 1244 green; `bench … fly` 20/20, `bench … journey` 13/13 (before the fixes).
 
 ### 2026-10-15 — Taleshore II: the Story Reef and Inkwell Cove (#75 item 15e, #139)

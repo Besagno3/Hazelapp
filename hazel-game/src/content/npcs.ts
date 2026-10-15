@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { JUNO_CAME, JUNO_QUEST, YARN_QUEST, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
@@ -1949,7 +1949,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     prop: true,
     stationary: true,
-    lines: ['🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.'],
+    // Says where the next stone is until that one glows too (15e round 3: the clue shows once, after the answer).
+    lines: [
+      { text: '🪨 The stone glows. Its words float EAST, over the road, to the pool near the top of the reef!', unlessFlag: stepFlag(YARN_STONES[1]) },
+      { text: '🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.', ifFlag: stepFlag(YARN_STONES[1]) },
+    ],
   },
   'reef-stone-2': {
     id: 'reef-stone-2',
@@ -1972,7 +1976,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     prop: true,
     stationary: true,
-    lines: ['🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.'],
+    // Says where the next stone is until that one glows too (15e round 3: the clue shows once, after the answer).
+    lines: [
+      { text: '🪨 The stone glows. Its words float SOUTH-WEST, to the sandbar in the sea!', unlessFlag: stepFlag(YARN_STONES[2]) },
+      { text: '🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.', ifFlag: stepFlag(YARN_STONES[2]) },
+    ],
   },
   'reef-stone-3': {
     id: 'reef-stone-3',
@@ -2020,7 +2028,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "Hi! I'm Smudge. Every time I get a fright I squirt ink. Then everything is a smudge. That's how I got my name!",
-      'Cuttle-Scribes write their own cuts closed with ink. Hit them hard, so they can\'t write fast enough!',
+      'Cuttle-Scribes scribble their scrapes away with ink. Hit them hard, so they can\'t scribble fast enough!',
     ],
     ambient: ['Squirt!', 'Oops, ink.', '🫧'],
   },

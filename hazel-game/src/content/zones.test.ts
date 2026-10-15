@@ -1411,6 +1411,24 @@ describe('Taleshore II: the Story Reef and Inkwell Cove (#75 item 15e)', () => {
     }
   });
 
+  it('a lit stone repeats the way to the next one until that one glows too (round 3)', () => {
+    const said = (id: string, flags: Record<string, boolean>) => visibleLines(NPC_DEFS[id].lines, flags).map(lineText);
+    const one = { [stepFlag(YARN_STONES[0])]: true };
+    expect(said('reef-stone-1-lit', one)).toEqual([expect.stringMatching(/EAST, over the road/)]);
+    const two = { ...one, [stepFlag(YARN_STONES[1])]: true };
+    expect(said('reef-stone-1-lit', two)).toEqual([expect.stringMatching(/back where it belongs/)]);
+    expect(said('reef-stone-2-lit', two)).toEqual([expect.stringMatching(/SOUTH-WEST, to the sandbar/)]);
+    expect(said('reef-stone-2-lit', { ...two, [stepFlag(YARN_STONES[2])]: true })).toEqual([expect.stringMatching(/back where it belongs/)]);
+  });
+
+  it("the shop's name plate is on screen as you arrive (round 3)", () => {
+    const shop = cove.buildings![0];
+    // The camera centres on the spawn: VIEW_COLS wide, so it shows from spawn.x - VIEW_COLS / 2.
+    expect(shop.x).toBeGreaterThanOrEqual(cove.spawn.x + 0.5 - VIEW_COLS / 2);
+    // …and the cove's canvas colour matches its tileset's ground (zones.ts / tiles.py).
+    expect(cove.ground).toEqual([124, 150, 134]);
+  });
+
   it("Bess's shell shop has its own style and sells potions and Hint Feathers", () => {
     expect(cove.buildings!.map((b) => b.style)).toEqual(['shell']);
     expect(NPC_DEFS['ink-bess'].role).toBe('merchant');

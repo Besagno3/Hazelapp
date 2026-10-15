@@ -35,8 +35,8 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const level = skillLevelFor(profile?.skillLevels ?? {}, target.topic, age);
 
   const [solved, setSolved] = useState(false);
-  // Any answer picked (a wrong one too) — a tale-stone then says what to do next (15e review).
-  const [answered, setAnswered] = useState(false);
+  // A tale-stone's question answered wrong (15e review): it offers another, right here.
+  const [missed, setMissed] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   // A tale-stone's riddle reads as a challenge on the path, not a treasure chest's (15e review).
@@ -72,8 +72,10 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
 
   const onAnswered = useCallback(
     (correct: boolean) => {
-      setAnswered(true);
-      if (!correct) return;
+      if (!correct) {
+        if (target.kind === 'riddle') setMissed(true);
+        return;
+      }
       // A riddle whose step is no longer due (finished elsewhere) gives nothing — no glow, no XP (15e round 2).
       const now = useSaveStore.getState().save;
       if (target.kind === 'riddle' && (!now || solveRiddle(now, target.id) === now)) return;
@@ -99,7 +101,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
     target.kind === 'gate'
       ? '🚧 The Gatekeeper blocks the path!'
       : target.kind === 'riddle'
-        ? '📜 The tale-stone asks a riddle!'
+        ? '📜 The tale-stone asks a word question!'
         : '🎁 The chest asks a riddle!';
   const successText =
     target.kind === 'gate'
@@ -157,16 +159,21 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
             hints={hints}
             onUseHint={spendHint}
             onAnswered={onAnswered}
-            continueLabel={solved ? `✨ ${successText}` : target.kind === 'riddle' ? 'Hmm… I’ll try again!' : 'Hmm… I’ll come back!'}
-            onContinue={() => sendFlow({ type: 'CLOSE' })}
+            continueLabel={solved ? `✨ ${successText}` : missed ? '🔄 Ask me another!' : 'Hmm… I’ll come back!'}
+            // A tale-stone asks again on the spot (15e round 3) — no walking back up to it.
+            onContinue={() => {
+              if (!missed) return sendFlow({ type: 'CLOSE' });
+              setMissed(false);
+              setAttempt((a) => a + 1);
+            }}
             // A key item found before its quest (#75 item 13): say who wants it,
             // above the button, so it's read before the overlay closes.
             note={
               target.kind === 'riddle'
                 ? solved
                   ? (wanted ?? '')
-                  : answered
-                    ? 'The stone stays dim. Talk to it again for a new riddle!'
+                  : missed
+                    ? 'The stone stays dim. Want another question?'
                     : ''
                 : target.kind === 'chest'
                   ? solved && wanted
@@ -175,6 +182,14 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
                   : undefined
             }
           />
+        )}
+        {question && missed && (
+          <button
+            onClick={() => sendFlow({ type: 'CLOSE' })}
+            className="mt-3 bg-white/15 hover:bg-white/25 text-white font-semibold rounded-lg px-4 py-2 text-sm"
+          >
+            Later
+          </button>
         )}
       </div>
     </ModalLayer>

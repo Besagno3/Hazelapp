@@ -104,7 +104,7 @@ ZONES = {
     # a cove of black, inky water under a dusky sky, pages blowing about.
     'story-reef': dict(shore=True, no_hills=True, ground=(150, 184, 150), path=(222, 204, 160), solid='coral', deco='shell', deco_c='#ffb0c8',
                        sky=('#3aa0e0', '#e0f8ff'), far='#8ac8e8', mid='islets', water='#2aa8c8'),
-    'inkwell-cove': dict(shore=True, ground=(104, 124, 118), path=(196, 180, 150), solid='rock', deco='pages', deco_c='#f4ecd8',
+    'inkwell-cove': dict(shore=True, ground=(124, 150, 134), path=(196, 180, 150), solid='rock', deco='pages', deco_c='#f4ecd8',
                          sky=('#3a3a6a', '#b8a8d8'), far='#4a4a7a', mid='sea', water='#1e2240'),
 }
 

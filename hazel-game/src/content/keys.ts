@@ -144,7 +144,7 @@ export const GATE_KEYS: GateKey[] = [
     bossId: 'riddle-leviathan',
     bossName: 'The Riddle Leviathan',
     bossIntro: [
-      'The black water by the point bubbles. A huge whale rises out of the ink, dripping words. A silver key glints on its tail.',
+      'The black water by the point bubbles. A huge whale heaves itself up onto the sand, dripping words. A silver key glints on its tail.',
       '"What has a key, but opens no lock?" it rumbles. "A PIANO! Ha! But MY key opens a gate. Answer my word-riddles, little reader, and it\'s yours!"',
     ],
     bossDefeat: '"What has been beaten, yet feels lighter? …Me. Take the key, little reader."',
