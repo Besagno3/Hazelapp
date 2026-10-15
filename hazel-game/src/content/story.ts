@@ -473,8 +473,8 @@ export const ACT3_PANELS: StoryPanel[] = [
     text: "The fog never came to Taleshore. Its people kept telling their stories, so they never forgot. Not even the Forgotten One's name.",
   },
   {
-    emoji: '🤫',
-    text: 'Fly east and land beside the harbor. The people of Port Lantern are waiting to meet you!',
+    emoji: '⚓',
+    text: 'Fly east to the harbor 🏮. Land beside it, then walk in. The people of Port Lantern are waiting to meet you!',
   },
 ];
 

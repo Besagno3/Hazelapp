@@ -1768,7 +1768,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       { text: "Welcome to Port Lantern! I'm Harbormaster Gale. I've never lost a ship. Misplaced one, yes. Twice.", setFlag: MET_GALE },
       "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.",
-      "Taleshore is just waking up to visitors. Talk to everyone, and check the Quest Board in the square. Skipper Juno by the south dock could use a friend, too.",
+      "Taleshore is just waking up to visitors. Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock loves visitors, too.",
     ],
   },
   'port-skipper': {
@@ -1799,7 +1799,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'innkeeper',
     lines: [
       "Welcome to the Driftlight Inn! Fish stew, soft beds, and a lantern in every window.",
-      "Sleep here and, if a battle goes badly anywhere on Taleshore, you'll wake right here. Safe and sound.",
+      "Sleep here, and if a battle ever goes badly, you'll wake right here. Safe and sound.",
     ],
   },
   'port-netmender': {
@@ -1809,7 +1809,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "I'm Orla. I mend the nets. Every knot in this loft has a story, and I remember them all.",
-      'Out west, the Starfall Sea is dotted with little islands. The sailors have names for every one.',
+      'Out on the Starfall Sea there are little islands. The sailors have a name for every one.',
     ],
     ambient: ['Over, under, through…', 'Another knot, another story.', '🧶'],
   },
@@ -1831,7 +1831,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "Coo! Postmaster Pidge. I carry letters anywhere. Over hills, over sea, over fog, if I flap hard enough.",
-      "Nobody has sent a letter to Lumina Village in years. Maybe someone will, now that you've come!",
+      'Nobody remembered to write to Lumina Village in years. Maybe someone will now!',
     ],
     ambient: ['Coo!', 'Letters! Letters!', '✉️'],
   },
@@ -1857,11 +1857,22 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       '📋 The Quest Board. Notices are pinned all over it.',
       'NEW IN TOWN? Say hello to Harbormaster Gale by the road in. Rest at the Driftlight Inn. Potions at Wick-Wax\'s Candle Shop.',
-      'WANTED: a brave friend for Skipper Juno, on the south dock. Ask Juno!',
+      "SOON: Skipper Juno's ferry, the Puffin, will sail again! Watch this board.",
       'NOTICE: Postmaster Pidge carries letters anywhere — even over the Great Fogbank!',
       'More notices will go up as Taleshore wakes to visitors. Check back soon!',
     ],
-  },  // Old Pike fishes off the north dock (15c review): Port Lantern's harbor has people on it.
+  },  // A note on the harbormaster's desk (15c review): Gale is out meeting the boats.
+  'port-office-note': {
+    id: 'port-office-note',
+    name: "Gale's Note",
+    sprite: '📝',
+    spriteId: 'port-board',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: ['📝 "Gone to meet the boats. Find me by the road into town! — Gale"'],
+  },
+  // Old Pike fishes off the north dock (15c review): Port Lantern's harbor has people on it.
   'port-fisher': {
     id: 'port-fisher',
     name: 'Old Pike',
@@ -1882,7 +1893,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "Hello, traveler! I'm Hob. I walk every road on Taleshore, and I've still not seen it all.",
-      "South there are little islands, and a big empty atoll the wind never leaves. Someday the ferry will run there again!",
+      "Out on the sea there are little islands, and a big empty atoll. When the ferry runs again, you'll see them!",
     ],
     ambient: ['Left foot, right foot…', 'What a view!', '🥾'],
   },

@@ -362,6 +362,9 @@ describe('routeSteps and goalDirections', () => {
     expect(goalDirections(ZONES, fly, 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then go .* to Port Lantern\.$/);
     expect(goalDirections(ZONES, fly, 'dragon-roost')).not.toMatch(/sail/i);
   });
+  it('the way back to Gale after a Return home is flown from the start (15c review round 2)', () => {
+    expect(goalDirections(ZONES, nextObjective(taleshoreReached), 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then /);
+  });
   it('from Taleshore, the way home is flown back over the Great Fogbank, whatever the goal (15c review)', () => {
     const hall = nextObjective({ ...storyDone, [HALL_DEDICATED]: false });
     expect(hall.kind).toBe('visit');
@@ -437,7 +440,7 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
     expect(mentorTips(ZONES, { ...met, ...storyDone })[0]).toMatch(/^Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost/);
     expect(mentorTips(ZONES, { ...met, ...roostVisited })[0]).toMatch(/^No boat gets past the Great Fogbank — but Ember can fly over it!/);
     expect(mentorTips(ZONES, { ...met, ...taleshoreReached })[0]).toMatch(/Harbormaster Gale/);
-    expect(mentorTips(ZONES, { ...met, ...galeMet })[0]).toBe('Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.');
+    expect(mentorTips(ZONES, { ...met, ...galeMet })[0]).toBe("You've seen Taleshore! Its people are just waking up to visitors. Visit them any time, and help everyone you meet here too.");
     // Memory restored, the Hall still to dedicate (#75 item 14i): Lumen sends you to Mnem.
     expect(mentorTips(ZONES, { ...met, ...storyDone, [HALL_DEDICATED]: false })[0]).toMatch(/Hall of Names/);
   });

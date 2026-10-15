@@ -755,6 +755,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15c review round 2: flown all the way, no promises the map can't keep (#75 item 15c, #137i)
+Fresh UX review (4 medium, 7 low), all fixed: a route over the Great
+Fogbank says "fly" for every sea hop; Hob, Orla, the board and Gale no longer
+point at islands or a Juno quest that aren't there yet; a note on Gale's desk
+(`port-office-note`); Gale clear of the Net Loft's roof; plainer explore,
+panel 5, footer, inn and Pidge lines. Tests +1; 1206 green.
+
 ### 2026-10-15 — 15c review round 1: fly home from Taleshore, meet Gale, props stay put (#75 item 15c, #137h)
 Fresh code (1 medium, 3 low) and UX reviews. All fixed:
 - **Fly, not sail:** from Taleshore every route said "sail" over the Great

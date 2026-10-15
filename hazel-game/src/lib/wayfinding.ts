@@ -261,7 +261,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: 'Explore Lumina',
         why: flags[MET_GALE]
-          ? 'Taleshore is waking up! Talk to everyone in Port Lantern, read the Quest Board, and fly anywhere over Lumina.'
+          ? 'Taleshore is waking up! More of it opens soon. Until then, fly anywhere, hunt for secrets ✨ and help everyone you meet.'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -402,16 +402,15 @@ export function routeSteps(
   let origin = at ?? null;
   // A run of stairs the same way is one step: "take the stairs down two floors to …".
   let stairsRun: { way: 'down' | 'up'; floors: number } | null = null;
-  // Once a hop is flown (over the Great Fogbank), the hero is on Ember: the
-  // seas after it are flown too — no boat waits on Taleshore (15c review).
-  let flying = false;
+  // A route over the Great Fogbank is flown all the way, on Ember: the seas
+  // before and after it too — no boat waits on Taleshore (15c review).
+  const flying = route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to));
   for (const { from: id, exit } of route) {
     const z = zones[id];
     const dest = zones[exit.to];
     if (z.kind === 'overworld' && sails(zones, z, exit)) {
       // Across the sea (#75 item 14): off the edge the boat sails over — or
       // Ember flies, past the Great Fogbank (15c review).
-      flying = flying || flownLink(id, exit.to);
       steps.push(`${flying ? 'fly' : 'sail'} ${exitSide(z, exit) ?? 'on'} to ${placeName(dest)}`);
     } else if (z.kind === 'overworld') {
       const o = origin ?? z.spawn;
@@ -567,6 +566,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = "Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.";
   } else if (goal.kind === 'fly') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Beyond it lies Taleshore. They say its people never forgot a single story.";
+  } else if (flags[MET_GALE]) {
+    plan = "You've seen Taleshore! Its people are just waking up to visitors. Visit them any time, and help everyone you meet here too.";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -589,7 +590,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
-    tip = "Port Lantern has an inn, the Driftlight. Rest there, and if a battle goes badly on Taleshore, that's where you'll wake up.";
+    tip = "Port Lantern has an inn, the Driftlight. Rest there, and if a battle ever goes badly, that's where you'll wake up.";
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_DEDICATED) {
     tip = 'Keeper Mnem stands inside the Hall of Names — the biggest building on Remembrance Hill, with the purple roof. Talk to him!';
   } else if (goal.kind === 'visit') {

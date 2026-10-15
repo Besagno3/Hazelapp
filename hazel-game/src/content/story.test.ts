@@ -243,7 +243,7 @@ describe('Act III opens: over the Great Fogbank to Taleshore (#75 item 15c)', ()
     expect(all).toMatch(/Great Fogbank/);
     expect(all).toMatch(/Port Lantern/);
     expect(all).toMatch(/never forgot/);
-    expect(ACT3_PANELS.at(-1)!.text).toMatch(/^Fly east and land beside the harbor/);
+    expect(ACT3_PANELS.at(-1)!.text).toMatch(/^Fly east to the harbor 🏮\. Land beside it, then walk in\./);
     expect(ACT_OPENS[3]).toBe(ACT3_SEEN);
   });
 });
