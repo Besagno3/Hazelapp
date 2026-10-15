@@ -131,6 +131,11 @@ export function companionMove(id: CompanionId, stage: EmberStage): { name: strin
   return id === 'pip' ? { name: 'Slingshot', emoji: '🪀' } : { name: 'Glimmer', emoji: '✨' };
 }
 
+/** A companion as the story has them now (#75 item 16a: Wisp's 🌼 once the name is learned) — for menus and banners. */
+export function companionLook(id: CompanionId, flags: Record<string, boolean> = {}): CompanionDef {
+  return id === 'wisp' && flags[NAME_LEARNED] ? { ...COMPANIONS[id], emoji: '🌼' } : COMPANIONS[id];
+}
+
 /** Sprite id + emoji fallback for the battle sprite. */
 export function companionSprite(id: CompanionId, stage: EmberStage, flags: Record<string, boolean> = {}): { spriteId: string; emoji: string } {
   if (id === 'ember') return { spriteId: EMBER_SPRITE_IDS[stage], emoji: EMBER_SPRITES[stage] };

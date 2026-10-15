@@ -288,8 +288,9 @@ def humanoid(c: Canvas, p: Pose, s: dict):
             back.ellipse(9, 16 + flap * 0.5, 4.5, 6.5, wc, rot=0.4)
             back.ellipse(7, 20 + flap * 0.3, 3.0, 4.5, dark(wc, 0.08), rot=0.6)
         else:
-            back.ellipse(9, 13 + flap * 0.4, 4.2, 5.2, wc, rot=0.5)
-            back.ellipse(10, 21, 3.0, 3.2, wc, rot=-0.3)
+            ws = s.get('wing_scale', 1.0)
+            back.ellipse(9 - 2 * (ws - 1), 13 + flap * 0.4, 4.2 * ws, 5.2 * ws, wc, rot=0.5)
+            back.ellipse(10 - 2 * (ws - 1), 21, 3.0 * ws, 3.2 * ws, wc, rot=-0.3)
     if s.get('shell'):
         sc = hexc(s['shell'])
         back.ellipse(10.5, 20, 6.0, 6.8, sc)
@@ -461,8 +462,9 @@ def humanoid(c: Canvas, p: Pose, s: dict):
     elif hat == 'crown':
         head.poly([(10, 6), (10, 1.5), (13, 4), (16, 0.5), (19, 4), (22, 1.5), (22, 6)], '#ffd24a')
     elif hat == 'flower':
-        head.ellipse(12, 5, 2.2, 2.2, s.get('flower', '#ff8fb8'))
-        head.dot(11.5, 4.5, '#ffe066')
+        fr = s.get('flower_r', 2.2)
+        head.ellipse(12, 5, fr, fr, s.get('flower', '#ff8fb8'))
+        head.dot(11.5, 4.5, '#ffe066', w=2 if fr > 2.5 else 1, h=2 if fr > 2.5 else 1)
     d.put(head)
 
     # --- front arm + item
@@ -736,8 +738,9 @@ def humanoid_fb(c: Canvas, p: Pose, s: dict):
     elif hat == 'crown':
         head.poly([(10, 6), (10, 1.5), (13, 4), (16, 0.5), (19, 4), (22, 1.5), (22, 6)], '#ffd24a')
     elif hat == 'flower':
-        head.ellipse(11, 5, 2.2, 2.2, s.get('flower', '#ff8fb8'))
-        head.dot(10.5, 4.5, '#ffe066')
+        fr = s.get('flower_r', 2.2)
+        head.ellipse(11, 5, fr, fr, s.get('flower', '#ff8fb8'))
+        head.dot(10.5, 4.5, '#ffe066', w=2 if fr > 2.5 else 1, h=2 if fr > 2.5 else 1)
     d.put(head)
 
     # --- held item (viewer's right hand in front view; hidden-ish behind in back view)
@@ -3453,11 +3456,20 @@ def tree_folk(c: Canvas, p: Pose, s: dict):
         T.ellipse(12.5, 24, 1, 0.8, dark(bark, 0.2), shade=False)
     d.put(T)
     F = d.part(sway, 0)
-    F.ellipse(16, 9, 11.5, 7.6, leaf)
-    F.ellipse(10, 7, 4.4, 3.2, light(leaf, 0.18))
-    F.ellipse(22, 6.4, 3.6, 2.6, light(leaf, 0.12))
-    for (x, y) in ((7, 11), (24, 12), (15, 3.4), (20, 10)):
-        F.dot(x, y, '#e0a03a', w=2 if d.sep else 1, h=1)  # golden leaves
+    if s.get('stump'):
+        # A root of the Dream Root (#75 item 16a): no leaves — a gnarled top
+        # of twisting root-ends, a few violet buds glowing on them.
+        F.ellipse(16, 13.5, 7, 2.6, dark(bark, 0.1))
+        for (x0, y0, x1, y1) in ((11, 13, 7, 7), (15, 12.5, 13, 5), (18, 12.5, 21, 5.5), (21, 13, 25.5, 8)):
+            F.line(x0, y0, x1, y1, bark, w=2.2)
+        for (x, y) in ((7, 7), (13, 5), (21, 5.5), (25.5, 8)):
+            F.dot(x, y, leaf, w=2 if d.sep else 1, h=2 if d.sep else 1)
+    else:
+        F.ellipse(16, 9, 11.5, 7.6, leaf)
+        F.ellipse(10, 7, 4.4, 3.2, light(leaf, 0.18))
+        F.ellipse(22, 6.4, 3.6, 2.6, light(leaf, 0.12))
+        for (x, y) in ((7, 11), (24, 12), (15, 3.4), (20, 10)):
+            F.dot(x, y, '#e0a03a', w=2 if d.sep else 1, h=1)  # golden leaves
     d.put(F)
     if p.facing != 'up':
         E = d.part(sway * 0.4, 0)
@@ -4294,12 +4306,12 @@ NPCS: list[Char] = [
     Char('ink-bess', '🐚', 'humanoid', H(hair='bun', hair_color='#6a4a3a', hat='flower', outfit='#3a9ab0', apron='#f8e0d0', trim='#ff9ab0', item='lantern', shells=True)),
     # ── Act IV: the Dream Root Door (#75 item 16a) ──
     # Old Knot, a root of the Dream Root that talks: dark bark, pale violet buds.
-    Char('root-knot', '🌳', 'tree_folk', H(bark='#4a3226', leaf='#9a7ac8')),
+    Char('root-knot', '🌳', 'tree_folk', H(bark='#6a4630', leaf='#d8b8ff', stump=True)),
     # Wisp's new face (Say Her Name): golden hair with a daisy, sunny wings, a white robe trimmed gold.
     # Young Wick (16b's Memory Village; Say Her Name's fifth memory): a girl with
     # Grandmother Wick's bun — still brown — a flour-dusted apron and a rolling pin.
     Char('memory-young-wick', '👧', 'humanoid', H(hair='bun', hair_color='#8a5030', outfit='#9a5a8a', apron='#f8f0e0', trim='#ffb0d0', item='staff', item_color='#d8b080')),
-    Char('wisp-named', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', wings='fairy', wing_color='#fff6c8', outfit='#fffaf0', trim='#f0c040', robe=True)),
+    Char('wisp-named', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', flower_r=3.4, wings='fairy', wing_color='#ffd84a', wing_scale=1.6, outfit='#fffaf0', trim='#f0c040', robe=True)),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

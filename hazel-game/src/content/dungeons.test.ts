@@ -56,7 +56,7 @@ describe('dungeons (#75 item 10)', () => {
     const beside = (sx: number, sy: number, tx: number, ty: number) => Math.max(Math.abs(sx - tx), Math.abs(sy - ty)) === 1;
     expect(beside(down.spawnX, down.spawnY, up.x, up.y)).toBe(true);
     expect(beside(up.spawnX, up.spawnY, down.x, down.y)).toBe(true);
-    // The HUD names the floor once: "Dream Root Door · B1".
+    // The map caption names the floor once: "Dream Root Door · B1".
     expect(floorTitle(ZONES, door.id)).toBe('Dream Root Door · B1');
     expect(dungeonEntrance(door.id)).toBe(door.id);
   });

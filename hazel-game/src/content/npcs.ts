@@ -99,6 +99,9 @@ export interface WorldNpcDef {
   /**
    * A new face once a story flag is set (#75 item 16a: Wisp, once Say Her Name
    * is done) — the sprite in the world, in talk and in battle (`npcSpriteId`).
+   * The canvas redraws them where they stand when it changes, and a wanderer
+   * redrawn so stops wandering for that visit — give a `face` to someone
+   * stationary (Wisp is).
    */
   face?: { flag: string; spriteId: string; sprite: string };
 }
@@ -567,12 +570,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: WISP_STIRRING,
         unlessFlag: ACT4_SEEN,
       },
-      // Act IV (#75 item 16a): the door under the Spire is open, and then the name comes back.
-      {
-        text: 'The door under the Spire is open — I can FEEL it, like a window left open in my head. The word is SO close now!',
-        ifFlag: ACT4_SEEN,
-        unlessFlag: NAME_LEARNED,
-      },
+      // Act IV (#75 item 16a): the name comes back (Say Her Name speaks for Wisp until then).
       {
         text: 'Aster. I say it every morning now, so nobody ever forgets it again. Thank you, spark!',
         ifFlag: NAME_LEARNED,
@@ -2603,6 +2601,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'I forgot her name, like everyone. But Wisp, in the Whispering Woods, is trying so hard to remember it. Go and see Wisp, little one.',
         unlessFlag: [questOfferedFlag({ id: SAY_HER_NAME_QUEST }), NAME_LEARNED],
+      },
+      // The fifth memory waits below (Lumina-That-Was, 16b): she says so, and where.
+      {
+        text: 'Someone below still remembers her — I am sure of it. But Old Knot has not untangled the way down yet. Rest here, and come back soon.',
+        ifFlag: stepFlag('name-chronicle'),
+        unlessFlag: NAME_LEARNED,
       },
       {
         text: 'Aster. Yes… ASTER. I can see her lamp-lit face again. Thank you for remembering, for all of us.',

@@ -789,6 +789,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 16a review round 1: Aurora says the way down waits, roots on the walls (#75 item 16a, #143h)
+Fresh code (1 high, 1 medium, 2 low, 4 nits) and UX (1 high, 3 medium, 5 low,
+1 nit) reviews, all fixed but one kept (the memories go in order): Aurora
+speaks during the fifth memory and a test makes each memory's 🚩 its own
+keeper (an expected-fail flips when Young Wick is placed); root walls, lit
+windows, a stump Old Knot, Wisp's daisy and wings; Lumen no longer spoils the
+Door; plainer testimonies; Wisp's 🌼 in battle menus (`companionLook`).
+1321 green.
+
 ### 2026-10-15 — The door under the Spire, and Say Her Name (#75 item 16a, #143)
 Roadmap sub-item 16a, Act IV's opening.
 - **Act IV opens** on the Crystal Spire's grounds with the Blank Chart (after

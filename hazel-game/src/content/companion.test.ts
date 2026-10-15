@@ -4,6 +4,7 @@ import {
   COMPANION_IDS,
   PAIR_ATTACKS,
   companionCanFight,
+  companionLook,
   companionPower,
   companionSprite,
   companionsInParty,
@@ -79,5 +80,9 @@ describe("Wisp's new face in battle (#75 item 16a)", () => {
     expect(companionSprite('wisp', 'dragon')).toEqual({ spriteId: 'woods-sprite', emoji: '🧚' });
     expect(companionSprite('wisp', 'dragon', { 'name-learned': true })).toEqual({ spriteId: 'wisp-named', emoji: '🌼' });
     expect(companionSprite('pip', 'dragon', { 'name-learned': true })).toEqual({ spriteId: 'hub-kid', emoji: '🧒' });
+    // …and the menus and banners say so (16a code review).
+    expect(companionLook('wisp', { 'name-learned': true }).emoji).toBe('🌼');
+    expect(companionLook('wisp').emoji).toBe(COMPANIONS.wisp.emoji);
+    expect(companionLook('pip', { 'name-learned': true })).toBe(COMPANIONS.pip);
   });
 });

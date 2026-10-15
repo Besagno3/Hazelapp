@@ -345,6 +345,13 @@ describe('Act IV opens (#75 item 16a)', () => {
     expect(screen.queryByText(/the Blank Chart grows warm/)).toBeNull();
   });
 
+  it("never over the Spire's own climb (its floors borrow the grounds' id)", () => {
+    at('crystal-spire', {});
+    flow.setState({ overlay: 'spire' });
+    render(<WorldScreen />);
+    expect(screen.queryByText(/the Blank Chart grows warm/)).toBeNull();
+  });
+
   it("Wisp's new face: three panels once the name is learned — once", () => {
     at('whispering-woods', { [story.ACT4_SEEN]: true, 'name-learned': true });
     const { unmount } = render(<WorldScreen />);

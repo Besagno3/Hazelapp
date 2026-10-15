@@ -1689,6 +1689,13 @@ describe('the Dream Root Door (#75 item 16a)', () => {
     expect(touches(open, grounds.spire!.x, grounds.spire!.y)).toBe(true);
   });
 
+  it('while the fifth memory waits below, Aurora says so — the 🚩 never leads to silence (16a reviews)', () => {
+    const say = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['root-aurora'].lines, flags).map(lineText).join(' ');
+    expect(say({ [stepFlag('name-chronicle')]: true })).toMatch(/Someone below still remembers her/);
+    expect(say({ [stepFlag('name-chronicle')]: true, [NAME_LEARNED]: true })).not.toMatch(/Someone below/);
+    expect(say({})).not.toMatch(/Someone below/);
+  });
+
   it('Keeper Aurora moves down as Act IV opens: on the grounds before, at the Door after', () => {
     const before = grounds.npcs.find((p) => p.defId === 'spire-keeper')!;
     expect(npcPresent(before, {})).toBe(true);

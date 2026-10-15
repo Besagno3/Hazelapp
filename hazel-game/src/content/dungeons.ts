@@ -77,7 +77,7 @@ export function floorLabel(goes: DungeonDef['goes'], index: number): string {
 }
 
 /**
- * A floor's title for the HUD: "Clockwork Depths · B2 — The Gear Halls"; the
+ * A floor's title for the menu map's caption: "Clockwork Depths · B2 — The Gear Halls"; the
  * entrance floor shares the dungeon's name ("Clockwork Depths · B1"). Null for
  * a zone that isn't a dungeon floor.
  */

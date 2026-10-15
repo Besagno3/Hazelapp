@@ -122,7 +122,7 @@ ZONES = {
                              sky=('#5a9ad8', '#f4f0e0'), far='#a8c0d8', mid='islets', water='#3a8ad0'),
     # The Dream Root Door (#75 item 16a): a hollow under the Crystal Spire, the
     # ground a dusky violet-brown, dark rock walls, glowing mushrooms, a still pool.
-    'dreamroot-door': dict(ground=(92, 76, 98), path=(146, 122, 150), solid='darkrock', deco='glowshroom', deco_c='#ffe28a',
+    'dreamroot-door': dict(ground=(92, 76, 98), path=(146, 122, 150), solid='root', deco='glowshroom', deco_c='#ffe28a',
                            sky=('#120e1a', '#3a2a44'), far='#2a1e30', mid='mountain', water='#4a5a9a', cave=True),
 }
 
@@ -301,6 +301,16 @@ def solid(kind, zone):
         c.rect(2, 1, 14, 3.5, '#c8a060')
         for x in (5.5, 8, 10.5):
             c.rect(x, 4, x + 0.8, 12.5, '#ddd4c0', shade=False)
+    elif kind == 'root':
+        # The Dream Root (#75 item 16a): a tangle of roots as thick as houses,
+        # twisting down through dark earth, a violet bud glowing here and there.
+        c.rect(0, 0, 16, 16, '#2e2232')
+        for (x0, y0, x1, y1, w) in ((2, 0, 5, 16, 3.4), (9, 0, 7, 16, 3.0), (14, 0, 12.5, 16, 3.2), (0, 6, 16, 11, 2.2)):
+            c.line(x0, y0, x1, y1, '#6a4a34', w=w)
+        for (x0, y0, x1, y1) in ((2.6, 0, 5.6, 16), (9.4, 0, 7.4, 16), (14.4, 0, 12.9, 16)):
+            c.line(x0, y0, x1, y1, '#86603e', w=0.7)
+        c.dot(4, 9, '#d8b8ff')
+        c.dot(12, 3, '#d8b8ff')
     elif kind == 'eldertree':
         # An ancient ring-tree (#75 item 14f): a broad trunk with a ring-knot, a golden-green crown.
         c.rect(5.5, 10, 10.5, 16, '#6a4428')
@@ -638,7 +648,7 @@ def _wall_face(style, window=False, door=False):
     c.rect(0, 0, 16, 2, trim, shade=False)
     c.rect(0, 14, 16, 16, dark(base, 0.3), shade=False)
     if window:
-        glass = '#8ad0ff' if style != 'cave' else '#ffd86a'  # lantern-lit in the depths
+        glass = '#8ad0ff' if style not in ('cave', 'root') else '#ffd86a'  # lantern-lit in the depths
         if win == 'square':
             c.rect(4, 4, 12, 11, trim, shade=False)
             c.rect(5, 5, 11, 10, glass, shade=False)

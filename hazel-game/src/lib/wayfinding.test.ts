@@ -132,7 +132,7 @@ describe('nextObjective', () => {
     // Then the Chartmaker's island for the Blank Chart (#75 item 15h), then the open world.
     expect(nextObjective(voicesFreed)).toMatchObject({ kind: 'visit', zoneId: 'chartmakers-rest', title: 'Visit the Chartmaker', doneFlag: BLANK_CHART_HELD, npc: 'chart-chartmaker' });
     // With the Blank Chart, Act IV (#75 item 16a): the Spire's grounds, then down the stairs.
-    expect(nextObjective(chartHeld)).toMatchObject({ kind: 'visit', zoneId: 'crystal-spire', title: 'Find the door under the Spire', doneFlag: ACT4_SEEN });
+    expect(nextObjective(chartHeld)).toMatchObject({ kind: 'visit', zoneId: 'crystal-spire', title: 'Find the way under the Spire', doneFlag: ACT4_SEEN });
     expect(nextObjective({ ...chartHeld, [ACT4_SEEN]: true })).toMatchObject({ kind: 'visit', zoneId: 'dreamroot-door', title: 'Go down under the Spire' });
     expect(nextObjective(nameLearned)).toMatchObject({ kind: 'explore', zoneId: null });
     // On the island the way follows his quest: him, then Pen's nest and Inka, then back to him (round 1).

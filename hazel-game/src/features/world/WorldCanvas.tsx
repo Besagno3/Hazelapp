@@ -1259,7 +1259,7 @@ export default function WorldCanvas({
         parts.push(token as unknown as Part);
         pieces.push(token);
       }
-      const face = worldFace(k, { spriteId, emoji: def.sprite, x: px, y: py, size: 22 })
+      const face = worldFace(k, { spriteId, emoji: npcEmoji(def, flagsRef.current), x: px, y: py, size: 22 })
         .obj as unknown as WorldActor;
       parts.push(face);
       pieces.push(face);

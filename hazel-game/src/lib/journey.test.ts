@@ -7,7 +7,9 @@ import { BOAT_HOME, BOAT_MENDED } from '../content/boat';
 import { NPC_DEFS, visibleLines } from '../content/npcs';
 import { ACT4_SEEN, HALL_CALLED } from '../content/story';
 import { reach, touches } from './reach';
-import { nextObjective } from './wayfinding';
+import { nextObjective, npcHome } from './wayfinding';
+import { QUESTS, stepFlag } from '../content/quests';
+import { SAY_HER_NAME_QUEST } from '../content/questFlags';
 
 const legs = actOneJourney();
 
@@ -209,7 +211,7 @@ describe('Act III start to finish (#75 item 15h, the Phase 4 exit check)', () =>
     expect(end.x >= study.x && end.x < study.x + study.w && end.y >= study.y && end.y < study.y + study.h).toBe(true);
     const flags = advanceGoal(last.goal, last.flags);
     // …and the story goes on to Act IV (#75 item 16a).
-    expect(nextObjective(flags)).toMatchObject({ kind: 'visit', title: 'Find the door under the Spire' });
+    expect(nextObjective(flags)).toMatchObject({ kind: 'visit', title: 'Find the way under the Spire' });
   });
 });
 
@@ -217,7 +219,7 @@ describe('Act IV so far (#75 item 16a)', () => {
   const act4 = actFourJourney();
   it("walks the Spire's grounds, down the stairs to the Dream Root Door, and to Wisp and every memory", () => {
     expect(act4.map((l) => l.goal.title)).toEqual([
-      'Find the door under the Spire',
+      'Find the way under the Spire',
       'Go down under the Spire',
       'Help Wisp remember',
       'Ask Grandmother Wick about the first Sage',
@@ -228,6 +230,20 @@ describe('Act IV so far (#75 item 16a)', () => {
       'Say her name to Wisp',
     ]);
     for (const leg of act4) expect(walkable(leg), leg.goal.title).toBe(true);
+  });
+  it("each memory's 🚩 is that memory's own keeper — never a stand-in (16a code review)", () => {
+    const quest = QUESTS.find((q) => q.id === SAY_HER_NAME_QUEST)!;
+    for (const leg of act4.filter((l) => l.goal.quest && l.goal.doneFlag?.startsWith('quest-step:'))) {
+      const step = quest.steps.find((st) => stepFlag(st.id) === leg.goal.doneFlag)!;
+      if (step.id === 'name-young-wick') continue; // placed with Lumina-That-Was — the next test
+      expect(leg.goal.npc, step.id).toBe(step.npc!.id);
+    }
+  });
+  // Until 16b places her, the fifth memory's 🚩 stands in with Keeper Aurora: this
+  // fails the day Young Wick is placed, so the stand-in comes out with her.
+  it.fails('Young Wick stands somewhere, and her memory is her own 🚩 (16b)', () => {
+    expect(npcHome(ZONES, 'memory-young-wick')).not.toBeNull();
+    expect(act4.find((l) => l.goal.doneFlag === stepFlag('name-young-wick'))!.goal.npc).toBe('memory-young-wick');
   });
   it('the stairs down are walked only once the fog over them has lifted', () => {
     const down = act4[1];
