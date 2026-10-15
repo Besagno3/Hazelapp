@@ -4,7 +4,7 @@ import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -22,6 +22,9 @@ export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
  *                   something new — the item, changed (#75 item 13)
  * - escort steps  — walk someone through a place: they follow the hero and
  *                   wait while a critter is near (#75 item 14g, Posy)
+ * - riddle steps  — talk to a thing that asks a question; a right answer
+ *                   completes the step and says where the next one is — a
+ *                   puzzle chain (#75 item 15e, Yarn's tale-stones)
  *
  * Conversations resolve through `questConversation(npcId, save)`:
  * the giver speaks offer / current-step hint / completion; step-target NPCs
@@ -113,6 +116,18 @@ export interface QuestStep {
    * its turn, with the step that's due (#75 item 14g review: Brume's lanterns).
    */
   early?: boolean;
+  /**
+   * What the giver says while this step is active, when the hint (also the
+   * quest log's, and said by other people) would have them talk about
+   * themselves (15e review: Yarn saying "west of Yarn"). Default: the hint.
+   */
+  remind?: string;
+  /**
+   * A riddle step (#75 item 15e): talking to `npc` opens a question on the
+   * zone's topic instead of finishing the step; a right answer finishes it,
+   * and `solved` — the clue to the next step — shows under the answer.
+   */
+  riddle?: { solved: string };
 }
 
 /**
@@ -280,6 +295,23 @@ function bringStep(
  */
 function escortStep(id: string, escort: EscortDef, hint: string | ((save: SaveData) => string)): QuestStep {
   return { id, hint, escort, isComplete: (save) => save.flags[stepFlag(id)] === true };
+}
+
+/**
+ * Answer a riddle at a thing (#75 item 15e): talk to it while this step is
+ * active and it asks a question (`PathQuestionOverlay`, kind `riddle`); a
+ * right answer sets the step flag and shows `solved`, which says where the
+ * next riddle is — each hint comes from the last answer.
+ */
+function riddleStep(
+  id: string,
+  npcId: string,
+  lines: string[],
+  hint: string,
+  solved: string,
+  { early = false, remind }: { early?: boolean; remind?: string } = {},
+): QuestStep {
+  return { id, hint, remind, npc: { id: npcId, lines }, riddle: { solved }, early, isComplete: (save) => save.flags[stepFlag(id)] === true };
 }
 
 /** Save flag: this quest item was handed over in a bring step (#75 item 13). */
@@ -1091,6 +1123,56 @@ export const QUESTS: QuestDef[] = [
     reward: { coins: 45, potion: 1 },
   },
 
+  // --- Taleshore II (#75 item 15e) ------------------------------------------------
+
+  // A puzzle chain: three tale-stones on the Story Reef, in order. Each asks a
+  // word riddle; each right answer gives back a chapter and says where the
+  // next stone is.
+  {
+    id: YARN_QUEST,
+    zoneId: 'story-reef',
+    giverNpcId: 'reef-yarn',
+    side: true,
+    title: "Yarn's Tallest Tale",
+    offer: [
+      "Ahoy! I'm Yarn, the Tale-Fisher. I don't catch fish. I catch STORIES!",
+      'Last night a big wave broke my tallest tale into three chapters. They washed up on three tale-stones round the reef.',
+      "Each stone asks a word question before it gives a chapter back. Start with the stone by the little tide pool, just west of here!",
+    ],
+    steps: [
+      riddleStep(
+        YARN_STONES[0],
+        'reef-stone-1',
+        ['🪨 A tale-stone. Faint words swirl over it like little fish.', 'A whisper comes out of the stone: "Answer my word question, and I\'ll give back my chapter!"'],
+        'The first chapter is on the tale-stone by the little tide pool west of Yarn, near the top of the reef. Talk to it!',
+        '📜 Chapter 1: "Once, a fish as big as an island swallowed the moon…" The words float EAST, over the road, to the tide pool near the top. The next stone is there!',
+        { remind: 'Start with the tale-stone by the little tide pool, just west of me!' },
+      ),
+      riddleStep(
+        YARN_STONES[1],
+        'reef-stone-2',
+        ['🪨 Another tale-stone. Its words shiver when you come close.', 'A whisper: "Answer my word question, and you\'ll hear what happened next!"'],
+        'The second chapter is on the tale-stone by the tide pool east of the road, near the top of the reef. Talk to it!',
+        '📜 Chapter 2: "…and then the fish hiccupped stars for a whole week!" The words float SOUTH-WEST, to the sandbar in the sea. The last stone is there!',
+        { early: true },
+      ),
+      riddleStep(
+        YARN_STONES[2],
+        'reef-stone-3',
+        ['🪨 The last tale-stone, out on the sandbar. Waves splash its words.', 'A whisper: "Answer my word question, and the tale is whole again!"'],
+        'The last chapter is on the tale-stone out on the sandbar, in the south-west corner of the reef. Talk to it!',
+        '📜 Chapter 3: "…and that is why the sea sparkles at night." The whole tale is back! Go and tell Yarn.',
+        { early: true },
+      ),
+    ],
+    complete: [
+      'You found all three chapters! A fish as big as an island, the moon, and a week of hiccupped stars…',
+      'That might be my TALLEST tale. Or my second tallest. I have a lot of tales.',
+      '✨ Reward: 45 coins and a Hint Feather!',
+    ],
+    reward: { coins: 45, hint: 1 },
+  },
+
   // --- Item chains (#75 item 13) ----------------------------------------------
 
   // Find a key item in a dungeon chest (behind the Echo Mine's dark — Glow),
@@ -1327,8 +1409,10 @@ export interface QuestConversation {
   badge: string;
   /** Save mutation applied when the conversation closes (null = none). */
   finish: ((save: SaveData) => SaveData) | null;
-  /** What the closing button should celebrate. */
-  finishKind: 'offer' | 'complete' | 'step' | null;
+  /** What the closing button should celebrate — or, for a riddle step, open (#75 item 15e). */
+  finishKind: 'offer' | 'complete' | 'step' | 'riddle' | null;
+  /** A riddle step's id (#75 item 15e): the closing button asks its question. */
+  riddle?: string;
 }
 
 /**
@@ -1365,7 +1449,7 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
       }),
     };
   }
-  return { lines: [resolveHint(step, save)], badge: quest.title, finishKind: null, finish: null };
+  return { lines: [step.remind ?? resolveHint(step, save)], badge: quest.title, finishKind: null, finish: null };
 }
 
 /** The giver hands out the reward and takes back what the quest lent or needed. */
@@ -1410,6 +1494,10 @@ function stepConversation(npcId: string, save: SaveData): QuestConversation | nu
         finishKind: 'step',
         finish: (s) => ({ ...s, flags: { ...s.flags, [walking]: true } }),
       };
+    }
+    // A riddle step asks its question; the answer finishes it (#75 item 15e).
+    if (step?.riddle && step.npc?.id === npcId) {
+      return { lines: step.npc.lines, badge: q.title, finishKind: 'riddle', finish: null, riddle: step.id };
     }
     if (step?.npc && step.npc.id === npcId) {
       const flag = stepFlag(step.id);
@@ -1494,6 +1582,24 @@ export function openChest(save: SaveData, chestId: string): SaveData {
     coins: save.coins + CHEST_COINS,
     questItems: item && !save.questItems.includes(item) ? [...save.questItems, item] : save.questItems,
   };
+}
+
+/** The clue a riddle step's right answer shows (#75 item 15e): where the next one is. */
+export function riddleSolvedLine(stepId: string): string | null {
+  for (const q of QUESTS) for (const st of q.steps) if (st.id === stepId && st.riddle) return st.riddle.solved;
+  return null;
+}
+
+/**
+ * A riddle answered right (#75 item 15e): its step is done — but only while it
+ * is still the step due in an offered, unfinished quest (a stale question
+ * never finishes a step out of turn).
+ */
+export function solveRiddle(save: SaveData, stepId: string): SaveData {
+  const due = QUESTS.some(
+    (q) => save.flags[questOfferedFlag(q)] && !save.flags[questDoneFlag(q)] && activeStep(q, save)?.id === stepId && activeStep(q, save)?.riddle,
+  );
+  return due ? { ...save, flags: { ...save.flags, [stepFlag(stepId)]: true } } : save;
 }
 
 /** What a chest gives, for its "pops open" line: "25 coins! 🪙" or "25 coins and the 🌙 Moonstone!". */

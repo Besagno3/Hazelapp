@@ -26,7 +26,7 @@ import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import { BOAT_HOME } from './boat';
@@ -1338,3 +1338,103 @@ describe('Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll (#75 
   });
 });
 
+
+describe('Taleshore II: the Story Reef and Inkwell Cove (#75 item 15e)', () => {
+  const tale = ZONES.taleshore;
+  const reef = ZONES['story-reef'];
+  const cove = ZONES['inkwell-cove'];
+  const place = (name: string) => tale.places!.find((p) => p.name === name)!;
+
+  it('both are at the ends of roads from Port Lantern — north to the reef, then east to the cove', () => {
+    const fromTown = reach(tale, { from: { x: 30, y: 21 } });
+    for (const name of ['Story Reef', 'Inkwell Cove']) {
+      const p = place(name);
+      expect(p.byAir, name).toBeFalsy();
+      expect(touches(fromTown, p.x, p.y), name).toBe(true);
+      // Its gate leads back out beside its icon, onto the road.
+      const back = ZONES[tale.exits.find((e) => e.x === p.x && e.y === p.y)!.to].exits[0];
+      expect(Math.abs(back.spawnX - p.x) + Math.abs(back.spawnY - p.y), name).toBe(1);
+      expect(tileAt(tale, back.spawnX, back.spawnY), name).toBe('=');
+    }
+  });
+
+  it('two words fields at tier 6: a trickster on the reef, a healer in the cove', () => {
+    const behavior = { 'story-reef': 'trickster', 'inkwell-cove': 'healer' } as const;
+    for (const z of [reef, cove]) {
+      expect(z.kind).toBe('field');
+      expect(z.topic).toBe('words');
+      expect(zoneTier(z.id)).toBe(6);
+      const critters = [...new Set(z.enemies.map((e) => e.defId).filter((d) => !ENEMY_DEFS[d].isBoss))];
+      expect(critters, z.id).toHaveLength(3);
+      expect(critters.filter((d) => ENEMY_DEFS[d].behavior).map((d) => ENEMY_DEFS[d].behavior), z.id).toEqual([behavior[z.id as keyof typeof behavior]]);
+    }
+  });
+
+  it('the Riddle Leviathan waits at the tip of the point, a warden, in front of the chest (round 1)', () => {
+    const lev = cove.enemies.find((e) => e.defId === 'riddle-leviathan')!;
+    expect(touches(reach(cove), lev.x, lev.y)).toBe(true);
+    expect(ENEMY_DEFS['riddle-leviathan'].role).toBe('warden');
+    // Out of the ink: water beside it.
+    expect([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => tileAt(cove, lev.x + dx, lev.y + dy) === '~')).toBe(true);
+    // Nobody reaches the chest without going through its own cell (round 2: a 2-wide neck let a hero
+    // hug the water's edge 37 px from it, past its 34 px touch)…
+    const past = reach(cove, { blocked: (x, y) => x === lev.x && y === lev.y });
+    // …and that cell is a one-wide neck: water above and below, so a hero going through is within a few px of it.
+    expect(tileAt(cove, lev.x, lev.y - 1)).toBe('~');
+    expect(tileAt(cove, lev.x, lev.y + 1)).toBe('~');
+    const chest = cove.map.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'C' ? [{ x, y }] : [])));
+    expect(chest).toHaveLength(1);
+    expect(touches(past, chest[0].x, chest[0].y)).toBe(false);
+  });
+
+  it("the reef's riddle-chest sits behind its gate, and the cove's on the point", () => {
+    const chests = (z: ZoneDef) => z.map.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'C' ? [{ x, y }] : [])));
+    expect(chests(reef)).toHaveLength(1);
+    expect(chests(cove)).toHaveLength(1);
+    for (const c of chests(reef)) {
+      expect(touches(reach(reef), c.x, c.y)).toBe(false);
+      expect(touches(reach(reef, { gates: 'open' }), c.x, c.y)).toBe(true);
+    }
+    for (const c of chests(cove)) expect(touches(reach(cove), c.x, c.y)).toBe(true);
+  });
+
+  it("Yarn's three tale-stones are each in reach, dim until their riddle is answered, then glowing", () => {
+    const stones = (flags: Record<string, boolean>) => reef.npcs.filter((n) => n.defId.startsWith('reef-stone') && npcPresent(n, flags)).map((n) => n.defId);
+    expect(stones({})).toEqual(['reef-stone-1', 'reef-stone-2', 'reef-stone-3']);
+    expect(stones({ [stepFlag(YARN_STONES[0])]: true })).toEqual(['reef-stone-1-lit', 'reef-stone-2', 'reef-stone-3']);
+    const all = Object.fromEntries(YARN_STONES.map((id) => [stepFlag(id), true]));
+    expect(stones(all)).toEqual(['reef-stone-1-lit', 'reef-stone-2-lit', 'reef-stone-3-lit']);
+    const open = reach(reef);
+    for (const n of reef.npcs.filter((n) => n.defId.startsWith('reef-stone'))) {
+      expect(touches(open, n.x, n.y), n.defId).toBe(true);
+      expect(isThing(NPC_DEFS[n.defId]), n.defId).toBe(true);
+    }
+  });
+
+  it('a lit stone repeats the way to the next one until that one glows too (round 3)', () => {
+    const said = (id: string, flags: Record<string, boolean>) => visibleLines(NPC_DEFS[id].lines, flags).map(lineText);
+    const one = { [stepFlag(YARN_STONES[0])]: true };
+    expect(said('reef-stone-1-lit', one)).toEqual([expect.stringMatching(/EAST, over the road/)]);
+    const two = { ...one, [stepFlag(YARN_STONES[1])]: true };
+    expect(said('reef-stone-1-lit', two)).toEqual([expect.stringMatching(/back where it belongs/)]);
+    expect(said('reef-stone-2-lit', two)).toEqual([expect.stringMatching(/SOUTH-WEST, to the sandbar/)]);
+    const three = { ...two, [stepFlag(YARN_STONES[2])]: true };
+    expect(said('reef-stone-2-lit', three)).toEqual([expect.stringMatching(/back where it belongs/)]);
+    // The last one sends you home to Yarn until her tale is done (round 4).
+    expect(said('reef-stone-3-lit', three)).toEqual([expect.stringMatching(/Go and tell Tale-Fisher Yarn/)]);
+    expect(said('reef-stone-3-lit', { ...three, [questDoneFlag({ id: YARN_QUEST })]: true })).toEqual([expect.stringMatching(/back where it belongs/)]);
+  });
+
+  it("the shop's name plate is on screen as you arrive (round 3)", () => {
+    const shop = cove.buildings![0];
+    // The camera centres on the spawn: VIEW_COLS wide, so it shows from spawn.x - VIEW_COLS / 2.
+    expect(shop.x).toBeGreaterThanOrEqual(cove.spawn.x + 0.5 - VIEW_COLS / 2);
+    // …and the cove's canvas colour matches its tileset's ground (zones.ts / tiles.py).
+    expect(cove.ground).toEqual([124, 150, 134]);
+  });
+
+  it("Bess's shell shop has its own style and sells potions and Hint Feathers", () => {
+    expect(cove.buildings!.map((b) => b.style)).toEqual(['shell']);
+    expect(NPC_DEFS['ink-bess'].role).toBe('merchant');
+  });
+});

@@ -178,6 +178,17 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'squall-chick': { id: 'squall-chick', name: 'Squall Chick', sprite: '🐤', topic: 'geography', levelOffset: 1, hpPerLevel: 12, behavior: 'swift' },
   // The warden of the Wayfinder Isles' stone circle: beat it for the First Chorus Key (keys.ts).
   'compass-golem': { id: 'compass-golem', name: 'The Compass Golem', sprite: '🗿', topic: 'geography', levelOffset: 1, hpPerLevel: 17, isBoss: true, role: 'warden' },
+  // --- Taleshore II (words, #75 item 15e) ---
+  // The Story Reef: the Riddle Jelly answers your Hint Feather with a riddle of its own (trickster).
+  'word-eel': { id: 'word-eel', name: 'Word Eel', sprite: '🐍', topic: 'words', levelOffset: -1, hpPerLevel: 11 },
+  'riddle-jelly': { id: 'riddle-jelly', name: 'Riddle Jelly', sprite: '🪼', topic: 'words', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster' },
+  'page-ray': { id: 'page-ray', name: 'Page Ray', sprite: '📄', topic: 'words', levelOffset: 1, hpPerLevel: 13 },
+  // Inkwell Cove: the Cuttle-Scribe writes its own wounds closed (healer).
+  blot: { id: 'blot', name: 'Blot', sprite: '⚫', topic: 'words', levelOffset: -1, hpPerLevel: 10 },
+  'cuttle-scribe': { id: 'cuttle-scribe', name: 'Cuttle-Scribe', sprite: '🦑', topic: 'words', levelOffset: 0, hpPerLevel: 13, behavior: 'healer' },
+  'margin-shrimp': { id: 'margin-shrimp', name: 'Margin Shrimp', sprite: '🦐', topic: 'words', levelOffset: 1, hpPerLevel: 12 },
+  // The warden at the tip of Inkwell Cove's sandy point: beat it for the Second Chorus Key (keys.ts).
+  'riddle-leviathan': { id: 'riddle-leviathan', name: 'The Riddle Leviathan', sprite: '🐋', topic: 'words', levelOffset: 1, hpPerLevel: 17, isBoss: true, role: 'warden' },
 };
 
 /**
@@ -198,6 +209,11 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
   'hollow-fiend': ['The Hollow Fiend yawns open — the pages round you start to go blank!', 'The Hollow Fiend howls: "I will EAT tomorrow too!"'],
   'compass-golem': ['The Compass Golem spins its needle — NORTH, SOUTH, NORTH!', 'The Compass Golem booms: "ALL DIRECTIONS LEAD TO ME!"'],
+  // It speaks only in riddles (STORY-4X), even when it's angry.
+  'riddle-leviathan': [
+    'The Riddle Leviathan slaps its tail on the sand: "What gets BIGGER the more you take away? A HOLE! And my waves get BIGGER too!"',
+    'The Riddle Leviathan thrashes the black water: "What has no voice, yet SHOUTS from every page? MY WORDS! Now answer ME!"',
+  ],
 };
 
 /** What a boss says as it crosses into enrage phase `phase` (1: half HP, 2: near the end). */

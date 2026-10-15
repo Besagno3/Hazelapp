@@ -9,7 +9,7 @@ import taleshoreTmj from './maps/taleshore.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 import { ACT2_SEEN, FLIGHT_FLAG } from './story';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, YARN_STONES, questDoneFlag, stepFlag } from './questFlags';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -67,6 +67,9 @@ export const ZONE_IDS = [
   'driftwood-shallows',
   'wayfinder-isles',
   'gale-atoll',
+  // Taleshore II (#75 item 15e): words.
+  'story-reef',
+  'inkwell-cove',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -155,7 +158,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -220,7 +223,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor', 'beach', 'compass', 'atoll'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor', 'beach', 'compass', 'atoll', 'reef', 'inkwell'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -2215,12 +2218,18 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 36, y: 37, icon: 'beach', name: 'Driftwood Shallows' },
       { x: 11, y: 11, icon: 'compass', name: 'Wayfinder Isles', byAir: true },
       { x: 13, y: 37, icon: 'atoll', name: 'Gale Atoll', byAir: true },
+      // Taleshore II (#75 item 15e): the reef at the end of the north road, and
+      // the cove of black water in the east coast, along the road's branch.
+      { x: 41, y: 3, icon: 'reef', name: 'Story Reef' },
+      { x: 48, y: 17, icon: 'inkwell', name: 'Inkwell Cove' },
     ],
     exits: [
       { x: 28, y: 21, to: 'port-lantern', spawnX: 32, spawnY: 11 },
       { x: 36, y: 37, to: 'driftwood-shallows', spawnX: 21, spawnY: 1 },
       { x: 11, y: 11, to: 'wayfinder-isles', spawnX: 21, spawnY: 1 },
       { x: 13, y: 37, to: 'gale-atoll', spawnX: 21, spawnY: 2 },
+      { x: 41, y: 3, to: 'story-reef', spawnX: 21, spawnY: 1 },
+      { x: 48, y: 17, to: 'inkwell-cove', spawnX: 21, spawnY: 1 },
     ],
     seaLinks: [{ side: 'west', to: 'silver-shallows' }],
   },
@@ -2495,6 +2504,147 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Back out beside the atoll's icon on Taleshore.
       { x: 21, y: 0, to: 'taleshore', spawnX: 13, spawnY: 36 },
       { x: 22, y: 0, to: 'taleshore', spawnX: 13, spawnY: 36 },
+    ],
+  },
+  // Taleshore II (#75 item 15e): words. The Story Reef, at the end of the road
+  // north from Port Lantern: a reef of coral and tide pools where the tales wash
+  // up. Tale-Fisher Yarn's three tale-stones (a riddle chain), and the
+  // riddle-chest in the walled coral garden behind a gate.
+  'story-reef': {
+    id: 'story-reef',
+    name: 'Story Reef',
+    the: true,
+    kind: 'field',
+    topic: 'words',
+    map: [
+      '#####################EE#####################',
+      '#::::::::::::::::::::==::::::::::::::::::::#',
+      '#..,.................==....................#',
+      '#.....~~~~...#.......==....#............,..#',
+      '#.....~~~~...........==.......~~~~.........#',
+      '#.....~~~~.....,.....==.......~~~~.........#',
+      '#....................==.......~~~~.........#',
+      '#...#................==....................#',
+      '#................#...==.#...........#......#',
+      '#..........,.........==.....,..............#',
+      '#....................==....................#',
+      '#..======================================..#',
+      '#...................................==.....#',
+      '#................,.............,..##GG####.#',
+      '#........#........................#......#.#',
+      '#...........~~~~~.........~~~~....#......#.#',
+      '#......,....~~~~~.........~~~~....#...C..#.#',
+      '#...........~~~~~.................#......#.#',
+      '#..................#..............#......#.#',
+      '#.....#..................,.......##......#.#',
+      '#.................................########.#',
+      '#::::::::::::::::::::::::::::::::::::::::::#',
+      '#~~~:::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~~~:::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~~~:::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '############################################',
+    ],
+    ground: [150, 184, 150],
+    path: [222, 204, 160],
+    solidEmoji: '🪸',
+    decoEmoji: '🐚',
+    spawn: { x: 21, y: 1 },
+    npcs: [
+      { defId: 'reef-yarn', x: 18, y: 3 },
+      { defId: 'reef-verse', x: 27, y: 9 },
+      { defId: 'reef-bloop', x: 16, y: 21 },
+      // Yarn's tale-stones, in the tale's order (#75 item 15e): west, east, then
+      // out on the sandbar. Each glows once its riddle is answered.
+      { defId: 'reef-stone-1', x: 10, y: 3, unlessFlag: stepFlag(YARN_STONES[0]) },
+      { defId: 'reef-stone-1-lit', x: 10, y: 3, ifFlag: stepFlag(YARN_STONES[0]) },
+      { defId: 'reef-stone-2', x: 35, y: 5, unlessFlag: stepFlag(YARN_STONES[1]) },
+      { defId: 'reef-stone-2-lit', x: 35, y: 5, ifFlag: stepFlag(YARN_STONES[1]) },
+      { defId: 'reef-stone-3', x: 6, y: 22, unlessFlag: stepFlag(YARN_STONES[2]) },
+      { defId: 'reef-stone-3-lit', x: 6, y: 22, ifFlag: stepFlag(YARN_STONES[2]) },
+    ],
+    enemies: [
+      { defId: 'word-eel', x: 6, y: 13 },
+      { defId: 'word-eel', x: 30, y: 18 },
+      { defId: 'riddle-jelly', x: 15, y: 8 },
+      { defId: 'riddle-jelly', x: 24, y: 14 },
+      { defId: 'page-ray', x: 39, y: 8 },
+      { defId: 'page-ray', x: 20, y: 18 },
+    ],
+    exits: [
+      // Back up the road, just south of the reef's icon on Taleshore's north coast.
+      { x: 21, y: 0, to: 'taleshore', spawnX: 41, spawnY: 4 },
+      { x: 22, y: 0, to: 'taleshore', spawnX: 41, spawnY: 4 },
+    ],
+  },
+  // Inkwell Cove (#75 item 15e): a cove of black, inky water on Taleshore's east
+  // coast. Barnacle Bess's shell shop by the road in, Scrivener Dot by the path,
+  // and the Riddle Leviathan at the tip of the sandy point, in front of the riddle-chest.
+  // Beating it wins the Second Chorus Key.
+  'inkwell-cove': {
+    id: 'inkwell-cove',
+    name: 'Inkwell Cove',
+    kind: 'field',
+    topic: 'words',
+    map: [
+      '#####################EE#####################',
+      '#######..............==....................#',
+      '#######....WWWWWWW...==....,.....,.........#',
+      '#######....WFBFBFW...==.............#......#',
+      '#######....WKKKKKW...==......#..........,..#',
+      '#######....WFFFFFW...==::::::::::::::::::::#',
+      '#######....WWWDWWW...==:~~~~~~~~~~~~~~~~~~~#',
+      '#######.......=========:~~~~~~~~~~~~~~~~~~~#',
+      '#######..............==:~~~~~~~~~~~~~~~~~~~#',
+      '#####................=====~~~~~~~~~~~~~~~~~#',
+      '#####..,.......#.......::=~~~~~~~~~~~~~~~~~#',
+      '#####..............,...::=~~~~~~~~~~~~~~~~~#',
+      '#####....#.............::=~#~~~#~~~~~~~~~~~#',
+      '#####..................::=::::::::::~~~~~~~#',
+      '#####........,.........:~:::::::::::::C~~~~#',
+      '#####.............#....:~:::::::::::~~:~~~~#',
+      '#####.....,............:~:::::::::::~~~~~~~#',
+      '#####...........,......:~~#~~~~~~~#~~~~~~~~#',
+      '#####...#....:::::::::::~~~~~~~~~~~~~~~~~~~#',
+      '#####........:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#####........:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#####........:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#####.......#:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#####........:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#####........:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#####........:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#####........:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '############################################',
+    ],
+    ground: [124, 150, 134],
+    path: [196, 180, 150],
+    solidEmoji: '🪨',
+    decoEmoji: '🖋️',
+    spawn: { x: 21, y: 1 },
+    buildings: [
+      { id: 'shell-shop', name: "Bess's Shell Shop", x: 11, y: 2, w: 7, h: 5, roof: 'sea', style: 'shell', sign: 'shop' },
+    ],
+    npcs: [
+      { defId: 'ink-bess', x: 14, y: 3 },
+      // The Riddle Leviathan's signpost (#59's pattern), where the path turns out to the point.
+      { defId: 'ink-dot', x: 19, y: 9 },
+      { defId: 'ink-smudge', x: 12, y: 14 },
+    ],
+    enemies: [
+      { defId: 'blot', x: 8, y: 11 },
+      { defId: 'blot', x: 11, y: 22 },
+      { defId: 'cuttle-scribe', x: 17, y: 13 },
+      { defId: 'cuttle-scribe', x: 35, y: 3 },
+      { defId: 'margin-shrimp', x: 28, y: 2 },
+      { defId: 'margin-shrimp', x: 9, y: 17 },
+      // At the tip of the sandy point, in front of the chest — out of the ink (15e review).
+      { defId: 'riddle-leviathan', x: 36, y: 14 },
+    ],
+    exits: [
+      // Back up the path, just west of the cove's icon on Taleshore.
+      { x: 21, y: 0, to: 'taleshore', spawnX: 47, spawnY: 17 },
+      { x: 22, y: 0, to: 'taleshore', spawnX: 47, spawnY: 17 },
     ],
   },
 };

@@ -68,9 +68,10 @@ describe('16-bit tilesets', () => {
     // …then the Dragon's Roost's (#75 item 15b), then Port Lantern's (#75 item 15c).
     expect(OVERWORLD_FRAME.icon.roost).toBe(20);
     expect(OVERWORLD_FRAME.icon.harbor).toBe(21);
-    // …then Taleshore I's three (#75 item 15d), last.
-    expect([OVERWORLD_FRAME.icon.beach, OVERWORLD_FRAME.icon.compass, OVERWORLD_FRAME.icon.atoll]).toEqual([22, 23, OVERWORLD_FRAMES - 1]);
-    const appended = [OVERWORLD_FRAME.icon.hill, OVERWORLD_FRAME.icon.elder, OVERWORLD_FRAME.icon.marsh, OVERWORLD_FRAME.icon.archive, OVERWORLD_FRAME.icon.roost, OVERWORLD_FRAME.icon.harbor, OVERWORLD_FRAME.icon.beach, OVERWORLD_FRAME.icon.compass, OVERWORLD_FRAME.icon.atoll];
+    // …then Taleshore I's three (#75 item 15d), then Taleshore II's two (#75 item 15e), last.
+    expect([OVERWORLD_FRAME.icon.beach, OVERWORLD_FRAME.icon.compass, OVERWORLD_FRAME.icon.atoll]).toEqual([22, 23, 24]);
+    expect([OVERWORLD_FRAME.icon.reef, OVERWORLD_FRAME.icon.inkwell]).toEqual([25, OVERWORLD_FRAMES - 1]);
+    const appended = [OVERWORLD_FRAME.icon.hill, OVERWORLD_FRAME.icon.elder, OVERWORLD_FRAME.icon.marsh, OVERWORLD_FRAME.icon.archive, OVERWORLD_FRAME.icon.roost, OVERWORLD_FRAME.icon.harbor, OVERWORLD_FRAME.icon.beach, OVERWORLD_FRAME.icon.compass, OVERWORLD_FRAME.icon.atoll, OVERWORLD_FRAME.icon.reef, OVERWORLD_FRAME.icon.inkwell];
     expect(Math.max(...icons.filter((f) => !appended.includes(f)))).toBe(OVERWORLD_DOCK_FRAME - 1);
     // Marlow's boat: the whole boat, then its hull's front, two bob frames each.
     expect(pngSize(BOAT_SHEET)).toEqual({ w: BOAT_FRAMES * 32, h: 32 });

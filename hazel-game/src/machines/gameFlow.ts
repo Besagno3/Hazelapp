@@ -133,6 +133,8 @@ export const gameFlowMachine = setup({
             CLOSE: 'exploring',
             // Service NPCs offer their service from inside the dialogue.
             OPEN_SERVICE: { target: 'service', actions: 'assignService' },
+            // A riddle step's thing asks its question (#75 item 15e: Yarn's tale-stones).
+            OPEN_PATH: { target: 'path', actions: 'assignPath' },
           },
         },
         service: { on: { CLOSE: 'exploring' } },

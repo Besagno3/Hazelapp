@@ -151,7 +151,8 @@ export type ServiceType = 'inn' | 'shop' | 'library' | 'sage' | 'trial';
 
 /** A question-locked obstacle on the path: a gate or a treasure chest. */
 export interface PathTarget {
-  kind: 'gate' | 'chest' | 'keygate';
+  /** A riddle is a riddle step's question (#75 item 15e: Yarn's tale-stones); its id is the step's. */
+  kind: 'gate' | 'chest' | 'keygate' | 'riddle';
   /** Stable id, e.g. "numbria:gate:12,4" — flags/openedChests key on it. */
   id: string;
   topic: Topic;

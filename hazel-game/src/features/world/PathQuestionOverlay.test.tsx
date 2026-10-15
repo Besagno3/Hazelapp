@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { PathTarget, Question } from '../../types';
 
 // One riddle; the first option is right.
@@ -29,6 +29,8 @@ const plainChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'c
 function withFlags(flags: Record<string, boolean>) {
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
 }
+/** Yarn has asked: the first tale-stone's riddle is due. */
+const YARN_ASKED = { 'quest:yarn-tale:offered': true };
 
 beforeEach(() => withFlags({}));
 
@@ -67,5 +69,67 @@ describe('PathQuestionOverlay — key-item chests (#75 item 13)', () => {
     fireEvent.click(await screen.findByText('Right'));
     expect(screen.getByRole('status')).toHaveTextContent('');
     expect(screen.getByRole('button', { name: /25 coins! 🪙/ })).toBeInTheDocument();
+  });
+});
+
+describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
+  const stone: PathTarget = { kind: 'riddle', id: 'yarn-stone-1', topic: 'words', zoneId: 'story-reef' };
+
+  it('a right answer lights the stone (its step) and says where the next one is, above the button', async () => {
+    withFlags(YARN_ASKED);
+    render(<PathQuestionOverlay target={stone} />);
+    expect(screen.getByRole('heading', { name: /tale-stone asks a word question/ })).toBeInTheDocument();
+    fireEvent.click(await screen.findByText('Right'));
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBe(true);
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent(/^📜 Chapter 1:.*over the road, to the tide pool near the top/);
+    const button = screen.getByRole('button', { name: /The stone glows!/ });
+    expect(status.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // No coins: a stone isn't a chest.
+    expect(useSaveStore.getState().save!.coins).toBe(0);
+  });
+
+  it('a wrong answer leaves it dim and says to ask again (round 1)', async () => {
+    withFlags(YARN_ASKED);
+    render(<PathQuestionOverlay target={stone} />);
+    const wrong = await screen.findByText('Wrong B');
+    expect(screen.getByRole('status')).toHaveTextContent('');
+    fireEvent.click(wrong);
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
+    expect(screen.getByRole('status')).toHaveTextContent('The stone stays dim. Want another question?');
+    // Another question right here (round 3): a new one loads; "Later" walks away.
+    expect(screen.getByRole('button', { name: 'Later' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Ask me another/ }));
+    fireEvent.click(await screen.findByText('Right'));
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Later' })).toBeNull();
+  });
+
+  it('focus goes to the button that carries on, and comes back into the dialog with a new question (round 4)', async () => {
+    withFlags(YARN_ASKED);
+    render(<PathQuestionOverlay target={stone} />);
+    fireEvent.click(await screen.findByText('Wrong A'));
+    const again = screen.getByRole('button', { name: /Ask me another/ });
+    await waitFor(() => expect(document.activeElement).toBe(again));
+    fireEvent.click(again);
+    await screen.findByText('Right');
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+  });
+
+  it('a stale riddle (its step no longer due) finishes nothing, and says nothing about glowing (rounds 1–2)', async () => {
+    render(<PathQuestionOverlay target={stone} />); // Yarn hasn't asked
+    fireEvent.click(await screen.findByText('Right'));
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
+    expect(screen.queryByRole('button', { name: /The stone glows/ })).toBeNull();
+    // …and no "stays dim" after a right answer either (round 3).
+    expect(screen.getByRole('status')).toHaveTextContent('');
+  });
+
+  it('a wrong answer to a stale riddle offers nothing more — just come back (round 4)', async () => {
+    render(<PathQuestionOverlay target={stone} />); // Yarn hasn't asked
+    fireEvent.click(await screen.findByText('Wrong A'));
+    expect(screen.getByRole('status')).toHaveTextContent('');
+    expect(screen.queryByRole('button', { name: /Ask me another/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /come back/ })).toBeInTheDocument();
   });
 });

@@ -28,6 +28,7 @@ export default function QuestionCard({
   note,
   secondChance = false,
   onSecondChance,
+  focusContinue = false,
 }: {
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
@@ -42,6 +43,11 @@ export default function QuestionCard({
   /** Fires once, as soon as an option is picked. */
   onAnswered: (correct: boolean, picked: number) => void;
   continueLabel?: string;
+  /**
+   * Move keyboard focus to Continue once an answer is picked (15e round 4: a
+   * tale-stone's "🔄 Ask me another!" was five Tabs away). Off by default.
+   */
+  focusContinue?: boolean;
   /** Fires once with whether the pick was correct — guarded against double-clicks. */
   onContinue: (correct: boolean) => void;
   /**
@@ -68,14 +74,16 @@ export default function QuestionCard({
   // On a phone the explanation can push Continue below the fold — bring it
   // into view once an answer is picked ('nearest' = no scroll if it fits).
   useEffect(() => {
-    if (selected === null || typeof continueRef.current?.scrollIntoView !== 'function') return;
+    if (selected === null) return;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     // Wait a frame so the explanation + button have laid out.
-    const raf = requestAnimationFrame(() =>
-      continueRef.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }),
-    );
+    const raf = requestAnimationFrame(() => {
+      const btn = continueRef.current;
+      if (typeof btn?.scrollIntoView === 'function') btn.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+      if (focusContinue) continueRef.current?.focus({ preventScroll: true });
+    });
     return () => cancelAnimationFrame(raf);
-  }, [selected]);
+  }, [selected, focusContinue]);
   const [continued, setContinued] = useState(false);
 
   function pick(idx: number) {

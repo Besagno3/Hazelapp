@@ -340,7 +340,12 @@ zod, react-query. Add the package in the same change that first uses it.
   item 15d): a road south to Driftwood Shallows; the Wayfinder Isles and Gale
   Atoll are islands only Ember reaches (`byAir`); the Compass Golem gives the
   First Chorus Key (`chorus-a`, `unlocksZone: null` + `opens` until Chorus
-  Isle, 15f); Juno's walk reuses the escort step.
+  Isle, 15g); Juno's walk reuses the escort step. **Taleshore II** (#75 item
+  15e): the Story Reef up a road north, Inkwell Cove east off it; the Riddle
+  Leviathan gives the Second Chorus Key (`chorus-b`); Yarn's tale-stones are
+  a **riddle step** (`riddleStep`): talked to on its turn, a thing asks a
+  question (`PathTarget.kind: 'riddle'`, opened from the dialogue), and the
+  right answer finishes the step and says where the next one is.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -671,6 +676,7 @@ python3 tools/assets/build.py archive  # the Sunken Archive: its tiles, the tome
 python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
+python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people, tale-stones (#75 item 15e)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
@@ -760,6 +766,67 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15e review round 4: a sea serpent, a cuttlefish, focus that follows (#75 item 15e, #139k)
+The last round. Fresh code (2 low, 3 nits) and UX (3 medium, 7 low) reviews,
+all fixed: the Riddle Leviathan a sea serpent rising from ink (`leviathan`),
+the Cuttle-Scribe a cuttlefish (`cuttlefish`), a clearer shrimp, Bess's
+shells; the third lit stone sends you to Yarn; "tide pool" throughout; focus
+moves to "🔄 Ask me another!" and back into the dialog with a new question
+(`QuestionCard` `focusContinue`, `ModalLayer` `focusKey`); a stale riddle
+answered wrong offers nothing. Tests +2; 1250 green.
+
+### 2026-10-15 — 15e review round 3: lit stones that point on, ask me another (#75 item 15e, #139j)
+Fresh code (3 low, 3 nits) and UX (2 medium, 8 low) reviews, all fixed: a
+lit stone repeats the way to the next; a wrong answer offers "🔄 Ask me
+another!" on the spot; "word question" everywhere a stone asks one; Bess's
+shop on screen at arrival; a big "?" on the Leviathan, eyes on Blot, a
+lighter cove; stale docs. Tests +2; 1248 green; `bench … fly` 20/20,
+`bench … journey` 13/13.
+
+### 2026-10-15 — 15e review round 2: no way round the Leviathan, a paper Page Ray (#75 item 15e, #139i)
+Fresh code (1 medium, 1 low, 1 nit) and UX (4 medium, 8 low) reviews, all
+fixed but one kept: the point narrows to one cell at the Leviathan (a hero
+hugged the water past it), journey.test walks both Chorus Key legs, a stale
+riddle gives nothing, clearer stone hints and Yarn's own reminder
+(`QuestStep.remind`), the Leviathan's rage line and key, Verse's candle tip;
+`page_ray` and an eel's fin, Bloop a fish. Tests +3; 1246 green.
+
+### 2026-10-15 — 15e review round 1: clues that point the right way, a Leviathan in the way (#75 item 15e, #139h)
+Fresh code (7 low/nit) and UX (2 high, 7 medium, 6 low) reviews, all fixed:
+the tale-stones' hints and clues name real places ("Chapter N:"), a wrong
+answer says to talk to the stone again, "Later", `solveRiddle` finishes only
+a riddle that's due, the Leviathan at the point's tip in front of the chest,
+the cove's icon clear of the map's edge, the 🚩 plan's directions; a shrimp
+drawer, a curled-tail Leviathan, a quill-armed Cuttle-Scribe, a friendly
+Smudge, an ink-splat Blot, a mermaid Verse (round 2 took the cove's ground splats back out). Tests
++3; 1244 green; `bench … fly` 20/20, `bench … journey` 13/13 (before the fixes).
+
+### 2026-10-15 — Taleshore II: the Story Reef and Inkwell Cove (#75 item 15e, #139)
+Roadmap sub-item 15e (branch stacked on 15d's).
+- **Two places on Taleshore**, both walked to: the Story Reef at the end of a
+  new road north from Port Lantern, and Inkwell Cove on an inlet of black
+  water east off that road. Words fields, tier 6; icons `reef`, `inkwell`
+  (overworld frames 25–26).
+- **6 critters** (the Riddle Jelly a trickster, the Cuttle-Scribe a healer)
+  and **the Riddle Leviathan** (warden, riddles even in its rage and defeat
+  lines) → the **Second Chorus Key** (`chorus-b`). Scrivener Dot is its
+  signpost.
+- **People and a shop:** Yarn, Verse, Bloop; Dot, Smudge, Barnacle Bess
+  (**Bess's Shell Shop**, a new `shell` style: potions, Hint Feathers — now a
+  shared staple — and the Barnacle Badge).
+- **The riddle step** (`riddleStep`): a thing on its turn asks a question
+  ("📜 Hear the riddle" → `PathQuestionOverlay`, `kind: 'riddle'`; the
+  machine's dialogue state takes `OPEN_PATH`); the right answer finishes the
+  step and shows where the next one is. **Yarn's Tallest Tale**: three
+  tale-stones, in order, each glowing once answered — 45c + a Hint Feather.
+- **The 🚩:** "Win the Second Chorus Key" after the first; then "Explore
+  Taleshore". Lumen's plan and tip, the board's notices. Stale "15f" notes
+  for Chorus Isle now say 15g.
+- **Art:** `python3 tools/assets/build.py reef`.
+- **Tests:** +15 (zones, quests, keys, items, tiles, wayfinding,
+  PathQuestionOverlay, DialogueOverlay, gameFlow); 1242 green, lint and tsc
+  clean.
+
 ### 2026-10-15 — 15d review round 4: flown off the plateau, islands that look like islands (#75 item 15d, #138k)
 The last round. Fresh code (2 low, 2 nits) and UX (8 low) reviews, all fixed:
 a route that starts stranded is flown all the way, the sea too (`stranded`);
@@ -803,7 +870,7 @@ Roadmap sub-item 15d (branch stacked on 15c's PR #57).
   trickster, Squall Chick swift); new drawers `snail`, `marker_post`.
 - **The Compass Golem** (warden) → the **First Chorus Key** (`chorus-a`):
   `GateKey.unlocksZone` may be null again, `opens` says what it's for
-  until Chorus Isle (15f). Cartographer Lo is its signpost.
+  until Chorus Isle (15g). Cartographer Lo is its signpost.
 - **People and a shop:** Reel, Sandy, Salt; Lo, Pebble, Drift; Sough, Gully,
   Tass (**Tass's Kite Stall**, a new `kite` style, the Kite Badge).
 - **Quests:** Juno's *Ferry the Fretful* (the escort step, walked on the

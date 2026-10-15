@@ -44,6 +44,14 @@ export const JUNO_WALK = 'juno-walk';
 export const JUNO_CAME = 'juno:came';
 
 /**
+ * Yarn's Tallest Tale (#75 item 15e): the quest, and its three riddle steps
+ * in the tale's order — each a tale-stone on the Story Reef, dim until its
+ * riddle is answered (the reef places a glowing stone by `stepFlag`).
+ */
+export const YARN_QUEST = 'yarn-tale';
+export const YARN_STONES = ['yarn-stone-1', 'yarn-stone-2', 'yarn-stone-3'] as const;
+
+/**
  * Set while an escort's walk is under way. Never kept: leaving the place,
  * a lost battle or a reload clears it, and the one being walked waits at the
  * start again (`normalizeSave` → `escortsBack`, `withoutEscorts`).

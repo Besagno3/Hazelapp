@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { JUNO_CAME, JUNO_QUEST, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
@@ -1871,6 +1871,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: "GOOD NEWS: Skipper Juno has found her nerve AND her ferry! Well done, whoever helped.", ifFlag: questDoneFlag({ id: JUNO_QUEST }) },
       { text: 'SEEN: a stone giant in the Wayfinder Isles. Cartographer Lo says it guards a key. Take care!', unlessFlag: keyFlag('chorus-a') },
       { text: 'NEWS: someone beat the stone giant on the Wayfinder Isles! Cartographer Lo is redrawing her map.', ifFlag: keyFlag('chorus-a') },
+      // Taleshore II (#75 item 15e): up the north road.
+      { text: "LOST: one tall tale, in three pieces, somewhere on the Story Reef. Ask Tale-Fisher Yarn, at the end of the north road!", unlessFlag: questDoneFlag({ id: YARN_QUEST }) },
+      { text: 'BEWARE: a whale that talks in riddles lives in Inkwell Cove, where the water turns black as ink — east off the north road. Scrivener Dot says it has a key.', unlessFlag: keyFlag('chorus-b') },
+      { text: 'NEWS: someone answered every one of the Riddle Leviathan\'s riddles! Scrivener Dot wrote it all down.', ifFlag: keyFlag('chorus-b') },
       'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
       'Check back soon for more notices!',
     ],
@@ -1884,6 +1888,164 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     stationary: true,
     lines: ['📝 "Out saying hello to visitors! Find me by the road into town, on the east side. — Gale"'],
+  },
+  // --- Taleshore II (#75 item 15e) --------------------------------------------
+  // The Story Reef: Tale-Fisher Yarn, a mermaid who can't stop rhyming, a fish
+  // who talks about himself, and Yarn's three tale-stones (a riddle chain).
+  'reef-yarn': {
+    id: 'reef-yarn',
+    name: 'Tale-Fisher Yarn',
+    sprite: '🎏',
+    role: 'villager',
+    stationary: true,
+    // Her quest's offer comes first ("Yarn's Tallest Tale"); these follow it.
+    lines: [
+      "Every tide brings a story in. Some are short. Some are tall. Mine are TALLER than they look!",
+      { text: 'Want another tale? Once I caught a sentence so long it took three days to reel in. Ha!', ifFlag: questDoneFlag({ id: YARN_QUEST }) },
+    ],
+  },
+  'reef-verse': {
+    id: 'reef-verse',
+    name: 'Verse',
+    sprite: '🧜',
+    role: 'villager',
+    lines: [
+      "Hello, hello, I'm Verse, you see — I rhyme all day, I can't stop, dear me!",
+      'The Riddle Jellies love a riddle game. Your Hint Feathers fizzle — a 🕯️ candle fixes that, no shame!',
+      'Please ask me to stop, I really would try… but the rhymes just keep coming. Oh my, oh my!',
+    ],
+    ambient: ['Rhyme, chime…', 'Sea and me!', '🎶'],
+  },
+  'reef-bloop': {
+    id: 'reef-bloop',
+    name: 'Bloop',
+    sprite: '🐠',
+    role: 'villager',
+    lines: [
+      'Bloop says hello! Bloop is a fish. Bloop is a very good fish.',
+      'Bloop is a fish on the sand. Bloop likes the view. Bloop will hop back in soon.',
+      'Bloop saw a Word Eel today. Bloop swam away. Bloop is fast. Bloop is brave. Mostly fast.',
+      { text: "Bloop heard Yarn's tale is lost on three stones. Bloop would help, but Bloop can't read. Bloop is a fish.", ifFlag: questOfferedFlag({ id: YARN_QUEST }), unlessFlag: questDoneFlag({ id: YARN_QUEST }) },
+    ],
+    ambient: ['Bloop!', 'Bloop bloop.', '🫧'],
+  },
+  'reef-stone-1': {
+    id: 'reef-stone-1',
+    name: 'First Tale-Stone',
+    sprite: '🪨',
+    spriteId: 'reef-stone',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe Tale-Fisher Yarn, at the top of the reef, knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
+      { text: "🪨 One of Yarn's tale-stones. The words on it are faint and still.", ifFlag: questOfferedFlag({ id: YARN_QUEST }) },
+    ],
+  },
+  'reef-stone-1-lit': {
+    id: 'reef-stone-1-lit',
+    name: 'First Tale-Stone',
+    sprite: '🪨',
+    spriteId: 'reef-stone-lit',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    // Says where the next stone is until that one glows too (15e round 3: the clue shows once, after the answer).
+    lines: [
+      { text: '🪨 The stone glows. Its words float EAST, over the road, to the tide pool near the top of the reef!', unlessFlag: stepFlag(YARN_STONES[1]) },
+      { text: '🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.', ifFlag: stepFlag(YARN_STONES[1]) },
+    ],
+  },
+  'reef-stone-2': {
+    id: 'reef-stone-2',
+    name: 'Second Tale-Stone',
+    sprite: '🪨',
+    spriteId: 'reef-stone',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe Tale-Fisher Yarn, at the top of the reef, knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
+      { text: "🪨 One of Yarn's tale-stones. The words on it are faint and still.", ifFlag: questOfferedFlag({ id: YARN_QUEST }) },
+    ],
+  },
+  'reef-stone-2-lit': {
+    id: 'reef-stone-2-lit',
+    name: 'Second Tale-Stone',
+    sprite: '🪨',
+    spriteId: 'reef-stone-lit',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    // Says where the next stone is until that one glows too (15e round 3: the clue shows once, after the answer).
+    lines: [
+      { text: '🪨 The stone glows. Its words float SOUTH-WEST, to the sandbar in the sea!', unlessFlag: stepFlag(YARN_STONES[2]) },
+      { text: '🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.', ifFlag: stepFlag(YARN_STONES[2]) },
+    ],
+  },
+  'reef-stone-3': {
+    id: 'reef-stone-3',
+    name: 'Third Tale-Stone',
+    sprite: '🪨',
+    spriteId: 'reef-stone',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      { text: '🪨 A smooth stone covered in faded words, too faint to read. Maybe Tale-Fisher Yarn, at the top of the reef, knows.', unlessFlag: questOfferedFlag({ id: YARN_QUEST }) },
+      { text: "🪨 One of Yarn's tale-stones. The words on it are faint and still.", ifFlag: questOfferedFlag({ id: YARN_QUEST }) },
+    ],
+  },
+  'reef-stone-3-lit': {
+    id: 'reef-stone-3-lit',
+    name: 'Third Tale-Stone',
+    sprite: '🪨',
+    spriteId: 'reef-stone-lit',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    // Sends you home to Yarn until her tale is done (15e round 4).
+    lines: [
+      { text: '🪨 The stone glows. The whole tale is back! Go and tell Tale-Fisher Yarn, at the top of the reef.', unlessFlag: questDoneFlag({ id: YARN_QUEST }) },
+      { text: '🪨 The tale-stone glows softly. Its chapter of the tale is back where it belongs.', ifFlag: questDoneFlag({ id: YARN_QUEST }) },
+    ],
+  },
+  // Inkwell Cove: Scrivener Dot (the Leviathan's signpost), Smudge the little
+  // squid, and Barnacle Bess's shell shop.
+  'ink-dot': {
+    id: 'ink-dot',
+    name: 'Scrivener Dot',
+    sprite: '✒️',
+    role: 'villager',
+    stationary: true,
+    // The Riddle Leviathan's signpost (#59's pattern): a warning until its key is won.
+    lines: [
+      "Oh! A visitor. I'm Dot. I write down every word the cove says. It says a LOT.",
+      { text: "At the tip of the sandy point, the Riddle Leviathan guards the Second Chorus Key. It talks only in riddles. Even 'hello' is a riddle!", unlessFlag: keyFlag('chorus-b') },
+      { text: "Answer its word questions to win the key. If you're hurt, Bess sells Berry Potions — her shop is up by the road into the cove.", unlessFlag: keyFlag('chorus-b') },
+      { text: 'You beat the Riddle Leviathan! I wrote it all down. Twice. In my best letters.', ifFlag: keyFlag('chorus-b') },
+    ],
+  },
+  'ink-smudge': {
+    id: 'ink-smudge',
+    name: 'Smudge',
+    sprite: '🦑',
+    role: 'villager',
+    lines: [
+      "Hi! I'm Smudge. Every time I get a fright I squirt ink. Then everything is a smudge. That's how I got my name!",
+      'Cuttle-Scribes scribble their scrapes away with ink. Hit them hard, so they can\'t scribble fast enough!',
+    ],
+    ambient: ['Squirt!', 'Oops, ink.', '🫧'],
+  },
+  'ink-bess': {
+    id: 'ink-bess',
+    name: 'Barnacle Bess',
+    sprite: '🐚',
+    role: 'merchant',
+    lines: [
+      "Ahoy! I'm Barnacle Bess. Shells, feathers, potions — everything a riddle-hunter needs!",
+      'Hint Feathers sell fast round here. The Leviathan\'s riddles are VERY twisty.',
+    ],
   },
   // --- Taleshore I (#75 item 15d) ---------------------------------------------
   // Driftwood Shallows: a beachcomber, a crab who walks sideways, and Salt the Younger.
