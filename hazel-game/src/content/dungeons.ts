@@ -23,10 +23,16 @@ export interface DungeonDef {
   name: string;
   /** Which way is deeper: a cave goes down, a tower goes up. */
   goes: 'down' | 'up';
-  /** Floors from the entrance inward; the first is the place on the overworld. */
+  /** Floors from the entrance inward; the first is the place on the overworld (or down `from`'s stairs). */
   floors: ZoneId[];
-  /** The boss waiting on the deepest floor (an enemy def id). */
-  boss: string;
+  /**
+   * The place whose stairs lead to the first floor (#75 item 16a: the Dream
+   * Root, down from the Crystal Spire's grounds) — when it isn't an icon on
+   * the overworld.
+   */
+  from?: ZoneId;
+  /** The boss waiting on the deepest floor (an enemy def id) — none yet while a dungeon is still being dug (the Dream Root, 16d). */
+  boss?: string;
 }
 
 export const DUNGEONS: DungeonDef[] = [
@@ -36,6 +42,15 @@ export const DUNGEONS: DungeonDef[] = [
     goes: 'down',
     floors: ['clockwork-depths', 'clockwork-depths-b2', 'clockwork-depths-b3'],
     boss: 'clockwork-titan',
+  },
+  {
+    // Act IV (#75 item 16a): under the Crystal Spire. Its Door is the only floor
+    // so far — the descent and Umbra Remembered come in 16d–16e.
+    id: 'dream-root',
+    name: 'Dream Root',
+    goes: 'down',
+    floors: ['dreamroot-door'],
+    from: 'crystal-spire',
   },
 ];
 
@@ -69,8 +84,11 @@ export function floorLabel(goes: DungeonDef['goes'], index: number): string {
 export function floorTitle(zones: Record<ZoneId, ZoneDef>, zoneId: ZoneId): string | null {
   const at = dungeonFloor(zoneId);
   if (!at) return null;
-  const label = `${at.dungeon.name} · ${floorLabel(at.dungeon.goes, at.index)}`;
+  const floor = floorLabel(at.dungeon.goes, at.index);
   const name = zones[zoneId].name;
+  // "Dream Root Door · B1" — a floor named after its dungeon needs it only once.
+  if (name !== at.dungeon.name && name.startsWith(`${at.dungeon.name} `)) return `${name} · ${floor}`;
+  const label = `${at.dungeon.name} · ${floor}`;
   return name === at.dungeon.name ? label : `${label} — ${name}`;
 }
 

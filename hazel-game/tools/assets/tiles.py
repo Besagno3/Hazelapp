@@ -120,6 +120,10 @@ ZONES = {
     # sandy paths, wind-bent bushes and blue sea-flowers, under a clear morning sky.
     'chartmakers-rest': dict(shore=True, no_hills=True, ground=(150, 178, 120), path=(222, 200, 156), solid='hedge', deco='flower', deco_c='#8ab8ff',
                              sky=('#5a9ad8', '#f4f0e0'), far='#a8c0d8', mid='islets', water='#3a8ad0'),
+    # The Dream Root Door (#75 item 16a): a hollow under the Crystal Spire, the
+    # ground a dusky violet-brown, dark rock walls, glowing mushrooms, a still pool.
+    'dreamroot-door': dict(ground=(92, 76, 98), path=(146, 122, 150), solid='darkrock', deco='glowshroom', deco_c='#ffe28a',
+                           sky=('#120e1a', '#3a2a44'), far='#2a1e30', mid='mountain', water='#4a5a9a', cave=True),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -160,6 +164,9 @@ CHORUS_ZONES = ('chorus-isle',)
 # Added with Chartmaker's Rest (#75 item 15h) — `build_chart` writes only this (+ the
 # chart town sheet and the overworld sheet with its icon appended).
 CHART_ZONES = ('chartmakers-rest',)
+
+# Added with the Dream Root Door (#75 item 16a) — `build_dreamroot` writes only this.
+DREAMROOT_ZONES = ('dreamroot-door',)
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -520,6 +527,8 @@ STYLES = {
     'chorus':    ('#f6ead0', '#d04a7a', 'stripes', 'arch',   'checker', ('#f8ecd4', '#e0c8a4')),
     # Chartmaker's Rest (#75 item 15h): parchment walls ruled like a chart, ink-blue trim, plank floor.
     'chart':     ('#efe2bf', '#2a4a8a', 'chart',   'square', 'planks', ('#c8a070',)),
+    # The Dream Root Door (#75 item 16a): walls of twisted dark root, violet buds glowing, a warm plank floor.
+    'root':      ('#5a4234', '#b890e8', 'roots',   'arch',   'planks', ('#8a6450',)),
 }
 
 
@@ -610,6 +619,14 @@ def _wall_face(style, window=False, door=False):
         c.dot(13, 10, '#2a4a8a')
         c.dot(12, 9, '#2a4a8a')
         c.dot(12, 11, '#2a4a8a')
+    elif pattern == 'roots':
+        # The Lamplight Rest (#75 item 16a): roots twisting down the wall, buds glowing violet.
+        for (x0, x1) in ((2, 4), (7, 6), (11, 13), (14, 12)):
+            for y in range(16):
+                x = round(x0 + (x1 - x0) * y / 15)
+                c.dot(x, y, dark(base, 0.28))
+        for (x, y) in ((4, 4), (10, 7), (6, 11), (13, 3)):
+            c.dot(x, y, '#d8b8ff')
     elif pattern == 'bark':
         # A hollow ring-tree's wall (#75 item 14f): deep grooves and a knot.
         for x in (2, 6, 10, 13):
@@ -1610,6 +1627,19 @@ def build_chart(public: Path):
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('chart')]).save(tdir / 'town-chart.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_dreamroot(public: Path):
+    """Write only the Dream Root Door's art (#75 item 16a): its tileset, blend sheet
+    and backdrop, and the root town sheet for its inn."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in DREAMROOT_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('root')]).save(tdir / 'town-root.png', optimize=True)
 
 
 def quest_board():

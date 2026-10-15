@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { NPC_DEFS, ROLE_SERVICE, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
+import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { questConversation, type QuestConversation } from '../../content/quests';
 import { boatFetchOffer, fetchBoatHome } from '../../content/boat';
@@ -23,6 +23,8 @@ import ModalLayer from '../../components/ModalLayer';
 export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const update = useSaveStore((s) => s.update);
   const setFlag = useSaveStore((s) => s.setFlag);
+  // Who they look like now (#75 item 16a: Wisp's new face once the name is learned).
+  const flagsNow = useSaveStore((s) => s.save?.flags);
   const npc = NPC_DEFS[npcId];
   // Freeze the conversation at open — quest completion or a line that sets
   // its own filter flag must not reshuffle lines mid-conversation.
@@ -113,7 +115,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
         className="w-full max-w-xl bg-indigo-950/95 border-4 border-white/80 rounded-xl p-5 text-white shadow-2xl"
       >
         <div className="flex items-center gap-2 mb-2">
-          <CharacterPortrait spriteId={npcSpriteId(npc)} emoji={npc.sprite} scale={1.25} className="text-3xl" />
+          <CharacterPortrait spriteId={npcSpriteId(npc, flagsNow)} emoji={npcEmoji(npc, flagsNow)} scale={1.25} className="text-3xl" />
           <span className="font-bold text-amber-300">{npc.name}</span>
           {quest && (
             <span className="ml-auto text-[10px] uppercase tracking-wider bg-amber-400/20 text-amber-300 rounded px-2 py-0.5">

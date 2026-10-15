@@ -25,7 +25,8 @@ import {
   solveRiddle,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { ACT4_SEEN } from './story';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -1220,5 +1221,51 @@ describe("The Blank Chart (#75 item 15h): Pen's nest, Inka's ink, the Chartmaker
     save = converse('chart-chartmaker', save);
     expect(save.flags[BLANK_CHART_HELD]).toBe(true);
     expect(save.questItems).toEqual(['blank-chart']);
+  });
+});
+
+describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first Sage', () => {
+  const act4 = (): SaveData => ({ ...defaultSave(), flags: { [ACT4_SEEN]: true } });
+
+  it('a story quest from Wisp, offered only once Act IV has opened; five memories, in order', () => {
+    const quest = byId(SAY_HER_NAME_QUEST);
+    expect(quest).toMatchObject({ giverNpcId: 'woods-sprite', zoneId: 'whispering-woods', requires: ACT4_SEEN });
+    expect(quest.side).toBeFalsy();
+    expect(quest.steps.map((st) => st.npc?.id)).toEqual(['village-elder', 'hill-keeper', 'chart-chartmaker', 'sage-chronicle', 'memory-young-wick']);
+    expect(questConversation('woods-sprite', defaultSave())).toBeNull();
+    expect(questConversation('woods-sprite', act4())).not.toBeNull();
+    // Each memory is two lines, and only the last says the name.
+    for (const st of quest.steps) expect(st.npc!.lines.length, st.id).toBe(2);
+    for (const st of quest.steps.slice(0, -1)) expect(st.npc!.lines.join(' '), st.id).not.toMatch(/aster/i);
+    expect(quest.steps.at(-1)!.npc!.lines.join(' ')).toMatch(/ASTER/);
+  });
+
+  it('offer → Wick → Mnem → the Chartmaker → Chronicle → Young Wick → Wisp sets name-learned', () => {
+    const quest = byId(SAY_HER_NAME_QUEST);
+    let save = converse('woods-sprite', act4());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    // Out of turn, a memory keeper has nothing to say about it yet.
+    expect(questConversation('hill-keeper', save)).toBeNull();
+    for (const st of quest.steps) {
+      const convo = questConversation(st.npc!.id, save)!;
+      expect(convo.lines, st.id).toEqual(st.npc!.lines);
+      save = convo.finish!(save);
+      expect(save.flags[stepFlag(st.id)], st.id).toBe(true);
+    }
+    const { coins } = save;
+    const done = questConversation('woods-sprite', save)!;
+    expect(done.finishKind).toBe('complete');
+    save = done.finish!(save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.flags[NAME_LEARNED]).toBe(true);
+    expect(save.coins).toBe(coins + 60);
+    expect(questConversation('woods-sprite', save)).toBeNull();
+  });
+
+  it("every memory's keeper stands somewhere — but Young Wick, who comes with Lumina-That-Was (16b)", () => {
+    const placed = new Set(Object.values(ZONES).flatMap((z) => z.npcs.map((p) => p.defId)));
+    const quest = byId(SAY_HER_NAME_QUEST);
+    for (const st of quest.steps.slice(0, -1)) expect(placed.has(st.npc!.id), st.npc!.id).toBe(true);
+    expect(NPC_DEFS['memory-young-wick']).toBeDefined();
   });
 });

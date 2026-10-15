@@ -23,10 +23,10 @@ import { edgeCrossing, flownLink, seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
-import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
+import { NPC_DEFS, isThing, lineText, npcEmoji, npcSpriteId, visibleLines } from './npcs';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
-import { BLANK_CHART_HELD, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_STONES, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { BLANK_CHART_HELD, NAME_LEARNED, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_STONES, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import { BOAT_HOME } from './boat';
@@ -42,6 +42,7 @@ import {
   placeAt,
   darkAt,
   litFlag,
+  INN_ONLY,
   innOf,
   innWakeCell,
   shelterOf,
@@ -49,7 +50,7 @@ import {
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
-import { ACT2_SEEN, FLIGHT_FLAG, HALL_CALLED, MET_GALE, canFly } from './story';
+import { ACT2_SEEN, ACT4_SEEN, FLIGHT_FLAG, HALL_CALLED, MET_GALE, canFly } from './story';
 import { holdsKeysFor, keyFlag, keysForZone } from './keys';
 
 const allZones = Object.values(ZONES);
@@ -382,7 +383,8 @@ describe('every place is unique (#73)', () => {
     for (const z of allZones) {
       const inns = (z.buildings ?? []).filter((b) => b.sign === 'inn');
       const keepers = placed.filter((x) => x.z.id === z.id && x.def.role === 'innkeeper');
-      const isTown = (RETURN_TOWNS as readonly string[]).includes(z.id);
+      // …and the Dream Root Door's (#75 item 16a), an inn Return doesn't fly to (`INN_ONLY`).
+      const isTown = (RETURN_TOWNS as readonly string[]).includes(z.id) || INN_ONLY.includes(z.id);
       expect(inns.length, `${z.id} inns`).toBe(isTown ? 1 : 0);
       expect(keepers.length, `${z.id} innkeepers`).toBe(isTown ? 1 : 0);
       if (isTown) expect(buildingInside(z, keepers[0].p.x, keepers[0].p.y)?.id, `${z.id} innkeeper indoors`).toBe(inns[0].id);
@@ -895,7 +897,7 @@ describe('Eldergrove (#75 item 14f)', () => {
     expect(grove.exits.some((e) => out.has(`${e.x},${e.y}`))).toBe(true);
     // A shelter, not an inn: no Rest. The Marsh has one too; the Archive's is its inn (#75 item 14h), and so is Chorus Isle's (15g).
     expect(innOf(grove)).toBeUndefined();
-    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh', 'sunken-archive', 'chorus-isle']);
+    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh', 'sunken-archive', 'chorus-isle', 'dreamroot-door']);
   });
 
   it("Fen, Old Ringwood and Dawdle live here — Dawdle the slowest wanderer in the game", () => {
@@ -1647,5 +1649,60 @@ describe('the Crystal of Voices in the hollow (#75 item 15g, round 4)', () => {
     expect({ x: crystal.x, y: crystal.y }).toEqual({ x: fiend.x, y: fiend.y });
     expect(npcPresent(crystal, {})).toBe(false);
     expect(npcPresent(crystal, { [crystalFlag('words')]: true })).toBe(true);
+  });
+});
+
+describe('the Dream Root Door (#75 item 16a)', () => {
+  const door = ZONES['dreamroot-door'];
+  const grounds = ZONES['crystal-spire'];
+
+  it("is safe, under the Spire: no critters, a save crystal, Keeper Aurora's inn — and no Return spot", () => {
+    expect(door.kind).toBe('dungeon');
+    expect(door.enemies).toEqual([]);
+    expect(door.map.some((r) => r.includes('S'))).toBe(true);
+    const inn = innOf(door)!;
+    expect(inn.name).toBe('Lamplight Rest');
+    const aurora = door.npcs.find((p) => p.defId === 'root-aurora')!;
+    expect(NPC_DEFS['root-aurora'].role).toBe('innkeeper');
+    expect(buildingInside(door, aurora.x, aurora.y)?.id).toBe(inn.id);
+    expect(RETURN_TOWNS).not.toContain('dreamroot-door');
+    expect(INN_ONLY).toContain('dreamroot-door');
+  });
+
+  it('beaten here, you wake in the Lamplight Rest, Aurora looking after you; from there the stairs up are walkable', () => {
+    const shelter = shelterOf(door)!;
+    expect(shelter.host).toBe('Keeper Aurora');
+    expect(shelter.cell).toEqual(innWakeCell(door));
+    const out = reach(door, { from: shelter.cell });
+    const up = door.exits.find((e) => e.to === 'crystal-spire')!;
+    expect(out.has(`${up.x},${up.y}`)).toBe(true);
+  });
+
+  it("the stairs down sit under a knot of old fog on the Spire's grounds from the start, lifted only as Act IV opens", () => {
+    const stairs = grounds.exits.find((e) => e.to === 'dreamroot-door')!;
+    expect(tileAt(grounds, stairs.x, stairs.y)).toBe('>');
+    expect(fogAt(grounds, stairs.x, stairs.y, {})).not.toBeNull();
+    expect(fogAt(grounds, stairs.x, stairs.y, { [BLANK_CHART_HELD]: true })).not.toBeNull();
+    expect(fogAt(grounds, stairs.x, stairs.y, { [ACT4_SEEN]: true })).toBeNull();
+    // Act I's grounds still walk from the gate to the Spire.
+    const open = reach(grounds, { flags: {} });
+    expect(touches(open, grounds.spire!.x, grounds.spire!.y)).toBe(true);
+  });
+
+  it('Keeper Aurora moves down as Act IV opens: on the grounds before, at the Door after', () => {
+    const before = grounds.npcs.find((p) => p.defId === 'spire-keeper')!;
+    expect(npcPresent(before, {})).toBe(true);
+    expect(npcPresent(before, { [ACT4_SEEN]: true })).toBe(false);
+    expect(NPC_DEFS['root-aurora'].spriteId).toBe('spire-keeper');
+  });
+});
+
+describe("Wisp's new face (#75 item 16a)", () => {
+  it('Wisp looks new once the name is learned — in the world and in talk', () => {
+    const wisp = NPC_DEFS['woods-sprite'];
+    expect(npcSpriteId(wisp, {})).toBe('woods-sprite');
+    expect(npcSpriteId(wisp, { [NAME_LEARNED]: true })).toBe('wisp-named');
+    expect(npcEmoji(wisp, { [NAME_LEARNED]: true })).toBe('🌼');
+    expect(npcSpriteId(NPC_DEFS['village-elder'], { [NAME_LEARNED]: true })).toBe('village-elder');
   });
 });

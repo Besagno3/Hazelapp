@@ -1,6 +1,7 @@
 import type { SaveData } from '../types';
 import type { EmberStage } from './story';
 import { EMBER_SPRITE_IDS, EMBER_SPRITES } from './story';
+import { NAME_LEARNED } from './questFlags';
 
 /**
  * Battle companions. One companion fights beside the hero at a time, and the
@@ -131,9 +132,11 @@ export function companionMove(id: CompanionId, stage: EmberStage): { name: strin
 }
 
 /** Sprite id + emoji fallback for the battle sprite. */
-export function companionSprite(id: CompanionId, stage: EmberStage): { spriteId: string; emoji: string } {
+export function companionSprite(id: CompanionId, stage: EmberStage, flags: Record<string, boolean> = {}): { spriteId: string; emoji: string } {
   if (id === 'ember') return { spriteId: EMBER_SPRITE_IDS[stage], emoji: EMBER_SPRITES[stage] };
-  return id === 'pip' ? { spriteId: 'hub-kid', emoji: '🧒' } : { spriteId: 'woods-sprite', emoji: '🧚' };
+  if (id === 'pip') return { spriteId: 'hub-kid', emoji: '🧒' };
+  // Wisp's new face once Say Her Name is done (#75 item 16a) — as in the world (npcs.ts `face`).
+  return flags[NAME_LEARNED] ? { spriteId: 'wisp-named', emoji: '🌼' } : { spriteId: 'woods-sprite', emoji: '🧚' };
 }
 
 /** Whether Ember can act in battle at all (hatched). */

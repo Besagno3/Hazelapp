@@ -2,10 +2,10 @@ import type { SaveData, ZoneId } from '../types';
 import { chestKeyItem, keyChestFor, litFlag, secretFlag } from './zones';
 import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
-import { ACT2_SEEN } from './story';
+import { ACT2_SEEN, ACT4_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
 import { crystalFlag } from './topics';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -1411,6 +1411,92 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { coins: 60, items: { elixir: 1 } },
     grants: { items: ['blank-chart'], flags: [BLANK_CHART_HELD] },
+  },
+
+  // Act IV's spine (#75 item 16a, STORY-4X §6): Wisp asks you to gather five
+  // memories of the very first Sage, across the world. The fifth — Young Wick,
+  // in Lumina-That-Was (16b) — says her name, and the quest sets `name-learned`.
+  {
+    id: SAY_HER_NAME_QUEST,
+    zoneId: 'whispering-woods',
+    giverNpcId: 'woods-sprite',
+    title: 'Say Her Name',
+    requires: ACT4_SEEN,
+    offer: [
+      'Spark! Since the door under the Spire opened, I keep hearing that word again. A NAME. It\'s so close!',
+      'Will you help me remember? Ask the oldest folk in Lumina about the very first Sage.',
+      'Start with Grandmother Wick, in Lumina Village. She has known me the longest.',
+    ],
+    steps: [
+      {
+        ...talkStep(
+          'name-wick',
+          'village-elder',
+          [
+            '"The very first Sage? *Wick sets down her rolling pin.* I was small then. She let me ask \'why?\' five times in a row and never once sighed."',
+            '"She wore a daisy behind her ear, every single day. I can see that daisy, spark. I just can\'t see her name."',
+          ],
+          'Ask Grandmother Wick, in Lumina Village, about the very first Sage.',
+        ),
+        remind: 'Ask Grandmother Wick first, in Lumina Village. She has known me the longest!',
+      },
+      {
+        ...talkStep(
+          'name-mnem',
+          'hill-keeper',
+          [
+            '"The first plaque in this Hall was blank when I came. I polish it anyway. Polishing is a kind of remembering."',
+            '"Once, under the dust, my thumb found letters. Five of them, I think. The first was round, like an A."',
+          ],
+          'Ask Keeper Mnem, in the Hall of Names on Remembrance Hill, about the first plaque.',
+        ),
+        remind: 'Keeper Mnem minds the Hall of Names on Remembrance Hill. Ask about the very first plaque!',
+      },
+      {
+        ...talkStep(
+          'name-chartmaker',
+          'chart-chartmaker',
+          [
+            '"My oldest map has a little schoolhouse drawn where the Crystal Spire stands now. Someone wrote the teacher\'s name beside it…"',
+            '"…and someone rubbed it out. Only the end is left: \'…ter\'. Like \'water\', or \'later\'."',
+          ],
+          'Ask the Chartmaker, on his island at the top of Taleshore, about his oldest map.',
+        ),
+        remind: 'The Chartmaker has the oldest maps in Lumina. Ask him, on his island at the top of Taleshore!',
+      },
+      {
+        ...talkStep(
+          'name-chronicle',
+          'sage-chronicle',
+          [
+            '"Every history book here has a footnote that goes nowhere: \'see the First Sage\'. No page says who she was."',
+            '"But I know WHY she was forgotten. The questions got too hard, so people stopped asking her. Then they stopped saying her name."',
+          ],
+          'Ask Sage Chronicle, in the Sunken Archive, about the very first Sage.',
+        ),
+        remind: 'Sage Chronicle knows every old book in the Sunken Archive. Ask about the very first Sage!',
+      },
+      {
+        ...talkStep(
+          'name-young-wick',
+          'memory-young-wick',
+          [
+            '"Teacher? Oh, you mean ASTER! Everybody knows Aster. She says there\'s no such thing as a silly question."',
+            '"A-S-T-E-R, like the daisy flower! Why are you smiling like that? It\'s just her name."',
+          ],
+          'Find someone who still remembers her — down in the Dream Root, where Lumina keeps everything it forgot.',
+        ),
+        remind: 'Somebody who still REMEMBERS her… down in the Dream Root, under the Spire. Keeper Aurora waits at its door!',
+      },
+    ],
+    doneLine: 'Go back to Wisp, in the Whispering Woods, and say her name!',
+    complete: [
+      'A daisy… five letters, the first round like an A… \'…ter\'… people stopped asking… and Young Wick said it right out loud.',
+      'Aster. Her name was ASTER.',
+      '✨ Reward: 60 coins and a Hint Feather!',
+    ],
+    reward: { coins: 60, hint: 1 },
+    grants: { flags: [NAME_LEARNED] },
   },
 
   // --- Item chains (#75 item 13) ----------------------------------------------

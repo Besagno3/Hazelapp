@@ -461,7 +461,7 @@ def humanoid(c: Canvas, p: Pose, s: dict):
     elif hat == 'crown':
         head.poly([(10, 6), (10, 1.5), (13, 4), (16, 0.5), (19, 4), (22, 1.5), (22, 6)], '#ffd24a')
     elif hat == 'flower':
-        head.ellipse(12, 5, 2.2, 2.2, '#ff8fb8')
+        head.ellipse(12, 5, 2.2, 2.2, s.get('flower', '#ff8fb8'))
         head.dot(11.5, 4.5, '#ffe066')
     d.put(head)
 
@@ -736,7 +736,7 @@ def humanoid_fb(c: Canvas, p: Pose, s: dict):
     elif hat == 'crown':
         head.poly([(10, 6), (10, 1.5), (13, 4), (16, 0.5), (19, 4), (22, 1.5), (22, 6)], '#ffd24a')
     elif hat == 'flower':
-        head.ellipse(11, 5, 2.2, 2.2, '#ff8fb8')
+        head.ellipse(11, 5, 2.2, 2.2, s.get('flower', '#ff8fb8'))
         head.dot(10.5, 4.5, '#ffe066')
     d.put(head)
 
@@ -4292,9 +4292,17 @@ NPCS: list[Char] = [
          apron='#f4ead0', item='brush', item_color='#2a4a8a')),
     Char('quiet-sotto', '🗣️', 'humanoid', H(hair='short', hair_color='#5a3a2a', hat='hood', hat_color='#5a3a6a', outfit='#6a4a7a', scarf='#c8a040', pack='#8a6a4a')),
     Char('ink-bess', '🐚', 'humanoid', H(hair='bun', hair_color='#6a4a3a', hat='flower', outfit='#3a9ab0', apron='#f8e0d0', trim='#ff9ab0', item='lantern', shells=True)),
+    # ── Act IV: the Dream Root Door (#75 item 16a) ──
+    # Old Knot, a root of the Dream Root that talks: dark bark, pale violet buds.
+    Char('root-knot', '🌳', 'tree_folk', H(bark='#4a3226', leaf='#9a7ac8')),
+    # Wisp's new face (Say Her Name): golden hair with a daisy, sunny wings, a white robe trimmed gold.
+    # Young Wick (16b's Memory Village; Say Her Name's fifth memory): a girl with
+    # Grandmother Wick's bun — still brown — a flour-dusted apron and a rolling pin.
+    Char('memory-young-wick', '👧', 'humanoid', H(hair='bun', hair_color='#8a5030', outfit='#9a5a8a', apron='#f8f0e0', trim='#ffb0d0', item='staff', item_color='#d8b080')),
+    Char('wisp-named', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', wings='fairy', wing_color='#fff6c8', outfit='#fffaf0', trim='#f0c040', robe=True)),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.
-BATTLE_COMPANIONS = {'hub-kid', 'woods-sprite'}
+BATTLE_COMPANIONS = {'hub-kid', 'woods-sprite', 'wisp-named'}
 for n in NPCS:
     n.battle = n.id in BATTLE_COMPANIONS

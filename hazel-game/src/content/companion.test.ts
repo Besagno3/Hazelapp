@@ -73,3 +73,11 @@ describe('companions', () => {
     }
   });
 });
+
+describe("Wisp's new face in battle (#75 item 16a)", () => {
+  it('fights with the new face once the name is learned; Pip and Ember are unchanged', () => {
+    expect(companionSprite('wisp', 'dragon')).toEqual({ spriteId: 'woods-sprite', emoji: '🧚' });
+    expect(companionSprite('wisp', 'dragon', { 'name-learned': true })).toEqual({ spriteId: 'wisp-named', emoji: '🌼' });
+    expect(companionSprite('pip', 'dragon', { 'name-learned': true })).toEqual({ spriteId: 'hub-kid', emoji: '🧒' });
+  });
+});

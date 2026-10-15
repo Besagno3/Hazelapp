@@ -8,7 +8,7 @@ import shallowsTmj from './maps/silver-shallows.tmj?raw';
 import taleshoreTmj from './maps/taleshore.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
-import { ACT2_SEEN, FLIGHT_FLAG } from './story';
+import { ACT2_SEEN, ACT4_SEEN, FLIGHT_FLAG } from './story';
 import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, RESO_STONES, YARN_STONES, questDoneFlag, stepFlag } from './questFlags';
 
 /**
@@ -77,6 +77,8 @@ export const ZONE_IDS = [
   'chorus-isle',
   // Act III's last place (#75 item 15h): the Chartmaker's island, a story zone.
   'chartmakers-rest',
+  // Act IV (#75 item 16a): the door under the Crystal Spire.
+  'dreamroot-door',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -165,7 +167,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell', 'hush', 'chorus', 'chart'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell', 'hush', 'chorus', 'chart', 'root'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -1418,7 +1420,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#......#......#......#',
       '#......##....##......#',
       '#....................#',
-      '#.........,,.........#',
+      '#.........>,.........#',
       '#....................#',
       '#....,..........,....#',
       '######################',
@@ -1428,14 +1430,33 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     solidEmoji: '🏛️',
     decoEmoji: '✨',
     spawn: { x: 10, y: 2 },
-    npcs: [{ defId: 'spire-keeper', x: 16, y: 6 }],
+    // Keeper Aurora goes down to the Dream Root Door as Act IV opens (#75 item 16a).
+    npcs: [{ defId: 'spire-keeper', x: 16, y: 6, unlessFlag: ACT4_SEEN }],
     enemies: [],
     exits: [
       { x: 10, y: 0, to: 'dawnreach', spawnX: 40, spawnY: 44 },
       { x: 11, y: 0, to: 'dawnreach', spawnX: 40, spawnY: 44 },
+      // Stairs down to the Dream Root Door (#75 item 16a), under old fog until Act IV.
+      { x: 10, y: 10, to: 'dreamroot-door', spawnX: 11, spawnY: 2 },
     ],
     // The Spire itself stands in the central shrine — the endgame entrance.
     spire: { x: 10, y: 6 },
+    // The one place the Blank Chart leaves blank (#75 item 16a): a knot of old fog
+    // over the stairs down, there from the start. Act IV's panels lift it.
+    fogs: [
+      {
+        id: 'dreamroot-fog',
+        x: 8,
+        y: 9,
+        w: 5,
+        h: 3,
+        liftedBy: [ACT4_SEEN],
+        hint: 'A thick knot of old fog. Something is hidden underneath — but nobody remembers what.',
+        guards: { x: 10, y: 10 },
+        lifted: '✨ The old fog lifts — and stairs lead down, under the Crystal Spire!',
+        dense: true,
+      },
+    ],
   },
 
   // --- The overworld (#75 Phase 1) --------------------------------------------
@@ -2951,7 +2972,60 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 17, y: 4, item: 'compass-quill', wantedBy: "✒️ It's the Chartmaker's Compass Quill! Keep it safe — he'll need it once the Crystal of Voices sings. He's in the blue-roofed study." },
     ],
   },
+
+  // --- Act IV (#75 item 16a) ----------------------------------------------------
+  // The Dream Root Door: a hollow under the Crystal Spire, down the stairs the
+  // Blank Chart found. Safe — no critters. Keeper Aurora keeps the Lamplight
+  // Rest (an inn, and its shelter), there's a save crystal, and Old Knot, a
+  // root that talks. The first floor of the Dream Root (content/dungeons.ts);
+  // the way on down comes with Lumina-That-Was (16b).
+  'dreamroot-door': {
+    id: 'dreamroot-door',
+    name: 'Dream Root Door',
+    the: true,
+    kind: 'dungeon',
+    map: [
+      '######################',
+      '#,.###....#<#....###.#',
+      '#..##......=.......#.#',
+      '#.WWWWWWW..=........,#',
+      '#.WFZFTFW..=.....S...#',
+      '#.WFFFFFW..=.........#',
+      '#.WFFFFFW..=...~~~...#',
+      '#.WWWDWWW..=..~~~~~..#',
+      '#,...=.....=...~~~..,#',
+      '#....=======.........#',
+      '#..,.......=......,..#',
+      '##.........=........##',
+      '###..,.....=.....,.###',
+      '######################',
+    ],
+    ground: [92, 76, 98],
+    path: [146, 122, 150],
+    solidEmoji: '🌳',
+    decoEmoji: '🍄',
+    spawn: { x: 11, y: 2 },
+    buildings: [{ id: 'root-lamp', name: 'Lamplight Rest', x: 2, y: 3, w: 7, h: 5, roof: 'dusk', style: 'root', sign: 'inn' }],
+    npcs: [
+      { defId: 'root-aurora', x: 5, y: 5 },
+      { defId: 'root-knot', x: 16, y: 10 },
+    ],
+    enemies: [],
+    exits: [
+      // Back up the stairs, beside them on the Spire's grounds.
+      { x: 11, y: 1, to: 'crystal-spire', spawnX: 10, spawnY: 9 },
+    ],
+    // Beaten down here, you wake in the Lamplight Rest — Aurora looks after you.
+    shelter: { building: 'root-lamp', host: 'Keeper Aurora' },
+  },
 };
+
+/**
+ * Places with an inn that Return doesn't fly to (#75 item 16a): the Dream Root
+ * Door is underground, a short walk from the Spire. Every other inn is a
+ * Return town's (`RETURN_TOWNS`).
+ */
+export const INN_ONLY: readonly ZoneId[] = ['dreamroot-door'];
 
 /**
  * Is this one of the game's zone ids? (An own key of `ZONES` — not

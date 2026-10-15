@@ -3,14 +3,14 @@ import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
-import { QUESTS, handedOverFlag, questOfferedFlag, stepFlag } from '../content/quests';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST } from '../content/questFlags';
+import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
-import { MET_GALE, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
+import { ACT4_SEEN, MET_GALE, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
 import { overworldOf } from './worldMap';
 
@@ -94,10 +94,13 @@ export interface Objective {
   /** Where in the place to look, once you're there (Chorus Isle's gate up the road, 15g review). */
   inside?: string;
   /**
-   * Who to talk to for a `visit` goal met by a flag (Keeper Mnem by default;
-   * Harbormaster Gale in Port Lantern, #75 item 15c review).
+   * Who to talk to for a `visit` goal met by a flag (Keeper Mnem for the Hall's
+   * dedication; Harbormaster Gale in Port Lantern, #75 item 15c review). None:
+   * arriving sets it (Act IV's panels on the Spire's grounds, #75 item 16a).
    */
   npc?: string;
+  /** The quest this goal is a step of (#75 item 16a: Say Her Name). */
+  quest?: string;
 }
 
 /**
@@ -119,6 +122,97 @@ const BOAT_STEPS: Record<string, { title: string; why: string }> = {
     why: "Sage Cog in Gearfall Canyon can build Marlow a clockwork rudder.",
   },
 };
+
+/**
+ * The 🚩 for each of Wisp's testimonies (#75 item 16a): who to ask, and why —
+ * about them, without directions (the route says those).
+ */
+const NAME_STEPS: Record<string, { title: string; why: string }> = {
+  'name-wick': {
+    title: 'Ask Grandmother Wick about the first Sage',
+    why: 'Grandmother Wick has known Wisp the longest. Ask her about the very first Sage!',
+  },
+  'name-mnem': {
+    title: 'Ask Keeper Mnem about the first plaque',
+    why: "Keeper Mnem polishes the Hall of Names' oldest plaque. Ask him about the very first Sage!",
+  },
+  'name-chartmaker': {
+    title: 'Ask the Chartmaker about his oldest map',
+    why: 'The Chartmaker has the oldest maps in Lumina. Ask him about the very first Sage!',
+  },
+  'name-chronicle': {
+    title: 'Ask Sage Chronicle about the first Sage',
+    why: 'Sage Chronicle knows every old book in the Sunken Archive. Ask about the very first Sage!',
+  },
+  'name-young-wick': {
+    title: 'Find someone who remembers her',
+    why: 'Somebody down in the Dream Root still remembers the first Sage. Keeper Aurora waits at its door.',
+  },
+};
+
+/**
+ * Act IV's next step (#75 item 16a), once the Blank Chart is held: find the
+ * door under the Spire, then help Wisp gather five memories of the first Sage
+ * (each memory's keeper is the goal), then say her name to Wisp. Null once
+ * the name is learned.
+ */
+function actFourObjective(flags: Record<string, boolean>): Objective | null {
+  if (!flags[BLANK_CHART_HELD] || flags[NAME_LEARNED]) return null;
+  // The chart to the Spire's grounds, where Act IV's panels lift the fog over the stairs…
+  if (!flags[ACT4_SEEN]) {
+    return {
+      kind: 'visit',
+      title: 'Find the door under the Spire',
+      why: "The Blank Chart's empty space is right under the Crystal Spire. Take the chart to the Spire's grounds and look below!",
+      zoneId: 'crystal-spire',
+      doneFlag: ACT4_SEEN,
+    };
+  }
+  // …then down them.
+  if (!flags[visitedFlag('dreamroot-door')]) {
+    return {
+      kind: 'visit',
+      title: 'Go down under the Spire',
+      why: 'Stairs lead down under the Crystal Spire, to the Dream Root Door. Keeper Aurora waits there!',
+      zoneId: 'dreamroot-door',
+    };
+  }
+  const quest = QUESTS.find((q) => q.id === SAY_HER_NAME_QUEST)!;
+  if (!flags[questOfferedFlag(quest)]) {
+    return {
+      kind: 'visit',
+      title: 'Help Wisp remember',
+      why: "Wisp has been trying to remember a name for ages. Since the door under the Spire opened, it's SO close!",
+      zoneId: quest.zoneId,
+      doneFlag: questOfferedFlag(quest),
+      npc: quest.giverNpcId,
+      quest: quest.id,
+    };
+  }
+  const step = quest.steps.find((st) => st.npc && !flags[stepFlag(st.id)]);
+  if (step?.npc) {
+    const home = npcHome(ZONES, step.npc.id);
+    return {
+      kind: 'visit',
+      title: NAME_STEPS[step.id]?.title ?? quest.title,
+      why: NAME_STEPS[step.id]?.why ?? quest.title,
+      // Lumina-That-Was (16b) isn't here yet: Keeper Aurora, at the Dream Root's door.
+      zoneId: home?.zoneId ?? 'dreamroot-door',
+      doneFlag: stepFlag(step.id),
+      npc: home ? step.npc.id : 'root-aurora',
+      quest: quest.id,
+    };
+  }
+  return {
+    kind: 'visit',
+    title: 'Say her name to Wisp',
+    why: "You know the first Sage's name now! Say it to Wisp.",
+    zoneId: quest.zoneId,
+    doneFlag: questDoneFlag(quest),
+    npc: quest.giverNpcId,
+    quest: quest.id,
+  };
+}
 
 /** Where a voyage starts (#75 item 14): the end of Marlow's dock, flagged on Dawnreach's map. */
 const MARLOWS_DOCK = { zoneId: BOAT_HOME.zoneId, x: BOAT_HOME.x - 1, y: BOAT_HOME.y, name: "Marlow's dock" };
@@ -212,6 +306,7 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
       why: 'Something new is happening in the Hall of Names on Remembrance Hill!',
       zoneId: 'remembrance-hill',
       doneFlag: HALL_DEDICATED,
+      npc: 'hill-keeper',
     };
   }
   return null;
@@ -308,10 +403,15 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           inside: chartInside(flags),
         };
       }
+      // Act IV (#75 item 16a): the door under the Spire, and Wisp's Say Her Name.
+      const actFour = actFourObjective(flags);
+      if (canFly(flags) && actFour) return actFour;
       return {
         kind: 'explore',
-        title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
-        why: flags[BLANK_CHART_HELD]
+        title: flags[NAME_LEARNED] ? 'Explore Lumina' : flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
+        why: flags[NAME_LEARNED]
+          ? "You remembered the first Sage's name: Aster! Somewhere below the Dream Root Door, she is waiting. Help anyone who needs you!"
+          : flags[BLANK_CHART_HELD]
           ? "The Blank Chart shows one place nobody remembers, under the Crystal Spire — a mystery for another day. Fly anywhere, and help anyone who needs you!"
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
@@ -706,6 +806,14 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = 'The Spire is cleared, and Lumina is remembering! Old Marlow on Starfall Coast remembers he was a sailor. Help him mend his boat, and the Silver Shallows — islands the world forgot — will be yours to explore.';
   } else if (goal.kind === 'sail') {
     plan = "Marlow's boat is mended! Out past his dock lie the Silver Shallows, islands nobody has seen since the fog. Go and see them — and tell me everything!";
+  } else if (goal.kind === 'visit' && goal.doneFlag === ACT4_SEEN) {
+    plan = "The Blank Chart's blank spot is right under the Crystal Spire! Take it to the Spire's grounds, south of our village, and see what's hiding below.";
+  } else if (goal.kind === 'visit' && goal.zoneId === 'dreamroot-door' && !goal.quest) {
+    plan = 'Stairs under the Crystal Spire? In all my years! Go down, and say hello to Keeper Aurora for me.';
+  } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST && goal.doneFlag === questDoneFlag({ id: SAY_HER_NAME_QUEST })) {
+    plan = 'Five memories, and one name at the end of them! Go and say it to Wisp, in the Whispering Woods.';
+  } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST) {
+    plan = "Wisp is trying to remember the very first Sage — the one nobody remembers, not even me. The oldest folk in Lumina each remember a little piece of her. Gather them all!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     plan = "You made it to Taleshore! In Port Lantern, Harbormaster Gale knows everyone. Go and say hello — and tell Gale I said hello too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {
@@ -720,6 +828,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `${shining} crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.`;
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
+  } else if (flags[NAME_LEARNED]) {
+    plan = "Aster. ASTER! I knew that name once. Thank you for finding it again. She is waiting somewhere below the Dream Root Door.";
   } else if (flags[BLANK_CHART_HELD]) {
     plan = 'You hold the Blank Chart! Its empty spot is right under the Crystal Spire. That puzzle can wait — for now, fly anywhere, and help anyone who needs you!';
   } else if (canFly(flags)) {
@@ -749,6 +859,12 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "Barnacle Bess sells Hint Feathers in Inkwell Cove. In the cove, Cuttle-Scribes heal themselves — hit them hard!";
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
+  } else if ((goal.kind === 'visit' && goal.doneFlag === ACT4_SEEN) || (goal.kind === 'visit' && goal.zoneId === 'dreamroot-door' && !goal.quest)) {
+    tip = "Keeper Aurora keeps an inn at the Dream Root's door, the Lamplight Rest. Rest there before you go any deeper!";
+  } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST) {
+    tip = knowsFieldSpell('return', flags)
+      ? "🏠 Return flies you to any town you've been to — and Ember can carry you over the sea to the rest!"
+      : 'Ember can fly you anywhere in Lumina. Tap 🐉 Fly on any big map!';
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
     tip = "Port Lantern has an inn, the Driftlight. Rest there, and if a battle ever goes badly, that's where you'll wake up.";
   } else if (goal.kind === 'visit' && goal.doneFlag === BLANK_CHART_HELD) {

@@ -301,3 +301,59 @@ describe('the Blank Chart (#75 item 15h)', () => {
     expect(screen.queryByText(/The Blank Chart is all of Lumina/)).toBeNull();
   });
 });
+
+describe('Act IV opens (#75 item 16a)', () => {
+  const at = (zoneId: 'crystal-spire' | 'whispering-woods' | 'chartmakers-rest', extra: Record<string, boolean>) => {
+    const flags: Record<string, boolean> = { ...umbraBeaten(), [story.SPIRE_VICTORY_SEEN]: true, [story.ACT2_SEEN]: true, [story.MEMORIA_SEEN]: true, [spellsMod.HALL_DEDICATED]: true, [story.WISP_STIRRING]: true };
+    for (const id of ['history', 'words'] as const) {
+      flags[crystalFlag(id)] = true;
+      flags[story.crystalSceneFlag(id)] = true;
+    }
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: { ...defaultSave(), avatarId: 'a3', zoneId, flags: { ...flags, 'blank-chart-held': true, [story.CHART_SEEN]: true, ...extra } },
+      flush: vi.fn(async () => {}),
+    });
+  };
+  beforeEach(() => {
+    vi.useFakeTimers();
+    flow.setState({ overlay: null });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("plays Act IV's five panels on the Spire's grounds with the Blank Chart — once", () => {
+    at('crystal-spire', {});
+    const { unmount } = render(<WorldScreen />);
+    expect(story.ACT4_PANELS).toHaveLength(5);
+    expect(screen.getByText(/the Blank Chart grows warm in your hands/)).toBeInTheDocument();
+    readOn(story.ACT4_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🌳 Look below' }));
+    expect(useSaveStore.getState().save!.flags[story.ACT4_SEEN]).toBe(true);
+    unmount();
+    render(<WorldScreen />);
+    expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
+  });
+
+  it("waits for the Chartmaker's own panels, and for the Spire's grounds", () => {
+    at('crystal-spire', { [story.CHART_SEEN]: false });
+    const { unmount } = render(<WorldScreen />);
+    expect(screen.getByText(/The Blank Chart is all of Lumina/)).toBeInTheDocument();
+    unmount();
+    at('chartmakers-rest', {});
+    render(<WorldScreen />);
+    expect(screen.queryByText(/the Blank Chart grows warm/)).toBeNull();
+  });
+
+  it("Wisp's new face: three panels once the name is learned — once", () => {
+    at('whispering-woods', { [story.ACT4_SEEN]: true, 'name-learned': true });
+    const { unmount } = render(<WorldScreen />);
+    expect(screen.getByText(/Wisp says the name out loud/)).toBeInTheDocument();
+    readOn(story.WISP_FACE_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🌼 Aster!' }));
+    expect(useSaveStore.getState().save!.flags[story.WISP_FACE_SEEN]).toBe(true);
+    unmount();
+    render(<WorldScreen />);
+    expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
+  });
+});

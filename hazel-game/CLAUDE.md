@@ -358,6 +358,14 @@ zod, react-query. Add the package in the same change that first uses it.
   completion `QuestDef.grants` keeps the Blank Chart in the bag and sets
   `blank-chart-held` — the flag Act IV checks (check the flag, not the item) —
   then `CHART_PANELS` play (`chart-seen`). The 🚩 visits him after Voices.
+  **The Dream Root Door** (#75 item 16a): Act IV opens on the Spire's grounds
+  with the Blank Chart (`ACT4_PANELS`, `act4-seen`), lifting a knot of old fog
+  off stairs down to the Door — the first floor of the `dream-root` dungeon,
+  which starts down a place's stairs (`DungeonDef.from`). Keeper Aurora keeps
+  its inn, the Lamplight Rest (also its shelter; not a Return town —
+  `INN_ONLY`). **Say Her Name** (Wisp): five memories, then `name-learned`
+  (only Umbra's name question will check it) and Wisp's new face
+  (`WorldNpcDef.face`, `npcSpriteId(def, flags)`).
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -689,6 +697,7 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+python3 tools/assets/build.py dreamroot # the Dream Root Door: tiles, the root sheet, Old Knot, Young Wick, Wisp's new face (#75 item 16a)
 python3 tools/assets/build.py cliffs   # Taleshore III: Songstone Cliffs, the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
 python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people, tale-stones (#75 item 15e)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
@@ -779,6 +788,30 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-15 — The door under the Spire, and Say Her Name (#75 item 16a, #143)
+Roadmap sub-item 16a, Act IV's opening.
+- **Act IV opens** on the Crystal Spire's grounds with the Blank Chart (after
+  the Chartmaker's panels): five panels (`ACT4_PANELS`, `act4-seen`). A knot
+  of old fog has sat south of the Spire since the start; it lifts on screen
+  off new stairs down. Keeper Aurora leaves the grounds.
+- **The Dream Root Door** (`dreamroot-door`): the first floor of the Dream
+  Root, a dungeon that starts down a place's stairs (`DungeonDef.from`; its
+  boss comes with the descent, 16d). Safe: a save crystal, a pool, Old Knot
+  (a talking root) and the Lamplight Rest (a new `root` style) — Keeper
+  Aurora's inn and its shelter, not a Return town (`INN_ONLY`).
+- **Say Her Name** (Wisp, after `act4-seen`): Grandmother Wick, Keeper Mnem,
+  the Chartmaker, Sage Chronicle, then Young Wick (placed with 16b's Memory
+  Village) each remember a piece of the first Sage; back to Wisp, the name —
+  Aster — sets `name-learned` (60 coins + a Hint Feather) and three panels
+  give **Wisp a new face** (`WorldNpcDef.face`; the world, talk, the menu and
+  battle all follow). Wisp is stationary now.
+- **The 🚩:** the grounds, the stairs, Wisp, each memory (`Objective.quest`),
+  Wisp, Explore; Elder Lumen's plan and tip for each. `actFourJourney` walks
+  them all.
+- **Art:** `python3 tools/assets/build.py dreamroot`.
+- **Tests:** +17 (dungeons, zones, quests, save, companion, wayfinding,
+  journey, WorldScreen.ending); 1317 green, lint and tsc clean.
 
 ### 2026-10-15 — 15h /saas-code-review + /saas-ux-review: an old tab asks for a refresh, shorter guides (#75 item 15h, #142n)
 All fixed on the owner's say-so. Code (1 low): `saveIsTooNew` also refuses a

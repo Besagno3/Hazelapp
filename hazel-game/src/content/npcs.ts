@@ -4,10 +4,10 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
-import { ACT2_SEEN, ACT3_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
+import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, WISP_STIRRING } from './story';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -96,6 +96,11 @@ export interface WorldNpcDef {
    * are things too.
    */
   prop?: boolean;
+  /**
+   * A new face once a story flag is set (#75 item 16a: Wisp, once Say Her Name
+   * is done) — the sprite in the world, in talk and in battle (`npcSpriteId`).
+   */
+  face?: { flag: string; spriteId: string; sprite: string };
 }
 
 /** A thing, not a person — a prop or a signpost (15c review): it never steps aside. */
@@ -118,9 +123,15 @@ export function lineText(l: DialogueLine): string {
   return typeof l === 'string' ? l : l.text;
 }
 
-/** The sprite-manifest key for an NPC (explicit `spriteId`, else its id). */
-export function npcSpriteId(def: WorldNpcDef): string {
+/** The sprite-manifest key for an NPC (its new `face` once that flag is set, an explicit `spriteId`, else its id). */
+export function npcSpriteId(def: WorldNpcDef, flags: Record<string, boolean> = {}): string {
+  if (def.face && flags[def.face.flag]) return def.face.spriteId;
   return def.spriteId ?? def.id;
+}
+
+/** The emoji an NPC falls back to (its new `face`'s once that flag is set). */
+export function npcEmoji(def: WorldNpcDef, flags: Record<string, boolean> = {}): string {
+  return def.face && flags[def.face.flag] ? def.face.sprite : def.sprite;
 }
 
 /** Which service overlay (if any) talking to this role opens after dialogue. */
@@ -540,6 +551,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Wisp',
     sprite: '🧚',
     role: 'villager',
+    // Gives Say Her Name (#75 item 16a): a quest-giver stays where you can find them.
+    stationary: true,
     lines: [
       'South of these woods, a cave runs down into the Clockwork Depths. Old machines sleep there. Be gentle, they dream of working again.',
       'I am made of leftover questions, you know. The ones nobody answered. When you answer yours, a little of me lights up. Thank you for that.',
@@ -552,9 +565,22 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: "Since the Crystal of Memory, I dream in words. Mostly one word. I can't quite hear it yet. Keep going, little spark!",
         ifFlag: WISP_STIRRING,
+        unlessFlag: ACT4_SEEN,
+      },
+      // Act IV (#75 item 16a): the door under the Spire is open, and then the name comes back.
+      {
+        text: 'The door under the Spire is open — I can FEEL it, like a window left open in my head. The word is SO close now!',
+        ifFlag: ACT4_SEEN,
+        unlessFlag: NAME_LEARNED,
+      },
+      {
+        text: 'Aster. I say it every morning now, so nobody ever forgets it again. Thank you, spark!',
+        ifFlag: NAME_LEARNED,
       },
     ],
     ambient: ['*flickers softly*', 'Ooh, a riddle!', '✨', 'The trees whisper.'],
+    // Say Her Name (#75 item 16a): Wisp's new face — golden, with a daisy.
+    face: { flag: NAME_LEARNED, spriteId: 'wisp-named', sprite: '🌼' },
   },
   // Warns the player before the Thicket Warden — and points the reward home (#59).
   'woods-warden-sign': {
@@ -2561,5 +2587,52 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'The chart even drew ME. Teeny tiny! I\'ve never been on a map before.', ifFlag: BLANK_CHART_HELD },
     ],
     ambient: ['Sea-blue… or sky-blue?', '🎨'],
+  },
+
+  // --- Act IV: the Dream Root Door (#75 item 16a) ---
+  // Keeper Aurora, come down from the Spire to keep the last warm room before the Dream Root.
+  'root-aurora': {
+    id: 'root-aurora',
+    name: 'Keeper Aurora',
+    sprite: '🔮',
+    spriteId: 'spire-keeper',
+    role: 'innkeeper',
+    lines: [
+      'Welcome to the Lamplight Rest, the last warm room before the Dream Root. Rest here whenever you need. I keep the lamps lit.',
+      'Long ago, before the fog, I kept a lamp for a teacher who worked late. Every night she asked me a question I could not answer.',
+      {
+        text: 'I forgot her name, like everyone. But Wisp, in the Whispering Woods, is trying so hard to remember it. Go and see Wisp, little one.',
+        unlessFlag: [questOfferedFlag({ id: SAY_HER_NAME_QUEST }), NAME_LEARNED],
+      },
+      {
+        text: 'Aster. Yes… ASTER. I can see her lamp-lit face again. Thank you for remembering, for all of us.',
+        ifFlag: NAME_LEARNED,
+      },
+    ],
+  },
+  'root-knot': {
+    id: 'root-knot',
+    name: 'Old Knot',
+    sprite: '🌳',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Creeeak. I am Old Knot, one root of the Dream Root. I go down, and down, and down — all the way to everything Lumina forgot.',
+      'Down there, the world still looks the way it did before the fog. Folk you know are young again!',
+      'The way down is still knotted shut. I am untangling it, little one, but roots are slow.',
+    ],
+    ambient: ['*creak*', 'Down and down…', '🍄'],
+  },
+  // Grandmother Wick as a girl, in Lumina-That-Was (placed with the Memory Village,
+  // #75 item 16b) — the fifth memory in Wisp's Say Her Name.
+  'memory-young-wick': {
+    id: 'memory-young-wick',
+    name: 'Young Wick',
+    sprite: '👧',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "I'm Wick! I'm going to be a baker when I grow up. I burnt the bread again today. Don't tell!",
+    ],
   },
 };

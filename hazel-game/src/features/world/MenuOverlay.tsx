@@ -6,7 +6,7 @@ import { GATE_KEYS } from '../../content/keys';
 import { BOSS_BADGES } from '../../content/enemies';
 import { avatarById, HERO_ABILITIES, STYLE_LABEL } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_STAGE_LABEL } from '../../content/story';
-import { COMPANIONS, COMPANION_IDS, companionsInParty } from '../../content/companion';
+import { COMPANIONS, COMPANION_IDS, companionSprite, companionsInParty } from '../../content/companion';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
 import { ALL_SECRETS, secretFlag, secretProgress } from '../../content/secrets';
@@ -155,7 +155,7 @@ export default function MenuOverlay({
             const joined = companionsInParty(save).includes(id);
             return (
               <span key={id} className={`mr-3 ${joined ? '' : 'text-white/40'}`} title={joined ? c.blurb : c.joinHint}>
-                {c.emoji} {c.name} {joined ? `(${c.role})` : `🔒 ${c.joinHint}`}
+                {companionSprite(id, 'egg', save.flags).emoji} {c.name} {joined ? `(${c.role})` : `🔒 ${c.joinHint}`}
               </span>
             );
           })}

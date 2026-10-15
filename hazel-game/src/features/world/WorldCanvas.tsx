@@ -31,7 +31,7 @@ import {
 import { bossDefeated } from '../../content/keys';
 import { reachPath, safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
-import { NPC_DEFS, isThing, npcSpriteId } from '../../content/npcs';
+import { NPC_DEFS, isThing, npcEmoji, npcSpriteId } from '../../content/npcs';
 import { habitatOf, spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
@@ -1246,8 +1246,8 @@ export default function WorldCanvas({
       // All visual pieces move together when the NPC wanders.
       const parts: Part[] = [];
       const pieces: { destroy: () => void }[] = [];
-      const spriteId = npcSpriteId(def);
-      const npcView = resolveSprite(spriteId, def.sprite).def?.world;
+      const spriteId = npcSpriteId(def, flagsRef.current);
+      const npcView = resolveSprite(spriteId, npcEmoji(def, flagsRef.current)).def?.world;
       if (!npcView) {
         const token = k.add([
           k.rect(30, 30, { radius: 6 }),
@@ -1320,10 +1320,13 @@ export default function WorldCanvas({
     // Most NPCs simply stand in the world. A few come and go with the story
     // (#75 item 8: Elder Lumen greets a new hero on the plaza, then keeps the
     // Library); the main loop keeps those in step with the flags.
+    // Someone with a new face to come (#75 item 16a: Wisp) is kept in step too.
+    const comesAndGoes = (p: NpcPlacement) => !!(p.ifFlag || p.unlessFlag || NPC_DEFS[p.defId].face);
+    const lookOf = (p: NpcPlacement) => npcSpriteId(NPC_DEFS[p.defId], flagsRef.current);
     const comings = z.npcs
-      .filter((p) => p.ifFlag || p.unlessFlag)
-      .map((p) => ({ p, here: null as { remove: () => void } | null }));
-    for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
+      .filter(comesAndGoes)
+      .map((p) => ({ p, here: null as { remove: () => void; actor: Actor } | null, look: lookOf(p) }));
+    for (const p of z.npcs) if (!comesAndGoes(p)) spawnNpc(p);
     // Someone walking with the hero (#75 item 14g) isn't also standing where they wait.
     const standsHere = (p: NpcPlacement) => npcPresent(p, flagsRef.current) && p.defId !== escortRef.current?.npcId;
     for (const c of comings) if (standsHere(c.p)) c.here = spawnNpc(c.p);
@@ -2945,7 +2948,16 @@ export default function WorldCanvas({
       // NPCs who come and go with the story (a flag set in a conversation).
       for (const c of comings) {
         const present = standsHere(c.p);
-        if (present && !c.here) c.here = spawnNpc(c.p);
+        const look = lookOf(c.p);
+        // A new face: drawn again, right where they stand (#75 item 16a).
+        let at: { x: number; y: number } | undefined;
+        if (c.here && look !== c.look) {
+          at = { x: c.here.actor.x, y: c.here.actor.y };
+          c.here.remove();
+          c.here = null;
+        }
+        c.look = look;
+        if (present && !c.here) c.here = spawnNpc(c.p, at);
         else if (!present && c.here) {
           c.here.remove();
           c.here = null;

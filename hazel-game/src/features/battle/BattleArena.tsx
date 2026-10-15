@@ -257,7 +257,7 @@ export default function BattleArena() {
 
   const enemySprite = resolveSprite(enemy?.spriteId, enemy?.sprite ?? '❓');
   const heroSprite = resolveSprite(avatar?.spriteId, avatar?.sprite ?? '❓');
-  const cSpriteIds = companionSprite(companionId, ember);
+  const cSpriteIds = companionSprite(companionId, ember, save?.flags);
   const cSprite = resolveSprite(cSpriteIds.spriteId, cSpriteIds.emoji);
   // Radiant Ember breathes starfire (#75 item 15g review round 4).
   const fireballSprite = resolveSprite(ember === 'radiant' ? 'fx-starfire' : 'fx-fireball', ember === 'radiant' ? '🌟' : '🔥');
