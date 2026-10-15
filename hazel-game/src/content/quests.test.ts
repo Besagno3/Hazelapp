@@ -1109,3 +1109,45 @@ describe('Taleshore III quests (#75 item 15f)', () => {
     expect(save.coins).toBe(coins + 50);
   });
 });
+
+describe("Coda's Lost Refrains (#75 item 15g): find three, then sing them back", () => {
+  const isle = ZONES['chorus-isle'];
+  const chest = (item: string) => {
+    const c = isle.keyChests!.find((k) => k.item === item)!;
+    return pathTargetId('chorus-isle', 'chest', c.x, c.y);
+  };
+  const REFRAINS = ['refrain-sunrise', 'refrain-noon', 'refrain-bedtime'];
+
+  it("Chorus Isle's main quest: collection, then a song to Brio, then to Sage Aria, then Coda herself", () => {
+    const quest = byId('coda-refrains');
+    expect(quest).toMatchObject({ giverNpcId: 'chorus-coda', zoneId: 'chorus-isle', reward: { coins: 45, potion: 1 } });
+    expect(quest.side).toBeFalsy();
+    expect(quest.steps.map((s) => s.npc?.id ?? null)).toEqual([null, 'chorus-brio', 'sage-aria']);
+  });
+
+  it('offer → the three chests → Brio → Aria → Coda takes the refrains and pays', () => {
+    const quest = byId('coda-refrains');
+    let save = converse('chorus-coda', defaultSave());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    // Before all three are found, Brio and Aria just say their own lines.
+    expect(questConversation('chorus-brio', save)).toBeNull();
+    for (const r of REFRAINS) save = openChest(save, chest(r));
+    expect(save.questItems).toEqual(expect.arrayContaining(REFRAINS));
+    // Aria waits her turn: Brio first.
+    expect(questConversation('sage-aria', save)).toBeNull();
+    save = converse('chorus-brio', save);
+    save = converse('sage-aria', save);
+    const coins = save.coins;
+    const done = questConversation('chorus-coda', save)!;
+    expect(done.finishKind).toBe('complete');
+    save = done.finish!(save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems.filter((i) => REFRAINS.includes(i))).toEqual([]);
+    expect(save.coins).toBe(coins + 45);
+  });
+
+  it("a refrain found first says it's Coda's", () => {
+    const save = openChest(defaultSave(), chest('refrain-noon'));
+    expect(chestWantedLine(save, chest('refrain-noon'))).toMatch(/Coda's lost refrains/);
+  });
+});

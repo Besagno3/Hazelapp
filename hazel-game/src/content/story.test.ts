@@ -53,14 +53,15 @@ describe('emberStage', () => {
     // new act changes TOTAL_CRYSTALS: do not "fix" it by deriving the stages —
     // decide them against the spec (a live player's dragon must not regress),
     // then update this pin. Retuned at 5 (#75 item 14h, #64): the stages stay
-    // put, and the fifth crystal's flag is flight's (15b flies); 6 brings the
-    // Radiant stage (15g).
-    expect(TOTAL_CRYSTALS).toBe(5);
-    expect(EMBER_STAGE_AT).toEqual({ whelp: 2, dragon: 4 });
+    // put, and the fifth crystal's flag is flight's (15b flies). Retuned at 6
+    // (#75 item 15g): the sixth makes her Radiant (STORY-4X §8).
+    expect(TOTAL_CRYSTALS).toBe(6);
+    expect(EMBER_STAGE_AT).toEqual({ whelp: 2, dragon: 4, radiant: 6 });
     const hatched = { [EMBER_HATCHED]: true };
     expect(emberStage(EMBER_STAGE_AT.whelp, hatched)).toBe('whelp');
     expect(emberStage(EMBER_STAGE_AT.dragon, hatched)).toBe('dragon');
     expect(emberStage(5, hatched)).toBe('dragon');
+    expect(emberStage(6, hatched)).toBe('radiant');
     expect(FLIGHT_FLAG).toBe('crystal-history-restored');
     expect(canFly({ [FLIGHT_FLAG]: true })).toBe(true);
     // Act I's four alone never fly.
@@ -114,10 +115,15 @@ describe('cutscene panels', () => {
 
   it('the villain is foreshadowed in the crystal scenes and named in the finale', () => {
     expect(VILLAIN_NAME.length).toBeGreaterThan(3);
-    // Every crystal scene ends on a shadow/omen panel pointing at the Spire.
+    // Every crystal scene ends on a shadow/omen panel pointing at the Spire —
+    // but Voices' (#75 item 15g): there the 🌑 is absent, and a small voice
+    // speaks instead (STORY-4X §6), the first "she" for the first Sage.
     for (const topic of TOPICS) {
       const last = CRYSTAL_PANELS[topic][CRYSTAL_PANELS[topic].length - 1];
-      expect(last.emoji).toBe('🌑');
+      if (topic === 'words') {
+        expect(CRYSTAL_PANELS.words.some((p) => p.emoji === '🌑')).toBe(false);
+        expect(last.text).toContain('she used to sing to us. the first sage. before you forgot her.');
+      } else expect(last.emoji).toBe('🌑');
     }
     const finale = spireVictoryPanels('Nova');
     expect(finale.length).toBeGreaterThanOrEqual(3);

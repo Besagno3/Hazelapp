@@ -73,6 +73,8 @@ export const ZONE_IDS = [
   // Taleshore III (#75 item 15f): music, and the quiet.
   'songstone-cliffs',
   'quiet-quarter',
+  // Act III's crystal zone (#75 item 15g): words, the Crystal of Voices.
+  'chorus-isle',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -161,7 +163,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell', 'hush'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell', 'hush', 'chorus'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -226,7 +228,7 @@ export const ZONE_KINDS = ['overworld', 'town', 'field', 'dungeon', 'shrine'] as
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 /** Overworld icons (one tile each; the tower is the tall Spire sprite). */
-export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor', 'beach', 'compass', 'atoll', 'reef', 'inkwell', 'cliffs', 'quarter'] as const;
+export const PLACE_ICONS = ['town', 'hamlet', 'forest', 'cave', 'shrine', 'coast', 'grove', 'tower', 'city', 'canyon', 'garden', 'pavilion', 'hill', 'elder', 'marsh', 'archive', 'roost', 'harbor', 'beach', 'compass', 'atoll', 'reef', 'inkwell', 'cliffs', 'quarter', 'chorus'] as const;
 export type PlaceIcon = (typeof PLACE_ICONS)[number];
 
 /** A place on the overworld: a 'P' tile drawn as an icon you walk onto to enter. */
@@ -2229,6 +2231,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // off the north road; the quarter in the eastern woods, east off the south road.
       { x: 47, y: 10, icon: 'cliffs', name: 'Songstone Cliffs' },
       { x: 47, y: 26, icon: 'quarter', name: 'Quiet Quarter' },
+      // Act III's crystal (#75 item 15g): an island far out west in the Starfall
+      // Sea, behind the Hush Fiend's double gate — only Ember reaches it.
+      { x: 7, y: 21, icon: 'chorus', name: 'Chorus Isle', byAir: true },
     ],
     exits: [
       { x: 28, y: 21, to: 'port-lantern', spawnX: 32, spawnY: 11 },
@@ -2239,6 +2244,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 48, y: 17, to: 'inkwell-cove', spawnX: 21, spawnY: 1 },
       { x: 47, y: 10, to: 'songstone-cliffs', spawnX: 21, spawnY: 26 },
       { x: 47, y: 26, to: 'quiet-quarter', spawnX: 21, spawnY: 1 },
+      { x: 7, y: 21, to: 'chorus-isle', spawnX: 21, spawnY: 26 },
     ],
     seaLinks: [{ side: 'west', to: 'silver-shallows' }],
   },
@@ -2793,6 +2799,95 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // Back out onto the south road's branch, just west of the quarter's icon.
       { x: 21, y: 0, to: 'taleshore', spawnX: 46, spawnY: 26 },
       { x: 22, y: 0, to: 'taleshore', spawnX: 46, spawnY: 26 },
+    ],
+  },
+  // Chorus Isle (#75 item 15g): Act III's crystal zone — an island of singers far
+  // out west in the Starfall Sea. Brio's inn (a Return town), Sage Aria's Music
+  // Hall and Coda's cottage round the road up from the landing; wild grass east
+  // and west where Coda's three refrains lie in chests; and the Hush Fiend's
+  // walled hollow at the top, behind a gate that needs BOTH Chorus Keys.
+  'chorus-isle': {
+    id: 'chorus-isle',
+    name: 'Chorus Isle',
+    kind: 'field',
+    topic: 'words',
+    map: [
+      '############################################',
+      '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~################~~~~~~~~~~~~~#',
+      '#~~~~~~~~~~:::#......,.......#:::~~~~~~~~~~#',
+      '#~~~~~~~~:::..#..............#..:::~~~~~~~~#',
+      '#~~~~~~:::....#...,......,...#...#:::~~~~~~#',
+      '#~~~~~:::.....#..............#.....:::~~~~~#',
+      '#~~~~:C.......#######GG#######.......C:~~~~#',
+      '#~~~::...............==...............::~~~#',
+      '#~~:::.....WWWWWWWWW.==.WWWWWWWWW..,..:::~~#',
+      '#~~::...,..WZFZFZFZW.==.WBFFFFFBW......::~~#',
+      '#~:::......WFFFFFFFW.==.WFFFFFFFW......:::~#',
+      '#~::.......WTFFFFFTW.==.WTFFFFFTW......#::~#',
+      '#~::.......WFFFFFFFW.==.WFFFFFFFW.......::~#',
+      '#~::...#...WWWWDWWWW.==.WWWWDWWWW.......::~#',
+      '#~::...........=.....==.....=...........::~#',
+      '#~:::==================================:::~#',
+      '#~~::................==................::~~#',
+      '#~~:::.............S.==..WWWWWWW......:::~~#',
+      '#~~~::...............==..WBFFFZW......::~~~#',
+      '#~~~~::.....#........==..WFFFFFW....#::~~~~#',
+      '#~~~~~:::C....,......==..WTFFFFW...:::~~~~~#',
+      '#~~~~~~:::...........==..WWWDWWW..:::~~~~~~#',
+      '#~~~~~~~~:::....#....========..#:::~~~~~~~~#',
+      '#~~~~~~~~~~:::::.....==.....:::::~~~~~~~~~~#',
+      '#~~~~~~~~~~~~~:::::::==:::::::~~~~~~~~~~~~~#',
+      '#####################EE#####################',
+    ],
+    ground: [130, 172, 112],
+    path: [226, 206, 168],
+    solidEmoji: '🪨',
+    decoEmoji: '🎵',
+    spawn: { x: 21, y: 26 },
+    buildings: [
+      { id: 'resting-note-inn', name: 'Resting Note Inn', x: 11, y: 10, w: 9, h: 6, roof: 'red', style: 'chorus', sign: 'inn' },
+      { id: 'aria-hall', name: "Aria's Music Hall", x: 24, y: 10, w: 9, h: 6, roof: 'purple', style: 'chorus', sign: 'sage' },
+      { id: 'coda-cottage', name: "Coda's Cottage", x: 25, y: 19, w: 7, h: 5, roof: 'teal', style: 'chorus', sign: 'house' },
+    ],
+    npcs: [
+      { defId: 'sage-aria', x: 28, y: 12 },
+      { defId: 'chorus-brio', x: 13, y: 12 },
+      { defId: 'chorus-coda', x: 24, y: 18 },
+      // Old Cadence stands by the double gate and warns of the Hush Fiend.
+      { defId: 'chorus-cadence', x: 19, y: 9 },
+      { defId: 'chorus-trill', x: 12, y: 20 },
+      { defId: 'chorus-do', x: 16, y: 21 },
+      { defId: 'chorus-re', x: 17, y: 21 },
+      { defId: 'chorus-baritone', x: 17, y: 25 },
+    ],
+    enemies: [
+      // The west grass.
+      { defId: 'hushling', x: 5, y: 13 },
+      { defId: 'muffle-moth', x: 8, y: 20 },
+      { defId: 'blank-sprite', x: 9, y: 10 },
+      // The east grass.
+      { defId: 'hushling', x: 37, y: 20 },
+      { defId: 'muffle-moth', x: 35, y: 14 },
+      { defId: 'blank-sprite', x: 34, y: 9 },
+      // In the hollow behind the double gate.
+      { defId: 'hush-fiend', x: 21, y: 5 },
+    ],
+    exits: [
+      // Back out beside the isle's icon on Taleshore, on grass Ember can take off from.
+      { x: 21, y: 27, to: 'taleshore', spawnX: 7, spawnY: 22 },
+      { x: 22, y: 27, to: 'taleshore', spawnX: 7, spawnY: 22 },
+    ],
+    // Beaten anywhere on the isle, Brio tucks you up at his inn — a retry isn't a flight away.
+    shelter: { building: 'resting-note-inn', host: 'Maestro Brio' },
+    // The Hush Fiend's gate opens to both Chorus Keys (`keysForZone`).
+    keyGate: { x: 21, y: 8 },
+    // Coda's three refrains (#75 item 15g), blown into chests when the island went quiet.
+    keyChests: [
+      { x: 6, y: 8, item: 'refrain-sunrise', wantedBy: "🎵 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
+      { x: 37, y: 8, item: 'refrain-noon', wantedBy: "🎵 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
+      { x: 9, y: 22, item: 'refrain-bedtime', wantedBy: "🎵 It's one of Coda's lost refrains! Coda waits by her cottage, beside the road." },
     ],
   },
 };

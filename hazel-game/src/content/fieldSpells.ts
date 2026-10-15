@@ -101,7 +101,7 @@ export function visitedFlag(zoneId: ZoneId): string {
 }
 
 /** The towns Return flies to: home, the four crystal regions, and the inn towns of Acts II–III. */
-export const RETURN_TOWNS: readonly ZoneId[] = ['lumina-village', 'numbria', 'verdara', 'gearfall', 'chromaria', 'remembrance-hill', 'sunken-archive', 'port-lantern'];
+export const RETURN_TOWNS: readonly ZoneId[] = ['lumina-village', 'numbria', 'verdara', 'gearfall', 'chromaria', 'remembrance-hill', 'sunken-archive', 'port-lantern', 'chorus-isle'];
 
 /**
  * Has the hero been here? Home always counts. Visits are only recorded since

@@ -3,7 +3,7 @@ import confetti from 'canvas-confetti';
 import { gateFlag, ZONES } from '../../content/zones';
 import { dungeonEntrance } from '../../content/dungeons';
 import { placeName } from '../../lib/wayfinding';
-import { keyForZone, keyFlag } from '../../content/keys';
+import { keysForZone, keyFlag, type GateKey } from '../../content/keys';
 import { useSaveStore } from '../../store/saveStore';
 import { sfx } from '../../lib/audio';
 import { sendFlow } from '../../machines/gameFlow';
@@ -14,21 +14,30 @@ import ModalLayer from '../../components/ModalLayer';
  * A warden-keyed Fiend gate (#58). Unlike the gatekeeper question, this gate
  * opens only to the key dropped by the matching themed-zone warden boss: hold
  * it and the gate grinds open; otherwise the gate names the warden to go beat.
+ * Chorus Isle's gate takes two keys (#75 item 15g): it opens once both are
+ * held, and says which is still missing.
  */
 export default function KeyGateOverlay({ target }: { target: PathTarget }) {
   const save = useSaveStore((s) => s.save);
   const update = useSaveStore((s) => s.update);
 
-  const key = keyForZone(target.zoneId);
-  if (!save || !key) return null;
+  const keys = keysForZone(target.zoneId);
+  if (!save || keys.length === 0) return null;
 
-  const hasKey = save.flags[keyFlag(key.id)] === true;
+  const held = (k: GateKey) => save.flags[keyFlag(k.id)] === true;
+  const hasKey = keys.every(held);
+  const missing = keys.filter((k) => !held(k));
+  const key = keys[0];
+  const door = key.door ?? 'gate';
+  const both = keys.length > 1;
+  const names = (ks: GateKey[]) => ks.map((k) => `the ${k.name} ${k.emoji}`).join(' and ');
   // A warden at the bottom of a dungeon (#75 item 10) is found by its entrance:
   // "in the Whispering Woods", "deep in the Clockwork Depths".
-  const entrance = dungeonEntrance(key.fromZone);
-  const where = `${entrance === key.fromZone ? 'in' : 'deep in'} ${placeName(ZONES[entrance])}`;
-  const bossName = key.bossName.replace(/^The /, 'the ');
-  const door = key.door ?? 'gate';
+  const where = (k: GateKey) => {
+    const entrance = dungeonEntrance(k.fromZone);
+    return `${entrance === k.fromZone ? 'in' : 'deep in'} ${placeName(ZONES[entrance])}`;
+  };
+  const bossName = (k: GateKey) => k.bossName.replace(/^The /, 'the ');
 
   function open() {
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
@@ -44,15 +53,31 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
         animate={{ scale: 1, opacity: 1 }}
         className="bg-white rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl"
       >
-        <div className="text-5xl mb-2">{hasKey ? key.emoji : '🔒'}</div>
+        <div className="text-5xl mb-2">{hasKey ? keys.map((k) => k.emoji).join('') : '🔒'}</div>
         <h2 className="text-lg font-extrabold text-gray-800 mb-2">
-          {hasKey ? `The ${key.name} fits!` : `A sealed ${door}`}
+          {hasKey ? (both ? 'Both keys fit!' : `The ${key.name} fits!`) : `A sealed ${door}`}
         </h2>
         <p className="text-sm text-gray-600 mb-5">
           {hasKey ? (
             <>
-              The {key.name} {key.emoji} hums and the {door} grinds open — the path to{' '}
-              {key.fiendName} lies beyond.
+              {both ? `${names(keys).replace(/^t/, 'T')} hum together` : `The ${key.name} ${key.emoji} hums`} and the {door}{' '}
+              grinds open — the path to {key.fiendName} lies beyond.
+            </>
+          ) : both && missing.length < keys.length ? (
+            <>
+              This {door} has two locks. {names(keys.filter(held)).replace(/^t/, 'T')} fits one! The other needs{' '}
+              <strong>{names(missing)}</strong> — beat <strong>{bossName(missing[0])}</strong> {where(missing[0])} to claim it.
+            </>
+          ) : both ? (
+            <>
+              Ancient magic seals this {door} with two locks. It opens only to <strong>{names(keys)}</strong> — beat{' '}
+              {keys.map((k, i) => (
+                <span key={k.id}>
+                  {i > 0 && ' and '}
+                  <strong>{bossName(k)}</strong> {where(k)}
+                </span>
+              ))}{' '}
+              to claim them.
             </>
           ) : (
             <>
@@ -60,7 +85,7 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
               <strong>
                 {key.name} {key.emoji}
               </strong>{' '}
-              — beat <strong>{bossName}</strong> {where} to claim it.
+              — beat <strong>{bossName(key)}</strong> {where(key)} to claim it.
             </>
           )}
         </p>
@@ -70,7 +95,7 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
               onClick={open}
               className="bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg px-5 py-2 text-sm"
             >
-              Use the {key.name}
+              {both ? 'Use both keys' : `Use the ${key.name}`}
             </button>
           )}
           <button

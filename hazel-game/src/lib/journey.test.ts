@@ -153,6 +153,16 @@ describe('Act II as a journey (#75 item 14i, the Phase 3 exit check)', () => {
 });
 
 describe("Taleshore's Chorus Keys as legs (#75 item 15e, round 2)", () => {
+  // The story played up to the Crystal of Voices: both Chorus Keys held (#75 item 15g).
+  const CHORUS_BOTH: Record<string, boolean> = (() => {
+    let f: Record<string, boolean> = {};
+    for (let i = 0; i < 60; i++) {
+      const g = nextObjective(f);
+      if (g.kind === 'crystal' && g.zoneId === 'chorus-isle') return f;
+      f = advanceGoal(g, f);
+    }
+    throw new Error('the story never reached the Crystal of Voices');
+  })();
   const keyGoal = (bossId: string) => {
     const key = keyForBoss(bossId)!;
     return { kind: 'key' as const, title: `Win the ${key.name}`, why: '', zoneId: key.fromZone, key };
@@ -166,5 +176,14 @@ describe("Taleshore's Chorus Keys as legs (#75 item 15e, round 2)", () => {
     const isles = ZONES['wayfinder-isles'];
     const leg = walkLeg(keyGoal('compass-golem'), {}, { zoneId: 'wayfinder-isles', cell: isles.spawn });
     expect(walkable(leg)).toBe(true);
+  });
+  it('the Crystal of Voices (#75 item 15g): walked from the landing to the Hush Fiend with both keys — never with one', () => {
+    const isle = ZONES['chorus-isle'];
+    const goal = nextObjective({ ...CHORUS_BOTH });
+    expect(goal).toMatchObject({ kind: 'crystal', zoneId: 'chorus-isle' });
+    const leg = walkLeg(goal, CHORUS_BOTH, { zoneId: 'chorus-isle', cell: isle.spawn });
+    expect(walkable(leg)).toBe(true);
+    const oneKey = { ...CHORUS_BOTH, [keyFlag('chorus-b')]: false };
+    expect(walkable(walkLeg(goal, oneKey, { zoneId: 'chorus-isle', cell: isle.spawn }))).toBe(false);
   });
 });

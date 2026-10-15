@@ -1,7 +1,7 @@
 import { HUB_ZONE, ZONES, gateIdAt, innWakeCell, npcPresent, type TravelMode, type ZoneDef, type ZoneId } from '../content/zones';
 import { NPC_DEFS } from '../content/npcs';
 import { ENEMY_DEFS, fiendFor } from '../content/enemies';
-import { GATE_KEYS, bossDefeated, keyFlag, keyForZone } from '../content/keys';
+import { GATE_KEYS, bossDefeated, holdsKeysFor, keyFlag } from '../content/keys';
 import { crystalFlag } from '../content/topics';
 import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
 import { BOAT_HOME, BOAT_MENDED, BOAT_QUEST_ID, hasBoat } from '../content/boat';
@@ -86,7 +86,6 @@ export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } 
  */
 export function playerRules(z: ZoneDef, flags: Record<string, boolean>, target?: Cell): ReachOptions {
   const keyGate = z.keyGate ? gateIdAt(z.id, z.map, z.keyGate.x, z.keyGate.y) : null;
-  const key = keyForZone(z.id);
   const standing = new Set<string>();
   for (const p of z.npcs) {
     const def = NPC_DEFS[p.defId];
@@ -101,7 +100,7 @@ export function playerRules(z: ZoneDef, flags: Record<string, boolean>, target?:
   return {
     flags,
     exits: 'stop',
-    gates: (gateId) => gateId !== keyGate || (!!key && !!flags[keyFlag(key.id)]),
+    gates: (gateId) => gateId !== keyGate || holdsKeysFor(z.id, flags),
     passable: (ch, mode) => ch !== 'H' && tilePassable(ch, mode),
     blocked: (x, y) => standing.has(`${x},${y}`),
   };

@@ -103,6 +103,7 @@ export const EMBER_POWER: Record<EmberStage, number> = {
   hatchling: 18,
   whelp: 26,
   dragon: 36,
+  radiant: 44,
 };
 
 /** Ember's move name per stage — flavour for the command menu and messages. */
@@ -111,6 +112,7 @@ export const EMBER_MOVE: Record<EmberStage, { name: string; emoji: string }> = {
   hatchling: { name: 'Ember Nip', emoji: '🔥' },
   whelp: { name: 'Flame Claw', emoji: '🔥' },
   dragon: { name: 'Dragon Tail', emoji: '🐲' },
+  radiant: { name: 'Starfire Tail', emoji: '✨' },
 };
 
 const PIP_POWER = 16;
@@ -230,7 +232,7 @@ export const PAIR_ATTACKS: PairAttack[] = [
   },
 ];
 
-const STAGE_ORDER: EmberStage[] = ['egg', 'hatchling', 'whelp', 'dragon'];
+const STAGE_ORDER: EmberStage[] = ['egg', 'hatchling', 'whelp', 'dragon', 'radiant'];
 
 /** The Pair Attacks a companion knows (Ember's grow with its stage). */
 export function pairAttacksFor(id: CompanionId, stage: EmberStage): PairAttack[] {

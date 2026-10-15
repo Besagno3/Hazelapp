@@ -236,6 +236,20 @@ describe('resolveSpell', () => {
     // The other Sages' strikes don't skip a turn.
     expect(resolveSpell({ ...base, charge: 4 }, sageSpell('math'), true)).toMatchObject({ multiplier: 2.5, skipsTurn: false });
   });
+
+  it('Chorus Call (#75 item 15g): a 2.5× strike that sings one ◆ back — never past full; a miss fizzles, no refund', () => {
+    const call = sageSpell('words');
+    expect(call).toMatchObject({ name: 'Chorus Call', cost: 3, topic: 'words' });
+    const r = resolveSpell({ ...base, charge: 4 }, call, true);
+    expect(r).toMatchObject({ kind: 'strike', multiplier: 2.5, skipsTurn: false, refunded: 1 });
+    expect(r.state.charge).toBe(4 - 3 + 1);
+    const miss = resolveSpell({ ...base, charge: 3 }, call, false);
+    expect(miss).toMatchObject({ kind: 'fizzle' });
+    expect(miss.state.charge).toBe(3);
+    // Other strikes sing nothing back.
+    expect(resolveSpell({ ...base, charge: 4 }, sageSpell('math'), true)).toMatchObject({ refunded: 0 });
+    expect(CHARGE_MAX).toBeGreaterThanOrEqual(call.cost);
+  });
 });
 
 describe('battle items', () => {

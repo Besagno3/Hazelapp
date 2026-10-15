@@ -23,13 +23,20 @@ export type StorySceneId = 'spire-stairs' | 'village-cheer' | 'inn-night';
 
 // --- Ember, the last dragon ---------------------------------------------------
 
-export type EmberStage = 'egg' | 'hatchling' | 'whelp' | 'dragon';
+/** Radiant (#75 item 15g, STORY-4X §8): the sixth crystal makes her shine. */
+export type EmberStage = 'egg' | 'hatchling' | 'whelp' | 'dragon' | 'radiant';
+
+/** Ember is full-grown — a dragon, radiant or not (her size, her flying, her dragonfire). */
+export function emberGrown(stage: EmberStage): boolean {
+  return stage === 'dragon' || stage === 'radiant';
+}
 
 export const EMBER_SPRITES: Record<EmberStage, string> = {
   egg: '🥚',
   hatchling: '🐲',
   whelp: '🐲',
   dragon: '🐉',
+  radiant: '🐉',
 };
 
 /**
@@ -41,6 +48,7 @@ export const EMBER_SPRITE_IDS: Record<EmberStage, string> = {
   hatchling: 'ember-hatchling',
   whelp: 'ember-whelp',
   dragon: 'ember-dragon',
+  radiant: 'ember-radiant',
 };
 
 export const EMBER_STAGE_LABEL: Record<EmberStage, string> = {
@@ -48,6 +56,7 @@ export const EMBER_STAGE_LABEL: Record<EmberStage, string> = {
   hatchling: 'hatchling',
   whelp: 'young dragon',
   dragon: 'full-grown dragon',
+  radiant: 'radiant dragon',
 };
 
 /** Ember's size on the world map, per stage (text size in px). */
@@ -56,6 +65,7 @@ export const EMBER_MAP_SIZE: Record<EmberStage, number> = {
   hatchling: 16,
   whelp: 22,
   dragon: 28,
+  radiant: 28,
 };
 
 /** Flag set by the first battle victory; the hatch scene plays back in the world. */
@@ -120,6 +130,8 @@ export const ROOST_SEEN = 'roost-seen';
  * Taleshore, `ACT3_PANELS` play and this is set.
  */
 export const ACT3_SEEN = 'act3-seen';
+/** Act IV's opening (item 16): nothing sets it yet — a stand-in crystal in tests belongs to it. */
+export const ACT4_SEEN = 'act4-seen';
 
 /**
  * Set as Harbormaster Gale says hello in Port Lantern (#75 item 15c review):
@@ -143,6 +155,8 @@ export function crystalSceneFlag(topic: Topic): string {
 export const EMBER_STAGE_AT = {
   whelp: 2,
   dragon: 4,
+  // The sixth crystal, Act III's Voices (#75 item 15g): she shines.
+  radiant: 6,
 } as const;
 
 /**
@@ -164,6 +178,7 @@ export function canFly(flags: Record<string, boolean>): boolean {
  */
 export function emberStage(crystals: number, flags: Record<string, boolean>): EmberStage {
   if (!flags[EMBER_HATCHED]) return 'egg';
+  if (crystals >= EMBER_STAGE_AT.radiant) return 'radiant';
   if (crystals >= EMBER_STAGE_AT.dragon) return 'dragon';
   if (crystals >= EMBER_STAGE_AT.whelp) return 'whelp';
   return 'hatchling';
@@ -186,7 +201,7 @@ export function emberStatus(flags: Record<string, boolean>): {
  * Act II opens the morning after the Spire; Act III the first time over
  * Taleshore (#75 item 15c).
  */
-export const ACT_OPENS: Record<Act, string | null> = { 1: null, 2: ACT2_SEEN, 3: ACT3_SEEN };
+export const ACT_OPENS: Record<Act, string | null> = { 1: null, 2: ACT2_SEEN, 3: ACT3_SEEN, 4: ACT4_SEEN };
 
 /**
  * The crystals the hero can be working towards: every crystal of every act
@@ -650,6 +665,34 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
         'Then the Archive is quiet. Nobody here knows who that is. Not yet.',
     },
   ],
+  // Act III's crystal (#75 item 15g). No 🌑 this time (STORY-4X §6): a small
+  // voice instead — the first time anyone says the first Sage was a "she".
+  words: [
+    {
+      emoji: '🎶',
+      text:
+        'The Hush Fiend pops like a soap bubble, and the Crystal of Voices rings out. ' +
+        'All over Taleshore, people laugh and shout and sing — out loud, at last!',
+    },
+    {
+      emoji: '⛵',
+      text:
+        'Far to the west, the Great Fogbank thins to a summer mist. Boats can sail through it now, ' +
+        'all the way from the Silver Shallows to Taleshore!',
+    },
+    {
+      emoji: '✨',
+      text:
+        'Ember sings too — and her scales start to glow like sunrise. Six crystals! ' +
+        'She is a RADIANT dragon now, and her breath sparkles with starlight.',
+    },
+    {
+      emoji: '🌼',
+      text:
+        'Then, very softly, a small voice from the crystal: "she used to sing to us. the first sage. ' +
+        'before you forgot her." And the crystal hums one note, and is still.',
+    },
+  ],
 };
 
 /** The name of the hidden villain atop the Spire — revealed across the crystals. */
@@ -791,5 +834,13 @@ export const BOSS_LINES: Record<CrystalTopic, BossScript> = {
       'I am the Hollow Fiend! I ate the day before yesterday — and you, little spark, will make a lovely tomorrow!',
     ],
     defeat: 'You… remembered me. That\'s… nobody ever…',
+  },
+  // Act III (#75 item 15g): it drank Taleshore's out-loud voices (STORY-4X §6).
+  words: {
+    intro: [
+      'Shhh. SHHHH. I heard that dragon of yours roaring all the way across the sea. Rude. Very, very LOUD.',
+      'I am the Hush Fiend! I shushed the sea! I shushed the singers! And now, little chatterbox, I shush YOU!',
+    ],
+    defeat: '…say it, then. Say everything. Out loud…',
   },
 };

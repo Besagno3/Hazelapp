@@ -6,11 +6,12 @@ import { CRYSTAL_TOPIC_IDS, type CrystalTopic, type Topic, type ZoneId } from '.
  *
  * Two tiers (#50/#55):
  * - `TOPIC_REGISTRY` — the **crystal** main-quest topics: Act I's four
- *   (math/science/engineering/creativity) and Act II's history (#75 item 14h).
+ *   (math/science/engineering/creativity), Act II's history (#75 item 14h)
+ *   and Act III's words (#75 item 15g).
  *   Each bears a crystal, a Fiend, a Sage and a topic zone; all crystal/ending
  *   logic iterates this, an act at a time (`actCrystals`).
  * - `EXTRA_TOPICS` — the expansion question themes (nature, space, and Act
- *   III's geography, words and music) that flavour the new zones. Styling
+ *   III's geography and music) that flavour the new zones. Styling
  *   only — no crystal/fiend.
  *
  * `topicInfo(id)` resolves either tier. Adding a topic: an id in
@@ -43,7 +44,7 @@ export interface TopicInfo {
  * "all crystals" rule — the Spire's seal, the ending, the 🚩's order — is a
  * rule about one act's crystals, so a new crystal never changes Act I.
  */
-export type Act = 1 | 2 | 3;
+export type Act = 1 | 2 | 3 | 4;
 
 /** A crystal main-quest topic — crystal fields are guaranteed present. */
 export interface CrystalTopicInfo extends TopicInfo {
@@ -118,6 +119,20 @@ export const TOPIC_REGISTRY: CrystalTopicInfo[] = [
     zoneId: 'sunken-archive',
     act: 2,
   },
+  // Act III's crystal (#75 item 15g): Voices, on Chorus Isle. Words & Stories was
+  // an extra theme until now (15a) — its label, colours and questions are unchanged.
+  {
+    id: 'words',
+    label: 'Words & Stories',
+    emoji: '📚',
+    buttonColor: 'bg-red-600 hover:bg-red-700',
+    skyGradient: 'from-rose-950 via-red-900 to-amber-700',
+    groundTint: [172, 124, 112],
+    crystalName: 'Crystal of Voices',
+    fiendName: 'The Hush Fiend',
+    zoneId: 'chorus-isle',
+    act: 3,
+  },
 ];
 
 /** Expansion question themes (#55) — styling only, no crystal. */
@@ -146,14 +161,6 @@ export const EXTRA_TOPICS: TopicInfo[] = [
     buttonColor: 'bg-teal-700 hover:bg-teal-800',
     skyGradient: 'from-sky-950 via-teal-800 to-cyan-600',
     groundTint: [118, 160, 138],
-  },
-  {
-    id: 'words',
-    label: 'Words & Stories',
-    emoji: '📚',
-    buttonColor: 'bg-red-600 hover:bg-red-700',
-    skyGradient: 'from-rose-950 via-red-900 to-amber-700',
-    groundTint: [172, 124, 112],
   },
   {
     id: 'music',

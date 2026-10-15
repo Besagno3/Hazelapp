@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { SpriteSheet } from './SpriteSheet';
 import { COMPANION_CLIP, COMPANION_MOTION, FIREBALL_FLIGHT_MS, HERO_MOTION, fitReach, type Keyframes } from './choreography';
 import type { ResolvedSprite } from '../../content/sprites';
-import type { EmberStage } from '../../content/story';
+import { emberGrown, type EmberStage } from '../../content/story';
 import type { CompanionId } from '../../content/companion';
 import type { RefObject } from 'react';
 import type { FloatText, FxSide, StageFx } from './useBattleFx';
@@ -256,7 +256,7 @@ export function BattleStage({
               {...(won && isEgg && !reduceMotion
                 ? { animate: { rotate: [0, -12, 12, -8, 0] }, transition: { repeat: Infinity, duration: 0.8 } }
                 : bob(-4, 1.4))}
-              className={`block ${isEgg ? 'text-2xl' : ember === 'dragon' && companionId === 'ember' ? 'text-5xl' : 'text-3xl'}`}
+              className={`block ${isEgg ? 'text-2xl' : emberGrown(ember) && companionId === 'ember' ? 'text-5xl' : 'text-3xl'}`}
               title={companionName}
               style={{ filter: 'drop-shadow(0 8px 6px rgba(0,0,0,0.4))' }}
             >
@@ -264,7 +264,7 @@ export function BattleStage({
                 view={companionSprite.def?.battle ?? null}
                 anim={companionAnim}
                 emoji={companionSprite.emoji}
-                scale={companionId !== 'ember' ? 1.8 : isEgg ? 1.5 : ember === 'dragon' ? 3 : 2}
+                scale={companionId !== 'ember' ? 1.8 : isEgg ? 1.5 : emberGrown(ember) ? 3 : 2}
                 // Sheets face right; the companion stands on the hero's side, so face the enemy.
                 className="scale-x-[-1]"
               />

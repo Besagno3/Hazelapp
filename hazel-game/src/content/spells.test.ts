@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { spellsKnown, SPELL_LEVEL_BONUS, MEND, AEGIS, EMBER_BREATH } from './spells';
+import { spellsKnown, SPELL_LEVEL_BONUS, MEND, AEGIS, EMBER_BREATH, RADIANT_BREATH } from './spells';
+import { EMBER_POWER, pairAttacksKnown } from './companion';
 import { CHARGE_MAX } from './abilities';
 import { crystalFlag, TOPICS } from './topics';
 import { EMBER_HATCHED } from './story';
@@ -39,7 +40,7 @@ describe('spellsKnown', () => {
 
   it("Ember's Breath unlocks only when Ember is full-grown (4 crystals, hatched)", () => {
     const flags: Record<string, boolean> = { [EMBER_HATCHED]: true };
-    for (const t of TOPICS) flags[crystalFlag(t)] = true;
+    for (const t of TOPICS.slice(0, 4)) flags[crystalFlag(t)] = true;
     expect(spellsKnown(saveWith({ flags })).some((s) => s.id === EMBER_BREATH.id)).toBe(true);
     // Not hatched yet (still an egg) → no dragonfire.
     const notHatched = { ...flags };
@@ -47,6 +48,19 @@ describe('spellsKnown', () => {
     expect(spellsKnown(saveWith({ flags: notHatched })).some((s) => s.id === EMBER_BREATH.id)).toBe(
       false,
     );
+  });
+
+  it("six crystals make Ember radiant (#75 item 15g): Radiant Breath (4.2×) takes Ember's Breath's place; every combo stays", () => {
+    const flags: Record<string, boolean> = { [EMBER_HATCHED]: true };
+    for (const t of TOPICS) flags[crystalFlag(t)] = true;
+    expect(TOPICS).toHaveLength(6);
+    const known = spellsKnown(saveWith({ flags })).map((s) => s.id);
+    expect(known).toContain(RADIANT_BREATH.id);
+    expect(known).not.toContain(EMBER_BREATH.id);
+    expect(RADIANT_BREATH.effect).toEqual({ kind: 'damage', multiplier: 4.2 });
+    expect(RADIANT_BREATH.cost).toBe(EMBER_BREATH.cost);
+    expect(pairAttacksKnown('radiant').map((p) => p.id)).toEqual(pairAttacksKnown('dragon').map((p) => p.id));
+    expect(EMBER_POWER.radiant).toBeGreaterThan(EMBER_POWER.dragon);
   });
 
   it('every spell is castable within the charge gauge and questions are super-hard', () => {

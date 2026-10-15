@@ -279,11 +279,23 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           key: chorusB,
         };
       }
+      // Act III's crystal (#75 item 15g): the Crystal of Voices, behind the Hush Fiend's double gate.
+      const voices = actCrystals(3).find((t) => !flags[crystalFlag(t.id)]);
+      if (canFly(flags) && voices) {
+        return {
+          kind: 'crystal',
+          title: `Free the ${voices.crystalName}`,
+          why: "Both Chorus Keys together open the Hush Fiend's gate on Chorus Isle, an island far out west of Port Lantern!",
+          zoneId: voices.zoneId,
+          crystal: voices,
+          key: keyForZone(voices.zoneId),
+        };
+      }
       return {
         kind: 'explore',
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[MET_GALE]
-          ? 'You hold both Chorus Keys! Their gate is far out at sea. Until you find it, fly anywhere and help everyone on Taleshore!'
+          ? 'Six crystals shine, and the Great Fogbank has thinned — boats can cross to Taleshore now! Sail or fly anywhere, and help everyone you meet.'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -592,6 +604,9 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   let plan: string;
   if (goal.kind === 'crystal' && goal.crystal && !goal.key) {
     plan = `Here is the plan: four Fiends hold the crystals, one at each far corner of Dawnreach. Start with ${midSentence(goal.crystal.fiendName)} in ${place(goal.crystal.zoneId)} — its gate needs no key, only brave answers.`;
+  } else if (goal.kind === 'crystal' && goal.crystal && goal.crystal.act === 3) {
+    // Act III's crystal (#75 item 15g): a double gate, on an island only Ember reaches.
+    plan = `You hold both Chorus Keys! Together they open ${midSentence(goal.crystal.fiendName)}'s gate on Chorus Isle, far out at sea west of Port Lantern. Fly there, and free the ${goal.crystal.crystalName}!`;
   } else if (goal.kind === 'crystal' && goal.crystal && goal.key) {
     plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s ${goal.key.door ?? 'gate'} in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-a') {
@@ -624,7 +639,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[MET_GALE]) {
-    plan = 'You hold both Chorus Keys! Together they open a gate far out at sea. Until you find it, help everyone you meet on Taleshore — they have plenty to do!';
+    plan = 'Six crystals shine now, and the Great Fogbank has thinned! Marlow\'s boat can sail all the way to Taleshore. Help everyone you meet — they have plenty to do!';
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -644,6 +659,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'crystal' && goal.crystal && goal.crystal.act === 2) {
     // The Sunken Archive (#75 item 14h): swift critters, and the spell that stops one.
     tip = "In the Archive, Quill Imps are so quick they strike first. Sage Chronicle's ⏳ Time Ripple makes an enemy lose its next turn!";
+  } else if (goal.kind === 'crystal' && goal.crystal && goal.crystal.act === 3) {
+    tip = "Maestro Brio's inn on Chorus Isle is a fine place to rest first. Sage Aria there teaches 🎶 Chorus Call — it sings a ◆ back to you!";
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-a') {
     tip = "Rest at the Driftlight Inn in Port Lantern first. On the isles, Latitude Cats muddle Hint Feathers — try a Glimmer Candle!";
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-b') {

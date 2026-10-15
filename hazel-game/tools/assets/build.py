@@ -22,6 +22,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py roost      # only the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
     python3 tools/assets/build.py taleshore  # only Taleshore + Port Lantern: tiles, harbor sheet, icon, people (#75 item 15c)
     python3 tools/assets/build.py isles      # only Taleshore I: three places' tiles, the kite sheet, icons, critters, people (#75 item 15d)
+    python3 tools/assets/build.py chorus     # only Chorus Isle: tiles, the chorus sheet, its icon, the Hush Fiend, its people, Radiant Ember (#75 item 15g)
     python3 tools/assets/build.py cliffs     # only Taleshore III: Songstone Cliffs + the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
     python3 tools/assets/build.py reef       # only Taleshore II: the Story Reef + Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people (#75 item 15e)
     python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
@@ -71,6 +72,9 @@ REEF_SPRITES = ('word-eel', 'riddle-jelly', 'page-ray', 'blot', 'cuttle-scribe',
 # Taleshore III's critters, people and songstones (#75 item 15f), for `build.py cliffs`.
 CLIFFS_SPRITES = ('echo-bat', 'chime-gull', 'drum-crab', 'hushling', 'muffle-moth', 'blank-sprite', 'cliff-reso', 'cliff-echo',
                   'cliff-hum', 'songstone', 'songstone-rung', 'quiet-shush', 'quiet-mime', 'quiet-sotto')
+
+# Chorus Isle's Fiend, people and Radiant Ember (#75 item 15g), for `build.py chorus`.
+CHORUS_SPRITES = ('hush-fiend', 'sage-aria', 'chorus-brio', 'chorus-coda', 'chorus-cadence', 'chorus-trill', 'chorus-do', 'chorus-re', 'chorus-baritone', 'ember-radiant')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',
@@ -154,6 +158,14 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(ARCHIVE_SPRITES)))
         tiles.build_archive(PUBLIC)
         print('archive ✓')
+        return
+    if 'chorus' in only:
+        # Just Chorus Isle (#75 item 15g): its tiles, the chorus town sheet, the
+        # overworld sheet with its icon appended, the Hush Fiend, its people and
+        # Radiant Ember.
+        write_manifest(build_sprites.build(PUBLIC, only=set(CHORUS_SPRITES)))
+        tiles.build_chorus(PUBLIC)
+        print('chorus ✓')
         return
     if 'cliffs' in only:
         # Just Taleshore III (#75 item 15f): Songstone Cliffs and the Quiet Quarter —

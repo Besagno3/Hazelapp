@@ -230,6 +230,12 @@ def draw_item(L: Canvas, item: str, hx: float, hy: float, arm: str, col=None):
     elif item == 'broom':
         L.line(hx - ca * 4, hy - sa * 4, hx + ca * 9, hy + sa * 9, '#8a5a30', w=1.2)
         L.ellipse(hx - ca * 6, hy - sa * 6, 2.6, 2.0, '#d8b050')
+    elif item == 'violin':
+        # Maestro Brio's (#75 item 15g): a little fiddle tucked under the arm, and its bow.
+        L.ellipse(hx + 2, hy - 1, 2.6, 3.4, col or '#b0602a')
+        L.ellipse(hx + 2, hy - 1, 1.0, 1.2, '#3a2010', shade=False)
+        L.line(hx + 2, hy - 4, hx + 2, hy - 8, '#3a2010', w=0.9)
+        L.line(hx - 2, hy + 3, hx + 7, hy - 5, '#e8d8b0', w=0.5)
     elif item == 'abacus':
         L.rect(hx - 1, hy - 4, hx + 6, hy + 2, '#8a5a30')
         for i in range(3):
@@ -1210,7 +1216,7 @@ def dragon(c: Canvas, p: Pose, s: dict):
     belly = hexc(s.get('belly', '#ffd98a'))
     stage = s.get('stage', 'dragon')
     lean, bob = d.lean, d.bob
-    size = {'hatchling': 0.72, 'whelp': 0.86, 'dragon': 1.0}[stage]
+    size = {'hatchling': 0.72, 'whelp': 0.86, 'dragon': 1.0, 'radiant': 1.0}[stage]
 
     def S(x, y):  # scale about the feet so smaller stages stay grounded
         return 16 + (x - 16) * size, 30 + (y - 30) * size
@@ -1281,6 +1287,12 @@ def dragon(c: Canvas, p: Pose, s: dict):
         fx, fy = hx + 8 * size, hy + 2 * size
         head.poly([(fx, fy - 1.5), (fx + 5, fy - 3), (fx + 7, fy), (fx + 5, fy + 3), (fx, fy + 1.5)], '#ff8a2a')
         head.poly([(fx, fy - 0.8), (fx + 4, fy), (fx, fy + 0.8)], '#ffe066')
+    if stage == 'radiant':
+        # Radiant Ember (#75 item 15g): a few starry sparkles round her, twinkling frame to frame.
+        for k, (x, y) in enumerate(((6, 9), (27, 7), (3, 22), (28, 20), (14, 4))):
+            if (k + p.frame) % 2 == 0:
+                head.dot(x, y, '#fff6c0')
+                head.dot(x + 1, y, '#ffe070', w=0.6, h=0.6)
     d.put(head)
     if s.get('lance'):
         it = d.part(lean, bob)
@@ -1297,7 +1309,7 @@ def dragon_fb(c: Canvas, p: Pose, s: dict):
     col = hexc(s['color'])
     belly = hexc(s.get('belly', '#ffd98a'))
     stage = s.get('stage', 'dragon')
-    size = {'hatchling': 0.72, 'whelp': 0.86, 'dragon': 1.0}[stage]
+    size = {'hatchling': 0.72, 'whelp': 0.86, 'dragon': 1.0, 'radiant': 1.0}[stage]
     horn = s.get('horn', '#fff0c8')
     bob = d.bob
 
@@ -3743,6 +3755,47 @@ def quill_imp(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(15, 30.4, 6, 1.1))
 
 
+def hush_fiend(c: Canvas, p: Pose, s: dict):
+    """The Hush Fiend (#75 item 15g): a big grey pillow of a Fiend with stitched
+    seams and tassels, cross sleepy-angry eyes, one huge finger to its lips —
+    SHHH — and a crossed-out speaker stitched on its tummy."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#9a96b0'))
+    sway = 1 if p.frame % 2 else 0
+    L = d.part(d.lean, d.bob)
+    # The cushion body, puffed at the corners, a tassel on each.
+    L.ellipse(16, 18, 12.6, 11.0, col)
+    for (x, y) in ((5, 8.5), (27, 8.5), (5, 28), (27, 28)):
+        L.ellipse(x, y, 2.6, 2.6, col)
+        L.dot(x + (1.6 if x > 16 else -1.6), y + (1.6 if y > 16 else -1.6), '#e8c860')
+    L.line(4.6, 18, 27.4, 18, dark(col, 0.18), w=0.5)  # the seam round its middle
+    for x in range(6, 27, 3):
+        L.dot(x, 18.6, dark(col, 0.25))  # stitches
+    if p.facing != 'up':
+        # Cross, heavy-lidded eyes.
+        for (x, tilt) in ((11.6, 1), (20.4, -1)):
+            L.ellipse(x, 12.6, 2.4, 1.6, '#ffffff', shade=False)
+            L.ellipse(x, 13.2, 1.0, 1.0, '#3a2a5a', shade=False)
+            L.rect(x - 2.6, 10.8, x + 2.6, 12.4, col, shade=False)  # the lids, half shut
+            L.line(x - 2.8, 10.4 - tilt, x + 2.8, 10.4 + tilt, '#4a3a6a', w=0.8)
+        # A pursed little mouth, and the huge finger to its lips.
+        L.ellipse(16, 16.4, 1.6, 1.0, '#5a3a5a', shade=False)
+        if not p.hurt:
+            L.rect(15.2, 10 - sway, 16.8, 17, '#e8d8c8')
+            L.ellipse(16, 10 - sway, 0.9, 0.8, '#f4e8dc', shade=False)
+        # A speaker with a cross over it, stitched on its tummy.
+        L.poly([(12, 22), (14, 22), (16.4, 20), (16.4, 26), (14, 24), (12, 24)], '#5a5470')
+        L.line(18, 21, 21.4, 25, '#e04a4a', w=0.8)
+        L.line(21.4, 21, 18, 25, '#e04a4a', w=0.8)
+    # Little stubby arms reaching to shush.
+    arm = {'strike': 4, 'follow': 2}.get(p.arm, 0)
+    for (x0, side) in ((4, -1), (28, 1)):
+        x = x0 + side * (arm + sway)
+        L.ellipse(x, 21, 2.2, 1.8, col)
+    d.put(L)
+    finish(c, d, shadow=(16, 30.8, 9, 1.3))
+
+
 def hollow_fiend(c: Canvas, p: Pose, s: dict):
     """The Hollow Fiend (#75 item 14h): a Fiend-shaped hole in the world — a black
     void in a ragged cloak of torn pages, cold violet eyes and grasping claws."""
@@ -3846,6 +3899,7 @@ DRAWERS = {
     'ink_wisp': ink_wisp,
     'quill_imp': quill_imp,
     'hollow_fiend': hollow_fiend,
+    'hush_fiend': hush_fiend,
 }
 
 
@@ -3891,6 +3945,9 @@ ROSTER: list[Char] = [
     Char('ember-whelp', '🦎', 'dragon', H(color='#ff6a2a', stage='whelp'),
          battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
     Char('ember-dragon', '🐉', 'dragon', H(color='#f0502a', stage='dragon', wing='#ffb05a'),
+         battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
+    # Radiant Ember (#75 item 15g): the sixth crystal — sunrise-gold scales, starlit wings, sparkles.
+    Char('ember-radiant', '🐉', 'dragon', H(color='#f8a030', stage='radiant', wing='#fff0a0', belly='#fff4c8', horn='#ffffff'),
          battle_poses=EMBER_BATTLE_POSES, battle_anims=EMBER_BATTLE_ANIMS),
     # ── Battle FX (not characters — reuse the battle-sheet pipeline) ──
     Char('fx-fireball', '🔥', 'fireball', world=False,
@@ -3967,6 +4024,8 @@ ROSTER: list[Char] = [
     Char('ink-wisp', '🖋️', 'ink_wisp', H(color='#2a2a5a')),
     Char('quill-imp', '🪶', 'quill_imp', H(color='#c84a5a', feather='#f4f0e0')),
     Char('hollow-fiend', '🕳️', 'hollow_fiend', H(color='#141020', rim='#7a5ac8'), boss=True),
+    # ── Act III: Chorus Isle (#75 item 15g) ──
+    Char('hush-fiend', '🔇', 'hush_fiend', H(color='#9a96b0'), boss=True),
     # --- New critters, batch 1 (Numbria + Clockwork Depths) ---
     Char('raven-prince', '🐦‍⬛', 'duck', H(kind='raven', color='#38365c', bill='#4a4858', legs='#3a3848', eye='#ffd24a', crown='#ffcf3a')),
     Char('kia', '🦑', 'kraken', H(color='#6a5ad8', minus=True, loot=True)),
@@ -4156,6 +4215,16 @@ NPCS: list[Char] = [
     Char('songstone-rung', '🪨', 'nameless_stone', H(color='#c0d4e8', notes=True, glow='#ffd84a')),
     Char('quiet-shush', '🤫', 'humanoid', H(hair='bun', hair_color='#8a8a98', glasses=True, outfit='#4a5a7a', trim='#c8d0e0', robe=True, item='book')),
     Char('quiet-mime', '🎭', 'humanoid', H(skin='#f4f0f0', hair='short', hair_color='#1a1a1a', hat='cap', hat_color='#1a1a1a', outfit='#f4f4f4', trim='#1a1a1a', pants='#1a1a1a')),
+    # ── Act III: Chorus Isle (#75 item 15g) ──
+    Char('sage-aria', '🎼', 'humanoid', H(hair='long', hair_color='#f0c040', outfit='#c84a7a', trim='#ffe0f0', robe=True, cape='#7a2a5a',
+         item='wand', item_color='#ffe0f0', tune=True)),
+    Char('chorus-brio', '🎻', 'humanoid', H(hair='fringe', hair_color='#e8e8e8', beard='#e8e8e8', outfit='#7a2a3a', trim='#ffd860', item='violin')),
+    Char('chorus-coda', '👧', 'humanoid', H(hair='bob', hair_color='#3a2a1a', outfit='#ffd040', trim='#ff6a8a', pants='#5a7ad0', tune=True)),
+    Char('chorus-cadence', '👴', 'humanoid', H(hair='fringe', hair_color='#c8c8d0', beard='#e0e0e8', outfit='#3a4a8a', trim='#ffd860', robe=True, item='wand', item_color='#f4f4f4')),
+    Char('chorus-trill', '🐦', 'flyer', H(kind='bird', color='#ffd040', tune=True)),
+    Char('chorus-do', '🧒', 'humanoid', H(hair='spiky', hair_color='#c84a2a', outfit='#4a8ad0', trim='#ffffff', pants='#2a3a6a')),
+    Char('chorus-re', '👧', 'humanoid', H(hair='ponytail', hair_color='#c84a2a', outfit='#d04a8a', trim='#ffffff', pants='#2a3a6a')),
+    Char('chorus-baritone', '🎣', 'humanoid', H(hair='short', hair_color='#5a4a3a', beard='#7a6a5a', hat='cap', hat_color='#2a4a6a', outfit='#3a6a8a', trim='#e8e0c8', item='rod')),
     Char('quiet-sotto', '🗣️', 'humanoid', H(hair='short', hair_color='#5a3a2a', hat='hood', hat_color='#5a3a6a', outfit='#6a4a7a', scarf='#c8a040', pack='#8a6a4a')),
     Char('ink-bess', '🐚', 'humanoid', H(hair='bun', hair_color='#6a4a3a', hat='flower', outfit='#3a9ab0', apron='#f8e0d0', trim='#ff9ab0', item='lantern', shells=True)),
 ]

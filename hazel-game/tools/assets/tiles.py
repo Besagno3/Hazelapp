@@ -112,6 +112,10 @@ ZONES = {
                              sky=('#5a8ad8', '#f0e8ff'), far='#8a9ac0', mid='mountain', water='#4a8ad0'),
     'quiet-quarter': dict(ground=(120, 136, 140), path=(170, 170, 180), solid='hedge', deco='flower', deco_c='#c8a8f0',
                           sky=('#3a4a7a', '#c0b8d8'), far='#5a5a80', mid='houses', water='#4a6a8a'),
+    # Chorus Isle (#75 item 15g): a sunny island of singers — bright grass, warm sand,
+    # boulders, music notes in the grass, a rosy evening sky over the sea.
+    'chorus-isle': dict(shore=True, no_hills=True, ground=(130, 172, 112), path=(226, 206, 168), solid='rock', deco='note', deco_c='#ff8ab0',
+                        sky=('#e87aa0', '#fff0d8'), far='#d8a0c0', mid='islets', water='#3a90d0'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -144,6 +148,10 @@ REEF_ZONES = ('story-reef', 'inkwell-cove')
 # Added with Taleshore III (#75 item 15f) — `build_cliffs` writes only these
 # (+ the hush town sheet and the overworld sheet with two icons appended).
 CLIFFS_ZONES = ('songstone-cliffs', 'quiet-quarter')
+
+# Added with Chorus Isle (#75 item 15g) — `build_chorus` writes only this (+ the
+# chorus town sheet and the overworld sheet with its icon appended).
+CHORUS_ZONES = ('chorus-isle',)
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -500,6 +508,8 @@ STYLES = {
     'shell':     ('#f4dcd0', '#e07a6a', 'shells',  'round',  'planks', ('#e0c8a0',)),
     # The Quiet Quarter (#75 item 15f): grey-blue stone with soft lavender trim, felt-grey tiles underfoot.
     'hush':      ('#8a94a8', '#a890c8', 'bricks',  'arch',   'tiles',  ('#9a9aa8', '#88889a')),
+    # Chorus Isle (#75 item 15g): sunny cream plaster with rose trim, a checked stage-floor.
+    'chorus':    ('#f6ead0', '#d04a7a', 'stripes', 'arch',   'checker', ('#f8ecd4', '#e0c8a4')),
 }
 
 
@@ -1448,6 +1458,17 @@ def ow_icon(kind):
         for (x, y) in ((12.6, 2.6), (14.6, 5.4)):
             c.ellipse(x, y, 0.9, 0.7, '#3a3a6a', shade=False)
             c.line(x + 0.7, y, x + 0.7, y - 2, '#3a3a6a', w=0.5)
+    elif kind == 'chorus':
+        # Chorus Isle (#75 item 15g): a sunny island with a little rose-roofed hall and big music notes rising.
+        c.ellipse(8, 13.6, 7.6, 2.2, '#3a90d0')
+        c.ellipse(8, 12, 6.4, 2.6, '#e8d8a8')
+        c.ellipse(8, 11, 5.4, 2.0, '#82ac70')
+        c.rect(4.4, 6.4, 10.4, 11, '#f6ead0')
+        c.poly([(3.6, 6.8), (7.4, 3.4), (11.2, 6.8)], '#d04a7a')
+        c.rect(6.6, 8.4, 8.2, 11, '#7a4a3a', shade=False)
+        for (x, y) in ((12.4, 4.6), (14.4, 1.8)):
+            c.ellipse(x, y, 1.0, 0.8, '#ff6a9a', shade=False)
+            c.line(x + 0.8, y, x + 0.8, y - 2.4, '#ff6a9a', w=0.6)
     elif kind == 'quarter':
         # The Quiet Quarter (#75 item 15f): two grey-blue houses with lavender roofs and a crescent moon.
         for (x0, y0) in ((1, 7), (8, 6)):
@@ -1518,6 +1539,20 @@ def build_cliffs(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('hush')]).save(tdir / 'town-hush.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_chorus(public: Path):
+    """Write only Chorus Isle's art (#75 item 15g): its tileset, blend sheet and
+    backdrop, the chorus town sheet and the overworld sheet with its icon."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in CHORUS_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('chorus')]).save(tdir / 'town-chorus.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 
@@ -1706,7 +1741,7 @@ def overworld_sheet():
     # frame keeps its place.
     return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
             + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive'), ow_icon('roost'),
-               ow_icon('harbor'), ow_icon('beach'), ow_icon('compass'), ow_icon('atoll'), ow_icon('reef'), ow_icon('inkwell'), ow_icon('cliffs'), ow_icon('quarter')])
+               ow_icon('harbor'), ow_icon('beach'), ow_icon('compass'), ow_icon('atoll'), ow_icon('reef'), ow_icon('inkwell'), ow_icon('cliffs'), ow_icon('quarter'), ow_icon('chorus')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────
