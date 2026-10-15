@@ -780,7 +780,7 @@ Roadmap sub-item 15d (branch stacked on 15c's PR #57).
   to a place only Ember reaches end "…then land beside it and walk in".
 - **Art:** `python3 tools/assets/build.py isles`.
 - **Tests:** +11 (zones, quests, keys, BattleHud, wayfinding, tiles); 1224
-  green, lint and tsc clean; `bench … fly` +3 checks (the isles).
+  green, lint and tsc clean; `bench … fly` 20/20 (+3: the isles).
 
 ### 2026-10-15 — 15c review round 4: land and walk in, routes that know the fog (#75 item 15c, #137m)
 The last round. Fresh code review (6 low) and UX review (3 medium, 9 low),
