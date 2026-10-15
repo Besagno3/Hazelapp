@@ -22,6 +22,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py roost      # only the Dragon's Roost: its tiles and the roost icon (#75 item 15b)
     python3 tools/assets/build.py taleshore  # only Taleshore + Port Lantern: tiles, harbor sheet, icon, people (#75 item 15c)
     python3 tools/assets/build.py isles      # only Taleshore I: three places' tiles, the kite sheet, icons, critters, people (#75 item 15d)
+    python3 tools/assets/build.py reef       # only Taleshore II: the Story Reef + Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people (#75 item 15e)
     python3 tools/assets/build.py heroes     # only the five heroes: Valor, Bastion, Talon, Kira, Selene
     python3 tools/assets/build.py intro      # only the sign-in screen's intro music
 
@@ -61,6 +62,10 @@ TALESHORE_SPRITES = ('port-harbormaster', 'port-skipper', 'port-merchant', 'port
 ISLES_SPRITES = ('compass-crab', 'gull-scout', 'tide-snail', 'marker-post', 'latitude-cat', 'globe-beetle', 'zephyr-pup',
                  'kite-ray', 'squall-chick', 'compass-golem', 'drift-reel', 'drift-sandy', 'drift-salt', 'way-lo',
                  'way-pebble', 'way-drift', 'gale-sough', 'gale-gully', 'gale-tass', 'drift-puffin')
+
+# Taleshore II's critters, warden, people and tale-stones (#75 item 15e), for `build.py reef`.
+REEF_SPRITES = ('word-eel', 'riddle-jelly', 'page-ray', 'blot', 'cuttle-scribe', 'margin-shrimp', 'riddle-leviathan',
+                'reef-yarn', 'reef-verse', 'reef-bloop', 'reef-stone', 'reef-stone-lit', 'ink-dot', 'ink-smudge', 'ink-bess')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',
@@ -144,6 +149,14 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(ARCHIVE_SPRITES)))
         tiles.build_archive(PUBLIC)
         print('archive ✓')
+        return
+    if 'reef' in only:
+        # Just Taleshore II (#75 item 15e): the Story Reef and Inkwell Cove — their
+        # tiles, the shell town sheet, the overworld sheet with two icons appended,
+        # their critters, warden, people and tale-stones.
+        write_manifest(build_sprites.build(PUBLIC, only=set(REEF_SPRITES)))
+        tiles.build_reef(PUBLIC)
+        print('reef ✓')
         return
     if 'isles' in only:
         # Just Taleshore I (#75 item 15d): Driftwood Shallows, the Wayfinder Isles

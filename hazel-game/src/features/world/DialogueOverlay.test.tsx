@@ -145,3 +145,26 @@ describe("Miner Mabel and Moss's Moonstone (#75 item 13 review)", () => {
     expect(readAll()).not.toMatch(/left-hand tunnel/);
   });
 });
+
+describe("a tale-stone's riddle (#75 item 15e)", () => {
+  const onReef = (flags: Record<string, boolean>) =>
+    useSaveStore.setState({ userId: null, save: { ...defaultSave(), zoneId: 'story-reef', flags }, status: 'ready', remoteError: null });
+
+  it('on its turn, the last line asks the riddle — a words question for that step', () => {
+    onReef({ 'quest:yarn-tale:offered': true });
+    render(<DialogueOverlay npcId="reef-stone-1" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    fireEvent.click(screen.getByText('📜 Hear the riddle'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_PATH', target: { kind: 'riddle', id: 'yarn-stone-1', topic: 'words', zoneId: 'story-reef' } });
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
+  });
+
+  it('"Not yet" walks away without asking', () => {
+    onReef({ 'quest:yarn-tale:offered': true });
+    render(<DialogueOverlay npcId="reef-stone-1" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    fireEvent.click(screen.getByText('Not yet'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+    expect(sendFlow).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'OPEN_PATH' }));
+  });
+});

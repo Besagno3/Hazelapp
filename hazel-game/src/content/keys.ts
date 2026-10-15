@@ -37,7 +37,7 @@ export interface GateKey {
   fromZone: ZoneId;
   /**
    * The crystal zone whose Fiend gate this key unlocks — null while that zone
-   * isn't built yet (the First Chorus Key, #75 item 15d: Chorus Isle comes in 15f);
+   * isn't built yet (the First Chorus Key, #75 item 15d: Chorus Isle comes in 15g);
    * `opens` says what it's for meanwhile.
    */
   unlocksZone: ZoneId | null;
@@ -116,7 +116,7 @@ export const GATE_KEYS: GateKey[] = [
     door: 'silver door',
   },
   // Act III (#75 item 15d): the Compass Golem of the Wayfinder Isles keeps one
-  // of the two keys to Chorus Isle's gate (15f builds the isle and its double
+  // of the two keys to Chorus Isle's gate (15g builds the isle and its double
   // lock). Named as STORY-4X has it, `key-chorus-a`.
   {
     id: 'chorus-a',
@@ -132,6 +132,25 @@ export const GATE_KEYS: GateKey[] = [
     fromZone: 'wayfinder-isles',
     unlocksZone: null,
     opens: "It's one of two keys to a gate far out at sea. Keep it safe!",
+    fiendName: 'the Hush Fiend',
+  },
+  // Act III (#75 item 15e): the Riddle Leviathan of Inkwell Cove keeps the
+  // other key to Chorus Isle's gate (15g). It speaks only in riddles — its
+  // defeat line too (STORY-4X). `key-chorus-b`.
+  {
+    id: 'chorus-b',
+    name: 'Second Chorus Key',
+    emoji: '🎶',
+    bossId: 'riddle-leviathan',
+    bossName: 'The Riddle Leviathan',
+    bossIntro: [
+      'The black water on the point bubbles. A huge whale rises out of the ink, dripping words. A silver key glints on its tail.',
+      '"What has a key, but opens no lock?" it rumbles. "A PIANO! Ha! But MY key opens a gate. Answer my word-riddles, little reader, and it\'s yours!"',
+    ],
+    bossDefeat: '"What has been beaten, yet feels lighter? …Me. Take the key, little reader."',
+    fromZone: 'inkwell-cove',
+    unlocksZone: null,
+    opens: "It's one of the two Chorus Keys. Together they open a gate far out at sea!",
     fiendName: 'the Hush Fiend',
   },
 ];

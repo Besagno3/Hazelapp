@@ -6,7 +6,7 @@ import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
-import { chestRewardText, chestWantedLine, openChest } from '../../content/quests';
+import { chestRewardText, chestWantedLine, openChest, riddleSolvedLine, stepFlag } from '../../content/quests';
 import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
@@ -16,10 +16,12 @@ import type { PathTarget, Question } from '../../types';
 import ModalLayer from '../../components/ModalLayer';
 
 /**
- * "Questions along the path" (#37): a gatekeeper's challenge or a question-
- * locked treasure chest. One question at the player's topic skill level; a
- * correct answer opens the way / pops the chest, a miss closes gently
- * (walk back up and try again — no penalty, a new question each time).
+ * "Questions along the path" (#37): a gatekeeper's challenge, a question-
+ * locked treasure chest or a riddle step's tale-stone (#75 item 15e). One
+ * question at the player's topic skill level; a correct answer opens the way /
+ * pops the chest / finishes the step (and says where the next riddle is), a
+ * miss closes gently (walk back up and try again — no penalty, a new question
+ * each time).
  */
 export default function PathQuestionOverlay({ target }: { target: PathTarget }) {
   const profile = useProfileStore((s) => s.profile);
@@ -74,6 +76,9 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       if (target.kind === 'gate') {
         sfx('gate');
         update((s) => ({ ...s, flags: { ...s.flags, [gateFlag(target.id)]: true } }));
+      } else if (target.kind === 'riddle') {
+        sfx('gate');
+        update((s) => ({ ...s, flags: { ...s.flags, [stepFlag(target.id)]: true } }));
       } else {
         sfx('chest');
         // Coins, plus the quest item in a key-item chest (#75 item 13).
@@ -84,17 +89,25 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   );
 
   const title =
-    target.kind === 'gate' ? '🚧 The Gatekeeper blocks the path!' : '🎁 The chest asks a riddle!';
+    target.kind === 'gate'
+      ? '🚧 The Gatekeeper blocks the path!'
+      : target.kind === 'riddle'
+        ? '📜 The tale-stone asks a riddle!'
+        : '🎁 The chest asks a riddle!';
   const successText =
     target.kind === 'gate'
       ? 'The gate swings open!'
-      : `The chest pops open — ${chestRewardText(target.id)}`;
-  const wanted = target.kind === 'chest' && save ? chestWantedLine(save, target.id) : null;
+      : target.kind === 'riddle'
+        ? 'The stone glows!'
+        : `The chest pops open — ${chestRewardText(target.id)}`;
+  // Under the answer: who wants a key item (#75 item 13), or where the next riddle is (#75 item 15e).
+  const wanted =
+    target.kind === 'riddle' ? riddleSolvedLine(target.id) : target.kind === 'chest' && save ? chestWantedLine(save, target.id) : null;
 
   return (
     // Scrolls when a long riddle doesn't fit (a phone, landscape); the inner
     // column still centres when it does.
-    <ModalLayer label={target.kind === 'gate' ? 'Gate question' : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
+    <ModalLayer label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? 'Tale-stone riddle' : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
       <div className="min-h-full flex flex-col items-center justify-center">
         <motion.h2
           initial={{ y: -16, opacity: 0 }}
@@ -141,7 +154,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
             onContinue={() => sendFlow({ type: 'CLOSE' })}
             // A key item found before its quest (#75 item 13): say who wants it,
             // above the button, so it's read before the overlay closes.
-            note={target.kind === 'chest' ? (solved && wanted ? wanted : '') : undefined}
+            note={target.kind === 'chest' || target.kind === 'riddle' ? (solved && wanted ? wanted : '') : undefined}
           />
         )}
       </div>

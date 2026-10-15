@@ -866,6 +866,13 @@ def jelly(c: Canvas, p: Pose, s: dict):
     L.ellipse(12.5, 10, 2.5, 1.6, light(col, 0.3), shade=False)
     if s.get('zap'):
         L.poly([(24, 6), (27, 10), (25.5, 10), (28, 14), (23.5, 9.5), (25, 9.5)], '#ffe23a')
+    if s.get('qmark'):
+        # A Riddle Jelly (#75 item 15e): a glowing "?" floating over its bell.
+        L.line(13.5, 3.6, 15.5, 2.4, '#fff0a0', w=0.9)
+        L.line(15.5, 2.4, 17.6, 3.4, '#fff0a0', w=0.9)
+        L.line(17.6, 3.4, 16, 5.4, '#fff0a0', w=0.9)
+        L.line(16, 5.4, 16, 6.4, '#fff0a0', w=0.9)
+        L.dot(16, 7.8, '#fff0a0', w=1, h=1)
     d.eyes(L, [(x, 13) for x in face_x(p, [17, 20.5], [13.5, 17.5])])
     d.put(L)
     finish(c, d, shadow=(16, 30, 6, 1.5))
@@ -1443,6 +1450,16 @@ def whale(c: Canvas, p: Pose, s: dict):
     L.line(24, 22.5, 28, 22, dark(col, 0.45), w=0.6)
     if s.get('crown'):
         L.poly([(9, 13.5), (9, 9), (12, 11.5), (14.5, 7.5), (17, 11.5), (20, 8.5), (20, 13.5)], '#ff8fa3')
+    if s.get('qmarks'):
+        # The Riddle Leviathan (#75 item 15e): pale "?"s written along its inky side, a silver key on its tail.
+        for (x, y) in ((8.5, 18), (13, 16.5)):
+            L.line(x - 1, y - 1.4, x, y - 2.2, '#e8e0ff', w=0.7)
+            L.line(x, y - 2.2, x + 1.1, y - 1.4, '#e8e0ff', w=0.7)
+            L.line(x + 1.1, y - 1.4, x, y, '#e8e0ff', w=0.7)
+            L.dot(x, y + 1.2, '#e8e0ff', w=0.8, h=0.8)
+        L.ellipse(1.6, 16.6, 1.3, 1.3, '#d8dce8')
+        L.line(1.6, 17.8, 1.6, 21, '#d8dce8', w=0.7)
+        L.line(1.6, 20.4, 2.8, 20.4, '#d8dce8', w=0.6)
     jet = 4 if p.arm in ('raise', 'strike') else 2 + wave
     L.line(13.5, 12, 13.5, 12 - jet, '#9ae0ff', w=1.2)
     L.ellipse(11.5, 12 - jet, 2, 1.4, '#c8f0ff')
@@ -2972,6 +2989,10 @@ def kite_ray(c: Canvas, p: Pose, s: dict):
     B.poly([(16, 4 + flap * 0.3), (16, 22), (5, 14 + flap)], light(col, 0.12), shade=False)
     B.line(16, 4, 16, 22, dark(col, 0.25), w=0.5)  # the kite's cross-sticks
     B.line(5, 14 + flap, 27, 14 + flap, dark(col, 0.25), w=0.5)
+    if s.get('page'):
+        # A Page Ray (#75 item 15e): lines of writing across its paper wings.
+        for (x0, x1, y) in ((9, 14, 9.5), (18, 23, 9.5), (7.5, 13.5, 18), (18.5, 24.5, 18)):
+            B.line(x0, y + flap * 0.5, x1, y + flap * 0.5, '#5a6a9a', w=0.5)
     d.put(B)
     F = d.part(d.lean, d.bob - 3)  # a ray's face: big eyes and a smile
     if p.facing != 'up':
@@ -3335,9 +3356,18 @@ def nameless_stone(c: Canvas, p: Pose, s: dict):
     L.rect(9, 27, 23, 29.5, dark(col, 0.15))
     if d.sep:
         L.ellipse(13, 18, 1.6, 4, light(col, 0.12), shade=False)
-    for (dx, dy) in ((0, -1.6), (1.6, 0), (0, 1.6), (-1.6, 0)):  # the carved flower
-        L.ellipse(16 + dx, 12 + dy, 1.1, 1.1, dark(col, 0.3), shade=False)
-    L.dot(16, 12, light(col, 0.3))
+    if s.get('tale'):
+        # A tale-stone (#75 item 15e): lines of words carved down its face — gold once it glows.
+        ink = s.get('glow') or dark(col, 0.35)
+        for y in (13, 16, 19, 22, 25):
+            L.line(11.5, y, 20.5 if y % 2 else 18.5, y, ink, w=0.8)
+    else:
+        for (dx, dy) in ((0, -1.6), (1.6, 0), (0, 1.6), (-1.6, 0)):  # the carved flower
+            L.ellipse(16 + dx, 12 + dy, 1.1, 1.1, dark(col, 0.3), shade=False)
+        L.dot(16, 12, light(col, 0.3))
+    if s.get('glow'):
+        for (x, y) in ((7, 9), (25, 12), (6, 22), (26, 24), (16, 4.5)):
+            L.dot(x, y, s['glow'], w=1.2, h=1.2)
     d.put(L)
     finish(c, d, shadow=(16, 30.6, 8, 1.1))
 
@@ -3681,6 +3711,14 @@ ROSTER: list[Char] = [
     Char('kite-ray', '🎏', 'kite_ray', H(color='#e05050', bow='#ffd23a')),
     Char('squall-chick', '🐤', 'flyer', H(kind='bird', color='#ffd23a')),
     Char('compass-golem', '🗿', 'golem', H(color='#8a8a7a', accent='#d03a3a', glow='#ffd24a', runes=True, compass=True), boss=True),
+    # ── Act III: Taleshore II (words, #75 item 15e) ──
+    Char('word-eel', '🐍', 'serpent', H(color='#3aa088')),
+    Char('riddle-jelly', '🪼', 'jelly', H(color='#c08ae8', qmark=True)),
+    Char('page-ray', '📄', 'kite_ray', H(color='#f4ecd8', bow='#3a5ab0', page=True)),
+    Char('blot', '⚫', 'blob', H(color='#22223e')),
+    Char('cuttle-scribe', '🦑', 'octopus', H(color='#d8709a', ink=True)),
+    Char('margin-shrimp', '🦐', 'crab', H(color='#ff8a6a')),
+    Char('riddle-leviathan', '🐋', 'whale', H(color='#3a3a7a', qmarks=True), boss=True),
 ]
 
 NPCS: list[Char] = [
@@ -3816,6 +3854,15 @@ NPCS: list[Char] = [
     Char('gale-sough', '🌬️', 'humanoid', H(hair='long', hair_color='#d8e8f4', outfit='#6aa0c8', trim='#ffffff', robe=True, item='staff', item_color='#c8e0f0')),
     Char('gale-gully', '🕊️', 'flyer', H(kind='bird', color='#f07aa8')),
     Char('gale-tass', '🪁', 'humanoid', H(hair='short', hair_color='#a83a2a', hat='bandana', hat_color='#ffd23a', outfit='#e04a4a', apron='#f4e8c8', item='brush')),
+    # Taleshore II (#75 item 15e)
+    Char('reef-yarn', '🎏', 'humanoid', H(hair='bun', hair_color='#e8e0d0', hat='straw', hat_color='#e0c070', outfit='#3a8ab0', apron='#f4e8c8', item='rod', item_color='#8a6a3a')),
+    Char('reef-verse', '🧜', 'humanoid', H(hair='long', hair_color='#3ab0a0', outfit='#e86a9a', trim='#ffd860', pants='#2aa0a0')),
+    Char('reef-bloop', '🐠', 'puffer', H(color='#ff9a3a', belly='#fff2c8')),
+    Char('reef-stone', '🪨', 'nameless_stone', H(color='#a8b0b8', tale=True)),
+    Char('reef-stone-lit', '🪨', 'nameless_stone', H(color='#c8d4dc', tale=True, glow='#ffd84a')),
+    Char('ink-dot', '✒️', 'humanoid', H(hair='bob', hair_color='#2a2a3a', glasses=True, outfit='#3a3a6a', trim='#f4ecd8', item='book')),
+    Char('ink-smudge', '🦑', 'octopus', H(color='#6a5ab0', ink=True)),
+    Char('ink-bess', '🐚', 'humanoid', H(hair='long', hair_color='#e8a070', hat='bandana', hat_color='#3ab0a0', outfit='#e07a6a', apron='#f4e8d8', item='lantern')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

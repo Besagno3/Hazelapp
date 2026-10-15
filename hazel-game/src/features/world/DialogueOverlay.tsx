@@ -91,6 +91,14 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     if (service) sendFlow({ type: 'OPEN_SERVICE', service, npcId });
   }
 
+  // A riddle step's thing asks its question (#75 item 15e).
+  function askRiddle() {
+    const save = useSaveStore.getState().save;
+    if (!quest?.riddle || !save) return;
+    const topic = ZONES[save.zoneId]?.topic ?? 'words';
+    sendFlow({ type: 'OPEN_PATH', target: { kind: 'riddle', id: quest.riddle, topic, zoneId: save.zoneId } });
+  }
+
   function rowHome() {
     update(fetchBoatHome);
     setFetched(true);
@@ -135,10 +143,18 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               ⛵ Row her home
             </button>
           )}
+          {isLast && quest?.finishKind === 'riddle' && (
+            <button
+              onClick={advance}
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+            >
+              Not yet
+            </button>
+          )}
           {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}
           <button
             autoFocus
-            onClick={advance}
+            onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
           >
             {!isLast
@@ -149,7 +165,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
                   ? "I'm on it!"
                   : quest?.finishKind === 'step'
                     ? '✨ Got it!'
-                    : 'Bye!'}
+                    : quest?.finishKind === 'riddle'
+                      ? '📜 Hear the riddle'
+                      : 'Bye!'}
           </button>
         </div>
       </motion.div>

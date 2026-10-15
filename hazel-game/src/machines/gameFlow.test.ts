@@ -88,6 +88,13 @@ describe('gameFlowMachine', () => {
     expect(actor.getSnapshot().matches({ world: 'path' })).toBe(true);
     actor.send({ type: 'CLOSE' });
 
+    // A tale-stone asks its riddle from inside the dialogue (#75 item 15e).
+    actor.send({ type: 'TALK', npcId: 'reef-stone-1' });
+    actor.send({ type: 'OPEN_PATH', target: { kind: 'riddle', id: 'yarn-stone-1', topic: 'words', zoneId: 'story-reef' } });
+    expect(actor.getSnapshot().matches({ world: 'path' })).toBe(true);
+    expect(actor.getSnapshot().context.pathTarget?.kind).toBe('riddle');
+    actor.send({ type: 'CLOSE' });
+
     actor.send({ type: 'OPEN_MENU' });
     expect(actor.getSnapshot().matches({ world: 'menu' })).toBe(true);
     actor.send({ type: 'CLOSE' });

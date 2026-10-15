@@ -100,6 +100,12 @@ ZONES = {
                             sky=('#3a8ae0', '#e8f4ff'), far='#7aa8d8', mid='islets', water='#2a72c8'),
     'gale-atoll': dict(shore=True, no_hills=True, wind=True, ground=(140, 180, 110), path=(222, 200, 150), solid='palm', deco='flower', deco_c='#ff6a6a',
                        sky=('#5ab0f0', '#f0fbff'), far='#a8d0f0', mid='palms', water='#2aa0d8'),
+    # Taleshore II (#75 item 15e): a bright coral reef of tide pools and shells, and
+    # a cove of black, inky water under a dusky sky, pages blowing about.
+    'story-reef': dict(shore=True, no_hills=True, ground=(150, 184, 150), path=(222, 204, 160), solid='coral', deco='shell', deco_c='#ffb0c8',
+                       sky=('#3aa0e0', '#e0f8ff'), far='#8ac8e8', mid='islets', water='#2aa8c8'),
+    'inkwell-cove': dict(shore=True, ground=(112, 140, 120), path=(196, 180, 150), solid='rock', deco='pages', deco_c='#f4ecd8',
+                         sky=('#3a3a6a', '#b8a8d8'), far='#4a4a7a', mid='sea', water='#1e2240'),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -124,6 +130,10 @@ TALESHORE_ZONES = ('taleshore', 'port-lantern')
 # Added with Taleshore I (#75 item 15d) — `build_isles` writes only these
 # (+ the kite town sheet and the overworld sheet with three icons appended).
 ISLES_ZONES = ('driftwood-shallows', 'wayfinder-isles', 'gale-atoll')
+
+# Added with Taleshore II (#75 item 15e) — `build_reef` writes only these
+# (+ the shell town sheet and the overworld sheet with two icons appended).
+REEF_ZONES = ('story-reef', 'inkwell-cove')
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -282,6 +292,13 @@ def solid(kind, zone):
         c.line(3.4, 12, 13.4, 8.6, '#b4a690', w=0.4)
         c.ellipse(14.4, 8.1, 1.2, 1.6, '#c8bca6')
         c.poly([(7, 9.4), (6.2, 5.6), (7.6, 5.4), (8.4, 9)], '#d0c4ae')
+    elif kind == 'coral':
+        # The Story Reef (#75 item 15e): a branching pink coral on a pale rock.
+        c.ellipse(8, 14, 6, 2, '#c8b8a0')
+        for (x0, y0, x1, y1) in ((8, 14, 8, 4), (8, 10, 4, 5), (8, 9, 12.6, 3.6), (4.8, 6.6, 2.6, 3), (11.6, 5, 13.6, 2.4), (8, 6, 6.4, 2)):
+            c.line(x0, y0, x1, y1, '#ff7a90', w=1.6)
+        for (x, y) in ((8, 3.6), (4, 4.6), (12.8, 3.2), (2.6, 2.8), (13.6, 2.2), (6.4, 1.8)):
+            c.dot(x, y, '#ffc0c8', w=1.4, h=1.4)
     elif kind == 'pillar':
         c.rect(2, 13, 14, 16, '#9a8ad0')
         c.rect(4, 3, 12, 13, '#d8d0f8')
@@ -445,6 +462,8 @@ STYLES = {
     'harbor':    ('#5a4a3e', '#3aa0a8', 'planks',  'round',  'planks', ('#b88a5a',)),
     # Gale Atoll (#75 item 15d): Tass's kite stall — sun-bleached planks, bright kite-red trim.
     'kite':      ('#d8c8a0', '#e04a4a', 'planks',  'kite',   'planks', ('#c8a878',)),
+    # Inkwell Cove (#75 item 15e): Bess's shell shop — pale pink plaster set with shells, coral trim.
+    'shell':     ('#f4dcd0', '#e07a6a', 'shells',  'round',  'planks', ('#e0c8a0',)),
 }
 
 
@@ -517,6 +536,11 @@ def _wall_face(style, window=False, door=False):
         c.dot(4, 3, '#ff8fb8')
     elif pattern == 'timber':
         c.rect(0, 0, 1.5, 16, trim, shade=False)
+    elif pattern == 'shells':
+        # Bess's shop (#75 item 15e): little scallop shells pressed into the plaster.
+        for (x, y, col) in ((3, 5, '#ffb0a0'), (11, 4, '#ffe0b0'), (7, 10, '#f0a8c8'), (13, 11, '#ffb0a0'), (2, 12, '#ffe0b0')):
+            c.ellipse(x, y, 1.4, 1.1, col, shade=False)
+            c.dot(x, y + 0.6, dark(hexc(col), 0.25))
     elif pattern == 'bark':
         # A hollow ring-tree's wall (#75 item 14f): deep grooves and a knot.
         for x in (2, 6, 10, 13):
@@ -1356,6 +1380,28 @@ def ow_icon(kind):
             c.line(13.6, 4.6, x, y, '#3aa84a', w=0.9)
         for (x, y) in ((1.4, 5), (3.6, 3.4)):
             c.line(x, y, x + 2.6, y - 0.6, '#ffffff', w=0.3)  # wind
+    elif kind == 'reef':
+        # The Story Reef (#75 item 15e): pink coral in turquoise shallows, a rolled-up scroll on the sand.
+        c.ellipse(8, 11.4, 7.6, 4.4, '#3ac0d0')
+        c.ellipse(5.4, 9.6, 2.4, 0.7, '#b8f4f0', shade=False)
+        for (x0, y0, x1, y1) in ((5, 12, 5, 4.6), (5, 9, 2.6, 6), (5, 8, 7.4, 5.4), (11, 12.4, 11, 7), (11, 10, 13.4, 7.6)):
+            c.line(x0, y0, x1, y1, '#ff6a88', w=1.4)
+        for (x, y) in ((5, 4.4), (2.4, 5.8), (7.6, 5.2), (11, 6.8), (13.6, 7.4)):
+            c.dot(x, y, '#ffc0cc', w=1.2, h=1.2)
+        c.rect(6.4, 12.4, 12.6, 14.4, '#f4ecd0')  # the scroll
+        c.ellipse(6.4, 13.4, 0.9, 1.1, '#d8c8a0')
+        c.ellipse(12.6, 13.4, 0.9, 1.1, '#d8c8a0')
+        c.line(7.6, 13.4, 11.4, 13.4, '#8a6a4a', w=0.3)
+    elif kind == 'inkwell':
+        # Inkwell Cove (#75 item 15e): a round ink pot by black water, a white quill standing in it.
+        c.ellipse(8, 13.6, 7.6, 2.2, '#1e2240')
+        c.ellipse(4.4, 13.4, 2, 0.5, '#5a5a8a', shade=False)
+        c.ellipse(8, 10.4, 4.6, 3.6, '#2a2a4a')
+        c.rect(5.6, 5.6, 10.4, 8, '#2a2a4a')
+        c.rect(5, 5, 11, 6, '#8a8aa8')
+        c.ellipse(6.6, 9.4, 1, 1.6, '#5a5a8a', shade=False)  # a glint on the glass
+        c.poly([(9.4, 6), (14.6, 0.4), (15.4, 1.2), (10.4, 6.4)], '#f4f4f8')  # the quill
+        c.line(9.4, 6, 14.8, 0.8, '#c8c8d4', w=0.3)
     elif kind == 'harbor':
         # Port Lantern (#75 item 15c): a quay over blue water, a little house
         # behind it and a tall lantern post, lit.
@@ -1388,6 +1434,21 @@ def build_isles(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('kite')]).save(tdir / 'town-kite.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_reef(public: Path):
+    """Write only Taleshore II's art (#75 item 15e): the Story Reef's and Inkwell
+    Cove's tilesets, blend sheets and backdrops, the shell town sheet and the
+    overworld sheet with their two icons."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in REEF_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('shell')]).save(tdir / 'town-shell.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
 
 
@@ -1576,7 +1637,7 @@ def overworld_sheet():
     # frame keeps its place.
     return ([ow_mountain(), ow_sand(), ow_fog(0), ow_fog(1)] + [ow_icon(k) for k in OW_ICONS]
             + [ow_dock(), ow_icon('hill'), ow_icon('elder'), ow_icon('marsh'), ow_icon('archive'), ow_icon('roost'),
-               ow_icon('harbor'), ow_icon('beach'), ow_icon('compass'), ow_icon('atoll')])
+               ow_icon('harbor'), ow_icon('beach'), ow_icon('compass'), ow_icon('atoll'), ow_icon('reef'), ow_icon('inkwell')])
 
 
 # ─── Edge blending (#75, #71b): smooth coasts, beaches and roads ──────────────

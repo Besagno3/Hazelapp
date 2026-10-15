@@ -268,11 +268,22 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           key: chorusA,
         };
       }
+      // Taleshore II (#75 item 15e): the Riddle Leviathan's key, the other of the two.
+      const chorusB = keyForBoss('riddle-leviathan')!;
+      if (canFly(flags) && !flags[keyFlag(chorusB.id)]) {
+        return {
+          kind: 'key',
+          title: `Win the ${chorusB.name}`,
+          why: `${capitalize(midSentence(chorusB.bossName))} in Inkwell Cove guards the ${chorusB.name}. It talks only in riddles!`,
+          zoneId: chorusB.fromZone,
+          key: chorusB,
+        };
+      }
       return {
         kind: 'explore',
         title: flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[MET_GALE]
-          ? 'You won the First Chorus Key! A second key opens the same gate. Until it turns up, fly anywhere and help everyone on Taleshore!'
+          ? 'You hold both Chorus Keys! Their gate is far out at sea. Until you find it, fly anywhere and help everyone on Taleshore!'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -585,6 +596,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `You hold the ${goal.key.name}! It opens ${midSentence(goal.key.fiendName)}'s ${goal.key.door ?? 'gate'} in ${place(goal.crystal.zoneId)}. Free the ${goal.crystal.crystalName} there!`;
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-a') {
     plan = `On the Wayfinder Isles, out at sea north-west of Port Lantern, ${midSentence(goal.key.bossName)} guards the ${goal.key.name}. It knows every place in the world. Show it you do too!`;
+  } else if (goal.kind === 'key' && goal.key?.id === 'chorus-b') {
+    plan = `You have the First Chorus Key! The second waits in Inkwell Cove, on Taleshore's east coast. ${capitalize(midSentence(goal.key.bossName))} guards it, and it speaks only in riddles. Take the road north from Port Lantern, then turn east!`;
   } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
     // Act II's key (#75 item 14f): no Fiend to name yet.
     plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;
@@ -611,7 +624,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[MET_GALE]) {
-    plan = "You won the First Chorus Key! A second key opens the same gate. Until it turns up, help everyone you meet on Taleshore — they have plenty to do!";
+    plan = 'You hold both Chorus Keys! Together they open a gate far out at sea. Until you find it, help everyone you meet on Taleshore — they have plenty to do!';
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -633,6 +646,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "In the Archive, Quill Imps are so quick they strike first. Sage Chronicle's ⏳ Time Ripple makes an enemy lose its next turn!";
   } else if (goal.kind === 'key' && goal.key?.id === 'chorus-a') {
     tip = "Rest at the Driftlight Inn in Port Lantern first. On the isles, Latitude Cats muddle Hint Feathers — try a Glimmer Candle!";
+  } else if (goal.kind === 'key' && goal.key?.id === 'chorus-b') {
+    tip = "Barnacle Bess sells Hint Feathers in Inkwell Cove. In the cove, Cuttle-Scribes heal themselves — hit them hard!";
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {

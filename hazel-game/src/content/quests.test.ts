@@ -21,9 +21,11 @@ import {
   activeEscort,
   escortsAway,
   escortsBackLines,
+  riddleSolvedLine,
+  isRiddleStep,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
 import { normalizeSave } from '../lib/save';
 import { WALKABLE_CHARS, ZONES, litFlag, pathTargetId, tileAt } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -942,5 +944,56 @@ describe('Taleshore I quests (#75 item 15d)', () => {
     save = converse('port-skipper', save);
     expect(save.flags[questDoneFlag(quest)]).toBe(true);
     expect(save.coins).toBe(coins + 40);
+  });
+});
+
+describe("Yarn's Tallest Tale: a riddle chain (#75 item 15e)", () => {
+  const stones = ['reef-stone-1', 'reef-stone-2', 'reef-stone-3'];
+  const offered = () => converse('reef-yarn', { ...defaultSave(), zoneId: 'story-reef' });
+
+  it('three riddle steps, one per tale-stone, in order; each answer says where the next is', () => {
+    const quest = byId(YARN_QUEST);
+    expect(quest.steps.map((st) => st.id)).toEqual([...YARN_STONES]);
+    expect(quest.steps.map((st) => st.npc?.id)).toEqual(stones);
+    expect(quest.steps.every((st) => st.riddle)).toBe(true);
+    // Each right answer points at the next stone's place, and the last sends you home to Yarn.
+    expect(riddleSolvedLine(YARN_STONES[0])).toMatch(/far east side of the reef/);
+    expect(riddleSolvedLine(YARN_STONES[1])).toMatch(/sandbar/);
+    expect(riddleSolvedLine(YARN_STONES[2])).toMatch(/tell Yarn/);
+    expect(isRiddleStep(YARN_STONES[0])).toBe(true);
+    expect(isRiddleStep('juno-walk')).toBe(false);
+  });
+
+  it("a stone talked to on its turn asks its riddle — the step finishes only on the answer", () => {
+    const save = offered();
+    const convo = questConversation('reef-stone-1', save)!;
+    expect(convo.finishKind).toBe('riddle');
+    expect(convo.riddle).toBe(YARN_STONES[0]);
+    expect(convo.finish).toBeNull();
+    // Closing the talk without answering leaves the step open.
+    expect(activeStep(byId(YARN_QUEST), save)!.id).toBe(YARN_STONES[0]);
+  });
+
+  it('a stone out of turn says "not this one yet" and where the next chapter is; one before the quest has nothing to say', () => {
+    expect(questConversation('reef-stone-2', { ...defaultSave(), zoneId: 'story-reef' })).toBeNull();
+    const early = questConversation('reef-stone-3', offered())!;
+    expect(early.finishKind).toBeNull();
+    expect(early.lines[0]).toMatch(/^Not this one yet! The first chapter is on the tale-stone by the tide pool/);
+  });
+
+  it('answered in order, Yarn pays 45 coins and a Hint Feather', () => {
+    let save = offered();
+    for (const [i, id] of YARN_STONES.entries()) {
+      expect(questConversation(stones[i], save)!.riddle).toBe(id);
+      // The right answer (PathQuestionOverlay) sets the step's flag.
+      save = { ...save, flags: { ...save.flags, [stepFlag(id)]: true } };
+    }
+    const { coins, items } = save;
+    save = converse('reef-yarn', save);
+    expect(save.flags[questDoneFlag(byId(YARN_QUEST))]).toBe(true);
+    expect(save.coins).toBe(coins + 45);
+    expect(save.items.hint).toBe(items.hint + 1);
+    // A lit stone is just a stone again.
+    expect(questConversation('reef-stone-1', save)).toBeNull();
   });
 });

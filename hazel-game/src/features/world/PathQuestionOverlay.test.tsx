@@ -69,3 +69,27 @@ describe('PathQuestionOverlay — key-item chests (#75 item 13)', () => {
     expect(screen.getByRole('button', { name: /25 coins! 🪙/ })).toBeInTheDocument();
   });
 });
+
+describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
+  const stone: PathTarget = { kind: 'riddle', id: 'yarn-stone-1', topic: 'words', zoneId: 'story-reef' };
+
+  it('a right answer lights the stone (its step) and says where the next one is, above the button', async () => {
+    render(<PathQuestionOverlay target={stone} />);
+    expect(screen.getByRole('heading', { name: /tale-stone asks a riddle/ })).toBeInTheDocument();
+    fireEvent.click(await screen.findByText('Right'));
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBe(true);
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent(/far east side of the reef/);
+    const button = screen.getByRole('button', { name: /The stone glows!/ });
+    expect(status.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // No coins: a stone isn't a chest.
+    expect(useSaveStore.getState().save!.coins).toBe(0);
+  });
+
+  it('a wrong answer leaves it dim, with no clue', async () => {
+    render(<PathQuestionOverlay target={stone} />);
+    fireEvent.click(await screen.findByText('Wrong B'));
+    expect(useSaveStore.getState().save!.flags['quest-step:yarn-stone-1']).toBeUndefined();
+    expect(screen.getByRole('status')).toHaveTextContent('');
+  });
+});

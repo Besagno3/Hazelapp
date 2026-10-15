@@ -36,8 +36,10 @@ export const TEA_DAMAGE_MULT = 2;
  * and Tass's Kite Stall (Gale Atoll, an island with no inn — #75 item 15d review).
  * Glimmer Candles: Slosh's Raft Shop (Foglight Marsh) and Wick-Wax's (#75 item 15d review —
  * the Latitude Cats on the Wayfinder Isles are slippery too).
+ * Berry Potions and Hint Feathers: Barnacle Bess's Shell Shop (Inkwell Cove, #75 item 15e)
+ * too — the Riddle Leviathan's riddles are twisty, and Plus's Quill & Count is a sea away.
  */
-export const SHARED_STOCK: readonly ConsumableId[] = ['potion', 'candle'];
+export const SHARED_STOCK: readonly ConsumableId[] = ['potion', 'candle', 'hint'];
 
 /** Display info for each consumable (inventory, battle Items menu). */
 export const CONSUMABLES: Record<ConsumableId, { name: string; emoji: string; description: string }> = {
@@ -131,6 +133,16 @@ export const SHOPS: Record<string, ShopDef> = {
     items: [
       stock('potion', 30), // a fourth potion seller, far out at sea (SHARED_STOCK, 15d review)
       { id: 'badge:kite', name: 'Kite Badge', emoji: '🪁', description: 'A tiny kite that flaps whenever the wind blows. So, always.', price: 110 },
+    ],
+  },
+  // Taleshore II (#75 item 15e): Barnacle Bess's shell shop in Inkwell Cove.
+  'ink-bess': {
+    name: "Bess's Shell Shop",
+    emoji: '🐚',
+    items: [
+      stock('potion', 30), // a fifth potion seller (SHARED_STOCK)
+      stock('hint', 25), // a second Hint Feather seller (SHARED_STOCK)
+      { id: 'badge:shell', name: 'Barnacle Badge', emoji: '🐚', description: 'A shell with a barnacle on it. The barnacle came free.', price: 110 },
     ],
   },
   // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.
