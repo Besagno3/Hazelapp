@@ -1773,7 +1773,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       { text: "Welcome to Port Lantern! I'm Harbormaster Gale. I've never lost a ship. Misplaced one, yes. Twice.", setFlag: MET_GALE },
       "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.",
-      "Taleshore is just waking up to visitors. Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock loves visitors, too.",
+      "Taleshore is just waking up to visitors. Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock loves visitors!",
     ],
   },
   'port-skipper': {
@@ -1863,7 +1863,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       '📋 The Quest Board. Notices are pinned all over it.',
       'NEW IN TOWN? Say hello to Harbormaster Gale by the road in. Rest at the Driftlight Inn. Potions at Wick-Wax\'s Candle Shop.',
       "SOON: Skipper Juno's ferry, the Puffin, will sail again! Watch this board.",
-      'NOTICE: Letters for Lumina Village? Postmaster Pidge is ready to try again!',
+      'NOTICE: Postmaster Pidge is sending letters to Lumina Village at last!',
       'Check back soon for more notices!',
     ],
   },
@@ -1875,7 +1875,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     prop: true,
     stationary: true,
-    lines: ['📝 "Gone to meet the boats. Find me by the road into town! — Gale"'],
+    lines: ['📝 "Out saying hello to visitors! Find me by the road into town, on the east side. — Gale"'],
   },
   // Old Pike fishes off the north dock (15c review): Port Lantern's harbor has people on it.
   'port-fisher': {
@@ -1898,7 +1898,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "Hello, traveler! I'm Hob. I walk every road on Taleshore, and I've still not seen it all.",
-      "Out on the sea there are little islands, and a big empty atoll. When the ferry runs again, you'll see them!",
+      "Far out past the edge of the sea there are little islands. One day Skipper Juno's ferry will take you there!",
     ],
     ambient: ['Left foot, right foot…', 'What a view!', '🥾'],
   },
@@ -1915,7 +1915,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'An old stone covered in claw marks. Someone carved a dragon on it, curled round an egg.',
       'Tiny letters under it say: "When the fog came, the dragons flew away. The last one carried her egg down to the village, where the fog had not come yet."',
-      'Ember presses its nose to the carving and rumbles softly. That egg was Ember — the very egg YOU found!',
+      'Ember presses her nose to the carving and rumbles softly. That egg was Ember — the very egg YOU found!',
     ],
   },
 };

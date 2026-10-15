@@ -12,6 +12,7 @@ import {
   probePoints,
   promptText,
   pushOn,
+  pushTarget,
   scootPath,
   slideStep,
   cornerTarget,
@@ -153,6 +154,15 @@ describe('stepping aside for the hero (#127)', () => {
     expect(push!.t).toBeGreaterThanOrEqual(SCOOT_AFTER_S);
     expect(pushOn(push, 'moss', 0.1)).toEqual({ who: 'moss', t: 0.1 }); // someone else: from the start
     expect(pushOn(push, null, 0.1)).toBeNull(); // stopped, or turned away
+  });
+
+  it('pushes people, never things — a board, a lantern, a signpost (15c review round 4)', () => {
+    const thing = (id: string) => id === 'port-board';
+    const gale = { kind: 'npc', npcId: 'port-harbormaster' };
+    expect(pushTarget(gale, thing)).toBe(gale);
+    expect(pushTarget({ kind: 'npc', npcId: 'port-board' }, thing)).toBeNull();
+    expect(pushTarget({ kind: 'enemy' }, thing)).toBeNull();
+    expect(pushTarget(null, thing)).toBeNull();
   });
 
   it('in the open, they step a few cells off the line the hero walks', () => {

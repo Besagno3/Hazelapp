@@ -3629,7 +3629,7 @@ NPCS: list[Char] = [
     Char('port-postmaster', '🐦', 'humanoid', H(skin='#c8c8d4', snout='beak', beak='#e0a030', hat='cap', hat_color='#3a5aa8', outfit='#5a7ab0', pack='#a07040')),
     Char('port-storyteller', '📖', 'humanoid', H(hair='long', hair_color='#5a3a6a', hat='hood', hat_color='#7a3a6a', outfit='#a84a7a', trim='#ffd860', robe=True, item='book')),
     Char('port-fisher', '🎣', 'humanoid', H(hair='short', hair_color='#d8d8d8', beard='#e8e8e8', hat='straw', hat_color='#d8b860', outfit='#5a7a4a', pants='#4a4a6a', item='rod', item_color='#8a6a3a')),
-    Char('tale-rambler', '🥾', 'humanoid', H(hair='short', hair_color='#7a4a2a', hat='bandana', hat_color='#c84a3a', outfit='#a8784a', pants='#5a4a3a', pack='#6a8a4a', item='staff', item_color='#8a6a3a')),
+    Char('tale-rambler', '🥾', 'humanoid', H(hair='short', hair_color='#7a4a2a', hat='cap', hat_color='#3a7a4a', outfit='#a8784a', scarf='#3a6ab0', pants='#5a4a3a', pack='#6a8a4a', item='staff', item_color='#8a6a3a')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

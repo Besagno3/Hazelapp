@@ -415,7 +415,7 @@ describe('old saves load (#75 item 14b)', () => {
     });
     const out = [...open].some((k) => {
       const [x, y] = k.split(',').map(Number);
-      return z.exits.some((e) => e.x === x && e.y === y) || seaCrossing(z, x, y, ZONES) !== null;
+      return z.exits.some((e) => e.x === x && e.y === y) || seaCrossing(z, x, y, ZONES, s.flags) !== null;
     });
     expect(out, `${s.zoneId} from ${cellOf(pos).x},${cellOf(pos).y}`).toBe(true);
   });

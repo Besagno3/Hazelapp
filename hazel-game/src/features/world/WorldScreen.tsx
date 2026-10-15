@@ -268,7 +268,8 @@ export default function WorldScreen() {
   const archiveDue = zoneId === 'sunken-archive' && !flags[ARCHIVE_SEEN];
   const roostDue = zoneId === 'dragon-roost' && !flags[ROOST_SEEN];
   // Act III (#75 item 15c): the first time over Taleshore, flown in past the Great Fogbank.
-  const act3Due = (zoneId === 'taleshore' || zoneId === 'port-lantern') && !flags[ACT3_SEEN];
+  // Over Taleshore only: its last panel says to land and walk in (15c review round 4).
+  const act3Due = zoneId === 'taleshore' && !flags[ACT3_SEEN];
   // Ember's first flight (#75 item 15b): on a map Ember can fly over, where 🐉 Fly is.
   // Never from the boat: its "Tap 🐉 Fly" would point at a button that isn't there.
   const flightDue = canFly(flags) && !flags[FLIGHT_TUTORIAL_SEEN] && canFlyOver(ZONES[zoneId]) && save?.vehicle !== 'boat';

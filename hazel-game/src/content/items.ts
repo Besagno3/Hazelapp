@@ -117,7 +117,7 @@ export const SHOPS: Record<string, ShopDef> = {
     emoji: '🕯️',
     items: [
       stock('potion', 30), // third potion seller (SHARED_STOCK)
-      { id: 'badge:harbor', name: 'Harbor Light Badge', emoji: '⚓', description: 'A little anchor with a lantern on it. Ships find their way home by it.', price: 120 },
+      { id: 'badge:harbor', name: 'Harbor Light Badge', emoji: '⚓', description: 'A little anchor with a glowing lantern on it. Ships find their way home by its light.', price: 120 },
     ],
   },
   // Act II (#75 item 14e): Trader Knack's "pre-remembered" goods on Remembrance Hill.

@@ -1322,3 +1322,6 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1116 | U | ✅ | the boat at home, seen from Taleshore (#137j) | Port Lantern's menu map: "⛵ The Biscuit is waiting at Marlow's dock, on Dawnreach." — not "moored out" (WorldMapPanel.test) |
 | TC-1117 | U | ✅ | the 🚩 names the town, not the land (#137k) | after the Roost: "Fly to Port Lantern"; after Gale: "You found Taleshore! …" (wayfinding.test) |
 | TC-1118 | U | ✅ | no boat off a fogged edge (#137l) | `edgeCrossing(…, 'boat', {})` is null on every fogged east-edge row of the Shallows and no boat `reach` touches them; with the fog lifted a boat crosses and `flownLink` is false (zones.test); every inn's name reads "the … Inn" |
+| TC-1119 | U | ✅ | routes after the fog lifts (#137m) | with the Great Fogbank's flag set, the way to Gale from Lumina Village is "Sail east to the Silver Shallows, then sail east to Taleshore, then go …" (wayfinding.test) |
+| TC-1120 | U | ✅ | people are pushed, things aren't (#137m) | `pushTarget` returns a person, null for a board, an enemy or nothing (interact.test) |
+| TC-1121 | U | ✅ | flown into town (#137m) | flying to Port Lantern: "…then fly east to Taleshore, then fly … to Port Lantern, then land beside it and walk in." (wayfinding.test) |

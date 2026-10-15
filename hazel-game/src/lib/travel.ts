@@ -81,8 +81,7 @@ export function meetsHero(habitat: Habitat | undefined, mode: TravelMode): boole
  * A sea link only Ember crosses (#75 item 15c review): any link to or from
  * Taleshore, past the Great Fogbank — while the fog stands (given `flags`;
  * without them, as it stands today). Routes say "fly" across it, and the
- * menu map shows it once Ember can fly. (15g lifts the fog: routes will need
- * the flags then.)
+ * menu map shows it once Ember can fly; routes and the menu map pass the flags.
  */
 export function flownLink(from: ZoneId, to: ZoneId, flags: Record<string, boolean> | null = null): boolean {
   if (from !== 'taleshore' && to !== 'taleshore') return false;

@@ -129,6 +129,7 @@ import {
   probePoints,
   promptText,
   pushOn,
+  pushTarget,
   scootPath,
   slideStep,
   type Dir,
@@ -2636,7 +2637,7 @@ export default function WorldCanvas({
       }
       // Kept walking into someone in the way: they step aside (#127).
       // …never a thing (a quest board, a lantern, a signpost — 15c review).
-      push = pushOn(push, into?.kind === 'npc' && !isThing(NPC_DEFS[into.npcId!]) ? into : null, dt);
+      push = pushOn(push, pushTarget(into, (id) => isThing(NPC_DEFS[id])), dt);
       if (push && push.t >= SCOOT_AFTER_S) {
         scoot(push.who, intoDir);
         push = null;

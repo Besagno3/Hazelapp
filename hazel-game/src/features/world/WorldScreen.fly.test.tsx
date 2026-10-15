@@ -144,7 +144,7 @@ describe('🐉 Fly / 🛬 Land on the world HUD (#75 item 15b)', () => {
     vi.useFakeTimers();
     start('dawnreach', { [story.FLIGHT_FLAG]: true, [story.FLIGHT_TUTORIAL_SEEN]: false });
     render(<WorldScreen />);
-    expect(screen.getByText(/Ember stretches its wings/)).toBeInTheDocument();
+    expect(screen.getByText(/Ember stretches her wings/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fly on Ember' })).toBeNull();
     for (let i = 0; i < story.FLIGHT_PANELS.length - 1; i++) {
       act(() => vi.advanceTimersByTime(2000));
@@ -161,13 +161,13 @@ describe('🐉 Fly / 🛬 Land on the world HUD (#75 item 15b)', () => {
   it('waits while sailing: the tutorial points at a Fly button the boat doesn\'t have', () => {
     start('silver-shallows', { [story.FLIGHT_FLAG]: true, [story.FLIGHT_TUTORIAL_SEEN]: false }, 'boat');
     render(<WorldScreen />);
-    expect(screen.queryByText(/Ember stretches its wings/)).toBeNull();
+    expect(screen.queryByText(/Ember stretches her wings/)).toBeNull();
   });
 
   it('waits in a town: the tutorial plays only where Ember can fly', () => {
     start('lumina-village', { [story.FLIGHT_FLAG]: true, [story.FLIGHT_TUTORIAL_SEEN]: false });
     render(<WorldScreen />);
-    expect(screen.queryByText(/Ember stretches its wings/)).toBeNull();
+    expect(screen.queryByText(/Ember stretches her wings/)).toBeNull();
   });
 
   it('the first time over Taleshore, Act III opens — once (#75 item 15c)', () => {

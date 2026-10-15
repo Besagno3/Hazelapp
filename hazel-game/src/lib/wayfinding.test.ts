@@ -359,11 +359,16 @@ describe('routeSteps and goalDirections', () => {
   });
   it('on Ember, the way to Taleshore is flown over the Shallows and the Great Fogbank (#75 item 15c)', () => {
     const fly = nextObjective(roostVisited);
-    expect(goalDirections(ZONES, fly, 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then go .* to Port Lantern\.$/);
+    expect(goalDirections(ZONES, fly, 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then fly .* to Port Lantern, then land beside it and walk in\.$/);
     expect(goalDirections(ZONES, fly, 'dragon-roost')).not.toMatch(/sail/i);
   });
   it('the way back to Gale after a Return home is flown from the start (15c review round 2)', () => {
     expect(goalDirections(ZONES, nextObjective(taleshoreReached), 'lumina-village')).toMatch(/^Fly east to the Silver Shallows, then fly east to Taleshore, then /);
+  });
+  it('once the Great Fogbank lifts (15g), Taleshore is sailed to like anywhere else (15c review round 4)', () => {
+    const bank = ZONES['silver-shallows'].fogs!.find((f) => f.id === 'great-fogbank')!;
+    const lifted = { ...taleshoreReached, [bank.liftedBy[0]]: true };
+    expect(goalDirections(ZONES, nextObjective(lifted), 'lumina-village', undefined, lifted)).toMatch(/^Sail east to the Silver Shallows, then sail east to Taleshore, then go /);
   });
   it('from Taleshore, the way home is flown back over the Great Fogbank, whatever the goal (15c review)', () => {
     const hall = nextObjective({ ...storyDone, [HALL_DEDICATED]: false });

@@ -438,7 +438,7 @@ export const HALL_PANELS: StoryPanel[] = [
 export const FLIGHT_PANELS: StoryPanel[] = [
   {
     emoji: '🐉',
-    text: 'Ember stretches its wings — wide, wider, wider than ever. It looks back at you and dips one wing to the ground. Climb on!',
+    text: 'Ember stretches her wings — wide, wider, wider than ever. She looks back at you and dips one wing to the ground. Climb on!',
   },
   {
     emoji: '☁️',
@@ -595,7 +595,7 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
     },
     {
       emoji: '🐲',
-      text: 'Ember warms its claws on the glowing crystal and stretches, just a touch taller. Keep going!',
+      text: 'Ember warms her claws on the glowing crystal and stretches, just a touch taller. Keep going!',
     },
     {
       emoji: '🌑',
@@ -640,7 +640,7 @@ export const CRYSTAL_PANELS: Record<CrystalTopic, StoryPanel[]> = {
     {
       emoji: '🐉',
       text:
-        'Ember stretches its wings so wide the bookshelves rattle. Its wings beat — once, twice. ' +
+        'Ember stretches her wings so wide the bookshelves rattle. Her wings beat — once, twice. ' +
         'Strong enough to fly now! Ember looks at you and grins.',
     },
     {

@@ -2249,7 +2249,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [
       // Gale greets newcomers by the road in (15c review: the 🚩's first goal here).
       { defId: 'port-harbormaster', x: 31, y: 13 },
-      { defId: 'port-office-note', x: 12, y: 15 },
+      { defId: 'port-office-note', x: 13, y: 15 }, // beside the desk
       { defId: 'port-skipper', x: 6, y: 16 },
       { defId: 'port-merchant', x: 25, y: 3 },
       { defId: 'port-innkeeper', x: 13, y: 4 },

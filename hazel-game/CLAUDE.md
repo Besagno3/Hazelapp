@@ -755,6 +755,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15c review round 4: land and walk in, routes that know the fog (#75 item 15c, #137m)
+The last round. Fresh code review (6 low) and UX review (3 medium, 9 low),
+all fixed: `routeSteps` / `goalDirections` take the flags (sailed once 15g
+lifts the fog), `pushTarget` (lib/interact.ts) decides who a walk pushes,
+the journey passes flags to `seaCrossing`, Act III's panels only over
+Taleshore; the route says "fly … to Port Lantern, then land beside it and
+walk in", the explore line no longer promises secrets on an empty Taleshore,
+Gale's note tells the truth and stands by the desk, Ember is "her" in the
+flight lines, Hob has a cap and a scarf. Tests +3; 1210 green.
+
 ### 2026-10-15 — 15c review round 3: "Fly to Port Lantern", Umbra's real name (#75 item 15c, #137k)
 Fresh UX review (4 medium, 5 low), all fixed: the 🚩 says "Fly to Port
 Lantern" (it read "Fly to Taleshore" on Taleshore); panel 4 and Fable say

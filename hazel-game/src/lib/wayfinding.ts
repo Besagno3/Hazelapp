@@ -251,7 +251,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         return {
           kind: 'visit',
           title: 'Meet Harbormaster Gale',
-          why: "Harbormaster Gale knows everyone in Port Lantern. Say hello — Gale waits by the road into town!",
+          why: `Harbormaster Gale knows everyone in Port Lantern. Say hello — Gale waits by the road into town!${knowsFieldSpell('return', flags) ? ' 🏠 Return flies you straight there.' : ''}`,
           zoneId: 'port-lantern',
           doneFlag: MET_GALE,
           npc: 'port-harbormaster',
@@ -261,7 +261,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: 'Explore Lumina',
         why: flags[MET_GALE]
-          ? 'You found Taleshore! Fly anywhere, hunt for secrets ✨ and help everyone you meet.'
+          ? 'You found Taleshore! Its people are still getting ready for visitors. Until then, fly anywhere in Lumina, hunt for secrets ✨ and help everyone!'
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -395,6 +395,8 @@ export function routeSteps(
   from: ZoneId,
   to: ZoneId,
   at?: { x: number; y: number },
+  /** The story flags: once the Great Fogbank lifts (15g), Taleshore is sailed to (`flownLink`). */
+  flags: Record<string, boolean> | null = null,
 ): string[] | null {
   const route = routeTo(zones, from, to);
   if (!route) return null;
@@ -404,7 +406,7 @@ export function routeSteps(
   let stairsRun: { way: 'down' | 'up'; floors: number } | null = null;
   // A route over the Great Fogbank is flown all the way, on Ember: the seas
   // before and after it too — no boat waits on Taleshore (15c review).
-  const flying = route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to));
+  const flying = route.some(({ from: id, exit }) => zones[id].kind === 'overworld' && sails(zones, zones[id], exit) && flownLink(id, exit.to, flags));
   for (const { from: id, exit } of route) {
     const z = zones[id];
     const dest = zones[exit.to];
@@ -415,7 +417,9 @@ export function routeSteps(
     } else if (z.kind === 'overworld') {
       const o = origin ?? z.spawn;
       const dir = compass(exit.x - o.x, exit.y - o.y);
-      steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
+      // Still on Ember over Taleshore: say to land and walk in (15c review round 4).
+      if (flying && dir) steps.push(`fly ${dir} to ${placeName(dest)}, then land beside it and walk in`);
+      else steps.push(dir ? `go ${dir} to ${placeName(dest)}` : `step into ${placeName(dest)}`);
     } else if (dest.kind !== 'overworld') {
       const stairs = z.map[exit.y]?.[exit.x];
       const side = exitSide(z, exit);
@@ -456,6 +460,7 @@ export function goalDirections(
   goal: Objective,
   here: ZoneId,
   at?: { x: number; y: number },
+  flags: Record<string, boolean> | null = null,
 ): string {
   if (!goal.zoneId) return '';
   if (goal.zoneId === here) return `It's right here in ${placeName(zones[here])}!`;
@@ -464,9 +469,9 @@ export function goalDirections(
   const sea = overworldOf(zones, goal.zoneId);
   if (goal.at && (sea.id === goal.zoneId || overworldOf(zones, here).id !== sea.id)) {
     // Past the dock: just "sail east" to the sea itself, or on to a place out there.
-    const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at) ?? [];
+    const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at, flags) ?? [];
     const sail = beyond.length > 1 ? beyond.join(', then ') : 'sail east';
-    const steps = routeSteps(zones, here, goal.at.zoneId, at) ?? [];
+    const steps = routeSteps(zones, here, goal.at.zoneId, at, flags) ?? [];
     const route = routeTo(zones, here, goal.at.zoneId) ?? [];
     const last = route.length ? route[route.length - 1].exit : null;
     const from = here === goal.at.zoneId ? (at ?? zones[here].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
@@ -478,7 +483,7 @@ export function goalDirections(
     steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
     return sentence(steps);
   }
-  const steps = routeSteps(zones, here, goal.zoneId, at) ?? [];
+  const steps = routeSteps(zones, here, goal.zoneId, at, flags) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
   return sentence(goal.kind === 'fly' ? steps.map((st) => st.replace(/^sail /, 'fly ')) : steps);
 }
@@ -564,8 +569,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `All four crystals shine again! Now the Crystal Spire stands open, to the ${bearingFromHome(zones, 'crystal-spire') ?? 'south'} of our village. Climb it, floor by floor, and face what waits at the top.`;
   } else if (goal.kind === 'fly' && goal.zoneId === 'dragon-roost') {
     plan = "Five crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.";
-  } else if (goal.kind === 'fly') {
-    plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east, over the Silver Shallows. Beyond the fog lies Taleshore. They say its people never forgot a single story.";
+  } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
+    plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[MET_GALE]) {
     plan = "You've seen Taleshore! Visit its people any time, and help everyone you meet there too.";
   } else if (canFly(flags)) {
@@ -668,7 +673,7 @@ export function wayfindingLines(
   // A guide who IS the goal ("Meet Harbormaster Gale") points past it: by the
   // time their lines end, you've met them.
   if (goal.npc === npc.id && goal.doneFlag) goal = nextObjective({ ...flags, [goal.doneFlag]: true });
-  const how = goalDirections(zones, goal, home.zoneId, home);
+  const how = goalDirections(zones, goal, home.zoneId, home, flags);
   if (npc.signpost) {
     const read = signpostLines(zones[home.zoneId], home.x, home.y, flags).join('\n');
     return [read, goal.zoneId ? `🚩 Next: ${goal.title}. ${how}`.trim() : `🎉 ${goal.why}`];
