@@ -1280,9 +1280,14 @@ def dragon(c: Canvas, p: Pose, s: dict):
     if p.mouth == 'breath':  # a fire cone from the jaws to the frame edge
         fx, fy = hx + 7.5 * size, hy + 3.2 * size
         flick = 1.2 if p.frame % 2 else 0
-        head.poly([(fx, fy - 1.2), (32, fy - 4.5 - flick), (32, fy + 4.5 + flick), (fx, fy + 1.2)], '#ff6a2a')
-        head.poly([(fx, fy - 0.8), (32, fy - 2.6), (32, fy + 2.6), (fx, fy + 0.8)], '#ffb040')
-        head.poly([(fx, fy - 0.4), (31, fy - 1), (31, fy + 1), (fx, fy + 0.4)], '#fff2a0')
+        # Radiant Ember breathes starlight (15g review): gold and white, star specks in it.
+        outer, mid, core = ('#ffd040', '#fff4b0', '#ffffff') if stage == 'radiant' else ('#ff6a2a', '#ffb040', '#fff2a0')
+        head.poly([(fx, fy - 1.2), (32, fy - 4.5 - flick), (32, fy + 4.5 + flick), (fx, fy + 1.2)], outer)
+        head.poly([(fx, fy - 0.8), (32, fy - 2.6), (32, fy + 2.6), (fx, fy + 0.8)], mid)
+        head.poly([(fx, fy - 0.4), (31, fy - 1), (31, fy + 1), (fx, fy + 0.4)], core)
+        if stage == 'radiant':
+            for (sx, sy) in ((fx + 6, fy - 3), (fx + 11, fy + 2.6), (fx + 15, fy - 1.6)):
+                head.dot(sx, sy + (1 if p.frame % 2 else 0), '#ffffff')
     elif p.arm in ('strike',) or s.get('always_fire'):
         fx, fy = hx + 8 * size, hy + 2 * size
         head.poly([(fx, fy - 1.5), (fx + 5, fy - 3), (fx + 7, fy), (fx + 5, fy + 3), (fx, fy + 1.5)], '#ff8a2a')
@@ -3758,6 +3763,23 @@ def quill_imp(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(15, 30.4, 6, 1.1))
 
 
+def voice_crystal(c: Canvas, p: Pose, s: dict):
+    """The Crystal of Voices (#75 item 15g review round 3): a tall rose-gold gem on a
+    little stone, music notes rising off it, twinkling frame to frame."""
+    d = D(c, p)
+    L = d.part(0, d.bob)
+    L.rect(10, 26, 22, 30, '#8a8a96')  # the stone it stands on
+    L.poly([(16, 4), (22, 14), (19, 26), (13, 26), (10, 14)], '#ff8ab8')
+    L.poly([(16, 4), (16, 26), (13, 26), (10, 14)], '#ffc0dc', shade=False)
+    L.line(16, 4, 16, 26, '#ffffff', w=0.5)
+    up = 1 if p.frame % 2 else 0
+    for (x, y) in ((24, 8 - up), (6, 12 + up)):
+        L.ellipse(x, y, 1.2, 0.9, '#ffe070', shade=False)
+        L.line(x + 1, y, x + 1, y - 3, '#ffe070', w=0.6)
+    d.put(L)
+    finish(c, d, shadow=(16, 30.8, 6, 1))
+
+
 def hush_fiend(c: Canvas, p: Pose, s: dict):
     """The Hush Fiend (#75 item 15g): a big grey pillow of a Fiend with stitched
     seams and tassels, cross sleepy-angry eyes, one huge finger to its lips —
@@ -3775,21 +3797,19 @@ def hush_fiend(c: Canvas, p: Pose, s: dict):
     for x in range(6, 27, 3):
         L.dot(x, 18.6, dark(col, 0.25))  # stitches
     if p.facing != 'up':
-        # Cross, heavy-lidded eyes.
-        for (x, tilt) in ((11.6, 1), (20.4, -1)):
-            L.ellipse(x, 12.6, 2.4, 1.6, '#ffffff', shade=False)
-            L.ellipse(x, 13.2, 1.0, 1.0, '#3a2a5a', shade=False)
-            L.rect(x - 2.6, 10.8, x + 2.6, 12.4, col, shade=False)  # the lids, half shut
-            L.line(x - 2.8, 10.4 - tilt, x + 2.8, 10.4 + tilt, '#4a3a6a', w=0.8)
-        # A pursed little mouth, and the huge finger to its lips.
-        L.ellipse(16, 16.4, 1.6, 1.0, '#5a3a5a', shade=False)
+        # Narrow, glaring eyes under heavy, slanting brows (15g review: it looked sleepy).
+        for (x, tilt) in ((11.4, 1), (20.6, -1)):
+            L.ellipse(x, 12.8, 2.4, 1.0, '#ffffff', shade=False)
+            L.ellipse(x, 12.9, 0.9, 0.8, '#2a1a4a', shade=False)
+            L.line(x - 3, 10.6 - tilt * 1.4, x + 3, 10.6 + tilt * 1.4, '#2a1a4a', w=1.0)
+        # Closed lips, pressed thin…
+        L.line(12.6, 18, 19.4, 18, '#3a2050', w=0.9)
         if not p.hurt:
-            L.rect(15.2, 10 - sway, 16.8, 17, '#e8d8c8')
-            L.ellipse(16, 10 - sway, 0.9, 0.8, '#f4e8dc', shade=False)
-        # A speaker with a cross over it, stitched on its tummy.
-        L.poly([(12, 22), (14, 22), (16.4, 20), (16.4, 26), (14, 24), (12, 24)], '#5a5470')
-        L.line(18, 21, 21.4, 25, '#e04a4a', w=0.8)
-        L.line(21.4, 21, 18, 25, '#e04a4a', w=0.8)
+            # …and a big hand pressing one finger across them: SHHH.
+            L.ellipse(16, 22.6, 3.4, 2.6, '#f0dcc8')  # the fist
+            L.rect(14.9, 13.6 - sway, 17.1, 21, '#f0dcc8')  # the finger, up over the lips
+            L.ellipse(16, 13.6 - sway, 1.1, 0.9, '#f8ece0', shade=False)  # its nail
+            L.line(14.9, 13.6 - sway, 14.9, 21, '#c8a890', w=0.4)
     # Little stubby arms reaching to shush.
     arm = {'strike': 4, 'follow': 2}.get(p.arm, 0)
     for (x0, side) in ((4, -1), (28, 1)):
@@ -3903,6 +3923,7 @@ DRAWERS = {
     'quill_imp': quill_imp,
     'hollow_fiend': hollow_fiend,
     'hush_fiend': hush_fiend,
+    'voice_crystal': voice_crystal,
 }
 
 
@@ -4224,6 +4245,7 @@ NPCS: list[Char] = [
     Char('chorus-brio', '🎻', 'humanoid', H(hair='short', hair_color='#e8e8e8', hat='beret', hat_color='#c8304a', outfit='#2a2a3a', trim='#ffd860', item='violin')),
     Char('chorus-coda', '👧', 'humanoid', H(hair='bob', hair_color='#3a2a1a', outfit='#ffd040', trim='#ff6a8a', pants='#5a7ad0', tune=True)),
     Char('chorus-cadence', '👴', 'humanoid', H(hair='fringe', hair_color='#c8c8d0', beard='#e0e0e8', outfit='#3a4a8a', trim='#ffd860', robe=True, item='wand', item_color='#f4f4f4')),
+    Char('chorus-crystal', '💎', 'voice_crystal'),
     Char('chorus-trill', '🐦', 'flyer', H(kind='bird', color='#ffd040', tune=True)),
     Char('chorus-do', '🧒', 'humanoid', H(hair='spiky', hair_color='#c84a2a', outfit='#4a8ad0', trim='#ffffff', pants='#2a3a6a')),
     Char('chorus-re', '👧', 'humanoid', H(hair='ponytail', hair_color='#c84a2a', outfit='#5ab04a', trim='#ffffff', pants='#2a3a6a')),

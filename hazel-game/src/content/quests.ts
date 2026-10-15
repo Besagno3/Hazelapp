@@ -371,7 +371,7 @@ const SALT_GLASS = [
  */
 const NESS_RUMORS = [
   "Sea critters splash about out there now. They only bother boats, and you can always steer round them. On the sand you're as safe as a shell!",
-  "East, past everything, sits the Great Fogbank. Don't sail into it. Even the gulls go around.",
+  "East, past everything, is the Great Fogbank. Mind how you go out there — even the gulls are careful!",
   'Up on the north coast is Foglight Marsh. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!',
 ];
 
@@ -1261,7 +1261,7 @@ export const QUESTS: QuestDef[] = [
     offer: [
       "Shh… hello. I'm Shush, keeper of the Quiet Quarter's books.",
       'I have a pen-pal far away: Librarian Sage, in Lumina Village. We wrote every week — until the fog came.',
-      'Would you carry my letter across the sea? Ember can fly over the fog. The post boats can\'t.',
+      'Would you carry my letter across the sea, on Ember? It\'s far too precious for the post!',
     ],
     givesItem: 'shush-letter',
     takesItems: ['sage-letter'],
@@ -1314,7 +1314,7 @@ export const QUESTS: QuestDef[] = [
         'coda-sing-brio',
         'chorus-brio',
         [
-          '🌅 You sing the Sunrise Refrain… Maestro Brio plays along on his violin, very softly. "That\'s the one! We woke the whole island with it!"',
+          '🌅 You sing the Sunrise Refrain… Maestro Brio plays along on his violin! "That\'s the one! We woke the whole island with it!"',
           'Next, sing the Noon Refrain to Sage Aria, in the Music Hall across the road.',
         ],
         'You found all three! Sing the Sunrise Refrain to Maestro Brio, at the Resting Note Inn.',
@@ -1323,7 +1323,7 @@ export const QUESTS: QuestDef[] = [
         'coda-sing-aria',
         'sage-aria',
         [
-          '☀️ You sing the Noon Refrain… Aria hums the harmony, very softly. ♪ Oh, how I MISSED that one! ♪',
+          '☀️ You sing the Noon Refrain… Aria hums the harmony. ♪ Oh, how I MISSED that one! ♪',
           '♪ The last one is the bedtime song… Sing it to Coda, by her cottage! ♪',
         ],
         "Sing the Noon Refrain to Sage Aria, in Aria's Music Hall.",
@@ -1333,7 +1333,7 @@ export const QUESTS: QuestDef[] = [
     doneLine: 'Last of all, sing the Bedtime Refrain to Coda, by her cottage!',
     complete: [
       '🌙 You sing the Bedtime Refrain… Coda sings it with you, very softly. Then she yawns. Then she giggles.',
-      'All three songs, home again! The hush can\'t take a song you remember. When the Hush Fiend is gone, we\'ll sing them OUT LOUD!',
+      'All three songs, home again! The hush can\'t take a song you remember. Nobody can hush them away now!',
       '✨ Reward: 45 coins and a Berry Potion!',
     ],
     reward: { coins: 45, potion: 1 },

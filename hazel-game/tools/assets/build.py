@@ -74,7 +74,7 @@ CLIFFS_SPRITES = ('echo-bat', 'chime-gull', 'drum-crab', 'hushling', 'muffle-mot
                   'cliff-hum', 'songstone', 'songstone-rung', 'quiet-shush', 'quiet-mime', 'quiet-sotto')
 
 # Chorus Isle's Fiend, people and Radiant Ember (#75 item 15g), for `build.py chorus`.
-CHORUS_SPRITES = ('hush-fiend', 'sage-aria', 'chorus-brio', 'chorus-coda', 'chorus-cadence', 'chorus-trill', 'chorus-do', 'chorus-re', 'chorus-baritone', 'ember-radiant')
+CHORUS_SPRITES = ('hush-fiend', 'sage-aria', 'chorus-brio', 'chorus-coda', 'chorus-cadence', 'chorus-trill', 'chorus-do', 'chorus-re', 'chorus-baritone', 'chorus-crystal', 'ember-radiant')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',

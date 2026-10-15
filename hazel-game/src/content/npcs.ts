@@ -1781,7 +1781,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     guide: true,
     lines: [
       { text: "Welcome to Port Lantern! I'm Harbormaster Gale. I've never lost a ship. Misplaced one, yes. Twice.", setFlag: MET_GALE },
-      "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.",
+      { text: "A dragon, over the Great Fogbank! Nobody has come from that side in years. We kept every lantern lit, just in case.", unlessFlag: crystalFlag('words') },
+      { text: "I heard Chorus Isle singing from my dock! And the fog's thinned — boats sail in from the Silver Shallows again. I'm sailing over this summer!", ifFlag: crystalFlag('words') },
       { text: 'Talk to everyone, and check the Quest Board in the square. Skipper Juno on the south dock needs a brave friend!', unlessFlag: questOfferedFlag({ id: JUNO_QUEST }) },
       { text: "Talk to everyone, and check the Quest Board in the square. And thank you for looking after Juno!", ifFlag: questOfferedFlag({ id: JUNO_QUEST }) },
       'Gale Atoll, out at sea? No relation! It\'s just VERY windy out there.',
@@ -1849,7 +1850,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "Coo! Postmaster Pidge. I carry letters over hills and over sea. But never over the fog. Until now!",
-      "I've years of letters for Lumina Village. Now a dragon's found the way, maybe they'll finally get there!",
+      { text: "I've years of letters for Lumina Village. Now a dragon's found the way, maybe they'll finally get there!", unlessFlag: crystalFlag('words') },
+      { text: 'The fog has thinned — the post boats sail again! Coo! My sack has never been so heavy.', ifFlag: crystalFlag('words') },
       { text: "Shush's letters? Far too precious for my sack — you carry them, dragon-rider!", ifFlag: questOfferedFlag({ id: SHUSH_QUEST }), unlessFlag: questDoneFlag({ id: SHUSH_QUEST }) },
     ],
     ambient: ['Coo!', 'Letters! Letters!', '✉️'],
@@ -1918,6 +1920,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Every stone on these cliffs hums. Put your ear to one and listen!',
       { text: 'High, middle, low — hear it? The cliffs sing again, every evening.', ifFlag: questDoneFlag({ id: RESO_QUEST }) },
+      { text: 'Chorus Isle is singing again — I can hear it from up here! My choir is learning their songs.', ifFlag: crystalFlag('words') },
     ],
   },
   'cliff-echo': {
@@ -2027,6 +2030,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Shh. Books are the loudest thing in the world, when you read them in your head.',
       { text: 'Five kittens! I\'m writing back right now. Shh — I\'m thinking.', ifFlag: questDoneFlag({ id: SHUSH_QUEST }) },
+      { text: 'The Hush Fiend is gone, and everyone is SO loud now. Shh! …Oh, all right. Hooray. (Quietly.)', ifFlag: crystalFlag('words') },
     ],
   },
   'quiet-mime': {
@@ -2433,7 +2437,19 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'Tweet-tweedle-tweet-… I only remember HALF my song. The Hush Fiend shushed the rest. Tweet-…?', unlessFlag: crystalFlag('words') },
       { text: 'Tweet-tweedle-tweet-TWEEEE! I remember the WHOLE song now! Tweedle!', ifFlag: crystalFlag('words') },
     ],
-    ambient: ['Tweet-tweedle-…', '♪ …?', '🐦'],
+    ambient: ['Tweet-tweedle!', '♪', '🐦'],
+  },
+  // The Crystal of Voices, ringing in the empty hollow once it's freed.
+  'chorus-crystal': {
+    id: 'chorus-crystal',
+    name: 'Crystal of Voices',
+    sprite: '💎',
+    role: 'villager',
+    prop: true,
+    stationary: true,
+    lines: [
+      '💎 The Crystal of Voices hums. Put your ear close: every song on Taleshore is in it — and one small voice, far away.',
+    ],
   },
   // Do and Re: twins who only ever say half a sentence each.
   'chorus-do': {
@@ -2469,6 +2485,6 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'Now I hum. Hmmmmm. The fish are not impressed.', unlessFlag: crystalFlag('words') },
       { text: 'BOOOOM-bom-bom! The fish are back! They LOVE the low notes.', ifFlag: crystalFlag('words') },
     ],
-    ambient: ['Hmmmmm…', 'Bom.', '🎣'],
+    ambient: ['Bom.', '🎣'],
   },
 };

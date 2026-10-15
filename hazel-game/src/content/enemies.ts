@@ -219,7 +219,7 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   ringkeeper: ['The Ringkeeper lowers its antlers and paws the ground!', 'The Ringkeeper bellows: "A THOUSAND YEARS, and nobody got past me!"'],
   'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
   'hollow-fiend': ['The Hollow Fiend yawns open — the pages round you start to go blank!', 'The Hollow Fiend howls: "I will EAT tomorrow too!"'],
-  'hush-fiend': ['The Hush Fiend puffs up like a big grey pillow — every sound goes muffled!', 'The Hush Fiend hisses: "SHHHHHH! Not ONE more word!"'],
+  'hush-fiend': ['The Hush Fiend puffs up like a big purple pillow — every sound goes muffled!', 'The Hush Fiend hisses: "SHHHHHH! Not ONE more word!"'],
   'compass-golem': ['The Compass Golem spins its needle — NORTH, SOUTH, NORTH!', 'The Compass Golem booms: "ALL DIRECTIONS LEAD TO ME!"'],
   // It speaks only in riddles (STORY-4X), even when it's angry.
   'riddle-leviathan': [

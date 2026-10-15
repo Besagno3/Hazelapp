@@ -2863,6 +2863,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'chorus-do', x: 16, y: 21 },
       { defId: 'chorus-re', x: 17, y: 21 },
       { defId: 'chorus-baritone', x: 17, y: 25 },
+      // Where the Hush Fiend sat, the Crystal of Voices rings once it's freed (15g review round 3).
+      { defId: 'chorus-crystal', x: 21, y: 4, ifFlag: 'crystal-words-restored' },
     ],
     enemies: [
       // The west grass.
