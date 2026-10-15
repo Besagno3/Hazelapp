@@ -1372,3 +1372,4 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1166 | U | ✅ | 📚 Library still delivers Shush's letter (#140h) | holding the letter, Sage's last line → 📚 Library: the reply in hand, the step done, the Library opens (DialogueOverlay.test) |
 | TC-1167 | U | ✅ | song quests are whole songs (#140i) | every quest with song steps has `wrongNote`; its song steps run from the first to the end (quests.test) |
 | TC-1168 | U | ✅ | a song stone before its song is due (#140j) | a stand-in quest with a talk step first: the high stone says "Not this one yet! Talk to Hum first.", nothing un-done (quests.test) |
+| TC-1169 | M | ⬜ | the cliffs read as a climb (#140k) | on the canvas: the two-row walls read as one cliff face, the ramps as grey steps, both flights clear of critters |

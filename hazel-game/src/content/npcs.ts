@@ -1843,7 +1843,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "Coo! Postmaster Pidge. I carry letters over hills and over sea. But never over the fog. Until now!",
       "I've years of letters for Lumina Village. Now a dragon's found the way, maybe they'll finally get there!",
-      { text: "Shush's letter? Far too precious for my sack — you carry it, dragon-rider!", ifFlag: questOfferedFlag({ id: SHUSH_QUEST }), unlessFlag: questDoneFlag({ id: SHUSH_QUEST }) },
+      { text: "Shush's letters? Far too precious for my sack — you carry them, dragon-rider!", ifFlag: questOfferedFlag({ id: SHUSH_QUEST }), unlessFlag: questDoneFlag({ id: SHUSH_QUEST }) },
     ],
     ambient: ['Coo!', 'Letters! Letters!', '✉️'],
   },
@@ -1980,7 +1980,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     // Says which stone is next until that one rings too (15f review).
     lines: [
-      { text: '🔔 The middle songstone is still ringing. Last: the LOW songstone, on the bottom ledge just west of Reso!', unlessFlag: stepFlag(RESO_STONES[2]) },
+      { text: '🔔 The middle songstone is still ringing. Last: the LOW songstone — go down the west steps, just west of Reso!', unlessFlag: stepFlag(RESO_STONES[2]) },
       { text: '🔔 The middle songstone is still ringing: DOOONG! A middle note, humming on and on.', ifFlag: stepFlag(RESO_STONES[2]) },
     ],
   },

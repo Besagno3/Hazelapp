@@ -1024,9 +1024,10 @@ def flyer(c: Canvas, p: Pose, s: dict):
         L.poly([(9.6, 19), (6.4, 20), (9.6, 21)], '#2a2230')
     if s.get('scarf'):
         # A Muffle Moth (#75 item 15f): wrapped in a woolly scarf, so its wings make no sound.
-        for i, x in enumerate(range(11, 21, 2)):  # a red-and-green striped scarf, wide enough to see on the map
-            L.rect(x, 13, x + 2, 16, '#d03a3a' if i % 2 == 0 else '#3a9a4a')
-        L.rect(17.4, 15.6, 19.6, 21, '#d03a3a')
+        L.rect(11, 13, 21, 16, '#9a9aa4')  # a grey woolly scarf, wide enough to see on the map
+        L.rect(17.4, 15.6, 19.6, 21, '#9a9aa4')
+        for x in (12.4, 15, 17.6):
+            L.line(x, 13.2, x, 15.8, '#7a7a84', w=0.4)  # its knit
     d.put(L)
     finish(c, d, shadow=(16, 30.5, 5.5, 1.3))
 
@@ -1114,7 +1115,8 @@ def blank_sprite(c: Canvas, p: Pose, s: dict):
     L.poly([(22, 7), (24, 22), (20.6, 19.4), (19.6, 9)], dark(col, 0.08))
     L.poly([(8, 8), (11.4, 8.2), (8.4, 11.4)], dark(col, 0.18))  # a curled corner
     for y in (11.4, 20.4, 22.4):
-        L.line(10.6, y, 21.4, y - 0.4, '#c8d8f0', w=0.4)  # faint ruled lines: a blank page
+        L.line(10.6, y, 21.4, y - 0.4, '#5a8ad8', w=0.6)  # clear blue ruled lines: a blank page
+    L.poly([(8, 8), (13, 8.2), (8.6, 13.4)], '#d8d8e0')  # a big folded corner
     for x in (13.6, 18):
         L.dot(x, 14.6, '#3a3a4a', w=1.4, h=1.4)  # round dot eyes (15f review: not a skull)
     L.line(14.4, 17.4, 15.8, 18.2, '#c86a7a', w=0.5)  # a small smile
@@ -1564,8 +1566,8 @@ def ghost(c: Canvas, p: Pose, s: dict):
         # warm finger that shows on its pale body, and a little "shh" squiggle).
         mx = ex[0] + 1.6
         L.line(mx - 2.2, 17, mx + 2.2, 17, dark(col, 0.6), w=1.0)
-        L.line(mx, 22, mx, 14.4, '#e8b088', w=2.4)  # a big finger to its lips (round 3: it showed only in battle)
-        L.ellipse(mx, 22.8, 2.4, 2, '#e8b088')
+        L.line(mx, 18.6, mx, 14.6, '#e8b088', w=1.8)  # a short finger at its lips (round 4: not a long stripe)
+        L.ellipse(mx, 19.6, 2.2, 1.8, '#e8b088')  # and a little hand
         if d.sep:
             for i in range(3):
                 L.line(25 + i * 1.2, 9 + (i % 2), 26 + i * 1.2, 8 - (i % 2), dark(col, 0.4), w=0.5)
@@ -3616,7 +3618,7 @@ def nameless_stone(c: Canvas, p: Pose, s: dict):
         L.ellipse(13, 18, 1.6, 4, light(col, 0.12), shade=False)
     if s.get('notes'):
         # A songstone (#75 item 15f): music notes carved down its face — gold once it's rung.
-        ink = s.get('glow') or dark(col, 0.35)
+        ink = s.get('glow') or '#f4f8ff'  # white notes on the dim stone (15f round 4: it read as a gravestone)
         for (x, y) in ((13, 17), (18, 24)):  # two big ♪ (15f review: they read as a lightning bolt)
             L.ellipse(x, y, 2.2, 1.7, ink, shade=False)
             L.line(x + 1.9, y, x + 1.9, y - 6, ink, w=0.9)
@@ -4001,7 +4003,7 @@ ROSTER: list[Char] = [
     Char('chime-gull', '🔔', 'flyer', H(kind='bird', color='#f4f4f8', wing='#c8d0dc', bell=True)),
     Char('drum-crab', '🥁', 'crab', H(color='#e8a05a', drum=True)),
     Char('hushling', '🤫', 'ghost', H(color='#a8c8f0', eye='#2a3a5a', hush=True)),
-    Char('muffle-moth', '🦋', 'flyer', H(kind='moth', color='#6a5a4a', wing='#f0e4cc', spot='#c86a6a', scarf=True)),
+    Char('muffle-moth', '🦋', 'flyer', H(kind='moth', color='#6a5a4a', wing='#fbf4e4', spot='#d8c8a8', scarf=True)),
     Char('blank-sprite', '⬜', 'blank_sprite', H(color='#f4f4f0')),
 ]
 

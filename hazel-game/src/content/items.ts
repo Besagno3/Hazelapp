@@ -36,8 +36,8 @@ export const TEA_DAMAGE_MULT = 2;
  * and Tass's Kite Stall (Gale Atoll, an island with no inn — #75 item 15d review).
  * Glimmer Candles: Slosh's Raft Shop (Foglight Marsh) and Wick-Wax's (#75 item 15d review —
  * the Latitude Cats on the Wayfinder Isles are slippery too).
- * Glimmer Candles too at Sotto's Whisper Shop (the Quiet Quarter, #75 item 15f), a short
- * flight from the Wayfinder Isles' slippery Latitude Cats.
+ * Glimmer Candles too at Sotto's Whisper Shop (the Quiet Quarter, #75 item 15f), for the
+ * slippery Latitude Cats out on the Wayfinder Isles.
  * Berry Potions and Hint Feathers: Barnacle Bess's Shell Shop (Inkwell Cove, #75 item 15e)
  * too — the Riddle Leviathan's riddles are twisty, and Plus's Quill & Count is a sea away.
  */

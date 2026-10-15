@@ -1039,7 +1039,7 @@ describe('Taleshore III quests (#75 item 15f)', () => {
     let save = converse('songstone-high', onCliffs());
     // The low stone before the middle one: a wrong note.
     const wrong = questConversation('songstone-low', save)!;
-    expect(wrong.lines[0]).toMatch(/^🔔 BWOOONG! A wrong note — the song starts again from the top! First the HIGH songstone/);
+    expect(wrong.lines[0]).toMatch(/^🔔 BWOOONG! Wrong note — start again from the top! First the HIGH songstone/);
     save = wrong.finish!(save);
     for (const id of RESO_STONES) expect(save.flags[stepFlag(id)], id).toBeFalsy();
     expect(activeStep(byId(RESO_QUEST), save)!.id).toBe(RESO_STONES[0]);
@@ -1086,7 +1086,7 @@ describe('Taleshore III quests (#75 item 15f)', () => {
     }
   });
 
-    it("Reso's own reminder for the low stone says \"me\", the quest log names her", () => {
+  it("Reso's own reminder for the low stone says \"me\", the quest log names her", () => {
     let save = onCliffs();
     save = converse('songstone-high', save);
     save = converse('songstone-middle', save);

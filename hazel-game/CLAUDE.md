@@ -770,6 +770,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-15 — 15f review round 4: a seamless cliff, grey steps (#75 item 15f, #140k)
+The last round. Fresh code (1 low, 2 nits) and UX (1 medium, 8 low, 1 nit)
+reviews, all fixed but one kept (a lip and shadow per wall row needs the
+engine to know a cell's neighbours): a seamless cliff face, grey stone steps,
+white notes on the dim stones, clearer critters, the way down to the low
+stone, Reso says press Space, Pidge and Shush's lines. 1265 green.
+
 ### 2026-10-15 — 15f review round 3: one tall cliff, steps with walls (#75 item 15f, #140j)
 Fresh code (1 low, 2 nits) and UX (2 medium, 11 low) reviews, all fixed but
 one kept (rounded ramp ends): a cliff tile that stacks into one face, walled

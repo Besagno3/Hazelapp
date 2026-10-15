@@ -108,7 +108,7 @@ ZONES = {
                          sky=('#3a3a6a', '#b8a8d8'), far='#4a4a7a', mid='sea', water='#1e2240'),
     # Taleshore III (#75 item 15f): windy grey cliffs of humming stone and music notes,
     # and a hushed old quarter of grey-blue stone, lavender and still water at dusk.
-    'songstone-cliffs': dict(steps=True, ground=(118, 132, 116), path=(176, 166, 140), solid='cliff', deco='note', deco_c='#f0d870',
+    'songstone-cliffs': dict(steps=True, ground=(118, 132, 116), path=(168, 168, 176), solid='cliff', deco='note', deco_c='#f0d870',
                              sky=('#5a8ad8', '#f0e8ff'), far='#8a9ac0', mid='mountain', water='#4a8ad0'),
     'quiet-quarter': dict(ground=(120, 136, 140), path=(170, 170, 180), solid='hedge', deco='flower', deco_c='#c8a8f0',
                           sky=('#3a4a7a', '#c0b8d8'), far='#5a5a80', mid='houses', water='#4a6a8a'),
@@ -192,14 +192,13 @@ def path_tile(base, steps=False):
     c = _c()
     _speckle(c, base, 99, density=0.12, tufts=False)
     if steps:
-        # Carved stone steps (15f review: Songstone Cliffs' ramps read as a climb).
+        # Grey stone steps (15f review): treads that darken going down, a light front edge
+        # on each — no side walls, so a two-wide flight has no seam down its middle.
         for i, y in enumerate(range(0, T, 4)):
-            tread = dark(base, 0.05 * i)  # treads darken going down
+            tread = dark(base, 0.06 * i)
             c.a[y:y + 4, :, :3] = tread
-            c.a[y, :, :3] = dark(base, 0.4)
-            c.a[y + 1, :, :3] = light(tread, 0.15)
-        c.a[:, 0, :3] = dark(base, 0.3)  # side walls
-        c.a[:, T - 1, :3] = dark(base, 0.3)
+            c.a[y + 3, :, :3] = dark(base, 0.4)
+            c.a[y, :, :3] = light(tread, 0.2)
         return c
     rnd = random.Random(7)
     for _ in range(4):
@@ -241,16 +240,14 @@ def solid(kind, zone):
         c.ellipse(8, 10, 7, 5.5, '#9a8a7a')
         c.ellipse(6, 8, 3, 2, '#b8a898')
     elif kind == 'cliff':
-        # Songstone Cliffs (15f review): a cliff face that fills the tile and stacks
-        # seamlessly — two rows read as one tall cliff, not two fences. Grey rock with
-        # long cracks that run on through the next tile, lighter ledges of stone.
-        c.rect(0, 0, 16, 16, '#74747e')
-        for (y0, y1) in ((2, 3.2), (9, 10.2)):
-            c.rect(0, y0, 16, y1, '#8e8e98', shade=False)  # bands of lighter stone
-        for (x0, y0, x1, y1) in ((4, 0, 3, 7), (3, 7, 5, 16), (11, 0, 12.4, 9), (12.4, 9, 11, 16)):
-            c.line(x0, y0, x1, y1, '#4a4a56', w=0.6)
-        for (x, y) in ((7.6, 5), (14, 13), (1.6, 12.4)):
-            c.dot(x, y, '#5a5a66', w=1.4, h=1)
+        # Songstone Cliffs (15f review): a cliff face that fills the tile and stacks with
+        # no seam — no bands, cracks that run off the top and bottom edges into the next
+        # tile — so two rows read as one tall cliff.
+        c.rect(0, 0, 16, 16, '#76767f')
+        for (x0, y0, x1, y1) in ((4, 0, 3, 7), (3, 7, 4, 16), (11, 0, 12.4, 9), (12.4, 9, 11, 16), (7.6, 3, 8.4, 12)):
+            c.line(x0, y0, x1, y1, '#50505c', w=0.6)
+        for (x, y) in ((5.6, 4), (9.6, 13), (14, 6), (1.4, 11)):
+            c.dot(x, y, '#8c8c96', w=1.6, h=1)
     elif kind == 'hedge':
         c.ellipse(8, 9, 7.5, 6.5, '#3a8a4a')
         c.ellipse(5, 7, 3, 2.5, '#4aa05a')

@@ -1212,11 +1212,11 @@ export const QUESTS: QuestDef[] = [
     offer: [
       "Ah, a listener! I'm Choir-Mistress Reso.",
       'These cliffs sing a song on three songstones — high, middle, low. But the song is stuck!',
-      'Strike them in order: the HIGH one on the top ledge, then the MIDDLE, then the LOW one down here. A wrong note? We just start again!',
+      'Walk up to each stone and press Space to ring it: the HIGH one on the top ledge, then the MIDDLE, then the LOW one down here. A wrong note? We just start again!',
     ],
     wrongNote: {
       early: '🔔 Bwong… not yet!',
-      again: '🔔 BWOOONG! A wrong note — the song starts again from the top!',
+      again: '🔔 BWOOONG! Wrong note — start again from the top!',
     },
     steps: [
       songStep(
@@ -1228,8 +1228,8 @@ export const QUESTS: QuestDef[] = [
       songStep(
         RESO_STONES[1],
         'songstone-middle',
-        ['🔔 DOOONG! Two notes ring together! Last: the LOW songstone, on the bottom ledge just west of Reso.'],
-        'Next the MIDDLE songstone — on the middle ledge, to the east.',
+        ['🔔 DOOONG! Two notes ring together! Last: the LOW songstone — go down the west steps. It\'s just west of Reso.'],
+        'Next the MIDDLE songstone — on the middle ledge, near the east steps.',
       ),
       songStep(
         RESO_STONES[2],
@@ -1261,7 +1261,7 @@ export const QUESTS: QuestDef[] = [
     ],
     givesItem: 'shush-letter',
     takesItems: ['sage-letter'],
-    doneLine: "Take Sage's reply back to Librarian Shush in the Quiet Quarter! Cast 🏠 Return to Port Lantern, then go east off the south road.",
+    doneLine: "Take Sage's reply back to Librarian Shush! Cast 🏠 Return to Port Lantern, go down the south road, then turn east into the woods.",
     steps: [
       bringStep(
         'shush-deliver',
