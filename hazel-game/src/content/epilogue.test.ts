@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { ZONES } from './zones';
+import { ZONES, npcPresent } from './zones';
 import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
 import { EPILOGUE, EPILOGUE_PARTS } from './epilogue';
 import { UMBRA_NAMED } from './questFlags';
 import type { DialogueLine } from './npcs';
+import { QUESTS, questConversation } from './quests';
+import { questDoneFlag } from './questFlags';
+import { defaultSave } from '../lib/save';
+import { fullJourney } from '../lib/journey';
 
-/** Placed people (not props or signposts) who still stand somewhere once her name is said. */
+/** The story flags once the whole story is played (#75 item 16f). */
+const END = fullJourney().flags;
+
+/** Placed people (not props or signposts) who still stand somewhere once the whole story is played. */
 function peopleAfterTheName(): string[] {
   const ids = new Set<string>();
   for (const z of Object.values(ZONES)) {
     for (const p of z.npcs ?? []) {
       const def = NPC_DEFS[p.defId];
-      // Present once `umbra-named` is set, whatever their other flag (a hand-over between two spots).
-      if (def && !isThing(def) && p.unlessFlag !== UMBRA_NAMED) ids.add(p.defId);
+      if (def && !isThing(def) && npcPresent(p, END)) ids.add(p.defId);
     }
   }
   return [...ids].sort();
@@ -54,14 +60,18 @@ describe('the epilogue (#75 item 16f)', () => {
     }
   });
 
-  it('it comes first, before their usual lines (someone 16e already gave a line keeps theirs)', () => {
+  it('it comes last, after their usual lines (someone 16e already gave a line keeps theirs)', () => {
     for (const [id, text] of Object.entries(EPILOGUE)) {
-      const lines = NPC_DEFS[id].lines;
-      if (lines.some((l) => lineText(l) === text)) {
-        expect(lineText(visibleLines(lines, { [UMBRA_NAMED]: true })[0]), id).toBe(text);
-      } else {
-        expect(visibleLines(lines, { [UMBRA_NAMED]: true }).some(afterName), id).toBe(true);
-      }
+      const lines = visibleLines(NPC_DEFS[id].lines, END);
+      expect(lines.some(afterName), id).toBe(true);
+      if (NPC_DEFS[id].lines.some((l) => lineText(l) === text)) expect(lineText(lines.at(-1)!), id).toBe(text);
     }
+  });
+
+  it('the dialogue box gets to it: once their quests are done, nobody speaks a quest instead', () => {
+    // A quest's own talk speaks first (DialogueOverlay), so a giver says it once their quest is done.
+    const allDone = Object.fromEntries(QUESTS.map((q) => [questDoneFlag(q), true]));
+    const save = { ...defaultSave(), flags: { ...END, ...allDone } };
+    for (const id of peopleAfterTheName()) expect(questConversation(id, save), id).toBeNull();
   });
 });

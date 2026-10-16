@@ -2977,7 +2977,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       // The epilogue (#75 item 16f): the name the hero picked sticks (STORY-4X §6).
       { text: '*Pickles drops a daisy at your feet, very proud, and wags so hard he falls over again.*', ifFlag: ['dog-named-pickles', UMBRA_NAMED] },
       { text: '*Captain carries a daisy like a flag and marches it all the way to you.*', ifFlag: ['dog-named-captain', UMBRA_NAMED] },
-      { text: '*Sir Wigglesworth presents you a daisy with a deep, deep bow. Then a deeper wiggle.*', ifFlag: ['dog-named-wigglesworth', UMBRA_NAMED] },
+      { text: '*Sir Wigglesworth presents you with a daisy with a deep, deep bow. Then a deeper wiggle.*', ifFlag: ['dog-named-wigglesworth', UMBRA_NAMED] },
       { text: '*The dog sniffs the warm, golden air, then runs a happy circle round you. Every name feels like his today.*', ifFlag: UMBRA_NAMED, unlessFlag: ['dog-named-pickles', 'dog-named-captain', 'dog-named-wigglesworth'] },
     ],
     // Every child in old Lumina called this dog something different (STORY-4X §6).
@@ -3075,9 +3075,12 @@ function saysAfterName(l: DialogueLine): boolean {
 }
 
 // The epilogue (#75 item 16f): once her name is said, everyone has something to
-// say about it — first, before their usual lines. Someone 16e already gave such a
-// line keeps theirs.
+// say about it — last, after their usual lines (so a first hello, or the setup of
+// a joke it pays off, still comes first), and only once any quest of theirs is
+// done (a quest's own talk always speaks first). Someone 16e already gave a line
+// that plays whenever `umbra-named` is set keeps theirs (`saysAfterName` — the
+// form it looks for is `ifFlag: UMBRA_NAMED` with no other condition).
 for (const [id, text] of Object.entries(EPILOGUE)) {
   const def = NPC_DEFS[id];
-  if (def && !def.lines.some(saysAfterName)) def.lines.unshift({ text, ifFlag: UMBRA_NAMED });
+  if (def && !def.lines.some(saysAfterName)) def.lines.push({ text, ifFlag: UMBRA_NAMED });
 }

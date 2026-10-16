@@ -283,11 +283,9 @@ describe('the whole story, start to finish (#75 item 16f, the Phase 5 exit)', ()
     expect(end[NAME_LEARNED] && end[UMBRA_NAMED] && end[MET_HALL_ASTER]).toBe(true);
     expect(nextObjective(end).kind).toBe('explore');
   });
-  it('…and at the end, everyone with an epilogue line says it', () => {
+  it('…and at the end, every epilogue line is there to be said', () => {
     for (const [id, text] of Object.entries(EPILOGUE)) {
-      const lines = visibleLines(NPC_DEFS[id].lines, end);
-      expect(lines.some((l) => typeof l !== 'string' && [l.ifFlag].flat().includes(UMBRA_NAMED)), id).toBe(true);
-      if (NPC_DEFS[id].lines.some((l) => typeof l !== 'string' && l.text === text)) expect(lines.some((l) => typeof l !== 'string' && l.text === text), id).toBe(true);
+      expect(visibleLines(NPC_DEFS[id].lines, end).map((l) => (typeof l === 'string' ? l : l.text)), id).toContain(text);
     }
   });
 });

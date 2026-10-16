@@ -12,7 +12,7 @@ export const EPILOGUE_SEA: Readonly<Record<string, string>> = {
   'marsh-puddle': "Ribbit! Yesterday I was a tadpole. Today I learned a new name: Aster! Tomorrow I'll teach it to every frog in the Marsh.",
   'marsh-slosh': "Everybody wants a raft to Remembrance Hill now, to see Aster's name on the first plaque. Busiest I've ever been — and the happiest!",
   // The Sunken Archive
-  'sage-chronicle': "Hoo. A last footnote: 'Aster came home, and nobody forgot her again.' (Footnote to the footnote: see also: you.)",
+  'sage-chronicle': "Hoo. One more footnote: 'Aster came home, and nobody forgot her again.' (Footnote to the footnote: see also: you.)",
   'archive-index': "I made a brand-new card today and filed it right at the front. A is for Aster! First Sage, first in my catalog.",
   'archive-binder': 'Guests whisper one name over their cocoa now: Aster. The books don\'t even mind. Quietest happy inn in Lumina.',
   'archive-traveler': 'My name was on page four hundred. Hers was in all our hearts the whole time. We only had to say it. Ahoy, Aster!',
@@ -21,9 +21,9 @@ export const EPILOGUE_SEA: Readonly<Record<string, string>> = {
   'archive-margin': "I found a footnote that says 'Aster'. I did NOT nibble it. See also: too important to eat.",
   'archive-leaf': 'Everyone is smiling in the stacks today. Even me — and I fetched the wrong book again! Some days, nothing can go wrong.',
   // Lumina-That-Was (a memory: warm, not too sure of the future)
-  'memory-young-lumen': "Our teacher hummed all morning. She says one day somebody will say her name just right. I hope it's me! …Or maybe you.",
-  'memory-fair': 'Everything feels brighter today, like morning in an old memory. Here, take a smile. It\'s free — memories always are.',
-  'memory-young-wick': "The bread didn't burn today! Not even a little. Something good happened, I can feel it. Smells like ADVENTURE… and toast.",
+  'memory-young-lumen': "Our teacher hummed all morning! She says a happy day is coming. I hope it's soon!",
+  'memory-fair': "Everything feels brighter today, like morning in an old memory. Here, take a smile — today's come with a daisy!",
+  'memory-young-wick': "Something good happened today, I can feel it! I'm so happy, I didn't even mind when the bread burned. Again!",
   'class-prim': 'Desks in rows. Chalk in its box. And Aster at the front of the class, where she belongs. Lessons may run late today. I shall allow it.',
   // The Deep Root
   'root-glimmer': 'My sister Glim says the very bottom of the Root glows gold now. My little light feels brighter too. Thank you for being so brave!',

@@ -1,9 +1,9 @@
 /** Epilogue lines (#75 item 16f): what each person says once Aster's name is said (`umbra-named`). */
 export const EPILOGUE_TALESHORE: Readonly<Record<string, string>> = {
-  'tale-rambler': "I've walked every road on Taleshore, and today they all feel lighter. A whole world remembered someone. What a view!",
+  'tale-rambler': "Every road on Taleshore feels lighter today, and I should know — I've worn out three pairs of boots on them. What a view!",
   'port-harbormaster': "Aster! We kept every lantern lit for years, just in case. I suppose we were waiting for her, too. Still never lost a ship!",
-  'port-skipper': "You found a name in the dark? And I was scared of one little storm! When the Puffin gets her sails, I'll name a cabin for Aster.",
-  'port-merchant': "A candle for Aster in my window tonight. And if Grandmother Wick asks, I made it myself. No relation. Certainly not my cousin.",
+  'port-skipper': "You went all the way down in the dark to find a name? So brave! Next time the Puffin sails, she'll have a cabin called Aster.",
+  'port-merchant': "A candle for Aster in my window tonight. The best wax I've got — and that's saying something, for a Wick-Wax.",
   'port-innkeeper': "Fish stew for the hero who brought Aster home! Every lantern in the Driftlight Inn is shining a little brighter tonight.",
   'port-netmender': "Some stories in my loft had a knot with no name. I always knew one was missing. Now I can tie it: Aster.",
   'port-lamplighter': "I lit an extra lantern tonight. That one's for Aster, so she always finds her way home. Can I pat the dragon again?",
@@ -37,7 +37,7 @@ export const EPILOGUE_TALESHORE: Readonly<Record<string, string>> = {
   'chorus-do': "We made a new round! I start, 'Who was the first Sage?'—",
   'chorus-re': "—and I finish: 'Her name is Aster!' Do always starts. I always finish. That's the best part!",
   'chorus-baritone': "BOOOM… Aster. I sang it as low as I could. The fish came to listen. Even they look glad.",
-  'chart-chartmaker': "I've written the name back on my oldest map, beside the little schoolhouse. Not just '…ter' now. Aster! A chart is never finished, you know.",
+  'chart-chartmaker': "I've written the name back on my oldest map, beside the little schoolhouse. Not just '…ter' now — Aster!",
   'chart-pen': "Squawk! New name on the chart! A-S-T-E-R! Shiny name! Pen likes shiny name! Squawk!",
   'chart-inka': "I mixed a brand new ink for the Chartmaker to write her name with. Golden, like the Root's Heart. I'm calling it Aster-gold!",
 };

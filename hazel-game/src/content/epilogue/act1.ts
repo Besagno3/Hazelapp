@@ -7,7 +7,7 @@ export const EPILOGUE_ACT1: Readonly<Record<string, string>> = {
   'numbria-tea-merchant': 'Sit, sit! I poured an extra cup today, just in case Aster drops by. A Sage that old surely likes her tea warm.',
   'numbria-teacher': 'I wrote ASTER at the top of the chalkboard. The class asked who she was. I said: the first teacher of all. Gold stars for everyone!',
   'numbria-kid': 'Uno says the shadow turned back into a Sage. I counted backwards to check. Three, two, one… still a Sage! Hooray for Aster!',
-  'numbria-sundial': 'My shadows all point the right way now. Even the one on the west hill. Funny how a name can fix a shadow.',
+  'numbria-sundial': "My shadows look friendlier today. Funny how a name, said kindly, can cheer up even a shadow.",
   'numbria-innkeeper': 'I measured the warm feeling in town today. Twice. It is exactly the right size — and growing.',
   'numbria-traveler': "I've walked every road, and every single one feels a little brighter. Maybe that's what remembering does. Fourth pair of boots, here I come!",
   'woods-hermit': 'The trees finished remembering, little one. They were trying to remember her all along. Aster. The bravest answer you ever gave.',
@@ -22,12 +22,12 @@ export const EPILOGUE_ACT1: Readonly<Record<string, string>> = {
   'verdara-beekeeper': 'Bzz-listen! The bees found daisies blooming everywhere. A daisy for Aster, they hum. Even bees remember now.',
   'verdara-kid': "No more snack emergencies! The shadow is Aster again, and everybody's smiling. I'm sharing my whole stash to celebrate. Best day ever!",
   'verdara-botanist': 'Fascinating! A whole forgotten Sage, back from the roots up. Science AND remembering — the best experiment of all!',
-  'verdara-innkeeper': "The moss pillows feel extra soft tonight. Everyone's sleeping well now that nothing down below is lonely.",
+  'verdara-innkeeper': "The moss pillows feel extra soft tonight. Everyone sleeps well now that Aster is home and happy.",
   'verdara-traveler': "I don't collect names — just buttons. But I'd trade all four hundred and twelve to hear that one said again. Aster!",
   'depths-tinker': 'Every gear down here turned over and smiled. Machines never really forget, you know. They were so glad to hear her name again: Aster.',
   'depths-echo': 'Aster… Aster… Aster… For once I love how my words come back. That is a name worth hearing three times.',
-  'depths-warden-sign': 'Tick— tick. My springs feel lighter. The old shadow was never a monster, friend. Only somebody who got forgotten.',
-  'mine-miner': "Every lamp in the mine is lit, and the dark doesn't scare me anymore. Turns out the dark was just sad. Now it's not!",
+  'depths-warden-sign': "Tick— tick. My springs feel lighter. The old shadow just needed somebody to remember it, friend. You did.",
+  'mine-miner': "Aster's home! I feel so brave today, I might even peek into the dark. …Just a teeny peek.",
 
   // Gearfall Canyon
   'sage-cog': 'Lumina was a machine missing its very first gear. You found it. Aster turns with the rest of us now, and everything runs smooth.',
@@ -40,7 +40,7 @@ export const EPILOGUE_ACT1: Readonly<Record<string, string>> = {
   'gearfall-innkeeper': "Quiet as ever here, but it's a happy quiet now. The kind you get after a long, hard job is finally done.",
   'gearfall-traveler': 'Special delivery! …For Aster, this time. A letter from everybody, saying welcome home. I checked twice. It is really not for me!',
   'coast-fisher': 'The fish came home, the stars came home, and now the first Sage came home too. Not a single boot in my net today.',
-  'coast-stargazer': 'A new star rose tonight, golden as a daisy. I did not have to name it. It already knew its name: Aster.',
+  'coast-stargazer': "Every star has a question for a name. Tonight one old question finally got its answer: Aster. The whole sky looks pleased.",
   'coast-warden-sign': 'Psst — the tide brought in a daisy this morning. Out here, that means somebody far away got found.',
 
   // Chromaria
@@ -48,7 +48,7 @@ export const EPILOGUE_ACT1: Readonly<Record<string, string>> = {
   'chromaria-villager': 'I painted Aster today. Then I painted her again. And again! I am going to paint her EVERYWHERE.',
   'chromaria-merchant': 'Eight arms, and all eight waving hello to Aster! Today, a hug is on the house.',
   'chromaria-mirror-merchant': 'Clever, no? The mirrors show a little gold in everyone today. That is what a happy world looks like.',
-  'chromaria-curator': 'A new portrait for the Grand Gallery, darling: Aster, Sage of the First Light. Every painting here is rescued now. Every single one.',
+  'chromaria-curator': "A new portrait for the Grand Gallery, darling: Aster, with a daisy behind her ear. I hung it in the very best light.",
   'chromaria-musician': 'La la LAAA! Gray was a sigh, but gold is a lullaby. I wrote it for Aster, and it ends with her name.',
   'chromaria-kid': 'I made a statue of a girl holding a daisy. I am not hiding this one. It goes right in the middle of town!',
   'chromaria-innkeeper': 'I made a brand-new quilt, all gold. Who is it for? A Sage who was forgotten far too long. Yes, she can have two.',
