@@ -955,37 +955,37 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-16 — 16f code review round 4: a guard with no side doors (#75 item 16f, #156k)
+### 2026-10-16 — 16f code review round 4: a guard with no side doors (#75 item 16f, #157k)
 The last round's code review found nothing real; its nit fixed: the epilogue
 guard accepts extra flags on a closing line only for the dog's name. 1567
 green; `bench … journey` 13/13, `bench … fly` 20/20.
 
-### 2026-10-16 — 16f UX review round 4: the last lows (#75 item 16f, #156j)
+### 2026-10-16 — 16f UX review round 4: the last lows (#75 item 16f, #157j)
 The last round's UX review (no high or medium; 7 low, 8 nits), all fixed:
 14 closing lines reworded so none repeats, contradicts or sells what isn't
 there. 1567 green.
 
-### 2026-10-16 — 16f code review round 3: the Roost's seam (#75 item 16f, #156i)
+### 2026-10-16 — 16f code review round 3: the Roost's seam (#75 item 16f, #157i)
 Fresh code review: no findings, two nits fixed — the whole story allows the
-Roost's flag at the Act II–III seam only; ISSUES #156's count of 16e things.
+Roost's flag at the Act II–III seam only; ISSUES #157's count of 16e things.
 
-### 2026-10-16 — 16f UX review round 3: lines that read on (#75 item 16f, #156h)
+### 2026-10-16 — 16f UX review round 3: lines that read on (#75 item 16f, #157h)
 Fresh UX review (1 medium, 6 low, nits), all fixed: 11 closing lines
 rewritten (no blank plaques "left", nothing a guide says again right after,
 fewer candles in Port Lantern), and two 16e lines (Posy, Aurora). 1567 green.
 
-### 2026-10-16 — 16f code review round 2: tests that can fail (#75 item 16f, #156g)
+### 2026-10-16 — 16f code review round 2: tests that can fail (#75 item 16f, #157g)
 Fresh code review (no bugs; 5 low, 4 nits), all fixed: the epilogue guard
 checks lines by text, never one-shot, and the dog's per name
 (`saysAfterName` exported); the whole story checks every act seam and that no
 goal repeats; Elder Lumen's line fits the plaza too. 1567 green.
 
-### 2026-10-16 — 16f UX review round 2: closing lines that follow on (#75 item 16f, #156f)
+### 2026-10-16 — 16f UX review round 2: closing lines that follow on (#75 item 16f, #157f)
 Fresh UX review (3 high, 8 medium, 7 low, nits), all fixed: 27 epilogue lines
 rewritten so none repeats the line before it, promises a map mark, says the
 critters are gone, or calls Aster "a girl". 1566 green.
 
-### 2026-10-16 — 16f review round 1: last, not first (#75 item 16f, #156e)
+### 2026-10-16 — 16f review round 1: last, not first (#75 item 16f, #157e)
 Fresh code (3 medium, 3 low, nits) and UX (5 high, 6 medium, 4 low, 4 nits)
 reviews, all fixed: the epilogue line comes last (first, it beat Sage Aster's
 own hello and the setups of the jokes it pays off); the guard reads the
@@ -993,7 +993,7 @@ story's real end (the Spire Keeper's line could never play) and checks no
 quest speaks instead once quests are done; 25 lines rewritten so each is true
 for every save. 1566 green.
 
-### 2026-10-16 — The epilogue: everyone remembers her name, and the whole story plays through (#75 item 16f, #156)
+### 2026-10-16 — The epilogue: everyone remembers her name, and the whole story plays through (#75 item 16f, #157)
 Roadmap sub-item 16f, the Phase 5 exit — ISSUES #75 closed.
 - **Everyone remembers:** `content/epilogue/` (home, Act I's towns, the
   Shallows and below, Taleshore) gives 139 people a line once `umbra-named` is
