@@ -3603,7 +3603,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [
       { defId: 'root-heart', x: 10, y: 6 },
       // Her shadow stands up once the Heart is reached, until her name is said (#75 item 16e).
-      { defId: 'umbra-remembered', x: 12, y: 7, ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
+      { defId: 'umbra-remembered', x: 12, y: 8, ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
     ],
     // The bottom: the Root's Heart — safe, a save crystal.
     enemies: [],

@@ -995,11 +995,11 @@ export const NAME_SEEN = 'name-seen';
 export function namePanels(heroName: string): StoryPanel[] {
   return [
     {
-      emoji: '🌑',
-      text: '"Aster," you say, as clearly as you can. Deep in the roots, something old and tired listens.',
+      emoji: '🖤',
+      text: 'You say it once more, gently: "Aster." Deep in the roots, something old and tired listens.',
     },
     {
-      emoji: '🌑',
+      emoji: '🖤',
       text: 'The shadow stares at you. "Aster…" it whispers, trying it out. "Aster. That was… that was ME."',
     },
     {
@@ -1029,7 +1029,7 @@ export const POST_CREDITS_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🧚',
-    text: '"Ask me anything!" she tells the memory-children there. Wisp sits on her shoulder, giggling at every single "why?".',
+    text: '"Ask me anything!" she tells the children of Lumina-That-Was. Wisp sits on her shoulder, giggling at every single "why?".',
   },
   {
     emoji: '🏛️',

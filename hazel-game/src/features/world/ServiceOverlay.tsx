@@ -30,7 +30,7 @@ const SERVICE_LABEL: Record<ServiceType, string> = {
   library: 'Library',
   sage: 'Sage',
   trial: 'Shrine trial',
-  name: 'Umbra Remembered',
+  name: 'Umbra',
 };
 
 export default function ServiceOverlay({

@@ -538,6 +538,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
               onUseHint={useSaveStore.getState().spendHint}
               onAnswered={(correct, picked) => recordAnswer(correct, q, picked)}
               continueLabel={phase.mode === 'ward' ? '🔮 Break the seal' : '⚔️ Stand firm'}
+              focusContinue
               onContinue={(correct) =>
                 phase.mode === 'ward' ? resolveWard(correct, phase.wardId) : resolveBoss(correct, phase.index)
               }

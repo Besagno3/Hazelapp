@@ -195,7 +195,7 @@ export default function NameFinale() {
   );
   // On a phone the questions need the room (16e review round 1): no portrait while asking.
   const showPortrait = !['question', 'loading', 'error', 'named'].includes(phase.kind);
-  const showCandles = ['intro', 'question', 'message', 'loading', 'error'].includes(phase.kind);
+  const showCandles = ['intro', 'question', 'message', 'loading', 'error'].includes(phase.kind) && !(phase.kind === 'intro' && passedBefore);
   const q = phase.kind === 'question' ? questions[phase.index] : undefined;
   const tap = (next: () => void) => performance.now() - shownAt.current >= 250 && next();
 
@@ -203,7 +203,7 @@ export default function NameFinale() {
     <div>
       {showPortrait && portrait}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
-        <h2 className="text-lg font-extrabold text-violet-200">🌑 Umbra Remembered</h2>
+        <h2 className="text-lg font-extrabold text-violet-200">🌑 Umbra</h2>
         {showCandles && <Candles lit={lives} total={NAME_LIVES} />}
       </div>
 
@@ -213,8 +213,8 @@ export default function NameFinale() {
             "Everyone stopped asking me things, so I asked them instead. Nobody answered." The shadow sighs.
           </p>
           <p className="text-sm text-white/85 mb-5">
-            Answer {NAME_QUESTIONS} of its questions. A wrong answer snuffs one of your {NAME_LIVES} candles. Then it
-            asks its last one.
+            Answer its {NAME_QUESTIONS} questions. A wrong answer snuffs one of your {NAME_LIVES} candles — if they all
+            go out, it lights them again. Then it asks its last one.
           </p>
           <button
             autoFocus
@@ -270,6 +270,7 @@ export default function NameFinale() {
             onUseHint={spendHint}
             onAnswered={(ok, picked) => onAnswered(ok, q, picked)}
             continueLabel="🕯️ Stand firm"
+            focusContinue
             onContinue={(ok) => onContinue(ok, phase.index)}
           />
         </div>

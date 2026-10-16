@@ -817,6 +817,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16e UX review round 2: Return home, an empty Heart (#75 item 16e, #147k)
+Fresh UX review (2 medium, 5 low, 7 nits), all fixed but two kept (the pixel
+font's apostrophe, the shared report button): the way up out of the
+underground is one line or Return; the Heart empty once its shadow is out
+(`faceNow`: faces in turn); the shadow beside it; panel 1 follows on; focus
+to Stand firm; copy. 1402 green.
+
 ### 2026-10-16 — 16e code review round 2: the reward survives a reload (#75 item 16e, #147j)
 Fresh code review (1 medium, 5 low, 4 nits), all fixed: a reload between
 "Aster" and the panels' end lost the 600 XP — the panels' end pays it from

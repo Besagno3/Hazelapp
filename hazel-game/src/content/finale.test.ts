@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { NAME_ANSWER, NAME_CHOICES, NAME_CLEAR_XP, NAME_QUESTIONS, WRONG_NAME_LINES, finaleTopics, nameClearXp } from './finale';
 import { ALL_TOPICS } from './topics';
 import { POST_CREDITS_PANELS, namePanels } from './story';
-import { NPC_DEFS, ROLE_SERVICE, visibleLines, lineText } from './npcs';
+import { NPC_DEFS, ROLE_SERVICE, npcSpriteId, visibleLines, lineText } from './npcs';
 import { ZONES, buildingInside } from './zones';
 import { reach, touches } from '../lib/reach';
 import { NAME_LEARNED, ROOT_HEART_REACHED, UMBRA_NAMED } from './questFlags';
@@ -52,9 +52,12 @@ describe('the Name (#75 item 16e)', () => {
 
   it('the Heart says what happened, before and after her name', () => {
     const says = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['root-heart'].lines, flags).map(lineText).join(' ');
-    expect(says({ [ROOT_HEART_REACHED]: true, [NAME_LEARNED]: true })).toMatch(/shadow stands just in front of it/);
+    expect(says({ [ROOT_HEART_REACHED]: true, [NAME_LEARNED]: true })).toMatch(/stands beside it, waiting for you/);
     expect(says({ [ROOT_HEART_REACHED]: true, [UMBRA_NAMED]: true })).toMatch(/glows gold/);
-    expect(NPC_DEFS['root-heart'].face?.flag).toBe(UMBRA_NAMED);
+    // Its face: purple and empty once the shadow is out, gold after the name (16e review round 2).
+    expect(npcSpriteId(NPC_DEFS['root-heart'], {})).toBe('root-heart');
+    expect(npcSpriteId(NPC_DEFS['root-heart'], { [ROOT_HEART_REACHED]: true })).toBe('root-heart-empty');
+    expect(npcSpriteId(NPC_DEFS['root-heart'], { [ROOT_HEART_REACHED]: true, [UMBRA_NAMED]: true })).toBe('root-heart-gold');
   });
 
   it('Sage Aster is home in the Hall of Names once her name is said', () => {

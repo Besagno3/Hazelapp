@@ -2,7 +2,7 @@ import { HALL_GATE_FLAG, HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, gateFlag, g
 import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
-import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
+import { FIELD_SPELLS, FIELD_SPELL_IDS, RETURN_TOWNS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
 import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
@@ -308,7 +308,7 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
       kind: 'visit',
       title: 'Say her name to Umbra',
       why: "Umbra waits at the Root's Heart with one last question. The five memories gave you the answer!",
-      inside: 'Walk up to Umbra, in front of the glowing heart.',
+      inside: 'Walk up to the shadow, just beside the glowing heart.',
       zoneId: 'deep-root-7',
       doneFlag: UMBRA_NAMED,
       npc: 'umbra-remembered',
@@ -859,6 +859,17 @@ export function goalDirections(
     const head = through.length ? `head down through ${through.join(' and ')} to the Nameless Hall` : 'head down to the Nameless Hall';
     return sentence([...lead, head, ...below]);
   }
+  // Up out of the underground (Lumina-That-Was, the Deep Root) to somewhere
+  // else (16e review round 2: from the Root's Heart to Remembrance Hill was a
+  // six-hop, 52-word walk): Return if it's known, else the way up in one breath.
+  const under = (z: ZoneId) => zoneTier(z) === zoneTier('nameless-hall');
+  if (under(here) && !under(goal.zoneId)) {
+    if (flags && knowsFieldSpell('return', flags) && RETURN_TOWNS.includes(goal.zoneId) && flags[visitedFlag(goal.zoneId)]) {
+      return `Cast 🏠 Return (📜 Menu → ✨ Field spells) and fly to ${placeName(zones[goal.zoneId])}.`;
+    }
+    const fromSpire = routeSteps(zones, 'crystal-spire', goal.zoneId, undefined, flags, aboard) ?? [];
+    return sentence(['climb all the way back up to the Crystal Spire', ...fromSpire]);
+  }
   const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
   // …unless the hero is sailing right now (15g review round 4).
@@ -1028,7 +1039,9 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.doneFlag === ROOT_HEART_REACHED) {
     tip = "Nothing fights at the Root's Heart — it's a quiet place. There's a save crystal there, too.";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_HALL_ASTER) {
-    tip = "🏠 Return takes you to Remembrance Hill in no time, if you know it. The Hall of Names has the purple roof.";
+    tip = knowsFieldSpell('return', flags)
+      ? 'Cast 🏠 Return (📜 Menu → ✨ Field spells) and pick Remembrance Hill. The Hall of Names has the purple roof.'
+      : "It's a long climb up from the Deep Root — rest at Keeper Aurora's on the way. The Hall of Names has the purple roof.";
   } else if (goal.kind === 'visit' && goal.doneFlag === UMBRA_NAMED) {
     tip = "A wrong answer snuffs one of your three candles. Run out, and the shadow lights them again — just try once more!";
   } else if (goal.kind === 'key' && !goal.crystal) {

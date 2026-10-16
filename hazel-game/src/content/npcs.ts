@@ -113,7 +113,8 @@ export interface WorldNpcDef {
    * redrawn so stops wandering for that visit — give a `face` to someone
    * stationary (Wisp is).
    */
-  face?: { flag: string; spriteId: string; sprite: string };
+  /** Several in turn (the Root's Heart, #75 item 16e): the last whose flag is set wins. */
+  face?: NpcFace | NpcFace[];
   /**
    * A new name once a story flag is set (#75 item 16b: the Unnamed Dog, once
    * the hero has named him) — over their head and in talk (`npcName`).
@@ -153,15 +154,29 @@ export function lineText(l: DialogueLine): string {
   return typeof l === 'string' ? l : l.text;
 }
 
+/** A new face an NPC takes on once a flag is set (Wisp's after the name, #75 item 16a). */
+export interface NpcFace {
+  flag: string;
+  spriteId: string;
+  sprite: string;
+}
+
+/** The face an NPC wears now: the last of its faces whose flag is set, if any. */
+export function faceNow(def: WorldNpcDef, flags: Record<string, boolean>): NpcFace | null {
+  const faces = def.face ? [def.face].flat() : [];
+  return faces.filter((f) => flags[f.flag]).at(-1) ?? null;
+}
+
 /** The sprite-manifest key for an NPC (its new `face` once that flag is set, an explicit `spriteId`, else its id). */
 export function npcSpriteId(def: WorldNpcDef, flags: Record<string, boolean> = {}): string {
-  if (def.face && flags[def.face.flag]) return def.face.spriteId;
+  const face = faceNow(def, flags);
+  if (face) return face.spriteId;
   return def.spriteId ?? def.id;
 }
 
 /** The emoji an NPC falls back to (its new `face`'s once that flag is set). */
 export function npcEmoji(def: WorldNpcDef, flags: Record<string, boolean> = {}): string {
-  return def.face && flags[def.face.flag] ? def.face.sprite : def.sprite;
+  return faceNow(def, flags)?.sprite ?? def.sprite;
 }
 
 /** Which service overlay (if any) talking to this role opens after dialogue. */
@@ -2811,7 +2826,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     prop: true,
     // Gold once her name is said (16e).
-    face: { flag: UMBRA_NAMED, spriteId: 'root-heart-gold', sprite: '💛' },
+    // Empty once its shadow steps out, gold once her name is said (16e review rounds 1–2).
+    face: [
+      { flag: ROOT_HEART_REACHED, spriteId: 'root-heart-empty', sprite: '💜' },
+      { flag: UMBRA_NAMED, spriteId: 'root-heart-gold', sprite: '💛' },
+    ],
     lines: [
       { text: 'Every root in Lumina starts right here, wrapped round this warm purple glow.', unlessFlag: ROOT_HEART_REACHED },
       // One figure, not two (16d review round 4: Umbra *was* Aster, STORY-4X §1).
@@ -2820,7 +2839,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         unlessFlag: ROOT_HEART_REACHED,
       },
       { text: 'The humming stops. The great dark shadow uncurls, steps out of the glow… and turns to look at you.', unlessFlag: ROOT_HEART_REACHED, setFlag: ROOT_HEART_REACHED },
-      { text: 'The glow is empty now. Its shadow stands just in front of it, waiting for you.', ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
+      { text: 'The glow is empty now. The shadow that was curled up inside stands beside it, waiting for you.', ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
       { text: "The Root's Heart glows gold. Someone has left a daisy on it. 🌼", ifFlag: UMBRA_NAMED },
       { text: "Aster has gone up to the Hall of Names on Remembrance Hill. 🏠 Return takes you there in no time.", ifFlag: [UMBRA_NAMED, fieldSpellFlag('return')] },
       { text: 'Aster has gone up to the Hall of Names on Remembrance Hill. The stairs go back up.', ifFlag: UMBRA_NAMED, unlessFlag: fieldSpellFlag('return') },
