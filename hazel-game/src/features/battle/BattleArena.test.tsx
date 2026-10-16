@@ -576,6 +576,7 @@ describe('starter questions never move the saved skill level (#153 review round 
   });
   afterEach(() => {
     useProfileStore.setState({ profile: null });
+    fetchQuestionsMock.mockImplementation(() => new Promise(() => {}));
   });
 
   /** Answer `n` questions right, quickly, through attacks and defends alike. */
@@ -628,5 +629,43 @@ describe('starter questions never move the saved skill level (#153 review round 
   it('…as five quick right bank answers do', () => {
     answerRight(5);
     expect(fetchQuestionsMock.mock.calls.filter((c) => c[4] === 'battle')).toHaveLength(1);
+  });
+
+  it('a win on one right bank answer among more starter answers leaves it (review round 2)', () => {
+    // A short batch: one bank question, the rest starters.
+    pool.questions = [q, { ...q, id: 'starter-math-easy-1' }, { ...q, id: 'starter-math-easy-2' }];
+    useBattleStore.getState().start({ ...enemy, maxHp: 1 }, 60, 100);
+    render(<BattleArena />);
+    // Guard (the bank question), defend (a starter), then Attack (a starter) for the win.
+    let guards = 1;
+    let answered = 0;
+    for (let i = 0; i < 40 && !screen.queryByText('Victory!'); i++) {
+      if (screen.queryByText('Attack')) {
+        fireEvent.click(screen.getByText(guards-- > 0 ? 'Guard' : 'Attack'));
+      } else if (screen.queryByText('4')) {
+        fireEvent.click(screen.getByText('4'));
+        fireEvent.click(screen.getByText('▶ Go!'));
+        answered++;
+      } else {
+        fireEvent.click(screen.getByText(/tap to continue/));
+      }
+    }
+    expect(screen.getByText('Victory!')).toBeInTheDocument();
+    expect(answered).toBe(3);
+    // One bank answer of three: too few to judge — the level holds (it was +2).
+    expect(setSkillLevel).not.toHaveBeenCalled();
+  });
+
+  it('a speed boost the service can only fill with starter questions keeps the bank’s pool (review round 2)', async () => {
+    fetchQuestionsMock.mockImplementation((...args: unknown[]) =>
+      args[4] === 'battle'
+        ? Promise.resolve([{ ...q, id: 'starter-math-middle-1', text: 'What is 3 + 3?', options: ['6', '5', '7', '8'] }])
+        : new Promise(() => {}),
+    );
+    answerRight(5);
+    await act(async () => {});
+    // No "harder questions" promise for starters: the level still goes up after the battle.
+    expect(screen.getByText(/Your level goes up to 4 after this battle/)).toBeInTheDocument();
+    expect(screen.queryByText(/just got harder/)).toBeNull();
   });
 });

@@ -1246,6 +1246,10 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1386 | U | ✅ | look-ahead | a zone warm-up still on its way when the battle starts, which then fails: the battle asks the function again for all 9 (normally, no `cacheOnly`) and gets a full batch — no error (questions.test) |
 | TC-1387 | U | ✅ | look-ahead | the battle's own call hands back two of the warm-up's questions (held = seen, out of budget): they're dropped, and two starter questions top the batch up to 9 different ones (questions.test) |
 | TC-1388 | M | ⬜ | ramp | in the real app with the network cut, after signing in: a quiz round at level 3 made of starter questions, all right — the topic's level is still 3 after it, XP went up, and no 🚩 shows under the starter questions |
+| TC-1389 | U | ✅ | ramp | review round 2: `bankRamp` hands the ramp a round's bank answers only while they're more than half its answers, else none — a round passed 4 of 5 whose one bank answer was wrong, and a round failed 1 of 5 whose one bank answer was right, both keep the level (age.test) |
+| TC-1390 | C | ✅ | ramp | review round 2: a quiz round of 1 bank + 4 starter questions keeps the level (3 → 3) whether the bank one is wrong (passed 4 of 5) or right (failed 1 of 5); a round of 3 bank questions, all right, and 2 starters, both wrong, still goes 3 → 5 (QuizRound.test) |
+| TC-1396 | C | ✅ | ramp | review round 2: a battle won with one right bank answer and two right starter answers (Guard, defend, Attack) saves no level change (BattleArena.test) |
+| TC-1397 | C | ✅ | speed | review round 2: five quick right bank answers trip the speed trigger and the harder batch comes back as starter questions only — the banner says "Your level goes up to 4 after this battle", never "The questions just got harder" (BattleArena.test) |
 
 ## Regression cases (tied to ISSUES.md)
 

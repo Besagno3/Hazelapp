@@ -59,6 +59,15 @@ async function playPerfectRound() {
   await screen.findByText('Round Passed!');
 }
 
+/** Answer each question right or wrong as `right` says, then open the results. */
+async function playRound(right: boolean[]) {
+  render(<QuizRound />);
+  for (let i = 0; i < questions.length; i++) {
+    fireEvent.click(await screen.findByText(right[i] ? `Right ${i}` : `Wrong ${i}a`));
+    fireEvent.click(screen.getByText(i === questions.length - 1 ? 'See Results' : 'Next Question'));
+  }
+}
+
 beforeEach(() => {
   addXp.mockReset();
   hook.error = null;
@@ -183,13 +192,41 @@ describe('QuizRound — starter questions don’t move the skill level (#153 rev
     expect(addXp).toHaveBeenCalledTimes(1);
   });
 
-  it('the bank questions in a mixed round still move it', async () => {
+  it('the bank questions in a mixed round still move it, on their own', async () => {
     start(3, true);
     const setSkillLevel = vi.fn();
     useProfileStore.setState({ setSkillLevel });
-    // Three from the bank, the last two topped up from the starters.
+    // Three from the bank, the last two topped up from the starters — the
+    // bank's all right, the starters both wrong (review round 2: counted, the
+    // starters would make it a +1).
     hook.questions = questions.map((q, i) => (i < 3 ? q : { ...q, id: `starter-math-easy-${i + 1}` }));
-    await playPerfectRound();
+    await playRound([true, true, true, false, false]);
+    await screen.findByText('Keep Trying!');
     expect(setSkillLevel).toHaveBeenCalledWith('math', 5);
+  });
+});
+
+describe('QuizRound — one or two bank questions among starters don’t decide the level (#153 review round 2)', () => {
+  // A short batch from the server: one bank question, four starters.
+  const oneFromTheBank = () => questions.map((q, i) => (i === 0 ? q : { ...q, id: `starter-math-easy-${i}` }));
+
+  it('a round passed 4 of 5 doesn’t drop the level on its one bank question', async () => {
+    start(3, true);
+    const setSkillLevel = vi.fn();
+    useProfileStore.setState({ setSkillLevel });
+    hook.questions = oneFromTheBank();
+    await playRound([false, true, true, true, true]);
+    await screen.findByText('Round Passed!');
+    expect(setSkillLevel).toHaveBeenCalledWith('math', 3);
+  });
+
+  it('a round failed 1 of 5 doesn’t climb two on its one bank question', async () => {
+    start(3, true);
+    const setSkillLevel = vi.fn();
+    useProfileStore.setState({ setSkillLevel });
+    hook.questions = oneFromTheBank();
+    await playRound([true, false, false, false, false]);
+    await screen.findByText('Keep Trying!');
+    expect(setSkillLevel).toHaveBeenCalledWith('math', 3);
   });
 });

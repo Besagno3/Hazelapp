@@ -609,7 +609,9 @@ zod, react-query. Add the package in the same change that first uses it.
   screened like AI ones; ids `starter-`, never marked seen, no 🚩 Report
   (`FlagButton` shows nothing off the bank, `inQuestionBank`), and they never
   move the saved skill level — quiz ramp, battle ramp or speed trigger: six a
-  band repeat, so knowing them isn't a level; they still pay XP).
+  band repeat, so knowing them isn't a level; a round or battle whose bank
+  answers aren't most of its answers holds the level (`bankRamp`, `lib/age.ts`),
+  and a speed boost's harder pool takes bank questions only; they still pay XP).
 - **Questions are screened for kids (B10, #133):** three layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
@@ -814,6 +816,29 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — B5 review round 2: one bank question never decides the level, no "harder" starters (#153)
+A fresh `/saas-code-review` of #69 (1 medium, 1 low), both fixed:
+- **A level change rests on most of the round (medium):** round 1 ramps on the
+  bank answers only, so a short batch topped up with starters (a thin bank
+  and the day's budget spent, or Claude down) left one or two answers to
+  judge the whole round on — a round passed 4 of 5 dropped a level on its one
+  bank question, a round failed 1 of 5 climbed two, and a battle won with one
+  right bank answer among starter answers climbed two. `bankRamp`
+  (`lib/age.ts`) hands the ramp the bank answers only while they're more than
+  half the answers given, else none (the level holds — the conservative
+  call); `QuizRound` and `BattleArena` (a fresh `answerCount` ref, so a
+  timed-out last answer counts too) both use it.
+- **No "harder questions" from the starters (low):** `fetchQuestions` never
+  fails now, so a speed boost during an outage swapped the battle's bank
+  questions for starter ones and said "The questions just got harder"; its
+  "nothing came back" path was dead. The harder pool keeps bank questions
+  only; with none, the battle keeps its pool and says the level goes up after
+  it, as before the PR.
+- **Tests:** age.test (+2), QuizRound.test (+2, and the mixed-round test now
+  answers the starters wrong, so it fails without round 1's filter),
+  BattleArena.test (+2), each failing without its fix. 1398 green, lint +
+  build + `deno check` clean, the stand-in run 12/12.
 
 ### 2026-10-16 — B5 review round 1: starters don't move the skill level, no 🚩 off the bank (#153)
 `/saas-code-review` of #69 (1 medium, 3 low), all fixed:
