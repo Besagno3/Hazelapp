@@ -22,7 +22,7 @@ export const EPILOGUE_HOME: Readonly<Record<string, string>> = {
   'village-kid':
     "Sage Aster says the best secrets are the questions nobody's asked yet. So I'm asking ALL of them. Why is the sky up? Why do pebbles sit still?",
   'elder-lumen':
-    'Aster! I remember now: she taught a small boy called Lumen his very first letters. Every book in this Library is my thank-you to her.',
+    "Aster! I remember now: she taught a small boy called Lumen his very first letters. Every book I've ever read was my thank-you to her.",
   'hub-librarian':
     'Now I know who read to me under that big tree. It was Aster! She remembered my name before I could even say hers.',
   'hub-merchant':

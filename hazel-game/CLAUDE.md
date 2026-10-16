@@ -955,6 +955,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16f code review round 2: tests that can fail (#75 item 16f, #156g)
+Fresh code review (no bugs; 5 low, 4 nits), all fixed: the epilogue guard
+checks lines by text, never one-shot, and the dog's per name
+(`saysAfterName` exported); the whole story checks every act seam and that no
+goal repeats; Elder Lumen's line fits the plaza too. 1567 green.
+
 ### 2026-10-16 — 16f UX review round 2: closing lines that follow on (#75 item 16f, #156f)
 Fresh UX review (3 high, 8 medium, 7 low, nits), all fixed: 27 epilogue lines
 rewritten so none repeats the line before it, promises a map mark, says the

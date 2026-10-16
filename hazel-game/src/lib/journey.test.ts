@@ -272,9 +272,15 @@ describe('the whole story, start to finish (#75 item 16f, the Phase 5 exit)', ()
   it('every leg from a brand-new save to "Explore" walks, and the 🚩 always moves on', () => {
     for (const leg of all) expect(walkable(leg), leg.goal.title).toBe(true);
     // Each leg's goal is met before the next begins: the 🚩 never sends you back for one already done.
+    const titles = all.map((l) => l.goal.title);
+    expect(new Set(titles).size).toBe(titles.length);
     for (let i = 1; i < all.length; i++) {
-      expect(all[i].goal.title, `leg ${i}`).not.toBe(all[i - 1].goal.title);
-      for (const f of Object.keys(all[i - 1].flags)) expect(all[i].flags[f], `leg ${i} lost ${f}`).toBe(all[i - 1].flags[f]);
+      // Each leg starts exactly where the last one's goal left the story — nothing lost, and
+      // nothing from nowhere but the Roost's flight between Acts II and III (`bench … fly`).
+      const after = advanceGoal(all[i - 1].goal, all[i - 1].flags);
+      const extra = Object.keys(all[i].flags).filter((f) => all[i].flags[f] && !after[f]);
+      expect(extra, `leg ${i}`).toEqual(extra.length ? ['visited:dragon-roost'] : []);
+      for (const f of Object.keys(after)) expect(all[i].flags[f], `leg ${i} lost ${f}`).toBe(after[f]);
     }
     expect(all.length).toBeGreaterThan(40);
   });

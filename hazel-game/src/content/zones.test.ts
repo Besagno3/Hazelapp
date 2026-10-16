@@ -1219,7 +1219,7 @@ describe('Taleshore and Port Lantern (#75 item 15c)', () => {
     const gate = port.exits.find((e) => e.to === 'taleshore')!;
     expect(Math.abs(gale.x - gate.x) + Math.abs(gale.y - gate.y)).toBeLessThanOrEqual(6);
     expect(touches(reach(port), gale.x, gale.y)).toBe(true);
-    // The first thing Gale says on arriving (the epilogue's line comes first only after the name, 16f).
+    // The first thing Gale says on arriving.
     const first = visibleLines(NPC_DEFS['port-harbormaster'].lines, {})[0];
     expect(typeof first !== 'string' && first.setFlag).toBe(MET_GALE);
   });

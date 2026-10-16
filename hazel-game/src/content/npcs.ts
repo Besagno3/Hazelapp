@@ -3068,7 +3068,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
 };
 
 /** A line that plays whenever `umbra-named` is set, whatever else is true. */
-function saysAfterName(l: DialogueLine): boolean {
+export function saysAfterName(l: DialogueLine): boolean {
   if (typeof l === 'string') return false;
   const need = Array.isArray(l.ifFlag) ? l.ifFlag : l.ifFlag ? [l.ifFlag] : [];
   return need.length === 1 && need[0] === UMBRA_NAMED && !l.unlessFlag;

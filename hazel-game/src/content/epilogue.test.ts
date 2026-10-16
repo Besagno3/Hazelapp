@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { ZONES, npcPresent } from './zones';
-import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
+import { NPC_DEFS, isThing, lineText, saysAfterName, visibleLines } from './npcs';
 import { EPILOGUE, EPILOGUE_PARTS } from './epilogue';
 import { UMBRA_NAMED } from './questFlags';
 import type { DialogueLine } from './npcs';
 import { QUESTS, questConversation } from './quests';
-import { questDoneFlag } from './questFlags';
+import { DOG_QUEST, questDoneFlag } from './questFlags';
 import { defaultSave } from '../lib/save';
 import { fullJourney } from '../lib/journey';
 
 /** The story flags once the whole story is played (#75 item 16f). */
 const END = fullJourney().flags;
+/** …with every quest done too (so no quest speaks first) and the dog named. */
+const ALL_DONE = { ...END, ...Object.fromEntries(QUESTS.map((q) => [questDoneFlag(q), true])), 'dog-named-pickles': true };
+const DOG_NAMES = QUESTS.find((q) => q.id === DOG_QUEST)!.choice!.map((c) => c.flag);
 
 /** Placed people (not props or signposts) who still stand somewhere once the whole story is played. */
 function peopleAfterTheName(): string[] {
@@ -24,20 +27,31 @@ function peopleAfterTheName(): string[] {
   return [...ids].sort();
 }
 
+/** A line that plays every time once her name is said: `umbra-named` among its flags, never one-shot. */
 const afterName = (l: DialogueLine) =>
-  typeof l !== 'string' && (Array.isArray(l.ifFlag) ? l.ifFlag : [l.ifFlag]).includes(UMBRA_NAMED);
+  saysAfterName(l) ||
+  (typeof l !== 'string' && !l.unlessFlag && !l.setFlag && [l.ifFlag].flat().includes(UMBRA_NAMED));
 
 describe('the epilogue (#75 item 16f)', () => {
   it('every named person has a line once her name is said', () => {
     const silent = peopleAfterTheName().filter(
-      (id) => !visibleLines(NPC_DEFS[id].lines, { [UMBRA_NAMED]: true }).some(afterName),
+      (id) => !visibleLines(NPC_DEFS[id].lines, ALL_DONE).some(afterName),
     );
     expect(silent).toEqual([]);
   });
 
   it('…and none before it', () => {
+    const before = { ...ALL_DONE, [UMBRA_NAMED]: false };
     for (const id of peopleAfterTheName()) {
-      expect(visibleLines(NPC_DEFS[id].lines, {}).filter(afterName), id).toEqual([]);
+      const said = visibleLines(NPC_DEFS[id].lines, before).map(lineText);
+      for (const l of NPC_DEFS[id].lines.filter(afterName)) expect(said, id).not.toContain(lineText(l));
+    }
+  });
+
+  it("the dog's closing line follows the name the hero chose", () => {
+    for (const name of DOG_NAMES) {
+      const last = visibleLines(NPC_DEFS['memory-dog'].lines, { ...ALL_DONE, 'dog-named-pickles': false, [name]: true }).at(-1)!;
+      expect(typeof last !== 'string' && [last.ifFlag].flat(), name).toEqual([name, UMBRA_NAMED]);
     }
   });
 
@@ -62,16 +76,15 @@ describe('the epilogue (#75 item 16f)', () => {
 
   it('it comes last, after their usual lines (someone 16e already gave a line keeps theirs)', () => {
     for (const [id, text] of Object.entries(EPILOGUE)) {
-      const lines = visibleLines(NPC_DEFS[id].lines, END);
-      expect(lines.some(afterName), id).toBe(true);
-      if (NPC_DEFS[id].lines.some((l) => lineText(l) === text)) expect(lineText(lines.at(-1)!), id).toBe(text);
+      // Someone 16e gave a line keeps theirs — so an epilogue entry for them would be dropped: none is.
+      expect(NPC_DEFS[id].lines.map(lineText), id).toContain(text);
+      expect(lineText(visibleLines(NPC_DEFS[id].lines, ALL_DONE).at(-1)!), id).toBe(text);
     }
   });
 
   it('the dialogue box gets to it: once their quests are done, nobody speaks a quest instead', () => {
     // A quest's own talk speaks first (DialogueOverlay), so a giver says it once their quest is done.
-    const allDone = Object.fromEntries(QUESTS.map((q) => [questDoneFlag(q), true]));
-    const save = { ...defaultSave(), flags: { ...END, ...allDone } };
+    const save = { ...defaultSave(), flags: ALL_DONE };
     for (const id of peopleAfterTheName()) expect(questConversation(id, save), id).toBeNull();
   });
 });
