@@ -231,6 +231,7 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
       kind: 'key',
       title: `Win ${key.name}`,
       why: `${key.bossName} tends Aster's Garden — and keeps ${key.name} on his belt. It opens the Nameless Hall!`,
+      inside: 'He stands in the gap in the hedge, at the bottom of the garden.',
       zoneId: key.fromZone,
       key,
     };
@@ -238,8 +239,9 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
   if (!flags[HALL_ROOT_SEEN]) {
     return {
       kind: 'visit',
-      title: 'Open the Nameless Hall',
+      title: "See what's behind the great door",
       why: `Your ${key.name} opens the Nameless Hall's ${key.door ?? 'gate'}. See what's behind it!`,
+      inside: 'Unlock the great door halfway down the hall, then look at the big root behind it.',
       zoneId: 'nameless-hall',
       key,
       doneFlag: HALL_ROOT_SEEN,
@@ -832,7 +834,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `You have the First Chorus Key! ${capitalize(midSentence(goal.key.bossName))} guards the second in Inkwell Cove. Follow the road east from Port Lantern, then north. Take the first road east!`;
   } else if (goal.kind === 'key' && goal.key?.id === 'asters-key') {
     // Act IV (#75 item 16c): Aster's own garden, south of the old Field.
-    plan = "Aster. ASTER! I knew that name once. She had a garden, south of the old Field. Its Gardener keeps her key — win it!";
+    plan = "Aster! Now I remember — she had a garden, just south of the old Field. Its Gardener keeps her key. Win it!";
   } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
     // Act II's key (#75 item 14f): no Fiend to name yet.
     plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;
@@ -876,7 +878,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[NAME_LEARNED]) {
-    plan = "Aster. ASTER! I knew that name once. Thank you for finding it again. She is waiting somewhere deeper still — the way will open soon.";
+    plan = `Aster. ASTER! I knew that name once. Thank you for finding it again. ${flags[HALL_ROOT_SEEN] ? 'Below the Nameless Hall, she is waiting, deeper still' : 'She is waiting somewhere deeper still'} — the way will open soon.`;
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {

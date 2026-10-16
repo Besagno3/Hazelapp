@@ -9,7 +9,7 @@ import taleshoreTmj from './maps/taleshore.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 import { ACT2_SEEN, ACT4_SEEN, FLIGHT_FLAG } from './story';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, RESO_STONES, YARN_STONES, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, NAME_LEARNED, POSY_QUEST, POSY_SAILED, POSY_WALK, RESO_STONES, YARN_STONES, questDoneFlag, stepFlag } from './questFlags';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -556,7 +556,7 @@ const BRUME_WANTS = "🏮 Lightkeeper Brume, by the lamp-house in the Marsh's we
 const FEN_WANTS = "🧺 Fen the Forager, by her hollow in the grove's north-west, has lost her three best acorns!";
 // Who wants the garden's three waters (#75 item 16c, "A Garden Rewatered"): the
 // Gardener, once he's beaten and friendly again.
-const GARDENER_WANTS = "🌱 Aster's old Gardener, at the bottom of the garden, needs this for his seedlings — once he's in a better mood!";
+const GARDENER_WANTS = "🌱 Aster's old Gardener needs this for his seedlings! If he's still grumpy, win his quiz battle in the gap in the hedge first.";
 
 export const ZONES: Record<ZoneId, ZoneDef> = {
   numbria: {
@@ -3109,6 +3109,22 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 9, y: 13, to: 'asters-garden', spawnX: 9, spawnY: 1 },
       { x: 10, y: 13, to: 'asters-garden', spawnX: 10, spawnY: 1 },
     ],
+    // Her garden waits behind old fog until her name is remembered, so nothing
+    // down there says "Aster" before Young Wick does (16c review round 1).
+    fogs: [
+      {
+        id: 'garden-fog',
+        x: 8,
+        y: 12,
+        w: 4,
+        h: 2,
+        liftedBy: [NAME_LEARNED],
+        hint: 'A thick hedge of old fog. Someone\'s name is missing — remember it first, and the fog will roll away!',
+        guards: { x: 9, y: 13 },
+        lifted: '✨ Her name breaks the old fog — a path leads south, into a garden!',
+        dense: true,
+      },
+    ],
     shelterIn: 'dreamroot-door',
   },
 
@@ -3221,7 +3237,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#.....,..==...~~~~...#',
       '#........==...~~~~.,.#',
       '#..,.....==......C...#',
-      '#########..###########',
+      '#########=############',
       '#...,....==.....,....#',
       '#........==..........#',
       '#########EE###########',
@@ -3272,8 +3288,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#........==.......S..#',
       '#.#...#..==..#...#...#',
       '#........==..........#',
-      '#..,.....==.....,....#',
-      '#.#...#..==..#...#...#',
+      '#........==..........#',
+      '#.#,..#..==..#..,#...#',
       '#........==..........#',
       '#........==..........#',
       '#########GG###########',

@@ -1705,7 +1705,7 @@ export const QUESTS: QuestDef[] = [
     title: 'A Garden Rewatered',
     requires: keyFlag('asters-key'),
     offer: [
-      "Thank you for answering my seedlings. I'd forgotten how good that feels.",
+      "Thank you for answering my seedlings. Aster's Key opens the Nameless Hall, just south of here — but first, would you help me?",
       "These beds haven't been watered since the fog came. I need three waters — morning dew, spring rain and river water. They're in the garden's chests.",
       'And three weeds keep asking "why?" without waiting for an answer. Shoo them for me, would you?',
     ],
@@ -1713,25 +1713,28 @@ export const QUESTS: QuestDef[] = [
       haveStep(
         'garden-waters',
         [
-          { items: ['jar-dew'], label: 'the 💧 Morning Dew' },
-          { items: ['jar-rain'], label: 'the 🌧️ Spring Rain' },
-          { items: ['jar-river'], label: 'the 🌊 River Water' },
+          { items: ['jar-dew'], label: 'the Morning Dew' },
+          { items: ['jar-rain'], label: 'the Spring Rain' },
+          { items: ['jar-river'], label: 'the River Water' },
         ],
         "Find the three waters in Aster's Garden's riddle-chests.",
       ),
       defeatStep(
         'garden-weeds',
         [
-          { defId: 'thorn-of-doubt', label: 'the Thorn of Doubt' },
-          { defId: 'wilt-sprite', label: 'the Wilt Sprite' },
-          { defId: 'bramblewhy', label: 'the Bramblewhy' },
+          { defId: 'thorn-of-doubt', label: 'the spiky Thorn of Doubt' },
+          { defId: 'wilt-sprite', label: 'the droopy Wilt Sprite' },
+          { defId: 'bramblewhy', label: 'the question-mark Bramblewhy' },
         ],
-        "Now shoo the three weeds in Aster's Garden that keep asking why!",
+        "Now beat the three weeds in Aster's Garden that keep asking why!",
       ),
     ],
     foundNote: (save) => {
       const left = ['jar-dew', 'jar-rain', 'jar-river'].filter((i) => !save.questItems.includes(i)).length;
-      return left === 0 ? "🌱 That's all three waters! Now shoo the three weeds." : `🌱 ${left === 1 ? 'One more water' : 'Two more waters'} for the Gardener!`;
+      if (left > 0) return `🌱 ${left === 1 ? 'One more water' : 'Two more waters'} for the Gardener!`;
+      // Weeds beaten on the way (kills count from any time) — straight back to him (16c review round 1).
+      const weeds = ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy'].every((id) => (save.kills[id] ?? 0) > 0);
+      return weeds ? "🌱 That's all three waters! Take them back to the Gardener." : "🌱 That's all three waters! Now beat the three weeds.";
     },
     doneLine: "Go back to the Gardener, by the gap at the bottom of Aster's Garden.",
     takesItems: ['jar-dew', 'jar-rain', 'jar-river'],

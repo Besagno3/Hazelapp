@@ -804,6 +804,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16c review round 1: her name first, a one-tile gap, "Aster's Key" (#75 item 16c, #145g)
+Fresh code (1 medium, 5 low, 2 nits) and UX (1 high, 3 medium, 9 low, 5 nits)
+reviews, all fixed: fog on the way to the garden until the name is learned (it
+said "Aster" before Young Wick); the hedge gap one tile, so nobody slips past
+the Gardener; `keyName` ("Aster's Key fits!"); the gate leads to "the deepest
+root"; "See what's behind the great door" with `inside` lines; clearer chest
+notes and weed hints; a wilted Wilt Sprite, a root out of its hole. 1362 green.
+
 ### 2026-10-16 — Aster's Garden and the Nameless Hall (#75 item 16c, #145)
 Roadmap sub-item 16c (branch off `main` after 16a+16b merged).
 - **Aster's Garden** (`asters-garden`) below Old Lumina Field: mixed topics,

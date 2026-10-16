@@ -1756,7 +1756,8 @@ describe('Lumina-That-Was (#75 item 16b)', () => {
     expect(ZONES['memory-field'].exits.map((e) => e.to).sort()).toEqual(['asters-garden', 'asters-garden', 'dreamroot-door', 'dreamroot-door', 'first-classroom', 'first-classroom', 'memory-village', 'memory-village']);
     for (const id of ids) {
       const z = ZONES[id];
-      const area = reach(z, { flags: {}, gates: 'open' });
+      // (Aster's Garden's fog lifts with her name — 16c review round 1.)
+      const area = reach(z, { flags: { [NAME_LEARNED]: true }, gates: 'open' });
       for (const e of z.exits) expect(area.has(`${e.x},${e.y}`), `${id} exit to ${e.to}`).toBe(true);
     }
   });
@@ -1864,8 +1865,9 @@ describe("Aster's Garden and the Nameless Hall (#75 item 16c)", () => {
     expect(south).toHaveLength(2);
     const reached = reach(garden, { exits: 'stop' });
     for (const e of south) expect(touches(reached, e.x, e.y), 'the way south').toBe(true);
-    // Shut the gap and nothing gets through.
-    const shut = reach(garden, { exits: 'stop', blocked: (x, y) => y === 10 && (x === 9 || x === 10) });
+    // The gap is one cell wide — his — so with him in it nothing slips by (16c review round 1:
+    // a two-wide gap let a hero hug its far side out of his reach).
+    const shut = reach(garden, { exits: 'stop', blocked: (x, y) => x === boss.x && y === boss.y });
     for (const e of south) expect(touches(shut, e.x, e.y), 'past the Gardener').toBe(false);
   });
   it("the Hall's great door is Aster's Key's gate, and the deep root waits behind it", () => {
@@ -1876,6 +1878,14 @@ describe("Aster's Garden and the Nameless Hall (#75 item 16c)", () => {
     // Every plaque is in reach before the door.
     for (const n of hall.npcs.filter((p) => p.defId.startsWith('hall-plaque'))) {
       expect(touches(reach(hall), n.x, n.y), n.defId).toBe(true);
+    }
+  });
+  it("the garden's fog keeps her name a secret until Young Wick says it (16c review round 1)", () => {
+    const field = ZONES['memory-field'];
+    const toGarden = field.exits.filter((e) => e.to === 'asters-garden');
+    for (const e of toGarden) {
+      expect(touches(reach(field, { exits: 'stop' }), e.x, e.y), 'fogged').toBe(false);
+      expect(touches(reach(field, { exits: 'stop', flags: { [NAME_LEARNED]: true } }), e.x, e.y), 'lifted').toBe(true);
     }
   });
   it('a defeat in the garden wakes you at the Dream Root Door; the Hall is safe', () => {

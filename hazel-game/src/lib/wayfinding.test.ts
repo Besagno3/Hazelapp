@@ -138,7 +138,7 @@ describe('nextObjective', () => {
     expect(nextObjective({ ...chartHeld, [ACT4_SEEN]: true })).toMatchObject({ kind: 'visit', zoneId: 'dreamroot-door', title: 'Say hello to Keeper Aurora', npc: 'root-aurora' });
     // After the name, Aster's Key from her Gardener, then the Nameless Hall (#75 item 16c).
     expect(nextObjective(nameLearned)).toMatchObject({ kind: 'key', zoneId: 'asters-garden', title: "Win Aster's Key" });
-    expect(nextObjective({ ...nameLearned, [keyFlag('asters-key')]: true })).toMatchObject({ kind: 'visit', zoneId: 'nameless-hall', title: 'Open the Nameless Hall', doneFlag: HALL_ROOT_SEEN, npc: 'hall-deep-root' });
+    expect(nextObjective({ ...nameLearned, [keyFlag('asters-key')]: true })).toMatchObject({ kind: 'visit', zoneId: 'nameless-hall', title: "See what's behind the great door", doneFlag: HALL_ROOT_SEEN, npc: 'hall-deep-root' });
     expect(nextObjective(hallOpened)).toMatchObject({ kind: 'explore', zoneId: null });
     // Wisp asked first: the 🚩 follows Wisp's quest, not the hello (round 3).
     const offeredFirst = { ...chartHeld, [ACT4_SEEN]: true, [questOfferedFlag({ id: SAY_HER_NAME_QUEST })]: true };

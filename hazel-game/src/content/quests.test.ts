@@ -1419,7 +1419,7 @@ describe("A Garden Rewatered (#75 item 16c)", () => {
     save = openChest(save, RAIN);
     expect(chestWantedLine(save, RAIN)).toBe('🌱 One more water for the Gardener!');
     save = openChest(save, RIVER);
-    expect(chestWantedLine(save, RIVER)).toBe("🌱 That's all three waters! Now shoo the three weeds.");
+    expect(chestWantedLine(save, RIVER)).toBe("🌱 That's all three waters! Now beat the three weeds.");
     expect(questConversation('garden-gardener', save)!.finishKind).not.toBe('complete');
     for (const id of ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy']) save = win(save, id);
     const coins = save.coins;
@@ -1433,6 +1433,14 @@ describe("A Garden Rewatered (#75 item 16c)", () => {
     expect(save.items.potion).toBe(potions + 1);
   });
 
+  it('weeds beaten on the way: the last water sends you straight back to him (16c review round 1)', () => {
+    let save = converse('garden-gardener', keyed());
+    for (const id of ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy']) save = win(save, id);
+    for (const c of [DEW, RAIN, RIVER]) save = openChest(save, c);
+    expect(chestWantedLine(save, RIVER)).toBe("🌱 That's all three waters! Take them back to the Gardener.");
+    expect(questConversation('garden-gardener', save)!.finishKind).toBe('complete');
+  });
+
   it('a water found before the Gardener asks says who wants it', () => {
     const save = openChest(defaultSave(), DEW);
     expect(save.questItems).toEqual(['jar-dew']);
@@ -1441,7 +1449,8 @@ describe("A Garden Rewatered (#75 item 16c)", () => {
 
   it('every water chest is in reach without passing the Gardener', () => {
     const z = ZONES['asters-garden'];
-    const r = reach(z, { blocked: (x, y) => y === 10 && (x === 9 || x === 10) });
+    const boss = z.enemies.find((e) => e.defId === 'the-gardener')!;
+    const r = reach(z, { blocked: (x, y) => x === boss.x && y === boss.y });
     for (const c of z.keyChests!) expect(touches(r, c.x, c.y), c.item).toBe(true);
   });
 });

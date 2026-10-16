@@ -4084,28 +4084,35 @@ def thorn_ball(c: Canvas, p: Pose, s: dict):
 
 
 def wilt_flower(c: Canvas, p: Pose, s: dict):
-    """A Wilt Sprite (#75 item 16c): a thirsty flower on a bent stem, its pink
-    petals drooping, two leaves for arms — perks up a little on every hop."""
+    """A Wilt Sprite (#75 item 16c): a thirsty weed-flower, its head hanging on
+    a bent stem, petals gone dry and brown at the tips, a sulky frown — it
+    perks up a little on every hop (16c review: it looked too healthy)."""
     d = D(c, p)
-    petal = hexc(s.get('color', '#d87a9a'))
-    stem = hexc(s.get('stem', '#7a9a4a'))
+    petal = hexc(s.get('color', '#b07a6a'))
+    tip = hexc(s.get('tip', '#7a4a2a'))
+    stem = hexc(s.get('stem', '#8a8a3a'))
     perk = 1.0 if p.frame % 2 else 0.0
     S = d.part(d.lean * 0.4, 0)
-    S.line(16, 29.6, 16.6, 20, stem, w=1.6)
-    S.line(16.6, 20, 19.4 - perk, 13.6 + perk, stem, w=1.6)  # the bend
-    S.ellipse(12.4, 23.4, 3.2, 1.4, stem, rot=0.5)
-    S.ellipse(20.4, 24.4, 3.2, 1.4, stem, rot=-0.5)
+    S.line(16, 29.6, 15.6, 18, stem, w=1.6)
+    S.line(15.6, 18, 19.6 - perk, 14 + perk, stem, w=1.6)  # the droop
+    S.ellipse(12.2, 24.4, 3.2, 1.2, dark(stem, 0.15), rot=0.9)  # limp leaves
+    S.ellipse(19.8, 25.4, 3.2, 1.2, dark(stem, 0.15), rot=-0.9)
     d.put(S)
-    hx, hy = 20 - perk, 13 + perk * 0.6
+    hx, hy = 20 - perk, 18 - perk
     F = d.part(d.lean, d.bob)
-    for k in range(6):
-        a = k * math.pi / 3 + 0.5
-        F.ellipse(hx + math.cos(a) * 4.4, hy + math.sin(a) * 3.2 + 1.2, 2.6, 1.8, petal, rot=a)
-    F.ellipse(hx, hy, 3.2, 3.0, '#e8c040')
+    for k in range(5):
+        a = 0.35 + k * (math.pi - 0.7) / 4  # petals hang down round the bottom of the head
+        px, py = hx + math.cos(a) * 4.0, hy + math.sin(a) * 4.4
+        F.ellipse(px, py, 1.6, 2.8, petal, rot=a - math.pi / 2)
+        F.dot(px + math.cos(a) * 2.2, py + math.sin(a) * 2.4, tip)
+    F.ellipse(hx, hy, 3.0, 2.6, '#a8803a')
     d.put(F)
     if p.facing != 'up':
-        ex = face_x(p, [hx + 0.4, hx + 2.4], [hx - 1.2, hx + 1.2])
-        d.eyes(F, [(x, hy + 0.4) for x in ex], h=1 if not d.sep else 2)
+        ex = face_x(p, [hx + 0.2, hx + 2.2], [hx - 1.2, hx + 1.2])
+        d.eyes(F, [(x, hy + 0.2) for x in ex], h=1)
+        if ex and d.sep:
+            for x in ex:
+                F.line(x - 1, hy - 1.6 + (0.6 if x > hx else 0), x + 1, hy - 1.6 + (0 if x > hx else 0.6), '#4a2a1a', w=0.5)  # a sulky brow
     finish(c, d, shadow=(16, 30.4, 5, 1.0))
 
 
@@ -4159,28 +4166,29 @@ def sprout(c: Canvas, p: Pose, s: dict):
 
 
 def hall_root(c: Canvas, p: Pose, s: dict):
-    """The deep root in the Nameless Hall's floor (#75 item 16c): a hole in the
-    flagstones, thick old roots knotted across it — not a face, just a way
-    down that isn't open yet, a faint violet glow below."""
+    """The deepest root in the Nameless Hall (#75 item 16c): a thick old root
+    arching up out of the flagstones and plunging back down into a dark hole,
+    a faint violet glow far below — a way down that isn't open yet."""
     d = D(c, p)
-    bark = hexc(s.get('bark', '#5a3a28'))
+    bark = hexc(s.get('bark', '#6a4630'))
     glow = s.get('glow', '#b89aff')
     pulse = 0.4 if p.frame % 2 else 0.0
     H = d.part(0, 0)
-    H.ellipse(16, 22, 11.4, 6.4, '#4a4458')
-    H.ellipse(16, 22.4, 9.6, 5.0, '#140e1e', shade=False)
-    H.ellipse(16, 23.6, 5 + pulse, 2.2 + pulse * 0.5, glow, shade=False)
+    H.ellipse(17, 24, 10, 5.4, '#4a4458')
+    H.ellipse(17, 24.4, 8.4, 4.2, '#140e1e', shade=False)
+    H.ellipse(17, 25.4, 4.6 + pulse, 2 + pulse * 0.5, glow, shade=False)
     d.put(H, outline=False)
     R = d.part(0, 0)
-    for (x0, y0, x1, y1) in ((4.6, 19, 26, 25.6), (6, 25.6, 27.4, 19.4), (10, 16.6, 13, 28), (22, 16.6, 19, 28)):
-        R.line(x0, y0, x1, y1, bark, w=2.0)
-    for (x, y) in ((4.6, 19), (27.4, 19.4), (10, 16.6), (22, 16.6)):
-        R.ellipse(x, y, 1.4, 1.2, dark(bark, 0.2))
-    if d.sep:
-        for (x, y) in ((11, 21.8), (20.4, 22.6), (16, 20.8)):
-            R.dot(x, y, light(bark, 0.25))
+    # The trunk: up out of the floor on the left, arching over, down into the hole.
+    pts = [(4, 29), (5, 22), (7, 14), (11, 8.6), (16, 7.4), (20.4, 9.6), (22, 15), (20.6, 21), (18.6, 25)]
+    for (a1, b1) in zip(pts, pts[1:]):
+        R.line(a1[0], a1[1], b1[0], b1[1], bark, w=3.6)
+    for (a1, b1) in zip(pts[1:5], pts[2:6]):
+        R.line(a1[0] + 0.8, a1[1], b1[0] + 0.6, b1[1] + 0.6, light(bark, 0.2), w=0.8)  # a lit edge
+    for (x0, y0, x1, y1) in ((5, 22, 1.4, 25), (6.4, 16, 2.6, 15), (21.6, 13, 26, 11.4), (21, 19, 26.6, 20.4)):
+        R.line(x0, y0, x1, y1, dark(bark, 0.1), w=1.2)  # little side roots
     d.put(R)
-    finish(c, d, shadow=None)
+    finish(c, d, shadow=(9, 30.2, 5, 1.0))
 
 
 
@@ -4442,7 +4450,7 @@ ROSTER: list[Char] = [
     Char('blank-sprite', '⬜', 'blank_sprite', H(color='#f4f4f0')),
     # ── Act IV: Aster's Garden (#75 item 16c) ──
     Char('thorn-of-doubt', '🌵', 'thorn_ball', H(color='#5a8a3a')),
-    Char('wilt-sprite', '🥀', 'wilt_flower', H(color='#d87a9a')),
+    Char('wilt-sprite', '🥀', 'wilt_flower', H(color='#b07a6a')),
     Char('bramblewhy', '❓', 'bramble', H(color='#6a7a3a')),
     # The Gardener: Aster's old gardener, cross from so long alone — a straw hat,
     # a green smock and apron, a grey beard and a watering can.

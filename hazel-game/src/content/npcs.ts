@@ -2657,7 +2657,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       // Aster's Garden (#75 item 16c): where to go next, once the name is back.
       {
-        text: "She had a garden, you know — south of the old Field, past Old Knot. Its Gardener still keeps her key.",
+        text: "She had a garden, you know. Go down past Old Knot to the old Field — her garden is just south of it. Its Gardener still keeps her key.",
         ifFlag: NAME_LEARNED,
         unlessFlag: keyFlag('asters-key'),
       },
@@ -2730,8 +2730,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     prop: true,
     lines: [
-      { text: 'A plaque worn smooth. Someone has carved a tiny daisy in its corner.', unlessFlag: NAME_LEARNED },
-      { text: "A plaque worn smooth, a tiny daisy in its corner. A daisy — like an aster. You think it's hers.", ifFlag: NAME_LEARNED },
+      // Only reached once her name is back — the garden's fog lifts with it (16c review round 1).
+      'A plaque worn smooth, with a tiny daisy carved in its corner.',
+      'An aster is a flower just like a daisy. This one must be hers!',
     ],
   },
   'hall-deep-root': {
@@ -2743,7 +2744,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     prop: true,
     lines: [
-      'A great root plunges through the floor here, down into the dark.',
+      'A great root plunges through a hole in the floor here, down into the dark.',
       'Far, far below, something hums a tune with no words. It sounds lonely.',
       { text: '(The roots down there are still untangling. The way down will open soon!)', setFlag: HALL_ROOT_SEEN },
     ],

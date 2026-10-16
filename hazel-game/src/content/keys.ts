@@ -162,7 +162,7 @@ export const GATE_KEYS: GateKey[] = [
   {
     id: 'asters-key',
     name: "Aster's Key",
-    emoji: '🌸',
+    emoji: '🌼',
     bossId: 'the-gardener',
     bossName: 'The Gardener',
     bossIntro: [
@@ -173,10 +173,20 @@ export const GATE_KEYS: GateKey[] = [
     fromZone: 'asters-garden',
     unlocksZone: 'nameless-hall',
     opens: "It opens the Nameless Hall's great door, just south of the garden!",
-    fiendName: "the Dream Root's heart",
+    fiendName: 'the deepest root',
     door: 'great door',
   },
 ];
+
+/**
+ * A key's name mid-sentence: "the Verdant Key", but "Aster's Key" — a name that
+ * already says whose it is takes no "the" (16c review round 1). `capital` for
+ * the start of a sentence.
+ */
+export function keyName(k: GateKey, capital = false): string {
+  if (/'s /.test(k.name)) return k.name;
+  return `${capital ? 'The' : 'the'} ${k.name}`;
+}
 
 /** The key dropped by beating a given warden boss (by enemy def id). */
 export function keyForBoss(bossId: string): GateKey | undefined {
