@@ -780,6 +780,16 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — `?signup` never outlives its sign-up page (#143g)
+A `/saas-code-review` of #143f (1 low, fixed): only `AuthPage` dropped
+`?signup`, and it mounts only with no session — so a parent already signed in
+who tapped "Create a free family account" kept it in the address, and a later
+sign-out opened on the sign-up form. Now `lib/signupLink.ts`
+(`hasSignupParam` / `dropSignupParam`, which keeps the rest of the address)
+is shared: `AuthPage` reads it and drops it, and `App` drops it as soon as a
+session exists. Tests: `signupLink.test` (+3), `App.signup.test` (+2; the
+signed-in one fails without `App`'s effect). 1307 green, lint + build clean.
+
 ### 2026-10-16 — Public pages: review fixes (#143f)
 `/saas-code-review` + `/saas-ux-review` of the prototype, rendered at 320,
 390 and 1280 px, by keyboard and with reduced motion; the owner said fix all.

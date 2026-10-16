@@ -4,10 +4,7 @@ import { errorMessage } from '../../lib/errors';
 import PasswordInput from '../../components/PasswordInput';
 import PrivacyNotice from '../family/PrivacyNotice';
 import { CONSENT_VERSION } from '../../content/family';
-
-// The public site's "Create a free family account" opens the game at ?signup
-// (#143), so the grown-up lands on the sign-up form, not Sign in.
-const SIGNUP_PARAM = 'signup';
+import { dropSignupParam, hasSignupParam } from '../../lib/signupLink';
 
 /**
  * Sign in / sign up. An account is a grown-up's (#124): they sign up with
@@ -18,7 +15,8 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(() => new URLSearchParams(window.location.search).has(SIGNUP_PARAM));
+  // Opened from the public site's sign-up button (?signup, #143)?
+  const [isSignUp, setIsSignUp] = useState(() => hasSignupParam());
   // "Forgot password?" mode: email only, sends a reset link (#88).
   const [isForgot, setIsForgot] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,12 +25,7 @@ export default function AuthPage() {
 
   // ?signup is read once: drop it from the address, so signing out later
   // (or a reload) opens Sign in as usual.
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has(SIGNUP_PARAM)) return;
-    url.searchParams.delete(SIGNUP_PARAM);
-    window.history.replaceState(window.history.state, '', url);
-  }, []);
+  useEffect(() => dropSignupParam(), []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
