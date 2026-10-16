@@ -6,11 +6,12 @@ import { useProfileStore } from '../../store/profileStore';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { PASS_THRESHOLD } from '../../lib/utils';
-import { nextSkillLevel } from '../../lib/age';
+import { bankRamp, nextSkillLevel } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { prefetchQuestions, QUIZ_QUESTION_COUNT, TOPIC_NOT_READY } from '../../lib/questions';
 import { markSeen } from '../../lib/seen';
+import { isStarterId } from '../../content/starterQuestions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import FlagButton from '../../components/FlagButton';
 import type { Question } from '../../types';
@@ -98,13 +99,19 @@ export default function QuizRound() {
       .map((question, i) => ({ question, picked: picks[i] }))
       .filter((_, i) => answers[i] === false);
     recordQuizRound(finalPassed, misses);
-    // Persist the skill ramp for this topic. XP only once the world is open:
+    // Persist the skill ramp for this topic — bank questions only, and only
+    // when they were most of the round (#153, `bankRamp`): the starter
+    // questions repeat (six a band, one band for three levels), so knowing
+    // them by heart isn't a new level. XP only once the world is open:
     // the opening rounds are the way in, not a way to level up (#122).
     // `worldUnlocked` is from before this round, so the round that opens the
     // world pays none either.
-    const newLevel = nextSkillLevel(skillLevel, answers);
+    // Starter questions pay no XP either (#153, the owner's call).
+    const bankAnswers = answers.filter((_, i) => !isStarterId(questions[i].id));
+    const newLevel = nextSkillLevel(skillLevel, bankRamp(bankAnswers, answers.length));
     void setSkillLevel(topic, newLevel);
-    if (worldUnlocked) void addXp(correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
+    const bankCorrect = bankAnswers.filter(Boolean).length;
+    if (worldUnlocked && bankCorrect > 0) void addXp(bankCorrect * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
     void recordActivity();
     // Warm the next same-topic round so a replay starts instantly.
     prefetchQuestions(topic, age, newLevel, QUIZ_QUESTION_COUNT);

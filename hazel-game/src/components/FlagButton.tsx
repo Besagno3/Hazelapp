@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { flagQuestion, type FlagReason } from '../lib/questions';
+import { flagQuestion, inQuestionBank, type FlagReason } from '../lib/questions';
 import { errorMessage } from '../lib/errors';
 
 interface FlagButtonProps {
@@ -20,12 +20,18 @@ const REASONS: { id: FlagReason; label: string }[] = [
  * A reason picker prevents accidental single-tap spam and tells the review
  * queue (migration 0015) what's wrong: "Not OK for kids" holds the question
  * back at once; it's hidden from this family whatever the reason.
+ *
+ * Nothing at all for a question that isn't in the server's bank — a starter
+ * question (B5) or one that failed to cache: a report couldn't reach anyone,
+ * so nothing promises "We'll take a look" (#153 review round 1).
  */
 export default function FlagButton({ questionId }: FlagButtonProps) {
   const [open, setOpen] = useState(false);
   const [flagged, setFlagged] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  if (!inQuestionBank(questionId)) return null;
 
   async function submit(reason: FlagReason) {
     setSubmitting(true);

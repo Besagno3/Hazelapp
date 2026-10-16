@@ -13,6 +13,7 @@ import {
   type FieldSpell,
 } from '../../content/fieldSpells';
 import { fetchQuestions } from '../../lib/questions';
+import { isStarterId } from '../../content/starterQuestions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
@@ -135,7 +136,8 @@ function TrialRun({ spell, onLearned }: { spell: FieldSpell; onLearned: () => vo
         update((s) => ({ ...s, library: pushLibrary(s.library, [{ question, picked }]) }));
         return;
       }
-      void addXp(XP_PER_CORRECT);
+      // A starter question still counts toward the spell, but pays no XP (#153).
+      if (!isStarterId(question.id)) void addXp(XP_PER_CORRECT);
       const now = right + 1;
       setRight(now);
       if (now >= TRIAL_CORRECT) {

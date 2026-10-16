@@ -66,6 +66,7 @@ describe('markSeen — the app tells the server what was on screen (#134)', () =
   it('skips questions that failed to cache, and does nothing with no kid playing', async () => {
     const { markSeen, SEEN_FLUSH_MS } = await fresh();
     markSeen('fresh-123-0');
+    markSeen('starter-math-easy-1'); // a starter question (B5): not in the bank either
     markSeen('');
     vi.advanceTimersByTime(SEEN_FLUSH_MS);
     expect(rpcMock).not.toHaveBeenCalled();

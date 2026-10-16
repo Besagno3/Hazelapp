@@ -6,6 +6,7 @@ import {
   skillLevelFor,
   nextSkillLevel,
   nextSkillLevelFromBattle,
+  bankRamp,
   MIN_SKILL_LEVEL,
   MAX_SKILL_LEVEL,
 } from './age';
@@ -90,5 +91,22 @@ describe('nextSkillLevelFromBattle', () => {
     expect(
       nextSkillLevelFromBattle(MAX_SKILL_LEVEL, [true, true, true, true, true]),
     ).toBe(MAX_SKILL_LEVEL);
+  });
+});
+
+describe('bankRamp — what a level change rests on (#153 review round 2)', () => {
+  it('the bank answers, when they are most of the round', () => {
+    expect(bankRamp([true, true, true], 5)).toEqual([true, true, true]);
+    expect(bankRamp([true, false], 2)).toEqual([true, false]);
+  });
+
+  it('none, when starter questions were half the round or more — one or two bank answers are too few to judge', () => {
+    expect(bankRamp([false], 5)).toEqual([]);
+    expect(bankRamp([true, true], 4)).toEqual([]);
+    expect(bankRamp([], 5)).toEqual([]);
+    // So a round passed 4 of 5 never drops on its one bank question…
+    expect(nextSkillLevel(4, bankRamp([false], 5))).toBe(4);
+    // …and a round failed 1 of 5 never climbs two on it.
+    expect(nextSkillLevel(4, bankRamp([true], 5))).toBe(4);
   });
 });

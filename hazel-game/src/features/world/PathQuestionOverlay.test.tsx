@@ -12,9 +12,11 @@ const riddle: Question = {
   correctIndex: 0,
   explanation: 'Because it did.',
 };
+// The question served; a test may swap in a starter one (#153).
+const served = { q: riddle };
 vi.mock('../../lib/questions', async (orig) => ({
   ...(await orig<typeof import('../../lib/questions')>()),
-  fetchQuestions: async () => [riddle],
+  fetchQuestions: async () => [served.q],
 }));
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
 
@@ -22,6 +24,8 @@ const { default: PathQuestionOverlay } = await import('./PathQuestionOverlay');
 const { useSaveStore } = await import('../../store/saveStore');
 const { defaultSave } = await import('../../lib/save');
 const { pathTargetId } = await import('../../content/zones');
+const { useProfileStore } = await import('../../store/profileStore');
+const { XP_PER_CORRECT } = await import('../../lib/level');
 
 const moonstoneChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'chest', 8, 7), topic: 'history', zoneId: 'echo-mine' };
 const plainChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'chest', 19, 2), topic: 'history', zoneId: 'echo-mine' };
@@ -32,7 +36,30 @@ function withFlags(flags: Record<string, boolean>) {
 /** Yarn has asked: the first tale-stone's riddle is due. */
 const YARN_ASKED = { 'quest:yarn-tale:offered': true };
 
-beforeEach(() => withFlags({}));
+beforeEach(() => {
+  served.q = riddle;
+  withFlags({});
+});
+
+describe('PathQuestionOverlay — starter questions pay no XP (#153)', () => {
+  it('a right bank answer pays XP; a right starter answer opens the chest all the same, but pays none', async () => {
+    const addXp = vi.fn();
+    useProfileStore.setState({ addXp });
+    render(<PathQuestionOverlay target={plainChest} />);
+    fireEvent.click(await screen.findByText('Right'));
+    expect(addXp).toHaveBeenCalledWith(XP_PER_CORRECT);
+  });
+
+  it('…and a starter one opens it with no XP', async () => {
+    const addXp = vi.fn();
+    useProfileStore.setState({ addXp });
+    served.q = { ...riddle, id: 'starter-history-easy-1' };
+    render(<PathQuestionOverlay target={plainChest} />);
+    fireEvent.click(await screen.findByText('Right'));
+    expect(useSaveStore.getState().save!.openedChests).toEqual([plainChest.id]);
+    expect(addXp).not.toHaveBeenCalled();
+  });
+});
 
 describe('PathQuestionOverlay — key-item chests (#75 item 13)', () => {
   it('a right answer opens the chest: coins and the Moonstone, and — before Moss has asked — who wants it, above the button', async () => {

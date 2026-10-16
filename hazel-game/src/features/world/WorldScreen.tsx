@@ -21,7 +21,7 @@ import {
   visitedFlag,
   type FieldCast,
 } from '../../content/fieldSpells';
-import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx, spireFloorTitle } from '../../content/spire';
+import { SPIRE_FLOORS, floorSpawnPx, spireFloorTitle } from '../../content/spire';
 import { dungeonFloor, floorLabel } from '../../content/dungeons';
 import { useSpireStore } from '../../store/spireStore';
 import { atTier, spawnPlaced } from '../../content/enemies';
@@ -161,6 +161,7 @@ export default function WorldScreen() {
   const spireFloorIndex = useSpireStore((s) => s.floor);
   const spireExploring = useSpireStore((s) => s.exploring);
   const spireLives = useSpireStore((s) => s.lives);
+  const spireMaxLives = useSpireStore((s) => s.maxLives);
   const spireBroken = useSpireStore((s) => s.broken);
   const spireBump = useSpireStore((s) => s.bump);
   const onSpireFloor = overlay === 'spire' && spireFloorIndex !== null;
@@ -434,14 +435,16 @@ export default function WorldScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrives]);
 
-  // Warm each living enemy's battle questions while the player explores.
+  // Warm each living enemy's battle questions while the player explores —
+  // saved questions only (B5), so a battle that never happens costs no Claude
+  // call; the battle itself asks for any it still needs.
   useEffect(() => {
     if (!save) return;
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       if (enemy.isBoss && bossDefeated(enemy, save.flags)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
-      prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT);
+      prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT, undefined, { cacheOnly: true });
     }
     // Re-warm only when the zone changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -784,7 +787,7 @@ export default function WorldScreen() {
         }}
         spireFloor={spireTheme}
         spireBroken={spireBroken}
-        spireLight={spireTheme ? { lives: spireLives, max: SPIRE_LIVES } : null}
+        spireLight={spireTheme ? { lives: spireLives, max: spireMaxLives } : null}
         travelRef={travelRef}
         calmRef={calmRef}
         actionRef={actionRef}

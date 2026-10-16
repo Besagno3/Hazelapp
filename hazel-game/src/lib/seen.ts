@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { errorMessage } from './errors';
 import { useFamilyStore } from '../store/familyStore';
+import { isStarterId } from '../content/starterQuestions';
 
 /**
  * Tells the server which questions the kid playing has actually seen (#134).
@@ -30,8 +31,8 @@ let sent: { kid: string; at: Map<string, number> } | null = null;
 
 /** Notes that a question is on screen for the kid playing now. */
 export function markSeen(questionId: string): void {
-  // Synthetic ids ("fresh-…") are questions that failed to cache: not in the bank.
-  if (!questionId || questionId.startsWith('fresh-')) return;
+  // Starter questions (B5) and ones that failed to cache ("fresh-…") aren't in the bank.
+  if (!questionId || questionId.startsWith('fresh-') || isStarterId(questionId)) return;
   const kid = useFamilyStore.getState().activeKidId;
   if (!kid) return;
   if (sent?.kid !== kid) sent = { kid, at: new Map() };
