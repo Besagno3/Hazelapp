@@ -1377,6 +1377,16 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1294 | I | ✅ | function | harness: a report check that holds alerts on email, Slack and Discord (key, to, from, subject, the question and link, no kid or family); still shown → no alert; a refusing Slack never fails the check (logged); the digest refuses no / wrong secret, sends nothing with nothing waiting, and two waiting go to all three channels, read held first up to 200 (99/99) |
 | TC-1295 | M | ⬜ | deploy | on the real project: after the owner setup, report a question "Not OK for kids" → the email arrives within a minute with the link; the link opens Grown-ups, then the review page; Release puts it back; the next morning's digest arrives (or none with nothing waiting); a Slack or Discord webhook gets the same |
 
+## Ages 6 to 18 (#156)
+
+| ID     | Type | Status | Feature | Case |
+|--------|------|--------|------|------|
+| TC-1451 | U | ✅ | prompt | the writer's prompt says "aged 6 to 18", has the age 6, 13 and 17+ lines and the YOUNG READERS block (one 3–4 letter word per option); the blind check fails a 6-year-old's question that breaks it (questionScreen.test) |
+| TC-1452 | U | ✅ | reuse | a kid of 6 or under is never served a question written for an older child (`p_max_age` is their own age); older kids keep the ±1 year window (questionScreen.test) |
+| TC-1453 | U | ✅ | age cap | `playerAge` is the birth-date age capped at 18: 6 → 6, 18 → 18, 25 → 18; no profile → `DEFAULT_AGE` (age.test) |
+| TC-1454 | M | ⬜ | deploy | after redeploying `generate-questions`: a 6-year-old's quiz rounds in every topic show short questions with one-word, mostly 3–4 letter answers; a 13- and a 17-year-old's look right for their age; the log shows few drops by the check |
+| TC-1455 | M | ⬜ | pages | the kids' page, Grown-ups page and the game's meta description say 6–18; the facts line still wraps cleanly at 320 px |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

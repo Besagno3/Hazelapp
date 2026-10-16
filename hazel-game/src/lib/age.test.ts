@@ -7,6 +7,9 @@ import {
   nextSkillLevel,
   nextSkillLevelFromBattle,
   bankRamp,
+  playerAge,
+  DEFAULT_AGE,
+  MAX_PLAYER_AGE,
   MIN_SKILL_LEVEL,
   MAX_SKILL_LEVEL,
 } from './age';
@@ -22,6 +25,17 @@ describe('calcAge', () => {
 
   it('does not subtract during the birth month', () => {
     expect(calcAge(2014, 6, new Date('2026-06-15'))).toBe(12);
+  });
+});
+
+describe('playerAge', () => {
+  it('is the age from the birth date, capped at 18 (#156)', () => {
+    const now = new Date().getFullYear();
+    expect(MAX_PLAYER_AGE).toBe(18);
+    expect(playerAge({ birthYear: now - 6, birthMonth: 1 })).toBe(6);
+    expect(playerAge({ birthYear: now - 18, birthMonth: 1 })).toBe(18);
+    expect(playerAge({ birthYear: now - 25, birthMonth: 1 })).toBe(18);
+    expect(playerAge(null)).toBe(DEFAULT_AGE);
   });
 });
 

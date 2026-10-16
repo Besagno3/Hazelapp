@@ -950,6 +950,20 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — Ages 6 to 18, one-word answers for young readers (#156)
+The owner widened the audience from about 7–11 to **6–18**. The question
+writer's prompt (`generate-questions/index.ts` `SYSTEM_PROMPT`) now says
+"aged 6 to 18", adds what children know at 6, 13, 15 and 17+, and a **YOUNG
+READERS** block: at 6 or under, a question of about 6 simple words and every
+option one 3–4 letter word or a small number (the shortest everyday word when a
+topic has none). The blind check (`CHECK_PROMPT`, `_shared/questionScreen.ts`
+and its inline copy) fails a young reader's question that breaks that. Reuse:
+a kid of `YOUNG_READER_AGE` (6) or under never gets a question written for an
+older child (`p_max_age` = their age), only their own or younger. The app caps
+`playerAge` at `MAX_PLAYER_AGE` (18), as the function already clamped; anyone
+older plays as 18. Public pages, the game's meta description and the README say
+6–18. Deploy: redeploy `generate-questions` (no migration).
+
 ### 2026-10-16 — Merge the 16d branch (with main) into the 16e branch (#155)
 16d merged `main` (public pages, safer questions, the fairer Spire, saves, the
 family budget, starter questions), so 16e moved **#147 → #155** and its test

@@ -124,6 +124,9 @@ describe('screening questions for kids (B10, #147)', () => {
     expect(edgeFnSource).toMatch(/p_min_age: age - AGE_SLACK,\s*p_age: age,\s*p_level: level,/);
     expect(ageWindowMigration).toMatch(/and \(p_min_age is null or q\.age is null or q\.age >= p_min_age\)/);
     expect(ageWindowMigration).toMatch(/q\.age <= p_age or q\.level <= p_level\)/);
+    // A young reader (6 or under) never gets an older child's longer-worded questions (#156).
+    expect(edgeFnSource).toMatch(/p_max_age: age <= YOUNG_READER_AGE \? age : age \+ AGE_SLACK,/);
+    expect(edgeFnSource).toMatch(/const YOUNG_READER_AGE = 6;/);
     // Before 0017 is applied, the picker is retried without the new arguments.
     expect(edgeFnSource).toMatch(/is migration 0017 applied\?[\s\S]*db\.rpc\('pick_cached_questions', pickArgs\)/);
   });
@@ -141,6 +144,13 @@ describe('screening questions for kids (B10, #147)', () => {
     expect(recheckSource).toMatch(/\.eq\('status', row\.status\)/);
     // --reported claims each question the way the app's check does, so a report is checked once.
     expect(recheckSource).toMatch(/db\.rpc\('claim_report_check', \{\s*p_question: id,\s*p_parent: null,/);
+  });
+
+  it('writes for ages 6 to 18, with one short word per answer for young readers (#156)', () => {
+    expect(edgeFnSource).toMatch(/children aged 6 to 18\./);
+    expect(edgeFnSource).toMatch(/YOUNG READERS \(age 6 or younger\)[\s\S]*one short word of 3 or 4 letters/);
+    expect(edgeFnSource).toMatch(/- Age 6: [\s\S]*- Age 13: [\s\S]*- Age 17 and up: /);
+    expect(CHECK_PROMPT).toMatch(/If the child is 6 or younger: [^\n]*every option is one short word/);
   });
 
   it('the history and geography lines steer away from what the rules forbid', () => {

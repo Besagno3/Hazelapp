@@ -174,6 +174,7 @@ For each question, in order:
    - The fact is true, settled, and not disputed or changing.
    - The question and all four options keep every safety rule below, wrong options included.
    - A child of the given age could read it alone and understand what is asked.
+   - If the child is 6 or younger: the question is about 6 simple words or fewer, and every option is one short word (3 or 4 letters where possible) or a small number.
    - It is fair: no trick wording, no giveaway option, nothing that needs a picture, and no reference to option letters or positions.
 3. In "problem", say in a few words what is wrong, or leave it empty when kidSafe is true.
 Be strict. A question you are unsure about is not kidSafe. Throwing out a good question costs nothing; showing a bad one to a child does.

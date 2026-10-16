@@ -11,9 +11,12 @@ export function calcAge(birthYear: number, birthMonth: number, now = new Date())
 /** Age used when no profile is loaded (e.g. the migration isn't applied yet). */
 export const DEFAULT_AGE = 10;
 
-/** The player's age, falling back to DEFAULT_AGE without a profile. */
+/** Oldest age questions are pitched at; anyone older plays as this age. */
+export const MAX_PLAYER_AGE = 18;
+
+/** The player's age (capped at MAX_PLAYER_AGE), falling back to DEFAULT_AGE without a profile. */
 export function playerAge(profile: Pick<Profile, 'birthYear' | 'birthMonth'> | null): number {
-  return profile ? calcAge(profile.birthYear, profile.birthMonth) : DEFAULT_AGE;
+  return profile ? Math.min(MAX_PLAYER_AGE, calcAge(profile.birthYear, profile.birthMonth)) : DEFAULT_AGE;
 }
 
 export const MIN_SKILL_LEVEL = 1;
