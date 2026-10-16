@@ -150,7 +150,7 @@ ZONES = {
                         sky=('#0e1410', '#2a3a2a'), far='#1e2a1e', mid='mountain', water='#3a5a5a', cave=True),
     'deep-root-3': dict(ground=(78, 84, 96), path=(122, 128, 140), solid='root', deco='glowshroom', deco_c='#8ad8ff',
                         sky=('#0e1220', '#24304a'), far='#1a2234', mid='mountain', water='#3a6aa8', cave=True),
-    'deep-root-4': dict(ground=(70, 82, 104), path=(114, 126, 148), solid='root', deco='sparkle', deco_c='#e8f0ff',
+    'deep-root-4': dict(ground=(70, 82, 104), path=(114, 126, 148), solid='root', deco='glowshroom', deco_c='#9ad8ff',
                         sky=('#080c1e', '#1e2a4e'), far='#141c3a', mid='sea', water='#2a4a9a', cave=True),
     'deep-root-5': dict(ground=(92, 84, 108), path=(136, 128, 152), solid='root', deco='glowshroom', deco_c='#d8a8ff',
                         sky=('#140e20', '#342848'), far='#241a34', mid='mountain', water='#5a4a9a', cave=True),
@@ -454,7 +454,7 @@ def deco(kind, colr):
     elif kind == 'thorns':
         # The Hall of Thorns (#75 item 16d review): brown bramble sprigs with pale thorns.
         for (x, y) in ((3, 4), (10, 9), (5, 12)):
-            c.line(x, y + 3, x + 4, y - 1, '#6a3a2a', w=1)
+            c.line(x, y + 3, x + 4, y - 1, '#3a5a2a', w=1.2)
             for k in range(3):
                 c.dot(x + 1 + k * 1.3, y + 2 - k * 1.3 - 1, colr)
     elif kind == 'leaves':

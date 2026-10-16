@@ -8,16 +8,16 @@ import {
   floorTitle,
   stairsChars,
 } from './dungeons';
-import { STAIRS_CHARS, ZONES, tileAt, type ZoneDef } from './zones';
-import { reach } from '../lib/reach';
-import { GATE_KEYS } from './keys';
+import { HALL_GATE_FLAG, STAIRS_CHARS, ZONES, tileAt, type ZoneDef } from './zones';
+import { wakeAfterDefeat, wakeShelter } from '../lib/save';
+import { reach, touches } from '../lib/reach';
+import { GATE_KEYS, keyFlag } from './keys';
 import { SPIRE_FLOORS, spireFloorTitle } from './spire';
 import type { ZoneId } from '../types';
-import { DESCENT_TAUNTS } from './story';
-import { NPC_DEFS } from './npcs';
-import { ROOT_HEART_REACHED } from './questFlags';
+import { DESCENT_TAUNTS, descentSeenFlag } from './story';
+import { NPC_DEFS, lineText, visibleLines } from './npcs';
+import { HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED } from './questFlags';
 import { QUESTS } from './quests';
-import { defaultSave } from '../lib/save';
 
 const allZones = Object.values(ZONES);
 
@@ -58,7 +58,7 @@ describe('dungeons (#75 item 10)', () => {
         return seen.has(id) && !own.includes(id);
       };
       if (door) {
-        expect(onOverworld(door) || (d.id === 'deep-root' && linked(door, d.floors)), `${d.id}'s ${door} is a place on the overworld`).toBe(true);
+        expect(onOverworld(door) || linked(door, d.floors), `${d.id}'s ${door} is reached from the overworld`).toBe(true);
         expect(stairsOf(ZONES[door], stairsChars(d.goes).onward).some((e) => e.to === d.floors[0]), `${door}'s stairs lead to ${d.id}`).toBe(true);
       } else {
         expect(onOverworld(d.floors[0]), `${d.id} is entered from the overworld`).toBe(true);
@@ -178,9 +178,9 @@ describe('the Deep Root (#75 item 16d)', () => {
     expect(d.from).toBe('nameless-hall');
     const hall = ZONES['nameless-hall'];
     const b1 = ZONES[d.floors[0]];
-    const down = stairsOf(hall, '>').find((e) => e.to === b1.id)!;
-    const up = stairsOf(b1, '<').find((e) => e.to === hall.id)!;
-    expect(down && up).toBeTruthy();
+    const down = stairsOf(hall, '>').find((e) => e.to === b1.id);
+    const up = stairsOf(b1, '<').find((e) => e.to === hall.id);
+    if (!down || !up) throw new Error('the Hall and B1 need stairs both ways');
     const beside = (sx: number, sy: number, tx: number, ty: number) => Math.max(Math.abs(sx - tx), Math.abs(sy - ty)) === 1;
     expect(beside(down.spawnX, down.spawnY, up.x, up.y)).toBe(true);
     expect(beside(up.spawnX, up.spawnY, down.x, down.y)).toBe(true);
@@ -197,17 +197,49 @@ describe('the Deep Root (#75 item 16d)', () => {
     expect(typeof last === 'object' && last.setFlag).toBe(ROOT_HEART_REACHED);
     expect(ZONES[d.floors.at(-1)!].npcs.some((n) => n.defId === 'root-heart')).toBe(true);
   });
-  it("beating every critter down it never counts toward a quest up top (16d review round 1: the Gardener's weeds)", () => {
-    const kills: Record<string, number> = {};
-    for (const id of d.floors) for (const e of ZONES[id].enemies) kills[e.defId] = 1;
-    const save = { ...defaultSave(), kills };
-    for (const q of QUESTS) for (const st of q.steps) {
-      expect(st.isComplete(save), `${q.id} ${st.id}`).toBe(defaultSaveDone(q.id, st.id));
+  it("no critter down it is one a quest asks you to beat (16d review round 1: the Gardener's weeds stood on B2, B4, B5)", () => {
+    const wanted = new Set(QUESTS.flatMap((q) => q.steps.flatMap((st) => st.defeats ?? [])));
+    expect(wanted.has('thorn-of-doubt')).toBe(true); // the check sees the Gardener's weeds
+    for (const id of d.floors) for (const e of ZONES[id].enemies) expect(wanted.has(e.defId), `${id} ${e.defId}`).toBe(false);
+  });
+});
+
+
+describe('down the Deep Root, the folk up top keep talking (16d review round 2)', () => {
+  const key = keyFlag('asters-key');
+  const states: Record<string, boolean>[] = [
+    { [key]: true },
+    { [key]: true, [HALL_GATE_FLAG]: true },
+    { [key]: true, [HALL_ROOT_SEEN]: true },
+    { [key]: true, [descentSeenFlag('deep-root-1')]: true },
+    { [key]: true, [HALL_ROOT_SEEN]: true, [descentSeenFlag('deep-root-1')]: true },
+    { [key]: true, [descentSeenFlag('deep-root-1')]: true, [ROOT_HEART_REACHED]: true },
+  ];
+  it('Sprout, the Gardener and Keeper Aurora always have something to say, and nobody points at a door already opened', () => {
+    for (const flags of states) {
+      for (const id of ['garden-sprout', 'garden-gardener', 'root-aurora']) {
+        const said = visibleLines(NPC_DEFS[id].lines, { ...flags, [NAME_LEARNED]: true }).map(lineText);
+        expect(said.length, `${id} ${Object.keys(flags).join(',')}`).toBeGreaterThan(0);
+        if (flags[HALL_GATE_FLAG] || flags[descentSeenFlag('deep-root-1')]) expect(said.join(' '), id).not.toMatch(/Aster's Key opens the great door/);
+      }
     }
   });
 });
 
-function defaultSaveDone(questId: string, stepId: string): boolean {
-  const st = QUESTS.find((q) => q.id === questId)!.steps.find((s) => s.id === stepId)!;
-  return st.isComplete!(defaultSave());
-}
+describe("Glim's Nook (16d review round 2)", () => {
+  it('a defeat on B4 or deeper wakes you in her nook — above the Tide Echo — and higher up at the Lamplight Rest', () => {
+    for (const z of ['deep-root-4', 'deep-root-5', 'deep-root-6', 'deep-root-7'] as const) {
+      expect(wakeAfterDefeat({ lastRest: null, zoneId: z }).zoneId, z).toBe('deep-root-4');
+      expect(wakeShelter({ zoneId: z })?.line, z).toMatch(/Glim the Glowworm/);
+    }
+    for (const z of ['deep-root-1', 'deep-root-2', 'deep-root-3'] as const) expect(wakeAfterDefeat({ lastRest: null, zoneId: z }).zoneId, z).toBe('dreamroot-door');
+    const b4 = ZONES['deep-root-4'];
+    const pos = wakeAfterDefeat({ lastRest: null, zoneId: 'deep-root-4' }).pos!;
+    const wake = { x: Math.floor(pos.x / 32), y: Math.floor(pos.y / 32) };
+    const echo = b4.enemies.find((e) => e.defId === 'echo-tide-colossus')!;
+    expect(wake.y).toBeLessThan(echo.y); // the stairs-up side of the gap
+    // …and from the nook the echo is reached without passing it.
+    const open = reach(b4, { from: wake, gates: 'open', blocked: (x, y) => x === echo.x && y === echo.y });
+    expect(touches(open, echo.x, echo.y)).toBe(true);
+  });
+});

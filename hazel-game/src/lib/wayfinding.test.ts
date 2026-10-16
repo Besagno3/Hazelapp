@@ -681,5 +681,9 @@ describe("the Nameless Hall's 🚩 (16c review round 2, #75 item 16d)", () => {
     const open = { ...flags, [gateFlag(gateIdAt('nameless-hall', hall.map, hall.keyGate!.x, hall.keyGate!.y))]: true };
     expect(nextObjective(open).inside).toMatch(/one gap in the thorny wall/);
     expect(goalDirections(ZONES, nextObjective(open), 'nameless-hall', undefined, open)).toMatch(/^Take the stairs down two floors/);
+    // From up top, the way stops at the Dream Root Door (16d review round 2: it ran ~50 words).
+    const far = goalDirections(ZONES, nextObjective(open), 'lumina-village', undefined, open);
+    expect(far).toMatch(/Dream Root Door, then follow the 🚩 down to the Deep Root\.$/);
+    expect(far.split(/\s+/).length).toBeLessThanOrEqual(30);
   });
 });

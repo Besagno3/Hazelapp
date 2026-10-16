@@ -966,10 +966,10 @@ export const DESCENT_TAUNTS: Partial<Record<ZoneId, StoryPanel[]>> = {
     { emoji: '🌑', text: '"I made the whole world forget her," the voice says. "Do you know how hard that was? I had to forget her too."' },
   ],
   'deep-root-5': [
-    { emoji: '🌑', text: 'The galleries are hushed. The voice is almost a whisper: "She used to hum a song down here. I can\'t remember how it goes."' },
+    { emoji: '🌑', text: 'The halls are very quiet. The voice is almost a whisper: "She used to hum a song down here. I can\'t remember how it goes."' },
   ],
   'deep-root-6': [
-    { emoji: '🌑', text: 'Every clock stopped at the same minute. The voice sounds very tired: "That was the minute I forgot her name. Mine, too."' },
+    { emoji: '🌑', text: 'Tick… tick… then nothing. The voice sounds very tired: "That was the minute I forgot her name. Mine, too."' },
   ],
   'deep-root-7': [
     { emoji: '💜', text: 'The bottom of the Deep Root. A huge, warm root glows here like a heart, beating slowly.' },

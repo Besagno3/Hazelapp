@@ -1,4 +1,4 @@
-import { HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, gateFlag, gateIdAt, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { HALL_GATE_FLAG, HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, gateFlag, gateIdAt, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
@@ -7,7 +7,7 @@ import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } fro
 import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
-import { dungeonEntrance } from '../content/dungeons';
+import { dungeonEntrance, dungeonFloor } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
 import { bossFlag, keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
 import { ENEMY_DEFS } from '../content/enemies';
@@ -244,7 +244,7 @@ export const DEEP_ROOT_ECHOES: readonly { boss: string; zoneId: ZoneId; why: str
   {
     boss: 'echo-clockwork-titan',
     zoneId: 'deep-root-6',
-    why: 'One more echo stands between you and the bottom: the Clockwork Titan, where every clock has stopped.',
+    why: 'One more echo stands between you and the bottom: the Clockwork Echo, on the floor where every clock has stopped.',
     inside: 'It stands in the one gap in the wall, across the middle of the floor.',
   },
 ];
@@ -295,7 +295,7 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
       kind: 'visit',
       title: "Reach the Root's Heart",
       why: 'At the very bottom of the Deep Root, something has been humming a lonely tune for a very long time. Go and find it!',
-      inside: 'Walk up to the great glowing root in the middle of the floor.',
+      inside: 'Walk up to the glowing purple heart in the middle of the floor.',
       zoneId: 'deep-root-7',
       doneFlag: ROOT_HEART_REACHED,
       npc: 'root-heart',
@@ -627,10 +627,6 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
 }
 
 /** The Nameless Hall's great door, open (16c review round 2). */
-const HALL_GATE_FLAG = (() => {
-  const hall = ZONES['nameless-hall'];
-  return gateFlag(gateIdAt('nameless-hall', hall.map, hall.keyGate!.x, hall.keyGate!.y));
-})();
 
 /** Chorus Isle's double gate, open (15g review round 3). */
 const CHORUS_GATE_FLAG = (() => {
@@ -815,6 +811,12 @@ export function goalDirections(
     steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
     return sentence(steps);
   }
+  // Down the Deep Root from up top (16d review round 2: ~50 words in one box):
+  // the way to the Dream Root Door, then the 🚩 takes it from there.
+  if (dungeonFloor(goal.zoneId)?.dungeon.id === 'deep-root' && here !== 'dreamroot-door' && zoneTier(here) !== zoneTier(goal.zoneId)) {
+    const toDoor = routeSteps(zones, here, 'dreamroot-door', at, flags, aboard) ?? [];
+    return sentence([...toDoor, 'follow the 🚩 down to the Deep Root']);
+  }
   const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
   // …unless the hero is sailing right now (15g review round 4).
@@ -903,7 +905,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'boss' && goal.boss === DEEP_ROOT_ECHOES[0].boss) {
     plan = 'Echoes of old wardens guard the stairs down the Deep Root. You beat the real ones long ago — you can beat their echoes too!';
   } else if (goal.kind === 'boss') {
-    plan = `Down and down! ${capitalize(midSentence(ENEMY_DEFS[goal.boss!].name))} guards the next floor of the Deep Root. You can beat it!`;
+    plan = `Down and down! ${capitalize(midSentence(ENEMY_DEFS[goal.boss!].name))} guards a deeper floor of the Deep Root. You can beat it!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === ROOT_HEART_REACHED) {
     plan = "No more echoes! The Root's Heart is at the very bottom of the Deep Root. Go and see who has been humming down there.";
   } else if (goal.kind === 'key' && goal.key) {
@@ -973,7 +975,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'key' && goal.key?.id === 'asters-key') {
     tip = "In Aster's Garden, the weeds mend themselves. Hit them hard — and rest at the Lamplight Rest first!";
   } else if (goal.kind === 'boss' || (goal.kind === 'visit' && goal.doneFlag === HALL_GATE_FLAG)) {
-    tip = 'If you lose a battle down the Deep Root, you wake at the Lamplight Rest by the Door. Rest there and stock up on potions first!';
+    tip = "Bring potions from a shop up top — nobody sells them down here! Lose deep in the Deep Root, and Glim the Glowworm tucks you up halfway down.";
   } else if (goal.kind === 'visit' && goal.doneFlag === ROOT_HEART_REACHED) {
     tip = "Nothing fights at the Root's Heart — it's a quiet place. There's a save crystal there, too.";
   } else if (goal.kind === 'key' && !goal.crystal) {

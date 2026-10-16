@@ -119,6 +119,8 @@ export interface QuestStep {
   /** The giver's reminder while this step is active. */
   hint: string | ((save: SaveData) => string);
   isComplete: (save: SaveData) => boolean;
+  /** A defeat step's critters (enemy def ids) — what beating them anywhere counts for (16d review round 2). */
+  defeats?: string[];
   /** Set when this step is fulfilled by talking to another NPC. */
   npc?: { id: string; lines: string[] };
   /**
@@ -287,6 +289,7 @@ function defeatStep(
 ): QuestStep {
   return {
     id,
+    defeats: targets.map((t) => t.defId),
     hint: (save) => {
       const left = targets.filter((t) => (save.kills[t.defId] ?? 0) < 1);
       return left.length === 0 ? intro : `${intro} Still out there: ${left.map((t) => t.label).join(', ')}!`;

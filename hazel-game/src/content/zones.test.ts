@@ -480,7 +480,9 @@ describe('every place is unique (#73)', () => {
       for (const st of styles) {
         // A memory of a place (#75 item 16b) may build the way that place does.
         const owner = styleOwner.get(st) ?? z.id;
-        expect(owner === z.id || owner === z.echoOf, `style ${st} reused by ${z.id}`).toBe(true);
+        // …and the Deep Root's nook (16d review round 2) builds in the Dream Root's roots above it.
+        const sameRoots = st === 'root' && owner === 'dreamroot-door' && z.id.startsWith('deep-root-');
+        expect(owner === z.id || owner === z.echoOf || sameRoots, `style ${st} reused by ${z.id}`).toBe(true);
         if (!z.echoOf) styleOwner.set(st, z.id);
       }
     }
@@ -909,7 +911,7 @@ describe('Eldergrove (#75 item 14f)', () => {
     expect(grove.exits.some((e) => out.has(`${e.x},${e.y}`))).toBe(true);
     // A shelter, not an inn: no Rest. The Marsh has one too; the Archive's is its inn (#75 item 14h), and so is Chorus Isle's (15g).
     expect(innOf(grove)).toBeUndefined();
-    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh', 'sunken-archive', 'chorus-isle', 'dreamroot-door']);
+    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh', 'sunken-archive', 'chorus-isle', 'dreamroot-door', 'deep-root-4']);
   });
 
   it("Fen, Old Ringwood and Dawdle live here — Dawdle the slowest wanderer in the game", () => {

@@ -3401,7 +3401,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [],
     // The echo of the Thicket Warden stands in the one gap, before the stairs down.
     enemies: [
-      { defId: 'root-shellback', x: 4, y: 6 },
+      { defId: 'root-shellback', x: 5, y: 5 },
       { defId: 'eraser-imp', x: 15, y: 10 },
       { defId: 'echo-thicket-warden', x: 10, y: 7 },
     ],
@@ -3456,12 +3456,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     topics: ['space', 'science', 'engineering'],
     map: [
       '######################',
-      '#.<........~~~~~~~...#',
-      '#..........~~~~~~~...#',
-      '#..,..S.....~~~~~....#',
-      '#..........,.........#',
-      '#~~~~~.........~~~~~~#',
-      '#~~~~~~~~...~~~~~~~~~#',
+      '#.<..........WWWWWWW.#',
+      '#..........~~WZFFFBW.#',
+      '#..,..S....~~WFFFFFW.#',
+      '#..........,.WTFFFFW.#',
+      '#~~~~~.......WWWDWWW.#',
+      '#~~~~~~~~........~~~~#',
       '##########.###########',
       '#~~~~~~~~...~~~~~~~~~#',
       '#~~~......C.......~~~#',
@@ -3475,7 +3475,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     solidEmoji: '🌳',
     decoEmoji: '🍄',
     spawn: { x: 3, y: 1 },
-    npcs: [],
+    // Glim's Nook (16d review round 2): a glowworm's burrow above the echo.
+    // Beaten here or anywhere deeper, she finds you and tucks you up inside —
+    // a retry isn't nine screens away. Not an inn: `lastRest` is kept.
+    buildings: [{ id: 'glow-nook', name: "Glim's Nook", x: 13, y: 1, w: 7, h: 5, roof: 'dusk', style: 'root', sign: 'house' }],
+    shelter: { building: 'glow-nook', host: 'Glim the Glowworm' },
+    npcs: [{ defId: 'root-glim', x: 16, y: 3 }],
     // The echo of the Tide Colossus stands in the one gap, before the stairs down.
     enemies: [
       { defId: 'star-snail', x: 8, y: 3 },
@@ -3486,11 +3491,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 2, y: 1, to: 'deep-root-3', spawnX: 3, spawnY: 12 },
       { x: 19, y: 12, to: 'deep-root-5', spawnX: 18, spawnY: 1 },
     ],
-    shelterIn: 'dreamroot-door',
   },
   'deep-root-5': {
     id: 'deep-root-5',
-    name: "The Hushed Galleries",
+    name: "The Quiet Halls",
     kind: 'dungeon',
     topics: ['music', 'words', 'space'],
     map: [
@@ -3524,7 +3528,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 19, y: 1, to: 'deep-root-4', spawnX: 18, spawnY: 12 },
       { x: 2, y: 12, to: 'deep-root-6', spawnX: 3, spawnY: 1 },
     ],
-    shelterIn: 'dreamroot-door',
+    shelterIn: 'deep-root-4',
   },
   'deep-root-6': {
     id: 'deep-root-6',
@@ -3563,7 +3567,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 2, y: 1, to: 'deep-root-5', spawnX: 3, spawnY: 12 },
       { x: 19, y: 12, to: 'deep-root-7', spawnX: 3, spawnY: 1 },
     ],
-    shelterIn: 'dreamroot-door',
+    shelterIn: 'deep-root-4',
   },
   'deep-root-7': {
     id: 'deep-root-7',
@@ -3596,7 +3600,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     exits: [
       { x: 2, y: 1, to: 'deep-root-6', spawnX: 18, spawnY: 12 },
     ],
-    shelterIn: 'dreamroot-door',
+    shelterIn: 'deep-root-4',
   },
 };
 
@@ -3798,3 +3802,6 @@ export function gateTopic(z: ZoneDef, x: number, y: number): Topic {
 export function placeAt(z: ZoneDef, x: number, y: number): PlaceDef | null {
   return z.places?.find((p) => p.x === x && p.y === y) ?? null;
 }
+
+/** The Nameless Hall's great door, open (#75 item 16c; exported for 16d's lines and 🚩). */
+export const HALL_GATE_FLAG = gateFlag(gateIdAt('nameless-hall', ZONES['nameless-hall'].map, ZONES['nameless-hall'].keyGate!.x, ZONES['nameless-hall'].keyGate!.y));

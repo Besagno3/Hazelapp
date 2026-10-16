@@ -381,8 +381,9 @@ zod, react-query. Add the package in the same change that first uses it.
   the deepest root and the stairs beside it.
   **The Deep Root** (#75 item 16d): seven floors down (`deep-root`, `from:
   'nameless-hall'`), echoes of three wardens (`role: 'echo'`) on B2, B4 and
-  B6, Umbra's taunt once a floor (`DESCENT_TAUNTS`), the Root's Heart at the
-  bottom (`root-heart-reached`); the 🚩's `boss` goal kind.
+  B6, Umbra's taunt once a floor (`DESCENT_TAUNTS`), Glim's Nook on B4 (a
+  defeat on B4–B7 wakes you there), the Root's Heart at the bottom
+  (`root-heart-reached`); the 🚩's `boss` goal kind.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -808,6 +809,15 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — 16d review round 2: Glim's Nook, Sprout never silent (#75 item 16d, #146i)
+Fresh code (1 medium, 2 low, 2 nits) and UX (1 high, 3 medium, 9 low, 3 nits)
+reviews, all fixed but one kept (the 🌑 emoji): Glim's Nook on B4 — a defeat
+on B4–B7 wakes you there, not nine screens up at the Door; Sprout always has
+a line; a weed test that can fail (`QuestStep.defeats`); `HALL_GATE_FLAG` in
+zones.ts; potions "from a shop up top"; Aurora and the Heart; shorter routes
+from up top; The Quiet Halls; a trickster Star Snail, a swift Tick Beetle.
+1383 green.
 
 ### 2026-10-16 — 16d review round 1: the Gardener's weeds stay up top, open the great door first (#75 item 16d, #146h)
 Fresh code (2 medium, 3 low, 7 nits) and UX (6 medium, 11 low, 5 nits)

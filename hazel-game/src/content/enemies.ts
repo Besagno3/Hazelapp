@@ -176,9 +176,11 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'the-gardener': { id: 'the-gardener', name: 'The Gardener', sprite: '🧑‍🌾', topic: 'nature', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'warden' },
   // The Deep Root (#75 item 16d): critters of the roots below the Nameless Hall.
   'root-shellback': { id: 'root-shellback', name: 'Root Shellback', sprite: '🐢', topic: 'geography', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
-  'star-snail': { id: 'star-snail', name: 'Star Snail', sprite: '🐌', topic: 'space', levelOffset: 0, hpPerLevel: 12, behavior: 'shielded' },
+  // Its sparkly shell muddles a Hint Feather (16d review round 2: not three shielded critters in a row).
+  'star-snail': { id: 'star-snail', name: 'Star Snail', sprite: '🐌', topic: 'space', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster' },
   'hum-moth': { id: 'hum-moth', name: 'Hum Moth', sprite: '🦋', topic: 'music', levelOffset: 0, hpPerLevel: 12, behavior: 'swift' },
-  'tick-beetle': { id: 'tick-beetle', name: 'Tick Beetle', sprite: '🪲', topic: 'engineering', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
+  // Wound up tight, it strikes first.
+  'tick-beetle': { id: 'tick-beetle', name: 'Tick Beetle', sprite: '🪲', topic: 'engineering', levelOffset: 1, hpPerLevel: 13, behavior: 'swift' },
   // Echoes of the wardens (#75 item 16d): the Deep Root remembers every warden
   // you beat, and plays them back — paler, and a little stronger. Beating one
   // sets its `bossFlag` (`role: 'echo'`); it guards the way down its floor.
