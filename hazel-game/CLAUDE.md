@@ -780,6 +780,21 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — Public pages prototype: a kids' page and a grown-ups page (#143)
+New `site/` folder, outside the app (no `src/` change): `index.html` for kids
+(a title screen with Kira and Ember walking, a playable demo battle, heroes,
+Ember's stages, six real places, critters, bosses, a grown-ups box) and
+`grown-ups.html` (the idea, a real gameplay clip, a play session, subjects,
+safety, how questions are checked, what's collected, family controls, FAQ).
+Plain HTML/CSS/JS (`site/assets/`), served with the game's `public/`
+(`npx vite --config site/vite.config.mjs`). Every picture is the game's:
+sprites animate from their sheets, textures come from the tilesets, the logo
+is hand-drawn pixel letters (`site/tools/logo.py`), and screenshots and the
+clip are captured from the real game (`site/tools/capture.cjs`,
+`prep-assets.py`). Fonts are self-hosted (Jersey 15, Andika). Safety claims
+and what they rest on are listed in `site/README.md`. Not live: the privacy
+notice is still a draft and the game would move to `/play/` (#143).
+
 ### 2026-10-15 — 15h /saas-code-review + /saas-ux-review: an old tab asks for a refresh, shorter guides (#75 item 15h, #142n)
 All fixed on the owner's say-so. Code (1 low): `saveIsTooNew` also refuses a
 current-version save standing in (or resting at) a place this build doesn't
