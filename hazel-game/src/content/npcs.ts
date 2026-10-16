@@ -1566,7 +1566,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "Hi! I'm Posy. I bring flowers to the Hall of Names.",
       { text: 'Some plaques have names nobody remembers. They get flowers too.', unlessFlag: UMBRA_NAMED },
-      { text: 'Every plaque has a name now! This daisy is for Aster. She smiled at me!', ifFlag: UMBRA_NAMED },
+      { text: 'Every plaque has a name now, and every name gets a flower. This daisy is for Aster!', ifFlag: UMBRA_NAMED },
       "That's the rule. I made it up!",
       { text: "I sang to the Nameless Stone today. It didn't sing back… but I think it was listening.", ifFlag: crystalFlag('words') },
     ],
@@ -2725,7 +2725,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'The great door is open? Then the stairs down are just past it, beside the deepest root.', ifFlag: HALL_GATE_FLAG, unlessFlag: [DEEP_ROOT_ENTERED, ROOT_HEART_REACHED] },
       { text: 'Back from the Deep Root? Rest a while.', ifFlag: DEEP_ROOT_ENTERED, unlessFlag: ROOT_HEART_REACHED },
       { text: 'You found where the humming comes from? Then she is close. Rest, little one.', ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
-      { text: 'Every lamp down here burns gold now. You said her name, didn\'t you? Thank you, little one.', ifFlag: UMBRA_NAMED },
+      { text: 'Every lamp down here burns gold now. Even the dark feels warm.', ifFlag: UMBRA_NAMED },
     ],
   },
   // --- Aster's Garden + the Nameless Hall (#75 item 16c) ---------------------

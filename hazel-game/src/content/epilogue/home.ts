@@ -4,9 +4,9 @@ export const EPILOGUE_HOME: Readonly<Record<string, string>> = {
   'village-shopkeeper':
     "Everyone's wearing a daisy for Sage Aster today! Nothing useful, everything wonderful. That's my motto — and now it's hers too.",
   'hub-innkeeper':
-    "Everyone woke up humming the same happy tune this morning. I think the whole world just remembered something.",
+    "Everyone woke up humming the same happy tune. Sage Aster says it's an old school song. Now it's stuck in my head!",
   'village-elder':
-    "You said her name, and she came home. Oh, spark… I am so proud I could burn the bread myself.",
+    "You gave her name back, spark. Oh… I am so proud I could burn the bread myself.",
   'village-friend':
     "Aster asked me WHY the bread always burns. I said I didn't know. She said, \"Let's find out!\" It still burned. But we laughed a lot.",
   'village-keeper':
@@ -22,7 +22,7 @@ export const EPILOGUE_HOME: Readonly<Record<string, string>> = {
   'village-kid':
     "Sage Aster says the best secrets are the questions nobody's asked yet. So I'm asking ALL of them. Why is the sky up? Why do pebbles sit still?",
   'elder-lumen':
-    "Aster! I remember now: she taught a small boy called Lumen his very first letters. Every book I've ever read was my thank-you to her.",
+    "I remember now: Aster taught a small boy called Lumen his very first letters. Every book I've ever read was my thank-you to her.",
   'hub-librarian':
     'Now I know who read to me under that big tree. It was Aster! She remembered my name before I could even say hers.',
   'hub-merchant':

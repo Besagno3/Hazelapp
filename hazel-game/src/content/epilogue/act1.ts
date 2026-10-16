@@ -24,7 +24,7 @@ export const EPILOGUE_ACT1: Readonly<Record<string, string>> = {
   'verdara-botanist': "Fascinating! A whole forgotten Sage, back from the roots up. I've pressed a daisy in my notebook to remember today. As if I could forget!",
   'verdara-innkeeper': "The moss pillows feel extra soft tonight. Everyone sleeps well now that Aster is home and happy.",
   'verdara-traveler': "I don't collect names — just buttons. But I'd trade all four hundred and twelve to hear that one said again. Aster!",
-  'depths-tinker': 'Every gear down here turned over and smiled. Machines never really forget, you know. They were so glad to hear her name again: Aster.',
+  'depths-tinker': "Now every gear down here is humming. Machines never really forget, you know. They were so glad to hear her name again: Aster.",
   'depths-echo': 'Aster… Aster… Aster… For once I love how my words come back. That is a name worth hearing three times.',
   'depths-warden-sign': "Tick— tick. My springs feel lighter. The old shadow just needed somebody to remember it, friend. You did.",
   'mine-miner': "Aster's home! I feel so brave today, I might even hum a tune down in the tunnels. …A very quiet tune.",
@@ -32,10 +32,10 @@ export const EPILOGUE_ACT1: Readonly<Record<string, string>> = {
   // Gearfall Canyon
   'sage-cog': 'Lumina was a machine missing its very first gear. You found it. Aster turns with the rest of us now, and everything runs smooth.',
   'gearfall-villager': 'The great engine hums a new tune — a little slower, a little sweeter. Sounds like a name to me.',
-  'gearfall-merchant': 'Zero loose screws, and now zero blank plaques too. Lumina is finally all fastened together.',
+  'gearfall-merchant': "Zero loose screws, and not one blank plaque left in the Hall of Names. Everything fastened tight, just how I like it.",
   'gearfall-coil-merchant': "Zzzap! The whole canyon feels charged up today. Who knew remembering could fizz like that?",
   'gearfall-inventor': 'Today I invented nothing! Instead I wrote a thank-you note to Aster. Every invention needs a first idea, and she was ours.',
-  'gearfall-clockkeeper': "Tick… tock… The Clocktower struck an extra chime at dawn, all by itself. I think it was saying her name. Even clocks remember now!",
+  'gearfall-clockkeeper': "Tick… tock… The Clocktower struck an extra chime at dawn, all by itself. I think it was saying her name. Right on time, for once!",
   'gearfall-apprentice': 'The Professor gave me THREE wrenches to celebrate! I am holding them all. Aster would be proud. I think.',
   'gearfall-innkeeper': "Quiet as ever here, but it's a happy quiet now. The kind you get after a long, hard job is finally done.",
   'gearfall-traveler': 'Special delivery! …For Aster, this time. A letter from everybody, saying welcome home. I checked twice. It is really not for me!',
@@ -44,7 +44,7 @@ export const EPILOGUE_ACT1: Readonly<Record<string, string>> = {
   'coast-warden-sign': 'Psst — the tide brought in a daisy this morning. Out here, that means somebody far away got found.',
 
   // Chromaria
-  'sage-muse': 'Forgotten things fade to gray, little hero. Remembered things shine gold. Look how brightly Aster shines now — the finest art I have ever seen.',
+  'sage-muse': "Forgotten things fade to gray. Remembered things shine gold. Look how brightly Aster shines now — the finest art I have ever seen.",
   'chromaria-villager': 'I painted Aster today. Then I painted her again. And again! I am going to paint her EVERYWHERE.',
   'chromaria-merchant': 'Eight arms, and all eight waving hello to Aster! Today, a hug is on the house.',
   'chromaria-mirror-merchant': "Look in any mirror today: everyone has a little gold in them. That is what a happy world looks like!",

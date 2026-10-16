@@ -8,7 +8,7 @@ export const EPILOGUE_SEA: Readonly<Record<string, string>> = {
   'elder-ringwood': "Hrrrm. Nine hundred rings, and the newest one feels warm, like sunshine. I shall call it the Aster ring. Don't tell the Ringkeeper.",
   'elder-dawdle': "Oh… you did it. I heard… all the way… from the pond. Aster. A lovely… name. I'll say it… slowly. So it lasts.",
   // Foglight Marsh
-  'marsh-brume': 'My lanterns never flicker now. The fog was never wicked, you know. Only sad and forgotten. You remembered, and that was all it needed.',
+  'marsh-brume': "My lanterns never flicker now. The fog and I can be friends again. You remembered, and that was all it needed.",
   'marsh-puddle': "Ribbit! Yesterday I was a tadpole. Today I learned a new name: Aster! Tomorrow I'll teach it to every frog in the Marsh.",
   'marsh-slosh': "Everybody wants a raft to Remembrance Hill now, to see Aster's name on the first plaque. Busiest I've ever been — and the happiest!",
   // The Sunken Archive
@@ -22,7 +22,7 @@ export const EPILOGUE_SEA: Readonly<Record<string, string>> = {
   'archive-leaf': 'Everyone is smiling in the stacks today. Even me — and I fetched the wrong book again! Some days, nothing can go wrong.',
   // Lumina-That-Was (a memory: warm, not too sure of the future)
   'memory-young-lumen': "Our teacher hummed all morning! She says a happy day is coming. I hope it's soon!",
-  'memory-fair': "Everything feels brighter today! Here, take a smile, and a daisy to go with it. Free, of course. Memories always are.",
+  'memory-fair': "Everything feels brighter today! Here, take a smile, and a daisy to go with it. One for you, one for Aster.",
   'memory-young-wick': "Something good happened today, I can feel it! I'm so happy, I didn't even mind when the bread burned. Again!",
   'class-prim': "Desks in rows. Chalk in its box. And ASTER written on the board, where it belongs. Lessons may run late today. I shall allow it.",
   // The Deep Root

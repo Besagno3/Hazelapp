@@ -955,6 +955,11 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16f UX review round 3: lines that read on (#75 item 16f, #156h)
+Fresh UX review (1 medium, 6 low, nits), all fixed: 11 closing lines
+rewritten (no blank plaques "left", nothing a guide says again right after,
+fewer candles in Port Lantern), and two 16e lines (Posy, Aurora). 1567 green.
+
 ### 2026-10-16 — 16f code review round 2: tests that can fail (#75 item 16f, #156g)
 Fresh code review (no bugs; 5 low, 4 nits), all fixed: the epilogue guard
 checks lines by text, never one-shot, and the dog's per name
