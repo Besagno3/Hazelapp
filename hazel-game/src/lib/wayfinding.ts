@@ -513,7 +513,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: flags[NAME_LEARNED] ? 'Explore Lumina' : flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         // After the name (#75 item 16e) — and the side quests of Lumina-That-Was, if any are left.
-        why: flags[NAME_LEARNED]
+        why: flags[UMBRA_NAMED]
           ? `You said her name, and Aster is home! Visit her in the Hall of Names on Remembrance Hill. ${
               flags[questDoneFlag({ id: BELL_QUEST })] && flags[questDoneFlag({ id: DOG_QUEST })] && flags[questDoneFlag({ id: GARDEN_QUEST })]
                 ? 'Then hunt for secrets ✨ and help everyone you meet.'

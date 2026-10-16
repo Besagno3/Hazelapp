@@ -13,12 +13,14 @@ export async function loadGauntlet(opts: {
   age: number;
   levelFor: (t: Topic) => number;
   flavor: FlavorId;
+  /** Where it's for, in the error ("for this floor"). */
+  where?: string;
 }): Promise<Question[]> {
-  const { topics, count, age, levelFor, flavor } = opts;
+  const { topics, count, age, levelFor, flavor, where } = opts;
   const perTopic = Math.ceil(count / topics.length);
   const batches = await Promise.all(topics.map((t) => fetchQuestions(t, age, levelFor(t), perTopic, flavor)));
   const pool = shuffle(batches.flat());
-  if (pool.length < count) throw new Error(`only ${pool.length} of ${count} riddles came back.`);
+  if (pool.length < count) throw new Error(`only ${pool.length} of ${count} riddles came back${where ? ` ${where}` : ''}.`);
   return pool.slice(0, count);
 }
 

@@ -10,6 +10,7 @@ import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 import ModalLayer from '../../components/ModalLayer';
+import type { ServiceType } from '../../types';
 
 /**
  * Classic JRPG text box (#37) — one line at a time, player-paced. Quest
@@ -20,6 +21,16 @@ import ModalLayer from '../../components/ModalLayer';
  * story flags as they're read. Guides and signposts add the way to the next
  * goal (lib/wayfinding.ts).
  */
+/** Each service's button (a `Record`, so a new service can't get a blank one — 16e code review). */
+const SERVICE_BUTTON: Record<ServiceType, string> = {
+  shop: '🛒 Shop',
+  inn: '🛏️ Rest',
+  library: '📚 Library',
+  sage: '✨ Learn',
+  trial: '🕯️ Take the trial',
+  name: '🌑 Answer him',
+};
+
 export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const update = useSaveStore((s) => s.update);
   const setFlag = useSaveStore((s) => s.setFlag);
@@ -171,11 +182,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               onClick={openService}
               className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"
             >
-              {service === 'shop' && '🛒 Shop'}
-              {service === 'inn' && '🛏️ Rest'}
-              {service === 'library' && '📚 Library'}
-              {service === 'sage' && '✨ Learn'}
-              {service === 'trial' && (trialPassed ? `${taught?.emoji} How to cast` : '🕯️ Take the trial')}
+              {service === 'trial' && trialPassed ? `${taught?.emoji} How to cast` : SERVICE_BUTTON[service]}
             </button>
           )}
           {isLast && fetchOffer && !fetched && (

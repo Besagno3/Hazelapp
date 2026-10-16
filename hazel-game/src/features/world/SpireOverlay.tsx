@@ -219,7 +219,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     // seal (and every step of Umbra's challenge) needs a question — a short
     // batch would leave a seal that can never break (`loadGauntlet` refuses it).
     const levelFor = (t: Topic) => clampLevel(skillLevelFor(profile?.skillLevels ?? {}, t, age) + f.levelBonus + 1);
-    loadGauntlet({ topics: f.topics, count: f.questions, age, levelFor, flavor: 'spire' })
+    loadGauntlet({ topics: f.topics, count: f.questions, age, levelFor, flavor: 'spire', where: 'for this floor' })
       .then((pool) => {
         setQuestions(pool);
         setPhase(

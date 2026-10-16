@@ -13,7 +13,7 @@ import type { Topic } from '../types';
 export const NAME_QUESTIONS = 5;
 /** Candle-lights for the gauntlet; the last one out sends the hero up to Glim's Nook. */
 export const NAME_LIVES = 3;
-/** How far above the hero's own level each question asks (the Spire's top floor asks +2). */
+/** How far above the hero's own level each question asks (the Spire's first floor asks +2). */
 export const NAME_LEVEL_BONUS = 2;
 /** The hero's reward, paid the first time only (like the Spire's, #109). */
 export const NAME_CLEAR_XP = 600;

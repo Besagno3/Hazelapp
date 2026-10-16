@@ -66,6 +66,20 @@ export default function NameFinale() {
   const [lives, setLives] = useState(NAME_LIVES);
   const [choices] = useState(() => shuffle([...NAME_CHOICES]));
   const correct = useRef(0);
+  // A double-tap on "Stand firm" mustn't skip the line it opens (the Spire's guard, 16e code review).
+  const shownAt = useRef(0);
+  useEffect(() => {
+    shownAt.current = performance.now();
+  }, [phase]);
+  // The name question focuses its heading, never a name: a stray Enter mustn't say one (16b's rule);
+  // after a wrong name, focus moves to what Umbra says (the button it was on is disabled).
+  const nameHeading = useRef<HTMLParagraphElement>(null);
+  const said = useRef<HTMLParagraphElement>(null);
+  const wrongCount = phase.kind === 'name' ? phase.wrong.length : -1;
+  useEffect(() => {
+    if (wrongCount === 0) nameHeading.current?.focus();
+    else if (wrongCount > 0) said.current?.focus();
+  }, [wrongCount]);
 
   // The finale's own music (App's screen music steps aside while it's open).
   const music = useSettingsStore((s) => s.music);
@@ -108,7 +122,12 @@ export default function NameFinale() {
     if (ok) return next();
     const remaining = lives - 1;
     setLives(remaining);
-    if (remaining <= 0) return setPhase({ kind: 'out' });
+    if (remaining <= 0) {
+      // Up to Glim's Nook now, so ServiceOverlay's Leave can't skip it (16e code review).
+      update((s) => ({ ...s, hp: null, ...wakeAfterDefeat(s) }));
+      void useSaveStore.getState().flush();
+      return setPhase({ kind: 'out' });
+    }
     setPhase({ kind: 'message', text: candleLine(remaining), next });
   }
 
@@ -121,22 +140,18 @@ export default function NameFinale() {
     }
     // Read at the moment it's said: the reward is for the first naming only.
     const namedBefore = !!useSaveStore.getState().save?.flags[UMBRA_NAMED];
-    const bonus = nameClearXp(0, perCorrect, namedBefore);
+    // The right answers were paid as they landed; the reward is what's left.
+    const total = nameClearXp(correct.current, perCorrect, namedBefore);
+    const bonus = total - correct.current * perCorrect;
     if (bonus) void addXp(bonus);
     void recordActivity();
     setFlag(UMBRA_NAMED);
     void useSaveStore.getState().flush();
     sfx('levelup');
     confetti({ particleCount: 220, spread: 110, origin: { y: 0.4 }, colors: ['#ffe066', '#ffffff', '#ffd1f0'], disableForReducedMotion: true });
-    setPhase({ kind: 'named', xp: correct.current * perCorrect + bonus });
+    setPhase({ kind: 'named', xp: total });
   }
 
-  /** Candles out: wake healed in Glim's Nook (the Root's Heart is sheltered there, #75 item 16d). */
-  function wakeUp() {
-    update((s) => ({ ...s, hp: null, ...wakeAfterDefeat(s) }));
-    void useSaveStore.getState().flush();
-    sendFlow({ type: 'CLOSE' });
-  }
 
   const umbra = (
     <motion.div
@@ -212,7 +227,12 @@ export default function NameFinale() {
       )}
 
       {phase.kind === 'message' && (
-        <button key={phase.text} autoFocus onClick={phase.next} className="w-full text-left">
+        <button
+          key={phase.text}
+          autoFocus
+          onClick={() => performance.now() - shownAt.current >= 250 && phase.next()}
+          className="w-full text-left"
+        >
           <p className="font-semibold">{phase.text}</p>
           <p className="text-xs text-white/50 mt-3">▼ tap to continue</p>
         </button>
@@ -220,15 +240,16 @@ export default function NameFinale() {
 
       {phase.kind === 'name' && (
         <div className="text-center">
-          <p className="text-xl font-extrabold text-amber-200 mb-1">"What was my name?"</p>
+          <p ref={nameHeading} tabIndex={-1} className="text-xl font-extrabold text-amber-200 mb-1 outline-none">
+            "What was my name?"
+          </p>
           <p className="text-sm text-white/75 mb-4">The five memories told you. Say it!</p>
           <div className="grid grid-cols-2 gap-2" role="group" aria-label="Names">
-            {choices.map((name, i) => {
+            {choices.map((name) => {
               const tried = phase.wrong.includes(name);
               return (
                 <button
                   key={name}
-                  autoFocus={i === 0}
                   disabled={tried}
                   onClick={() => pickName(name)}
                   className="min-h-11 rounded-xl px-4 py-3 font-bold bg-white/10 hover:bg-white/20 border border-white/30 disabled:opacity-40 disabled:line-through"
@@ -239,7 +260,7 @@ export default function NameFinale() {
             })}
           </div>
           {phase.wrong.length > 0 && (
-            <p role="status" className="text-sm text-violet-100 mt-4">
+            <p ref={said} tabIndex={-1} role="status" className="text-sm text-violet-100 mt-4 outline-none">
               {WRONG_NAME_LINES[phase.wrong[phase.wrong.length - 1]]}
             </p>
           )}
@@ -264,7 +285,7 @@ export default function NameFinale() {
           </p>
           <button
             autoFocus
-            onClick={wakeUp}
+            onClick={() => sendFlow({ type: 'CLOSE' })}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-6 py-2.5 text-sm"
           >
             🐛 To the nook

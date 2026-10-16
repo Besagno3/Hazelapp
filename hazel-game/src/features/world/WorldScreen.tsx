@@ -459,7 +459,7 @@ export default function WorldScreen() {
   }, [zoneId]);
 
   useEffect(() => {
-    if (activeScene === 'ending' || activeScene === 'spireVictory' || activeScene === 'name')
+    if (activeScene === 'ending' || activeScene === 'spireVictory')
       confetti({ particleCount: 320, spread: 130, origin: { y: 0.4 }, disableForReducedMotion: true });
     else if (activeScene === 'crystal')
       confetti({ particleCount: 160, spread: 100, origin: { y: 0.4 }, disableForReducedMotion: true });

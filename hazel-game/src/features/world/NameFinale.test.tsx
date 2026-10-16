@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
 vi.mock('../../lib/audio', () => ({ playMusic: vi.fn(), sfx: vi.fn() }));
@@ -25,6 +25,12 @@ const { defaultSave } = await import('../../lib/save');
 const { NAME_LEARNED, UMBRA_NAMED } = await import('../../content/questFlags');
 const { NAME_CLEAR_XP, NAME_LIVES, NAME_QUESTIONS } = await import('../../content/finale');
 
+/** Taps a story line once it has been up long enough to read (a quick double-tap is ignored). */
+async function tapLine(text: RegExp) {
+  await act(() => new Promise((r) => setTimeout(r, 260)));
+  fireEvent.click(screen.getByText(text));
+}
+
 function start(flags: Record<string, boolean>) {
   useSaveStore.setState({
     userId: null,
@@ -42,7 +48,7 @@ async function answerAll(wrongAt: number[] = []) {
     fireEvent.click(screen.getByRole('button', { name: wrongAt.includes(i) ? /wrong 1/ : /^right/ }));
     fireEvent.click(screen.getByRole('button', { name: /Stand firm/ }));
     if (screen.queryByText(/Your last candle goes out/)) return;
-    if (wrongAt.includes(i)) fireEvent.click(screen.getByText(/A candle snuffs out/));
+    if (wrongAt.includes(i)) await tapLine(/A candle snuffs out/);
   }
 }
 
@@ -57,11 +63,14 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
     render(<NameFinale />);
     await answerAll([1]);
     expect(screen.getByRole('img', { name: `${NAME_LIVES - 1} of ${NAME_LIVES} candle-lights left` })).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/Then answer the only question I have left/));
+    await tapLine(/Then answer the only question I have left/);
     expect(screen.getByText('"What was my name?"')).toBeInTheDocument();
 
+    // No name is focused (a stray Enter mustn't say one), and after a wrong one focus moves to Umbra's reply.
+    expect(screen.getByText('"What was my name?"')).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Lumen' }));
     expect(screen.getByRole('status')).toHaveTextContent(/That isn't my name/);
+    expect(screen.getByRole('status')).toHaveFocus();
     expect(screen.getByRole('button', { name: 'Lumen' })).toBeDisabled();
     expect(useSaveStore.getState().save!.flags[UMBRA_NAMED]).toBeUndefined();
 
@@ -78,7 +87,7 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
     start({});
     render(<NameFinale />);
     await answerAll();
-    fireEvent.click(screen.getByText(/Then answer the only question I have left/));
+    await tapLine(/Then answer the only question I have left/);
     expect(screen.getByText(/you don't know it/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Aster' })).toBeNull();
     expect(useSaveStore.getState().save!.flags[UMBRA_NAMED]).toBeUndefined();
@@ -89,11 +98,12 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
     render(<NameFinale />);
     await answerAll([0, 1, 2]);
     expect(screen.getByText(/Your last candle goes out/)).toHaveTextContent(/Glim's Nook/);
-    fireEvent.click(screen.getByRole('button', { name: '🐛 To the nook' }));
+    // Already there — leaving any way can't skip it.
     const save = useSaveStore.getState().save!;
     expect(save.zoneId).toBe('deep-root-4');
     expect(save.hp).toBeNull();
     expect(save.flags[UMBRA_NAMED]).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: '🐛 To the nook' }));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 });

@@ -816,6 +816,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16e code review round 1: a button with a name (#75 item 16e, #147h)
+Fresh code review (1 high, 4 low, 6 nits), all fixed but one kept (XP per
+answer, as in the Spire): Umbra's service button had no label — every
+service's button now comes from one `Record`; the nook at once when the last
+candle goes out; a double-tap guard; no name focused; tidy-ups. 1400 green.
+
 ### 2026-10-16 — The Name: Umbra Remembered at the Root's Heart (#75 item 16e, #147)
 Roadmap sub-item 16e (branch stacked on 16d's).
 - **Umbra Remembered** steps out of the Root's Heart once it's reached (role
