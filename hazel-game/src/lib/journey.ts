@@ -1,7 +1,7 @@
 import { HUB_ZONE, ZONES, gateIdAt, innWakeCell, npcPresent, type TravelMode, type ZoneDef, type ZoneId } from '../content/zones';
 import { NPC_DEFS } from '../content/npcs';
 import { ENEMY_DEFS, fiendFor } from '../content/enemies';
-import { GATE_KEYS, bossDefeated, holdsKeysFor, keyFlag } from '../content/keys';
+import { GATE_KEYS, bossDefeated, bossFlag, holdsKeysFor, keyFlag } from '../content/keys';
 import { crystalFlag } from '../content/topics';
 import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
 import { BOAT_HOME, BOAT_MENDED, BOAT_QUEST_ID, hasBoat } from '../content/boat';
@@ -46,6 +46,8 @@ export function advanceGoal(g: Objective, flags: Record<string, boolean>): Recor
     if (quest && g.doneFlag === questDoneFlag(quest)) for (const f of quest.grants?.flags ?? []) next[f] = true;
   }
   else if (g.kind === 'fly') next[visitedFlag(g.zoneId!)] = true;
+  // An echo in the Deep Root (#75 item 16d): beaten, it sets its own flag.
+  else if (g.kind === 'boss') next[bossFlag(g.boss!)] = true;
   else if (g.kind === 'boat') {
     const quest = QUESTS.find((q) => q.id === BOAT_QUEST_ID)!;
     const step = quest.steps.find((st) => !next[stepFlag(st.id)]);
@@ -79,7 +81,7 @@ export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } 
     return { zoneId: who.zoneId, cell: { x: who.x, y: who.y } };
   }
   const zoneId = g.kind === 'key' ? g.key!.fromZone : g.zoneId!;
-  const bossId = g.kind === 'key' ? g.key!.bossId : fiendFor(g.crystal!.id).id;
+  const bossId = g.kind === 'key' ? g.key!.bossId : g.kind === 'boss' ? g.boss! : fiendFor(g.crystal!.id).id;
   const at = ZONES[zoneId].enemies.find((p) => p.defId === bossId);
   if (!at) throw new Error(`${bossId} isn't placed in ${zoneId}`);
   return { zoneId, cell: { x: at.x, y: at.y } };

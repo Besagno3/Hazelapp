@@ -24,6 +24,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py isles      # only Taleshore I: three places' tiles, the kite sheet, icons, critters, people (#75 item 15d)
     python3 tools/assets/build.py chart      # only Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
     python3 tools/assets/build.py lumina     # only Lumina-That-Was: three zones' tiles, the school sheet, critters, people (#75 item 16b)
+    python3 tools/assets/build.py descent    # only the Deep Root: seven floors' tiles, critters, the echoes, the Root's Heart (#75 item 16d)
     python3 tools/assets/build.py garden     # only Aster's Garden + the Nameless Hall: tiles, critters, the Gardener, plaques, the deep root (#75 item 16c)
     python3 tools/assets/build.py dreamroot  # only the Dream Root Door: its tiles, the root sheet, Old Knot, Young Wick and Wisp's new face (#75 item 16a)
     python3 tools/assets/build.py chorus     # only Chorus Isle: tiles, the chorus sheet, its icon, the Hush Fiend, its people, Radiant Ember (#75 item 15g)
@@ -91,6 +92,8 @@ LUMINA_SPRITES = ('faded-echo', 'lost-sock-golem', 'misplaced-key', 'chalk-wisp'
                   'memory-young-lumen', 'memory-fair', 'memory-popcorn', 'memory-dog', 'class-prim', 'class-bell', 'class-slate', 'class-slate-gold')
 
 # Aster's Garden and the Nameless Hall (#75 item 16c), for `build.py garden`.
+# The Deep Root (#75 item 16d), for `build.py descent`.
+DESCENT_SPRITES = ('echo-thicket-warden', 'echo-tide-colossus', 'echo-clockwork-titan', 'root-shellback', 'star-snail', 'hum-moth', 'tick-beetle', 'root-heart')
 GARDEN_SPRITES = ('thorn-of-doubt', 'wilt-sprite', 'bramblewhy', 'the-gardener', 'garden-sprout', 'hall-plaque', 'hall-plaque-daisy', 'hall-deep-root')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
@@ -188,6 +191,12 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(LUMINA_SPRITES)))
         tiles.build_lumina(PUBLIC)
         print('lumina ✓')
+        return
+    if 'descent' in only:
+        # Just the Deep Root (#75 item 16d): seven floors' tiles, its critters, the echoes and the Root's Heart.
+        write_manifest(build_sprites.build(PUBLIC, only=set(DESCENT_SPRITES)))
+        tiles.build_descent(PUBLIC)
+        print('descent ✓')
         return
     if 'garden' in only:
         # Just Aster's Garden and the Nameless Hall (#75 item 16c): tiles, critters, the Gardener and the Hall's things.

@@ -378,7 +378,11 @@ zod, react-query. Add the package in the same change that first uses it.
   Field, her garden (mixed topics, sheltered at the Door) — the Gardener, a
   warden in the hedge's one gap, gives **Aster's Key**; the Hall's blank
   plaques (`NAMELESS_PANELS`) and its key gate (a key gate needs no topic) to
-  the deepest root, which sets `hall-root-seen` — the way down opens in 16d.
+  the deepest root and the stairs beside it.
+  **The Deep Root** (#75 item 16d): seven floors down (`deep-root`, `from:
+  'nameless-hall'`), echoes of three wardens (`role: 'echo'`) on B2, B4 and
+  B6, Umbra's taunt once a floor (`DESCENT_TAUNTS`), the Root's Heart at the
+  bottom (`root-heart-reached`); the 🚩's `boss` goal kind.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -710,6 +714,7 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+python3 tools/assets/build.py descent   # the Deep Root: seven floors' tiles, critters, the echoes, the Root's Heart (#75 item 16d)
 python3 tools/assets/build.py garden    # Aster's Garden + the Nameless Hall: two zones' tiles, critters, the Gardener, plaques, the deep root (#75 item 16c)
 python3 tools/assets/build.py lumina    # Lumina-That-Was: three zones' tiles, the school sheet, its critters and people (#75 item 16b)
 python3 tools/assets/build.py dreamroot # the Dream Root Door: tiles, the root sheet, Old Knot, Young Wick, Wisp's new face (#75 item 16a)
@@ -803,6 +808,24 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — The descent: seven floors down the Deep Root (#75 item 16d, #146)
+Roadmap sub-item 16d (branch off `main` after 16c merged).
+- **The Deep Root** (`deep-root-1`…`7`, dungeon `deep-root`, `from:
+  'nameless-hall'`): stairs behind the Hall's great door, seven mixed-topic
+  floors (tier 7, sheltered at the Door), a chest on each of B1–B6, save
+  crystals on B4 and B7.
+- **Echo wardens** on B2, B4 and B6 (`role: 'echo'`, +2): the Thicket Warden,
+  the Tide Colossus and the Clockwork Titan, pale ghosts in the one gap of
+  their floor's wall, with their own lines, rage lines and power moves. Four
+  new critters: Root Shellback, Star Snail, Hum Moth, Tick Beetle.
+- **The Root's Heart** (B7): a glowing root, someone asleep inside
+  (`root-heart-reached`; Umbra Remembered comes in 16e).
+- **Umbra's taunts** (`DESCENT_TAUNTS`): one panel a floor, quieter the deeper.
+- **The 🚩:** a `boss` goal kind — "Get past the Echo of …" ×3, then "Reach
+  the Root's Heart"; Lumen's plan and tip; `actFourJourney` walks them.
+- **Art:** `python3 tools/assets/build.py descent`.
+- **Tests:** dungeons, wayfinding, journey updated; 1376 green, lint and tsc clean.
 
 ### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)

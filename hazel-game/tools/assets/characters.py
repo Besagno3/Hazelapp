@@ -4205,7 +4205,36 @@ def hall_root(c: Canvas, p: Pose, s: dict):
 
 
 
+def root_heart(c: Canvas, p: Pose, s: dict):
+    """The Root's Heart (#75 item 16d): the bottom of the Dream Root — a great
+    knot of roots curled round a warm purple glow like a heart, beating
+    slowly, and inside it a small sleeping shape you can't quite see."""
+    d = D(c, p)
+    bark = hexc(s.get('bark', '#5a3a4a'))
+    glow = s.get('glow', '#d88aff')
+    beat = 0.8 if p.frame % 2 else 0.0
+    G = d.part(0, 0)
+    G.ellipse(16, 18, 10 + beat, 9 + beat, dark(hexc(glow), 0.25), shade=False)
+    G.ellipse(16, 18, 7.6 + beat, 6.8 + beat, glow, shade=False)
+    G.ellipse(16, 17, 4.2, 3.4, light(hexc(glow), 0.4), shade=False)
+    # A small shape curled up asleep in the glow.
+    G.ellipse(16, 19, 3.6, 2.2, '#4a2a5a', shade=False)
+    G.ellipse(13.6, 18, 1.6, 1.5, '#4a2a5a', shade=False)
+    d.put(G, outline=False)
+    R = d.part(0, 0)
+    # Roots wrapping round the glow from the floor, meeting at the top like a heart.
+    for side in (-1, 1):
+        pts = [(16 + side * 3, 29), (16 + side * 10, 25), (16 + side * 12.4, 17), (16 + side * 10, 9.4), (16 + side * 5.4, 7.6), (16, 11)]
+        for (a1, b1) in zip(pts, pts[1:]):
+            R.line(a1[0], a1[1], b1[0], b1[1], bark, w=3.2)
+        R.line(16 + side * 10, 25, 16 + side * 14.4, 29, dark(bark, 0.1), w=1.6)  # a root into the floor
+    R.line(16, 11, 16, 5, bark, w=2.4)  # the root it all hangs from, going up
+    d.put(R)
+    finish(c, d, shadow=(16, 30.2, 9, 1.2))
+
+
 DRAWERS = {
+    'root_heart': root_heart,
     'thorn_ball': thorn_ball,
     'wilt_flower': wilt_flower,
     'bramble': bramble,
@@ -4439,6 +4468,15 @@ ROSTER: list[Char] = [
     Char('compass-crab', '🦀', 'crab', H(color='#e8a03a')),
     Char('gull-scout', '🐦', 'flyer', H(kind='bird', color='#9aa4b0')),
     Char('tide-snail', '🐌', 'snail', H(color='#d8c8a8', shell='#3a8ab8')),
+    # ── Act IV: the Deep Root's critters and echoes (#75 item 16d) ──
+    # Pale, see-through-looking ghosts of the wardens you beat (violet-grey, glowing eyes).
+    Char('echo-thicket-warden', '🦌', 'beast', H(kind='stag', fur='#a89ac8', belly='#d8d0f0', antler='#e8e0ff', leaves=True, leaf='#c8b8ff', moss=True), boss=True),
+    Char('echo-tide-colossus', '🐳', 'whale', H(color='#7a70b8', crown=True), boss=True),
+    Char('echo-clockwork-titan', '🦾', 'golem', H(color='#9a90c0', accent='#c8a8ff', glow='#f0e8ff', bolts=True, crown=True), boss=True),
+    Char('root-shellback', '🐢', 'turtle', H(shell='#6a4a5a', skin='#b8a0a0')),
+    Char('star-snail', '🐌', 'snail', H(color='#c8c8e0', shell='#2a3a7a')),
+    Char('hum-moth', '🦋', 'flyer', H(kind='moth', color='#5a4a7a', wing='#d8c8ff', spot='#ffe28a')),
+    Char('tick-beetle', '🪲', 'ring_beetle', H(color='#8a6a3a', ring='#e8c070')),
     Char('marker-post', '🪧', 'marker_post', H(color='#a8743e', flag='#e04040')),
     Char('latitude-cat', '🐈', 'cat', H(fur='#e8963a', stripe='#3a7ac8')),
     Char('globe-beetle', '🪲', 'gravity_beetle', H(color='#2a8ac8', land=True)),
@@ -4661,6 +4699,8 @@ NPCS: list[Char] = [
     Char('hall-plaque', '🪧', 'nameless_stone', H(color='#a8a0a8', plaque=True)),
     Char('hall-plaque-daisy', '🌼', 'nameless_stone', H(color='#d8d0c0', plaque=True, daisy=True, glow='#fff2b0')),
     Char('hall-deep-root', '🕳️', 'hall_root', H(bark='#6a4630', glow='#b89aff'), boss=True),
+    # ── Act IV: the Deep Root (#75 item 16d) ──
+    Char('root-heart', '💜', 'root_heart', H(bark='#5a3a4a', glow='#d88aff'), boss=True),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

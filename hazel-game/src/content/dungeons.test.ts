@@ -36,8 +36,22 @@ describe('dungeons (#75 item 10)', () => {
       // Entered from the overworld — or from a place on it, down that place's stairs.
       const door = d.from ?? null;
       const onOverworld = (id: ZoneId) => allZones.some((z) => z.kind === 'overworld' && z.exits.some((e) => e.to === id));
+      // A place below another place counts too (#75 item 16d: the Deep Root, down
+      // from the Nameless Hall) — as long as exits lead there from the overworld.
+      const linked = (id: ZoneId) => {
+        const seen = new Set<ZoneId>(allZones.filter((z) => z.kind === 'overworld').map((z) => z.id));
+        const queue = [...seen];
+        while (queue.length) {
+          for (const e of ZONES[queue.shift()!].exits) {
+            if (seen.has(e.to)) continue;
+            seen.add(e.to);
+            queue.push(e.to);
+          }
+        }
+        return seen.has(id);
+      };
       if (door) {
-        expect(onOverworld(door), `${d.id}'s ${door} is a place on the overworld`).toBe(true);
+        expect(onOverworld(door) || (d.id === 'deep-root' && linked(door)), `${d.id}'s ${door} is a place on the overworld`).toBe(true);
         expect(stairsOf(ZONES[door], stairsChars(d.goes).onward).some((e) => e.to === d.floors[0]), `${door}'s stairs lead to ${d.id}`).toBe(true);
       } else {
         expect(onOverworld(d.floors[0]), `${d.id} is entered from the overworld`).toBe(true);

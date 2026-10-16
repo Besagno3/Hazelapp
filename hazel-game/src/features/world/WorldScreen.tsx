@@ -56,6 +56,8 @@ import {
   GROVE_SEEN,
   ARCHIVE_PANELS,
   NAMELESS_PANELS,
+  DESCENT_TAUNTS,
+  descentSeenFlag,
   NAMELESS_SEEN,
   ARCHIVE_SEEN,
   DAWNREACH_PANELS,
@@ -276,6 +278,8 @@ export default function WorldScreen() {
   const archiveDue = zoneId === 'sunken-archive' && !flags[ARCHIVE_SEEN];
   // The first step into the Nameless Hall (#75 item 16c).
   const namelessDue = zoneId === 'nameless-hall' && !flags[NAMELESS_SEEN];
+  // The descent (#75 item 16d): Umbra's voice, once on each Deep Root floor.
+  const descentDue = DESCENT_TAUNTS[zoneId] !== undefined && !flags[descentSeenFlag(zoneId)];
   const roostDue = zoneId === 'dragon-roost' && !flags[ROOST_SEEN];
   // Act III (#75 item 15c): the first time over Taleshore, flown in past the Great Fogbank.
   // Over Taleshore only: its last panel says to land and walk in (15c review round 4).
@@ -321,6 +325,7 @@ export default function WorldScreen() {
     | 'grove'
     | 'archive'
     | 'nameless'
+    | 'descent'
     | 'roost'
     | 'act3'
     | 'flight'
@@ -355,6 +360,8 @@ export default function WorldScreen() {
                     ? 'archive'
                     : namelessDue
                       ? 'nameless'
+                    : descentDue
+                      ? 'descent'
                     : roostDue
                       ? 'roost'
                       : act3Due
@@ -957,6 +964,14 @@ export default function WorldScreen() {
       )}
       {activeScene === 'archive' && (
         <StoryPanels panels={ARCHIVE_PANELS} doneLabel="📚 Explore the Archive" onDone={() => setFlag(ARCHIVE_SEEN)} />
+      )}
+      {activeScene === 'descent' && (
+        <StoryPanels
+          key={zoneId}
+          panels={DESCENT_TAUNTS[zoneId] ?? []}
+          doneLabel={zoneId === 'deep-root-7' ? '💜 Look around' : '🌳 Keep going down'}
+          onDone={() => setFlag(descentSeenFlag(zoneId))}
+        />
       )}
       {activeScene === 'nameless' && (
         <StoryPanels panels={NAMELESS_PANELS} doneLabel="🏛️ Look around" onDone={() => setFlag(NAMELESS_SEEN)} />

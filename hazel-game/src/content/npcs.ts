@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING } from './story';
@@ -2680,7 +2680,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'Why? Why is the Gardener so grumpy? Why does he stand in the gap at the bottom of the garden?', unlessFlag: keyFlag('asters-key') },
       { text: "He keeps Aster's Key on his belt. Why? He says some questions take years to bloom. Why do they?", unlessFlag: keyFlag('asters-key') },
       { text: "Why are you smiling? …Oh! You have Aster's Key! Why not try it on the great door in the Nameless Hall, past the gap?", ifFlag: keyFlag('asters-key'), unlessFlag: HALL_ROOT_SEEN },
-      { text: 'Why does the old root hum? Why is it lonely? Will you find out why?', ifFlag: HALL_ROOT_SEEN },
+      { text: 'Why does the old root hum? Why is it lonely? Will you find out why?', ifFlag: HALL_ROOT_SEEN, unlessFlag: ROOT_HEART_REACHED },
+      { text: "You went ALL the way down? Why didn't you take me? …Why is it purple down there?", ifFlag: ROOT_HEART_REACHED },
     ],
     ambient: ['why?', 'why?!', '…why?'],
   },
@@ -2751,9 +2752,23 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     prop: true,
     lines: [
-      'A great root plunges through a hole in the floor here, down into the dark.',
-      'Far, far below, something hums a tune with no words. It sounds lonely.',
-      { text: '(The roots down there are still untangling. The way down will open soon!)', setFlag: HALL_ROOT_SEEN },
+      'A great root plunges through the floor here, down into the dark. Stairs wind down beside it — the roots have untangled!',
+      { text: 'Far, far below, something hums a tune with no words. It sounds lonely. The stairs go all the way down.', setFlag: HALL_ROOT_SEEN },
+    ],
+  },
+  // The Root's Heart (#75 item 16d): the bottom of the Deep Root. Who hums
+  // there waits for 16e; reaching it sets ROOT_HEART_REACHED.
+  'root-heart': {
+    id: 'root-heart',
+    name: "The Root's Heart",
+    sprite: '💜',
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: [
+      'A huge root glows here like a heart, warm and purple, beating very slowly. Every root in Lumina starts right here.',
+      'Inside the glow, someone is curled up asleep, humming a tune with no words. You can\'t quite see who.',
+      { text: '(Not yet. When you\'re ready, come back — she will be ready too.)', setFlag: ROOT_HEART_REACHED },
     ],
   },
   'root-knot': {

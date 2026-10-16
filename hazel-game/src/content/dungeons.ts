@@ -52,6 +52,16 @@ export const DUNGEONS: DungeonDef[] = [
     floors: ['dreamroot-door'],
     from: 'crystal-spire',
   },
+  {
+    // Act IV (#75 item 16d): seven floors down the deepest root, from the
+    // stairs behind the Nameless Hall's great door. Echoes of the wardens hold
+    // B2, B4 and B6; the Root's Heart is at the bottom (Umbra Remembered, 16e).
+    id: 'deep-root',
+    name: 'Deep Root',
+    goes: 'down',
+    floors: ['deep-root-1', 'deep-root-2', 'deep-root-3', 'deep-root-4', 'deep-root-5', 'deep-root-6', 'deep-root-7'],
+    from: 'nameless-hall',
+  },
 ];
 
 /** The Crystal Spire as a dungeon: five floors up from the door (its floors are trial maps, `SPIRE_FLOORS`). */

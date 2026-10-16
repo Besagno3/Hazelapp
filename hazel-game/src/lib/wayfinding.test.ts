@@ -6,9 +6,9 @@ import { actFourJourney, advanceGoal } from './journey';
 import { overworldOf, whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { actCrystals, crystalFlag } from '../content/topics';
-import { GATE_KEYS, keyFlag, keyForZone } from '../content/keys';
+import { GATE_KEYS, bossFlag, keyFlag, keyForZone } from '../content/keys';
 import { ACT2_SEEN, ACT4_SEEN, MET_GALE, MET_ROOT_AURORA, SPIRE_CLEARED } from '../content/story';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, SAY_HER_NAME_QUEST, questDoneFlag, questOfferedFlag, stepFlag } from '../content/questFlags';
+import { BLANK_CHART_HELD, BLANK_CHART_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, questDoneFlag, questOfferedFlag, stepFlag } from '../content/questFlags';
 import {
   compass,
   exitSide,
@@ -70,8 +70,17 @@ const chartHeld = { ...voicesFreed, [BLANK_CHART_HELD]: true };
 // Act IV (#75 item 16a): the door found, then Wisp's five memories and the name.
 const doorFound = { ...chartHeld, [ACT4_SEEN]: true, [MET_ROOT_AURORA]: true };
 const nameLearned = { ...doorFound, [questOfferedFlag({ id: SAY_HER_NAME_QUEST })]: true, [questDoneFlag({ id: SAY_HER_NAME_QUEST })]: true, [NAME_LEARNED]: true };
-// Aster's Key won and the Nameless Hall opened (#75 item 16c): as far as the story goes for now.
-const hallOpened = { ...nameLearned, [keyFlag('asters-key')]: true, [HALL_ROOT_SEEN]: true };
+// Aster's Key won (#75 item 16c), down the Deep Root past its three echoes to
+// the Root's Heart (16d): as far as the story goes for now.
+const hallOpened = {
+  ...nameLearned,
+  [keyFlag('asters-key')]: true,
+  [HALL_ROOT_SEEN]: true,
+  [bossFlag('echo-thicket-warden')]: true,
+  [bossFlag('echo-tide-colossus')]: true,
+  [bossFlag('echo-clockwork-titan')]: true,
+  [ROOT_HEART_REACHED]: true,
+};
 
 describe('compass', () => {
   it('names all eight directions (y grows southward)', () => {
@@ -138,7 +147,15 @@ describe('nextObjective', () => {
     expect(nextObjective({ ...chartHeld, [ACT4_SEEN]: true })).toMatchObject({ kind: 'visit', zoneId: 'dreamroot-door', title: 'Say hello to Keeper Aurora', npc: 'root-aurora' });
     // After the name, Aster's Key from her Gardener, then the Nameless Hall (#75 item 16c).
     expect(nextObjective(nameLearned)).toMatchObject({ kind: 'key', zoneId: 'asters-garden', title: "Win Aster's Key" });
-    expect(nextObjective({ ...nameLearned, [keyFlag('asters-key')]: true })).toMatchObject({ kind: 'visit', zoneId: 'nameless-hall', title: "See what's behind the great door", doneFlag: HALL_ROOT_SEEN, npc: 'hall-deep-root' });
+    // Then down the Deep Root (#75 item 16d): an echo on B2, B4 and B6, then the Root's Heart.
+    const keyWon = { ...nameLearned, [keyFlag('asters-key')]: true };
+    expect(nextObjective(keyWon)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-2', boss: 'echo-thicket-warden', title: 'Get past the Echo of the Thicket Warden' });
+    const b2 = { ...keyWon, [bossFlag('echo-thicket-warden')]: true };
+    expect(nextObjective(b2)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-4', boss: 'echo-tide-colossus' });
+    const b4 = { ...b2, [bossFlag('echo-tide-colossus')]: true };
+    expect(nextObjective(b4)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-6', boss: 'echo-clockwork-titan' });
+    const b6 = { ...b4, [bossFlag('echo-clockwork-titan')]: true };
+    expect(nextObjective(b6)).toMatchObject({ kind: 'visit', zoneId: 'deep-root-7', title: "Reach the Root's Heart", doneFlag: ROOT_HEART_REACHED, npc: 'root-heart' });
     expect(nextObjective(hallOpened)).toMatchObject({ kind: 'explore', zoneId: null });
     // Wisp asked first: the 🚩 follows Wisp's quest, not the hello (round 3).
     const offeredFirst = { ...chartHeld, [ACT4_SEEN]: true, [questOfferedFlag({ id: SAY_HER_NAME_QUEST })]: true };
@@ -268,7 +285,7 @@ describe('nextObjective', () => {
     expect(nextObjective(chorusBoth).why).toMatch(/^Both Chorus Keys together open the Hush Fiend's gate on Chorus Isle/);
     expect(nextObjective(voicesFreed).why).toMatch(/^The Chartmaker has drawn every place but one!/);
     expect(nextObjective(chartHeld).why).toMatch(/^The Blank Chart's empty space is right under the Crystal Spire/);
-    expect(nextObjective(hallOpened).why).toMatch(/^You remembered the first Sage's name: Aster! Below the Nameless Hall/);
+    expect(nextObjective(hallOpened).why).toMatch(/^You remembered the first Sage's name: Aster! She is waiting at the Root's Heart/);
     expect(mentorTips(ZONES, { ...voicesFreed, [MET_ELDER]: true })[0]).not.toMatch(/soon/);
   });
 
@@ -294,8 +311,8 @@ describe('nextObjective', () => {
     // the Crystal of Voices (#75 item 15g), the Chartmaker (#75 item 15h), explore.
     const actOneKeys = GATE_KEYS.filter((k) => actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
     // …then Act IV (#75 item 16a): the Spire's grounds, the stairs down, Wisp, five memories, the name —
-    // and Aster's Key and the Nameless Hall (#75 item 16c).
-    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 2 + 1 + 5 + 1 + 2);
+    // and Aster's Key (#75 item 16c), the Deep Root's three echoes and the Root's Heart (16d).
+    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 2 + 1 + 5 + 1 + 1 + 3 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -641,7 +658,7 @@ describe('Lumina-That-Was in the guides (16b review round 4)', () => {
     expect(wick).toHaveLength(2);
     expect(wick[0]).toMatch(/^Where to next\?/);
     expect(wick[1]).toMatch(/^Go south to the Crystal Spire.*Old Lumina Village\.$/);
-    const named = { ...leg.flags, [NAME_LEARNED]: true, [keyFlag('asters-key')]: true, [HALL_ROOT_SEEN]: true };
+    const named = { ...leg.flags, ...hallOpened };
     expect(nextObjective(named).why).toMatch(/help the folk of Lumina-That-Was/);
     const both = { ...named, [questDoneFlag({ id: 'bell-apology' })]: true, [questDoneFlag({ id: 'unnamed-dog' })]: true };
     // …and the Gardener's waters (16c review round 3).
@@ -650,14 +667,14 @@ describe('Lumina-That-Was in the guides (16b review round 4)', () => {
   });
 });
 
-describe("the Nameless Hall's 🚩 (16c review round 2)", () => {
-  it('says to unlock the great door, then — once it is open — only to look at the root', () => {
+describe("the Nameless Hall's 🚩 (16c review round 2, #75 item 16d)", () => {
+  it('says to unlock the great door first, then — once it is open — where the echo stands', () => {
     const hall = ZONES['nameless-hall'];
     const flags = { ...nameLearned, [keyFlag('asters-key')]: true };
     const before = nextObjective(flags);
-    expect(before.inside).toMatch(/^Unlock the great door/);
-    expect(before.why).toBe("Aster's Key opens the Nameless Hall's great door. See what's behind it!");
+    expect(before.inside).toMatch(/^First, open the Nameless Hall's great door/);
+    expect(before.why).toMatch(/^Stairs wind down the Deep Root/);
     const open = { ...flags, [gateFlag(gateIdAt('nameless-hall', hall.map, hall.keyGate!.x, hall.keyGate!.y))]: true };
-    expect(nextObjective(open).inside).toMatch(/^Look at the big root/);
+    expect(nextObjective(open).inside).toMatch(/one gap in the thorny wall/);
   });
 });

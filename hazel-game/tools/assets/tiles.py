@@ -140,6 +140,24 @@ ZONES = {
     # plaques blank — white pillars, candles, a dim violet hush.
     'nameless-hall': dict(ground=(150, 142, 160), path=(196, 188, 206), solid='pillar', deco='candle', deco_c='#ffd24a',
                           sky=('#1a1626', '#3a3248'), far='#2a2436', mid='mountain', water='#4a5a9a', cave=True),
+    # The Deep Root (#75 item 16d): seven floors down the deepest root. Root
+    # walls and glowing mushrooms all the way, each floor its own colour — the
+    # stair's dusk, thorny grey-green, dripping blue, the tide's deep blue,
+    # hushed violet, the stopped clocks' bronze, and the Heart's warm purple.
+    'deep-root-1': dict(ground=(96, 78, 96), path=(140, 122, 140), solid='root', deco='glowshroom', deco_c='#ffe28a',
+                        sky=('#120e1a', '#3a2a44'), far='#2a1e30', mid='mountain', water='#4a5a9a', cave=True),
+    'deep-root-2': dict(ground=(86, 92, 82), path=(130, 136, 124), solid='root', deco='leaves', deco_c='#8ac87a',
+                        sky=('#0e1410', '#2a3a2a'), far='#1e2a1e', mid='mountain', water='#3a5a5a', cave=True),
+    'deep-root-3': dict(ground=(78, 84, 96), path=(122, 128, 140), solid='root', deco='glowshroom', deco_c='#8ad8ff',
+                        sky=('#0e1220', '#24304a'), far='#1a2234', mid='mountain', water='#3a6aa8', cave=True),
+    'deep-root-4': dict(ground=(70, 82, 104), path=(114, 126, 148), solid='root', deco='sparkle', deco_c='#e8f0ff',
+                        sky=('#080c1e', '#1e2a4e'), far='#141c3a', mid='sea', water='#2a4a9a', cave=True),
+    'deep-root-5': dict(ground=(92, 84, 108), path=(136, 128, 152), solid='root', deco='glowshroom', deco_c='#d8a8ff',
+                        sky=('#140e20', '#342848'), far='#241a34', mid='mountain', water='#5a4a9a', cave=True),
+    'deep-root-6': dict(ground=(98, 88, 84), path=(142, 132, 128), solid='root', deco='gear', deco_c='#d8a860',
+                        sky=('#18120e', '#3e3024'), far='#2a201a', mid='mountain', water='#4a5a6a', cave=True),
+    'deep-root-7': dict(ground=(104, 88, 118), path=(148, 132, 162), solid='root', deco='glowshroom', deco_c='#ff9ae0',
+                        sky=('#1a0e22', '#4a2a5a'), far='#2e1a3a', mid='mountain', water='#6a4aa8', cave=True),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -189,6 +207,9 @@ LUMINA_ZONES = ('memory-field', 'memory-village', 'first-classroom')
 
 # Added with Aster's Garden (#75 item 16c) — `build_garden` writes only these.
 GARDEN_ZONES = ('asters-garden', 'nameless-hall')
+
+# Added with the Deep Root (#75 item 16d) — `build_descent` writes only these.
+DESCENT_ZONES = tuple(f'deep-root-{n}' for n in range(1, 8))
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -1765,6 +1786,18 @@ def build_garden(public: Path):
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     # The props sheet gained the key gate's door (16c review round 2); its first five frames are unchanged.
     strip([upscale(f.image(), 2) for f in props()]).save(tdir / 'props.png', optimize=True)
+
+
+def build_descent(public: Path):
+    """Write only the Deep Root's art (#75 item 16d): seven floors' tilesets,
+    blend sheets and backdrops."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in DESCENT_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
 
 
 def quest_board():
