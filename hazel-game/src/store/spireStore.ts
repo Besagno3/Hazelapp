@@ -18,12 +18,15 @@ interface SpireState {
   exploring: boolean;
   /** Candle-lights left (also sizes the hero's circle of light). */
   lives: number;
+  /** Candle-lights this climb began with — more after a fall (`spireCandles`, B4 #150). */
+  maxLives: number;
   /** Rune seals broken on the current floor (ids "x,y"). */
   broken: string[];
   /** The latest unhandled bump from the map, for the overlay to resolve. */
   pending: SpireBump | null;
 
-  reset: () => void;
+  /** A fresh climb (or none), with this many candles — `SPIRE_LIVES` unless the Spire remembers a fall. */
+  reset: (lives?: number) => void;
   enterFloor: (index: number) => void;
   setExploring: (exploring: boolean) => void;
   setLives: (lives: number) => void;
@@ -33,11 +36,11 @@ interface SpireState {
   clearPending: () => void;
 }
 
-const initial = { floor: null, exploring: false, lives: SPIRE_LIVES, broken: [], pending: null };
+const initial = { floor: null, exploring: false, lives: SPIRE_LIVES, maxLives: SPIRE_LIVES, broken: [], pending: null };
 
 export const useSpireStore = create<SpireState>((set, get) => ({
   ...initial,
-  reset: () => set({ ...initial }),
+  reset: (lives = SPIRE_LIVES) => set({ ...initial, lives, maxLives: lives }),
   enterFloor: (index) => set({ floor: index, broken: [], pending: null, exploring: false }),
   setExploring: (exploring) => set({ exploring }),
   setLives: (lives) => set({ lives }),

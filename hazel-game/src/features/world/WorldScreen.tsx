@@ -21,7 +21,7 @@ import {
   visitedFlag,
   type FieldCast,
 } from '../../content/fieldSpells';
-import { SPIRE_FLOORS, SPIRE_LIVES, floorSpawnPx, spireFloorTitle } from '../../content/spire';
+import { SPIRE_FLOORS, floorSpawnPx, spireFloorTitle } from '../../content/spire';
 import { dungeonFloor, floorLabel } from '../../content/dungeons';
 import { useSpireStore } from '../../store/spireStore';
 import { atTier, spawnPlaced } from '../../content/enemies';
@@ -159,6 +159,7 @@ export default function WorldScreen() {
   const spireFloorIndex = useSpireStore((s) => s.floor);
   const spireExploring = useSpireStore((s) => s.exploring);
   const spireLives = useSpireStore((s) => s.lives);
+  const spireMaxLives = useSpireStore((s) => s.maxLives);
   const spireBroken = useSpireStore((s) => s.broken);
   const spireBump = useSpireStore((s) => s.bump);
   const onSpireFloor = overlay === 'spire' && spireFloorIndex !== null;
@@ -778,7 +779,7 @@ export default function WorldScreen() {
         }}
         spireFloor={spireTheme}
         spireBroken={spireBroken}
-        spireLight={spireTheme ? { lives: spireLives, max: SPIRE_LIVES } : null}
+        spireLight={spireTheme ? { lives: spireLives, max: spireMaxLives } : null}
         travelRef={travelRef}
         calmRef={calmRef}
         actionRef={actionRef}

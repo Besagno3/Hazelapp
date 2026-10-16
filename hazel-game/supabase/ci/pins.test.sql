@@ -124,7 +124,9 @@ declare
   k1 uuid := (select id from public.profiles where display_name = 'Kid 1');
 begin
   delete from public.profiles where id = k1;
-  assert not exists (select 1 from public.question_requests where profile_id = k1), 'a removed kid''s requests go too';
+  -- Since 0021 (B9) a removed kid's requests stay, unlinked, so what they
+  -- spent still counts against the family and the project for the day.
+  assert not exists (select 1 from public.question_requests where profile_id = k1), 'a removed kid''s requests are unlinked';
   assert not exists (select 1 from public.kid_pins k left join public.profiles p on p.id = k.profile_id where p.id is null),
     'no PIN outlives its kid';
 end $$;

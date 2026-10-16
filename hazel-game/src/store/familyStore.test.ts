@@ -76,8 +76,20 @@ describe('familyScreen — the gates before the game, in order (#124)', () => {
     ['pick', { ...ready, activeKidId: null }],
     ['pick', { ...ready, activeKidId: 'removed-kid' }],
     ['play', ready],
+    // A review alert's link (#147) opens Grown-ups even mid-game — but consent comes first.
+    ['grownUps', { ...ready, reviewRequested: true }],
+    ['consent', { ...ready, consentAt: null, reviewRequested: true }],
   ])('%s', (want, state) => {
     expect(familyScreen(state)).toBe(want);
+  });
+
+  it('closing Grown-ups forgets the review link and takes ?review off the address (#147)', () => {
+    window.history.replaceState(null, '', '/?review&x=1');
+    useFamilyStore.setState({ grownUpsOpen: true, reviewRequested: true });
+    useFamilyStore.getState().setGrownUpsOpen(false);
+    expect(useFamilyStore.getState().reviewRequested).toBe(false);
+    expect(window.location.search).toBe('?x=1');
+    window.history.replaceState(null, '', '/');
   });
 });
 

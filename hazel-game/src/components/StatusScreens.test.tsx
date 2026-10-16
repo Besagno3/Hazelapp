@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { LoadingScreen, ErrorScreen } from './StatusScreens';
+import { LoadingScreen, ErrorScreen, OutdatedScreen } from './StatusScreens';
 import { FUN_FACTS, GENERIC_FACTS } from '../lib/funFacts';
 
 describe('LoadingScreen', () => {
@@ -52,5 +52,24 @@ describe('ErrorScreen', () => {
     expect(screen.getByRole('heading', { name: 'Hazel Quest has been updated!' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '🔄 Refresh' })).toBeInTheDocument();
     expect(screen.queryByText('Something went wrong')).toBeNull();
+  });
+});
+
+describe('OutdatedScreen', () => {
+  it('the game was updated: says so, and that a refresh keeps everything (#101i)', () => {
+    const refresh = vi.fn();
+    render(<OutdatedScreen reason="update" onRefresh={refresh} />);
+    expect(screen.getByRole('heading', { name: 'Hazel Quest has been updated!' })).toBeInTheDocument();
+    expect(screen.getByText(/saved by the new version/)).toBeInTheDocument();
+    screen.getByRole('button', { name: '🔄 Refresh' }).click();
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('played on elsewhere: says where, and makes no promise about this tab\'s last moves (#151)', () => {
+    render(<OutdatedScreen reason="elsewhere" onRefresh={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: 'Your adventure moved on!' })).toBeInTheDocument();
+    expect(screen.getByText(/another tab or on another device/)).toBeInTheDocument();
+    expect(screen.queryByText(/has been updated|new version|nothing is lost/)).toBeNull();
+    expect(screen.getByRole('button', { name: '🔄 Refresh' })).toBeInTheDocument();
   });
 });
