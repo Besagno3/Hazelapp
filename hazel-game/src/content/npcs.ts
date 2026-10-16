@@ -2842,10 +2842,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'Every root in Lumina starts right here, wrapped round this warm purple glow.', unlessFlag: ROOT_HEART_REACHED },
       // One figure, not two (16d review round 4: Umbra *was* Aster, STORY-4X §1).
       {
-        text: 'Inside the glow, someone is curled up, humming in her sleep. Is it Aster? Her shadow is huge and dark — and it is shivering.',
+        text: 'Inside the glow, someone is curled up, humming in her sleep. Is it Aster? Her shadow is dark and tired — and it is shivering.',
         unlessFlag: ROOT_HEART_REACHED,
       },
-      { text: 'The humming stops. The great dark shadow uncurls, steps out of the glow… and turns to look at you.', unlessFlag: ROOT_HEART_REACHED, setFlag: ROOT_HEART_REACHED },
+      { text: 'The humming stops. A tired shadow uncurls, steps softly out of the glow… and turns to look at you.', unlessFlag: ROOT_HEART_REACHED, setFlag: ROOT_HEART_REACHED },
       { text: 'The glow is empty now. The shadow that was curled up inside stands beside it, waiting for you.', ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
       { text: "The Root's Heart glows gold. Someone has left a daisy on it. 🌼", ifFlag: UMBRA_NAMED },
       { text: "Aster has gone up to the Hall of Names on Remembrance Hill. 🏠 Return takes you there in no time.", ifFlag: [UMBRA_NAMED, fieldSpellFlag('return')] },
@@ -2865,7 +2865,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: '"So. The little spark came all the way down." The shadow\'s voice isn\'t loud any more. Just tired.', unlessFlag: MET_UMBRA_REMEMBERED, setFlag: MET_UMBRA_REMEMBERED },
       { text: '"I have been Umbra for so long. Before that I was… someone. I can\'t remember who."', unlessFlag: MET_UMBRA_REMEMBERED },
       { text: '"Back again, little spark? Good. I don\'t like waiting alone."', ifFlag: MET_UMBRA_REMEMBERED },
-      '"Answer my questions. Then I will ask you the only one I have left. Don\'t be afraid — I only want to remember."',
+      // True whether or not its questions were answered earlier this session (16e review round 4).
+      '"I have questions for you, little spark — and one I can never answer myself. Don\'t be afraid. I only want to remember."',
     ],
   },
   // Glim's Nook on B4 (16d review round 2): a glowworm who tucks up beaten heroes.

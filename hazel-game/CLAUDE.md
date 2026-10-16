@@ -817,6 +817,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16e UX review round 4: eyes that close, Enter that opens (#75 item 16e, #147o)
+The last round's UX review (1 medium, 5 low, 6 nits), all fixed but one kept
+(Tab leaving a modal, shared and older): the shadow's eyes close on a blink
+instead of vanishing; "🌑 Answer Umbra" focused; softer words; the 🚩 says
+five questions, then one; names that don't jump; props say "OK". 1405 green.
+
 ### 2026-10-16 — 16e code review round 4: the throne's topics vary again (#75 item 16e, #147n)
 The last round's code review (1 medium, 1 low, 8 nits), all fixed: the extra
 questions go to random topics (the Spire's throne always skipped space and

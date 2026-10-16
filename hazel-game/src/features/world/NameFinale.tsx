@@ -150,7 +150,7 @@ export default function NameFinale() {
       useFinaleStore.getState().pass();
       setPhase({
         kind: 'message',
-        text: 'The shadow lowers its great dark head. "You answered. Nobody has answered me in so long." It leans closer. "Then answer the only question I have left…"',
+        text: 'The shadow lowers its hooded head. "You answered. Nobody has answered me in so long." It leans closer. "Then answer the only question I have left…"',
         next: theLastQuestion,
       });
     };
@@ -196,7 +196,7 @@ export default function NameFinale() {
   );
   // On a phone the questions need the room (16e review round 1): no portrait while asking.
   const showPortrait = !['question', 'loading', 'error', 'named'].includes(phase.kind);
-  const showCandles = ['intro', 'question', 'message', 'loading', 'error'].includes(phase.kind) && !(phase.kind === 'intro' && passedBefore);
+  const showCandles = ['intro', 'question', 'message', 'loading', 'error', 'out'].includes(phase.kind) && !(phase.kind === 'intro' && passedBefore);
   const q = phase.kind === 'question' ? questions[phase.index] : undefined;
   const tap = (next: () => void) => performance.now() - shownAt.current >= 250 && next();
 
@@ -204,8 +204,9 @@ export default function NameFinale() {
     <div>
       {showPortrait && portrait}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
-        <h2 className="text-lg font-extrabold text-violet-200">🌑 Umbra</h2>
-        {showCandles && <Candles lit={lives} total={NAME_LIVES} />}
+        <h2 className="text-lg font-extrabold text-violet-200">{phase.kind === 'named' ? '🌼 Aster' : '🌑 Umbra'}</h2>
+        {/* On the "they flicker back" card, all three are lit again. */}
+        {showCandles && <Candles lit={phase.kind === 'out' ? NAME_LIVES : lives} total={NAME_LIVES} />}
       </div>
 
       {phase.kind === 'intro' && !passedBefore && (
@@ -302,11 +303,14 @@ export default function NameFinale() {
               </button>
             ))}
           </div>
-          {phase.wrong.length > 0 && (
-            <p ref={said} tabIndex={-1} role="status" className="text-sm text-violet-100 mt-4 outline-none">
-              {WRONG_NAME_LINES[phase.wrong[phase.wrong.length - 1]]}
-            </p>
-          )}
+          {/* Room kept for the shadow's reply, so the names never jump under a finger (16e review round 4). */}
+          <div className="min-h-[4.5rem] mt-4">
+            {phase.wrong.length > 0 && (
+              <p ref={said} tabIndex={-1} role="status" className="text-sm text-violet-100 outline-none">
+                {WRONG_NAME_LINES[phase.wrong[phase.wrong.length - 1]]}
+              </p>
+            )}
+          </div>
         </div>
       )}
 

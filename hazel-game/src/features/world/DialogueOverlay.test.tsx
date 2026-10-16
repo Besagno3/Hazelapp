@@ -174,6 +174,8 @@ describe("Umbra Remembered (#75 item 16e)", () => {
     withFlags({ 'root-heart-reached': true, 'name-learned': true, 'met-umbra-remembered': true });
     render(<DialogueOverlay npcId="umbra-remembered" />);
     fireEvent.click(screen.getByText('▼ Next'));
+    // Focused, so Enter through the talk opens the finale rather than closing it (16e review round 4).
+    expect(screen.getByRole('button', { name: '🌑 Answer Umbra' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: '🌑 Answer Umbra' }));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_SERVICE', service: 'name', npcId: 'umbra-remembered' });
   });

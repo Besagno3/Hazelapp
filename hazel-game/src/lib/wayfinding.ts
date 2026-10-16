@@ -307,7 +307,7 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'visit',
       title: 'Say her name to Umbra',
-      why: "Umbra waits at the Root's Heart with one last question. The five memories gave you the answer!",
+      why: "Umbra waits at the Root's Heart with five questions, then one last one. The five memories gave you its answer!",
       inside: 'Walk up to the shadow, just beside the glowing heart.',
       zoneId: 'deep-root-7',
       doneFlag: UMBRA_NAMED,

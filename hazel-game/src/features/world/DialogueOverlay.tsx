@@ -179,6 +179,8 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
         <div ref={rowRef} className="flex flex-wrap justify-end gap-3 mt-3">
           {offerService && (
             <button
+              // Umbra's finale is focused (16e review round 4): Enter through the talk mustn't close the climax.
+              autoFocus={service === 'name'}
               onClick={openService}
               className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
@@ -238,7 +240,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
                     ? '✨ Got it!'
                     : quest?.finishKind === 'riddle'
                       ? riddleWords(quest.riddle ?? '').button
-                      : 'Bye!'}
+                      : npc.prop
+                        ? 'OK'
+                        : 'Bye!'}
           </button>
           )}
           {isLast && quest?.finishKind === 'riddle' && (

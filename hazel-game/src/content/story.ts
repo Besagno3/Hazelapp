@@ -1008,7 +1008,7 @@ export function namePanels(heroName: string): StoryPanel[] {
     },
     {
       emoji: '🌼',
-      text: 'Where Umbra stood, a woman with golden hair blinks in the glow. A daisy is tucked behind her ear.',
+      text: 'Where the shadow stood, a woman with golden hair blinks in the glow. A daisy is tucked behind her ear.',
     },
     {
       emoji: '🌼',
@@ -1033,6 +1033,6 @@ export const POST_CREDITS_PANELS: StoryPanel[] = [
   },
   {
     emoji: '🏛️',
-    text: 'On Remembrance Hill, Keeper Mnem carves the last name. The Hall of Names has no blank plaques now. Aster waits there to thank you.',
+    text: 'On Remembrance Hill, Keeper Mnem carves her name on the first plaque. The Hall of Names has no blank plaques now. Aster waits there to thank you.',
   },
 ];

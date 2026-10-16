@@ -1497,3 +1497,5 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1291 | A | ✅ | routes out of the underground (#147l) | `wayfinding.test`: from Old Lumina Field the Door is "Take the north path to the Dream Root Door."; the Whispering Woods and null flags get the climb; `gauntlet.test`: five topics, five questions, every topic asked; a short topic topped up |
 | TC-1292 | A | ✅ | the world after the name (#147m) | `finale.test`: the deepest root, a plaque, Posy, the Gardener, the Bell and Fable say nothing lost, lonely or blank once `umbra-named`; `NameFinale.test`: no Leave on the "Aster…" card |
 | TC-1293 | A | ✅ | the Spire's throne asks every topic over time (#147n) | `gauntlet.test`: five questions from seven topics cover five topics each run and all seven across 50 runs; `finale.test`: the Bell with its quest open never says "Right on time" |
+| TC-1294 | A | ✅ | Enter opens the finale (#147o) | `DialogueOverlay.test`: on Umbra's last line "🌑 Answer Umbra" has focus |
+| TC-1295 | M | ⬜ | the shadow blinks, never goes blank (#147o) | watch the shadow at the Root's Heart: its lavender eyes close and open; the hood is never empty |

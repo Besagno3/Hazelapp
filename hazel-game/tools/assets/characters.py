@@ -4299,6 +4299,9 @@ def umbra_shadow(c: Canvas, p: Pose, s: dict):
         if not p.blink:
             H.ellipse(13.8, 10.4, 1.1, 1.2, '#d8c8ff', shade=False)
             H.ellipse(18.2, 10.4, 1.1, 1.2, '#d8c8ff', shade=False)
+        else:  # closed, never gone — an empty hood looked eerie (16e review round 4)
+            H.line(12.8, 10.8, 14.8, 10.8, '#d8c8ff', w=0.7)
+            H.line(17.2, 10.8, 19.2, 10.8, '#d8c8ff', w=0.7)
         for dx, dy in ((-0.9, 0), (0.9, 0), (0, -0.9), (0, 0.9)):
             H.ellipse(21.4 + dx, 6 + dy, 0.7, 0.7, '#ffffff', shade=False)  # a daisy on the hood
         H.ellipse(21.4, 6, 0.6, 0.6, '#ffd84a', shade=False)
