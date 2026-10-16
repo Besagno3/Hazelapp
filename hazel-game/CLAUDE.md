@@ -368,7 +368,8 @@ zod, react-query. Add the package in the same change that first uses it.
   (`WorldNpcDef.face`, `npcSpriteId(def, flags)`).
   **Lumina-That-Was** (#75 item 16b): below the Door, the old Field, the old
   Village and the First Classroom — mixed-topic zones (`ZoneDef.topics`:
-  chests, gates and riddles take `topicAt(z, x, y)`), memories of real places
+  chests and gates take `topicAt(z, x, y)`; a riddle its
+  step's own `topic` first, `riddleTopic`), memories of real places
   (`echoOf` lets them build in that place's style), and a defeat there wakes
   you at the Door (`shelterIn`). A quest can end on a choice
   (`QuestDef.choice`, the Unnamed Dog's name) and give a badge
@@ -796,6 +797,13 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — 16b review round 2 (code): Prim offers her own quest first (#75 item 16b, #144i)
+Fresh code review (1 low, 4 nits), all fixed: a giver's own offer comes
+before another quest's "not yet" (Prim's Bell's Apology was hidden by the
+dog's), and her reminder follows it; no focused Thanks after naming the
+dog; `RiddleWords.label` / `button` for slates; tighter tests, stale
+comments.
 
 ### 2026-10-15 — 16b review round 1: no stray Enter names the dog, slates that say so (#75 item 16b, #144h)
 Fresh code (1 medium, 3 low, 4 nits) and UX (2 medium, 7 low, 1 nit)

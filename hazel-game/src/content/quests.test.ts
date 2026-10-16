@@ -25,6 +25,7 @@ import {
   solveRiddle,
   riddleTopic,
   riddleWords,
+  QUEST_BADGES,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
 import { BLANK_CHART_HELD, BLANK_CHART_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
@@ -1275,11 +1276,10 @@ describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first S
     expect(questConversation('hill-keeper', save)).toBeNull();
   });
 
-  it("every memory's keeper stands somewhere — but Young Wick, who comes with Lumina-That-Was (16b)", () => {
+  it("every memory's keeper stands somewhere — Young Wick in Lumina-That-Was (16b)", () => {
     const placed = new Set(Object.values(ZONES).flatMap((z) => z.npcs.map((p) => p.defId)));
     const quest = byId(SAY_HER_NAME_QUEST);
-    for (const st of quest.steps.slice(0, -1)) expect(placed.has(st.npc!.id), st.npc!.id).toBe(true);
-    expect(NPC_DEFS['memory-young-wick']).toBeDefined();
+    for (const st of quest.steps) expect(placed.has(st.npc!.id), st.npc!.id).toBe(true);
   });
 });
 
@@ -1314,11 +1314,28 @@ describe('Lumina-That-Was quests (#75 item 16b)', () => {
     expect(riddleWords('yarn-stone-1').title).toMatch(/tale-stone/);
   });
 
+  it("every quest badge has a name and emoji for the menu's shelf (16b review round 2)", () => {
+    for (const q of QUESTS) {
+      const badge = q.grants?.badge;
+      if (badge) expect(QUEST_BADGES[badge], badge).toMatchObject({ name: expect.any(String), emoji: expect.any(String) });
+    }
+    expect(QUEST_BADGES['dog-badge'].name).toBe('Dog Badge');
+  });
+
   it('One More Name says who to ask, and Lumen and Prim say "not yet" before their turn', () => {
     const quest = byId('unnamed-dog');
     expect(quest.offer.join(' ')).toMatch(/Young Wick, Young Lumen and Monitor Prim/);
     const save = converse('memory-dog', act4());
     expect(questConversation('memory-young-lumen', save)!.lines.join(' ')).toMatch(/Ask Young Wick first/);
-    expect(questConversation('class-prim', save)!.lines.join(' ')).toMatch(/Ask the children first/);
+    // Her own Bell's Apology comes first (16b review round 2)…
+    const prim = questConversation('class-prim', save)!;
+    expect(prim.badge).toBe(byId('bell-apology').title);
+    expect(prim.finishKind).toBe('offer');
+    // …then the dog's "not yet", with the Bell's reminder after it.
+    const offered = { ...save, flags: { ...save.flags, [questOfferedFlag(byId('bell-apology'))]: true } };
+    const later = questConversation('class-prim', offered)!;
+    expect(later.lines[0]).toMatch(/Ask the children first/);
+    expect(later.lines).toHaveLength(2);
+    expect(later.lines[1]).toMatch(/Slate/);
   });
 });

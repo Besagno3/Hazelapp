@@ -391,6 +391,9 @@ function riddleStep(
 /** What a riddle's question screen says (#75 item 16b): the title, then right and wrong. */
 export interface RiddleWords {
   title: string;
+  /** What the dialog is called for screen readers, and the button that opens it (16b review round 2). */
+  label: string;
+  button: string;
   right: string;
   wrong: string;
 }
@@ -398,6 +401,8 @@ export interface RiddleWords {
 /** A tale-stone's words (#75 item 15e) — every riddle's, unless its step says otherwise. */
 export const TALE_STONE_WORDS: RiddleWords = {
   title: '📜 The tale-stone asks a word question!',
+  label: 'Tale-stone riddle',
+  button: '📜 Hear the question',
   right: 'The stone glows!',
   wrong: 'The stone stays dim. Want another question?',
 };
@@ -405,6 +410,8 @@ export const TALE_STONE_WORDS: RiddleWords = {
 /** A chalk slate's words (#75 item 16b review round 1). */
 const SLATE_WORDS: RiddleWords = {
   title: '📝 The slate asks a question!',
+  label: 'Slate question',
+  button: '📝 Hear the question',
   right: 'The chalk turns gold!',
   wrong: 'The chalk stays white. Want another question?',
 };
@@ -1920,7 +1927,9 @@ export interface QuestConversation {
  *   2. a **step** goes through them (any quest's, while that step is active;
  *      a bring step only once its item is in hand);
  *   3. they **offer** their quest;
- *   4. they **remind** you of its current step.
+ *   4. another quest's **"not yet"** for a later step of theirs (with their
+ *      own reminder after it, if their quest is under way);
+ *   5. they **remind** you of its current step.
  */
 export function questConversation(npcId: string, save: SaveData): QuestConversation | null {
   const quest = questFor(npcId, save);
@@ -1928,7 +1937,13 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
   if (quest && !step) return completeConversation(quest);
   const through = stepConversation(npcId, save);
   if (through) return through;
-  const early = earlyConversation(npcId, save);
+  // Their own quest's offer comes before another quest's "not yet" (16b review round 2:
+  // Monitor Prim's dog line hid the Bell's Apology).
+  const early = quest && step && !save.flags[questOfferedFlag(quest)] ? null : earlyConversation(npcId, save);
+  if (early && quest && step) {
+    // …and their own reminder still follows it.
+    return { ...early, lines: [...early.lines, step.remind ?? resolveHint(step, save)] };
+  }
   if (early) return early;
   if (!quest || !step) return null;
   if (!save.flags[questOfferedFlag(quest)]) {

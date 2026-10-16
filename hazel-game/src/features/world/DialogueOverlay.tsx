@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcName, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
-import { riddleTopic, questConversation, type QuestConversation } from '../../content/quests';
+import { riddleTopic, riddleWords, questConversation, type QuestConversation } from '../../content/quests';
 import { boatFetchOffer, fetchBoatHome } from '../../content/boat';
 import { ZONES, topicAt } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
@@ -185,9 +185,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               Later
             </button>
           )}
+          {/* Not focused: a held Enter after a pick can't close the reply unread (16b review round 2). */}
           {picked !== null && (
             <button
-              autoFocus
               onClick={() => sendFlow({ type: 'CLOSE' })}
               className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
             >
@@ -210,7 +210,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
                   : quest?.finishKind === 'step'
                     ? '✨ Got it!'
                     : quest?.finishKind === 'riddle'
-                      ? '📜 Hear the question'
+                      ? riddleWords(quest.riddle ?? '').button
                       : 'Bye!'}
           </button>
           )}

@@ -121,7 +121,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
     <ModalLayer
       // A new question (after "Ask me another" or Try again) pulls focus back in (15e round 4).
       focusKey={requestKey}
-      label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? 'Tale-stone riddle' : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
+      label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? riddleWords(target.id).label : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
       <div className="min-h-full flex flex-col items-center justify-center">
         <motion.h2
           initial={{ y: -16, opacity: 0 }}

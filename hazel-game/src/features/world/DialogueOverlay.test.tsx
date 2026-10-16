@@ -207,9 +207,12 @@ describe('One More Name (#75 item 16b): the dog\'s name is the hero\'s to choose
     // Then the dog's answer and the reward, before the box closes.
     expect(screen.getByText(/Captain it is!.*Dog Badge/)).toBeInTheDocument();
     expect(sendFlow).not.toHaveBeenCalledWith({ type: 'CLOSE' });
+    // In talk he's Captain now (the box's name and header follow the pick).
+    expect(screen.getByRole('dialog', { name: 'Captain' })).toBeInTheDocument();
+    // Thanks isn't focused, so a held Enter can't close the reply unread (16b review round 2).
+    expect(document.activeElement?.textContent).not.toBe('🎉 Thanks!');
     fireEvent.click(screen.getByText('🎉 Thanks!'));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
-    // Over its head and in talk, he's Captain now.
   });
 
   it('can be put off: Later closes without choosing', () => {

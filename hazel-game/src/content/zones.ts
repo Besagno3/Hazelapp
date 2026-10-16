@@ -2997,7 +2997,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   // Blank Chart found. Safe — no critters. Keeper Aurora keeps the Lamplight
   // Rest (an inn, and its shelter), there's a save crystal, and Old Knot, a
   // root that talks. The first floor of the Dream Root (content/dungeons.ts);
-  // the way on down comes with Lumina-That-Was (16b).
+  // the path at the bottom leads on down to Lumina-That-Was (16b).
   'dreamroot-door': {
     id: 'dreamroot-door',
     name: 'Dream Root Door',
@@ -3027,7 +3027,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     buildings: [{ id: 'root-lamp', name: 'Lamplight Rest', x: 2, y: 3, w: 7, h: 5, roof: 'dusk', style: 'root', sign: 'inn' }],
     npcs: [
       { defId: 'root-aurora', x: 5, y: 5 },
-      // At the end of the path, where the way down will be (16b).
+      // At the end of the path, by the way down to Lumina-That-Was (16b).
       { defId: 'root-knot', x: 13, y: 12 },
     ],
     enemies: [],
