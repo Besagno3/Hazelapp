@@ -15,7 +15,24 @@ are always the game's.
 # from hazel-game/
 npx vite --config site/vite.config.mjs              # preview: http://localhost:5173
 npx vite build --config site/vite.config.mjs        # build to dist-site/
+npm run build:web                                   # what Vercel serves: these pages at /, the game at /play/ (dist/)
 ```
+
+## Hosting
+
+Vercel builds `npm run build:web` (`vercel.json` → `buildCommand`,
+`scripts/build-web.mjs`) and serves `dist/`:
+
+- `/` is `index.html`, `/grown-ups.html` the grown-ups page;
+- `/play/` is the game (`/play` redirects there). The game is built as
+  usual (base `/`) and only its `index.html` moves to `play/`: its code asks
+  for `/sprites/…`, `/tiles/…` and `/audio/…` at the root, and its bundle
+  loads from `/assets/…`, both of which these pages share.
+- A link meant for the game that arrives at `/` — Supabase's emails go to the
+  project's Site URL, and review alerts open `?review` — is passed on to
+  `/play/` with its address (the small script at the top of `index.html`):
+  sign-in tokens and errors in the hash (`access_token`, `error`, …), or
+  `?code`, `?token_hash`, `?error`, `?review`. The pages' own `#…` links stay.
 
 ## How it's made
 
@@ -52,14 +69,14 @@ npx vite build --config site/vite.config.mjs        # build to dist-site/
    blanks (highlighted, class `todo`), and "Read the full privacy notice"
    links nowhere yet. It needs a lawyer's review and its own page.
 2. **Where the game lives.** Every Play button reads its link from
-   `<meta name="hq:play-url">` (now `/play/`); the grown-ups page's "Create a
+   `<meta name="hq:play-url">` (`/play/`); the grown-ups page's "Create a
    free family account" (`data-play="signup"`) adds `?signup`, which opens the
-   game's sign-in page on its sign-up form. Serving these pages at `/`
-   means building the game with `base: '/play/'`, updating `vercel.json`,
-   and adding the new URL to Supabase Auth → Redirect URLs (password-reset
-   links).
-3. **The share image.** `og:image` must become an absolute URL once the
-   domain is known.
+   game's sign-in page on its sign-up form. Hosting is set up (see
+   **Hosting** above); left for the owner: add `https://hazelapp-pi.vercel.app/play/` to
+   Supabase Auth → Redirect URLs, so reset links go straight to the game.
+3. **The share image.** `og:image` names `https://hazelapp-pi.vercel.app/og.png`
+   (`build:web` copies `assets/img/og.png` there). Change it on both pages if
+   the site moves to another domain.
 4. **Keep the claims true.** The grown-ups page promises these; check them
    whenever the code they rest on changes:
 
