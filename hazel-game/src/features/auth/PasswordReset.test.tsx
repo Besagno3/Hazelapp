@@ -87,6 +87,31 @@ describe('AuthPage — a grown-up signs up (#124)', () => {
   });
 });
 
+describe('AuthPage — opened from the public site (#143)', () => {
+  function at(address: string, test: () => void) {
+    window.history.replaceState(null, '', address);
+    try { test(); } finally { window.history.replaceState(null, '', '/'); }
+  }
+
+  it('?signup opens on the sign-up form, and leaves the address', () => {
+    at('/play/?signup&keep=1#top', () => {
+      render(<AuthPage />);
+      expect(screen.getByRole('button', { name: 'Create family account' })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Grown-up's email")).toBeInTheDocument();
+      // Only ?signup goes: anything else in the address stays.
+      expect(window.location.pathname + window.location.search + window.location.hash).toBe('/play/?keep=1#top');
+    });
+  });
+
+  it('without it, opens on Sign in', () => {
+    at('/play/', () => {
+      render(<AuthPage />);
+      expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
+      expect(screen.getByText('New here? Grown-ups sign up')).toBeInTheDocument();
+    });
+  });
+});
+
 describe('show password (#123)', () => {
   it('sign in and sign up each have an eye; switching between them hides the password again', () => {
     render(<AuthPage />);

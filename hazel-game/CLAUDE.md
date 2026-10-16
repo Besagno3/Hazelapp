@@ -780,6 +780,35 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — Public pages: review fixes (#143f)
+`/saas-code-review` + `/saas-ux-review` of the prototype, rendered at 320,
+390 and 1280 px, by keyboard and with reduced motion; the owner said fix all.
+- **The demo battle keeps keyboard focus:** after Next, focus goes to the new
+  question (`tabindex="-1"`), so Tab reaches its answers and a screen reader
+  reads it (it fell to the page, and Tab jumped on to the hero picks). The
+  first question no longer names a critter that isn't on screen.
+- **Sign-up lands on sign-up:** "Create a free family account" opens the game
+  at `?signup` (`data-play="signup"`); `AuthPage` starts on the sign-up form
+  and drops `signup` from the address (it opened on Sign in). Every other
+  Play button still opens Sign in.
+- **The clip can be paused:** it always has controls (WCAG 2.2.2); under
+  reduced motion it still doesn't autoplay.
+- **Fact tags aren't buttons:** the grown-ups chips are a diamond-bulleted
+  list and the subjects soft tags — no pixel border, no gold.
+- **Smaller fixes:** Ember steps away on phones while the demo battle passes
+  under her corner; a link to a FAQ answer opens it (footer Contact); the
+  eyebrow green is `#1d7044` (5.4:1); footer links and "Read the full privacy
+  notice" are 44 px tall; hero type labels darker on sand; the kids' facts
+  line says "A grown-up starts it" (kept whole when it wraps).
+- **`capture.cjs`:** a step failing mid-film no longer crashes Node with
+  "Target closed" before its own error; `stop()` still throws the loop's
+  error, and says so when there are no frames.
+- Kept: "Pick your hero." only plays an attack (a teaser), the clip is small
+  on a phone (captioned), the sign-in page's purple style (#143e).
+- Tests: PasswordReset.test +2 (with and without `?signup`; the first fails
+  on the old `AuthPage`). 1302 green, lint + build + site build clean; 33
+  browser checks on the pages pass.
+
 ### 2026-10-16 — Public pages prototype: a kids' page and a grown-ups page (#143)
 New `site/` folder, outside the app (no `src/` change): `index.html` for kids
 (a title screen with Kira and Ember walking, a playable demo battle, heroes,

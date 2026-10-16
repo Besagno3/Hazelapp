@@ -145,7 +145,7 @@
   // Hand-written sample questions for the demo. The real game writes its own,
   // matched to each child's age and level.
   const BANK = [
-    { topic: 'Math', q: 'Sir Sumsalot has 3 bags with 4 gems in each. How many gems?', a: ['12', '7', '10', '16'], why: '3 bags of 4 is 4 + 4 + 4 = 12.' },
+    { topic: 'Math', q: 'You have 3 bags with 4 gems in each. How many gems?', a: ['12', '7', '10', '16'], why: '3 bags of 4 is 4 + 4 + 4 = 12.' },
     { topic: 'Space', q: 'Which planet is called the Red Planet?', a: ['Mars', 'Venus', 'Jupiter', 'Neptune'], why: 'Mars is covered in reddish dust.' },
     { topic: 'Nature & Animals', q: 'Which of these animals is a mammal?', a: ['Dolphin', 'Shark', 'Octopus', 'Jellyfish'], why: 'Dolphins breathe air and feed their babies milk.' },
     { topic: 'Words & Stories', q: 'Which word rhymes with “light”?', a: ['Kite', 'Late', 'Lift', 'Loud'], why: 'Light and kite end with the same sound.' },
@@ -322,6 +322,9 @@
         setFoe();
       }
       ask();
+      // Next has just hidden itself: put focus on the new question, so the
+      // keyboard stays in the battle and a screen reader reads it out.
+      qText.focus();
     });
 
     setFoe();
@@ -336,6 +339,8 @@
     const bubble = buddy.querySelector('[data-say]');
     const sections = [...document.querySelectorAll('[data-ember]')];
     const finale = document.getElementById('play');
+    const battleWin = document.querySelector('[data-battle]');
+    const narrow = window.matchMedia('(max-width: 719px)');
     const LINES = {
       'ember-hatchling': ['Peep!', 'Hi! I’m Ember!'],
       'ember-whelp': ['Rawr!', 'Look, wings!'],
@@ -366,7 +371,15 @@
         setSheet(spr, stage);
         hop();
       }
-      buddy.classList.toggle('away', !!finale && finale.getBoundingClientRect().top < window.innerHeight * 0.85);
+      // She steps away at the last Play button, and on a phone while the demo
+      // battle passes under her corner, so a tap meant for an answer hits it.
+      const atFinale = !!finale && finale.getBoundingClientRect().top < window.innerHeight * 0.85;
+      let overBattle = false;
+      if (battleWin && narrow.matches) {
+        const r = battleWin.getBoundingClientRect();
+        overBattle = r.top < window.innerHeight && r.bottom > window.innerHeight - 120;
+      }
+      buddy.classList.toggle('away', atFinale || overBattle);
     };
     window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
     window.addEventListener('resize', update);
@@ -392,7 +405,12 @@
   const playUrl = document.querySelector('meta[name="hq:play-url"]')?.content || '/play/';
   document.querySelectorAll('[data-play]').forEach((a) => {
     a.href = playUrl;
-    if (!playUrl.startsWith('#')) return;
+    if (!playUrl.startsWith('#')) {
+      // "Create a free family account" opens the game on its sign-up form
+      // (AuthPage reads ?signup); every other Play button opens Sign in.
+      if (a.dataset.play === 'signup') a.href = `${playUrl}${playUrl.includes('?') ? '&' : '?'}signup`;
+      return;
+    }
     // Prototype only: there is no game behind the button yet.
     a.addEventListener('click', (e) => {
       e.preventDefault();
@@ -409,15 +427,27 @@
       note.timer = setTimeout(() => { note.hidden = true; }, 5000);
     });
   });
+
+  // ---------- A link to a FAQ answer opens it ----------
+
+  const openTarget = (hash) => {
+    let id = '';
+    try { id = decodeURIComponent(hash.slice(1)); } catch { return; }
+    const el = id && document.getElementById(id);
+    if (el && el.tagName === 'DETAILS') el.open = true;
+  };
+  openTarget(location.hash);
+  window.addEventListener('hashchange', () => openTarget(location.hash));
+  // A second click on the same link changes no hash, so links open it too.
+  document.querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener('click', () => openTarget(a.hash)));
 })();
 
-// Under reduced motion the gameplay clip waits for a tap instead of playing on its own.
+// Under reduced motion the gameplay clip waits for Play (its controls are always shown).
 (() => {
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   document.querySelectorAll('video[data-autoplay]').forEach((v) => {
     if (!reduce.matches) return;
     v.removeAttribute('autoplay');
     v.pause();
-    v.controls = true;
   });
 })();

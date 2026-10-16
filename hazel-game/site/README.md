@@ -52,7 +52,9 @@ npx vite build --config site/vite.config.mjs        # build to dist-site/
    blanks (highlighted, class `todo`), and "Read the full privacy notice"
    links nowhere yet. It needs a lawyer's review and its own page.
 2. **Where the game lives.** Every Play button reads its link from
-   `<meta name="hq:play-url">` (now `/play/`). Serving these pages at `/`
+   `<meta name="hq:play-url">` (now `/play/`); the grown-ups page's "Create a
+   free family account" (`data-play="signup"`) adds `?signup`, which opens the
+   game's sign-in page on its sign-up form. Serving these pages at `/`
    means building the game with `base: '/play/'`, updating `vercel.json`,
    and adding the new URL to Supabase Auth → Redirect URLs (password-reset
    links).

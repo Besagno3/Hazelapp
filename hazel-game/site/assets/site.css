@@ -28,7 +28,7 @@
   --gold-hi: #ffe58a;
   --gold-lo: #d98e12;
   --ember: #ec7424;
-  --leaf: #2f8f5b;
+  --leaf: #1d7044;
   --night: #120f2e;        /* the Spire at night */
   --muted: #4b4566;
   --hp: #3ccf6e;
@@ -219,7 +219,8 @@ a { color: inherit; }
 @media (min-width: 720px) { .logo { --ls: 6; } }
 .logo img { width: calc(68px * var(--ls, 5)); height: auto; image-rendering: pixelated; }
 .tagline { font: 400 var(--t-hero)/1.05 var(--pixel); letter-spacing: 0.03em; }
-.title .facts { font: 400 1.35rem/1.1 var(--pixel); letter-spacing: 0.04em; color: var(--ink); background: rgba(255, 255, 255, 0.82); padding: 0.4em 0.8em 0.5em; border-radius: 4px; }
+.title .facts { font: 400 1.35rem/1.1 var(--pixel); letter-spacing: 0.04em; color: var(--ink); background: rgba(255, 255, 255, 0.82); padding: 0.4em 0.8em 0.5em; border-radius: 4px; text-wrap: balance; }
+.title .facts .nowrap { white-space: nowrap; }
 .cta-row { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: center; }
 
 /* The walk: Kira and Ember stride along a road that scrolls under them. */
@@ -349,7 +350,7 @@ a { color: inherit; }
 @media (min-width: 720px) { .pick .spr { --s: 4; } }
 .pick .shadow { width: 60%; height: 10px; margin-top: -10px; background: rgba(27, 15, 34, 0.25); border-radius: 50%; }
 .pick small { font: 400 1.15rem/1 var(--pixel); letter-spacing: 0.04em; color: var(--muted); }
-.band-sand .pick small { color: #5b4632; }
+.band-sand .pick small { color: #33241a; }
 
 .growth { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 4px clamp(4px, 1.5vw, 20px); list-style: none; margin: 0; padding: 0; }
 .growth li { display: flex; align-items: flex-end; gap: clamp(4px, 1.5vw, 20px); }
@@ -417,8 +418,8 @@ a { color: inherit; }
 
 .site-foot { background: #080616; color: #cfc9f2; padding-block: 28px max(28px, env(safe-area-inset-bottom, 0px)); font-size: var(--t-small); }
 .site-foot .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; align-items: center; }
-.site-foot nav { display: flex; flex-wrap: wrap; gap: 8px 20px; }
-.site-foot a { color: var(--white); text-underline-offset: 3px; }
+.site-foot nav { display: flex; flex-wrap: wrap; gap: 0 20px; }
+.site-foot a { display: inline-block; padding-block: 10px; color: var(--white); text-underline-offset: 3px; } /* 44px tall to tap */
 .draft { display: inline-block; font: 400 0.95rem/1 var(--pixel); letter-spacing: 0.05em; background: var(--todo); color: var(--ink); padding: 3px 5px 4px; margin-left: 4px; vertical-align: 2px; }
 .todo { background: var(--todo); color: var(--ink); padding: 0 4px; outline: 1px dashed #b39500; }
 
@@ -506,18 +507,14 @@ body.gu { background: var(--sky-pale); }
 .eyebrow { font: 400 1.35rem/1 var(--pixel); color: var(--leaf); letter-spacing: 0.06em; text-transform: uppercase; }
 .gu-hero h1 { font: 400 clamp(2.6rem, 1.8rem + 3.4vw, 4.3rem)/0.98 var(--pixel); letter-spacing: 0.02em; }
 .lead { font-size: 1.25rem; max-width: 52ch; }
-.chips { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 4px 0 0; padding: 0; }
-.chips li, .subjects li {
-  background: var(--white);
-  font: 400 1.35rem/1 var(--pixel);
-  letter-spacing: 0.04em;
-  padding: 0.4em 0.7em 0.45em;
-  margin: var(--px);
-  box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink);
-}
-.chips li:first-child { background: var(--gold); }
-.subjects { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 0; padding: 0; }
-.subjects li { font-size: 1.25rem; }
+/* Facts and subjects are plain tags: no pixel border and no gold, which on
+   these pages mean "you can press this". */
+.chips { display: flex; flex-wrap: wrap; gap: 8px 22px; list-style: none; margin: 4px 0 0; padding: 0; }
+.chips li, .subjects li { font: 400 1.35rem/1 var(--pixel); letter-spacing: 0.04em; }
+.chips li { position: relative; padding-left: 20px; }
+.chips li::before { content: ''; position: absolute; left: 0; top: 0.2em; width: 10px; height: 10px; background: var(--leaf); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.subjects { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.subjects li { font-size: 1.25rem; padding: 0.35em 0.6em 0.4em; background: rgba(30, 27, 75, 0.08); border-radius: 3px; }
 
 .phone {
   margin: 0 auto;
@@ -590,7 +587,7 @@ body.gu { background: var(--sky-pale); }
 .collect dt { font: 400 1.35rem/1.25 var(--pixel); letter-spacing: 0.04em; }
 .collect dd { margin: 0; }
 @media (max-width: 520px) { .collect { grid-template-columns: 1fr; } .collect dd { margin-bottom: 8px; } }
-.textlink { font-weight: 700; color: var(--window); text-underline-offset: 3px; }
+.textlink { display: inline-block; padding-block: 8px; font-weight: 700; color: var(--window); text-underline-offset: 3px; }
 
 .gu-faq { display: grid; gap: 12px; max-width: 820px; }
 .gu-faq h2 { margin-bottom: 8px; }

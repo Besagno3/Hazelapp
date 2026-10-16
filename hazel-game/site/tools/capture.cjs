@@ -152,10 +152,15 @@ function filmer(page, dir) {
       frames.push({ name, at: Date.now() });
     }
   })();
+  // If a step fails mid-film, the browser closes under the loop: keep that
+  // from crashing Node before the step's own error is printed. stop() still
+  // throws the loop's error when it's the loop that failed.
+  loop.catch(() => {});
   return {
     async stop() {
       filming = false;
       await loop;
+      if (!frames.length) throw new Error(`filmer: no frames in ${dir}`);
       const lines = ['ffconcat version 1.0'];
       frames.forEach((f, i) => {
         lines.push(`file '${f.name}'`);
