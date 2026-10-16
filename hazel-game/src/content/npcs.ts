@@ -7,6 +7,7 @@ import { handedOverFlag, questOfferedFlag } from './quests';
 import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER, MET_UMBRA_REMEMBERED, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
+import { EPILOGUE } from './epilogue';
 import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING, descentSeenFlag } from './story';
 
 /** Set once the hero has stepped onto the Deep Root's first floor (#75 item 16d): its panel has played. */
@@ -2973,6 +2974,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'WOOF! *Pickles wags so hard he falls right over.*', ifFlag: 'dog-named-pickles' },
       { text: 'Woof! *Captain stands up very straight, guarding you.*', ifFlag: 'dog-named-captain' },
       { text: 'Woof. *Sir Wigglesworth bows. Then wiggles.*', ifFlag: 'dog-named-wigglesworth' },
+      // The epilogue (#75 item 16f): the name the hero picked sticks (STORY-4X §6).
+      { text: '*Pickles drops a daisy at your feet, very proud, and wags so hard he falls over again.*', ifFlag: ['dog-named-pickles', UMBRA_NAMED] },
+      { text: '*Captain carries a daisy like a flag and marches it all the way to you.*', ifFlag: ['dog-named-captain', UMBRA_NAMED] },
+      { text: '*Sir Wigglesworth presents you a daisy with a deep, deep bow. Then a deeper wiggle.*', ifFlag: ['dog-named-wigglesworth', UMBRA_NAMED] },
+      { text: '*The dog sniffs the warm, golden air, then runs a happy circle round you. Every name feels like his today.*', ifFlag: UMBRA_NAMED, unlessFlag: ['dog-named-pickles', 'dog-named-captain', 'dog-named-wigglesworth'] },
     ],
     // Every child in old Lumina called this dog something different (STORY-4X §6).
     ambient: ['Pickles!', 'Captain!', 'Sir Wigglesworth!', 'Woof!'],
@@ -3060,3 +3066,18 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
   },
 };
+
+/** A line that plays whenever `umbra-named` is set, whatever else is true. */
+function saysAfterName(l: DialogueLine): boolean {
+  if (typeof l === 'string') return false;
+  const need = Array.isArray(l.ifFlag) ? l.ifFlag : l.ifFlag ? [l.ifFlag] : [];
+  return need.length === 1 && need[0] === UMBRA_NAMED && !l.unlessFlag;
+}
+
+// The epilogue (#75 item 16f): once her name is said, everyone has something to
+// say about it — first, before their usual lines. Someone 16e already gave such a
+// line keeps theirs.
+for (const [id, text] of Object.entries(EPILOGUE)) {
+  const def = NPC_DEFS[id];
+  if (def && !def.lines.some(saysAfterName)) def.lines.unshift({ text, ifFlag: UMBRA_NAMED });
+}

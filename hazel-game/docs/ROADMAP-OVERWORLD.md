@@ -531,7 +531,7 @@ dungeons stay in `ROADMAP-4X.md` Waves 2–4 (§7).
 | 16c | ✅ **Aster's Garden + the Nameless Hall** | M | **Done (2026-10-16, #145):** Aster's Garden below Old Lumina Field — the Gardener (a warden in the hedge's one gap) gives Aster's Key; A Garden Rewatered (three waters in chests, three weeds); the Nameless Hall's blank plaques, a daisy, three panels, and the key gate to the deepest root (the way down opens in 16d). Planned: the Gardener (warden) gives Aster's Key; the garden-watering quest; the Hall's key gate opens the descent |
 | 16d | ✅ **The descent** | M–L | **Done (2026-10-16, #154):** the Deep Root — seven floors down from the Nameless Hall, echoes of the Thicket Warden, the Tide Colossus and the Clockwork Titan on B2, B4 and B6, Umbra's taunts quieter floor by floor, the Root's Heart at the bottom. Planned: 7 ordinary floors on the dungeon engine (no candle-lives, #103a); echo wardens on floors 2, 4, 6 (`role: 'echo'`, their own flags and lines, +2 levels); Umbra's floor taunts soften on the way down |
 | 16e | ✅ **The Name** | M | **Done (2026-10-16, #155):** Umbra Remembered at the Root's Heart — a five-question candle gauntlet (`lib/gauntlet.ts`, shared with the Spire), then "What was my name?"; `namePanels`, the post-credits, `umbra-named`, Sage Aster in the Hall of Names. *Planned:* Umbra Remembered's fight ends at the name question (the Spire's question gauntlet pulled out for reuse; without `name-learned` Umbra gently sends you back — §8 decision 17); `namePanels`, `umbra-named`, the post-credits; Aster joins the Hall of Names as the sixth Sage |
-| 16f | **Epilogue + Phase 5 exit** | M | every named NPC has an `umbra-named` line (test-guarded); a full playthrough; ISSUES #75 closed |
+| 16f | ✅ **Epilogue + Phase 5 exit** | M | **Done (2026-10-16, #156):** every placed person has an `umbra-named` line, said first (`content/epilogue/`, `epilogue.test`); `fullJourney()` plays the whole story from a new save to "Explore", every leg walked; ISSUES #75 closed |
 
 **Why the groundwork (14b–14c) comes before any Act II content** (found
 reviewing these rows, 2026-10-09): the crystal system still assumes four —
@@ -658,7 +658,8 @@ generalized dungeon engine.
 *Planned (2026-10-09):* sub-items 16a–16f (§5.1) — the door and the
 testimony quest, Lumina-That-Was, Aster's Garden, the 7-floor descent as
 ordinary dungeon floors, the name finale, the epilogue. *Exit:* the finale
-plays as written and the whole game plays through.
+plays as written and the whole game plays through. *Done (2026-10-16):*
+all six shipped; `fullJourney()` walks the whole story (#156).
 
 ---
 

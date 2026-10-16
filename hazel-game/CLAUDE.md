@@ -414,6 +414,10 @@ zod, react-query. Add the package in the same change that first uses it.
   name?" — "Aster" sets `umbra-named` (`namePanels`, `POST_CREDITS_PANELS`;
   its XP waits in `finaleStore` until they end); Sage Aster stands in the
   Hall of Names after (the 🚩's "Visit Sage Aster").
+  **The epilogue** (#75 item 16f): every placed person has a line once
+  `umbra-named` is set (`content/epilogue/`, said first; `epilogue.test`
+  guards it, so a new person needs one), and `fullJourney()` walks the whole
+  story from a new save to "Explore".
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -949,6 +953,19 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — The epilogue: everyone remembers her name, and the whole story plays through (#75 item 16f, #156)
+Roadmap sub-item 16f, the Phase 5 exit — ISSUES #75 closed.
+- **Everyone remembers:** `content/epilogue/` (home, Act I's towns, the
+  Shallows and below, Taleshore) gives 139 people a line once `umbra-named` is
+  set, said first (`npcs.ts` puts it before their usual lines); the nine 16e
+  already gave one keep theirs; the dog's follows the name the hero chose.
+- **Test-guarded:** `epilogue.test` — every placed person still standing after
+  the name has a line then, none before; ids real and unique; ≤ 30 words.
+- **A full playthrough:** `fullJourney()` (`lib/journey.ts`) plays Acts I–IV
+  from a new save to "Explore" — every leg walks, the 🚩 always moves on, it
+  ends with her name said and Sage Aster visited, and every epilogue line plays.
+- **Tests:** +8 (epilogue, journey); 1565 green, lint and tsc clean.
 
 ### 2026-10-16 — Merge the 16d branch (with main) into the 16e branch (#155)
 16d merged `main` (public pages, safer questions, the fairer Spire, saves, the

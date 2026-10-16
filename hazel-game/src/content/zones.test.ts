@@ -461,7 +461,7 @@ describe('every place is unique (#73)', () => {
     expect(Math.max(Math.abs(plaza.x - home.spawn.x), Math.abs(plaza.y - home.spawn.y))).toBeLessThanOrEqual(3);
     expect(buildingInside(home, plaza.x, plaza.y)).toBeNull();
     expect(buildingInside(home, later.x, later.y)?.id).toBe('lumina-library');
-    expect(NPC_DEFS['elder-lumen'].lines[0]).toMatchObject({ unlessFlag: MET_ELDER, setFlag: MET_ELDER });
+    expect(visibleLines(NPC_DEFS['elder-lumen'].lines, {})[0]).toMatchObject({ unlessFlag: MET_ELDER, setFlag: MET_ELDER });
   });
 
   it('every merchant, sage, innkeeper and librarian works inside a building', () => {
@@ -1219,7 +1219,8 @@ describe('Taleshore and Port Lantern (#75 item 15c)', () => {
     const gate = port.exits.find((e) => e.to === 'taleshore')!;
     expect(Math.abs(gale.x - gate.x) + Math.abs(gale.y - gate.y)).toBeLessThanOrEqual(6);
     expect(touches(reach(port), gale.x, gale.y)).toBe(true);
-    const first = NPC_DEFS['port-harbormaster'].lines[0];
+    // The first thing Gale says on arriving (the epilogue's line comes first only after the name, 16f).
+    const first = visibleLines(NPC_DEFS['port-harbormaster'].lines, {})[0];
     expect(typeof first !== 'string' && first.setFlag).toBe(MET_GALE);
   });
 

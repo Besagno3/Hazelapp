@@ -1671,3 +1671,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1448 | A | ✅ | Enter opens the finale (#155o) | `DialogueOverlay.test`: on Umbra's last line "🌑 Answer Umbra" has focus |
 | TC-1449 | M | ⬜ | the shadow blinks, never goes blank (#155o) | watch the shadow at the Root's Heart: its lavender eyes close and open; the hood is never empty |
 | TC-1450 | A | ✅ | the finale pays no XP for starter questions (#155, #153) | `NameFinale.test`: with every question a starter one, saying "Aster" leaves only `NAME_CLEAR_XP` waiting — no answer XP |
+| TC-1451 | A | ✅ | everyone has a line after the name (#156) | `epilogue.test`: every placed person (not a prop or signpost) still standing once `umbra-named` is set has a line that plays then — and none that plays before it |
+| TC-1452 | A | ✅ | the epilogue's lines are well kept (#156) | `epilogue.test`: each id is such a person, in one file only; ≤ 30 words; the shadow is never "he"; the epilogue line is the first one they say after the name, unless 16e already gave them one |
+| TC-1453 | A | ✅ | the whole story walks (#156) | `journey.test`: `fullJourney()` — every leg from a new save to "Explore" has a path, no goal repeats, no story flag is lost, more than 40 legs |
+| TC-1454 | A | ✅ | the story's end (#156) | `journey.test`: after the last leg, Acts I–III are complete, `name-learned`, `umbra-named` and `met-hall-aster` are set, the 🚩 says Explore, and with those flags every epilogue line plays |
+| TC-1455 | M | ⬜ | the epilogue on screen (#156) | with an `umbra-named` save, talk to a few people in each region (the Village, Numbria, Eldergrove, Port Lantern, the Deep Root): their epilogue line comes first and fits the box on a 320 px phone; the dog's follows its name |
