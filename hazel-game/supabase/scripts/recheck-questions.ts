@@ -1,54 +1,53 @@
-// Re-checks the saved question bank against today's rules (#146).
+// Checks the saved question bank against today's rules, once (#146).
 // ----------------------------------------------------------------------------
 // The bank is reused for every child, and most questions a kid sees come from
 // it. Questions saved before the rules (#133, #146) only ever passed the word
-// filter. This runs each saved question through the checks a new one gets —
-// the screen, the blind check and the explanation check, the same prompts as
-// the question service (`_shared/questionScreen.ts`) — and holds back any that
-// fail: status 'review', the reason in `review_note`. The owner finds them in
-// `select * from question_review_queue` and decides with
-// `select review_question(id, 'approved' | 'retired' | 'active')`.
+// filter. This runs each one through the checks a new question gets — the
+// screen, the blind check and the explanation check, the same prompts as the
+// question service (`_shared/questionScreen.ts`) — once: a question that
+// passes is marked checked under RULES_VERSION (`checked_version`, migration
+// 0018) and skipped next time, like every new question (marked when it's
+// saved). One that fails is held back: status 'review', the reason in
+// `review_note`. The owner finds them in `select * from question_review_queue`
+// and decides with `select review_question(id, 'approved' | 'retired' | 'active')`.
+//
+// `--reported` instead checks questions families reported that the question
+// service didn't get to (the app closed first, a family over its daily cap, a
+// check that failed): Claude Haiku, then the stronger model if Haiku finds
+// nothing — the same `reportReview` the app's report starts.
 //
 // Run it from hazel-game/ with the project's service-role key (never ship
 // that key anywhere else) and an Anthropic key. A dry run first — it prints
-// what it would hold back and changes nothing:
+// what it would do and changes nothing:
 //
 //   SUPABASE_URL=https://….supabase.co SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… \
 //     deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts
 //
-// then the same with --apply to hold them back. Options:
-//   --apply              hold back the questions that fail (default: dry run)
+// then the same with --apply. Options:
+//   --apply              hold back what fails and mark what passes (default: dry run)
+//   --reported           check reported questions instead of the unchecked bank
 //   --limit N            stop after N questions (default: all)
-//   --topic T            only this topic
-//   --include-approved   also recheck questions the owner approved
-//   --include-reviewed   also recheck questions the owner already reviewed
+//   --topic T            only this topic (not with --reported)
+//   --include-approved   also check questions the owner approved
+//   --include-reviewed   also check questions the owner already reviewed
 //   --default-age N      age to check questions saved without one (default 9)
 //   --batch N            questions per check call (default 15)
 //   --parallel N         check calls at a time (default 4)
 //
-// Needs migration 0017 (the review_note column). Two Claude calls per batch;
-// a batch whose check fails is left as it is and counted, so a rerun picks it
-// up. A rerun skips what the owner has reviewed since, unless told not to.
+// Needs migrations 0017 and 0018. Two Claude calls per batch; a batch whose
+// check fails is left as it is (unmarked) and counted, so a rerun picks it up.
 // ----------------------------------------------------------------------------
 
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient } from 'npm:@supabase/supabase-js';
 import {
-  CHECK_EFFORT,
-  CHECK_MAX_TOKENS,
-  CHECK_PROMPT,
-  CHECK_SCHEMA,
-  EXPLAIN_EFFORT,
-  EXPLAIN_MAX_TOKENS,
-  EXPLAIN_PROMPT,
-  EXPLAIN_SCHEMA,
-  MODEL,
-  checkInput,
-  explainInput,
-  replyJson,
+  ESCALATION_MODEL,
+  HAIKU_CHECKER,
+  RULES_VERSION,
+  reportReview,
+  runChecks,
   screenQuestion,
-  type CheckVerdict,
-  type ExplainVerdict,
+  type CallModel,
 } from '../functions/_shared/questionScreen.ts';
 
 interface Row {
@@ -62,6 +61,7 @@ interface Row {
   correct_index: number;
   explanation: string | null;
 }
+const COLUMNS = 'id, topic, level, age, status, text, options, correct_index, explanation';
 
 /** Rows read from the bank per round. */
 const PAGE = 120;
@@ -101,85 +101,51 @@ const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
 const anthropic = new Anthropic({ apiKey: env('ANTHROPIC_API_KEY'), timeout: 60_000, maxRetries: 3 });
 
 const tokens = { input: 0, cached: 0, output: 0 };
-function count(message: Anthropic.Message): Anthropic.Message {
+/** As the question service calls Claude (`modelCaller` there), counting tokens instead of logging each call. */
+const call: CallModel = async (req) => {
+  const params = {
+    model: req.model,
+    max_tokens: req.maxTokens,
+    thinking: { type: 'adaptive' as const },
+    system: [{ type: 'text' as const, text: req.system, cache_control: { type: 'ephemeral' as const } }],
+    output_config: { effort: req.effort, format: { type: 'json_schema' as const, schema: req.schema } },
+    messages: [{ role: 'user' as const, content: req.input }],
+  };
+  const message =
+    req.model === ESCALATION_MODEL
+      ? await anthropic.beta.messages.create({
+          ...params,
+          betas: ['server-side-fallback-2026-07-01'],
+          fallbacks: 'default',
+        })
+      : await anthropic.messages.create(params);
   tokens.input += message.usage.input_tokens;
   tokens.cached += message.usage.cache_read_input_tokens ?? 0;
   tokens.output += message.usage.output_tokens;
   return message;
-}
+};
 
-/** Why each question in a batch fails both checks' rules (none → it passed). */
-async function checkBatch(age: number, rows: Row[]): Promise<Map<string, string>> {
-  const questions = rows.map((r) => ({
-    text: r.text,
-    options: r.options,
-    correctIndex: r.correct_index,
-    explanation: r.explanation,
-  }));
-  // Questions saved with no explanation show none, so there's nothing to check.
-  const explained = questions.filter((q) => (q.explanation ?? '').trim() !== '');
-  const [check, explain] = await Promise.all([
-    anthropic.messages
-      .create({
-        model: MODEL,
-        max_tokens: CHECK_MAX_TOKENS,
-        thinking: { type: 'adaptive' },
-        system: [{ type: 'text', text: CHECK_PROMPT, cache_control: { type: 'ephemeral' } }],
-        output_config: { effort: CHECK_EFFORT, format: { type: 'json_schema', schema: CHECK_SCHEMA } },
-        messages: [{ role: 'user', content: checkInput(age, questions) }],
-      })
-      .then(count),
-    explained.length === 0
-      ? null
-      : anthropic.messages
-          .create({
-            model: MODEL,
-            max_tokens: EXPLAIN_MAX_TOKENS,
-            thinking: { type: 'adaptive' },
-            system: [{ type: 'text', text: EXPLAIN_PROMPT, cache_control: { type: 'ephemeral' } }],
-            output_config: { effort: EXPLAIN_EFFORT, format: { type: 'json_schema', schema: EXPLAIN_SCHEMA } },
-            messages: [{ role: 'user', content: explainInput(age, explained) }],
-          })
-          .then(count),
-  ]);
-  const { verdicts } = replyJson<{ verdicts: CheckVerdict[] }>(check, 'The question check');
-  const explainVerdicts = explain
-    ? replyJson<{ verdicts: ExplainVerdict[] }>(explain, 'The explanation check').verdicts
-    : [];
-  if (!Array.isArray(verdicts) || verdicts.length !== rows.length) {
-    throw new Error(`the question check gave ${verdicts?.length ?? 0} verdicts for ${rows.length} questions`);
-  }
-  if (!Array.isArray(explainVerdicts) || explainVerdicts.length !== explained.length) {
-    throw new Error(`the explanation check gave ${explainVerdicts?.length ?? 0} verdicts for ${explained.length}`);
-  }
-  const explainOf = new Map(explained.map((q, i) => [q, explainVerdicts[i]]));
+const asQuestion = (row: Row) => ({
+  text: row.text,
+  options: row.options,
+  correctIndex: row.correct_index,
+  explanation: row.explanation,
+});
+const today = new Date().toISOString().slice(0, 10);
+const describe = (row: Row) =>
+  `${row.id} [${row.topic} L${row.level}${row.age === null ? '' : `, age ${row.age}`}]`;
 
+/**
+ * The screen, then Haiku's two checks in batches (one age per call), `parallel`
+ * at a time. Returns why each failing row failed, and the ids of rows in
+ * batches that couldn't be checked (they stay unmarked).
+ */
+async function checkRows(rows: Row[]): Promise<{ reasons: Map<string, string>; unchecked: Set<string> }> {
   const reasons = new Map<string, string>();
-  rows.forEach((row, i) => {
-    const v = verdicts[i];
-    const e = explainOf.get(questions[i]);
-    const problems: string[] = [];
-    if (v.answer !== row.correct_index) {
-      problems.push(`check picked "${row.options[v.answer]}", saved answer "${row.options[row.correct_index]}"`);
-    }
-    if (v.kidSafe !== true) problems.push(`check: ${v.problem || 'not kid-safe'}`);
-    if (e && e.ok !== true) problems.push(`explanation: ${e.problem || 'not passed'}`);
-    if (problems.length > 0) reasons.set(row.id, problems.join('; '));
-  });
-  return reasons;
-}
-
-/** The screen, then the two checks in batches (one age per call), `parallel` at a time. */
-async function recheck(rows: Row[]): Promise<{ reasons: Map<string, string>; failedBatches: number }> {
-  const reasons = new Map<string, string>();
+  const unchecked = new Set<string>();
   const byAge = new Map<number, Row[]>();
   for (const row of rows) {
-    const why = screenQuestion({
-      text: row.text,
-      options: row.options,
-      correctIndex: row.correct_index,
-      explanation: row.explanation,
-    });
+    const why = screenQuestion(asQuestion(row));
     if (why) {
       reasons.set(row.id, `screen: ${why}`);
       continue;
@@ -191,84 +157,137 @@ async function recheck(rows: Row[]): Promise<{ reasons: Map<string, string>; fai
   for (const [age, list] of byAge) {
     for (let i = 0; i < list.length; i += batchSize) batches.push({ age, rows: list.slice(i, i + batchSize) });
   }
-  let failedBatches = 0;
   for (let i = 0; i < batches.length; i += parallel) {
     await Promise.all(
       batches.slice(i, i + parallel).map(async (batch) => {
+        const questions = batch.rows.map(asQuestion);
         try {
-          for (const [id, why] of await checkBatch(batch.age, batch.rows)) reasons.set(id, why);
+          const problems = await runChecks(call, HAIKU_CHECKER, batch.age, questions);
+          questions.forEach((q, k) => {
+            const why = problems.get(q);
+            if (why) reasons.set(batch.rows[k].id, why);
+          });
         } catch (err) {
-          failedBatches += 1;
+          for (const row of batch.rows) unchecked.add(row.id);
           console.error(
-            `couldn't check a batch of ${batch.rows.length} (left as they are):`,
+            `couldn't check a batch of ${batch.rows.length} (left unmarked):`,
             err instanceof Error ? err.message : String(err),
           );
         }
       }),
     );
   }
-  return { reasons, failedBatches };
+  return { reasons, unchecked };
 }
 
-// The review_note column comes with migration 0017.
-{
-  const { error } = await db.from('questions').select('review_note').limit(1);
-  if (error) fail(`Can't read questions.review_note — is migration 0017 applied? (${error.message})`);
-}
-
-console.log(
-  apply
-    ? 'Holding back the questions that fail (--apply).'
-    : 'Dry run: nothing changes. Run again with --apply to hold back what fails.',
-);
-const today = new Date().toISOString().slice(0, 10);
-let lastId = '00000000-0000-0000-0000-000000000000';
-let checked = 0;
-let held = 0;
-let failedBatches = 0;
-while (checked < limit) {
-  // Keyset paging by id: a question moved to review drops out of the filter
-  // without shifting the pages after it.
-  let query = db
-    .from('questions')
-    .select('id, topic, level, age, status, text, options, correct_index, explanation')
-    .in('status', statuses)
-    .gt('id', lastId)
-    .order('id')
-    .limit(Math.min(PAGE, limit - checked));
-  if (!has('include-reviewed')) query = query.is('reviewed_at', null);
-  if (topic) query = query.eq('topic', topic);
-  const { data, error } = await query;
-  if (error) fail(`Reading the bank failed: ${error.message}`);
-  const rows = (data ?? []) as Row[];
-  if (rows.length === 0) break;
-  lastId = rows[rows.length - 1].id;
-  checked += rows.length;
-
-  const result = await recheck(rows);
-  failedBatches += result.failedBatches;
-  for (const row of rows) {
-    const why = result.reasons.get(row.id);
-    if (!why) continue;
-    held += 1;
-    console.log(
-      `HOLD ${row.id} [${row.topic} L${row.level}${row.age === null ? '' : `, age ${row.age}`}] ${why} — ` +
-        JSON.stringify(row.text).slice(0, 140),
-    );
-    if (!apply) continue;
-    // Only if nobody changed it meanwhile (the owner may be reviewing too).
-    const { error: holdErr } = await db
+/** The unchecked bank: every active question not checked under RULES_VERSION, once. */
+async function checkBank(): Promise<string> {
+  let lastId = '00000000-0000-0000-0000-000000000000';
+  let seen = 0;
+  let held = 0;
+  let passed = 0;
+  let unchecked = 0;
+  while (seen < limit) {
+    // Keyset paging by id: a row held back or marked drops out of the filter
+    // without shifting the pages after it.
+    let query = db
       .from('questions')
-      .update({ status: 'review', review_note: `${today} recheck: ${why}`.slice(0, 500) })
-      .eq('id', row.id)
-      .eq('status', row.status);
-    if (holdErr) console.error(`couldn't hold back ${row.id}:`, holdErr.message);
+      .select(COLUMNS)
+      .in('status', statuses)
+      .or(`checked_version.is.null,checked_version.lt.${RULES_VERSION}`)
+      .gt('id', lastId)
+      .order('id')
+      .limit(Math.min(PAGE, limit - seen));
+    if (!has('include-reviewed')) query = query.is('reviewed_at', null);
+    if (topic) query = query.eq('topic', topic);
+    const { data, error } = await query;
+    if (error) fail(`Reading the bank failed: ${error.message}`);
+    const rows = (data ?? []) as Row[];
+    if (rows.length === 0) break;
+    lastId = rows[rows.length - 1].id;
+    seen += rows.length;
+
+    const result = await checkRows(rows);
+    unchecked += result.unchecked.size;
+    const checkedAt = new Date().toISOString();
+    for (const row of rows) {
+      if (result.unchecked.has(row.id)) continue;
+      const why = result.reasons.get(row.id);
+      if (why) {
+        held += 1;
+        console.log(`HOLD ${describe(row)} ${why} — ${JSON.stringify(row.text).slice(0, 140)}`);
+      } else {
+        passed += 1;
+      }
+      if (!apply) continue;
+      // Only if nobody changed it meanwhile (the owner may be reviewing too).
+      const { error: saveErr } = await db
+        .from('questions')
+        .update({
+          checked_version: RULES_VERSION,
+          checked_at: checkedAt,
+          ...(why ? { status: 'review', review_note: `${today} recheck: ${why}`.slice(0, 500) } : {}),
+        })
+        .eq('id', row.id)
+        .eq('status', row.status);
+      if (saveErr) console.error(`couldn't save ${row.id}:`, saveErr.message);
+    }
+    console.log(`… ${seen} read, ${passed} passed, ${held} ${apply ? 'held back' : 'would be held back'}`);
   }
-  console.log(`… ${checked} checked, ${held} ${apply ? 'held back' : 'would be held back'}`);
+  return (
+    `${seen} read: ${passed} passed${apply ? ' (marked checked)' : ''}, ` +
+    `${held} ${apply ? 'held back' : 'would be held back'}, ${unchecked} not checked (rerun to retry)`
+  );
 }
 
+/** Reported questions no check has covered yet: Haiku, then the stronger model. */
+async function checkReported(): Promise<string> {
+  const { data, error } = await db.rpc('pending_report_checks', { p_limit: Math.min(limit, 10_000) });
+  if (error) fail(`Listing reported questions failed (is migration 0018 applied?): ${error.message}`);
+  const ids = ((data ?? []) as { id: string }[]).map((r) => r.id);
+  let held = 0;
+  for (const id of ids) {
+    let row: Row | null;
+    if (apply) {
+      // Claimed like the app's check, so the two never check the same report twice.
+      const { data: claimed, error: claimErr } = await db.rpc('claim_report_check', {
+        p_question: id,
+        p_parent: null,
+        p_daily_cap: 0,
+      });
+      if (claimErr) fail(`Claiming ${id} failed: ${claimErr.message}`);
+      const first = (Array.isArray(claimed) ? claimed[0] : claimed) as Omit<Row, 'topic' | 'level' | 'status'> | null;
+      if (!first) continue; // checked meanwhile
+      row = { ...first, topic: '?', level: 0, status: '?' };
+    } else {
+      const { data: found } = await db.from('questions').select(COLUMNS).eq('id', id).maybeSingle();
+      row = found as Row | null;
+      if (!row) continue;
+    }
+    const verdict = await reportReview(call, row.age ?? defaultAge, asQuestion(row));
+    if (verdict.hold) held += 1;
+    console.log(`${verdict.hold ? 'HOLD' : 'KEEP'} ${row.id} ${verdict.note} — ${JSON.stringify(row.text).slice(0, 140)}`);
+    if (!apply) continue;
+    const note = `${today} ${verdict.note}`.slice(0, 500);
+    const { error: saveErr } = await db
+      .from('questions')
+      .update(verdict.hold ? { status: 'review', review_note: note } : { review_note: note })
+      .eq('id', row.id)
+      .neq('status', 'retired');
+    if (saveErr) console.error(`couldn't save ${row.id}:`, saveErr.message);
+  }
+  return `${ids.length} reported question(s) waiting: ${held} ${apply ? 'held back' : 'would be held back'}`;
+}
+
+// Both columns come with migrations 0017 and 0018.
+{
+  const { error } = await db.from('questions').select('review_note, checked_version').limit(1);
+  if (error) fail(`Can't read the new columns — are migrations 0017 and 0018 applied? (${error.message})`);
+}
 console.log(
-  `\nDone: ${checked} checked, ${held} ${apply ? 'held back' : 'would be held back'}, ` +
-    `${failedBatches} batch(es) not checked (rerun to retry). ` +
-    `Claude tokens: ${tokens.input} in + ${tokens.cached} cached, ${tokens.output} out.`,
+  apply ? 'Applying (--apply).' : 'Dry run: nothing changes. Run again with --apply to act on what it finds.',
+);
+const summary = has('reported') ? await checkReported() : await checkBank();
+console.log(
+  `\nDone: ${summary}. Claude tokens: ${tokens.input} in + ${tokens.cached} cached, ${tokens.output} out.`,
 );

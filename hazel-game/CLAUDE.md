@@ -633,12 +633,25 @@ zod, react-query. Add the package in the same change that first uses it.
   4.5 needed 4,096, so the old marker did nothing). Each call logs its time
   and tokens (`logCall`). It asks for a third more questions than it needs to
   cover drops; secret `QUESTION_SECOND_CHECK=off` turns both checks off.
-  **The saved bank** is rechecked by `supabase/scripts/recheck-questions.ts`
-  (#146; Deno, run by the owner with the service-role key — dry run first,
-  `--apply` to act): the same screen and checks on every active question not
-  yet reviewed; failures go to `review` with the reason in
-  `questions.review_note` (migration 0017), which the queue lists among the
-  reasons. **Reports** (`FlagButton`,
+  **Each question is checked once** (migration 0018): the checks go through
+  `runChecks` (shared, with a `CallModel` each caller makes from its own client,
+  `modelCaller`), and a question that passes is marked `checked_version =
+  RULES_VERSION` — new ones as they're saved, **the saved bank** by
+  `supabase/scripts/recheck-questions.ts` (#146; Deno, run by the owner with
+  the service-role key — dry run first, `--apply` to act), which skips anything
+  already checked under the current version; failures go to `review` with the
+  reason in `questions.review_note` (0017), which the queue lists among the
+  reasons. Raise `RULES_VERSION` when the rules change and the next recheck
+  covers the bank again. **A report checks it again:** after a report is saved
+  the app asks the function (`action: 'check-report'`, not awaited); it claims
+  the question (`claim_report_check`: only for a report this family made since
+  the question's last check, at most `REPORT_CHECKS_PER_FAMILY_PER_DAY` = 20 a
+  day) and runs `reportReview` — Claude Haiku, and if Haiku finds nothing, the
+  stronger model (`ESCALATION_MODEL`, Claude Opus 5.5, higher effort, with the
+  server-side refusal fallback). A problem, or a check that can't run, holds the
+  question back (`review`); either way the note says what was found. A check
+  never puts a question back. Reports no check covered (the tab closed, over the
+  cap) are swept by the recheck script's `--reported` run. **Reports** (`FlagButton`,
   on every question screen through `QuestionCard`, "Not OK for kids" first)
   hide a question from the reporting family; for everyone it's held back only
   through `questions.status` (migration 0016: `active` / `review` / `retired`
@@ -747,7 +760,8 @@ python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, T
 
 # Recheck the saved question bank against today's rules (#146) — Deno, the project's service-role key
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts           # dry run
-SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails, mark what passes
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --reported --apply   # reports no check covered yet
 ```
 
 ## Error handling
@@ -833,6 +847,28 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Checked once, and again on a report: Haiku, then Opus (#146)
+The owner's follow-up on PR #71: existing questions checked once, new ones on
+generation, and a report triggering a check by Haiku and then a stronger model.
+- **Once:** migration 0018 adds `checked_version` / `checked_at`; new questions
+  are saved with `RULES_VERSION` (only when the checks ran; without 0018 the
+  save retries without it), and the recheck script skips checked questions and
+  marks what passes.
+- **A report checks it again:** the app asks `generate-questions` with
+  `action: 'check-report'` after a report (not awaited); `claim_report_check`
+  lets each report start one check, 20 a family a day; `reportReview` runs
+  Claude Haiku, then Claude Opus 5.5 if Haiku finds nothing (higher effort, the
+  server-side refusal fallback). A problem or a check that can't run holds the
+  question back; a check never puts one back. `--reported` sweeps the rest.
+- **Shared:** `runChecks` and `reportReview` in the screening block, over a
+  `CallModel` each caller builds (`modelCaller`); the sign-in and kid checks
+  are one helper (`identifyKid`) for both actions.
+- ⚠️ Deploy: apply 0017 and 0018, deploy the function, then the recheck.
+- **Tests:** questionScreen.test (+ runChecks, reportReview — escalation, holds,
+  errors; mutations caught), questions.test (+3), `question_checks.test.sql`
+  (each claim rule fails with its line removed); the harness 84/84. 1391 green;
+  lint, build, `deno check` clean; ten SQL tests and the bundle twice on Postgres 16.
 
 ### 2026-10-16 — Safer questions: Haiku 5.5, an explanation check, an age window, a bank recheck (#146)
 The question prompt rewrite and the seven fixes from its `/saas-code-review`.

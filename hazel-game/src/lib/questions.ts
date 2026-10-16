@@ -178,4 +178,19 @@ export async function flagQuestion(questionId: string, reason?: FlagReason): Pro
     .from('question_flags')
     .insert({ question_id: questionId, profile_id, reason: reason ?? null });
   if (error) throw new Error(`Couldn't flag question — ${errorMessage(error)}`);
+
+  // A report gets the question checked again (#146): Claude Haiku, then a
+  // stronger model if Haiku finds nothing. Not awaited — the child shouldn't
+  // wait, and a check that never starts (the tab closed) is picked up later by
+  // the owner's recheck script (`--reported`).
+  void Promise.resolve()
+    .then(() =>
+      supabase.functions.invoke('generate-questions', {
+        body: { action: 'check-report', questionId, profileId: profile_id },
+      }),
+    )
+    .then((result) => {
+      if (result?.error) console.warn('report check not started:', errorMessage(result.error));
+    })
+    .catch((err) => console.warn('report check not started:', errorMessage(err)));
 }

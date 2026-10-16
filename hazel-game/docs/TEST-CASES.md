@@ -1238,6 +1238,18 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1263 | I | ✅ | recheck | the recheck script (harness): a dry run over 6 saved questions prints 4 HOLD lines — a lettered one (screen), one the check answers differently ("check picked … saved answer …"), an unsafe one, an unkind explanation — and writes nothing; no explanation check for a question saved without one; each checked at its own age (`--default-age` for none); `--apply` moves the 4 to review with a dated `review_note`, only where still `active`, reading active, unreviewed rows only |
 | TC-1264 | M | ⬜ | recheck | on the real project: a dry run (`--limit 60`) lists sensible holds; then `--apply` on one topic; `select * from question_review_queue` shows them with `recheck: …` reasons; `select review_question(id, 'active')` puts a false alarm back |
 
+## Checked once, and again on a report (#146)
+
+| ID     | Type | Status | Feature | Case |
+|--------|------|--------|------|------|
+| TC-1265 | U | ✅ | runChecks | the blind check must pick the saved answer ("check picked "11", the saved answer is "12"") and call it kid-safe, the explanation must pass; a question with no explanation skips the explanation check; Haiku's settings (medium / 8,000, low / 4,000); a misaligned reply or a failed call throws (questionScreen.test) |
+| TC-1266 | U | ✅ | reportReview | Haiku finds a problem → hold, Opus never asked; Haiku passes, Opus finds one → hold, "(Opus, after Haiku passed it)"; both pass → no hold, "found no problem"; Haiku or Opus can't run → hold with the error; Opus at high / medium effort; skipping Opus fails the tests (questionScreen.test) |
+| TC-1267 | U | ✅ | report | after a report is saved the app asks `generate-questions` `{ action: 'check-report', questionId, profileId }` without waiting; a check that fails to start never fails the report (a warning); a failed report asks for no check (questions.test) |
+| TC-1268 | I | ✅ | claim | migration 0018 (SQL test): no report → nothing to claim; only the reporting family claims; the same report never checks twice; another family's new report is theirs to start; retired never; over the daily cap waits; the sweep (no family, no cap) claims; `pending_report_checks` lists what's waiting; not callable by the app's roles; each rule fails with its line removed (question_checks.test.sql) |
+| TC-1269 | I | ✅ | function | harness: fresh questions are saved with `checked_version 1`; without 0018 the save retries without it; a report claim with nothing new → no Claude call; Haiku finds a problem → `review` with the note, only Haiku asked, at the kid's age; Haiku passes, Opus finds one → `review`, Opus through the beta endpoint with `server-side-fallback-2026-07-01` and `fallbacks: 'default'`, high effort, at the saved age; both pass → only the note changes; a bad id 400, signed out 401 (harness, 84/84) |
+| TC-1270 | I | ✅ | recheck | harness: reads only questions not checked under version 1; `--apply` marks all six checked, four to review; `--reported` dry run shows the verdict and claims nothing, `--apply` claims as the sweep and holds it back |
+| TC-1271 | M | ⬜ | deploy | on the real project after 0018: report a question from the app; the function log shows "report check …" with Haiku's (and maybe Opus's) calls; the queue shows the note; reporting it again from the same kid starts no second check |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |
