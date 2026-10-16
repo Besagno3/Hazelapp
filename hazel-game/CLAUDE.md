@@ -107,7 +107,8 @@ zod, react-query. Add the package in the same change that first uses it.
   (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
   taps in the world's top bar) replaces Sign out. The active kid's id goes to
   the question function (`profileId`) — **the question budget is per kid**
-  (a family has at most 8) — and on flags. The privacy notice and the tile
+  (a family has at most 8), inside a **daily cap the family's kids share**
+  (migration 0021, #152) — and on flags. The privacy notice and the tile
   pictures live in `content/family.ts` (the notice is a **draft** until a
   lawyer reviews it — `PRIVACY_IS_DRAFT`).
 - **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
@@ -607,8 +608,14 @@ zod, react-query. Add the package in the same change that first uses it.
   SQL-level tests for it in `supabase/ci/`.
 - **Question-generator access (#88):** `generate-questions` requires a signed-in
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
-  per-player calls/minute (429 over it) + per-player and project-wide daily
-  budgets of *fresh* Claude questions. Over budget it serves the cache
+  per-player calls/minute (429 over it) + per-player, per-family (migration
+  0021, B9: the kid's grown-up; removing a kid deletes their requests at once
+  except today's spend, which stays, unlinked, for a day so it still counts —
+  `profiles_forget_requests`) and project-wide daily budgets of *fresh*
+  Claude questions. Each call's allowance is **held** on its request row
+  (`p_fresh_wanted`, the batch size) until the function writes what it really
+  made — an error partway writes what Claude made before it — so calls in
+  flight at once can't each spend the same budget. Over budget it serves the cache
   (seen questions as a last resort). **The kid's id is required** (400
   without it) and the quota check **fails closed**: if it errors, the call is
   served from the cache only, never from Claude (Act I launch review B9,
@@ -904,6 +911,119 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Merge main (public pages #66, question safety #71) into the family-budget branch (#152)
+`main` took migrations **0017–0019** (the question age window, the question
+checks, the admin review page) while B9 was in review, and the save-revisions
+PR (#151) takes 0020, so B9's migration moved **0018 → 0021**
+(`0021_family_question_budget.sql`, "after 0020"; the function's log lines,
+the SQL tests and #152's docs say 0021; the counts in the entries below are as
+they were). #146 / #147 and TC-1254–1295 don't collide with #152. The
+function merged on its own: the family cap and the hold sit in #147's new
+request path (`begin_question_request` with `p_fresh_per_family` and
+`p_fresh_wanted`, the per-kid fallback on `PICKER_MISSING`, step 4a and the
+catch charging what was made).
+
+### 2026-10-16 — B9 review round 2: a removed kid's requests go at once, a crash gives back its hold (#152)
+A fresh `/saas-code-review` of PR #67 (1 medium, 2 low), all fixed:
+- **A removed kid's requests weren't deleted "straight away" (medium):**
+  removing a kid unlinked every request row they'd ever made (its time, its
+  count, the grown-up's id), and only the next question request *anywhere*
+  deleted the ones over a day old — hours later in a quiet spell — while the
+  day's rows kept every request's time, spent or not (the draft notice says
+  only a count is kept). That next request also deleted the whole history
+  inside its quota check, under its family's lock. Now a `before delete`
+  trigger on `profiles` (`profiles_forget_requests`, security definer like
+  0016's) deletes at once the kid's rows no budget needs — over a day old, or
+  nothing spent; today's spend stays, unlinked, and goes once a day old.
+- **A crash kept the hold for the day (low):** an error thrown between the
+  quota check and the usage write reached the catch-all with the whole batch
+  still held — up to 15 fresh questions charged to the kid, the family and
+  the project for 24 h for a call that served nothing (a crash loop could
+  spend the project's day). The catch-all now writes what Claude made before
+  the error (`made`) in the hold's place — never less, so never an unlimited
+  bill; without 0021 (nothing held) it now records that spend too, which
+  was left at 0.
+- **TEST-CASES types (low):** "I" (#133's rows use it too) is in the legend
+  as integration; the two manual psql runs (TC-1374, TC-1377) are M; TC-1331
+  names the six-argument function.
+- **Tests:** `family_budget.test.sql` (the grown-up removes a kid through
+  `authenticated`: the 40-day-old row and the ones that spent nothing go at
+  once, today's 4 stay, a brother's rows are untouched — fails without the
+  trigger, without `security definer` and without the nothing-spent rule);
+  `family.test.ts` (+1); the function against a stand-in (7 checks; 3 fail on
+  round 1's version; round 1's 9 still pass). 1372 tests green, lint + build
+  clean, all 9 SQL tests, the migrations in order and the bundle twice pass
+  on Postgres 16, `deno check` clean.
+- Open: a removed kid's spend from today goes at the first question request
+  after it's a day old (there's no scheduled job), so in a quiet project it
+  can outlast the notice's "one day".
+
+### 2026-10-16 — B9 review round 1: calls in flight hold their share, a removed kid's count goes after a day (#152)
+`/saas-code-review` of PR #67 (2 medium, 1 low), all fixed:
+- **The caps didn't hold for calls in flight (medium):** the spend was
+  written only after Claude answered, so every call that started before the
+  others finished saw the same budget left, and the family lock serialized
+  nothing that mattered (4 calls from two kids against a family cap of 15
+  got 10 each). `begin_question_request` takes a sixth argument,
+  `p_fresh_wanted` (the batch size; default null holds nothing, as before):
+  inside the family lock it holds the allowance on the request row's
+  `fresh_count`, and the function's usage write replaces it with what was
+  made — always now (0 when Claude fails), not only when something was made.
+  An unexpected error leaves the hold standing (never an unlimited bill). The
+  per-kid and project caps hold the same way. 0021 also drops the
+  five-argument version its first draft made, so no call matches two.
+- **A removed kid's rows were kept for good (medium):** the privacy notice
+  says removing a child deletes their information straight away.
+  `begin_question_request` deletes rows with no kid once they're a day old
+  (past every window; a partial index finds them; `delete` granted to the
+  service role), and the draft notice now says a count of new questions is
+  kept, without the name, for one day.
+- **The backfill had no test (low; TC-1327 said it had):**
+  `family_budget.test.sql` re-applies 0021 (`\ir`) over a row with no
+  grown-up — which also checks a re-run with data keeps the grants.
+- **Tests:** `family_budget.test.sql` (+ holds, the project's last 3, freeing
+  what wasn't made, the day-old clean-up, the backfill) — each fails with its
+  fix taken out; `family.test.ts` (the notice and the migration agree); the
+  function run against a stand-in (9 checks; 4 fail on the PR's first
+  version); two overlapping psql sessions (the second waits, then sees the
+  hold); a project with the first draft applied, then this. 1371 tests
+  green, lint + build clean, all 9 SQL tests, the migrations in order and the
+  bundle twice (also over a row with no kid) pass on Postgres 16, `deno
+  check` clean.
+- ⚠️ Deploy as before (either order). A project that applied the first draft
+  of 0021 must re-run `apply_all_migrations.sql` — `db push` skips it.
+
+### 2026-10-16 — A question budget per family (#152)
+Act I launch review B9, the code that was left. Since #124 every kid had their
+own daily budget of fresh (Claude-written) questions, and removing a kid
+removed their request log with them: a grown-up could add a kid, spend, remove
+them and repeat without end, and each of up to 8 kids added a full budget.
+- **Migration 0021** (`0021_family_question_budget.sql`): a request log row
+  outlives its kid (`profile_id` → null on delete, was cascade), and records
+  the grown-up (`question_requests.parent_id`, null when they go; filled in
+  for rows already logged). `begin_question_request` takes a fifth argument,
+  `p_fresh_per_family` (default null = no family cap, so a four-argument call
+  still works): the fresh allowance is the least of the kid's, the family's
+  and the project's; the advisory lock is per family now, so brothers and
+  sisters calling at once can't slip under the cap together.
+- **The function** sends the cap (`FRESH_PER_FAMILY_PER_DAY`, default 400 —
+  two kids' worth; a secret overrides it). Before 0021 is applied the five-
+  argument call doesn't exist, so it checks per kid as before and logs
+  "FAMILY BUDGET UNAVAILABLE"; a quota check that fails both ways still
+  serves the cache only.
+- **Tests:** `supabase/ci/family_budget.test.sql` (the family shares its cap,
+  another family is untouched, no cap without the argument, a removed kid's
+  spend stays and remove-and-re-add doesn't reset the day, the project still
+  counts it, a day rolls it off, a removed grown-up's id goes, grants) — it
+  fails with 0014's cascade back; `quota.test.sql` checks the new signature,
+  `pins.test.sql` says a removed kid's requests are unlinked. All 9 SQL tests,
+  the migrations in order and the bundle twice pass on Postgres 16; `deno
+  check` clean; the function run locally against a stand-in: the cap is sent,
+  without 0021 it falls back per kid, and a failed check never calls Claude.
+- ⚠️ Deploy: apply 0021 (or re-run `apply_all_migrations.sql`), then
+  `supabase functions deploy generate-questions`. Either order works.
+  Follow-ups #152.
 
 ### 2026-10-16 — Merge main (public pages #66, question safety #71) into the save-revisions branch (#151)
 `main` took migrations **0017–0019** (the question age window, the question

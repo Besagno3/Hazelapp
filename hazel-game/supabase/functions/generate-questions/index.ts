@@ -23,12 +23,15 @@
 //
 // Access (#88): callers must be signed in (401 otherwise), and every call goes
 // through `begin_question_request` (migration 0009) — a per-kid rate limit
-// (429 when exceeded) plus per-kid and project-wide daily budgets of FRESH
-// questions. A login is a grown-up's family account (#124); the app must name
-// the kid playing (`profileId`, one of the caller's kids — 400 without it), and
-// each kid has their own budget and seen questions (migration 0014). When a
-// budget is spent — or the quota check itself fails — the call is served from
-// the cache only (re-using already-seen questions if it must), so play
+// (429 when exceeded) plus per-kid, per-family and project-wide daily budgets
+// of FRESH questions. A login is a grown-up's family account (#124); the app
+// must name the kid playing (`profileId`, one of the caller's kids — 400
+// without it); each kid has their own budget and seen questions (migration
+// 0014), and the family's kids share a cap (migration 0021, B9). The check
+// holds the call's share until the call records what it made, so calls made
+// at once can't overspend. When a budget is spent — or the quota check itself
+// fails — the call is served from the cache only (re-using already-seen
+// questions if it must), so play
 // continues without spending more on Claude. Limits are tunable via env (see
 // QUOTA_DEFAULTS).
 //
@@ -708,11 +711,14 @@ const NOVELTY_RATE = 0.2;
  * Quota defaults (#88), overridable with the same-named Supabase secrets.
  * A battle asks for ~6 questions + 4 spell-tier ones, so 20 calls/minute is
  * far above real play; 200 fresh/day per player and 5000 fresh/day overall
- * cap the Claude bill while the shared cache keeps growing.
+ * cap the Claude bill while the shared cache keeps growing. A family's kids
+ * share 400 fresh/day between them (B9, migration 0021), so adding kids — or
+ * removing and re-adding one — doesn't multiply the budget.
  */
 const QUOTA_DEFAULTS = {
   QUESTION_RATE_PER_MINUTE: 20,
   FRESH_PER_PLAYER_PER_DAY: 200,
+  FRESH_PER_FAMILY_PER_DAY: 400,
   FRESH_GLOBAL_PER_DAY: 5000,
 };
 function quotaSetting(name: keyof typeof QUOTA_DEFAULTS): number {
@@ -1342,13 +1348,35 @@ Deno.serve(async (req) => {
   let freshAllowance = count;
   let requestId: number | null = null;
   let quotaUnavailable = false;
+  // How many fresh questions the request row already holds for this call
+  // (B9 review round 1): the quota check charges the allowance up front, so
+  // calls in flight at once can't each spend the same budget; step 4a puts
+  // what was really made in its place.
+  let held = 0;
+  // How many fresh questions Claude has made for this call so far: if anything
+  // throws on the way, the catch below charges this in place of the hold, so a
+  // crash doesn't eat the kid's budget for the day (B9 review round 2).
+  let made = 0;
   {
-    const { data: quota, error: quotaErr } = await db.rpc('begin_question_request', {
+    const perKid = {
       p_profile: profileId,
       p_max_per_minute: quotaSetting('QUESTION_RATE_PER_MINUTE'),
       p_fresh_per_day: quotaSetting('FRESH_PER_PLAYER_PER_DAY'),
       p_fresh_global: quotaSetting('FRESH_GLOBAL_PER_DAY'),
+    };
+    let holds = true;
+    let { data: quota, error: quotaErr } = await db.rpc('begin_question_request', {
+      ...perKid,
+      p_fresh_per_family: quotaSetting('FRESH_PER_FAMILY_PER_DAY'),
+      p_fresh_wanted: count,
     });
+    // Before migration 0021 there's no family cap to pass (the same "no such
+    // function" codes as the picker's): check per kid as before, loudly.
+    if (quotaErr && PICKER_MISSING.includes(quotaErr.code ?? '')) {
+      console.error('FAMILY BUDGET UNAVAILABLE — checking per kid only (is migration 0021 applied?):', quotaErr.message);
+      holds = false;
+      ({ data: quota, error: quotaErr } = await db.rpc('begin_question_request', perKid));
+    }
     const row = Array.isArray(quota) ? quota[0] : quota;
     if (quotaErr || !row) {
       console.error(
@@ -1362,6 +1390,7 @@ Deno.serve(async (req) => {
     } else {
       freshAllowance = Math.max(0, Number(row.fresh_allowance) || 0);
       requestId = row.request_id ?? null;
+      if (holds) held = freshAllowance;
     }
   }
 
@@ -1464,6 +1493,7 @@ Deno.serve(async (req) => {
         generationFailed = true;
         logGenerationError(err);
       }
+      made = generated.length;
 
       if (db && generated.length > 0) {
         const rows = generated.map((q) => ({
@@ -1528,13 +1558,17 @@ Deno.serve(async (req) => {
       if (rpcErr) console.error('counter update failed:', rpcErr.message);
     }
 
-    // 4a. Charge the fresh questions to the caller's daily budget (#88).
-    if (requestId !== null && fresh.length > 0) {
+    // 4a. Charge the fresh questions to the caller's daily budget (#88): what
+    //     was made replaces what the quota check held (B9) — less when the
+    //     cache covered more or Claude fell short. (An unexpected error before
+    //     here is charged what Claude made, in the catch below.)
+    if (requestId !== null && fresh.length !== held) {
       const { error: usageErr } = await db
         .from('question_requests')
         .update({ fresh_count: fresh.length })
         .eq('id', requestId);
       if (usageErr) console.error('usage update failed:', usageErr.message);
+      else held = fresh.length;
     }
 
     // 5. Sprinkle reused + fresh together randomly.
@@ -1579,6 +1613,15 @@ Deno.serve(async (req) => {
     // Claude's own failures are handled above; this is anything else. The
     // details go to the log, never to a kid's screen (S6).
     console.error('Unexpected error serving questions:', err);
+    // Don't leave the hold standing for the day (B9 review round 2): charge
+    // what Claude made before the error — never less, so never an unlimited bill.
+    if (requestId !== null && made !== held) {
+      const { error: usageErr } = await db
+        .from('question_requests')
+        .update({ fresh_count: made })
+        .eq('id', requestId);
+      if (usageErr) console.error('usage update failed:', usageErr.message);
+    }
     return json({ error: 'Unexpected server error', detail: TRY_LATER }, 500);
   }
 });
