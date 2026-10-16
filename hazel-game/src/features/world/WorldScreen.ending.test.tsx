@@ -369,3 +369,29 @@ describe('Act IV opens (#75 item 16a)', () => {
     expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
   });
 });
+
+describe('the Nameless Hall (#75 item 16c)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    flow.setState({ overlay: null });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('plays its three panels the first time you walk in — once', () => {
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: { ...defaultSave(), avatarId: 'a3', zoneId: 'nameless-hall', flags: { ...umbraBeaten(), [story.SPIRE_VICTORY_SEEN]: true, [story.ACT2_SEEN]: true, 'key-asters-key': true } },
+      flush: vi.fn(async () => {}),
+    });
+    const { unmount } = render(<WorldScreen />);
+    expect(story.NAMELESS_PANELS).toHaveLength(3);
+    expect(screen.getByText(/Every single one is blank/)).toBeInTheDocument();
+    readOn(story.NAMELESS_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🏛️ Look around' }));
+    expect(useSaveStore.getState().save!.flags[story.NAMELESS_SEEN]).toBe(true);
+    unmount();
+    render(<WorldScreen />);
+    expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
+  });
+});

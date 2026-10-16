@@ -157,7 +157,36 @@ export const GATE_KEYS: GateKey[] = [
     opens: "It's one of the two Chorus Keys. Together they open the Hush Fiend's gate on Chorus Isle!",
     fiendName: 'the Hush Fiend',
   },
+  // Act IV (#75 item 16c): the Gardener of Aster's Garden keeps Aster's Key,
+  // which opens the Nameless Hall's great door — the way down (the descent, 16d).
+  {
+    id: 'asters-key',
+    name: "Aster's Key",
+    emoji: '🌼',
+    bossId: 'the-gardener',
+    bossName: 'The Gardener',
+    bossIntro: [
+      'An old gardener in a straw hat straightens up from the flower beds. A little silver key, shaped like a daisy, hangs from his belt.',
+      '"Some questions take years to bloom. I water them every day. You want Aster\'s Key? Then answer my seedlings — every last one!"',
+    ],
+    bossDefeat: '"…they bloomed. All of them. Take the key, little one — she\'d want you to have it."',
+    fromZone: 'asters-garden',
+    unlocksZone: 'nameless-hall',
+    opens: "It opens the Nameless Hall's great door, just south of the garden!",
+    fiendName: 'the deepest root',
+    door: 'great door',
+  },
 ];
+
+/**
+ * A key's name mid-sentence: "the Verdant Key", but "Aster's Key" — a name that
+ * already says whose it is takes no "the" (16c review round 1). `capital` for
+ * the start of a sentence.
+ */
+export function keyName(k: GateKey, capital = false): string {
+  if (/['’]s /.test(k.name)) return k.name;
+  return `${capital ? 'The' : 'the'} ${k.name}`;
+}
 
 /** The key dropped by beating a given warden boss (by enemy def id). */
 export function keyForBoss(bossId: string): GateKey | undefined {

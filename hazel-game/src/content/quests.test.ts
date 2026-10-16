@@ -333,7 +333,8 @@ describe('item chains (#75 item 13)', () => {
     expect(KEY_CHESTS.length).toBeGreaterThan(0);
     for (const c of KEY_CHESTS) {
       expect(tileAt(c.z, c.x, c.y), `${c.z.id} (${c.x},${c.y}) is a chest`).toBe('C');
-      expect(c.z.topic, `${c.z.id} has a riddle topic`).toBeDefined();
+      // A mixed-topic zone's chests take one of its topics (#75 item 16c: Aster's Garden).
+      expect(c.z.topic ?? c.z.topics?.[0], `${c.z.id} has a riddle topic`).toBeDefined();
       expect(QUEST_ITEMS[c.item], `${c.item} is a quest item`).toBeDefined();
       // Reachable with every fog lifted and every dark place lit.
       // Out at sea (#75 item 14i: Sandpiper Cay), from the boat sailing in at the map's edge.
@@ -1393,5 +1394,102 @@ describe('Lumina-That-Was quests (#75 item 16b)', () => {
     expect(later.lines[0]).toMatch(/Ask the children first/);
     expect(later.lines).toHaveLength(2);
     expect(later.lines[1]).toMatch(/Slate/);
+  });
+});
+
+describe("A Garden Rewatered (#75 item 16c)", () => {
+  const chest = (x: number, y: number) => pathTargetId('asters-garden', 'chest', x, y);
+  const DEW = chest(18, 2);
+  const RAIN = chest(2, 6);
+  const RIVER = chest(17, 9);
+  const keyed = (): SaveData => ({ ...defaultSave(), flags: { 'key-asters-key': true } });
+  const win = (save: SaveData, id: string): SaveData => ({ ...save, kills: { ...save.kills, [id]: (save.kills[id] ?? 0) + 1 } });
+
+  it('waits for Aster\'s Key — the Gardener only asks once he\'s beaten', () => {
+    expect(questConversation('garden-gardener', defaultSave())).toBeNull();
+    expect(questConversation('garden-gardener', keyed())!.finishKind).toBe('offer');
+  });
+
+  it('three waters from the riddle-chests, then three weeds, then he pays and takes the jars', () => {
+    const quest = byId('garden-water');
+    let save = converse('garden-gardener', keyed());
+    expect(save.flags[questOfferedFlag(quest)]).toBe(true);
+    save = openChest(save, DEW);
+    expect(chestWantedLine(save, DEW)).toBe('🌱 Two more waters for the Gardener!');
+    save = openChest(save, RAIN);
+    expect(chestWantedLine(save, RAIN)).toBe('🌱 One more water for the Gardener!');
+    save = openChest(save, RIVER);
+    expect(chestWantedLine(save, RIVER)).toBe("🌱 That's all three waters! Now beat the three weeds.");
+    expect(questConversation('garden-gardener', save)!.finishKind).not.toBe('complete');
+    for (const id of ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy']) save = win(save, id);
+    const coins = save.coins;
+    const potions = save.items.potion;
+    const done = questConversation('garden-gardener', save)!;
+    expect(done.finishKind).toBe('complete');
+    save = done.finish!(save);
+    expect(save.flags[questDoneFlag(quest)]).toBe(true);
+    expect(save.questItems).toEqual([]);
+    expect(save.coins).toBe(coins + 50);
+    expect(save.items.potion).toBe(potions + 1);
+  });
+
+  it('weeds beaten on the way: the last water sends you straight back to him (16c review round 1)', () => {
+    let save = converse('garden-gardener', keyed());
+    for (const id of ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy']) save = win(save, id);
+    for (const c of [DEW, RAIN, RIVER]) save = openChest(save, c);
+    expect(chestWantedLine(save, RIVER)).toBe("🌱 That's all three waters! Take them back to the Gardener.");
+    expect(questConversation('garden-gardener', save)!.finishKind).toBe('complete');
+  });
+
+  it('a water found before he asks: his offer says so (16c review round 2)', () => {
+    const save = openChest(keyed(), DEW);
+    const offer = questConversation('garden-gardener', save)!;
+    expect(offer.finishKind).toBe('offer');
+    expect(offer.lines[1]).toMatch(/found some of my waters already/);
+    expect(questConversation('garden-gardener', keyed())!.lines[1]).toMatch(/^These beds/);
+  });
+
+  it('all three waters and the weeds before he asks: his offer thanks you for both (16c review round 3)', () => {
+    let save = keyed();
+    for (const c of [DEW, RAIN, RIVER]) save = openChest(save, c);
+    const lines = questConversation('garden-gardener', save)!.lines;
+    expect(lines[1]).toBe("Oh — you've found all three of my waters already! Wonderful!");
+    expect(lines[2]).toMatch(/^And three weeds/);
+    for (const id of ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy']) save = win(save, id);
+    const done = questConversation('garden-gardener', save)!;
+    expect(done.finishKind).toBe('complete');
+  });
+
+  it('everything done before he ever asks: he says what he needed, thanks you and pays (16c review round 4)', () => {
+    let save = keyed();
+    for (const c of [DEW, RAIN, RIVER]) save = openChest(save, c);
+    for (const id of ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy']) save = win(save, id);
+    const conv = questConversation('garden-gardener', save)!;
+    expect(conv.finishKind).toBe('complete');
+    expect(conv.lines[0]).toMatch(/great door in the Nameless Hall/);
+    expect(conv.lines[1]).toBe("Oh — you've found all three of my waters already! Wonderful!");
+    expect(conv.lines[2]).toMatch(/you beat them already\? Thank you!/);
+    expect(conv.lines.slice(3)).toEqual(byId('garden-water').complete);
+  });
+
+  it('weeds beaten but no water yet: he asks only for the waters (16c review round 4)', () => {
+    let save = keyed();
+    for (const id of ['thorn-of-doubt', 'wilt-sprite']) save = win(save, id);
+    const lines = questConversation('garden-gardener', save)!.lines;
+    expect(lines[1]).toMatch(/^These beds/);
+    expect(lines[2]).toMatch(/beat the rest for me\?/);
+  });
+
+  it('a water found before the Gardener asks says who wants it', () => {
+    const save = openChest(defaultSave(), DEW);
+    expect(save.questItems).toEqual(['jar-dew']);
+    expect(chestWantedLine(save, DEW)).toMatch(/Gardener/);
+  });
+
+  it('every water chest is in reach without passing the Gardener', () => {
+    const z = ZONES['asters-garden'];
+    const boss = z.enemies.find((e) => e.defId === 'the-gardener')!;
+    const r = reach(z, { blocked: (x, y) => x === boss.x && y === boss.y });
+    for (const c of z.keyChests!) expect(touches(r, c.x, c.y), c.item).toBe(true);
   });
 });

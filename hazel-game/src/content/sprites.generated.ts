@@ -6943,6 +6943,270 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
       }
     }
   },
+  "thorn-of-doubt": {
+    "emoji": "🌵",
+    "world": {
+      "sheet": "/sprites/thorn-of-doubt/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/thorn-of-doubt/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "wilt-sprite": {
+    "emoji": "🥀",
+    "world": {
+      "sheet": "/sprites/wilt-sprite/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/wilt-sprite/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "bramblewhy": {
+    "emoji": "❓",
+    "world": {
+      "sheet": "/sprites/bramblewhy/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/bramblewhy/battle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
+  "the-gardener": {
+    "emoji": "🧑‍🌾",
+    "world": {
+      "sheet": "/sprites/the-gardener/world.png",
+      "frameW": 48,
+      "frameH": 48,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    },
+    "battle": {
+      "sheet": "/sprites/the-gardener/battle.png",
+      "frameW": 48,
+      "frameH": 48,
+      "frames": 7,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "attack": {
+          "from": 2,
+          "to": 4,
+          "fps": 9,
+          "loop": false
+        },
+        "hurt": {
+          "from": 5,
+          "to": 6,
+          "fps": 7,
+          "loop": false
+        }
+      }
+    }
+  },
   "elder-lumen": {
     "emoji": "👴",
     "world": {
@@ -13328,6 +13592,170 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
           "to": 6,
           "fps": 7,
           "loop": false
+        }
+      }
+    }
+  },
+  "garden-sprout": {
+    "emoji": "🌱",
+    "world": {
+      "sheet": "/sprites/garden-sprout/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "hall-plaque": {
+    "emoji": "🪧",
+    "world": {
+      "sheet": "/sprites/hall-plaque/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "hall-plaque-daisy": {
+    "emoji": "🌼",
+    "world": {
+      "sheet": "/sprites/hall-plaque-daisy/world.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
+        }
+      }
+    }
+  },
+  "hall-deep-root": {
+    "emoji": "🕳️",
+    "world": {
+      "sheet": "/sprites/hall-deep-root/world.png",
+      "frameW": 48,
+      "frameH": 48,
+      "frames": 18,
+      "anims": {
+        "idle": {
+          "from": 0,
+          "to": 1,
+          "fps": 3
+        },
+        "walk": {
+          "from": 2,
+          "to": 5,
+          "fps": 8
+        },
+        "idleDown": {
+          "from": 6,
+          "to": 7,
+          "fps": 3
+        },
+        "walkDown": {
+          "from": 8,
+          "to": 11,
+          "fps": 8
+        },
+        "idleUp": {
+          "from": 12,
+          "to": 13,
+          "fps": 3
+        },
+        "walkUp": {
+          "from": 14,
+          "to": 17,
+          "fps": 8
         }
       }
     }

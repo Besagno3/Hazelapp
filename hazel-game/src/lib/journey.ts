@@ -284,19 +284,25 @@ export function actThreeJourney(): Leg[] {
  * Act IV so far (#75 item 16a): from the Blank Chart, every goal walked inside
  * its place — the Spire's grounds, then down the stairs from there to the Dream
  * Root Door (only once Act IV's panels have lifted their fog), Wisp, each of
- * the five memories, and back to Wisp — until the name is learned.
+ * the five memories, and back to Wisp; then Aster's Key in her garden and the
+ * root behind the Nameless Hall's great door (#75 item 16c).
  */
 export function actFourJourney(): Leg[] {
   let flags: Record<string, boolean> = {};
   for (const leg of [...actOneJourney(), ...actTwoJourney(), ...actThreeJourney()]) flags = advanceGoal(leg.goal, leg.flags);
   const legs: Leg[] = [];
   for (let goal = nextObjective(flags); goal.kind !== 'explore'; goal = nextObjective(flags)) {
-    if (legs.length >= 12) throw new Error('Act IV never ends');
+    if (legs.length >= 30) throw new Error('Act IV never ends');
     const target = goalTarget(goal);
     // Down the stairs: walked from the Spire's grounds, where they are; and
-    // Young Wick from the Door, down past Old Knot (16b review round 3).
+    // anywhere below the Door (Young Wick, Aster's Garden, the Nameless Hall)
+    // from the Door, down past Old Knot (16b review round 3, #75 item 16c).
     const start =
-      target.zoneId === 'dreamroot-door' && !goal.quest ? 'crystal-spire' : goal.npc === 'memory-young-wick' ? 'dreamroot-door' : target.zoneId;
+      target.zoneId === 'dreamroot-door' && !goal.quest
+        ? 'crystal-spire'
+        : ZONES[target.zoneId].shelterIn === 'dreamroot-door'
+          ? 'dreamroot-door'
+          : target.zoneId;
     legs.push(walkLeg(goal, flags, { zoneId: start, cell: ZONES[start].spawn }));
     flags = advanceGoal(goal, flags);
   }

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import type { GateKey } from '../../content/keys';
+import { keyName, type GateKey } from '../../content/keys';
 import { CONSUMABLES, type ConsumableId } from '../../content/items';
 import { BASE_TIER, dangerMarks } from '../../content/regions';
 import type { BattleEnemy } from '../../types';
@@ -81,7 +81,7 @@ export function BattleResult({
             <>
               <p className="text-white/60 italic text-sm mb-1">"{keyBoss.bossDefeat}"</p>
               <p className="text-amber-300 font-bold mb-1">
-                {keyBoss.emoji} You won the {keyBoss.name}!{' '}
+                {keyBoss.emoji} You won {keyName(keyBoss)}!{' '}
                 {keyBoss.opens ?? `It unlocks ${keyBoss.fiendName}'s ${keyBoss.door ?? 'gate'}.`}
               </p>
             </>

@@ -228,6 +228,8 @@ describe('Act IV so far (#75 item 16a)', () => {
       'Ask Sage Chronicle about the first Sage',
       'Ask Young Wick about her teacher',
       'Say her name to Wisp',
+      "Win Aster's Key",
+      "See what's behind the great door",
     ]);
     for (const leg of act4) expect(walkable(leg), leg.goal.title).toBe(true);
   });

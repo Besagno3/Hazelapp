@@ -99,6 +99,8 @@ export const POSY_STONE_SEEN = 'posy-stone-seen';
 
 /** Set once the Sunken Archive's discovery panels have played, on the first visit (#75 item 14h). */
 export const ARCHIVE_SEEN = 'archive-seen';
+/** The first step into the Nameless Hall (#75 item 16c). */
+export const NAMELESS_SEEN = 'nameless-seen';
 
 /**
  * The Hall of Names' dedication (#75 item 14i, STORY-4X's 3 panels): Keeper
@@ -924,3 +926,22 @@ export const BOSS_LINES: Record<CrystalTopic, BossScript> = {
     defeat: '…fine. Sing, then. Sing as LOUD as you like…',
   },
 };
+
+/**
+ * The first step into the Nameless Hall (#75 item 16c): a hall of blank
+ * plaques — every name Lumina forgot — and one with a daisy in its corner.
+ */
+export const NAMELESS_PANELS: StoryPanel[] = [
+  {
+    emoji: '🏛️',
+    text: 'Past the garden, a long, quiet hall. Stone plaques stand in rows. Every single one is blank.',
+  },
+  {
+    emoji: '🌼',
+    text: 'Every name Lumina ever forgot is here, worn away to nothing. But one plaque has a daisy carved on it.',
+  },
+  {
+    emoji: '🚪',
+    text: "Halfway down the hall stands a great locked door. Behind it, something hums a tune with no words.",
+  },
+];

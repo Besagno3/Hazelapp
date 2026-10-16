@@ -160,7 +160,9 @@ describe('zone maps', () => {
       if (z.topic || z.topics?.length) continue;
       z.map.forEach((row, y) =>
         [...row].forEach((ch, x) => {
-          expect(ch === 'G', `${z.id} has a gate at ${x},${y} but no topic`).toBe(false);
+          // A key gate asks nothing — it opens to its key (#75 item 16c: the Nameless Hall).
+          const keyed = ch === 'G' && z.keyGate && gateIdAt(z.id, z.map, x, y) === gateIdAt(z.id, z.map, z.keyGate.x, z.keyGate.y);
+          expect(ch === 'G' && !keyed, `${z.id} has a gate at ${x},${y} but no topic`).toBe(false);
           if (ch === 'C') {
             const bank = z.fogs?.find((f) => f.guards.x === x && f.guards.y === y);
             expect(bank?.chestTopic, `${z.id} chest at ${x},${y} has no topic`).toBeDefined();
@@ -636,7 +638,9 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
         // Once Ember can fly, the hero flies too (#75 item 15b).
         const reached = (flags: Record<string, boolean>) => {
           const open = reach(z, { flags, modes: canFly(flags) ? ['foot', 'ember'] : ['foot'], grounded: true });
-          return open.has(key) || touches(open, f.guards.x, f.guards.y);
+          // An exit is walked onto, not bumped (16c review round 3: the garden's fog covers only its exit row).
+          const exit = tileAt(z, f.guards.x, f.guards.y) === 'E';
+          return open.has(key) || (!exit && touches(open, f.guards.x, f.guards.y));
         };
         expect(reached({}), `${f.id}: reward reachable through the fog`).toBe(false);
         for (const flag of f.liftedBy) {
@@ -1751,10 +1755,11 @@ describe('Lumina-That-Was (#75 item 16b)', () => {
     expect(down.length).toBe(2);
     const open = reach(door, { flags: {} });
     for (const e of down) expect(open.has(`${e.x},${e.y}`)).toBe(true);
-    expect(ZONES['memory-field'].exits.map((e) => e.to).sort()).toEqual(['dreamroot-door', 'dreamroot-door', 'first-classroom', 'first-classroom', 'memory-village', 'memory-village']);
+    expect(ZONES['memory-field'].exits.map((e) => e.to).sort()).toEqual(['asters-garden', 'asters-garden', 'dreamroot-door', 'dreamroot-door', 'first-classroom', 'first-classroom', 'memory-village', 'memory-village']);
     for (const id of ids) {
       const z = ZONES[id];
-      const area = reach(z, { flags: {}, gates: 'open' });
+      // (Aster's Garden's fog lifts with her name — 16c review round 1.)
+      const area = reach(z, { flags: { [NAME_LEARNED]: true }, gates: 'open' });
       for (const e of z.exits) expect(area.has(`${e.x},${e.y}`), `${id} exit to ${e.to}`).toBe(true);
     }
   });
@@ -1848,6 +1853,64 @@ describe('a double-wide gate asks one topic (16b review round 3)', () => {
       const zz = { ...z, map: ['#'.repeat(x) + 'GG#', '#'.repeat(x + 3)] };
       expect(gateTopic(zz, x + 1, 0)).toBe(gateTopic(zz, x, 0));
       expect(gateTopic(zz, x, 0)).toBe(topicAt(zz, x, 0, 'math'));
+    }
+  });
+});
+
+describe("Aster's Garden and the Nameless Hall (#75 item 16c)", () => {
+  const garden = ZONES['asters-garden'];
+  const hall = ZONES['nameless-hall'];
+  it('the Gardener stands in the only gap through the hedge, between the garden and the Hall', () => {
+    const boss = garden.enemies.find((e) => e.defId === 'the-gardener')!;
+    expect(boss).toMatchObject({ x: 9, y: 10 });
+    const south = garden.exits.filter((e) => e.to === 'nameless-hall');
+    expect(south).toHaveLength(2);
+    const reached = reach(garden, { exits: 'stop' });
+    for (const e of south) expect(touches(reached, e.x, e.y), 'the way south').toBe(true);
+    // The gap is one cell wide — his — so with him in it nothing slips by (16c review round 1:
+    // a two-wide gap let a hero hug its far side out of his reach).
+    const shut = reach(garden, { exits: 'stop', blocked: (x, y) => x === boss.x && y === boss.y });
+    for (const e of south) expect(touches(shut, e.x, e.y), 'past the Gardener').toBe(false);
+  });
+  it("the Hall's great door is Aster's Key's gate, and the deep root waits behind it", () => {
+    const root = hall.npcs.find((n) => n.defId === 'hall-deep-root')!;
+    const gate = gateIdAt(hall.id, hall.map, hall.keyGate!.x, hall.keyGate!.y);
+    expect(touches(reach(hall), root.x, root.y)).toBe(false);
+    expect(touches(reach(hall, { gates: (id) => id === gate }), root.x, root.y)).toBe(true);
+    // Every plaque is in reach before the door.
+    for (const n of hall.npcs.filter((p) => p.defId.startsWith('hall-plaque'))) {
+      expect(touches(reach(hall), n.x, n.y), n.defId).toBe(true);
+    }
+  });
+  it("the garden's fog keeps her name a secret until Young Wick says it (16c review round 1)", () => {
+    const field = ZONES['memory-field'];
+    const toGarden = field.exits.filter((e) => e.to === 'asters-garden');
+    for (const e of toGarden) {
+      expect(reach(field, { exits: 'stop' }).has(`${e.x},${e.y}`), 'fogged').toBe(false);
+      expect(reach(field, { exits: 'stop', flags: { [NAME_LEARNED]: true } }).has(`${e.x},${e.y}`), 'lifted').toBe(true);
+    }
+  });
+  it('a defeat in the garden wakes you at the Dream Root Door; the Hall is safe', () => {
+    expect(garden.shelterIn).toBe('dreamroot-door');
+    expect(hall.enemies).toEqual([]);
+    expect(hall.kind).toBe('shrine');
+  });
+});
+
+describe('no fog shuts a building door (16c review round 3)', () => {
+  it('every door reachable with the fog lifted is reachable with it standing — unless the fog guards it', () => {
+    for (const z of Object.values(ZONES)) {
+      if (!z.fogs?.length || !z.buildings?.length) continue;
+      const allLifted = Object.fromEntries(z.fogs.flatMap((f) => f.liftedBy).map((f) => [f, true]));
+      const open = reach(z, { flags: allLifted, gates: 'open' });
+      const shut = reach(z, { flags: {}, gates: 'open' });
+      z.map.forEach((row, y) =>
+        [...row].forEach((ch, x) => {
+          if (ch !== 'D' || !touches(open, x, y)) return;
+          const guarded = z.fogs!.some((f) => x >= f.x - 1 && x <= f.x + f.w && y >= f.y - 1 && y <= f.y + f.h);
+          if (!guarded) expect(touches(shut, x, y), `${z.id} door at ${x},${y}`).toBe(true);
+        }),
+      );
     }
   });
 });

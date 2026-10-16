@@ -123,3 +123,8 @@ export function escortsBack(flags: Record<string, boolean>): Record<string, bool
 function isWalkingFlag(f: string): boolean {
   return f.startsWith('escort:') && f.endsWith(':walking');
 }
+
+/** Aster's Garden (#75 item 16c): the Gardener's three waters and three weeds. */
+export const GARDEN_QUEST = 'garden-water';
+/** Set when the hero has seen the great root past the Nameless Hall's door (#75 item 16c). */
+export const HALL_ROOT_SEEN = 'hall-root-seen';

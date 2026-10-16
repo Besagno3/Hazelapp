@@ -55,6 +55,8 @@ import {
   GROVE_PANELS,
   GROVE_SEEN,
   ARCHIVE_PANELS,
+  NAMELESS_PANELS,
+  NAMELESS_SEEN,
   ARCHIVE_SEEN,
   DAWNREACH_PANELS,
   DAWNREACH_SEEN,
@@ -272,6 +274,8 @@ export default function WorldScreen() {
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
   // The first step into the Sunken Archive (#75 item 14h).
   const archiveDue = zoneId === 'sunken-archive' && !flags[ARCHIVE_SEEN];
+  // The first step into the Nameless Hall (#75 item 16c).
+  const namelessDue = zoneId === 'nameless-hall' && !flags[NAMELESS_SEEN];
   const roostDue = zoneId === 'dragon-roost' && !flags[ROOST_SEEN];
   // Act III (#75 item 15c): the first time over Taleshore, flown in past the Great Fogbank.
   // Over Taleshore only: its last panel says to land and walk in (15c review round 4).
@@ -316,6 +320,7 @@ export default function WorldScreen() {
     | 'ending'
     | 'grove'
     | 'archive'
+    | 'nameless'
     | 'roost'
     | 'act3'
     | 'flight'
@@ -348,6 +353,8 @@ export default function WorldScreen() {
                   ? 'grove'
                   : archiveDue
                     ? 'archive'
+                    : namelessDue
+                      ? 'nameless'
                     : roostDue
                       ? 'roost'
                       : act3Due
@@ -950,6 +957,9 @@ export default function WorldScreen() {
       )}
       {activeScene === 'archive' && (
         <StoryPanels panels={ARCHIVE_PANELS} doneLabel="📚 Explore the Archive" onDone={() => setFlag(ARCHIVE_SEEN)} />
+      )}
+      {activeScene === 'nameless' && (
+        <StoryPanels panels={NAMELESS_PANELS} doneLabel="🏛️ Look around" onDone={() => setFlag(NAMELESS_SEEN)} />
       )}
       {activeScene === 'grove' && (
         <StoryPanels

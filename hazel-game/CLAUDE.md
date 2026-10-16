@@ -374,6 +374,11 @@ zod, react-query. Add the package in the same change that first uses it.
   you at the Door (`shelterIn`). A quest can end on a choice
   (`QuestDef.choice`, the Unnamed Dog's name) and give a badge
   (`grants.badge`, `QUEST_BADGES`).
+  **Aster's Garden and the Nameless Hall** (#75 item 16c): below Old Lumina
+  Field, her garden (mixed topics, sheltered at the Door) — the Gardener, a
+  warden in the hedge's one gap, gives **Aster's Key**; the Hall's blank
+  plaques (`NAMELESS_PANELS`) and its key gate (a key gate needs no topic) to
+  the deepest root, which sets `hall-root-seen` — the way down opens in 16d.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -705,6 +710,7 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+python3 tools/assets/build.py garden    # Aster's Garden + the Nameless Hall: two zones' tiles, critters, the Gardener, plaques, the deep root (#75 item 16c)
 python3 tools/assets/build.py lumina    # Lumina-That-Was: three zones' tiles, the school sheet, its critters and people (#75 item 16b)
 python3 tools/assets/build.py dreamroot # the Dream Root Door: tiles, the root sheet, Old Knot, Young Wick, Wisp's new face (#75 item 16a)
 python3 tools/assets/build.py cliffs   # Taleshore III: Songstone Cliffs, the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
@@ -797,6 +803,54 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
+The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)
+reviews, all fixed but one kept (the small garden fog): a quest with
+`offerHaving` says its "done already" lines before the reward when all was
+done first, and `offerHaving.when` picks when they play; "the great door in
+the Nameless Hall"; Wisp points at the garden; a taller Wilt Sprite, tablet
+plaques, a brown door frame; `keyGateFrame` reads the same gate. 1369 green.
+
+### 2026-10-16 — 16c review round 3: the Fair's door open, one door one lock (#75 item 16c, #145i)
+Fresh code (1 medium, 1 low, 1 nit) and UX (2 medium, 4 low, 4 nits) reviews,
+all fixed: the garden fog covers its exit row only (it had shut the First-
+Merchant Fair; a test keeps doors open); a two-tile key gate is one door with
+one padlock on the seam (`keyGateFrame`); daisies; the weeds' faces show;
+the Gardener's offer fits what you've done; boss-sized NPCs measured right.
+1367 green.
+
+### 2026-10-16 — 16c review round 2: doors with padlocks, weeds you can see (#75 item 16c, #145h)
+Fresh code (2 low, 3 nits) and UX (3 medium, 7 low, 4 nits) reviews, all
+fixed but one kept (no soil-bed tile): every key gate is a padlocked stone
+door (`PROP_FRAME.keyGate`); clearer weeds, plaques and root; the
+Gardener's `offerHaving`; the 🚩's `inside` follows the open door; `keyName`
+tested; copy. 1365 green.
+
+### 2026-10-16 — 16c review round 1: her name first, a one-tile gap, "Aster's Key" (#75 item 16c, #145g)
+Fresh code (1 medium, 5 low, 2 nits) and UX (1 high, 3 medium, 9 low, 5 nits)
+reviews, all fixed: fog on the way to the garden until the name is learned (it
+said "Aster" before Young Wick); the hedge gap one tile, so nobody slips past
+the Gardener; `keyName` ("Aster's Key fits!"); the gate leads to "the deepest
+root"; "See what's behind the great door" with `inside` lines; clearer chest
+notes and weed hints; a wilted Wilt Sprite, a root out of its hole. 1362 green.
+
+### 2026-10-16 — Aster's Garden and the Nameless Hall (#75 item 16c, #145)
+Roadmap sub-item 16c (branch off `main` after 16a+16b merged).
+- **Aster's Garden** (`asters-garden`) below Old Lumina Field: mixed topics,
+  tier 7, a defeat wakes you at the Door. **The Gardener** (a nature warden)
+  stands in the hedge's one gap and gives **Aster's Key**; beaten, he tends his
+  beds beside it. Three healer weeds and Sprout.
+- **A Garden Rewatered** (the Gardener, after the key): three waters in
+  key-item chests, then the three weeds — 50 coins + a Berry Potion.
+- **The Nameless Hall** (`nameless-hall`): blank plaques, one with a daisy,
+  three panels (`NAMELESS_PANELS`), a save crystal; the key gate opens onto the
+  deepest root (`hall-root-seen`; the way down is 16d's).
+- **The 🚩:** "Win Aster's Key", "Open the Nameless Hall", then Explore; Lumen's
+  plan and tip; `actFourJourney` walks both from the Door.
+- **Art:** `python3 tools/assets/build.py garden`.
+- **Tests:** +8 (zones, quests, WorldScreen.ending, wayfinding, journey);
+  1360 green, lint and tsc clean.
 
 ### 2026-10-16 — 16b review round 4: Thanks by keyboard, who's next (#75 item 16b, #144l)
 The last round. Fresh code (1 low, 3 nits) and UX (2 medium, 2 low, 3 nits)
