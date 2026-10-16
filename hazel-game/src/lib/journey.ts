@@ -12,6 +12,7 @@ import { nextObjective, npcHome, routeTo, type Objective } from './wayfinding';
 import { passable as tilePassable, seaCrossing } from './travel';
 import { npcWanders } from './wander';
 import { reachPath, type Cell, type ReachOptions, type Step } from './reach';
+import { dungeonFloor } from '../content/dungeons';
 import { defaultSave } from './save';
 
 /**
@@ -300,10 +301,11 @@ export function actFourJourney(): Leg[] {
     // Down the stairs: walked from the Spire's grounds, where they are; and
     // anywhere below the Door (Young Wick, Aster's Garden, the Nameless Hall)
     // from the Door, down past Old Knot (16b review round 3, #75 item 16c).
+    // Every Deep Root floor too, so each leg walks the floors above it (16d review round 3).
     const start =
       target.zoneId === 'dreamroot-door' && !goal.quest
         ? 'crystal-spire'
-        : ZONES[target.zoneId].shelterIn === 'dreamroot-door'
+        : ZONES[target.zoneId].shelterIn === 'dreamroot-door' || dungeonFloor(target.zoneId)?.dungeon.id === 'deep-root'
           ? 'dreamroot-door'
           : target.zoneId;
     legs.push(walkLeg(goal, flags, { zoneId: start, cell: ZONES[start].spawn }));

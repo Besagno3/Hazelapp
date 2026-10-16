@@ -158,7 +158,7 @@ const FLAG_HINT = 'Open 📜 Menu — the 🚩 on the map shows where to go next
  * that is off the story's path, so point back to it; one on it eases off
  * after a couple of losses (mercy), so say so — unless it already has.
  */
-export function defeatTip(enemy: Pick<BattleEnemy, 'name' | 'tier' | 'eased'>, road: DangerTier | null): string | null {
+export function defeatTip(enemy: Pick<BattleEnemy, 'name' | 'tier' | 'eased'> & Partial<Pick<BattleEnemy, 'isBoss'>>, road: DangerTier | null): string | null {
   const tier = enemy.eased ?? enemy.tier ?? BASE_TIER;
   const marks = dangerMarks(tier);
   if (!marks) return null;
@@ -167,6 +167,8 @@ export function defeatTip(enemy: Pick<BattleEnemy, 'name' | 'tier' | 'eased'>, r
     return enemy.eased !== undefined ? FLAG_HINT : `${enemy.name} is extra tough (see its ${marks}). ${FLAG_HINT}`;
   }
   if (enemy.eased !== undefined) return null;
+  // A boss isn't a critter (16d review round 3: an echo deep in the Deep Root).
+  if (enemy.isBoss) return "Bosses hit hard! Rest up, then try again — you'll get it.";
   return 'Critters with ! marks hit hard. Keep at it — after a couple of tries, they go easier on you!';
 }
 

@@ -191,7 +191,8 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
         'A pale stag steps out of the thorns. It looks like the Thicket Warden… but you can see the roots through it.',
         '"I am only an echo. The Root remembers every warden you beat. Prove you still remember the wood!"',
       ],
-      defeat: '"Well answered. Go on down — she has been waiting a very long time." The echo fades into the roots.',
+      // Bare speech: the victory screen adds the quotes (16d review round 3).
+      defeat: 'Well answered. Go on down — she has been waiting a very long time.',
     },
   },
   'echo-tide-colossus': {
@@ -201,7 +202,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
         'The water in the hollow rises, and a ghostly whale rises with it — the Tide Colossus, made of starlight and old sea.',
         '"Down here the tide goes out forever. Answer my star questions, and I will let you through."',
       ],
-      defeat: '"The tide turns for you, little spark. Go deeper." The echo sinks back into the dark water.',
+      defeat: 'The tide turns for you, little spark. Go deeper.',
     },
   },
   'echo-clockwork-titan': {
@@ -211,7 +212,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
         'Every clock on this floor stopped at the same minute. In the middle stands a see-through Clockwork Titan.',
         '"TICK. I keep the minute the world forgot her. Answer my questions about long ago, and time will start again."',
       ],
-      defeat: '"TOCK. The clocks are moving again. Go on — the Root\'s Heart is right below." The echo winds down and fades.',
+      defeat: 'TOCK. The clocks are moving again. Go on — the Root\'s Heart is right below.',
     },
   },
   // Act II's Fiend: beat it to restore the Crystal of Memory (BOSS_LINES.history).

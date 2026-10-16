@@ -3303,7 +3303,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#########GG###########',
       '#....#...==...#......#',
       '#..,.....==.......,..#',
-      '#.........>..........#',
+      '#..........>.........#',
       '#....#..........#....#',
       '######################',
     ],
@@ -3317,7 +3317,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'hall-plaque-2', x: 16, y: 3 },
       { defId: 'hall-plaque-3', x: 4, y: 6 },
       { defId: 'hall-plaque-daisy', x: 16, y: 6 },
-      { defId: 'hall-deep-root', x: 12, y: 11 },
+      { defId: 'hall-deep-root', x: 13, y: 11 },
     ],
     enemies: [],
     // Aster's Key, won from the Gardener, opens it (#58's key gates).
@@ -3326,7 +3326,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 9, y: 0, to: 'asters-garden', spawnX: 9, spawnY: 12 },
       { x: 10, y: 0, to: 'asters-garden', spawnX: 10, spawnY: 12 },
       // Down the deepest root (#75 item 16d): the Deep Root's first floor.
-      { x: 10, y: 11, to: 'deep-root-1', spawnX: 10, spawnY: 2 },
+      // One tile off the door's path, so you pass the root on the way (16d review round 3).
+      { x: 11, y: 11, to: 'deep-root-1', spawnX: 10, spawnY: 2 },
     ],
     shelterIn: 'dreamroot-door',
   },

@@ -77,8 +77,8 @@ describe('dungeons (#75 item 10)', () => {
     const beside = (sx: number, sy: number, tx: number, ty: number) => Math.max(Math.abs(sx - tx), Math.abs(sy - ty)) === 1;
     expect(beside(down.spawnX, down.spawnY, up.x, up.y)).toBe(true);
     expect(beside(up.spawnX, up.spawnY, down.x, down.y)).toBe(true);
-    // The map caption names the floor once: "Dream Root Door · B1".
-    expect(floorTitle(ZONES, door.id)).toBe('Dream Root Door · B1');
+    // A one-floor dungeon is just its place on the map caption (16d review round 3: one "B1" a descent).
+    expect(floorTitle(ZONES, door.id)).toBe("Dream Root Door");
     expect(dungeonEntrance(door.id)).toBe(door.id);
   });
 
@@ -220,7 +220,10 @@ describe('down the Deep Root, the folk up top keep talking (16d review round 2)'
       for (const id of ['garden-sprout', 'garden-gardener', 'root-aurora']) {
         const said = visibleLines(NPC_DEFS[id].lines, { ...flags, [NAME_LEARNED]: true }).map(lineText);
         expect(said.length, `${id} ${Object.keys(flags).join(',')}`).toBeGreaterThan(0);
-        if (flags[HALL_GATE_FLAG] || flags[descentSeenFlag('deep-root-1')]) expect(said.join(' '), id).not.toMatch(/Aster's Key opens the great door/);
+        // Neither "go through the door" nor "the key opens it" once you've been down (16d review round 3).
+        if (flags[descentSeenFlag('deep-root-1')]) expect(said.join(' '), id).not.toMatch(/great door/);
+        if (flags[HALL_GATE_FLAG]) expect(said.join(' '), id).not.toMatch(/Key opens the great door/);
+        if (id === 'root-aurora' && !flags[descentSeenFlag('deep-root-1')]) expect(said.join(' '), id).not.toMatch(/Back from the Deep Root/);
       }
     }
   });

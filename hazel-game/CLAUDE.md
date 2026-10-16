@@ -810,6 +810,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16d review round 3: short ways down, one B1, a glowworm (#75 item 16d, #146j)
+Fresh code (2 medium, 1 low, 2 nits) and UX (6 medium, 5 low, 4 nits)
+reviews, all fixed but one kept (Glim's Nook's house look): bare-speech echo
+last words; every Deep Root leg walked from the Door; "Head down through Old
+Lumina Field and Aster's Garden…" (≤ 30 words); no "B1" on a one-floor
+dungeon; tips that say who looks after you; Glim remembers you and is a
+glowworm; Aurora follows the descent; brambles on B2, clocks on B6; the
+Hall's stairs beside the path. 1384 green.
+
 ### 2026-10-16 — 16d review round 2: Glim's Nook, Sprout never silent (#75 item 16d, #146i)
 Fresh code (1 medium, 2 low, 2 nits) and UX (1 high, 3 medium, 9 low, 3 nits)
 reviews, all fixed but one kept (the 🌑 emoji): Glim's Nook on B4 — a defeat

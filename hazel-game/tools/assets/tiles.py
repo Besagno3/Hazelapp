@@ -154,7 +154,7 @@ ZONES = {
                         sky=('#080c1e', '#1e2a4e'), far='#141c3a', mid='sea', water='#2a4a9a', cave=True),
     'deep-root-5': dict(ground=(92, 84, 108), path=(136, 128, 152), solid='root', deco='glowshroom', deco_c='#d8a8ff',
                         sky=('#140e20', '#342848'), far='#241a34', mid='mountain', water='#5a4a9a', cave=True),
-    'deep-root-6': dict(ground=(98, 88, 84), path=(142, 132, 128), solid='root', deco='gear', deco_c='#d8a860',
+    'deep-root-6': dict(ground=(98, 88, 84), path=(142, 132, 128), solid='root', deco='clock', deco_c='#f4ecd8',
                         sky=('#18120e', '#3e3024'), far='#2a201a', mid='mountain', water='#4a5a6a', cave=True),
     'deep-root-7': dict(ground=(104, 88, 118), path=(148, 132, 162), solid='root', deco='glowshroom', deco_c='#ff9ae0',
                         sky=('#1a0e22', '#4a2a5a'), far='#2e1a3a', mid='mountain', water='#6a4aa8', cave=True),
@@ -452,11 +452,23 @@ def deco(kind, colr):
         c.ellipse(8.5, 9.5, 3.5, 3.5, colr)
         c.dot(8, 9, dark(hexc(colr), 0.3), w=2, h=2)
     elif kind == 'thorns':
-        # The Hall of Thorns (#75 item 16d review): brown bramble sprigs with pale thorns.
-        for (x, y) in ((3, 4), (10, 9), (5, 12)):
-            c.line(x, y + 3, x + 4, y - 1, '#3a5a2a', w=1.2)
-            for k in range(3):
-                c.dot(x + 1 + k * 1.3, y + 2 - k * 1.3 - 1, colr)
+        # The Hall of Thorns (16d review rounds 1–3): a curling green bramble with
+        # sharp pale thorns sticking out both sides, and a red berry.
+        for (x, y) in ((2, 5), (8, 11)):
+            pts = [(x, y + 3), (x + 2, y), (x + 4, y + 2), (x + 6, y - 1)]
+            for (a1, b1) in zip(pts, pts[1:]):
+                c.line(a1[0], a1[1], b1[0], b1[1], '#2e5a26', w=1.4)
+            for (tx, ty) in pts[1:]:
+                c.poly([(tx - 0.6, ty), (tx, ty - 2), (tx + 0.6, ty)], colr)
+                c.poly([(tx - 0.6, ty + 0.4), (tx, ty + 2.2), (tx + 0.6, ty + 0.4)], colr)
+            c.dot(x + 6, y - 1, '#d8343a')
+    elif kind == 'clock':
+        # The Stopped Clock (16d review round 3): little clock faces lying about, hands stuck.
+        for (x, y) in ((5, 5), (11, 11)):
+            c.ellipse(x, y, 2.6, 2.6, '#8a6a3a')
+            c.ellipse(x, y, 2.0, 2.0, colr)
+            c.line(x, y, x, y - 1.6, '#2a2230', w=0.5)
+            c.line(x, y, x + 1.2, y + 0.4, '#2a2230', w=0.5)
     elif kind == 'leaves':
         for (x, y) in ((4, 5), (10, 9), (6, 12), (12, 4)):
             c.ellipse(x, y, 1.6, 1.0, colr, rot=0.6)

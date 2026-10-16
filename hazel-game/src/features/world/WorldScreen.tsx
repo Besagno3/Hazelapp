@@ -532,7 +532,8 @@ export default function WorldScreen() {
   // On a dungeon floor (#75 item 10) the title says which floor: "B2 — The Gear Halls",
   // numbered like the Spire's "Floor 2 — …". The label never wraps away from the name.
   const floor = dungeonFloor(zoneId);
-  const hudTitle = floor ? (
+  // A one-floor dungeon (the Dream Root Door) needs no "B1" (16d review round 3: two B1s).
+  const hudTitle = floor && floor.dungeon.floors.length > 1 ? (
     <>
       <span className="whitespace-nowrap">{floorLabel(floor.dungeon.goes, floor.index)} —</span> {z.name}
     </>

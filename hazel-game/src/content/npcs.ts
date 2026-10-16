@@ -11,6 +11,8 @@ import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA
 
 /** Set once the hero has stepped onto the Deep Root's first floor (#75 item 16d): its panel has played. */
 const DEEP_ROOT_ENTERED = descentSeenFlag('deep-root-1');
+/** Set once Glim the Glowworm has said hello, in her nook on B4 (16d review round 3). */
+const MET_GLIM = 'met-glim';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -2671,11 +2673,14 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         unlessFlag: keyFlag('asters-key'),
       },
       // The Deep Root (#75 item 16d, review round 2): she knows the way down too.
+      // Before you've been down, then after, then once the Heart is found (16d review round 3).
       {
-        text: "Back from the Deep Root? Rest a while. Its stairs are behind the great door in the Nameless Hall, below her garden.",
+        text: "Aster's Key opens the great door in the Nameless Hall, just south of Aster's garden. Stairs go down behind it.",
         ifFlag: keyFlag('asters-key'),
-        unlessFlag: ROOT_HEART_REACHED,
+        unlessFlag: [HALL_GATE_FLAG, DEEP_ROOT_ENTERED, ROOT_HEART_REACHED],
       },
+      { text: 'Back from the Deep Root? Rest a while.', ifFlag: DEEP_ROOT_ENTERED, unlessFlag: ROOT_HEART_REACHED },
+      { text: 'You found where the humming comes from? Then she is close. Rest, little one.', ifFlag: ROOT_HEART_REACHED },
     ],
   },
   // --- Aster's Garden + the Nameless Hall (#75 item 16c) ---------------------
@@ -2779,7 +2784,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     lines: [
       'Every root in Lumina starts right here, wrapped round this warm purple glow.',
-      'Inside the glow, someone is curled up asleep, humming a tune with no words. Is it Aster? It must be…',
+      'Inside the glow, someone is curled up, humming in her sleep. Is it Aster? It must be… And someone else is watching from the dark.',
       { text: '(Not yet. Come back soon: the way to her will open. 🏠 Return takes you home.)', setFlag: ROOT_HEART_REACHED },
     ],
   },
@@ -2790,9 +2795,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     sprite: '🐛',
     role: 'villager',
     stationary: true,
+    // Met once, she doesn't introduce herself again (16d review round 3) — and
+    // her hello fits a hero she has just tucked up, too.
     lines: [
-      "Oh! A visitor, all the way down here! I'm Glim. My light is small, but it's warm.",
-      "If a battle down here goes badly, I'll find you and tuck you up in my nook. No need to climb all the way back!",
+      { text: "Hello down there! I'm Glim. My light is small, but it's warm.", unlessFlag: MET_GLIM },
+      { text: "If a battle down here goes badly, I'll find you and tuck you up in my nook. No need to climb all the way back!", unlessFlag: MET_GLIM, setFlag: MET_GLIM },
+      { text: 'Feeling better? My light kept you warm. You can do it!', ifFlag: MET_GLIM },
       { text: 'Careful past the gap! An echo of the Tide Colossus rises out of the water there.', unlessFlag: bossFlag('echo-tide-colossus') },
     ],
     ambient: ['✨', 'glow…', 'hello?'],

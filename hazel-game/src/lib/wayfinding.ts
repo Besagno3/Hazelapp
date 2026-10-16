@@ -500,7 +500,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: flags[NAME_LEARNED] ? 'Explore Lumina' : flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[NAME_LEARNED]
-          ? `You remembered the first Sage's name: Aster! She is waiting at the Root's Heart, at the very bottom of the Deep Root — the way to her will open soon. ${
+          ? `You remembered the first Sage's name: Aster! She is waiting at the Root's Heart — the way to her will open soon. ${
               flags[questDoneFlag({ id: BELL_QUEST })] && flags[questDoneFlag({ id: DOG_QUEST })] && flags[questDoneFlag({ id: GARDEN_QUEST })]
                 ? 'Until then, hunt for secrets ✨ and help everyone you meet.'
                 : 'Until then, help the folk of Lumina-That-Was!'
@@ -811,11 +811,19 @@ export function goalDirections(
     steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
     return sentence(steps);
   }
-  // Down the Deep Root from up top (16d review round 2: ~50 words in one box):
-  // the way to the Dream Root Door, then the 🚩 takes it from there.
-  if (dungeonFloor(goal.zoneId)?.dungeon.id === 'deep-root' && here !== 'dreamroot-door' && zoneTier(here) !== zoneTier(goal.zoneId)) {
-    const toDoor = routeSteps(zones, here, 'dreamroot-door', at, flags, aboard) ?? [];
-    return sentence([...toDoor, 'follow the 🚩 down to the Deep Root']);
+  // Down to the Nameless Hall and the Deep Root below it (16d review rounds 2–3):
+  // a run of "take the south path" steps reads as one, and from up top the way
+  // stops at the Dream Root Door.
+  const deep = (z: ZoneId) => dungeonFloor(z)?.dungeon.id === 'deep-root';
+  if ((deep(goal.zoneId) || goal.zoneId === 'nameless-hall') && here !== 'nameless-hall' && !deep(here)) {
+    const below = goal.zoneId === 'nameless-hall' ? [] : (routeSteps(zones, 'nameless-hall', goal.zoneId, undefined, flags) ?? []);
+    if (here !== 'dreamroot-door' && zoneTier(here) !== zoneTier('nameless-hall')) {
+      const toDoor = routeSteps(zones, here, 'dreamroot-door', at, flags, aboard) ?? [];
+      return sentence([...toDoor, goal.zoneId === 'nameless-hall' ? 'keep going down to the Nameless Hall' : "keep going down to the Nameless Hall's stairs"]);
+    }
+    const through = (routeTo(zones, here, 'nameless-hall') ?? []).slice(1).map((h) => placeName(zones[h.from]));
+    const head = through.length ? `head down through ${through.join(' and ')} to the Nameless Hall` : 'head down to the Nameless Hall';
+    return sentence([head, ...below]);
   }
   const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
@@ -946,7 +954,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[NAME_LEARNED]) {
-    plan = `Aster. ASTER! I knew that name once. Thank you for finding it again. She is waiting at the Root's Heart, at the very bottom of the Deep Root — the way to her will open soon.`;
+    plan = `Aster. ASTER! I knew that name once. Thank you for finding it again. She is waiting at the Root's Heart — the way to her will open soon.`;
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -974,8 +982,11 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "Barnacle Bess sells Hint Feathers in Inkwell Cove. In the cove, Cuttle-Scribes heal themselves — hit them hard!";
   } else if (goal.kind === 'key' && goal.key?.id === 'asters-key') {
     tip = "In Aster's Garden, the weeds mend themselves. Hit them hard — and rest at the Lamplight Rest first!";
-  } else if (goal.kind === 'boss' || (goal.kind === 'visit' && goal.doneFlag === HALL_GATE_FLAG)) {
-    tip = "Bring potions from a shop up top — nobody sells them down here! Lose deep in the Deep Root, and Glim the Glowworm tucks you up halfway down.";
+  } else if ((goal.kind === 'visit' && goal.doneFlag === HALL_GATE_FLAG) || (goal.kind === 'boss' && goal.boss === DEEP_ROOT_ECHOES[0].boss)) {
+    // Who looks after you depends on how far down (16d review round 3).
+    tip = 'Buy potions in Lumina Village first — nobody sells them below the Spire! Up top, Keeper Aurora looks after you if you lose; further down, Glim the Glowworm does.';
+  } else if (goal.kind === 'boss') {
+    tip = 'Lose a battle down here, and Glim the Glowworm tucks you up in her nook, halfway down the Deep Root. You can try again from there!';
   } else if (goal.kind === 'visit' && goal.doneFlag === ROOT_HEART_REACHED) {
     tip = "Nothing fights at the Root's Heart — it's a quiet place. There's a save crystal there, too.";
   } else if (goal.kind === 'key' && !goal.crystal) {

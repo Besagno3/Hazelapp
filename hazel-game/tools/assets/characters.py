@@ -4266,7 +4266,37 @@ def root_heart(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.2, 9, 1.2))
 
 
+def glowworm(c: Canvas, p: Pose, s: dict):
+    """Glim the Glowworm (16d review round 3): a plump, segmented worm whose
+    tail glows warm yellow, pulsing slowly — a friend, not a slime."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#9ac85a'))
+    glow = s.get('glow_color', '#ffe680')
+    pulse = 0.6 if p.frame % 2 else 0.0
+    wig = p.step * 0.6
+    G = d.part(0, 0)
+    G.ellipse(8, 24, 6.4 + pulse, 5.4 + pulse, dark(hexc(glow), 0.15), shade=False)  # the glow's halo
+    d.put(G, outline=False)
+    B = d.part(d.lean, d.bob)
+    for k, (x, y, r) in enumerate(((8, 24, 4.2), (12.6, 23.4 + wig, 4.0), (17, 22.8 - wig, 4.0), (21.4, 21.4, 4.4))):
+        B.ellipse(x, y, r, r * 0.92, glow if k == 0 else col)
+        if k:
+            B.line(x - 1.4, y - r * 0.7, x - 1.4, y + r * 0.7, dark(col, 0.18), w=0.6)  # a segment line
+    B.ellipse(8, 22.8, 1.6, 1.2, light(hexc(glow), 0.5), shade=False)  # the tail's bright spot
+    d.put(B)
+    H = d.part(d.lean, d.bob)
+    if p.facing != 'up':
+        d.eyes(H, [(22.2, 20.2), (24.4, 20.2)], h=2)
+        if d.sep and not p.hurt:
+            H.line(22, 23, 24.4, 23, dark(col, 0.45), w=0.6)  # a little smile
+    H.line(21, 17.4, 19.6, 14.2, dark(col, 0.3), w=0.6)  # antennae
+    H.line(23.4, 17.4, 24.6, 14.2, dark(col, 0.3), w=0.6)
+    d.put(H)
+    finish(c, d, shadow=(15, 28.6, 9, 1.0))
+
+
 DRAWERS = {
+    'glowworm': glowworm,
     'root_heart': root_heart,
     'thorn_ball': thorn_ball,
     'wilt_flower': wilt_flower,
@@ -4735,7 +4765,7 @@ NPCS: list[Char] = [
     # ── Act IV: the Deep Root (#75 item 16d) ──
     Char('root-heart', '💜', 'root_heart', H(bark='#5a3a4a', glow='#d88aff'), boss=True),
     # Glim the Glowworm, who keeps a nook on B4 (16d review round 2).
-    Char('root-glim', '🐛', 'blob', H(color='#c8e86a', glow=True)),
+    Char('root-glim', '🐛', 'glowworm', H(color='#9ac85a', glow_color='#ffe680')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

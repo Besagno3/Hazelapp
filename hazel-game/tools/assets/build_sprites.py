@@ -43,13 +43,13 @@ def battle_frames(ch: Char) -> list[Image.Image]:
 
 
 def ghostly(ch, frames):
-    """An echo (#75 item 16d review): drawn see-through — every pixel at 70%."""
+    """An echo (#75 item 16d review): drawn see-through — every pixel at 55% (16d review round 3)."""
     if not ch.params.get('ghost'):
         return frames
     out = []
     for f in frames:
         f = f.convert('RGBA')
-        a = f.getchannel('A').point(lambda v: int(v * 0.7))
+        a = f.getchannel('A').point(lambda v: int(v * 0.55))
         f.putalpha(a)
         out.append(f)
     return out

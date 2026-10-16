@@ -94,6 +94,8 @@ export function floorLabel(goes: DungeonDef['goes'], index: number): string {
 export function floorTitle(zones: Record<ZoneId, ZoneDef>, zoneId: ZoneId): string | null {
   const at = dungeonFloor(zoneId);
   if (!at) return null;
+  // A one-floor dungeon is just its place (16d review round 3: the Door's "B1" beside the Deep Root's).
+  if (at.dungeon.floors.length === 1) return zones[zoneId].name;
   const floor = floorLabel(at.dungeon.goes, at.index);
   const name = zones[zoneId].name;
   // "Dream Root Door · B1" — a floor named after its dungeon needs it only once.

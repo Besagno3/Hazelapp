@@ -140,3 +140,13 @@ describe('the Deep Root\'s echoes (#75 item 16d)', () => {
     }
   });
 });
+
+describe('boss last words (16d review round 3)', () => {
+  it('are bare speech: the victory screen adds the quote marks', () => {
+    // A warden's words show as its key's, already in quotes (the key branch of BattleResult).
+    for (const def of Object.values(ENEMY_DEFS).filter((e) => e.isBoss && !keyForBoss(e.id))) {
+      const script = bossScript(def);
+      if (script) expect(script.defeat, def.id).not.toMatch(/"/);
+    }
+  });
+});

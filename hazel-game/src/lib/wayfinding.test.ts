@@ -683,7 +683,11 @@ describe("the Nameless Hall's 🚩 (16c review round 2, #75 item 16d)", () => {
     expect(goalDirections(ZONES, nextObjective(open), 'nameless-hall', undefined, open)).toMatch(/^Take the stairs down two floors/);
     // From up top, the way stops at the Dream Root Door (16d review round 2: it ran ~50 words).
     const far = goalDirections(ZONES, nextObjective(open), 'lumina-village', undefined, open);
-    expect(far).toMatch(/Dream Root Door, then follow the 🚩 down to the Deep Root\.$/);
+    expect(far).toMatch(/Dream Root Door, then keep going down to the Nameless Hall's stairs\.$/);
+    // From the Door, the paths south read as one (16d review round 3: ~37 words).
+    const fromDoor = goalDirections(ZONES, nextObjective(open), 'dreamroot-door', undefined, open);
+    expect(fromDoor).toMatch(/^Head down through Old Lumina Field and Aster's Garden to the Nameless Hall, then take the stairs down two floors/);
+    expect(fromDoor.split(/\s+/).length).toBeLessThanOrEqual(30);
     expect(far.split(/\s+/).length).toBeLessThanOrEqual(30);
   });
 });
