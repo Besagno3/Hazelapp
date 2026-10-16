@@ -499,6 +499,185 @@ async function reportReview(
 }
 // --- screen:end
 
+// Telling the owner a question needs review (#146): email, Slack, Discord.
+// Kept INLINE (single-file deploys, #67); the canonical, tested copy is
+// `_shared/notify.ts`, and `notify.test.ts` fails if the text between the
+// markers ever differs.
+// --- notify:start (identical in generate-questions/index.ts)
+/** Where alerts go: whichever channels have their secrets set. */
+interface AlertChannels {
+  email?: { apiKey: string; to: string[]; from: string; url: string };
+  slack?: string;
+  discord?: string;
+}
+
+/** The channels, from the function's secrets (`get` reads one). */
+function alertChannels(get: (name: string) => string | undefined): AlertChannels {
+  const channels: AlertChannels = {};
+  const apiKey = get('RESEND_API_KEY');
+  const to = (get('ALERT_EMAIL_TO') ?? '')
+    .split(',')
+    .map((a) => a.trim())
+    .filter(Boolean);
+  if (apiKey && to.length > 0) {
+    channels.email = {
+      apiKey,
+      to,
+      from: get('ALERT_EMAIL_FROM') || 'Hazel Quest <onboarding@resend.dev>',
+      url: get('RESEND_API_URL') || 'https://api.resend.com/emails',
+    };
+  }
+  const slack = get('ALERT_SLACK_WEBHOOK_URL');
+  if (slack) channels.slack = slack;
+  const discord = get('ALERT_DISCORD_WEBHOOK_URL');
+  if (discord) channels.discord = discord;
+  return channels;
+}
+
+const hasChannels = (c: AlertChannels) => Boolean(c.email || c.slack || c.discord);
+
+/** A question waiting for review, as the review queue lists it. */
+interface ReviewItem {
+  id: string;
+  topic: string;
+  level: number;
+  status: string;
+  text: string;
+  options: string[];
+  correct_index: number;
+  explanation: string | null;
+  reports: number;
+  families: number;
+  reasons: string[] | null;
+}
+
+interface Alert {
+  subject: string;
+  text: string;
+}
+
+/** The report reasons in words; the checks' notes as they are. */
+const REASON_WORDS: Record<string, string> = {
+  not_for_kids: 'Not OK for kids',
+  wrong_answer: 'Wrong answer',
+  confusing: 'Confusing',
+  difficulty: 'Too hard or too easy',
+};
+function reasonWords(reasons: string[] | null): string[] {
+  // A check's note arrives as "recheck: <note>" (the queue's label for it, 0017).
+  return (reasons ?? []).map((r) => (r.startsWith('recheck: ') ? `🔎 ${r.slice(9)}` : (REASON_WORDS[r] ?? r)));
+}
+
+/** Where the owner reviews: the app's admin page (`?review` opens it). */
+function reviewLink(appUrl: string | undefined): string {
+  return appUrl
+    ? `Review it: ${appUrl.replace(/\/+$/, '')}/?review`
+    : 'Review it in the game: 👪 Grown-ups → 🛡️ Question review.';
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const statusWords = (s: string) => (s === 'review' ? 'held back' : 'still shown, with new reports');
+
+/** The moment a report check leaves a question held back. */
+function heldAlert(item: ReviewItem, appUrl?: string): Alert {
+  const lines = [
+    'A question was reported and is held back until you review it.',
+    '',
+    `${item.topic}, level ${item.level}: ${item.text}`,
+    ...item.options.map((o, i) => `  ${i === item.correct_index ? '✓' : '•'} ${o}`),
+  ];
+  if (item.explanation) lines.push(`Explanation: ${item.explanation}`);
+  lines.push(
+    '',
+    `${plural(item.reports, 'report', 'reports')} from ${plural(item.families, 'family', 'families')}`,
+    ...reasonWords(item.reasons).map((r) => `  - ${r}`),
+    '',
+    reviewLink(appUrl),
+  );
+  return { subject: 'Hazel Quest: a question needs your review', text: lines.join('\n') };
+}
+
+/** Questions listed in a digest; the rest are counted. */
+const DIGEST_LIST_LIMIT = 20;
+
+/** Everything waiting, once a day. */
+function digestAlert(items: ReviewItem[], total: number, appUrl?: string): Alert {
+  const held = items.filter((i) => i.status === 'review').length;
+  const lines = [
+    `${plural(total, 'question is', 'questions are')} waiting for your review` +
+      (items.length === total ? ` (${held} held back, ${total - held} still shown with new reports).` : '.'),
+    '',
+  ];
+  for (const item of items.slice(0, DIGEST_LIST_LIMIT)) {
+    lines.push(
+      `• [${statusWords(item.status)}] ${item.topic}, level ${item.level} — ` +
+        `${plural(item.reports, 'report', 'reports')}${item.reasons?.length ? ` (${reasonWords(item.reasons).join('; ')})` : ''}`,
+      `  ${item.text}`,
+    );
+  }
+  const shown = Math.min(items.length, DIGEST_LIST_LIMIT);
+  if (total > shown) lines.push(`…and ${total - shown} more.`);
+  lines.push('', reviewLink(appUrl));
+  return {
+    subject: `Hazel Quest: ${plural(total, 'question', 'questions')} waiting for review`,
+    text: lines.join('\n'),
+  };
+}
+
+/** Discord rejects a message over 2,000 characters. */
+const DISCORD_MAX = 2000;
+
+/**
+ * Sends `alert` to every configured channel at once. Never throws: returns
+ * which channels took it and which didn't (a bad key, a dead webhook), for
+ * the log.
+ */
+async function sendAlert(
+  channels: AlertChannels,
+  alert: Alert,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ sent: string[]; failed: string[] }> {
+  const jobs: [string, () => Promise<Response>][] = [];
+  const post = (url: string, body: unknown, headers: Record<string, string> = {}) =>
+    fetchImpl(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
+  if (channels.email) {
+    const e = channels.email;
+    jobs.push([
+      'email',
+      () =>
+        post(e.url, { from: e.from, to: e.to, subject: alert.subject, text: alert.text }, {
+          Authorization: `Bearer ${e.apiKey}`,
+        }),
+    ]);
+  }
+  if (channels.slack) {
+    const url = channels.slack;
+    jobs.push(['slack', () => post(url, { text: `*${alert.subject}*\n${alert.text}` })]);
+  }
+  if (channels.discord) {
+    const url = channels.discord;
+    const content = `**${alert.subject}**\n${alert.text}`;
+    jobs.push([
+      'discord',
+      () => post(url, { content: content.length > DISCORD_MAX ? `${content.slice(0, DISCORD_MAX - 1)}…` : content }),
+    ]);
+  }
+  const results = await Promise.allSettled(jobs.map(([, run]) => run()));
+  const sent: string[] = [];
+  const failed: string[] = [];
+  results.forEach((r, i) => {
+    const name = jobs[i][0];
+    if (r.status === 'fulfilled' && r.value.ok) sent.push(name);
+    else failed.push(r.status === 'fulfilled' ? `${name} (HTTP ${r.value.status})` : `${name} (${String(r.reason)})`);
+  });
+  return { sent, failed };
+}
+// --- notify:end
+
 const TOPIC_PROMPT_BLOCK = TOPICS.map((id) => `- ${id}: ${TOPIC_PROMPTS[id]}`).join('\n');
 const CACHE_LOOKUP_LIMIT = 200;
 /** Cached questions may be up to this many levels above/below the player. */
@@ -970,6 +1149,71 @@ async function identifyKid(
  */
 const REPORT_CHECKS_PER_FAMILY_PER_DAY = 20;
 
+/** What an alert shows of a question in the review queue. */
+const REVIEW_COLUMNS = 'id, topic, level, status, text, options, correct_index, explanation, reports, families, reasons';
+
+/**
+ * Tells the owner (email / Slack / Discord, #146) when a reported question
+ * ends up held back. Never fails the check: no channels set is a no-op, and a
+ * channel that refuses is logged.
+ */
+async function alertIfHeld(db: SupabaseClient, id: string): Promise<void> {
+  try {
+    const channels = alertChannels((name) => Deno.env.get(name));
+    if (!hasChannels(channels)) return;
+    const { data, error } = await db.from('question_review_queue').select(REVIEW_COLUMNS).eq('id', id).maybeSingle();
+    if (error) throw new Error(error.message);
+    const item = data as ReviewItem | null;
+    if (!item || item.status !== 'review') return;
+    const result = await sendAlert(channels, heldAlert(item, Deno.env.get('APP_URL')));
+    if (result.failed.length > 0) console.error('review alert not sent to:', result.failed.join(', '));
+  } catch (err) {
+    console.error('review alert failed:', err instanceof Error ? err.message : String(err));
+  }
+}
+
+/** Rows a digest reads (it lists DIGEST_LIST_LIMIT and counts the rest). */
+const DIGEST_READ_LIMIT = 200;
+
+/**
+ * `action: 'digest'` (#146): what's waiting in the review queue, sent to the
+ * owner. Called once a day by a scheduled job (see CLAUDE.md, Commands), which
+ * must send the `x-digest-secret` header matching the ALERT_DIGEST_SECRET
+ * secret; nothing waiting sends nothing.
+ */
+async function sendDigest(req: Request): Promise<Response> {
+  const secret = Deno.env.get('ALERT_DIGEST_SECRET');
+  if (!secret) return json({ error: 'The digest is off: set the ALERT_DIGEST_SECRET secret.' }, 503);
+  if (req.headers.get('x-digest-secret') !== secret) return json({ error: 'forbidden' }, 403);
+  const dbUrl = Deno.env.get('SUPABASE_URL');
+  const dbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!dbUrl || !dbKey) return json({ error: 'Server is missing Supabase configuration' }, 500);
+  const db = createClient(dbUrl, dbKey);
+  const { data, error, count } = await db
+    .from('question_review_queue')
+    .select(REVIEW_COLUMNS, { count: 'exact' })
+    // Held back first, then the most families.
+    .order('status', { ascending: false })
+    .order('not_for_kids', { ascending: false })
+    .order('families', { ascending: false })
+    .limit(DIGEST_READ_LIMIT);
+  if (error) {
+    console.error('digest: reading the review queue failed:', error.message);
+    return json({ error: 'queue_unreadable' }, 500);
+  }
+  const items = (data ?? []) as ReviewItem[];
+  const waiting = count ?? items.length;
+  if (waiting === 0) return json({ waiting: 0, sent: [] });
+  const channels = alertChannels((name) => Deno.env.get(name));
+  if (!hasChannels(channels)) {
+    console.error(`digest: ${waiting} waiting, but no alert channel is set (RESEND_API_KEY + ALERT_EMAIL_TO, or a webhook)`);
+    return json({ waiting, sent: [], failed: [] });
+  }
+  const result = await sendAlert(channels, digestAlert(items, waiting, Deno.env.get('APP_URL')));
+  if (result.failed.length > 0) console.error('digest not sent to:', result.failed.join(', '));
+  return json({ waiting, ...result });
+}
+
 interface ReportedRow {
   id: string;
   text: string;
@@ -1025,6 +1269,9 @@ async function checkReport(req: Request, body: { profileId?: unknown; questionId
     .neq('status', 'retired');
   if (saveErr) console.error('report check result not saved:', saveErr.message);
   console.log(`report check ${row.id}: ${verdict.hold ? 'held back' : 'kept as it was'} — ${verdict.note}`);
+  // Held back — by the check, or by the report itself ("Not OK for kids") —
+  // so the owner hears now, not in tomorrow's digest.
+  await alertIfHeld(db, row.id);
   return json({ checked: true, held: verdict.hold });
 }
 
@@ -1047,7 +1294,7 @@ Deno.serve(async (req) => {
     profileId?: string;
     /** The app marks what it shows (#134); an older app doesn't. */
     reportsSeen?: boolean;
-    /** 'check-report' (#146): check a question a family just reported. */
+    /** 'check-report' (#146): check a question a family just reported; 'digest': the daily review email. */
     action?: string;
     questionId?: string;
   };
@@ -1056,6 +1303,7 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: 'Invalid JSON body' }, 400);
   }
+  if (body.action === 'digest') return await sendDigest(req);
   if (body.action === 'check-report') return await checkReport(req, body, apiKey);
 
   const { topic, skillLevel } = body;

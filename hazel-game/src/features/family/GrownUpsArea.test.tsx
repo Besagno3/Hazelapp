@@ -8,6 +8,12 @@ const auth = vi.hoisted(() => ({
   resetPasswordForEmail: vi.fn(),
 }));
 vi.mock('../../lib/supabase', () => ({ supabase: { auth } }));
+const review = vi.hoisted(() => ({ isAdmin: vi.fn(), fetchReviewQueue: vi.fn() }));
+vi.mock('../../lib/review', async (original) => ({
+  ...(await original<typeof import('../../lib/review')>()),
+  isAdmin: review.isAdmin,
+  fetchReviewQueue: review.fetchReviewQueue,
+}));
 
 const { default: GrownUpsArea } = await import('./GrownUpsArea');
 const { useFamilyStore } = await import('../../store/familyStore');
@@ -27,6 +33,8 @@ async function type(pin: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  review.isAdmin.mockResolvedValue(false);
+  review.fetchReviewQueue.mockResolvedValue([]);
   useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
   useFamilyStore.setState({
     kids: [sam, old],
@@ -36,6 +44,7 @@ beforeEach(() => {
     setGrownUpsOpen,
     checkParentPin,
     setParentPin,
+    reviewRequested: false,
   });
 });
 
@@ -132,5 +141,32 @@ describe('GrownUpsArea (#124)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save PIN' }));
     expect(await screen.findByText('Grown-up PIN saved.')).toBeInTheDocument();
     expect(setParentPin).toHaveBeenCalledWith('9090');
+  });
+
+  it('the game’s owner sees 🛡️ Question review; a family doesn’t (#146)', async () => {
+    await unlock();
+    expect(screen.queryByRole('button', { name: '🛡️ Question review' })).not.toBeInTheDocument();
+  });
+
+  it('an admin opens the review page from Grown-ups, and comes back (#146)', async () => {
+    review.isAdmin.mockResolvedValue(true);
+    await unlock();
+    fireEvent.click(await screen.findByRole('button', { name: '🛡️ Question review' }));
+    expect(await screen.findByText(/Nothing waiting — all clear/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '← Back to Grown-ups' }));
+    expect(await screen.findByText('Sam')).toBeInTheDocument();
+  });
+
+  it('a review link (?review) opens the review page once Grown-ups is unlocked, never before (#146)', async () => {
+    useFamilyStore.setState({ reviewRequested: true });
+    auth.signInWithPassword.mockResolvedValue({ error: null });
+    render(<GrownUpsArea />);
+    expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
+    expect(review.fetchReviewQueue).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(await screen.findByText('🛡️ Question review')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '← Back to Grown-ups' }));
+    expect(useFamilyStore.getState().reviewRequested).toBe(false);
   });
 });

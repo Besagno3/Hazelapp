@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { errorMessage } from '../../lib/errors';
 import { calcAge } from '../../lib/age';
 import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
 import { useAuthStore } from '../../store/authStore';
 import { useFamilyStore } from '../../store/familyStore';
+import { isAdmin } from '../../lib/review';
 import PasswordInput from '../../components/PasswordInput';
 import FamilyCard from './FamilyCard';
 import KidForm from './KidForm';
 import PinPad from './PinPad';
 import PrivacyNotice from './PrivacyNotice';
+import QuestionReviewPage from './QuestionReviewPage';
 import type { Kid } from '../../types';
 
 const fieldClass =
@@ -17,9 +19,10 @@ const fieldClass =
 
 /**
  * 👪 Grown-ups (#124): add, change and remove kids, set the grown-up PIN, see
- * the privacy notice, and sign out. Opens only with the grown-up's own PIN
- * (if they've set one) or their password, so a kid can't remove a sibling or
- * sign the family out.
+ * the privacy notice, and sign out — and, for the game's owner, 🛡️ Question
+ * review (#146). Opens only with the grown-up's own PIN (if they've set one)
+ * or their password, so a kid can't remove a sibling, sign the family out or
+ * release a question.
  */
 export default function GrownUpsArea() {
   const [unlocked, setUnlocked] = useState(false);
@@ -129,6 +132,30 @@ function GrownUpsHome() {
   /** Which kid is being changed ('new' = adding one). */
   const [editing, setEditing] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Kid | null>(null);
+  // Arrived from a review alert's link: straight to the review page.
+  const [reviewing, setReviewing] = useState(() => useFamilyStore.getState().reviewRequested);
+  const [admin, setAdmin] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    void isAdmin().then((yes) => {
+      if (live) setAdmin(yes);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  if (reviewing) {
+    return (
+      <QuestionReviewPage
+        onBack={() => {
+          setReviewing(false);
+          useFamilyStore.getState().clearReviewRequest();
+        }}
+      />
+    );
+  }
 
   if (editing) {
     const kid = kids.find((k) => k.id === editing);
@@ -185,6 +212,14 @@ function GrownUpsHome() {
         ＋ Add a player
       </button>
       <ParentPin />
+      {admin && (
+        <button
+          onClick={() => setReviewing(true)}
+          className="mt-6 w-full rounded-xl border border-purple-300 bg-purple-50 py-2 font-semibold text-purple-700 transition hover:bg-purple-100"
+        >
+          🛡️ Question review
+        </button>
+      )}
       <div className="mt-6 space-y-2">
         {consentAt && (
           <p className="text-xs text-gray-500">

@@ -1250,6 +1250,19 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1270 | I | ✅ | recheck | harness: reads only questions not checked under version 1; `--apply` marks all six checked, four to review; `--reported` dry run shows the verdict and claims nothing, `--apply` claims as the sweep and holds it back |
 | TC-1271 | M | ⬜ | deploy | on the real project after 0018: report a question from the app; the function log shows "report check …" with Haiku's (and maybe Opus's) calls; the queue shows the note; reporting it again from the same kid starts no second check |
 
+## Review alerts and the admin page (#146)
+
+| ID     | Type | Status | Feature | Case |
+|--------|------|--------|------|------|
+| TC-1272 | U | ✅ | channels | a channel is on only with its secrets (email needs key and address; several addresses; default sender and URL); the function's inline copy is the canonical one (notify.test) |
+| TC-1273 | U | ✅ | messages | the held alert: topic, level, question, ✓ on the answer, explanation, "2 reports from 1 family", reasons in words, check notes with 🔎, `APP_URL/?review` (the in-game path without APP_URL); the digest: plural subject, held / shown counts, 20 listed then "…and N more" (notify.test) |
+| TC-1274 | U | ✅ | sending | email to Resend with the key and from / to / subject / text, Slack `{text}`, Discord `{content}` cut to 2,000 characters; a refusing or offline channel is reported, never thrown (notify.test) |
+| TC-1275 | I | ✅ | admin | migration 0019 (SQL test): a family isn't an admin, is refused the queue and decisions ("not an admin"), can't add itself to or read `admins`; the owner sees held first with age and notes, decides (status, `reviewed_at`, `reviewed_by`), is refused "review" and unknown ids; anon can't call any; the test fails without the admin check (question_admin.test.sql) |
+| TC-1276 | C | ✅ | page | the review page lists held first with badge, age, ✓ answer, reports, reasons and 🔎 notes; Release / Approve decide and remove the card with a status line; Retire asks first; a failed decision stays on the card; a load error offers Try again; nothing waiting is all clear (QuestionReviewPage.test, review.test) |
+| TC-1277 | C | ✅ | entry | 🛡️ Question review shows in Grown-ups only for an admin and comes back; `?review` opens the review page only after the Grown-ups gate, and Back forgets it (GrownUpsArea.test); `familyScreen` opens Grown-ups for `?review` after consent; closing Grown-ups takes `?review` off the address (familyStore.test) |
+| TC-1278 | I | ✅ | function | harness: a report check that holds alerts on email, Slack and Discord (key, to, from, subject, the question and link, no kid or family); still shown → no alert; a refusing Slack never fails the check (logged); the digest refuses no / wrong secret, sends nothing with nothing waiting, and two waiting go to all three channels, read held first up to 200 (99/99) |
+| TC-1279 | M | ⬜ | deploy | on the real project: after the owner setup, report a question "Not OK for kids" → the email arrives within a minute with the link; the link opens Grown-ups, then the review page; Release puts it back; the next morning's digest arrives (or none with nothing waiting); a Slack or Discord webhook gets the same |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

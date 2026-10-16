@@ -93,6 +93,11 @@ interface FamilyStore {
   activeKidId: string | null;
   /** The Grown-ups area is open (from "Who's playing?"). */
   grownUpsOpen: boolean;
+  /**
+   * The page was opened with `?review` (the link in a review alert, #146):
+   * open 👪 Grown-ups, and once it's unlocked, 🛡️ Question review.
+   */
+  reviewRequested: boolean;
   /** Load the grown-up's consent and kids after sign-in. */
   load: (userId: string) => Promise<void>;
   /** Record that the grown-up agrees to the privacy notice (server-stamped). */
@@ -111,6 +116,8 @@ interface FamilyStore {
   /** Save, put the game away and go back to "Who's playing?". */
   switchPlayer: () => Promise<void>;
   setGrownUpsOpen: (open: boolean) => void;
+  /** The review link has been followed (or the area closed): forget it, and take `?review` off the address. */
+  clearReviewRequest: () => void;
   clear: () => void;
 }
 
@@ -123,6 +130,7 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
   kids: [],
   activeKidId: null,
   grownUpsOpen: false,
+  reviewRequested: reviewLinkFollowed(),
 
   load: async (userId) => {
     set({ userId, status: 'loading', error: null, kids: [], activeKidId: null, grownUpsOpen: false });
@@ -230,7 +238,23 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     putAwayGame();
   },
 
-  setGrownUpsOpen: (grownUpsOpen) => set({ grownUpsOpen }),
+  setGrownUpsOpen: (grownUpsOpen) => {
+    set({ grownUpsOpen });
+    if (!grownUpsOpen) get().clearReviewRequest();
+  },
+
+  clearReviewRequest: () => {
+    set({ reviewRequested: false });
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('review')) {
+        url.searchParams.delete('review');
+        window.history.replaceState(window.history.state, '', url.toString());
+      }
+    } catch {
+      // No address to tidy (not in a browser).
+    }
+  },
 
   clear: () =>
     set({
@@ -242,8 +266,18 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
       kids: [],
       activeKidId: null,
       grownUpsOpen: false,
+      reviewRequested: false,
     }),
 }));
+
+/** Whether the page was opened from a review alert's link (`?review`, #146). */
+function reviewLinkFollowed(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).has('review');
+  } catch {
+    return false;
+  }
+}
 
 /** The screens before the game (#124), in the order they're checked. */
 export type FamilyScreen = 'loading' | 'error' | 'consent' | 'grownUps' | 'firstKid' | 'kidSetup' | 'pick' | 'play';
@@ -254,12 +288,13 @@ export function kidNeedingPin(kids: Kid[]): Kid | null {
 }
 
 export function familyScreen(
-  s: Pick<FamilyStore, 'status' | 'consentAt' | 'kids' | 'activeKidId' | 'grownUpsOpen'>,
+  s: Pick<FamilyStore, 'status' | 'consentAt' | 'kids' | 'activeKidId' | 'grownUpsOpen'> &
+    Partial<Pick<FamilyStore, 'reviewRequested'>>,
 ): FamilyScreen {
   if (s.status === 'error') return 'error';
   if (s.status !== 'ready') return 'loading';
   if (!s.consentAt) return 'consent';
-  if (s.grownUpsOpen) return 'grownUps';
+  if (s.grownUpsOpen || s.reviewRequested) return 'grownUps';
   if (s.kids.length === 0) return 'firstKid';
   // Every kid needs a PIN before anyone plays.
   if (kidNeedingPin(s.kids)) return 'kidSetup';

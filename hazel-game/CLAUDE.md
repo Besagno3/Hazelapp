@@ -651,7 +651,27 @@ zod, react-query. Add the package in the same change that first uses it.
   server-side refusal fallback). A problem, or a check that can't run, holds the
   question back (`review`); either way the note says what was found. A check
   never puts a question back. Reports no check covered (the tab closed, over the
-  cap) are swept by the recheck script's `--reported` run. **Reports** (`FlagButton`,
+  cap) are swept by the recheck script's `--reported` run. **The owner hears
+  about it** (#146, `_shared/notify.ts`, inline in the function between
+  `// --- notify:start` / `notify:end`, drift-checked by `notify.test.ts`): email
+  (Resend: `RESEND_API_KEY` + `ALERT_EMAIL_TO`, optional `ALERT_EMAIL_FROM`),
+  Slack (`ALERT_SLACK_WEBHOOK_URL`) and Discord (`ALERT_DISCORD_WEBHOOK_URL`) —
+  every channel whose secrets are set. A report check that leaves a question
+  held back sends `heldAlert` at once (`alertIfHeld`); `action: 'digest'`
+  (needs the `x-digest-secret` header = `ALERT_DIGEST_SECRET`, run daily by a
+  scheduled job — see Commands) sends `digestAlert`, everything waiting, and
+  nothing when nothing is. Messages carry the question and report counts, never
+  a child or a family, and link to `APP_URL/?review`. A channel that refuses is
+  logged, never fails the check. **The owner decides in the app** (#146,
+  migration 0019): a grown-up listed in `public.admins` (added in the SQL editor;
+  nobody can read or write it through the API) sees 🛡️ Question review in 👪
+  Grown-ups (`QuestionReviewPage`, `lib/review.ts`): what's waiting, held back
+  first, with the answer, the reports in words and the checks' notes (🔎), and
+  ✅ Release / ⭐ Approve / 🗑️ Retire (asks first) through `admin_review_queue` /
+  `admin_review_question`, which refuse anyone else ("not an admin", 42501) and
+  record who decided (`questions.reviewed_by`). The alert's link (`?review`,
+  `familyStore.reviewRequested`) opens 👪 Grown-ups and, once it's unlocked,
+  the review page. **Reports** (`FlagButton`,
   on every question screen through `QuestionCard`, "Not OK for kids" first)
   hide a question from the reporting family; for everyone it's held back only
   through `questions.status` (migration 0016: `active` / `review` / `retired`
@@ -762,6 +782,22 @@ python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, T
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts           # dry run
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails, mark what passes
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --reported --apply   # reports no check covered yet
+
+# Question review alerts and the admin page (#146) — once, by the owner
+#   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
+#        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
+#   2. Secrets (email via Resend; Slack and Discord optional):
+supabase secrets set RESEND_API_KEY=re_… ALERT_EMAIL_TO=<you> APP_URL=https://<your site> ALERT_DIGEST_SECRET=<long random string>
+supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/…
+#      ALERT_EMAIL_FROM is Resend's test sender until you verify a domain (it only delivers to the Resend account's own address).
+#   3. SQL editor, after enabling the pg_cron and pg_net extensions: the daily digest (07:45 UTC)
+#        select cron.schedule('question-review-digest', '45 7 * * *', $$
+#          select net.http_post(
+#            url := 'https://<project-ref>.supabase.co/functions/v1/generate-questions',
+#            headers := jsonb_build_object('Content-Type', 'application/json',
+#              'Authorization', 'Bearer <anon key>', 'x-digest-secret', '<ALERT_DIGEST_SECRET>'),
+#            body := '{"action":"digest"}'::jsonb);
+#        $$);
 ```
 
 ## Error handling
@@ -847,6 +883,27 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Review alerts (email, Slack, Discord) and the admin review page (#146)
+The owner's follow-up: hear about questions that need review, and decide them
+in the app instead of the SQL editor.
+- **Alerts** (`_shared/notify.ts`, inline in the function, drift-tested): email
+  through Resend, Slack and Discord webhooks — whichever secrets are set. A
+  report check that leaves a question held back alerts at once; `action:
+  'digest'` (a secret header, run daily by pg_cron) sends everything waiting.
+  No child or family in any message; the link opens the review page.
+- **Admin page** (migration 0019): `public.admins` (owner-only, added in the SQL
+  editor), `is_admin`, `admin_review_queue`, `admin_review_question` (records
+  `reviewed_by`); 🛡️ Question review in 👪 Grown-ups with Release / Approve /
+  Retire; `?review` opens it after the Grown-ups gate.
+- ⚠️ Owner setup: Commands → "Question review alerts and the admin page".
+- **Tests:** notify.test (+7, drift), review.test (+5), QuestionReviewPage.test
+  (+6), GrownUpsArea.test (+3), familyStore.test (+3), `question_admin.test.sql`
+  (the admin check fails its test when removed); the harness 99/99 (alerts on
+  all three channels, no alert when still shown, a refusing channel, the
+  digest's secret and contents). 1414 green; lint, build, `deno check` clean;
+  eleven SQL tests and the bundle twice on Postgres 16. Looked at in headless
+  Chromium at 375 and 1024 px: no sideways scroll, no errors.
 
 ### 2026-10-16 — Checked once, and again on a report: Haiku, then Opus (#146)
 The owner's follow-up on PR #71: existing questions checked once, new ones on
