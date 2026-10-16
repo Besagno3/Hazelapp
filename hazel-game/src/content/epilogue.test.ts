@@ -27,10 +27,17 @@ function peopleAfterTheName(): string[] {
   return [...ids].sort();
 }
 
-/** A line that plays every time once her name is said: `umbra-named` among its flags, never one-shot. */
+/**
+ * A line that plays every time once her name is said: `ifFlag: UMBRA_NAMED` alone — or, for the dog
+ * only, with the name the hero chose. Never one-shot, never waiting on a quest a player may skip.
+ */
 const afterName = (l: DialogueLine) =>
   saysAfterName(l) ||
-  (typeof l !== 'string' && !l.unlessFlag && !l.setFlag && [l.ifFlag].flat().includes(UMBRA_NAMED));
+  (typeof l !== 'string' &&
+    !l.unlessFlag &&
+    !l.setFlag &&
+    [l.ifFlag].flat().includes(UMBRA_NAMED) &&
+    [l.ifFlag].flat().every((f) => f === UMBRA_NAMED || DOG_NAMES.includes(f!)));
 
 describe('the epilogue (#75 item 16f)', () => {
   it('every named person has a line once her name is said', () => {

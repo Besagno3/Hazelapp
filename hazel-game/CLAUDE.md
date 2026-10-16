@@ -955,6 +955,11 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16f code review round 4: a guard with no side doors (#75 item 16f, #156k)
+The last round's code review found nothing real; its nit fixed: the epilogue
+guard accepts extra flags on a closing line only for the dog's name. 1567
+green; `bench … journey` 13/13, `bench … fly` 20/20.
+
 ### 2026-10-16 — 16f UX review round 4: the last lows (#75 item 16f, #156j)
 The last round's UX review (no high or medium; 7 low, 8 nits), all fixed:
 14 closing lines reworded so none repeats, contradicts or sells what isn't
