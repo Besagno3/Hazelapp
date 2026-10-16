@@ -5,6 +5,7 @@ import {
   migrateLegacy,
   pushLibrary,
   restAtHomeInn,
+  revisionOf,
   runMigrations,
   saveIsTooNew,
   wakeAfterDefeat,
@@ -182,6 +183,36 @@ describe('normalizeSave', () => {
     expect(normalizeSave(null)).toEqual(defaultSave());
     expect(normalizeSave('garbage')).toEqual(defaultSave());
     expect(normalizeSave(42)).toEqual(defaultSave());
+  });
+
+  it('keeps a save\'s revision; one from before revisions (or a junk one) is 0 (#151)', () => {
+    expect(defaultSave().revision).toBe(0);
+    expect(normalizeSave({ version: SAVE_VERSION, revision: 42 }).revision).toBe(42);
+    expect(normalizeSave({ version: SAVE_VERSION, revision: 0 }).revision).toBe(0);
+    expect(normalizeSave({ version: SAVE_VERSION }).revision).toBe(0);
+    for (const junk of ['7', -1, 2.5, NaN, Infinity, 1e15, null, {}]) {
+      expect(normalizeSave({ version: SAVE_VERSION, revision: junk }).revision, String(junk)).toBe(0);
+    }
+    // Every older shape comes up the ladder at revision 0, and the revision rides through the steps.
+    for (const raw of [V1, V2_FIRST_BUILD, V2_PRE_ITEM10, V2_PRE_14A, CURRENT_ABOARD, FINALE_NOT_ACT2, V3_FLYING]) {
+      expect(normalizeSave(raw).revision).toBe(0);
+    }
+    expect(normalizeSave({ ...V1, revision: 5 }).revision).toBe(5);
+    // A revision never makes a save "too new": that's the version's job.
+    expect(saveIsTooNew({ version: SAVE_VERSION, revision: 999 })).toBe(false);
+  });
+
+  it('revisionOf reads a revision the way migration 0020 does: a whole number of at most 15 digits', () => {
+    expect(revisionOf({ revision: 0 })).toBe(0);
+    expect(revisionOf({ revision: 12 })).toBe(12);
+    expect(revisionOf({ revision: 999_999_999_999_999 })).toBe(999_999_999_999_999);
+    expect(revisionOf({ revision: 1e15 })).toBeNull(); // 16 digits
+    expect(revisionOf({ revision: '12' })).toBeNull();
+    expect(revisionOf({ revision: -1 })).toBeNull();
+    expect(revisionOf({ revision: 1.5 })).toBeNull();
+    expect(revisionOf({})).toBeNull();
+    expect(revisionOf(null)).toBeNull();
+    expect(revisionOf('x')).toBeNull();
   });
 
   it('the defend timer is on by default; only an explicit false turns it off', () => {
