@@ -8,6 +8,19 @@
     <meta name="description" content="A free adventure game for kids aged 7 to 11. Every attack, spell and shield is powered by answering a question." />
     <meta name="theme-color" content="#6ab8ff" />
     <meta name="hq:play-url" content="/play/" />
+    <script>
+      // Links meant for the game can still arrive here at `/`: Supabase's
+      // emails (a confirmed sign-up, a password reset) go to the project's Site
+      // URL, and review alerts open `?review`. The game lives at the play URL
+      // (#146), so pass them on, address and all.
+      (function () {
+        var play = document.querySelector('meta[name="hq:play-url"]').content;
+        if (play.charAt(0) === '#') return;
+        var forGame = /[#&](access_token|refresh_token|error|error_code|error_description)=/.test(location.hash) ||
+          /[?&](code|token_hash|error|error_description|review)(=|&|$)/.test(location.search);
+        if (forGame) location.replace(play + location.search + location.hash);
+      })();
+    </script>
     <meta property="og:title" content="Hazel Quest" />
     <meta property="og:description" content="A free adventure game for kids aged 7 to 11. Every attack is a question." />
     <meta property="og:image" content="assets/img/og.png" />

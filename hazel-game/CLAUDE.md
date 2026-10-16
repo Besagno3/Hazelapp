@@ -603,7 +603,7 @@ zod, react-query. Add the package in the same change that first uses it.
   `db:bundle` refuses to build if rules 2–3 are broken; CI applies the bundle
   twice and runs the SQL tests.
 - **CI** (`.github/workflows/ci.yml`, #81 + #88): job `test` = lint + bundle
-  check + tests + build; `edge-function` = `deno check`
+  check + tests + `build:web` (what Vercel serves, #146); `edge-function` = `deno check`
   of the edge function and the bank recheck script; `migrations` applies every migration to a plain
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
   `supabase/ci/*.test.sql`. A new migration must apply cleanly there; put
@@ -779,7 +779,8 @@ zod, react-query. Add the package in the same change that first uses it.
 ```bash
 npm install      # install deps (node_modules is gitignored)
 npm run dev      # Vite dev server
-npm run build    # tsc -b && vite build
+npm run build    # tsc -b && vite build (the game alone)
+npm run build:web # what Vercel serves: the public pages (site/) at /, the game at /play/ — scripts/build-web.mjs (#146)
 npm run lint     # eslint
 npm test         # Vitest suite (test:watch / test:ui also available)
 
@@ -898,6 +899,12 @@ check to go green (fix and push on red), then merge.
   only if its branch has an open, non-draft PR. Marking ready doesn't push, so
   the first preview builds on the next push. Uses `GITHUB_PR_READ_TOKEN`
   (Vercel, Preview env); any lookup failure fails open (builds).
+- **What Vercel builds** (#146): `vercel.json` → `buildCommand` `npm run
+  build:web`, `outputDirectory` `dist`: the public pages (`site/`) at `/` and
+  the game at `/play/` (`/play` redirects there). The game is built with base
+  `/` and only its page moves, so its root paths (`/sprites/…`, `/assets/…`)
+  still work. A sign-in link or `?review` that lands on `/` is passed on to
+  `/play/` by a script at the top of `site/index.html`.
 - **`claude/**` branches never deploy on Vercel** (`vercel.json` →
   `git.deploymentEnabled`, #126): Vercel Hobby allows 100 deployments a day,
   and an ignored build still counts as a (cancelled) deployment, so the many
@@ -929,6 +936,39 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — The public pages go live at `/`, the game moves to `/play/` (#146i)
+The owner's go-ahead on #146 (b), in a draft PR.
+- **`npm run build:web`** (`scripts/build-web.mjs`): builds the game as
+  before (base `/`), moves its `index.html` to `dist/play/`, then builds
+  `site/` into `dist/` beside it (its pages, its bundle in `assets/`, the
+  game's `public/` files at the root, where both the pages and the game ask
+  for them). It fails if any of the three pages is missing.
+- **Vercel** (`vercel.json`): `buildCommand` `npm run build:web`,
+  `outputDirectory` `dist`, and `/play` → `/play/`. **CI** runs `build:web`
+  in place of `build`, so it checks what's deployed.
+- **Links meant for the game that land on `/`** — Supabase's emails go to the
+  project's Site URL, review alerts open `?review` — are passed on to
+  `/play/` with their address by a script at the top of `site/index.html`
+  (tokens or an error in the hash; `?code`, `?token_hash`, `?error`,
+  `?review`). The pages' own anchors (`#contact`) stay. So nothing breaks
+  before the owner adds `/play/` to Supabase's Redirect URLs.
+- No game code changes: the game's paths are all absolute, its sign-up and
+  reset links use the page's own address (`/play/`), and `?signup` already
+  pointed there.
+- **Checked** (the build served by a plain static server, Supabase stubbed,
+  headless Chromium): `/` shows the kids' page with every sprite and no
+  errors; Play free opens Sign in at `/play/`; the grown-ups sign-up button
+  opens the sign-up form (and drops `?signup`); `/play` opens the game at
+  `/play/` with no failed requests; the game's sprites, tiles, backdrops,
+  music and favicon load from the root; a reset link, an expired-link error,
+  `?code` and `?review` at `/` land on `/play/` with the same address; `#contact`,
+  `/grown-ups.html#contact` and `?utm_source` stay. Lint, tests and build
+  clean.
+- ⚠️ Owner: add `https://<your site>/play/` to Supabase → Authentication →
+  URL Configuration → Redirect URLs (reset links then go straight to the
+  game). Families' bookmarks of the old address now open the public page,
+  one tap from the game; saves and sign-ins are untouched (same site).
 
 ### 2026-10-16 — Merge main (public pages #66, question safety #71, save revisions #70, family budget #67) and the Spire branch (#68) into the starter-questions branch (#153)
 #153 sits above #152, TC-1336–1400 don't collide. One code conflict, the

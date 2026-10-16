@@ -54,16 +54,17 @@ updating `CLAUDE.md`, `docs/ISSUES.md`, and `docs/TEST-CASES.md` (see
 | Command | What it does |
 |---|---|
 | `npm run dev` | Vite dev server with HMR |
-| `npm run build` | Typecheck (`tsc -b`) + production build to `dist/` |
+| `npm run build` | Typecheck (`tsc -b`) + production build of the game to `dist/` |
+| `npm run build:web` | What Vercel serves: the public pages at `/` and the game at `/play/`, in `dist/` (`scripts/build-web.mjs`) |
 | `npm run preview` | Serve the production build locally |
 | `npm run lint` | ESLint |
 | `npm test` | Run the Vitest suite once |
 | `npm run test:watch` / `test:ui` | Watch mode / browser UI for tests |
 
 CI (`.github/workflows/ci.yml`) runs on every push to `main` and every pull
-request: lint + tests + build, a Deno type-check of the edge function, and a
-job that applies every migration to a fresh Postgres and runs
-`supabase/ci/*.test.sql`. Run `npm run lint && npm test && npm run build`
+request: lint + tests + `build:web`, a Deno type-check of the edge function,
+and a job that applies every migration to a fresh Postgres and runs
+`supabase/ci/*.test.sql`. Run `npm run lint && npm test && npm run build:web`
 locally before pushing.
 
 ## Supabase setup
@@ -93,9 +94,12 @@ locally before pushing.
    players are served from the saved question bank). Optional secrets tune
    the limits: `QUESTION_RATE_PER_MINUTE` (default 20),
    `FRESH_PER_PLAYER_PER_DAY` (200), `FRESH_GLOBAL_PER_DAY` (5000).
-4. **Password reset:** in Authentication → URL Configuration, add your site
-   URL (and `http://localhost:5173` for dev) to **Redirect URLs** so reset
-   emails can link back to the game.
+4. **Password reset:** in Authentication → URL Configuration, add the game's
+   address — your site's `/play/`, e.g. `https://<your site>/play/` — (and
+   `http://localhost:5173` for dev) to **Redirect URLs** so reset emails link
+   straight back to the game. The **Site URL** can stay your site's root: a
+   sign-in link that lands there (an email confirmation, a reset link whose
+   address isn't on the list) is passed on to `/play/` by the public page.
 
 The `questions` table is a shared, growing question bank. Every generated
 question is cached and reused across players (with per-player dedupe), so
