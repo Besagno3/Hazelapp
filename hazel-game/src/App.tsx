@@ -75,7 +75,8 @@ export default function App() {
             : 'topics',
   );
   const isBoss = useBattleStore((s) => s.enemy?.isBoss ?? false);
-  const inSpire = useFlow((s) => s.matches({ world: 'spire' }));
+  // The Spire's climb and Umbra's finale (#75 item 16e) drive their own music.
+  const inSpire = useFlow((s) => s.matches({ world: 'spire' }) || (s.matches({ world: 'service' }) && s.context.service === 'name'));
   const zoneKind = useSaveStore((s) => zone(s.save?.zoneId ?? HUB_ZONE).kind);
   const sea = useSeaArea();
 

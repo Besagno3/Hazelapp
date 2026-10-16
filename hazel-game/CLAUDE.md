@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
@@ -408,6 +408,12 @@ zod, react-query. Add the package in the same change that first uses it.
   B6, Umbra's taunt once a floor (`DESCENT_TAUNTS`), Glimmer's Nook on B1 and
   Glim's Nook on B4 (a defeat on B1–B3 / B4–B7 wakes you there), the Root's Heart at the bottom
   (`root-heart-reached`); the 🚩's `boss` goal kind.
+  **The Name** (#75 item 16e): Umbra Remembered steps out of the Root's
+  Heart (role `finale` → service `name`, `NameFinale`): the Spire's question
+  gauntlet (`lib/gauntlet.ts`, `Candles`) of five topics, then "What was my
+  name?" — "Aster" sets `umbra-named` (`namePanels`, `POST_CREDITS_PANELS`;
+  its XP waits in `finaleStore` until they end); Sage Aster stands in the
+  Hall of Names after (the 🚩's "Visit Sage Aster").
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -821,6 +827,7 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+python3 tools/assets/build.py name      # the Name: the gold Root's Heart, Sage Aster and Umbra Remembered's soft sprite only (#75 item 16e)
 python3 tools/assets/build.py descent   # the Deep Root: seven floors' tiles, critters, the echoes, the Root's Heart (#75 item 16d)
 python3 tools/assets/build.py garden    # Aster's Garden + the Nameless Hall: two zones' tiles, critters, the Gardener, plaques, the deep root (#75 item 16c)
 python3 tools/assets/build.py lumina    # Lumina-That-Was: three zones' tiles, the school sheet, its critters and people (#75 item 16b)
@@ -942,6 +949,78 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Merge the 16d branch (with main) into the 16e branch (#155)
+16d merged `main` (public pages, safer questions, the fairer Spire, saves, the
+family budget, starter questions), so 16e moved **#147 → #155** and its test
+cases **TC-1278–1295 → TC-1432–1449**. `SpireOverlay` keeps 16e's shared
+`loadGauntlet` and `Candles`, with main's fall-aware level (`spireQuestionLevel`)
+and candle count (`candleMax`); the Name finale, like the Spire, pays no XP for
+a starter question (`isStarterId`, #153).
+
+### 2026-10-16 — 16e UX review round 4: eyes that close, Enter that opens (#75 item 16e, #155o)
+The last round's UX review (1 medium, 5 low, 6 nits), all fixed but one kept
+(Tab leaving a modal, shared and older): the shadow's eyes close on a blink
+instead of vanishing; "🌑 Answer Umbra" focused; softer words; the 🚩 says
+five questions, then one; names that don't jump; props say "OK". 1405 green.
+
+### 2026-10-16 — 16e code review round 4: the throne's topics vary again (#75 item 16e, #155n)
+The last round's code review (1 medium, 1 low, 8 nits), all fixed: the extra
+questions go to random topics (the Spire's throne always skipped space and
+history after round 3); the Lesson Bell's ending line waits for its quest;
+stale comments and test cases. 1405 green.
+
+### 2026-10-16 — 16e review round 3: a fair five, a world that remembers (#75 item 16e, #155l–m)
+Fresh code (2 medium, 3 low, 4 nits) and UX (2 medium, 6 low, 4 nits)
+reviews, all fixed: the "climb out" route only when it climbs past the Spire
+(it sent the Door's way round), `loadGauntlet` fair to every topic, the panels'
+end saved at once; lines that contradicted the ending change with
+`umbra-named` (the deepest root, plaques, Posy, the Gardener, the Bell,
+Fable), Wick's letter, Lumina-That-Was's whereabouts, no Leave on "Aster…".
+1404 green.
+
+### 2026-10-16 — 16e UX review round 2: Return home, an empty Heart (#75 item 16e, #155k)
+Fresh UX review (2 medium, 5 low, 7 nits), all fixed but two kept (the pixel
+font's apostrophe, the shared report button): the way up out of the
+underground is one line or Return; the Heart empty once its shadow is out
+(`faceNow`: faces in turn); the shadow beside it; panel 1 follows on; focus
+to Stand firm; copy. 1402 green.
+
+### 2026-10-16 — 16e code review round 2: the reward survives a reload (#75 item 16e, #155j)
+Fresh code review (1 medium, 5 low, 4 nits), all fixed: a reload between
+"Aster" and the panels' end lost the 600 XP — the panels' end pays it from
+the save (`name-xp-paid`); one "his" left; guards and focus; a spare question
+a topic in `loadGauntlet`; stale test cases. 1402 green.
+
+### 2026-10-16 — 16e UX review round 1: a gentle shadow, candles that come back (#75 item 16e, #155i)
+Fresh UX review (1 high, 6 medium, 10 low, 5 nits), all fixed but one kept
+(16d saves miss "steps out of the glow"): "the shadow" / "it"; a soft hooded
+sprite; no portrait while asking; XP after the panels; gentle music at the
+name; candles that come back instead of a walk from B4; "Visit Sage Aster";
+an empty gold Heart with a daisy; 44 px buttons. 1401 green.
+
+### 2026-10-16 — 16e code review round 1: a button with a name (#75 item 16e, #155h)
+Fresh code review (1 high, 4 low, 6 nits), all fixed but one kept (XP per
+answer, as in the Spire): Umbra's service button had no label — every
+service's button now comes from one `Record`; the nook at once when the last
+candle goes out; a double-tap guard; no name focused; tidy-ups. 1400 green.
+
+### 2026-10-16 — The Name: Umbra Remembered at the Root's Heart (#75 item 16e, #155)
+Roadmap sub-item 16e (branch stacked on 16d's).
+- **Umbra Remembered** steps out of the Root's Heart once it's reached (role
+  `finale` → service `name`, `NameFinale`): five questions from five topics at
+  the hero's level +2, three candles (a miss snuffs one; the last sends you up
+  to Glim's Nook, healed), then "What was my name?" — a wrong name costs
+  nothing, "Aster" sets `umbra-named` and pays 600 XP once.
+- **The Spire's gauntlet, shared:** `lib/gauntlet.ts` (`loadGauntlet`,
+  `candleLine`, `shuffle`) and `components/Candles.tsx`; `SpireOverlay` uses them.
+- **`namePanels(heroName)`** (6) and the post-credits (3), `name-seen`.
+- **After:** a gold Heart, Sage Aster in the Hall of Names, Mnem, Aurora and
+  Sprout notice; the 🚩's "Say her name to Umbra", then Explore; Lumen's plan
+  and tip.
+- **Art:** `python3 tools/assets/build.py name`.
+- **Tests:** +14 (finale, gauntlet, NameFinale, WorldScreen.ending, dungeons,
+  wayfinding, journey); 1399 green, lint and tsc clean.
 
 ### 2026-10-16 — Merge main (public pages, safer questions, the fairer Spire, saves, family budget, starter questions) into the 16d branch (#154)
 `main` took ISSUES **#146–#153** and TC-1254–1407 while 16d waited, so 16d

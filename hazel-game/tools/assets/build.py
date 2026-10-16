@@ -93,6 +93,8 @@ LUMINA_SPRITES = ('faded-echo', 'lost-sock-golem', 'misplaced-key', 'chalk-wisp'
 
 # The Deep Root (#75 item 16d), for `build.py descent`.
 DESCENT_SPRITES = ('echo-thicket-warden', 'echo-tide-colossus', 'echo-clockwork-titan', 'root-shellback', 'star-snail', 'hum-moth', 'tick-beetle', 'root-heart', 'root-glim', 'root-glimmer')
+# The Name (#75 item 16e): the gold Root's Heart, Sage Aster and Umbra Remembered's soft sprite.
+NAME_SPRITES = ('root-heart-gold', 'root-heart-empty', 'hall-aster', 'umbra-remembered')
 # Aster's Garden and the Nameless Hall (#75 item 16c), for `build.py garden`.
 GARDEN_SPRITES = ('thorn-of-doubt', 'wilt-sprite', 'bramblewhy', 'the-gardener', 'garden-sprout', 'hall-plaque', 'hall-plaque-daisy', 'hall-deep-root')
 
@@ -197,6 +199,11 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(DESCENT_SPRITES)))
         tiles.build_descent(PUBLIC)
         print('descent ✓')
+        return
+    if 'name' in only:
+        # Just the Name (#75 item 16e): the empty and gold Root's Hearts, Sage Aster and Umbra Remembered.
+        write_manifest(build_sprites.build(PUBLIC, only=set(NAME_SPRITES)))
+        print('name ✓')
         return
     if 'garden' in only:
         # Just Aster's Garden and the Nameless Hall (#75 item 16c): tiles, critters, the Gardener and the Hall's things.

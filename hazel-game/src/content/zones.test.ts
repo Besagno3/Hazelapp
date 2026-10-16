@@ -466,8 +466,8 @@ describe('every place is unique (#73)', () => {
 
   it('every merchant, sage, innkeeper and librarian works inside a building', () => {
     for (const { z, p, def } of placed) {
-      // Shrine keepers (#75 item 9) keep their open-air shrine.
-      if (def.role === 'villager' || def.role === 'keeper') continue;
+      // Shrine keepers (#75 item 9) keep their open-air shrine; Umbra stands at the Root's Heart (#75 item 16e).
+      if (def.role === 'villager' || def.role === 'keeper' || def.role === 'finale') continue;
       expect(buildingInside(z, p.x, p.y), `${def.id} in ${z.id}`).not.toBeNull();
     }
   });

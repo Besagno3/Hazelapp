@@ -8,6 +8,7 @@ import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { ZONES, innOf } from '../../content/zones';
 import ShrineTrial from './ShrineTrial';
+import NameFinale from './NameFinale';
 import { shuffleAnswers } from '../../lib/questions';
 import { isStarterId } from '../../content/starterQuestions';
 import { useSaveStore } from '../../store/saveStore';
@@ -30,6 +31,7 @@ const SERVICE_LABEL: Record<ServiceType, string> = {
   library: 'Library',
   sage: 'Sage',
   trial: 'Shrine trial',
+  name: 'Umbra',
 };
 
 export default function ServiceOverlay({
@@ -51,12 +53,9 @@ export default function ServiceOverlay({
         {service === 'library' && <Library />}
         {service === 'sage' && <Sage npcId={npcId} />}
         {service === 'trial' && <ShrineTrial npcId={npcId} />}
-        <button
-          onClick={() => sendFlow({ type: 'CLOSE' })}
-          className="mt-5 w-full bg-white/15 hover:bg-white/25 font-semibold rounded-lg py-2 text-sm"
-        >
-          Leave
-        </button>
+        {service === 'name' && <NameFinale />}
+        {/* The finale draws its own Leave — none on the "Aster…" card (16e review round 3). */}
+        {service !== 'name' && <LeaveButton />}
       </motion.div>
     </ModalLayer>
   );
@@ -284,5 +283,17 @@ function Sage({ npcId }: { npcId: string | null }) {
         </p>
       )}
     </div>
+  );
+}
+
+/** A service's way out. */
+export function LeaveButton() {
+  return (
+    <button
+      onClick={() => sendFlow({ type: 'CLOSE' })}
+      className="mt-5 w-full min-h-11 bg-white/15 hover:bg-white/25 font-semibold rounded-lg py-2 text-sm"
+    >
+      Leave
+    </button>
   );
 }

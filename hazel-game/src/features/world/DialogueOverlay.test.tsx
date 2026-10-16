@@ -169,6 +169,18 @@ describe("a tale-stone's riddle (#75 item 15e)", () => {
   });
 });
 
+describe("Umbra Remembered (#75 item 16e)", () => {
+  it('his last line offers 🌑 Answer Umbra, which opens the finale', () => {
+    withFlags({ 'root-heart-reached': true, 'name-learned': true, 'met-umbra-remembered': true });
+    render(<DialogueOverlay npcId="umbra-remembered" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    // Focused, so Enter through the talk opens the finale rather than closing it (16e review round 4).
+    expect(screen.getByRole('button', { name: '🌑 Answer Umbra' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: '🌑 Answer Umbra' }));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_SERVICE', service: 'name', npcId: 'umbra-remembered' });
+  });
+});
+
 describe("a step through a service NPC (#75 item 15f: Shush's letter to Librarian Sage)", () => {
   it('pressing 📚 Library on the last line still hands the letter over and takes the reply', () => {
     useSaveStore.setState({

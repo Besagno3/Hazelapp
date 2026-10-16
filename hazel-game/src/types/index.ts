@@ -149,7 +149,8 @@ export interface BattleEnemy extends NPC {
 }
 
 /** Town/zone services opened by talking to the matching NPC (`trial`: a shrine keeper's, #75 item 9). */
-export type ServiceType = 'inn' | 'shop' | 'library' | 'sage' | 'trial';
+/** `name`: Umbra Remembered's finale at the Root's Heart (#75 item 16e, `NameFinale`). */
+export type ServiceType = 'inn' | 'shop' | 'library' | 'sage' | 'trial' | 'name';
 
 /** A question-locked obstacle on the path: a gate or a treasure chest. */
 export interface PathTarget {

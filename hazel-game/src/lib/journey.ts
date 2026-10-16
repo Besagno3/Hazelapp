@@ -294,7 +294,7 @@ export function actThreeJourney(): Leg[] {
  * Root Door (only once Act IV's panels have lifted their fog), Wisp, each of
  * the five memories, and back to Wisp; then Aster's Key in her garden (#75
  * item 16c), the Nameless Hall's great door, and down the Deep Root past its
- * three echoes to the Root's Heart (16d).
+ * three echoes to the Root's Heart (16d), then her name and Sage Aster (16e).
  */
 export function actFourJourney(): Leg[] {
   let flags: Record<string, boolean> = {};

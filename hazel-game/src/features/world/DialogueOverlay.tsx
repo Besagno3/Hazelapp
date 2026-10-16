@@ -10,6 +10,7 @@ import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
 import ModalLayer from '../../components/ModalLayer';
+import type { ServiceType } from '../../types';
 
 /**
  * Classic JRPG text box (#37) — one line at a time, player-paced. Quest
@@ -20,6 +21,16 @@ import ModalLayer from '../../components/ModalLayer';
  * story flags as they're read. Guides and signposts add the way to the next
  * goal (lib/wayfinding.ts).
  */
+/** Each service's button (a `Record`, so a new service can't get a blank one — 16e code review). */
+const SERVICE_BUTTON: Record<ServiceType, string> = {
+  shop: '🛒 Shop',
+  inn: '🛏️ Rest',
+  library: '📚 Library',
+  sage: '✨ Learn',
+  trial: '🕯️ Take the trial',
+  name: '🌑 Answer Umbra',
+};
+
 export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const update = useSaveStore((s) => s.update);
   const setFlag = useSaveStore((s) => s.setFlag);
@@ -168,20 +179,18 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
         <div ref={rowRef} className="flex flex-wrap justify-end gap-3 mt-3">
           {offerService && (
             <button
+              // Umbra's finale is focused (16e review round 4): Enter through the talk mustn't close the climax.
+              autoFocus={service === 'name'}
               onClick={openService}
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
-              {service === 'shop' && '🛒 Shop'}
-              {service === 'inn' && '🛏️ Rest'}
-              {service === 'library' && '📚 Library'}
-              {service === 'sage' && '✨ Learn'}
-              {service === 'trial' && (trialPassed ? `${taught?.emoji} How to cast` : '🕯️ Take the trial')}
+              {service === 'trial' && trialPassed ? `${taught?.emoji} How to cast` : SERVICE_BUTTON[service]}
             </button>
           )}
           {isLast && fetchOffer && !fetched && (
             <button
               onClick={rowHome}
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
               ⛵ Row her home
             </button>
@@ -209,7 +218,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {picked !== null && (
             <button
               onClick={() => sendFlow({ type: 'CLOSE' })}
-              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
               🎉 Thanks!
             </button>
@@ -219,7 +228,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           <button
             autoFocus
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
-            className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+            className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"
           >
             {!isLast
               ? '▼ Next'
@@ -231,13 +240,15 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
                     ? '✨ Got it!'
                     : quest?.finishKind === 'riddle'
                       ? riddleWords(quest.riddle ?? '').button
-                      : 'Bye!'}
+                      : npc.prop
+                        ? 'OK'
+                        : 'Bye!'}
           </button>
           )}
           {isLast && quest?.finishKind === 'riddle' && (
             <button
               onClick={advance}
-              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
               Later
             </button>

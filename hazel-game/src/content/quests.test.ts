@@ -862,7 +862,7 @@ describe("A Letter, Long Overdue (#75 item 14h)", () => {
     // Wick reads it — her own handwriting, to a teacher whose name she's forgotten — and sends a note back.
     const wick = questConversation('village-elder', save)!;
     expect(wick.finishKind).toBe('step');
-    expect(wick.lines.join(' ')).toMatch(/MY handwriting.*teacher.*can't even remember her name/);
+    expect(wick.lines.join(' ')).toMatch(/MY handwriting.*teacher.*couldn't even remember her name/);
     save = wick.finish!(save);
     expect(save.questItems).toEqual(['wick-note']);
     expect(activeStep(quest, save)).toBeNull();

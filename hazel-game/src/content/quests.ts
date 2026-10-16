@@ -1966,7 +1966,8 @@ export const QUESTS: QuestDef[] = [
         { takes: 'old-letter', gives: 'wick-note' },
         [
           'A letter… for me? Oh, my spark. This is MY handwriting. I wrote it when I was just your age — to my teacher.',
-          "I never sent it. And now I can't even remember her name. Isn't that strange? …Thank you for bringing it home.",
+          // True before and after the name is found (16e review round 3).
+          "I never sent it. For years I couldn't even remember her name — isn't that strange? …Thank you for bringing it home.",
           'Here — a note for whoever found it. Tell them an old lady says thank you.',
         ],
         'Carry the old letter to Grandmother Wick, at her house in Lumina Village — sail west to Dawnreach!',

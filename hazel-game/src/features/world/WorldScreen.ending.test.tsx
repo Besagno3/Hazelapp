@@ -394,4 +394,60 @@ describe('the Nameless Hall (#75 item 16c)', () => {
     render(<WorldScreen />);
     expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
   });
+
+  it('the Name (#75 item 16e): her name said, then the post-credits — once', async () => {
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: {
+        ...defaultSave(),
+        avatarId: 'a3',
+        zoneId: 'deep-root-7',
+        flags: { ...umbraBeaten(), [story.SPIRE_VICTORY_SEEN]: true, [story.ACT2_SEEN]: true, [story.descentSeenFlag('deep-root-7')]: true, 'umbra-named': true },
+      },
+      flush: vi.fn(async () => {}),
+    });
+    const { unmount } = render(<WorldScreen />);
+    expect(screen.getByText(/You say it once more, gently/)).toBeInTheDocument();
+    // Six panels of the name, then three of the post-credits (the words are checked in finale.test).
+    // What the finale earned is paid as the story ends — never over it (16e review round 1).
+    const { useFinaleStore } = await import('../../store/finaleStore');
+    const { useProfileStore } = await import('../../store/profileStore');
+    const addXp = vi.fn(async () => {});
+    useProfileStore.setState({ addXp } as never);
+    useFinaleStore.getState().owe(640);
+    readOn(story.namePanels('').length + story.POST_CREDITS_PANELS.length - 1);
+    expect(addXp).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '🌼 Thank you, Aster' }));
+    expect(useSaveStore.getState().save!.flags[story.NAME_SEEN]).toBe(true);
+    expect(addXp).toHaveBeenCalledWith(640);
+    expect(useFinaleStore.getState().pendingXp).toBe(0);
+    expect(useSaveStore.getState().save!.flags['name-xp-paid']).toBe(true);
+    unmount();
+    render(<WorldScreen />);
+    expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
+  });
+
+  it('a reload mid-panels still pays the reward — from the save, once (16e code review round 2)', async () => {
+    const { useFinaleStore } = await import('../../store/finaleStore');
+    const { useProfileStore } = await import('../../store/profileStore');
+    const { NAME_CLEAR_XP } = await import('../../content/finale');
+    const addXp = vi.fn(async () => {});
+    useProfileStore.setState({ addXp } as never);
+    useFinaleStore.getState().reset(); // the session's store is empty after a reload
+    const flags = { ...umbraBeaten(), [story.SPIRE_VICTORY_SEEN]: true, [story.ACT2_SEEN]: true, [story.descentSeenFlag('deep-root-7')]: true, 'umbra-named': true };
+    useSaveStore.setState({ userId: null, status: 'ready', save: { ...defaultSave(), avatarId: 'a3', zoneId: 'deep-root-7', flags }, flush: vi.fn(async () => {}) });
+    render(<WorldScreen />);
+    readOn(story.namePanels('').length + story.POST_CREDITS_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🌼 Thank you, Aster' }));
+    expect(addXp).toHaveBeenCalledWith(NAME_CLEAR_XP);
+    // Paid already (the flag's in the save): a replay of the panels pays nothing.
+    cleanup();
+    addXp.mockClear();
+    useSaveStore.setState({ save: { ...useSaveStore.getState().save!, flags: { ...useSaveStore.getState().save!.flags, [story.NAME_SEEN]: false } } });
+    render(<WorldScreen />);
+    readOn(story.namePanels('').length + story.POST_CREDITS_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🌼 Thank you, Aster' }));
+    expect(addXp).not.toHaveBeenCalled();
+  });
 });

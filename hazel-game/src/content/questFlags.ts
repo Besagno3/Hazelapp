@@ -130,3 +130,17 @@ export const GARDEN_QUEST = 'garden-water';
 export const HALL_ROOT_SEEN = 'hall-root-seen';
 /** Set when the hero reaches the Root's Heart, at the bottom of the Deep Root (#75 item 16d). */
 export const ROOT_HEART_REACHED = 'root-heart-reached';
+/**
+ * Set when the hero says the first Sage's name to Umbra at the Root's Heart
+ * (#75 item 16e) — the true ending. `name-learned` only says the hero knows it.
+ */
+export const UMBRA_NAMED = 'umbra-named';
+/** Set when the hero first talks to Sage Aster in the Hall of Names (#75 item 16e). */
+export const MET_HALL_ASTER = 'met-hall-aster';
+/** Set when the hero first meets Umbra Remembered at the Root's Heart (#75 item 16e). */
+export const MET_UMBRA_REMEMBERED = 'met-umbra-remembered';
+/**
+ * Set once the finale's reward is paid, as the name panels end (16e code review
+ * round 2): a reload mid-panels still pays it, from the save, not memory.
+ */
+export const NAME_XP_PAID = 'name-xp-paid';

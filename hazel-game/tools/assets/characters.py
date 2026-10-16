@@ -4248,11 +4248,12 @@ def root_heart(c: Canvas, p: Pose, s: dict):
     heart(1.08 + beat * 0.06, dark(hexc(glow), 0.3))
     heart(0.9 + beat * 0.06, glow)
     heart(0.5, light(hexc(glow), 0.45))
-    # A small someone curled up asleep in the glow: a round head, a curled body, a daisy.
-    G.ellipse(17, 19, 3.4, 2.2, '#5a3a6a', shade=False)
-    G.ellipse(13.8, 17.6, 1.8, 1.7, '#5a3a6a', shade=False)
-    G.dot(13.2, 15.6, '#ffffff')
-    G.dot(13.2, 15.6 - 1, '#fff2b0')
+    if not s.get('empty'):
+        # A small someone curled up asleep in the glow: a round head, a curled body, a daisy.
+        G.ellipse(17, 19, 3.4, 2.2, '#5a3a6a', shade=False)
+        G.ellipse(13.8, 17.6, 1.8, 1.7, '#5a3a6a', shade=False)
+        G.dot(13.2, 15.6, '#ffffff')
+        G.dot(13.2, 15.6 - 1, '#fff2b0')
     d.put(G, outline=False)
     R = d.part(0, 0)
     # Roots wrapping round the glow from the floor, meeting at the top like a heart.
@@ -4263,8 +4264,49 @@ def root_heart(c: Canvas, p: Pose, s: dict):
         R.line(16 + side * 10, 25, 16 + side * 14.4, 29, dark(bark, 0.1), w=1.6)  # a root into the floor
     R.line(16, 11, 16, 5, bark, w=2.4)  # the root it all hangs from, going up
     d.put(R)
+    if s.get('daisy'):
+        # After the name (16e review): the glow is empty, and a daisy lies at its foot.
+        F = d.part(0, 0)
+        for dx, dy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
+            F.ellipse(9 + dx, 27 + dy, 1.2, 1.2, '#ffffff', shade=False)
+        F.ellipse(9, 27, 1.1, 1.1, '#f0b020', shade=False)
+        d.put(F, outline=False)
     finish(c, d, shadow=(16, 30.2, 9, 1.2))
 
+
+def umbra_shadow(c: Canvas, p: Pose, s: dict):
+    """Umbra Remembered (#75 item 16e review round 1): not the Spire's armoured
+    knight but a tired, hunched shadow in a soft hood — no sword, no helm, two
+    round lavender eyes, a wisp of golden hair and a daisy peeking out. Aster
+    is still in there."""
+    d = D(c, p)
+    back = p.facing == 'up'
+    body = (58, 40, 84)
+    rim = (96, 70, 128)
+    sway = (p.frame % 2) * 0.6
+    C = d.part(0, d.bob)
+    # A long soft cloak, wide at the floor, hunched at the shoulders.
+    C.poly([(10, 12), (22, 12), (27 + sway, 30), (5 - sway, 30)], body)
+    C.poly([(9.4, 22), (22.6, 22), (25, 30), (7, 30)], dark(body, 0.12))
+    if not back:
+        C.ellipse(16, 21, 3.2, 1.6, rim, shade=False)  # two hands, held together
+    d.put(C)
+    H = d.part(0, d.bob)
+    H.ellipse(16, 10, 7.2, 6.6, body)  # the hood
+    if not back:
+        H.ellipse(16, 10.6, 5.4, 4.8, (26, 18, 38), shade=False)  # the dark under it
+        H.line(11.2, 9, 10.2, 14.6, '#e0a030', w=1.2)  # a wisp of golden hair
+        if not p.blink:
+            H.ellipse(13.8, 10.4, 1.1, 1.2, '#d8c8ff', shade=False)
+            H.ellipse(18.2, 10.4, 1.1, 1.2, '#d8c8ff', shade=False)
+        else:  # closed, never gone — an empty hood looked eerie (16e review round 4)
+            H.line(12.8, 10.8, 14.8, 10.8, '#d8c8ff', w=0.7)
+            H.line(17.2, 10.8, 19.2, 10.8, '#d8c8ff', w=0.7)
+        for dx, dy in ((-0.9, 0), (0.9, 0), (0, -0.9), (0, 0.9)):
+            H.ellipse(21.4 + dx, 6 + dy, 0.7, 0.7, '#ffffff', shade=False)  # a daisy on the hood
+        H.ellipse(21.4, 6, 0.6, 0.6, '#ffd84a', shade=False)
+    d.put(H)
+    finish(c, d, shadow=(16, 30.5, 9, 1.5))
 
 def glowworm(c: Canvas, p: Pose, s: dict):
     """Glim the Glowworm (16d review round 3): a plump, segmented worm whose
@@ -4297,6 +4339,7 @@ def glowworm(c: Canvas, p: Pose, s: dict):
 
 DRAWERS = {
     'glowworm': glowworm,
+    'umbra_shadow': umbra_shadow,
     'root_heart': root_heart,
     'thorn_ball': thorn_ball,
     'wilt_flower': wilt_flower,
@@ -4767,6 +4810,11 @@ NPCS: list[Char] = [
     # Glim the Glowworm, who keeps a nook on B4 (16d review round 2).
     Char('root-glim', '🐛', 'glowworm', H(color='#9ac85a', glow_color='#ffe680')),
     Char('root-glimmer', '🐛', 'glowworm', H(color='#7ac8a8', glow_color='#c8f0ff')),
+    # The Name (#75 item 16e): the Root's Heart turned gold, and Aster herself — grown up, golden-haired, a daisy.
+    Char('root-heart-gold', '💛', 'root_heart', H(bark='#7a5a3a', glow='#ffd84a', empty=True, daisy=True), boss=True, giant=True),
+    Char('umbra-remembered', '🌑', 'umbra_shadow', boss=True, giant=True),
+    Char('root-heart-empty', '💜', 'root_heart', H(bark='#5a3a4a', glow='#d88aff', empty=True), boss=True, giant=True),
+    Char('hall-aster', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', flower_r=3.4, outfit='#fff4d0', trim='#f0c040', robe=True, cape='#f8d870', item='staff', item_color='#ffe680')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.
