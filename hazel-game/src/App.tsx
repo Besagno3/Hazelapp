@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useAuthInit } from './features/auth/useAuthInit';
 import { useAuthStore } from './store/authStore';
-import { useSaveStore } from './store/saveStore';
+import { useSaveStore, watchPageForSaves } from './store/saveStore';
 import { useBattleStore } from './store/battleStore';
 import { musicScreen, useScreenMusic } from './lib/audio';
 import { HUB_ZONE, zone } from './content/zones';
@@ -19,7 +19,7 @@ import SwitchPlayerButton from './features/auth/SwitchPlayerButton';
 import LevelBadge from './components/LevelBadge';
 import StreakBadge from './components/StreakBadge';
 import LevelUpModal from './components/LevelUpModal';
-import { ErrorScreen, LoadingScreen } from './components/StatusScreens';
+import { ErrorScreen, LoadingScreen, OutdatedScreen } from './components/StatusScreens';
 import TopicSelect from './features/quiz/TopicSelect';
 import QuizRound from './features/quiz/QuizRound';
 import AvatarSelect from './features/battle/AvatarSelect';
@@ -60,6 +60,7 @@ export default function App() {
   const family = useFamilyStore((s) => familyScreen(s));
   const familyError = useFamilyStore((s) => s.error);
   const saveStatus = useSaveStore((s) => s.status);
+  const outdatedReason = useSaveStore((s) => s.outdatedReason);
   const booting = useFlow((s) => s.matches('boot'));
   const screen = useFlow((s) =>
     s.matches('quiz')
@@ -83,6 +84,10 @@ export default function App() {
   // the menu turns it off).
   const playing = !!session && !passwordRecovery && family === 'play';
   useScreenMusic(musicScreen(initialized, playing, screen), isBoss, inSpire, zoneKind, sea);
+
+  // A hidden or closing tab saves to the server at once; a tab back in view, or
+  // another tab saving, checks it hasn't fallen behind (#151).
+  useEffect(() => watchPageForSaves(), []);
 
   // Wake the machine once auth + save have loaded (guards read the save).
   useEffect(() => {
@@ -121,17 +126,10 @@ export default function App() {
   if (family === 'kidSetup') return <KidSetupPage />;
   if (family === 'pick') return <WhoIsPlaying />;
 
-  // The save came from a newer version of the game (this tab is out of date).
+  // A newer save exists — from a newer version of the game, or played on in
+  // another tab or device (#151): this tab is out of date.
   if (saveStatus === 'outdated') {
-    return (
-      <ErrorScreen
-        emoji="✨"
-        title="Hazel Quest has been updated!"
-        message="Your adventure was saved by the new version. Refresh the page to keep playing — nothing is lost."
-        retryLabel="🔄 Refresh"
-        onRetry={() => window.location.reload()}
-      />
-    );
+    return <OutdatedScreen reason={outdatedReason} onRefresh={() => window.location.reload()} />;
   }
 
   if (saveStatus !== 'ready' || booting) {

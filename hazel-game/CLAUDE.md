@@ -195,13 +195,31 @@ zod, react-query. Add the package in the same change that first uses it.
   replaced the boat's `aboard`; sailing only afloat with a boat, flying only
   over an overworld map once Ember can fly). Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
-  `flush()` on save crystals / sign-out. Supabase errors degrade to
-  local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
-  the `MIGRATIONS` ladder — **`SAVE_VERSION` 3** since #75 item 15b). A save
-  from a *newer* version is never loaded or overwritten: loads check
-  `saveIsTooNew`, and the server refuses any write that lowers a save's
-  version (migration 0011's trigger → `save_version_conflict`, which `flush`
-  catches). Either way status goes `'outdated'` and `App` asks for a refresh.
+  `flush()` on save crystals / Switch player (it skips a copy the server
+  already has, `syncedRevision`); a tab that is hidden or closed pushes what's
+  left at once (`flushOnHide` on `visibilitychange` / `pagehide`, a
+  `keepalive` fetch, `lib/saveKeepalive.ts` — best effort on a closing page).
+  Supabase errors degrade to local-only play. Pure logic in `lib/save.ts`
+  (normalize / legacy migration / the `MIGRATIONS` ladder — **`SAVE_VERSION`
+  3** since #75 item 15b). **Which copy wins (#151):** every change adds one
+  to the save's `revision` (additive; none = 0, `revisionOf`); loading keeps
+  the higher of this device's copy and the server's (a tie, or neither with a
+  revision, goes to the server's) and pushes a newer local copy. The server
+  refuses a copy that isn't newer than the one it holds — a lower or missing
+  revision, or the same revision with other data (migration 0017, extending
+  0011's trigger; same error `save_version_conflict`, detail
+  `save_revision_conflict`). A refused tab stops (`'outdated'`,
+  `outdatedReason` `'elsewhere'`, "Your adventure moved on!") and marks its
+  local copy revision 0 so the refresh loads the server's; a tab also stops
+  when another tab on this browser saves a newer copy (`storage`) or the
+  server has one when it comes back into view (`checkForNewer`) —
+  `watchPageForSaves`, wired in `App`. Between two copies that both moved on,
+  the one with more changes wins. A save from a *newer* version is never
+  loaded or overwritten: loads check `saveIsTooNew` (both copies), and the
+  server refuses any write that lowers a save's version (migration 0011's
+  trigger → `save_version_conflict`, which `flush` catches). Either way status
+  goes `'outdated'` (`outdatedReason` `'update'`) and `App` asks for a refresh
+  (`OutdatedScreen`).
   Every v2+ save carries the `save:v2` flag (`SAVE_V2_FLAG`) so the v1 → v2
   step never moves a position twice.
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
@@ -803,6 +821,61 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Saves keep the newest progress: revisions, a server check, save on hide (launch checklist S1, #151)
+The launch review's S1: the server's copy always won on load (progress kept
+on the device was overwritten), a closing tab didn't save (2 s debounce),
+and two devices or tabs overwrote each other silently.
+- **A revision on every save:** `SaveData.revision`, one more on every change
+  (`saveStore.update`; returning the save unchanged makes none). Additive —
+  `normalizeSave` gives a save without one (or a junk one) 0, `revisionOf`
+  reads it as the server does; no `SAVE_VERSION` bump (an old app is stopped
+  by the server rule below; an old tab that loads a revisioned save can only
+  lose its own unsaved moves).
+- **Load keeps the newer copy:** the local copy and the server's are compared;
+  the higher revision wins, a newer local copy is pushed, a tie (or neither
+  with a revision) goes to the server's as before. A copy from a newer version
+  on *either* side → `'outdated'`, neither touched. The server's copy is only
+  written back when it needs it (an older shape, or no revision yet), as a new
+  revision. A second kid's load drops the first kid's late answer.
+- **The server refuses an older copy:** migration `0017_save_revisions.sql`
+  redefines 0011's trigger function: a stored revision may only be replaced
+  by a higher one or the identical save (a retried upload); a save without a
+  revision (an app from before this) can't replace one, and a row without a
+  revision takes anything until the new app saves it once. Same error,
+  `save_version_conflict`, so old tabs show their "refresh" screen; detail
+  `save_revision_conflict`. Hand edits in SQL now need the revision raised.
+- **Told to reload, kindly:** a refused tab goes `'outdated'` with
+  `outdatedReason` `'elsewhere'` and `OutdatedScreen` (StatusScreens) says
+  "🧭 Your adventure moved on! — You played on in another tab or on another
+  device. Refresh the page to carry on from your newest save." (the update
+  screen keeps its copy for `'update'`). Its local copy is marked revision 0
+  so the refresh can't pick it over the server's. A tab also stops when
+  another tab on this browser saves a newer copy (`storage`) or the server
+  has one when the tab comes back into view (`checkForNewer`).
+- **Save on hide:** `watchPageForSaves` (called once in `App`): on
+  `visibilitychange` → hidden and `pagehide`, `flushOnHide` pushes what the
+  server hasn't got at once, as a `keepalive` fetch built synchronously with
+  the token `authStore` holds (`lib/saveKeepalive.ts` — supabase-js awaits an
+  auth lock first, which a closing page may never finish); over 60 KiB or with
+  no session it falls back to a normal upsert. Best effort on a closing page
+  (CORS preflight, Firefox < 133); the local copy always has it.
+- `flush` sends one push at a time and skips a copy the server already has
+  (`syncedRevision`); a refusal of an older push of ours, overtaken by a newer
+  one, is ignored.
+- Between two copies that both moved on, the one with more changes wins — the
+  other is told to reload (ISSUES #151 (a): a per-push base check would make
+  it strict).
+- Tests +29: saveStore.test (which copy wins, two devices, the refused copy,
+  overlapping pushes, hide / pagehide, back in view, another tab), save.test
+  (revision, `revisionOf`), saveKeepalive.test, StatusScreens.test; the fake
+  server keeps a row per kid and applies 0017's rules. 1398 green, lint +
+  tsc + build clean; every saveStore rule checked by breaking it (14
+  mutations, all caught). SQL: `supabase/ci/save_revisions.test.sql` (fails
+  without 0017); the stub + all 17 migrations and the bundle applied twice on
+  Postgres 16, all 9 SQL tests pass. Bundle regenerated (17 migrations).
+- ⚠️ Deploy: apply `0017_save_revisions.sql` (or re-run
+  `apply_all_migrations.sql`) **before** shipping this build.
 
 ### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)
