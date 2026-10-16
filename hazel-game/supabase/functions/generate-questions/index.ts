@@ -15,6 +15,9 @@
 // - A kid's recently SHOWN questions in the topic are held back (#24). The app
 //   reports what it shows (`reportsSeen`, `mark_questions_seen`); what this
 //   function hands over is only held back for RESERVE_MINUTES (#134).
+// - A look-ahead (`cacheOnly`, B5) gets only unseen questions already in the
+//   bank, never a Claude call, and may come back short or empty (200). The app
+//   warms every battle in a zone this way and fills the rest when one starts.
 //
 // The Anthropic API key stays server-side (ANTHROPIC_API_KEY secret).
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase.
@@ -558,6 +561,11 @@ Deno.serve(async (req) => {
     profileId?: string;
     /** The app marks what it shows (#134); an older app doesn't. */
     reportsSeen?: boolean;
+    /**
+     * A look-ahead (B5): only questions already in the bank and not yet seen,
+     * never a Claude call — it may come back short, or empty.
+     */
+    cacheOnly?: boolean;
   };
   try {
     body = await req.json();
@@ -566,6 +574,7 @@ Deno.serve(async (req) => {
   }
 
   const { topic, skillLevel } = body;
+  const cacheOnly = body.cacheOnly === true;
   const count = Math.min(Math.max(Math.round(Number(body.count ?? 5)) || 1, 1), 15);
   // Flavour by key only (B8): an unknown key, or the old free-text `context`,
   // just means no flavour. `Object.hasOwn` so "constructor" isn't a key.
@@ -668,6 +677,9 @@ Deno.serve(async (req) => {
       requestId = row.request_id ?? null;
     }
   }
+  // A look-ahead never spends on Claude (B5): the app warms every battle in a
+  // zone, most of which never happen; the battle's own call asks for the rest.
+  if (cacheOnly) freshAllowance = 0;
 
   try {
     // 1. Reusable questions for this topic within ±LEVEL_BAND of the player,
@@ -726,7 +738,9 @@ Deno.serve(async (req) => {
     const reuseCount = count - freshCount;
     // Approved questions come first (B10) — the picker orders them so.
     const reused = cached.slice(0, reuseCount);
-    if (reused.length < reuseCount) {
+    // A look-ahead takes unseen ones only; the battle's own call may still
+    // fall back to seen ones if it must.
+    if (reused.length < reuseCount && !cacheOnly) {
       reused.push(...seenFallback.slice(0, reuseCount - reused.length));
     }
 
@@ -822,8 +836,9 @@ Deno.serve(async (req) => {
     const reusedOut = reused.map((r) => ({ ...rowToOut(r), timesAsked: r.times_asked + 1 }));
     const questions = shuffle([...reusedOut, ...fresh]);
 
-    // Nothing to give: say why in words a kid can read (never a raw error).
-    if (questions.length === 0) {
+    // Nothing to give: say why in words a kid can read (never a raw error). A
+    // look-ahead with nothing saved is fine — it's an empty batch.
+    if (questions.length === 0 && !cacheOnly) {
       if (!generationFailed && !quotaUnavailable && freshAllowance === 0) {
         return json({ error: 'budget_exhausted', detail: COME_BACK_TOMORROW }, 429);
       }

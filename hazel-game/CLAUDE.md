@@ -600,8 +600,13 @@ zod, react-query. Add the package in the same change that first uses it.
   the client times out after 20 s with one retry, a reply that didn't stop at
   `end_turn` (cut off, refused) counts as a failure, and the batch is filled
   from the cache (unseen first, then seen); only with nothing to give does
-  the kid see a friendly "try again" (503) or, when today's budget is spent,
-  "come back tomorrow" (429). Raw errors go to the log, never to the reply.
+  the function answer a friendly "try again" (503) or, when today's budget is
+  spent, "come back tomorrow" (429). Raw errors go to the log, never to the
+  reply. **The app never shows those (#153):** `fetchQuestions` fills
+  whatever the server can't give — offline, a 503 or 429, a topic it doesn't
+  know yet, a short batch — from the hand-written **starter questions**
+  (`content/starterQuestions.ts`: every topic, three level bands, six each,
+  screened like AI ones; ids `starter-`, never marked seen or reported).
 - **Questions are screened for kids (B10, #133):** three layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
@@ -667,7 +672,10 @@ zod, react-query. Add the package in the same change that first uses it.
   an hour (`question_views.shown = false`), so prefetches don't fill a kid's
   seen window — the last 100 distinct questions shown in that topic (read
   from their latest 1,000 shown views, so the cost doesn't grow with play).
-  `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need.
+  `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need. A
+  zone's critters are warmed from the saved bank only (`cacheOnly`, #153:
+  unseen saved questions, never a Claude call, maybe short or empty); the
+  battle asks for whatever is still missing when it starts.
 
 ## Commands
 
@@ -803,6 +811,28 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Starter questions, and zone look-aheads that cost nothing (#153)
+Act I launch review B5, the app half.
+- **No question error reaches a child:** `fetchQuestions` never fails and
+  never comes back short. Whatever the server can't give (offline, a 503, the
+  day's budget spent, a topic it doesn't know yet, a short batch) comes from
+  `content/starterQuestions.ts`: 10 topics × 3 bands (levels 1–3 / 4–6 / 7–10)
+  × 6 hand-written questions with explanations, the right answer first and
+  shuffled as served; a battle's 9 tops up from the nearest band. Every one
+  passes `screenQuestion`. `markSeen` / `flagQuestion` skip `starter-` ids
+  (`inQuestionBank`).
+- **Zone warm-ups are saved-only:** entering a zone warmed every critter's
+  battle with a full request that could pay Claude for battles that never
+  happen. `WorldScreen` now sends `cacheOnly: true` (`prefetchQuestions(…,
+  { cacheOnly })`); the function sets the fresh allowance to 0, takes only
+  unseen saved questions and answers 200 even with none. A battle uses what
+  was warmed and asks for only the rest, normally. An old function ignores the
+  flag, so deploy order is free (redeploy `generate-questions` to get it).
+- **Tests:** starterQuestions.test (new, 6), questions.test (+7), seen.test,
+  WorldScreen.use.test (+1); the function run locally against a stand-in (its
+  bank picker added): 12/12, 6 fail on `main`'s. 1383 green, lint + build +
+  `deno check` clean.
 
 ### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)

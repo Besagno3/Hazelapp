@@ -427,14 +427,16 @@ export default function WorldScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrives]);
 
-  // Warm each living enemy's battle questions while the player explores.
+  // Warm each living enemy's battle questions while the player explores —
+  // saved questions only (B5), so a battle that never happens costs no Claude
+  // call; the battle itself asks for any it still needs.
   useEffect(() => {
     if (!save) return;
     for (const p of z.enemies) {
       const enemy = spawnPlaced(zoneId, p, age, skillLevels);
       if (enemy.isBoss && bossDefeated(enemy, save.flags)) continue;
       if (defeatedIds.includes(enemy.instanceId)) continue;
-      prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT);
+      prefetchQuestions(enemy.topic, age, enemy.level, BATTLE_QUESTION_COUNT, undefined, { cacheOnly: true });
     }
     // Re-warm only when the zone changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps

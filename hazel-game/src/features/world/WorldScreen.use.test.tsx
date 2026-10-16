@@ -60,3 +60,19 @@ describe('using things from the world screen (#127)', () => {
     expect(screen.queryByText(/bump into friends/)).toBeNull();
   });
 });
+
+describe('warming battles (B5)', () => {
+  it("asks for each living critter's questions from the saved bank only", async () => {
+    const { prefetchQuestions } = await import('../../lib/questions');
+    const warm = vi.mocked(prefetchQuestions);
+    warm.mockClear();
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: { ...defaultSave(), avatarId: 'a3', zoneId: 'numbria', flags: { [INTRO_SEEN]: true, [DAWNREACH_SEEN]: true } },
+    });
+    render(<WorldScreen />);
+    expect(warm).toHaveBeenCalled();
+    for (const call of warm.mock.calls) expect(call.slice(3)).toEqual([3, undefined, { cacheOnly: true }]);
+  });
+});
