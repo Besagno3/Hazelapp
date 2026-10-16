@@ -14,6 +14,7 @@ do $$
 declare
   uid uuid := '00000000-0000-0000-0000-0000000000e1';
   kid2 uuid;
+  kid3 uuid;
   junk text;
   refused text;
   detail text;
@@ -41,16 +42,18 @@ begin
   assert detail = 'save_revision_conflict', 'the refusal says it was about revisions';
 
   -- …nor a junk revision (it counts as none): a string, a negative, a
-  -- fraction, 16 digits.
-  foreach junk in array array['"9"', '-5', '2.5', '1234567890123456'] loop
+  -- fraction, 16 digits, JSON null.
+  foreach junk in array array['"9"', '-5', '2.5', '1234567890123456', 'null'] loop
     refused := null;
+    detail := null;
     begin
       update public.saves set data = format('{"version": 3, "revision": %s, "coins": 98}', junk)::jsonb
         where profile_id = uid;
     exception when others then
-      refused := sqlerrm;
+      get stacked diagnostics refused = message_text, detail = pg_exception_detail;
     end;
     assert refused like 'save_version_conflict%', format('a junk revision (%s) must be refused', junk);
+    assert detail = 'save_revision_conflict', format('a junk revision (%s) is a revision refusal', junk);
   end loop;
   assert (select (data ->> 'coins')::int from public.saves where profile_id = uid) = 3,
     'the save with the revision is kept';
@@ -58,38 +61,58 @@ begin
   -- A newer revision saves; an older one is refused.
   update public.saves set data = '{"version": 3, "revision": 10, "coins": 10}' where profile_id = uid;
   refused := null;
+  detail := null;
   begin
     update public.saves set data = '{"version": 3, "revision": 9, "coins": 9}' where profile_id = uid;
   exception when others then
-    refused := sqlerrm;
+    get stacked diagnostics refused = message_text, detail = pg_exception_detail;
   end;
   assert refused like 'save_version_conflict%revision 10%refusing revision 9%', 'an older revision must be refused';
+  -- The app picks its screen by this detail ("you played on elsewhere").
+  assert detail = 'save_revision_conflict', 'an older revision is a revision refusal';
 
   -- Two devices both at revision 10: the first to write 11 wins, the second is refused.
   update public.saves set data = '{"version": 3, "revision": 11, "coins": 111}' where profile_id = uid;
   refused := null;
+  detail := null;
   begin
     insert into public.saves (profile_id, data) values (uid, '{"version": 3, "revision": 11, "coins": 112}')
       on conflict (profile_id) do update set data = excluded.data;
   exception when others then
-    refused := sqlerrm;
+    get stacked diagnostics refused = message_text, detail = pg_exception_detail;
   end;
   assert refused like 'save_version_conflict%', 'an equal revision with other progress must be refused';
+  assert detail = 'save_revision_conflict', 'an equal revision with other progress is a revision refusal';
   assert (select (data ->> 'coins')::int from public.saves where profile_id = uid) = 111,
     'the first device''s save is kept';
 
   -- The very same save sent again (a retried upload) changes nothing and is fine.
   update public.saves set data = '{"coins": 111, "revision": 11, "version": 3}' where profile_id = uid;
 
-  -- The version rule still stands: a newer revision from an older game is refused.
+  -- The version rule still stands: a newer revision from an older game is
+  -- refused — as a version refusal, without the revision detail, so the app
+  -- says "the game was updated", not "you played on elsewhere".
   refused := null;
+  detail := null;
   begin
     update public.saves set data = '{"version": 2, "revision": 50, "coins": 50}' where profile_id = uid;
   exception when others then
-    refused := sqlerrm;
+    get stacked diagnostics refused = message_text, detail = pg_exception_detail;
   end;
   assert refused like 'save_version_conflict: this save was written by a newer version%',
     'a lower version is still refused';
+  assert detail is distinct from 'save_revision_conflict', 'a lower version is a version refusal';
+  -- Both older (version and revision): the version rule answers first.
+  refused := null;
+  detail := null;
+  begin
+    update public.saves set data = '{"version": 2, "revision": 5, "coins": 5}' where profile_id = uid;
+  exception when others then
+    get stacked diagnostics refused = message_text, detail = pg_exception_detail;
+  end;
+  assert refused like 'save_version_conflict: this save was written by a newer version%',
+    'an older version and revision is refused as a version refusal';
+  assert detail is distinct from 'save_revision_conflict', 'the version rule answers first';
   assert (select (data ->> 'coins')::int from public.saves where profile_id = uid) = 111,
     'nothing older replaced the newest save';
 
@@ -101,6 +124,16 @@ begin
   update public.saves set data = '{"version": 3, "revision": 1, "coins": 1}' where profile_id = kid2;
   assert (select (data ->> 'revision')::int from public.saves where profile_id = kid2) = 1,
     'a new save starts and moves up';
+
+  -- A stored junk revision counts as none, as `revisionOf` reads it: the row
+  -- takes the next save (it never fails on a cast, which would leave the app
+  -- unable to save at all).
+  insert into public.profiles (display_name, icon, birth_year, birth_month)
+    values ('Bo', 'fox', 2018, 3) returning id into kid3;
+  insert into public.saves (profile_id, data) values (kid3, '{"version": 3, "revision": 2.5, "coins": 0}');
+  update public.saves set data = '{"version": 3, "revision": 1, "coins": 1}' where profile_id = kid3;
+  assert (select (data ->> 'revision')::int from public.saves where profile_id = kid3) = 1,
+    'a junk stored revision is replaced like none';
 end $$;
 
 rollback;

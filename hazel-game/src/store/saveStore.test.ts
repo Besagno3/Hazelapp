@@ -440,6 +440,21 @@ describe('saveStore.flush', () => {
     expect(useSaveStore.getState().save).toMatchObject({ revision: 11, coins: 111 });
   });
 
+  it('a refused push leaves another tab\'s newer copy on this device alone: it wins the reload (review round 2)', async () => {
+    remote.rows.k = { data: copy(10, 100) };
+    await useSaveStore.getState().load('k');
+    remote.rows.k = { data: copy(12, 120) }; // another device saved meanwhile
+    useSaveStore.getState().setFlag('mine'); // 11
+    // Another tab on this browser played on further, not sent yet.
+    const theirs = JSON.stringify(copy(13, 130));
+    localStorage.setItem(saveKey('k'), theirs);
+    await useSaveStore.getState().flush(); // our 11 is refused: the server holds 12
+    expect(useSaveStore.getState()).toMatchObject({ status: 'outdated', outdatedReason: 'elsewhere' });
+    expect(localStorage.getItem(saveKey('k'))).toBe(theirs); // not marked revision 0
+    await useSaveStore.getState().load('k');
+    expect(useSaveStore.getState().save).toMatchObject({ revision: 13, coins: 130 });
+  });
+
   it('only our newest push\'s answer counts: an older one refused because the newer landed first is ignored', async () => {
     await useSaveStore.getState().load('race');
     await vi.waitFor(() => expect(useSaveStore.getState().syncedRevision).toBe(0));
@@ -457,6 +472,70 @@ describe('saveStore.flush', () => {
     await flushing;
     expect(useSaveStore.getState()).toMatchObject({ status: 'ready', syncedRevision: 2 });
     expect(remote.rows.race?.data).toMatchObject({ revision: 2 });
+  });
+});
+
+describe('an answer for the last kid, after the game was put away (#151 review round 2)', () => {
+  beforeEach(() => {
+    resetRemote();
+    localStorage.clear();
+    remote.rows.a = { data: copy(10, 100) };
+    remote.rows.b = { data: copy(5, 50) };
+    localStorage.setItem(saveKey('b'), JSON.stringify(copy(5, 50)));
+  });
+
+  it.each([
+    ['lands', 'lands'],
+    ['is refused (another device saved kid A)', 'refused'],
+    ['fails (a dropped request)', 'failed'],
+  ])('kid A\'s hide push that %s after sign-out and kid B\'s pick changes nothing for kid B', async (_name, answer) => {
+    await useSaveStore.getState().load('a');
+    if (answer === 'refused') remote.rows.a = { data: copy(12, 120) };
+    remote.hold = true;
+    useSaveStore.getState().setFlag('a-move'); // 11
+    useSaveStore.getState().flushOnHide(); // out, and held
+    await settle();
+    expect(remote.gates).toHaveLength(1);
+    // Signed out in another tab (the game is put away without a flush), then kid B picked.
+    useSaveStore.getState().clear();
+    remote.hold = false;
+    await useSaveStore.getState().load('b');
+    if (answer === 'failed') remote.upsertError = { message: 'Failed to fetch' };
+    remote.gates.shift()!(); // kid A's answer, late
+    await settle();
+    remote.upsertError = null;
+    if (answer === 'lands') expect(remote.rows.a.data).toMatchObject({ revision: 11, flags: { 'a-move': true } });
+    // Kid B plays on as if nothing came back: not stopped, no error, its copy here untouched…
+    expect(useSaveStore.getState()).toMatchObject({
+      userId: 'b',
+      status: 'ready',
+      outdatedReason: null,
+      remoteError: null,
+      syncedRevision: 5,
+    });
+    expect(local('b')).toMatchObject({ revision: 5, coins: 50 });
+    // …and kid B's next change reaches the server (kid A's 11 isn't taken as kid B's).
+    useSaveStore.getState().setFlag('b-move'); // 6
+    await useSaveStore.getState().flush();
+    expect(remote.rows.b.data).toMatchObject({ revision: 6, flags: { 'b-move': true } });
+  });
+
+  it('a "back in view" check for kid A answered after kid B was picked can\'t stop kid B', async () => {
+    await useSaveStore.getState().load('a');
+    remote.rows.a = { data: copy(50, 500) }; // kid A played on elsewhere
+    remote.holdReads = true;
+    const checking = useSaveStore.getState().checkForNewer(); // held
+    await settle();
+    useSaveStore.getState().clear();
+    const loading = useSaveStore.getState().load('b'); // its read is held too
+    await settle();
+    expect(remote.readGates).toHaveLength(2);
+    remote.readGates[1](); // kid B's load answers first…
+    await loading;
+    remote.readGates[0](); // …then kid A's check, late
+    await checking;
+    expect(useSaveStore.getState()).toMatchObject({ userId: 'b', status: 'ready', outdatedReason: null });
+    expect(useSaveStore.getState().save).toMatchObject({ revision: 5, coins: 50 });
   });
 });
 
@@ -556,6 +635,33 @@ describe('the page hides, closes, comes back (#151)', () => {
     showAs('visible');
     await vi.waitFor(() => expect(useSaveStore.getState().status).toBe('outdated'));
     expect(useSaveStore.getState().outdatedReason).toBe('elsewhere');
+  });
+
+  it('restored from the back-forward cache with a newer copy on the server: stops (review round 2)', async () => {
+    remote.rows.p = { data: copy(4, 40) }; // another device saved while the page sat in the cache
+    const restored = new Event('pageshow');
+    Object.defineProperty(restored, 'persisted', { value: true });
+    window.dispatchEvent(restored);
+    await vi.waitFor(() => expect(useSaveStore.getState().status).toBe('outdated'));
+    expect(useSaveStore.getState().outdatedReason).toBe('elsewhere');
+  });
+
+  it('a normal push that fails isn\'t retried on a timer, only a hide push is: no loop while offline (review round 2)', async () => {
+    vi.useFakeTimers();
+    remote.upsertError = { message: 'Failed to fetch' };
+    useSaveStore.getState().setFlag('offline'); // 1, on the debounce
+    await vi.advanceTimersByTimeAsync(2000); // the debounced push goes, and fails
+    expect(remote.upserts).toHaveLength(1);
+    expect(useSaveStore.getState().remoteError).toContain('Failed to fetch');
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(remote.upserts).toHaveLength(1); // nothing more until the next change, hide or crystal
+    // A hide push that fails is tried again once, the normal way — and that one isn't retried.
+    remote.beaconError = { message: 'Failed to fetch' };
+    showAs('hidden');
+    expect(remote.beacons).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(remote.upserts).toHaveLength(2);
+    expect(useSaveStore.getState().status).toBe('ready');
   });
 
   it('back in view and the server has nothing newer: play on', async () => {

@@ -825,6 +825,26 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — S1 review round 2: the save guards tested, every server refusal pinned (#151)
+A fresh `/saas-code-review` of the whole S1 PR (2 low, both test gaps; no bug
+in the code). Load, flush, hide, refusals, the round-1 retry (no double
+send that matters, no fight with a refusal, nothing after a sign-out or the
+next kid), the listeners, `OutdatedScreen` and old app tabs against a
+revisioned row all hold up; behaviour unchanged. Breaking `saveStore` on
+purpose showed five data-loss guards could each be deleted with the suite
+green: `stop`'s "only our own copy" check before marking it revision 0 (else
+another tab's newer copy here is demoted), the load check on a late push
+answer (else kid A's answer marks kid B as sent, stops kid B, or shows kid
+A's error), the same on a late `checkForNewer`, the back-forward-cache
+check, and the retry being for hide pushes only (else a push every 2 s
+while offline). saveStore.test +7 covers each. `save_revisions.test.sql` now
+checks the detail on every revision refusal, that a version refusal (also
+with an older revision) has none — the app picks "moved on" or "updated" by
+it — a JSON-null revision, and a stored junk revision replaced like none.
+Each new test fails with its guard removed. 1408 green, lint + build clean;
+the stub, all 17 migrations and the bundle applied twice on Postgres 16, all
+9 SQL tests pass.
+
 ### 2026-10-16 — S1 review round 1: no expired token on hide, a failed hide save tried again (#151)
 `/saas-code-review` of the S1 PR (1 medium; the trigger, the load / flush
 races, the listeners and the token handling checked, nothing else). Fixed: the
