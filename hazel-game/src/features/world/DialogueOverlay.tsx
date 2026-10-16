@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcName, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
@@ -54,6 +54,24 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   useEffect(() => {
     if (invalid) sendFlow({ type: 'CLOSE' });
   }, [invalid]);
+  // On a choice, the arrow keys move between its buttons, from none focused —
+  // so Enter picks only once a name has been chosen with them (16b review round 3).
+  const rowRef = useRef<HTMLDivElement>(null);
+  const choiceUp = !invalid && index >= lines.length - 1 && !!quest?.choice?.length && picked === null;
+  useEffect(() => {
+    if (!choiceUp) return;
+    const onKey = (e: KeyboardEvent) => {
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      const buttons = Array.from(rowRef.current?.querySelectorAll('button') ?? []);
+      if (!step || !buttons.length) return;
+      e.preventDefault();
+      const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      const next = at < 0 ? (step > 0 ? 0 : buttons.length - 1) : (at + step + buttons.length) % buttons.length;
+      buttons[next].focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [choiceUp]);
   if (invalid) return null;
 
   const line = lines[Math.min(index, lines.length - 1)];
@@ -145,7 +163,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
         </div>
         {/* pre-line: a signpost reads one direction per line. */}
         <p className="leading-relaxed min-h-[3rem] whitespace-pre-line">{text}</p>
-        <div className="flex flex-wrap justify-end gap-3 mt-3">
+        <div ref={rowRef} className="flex flex-wrap justify-end gap-3 mt-3">
           {offerService && (
             <button
               onClick={openService}
@@ -172,7 +190,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               <button
                 key={c.flag}
                 onClick={() => choose(c)}
-                className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"
+                className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-2.5 text-sm"
               >
                 {c.label}
               </button>
@@ -180,7 +198,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {choosing && (
             <button
               onClick={() => sendFlow({ type: 'CLOSE' })}
-              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-2.5 text-sm"
             >
               Later
             </button>

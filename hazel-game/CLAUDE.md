@@ -798,6 +798,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16b review round 3: there's more, arrows for the names, one gate one topic (#75 item 16b, #144k)
+Fresh code (3 low, 5 nits) and UX (5 low, 4 nits) reviews, all fixed but two
+kept (the school desks' art, plates touching bushes): "(Talk again — there's
+more!)" after any step or reward that leaves more (`questConversation` wraps
+`conversationNow`); Prim's not-yet names her own reminder and who's left;
+Young Wick's journey leg walks from the Door; `gateTopic`; the Bell points at
+Prim; the dog's narrator reminders; arrow keys and 44 px buttons for the
+choice; "Old Lumina" in the copy. 1348 green.
+
 ### 2026-10-16 — 16b review round 2 (UX): names apart, gold slates, "there's more" (#75 item 16b, #144j)
 Fresh UX review (2 medium, 6 low, 3 nits), all fixed: Prim no longer stands
 under the Bell's name (and a test keeps name plates apart); "Old Lumina

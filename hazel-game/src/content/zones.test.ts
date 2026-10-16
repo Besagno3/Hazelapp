@@ -12,6 +12,7 @@ import {
   VIEW_ROWS,
   tileAt,
   gateIdAt,
+  gateTopic,
   buildingAt,
   buildingInside,
   npcPresent,
@@ -1813,7 +1814,8 @@ describe('Lumina-That-Was (#75 item 16b)', () => {
 
 describe("people's names don't overlap (16b review round 2)", () => {
   // Name plates are ~6.5 px a letter at 11 px, plus their padding; cells are 32 px.
-  const plate = (id: string) => (NPC_DEFS[id]?.name.length ?? 0) * 6.5 + 8;
+  // The longest name they go by (the dog's chosen name too).
+  const plate = (id: string) => Math.max(NPC_DEFS[id]?.name.length ?? 0, ...(NPC_DEFS[id]?.names ?? []).map((n) => n.name.length)) * 6.5 + 8;
   it('two people on one row stand far enough apart for both names', () => {
     for (const z of Object.values(ZONES)) {
       z.npcs.forEach((a, i) =>
@@ -1836,5 +1838,16 @@ describe('the slates turn gold on the map too (16b review round 2)', () => {
       expect(npcSpriteId(def, { [`quest-step:bell-slate-${n}`]: true })).toBe('class-slate-gold');
     }
     expect(GENERATED_SPRITES['class-slate-gold']?.world).toBeDefined();
+  });
+});
+
+describe('a double-wide gate asks one topic (16b review round 3)', () => {
+  it('both cells of a gate in a mixed-topic zone ask its first cell\'s topic', () => {
+    const z = ZONES['memory-field'];
+    for (let x = 0; x < 40; x++) {
+      const zz = { ...z, map: ['#'.repeat(x) + 'GG#', '#'.repeat(x + 3)] };
+      expect(gateTopic(zz, x + 1, 0)).toBe(gateTopic(zz, x, 0));
+      expect(gateTopic(zz, x, 0)).toBe(topicAt(zz, x, 0, 'math'));
+    }
   });
 });

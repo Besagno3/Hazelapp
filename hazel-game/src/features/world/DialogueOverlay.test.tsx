@@ -215,6 +215,20 @@ describe('One More Name (#75 item 16b): the dog\'s name is the hero\'s to choose
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 
+  it('the arrow keys move between the names, from none focused (16b review round 3)', () => {
+    withFlags({ 'act4-seen': true, 'quest:unnamed-dog:offered': true, 'quest-step:dog-wick': true, 'quest-step:dog-lumen': true, 'quest-step:dog-prim': true });
+    render(<DialogueOverlay npcId="memory-dog" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.getByText(/\(Pick one!\)/)).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(document.activeElement?.textContent).toBe('🥒 Pickles');
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(document.activeElement?.textContent).toBe('⚓ Captain');
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(document.activeElement?.textContent).toBe('Later');
+  });
+
   it('can be put off: Later closes without choosing', () => {
     withFlags({ 'act4-seen': true, 'quest:unnamed-dog:offered': true, 'quest-step:dog-wick': true, 'quest-step:dog-lumen': true, 'quest-step:dog-prim': true });
     render(<DialogueOverlay npcId="memory-dog" />);

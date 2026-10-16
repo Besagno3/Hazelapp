@@ -134,7 +134,7 @@ export interface QuestStep {
    * A person's own words for "not yet", in place of "Not this one yet!" and the
    * due step's hint (#75 item 16a review round 4: Keeper Mnem isn't a lantern).
    */
-  earlyLine?: string;
+  earlyLine?: string | ((save: SaveData) => string);
   /**
    * "Not yet" only once this story flag is set (16a code review round 4): until
    * then the NPC's own story beat comes first — Mnem's call to the Hall's dedication.
@@ -1557,7 +1557,7 @@ export const QUESTS: QuestDef[] = [
             'A-S-T-E-R, like the daisy flower! Why are you smiling like that? It\'s just her name.',
             '✨ The last piece! Run back to Wisp, in the Whispering Woods, and say it!',
           ],
-          'Ask Young Wick about her teacher — in the old village of Lumina-That-Was, below the Dream Root Door.',
+          'Ask Young Wick about her teacher — in Old Lumina Village, below the Dream Root Door.',
         ),
         remind: 'Somebody who still REMEMBERS her… Young Wick, down in Lumina-That-Was, past the Dream Root Door!',
       },
@@ -1631,40 +1631,50 @@ export const QUESTS: QuestDef[] = [
     requires: ACT4_SEEN,
     offer: [
       'Woof! *The dog sits on your foot and wags.*',
-      "(There's no name on its collar. Ask Young Wick, Young Lumen and Monitor Prim what they call him — in that order!)",
+      "(There's no name on his collar. Ask Young Wick, Young Lumen and Monitor Prim what they call him — in that order!)",
     ],
     steps: [
-      talkStep(
-        'dog-wick',
-        'memory-young-wick',
-        ["That dog? That's PICKLES! Because he steals pickles. Every. Single. Day."],
-        'Ask Young Wick, in the old village, what the dog is called.',
-      ),
+      {
+        ...talkStep(
+          'dog-wick',
+          'memory-young-wick',
+          ["That dog? That's PICKLES! Because he steals pickles. Every. Single. Day."],
+          'Ask Young Wick, in Old Lumina Village, what the dog is called.',
+        ),
+        // The dog's reminders in the narrator's voice, not his (16b review round 3).
+        remind: '(Woof! Young Wick is by the bakery — ask her first.)',
+      },
       {
         early: true,
-        earlyLine: "The dog? Ask Young Wick first — she's known him longest! She's by the bakery in the old village.",
+        earlyLine: "The dog? Ask Young Wick first — she's known him longest! She's by the bakery in Old Lumina Village.",
         ...talkStep(
         'dog-lumen',
         'memory-young-lumen',
         ["That's Captain! He guards the whole town. Very serious. Mostly naps."],
-        'Ask Young Lumen, in the old library in the field, what the dog is called.',
+        'Ask Young Lumen, in the Old Library in Old Lumina Field, what the dog is called.',
         ),
+        remind: '(Woof! Next, ask Young Lumen, in the Old Library.)',
       },
       {
         early: true,
-        earlyLine: 'The dog? Ask the children first — Young Wick, then Young Lumen. Then come and see me.',
+        // Once Wick's been asked, only Lumen is left to ask (16b review round 3).
+        earlyLine: (s) =>
+          s.flags[stepFlag('dog-wick')]
+            ? 'The dog? Ask Young Lumen next — in the Old Library, in Old Lumina Field. Then come and see me.'
+            : 'The dog? Ask the children first — Young Wick, then Young Lumen. Then come and see me.',
         ...talkStep(
         'dog-prim',
         'class-prim',
         ['That is Sir Wigglesworth. Obviously.'],
         'Ask Monitor Prim, in the First Classroom, what the dog is called.',
         ),
+        remind: '(Woof! Last, ask Monitor Prim, in the First Classroom.)',
       },
     ],
-    doneLine: 'Three names! Go back to the dog, in the old village, and pick one.',
+    doneLine: 'Three names! Go back to the dog, in Old Lumina Village, and pick one.',
     complete: [
       'Woof? *The dog looks up at you, waiting.*',
-      'Pickles, Captain or Sir Wigglesworth — which name will stick?',
+      'Pickles, Captain or Sir Wigglesworth — which name will stick? (Pick one!)',
     ],
     choice: [
       { label: '🥒 Pickles', flag: 'dog-named-pickles', line: 'Pickles it is! *He wags so hard he falls over.* ✨ Reward: 20 coins and the 🐕 Dog Badge!' },
@@ -1930,28 +1940,33 @@ export interface QuestConversation {
  *   4. another quest's **"not yet"** for a later step of theirs (with their
  *      own reminder after it, if their quest is under way);
  *   5. they **remind** you of its current step.
+ * A step or a completion that leaves them with more to do — another quest's
+ * step, their own offer or reward — ends "(Talk again — there's more!)"
+ * (16b reviews, rounds 2–3: Young Wick's memory, then the dog's name). A
+ * completion may end on a choice (`QuestDef.choice`).
  */
 export function questConversation(npcId: string, save: SaveData): QuestConversation | null {
+  const now = conversationNow(npcId, save);
+  if (!now?.finish || (now.finishKind !== 'step' && now.finishKind !== 'complete') || now.choice?.length) return now;
+  const next = conversationNow(npcId, now.finish(save));
+  if (!next?.finishKind) return now;
+  const last = now.lines.length - 1;
+  return { ...now, lines: [...now.lines.slice(0, last), `${now.lines[last]} (Talk again — there's more!)`] };
+}
+
+function conversationNow(npcId: string, save: SaveData): QuestConversation | null {
   const quest = questFor(npcId, save);
   const step = quest ? activeStep(quest, save) : null;
   if (quest && !step) return completeConversation(quest);
   const through = stepConversation(npcId, save);
-  if (through) {
-    // Another quest's step through them comes next (Young Wick: her memory,
-    // then the dog's name) — say so, or it's easy to walk off (16b review round 2).
-    const after = through.finish && through.finishKind === 'step' ? through.finish(save) : null;
-    const next = after ? stepConversation(npcId, after) : null;
-    if (next && next.badge !== through.badge) {
-      return { ...through, lines: [...through.lines.slice(0, -1), `${through.lines[through.lines.length - 1]} (Talk again — there's more!)`] };
-    }
-    return through;
-  }
+  if (through) return through;
   // Their own quest's offer comes before another quest's "not yet" (16b review round 2:
   // Monitor Prim's dog line hid the Bell's Apology).
   const early = quest && step && !save.flags[questOfferedFlag(quest)] ? null : earlyConversation(npcId, save);
-  if (early && quest && step) {
-    // …and their own reminder still follows it.
-    return { ...early, lines: [...early.lines, step.remind ?? resolveHint(step, save)] };
+  if (early && quest && step && early.badge !== quest.title) {
+    // …and their own reminder still follows it, named, since the chip is the
+    // other quest's (16b review round 3).
+    return { ...early, lines: [...early.lines, `📜 ${quest.title}: ${step.remind ?? resolveHint(step, save)}`] };
   }
   if (early) return early;
   if (!quest || !step) return null;
@@ -2078,7 +2093,7 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
     const mine = later.find((st) => (st.early || st.song) && st.npc?.id === npcId && (!st.earlyAfter || save.flags[st.earlyAfter]));
     if (mine) {
       // A person says it their own way (16a review round 4).
-      if (mine.earlyLine) return { lines: [mine.earlyLine], badge: q.title, finishKind: null, finish: null };
+      if (mine.earlyLine) return { lines: [typeof mine.earlyLine === 'function' ? mine.earlyLine(save) : mine.earlyLine], badge: q.title, finishKind: null, finish: null };
       // Another of its kind first ("Not this one yet!"), or something to find first — the Ledger (#75 item 14g UX review).
       return { lines: [`${step.npc ? 'Not this one yet!' : 'Not yet!'} ${resolveHint(step, save)}`], badge: q.title, finishKind: null, finish: null };
     }

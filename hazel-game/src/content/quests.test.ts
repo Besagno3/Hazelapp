@@ -598,8 +598,8 @@ describe('one person, several quests (#75 item 14c)', () => {
 
   it("a step through a giver speaks first — before their own offer, and while their own quest is mid-way", () => {
     let save = talk(BEA, defaultSave()).save;
-    // Moe hasn't offered his own yet: Bea's step still goes first.
-    expect(questConversation(MOE, save)!.lines).toEqual(['Moe helps Bea.']);
+    // Moe hasn't offered his own yet: Bea's step still goes first, and says he has more (16b review round 3).
+    expect(questConversation(MOE, save)!.lines).toEqual(["Moe helps Bea. (Talk again — there's more!)"]);
     // Moe's own quest under way (mid-hint): Bea's step still goes first, then his hint.
     save = set(save, questOfferedFlag(MOE_OWN));
     const step = talk(MOE, save);
@@ -1320,6 +1320,39 @@ describe('Lumina-That-Was quests (#75 item 16b)', () => {
       if (badge) expect(QUEST_BADGES[badge], badge).toMatchObject({ name: expect.any(String), emoji: expect.any(String) });
     }
     expect(QUEST_BADGES['dog-badge'].name).toBe('Dog Badge');
+  });
+
+  it("Prim says there's more: her own offer or her dog step after the other (16b review round 3)", () => {
+    const dog = byId('unnamed-dog');
+    const bell = byId('bell-apology');
+    const dogDue = { [ACT4_SEEN]: true, [questOfferedFlag(dog)]: true, [stepFlag('dog-wick')]: true, [stepFlag('dog-lumen')]: true };
+    // The dog's step first, then her own offer.
+    const first = questConversation('class-prim', { ...defaultSave(), flags: dogDue })!;
+    expect(first.badge).toBe(dog.title);
+    expect(first.lines.join(' ')).toMatch(/Sir Wigglesworth.*Talk again — there's more!/);
+    // The slates all answered: the Bell's reward first, then the dog's step.
+    const slates = Object.fromEntries(bell.steps.map((st) => [stepFlag(st.id), true]));
+    const done = questConversation('class-prim', { ...defaultSave(), flags: { ...dogDue, ...slates, [questOfferedFlag(bell)]: true } })!;
+    expect(done.finishKind).toBe('complete');
+    expect(done.lines[done.lines.length - 1]).toMatch(/Talk again — there's more!/);
+  });
+
+  it("Prim's dog not-yet names her own quest's reminder, and knows who's been asked (16b review round 3)", () => {
+    const dog = byId('unnamed-dog');
+    const bell = byId('bell-apology');
+    const flags = { [ACT4_SEEN]: true, [questOfferedFlag(dog)]: true, [questOfferedFlag(bell)]: true };
+    const c = questConversation('class-prim', { ...defaultSave(), flags })!;
+    expect(c.lines[1]).toMatch(new RegExp(`^📜 ${bell.title}: `));
+    const asked = questConversation('class-prim', { ...defaultSave(), flags: { ...flags, [stepFlag('dog-wick')]: true } })!;
+    expect(asked.lines[0]).toMatch(/Ask Young Lumen next/);
+  });
+
+  it('the Lesson Bell points at Prim once the slates are done (16b review round 3)', () => {
+    const say = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['class-bell'].lines, flags).map(lineText).join(' ');
+    expect(say({})).toMatch(/embarrassed/);
+    const slates = Object.fromEntries(byId('bell-apology').steps.map((st) => [stepFlag(st.id), true]));
+    expect(say(slates)).toMatch(/tell Monitor Prim the slates are done/);
+    expect(say({ ...slates, [questDoneFlag(byId('bell-apology'))]: true })).toMatch(/waits for the right time/);
   });
 
   it("Young Wick says there's more when the dog's name is due too (16b review round 2)", () => {

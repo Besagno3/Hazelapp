@@ -3063,7 +3063,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       'E........==..WWWDWWW.E',
       'E====================E',
       '#.WWWWWWW==..........#',
-      '#.WBFFFBW==..,.....###',
+      '#.WBFFFBW==........###',
       '#.WKKKKKW==....~~~~..#',
       '#.WFFFFFW==....~~~~..#',
       '##WWWDWWW==.##.....#.#',
@@ -3077,7 +3077,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     spawn: { x: 10, y: 1 },
     buildings: [
       { id: 'memory-library', name: 'The Old Library', x: 13, y: 1, w: 7, h: 5, roof: 'purple', style: 'timber', sign: 'house' },
-      { id: 'memory-fairstall', name: 'First-Merchant Fair', x: 2, y: 7, w: 7, h: 5, roof: 'red', style: 'timber', sign: 'shop' },
+      { id: 'memory-fairstall', name: 'First-Merchant Fair', x: 2, y: 7, w: 7, h: 5, roof: 'red', style: 'timber', sign: 'house' },
     ],
     npcs: [
       { defId: 'memory-young-lumen', x: 16, y: 3 },
@@ -3169,7 +3169,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     spawn: { x: 1, y: 9 },
     buildings: [{ id: 'first-class', name: 'The First Classroom', x: 5, y: 1, w: 12, h: 6, roof: 'red', style: 'school', sign: 'house' }],
     npcs: [
-      { defId: 'class-prim', x: 12, y: 4 },
+      { defId: 'class-prim', x: 11, y: 4 },
       { defId: 'class-bell', x: 15, y: 4 },
       // Three cells apart, so their names never run together (16b review round 1).
       { defId: 'class-slate-1', x: 7, y: 2 },
@@ -3231,6 +3231,12 @@ export function gateFlag(id: string): string {
  * run of one, so their id is unchanged.
  */
 export function gateIdAt(zoneId: ZoneId, map: string[], x: number, y: number): string {
+  const c = gateCellAt(map, x, y);
+  return pathTargetId(zoneId, 'gate', c.x, c.y);
+}
+
+/** A gate's canonical cell (see `gateIdAt`) — its topic is asked from there (16b review round 3). */
+export function gateCellAt(map: string[], x: number, y: number): { x: number; y: number } {
   const seen = new Set<string>();
   const stack: [number, number][] = [[x, y]];
   let cx = x;
@@ -3246,7 +3252,7 @@ export function gateIdAt(zoneId: ZoneId, map: string[], x: number, y: number): s
     }
     stack.push([gx + 1, gy], [gx - 1, gy], [gx, gy + 1], [gx, gy - 1]);
   }
-  return pathTargetId(zoneId, 'gate', cx, cy);
+  return { x: cx, y: cy };
 }
 
 /** The building whose footprint (walls included) holds this cell, if any. */
@@ -3362,12 +3368,19 @@ export function chestTopicAt(z: ZoneDef, x: number, y: number): Topic {
 /**
  * The topic of a question asked at (x, y): the zone's own, or — in a
  * mixed-topic zone (#75 item 16b) — one of its `topics`, picked by the cell,
- * so each chest, gate or riddle keeps the same topic every time.
+ * so each chest or riddle keeps the same topic every time (a gate asks from
+ * its first cell, `gateTopic`).
  */
 export function topicAt(z: ZoneDef, x: number, y: number, fallback: Topic): Topic {
   // A proper mix (16b review round 1: 7x + 3y only alternated two topics along a row).
   if (z.topics?.length) return z.topics[(((x * 73856093) ^ (y * 19349663)) >>> 0) % z.topics.length];
   return z.topic ?? fallback;
+}
+
+/** A gate's question topic: asked from its canonical cell, so a double-wide gate asks one topic (16b review round 3). */
+export function gateTopic(z: ZoneDef, x: number, y: number): Topic {
+  const c = gateCellAt(z.map, x, y);
+  return topicAt(z, c.x, c.y, 'math');
 }
 
 /** The place on this map whose entrance is at (x, y), if any. */

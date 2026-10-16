@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING } from './story';
@@ -2762,7 +2762,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     prop: true,
-    lines: ['🔔 *Bwong.* The Lesson Bell rings by itself… then looks a little embarrassed.'],
+    lines: [
+      { text: '🔔 *Bwong.* The Lesson Bell rings by itself… then looks a little embarrassed.', unlessFlag: stepFlag(BELL_SLATES[2]) },
+      // The slates done (the last answers only after the others), the apology not yet said (16b review round 3).
+      { text: '🔔 *Bwong?* The bell is trying to say something… Go and tell Monitor Prim the slates are done!', ifFlag: stepFlag(BELL_SLATES[2]), unlessFlag: questDoneFlag({ id: BELL_QUEST }) },
+      { text: '🔔 *bwong…* (very softly). It waits for the right time now.', ifFlag: questDoneFlag({ id: BELL_QUEST }) },
+    ],
   },
   'class-slate-1': {
     id: 'class-slate-1',
