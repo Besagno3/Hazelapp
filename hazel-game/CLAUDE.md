@@ -196,13 +196,34 @@ zod, react-query. Add the package in the same change that first uses it.
   replaced the boat's `aboard`; sailing only afloat with a boat, flying only
   over an overworld map once Ember can fly). Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
-  `flush()` on save crystals / sign-out. Supabase errors degrade to
-  local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
-  the `MIGRATIONS` ladder — **`SAVE_VERSION` 3** since #75 item 15b). A save
-  from a *newer* version is never loaded or overwritten: loads check
-  `saveIsTooNew`, and the server refuses any write that lowers a save's
-  version (migration 0011's trigger → `save_version_conflict`, which `flush`
-  catches). Either way status goes `'outdated'` and `App` asks for a refresh.
+  `flush()` on save crystals / Switch player (it skips a copy the server
+  already has, `syncedRevision`); a tab that is hidden or closed pushes what's
+  left at once (`flushOnHide` on `visibilitychange` / `pagehide`, a
+  `keepalive` fetch, `lib/saveKeepalive.ts` — best effort on a closing page;
+  with no session, a token expired or about to be, or over 60 KiB it goes the
+  normal way, and a hide push that fails without a refusal re-arms the
+  debounce).
+  Supabase errors degrade to local-only play. Pure logic in `lib/save.ts`
+  (normalize / legacy migration / the `MIGRATIONS` ladder — **`SAVE_VERSION`
+  3** since #75 item 15b). **Which copy wins (#151):** every change adds one
+  to the save's `revision` (additive; none = 0, `revisionOf`); loading keeps
+  the higher of this device's copy and the server's (a tie, or neither with a
+  revision, goes to the server's) and pushes a newer local copy. The server
+  refuses a copy that isn't newer than the one it holds — a lower or missing
+  revision, or the same revision with other data (migration 0020, extending
+  0011's trigger; same error `save_version_conflict`, detail
+  `save_revision_conflict`). A refused tab stops (`'outdated'`,
+  `outdatedReason` `'elsewhere'`, "Your adventure moved on!") and marks its
+  local copy revision 0 so the refresh loads the server's; a tab also stops
+  when another tab on this browser saves a newer copy (`storage`) or the
+  server has one when it comes back into view (`checkForNewer`) —
+  `watchPageForSaves`, wired in `App`. Between two copies that both moved on,
+  the one with more changes wins. A save from a *newer* version is never
+  loaded or overwritten: loads check `saveIsTooNew` (both copies), and the
+  server refuses any write that lowers a save's version (migration 0011's
+  trigger → `save_version_conflict`, which `flush` catches). Either way status
+  goes `'outdated'` (`outdatedReason` `'update'`) and `App` asks for a refresh
+  (`OutdatedScreen`).
   Every v2+ save carries the `save:v2` flag (`SAVE_V2_FLAG`) so the v1 → v2
   step never moves a position twice.
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
@@ -1003,6 +1024,103 @@ them and repeat without end, and each of up to 8 kids added a full budget.
 - ⚠️ Deploy: apply 0021 (or re-run `apply_all_migrations.sql`), then
   `supabase functions deploy generate-questions`. Either order works.
   Follow-ups #152.
+
+### 2026-10-16 — Merge main (public pages #66, question safety #71) into the save-revisions branch (#151)
+`main` took migrations **0017–0019** (the question age window, the question
+checks, the admin review page) while S1 was in review, so its migration moved
+**0017 → 0020** (`0020_save_revisions.sql`, "after 0019"; the code comments,
+the SQL test and #151's docs say 0020; the counts in the entries below are as
+they were). #146 / #147 and TC-1254–1295 don't collide with #151 and
+TC-1311–1368. One code conflict, `App.tsx`: both effects kept (the save
+watcher, #151; dropping `?signup` once signed in, #146).
+
+### 2026-10-16 — S1 review round 2: the save guards tested, every server refusal pinned (#151)
+A fresh `/saas-code-review` of the whole S1 PR (2 low, both test gaps; no bug
+in the code). Load, flush, hide, refusals, the round-1 retry (no double
+send that matters, no fight with a refusal, nothing after a sign-out or the
+next kid), the listeners, `OutdatedScreen` and old app tabs against a
+revisioned row all hold up; behaviour unchanged. Breaking `saveStore` on
+purpose showed five data-loss guards could each be deleted with the suite
+green: `stop`'s "only our own copy" check before marking it revision 0 (else
+another tab's newer copy here is demoted), the load check on a late push
+answer (else kid A's answer marks kid B as sent, stops kid B, or shows kid
+A's error), the same on a late `checkForNewer`, the back-forward-cache
+check, and the retry being for hide pushes only (else a push every 2 s
+while offline). saveStore.test +7 covers each. `save_revisions.test.sql` now
+checks the detail on every revision refusal, that a version refusal (also
+with an older revision) has none — the app picks "moved on" or "updated" by
+it — a JSON-null revision, and a stored junk revision replaced like none.
+Each new test fails with its guard removed. 1408 green, lint + build clean;
+the stub, all 17 migrations and the bundle applied twice on Postgres 16, all
+9 SQL tests pass.
+
+### 2026-10-16 — S1 review round 1: no expired token on hide, a failed hide save tried again (#151)
+`/saas-code-review` of the S1 PR (1 medium; the trigger, the load / flush
+races, the listeners and the token handling checked, nothing else). Fixed: the
+save on hide sent the token `authStore` held even after it expired (the
+server refuses it with a 401), and a failed hide push was never retried while
+the page stayed open, because hiding had cancelled the debounce. Now
+`upsertSaveKeepalive` gives null for a token that has expired or will within
+30 s (`KEEPALIVE_TOKEN_MARGIN_MS`), so the normal request (which refreshes
+it) goes instead, and a hide push that fails without a refusal re-arms the
+2 s debounce. Tests +3 (saveKeepalive.test, saveStore.test; the two fixes'
+tests fail without them). 1401 green, lint + build clean; the stub, all 17
+migrations and the bundle applied twice on Postgres 16, all 9 SQL tests pass.
+
+### 2026-10-16 — Saves keep the newest progress: revisions, a server check, save on hide (launch checklist S1, #151)
+The launch review's S1: the server's copy always won on load (progress kept
+on the device was overwritten), a closing tab didn't save (2 s debounce),
+and two devices or tabs overwrote each other silently.
+- **A revision on every save:** `SaveData.revision`, one more on every change
+  (`saveStore.update`; returning the save unchanged makes none). Additive —
+  `normalizeSave` gives a save without one (or a junk one) 0, `revisionOf`
+  reads it as the server does; no `SAVE_VERSION` bump (an old app is stopped
+  by the server rule below; an old tab that loads a revisioned save can only
+  lose its own unsaved moves).
+- **Load keeps the newer copy:** the local copy and the server's are compared;
+  the higher revision wins, a newer local copy is pushed, a tie (or neither
+  with a revision) goes to the server's as before. A copy from a newer version
+  on *either* side → `'outdated'`, neither touched. The server's copy is only
+  written back when it needs it (an older shape, or no revision yet), as a new
+  revision. A second kid's load drops the first kid's late answer.
+- **The server refuses an older copy:** migration `0020_save_revisions.sql`
+  redefines 0011's trigger function: a stored revision may only be replaced
+  by a higher one or the identical save (a retried upload); a save without a
+  revision (an app from before this) can't replace one, and a row without a
+  revision takes anything until the new app saves it once. Same error,
+  `save_version_conflict`, so old tabs show their "refresh" screen; detail
+  `save_revision_conflict`. Hand edits in SQL now need the revision raised.
+- **Told to reload, kindly:** a refused tab goes `'outdated'` with
+  `outdatedReason` `'elsewhere'` and `OutdatedScreen` (StatusScreens) says
+  "🧭 Your adventure moved on! — You played on in another tab or on another
+  device. Refresh the page to carry on from your newest save." (the update
+  screen keeps its copy for `'update'`). Its local copy is marked revision 0
+  so the refresh can't pick it over the server's. A tab also stops when
+  another tab on this browser saves a newer copy (`storage`) or the server
+  has one when the tab comes back into view (`checkForNewer`).
+- **Save on hide:** `watchPageForSaves` (called once in `App`): on
+  `visibilitychange` → hidden and `pagehide`, `flushOnHide` pushes what the
+  server hasn't got at once, as a `keepalive` fetch built synchronously with
+  the token `authStore` holds (`lib/saveKeepalive.ts` — supabase-js awaits an
+  auth lock first, which a closing page may never finish); over 60 KiB or with
+  no session it falls back to a normal upsert. Best effort on a closing page
+  (CORS preflight, Firefox < 133); the local copy always has it.
+- `flush` sends one push at a time and skips a copy the server already has
+  (`syncedRevision`); a refusal of an older push of ours, overtaken by a newer
+  one, is ignored.
+- Between two copies that both moved on, the one with more changes wins — the
+  other is told to reload (ISSUES #151 (a): a per-push base check would make
+  it strict).
+- Tests +29: saveStore.test (which copy wins, two devices, the refused copy,
+  overlapping pushes, hide / pagehide, back in view, another tab), save.test
+  (revision, `revisionOf`), saveKeepalive.test, StatusScreens.test; the fake
+  server keeps a row per kid and applies 0020's rules. 1398 green, lint +
+  tsc + build clean; every saveStore rule checked by breaking it (14
+  mutations, all caught). SQL: `supabase/ci/save_revisions.test.sql` (fails
+  without 0020); the stub + all 17 migrations and the bundle applied twice on
+  Postgres 16, all 9 SQL tests pass. Bundle regenerated (17 migrations).
+- ⚠️ Deploy: apply `0020_save_revisions.sql` (or re-run
+  `apply_all_migrations.sql`) **before** shipping this build.
 
 ### 2026-10-16 — Merge main (public pages, PR #66) into the question-safety branch (#147)
 `main` took ISSUES **#146** and TC-1254–1269 for the public pages while
