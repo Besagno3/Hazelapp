@@ -226,7 +226,7 @@ describe('Act IV so far (#75 item 16a)', () => {
       'Ask Keeper Mnem about the first plaque',
       'Ask the Chartmaker about his oldest map',
       'Ask Sage Chronicle about the first Sage',
-      'Find someone who remembers her',
+      'Ask Young Wick about her teacher',
       'Say her name to Wisp',
     ]);
     for (const leg of act4) expect(walkable(leg), leg.goal.title).toBe(true);
@@ -235,13 +235,11 @@ describe('Act IV so far (#75 item 16a)', () => {
     const quest = QUESTS.find((q) => q.id === SAY_HER_NAME_QUEST)!;
     for (const leg of act4.filter((l) => l.goal.quest && l.goal.doneFlag?.startsWith('quest-step:'))) {
       const step = quest.steps.find((st) => stepFlag(st.id) === leg.goal.doneFlag)!;
-      if (step.id === 'name-young-wick') continue; // placed with Lumina-That-Was — the next test
       expect(leg.goal.npc, step.id).toBe(step.npc!.id);
     }
   });
-  // Until 16b places her, the fifth memory's 🚩 stands in with Keeper Aurora: this
-  // fails the day Young Wick is placed, so the stand-in comes out with her.
-  it.fails('Young Wick stands somewhere, and her memory is her own 🚩 (16b)', () => {
+  // Young Wick stands in the old village (#75 item 16b): her memory is her own 🚩.
+  it('Young Wick stands somewhere, and her memory is her own 🚩 (16b)', () => {
     expect(npcHome(ZONES, 'memory-young-wick')).not.toBeNull();
     expect(act4.find((l) => l.goal.doneFlag === stepFlag('name-young-wick'))!.goal.npc).toBe('memory-young-wick');
   });

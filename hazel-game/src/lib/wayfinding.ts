@@ -4,7 +4,7 @@ import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST } from '../content/questFlags';
+import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
@@ -145,8 +145,8 @@ const NAME_STEPS: Record<string, { title: string; why: string }> = {
     why: 'Sage Chronicle knows every old book in the Sunken Archive. Ask about the very first Sage!',
   },
   'name-young-wick': {
-    title: 'Find someone who remembers her',
-    why: 'Someone below the Spire remembers her! Ask Keeper Aurora.',
+    title: 'Ask Young Wick about her teacher',
+    why: 'Young Wick still remembers the very first Sage — she was her teacher!',
   },
 };
 
@@ -199,10 +199,10 @@ function actFourObjective(flags: Record<string, boolean>): Objective | null {
       kind: 'visit',
       title: NAME_STEPS[step.id]?.title ?? quest.title,
       why: NAME_STEPS[step.id]?.why ?? quest.title,
-      // Lumina-That-Was (16b) isn't here yet: Keeper Aurora, at the Dream Root's door.
-      zoneId: home?.zoneId ?? 'dreamroot-door',
+      // Every memory's keeper stands somewhere (journey.test checks); Wisp's woods if not.
+      zoneId: home?.zoneId ?? quest.zoneId,
       doneFlag: stepFlag(step.id),
-      npc: home ? step.npc.id : 'root-aurora',
+      npc: home ? step.npc.id : quest.giverNpcId,
       quest: quest.id,
     };
   }
@@ -413,7 +413,11 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: flags[NAME_LEARNED] ? 'Explore Lumina' : flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[NAME_LEARNED]
-          ? "You remembered the first Sage's name: Aster! Somewhere below the Dream Root Door, she is waiting. Help anyone who needs you!"
+          ? `You remembered the first Sage's name: Aster! She is waiting somewhere deeper still — the way will open soon. ${
+              flags[questDoneFlag({ id: BELL_QUEST })] && flags[questDoneFlag({ id: DOG_QUEST })]
+                ? 'Until then, hunt for secrets ✨ and help everyone you meet.'
+                : 'Until then, help the folk of Lumina-That-Was!'
+            }`
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -815,6 +819,9 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = 'Five memories, and one name at the end of them! Go and say it to Wisp, in the Whispering Woods.';
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST && goal.doneFlag === questOfferedFlag({ id: SAY_HER_NAME_QUEST })) {
     plan = 'Wisp, in the Whispering Woods, is trying to remember a name. Go and see Wisp — and help, if you can!';
+  } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST && goal.npc === 'memory-young-wick') {
+    // A child, not one of the oldest folk (16b review round 2).
+    plan = 'One memory left! Next: Young Wick — Grandmother Wick, when she was a little girl. Her teacher was the very first Sage!';
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST) {
     plan = `Nobody remembers the very first Sage — not even me. But the oldest folk each remember a piece of her. Next: ${goal.title}!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_GALE) {
@@ -832,7 +839,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[NAME_LEARNED]) {
-    plan = "Aster. ASTER! I knew that name once. Thank you for finding it again. She is waiting somewhere below the Dream Root Door.";
+    plan = "Aster. ASTER! I knew that name once. Thank you for finding it again. She is waiting somewhere deeper still — the way will open soon.";
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -864,6 +871,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "Nobody fights on the Spire's grounds — it's a quiet place. Take your time and look around!";
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_ROOT_AURORA) {
     tip = 'Keeper Aurora keeps an inn down there, the Lamplight Rest. Rest whenever you need!';
+  } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST && goal.npc === 'memory-young-wick') {
+    tip = "Old Knot's path, at the bottom of the Dream Root Door, leads down to Lumina-That-Was.";
   } else if (goal.kind === 'visit' && goal.quest === SAY_HER_NAME_QUEST) {
     tip = knowsFieldSpell('return', flags)
       ? "🏠 Return flies you to any town you've been to — and Ember can carry you over the sea to the rest!"
@@ -954,5 +963,8 @@ export function wayfindingLines(
     const read = signpostLines(zones[home.zoneId], home.x, home.y, flags).join('\n');
     return [read, goal.zoneId ? `🚩 Next: ${goal.title}. ${how}`.trim() : `🎉 ${goal.why}`];
   }
-  return [goal.zoneId ? `Where to next? ${goal.why} ${how}`.trim() : goal.why];
+  if (!goal.zoneId) return [goal.why];
+  const one = `Where to next? ${goal.why} ${how}`.trim();
+  // A long route gets a box of its own (16b review round 4: ~46 words to Young Wick).
+  return one.split(/\s+/).length > 30 && how ? [`Where to next? ${goal.why}`, how] : [one];
 }

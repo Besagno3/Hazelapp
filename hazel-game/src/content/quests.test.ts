@@ -23,6 +23,9 @@ import {
   escortsBackLines,
   riddleSolvedLine,
   solveRiddle,
+  riddleTopic,
+  riddleWords,
+  QUEST_BADGES,
 } from './quests';
 import { BOAT_QUEST_ID } from './boat';
 import { BLANK_CHART_HELD, BLANK_CHART_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, withoutEscorts } from './questFlags';
@@ -595,8 +598,8 @@ describe('one person, several quests (#75 item 14c)', () => {
 
   it("a step through a giver speaks first — before their own offer, and while their own quest is mid-way", () => {
     let save = talk(BEA, defaultSave()).save;
-    // Moe hasn't offered his own yet: Bea's step still goes first.
-    expect(questConversation(MOE, save)!.lines).toEqual(['Moe helps Bea.']);
+    // Moe hasn't offered his own yet: Bea's step still goes first, and says he has more (16b review round 3).
+    expect(questConversation(MOE, save)!.lines).toEqual(["Moe helps Bea. (Talk again — there's more!)"]);
     // Moe's own quest under way (mid-hint): Bea's step still goes first, then his hint.
     save = set(save, questOfferedFlag(MOE_OWN));
     const step = talk(MOE, save);
@@ -1237,7 +1240,7 @@ describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first S
     // Before Wisp asks, the memory keepers say nothing about it.
     expect(questConversation('chart-chartmaker', { ...act4(), flags: { ...act4().flags, 'hall-dedicated': true } })).toBeNull();
     // Each memory ends by saying where the next one is.
-    expect(quest.steps.slice(0, -1).every((st) => /Next|Ask Keeper Aurora/.test(st.npc!.lines.at(-1)!))).toBe(true);
+    expect(quest.steps.slice(0, -1).every((st) => /Next|Lumina-That-Was/.test(st.npc!.lines.at(-1)!))).toBe(true);
     // Each memory is two lines, and only the last says the name.
     for (const st of quest.steps) expect(st.npc!.lines.length, st.id).toBe(3);
     for (const st of quest.steps.slice(0, -1)) expect(st.npc!.lines.join(' '), st.id).not.toMatch(/aster/i);
@@ -1273,10 +1276,122 @@ describe('Say Her Name (#75 item 16a): Wisp gathers five memories of the first S
     expect(questConversation('hill-keeper', save)).toBeNull();
   });
 
-  it("every memory's keeper stands somewhere — but Young Wick, who comes with Lumina-That-Was (16b)", () => {
+  it("every memory's keeper stands somewhere — Young Wick in Lumina-That-Was (16b)", () => {
     const placed = new Set(Object.values(ZONES).flatMap((z) => z.npcs.map((p) => p.defId)));
     const quest = byId(SAY_HER_NAME_QUEST);
-    for (const st of quest.steps.slice(0, -1)) expect(placed.has(st.npc!.id), st.npc!.id).toBe(true);
-    expect(NPC_DEFS['memory-young-wick']).toBeDefined();
+    for (const st of quest.steps) expect(placed.has(st.npc!.id), st.npc!.id).toBe(true);
+  });
+});
+
+describe('Lumina-That-Was quests (#75 item 16b)', () => {
+  const act4 = (): SaveData => ({ ...defaultSave(), flags: { [ACT4_SEEN]: true } });
+
+  it("One More Name: three children, three names, then the dog's own choice", () => {
+    const quest = byId('unnamed-dog');
+    expect(quest).toMatchObject({ giverNpcId: 'memory-dog', side: true, requires: ACT4_SEEN });
+    expect(quest.steps.map((st) => st.npc?.id)).toEqual(['memory-young-wick', 'memory-young-lumen', 'class-prim']);
+    expect(quest.choice!.map((c) => c.flag)).toEqual(['dog-named-pickles', 'dog-named-captain', 'dog-named-wigglesworth']);
+    let save = converse('memory-dog', act4());
+    for (const st of quest.steps) save = converse(st.npc!.id, save);
+    const done = questConversation('memory-dog', save)!;
+    expect(done.finishKind).toBe('complete');
+    expect(done.choice).toHaveLength(3);
+    save = done.finish!(save);
+    expect(save.badges).toContain('dog-badge');
+  });
+
+  it("The Bell's Apology: three slates answered left to right; the middle one first says not yet", () => {
+    const quest = byId('bell-apology');
+    expect(quest).toMatchObject({ giverNpcId: 'class-prim', zoneId: 'first-classroom', side: true });
+    expect(quest.steps.every((st) => !!st.riddle)).toBe(true);
+    const save = converse('class-prim', act4());
+    const early = questConversation('class-slate-2', save)!;
+    expect(early.finishKind).toBeNull();
+    expect(questConversation('class-slate-1', save)!.finishKind).toBe('riddle');
+    // Each slate asks its own topic, and the question screen calls it a slate (16b review round 1).
+    expect(quest.steps.map((st) => riddleTopic(st.id))).toEqual(['math', 'science', 'words']);
+    expect(riddleWords(quest.steps[0].id).title).toMatch(/slate/);
+    expect(riddleWords('yarn-stone-1').title).toMatch(/tale-stone/);
+  });
+
+  it("every quest badge has a name and emoji for the menu's shelf (16b review round 2)", () => {
+    for (const q of QUESTS) {
+      const badge = q.grants?.badge;
+      if (badge) expect(QUEST_BADGES[badge], badge).toMatchObject({ name: expect.any(String), emoji: expect.any(String) });
+    }
+    expect(QUEST_BADGES['dog-badge'].name).toBe('Dog Badge');
+  });
+
+  it("Prim says there's more: her own offer or her dog step after the other (16b review round 3)", () => {
+    const dog = byId('unnamed-dog');
+    const bell = byId('bell-apology');
+    const dogDue = { [ACT4_SEEN]: true, [questOfferedFlag(dog)]: true, [stepFlag('dog-wick')]: true, [stepFlag('dog-lumen')]: true };
+    // The dog's step first, then her own offer.
+    const first = questConversation('class-prim', { ...defaultSave(), flags: dogDue })!;
+    expect(first.badge).toBe(dog.title);
+    expect(first.lines.join(' ')).toMatch(/Sir Wigglesworth.*Talk again — there's more!/);
+    // The slates all answered: the Bell's reward first, then the dog's step.
+    const slates = Object.fromEntries(bell.steps.map((st) => [stepFlag(st.id), true]));
+    const done = questConversation('class-prim', { ...defaultSave(), flags: { ...dogDue, ...slates, [questOfferedFlag(bell)]: true } })!;
+    expect(done.finishKind).toBe('complete');
+    expect(done.lines[done.lines.length - 1]).toMatch(/Talk again — there's more!/);
+  });
+
+  it("Prim's dog not-yet names her own quest's reminder, and knows who's been asked (16b review round 3)", () => {
+    const dog = byId('unnamed-dog');
+    const bell = byId('bell-apology');
+    const flags = { [ACT4_SEEN]: true, [questOfferedFlag(dog)]: true, [questOfferedFlag(bell)]: true };
+    const c = questConversation('class-prim', { ...defaultSave(), flags })!;
+    expect(c.lines[1]).toMatch(new RegExp(`^📜 ${bell.title}: `));
+    const asked = questConversation('class-prim', { ...defaultSave(), flags: { ...flags, [stepFlag('dog-wick')]: true } })!;
+    expect(asked.lines[0]).toMatch(/Ask Young Lumen next/);
+  });
+
+  it('the Lesson Bell points at Prim once the slates are done (16b review round 3)', () => {
+    const say = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['class-bell'].lines, flags).map(lineText).join(' ');
+    expect(say({})).toMatch(/embarrassed/);
+    const slates = Object.fromEntries(byId('bell-apology').steps.map((st) => [stepFlag(st.id), true]));
+    expect(say(slates)).toMatch(/tell Monitor Prim the slates are done/);
+    expect(say({ ...slates, [questDoneFlag(byId('bell-apology'))]: true })).toMatch(/waits for the right time/);
+  });
+
+  it("Young Wick says not yet before Chronicle's turn, and the dog's people say who's next (16b review round 4)", () => {
+    const flags = { [ACT4_SEEN]: true, [questOfferedFlag(byId(SAY_HER_NAME_QUEST))]: true };
+    expect(questConversation('memory-young-wick', { ...defaultSave(), flags })!.lines[0]).toMatch(/ask Sage Chronicle first/);
+    const dog = byId('unnamed-dog');
+    expect(dog.steps.map((st) => st.npc!.lines.join(' '))).toEqual([
+      expect.stringMatching(/Next, ask Young Lumen/),
+      expect.stringMatching(/Last, ask Monitor Prim/),
+      expect.stringMatching(/Go back to the dog/),
+    ]);
+  });
+
+  it("Young Wick says there's more when the dog's name is due too (16b review round 2)", () => {
+    const flags: Record<string, boolean> = { [ACT4_SEEN]: true, [questOfferedFlag(byId(SAY_HER_NAME_QUEST))]: true, [questOfferedFlag(byId('unnamed-dog'))]: true };
+    for (const st of byId(SAY_HER_NAME_QUEST).steps.slice(0, -1)) flags[stepFlag(st.id)] = true;
+    const save: SaveData = { ...defaultSave(), flags };
+    const first = questConversation('memory-young-wick', save)!;
+    expect(first.badge).toBe(byId(SAY_HER_NAME_QUEST).title);
+    expect(first.lines[first.lines.length - 1]).toMatch(/Talk again — there's more!/);
+    const second = questConversation('memory-young-wick', first.finish!(save))!;
+    expect(second.lines.join(' ')).toMatch(/PICKLES/);
+    expect(second.lines.join(' ')).not.toMatch(/there's more/);
+  });
+
+  it('One More Name says who to ask, and Lumen and Prim say "not yet" before their turn', () => {
+    const quest = byId('unnamed-dog');
+    expect(quest.offer.join(' ')).toMatch(/Young Wick, Young Lumen and Monitor Prim/);
+    const save = converse('memory-dog', act4());
+    expect(questConversation('memory-young-lumen', save)!.lines.join(' ')).toMatch(/Ask Young Wick first/);
+    // Her own Bell's Apology comes first (16b review round 2)…
+    const prim = questConversation('class-prim', save)!;
+    expect(prim.badge).toBe(byId('bell-apology').title);
+    expect(prim.finishKind).toBe('offer');
+    // …then the dog's "not yet", with the Bell's reminder after it.
+    const offered = { ...save, flags: { ...save.flags, [questOfferedFlag(byId('bell-apology'))]: true } };
+    const later = questConversation('class-prim', offered)!;
+    expect(later.lines[0]).toMatch(/Ask the children first/);
+    expect(later.lines).toHaveLength(2);
+    expect(later.lines[1]).toMatch(/Slate/);
   });
 });

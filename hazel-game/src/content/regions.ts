@@ -88,6 +88,8 @@ export const REGIONS: RegionDef[] = [
   // Act III (#75 item 15c): the far continent, a step tougher again. Port
   // Lantern is a town (no critters); Taleshore's places came in 15d–15h.
   { id: 'taleshore', name: 'Taleshore and the Starfall Sea', tier: 6, zones: ['taleshore', 'port-lantern', 'driftwood-shallows', 'wayfinder-isles', 'gale-atoll', 'story-reef', 'inkwell-cove', 'songstone-cliffs', 'quiet-quarter', 'chorus-isle', 'chartmakers-rest'] },
+  // Act IV (#75 item 16b): Lumina-That-Was, below the Dream Root Door.
+  { id: 'lumina-that-was', name: 'Lumina-That-Was', tier: 7, zones: ['memory-field', 'memory-village', 'first-classroom'] },
 ];
 
 /** The danger tier of a zone (its region's). */

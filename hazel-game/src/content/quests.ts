@@ -1,11 +1,11 @@
-import type { SaveData, ZoneId } from '../types';
+import type { SaveData, Topic, ZoneId } from '../types';
 import { chestKeyItem, keyChestFor, litFlag, secretFlag } from './zones';
 import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN, ACT4_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
 import { crystalFlag } from './topics';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, DOG_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -134,7 +134,7 @@ export interface QuestStep {
    * A person's own words for "not yet", in place of "Not this one yet!" and the
    * due step's hint (#75 item 16a review round 4: Keeper Mnem isn't a lantern).
    */
-  earlyLine?: string;
+  earlyLine?: string | ((save: SaveData) => string);
   /**
    * "Not yet" only once this story flag is set (16a code review round 4): until
    * then the NPC's own story beat comes first — Mnem's call to the Hall's dedication.
@@ -151,7 +151,13 @@ export interface QuestStep {
    * zone's topic instead of finishing the step; a right answer finishes it,
    * and `solved` — the clue to the next step — shows under the answer.
    */
-  riddle?: { solved: string };
+  riddle?: {
+    solved: string;
+    /** Its question's topic (#75 item 16b), in place of the zone's (`topicAt`). */
+    topic?: Topic;
+    /** What the question screen says it is, and when it's answered right or wrong (default: a tale-stone's). */
+    words?: RiddleWords;
+  };
   /**
    * A song step (#75 item 15f): talked to out of turn while the song is due,
    * its thing is a wrong note — every song step of its quest is un-done and the
@@ -222,8 +228,25 @@ export interface QuestDef {
    * Kept for good as the quest completes (#75 item 15h): quest items handed
    * over (the Blank Chart) and story flags set (`blank-chart-held`).
    */
-  grants?: { items?: string[]; flags?: string[] };
+  grants?: { items?: string[]; flags?: string[]; badge?: string };
+  /**
+   * The completion ends on a choice (#75 item 16b: the Unnamed Dog's name):
+   * the last line asks, a button per option, and the one picked sets its flag.
+   */
+  choice?: QuestChoice[];
 }
+
+/** One option of a quest's closing choice (#75 item 16b): its button, its flag, and what's said after. */
+export interface QuestChoice {
+  label: string;
+  flag: string;
+  line: string;
+}
+
+/** Badges a quest gives (#75 item 16b) — shown on the menu's shelf. */
+export const QUEST_BADGES: Record<string, { name: string; emoji: string }> = {
+  'dog-badge': { name: 'Dog Badge', emoji: '🐕' },
+};
 
 // --- Step builders ------------------------------------------------------------
 
@@ -360,10 +383,38 @@ function riddleStep(
   lines: string[],
   hint: string,
   solved: string,
-  { early = false, remind }: { early?: boolean; remind?: string } = {},
+  { early = false, remind, topic, words }: { early?: boolean; remind?: string; topic?: Topic; words?: RiddleWords } = {},
 ): QuestStep {
-  return { id, hint, remind, npc: { id: npcId, lines }, riddle: { solved }, early, isComplete: (save) => save.flags[stepFlag(id)] === true };
+  return { id, hint, remind, npc: { id: npcId, lines }, riddle: { solved, topic, words }, early, isComplete: (save) => save.flags[stepFlag(id)] === true };
 }
+
+/** What a riddle's question screen says (#75 item 16b): the title, then right and wrong. */
+export interface RiddleWords {
+  title: string;
+  /** What the dialog is called for screen readers, and the button that opens it (16b review round 2). */
+  label: string;
+  button: string;
+  right: string;
+  wrong: string;
+}
+
+/** A tale-stone's words (#75 item 15e) — every riddle's, unless its step says otherwise. */
+export const TALE_STONE_WORDS: RiddleWords = {
+  title: '📜 The tale-stone asks a word question!',
+  label: 'Tale-stone riddle',
+  button: '📜 Hear the question',
+  right: 'The stone glows!',
+  wrong: 'The stone stays dim. Want another question?',
+};
+
+/** A chalk slate's words (#75 item 16b review round 1). */
+const SLATE_WORDS: RiddleWords = {
+  title: '📝 The slate asks a question!',
+  label: 'Slate question',
+  button: '📝 Hear the question',
+  right: 'The chalk turns gold!',
+  wrong: 'The chalk stays white. Want another question?',
+};
 
 /** Save flag: this quest item was handed over in a bring step (#75 item 13). */
 export function handedOverFlag(item: string): string {
@@ -1491,13 +1542,16 @@ export const QUESTS: QuestDef[] = [
           [
             'Every history book here has a footnote that goes nowhere: \'see the First Sage\'. No page says who she was.',
             'But I know WHY she was forgotten. The questions got too hard, so people stopped asking her. Then they stopped saying her name.',
-            '✨ Four pieces! Someone below the Crystal Spire still remembers her. Ask Keeper Aurora, at the Dream Root Door.',
+            '✨ Four pieces! Next: Young Wick — Grandmother Wick as a little girl! — in Lumina-That-Was, below the Dream Root Door.',
           ],
           'Ask Sage Chronicle, in the Sunken Archive, about the very first Sage.',
         ),
         remind: 'Sage Chronicle knows every old book in the Sunken Archive. Ask about the very first Sage!',
       },
       {
+        // Met before Chronicle's turn (16b review round 4): in her own voice, like Mnem's and the Chartmaker's.
+        early: true,
+        earlyLine: "My teacher? She's the best! But ask Sage Chronicle first, in the Sunken Archive — then come and see me.",
         ...talkStep(
           'name-young-wick',
           'memory-young-wick',
@@ -1506,9 +1560,9 @@ export const QUESTS: QuestDef[] = [
             'A-S-T-E-R, like the daisy flower! Why are you smiling like that? It\'s just her name.',
             '✨ The last piece! Run back to Wisp, in the Whispering Woods, and say it!',
           ],
-          'Find someone who still remembers her — down in the Dream Root, where Lumina keeps everything it forgot.',
+          'Ask Young Wick about her teacher — in Old Lumina Village, below the Dream Root Door.',
         ),
-        remind: 'Somebody who still REMEMBERS her… down in the Dream Root, under the Spire. Keeper Aurora waits at its door!',
+        remind: 'Somebody who still REMEMBERS her… Young Wick, down in Lumina-That-Was, past the Dream Root Door!',
       },
     ],
     doneLine: 'Go back to Wisp, in the Whispering Woods, and say her name!',
@@ -1518,6 +1572,120 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { coins: 60, hint: 1 },
     grants: { flags: [NAME_LEARNED] },
+  },
+
+  // --- Lumina-That-Was (#75 item 16b) ---------------------------------------------
+  // The Lesson Bell rang too early and the class ran out before the last three
+  // questions were answered; answer the slates in order (the riddle chain) and
+  // the bell can say sorry.
+  {
+    id: BELL_QUEST,
+    zoneId: 'first-classroom',
+    giverNpcId: 'class-prim',
+    side: true,
+    title: "The Bell's Apology",
+    requires: ACT4_SEEN,
+    offer: [
+      "*Monitor Prim taps a ruler.* The Lesson Bell rang far too early today, and the whole class ran out to play!",
+      'Three slates still hold the last three questions. Answer them in order, left to right, and the lesson can end properly.',
+    ],
+    steps: [
+      riddleStep(
+        BELL_SLATES[0],
+        'class-slate-1',
+        ['📝 The first slate. A question is chalked on it, waiting.', 'Answer it, and the chalk turns gold!'],
+        'Answer Slate 1 — the one on the left.',
+        '✨ One slate done! Now Slate 2, in the middle.',
+        { remind: 'Start with Slate 1, on the left. Left to right!', topic: 'math', words: SLATE_WORDS },
+      ),
+      riddleStep(
+        BELL_SLATES[1],
+        'class-slate-2',
+        ['📝 The second slate. Its chalk wiggles as you come close.', 'Answer it, and the chalk turns gold!'],
+        'Answer Slate 2, the middle one.',
+        '✨ Gold again! One more — Slate 3, on the right.',
+        { early: true, topic: 'science', words: SLATE_WORDS },
+      ),
+      riddleStep(
+        BELL_SLATES[2],
+        'class-slate-3',
+        ['📝 The last slate. Its question is the hardest-looking of all.', 'Answer it, and the lesson is finished!'],
+        'Answer Slate 3, the one on the right.',
+        '✨ All three slates shine gold! Go and tell Monitor Prim.',
+        { early: true, topic: 'words', words: SLATE_WORDS },
+      ),
+    ],
+    complete: [
+      '*Bwong…* The Lesson Bell rings very softly. "Sorry I rang so early. I was just SO excited about lunch."',
+      'Monitor Prim smiles — just a little. "Apology accepted. Lesson ended. Well done."',
+      '✨ Reward: 50 coins and two Hint Feathers!',
+    ],
+    reward: { coins: 50, hint: 2 },
+  },
+
+  // Every child in old Lumina called the dog a different name (STORY-4X §6):
+  // ask three of them, then pick the one that sticks.
+  {
+    id: DOG_QUEST,
+    zoneId: 'memory-village',
+    giverNpcId: 'memory-dog',
+    side: true,
+    title: 'One More Name',
+    requires: ACT4_SEEN,
+    offer: [
+      'Woof! *The dog sits on your foot and wags.*',
+      "(There's no name on his collar. Ask Young Wick, Young Lumen and Monitor Prim what they call him — in that order!)",
+    ],
+    steps: [
+      {
+        ...talkStep(
+          'dog-wick',
+          'memory-young-wick',
+          ["That dog? That's PICKLES! Because he steals pickles. Every. Single. Day. (Next, ask Young Lumen, in the Old Library!)"],
+          'Ask Young Wick, in Old Lumina Village, what the dog is called.',
+        ),
+        // The dog's reminders in the narrator's voice, not his (16b review round 3).
+        remind: '(Woof! Young Wick is by the bakery — ask her first.)',
+      },
+      {
+        early: true,
+        earlyLine: "The dog? Ask Young Wick first — she's known him longest! She's by the bakery in Old Lumina Village.",
+        ...talkStep(
+        'dog-lumen',
+        'memory-young-lumen',
+        ["That's Captain! He guards the whole town. Very serious. Mostly naps. (Last, ask Monitor Prim, in the First Classroom!)"],
+        'Ask Young Lumen, in the Old Library in Old Lumina Field, what the dog is called.',
+        ),
+        remind: '(Woof! Next, ask Young Lumen, in the Old Library.)',
+      },
+      {
+        early: true,
+        // Once Wick's been asked, only Lumen is left to ask (16b review round 3).
+        earlyLine: (s) =>
+          s.flags[stepFlag('dog-wick')]
+            ? 'The dog? Ask Young Lumen next — in the Old Library, in Old Lumina Field. Then come and see me.'
+            : 'The dog? Ask the children first — Young Wick, then Young Lumen. Then come and see me.',
+        ...talkStep(
+        'dog-prim',
+        'class-prim',
+        ['That is Sir Wigglesworth. Obviously. (Three names! Go back to the dog, in Old Lumina Village, and pick one.)'],
+        'Ask Monitor Prim, in the First Classroom, what the dog is called.',
+        ),
+        remind: '(Woof! Last, ask Monitor Prim, in the First Classroom.)',
+      },
+    ],
+    doneLine: 'Three names! Go back to the dog, in Old Lumina Village, and pick one.',
+    complete: [
+      'Woof? *The dog looks up at you, waiting.*',
+      'Pickles, Captain or Sir Wigglesworth — which name will stick? (Pick one!)',
+    ],
+    choice: [
+      { label: '🥒 Pickles', flag: 'dog-named-pickles', line: 'Pickles it is! *He wags so hard he falls over.* ✨ Reward: 20 coins and the 🐕 Dog Badge!' },
+      { label: '⚓ Captain', flag: 'dog-named-captain', line: 'Captain it is! *He sits up very straight.* ✨ Reward: 20 coins and the 🐕 Dog Badge!' },
+      { label: '🎩 Sir Wigglesworth', flag: 'dog-named-wigglesworth', line: 'Sir Wigglesworth it is! *He bows, then wiggles.* ✨ Reward: 20 coins and the 🐕 Dog Badge!' },
+    ],
+    reward: { coins: 20 },
+    grants: { badge: 'dog-badge' },
   },
 
   // --- Item chains (#75 item 13) ----------------------------------------------
@@ -1760,6 +1928,8 @@ export interface QuestConversation {
   finishKind: 'offer' | 'complete' | 'step' | 'riddle' | null;
   /** A riddle step's id (#75 item 15e): the closing button asks its question. */
   riddle?: string;
+  /** A completion that ends on a choice (#75 item 16b): one button per option, then `finish` and its flag. */
+  choice?: QuestChoice[];
 }
 
 /**
@@ -1770,15 +1940,37 @@ export interface QuestConversation {
  *   2. a **step** goes through them (any quest's, while that step is active;
  *      a bring step only once its item is in hand);
  *   3. they **offer** their quest;
- *   4. they **remind** you of its current step.
+ *   4. another quest's **"not yet"** for a later step of theirs (with their
+ *      own reminder after it, if their quest is under way);
+ *   5. they **remind** you of its current step.
+ * A step or a completion that leaves them with more to do — another quest's
+ * step, their own offer or reward — ends "(Talk again — there's more!)"
+ * (16b reviews, rounds 2–3: Young Wick's memory, then the dog's name). A
+ * completion may end on a choice (`QuestDef.choice`).
  */
 export function questConversation(npcId: string, save: SaveData): QuestConversation | null {
+  const now = conversationNow(npcId, save);
+  if (!now?.finish || (now.finishKind !== 'step' && now.finishKind !== 'complete') || now.choice?.length) return now;
+  const next = conversationNow(npcId, now.finish(save));
+  if (!next?.finishKind) return now;
+  const last = now.lines.length - 1;
+  return { ...now, lines: [...now.lines.slice(0, last), `${now.lines[last]} (Talk again — there's more!)`] };
+}
+
+function conversationNow(npcId: string, save: SaveData): QuestConversation | null {
   const quest = questFor(npcId, save);
   const step = quest ? activeStep(quest, save) : null;
   if (quest && !step) return completeConversation(quest);
   const through = stepConversation(npcId, save);
   if (through) return through;
-  const early = earlyConversation(npcId, save);
+  // Their own quest's offer comes before another quest's "not yet" (16b review round 2:
+  // Monitor Prim's dog line hid the Bell's Apology).
+  const early = quest && step && !save.flags[questOfferedFlag(quest)] ? null : earlyConversation(npcId, save);
+  if (early && quest && step && early.badge !== quest.title) {
+    // …and their own reminder still follows it, named, since the chip is the
+    // other quest's (16b review round 3).
+    return { ...early, lines: [...early.lines, `📜 ${quest.title}: ${step.remind ?? resolveHint(step, save)}`] };
+  }
   if (early) return early;
   if (!quest || !step) return null;
   if (!save.flags[questOfferedFlag(quest)]) {
@@ -1805,6 +1997,7 @@ function completeConversation(quest: QuestDef): QuestConversation {
     lines: quest.complete,
     badge: quest.title,
     finishKind: 'complete',
+    choice: quest.choice,
     finish: (s) => {
       const { coins, potion = 0, hint = 0, items = {} } = quest.reward;
       const nextItems = { ...s.items, potion: s.items.potion + potion, hint: s.items.hint + hint };
@@ -1812,8 +2005,10 @@ function completeConversation(quest: QuestDef): QuestConversation {
       const kept = s.questItems.filter((i) => i !== quest.givesItem && !quest.takesItems?.includes(i));
       const granted = (quest.grants?.items ?? []).filter((i) => !kept.includes(i));
       const grantedFlags = Object.fromEntries((quest.grants?.flags ?? []).map((f) => [f, true]));
+      const badge = quest.grants?.badge;
       return {
         ...s,
+        badges: badge && !s.badges.includes(badge) ? [...s.badges, badge] : s.badges,
         coins: s.coins + coins,
         items: nextItems,
         questItems: [...kept, ...granted],
@@ -1901,7 +2096,7 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
     const mine = later.find((st) => (st.early || st.song) && st.npc?.id === npcId && (!st.earlyAfter || save.flags[st.earlyAfter]));
     if (mine) {
       // A person says it their own way (16a review round 4).
-      if (mine.earlyLine) return { lines: [mine.earlyLine], badge: q.title, finishKind: null, finish: null };
+      if (mine.earlyLine) return { lines: [typeof mine.earlyLine === 'function' ? mine.earlyLine(save) : mine.earlyLine], badge: q.title, finishKind: null, finish: null };
       // Another of its kind first ("Not this one yet!"), or something to find first — the Ledger (#75 item 14g UX review).
       return { lines: [`${step.npc ? 'Not this one yet!' : 'Not yet!'} ${resolveHint(step, save)}`], badge: q.title, finishKind: null, finish: null };
     }
@@ -1959,6 +2154,18 @@ export function openChest(save: SaveData, chestId: string): SaveData {
 export function riddleSolvedLine(stepId: string): string | null {
   for (const q of QUESTS) for (const st of q.steps) if (st.id === stepId && st.riddle) return st.riddle.solved;
   return null;
+}
+
+/** What a riddle step's question screen says (#75 item 16b): its own words, or a tale-stone's. */
+export function riddleWords(stepId: string): RiddleWords {
+  for (const q of QUESTS) for (const st of q.steps) if (st.id === stepId && st.riddle) return st.riddle.words ?? TALE_STONE_WORDS;
+  return TALE_STONE_WORDS;
+}
+
+/** A riddle step's own topic, if it has one (#75 item 16b). */
+export function riddleTopic(stepId: string): Topic | undefined {
+  for (const q of QUESTS) for (const st of q.steps) if (st.id === stepId && st.riddle) return st.riddle.topic;
+  return undefined;
 }
 
 /**

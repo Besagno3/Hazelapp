@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING } from './story';
@@ -104,6 +104,23 @@ export interface WorldNpcDef {
    * stationary (Wisp is).
    */
   face?: { flag: string; spriteId: string; sprite: string };
+  /**
+   * A new name once a story flag is set (#75 item 16b: the Unnamed Dog, once
+   * the hero has named him) — over their head and in talk (`npcName`).
+   */
+  names?: { flag: string; name: string }[];
+  /** Ambient bubbles that only float once a story flag is set (the dog's own name, #75 item 16b). */
+  ambientIf?: { flag: string; lines: string[] }[];
+}
+
+/** An NPC's name now (#75 item 16b): a new one once its flag is set, else their own. */
+export function npcName(def: WorldNpcDef, flags: Record<string, boolean> = {}): string {
+  return def.names?.find((n) => flags[n.flag])?.name ?? def.name;
+}
+
+/** The bubbles an NPC floats now (#75 item 16b): the flag's own, else their usual ones. */
+export function npcAmbient(def: WorldNpcDef, flags: Record<string, boolean> = {}): string[] | undefined {
+  return def.ambientIf?.find((a) => flags[a.flag])?.lines ?? def.ambient;
 }
 
 /** A thing, not a person — a prop or a signpost (15c review): it never steps aside. */
@@ -469,6 +486,12 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       {
         text: 'Aster! With the daisy behind her ear. Fancy me forgetting a name like that, all these years.',
         ifFlag: NAME_LEARNED,
+      },
+      // The fifth memory is her own, as a girl (16b review round 1).
+      {
+        text: 'Me, as a little girl? Down below the Spire? Oh my! Go and ask her — and tell her the bread is burning.',
+        ifFlag: stepFlag('name-chronicle'),
+        unlessFlag: [stepFlag('name-young-wick'), NAME_LEARNED],
       },
       // Wisp's beat plays only in the Woods (#129l) — a nudge back there after Memory.
       {
@@ -2624,7 +2647,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       // The fifth memory waits below (Lumina-That-Was, 16b): she says so, and where.
       {
-        text: 'Someone below still remembers her — I am sure of it. But Old Knot has not untangled the way down yet. Rest here, and come back soon.',
+        text: 'Someone below still remembers her — I am sure of it. Old Knot has untangled the way down. Follow the path past him, into Lumina-That-Was!',
         ifFlag: stepFlag('name-chronicle'),
         unlessFlag: [NAME_LEARNED, stepFlag('name-young-wick')],
       },
@@ -2643,7 +2666,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Creeeak. I am Old Knot, one root of the Dream Root. I go down, and down, and down — all the way to everything Lumina forgot.',
       'Down there, the world still looks the way it did before the fog. Folk you know are young again!',
-      'The way down is still knotted shut. I am untangling it, little one, but roots are slow.',
+      'I untangled the way down — it is just past me. Lumina-That-Was waits below. Mind your step, little one.',
     ],
     ambient: ['*creak*', 'Down and down…', '🍄'],
   },
@@ -2657,6 +2680,138 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       "I'm Wick! I'm going to be a baker when I grow up. I burnt the bread again today. Don't tell!",
+      'My big sister says the bakery smells like toast. I say it smells like ADVENTURE.',
+    ],
+    ambient: ['Oops, the bread!', '*sniff sniff*', 'Hi!'],
+  },
+
+  // --- Lumina-That-Was (#75 item 16b): the world before the fog ---
+  'memory-young-lumen': {
+    id: 'memory-young-lumen',
+    name: 'Young Lumen',
+    sprite: '👦',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      "I'm Lumen! When I grow up, I'm going to read every book in this library. Twice.",
+      'Why are you smiling at me like that? Do I have jam on my face?',
+      "The teacher says the best questions don't have easy answers. I'm saving up hard ones for her!",
+    ],
+  },
+  'memory-fair': {
+    id: 'memory-fair',
+    name: 'First Merchant',
+    sprite: '🎪',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'Welcome to the First-Merchant Fair! Everything here is free — memories always are.',
+      "Years from now, Maple's Trading Post will stand right where I do!",
+    ],
+  },
+  'memory-popcorn': {
+    id: 'memory-popcorn',
+    name: 'Popcorn Cart',
+    sprite: '🍿',
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: ['🍿 *pop… pop-pop…* An old popcorn cart. It smells exactly like a summer fair.'],
+  },
+  'memory-dog': {
+    id: 'memory-dog',
+    name: 'The Unnamed Dog',
+    sprite: '🐕',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      { text: 'Woof! *wag wag wag*', unlessFlag: ['dog-named-pickles', 'dog-named-captain', 'dog-named-wigglesworth'] },
+      { text: 'WOOF! *Pickles wags so hard he falls right over.*', ifFlag: 'dog-named-pickles' },
+      { text: 'Woof! *Captain stands up very straight, guarding you.*', ifFlag: 'dog-named-captain' },
+      { text: 'Woof. *Sir Wigglesworth bows. Then wiggles.*', ifFlag: 'dog-named-wigglesworth' },
+    ],
+    // Every child in old Lumina called this dog something different (STORY-4X §6).
+    ambient: ['Pickles!', 'Captain!', 'Sir Wigglesworth!', 'Woof!'],
+    // Once named, everyone calls him that (16b review round 1).
+    names: [
+      { flag: 'dog-named-pickles', name: 'Pickles' },
+      { flag: 'dog-named-captain', name: 'Captain' },
+      { flag: 'dog-named-wigglesworth', name: 'Sir Wigglesworth' },
+    ],
+    ambientIf: [
+      { flag: 'dog-named-pickles', lines: ['Pickles!', 'Woof!', '*wag wag*'] },
+      { flag: 'dog-named-captain', lines: ['Captain!', 'Woof!', '*salutes*'] },
+      { flag: 'dog-named-wigglesworth', lines: ['Sir Wigglesworth!', 'Woof!', '*wiggles*'] },
+    ],
+  },
+  'class-prim': {
+    id: 'class-prim',
+    name: 'Monitor Prim',
+    sprite: '📏',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'I am Monitor Prim. Desks in rows, chalk in its box, and voices at a sensible volume.',
+      'Lessons end when the Lesson Bell says so. Usually.',
+    ],
+  },
+  'class-bell': {
+    id: 'class-bell',
+    name: 'The Lesson Bell',
+    sprite: '🔔',
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: [
+      { text: '🔔 *Bwong.* The Lesson Bell rings by itself… then looks a little embarrassed.', unlessFlag: stepFlag(BELL_SLATES[2]) },
+      // The slates done (the last answers only after the others), the apology not yet said (16b review round 3).
+      { text: '🔔 *Bwong?* The bell is trying to say something… Go and tell Monitor Prim the slates are done!', ifFlag: stepFlag(BELL_SLATES[2]), unlessFlag: questDoneFlag({ id: BELL_QUEST }) },
+      { text: '🔔 *bwong…* (very softly). It waits for the right time now.', ifFlag: questDoneFlag({ id: BELL_QUEST }) },
+    ],
+  },
+  'class-slate-1': {
+    id: 'class-slate-1',
+    name: 'Slate 1',
+    sprite: '📝',
+    spriteId: 'class-slate',
+    // Gold chalk once answered — on the map too (16b review round 2).
+    face: { flag: stepFlag('bell-slate-1'), spriteId: 'class-slate-gold', sprite: '✨' },
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: [
+      { text: 'A slate with a question chalked on it, half rubbed out. Monitor Prim keeps an eye on it.', unlessFlag: stepFlag('bell-slate-1') },
+      { text: 'The chalk on this slate shines gold. ✨', ifFlag: stepFlag('bell-slate-1') },
+    ],
+  },
+  'class-slate-2': {
+    id: 'class-slate-2',
+    name: 'Slate 2',
+    sprite: '📝',
+    spriteId: 'class-slate',
+    // Gold chalk once answered — on the map too (16b review round 2).
+    face: { flag: stepFlag('bell-slate-2'), spriteId: 'class-slate-gold', sprite: '✨' },
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: [
+      { text: 'A slate with a question chalked on it, half rubbed out. Monitor Prim keeps an eye on it.', unlessFlag: stepFlag('bell-slate-2') },
+      { text: 'The chalk on this slate shines gold. ✨', ifFlag: stepFlag('bell-slate-2') },
+    ],
+  },
+  'class-slate-3': {
+    id: 'class-slate-3',
+    name: 'Slate 3',
+    sprite: '📝',
+    spriteId: 'class-slate',
+    // Gold chalk once answered — on the map too (16b review round 2).
+    face: { flag: stepFlag('bell-slate-3'), spriteId: 'class-slate-gold', sprite: '✨' },
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: [
+      { text: 'A slate with a question chalked on it, half rubbed out. Monitor Prim keeps an eye on it.', unlessFlag: stepFlag('bell-slate-3') },
+      { text: 'The chalk on this slate shines gold. ✨', ifFlag: stepFlag('bell-slate-3') },
     ],
   },
 };

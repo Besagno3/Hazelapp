@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
+import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcName, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
-import { questConversation, type QuestConversation } from '../../content/quests';
+import { riddleTopic, riddleWords, questConversation, type QuestConversation } from '../../content/quests';
 import { boatFetchOffer, fetchBoatHome } from '../../content/boat';
-import { ZONES } from '../../content/zones';
+import { ZONES, topicAt } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
 import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
@@ -46,16 +46,38 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   });
   const { lines, quest, fetchOffer } = conversation;
   const [index, setIndex] = useState(0);
+  // A choice made (#75 item 16b): what's said after it, before the box closes.
+  const [picked, setPicked] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
 
   const invalid = !npc || lines.length === 0;
   useEffect(() => {
     if (invalid) sendFlow({ type: 'CLOSE' });
   }, [invalid]);
+  // On a choice, the arrow keys move between its buttons, from none focused —
+  // so Enter picks only once a name has been chosen with them (16b review round 3).
+  const rowRef = useRef<HTMLDivElement>(null);
+  // …and after a pick, → reaches 🎉 Thanks (16b review round 4).
+  const choiceUp = !invalid && index >= lines.length - 1 && !!quest?.choice?.length;
+  useEffect(() => {
+    if (!choiceUp) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      const buttons = Array.from(rowRef.current?.querySelectorAll('button') ?? []);
+      if (!step || !buttons.length) return;
+      e.preventDefault();
+      const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      const next = at < 0 ? (step > 0 ? 0 : buttons.length - 1) : (at + step + buttons.length) % buttons.length;
+      buttons[next].focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [choiceUp]);
   if (invalid) return null;
 
   const line = lines[Math.min(index, lines.length - 1)];
-  const text = fetched && fetchOffer ? fetchOffer.done : typeof line === 'string' ? line : line.text;
+  const text = picked ?? (fetched && fetchOffer ? fetchOffer.done : typeof line === 'string' ? line : line.text);
   const isLast = index >= lines.length - 1;
   // Giver conversations don't double as service menus, but a service NPC who
   // is merely a quest STEP target (Sage Cog polishing, Sage Muse singing)
@@ -85,6 +107,21 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     sendFlow({ type: 'CLOSE' });
   }
 
+  // A completion that ends on a choice (#75 item 16b: the Unnamed Dog's name):
+  // the pick finishes the quest with its flag, then its own line is said.
+  function choose(c: { flag: string; line: string }) {
+    applyLineFlag();
+    if (quest?.finish) {
+      const finish = quest.finish;
+      update((s) => {
+        const done = finish(s);
+        return { ...done, flags: { ...done.flags, [c.flag]: true } };
+      });
+    }
+    setPicked(c.line);
+  }
+  const choosing = isLast && !!quest?.choice?.length && picked === null;
+
   function openService() {
     applyLineFlag();
     // Leaving via the service button must still advance the quest step —
@@ -98,7 +135,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     applyLineFlag();
     const save = useSaveStore.getState().save;
     if (!quest?.riddle || !save) return;
-    const topic = ZONES[save.zoneId]?.topic ?? 'words';
+    // In a mixed-topic zone (#75 item 16b) the thing's own cell picks its topic.
+    const z = ZONES[save.zoneId];
+    const at = z?.npcs.find((p) => p.defId === npcId);
+    const topic = riddleTopic(quest.riddle) ?? (z && at ? topicAt(z, at.x, at.y, 'words') : z?.topic ?? 'words');
     sendFlow({ type: 'OPEN_PATH', target: { kind: 'riddle', id: quest.riddle, topic, zoneId: save.zoneId } });
   }
 
@@ -108,7 +148,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   }
 
   return (
-    <ModalLayer label={npc.name} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
+    <ModalLayer label={npcName(npc, flagsNow)} focusKey={`${index}-${picked ? 1 : 0}`} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
       <motion.div
         initial={{ y: 30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -116,7 +156,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
       >
         <div className="flex items-center gap-2 mb-2">
           <CharacterPortrait spriteId={npcSpriteId(npc, flagsNow)} emoji={npcEmoji(npc, flagsNow)} scale={1.25} className="text-3xl" />
-          <span className="font-bold text-amber-300">{npc.name}</span>
+          <span className="font-bold text-amber-300">{npcName(npc, flagsNow)}</span>
           {quest && (
             <span className="ml-auto text-[10px] uppercase tracking-wider bg-amber-400/20 text-amber-300 rounded px-2 py-0.5">
               ❗ {quest.badge}
@@ -125,7 +165,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
         </div>
         {/* pre-line: a signpost reads one direction per line. */}
         <p className="leading-relaxed min-h-[3rem] whitespace-pre-line">{text}</p>
-        <div className="flex justify-end gap-3 mt-3">
+        <div ref={rowRef} className="flex flex-wrap justify-end gap-3 mt-3">
           {offerService && (
             <button
               onClick={openService}
@@ -146,7 +186,36 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               ⛵ Row her home
             </button>
           )}
+          {/* Never focused: a stray or held Enter mustn't pick a name for good (16b review round 1). */}
+          {choosing &&
+            quest!.choice!.map((c) => (
+              <button
+                key={c.flag}
+                onClick={() => choose(c)}
+                className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-2.5 min-h-[44px] text-sm"
+              >
+                {c.label}
+              </button>
+            ))}
+          {choosing && (
+            <button
+              onClick={() => sendFlow({ type: 'CLOSE' })}
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-2.5 min-h-[44px] text-sm"
+            >
+              Later
+            </button>
+          )}
+          {/* Not focused: a held Enter after a pick can't close the reply unread (16b review round 2). */}
+          {picked !== null && (
+            <button
+              onClick={() => sendFlow({ type: 'CLOSE' })}
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+            >
+              🎉 Thanks!
+            </button>
+          )}
           {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}
+          {!choosing && picked === null && (
           <button
             autoFocus
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
@@ -161,9 +230,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
                   : quest?.finishKind === 'step'
                     ? '✨ Got it!'
                     : quest?.finishKind === 'riddle'
-                      ? '📜 Hear the question'
+                      ? riddleWords(quest.riddle ?? '').button
                       : 'Bye!'}
           </button>
+          )}
           {isLast && quest?.finishKind === 'riddle' && (
             <button
               onClick={advance}

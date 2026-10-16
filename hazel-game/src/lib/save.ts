@@ -287,6 +287,18 @@ export function normalizeSave(raw: unknown): SaveData {
   return save.flags[SPIRE_VICTORY_SEEN] && !save.flags[ACT2_SEEN] ? { ...save, ...restAtHomeInn() } : save;
 }
 
+/**
+ * The shelter that looks after a hero beaten in this zone: its own, or the one
+ * it points to (`shelterIn`, #75 item 16b: Lumina-That-Was → the Dream Root Door).
+ */
+function shelterFor(zoneId: string | undefined): { zoneId: ZoneId; shelter: NonNullable<ReturnType<typeof shelterOf>> } | null {
+  if (!zoneId || !isZoneId(zoneId)) return null;
+  const z = ZONES[zoneId];
+  const home = z.shelterIn ?? zoneId;
+  const shelter = shelterOf(ZONES[home]);
+  return shelter ? { zoneId: home, shelter } : null;
+}
+
 /** The inn a defeated hero wakes at — "the Square Root Inn in Numbria" — or null for home. */
 /**
  * What the defeat screen says when a shelter looks after the hero (#75 item
@@ -295,7 +307,7 @@ export function normalizeSave(raw: unknown): SaveData {
  * `wakeInnName`).
  */
 export function wakeShelter(save: Partial<Pick<SaveData, 'zoneId'>>): { line: string; place: string } | null {
-  const shelter = save.zoneId && isZoneId(save.zoneId) ? shelterOf(ZONES[save.zoneId]) : null;
+  const shelter = shelterFor(save.zoneId)?.shelter ?? null;
   if (!shelter) return null;
   // "Fen's Hollow" stands alone; "the Quiet Shelf Inn" (#75 item 14h) needs its "the".
   const name = shelter.building.name;
@@ -322,8 +334,8 @@ export function wakeAfterDefeat(save: Pick<SaveData, 'lastRest'> & Partial<Pick<
   zoneId: ZoneId;
   pos: { x: number; y: number } | null;
 } {
-  const shelter = save.zoneId && isZoneId(save.zoneId) ? shelterOf(ZONES[save.zoneId]) : null;
-  if (shelter) return { zoneId: save.zoneId!, pos: { x: shelter.cell.x * TILE + TILE / 2, y: shelter.cell.y * TILE + TILE / 2 } };
+  const found = shelterFor(save.zoneId);
+  if (found) return { zoneId: found.zoneId, pos: { x: found.shelter.cell.x * TILE + TILE / 2, y: found.shelter.cell.y * TILE + TILE / 2 } };
   const cell = save.lastRest ? innWakeCell(ZONES[save.lastRest]) : null;
   if (!save.lastRest || !cell) return { zoneId: HUB_ZONE, pos: null };
   return { zoneId: save.lastRest, pos: { x: cell.x * TILE + TILE / 2, y: cell.y * TILE + TILE / 2 } };

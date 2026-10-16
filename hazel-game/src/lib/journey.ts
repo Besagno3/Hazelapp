@@ -293,8 +293,10 @@ export function actFourJourney(): Leg[] {
   for (let goal = nextObjective(flags); goal.kind !== 'explore'; goal = nextObjective(flags)) {
     if (legs.length >= 12) throw new Error('Act IV never ends');
     const target = goalTarget(goal);
-    // Down the stairs: walked from the Spire's grounds, where they are.
-    const start = target.zoneId === 'dreamroot-door' && !goal.quest ? 'crystal-spire' : target.zoneId;
+    // Down the stairs: walked from the Spire's grounds, where they are; and
+    // Young Wick from the Door, down past Old Knot (16b review round 3).
+    const start =
+      target.zoneId === 'dreamroot-door' && !goal.quest ? 'crystal-spire' : goal.npc === 'memory-young-wick' ? 'dreamroot-door' : target.zoneId;
     legs.push(walkLeg(goal, flags, { zoneId: start, cell: ZONES[start].spawn }));
     flags = advanceGoal(goal, flags);
   }

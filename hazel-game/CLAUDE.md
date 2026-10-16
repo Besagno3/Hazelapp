@@ -366,6 +366,14 @@ zod, react-query. Add the package in the same change that first uses it.
   `INN_ONLY`). **Say Her Name** (Wisp): five memories, then `name-learned`
   (only Umbra's name question will check it) and Wisp's new face
   (`WorldNpcDef.face`, `npcSpriteId(def, flags)`).
+  **Lumina-That-Was** (#75 item 16b): below the Door, the old Field, the old
+  Village and the First Classroom — mixed-topic zones (`ZoneDef.topics`:
+  chests and gates take `topicAt(z, x, y)`; a riddle its
+  step's own `topic` first, `riddleTopic`), memories of real places
+  (`echoOf` lets them build in that place's style), and a defeat there wakes
+  you at the Door (`shelterIn`). A quest can end on a choice
+  (`QuestDef.choice`, the Unnamed Dog's name) and give a badge
+  (`grants.badge`, `QUEST_BADGES`).
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -697,6 +705,7 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+python3 tools/assets/build.py lumina    # Lumina-That-Was: three zones' tiles, the school sheet, its critters and people (#75 item 16b)
 python3 tools/assets/build.py dreamroot # the Dream Root Door: tiles, the root sheet, Old Knot, Young Wick, Wisp's new face (#75 item 16a)
 python3 tools/assets/build.py cliffs   # Taleshore III: Songstone Cliffs, the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
 python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people, tale-stones (#75 item 15e)
@@ -788,6 +797,64 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — 16b review round 4: Thanks by keyboard, who's next (#75 item 16b, #144l)
+The last round. Fresh code (1 low, 3 nits) and UX (2 medium, 2 low, 3 nits)
+reviews, all fixed but one kept (a long route alone past 30 words): → reaches
+🎉 Thanks after the pick; the dog's people name who's next; a long "Where to
+next?" splits its route into a second box; Young Wick's not-yet; the 🚩 after
+the name follows the side quests. 1350 green.
+
+### 2026-10-16 — 16b review round 3: there's more, arrows for the names, one gate one topic (#75 item 16b, #144k)
+Fresh code (3 low, 5 nits) and UX (5 low, 4 nits) reviews, all fixed but two
+kept (the school desks' art, plates touching bushes): "(Talk again — there's
+more!)" after any step or reward that leaves more (`questConversation` wraps
+`conversationNow`); Prim's not-yet names her own reminder and who's left;
+Young Wick's journey leg walks from the Door; `gateTopic`; the Bell points at
+Prim; the dog's narrator reminders; arrow keys and 44 px buttons for the
+choice; "Old Lumina" in the copy. 1348 green.
+
+### 2026-10-16 — 16b review round 2 (UX): names apart, gold slates, "there's more" (#75 item 16b, #144j)
+Fresh UX review (2 medium, 6 low, 3 nits), all fixed: Prim no longer stands
+under the Bell's name (and a test keeps name plates apart); "Old Lumina
+Field / Village"; answered slates gold on the map (`class-slate-gold`); "(Talk
+again — there's more!)" when another quest's step through that person is
+next; Aster waits "deeper still" after the name; Young Wick's 🚩, Lumen's plan
+and tip; dog wording. Art: `build.py lumina`. 1343 green.
+
+### 2026-10-16 — 16b review round 2 (code): Prim offers her own quest first (#75 item 16b, #144i)
+Fresh code review (1 low, 4 nits), all fixed: a giver's own offer comes
+before another quest's "not yet" (Prim's Bell's Apology was hidden by the
+dog's), and her reminder follows it; no focused Thanks after naming the
+dog; `RiddleWords.label` / `button` for slates; tighter tests, stale
+comments.
+
+### 2026-10-15 — 16b review round 1: no stray Enter names the dog, slates that say so (#75 item 16b, #144h)
+Fresh code (1 medium, 3 low, 4 nits) and UX (2 medium, 7 low, 1 nit)
+reviews, all fixed but four kept (the Lucky Plume, the Old Library's sign, a
+village landmark, the dog's steps in order): no focused choice, a Later, the
+pick answered; the dog's name follows (`names`, `ambientIf`); `RiddleWords` and
+per-slate topics; a proper `topicAt` mix; Young Wick pointed at everywhere; a
+sock-shaped golem, golden trees. 1340 green.
+
+### 2026-10-15 — Lumina-That-Was: the old Field, the old Village and the First Classroom (#75 item 16b, #144)
+Roadmap sub-item 16b (branch stacked on 16a's).
+- **Below the Dream Root Door**, past Old Knot: the old Field (the retired
+  Lumina Field's map — the Old Library, the First-Merchant Fair), the old
+  Village (Wick's Family Bakery) and the First Classroom, joined edge to edge,
+  in golden late-afternoon colours; tier 7.
+- **Mixed topics** (`ZoneDef.topics`, `topicAt`); **a defeat below wakes you
+  at the Door** (`shelterIn`, #104g).
+- **People:** Young Lumen, the Merchant Fair, a popcorn cart, Young Wick
+  (Say Her Name can be finished now), the Unnamed Dog, Monitor Prim, the
+  Lesson Bell; six memory critters (trickster and swift).
+- **Quests:** The Bell's Apology (three riddle slates, in order); One More
+  Name (three names, then the hero picks one — `QuestDef.choice` — and gets
+  the Dog Badge, `grants.badge`).
+- **Art:** `python3 tools/assets/build.py lumina` (new drawers: dog, key
+  critter, slate, bell, popcorn cart; a `school` style).
+- **Tests:** +14 (zones, quests, save, regions, journey, DialogueOverlay);
+  1336 green, lint and tsc clean.
 
 ### 2026-10-15 — 16a review round 4: who's next, "not yet" in their own voices (#75 item 16a, #143k)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 3 low, 3 nits)

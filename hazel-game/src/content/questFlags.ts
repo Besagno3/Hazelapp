@@ -82,6 +82,12 @@ export const BLANK_CHART_HELD = 'blank-chart-held';
 export const SAY_HER_NAME_QUEST = 'say-her-name';
 export const NAME_LEARNED = 'name-learned';
 
+/** The Bell's Apology (#75 item 16b): Monitor Prim's three slates, answered in order. */
+export const BELL_QUEST = 'bell-apology';
+export const BELL_SLATES = ['bell-slate-1', 'bell-slate-2', 'bell-slate-3'] as const;
+/** One More Name (#75 item 16b): ask three children the Unnamed Dog's name, then pick one. */
+export const DOG_QUEST = 'unnamed-dog';
+
 /**
  * Set while an escort's walk is under way. Never kept: leaving the place,
  * a lost battle or a reload clears it, and the one being walked waits at the
