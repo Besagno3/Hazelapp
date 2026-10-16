@@ -211,6 +211,9 @@ describe('One More Name (#75 item 16b): the dog\'s name is the hero\'s to choose
     expect(screen.getByRole('dialog', { name: 'Captain' })).toBeInTheDocument();
     // Thanks isn't focused, so a held Enter can't close the reply unread (16b review round 2).
     expect(document.activeElement?.textContent).not.toBe('🎉 Thanks!');
+    // …but → reaches it, so a keyboard player isn't stuck (16b review round 4).
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(document.activeElement?.textContent).toBe('🎉 Thanks!');
     fireEvent.click(screen.getByText('🎉 Thanks!'));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });

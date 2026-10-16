@@ -3360,7 +3360,7 @@ export function chestKeyItem(chestId: string): string | undefined {
   return keyChestFor(chestId)?.item;
 }
 
-/** A chest's question topic: the one its fog bank names, else the zone's, else math. */
+/** A chest's question topic: the one its fog bank names, else its cell's (`topicAt`: the zone's, one of a mixed zone's, else math). */
 export function chestTopicAt(z: ZoneDef, x: number, y: number): Topic {
   return z.fogs?.find((f) => f.chestTopic && f.guards.x === x && f.guards.y === y)?.chestTopic ?? topicAt(z, x, y, 'math');
 }

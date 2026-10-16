@@ -57,10 +57,12 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // On a choice, the arrow keys move between its buttons, from none focused —
   // so Enter picks only once a name has been chosen with them (16b review round 3).
   const rowRef = useRef<HTMLDivElement>(null);
-  const choiceUp = !invalid && index >= lines.length - 1 && !!quest?.choice?.length && picked === null;
+  // …and after a pick, → reaches 🎉 Thanks (16b review round 4).
+  const choiceUp = !invalid && index >= lines.length - 1 && !!quest?.choice?.length;
   useEffect(() => {
     if (!choiceUp) return;
     const onKey = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
       const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
       const buttons = Array.from(rowRef.current?.querySelectorAll('button') ?? []);
       if (!step || !buttons.length) return;
@@ -190,7 +192,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               <button
                 key={c.flag}
                 onClick={() => choose(c)}
-                className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-2.5 text-sm"
+                className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-2.5 min-h-[44px] text-sm"
               >
                 {c.label}
               </button>
@@ -198,7 +200,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {choosing && (
             <button
               onClick={() => sendFlow({ type: 'CLOSE' })}
-              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-2.5 text-sm"
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-2.5 min-h-[44px] text-sm"
             >
               Later
             </button>

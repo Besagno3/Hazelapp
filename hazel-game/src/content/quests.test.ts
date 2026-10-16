@@ -1355,6 +1355,17 @@ describe('Lumina-That-Was quests (#75 item 16b)', () => {
     expect(say({ ...slates, [questDoneFlag(byId('bell-apology'))]: true })).toMatch(/waits for the right time/);
   });
 
+  it("Young Wick says not yet before Chronicle's turn, and the dog's people say who's next (16b review round 4)", () => {
+    const flags = { [ACT4_SEEN]: true, [questOfferedFlag(byId(SAY_HER_NAME_QUEST))]: true };
+    expect(questConversation('memory-young-wick', { ...defaultSave(), flags })!.lines[0]).toMatch(/ask Sage Chronicle first/);
+    const dog = byId('unnamed-dog');
+    expect(dog.steps.map((st) => st.npc!.lines.join(' '))).toEqual([
+      expect.stringMatching(/Next, ask Young Lumen/),
+      expect.stringMatching(/Last, ask Monitor Prim/),
+      expect.stringMatching(/Go back to the dog/),
+    ]);
+  });
+
   it("Young Wick says there's more when the dog's name is due too (16b review round 2)", () => {
     const flags: Record<string, boolean> = { [ACT4_SEEN]: true, [questOfferedFlag(byId(SAY_HER_NAME_QUEST))]: true, [questOfferedFlag(byId('unnamed-dog'))]: true };
     for (const st of byId(SAY_HER_NAME_QUEST).steps.slice(0, -1)) flags[stepFlag(st.id)] = true;

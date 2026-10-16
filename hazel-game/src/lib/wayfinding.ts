@@ -4,7 +4,7 @@ import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST } from '../content/questFlags';
+import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
@@ -413,7 +413,11 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: flags[NAME_LEARNED] ? 'Explore Lumina' : flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[NAME_LEARNED]
-          ? "You remembered the first Sage's name: Aster! She is waiting somewhere deeper still — the way will open soon. Until then, help the folk of Lumina-That-Was!"
+          ? `You remembered the first Sage's name: Aster! She is waiting somewhere deeper still — the way will open soon. ${
+              flags[questDoneFlag({ id: BELL_QUEST })] && flags[questDoneFlag({ id: DOG_QUEST })]
+                ? 'Until then, hunt for secrets ✨ and help everyone you meet.'
+                : 'Until then, help the folk of Lumina-That-Was!'
+            }`
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
           : actComplete(flags, 2)
@@ -959,5 +963,8 @@ export function wayfindingLines(
     const read = signpostLines(zones[home.zoneId], home.x, home.y, flags).join('\n');
     return [read, goal.zoneId ? `🚩 Next: ${goal.title}. ${how}`.trim() : `🎉 ${goal.why}`];
   }
-  return [goal.zoneId ? `Where to next? ${goal.why} ${how}`.trim() : goal.why];
+  if (!goal.zoneId) return [goal.why];
+  const one = `Where to next? ${goal.why} ${how}`.trim();
+  // A long route gets a box of its own (16b review round 4: ~46 words to Young Wick).
+  return one.split(/\s+/).length > 30 && how ? [`Where to next? ${goal.why}`, how] : [one];
 }

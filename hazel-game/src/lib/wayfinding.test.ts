@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { HALL_DEDICATED } from '../content/spells';
 import { MET_ELDER, ZONES, gateFlag, gateIdAt, type ZoneDef, type ZoneId } from '../content/zones';
 import { reach } from './reach';
-import { advanceGoal } from './journey';
+import { actFourJourney, advanceGoal } from './journey';
 import { overworldOf, whereOnMap } from './worldMap';
 import { NPC_DEFS } from '../content/npcs';
 import { actCrystals, crystalFlag } from '../content/topics';
@@ -625,5 +625,19 @@ describe('guides and signposts', () => {
       });
       expect(atCrossroads, `${n.id} at ${home.x},${home.y}`).toBe(true);
     }
+  });
+});
+
+describe('Lumina-That-Was in the guides (16b review round 4)', () => {
+  it("a long way to Young Wick gets its own box; after the name, the 🚩 knows the side quests' state", () => {
+    const leg = actFourJourney().find((l) => l.goal.npc === 'memory-young-wick')!;
+    const wick = wayfindingLines(ZONES, NPC_DEFS['village-elder'], leg.flags);
+    expect(wick).toHaveLength(2);
+    expect(wick[0]).toMatch(/^Where to next\?/);
+    expect(wick[1]).toMatch(/^Go south to the Crystal Spire.*Old Lumina Village\.$/);
+    const named = { ...leg.flags, [NAME_LEARNED]: true };
+    expect(nextObjective(named).why).toMatch(/help the folk of Lumina-That-Was/);
+    const both = { ...named, [questDoneFlag({ id: 'bell-apology' })]: true, [questDoneFlag({ id: 'unnamed-dog' })]: true };
+    expect(nextObjective(both).why).toMatch(/hunt for secrets/);
   });
 });

@@ -798,6 +798,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16b review round 4: Thanks by keyboard, who's next (#75 item 16b, #144l)
+The last round. Fresh code (1 low, 3 nits) and UX (2 medium, 2 low, 3 nits)
+reviews, all fixed but one kept (a long route alone past 30 words): → reaches
+🎉 Thanks after the pick; the dog's people name who's next; a long "Where to
+next?" splits its route into a second box; Young Wick's not-yet; the 🚩 after
+the name follows the side quests. 1350 green.
+
 ### 2026-10-16 — 16b review round 3: there's more, arrows for the names, one gate one topic (#75 item 16b, #144k)
 Fresh code (3 low, 5 nits) and UX (5 low, 4 nits) reviews, all fixed but two
 kept (the school desks' art, plates touching bushes): "(Talk again — there's

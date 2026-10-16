@@ -1549,6 +1549,9 @@ export const QUESTS: QuestDef[] = [
         remind: 'Sage Chronicle knows every old book in the Sunken Archive. Ask about the very first Sage!',
       },
       {
+        // Met before Chronicle's turn (16b review round 4): in her own voice, like Mnem's and the Chartmaker's.
+        early: true,
+        earlyLine: "My teacher? She's the best! But ask Sage Chronicle first, in the Sunken Archive — then come and see me.",
         ...talkStep(
           'name-young-wick',
           'memory-young-wick',
@@ -1592,7 +1595,7 @@ export const QUESTS: QuestDef[] = [
         'class-slate-1',
         ['📝 The first slate. A question is chalked on it, waiting.', 'Answer it, and the chalk turns gold!'],
         'Answer Slate 1 — the one on the left.',
-        '✨ The chalk turns gold! Now Slate 2, in the middle.',
+        '✨ One slate done! Now Slate 2, in the middle.',
         { remind: 'Start with Slate 1, on the left. Left to right!', topic: 'math', words: SLATE_WORDS },
       ),
       riddleStep(
@@ -1638,7 +1641,7 @@ export const QUESTS: QuestDef[] = [
         ...talkStep(
           'dog-wick',
           'memory-young-wick',
-          ["That dog? That's PICKLES! Because he steals pickles. Every. Single. Day."],
+          ["That dog? That's PICKLES! Because he steals pickles. Every. Single. Day. (Next, ask Young Lumen, in the Old Library!)"],
           'Ask Young Wick, in Old Lumina Village, what the dog is called.',
         ),
         // The dog's reminders in the narrator's voice, not his (16b review round 3).
@@ -1650,7 +1653,7 @@ export const QUESTS: QuestDef[] = [
         ...talkStep(
         'dog-lumen',
         'memory-young-lumen',
-        ["That's Captain! He guards the whole town. Very serious. Mostly naps."],
+        ["That's Captain! He guards the whole town. Very serious. Mostly naps. (Last, ask Monitor Prim, in the First Classroom!)"],
         'Ask Young Lumen, in the Old Library in Old Lumina Field, what the dog is called.',
         ),
         remind: '(Woof! Next, ask Young Lumen, in the Old Library.)',
@@ -1665,7 +1668,7 @@ export const QUESTS: QuestDef[] = [
         ...talkStep(
         'dog-prim',
         'class-prim',
-        ['That is Sir Wigglesworth. Obviously.'],
+        ['That is Sir Wigglesworth. Obviously. (Three names! Go back to the dog, in Old Lumina Village, and pick one.)'],
         'Ask Monitor Prim, in the First Classroom, what the dog is called.',
         ),
         remind: '(Woof! Last, ask Monitor Prim, in the First Classroom.)',

@@ -2706,7 +2706,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       'Welcome to the First-Merchant Fair! Everything here is free — memories always are.',
-      "Nothing here is for sale. But all of it is yours to remember. Years from now, Maple's Trading Post will stand right where I do!",
+      "Years from now, Maple's Trading Post will stand right where I do!",
     ],
   },
   'memory-popcorn': {
