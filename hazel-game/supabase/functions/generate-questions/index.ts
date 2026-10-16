@@ -21,10 +21,11 @@
 //
 // Access (#88): callers must be signed in (401 otherwise), and every call goes
 // through `begin_question_request` (migration 0009) — a per-kid rate limit
-// (429 when exceeded) plus per-kid and project-wide daily budgets of FRESH
-// questions. A login is a grown-up's family account (#124); the app must name
-// the kid playing (`profileId`, one of the caller's kids — 400 without it), and
-// each kid has their own budget and seen questions (migration 0014). When a
+// (429 when exceeded) plus per-kid, per-family and project-wide daily budgets
+// of FRESH questions. A login is a grown-up's family account (#124); the app
+// must name the kid playing (`profileId`, one of the caller's kids — 400
+// without it); each kid has their own budget and seen questions (migration
+// 0014), and the family's kids share a cap (migration 0018, B9). When a
 // budget is spent — or the quota check itself fails — the call is served from
 // the cache only (re-using already-seen questions if it must), so play
 // continues without spending more on Claude. Limits are tunable via env (see
@@ -198,11 +199,14 @@ const NOVELTY_RATE = 0.2;
  * Quota defaults (#88), overridable with the same-named Supabase secrets.
  * A battle asks for ~6 questions + 4 spell-tier ones, so 20 calls/minute is
  * far above real play; 200 fresh/day per player and 5000 fresh/day overall
- * cap the Claude bill while the shared cache keeps growing.
+ * cap the Claude bill while the shared cache keeps growing. A family's kids
+ * share 400 fresh/day between them (B9, migration 0018), so adding kids — or
+ * removing and re-adding one — doesn't multiply the budget.
  */
 const QUOTA_DEFAULTS = {
   QUESTION_RATE_PER_MINUTE: 20,
   FRESH_PER_PLAYER_PER_DAY: 200,
+  FRESH_PER_FAMILY_PER_DAY: 400,
   FRESH_GLOBAL_PER_DAY: 5000,
 };
 function quotaSetting(name: keyof typeof QUOTA_DEFAULTS): number {
@@ -647,12 +651,22 @@ Deno.serve(async (req) => {
   let requestId: number | null = null;
   let quotaUnavailable = false;
   {
-    const { data: quota, error: quotaErr } = await db.rpc('begin_question_request', {
+    const perKid = {
       p_profile: profileId,
       p_max_per_minute: quotaSetting('QUESTION_RATE_PER_MINUTE'),
       p_fresh_per_day: quotaSetting('FRESH_PER_PLAYER_PER_DAY'),
       p_fresh_global: quotaSetting('FRESH_GLOBAL_PER_DAY'),
+    };
+    let { data: quota, error: quotaErr } = await db.rpc('begin_question_request', {
+      ...perKid,
+      p_fresh_per_family: quotaSetting('FRESH_PER_FAMILY_PER_DAY'),
     });
+    // Before migration 0018 there's no family cap to pass (the same "no such
+    // function" codes as the picker's): check per kid as before, loudly.
+    if (quotaErr && PICKER_MISSING.includes(quotaErr.code ?? '')) {
+      console.error('FAMILY BUDGET UNAVAILABLE — checking per kid only (is migration 0018 applied?):', quotaErr.message);
+      ({ data: quota, error: quotaErr } = await db.rpc('begin_question_request', perKid));
+    }
     const row = Array.isArray(quota) ? quota[0] : quota;
     if (quotaErr || !row) {
       console.error(

@@ -1222,6 +1222,19 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1047 | M | ⬜ | function | after deploy, on the real project: a battle and a quiz round load; the Supabase function log shows the check's drops (if any); `select * from question_review_queue` lists a question reported "Not OK for kids" from the app, and it's no longer served to another family |
 | TC-1048 | M | ⬜ | report | on a 320×568 phone in a battle: after answering, the 🚩 row and Continue are both reachable; the reason buttons are easy to tap |
 
+## A question budget per family (#152)
+
+| ID     | Type | Status | Feature | Case |
+|--------|------|--------|------|------|
+| TC-1326 | I | ✅ | quota | with a per-kid cap of 10 and a family cap of 15: a kid gets 10; after spending 10 their sister gets 5; a kid in another family still gets 10 (family_budget.test.sql) |
+| TC-1327 | I | ✅ | quota | each request records the kid's grown-up (`parent_id`); requests logged before 0018 get theirs filled in (family_budget.test.sql) |
+| TC-1328 | I | ✅ | quota | no family cap passed (a four-argument call, an older function): the kid's own budget only (family_budget.test.sql, quota.test.sql) |
+| TC-1329 | I | ✅ | quota | remove the kid who spent and add a new one: the spent row stays, unlinked, with its grown-up; the new kid gets only what's left of the family's day, and the project still counts it — fails with 0014's cascade put back (family_budget.test.sql) |
+| TC-1330 | I | ✅ | quota | a day later the family's budget is whole again; removing the grown-up's login leaves no request with their id (family_budget.test.sql) |
+| TC-1331 | I | ✅ | quota | only the service role may call `begin_question_request(uuid, int, int, int, int)` (family_budget.test.sql, quota.test.sql) |
+| TC-1332 | I | ✅ | function | run locally against a stand-in: the quota call carries `p_fresh_per_family: 400` beside the per-kid 200; with 0018 missing (PGRST202) it calls again per kid, logs "FAMILY BUDGET UNAVAILABLE" and still serves fresh questions; failing both ways it never calls Claude |
+| TC-1333 | M | ⬜ | quota | after deploy, on the real project: two kids in one family play until the second sees "come back tomorrow" (or the cache) at the family's cap; `question_requests` rows carry `parent_id` |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

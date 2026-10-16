@@ -107,7 +107,8 @@ zod, react-query. Add the package in the same change that first uses it.
   (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
   taps in the world's top bar) replaces Sign out. The active kid's id goes to
   the question function (`profileId`) — **the question budget is per kid**
-  (a family has at most 8) — and on flags. The privacy notice and the tile
+  (a family has at most 8), inside a **daily cap the family's kids share**
+  (migration 0018, #152) — and on flags. The privacy notice and the tile
   pictures live in `content/family.ts` (the notice is a **draft** until a
   lawyer reviews it — `PRIVACY_IS_DRAFT`).
 - **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
@@ -586,8 +587,10 @@ zod, react-query. Add the package in the same change that first uses it.
   SQL-level tests for it in `supabase/ci/`.
 - **Question-generator access (#88):** `generate-questions` requires a signed-in
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
-  per-player calls/minute (429 over it) + per-player and project-wide daily
-  budgets of *fresh* Claude questions. Over budget it serves the cache
+  per-player calls/minute (429 over it) + per-player, per-family (migration
+  0018, B9: the kid's grown-up; a removed kid's requests stay, unlinked, so
+  what they spent still counts) and project-wide daily budgets of *fresh*
+  Claude questions. Over budget it serves the cache
   (seen questions as a last resort). **The kid's id is required** (400
   without it) and the quota check **fails closed**: if it errors, the call is
   served from the cache only, never from Claude (Act I launch review B9,
@@ -803,6 +806,37 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — A question budget per family (#152)
+Act I launch review B9, the code that was left. Since #124 every kid had their
+own daily budget of fresh (Claude-written) questions, and removing a kid
+removed their request log with them: a grown-up could add a kid, spend, remove
+them and repeat without end, and each of up to 8 kids added a full budget.
+- **Migration 0018** (`0018_family_question_budget.sql`): a request log row
+  outlives its kid (`profile_id` → null on delete, was cascade), and records
+  the grown-up (`question_requests.parent_id`, null when they go; filled in
+  for rows already logged). `begin_question_request` takes a fifth argument,
+  `p_fresh_per_family` (default null = no family cap, so a four-argument call
+  still works): the fresh allowance is the least of the kid's, the family's
+  and the project's; the advisory lock is per family now, so brothers and
+  sisters calling at once can't slip under the cap together.
+- **The function** sends the cap (`FRESH_PER_FAMILY_PER_DAY`, default 400 —
+  two kids' worth; a secret overrides it). Before 0018 is applied the five-
+  argument call doesn't exist, so it checks per kid as before and logs
+  "FAMILY BUDGET UNAVAILABLE"; a quota check that fails both ways still
+  serves the cache only.
+- **Tests:** `supabase/ci/family_budget.test.sql` (the family shares its cap,
+  another family is untouched, no cap without the argument, a removed kid's
+  spend stays and remove-and-re-add doesn't reset the day, the project still
+  counts it, a day rolls it off, a removed grown-up's id goes, grants) — it
+  fails with 0014's cascade back; `quota.test.sql` checks the new signature,
+  `pins.test.sql` says a removed kid's requests are unlinked. All 9 SQL tests,
+  the migrations in order and the bundle twice pass on Postgres 16; `deno
+  check` clean; the function run locally against a stand-in: the cap is sent,
+  without 0018 it falls back per kid, and a failed check never calls Claude.
+- ⚠️ Deploy: apply 0018 (or re-run `apply_all_migrations.sql`), then
+  `supabase functions deploy generate-questions`. Either order works.
+  Follow-ups #152.
 
 ### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)
