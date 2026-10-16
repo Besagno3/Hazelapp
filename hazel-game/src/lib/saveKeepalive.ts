@@ -7,6 +7,13 @@ import { useAuthStore } from '../store/authStore';
  */
 export const KEEPALIVE_MAX_BYTES = 60 * 1024;
 
+/**
+ * A token that has expired, or will within this long, isn't sent: the server
+ * would refuse it (401), and this request can't refresh it first. The normal
+ * request does (supabase-js refreshes before it sends) — review round 1, #151.
+ */
+export const KEEPALIVE_TOKEN_MARGIN_MS = 30_000;
+
 /** One row of the `saves` table, as `saveStore` upserts it. */
 export interface SaveRow {
   profile_id: string;
@@ -22,16 +29,21 @@ export interface SaveRow {
  * the same request (a PostgREST upsert, merging on the primary key) at once,
  * with the token `authStore` already holds.
  *
- * Returns null when it can't be sent this way (no session, a body over the
- * keepalive limit, no fetch) — the caller saves the normal way instead. The
- * promise settles with `{ error }` like a supabase-js call; it never rejects.
- * Best effort on a closing page: the browser may still drop it (see #151).
+ * Returns null when it can't be sent this way (no session, a token that has
+ * expired or is about to, a body over the keepalive limit, no fetch) — the
+ * caller saves the normal way instead. The promise settles with `{ error }`
+ * like a supabase-js call; it never rejects. Best effort on a closing page:
+ * the browser may still drop it (see #151).
  */
 export function upsertSaveKeepalive(row: SaveRow): Promise<{ error: unknown }> | null {
   const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/+$/, '');
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-  const token = useAuthStore.getState().session?.access_token;
+  const session = useAuthStore.getState().session;
+  const token = session?.access_token;
   if (!url || !key || !token || typeof fetch !== 'function') return null;
+  // `expires_at` is in seconds; a session without one is taken as current.
+  const expiresAt = session?.expires_at;
+  if (typeof expiresAt === 'number' && expiresAt * 1000 - Date.now() < KEEPALIVE_TOKEN_MARGIN_MS) return null;
   const body = JSON.stringify(row);
   if (new TextEncoder().encode(body).length > KEEPALIVE_MAX_BYTES) return null;
   let sent: Promise<Response>;

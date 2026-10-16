@@ -26,6 +26,8 @@ const remote = vi.hoisted(() => ({
   readError: null as unknown,
   /** No keepalive request possible (no session / too big): `upsertSaveKeepalive` gives null. */
   noBeacon: false,
+  /** The error each keepalive request fails with (a 401, a dropped request); null = the rules decide. */
+  beaconError: null as unknown,
   /** While true, each upsert waits until the test calls the next gate. */
   hold: false,
   gates: [] as (() => void)[],
@@ -93,6 +95,7 @@ vi.mock('../lib/saveKeepalive', () => ({
   upsertSaveKeepalive: (r: Row) => {
     if (remote.noBeacon) return null;
     remote.beacons.push(r);
+    if (remote.beaconError) return Promise.resolve({ error: remote.beaconError });
     return serve(r);
   },
 }));
@@ -122,6 +125,7 @@ function resetRemote() {
   remote.upsertError = null;
   remote.readError = null;
   remote.noBeacon = false;
+  remote.beaconError = null;
   remote.hold = false;
   remote.gates = [];
   remote.holdReads = false;
@@ -513,6 +517,37 @@ describe('the page hides, closes, comes back (#151)', () => {
     expect(remote.upserts).toHaveLength(1);
     await settle();
     expect(remote.rows.p?.data).toMatchObject({ revision: 1 });
+  });
+
+  it('a hide push that fails (a refused token, a dropped request) goes again the normal way if the page lives on', async () => {
+    vi.useFakeTimers();
+    remote.beaconError = { message: 'JWT expired', code: 'PGRST301' };
+    useSaveStore.getState().setFlag('hidden-then-back');
+    showAs('hidden');
+    expect(remote.beacons).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(useSaveStore.getState().remoteError).toContain('JWT expired');
+    expect(remote.upserts).toHaveLength(0);
+    // The debounce hiding cancelled is back: the normal push sends it.
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(remote.upserts).toHaveLength(1);
+    expect(remote.rows.p?.data).toMatchObject({ revision: 1, flags: { 'hidden-then-back': true } });
+    expect(useSaveStore.getState()).toMatchObject({ status: 'ready', syncedRevision: 1, remoteError: null });
+    // …once: nothing more goes out after it landed.
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(pushed()).toHaveLength(2);
+  });
+
+  it('a hide push that is refused (a newer copy elsewhere) stops the tab: nothing is sent again', async () => {
+    vi.useFakeTimers();
+    remote.rows.p = { data: copy(5, 50) }; // another device saved meanwhile
+    useSaveStore.getState().setFlag('mine'); // 1
+    showAs('hidden');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(useSaveStore.getState()).toMatchObject({ status: 'outdated', outdatedReason: 'elsewhere' });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(pushed()).toHaveLength(1);
+    expect(remote.rows.p.data).toMatchObject({ revision: 5, coins: 50 });
   });
 
   it('back in view with a newer copy on the server (another device): stops and asks for a reload', async () => {

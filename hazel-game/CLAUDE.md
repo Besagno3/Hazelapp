@@ -198,7 +198,10 @@ zod, react-query. Add the package in the same change that first uses it.
   `flush()` on save crystals / Switch player (it skips a copy the server
   already has, `syncedRevision`); a tab that is hidden or closed pushes what's
   left at once (`flushOnHide` on `visibilitychange` / `pagehide`, a
-  `keepalive` fetch, `lib/saveKeepalive.ts` — best effort on a closing page).
+  `keepalive` fetch, `lib/saveKeepalive.ts` — best effort on a closing page;
+  with no session, a token expired or about to be, or over 60 KiB it goes the
+  normal way, and a hide push that fails without a refusal re-arms the
+  debounce).
   Supabase errors degrade to local-only play. Pure logic in `lib/save.ts`
   (normalize / legacy migration / the `MIGRATIONS` ladder — **`SAVE_VERSION`
   3** since #75 item 15b). **Which copy wins (#151):** every change adds one
@@ -821,6 +824,19 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — S1 review round 1: no expired token on hide, a failed hide save tried again (#151)
+`/saas-code-review` of the S1 PR (1 medium; the trigger, the load / flush
+races, the listeners and the token handling checked, nothing else). Fixed: the
+save on hide sent the token `authStore` held even after it expired (the
+server refuses it with a 401), and a failed hide push was never retried while
+the page stayed open, because hiding had cancelled the debounce. Now
+`upsertSaveKeepalive` gives null for a token that has expired or will within
+30 s (`KEEPALIVE_TOKEN_MARGIN_MS`), so the normal request (which refreshes
+it) goes instead, and a hide push that fails without a refusal re-arms the
+2 s debounce. Tests +3 (saveKeepalive.test, saveStore.test; the two fixes'
+tests fail without them). 1401 green, lint + build clean; the stub, all 17
+migrations and the bundle applied twice on Postgres 16, all 9 SQL tests pass.
 
 ### 2026-10-16 — Saves keep the newest progress: revisions, a server check, save on hide (launch checklist S1, #151)
 The launch review's S1: the server's copy always won on load (progress kept

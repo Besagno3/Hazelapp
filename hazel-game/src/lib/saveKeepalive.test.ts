@@ -48,6 +48,20 @@ describe('upsertSaveKeepalive (#151)', () => {
     expect(error).toBeInstanceOf(TypeError);
   });
 
+  it('a token that has expired, or is about to, isn\'t sent (the server would refuse it): null, nothing sent', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    for (const expiresAt of [now - 60, now, now + 10]) {
+      useAuthStore.setState({ session: { access_token: 'the-token', expires_at: expiresAt } as Session });
+      expect(upsertSaveKeepalive(row), `expires_at ${expiresAt - now}s`).toBeNull();
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+    // A token good for a while longer is used.
+    fetchMock.mockResolvedValue(new Response(null, { status: 201 }));
+    useAuthStore.setState({ session: { access_token: 'the-token', expires_at: now + 3600 } as Session });
+    await expect(upsertSaveKeepalive(row)).resolves.toEqual({ error: null });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('can\'t be sent this way without a session, or over the keepalive limit: null, nothing sent', () => {
     useAuthStore.setState({ session: null });
     expect(upsertSaveKeepalive(row)).toBeNull();

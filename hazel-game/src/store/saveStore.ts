@@ -93,7 +93,11 @@ interface SaveStore {
   update: (mutate: (s: SaveData) => SaveData) => void;
   /** Pushes the current save to Supabase now — unless the server already has it. */
   flush: () => Promise<void>;
-  /** The tab is being hidden or closed: pushes what the server hasn't got, in a request that can outlive the page. */
+  /**
+   * The tab is being hidden or closed: pushes what the server hasn't got, in a
+   * request that can outlive the page. If it fails (not a refusal), the normal
+   * debounced push tries again while the page lives on.
+   */
   flushOnHide: () => void;
   /** The tab is back in view: asks the server whether a newer copy was saved elsewhere meanwhile. */
   checkForNewer: () => Promise<void>;
@@ -166,6 +170,10 @@ export const useSaveStore = create<SaveStore>((set, get) => {
     const message = errorMessage(error);
     if (!message.includes(SAVE_VERSION_CONFLICT)) {
       set({ remoteError: message });
+      // A save on hide that didn't get through (a dropped keepalive request, a
+      // token the server refused) is sent again the normal way if the page
+      // lives on: hiding cancelled the debounce that would have sent it.
+      if (keepalive && !flushTimer) flushTimer = setTimeout(() => void get().flush(), FLUSH_DEBOUNCE_MS);
       return;
     }
     // Refused (migration 0011 / 0017): the server holds a newer save. Unless a
