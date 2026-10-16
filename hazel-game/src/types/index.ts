@@ -238,7 +238,7 @@ export interface SaveData {
    * How many times this save has been changed (#151): one more on every change
    * the game makes (`saveStore.update`). On load the copy with the higher
    * revision wins (this device's or the server's), and the server refuses a
-   * copy that isn't newer than the one it holds (migration 0017). Additive: a
+   * copy that isn't newer than the one it holds (migration 0020). Additive: a
    * save from before it counts as 0 (`normalizeSave`).
    */
   revision: number;

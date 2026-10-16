@@ -43,6 +43,36 @@ describe('flagQuestion', () => {
     });
   });
 
+  it('asks the question service to check the reported question, without waiting for it (#147)', async () => {
+    insertMock.mockResolvedValue({ error: null });
+    let finishCheck: (v: unknown) => void = () => {};
+    invokeMock.mockReturnValue(new Promise((resolve) => (finishCheck = resolve)));
+
+    // Resolves while the check is still running.
+    await flagQuestion('q-123', 'not_for_kids');
+
+    expect(invokeMock).toHaveBeenCalledWith('generate-questions', {
+      body: { action: 'check-report', questionId: 'q-123', profileId: 'kid-1' },
+    });
+    finishCheck({ data: { checked: true }, error: null });
+  });
+
+  it('a check that fails to start never fails the report (#147)', async () => {
+    insertMock.mockResolvedValue({ error: null });
+    invokeMock.mockRejectedValue(new Error('network down'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(flagQuestion('q-9', 'confusing')).resolves.toBeUndefined();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(warn).toHaveBeenCalledWith('report check not started:', expect.stringContaining('network down'));
+    warn.mockRestore();
+  });
+
+  it('no check is asked for when the report itself fails (#147)', async () => {
+    insertMock.mockResolvedValue({ error: { message: 'permission denied', code: '42501' } });
+    await expect(flagQuestion('q-1', 'difficulty')).rejects.toThrow();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it('passes null for reason when none is provided', async () => {
     insertMock.mockResolvedValue({ error: null });
 

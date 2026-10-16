@@ -1,5 +1,5 @@
 -- Hazel Quest — a save never goes back to an older copy (#151, launch checklist S1)
--- Run in the Supabase SQL Editor (or `supabase db push`) after 0016.
+-- Run in the Supabase SQL Editor (or `supabase db push`) after 0019.
 -- Re-runnable, like every migration (see CLAUDE.md → migration rules).
 --
 -- Every save now carries a revision (`data->'revision'`; `revisionOf` in

@@ -1,4 +1,4 @@
--- CI test for migration 0017 (#151): a save never goes back to an older copy.
+-- CI test for migration 0020 (#151): a save never goes back to an older copy.
 -- Any failed assertion raises and exits non-zero under `psql -v ON_ERROR_STOP=1`.
 begin;
 

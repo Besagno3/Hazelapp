@@ -209,7 +209,7 @@ zod, react-query. Add the package in the same change that first uses it.
   the higher of this device's copy and the server's (a tie, or neither with a
   revision, goes to the server's) and pushes a newer local copy. The server
   refuses a copy that isn't newer than the one it holds — a lower or missing
-  revision, or the same revision with other data (migration 0017, extending
+  revision, or the same revision with other data (migration 0020, extending
   0011's trigger; same error `save_version_conflict`, detail
   `save_revision_conflict`). A refused tab stops (`'outdated'`,
   `outdatedReason` `'elsewhere'`, "Your adventure moved on!") and marks its
@@ -601,7 +601,7 @@ zod, react-query. Add the package in the same change that first uses it.
   twice and runs the SQL tests.
 - **CI** (`.github/workflows/ci.yml`, #81 + #88): job `test` = lint + bundle
   check + tests + build; `edge-function` = `deno check`
-  of the edge function; `migrations` applies every migration to a plain
+  of the edge function and the bank recheck script; `migrations` applies every migration to a plain
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
   `supabase/ci/*.test.sql`. A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.
@@ -618,25 +618,81 @@ zod, react-query. Add the package in the same change that first uses it.
   birth date (`ageFrom`, clamped 3–18; the caller's `age` is ignored) and at
   most one flavour line chosen by key (`flavor`, `QUESTION_FLAVORS`); the old
   free-text `context` is ignored. **Claude failing never reaches a kid** (B5):
-  the client times out after 20 s with one retry, a reply that didn't stop at
+  the client times out after 30 s with one retry (20 s before Haiku 5.5's
+  thinking, #147), a reply that didn't stop at
   `end_turn` (cut off, refused) counts as a failure, and the batch is filled
   from the cache (unseen first, then seen); only with nothing to give does
   the kid see a friendly "try again" (503) or, when today's budget is spent,
   "come back tomorrow" (429). Raw errors go to the log, never to the reply.
-- **Questions are screened for kids (B10, #133):** three layers in the
+- **Questions are screened for kids (B10, #133, #147):** four layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
-  by `questionScreen.test.ts`): `CONTENT_RULES` in the writer's system prompt
-  (no violence, scary or sad topics, religion, politics, living or
-  controversial people, romance, medical or body-weight topics, brands,
-  links; facts only); `screenQuestion` on every fresh *and* saved question
-  (four different non-empty options, length caps, no links / emails / phone
-  numbers, a blocked-word list); and a **blind second check** — one more
-  call answers each fresh question without the answer and says whether it
-  keeps the rules (`checkFresh`, `keepChecked`): only those it agrees with are
-  served, and a failed or mismatched check keeps none (the cache fills in).
-  It asks for a third more questions than it needs to cover drops; secret
-  `QUESTION_SECOND_CHECK=off` turns the check off. **Reports** (`FlagButton`,
+  by `questionScreen.test.ts`). **The model is Claude Haiku 5.5** (`MODEL`,
+  in the block; #147): it thinks by default and thinking counts toward
+  `max_tokens`, so each call leaves room (writer 16,000, checks 8,000 /
+  4,000) and sets its effort (writer and blind check `medium`, explanation
+  check `low`); it takes no `temperature` / `top_p` / `top_k` and no prefill,
+  and a reply is read by block type (it opens with thinking blocks,
+  `replyJson`). (1) `CONTENT_RULES` — ten numbered safety rules plus fact
+  rules — in the writer's system prompt, which also pitches the level to the
+  child's age (1–3 easy for this age … 9–10 for the strongest, up to two years
+  ahead in ideas) and asks it to check its own work; every part of a question
+  is held to them, wrong options and the explanation too. (2) `screenQuestion`
+  on every fresh *and* saved question (four different non-empty options,
+  length caps, no links / emails / phone numbers, a blocked-word list, and
+  nothing pointing at an option by its place — "all of the above", "the
+  answer is B", lettered options — since the options get shuffled; a letter
+  that IS an option's text, like a music note, passes). (3) A **blind check**
+  answers each fresh question without the answer and says whether it keeps
+  the rules (`keepChecked`). (4) An **explanation check** reads each one with
+  its right answer and explanation (`keepExplained`) — the blind check never
+  sees the explanation, which would give the answer away. (3) and (4) run side
+  by side (`checkFresh`); only questions both pass are served, and a failed or
+  mismatched check keeps none (the cache fills in). The three prompts are the
+  same for every child (the age goes in the user message) and carry
+  `cache_control`, so they're cached (Haiku 5.5 caches from 512 tokens; Haiku
+  4.5 needed 4,096, so the old marker did nothing). Each call logs its time
+  and tokens (`logCall`). It asks for a third more questions than it needs to
+  cover drops; secret `QUESTION_SECOND_CHECK=off` turns both checks off.
+  **Each question is checked once** (migration 0018): the checks go through
+  `runChecks` (shared, with a `CallModel` each caller makes from its own client,
+  `modelCaller`), and a question that passes is marked `checked_version =
+  RULES_VERSION` — new ones as they're saved, **the saved bank** by
+  `supabase/scripts/recheck-questions.ts` (#147; Deno, run by the owner with
+  the service-role key — dry run first, `--apply` to act), which skips anything
+  already checked under the current version; failures go to `review` with the
+  reason in `questions.review_note` (0017), which the queue lists among the
+  reasons. Raise `RULES_VERSION` when the rules change and the next recheck
+  covers the bank again. **A report checks it again:** after a report is saved
+  the app asks the function (`action: 'check-report'`, not awaited); it claims
+  the question (`claim_report_check`: only for a report this family made since
+  the question's last check, at most `REPORT_CHECKS_PER_FAMILY_PER_DAY` = 20 a
+  day) and runs `reportReview` — Claude Haiku, and if Haiku finds nothing, the
+  stronger model (`ESCALATION_MODEL`, Claude Opus 5.5, higher effort, with the
+  server-side refusal fallback). A problem, or a check that can't run, holds the
+  question back (`review`); either way the note says what was found. A check
+  never puts a question back. Reports no check covered (the tab closed, over the
+  cap) are swept by the recheck script's `--reported` run. **The owner hears
+  about it** (#147, `_shared/notify.ts`, inline in the function between
+  `// --- notify:start` / `notify:end`, drift-checked by `notify.test.ts`): email
+  (Resend: `RESEND_API_KEY` + `ALERT_EMAIL_TO`, optional `ALERT_EMAIL_FROM`),
+  Slack (`ALERT_SLACK_WEBHOOK_URL`) and Discord (`ALERT_DISCORD_WEBHOOK_URL`) —
+  every channel whose secrets are set. A report check that leaves a question
+  held back sends `heldAlert` at once (`alertIfHeld`); `action: 'digest'`
+  (needs the `x-digest-secret` header = `ALERT_DIGEST_SECRET`, run daily by a
+  scheduled job — see Commands) sends `digestAlert`, everything waiting, and
+  nothing when nothing is. Messages carry the question and report counts, never
+  a child or a family, and link to `APP_URL/?review`. A channel that refuses is
+  logged, never fails the check. **The owner decides in the app** (#147,
+  migration 0019): a grown-up listed in `public.admins` (added in the SQL editor;
+  nobody can read or write it through the API) sees 🛡️ Question review in 👪
+  Grown-ups (`QuestionReviewPage`, `lib/review.ts`): what's waiting, held back
+  first, with the answer, the reports in words and the checks' notes (🔎), and
+  ✅ Release / ⭐ Approve / 🗑️ Retire (asks first) through `admin_review_queue` /
+  `admin_review_question`, which refuse anyone else ("not an admin", 42501) and
+  record who decided (`questions.reviewed_by`). The alert's link (`?review`,
+  `familyStore.reviewRequested`) opens 👪 Grown-ups and, once it's unlocked,
+  the review page. **Reports** (`FlagButton`,
   on every question screen through `QuestionCard`, "Not OK for kids" first)
   hide a question from the reporting family; for everyone it's held back only
   through `questions.status` (migration 0016: `active` / `review` / `retired`
@@ -679,10 +735,13 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter, the `age` they were written
   for). The edge function mixes cached questions with fresh ones; the cached
-  ones come from `pick_cached_questions` (migration 0015, #134): the whole ±2
-  level band at random, leaning to less-asked, none written for a child more
-  than a year older (`AGE_SLACK`; old rows have no age and stay in), none
-  flagged. **Seen = shown (#134):** the app tells the server what was on
+  ones come from `pick_cached_questions` (migration 0015, #134; 0017, #147):
+  the whole ±2 level band at random, leaning to less-asked, only ones written
+  for a child within a year of this one, either way (`AGE_SLACK`) — and one
+  written for an older child only at or below this kid's level, since a level
+  is pitched to the age it was written for (old rows have no age and stay
+  in) — none flagged. Without 0017 the function retries the picker without
+  the age window's lower edge (logged). **Seen = shown (#134):** the app tells the server what was on
   screen (`markSeen`, `lib/seen.ts`, from `QuestionCard` and `QuizRound`, as
   `mark_questions_seen`); what the function hands over is only held back for
   an hour (`question_views.shown = false`), so prefetches don't fill a kid's
@@ -739,6 +798,27 @@ python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell C
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
+
+# Recheck the saved question bank against today's rules (#147) — Deno, the project's service-role key
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts           # dry run
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails, mark what passes
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --reported --apply   # reports no check covered yet
+
+# Question review alerts and the admin page (#147) — once, by the owner
+#   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
+#        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
+#   2. Secrets (email via Resend; Slack and Discord optional):
+supabase secrets set RESEND_API_KEY=re_… ALERT_EMAIL_TO=<you> APP_URL=https://<your site> ALERT_DIGEST_SECRET=<long random string>
+supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/…
+#      ALERT_EMAIL_FROM is Resend's test sender until you verify a domain (it only delivers to the Resend account's own address).
+#   3. SQL editor, after enabling the pg_cron and pg_net extensions: the daily digest (07:45 UTC)
+#        select cron.schedule('question-review-digest', '45 7 * * *', $$
+#          select net.http_post(
+#            url := 'https://<project-ref>.supabase.co/functions/v1/generate-questions',
+#            headers := jsonb_build_object('Content-Type', 'application/json',
+#              'Authorization', 'Bearer <anon key>', 'x-digest-secret', '<ALERT_DIGEST_SECRET>'),
+#            body := '{"action":"digest"}'::jsonb);
+#        $$);
 ```
 
 ## Error handling
@@ -825,6 +905,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — Merge main (public pages #66, question safety #71) into the save-revisions branch (#151)
+`main` took migrations **0017–0019** (the question age window, the question
+checks, the admin review page) while S1 was in review, so its migration moved
+**0017 → 0020** (`0020_save_revisions.sql`, "after 0019"; the code comments,
+the SQL test and #151's docs say 0020; the counts in the entries below are as
+they were). #146 / #147 and TC-1254–1295 don't collide with #151 and
+TC-1311–1368. One code conflict, `App.tsx`: both effects kept (the save
+watcher, #151; dropping `?signup` once signed in, #146).
+
 ### 2026-10-16 — S1 review round 2: the save guards tested, every server refusal pinned (#151)
 A fresh `/saas-code-review` of the whole S1 PR (2 low, both test gaps; no bug
 in the code). Load, flush, hide, refusals, the round-1 retry (no double
@@ -874,7 +963,7 @@ and two devices or tabs overwrote each other silently.
   on *either* side → `'outdated'`, neither touched. The server's copy is only
   written back when it needs it (an older shape, or no revision yet), as a new
   revision. A second kid's load drops the first kid's late answer.
-- **The server refuses an older copy:** migration `0017_save_revisions.sql`
+- **The server refuses an older copy:** migration `0020_save_revisions.sql`
   redefines 0011's trigger function: a stored revision may only be replaced
   by a higher one or the identical save (a retried upload); a save without a
   revision (an app from before this) can't replace one, and a row without a
@@ -905,13 +994,183 @@ and two devices or tabs overwrote each other silently.
 - Tests +29: saveStore.test (which copy wins, two devices, the refused copy,
   overlapping pushes, hide / pagehide, back in view, another tab), save.test
   (revision, `revisionOf`), saveKeepalive.test, StatusScreens.test; the fake
-  server keeps a row per kid and applies 0017's rules. 1398 green, lint +
+  server keeps a row per kid and applies 0020's rules. 1398 green, lint +
   tsc + build clean; every saveStore rule checked by breaking it (14
   mutations, all caught). SQL: `supabase/ci/save_revisions.test.sql` (fails
-  without 0017); the stub + all 17 migrations and the bundle applied twice on
+  without 0020); the stub + all 17 migrations and the bundle applied twice on
   Postgres 16, all 9 SQL tests pass. Bundle regenerated (17 migrations).
-- ⚠️ Deploy: apply `0017_save_revisions.sql` (or re-run
+- ⚠️ Deploy: apply `0020_save_revisions.sql` (or re-run
   `apply_all_migrations.sql`) **before** shipping this build.
+
+### 2026-10-16 — Merge main (public pages, PR #66) into the question-safety branch (#147)
+`main` took ISSUES **#146** and TC-1254–1269 for the public pages while
+PR #71 was open, so this branch moved **#146 → #147** and its test cases
+**TC-1254–1279 → TC-1270–1295** (only its own lines, the code comments and
+migration comments included — none of them is merged anywhere). Only the
+docs conflicted: the public pages touch `site/`, the sign-in page and
+`App.tsx`; this branch touches 👪 Grown-ups, `familyStore` and the question
+function.
+
+### 2026-10-16 — Review alerts (email, Slack, Discord) and the admin review page (#147)
+The owner's follow-up: hear about questions that need review, and decide them
+in the app instead of the SQL editor.
+- **Alerts** (`_shared/notify.ts`, inline in the function, drift-tested): email
+  through Resend, Slack and Discord webhooks — whichever secrets are set. A
+  report check that leaves a question held back alerts at once; `action:
+  'digest'` (a secret header, run daily by pg_cron) sends everything waiting.
+  No child or family in any message; the link opens the review page.
+- **Admin page** (migration 0019): `public.admins` (owner-only, added in the SQL
+  editor), `is_admin`, `admin_review_queue`, `admin_review_question` (records
+  `reviewed_by`); 🛡️ Question review in 👪 Grown-ups with Release / Approve /
+  Retire; `?review` opens it after the Grown-ups gate.
+- ⚠️ Owner setup: Commands → "Question review alerts and the admin page".
+- **Tests:** notify.test (+7, drift), review.test (+5), QuestionReviewPage.test
+  (+6), GrownUpsArea.test (+3), familyStore.test (+3), `question_admin.test.sql`
+  (the admin check fails its test when removed); the harness 99/99 (alerts on
+  all three channels, no alert when still shown, a refusing channel, the
+  digest's secret and contents). 1414 green; lint, build, `deno check` clean;
+  eleven SQL tests and the bundle twice on Postgres 16. Looked at in headless
+  Chromium at 375 and 1024 px: no sideways scroll, no errors.
+
+### 2026-10-16 — Checked once, and again on a report: Haiku, then Opus (#147)
+The owner's follow-up on PR #71: existing questions checked once, new ones on
+generation, and a report triggering a check by Haiku and then a stronger model.
+- **Once:** migration 0018 adds `checked_version` / `checked_at`; new questions
+  are saved with `RULES_VERSION` (only when the checks ran; without 0018 the
+  save retries without it), and the recheck script skips checked questions and
+  marks what passes.
+- **A report checks it again:** the app asks `generate-questions` with
+  `action: 'check-report'` after a report (not awaited); `claim_report_check`
+  lets each report start one check, 20 a family a day; `reportReview` runs
+  Claude Haiku, then Claude Opus 5.5 if Haiku finds nothing (higher effort, the
+  server-side refusal fallback). A problem or a check that can't run holds the
+  question back; a check never puts one back. `--reported` sweeps the rest.
+- **Shared:** `runChecks` and `reportReview` in the screening block, over a
+  `CallModel` each caller builds (`modelCaller`); the sign-in and kid checks
+  are one helper (`identifyKid`) for both actions.
+- ⚠️ Deploy: apply 0017 and 0018, deploy the function, then the recheck.
+- **Tests:** questionScreen.test (+ runChecks, reportReview — escalation, holds,
+  errors; mutations caught), questions.test (+3), `question_checks.test.sql`
+  (each claim rule fails with its line removed); the harness 84/84. 1391 green;
+  lint, build, `deno check` clean; ten SQL tests and the bundle twice on Postgres 16.
+
+### 2026-10-16 — Safer questions: Haiku 5.5, an explanation check, an age window, a bank recheck (#147)
+The question prompt rewrite and the seven fixes from its `/saas-code-review`.
+- **Claude Haiku 5.5** writes and checks questions (was Haiku 4.5: newer and
+  about a tenth of the price per token). It thinks by default and thinking
+  counts toward `max_tokens`, so the writer gets 16,000 (was 4,096) and the
+  checks 8,000 / 4,000 (the check had 1,024 — it would have been cut off and
+  every fresh question dropped); effort is set per call; timeout 30 s (was 20).
+- **New prompts:** ten numbered safety rules for every part of a question,
+  wrong options and explanation included (privacy, nothing a child could copy,
+  stereotypes, disputed or changing facts, facts true in one country only);
+  the writer pitches the level to the child's age with examples by age and
+  checks its own work; the blind check fails a question two options could
+  answer; both checks ignore instructions inside the questions.
+- **An explanation check** (the blind check never saw the explanation), side
+  by side with the blind check; both must pass. Their prompts are the same for
+  every child, so all three prompts are cached now.
+- **Nothing points at an option by its place** (`screenQuestion`): "all of
+  the above", "the answer is B", lettered options — the options get shuffled.
+- **History and geography** steer away from conquest, slavery, disputed
+  borders and country counts.
+- **Reuse keeps to the age** (migration 0017): within a year either way, an
+  older child's question only at or below the kid's level; without 0017 the
+  function retries the old picker.
+- **The bank recheck** (`supabase/scripts/recheck-questions.ts`): the same
+  checks over the saved bank, failures to `review` with a `review_note`, which
+  the queue now lists even with no reports.
+- ⚠️ Deploy: apply 0017, run the recheck (dry run, then `--apply`), then
+  `supabase functions deploy generate-questions`.
+- **Tests:** questionScreen.test (rewritten, 37), `question_age_window.test.sql`
+  (each rule fails with its line removed); a local harness ran the function and
+  the script against stand-in Supabase and Claude (52/52). 1383 green; lint,
+  build, `deno check` (both) clean; migrations and the bundle twice on
+  Postgres 16 with all nine SQL tests.
+
+### 2026-10-16 — Merge main (overworld 16a–16c, PRs #63–#65) into the public-pages branch (#146)
+`main` took ISSUES **#143–#145** and TC-1210–1253 for items 16a–16c while
+the public pages were in review, so they moved **#143 → #146** and their test
+cases **TC-1210–1225 → TC-1254–1269** (only their own lines, the code
+comments and test names included). Only the three docs conflicted; nothing of
+main's touches `site/`, the sign-in page or `App.tsx`, and every sprite and
+backdrop the site names still exists.
+
+### 2026-10-16 — The sign-up form, reviewed: heard, readable, and it says what's next (#146h)
+A `/saas-ux-review` of the form the site's "Create a free family account"
+opens (1 high, 2 medium, 2 low), all fixed on the owner's say-so:
+- **Messages are heard and readable:** an always-present `role="status"`
+  region holds them, in red-700 / green-700 (red-500 and green-600 failed
+  4.5:1).
+- **After signing up, "📬 Check your inbox":** the form gives way to a panel
+  naming the email (focus moves to its heading), with the spam hint and
+  "Back to sign in" (the email kept and focused). Signing in before tapping
+  the link says "Please confirm your email first: tap the link we sent to …"
+  (`email_not_confirmed`, by code or message), not the raw error.
+- **The password rule up front:** "At least 6 characters." under the field,
+  `minlength` and `aria-describedby` on sign-up only. `MIN_PASSWORD_LENGTH`
+  moved to `content/family.ts`; `ResetPasswordPage` shares it.
+- **Visible labels** for email and password (placeholders gone); tests find
+  the fields by label.
+- **44 px:** the submit, Forgot and switch buttons, the fields (so the 👁️
+  too) and the privacy notice's summary (shared with Consent and Grown-ups).
+- Tests: `PasswordReset.test` +6 (live region, inbox panel, not confirmed ×3,
+  password rule). 1313 green, lint + build clean; a browser walk at 390, 320
+  and 1280 px passes every check.
+
+### 2026-10-16 — `?signup` never outlives its sign-up page (#146g)
+A `/saas-code-review` of #146f (1 low, fixed): only `AuthPage` dropped
+`?signup`, and it mounts only with no session — so a parent already signed in
+who tapped "Create a free family account" kept it in the address, and a later
+sign-out opened on the sign-up form. Now `lib/signupLink.ts`
+(`hasSignupParam` / `dropSignupParam`, which keeps the rest of the address)
+is shared: `AuthPage` reads it and drops it, and `App` drops it as soon as a
+session exists. Tests: `signupLink.test` (+3), `App.signup.test` (+2; the
+signed-in one fails without `App`'s effect). 1307 green, lint + build clean.
+
+### 2026-10-16 — Public pages: review fixes (#146f)
+`/saas-code-review` + `/saas-ux-review` of the prototype, rendered at 320,
+390 and 1280 px, by keyboard and with reduced motion; the owner said fix all.
+- **The demo battle keeps keyboard focus:** after Next, focus goes to the new
+  question (`tabindex="-1"`), so Tab reaches its answers and a screen reader
+  reads it (it fell to the page, and Tab jumped on to the hero picks). The
+  first question no longer names a critter that isn't on screen.
+- **Sign-up lands on sign-up:** "Create a free family account" opens the game
+  at `?signup` (`data-play="signup"`); `AuthPage` starts on the sign-up form
+  and drops `signup` from the address (it opened on Sign in). Every other
+  Play button still opens Sign in.
+- **The clip can be paused:** it always has controls (WCAG 2.2.2); under
+  reduced motion it still doesn't autoplay.
+- **Fact tags aren't buttons:** the grown-ups chips are a diamond-bulleted
+  list and the subjects soft tags — no pixel border, no gold.
+- **Smaller fixes:** Ember steps away on phones while the demo battle passes
+  under her corner; a link to a FAQ answer opens it (footer Contact); the
+  eyebrow green is `#1d7044` (5.4:1); footer links and "Read the full privacy
+  notice" are 44 px tall; hero type labels darker on sand; the kids' facts
+  line says "A grown-up starts it" (kept whole when it wraps).
+- **`capture.cjs`:** a step failing mid-film no longer crashes Node with
+  "Target closed" before its own error; `stop()` still throws the loop's
+  error, and says so when there are no frames.
+- Kept: "Pick your hero." only plays an attack (a teaser), the clip is small
+  on a phone (captioned), the sign-in page's purple style (#146e).
+- Tests: PasswordReset.test +2 (with and without `?signup`; the first fails
+  on the old `AuthPage`). 1302 green, lint + build + site build clean; 33
+  browser checks on the pages pass.
+
+### 2026-10-16 — Public pages prototype: a kids' page and a grown-ups page (#146)
+New `site/` folder, outside the app (no `src/` change): `index.html` for kids
+(a title screen with Kira and Ember walking, a playable demo battle, heroes,
+Ember's stages, six real places, critters, bosses, a grown-ups box) and
+`grown-ups.html` (the idea, a real gameplay clip, a play session, subjects,
+safety, how questions are checked, what's collected, family controls, FAQ).
+Plain HTML/CSS/JS (`site/assets/`), served with the game's `public/`
+(`npx vite --config site/vite.config.mjs`). Every picture is the game's:
+sprites animate from their sheets, textures come from the tilesets, the logo
+is hand-drawn pixel letters (`site/tools/logo.py`), and screenshots and the
+clip are captured from the real game (`site/tools/capture.cjs`,
+`prep-assets.py`). Fonts are self-hosted (Jersey 15, Andika). Safety claims
+and what they rest on are listed in `site/README.md`. Not live: the privacy
+notice is still a draft and the game would move to `/play/` (#146).
 
 ### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)

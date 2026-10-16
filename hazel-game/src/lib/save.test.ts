@@ -202,7 +202,7 @@ describe('normalizeSave', () => {
     expect(saveIsTooNew({ version: SAVE_VERSION, revision: 999 })).toBe(false);
   });
 
-  it('revisionOf reads a revision the way migration 0017 does: a whole number of at most 15 digits', () => {
+  it('revisionOf reads a revision the way migration 0020 does: a whole number of at most 15 digits', () => {
     expect(revisionOf({ revision: 0 })).toBe(0);
     expect(revisionOf({ revision: 12 })).toBe(12);
     expect(revisionOf({ revision: 999_999_999_999_999 })).toBe(999_999_999_999_999);

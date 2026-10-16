@@ -14,7 +14,7 @@ import { CURRENT_ABOARD, FINALE_NOT_ACT2, V1, V2_FIRST_BUILD, V2_PRE_14A, V2_PRE
 type Row = { profile_id: string; data: Record<string, unknown>; updated_at: string };
 
 // The Supabase `saves` table, faked: a row per kid (as the server would —
-// migration 0011 + 0017's rules apply to every upsert), the upserts made the
+// migration 0011 + 0020's rules apply to every upsert), the upserts made the
 // normal way and the `keepalive` ones, and errors to fail with.
 const remote = vi.hoisted(() => ({
   rows: {} as Record<string, { data: Record<string, unknown> }>,

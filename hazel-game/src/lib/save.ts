@@ -142,13 +142,13 @@ function unknownPlace(id: unknown): boolean {
 /**
  * The error the server raises when a save would overwrite one from a newer
  * version of the game (supabase/migrations/0011_save_version_guard.sql) — and,
- * since migration 0017 (#151), a newer copy of the save (a higher revision).
+ * since migration 0020 (#151), a newer copy of the save (a higher revision).
  */
 export const SAVE_VERSION_CONFLICT = 'save_version_conflict';
 
 /**
  * Carried in the detail of a `SAVE_VERSION_CONFLICT` raised because the
- * server holds a newer *copy* of the save (migration 0017), not a save from a
+ * server holds a newer *copy* of the save (migration 0020), not a save from a
  * newer version of the game: the player played on in another tab or device.
  */
 export const SAVE_REVISION_CONFLICT = 'save_revision_conflict';
@@ -156,7 +156,7 @@ export const SAVE_REVISION_CONFLICT = 'save_revision_conflict';
 /**
  * A raw save's revision (#151) — a whole number of at most 15 digits — or null
  * when it has none (a save from before revisions) or a junk one. The same rule
- * as migration 0017's trigger, so the app and the server agree on what counts.
+ * as migration 0020's trigger, so the app and the server agree on what counts.
  */
 export function revisionOf(raw: unknown): number | null {
   if (typeof raw !== 'object' || raw === null) return null;

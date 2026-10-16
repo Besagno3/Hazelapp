@@ -36,7 +36,7 @@ import type { LibraryEntry, SaveData } from '../types';
  * server couldn't be reached, or a tab closed before its save went out) is
  * kept and pushed; otherwise the server's is used (on a tie too, as before
  * revisions). The server refuses a copy that isn't newer than the one it
- * holds (migration 0017), so a tab or device that fell behind can't write
+ * holds (migration 0020), so a tab or device that fell behind can't write
  * over newer progress: it goes 'outdated' (`outdatedReason` 'elsewhere') and
  * the app asks for a refresh, and its copy on this device is marked revision
  * 0 so the refresh loads the server's. A tab also stops when another tab on
@@ -176,7 +176,7 @@ export const useSaveStore = create<SaveStore>((set, get) => {
       if (keepalive && !flushTimer) flushTimer = setTimeout(() => void get().flush(), FLUSH_DEBOUNCE_MS);
       return;
     }
-    // Refused (migration 0011 / 0017): the server holds a newer save. Unless a
+    // Refused (migration 0011 / 0020): the server holds a newer save. Unless a
     // newer push of ours is out — then its answer decides.
     if (save.revision < sentRevision) return;
     stop(message.includes(SAVE_REVISION_CONFLICT) ? 'elsewhere' : 'update', message, true);
