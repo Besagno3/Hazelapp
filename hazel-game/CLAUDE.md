@@ -817,6 +817,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16e code review round 4: the throne's topics vary again (#75 item 16e, #147n)
+The last round's code review (1 medium, 1 low, 8 nits), all fixed: the extra
+questions go to random topics (the Spire's throne always skipped space and
+history after round 3); the Lesson Bell's ending line waits for its quest;
+stale comments and test cases. 1405 green.
+
 ### 2026-10-16 — 16e review round 3: a fair five, a world that remembers (#75 item 16e, #147l–m)
 Fresh code (2 medium, 3 low, 4 nits) and UX (2 medium, 6 low, 4 nits)
 reviews, all fixed: the "climb out" route only when it climbs past the Spire

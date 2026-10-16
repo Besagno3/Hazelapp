@@ -65,8 +65,8 @@ export default function NameFinale() {
 
   const age = playerAge(profile);
   const perCorrect = XP_PER_CORRECT + xpBonusPerCorrect(profile?.powerUps ?? {});
-  // Answered already this session (left at the name question): only the name is left.
   const [phase, setPhase] = useState<Phase>({ kind: 'intro' });
+  // Answered already this session (left at the name question): only the name is left.
   const passedBefore = useFinaleStore.getState().passed;
   const [questions, setQuestions] = useState<Question[]>([]);
   const [lives, setLives] = useState(NAME_LIVES);

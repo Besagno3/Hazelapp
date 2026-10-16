@@ -30,6 +30,18 @@ describe('the question gauntlet (pulled out of the Spire, #75 item 16e)', () => 
     expect(short.some((q) => q.topic === 'music')).toBe(false);
   });
 
+  it('fewer questions than topics: which topics are asked changes run to run (the throne floor: 5 of 7)', async () => {
+    fetchQuestions.mockImplementation(async (t: string, _a: number, _l: number, n: number) => qs(t, n));
+    const topics = ['math', 'science', 'engineering', 'creativity', 'nature', 'space', 'history'];
+    const seen = new Set<string>();
+    for (let run = 0; run < 50; run++) {
+      const pool = await loadGauntlet({ topics: topics as never, count: 5, age: 9, levelFor: () => 3, flavor: 'spire' });
+      expect(new Set(pool.map((q) => q.topic)).size).toBe(5);
+      for (const q of pool) seen.add(q.topic);
+    }
+    expect(seen.size).toBe(7);
+  });
+
   it('a short pool is an error to retry — never a step with no question', async () => {
     fetchQuestions.mockImplementation(async (t: string) => qs(t, 1));
     await expect(loadGauntlet({ topics: ['math'], count: 3, age: 9, levelFor: () => 3, flavor: 'spire' })).rejects.toThrow(/only 1 of 3/);

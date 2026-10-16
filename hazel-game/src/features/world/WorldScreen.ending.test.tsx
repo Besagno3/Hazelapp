@@ -409,7 +409,7 @@ describe('the Nameless Hall (#75 item 16c)', () => {
     });
     const { unmount } = render(<WorldScreen />);
     expect(screen.getByText(/You say it once more, gently/)).toBeInTheDocument();
-    // Six panels of the name, then three of the post-credits (the words are checked in story.test).
+    // Six panels of the name, then three of the post-credits (the words are checked in finale.test).
     // What the finale earned is paid as the story ends — never over it (16e review round 1).
     const { useFinaleStore } = await import('../../store/finaleStore');
     const { useProfileStore } = await import('../../store/profileStore');

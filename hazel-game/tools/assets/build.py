@@ -201,7 +201,7 @@ def main():
         print('descent ✓')
         return
     if 'name' in only:
-        # Just the Name (#75 item 16e): the gold Root's Heart and Sage Aster.
+        # Just the Name (#75 item 16e): the empty and gold Root's Hearts, Sage Aster and Umbra Remembered.
         write_manifest(build_sprites.build(PUBLIC, only=set(NAME_SPRITES)))
         print('name ✓')
         return

@@ -22,10 +22,13 @@ export async function loadGauntlet(opts: {
   const batches = (await Promise.all(topics.map((t) => fetchQuestions(t, age, levelFor(t), perTopic, flavor)))).map((b) => shuffle(b));
   // Fair to every topic (16e code review round 3: the spares let one topic crowd out another):
   // each topic's share first, then any shortfall from the spares, then shuffled together.
+  // Which topics get one more is picked at random (16e code review round 4: the throne
+  // floor's five questions from seven topics always skipped the last two).
   const share = Math.floor(count / topics.length);
-  const extra = count % topics.length;
-  const picked = batches.flatMap((b, i) => b.slice(0, share + (i < extra ? 1 : 0)));
-  const spares = shuffle(batches.flatMap((b, i) => b.slice(share + (i < extra ? 1 : 0))));
+  const lucky = new Set(shuffle(topics.map((_, i) => i)).slice(0, count % topics.length));
+  const take = (i: number) => share + (lucky.has(i) ? 1 : 0);
+  const picked = batches.flatMap((b, i) => b.slice(0, take(i)));
+  const spares = shuffle(batches.flatMap((b, i) => b.slice(take(i))));
   const pool = [...picked, ...spares.slice(0, Math.max(0, count - picked.length))];
   if (pool.length < count) throw new Error(`only ${pool.length} of ${count} riddles came back${where ? ` ${where}` : ''}.`);
   return shuffle(pool);

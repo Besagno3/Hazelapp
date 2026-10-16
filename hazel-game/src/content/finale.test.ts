@@ -38,7 +38,7 @@ describe('the Name (#75 item 16e)', () => {
     for (const p of [...panels, ...POST_CREDITS_PANELS]) expect(words(p.text), p.text).toBeLessThanOrEqual(30);
   });
 
-  it("Umbra stands in front of the Heart, a step from the hero's way in, and opens the finale", () => {
+  it("Umbra stands beside the Heart without walling it off, and opens the finale", () => {
     const z = ZONES['deep-root-7'];
     const umbra = z.npcs.find((n) => n.defId === 'umbra-remembered')!;
     expect(ROLE_SERVICE[NPC_DEFS[umbra.defId].role]).toBe('name');
@@ -66,6 +66,9 @@ describe('the Name (#75 item 16e)', () => {
       const said = visibleLines(NPC_DEFS[id].lines, after).map(lineText).join(' ');
       expect(said, id).not.toMatch(/sounds lonely|forgotten|blank plaques|nobody remembers|One day soon|has lost|waits for the right time/);
     }
+    // The Bell's own quest still open: it doesn't say it's sorry and "right on time" at once (16e code review round 4).
+    const bellOpen = visibleLines(NPC_DEFS['class-bell'].lines, { ...after, 'quest:bell-apology:done': false }).map(lineText).join(' ');
+    expect(bellOpen).not.toMatch(/Right on time/);
   });
 
   it('Sage Aster is home in the Hall of Names once her name is said', () => {

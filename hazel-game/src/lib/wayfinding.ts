@@ -252,7 +252,7 @@ export const DEEP_ROOT_ECHOES: readonly { boss: string; zoneId: ZoneId; why: str
 /**
  * Act IV once the name is learned (#75 item 16c): Aster's Key from the
  * Gardener in her garden; then down the Deep Root past its three echoes
- * (16d), to the Root's Heart. Null after that.
+ * (16d), to the Root's Heart, then her name (16e: "Say her name to Umbra", "Visit Sage Aster"). Null after that.
  */
 function actFourAfterName(flags: Record<string, boolean>): Objective | null {
   const key = keyForBoss('the-gardener')!;

@@ -2833,7 +2833,6 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     prop: true,
-    // Gold once her name is said (16e).
     // Empty once its shadow steps out, gold once her name is said (16e review rounds 1–2).
     face: [
       { flag: ROOT_HEART_REACHED, spriteId: 'root-heart-empty', sprite: '💜' },
@@ -3011,7 +3010,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       // The slates done (the last answers only after the others), the apology not yet said (16b review round 3).
       { text: '🔔 *Bwong?* The bell is trying to say something… Go and tell Monitor Prim the slates are done!', ifFlag: stepFlag(BELL_SLATES[2]), unlessFlag: questDoneFlag({ id: BELL_QUEST }) },
       { text: '🔔 *bwong…* (very softly). It waits for the right time now.', ifFlag: questDoneFlag({ id: BELL_QUEST }), unlessFlag: UMBRA_NAMED },
-      { text: '🔔 *Bwong!* Right on time — and it doesn\'t even apologize.', ifFlag: UMBRA_NAMED },
+      { text: '🔔 *Bwong!* Right on time — and it doesn\'t even apologize.', ifFlag: [questDoneFlag({ id: BELL_QUEST }), UMBRA_NAMED] },
     ],
   },
   'class-slate-1': {
