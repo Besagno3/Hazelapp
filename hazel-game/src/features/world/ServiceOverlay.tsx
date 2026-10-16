@@ -55,7 +55,7 @@ export default function ServiceOverlay({
         {service === 'name' && <NameFinale />}
         <button
           onClick={() => sendFlow({ type: 'CLOSE' })}
-          className="mt-5 w-full bg-white/15 hover:bg-white/25 font-semibold rounded-lg py-2 text-sm"
+          className="mt-5 w-full min-h-11 bg-white/15 hover:bg-white/25 font-semibold rounded-lg py-2 text-sm"
         >
           Leave
         </button>

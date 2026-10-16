@@ -387,8 +387,9 @@ zod, react-query. Add the package in the same change that first uses it.
   **The Name** (#75 item 16e): Umbra Remembered steps out of the Root's
   Heart (role `finale` → service `name`, `NameFinale`): the Spire's question
   gauntlet (`lib/gauntlet.ts`, `Candles`) of five topics, then "What was my
-  name?" — "Aster" sets `umbra-named` (`namePanels`, `POST_CREDITS_PANELS`);
-  Sage Aster stands in the Hall of Names after.
+  name?" — "Aster" sets `umbra-named` (`namePanels`, `POST_CREDITS_PANELS`;
+  its XP waits in `finaleStore` until they end); Sage Aster stands in the
+  Hall of Names after (the 🚩's "Visit Sage Aster").
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -815,6 +816,13 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — 16e UX review round 1: a gentle shadow, candles that come back (#75 item 16e, #147i)
+Fresh UX review (1 high, 6 medium, 10 low, 5 nits), all fixed but one kept
+(16d saves miss "steps out of the glow"): "the shadow" / "it"; a soft hooded
+sprite; no portrait while asking; XP after the panels; gentle music at the
+name; candles that come back instead of a walk from B4; "Visit Sage Aster";
+an empty gold Heart with a daisy; 44 px buttons. 1401 green.
 
 ### 2026-10-16 — 16e code review round 1: a button with a name (#75 item 16e, #147h)
 Fresh code review (1 high, 4 low, 6 nits), all fixed but one kept (XP per

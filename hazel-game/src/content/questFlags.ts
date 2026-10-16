@@ -135,3 +135,5 @@ export const ROOT_HEART_REACHED = 'root-heart-reached';
  * (#75 item 16e) — the true ending. `name-learned` only says the hero knows it.
  */
 export const UMBRA_NAMED = 'umbra-named';
+/** Set when the hero first talks to Sage Aster in the Hall of Names (#75 item 16e). */
+export const MET_HALL_ASTER = 'met-hall-aster';

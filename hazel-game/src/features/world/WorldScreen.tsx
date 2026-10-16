@@ -110,6 +110,7 @@ import { playerAge } from '../../lib/age';
 import { toastMs } from '../../lib/toast';
 import { heroMaxHp } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
+import { useFinaleStore } from '../../store/finaleStore';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useBattleStore } from '../../store/battleStore';
@@ -952,7 +953,12 @@ export default function WorldScreen() {
         <StoryPanels
           panels={nameScene}
           doneLabel="🌼 Thank you, Aster"
-          onDone={() => setFlag(NAME_SEEN)}
+          onDone={() => {
+            setFlag(NAME_SEEN);
+            // What the finale earned, paid now the story's told (a level-up mustn't cover it).
+            const xp = useFinaleStore.getState().takeXp();
+            if (xp) void useProfileStore.getState().addXp(xp);
+          }}
         />
       )}
       {activeScene === 'wispFace' && (

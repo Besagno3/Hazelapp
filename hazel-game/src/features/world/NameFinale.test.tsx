@@ -24,6 +24,7 @@ const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
 const { NAME_LEARNED, UMBRA_NAMED } = await import('../../content/questFlags');
 const { NAME_CLEAR_XP, NAME_LIVES, NAME_QUESTIONS } = await import('../../content/finale');
+const { useFinaleStore } = await import('../../store/finaleStore');
 
 /** Taps a story line once it has been up long enough to read (a quick double-tap is ignored). */
 async function tapLine(text: RegExp) {
@@ -42,19 +43,20 @@ function start(flags: Record<string, boolean>) {
 
 /** Answer Umbra's questions — `wrongAt`: the ones answered wrong. */
 async function answerAll(wrongAt: number[] = []) {
-  fireEvent.click(screen.getByRole('button', { name: '🕯️ Answer his questions' }));
+  fireEvent.click(screen.getByRole('button', { name: /Answer its questions|Try again/ }));
   for (let i = 0; i < NAME_QUESTIONS; i++) {
-    await waitFor(() => expect(screen.getByText(`Umbra's question ${i + 1}/${NAME_QUESTIONS}`)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(`The shadow's question ${i + 1}/${NAME_QUESTIONS}`)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: wrongAt.includes(i) ? /wrong 1/ : /^right/ }));
     fireEvent.click(screen.getByRole('button', { name: /Stand firm/ }));
     if (screen.queryByText(/Your last candle goes out/)) return;
-    if (wrongAt.includes(i)) await tapLine(/A candle snuffs out/);
+    if (wrongAt.includes(i)) await tapLine(/A candle flickers out/);
   }
 }
 
 describe("Umbra Remembered's finale (#75 item 16e)", () => {
   beforeEach(() => {
     sendFlow.mockClear();
+    useFinaleStore.getState().reset();
     useProfileStore.setState({ profile: null, addXp: vi.fn(async () => {}), recordActivity: vi.fn(async () => {}) } as never);
   });
 
@@ -76,7 +78,9 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Aster' }));
     expect(useSaveStore.getState().save!.flags[UMBRA_NAMED]).toBe(true);
-    expect(useProfileStore.getState().addXp).toHaveBeenCalledWith(NAME_CLEAR_XP);
+    // Paid as the name panels end, not now (a level-up mustn't cover the story): 4 right + the reward.
+    expect(useProfileStore.getState().addXp).not.toHaveBeenCalled();
+    expect(useFinaleStore.getState().pendingXp).toBe(NAME_CLEAR_XP + 4 * 10);
     // The miss went to the Library.
     expect(useSaveStore.getState().save!.library).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: '🌼 See what happens' }));
@@ -93,17 +97,25 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
     expect(useSaveStore.getState().save!.flags[UMBRA_NAMED]).toBeUndefined();
   });
 
-  it("the last candle out wakes you healed in Glim's Nook on B4", async () => {
+  it('the last candle out: the shadow lights them again — nothing lost, no walk back down', async () => {
     start({ [NAME_LEARNED]: true });
     render(<NameFinale />);
     await answerAll([0, 1, 2]);
-    expect(screen.getByText(/Your last candle goes out/)).toHaveTextContent(/Glim's Nook/);
-    // Already there — leaving any way can't skip it.
-    const save = useSaveStore.getState().save!;
-    expect(save.zoneId).toBe('deep-root-4');
-    expect(save.hp).toBeNull();
-    expect(save.flags[UMBRA_NAMED]).toBeUndefined();
-    fireEvent.click(screen.getByRole('button', { name: '🐛 To the nook' }));
-    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+    expect(screen.getByText(/Your last candle goes out/)).toHaveTextContent(/flicker back/);
+    expect(useSaveStore.getState().save!.zoneId).toBe('deep-root-7');
+    await answerAll();
+    expect(screen.getByRole('img', { name: `${NAME_LIVES} of ${NAME_LIVES} candle-lights left` })).toBeInTheDocument();
+  });
+
+  it('left at the name question, the questions are not asked again this session', async () => {
+    start({ [NAME_LEARNED]: true });
+    const first = render(<NameFinale />);
+    await answerAll();
+    first.unmount();
+    // Leaving pays the right answers at once.
+    expect(useProfileStore.getState().addXp).toHaveBeenCalledWith(NAME_QUESTIONS * 10);
+    render(<NameFinale />);
+    fireEvent.click(screen.getByRole('button', { name: "🌼 I'm ready" }));
+    expect(screen.getByText('"What was my name?"')).toBeInTheDocument();
   });
 });

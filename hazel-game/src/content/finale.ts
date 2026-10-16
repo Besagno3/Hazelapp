@@ -11,7 +11,7 @@ import type { Topic } from '../types';
 
 /** Umbra's questions before his own. */
 export const NAME_QUESTIONS = 5;
-/** Candle-lights for the gauntlet; the last one out sends the hero up to Glim's Nook. */
+/** Candle-lights for the gauntlet; when the last goes out, the shadow lights them again (16e review round 1). */
 export const NAME_LIVES = 3;
 /** How far above the hero's own level each question asks (the Spire's first floor asks +2). */
 export const NAME_LEVEL_BONUS = 2;
@@ -28,6 +28,11 @@ export const WRONG_NAME_LINES: Record<string, string> = {
   Lumen: '"Lumen was the boy who asked the most questions." A tired smile. "That isn\'t my name."',
   Umbra: '"That is what the dark calls me." The shadow shivers. "It isn\'t the name I was given."',
 };
+
+/** A snuffed candle in the finale — gentler than the Spire's "the dark creeps closer" (the dark is a sad friend here). */
+export function finaleCandleLine(remaining: number): string {
+  return `A candle flickers out. ${remaining} light${remaining === 1 ? '' : 's'} left!`;
+}
 
 /** XP for the gauntlet: every right answer, plus the reward on the first naming. */
 export function nameClearXp(correct: number, perCorrect: number, namedBefore: boolean): number {

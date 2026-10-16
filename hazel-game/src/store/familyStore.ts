@@ -7,6 +7,7 @@ import { CONSENT_VERSION } from '../content/family';
 import { sendFlow } from '../machines/gameFlow';
 import { useProfileStore } from './profileStore';
 import { useSaveStore } from './saveStore';
+import { useFinaleStore } from './finaleStore';
 import { useBattleStore } from './battleStore';
 import type { Kid, KidInput } from '../types';
 
@@ -76,6 +77,7 @@ export function putAwayGame(): void {
   useProfileStore.getState().clearProfile();
   useSaveStore.getState().clear();
   useBattleStore.getState().reset();
+  useFinaleStore.getState().reset();
   sendFlow({ type: 'RESET' });
 }
 

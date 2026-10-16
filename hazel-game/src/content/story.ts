@@ -996,11 +996,11 @@ export function namePanels(heroName: string): StoryPanel[] {
   return [
     {
       emoji: '🌑',
-      text: '"Aster," you say. The whole Deep Root goes still. Even the humming stops.',
+      text: '"Aster," you say, as clearly as you can. Deep in the roots, something old and tired listens.',
     },
     {
       emoji: '🌑',
-      text: 'Umbra stares at you. "Aster…" he whispers, trying it out. "Aster. That was… that was ME."',
+      text: 'The shadow stares at you. "Aster…" it whispers, trying it out. "Aster. That was… that was ME."',
     },
     {
       emoji: '✨',
@@ -1025,11 +1025,11 @@ export function namePanels(heroName: string): StoryPanel[] {
 export const POST_CREDITS_PANELS: StoryPanel[] = [
   {
     emoji: '🏫',
-    text: 'Some days later, in the First Classroom, a teacher with a daisy in her hair rings the Lesson Bell. It doesn\'t even apologize.',
+    text: 'Some days later, Aster visits the First Classroom and rings the Lesson Bell herself. For once, it doesn\'t even apologize.',
   },
   {
     emoji: '🧚',
-    text: '"Ask me anything!" Aster tells her class. Wisp sits on her shoulder, giggling at every single "why?".',
+    text: '"Ask me anything!" she tells the memory-children there. Wisp sits on her shoulder, giggling at every single "why?".',
   },
   {
     emoji: '🏛️',

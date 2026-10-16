@@ -28,7 +28,7 @@ const SERVICE_BUTTON: Record<ServiceType, string> = {
   library: '📚 Library',
   sage: '✨ Learn',
   trial: '🕯️ Take the trial',
-  name: '🌑 Answer him',
+  name: '🌑 Answer Umbra',
 };
 
 export default function DialogueOverlay({ npcId }: { npcId: string }) {
@@ -180,7 +180,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {offerService && (
             <button
               onClick={openService}
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
               {service === 'trial' && trialPassed ? `${taught?.emoji} How to cast` : SERVICE_BUTTON[service]}
             </button>
@@ -188,7 +188,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {isLast && fetchOffer && !fetched && (
             <button
               onClick={rowHome}
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm"
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
               ⛵ Row her home
             </button>
@@ -216,7 +216,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {picked !== null && (
             <button
               onClick={() => sendFlow({ type: 'CLOSE' })}
-              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
               🎉 Thanks!
             </button>
@@ -226,7 +226,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           <button
             autoFocus
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
-            className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+            className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"
           >
             {!isLast
               ? '▼ Next'
@@ -244,7 +244,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {isLast && quest?.finishKind === 'riddle' && (
             <button
               onClick={advance}
-              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm"
+              className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
               Later
             </button>

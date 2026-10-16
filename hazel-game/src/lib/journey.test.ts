@@ -237,6 +237,7 @@ describe("Act IV so far (#75 items 16a–16d)", () => {
       "Reach the Root's Heart",
       // The Name (#75 item 16e).
       'Say her name to Umbra',
+      'Visit Sage Aster',
     ]);
     for (const leg of act4) expect(walkable(leg), leg.goal.title).toBe(true);
   });

@@ -170,11 +170,11 @@ describe("a tale-stone's riddle (#75 item 15e)", () => {
 });
 
 describe("Umbra Remembered (#75 item 16e)", () => {
-  it('his last line offers 🌑 Answer him, which opens the finale', () => {
+  it('his last line offers 🌑 Answer Umbra, which opens the finale', () => {
     withFlags({ 'root-heart-reached': true, 'name-learned': true, 'met-umbra-remembered': true });
     render(<DialogueOverlay npcId="umbra-remembered" />);
     fireEvent.click(screen.getByText('▼ Next'));
-    fireEvent.click(screen.getByRole('button', { name: '🌑 Answer him' }));
+    fireEvent.click(screen.getByRole('button', { name: '🌑 Answer Umbra' }));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_SERVICE', service: 'name', npcId: 'umbra-remembered' });
   });
 });

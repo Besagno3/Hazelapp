@@ -395,7 +395,7 @@ describe('the Nameless Hall (#75 item 16c)', () => {
     expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
   });
 
-  it('the Name (#75 item 16e): her name said, then the post-credits — once', () => {
+  it('the Name (#75 item 16e): her name said, then the post-credits — once', async () => {
     useSaveStore.setState({
       userId: null,
       status: 'ready',
@@ -410,9 +410,18 @@ describe('the Nameless Hall (#75 item 16c)', () => {
     const { unmount } = render(<WorldScreen />);
     expect(screen.getByText(/"Aster," you say/)).toBeInTheDocument();
     // Six panels of the name, then three of the post-credits (the words are checked in story.test).
+    // What the finale earned is paid as the story ends — never over it (16e review round 1).
+    const { useFinaleStore } = await import('../../store/finaleStore');
+    const { useProfileStore } = await import('../../store/profileStore');
+    const addXp = vi.fn(async () => {});
+    useProfileStore.setState({ addXp } as never);
+    useFinaleStore.getState().owe(640);
     readOn(story.namePanels('').length + story.POST_CREDITS_PANELS.length - 1);
+    expect(addXp).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: '🌼 Thank you, Aster' }));
     expect(useSaveStore.getState().save!.flags[story.NAME_SEEN]).toBe(true);
+    expect(addXp).toHaveBeenCalledWith(640);
+    expect(useFinaleStore.getState().pendingXp).toBe(0);
     unmount();
     render(<WorldScreen />);
     expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();

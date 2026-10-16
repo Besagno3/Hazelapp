@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { bossFlag, keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING, descentSeenFlag } from './story';
@@ -1486,8 +1486,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     lines: [
-      { text: "There you are! I hoped you'd come. I'm Aster — the very first Sage. Thanks to you, I remember that now.", unlessFlag: 'met-hall-aster', setFlag: 'met-hall-aster' },
-      { text: 'I used to answer every question in Lumina. Then the questions got hard, and people stopped asking… and I stopped being me.', unlessFlag: 'met-hall-aster' },
+      { text: "There you are! I hoped you'd come. I'm Aster — the very first Sage. Thanks to you, I remember that now.", unlessFlag: MET_HALL_ASTER, setFlag: MET_HALL_ASTER },
+      { text: 'I used to answer every question in Lumina. Then the questions got hard, and people stopped asking… and I stopped being me.', unlessFlag: MET_HALL_ASTER },
       'Never stop asking "why?", little spark. A question is just a door that hasn\'t opened yet.',
       'Keeper Mnem carved my name himself. He polishes it every morning. Twice, when he thinks nobody\'s looking.',
     ],
@@ -2832,14 +2832,14 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     id: 'umbra-remembered',
     name: 'Umbra',
     sprite: '🌑',
-    spriteId: 'umbra',
+    // A tired shadow in a soft hood, not the Spire's armoured knight (16e review round 1).
     role: 'finale',
     stationary: true,
     lines: [
-      { text: '"So. The little spark came all the way down." His voice is not loud any more. Just tired.', unlessFlag: 'met-umbra-remembered', setFlag: 'met-umbra-remembered' },
+      { text: '"So. The little spark came all the way down." The shadow\'s voice isn\'t loud any more. Just tired.', unlessFlag: 'met-umbra-remembered', setFlag: 'met-umbra-remembered' },
       { text: '"I have been Umbra for so long. Before that I was… someone. I can\'t remember who."', unlessFlag: 'met-umbra-remembered' },
       { text: '"Back again, little spark? Good. I don\'t like waiting alone."', ifFlag: 'met-umbra-remembered' },
-      '"Answer my questions. Then I will ask you the only one I have left."',
+      '"Answer my questions. Then I will ask you the only one I have left. Don\'t be afraid — I only want to remember."',
     ],
   },
   // Glim's Nook on B4 (16d review round 2): a glowworm who tucks up beaten heroes.
