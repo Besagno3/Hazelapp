@@ -6,7 +6,7 @@ import { ENEMY_DEFS, atTier, habitatOf, spawnEnemy, spawnPlaced } from './enemie
 import { battleBackdrop } from './tiles';
 import { BOAT_HOME, boatAfterDefeat, boatOnReturn, boatSpot, BOAT_MENDED, defeatBoatLine, SEA_DEFEAT_LINE, validMooring } from './boat';
 import { RETURN_TOWNS } from './fieldSpells';
-import { innOf } from './zones';
+import { INN_ONLY, innOf } from './zones';
 import { questConversation } from './quests';
 import { defaultSave } from '../lib/save';
 import { reach, touches } from '../lib/reach';
@@ -158,6 +158,8 @@ describe('a battle at sea (#75 item 14d)', () => {
     expect(innTowns.length).toBeGreaterThan(0);
     for (const z of innTowns) {
       if (z.exits.some((e) => e.to === BOAT_HOME.zoneId)) continue;
+      // Under a place on Marlow's map (#75 item 16a: the Dream Root Door, down the Spire's stairs).
+      if (z.exits.some((e) => ZONES[e.to].exits.some((x) => x.to === BOAT_HOME.zoneId))) continue;
       // Port Lantern (#75 item 15c) is on Taleshore, which only Ember reaches —
       // so a hero who wakes there can always fly home: from its door they walk
       // out onto ground Ember takes off from.
@@ -175,7 +177,7 @@ describe('a battle at sea (#75 item 14d)', () => {
       const beside = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => island.has(`${m.x + dx},${m.y + dy}`));
       expect(beside, `${z.id}: the boat is moored edge to edge with the island`).toBe(true);
     }
-    expect([...RETURN_TOWNS].sort()).toEqual(innTowns.map((z) => z.id).sort());
+    expect([...RETURN_TOWNS, ...INN_ONLY].sort()).toEqual(innTowns.map((z) => z.id).sort());
   });
 
   it('a hero who wakes in the Sunken Archive finds the boat at its beach — after a sea defeat or ashore (#114o)', () => {

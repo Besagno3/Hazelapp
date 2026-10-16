@@ -160,6 +160,14 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'ink-wisp': { id: 'ink-wisp', name: 'Ink Wisp', sprite: '🖋️', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
   // Swift (roadmap decision 14: no new timers): it darts in and strikes first.
   'quill-imp': { id: 'quill-imp', name: 'Quill Imp', sprite: '🪶', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'swift' },
+
+  // --- Lumina-That-Was (#75 item 16b): things the world forgot, and a classroom's mischief ---
+  'faded-echo': { id: 'faded-echo', name: 'Faded Echo', sprite: '👥', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
+  'lost-sock-golem': { id: 'lost-sock-golem', name: 'Lost Sock Golem', sprite: '🧦', topic: 'science', levelOffset: 0, hpPerLevel: 12 },
+  'misplaced-key': { id: 'misplaced-key', name: 'Misplaced Key', sprite: '🔑', topic: 'math', levelOffset: 1, hpPerLevel: 13, behavior: 'trickster' },
+  'chalk-wisp': { id: 'chalk-wisp', name: 'Chalk Wisp', sprite: '🖍️', topic: 'words', levelOffset: -1, hpPerLevel: 10, behavior: 'swift' },
+  'eraser-imp': { id: 'eraser-imp', name: 'Eraser Imp', sprite: '🧽', topic: 'creativity', levelOffset: 0, hpPerLevel: 12, behavior: 'swift' },
+  'sum-gremlin': { id: 'sum-gremlin', name: 'Sum Gremlin', sprite: '➗', topic: 'math', levelOffset: 1, hpPerLevel: 13, behavior: 'swift' },
   // Act II's Fiend: beat it to restore the Crystal of Memory (BOSS_LINES.history).
   'hollow-fiend': { id: 'hollow-fiend', name: 'The Hollow Fiend', sprite: '🕳️', topic: 'history', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
 

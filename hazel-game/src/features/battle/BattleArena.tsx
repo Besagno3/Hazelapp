@@ -54,7 +54,7 @@ import { toastMs } from '../../lib/toast';
 import { CHARGE_MAX } from '../../content/abilities';
 import { spellsKnown, SPELL_LEVEL_BONUS, type Spell } from '../../content/spells';
 import {
-  COMPANIONS,
+  companionLook,
   EMBER_BONUS_CHARGE,
   PIP_PEEK_HIDES,
   WISP_MEND,
@@ -248,7 +248,7 @@ export default function BattleArena() {
   const party = save ? companionsInParty(save) : (['ember'] as CompanionId[]);
   const savedCompanion = save?.companionId ?? 'ember';
   const companionId: CompanionId = party.includes(savedCompanion) ? savedCompanion : 'ember';
-  const companion = COMPANIONS[companionId];
+  const companion = companionLook(companionId, save?.flags);
   const cMove = companionMove(companionId, ember);
   const cPower = companionPower(companionId, ember);
   const cReady = companionCanFight(companionId, ember);
@@ -257,7 +257,7 @@ export default function BattleArena() {
 
   const enemySprite = resolveSprite(enemy?.spriteId, enemy?.sprite ?? '❓');
   const heroSprite = resolveSprite(avatar?.spriteId, avatar?.sprite ?? '❓');
-  const cSpriteIds = companionSprite(companionId, ember);
+  const cSpriteIds = companionSprite(companionId, ember, save?.flags);
   const cSprite = resolveSprite(cSpriteIds.spriteId, cSpriteIds.emoji);
   // Radiant Ember breathes starfire (#75 item 15g review round 4).
   const fireballSprite = resolveSprite(ember === 'radiant' ? 'fx-starfire' : 'fx-fireball', ember === 'radiant' ? '🌟' : '🔥');
@@ -529,7 +529,7 @@ export default function BattleArena() {
   /** Swap companions — a free action: the turn stays on the command menu. */
   function swapTo(id: CompanionId) {
     if (id !== companionId && party.includes(id)) {
-      const c = COMPANIONS[id];
+      const c = companionLook(id, useSaveStore.getState().save?.flags);
       updateSave((s) => ({ ...s, companionId: id }));
       fx.dropIn();
       sfx('swap');
@@ -1185,7 +1185,7 @@ export default function BattleArena() {
           />
         )}
 
-        {turn.kind === 'swap' && <SwapMenu party={party} active={companionId} onSwap={swapTo} onBack={toCommand} />}
+        {turn.kind === 'swap' && <SwapMenu party={party} active={companionId} flags={save?.flags} onSwap={swapTo} onBack={toCommand} />}
 
         {turn.kind === 'items' && (
           <ItemMenu

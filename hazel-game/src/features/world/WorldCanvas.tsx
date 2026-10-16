@@ -15,6 +15,7 @@ import {
   fogLifted,
   fogSeenFlag,
   chestTopicAt,
+  gateTopic,
   pathTargetId,
   gateFlag,
   gateIdAt,
@@ -31,7 +32,7 @@ import {
 import { bossDefeated } from '../../content/keys';
 import { reachPath, safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
-import { NPC_DEFS, isThing, npcSpriteId } from '../../content/npcs';
+import { NPC_DEFS, isThing, npcAmbient, npcEmoji, npcName, npcSpriteId } from '../../content/npcs';
 import { habitatOf, spawnPlaced } from '../../content/enemies';
 import { BASE_TIER, DANGER, mapLabel } from '../../content/regions';
 import { EMBER_SPRITES, EMBER_MAP_SIZE, EMBER_SPRITE_IDS, type EmberStage } from '../../content/story';
@@ -1246,8 +1247,8 @@ export default function WorldCanvas({
       // All visual pieces move together when the NPC wanders.
       const parts: Part[] = [];
       const pieces: { destroy: () => void }[] = [];
-      const spriteId = npcSpriteId(def);
-      const npcView = resolveSprite(spriteId, def.sprite).def?.world;
+      const spriteId = npcSpriteId(def, flagsRef.current);
+      const npcView = resolveSprite(spriteId, npcEmoji(def, flagsRef.current)).def?.world;
       if (!npcView) {
         const token = k.add([
           k.rect(30, 30, { radius: 6 }),
@@ -1259,13 +1260,13 @@ export default function WorldCanvas({
         parts.push(token as unknown as Part);
         pieces.push(token);
       }
-      const face = worldFace(k, { spriteId, emoji: def.sprite, x: px, y: py, size: 22 })
+      const face = worldFace(k, { spriteId, emoji: npcEmoji(def, flagsRef.current), x: px, y: py, size: 22 })
         .obj as unknown as WorldActor;
       parts.push(face);
       pieces.push(face);
       // Under its feet: a sprite taller than a tile (Old Ringwood, #75 item 14f) pushes it down.
       const label = k.add([
-        k.text(def.name, { size: 10 }),
+        k.text(npcName(def, flagsRef.current), { size: 10 }),
         k.pos(px, py + 24 + Math.max(0, (npcView?.frameH ?? TILE) - TILE) / 2),
         k.anchor('center'),
         k.color(255, 255, 255),
@@ -1282,7 +1283,7 @@ export default function WorldCanvas({
         top: (npcView?.frameH ?? TILE) / 2,
       };
       actors.push(actor);
-      const nameW = (label as unknown as { width?: number }).width ?? def.name.length * 6;
+      const nameW = (label as unknown as { width?: number }).width ?? npcName(def, flagsRef.current).length * 6;
       looks.set(actor, { face: 32, label: { dy: 24, w: nameW + 4, h: 12 } });
       // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
       if (npcWanders(def) && !at) {
@@ -1301,7 +1302,8 @@ export default function WorldCanvas({
         // Ready for stepping out of the hero's way (#127); untouched until then.
         animators.set(actor, makeAnimator(face, npcView?.anims));
       }
-      if (def.ambient?.length) attachAmbient(face, def.ambient);
+      const ambient = npcAmbient(def, flagsRef.current);
+      if (ambient?.length) attachAmbient(face, ambient);
       return {
         actor,
         face,
@@ -1320,10 +1322,14 @@ export default function WorldCanvas({
     // Most NPCs simply stand in the world. A few come and go with the story
     // (#75 item 8: Elder Lumen greets a new hero on the plaza, then keeps the
     // Library); the main loop keeps those in step with the flags.
+    // Someone with a new face to come (#75 item 16a: Wisp) is kept in step too.
+    // …and someone who gets a new name (#75 item 16b: the Unnamed Dog).
+    const comesAndGoes = (p: NpcPlacement) => !!(p.ifFlag || p.unlessFlag || NPC_DEFS[p.defId].face || NPC_DEFS[p.defId].names);
+    const lookOf = (p: NpcPlacement) => `${npcSpriteId(NPC_DEFS[p.defId], flagsRef.current)}|${npcName(NPC_DEFS[p.defId], flagsRef.current)}`;
     const comings = z.npcs
-      .filter((p) => p.ifFlag || p.unlessFlag)
-      .map((p) => ({ p, here: null as { remove: () => void } | null }));
-    for (const p of z.npcs) if (!p.ifFlag && !p.unlessFlag) spawnNpc(p);
+      .filter(comesAndGoes)
+      .map((p) => ({ p, here: null as { remove: () => void; actor: Actor } | null, look: lookOf(p) }));
+    for (const p of z.npcs) if (!comesAndGoes(p)) spawnNpc(p);
     // Someone walking with the hero (#75 item 14g) isn't also standing where they wait.
     const standsHere = (p: NpcPlacement) => npcPresent(p, flagsRef.current) && p.defId !== escortRef.current?.npcId;
     for (const c of comings) if (standsHere(c.p)) c.here = spawnNpc(c.p);
@@ -1965,7 +1971,7 @@ export default function WorldCanvas({
           const keyed = !!z.keyGate && gateIdAt(zoneId, z.map, z.keyGate.x, z.keyGate.y) === id;
           return usable(keyed ? 'Unlock gate' : 'Open gate', () => {
             arm(TRIGGER_COOLDOWN);
-            cbRef.current.onPath({ kind: keyed ? 'keygate' : 'gate', id, topic: z.topic ?? 'math', zoneId });
+            cbRef.current.onPath({ kind: keyed ? 'keygate' : 'gate', id, topic: gateTopic(z, cx, cy), zoneId });
           });
         }
         case 'S':
@@ -2945,7 +2951,19 @@ export default function WorldCanvas({
       // NPCs who come and go with the story (a flag set in a conversation).
       for (const c of comings) {
         const present = standsHere(c.p);
-        if (present && !c.here) c.here = spawnNpc(c.p);
+        const look = lookOf(c.p);
+        // A new face (#75 item 16a; only stationary people have one): drawn again
+        // at their own spot (round 3: one who'd stepped aside stayed off it) —
+        // unless the hero stands on or by it, then where they are (round 4).
+        let at: { x: number; y: number } | undefined;
+        if (c.here && look !== c.look) {
+          const home = { x: c.p.x * TILE + TILE / 2, y: c.p.y * TILE + TILE / 2 };
+          if (Math.hypot(player.pos.x - home.x, player.pos.y - home.y) < TILE * 1.5) at = { x: c.here.actor.x, y: c.here.actor.y };
+          c.here.remove();
+          c.here = null;
+        }
+        c.look = look;
+        if (present && !c.here) c.here = spawnNpc(c.p, at);
         else if (!present && c.here) {
           c.here.remove();
           c.here = null;

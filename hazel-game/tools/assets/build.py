@@ -23,6 +23,8 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py taleshore  # only Taleshore + Port Lantern: tiles, harbor sheet, icon, people (#75 item 15c)
     python3 tools/assets/build.py isles      # only Taleshore I: three places' tiles, the kite sheet, icons, critters, people (#75 item 15d)
     python3 tools/assets/build.py chart      # only Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+    python3 tools/assets/build.py lumina     # only Lumina-That-Was: three zones' tiles, the school sheet, critters, people (#75 item 16b)
+    python3 tools/assets/build.py dreamroot  # only the Dream Root Door: its tiles, the root sheet, Old Knot, Young Wick and Wisp's new face (#75 item 16a)
     python3 tools/assets/build.py chorus     # only Chorus Isle: tiles, the chorus sheet, its icon, the Hush Fiend, its people, Radiant Ember (#75 item 15g)
     python3 tools/assets/build.py cliffs     # only Taleshore III: Songstone Cliffs + the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
     python3 tools/assets/build.py reef       # only Taleshore II: the Story Reef + Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people (#75 item 15e)
@@ -79,6 +81,13 @@ CHORUS_SPRITES = ('hush-fiend', 'sage-aria', 'chorus-brio', 'chorus-coda', 'chor
 
 # Chartmaker's Rest's people (#75 item 15h), for `build.py chart`.
 CHART_SPRITES = ('chart-chartmaker', 'chart-pen', 'chart-inka')
+
+# The Dream Root Door's talking root and Wisp's new face (#75 item 16a), for `build.py dreamroot`.
+DREAMROOT_SPRITES = ('root-knot', 'wisp-named', 'memory-young-wick')
+
+# Lumina-That-Was's critters and people (#75 item 16b), for `build.py lumina`.
+LUMINA_SPRITES = ('faded-echo', 'lost-sock-golem', 'misplaced-key', 'chalk-wisp', 'eraser-imp', 'sum-gremlin',
+                  'memory-young-lumen', 'memory-fair', 'memory-popcorn', 'memory-dog', 'class-prim', 'class-bell', 'class-slate', 'class-slate-gold')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',
@@ -169,6 +178,18 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(CHART_SPRITES)))
         tiles.build_chart(PUBLIC)
         print('chart ✓')
+        return
+    if 'lumina' in only:
+        # Just Lumina-That-Was (#75 item 16b): three zones' tiles, the school sheet, its critters and people.
+        write_manifest(build_sprites.build(PUBLIC, only=set(LUMINA_SPRITES)))
+        tiles.build_lumina(PUBLIC)
+        print('lumina ✓')
+        return
+    if 'dreamroot' in only:
+        # Just the Dream Root Door (#75 item 16a): its tiles, Old Knot and Wisp's new face.
+        write_manifest(build_sprites.build(PUBLIC, only=set(DREAMROOT_SPRITES)))
+        tiles.build_dreamroot(PUBLIC)
+        print('dreamroot ✓')
         return
     if 'chorus' in only:
         # Just Chorus Isle (#75 item 15g): its tiles, the chorus town sheet, the

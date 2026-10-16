@@ -135,14 +135,23 @@ export const ACT3_SEEN = 'act3-seen';
  * handed over the Blank Chart (`blank-chart-held`), as his talk closes.
  */
 export const CHART_SEEN = 'chart-seen';
-/** Act IV's opening (item 16): nothing sets it yet — a stand-in crystal in tests belongs to it. */
+/**
+ * Act IV opens (#75 item 16a): the first time on the Crystal Spire's grounds
+ * holding the Blank Chart (once the Chartmaker's own panels have played,
+ * `CHART_SEEN`), `ACT4_PANELS` play and this is set — Keeper Aurora
+ * goes down to the Dream Root Door, and the fog over its stairs lifts.
+ */
 export const ACT4_SEEN = 'act4-seen';
+/** Wisp's new face (#75 item 16a): its panels, once Say Her Name is done, as Wisp's talk closes. */
+export const WISP_FACE_SEEN = 'wisp-face-seen';
 
 /**
  * Set as Harbormaster Gale says hello in Port Lantern (#75 item 15c review):
  * the 🚩's first goal on Taleshore.
  */
 export const MET_GALE = 'met-gale';
+/** Set as Keeper Aurora first welcomes the hero to the Lamplight Rest (#75 item 16a review round 2): a 🚩 goal. */
+export const MET_ROOT_AURORA = 'met-root-aurora';
 
 /** Per-crystal cutscene flag — set once that topic's "crystal restored" scene plays. */
 export function crystalSceneFlag(topic: Topic): string {
@@ -534,6 +543,49 @@ export const CHART_PANELS: StoryPanel[] = [
   {
     emoji: '🎶',
     text: 'Far away, a small voice hums. It is the voice from the Crystal of Voices: "You\'ve been to so many places… one day, find me."',
+  },
+];
+
+/**
+ * Act IV opens (#75 item 16a, STORY-4X §6): on the Spire's grounds with the
+ * Blank Chart. Then the fog over the stairs lifts, on screen.
+ */
+export const ACT4_PANELS: StoryPanel[] = [
+  {
+    emoji: '🗺️',
+    text: "On the Spire's grounds, the Blank Chart grows warm in your hands. The empty space on it is right here — under your feet.",
+  },
+  {
+    emoji: '🔮',
+    text: 'Keeper Aurora hurries over. "You found it," she says softly. "The one place I never dared to look."',
+  },
+  {
+    emoji: '🌳',
+    text: 'Beside her, a knot of old fog stirs. Under it, stairs lead down, down, down — into a tangle of old roots.',
+  },
+  {
+    emoji: '🌑',
+    text: 'From far below comes a tired voice: "So you came looking. Nobody looks down here. Nobody ever remembers to."',
+  },
+  {
+    emoji: '🔮',
+    text: '"That is the Dream Root, where Lumina keeps everything it forgot," says Aurora, lifting her lamp. "I will wait for you at its door."',
+  },
+];
+
+/** Wisp's new face (#75 item 16a): the name said out loud at last. */
+export const WISP_FACE_PANELS: StoryPanel[] = [
+  {
+    emoji: '🧚',
+    text: 'Wisp says it slowly, as if tasting it: "Aster." The very name the Crystal of Memory whispered! The whole wood goes quiet to listen.',
+  },
+  {
+    emoji: '🌼',
+    text: 'Light pours into Wisp like sunshine into a jar. When it fades, Wisp has a new face: golden hair, sunny wings and a daisy.',
+  },
+  {
+    emoji: '🌼',
+    text: '"I remember! I was part of her — the part that loved asking why," Wisp laughs. "Now let\'s go and tell her she isn\'t forgotten."',
   },
 ];
 

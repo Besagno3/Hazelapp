@@ -6,7 +6,7 @@ import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
-import { chestRewardText, chestWantedLine, openChest, riddleSolvedLine, solveRiddle } from '../../content/quests';
+import { riddleWords, chestRewardText, chestWantedLine, openChest, riddleSolvedLine, solveRiddle } from '../../content/quests';
 import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
@@ -103,13 +103,13 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
     target.kind === 'gate'
       ? '🚧 The Gatekeeper blocks the path!'
       : target.kind === 'riddle'
-        ? '📜 The tale-stone asks a word question!'
+        ? riddleWords(target.id).title
         : '🎁 The chest asks a riddle!';
   const successText =
     target.kind === 'gate'
       ? 'The gate swings open!'
       : target.kind === 'riddle'
-        ? 'The stone glows!'
+        ? riddleWords(target.id).right
         : `The chest pops open — ${chestRewardText(target.id)}`;
   // Under the answer: who wants a key item (#75 item 13), or where the next riddle is (#75 item 15e).
   const wanted =
@@ -121,7 +121,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
     <ModalLayer
       // A new question (after "Ask me another" or Try again) pulls focus back in (15e round 4).
       focusKey={requestKey}
-      label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? 'Tale-stone riddle' : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
+      label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? riddleWords(target.id).label : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
       <div className="min-h-full flex flex-col items-center justify-center">
         <motion.h2
           initial={{ y: -16, opacity: 0 }}
@@ -179,7 +179,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
                 ? solved
                   ? (wanted ?? '')
                   : missed
-                    ? 'The stone stays dim. Want another question?'
+                    ? riddleWords(target.id).wrong
                     : ''
                 : target.kind === 'chest'
                   ? solved && wanted

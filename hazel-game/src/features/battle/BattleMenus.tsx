@@ -2,7 +2,7 @@ import { CHARGE_MAX } from '../../content/abilities';
 import { BATTLE_ITEMS, CONSUMABLES, type ConsumableId } from '../../content/items';
 import type { Spell } from '../../content/spells';
 import type { Topic } from '../../types';
-import { COMPANIONS, COMPANION_IDS, type CompanionDef, type CompanionId, type PairAttack } from '../../content/companion';
+import { COMPANION_IDS, companionLook, type CompanionDef, type CompanionId, type PairAttack } from '../../content/companion';
 import { ChargePips } from './BattleHud';
 
 const PANEL = 'bg-indigo-950/95 border-4 border-white/80 rounded-2xl p-4 w-full max-w-xl text-white shadow-2xl';
@@ -345,11 +345,14 @@ export function CompanionMenu({
 export function SwapMenu({
   party,
   active,
+  flags,
   onSwap,
   onBack,
 }: {
   party: CompanionId[];
   active: CompanionId;
+  /** Story flags, for how each friend looks now (Wisp's 🌼, #75 item 16a). */
+  flags?: Record<string, boolean>;
   onSwap: (id: CompanionId) => void;
   onBack: () => void;
 }) {
@@ -358,7 +361,7 @@ export function SwapMenu({
       <p className={`${HEADER} mb-3`}>🔄 Swap — free, you still get your move!</p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {COMPANION_IDS.map((id) => {
-          const c = COMPANIONS[id];
+          const c = companionLook(id, flags);
           const joined = party.includes(id);
           const isActive = id === active;
           return (

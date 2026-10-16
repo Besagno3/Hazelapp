@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { LANDING_CHARS, ZONES, fogAt, darkAt, innWakeCell, tileAt, type ZoneId } from '../content/zones';
 import { RETURN_TOWNS, returnLanding } from '../content/fieldSpells';
 import { keyFlag, keyForBoss, keyForZone } from '../content/keys';
-import { actOneJourney, actThreeJourney, actTwoJourney, advanceGoal, walkLeg, type BoatState, type Leg } from './journey';
+import { actFourJourney, actOneJourney, actThreeJourney, actTwoJourney, advanceGoal, walkLeg, type BoatState, type Leg } from './journey';
 import { BOAT_HOME, BOAT_MENDED } from '../content/boat';
 import { NPC_DEFS, visibleLines } from '../content/npcs';
-import { HALL_CALLED } from '../content/story';
+import { ACT4_SEEN, HALL_CALLED } from '../content/story';
 import { reach, touches } from './reach';
-import { nextObjective } from './wayfinding';
+import { nextObjective, npcHome } from './wayfinding';
+import { QUESTS, stepFlag } from '../content/quests';
+import { SAY_HER_NAME_QUEST } from '../content/questFlags';
 
 const legs = actOneJourney();
 
@@ -208,6 +210,43 @@ describe('Act III start to finish (#75 item 15h, the Phase 4 exit check)', () =>
     const end = last.hops.at(-1)!.path!.at(-1)!;
     expect(end.x >= study.x && end.x < study.x + study.w && end.y >= study.y && end.y < study.y + study.h).toBe(true);
     const flags = advanceGoal(last.goal, last.flags);
-    expect(nextObjective(flags).kind).toBe('explore');
+    // …and the story goes on to Act IV (#75 item 16a).
+    expect(nextObjective(flags)).toMatchObject({ kind: 'visit', title: 'Find the way under the Spire' });
+  });
+});
+
+describe('Act IV so far (#75 item 16a)', () => {
+  const act4 = actFourJourney();
+  it("walks the Spire's grounds, down the stairs to the Dream Root Door, and to Wisp and every memory", () => {
+    expect(act4.map((l) => l.goal.title)).toEqual([
+      'Find the way under the Spire',
+      'Say hello to Keeper Aurora',
+      'Help Wisp remember',
+      'Ask Grandmother Wick about the first Sage',
+      'Ask Keeper Mnem about the first plaque',
+      'Ask the Chartmaker about his oldest map',
+      'Ask Sage Chronicle about the first Sage',
+      'Ask Young Wick about her teacher',
+      'Say her name to Wisp',
+    ]);
+    for (const leg of act4) expect(walkable(leg), leg.goal.title).toBe(true);
+  });
+  it("each memory's 🚩 is that memory's own keeper — never a stand-in (16a code review)", () => {
+    const quest = QUESTS.find((q) => q.id === SAY_HER_NAME_QUEST)!;
+    for (const leg of act4.filter((l) => l.goal.quest && l.goal.doneFlag?.startsWith('quest-step:'))) {
+      const step = quest.steps.find((st) => stepFlag(st.id) === leg.goal.doneFlag)!;
+      expect(leg.goal.npc, step.id).toBe(step.npc!.id);
+    }
+  });
+  // Young Wick stands in the old village (#75 item 16b): her memory is her own 🚩.
+  it('Young Wick stands somewhere, and her memory is her own 🚩 (16b)', () => {
+    expect(npcHome(ZONES, 'memory-young-wick')).not.toBeNull();
+    expect(act4.find((l) => l.goal.doneFlag === stepFlag('name-young-wick'))!.goal.npc).toBe('memory-young-wick');
+  });
+  it('the stairs down are walked only once the fog over them has lifted', () => {
+    const down = act4[1];
+    expect(down.hops.map((h) => h.zoneId)).toEqual(['crystal-spire', 'dreamroot-door']);
+    const fogged = { ...down.flags, [ACT4_SEEN]: false };
+    expect(walkable(walkLeg(down.goal, fogged, { zoneId: 'crystal-spire', cell: ZONES['crystal-spire'].spawn }))).toBe(false);
   });
 });

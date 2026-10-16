@@ -21,19 +21,44 @@ function stairsOf(z: ZoneDef, ch: string) {
 }
 
 describe('dungeons (#75 item 10)', () => {
-  it('every floor is a dungeon zone in exactly one dungeon; the first is a place on the overworld', () => {
+  it('every floor is a dungeon zone in exactly one dungeon; the first is a place on the overworld, or down a place\'s stairs', () => {
     const seen = new Set<ZoneId>();
     for (const d of DUNGEONS) {
-      expect(d.floors.length, d.id).toBeGreaterThanOrEqual(2);
+      // The Dream Root (#75 item 16a) has only its Door so far; the descent comes in 16d.
+      expect(d.floors.length, d.id).toBeGreaterThanOrEqual(d.boss ? 2 : 1);
       for (const id of d.floors) {
         expect(ZONES[id].kind, id).toBe('dungeon');
         expect(seen.has(id), `${id} in two dungeons`).toBe(false);
         seen.add(id);
       }
-      expect(ZONES[d.floors[0]].name).toBe(d.name);
-      const overworldDoor = allZones.some((z) => z.kind === 'overworld' && z.exits.some((e) => e.to === d.floors[0]));
-      expect(overworldDoor, `${d.id} is entered from the overworld`).toBe(true);
+      // "Clockwork Depths", or a floor named after its dungeon ("Dream Root Door").
+      expect(ZONES[d.floors[0]].name.startsWith(d.name), d.id).toBe(true);
+      // Entered from the overworld — or from a place on it, down that place's stairs.
+      const door = d.from ?? null;
+      const onOverworld = (id: ZoneId) => allZones.some((z) => z.kind === 'overworld' && z.exits.some((e) => e.to === id));
+      if (door) {
+        expect(onOverworld(door), `${d.id}'s ${door} is a place on the overworld`).toBe(true);
+        expect(stairsOf(ZONES[door], stairsChars(d.goes).onward).some((e) => e.to === d.floors[0]), `${door}'s stairs lead to ${d.id}`).toBe(true);
+      } else {
+        expect(onOverworld(d.floors[0]), `${d.id} is entered from the overworld`).toBe(true);
+      }
     }
+  });
+
+  it("stairs from a place start a dungeon (#75 item 16a): the Spire's grounds and the Dream Root Door, landing beside the stairs back", () => {
+    const d = DUNGEONS.find((x) => x.id === 'dream-root')!;
+    expect(d.from).toBe('crystal-spire');
+    const grounds = ZONES['crystal-spire'];
+    const door = ZONES[d.floors[0]];
+    const down = stairsOf(grounds, '>').find((e) => e.to === door.id)!;
+    const up = stairsOf(door, '<').find((e) => e.to === grounds.id)!;
+    expect(down && up).toBeTruthy();
+    const beside = (sx: number, sy: number, tx: number, ty: number) => Math.max(Math.abs(sx - tx), Math.abs(sy - ty)) === 1;
+    expect(beside(down.spawnX, down.spawnY, up.x, up.y)).toBe(true);
+    expect(beside(up.spawnX, up.spawnY, down.x, down.y)).toBe(true);
+    // The map caption names the floor once: "Dream Root Door · B1".
+    expect(floorTitle(ZONES, door.id)).toBe('Dream Root Door · B1');
+    expect(dungeonEntrance(door.id)).toBe(door.id);
   });
 
   it('stairs only appear on dungeon floors, and each leads one floor on or back in its own dungeon', () => {
@@ -41,11 +66,22 @@ describe('dungeons (#75 item 10)', () => {
       const stairs = z.exits.filter((e) => STAIRS_CHARS.has(tileAt(z, e.x, e.y)));
       if (!stairs.length) continue;
       const at = dungeonFloor(z.id);
+      // A place whose stairs start a dungeon (#75 item 16a): they lead to its first floor.
+      const starts = DUNGEONS.find((d) => d.from === z.id);
+      if (!at && starts) {
+        for (const e of stairs) {
+          expect(tileAt(z, e.x, e.y), `${z.id} stairs at ${e.x},${e.y}`).toBe(stairsChars(starts.goes).onward);
+          expect(e.to, `${z.id} stairs at ${e.x},${e.y}`).toBe(starts.floors[0]);
+        }
+        continue;
+      }
       expect(at, `${z.id} has stairs but isn't a dungeon floor`).not.toBeNull();
       const { onward } = stairsChars(at!.dungeon.goes);
       for (const e of stairs) {
         const step = tileAt(z, e.x, e.y) === onward ? 1 : -1;
-        expect(e.to, `${z.id} stairs at ${e.x},${e.y}`).toBe(at!.dungeon.floors[at!.index + step]);
+        // Back up from the first floor: to the place its stairs came down from.
+        const back = at!.index === 0 && step === -1 ? at!.dungeon.from : undefined;
+        expect(e.to, `${z.id} stairs at ${e.x},${e.y}`).toBe(back ?? at!.dungeon.floors[at!.index + step]);
       }
     }
   });
@@ -73,7 +109,7 @@ describe('dungeons (#75 item 10)', () => {
       const { onward } = stairsChars(d.goes);
       for (let i = 0; i < d.floors.length; i++) {
         const z = ZONES[d.floors[i]];
-        const from = ZONES[i === 0 ? 'dawnreach' : d.floors[i - 1]];
+        const from = ZONES[i === 0 ? (d.from ?? 'dawnreach') : d.floors[i - 1]];
         const arrive = from.exits.find((e) => e.to === z.id)!;
         // Through gates (you answer them), never through pitch dark (no Glow yet).
         const open = reach(z, { from: { x: arrive.spawnX, y: arrive.spawnY }, flags: {}, gates: 'open' });
@@ -88,6 +124,7 @@ describe('dungeons (#75 item 10)', () => {
 
   it('the boss waits on the deepest floor — and only there; its key names that floor', () => {
     for (const d of DUNGEONS) {
+      if (!d.boss) continue; // still being dug (the Dream Root, #75 item 16d)
       const deepest = d.floors.at(-1)!;
       for (const id of d.floors) {
         const here = ZONES[id].enemies.some((e) => e.defId === d.boss);

@@ -8,7 +8,7 @@ import shallowsTmj from './maps/silver-shallows.tmj?raw';
 import taleshoreTmj from './maps/taleshore.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
-import { ACT2_SEEN, FLIGHT_FLAG } from './story';
+import { ACT2_SEEN, ACT4_SEEN, FLIGHT_FLAG } from './story';
 import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, POSY_QUEST, POSY_SAILED, POSY_WALK, RESO_STONES, YARN_STONES, questDoneFlag, stepFlag } from './questFlags';
 
 /**
@@ -77,6 +77,12 @@ export const ZONE_IDS = [
   'chorus-isle',
   // Act III's last place (#75 item 15h): the Chartmaker's island, a story zone.
   'chartmakers-rest',
+  // Act IV (#75 item 16a): the door under the Crystal Spire.
+  'dreamroot-door',
+  // Act IV (#75 item 16b): Lumina-That-Was, below it.
+  'memory-field',
+  'memory-village',
+  'first-classroom',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -165,7 +171,7 @@ export type RoofColor = (typeof ROOF_COLORS)[number];
  * leafy wood in Verdara, riveted brass in Gearfall, painted stripes in
  * Chromaria, logs in the Woods, driftwood on the Coast, carved rock below.
  */
-export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell', 'hush', 'chorus', 'chart'] as const;
+export const BUILDING_STYLES = ['cottage', 'timber', 'stone', 'leaf', 'brass', 'paint', 'log', 'driftwood', 'cave', 'marble', 'bark', 'stilt', 'tome', 'harbor', 'kite', 'shell', 'hush', 'chorus', 'chart', 'root', 'school'] as const;
 export type BuildingStyle = (typeof BUILDING_STYLES)[number];
 
 export const SIGN_KINDS = ['shop', 'inn', 'library', 'house', 'sage', 'tools', 'star'] as const;
@@ -403,6 +409,16 @@ export interface ZoneDef {
   kind: ZoneKind;
   /** Topic zones carry their topic; the hub has none. */
   topic?: Topic;
+  /**
+   * A mixed-topic zone (#75 item 16b, Lumina-That-Was): its chests, gates and
+   * riddles each take one of these (`topicAt`) — its critters bring their own.
+   */
+  topics?: Topic[];
+  /**
+   * A memory of another place (#75 item 16b): it may build in that place's
+   * styles (the one-style-per-place rule, zones.test).
+   */
+  echoOf?: ZoneId;
   map: string[];
   ground: [number, number, number];
   path: [number, number, number];
@@ -457,6 +473,11 @@ export interface ZoneDef {
    * `lastRest` doesn't change.
    */
   shelter?: { building: string; host: string };
+  /**
+   * Beaten here, you wake in another zone's shelter (#75 item 16b, #104g):
+   * Lumina-That-Was wakes you at the Dream Root Door's Lamplight Rest.
+   */
+  shelterIn?: ZoneId;
   /**
    * A town on an island (#75 item 14h, #114o): where Old Marlow brings the boat
    * for a hero who wakes at its inn or shelter, so they're never stranded on
@@ -1418,7 +1439,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#......#......#......#',
       '#......##....##......#',
       '#....................#',
-      '#.........,,.........#',
+      '#.........>,.........#',
       '#....................#',
       '#....,..........,....#',
       '######################',
@@ -1428,14 +1449,33 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     solidEmoji: '🏛️',
     decoEmoji: '✨',
     spawn: { x: 10, y: 2 },
-    npcs: [{ defId: 'spire-keeper', x: 16, y: 6 }],
+    // Keeper Aurora goes down to the Dream Root Door as Act IV opens (#75 item 16a).
+    npcs: [{ defId: 'spire-keeper', x: 16, y: 6, unlessFlag: ACT4_SEEN }],
     enemies: [],
     exits: [
       { x: 10, y: 0, to: 'dawnreach', spawnX: 40, spawnY: 44 },
       { x: 11, y: 0, to: 'dawnreach', spawnX: 40, spawnY: 44 },
+      // Stairs down to the Dream Root Door (#75 item 16a), under old fog until Act IV.
+      { x: 10, y: 10, to: 'dreamroot-door', spawnX: 11, spawnY: 2 },
     ],
     // The Spire itself stands in the central shrine — the endgame entrance.
     spire: { x: 10, y: 6 },
+    // The one place the Blank Chart leaves blank (#75 item 16a): a knot of old fog
+    // over the stairs down, there from the start. Act IV's panels lift it.
+    fogs: [
+      {
+        id: 'dreamroot-fog',
+        x: 8,
+        y: 9,
+        w: 5,
+        h: 3,
+        liftedBy: [ACT4_SEEN],
+        hint: 'A thick knot of old fog. Something is hidden underneath — nobody remembers what. It will roll away later in your adventure!',
+        guards: { x: 10, y: 10 },
+        lifted: '✨ The old fog lifts — and stairs lead down, under the Crystal Spire!',
+        dense: true,
+      },
+    ],
   },
 
   // --- The overworld (#75 Phase 1) --------------------------------------------
@@ -2951,7 +2991,210 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 17, y: 4, item: 'compass-quill', wantedBy: "✒️ It's the Chartmaker's Compass Quill! Keep it safe — he'll need it once the Crystal of Voices sings. He's in the blue-roofed study." },
     ],
   },
+
+  // --- Act IV (#75 item 16a) ----------------------------------------------------
+  // The Dream Root Door: a hollow under the Crystal Spire, down the stairs the
+  // Blank Chart found. Safe — no critters. Keeper Aurora keeps the Lamplight
+  // Rest (an inn, and its shelter), there's a save crystal, and Old Knot, a
+  // root that talks. The first floor of the Dream Root (content/dungeons.ts);
+  // the path at the bottom leads on down to Lumina-That-Was (16b).
+  'dreamroot-door': {
+    id: 'dreamroot-door',
+    name: 'Dream Root Door',
+    the: true,
+    kind: 'dungeon',
+    map: [
+      '######################',
+      '#,.###....#<#....###.#',
+      '#..##......=.......#.#',
+      '#.WWWWWWW..=........,#',
+      '#.WFZFTFW..=.....S...#',
+      '#.WFFFFFW..=.........#',
+      '#.WFFFFFW..=...~~~...#',
+      '#.WWWDWWW..=..~~~~~..#',
+      '#,...=.....=...~~~..,#',
+      '#....=======.........#',
+      '#..,.......=......,..#',
+      '##.........=........##',
+      '###..,.....=.....,.###',
+      '##########EE##########',
+    ],
+    ground: [92, 76, 98],
+    path: [146, 122, 150],
+    solidEmoji: '🌳',
+    decoEmoji: '🍄',
+    spawn: { x: 11, y: 2 },
+    buildings: [{ id: 'root-lamp', name: 'Lamplight Rest', x: 2, y: 3, w: 7, h: 5, roof: 'dusk', style: 'root', sign: 'inn' }],
+    npcs: [
+      { defId: 'root-aurora', x: 5, y: 5 },
+      // At the end of the path, by the way down to Lumina-That-Was (16b).
+      { defId: 'root-knot', x: 13, y: 12 },
+    ],
+    enemies: [],
+    exits: [
+      // Back up the stairs, beside them on the Spire's grounds.
+      { x: 11, y: 1, to: 'crystal-spire', spawnX: 10, spawnY: 9 },
+      // Down through the roots to Lumina-That-Was (#75 item 16b), Old Knot beside the way.
+      { x: 10, y: 13, to: 'memory-field', spawnX: 9, spawnY: 1 },
+      { x: 11, y: 13, to: 'memory-field', spawnX: 10, spawnY: 1 },
+    ],
+    // Beaten here or anywhere below (`shelterIn`, #75 item 16b), you wake in the Lamplight Rest.
+    shelter: { building: 'root-lamp', host: 'Keeper Aurora' },
+  },
+
+  // --- Lumina-That-Was (#75 item 16b) ------------------------------------------
+  // Below the Dream Root: Lumina as it was before the fog, in a golden
+  // late-afternoon light. Three places joined edge to edge — the old Field
+  // (the retired Lumina Field's own map, remembered), the old Village and the
+  // First Classroom, where Aster taught. Mixed topics; tier 7; a defeat wakes
+  // you at the Dream Root Door.
+  'memory-field': {
+    id: 'memory-field',
+    name: 'Old Lumina Field',
+    kind: 'field',
+    topics: ['history', 'science', 'math'],
+    echoOf: 'lumina-village',
+    map: [
+      '#########EE###########',
+      '#........==..WWWWWWW.#',
+      '#.....##.==..WBBFBBW.#',
+      '#...S....==,.WFFFFFW.#',
+      '#.,..,...==..WBFFFBW.#',
+      'E........==..WWWDWWW.E',
+      'E====================E',
+      '#.WWWWWWW==..........#',
+      '#.WBFFFBW==........###',
+      '#.WKKKKKW==....~~~~..#',
+      '#.WFFFFFW==....~~~~..#',
+      '##WWWDWWW==.##.....#.#',
+      '#....=...==......,...#',
+      '######################',
+    ],
+    ground: [176, 172, 96],
+    path: [226, 196, 140],
+    solidEmoji: '🌳',
+    decoEmoji: '🌼',
+    spawn: { x: 10, y: 1 },
+    buildings: [
+      { id: 'memory-library', name: 'The Old Library', x: 13, y: 1, w: 7, h: 5, roof: 'purple', style: 'timber', sign: 'house' },
+      { id: 'memory-fairstall', name: 'First-Merchant Fair', x: 2, y: 7, w: 7, h: 5, roof: 'red', style: 'timber', sign: 'house' },
+    ],
+    npcs: [
+      { defId: 'memory-young-lumen', x: 16, y: 3 },
+      { defId: 'memory-fair', x: 5, y: 8 },
+      { defId: 'memory-popcorn', x: 14, y: 7 },
+    ],
+    enemies: [
+      { defId: 'faded-echo', x: 18, y: 12 },
+      { defId: 'lost-sock-golem', x: 2, y: 1 },
+      { defId: 'misplaced-key', x: 12, y: 10 },
+    ],
+    exits: [
+      // Up through the roots, beside Old Knot.
+      { x: 9, y: 0, to: 'dreamroot-door', spawnX: 10, spawnY: 12 },
+      { x: 10, y: 0, to: 'dreamroot-door', spawnX: 11, spawnY: 12 },
+      { x: 0, y: 5, to: 'memory-village', spawnX: 20, spawnY: 5 },
+      { x: 0, y: 6, to: 'memory-village', spawnX: 20, spawnY: 6 },
+      { x: 21, y: 5, to: 'first-classroom', spawnX: 1, spawnY: 9 },
+      { x: 21, y: 6, to: 'first-classroom', spawnX: 1, spawnY: 10 },
+    ],
+    shelterIn: 'dreamroot-door',
+  },
+
+  'memory-village': {
+    id: 'memory-village',
+    name: 'Old Lumina Village',
+    kind: 'town',
+    topics: ['words', 'creativity'],
+    echoOf: 'lumina-village',
+    map: [
+      '######################',
+      '#..,....WWWWWWW....,.#',
+      '#.......WTTFTTW......#',
+      '#..~~...WFFFFFW..#...#',
+      '#..~~...WFFFFFW......#',
+      '#.......WWWDWWW......E',
+      '#====================E',
+      '#..........=.........#',
+      '#..,.......=.....,...#',
+      '#.....##...=.........#',
+      '#..........=...##....#',
+      '#...,......=.......,.#',
+      '#..........S.........#',
+      '######################',
+    ],
+    ground: [170, 164, 100],
+    path: [220, 188, 138],
+    solidEmoji: '🌳',
+    decoEmoji: '🌸',
+    spawn: { x: 20, y: 5 },
+    buildings: [{ id: 'memory-bakery', name: "Wick's Family Bakery", x: 8, y: 1, w: 7, h: 5, roof: 'red', style: 'timber', sign: 'house' }],
+    npcs: [
+      { defId: 'memory-young-wick', x: 14, y: 7 },
+      { defId: 'memory-dog', x: 5, y: 8 },
+    ],
+    enemies: [],
+    exits: [
+      { x: 21, y: 5, to: 'memory-field', spawnX: 1, spawnY: 5 },
+      { x: 21, y: 6, to: 'memory-field', spawnX: 1, spawnY: 6 },
+    ],
+    shelterIn: 'dreamroot-door',
+  },
+
+  'first-classroom': {
+    id: 'first-classroom',
+    name: 'The First Classroom',
+    kind: 'field',
+    topics: ['math', 'words', 'science', 'creativity'],
+    map: [
+      '######################',
+      '#....WWWWWWWWWWWW....#',
+      '#....WTFTFTFFFFFW..,.#',
+      '#....WFFFFFFFFFFW....#',
+      '#....WTFTFTFFFFFW....#',
+      '#....WFFFFFFFFFFW....#',
+      '#....WWWWWDWWWWWW....#',
+      '#.........=..........#',
+      '#..,......=......C...#',
+      'E==========..........#',
+      'E....................#',
+      '#..,...........,.....#',
+      '#.......,............#',
+      '######################',
+    ],
+    ground: [164, 168, 104],
+    path: [214, 192, 150],
+    solidEmoji: '🌳',
+    decoEmoji: '🌼',
+    spawn: { x: 1, y: 9 },
+    buildings: [{ id: 'first-class', name: 'The First Classroom', x: 5, y: 1, w: 12, h: 6, roof: 'red', style: 'school', sign: 'house' }],
+    npcs: [
+      { defId: 'class-prim', x: 11, y: 4 },
+      { defId: 'class-bell', x: 15, y: 4 },
+      // Three cells apart, so their names never run together (16b review round 1).
+      { defId: 'class-slate-1', x: 7, y: 2 },
+      { defId: 'class-slate-2', x: 11, y: 2 },
+      { defId: 'class-slate-3', x: 14, y: 2 },
+    ],
+    enemies: [
+      { defId: 'chalk-wisp', x: 3, y: 11 },
+      { defId: 'eraser-imp', x: 14, y: 11 },
+      { defId: 'sum-gremlin', x: 19, y: 10 },
+    ],
+    exits: [
+      { x: 0, y: 9, to: 'memory-field', spawnX: 20, spawnY: 5 },
+      { x: 0, y: 10, to: 'memory-field', spawnX: 20, spawnY: 6 },
+    ],
+    shelterIn: 'dreamroot-door',
+  },
 };
+
+/**
+ * Places with an inn that Return doesn't fly to (#75 item 16a): the Dream Root
+ * Door is underground, a short walk from the Spire. Every other inn is a
+ * Return town's (`RETURN_TOWNS`).
+ */
+export const INN_ONLY: readonly ZoneId[] = ['dreamroot-door'];
 
 /**
  * Is this one of the game's zone ids? (An own key of `ZONES` — not
@@ -2988,6 +3231,12 @@ export function gateFlag(id: string): string {
  * run of one, so their id is unchanged.
  */
 export function gateIdAt(zoneId: ZoneId, map: string[], x: number, y: number): string {
+  const c = gateCellAt(map, x, y);
+  return pathTargetId(zoneId, 'gate', c.x, c.y);
+}
+
+/** A gate's canonical cell (see `gateIdAt`) — its topic is asked from there (16b review round 3). */
+export function gateCellAt(map: string[], x: number, y: number): { x: number; y: number } {
   const seen = new Set<string>();
   const stack: [number, number][] = [[x, y]];
   let cx = x;
@@ -3003,7 +3252,7 @@ export function gateIdAt(zoneId: ZoneId, map: string[], x: number, y: number): s
     }
     stack.push([gx + 1, gy], [gx - 1, gy], [gx, gy + 1], [gx, gy - 1]);
   }
-  return pathTargetId(zoneId, 'gate', cx, cy);
+  return { x: cx, y: cy };
 }
 
 /** The building whose footprint (walls included) holds this cell, if any. */
@@ -3111,9 +3360,27 @@ export function chestKeyItem(chestId: string): string | undefined {
   return keyChestFor(chestId)?.item;
 }
 
-/** A chest's question topic: the one its fog bank names, else the zone's, else math. */
+/** A chest's question topic: the one its fog bank names, else its cell's (`topicAt`: the zone's, one of a mixed zone's, else math). */
 export function chestTopicAt(z: ZoneDef, x: number, y: number): Topic {
-  return z.fogs?.find((f) => f.chestTopic && f.guards.x === x && f.guards.y === y)?.chestTopic ?? z.topic ?? 'math';
+  return z.fogs?.find((f) => f.chestTopic && f.guards.x === x && f.guards.y === y)?.chestTopic ?? topicAt(z, x, y, 'math');
+}
+
+/**
+ * The topic of a question asked at (x, y): the zone's own, or — in a
+ * mixed-topic zone (#75 item 16b) — one of its `topics`, picked by the cell,
+ * so each chest or riddle keeps the same topic every time (a gate asks from
+ * its first cell, `gateTopic`).
+ */
+export function topicAt(z: ZoneDef, x: number, y: number, fallback: Topic): Topic {
+  // A proper mix (16b review round 1: 7x + 3y only alternated two topics along a row).
+  if (z.topics?.length) return z.topics[(((x * 73856093) ^ (y * 19349663)) >>> 0) % z.topics.length];
+  return z.topic ?? fallback;
+}
+
+/** A gate's question topic: asked from its canonical cell, so a double-wide gate asks one topic (16b review round 3). */
+export function gateTopic(z: ZoneDef, x: number, y: number): Topic {
+  const c = gateCellAt(z.map, x, y);
+  return topicAt(z, c.x, c.y, 'math');
 }
 
 /** The place on this map whose entrance is at (x, y), if any. */

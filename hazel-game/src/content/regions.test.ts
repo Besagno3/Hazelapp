@@ -161,7 +161,13 @@ describe('regions and danger tiers (#75 item 12)', () => {
 
   it('the Silver Shallows is tier 5, the first past Act I (#105g, #108d)', () => {
     expect(zoneTier('silver-shallows')).toBe(5);
-    expect(Math.max(...REGIONS.filter((r) => r.id !== 'shallows' && r.id !== 'taleshore').map((r) => r.tier))).toBe(4);
+    expect(Math.max(...REGIONS.filter((r) => r.id !== 'shallows' && r.id !== 'taleshore' && r.id !== 'lumina-that-was').map((r) => r.tier))).toBe(4);
+  });
+
+  it('Lumina-That-Was, below the Dream Root Door, is the toughest yet: tier 7 (#75 item 16b)', () => {
+    for (const id of ['memory-field', 'memory-village', 'first-classroom'] as const) expect(zoneTier(id)).toBe(7);
+    // The Door itself stays home ground: nothing fights there.
+    expect(zoneTier('dreamroot-door')).toBe(0);
   });
 
   it('Taleshore, past the Shallows, is a step tougher again: tier 6 (#75 item 15c)', () => {

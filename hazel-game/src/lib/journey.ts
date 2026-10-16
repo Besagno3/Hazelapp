@@ -5,7 +5,7 @@ import { GATE_KEYS, bossDefeated, holdsKeysFor, keyFlag } from '../content/keys'
 import { crystalFlag } from '../content/topics';
 import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
 import { BOAT_HOME, BOAT_MENDED, BOAT_QUEST_ID, hasBoat } from '../content/boat';
-import { QUESTS, questOfferedFlag, stepFlag } from '../content/quests';
+import { QUESTS, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
 import { visitedFlag } from '../content/fieldSpells';
 import { BLANK_CHART_HELD } from '../content/questFlags';
 import { nextObjective, npcHome, routeTo, type Objective } from './wayfinding';
@@ -39,7 +39,12 @@ export function advanceGoal(g: Objective, flags: Record<string, boolean>): Recor
   // Beating Umbra ends in a night at the inn and Act II's morning (act2-seen), which lifts the Grove-road fog.
   else if (g.kind === 'spire') Object.assign(next, { [SPIRE_CLEARED]: true, [ACT2_SEEN]: true });
   else if (g.kind === 'sail') next[visitedFlag('silver-shallows')] = true;
-  else if (g.kind === 'visit') next[g.doneFlag ?? visitedFlag(g.zoneId!)] = true;
+  else if (g.kind === 'visit') {
+    next[g.doneFlag ?? visitedFlag(g.zoneId!)] = true;
+    // A quest finished by talking to its giver keeps what it grants (Say Her Name's `name-learned`, #75 item 16a).
+    const quest = g.quest ? QUESTS.find((q) => q.id === g.quest) : undefined;
+    if (quest && g.doneFlag === questDoneFlag(quest)) for (const f of quest.grants?.flags ?? []) next[f] = true;
+  }
   else if (g.kind === 'fly') next[visitedFlag(g.zoneId!)] = true;
   else if (g.kind === 'boat') {
     const quest = QUESTS.find((q) => q.id === BOAT_QUEST_ID)!;
@@ -65,11 +70,12 @@ export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } 
     if (!home) throw new Error(`nobody to talk to in ${g.zoneId}`);
     return { zoneId: home.zoneId, cell: { x: home.x, y: home.y } };
   }
-  if (g.kind === 'sail' || g.kind === 'fly' || (g.kind === 'visit' && !g.doneFlag)) return { zoneId: g.zoneId!, cell: null };
+  // Arriving is enough — or arriving sets the flag (Act IV's panels on the Spire's grounds, #75 item 16a).
+  if (g.kind === 'sail' || g.kind === 'fly' || (g.kind === 'visit' && (!g.doneFlag || !g.npc))) return { zoneId: g.zoneId!, cell: null };
   if (g.kind === 'visit') {
     // Someone to meet: Keeper Mnem calls you in for the Hall's dedication
     // (#75 item 14i); Harbormaster Gale says hello in Port Lantern (15c).
-    const who = npcHome(ZONES, g.npc ?? 'hill-keeper')!;
+    const who = npcHome(ZONES, g.npc!)!;
     return { zoneId: who.zoneId, cell: { x: who.x, y: who.y } };
   }
   const zoneId = g.kind === 'key' ? g.key!.fromZone : g.zoneId!;
@@ -270,6 +276,29 @@ export function actThreeJourney(): Leg[] {
     flags = advanceGoal(goal, flags);
     // Act III ends with the Blank Chart; what follows is Act IV's (item 16).
     if (goal.doneFlag === BLANK_CHART_HELD) break;
+  }
+  return legs;
+}
+
+/**
+ * Act IV so far (#75 item 16a): from the Blank Chart, every goal walked inside
+ * its place — the Spire's grounds, then down the stairs from there to the Dream
+ * Root Door (only once Act IV's panels have lifted their fog), Wisp, each of
+ * the five memories, and back to Wisp — until the name is learned.
+ */
+export function actFourJourney(): Leg[] {
+  let flags: Record<string, boolean> = {};
+  for (const leg of [...actOneJourney(), ...actTwoJourney(), ...actThreeJourney()]) flags = advanceGoal(leg.goal, leg.flags);
+  const legs: Leg[] = [];
+  for (let goal = nextObjective(flags); goal.kind !== 'explore'; goal = nextObjective(flags)) {
+    if (legs.length >= 12) throw new Error('Act IV never ends');
+    const target = goalTarget(goal);
+    // Down the stairs: walked from the Spire's grounds, where they are; and
+    // Young Wick from the Door, down past Old Knot (16b review round 3).
+    const start =
+      target.zoneId === 'dreamroot-door' && !goal.quest ? 'crystal-spire' : goal.npc === 'memory-young-wick' ? 'dreamroot-door' : target.zoneId;
+    legs.push(walkLeg(goal, flags, { zoneId: start, cell: ZONES[start].spawn }));
+    flags = advanceGoal(goal, flags);
   }
   return legs;
 }
