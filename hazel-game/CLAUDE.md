@@ -806,6 +806,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — B4 review round 1: leaving isn't a fall, no stray flags (#150)
+A fresh `/saas-code-review` (3 low, 1 nit; nothing high or medium): the fall
+rules, the floors' question loading and the candle state held up. Fixed:
+"leaving isn't a fall" had no test — a new one loses a candle, leaves, and
+checks no flag changed; the cap tests passed even if a third fall wrote a
+stray flag — they now check it writes nothing; this log said the light reads
+`maxLives` (it's sized by the candles left); a stale "all four" comment.
+Asked (#150): should leaving after losing a candle count as a fall? Kept as
+the PR chose. 1380 green, lint and build clean; the real app with both fall
+flags at five sizes (`bench … hud`): six candles fit, 6/6.
+
 ### 2026-10-16 — Make the Spire fairer: gentler levels, an easier climb after each fall (Act I launch review B4, #150)
 The launch review found a kid getting 75–80% right cleared the Spire only a
 quarter to half of the time: its questions were 2–6 levels above the kid's
@@ -820,7 +831,8 @@ candles had to last 19 questions, and a loss changed nothing.
   `spireCandles`); clearing the Spire forgets them. Back after a fall, one
   line follows the intro: "The Spire remembers you tried. One more candle —
   and the riddles are a little easier." `spireStore.reset(lives)` starts a
-  climb with its candles (`maxLives`, which the light now reads too). Chosen
+  climb with its candles (`lives` and `maxLives`; the canvas light is sized
+  by the candles left alone, so it starts wider after a fall). Chosen
   over restarting from the highest floor: the climb's progress is never
   saved, and fresh candles for each floor would make every floor easy while
   Umbra's questions stayed as hard.

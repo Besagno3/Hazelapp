@@ -456,7 +456,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
       >
         {/* Header: floor + candle-lights (hidden on locked / end panels) */}
         {phase.kind !== 'locked' && phase.kind !== 'win' && phase.kind !== 'lose' && (
-          // On a narrow phone the candles drop to their own line, all four together.
+          // On a narrow phone the candles drop to their own line, all together (up to six after a fall).
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4">
             <h2 className="text-lg font-extrabold text-violet-200 whitespace-nowrap">🗼 The Crystal Spire</h2>
             {candles}

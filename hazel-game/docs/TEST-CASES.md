@@ -1236,6 +1236,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1308 | U | ✅ | wayfinding | Elder Lumen's Spire tip: Hint Feathers work there, Peddler Plus sells them in Numbria; no "rest" or "inn"; ≤ 30 words (wayfinding.test) |
 | TC-1309 | M | ✅ | Spire | the real app in headless Chromium (Supabase stubbed), a 10-year-old walking into the Spire: fresh, floor 1 asks level 5 with 4 candles; one fall, the line, 5 candles, level 4 (375×667); two falls, 6 candles on their own line, level 3 (320×568) |
 | TC-1310 | M | ⬜ | Spire | playtest with a 7–8 year old: the first climb, and if they fall, the next — do they read and follow the "remembers" line, does it feel fair, is Umbra's floor the hardest but beatable? |
+| TC-1351 | C | ✅ | SpireOverlay | leaving on purpose a candle down (one lost on the first seal, then 🚪 Leave the Spire → 🚪 Leave → read on): the climb closes and no flag changes — no `spire-falls-1` (SpireOverlay.test; fails if `leave` records a fall) |
+| TC-1352 | U | ✅ | spire | past the cap a fall writes nothing: `flagsAfterSpireFall` with both flags gives them back unchanged, and the real climb lost with two falls leaves the save's flags as they were (spire.test, SpireOverlay.test; both fail if a third fall writes a stray flag) |
+| TC-1353 | M | ✅ | Spire | the real app (Supabase stubbed, `bench … hud` with both fall flags) at 320×568, 360×640, 375×667, 740×360 and 1024×768: six candles in the HUD row, nothing overlaps, no sideways scroll, the map on screen |
 
 ## Regression cases (tied to ISSUES.md)
 

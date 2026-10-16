@@ -85,6 +85,8 @@ describe('Spire climb (#55)', () => {
     expect(spireFalls(one)).toBe(1);
     expect(spireFalls(two)).toBe(2);
     expect(spireFalls(flagsAfterSpireFall(two))).toBe(2);
+    // Past the cap a fall writes nothing — no stray third flag (B4 review round 1).
+    expect(flagsAfterSpireFall(two)).toEqual(two);
     expect(flagsAfterSpireClear(two)).toEqual({ 'spire-cleared': true });
   });
 

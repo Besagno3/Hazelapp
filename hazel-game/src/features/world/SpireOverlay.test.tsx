@@ -237,12 +237,37 @@ describe('the Spire is fairer: gentler levels, an easier climb after each fall (
 
   it('the Spire remembers two falls at most', async () => {
     start({ 'spire-falls-1': true, 'spire-falls-2': true });
+    const before = { ...flags() };
     render(<SpireOverlay hudSlot={null} />);
     await readUntil(/Two more candles — and the riddles are easier still/);
     await climb({ answer: 'b', until: /Down, but never out/ });
     expect(spireFalls(flags())).toBe(2);
+    // A third fall writes nothing at all — no stray flag (B4 review round 1).
+    expect(flags()).toEqual(before);
     expect(firstLevel()).toBe(OWN_LEVEL - 2);
   }, 20000);
+
+  it('leaving on purpose, a candle down, is not a fall (B4 review round 1)', async () => {
+    sendFlow.mockClear();
+    start({});
+    const before = { ...flags() };
+    render(<SpireOverlay hudSlot={slot} />);
+    await readUntil('🚪 Leave the Spire');
+    // Lose a candle on the first seal…
+    const ward = floorWards(SPIRE_FLOORS[0].theme)[0].id;
+    act(() => useSpireStore.getState().bump({ kind: 'ward', id: ward }));
+    fireEvent.click(await screen.findByRole('button', { name: 'b' }));
+    fireEvent.click(screen.getByRole('button', { name: '🔮 Break the seal' }));
+    await readUntil('🚪 Leave the Spire');
+    expect(useSpireStore.getState().lives).toBe(SPIRE_LIVES - 1);
+    // …then leave, and read the way-out line through to the door.
+    fireEvent.click(screen.getByRole('button', { name: '🚪 Leave the Spire' }));
+    fireEvent.click(screen.getByRole('button', { name: '🚪 Leave' }));
+    fireEvent.click(screen.getByText('▼ tap to continue'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+    expect(spireFalls(flags())).toBe(0);
+    expect(flags()).toEqual(before);
+  });
 
   it('clearing the Spire forgets the falls; Act IV\'s spire-cleared is set as ever', async () => {
     start({ 'spire-falls-1': true, 'spire-falls-2': true });
