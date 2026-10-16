@@ -1,5 +1,5 @@
 -- Hazel Quest — a question budget per family (Act I launch review B9)
--- Run in the Supabase SQL Editor (or `supabase db push`) after 0017.
+-- Run in the Supabase SQL Editor (or `supabase db push`) after 0020.
 -- Re-runnable, like every migration (see CLAUDE.md → migrations rules).
 --
 -- Since 0014 every kid has their own daily budget of fresh (Claude-written)

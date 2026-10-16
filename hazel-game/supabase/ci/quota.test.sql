@@ -1,5 +1,5 @@
 -- CI test for migration 0009 (begin_question_request; its four-argument calls
--- reach 0018's version, whose family cap and hold default to none). Run after the stub
+-- reach 0021's version, whose family cap and hold default to none). Run after the stub
 -- and every migration have been applied; any failed assertion raises and exits
 -- non-zero under `psql -v ON_ERROR_STOP=1`.
 begin;

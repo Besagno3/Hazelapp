@@ -1,4 +1,4 @@
--- CI test for migration 0018 (a question budget per family, Act I launch
+-- CI test for migration 0021 (a question budget per family, Act I launch
 -- review B9): a family's kids share a daily cap of fresh questions; removing
 -- a kid keeps what they spent on the books; each request records its
 -- grown-up. Any failed assertion raises and exits non-zero under
@@ -99,11 +99,11 @@ insert into public.profiles (id, display_name, icon, birth_year, birth_month)
   values ('00000000-0000-0000-0000-00000000c302', 'Bo', 'owl', 2018, 4);
 reset role;
 
--- Rows logged before 0018 had no grown-up: re-applying the migration fills
+-- Rows logged before 0021 had no grown-up: re-applying the migration fills
 -- theirs in (and keeps the function and its grants).
 insert into public.question_requests (profile_id, parent_id)
   values ('00000000-0000-0000-0000-00000000c302', null);
-\ir ../migrations/0018_family_question_budget.sql
+\ir ../migrations/0021_family_question_budget.sql
 do $$
 begin
   assert not exists (select 1 from public.question_requests
