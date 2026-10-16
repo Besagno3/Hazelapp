@@ -810,7 +810,7 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-16 — 16d review round 4: Glimmer's Nook, one Aster, beat the echoes (#75 item 16d, #146k)
+### 2026-10-16 — 16d review round 4: Glimmer's Nook, one Aster, beat the echoes (#75 item 16d, #154k)
 The last round. Fresh code (1 medium, 6 low, 4 nits) and UX (1 high, 4
 medium, 6 low, 3 nits) reviews, all fixed: Glimmer's Nook on B1 — a defeat on
 B1–B3 wakes you there, not back at the Door; one sleeper in a giant Root's
@@ -820,7 +820,7 @@ B2 taunt, the Gardener's offer; "Beat the … Echo"; routes that keep their
 first hop and name the floor; the door leg walks to the door; echoes glow in
 battle. 1385 green.
 
-### 2026-10-16 — 16d review round 3: short ways down, one B1, a glowworm (#75 item 16d, #146j)
+### 2026-10-16 — 16d review round 3: short ways down, one B1, a glowworm (#75 item 16d, #154j)
 Fresh code (2 medium, 1 low, 2 nits) and UX (6 medium, 5 low, 4 nits)
 reviews, all fixed but one kept (Glim's Nook's house look): bare-speech echo
 last words; every Deep Root leg walked from the Door; "Head down through Old
@@ -829,7 +829,7 @@ dungeon; tips that say who looks after you; Glim remembers you and is a
 glowworm; Aurora follows the descent; brambles on B2, clocks on B6; the
 Hall's stairs beside the path. 1384 green.
 
-### 2026-10-16 — 16d review round 2: Glim's Nook, Sprout never silent (#75 item 16d, #146i)
+### 2026-10-16 — 16d review round 2: Glim's Nook, Sprout never silent (#75 item 16d, #154i)
 Fresh code (1 medium, 2 low, 2 nits) and UX (1 high, 3 medium, 9 low, 3 nits)
 reviews, all fixed but one kept (the 🌑 emoji): Glim's Nook on B4 — a defeat
 on B4–B7 wakes you there, not nine screens up at the Door; Sprout always has
@@ -838,7 +838,7 @@ zones.ts; potions "from a shop up top"; Aurora and the Heart; shorter routes
 from up top; The Quiet Halls; a trickster Star Snail, a swift Tick Beetle.
 1383 green.
 
-### 2026-10-16 — 16d review round 1: the Gardener's weeds stay up top, open the great door first (#75 item 16d, #146h)
+### 2026-10-16 — 16d review round 1: the Gardener's weeds stay up top, open the great door first (#75 item 16d, #154h)
 Fresh code (2 medium, 3 low, 7 nits) and UX (6 medium, 11 low, 5 nits)
 reviews, all fixed but two kept (engine-wide label quirks): the Deep Root's
 critters no longer finish A Garden Rewatered; "Open the great door" is its
@@ -847,7 +847,7 @@ says she isn't ready; a truthful defeat tip; "six/seven floors"; shorter,
 see-through echoes; a heart-shaped Root's Heart and clearer critters;
 brambles on B2, pools on B4. 1381 green.
 
-### 2026-10-16 — The descent: seven floors down the Deep Root (#75 item 16d, #146)
+### 2026-10-16 — The descent: seven floors down the Deep Root (#75 item 16d, #154)
 Roadmap sub-item 16d (branch off `main` after 16c merged).
 - **The Deep Root** (`deep-root-1`…`7`, dungeon `deep-root`, `from:
   'nameless-hall'`): stairs behind the Hall's great door, seven mixed-topic
