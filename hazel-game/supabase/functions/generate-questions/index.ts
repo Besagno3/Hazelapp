@@ -250,6 +250,7 @@ For each question, in order:
    - The fact is true, settled, and not disputed or changing.
    - The question and all four options keep every safety rule below, wrong options included.
    - A child of the given age could read it alone and understand what is asked.
+   - If the child is 6 or younger: the question is about 6 simple words or fewer, and every option is one short word (3 or 4 letters where possible) or a small number.
    - It is fair: no trick wording, no giveaway option, nothing that needs a picture, and no reference to option letters or positions.
 3. In "problem", say in a few words what is wrong, or leave it empty when kidSafe is true.
 Be strict. A question you are unsure about is not kidSafe. Throwing out a good question costs nothing; showing a bad one to a child does.
@@ -702,6 +703,12 @@ const RESERVE_MINUTES = 60;
  * above theirs. Questions saved before ages were stored have none and stay in.
  */
 const AGE_SLACK = 1;
+/**
+ * Children this age or younger are just learning to read: their questions are
+ * written with one-word, 3-4 letter answers, so reuse never reaches up to an
+ * older child's (whose options are longer), only down.
+ */
+const YOUNG_READER_AGE = 6;
 /** Error codes for "no such column" (PostgREST, Postgres): 0018's checked marker isn't there yet. */
 const COLUMN_MISSING = ['PGRST204', '42703'];
 /** Error codes for "pick_cached_questions doesn't exist" (PostgREST, Postgres): 0015 not applied. */
@@ -754,7 +761,7 @@ const COME_BACK_TOMORROW =
  * topic, age, level and flavour go in the user message — so it's cached
  * between calls (Haiku 5.5 caches prompts from 512 tokens).
  */
-const SYSTEM_PROMPT = `You write multiple-choice questions for Hazel Quest, a learning adventure game for children aged about 7 to 11. A child answers each question to power a hero's move, so every question must feel fair, kind and winnable.
+const SYSTEM_PROMPT = `You write multiple-choice questions for Hazel Quest, a learning adventure game for children aged 6 to 18. A child answers each question to power a hero's move, so every question must feel fair, kind and winnable.
 
 ${CONTENT_RULES}
 
@@ -768,10 +775,20 @@ The level (1-10) is relative to the child's age:
 - 7-8: a stretch. Two or three steps, or a less familiar fact.
 - 9-10: for the strongest children of this age. Multi-step reasoning. Ideas may reach up to two years ahead of the age, but the words stay at the child's reading level.
 Rough guide to what children know (adjust for the level):
+- Age 6: counting to 20, adding and taking away within 10, colours, simple shapes, animals and their sounds, body parts, day and night.
 - Age 7: adding and taking away within 100, time to the half hour, simple shapes, common animals and plants.
 - Age 9: times tables to 10×10, halves and quarters, area by counting squares, the water cycle, the planets.
 - Age 11: fractions, decimals and percentages, area and perimeter, simple ratios, forces, food chains and habitats.
-Wording: short sentences and everyday words a child of this age can read alone, about 12 words for a 7-year-old and up to about 20 for an 11-year-old. No double negatives. If you ask which one is NOT true, write NOT in capitals.
+- Age 13: negative numbers, simple equations, angles, cells, atoms and the periodic table, the solar system in depth.
+- Age 15: algebra and graphs, Pythagoras, probability, chemical reactions, electricity, genetics, world history.
+- Age 17 and up: functions, trigonometry, basic statistics, physics and chemistry at a high-school level, economics and civics.
+Wording: short sentences and everyday words a child of this age can read alone, about 12 words for a 7-year-old, about 20 for an 11-year-old, and up to the length limit for teenagers. No double negatives. If you ask which one is NOT true, write NOT in capitals.
+
+YOUNG READERS (age 6 or younger)
+These children are just learning to read. For them:
+- The question is one very short sentence of about 6 words or fewer, with only simple words they can sound out ("What says moo?", "What is 2 + 1?").
+- Every option is one short word of 3 or 4 letters ("cow", "red", "sun") or a small number. Pick questions whose answers fit; if a topic has no such answer, use the shortest single everyday word.
+- The explanation is one short, simple sentence.
 
 FORMAT
 - The question is one sentence, at most 220 characters.
@@ -1425,7 +1442,7 @@ Deno.serve(async (req) => {
       p_topic: topic,
       p_min_level: level - LEVEL_BAND,
       p_max_level: level + LEVEL_BAND,
-      p_max_age: age + AGE_SLACK,
+      p_max_age: age <= YOUNG_READER_AGE ? age : age + AGE_SLACK,
       p_profile: profileId,
       p_seen_limit: SEEN_HISTORY_LIMIT,
       p_reserve: `${RESERVE_MINUTES} minutes`,

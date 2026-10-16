@@ -11,20 +11,30 @@ export function calcAge(birthYear: number, birthMonth: number, now = new Date())
 /** Age used when no profile is loaded (e.g. the migration isn't applied yet). */
 export const DEFAULT_AGE = 10;
 
-/** The player's age, falling back to DEFAULT_AGE without a profile. */
+/** Oldest age questions are pitched at; anyone older plays as this age. */
+export const MAX_PLAYER_AGE = 18;
+
+/** The player's age (capped at MAX_PLAYER_AGE), falling back to DEFAULT_AGE without a profile. */
 export function playerAge(profile: Pick<Profile, 'birthYear' | 'birthMonth'> | null): number {
-  return profile ? calcAge(profile.birthYear, profile.birthMonth) : DEFAULT_AGE;
+  return profile ? Math.min(MAX_PLAYER_AGE, calcAge(profile.birthYear, profile.birthMonth)) : DEFAULT_AGE;
 }
 
 export const MIN_SKILL_LEVEL = 1;
 export const MAX_SKILL_LEVEL = 10;
 
 /**
+ * Highest starting level (#156). Levels are relative to the child's age (4-6
+ * is "right for a typical child of this age"), so a teen starts in that band
+ * rather than at 10, the hardest for their age.
+ */
+export const MAX_START_LEVEL = 6;
+
+/**
  * Starting skill level for a brand-new player, derived from age.
- * A ~6-year-old starts near level 1; a ~15-year-old near level 10.
+ * A 6-year-old starts at level 1, rising one a year to 6 at 11 and older.
  */
 export function ageToStartLevel(age: number): number {
-  return clampLevel(age - 5);
+  return clampLevel(Math.min(MAX_START_LEVEL, age - 5));
 }
 
 /** Keep a skill level within the valid range. */
