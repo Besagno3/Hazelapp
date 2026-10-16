@@ -532,7 +532,7 @@ def props():
     return frames
 
 
-_DOOR_FRAME, _DOOR, _DOOR_LINE, _GOLD, _STEEL = '#2a2238', '#6a4a3a', '#4a3226', '#e0b040', '#c0c8d4'
+_DOOR_FRAME, _DOOR, _DOOR_LINE, _GOLD, _STEEL = '#2a1e16', '#6a4a3a', '#4a3226', '#e0b040', '#c0c8d4'
 
 
 def _padlock(c, x, y):

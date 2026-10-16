@@ -329,13 +329,14 @@ export interface Travel {
  * two-tile gate — its left / right (or top / bottom) half by where the cell sits
  * in the gate — or a door a tile when the gate takes two keys (two locks).
  */
-function keyGateFrame(map: string[], x: number, y: number, keys: number): number {
+function keyGateFrame(zoneId: ZoneId, map: string[], x: number, y: number, keys: number): number {
   if (keys > 1) return PROP_FRAME.keyGate;
-  if (map[y]?.[x + 1] === 'G') return PROP_FRAME.keyGateLeft;
-  if (map[y]?.[x - 1] === 'G') return PROP_FRAME.keyGateRight;
-  if (map[y + 1]?.[x] === 'G') return PROP_FRAME.keyGateTop;
-  if (map[y - 1]?.[x] === 'G') return PROP_FRAME.keyGateBottom;
-  return PROP_FRAME.keyGate;
+  // Only cells of this same gate count, and only a two-cell gate is split (16c review round 4).
+  const id = gateIdAt(zoneId, map, x, y);
+  const same = (nx: number, ny: number) => map[ny]?.[nx] === 'G' && gateIdAt(zoneId, map, nx, ny) === id;
+  const n = [same(x + 1, y), same(x - 1, y), same(x, y + 1), same(x, y - 1)];
+  if (n.filter(Boolean).length !== 1) return PROP_FRAME.keyGate;
+  return [PROP_FRAME.keyGateLeft, PROP_FRAME.keyGateRight, PROP_FRAME.keyGateTop, PROP_FRAME.keyGateBottom][n.indexOf(true)];
 }
 
 export default function WorldCanvas({
@@ -746,7 +747,7 @@ export default function WorldCanvas({
           const id = gateIdAt(zoneId, z.map, x, y);
           if (!flagsRef.current[gateFlag(id)]) {
             const keyed = !!z.keyGate && gateIdAt(zoneId, z.map, z.keyGate.x, z.keyGate.y) === id;
-            const sprite = prop(keyed ? keyGateFrame(z.map, x, y, keysForZone(zoneId).length) : PROP_FRAME.gate, px, py);
+            const sprite = prop(keyed ? keyGateFrame(zoneId, z.map, x, y, keysForZone(zoneId).length) : PROP_FRAME.gate, px, py);
             const group = gateSprites.get(id);
             if (group) group.push(sprite);
             else gateSprites.set(id, [sprite]);

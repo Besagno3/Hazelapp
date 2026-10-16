@@ -3251,7 +3251,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [
       { defId: 'garden-sprout', x: 12, y: 1 },
       // Beaten, the Gardener steps out of the gap and tends his beds beside it.
-      { defId: 'garden-gardener', x: 7, y: 9, ifFlag: 'key-asters-key' /* keyFlag('asters-key') */ },
+      { defId: 'garden-gardener', x: 7, y: 8, ifFlag: 'key-asters-key' /* keyFlag('asters-key') */ },
     ],
     enemies: [
       { defId: 'thorn-of-doubt', x: 4, y: 7 },
@@ -3275,9 +3275,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     shelterIn: 'dreamroot-door',
   },
 
-  // The Nameless Hall (#75 item 16c): a hall of blank plaques under the
-  // garden — every name Lumina forgot. One plaque has a daisy carved in its
-  // corner. Aster's Key opens its great door; past it, a root plunges down
+  // The Nameless Hall (#75 item 16c): a hall of blank plaques past the
+  // garden — every name Lumina forgot. One plaque has a daisy carved on
+  // it. Aster's Key opens its great door; past it, a root plunges down
   // into the dark — the way down (the descent, 16d). Safe: no critters.
   'nameless-hall': {
     id: 'nameless-hall',

@@ -217,7 +217,12 @@ export interface QuestDef {
   doneLine?: string;
   /** The offer when you already carry one of `items` (found the thing before meeting them). */
   /** Lines may depend on the save (all of the items found, or only some — 16c review round 3). */
-  offerHaving?: { items: string[]; lines: string[] | ((save: SaveData) => string[]) };
+  offerHaving?: {
+    items: string[];
+    lines: string[] | ((save: SaveData) => string[]);
+    /** When these lines play instead of `offer` (default: any of `items` carried) — 16c review round 4. */
+    when?: (save: SaveData) => boolean;
+  };
   /**
    * A song quest's wrong notes (#75 item 15f review): struck out of turn before
    * anything rings (`early`), and after something has rung, so the song starts
@@ -451,6 +456,10 @@ const NESS_RUMORS = [
   "East, past everything, is the Great Fogbank. Mind how you go out there — even the gulls are careful!",
   'Up on the north coast is Foglight Marsh. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!',
 ];
+
+/** A Garden Rewatered's three waters and three weeds (#75 item 16c). */
+const GARDEN_JARS = ['jar-dew', 'jar-rain', 'jar-river'];
+const GARDEN_WEEDS = ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy'];
 
 export const QUESTS: QuestDef[] = [
   // Classic riddle-chest fetch.
@@ -1706,24 +1715,30 @@ export const QUESTS: QuestDef[] = [
     title: 'A Garden Rewatered',
     requires: keyFlag('asters-key'),
     offer: [
-      "Thank you for answering my seedlings. Aster's Key opens the Nameless Hall, just south of here. Could you help me too, when you have time?",
+      "Thank you for answering my seedlings. Aster's Key opens the great door in the Nameless Hall, just south of here. Could you help me too?",
       "These beds haven't been watered since the fog came. I need three waters — morning dew, spring rain and river water. They're in the garden's chests.",
       'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
     ],
     // A water or two found first (16c review round 2): no sending you after them again.
     offerHaving: {
       items: ['jar-dew', 'jar-rain', 'jar-river'],
+      // Any water found, or any weed beaten — on the way to him (16c review rounds 3–4).
+      when: (save) => GARDEN_JARS.some((i) => save.questItems.includes(i)) || GARDEN_WEEDS.some((id) => (save.kills[id] ?? 0) > 0),
       lines: (save) => {
-        const all = ['jar-dew', 'jar-rain', 'jar-river'].every((i) => save.questItems.includes(i));
-        const weeds = ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy'].every((id) => (save.kills[id] ?? 0) > 0);
+        const jars = GARDEN_JARS.filter((i) => save.questItems.includes(i)).length;
+        const weeds = GARDEN_WEEDS.filter((id) => (save.kills[id] ?? 0) > 0).length;
         return [
-          "Thank you for answering my seedlings. Aster's Key opens the Nameless Hall, just south of here. Could you help me too, when you have time?",
-          all
+          "Thank you for answering my seedlings. Aster's Key opens the great door in the Nameless Hall, just south of here. Could you help me too?",
+          jars === 3
             ? "Oh — you've found all three of my waters already! Wonderful!"
-            : "Oh — you've found some of my waters already! I need all three: morning dew, spring rain and river water. Any you haven't found are in the garden's chests.",
-          weeds
+            : jars > 0
+              ? "Oh — you've found some of my waters already! I need all three: morning dew, spring rain and river water. Any you haven't found are in the garden's chests."
+              : "These beds haven't been watered since the fog came. I need three waters — morning dew, spring rain and river water. They're in the garden's chests.",
+          weeds === 3
             ? 'And those three weeds that kept asking "why?" — you beat them already? Thank you!'
-            : 'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
+            : weeds > 0
+              ? 'And you beat some of the weeds that keep asking "why?" Could you beat the rest for me?'
+              : 'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
         ];
       },
     },
@@ -2024,6 +2039,12 @@ export interface QuestConversation {
  * (16b reviews, rounds 2–3: Young Wick's memory, then the dog's name). A
  * completion may end on a choice (`QuestDef.choice`).
  */
+/** Whether a quest's "you've found it already" offer plays (16c review round 4: `when` may say). */
+function hasOfferHaving(quest: QuestDef, save: SaveData): boolean {
+  if (!quest.offerHaving) return false;
+  return quest.offerHaving.when ? quest.offerHaving.when(save) : quest.offerHaving.items.some((i) => save.questItems.includes(i));
+}
+
 /** A quest's offer for an item already found (16c review round 3: may depend on the save). */
 function offerHavingLines(quest: QuestDef, save: SaveData): string[] {
   const lines = quest.offerHaving!.lines;
@@ -2042,7 +2063,13 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
 function conversationNow(npcId: string, save: SaveData): QuestConversation | null {
   const quest = questFor(npcId, save);
   const step = quest ? activeStep(quest, save) : null;
-  if (quest && !step) return completeConversation(quest);
+  if (quest && !step) {
+    const done = completeConversation(quest);
+    // Everything done before they ever asked (16c review round 4: the Gardener's waters
+    // and weeds are all on the way to him) — they say what they'd have asked, then thank you.
+    if (quest.offerHaving && !save.flags[questOfferedFlag(quest)]) return { ...done, lines: [...offerHavingLines(quest, save), ...done.lines] };
+    return done;
+  }
   const through = stepConversation(npcId, save);
   if (through) return through;
   // Their own quest's offer comes before another quest's "not yet" (16b review round 2:
@@ -2057,7 +2084,7 @@ function conversationNow(npcId: string, save: SaveData): QuestConversation | nul
   if (!quest || !step) return null;
   if (!save.flags[questOfferedFlag(quest)]) {
     return {
-      lines: quest.offerHaving?.items.some((i) => save.questItems.includes(i)) ? offerHavingLines(quest, save) : quest.offer,
+      lines: hasOfferHaving(quest, save) ? offerHavingLines(quest, save) : quest.offer,
       badge: quest.title,
       finishKind: 'offer',
       finish: (s) => ({

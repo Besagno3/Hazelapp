@@ -804,6 +804,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
+The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)
+reviews, all fixed but one kept (the small garden fog): a quest with
+`offerHaving` says its "done already" lines before the reward when all was
+done first, and `offerHaving.when` picks when they play; "the great door in
+the Nameless Hall"; Wisp points at the garden; a taller Wilt Sprite, tablet
+plaques, a brown door frame; `keyGateFrame` reads the same gate. 1369 green.
+
 ### 2026-10-16 — 16c review round 3: the Fair's door open, one door one lock (#75 item 16c, #145i)
 Fresh code (1 medium, 1 low, 1 nit) and UX (2 medium, 4 low, 4 nits) reviews,
 all fixed: the garden fog covers its exit row only (it had shut the First-

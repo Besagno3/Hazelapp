@@ -3677,18 +3677,23 @@ def nameless_stone(c: Canvas, p: Pose, s: dict):
     col = hexc(s.get('color', '#9aa0a8'))
     L = d.part(0, 0)
     if s.get('plaque'):
-        # A plaque in the Nameless Hall (#75 item 16c; 16c review round 2): a wide, flat
-        # slab on a low plinth — blank, or with one big daisy carved in it, glowing gold.
-        L.rect(6, 26, 26, 30, dark(col, 0.25))  # the plinth
-        L.rect(5, 9, 27, 26, col)
-        L.rect(7, 11, 25, 24, light(col, 0.1), shade=False)
+        # A plaque in the Nameless Hall (#75 item 16c; 16c review round 4): an upright stone
+        # tablet with a rounded top on a low plinth, faint scratches where a name wore away —
+        # or one big daisy carved in it, glowing gold.
+        L.rect(8, 26, 24, 30, dark(col, 0.3))  # the plinth
+        L.rect(9.5, 9, 22.5, 26.5, col)
+        L.ellipse(16, 9.5, 6.5, 4.4, col)
+        L.rect(11, 10, 21, 25, dark(col, 0.08), shade=False)
         if s.get('daisy'):
             for k in range(8):
                 a = k * math.pi / 4
-                L.ellipse(16 + math.cos(a) * 3.6, 17.5 + math.sin(a) * 3.6, 2.2, 1.4, '#ffffff', rot=a, shade=False)
-            L.ellipse(16, 17.5, 2.0, 2.0, '#f0c030', shade=False)
-            for (x, y) in ((4, 7), (28, 9), (3, 24), (29, 23)):
+                L.ellipse(16 + math.cos(a) * 3.4, 16.5 + math.sin(a) * 3.4, 2.0, 1.3, '#ffffff', rot=a, shade=False)
+            L.ellipse(16, 16.5, 1.9, 1.9, '#f0c030', shade=False)
+            for (x, y) in ((6, 7), (26, 9), (5, 23), (27, 22)):
                 L.dot(x, y, '#ffe680', w=2 if d.sep else 1, h=2 if d.sep else 1)
+        else:
+            for (y, x1) in ((13.5, 19.5), (17, 18), (20.5, 19)):
+                L.line(12.5, y, x1, y, dark(col, 0.25), w=0.7)  # where the letters were
         d.put(L)
         finish(c, d, shadow=(16, 30.6, 10, 1.1))
         return
@@ -4091,37 +4096,37 @@ def thorn_ball(c: Canvas, p: Pose, s: dict):
 
 
 def wilt_flower(c: Canvas, p: Pose, s: dict):
-    """A Wilt Sprite (#75 item 16c): a thirsty weed-flower, its head hanging on
-    a bent stem, petals gone dry and brown at the tips, a sulky frown — it
-    perks up a little on every hop (16c review: it looked too healthy)."""
+    """A Wilt Sprite (#75 item 16c): a thirsty weed-flower as tall as the
+    Bramblewhy, its big deep-pink head hanging off a bent stem, petals dry and
+    brown at the tips, a sulky face — it perks up a little on every hop."""
     d = D(c, p)
-    petal = hexc(s.get('color', '#f0b8c8'))
-    tip = hexc(s.get('tip', '#9a5a3a'))
-    stem = hexc(s.get('stem', '#8a8a3a'))
+    petal = hexc(s.get('color', '#e0608a'))
+    tip = hexc(s.get('tip', '#8a4a2a'))
+    stem = hexc(s.get('stem', '#6a8a2a'))
     perk = 1.0 if p.frame % 2 else 0.0
     S = d.part(d.lean * 0.4, 0)
-    S.line(16, 29.6, 15.4, 14, stem, w=2.0)
-    S.line(15.4, 14, 18.4, 9.6 + perk, stem, w=2.0)  # up, then over and down: the droop
-    S.line(18.4, 9.6 + perk, 21 - perk * 0.6, 13.4 - perk, stem, w=2.0)
-    S.ellipse(12.2, 24.4, 3.2, 1.2, dark(stem, 0.15), rot=0.9)  # limp leaves
-    S.ellipse(19.8, 25.4, 3.2, 1.2, dark(stem, 0.15), rot=-0.9)
+    S.line(14, 29.6, 13, 12, stem, w=2.6)
+    S.line(13, 12, 17, 5 + perk, stem, w=2.6)  # up, then over and down: the droop
+    S.line(17, 5 + perk, 21, 9 - perk, stem, w=2.6)
+    S.ellipse(9.6, 22, 4, 1.6, dark(stem, 0.1), rot=0.9)  # limp leaves
+    S.ellipse(17.6, 24, 4, 1.6, dark(stem, 0.1), rot=-0.9)
     d.put(S)
-    hx, hy = 21 - perk * 0.6, 17 - perk  # the head hangs off the end of the bent stem
+    hx, hy = 21.5 - perk * 0.6, 14 - perk
     F = d.part(d.lean, d.bob)
     for k in range(6):
         a = 0.2 + k * (math.pi - 0.4) / 5  # petals hang down round the bottom of the head
-        px, py = hx + math.cos(a) * 4.6, hy + math.sin(a) * 5.0
-        F.ellipse(px, py, 2.0, 3.4, petal, rot=a - math.pi / 2)
-        F.dot(px + math.cos(a) * 2.8, py + math.sin(a) * 3.0, tip, w=2, h=1)
-    F.ellipse(hx, hy, 3.8, 3.2, '#c89a3a')
+        px, py = hx + math.cos(a) * 6.2, hy + math.sin(a) * 6.6
+        F.ellipse(px, py, 2.8, 4.4, petal, rot=a - math.pi / 2)
+        F.dot(px + math.cos(a) * 3.4, py + math.sin(a) * 3.6, tip, w=2, h=2)
+    F.ellipse(hx, hy, 5.0, 4.4, '#c89a3a')
     if p.facing != 'up':
-        ex = face_x(p, [hx + 0.2, hx + 2.2], [hx - 1.4, hx + 1.4])
+        ex = face_x(p, [hx + 0.2, hx + 2.8], [hx - 1.8, hx + 1.8])
         if ex and not p.hurt:
             for x in ex:
-                F.line(x - 1, hy - 1.8 + (0.6 if x > hx else 0), x + 1, hy - 1.8 + (0 if x > hx else 0.6), '#4a2a1a', w=0.6)  # sulky brows
-        d.eyes(F, [(x, hy + 0.2) for x in ex])
+                F.line(x - 1.2, hy - 2.2 + (0.8 if x > hx else 0), x + 1.2, hy - 2.2 + (0 if x > hx else 0.8), '#4a2a1a', w=0.8)  # sulky brows
+        d.eyes(F, [(x, hy) for x in ex])
     d.put(F)
-    finish(c, d, shadow=(16, 30.4, 5, 1.0))
+    finish(c, d, shadow=(16, 30.4, 7, 1.0))
 
 
 def bramble(c: Canvas, p: Pose, s: dict):
@@ -4458,7 +4463,7 @@ ROSTER: list[Char] = [
     Char('blank-sprite', '⬜', 'blank_sprite', H(color='#f4f4f0')),
     # ── Act IV: Aster's Garden (#75 item 16c) ──
     Char('thorn-of-doubt', '🌵', 'thorn_ball', H(color='#9a4a5a')),
-    Char('wilt-sprite', '🥀', 'wilt_flower', H(color='#f0b8c8')),
+    Char('wilt-sprite', '🥀', 'wilt_flower', H(color='#e0608a')),
     Char('bramblewhy', '❓', 'bramble', H(color='#9ad06a')),
     # The Gardener: Aster's old gardener, cross from so long alone — a straw hat,
     # a green smock and apron, a grey beard and a watering can.
@@ -4653,7 +4658,7 @@ NPCS: list[Char] = [
     Char('wisp-named', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', flower_r=3.4, wings='fairy', wing_color='#fff2b0', wing_scale=1.6, outfit='#fffaf0', trim='#f0c040', robe=True)),
     # ── Act IV: Aster's Garden and the Nameless Hall (#75 item 16c) ──
     Char('garden-sprout', '🌱', 'sprout', H(color='#7ac85a')),
-    Char('hall-plaque', '🪧', 'nameless_stone', H(color='#c8c0b0', plaque=True)),
+    Char('hall-plaque', '🪧', 'nameless_stone', H(color='#a8a0a8', plaque=True)),
     Char('hall-plaque-daisy', '🌼', 'nameless_stone', H(color='#d8d0c0', plaque=True, daisy=True, glow='#fff2b0')),
     Char('hall-deep-root', '🕳️', 'hall_root', H(bark='#6a4630', glow='#b89aff'), boss=True),
 ]

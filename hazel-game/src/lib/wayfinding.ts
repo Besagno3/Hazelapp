@@ -230,7 +230,7 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'key',
       title: `Win ${key.name}`,
-      why: `${key.bossName} tends Aster's Garden — and keeps ${key.name} on his belt. It opens the Nameless Hall!`,
+      why: `${key.bossName} tends Aster's Garden — and keeps ${key.name} on his belt. It opens the great door in the Nameless Hall!`,
       inside: 'He stands in the gap in the hedge, at the bottom of the garden.',
       zoneId: key.fromZone,
       key,
@@ -848,7 +848,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     // Act II's key (#75 item 14f): no Fiend to name yet.
     plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === HALL_ROOT_SEEN) {
-    plan = "Aster's Key! It opens the Nameless Hall, just south of her garden. Go and see what's behind its great door.";
+    plan = "Aster's Key! It opens the great door in the Nameless Hall, just south of her garden. Go and see what's behind it.";
   } else if (goal.kind === 'key' && goal.key) {
     const keeper = `${midSentence(goal.key.bossName)} in ${place(goal.key.fromZone)}`;
     plan =

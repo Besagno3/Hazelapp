@@ -1460,6 +1460,26 @@ describe("A Garden Rewatered (#75 item 16c)", () => {
     expect(done.finishKind).toBe('complete');
   });
 
+  it('everything done before he ever asks: he says what he needed, thanks you and pays (16c review round 4)', () => {
+    let save = keyed();
+    for (const c of [DEW, RAIN, RIVER]) save = openChest(save, c);
+    for (const id of ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy']) save = win(save, id);
+    const conv = questConversation('garden-gardener', save)!;
+    expect(conv.finishKind).toBe('complete');
+    expect(conv.lines[0]).toMatch(/great door in the Nameless Hall/);
+    expect(conv.lines[1]).toBe("Oh — you've found all three of my waters already! Wonderful!");
+    expect(conv.lines[2]).toMatch(/you beat them already\? Thank you!/);
+    expect(conv.lines.slice(3)).toEqual(byId('garden-water').complete);
+  });
+
+  it('weeds beaten but no water yet: he asks only for the waters (16c review round 4)', () => {
+    let save = keyed();
+    for (const id of ['thorn-of-doubt', 'wilt-sprite']) save = win(save, id);
+    const lines = questConversation('garden-gardener', save)!.lines;
+    expect(lines[1]).toMatch(/^These beds/);
+    expect(lines[2]).toMatch(/beat the rest for me\?/);
+  });
+
   it('a water found before the Gardener asks says who wants it', () => {
     const save = openChest(defaultSave(), DEW);
     expect(save.questItems).toEqual(['jar-dew']);
