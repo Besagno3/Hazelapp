@@ -13,6 +13,16 @@ describe('spireStore (#74)', () => {
     expect(s().broken).toEqual([]);
   });
 
+  it('a climb after a fall starts with more candles; a plain reset goes back to the usual (B4, #150)', () => {
+    s().setLives(1);
+    s().reset(SPIRE_LIVES + 2);
+    expect(s().lives).toBe(SPIRE_LIVES + 2);
+    expect(s().maxLives).toBe(SPIRE_LIVES + 2);
+    s().reset();
+    expect(s().lives).toBe(SPIRE_LIVES);
+    expect(s().maxLives).toBe(SPIRE_LIVES);
+  });
+
   it('entering a floor clears broken seals and any pending bump', () => {
     s().breakWard('1,1');
     s().enterFloor(2);

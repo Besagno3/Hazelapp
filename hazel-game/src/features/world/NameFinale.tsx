@@ -23,6 +23,7 @@ import {
   nameClearXp,
 } from '../../content/finale';
 import { NAME_LEARNED, UMBRA_NAMED } from '../../content/questFlags';
+import { isStarterId } from '../../content/starterQuestions';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -140,8 +141,10 @@ export default function NameFinale() {
   }
 
   function onAnswered(ok: boolean, q: Question, picked: number) {
-    if (ok) correct.current += 1;
-    else update((s) => ({ ...s, library: pushLibrary(s.library, [{ question: q, picked }]) }));
+    // Only bank questions pay XP: starter ones pay none (#153).
+    if (ok) {
+      if (!isStarterId(q.id)) correct.current += 1;
+    } else update((s) => ({ ...s, library: pushLibrary(s.library, [{ question: q, picked }]) }));
   }
 
   function onContinue(ok: boolean, index: number) {

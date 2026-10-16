@@ -1,6 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "dist",
   "ignoreCommand": "node scripts/vercel-ignore-build.mjs",
+  "redirects": [
+    {
+      "source": "/play",
+      "destination": "/play/",
+      "permanent": true
+    }
+  ],
   "git": {
     "deploymentEnabled": {
       "claude/**": false

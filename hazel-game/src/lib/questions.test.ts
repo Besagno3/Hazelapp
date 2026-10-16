@@ -19,7 +19,7 @@ vi.mock('./supabase', () => ({
 }));
 
 // Import AFTER the mock is registered.
-import { fetchQuestions, flagQuestion, shuffleAnswers, TOPIC_NOT_READY } from './questions';
+import { fetchQuestions, flagQuestion, inQuestionBank, prefetchQuestions, shuffleAnswers } from './questions';
 import { useFamilyStore } from '../store/familyStore';
 
 beforeEach(() => {
@@ -43,6 +43,36 @@ describe('flagQuestion', () => {
     });
   });
 
+  it('asks the question service to check the reported question, without waiting for it (#147)', async () => {
+    insertMock.mockResolvedValue({ error: null });
+    let finishCheck: (v: unknown) => void = () => {};
+    invokeMock.mockReturnValue(new Promise((resolve) => (finishCheck = resolve)));
+
+    // Resolves while the check is still running.
+    await flagQuestion('q-123', 'not_for_kids');
+
+    expect(invokeMock).toHaveBeenCalledWith('generate-questions', {
+      body: { action: 'check-report', questionId: 'q-123', profileId: 'kid-1' },
+    });
+    finishCheck({ data: { checked: true }, error: null });
+  });
+
+  it('a check that fails to start never fails the report (#147)', async () => {
+    insertMock.mockResolvedValue({ error: null });
+    invokeMock.mockRejectedValue(new Error('network down'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(flagQuestion('q-9', 'confusing')).resolves.toBeUndefined();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(warn).toHaveBeenCalledWith('report check not started:', expect.stringContaining('network down'));
+    warn.mockRestore();
+  });
+
+  it('no check is asked for when the report itself fails (#147)', async () => {
+    insertMock.mockResolvedValue({ error: { message: 'permission denied', code: '42501' } });
+    await expect(flagQuestion('q-1', 'difficulty')).rejects.toThrow();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it('passes null for reason when none is provided', async () => {
     insertMock.mockResolvedValue({ error: null });
 
@@ -58,6 +88,14 @@ describe('flagQuestion', () => {
   it('is a no-op for synthetic fresh- IDs (FK would fail anyway)', async () => {
     await flagQuestion('fresh-123-0', 'wrong_answer');
     expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op for starter questions, which aren’t in the bank (B5)', async () => {
+    await flagQuestion('starter-math-easy-1', 'confusing');
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(inQuestionBank('starter-math-easy-1')).toBe(false);
+    expect(inQuestionBank('fresh-1-0')).toBe(false);
+    expect(inQuestionBank('8f3c2a5e-0000-4000-8000-000000000001')).toBe(true);
   });
 
   it('throws "sign in" when no kid is playing', async () => {
@@ -151,14 +189,135 @@ describe('fetchQuestions', () => {
     expect(body).not.toHaveProperty('context');
   });
 
-  it("says a topic isn't ready yet, not the server's whitelist, when the function doesn't know it (#135)", async () => {
+  it("gives starter questions, not an error, when the function doesn't know a topic yet (#135, B5)", async () => {
     // The real path: a FunctionsHttpError whose JSON body carries the function's own 400 text.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const body = { error: 'topic must be one of: math, science' };
     const response = new Response(JSON.stringify(body), { status: 400, headers: { 'Content-Type': 'application/json' } });
     invokeMock.mockResolvedValue({ data: null, error: new FunctionsHttpError(response) });
-    await expect(fetchQuestions('music', 9, 3, 5)).rejects.toThrow(TOPIC_NOT_READY);
-    // Any other failure keeps its real reason.
-    invokeMock.mockResolvedValue({ data: null, error: new Error('rate limited') });
-    await expect(fetchQuestions('math', 9, 3, 5)).rejects.toThrow('Question generation failed — rate limited');
+    const out = await fetchQuestions('music', 9, 3, 5);
+    expect(out).toHaveLength(5);
+    for (const q of out) expect(q.id).toMatch(/^starter-music-easy-/);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
+/** `n` questions as the function returns them. */
+function apiBatch(n: number, from = 0) {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `q-${from + i}`,
+    level: 5,
+    text: `Question ${from + i}`,
+    options: ['right', 'wrong 1', 'wrong 2', 'wrong 3'],
+    correctIndex: 0,
+    explanation: '',
+    timesAsked: 0,
+  }));
+}
+
+describe('fetchQuestions never fails a child (B5)', () => {
+  it('fills the whole batch from the starter questions when the server fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    for (const failure of [
+      { data: null, error: new Error('Failed to fetch') }, // offline
+      { data: null, error: new Error('budget_exhausted') }, // 429
+      { data: null, error: new Error('questions_unavailable') }, // 503
+    ]) {
+      invokeMock.mockResolvedValueOnce(failure);
+      const out = await fetchQuestions('science', 9, 8, 5);
+      expect(out).toHaveLength(5);
+      for (const q of out) {
+        expect(q.id).toMatch(/^starter-science-hard-/);
+        expect(q.options).toHaveLength(4);
+        expect(q.options[q.correctIndex]).toBeTruthy();
+      }
+    }
+    // Thrown, not only returned, errors too.
+    invokeMock.mockRejectedValueOnce(new Error('network down'));
+    expect(await fetchQuestions('math', 9, 2, 9)).toHaveLength(9);
+    warn.mockRestore();
+  });
+
+  it("shuffles a starter question's answers, keeping the right one right", async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    invokeMock.mockResolvedValue({ data: null, error: new Error('down') });
+    const spots = new Set<number>();
+    for (let n = 0; n < 12; n++)
+      for (const q of await fetchQuestions('math', 9, 2, 6)) {
+        expect(q.options[q.correctIndex]).toBe(
+          { 'What is 3 + 4?': '7', 'How many sides does a triangle have?': '3', 'What is 10 − 3?': '7', 'Which number is the biggest: 9, 6, 3 or 8?': '9', 'What is 5 + 5?': '10', 'How many legs do 2 dogs have altogether?': '8' }[q.text],
+        );
+        spots.add(q.correctIndex);
+      }
+    expect(spots.size).toBeGreaterThan(1);
+    warn.mockRestore();
+  });
+
+  it('tops a short batch up from the starter questions', async () => {
+    invokeMock.mockResolvedValue({ data: { questions: apiBatch(3) }, error: null });
+    const out = await fetchQuestions('history', 9, 5, 5);
+    expect(out.map((q) => q.id.slice(0, 2))).toEqual(['q-', 'q-', 'q-', 'st', 'st']);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for saved questions only when warming a zone, and finishes a short batch when it is used', async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(4) }, error: null });
+    prefetchQuestions('nature', 9, 5, 9, undefined, { cacheOnly: true });
+    expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'nature', count: 9, cacheOnly: true });
+
+    // The battle starts: it asks for the five still missing, normally.
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(5, 4) }, error: null });
+    const out = await fetchQuestions('nature', 9, 5, 9);
+    expect(out.map((q) => q.id)).toEqual(['q-0', 'q-1', 'q-2', 'q-3', 'q-4', 'q-5', 'q-6', 'q-7', 'q-8']);
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    const rest = invokeMock.mock.calls[1][1].body;
+    expect(rest).toMatchObject({ count: 5 });
+    expect(rest).not.toHaveProperty('cacheOnly');
+  });
+
+  it('uses a full warmed batch as it is, and asks again when warming failed', async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(9) }, error: null });
+    prefetchQuestions('space', 9, 4, 9, undefined, { cacheOnly: true });
+    expect(await fetchQuestions('space', 9, 4, 9)).toHaveLength(9);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    invokeMock.mockReset();
+    invokeMock.mockResolvedValueOnce({ data: { questions: [] }, error: null }); // nothing saved yet
+    prefetchQuestions('space', 9, 6, 9, undefined, { cacheOnly: true });
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(9) }, error: null });
+    expect(await fetchQuestions('space', 9, 6, 9)).toHaveLength(9);
+    expect(invokeMock.mock.calls[1][1].body).toMatchObject({ count: 9 });
+  });
+
+  it('a warm-up still on its way when the battle starts, which then fails: asked again, no error (review round 1)', async () => {
+    let fail!: (e: Error) => void;
+    invokeMock.mockReturnValueOnce(new Promise((_, reject) => (fail = reject)));
+    prefetchQuestions('math', 9, 4, 9, undefined, { cacheOnly: true });
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(9) }, error: null });
+    const battle = fetchQuestions('math', 9, 4, 9);
+    fail(new Error('Failed to fetch'));
+    expect(await battle).toHaveLength(9);
+    expect(invokeMock.mock.calls[1][1].body).toMatchObject({ count: 9 });
+    expect(invokeMock.mock.calls[1][1].body).not.toHaveProperty('cacheOnly');
+  });
+
+  it('drops a question the warm-up already gave (handed back as a seen one) and tops up instead (review round 1)', async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(4) }, error: null });
+    prefetchQuestions('history', 9, 6, 9, undefined, { cacheOnly: true });
+    // Out of budget, the battle's own call falls back to seen questions — and
+    // the warm-up's are held as seen, so two of them come back.
+    invokeMock.mockResolvedValueOnce({ data: { questions: [...apiBatch(2), ...apiBatch(3, 10)] }, error: null });
+    const out = await fetchQuestions('history', 9, 6, 9);
+    expect(out).toHaveLength(9);
+    expect(new Set(out.map((q) => q.id)).size).toBe(9);
+    expect(out.filter((q) => q.id.startsWith('starter-'))).toHaveLength(2);
+  });
+
+  it('a normal look-ahead (the next quiz round) never asks for saved questions only', async () => {
+    invokeMock.mockResolvedValue({ data: { questions: apiBatch(5) }, error: null });
+    prefetchQuestions('words', 9, 3, 5);
+    expect(invokeMock.mock.calls[0][1].body).not.toHaveProperty('cacheOnly');
+    expect(await fetchQuestions('words', 9, 3, 5)).toHaveLength(5);
   });
 });

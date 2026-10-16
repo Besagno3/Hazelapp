@@ -51,8 +51,9 @@ jobs:
       - name: apply_all_migrations.sql matches supabase/migrations
         run: node scripts/build-apply-all.mjs --check
       - run: npm test
-      # tsc -b (app + bench type-check) then vite build.
-      - run: npm run build
+      # tsc -b (app + bench type-check), then what Vercel serves: the public
+      # pages at / and the game at /play/ (scripts/build-web.mjs, #146).
+      - run: npm run build:web
 
   edge-function:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
@@ -72,6 +73,8 @@ jobs:
       # --no-config / --node-modules-dir=none: resolve npm: imports the way the
       # Supabase runtime does, not through the app's package.json.
       - run: deno check --no-config --node-modules-dir=none generate-questions/index.ts
+      # The bank recheck (#147) shares the function's prompts and checks.
+      - run: deno check --no-config --node-modules-dir=none ../scripts/recheck-questions.ts
 
   migrations:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft

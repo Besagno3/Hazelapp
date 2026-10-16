@@ -552,8 +552,12 @@ describe('mentorTips — Elder Lumen in the Library (#75 item 8)', () => {
   it('all four crystals: the Spire; after it: secrets and friends', () => {
     expect(mentorTips(ZONES, { ...met, ...allCrystals })).toEqual([
       expect.stringMatching(/Crystal Spire stands open, to the south of our village/),
-      expect.stringMatching(/Rest at the Sleepy Sheep Inn/),
+      // B4 (#150): HP isn't used in the Spire, so no "rest first" — Hint Feathers work on its riddles.
+      expect.stringMatching(/^🪶 Hint Feathers work in the Spire too — each one hides two wrong answers\. Peddler Plus sells them in Numbria\./),
     ]);
+    const spireTip = mentorTips(ZONES, { ...met, ...allCrystals })[1];
+    expect(spireTip).not.toMatch(/\b(rest|inn)\b/i);
+    expect(spireTip.split(/\s+/).length, spireTip).toBeLessThanOrEqual(30);
     expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true })[0]).toMatch(/Old Marlow.*mend his boat/);
     expect(mentorTips(ZONES, { ...met, ...allCrystals, [SPIRE_CLEARED]: true, [BOAT_MENDED]: true })[0]).toMatch(/Silver Shallows/);
     expect(mentorTips(ZONES, { ...met, ...storyDone, [keyFlag('memoria')]: false })[0]).toMatch(/^Out in the Silver Shallows lies Eldergrove/);

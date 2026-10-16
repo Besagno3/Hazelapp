@@ -80,3 +80,15 @@ export function nextSkillLevel(current: number, answers: boolean[]): number {
 export function nextSkillLevelFromBattle(current: number, answers: boolean[]): number {
   return Math.max(clampLevel(current), nextSkillLevel(current, answers));
 }
+
+/**
+ * The answers a level change rests on (#153): the bank questions' only —
+ * starter questions repeat, six a band, so knowing them isn't a level — and
+ * only while they're most of the `total` answers given. A short batch topped
+ * up with starters can leave one or two, too few to judge: then the level
+ * holds (one wrong would drop a round passed 4 of 5; one right would lift a
+ * round failed 1 of 5 by two — review round 2).
+ */
+export function bankRamp(bankAnswers: boolean[], total: number): boolean[] {
+  return bankAnswers.length * 2 > total ? bankAnswers : [];
+}

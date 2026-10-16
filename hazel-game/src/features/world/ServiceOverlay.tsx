@@ -10,6 +10,7 @@ import { ZONES, innOf } from '../../content/zones';
 import ShrineTrial from './ShrineTrial';
 import NameFinale from './NameFinale';
 import { shuffleAnswers } from '../../lib/questions';
+import { isStarterId } from '../../content/starterQuestions';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
@@ -174,7 +175,8 @@ function Library() {
     if (active && solved) {
       const id = active.question.id;
       update((s) => ({ ...s, library: s.library.filter((e) => e.question.id !== id) }));
-      void addXp(LIBRARY_XP);
+      // A starter question beaten again leaves the shelf, but pays no XP (#153).
+      if (!isStarterId(id)) void addXp(LIBRARY_XP);
     }
     setActive(null);
     setSolved(false);
@@ -190,7 +192,13 @@ function Library() {
             setSolved(correct);
             if (correct) confetti({ particleCount: 60, spread: 55, origin: { y: 0.6 } });
           }}
-          continueLabel={solved ? `🌟 +${LIBRARY_XP} XP — beaten!` : 'Back to the shelf'}
+          continueLabel={
+            solved
+              ? isStarterId(active.question.id)
+                ? '🌟 Beaten!'
+                : `🌟 +${LIBRARY_XP} XP — beaten!`
+              : 'Back to the shelf'
+          }
           onContinue={finish}
         />
       </div>

@@ -11,6 +11,8 @@ node_modules/
 # ─── Build output ───────────────────────────────────────────
 dist/
 dist-ssr/
+dist-site/
+site-captures/
 build/
 out/
 *.tsbuildinfo

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hazel Quest</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="claude:viewport-fit-sides" content="cover" />
+    <meta name="description" content="A free adventure game for kids aged 7 to 11. Every attack, spell and shield is powered by answering a question." />
+    <meta name="theme-color" content="#6ab8ff" />
+    <meta name="hq:play-url" content="/play/" />
+    <script>
+      // Links meant for the game can still arrive here at `/`: Supabase's
+      // emails (a confirmed sign-up, a password reset) go to the project's Site
+      // URL, and review alerts open `?review`. The game lives at the play URL
+      // (#146), so pass them on, address and all.
+      (function () {
+        var play = document.querySelector('meta[name="hq:play-url"]').content;
+        if (play.charAt(0) === '#') return;
+        var forGame = /[#&](access_token|refresh_token|error|error_code|error_description)=/.test(location.hash) ||
+          /[?&](code|token_hash|error|error_description|review)(=|&|$)/.test(location.search);
+        if (forGame) location.replace(play + location.search + location.hash);
+      })();
+    </script>
+    <meta property="og:title" content="Hazel Quest" />
+    <meta property="og:description" content="A free adventure game for kids aged 7 to 11. Every attack is a question." />
+    <meta property="og:image" content="https://hazelapp-pi.vercel.app/og.png" />
+    <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+    <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body class="kids">
+    <header class="title" data-ember="ember-egg">
+      <div class="wrap topnav">
+        <a class="btn btn-navy btn-sm" href="grown-ups.html">For grown-ups</a>
+      </div>
+      <div class="wrap title-main">
+        <h1 class="logo"><img src="assets/img/logo.png" width="68" height="43" alt="Hazel Quest" /></h1>
+        <p class="tagline outlined">Every attack is a question.</p>
+        <div class="cta-row">
+          <a class="btn btn-gold btn-big" href="/play/" data-play><span class="tri" aria-hidden="true"></span>Play free</a>
+        </div>
+        <p class="facts">Free · <span class="nowrap">Ages 7–11 ·</span> <span class="nowrap">A grown-up starts it</span></p>
+      </div>
+      <div class="road" aria-hidden="true">
+        <div class="walkers">
+          <span class="spr" data-spr="ember-dragon" data-sheet="world" data-anim="walk"></span>
+          <span class="spr" data-spr="kira" data-sheet="world" data-anim="walk"></span>
+          <span class="spr critter" data-spr="sum-slime" data-sheet="world" data-anim="walk"></span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="band band-grass" id="try" data-ember="ember-egg" aria-labelledby="try-h">
+        <div class="props" aria-hidden="true">
+          <i style="left: 3%; top: 18%; background-image: url('assets/img/prop-bush.png')"></i>
+          <i style="left: 7%; top: 62%; background-image: url('assets/img/prop-flowers.png')"></i>
+          <i style="right: 4%; top: 30%; background-image: url('assets/img/prop-flowers.png')"></i>
+          <i style="right: 8%; top: 74%; background-image: url('assets/img/prop-bush.png')"></i>
+        </div>
+        <div class="wrap">
+          <h2 class="outlined" id="try-h">Try it! Tap the right answer.</h2>
+          <div class="battle window" data-battle>
+            <div class="stage">
+              <div class="hud hud-foe">
+                <div class="row"><span data-foe-name>Sum Slime</span><span>Lv 3</span></div>
+                <div class="bar"><i data-foe-hp></i></div>
+              </div>
+              <div class="hud hud-hero">
+                <div class="row"><span>Kira</span><span>100/100</span></div>
+                <div class="bar"><i></i></div>
+              </div>
+              <div class="fighter foe" data-foe><span class="spr" data-spr="sum-slime" data-anim="idle"></span></div>
+              <div class="buddy-in-battle" aria-hidden="true"><span class="spr flip" data-spr="ember-dragon" data-anim="idle" style="--s: 2"></span></div>
+              <div class="fighter hero" data-hero><span class="spr flip" data-spr="kira" data-anim="idle"></span></div>
+            </div>
+            <div class="qcard">
+              <div class="qmeta"><span data-topic>Math</span><span data-count>Hit 1 of 3</span></div>
+              <p class="qtext" data-q tabindex="-1">You have 3 bags with 4 gems in each. How many gems?</p>
+              <div class="answers" data-answers>
+                <button class="answer" type="button">12</button>
+                <button class="answer" type="button">7</button>
+                <button class="answer" type="button">10</button>
+                <button class="answer" type="button">16</button>
+              </div>
+              <p class="feedback" data-feedback role="status" aria-live="polite"></p>
+              <div class="qactions"><button class="btn btn-gold btn-sm" type="button" data-next hidden>Next <span class="tri" aria-hidden="true"></span></button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band-sand" id="heroes" data-ember="ember-hatchling" aria-labelledby="heroes-h">
+        <div class="props" aria-hidden="true">
+          <i style="left: 2%; top: 12%; background-image: url('assets/img/prop-rock.png')"></i>
+          <i style="right: 3%; top: 55%; background-image: url('assets/img/prop-rock.png')"></i>
+        </div>
+        <div class="wrap">
+          <h2 id="heroes-h">Pick your hero.</h2>
+          <ul class="lineup">
+            <li><button class="pick" type="button" data-play-anim="attack"><span class="spr" data-spr="valor" data-anim="idle"></span><span class="shadow"></span><span class="plate">Valor</span><small>Warrior</small></button></li>
+            <li><button class="pick" type="button" data-play-anim="attack"><span class="spr" data-spr="bastion" data-anim="idle"></span><span class="shadow"></span><span class="plate">Bastion</span><small>Guardian</small></button></li>
+            <li><button class="pick" type="button" data-play-anim="attack"><span class="spr" data-spr="talon" data-anim="idle"></span><span class="shadow"></span><span class="plate">Talon</span><small>Ranger</small></button></li>
+            <li><button class="pick" type="button" data-play-anim="attack"><span class="spr" data-spr="kira" data-anim="idle"></span><span class="shadow"></span><span class="plate">Kira</span><small>Duelist</small></button></li>
+            <li><button class="pick" type="button" data-play-anim="attack"><span class="spr" data-spr="selene" data-anim="idle"></span><span class="shadow"></span><span class="plate">Selene</span><small>Mystic</small></button></li>
+          </ul>
+          <h2 id="dragon-h">Raise a dragon.</h2>
+          <p class="sub">Ember grows with every crystal you save.</p>
+          <ol class="growth" aria-labelledby="dragon-h">
+            <li class="s1"><button class="pick" type="button" data-play-anim="hurt"><span class="spr" data-spr="ember-egg" data-anim="idle"></span><span class="shadow"></span><span class="plate">Egg</span></button></li>
+            <li class="s2"><button class="pick" type="button" data-play-anim="cheer"><span class="spr" data-spr="ember-hatchling" data-anim="idle"></span><span class="shadow"></span><span class="plate">Hatchling</span></button></li>
+            <li class="s3"><button class="pick" type="button" data-play-anim="cheer"><span class="spr" data-spr="ember-whelp" data-anim="idle"></span><span class="shadow"></span><span class="plate">Whelp</span></button></li>
+            <li class="s4"><button class="pick" type="button" data-play-anim="breath"><span class="spr" data-spr="ember-dragon" data-anim="idle"></span><span class="shadow"></span><span class="plate">Dragon</span></button></li>
+            <li class="s5"><button class="pick" type="button" data-play-anim="breath"><span class="spr" data-spr="ember-radiant" data-anim="idle"></span><span class="shadow"></span><span class="plate">Radiant</span></button></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="band band-sea" id="explore" data-ember="ember-whelp" aria-labelledby="explore-h">
+        <div class="wrap">
+          <h2 class="outlined" id="explore-h">Explore Lumina.</h2>
+          <p class="sub outlined">Sail the sea. Fly on Ember.</p>
+          <ul class="postcards">
+            <li><figure class="postcard"><img src="assets/shots/place-lumina-village.png" width="704" height="448" loading="lazy" alt="Lumina Village: a hero and Ember on the village square, beside the save crystal." /><figcaption>Lumina Village</figcaption></figure></li>
+            <li><figure class="postcard"><img src="assets/shots/place-numbria.png" width="704" height="448" loading="lazy" alt="Numbria: snowy blue hills with critters, a treasure chest and a crystal." /><figcaption>Numbria</figcaption></figure></li>
+            <li><figure class="postcard"><img src="assets/shots/place-verdara.png" width="704" height="448" loading="lazy" alt="Verdara: a pine forest full of critters and mushrooms." /><figcaption>Verdara</figcaption></figure></li>
+            <li><figure class="postcard"><img src="assets/shots/place-chromaria.png" width="704" height="448" loading="lazy" alt="Chromaria: a pink land of statues and painted critters." /><figcaption>Chromaria</figcaption></figure></li>
+            <li><figure class="postcard"><img src="assets/shots/place-moonwell-grove.png" width="704" height="448" loading="lazy" alt="Moonwell Grove: a moonlit pond in a dark forest." /><figcaption>Moonwell Grove</figcaption></figure></li>
+            <li><figure class="postcard"><img src="assets/shots/place-silver-shallows.png" width="704" height="448" loading="lazy" alt="The Silver Shallows: sailing a little boat past a lighthouse island." /><figcaption>The Silver Shallows</figcaption></figure></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="band band-forest" id="critters" data-ember="ember-dragon" aria-labelledby="critters-h">
+        <div class="wrap">
+          <h2 class="outlined" id="critters-h">Meet 74 critters.</h2>
+          <p class="sub outlined">Tap one!</p>
+          <ul class="critters">
+            <li><button class="critter-btn" type="button" aria-label="Sum Slime"><span class="spr" data-spr="sum-slime" data-anim="idle"></span><span class="plate" aria-hidden="true">Sum Slime</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Count Bat"><span class="spr" data-spr="count-bat" data-anim="idle"></span><span class="plate" aria-hidden="true">Count Bat</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Sir Sumsalot"><span class="spr" data-spr="sir-sumsalot" data-anim="idle"></span><span class="plate" aria-hidden="true">Sir Sumsalot</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Pi-rate Parrot"><span class="spr" data-spr="pirate-parrot" data-anim="idle"></span><span class="plate" aria-hidden="true">Pi-rate Parrot</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Spore Puff"><span class="spr" data-spr="spore-puff" data-anim="idle"></span><span class="plate" aria-hidden="true">Spore Puff</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Static Jelly"><span class="spr" data-spr="static-jelly" data-anim="idle"></span><span class="plate" aria-hidden="true">Static Jelly</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Comet Crab"><span class="spr" data-spr="comet-crab" data-anim="idle"></span><span class="plate" aria-hidden="true">Comet Crab</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Fizzlet"><span class="spr" data-spr="fizzlet" data-anim="idle"></span><span class="plate" aria-hidden="true">Fizzlet</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Bolt Mouse"><span class="spr" data-spr="bolt-mouse" data-anim="idle"></span><span class="plate" aria-hidden="true">Bolt Mouse</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Pulley Spider"><span class="spr" data-spr="pulley-spider" data-anim="idle"></span><span class="plate" aria-hidden="true">Pulley Spider</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Piston Boar"><span class="spr" data-spr="piston-boar" data-anim="idle"></span><span class="plate" aria-hidden="true">Piston Boar</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Doodle Imp"><span class="spr" data-spr="doodle-imp" data-anim="idle"></span><span class="plate" aria-hidden="true">Doodle Imp</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Off-Key Bird"><span class="spr" data-spr="off-key-bird" data-anim="idle"></span><span class="plate" aria-hidden="true">Off-Key Bird</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Pixel Witch"><span class="spr" data-spr="pixel-witch" data-anim="idle"></span><span class="plate" aria-hidden="true">Pixel Witch</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Dog-Knight"><span class="spr" data-spr="dog-knight" data-anim="idle"></span><span class="plate" aria-hidden="true">Dog-Knight</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Mossback Cub"><span class="spr" data-spr="mossback-cub" data-anim="idle"></span><span class="plate" aria-hidden="true">Mossback Cub</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Thornhare"><span class="spr" data-spr="thornhare" data-anim="idle"></span><span class="plate" aria-hidden="true">Thornhare</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Grumblebee"><span class="spr" data-spr="grumblebee" data-anim="idle"></span><span class="plate" aria-hidden="true">Grumblebee</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Dart Frog"><span class="spr" data-spr="dart-frog" data-anim="idle"></span><span class="plate" aria-hidden="true">Dart Frog</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Oak Owl"><span class="spr" data-spr="oak-owl" data-anim="idle"></span><span class="plate" aria-hidden="true">Oak Owl</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Tide Sprite"><span class="spr" data-spr="tide-sprite" data-anim="idle"></span><span class="plate" aria-hidden="true">Tide Sprite</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Moon Moth"><span class="spr" data-spr="moon-moth" data-anim="idle"></span><span class="plate" aria-hidden="true">Moon Moth</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Orbit Otter"><span class="spr" data-spr="orbit-otter" data-anim="idle"></span><span class="plate" aria-hidden="true">Orbit Otter</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Eclipse Fox"><span class="spr" data-spr="eclipse-fox" data-anim="idle"></span><span class="plate" aria-hidden="true">Eclipse Fox</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Hourglass Imp"><span class="spr" data-spr="hourglass-imp" data-anim="idle"></span><span class="plate" aria-hidden="true">Hourglass Imp</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Knight-Mare"><span class="spr" data-spr="knight-mare" data-anim="idle"></span><span class="plate" aria-hidden="true">Knight-Mare</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Bubble Puffer"><span class="spr" data-spr="bubble-puffer" data-anim="idle"></span><span class="plate" aria-hidden="true">Bubble Puffer</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Inkling"><span class="spr" data-spr="inkling" data-anim="idle"></span><span class="plate" aria-hidden="true">Inkling</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Starfix"><span class="spr" data-spr="starfix" data-anim="idle"></span><span class="plate" aria-hidden="true">Starfix</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Hollow Acorn"><span class="spr" data-spr="hollow-acorn" data-anim="idle"></span><span class="plate" aria-hidden="true">Hollow Acorn</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Bog Lantern"><span class="spr" data-spr="bog-lantern" data-anim="idle"></span><span class="plate" aria-hidden="true">Bog Lantern</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Quill Imp"><span class="spr" data-spr="quill-imp" data-anim="idle"></span><span class="plate" aria-hidden="true">Quill Imp</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Latitude Cat"><span class="spr" data-spr="latitude-cat" data-anim="idle"></span><span class="plate" aria-hidden="true">Latitude Cat</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Zephyr Pup"><span class="spr" data-spr="zephyr-pup" data-anim="idle"></span><span class="plate" aria-hidden="true">Zephyr Pup</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Squall Chick"><span class="spr" data-spr="squall-chick" data-anim="idle"></span><span class="plate" aria-hidden="true">Squall Chick</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="Drum Crab"><span class="spr" data-spr="drum-crab" data-anim="idle"></span><span class="plate" aria-hidden="true">Drum Crab</span></button></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="band band-night" id="bosses" data-ember="ember-radiant" aria-labelledby="bosses-h">
+        <div class="props" aria-hidden="true">
+          <i style="left: 4%; top: 22%; background-image: url('assets/img/prop-candle.png')"></i>
+          <i style="right: 5%; top: 40%; background-image: url('assets/img/prop-candle.png')"></i>
+        </div>
+        <div class="wrap">
+          <h2 class="outlined" id="bosses-h">Beat 13 bosses.</h2>
+          <ul class="bosses">
+            <li><button class="critter-btn" type="button" aria-label="The Null Fiend"><span class="spr" data-spr="null-fiend" data-anim="idle"></span><span class="plate" aria-hidden="true">The Null Fiend</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="The Smog Fiend"><span class="spr" data-spr="smog-fiend" data-anim="idle"></span><span class="plate" aria-hidden="true">The Smog Fiend</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="The Thicket Warden"><span class="spr" data-spr="thicket-warden" data-anim="idle"></span><span class="plate" aria-hidden="true">The Thicket Warden</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="The Tide Colossus"><span class="spr" data-spr="tide-colossus" data-anim="idle"></span><span class="plate" aria-hidden="true">The Tide Colossus</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="The Clockwork Titan"><span class="spr" data-spr="clockwork-titan" data-anim="idle"></span><span class="plate" aria-hidden="true">The Clockwork Titan</span></button></li>
+            <li><button class="critter-btn" type="button" aria-label="The Riddle Leviathan"><span class="spr" data-spr="riddle-leviathan" data-anim="idle"></span><span class="plate" aria-hidden="true">The Riddle Leviathan</span></button></li>
+          </ul>
+          <div class="mystery">
+            <span class="spr" data-spr="umbra" data-anim="idle" role="img" aria-label="A mystery boss, hidden in shadow"></span>
+            <p class="outlined">Who waits at the top of the Spire?</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band-night" id="grown-ups" data-ember="ember-radiant" aria-labelledby="gu-h">
+        <div class="wrap">
+          <div class="grownups window">
+            <h2 id="gu-h">Grown-ups, start here</h2>
+            <ul class="checks">
+              <li>Free, with no ads and nothing to buy.</li>
+              <li>No chat and no other players.</li>
+              <li>Questions match your child's age and level.</li>
+              <li>Every question is checked for kids, and any can be reported.</li>
+            </ul>
+            <p><a class="btn btn-gold btn-sm" href="grown-ups.html">How it works and how we keep it safe <span class="tri" aria-hidden="true"></span></a></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band-stars finale" id="play" aria-labelledby="play-h">
+        <div class="wrap">
+          <div class="scene" aria-hidden="true">
+            <span class="spr" data-spr="kira" data-anim="idle"></span>
+            <span class="spr big" data-spr="ember-radiant" data-anim="cheer" data-loop></span>
+          </div>
+          <h2 class="outlined" id="play-h">Your adventure starts here.</h2>
+          <a class="btn btn-gold btn-big" href="/play/" data-play><span class="tri" aria-hidden="true"></span>Play free</a>
+          <p class="note">A grown-up makes the free family account first.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <div class="wrap">
+        <nav aria-label="Site">
+          <a href="grown-ups.html">For grown-ups</a>
+          <a href="grown-ups.html#privacy">Privacy <span class="draft">Draft</span></a>
+          <a href="grown-ups.html#contact">Contact</a>
+        </nav>
+        <p>© 2026 <span class="todo" title="Fill in before launch">[OPERATOR NAME]</span></p>
+      </div>
+    </footer>
+
+    <button class="buddy" type="button" data-buddy aria-label="Ember, your dragon. Tap her!">
+      <span class="say" data-say aria-hidden="true"></span>
+      <span class="spr" data-spr="ember-egg" data-sheet="world" data-anim="idleDown"></span>
+    </button>
+
+    <script type="module" src="assets/site.js"></script>
+  </body>
+</html>

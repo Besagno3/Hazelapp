@@ -107,7 +107,8 @@ zod, react-query. Add the package in the same change that first uses it.
   (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
   taps in the world's top bar) replaces Sign out. The active kid's id goes to
   the question function (`profileId`) — **the question budget is per kid**
-  (a family has at most 8) — and on flags. The privacy notice and the tile
+  (a family has at most 8), inside a **daily cap the family's kids share**
+  (migration 0021, #152) — and on flags. The privacy notice and the tile
   pictures live in `content/family.ts` (the notice is a **draft** until a
   lawyer reviews it — `PRIVACY_IS_DRAFT`).
 - **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
@@ -195,13 +196,34 @@ zod, react-query. Add the package in the same change that first uses it.
   replaced the boat's `aboard`; sailing only afloat with a boat, flying only
   over an overworld map once Ember can fly). Write-through: localStorage immediately
   (keyed `hazel-save-<userId>`), Supabase `saves` table on a 2s debounce;
-  `flush()` on save crystals / sign-out. Supabase errors degrade to
-  local-only play. Pure logic in `lib/save.ts` (normalize / legacy migration /
-  the `MIGRATIONS` ladder — **`SAVE_VERSION` 3** since #75 item 15b). A save
-  from a *newer* version is never loaded or overwritten: loads check
-  `saveIsTooNew`, and the server refuses any write that lowers a save's
-  version (migration 0011's trigger → `save_version_conflict`, which `flush`
-  catches). Either way status goes `'outdated'` and `App` asks for a refresh.
+  `flush()` on save crystals / Switch player (it skips a copy the server
+  already has, `syncedRevision`); a tab that is hidden or closed pushes what's
+  left at once (`flushOnHide` on `visibilitychange` / `pagehide`, a
+  `keepalive` fetch, `lib/saveKeepalive.ts` — best effort on a closing page;
+  with no session, a token expired or about to be, or over 60 KiB it goes the
+  normal way, and a hide push that fails without a refusal re-arms the
+  debounce).
+  Supabase errors degrade to local-only play. Pure logic in `lib/save.ts`
+  (normalize / legacy migration / the `MIGRATIONS` ladder — **`SAVE_VERSION`
+  3** since #75 item 15b). **Which copy wins (#151):** every change adds one
+  to the save's `revision` (additive; none = 0, `revisionOf`); loading keeps
+  the higher of this device's copy and the server's (a tie, or neither with a
+  revision, goes to the server's) and pushes a newer local copy. The server
+  refuses a copy that isn't newer than the one it holds — a lower or missing
+  revision, or the same revision with other data (migration 0020, extending
+  0011's trigger; same error `save_version_conflict`, detail
+  `save_revision_conflict`). A refused tab stops (`'outdated'`,
+  `outdatedReason` `'elsewhere'`, "Your adventure moved on!") and marks its
+  local copy revision 0 so the refresh loads the server's; a tab also stops
+  when another tab on this browser saves a newer copy (`storage`) or the
+  server has one when it comes back into view (`checkForNewer`) —
+  `watchPageForSaves`, wired in `App`. Between two copies that both moved on,
+  the one with more changes wins. A save from a *newer* version is never
+  loaded or overwritten: loads check `saveIsTooNew` (both copies), and the
+  server refuses any write that lowers a save's version (migration 0011's
+  trigger → `save_version_conflict`, which `flush` catches). Either way status
+  goes `'outdated'` (`outdatedReason` `'update'`) and `App` asks for a refresh
+  (`OutdatedScreen`).
   Every v2+ save carries the `save:v2` flag (`SAVE_V2_FLAG`) so the v1 → v2
   step never moves a position twice.
 - **`battleStore`** holds the ephemeral battle session (enemy, HP, defeated
@@ -227,7 +249,9 @@ zod, react-query. Add the package in the same change that first uses it.
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
   opened by using the Spire icon — the all-crystals-gated endgame; its five
   floors are walkable themed maps drawn by `WorldCanvas`, state in
-  `spireStore`, #74). `TouchPad`
+  `spireStore`, #74; its questions sit 0–3 levels above the kid's own, and
+  after a failed climb the next has one more candle and asks a level lower,
+  up to two falls — `spireFalls`, save flags `spire-falls-1/2`, B4 #150). `TouchPad`
   is the mobile d-pad, with the ✋ use button beside it (#127).
   **Using things** (#127, `lib/interact.ts`): nothing the hero can use goes
   off on a bump. Chests, gates (both kinds), the save crystal, Spire seals and
@@ -590,15 +614,21 @@ zod, react-query. Add the package in the same change that first uses it.
   `db:bundle` refuses to build if rules 2–3 are broken; CI applies the bundle
   twice and runs the SQL tests.
 - **CI** (`.github/workflows/ci.yml`, #81 + #88): job `test` = lint + bundle
-  check + tests + build; `edge-function` = `deno check`
-  of the edge function; `migrations` applies every migration to a plain
+  check + tests + `build:web` (what Vercel serves, #146); `edge-function` = `deno check`
+  of the edge function and the bank recheck script; `migrations` applies every migration to a plain
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
   `supabase/ci/*.test.sql`. A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.
 - **Question-generator access (#88):** `generate-questions` requires a signed-in
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
-  per-player calls/minute (429 over it) + per-player and project-wide daily
-  budgets of *fresh* Claude questions. Over budget it serves the cache
+  per-player calls/minute (429 over it) + per-player, per-family (migration
+  0021, B9: the kid's grown-up; removing a kid deletes their requests at once
+  except today's spend, which stays, unlinked, for a day so it still counts —
+  `profiles_forget_requests`) and project-wide daily budgets of *fresh*
+  Claude questions. Each call's allowance is **held** on its request row
+  (`p_fresh_wanted`, the batch size) until the function writes what it really
+  made — an error partway writes what Claude made before it — so calls in
+  flight at once can't each spend the same budget. Over budget it serves the cache
   (seen questions as a last resort). **The kid's id is required** (400
   without it) and the quota check **fails closed**: if it errors, the call is
   served from the cache only, never from Claude (Act I launch review B9,
@@ -608,25 +638,93 @@ zod, react-query. Add the package in the same change that first uses it.
   birth date (`ageFrom`, clamped 3–18; the caller's `age` is ignored) and at
   most one flavour line chosen by key (`flavor`, `QUESTION_FLAVORS`); the old
   free-text `context` is ignored. **Claude failing never reaches a kid** (B5):
-  the client times out after 20 s with one retry, a reply that didn't stop at
+  the client times out after 30 s with one retry (20 s before Haiku 5.5's
+  thinking, #147), a reply that didn't stop at
   `end_turn` (cut off, refused) counts as a failure, and the batch is filled
   from the cache (unseen first, then seen); only with nothing to give does
-  the kid see a friendly "try again" (503) or, when today's budget is spent,
-  "come back tomorrow" (429). Raw errors go to the log, never to the reply.
-- **Questions are screened for kids (B10, #133):** three layers in the
+  the function answer a friendly "try again" (503) or, when today's budget is
+  spent, "come back tomorrow" (429). Raw errors go to the log, never to the
+  reply. **The app never shows those (#153):** `fetchQuestions` fills
+  whatever the server can't give — offline, a 503 or 429, a topic it doesn't
+  know yet, a short batch — from the hand-written **starter questions**
+  (`content/starterQuestions.ts`: every topic, three level bands, six each,
+  screened like AI ones; ids `starter-`, never marked seen, no 🚩 Report
+  (`FlagButton` shows nothing off the bank, `inQuestionBank`), and they never
+  move the saved skill level — quiz ramp, battle ramp or speed trigger: six a
+  band repeat, so knowing them isn't a level; a round or battle whose bank
+  answers aren't most of its answers holds the level (`bankRamp`, `lib/age.ts`),
+  and a speed boost's harder pool takes bank questions only; they pay no XP —
+  the owner's call — anywhere: quiz, battle answers, gates, chests, shrines,
+  the Spire, the Library; the win's and the Spire's own bonuses still pay).
+- **Questions are screened for kids (B10, #133, #147):** four layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
-  by `questionScreen.test.ts`): `CONTENT_RULES` in the writer's system prompt
-  (no violence, scary or sad topics, religion, politics, living or
-  controversial people, romance, medical or body-weight topics, brands,
-  links; facts only); `screenQuestion` on every fresh *and* saved question
-  (four different non-empty options, length caps, no links / emails / phone
-  numbers, a blocked-word list); and a **blind second check** — one more
-  call answers each fresh question without the answer and says whether it
-  keeps the rules (`checkFresh`, `keepChecked`): only those it agrees with are
-  served, and a failed or mismatched check keeps none (the cache fills in).
-  It asks for a third more questions than it needs to cover drops; secret
-  `QUESTION_SECOND_CHECK=off` turns the check off. **Reports** (`FlagButton`,
+  by `questionScreen.test.ts`). **The model is Claude Haiku 5.5** (`MODEL`,
+  in the block; #147): it thinks by default and thinking counts toward
+  `max_tokens`, so each call leaves room (writer 16,000, checks 8,000 /
+  4,000) and sets its effort (writer and blind check `medium`, explanation
+  check `low`); it takes no `temperature` / `top_p` / `top_k` and no prefill,
+  and a reply is read by block type (it opens with thinking blocks,
+  `replyJson`). (1) `CONTENT_RULES` — ten numbered safety rules plus fact
+  rules — in the writer's system prompt, which also pitches the level to the
+  child's age (1–3 easy for this age … 9–10 for the strongest, up to two years
+  ahead in ideas) and asks it to check its own work; every part of a question
+  is held to them, wrong options and the explanation too. (2) `screenQuestion`
+  on every fresh *and* saved question (four different non-empty options,
+  length caps, no links / emails / phone numbers, a blocked-word list, and
+  nothing pointing at an option by its place — "all of the above", "the
+  answer is B", lettered options — since the options get shuffled; a letter
+  that IS an option's text, like a music note, passes). (3) A **blind check**
+  answers each fresh question without the answer and says whether it keeps
+  the rules (`keepChecked`). (4) An **explanation check** reads each one with
+  its right answer and explanation (`keepExplained`) — the blind check never
+  sees the explanation, which would give the answer away. (3) and (4) run side
+  by side (`checkFresh`); only questions both pass are served, and a failed or
+  mismatched check keeps none (the cache fills in). The three prompts are the
+  same for every child (the age goes in the user message) and carry
+  `cache_control`, so they're cached (Haiku 5.5 caches from 512 tokens; Haiku
+  4.5 needed 4,096, so the old marker did nothing). Each call logs its time
+  and tokens (`logCall`). It asks for a third more questions than it needs to
+  cover drops; secret `QUESTION_SECOND_CHECK=off` turns both checks off.
+  **Each question is checked once** (migration 0018): the checks go through
+  `runChecks` (shared, with a `CallModel` each caller makes from its own client,
+  `modelCaller`), and a question that passes is marked `checked_version =
+  RULES_VERSION` — new ones as they're saved, **the saved bank** by
+  `supabase/scripts/recheck-questions.ts` (#147; Deno, run by the owner with
+  the service-role key — dry run first, `--apply` to act), which skips anything
+  already checked under the current version; failures go to `review` with the
+  reason in `questions.review_note` (0017), which the queue lists among the
+  reasons. Raise `RULES_VERSION` when the rules change and the next recheck
+  covers the bank again. **A report checks it again:** after a report is saved
+  the app asks the function (`action: 'check-report'`, not awaited); it claims
+  the question (`claim_report_check`: only for a report this family made since
+  the question's last check, at most `REPORT_CHECKS_PER_FAMILY_PER_DAY` = 20 a
+  day) and runs `reportReview` — Claude Haiku, and if Haiku finds nothing, the
+  stronger model (`ESCALATION_MODEL`, Claude Opus 5.5, higher effort, with the
+  server-side refusal fallback). A problem, or a check that can't run, holds the
+  question back (`review`); either way the note says what was found. A check
+  never puts a question back. Reports no check covered (the tab closed, over the
+  cap) are swept by the recheck script's `--reported` run. **The owner hears
+  about it** (#147, `_shared/notify.ts`, inline in the function between
+  `// --- notify:start` / `notify:end`, drift-checked by `notify.test.ts`): email
+  (Resend: `RESEND_API_KEY` + `ALERT_EMAIL_TO`, optional `ALERT_EMAIL_FROM`),
+  Slack (`ALERT_SLACK_WEBHOOK_URL`) and Discord (`ALERT_DISCORD_WEBHOOK_URL`) —
+  every channel whose secrets are set. A report check that leaves a question
+  held back sends `heldAlert` at once (`alertIfHeld`); `action: 'digest'`
+  (needs the `x-digest-secret` header = `ALERT_DIGEST_SECRET`, run daily by a
+  scheduled job — see Commands) sends `digestAlert`, everything waiting, and
+  nothing when nothing is. Messages carry the question and report counts, never
+  a child or a family, and link to `APP_URL/?review`. A channel that refuses is
+  logged, never fails the check. **The owner decides in the app** (#147,
+  migration 0019): a grown-up listed in `public.admins` (added in the SQL editor;
+  nobody can read or write it through the API) sees 🛡️ Question review in 👪
+  Grown-ups (`QuestionReviewPage`, `lib/review.ts`): what's waiting, held back
+  first, with the answer, the reports in words and the checks' notes (🔎), and
+  ✅ Release / ⭐ Approve / 🗑️ Retire (asks first) through `admin_review_queue` /
+  `admin_review_question`, which refuse anyone else ("not an admin", 42501) and
+  record who decided (`questions.reviewed_by`). The alert's link (`?review`,
+  `familyStore.reviewRequested`) opens 👪 Grown-ups and, once it's unlocked,
+  the review page. **Reports** (`FlagButton`,
   on every question screen through `QuestionCard`, "Not OK for kids" first)
   hide a question from the reporting family; for everyone it's held back only
   through `questions.status` (migration 0016: `active` / `review` / `retired`
@@ -669,23 +767,31 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter, the `age` they were written
   for). The edge function mixes cached questions with fresh ones; the cached
-  ones come from `pick_cached_questions` (migration 0015, #134): the whole ±2
-  level band at random, leaning to less-asked, none written for a child more
-  than a year older (`AGE_SLACK`; old rows have no age and stay in), none
-  flagged. **Seen = shown (#134):** the app tells the server what was on
+  ones come from `pick_cached_questions` (migration 0015, #134; 0017, #147):
+  the whole ±2 level band at random, leaning to less-asked, only ones written
+  for a child within a year of this one, either way (`AGE_SLACK`) — and one
+  written for an older child only at or below this kid's level, since a level
+  is pitched to the age it was written for (old rows have no age and stay
+  in) — none flagged. Without 0017 the function retries the picker without
+  the age window's lower edge (logged). **Seen = shown (#134):** the app tells the server what was on
   screen (`markSeen`, `lib/seen.ts`, from `QuestionCard` and `QuizRound`, as
   `mark_questions_seen`); what the function hands over is only held back for
   an hour (`question_views.shown = false`), so prefetches don't fill a kid's
   seen window — the last 100 distinct questions shown in that topic (read
   from their latest 1,000 shown views, so the cost doesn't grow with play).
-  `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need.
+  `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need. A
+  zone's critters are warmed from the saved bank only (`cacheOnly`, #153:
+  unseen saved questions, never a Claude call, maybe short or empty, and it
+  holds nothing on the family budget — `p_fresh_wanted: 0`); the
+  battle asks for whatever is still missing when it starts.
 
 ## Commands
 
 ```bash
 npm install      # install deps (node_modules is gitignored)
 npm run dev      # Vite dev server
-npm run build    # tsc -b && vite build
+npm run build    # tsc -b && vite build (the game alone)
+npm run build:web # what Vercel serves: the public pages (site/) at /, the game at /play/ — scripts/build-web.mjs (#146)
 npm run lint     # eslint
 npm test         # Vitest suite (test:watch / test:ui also available)
 
@@ -731,6 +837,27 @@ python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell C
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
+
+# Recheck the saved question bank against today's rules (#147) — Deno, the project's service-role key
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts           # dry run
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails, mark what passes
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --reported --apply   # reports no check covered yet
+
+# Question review alerts and the admin page (#147) — once, by the owner
+#   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
+#        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
+#   2. Secrets (email via Resend; Slack and Discord optional):
+supabase secrets set RESEND_API_KEY=re_… ALERT_EMAIL_TO=<you> APP_URL=https://hazelapp-pi.vercel.app ALERT_DIGEST_SECRET=<long random string>
+supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/…
+#      ALERT_EMAIL_FROM is Resend's test sender until you verify a domain (it only delivers to the Resend account's own address).
+#   3. SQL editor, after enabling the pg_cron and pg_net extensions: the daily digest (07:45 UTC)
+#        select cron.schedule('question-review-digest', '45 7 * * *', $$
+#          select net.http_post(
+#            url := 'https://<project-ref>.supabase.co/functions/v1/generate-questions',
+#            headers := jsonb_build_object('Content-Type', 'application/json',
+#              'Authorization', 'Bearer <anon key>', 'x-digest-secret', '<ALERT_DIGEST_SECRET>'),
+#            body := '{"action":"digest"}'::jsonb);
+#        $$);
 ```
 
 ## Error handling
@@ -785,6 +912,12 @@ check to go green (fix and push on red), then merge.
   only if its branch has an open, non-draft PR. Marking ready doesn't push, so
   the first preview builds on the next push. Uses `GITHUB_PR_READ_TOKEN`
   (Vercel, Preview env); any lookup failure fails open (builds).
+- **What Vercel builds** (#146): `vercel.json` → `buildCommand` `npm run
+  build:web`, `outputDirectory` `dist`: the public pages (`site/`) at `/` and
+  the game at `/play/` (`/play` redirects there). The game is built with base
+  `/` and only its page moves, so its root paths (`/sprites/…`, `/assets/…`)
+  still work. A sign-in link or `?review` that lands on `/` is passed on to
+  `/play/` by a script at the top of `site/index.html`.
 - **`claude/**` branches never deploy on Vercel** (`vercel.json` →
   `git.deploymentEnabled`, #126): Vercel Hobby allows 100 deployments a day,
   and an ignored build still counts as a (cancelled) deployment, so the many
@@ -816,6 +949,14 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Merge the 16d branch (with main) into the 16e branch (#155)
+16d merged `main` (public pages, safer questions, the fairer Spire, saves, the
+family budget, starter questions), so 16e moved **#147 → #155** and its test
+cases **TC-1278–1295 → TC-1432–1449**. `SpireOverlay` keeps 16e's shared
+`loadGauntlet` and `Candles`, with main's fall-aware level (`spireQuestionLevel`)
+and candle count (`candleMax`); the Name finale, like the Spire, pays no XP for
+a starter question (`isStarterId`, #153).
 
 ### 2026-10-16 — 16e UX review round 4: eyes that close, Enter that opens (#75 item 16e, #155o)
 The last round's UX review (1 medium, 5 low, 6 nits), all fixed but one kept
@@ -881,6 +1022,11 @@ Roadmap sub-item 16e (branch stacked on 16d's).
 - **Tests:** +14 (finale, gauntlet, NameFinale, WorldScreen.ending, dungeons,
   wayfinding, journey); 1399 green, lint and tsc clean.
 
+### 2026-10-16 — Merge main (public pages, safer questions, the fairer Spire, saves, family budget, starter questions) into the 16d branch (#154)
+`main` took ISSUES **#146–#153** and TC-1254–1407 while 16d waited, so 16d
+moved **#146 → #154** and its test cases **TC-1254–1277 → TC-1408–1431**
+(only its own lines). Only the docs conflicted.
+
 ### 2026-10-16 — 16d review round 4: Glimmer's Nook, one Aster, beat the echoes (#75 item 16d, #154k)
 The last round. Fresh code (1 medium, 6 low, 4 nits) and UX (1 high, 4
 medium, 6 low, 3 nits) reviews, all fixed: Glimmer's Nook on B1 — a defeat on
@@ -935,6 +1081,581 @@ Roadmap sub-item 16d (branch off `main` after 16c merged).
   the Root's Heart"; Lumen's plan and tip; `actFourJourney` walks them.
 - **Art:** `python3 tools/assets/build.py descent`.
 - **Tests:** dungeons, wayfinding, journey updated; 1376 green, lint and tsc clean.
+
+### 2026-10-16 — The live address, and a share card that previews (#146j)
+The owner gave the production address: `https://hazelapp-pi.vercel.app`. Both
+public pages' `og:image` now name `https://hazelapp-pi.vercel.app/og.png`
+(link previews need a full URL); `build:web` copies the card to `dist/og.png`
+and checks it's there. The Redirect URLs step, `APP_URL` and the READMEs name
+the address.
+
+### 2026-10-16 — The public pages go live at `/`, the game moves to `/play/` (#146i)
+The owner's go-ahead on #146 (b), in a draft PR.
+- **`npm run build:web`** (`scripts/build-web.mjs`): builds the game as
+  before (base `/`), moves its `index.html` to `dist/play/`, then builds
+  `site/` into `dist/` beside it (its pages, its bundle in `assets/`, the
+  game's `public/` files at the root, where both the pages and the game ask
+  for them). It fails if any of the three pages is missing.
+- **Vercel** (`vercel.json`): `buildCommand` `npm run build:web`,
+  `outputDirectory` `dist`, and `/play` → `/play/`. **CI** runs `build:web`
+  in place of `build`, so it checks what's deployed.
+- **Links meant for the game that land on `/`** — Supabase's emails go to the
+  project's Site URL, review alerts open `?review` — are passed on to
+  `/play/` with their address by a script at the top of `site/index.html`
+  (tokens or an error in the hash; `?code`, `?token_hash`, `?error`,
+  `?review`). The pages' own anchors (`#contact`) stay. So nothing breaks
+  before the owner adds `/play/` to Supabase's Redirect URLs.
+- No game code changes: the game's paths are all absolute, its sign-up and
+  reset links use the page's own address (`/play/`), and `?signup` already
+  pointed there.
+- **Checked** (the build served by a plain static server, Supabase stubbed,
+  headless Chromium): `/` shows the kids' page with every sprite and no
+  errors; Play free opens Sign in at `/play/`; the grown-ups sign-up button
+  opens the sign-up form (and drops `?signup`); `/play` opens the game at
+  `/play/` with no failed requests; the game's sprites, tiles, backdrops,
+  music and favicon load from the root; a reset link, an expired-link error,
+  `?code` and `?review` at `/` land on `/play/` with the same address; `#contact`,
+  `/grown-ups.html#contact` and `?utm_source` stay. Lint, tests and build
+  clean.
+- ⚠️ Owner: add `https://hazelapp-pi.vercel.app/play/` to Supabase → Authentication →
+  URL Configuration → Redirect URLs (reset links then go straight to the
+  game). Families' bookmarks of the old address now open the public page,
+  one tap from the game; saves and sign-ins are untouched (same site).
+
+### 2026-10-16 — Merge main (public pages #66, question safety #71, save revisions #70, family budget #67) and the Spire branch (#68) into the starter-questions branch (#153)
+#153 sits above #152, TC-1336–1400 don't collide. One code conflict, the
+question function's request body: `cacheOnly` (#153) and #147's `action` /
+`questionId` both kept. One fix where B5 meets B9: the quota check held a
+look-ahead's whole batch on the family's budget until the call wrote back 0,
+so siblings calling at that moment saw less left; a look-ahead now asks for
+none (`p_fresh_wanted: cacheOnly ? 0 : count`) — TC-1401, the stand-in run
+14/14 (its new check fails without the fix). `flagQuestion` keeps its
+starter guard ahead of #147's report check. 1520 green, lint + `deno check`
+clean.
+
+### 2026-10-16 — Starter questions pay no XP (#153, the owner's call)
+Round 1 had kept XP for starter answers; the owner decided against it, so
+a child can't farm XP on the six questions a band they know by heart. A
+right starter answer now pays nothing in the quiz (`QuizRound`: bank answers
+only, no `addXp` call at 0), battles (`settleCommon` counts `rampAnswers`, the
+bank answers — the win's own XP still pays), gates, chests and riddles
+(`PathQuestionOverlay`; they still open), shrine trials (`ShrineTrial`; they
+still count toward the spell), the Spire (`recordAnswer` counts bank answers;
+the first-clear bonus still pays, and a re-clear that earned nothing drops its
+"earned ⭐ N XP") and the Library (`ServiceOverlay`: "🌟 Beaten!", no XP).
+Tests: +9 (QuizRound, BattleArena, PathQuestionOverlay, ShrineTrial,
+SpireOverlay, new ServiceOverlay.test), each failing with its fix taken out;
+1407 green, lint + build clean.
+
+### 2026-10-16 — B5 review round 2: one bank question never decides the level, no "harder" starters (#153)
+A fresh `/saas-code-review` of #69 (1 medium, 1 low), both fixed:
+- **A level change rests on most of the round (medium):** round 1 ramps on the
+  bank answers only, so a short batch topped up with starters (a thin bank
+  and the day's budget spent, or Claude down) left one or two answers to
+  judge the whole round on — a round passed 4 of 5 dropped a level on its one
+  bank question, a round failed 1 of 5 climbed two, and a battle won with one
+  right bank answer among starter answers climbed two. `bankRamp`
+  (`lib/age.ts`) hands the ramp the bank answers only while they're more than
+  half the answers given, else none (the level holds — the conservative
+  call); `QuizRound` and `BattleArena` (a fresh `answerCount` ref, so a
+  timed-out last answer counts too) both use it.
+- **No "harder questions" from the starters (low):** `fetchQuestions` never
+  fails now, so a speed boost during an outage swapped the battle's bank
+  questions for starter ones and said "The questions just got harder"; its
+  "nothing came back" path was dead. The harder pool keeps bank questions
+  only; with none, the battle keeps its pool and says the level goes up after
+  it, as before the PR.
+- **Tests:** age.test (+2), QuizRound.test (+2, and the mixed-round test now
+  answers the starters wrong, so it fails without round 1's filter),
+  BattleArena.test (+2), each failing without its fix. 1398 green, lint +
+  build + `deno check` clean, the stand-in run 12/12.
+
+### 2026-10-16 — B5 review round 1: starters don't move the skill level, no 🚩 off the bank (#153)
+`/saas-code-review` of #69 (1 medium, 3 low), all fixed:
+- **Starter questions never move the saved skill level (medium):** six a band
+  repeat and one band covers three levels, so a child on starters (a topic
+  the deployed function doesn't know, an outage) could learn them by heart
+  and climb +2 every flawless round to 10, then meet level-10 questions when
+  the service came back (battles never lower it). `QuizRound` ramps on bank
+  questions only; `BattleArena` keeps `rampAnswers` (bank answers) for
+  `skillAfterBattle`, and a starter answer never counts toward the speed
+  trigger. XP still pays (the conservative call: the level is what's at
+  stake).
+- **No 🚩 off the bank (low):** a starter (or `fresh-`) question's report said
+  "Reported — thanks! We'll take a look" and sent nothing; `FlagButton` now
+  shows nothing when `!inQuestionBank(id)`.
+- **Five starter questions (low):** continents no longer offer 5, the solar
+  panel no "Heat only", the bridge asks for the shape that can't be pushed out
+  of shape, "highest" mountain, the Olympics "about" 2,800 years ago.
+- **Tests (low):** a warm-up that fails while the battle waits for it, and a
+  question handed back twice, are covered now (the old "warming failed" test
+  used an empty batch). starterQuestions.test (+1), FlagButton.test (+1),
+  QuizRound.test (+2), BattleArena.test (+3), questions.test (+2), each failing
+  without its fix; SpireOverlay.test's questions mock keeps the real module.
+  1392 green, lint + build + `deno check` clean, the stand-in run 12/12.
+
+### 2026-10-16 — Starter questions, and zone look-aheads that cost nothing (#153)
+Act I launch review B5, the app half.
+- **No question error reaches a child:** `fetchQuestions` never fails and
+  never comes back short. Whatever the server can't give (offline, a 503, the
+  day's budget spent, a topic it doesn't know yet, a short batch) comes from
+  `content/starterQuestions.ts`: 10 topics × 3 bands (levels 1–3 / 4–6 / 7–10)
+  × 6 hand-written questions with explanations, the right answer first and
+  shuffled as served; a battle's 9 tops up from the nearest band. Every one
+  passes `screenQuestion`. `markSeen` / `flagQuestion` skip `starter-` ids
+  (`inQuestionBank`).
+- **Zone warm-ups are saved-only:** entering a zone warmed every critter's
+  battle with a full request that could pay Claude for battles that never
+  happen. `WorldScreen` now sends `cacheOnly: true` (`prefetchQuestions(…,
+  { cacheOnly })`); the function sets the fresh allowance to 0, takes only
+  unseen saved questions and answers 200 even with none. A battle uses what
+  was warmed and asks for only the rest, normally. An old function ignores the
+  flag, so deploy order is free (redeploy `generate-questions` to get it).
+- **Tests:** starterQuestions.test (new, 6), questions.test (+7), seen.test,
+  WorldScreen.use.test (+1); the function run locally against a stand-in (its
+  bank picker added): 12/12, 6 fail on `main`'s. 1383 green, lint + build +
+  `deno check` clean.
+
+### 2026-10-16 — Merge main (public pages #66, question safety #71, save revisions #70) and the family-budget branch (#67) into the Spire branch (#150)
+Docs only: #150 sits between #151 and #147, TC-1301–1310 / 1351–1355 don't
+collide. No code conflicts — the Spire's changes touch none of the merged
+files.
+
+### 2026-10-16 — B4 review round 2: a fall helps kids near level 10 too (#150)
+A fresh `/saas-code-review` (1 medium; nothing else held up). Fixed: the
+level a fall takes off was cut by the 1–10 limit, so a kid whose level plus
+the floor's bonus ran past 10 got the same riddles after a fall — Umbra
+asked 10 again for a level-8 kid after one fall, and for a level-9 kid after
+both. `spireQuestionLevel` now cuts the climb at 10 first and takes the fall
+off after, so every floor asks one level lower per fall for any kid (never
+below 1); a first climb is unchanged. Tests: spire.test (every level, floor
+and fall) and SpireOverlay.test (a level-10 kid's whole climb after a fall,
+Umbra's seven topics too, all at 9) — both fail on the old rule. Decided by
+the owner: leaving the Spire, even after losing a candle, is not a fall
+(TC-1351 keeps it). 1382 green, lint and build clean.
+
+### 2026-10-16 — B4 review round 1: leaving isn't a fall, no stray flags (#150)
+A fresh `/saas-code-review` (3 low, 1 nit; nothing high or medium): the fall
+rules, the floors' question loading and the candle state held up. Fixed:
+"leaving isn't a fall" had no test — a new one loses a candle, leaves, and
+checks no flag changed; the cap tests passed even if a third fall wrote a
+stray flag — they now check it writes nothing; this log said the light reads
+`maxLives` (it's sized by the candles left); a stale "all four" comment.
+Asked (#150): should leaving after losing a candle count as a fall? Kept as
+the PR chose. 1380 green, lint and build clean; the real app with both fall
+flags at five sizes (`bench … hud`): six candles fit, 6/6.
+
+### 2026-10-16 — Make the Spire fairer: gentler levels, an easier climb after each fall (Act I launch review B4, #150)
+The launch review found a kid getting 75–80% right cleared the Spire only a
+quarter to half of the time: its questions were 2–6 levels above the kid's
+own (`levelBonus` 1–5, plus one more in `SpireOverlay.loadFloor`), four
+candles had to last 19 questions, and a loss changed nothing.
+- **Gentler levels:** the floors ask 0, 1, 2, 2 and 3 levels above the kid
+  (Umbra's floor highest); the extra +1 is gone. One rule,
+  `spireQuestionLevel` (kept to 1–10), sets the floors and Umbra's challenge.
+- **Easier after a fall:** losing a climb sets a save flag (`spire-falls-1`,
+  then `spire-falls-2`; no save field, no version bump). The next climb has
+  one more candle and asks one level lower, up to two falls (`spireFalls`,
+  `spireCandles`); clearing the Spire forgets them. Back after a fall, one
+  line follows the intro: "The Spire remembers you tried. One more candle —
+  and the riddles are a little easier." `spireStore.reset(lives)` starts a
+  climb with its candles (`lives` and `maxLives`; the canvas light is sized
+  by the candles left alone, so it starts wider after a fall). Chosen
+  over restarting from the highest floor: the climb's progress is never
+  saved, and fresh candles for each floor would make every floor easy while
+  Umbra's questions stayed as hard.
+- **Elder Lumen's Spire tip** said to rest at the inn, but HP isn't used in
+  the Spire. Now: "🪶 Hint Feathers work in the Spire too — each one hides two
+  wrong answers. Peddler Plus sells them in Numbria. Bring a few!"
+- **Odds** (accuracy held fixed, so only the candles help): at 75% right a
+  climb cleared 26% of the time; now the first climb is the same, the second
+  47%, the third 67%. At 80%: 46%, then 67% and 84%. If each level easier
+  adds 3 points of accuracy, the first climb at 75% clears 56%.
+- **Tests:** +10 (spire, spireStore, SpireOverlay — the real climb lost and
+  won; wayfinding's tip changed); 1379 green, lint and build clean. In
+  headless Chromium with Supabase stubbed: a 10-year-old's first floor asks
+  level 5 (was 7); after one fall, level 4, 5 candles and the line; after two,
+  level 3 and 6 candles, which fit a 320 px phone.
+
+### 2026-10-16 — Merge main (public pages #66, question safety #71) into the family-budget branch (#152)
+`main` took migrations **0017–0019** (the question age window, the question
+checks, the admin review page) while B9 was in review, and the save-revisions
+PR (#151) takes 0020, so B9's migration moved **0018 → 0021**
+(`0021_family_question_budget.sql`, "after 0020"; the function's log lines,
+the SQL tests and #152's docs say 0021; the counts in the entries below are as
+they were). #146 / #147 and TC-1254–1295 don't collide with #152. The
+function merged on its own: the family cap and the hold sit in #147's new
+request path (`begin_question_request` with `p_fresh_per_family` and
+`p_fresh_wanted`, the per-kid fallback on `PICKER_MISSING`, step 4a and the
+catch charging what was made).
+
+### 2026-10-16 — B9 review round 2: a removed kid's requests go at once, a crash gives back its hold (#152)
+A fresh `/saas-code-review` of PR #67 (1 medium, 2 low), all fixed:
+- **A removed kid's requests weren't deleted "straight away" (medium):**
+  removing a kid unlinked every request row they'd ever made (its time, its
+  count, the grown-up's id), and only the next question request *anywhere*
+  deleted the ones over a day old — hours later in a quiet spell — while the
+  day's rows kept every request's time, spent or not (the draft notice says
+  only a count is kept). That next request also deleted the whole history
+  inside its quota check, under its family's lock. Now a `before delete`
+  trigger on `profiles` (`profiles_forget_requests`, security definer like
+  0016's) deletes at once the kid's rows no budget needs — over a day old, or
+  nothing spent; today's spend stays, unlinked, and goes once a day old.
+- **A crash kept the hold for the day (low):** an error thrown between the
+  quota check and the usage write reached the catch-all with the whole batch
+  still held — up to 15 fresh questions charged to the kid, the family and
+  the project for 24 h for a call that served nothing (a crash loop could
+  spend the project's day). The catch-all now writes what Claude made before
+  the error (`made`) in the hold's place — never less, so never an unlimited
+  bill; without 0021 (nothing held) it now records that spend too, which
+  was left at 0.
+- **TEST-CASES types (low):** "I" (#133's rows use it too) is in the legend
+  as integration; the two manual psql runs (TC-1374, TC-1377) are M; TC-1331
+  names the six-argument function.
+- **Tests:** `family_budget.test.sql` (the grown-up removes a kid through
+  `authenticated`: the 40-day-old row and the ones that spent nothing go at
+  once, today's 4 stay, a brother's rows are untouched — fails without the
+  trigger, without `security definer` and without the nothing-spent rule);
+  `family.test.ts` (+1); the function against a stand-in (7 checks; 3 fail on
+  round 1's version; round 1's 9 still pass). 1372 tests green, lint + build
+  clean, all 9 SQL tests, the migrations in order and the bundle twice pass
+  on Postgres 16, `deno check` clean.
+- Open: a removed kid's spend from today goes at the first question request
+  after it's a day old (there's no scheduled job), so in a quiet project it
+  can outlast the notice's "one day".
+
+### 2026-10-16 — B9 review round 1: calls in flight hold their share, a removed kid's count goes after a day (#152)
+`/saas-code-review` of PR #67 (2 medium, 1 low), all fixed:
+- **The caps didn't hold for calls in flight (medium):** the spend was
+  written only after Claude answered, so every call that started before the
+  others finished saw the same budget left, and the family lock serialized
+  nothing that mattered (4 calls from two kids against a family cap of 15
+  got 10 each). `begin_question_request` takes a sixth argument,
+  `p_fresh_wanted` (the batch size; default null holds nothing, as before):
+  inside the family lock it holds the allowance on the request row's
+  `fresh_count`, and the function's usage write replaces it with what was
+  made — always now (0 when Claude fails), not only when something was made.
+  An unexpected error leaves the hold standing (never an unlimited bill). The
+  per-kid and project caps hold the same way. 0021 also drops the
+  five-argument version its first draft made, so no call matches two.
+- **A removed kid's rows were kept for good (medium):** the privacy notice
+  says removing a child deletes their information straight away.
+  `begin_question_request` deletes rows with no kid once they're a day old
+  (past every window; a partial index finds them; `delete` granted to the
+  service role), and the draft notice now says a count of new questions is
+  kept, without the name, for one day.
+- **The backfill had no test (low; TC-1327 said it had):**
+  `family_budget.test.sql` re-applies 0021 (`\ir`) over a row with no
+  grown-up — which also checks a re-run with data keeps the grants.
+- **Tests:** `family_budget.test.sql` (+ holds, the project's last 3, freeing
+  what wasn't made, the day-old clean-up, the backfill) — each fails with its
+  fix taken out; `family.test.ts` (the notice and the migration agree); the
+  function run against a stand-in (9 checks; 4 fail on the PR's first
+  version); two overlapping psql sessions (the second waits, then sees the
+  hold); a project with the first draft applied, then this. 1371 tests
+  green, lint + build clean, all 9 SQL tests, the migrations in order and the
+  bundle twice (also over a row with no kid) pass on Postgres 16, `deno
+  check` clean.
+- ⚠️ Deploy as before (either order). A project that applied the first draft
+  of 0021 must re-run `apply_all_migrations.sql` — `db push` skips it.
+
+### 2026-10-16 — A question budget per family (#152)
+Act I launch review B9, the code that was left. Since #124 every kid had their
+own daily budget of fresh (Claude-written) questions, and removing a kid
+removed their request log with them: a grown-up could add a kid, spend, remove
+them and repeat without end, and each of up to 8 kids added a full budget.
+- **Migration 0021** (`0021_family_question_budget.sql`): a request log row
+  outlives its kid (`profile_id` → null on delete, was cascade), and records
+  the grown-up (`question_requests.parent_id`, null when they go; filled in
+  for rows already logged). `begin_question_request` takes a fifth argument,
+  `p_fresh_per_family` (default null = no family cap, so a four-argument call
+  still works): the fresh allowance is the least of the kid's, the family's
+  and the project's; the advisory lock is per family now, so brothers and
+  sisters calling at once can't slip under the cap together.
+- **The function** sends the cap (`FRESH_PER_FAMILY_PER_DAY`, default 400 —
+  two kids' worth; a secret overrides it). Before 0021 is applied the five-
+  argument call doesn't exist, so it checks per kid as before and logs
+  "FAMILY BUDGET UNAVAILABLE"; a quota check that fails both ways still
+  serves the cache only.
+- **Tests:** `supabase/ci/family_budget.test.sql` (the family shares its cap,
+  another family is untouched, no cap without the argument, a removed kid's
+  spend stays and remove-and-re-add doesn't reset the day, the project still
+  counts it, a day rolls it off, a removed grown-up's id goes, grants) — it
+  fails with 0014's cascade back; `quota.test.sql` checks the new signature,
+  `pins.test.sql` says a removed kid's requests are unlinked. All 9 SQL tests,
+  the migrations in order and the bundle twice pass on Postgres 16; `deno
+  check` clean; the function run locally against a stand-in: the cap is sent,
+  without 0021 it falls back per kid, and a failed check never calls Claude.
+- ⚠️ Deploy: apply 0021 (or re-run `apply_all_migrations.sql`), then
+  `supabase functions deploy generate-questions`. Either order works.
+  Follow-ups #152.
+
+### 2026-10-16 — Merge main (public pages #66, question safety #71) into the save-revisions branch (#151)
+`main` took migrations **0017–0019** (the question age window, the question
+checks, the admin review page) while S1 was in review, so its migration moved
+**0017 → 0020** (`0020_save_revisions.sql`, "after 0019"; the code comments,
+the SQL test and #151's docs say 0020; the counts in the entries below are as
+they were). #146 / #147 and TC-1254–1295 don't collide with #151 and
+TC-1311–1368. One code conflict, `App.tsx`: both effects kept (the save
+watcher, #151; dropping `?signup` once signed in, #146).
+
+### 2026-10-16 — S1 review round 2: the save guards tested, every server refusal pinned (#151)
+A fresh `/saas-code-review` of the whole S1 PR (2 low, both test gaps; no bug
+in the code). Load, flush, hide, refusals, the round-1 retry (no double
+send that matters, no fight with a refusal, nothing after a sign-out or the
+next kid), the listeners, `OutdatedScreen` and old app tabs against a
+revisioned row all hold up; behaviour unchanged. Breaking `saveStore` on
+purpose showed five data-loss guards could each be deleted with the suite
+green: `stop`'s "only our own copy" check before marking it revision 0 (else
+another tab's newer copy here is demoted), the load check on a late push
+answer (else kid A's answer marks kid B as sent, stops kid B, or shows kid
+A's error), the same on a late `checkForNewer`, the back-forward-cache
+check, and the retry being for hide pushes only (else a push every 2 s
+while offline). saveStore.test +7 covers each. `save_revisions.test.sql` now
+checks the detail on every revision refusal, that a version refusal (also
+with an older revision) has none — the app picks "moved on" or "updated" by
+it — a JSON-null revision, and a stored junk revision replaced like none.
+Each new test fails with its guard removed. 1408 green, lint + build clean;
+the stub, all 17 migrations and the bundle applied twice on Postgres 16, all
+9 SQL tests pass.
+
+### 2026-10-16 — S1 review round 1: no expired token on hide, a failed hide save tried again (#151)
+`/saas-code-review` of the S1 PR (1 medium; the trigger, the load / flush
+races, the listeners and the token handling checked, nothing else). Fixed: the
+save on hide sent the token `authStore` held even after it expired (the
+server refuses it with a 401), and a failed hide push was never retried while
+the page stayed open, because hiding had cancelled the debounce. Now
+`upsertSaveKeepalive` gives null for a token that has expired or will within
+30 s (`KEEPALIVE_TOKEN_MARGIN_MS`), so the normal request (which refreshes
+it) goes instead, and a hide push that fails without a refusal re-arms the
+2 s debounce. Tests +3 (saveKeepalive.test, saveStore.test; the two fixes'
+tests fail without them). 1401 green, lint + build clean; the stub, all 17
+migrations and the bundle applied twice on Postgres 16, all 9 SQL tests pass.
+
+### 2026-10-16 — Saves keep the newest progress: revisions, a server check, save on hide (launch checklist S1, #151)
+The launch review's S1: the server's copy always won on load (progress kept
+on the device was overwritten), a closing tab didn't save (2 s debounce),
+and two devices or tabs overwrote each other silently.
+- **A revision on every save:** `SaveData.revision`, one more on every change
+  (`saveStore.update`; returning the save unchanged makes none). Additive —
+  `normalizeSave` gives a save without one (or a junk one) 0, `revisionOf`
+  reads it as the server does; no `SAVE_VERSION` bump (an old app is stopped
+  by the server rule below; an old tab that loads a revisioned save can only
+  lose its own unsaved moves).
+- **Load keeps the newer copy:** the local copy and the server's are compared;
+  the higher revision wins, a newer local copy is pushed, a tie (or neither
+  with a revision) goes to the server's as before. A copy from a newer version
+  on *either* side → `'outdated'`, neither touched. The server's copy is only
+  written back when it needs it (an older shape, or no revision yet), as a new
+  revision. A second kid's load drops the first kid's late answer.
+- **The server refuses an older copy:** migration `0020_save_revisions.sql`
+  redefines 0011's trigger function: a stored revision may only be replaced
+  by a higher one or the identical save (a retried upload); a save without a
+  revision (an app from before this) can't replace one, and a row without a
+  revision takes anything until the new app saves it once. Same error,
+  `save_version_conflict`, so old tabs show their "refresh" screen; detail
+  `save_revision_conflict`. Hand edits in SQL now need the revision raised.
+- **Told to reload, kindly:** a refused tab goes `'outdated'` with
+  `outdatedReason` `'elsewhere'` and `OutdatedScreen` (StatusScreens) says
+  "🧭 Your adventure moved on! — You played on in another tab or on another
+  device. Refresh the page to carry on from your newest save." (the update
+  screen keeps its copy for `'update'`). Its local copy is marked revision 0
+  so the refresh can't pick it over the server's. A tab also stops when
+  another tab on this browser saves a newer copy (`storage`) or the server
+  has one when the tab comes back into view (`checkForNewer`).
+- **Save on hide:** `watchPageForSaves` (called once in `App`): on
+  `visibilitychange` → hidden and `pagehide`, `flushOnHide` pushes what the
+  server hasn't got at once, as a `keepalive` fetch built synchronously with
+  the token `authStore` holds (`lib/saveKeepalive.ts` — supabase-js awaits an
+  auth lock first, which a closing page may never finish); over 60 KiB or with
+  no session it falls back to a normal upsert. Best effort on a closing page
+  (CORS preflight, Firefox < 133); the local copy always has it.
+- `flush` sends one push at a time and skips a copy the server already has
+  (`syncedRevision`); a refusal of an older push of ours, overtaken by a newer
+  one, is ignored.
+- Between two copies that both moved on, the one with more changes wins — the
+  other is told to reload (ISSUES #151 (a): a per-push base check would make
+  it strict).
+- Tests +29: saveStore.test (which copy wins, two devices, the refused copy,
+  overlapping pushes, hide / pagehide, back in view, another tab), save.test
+  (revision, `revisionOf`), saveKeepalive.test, StatusScreens.test; the fake
+  server keeps a row per kid and applies 0020's rules. 1398 green, lint +
+  tsc + build clean; every saveStore rule checked by breaking it (14
+  mutations, all caught). SQL: `supabase/ci/save_revisions.test.sql` (fails
+  without 0020); the stub + all 17 migrations and the bundle applied twice on
+  Postgres 16, all 9 SQL tests pass. Bundle regenerated (17 migrations).
+- ⚠️ Deploy: apply `0020_save_revisions.sql` (or re-run
+  `apply_all_migrations.sql`) **before** shipping this build.
+
+### 2026-10-16 — Merge main (public pages, PR #66) into the question-safety branch (#147)
+`main` took ISSUES **#146** and TC-1254–1269 for the public pages while
+PR #71 was open, so this branch moved **#146 → #147** and its test cases
+**TC-1254–1279 → TC-1270–1295** (only its own lines, the code comments and
+migration comments included — none of them is merged anywhere). Only the
+docs conflicted: the public pages touch `site/`, the sign-in page and
+`App.tsx`; this branch touches 👪 Grown-ups, `familyStore` and the question
+function.
+
+### 2026-10-16 — Review alerts (email, Slack, Discord) and the admin review page (#147)
+The owner's follow-up: hear about questions that need review, and decide them
+in the app instead of the SQL editor.
+- **Alerts** (`_shared/notify.ts`, inline in the function, drift-tested): email
+  through Resend, Slack and Discord webhooks — whichever secrets are set. A
+  report check that leaves a question held back alerts at once; `action:
+  'digest'` (a secret header, run daily by pg_cron) sends everything waiting.
+  No child or family in any message; the link opens the review page.
+- **Admin page** (migration 0019): `public.admins` (owner-only, added in the SQL
+  editor), `is_admin`, `admin_review_queue`, `admin_review_question` (records
+  `reviewed_by`); 🛡️ Question review in 👪 Grown-ups with Release / Approve /
+  Retire; `?review` opens it after the Grown-ups gate.
+- ⚠️ Owner setup: Commands → "Question review alerts and the admin page".
+- **Tests:** notify.test (+7, drift), review.test (+5), QuestionReviewPage.test
+  (+6), GrownUpsArea.test (+3), familyStore.test (+3), `question_admin.test.sql`
+  (the admin check fails its test when removed); the harness 99/99 (alerts on
+  all three channels, no alert when still shown, a refusing channel, the
+  digest's secret and contents). 1414 green; lint, build, `deno check` clean;
+  eleven SQL tests and the bundle twice on Postgres 16. Looked at in headless
+  Chromium at 375 and 1024 px: no sideways scroll, no errors.
+
+### 2026-10-16 — Checked once, and again on a report: Haiku, then Opus (#147)
+The owner's follow-up on PR #71: existing questions checked once, new ones on
+generation, and a report triggering a check by Haiku and then a stronger model.
+- **Once:** migration 0018 adds `checked_version` / `checked_at`; new questions
+  are saved with `RULES_VERSION` (only when the checks ran; without 0018 the
+  save retries without it), and the recheck script skips checked questions and
+  marks what passes.
+- **A report checks it again:** the app asks `generate-questions` with
+  `action: 'check-report'` after a report (not awaited); `claim_report_check`
+  lets each report start one check, 20 a family a day; `reportReview` runs
+  Claude Haiku, then Claude Opus 5.5 if Haiku finds nothing (higher effort, the
+  server-side refusal fallback). A problem or a check that can't run holds the
+  question back; a check never puts one back. `--reported` sweeps the rest.
+- **Shared:** `runChecks` and `reportReview` in the screening block, over a
+  `CallModel` each caller builds (`modelCaller`); the sign-in and kid checks
+  are one helper (`identifyKid`) for both actions.
+- ⚠️ Deploy: apply 0017 and 0018, deploy the function, then the recheck.
+- **Tests:** questionScreen.test (+ runChecks, reportReview — escalation, holds,
+  errors; mutations caught), questions.test (+3), `question_checks.test.sql`
+  (each claim rule fails with its line removed); the harness 84/84. 1391 green;
+  lint, build, `deno check` clean; ten SQL tests and the bundle twice on Postgres 16.
+
+### 2026-10-16 — Safer questions: Haiku 5.5, an explanation check, an age window, a bank recheck (#147)
+The question prompt rewrite and the seven fixes from its `/saas-code-review`.
+- **Claude Haiku 5.5** writes and checks questions (was Haiku 4.5: newer and
+  about a tenth of the price per token). It thinks by default and thinking
+  counts toward `max_tokens`, so the writer gets 16,000 (was 4,096) and the
+  checks 8,000 / 4,000 (the check had 1,024 — it would have been cut off and
+  every fresh question dropped); effort is set per call; timeout 30 s (was 20).
+- **New prompts:** ten numbered safety rules for every part of a question,
+  wrong options and explanation included (privacy, nothing a child could copy,
+  stereotypes, disputed or changing facts, facts true in one country only);
+  the writer pitches the level to the child's age with examples by age and
+  checks its own work; the blind check fails a question two options could
+  answer; both checks ignore instructions inside the questions.
+- **An explanation check** (the blind check never saw the explanation), side
+  by side with the blind check; both must pass. Their prompts are the same for
+  every child, so all three prompts are cached now.
+- **Nothing points at an option by its place** (`screenQuestion`): "all of
+  the above", "the answer is B", lettered options — the options get shuffled.
+- **History and geography** steer away from conquest, slavery, disputed
+  borders and country counts.
+- **Reuse keeps to the age** (migration 0017): within a year either way, an
+  older child's question only at or below the kid's level; without 0017 the
+  function retries the old picker.
+- **The bank recheck** (`supabase/scripts/recheck-questions.ts`): the same
+  checks over the saved bank, failures to `review` with a `review_note`, which
+  the queue now lists even with no reports.
+- ⚠️ Deploy: apply 0017, run the recheck (dry run, then `--apply`), then
+  `supabase functions deploy generate-questions`.
+- **Tests:** questionScreen.test (rewritten, 37), `question_age_window.test.sql`
+  (each rule fails with its line removed); a local harness ran the function and
+  the script against stand-in Supabase and Claude (52/52). 1383 green; lint,
+  build, `deno check` (both) clean; migrations and the bundle twice on
+  Postgres 16 with all nine SQL tests.
+
+### 2026-10-16 — Merge main (overworld 16a–16c, PRs #63–#65) into the public-pages branch (#146)
+`main` took ISSUES **#143–#145** and TC-1210–1253 for items 16a–16c while
+the public pages were in review, so they moved **#143 → #146** and their test
+cases **TC-1210–1225 → TC-1254–1269** (only their own lines, the code
+comments and test names included). Only the three docs conflicted; nothing of
+main's touches `site/`, the sign-in page or `App.tsx`, and every sprite and
+backdrop the site names still exists.
+
+### 2026-10-16 — The sign-up form, reviewed: heard, readable, and it says what's next (#146h)
+A `/saas-ux-review` of the form the site's "Create a free family account"
+opens (1 high, 2 medium, 2 low), all fixed on the owner's say-so:
+- **Messages are heard and readable:** an always-present `role="status"`
+  region holds them, in red-700 / green-700 (red-500 and green-600 failed
+  4.5:1).
+- **After signing up, "📬 Check your inbox":** the form gives way to a panel
+  naming the email (focus moves to its heading), with the spam hint and
+  "Back to sign in" (the email kept and focused). Signing in before tapping
+  the link says "Please confirm your email first: tap the link we sent to …"
+  (`email_not_confirmed`, by code or message), not the raw error.
+- **The password rule up front:** "At least 6 characters." under the field,
+  `minlength` and `aria-describedby` on sign-up only. `MIN_PASSWORD_LENGTH`
+  moved to `content/family.ts`; `ResetPasswordPage` shares it.
+- **Visible labels** for email and password (placeholders gone); tests find
+  the fields by label.
+- **44 px:** the submit, Forgot and switch buttons, the fields (so the 👁️
+  too) and the privacy notice's summary (shared with Consent and Grown-ups).
+- Tests: `PasswordReset.test` +6 (live region, inbox panel, not confirmed ×3,
+  password rule). 1313 green, lint + build clean; a browser walk at 390, 320
+  and 1280 px passes every check.
+
+### 2026-10-16 — `?signup` never outlives its sign-up page (#146g)
+A `/saas-code-review` of #146f (1 low, fixed): only `AuthPage` dropped
+`?signup`, and it mounts only with no session — so a parent already signed in
+who tapped "Create a free family account" kept it in the address, and a later
+sign-out opened on the sign-up form. Now `lib/signupLink.ts`
+(`hasSignupParam` / `dropSignupParam`, which keeps the rest of the address)
+is shared: `AuthPage` reads it and drops it, and `App` drops it as soon as a
+session exists. Tests: `signupLink.test` (+3), `App.signup.test` (+2; the
+signed-in one fails without `App`'s effect). 1307 green, lint + build clean.
+
+### 2026-10-16 — Public pages: review fixes (#146f)
+`/saas-code-review` + `/saas-ux-review` of the prototype, rendered at 320,
+390 and 1280 px, by keyboard and with reduced motion; the owner said fix all.
+- **The demo battle keeps keyboard focus:** after Next, focus goes to the new
+  question (`tabindex="-1"`), so Tab reaches its answers and a screen reader
+  reads it (it fell to the page, and Tab jumped on to the hero picks). The
+  first question no longer names a critter that isn't on screen.
+- **Sign-up lands on sign-up:** "Create a free family account" opens the game
+  at `?signup` (`data-play="signup"`); `AuthPage` starts on the sign-up form
+  and drops `signup` from the address (it opened on Sign in). Every other
+  Play button still opens Sign in.
+- **The clip can be paused:** it always has controls (WCAG 2.2.2); under
+  reduced motion it still doesn't autoplay.
+- **Fact tags aren't buttons:** the grown-ups chips are a diamond-bulleted
+  list and the subjects soft tags — no pixel border, no gold.
+- **Smaller fixes:** Ember steps away on phones while the demo battle passes
+  under her corner; a link to a FAQ answer opens it (footer Contact); the
+  eyebrow green is `#1d7044` (5.4:1); footer links and "Read the full privacy
+  notice" are 44 px tall; hero type labels darker on sand; the kids' facts
+  line says "A grown-up starts it" (kept whole when it wraps).
+- **`capture.cjs`:** a step failing mid-film no longer crashes Node with
+  "Target closed" before its own error; `stop()` still throws the loop's
+  error, and says so when there are no frames.
+- Kept: "Pick your hero." only plays an attack (a teaser), the clip is small
+  on a phone (captioned), the sign-in page's purple style (#146e).
+- Tests: PasswordReset.test +2 (with and without `?signup`; the first fails
+  on the old `AuthPage`). 1302 green, lint + build + site build clean; 33
+  browser checks on the pages pass.
+
+### 2026-10-16 — Public pages prototype: a kids' page and a grown-ups page (#146)
+New `site/` folder, outside the app (no `src/` change): `index.html` for kids
+(a title screen with Kira and Ember walking, a playable demo battle, heroes,
+Ember's stages, six real places, critters, bosses, a grown-ups box) and
+`grown-ups.html` (the idea, a real gameplay clip, a play session, subjects,
+safety, how questions are checked, what's collected, family controls, FAQ).
+Plain HTML/CSS/JS (`site/assets/`), served with the game's `public/`
+(`npx vite --config site/vite.config.mjs`). Every picture is the game's:
+sprites animate from their sheets, textures come from the tilesets, the logo
+is hand-drawn pixel letters (`site/tools/logo.py`), and screenshots and the
+clip are captured from the real game (`site/tools/capture.cjs`,
+`prep-assets.py`). Fonts are self-hosted (Jersey 15, Andika). Safety claims
+and what they rest on are listed in `site/README.md`. Not live: the privacy
+notice is still a draft and the game would move to `/play/` (#146).
 
 ### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)

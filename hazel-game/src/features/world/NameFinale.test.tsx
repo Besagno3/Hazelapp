@@ -3,7 +3,9 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
 vi.mock('../../lib/audio', () => ({ playMusic: vi.fn(), sfx: vi.fn() }));
-vi.mock('../../lib/questions', () => ({
+// The real module for the rest (the 🚩 asks `inQuestionBank` as it renders).
+vi.mock('../../lib/questions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/questions')>()),
   fetchQuestions: vi.fn(async (topic: string, _age: number, level: number, count: number) =>
     Array.from({ length: count }, (_, i) => ({
       id: `${topic}-${i}`,
@@ -122,5 +124,26 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
     render(<NameFinale />);
     fireEvent.click(screen.getByRole('button', { name: "🌼 I'm ready" }));
     expect(screen.getByText('"What was my name?"')).toBeInTheDocument();
+  });
+
+  it('starter questions pay no XP, like the Spire (#153): only the reward', async () => {
+    const { fetchQuestions } = await import('../../lib/questions');
+    vi.mocked(fetchQuestions).mockImplementation(async (topic, _age, level, count) =>
+      Array.from({ length: count }, (_, i) => ({
+        id: `starter-${topic}-${i}`,
+        topic,
+        level,
+        text: `${topic} question ${i}?`,
+        options: ['right', 'wrong 1', 'wrong 2', 'wrong 3'],
+        correctIndex: 0,
+      })),
+    );
+    start({ [NAME_LEARNED]: true });
+    render(<NameFinale />);
+    await answerAll();
+    await tapLine(/Then answer the only question I have left/);
+    fireEvent.click(screen.getByRole('button', { name: 'Aster' }));
+    expect(useFinaleStore.getState().pendingXp).toBe(NAME_CLEAR_XP);
+    vi.mocked(fetchQuestions).mockReset();
   });
 });
