@@ -89,7 +89,9 @@ export const PRIVACY_NOTICE: { heading: string; body: string }[] = [
     heading: 'How long we keep it',
     body:
       "A child's information is kept while they are on your account. Removing a child in the " +
-      'Grown-ups area deletes their information straight away. [RETENTION PERIOD for backups ' +
+      'Grown-ups area deletes their information straight away, except a note of how many new ' +
+      "questions were written for them that day — without their name — which is kept for one " +
+      "day so your family's daily question limit still works. [RETENTION PERIOD for backups " +
       'and closed accounts.]',
   },
   {

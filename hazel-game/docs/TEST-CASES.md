@@ -1234,6 +1234,16 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1331 | I | ✅ | quota | only the service role may call `begin_question_request(uuid, int, int, int, int)` (family_budget.test.sql, quota.test.sql) |
 | TC-1332 | I | ✅ | function | run locally against a stand-in: the quota call carries `p_fresh_per_family: 400` beside the per-kid 200; with 0018 missing (PGRST202) it calls again per kid, logs "FAMILY BUDGET UNAVAILABLE" and still serves fresh questions; failing both ways it never calls Claude |
 | TC-1333 | M | ⬜ | quota | after deploy, on the real project: two kids in one family play until the second sees "come back tomorrow" (or the cache) at the family's cap; `question_requests` rows carry `parent_id` |
+| TC-1371 | I | ✅ | quota | review round 1 — calls in flight hold their share: per kid 10, family 15, each call wants 6, none has recorded what it made: the kid gets 6 then 4, the brother 5 then 0, and the family's rows hold exactly 15 (the PR's first version gave every call its full allowance — 4 calls, 40 questions) (family_budget.test.sql) |
+| TC-1372 | I | ✅ | quota | the project's last 3 fresh questions are held for the call that got them: a call right behind it, from another family, gets 0 (family_budget.test.sql) — fails with the hold taken out |
+| TC-1373 | I | ✅ | quota | recording what a call really made (2 of 6) frees the rest for the family's next call; a call that wants 0 holds 0; a call without `p_fresh_wanted` (an older caller) holds nothing, as before (family_budget.test.sql) |
+| TC-1374 | I | ✅ | quota | two psql sessions, two kids of one family, calls overlapping: the second waits for the first's family lock, then sees its hold (10 then 5 against a cap of 15) — manual, on Postgres 16 |
+| TC-1375 | I | ✅ | quota | a removed kid's request rows go once a day old; their rows from today stay (they still count), and a kid still on the account keeps old rows (family_budget.test.sql) — fails with the clean-up taken out |
+| TC-1376 | I | ✅ | quota | rows logged before 0018 without a grown-up get theirs when the migration is (re-)applied over them; the re-run keeps the grants and leaves one `begin_question_request` (family_budget.test.sql, `\ir` of the migration) — fails with the backfill taken out |
+| TC-1377 | I | ✅ | quota | a project that applied the PR's first 0018 (five arguments) and then this one ends with only the six-argument function; a five-argument named call (that draft's edge function) still works — manual, on Postgres 16 |
+| TC-1378 | I | ✅ | function | run locally against a stand-in: the quota call sends `p_fresh_wanted` = the batch size; Claude failing sets the held 5 back to 0; a rich cache records the 1 it made; making exactly what was held writes nothing; without 0018 nothing is held and what's made is written as before |
+| TC-1379 | U | ✅ | privacy | the privacy notice says a removed child's count of new questions is kept, without their name, for one day, and migration 0018 deletes it once a day old (`family.test.ts`) — fails on the old wording |
+| TC-1380 | M | ⬜ | quota | after deploy, on the real project: a kid's `question_requests` row shows the batch held while questions load and what was made once they arrive; a removed kid's rows are gone a day later |
 
 ## Regression cases (tied to ISSUES.md)
 

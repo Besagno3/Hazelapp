@@ -588,9 +588,12 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Question-generator access (#88):** `generate-questions` requires a signed-in
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
   per-player calls/minute (429 over it) + per-player, per-family (migration
-  0018, B9: the kid's grown-up; a removed kid's requests stay, unlinked, so
-  what they spent still counts) and project-wide daily budgets of *fresh*
-  Claude questions. Over budget it serves the cache
+  0018, B9: the kid's grown-up; a removed kid's requests stay, unlinked, for a
+  day, so what they spent still counts) and project-wide daily budgets of
+  *fresh* Claude questions. Each call's allowance is **held** on its request
+  row (`p_fresh_wanted`, the batch size) until the function writes what it
+  really made, so calls in flight at once can't each spend the same budget.
+  Over budget it serves the cache
   (seen questions as a last resort). **The kid's id is required** (400
   without it) and the quota check **fails closed**: if it errors, the call is
   served from the cache only, never from Claude (Act I launch review B9,
@@ -806,6 +809,41 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — B9 review round 1: calls in flight hold their share, a removed kid's count goes after a day (#152)
+`/saas-code-review` of PR #67 (2 medium, 1 low), all fixed:
+- **The caps didn't hold for calls in flight (medium):** the spend was
+  written only after Claude answered, so every call that started before the
+  others finished saw the same budget left, and the family lock serialized
+  nothing that mattered (4 calls from two kids against a family cap of 15
+  got 10 each). `begin_question_request` takes a sixth argument,
+  `p_fresh_wanted` (the batch size; default null holds nothing, as before):
+  inside the family lock it holds the allowance on the request row's
+  `fresh_count`, and the function's usage write replaces it with what was
+  made — always now (0 when Claude fails), not only when something was made.
+  An unexpected error leaves the hold standing (never an unlimited bill). The
+  per-kid and project caps hold the same way. 0018 also drops the
+  five-argument version its first draft made, so no call matches two.
+- **A removed kid's rows were kept for good (medium):** the privacy notice
+  says removing a child deletes their information straight away.
+  `begin_question_request` deletes rows with no kid once they're a day old
+  (past every window; a partial index finds them; `delete` granted to the
+  service role), and the draft notice now says a count of new questions is
+  kept, without the name, for one day.
+- **The backfill had no test (low; TC-1327 said it had):**
+  `family_budget.test.sql` re-applies 0018 (`\ir`) over a row with no
+  grown-up — which also checks a re-run with data keeps the grants.
+- **Tests:** `family_budget.test.sql` (+ holds, the project's last 3, freeing
+  what wasn't made, the day-old clean-up, the backfill) — each fails with its
+  fix taken out; `family.test.ts` (the notice and the migration agree); the
+  function run against a stand-in (9 checks; 4 fail on the PR's first
+  version); two overlapping psql sessions (the second waits, then sees the
+  hold); a project with the first draft applied, then this. 1371 tests
+  green, lint + build clean, all 9 SQL tests, the migrations in order and the
+  bundle twice (also over a row with no kid) pass on Postgres 16, `deno
+  check` clean.
+- ⚠️ Deploy as before (either order). A project that applied the first draft
+  of 0018 must re-run `apply_all_migrations.sql` — `db push` skips it.
 
 ### 2026-10-16 — A question budget per family (#152)
 Act I launch review B9, the code that was left. Since #124 every kid had their

@@ -25,9 +25,11 @@
 // of FRESH questions. A login is a grown-up's family account (#124); the app
 // must name the kid playing (`profileId`, one of the caller's kids — 400
 // without it); each kid has their own budget and seen questions (migration
-// 0014), and the family's kids share a cap (migration 0018, B9). When a
-// budget is spent — or the quota check itself fails — the call is served from
-// the cache only (re-using already-seen questions if it must), so play
+// 0014), and the family's kids share a cap (migration 0018, B9). The check
+// holds the call's share until the call records what it made, so calls made
+// at once can't overspend. When a budget is spent — or the quota check itself
+// fails — the call is served from the cache only (re-using already-seen
+// questions if it must), so play
 // continues without spending more on Claude. Limits are tunable via env (see
 // QUOTA_DEFAULTS).
 //
@@ -650,6 +652,11 @@ Deno.serve(async (req) => {
   let freshAllowance = count;
   let requestId: number | null = null;
   let quotaUnavailable = false;
+  // How many fresh questions the request row already holds for this call
+  // (B9 review round 1): the quota check charges the allowance up front, so
+  // calls in flight at once can't each spend the same budget; step 4a puts
+  // what was really made in its place.
+  let held = 0;
   {
     const perKid = {
       p_profile: profileId,
@@ -657,14 +664,17 @@ Deno.serve(async (req) => {
       p_fresh_per_day: quotaSetting('FRESH_PER_PLAYER_PER_DAY'),
       p_fresh_global: quotaSetting('FRESH_GLOBAL_PER_DAY'),
     };
+    let holds = true;
     let { data: quota, error: quotaErr } = await db.rpc('begin_question_request', {
       ...perKid,
       p_fresh_per_family: quotaSetting('FRESH_PER_FAMILY_PER_DAY'),
+      p_fresh_wanted: count,
     });
     // Before migration 0018 there's no family cap to pass (the same "no such
     // function" codes as the picker's): check per kid as before, loudly.
     if (quotaErr && PICKER_MISSING.includes(quotaErr.code ?? '')) {
       console.error('FAMILY BUDGET UNAVAILABLE — checking per kid only (is migration 0018 applied?):', quotaErr.message);
+      holds = false;
       ({ data: quota, error: quotaErr } = await db.rpc('begin_question_request', perKid));
     }
     const row = Array.isArray(quota) ? quota[0] : quota;
@@ -680,6 +690,7 @@ Deno.serve(async (req) => {
     } else {
       freshAllowance = Math.max(0, Number(row.fresh_allowance) || 0);
       requestId = row.request_id ?? null;
+      if (holds) held = freshAllowance;
     }
   }
 
@@ -823,8 +834,11 @@ Deno.serve(async (req) => {
       if (rpcErr) console.error('counter update failed:', rpcErr.message);
     }
 
-    // 4a. Charge the fresh questions to the caller's daily budget (#88).
-    if (requestId !== null && fresh.length > 0) {
+    // 4a. Charge the fresh questions to the caller's daily budget (#88): what
+    //     was made replaces what the quota check held (B9) — less when the
+    //     cache covered more or Claude fell short. (An unexpected error before
+    //     here leaves the hold standing: never an unlimited bill.)
+    if (requestId !== null && fresh.length !== held) {
       const { error: usageErr } = await db
         .from('question_requests')
         .update({ fresh_count: fresh.length })

@@ -1,5 +1,5 @@
 -- CI test for migration 0009 (begin_question_request; its four-argument calls
--- reach 0018's version, whose family cap defaults to none). Run after the stub
+-- reach 0018's version, whose family cap and hold default to none). Run after the stub
 -- and every migration have been applied; any failed assertion raises and exits
 -- non-zero under `psql -v ON_ERROR_STOP=1`.
 begin;
@@ -50,11 +50,11 @@ reset role;
 -- Clients must never call it (they could burn someone else's quota).
 do $$
 begin
-  assert not has_function_privilege('anon', 'public.begin_question_request(uuid,integer,integer,integer,integer)', 'execute'),
+  assert not has_function_privilege('anon', 'public.begin_question_request(uuid,integer,integer,integer,integer,integer)', 'execute'),
     'anon must not execute begin_question_request';
-  assert not has_function_privilege('authenticated', 'public.begin_question_request(uuid,integer,integer,integer,integer)', 'execute'),
+  assert not has_function_privilege('authenticated', 'public.begin_question_request(uuid,integer,integer,integer,integer,integer)', 'execute'),
     'authenticated must not execute begin_question_request';
-  assert has_function_privilege('service_role', 'public.begin_question_request(uuid,integer,integer,integer,integer)', 'execute'),
+  assert has_function_privilege('service_role', 'public.begin_question_request(uuid,integer,integer,integer,integer,integer)', 'execute'),
     'service_role must execute begin_question_request';
 end $$;
 

@@ -1254,7 +1254,15 @@ on conflict (version) do nothing;
 --   * every request records the grown-up whose kid made it (`parent_id`);
 --   * `begin_question_request` takes a per-family daily cap as well
 --     (`p_fresh_per_family`, the kid's family = the kid's grown-up) — null
---     means no family cap, which is what a caller from before this sends.
+--     means no family cap, which is what a caller from before this sends;
+--   * it holds the call's share of the budget on the request row until the
+--     caller records what it really made (`p_fresh_wanted`, review round 1):
+--     the spend used to be written only after Claude answered, seconds later,
+--     so calls in flight at once (brothers and sisters, a burst) all saw the
+--     same budget left and could each spend it;
+--   * a removed kid's rows are deleted once a day old — they count for a day
+--     and no longer (removing a child deletes their information, the privacy
+--     notice says).
 
 -- 1) Who the request was for, kept when the kid goes.
 alter table public.question_requests
@@ -1266,6 +1274,11 @@ alter table public.question_requests add constraint question_requests_kid_fkey
   foreign key (profile_id) references public.profiles (id) on delete set null not valid;
 create index if not exists question_requests_parent_time_idx
   on public.question_requests (parent_id, requested_at desc);
+-- A removed kid's rows (profile_id null), for the day-old clean-up below.
+create index if not exists question_requests_unlinked_time_idx
+  on public.question_requests (requested_at) where profile_id is null;
+-- The clean-up runs in begin_question_request, as the service role.
+grant delete on public.question_requests to service_role;
 
 -- Requests already logged: fill in their grown-up where the kid is still here.
 update public.question_requests r
@@ -1275,16 +1288,22 @@ update public.question_requests r
    and r.parent_id is null;
 
 -- 2) The quota check, with the family's budget. The old four-argument version
---    goes; a caller that still sends four arguments gets the family cap's
---    default (none).
+--    goes (and the five-argument one an earlier draft of this file made, or
+--    a five-argument call would match two versions); a caller that still
+--    sends four arguments gets the defaults: no family cap, nothing held.
 drop function if exists public.begin_question_request(uuid, integer, integer, integer);
+drop function if exists public.begin_question_request(uuid, integer, integer, integer, integer);
 
 create or replace function public.begin_question_request(
   p_profile           uuid,
   p_max_per_minute    integer,
   p_fresh_per_day     integer,
   p_fresh_global      integer,
-  p_fresh_per_family  integer default null
+  p_fresh_per_family  integer default null,
+  -- The most fresh questions this call could use (its batch size). Given,
+  -- the allowance is held on the request row (fresh_count) until the caller
+  -- writes what it really made; null holds nothing, as before.
+  p_fresh_wanted      integer default null
 )
 returns table (allowed boolean, fresh_allowance integer, request_id bigint)
 language plpgsql
@@ -1301,8 +1320,9 @@ declare
 begin
   select parent_id into v_parent from profiles where id = p_profile;
 
-  -- One family at a time (or one kid, if it has no grown-up on record), so a
-  -- burst of calls from brothers and sisters can't all slip under the cap.
+  -- One family at a time (or one kid, if it has no grown-up on record): each
+  -- call sees the share the one before it held, so a burst of calls from
+  -- brothers and sisters can't all slip under the cap.
   perform pg_advisory_xact_lock(hashtextextended(coalesce(v_parent, p_profile)::text, 0));
 
   select count(*) into v_recent
@@ -1334,15 +1354,27 @@ begin
     v_left := least(v_left, p_fresh_per_family - v_fresh_family);
   end if;
 
-  insert into question_requests (profile_id, parent_id) values (p_profile, v_parent)
+  v_left := greatest(0, v_left);
+  if p_fresh_wanted is not null then
+    v_left := least(v_left, greatest(0, p_fresh_wanted));
+  end if;
+
+  insert into question_requests (profile_id, parent_id, fresh_count)
+  values (p_profile, v_parent, case when p_fresh_wanted is null then 0 else v_left end)
   returning id into v_id;
 
-  return query select true, greatest(0, v_left)::integer, v_id;
+  -- A removed kid's requests count for a day (every window above is a day or
+  -- less), then go.
+  delete from question_requests
+   where profile_id is null
+     and requested_at <= now() - interval '1 day';
+
+  return query select true, v_left, v_id;
 end;
 $$;
 
-revoke execute on function public.begin_question_request(uuid, integer, integer, integer, integer) from public, anon, authenticated;
-grant execute on function public.begin_question_request(uuid, integer, integer, integer, integer) to service_role;
+revoke execute on function public.begin_question_request(uuid, integer, integer, integer, integer, integer) from public, anon, authenticated;
+grant execute on function public.begin_question_request(uuid, integer, integer, integer, integer, integer) to service_role;
 
 insert into supabase_migrations.schema_migrations (version, name, statements)
 values ('0018', 'family_question_budget', array[]::text[])
