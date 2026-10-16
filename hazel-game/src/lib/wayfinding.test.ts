@@ -172,6 +172,13 @@ describe('nextObjective', () => {
     expect(goalDirections(ZONES, nextObjective(named), 'deep-root-7', undefined, named)).toBe('Climb all the way back up to the Crystal Spire, then go south-west to Remembrance Hill.');
     const canReturn = { ...named, [fieldSpellFlag('return')]: true, [visitedFlag('remembrance-hill')]: true };
     expect(goalDirections(ZONES, nextObjective(canReturn), 'deep-root-7', undefined, canReturn)).toBe('Cast 🏠 Return (📜 Menu → ✨ Field spells) and fly to Remembrance Hill.');
+    // …only when the way really climbs out past the Spire (16e code review round 3): the Door is just up the path.
+    const aurora = { kind: 'visit', title: 'x', why: '', zoneId: 'dreamroot-door' } as never;
+    expect(goalDirections(ZONES, aurora, 'memory-field', undefined, named)).toBe('Take the north path to the Dream Root Door.');
+    // A place that isn't a Return town, or no flags at all: the climb.
+    const woods = { kind: 'visit', title: 'x', why: '', zoneId: 'whispering-woods' } as never;
+    expect(goalDirections(ZONES, woods, 'deep-root-7', undefined, canReturn)).toMatch(/^Climb all the way back up to the Crystal Spire, then /);
+    expect(goalDirections(ZONES, nextObjective(named), 'nameless-hall', undefined, null)).toMatch(/^Climb all the way back up to the Crystal Spire, then /);
     expect(nextObjective(hallOpened)).toMatchObject({ kind: 'explore', zoneId: null });
     expect(nextObjective(hallOpened).why).toMatch(/^Aster is home, and Lumina remembers!/);
     // Wisp asked first: the 🚩 follows Wisp's quest, not the hello (round 3).

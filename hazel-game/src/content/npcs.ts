@@ -1564,11 +1564,13 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       "Hi! I'm Posy. I bring flowers to the Hall of Names.",
-      'Some plaques have names nobody remembers. They get flowers too.',
+      { text: 'Some plaques have names nobody remembers. They get flowers too.', unlessFlag: UMBRA_NAMED },
+      { text: 'Every plaque has a name now! This daisy is for Aster. She smiled at me!', ifFlag: UMBRA_NAMED },
       "That's the rule. I made it up!",
       { text: "I sang to the Nameless Stone today. It didn't sing back… but I think it was listening.", ifFlag: crystalFlag('words') },
     ],
     ambient: ['Daisies for the blank plaques!', '🌼'],
+    ambientIf: [{ flag: UMBRA_NAMED, lines: ['A daisy for Aster!', '🌼'] }],
   },
   'hill-merchant': {
     id: 'hill-merchant',
@@ -2001,7 +2003,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       "The fog never came here, little one, because we never stopped telling our stories. We remember everything.",
-      "You call him Umbra. That isn't his real name. We know it, but here we never say a name its owner has lost.",
+      { text: "You call that shadow Umbra. That isn't its real name. We know it, but here we never say a name its owner has lost.", unlessFlag: UMBRA_NAMED },
+      { text: 'So you found her name and gave it back! Now we can say it out loud at last: Aster.', ifFlag: UMBRA_NAMED },
     ],
   },
   // The quest board in the square (#75 item 15c): its notices change as Taleshore opens up.
@@ -2755,7 +2758,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       'I tended this garden for Aster, the very first Sage. She planted a question in every bed.',
-      "When the world forgot her, the garden forgot to grow. But you answered every seedling. One day soon, they'll wake up.",
+      { text: "When the world forgot her, the garden forgot to grow. But you answered every seedling. One day soon, they'll wake up.", unlessFlag: UMBRA_NAMED },
+      { text: '*sniff* They woke up — every bed! You said her name, and the whole garden remembered how to grow.', ifFlag: UMBRA_NAMED },
       { text: "Aster's Key opens the great door in the Nameless Hall, just south of here. Every name Lumina forgot is in there, on its blank plaques.", unlessFlag: [HALL_ROOT_SEEN, DEEP_ROOT_ENTERED, HALL_GATE_FLAG] },
     ],
   },
@@ -2787,7 +2791,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     prop: true,
-    lines: ['Blank. So many names, and all of them forgotten.'],
+    lines: [
+      { text: 'Blank. So many names, and all of them forgotten.', unlessFlag: UMBRA_NAMED },
+      { text: 'Still blank… but the stone feels warm now, as if someone is about to remember.', ifFlag: UMBRA_NAMED },
+    ],
   },
   'hall-plaque-daisy': {
     id: 'hall-plaque-daisy',
@@ -2813,7 +2820,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     lines: [
       'A great root plunges through the floor here, down into the dark. Stairs wind down beside it.',
-      { text: 'Far, far below, something hums a tune with no words. It sounds lonely. The stairs go all the way down.', setFlag: HALL_ROOT_SEEN },
+      { text: 'Far, far below, something hums a tune with no words. It sounds lonely. The stairs go all the way down.', unlessFlag: UMBRA_NAMED, setFlag: HALL_ROOT_SEEN },
+      { text: 'The great root is quiet now — warm, and faintly gold. Nobody down there is lonely any more.', ifFlag: UMBRA_NAMED, setFlag: HALL_ROOT_SEEN },
     ],
   },
   // The Root's Heart (#75 item 16d): the bottom of the Deep Root. Reaching it
@@ -3002,7 +3010,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: '🔔 *Bwong.* The Lesson Bell rings by itself… then looks a little embarrassed.', unlessFlag: stepFlag(BELL_SLATES[2]) },
       // The slates done (the last answers only after the others), the apology not yet said (16b review round 3).
       { text: '🔔 *Bwong?* The bell is trying to say something… Go and tell Monitor Prim the slates are done!', ifFlag: stepFlag(BELL_SLATES[2]), unlessFlag: questDoneFlag({ id: BELL_QUEST }) },
-      { text: '🔔 *bwong…* (very softly). It waits for the right time now.', ifFlag: questDoneFlag({ id: BELL_QUEST }) },
+      { text: '🔔 *bwong…* (very softly). It waits for the right time now.', ifFlag: questDoneFlag({ id: BELL_QUEST }), unlessFlag: UMBRA_NAMED },
+      { text: '🔔 *Bwong!* Right on time — and it doesn\'t even apologize.', ifFlag: UMBRA_NAMED },
     ],
   },
   'class-slate-1': {

@@ -19,10 +19,16 @@ export async function loadGauntlet(opts: {
   const { topics, count, age, levelFor, flavor, where } = opts;
   // One spare a topic (16e code review round 2): one topic coming back short mustn't sink the run.
   const perTopic = Math.ceil(count / topics.length) + 1;
-  const batches = await Promise.all(topics.map((t) => fetchQuestions(t, age, levelFor(t), perTopic, flavor)));
-  const pool = shuffle(batches.flat());
+  const batches = (await Promise.all(topics.map((t) => fetchQuestions(t, age, levelFor(t), perTopic, flavor)))).map((b) => shuffle(b));
+  // Fair to every topic (16e code review round 3: the spares let one topic crowd out another):
+  // each topic's share first, then any shortfall from the spares, then shuffled together.
+  const share = Math.floor(count / topics.length);
+  const extra = count % topics.length;
+  const picked = batches.flatMap((b, i) => b.slice(0, share + (i < extra ? 1 : 0)));
+  const spares = shuffle(batches.flatMap((b, i) => b.slice(share + (i < extra ? 1 : 0))));
+  const pool = [...picked, ...spares.slice(0, Math.max(0, count - picked.length))];
   if (pool.length < count) throw new Error(`only ${pool.length} of ${count} riddles came back${where ? ` ${where}` : ''}.`);
-  return pool.slice(0, count);
+  return shuffle(pool);
 }
 
 /** What a snuffed candle says: the dark creeps closer, so many left. */

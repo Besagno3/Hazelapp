@@ -817,6 +817,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16e review round 3: a fair five, a world that remembers (#75 item 16e, #147l–m)
+Fresh code (2 medium, 3 low, 4 nits) and UX (2 medium, 6 low, 4 nits)
+reviews, all fixed: the "climb out" route only when it climbs past the Spire
+(it sent the Door's way round), `loadGauntlet` fair to every topic, the panels'
+end saved at once; lines that contradicted the ending change with
+`umbra-named` (the deepest root, plaques, Posy, the Gardener, the Bell,
+Fable), Wick's letter, Lumina-That-Was's whereabouts, no Leave on "Aster…".
+1404 green.
+
 ### 2026-10-16 — 16e UX review round 2: Return home, an empty Heart (#75 item 16e, #147k)
 Fresh UX review (2 medium, 5 low, 7 nits), all fixed but two kept (the pixel
 font's apostrophe, the shared report button): the way up out of the

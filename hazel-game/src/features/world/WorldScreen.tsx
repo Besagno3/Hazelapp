@@ -962,6 +962,8 @@ export default function WorldScreen() {
             if (!xp && !flags[NAME_XP_PAID]) xp = NAME_CLEAR_XP;
             if (xp) void useProfileStore.getState().addXp(xp);
             setFlag(NAME_XP_PAID);
+            // Saved at once: the ending is when a tab gets closed (16e code review round 3).
+            void useSaveStore.getState().flush();
           }}
         />
       )}

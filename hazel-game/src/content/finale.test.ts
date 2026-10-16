@@ -60,6 +60,14 @@ describe('the Name (#75 item 16e)', () => {
     expect(npcSpriteId(NPC_DEFS['root-heart'], { [ROOT_HEART_REACHED]: true, [UMBRA_NAMED]: true })).toBe('root-heart-gold');
   });
 
+  it("after the name, nobody on the way back still says she's lost, lonely or blank (16e review round 3)", () => {
+    const after = { [NAME_LEARNED]: true, [ROOT_HEART_REACHED]: true, [UMBRA_NAMED]: true, 'hall-root-seen': true, 'quest:bell-apology:done': true };
+    for (const id of ['hall-deep-root', 'hall-plaque-1', 'hill-posy', 'garden-gardener', 'class-bell', 'port-storyteller']) {
+      const said = visibleLines(NPC_DEFS[id].lines, after).map(lineText).join(' ');
+      expect(said, id).not.toMatch(/sounds lonely|forgotten|blank plaques|nobody remembers|One day soon|has lost|waits for the right time/);
+    }
+  });
+
   it('Sage Aster is home in the Hall of Names once her name is said', () => {
     const hill = ZONES['remembrance-hill'];
     const aster = hill.npcs.find((n) => n.defId === 'hall-aster')!;

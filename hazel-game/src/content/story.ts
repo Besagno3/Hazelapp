@@ -1012,7 +1012,7 @@ export function namePanels(heroName: string): StoryPanel[] {
     },
     {
       emoji: '🌼',
-      text: `"Everyone stopped asking me things," Aster says softly. "So I forgot who I was. But you remembered, ${heroName}. Thank you."`,
+      text: `"I waited so long for someone to remember me," Aster says softly. "And you did, ${heroName}. Thank you."`,
     },
     {
       emoji: '💛',
@@ -1028,7 +1028,7 @@ export const POST_CREDITS_PANELS: StoryPanel[] = [
     text: 'Some days later, Aster visits the First Classroom and rings the Lesson Bell herself. For once, it doesn\'t even apologize.',
   },
   {
-    emoji: '🧚',
+    emoji: '🌼',
     text: '"Ask me anything!" she tells the children of Lumina-That-Was. Wisp sits on her shoulder, giggling at every single "why?".',
   },
   {

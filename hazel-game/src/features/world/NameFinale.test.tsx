@@ -44,7 +44,7 @@ function start(flags: Record<string, boolean>) {
 /** Answer Umbra's questions — `wrongAt`: the ones answered wrong. */
 async function answerAll(wrongAt: number[] = []) {
   await act(() => new Promise((r) => setTimeout(r, 260)));
-  fireEvent.click(screen.getByRole('button', { name: /Answer its questions|Try again/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Answer it|Try again/ }));
   for (let i = 0; i < NAME_QUESTIONS; i++) {
     await waitFor(() => expect(screen.getByText(`The shadow's question ${i + 1}/${NAME_QUESTIONS}`)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: wrongAt.includes(i) ? /wrong 1/ : /^right/ }));
@@ -71,6 +71,7 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
 
     // No name is focused (a stray Enter mustn't say one), and after a wrong one focus moves to Umbra's reply.
     expect(screen.getByText('"What was my name?"')).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Leave' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Lumen' }));
     expect(screen.getByRole('status')).toHaveTextContent(/That isn't my name/);
     expect(screen.getByRole('status')).toHaveFocus();
@@ -85,6 +86,8 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
     // The miss went to the Library.
     expect(useSaveStore.getState().save!.library).toHaveLength(1);
     await act(() => new Promise((r) => setTimeout(r, 260)));
+    // No grey Leave at the happy moment (16e review round 3) — before it, there is one.
+    expect(screen.queryByRole('button', { name: 'Leave' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '🌼 See what happens' }));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });

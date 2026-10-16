@@ -28,6 +28,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useFinaleStore } from '../../store/finaleStore';
 import { sendFlow } from '../../machines/gameFlow';
+import { LeaveButton } from './ServiceOverlay';
 import type { Question, Topic } from '../../types';
 
 type Phase =
@@ -221,7 +222,7 @@ export default function NameFinale() {
             onClick={begin}
             className="min-h-11 bg-violet-500 hover:bg-violet-400 font-bold rounded-xl px-6 py-3"
           >
-            🕯️ Answer its questions
+            🕯️ Answer it
           </button>
         </div>
       )}
@@ -354,6 +355,7 @@ export default function NameFinale() {
           </button>
         </div>
       )}
+      {phase.kind !== 'named' && <LeaveButton />}
     </div>
   );
 }

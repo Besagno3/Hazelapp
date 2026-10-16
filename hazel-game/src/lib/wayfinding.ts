@@ -2,7 +2,7 @@ import { HALL_GATE_FLAG, HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, gateFlag, g
 import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
-import { FIELD_SPELLS, FIELD_SPELL_IDS, RETURN_TOWNS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
+import { FIELD_SPELLS, FIELD_SPELL_IDS, RETURN_TOWNS, hasVisited, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
 import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
@@ -12,7 +12,7 @@ import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicIn
 import { bossFlag, keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
 import { ENEMY_DEFS } from '../content/enemies';
 import { ACT4_SEEN, MET_GALE, MET_ROOT_AURORA, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
-import { zoneTier, type DangerTier } from '../content/regions';
+import { REGIONS, zoneTier, type DangerTier } from '../content/regions';
 import { overworldOf } from './worldMap';
 
 /**
@@ -529,7 +529,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
           ? `Aster is home, and Lumina remembers! ${
               flags[questDoneFlag({ id: BELL_QUEST })] && flags[questDoneFlag({ id: DOG_QUEST })] && flags[questDoneFlag({ id: GARDEN_QUEST })]
                 ? 'Hunt for secrets ✨ and help everyone you meet.'
-                : 'Now help the folk of Lumina-That-Was!'
+                : 'Now help the folk of Lumina-That-Was, past Old Knot below the Crystal Spire!'
             }`
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
@@ -799,6 +799,9 @@ export function sentence(steps: string[]): string {
   return s ? `${s[0].toUpperCase()}${s.slice(1)}.` : '';
 }
 
+/** Below the Dream Root Door: Lumina-That-Was and the Deep Root (the region, not its danger tier). */
+const UNDERGROUND: ReadonlySet<ZoneId> = new Set(REGIONS.find((r) => r.id === 'lumina-that-was')?.zones ?? []);
+
 /**
  * The way to a goal from `here`, as a sentence: the route, or "It's right
  * here in Numbria!" when you're already there. Empty for a goal with nowhere
@@ -862,9 +865,12 @@ export function goalDirections(
   // Up out of the underground (Lumina-That-Was, the Deep Root) to somewhere
   // else (16e review round 2: from the Root's Heart to Remembrance Hill was a
   // six-hop, 52-word walk): Return if it's known, else the way up in one breath.
-  const under = (z: ZoneId) => zoneTier(z) === zoneTier('nameless-hall');
-  if (under(here) && !under(goal.zoneId)) {
-    if (flags && knowsFieldSpell('return', flags) && RETURN_TOWNS.includes(goal.zoneId) && flags[visitedFlag(goal.zoneId)]) {
+  // Only when the way really climbs out past the Spire (16e code review round 3:
+  // the Dream Root Door is reached from below, not by climbing round).
+  const under = (z: ZoneId) => UNDERGROUND.has(z);
+  const climbsOut = under(here) && !under(goal.zoneId) && !!routeTo(zones, here, goal.zoneId)?.some((h) => h.from === 'crystal-spire');
+  if (climbsOut) {
+    if (flags && knowsFieldSpell('return', flags) && RETURN_TOWNS.includes(goal.zoneId) && hasVisited(goal.zoneId, flags)) {
       return `Cast 🏠 Return (📜 Menu → ✨ Field spells) and fly to ${placeName(zones[goal.zoneId])}.`;
     }
     const fromSpire = routeSteps(zones, 'crystal-spire', goal.zoneId, undefined, flags, aboard) ?? [];
@@ -1041,7 +1047,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'visit' && goal.doneFlag === MET_HALL_ASTER) {
     tip = knowsFieldSpell('return', flags)
       ? 'Cast 🏠 Return (📜 Menu → ✨ Field spells) and pick Remembrance Hill. The Hall of Names has the purple roof.'
-      : "It's a long climb up from the Deep Root — rest at Keeper Aurora's on the way. The Hall of Names has the purple roof.";
+      : 'Remembrance Hill is south-west of the Crystal Spire. The Hall of Names has the purple roof.';
   } else if (goal.kind === 'visit' && goal.doneFlag === UMBRA_NAMED) {
     tip = "A wrong answer snuffs one of your three candles. Run out, and the shadow lights them again — just try once more!";
   } else if (goal.kind === 'key' && !goal.crystal) {
