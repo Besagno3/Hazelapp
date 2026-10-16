@@ -3050,7 +3050,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   // you at the Dream Root Door.
   'memory-field': {
     id: 'memory-field',
-    name: 'Lumina Field, Long Ago',
+    name: 'Old Lumina Field',
     kind: 'field',
     topics: ['history', 'science', 'math'],
     echoOf: 'lumina-village',
@@ -3103,7 +3103,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
 
   'memory-village': {
     id: 'memory-village',
-    name: 'Lumina Village, Long Ago',
+    name: 'Old Lumina Village',
     kind: 'town',
     topics: ['words', 'creativity'],
     echoOf: 'lumina-village',
@@ -3169,7 +3169,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     spawn: { x: 1, y: 9 },
     buildings: [{ id: 'first-class', name: 'The First Classroom', x: 5, y: 1, w: 12, h: 6, roof: 'red', style: 'school', sign: 'house' }],
     npcs: [
-      { defId: 'class-prim', x: 13, y: 4 },
+      { defId: 'class-prim', x: 12, y: 4 },
       { defId: 'class-bell', x: 15, y: 4 },
       // Three cells apart, so their names never run together (16b review round 1).
       { defId: 'class-slate-1', x: 7, y: 2 },

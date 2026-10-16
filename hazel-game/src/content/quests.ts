@@ -1542,7 +1542,7 @@ export const QUESTS: QuestDef[] = [
           [
             'Every history book here has a footnote that goes nowhere: \'see the First Sage\'. No page says who she was.',
             'But I know WHY she was forgotten. The questions got too hard, so people stopped asking her. Then they stopped saying her name.',
-            '✨ Four pieces! Someone below the Crystal Spire still remembers her — in Lumina-That-Was, past the Dream Root Door.',
+            '✨ Four pieces! Next: Young Wick — Grandmother Wick as a little girl! — in Lumina-That-Was, below the Dream Root Door.',
           ],
           'Ask Sage Chronicle, in the Sunken Archive, about the very first Sage.',
         ),
@@ -1631,14 +1631,14 @@ export const QUESTS: QuestDef[] = [
     requires: ACT4_SEEN,
     offer: [
       'Woof! *The dog sits on your foot and wags.*',
-      "(There's no name on its collar. Ask Young Wick, Young Lumen and Monitor Prim what they call it — in that order!)",
+      "(There's no name on its collar. Ask Young Wick, Young Lumen and Monitor Prim what they call him — in that order!)",
     ],
     steps: [
       talkStep(
         'dog-wick',
         'memory-young-wick',
         ["That dog? That's PICKLES! Because he steals pickles. Every. Single. Day."],
-        'Ask Young Wick, here in the village, what the dog is called.',
+        'Ask Young Wick, in the old village, what the dog is called.',
       ),
       {
         early: true,
@@ -1646,7 +1646,7 @@ export const QUESTS: QuestDef[] = [
         ...talkStep(
         'dog-lumen',
         'memory-young-lumen',
-        ["That's Captain! He guards the whole field. Very serious. Mostly naps."],
+        ["That's Captain! He guards the whole town. Very serious. Mostly naps."],
         'Ask Young Lumen, in the old library in the field, what the dog is called.',
         ),
       },
@@ -1936,7 +1936,16 @@ export function questConversation(npcId: string, save: SaveData): QuestConversat
   const step = quest ? activeStep(quest, save) : null;
   if (quest && !step) return completeConversation(quest);
   const through = stepConversation(npcId, save);
-  if (through) return through;
+  if (through) {
+    // Another quest's step through them comes next (Young Wick: her memory,
+    // then the dog's name) — say so, or it's easy to walk off (16b review round 2).
+    const after = through.finish && through.finishKind === 'step' ? through.finish(save) : null;
+    const next = after ? stepConversation(npcId, after) : null;
+    if (next && next.badge !== through.badge) {
+      return { ...through, lines: [...through.lines.slice(0, -1), `${through.lines[through.lines.length - 1]} (Talk again — there's more!)`] };
+    }
+    return through;
+  }
   // Their own quest's offer comes before another quest's "not yet" (16b review round 2:
   // Monitor Prim's dog line hid the Bell's Apology).
   const early = quest && step && !save.flags[questOfferedFlag(quest)] ? null : earlyConversation(npcId, save);

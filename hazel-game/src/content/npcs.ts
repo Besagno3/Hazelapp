@@ -2769,11 +2769,13 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Slate 1',
     sprite: '📝',
     spriteId: 'class-slate',
+    // Gold chalk once answered — on the map too (16b review round 2).
+    face: { flag: stepFlag('bell-slate-1'), spriteId: 'class-slate-gold', sprite: '✨' },
     role: 'villager',
     stationary: true,
     prop: true,
     lines: [
-      { text: 'A slate with a question chalked on it, half rubbed out.', unlessFlag: stepFlag('bell-slate-1') },
+      { text: 'A slate with a question chalked on it, half rubbed out. Monitor Prim keeps an eye on it.', unlessFlag: stepFlag('bell-slate-1') },
       { text: 'The chalk on this slate shines gold. ✨', ifFlag: stepFlag('bell-slate-1') },
     ],
   },
@@ -2782,11 +2784,13 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Slate 2',
     sprite: '📝',
     spriteId: 'class-slate',
+    // Gold chalk once answered — on the map too (16b review round 2).
+    face: { flag: stepFlag('bell-slate-2'), spriteId: 'class-slate-gold', sprite: '✨' },
     role: 'villager',
     stationary: true,
     prop: true,
     lines: [
-      { text: 'A slate with a question chalked on it, half rubbed out.', unlessFlag: stepFlag('bell-slate-2') },
+      { text: 'A slate with a question chalked on it, half rubbed out. Monitor Prim keeps an eye on it.', unlessFlag: stepFlag('bell-slate-2') },
       { text: 'The chalk on this slate shines gold. ✨', ifFlag: stepFlag('bell-slate-2') },
     ],
   },
@@ -2795,11 +2799,13 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Slate 3',
     sprite: '📝',
     spriteId: 'class-slate',
+    // Gold chalk once answered — on the map too (16b review round 2).
+    face: { flag: stepFlag('bell-slate-3'), spriteId: 'class-slate-gold', sprite: '✨' },
     role: 'villager',
     stationary: true,
     prop: true,
     lines: [
-      { text: 'A slate with a question chalked on it, half rubbed out.', unlessFlag: stepFlag('bell-slate-3') },
+      { text: 'A slate with a question chalked on it, half rubbed out. Monitor Prim keeps an eye on it.', unlessFlag: stepFlag('bell-slate-3') },
       { text: 'The chalk on this slate shines gold. ✨', ifFlag: stepFlag('bell-slate-3') },
     ],
   },

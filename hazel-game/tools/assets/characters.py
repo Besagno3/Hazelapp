@@ -3979,14 +3979,15 @@ def slate(c: Canvas, p: Pose, s: dict):
     d = D(c, p)
     board = hexc(s.get('board', '#2e5a3e'))
     wood = hexc(s.get('wood', '#9a6a3a'))
+    chalk = s.get('chalk', '#f4f4ec')  # gold once answered (16b review round 2)
     B = d.part(0, 0)
     B.line(11, 30, 13, 18, wood, w=1.4)  # easel legs
     B.line(21, 30, 19, 18, wood, w=1.4)
     B.rect(7, 6, 25, 20, wood)
     B.rect(8.4, 7.4, 23.6, 18.6, board, shade=False)
     for (x0, y0, x1) in ((10, 10, 18), (10, 13, 21), (10, 16, 15)):
-        B.line(x0, y0, x1, y0, '#f4f4ec', w=0.6)  # chalked lines
-    B.dot(21, 15.6, '#f4f4ec', w=2, h=2)  # a question mark's dot
+        B.line(x0, y0, x1, y0, chalk, w=0.6)  # chalked lines
+    B.dot(21, 15.6, chalk, w=2, h=2)  # a question mark's dot
     d.put(B)
     finish(c, d, shadow=(16, 30.4, 6, 1.0))
 
@@ -4472,6 +4473,7 @@ NPCS: list[Char] = [
     Char('class-prim', '📏', 'humanoid', H(hair='bun', hair_color='#2a2a3a', glasses=True, outfit='#2e5a3e', trim='#f4f0e0', robe=True, item='wand', item_color='#e0c080')),
     Char('class-bell', '🔔', 'bell'),
     Char('class-slate', '📝', 'slate'),
+    Char('class-slate-gold', '✨', 'slate', {'chalk': '#ffd23c'}),
     Char('wisp-named', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', flower_r=3.4, wings='fairy', wing_color='#fff2b0', wing_scale=1.6, outfit='#fffaf0', trim='#f0c040', robe=True)),
 ]
 # NPCs are world-only — except the ones who can join the party as battle

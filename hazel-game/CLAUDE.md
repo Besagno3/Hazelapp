@@ -798,6 +798,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16b review round 2 (UX): names apart, gold slates, "there's more" (#75 item 16b, #144j)
+Fresh UX review (2 medium, 6 low, 3 nits), all fixed: Prim no longer stands
+under the Bell's name (and a test keeps name plates apart); "Old Lumina
+Field / Village"; answered slates gold on the map (`class-slate-gold`); "(Talk
+again — there's more!)" when another quest's step through that person is
+next; Aster waits "deeper still" after the name; Young Wick's 🚩, Lumen's plan
+and tip; dog wording. Art: `build.py lumina`. 1343 green.
+
 ### 2026-10-16 — 16b review round 2 (code): Prim offers her own quest first (#75 item 16b, #144i)
 Fresh code review (1 low, 4 nits), all fixed: a giver's own offer comes
 before another quest's "not yet" (Prim's Bell's Apology was hidden by the

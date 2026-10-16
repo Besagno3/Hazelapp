@@ -87,7 +87,7 @@ DREAMROOT_SPRITES = ('root-knot', 'wisp-named', 'memory-young-wick')
 
 # Lumina-That-Was's critters and people (#75 item 16b), for `build.py lumina`.
 LUMINA_SPRITES = ('faded-echo', 'lost-sock-golem', 'misplaced-key', 'chalk-wisp', 'eraser-imp', 'sum-gremlin',
-                  'memory-young-lumen', 'memory-fair', 'memory-popcorn', 'memory-dog', 'class-prim', 'class-bell', 'class-slate')
+                  'memory-young-lumen', 'memory-fair', 'memory-popcorn', 'memory-dog', 'class-prim', 'class-bell', 'class-slate', 'class-slate-gold')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',

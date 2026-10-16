@@ -1322,6 +1322,18 @@ describe('Lumina-That-Was quests (#75 item 16b)', () => {
     expect(QUEST_BADGES['dog-badge'].name).toBe('Dog Badge');
   });
 
+  it("Young Wick says there's more when the dog's name is due too (16b review round 2)", () => {
+    const flags: Record<string, boolean> = { [ACT4_SEEN]: true, [questOfferedFlag(byId(SAY_HER_NAME_QUEST))]: true, [questOfferedFlag(byId('unnamed-dog'))]: true };
+    for (const st of byId(SAY_HER_NAME_QUEST).steps.slice(0, -1)) flags[stepFlag(st.id)] = true;
+    const save: SaveData = { ...defaultSave(), flags };
+    const first = questConversation('memory-young-wick', save)!;
+    expect(first.badge).toBe(byId(SAY_HER_NAME_QUEST).title);
+    expect(first.lines[first.lines.length - 1]).toMatch(/Talk again — there's more!/);
+    const second = questConversation('memory-young-wick', first.finish!(save))!;
+    expect(second.lines.join(' ')).toMatch(/PICKLES/);
+    expect(second.lines.join(' ')).not.toMatch(/there's more/);
+  });
+
   it('One More Name says who to ask, and Lumen and Prim say "not yet" before their turn', () => {
     const quest = byId('unnamed-dog');
     expect(quest.offer.join(' ')).toMatch(/Young Wick, Young Lumen and Monitor Prim/);

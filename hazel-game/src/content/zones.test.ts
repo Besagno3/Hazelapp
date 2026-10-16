@@ -24,6 +24,7 @@ import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
 import { NPC_DEFS, isThing, lineText, npcAmbient, npcEmoji, npcName, npcSpriteId, visibleLines } from './npcs';
+import { GENERATED_SPRITES } from './sprites.generated';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
 import { BLANK_CHART_HELD, NAME_LEARNED, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_STONES, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
@@ -1807,5 +1808,33 @@ describe('Lumina-That-Was (#75 item 16b)', () => {
     const say = visibleLines(NPC_DEFS['root-knot'].lines, {}).map(lineText).join(' ');
     expect(say).toMatch(/untangled the way down/);
     expect(say).not.toMatch(/knotted shut/);
+  });
+});
+
+describe("people's names don't overlap (16b review round 2)", () => {
+  // Name plates are ~6.5 px a letter at 11 px, plus their padding; cells are 32 px.
+  const plate = (id: string) => (NPC_DEFS[id]?.name.length ?? 0) * 6.5 + 8;
+  it('two people on one row stand far enough apart for both names', () => {
+    for (const z of Object.values(ZONES)) {
+      z.npcs.forEach((a, i) =>
+        z.npcs.slice(i + 1).forEach((b) => {
+          // One person's two spots (by story flag), or one swapped for another on
+          // the same cell (a lantern lit), are never both up.
+          if (a.y !== b.y || a.defId === b.defId || a.x === b.x) return;
+          expect(Math.abs(a.x - b.x) * 32, `${z.id}: ${a.defId} and ${b.defId}`).toBeGreaterThanOrEqual((plate(a.defId) + plate(b.defId)) / 2);
+        }),
+      );
+    }
+  });
+});
+
+describe('the slates turn gold on the map too (16b review round 2)', () => {
+  it('an answered slate draws its gold-chalk sprite', () => {
+    for (const n of [1, 2, 3]) {
+      const def = NPC_DEFS[`class-slate-${n}`];
+      expect(npcSpriteId(def, {})).toBe('class-slate');
+      expect(npcSpriteId(def, { [`quest-step:bell-slate-${n}`]: true })).toBe('class-slate-gold');
+    }
+    expect(GENERATED_SPRITES['class-slate-gold']?.world).toBeDefined();
   });
 });
