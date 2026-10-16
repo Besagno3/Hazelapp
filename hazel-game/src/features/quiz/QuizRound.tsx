@@ -106,10 +106,12 @@ export default function QuizRound() {
     // the opening rounds are the way in, not a way to level up (#122).
     // `worldUnlocked` is from before this round, so the round that opens the
     // world pays none either.
+    // Starter questions pay no XP either (#153, the owner's call).
     const bankAnswers = answers.filter((_, i) => !isStarterId(questions[i].id));
     const newLevel = nextSkillLevel(skillLevel, bankRamp(bankAnswers, answers.length));
     void setSkillLevel(topic, newLevel);
-    if (worldUnlocked) void addXp(correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
+    const bankCorrect = bankAnswers.filter(Boolean).length;
+    if (worldUnlocked && bankCorrect > 0) void addXp(bankCorrect * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
     void recordActivity();
     // Warm the next same-topic round so a replay starts instantly.
     prefetchQuestions(topic, age, newLevel, QUIZ_QUESTION_COUNT);

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import { fetchQuestions } from '../../lib/questions';
+import { isStarterId } from '../../content/starterQuestions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
@@ -83,7 +84,8 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       }
       setSolved(true);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
-      void addXp(XP_PER_CORRECT);
+      // The way still opens on a starter question, but it pays no XP (#153).
+      if (question && !isStarterId(question.id)) void addXp(XP_PER_CORRECT);
       if (target.kind === 'gate') {
         sfx('gate');
         update((s) => ({ ...s, flags: { ...s.flags, [gateFlag(target.id)]: true } }));
@@ -96,7 +98,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         update((s) => openChest(s, target.id));
       }
     },
-    [addXp, target, update],
+    [addXp, question, target, update],
   );
 
   const title =

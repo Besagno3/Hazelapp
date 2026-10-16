@@ -1250,6 +1250,9 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1390 | C | ✅ | ramp | review round 2: a quiz round of 1 bank + 4 starter questions keeps the level (3 → 3) whether the bank one is wrong (passed 4 of 5) or right (failed 1 of 5); a round of 3 bank questions, all right, and 2 starters, both wrong, still goes 3 → 5 (QuizRound.test) |
 | TC-1396 | C | ✅ | ramp | review round 2: a battle won with one right bank answer and two right starter answers (Guard, defend, Attack) saves no level change (BattleArena.test) |
 | TC-1397 | C | ✅ | speed | review round 2: five quick right bank answers trip the speed trigger and the harder batch comes back as starter questions only — the banner says "Your level goes up to 4 after this battle", never "The questions just got harder" (BattleArena.test) |
+| TC-1398 | C | ✅ | XP | the owner's call: a perfect quiz round of starter questions pays no XP; a round of two bank and three starter questions, all right, pays 2 × 10 (QuizRound.test); a battle won with one right starter answer pays the win's XP but not the answer's — 10 less than the same win on a bank question (BattleArena.test) |
+| TC-1399 | C | ✅ | XP | a right starter answer still opens a chest and pays no XP, a bank one pays 10 (PathQuestionOverlay.test); starter questions still teach a shrine's spell, with no XP, a bank one pays 10 (ShrineTrial.test); a starter question beaten again in the Library leaves the shelf, says "🌟 Beaten!" and pays none, a bank one says "+N XP — beaten!" and pays it (ServiceOverlay.test) |
+| TC-1400 | C | ✅ | XP | a Spire re-clear on starter questions pays 0 XP and its panel says nothing about XP (SpireOverlay.test); each of these TC-1398–1400 tests fails with its fix taken out |
 
 ## Regression cases (tied to ISSUES.md)
 

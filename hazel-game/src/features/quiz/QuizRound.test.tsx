@@ -36,6 +36,7 @@ const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
 const { TOPIC_NOT_READY } = await import('../../lib/questions');
+const { XP_PER_CORRECT } = await import('../../lib/level');
 
 const addXp = vi.fn();
 
@@ -180,7 +181,7 @@ describe('QuizRound — the results keep the next round\'s warm-up (#130 review)
 });
 
 describe('QuizRound — starter questions don’t move the skill level (#153 review round 1)', () => {
-  it('a perfect round of starter questions keeps the level, and still pays XP', async () => {
+  it('a perfect round of starter questions keeps the level, and pays no XP', async () => {
     start(3, true);
     const setSkillLevel = vi.fn();
     useProfileStore.setState({ setSkillLevel });
@@ -189,7 +190,8 @@ describe('QuizRound — starter questions don’t move the skill level (#153 rev
     // Six a band, the same six for levels 1–3: a child who knows them by heart
     // would otherwise climb two levels a round.
     expect(setSkillLevel).toHaveBeenCalledWith('math', 3);
-    expect(addXp).toHaveBeenCalledTimes(1);
+    // …and knowing them by heart isn't worth XP either (the owner's call).
+    expect(addXp).not.toHaveBeenCalled();
   });
 
   it('the bank questions in a mixed round still move it, on their own', async () => {
@@ -203,6 +205,14 @@ describe('QuizRound — starter questions don’t move the skill level (#153 rev
     await playRound([true, true, true, false, false]);
     await screen.findByText('Keep Trying!');
     expect(setSkillLevel).toHaveBeenCalledWith('math', 5);
+  });
+
+  it('a mixed round pays XP for its right bank answers only', async () => {
+    start(3, true);
+    // Two from the bank, three starters — every answer right.
+    hook.questions = questions.map((q, i) => (i < 2 ? q : { ...q, id: `starter-math-easy-${i + 1}` }));
+    await playPerfectRound();
+    expect(addXp).toHaveBeenCalledWith(2 * XP_PER_CORRECT);
   });
 });
 

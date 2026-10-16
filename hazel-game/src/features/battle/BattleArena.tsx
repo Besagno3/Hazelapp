@@ -956,7 +956,8 @@ export default function BattleArena() {
   // --- Battle end --------------------------------------------------------------
 
   function settleCommon() {
-    const correct = answers.filter(Boolean).length;
+    // Right answers to bank questions only: starter questions pay no XP (#153).
+    const correct = rampAnswers.current.filter(Boolean).length;
     const xp = correct * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps));
     void recordActivity();
     if (profile) {

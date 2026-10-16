@@ -611,7 +611,9 @@ zod, react-query. Add the package in the same change that first uses it.
   move the saved skill level — quiz ramp, battle ramp or speed trigger: six a
   band repeat, so knowing them isn't a level; a round or battle whose bank
   answers aren't most of its answers holds the level (`bankRamp`, `lib/age.ts`),
-  and a speed boost's harder pool takes bank questions only; they still pay XP).
+  and a speed boost's harder pool takes bank questions only; they pay no XP —
+  the owner's call — anywhere: quiz, battle answers, gates, chests, shrines,
+  the Spire, the Library; the win's and the Spire's own bonuses still pay).
 - **Questions are screened for kids (B10, #133):** three layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
@@ -816,6 +818,20 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Starter questions pay no XP (#153, the owner's call)
+Round 1 had kept XP for starter answers; the owner decided against it, so
+a child can't farm XP on the six questions a band they know by heart. A
+right starter answer now pays nothing in the quiz (`QuizRound`: bank answers
+only, no `addXp` call at 0), battles (`settleCommon` counts `rampAnswers`, the
+bank answers — the win's own XP still pays), gates, chests and riddles
+(`PathQuestionOverlay`; they still open), shrine trials (`ShrineTrial`; they
+still count toward the spell), the Spire (`recordAnswer` counts bank answers;
+the first-clear bonus still pays, and a re-clear that earned nothing drops its
+"earned ⭐ N XP") and the Library (`ServiceOverlay`: "🌟 Beaten!", no XP).
+Tests: +9 (QuizRound, BattleArena, PathQuestionOverlay, ShrineTrial,
+SpireOverlay, new ServiceOverlay.test), each failing with its fix taken out;
+1407 green, lint + build clean.
 
 ### 2026-10-16 — B5 review round 2: one bank question never decides the level, no "harder" starters (#153)
 A fresh `/saas-code-review` of #69 (1 medium, 1 low), both fixed:

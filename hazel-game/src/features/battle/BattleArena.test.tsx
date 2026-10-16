@@ -34,6 +34,7 @@ const { atTier } = await import('../../content/enemies');
 const { BOAT_MENDED } = await import('../../content/boat');
 const { heroOpening } = await import('../../lib/battleTurn');
 const { counterDamage } = await import('../../lib/battleMath');
+const { XP_PER_CORRECT } = await import('../../lib/level');
 
 const enemy = {
   id: 'count-bat',
@@ -618,6 +619,23 @@ describe('starter questions never move the saved skill level (#153 review round 
     useBattleStore.getState().reset();
     winWithOneAnswer();
     expect(setSkillLevel).not.toHaveBeenCalled();
+  });
+
+  it('a right starter answer pays no XP; the win itself still does', () => {
+    const addXp = vi.fn();
+    useProfileStore.setState({ addXp });
+    winWithOneAnswer();
+    const bankWin = addXp.mock.calls[0][0] as number;
+
+    cleanup();
+    addXp.mockClear();
+    pool.questions = [starter];
+    useBattleStore.getState().reset();
+    winWithOneAnswer();
+    const starterWin = addXp.mock.calls[0][0] as number;
+    // The same win, less the one answer's XP.
+    expect(bankWin - starterWin).toBe(XP_PER_CORRECT);
+    expect(starterWin).toBeGreaterThan(0);
   });
 
   it('five quick right starter answers don’t trip the speed trigger', () => {
