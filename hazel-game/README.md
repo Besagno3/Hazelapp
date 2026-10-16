@@ -95,7 +95,7 @@ locally before pushing.
    the limits: `QUESTION_RATE_PER_MINUTE` (default 20),
    `FRESH_PER_PLAYER_PER_DAY` (200), `FRESH_GLOBAL_PER_DAY` (5000).
 4. **Password reset:** in Authentication → URL Configuration, add the game's
-   address — your site's `/play/`, e.g. `https://<your site>/play/` — (and
+   address, `https://hazelapp-pi.vercel.app/play/` (and
    `http://localhost:5173` for dev) to **Redirect URLs** so reset emails link
    straight back to the game. The **Site URL** can stay your site's root: a
    sign-in link that lands there (an email confirmation, a reset link whose

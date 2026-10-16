@@ -834,7 +834,7 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
 #        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
 #   2. Secrets (email via Resend; Slack and Discord optional):
-supabase secrets set RESEND_API_KEY=re_… ALERT_EMAIL_TO=<you> APP_URL=https://<your site> ALERT_DIGEST_SECRET=<long random string>
+supabase secrets set RESEND_API_KEY=re_… ALERT_EMAIL_TO=<you> APP_URL=https://hazelapp-pi.vercel.app ALERT_DIGEST_SECRET=<long random string>
 supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/…
 #      ALERT_EMAIL_FROM is Resend's test sender until you verify a domain (it only delivers to the Resend account's own address).
 #   3. SQL editor, after enabling the pg_cron and pg_net extensions: the daily digest (07:45 UTC)
@@ -937,6 +937,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — The live address, and a share card that previews (#146j)
+The owner gave the production address: `https://hazelapp-pi.vercel.app`. Both
+public pages' `og:image` now name `https://hazelapp-pi.vercel.app/og.png`
+(link previews need a full URL); `build:web` copies the card to `dist/og.png`
+and checks it's there. The Redirect URLs step, `APP_URL` and the READMEs name
+the address.
+
 ### 2026-10-16 — The public pages go live at `/`, the game moves to `/play/` (#146i)
 The owner's go-ahead on #146 (b), in a draft PR.
 - **`npm run build:web`** (`scripts/build-web.mjs`): builds the game as
@@ -965,7 +972,7 @@ The owner's go-ahead on #146 (b), in a draft PR.
   `?code` and `?review` at `/` land on `/play/` with the same address; `#contact`,
   `/grown-ups.html#contact` and `?utm_source` stay. Lint, tests and build
   clean.
-- ⚠️ Owner: add `https://<your site>/play/` to Supabase → Authentication →
+- ⚠️ Owner: add `https://hazelapp-pi.vercel.app/play/` to Supabase → Authentication →
   URL Configuration → Redirect URLs (reset links then go straight to the
   game). Families' bookmarks of the old address now open the public page,
   one tap from the game; saves and sign-ins are untouched (same site).

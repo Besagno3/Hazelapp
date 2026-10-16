@@ -1259,6 +1259,7 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1404 | M | ✅ | the pages' buttons reach the game (#146i) | Play free on `/` opens Sign in at `/play/`; "Create a free family account" on the grown-ups page opens the sign-up form at `/play/` (`?signup` dropped) |
 | TC-1405 | M | ✅ | links meant for the game that land on `/` (#146i) | `/#access_token=…&type=recovery`, `/#error=access_denied&error_code=otp_expired…`, `/?code=xyz` and `/?review` each end at `/play/` with the same search and hash; `/#contact`, `/grown-ups.html#contact` and `/?utm_source=x` stay where they are |
 | TC-1406 | M | ⬜ | the live site after deploy (#146i) | on the production address: `/`, `/grown-ups.html`, `/play/` and `/play`; sign in; a password-reset email's link opens the new-password page; a family's old bookmark of the root opens the public page |
+| TC-1407 | M | ✅ | the share card (#146j) | `npm run build:web`: `dist/og.png` exists and answers 200 from a static server; both pages' `og:image` is `https://hazelapp-pi.vercel.app/og.png`. After deploy (⬜): pasting the site's address into a chat app shows the card |
 
 ## Make the Spire fairer (#150)
 

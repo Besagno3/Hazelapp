@@ -72,10 +72,11 @@ Vercel builds `npm run build:web` (`vercel.json` → `buildCommand`,
    `<meta name="hq:play-url">` (`/play/`); the grown-ups page's "Create a
    free family account" (`data-play="signup"`) adds `?signup`, which opens the
    game's sign-in page on its sign-up form. Hosting is set up (see
-   **Hosting** above); left for the owner: add `https://<your site>/play/` to
+   **Hosting** above); left for the owner: add `https://hazelapp-pi.vercel.app/play/` to
    Supabase Auth → Redirect URLs, so reset links go straight to the game.
-3. **The share image.** `og:image` must become an absolute URL once the
-   domain is known.
+3. **The share image.** `og:image` names `https://hazelapp-pi.vercel.app/og.png`
+   (`build:web` copies `assets/img/og.png` there). Change it on both pages if
+   the site moves to another domain.
 4. **Keep the claims true.** The grown-ups page promises these; check them
    whenever the code they rest on changes:
 
