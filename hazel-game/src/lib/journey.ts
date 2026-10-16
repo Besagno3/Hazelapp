@@ -318,3 +318,15 @@ export function actFourJourney(): Leg[] {
   }
   return legs;
 }
+
+/**
+ * The whole story, the Phase 5 exit (#75 item 16f): Acts I–IV played back to
+ * back from a brand-new save — every leg the 🚩 gives, in order — and the
+ * story flags once the last one is met (the Roost's flight between Acts II and
+ * III is `bench … fly`'s).
+ */
+export function fullJourney(): { legs: Leg[]; flags: Record<string, boolean> } {
+  const legs = [...actOneJourney(), ...actTwoJourney(), ...actThreeJourney(), ...actFourJourney()];
+  const last = legs.at(-1)!;
+  return { legs, flags: advanceGoal(last.goal, last.flags) };
+}

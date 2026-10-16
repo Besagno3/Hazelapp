@@ -2,14 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { LANDING_CHARS, ZONES, fogAt, darkAt, innWakeCell, tileAt, type ZoneId } from '../content/zones';
 import { RETURN_TOWNS, returnLanding } from '../content/fieldSpells';
 import { keyFlag, keyForBoss, keyForZone } from '../content/keys';
-import { actFourJourney, actOneJourney, actThreeJourney, actTwoJourney, advanceGoal, walkLeg, type BoatState, type Leg } from './journey';
+import { actFourJourney, actOneJourney, actThreeJourney, actTwoJourney, advanceGoal, fullJourney, walkLeg, type BoatState, type Leg } from './journey';
 import { BOAT_HOME, BOAT_MENDED } from '../content/boat';
 import { NPC_DEFS, visibleLines } from '../content/npcs';
 import { ACT4_SEEN, HALL_CALLED } from '../content/story';
 import { reach, touches } from './reach';
 import { nextObjective, npcHome } from './wayfinding';
 import { QUESTS, stepFlag } from '../content/quests';
-import { SAY_HER_NAME_QUEST } from '../content/questFlags';
+import { MET_HALL_ASTER, NAME_LEARNED, SAY_HER_NAME_QUEST, UMBRA_NAMED } from '../content/questFlags';
+import { EPILOGUE } from '../content/epilogue';
+import { actComplete } from '../content/topics';
 
 const legs = actOneJourney();
 
@@ -262,5 +264,35 @@ describe("Act IV so far (#75 items 16a–16d)", () => {
     expect(down.hops.map((h) => h.zoneId)).toEqual(['crystal-spire', 'dreamroot-door']);
     const fogged = { ...down.flags, [ACT4_SEEN]: false };
     expect(walkable(walkLeg(down.goal, fogged, { zoneId: 'crystal-spire', cell: ZONES['crystal-spire'].spawn }))).toBe(false);
+  });
+});
+
+describe('the whole story, start to finish (#75 item 16f, the Phase 5 exit)', () => {
+  const { legs: all, flags: end } = fullJourney();
+  it('every leg from a brand-new save to "Explore" walks, and the 🚩 always moves on', () => {
+    for (const leg of all) expect(walkable(leg), leg.goal.title).toBe(true);
+    // Each leg's goal is met before the next begins: the 🚩 never sends you back for one already done.
+    const roostSeam = actOneJourney().length + actTwoJourney().length;
+    const titles = all.map((l) => l.goal.title);
+    expect(new Set(titles).size).toBe(titles.length);
+    for (let i = 1; i < all.length; i++) {
+      // Each leg starts exactly where the last one's goal left the story — nothing lost, and
+      // nothing from nowhere but the Roost's flight between Acts II and III (`bench … fly`).
+      const after = advanceGoal(all[i - 1].goal, all[i - 1].flags);
+      const extra = Object.keys(all[i].flags).filter((f) => all[i].flags[f] && !after[f]);
+      expect(extra, `leg ${i}`).toEqual(i === roostSeam ? ['visited:dragon-roost'] : []);
+      for (const f of Object.keys(after)) expect(all[i].flags[f], `leg ${i} lost ${f}`).toBe(after[f]);
+    }
+    expect(all.length).toBeGreaterThan(40);
+  });
+  it('it ends with every act done, her name said, Sage Aster visited — and nothing left but exploring', () => {
+    for (const act of [1, 2, 3] as const) expect(actComplete(end, act), `act ${act}`).toBe(true);
+    expect(end[NAME_LEARNED] && end[UMBRA_NAMED] && end[MET_HALL_ASTER]).toBe(true);
+    expect(nextObjective(end).kind).toBe('explore');
+  });
+  it('…and at the end, every epilogue line is there to be said', () => {
+    for (const [id, text] of Object.entries(EPILOGUE)) {
+      expect(visibleLines(NPC_DEFS[id].lines, end).map((l) => (typeof l === 'string' ? l : l.text)), id).toContain(text);
+    }
   });
 });

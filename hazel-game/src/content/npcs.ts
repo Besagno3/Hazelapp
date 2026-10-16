@@ -7,6 +7,7 @@ import { handedOverFlag, questOfferedFlag } from './quests';
 import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER, MET_UMBRA_REMEMBERED, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
+import { EPILOGUE } from './epilogue';
 import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING, descentSeenFlag } from './story';
 
 /** Set once the hero has stepped onto the Deep Root's first floor (#75 item 16d): its panel has played. */
@@ -1565,7 +1566,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       "Hi! I'm Posy. I bring flowers to the Hall of Names.",
       { text: 'Some plaques have names nobody remembers. They get flowers too.', unlessFlag: UMBRA_NAMED },
-      { text: 'Every plaque has a name now! This daisy is for Aster. She smiled at me!', ifFlag: UMBRA_NAMED },
+      { text: 'Every plaque has a name now, and every name gets a flower. This daisy is for Aster!', ifFlag: UMBRA_NAMED },
       "That's the rule. I made it up!",
       { text: "I sang to the Nameless Stone today. It didn't sing back… but I think it was listening.", ifFlag: crystalFlag('words') },
     ],
@@ -2724,7 +2725,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'The great door is open? Then the stairs down are just past it, beside the deepest root.', ifFlag: HALL_GATE_FLAG, unlessFlag: [DEEP_ROOT_ENTERED, ROOT_HEART_REACHED] },
       { text: 'Back from the Deep Root? Rest a while.', ifFlag: DEEP_ROOT_ENTERED, unlessFlag: ROOT_HEART_REACHED },
       { text: 'You found where the humming comes from? Then she is close. Rest, little one.', ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
-      { text: 'Every lamp down here burns gold now. You said her name, didn\'t you? Thank you, little one.', ifFlag: UMBRA_NAMED },
+      { text: 'Every lamp down here burns gold now. Even the dark feels warm.', ifFlag: UMBRA_NAMED },
     ],
   },
   // --- Aster's Garden + the Nameless Hall (#75 item 16c) ---------------------
@@ -2973,6 +2974,11 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'WOOF! *Pickles wags so hard he falls right over.*', ifFlag: 'dog-named-pickles' },
       { text: 'Woof! *Captain stands up very straight, guarding you.*', ifFlag: 'dog-named-captain' },
       { text: 'Woof. *Sir Wigglesworth bows. Then wiggles.*', ifFlag: 'dog-named-wigglesworth' },
+      // The epilogue (#75 item 16f): the name the hero picked sticks (STORY-4X §6).
+      { text: '*Pickles drops a daisy at your feet, very proud, and wags so hard he falls over again.*', ifFlag: ['dog-named-pickles', UMBRA_NAMED] },
+      { text: '*Captain carries a daisy like a flag and marches it all the way to you.*', ifFlag: ['dog-named-captain', UMBRA_NAMED] },
+      { text: '*Sir Wigglesworth presents you with a daisy with a deep, deep bow. Then a deeper wiggle.*', ifFlag: ['dog-named-wigglesworth', UMBRA_NAMED] },
+      { text: '*The dog sniffs the warm, golden air, then runs a happy circle round you. Every name feels like his today.*', ifFlag: UMBRA_NAMED, unlessFlag: ['dog-named-pickles', 'dog-named-captain', 'dog-named-wigglesworth'] },
     ],
     // Every child in old Lumina called this dog something different (STORY-4X §6).
     ambient: ['Pickles!', 'Captain!', 'Sir Wigglesworth!', 'Woof!'],
@@ -3060,3 +3066,21 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ],
   },
 };
+
+/** A line that plays whenever `umbra-named` is set, whatever else is true. */
+export function saysAfterName(l: DialogueLine): boolean {
+  if (typeof l === 'string') return false;
+  const need = Array.isArray(l.ifFlag) ? l.ifFlag : l.ifFlag ? [l.ifFlag] : [];
+  return need.length === 1 && need[0] === UMBRA_NAMED && !l.unlessFlag;
+}
+
+// The epilogue (#75 item 16f): once her name is said, everyone has something to
+// say about it — last, after their usual lines (so a first hello, or the setup of
+// a joke it pays off, still comes first), and only once any quest of theirs is
+// done (a quest's own talk always speaks first). Someone 16e already gave a line
+// that plays whenever `umbra-named` is set keeps theirs (`saysAfterName` — the
+// form it looks for is `ifFlag: UMBRA_NAMED` with no other condition).
+for (const [id, text] of Object.entries(EPILOGUE)) {
+  const def = NPC_DEFS[id];
+  if (def && !def.lines.some(saysAfterName)) def.lines.push({ text, ifFlag: UMBRA_NAMED });
+}

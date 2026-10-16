@@ -1,0 +1,56 @@
+/** Epilogue lines (#75 item 16f): what each person says once Aster's name is said (`umbra-named`). */
+export const EPILOGUE_ACT1: Readonly<Record<string, string>> = {
+  // Numbria
+  'sage-abacus': 'Before me, before any of us, there was Aster. She taught the very first sum. Now her name is back where it belongs, and the count is right at last.',
+  'numbria-villager': 'I counted every plaque in the Hall of Names. Not one is blank! That is my favorite number: all of them.',
+  'numbria-merchant': 'A name is worth more than any potion, friend. And you gave one back for free. Not very good business. Very good heart.',
+  'numbria-tea-merchant': "I poured an extra cup today, just in case Aster drops by. A Sage who's been away so long surely likes her tea warm.",
+  'numbria-teacher': 'I wrote ASTER at the top of the chalkboard. The class asked who she was. I said: the first teacher of all. Gold stars for everyone!',
+  'numbria-kid': 'Uno says the shadow turned back into a Sage. I counted backwards to check. Three, two, one… still a Sage! Hooray for Aster!',
+  'numbria-sundial': "My shadows look friendlier today. Funny how a name, said kindly, can cheer up even a shadow.",
+  'numbria-innkeeper': 'I measured the warm feeling in town today. Twice. It is exactly the right size — and growing.',
+  'numbria-traveler': "I've walked every road, and every single one feels a little brighter. Maybe that's what remembering does. Fourth pair of boots, here I come!",
+  'woods-hermit': 'The trees finished remembering, little one. They were trying to remember her all along. Aster. The bravest answer you ever gave.',
+  'woods-sprite': "I know what I am now. I was the first little piece of Aster that got lost. Now she remembers me too. I glow all day!",
+  'woods-warden-sign': "Ha! Even an old badger like me heard the news. Aster's home. The woods smell like daisies today, sprout.",
+
+  // Verdara
+  'sage-flora': 'Seeds can wait a long time in the dark before they bloom. So did Aster. You gave her the light she needed.',
+  'verdara-villager': 'The fireflies spell out shapes at night now. Last night they spelled A-S-T-E-R! Well, almost. Fireflies are still learning.',
+  'verdara-merchant': "Even my Honey Elixir tastes sweeter today. A whole world remembering a friend? That's the best medicine there is!",
+  'verdara-seed-merchant': 'The sunflowers turned to face Remembrance Hill this morning. Not the sun — the Hill! I think they wanted to say hello to Aster.',
+  'verdara-beekeeper': 'Bzz-listen! The bees found daisies blooming everywhere. A daisy for Aster, they hum. Even bees remember now.',
+  'verdara-kid': "No more snack emergencies! The shadow is Aster again, and everybody's smiling. I'm sharing my whole stash to celebrate. Best day ever!",
+  'verdara-botanist': "Fascinating! A whole forgotten Sage, back from the roots up. I've pressed a daisy in my notebook to remember today. As if I could forget!",
+  'verdara-innkeeper': "The moss pillows feel extra soft tonight. Everyone sleeps well now that Aster is home and happy.",
+  'verdara-traveler': "I don't collect names — just buttons. But I'd trade all four hundred and twelve to hear that one said again. Aster!",
+  'depths-tinker': "Now every gear down here is humming. Machines never really forget, you know. They were so glad to hear her name again: Aster.",
+  'depths-echo': 'Aster… Aster… Aster… For once I love how my words come back. That is a name worth hearing three times.',
+  'depths-warden-sign': "Tick— tick. My springs feel lighter. The old shadow just needed somebody to remember it, friend. You did.",
+  'mine-miner': "Aster's home! I feel so brave today, I might even hum a tune down in the tunnels. …A very quiet tune.",
+
+  // Gearfall Canyon
+  'sage-cog': 'Lumina was a machine missing its very first gear. You found it. Aster turns with the rest of us now, and everything runs smooth.',
+  'gearfall-villager': 'The great engine hums a new tune — a little slower, a little sweeter. Sounds like a name to me.',
+  'gearfall-merchant': "Zero loose screws, and now zero forgotten names. Everything fastened tight, just how I like it.",
+  'gearfall-coil-merchant': "Zzzap! The whole canyon feels charged up today. Who knew remembering could fizz like that?",
+  'gearfall-inventor': 'Today I invented nothing! Instead I wrote a thank-you note to Aster. Every invention needs a first idea, and she was ours.',
+  'gearfall-clockkeeper': "Tick… tock… At dawn the Clocktower rang one extra chime, all by itself. I think it was saying her name. The first time it was ever early!",
+  'gearfall-apprentice': 'The Professor gave me THREE wrenches to celebrate! I am holding them all. Aster would be proud. I think.',
+  'gearfall-innkeeper': "Quiet as ever here, but it's a happy quiet now. The kind you get after a long, hard job is finally done.",
+  'gearfall-traveler': 'Special delivery! …For Aster, this time. A letter from everybody, saying welcome home. I checked twice. It is really not for me!',
+  'coast-fisher': 'The fish came home, the stars came home, and now the first Sage came home too. Not a single boot in my net today.',
+  'coast-stargazer': "Tonight one old question in the sky finally got its answer: Aster. Look up! The whole sky looks pleased.",
+  'coast-warden-sign': 'Psst — the tide brought in a daisy this morning. Out here, that means somebody far away got found.',
+
+  // Chromaria
+  'sage-muse': "Forgotten things fade to gray. Remembered things shine gold. Look how brightly Aster shines now — the finest art I have ever seen.",
+  'chromaria-villager': 'I painted Aster today. Then I painted her again. And again! I am going to paint her EVERYWHERE.',
+  'chromaria-merchant': 'Eight arms, and all eight waving hello to Aster! Today, a hug is on the house.',
+  'chromaria-mirror-merchant': "Look in any mirror today: everyone has a little gold in them. That is what a happy world looks like!",
+  'chromaria-curator': "A new portrait for the Grand Gallery, darling: Aster, with a daisy behind her ear. I hung it in the very best light.",
+  'chromaria-musician': 'La la LAAA! Gray was a sigh, but gold is a lullaby. I wrote it for Aster, and it ends with her name.',
+  'chromaria-kid': 'I made a statue of a kind Sage holding a daisy. I am not hiding this one. It goes right in the middle of town!',
+  'chromaria-innkeeper': 'I made a brand-new quilt, all gold. Who is it for? A Sage who was forgotten far too long. Yes, she can have two.',
+  'chromaria-traveler': "My map has a brand-new label on Remembrance Hill: 'Where Aster lives.' Not a smudge in sight!",
+};
