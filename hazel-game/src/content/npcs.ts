@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING } from './story';
@@ -2655,6 +2655,97 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         text: 'Aster. Yes… ASTER. I can see her lamp-lit face again. Thank you for remembering, for all of us.',
         ifFlag: NAME_LEARNED,
       },
+      // Aster's Garden (#75 item 16c): where to go next, once the name is back.
+      {
+        text: "She had a garden, you know — south of the old Field, past Old Knot. Its Gardener still keeps her key.",
+        ifFlag: NAME_LEARNED,
+        unlessFlag: keyFlag('asters-key'),
+      },
+    ],
+  },
+  // --- Aster's Garden + the Nameless Hall (#75 item 16c) ---------------------
+  'garden-sprout': {
+    id: 'garden-sprout',
+    name: 'Sprout',
+    sprite: '🌱',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      { text: 'Why? Why is the Gardener so grumpy? Why does he stand in the gap at the bottom of the garden?', unlessFlag: keyFlag('asters-key') },
+      { text: "He keeps Aster's Key on his belt. Why? He says some questions take years to bloom. Why do they?", unlessFlag: keyFlag('asters-key') },
+      { text: "Why are you smiling? …Oh! You have Aster's Key! Why not try it on the Nameless Hall, past the gap?", ifFlag: keyFlag('asters-key') },
+    ],
+    ambient: ['why?', 'why?!', '…why?'],
+  },
+  // The Gardener, beaten and friendly (the warden boss is `the-gardener`, enemies.ts).
+  'garden-gardener': {
+    id: 'garden-gardener',
+    name: 'The Gardener',
+    sprite: '🌱',
+    spriteId: 'the-gardener',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      'I tended this garden for Aster, the very first Sage. She planted a question in every bed.',
+      "When the world forgot her, the garden forgot to grow. But you answered every seedling. Look — they're waking up!",
+      { text: "Aster's Key opens the Nameless Hall, just south of here. Every name Lumina forgot is down there, on its blank plaques.", unlessFlag: HALL_ROOT_SEEN },
+    ],
+  },
+  'hall-plaque-1': {
+    id: 'hall-plaque-1',
+    name: 'Blank Plaque',
+    sprite: '🪧',
+    spriteId: 'hall-plaque',
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: ['A plaque with no name on it — just smooth, empty stone.'],
+  },
+  'hall-plaque-2': {
+    id: 'hall-plaque-2',
+    name: 'Blank Plaque',
+    sprite: '🪧',
+    spriteId: 'hall-plaque',
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: ['Another empty plaque. Someone, once, had a name here.'],
+  },
+  'hall-plaque-3': {
+    id: 'hall-plaque-3',
+    name: 'Blank Plaque',
+    sprite: '🪧',
+    spriteId: 'hall-plaque',
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: ['Blank. So many names, and all of them forgotten.'],
+  },
+  'hall-plaque-daisy': {
+    id: 'hall-plaque-daisy',
+    name: 'Worn Plaque',
+    sprite: '🌼',
+    spriteId: 'hall-plaque-daisy',
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: [
+      { text: 'A plaque worn smooth. Someone has carved a tiny daisy in its corner.', unlessFlag: NAME_LEARNED },
+      { text: "A plaque worn smooth, a tiny daisy in its corner. A daisy — like an aster. You think it's hers.", ifFlag: NAME_LEARNED },
+    ],
+  },
+  'hall-deep-root': {
+    id: 'hall-deep-root',
+    name: 'The Deepest Root',
+    sprite: '🌳',
+    spriteId: 'hall-deep-root',
+    role: 'villager',
+    stationary: true,
+    prop: true,
+    lines: [
+      'A great root plunges through the floor here, down into the dark.',
+      'Far, far below, something hums a tune with no words. It sounds lonely.',
+      { text: '(The roots down there are still untangling. The way down will open soon!)', setFlag: HALL_ROOT_SEEN },
     ],
   },
   'root-knot': {

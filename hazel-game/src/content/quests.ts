@@ -5,7 +5,8 @@ import { knowsFieldSpell } from './fieldSpells';
 import { ACT2_SEEN, ACT4_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
 import { crystalFlag } from './topics';
-import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, DOG_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { keyFlag } from './keys';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -58,6 +59,10 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   moonstone: { id: 'moonstone', name: 'Moonstone', emoji: '🌙' },
   'cut-moonstone': { id: 'cut-moonstone', name: 'Cut Moonstone', emoji: '💠' },
   // Fen's Forgotten Acorns (#75 item 14f): three key-item chests in Eldergrove.
+  // A Garden Rewatered (#75 item 16c): three waters in Aster's Garden's key-item chests.
+  'jar-dew': { id: 'jar-dew', name: 'Jar of Morning Dew', emoji: '💧' },
+  'jar-rain': { id: 'jar-rain', name: 'Jar of Spring Rain', emoji: '🌧️' },
+  'jar-river': { id: 'jar-river', name: 'Jar of River Water', emoji: '🌊' },
   'acorn-speckled': { id: 'acorn-speckled', name: 'Speckled Acorn', emoji: '🌰' },
   'acorn-striped': { id: 'acorn-striped', name: 'Striped Acorn', emoji: '🌰' },
   'acorn-golden': { id: 'acorn-golden', name: 'Golden Acorn', emoji: '🌰' },
@@ -1686,6 +1691,56 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { coins: 20 },
     grants: { badge: 'dog-badge' },
+  },
+
+  // --- Aster's Garden (#75 item 16c) --------------------------------------------
+
+  // Once beaten, the Gardener has a job: three waters from the garden's
+  // riddle-chests, then shoo the three weeds that keep asking "why?".
+  {
+    id: GARDEN_QUEST,
+    zoneId: 'asters-garden',
+    giverNpcId: 'garden-gardener',
+    side: true,
+    title: 'A Garden Rewatered',
+    requires: keyFlag('asters-key'),
+    offer: [
+      "Thank you for answering my seedlings. I'd forgotten how good that feels.",
+      "These beds haven't been watered since the fog came. I need three waters — morning dew, spring rain and river water. They're in the garden's chests.",
+      'And three weeds keep asking "why?" without waiting for an answer. Shoo them for me, would you?',
+    ],
+    steps: [
+      haveStep(
+        'garden-waters',
+        [
+          { items: ['jar-dew'], label: 'the 💧 Morning Dew' },
+          { items: ['jar-rain'], label: 'the 🌧️ Spring Rain' },
+          { items: ['jar-river'], label: 'the 🌊 River Water' },
+        ],
+        "Find the three waters in Aster's Garden's riddle-chests.",
+      ),
+      defeatStep(
+        'garden-weeds',
+        [
+          { defId: 'thorn-of-doubt', label: 'the Thorn of Doubt' },
+          { defId: 'wilt-sprite', label: 'the Wilt Sprite' },
+          { defId: 'bramblewhy', label: 'the Bramblewhy' },
+        ],
+        "Now shoo the three weeds in Aster's Garden that keep asking why!",
+      ),
+    ],
+    foundNote: (save) => {
+      const left = ['jar-dew', 'jar-rain', 'jar-river'].filter((i) => !save.questItems.includes(i)).length;
+      return left === 0 ? "🌱 That's all three waters! Now shoo the three weeds." : `🌱 ${left === 1 ? 'One more water' : 'Two more waters'} for the Gardener!`;
+    },
+    doneLine: "Go back to the Gardener, by the gap at the bottom of Aster's Garden.",
+    takesItems: ['jar-dew', 'jar-rain', 'jar-river'],
+    complete: [
+      '*He tips the three jars over the beds. Every seedling stands up a little taller.*',
+      'Some questions take years to bloom. Water them anyway. That is what she always said.',
+      '✨ Reward: 50 coins and a Berry Potion!',
+    ],
+    reward: { coins: 50, potion: 1 },
   },
 
   // --- Item chains (#75 item 13) ----------------------------------------------

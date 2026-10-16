@@ -24,6 +24,7 @@ Regenerate every 16-bit asset the game ships:
     python3 tools/assets/build.py isles      # only Taleshore I: three places' tiles, the kite sheet, icons, critters, people (#75 item 15d)
     python3 tools/assets/build.py chart      # only Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
     python3 tools/assets/build.py lumina     # only Lumina-That-Was: three zones' tiles, the school sheet, critters, people (#75 item 16b)
+    python3 tools/assets/build.py garden     # only Aster's Garden + the Nameless Hall: tiles, critters, the Gardener, plaques, the deep root (#75 item 16c)
     python3 tools/assets/build.py dreamroot  # only the Dream Root Door: its tiles, the root sheet, Old Knot, Young Wick and Wisp's new face (#75 item 16a)
     python3 tools/assets/build.py chorus     # only Chorus Isle: tiles, the chorus sheet, its icon, the Hush Fiend, its people, Radiant Ember (#75 item 15g)
     python3 tools/assets/build.py cliffs     # only Taleshore III: Songstone Cliffs + the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
@@ -88,6 +89,9 @@ DREAMROOT_SPRITES = ('root-knot', 'wisp-named', 'memory-young-wick')
 # Lumina-That-Was's critters and people (#75 item 16b), for `build.py lumina`.
 LUMINA_SPRITES = ('faded-echo', 'lost-sock-golem', 'misplaced-key', 'chalk-wisp', 'eraser-imp', 'sum-gremlin',
                   'memory-young-lumen', 'memory-fair', 'memory-popcorn', 'memory-dog', 'class-prim', 'class-bell', 'class-slate', 'class-slate-gold')
+
+# Aster's Garden and the Nameless Hall (#75 item 16c), for `build.py garden`.
+GARDEN_SPRITES = ('thorn-of-doubt', 'wilt-sprite', 'bramblewhy', 'the-gardener', 'garden-sprout', 'hall-plaque', 'hall-plaque-daisy', 'hall-deep-root')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.
 ARCHIVE_SPRITES = ('dust-tome', 'ink-wisp', 'quill-imp', 'hollow-fiend', 'sage-chronicle', 'archive-index', 'archive-binder',
@@ -184,6 +188,12 @@ def main():
         write_manifest(build_sprites.build(PUBLIC, only=set(LUMINA_SPRITES)))
         tiles.build_lumina(PUBLIC)
         print('lumina ✓')
+        return
+    if 'garden' in only:
+        # Just Aster's Garden and the Nameless Hall (#75 item 16c): tiles, critters, the Gardener and the Hall's things.
+        write_manifest(build_sprites.build(PUBLIC, only=set(GARDEN_SPRITES)))
+        tiles.build_garden(PUBLIC)
+        print('garden ✓')
         return
     if 'dreamroot' in only:
         # Just the Dream Root Door (#75 item 16a): its tiles, Old Knot and Wisp's new face.

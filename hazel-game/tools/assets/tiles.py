@@ -132,6 +132,14 @@ ZONES = {
                            sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
     'first-classroom': dict(golden=True, ground=(164, 168, 104), path=(214, 192, 150), solid='tree', deco='flower', deco_c='#ffffff',
                             sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
+    # Aster's Garden (#75 item 16c): her old garden, gone wild and dry in the same
+    # golden light — straw-gold grass, hedge walls, a few last roses.
+    'asters-garden': dict(golden=True, ground=(170, 160, 92), path=(214, 186, 132), solid='hedge', deco='flower', deco_c='#ff8aa0',
+                          sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='tree', water='#5aa0c8'),
+    # The Nameless Hall (#75 item 16c): a pale stone hall under the garden, its
+    # plaques blank — white pillars, candles, a dim violet hush.
+    'nameless-hall': dict(ground=(150, 142, 160), path=(196, 188, 206), solid='pillar', deco='candle', deco_c='#ffd24a',
+                          sky=('#1a1626', '#3a3248'), far='#2a2436', mid='mountain', water='#4a5a9a', cave=True),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -178,6 +186,9 @@ DREAMROOT_ZONES = ('dreamroot-door',)
 
 # Added with Lumina-That-Was (#75 item 16b) — `build_lumina` writes only these (+ the school sheet).
 LUMINA_ZONES = ('memory-field', 'memory-village', 'first-classroom')
+
+# Added with Aster's Garden (#75 item 16c) — `build_garden` writes only these.
+GARDEN_ZONES = ('asters-garden', 'nameless-hall')
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -1682,6 +1693,18 @@ def build_lumina(public: Path):
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('school')]).save(tdir / 'town-school.png', optimize=True)
+
+
+def build_garden(public: Path):
+    """Write only Aster's Garden and the Nameless Hall's art (#75 item 16c): their
+    tilesets, blend sheets and backdrops."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in GARDEN_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
 
 
 def quest_board():

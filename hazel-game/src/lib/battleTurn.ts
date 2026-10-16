@@ -226,6 +226,8 @@ const POWER_MOVE_NAMES: Record<string, string> = {
   'clockwork-titan': 'Gear Grinder',
   // Act II (#75 item 14f).
   ringkeeper: 'Thousand-Year Charge',
+  // Aster's Garden's warden (#75 item 16c): a storm from his watering can.
+  'the-gardener': 'Downpour of Questions',
   // Foglight Marsh's miniboss (#75 item 14g): a wave of fog that makes you forget.
   'last-fogbank': 'Forgetting Fog',
   // The Sunken Archive's Fiend (#75 item 14h): it swallows whole years.

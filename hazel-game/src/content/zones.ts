@@ -83,6 +83,11 @@ export const ZONE_IDS = [
   'memory-field',
   'memory-village',
   'first-classroom',
+  // Act IV (#75 item 16c): Aster's own garden, south of the old Field — its
+  // Gardener keeps Aster's Key — and the Nameless Hall below it, whose great
+  // door opens the way down.
+  'asters-garden',
+  'nameless-hall',
 ] as const;
 
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -549,6 +554,9 @@ const BRUME_WANTS = "🏮 Lightkeeper Brume, by the lamp-house in the Marsh's we
 
 /** Who wants an acorn found in Eldergrove before her quest is offered (#75 item 14f). */
 const FEN_WANTS = "🧺 Fen the Forager, by her hollow in the grove's north-west, has lost her three best acorns!";
+// Who wants the garden's three waters (#75 item 16c, "A Garden Rewatered"): the
+// Gardener, once he's beaten and friendly again.
+const GARDENER_WANTS = "🌱 Aster's old Gardener, at the bottom of the garden, needs this for his seedlings — once he's in a better mood!";
 
 export const ZONES: Record<ZoneId, ZoneDef> = {
   numbria: {
@@ -3068,7 +3076,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#.WFFFFFW==....~~~~..#',
       '##WWWDWWW==.##.....#.#',
       '#....=...==......,...#',
-      '######################',
+      '#########EE###########',
     ],
     ground: [176, 172, 96],
     path: [226, 196, 140],
@@ -3097,6 +3105,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 0, y: 6, to: 'memory-village', spawnX: 20, spawnY: 6 },
       { x: 21, y: 5, to: 'first-classroom', spawnX: 1, spawnY: 9 },
       { x: 21, y: 6, to: 'first-classroom', spawnX: 1, spawnY: 10 },
+      // South down the path to Aster's Garden (#75 item 16c).
+      { x: 9, y: 13, to: 'asters-garden', spawnX: 9, spawnY: 1 },
+      { x: 10, y: 13, to: 'asters-garden', spawnX: 10, spawnY: 1 },
     ],
     shelterIn: 'dreamroot-door',
   },
@@ -3184,6 +3195,112 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     exits: [
       { x: 0, y: 9, to: 'memory-field', spawnX: 20, spawnY: 5 },
       { x: 0, y: 10, to: 'memory-field', spawnX: 20, spawnY: 6 },
+    ],
+    shelterIn: 'dreamroot-door',
+  },
+
+  // Aster's Garden (#75 item 16c): the first Sage's own garden, south of the
+  // old Field — question-seedlings in golden beds. Its Gardener (the warden)
+  // stands in the gap in the hedge at the bottom, guarding Aster's Key and
+  // the way on to the Nameless Hall; beaten, he's a friendly old gardener
+  // with a job for you. Three weeds that won't stop asking "why?" mend
+  // themselves (healers).
+  'asters-garden': {
+    id: 'asters-garden',
+    name: "Aster's Garden",
+    kind: 'field',
+    topics: ['nature', 'science', 'creativity'],
+    map: [
+      '#########EE###########',
+      '#..,.....==.....,....#',
+      '#.~~~....==..##...C..#',
+      '#.~~~....==..........#',
+      '#...,....==....,.....#',
+      '#..##....==.....##...#',
+      '#.C......==..........#',
+      '#.....,..==...~~~~...#',
+      '#........==...~~~~.,.#',
+      '#..,.....==......C...#',
+      '#########..###########',
+      '#...,....==.....,....#',
+      '#........==..........#',
+      '#########EE###########',
+    ],
+    ground: [168, 178, 92],
+    path: [222, 198, 142],
+    solidEmoji: '🌳',
+    decoEmoji: '🌼',
+    spawn: { x: 9, y: 1 },
+    npcs: [
+      { defId: 'garden-sprout', x: 12, y: 1 },
+      // Beaten, the Gardener steps out of the gap and tends his beds beside it.
+      { defId: 'garden-gardener', x: 7, y: 9, ifFlag: 'key-asters-key' /* keyFlag('asters-key') */ },
+    ],
+    enemies: [
+      { defId: 'thorn-of-doubt', x: 4, y: 7 },
+      { defId: 'wilt-sprite', x: 14, y: 3 },
+      { defId: 'bramblewhy', x: 13, y: 8 },
+      // In the gap in the hedge, guarding the way on to the Nameless Hall.
+      { defId: 'the-gardener', x: 9, y: 10 },
+    ],
+    // The three waters for "A Garden Rewatered", each in a riddle-chest.
+    keyChests: [
+      { x: 18, y: 2, item: 'jar-dew', wantedBy: GARDENER_WANTS },
+      { x: 2, y: 6, item: 'jar-rain', wantedBy: GARDENER_WANTS },
+      { x: 17, y: 9, item: 'jar-river', wantedBy: GARDENER_WANTS },
+    ],
+    exits: [
+      { x: 9, y: 0, to: 'memory-field', spawnX: 9, spawnY: 12 },
+      { x: 10, y: 0, to: 'memory-field', spawnX: 10, spawnY: 12 },
+      { x: 9, y: 13, to: 'nameless-hall', spawnX: 9, spawnY: 1 },
+      { x: 10, y: 13, to: 'nameless-hall', spawnX: 10, spawnY: 1 },
+    ],
+    shelterIn: 'dreamroot-door',
+  },
+
+  // The Nameless Hall (#75 item 16c): a hall of blank plaques under the
+  // garden — every name Lumina forgot. One plaque has a daisy carved in its
+  // corner. Aster's Key opens its great door; past it, a root plunges down
+  // into the dark — the way down (the descent, 16d). Safe: no critters.
+  'nameless-hall': {
+    id: 'nameless-hall',
+    name: 'Nameless Hall',
+    the: true,
+    kind: 'shrine',
+    map: [
+      '#########EE###########',
+      '#........==.......S..#',
+      '#.#...#..==..#...#...#',
+      '#........==..........#',
+      '#..,.....==.....,....#',
+      '#.#...#..==..#...#...#',
+      '#........==..........#',
+      '#........==..........#',
+      '#########GG###########',
+      '#....#...==...#......#',
+      '#..,.....==.......,..#',
+      '#....................#',
+      '#....#..........#....#',
+      '######################',
+    ],
+    ground: [128, 120, 140],
+    path: [184, 172, 196],
+    solidEmoji: '🏛️',
+    decoEmoji: '🕯️',
+    spawn: { x: 9, y: 1 },
+    npcs: [
+      { defId: 'hall-plaque-1', x: 4, y: 3 },
+      { defId: 'hall-plaque-2', x: 16, y: 3 },
+      { defId: 'hall-plaque-3', x: 4, y: 6 },
+      { defId: 'hall-plaque-daisy', x: 16, y: 6 },
+      { defId: 'hall-deep-root', x: 10, y: 11 },
+    ],
+    enemies: [],
+    // Aster's Key, won from the Gardener, opens it (#58's key gates).
+    keyGate: { x: 9, y: 8 },
+    exits: [
+      { x: 9, y: 0, to: 'asters-garden', spawnX: 9, spawnY: 12 },
+      { x: 10, y: 0, to: 'asters-garden', spawnX: 10, spawnY: 12 },
     ],
     shelterIn: 'dreamroot-door',
   },

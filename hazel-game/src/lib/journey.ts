@@ -294,9 +294,14 @@ export function actFourJourney(): Leg[] {
     if (legs.length >= 12) throw new Error('Act IV never ends');
     const target = goalTarget(goal);
     // Down the stairs: walked from the Spire's grounds, where they are; and
-    // Young Wick from the Door, down past Old Knot (16b review round 3).
+    // anywhere below the Door (Young Wick, Aster's Garden, the Nameless Hall)
+    // from the Door, down past Old Knot (16b review round 3, #75 item 16c).
     const start =
-      target.zoneId === 'dreamroot-door' && !goal.quest ? 'crystal-spire' : goal.npc === 'memory-young-wick' ? 'dreamroot-door' : target.zoneId;
+      target.zoneId === 'dreamroot-door' && !goal.quest
+        ? 'crystal-spire'
+        : ZONES[target.zoneId].shelterIn === 'dreamroot-door'
+          ? 'dreamroot-door'
+          : target.zoneId;
     legs.push(walkLeg(goal, flags, { zoneId: start, cell: ZONES[start].spawn }));
     flags = advanceGoal(goal, flags);
   }

@@ -230,6 +230,15 @@ def draw_item(L: Canvas, item: str, hx: float, hy: float, arm: str, col=None):
     elif item == 'broom':
         L.line(hx - ca * 4, hy - sa * 4, hx + ca * 9, hy + sa * 9, '#8a5a30', w=1.2)
         L.ellipse(hx - ca * 6, hy - sa * 6, 2.6, 2.0, '#d8b050')
+    elif item == 'can':
+        # The Gardener's watering can (#75 item 16c): a round green can with a long spout and a sprinkle.
+        cx, cy = hx + 2.6, hy + 1.6
+        L.ellipse(cx, cy, 3.4, 2.8, col or '#4a9a5a')
+        L.line(cx + 2.4, cy - 0.4, cx + 6.4, cy - 3.6, col or '#4a9a5a', w=1.0)
+        L.ellipse(cx + 6.8, cy - 3.9, 1.0, 0.8, '#c8d8e0')
+        L.line(cx - 2, cy - 2.6, cx + 1.6, cy - 3.6, dark(hexc(col or '#4a9a5a'), 0.3), w=0.7)
+        for (dx, dy) in ((8.2, -2.2), (8.8, 0), (7.6, 1.2)):
+            L.dot(cx + dx, cy + dy, '#8ad0ff')
     elif item == 'violin':
         # Maestro Brio's (#75 item 15g): a little fiddle tucked under the arm, and its bow.
         L.ellipse(hx + 2, hy - 1, 2.6, 3.4, col or '#b0602a')
@@ -3686,6 +3695,17 @@ def nameless_stone(c: Canvas, p: Pose, s: dict):
         L.ellipse(16, 21.5, 2.4, 2.8, '#2a2a34', shade=False)
         L.line(11.4, 12.4, 14.4, 12.8, dark(col, 0.4), w=0.6)
         L.line(17.6, 12.8, 20.6, 12.4, dark(col, 0.4), w=0.6)
+    elif s.get('plaque'):
+        # A plaque in the Nameless Hall (#75 item 16c): a smooth slab with nothing
+        # carved on it at all — or, the last one, a single daisy.
+        L.rect(11, 15, 21, 26, light(col, 0.08), shade=False)
+        L.rect(11, 15, 21, 15.6, dark(col, 0.2), shade=False)
+        if s.get('daisy'):
+            for k in range(6):
+                a = k * math.pi / 3
+                L.ellipse(16 + math.cos(a) * 2.4, 20 + math.sin(a) * 2.4, 1.4, 1.0, '#ffffff', rot=a, shade=False)
+            L.ellipse(16, 20, 1.2, 1.2, '#f0c030', shade=False)
+            L.line(16, 22.6, 16, 25.4, '#5aa04a', w=0.6)
     elif s.get('tale'):
         # A tale-stone (#75 item 15e): lines of words carved down its face — gold once it glows.
         ink = s.get('glow') or dark(col, 0.35)
@@ -4037,7 +4057,139 @@ def popcorn_cart(c: Canvas, p: Pose, s: dict):
     finish(c, d, shadow=(16, 30.6, 10, 1.0))
 
 
+def thorn_ball(c: Canvas, p: Pose, s: dict):
+    """A Thorn of Doubt (#75 item 16c): a round green bramble-ball bristling
+    with thorns, a worried frown — it's never sure of anything."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#5a8a3a'))
+    hop = (-1.2 if p.frame % 2 else 0.0)
+    B = d.part(d.lean, d.bob + hop)
+    for k in range(10):
+        a = k * math.pi / 5 + (0.3 if p.frame % 2 else 0.0)
+        x0, y0 = 16 + math.cos(a) * 6.4, 19 + math.sin(a) * 6.4
+        B.poly([(x0 - math.sin(a) * 1.6, y0 + math.cos(a) * 1.6), (16 + math.cos(a) * 10.4, 19 + math.sin(a) * 10.4),
+                (x0 + math.sin(a) * 1.6, y0 - math.cos(a) * 1.6)], dark(col, 0.25))
+    B.ellipse(16, 19, 7, 7, col)
+    B.ellipse(13.4, 16.4, 2, 1.4, light(col, 0.3), shade=False)
+    d.put(B)
+    if p.facing != 'up':
+        ex = face_x(p, [17, 20.4], [13.6, 18.4])
+        d.eyes(B, [(x, 18.6) for x in ex])
+        if ex and d.sep and not p.hurt:
+            for x in ex:
+                B.line(x - 1.4, 16, x + 1.2, 16.8 if x < 16 else 15.2, dark(col, 0.55), w=0.5)  # worried brows
+            mx = sum(ex) / len(ex)
+            B.line(mx - 1.6, 22.6, mx + 1.6, 22.2, dark(col, 0.55), w=0.6)
+    finish(c, d, shadow=(16, 30.2, 7, 1.1))
+
+
+def wilt_flower(c: Canvas, p: Pose, s: dict):
+    """A Wilt Sprite (#75 item 16c): a thirsty flower on a bent stem, its pink
+    petals drooping, two leaves for arms — perks up a little on every hop."""
+    d = D(c, p)
+    petal = hexc(s.get('color', '#d87a9a'))
+    stem = hexc(s.get('stem', '#7a9a4a'))
+    perk = 1.0 if p.frame % 2 else 0.0
+    S = d.part(d.lean * 0.4, 0)
+    S.line(16, 29.6, 16.6, 20, stem, w=1.6)
+    S.line(16.6, 20, 19.4 - perk, 13.6 + perk, stem, w=1.6)  # the bend
+    S.ellipse(12.4, 23.4, 3.2, 1.4, stem, rot=0.5)
+    S.ellipse(20.4, 24.4, 3.2, 1.4, stem, rot=-0.5)
+    d.put(S)
+    hx, hy = 20 - perk, 13 + perk * 0.6
+    F = d.part(d.lean, d.bob)
+    for k in range(6):
+        a = k * math.pi / 3 + 0.5
+        F.ellipse(hx + math.cos(a) * 4.4, hy + math.sin(a) * 3.2 + 1.2, 2.6, 1.8, petal, rot=a)
+    F.ellipse(hx, hy, 3.2, 3.0, '#e8c040')
+    d.put(F)
+    if p.facing != 'up':
+        ex = face_x(p, [hx + 0.4, hx + 2.4], [hx - 1.2, hx + 1.2])
+        d.eyes(F, [(x, hy + 0.4) for x in ex], h=1 if not d.sep else 2)
+    finish(c, d, shadow=(16, 30.4, 5, 1.0))
+
+
+def bramble(c: Canvas, p: Pose, s: dict):
+    """A Bramblewhy (#75 item 16c): a tangle of thorny vines that curls up into
+    a big question mark, a wide-eyed face at the hook — it asks "why?" of everything."""
+    d = D(c, p)
+    col = hexc(s.get('color', '#6a7a3a'))
+    berry = s.get('berry', '#8a3ac8')
+    sway = 0.6 if p.frame % 2 else -0.6
+    R = d.part(0, 0)
+    R.ellipse(16, 27.6, 8, 2.6, dark(col, 0.2))
+    for (x0, x1) in ((9, 12), (23, 20)):
+        R.line(x0, 29, x1, 25, col, w=1.4)
+    d.put(R)
+    Q = d.part(d.lean + sway, d.bob)
+    # the question mark: a hook on top, a stalk, and a dot of a berry below the knot
+    pts = [(13, 11), (13.4, 7.4), (16, 5.4), (19.4, 6.2), (21, 9.4), (20, 12.6), (17, 15), (16, 18), (16, 22)]
+    for (a, b) in zip(pts, pts[1:]):
+        Q.line(a[0], a[1], b[0], b[1], col, w=3.2)
+    for (x, y) in ((14, 8.6), (19.6, 7), (20.6, 11.6), (15.4, 17.6), (16.8, 21)):
+        Q.dot(x + 1.2, y - 0.6, light(col, 0.35))  # thorns
+    Q.ellipse(16, 25.2, 2.2, 2.0, berry)
+    d.put(Q)
+    if p.facing != 'up':
+        d.eyes(Q, [(17.4, 8.8), (19.6, 9.6)] if p.facing == 'side' else [(15.4, 8.4), (18.6, 8.4)])
+    finish(c, d, shadow=(16, 30.4, 7, 1.0))
+
+
+def sprout(c: Canvas, p: Pose, s: dict):
+    """A Garden Sprout (#75 item 16c): a tiny seedling in a clay pot, two round
+    leaves held up like hands, always asking "why?"."""
+    d = D(c, p)
+    leaf = hexc(s.get('color', '#7ac85a'))
+    hop = (-1.0 if p.frame % 2 else 0.0)
+    P = d.part(d.lean * 0.4, d.bob + hop)
+    P.poly([(11, 21), (21, 21), (19.6, 29.6), (12.4, 29.6)], '#c8703a')
+    P.rect(10.4, 20, 21.6, 22.4, '#d8844a')
+    d.put(P)
+    L = d.part(d.lean, d.bob + hop)
+    L.line(16, 20.4, 16, 13.4, dark(leaf, 0.2), w=1.4)
+    lift = 1.2 if p.frame % 2 else 0.0
+    L.ellipse(11.4, 11.4 - lift, 4.2, 2.6, leaf, rot=-0.5)
+    L.ellipse(20.6, 11.4 - lift, 4.2, 2.6, leaf, rot=0.5)
+    L.ellipse(16, 15.8, 3.6, 3.0, light(leaf, 0.15))  # a little round face on the stem
+    d.put(L)
+    if p.facing != 'up':
+        ex = face_x(p, [16.4, 18.4], [14.6, 17.4])
+        d.eyes(L, [(x, 15.6) for x in ex], h=1 if not d.sep else 2)
+    finish(c, d, shadow=(16, 30.4, 5, 1.0))
+
+
+def hall_root(c: Canvas, p: Pose, s: dict):
+    """The deep root in the Nameless Hall's floor (#75 item 16c): a hole in the
+    flagstones, thick old roots knotted across it — not a face, just a way
+    down that isn't open yet, a faint violet glow below."""
+    d = D(c, p)
+    bark = hexc(s.get('bark', '#5a3a28'))
+    glow = s.get('glow', '#b89aff')
+    pulse = 0.4 if p.frame % 2 else 0.0
+    H = d.part(0, 0)
+    H.ellipse(16, 22, 11.4, 6.4, '#4a4458')
+    H.ellipse(16, 22.4, 9.6, 5.0, '#140e1e', shade=False)
+    H.ellipse(16, 23.6, 5 + pulse, 2.2 + pulse * 0.5, glow, shade=False)
+    d.put(H, outline=False)
+    R = d.part(0, 0)
+    for (x0, y0, x1, y1) in ((4.6, 19, 26, 25.6), (6, 25.6, 27.4, 19.4), (10, 16.6, 13, 28), (22, 16.6, 19, 28)):
+        R.line(x0, y0, x1, y1, bark, w=2.0)
+    for (x, y) in ((4.6, 19), (27.4, 19.4), (10, 16.6), (22, 16.6)):
+        R.ellipse(x, y, 1.4, 1.2, dark(bark, 0.2))
+    if d.sep:
+        for (x, y) in ((11, 21.8), (20.4, 22.6), (16, 20.8)):
+            R.dot(x, y, light(bark, 0.25))
+    d.put(R)
+    finish(c, d, shadow=None)
+
+
+
 DRAWERS = {
+    'thorn_ball': thorn_ball,
+    'wilt_flower': wilt_flower,
+    'bramble': bramble,
+    'sprout': sprout,
+    'hall_root': hall_root,
     'dog': dog,
     'key_critter': key_critter,
     'sock': sock,
@@ -4288,6 +4440,14 @@ ROSTER: list[Char] = [
     Char('hushling', '🤫', 'ghost', H(color='#a8c8f0', eye='#2a3a5a', hush=True)),
     Char('muffle-moth', '🦋', 'flyer', H(kind='moth', color='#6a5a4a', wing='#fbf4e4', spot='#d8c8a8', scarf=True)),
     Char('blank-sprite', '⬜', 'blank_sprite', H(color='#f4f4f0')),
+    # ── Act IV: Aster's Garden (#75 item 16c) ──
+    Char('thorn-of-doubt', '🌵', 'thorn_ball', H(color='#5a8a3a')),
+    Char('wilt-sprite', '🥀', 'wilt_flower', H(color='#d87a9a')),
+    Char('bramblewhy', '❓', 'bramble', H(color='#6a7a3a')),
+    # The Gardener: Aster's old gardener, cross from so long alone — a straw hat,
+    # a green smock and apron, a grey beard and a watering can.
+    Char('the-gardener', '🧑‍🌾', 'humanoid', H(hair='short', hair_color='#b8b8b8', beard='#d8d8d8', hat='straw', hat_color='#e0c060',
+         outfit='#4a7a3a', apron='#c8a878', trim='#f0d890', pants='#5a4a3a', item='can', item_color='#3a8a8a'), boss=True),
 ]
 
 NPCS: list[Char] = [
@@ -4475,6 +4635,11 @@ NPCS: list[Char] = [
     Char('class-slate', '📝', 'slate'),
     Char('class-slate-gold', '✨', 'slate', {'chalk': '#ffd23c'}),
     Char('wisp-named', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', flower_r=3.4, wings='fairy', wing_color='#fff2b0', wing_scale=1.6, outfit='#fffaf0', trim='#f0c040', robe=True)),
+    # ── Act IV: Aster's Garden and the Nameless Hall (#75 item 16c) ──
+    Char('garden-sprout', '🌱', 'sprout', H(color='#7ac85a')),
+    Char('hall-plaque', '🪧', 'nameless_stone', H(color='#c8c0b0', plaque=True)),
+    Char('hall-plaque-daisy', '🌼', 'nameless_stone', H(color='#d8d0c0', plaque=True, daisy=True, glow='#fff2b0')),
+    Char('hall-deep-root', '🕳️', 'hall_root', H(bark='#5a3a28', glow='#b89aff')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.
