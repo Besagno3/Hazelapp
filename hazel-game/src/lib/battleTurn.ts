@@ -234,6 +234,10 @@ const POWER_MOVE_NAMES: Record<string, string> = {
   'hollow-fiend': 'Gulp of Ages',
   'hush-fiend': 'Great Shush',
   'compass-golem': 'Needle Spin',
+  // The Deep Root's echoes (#75 item 16d).
+  'echo-thicket-warden': 'Ghost Thorn Charge',
+  'echo-tide-colossus': 'Starlight Undertow',
+  'echo-clockwork-titan': 'Forgotten Minute',
   'riddle-leviathan': 'Ink Wave',
 };
 

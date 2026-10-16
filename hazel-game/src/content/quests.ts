@@ -119,6 +119,8 @@ export interface QuestStep {
   /** The giver's reminder while this step is active. */
   hint: string | ((save: SaveData) => string);
   isComplete: (save: SaveData) => boolean;
+  /** A defeat step's critters (enemy def ids) — what beating them anywhere counts for (16d review round 2). */
+  defeats?: string[];
   /** Set when this step is fulfilled by talking to another NPC. */
   npc?: { id: string; lines: string[] };
   /**
@@ -287,6 +289,7 @@ function defeatStep(
 ): QuestStep {
   return {
     id,
+    defeats: targets.map((t) => t.defId),
     hint: (save) => {
       const left = targets.filter((t) => (save.kills[t.defId] ?? 0) < 1);
       return left.length === 0 ? intro : `${intro} Still out there: ${left.map((t) => t.label).join(', ')}!`;
@@ -1715,7 +1718,7 @@ export const QUESTS: QuestDef[] = [
     title: 'A Garden Rewatered',
     requires: keyFlag('asters-key'),
     offer: [
-      "Thank you for answering my seedlings. Aster's Key opens the great door in the Nameless Hall, just south of here. Could you help me too?",
+      "Thank you for answering my seedlings. Could you help me too?",
       "These beds haven't been watered since the fog came. I need three waters — morning dew, spring rain and river water. They're in the garden's chests.",
       'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
     ],
@@ -1728,7 +1731,7 @@ export const QUESTS: QuestDef[] = [
         const jars = GARDEN_JARS.filter((i) => save.questItems.includes(i)).length;
         const weeds = GARDEN_WEEDS.filter((id) => (save.kills[id] ?? 0) > 0).length;
         return [
-          "Thank you for answering my seedlings. Aster's Key opens the great door in the Nameless Hall, just south of here. Could you help me too?",
+          "Thank you for answering my seedlings. Could you help me too?",
           jars === 3
             ? "Oh — you've found all three of my waters already! Wonderful!"
             : jars > 0

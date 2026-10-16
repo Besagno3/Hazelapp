@@ -31,7 +31,7 @@ export interface DungeonDef {
    * the overworld.
    */
   from?: ZoneId;
-  /** The boss waiting on the deepest floor (an enemy def id) — none yet while a dungeon is still being dug (the Dream Root, 16d). */
+  /** The boss waiting on the deepest floor (an enemy def id) — none for a dungeon whose last floor is a place, not a fight (the Dream Root's Door; the Deep Root until Umbra Remembered, 16e). */
   boss?: string;
 }
 
@@ -44,13 +44,23 @@ export const DUNGEONS: DungeonDef[] = [
     boss: 'clockwork-titan',
   },
   {
-    // Act IV (#75 item 16a): under the Crystal Spire. Its Door is the only floor
-    // so far — the descent and Umbra Remembered come in 16d–16e.
+    // Act IV (#75 item 16a): under the Crystal Spire. Its Door is its only
+    // floor; the descent below is the Deep Root (16d).
     id: 'dream-root',
     name: 'Dream Root',
     goes: 'down',
     floors: ['dreamroot-door'],
     from: 'crystal-spire',
+  },
+  {
+    // Act IV (#75 item 16d): seven floors down the deepest root, from the
+    // stairs behind the Nameless Hall's great door. Echoes of the wardens hold
+    // B2, B4 and B6; the Root's Heart is at the bottom (Umbra Remembered, 16e).
+    id: 'deep-root',
+    name: 'Deep Root',
+    goes: 'down',
+    floors: ['deep-root-1', 'deep-root-2', 'deep-root-3', 'deep-root-4', 'deep-root-5', 'deep-root-6', 'deep-root-7'],
+    from: 'nameless-hall',
   },
 ];
 
@@ -84,10 +94,10 @@ export function floorLabel(goes: DungeonDef['goes'], index: number): string {
 export function floorTitle(zones: Record<ZoneId, ZoneDef>, zoneId: ZoneId): string | null {
   const at = dungeonFloor(zoneId);
   if (!at) return null;
+  // A one-floor dungeon is just its place (16d review round 3: the Door's "B1" beside the Deep Root's).
+  if (at.dungeon.floors.length === 1) return zones[zoneId].name;
   const floor = floorLabel(at.dungeon.goes, at.index);
   const name = zones[zoneId].name;
-  // "Dream Root Door · B1" — a floor named after its dungeon needs it only once.
-  if (name !== at.dungeon.name && name.startsWith(`${at.dungeon.name} `)) return `${name} · ${floor}`;
   const label = `${at.dungeon.name} · ${floor}`;
   return name === at.dungeon.name ? label : `${label} — ${name}`;
 }

@@ -402,7 +402,12 @@ zod, react-query. Add the package in the same change that first uses it.
   Field, her garden (mixed topics, sheltered at the Door) — the Gardener, a
   warden in the hedge's one gap, gives **Aster's Key**; the Hall's blank
   plaques (`NAMELESS_PANELS`) and its key gate (a key gate needs no topic) to
-  the deepest root, which sets `hall-root-seen` — the way down opens in 16d.
+  the deepest root and the stairs beside it.
+  **The Deep Root** (#75 item 16d): seven floors down (`deep-root`, `from:
+  'nameless-hall'`), echoes of three wardens (`role: 'echo'`) on B2, B4 and
+  B6, Umbra's taunt once a floor (`DESCENT_TAUNTS`), Glimmer's Nook on B1 and
+  Glim's Nook on B4 (a defeat on B1–B3 / B4–B7 wakes you there), the Root's Heart at the bottom
+  (`root-heart-reached`); the 🚩's `boss` goal kind.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -816,6 +821,7 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+python3 tools/assets/build.py descent   # the Deep Root: seven floors' tiles, critters, the echoes, the Root's Heart (#75 item 16d)
 python3 tools/assets/build.py garden    # Aster's Garden + the Nameless Hall: two zones' tiles, critters, the Gardener, plaques, the deep root (#75 item 16c)
 python3 tools/assets/build.py lumina    # Lumina-That-Was: three zones' tiles, the school sheet, its critters and people (#75 item 16b)
 python3 tools/assets/build.py dreamroot # the Dream Root Door: tiles, the root sheet, Old Knot, Young Wick, Wisp's new face (#75 item 16a)
@@ -936,6 +942,66 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Merge main (public pages, safer questions, the fairer Spire, saves, family budget, starter questions) into the 16d branch (#154)
+`main` took ISSUES **#146–#153** and TC-1254–1407 while 16d waited, so 16d
+moved **#146 → #154** and its test cases **TC-1254–1277 → TC-1408–1431**
+(only its own lines). Only the docs conflicted.
+
+### 2026-10-16 — 16d review round 4: Glimmer's Nook, one Aster, beat the echoes (#75 item 16d, #154k)
+The last round. Fresh code (1 medium, 6 low, 4 nits) and UX (1 high, 4
+medium, 6 low, 3 nits) reviews, all fixed: Glimmer's Nook on B1 — a defeat on
+B1–B3 wakes you there, not back at the Door; one sleeper in a giant Root's
+Heart, and how to get home; Glim's repeat line, Lumen's tips (who tucks you
+up, Guard against bosses), Aurora and Sprout once the door is open, a kinder
+B2 taunt, the Gardener's offer; "Beat the … Echo"; routes that keep their
+first hop and name the floor; the door leg walks to the door; echoes glow in
+battle. 1385 green.
+
+### 2026-10-16 — 16d review round 3: short ways down, one B1, a glowworm (#75 item 16d, #154j)
+Fresh code (2 medium, 1 low, 2 nits) and UX (6 medium, 5 low, 4 nits)
+reviews, all fixed but one kept (Glim's Nook's house look): bare-speech echo
+last words; every Deep Root leg walked from the Door; "Head down through Old
+Lumina Field and Aster's Garden…" (≤ 30 words); no "B1" on a one-floor
+dungeon; tips that say who looks after you; Glim remembers you and is a
+glowworm; Aurora follows the descent; brambles on B2, clocks on B6; the
+Hall's stairs beside the path. 1384 green.
+
+### 2026-10-16 — 16d review round 2: Glim's Nook, Sprout never silent (#75 item 16d, #154i)
+Fresh code (1 medium, 2 low, 2 nits) and UX (1 high, 3 medium, 9 low, 3 nits)
+reviews, all fixed but one kept (the 🌑 emoji): Glim's Nook on B4 — a defeat
+on B4–B7 wakes you there, not nine screens up at the Door; Sprout always has
+a line; a weed test that can fail (`QuestStep.defeats`); `HALL_GATE_FLAG` in
+zones.ts; potions "from a shop up top"; Aurora and the Heart; shorter routes
+from up top; The Quiet Halls; a trickster Star Snail, a swift Tick Beetle.
+1383 green.
+
+### 2026-10-16 — 16d review round 1: the Gardener's weeds stay up top, open the great door first (#75 item 16d, #154h)
+Fresh code (2 medium, 3 low, 7 nits) and UX (6 medium, 11 low, 5 nits)
+reviews, all fixed but two kept (engine-wide label quirks): the Deep Root's
+critters no longer finish A Garden Rewatered; "Open the great door" is its
+own 🚩 step in the Hall; door lines stop once you've been down; the Heart
+says she isn't ready; a truthful defeat tip; "six/seven floors"; shorter,
+see-through echoes; a heart-shaped Root's Heart and clearer critters;
+brambles on B2, pools on B4. 1381 green.
+
+### 2026-10-16 — The descent: seven floors down the Deep Root (#75 item 16d, #154)
+Roadmap sub-item 16d (branch off `main` after 16c merged).
+- **The Deep Root** (`deep-root-1`…`7`, dungeon `deep-root`, `from:
+  'nameless-hall'`): stairs behind the Hall's great door, seven mixed-topic
+  floors (tier 7, sheltered at the Door), a chest on each of B1–B6, save
+  crystals on B4 and B7.
+- **Echo wardens** on B2, B4 and B6 (`role: 'echo'`, +2): the Thicket Warden,
+  the Tide Colossus and the Clockwork Titan, pale ghosts in the one gap of
+  their floor's wall, with their own lines, rage lines and power moves. Four
+  new critters: Root Shellback, Star Snail, Hum Moth, Tick Beetle.
+- **The Root's Heart** (B7): a glowing root, someone asleep inside
+  (`root-heart-reached`; Umbra Remembered comes in 16e).
+- **Umbra's taunts** (`DESCENT_TAUNTS`): one panel a floor, quieter the deeper.
+- **The 🚩:** a `boss` goal kind — "Get past the Echo of …" ×3, then "Reach
+  the Root's Heart"; Lumen's plan and tip; `actFourJourney` walks them.
+- **Art:** `python3 tools/assets/build.py descent`.
+- **Tests:** dungeons, wayfinding, journey updated; 1376 green, lint and tsc clean.
 
 ### 2026-10-16 — The live address, and a share card that previews (#146j)
 The owner gave the production address: `https://hazelapp-pi.vercel.app`. Both

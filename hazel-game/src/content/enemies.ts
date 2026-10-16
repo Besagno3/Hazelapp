@@ -174,6 +174,47 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   bramblewhy: { id: 'bramblewhy', name: 'Bramblewhy', sprite: '❓', topic: 'creativity', levelOffset: 1, hpPerLevel: 13, behavior: 'healer' },
   // Aster's Garden's warden (#75 item 16c): beat him for Aster's Key (keys.ts).
   'the-gardener': { id: 'the-gardener', name: 'The Gardener', sprite: '🧑‍🌾', topic: 'nature', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'warden' },
+  // The Deep Root (#75 item 16d): critters of the roots below the Nameless Hall.
+  'root-shellback': { id: 'root-shellback', name: 'Root Shellback', sprite: '🐢', topic: 'geography', levelOffset: 1, hpPerLevel: 13, behavior: 'shielded' },
+  // Its sparkly shell muddles a Hint Feather (16d review round 2: not three shielded critters in a row).
+  'star-snail': { id: 'star-snail', name: 'Star Snail', sprite: '🐌', topic: 'space', levelOffset: 0, hpPerLevel: 12, behavior: 'trickster' },
+  'hum-moth': { id: 'hum-moth', name: 'Hum Moth', sprite: '🦋', topic: 'music', levelOffset: 0, hpPerLevel: 12, behavior: 'swift' },
+  // Wound up tight, it strikes first.
+  'tick-beetle': { id: 'tick-beetle', name: 'Tick Beetle', sprite: '🪲', topic: 'engineering', levelOffset: 1, hpPerLevel: 13, behavior: 'swift' },
+  // Echoes of the wardens (#75 item 16d): the Deep Root remembers every warden
+  // you beat, and plays them back — paler, and a little stronger. Beating one
+  // sets its `bossFlag` (`role: 'echo'`); it guards the way down its floor.
+  'echo-thicket-warden': {
+    id: 'echo-thicket-warden', name: 'The Thicket Echo', sprite: '🦌', topic: 'nature', levelOffset: 2, hpPerLevel: 18, isBoss: true, role: 'echo',
+    lines: {
+      intro: [
+        'A pale stag steps out of the thorns. It looks like the Thicket Warden… but you can see the roots through it.',
+        '"I am only an echo. The Root remembers every warden you beat. Prove you still remember the wood!"',
+      ],
+      // Bare speech: the victory screen adds the quotes (16d review round 3).
+      defeat: 'Well answered. Go on down — she has been waiting a very long time.',
+    },
+  },
+  'echo-tide-colossus': {
+    id: 'echo-tide-colossus', name: 'The Tide Echo', sprite: '🐳', topic: 'space', levelOffset: 2, hpPerLevel: 18, isBoss: true, role: 'echo',
+    lines: {
+      intro: [
+        'The water in the hollow rises, and a ghostly whale rises with it — the Tide Colossus, made of starlight and old sea.',
+        '"Down here the tide goes out forever. Answer my star questions, and I will let you through."',
+      ],
+      defeat: 'The tide turns for you, little spark. Go deeper.',
+    },
+  },
+  'echo-clockwork-titan': {
+    id: 'echo-clockwork-titan', name: 'The Clockwork Echo', sprite: '🦾', topic: 'history', levelOffset: 2, hpPerLevel: 18, isBoss: true, role: 'echo',
+    lines: {
+      intro: [
+        'Every clock on this floor stopped at the same minute. In the middle stands a see-through Clockwork Titan.',
+        '"TICK. I keep the minute the world forgot her. Answer my questions about long ago, and time will start again."',
+      ],
+      defeat: 'TOCK. The clocks are moving again. Go on — the Root\'s Heart is right below.',
+    },
+  },
   // Act II's Fiend: beat it to restore the Crystal of Memory (BOSS_LINES.history).
   'hollow-fiend': { id: 'hollow-fiend', name: 'The Hollow Fiend', sprite: '🕳️', topic: 'history', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
 
@@ -235,6 +276,9 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
   'hollow-fiend': ['The Hollow Fiend yawns open — the pages round you start to go blank!', 'The Hollow Fiend howls: "I will EAT tomorrow too!"'],
   'hush-fiend': ['The Hush Fiend puffs up like a big purple pillow — every sound goes muffled!', 'The Hush Fiend hisses: "SHHHHHH! Not ONE more word!"'],
+  'echo-thicket-warden': ['The Thicket Echo shakes its pale antlers — ghostly thorns grow everywhere!', 'The Thicket Echo booms: "The Root remembers EVERY wrong turn!"'],
+  'echo-tide-colossus': ['The Tide Echo rises out of the dark water — starlight pours off its back!', 'The Tide Echo roars: "Down here, the tide NEVER comes back!"'],
+  'echo-clockwork-titan': ['The Clockwork Echo makes every stopped clock tick at once — LOUDER and LOUDER!', 'The Clockwork Echo booms: "I KEEP THE FORGOTTEN MINUTE!"'],
   'compass-golem': ['The Compass Golem spins its needle — NORTH, SOUTH, NORTH!', 'The Compass Golem booms: "ALL DIRECTIONS LEAD TO ME!"'],
   // It speaks only in riddles (STORY-4X), even when it's angry.
   'riddle-leviathan': [

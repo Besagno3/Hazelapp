@@ -215,7 +215,7 @@ describe('Act III start to finish (#75 item 15h, the Phase 4 exit check)', () =>
   });
 });
 
-describe('Act IV so far (#75 item 16a)', () => {
+describe("Act IV so far (#75 items 16a–16d)", () => {
   const act4 = actFourJourney();
   it("walks the Spire's grounds, down the stairs to the Dream Root Door, and to Wisp and every memory", () => {
     expect(act4.map((l) => l.goal.title)).toEqual([
@@ -229,7 +229,12 @@ describe('Act IV so far (#75 item 16a)', () => {
       'Ask Young Wick about her teacher',
       'Say her name to Wisp',
       "Win Aster's Key",
-      "See what's behind the great door",
+      // The descent (#75 item 16d): three echoes, then the bottom.
+      'Open the great door',
+      'Beat the Thicket Echo',
+      'Beat the Tide Echo',
+      'Beat the Clockwork Echo',
+      "Reach the Root's Heart",
     ]);
     for (const leg of act4) expect(walkable(leg), leg.goal.title).toBe(true);
   });
@@ -244,6 +249,10 @@ describe('Act IV so far (#75 item 16a)', () => {
   it('Young Wick stands somewhere, and her memory is her own 🚩 (16b)', () => {
     expect(npcHome(ZONES, 'memory-young-wick')).not.toBeNull();
     expect(act4.find((l) => l.goal.doneFlag === stepFlag('name-young-wick'))!.goal.npc).toBe('memory-young-wick');
+  });
+  it('"Open the great door" walks right up to the door (16d review round 4)', () => {
+    const door = act4.find((l) => l.goal.title === 'Open the great door')!;
+    expect(door.target).toEqual({ zoneId: 'nameless-hall', cell: ZONES['nameless-hall'].keyGate });
   });
   it('the stairs down are walked only once the fog over them has lifted', () => {
     const down = act4[1];

@@ -128,3 +128,5 @@ function isWalkingFlag(f: string): boolean {
 export const GARDEN_QUEST = 'garden-water';
 /** Set when the hero has seen the great root past the Nameless Hall's door (#75 item 16c). */
 export const HALL_ROOT_SEEN = 'hall-root-seen';
+/** Set when the hero reaches the Root's Heart, at the bottom of the Deep Root (#75 item 16d). */
+export const ROOT_HEART_REACHED = 'root-heart-reached';

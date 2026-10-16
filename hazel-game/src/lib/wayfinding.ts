@@ -1,15 +1,16 @@
-import { HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, gateFlag, gateIdAt, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
+import { HALL_GATE_FLAG, HUB_ZONE, MET_ELDER, WALKABLE_CHARS, ZONES, gateFlag, gateIdAt, placeKnown, type ZoneDef, type ZoneExit, type ZoneId } from '../content/zones';
 import { HALL_DEDICATED } from '../content/spells';
 import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
-import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, SAY_HER_NAME_QUEST } from '../content/questFlags';
+import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
-import { dungeonEntrance } from '../content/dungeons';
+import { dungeonEntrance, dungeonFloor } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
-import { keyFlag, keyForBoss, keyForZone, keyName, type GateKey } from '../content/keys';
+import { bossFlag, keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
+import { ENEMY_DEFS } from '../content/enemies';
 import { ACT4_SEEN, MET_GALE, MET_ROOT_AURORA, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
 import { overworldOf } from './worldMap';
@@ -66,9 +67,11 @@ export interface Objective {
    * Act II adds `boat` (help Old Marlow mend his boat) and `sail` (take it to
    * the Silver Shallows), #75 item 14, and `visit` (go and see a place the
    * world has just remembered — Remembrance Hill, #75 item 14e). `fly`: ride
-   * Ember to the Dragon's Roost, once she can fly (#75 item 15b).
+   * Ember to the Dragon's Roost, once she can fly (#75 item 15b). `boss`:
+   * get past a boss that gives no key or crystal — an echo in the Deep Root
+   * (#75 item 16d), met by its `bossFlag`.
    */
-  kind: 'crystal' | 'key' | 'spire' | 'boat' | 'sail' | 'visit' | 'fly' | 'explore';
+  kind: 'crystal' | 'key' | 'spire' | 'boat' | 'sail' | 'visit' | 'fly' | 'boss' | 'explore';
   /** Short, for the map and signposts: "Free the Crystal of Numbers". */
   title: string;
   /** One or two sentences for the guides. Never says where: the route does. */
@@ -101,6 +104,8 @@ export interface Objective {
   npc?: string;
   /** The quest this goal is a step of (#75 item 16a: Say Her Name). */
   quest?: string;
+  /** A `boss` goal's boss (an enemy def id): an echo in the Deep Root (#75 item 16d), met by its `bossFlag`. */
+  boss?: string;
 }
 
 /**
@@ -220,9 +225,34 @@ function actFourObjective(flags: Record<string, boolean>): Objective | null {
 }
 
 /**
+ * The Deep Root's echoes, floor by floor (#75 item 16d): each stands in the
+ * one gap in its floor's wall, between the stairs down and the way you came.
+ */
+export const DEEP_ROOT_ECHOES: readonly { boss: string; zoneId: ZoneId; why: string; inside: string }[] = [
+  {
+    boss: 'echo-thicket-warden',
+    zoneId: 'deep-root-2',
+    why: "On the Deep Root's second floor, an echo of the Thicket Warden blocks the way down!",
+    inside: 'It stands in the one gap in the thorny wall, across the middle of the floor.',
+  },
+  {
+    boss: 'echo-tide-colossus',
+    zoneId: 'deep-root-4',
+    why: 'Deeper down, an echo of the Tide Colossus rises out of the dark water. Get past it!',
+    inside: 'It waits in the one gap in the wall, across the middle of the floor.',
+  },
+  {
+    boss: 'echo-clockwork-titan',
+    zoneId: 'deep-root-6',
+    why: 'One more echo stands between you and the bottom: the Clockwork Echo, on the floor where every clock has stopped.',
+    inside: 'It stands in the one gap in the wall, across the middle of the floor.',
+  },
+];
+
+/**
  * Act IV once the name is learned (#75 item 16c): Aster's Key from the
- * Gardener in her garden, then the Nameless Hall's great door — and the root
- * beyond it, where the way down will open (16d). Null after that.
+ * Gardener in her garden; then down the Deep Root past its three echoes
+ * (16d), to the Root's Heart. Null after that.
  */
 function actFourAfterName(flags: Record<string, boolean>): Objective | null {
   const key = keyForBoss('the-gardener')!;
@@ -236,19 +266,40 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
       key,
     };
   }
-  if (!flags[HALL_ROOT_SEEN]) {
+  // The great door first, where it is (16d review round 1): a goal on B2 can't
+  // show its `inside` in the Hall, and the stairs down are behind the door.
+  if (!flags[HALL_GATE_FLAG] && !flags[bossFlag(DEEP_ROOT_ECHOES[0].boss)]) {
     return {
       kind: 'visit',
-      title: "See what's behind the great door",
-      why: `${keyName(key, true)} opens the Nameless Hall's ${key.door ?? 'gate'}. See what's behind it!`,
-      // Once the door is open, only the root is left (16c review round 2).
-      inside: flags[HALL_GATE_FLAG]
-        ? 'Look at the big root behind the great door, at the bottom of the hall.'
-        : 'Unlock the great door halfway down the hall, then look at the big root behind it.',
+      title: 'Open the great door',
+      why: "Aster's Key opens the Nameless Hall's great door — and behind it, stairs go down and down the Deep Root!",
+      inside: "It's halfway down the hall. Walk up to it with Aster's Key.",
       zoneId: 'nameless-hall',
       key,
-      doneFlag: HALL_ROOT_SEEN,
-      npc: 'hall-deep-root',
+      doneFlag: HALL_GATE_FLAG,
+    };
+  }
+  const echo = DEEP_ROOT_ECHOES.find((e) => !flags[bossFlag(e.boss)]);
+  if (echo) {
+    return {
+      kind: 'boss',
+      // "Beat", not "Get past": there's no way round (16d review round 4).
+      title: `Beat ${midSentence(ENEMY_DEFS[echo.boss].name)}`,
+      why: echo.why,
+      inside: echo.inside,
+      zoneId: echo.zoneId,
+      boss: echo.boss,
+    };
+  }
+  if (!flags[ROOT_HEART_REACHED]) {
+    return {
+      kind: 'visit',
+      title: "Reach the Root's Heart",
+      why: 'At the very bottom of the Deep Root, something has been humming a lonely tune for a very long time. Go and find it!',
+      inside: 'Walk up to the glowing purple heart in the middle of the floor.',
+      zoneId: 'deep-root-7',
+      doneFlag: ROOT_HEART_REACHED,
+      npc: 'root-heart',
     };
   }
   return null;
@@ -450,7 +501,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
         kind: 'explore',
         title: flags[NAME_LEARNED] ? 'Explore Lumina' : flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
         why: flags[NAME_LEARNED]
-          ? `You remembered the first Sage's name: Aster! ${flags[HALL_ROOT_SEEN] ? 'Below the Nameless Hall, she is waiting, deeper still' : 'She is waiting somewhere deeper still'} — the way will open soon. ${
+          ? `You remembered the first Sage's name: Aster! She is waiting at the Root's Heart — the way to her will open soon. ${
               flags[questDoneFlag({ id: BELL_QUEST })] && flags[questDoneFlag({ id: DOG_QUEST })] && flags[questDoneFlag({ id: GARDEN_QUEST })]
                 ? 'Until then, hunt for secrets ✨ and help everyone you meet.'
                 : 'Until then, help the folk of Lumina-That-Was!'
@@ -577,10 +628,6 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
 }
 
 /** The Nameless Hall's great door, open (16c review round 2). */
-const HALL_GATE_FLAG = (() => {
-  const hall = ZONES['nameless-hall'];
-  return gateFlag(gateIdAt('nameless-hall', hall.map, hall.keyGate!.x, hall.keyGate!.y));
-})();
 
 /** Chorus Isle's double gate, open (15g review round 3). */
 const CHORUS_GATE_FLAG = (() => {
@@ -719,7 +766,7 @@ export function routeSteps(
   return steps;
 }
 
-const FLOOR_COUNT = ['', 'one', 'two', 'three', 'four', 'five'];
+const FLOOR_COUNT = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'];
 
 /** Steps as one sentence: "Go west to the Whispering Woods, then take the east path to …" — or just "Go north-west to Numbria." */
 export function sentence(steps: string[]): string {
@@ -764,6 +811,28 @@ export function goalDirections(
     const dir = from ? compass(goal.at.x - from.x, goal.at.y - from.y) : null;
     steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
     return sentence(steps);
+  }
+  // Down to the Nameless Hall and the Deep Root below it (16d review rounds 2–3):
+  // a run of "take the south path" steps reads as one, and from up top the way
+  // stops at the Dream Root Door.
+  const deep = (z: ZoneId) => dungeonFloor(z)?.dungeon.id === 'deep-root';
+  if ((deep(goal.zoneId) || goal.zoneId === 'nameless-hall') && here !== 'nameless-hall' && !deep(here)) {
+    const below = goal.zoneId === 'nameless-hall' ? [] : (routeSteps(zones, 'nameless-hall', goal.zoneId, undefined, flags) ?? []);
+    const end = goal.zoneId === 'nameless-hall' ? 'keep going down to the Nameless Hall' : `keep going down the Nameless Hall's stairs to ${placeName(zones[goal.zoneId])}`;
+    if (here !== 'dreamroot-door' && zoneTier(here) !== zoneTier('nameless-hall')) {
+      const toDoor = routeSteps(zones, here, 'dreamroot-door', at, flags, aboard) ?? [];
+      // From far off (Taleshore: ~45 words, 16d review round 4), just where to head for.
+      const start = toDoor.length > 2 ? ['head for the Crystal Spire on Dawnreach, and take the stairs down to the Dream Root Door'] : toDoor;
+      return sentence([...start, end]);
+    }
+    // From a side place (Old Lumina Village, the First Classroom) its own way to
+    // the old Field first, then the run of south paths as one (16d review round 4).
+    const route = routeTo(zones, here, 'nameless-hall') ?? [];
+    const fieldAt = here === 'dreamroot-door' ? -1 : route.findIndex((h) => h.from === 'memory-field');
+    const lead = fieldAt > 0 ? (routeSteps(zones, here, 'memory-field', at, flags) ?? []) : [];
+    const through = route.slice(fieldAt > 0 ? fieldAt + 1 : 1).map((h) => placeName(zones[h.from]));
+    const head = through.length ? `head down through ${through.join(' and ')} to the Nameless Hall` : 'head down to the Nameless Hall';
+    return sentence([...lead, head, ...below]);
   }
   const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
@@ -847,8 +916,15 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
     // Act II's key (#75 item 14f): no Fiend to name yet.
     plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;
-  } else if (goal.kind === 'visit' && goal.doneFlag === HALL_ROOT_SEEN) {
-    plan = "Aster's Key! It opens the great door in the Nameless Hall, just south of her garden. Go and see what's behind it.";
+  } else if (goal.kind === 'visit' && goal.doneFlag === HALL_GATE_FLAG) {
+    // The Deep Root (#75 item 16d).
+    plan = "Aster's Key opens the great door in the Nameless Hall, just south of her garden. Behind it, stairs go down and down the Deep Root.";
+  } else if (goal.kind === 'boss' && goal.boss === DEEP_ROOT_ECHOES[0].boss) {
+    plan = 'Echoes of old wardens guard the stairs down the Deep Root. You beat the real ones long ago — you can beat their echoes too!';
+  } else if (goal.kind === 'boss') {
+    plan = `Down and down! ${capitalize(midSentence(ENEMY_DEFS[goal.boss!].name))} guards a deeper floor of the Deep Root. You can beat it!`;
+  } else if (goal.kind === 'visit' && goal.doneFlag === ROOT_HEART_REACHED) {
+    plan = "No more echoes! The Root's Heart is at the very bottom of the Deep Root. Go and see who has been humming down there.";
   } else if (goal.kind === 'key' && goal.key) {
     const keeper = `${midSentence(goal.key.bossName)} in ${place(goal.key.fromZone)}`;
     plan =
@@ -887,7 +963,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
   } else if (flags[NAME_LEARNED]) {
-    plan = `Aster. ASTER! I knew that name once. Thank you for finding it again. ${flags[HALL_ROOT_SEEN] ? 'Below the Nameless Hall, she is waiting, deeper still' : 'She is waiting somewhere deeper still'} — the way will open soon.`;
+    plan = `Aster. ASTER! I knew that name once. Thank you for finding it again. She is waiting at the Root's Heart — the way to her will open soon.`;
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -916,8 +992,13 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "Barnacle Bess sells Hint Feathers in Inkwell Cove. In the cove, Cuttle-Scribes heal themselves — hit them hard!";
   } else if (goal.kind === 'key' && goal.key?.id === 'asters-key') {
     tip = "In Aster's Garden, the weeds mend themselves. Hit them hard — and rest at the Lamplight Rest first!";
-  } else if (goal.kind === 'visit' && goal.doneFlag === HALL_ROOT_SEEN) {
-    tip = "The Nameless Hall is quiet — nothing fights there. Its great door opens for Aster's Key.";
+  } else if ((goal.kind === 'visit' && goal.doneFlag === HALL_GATE_FLAG) || (goal.kind === 'boss' && goal.boss === DEEP_ROOT_ECHOES[0].boss)) {
+    // Who looks after you depends on how far down (16d review round 3).
+    tip = 'Buy potions in Lumina Village first — nobody sells them below the Spire! Lose down the Deep Root, and a glowworm tucks you up: Glimmer on B1, Glim on B4.';
+  } else if (goal.kind === 'boss') {
+    tip = 'Lose on B1 to B3, and Glimmer the Glowworm tucks you up on B1. From the Tide Hollow (B4) down, her sister Glim does. When a boss gathers power, 🛡️ Guard!';
+  } else if (goal.kind === 'visit' && goal.doneFlag === ROOT_HEART_REACHED) {
+    tip = "Nothing fights at the Root's Heart — it's a quiet place. There's a save crystal there, too.";
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === ACT4_SEEN) {

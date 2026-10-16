@@ -1,4 +1,4 @@
-import type { CrystalTopic, Topic } from '../types';
+import type { CrystalTopic, Topic, ZoneId } from '../types';
 import { TOPIC_REGISTRY, crystalFlag, type Act } from './topics';
 
 /**
@@ -945,3 +945,39 @@ export const NAMELESS_PANELS: StoryPanel[] = [
     text: "Halfway down the hall stands a great locked door. Behind it, something hums a tune with no words.",
   },
 ];
+
+/**
+ * The descent (#75 item 16d): Umbra's voice drifts up the Deep Root, once on
+ * each floor, the first time you step onto it. He starts out loud and grand,
+ * and gets quieter and more tired the deeper you go — until, at the Root's
+ * Heart, he isn't shouting at all.
+ */
+export const DESCENT_TAUNTS: Partial<Record<ZoneId, StoryPanel[]>> = {
+  'deep-root-1': [
+    { emoji: '🌑', text: 'A voice booms up the roots: "So! The little spark found the stairs. Turn back! Nothing down here wants to be remembered!"' },
+  ],
+  'deep-root-2': [
+    { emoji: '🌑', text: 'The voice again: "These thorns are full of questions nobody answered. Turn back, little spark — they\'ll tangle you up!"' },
+  ],
+  'deep-root-3': [
+    { emoji: '🌑', text: 'Water drips everywhere. The voice is a little quieter now: "Why do you keep coming? Nobody ever came looking for ME."' },
+  ],
+  'deep-root-4': [
+    { emoji: '🌑', text: '"I made the whole world forget her," the voice says. "Do you know how hard that was? I had to forget her too."' },
+  ],
+  'deep-root-5': [
+    { emoji: '🌑', text: 'The halls are very quiet. The voice is almost a whisper: "She used to hum a song down here. I can\'t remember how it goes."' },
+  ],
+  'deep-root-6': [
+    { emoji: '🌑', text: 'Tick… tick… then nothing. The voice sounds very tired: "That was the minute I forgot her name. Mine, too."' },
+  ],
+  'deep-root-7': [
+    { emoji: '💜', text: 'The bottom of the Deep Root. A huge, warm root glows here like a heart, beating slowly.' },
+    { emoji: '🌑', text: 'No booming voice now. Just a small one, very close: "…You came all this way. Wait. Just a little longer. I\'m not ready."' },
+  ],
+};
+
+/** The flag set once a floor's taunt has played (#75 item 16d). */
+export function descentSeenFlag(zoneId: ZoneId): string {
+  return `descent-seen:${zoneId}`;
+}

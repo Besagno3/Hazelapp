@@ -1,7 +1,7 @@
-import { HUB_ZONE, ZONES, gateIdAt, innWakeCell, npcPresent, type TravelMode, type ZoneDef, type ZoneId } from '../content/zones';
+import { HUB_ZONE, ZONES, gateFlag, gateIdAt, innWakeCell, npcPresent, type TravelMode, type ZoneDef, type ZoneId } from '../content/zones';
 import { NPC_DEFS } from '../content/npcs';
 import { ENEMY_DEFS, fiendFor } from '../content/enemies';
-import { GATE_KEYS, bossDefeated, holdsKeysFor, keyFlag } from '../content/keys';
+import { GATE_KEYS, bossDefeated, bossFlag, holdsKeysFor, keyFlag } from '../content/keys';
 import { crystalFlag } from '../content/topics';
 import { ACT2_SEEN, SPIRE_CLEARED } from '../content/story';
 import { BOAT_HOME, BOAT_MENDED, BOAT_QUEST_ID, hasBoat } from '../content/boat';
@@ -12,6 +12,7 @@ import { nextObjective, npcHome, routeTo, type Objective } from './wayfinding';
 import { passable as tilePassable, seaCrossing } from './travel';
 import { npcWanders } from './wander';
 import { reachPath, type Cell, type ReachOptions, type Step } from './reach';
+import { dungeonFloor } from '../content/dungeons';
 import { defaultSave } from './save';
 
 /**
@@ -46,6 +47,8 @@ export function advanceGoal(g: Objective, flags: Record<string, boolean>): Recor
     if (quest && g.doneFlag === questDoneFlag(quest)) for (const f of quest.grants?.flags ?? []) next[f] = true;
   }
   else if (g.kind === 'fly') next[visitedFlag(g.zoneId!)] = true;
+  // An echo in the Deep Root (#75 item 16d): beaten, it sets its own flag.
+  else if (g.kind === 'boss') next[bossFlag(g.boss!)] = true;
   else if (g.kind === 'boat') {
     const quest = QUESTS.find((q) => q.id === BOAT_QUEST_ID)!;
     const step = quest.steps.find((st) => !next[stepFlag(st.id)]);
@@ -70,6 +73,11 @@ export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } 
     if (!home) throw new Error(`nobody to talk to in ${g.zoneId}`);
     return { zoneId: home.zoneId, cell: { x: home.x, y: home.y } };
   }
+  // Opening a key gate (the Nameless Hall's great door, #75 item 16d review round 4): walk up to it.
+  if (g.kind === 'visit' && g.doneFlag && !g.npc) {
+    const kg = ZONES[g.zoneId!].keyGate;
+    if (kg && g.doneFlag === gateFlag(gateIdAt(g.zoneId!, ZONES[g.zoneId!].map, kg.x, kg.y))) return { zoneId: g.zoneId!, cell: { x: kg.x, y: kg.y } };
+  }
   // Arriving is enough — or arriving sets the flag (Act IV's panels on the Spire's grounds, #75 item 16a).
   if (g.kind === 'sail' || g.kind === 'fly' || (g.kind === 'visit' && (!g.doneFlag || !g.npc))) return { zoneId: g.zoneId!, cell: null };
   if (g.kind === 'visit') {
@@ -79,7 +87,7 @@ export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } 
     return { zoneId: who.zoneId, cell: { x: who.x, y: who.y } };
   }
   const zoneId = g.kind === 'key' ? g.key!.fromZone : g.zoneId!;
-  const bossId = g.kind === 'key' ? g.key!.bossId : fiendFor(g.crystal!.id).id;
+  const bossId = g.kind === 'key' ? g.key!.bossId : g.kind === 'boss' ? g.boss! : fiendFor(g.crystal!.id).id;
   const at = ZONES[zoneId].enemies.find((p) => p.defId === bossId);
   if (!at) throw new Error(`${bossId} isn't placed in ${zoneId}`);
   return { zoneId, cell: { x: at.x, y: at.y } };
@@ -284,8 +292,9 @@ export function actThreeJourney(): Leg[] {
  * Act IV so far (#75 item 16a): from the Blank Chart, every goal walked inside
  * its place — the Spire's grounds, then down the stairs from there to the Dream
  * Root Door (only once Act IV's panels have lifted their fog), Wisp, each of
- * the five memories, and back to Wisp; then Aster's Key in her garden and the
- * root behind the Nameless Hall's great door (#75 item 16c).
+ * the five memories, and back to Wisp; then Aster's Key in her garden (#75
+ * item 16c), the Nameless Hall's great door, and down the Deep Root past its
+ * three echoes to the Root's Heart (16d).
  */
 export function actFourJourney(): Leg[] {
   let flags: Record<string, boolean> = {};
@@ -297,10 +306,11 @@ export function actFourJourney(): Leg[] {
     // Down the stairs: walked from the Spire's grounds, where they are; and
     // anywhere below the Door (Young Wick, Aster's Garden, the Nameless Hall)
     // from the Door, down past Old Knot (16b review round 3, #75 item 16c).
+    // Every Deep Root floor too, so each leg walks the floors above it (16d review round 3).
     const start =
       target.zoneId === 'dreamroot-door' && !goal.quest
         ? 'crystal-spire'
-        : ZONES[target.zoneId].shelterIn === 'dreamroot-door'
+        : ZONES[target.zoneId].shelterIn === 'dreamroot-door' || dungeonFloor(target.zoneId)?.dungeon.id === 'deep-root'
           ? 'dreamroot-door'
           : target.zoneId;
     legs.push(walkLeg(goal, flags, { zoneId: start, cell: ZONES[start].spawn }));

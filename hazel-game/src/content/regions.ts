@@ -89,7 +89,7 @@ export const REGIONS: RegionDef[] = [
   // Lantern is a town (no critters); Taleshore's places came in 15d–15h.
   { id: 'taleshore', name: 'Taleshore and the Starfall Sea', tier: 6, zones: ['taleshore', 'port-lantern', 'driftwood-shallows', 'wayfinder-isles', 'gale-atoll', 'story-reef', 'inkwell-cove', 'songstone-cliffs', 'quiet-quarter', 'chorus-isle', 'chartmakers-rest'] },
   // Act IV (#75 item 16b): Lumina-That-Was, below the Dream Root Door.
-  { id: 'lumina-that-was', name: 'Lumina-That-Was', tier: 7, zones: ['memory-field', 'memory-village', 'first-classroom', 'asters-garden', 'nameless-hall'] },
+  { id: 'lumina-that-was', name: 'Lumina-That-Was', tier: 7, zones: ['memory-field', 'memory-village', 'first-classroom', 'asters-garden', 'nameless-hall', 'deep-root-1', 'deep-root-2', 'deep-root-3', 'deep-root-4', 'deep-root-5', 'deep-root-6', 'deep-root-7'] },
 ];
 
 /** The danger tier of a zone (its region's). */
@@ -158,7 +158,7 @@ const FLAG_HINT = 'Open 📜 Menu — the 🚩 on the map shows where to go next
  * that is off the story's path, so point back to it; one on it eases off
  * after a couple of losses (mercy), so say so — unless it already has.
  */
-export function defeatTip(enemy: Pick<BattleEnemy, 'name' | 'tier' | 'eased'>, road: DangerTier | null): string | null {
+export function defeatTip(enemy: Pick<BattleEnemy, 'name' | 'tier' | 'eased'> & Partial<Pick<BattleEnemy, 'isBoss'>>, road: DangerTier | null): string | null {
   const tier = enemy.eased ?? enemy.tier ?? BASE_TIER;
   const marks = dangerMarks(tier);
   if (!marks) return null;
@@ -167,6 +167,8 @@ export function defeatTip(enemy: Pick<BattleEnemy, 'name' | 'tier' | 'eased'>, r
     return enemy.eased !== undefined ? FLAG_HINT : `${enemy.name} is extra tough (see its ${marks}). ${FLAG_HINT}`;
   }
   if (enemy.eased !== undefined) return null;
+  // A boss isn't a critter (16d review round 3: an echo deep in the Deep Root).
+  if (enemy.isBoss) return 'Bosses hit hard! When one gathers power, 🛡️ Guard — then try again!';
   return 'Critters with ! marks hit hard. Keep at it — after a couple of tries, they go easier on you!';
 }
 
