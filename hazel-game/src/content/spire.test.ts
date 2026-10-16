@@ -10,6 +10,13 @@ import {
   SPIRE_THEMES,
   floorWards,
   floorZone,
+  SPIRE_FALL_FLAGS,
+  spireFalls,
+  flagsAfterSpireFall,
+  flagsAfterSpireClear,
+  spireCandles,
+  spireQuestionLevel,
+  spireComebackLine,
 } from './spire';
 import { LEGEND_CHARS, WALKABLE_CHARS, VIEW_COLS, VIEW_ROWS } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -47,6 +54,49 @@ describe('Spire climb (#55)', () => {
     expect(SPIRE_FLOORS[SPIRE_FLOORS.length - 1].levelBonus).toBe(
       Math.max(...SPIRE_FLOORS.map((f) => f.levelBonus)),
     );
+  });
+
+  it('floors ask 0 to 3 levels above the kid, Umbra\'s the most (B4, #150)', () => {
+    // They asked 2 to 6 above (levelBonus 1–5, plus one more in the overlay).
+    expect(SPIRE_FLOORS.map((f) => f.levelBonus)).toEqual([0, 1, 2, 2, 3]);
+    const first = SPIRE_FLOORS[0];
+    const boss = SPIRE_FLOORS[SPIRE_FLOORS.length - 1];
+    expect(spireQuestionLevel(5, first, 0)).toBe(5);
+    expect(spireQuestionLevel(5, boss, 0)).toBe(8);
+    // Still 1–10 at both ends.
+    expect(spireQuestionLevel(10, boss, 0)).toBe(10);
+    expect(spireQuestionLevel(1, first, 2)).toBe(1);
+  });
+
+  it('each fall lights one more candle and asks one level lower, up to two (B4, #150)', () => {
+    const boss = SPIRE_FLOORS[SPIRE_FLOORS.length - 1];
+    expect([0, 1, 2, 3].map(spireCandles)).toEqual([SPIRE_LIVES, SPIRE_LIVES + 1, SPIRE_LIVES + 2, SPIRE_LIVES + 2]);
+    expect([0, 1, 2, 3].map((n) => spireQuestionLevel(6, boss, n))).toEqual([9, 8, 7, 7]);
+  });
+
+  it('falls are save flags: counted, capped at two, forgotten on a clear (B4, #150)', () => {
+    expect(SPIRE_FALL_FLAGS).toEqual(['spire-falls-1', 'spire-falls-2']);
+    expect(spireFalls(undefined)).toBe(0);
+    const start = { 'spire-cleared': true };
+    const one = flagsAfterSpireFall(start);
+    expect(one).toEqual({ 'spire-cleared': true, 'spire-falls-1': true });
+    expect(start).toEqual({ 'spire-cleared': true }); // never changed in place
+    const two = flagsAfterSpireFall(one);
+    expect(spireFalls(one)).toBe(1);
+    expect(spireFalls(two)).toBe(2);
+    expect(spireFalls(flagsAfterSpireFall(two))).toBe(2);
+    expect(flagsAfterSpireClear(two)).toEqual({ 'spire-cleared': true });
+  });
+
+  it('back after a fall, one short line says so — in plain words (B4, #150)', () => {
+    expect(spireComebackLine(0)).toBeNull();
+    for (const n of [1, 2]) {
+      const line = spireComebackLine(n)!;
+      expect(line).toMatch(/^The Spire remembers you tried\./);
+      expect(line).toMatch(n === 1 ? /One more candle/ : /Two more candles/);
+      expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(30);
+      expect(line).not.toMatch(/\b(test|quiz|exam|grade|score)\b/i);
+    }
   });
 
   it('every floor draws from real question topics', () => {

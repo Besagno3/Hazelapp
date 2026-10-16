@@ -227,7 +227,9 @@ zod, react-query. Add the package in the same change that first uses it.
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
   opened by using the Spire icon — the all-crystals-gated endgame; its five
   floors are walkable themed maps drawn by `WorldCanvas`, state in
-  `spireStore`, #74). `TouchPad`
+  `spireStore`, #74; its questions sit 0–3 levels above the kid's own, and
+  after a failed climb the next has one more candle and asks a level lower,
+  up to two falls — `spireFalls`, save flags `spire-falls-1/2`, B4 #150). `TouchPad`
   is the mobile d-pad, with the ✋ use button beside it (#127).
   **Using things** (#127, `lib/interact.ts`): nothing the hero can use goes
   off on a bump. Chests, gates (both kinds), the save crystal, Spire seals and
@@ -803,6 +805,37 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Make the Spire fairer: gentler levels, an easier climb after each fall (Act I launch review B4, #150)
+The launch review found a kid getting 75–80% right cleared the Spire only a
+quarter to half of the time: its questions were 2–6 levels above the kid's
+own (`levelBonus` 1–5, plus one more in `SpireOverlay.loadFloor`), four
+candles had to last 19 questions, and a loss changed nothing.
+- **Gentler levels:** the floors ask 0, 1, 2, 2 and 3 levels above the kid
+  (Umbra's floor highest); the extra +1 is gone. One rule,
+  `spireQuestionLevel` (kept to 1–10), sets the floors and Umbra's challenge.
+- **Easier after a fall:** losing a climb sets a save flag (`spire-falls-1`,
+  then `spire-falls-2`; no save field, no version bump). The next climb has
+  one more candle and asks one level lower, up to two falls (`spireFalls`,
+  `spireCandles`); clearing the Spire forgets them. Back after a fall, one
+  line follows the intro: "The Spire remembers you tried. One more candle —
+  and the riddles are a little easier." `spireStore.reset(lives)` starts a
+  climb with its candles (`maxLives`, which the light now reads too). Chosen
+  over restarting from the highest floor: the climb's progress is never
+  saved, and fresh candles for each floor would make every floor easy while
+  Umbra's questions stayed as hard.
+- **Elder Lumen's Spire tip** said to rest at the inn, but HP isn't used in
+  the Spire. Now: "🪶 Hint Feathers work in the Spire too — each one hides two
+  wrong answers. Peddler Plus sells them in Numbria. Bring a few!"
+- **Odds** (accuracy held fixed, so only the candles help): at 75% right a
+  climb cleared 26% of the time; now the first climb is the same, the second
+  47%, the third 67%. At 80%: 46%, then 67% and 84%. If each level easier
+  adds 3 points of accuracy, the first climb at 75% clears 56%.
+- **Tests:** +10 (spire, spireStore, SpireOverlay — the real climb lost and
+  won; wayfinding's tip changed); 1379 green, lint and build clean. In
+  headless Chromium with Supabase stubbed: a 10-year-old's first floor asks
+  level 5 (was 7); after one fall, level 4, 5 candles and the line; after two,
+  level 3 and 6 candles, which fit a 320 px phone.
 
 ### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)

@@ -1222,6 +1222,21 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1047 | M | ⬜ | function | after deploy, on the real project: a battle and a quiz round load; the Supabase function log shows the check's drops (if any); `select * from question_review_queue` lists a question reported "Not OK for kids" from the app, and it's no longer served to another family |
 | TC-1048 | M | ⬜ | report | on a 320×568 phone in a battle: after answering, the 🚩 row and Continue are both reachable; the reason buttons are easy to tap |
 
+## Make the Spire fairer (#150)
+
+| ID      | Type | Status | Feature | Case |
+|---------|------|--------|---------|------|
+| TC-1301 | U | ✅ | spire | the floors ask 0, 1, 2, 2, 3 levels above the kid, Umbra's the most (they asked 2–6); `spireQuestionLevel` stays 1–10 at both ends (spire.test) |
+| TC-1302 | U | ✅ | spire | each fall adds a candle (4, 5, 6) and asks a level lower, capped at two falls; falls are the save flags `spire-falls-1` / `-2` — counted, capped, forgotten on a clear, other flags kept, the input never changed (spire.test) |
+| TC-1303 | U | ✅ | spire | the "remembers" line: none on a fresh climb; after one fall "One more candle…", after two "Two more candles…"; each ≤ 30 words, no school words (spire.test) |
+| TC-1304 | U | ✅ | spireStore | `reset(6)` starts a climb with 6 candles (`lives` and `maxLives`); `reset()` goes back to `SPIRE_LIVES` (spireStore.test) |
+| TC-1305 | C | ✅ | SpireOverlay | a first climb: floor 1 asks the kid's own level (5 for a 10-year-old), 4 of 4 candles, no "remembers" line (SpireOverlay.test; fails with the old +1) |
+| TC-1306 | C | ✅ | SpireOverlay | with `spire-falls-1`: the line after the intro, 5 of 5 candles, floor 1 a level lower; with both flags: "Two more candles", two levels lower (SpireOverlay.test) |
+| TC-1307 | C | ✅ | SpireOverlay | the real climb lost (every answer wrong) sets `spire-falls-1`; lost again with two falls, still two; won with two falls, both gone and `spire-cleared` set (SpireOverlay.test) |
+| TC-1308 | U | ✅ | wayfinding | Elder Lumen's Spire tip: Hint Feathers work there, Peddler Plus sells them in Numbria; no "rest" or "inn"; ≤ 30 words (wayfinding.test) |
+| TC-1309 | M | ✅ | Spire | the real app in headless Chromium (Supabase stubbed), a 10-year-old walking into the Spire: fresh, floor 1 asks level 5 with 4 candles; one fall, the line, 5 candles, level 4 (375×667); two falls, 6 candles on their own line, level 3 (320×568) |
+| TC-1310 | M | ⬜ | Spire | playtest with a 7–8 year old: the first climb, and if they fall, the next — do they read and follow the "remembers" line, does it feel fair, is Umbra's floor the hardest but beatable? |
+
 ## Regression cases (tied to ISSUES.md)
 
 | ID    | Type | Status | Issue | Case |

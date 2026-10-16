@@ -3,6 +3,7 @@ import type { MusicTrack } from '../lib/audio';
 import { VILLAIN_NAME } from './story';
 import type { ZoneDef } from './zones';
 import { SPIRE_DUNGEON, floorLabel } from './dungeons';
+import { clampLevel } from '../lib/age';
 
 /**
  * The Crystal Spire endgame (#55): a multi-floor question climb, unlocked only
@@ -13,7 +14,8 @@ import { SPIRE_DUNGEON, floorLabel } from './dungeons';
  *
  * Kid-friendly fail rule: the hero carries `SPIRE_LIVES` candle-lights; each
  * wrong answer snuffs one. Run out and the Spire gently casts you back to
- * Lumina Village, fully healed — climb again any time, no penalty.
+ * the last inn you rested at (or home), fully healed — climb again any time,
+ * and each climb after a fall is a little easier (`spireFalls`, B4 #150).
  *
  * Every floor is a walkable, themed map (#74): its questions are guarded by
  * rune seals ('Q'), and breaking them all unseals the stairs ('U') up. The
@@ -28,7 +30,10 @@ export interface SpireFloor {
   taunt: string;
   /** Question topics this floor draws from (mixed + shuffled). */
   topics: Topic[];
-  /** Question level = base (age) + this bonus, clamped 1-10. */
+  /**
+   * Levels above the kid's own question level for each topic (0–3, B4 #150);
+   * the floor asks `spireQuestionLevel` — one level less per fall, 1–10.
+   */
   levelBonus: number;
   /** Questions that must be cleared to ascend. */
   questions: number;
@@ -235,8 +240,58 @@ export function floorZone(theme: SpireTheme): ZoneDef {
   };
 }
 
-/** Candle-lights (wrong answers allowed) for the whole climb. */
+/** Candle-lights for a first climb: each wrong answer snuffs one, and the last one out ends it. */
 export const SPIRE_LIVES = 4;
+
+/**
+ * The Spire remembers a fall (B4, #150): after each failed climb the next one
+ * has one more candle and asks one level lower, up to two falls; clearing
+ * the Spire forgets them. Kept as save flags — no save field.
+ */
+export const SPIRE_FALL_FLAGS = ['spire-falls-1', 'spire-falls-2'] as const;
+
+/** Failed climbs the Spire remembers: 0 to `SPIRE_FALL_FLAGS.length`. */
+export function spireFalls(flags: Record<string, boolean> | null | undefined): number {
+  return SPIRE_FALL_FLAGS.filter((f) => flags?.[f] === true).length;
+}
+
+/** The save's flags after a failed climb: one more fall remembered, up to the cap. */
+export function flagsAfterSpireFall(flags: Record<string, boolean>): Record<string, boolean> {
+  const next = SPIRE_FALL_FLAGS.find((f) => flags[f] !== true);
+  return next ? { ...flags, [next]: true } : flags;
+}
+
+/** The save's flags after a clear: the falls forgotten. */
+export function flagsAfterSpireClear(flags: Record<string, boolean>): Record<string, boolean> {
+  const out = { ...flags };
+  for (const f of SPIRE_FALL_FLAGS) delete out[f];
+  return out;
+}
+
+const fallsCapped = (falls: number) => Math.min(SPIRE_FALL_FLAGS.length, Math.max(0, falls));
+
+/** Candle-lights for a climb after `falls` failed ones. */
+export function spireCandles(falls: number): number {
+  return SPIRE_LIVES + fallsCapped(falls);
+}
+
+/**
+ * A floor's question level: the kid's own level for the topic (`base`), plus
+ * the floor's bonus, less one per fall — kept to 1–10. The floors and Umbra's
+ * challenge both ask at it.
+ */
+export function spireQuestionLevel(base: number, floor: SpireFloor, falls: number): number {
+  return clampLevel(base + floor.levelBonus - fallsCapped(falls));
+}
+
+/** Said after the intro on a climb after a fall (≤ 30 words); none on a fresh climb. */
+export function spireComebackLine(falls: number): string | null {
+  const n = fallsCapped(falls);
+  if (n === 0) return null;
+  return n === 1
+    ? 'The Spire remembers you tried. One more candle — and the riddles are a little easier.'
+    : 'The Spire remembers you tried. Two more candles — and the riddles are easier still.';
+}
 
 /** XP awarded for clearing the Spire and beating Umbra — the first time only (#109). */
 export const SPIRE_CLEAR_XP = 600;
@@ -263,7 +318,7 @@ export const SPIRE_FLOORS: SpireFloor[] = [
     music: 'spireArchive',
     taunt: '"This first stair is made of old, forgotten things. Name them, if you can."',
     topics: ['history'],
-    levelBonus: 1,
+    levelBonus: 0,
     questions: 3,
   },
   {
@@ -272,7 +327,7 @@ export const SPIRE_FLOORS: SpireFloor[] = [
     music: 'spireThicket',
     taunt: '"Vines and creatures I let the fog eat. You think you know them better than I forgot them?"',
     topics: ['nature'],
-    levelBonus: 2,
+    levelBonus: 1,
     questions: 3,
   },
   {
@@ -281,7 +336,7 @@ export const SPIRE_FLOORS: SpireFloor[] = [
     music: 'spireStars',
     taunt: '"Up here I smothered the very stars. Reach them — if your little mind can stretch that far."',
     topics: ['space'],
-    levelBonus: 3,
+    levelBonus: 2,
     questions: 4,
   },
   {
@@ -290,7 +345,7 @@ export const SPIRE_FLOORS: SpireFloor[] = [
     music: 'spireEngine',
     taunt: '"Numbers, gears, wild ideas — I jammed them all. Untangle my locks. They get nastier from here."',
     topics: ['math', 'engineering', 'creativity'],
-    levelBonus: 4,
+    levelBonus: 2,
     questions: 4,
   },
   {
@@ -301,7 +356,7 @@ export const SPIRE_FLOORS: SpireFloor[] = [
     music: 'spire',
     taunt: `"No more stairs, spark. Only me. I am ${VILLAIN_NAME} — and I will out-last every answer you have left."`,
     topics: ['math', 'science', 'engineering', 'creativity', 'nature', 'space', 'history'],
-    levelBonus: 5,
+    levelBonus: 3,
     questions: 5,
     isBoss: true,
   },

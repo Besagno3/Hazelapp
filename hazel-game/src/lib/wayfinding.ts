@@ -897,7 +897,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
   }
   let tip: string;
   if (goal.kind === 'spire') {
-    tip = 'Rest at the Sleepy Sheep Inn before you climb. In the Spire, every wrong answer snuffs a candle.';
+    // True and useful in the Spire (B4, #150): HP isn't used there, but Hint Feathers work on its riddles.
+    tip = '🪶 Hint Feathers work in the Spire too — each one hides two wrong answers. Peddler Plus sells them in Numbria. Bring a few!';
   } else if (goal.kind === 'boat') {
     tip = knowsFieldSpell('return', flags)
       ? "🏠 Return flies you to any town you've been to — handy for gathering what Marlow's boat needs!"
