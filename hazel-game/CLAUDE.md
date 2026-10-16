@@ -580,7 +580,7 @@ zod, react-query. Add the package in the same change that first uses it.
   twice and runs the SQL tests.
 - **CI** (`.github/workflows/ci.yml`, #81 + #88): job `test` = lint + bundle
   check + tests + build; `edge-function` = `deno check`
-  of the edge function; `migrations` applies every migration to a plain
+  of the edge function and the bank recheck script; `migrations` applies every migration to a plain
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
   `supabase/ci/*.test.sql`. A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.
@@ -597,25 +597,81 @@ zod, react-query. Add the package in the same change that first uses it.
   birth date (`ageFrom`, clamped 3–18; the caller's `age` is ignored) and at
   most one flavour line chosen by key (`flavor`, `QUESTION_FLAVORS`); the old
   free-text `context` is ignored. **Claude failing never reaches a kid** (B5):
-  the client times out after 20 s with one retry, a reply that didn't stop at
+  the client times out after 30 s with one retry (20 s before Haiku 5.5's
+  thinking, #147), a reply that didn't stop at
   `end_turn` (cut off, refused) counts as a failure, and the batch is filled
   from the cache (unseen first, then seen); only with nothing to give does
   the kid see a friendly "try again" (503) or, when today's budget is spent,
   "come back tomorrow" (429). Raw errors go to the log, never to the reply.
-- **Questions are screened for kids (B10, #133):** three layers in the
+- **Questions are screened for kids (B10, #133, #147):** four layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
-  by `questionScreen.test.ts`): `CONTENT_RULES` in the writer's system prompt
-  (no violence, scary or sad topics, religion, politics, living or
-  controversial people, romance, medical or body-weight topics, brands,
-  links; facts only); `screenQuestion` on every fresh *and* saved question
-  (four different non-empty options, length caps, no links / emails / phone
-  numbers, a blocked-word list); and a **blind second check** — one more
-  call answers each fresh question without the answer and says whether it
-  keeps the rules (`checkFresh`, `keepChecked`): only those it agrees with are
-  served, and a failed or mismatched check keeps none (the cache fills in).
-  It asks for a third more questions than it needs to cover drops; secret
-  `QUESTION_SECOND_CHECK=off` turns the check off. **Reports** (`FlagButton`,
+  by `questionScreen.test.ts`). **The model is Claude Haiku 5.5** (`MODEL`,
+  in the block; #147): it thinks by default and thinking counts toward
+  `max_tokens`, so each call leaves room (writer 16,000, checks 8,000 /
+  4,000) and sets its effort (writer and blind check `medium`, explanation
+  check `low`); it takes no `temperature` / `top_p` / `top_k` and no prefill,
+  and a reply is read by block type (it opens with thinking blocks,
+  `replyJson`). (1) `CONTENT_RULES` — ten numbered safety rules plus fact
+  rules — in the writer's system prompt, which also pitches the level to the
+  child's age (1–3 easy for this age … 9–10 for the strongest, up to two years
+  ahead in ideas) and asks it to check its own work; every part of a question
+  is held to them, wrong options and the explanation too. (2) `screenQuestion`
+  on every fresh *and* saved question (four different non-empty options,
+  length caps, no links / emails / phone numbers, a blocked-word list, and
+  nothing pointing at an option by its place — "all of the above", "the
+  answer is B", lettered options — since the options get shuffled; a letter
+  that IS an option's text, like a music note, passes). (3) A **blind check**
+  answers each fresh question without the answer and says whether it keeps
+  the rules (`keepChecked`). (4) An **explanation check** reads each one with
+  its right answer and explanation (`keepExplained`) — the blind check never
+  sees the explanation, which would give the answer away. (3) and (4) run side
+  by side (`checkFresh`); only questions both pass are served, and a failed or
+  mismatched check keeps none (the cache fills in). The three prompts are the
+  same for every child (the age goes in the user message) and carry
+  `cache_control`, so they're cached (Haiku 5.5 caches from 512 tokens; Haiku
+  4.5 needed 4,096, so the old marker did nothing). Each call logs its time
+  and tokens (`logCall`). It asks for a third more questions than it needs to
+  cover drops; secret `QUESTION_SECOND_CHECK=off` turns both checks off.
+  **Each question is checked once** (migration 0018): the checks go through
+  `runChecks` (shared, with a `CallModel` each caller makes from its own client,
+  `modelCaller`), and a question that passes is marked `checked_version =
+  RULES_VERSION` — new ones as they're saved, **the saved bank** by
+  `supabase/scripts/recheck-questions.ts` (#147; Deno, run by the owner with
+  the service-role key — dry run first, `--apply` to act), which skips anything
+  already checked under the current version; failures go to `review` with the
+  reason in `questions.review_note` (0017), which the queue lists among the
+  reasons. Raise `RULES_VERSION` when the rules change and the next recheck
+  covers the bank again. **A report checks it again:** after a report is saved
+  the app asks the function (`action: 'check-report'`, not awaited); it claims
+  the question (`claim_report_check`: only for a report this family made since
+  the question's last check, at most `REPORT_CHECKS_PER_FAMILY_PER_DAY` = 20 a
+  day) and runs `reportReview` — Claude Haiku, and if Haiku finds nothing, the
+  stronger model (`ESCALATION_MODEL`, Claude Opus 5.5, higher effort, with the
+  server-side refusal fallback). A problem, or a check that can't run, holds the
+  question back (`review`); either way the note says what was found. A check
+  never puts a question back. Reports no check covered (the tab closed, over the
+  cap) are swept by the recheck script's `--reported` run. **The owner hears
+  about it** (#147, `_shared/notify.ts`, inline in the function between
+  `// --- notify:start` / `notify:end`, drift-checked by `notify.test.ts`): email
+  (Resend: `RESEND_API_KEY` + `ALERT_EMAIL_TO`, optional `ALERT_EMAIL_FROM`),
+  Slack (`ALERT_SLACK_WEBHOOK_URL`) and Discord (`ALERT_DISCORD_WEBHOOK_URL`) —
+  every channel whose secrets are set. A report check that leaves a question
+  held back sends `heldAlert` at once (`alertIfHeld`); `action: 'digest'`
+  (needs the `x-digest-secret` header = `ALERT_DIGEST_SECRET`, run daily by a
+  scheduled job — see Commands) sends `digestAlert`, everything waiting, and
+  nothing when nothing is. Messages carry the question and report counts, never
+  a child or a family, and link to `APP_URL/?review`. A channel that refuses is
+  logged, never fails the check. **The owner decides in the app** (#147,
+  migration 0019): a grown-up listed in `public.admins` (added in the SQL editor;
+  nobody can read or write it through the API) sees 🛡️ Question review in 👪
+  Grown-ups (`QuestionReviewPage`, `lib/review.ts`): what's waiting, held back
+  first, with the answer, the reports in words and the checks' notes (🔎), and
+  ✅ Release / ⭐ Approve / 🗑️ Retire (asks first) through `admin_review_queue` /
+  `admin_review_question`, which refuse anyone else ("not an admin", 42501) and
+  record who decided (`questions.reviewed_by`). The alert's link (`?review`,
+  `familyStore.reviewRequested`) opens 👪 Grown-ups and, once it's unlocked,
+  the review page. **Reports** (`FlagButton`,
   on every question screen through `QuestionCard`, "Not OK for kids" first)
   hide a question from the reporting family; for everyone it's held back only
   through `questions.status` (migration 0016: `active` / `review` / `retired`
@@ -658,10 +714,13 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter, the `age` they were written
   for). The edge function mixes cached questions with fresh ones; the cached
-  ones come from `pick_cached_questions` (migration 0015, #134): the whole ±2
-  level band at random, leaning to less-asked, none written for a child more
-  than a year older (`AGE_SLACK`; old rows have no age and stay in), none
-  flagged. **Seen = shown (#134):** the app tells the server what was on
+  ones come from `pick_cached_questions` (migration 0015, #134; 0017, #147):
+  the whole ±2 level band at random, leaning to less-asked, only ones written
+  for a child within a year of this one, either way (`AGE_SLACK`) — and one
+  written for an older child only at or below this kid's level, since a level
+  is pitched to the age it was written for (old rows have no age and stay
+  in) — none flagged. Without 0017 the function retries the picker without
+  the age window's lower edge (logged). **Seen = shown (#134):** the app tells the server what was on
   screen (`markSeen`, `lib/seen.ts`, from `QuestionCard` and `QuizRound`, as
   `mark_questions_seen`); what the function hands over is only held back for
   an hour (`question_views.shown = false`), so prefetches don't fill a kid's
@@ -718,6 +777,27 @@ python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell C
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
+
+# Recheck the saved question bank against today's rules (#147) — Deno, the project's service-role key
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts           # dry run
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails, mark what passes
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --reported --apply   # reports no check covered yet
+
+# Question review alerts and the admin page (#147) — once, by the owner
+#   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
+#        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
+#   2. Secrets (email via Resend; Slack and Discord optional):
+supabase secrets set RESEND_API_KEY=re_… ALERT_EMAIL_TO=<you> APP_URL=https://<your site> ALERT_DIGEST_SECRET=<long random string>
+supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/…
+#      ALERT_EMAIL_FROM is Resend's test sender until you verify a domain (it only delivers to the Resend account's own address).
+#   3. SQL editor, after enabling the pg_cron and pg_net extensions: the daily digest (07:45 UTC)
+#        select cron.schedule('question-review-digest', '45 7 * * *', $$
+#          select net.http_post(
+#            url := 'https://<project-ref>.supabase.co/functions/v1/generate-questions',
+#            headers := jsonb_build_object('Content-Type', 'application/json',
+#              'Authorization', 'Bearer <anon key>', 'x-digest-secret', '<ALERT_DIGEST_SECRET>'),
+#            body := '{"action":"digest"}'::jsonb);
+#        $$);
 ```
 
 ## Error handling
@@ -803,6 +883,92 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Merge main (public pages, PR #66) into the question-safety branch (#147)
+`main` took ISSUES **#146** and TC-1254–1269 for the public pages while
+PR #71 was open, so this branch moved **#146 → #147** and its test cases
+**TC-1254–1279 → TC-1270–1295** (only its own lines, the code comments and
+migration comments included — none of them is merged anywhere). Only the
+docs conflicted: the public pages touch `site/`, the sign-in page and
+`App.tsx`; this branch touches 👪 Grown-ups, `familyStore` and the question
+function.
+
+### 2026-10-16 — Review alerts (email, Slack, Discord) and the admin review page (#147)
+The owner's follow-up: hear about questions that need review, and decide them
+in the app instead of the SQL editor.
+- **Alerts** (`_shared/notify.ts`, inline in the function, drift-tested): email
+  through Resend, Slack and Discord webhooks — whichever secrets are set. A
+  report check that leaves a question held back alerts at once; `action:
+  'digest'` (a secret header, run daily by pg_cron) sends everything waiting.
+  No child or family in any message; the link opens the review page.
+- **Admin page** (migration 0019): `public.admins` (owner-only, added in the SQL
+  editor), `is_admin`, `admin_review_queue`, `admin_review_question` (records
+  `reviewed_by`); 🛡️ Question review in 👪 Grown-ups with Release / Approve /
+  Retire; `?review` opens it after the Grown-ups gate.
+- ⚠️ Owner setup: Commands → "Question review alerts and the admin page".
+- **Tests:** notify.test (+7, drift), review.test (+5), QuestionReviewPage.test
+  (+6), GrownUpsArea.test (+3), familyStore.test (+3), `question_admin.test.sql`
+  (the admin check fails its test when removed); the harness 99/99 (alerts on
+  all three channels, no alert when still shown, a refusing channel, the
+  digest's secret and contents). 1414 green; lint, build, `deno check` clean;
+  eleven SQL tests and the bundle twice on Postgres 16. Looked at in headless
+  Chromium at 375 and 1024 px: no sideways scroll, no errors.
+
+### 2026-10-16 — Checked once, and again on a report: Haiku, then Opus (#147)
+The owner's follow-up on PR #71: existing questions checked once, new ones on
+generation, and a report triggering a check by Haiku and then a stronger model.
+- **Once:** migration 0018 adds `checked_version` / `checked_at`; new questions
+  are saved with `RULES_VERSION` (only when the checks ran; without 0018 the
+  save retries without it), and the recheck script skips checked questions and
+  marks what passes.
+- **A report checks it again:** the app asks `generate-questions` with
+  `action: 'check-report'` after a report (not awaited); `claim_report_check`
+  lets each report start one check, 20 a family a day; `reportReview` runs
+  Claude Haiku, then Claude Opus 5.5 if Haiku finds nothing (higher effort, the
+  server-side refusal fallback). A problem or a check that can't run holds the
+  question back; a check never puts one back. `--reported` sweeps the rest.
+- **Shared:** `runChecks` and `reportReview` in the screening block, over a
+  `CallModel` each caller builds (`modelCaller`); the sign-in and kid checks
+  are one helper (`identifyKid`) for both actions.
+- ⚠️ Deploy: apply 0017 and 0018, deploy the function, then the recheck.
+- **Tests:** questionScreen.test (+ runChecks, reportReview — escalation, holds,
+  errors; mutations caught), questions.test (+3), `question_checks.test.sql`
+  (each claim rule fails with its line removed); the harness 84/84. 1391 green;
+  lint, build, `deno check` clean; ten SQL tests and the bundle twice on Postgres 16.
+
+### 2026-10-16 — Safer questions: Haiku 5.5, an explanation check, an age window, a bank recheck (#147)
+The question prompt rewrite and the seven fixes from its `/saas-code-review`.
+- **Claude Haiku 5.5** writes and checks questions (was Haiku 4.5: newer and
+  about a tenth of the price per token). It thinks by default and thinking
+  counts toward `max_tokens`, so the writer gets 16,000 (was 4,096) and the
+  checks 8,000 / 4,000 (the check had 1,024 — it would have been cut off and
+  every fresh question dropped); effort is set per call; timeout 30 s (was 20).
+- **New prompts:** ten numbered safety rules for every part of a question,
+  wrong options and explanation included (privacy, nothing a child could copy,
+  stereotypes, disputed or changing facts, facts true in one country only);
+  the writer pitches the level to the child's age with examples by age and
+  checks its own work; the blind check fails a question two options could
+  answer; both checks ignore instructions inside the questions.
+- **An explanation check** (the blind check never saw the explanation), side
+  by side with the blind check; both must pass. Their prompts are the same for
+  every child, so all three prompts are cached now.
+- **Nothing points at an option by its place** (`screenQuestion`): "all of
+  the above", "the answer is B", lettered options — the options get shuffled.
+- **History and geography** steer away from conquest, slavery, disputed
+  borders and country counts.
+- **Reuse keeps to the age** (migration 0017): within a year either way, an
+  older child's question only at or below the kid's level; without 0017 the
+  function retries the old picker.
+- **The bank recheck** (`supabase/scripts/recheck-questions.ts`): the same
+  checks over the saved bank, failures to `review` with a `review_note`, which
+  the queue now lists even with no reports.
+- ⚠️ Deploy: apply 0017, run the recheck (dry run, then `--apply`), then
+  `supabase functions deploy generate-questions`.
+- **Tests:** questionScreen.test (rewritten, 37), `question_age_window.test.sql`
+  (each rule fails with its line removed); a local harness ran the function and
+  the script against stand-in Supabase and Claude (52/52). 1383 green; lint,
+  build, `deno check` (both) clean; migrations and the bundle twice on
+  Postgres 16 with all nine SQL tests.
 
 ### 2026-10-16 — Merge main (overworld 16a–16c, PRs #63–#65) into the public-pages branch (#146)
 `main` took ISSUES **#143–#145** and TC-1210–1253 for items 16a–16c while
