@@ -85,6 +85,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
+import { isStarterId } from '../../content/starterQuestions';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
@@ -276,6 +277,9 @@ export default function BattleArena() {
   const [spellQs, setSpellQs] = useState<Question[]>([]);
   const [spellIdx, setSpellIdx] = useState(0);
   const [answers, setAnswers] = useState<boolean[]>([]);
+  // The answers that move the saved skill level: bank questions only (#153).
+  // Starter questions repeat — six a band — so knowing them isn't a new level.
+  const rampAnswers = useRef<boolean[]>([]);
   const misses = useRef<LibraryEntry[]>([]);
   // Correct answers in a row (any question) — powers up every hit.
   const [streak, setStreak] = useState(0);
@@ -474,13 +478,16 @@ export default function BattleArena() {
 
   function recordAnswer(correct: boolean, q: Question, picked: number) {
     setAnswers((a) => [...a, correct]);
+    const starter = isStarterId(q.id);
+    if (!starter) rampAnswers.current.push(correct);
     const s = combatState();
     // Keen Eye (Talon): a right answer also mends a little.
     const mend = correct ? Math.min(s.playerMaxHp, s.playerHp + keenEyeHeal(style)) - s.playerHp : 0;
     applyCombat({ ...s, charge: chargeAfterAnswer(s.charge, correct), playerHp: s.playerHp + mend });
     if (mend > 0) float(`🎯 +${mend}`, 'hero', 'text-emerald-300');
-    // A hinted / peeked answer isn't evidence the questions are too easy.
-    const ms = helped.current ? Infinity : nowMs() - askedAt.current;
+    // A hinted / peeked answer isn't evidence the questions are too easy, and
+    // nor is a starter question's (#153).
+    const ms = helped.current || starter ? Infinity : nowMs() - askedAt.current;
     const step = speedStep(speedRun.current, correct, ms, age, speedBoost.current);
     speedRun.current = step.run;
     if (step.boosted) raiseQuestionLevel();
@@ -818,6 +825,7 @@ export default function BattleArena() {
     sfx('wrong');
     speedRun.current = 0;
     setAnswers((a) => [...a, false]);
+    if (!isStarterId(q.id)) rampAnswers.current.push(false);
     setStreak(0);
     misses.current.push({ question: q, picked: -1 }); // no pick — the Library never shows it
     resolveEnemyQuestion(false, true);
@@ -945,7 +953,7 @@ export default function BattleArena() {
     if (profile) {
       const current = skillLevelFor(profile.skillLevels, topic, age);
       // The usual battle ramp (never lowers), but never below what speed earned.
-      const next = skillAfterBattle(current, answers, speedBoost.current);
+      const next = skillAfterBattle(current, rampAnswers.current, speedBoost.current);
       if (next !== current) void setSkillLevel(topic, next);
     }
     return xp;

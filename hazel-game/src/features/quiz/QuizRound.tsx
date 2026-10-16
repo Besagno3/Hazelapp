@@ -11,6 +11,7 @@ import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { prefetchQuestions, QUIZ_QUESTION_COUNT, TOPIC_NOT_READY } from '../../lib/questions';
 import { markSeen } from '../../lib/seen';
+import { isStarterId } from '../../content/starterQuestions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import FlagButton from '../../components/FlagButton';
 import type { Question } from '../../types';
@@ -98,11 +99,16 @@ export default function QuizRound() {
       .map((question, i) => ({ question, picked: picks[i] }))
       .filter((_, i) => answers[i] === false);
     recordQuizRound(finalPassed, misses);
-    // Persist the skill ramp for this topic. XP only once the world is open:
+    // Persist the skill ramp for this topic — bank questions only (#153): the
+    // starter questions repeat (six a band, one band for three levels), so
+    // knowing them by heart isn't a new level. XP only once the world is open:
     // the opening rounds are the way in, not a way to level up (#122).
     // `worldUnlocked` is from before this round, so the round that opens the
     // world pays none either.
-    const newLevel = nextSkillLevel(skillLevel, answers);
+    const newLevel = nextSkillLevel(
+      skillLevel,
+      answers.filter((_, i) => !isStarterId(questions[i].id)),
+    );
     void setSkillLevel(topic, newLevel);
     if (worldUnlocked) void addXp(correctCount * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
     void recordActivity();

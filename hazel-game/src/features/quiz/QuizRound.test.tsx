@@ -169,3 +169,27 @@ describe('QuizRound — the results keep the next round\'s warm-up (#130 review)
     expect(lastLevelOverride).toBe(3);
   });
 });
+
+describe('QuizRound — starter questions don’t move the skill level (#153 review round 1)', () => {
+  it('a perfect round of starter questions keeps the level, and still pays XP', async () => {
+    start(3, true);
+    const setSkillLevel = vi.fn();
+    useProfileStore.setState({ setSkillLevel });
+    hook.questions = questions.map((q, i) => ({ ...q, id: `starter-math-easy-${i + 1}` }));
+    await playPerfectRound();
+    // Six a band, the same six for levels 1–3: a child who knows them by heart
+    // would otherwise climb two levels a round.
+    expect(setSkillLevel).toHaveBeenCalledWith('math', 3);
+    expect(addXp).toHaveBeenCalledTimes(1);
+  });
+
+  it('the bank questions in a mixed round still move it', async () => {
+    start(3, true);
+    const setSkillLevel = vi.fn();
+    useProfileStore.setState({ setSkillLevel });
+    // Three from the bank, the last two topped up from the starters.
+    hook.questions = questions.map((q, i) => (i < 3 ? q : { ...q, id: `starter-math-easy-${i + 1}` }));
+    await playPerfectRound();
+    expect(setSkillLevel).toHaveBeenCalledWith('math', 5);
+  });
+});

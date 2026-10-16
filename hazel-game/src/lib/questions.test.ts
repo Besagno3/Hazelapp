@@ -260,6 +260,30 @@ describe('fetchQuestions never fails a child (B5)', () => {
     expect(invokeMock.mock.calls[1][1].body).toMatchObject({ count: 9 });
   });
 
+  it('a warm-up still on its way when the battle starts, which then fails: asked again, no error (review round 1)', async () => {
+    let fail!: (e: Error) => void;
+    invokeMock.mockReturnValueOnce(new Promise((_, reject) => (fail = reject)));
+    prefetchQuestions('math', 9, 4, 9, undefined, { cacheOnly: true });
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(9) }, error: null });
+    const battle = fetchQuestions('math', 9, 4, 9);
+    fail(new Error('Failed to fetch'));
+    expect(await battle).toHaveLength(9);
+    expect(invokeMock.mock.calls[1][1].body).toMatchObject({ count: 9 });
+    expect(invokeMock.mock.calls[1][1].body).not.toHaveProperty('cacheOnly');
+  });
+
+  it('drops a question the warm-up already gave (handed back as a seen one) and tops up instead (review round 1)', async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(4) }, error: null });
+    prefetchQuestions('history', 9, 6, 9, undefined, { cacheOnly: true });
+    // Out of budget, the battle's own call falls back to seen questions — and
+    // the warm-up's are held as seen, so two of them come back.
+    invokeMock.mockResolvedValueOnce({ data: { questions: [...apiBatch(2), ...apiBatch(3, 10)] }, error: null });
+    const out = await fetchQuestions('history', 9, 6, 9);
+    expect(out).toHaveLength(9);
+    expect(new Set(out.map((q) => q.id)).size).toBe(9);
+    expect(out.filter((q) => q.id.startsWith('starter-'))).toHaveLength(2);
+  });
+
   it('a normal look-ahead (the next quiz round) never asks for saved questions only', async () => {
     invokeMock.mockResolvedValue({ data: { questions: apiBatch(5) }, error: null });
     prefetchQuestions('words', 9, 3, 5);

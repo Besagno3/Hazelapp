@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import type { BattleEnemy, FightStyle, Question } from '../../types';
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import type { BattleEnemy, FightStyle, Profile, Question } from '../../types';
 
 const q: Question = {
   id: 'q1',
@@ -11,8 +11,10 @@ const q: Question = {
   correctIndex: 0,
 };
 
+// The battle's question pool; a test may swap it (#153: starter questions).
+const pool = { questions: [q] };
 vi.mock('../../hooks/useGeneratedQuestions', () => ({
-  useGeneratedQuestions: () => ({ questions: [q], loading: false, error: null, reload: () => {} }),
+  useGeneratedQuestions: () => ({ questions: pool.questions, loading: false, error: null, reload: () => {} }),
 }));
 // The spell pool never arrives unless a test hands one over (Time Ripple, #75 item 14h).
 const fetchQuestionsMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>(() => new Promise(() => {})));
@@ -26,6 +28,7 @@ vi.mock('../../machines/gameFlow', () => ({ sendFlow: vi.fn() }));
 const { default: BattleArena } = await import('./BattleArena');
 const { useBattleStore } = await import('../../store/battleStore');
 const { useSaveStore } = await import('../../store/saveStore');
+const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
 const { atTier } = await import('../../content/enemies');
 const { BOAT_MENDED } = await import('../../content/boat');
@@ -46,6 +49,7 @@ const enemy = {
 } as BattleEnemy;
 
 beforeEach(() => {
+  pool.questions = [q];
   useSaveStore.setState({
     userId: null,
     save: { ...defaultSave(), avatarId: 'a1', items: { ...defaultSave().items, potion: 1 } },
@@ -550,5 +554,79 @@ describe('the Sunken Archive in battle (#75 item 14h)', () => {
     expect(screen.getByText(/carry you back to the Quiet Shelf Inn in the Sunken Archive, where you last rested/)).toBeInTheDocument();
     expect(screen.queryByText(/Binder finds you/)).toBeNull();
     expect(useSaveStore.getState().save!.zoneId).toBe('sunken-archive');
+  });
+});
+
+describe('starter questions never move the saved skill level (#153 review round 1)', () => {
+  const starter: Question = { ...q, id: 'starter-math-easy-1' };
+  const setSkillLevel = vi.fn();
+
+  beforeEach(() => {
+    setSkillLevel.mockReset();
+    fetchQuestionsMock.mockClear();
+    useProfileStore.setState({
+      profile: {
+        id: 'kid', birthYear: 2017, birthMonth: 1, skillLevels: { math: 3 }, xp: 0, powerUps: {},
+        currentStreak: 0, longestStreak: 0, lastPlayedOn: null,
+      } as Profile,
+      setSkillLevel,
+      addXp: vi.fn(),
+      recordActivity: vi.fn(),
+    });
+  });
+  afterEach(() => {
+    useProfileStore.setState({ profile: null });
+  });
+
+  /** Answer `n` questions right, quickly, through attacks and defends alike. */
+  function answerRight(n: number) {
+    render(<BattleArena />);
+    let answered = 0;
+    for (let i = 0; i < 80 && answered < n; i++) {
+      if (screen.queryByText('Attack')) {
+        fireEvent.click(screen.getByText('Attack'));
+      } else if (screen.queryByText('4')) {
+        fireEvent.click(screen.getByText('4'));
+        fireEvent.click(screen.getByText('▶ Go!'));
+        answered++;
+      } else {
+        fireEvent.click(screen.getByText(/tap to continue/));
+      }
+    }
+    expect(answered).toBe(n);
+  }
+
+  /** One right Attack on a 1-HP critter, read on to the win. */
+  function winWithOneAnswer() {
+    useBattleStore.getState().start({ ...enemy, maxHp: 1 }, 60, 100);
+    answerRight(1);
+    for (let i = 0; i < 8 && !screen.queryByText('Victory!'); i++) {
+      const next = screen.queryByText(/tap to continue/);
+      if (next) fireEvent.click(next);
+    }
+    expect(screen.getByText('Victory!')).toBeInTheDocument();
+  }
+
+  it('a win on a bank question raises it; the same win on a starter question leaves it', () => {
+    winWithOneAnswer();
+    expect(setSkillLevel).toHaveBeenCalledWith('math', 5);
+
+    cleanup();
+    setSkillLevel.mockReset();
+    pool.questions = [starter];
+    useBattleStore.getState().reset();
+    winWithOneAnswer();
+    expect(setSkillLevel).not.toHaveBeenCalled();
+  });
+
+  it('five quick right starter answers don’t trip the speed trigger', () => {
+    pool.questions = [starter];
+    answerRight(5);
+    expect(fetchQuestionsMock.mock.calls.filter((c) => c[4] === 'battle')).toEqual([]);
+  });
+
+  it('…as five quick right bank answers do', () => {
+    answerRight(5);
+    expect(fetchQuestionsMock.mock.calls.filter((c) => c[4] === 'battle')).toHaveLength(1);
   });
 });

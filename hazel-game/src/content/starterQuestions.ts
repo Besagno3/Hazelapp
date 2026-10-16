@@ -96,7 +96,7 @@ const BANK: Record<Topic, Record<StarterBand, readonly Entry[]>> = {
     ],
     middle: [
       ['What is a pulley used for?', ['Lifting heavy things', 'Measuring time', 'Making light', 'Keeping things cold'], 'A pulley is a wheel with a rope round it that helps you lift heavy loads.'],
-      ['Which shape do builders use to make bridges strong?', ['Triangles', 'Circles', 'Ovals', 'Hearts'], "A triangle can't be squashed out of shape, so bridges and towers use lots of them."],
+      ['Which shape can’t be pushed out of shape, so builders fill bridge frames with it?', ['The triangle', 'The square', 'The circle', 'The heart'], 'Push on a square frame and it leans over, but a triangle’s three sides hold it firm — so bridge frames are full of triangles.'],
       ['Which part of a computer is often called its brain?', ['The processor', 'The screen', 'The keyboard', 'The speakers'], 'The processor follows the instructions and does all the thinking.'],
       ['Which of these lets electricity flow through it best?', ['Copper', 'Rubber', 'Plastic', 'Wood'], 'Copper is a metal that carries electricity well, so wires are made of it.'],
       ['What do we call a list of step-by-step instructions, like a recipe?', ['An algorithm', 'An alarm', 'An antenna', 'An atlas'], 'An algorithm is a set of steps, done in order — computers follow algorithms.'],
@@ -105,7 +105,7 @@ const BANK: Record<Topic, Record<StarterBand, readonly Entry[]>> = {
     hard: [
       ['In binary, what number does 101 stand for?', ['5', '101', '3', '6'], 'Binary counts in ones, twos and fours: 101 is one four, no twos and one one — 4 + 1 = 5.'],
       ['Why can a huge steel ship float?', ['Its shape pushes aside lots of water', 'Steel is lighter than water', 'Paint makes it float', 'The engine holds it up'], 'A hull is hollow and wide, so it pushes aside a lot of water — and the water pushes back up.'],
-      ['What does a solar panel turn sunlight into?', ['Electricity', 'Sound', 'Heat only', 'Wind'], 'Solar panels turn the energy in sunlight into electricity we can use.'],
+      ['What does a solar panel turn sunlight into?', ['Electricity', 'Sound', 'Wind', 'Rain'], 'Solar panels turn the energy in sunlight into electricity we can use.'],
       ['What does a switch in a circuit do?', ['Opens or closes the path', 'Stores electricity', 'Makes light', 'Measures power'], 'A switch joins or breaks the path, so electricity can flow or stop.'],
       ['A small gear with 10 teeth turns a big gear with 20 teeth. How does the big gear turn?', ['Slower', 'Faster', 'At the same speed', "It doesn't turn"], 'The small gear must go round twice to turn the big one once, so the big one turns slower.'],
       ['What does recycling something mean?', ['Using it to make something new', 'Throwing it in the sea', 'Painting it a new colour', 'Hiding it underground'], 'Recycling turns old things, like bottles and paper, into new things.'],
@@ -159,7 +159,7 @@ const BANK: Record<Topic, Record<StarterBand, readonly Entry[]>> = {
       ['Which of these was one of the Seven Wonders of the Ancient World?', ['The Lighthouse of Alexandria', 'The Eiffel Tower', 'The Statue of Liberty', 'Big Ben'], 'The Lighthouse of Alexandria stood in Egypt more than 2,000 years ago and guided ships with its fire.'],
       ['The Silk Road was a trade route between which places?', ['China and Europe', 'Africa and Australia', 'North and South America', 'Iceland and Greenland'], 'Traders carried silk, spices and ideas along the Silk Road between China and Europe.'],
       ['Which people built the mountain city of Machu Picchu?', ['The Inca', 'The Vikings', 'The Romans', 'The Egyptians'], 'The Inca built Machu Picchu high in the Andes mountains of Peru.'],
-      ['What began in Olympia, in ancient Greece?', ['The Olympic Games', 'The first library', 'The calendar', 'Paper money'], 'The first Olympic Games were held in Olympia nearly 2,800 years ago.'],
+      ['What began in Olympia, in ancient Greece?', ['The Olympic Games', 'The first library', 'The calendar', 'Paper money'], 'The first Olympic Games were held in Olympia about 2,800 years ago.'],
       ['How many years are in a millennium?', ['1,000', '100', '10', '10,000'], 'A millennium is 1,000 years — "mille" means a thousand.'],
     ],
   },
@@ -251,7 +251,7 @@ const BANK: Record<Topic, Record<StarterBand, readonly Entry[]>> = {
       ['What is land with water all around it called?', ['An island', 'A hill', 'A forest', 'A road'], 'An island has water on every side.'],
     ],
     middle: [
-      ['How many continents are there?', ['7', '5', '9', '3'], 'Africa, Antarctica, Asia, Australia, Europe, North America and South America: 7.'],
+      ['How many continents are there?', ['7', '3', '10', '12'], 'Africa, Antarctica, Asia, Australia, Europe, North America and South America: 7.'],
       ['Which is the largest ocean?', ['The Pacific Ocean', 'The Atlantic Ocean', 'The Indian Ocean', 'The Arctic Ocean'], 'The Pacific is the biggest and deepest ocean on Earth.'],
       ['Which is the coldest continent?', ['Antarctica', 'Africa', 'Europe', 'Australia'], 'Antarctica is covered in ice and is the coldest place on Earth.'],
       ['Which is the longest river in Africa?', ['The Nile', 'The Thames', 'The Amazon', 'The Danube'], 'The Nile flows north through Africa into the Mediterranean Sea.'],
@@ -259,7 +259,7 @@ const BANK: Record<Topic, Record<StarterBand, readonly Entry[]>> = {
       ['What is the imaginary line around the middle of the Earth called?', ['The equator', 'The horizon', 'The coastline', 'The border'], 'The equator circles the middle of the Earth, halfway between the North and South Poles.'],
     ],
     hard: [
-      ['Which is the tallest mountain on Earth?', ['Mount Everest', 'Mount Kilimanjaro', 'Mont Blanc', 'Mount Fuji'], 'Mount Everest, in the Himalayas, is the highest mountain above sea level.'],
+      ['Which is the highest mountain on Earth?', ['Mount Everest', 'Mount Kilimanjaro', 'Mont Blanc', 'Mount Fuji'], 'Mount Everest, in the Himalayas, is the highest mountain above sea level.'],
       ['Lines of latitude measure how far a place is from what?', ['The equator', 'The North Star', 'The ocean floor', 'The nearest city'], 'Latitude tells you how far north or south of the equator a place is.'],
       ['Counting cold deserts too, which is the largest desert?', ['Antarctica', 'The Sahara', 'The Gobi', 'The Mojave'], 'A desert is a place with very little rain or snow — and icy Antarctica is the biggest of all.'],
       ['What is a peninsula?', ['Land almost surrounded by water', 'A very deep lake', 'A mountain made of ice', 'A flat, grassy plain'], 'A peninsula sticks out into the sea, with water on three sides.'],

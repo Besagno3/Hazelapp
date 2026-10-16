@@ -606,7 +606,10 @@ zod, react-query. Add the package in the same change that first uses it.
   whatever the server can't give — offline, a 503 or 429, a topic it doesn't
   know yet, a short batch — from the hand-written **starter questions**
   (`content/starterQuestions.ts`: every topic, three level bands, six each,
-  screened like AI ones; ids `starter-`, never marked seen or reported).
+  screened like AI ones; ids `starter-`, never marked seen, no 🚩 Report
+  (`FlagButton` shows nothing off the bank, `inQuestionBank`), and they never
+  move the saved skill level — quiz ramp, battle ramp or speed trigger: six a
+  band repeat, so knowing them isn't a level; they still pay XP).
 - **Questions are screened for kids (B10, #133):** three layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
@@ -811,6 +814,30 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — B5 review round 1: starters don't move the skill level, no 🚩 off the bank (#153)
+`/saas-code-review` of #69 (1 medium, 3 low), all fixed:
+- **Starter questions never move the saved skill level (medium):** six a band
+  repeat and one band covers three levels, so a child on starters (a topic
+  the deployed function doesn't know, an outage) could learn them by heart
+  and climb +2 every flawless round to 10, then meet level-10 questions when
+  the service came back (battles never lower it). `QuizRound` ramps on bank
+  questions only; `BattleArena` keeps `rampAnswers` (bank answers) for
+  `skillAfterBattle`, and a starter answer never counts toward the speed
+  trigger. XP still pays (the conservative call: the level is what's at
+  stake).
+- **No 🚩 off the bank (low):** a starter (or `fresh-`) question's report said
+  "Reported — thanks! We'll take a look" and sent nothing; `FlagButton` now
+  shows nothing when `!inQuestionBank(id)`.
+- **Five starter questions (low):** continents no longer offer 5, the solar
+  panel no "Heat only", the bridge asks for the shape that can't be pushed out
+  of shape, "highest" mountain, the Olympics "about" 2,800 years ago.
+- **Tests (low):** a warm-up that fails while the battle waits for it, and a
+  question handed back twice, are covered now (the old "warming failed" test
+  used an empty batch). starterQuestions.test (+1), FlagButton.test (+1),
+  QuizRound.test (+2), BattleArena.test (+3), questions.test (+2), each failing
+  without its fix; SpireOverlay.test's questions mock keeps the real module.
+  1392 green, lint + build + `deno check` clean, the stand-in run 12/12.
 
 ### 2026-10-16 — Starter questions, and zone look-aheads that cost nothing (#153)
 Act I launch review B5, the app half.

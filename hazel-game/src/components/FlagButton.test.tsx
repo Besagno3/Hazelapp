@@ -52,6 +52,14 @@ describe('FlagButton', () => {
     });
   });
 
+  it('shows nothing for a question that isn’t in the bank — a report couldn’t reach anyone (#153)', () => {
+    const { container, rerender } = render(<FlagButton questionId="starter-math-easy-1" />);
+    expect(container).toBeEmptyDOMElement();
+    rerender(<FlagButton questionId="fresh-1-0" />);
+    expect(container).toBeEmptyDOMElement();
+    expect(flagQuestionMock).not.toHaveBeenCalled();
+  });
+
   it('offers "Not OK for kids" first, and sends it as not_for_kids (B10)', async () => {
     flagQuestionMock.mockResolvedValue(undefined);
     render(<FlagButton questionId="q-7" />);

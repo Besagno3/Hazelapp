@@ -39,6 +39,26 @@ describe('starter questions (B5)', () => {
     expect(texts.size).toBe(ids.size);
   });
 
+  it('offers no second answer a child could defend, and says nothing untrue (review round 1)', () => {
+    const all = ALL_TOPICS.flatMap((topic) => STARTER_BANDS.flatMap((band) => starterBank(topic, band)));
+    const find = (text: RegExp) => {
+      const q = all.find((x) => text.test(x.text));
+      expect(q, String(text)).toBeDefined();
+      return q!;
+    };
+    // Some countries count five or six continents.
+    expect(find(/How many continents/).options).not.toContain('5');
+    expect(find(/How many continents/).options).not.toContain('6');
+    // A solar hot-water panel does turn sunlight into heat only.
+    expect(find(/solar panel/).options.some((o) => /heat/i.test(o))).toBe(false);
+    // Arch bridges are curves: the question asks about the frame's shape that won't give.
+    expect(find(/bridge/).text).toMatch(/pushed out of shape/);
+    // Mauna Kea is taller from its base; Everest is the highest.
+    expect(all.some((q) => /tallest mountain/i.test(q.text))).toBe(false);
+    // 776 BC is a little more than 2,800 years ago.
+    expect(find(/Olympia/).explanation).not.toMatch(/nearly/);
+  });
+
   it('puts levels 1–3, 4–6 and 7–10 in the easy, middle and hard bands', () => {
     expect([1, 2, 3].map(starterBand)).toEqual(['easy', 'easy', 'easy']);
     expect([4, 5, 6].map(starterBand)).toEqual(['middle', 'middle', 'middle']);
