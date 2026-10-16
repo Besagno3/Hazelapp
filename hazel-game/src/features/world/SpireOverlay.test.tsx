@@ -3,7 +3,9 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
 vi.mock('../../lib/audio', () => ({ playMusic: vi.fn(), sfx: vi.fn() }));
-vi.mock('../../lib/questions', () => ({
+// The real module for the rest (the 🚩 asks `inQuestionBank` as it renders).
+vi.mock('../../lib/questions', async (orig) => ({
+  ...(await orig<typeof import('../../lib/questions')>()),
   fetchQuestions: vi.fn(async (topic: string, _age: number, level: number, count: number) =>
     Array.from({ length: count }, (_, i) => ({
       id: `${topic}-${i}`,
@@ -163,6 +165,24 @@ describe('beating Umbra pays the 600 XP clear bonus once (#109)', () => {
     // The panel says what the climb earned.
     expect(screen.getByText(`⭐ ${paid} XP`)).toBeInTheDocument();
     expect(useSaveStore.getState().save!.flags[SPIRE_CLEARED]).toBe(true);
+  }, 20000);
+
+  it('a re-clear on starter questions pays no XP, and says nothing about XP (#153)', async () => {
+    const { fetchQuestions } = await import('../../lib/questions');
+    const real = vi.mocked(fetchQuestions).getMockImplementation()!;
+    vi.mocked(fetchQuestions).mockImplementation(async (...args) =>
+      (await real(...args)).map((q, i) => ({ ...q, id: `starter-${q.topic}-easy-${i + 1}` })),
+    );
+    try {
+      useSaveStore.setState({ userId: null, status: 'ready', save: save(true), flush: vi.fn(async () => {}) });
+      render(<SpireOverlay hudSlot={null} />);
+      await climb();
+      expect(addXp).toHaveBeenCalledWith(0);
+      expect(screen.getByText(/You climbed every floor and beat Umbra again!/)).toBeInTheDocument();
+      expect(screen.queryByText(/earned ⭐/)).toBeNull();
+    } finally {
+      vi.mocked(fetchQuestions).mockImplementation(real);
+    }
   }, 20000);
 
   it('a re-clear pays the right answers only, and says so — Umbra remembers you', async () => {

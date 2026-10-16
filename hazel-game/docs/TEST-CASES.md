@@ -1222,6 +1222,39 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1047 | M | ⬜ | function | after deploy, on the real project: a battle and a quiz round load; the Supabase function log shows the check's drops (if any); `select * from question_review_queue` lists a question reported "Not OK for kids" from the app, and it's no longer served to another family |
 | TC-1048 | M | ⬜ | report | on a 320×568 phone in a battle: after answering, the 🚩 row and Continue are both reachable; the reason buttons are easy to tap |
 
+## Starter questions and saved-only look-aheads (#153)
+
+| ID     | Type | Status | Feature | Case |
+|--------|------|--------|------|------|
+| TC-1336 | U | ✅ | starters | every topic has six starter questions in each band (easy 1–3, middle 4–6, hard 7–10), each with a right answer, an explanation and its own id and text (starterQuestions.test) |
+| TC-1337 | U | ✅ | starters | every starter question passes `screenQuestion`, the same kids' screen as AI questions (starterQuestions.test) |
+| TC-1338 | U | ✅ | starters | a batch comes from the level's own band, all different; a battle's 9 tops up 3 from the nearest band (easy → middle, middle → easy, hard → middle); never more than the topic's 18 (starterQuestions.test) |
+| TC-1339 | U | ✅ | fallback | the function fails (offline, budget spent, 503, a thrown error): `fetchQuestions` returns a full batch of starter questions at the right band, answers shuffled with the right one still right, and logs a warning (questions.test) |
+| TC-1340 | U | ✅ | fallback | a topic the deployed function doesn't know: starter questions, not an error (questions.test) |
+| TC-1341 | U | ✅ | fallback | the function returns 3 of 5: the last 2 are starter questions, and the function is asked once (questions.test) |
+| TC-1342 | U | ✅ | look-ahead | a zone warm-up sends `cacheOnly: true`; when the battle starts with 4 of 9 warmed, it asks for the other 5 without `cacheOnly` and gets all 9 in order; a full warmed batch is used as it is; an empty one asks again for 9; the next-quiz-round look-ahead never sends `cacheOnly` (questions.test) |
+| TC-1343 | C | ✅ | look-ahead | entering Numbria warms each living critter's battle with `{ cacheOnly: true }` (WorldScreen.use.test) |
+| TC-1344 | U | ✅ | seen | `markSeen` and `flagQuestion` do nothing for a `starter-` id (seen.test, questions.test) |
+| TC-1345 | I | ✅ | function | run locally against a stand-in Supabase + Claude (with the bank picker): a look-ahead with 3 unseen and 4 seen saved gets the 3 unseen, held (`shown: false`), no Claude call and no second check; with nothing saved, 200 and an empty batch; with a rich bank, 9 and no Claude; the battle's own call still writes fresh ones, and out of budget still falls back to seen ones; over the per-minute limit still 429; with the quota check down, the saved ones; `cacheOnly: "yes"` is ignored — 12/12, and 6 of them fail on `main`'s function |
+| TC-1346 | M | ⬜ | fallback | in the real app with the network cut (DevTools offline) after signing in: a quiz round, a battle, a gate, a shrine trial and the Spire all load questions, no error screen |
+| TC-1347 | M | ⬜ | look-ahead | after deploy, on the real project: entering a zone with three critters writes no fresh questions (the function log shows `generated: 0` for the warm-ups); the first battle there loads at once and is full |
+| TC-1381 | U | ✅ | starters | review round 1: no starter question has a second answer a child could defend or an untrue explanation — continents offer no 5 or 6, the solar panel no "heat", the bridge asks what can't be pushed out of shape, no "tallest mountain", the Olympics not "nearly" 2,800 years ago (starterQuestions.test) |
+| TC-1382 | C | ✅ | report | no 🚩 Report under a question that isn't in the bank — a starter (`starter-…`) or one that failed to cache (`fresh-…`); a bank question still shows it (FlagButton.test) |
+| TC-1383 | C | ✅ | ramp | a perfect quiz round of starter questions keeps the skill level (3 → 3) and still pays XP; in a round of 3 bank + 2 starter questions the bank answers still move it (3 → 5) (QuizRound.test) |
+| TC-1384 | C | ✅ | ramp | a battle won with one right answer on a bank question saves the level up (3 → 5); the same win on a starter question saves nothing (BattleArena.test) |
+| TC-1385 | C | ✅ | ramp | five quick right answers to starter questions don't trip the speed trigger (no harder pool asked for); five to bank questions do (BattleArena.test) |
+| TC-1386 | U | ✅ | look-ahead | a zone warm-up still on its way when the battle starts, which then fails: the battle asks the function again for all 9 (normally, no `cacheOnly`) and gets a full batch — no error (questions.test) |
+| TC-1387 | U | ✅ | look-ahead | the battle's own call hands back two of the warm-up's questions (held = seen, out of budget): they're dropped, and two starter questions top the batch up to 9 different ones (questions.test) |
+| TC-1388 | M | ⬜ | ramp | in the real app with the network cut, after signing in: a quiz round at level 3 made of starter questions, all right — the topic's level is still 3 after it, XP went up, and no 🚩 shows under the starter questions |
+| TC-1389 | U | ✅ | ramp | review round 2: `bankRamp` hands the ramp a round's bank answers only while they're more than half its answers, else none — a round passed 4 of 5 whose one bank answer was wrong, and a round failed 1 of 5 whose one bank answer was right, both keep the level (age.test) |
+| TC-1390 | C | ✅ | ramp | review round 2: a quiz round of 1 bank + 4 starter questions keeps the level (3 → 3) whether the bank one is wrong (passed 4 of 5) or right (failed 1 of 5); a round of 3 bank questions, all right, and 2 starters, both wrong, still goes 3 → 5 (QuizRound.test) |
+| TC-1396 | C | ✅ | ramp | review round 2: a battle won with one right bank answer and two right starter answers (Guard, defend, Attack) saves no level change (BattleArena.test) |
+| TC-1397 | C | ✅ | speed | review round 2: five quick right bank answers trip the speed trigger and the harder batch comes back as starter questions only — the banner says "Your level goes up to 4 after this battle", never "The questions just got harder" (BattleArena.test) |
+| TC-1398 | C | ✅ | XP | the owner's call: a perfect quiz round of starter questions pays no XP; a round of two bank and three starter questions, all right, pays 2 × 10 (QuizRound.test); a battle won with one right starter answer pays the win's XP but not the answer's — 10 less than the same win on a bank question (BattleArena.test) |
+| TC-1399 | C | ✅ | XP | a right starter answer still opens a chest and pays no XP, a bank one pays 10 (PathQuestionOverlay.test); starter questions still teach a shrine's spell, with no XP, a bank one pays 10 (ShrineTrial.test); a starter question beaten again in the Library leaves the shelf, says "🌟 Beaten!" and pays none, a bank one says "+N XP — beaten!" and pays it (ServiceOverlay.test) |
+| TC-1400 | C | ✅ | XP | a Spire re-clear on starter questions pays 0 XP and its panel says nothing about XP (SpireOverlay.test); each of these TC-1398–1400 tests fails with its fix taken out |
+| TC-1401 | I | ✅ | look-ahead budget (merge with #152) | run locally against a stand-in: a look-ahead (`cacheOnly`) calls `begin_question_request` with `p_fresh_wanted: 0`, so it holds nothing on the kid's, family's or project's budget and writes no usage; a battle's own call still holds its batch (`p_fresh_wanted` = count). The look-ahead check fails with `p_fresh_wanted: count` |
+
 ## Make the Spire fairer (#150)
 
 | ID      | Type | Status | Feature | Case |

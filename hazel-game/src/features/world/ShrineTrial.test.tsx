@@ -22,6 +22,8 @@ const { default: ShrineTrial } = await import('./ShrineTrial');
 const { useSaveStore } = await import('../../store/saveStore');
 const { defaultSave } = await import('../../lib/save');
 const { fieldSpellFlag, TRIAL_CORRECT } = await import('../../content/fieldSpells');
+const { useProfileStore } = await import('../../store/profileStore');
+const { XP_PER_CORRECT } = await import('../../lib/level');
 
 beforeEach(() => {
   fetchQuestions.mockClear();
@@ -52,6 +54,28 @@ describe('ShrineTrial (#75 item 9)', () => {
     expect(useSaveStore.getState().save!.flags[fieldSpellFlag('return')]).toBe(true);
     expect(screen.getByText('You learned 🏠 Return!')).toBeInTheDocument();
     expect(screen.getByText(/Field spells/)).toBeInTheDocument();
+  });
+
+  it('starter questions still teach the spell, but pay no XP (#153); bank ones pay', async () => {
+    const addXp = vi.fn();
+    useProfileStore.setState({ addXp });
+    fetchQuestions.mockResolvedValueOnce(questions.map((q, i) => ({ ...q, id: `starter-space-easy-${i + 1}` })));
+    render(<ShrineTrial npcId="wayfarer-keeper" />);
+    fireEvent.click(screen.getByText('🕯️ Begin the trial'));
+    await answer(0, 'Right', /1 of 3 — next question/);
+    await answer(1, 'Right', /2 of 3 — next question/);
+    await answer(2, 'Right', /Learn Return!/);
+    expect(useSaveStore.getState().save!.flags[fieldSpellFlag('return')]).toBe(true);
+    expect(addXp).not.toHaveBeenCalled();
+  });
+
+  it('…as a bank question pays its XP', async () => {
+    const addXp = vi.fn();
+    useProfileStore.setState({ addXp });
+    render(<ShrineTrial npcId="wayfarer-keeper" />);
+    fireEvent.click(screen.getByText('🕯️ Begin the trial'));
+    await answer(0, 'Right', /1 of 3 — next question/);
+    expect(addXp).toHaveBeenCalledWith(XP_PER_CORRECT);
   });
 
   it('fetches another batch if the questions run out', async () => {

@@ -6,6 +6,7 @@ import QuestionCard from '../../components/QuestionCard';
 import ModalLayer from '../../components/ModalLayer';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { fetchQuestions } from '../../lib/questions';
+import { isStarterId } from '../../content/starterQuestions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
@@ -265,7 +266,8 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   }
 
   function recordAnswer(correct: boolean, q: Question, picked: number) {
-    if (correct) correctCount.current += 1;
+    // Only bank questions count toward the climb's XP: starter ones pay none (#153).
+    if (correct && !isStarterId(q.id)) correctCount.current += 1;
     else misses.current.push({ question: q, picked });
   }
 
@@ -602,7 +604,9 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
             <div className="text-6xl mb-2">🌅</div>
             <h2 className="text-2xl font-extrabold text-amber-300 mb-2">You beat Umbra again!</h2>
             <p className="text-sm text-white/85 mb-2">
-              You climbed every floor and beat Umbra again! Your bright answers earned ⭐ {phase.xp} XP.
+              You climbed every floor and beat Umbra again!
+              {/* Starter questions pay no XP (#153), so a climb on them earns none. */}
+              {phase.xp > 0 && <> Your bright answers earned ⭐ {phase.xp} XP.</>}
             </p>
             <p className="text-xs text-white/70 mb-5">(The big hero's prize comes once — and it's already yours!)</p>
             <button

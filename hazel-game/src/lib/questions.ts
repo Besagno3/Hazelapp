@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { errorMessage, resolveErrorMessage } from './errors';
 import { useFamilyStore } from '../store/familyStore';
+import { isStarterId, starterQuestions } from '../content/starterQuestions';
 import type { Question, Topic } from '../types';
 import type { FlavorId } from '../../supabase/functions/_shared/flavors';
 
@@ -38,6 +39,7 @@ async function invokeGenerate(
   skillLevel: number,
   count: number,
   flavor?: FlavorId,
+  cacheOnly = false,
 ): Promise<Question[]> {
   // The kid playing (#124): their seen questions are their own. This app tells
   // the server what it shows (`markSeen`, #134), so a batch handed over here is
@@ -51,6 +53,8 @@ async function invokeGenerate(
       count,
       reportsSeen: true,
       ...(flavor ? { flavor } : {}),
+      // A look-ahead (B5): saved questions only, never a Claude call.
+      ...(cacheOnly ? { cacheOnly: true } : {}),
       ...(profileId ? { profileId } : {}),
     },
   });
@@ -115,6 +119,15 @@ function cacheKey(topic: Topic, skillLevel: number, count: number, flavor?: Flav
   return `${useFamilyStore.getState().activeKidId ?? ''}|${topic}|${skillLevel}|${count}|${flavor ?? ''}`;
 }
 
+export interface PrefetchOptions {
+  /**
+   * Saved questions only (B5): the server hands over what its bank already
+   * has, never asking Claude, so warming a battle that may never happen
+   * costs nothing. A short batch is finished when it's used.
+   */
+  cacheOnly?: boolean;
+}
+
 /** Warms a question request so it is ready before the screen needs it. */
 export function prefetchQuestions(
   topic: Topic,
@@ -122,14 +135,31 @@ export function prefetchQuestions(
   skillLevel: number,
   count: number,
   flavor?: FlavorId,
+  { cacheOnly = false }: PrefetchOptions = {},
 ): void {
   const key = cacheKey(topic, skillLevel, count, flavor);
   if (prefetched.has(key)) return;
-  const promise = invokeGenerate(topic, age, skillLevel, count, flavor);
+  const promise = invokeGenerate(topic, age, skillLevel, count, flavor, cacheOnly);
   prefetched.set(key, promise);
   // Drop a failed prefetch so a real request retries cleanly; this also marks
   // the rejection handled if the prefetch is never consumed.
   promise.catch(() => prefetched.delete(key));
+}
+
+/** The server's questions, or none when it fails — the starters fill in (B5). */
+async function fromServer(
+  topic: Topic,
+  age: number,
+  skillLevel: number,
+  count: number,
+  flavor?: FlavorId,
+): Promise<Question[]> {
+  try {
+    return await invokeGenerate(topic, age, skillLevel, count, flavor);
+  } catch (e) {
+    console.warn('Questions unavailable — using starter questions:', errorMessage(e));
+    return [];
+  }
 }
 
 /**
@@ -138,6 +168,12 @@ export function prefetchQuestions(
  * (a gate, a spell, the Spire…) by key; the edge function picks its own words
  * for it, so no text from here reaches the prompt (Act I launch review B8). It
  * shapes freshly-generated questions only; cached reuse is unaffected (#37).
+ *
+ * Never fails and never comes back short (B5): a prefetched batch that's short
+ * (a saved-questions-only look-ahead) is finished with a request for the rest,
+ * and whatever the server can't give — it's down, offline, out of today's
+ * budget, or doesn't know the topic yet — comes from the starter questions
+ * (`content/starterQuestions.ts`).
  */
 export async function fetchQuestions(
   topic: Topic,
@@ -148,11 +184,25 @@ export async function fetchQuestions(
 ): Promise<Question[]> {
   const key = cacheKey(topic, skillLevel, count, flavor);
   const pre = prefetched.get(key);
+  let have: Question[] = [];
   if (pre) {
     prefetched.delete(key); // consume once
-    return pre;
+    have = await pre.catch(() => []); // failed: ask again below
+    if (have.length >= count) return have;
   }
-  return invokeGenerate(topic, age, skillLevel, count, flavor);
+  const ids = new Set(have.map((q) => q.id));
+  const more = await fromServer(topic, age, skillLevel, count - have.length, flavor);
+  have = [...have, ...more.filter((q) => !ids.has(q.id))];
+  if (have.length >= count) return have;
+  return [...have, ...starterQuestions(topic, skillLevel, count - have.length).map((q) => shuffleAnswers(q))];
+}
+
+/**
+ * Whether a question is in the server's question bank — not a starter
+ * question (B5), nor one that failed to cache ("fresh-…").
+ */
+export function inQuestionBank(id: string): boolean {
+  return !!id && !id.startsWith('fresh-') && !isStarterId(id);
 }
 
 /** Reasons surfaced in the flag UI; free-form `reason` strings are also accepted. */
@@ -167,9 +217,9 @@ export type FlagReason = 'not_for_kids' | 'wrong_answer' | 'confusing' | 'diffic
  * kids (#124).
  */
 export async function flagQuestion(questionId: string, reason?: FlagReason): Promise<void> {
-  // Synthetic IDs ("fresh-…") come from a question that failed to cache; it
-  // doesn't exist server-side, so the FK insert would fail. Treat as no-op.
-  if (questionId.startsWith('fresh-')) return;
+  // A starter question (B5), or one that failed to cache ("fresh-…"), isn't
+  // in the server's bank, so the FK insert would fail. Treat as no-op.
+  if (!inQuestionBank(questionId)) return;
 
   const profile_id = useFamilyStore.getState().activeKidId;
   if (!profile_id) throw new Error('Please sign in to flag a question.');

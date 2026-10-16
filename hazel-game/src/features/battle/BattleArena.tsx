@@ -9,7 +9,7 @@ import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
 import { fetchQuestions, shuffleAnswers, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { sfx, stopMusic, type SfxName } from '../../lib/audio';
-import { playerAge, clampLevel, skillLevelFor } from '../../lib/age';
+import { bankRamp, playerAge, clampLevel, skillLevelFor } from '../../lib/age';
 import { npcDefeatXp, XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import {
@@ -85,6 +85,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
+import { isStarterId } from '../../content/starterQuestions';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
@@ -276,6 +277,12 @@ export default function BattleArena() {
   const [spellQs, setSpellQs] = useState<Question[]>([]);
   const [spellIdx, setSpellIdx] = useState(0);
   const [answers, setAnswers] = useState<boolean[]>([]);
+  // The answers that move the saved skill level: bank questions only (#153).
+  // Starter questions repeat — six a band — so knowing them isn't a new level.
+  const rampAnswers = useRef<boolean[]>([]);
+  // Every answer, bank or starter: the bank's must be most of them to move
+  // the level (`bankRamp`, #153 review round 2).
+  const answerCount = useRef(0);
   const misses = useRef<LibraryEntry[]>([]);
   // Correct answers in a row (any question) — powers up every hit.
   const [streak, setStreak] = useState(0);
@@ -474,13 +481,17 @@ export default function BattleArena() {
 
   function recordAnswer(correct: boolean, q: Question, picked: number) {
     setAnswers((a) => [...a, correct]);
+    const starter = isStarterId(q.id);
+    answerCount.current += 1;
+    if (!starter) rampAnswers.current.push(correct);
     const s = combatState();
     // Keen Eye (Talon): a right answer also mends a little.
     const mend = correct ? Math.min(s.playerMaxHp, s.playerHp + keenEyeHeal(style)) - s.playerHp : 0;
     applyCombat({ ...s, charge: chargeAfterAnswer(s.charge, correct), playerHp: s.playerHp + mend });
     if (mend > 0) float(`🎯 +${mend}`, 'hero', 'text-emerald-300');
-    // A hinted / peeked answer isn't evidence the questions are too easy.
-    const ms = helped.current ? Infinity : nowMs() - askedAt.current;
+    // A hinted / peeked answer isn't evidence the questions are too easy, and
+    // nor is a starter question's (#153).
+    const ms = helped.current || starter ? Infinity : nowMs() - askedAt.current;
     const step = speedStep(speedRun.current, correct, ms, age, speedBoost.current);
     speedRun.current = step.run;
     if (step.boosted) raiseQuestionLevel();
@@ -818,6 +829,8 @@ export default function BattleArena() {
     sfx('wrong');
     speedRun.current = 0;
     setAnswers((a) => [...a, false]);
+    answerCount.current += 1;
+    if (!isStarterId(q.id)) rampAnswers.current.push(false);
     setStreak(0);
     misses.current.push({ question: q, picked: -1 }); // no pick — the Library never shows it
     resolveEnemyQuestion(false, true);
@@ -916,10 +929,14 @@ export default function BattleArena() {
       showBanner(text, 3200, '⚡');
     };
     fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, 'battle')
-      .then((qs) => {
+      .then((all) => {
         // Gone, or a newer boost superseded this one (an older, easier pool
         // arriving late must never replace a harder one).
         if (!fx.live.current || speedBoost.current !== wanted) return;
+        // Only the bank's harder questions (#153 review round 2): starter
+        // questions fill in when the service can't help, and they're no
+        // harder than what's being asked — keep the current pool then.
+        const qs = all.filter((q) => !isStarterId(q.id));
         if (qs.length === 0) {
           announce(`So quick! Your level goes up to ${to} after this battle`);
           return;
@@ -939,13 +956,14 @@ export default function BattleArena() {
   // --- Battle end --------------------------------------------------------------
 
   function settleCommon() {
-    const correct = answers.filter(Boolean).length;
+    // Right answers to bank questions only: starter questions pay no XP (#153).
+    const correct = rampAnswers.current.filter(Boolean).length;
     const xp = correct * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps));
     void recordActivity();
     if (profile) {
       const current = skillLevelFor(profile.skillLevels, topic, age);
       // The usual battle ramp (never lowers), but never below what speed earned.
-      const next = skillAfterBattle(current, answers, speedBoost.current);
+      const next = skillAfterBattle(current, bankRamp(rampAnswers.current, answerCount.current), speedBoost.current);
       if (next !== current) void setSkillLevel(topic, next);
     }
     return xp;

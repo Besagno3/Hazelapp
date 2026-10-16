@@ -631,8 +631,20 @@ zod, react-query. Add the package in the same change that first uses it.
   thinking, #147), a reply that didn't stop at
   `end_turn` (cut off, refused) counts as a failure, and the batch is filled
   from the cache (unseen first, then seen); only with nothing to give does
-  the kid see a friendly "try again" (503) or, when today's budget is spent,
-  "come back tomorrow" (429). Raw errors go to the log, never to the reply.
+  the function answer a friendly "try again" (503) or, when today's budget is
+  spent, "come back tomorrow" (429). Raw errors go to the log, never to the
+  reply. **The app never shows those (#153):** `fetchQuestions` fills
+  whatever the server can't give — offline, a 503 or 429, a topic it doesn't
+  know yet, a short batch — from the hand-written **starter questions**
+  (`content/starterQuestions.ts`: every topic, three level bands, six each,
+  screened like AI ones; ids `starter-`, never marked seen, no 🚩 Report
+  (`FlagButton` shows nothing off the bank, `inQuestionBank`), and they never
+  move the saved skill level — quiz ramp, battle ramp or speed trigger: six a
+  band repeat, so knowing them isn't a level; a round or battle whose bank
+  answers aren't most of its answers holds the level (`bankRamp`, `lib/age.ts`),
+  and a speed boost's harder pool takes bank questions only; they pay no XP —
+  the owner's call — anywhere: quiz, battle answers, gates, chests, shrines,
+  the Spire, the Library; the win's and the Spire's own bonuses still pay).
 - **Questions are screened for kids (B10, #133, #147):** four layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
@@ -756,7 +768,11 @@ zod, react-query. Add the package in the same change that first uses it.
   an hour (`question_views.shown = false`), so prefetches don't fill a kid's
   seen window — the last 100 distinct questions shown in that topic (read
   from their latest 1,000 shown views, so the cost doesn't grow with play).
-  `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need.
+  `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need. A
+  zone's critters are warmed from the saved bank only (`cacheOnly`, #153:
+  unseen saved questions, never a Claude call, maybe short or empty, and it
+  holds nothing on the family budget — `p_fresh_wanted: 0`); the
+  battle asks for whatever is still missing when it starts.
 
 ## Commands
 
@@ -913,6 +929,100 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Merge main (public pages #66, question safety #71, save revisions #70, family budget #67) and the Spire branch (#68) into the starter-questions branch (#153)
+#153 sits above #152, TC-1336–1400 don't collide. One code conflict, the
+question function's request body: `cacheOnly` (#153) and #147's `action` /
+`questionId` both kept. One fix where B5 meets B9: the quota check held a
+look-ahead's whole batch on the family's budget until the call wrote back 0,
+so siblings calling at that moment saw less left; a look-ahead now asks for
+none (`p_fresh_wanted: cacheOnly ? 0 : count`) — TC-1401, the stand-in run
+14/14 (its new check fails without the fix). `flagQuestion` keeps its
+starter guard ahead of #147's report check. 1520 green, lint + `deno check`
+clean.
+
+### 2026-10-16 — Starter questions pay no XP (#153, the owner's call)
+Round 1 had kept XP for starter answers; the owner decided against it, so
+a child can't farm XP on the six questions a band they know by heart. A
+right starter answer now pays nothing in the quiz (`QuizRound`: bank answers
+only, no `addXp` call at 0), battles (`settleCommon` counts `rampAnswers`, the
+bank answers — the win's own XP still pays), gates, chests and riddles
+(`PathQuestionOverlay`; they still open), shrine trials (`ShrineTrial`; they
+still count toward the spell), the Spire (`recordAnswer` counts bank answers;
+the first-clear bonus still pays, and a re-clear that earned nothing drops its
+"earned ⭐ N XP") and the Library (`ServiceOverlay`: "🌟 Beaten!", no XP).
+Tests: +9 (QuizRound, BattleArena, PathQuestionOverlay, ShrineTrial,
+SpireOverlay, new ServiceOverlay.test), each failing with its fix taken out;
+1407 green, lint + build clean.
+
+### 2026-10-16 — B5 review round 2: one bank question never decides the level, no "harder" starters (#153)
+A fresh `/saas-code-review` of #69 (1 medium, 1 low), both fixed:
+- **A level change rests on most of the round (medium):** round 1 ramps on the
+  bank answers only, so a short batch topped up with starters (a thin bank
+  and the day's budget spent, or Claude down) left one or two answers to
+  judge the whole round on — a round passed 4 of 5 dropped a level on its one
+  bank question, a round failed 1 of 5 climbed two, and a battle won with one
+  right bank answer among starter answers climbed two. `bankRamp`
+  (`lib/age.ts`) hands the ramp the bank answers only while they're more than
+  half the answers given, else none (the level holds — the conservative
+  call); `QuizRound` and `BattleArena` (a fresh `answerCount` ref, so a
+  timed-out last answer counts too) both use it.
+- **No "harder questions" from the starters (low):** `fetchQuestions` never
+  fails now, so a speed boost during an outage swapped the battle's bank
+  questions for starter ones and said "The questions just got harder"; its
+  "nothing came back" path was dead. The harder pool keeps bank questions
+  only; with none, the battle keeps its pool and says the level goes up after
+  it, as before the PR.
+- **Tests:** age.test (+2), QuizRound.test (+2, and the mixed-round test now
+  answers the starters wrong, so it fails without round 1's filter),
+  BattleArena.test (+2), each failing without its fix. 1398 green, lint +
+  build + `deno check` clean, the stand-in run 12/12.
+
+### 2026-10-16 — B5 review round 1: starters don't move the skill level, no 🚩 off the bank (#153)
+`/saas-code-review` of #69 (1 medium, 3 low), all fixed:
+- **Starter questions never move the saved skill level (medium):** six a band
+  repeat and one band covers three levels, so a child on starters (a topic
+  the deployed function doesn't know, an outage) could learn them by heart
+  and climb +2 every flawless round to 10, then meet level-10 questions when
+  the service came back (battles never lower it). `QuizRound` ramps on bank
+  questions only; `BattleArena` keeps `rampAnswers` (bank answers) for
+  `skillAfterBattle`, and a starter answer never counts toward the speed
+  trigger. XP still pays (the conservative call: the level is what's at
+  stake).
+- **No 🚩 off the bank (low):** a starter (or `fresh-`) question's report said
+  "Reported — thanks! We'll take a look" and sent nothing; `FlagButton` now
+  shows nothing when `!inQuestionBank(id)`.
+- **Five starter questions (low):** continents no longer offer 5, the solar
+  panel no "Heat only", the bridge asks for the shape that can't be pushed out
+  of shape, "highest" mountain, the Olympics "about" 2,800 years ago.
+- **Tests (low):** a warm-up that fails while the battle waits for it, and a
+  question handed back twice, are covered now (the old "warming failed" test
+  used an empty batch). starterQuestions.test (+1), FlagButton.test (+1),
+  QuizRound.test (+2), BattleArena.test (+3), questions.test (+2), each failing
+  without its fix; SpireOverlay.test's questions mock keeps the real module.
+  1392 green, lint + build + `deno check` clean, the stand-in run 12/12.
+
+### 2026-10-16 — Starter questions, and zone look-aheads that cost nothing (#153)
+Act I launch review B5, the app half.
+- **No question error reaches a child:** `fetchQuestions` never fails and
+  never comes back short. Whatever the server can't give (offline, a 503, the
+  day's budget spent, a topic it doesn't know yet, a short batch) comes from
+  `content/starterQuestions.ts`: 10 topics × 3 bands (levels 1–3 / 4–6 / 7–10)
+  × 6 hand-written questions with explanations, the right answer first and
+  shuffled as served; a battle's 9 tops up from the nearest band. Every one
+  passes `screenQuestion`. `markSeen` / `flagQuestion` skip `starter-` ids
+  (`inQuestionBank`).
+- **Zone warm-ups are saved-only:** entering a zone warmed every critter's
+  battle with a full request that could pay Claude for battles that never
+  happen. `WorldScreen` now sends `cacheOnly: true` (`prefetchQuestions(…,
+  { cacheOnly })`); the function sets the fresh allowance to 0, takes only
+  unseen saved questions and answers 200 even with none. A battle uses what
+  was warmed and asks for only the rest, normally. An old function ignores the
+  flag, so deploy order is free (redeploy `generate-questions` to get it).
+- **Tests:** starterQuestions.test (new, 6), questions.test (+7), seen.test,
+  WorldScreen.use.test (+1); the function run locally against a stand-in (its
+  bank picker added): 12/12, 6 fail on `main`'s. 1383 green, lint + build +
+  `deno check` clean.
 
 ### 2026-10-16 — Merge main (public pages #66, question safety #71, save revisions #70) and the family-budget branch (#67) into the Spire branch (#150)
 Docs only: #150 sits between #151 and #147, TC-1301–1310 / 1351–1355 don't
