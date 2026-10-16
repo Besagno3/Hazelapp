@@ -4,7 +4,7 @@ export const EPILOGUE_HOME: Readonly<Record<string, string>> = {
   'village-shopkeeper':
     "Everyone's wearing a daisy for Sage Aster today! Nothing useful, everything wonderful. That's my motto — and now it's hers too.",
   'hub-innkeeper':
-    'Every guest slept like a baby last night, and every one of them woke up humming the same happy tune. I think the whole world just remembered something.',
+    "Everyone woke up humming the same happy tune this morning. I think the whole world just remembered something.",
   'village-elder':
     "You said her name, and she came home. Oh, spark… I am so proud I could burn the bread myself.",
   'village-friend':
@@ -18,7 +18,7 @@ export const EPILOGUE_HOME: Readonly<Record<string, string>> = {
   'village-baker':
     'I baked daisy buns for Sage Aster! She asked what makes them so soft. I told her the truth: more butter. She wrote it down!',
   'village-guard':
-    'Guard Rook, on patrol! All clear, and nothing scary left anywhere. Just butterflies, bees, and Gerald the goose. Still no sandwich, Gerald.',
+    "All clear in the village! Just butterflies, bees, and Gerald the goose. Gerald honked 'Aster' at me. Still no sandwich, Gerald.",
   'village-kid':
     "Sage Aster says the best secrets are the questions nobody's asked yet. So I'm asking ALL of them. Why is the sky up? Why do pebbles sit still?",
   'elder-lumen':
@@ -31,28 +31,28 @@ export const EPILOGUE_HOME: Readonly<Record<string, string>> = {
     'You turned the shadow back into a SAGE just by saying her NAME?! Best. Hero. EVER. I already told the chickens. They clucked "Aster."',
   // Dawnreach
   'dawnreach-scout':
-    "New on my map: the Hall of Names, with Sage Aster's name on the very first plaque. I drew her a daisy. With extra sparkles, of course.",
+    "I'm drawing a tiny daisy on Remembrance Hill, just for Sage Aster. Too tiny for your 📜 map. But I know it's there!",
   'dawnreach-hermit':
     "Last night a brand-new star came out over the far sea. A bright, kind one. I've decided to call it Aster. It looks like it agrees.",
   // Moonwell Grove
   'grove-guardian':
-    "The whole grove feels like it's smiling tonight, little light. Somewhere, a girl with a daisy behind her ear is home again.",
+    "The whole grove feels like it's smiling tonight, little light. Somewhere, a Sage with a daisy behind her ear is home again.",
   'grove-firefly':
-    "Two lights on the water tonight: me, and a little gold daisy-glow. One little light is still a light, and two is a party! Come dance!",
+    "Look, a little gold daisy-glow is dancing on the water with me tonight! I think it's Aster saying hello. Come dance with us!",
   'grove-otter':
     'The water is telling me stories again! Tonight it told one about a Sage who got lost, and a kid who called her home. My favorite!',
   // Shrines and the Spire
   'shrine-keeper':
-    "Sixty years I kept one candle burning to remember the way. Now someone finally found the way home. I think I'll let myself blink.",
+    "And now Aster has found her way home, too. My candle can rest easy. I think I'll let myself blink. Twice!",
   'wayfarer-keeper':
     "Aster is home, and so are you. That's the best kind of road: the one that ends with a friend.",
   'quiet-keeper':
-    "Shh… do you hear it? Nothing scared anywhere. The critters feel it too. The shadow was never mean, you know. Only lost, and very tired.",
+    "Shh… do you hear it? The critters are calmer now. The shadow was never mean, you know. Only lost, and very tired.",
   // Remembrance Hill
   'hall-aster':
-    "Every plaque in the Hall has its name now — mine too. Some mornings I visit the First Classroom, just to hear the children ask \"why?\"",
+    "Some mornings I go down to the First Classroom, just to remember the sound of 'why?'",
   'hill-merchant':
-    "Trader Knack, at your service! Sad news: nobody's forgetting anything anymore. Business is terrible. I've never been happier!",
+    "Sad news: nobody forgets anything any more. Business is terrible! I've never been happier.",
   'hill-innkeeper':
     "The name's right there on the tip of my… no, wait! It's out! ASTER! Oh, it feels so good to finally say it.",
   'hill-traveler':

@@ -955,6 +955,11 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16f UX review round 2: closing lines that follow on (#75 item 16f, #156f)
+Fresh UX review (3 high, 8 medium, 7 low, nits), all fixed: 27 epilogue lines
+rewritten so none repeats the line before it, promises a map mark, says the
+critters are gone, or calls Aster "a girl". 1566 green.
+
 ### 2026-10-16 — 16f review round 1: last, not first (#75 item 16f, #156e)
 Fresh code (3 medium, 3 low, nits) and UX (5 high, 6 medium, 4 low, 4 nits)
 reviews, all fixed: the epilogue line comes last (first, it beat Sage Aster's
