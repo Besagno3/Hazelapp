@@ -884,6 +884,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — Merge main (public pages, PR #66) into the question-safety branch (#147)
+`main` took ISSUES **#146** and TC-1254–1269 for the public pages while
+PR #71 was open, so this branch moved **#146 → #147** and its test cases
+**TC-1254–1279 → TC-1270–1295** (only its own lines, the code comments and
+migration comments included — none of them is merged anywhere). Only the
+docs conflicted: the public pages touch `site/`, the sign-in page and
+`App.tsx`; this branch touches 👪 Grown-ups, `familyStore` and the question
+function.
+
 ### 2026-10-16 — Review alerts (email, Slack, Discord) and the admin review page (#147)
 The owner's follow-up: hear about questions that need review, and decide them
 in the app instead of the SQL editor.
@@ -960,6 +969,90 @@ The question prompt rewrite and the seven fixes from its `/saas-code-review`.
   the script against stand-in Supabase and Claude (52/52). 1383 green; lint,
   build, `deno check` (both) clean; migrations and the bundle twice on
   Postgres 16 with all nine SQL tests.
+
+### 2026-10-16 — Merge main (overworld 16a–16c, PRs #63–#65) into the public-pages branch (#146)
+`main` took ISSUES **#143–#145** and TC-1210–1253 for items 16a–16c while
+the public pages were in review, so they moved **#143 → #146** and their test
+cases **TC-1210–1225 → TC-1254–1269** (only their own lines, the code
+comments and test names included). Only the three docs conflicted; nothing of
+main's touches `site/`, the sign-in page or `App.tsx`, and every sprite and
+backdrop the site names still exists.
+
+### 2026-10-16 — The sign-up form, reviewed: heard, readable, and it says what's next (#146h)
+A `/saas-ux-review` of the form the site's "Create a free family account"
+opens (1 high, 2 medium, 2 low), all fixed on the owner's say-so:
+- **Messages are heard and readable:** an always-present `role="status"`
+  region holds them, in red-700 / green-700 (red-500 and green-600 failed
+  4.5:1).
+- **After signing up, "📬 Check your inbox":** the form gives way to a panel
+  naming the email (focus moves to its heading), with the spam hint and
+  "Back to sign in" (the email kept and focused). Signing in before tapping
+  the link says "Please confirm your email first: tap the link we sent to …"
+  (`email_not_confirmed`, by code or message), not the raw error.
+- **The password rule up front:** "At least 6 characters." under the field,
+  `minlength` and `aria-describedby` on sign-up only. `MIN_PASSWORD_LENGTH`
+  moved to `content/family.ts`; `ResetPasswordPage` shares it.
+- **Visible labels** for email and password (placeholders gone); tests find
+  the fields by label.
+- **44 px:** the submit, Forgot and switch buttons, the fields (so the 👁️
+  too) and the privacy notice's summary (shared with Consent and Grown-ups).
+- Tests: `PasswordReset.test` +6 (live region, inbox panel, not confirmed ×3,
+  password rule). 1313 green, lint + build clean; a browser walk at 390, 320
+  and 1280 px passes every check.
+
+### 2026-10-16 — `?signup` never outlives its sign-up page (#146g)
+A `/saas-code-review` of #146f (1 low, fixed): only `AuthPage` dropped
+`?signup`, and it mounts only with no session — so a parent already signed in
+who tapped "Create a free family account" kept it in the address, and a later
+sign-out opened on the sign-up form. Now `lib/signupLink.ts`
+(`hasSignupParam` / `dropSignupParam`, which keeps the rest of the address)
+is shared: `AuthPage` reads it and drops it, and `App` drops it as soon as a
+session exists. Tests: `signupLink.test` (+3), `App.signup.test` (+2; the
+signed-in one fails without `App`'s effect). 1307 green, lint + build clean.
+
+### 2026-10-16 — Public pages: review fixes (#146f)
+`/saas-code-review` + `/saas-ux-review` of the prototype, rendered at 320,
+390 and 1280 px, by keyboard and with reduced motion; the owner said fix all.
+- **The demo battle keeps keyboard focus:** after Next, focus goes to the new
+  question (`tabindex="-1"`), so Tab reaches its answers and a screen reader
+  reads it (it fell to the page, and Tab jumped on to the hero picks). The
+  first question no longer names a critter that isn't on screen.
+- **Sign-up lands on sign-up:** "Create a free family account" opens the game
+  at `?signup` (`data-play="signup"`); `AuthPage` starts on the sign-up form
+  and drops `signup` from the address (it opened on Sign in). Every other
+  Play button still opens Sign in.
+- **The clip can be paused:** it always has controls (WCAG 2.2.2); under
+  reduced motion it still doesn't autoplay.
+- **Fact tags aren't buttons:** the grown-ups chips are a diamond-bulleted
+  list and the subjects soft tags — no pixel border, no gold.
+- **Smaller fixes:** Ember steps away on phones while the demo battle passes
+  under her corner; a link to a FAQ answer opens it (footer Contact); the
+  eyebrow green is `#1d7044` (5.4:1); footer links and "Read the full privacy
+  notice" are 44 px tall; hero type labels darker on sand; the kids' facts
+  line says "A grown-up starts it" (kept whole when it wraps).
+- **`capture.cjs`:** a step failing mid-film no longer crashes Node with
+  "Target closed" before its own error; `stop()` still throws the loop's
+  error, and says so when there are no frames.
+- Kept: "Pick your hero." only plays an attack (a teaser), the clip is small
+  on a phone (captioned), the sign-in page's purple style (#146e).
+- Tests: PasswordReset.test +2 (with and without `?signup`; the first fails
+  on the old `AuthPage`). 1302 green, lint + build + site build clean; 33
+  browser checks on the pages pass.
+
+### 2026-10-16 — Public pages prototype: a kids' page and a grown-ups page (#146)
+New `site/` folder, outside the app (no `src/` change): `index.html` for kids
+(a title screen with Kira and Ember walking, a playable demo battle, heroes,
+Ember's stages, six real places, critters, bosses, a grown-ups box) and
+`grown-ups.html` (the idea, a real gameplay clip, a play session, subjects,
+safety, how questions are checked, what's collected, family controls, FAQ).
+Plain HTML/CSS/JS (`site/assets/`), served with the game's `public/`
+(`npx vite --config site/vite.config.mjs`). Every picture is the game's:
+sprites animate from their sheets, textures come from the tilesets, the logo
+is hand-drawn pixel letters (`site/tools/logo.py`), and screenshots and the
+clip are captured from the real game (`site/tools/capture.cjs`,
+`prep-assets.py`). Fonts are self-hosted (Jersey 15, Andika). Safety claims
+and what they rest on are listed in `site/README.md`. Not live: the privacy
+notice is still a draft and the game would move to `/play/` (#146).
 
 ### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)
