@@ -1705,10 +1705,19 @@ export const QUESTS: QuestDef[] = [
     title: 'A Garden Rewatered',
     requires: keyFlag('asters-key'),
     offer: [
-      "Thank you for answering my seedlings. Aster's Key opens the Nameless Hall, just south of here — but first, would you help me?",
+      "Thank you for answering my seedlings. Aster's Key opens the Nameless Hall, just south of here. Could you help me too, when you have time?",
       "These beds haven't been watered since the fog came. I need three waters — morning dew, spring rain and river water. They're in the garden's chests.",
-      'And three weeds keep asking "why?" without waiting for an answer. Shoo them for me, would you?',
+      'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
     ],
+    // A water or two found first (16c review round 2): no sending you after them again.
+    offerHaving: {
+      items: ['jar-dew', 'jar-rain', 'jar-river'],
+      lines: [
+        "Thank you for answering my seedlings. Aster's Key opens the Nameless Hall, just south of here. Could you help me too, when you have time?",
+        "Oh — you've found some of my waters already! I need all three: morning dew, spring rain and river water. The rest are in the garden's chests.",
+        'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
+      ],
+    },
     steps: [
       haveStep(
         'garden-waters',

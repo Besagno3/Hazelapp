@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GATE_KEYS, keyForBoss, keyForZone, keyFlag, bossDefeated, bossFlag } from './keys';
+import { GATE_KEYS, keyForBoss, keyForZone, keyFlag, keyName, bossDefeated, bossFlag } from './keys';
 import { ENEMY_DEFS, fiendFor } from './enemies';
 import { ZONES } from './zones';
 import { actCrystals, crystalFlag, TOPICS } from './topics';
@@ -129,5 +129,17 @@ describe('warden keys (#58)', () => {
     expect(bossDefeated(miniboss, { [crystalFlag('math')]: true })).toBe(false);
     expect(bossDefeated(miniboss, { [bossFlag('test-miniboss')]: true })).toBe(true);
     expect(bossFlag('test-miniboss')).toBe('boss:test-miniboss:defeated');
+  });
+});
+
+describe('keyName (16c review round 1–2)', () => {
+  it('"the Verdant Key", but "Aster\'s Key" — a name that says whose it is takes no "the"', () => {
+    const asters = GATE_KEYS.find((k) => k.id === 'asters-key')!;
+    const verdant = GATE_KEYS.find((k) => k.id !== 'asters-key' && !/'s /.test(k.name))!;
+    expect(keyName(asters)).toBe("Aster's Key");
+    expect(keyName(asters, true)).toBe("Aster's Key");
+    expect(keyName(verdant)).toBe(`the ${verdant.name}`);
+    expect(keyName(verdant, true)).toBe(`The ${verdant.name}`);
+    expect(keyName({ ...asters, name: 'Aster’s Key' })).toBe('Aster’s Key');
   });
 });

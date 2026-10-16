@@ -804,6 +804,13 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16c review round 2: doors with padlocks, weeds you can see (#75 item 16c, #145h)
+Fresh code (2 low, 3 nits) and UX (3 medium, 7 low, 4 nits) reviews, all
+fixed but one kept (no soil-bed tile): every key gate is a padlocked stone
+door (`PROP_FRAME.keyGate`); clearer weeds, plaques and root; the
+Gardener's `offerHaving`; the 🚩's `inside` follows the open door; `keyName`
+tested; copy. 1365 green.
+
 ### 2026-10-16 — 16c review round 1: her name first, a one-tile gap, "Aster's Key" (#75 item 16c, #145g)
 Fresh code (1 medium, 5 low, 2 nits) and UX (1 high, 3 medium, 9 low, 5 nits)
 reviews, all fixed: fog on the way to the garden until the name is learned (it

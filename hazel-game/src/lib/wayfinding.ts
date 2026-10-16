@@ -9,7 +9,7 @@ import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
-import { keyFlag, keyForBoss, keyForZone, type GateKey } from '../content/keys';
+import { keyFlag, keyForBoss, keyForZone, keyName, type GateKey } from '../content/keys';
 import { ACT4_SEEN, MET_GALE, MET_ROOT_AURORA, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
 import { zoneTier, type DangerTier } from '../content/regions';
 import { overworldOf } from './worldMap';
@@ -240,8 +240,11 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'visit',
       title: "See what's behind the great door",
-      why: `Your ${key.name} opens the Nameless Hall's ${key.door ?? 'gate'}. See what's behind it!`,
-      inside: 'Unlock the great door halfway down the hall, then look at the big root behind it.',
+      why: `${keyName(key, true)} opens the Nameless Hall's ${key.door ?? 'gate'}. See what's behind it!`,
+      // Once the door is open, only the root is left (16c review round 2).
+      inside: flags[HALL_GATE_FLAG]
+        ? 'Look at the big root behind the great door, at the bottom of the hall.'
+        : 'Unlock the great door halfway down the hall, then look at the big root behind it.',
       zoneId: 'nameless-hall',
       key,
       doneFlag: HALL_ROOT_SEEN,
@@ -573,6 +576,12 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
   return null;
 }
 
+/** The Nameless Hall's great door, open (16c review round 2). */
+const HALL_GATE_FLAG = (() => {
+  const hall = ZONES['nameless-hall'];
+  return gateFlag(gateIdAt('nameless-hall', hall.map, hall.keyGate!.x, hall.keyGate!.y));
+})();
+
 /** Chorus Isle's double gate, open (15g review round 3). */
 const CHORUS_GATE_FLAG = (() => {
   const isle = ZONES['chorus-isle'];
@@ -834,7 +843,7 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `You have the First Chorus Key! ${capitalize(midSentence(goal.key.bossName))} guards the second in Inkwell Cove. Follow the road east from Port Lantern, then north. Take the first road east!`;
   } else if (goal.kind === 'key' && goal.key?.id === 'asters-key') {
     // Act IV (#75 item 16c): Aster's own garden, south of the old Field.
-    plan = "Aster! Now I remember — she had a garden, just south of the old Field. Its Gardener keeps her key. Win it!";
+    plan = "Aster! Now I remember — she had a garden, just south of Old Lumina Field. Its Gardener keeps her key. Win it!";
   } else if (goal.kind === 'key' && goal.key && !goal.crystal) {
     // Act II's key (#75 item 14f): no Fiend to name yet.
     plan = `Out in the Silver Shallows lies ${placeName(zones[goal.key.fromZone])}, an island of trees older than anyone remembers. ${capitalize(midSentence(goal.key.bossName))} there guards the ${goal.key.name} — a key to a door the whole world forgot. Win it!`;

@@ -24,13 +24,15 @@ export const TILE_FRAME = {
 /** Water (and Spire pit) animation speed, frames per second. */
 export const WATER_FPS = 2;
 
-export const PROPS_FRAMES = 5;
+export const PROPS_FRAMES = 6;
 
 export const PROP_FRAME = {
   crystal: [0, 1],
   chestClosed: 2,
   chestOpen: 3,
   gate: 4,
+  /** A key gate's sealed door (16c review round 2). */
+  keyGate: 5,
 } as const;
 
 export const tilesetSheet = (zoneId: ZoneId) => `/tiles/${zoneId}.png`;

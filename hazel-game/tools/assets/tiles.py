@@ -134,7 +134,7 @@ ZONES = {
                             sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
     # Aster's Garden (#75 item 16c): her old garden, gone wild and dry in the same
     # golden light — straw-gold grass, hedge walls, a few last roses.
-    'asters-garden': dict(golden=True, ground=(170, 160, 92), path=(214, 186, 132), solid='hedge', deco='flower', deco_c='#ff8aa0',
+    'asters-garden': dict(golden=True, ground=(170, 160, 92), path=(214, 186, 132), solid='hedge', deco='flower', deco_c='#ffffff',
                           sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='tree', water='#5aa0c8'),
     # The Nameless Hall (#75 item 16c): a pale stone hall under the garden, its
     # plaques blank — white pillars, candles, a dim violet hush.
@@ -513,6 +513,17 @@ def props():
     c.line(3, 5, 13, 11, '#e04848', w=1.2)
     c.ellipse(8, 8, 2.2, 2.2, '#ffd24a')
     c.dot(8, 8, '#3a2a1a')
+    frames.append(_outlined(c))
+    # A key gate (16c review round 2): a sealed stone door with a big gold padlock —
+    # never mistaken for the wooden question gate, or for a pair of chests.
+    c = _c()
+    c.rect(1, 1, 15, 16, '#6a6488')
+    c.rect(2, 2, 14, 16, '#8a84aa', shade=False)
+    for y in (5.5, 10.5):
+        c.rect(2, y, 14, y + 0.6, '#5a5478', shade=False)  # stone courses
+    c.rect(5, 7, 11, 13, '#e0b040')  # the padlock's body
+    c.poly([(5.6, 7.2), (6.4, 4.2), (8, 3.2), (9.6, 4.2), (10.4, 7.2), (9.2, 7.2), (8.8, 5), (8, 4.6), (7.2, 5), (6.8, 7.2)], '#c0c8d4')
+    c.dot(8, 9.4, '#3a2a1a', w=1, h=2)  # keyhole
     frames.append(_outlined(c))
     return frames
 
@@ -1705,6 +1716,8 @@ def build_garden(public: Path):
         i = ids.index(zid)
         _write_zone(tdir, bdir, i, zid, ZONES[zid])
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    # The props sheet gained the key gate's door (16c review round 2); its first five frames are unchanged.
+    strip([upscale(f.image(), 2) for f in props()]).save(tdir / 'props.png', optimize=True)
 
 
 def quest_board():

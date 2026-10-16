@@ -731,7 +731,8 @@ export default function WorldCanvas({
         } else if (ch === 'G') {
           const id = gateIdAt(zoneId, z.map, x, y);
           if (!flagsRef.current[gateFlag(id)]) {
-            const sprite = prop(PROP_FRAME.gate, px, py);
+            const keyed = !!z.keyGate && gateIdAt(zoneId, z.map, z.keyGate.x, z.keyGate.y) === id;
+            const sprite = prop(keyed ? PROP_FRAME.keyGate : PROP_FRAME.gate, px, py);
             const group = gateSprites.get(id);
             if (group) group.push(sprite);
             else gateSprites.set(id, [sprite]);

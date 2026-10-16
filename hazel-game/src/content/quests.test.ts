@@ -1441,6 +1441,14 @@ describe("A Garden Rewatered (#75 item 16c)", () => {
     expect(questConversation('garden-gardener', save)!.finishKind).toBe('complete');
   });
 
+  it('a water found before he asks: his offer says so (16c review round 2)', () => {
+    const save = openChest(keyed(), DEW);
+    const offer = questConversation('garden-gardener', save)!;
+    expect(offer.finishKind).toBe('offer');
+    expect(offer.lines[1]).toMatch(/found some of my waters already/);
+    expect(questConversation('garden-gardener', keyed())!.lines[1]).toMatch(/^These beds/);
+  });
+
   it('a water found before the Gardener asks says who wants it', () => {
     const save = openChest(defaultSave(), DEW);
     expect(save.questItems).toEqual(['jar-dew']);

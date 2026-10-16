@@ -2688,7 +2688,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'I tended this garden for Aster, the very first Sage. She planted a question in every bed.',
       "When the world forgot her, the garden forgot to grow. But you answered every seedling. Look — they're waking up!",
-      { text: "Aster's Key opens the Nameless Hall, just south of here. Every name Lumina forgot is down there, on its blank plaques.", unlessFlag: HALL_ROOT_SEEN },
+      { text: "Aster's Key opens the Nameless Hall, just south of here. Every name Lumina forgot is in there, on its blank plaques.", unlessFlag: HALL_ROOT_SEEN },
     ],
   },
   'hall-plaque-1': {

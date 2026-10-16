@@ -184,7 +184,7 @@ export const GATE_KEYS: GateKey[] = [
  * the start of a sentence.
  */
 export function keyName(k: GateKey, capital = false): string {
-  if (/'s /.test(k.name)) return k.name;
+  if (/['’]s /.test(k.name)) return k.name;
   return `${capital ? 'The' : 'the'} ${k.name}`;
 }
 

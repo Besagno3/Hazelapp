@@ -934,7 +934,7 @@ export const BOSS_LINES: Record<CrystalTopic, BossScript> = {
 export const NAMELESS_PANELS: StoryPanel[] = [
   {
     emoji: '🏛️',
-    text: 'Past the garden, a long, quiet hall. Its walls are lined with plaques, hundreds of them. Every single one is blank.',
+    text: 'Past the garden, a long, quiet hall. Plaques line its walls. Every single one is blank.',
   },
   {
     emoji: '🌼',

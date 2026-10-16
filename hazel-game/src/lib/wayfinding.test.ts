@@ -647,3 +647,15 @@ describe('Lumina-That-Was in the guides (16b review round 4)', () => {
     expect(nextObjective(both).why).toMatch(/hunt for secrets/);
   });
 });
+
+describe("the Nameless Hall's 🚩 (16c review round 2)", () => {
+  it('says to unlock the great door, then — once it is open — only to look at the root', () => {
+    const hall = ZONES['nameless-hall'];
+    const flags = { ...nameLearned, [keyFlag('asters-key')]: true };
+    const before = nextObjective(flags);
+    expect(before.inside).toMatch(/^Unlock the great door/);
+    expect(before.why).toBe("Aster's Key opens the Nameless Hall's great door. See what's behind it!");
+    const open = { ...flags, [gateFlag(gateIdAt('nameless-hall', hall.map, hall.keyGate!.x, hall.keyGate!.y))]: true };
+    expect(nextObjective(open).inside).toMatch(/^Look at the big root/);
+  });
+});

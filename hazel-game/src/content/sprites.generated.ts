@@ -13723,8 +13723,8 @@ export const GENERATED_SPRITES: Record<string, SpriteDef> = {
     "emoji": "🕳️",
     "world": {
       "sheet": "/sprites/hall-deep-root/world.png",
-      "frameW": 32,
-      "frameH": 32,
+      "frameW": 48,
+      "frameH": 48,
       "frames": 18,
       "anims": {
         "idle": {
