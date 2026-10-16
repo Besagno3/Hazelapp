@@ -7,7 +7,7 @@ import ModalLayer from '../../components/ModalLayer';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { fetchQuestions } from '../../lib/questions';
 import { errorMessage } from '../../lib/errors';
-import { clampLevel, playerAge, skillLevelFor } from '../../lib/age';
+import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
 import { pushLibrary, wakeAfterDefeat, wakeInnName } from '../../lib/save';
@@ -18,11 +18,16 @@ import { actComplete, actCrystals, actRestored } from '../../content/topics';
 import {
   SPIRE_FLOORS,
   SPIRE_INTRO,
-  SPIRE_LIVES,
   spireClearXp,
   SPIRE_BOSS_DEFEAT,
   floorWards,
   spireFloorTitle,
+  spireFalls,
+  spireCandles,
+  spireQuestionLevel,
+  spireComebackLine,
+  flagsAfterSpireFall,
+  flagsAfterSpireClear,
 } from '../../content/spire';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
@@ -36,10 +41,13 @@ import type { LibraryEntry, Question, Topic } from '../../types';
  * until every crystal is restored; once open, the hero climbs `SPIRE_FLOORS`.
  * Each floor is a themed map drawn by the world canvas: the hero walks it,
  * bumps rune seals to face its questions, and takes the stairs once every
- * seal is broken. Wrong answers snuff candle-lights (`SPIRE_LIVES`) — and the
+ * seal is broken. Wrong answers snuff candle-lights (`spireCandles`) — and the
  * hero's circle of light shrinks with them; running out casts the hero back
- * to the last inn they rested at (or home to Lumina Village), healed. The top floor is Umbra's throne room: walking up to
- * him starts the final question gauntlet. Clearing it sets `SPIRE_CLEARED`.
+ * to the last inn they rested at (or home to Lumina Village), healed, and the
+ * Spire remembers the fall: the next climb has one more candle and asks one
+ * level lower, up to two falls (`spireFalls`, B4 #150). The top floor is
+ * Umbra's throne room: walking up to him starts the final question gauntlet.
+ * Clearing it sets `SPIRE_CLEARED` and forgets the falls.
  *
  * This overlay owns the rules and the panels; `spireStore` carries the live
  * climb state to the canvas (floor, broken seals, candles) and brings bumps
@@ -86,6 +94,10 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   const unlocked = !!save && actComplete(save.flags, 1);
   // Umbra beaten before (#109): he says so, and the clear bonus isn't paid again.
   const clearedBefore = !!save?.flags[SPIRE_CLEARED];
+  // Failed climbs the Spire remembers (B4, #150), fixed for this climb: a fall
+  // during it is saved for the next one, not this one.
+  const [falls] = useState(() => spireFalls(save?.flags));
+  const candleMax = spireCandles(falls);
 
   const [phase, setPhase] = useState<Phase>(unlocked ? { kind: 'loading' } : { kind: 'locked' });
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -100,9 +112,9 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
 
   // A fresh climb every time the Spire opens; tidy up when it closes.
   useEffect(() => {
-    spire().reset();
+    spire().reset(candleMax);
     return () => spire().reset();
-  }, [spire]);
+  }, [spire, candleMax]);
 
   // The hero may walk only while no panel is open. Keyed on the phase object
   // (not just its kind): a bump pauses exploring, and a bump that resolves
@@ -148,7 +160,9 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   useEffect(() => {
     if (!unlocked || started.current) return;
     started.current = true;
-    const chain = SPIRE_INTRO.reduceRight<() => void>(
+    // Back after a fall, one line says what the Spire changed (B4, #150).
+    const comeback = spireComebackLine(falls);
+    const chain = [...SPIRE_INTRO, ...(comeback ? [comeback] : [])].reduceRight<() => void>(
       (next, line) => () => setPhase({ kind: 'message', text: line, next }),
       () => beginFloor(0),
     );
@@ -215,8 +229,9 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     setPhase({ kind: 'loading' });
     const perTopic = Math.ceil(f.questions / f.topics.length);
     // Each topic asks at the player's own question level for it (the age
-    // baseline if they haven't played it yet), plus the floor's climb.
-    const levelFor = (t: Topic) => clampLevel(skillLevelFor(profile?.skillLevels ?? {}, t, age) + f.levelBonus + 1);
+    // baseline if they haven't played it yet), plus the floor's climb, less a
+    // level per remembered fall.
+    const levelFor = (t: Topic) => spireQuestionLevel(skillLevelFor(profile?.skillLevels ?? {}, t, age), f, falls);
     Promise.all(
       f.topics.map((t) =>
         fetchQuestions(t, age, levelFor(t), perTopic, 'spire'),
@@ -306,7 +321,8 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     const xp = spireClearXp(correctCount.current, XP_PER_CORRECT + xpBonusPerCorrect(powerUps), !firstClear);
     void addXp(xp);
     void recordActivity();
-    updateSave((s) => ({ ...s, library: pushLibrary(s.library, misses.current) }));
+    // Cleared: the Spire forgets the falls, so a replay starts at the usual climb.
+    updateSave((s) => ({ ...s, flags: flagsAfterSpireClear(s.flags), library: pushLibrary(s.library, misses.current) }));
     setFlag(SPIRE_CLEARED);
     void useSaveStore.getState().flush();
     setPhase({ kind: 'win', firstClear, xp });
@@ -324,6 +340,8 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
       hp: null,
       ...boatAfterDefeat(s, wakeAfterDefeat(s).zoneId),
       ...wakeAfterDefeat(s),
+      // The Spire remembers the fall: next climb, one more candle and a level lower (B4, #150).
+      flags: flagsAfterSpireFall(s.flags),
       library: pushLibrary(s.library, misses.current),
     }));
     void useSaveStore.getState().flush();
@@ -352,8 +370,8 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   if (!save) return null;
 
   const candles = (
-    <span title="Candle-lights" className="text-sm whitespace-nowrap" role="img" aria-label={`${lives} of ${SPIRE_LIVES} candle-lights left`}>
-      {Array.from({ length: SPIRE_LIVES }).map((_, i) => (
+    <span title="Candle-lights" className="text-sm whitespace-nowrap" role="img" aria-label={`${lives} of ${candleMax} candle-lights left`}>
+      {Array.from({ length: candleMax }).map((_, i) => (
         <span key={i} aria-hidden className={i < lives ? '' : 'opacity-25 grayscale'}>
           🕯️
         </span>
@@ -438,7 +456,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
       >
         {/* Header: floor + candle-lights (hidden on locked / end panels) */}
         {phase.kind !== 'locked' && phase.kind !== 'win' && phase.kind !== 'lose' && (
-          // On a narrow phone the candles drop to their own line, all four together.
+          // On a narrow phone the candles drop to their own line, all together (up to six after a fall).
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4">
             <h2 className="text-lg font-extrabold text-violet-200 whitespace-nowrap">🗼 The Crystal Spire</h2>
             {candles}

@@ -249,7 +249,9 @@ zod, react-query. Add the package in the same change that first uses it.
   menu, and the **Spire climb** (`SpireOverlay`, machine substate `world.spire`,
   opened by using the Spire icon — the all-crystals-gated endgame; its five
   floors are walkable themed maps drawn by `WorldCanvas`, state in
-  `spireStore`, #74). `TouchPad`
+  `spireStore`, #74; its questions sit 0–3 levels above the kid's own, and
+  after a failed climb the next has one more candle and asks a level lower,
+  up to two falls — `spireFalls`, save flags `spire-falls-1/2`, B4 #150). `TouchPad`
   is the mobile d-pad, with the ✋ use button beside it (#127).
   **Using things** (#127, `lib/interact.ts`): nothing the hero can use goes
   off on a bump. Chests, gates (both kinds), the save crystal, Spire seals and
@@ -911,6 +913,67 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Merge main (public pages #66, question safety #71, save revisions #70) and the family-budget branch (#67) into the Spire branch (#150)
+Docs only: #150 sits between #151 and #147, TC-1301–1310 / 1351–1355 don't
+collide. No code conflicts — the Spire's changes touch none of the merged
+files.
+
+### 2026-10-16 — B4 review round 2: a fall helps kids near level 10 too (#150)
+A fresh `/saas-code-review` (1 medium; nothing else held up). Fixed: the
+level a fall takes off was cut by the 1–10 limit, so a kid whose level plus
+the floor's bonus ran past 10 got the same riddles after a fall — Umbra
+asked 10 again for a level-8 kid after one fall, and for a level-9 kid after
+both. `spireQuestionLevel` now cuts the climb at 10 first and takes the fall
+off after, so every floor asks one level lower per fall for any kid (never
+below 1); a first climb is unchanged. Tests: spire.test (every level, floor
+and fall) and SpireOverlay.test (a level-10 kid's whole climb after a fall,
+Umbra's seven topics too, all at 9) — both fail on the old rule. Decided by
+the owner: leaving the Spire, even after losing a candle, is not a fall
+(TC-1351 keeps it). 1382 green, lint and build clean.
+
+### 2026-10-16 — B4 review round 1: leaving isn't a fall, no stray flags (#150)
+A fresh `/saas-code-review` (3 low, 1 nit; nothing high or medium): the fall
+rules, the floors' question loading and the candle state held up. Fixed:
+"leaving isn't a fall" had no test — a new one loses a candle, leaves, and
+checks no flag changed; the cap tests passed even if a third fall wrote a
+stray flag — they now check it writes nothing; this log said the light reads
+`maxLives` (it's sized by the candles left); a stale "all four" comment.
+Asked (#150): should leaving after losing a candle count as a fall? Kept as
+the PR chose. 1380 green, lint and build clean; the real app with both fall
+flags at five sizes (`bench … hud`): six candles fit, 6/6.
+
+### 2026-10-16 — Make the Spire fairer: gentler levels, an easier climb after each fall (Act I launch review B4, #150)
+The launch review found a kid getting 75–80% right cleared the Spire only a
+quarter to half of the time: its questions were 2–6 levels above the kid's
+own (`levelBonus` 1–5, plus one more in `SpireOverlay.loadFloor`), four
+candles had to last 19 questions, and a loss changed nothing.
+- **Gentler levels:** the floors ask 0, 1, 2, 2 and 3 levels above the kid
+  (Umbra's floor highest); the extra +1 is gone. One rule,
+  `spireQuestionLevel` (kept to 1–10), sets the floors and Umbra's challenge.
+- **Easier after a fall:** losing a climb sets a save flag (`spire-falls-1`,
+  then `spire-falls-2`; no save field, no version bump). The next climb has
+  one more candle and asks one level lower, up to two falls (`spireFalls`,
+  `spireCandles`); clearing the Spire forgets them. Back after a fall, one
+  line follows the intro: "The Spire remembers you tried. One more candle —
+  and the riddles are a little easier." `spireStore.reset(lives)` starts a
+  climb with its candles (`lives` and `maxLives`; the canvas light is sized
+  by the candles left alone, so it starts wider after a fall). Chosen
+  over restarting from the highest floor: the climb's progress is never
+  saved, and fresh candles for each floor would make every floor easy while
+  Umbra's questions stayed as hard.
+- **Elder Lumen's Spire tip** said to rest at the inn, but HP isn't used in
+  the Spire. Now: "🪶 Hint Feathers work in the Spire too — each one hides two
+  wrong answers. Peddler Plus sells them in Numbria. Bring a few!"
+- **Odds** (accuracy held fixed, so only the candles help): at 75% right a
+  climb cleared 26% of the time; now the first climb is the same, the second
+  47%, the third 67%. At 80%: 46%, then 67% and 84%. If each level easier
+  adds 3 points of accuracy, the first climb at 75% clears 56%.
+- **Tests:** +10 (spire, spireStore, SpireOverlay — the real climb lost and
+  won; wayfinding's tip changed); 1379 green, lint and build clean. In
+  headless Chromium with Supabase stubbed: a 10-year-old's first floor asks
+  level 5 (was 7); after one fall, level 4, 5 candles and the line; after two,
+  level 3 and 6 candles, which fit a 320 px phone.
 
 ### 2026-10-16 — Merge main (public pages #66, question safety #71) into the family-budget branch (#152)
 `main` took migrations **0017–0019** (the question age window, the question
