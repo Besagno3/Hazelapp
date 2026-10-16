@@ -955,6 +955,11 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16f UX review round 4: the last lows (#75 item 16f, #156j)
+The last round's UX review (no high or medium; 7 low, 8 nits), all fixed:
+14 closing lines reworded so none repeats, contradicts or sells what isn't
+there. 1567 green.
+
 ### 2026-10-16 — 16f code review round 3: the Roost's seam (#75 item 16f, #156i)
 Fresh code review: no findings, two nits fixed — the whole story allows the
 Roost's flag at the Act II–III seam only; ISSUES #156's count of 16e things.

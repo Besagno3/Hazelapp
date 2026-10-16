@@ -38,19 +38,19 @@ export const EPILOGUE_HOME: Readonly<Record<string, string>> = {
   'grove-guardian':
     "The whole grove feels like it's smiling tonight, little light. Somewhere, a Sage with a daisy behind her ear is home again.",
   'grove-firefly':
-    "Look, a little gold daisy-glow is dancing on the water with me tonight! I think it's Aster saying hello. Come dance with us!",
+    "Look, a little gold daisy-glow is dancing on the water with me tonight! I think it's Aster saying hello.",
   'grove-otter':
     'The water is telling me stories again! Tonight it told one about a Sage who got lost, and a kid who called her home. My favorite!',
   // Shrines and the Spire
   'shrine-keeper':
-    "And now Aster has found her way home, too. My candle can rest easy. I think I'll let myself blink. Twice!",
+    "And now Aster has found her way home. My candle still burns, just for joy now. I think I'll let myself blink. Twice!",
   'wayfarer-keeper':
     "Aster is home, and so are you. That's the best kind of road: the one that ends with a friend.",
   'quiet-keeper':
     "Shh… do you hear it? The critters are calmer now. The shadow was never mean, you know. Only lost, and very tired.",
   // Remembrance Hill
   'hall-aster':
-    "Some mornings I go down to the First Classroom, just to remember the sound of 'why?'",
+    "Some days I go down to the First Classroom, just to remember the sound of 'why?'",
   'hill-merchant':
     "Sad news: nobody forgets anything any more. Business is terrible! I've never been happier.",
   'hill-innkeeper':
@@ -58,7 +58,7 @@ export const EPILOGUE_HOME: Readonly<Record<string, string>> = {
   'hill-traveler':
     "I remember walking round Dawnreach! Both times! And I remember where I left my hat. It's on my head. Everything's coming back!",
   'hill-carver':
-    "Keeper Mnem carved ASTER himself. Wouldn't even let me hold the chisel! So I'm carving a tiny daisy beside it. I'm only a little bit jealous.",
+    "Nobody else was allowed to touch ASTER's plaque. Keeper Mnem's orders! So I'm carving a tiny daisy beside it. I'm only a little bit jealous.",
   'hill-elder':
     'I remember my second day of school now! A kind Sage with a daisy asked me "why?" and waited for my answer. Not forgettable after all.',
   'hill-jam':
