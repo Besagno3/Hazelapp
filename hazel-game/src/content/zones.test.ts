@@ -638,7 +638,9 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
         // Once Ember can fly, the hero flies too (#75 item 15b).
         const reached = (flags: Record<string, boolean>) => {
           const open = reach(z, { flags, modes: canFly(flags) ? ['foot', 'ember'] : ['foot'], grounded: true });
-          return open.has(key) || touches(open, f.guards.x, f.guards.y);
+          // An exit is walked onto, not bumped (16c review round 3: the garden's fog covers only its exit row).
+          const exit = tileAt(z, f.guards.x, f.guards.y) === 'E';
+          return open.has(key) || (!exit && touches(open, f.guards.x, f.guards.y));
         };
         expect(reached({}), `${f.id}: reward reachable through the fog`).toBe(false);
         for (const flag of f.liftedBy) {
@@ -1884,13 +1886,31 @@ describe("Aster's Garden and the Nameless Hall (#75 item 16c)", () => {
     const field = ZONES['memory-field'];
     const toGarden = field.exits.filter((e) => e.to === 'asters-garden');
     for (const e of toGarden) {
-      expect(touches(reach(field, { exits: 'stop' }), e.x, e.y), 'fogged').toBe(false);
-      expect(touches(reach(field, { exits: 'stop', flags: { [NAME_LEARNED]: true } }), e.x, e.y), 'lifted').toBe(true);
+      expect(reach(field, { exits: 'stop' }).has(`${e.x},${e.y}`), 'fogged').toBe(false);
+      expect(reach(field, { exits: 'stop', flags: { [NAME_LEARNED]: true } }).has(`${e.x},${e.y}`), 'lifted').toBe(true);
     }
   });
   it('a defeat in the garden wakes you at the Dream Root Door; the Hall is safe', () => {
     expect(garden.shelterIn).toBe('dreamroot-door');
     expect(hall.enemies).toEqual([]);
     expect(hall.kind).toBe('shrine');
+  });
+});
+
+describe('no fog shuts a building door (16c review round 3)', () => {
+  it('every door reachable with the fog lifted is reachable with it standing — unless the fog guards it', () => {
+    for (const z of Object.values(ZONES)) {
+      if (!z.fogs?.length || !z.buildings?.length) continue;
+      const allLifted = Object.fromEntries(z.fogs.flatMap((f) => f.liftedBy).map((f) => [f, true]));
+      const open = reach(z, { flags: allLifted, gates: 'open' });
+      const shut = reach(z, { flags: {}, gates: 'open' });
+      z.map.forEach((row, y) =>
+        [...row].forEach((ch, x) => {
+          if (ch !== 'D' || !touches(open, x, y)) return;
+          const guarded = z.fogs!.some((f) => x >= f.x - 1 && x <= f.x + f.w && y >= f.y - 1 && y <= f.y + f.h);
+          if (!guarded) expect(touches(shut, x, y), `${z.id} door at ${x},${y}`).toBe(true);
+        }),
+      );
+    }
   });
 });

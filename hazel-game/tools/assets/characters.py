@@ -4077,15 +4077,16 @@ def thorn_ball(c: Canvas, p: Pose, s: dict):
                 (x0 + math.sin(a) * 1.8, y0 - math.cos(a) * 1.8)], '#f0e0b0')
     B.ellipse(16, 19, 7.4, 7.4, col)
     B.ellipse(13.4, 16.4, 2, 1.4, light(col, 0.3), shade=False)
-    d.put(B)
     if p.facing != 'up':
+        # The face goes on before the layer is put down (16c review round 3: it was drawn after, so never showed).
         ex = face_x(p, [17, 20.4], [13.6, 18.4])
-        d.eyes(B, [(x, 19) for x in ex])
         if ex and not p.hurt:
             for x in ex:
-                B.line(x - 1.6, 16.4 if x < 16.5 else 17.4, x + 1.4, 17.4 if x < 16.5 else 16.4, '#2a1018', w=0.7)  # cross brows
+                B.line(x - 1.6, 16.4 if x < 16.5 else 17.4, x + 1.4, 17.4 if x < 16.5 else 16.4, '#2a1018', w=0.8)  # cross brows
             mx = sum(ex) / len(ex)
-            B.line(mx - 1.8, 23, mx + 1.8, 23, '#2a1018', w=0.7)
+            B.line(mx - 1.8, 23.4, mx + 1.8, 23.4, '#2a1018', w=0.8)  # a frown
+        d.eyes(B, [(x, 19) for x in ex])
+    d.put(B)
     finish(c, d, shadow=(16, 30.2, 8, 1.1))
 
 
@@ -4099,26 +4100,27 @@ def wilt_flower(c: Canvas, p: Pose, s: dict):
     stem = hexc(s.get('stem', '#8a8a3a'))
     perk = 1.0 if p.frame % 2 else 0.0
     S = d.part(d.lean * 0.4, 0)
-    S.line(16, 29.6, 15.4, 15, stem, w=2.0)
-    S.line(15.4, 15, 19.6 - perk, 9 + perk, stem, w=2.0)  # the droop
+    S.line(16, 29.6, 15.4, 14, stem, w=2.0)
+    S.line(15.4, 14, 18.4, 9.6 + perk, stem, w=2.0)  # up, then over and down: the droop
+    S.line(18.4, 9.6 + perk, 21 - perk * 0.6, 13.4 - perk, stem, w=2.0)
     S.ellipse(12.2, 24.4, 3.2, 1.2, dark(stem, 0.15), rot=0.9)  # limp leaves
     S.ellipse(19.8, 25.4, 3.2, 1.2, dark(stem, 0.15), rot=-0.9)
     d.put(S)
-    hx, hy = 19 - perk, 13 - perk
+    hx, hy = 21 - perk * 0.6, 17 - perk  # the head hangs off the end of the bent stem
     F = d.part(d.lean, d.bob)
     for k in range(6):
         a = 0.2 + k * (math.pi - 0.4) / 5  # petals hang down round the bottom of the head
-        px, py = hx + math.cos(a) * 5.6, hy + math.sin(a) * 6.0
-        F.ellipse(px, py, 2.2, 3.8, petal, rot=a - math.pi / 2)
-        F.dot(px + math.cos(a) * 3.2, py + math.sin(a) * 3.4, tip, w=2, h=1)
-    F.ellipse(hx, hy, 4.2, 3.6, '#c89a3a')
-    d.put(F)
+        px, py = hx + math.cos(a) * 4.6, hy + math.sin(a) * 5.0
+        F.ellipse(px, py, 2.0, 3.4, petal, rot=a - math.pi / 2)
+        F.dot(px + math.cos(a) * 2.8, py + math.sin(a) * 3.0, tip, w=2, h=1)
+    F.ellipse(hx, hy, 3.8, 3.2, '#c89a3a')
     if p.facing != 'up':
-        ex = face_x(p, [hx + 0.2, hx + 2.2], [hx - 1.2, hx + 1.2])
-        d.eyes(F, [(x, hy + 0.2) for x in ex], h=1)
-        if ex and d.sep:
+        ex = face_x(p, [hx + 0.2, hx + 2.2], [hx - 1.4, hx + 1.4])
+        if ex and not p.hurt:
             for x in ex:
-                F.line(x - 1, hy - 1.6 + (0.6 if x > hx else 0), x + 1, hy - 1.6 + (0 if x > hx else 0.6), '#4a2a1a', w=0.5)  # a sulky brow
+                F.line(x - 1, hy - 1.8 + (0.6 if x > hx else 0), x + 1, hy - 1.8 + (0 if x > hx else 0.6), '#4a2a1a', w=0.6)  # sulky brows
+        d.eyes(F, [(x, hy + 0.2) for x in ex])
+    d.put(F)
     finish(c, d, shadow=(16, 30.4, 5, 1.0))
 
 
@@ -4142,9 +4144,9 @@ def bramble(c: Canvas, p: Pose, s: dict):
     for (x, y) in ((14, 8.6), (19.6, 7), (20.6, 11.6), (15.4, 17.6), (16.8, 21)):
         Q.dot(x + 1.2, y - 0.6, light(col, 0.35))  # thorns
     Q.ellipse(16, 25.2, 2.2, 2.0, berry)
-    d.put(Q)
     if p.facing != 'up':
         d.eyes(Q, [(17.4, 8.8), (19.6, 9.6)] if p.facing == 'side' else [(15.4, 8.4), (18.6, 8.4)])
+    d.put(Q)
     finish(c, d, shadow=(16, 30.4, 7, 1.0))
 
 
@@ -4164,10 +4166,10 @@ def sprout(c: Canvas, p: Pose, s: dict):
     L.ellipse(11.4, 11.4 - lift, 4.2, 2.6, leaf, rot=-0.5)
     L.ellipse(20.6, 11.4 - lift, 4.2, 2.6, leaf, rot=0.5)
     L.ellipse(16, 15.8, 3.6, 3.0, light(leaf, 0.15))  # a little round face on the stem
-    d.put(L)
     if p.facing != 'up':
         ex = face_x(p, [16.4, 18.4], [14.6, 17.4])
         d.eyes(L, [(x, 15.6) for x in ex], h=1 if not d.sep else 2)
+    d.put(L)
     finish(c, d, shadow=(16, 30.4, 5, 1.0))
 
 

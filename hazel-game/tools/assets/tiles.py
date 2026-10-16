@@ -134,7 +134,7 @@ ZONES = {
                             sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
     # Aster's Garden (#75 item 16c): her old garden, gone wild and dry in the same
     # golden light — straw-gold grass, hedge walls, a few last roses.
-    'asters-garden': dict(golden=True, ground=(170, 160, 92), path=(214, 186, 132), solid='hedge', deco='flower', deco_c='#ffffff',
+    'asters-garden': dict(golden=True, ground=(170, 160, 92), path=(214, 186, 132), solid='hedge', deco='daisy', deco_c='#ffffff',
                           sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='tree', water='#5aa0c8'),
     # The Nameless Hall (#75 item 16c): a pale stone hall under the garden, its
     # plaques blank — white pillars, candles, a dim violet hush.
@@ -405,6 +405,13 @@ def deco(kind, colr):
             for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                 c.dot(x + dx, y + dy, colr)
             c.dot(x, y, '#ffffff')
+    elif kind == 'daisy':
+        # Aster's Garden (16c review round 3): five white petals round a yellow middle, a green leaf.
+        for (x, y) in ((4, 5), (11, 10), (6, 12)):
+            c.dot(x + 1, y + 2, '#3a8a3a')
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (-1, 1), (1, 1)):
+                c.dot(x + dx, y + dy, colr)
+            c.dot(x, y, '#f0c030')
     elif kind == 'tulip':
         for (x, y) in ((4, 6), (11, 9)):
             c.rect(x, y + 1, x + 1, y + 4, '#3a8a3a', shade=False)
@@ -514,18 +521,58 @@ def props():
     c.ellipse(8, 8, 2.2, 2.2, '#ffd24a')
     c.dot(8, 8, '#3a2a1a')
     frames.append(_outlined(c))
-    # A key gate (16c review round 2): a sealed stone door with a big gold padlock —
-    # never mistaken for the wooden question gate, or for a pair of chests.
-    c = _c()
-    c.rect(1, 1, 15, 16, '#6a6488')
-    c.rect(2, 2, 14, 16, '#8a84aa', shade=False)
-    for y in (5.5, 10.5):
-        c.rect(2, y, 14, y + 0.6, '#5a5478', shade=False)  # stone courses
-    c.rect(5, 7, 11, 13, '#e0b040')  # the padlock's body
-    c.poly([(5.6, 7.2), (6.4, 4.2), (8, 3.2), (9.6, 4.2), (10.4, 7.2), (9.2, 7.2), (8.8, 5), (8, 4.6), (7.2, 5), (6.8, 7.2)], '#c0c8d4')
-    c.dot(8, 9.4, '#3a2a1a', w=1, h=2)  # keyhole
-    frames.append(_outlined(c))
+    # A key gate (16c review round 2): a sealed door with a big gold padlock —
+    # never mistaken for the wooden question gate, or for a pair of chests. Frame 5
+    # is one door a tile (a gate that takes two keys shows two locks, Chorus Isle).
+    frames.append(_outlined(_door_tile()))
+    # Frames 6–9 (16c review round 3): one door across a two-tile gate, one padlock on
+    # its seam — left / right halves of a gate in a row, top / bottom of one in a column.
+    for half in ('left', 'right', 'top', 'bottom'):
+        frames.append(_outlined(_door_half(half)))
     return frames
+
+
+_DOOR_FRAME, _DOOR, _DOOR_LINE, _GOLD, _STEEL = '#2a2238', '#6a4a3a', '#4a3226', '#e0b040', '#c0c8d4'
+
+
+def _padlock(c, x, y):
+    """A gold padlock centred on (x, y): shackle above, keyhole below."""
+    c.poly([(x - 2.4, y - 0.8), (x - 1.6, y - 3.8), (x, y - 4.8), (x + 1.6, y - 3.8), (x + 2.4, y - 0.8),
+            (x + 1.2, y - 0.8), (x + 0.8, y - 3), (x, y - 3.4), (x - 0.8, y - 3), (x - 1.2, y - 0.8)], _STEEL)
+    c.rect(x - 3, y - 1, x + 3, y + 5, _GOLD)
+    c.dot(x, y + 1.4, '#3a2a1a', w=1, h=2)
+
+
+def _door_tile():
+    c = _c()
+    c.rect(0.5, 0.5, 15.5, 16, _DOOR_FRAME)
+    c.rect(2, 2.5, 14, 16, _DOOR, shade=False)
+    for x in (5.5, 10.5):
+        c.rect(x, 2.5, x + 0.6, 16, _DOOR_LINE, shade=False)  # planks
+    _padlock(c, 8, 8)
+    return c
+
+
+def _door_half(half):
+    """Half of a door that spans two tiles; the seam is where the padlock sits."""
+    c = _c()
+    if half in ('left', 'right'):
+        c.rect(0, 0.5, 16, 16, _DOOR_FRAME)
+        x0, x1 = (2, 16) if half == 'left' else (0, 14)
+        c.rect(x0, 2.5, x1, 16, _DOOR, shade=False)
+        for x in ((5.5, 10.5) if half == 'left' else (4.9, 9.9)):
+            c.rect(x, 2.5, x + 0.6, 16, _DOOR_LINE, shade=False)
+        seam = 16 if half == 'left' else 0
+        c.rect(seam - 0.4, 2.5, seam + 0.4, 16, _DOOR_FRAME, shade=False)
+        _padlock(c, seam, 8)  # half the lock on each tile — whole where they meet
+    else:
+        c.rect(0.5, 0, 15.5, 16, _DOOR_FRAME)
+        y0, y1 = (2.5, 16) if half == 'top' else (0, 14)
+        c.rect(2, y0, 14, y1, _DOOR, shade=False)
+        for x in (5.5, 10.5):
+            c.rect(x, y0, x + 0.6, y1, _DOOR_LINE, shade=False)
+        _padlock(c, 8, 16 if half == 'top' else 0)
+    return c
 
 
 def spire():

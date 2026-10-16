@@ -216,7 +216,8 @@ export interface QuestDef {
   /** The menu's line once every step is done, in place of "go back to <giver>" (the giver waits somewhere else). */
   doneLine?: string;
   /** The offer when you already carry one of `items` (found the thing before meeting them). */
-  offerHaving?: { items: string[]; lines: string[] };
+  /** Lines may depend on the save (all of the items found, or only some — 16c review round 3). */
+  offerHaving?: { items: string[]; lines: string[] | ((save: SaveData) => string[]) };
   /**
    * A song quest's wrong notes (#75 item 15f review): struck out of turn before
    * anything rings (`early`), and after something has rung, so the song starts
@@ -1712,11 +1713,19 @@ export const QUESTS: QuestDef[] = [
     // A water or two found first (16c review round 2): no sending you after them again.
     offerHaving: {
       items: ['jar-dew', 'jar-rain', 'jar-river'],
-      lines: [
-        "Thank you for answering my seedlings. Aster's Key opens the Nameless Hall, just south of here. Could you help me too, when you have time?",
-        "Oh — you've found some of my waters already! I need all three: morning dew, spring rain and river water. The rest are in the garden's chests.",
-        'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
-      ],
+      lines: (save) => {
+        const all = ['jar-dew', 'jar-rain', 'jar-river'].every((i) => save.questItems.includes(i));
+        const weeds = ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy'].every((id) => (save.kills[id] ?? 0) > 0);
+        return [
+          "Thank you for answering my seedlings. Aster's Key opens the Nameless Hall, just south of here. Could you help me too, when you have time?",
+          all
+            ? "Oh — you've found all three of my waters already! Wonderful!"
+            : "Oh — you've found some of my waters already! I need all three: morning dew, spring rain and river water. Any you haven't found are in the garden's chests.",
+          weeds
+            ? 'And those three weeds that kept asking "why?" — you beat them already? Thank you!'
+            : 'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
+        ];
+      },
     },
     steps: [
       haveStep(
@@ -2015,6 +2024,12 @@ export interface QuestConversation {
  * (16b reviews, rounds 2–3: Young Wick's memory, then the dog's name). A
  * completion may end on a choice (`QuestDef.choice`).
  */
+/** A quest's offer for an item already found (16c review round 3: may depend on the save). */
+function offerHavingLines(quest: QuestDef, save: SaveData): string[] {
+  const lines = quest.offerHaving!.lines;
+  return typeof lines === 'function' ? lines(save) : lines;
+}
+
 export function questConversation(npcId: string, save: SaveData): QuestConversation | null {
   const now = conversationNow(npcId, save);
   if (!now?.finish || (now.finishKind !== 'step' && now.finishKind !== 'complete') || now.choice?.length) return now;
@@ -2042,7 +2057,7 @@ function conversationNow(npcId: string, save: SaveData): QuestConversation | nul
   if (!quest || !step) return null;
   if (!save.flags[questOfferedFlag(quest)]) {
     return {
-      lines: quest.offerHaving?.items.some((i) => save.questItems.includes(i)) ? quest.offerHaving.lines : quest.offer,
+      lines: quest.offerHaving?.items.some((i) => save.questItems.includes(i)) ? offerHavingLines(quest, save) : quest.offer,
       badge: quest.title,
       finishKind: 'offer',
       finish: (s) => ({

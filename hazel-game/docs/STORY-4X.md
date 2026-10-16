@@ -376,7 +376,7 @@ the name question, not at 0 HP.
 | First Classroom | The Lesson Bell 🔔 | flavor; rings itself, apologizes |
 | First Classroom | Monitor Prim 📏 | quest-giver (testimony quest step) |
 | Aster's Garden | The Gardener 🌱 | warden + signpost in one; tends questions like seedlings; "some questions take years to bloom. Water them anyway." |
-| Aster's Garden | Sprout 🌼 | flavor; a question seedling; asks "why?" about everything (full little sentences as built, 16c) |
+| Aster's Garden | Sprout 🌱 | flavor; a question seedling; asks "why?" about everything (full little sentences as built, 16c) |
 | Nameless Hall | **Aster / Umbra** 🌼🌑 | the finale; post-game: the **sixth Sage** in the Hall of Names |
 
 ### The testimony quest — *Say Her Name* (`say-her-name`)

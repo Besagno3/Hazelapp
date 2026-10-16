@@ -1449,6 +1449,17 @@ describe("A Garden Rewatered (#75 item 16c)", () => {
     expect(questConversation('garden-gardener', keyed())!.lines[1]).toMatch(/^These beds/);
   });
 
+  it('all three waters and the weeds before he asks: his offer thanks you for both (16c review round 3)', () => {
+    let save = keyed();
+    for (const c of [DEW, RAIN, RIVER]) save = openChest(save, c);
+    const lines = questConversation('garden-gardener', save)!.lines;
+    expect(lines[1]).toBe("Oh — you've found all three of my waters already! Wonderful!");
+    expect(lines[2]).toMatch(/^And three weeds/);
+    for (const id of ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy']) save = win(save, id);
+    const done = questConversation('garden-gardener', save)!;
+    expect(done.finishKind).toBe('complete');
+  });
+
   it('a water found before the Gardener asks says who wants it', () => {
     const save = openChest(defaultSave(), DEW);
     expect(save.questItems).toEqual(['jar-dew']);

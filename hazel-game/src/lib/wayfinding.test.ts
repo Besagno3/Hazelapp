@@ -644,7 +644,9 @@ describe('Lumina-That-Was in the guides (16b review round 4)', () => {
     const named = { ...leg.flags, [NAME_LEARNED]: true, [keyFlag('asters-key')]: true, [HALL_ROOT_SEEN]: true };
     expect(nextObjective(named).why).toMatch(/help the folk of Lumina-That-Was/);
     const both = { ...named, [questDoneFlag({ id: 'bell-apology' })]: true, [questDoneFlag({ id: 'unnamed-dog' })]: true };
-    expect(nextObjective(both).why).toMatch(/hunt for secrets/);
+    // …and the Gardener's waters (16c review round 3).
+    expect(nextObjective(both).why).toMatch(/help the folk of Lumina-That-Was/);
+    expect(nextObjective({ ...both, [questDoneFlag({ id: 'garden-water' })]: true }).why).toMatch(/hunt for secrets/);
   });
 });
 

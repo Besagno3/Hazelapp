@@ -804,6 +804,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16c review round 3: the Fair's door open, one door one lock (#75 item 16c, #145i)
+Fresh code (1 medium, 1 low, 1 nit) and UX (2 medium, 4 low, 4 nits) reviews,
+all fixed: the garden fog covers its exit row only (it had shut the First-
+Merchant Fair; a test keeps doors open); a two-tile key gate is one door with
+one padlock on the seam (`keyGateFrame`); daisies; the weeds' faces show;
+the Gardener's offer fits what you've done; boss-sized NPCs measured right.
+1367 green.
+
 ### 2026-10-16 — 16c review round 2: doors with padlocks, weeds you can see (#75 item 16c, #145h)
 Fresh code (2 low, 3 nits) and UX (3 medium, 7 low, 4 nits) reviews, all
 fixed but one kept (no soil-bed tile): every key gate is a padlocked stone

@@ -29,7 +29,7 @@ import {
   type NpcPlacement,
   type TravelMode,
 } from '../../content/zones';
-import { bossDefeated } from '../../content/keys';
+import { bossDefeated, keysForZone } from '../../content/keys';
 import { reachPath, safeSpawn } from '../../lib/reach';
 import { secretAt, secretFlag } from '../../content/secrets';
 import { NPC_DEFS, isThing, npcAmbient, npcEmoji, npcName, npcSpriteId } from '../../content/npcs';
@@ -324,6 +324,20 @@ export interface Travel {
  * same 704×448 size) and rebuild the scene on zone/ember change; `pausedRef`
  * freezes the simulation while a DOM overlay is open above it.
  */
+/**
+ * Which door frame a key-gate cell draws (16c review round 3): one door across a
+ * two-tile gate — its left / right (or top / bottom) half by where the cell sits
+ * in the gate — or a door a tile when the gate takes two keys (two locks).
+ */
+function keyGateFrame(map: string[], x: number, y: number, keys: number): number {
+  if (keys > 1) return PROP_FRAME.keyGate;
+  if (map[y]?.[x + 1] === 'G') return PROP_FRAME.keyGateLeft;
+  if (map[y]?.[x - 1] === 'G') return PROP_FRAME.keyGateRight;
+  if (map[y + 1]?.[x] === 'G') return PROP_FRAME.keyGateTop;
+  if (map[y - 1]?.[x] === 'G') return PROP_FRAME.keyGateBottom;
+  return PROP_FRAME.keyGate;
+}
+
 export default function WorldCanvas({
   zoneId,
   avatar,
@@ -732,7 +746,7 @@ export default function WorldCanvas({
           const id = gateIdAt(zoneId, z.map, x, y);
           if (!flagsRef.current[gateFlag(id)]) {
             const keyed = !!z.keyGate && gateIdAt(zoneId, z.map, z.keyGate.x, z.keyGate.y) === id;
-            const sprite = prop(keyed ? PROP_FRAME.keyGate : PROP_FRAME.gate, px, py);
+            const sprite = prop(keyed ? keyGateFrame(z.map, x, y, keysForZone(zoneId).length) : PROP_FRAME.gate, px, py);
             const group = gateSprites.get(id);
             if (group) group.push(sprite);
             else gateSprites.set(id, [sprite]);
@@ -1266,9 +1280,10 @@ export default function WorldCanvas({
       parts.push(face);
       pieces.push(face);
       // Under its feet: a sprite taller than a tile (Old Ringwood, #75 item 14f) pushes it down.
+      const labelDy = 24 + Math.max(0, (npcView?.frameH ?? TILE) - TILE) / 2;
       const label = k.add([
         k.text(npcName(def, flagsRef.current), { size: 10 }),
-        k.pos(px, py + 24 + Math.max(0, (npcView?.frameH ?? TILE) - TILE) / 2),
+        k.pos(px, py + labelDy),
         k.anchor('center'),
         k.color(255, 255, 255),
       ]);
@@ -1285,7 +1300,8 @@ export default function WorldCanvas({
       };
       actors.push(actor);
       const nameW = (label as unknown as { width?: number }).width ?? npcName(def, flagsRef.current).length * 6;
-      looks.set(actor, { face: 32, label: { dy: 24, w: nameW + 4, h: 12 } });
+      // A sprite taller than a tile (the Gardener, Old Ringwood) is measured at its own size (16c review round 3).
+      looks.set(actor, { face: npcView?.frameH ?? 32, label: { dy: labelDy, w: nameW + 4, h: 12 } });
       // Pure-flavor villagers roam; services / quest-givers / story NPCs stay.
       if (npcWanders(def) && !at) {
         attachWander(face, {

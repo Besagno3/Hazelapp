@@ -2673,7 +2673,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       { text: 'Why? Why is the Gardener so grumpy? Why does he stand in the gap at the bottom of the garden?', unlessFlag: keyFlag('asters-key') },
       { text: "He keeps Aster's Key on his belt. Why? He says some questions take years to bloom. Why do they?", unlessFlag: keyFlag('asters-key') },
-      { text: "Why are you smiling? …Oh! You have Aster's Key! Why not try it on the Nameless Hall, past the gap?", ifFlag: keyFlag('asters-key') },
+      { text: "Why are you smiling? …Oh! You have Aster's Key! Why not try it on the Nameless Hall, past the gap?", ifFlag: keyFlag('asters-key'), unlessFlag: HALL_ROOT_SEEN },
+      { text: 'Why does the old root hum? Why is it lonely? Will you find out why?', ifFlag: HALL_ROOT_SEEN },
     ],
     ambient: ['why?', 'why?!', '…why?'],
   },
@@ -2687,7 +2688,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       'I tended this garden for Aster, the very first Sage. She planted a question in every bed.',
-      "When the world forgot her, the garden forgot to grow. But you answered every seedling. Look — they're waking up!",
+      "When the world forgot her, the garden forgot to grow. But you answered every seedling. One day soon, they'll wake up.",
       { text: "Aster's Key opens the Nameless Hall, just south of here. Every name Lumina forgot is in there, on its blank plaques.", unlessFlag: HALL_ROOT_SEEN },
     ],
   },
@@ -2731,8 +2732,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     lines: [
       // Only reached once her name is back — the garden's fog lifts with it (16c review round 1).
-      'A plaque worn smooth, with a tiny daisy carved in its corner.',
-      'An aster is a flower just like a daisy. This one must be hers!',
+      'A plaque worn smooth, with a daisy carved in the middle.',
+      "An aster is a flower just like a daisy. Like the blank plaque in Keeper Mnem's hall — but this one is hers!",
     ],
   },
   'hall-deep-root': {

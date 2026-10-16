@@ -3114,10 +3114,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     fogs: [
       {
         id: 'garden-fog',
-        x: 8,
-        y: 12,
-        w: 4,
-        h: 2,
+        // The exit row only: row 12 is the First-Merchant Fair's only way out (16c review round 3).
+        x: 9,
+        y: 13,
+        w: 2,
+        h: 1,
         liftedBy: [NAME_LEARNED],
         hint: "Thick old fog. Someone's name has been lost. Help Wisp find it, and the fog will roll away!",
         guards: { x: 9, y: 13 },
