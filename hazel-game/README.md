@@ -1,6 +1,6 @@
 # Hazel Quest
 
-An educational JRPG for kids (roughly ages 7–11). Players train in quiz rounds
+An educational JRPG for kids (ages 6–18). Players train in quiz rounds
 to unlock the world of Lumina, then explore a tile-based 2D overworld, talk to
 villagers, and fight Final Fantasy–style command battles where **every attack,
 spell, and block is powered by answering a question**. Questions are generated

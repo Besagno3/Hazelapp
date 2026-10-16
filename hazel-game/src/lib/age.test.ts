@@ -7,6 +7,9 @@ import {
   nextSkillLevel,
   nextSkillLevelFromBattle,
   bankRamp,
+  playerAge,
+  DEFAULT_AGE,
+  MAX_PLAYER_AGE,
   MIN_SKILL_LEVEL,
   MAX_SKILL_LEVEL,
 } from './age';
@@ -25,6 +28,17 @@ describe('calcAge', () => {
   });
 });
 
+describe('playerAge', () => {
+  it('is the age from the birth date, capped at 18 (#156)', () => {
+    const now = new Date().getFullYear();
+    expect(MAX_PLAYER_AGE).toBe(18);
+    expect(playerAge({ birthYear: now - 6, birthMonth: 1 })).toBe(6);
+    expect(playerAge({ birthYear: now - 18, birthMonth: 1 })).toBe(18);
+    expect(playerAge({ birthYear: now - 25, birthMonth: 1 })).toBe(18);
+    expect(playerAge(null)).toBe(DEFAULT_AGE);
+  });
+});
+
 describe('clampLevel', () => {
   it('clamps below the minimum', () => {
     expect(clampLevel(-3)).toBe(MIN_SKILL_LEVEL);
@@ -40,8 +54,11 @@ describe('ageToStartLevel', () => {
     expect(ageToStartLevel(6)).toBe(1);
   });
 
-  it('starts teens at the maximum', () => {
-    expect(ageToStartLevel(15)).toBe(MAX_SKILL_LEVEL);
+  it('rises one a year, then teens start mid-range, not at the hardest (#156)', () => {
+    expect(ageToStartLevel(9)).toBe(4);
+    expect(ageToStartLevel(11)).toBe(6);
+    expect(ageToStartLevel(13)).toBe(6);
+    expect(ageToStartLevel(18)).toBe(6);
   });
 });
 

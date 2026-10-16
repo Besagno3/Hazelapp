@@ -955,6 +955,11 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — Merge main (ages 6 to 18, #156) into the 16f branch (#157)
+`main` took ISSUES **#156** and TC-1451–1456 for the wider age range while 16f
+waited, so 16f moved **#156 → #157** and its test cases **TC-1451–1455 →
+TC-1457–1461** (only its own lines). Only the docs conflicted.
+
 ### 2026-10-16 — 16f code review round 4: a guard with no side doors (#75 item 16f, #157k)
 The last round's code review found nothing real; its nit fixed: the epilogue
 guard accepts extra flags on a closing line only for the dog's name. 1567
@@ -1006,6 +1011,25 @@ Roadmap sub-item 16f, the Phase 5 exit — ISSUES #75 closed.
   from a new save to "Explore" — every leg walks, the 🚩 always moves on, it
   ends with her name said and Sage Aster visited, and every epilogue line plays.
 - **Tests:** +8 (epilogue, journey); 1565 green, lint and tsc clean.
+
+### 2026-10-16 — Ages 6 to 18, one-word answers for young readers (#156)
+The owner widened the audience from about 7–11 to **6–18**. The question
+writer's prompt (`generate-questions/index.ts` `SYSTEM_PROMPT`) now says
+"aged 6 to 18", adds what children know at 6, 13, 15 and 17+, and a **YOUNG
+READERS** block: at 6 or under, a question of about 6 simple words and every
+option one 3–4 letter word or a small number (the shortest everyday word when a
+topic has none). The blind check (`CHECK_PROMPT`, `_shared/questionScreen.ts`
+and its inline copy) fails a young reader's question that breaks that. Reuse:
+a kid of `YOUNG_READER_AGE` (6) or under never gets a question written for an
+older child (`p_max_age` = their age), only their own or younger. The app caps
+`playerAge` at `MAX_PLAYER_AGE` (18), as the function already clamped; anyone
+older plays as 18. Public pages, the game's meta description and the README say
+6–18. Deploy: redeploy `generate-questions` (no migration).
+**Teen start level (the owner's call):** `ageToStartLevel` was `age − 5`, so
+15+ started every topic at 10 — the hardest *for their age*, since levels are
+relative to age. It now stops at `MAX_START_LEVEL` (6, where an 11-year-old
+started): 6 → 1 … 11 and older → 6. Only topics without a saved level use it;
+kids already playing keep theirs.
 
 ### 2026-10-16 — Merge the 16d branch (with main) into the 16e branch (#155)
 16d merged `main` (public pages, safer questions, the fairer Spire, saves, the
