@@ -1,6 +1,6 @@
 /**
  * The public site's "Create a free family account" opens the game at
- * `?signup` (#143), so a grown-up lands on the sign-up form, not Sign in.
+ * `?signup` (#146), so a grown-up lands on the sign-up form, not Sign in.
  * `AuthPage` reads it as it opens; it's then dropped from the address — and
  * `App` drops it too when someone is already signed in, so a later sign-out
  * still opens on Sign in.

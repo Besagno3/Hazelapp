@@ -86,7 +86,7 @@ export default function App() {
   useScreenMusic(musicScreen(initialized, playing, screen), isBoss, inSpire, zoneKind, sea);
 
   // Already signed in when the public site's sign-up button brought them
-  // here: drop its ?signup, or a later sign-out would open on sign-up (#143).
+  // here: drop its ?signup, or a later sign-out would open on sign-up (#146).
   useEffect(() => {
     if (session) dropSignupParam();
   }, [session]);

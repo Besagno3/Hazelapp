@@ -780,7 +780,7 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-16 — The sign-up form, reviewed: heard, readable, and it says what's next (#143h)
+### 2026-10-16 — The sign-up form, reviewed: heard, readable, and it says what's next (#146h)
 A `/saas-ux-review` of the form the site's "Create a free family account"
 opens (1 high, 2 medium, 2 low), all fixed on the owner's say-so:
 - **Messages are heard and readable:** an always-present `role="status"`
@@ -802,8 +802,8 @@ opens (1 high, 2 medium, 2 low), all fixed on the owner's say-so:
   password rule). 1313 green, lint + build clean; a browser walk at 390, 320
   and 1280 px passes every check.
 
-### 2026-10-16 — `?signup` never outlives its sign-up page (#143g)
-A `/saas-code-review` of #143f (1 low, fixed): only `AuthPage` dropped
+### 2026-10-16 — `?signup` never outlives its sign-up page (#146g)
+A `/saas-code-review` of #146f (1 low, fixed): only `AuthPage` dropped
 `?signup`, and it mounts only with no session — so a parent already signed in
 who tapped "Create a free family account" kept it in the address, and a later
 sign-out opened on the sign-up form. Now `lib/signupLink.ts`
@@ -812,7 +812,7 @@ is shared: `AuthPage` reads it and drops it, and `App` drops it as soon as a
 session exists. Tests: `signupLink.test` (+3), `App.signup.test` (+2; the
 signed-in one fails without `App`'s effect). 1307 green, lint + build clean.
 
-### 2026-10-16 — Public pages: review fixes (#143f)
+### 2026-10-16 — Public pages: review fixes (#146f)
 `/saas-code-review` + `/saas-ux-review` of the prototype, rendered at 320,
 390 and 1280 px, by keyboard and with reduced motion; the owner said fix all.
 - **The demo battle keeps keyboard focus:** after Next, focus goes to the new
@@ -836,12 +836,12 @@ signed-in one fails without `App`'s effect). 1307 green, lint + build clean.
   "Target closed" before its own error; `stop()` still throws the loop's
   error, and says so when there are no frames.
 - Kept: "Pick your hero." only plays an attack (a teaser), the clip is small
-  on a phone (captioned), the sign-in page's purple style (#143e).
+  on a phone (captioned), the sign-in page's purple style (#146e).
 - Tests: PasswordReset.test +2 (with and without `?signup`; the first fails
   on the old `AuthPage`). 1302 green, lint + build + site build clean; 33
   browser checks on the pages pass.
 
-### 2026-10-16 — Public pages prototype: a kids' page and a grown-ups page (#143)
+### 2026-10-16 — Public pages prototype: a kids' page and a grown-ups page (#146)
 New `site/` folder, outside the app (no `src/` change): `index.html` for kids
 (a title screen with Kira and Ember walking, a playable demo battle, heroes,
 Ember's stages, six real places, critters, bosses, a grown-ups box) and
@@ -854,7 +854,7 @@ is hand-drawn pixel letters (`site/tools/logo.py`), and screenshots and the
 clip are captured from the real game (`site/tools/capture.cjs`,
 `prep-assets.py`). Fonts are self-hosted (Jersey 15, Andika). Safety claims
 and what they rest on are listed in `site/README.md`. Not live: the privacy
-notice is still a draft and the game would move to `/play/` (#143).
+notice is still a draft and the game would move to `/play/` (#146).
 
 ### 2026-10-15 — 15h /saas-code-review + /saas-ux-review: an old tab asks for a refresh, shorter guides (#75 item 15h, #142n)
 All fixed on the owner's say-so. Code (1 low): `saveIsTooNew` also refuses a

@@ -21,7 +21,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
-  // Opened from the public site's sign-up button (?signup, #143)?
+  // Opened from the public site's sign-up button (?signup, #146)?
   const [isSignUp, setIsSignUp] = useState(() => hasSignupParam());
   // "Forgot password?" mode: email only, sends a reset link (#88).
   const [isForgot, setIsForgot] = useState(false);

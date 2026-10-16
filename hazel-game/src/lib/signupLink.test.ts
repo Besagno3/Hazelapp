@@ -3,7 +3,7 @@ import { dropSignupParam, hasSignupParam } from './signupLink';
 
 afterEach(() => window.history.replaceState(null, '', '/'));
 
-describe('the public site\'s ?signup (#143)', () => {
+describe('the public site\'s ?signup (#146)', () => {
   it('is spotted with or without a value, and only by its own name', () => {
     expect(hasSignupParam('?signup')).toBe(true);
     expect(hasSignupParam('?a=1&signup=1')).toBe(true);

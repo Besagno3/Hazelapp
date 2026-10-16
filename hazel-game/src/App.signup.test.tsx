@@ -17,7 +17,7 @@ afterEach(() => {
   useAuthStore.setState({ session: null, user: null, initialized: false });
 });
 
-describe('App and the public site\'s ?signup (#143)', () => {
+describe('App and the public site\'s ?signup (#146)', () => {
   it('drops ?signup for someone already signed in, so a later sign-out opens on Sign in', () => {
     window.history.replaceState(null, '', '/play/?signup');
     useAuthStore.setState({

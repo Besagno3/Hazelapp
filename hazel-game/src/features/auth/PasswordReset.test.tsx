@@ -158,7 +158,7 @@ describe('AuthPage — signing in before confirming', () => {
   });
 });
 
-describe('AuthPage — opened from the public site (#143)', () => {
+describe('AuthPage — opened from the public site (#146)', () => {
   function at(address: string, test: () => void) {
     window.history.replaceState(null, '', address);
     try { test(); } finally { window.history.replaceState(null, '', '/'); }
