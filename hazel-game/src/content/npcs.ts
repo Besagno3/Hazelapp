@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { bossFlag, keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER, MET_UMBRA_REMEMBERED, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING, descentSeenFlag } from './story';
@@ -2836,9 +2836,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'finale',
     stationary: true,
     lines: [
-      { text: '"So. The little spark came all the way down." The shadow\'s voice isn\'t loud any more. Just tired.', unlessFlag: 'met-umbra-remembered', setFlag: 'met-umbra-remembered' },
-      { text: '"I have been Umbra for so long. Before that I was… someone. I can\'t remember who."', unlessFlag: 'met-umbra-remembered' },
-      { text: '"Back again, little spark? Good. I don\'t like waiting alone."', ifFlag: 'met-umbra-remembered' },
+      { text: '"So. The little spark came all the way down." The shadow\'s voice isn\'t loud any more. Just tired.', unlessFlag: MET_UMBRA_REMEMBERED, setFlag: MET_UMBRA_REMEMBERED },
+      { text: '"I have been Umbra for so long. Before that I was… someone. I can\'t remember who."', unlessFlag: MET_UMBRA_REMEMBERED },
+      { text: '"Back again, little spark? Good. I don\'t like waiting alone."', ifFlag: MET_UMBRA_REMEMBERED },
       '"Answer my questions. Then I will ask you the only one I have left. Don\'t be afraid — I only want to remember."',
     ],
   },

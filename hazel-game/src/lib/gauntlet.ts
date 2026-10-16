@@ -17,7 +17,8 @@ export async function loadGauntlet(opts: {
   where?: string;
 }): Promise<Question[]> {
   const { topics, count, age, levelFor, flavor, where } = opts;
-  const perTopic = Math.ceil(count / topics.length);
+  // One spare a topic (16e code review round 2): one topic coming back short mustn't sink the run.
+  const perTopic = Math.ceil(count / topics.length) + 1;
   const batches = await Promise.all(topics.map((t) => fetchQuestions(t, age, levelFor(t), perTopic, flavor)));
   const pool = shuffle(batches.flat());
   if (pool.length < count) throw new Error(`only ${pool.length} of ${count} riddles came back${where ? ` ${where}` : ''}.`);

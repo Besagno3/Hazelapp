@@ -43,6 +43,7 @@ function start(flags: Record<string, boolean>) {
 
 /** Answer Umbra's questions — `wrongAt`: the ones answered wrong. */
 async function answerAll(wrongAt: number[] = []) {
+  await act(() => new Promise((r) => setTimeout(r, 260)));
   fireEvent.click(screen.getByRole('button', { name: /Answer its questions|Try again/ }));
   for (let i = 0; i < NAME_QUESTIONS; i++) {
     await waitFor(() => expect(screen.getByText(`The shadow's question ${i + 1}/${NAME_QUESTIONS}`)).toBeInTheDocument());
@@ -83,6 +84,7 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
     expect(useFinaleStore.getState().pendingXp).toBe(NAME_CLEAR_XP + 4 * 10);
     // The miss went to the Library.
     expect(useSaveStore.getState().save!.library).toHaveLength(1);
+    await act(() => new Promise((r) => setTimeout(r, 260)));
     fireEvent.click(screen.getByRole('button', { name: '🌼 See what happens' }));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });

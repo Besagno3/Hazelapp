@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
@@ -721,7 +721,7 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
-python3 tools/assets/build.py name      # the Name: the gold Root's Heart and Sage Aster only (#75 item 16e)
+python3 tools/assets/build.py name      # the Name: the gold Root's Heart, Sage Aster and Umbra Remembered's soft sprite only (#75 item 16e)
 python3 tools/assets/build.py descent   # the Deep Root: seven floors' tiles, critters, the echoes, the Root's Heart (#75 item 16d)
 python3 tools/assets/build.py garden    # Aster's Garden + the Nameless Hall: two zones' tiles, critters, the Gardener, plaques, the deep root (#75 item 16c)
 python3 tools/assets/build.py lumina    # Lumina-That-Was: three zones' tiles, the school sheet, its critters and people (#75 item 16b)
@@ -816,6 +816,12 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — 16e code review round 2: the reward survives a reload (#75 item 16e, #147j)
+Fresh code review (1 medium, 5 low, 4 nits), all fixed: a reload between
+"Aster" and the panels' end lost the 600 XP — the panels' end pays it from
+the save (`name-xp-paid`); one "his" left; guards and focus; a spare question
+a topic in `loadGauntlet`; stale test cases. 1402 green.
 
 ### 2026-10-16 — 16e UX review round 1: a gentle shadow, candles that come back (#75 item 16e, #147i)
 Fresh UX review (1 high, 6 medium, 10 low, 5 nits), all fixed but one kept

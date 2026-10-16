@@ -72,14 +72,20 @@ export default function NameFinale() {
   const [choices] = useState(() => shuffle([...NAME_CHOICES]));
   const correct = useRef(0);
   const named = useRef(false);
+  const perCorrectRef = useRef(perCorrect);
+  useEffect(() => {
+    perCorrectRef.current = perCorrect;
+  }, [perCorrect]);
 
   // Right answers are paid when the finale closes — at once if it's left
   // before the name; as the name panels end if it's said (WorldScreen).
   useEffect(
     () => () => {
-      if (!named.current && correct.current > 0) void useProfileStore.getState().addXp(correct.current * perCorrect);
+      if (named.current || correct.current === 0) return;
+      void useProfileStore.getState().addXp(correct.current * perCorrectRef.current);
+      correct.current = 0;
     },
-    [perCorrect],
+    [],
   );
 
   // A double-tap on "Stand firm" mustn't skip the line it opens (the Spire's guard, 16e code review).
@@ -90,6 +96,16 @@ export default function NameFinale() {
   // The name question focuses its heading, never a name: a stray Enter mustn't say one (16b's rule);
   // after a wrong name, focus moves to what the shadow says (the button it was on is disabled).
   const nameHeading = useRef<HTMLParagraphElement>(null);
+  // Focus follows the panel (16e code review round 2): the question's label, the "don't know" card.
+  const questionLabel = useRef<HTMLParagraphElement>(null);
+  const unknownText = useRef<HTMLParagraphElement>(null);
+  const questionIndex = phase.kind === 'question' ? phase.index : -1;
+  useEffect(() => {
+    if (questionIndex >= 0) questionLabel.current?.focus();
+  }, [questionIndex]);
+  useEffect(() => {
+    if (phase.kind === 'unknown') unknownText.current?.focus();
+  }, [phase.kind]);
   const said = useRef<HTMLParagraphElement>(null);
   const wrongCount = phase.kind === 'name' ? phase.wrong.length : -1;
   useEffect(() => {
@@ -240,7 +256,11 @@ export default function NameFinale() {
 
       {phase.kind === 'question' && q && (
         <div>
-          <p className="text-center text-violet-200 font-bold mb-2 text-xs uppercase tracking-widest">
+          <p
+            ref={questionLabel}
+            tabIndex={-1}
+            className="text-center text-violet-200 font-bold mb-2 text-xs uppercase tracking-widest outline-none"
+          >
             The shadow's question {phase.index + 1}/{questions.length}
           </p>
           <QuestionCard
@@ -290,7 +310,9 @@ export default function NameFinale() {
 
       {phase.kind === 'unknown' && (
         <div className="text-center">
-          <p className="text-xl font-extrabold text-amber-200 mb-2">"What was my name?"</p>
+          <p ref={unknownText} tabIndex={-1} role="status" className="text-xl font-extrabold text-amber-200 mb-2 outline-none">
+            "What was my name?"
+          </p>
           <p className="text-sm text-white/85 mb-2">You open your mouth — but you don't know it. Nobody does.</p>
           <p className="text-sm text-white/85">
             "Then go and ask the ones who remember," the shadow whispers. "Wisp might help. I'll wait. I'm good at waiting."
@@ -306,7 +328,7 @@ export default function NameFinale() {
           </p>
           <button
             autoFocus
-            onClick={begin}
+            onClick={() => tap(begin)}
             className="min-h-11 bg-violet-500 hover:bg-violet-400 font-bold rounded-xl px-6 py-2.5"
           >
             🕯️ Try again
@@ -324,7 +346,7 @@ export default function NameFinale() {
           <p className="text-amber-200 font-bold mb-4">⭐ {phase.xp} XP</p>
           <button
             autoFocus
-            onClick={() => sendFlow({ type: 'CLOSE' })}
+            onClick={() => tap(() => sendFlow({ type: 'CLOSE' }))}
             className="min-h-11 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-2.5"
           >
             🌼 See what happens

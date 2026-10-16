@@ -97,7 +97,7 @@ import {
 import { canFlyOver } from '../../lib/travel';
 import { HALL_DEDICATED } from '../../content/spells';
 import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
-import { BLANK_CHART_HELD, NAME_LEARNED, POSY_WALK, UMBRA_NAMED, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
+import { BLANK_CHART_HELD, NAME_LEARNED, NAME_XP_PAID, POSY_WALK, UMBRA_NAMED, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatOnReturn, boatSpot } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import LevelBadge from '../../components/LevelBadge';
@@ -110,6 +110,7 @@ import { playerAge } from '../../lib/age';
 import { toastMs } from '../../lib/toast';
 import { heroMaxHp } from '../../lib/powerups';
 import { prefetchQuestions, BATTLE_QUESTION_COUNT } from '../../lib/questions';
+import { NAME_CLEAR_XP } from '../../content/finale';
 import { useFinaleStore } from '../../store/finaleStore';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
@@ -956,8 +957,11 @@ export default function WorldScreen() {
           onDone={() => {
             setFlag(NAME_SEEN);
             // What the finale earned, paid now the story's told (a level-up mustn't cover it).
-            const xp = useFinaleStore.getState().takeXp();
+            // A reload mid-panels empties the session's store, so the reward is paid from the save.
+            let xp = useFinaleStore.getState().takeXp();
+            if (!xp && !flags[NAME_XP_PAID]) xp = NAME_CLEAR_XP;
             if (xp) void useProfileStore.getState().addXp(xp);
+            setFlag(NAME_XP_PAID);
           }}
         />
       )}
