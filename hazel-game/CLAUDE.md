@@ -780,6 +780,28 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — The sign-up form, reviewed: heard, readable, and it says what's next (#143h)
+A `/saas-ux-review` of the form the site's "Create a free family account"
+opens (1 high, 2 medium, 2 low), all fixed on the owner's say-so:
+- **Messages are heard and readable:** an always-present `role="status"`
+  region holds them, in red-700 / green-700 (red-500 and green-600 failed
+  4.5:1).
+- **After signing up, "📬 Check your inbox":** the form gives way to a panel
+  naming the email (focus moves to its heading), with the spam hint and
+  "Back to sign in" (the email kept and focused). Signing in before tapping
+  the link says "Please confirm your email first: tap the link we sent to …"
+  (`email_not_confirmed`, by code or message), not the raw error.
+- **The password rule up front:** "At least 6 characters." under the field,
+  `minlength` and `aria-describedby` on sign-up only. `MIN_PASSWORD_LENGTH`
+  moved to `content/family.ts`; `ResetPasswordPage` shares it.
+- **Visible labels** for email and password (placeholders gone); tests find
+  the fields by label.
+- **44 px:** the submit, Forgot and switch buttons, the fields (so the 👁️
+  too) and the privacy notice's summary (shared with Consent and Grown-ups).
+- Tests: `PasswordReset.test` +6 (live region, inbox panel, not confirmed ×3,
+  password rule). 1313 green, lint + build clean; a browser walk at 390, 320
+  and 1280 px passes every check.
+
 ### 2026-10-16 — `?signup` never outlives its sign-up page (#143g)
 A `/saas-code-review` of #143f (1 low, fixed): only `AuthPage` dropped
 `?signup`, and it mounts only with no session — so a parent already signed in

@@ -3,9 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { errorMessage } from '../../lib/errors';
 import { useAuthStore } from '../../store/authStore';
 import PasswordInput from '../../components/PasswordInput';
-
-/** Supabase's default minimum; the server enforces its own setting too. */
-const MIN_PASSWORD_LENGTH = 6;
+import { MIN_PASSWORD_LENGTH } from '../../content/family';
 
 /**
  * Shown after a password-reset email link signs the user in with a temporary
