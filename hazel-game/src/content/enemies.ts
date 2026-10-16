@@ -160,6 +160,20 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   'ink-wisp': { id: 'ink-wisp', name: 'Ink Wisp', sprite: '🖋️', topic: 'history', levelOffset: 0, hpPerLevel: 12 },
   // Swift (roadmap decision 14: no new timers): it darts in and strikes first.
   'quill-imp': { id: 'quill-imp', name: 'Quill Imp', sprite: '🪶', topic: 'history', levelOffset: 1, hpPerLevel: 13, behavior: 'swift' },
+
+  // --- Lumina-That-Was (#75 item 16b): things the world forgot, and a classroom's mischief ---
+  'faded-echo': { id: 'faded-echo', name: 'Faded Echo', sprite: '👥', topic: 'history', levelOffset: -1, hpPerLevel: 10 },
+  'lost-sock-golem': { id: 'lost-sock-golem', name: 'Lost Sock Golem', sprite: '🧦', topic: 'science', levelOffset: 0, hpPerLevel: 12 },
+  'misplaced-key': { id: 'misplaced-key', name: 'Misplaced Key', sprite: '🔑', topic: 'math', levelOffset: 1, hpPerLevel: 13, behavior: 'trickster' },
+  'chalk-wisp': { id: 'chalk-wisp', name: 'Chalk Wisp', sprite: '🖍️', topic: 'words', levelOffset: -1, hpPerLevel: 10, behavior: 'swift' },
+  'eraser-imp': { id: 'eraser-imp', name: 'Eraser Imp', sprite: '🧽', topic: 'creativity', levelOffset: 0, hpPerLevel: 12, behavior: 'swift' },
+  'sum-gremlin': { id: 'sum-gremlin', name: 'Sum Gremlin', sprite: '➗', topic: 'math', levelOffset: 1, hpPerLevel: 13, behavior: 'swift' },
+  // Aster's Garden (#75 item 16c): weeds that won't stop asking "why?" — they mend themselves.
+  'thorn-of-doubt': { id: 'thorn-of-doubt', name: 'Thorn of Doubt', sprite: '🌵', topic: 'nature', levelOffset: -1, hpPerLevel: 11, behavior: 'healer' },
+  'wilt-sprite': { id: 'wilt-sprite', name: 'Wilt Sprite', sprite: '🥀', topic: 'science', levelOffset: 0, hpPerLevel: 12, behavior: 'healer' },
+  bramblewhy: { id: 'bramblewhy', name: 'Bramblewhy', sprite: '❓', topic: 'creativity', levelOffset: 1, hpPerLevel: 13, behavior: 'healer' },
+  // Aster's Garden's warden (#75 item 16c): beat him for Aster's Key (keys.ts).
+  'the-gardener': { id: 'the-gardener', name: 'The Gardener', sprite: '🧑‍🌾', topic: 'nature', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'warden' },
   // Act II's Fiend: beat it to restore the Crystal of Memory (BOSS_LINES.history).
   'hollow-fiend': { id: 'hollow-fiend', name: 'The Hollow Fiend', sprite: '🕳️', topic: 'history', levelOffset: 1, hpPerLevel: 20, isBoss: true, role: 'fiend' },
 
@@ -216,6 +230,7 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   'thicket-warden': ["The Thicket Warden's thorns grow longer and sharper!", 'The Thicket Warden stamps the ground — the whole wood shakes!'],
   'tide-colossus': ['The Tide Colossus rises higher — the water churns!', 'The Tide Colossus roars like a storm at sea!'],
   'clockwork-titan': ["The Clockwork Titan's gears spin faster and faster!", 'The Clockwork Titan booms: "YOUR TIME IS UP!"'],
+  'the-gardener': ['The Gardener waves his watering can — the seedlings sprout thorns!', 'The Gardener booms: "EVERY question deserves an answer!"'],
   ringkeeper: ['The Ringkeeper lowers its antlers and paws the ground!', 'The Ringkeeper bellows: "A THOUSAND YEARS, and nobody got past me!"'],
   'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
   'hollow-fiend': ['The Hollow Fiend yawns open — the pages round you start to go blank!', 'The Hollow Fiend howls: "I will EAT tomorrow too!"'],

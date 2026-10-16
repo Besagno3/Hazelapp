@@ -74,6 +74,21 @@ export const BLANK_CHART_QUEST = 'blank-chart';
 export const BLANK_CHART_HELD = 'blank-chart-held';
 
 /**
+ * Say Her Name (#75 item 16a, STORY-4X §6): Wisp asks you to gather five
+ * memories of the very first Sage. The last one says her name, and the quest
+ * sets `name-learned` — the flag Umbra's name question checks (roadmap
+ * decision 17: it gates only that question, never the descent).
+ */
+export const SAY_HER_NAME_QUEST = 'say-her-name';
+export const NAME_LEARNED = 'name-learned';
+
+/** The Bell's Apology (#75 item 16b): Monitor Prim's three slates, answered in order. */
+export const BELL_QUEST = 'bell-apology';
+export const BELL_SLATES = ['bell-slate-1', 'bell-slate-2', 'bell-slate-3'] as const;
+/** One More Name (#75 item 16b): ask three children the Unnamed Dog's name, then pick one. */
+export const DOG_QUEST = 'unnamed-dog';
+
+/**
  * Set while an escort's walk is under way. Never kept: leaving the place,
  * a lost battle or a reload clears it, and the one being walked waits at the
  * start again (`normalizeSave` → `escortsBack`, `withoutEscorts`).
@@ -108,3 +123,8 @@ export function escortsBack(flags: Record<string, boolean>): Record<string, bool
 function isWalkingFlag(f: string): boolean {
   return f.startsWith('escort:') && f.endsWith(':walking');
 }
+
+/** Aster's Garden (#75 item 16c): the Gardener's three waters and three weeds. */
+export const GARDEN_QUEST = 'garden-water';
+/** Set when the hero has seen the great root past the Nameless Hall's door (#75 item 16c). */
+export const HALL_ROOT_SEEN = 'hall-root-seen';

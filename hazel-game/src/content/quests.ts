@@ -1,11 +1,12 @@
-import type { SaveData, ZoneId } from '../types';
+import type { SaveData, Topic, ZoneId } from '../types';
 import { chestKeyItem, keyChestFor, litFlag, secretFlag } from './zones';
 import { CHEST_COINS, type ConsumableId } from './items';
 import { knowsFieldSpell } from './fieldSpells';
-import { ACT2_SEEN } from './story';
+import { ACT2_SEEN, ACT4_SEEN } from './story';
 import { BOAT_QUEST_ID } from './boat';
 import { crystalFlag } from './topics';
-import { BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { keyFlag } from './keys';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortBackFlag, escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 
 export { escortWalkingFlag, questDoneFlag, questOfferedFlag, stepFlag };
 
@@ -58,6 +59,10 @@ export const QUEST_ITEMS: Record<string, QuestItemInfo> = {
   moonstone: { id: 'moonstone', name: 'Moonstone', emoji: '🌙' },
   'cut-moonstone': { id: 'cut-moonstone', name: 'Cut Moonstone', emoji: '💠' },
   // Fen's Forgotten Acorns (#75 item 14f): three key-item chests in Eldergrove.
+  // A Garden Rewatered (#75 item 16c): three waters in Aster's Garden's key-item chests.
+  'jar-dew': { id: 'jar-dew', name: 'Jar of Morning Dew', emoji: '💧' },
+  'jar-rain': { id: 'jar-rain', name: 'Jar of Spring Rain', emoji: '🌧️' },
+  'jar-river': { id: 'jar-river', name: 'Jar of River Water', emoji: '🌊' },
   'acorn-speckled': { id: 'acorn-speckled', name: 'Speckled Acorn', emoji: '🌰' },
   'acorn-striped': { id: 'acorn-striped', name: 'Striped Acorn', emoji: '🌰' },
   'acorn-golden': { id: 'acorn-golden', name: 'Golden Acorn', emoji: '🌰' },
@@ -131,6 +136,16 @@ export interface QuestStep {
    */
   early?: boolean;
   /**
+   * A person's own words for "not yet", in place of "Not this one yet!" and the
+   * due step's hint (#75 item 16a review round 4: Keeper Mnem isn't a lantern).
+   */
+  earlyLine?: string | ((save: SaveData) => string);
+  /**
+   * "Not yet" only once this story flag is set (16a code review round 4): until
+   * then the NPC's own story beat comes first — Mnem's call to the Hall's dedication.
+   */
+  earlyAfter?: string;
+  /**
    * What the giver says while this step is active, when the hint (also the
    * quest log's, and said by other people) would have them talk about
    * themselves (15e review: Yarn saying "west of Yarn"). Default: the hint.
@@ -141,7 +156,13 @@ export interface QuestStep {
    * zone's topic instead of finishing the step; a right answer finishes it,
    * and `solved` — the clue to the next step — shows under the answer.
    */
-  riddle?: { solved: string };
+  riddle?: {
+    solved: string;
+    /** Its question's topic (#75 item 16b), in place of the zone's (`topicAt`). */
+    topic?: Topic;
+    /** What the question screen says it is, and when it's answered right or wrong (default: a tale-stone's). */
+    words?: RiddleWords;
+  };
   /**
    * A song step (#75 item 15f): talked to out of turn while the song is due,
    * its thing is a wrong note — every song step of its quest is un-done and the
@@ -195,7 +216,13 @@ export interface QuestDef {
   /** The menu's line once every step is done, in place of "go back to <giver>" (the giver waits somewhere else). */
   doneLine?: string;
   /** The offer when you already carry one of `items` (found the thing before meeting them). */
-  offerHaving?: { items: string[]; lines: string[] };
+  /** Lines may depend on the save (all of the items found, or only some — 16c review round 3). */
+  offerHaving?: {
+    items: string[];
+    lines: string[] | ((save: SaveData) => string[]);
+    /** When these lines play instead of `offer` (default: any of `items` carried) — 16c review round 4. */
+    when?: (save: SaveData) => boolean;
+  };
   /**
    * A song quest's wrong notes (#75 item 15f review): struck out of turn before
    * anything rings (`early`), and after something has rung, so the song starts
@@ -212,8 +239,25 @@ export interface QuestDef {
    * Kept for good as the quest completes (#75 item 15h): quest items handed
    * over (the Blank Chart) and story flags set (`blank-chart-held`).
    */
-  grants?: { items?: string[]; flags?: string[] };
+  grants?: { items?: string[]; flags?: string[]; badge?: string };
+  /**
+   * The completion ends on a choice (#75 item 16b: the Unnamed Dog's name):
+   * the last line asks, a button per option, and the one picked sets its flag.
+   */
+  choice?: QuestChoice[];
 }
+
+/** One option of a quest's closing choice (#75 item 16b): its button, its flag, and what's said after. */
+export interface QuestChoice {
+  label: string;
+  flag: string;
+  line: string;
+}
+
+/** Badges a quest gives (#75 item 16b) — shown on the menu's shelf. */
+export const QUEST_BADGES: Record<string, { name: string; emoji: string }> = {
+  'dog-badge': { name: 'Dog Badge', emoji: '🐕' },
+};
 
 // --- Step builders ------------------------------------------------------------
 
@@ -350,10 +394,38 @@ function riddleStep(
   lines: string[],
   hint: string,
   solved: string,
-  { early = false, remind }: { early?: boolean; remind?: string } = {},
+  { early = false, remind, topic, words }: { early?: boolean; remind?: string; topic?: Topic; words?: RiddleWords } = {},
 ): QuestStep {
-  return { id, hint, remind, npc: { id: npcId, lines }, riddle: { solved }, early, isComplete: (save) => save.flags[stepFlag(id)] === true };
+  return { id, hint, remind, npc: { id: npcId, lines }, riddle: { solved, topic, words }, early, isComplete: (save) => save.flags[stepFlag(id)] === true };
 }
+
+/** What a riddle's question screen says (#75 item 16b): the title, then right and wrong. */
+export interface RiddleWords {
+  title: string;
+  /** What the dialog is called for screen readers, and the button that opens it (16b review round 2). */
+  label: string;
+  button: string;
+  right: string;
+  wrong: string;
+}
+
+/** A tale-stone's words (#75 item 15e) — every riddle's, unless its step says otherwise. */
+export const TALE_STONE_WORDS: RiddleWords = {
+  title: '📜 The tale-stone asks a word question!',
+  label: 'Tale-stone riddle',
+  button: '📜 Hear the question',
+  right: 'The stone glows!',
+  wrong: 'The stone stays dim. Want another question?',
+};
+
+/** A chalk slate's words (#75 item 16b review round 1). */
+const SLATE_WORDS: RiddleWords = {
+  title: '📝 The slate asks a question!',
+  label: 'Slate question',
+  button: '📝 Hear the question',
+  right: 'The chalk turns gold!',
+  wrong: 'The chalk stays white. Want another question?',
+};
 
 /** Save flag: this quest item was handed over in a bring step (#75 item 13). */
 export function handedOverFlag(item: string): string {
@@ -384,6 +456,10 @@ const NESS_RUMORS = [
   "East, past everything, is the Great Fogbank. Mind how you go out there — even the gulls are careful!",
   'Up on the north coast is Foglight Marsh. Lightkeeper Brume keeps lanterns there. Tell her Ness says hello!',
 ];
+
+/** A Garden Rewatered's three waters and three weeds (#75 item 16c). */
+const GARDEN_JARS = ['jar-dew', 'jar-rain', 'jar-river'];
+const GARDEN_WEEDS = ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy'];
 
 export const QUESTS: QuestDef[] = [
   // Classic riddle-chest fetch.
@@ -1413,6 +1489,296 @@ export const QUESTS: QuestDef[] = [
     grants: { items: ['blank-chart'], flags: [BLANK_CHART_HELD] },
   },
 
+  // Act IV's spine (#75 item 16a, STORY-4X §6): Wisp asks you to gather five
+  // memories of the very first Sage, across the world. The fifth — Young Wick,
+  // in Lumina-That-Was (16b) — says her name, and the quest sets `name-learned`.
+  {
+    id: SAY_HER_NAME_QUEST,
+    zoneId: 'whispering-woods',
+    giverNpcId: 'woods-sprite',
+    title: 'Say Her Name',
+    requires: ACT4_SEEN,
+    offer: [
+      'Spark! Since the door under the Spire opened, I keep hearing that word again. A NAME. It\'s so close!',
+      'Will you help me remember? Ask the oldest folk in Lumina about the very first Sage.',
+      'Start with Grandmother Wick, in Lumina Village. She has known me the longest.',
+    ],
+    steps: [
+      {
+        ...talkStep(
+          'name-wick',
+          'village-elder',
+          [
+            '*Wick sets down her rolling pin.* The very first Sage? I was small then. She let me ask \'why?\' five times in a row and never once sighed.',
+            'She wore a daisy behind her ear, every single day. I can see that daisy, child. I just can\'t see her name.',
+            '✨ A piece of her! Next: Keeper Mnem, in the Hall of Names on Remembrance Hill.',
+          ],
+          'Ask Grandmother Wick, in Lumina Village, about the very first Sage.',
+        ),
+        remind: 'Ask Grandmother Wick first, in Lumina Village. She has known me the longest!',
+      },
+      {
+        // Asked out of turn, they say "not yet" and who's first (16a UX review round 3) —
+        // Mnem only once the Hall is dedicated: his call to it comes first (round 4).
+        early: true,
+        earlyAfter: 'hall-dedicated',
+        earlyLine: 'Not yet, little one. Wisp wants Grandmother Wick asked first — she is in Lumina Village. Then come and see me!',
+        ...talkStep(
+          'name-mnem',
+          'hill-keeper',
+          [
+            'The first plaque in this Hall was blank when I came. I polish it anyway. Polishing is a kind of remembering.',
+            'Once, under the dust, my thumb found letters. Five of them, I think. The first was pointy, like a little tent — an A.',
+            '✨ Another piece! Next: the Chartmaker, on his island at the top of Taleshore.',
+          ],
+          'Ask Keeper Mnem, in the Hall of Names on Remembrance Hill, about the first plaque.',
+        ),
+        remind: 'Keeper Mnem minds the Hall of Names on Remembrance Hill. Ask about the very first plaque!',
+      },
+      {
+        early: true,
+        earlyLine: 'Not yet! Wisp has an order for these things, and I am third. Ask Grandmother Wick and Keeper Mnem first — then come back to me.',
+        ...talkStep(
+          'name-chartmaker',
+          'chart-chartmaker',
+          [
+            'My oldest map has a little schoolhouse drawn where the Crystal Spire stands now. Someone wrote the teacher\'s name beside it…',
+            '…and someone rubbed it out. Only the end is left: \'…ter\'. Like \'water\', or \'later\'.',
+            '✨ Another piece! Next: Sage Chronicle, in the Sunken Archive.',
+          ],
+          'Ask the Chartmaker, on his island at the top of Taleshore, about his oldest map.',
+        ),
+        remind: 'The Chartmaker has the oldest maps in Lumina. Ask him, on his island at the top of Taleshore!',
+      },
+      {
+        ...talkStep(
+          'name-chronicle',
+          'sage-chronicle',
+          [
+            'Every history book here has a footnote that goes nowhere: \'see the First Sage\'. No page says who she was.',
+            'But I know WHY she was forgotten. The questions got too hard, so people stopped asking her. Then they stopped saying her name.',
+            '✨ Four pieces! Next: Young Wick — Grandmother Wick as a little girl! — in Lumina-That-Was, below the Dream Root Door.',
+          ],
+          'Ask Sage Chronicle, in the Sunken Archive, about the very first Sage.',
+        ),
+        remind: 'Sage Chronicle knows every old book in the Sunken Archive. Ask about the very first Sage!',
+      },
+      {
+        // Met before Chronicle's turn (16b review round 4): in her own voice, like Mnem's and the Chartmaker's.
+        early: true,
+        earlyLine: "My teacher? She's the best! But ask Sage Chronicle first, in the Sunken Archive — then come and see me.",
+        ...talkStep(
+          'name-young-wick',
+          'memory-young-wick',
+          [
+            'Teacher? Oh, you mean ASTER! Everybody knows Aster. She says there\'s no such thing as a silly question.',
+            'A-S-T-E-R, like the daisy flower! Why are you smiling like that? It\'s just her name.',
+            '✨ The last piece! Run back to Wisp, in the Whispering Woods, and say it!',
+          ],
+          'Ask Young Wick about her teacher — in Old Lumina Village, below the Dream Root Door.',
+        ),
+        remind: 'Somebody who still REMEMBERS her… Young Wick, down in Lumina-That-Was, past the Dream Root Door!',
+      },
+    ],
+    doneLine: 'Go back to Wisp, in the Whispering Woods, and say her name!',
+    complete: [
+      'A daisy… five letters, the first one pointy like an A… \'…ter\'… people stopped asking… and Young Wick said it right out loud.',
+      'It\'s right on the tip of my tongue… say it with me! ✨ Reward: 60 coins and a Hint Feather!',
+    ],
+    reward: { coins: 60, hint: 1 },
+    grants: { flags: [NAME_LEARNED] },
+  },
+
+  // --- Lumina-That-Was (#75 item 16b) ---------------------------------------------
+  // The Lesson Bell rang too early and the class ran out before the last three
+  // questions were answered; answer the slates in order (the riddle chain) and
+  // the bell can say sorry.
+  {
+    id: BELL_QUEST,
+    zoneId: 'first-classroom',
+    giverNpcId: 'class-prim',
+    side: true,
+    title: "The Bell's Apology",
+    requires: ACT4_SEEN,
+    offer: [
+      "*Monitor Prim taps a ruler.* The Lesson Bell rang far too early today, and the whole class ran out to play!",
+      'Three slates still hold the last three questions. Answer them in order, left to right, and the lesson can end properly.',
+    ],
+    steps: [
+      riddleStep(
+        BELL_SLATES[0],
+        'class-slate-1',
+        ['📝 The first slate. A question is chalked on it, waiting.', 'Answer it, and the chalk turns gold!'],
+        'Answer Slate 1 — the one on the left.',
+        '✨ One slate done! Now Slate 2, in the middle.',
+        { remind: 'Start with Slate 1, on the left. Left to right!', topic: 'math', words: SLATE_WORDS },
+      ),
+      riddleStep(
+        BELL_SLATES[1],
+        'class-slate-2',
+        ['📝 The second slate. Its chalk wiggles as you come close.', 'Answer it, and the chalk turns gold!'],
+        'Answer Slate 2, the middle one.',
+        '✨ Gold again! One more — Slate 3, on the right.',
+        { early: true, topic: 'science', words: SLATE_WORDS },
+      ),
+      riddleStep(
+        BELL_SLATES[2],
+        'class-slate-3',
+        ['📝 The last slate. Its question is the hardest-looking of all.', 'Answer it, and the lesson is finished!'],
+        'Answer Slate 3, the one on the right.',
+        '✨ All three slates shine gold! Go and tell Monitor Prim.',
+        { early: true, topic: 'words', words: SLATE_WORDS },
+      ),
+    ],
+    complete: [
+      '*Bwong…* The Lesson Bell rings very softly. "Sorry I rang so early. I was just SO excited about lunch."',
+      'Monitor Prim smiles — just a little. "Apology accepted. Lesson ended. Well done."',
+      '✨ Reward: 50 coins and two Hint Feathers!',
+    ],
+    reward: { coins: 50, hint: 2 },
+  },
+
+  // Every child in old Lumina called the dog a different name (STORY-4X §6):
+  // ask three of them, then pick the one that sticks.
+  {
+    id: DOG_QUEST,
+    zoneId: 'memory-village',
+    giverNpcId: 'memory-dog',
+    side: true,
+    title: 'One More Name',
+    requires: ACT4_SEEN,
+    offer: [
+      'Woof! *The dog sits on your foot and wags.*',
+      "(There's no name on his collar. Ask Young Wick, Young Lumen and Monitor Prim what they call him — in that order!)",
+    ],
+    steps: [
+      {
+        ...talkStep(
+          'dog-wick',
+          'memory-young-wick',
+          ["That dog? That's PICKLES! Because he steals pickles. Every. Single. Day. (Next, ask Young Lumen, in the Old Library!)"],
+          'Ask Young Wick, in Old Lumina Village, what the dog is called.',
+        ),
+        // The dog's reminders in the narrator's voice, not his (16b review round 3).
+        remind: '(Woof! Young Wick is by the bakery — ask her first.)',
+      },
+      {
+        early: true,
+        earlyLine: "The dog? Ask Young Wick first — she's known him longest! She's by the bakery in Old Lumina Village.",
+        ...talkStep(
+        'dog-lumen',
+        'memory-young-lumen',
+        ["That's Captain! He guards the whole town. Very serious. Mostly naps. (Last, ask Monitor Prim, in the First Classroom!)"],
+        'Ask Young Lumen, in the Old Library in Old Lumina Field, what the dog is called.',
+        ),
+        remind: '(Woof! Next, ask Young Lumen, in the Old Library.)',
+      },
+      {
+        early: true,
+        // Once Wick's been asked, only Lumen is left to ask (16b review round 3).
+        earlyLine: (s) =>
+          s.flags[stepFlag('dog-wick')]
+            ? 'The dog? Ask Young Lumen next — in the Old Library, in Old Lumina Field. Then come and see me.'
+            : 'The dog? Ask the children first — Young Wick, then Young Lumen. Then come and see me.',
+        ...talkStep(
+        'dog-prim',
+        'class-prim',
+        ['That is Sir Wigglesworth. Obviously. (Three names! Go back to the dog, in Old Lumina Village, and pick one.)'],
+        'Ask Monitor Prim, in the First Classroom, what the dog is called.',
+        ),
+        remind: '(Woof! Last, ask Monitor Prim, in the First Classroom.)',
+      },
+    ],
+    doneLine: 'Three names! Go back to the dog, in Old Lumina Village, and pick one.',
+    complete: [
+      'Woof? *The dog looks up at you, waiting.*',
+      'Pickles, Captain or Sir Wigglesworth — which name will stick? (Pick one!)',
+    ],
+    choice: [
+      { label: '🥒 Pickles', flag: 'dog-named-pickles', line: 'Pickles it is! *He wags so hard he falls over.* ✨ Reward: 20 coins and the 🐕 Dog Badge!' },
+      { label: '⚓ Captain', flag: 'dog-named-captain', line: 'Captain it is! *He sits up very straight.* ✨ Reward: 20 coins and the 🐕 Dog Badge!' },
+      { label: '🎩 Sir Wigglesworth', flag: 'dog-named-wigglesworth', line: 'Sir Wigglesworth it is! *He bows, then wiggles.* ✨ Reward: 20 coins and the 🐕 Dog Badge!' },
+    ],
+    reward: { coins: 20 },
+    grants: { badge: 'dog-badge' },
+  },
+
+  // --- Aster's Garden (#75 item 16c) --------------------------------------------
+
+  // Once beaten, the Gardener has a job: three waters from the garden's
+  // riddle-chests, then shoo the three weeds that keep asking "why?".
+  {
+    id: GARDEN_QUEST,
+    zoneId: 'asters-garden',
+    giverNpcId: 'garden-gardener',
+    side: true,
+    title: 'A Garden Rewatered',
+    requires: keyFlag('asters-key'),
+    offer: [
+      "Thank you for answering my seedlings. Aster's Key opens the great door in the Nameless Hall, just south of here. Could you help me too?",
+      "These beds haven't been watered since the fog came. I need three waters — morning dew, spring rain and river water. They're in the garden's chests.",
+      'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
+    ],
+    // A water or two found first (16c review round 2): no sending you after them again.
+    offerHaving: {
+      items: ['jar-dew', 'jar-rain', 'jar-river'],
+      // Any water found, or any weed beaten — on the way to him (16c review rounds 3–4).
+      when: (save) => GARDEN_JARS.some((i) => save.questItems.includes(i)) || GARDEN_WEEDS.some((id) => (save.kills[id] ?? 0) > 0),
+      lines: (save) => {
+        const jars = GARDEN_JARS.filter((i) => save.questItems.includes(i)).length;
+        const weeds = GARDEN_WEEDS.filter((id) => (save.kills[id] ?? 0) > 0).length;
+        return [
+          "Thank you for answering my seedlings. Aster's Key opens the great door in the Nameless Hall, just south of here. Could you help me too?",
+          jars === 3
+            ? "Oh — you've found all three of my waters already! Wonderful!"
+            : jars > 0
+              ? "Oh — you've found some of my waters already! I need all three: morning dew, spring rain and river water. Any you haven't found are in the garden's chests."
+              : "These beds haven't been watered since the fog came. I need three waters — morning dew, spring rain and river water. They're in the garden's chests.",
+          weeds === 3
+            ? 'And those three weeds that kept asking "why?" — you beat them already? Thank you!'
+            : weeds > 0
+              ? 'And you beat some of the weeds that keep asking "why?" Could you beat the rest for me?'
+              : 'And three weeds keep asking "why?" without waiting for an answer. Could you beat them for me?',
+        ];
+      },
+    },
+    steps: [
+      haveStep(
+        'garden-waters',
+        [
+          { items: ['jar-dew'], label: 'the Morning Dew' },
+          { items: ['jar-rain'], label: 'the Spring Rain' },
+          { items: ['jar-river'], label: 'the River Water' },
+        ],
+        "Find the three waters in Aster's Garden's riddle-chests.",
+      ),
+      defeatStep(
+        'garden-weeds',
+        [
+          { defId: 'thorn-of-doubt', label: 'the spiky Thorn of Doubt' },
+          { defId: 'wilt-sprite', label: 'the droopy Wilt Sprite' },
+          { defId: 'bramblewhy', label: 'the question-mark Bramblewhy' },
+        ],
+        "Now beat the three weeds in Aster's Garden that keep asking why!",
+      ),
+    ],
+    foundNote: (save) => {
+      const left = ['jar-dew', 'jar-rain', 'jar-river'].filter((i) => !save.questItems.includes(i)).length;
+      if (left > 0) return `🌱 ${left === 1 ? 'One more water' : 'Two more waters'} for the Gardener!`;
+      // Weeds beaten on the way (kills count from any time) — straight back to him (16c review round 1).
+      const weeds = ['thorn-of-doubt', 'wilt-sprite', 'bramblewhy'].every((id) => (save.kills[id] ?? 0) > 0);
+      return weeds ? "🌱 That's all three waters! Take them back to the Gardener." : "🌱 That's all three waters! Now beat the three weeds.";
+    },
+    doneLine: "Go back to the Gardener, by the gap at the bottom of Aster's Garden.",
+    takesItems: ['jar-dew', 'jar-rain', 'jar-river'],
+    complete: [
+      '*He tips the three jars over the beds. Every seedling stands up a little taller.*',
+      'Some questions take years to bloom. Water them anyway. That is what she always said.',
+      '✨ Reward: 50 coins and a Berry Potion!',
+    ],
+    reward: { coins: 50, potion: 1 },
+  },
+
   // --- Item chains (#75 item 13) ----------------------------------------------
 
   // Find a key item in a dungeon chest (behind the Echo Mine's dark — Glow),
@@ -1653,6 +2019,8 @@ export interface QuestConversation {
   finishKind: 'offer' | 'complete' | 'step' | 'riddle' | null;
   /** A riddle step's id (#75 item 15e): the closing button asks its question. */
   riddle?: string;
+  /** A completion that ends on a choice (#75 item 16b): one button per option, then `finish` and its flag. */
+  choice?: QuestChoice[];
 }
 
 /**
@@ -1663,20 +2031,60 @@ export interface QuestConversation {
  *   2. a **step** goes through them (any quest's, while that step is active;
  *      a bring step only once its item is in hand);
  *   3. they **offer** their quest;
- *   4. they **remind** you of its current step.
+ *   4. another quest's **"not yet"** for a later step of theirs (with their
+ *      own reminder after it, if their quest is under way);
+ *   5. they **remind** you of its current step.
+ * A step or a completion that leaves them with more to do — another quest's
+ * step, their own offer or reward — ends "(Talk again — there's more!)"
+ * (16b reviews, rounds 2–3: Young Wick's memory, then the dog's name). A
+ * completion may end on a choice (`QuestDef.choice`).
  */
+/** Whether a quest's "you've found it already" offer plays (16c review round 4: `when` may say). */
+function hasOfferHaving(quest: QuestDef, save: SaveData): boolean {
+  if (!quest.offerHaving) return false;
+  return quest.offerHaving.when ? quest.offerHaving.when(save) : quest.offerHaving.items.some((i) => save.questItems.includes(i));
+}
+
+/** A quest's offer for an item already found (16c review round 3: may depend on the save). */
+function offerHavingLines(quest: QuestDef, save: SaveData): string[] {
+  const lines = quest.offerHaving!.lines;
+  return typeof lines === 'function' ? lines(save) : lines;
+}
+
 export function questConversation(npcId: string, save: SaveData): QuestConversation | null {
+  const now = conversationNow(npcId, save);
+  if (!now?.finish || (now.finishKind !== 'step' && now.finishKind !== 'complete') || now.choice?.length) return now;
+  const next = conversationNow(npcId, now.finish(save));
+  if (!next?.finishKind) return now;
+  const last = now.lines.length - 1;
+  return { ...now, lines: [...now.lines.slice(0, last), `${now.lines[last]} (Talk again — there's more!)`] };
+}
+
+function conversationNow(npcId: string, save: SaveData): QuestConversation | null {
   const quest = questFor(npcId, save);
   const step = quest ? activeStep(quest, save) : null;
-  if (quest && !step) return completeConversation(quest);
+  if (quest && !step) {
+    const done = completeConversation(quest);
+    // Everything done before they ever asked (16c review round 4: the Gardener's waters
+    // and weeds are all on the way to him) — they say what they'd have asked, then thank you.
+    if (quest.offerHaving && !save.flags[questOfferedFlag(quest)]) return { ...done, lines: [...offerHavingLines(quest, save), ...done.lines] };
+    return done;
+  }
   const through = stepConversation(npcId, save);
   if (through) return through;
-  const early = earlyConversation(npcId, save);
+  // Their own quest's offer comes before another quest's "not yet" (16b review round 2:
+  // Monitor Prim's dog line hid the Bell's Apology).
+  const early = quest && step && !save.flags[questOfferedFlag(quest)] ? null : earlyConversation(npcId, save);
+  if (early && quest && step && early.badge !== quest.title) {
+    // …and their own reminder still follows it, named, since the chip is the
+    // other quest's (16b review round 3).
+    return { ...early, lines: [...early.lines, `📜 ${quest.title}: ${step.remind ?? resolveHint(step, save)}`] };
+  }
   if (early) return early;
   if (!quest || !step) return null;
   if (!save.flags[questOfferedFlag(quest)]) {
     return {
-      lines: quest.offerHaving?.items.some((i) => save.questItems.includes(i)) ? quest.offerHaving.lines : quest.offer,
+      lines: hasOfferHaving(quest, save) ? offerHavingLines(quest, save) : quest.offer,
       badge: quest.title,
       finishKind: 'offer',
       finish: (s) => ({
@@ -1698,6 +2106,7 @@ function completeConversation(quest: QuestDef): QuestConversation {
     lines: quest.complete,
     badge: quest.title,
     finishKind: 'complete',
+    choice: quest.choice,
     finish: (s) => {
       const { coins, potion = 0, hint = 0, items = {} } = quest.reward;
       const nextItems = { ...s.items, potion: s.items.potion + potion, hint: s.items.hint + hint };
@@ -1705,8 +2114,10 @@ function completeConversation(quest: QuestDef): QuestConversation {
       const kept = s.questItems.filter((i) => i !== quest.givesItem && !quest.takesItems?.includes(i));
       const granted = (quest.grants?.items ?? []).filter((i) => !kept.includes(i));
       const grantedFlags = Object.fromEntries((quest.grants?.flags ?? []).map((f) => [f, true]));
+      const badge = quest.grants?.badge;
       return {
         ...s,
+        badges: badge && !s.badges.includes(badge) ? [...s.badges, badge] : s.badges,
         coins: s.coins + coins,
         items: nextItems,
         questItems: [...kept, ...granted],
@@ -1791,7 +2202,10 @@ function earlyConversation(npcId: string, save: SaveData): QuestConversation | n
         finish: rung ? (s) => ({ ...s, flags: { ...s.flags, ...quiet } }) : null,
       };
     }
-    if (later.some((st) => (st.early || st.song) && st.npc?.id === npcId)) {
+    const mine = later.find((st) => (st.early || st.song) && st.npc?.id === npcId && (!st.earlyAfter || save.flags[st.earlyAfter]));
+    if (mine) {
+      // A person says it their own way (16a review round 4).
+      if (mine.earlyLine) return { lines: [typeof mine.earlyLine === 'function' ? mine.earlyLine(save) : mine.earlyLine], badge: q.title, finishKind: null, finish: null };
       // Another of its kind first ("Not this one yet!"), or something to find first — the Ledger (#75 item 14g UX review).
       return { lines: [`${step.npc ? 'Not this one yet!' : 'Not yet!'} ${resolveHint(step, save)}`], badge: q.title, finishKind: null, finish: null };
     }
@@ -1849,6 +2263,18 @@ export function openChest(save: SaveData, chestId: string): SaveData {
 export function riddleSolvedLine(stepId: string): string | null {
   for (const q of QUESTS) for (const st of q.steps) if (st.id === stepId && st.riddle) return st.riddle.solved;
   return null;
+}
+
+/** What a riddle step's question screen says (#75 item 16b): its own words, or a tale-stone's. */
+export function riddleWords(stepId: string): RiddleWords {
+  for (const q of QUESTS) for (const st of q.steps) if (st.id === stepId && st.riddle) return st.riddle.words ?? TALE_STONE_WORDS;
+  return TALE_STONE_WORDS;
+}
+
+/** A riddle step's own topic, if it has one (#75 item 16b). */
+export function riddleTopic(stepId: string): Topic | undefined {
+  for (const q of QUESTS) for (const st of q.steps) if (st.id === stepId && st.riddle) return st.riddle.topic;
+  return undefined;
 }
 
 /**

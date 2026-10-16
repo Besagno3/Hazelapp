@@ -120,6 +120,26 @@ ZONES = {
     # sandy paths, wind-bent bushes and blue sea-flowers, under a clear morning sky.
     'chartmakers-rest': dict(shore=True, no_hills=True, ground=(150, 178, 120), path=(222, 200, 156), solid='hedge', deco='flower', deco_c='#8ab8ff',
                              sky=('#5a9ad8', '#f4f0e0'), far='#a8c0d8', mid='islets', water='#3a8ad0'),
+    # The Dream Root Door (#75 item 16a): a hollow under the Crystal Spire, the
+    # ground a dusky violet-brown, dark rock walls, glowing mushrooms, a still pool.
+    'dreamroot-door': dict(ground=(92, 76, 98), path=(146, 122, 150), solid='root', deco='glowshroom', deco_c='#ffe28a',
+                           sky=('#120e1a', '#3a2a44'), far='#2a1e30', mid='mountain', water='#4a5a9a', cave=True),
+    # Lumina-That-Was (#75 item 16b): the world before the fog, in a golden
+    # late-afternoon light — honey grass, warm paths, dandelion flowers.
+    'memory-field': dict(golden=True, ground=(176, 172, 96), path=(226, 196, 140), solid='tree', deco='flower', deco_c='#fff0a0',
+                         sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='tree', water='#5aa0c8'),
+    'memory-village': dict(golden=True, ground=(170, 164, 100), path=(220, 188, 138), solid='hedge', deco='flower', deco_c='#ffb0c0',
+                           sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
+    'first-classroom': dict(golden=True, ground=(164, 168, 104), path=(214, 192, 150), solid='tree', deco='flower', deco_c='#ffffff',
+                            sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='houses', water='#5aa0c8'),
+    # Aster's Garden (#75 item 16c): her old garden, gone wild and dry in the same
+    # golden light — straw-gold grass, hedge walls, a few last roses.
+    'asters-garden': dict(golden=True, ground=(170, 160, 92), path=(214, 186, 132), solid='hedge', deco='daisy', deco_c='#ffffff',
+                          sky=('#f0a860', '#ffe8c0'), far='#e0b888', mid='tree', water='#5aa0c8'),
+    # The Nameless Hall (#75 item 16c): a pale stone hall under the garden, its
+    # plaques blank — white pillars, candles, a dim violet hush.
+    'nameless-hall': dict(ground=(150, 142, 160), path=(196, 188, 206), solid='pillar', deco='candle', deco_c='#ffd24a',
+                          sky=('#1a1626', '#3a3248'), far='#2a2436', mid='mountain', water='#4a5a9a', cave=True),
 }
 
 # Added with the boat (#75 item 14) — `build_sea` writes only these (+ the boat, the overworld sheet).
@@ -160,6 +180,15 @@ CHORUS_ZONES = ('chorus-isle',)
 # Added with Chartmaker's Rest (#75 item 15h) — `build_chart` writes only this (+ the
 # chart town sheet and the overworld sheet with its icon appended).
 CHART_ZONES = ('chartmakers-rest',)
+
+# Added with the Dream Root Door (#75 item 16a) — `build_dreamroot` writes only this.
+DREAMROOT_ZONES = ('dreamroot-door',)
+
+# Added with Lumina-That-Was (#75 item 16b) — `build_lumina` writes only these (+ the school sheet).
+LUMINA_ZONES = ('memory-field', 'memory-village', 'first-classroom')
+
+# Added with Aster's Garden (#75 item 16c) — `build_garden` writes only these.
+GARDEN_ZONES = ('asters-garden', 'nameless-hall')
 
 # Added with the Sunken Archive (#75 item 14h) — `build_archive` writes only these
 # (+ the tome town sheet and the overworld sheet with the archive icon appended).
@@ -294,6 +323,16 @@ def solid(kind, zone):
         c.rect(2, 1, 14, 3.5, '#c8a060')
         for x in (5.5, 8, 10.5):
             c.rect(x, 4, x + 0.8, 12.5, '#ddd4c0', shade=False)
+    elif kind == 'root':
+        # The Dream Root (#75 item 16a): a tangle of roots as thick as houses,
+        # twisting down through dark earth, a violet bud glowing here and there.
+        c.rect(0, 0, 16, 16, '#2e2232')
+        for (x0, y0, x1, y1, w) in ((2, 0, 5, 16, 3.4), (9, 0, 7, 16, 3.0), (14, 0, 12.5, 16, 3.2), (0, 6, 16, 11, 2.2)):
+            c.line(x0, y0, x1, y1, '#6a4a34', w=w)
+        for (x0, y0, x1, y1) in ((2.6, 0, 5.6, 16), (9.4, 0, 7.4, 16), (14.4, 0, 12.9, 16)):
+            c.line(x0, y0, x1, y1, '#86603e', w=0.7)
+        c.dot(4, 9, '#d8b8ff')
+        c.dot(12, 3, '#d8b8ff')
     elif kind == 'eldertree':
         # An ancient ring-tree (#75 item 14f): a broad trunk with a ring-knot, a golden-green crown.
         c.rect(5.5, 10, 10.5, 16, '#6a4428')
@@ -349,6 +388,12 @@ def solid(kind, zone):
         c.rect(2, 1, 14, 3.5, '#9a8ad0')
         for x in (5.5, 8, 10.5):
             c.rect(x, 4, x + 0.8, 12.5, '#b0a4e0', shade=False)
+    if zone.get('golden'):
+        # Lumina-That-Was (#75 item 16b review): leaves and bushes in late-afternoon gold.
+        import numpy as _np
+        rgb = c.a[..., :3].astype(_np.float32)
+        gold = _np.array([236, 196, 96], _np.float32)
+        c.a[..., :3] = (rgb * 0.62 + gold * 0.38).clip(0, 255).astype(c.a.dtype)
     return _outlined(c)
 
 
@@ -360,6 +405,13 @@ def deco(kind, colr):
             for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                 c.dot(x + dx, y + dy, colr)
             c.dot(x, y, '#ffffff')
+    elif kind == 'daisy':
+        # Aster's Garden (16c review round 3): five white petals round a yellow middle, a green leaf.
+        for (x, y) in ((4, 5), (11, 10), (6, 12)):
+            c.dot(x + 1, y + 2, '#3a8a3a')
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (-1, 1), (1, 1)):
+                c.dot(x + dx, y + dy, colr)
+            c.dot(x, y, '#f0c030')
     elif kind == 'tulip':
         for (x, y) in ((4, 6), (11, 9)):
             c.rect(x, y + 1, x + 1, y + 4, '#3a8a3a', shade=False)
@@ -469,7 +521,58 @@ def props():
     c.ellipse(8, 8, 2.2, 2.2, '#ffd24a')
     c.dot(8, 8, '#3a2a1a')
     frames.append(_outlined(c))
+    # A key gate (16c review round 2): a sealed door with a big gold padlock —
+    # never mistaken for the wooden question gate, or for a pair of chests. Frame 5
+    # is one door a tile (a gate that takes two keys shows two locks, Chorus Isle).
+    frames.append(_outlined(_door_tile()))
+    # Frames 6–9 (16c review round 3): one door across a two-tile gate, one padlock on
+    # its seam — left / right halves of a gate in a row, top / bottom of one in a column.
+    for half in ('left', 'right', 'top', 'bottom'):
+        frames.append(_outlined(_door_half(half)))
     return frames
+
+
+_DOOR_FRAME, _DOOR, _DOOR_LINE, _GOLD, _STEEL = '#2a1e16', '#6a4a3a', '#4a3226', '#e0b040', '#c0c8d4'
+
+
+def _padlock(c, x, y):
+    """A gold padlock centred on (x, y): shackle above, keyhole below."""
+    c.poly([(x - 2.4, y - 0.8), (x - 1.6, y - 3.8), (x, y - 4.8), (x + 1.6, y - 3.8), (x + 2.4, y - 0.8),
+            (x + 1.2, y - 0.8), (x + 0.8, y - 3), (x, y - 3.4), (x - 0.8, y - 3), (x - 1.2, y - 0.8)], _STEEL)
+    c.rect(x - 3, y - 1, x + 3, y + 5, _GOLD)
+    c.dot(x, y + 1.4, '#3a2a1a', w=1, h=2)
+
+
+def _door_tile():
+    c = _c()
+    c.rect(0.5, 0.5, 15.5, 16, _DOOR_FRAME)
+    c.rect(2, 2.5, 14, 16, _DOOR, shade=False)
+    for x in (5.5, 10.5):
+        c.rect(x, 2.5, x + 0.6, 16, _DOOR_LINE, shade=False)  # planks
+    _padlock(c, 8, 8)
+    return c
+
+
+def _door_half(half):
+    """Half of a door that spans two tiles; the seam is where the padlock sits."""
+    c = _c()
+    if half in ('left', 'right'):
+        c.rect(0, 0.5, 16, 16, _DOOR_FRAME)
+        x0, x1 = (2, 16) if half == 'left' else (0, 14)
+        c.rect(x0, 2.5, x1, 16, _DOOR, shade=False)
+        for x in ((5.5, 10.5) if half == 'left' else (4.9, 9.9)):
+            c.rect(x, 2.5, x + 0.6, 16, _DOOR_LINE, shade=False)
+        seam = 16 if half == 'left' else 0
+        c.rect(seam - 0.4, 2.5, seam + 0.4, 16, _DOOR_FRAME, shade=False)
+        _padlock(c, seam, 8)  # half the lock on each tile — whole where they meet
+    else:
+        c.rect(0.5, 0, 15.5, 16, _DOOR_FRAME)
+        y0, y1 = (2.5, 16) if half == 'top' else (0, 14)
+        c.rect(2, y0, 14, y1, _DOOR, shade=False)
+        for x in (5.5, 10.5):
+            c.rect(x, y0, x + 0.6, y1, _DOOR_LINE, shade=False)
+        _padlock(c, 8, 16 if half == 'top' else 0)
+    return c
 
 
 def spire():
@@ -520,6 +623,10 @@ STYLES = {
     'chorus':    ('#f6ead0', '#d04a7a', 'stripes', 'arch',   'checker', ('#f8ecd4', '#e0c8a4')),
     # Chartmaker's Rest (#75 item 15h): parchment walls ruled like a chart, ink-blue trim, plank floor.
     'chart':     ('#efe2bf', '#2a4a8a', 'chart',   'square', 'planks', ('#c8a070',)),
+    # The Dream Root Door (#75 item 16a): walls of twisted dark root, violet buds glowing, a warm plank floor.
+    'root':      ('#5a4234', '#b890e8', 'roots',   'arch',   'planks', ('#8a6450',)),
+    # The First Classroom (#75 item 16b): cream plaster, a brick-red trim, a warm plank floor.
+    'school':    ('#f2e6c8', '#b04a3a', 'plaster', 'square', 'planks', ('#c89a64',)),
 }
 
 
@@ -610,6 +717,14 @@ def _wall_face(style, window=False, door=False):
         c.dot(13, 10, '#2a4a8a')
         c.dot(12, 9, '#2a4a8a')
         c.dot(12, 11, '#2a4a8a')
+    elif pattern == 'roots':
+        # The Lamplight Rest (#75 item 16a): roots twisting down the wall, buds glowing violet.
+        for (x0, x1) in ((2, 4), (7, 6), (11, 13), (14, 12)):
+            for y in range(16):
+                x = round(x0 + (x1 - x0) * y / 15)
+                c.dot(x, y, dark(base, 0.28))
+        for (x, y) in ((4, 4), (10, 7), (6, 11), (13, 3)):
+            c.dot(x, y, '#d8b8ff')
     elif pattern == 'bark':
         # A hollow ring-tree's wall (#75 item 14f): deep grooves and a knot.
         for x in (2, 6, 10, 13):
@@ -621,7 +736,7 @@ def _wall_face(style, window=False, door=False):
     c.rect(0, 0, 16, 2, trim, shade=False)
     c.rect(0, 14, 16, 16, dark(base, 0.3), shade=False)
     if window:
-        glass = '#8ad0ff' if style != 'cave' else '#ffd86a'  # lantern-lit in the depths
+        glass = '#8ad0ff' if style not in ('cave', 'root') else '#ffd86a'  # lantern-lit in the depths
         if win == 'square':
             c.rect(4, 4, 12, 11, trim, shade=False)
             c.rect(5, 5, 11, 10, glass, shade=False)
@@ -1610,6 +1725,46 @@ def build_chart(public: Path):
         blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
     strip([upscale(f.image(), 2) for f in town_tiles('chart')]).save(tdir / 'town-chart.png', optimize=True)
     strip([upscale(f.image(), 2) for f in overworld_sheet()]).save(tdir / 'overworld.png', optimize=True)
+
+
+def build_dreamroot(public: Path):
+    """Write only the Dream Root Door's art (#75 item 16a): its tileset, blend sheet
+    and backdrop, and the root town sheet for its inn."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in DREAMROOT_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('root')]).save(tdir / 'town-root.png', optimize=True)
+
+
+def build_lumina(public: Path):
+    """Write only Lumina-That-Was's art (#75 item 16b): three zones' tilesets,
+    blend sheets and backdrops, and the school town sheet."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in LUMINA_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    strip([upscale(f.image(), 2) for f in town_tiles('school')]).save(tdir / 'town-school.png', optimize=True)
+
+
+def build_garden(public: Path):
+    """Write only Aster's Garden and the Nameless Hall's art (#75 item 16c): their
+    tilesets, blend sheets and backdrops."""
+    tdir = public / 'tiles'
+    bdir = public / 'backgrounds'
+    ids = list(ZONES)
+    for zid in GARDEN_ZONES:
+        i = ids.index(zid)
+        _write_zone(tdir, bdir, i, zid, ZONES[zid])
+        blend_sheet(ZONES[zid], i).save(tdir / f'{zid}-blend.png', optimize=True)
+    # The props sheet gained the key gate's door (16c review round 2); its first five frames are unchanged.
+    strip([upscale(f.image(), 2) for f in props()]).save(tdir / 'props.png', optimize=True)
 
 
 def quest_board():

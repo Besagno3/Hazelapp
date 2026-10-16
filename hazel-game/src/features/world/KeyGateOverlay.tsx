@@ -3,7 +3,7 @@ import confetti from 'canvas-confetti';
 import { gateFlag, ZONES } from '../../content/zones';
 import { dungeonEntrance } from '../../content/dungeons';
 import { placeName } from '../../lib/wayfinding';
-import { keysForZone, keyFlag, type GateKey } from '../../content/keys';
+import { keyName, keysForZone, keyFlag, type GateKey } from '../../content/keys';
 import { useSaveStore } from '../../store/saveStore';
 import { sfx } from '../../lib/audio';
 import { sendFlow } from '../../machines/gameFlow';
@@ -30,7 +30,7 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
   const key = keys[0];
   const door = key.door ?? 'gate';
   const both = keys.length > 1;
-  const names = (ks: GateKey[]) => ks.map((k) => `the ${k.name} ${k.emoji}`).join(' and ');
+  const names = (ks: GateKey[]) => ks.map((k) => `${keyName(k)} ${k.emoji}`).join(' and ');
   // A warden at the bottom of a dungeon (#75 item 10) is found by its entrance:
   // "in the Whispering Woods", "deep in the Clockwork Depths".
   const where = (k: GateKey) => {
@@ -56,12 +56,12 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
         {/* A held key of two sits beside the lock still shut (15g review). */}
         <div className="text-5xl mb-2">{hasKey ? keys.map((k) => k.emoji).join('') : `${keys.filter(held).map((k) => k.emoji).join('')}🔒`}</div>
         <h2 className="text-lg font-extrabold text-gray-800 mb-2">
-          {hasKey ? (both ? 'Both keys fit!' : `The ${key.name} fits!`) : `A sealed ${door}`}
+          {hasKey ? (both ? 'Both keys fit!' : `${keyName(key, true)} fits!`) : `A sealed ${door}`}
         </h2>
         <p className="text-sm text-gray-600 mb-5">
           {hasKey ? (
             <>
-              {both ? `${names(keys).replace(/^t/, 'T')} hum together` : `The ${key.name} ${key.emoji} hums`} and the {door}{' '}
+              {both ? `${names(keys).replace(/^t/, 'T')} hum together` : `${keyName(key, true)} ${key.emoji} hums`} and the {door}{' '}
               grinds open — the path to {key.fiendName} lies beyond.
             </>
           ) : both && missing.length < keys.length ? (
@@ -82,9 +82,9 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
             </>
           ) : (
             <>
-              Ancient magic seals this {door}. It will only open to the{' '}
+              Ancient magic seals this {door}. It will only open to{' '}
               <strong>
-                {key.name} {key.emoji}
+                {keyName(key)} {key.emoji}
               </strong>{' '}
               — beat <strong>{bossName(key)}</strong> {where(key)} to claim it.
             </>
@@ -96,7 +96,7 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
               onClick={open}
               className="bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg px-5 py-2 text-sm"
             >
-              {both ? 'Use both keys' : `Use the ${key.name}`}
+              {both ? 'Use both keys' : `Use ${keyName(key)}`}
             </button>
           )}
           <button

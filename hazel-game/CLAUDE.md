@@ -358,6 +358,27 @@ zod, react-query. Add the package in the same change that first uses it.
   completion `QuestDef.grants` keeps the Blank Chart in the bag and sets
   `blank-chart-held` — the flag Act IV checks (check the flag, not the item) —
   then `CHART_PANELS` play (`chart-seen`). The 🚩 visits him after Voices.
+  **The Dream Root Door** (#75 item 16a): Act IV opens on the Spire's grounds
+  with the Blank Chart (`ACT4_PANELS`, `act4-seen`), lifting a knot of old fog
+  off stairs down to the Door — the first floor of the `dream-root` dungeon,
+  which starts down a place's stairs (`DungeonDef.from`). Keeper Aurora keeps
+  its inn, the Lamplight Rest (also its shelter; not a Return town —
+  `INN_ONLY`). **Say Her Name** (Wisp): five memories, then `name-learned`
+  (only Umbra's name question will check it) and Wisp's new face
+  (`WorldNpcDef.face`, `npcSpriteId(def, flags)`).
+  **Lumina-That-Was** (#75 item 16b): below the Door, the old Field, the old
+  Village and the First Classroom — mixed-topic zones (`ZoneDef.topics`:
+  chests and gates take `topicAt(z, x, y)`; a riddle its
+  step's own `topic` first, `riddleTopic`), memories of real places
+  (`echoOf` lets them build in that place's style), and a defeat there wakes
+  you at the Door (`shelterIn`). A quest can end on a choice
+  (`QuestDef.choice`, the Unnamed Dog's name) and give a badge
+  (`grants.badge`, `QUEST_BADGES`).
+  **Aster's Garden and the Nameless Hall** (#75 item 16c): below Old Lumina
+  Field, her garden (mixed topics, sheltered at the Door) — the Gardener, a
+  warden in the hedge's one gap, gives **Aster's Key**; the Hall's blank
+  plaques (`NAMELESS_PANELS`) and its key gate (a key gate needs no topic) to
+  the deepest root, which sets `hall-root-seen` — the way down opens in 16d.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -689,6 +710,9 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+python3 tools/assets/build.py garden    # Aster's Garden + the Nameless Hall: two zones' tiles, critters, the Gardener, plaques, the deep root (#75 item 16c)
+python3 tools/assets/build.py lumina    # Lumina-That-Was: three zones' tiles, the school sheet, its critters and people (#75 item 16b)
+python3 tools/assets/build.py dreamroot # the Dream Root Door: tiles, the root sheet, Old Knot, Young Wick, Wisp's new face (#75 item 16a)
 python3 tools/assets/build.py cliffs   # Taleshore III: Songstone Cliffs, the Quiet Quarter — tiles, the hush sheet, icons, critters, people, songstones (#75 item 15f)
 python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell Cove — tiles, the shell sheet, icons, critters, warden, people, tale-stones (#75 item 15e)
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
@@ -780,6 +804,14 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — Merge main (overworld 16a–16c, PRs #63–#65) into the public-pages branch (#146)
+`main` took ISSUES **#143–#145** and TC-1210–1253 for items 16a–16c while
+the public pages were in review, so they moved **#143 → #146** and their test
+cases **TC-1210–1225 → TC-1254–1269** (only their own lines, the code
+comments and test names included). Only the three docs conflicted; nothing of
+main's touches `site/`, the sign-in page or `App.tsx`, and every sprite and
+backdrop the site names still exists.
+
 ### 2026-10-16 — The sign-up form, reviewed: heard, readable, and it says what's next (#146h)
 A `/saas-ux-review` of the form the site's "Create a free family account"
 opens (1 high, 2 medium, 2 low), all fixed on the owner's say-so:
@@ -855,6 +887,167 @@ clip are captured from the real game (`site/tools/capture.cjs`,
 `prep-assets.py`). Fonts are self-hosted (Jersey 15, Andika). Safety claims
 and what they rest on are listed in `site/README.md`. Not live: the privacy
 notice is still a draft and the game would move to `/play/` (#146).
+
+### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
+The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)
+reviews, all fixed but one kept (the small garden fog): a quest with
+`offerHaving` says its "done already" lines before the reward when all was
+done first, and `offerHaving.when` picks when they play; "the great door in
+the Nameless Hall"; Wisp points at the garden; a taller Wilt Sprite, tablet
+plaques, a brown door frame; `keyGateFrame` reads the same gate. 1369 green.
+
+### 2026-10-16 — 16c review round 3: the Fair's door open, one door one lock (#75 item 16c, #145i)
+Fresh code (1 medium, 1 low, 1 nit) and UX (2 medium, 4 low, 4 nits) reviews,
+all fixed: the garden fog covers its exit row only (it had shut the First-
+Merchant Fair; a test keeps doors open); a two-tile key gate is one door with
+one padlock on the seam (`keyGateFrame`); daisies; the weeds' faces show;
+the Gardener's offer fits what you've done; boss-sized NPCs measured right.
+1367 green.
+
+### 2026-10-16 — 16c review round 2: doors with padlocks, weeds you can see (#75 item 16c, #145h)
+Fresh code (2 low, 3 nits) and UX (3 medium, 7 low, 4 nits) reviews, all
+fixed but one kept (no soil-bed tile): every key gate is a padlocked stone
+door (`PROP_FRAME.keyGate`); clearer weeds, plaques and root; the
+Gardener's `offerHaving`; the 🚩's `inside` follows the open door; `keyName`
+tested; copy. 1365 green.
+
+### 2026-10-16 — 16c review round 1: her name first, a one-tile gap, "Aster's Key" (#75 item 16c, #145g)
+Fresh code (1 medium, 5 low, 2 nits) and UX (1 high, 3 medium, 9 low, 5 nits)
+reviews, all fixed: fog on the way to the garden until the name is learned (it
+said "Aster" before Young Wick); the hedge gap one tile, so nobody slips past
+the Gardener; `keyName` ("Aster's Key fits!"); the gate leads to "the deepest
+root"; "See what's behind the great door" with `inside` lines; clearer chest
+notes and weed hints; a wilted Wilt Sprite, a root out of its hole. 1362 green.
+
+### 2026-10-16 — Aster's Garden and the Nameless Hall (#75 item 16c, #145)
+Roadmap sub-item 16c (branch off `main` after 16a+16b merged).
+- **Aster's Garden** (`asters-garden`) below Old Lumina Field: mixed topics,
+  tier 7, a defeat wakes you at the Door. **The Gardener** (a nature warden)
+  stands in the hedge's one gap and gives **Aster's Key**; beaten, he tends his
+  beds beside it. Three healer weeds and Sprout.
+- **A Garden Rewatered** (the Gardener, after the key): three waters in
+  key-item chests, then the three weeds — 50 coins + a Berry Potion.
+- **The Nameless Hall** (`nameless-hall`): blank plaques, one with a daisy,
+  three panels (`NAMELESS_PANELS`), a save crystal; the key gate opens onto the
+  deepest root (`hall-root-seen`; the way down is 16d's).
+- **The 🚩:** "Win Aster's Key", "Open the Nameless Hall", then Explore; Lumen's
+  plan and tip; `actFourJourney` walks both from the Door.
+- **Art:** `python3 tools/assets/build.py garden`.
+- **Tests:** +8 (zones, quests, WorldScreen.ending, wayfinding, journey);
+  1360 green, lint and tsc clean.
+
+### 2026-10-16 — 16b review round 4: Thanks by keyboard, who's next (#75 item 16b, #144l)
+The last round. Fresh code (1 low, 3 nits) and UX (2 medium, 2 low, 3 nits)
+reviews, all fixed but one kept (a long route alone past 30 words): → reaches
+🎉 Thanks after the pick; the dog's people name who's next; a long "Where to
+next?" splits its route into a second box; Young Wick's not-yet; the 🚩 after
+the name follows the side quests. 1350 green.
+
+### 2026-10-16 — 16b review round 3: there's more, arrows for the names, one gate one topic (#75 item 16b, #144k)
+Fresh code (3 low, 5 nits) and UX (5 low, 4 nits) reviews, all fixed but two
+kept (the school desks' art, plates touching bushes): "(Talk again — there's
+more!)" after any step or reward that leaves more (`questConversation` wraps
+`conversationNow`); Prim's not-yet names her own reminder and who's left;
+Young Wick's journey leg walks from the Door; `gateTopic`; the Bell points at
+Prim; the dog's narrator reminders; arrow keys and 44 px buttons for the
+choice; "Old Lumina" in the copy. 1348 green.
+
+### 2026-10-16 — 16b review round 2 (UX): names apart, gold slates, "there's more" (#75 item 16b, #144j)
+Fresh UX review (2 medium, 6 low, 3 nits), all fixed: Prim no longer stands
+under the Bell's name (and a test keeps name plates apart); "Old Lumina
+Field / Village"; answered slates gold on the map (`class-slate-gold`); "(Talk
+again — there's more!)" when another quest's step through that person is
+next; Aster waits "deeper still" after the name; Young Wick's 🚩, Lumen's plan
+and tip; dog wording. Art: `build.py lumina`. 1343 green.
+
+### 2026-10-16 — 16b review round 2 (code): Prim offers her own quest first (#75 item 16b, #144i)
+Fresh code review (1 low, 4 nits), all fixed: a giver's own offer comes
+before another quest's "not yet" (Prim's Bell's Apology was hidden by the
+dog's), and her reminder follows it; no focused Thanks after naming the
+dog; `RiddleWords.label` / `button` for slates; tighter tests, stale
+comments.
+
+### 2026-10-15 — 16b review round 1: no stray Enter names the dog, slates that say so (#75 item 16b, #144h)
+Fresh code (1 medium, 3 low, 4 nits) and UX (2 medium, 7 low, 1 nit)
+reviews, all fixed but four kept (the Lucky Plume, the Old Library's sign, a
+village landmark, the dog's steps in order): no focused choice, a Later, the
+pick answered; the dog's name follows (`names`, `ambientIf`); `RiddleWords` and
+per-slate topics; a proper `topicAt` mix; Young Wick pointed at everywhere; a
+sock-shaped golem, golden trees. 1340 green.
+
+### 2026-10-15 — Lumina-That-Was: the old Field, the old Village and the First Classroom (#75 item 16b, #144)
+Roadmap sub-item 16b (branch stacked on 16a's).
+- **Below the Dream Root Door**, past Old Knot: the old Field (the retired
+  Lumina Field's map — the Old Library, the First-Merchant Fair), the old
+  Village (Wick's Family Bakery) and the First Classroom, joined edge to edge,
+  in golden late-afternoon colours; tier 7.
+- **Mixed topics** (`ZoneDef.topics`, `topicAt`); **a defeat below wakes you
+  at the Door** (`shelterIn`, #104g).
+- **People:** Young Lumen, the Merchant Fair, a popcorn cart, Young Wick
+  (Say Her Name can be finished now), the Unnamed Dog, Monitor Prim, the
+  Lesson Bell; six memory critters (trickster and swift).
+- **Quests:** The Bell's Apology (three riddle slates, in order); One More
+  Name (three names, then the hero picks one — `QuestDef.choice` — and gets
+  the Dog Badge, `grants.badge`).
+- **Art:** `python3 tools/assets/build.py lumina` (new drawers: dog, key
+  critter, slate, bell, popcorn cart; a `school` style).
+- **Tests:** +14 (zones, quests, save, regions, journey, DialogueOverlay);
+  1336 green, lint and tsc clean.
+
+### 2026-10-15 — 16a review round 4: who's next, "not yet" in their own voices (#75 item 16a, #143k)
+The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 3 low, 3 nits)
+reviews, all fixed but two kept (the shared stairs sprite, Wisp's pale wings):
+each memory names the next; `QuestStep.earlyLine` / `earlyAfter` (Mnem waits
+for the Hall's dedication); Lumen's "could that be HER name?"; "at the Dream
+Root Door"; shorter whys. 1323 green.
+
+### 2026-10-15 — 16a review round 3: the 🚩 and Wisp agree, "not yet" out of turn (#75 item 16a, #143j)
+Fresh code (2 low, 4 nits) and UX (4 low, 4 nits) reviews, all fixed: the
+hello to Aurora is skipped once Wisp has asked; Mnem and the Chartmaker say
+"not yet" out of turn (`early`); Lumen names the next memory; the fog says it
+rolls away later; Chronicle's footnote; a new face redrawn at its own spot;
+tests for Aurora's welcome and the panels away from the grounds. 1323 green.
+
+### 2026-10-15 — 16a review round 2: say hello to Aurora, nobody still forgets (#75 item 16a, #143i)
+Fresh code (2 low, 5 nits) and UX (3 medium, 3 low, 2 nits) reviews, all
+fixed but two kept (the Door's shelter waits for 16b; sail vs fly advice):
+lines that still said the name was lost stop once it's learned, Act IV lines
+for Wick, Mnem and the Chartmaker; "Say hello to Keeper Aurora"
+(`met-root-aurora`); Lumen's plan in two short texts; Old Knot at the path's
+end; paler wings. 1322 green.
+
+### 2026-10-15 — 16a review round 1: Aurora says the way down waits, roots on the walls (#75 item 16a, #143h)
+Fresh code (1 high, 1 medium, 2 low, 4 nits) and UX (1 high, 3 medium, 5 low,
+1 nit) reviews, all fixed but one kept (the memories go in order): Aurora
+speaks during the fifth memory and a test makes each memory's 🚩 its own
+keeper (an expected-fail flips when Young Wick is placed); root walls, lit
+windows, a stump Old Knot, Wisp's daisy and wings; Lumen no longer spoils the
+Door; plainer testimonies; Wisp's 🌼 in battle menus (`companionLook`).
+1321 green.
+
+### 2026-10-15 — The door under the Spire, and Say Her Name (#75 item 16a, #143)
+Roadmap sub-item 16a, Act IV's opening.
+- **Act IV opens** on the Crystal Spire's grounds with the Blank Chart (after
+  the Chartmaker's panels): five panels (`ACT4_PANELS`, `act4-seen`). A knot
+  of old fog has sat south of the Spire since the start; it lifts on screen
+  off new stairs down. Keeper Aurora leaves the grounds.
+- **The Dream Root Door** (`dreamroot-door`): the first floor of the Dream
+  Root, a dungeon that starts down a place's stairs (`DungeonDef.from`; its
+  boss comes with the descent, 16d). Safe: a save crystal, a pool, Old Knot
+  (a talking root) and the Lamplight Rest (a new `root` style) — Keeper
+  Aurora's inn and its shelter, not a Return town (`INN_ONLY`).
+- **Say Her Name** (Wisp, after `act4-seen`): Grandmother Wick, Keeper Mnem,
+  the Chartmaker, Sage Chronicle, then Young Wick (placed with 16b's Memory
+  Village) each remember a piece of the first Sage; back to Wisp, the name —
+  Aster — sets `name-learned` (60 coins + a Hint Feather) and three panels
+  give **Wisp a new face** (`WorldNpcDef.face`; the world, talk, the menu and
+  battle all follow). Wisp is stationary now.
+- **The 🚩:** the grounds, the stairs, Wisp, each memory (`Objective.quest`),
+  Wisp, Explore; Elder Lumen's plan and tip for each. `actFourJourney` walks
+  them all.
+- **Art:** `python3 tools/assets/build.py dreamroot`.
+- **Tests:** +17 (dungeons, zones, quests, save, companion, wayfinding,
+  journey, WorldScreen.ending); 1317 green, lint and tsc clean.
 
 ### 2026-10-15 — 15h /saas-code-review + /saas-ux-review: an old tab asks for a refresh, shorter guides (#75 item 15h, #142n)
 All fixed on the owner's say-so. Code (1 low): `saveIsTooNew` also refuses a

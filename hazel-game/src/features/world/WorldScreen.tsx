@@ -55,6 +55,8 @@ import {
   GROVE_PANELS,
   GROVE_SEEN,
   ARCHIVE_PANELS,
+  NAMELESS_PANELS,
+  NAMELESS_SEEN,
   ARCHIVE_SEEN,
   DAWNREACH_PANELS,
   DAWNREACH_SEEN,
@@ -73,6 +75,10 @@ import {
   ROOST_SEEN,
   CHART_PANELS,
   CHART_SEEN,
+  ACT4_PANELS,
+  ACT4_SEEN,
+  WISP_FACE_PANELS,
+  WISP_FACE_SEEN,
   ACT3_PANELS,
   ACT3_SEEN,
   POSY_STONE_PANELS,
@@ -86,7 +92,7 @@ import {
 import { canFlyOver } from '../../lib/travel';
 import { HALL_DEDICATED } from '../../content/spells';
 import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
-import { BLANK_CHART_HELD, POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
+import { BLANK_CHART_HELD, NAME_LEARNED, POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatOnReturn, boatSpot } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import LevelBadge from '../../components/LevelBadge';
@@ -268,6 +274,8 @@ export default function WorldScreen() {
   const groveDue = zoneId === 'moonwell-grove' && !flags[GROVE_SEEN];
   // The first step into the Sunken Archive (#75 item 14h).
   const archiveDue = zoneId === 'sunken-archive' && !flags[ARCHIVE_SEEN];
+  // The first step into the Nameless Hall (#75 item 16c).
+  const namelessDue = zoneId === 'nameless-hall' && !flags[NAMELESS_SEEN];
   const roostDue = zoneId === 'dragon-roost' && !flags[ROOST_SEEN];
   // Act III (#75 item 15c): the first time over Taleshore, flown in past the Great Fogbank.
   // Over Taleshore only: its last panel says to land and walk in (15c review round 4).
@@ -296,6 +304,12 @@ export default function WorldScreen() {
     flags[crystalFlag('history')] === true && !flags[WISP_STIRRING] && zoneId === 'whispering-woods';
   // The Blank Chart (#75 item 15h): the Chartmaker's panels, as his talk closes.
   const chartDue = flags[BLANK_CHART_HELD] === true && !flags[CHART_SEEN] && overlay === null;
+  // Act IV (#75 item 16a): on the Spire's grounds with the Blank Chart — then the
+  // fog over the stairs down lifts, on screen. Never over the Spire's own climb.
+  const act4Due =
+    zoneId === 'crystal-spire' && flags[BLANK_CHART_HELD] === true && flags[CHART_SEEN] === true && !flags[ACT4_SEEN] && overlay !== 'spire';
+  // Say Her Name (#75 item 16a): Wisp's new face, as Wisp's talk closes.
+  const wispFaceDue = flags[NAME_LEARNED] === true && !flags[WISP_FACE_SEEN] && overlay === null;
 
   const activeScene:
     | 'spireVictory'
@@ -306,6 +320,7 @@ export default function WorldScreen() {
     | 'ending'
     | 'grove'
     | 'archive'
+    | 'nameless'
     | 'roost'
     | 'act3'
     | 'flight'
@@ -318,6 +333,8 @@ export default function WorldScreen() {
     | 'hall'
     | 'wisp'
     | 'chart'
+    | 'act4'
+    | 'wispFace'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -336,6 +353,8 @@ export default function WorldScreen() {
                   ? 'grove'
                   : archiveDue
                     ? 'archive'
+                    : namelessDue
+                      ? 'nameless'
                     : roostDue
                       ? 'roost'
                       : act3Due
@@ -358,7 +377,11 @@ export default function WorldScreen() {
                                   ? 'wisp'
                                   : chartDue
                                     ? 'chart'
-                                    : null;
+                                    : act4Due
+                                      ? 'act4'
+                                      : wispFaceDue
+                                        ? 'wispFace'
+                                        : null;
   const cutscene = activeScene !== null;
 
   // 🐉 Fly / 🛬 Land is offered (#75 item 15b): over an overworld map once
@@ -903,6 +926,12 @@ export default function WorldScreen() {
       {activeScene === 'chart' && (
         <StoryPanels panels={CHART_PANELS} doneLabel="🗺️ Keep it safe" onDone={() => setFlag(CHART_SEEN)} />
       )}
+      {activeScene === 'act4' && (
+        <StoryPanels panels={ACT4_PANELS} doneLabel="🌳 Look below" onDone={() => setFlag(ACT4_SEEN)} />
+      )}
+      {activeScene === 'wispFace' && (
+        <StoryPanels panels={WISP_FACE_PANELS} doneLabel="🌼 Aster!" onDone={() => setFlag(WISP_FACE_SEEN)} />
+      )}
       {activeScene === 'wisp' && (
         <StoryPanels panels={WISP_PANELS} doneLabel="🧚 I'll remember for you" onDone={() => setFlag(WISP_STIRRING)} />
       )}
@@ -928,6 +957,9 @@ export default function WorldScreen() {
       )}
       {activeScene === 'archive' && (
         <StoryPanels panels={ARCHIVE_PANELS} doneLabel="📚 Explore the Archive" onDone={() => setFlag(ARCHIVE_SEEN)} />
+      )}
+      {activeScene === 'nameless' && (
+        <StoryPanels panels={NAMELESS_PANELS} doneLabel="🏛️ Look around" onDone={() => setFlag(NAMELESS_SEEN)} />
       )}
       {activeScene === 'grove' && (
         <StoryPanels

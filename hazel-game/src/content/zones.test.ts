@@ -12,6 +12,7 @@ import {
   VIEW_ROWS,
   tileAt,
   gateIdAt,
+  gateTopic,
   buildingAt,
   buildingInside,
   npcPresent,
@@ -23,10 +24,11 @@ import { edgeCrossing, flownLink, seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
-import { NPC_DEFS, isThing, lineText, visibleLines } from './npcs';
+import { NPC_DEFS, isThing, lineText, npcAmbient, npcEmoji, npcName, npcSpriteId, visibleLines } from './npcs';
+import { GENERATED_SPRITES } from './sprites.generated';
 import { HALL_DEDICATED } from './spells';
 import { BOSS_BADGES, ENEMY_DEFS, fiendFor } from './enemies';
-import { BLANK_CHART_HELD, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_STONES, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
+import { BLANK_CHART_HELD, NAME_LEARNED, JUNO_CAME, JUNO_QUEST, JUNO_WALK, RESO_STONES, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, questDoneFlag, questOfferedFlag, stepFlag } from './questFlags';
 import { QUESTS } from './quests';
 import { TOPIC_REGISTRY, actCrystals } from './topics';
 import { BOAT_HOME } from './boat';
@@ -35,6 +37,7 @@ import type { ZoneDef } from './zones';
 import {
   ANY_CRYSTAL,
   chestTopicAt,
+  topicAt,
   fogAt,
   fogSeenFlag,
   fogsToReveal,
@@ -42,6 +45,7 @@ import {
   placeAt,
   darkAt,
   litFlag,
+  INN_ONLY,
   innOf,
   innWakeCell,
   shelterOf,
@@ -49,7 +53,7 @@ import {
 import { RETURN_TOWNS } from './fieldSpells';
 import { crystalFlag } from './topics';
 import { CRYSTAL_TOPIC_IDS } from '../types';
-import { ACT2_SEEN, FLIGHT_FLAG, HALL_CALLED, MET_GALE, canFly } from './story';
+import { ACT2_SEEN, ACT4_SEEN, FLIGHT_FLAG, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, canFly } from './story';
 import { holdsKeysFor, keyFlag, keysForZone } from './keys';
 
 const allZones = Object.values(ZONES);
@@ -141,6 +145,9 @@ describe('zone maps', () => {
         if (z.kind === 'overworld') {
           // Critters wander out from the regions around them (#75 Phase 1).
           expect(ENEMY_DEFS[p.defId].isBoss ?? false, `${z.id} boss ${p.defId}`).toBe(false);
+        } else if (z.topics) {
+          // A mixed-topic zone (#75 item 16b): each critter brings one of its topics.
+          expect(z.topics, `${z.id} enemy ${p.defId} topic`).toContain(ENEMY_DEFS[p.defId].topic);
         } else {
           expect(ENEMY_DEFS[p.defId].topic, `${z.id} enemy ${p.defId} topic`).toBe(z.topic);
         }
@@ -150,10 +157,12 @@ describe('zone maps', () => {
 
   it("every gate and chest has a topic for its question: its zone's, or (a chest) its fog bank's", () => {
     for (const z of allZones) {
-      if (z.topic) continue;
+      if (z.topic || z.topics?.length) continue;
       z.map.forEach((row, y) =>
         [...row].forEach((ch, x) => {
-          expect(ch === 'G', `${z.id} has a gate at ${x},${y} but no topic`).toBe(false);
+          // A key gate asks nothing — it opens to its key (#75 item 16c: the Nameless Hall).
+          const keyed = ch === 'G' && z.keyGate && gateIdAt(z.id, z.map, x, y) === gateIdAt(z.id, z.map, z.keyGate.x, z.keyGate.y);
+          expect(ch === 'G' && !keyed, `${z.id} has a gate at ${x},${y} but no topic`).toBe(false);
           if (ch === 'C') {
             const bank = z.fogs?.find((f) => f.guards.x === x && f.guards.y === y);
             expect(bank?.chestTopic, `${z.id} chest at ${x},${y} has no topic`).toBeDefined();
@@ -382,7 +391,8 @@ describe('every place is unique (#73)', () => {
     for (const z of allZones) {
       const inns = (z.buildings ?? []).filter((b) => b.sign === 'inn');
       const keepers = placed.filter((x) => x.z.id === z.id && x.def.role === 'innkeeper');
-      const isTown = (RETURN_TOWNS as readonly string[]).includes(z.id);
+      // …and the Dream Root Door's (#75 item 16a), an inn Return doesn't fly to (`INN_ONLY`).
+      const isTown = (RETURN_TOWNS as readonly string[]).includes(z.id) || INN_ONLY.includes(z.id);
       expect(inns.length, `${z.id} inns`).toBe(isTown ? 1 : 0);
       expect(keepers.length, `${z.id} innkeepers`).toBe(isTown ? 1 : 0);
       if (isTown) expect(buildingInside(z, keepers[0].p.x, keepers[0].p.y)?.id, `${z.id} innkeeper indoors`).toBe(inns[0].id);
@@ -468,8 +478,10 @@ describe('every place is unique (#73)', () => {
       const styles = new Set((z.buildings ?? []).map((b) => b.style));
       expect(styles.size, `${z.id} mixes styles`).toBeLessThanOrEqual(1);
       for (const st of styles) {
-        expect(styleOwner.get(st) ?? z.id, `style ${st} reused`).toBe(z.id);
-        styleOwner.set(st, z.id);
+        // A memory of a place (#75 item 16b) may build the way that place does.
+        const owner = styleOwner.get(st) ?? z.id;
+        expect(owner === z.id || owner === z.echoOf, `style ${st} reused by ${z.id}`).toBe(true);
+        if (!z.echoOf) styleOwner.set(st, z.id);
       }
     }
   });
@@ -626,7 +638,9 @@ describe('Dawnreach, the overworld (#75 Phase 1)', () => {
         // Once Ember can fly, the hero flies too (#75 item 15b).
         const reached = (flags: Record<string, boolean>) => {
           const open = reach(z, { flags, modes: canFly(flags) ? ['foot', 'ember'] : ['foot'], grounded: true });
-          return open.has(key) || touches(open, f.guards.x, f.guards.y);
+          // An exit is walked onto, not bumped (16c review round 3: the garden's fog covers only its exit row).
+          const exit = tileAt(z, f.guards.x, f.guards.y) === 'E';
+          return open.has(key) || (!exit && touches(open, f.guards.x, f.guards.y));
         };
         expect(reached({}), `${f.id}: reward reachable through the fog`).toBe(false);
         for (const flag of f.liftedBy) {
@@ -895,7 +909,7 @@ describe('Eldergrove (#75 item 14f)', () => {
     expect(grove.exits.some((e) => out.has(`${e.x},${e.y}`))).toBe(true);
     // A shelter, not an inn: no Rest. The Marsh has one too; the Archive's is its inn (#75 item 14h), and so is Chorus Isle's (15g).
     expect(innOf(grove)).toBeUndefined();
-    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh', 'sunken-archive', 'chorus-isle']);
+    expect(allZones.filter((z) => z.shelter).map((z) => z.id)).toEqual(['eldergrove', 'foglight-marsh', 'sunken-archive', 'chorus-isle', 'dreamroot-door']);
   });
 
   it("Fen, Old Ringwood and Dawdle live here — Dawdle the slowest wanderer in the game", () => {
@@ -1647,5 +1661,256 @@ describe('the Crystal of Voices in the hollow (#75 item 15g, round 4)', () => {
     expect({ x: crystal.x, y: crystal.y }).toEqual({ x: fiend.x, y: fiend.y });
     expect(npcPresent(crystal, {})).toBe(false);
     expect(npcPresent(crystal, { [crystalFlag('words')]: true })).toBe(true);
+  });
+});
+
+describe('the Dream Root Door (#75 item 16a)', () => {
+  const door = ZONES['dreamroot-door'];
+  const grounds = ZONES['crystal-spire'];
+
+  it("is safe, under the Spire: no critters, a save crystal, Keeper Aurora's inn — and no Return spot", () => {
+    expect(door.kind).toBe('dungeon');
+    expect(door.enemies).toEqual([]);
+    expect(door.map.some((r) => r.includes('S'))).toBe(true);
+    const inn = innOf(door)!;
+    expect(inn.name).toBe('Lamplight Rest');
+    const aurora = door.npcs.find((p) => p.defId === 'root-aurora')!;
+    expect(NPC_DEFS['root-aurora'].role).toBe('innkeeper');
+    expect(buildingInside(door, aurora.x, aurora.y)?.id).toBe(inn.id);
+    expect(RETURN_TOWNS).not.toContain('dreamroot-door');
+    expect(INN_ONLY).toContain('dreamroot-door');
+  });
+
+  it('beaten here, you wake in the Lamplight Rest, Aurora looking after you; from there the stairs up are walkable', () => {
+    const shelter = shelterOf(door)!;
+    expect(shelter.host).toBe('Keeper Aurora');
+    expect(shelter.cell).toEqual(innWakeCell(door));
+    const out = reach(door, { from: shelter.cell });
+    const up = door.exits.find((e) => e.to === 'crystal-spire')!;
+    expect(out.has(`${up.x},${up.y}`)).toBe(true);
+  });
+
+  it("the stairs down sit under a knot of old fog on the Spire's grounds from the start, lifted only as Act IV opens", () => {
+    const stairs = grounds.exits.find((e) => e.to === 'dreamroot-door')!;
+    expect(tileAt(grounds, stairs.x, stairs.y)).toBe('>');
+    expect(fogAt(grounds, stairs.x, stairs.y, {})).not.toBeNull();
+    expect(fogAt(grounds, stairs.x, stairs.y, { [BLANK_CHART_HELD]: true })).not.toBeNull();
+    expect(fogAt(grounds, stairs.x, stairs.y, { [ACT4_SEEN]: true })).toBeNull();
+    // Act I's grounds still walk from the gate to the Spire.
+    const open = reach(grounds, { flags: {} });
+    expect(touches(open, grounds.spire!.x, grounds.spire!.y)).toBe(true);
+  });
+
+  it('while the fifth memory waits below, Aurora says so — the 🚩 never leads to silence (16a reviews)', () => {
+    const say = (flags: Record<string, boolean>) => visibleLines(NPC_DEFS['root-aurora'].lines, flags).map(lineText).join(' ');
+    expect(say({ [stepFlag('name-chronicle')]: true })).toMatch(/Someone below still remembers her/);
+    expect(say({ [stepFlag('name-chronicle')]: true, [NAME_LEARNED]: true })).not.toMatch(/Someone below/);
+    expect(say({})).not.toMatch(/Someone below/);
+    // Gone once Young Wick has said it (16a code review round 2).
+    expect(say({ [stepFlag('name-chronicle')]: true, [stepFlag('name-young-wick')]: true })).not.toMatch(/Someone below/);
+  });
+
+  it("Aurora's welcome is always her first line, and it says hello for the 🚩 (16a code review round 3)", () => {
+    for (const flags of [{}, { [ACT4_SEEN]: true }, { [stepFlag('name-chronicle')]: true }, { [NAME_LEARNED]: true }]) {
+      const first = visibleLines(NPC_DEFS['root-aurora'].lines, flags)[0];
+      expect(typeof first === 'string' ? null : first.setFlag).toBe(MET_ROOT_AURORA);
+    }
+  });
+
+  it('nobody still says the name is lost once it is learned (16a UX review round 2)', () => {
+    const say = (id: string, flags: Record<string, boolean>) => visibleLines(NPC_DEFS[id].lines, flags).map(lineText).join(' ');
+    const learned = { [crystalFlag('history')]: true, [crystalFlag('words')]: true, 'met-mnem': true, [ACT2_SEEN]: true, [ACT4_SEEN]: true, [BLANK_CHART_HELD]: true, [stepFlag('name-wick')]: true, [NAME_LEARNED]: true };
+    expect(say('village-elder', learned)).not.toMatch(/Especially me/);
+    expect(say('village-elder', learned)).toMatch(/Aster! With the daisy/);
+    expect(say('hill-keeper', learned)).not.toMatch(/Still no name/);
+    expect(say('woods-sprite', learned)).not.toMatch(/ALMOST remembering/);
+    expect(say('chart-chartmaker', learned)).not.toMatch(/mystery worth solving/);
+    expect(say('elder-lumen', learned)).not.toMatch(/I don't know it/);
+  });
+
+  it('Keeper Aurora moves down as Act IV opens: on the grounds before, at the Door after', () => {
+    const before = grounds.npcs.find((p) => p.defId === 'spire-keeper')!;
+    expect(npcPresent(before, {})).toBe(true);
+    expect(npcPresent(before, { [ACT4_SEEN]: true })).toBe(false);
+    expect(NPC_DEFS['root-aurora'].spriteId).toBe('spire-keeper');
+  });
+});
+
+describe("Wisp's new face (#75 item 16a)", () => {
+  it('Wisp looks new once the name is learned — in the world and in talk', () => {
+    const wisp = NPC_DEFS['woods-sprite'];
+    expect(npcSpriteId(wisp, {})).toBe('woods-sprite');
+    expect(npcSpriteId(wisp, { [NAME_LEARNED]: true })).toBe('wisp-named');
+    expect(npcEmoji(wisp, { [NAME_LEARNED]: true })).toBe('🌼');
+    expect(npcSpriteId(NPC_DEFS['village-elder'], { [NAME_LEARNED]: true })).toBe('village-elder');
+  });
+});
+
+describe('Lumina-That-Was (#75 item 16b)', () => {
+  const ids = ['memory-field', 'memory-village', 'first-classroom'] as const;
+
+  it('lies below the Dream Root Door: down past Old Knot, the three places joined edge to edge', () => {
+    const door = ZONES['dreamroot-door'];
+    const down = door.exits.filter((e) => e.to === 'memory-field');
+    expect(down.length).toBe(2);
+    const open = reach(door, { flags: {} });
+    for (const e of down) expect(open.has(`${e.x},${e.y}`)).toBe(true);
+    expect(ZONES['memory-field'].exits.map((e) => e.to).sort()).toEqual(['asters-garden', 'asters-garden', 'dreamroot-door', 'dreamroot-door', 'first-classroom', 'first-classroom', 'memory-village', 'memory-village']);
+    for (const id of ids) {
+      const z = ZONES[id];
+      // (Aster's Garden's fog lifts with her name — 16c review round 1.)
+      const area = reach(z, { flags: { [NAME_LEARNED]: true }, gates: 'open' });
+      for (const e of z.exits) expect(area.has(`${e.x},${e.y}`), `${id} exit to ${e.to}`).toBe(true);
+    }
+  });
+
+  it('mixed topics: each chest, gate and riddle keeps one of its zone\'s topics, every time', () => {
+    for (const id of ids) {
+      const z = ZONES[id];
+      expect(z.topic).toBeUndefined();
+      expect(z.topics!.length).toBeGreaterThanOrEqual(2);
+      for (let y = 0; y < z.map.length; y++)
+        for (let x = 0; x < z.map[y].length; x++) {
+          expect(z.topics).toContain(topicAt(z, x, y, 'math'));
+        }
+      // A real mix: along any row every topic turns up, not just two (16b review round 1).
+      const row = Array.from({ length: 20 }, (_, x) => topicAt(z, x + 1, 5, 'math'));
+      expect(new Set(row).size, id).toBe(z.topics!.length);
+    }
+    const room = ZONES['first-classroom'];
+    expect(chestTopicAt(room, 17, 8)).toBe(topicAt(room, 17, 8, 'math'));
+    // A zone with one topic is unchanged.
+    expect(topicAt(ZONES.numbria, 3, 3, 'words')).toBe('math');
+  });
+
+  it('beaten anywhere down here, you wake at the Dream Root Door (#104g)', () => {
+    for (const id of ids) expect(ZONES[id].shelterIn, id).toBe('dreamroot-door');
+  });
+
+  it('Young Wick stands in the old village; the Unnamed Dog, Young Lumen, Monitor Prim and the slates are all placed', () => {
+    const at = (def: string) => ids.find((id) => ZONES[id].npcs.some((p) => p.defId === def));
+    expect(at('memory-young-wick')).toBe('memory-village');
+    expect(at('memory-dog')).toBe('memory-village');
+    expect(at('memory-young-lumen')).toBe('memory-field');
+    expect(at('class-prim')).toBe('first-classroom');
+    for (const n of [1, 2, 3]) expect(at(`class-slate-${n}`)).toBe('first-classroom');
+    // Left to right, three cells apart, so their names never run together.
+    const xs = [1, 2, 3].map((n) => ZONES['first-classroom'].npcs.find((p) => p.defId === `class-slate-${n}`)!.x);
+    expect(xs[1] - xs[0]).toBeGreaterThanOrEqual(3);
+    expect(xs[2] - xs[1]).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the dog answers to the name he's given — over his head, in his bubbles and his talk", () => {
+    const dog = NPC_DEFS['memory-dog'];
+    expect(npcName(dog, {})).toBe('The Unnamed Dog');
+    expect(npcName(dog, { 'dog-named-captain': true })).toBe('Captain');
+    expect(npcAmbient(dog, { 'dog-named-captain': true })).not.toContain('Pickles!');
+    const say = visibleLines(dog.lines, { 'dog-named-captain': true }).map(lineText).join(' ');
+    expect(say).toMatch(/Captain stands up very straight/);
+    expect(say).not.toMatch(/wag wag wag/);
+  });
+
+  it('Old Knot says the way down is open now', () => {
+    const say = visibleLines(NPC_DEFS['root-knot'].lines, {}).map(lineText).join(' ');
+    expect(say).toMatch(/untangled the way down/);
+    expect(say).not.toMatch(/knotted shut/);
+  });
+});
+
+describe("people's names don't overlap (16b review round 2)", () => {
+  // Name plates are ~6.5 px a letter at 11 px, plus their padding; cells are 32 px.
+  // The longest name they go by (the dog's chosen name too).
+  const plate = (id: string) => Math.max(NPC_DEFS[id]?.name.length ?? 0, ...(NPC_DEFS[id]?.names ?? []).map((n) => n.name.length)) * 6.5 + 8;
+  it('two people on one row stand far enough apart for both names', () => {
+    for (const z of Object.values(ZONES)) {
+      z.npcs.forEach((a, i) =>
+        z.npcs.slice(i + 1).forEach((b) => {
+          // One person's two spots (by story flag), or one swapped for another on
+          // the same cell (a lantern lit), are never both up.
+          if (a.y !== b.y || a.defId === b.defId || a.x === b.x) return;
+          expect(Math.abs(a.x - b.x) * 32, `${z.id}: ${a.defId} and ${b.defId}`).toBeGreaterThanOrEqual((plate(a.defId) + plate(b.defId)) / 2);
+        }),
+      );
+    }
+  });
+});
+
+describe('the slates turn gold on the map too (16b review round 2)', () => {
+  it('an answered slate draws its gold-chalk sprite', () => {
+    for (const n of [1, 2, 3]) {
+      const def = NPC_DEFS[`class-slate-${n}`];
+      expect(npcSpriteId(def, {})).toBe('class-slate');
+      expect(npcSpriteId(def, { [`quest-step:bell-slate-${n}`]: true })).toBe('class-slate-gold');
+    }
+    expect(GENERATED_SPRITES['class-slate-gold']?.world).toBeDefined();
+  });
+});
+
+describe('a double-wide gate asks one topic (16b review round 3)', () => {
+  it('both cells of a gate in a mixed-topic zone ask its first cell\'s topic', () => {
+    const z = ZONES['memory-field'];
+    for (let x = 0; x < 40; x++) {
+      const zz = { ...z, map: ['#'.repeat(x) + 'GG#', '#'.repeat(x + 3)] };
+      expect(gateTopic(zz, x + 1, 0)).toBe(gateTopic(zz, x, 0));
+      expect(gateTopic(zz, x, 0)).toBe(topicAt(zz, x, 0, 'math'));
+    }
+  });
+});
+
+describe("Aster's Garden and the Nameless Hall (#75 item 16c)", () => {
+  const garden = ZONES['asters-garden'];
+  const hall = ZONES['nameless-hall'];
+  it('the Gardener stands in the only gap through the hedge, between the garden and the Hall', () => {
+    const boss = garden.enemies.find((e) => e.defId === 'the-gardener')!;
+    expect(boss).toMatchObject({ x: 9, y: 10 });
+    const south = garden.exits.filter((e) => e.to === 'nameless-hall');
+    expect(south).toHaveLength(2);
+    const reached = reach(garden, { exits: 'stop' });
+    for (const e of south) expect(touches(reached, e.x, e.y), 'the way south').toBe(true);
+    // The gap is one cell wide — his — so with him in it nothing slips by (16c review round 1:
+    // a two-wide gap let a hero hug its far side out of his reach).
+    const shut = reach(garden, { exits: 'stop', blocked: (x, y) => x === boss.x && y === boss.y });
+    for (const e of south) expect(touches(shut, e.x, e.y), 'past the Gardener').toBe(false);
+  });
+  it("the Hall's great door is Aster's Key's gate, and the deep root waits behind it", () => {
+    const root = hall.npcs.find((n) => n.defId === 'hall-deep-root')!;
+    const gate = gateIdAt(hall.id, hall.map, hall.keyGate!.x, hall.keyGate!.y);
+    expect(touches(reach(hall), root.x, root.y)).toBe(false);
+    expect(touches(reach(hall, { gates: (id) => id === gate }), root.x, root.y)).toBe(true);
+    // Every plaque is in reach before the door.
+    for (const n of hall.npcs.filter((p) => p.defId.startsWith('hall-plaque'))) {
+      expect(touches(reach(hall), n.x, n.y), n.defId).toBe(true);
+    }
+  });
+  it("the garden's fog keeps her name a secret until Young Wick says it (16c review round 1)", () => {
+    const field = ZONES['memory-field'];
+    const toGarden = field.exits.filter((e) => e.to === 'asters-garden');
+    for (const e of toGarden) {
+      expect(reach(field, { exits: 'stop' }).has(`${e.x},${e.y}`), 'fogged').toBe(false);
+      expect(reach(field, { exits: 'stop', flags: { [NAME_LEARNED]: true } }).has(`${e.x},${e.y}`), 'lifted').toBe(true);
+    }
+  });
+  it('a defeat in the garden wakes you at the Dream Root Door; the Hall is safe', () => {
+    expect(garden.shelterIn).toBe('dreamroot-door');
+    expect(hall.enemies).toEqual([]);
+    expect(hall.kind).toBe('shrine');
+  });
+});
+
+describe('no fog shuts a building door (16c review round 3)', () => {
+  it('every door reachable with the fog lifted is reachable with it standing — unless the fog guards it', () => {
+    for (const z of Object.values(ZONES)) {
+      if (!z.fogs?.length || !z.buildings?.length) continue;
+      const allLifted = Object.fromEntries(z.fogs.flatMap((f) => f.liftedBy).map((f) => [f, true]));
+      const open = reach(z, { flags: allLifted, gates: 'open' });
+      const shut = reach(z, { flags: {}, gates: 'open' });
+      z.map.forEach((row, y) =>
+        [...row].forEach((ch, x) => {
+          if (ch !== 'D' || !touches(open, x, y)) return;
+          const guarded = z.fogs!.some((f) => x >= f.x - 1 && x <= f.x + f.w && y >= f.y - 1 && y <= f.y + f.h);
+          if (!guarded) expect(touches(shut, x, y), `${z.id} door at ${x},${y}`).toBe(true);
+        }),
+      );
+    }
   });
 });

@@ -186,3 +186,58 @@ describe("a step through a service NPC (#75 item 15f: Shush's letter to Libraria
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_SERVICE', service: 'library', npcId: 'hub-librarian' });
   });
 });
+
+describe('One More Name (#75 item 16b): the dog\'s name is the hero\'s to choose', () => {
+  it('ends on one button per name; the one picked sticks, with the Dog Badge', () => {
+    const done = { 'act4-seen': true, 'quest:unnamed-dog:offered': true, 'quest-step:dog-wick': true, 'quest-step:dog-lumen': true, 'quest-step:dog-prim': true };
+    withFlags(done);
+    render(<DialogueOverlay npcId="memory-dog" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.queryByText('🎉 Thanks!')).toBeNull();
+    expect(screen.getByText('🥒 Pickles')).toBeInTheDocument();
+    expect(screen.getByText('🎩 Sir Wigglesworth')).toBeInTheDocument();
+    // No name is focused: a stray Enter can't pick one (16b review round 1).
+    expect(['🥒 Pickles', '⚓ Captain', '🎩 Sir Wigglesworth']).not.toContain(document.activeElement?.textContent);
+    fireEvent.click(screen.getByText('⚓ Captain'));
+    const save = useSaveStore.getState().save!;
+    expect(save.flags['dog-named-captain']).toBe(true);
+    expect(save.flags['dog-named-pickles']).toBeUndefined();
+    expect(save.flags['quest:unnamed-dog:done']).toBe(true);
+    expect(save.badges).toContain('dog-badge');
+    // Then the dog's answer and the reward, before the box closes.
+    expect(screen.getByText(/Captain it is!.*Dog Badge/)).toBeInTheDocument();
+    expect(sendFlow).not.toHaveBeenCalledWith({ type: 'CLOSE' });
+    // In talk he's Captain now (the box's name and header follow the pick).
+    expect(screen.getByRole('dialog', { name: 'Captain' })).toBeInTheDocument();
+    // Thanks isn't focused, so a held Enter can't close the reply unread (16b review round 2).
+    expect(document.activeElement?.textContent).not.toBe('🎉 Thanks!');
+    // …but → reaches it, so a keyboard player isn't stuck (16b review round 4).
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(document.activeElement?.textContent).toBe('🎉 Thanks!');
+    fireEvent.click(screen.getByText('🎉 Thanks!'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
+  it('the arrow keys move between the names, from none focused (16b review round 3)', () => {
+    withFlags({ 'act4-seen': true, 'quest:unnamed-dog:offered': true, 'quest-step:dog-wick': true, 'quest-step:dog-lumen': true, 'quest-step:dog-prim': true });
+    render(<DialogueOverlay npcId="memory-dog" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.getByText(/\(Pick one!\)/)).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(document.activeElement?.textContent).toBe('🥒 Pickles');
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(document.activeElement?.textContent).toBe('⚓ Captain');
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(document.activeElement?.textContent).toBe('Later');
+  });
+
+  it('can be put off: Later closes without choosing', () => {
+    withFlags({ 'act4-seen': true, 'quest:unnamed-dog:offered': true, 'quest-step:dog-wick': true, 'quest-step:dog-lumen': true, 'quest-step:dog-prim': true });
+    render(<DialogueOverlay npcId="memory-dog" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    fireEvent.click(screen.getByText('Later'));
+    expect(useSaveStore.getState().save!.flags['quest:unnamed-dog:done']).toBeUndefined();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+});
