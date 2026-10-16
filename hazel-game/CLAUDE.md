@@ -963,6 +963,11 @@ older child (`p_max_age` = their age), only their own or younger. The app caps
 `playerAge` at `MAX_PLAYER_AGE` (18), as the function already clamped; anyone
 older plays as 18. Public pages, the game's meta description and the README say
 6–18. Deploy: redeploy `generate-questions` (no migration).
+**Teen start level (the owner's call):** `ageToStartLevel` was `age − 5`, so
+15+ started every topic at 10 — the hardest *for their age*, since levels are
+relative to age. It now stops at `MAX_START_LEVEL` (6, where an 11-year-old
+started): 6 → 1 … 11 and older → 6. Only topics without a saved level use it;
+kids already playing keep theirs.
 
 ### 2026-10-16 — Merge the 16d branch (with main) into the 16e branch (#155)
 16d merged `main` (public pages, safer questions, the fairer Spire, saves, the

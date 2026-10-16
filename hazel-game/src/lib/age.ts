@@ -23,11 +23,18 @@ export const MIN_SKILL_LEVEL = 1;
 export const MAX_SKILL_LEVEL = 10;
 
 /**
+ * Highest starting level (#156). Levels are relative to the child's age (4-6
+ * is "right for a typical child of this age"), so a teen starts in that band
+ * rather than at 10, the hardest for their age.
+ */
+export const MAX_START_LEVEL = 6;
+
+/**
  * Starting skill level for a brand-new player, derived from age.
- * A ~6-year-old starts near level 1; a ~15-year-old near level 10.
+ * A 6-year-old starts at level 1, rising one a year to 6 at 11 and older.
  */
 export function ageToStartLevel(age: number): number {
-  return clampLevel(age - 5);
+  return clampLevel(Math.min(MAX_START_LEVEL, age - 5));
 }
 
 /** Keep a skill level within the valid range. */

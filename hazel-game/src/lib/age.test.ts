@@ -54,8 +54,11 @@ describe('ageToStartLevel', () => {
     expect(ageToStartLevel(6)).toBe(1);
   });
 
-  it('starts teens at the maximum', () => {
-    expect(ageToStartLevel(15)).toBe(MAX_SKILL_LEVEL);
+  it('rises one a year, then teens start mid-range, not at the hardest (#156)', () => {
+    expect(ageToStartLevel(9)).toBe(4);
+    expect(ageToStartLevel(11)).toBe(6);
+    expect(ageToStartLevel(13)).toBe(6);
+    expect(ageToStartLevel(18)).toBe(6);
   });
 });
 
