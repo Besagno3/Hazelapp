@@ -286,8 +286,9 @@ export function actThreeJourney(): Leg[] {
  * Act IV so far (#75 item 16a): from the Blank Chart, every goal walked inside
  * its place — the Spire's grounds, then down the stairs from there to the Dream
  * Root Door (only once Act IV's panels have lifted their fog), Wisp, each of
- * the five memories, and back to Wisp; then Aster's Key in her garden and the
- * root behind the Nameless Hall's great door (#75 item 16c).
+ * the five memories, and back to Wisp; then Aster's Key in her garden (#75
+ * item 16c), the Nameless Hall's great door, and down the Deep Root past its
+ * three echoes to the Root's Heart (16d).
  */
 export function actFourJourney(): Leg[] {
   let flags: Record<string, boolean> = {};

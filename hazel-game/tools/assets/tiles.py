@@ -146,7 +146,7 @@ ZONES = {
     # hushed violet, the stopped clocks' bronze, and the Heart's warm purple.
     'deep-root-1': dict(ground=(96, 78, 96), path=(140, 122, 140), solid='root', deco='glowshroom', deco_c='#ffe28a',
                         sky=('#120e1a', '#3a2a44'), far='#2a1e30', mid='mountain', water='#4a5a9a', cave=True),
-    'deep-root-2': dict(ground=(86, 92, 82), path=(130, 136, 124), solid='root', deco='leaves', deco_c='#8ac87a',
+    'deep-root-2': dict(ground=(86, 82, 92), path=(130, 126, 136), solid='root', deco='thorns', deco_c='#f0e0c8',
                         sky=('#0e1410', '#2a3a2a'), far='#1e2a1e', mid='mountain', water='#3a5a5a', cave=True),
     'deep-root-3': dict(ground=(78, 84, 96), path=(122, 128, 140), solid='root', deco='glowshroom', deco_c='#8ad8ff',
                         sky=('#0e1220', '#24304a'), far='#1a2234', mid='mountain', water='#3a6aa8', cave=True),
@@ -451,6 +451,12 @@ def deco(kind, colr):
             c.dot(8 + math.cos(a) * 4, 9 + math.sin(a) * 4, colr, w=2, h=2)
         c.ellipse(8.5, 9.5, 3.5, 3.5, colr)
         c.dot(8, 9, dark(hexc(colr), 0.3), w=2, h=2)
+    elif kind == 'thorns':
+        # The Hall of Thorns (#75 item 16d review): brown bramble sprigs with pale thorns.
+        for (x, y) in ((3, 4), (10, 9), (5, 12)):
+            c.line(x, y + 3, x + 4, y - 1, '#6a3a2a', w=1)
+            for k in range(3):
+                c.dot(x + 1 + k * 1.3, y + 2 - k * 1.3 - 1, colr)
     elif kind == 'leaves':
         for (x, y) in ((4, 5), (10, 9), (6, 12), (12, 4)):
             c.ellipse(x, y, 1.6, 1.0, colr, rot=0.6)

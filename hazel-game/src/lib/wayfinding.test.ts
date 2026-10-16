@@ -149,8 +149,12 @@ describe('nextObjective', () => {
     expect(nextObjective(nameLearned)).toMatchObject({ kind: 'key', zoneId: 'asters-garden', title: "Win Aster's Key" });
     // Then down the Deep Root (#75 item 16d): an echo on B2, B4 and B6, then the Root's Heart.
     const keyWon = { ...nameLearned, [keyFlag('asters-key')]: true };
-    expect(nextObjective(keyWon)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-2', boss: 'echo-thicket-warden', title: 'Get past the Echo of the Thicket Warden' });
-    const b2 = { ...keyWon, [bossFlag('echo-thicket-warden')]: true };
+    // The great door first, in the Hall (16d review round 1).
+    expect(nextObjective(keyWon)).toMatchObject({ kind: 'visit', zoneId: 'nameless-hall', title: 'Open the great door' });
+    const hall = ZONES['nameless-hall'];
+    const doorOpen = { ...keyWon, [gateFlag(gateIdAt('nameless-hall', hall.map, hall.keyGate!.x, hall.keyGate!.y))]: true };
+    expect(nextObjective(doorOpen)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-2', boss: 'echo-thicket-warden', title: 'Get past the Thicket Echo' });
+    const b2 = { ...doorOpen, [bossFlag('echo-thicket-warden')]: true };
     expect(nextObjective(b2)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-4', boss: 'echo-tide-colossus' });
     const b4 = { ...b2, [bossFlag('echo-tide-colossus')]: true };
     expect(nextObjective(b4)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-6', boss: 'echo-clockwork-titan' });
@@ -312,7 +316,7 @@ describe('nextObjective', () => {
     const actOneKeys = GATE_KEYS.filter((k) => actCrystals(1).some((t) => t.zoneId === k.unlocksZone));
     // …then Act IV (#75 item 16a): the Spire's grounds, the stairs down, Wisp, five memories, the name —
     // and Aster's Key (#75 item 16c), the Deep Root's three echoes and the Root's Heart (16d).
-    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 2 + 1 + 5 + 1 + 1 + 3 + 1);
+    expect(seen).toHaveLength(actCrystals(1).length + actOneKeys.length + 1 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 2 + 1 + 5 + 1 + 1 + 1 + 3 + 1);
     expect(new Set(seen.map((g) => g.title)).size).toBe(seen.length);
     // …and every place it sends you can be reached from anywhere in the world.
     for (const g of seen) {
@@ -668,13 +672,14 @@ describe('Lumina-That-Was in the guides (16b review round 4)', () => {
 });
 
 describe("the Nameless Hall's 🚩 (16c review round 2, #75 item 16d)", () => {
-  it('says to unlock the great door first, then — once it is open — where the echo stands', () => {
+  it('says to unlock the great door first — in the Hall, where you are — then where the echo stands', () => {
     const hall = ZONES['nameless-hall'];
-    const flags = { ...nameLearned, [keyFlag('asters-key')]: true };
+    const flags = { ...nameLearned, [keyFlag('asters-key')]: true, [visitedFlag('nameless-hall')]: true };
     const before = nextObjective(flags);
-    expect(before.inside).toMatch(/^First, open the Nameless Hall's great door/);
-    expect(before.why).toMatch(/^Stairs wind down the Deep Root/);
+    // What a hero standing in the Hall reads (16d review round 1: it never said "door").
+    expect(goalDirections(ZONES, before, 'nameless-hall', undefined, flags)).toMatch(/halfway down the hall.*Aster's Key/);
     const open = { ...flags, [gateFlag(gateIdAt('nameless-hall', hall.map, hall.keyGate!.x, hall.keyGate!.y))]: true };
     expect(nextObjective(open).inside).toMatch(/one gap in the thorny wall/);
+    expect(goalDirections(ZONES, nextObjective(open), 'nameless-hall', undefined, open)).toMatch(/^Take the stairs down two floors/);
   });
 });

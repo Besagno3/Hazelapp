@@ -230,9 +230,10 @@ describe("Act IV so far (#75 items 16a–16d)", () => {
       'Say her name to Wisp',
       "Win Aster's Key",
       // The descent (#75 item 16d): three echoes, then the bottom.
-      'Get past the Echo of the Thicket Warden',
-      'Get past the Echo of the Tide Colossus',
-      'Get past the Echo of the Clockwork Titan',
+      'Open the great door',
+      'Get past the Thicket Echo',
+      'Get past the Tide Echo',
+      'Get past the Clockwork Echo',
       "Reach the Root's Heart",
     ]);
     for (const leg of act4) expect(walkable(leg), leg.goal.title).toBe(true);

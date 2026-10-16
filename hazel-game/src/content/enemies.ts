@@ -183,17 +183,17 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   // you beat, and plays them back — paler, and a little stronger. Beating one
   // sets its `bossFlag` (`role: 'echo'`); it guards the way down its floor.
   'echo-thicket-warden': {
-    id: 'echo-thicket-warden', name: 'Echo of the Thicket Warden', sprite: '🦌', topic: 'nature', levelOffset: 2, hpPerLevel: 18, isBoss: true, role: 'echo',
+    id: 'echo-thicket-warden', name: 'The Thicket Echo', sprite: '🦌', topic: 'nature', levelOffset: 2, hpPerLevel: 18, isBoss: true, role: 'echo',
     lines: {
       intro: [
         'A pale stag steps out of the thorns. It looks like the Thicket Warden… but you can see the roots through it.',
-        '"I am only an echo. The Root remembers everyone who ever stood in a doorway. Prove you still remember the wood!"',
+        '"I am only an echo. The Root remembers every warden you beat. Prove you still remember the wood!"',
       ],
       defeat: '"Well answered. Go on down — she has been waiting a very long time." The echo fades into the roots.',
     },
   },
   'echo-tide-colossus': {
-    id: 'echo-tide-colossus', name: 'Echo of the Tide Colossus', sprite: '🐳', topic: 'space', levelOffset: 2, hpPerLevel: 18, isBoss: true, role: 'echo',
+    id: 'echo-tide-colossus', name: 'The Tide Echo', sprite: '🐳', topic: 'space', levelOffset: 2, hpPerLevel: 18, isBoss: true, role: 'echo',
     lines: {
       intro: [
         'The water in the hollow rises, and a ghostly whale rises with it — the Tide Colossus, made of starlight and old sea.',
@@ -203,7 +203,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
     },
   },
   'echo-clockwork-titan': {
-    id: 'echo-clockwork-titan', name: 'Echo of the Clockwork Titan', sprite: '🦾', topic: 'history', levelOffset: 2, hpPerLevel: 18, isBoss: true, role: 'echo',
+    id: 'echo-clockwork-titan', name: 'The Clockwork Echo', sprite: '🦾', topic: 'history', levelOffset: 2, hpPerLevel: 18, isBoss: true, role: 'echo',
     lines: {
       intro: [
         'Every clock on this floor stopped at the same minute. In the middle stands a see-through Clockwork Titan.',
@@ -273,9 +273,9 @@ export const BOSS_RAGE: Record<string, [string, string]> = {
   'last-fogbank': ['The Last Fogbank swallows the light — you can barely see!', 'The Last Fogbank rumbles: "I\'ll make you forget your own NAME!"'],
   'hollow-fiend': ['The Hollow Fiend yawns open — the pages round you start to go blank!', 'The Hollow Fiend howls: "I will EAT tomorrow too!"'],
   'hush-fiend': ['The Hush Fiend puffs up like a big purple pillow — every sound goes muffled!', 'The Hush Fiend hisses: "SHHHHHH! Not ONE more word!"'],
-  'echo-thicket-warden': ['The Echo of the Thicket Warden shakes its pale antlers — ghostly thorns grow everywhere!', 'The Echo of the Thicket Warden booms: "The Root remembers EVERY wrong turn!"'],
-  'echo-tide-colossus': ['The Echo of the Tide Colossus rises out of the dark water — starlight pours off its back!', 'The Echo of the Tide Colossus roars: "Down here, the tide NEVER comes back!"'],
-  'echo-clockwork-titan': ['The Echo of the Clockwork Titan makes every stopped clock tick at once — LOUDER and LOUDER!', 'The Echo of the Clockwork Titan booms: "I KEEP THE FORGOTTEN MINUTE!"'],
+  'echo-thicket-warden': ['The Thicket Echo shakes its pale antlers — ghostly thorns grow everywhere!', 'The Thicket Echo booms: "The Root remembers EVERY wrong turn!"'],
+  'echo-tide-colossus': ['The Tide Echo rises out of the dark water — starlight pours off its back!', 'The Tide Echo roars: "Down here, the tide NEVER comes back!"'],
+  'echo-clockwork-titan': ['The Clockwork Echo makes every stopped clock tick at once — LOUDER and LOUDER!', 'The Clockwork Echo booms: "I KEEP THE FORGOTTEN MINUTE!"'],
   'compass-golem': ['The Compass Golem spins its needle — NORTH, SOUTH, NORTH!', 'The Compass Golem booms: "ALL DIRECTIONS LEAD TO ME!"'],
   // It speaks only in riddles (STORY-4X), even when it's angry.
   'riddle-leviathan': [

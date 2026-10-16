@@ -962,7 +962,8 @@ def flyer(c: Canvas, p: Pose, s: dict):
     if kind == 'bat':
         L.poly([(14, 15), (3, 11 + flap), (5, 15 + flap * 0.5), (8, 14 + flap * 0.5), (10, 18)], dark(wc, 0.1))
     elif kind in ('moth', 'butterfly'):
-        span = {0: 1.0, 1: 0.65, 2: 0.3}[p.wing]
+        # The Hum Moth (#75 item 16d review) keeps its wings open, so it reads on a phone.
+        span = {0: 1.0, 1: 0.85, 2: 0.7}[p.wing] if s.get('open') else {0: 1.0, 1: 0.65, 2: 0.3}[p.wing]
         for side in (-1, 1):
             L.ellipse(16 + side * 5.5 * span, 14, 5.5 * span + 0.6, 5.5, wc if side > 0 else dark(wc, 0.1))
             L.ellipse(16 + side * 4 * span, 21.5, 3.8 * span + 0.6, 3.6, dark(wc, 0.05) if side > 0 else dark(wc, 0.15))
@@ -1011,6 +1012,10 @@ def flyer(c: Canvas, p: Pose, s: dict):
         d.eyes(L, [(14.8, 11), (17.2, 11)], h=1, shine=False)
         if s.get('glow'):
             L.ellipse(16, 24, 2.2, 2.4, '#fff27a', shade=False)
+        if s.get('hum'):  # little hum lines either side
+            for side in (-1, 1):
+                for k in range(2):
+                    L.line(16 + side * (12 + k * 2), 10 + k * 3, 16 + side * (13.4 + k * 2), 12 + k * 3, '#ffe28a', w=0.6)
     # front wing
     if kind == 'bat':
         L.poly([(17, 17), (28, 10 + flap), (27, 15 + flap * 0.5), (24, 14 + flap * 0.5), (21, 20)], wc)
@@ -3186,9 +3191,17 @@ def ring_beetle(c: Canvas, p: Pose, s: dict):
     d.put(Lg)
     B = d.part(lean, bob)
     B.ellipse(15, 20, 9.5, 6.4, col)
-    for k, r in enumerate((7.2, 5.4, 3.7, 2.0)):  # the rings, like a cut log
-        B.ellipse(14.5, 19.2, r * 1.12, r * 0.72, ring if k % 2 == 0 else dark(ring, 0.18), shade=False)
-    B.ellipse(14.5, 19.2, 0.8, 0.6, dark(col, 0.2), shade=False)  # the heart of the log
+    if s.get('clock'):  # the Tick Beetle (#75 item 16d review): a clock face on its back
+        B.ellipse(14.5, 18.6, 6.4, 4.6, ring, shade=False)
+        B.ellipse(14.5, 18.6, 5.2, 3.6, '#fbf6e8', shade=False)
+        B.line(14.5, 18.6, 14.5, 15.6, '#2a2230', w=0.8)  # the hands
+        B.line(14.5, 18.6, 17.2, 19.4, '#2a2230', w=0.8)
+        for (dx, dy) in ((0, -3.2), (4.4, 0), (0, 3.2), (-4.4, 0)):
+            B.dot(14.5 + dx, 18.6 + dy, '#2a2230')
+    else:
+        for k, r in enumerate((7.2, 5.4, 3.7, 2.0)):  # the rings, like a cut log
+            B.ellipse(14.5, 19.2, r * 1.12, r * 0.72, ring if k % 2 == 0 else dark(ring, 0.18), shade=False)
+        B.ellipse(14.5, 19.2, 0.8, 0.6, dark(col, 0.2), shade=False)  # the heart of the log
     B.ellipse(14.5, 25, 8, 1.6, dark(col, 0.15))  # underbelly
     d.put(B)
     H = d.part(lean, bob)
@@ -3377,6 +3390,14 @@ def snail(c: Canvas, p: Pose, s: dict):
     S.ellipse(19.6, 18.8, 4.6, 4.4, light(shell, 0.25), shade=False)
     S.ellipse(20, 19, 2.2, 2.1, dark(shell, 0.25), shade=False)  # the spiral's middle
     S.ellipse(16.4, 14.6, 1.6, 1.2, light(shell, 0.5), shade=False)  # shine
+    if s.get('star'):  # the Star Snail (#75 item 16d review): a gold star on its shell
+        cx, cy = 19.6, 18.6
+        pts = []
+        for k in range(10):
+            r = 3.6 if k % 2 == 0 else 1.5
+            a = -math.pi / 2 + k * math.pi / 5
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+        S.poly(pts, '#ffd23c')
     d.put(S)
     E = d.part(lean, bob)
     if p.facing != 'up':
@@ -3535,7 +3556,11 @@ def turtle(c: Canvas, p: Pose, s: dict):
             px = x + (1 if front else 0)
             B.ellipse(px, y, 1.9, 1.5, dark(shell, 0.2), shade=False)
             B.ellipse(px, y, 1.1, 0.8, light(shell, 0.12), shade=False)
-    B.ellipse(16 if front else 15, sy + 5.5, 9.4, 1.6, '#d8c890')  # the rim
+    if s.get('roots'):  # the Root Shellback (#75 item 16d review): roots creeping over its shell
+        bx = 16 if front else 15
+        for (x0, y0, x1, y1) in ((bx - 7, sy - 1, bx - 2, sy - 5), (bx - 2, sy - 5, bx + 3, sy - 3), (bx + 3, sy - 3, bx + 8, sy + 1), (bx - 2, sy - 5, bx - 1, sy + 3)):
+            B.line(x0, y0, x1, y1, s.get('root_color', '#3a2414'), w=1.0)
+    B.ellipse(16 if front else 15, sy + 5.5, 9.4, 1.6, s.get('rim', '#d8c890'))  # the rim
     d.put(B)
     if Hd is not None and front:
         d.put(Hd)
@@ -4206,7 +4231,7 @@ def hall_root(c: Canvas, p: Pose, s: dict):
 
 
 def root_heart(c: Canvas, p: Pose, s: dict):
-    """The Root's Heart (#75 item 16d): the bottom of the Dream Root — a great
+    """The Root's Heart (#75 item 16d): the bottom of the Deep Root — a great
     knot of roots curled round a warm purple glow like a heart, beating
     slowly, and inside it a small sleeping shape you can't quite see."""
     d = D(c, p)
@@ -4214,12 +4239,20 @@ def root_heart(c: Canvas, p: Pose, s: dict):
     glow = s.get('glow', '#d88aff')
     beat = 0.8 if p.frame % 2 else 0.0
     G = d.part(0, 0)
-    G.ellipse(16, 18, 10 + beat, 9 + beat, dark(hexc(glow), 0.25), shade=False)
-    G.ellipse(16, 18, 7.6 + beat, 6.8 + beat, glow, shade=False)
-    G.ellipse(16, 17, 4.2, 3.4, light(hexc(glow), 0.4), shade=False)
-    # A small shape curled up asleep in the glow.
-    G.ellipse(16, 19, 3.6, 2.2, '#4a2a5a', shade=False)
-    G.ellipse(13.6, 18, 1.6, 1.5, '#4a2a5a', shade=False)
+
+    def heart(scale, col):
+        # Two round lobes and a point: a heart, centred at (16, 18).
+        G.ellipse(16 - 4.4 * scale, 14.6, 5.2 * scale, 5 * scale, col, shade=False)
+        G.ellipse(16 + 4.4 * scale, 14.6, 5.2 * scale, 5 * scale, col, shade=False)
+        G.poly([(16 - 9.4 * scale, 16), (16 + 9.4 * scale, 16), (16, 16 + 10 * scale)], col)
+    heart(1.08 + beat * 0.06, dark(hexc(glow), 0.3))
+    heart(0.9 + beat * 0.06, glow)
+    heart(0.5, light(hexc(glow), 0.45))
+    # A small someone curled up asleep in the glow: a round head, a curled body, a daisy.
+    G.ellipse(17, 19, 3.4, 2.2, '#5a3a6a', shade=False)
+    G.ellipse(13.8, 17.6, 1.8, 1.7, '#5a3a6a', shade=False)
+    G.dot(13.2, 15.6, '#ffffff')
+    G.dot(13.2, 15.6 - 1, '#fff2b0')
     d.put(G, outline=False)
     R = d.part(0, 0)
     # Roots wrapping round the glow from the floor, meeting at the top like a heart.
@@ -4470,13 +4503,13 @@ ROSTER: list[Char] = [
     Char('tide-snail', '🐌', 'snail', H(color='#d8c8a8', shell='#3a8ab8')),
     # ── Act IV: the Deep Root's critters and echoes (#75 item 16d) ──
     # Pale, see-through-looking ghosts of the wardens you beat (violet-grey, glowing eyes).
-    Char('echo-thicket-warden', '🦌', 'beast', H(kind='stag', fur='#a89ac8', belly='#d8d0f0', antler='#e8e0ff', leaves=True, leaf='#c8b8ff', moss=True), boss=True),
-    Char('echo-tide-colossus', '🐳', 'whale', H(color='#7a70b8', crown=True), boss=True),
-    Char('echo-clockwork-titan', '🦾', 'golem', H(color='#9a90c0', accent='#c8a8ff', glow='#f0e8ff', bolts=True, crown=True), boss=True),
-    Char('root-shellback', '🐢', 'turtle', H(shell='#6a4a5a', skin='#b8a0a0')),
-    Char('star-snail', '🐌', 'snail', H(color='#c8c8e0', shell='#2a3a7a')),
-    Char('hum-moth', '🦋', 'flyer', H(kind='moth', color='#5a4a7a', wing='#d8c8ff', spot='#ffe28a')),
-    Char('tick-beetle', '🪲', 'ring_beetle', H(color='#8a6a3a', ring='#e8c070')),
+    Char('echo-thicket-warden', '🦌', 'beast', H(ghost=True, kind='stag', fur='#a89ac8', belly='#d8d0f0', antler='#e8e0ff', leaves=True, leaf='#c8b8ff', moss=True), boss=True),
+    Char('echo-tide-colossus', '🐳', 'whale', H(ghost=True, color='#7a70b8', crown=True), boss=True),
+    Char('echo-clockwork-titan', '🦾', 'golem', H(ghost=True, color='#9a90c0', accent='#c8a8ff', glow='#f0e8ff', bolts=True, crown=True), boss=True),
+    Char('root-shellback', '🐢', 'turtle', H(shell='#7a5a3a', skin='#8ab86a', rim='#4a3020', roots=True, root_color='#3a2414')),
+    Char('star-snail', '🐌', 'snail', H(color='#c8c8e0', shell='#2a3a7a', star=True)),
+    Char('hum-moth', '🦋', 'flyer', H(kind='moth', color='#5a4a7a', wing='#d8c8ff', spot='#ffe28a', open=True, hum=True)),
+    Char('tick-beetle', '🪲', 'ring_beetle', H(color='#8a6a3a', ring='#e8c070', clock=True)),
     Char('marker-post', '🪧', 'marker_post', H(color='#a8743e', flag='#e04040')),
     Char('latitude-cat', '🐈', 'cat', H(fur='#e8963a', stripe='#3a7ac8')),
     Char('globe-beetle', '🪲', 'gravity_beetle', H(color='#2a8ac8', land=True)),

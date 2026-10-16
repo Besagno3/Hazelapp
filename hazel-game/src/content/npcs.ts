@@ -7,7 +7,10 @@ import { handedOverFlag, questOfferedFlag } from './quests';
 import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
-import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING } from './story';
+import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING, descentSeenFlag } from './story';
+
+/** Set once the hero has stepped onto the Deep Root's first floor (#75 item 16d): its panel has played. */
+const DEEP_ROOT_ENTERED = descentSeenFlag('deep-root-1');
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -2679,8 +2682,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       { text: 'Why? Why is the Gardener so grumpy? Why does he stand in the gap at the bottom of the garden?', unlessFlag: keyFlag('asters-key') },
       { text: "He keeps Aster's Key on his belt. Why? He says some questions take years to bloom. Why do they?", unlessFlag: keyFlag('asters-key') },
-      { text: "Why are you smiling? …Oh! You have Aster's Key! Why not try it on the great door in the Nameless Hall, past the gap?", ifFlag: keyFlag('asters-key'), unlessFlag: HALL_ROOT_SEEN },
-      { text: 'Why does the old root hum? Why is it lonely? Will you find out why?', ifFlag: HALL_ROOT_SEEN, unlessFlag: ROOT_HEART_REACHED },
+      // Down the Deep Root (#75 item 16d): its first floor's panel says you've been (16d review round 1).
+      { text: "Why are you smiling? …Oh! You have Aster's Key! Why not try it on the great door in the Nameless Hall, past the gap?", ifFlag: keyFlag('asters-key'), unlessFlag: [HALL_ROOT_SEEN, DEEP_ROOT_ENTERED] },
+      { text: 'Why does the old root hum? Why is it lonely? Will you find out why?', ifFlag: DEEP_ROOT_ENTERED, unlessFlag: ROOT_HEART_REACHED },
       { text: "You went ALL the way down? Why didn't you take me? …Why is it purple down there?", ifFlag: ROOT_HEART_REACHED },
     ],
     ambient: ['why?', 'why?!', '…why?'],
@@ -2696,7 +2700,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'I tended this garden for Aster, the very first Sage. She planted a question in every bed.',
       "When the world forgot her, the garden forgot to grow. But you answered every seedling. One day soon, they'll wake up.",
-      { text: "Aster's Key opens the great door in the Nameless Hall, just south of here. Every name Lumina forgot is in there, on its blank plaques.", unlessFlag: HALL_ROOT_SEEN },
+      { text: "Aster's Key opens the great door in the Nameless Hall, just south of here. Every name Lumina forgot is in there, on its blank plaques.", unlessFlag: [HALL_ROOT_SEEN, DEEP_ROOT_ENTERED] },
     ],
   },
   'hall-plaque-1': {
@@ -2752,7 +2756,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     prop: true,
     lines: [
-      'A great root plunges through the floor here, down into the dark. Stairs wind down beside it — the roots have untangled!',
+      'A great root plunges through the floor here, down into the dark. Stairs wind down beside it.',
       { text: 'Far, far below, something hums a tune with no words. It sounds lonely. The stairs go all the way down.', setFlag: HALL_ROOT_SEEN },
     ],
   },
@@ -2766,9 +2770,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     prop: true,
     lines: [
-      'A huge root glows here like a heart, warm and purple, beating very slowly. Every root in Lumina starts right here.',
+      'Every root in Lumina starts right here, wrapped round this warm purple glow.',
       'Inside the glow, someone is curled up asleep, humming a tune with no words. You can\'t quite see who.',
-      { text: '(Not yet. When you\'re ready, come back — she will be ready too.)', setFlag: ROOT_HEART_REACHED },
+      { text: '(Not yet — she isn\'t ready. Come back soon: the way to her will open.)', setFlag: ROOT_HEART_REACHED },
     ],
   },
   'root-knot': {

@@ -91,9 +91,9 @@ DREAMROOT_SPRITES = ('root-knot', 'wisp-named', 'memory-young-wick')
 LUMINA_SPRITES = ('faded-echo', 'lost-sock-golem', 'misplaced-key', 'chalk-wisp', 'eraser-imp', 'sum-gremlin',
                   'memory-young-lumen', 'memory-fair', 'memory-popcorn', 'memory-dog', 'class-prim', 'class-bell', 'class-slate', 'class-slate-gold')
 
-# Aster's Garden and the Nameless Hall (#75 item 16c), for `build.py garden`.
 # The Deep Root (#75 item 16d), for `build.py descent`.
 DESCENT_SPRITES = ('echo-thicket-warden', 'echo-tide-colossus', 'echo-clockwork-titan', 'root-shellback', 'star-snail', 'hum-moth', 'tick-beetle', 'root-heart')
+# Aster's Garden and the Nameless Hall (#75 item 16c), for `build.py garden`.
 GARDEN_SPRITES = ('thorn-of-doubt', 'wilt-sprite', 'bramblewhy', 'the-gardener', 'garden-sprout', 'hall-plaque', 'hall-plaque-daisy', 'hall-deep-root')
 
 # The Sunken Archive's critters, Fiend and people (#75 item 14h), for `build.py archive`.

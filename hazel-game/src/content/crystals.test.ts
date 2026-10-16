@@ -15,7 +15,7 @@ function storyWalk(): { goals: string[]; tips: string[] } {
   let flags: Record<string, boolean> = { ...defaultSave().flags };
   const goals: string[] = [];
   const tips: string[] = [];
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 60; i++) {
     const g: Objective = nextObjective(flags);
     goals.push(`${g.kind}: ${g.title} @ ${g.zoneId ?? '-'}`);
     tips.push(mentorTips(ZONES, flags).join(' | '));

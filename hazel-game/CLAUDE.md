@@ -809,6 +809,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — 16d review round 1: the Gardener's weeds stay up top, open the great door first (#75 item 16d, #146h)
+Fresh code (2 medium, 3 low, 7 nits) and UX (6 medium, 11 low, 5 nits)
+reviews, all fixed but two kept (engine-wide label quirks): the Deep Root's
+critters no longer finish A Garden Rewatered; "Open the great door" is its
+own 🚩 step in the Hall; door lines stop once you've been down; the Heart
+says she isn't ready; a truthful defeat tip; "six/seven floors"; shorter,
+see-through echoes; a heart-shaped Root's Heart and clearer critters;
+brambles on B2, pools on B4. 1381 green.
+
 ### 2026-10-16 — The descent: seven floors down the Deep Root (#75 item 16d, #146)
 Roadmap sub-item 16d (branch off `main` after 16c merged).
 - **The Deep Root** (`deep-root-1`…`7`, dungeon `deep-root`, `from:

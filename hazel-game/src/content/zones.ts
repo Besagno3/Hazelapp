@@ -3376,7 +3376,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'deep-root-2',
     name: "The Hall of Thorns",
     kind: 'dungeon',
-    topics: ['nature', 'creativity'],
+    topics: ['nature', 'creativity', 'geography'],
     map: [
       '######################',
       '#.<..................#',
@@ -3384,7 +3384,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#.........##....,....#',
       '#..####...##...####..#',
       '#....................#',
-      '#..,.......C.........#',
+      '#..,.............C...#',
       '##########.###########',
       '#....................#',
       '#..##.........##.....#',
@@ -3401,7 +3401,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [],
     // The echo of the Thicket Warden stands in the one gap, before the stairs down.
     enemies: [
-      { defId: 'thorn-of-doubt', x: 4, y: 6 },
+      { defId: 'root-shellback', x: 4, y: 6 },
       { defId: 'eraser-imp', x: 15, y: 10 },
       { defId: 'echo-thicket-warden', x: 10, y: 7 },
     ],
@@ -3453,7 +3453,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'deep-root-4',
     name: "The Tide Hollow",
     kind: 'dungeon',
-    topics: ['space', 'science'],
+    topics: ['space', 'science', 'engineering'],
     map: [
       '######################',
       '#.<........~~~~~~~...#',
@@ -3461,9 +3461,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#..,..S.....~~~~~....#',
       '#..........,.........#',
       '#~~~~~.........~~~~~~#',
-      '#~~~~~~.......~~~~~~~#',
+      '#~~~~~~~~...~~~~~~~~~#',
       '##########.###########',
-      '#~~~~...........~~~~~#',
+      '#~~~~~~~~...~~~~~~~~~#',
       '#~~~......C.......~~~#',
       '#....................#',
       '#..,..~~~~...........#',
@@ -3479,7 +3479,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     // The echo of the Tide Colossus stands in the one gap, before the stairs down.
     enemies: [
       { defId: 'star-snail', x: 8, y: 3 },
-      { defId: 'wilt-sprite', x: 12, y: 10 },
+      { defId: 'tick-beetle', x: 12, y: 10 },
       { defId: 'echo-tide-colossus', x: 10, y: 7 },
     ],
     exits: [
@@ -3492,7 +3492,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'deep-root-5',
     name: "The Hushed Galleries",
     kind: 'dungeon',
-    topics: ['music', 'words', 'creativity'],
+    topics: ['music', 'words', 'space'],
     map: [
       '######################',
       '#..................<.#',
@@ -3518,7 +3518,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     enemies: [
       { defId: 'hum-moth', x: 9, y: 5 },
       { defId: 'chalk-wisp', x: 16, y: 10 },
-      { defId: 'bramblewhy', x: 5, y: 8 },
+      { defId: 'star-snail', x: 5, y: 8 },
     ],
     exits: [
       { x: 19, y: 1, to: 'deep-root-4', spawnX: 18, spawnY: 12 },

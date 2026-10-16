@@ -125,3 +125,18 @@ describe('bosses get angrier in their own words (#75 item 14g — "bosses should
     expect(rageLine('nobody', 'The Mystery Boss', 2)).toBe('The Mystery Boss is furious — watch out!');
   });
 });
+
+describe('the Deep Root\'s echoes (#75 item 16d)', () => {
+  const echoes = Object.values(ENEMY_DEFS).filter((e) => e.role === 'echo');
+  it('three echoes, each a boss with its own intro and last words, two levels up', () => {
+    expect(echoes.map((e) => e.id).sort()).toEqual(['echo-clockwork-titan', 'echo-thicket-warden', 'echo-tide-colossus']);
+    for (const e of echoes) {
+      expect(e.isBoss, e.id).toBe(true);
+      expect(e.levelOffset, e.id).toBe(2);
+      const script = bossScript(e)!;
+      expect(script.intro.length, e.id).toBeGreaterThan(0);
+      expect(script.defeat, e.id).toBeTruthy();
+      expect(keyForBoss(e.id), e.id).toBeUndefined();
+    }
+  });
+});

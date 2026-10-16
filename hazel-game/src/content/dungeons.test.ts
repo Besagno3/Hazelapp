@@ -13,6 +13,11 @@ import { reach } from '../lib/reach';
 import { GATE_KEYS } from './keys';
 import { SPIRE_FLOORS, spireFloorTitle } from './spire';
 import type { ZoneId } from '../types';
+import { DESCENT_TAUNTS } from './story';
+import { NPC_DEFS } from './npcs';
+import { ROOT_HEART_REACHED } from './questFlags';
+import { QUESTS } from './quests';
+import { defaultSave } from '../lib/save';
 
 const allZones = Object.values(ZONES);
 
@@ -38,9 +43,11 @@ describe('dungeons (#75 item 10)', () => {
       const onOverworld = (id: ZoneId) => allZones.some((z) => z.kind === 'overworld' && z.exits.some((e) => e.to === id));
       // A place below another place counts too (#75 item 16d: the Deep Root, down
       // from the Nameless Hall) — as long as exits lead there from the overworld.
-      const linked = (id: ZoneId) => {
-        const seen = new Set<ZoneId>(allZones.filter((z) => z.kind === 'overworld').map((z) => z.id));
-        const queue = [...seen];
+      // …walked from the overworld without going down the dungeon itself.
+      const linked = (id: ZoneId, own: ZoneId[]) => {
+        const overworlds = allZones.filter((z) => z.kind === 'overworld').map((z) => z.id);
+        const seen = new Set<ZoneId>([...overworlds, ...own]);
+        const queue = [...overworlds];
         while (queue.length) {
           for (const e of ZONES[queue.shift()!].exits) {
             if (seen.has(e.to)) continue;
@@ -48,10 +55,10 @@ describe('dungeons (#75 item 10)', () => {
             queue.push(e.to);
           }
         }
-        return seen.has(id);
+        return seen.has(id) && !own.includes(id);
       };
       if (door) {
-        expect(onOverworld(door) || (d.id === 'deep-root' && linked(door)), `${d.id}'s ${door} is a place on the overworld`).toBe(true);
+        expect(onOverworld(door) || (d.id === 'deep-root' && linked(door, d.floors)), `${d.id}'s ${door} is a place on the overworld`).toBe(true);
         expect(stairsOf(ZONES[door], stairsChars(d.goes).onward).some((e) => e.to === d.floors[0]), `${door}'s stairs lead to ${d.id}`).toBe(true);
       } else {
         expect(onOverworld(d.floors[0]), `${d.id} is entered from the overworld`).toBe(true);
@@ -138,7 +145,7 @@ describe('dungeons (#75 item 10)', () => {
 
   it('the boss waits on the deepest floor — and only there; its key names that floor', () => {
     for (const d of DUNGEONS) {
-      if (!d.boss) continue; // still being dug (the Dream Root, #75 item 16d)
+      if (!d.boss) continue; // no fight at the bottom (the Dream Root's Door; the Deep Root until 16e)
       const deepest = d.floors.at(-1)!;
       for (const id of d.floors) {
         const here = ZONES[id].enemies.some((e) => e.defId === d.boss);
@@ -164,3 +171,43 @@ describe('dungeons (#75 item 10)', () => {
     expect(SPIRE_FLOORS.every((f) => !/^Floor \d/.test(f.name))).toBe(true);
   });
 });
+
+describe('the Deep Root (#75 item 16d)', () => {
+  const d = DUNGEONS.find((x) => x.id === 'deep-root')!;
+  it("starts down the Nameless Hall's stairs, landing beside the stairs back", () => {
+    expect(d.from).toBe('nameless-hall');
+    const hall = ZONES['nameless-hall'];
+    const b1 = ZONES[d.floors[0]];
+    const down = stairsOf(hall, '>').find((e) => e.to === b1.id)!;
+    const up = stairsOf(b1, '<').find((e) => e.to === hall.id)!;
+    expect(down && up).toBeTruthy();
+    const beside = (sx: number, sy: number, tx: number, ty: number) => Math.max(Math.abs(sx - tx), Math.abs(sy - ty)) === 1;
+    expect(beside(down.spawnX, down.spawnY, up.x, up.y)).toBe(true);
+    expect(beside(up.spawnX, up.spawnY, down.x, down.y)).toBe(true);
+    // The stairs are behind the great door: shut, the Hall's way down isn't reached.
+    expect(reach(hall, { gates: 'closed' }).has(`${down.x},${down.y}`)).toBe(false);
+    expect(reach(hall, { gates: 'open' }).has(`${down.x},${down.y}`)).toBe(true);
+  });
+  it("Umbra's taunt plays on every floor of it, and nowhere else", () => {
+    expect(Object.keys(DESCENT_TAUNTS).sort()).toEqual([...d.floors].sort());
+  });
+  it("the Root's Heart's last line sets root-heart-reached", () => {
+    const lines = NPC_DEFS['root-heart'].lines;
+    const last = lines.at(-1)!;
+    expect(typeof last === 'object' && last.setFlag).toBe(ROOT_HEART_REACHED);
+    expect(ZONES[d.floors.at(-1)!].npcs.some((n) => n.defId === 'root-heart')).toBe(true);
+  });
+  it("beating every critter down it never counts toward a quest up top (16d review round 1: the Gardener's weeds)", () => {
+    const kills: Record<string, number> = {};
+    for (const id of d.floors) for (const e of ZONES[id].enemies) kills[e.defId] = 1;
+    const save = { ...defaultSave(), kills };
+    for (const q of QUESTS) for (const st of q.steps) {
+      expect(st.isComplete(save), `${q.id} ${st.id}`).toBe(defaultSaveDone(q.id, st.id));
+    }
+  });
+});
+
+function defaultSaveDone(questId: string, stepId: string): boolean {
+  const st = QUESTS.find((q) => q.id === questId)!.steps.find((s) => s.id === stepId)!;
+  return st.isComplete!(defaultSave());
+}

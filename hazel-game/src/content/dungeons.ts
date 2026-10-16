@@ -31,7 +31,7 @@ export interface DungeonDef {
    * the overworld.
    */
   from?: ZoneId;
-  /** The boss waiting on the deepest floor (an enemy def id) — none yet while a dungeon is still being dug (the Dream Root, 16d). */
+  /** The boss waiting on the deepest floor (an enemy def id) — none for a dungeon whose last floor is a place, not a fight (the Dream Root's Door; the Deep Root until Umbra Remembered, 16e). */
   boss?: string;
 }
 
@@ -44,8 +44,8 @@ export const DUNGEONS: DungeonDef[] = [
     boss: 'clockwork-titan',
   },
   {
-    // Act IV (#75 item 16a): under the Crystal Spire. Its Door is the only floor
-    // so far — the descent and Umbra Remembered come in 16d–16e.
+    // Act IV (#75 item 16a): under the Crystal Spire. Its Door is its only
+    // floor; the descent below is the Deep Root (16d).
     id: 'dream-root',
     name: 'Dream Root',
     goes: 'down',

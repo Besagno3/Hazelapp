@@ -42,6 +42,19 @@ def battle_frames(ch: Char) -> list[Image.Image]:
     return render(ch, n, ch.battle_poses or BATTLE_POSES)
 
 
+def ghostly(ch, frames):
+    """An echo (#75 item 16d review): drawn see-through — every pixel at 70%."""
+    if not ch.params.get('ghost'):
+        return frames
+    out = []
+    for f in frames:
+        f = f.convert('RGBA')
+        a = f.getchannel('A').point(lambda v: int(v * 0.7))
+        f.putalpha(a)
+        out.append(f)
+    return out
+
+
 def build(public: Path, only: set[str] | None = None) -> dict:
     """Write the sheets; return manifest data {id: {emoji, world?, battle?}}.
 
@@ -56,7 +69,7 @@ def build(public: Path, only: set[str] | None = None) -> dict:
             out.mkdir(parents=True, exist_ok=True)
         entry = {'emoji': ch.emoji}
         if ch.world:
-            fr = world_frames(ch)
+            fr = ghostly(ch, world_frames(ch))
             if write:
                 strip(fr).save(out / 'world.png', optimize=True)
             entry['world'] = {
@@ -67,7 +80,7 @@ def build(public: Path, only: set[str] | None = None) -> dict:
                 'anims': WORLD_ANIMS,
             }
         if ch.battle:
-            fr = battle_frames(ch)
+            fr = ghostly(ch, battle_frames(ch))
             if write:
                 strip(fr).save(out / 'battle.png', optimize=True)
             entry['battle'] = {

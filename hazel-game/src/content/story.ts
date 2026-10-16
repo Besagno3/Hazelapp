@@ -972,7 +972,7 @@ export const DESCENT_TAUNTS: Partial<Record<ZoneId, StoryPanel[]>> = {
     { emoji: '🌑', text: 'Every clock stopped at the same minute. The voice sounds very tired: "That was the minute I forgot her name. Mine, too."' },
   ],
   'deep-root-7': [
-    { emoji: '💜', text: 'The bottom of the Dream Root. A huge, warm root glows here like a heart, beating slowly.' },
+    { emoji: '💜', text: 'The bottom of the Deep Root. A huge, warm root glows here like a heart, beating slowly.' },
     { emoji: '🌑', text: 'No booming voice now. Just a small one, very close: "…You came all this way. Wait. Just a little longer. I\'m not ready."' },
   ],
 };
