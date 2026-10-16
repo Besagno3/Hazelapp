@@ -1,4 +1,4 @@
--- CI test for migration 0019 (#146): only an admin reads the review queue and
+-- CI test for migration 0019 (#147): only an admin reads the review queue and
 -- decides questions through the API; the decision records who made it; nobody
 -- can read or change who's an admin through the API. Any failed assertion
 -- raises and exits non-zero under `psql -v ON_ERROR_STOP=1`.

@@ -1,4 +1,4 @@
--- CI test for migration 0017 (#146): saved questions are reused within a year
+-- CI test for migration 0017 (#147): saved questions are reused within a year
 -- of the age they were written for, both ways, and one written for an older
 -- child only at or below the kid's level; without the new parameters the
 -- picker behaves as 0016's; the review queue lists a question held back by the

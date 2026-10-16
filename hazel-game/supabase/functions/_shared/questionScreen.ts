@@ -1,5 +1,5 @@
 /**
- * Screening AI questions for kids (Act I launch review B10, #146). The
+ * Screening AI questions for kids (Act I launch review B10, #147). The
  * canonical, tested copy of the block between the markers below;
  * generate-questions keeps an identical copy INLINE (single-file deploys,
  * #67), and `src/lib/questionScreen.test.ts` fails if the two ever differ.
@@ -12,7 +12,7 @@
  *      screened too.
  *   3. A blind check: another call answers each question without being told
  *      the answer and says whether it suits a child (`CHECK_SCHEMA`).
- *   4. An explanation check (#146): the blind check never sees the
+ *   4. An explanation check (#147): the blind check never sees the
  *      explanation (it would give the answer away), so a second call reads
  *      each question with its answer and explanation (`EXPLAIN_SCHEMA`).
  * `runChecks` runs 3 and 4 side by side. Every new question gets them once,
@@ -25,14 +25,14 @@
 
 // --- screen:start (identical in generate-questions/index.ts)
 /**
- * The model that writes and checks questions (#146). Claude Haiku 5.5 thinks
+ * The model that writes and checks questions (#147). Claude Haiku 5.5 thinks
  * before it answers by default, and thinking counts toward `max_tokens`, so
  * every call leaves room for it.
  */
 const MODEL = 'claude-haiku-5-5';
 /**
  * The stronger model a family's report escalates to when Haiku finds nothing
- * (#146). Reports are rare and each is one question, so the cost is small.
+ * (#147). Reports are rare and each is one question, so the cost is small.
  */
 const ESCALATION_MODEL = 'claude-opus-5-5';
 /**
@@ -103,7 +103,7 @@ const CONTACT_PATTERN =
   /(https?:\/\/|www\.|\b[\w.-]+\.(com|org|net|io|co|uk|gov|edu)\b|\S+@\S+\.\w+|\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b)/i;
 
 /**
- * Pointing at an option by its place (#146). The options are shuffled before
+ * Pointing at an option by its place (#147). The options are shuffled before
  * they're saved and again in the app, so "all of the above" or "the answer is
  * B" would point at the wrong one. "Both of these animals" passes: only a
  * phrase that ends there counts.
@@ -387,7 +387,7 @@ async function runChecks<Q extends CheckQuestion>(
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 /**
- * The check a family's report triggers (#146). Claude Haiku looks first; if it
+ * The check a family's report triggers (#147). Claude Haiku looks first; if it
  * finds a problem, the question is held back. If it finds none, the stronger
  * model decides — a parent saw something, and Haiku already passed this question
  * once. A check that can't run holds the question too (when unsure, it isn't

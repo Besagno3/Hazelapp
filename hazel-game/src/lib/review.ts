@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { errorMessage } from './errors';
 
 /**
- * The owner's question review (#146): the review queue and decisions, through
+ * The owner's question review (#147): the review queue and decisions, through
  * migration 0019's admin functions. Only a grown-up listed in `public.admins`
  * gets anything; everyone else is refused by the database, not just hidden by
  * the app.

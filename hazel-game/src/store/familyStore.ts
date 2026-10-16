@@ -94,7 +94,7 @@ interface FamilyStore {
   /** The Grown-ups area is open (from "Who's playing?"). */
   grownUpsOpen: boolean;
   /**
-   * The page was opened with `?review` (the link in a review alert, #146):
+   * The page was opened with `?review` (the link in a review alert, #147):
    * open 👪 Grown-ups, and once it's unlocked, 🛡️ Question review.
    */
   reviewRequested: boolean;
@@ -270,7 +270,7 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     }),
 }));
 
-/** Whether the page was opened from a review alert's link (`?review`, #146). */
+/** Whether the page was opened from a review alert's link (`?review`, #147). */
 function reviewLinkFollowed(): boolean {
   try {
     return new URLSearchParams(window.location.search).has('review');

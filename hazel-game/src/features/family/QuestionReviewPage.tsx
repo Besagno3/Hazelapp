@@ -13,7 +13,7 @@ const DONE: Record<ReviewDecision, string> = {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * 🛡️ Question review (#146): the owner's admin page, inside 👪 Grown-ups.
+ * 🛡️ Question review (#147): the owner's admin page, inside 👪 Grown-ups.
  * Lists what's waiting — questions held back from everyone, then ones still
  * shown with new reports — with what families reported and what the checks
  * found, and decides each: release, approve or retire. The database refuses

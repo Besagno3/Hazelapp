@@ -20,7 +20,7 @@ const fieldClass =
 /**
  * 👪 Grown-ups (#124): add, change and remove kids, set the grown-up PIN, see
  * the privacy notice, and sign out — and, for the game's owner, 🛡️ Question
- * review (#146). Opens only with the grown-up's own PIN (if they've set one)
+ * review (#147). Opens only with the grown-up's own PIN (if they've set one)
  * or their password, so a kid can't remove a sibling, sign the family out or
  * release a question.
  */

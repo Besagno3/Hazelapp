@@ -1,4 +1,4 @@
--- Migration 0019 (#146): the game's owner reviews questions in the app.
+-- Migration 0019 (#147): the game's owner reviews questions in the app.
 --
 -- Until now the review queue and review_question() (0016) were reachable only
 -- from the SQL editor (service role). The app gets an admin page, so:

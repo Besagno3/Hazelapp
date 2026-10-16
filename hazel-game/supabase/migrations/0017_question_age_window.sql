@@ -1,4 +1,4 @@
--- Migration 0017 (#146): saved questions are reused within a year of the age
+-- Migration 0017 (#147): saved questions are reused within a year of the age
 -- they were written for, both ways, and the review queue shows questions held
 -- back without a report (the bank recheck's).
 --

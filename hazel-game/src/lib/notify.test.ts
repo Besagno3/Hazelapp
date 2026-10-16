@@ -32,7 +32,7 @@ const item: ReviewItem = {
 
 const env = (vars: Record<string, string>) => (name: string) => vars[name];
 
-describe('alerts to the owner (#146)', () => {
+describe('alerts to the owner (#147)', () => {
   it("the edge function's inline copy is the canonical one, word for word (no drift)", () => {
     expect(block(sharedSource), 'markers missing in _shared/notify.ts').not.toBeNull();
     expect(block(edgeFnSource), 'markers missing in generate-questions/index.ts').not.toBeNull();

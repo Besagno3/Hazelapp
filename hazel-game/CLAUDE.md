@@ -598,16 +598,16 @@ zod, react-query. Add the package in the same change that first uses it.
   most one flavour line chosen by key (`flavor`, `QUESTION_FLAVORS`); the old
   free-text `context` is ignored. **Claude failing never reaches a kid** (B5):
   the client times out after 30 s with one retry (20 s before Haiku 5.5's
-  thinking, #146), a reply that didn't stop at
+  thinking, #147), a reply that didn't stop at
   `end_turn` (cut off, refused) counts as a failure, and the batch is filled
   from the cache (unseen first, then seen); only with nothing to give does
   the kid see a friendly "try again" (503) or, when today's budget is spent,
   "come back tomorrow" (429). Raw errors go to the log, never to the reply.
-- **Questions are screened for kids (B10, #133, #146):** four layers in the
+- **Questions are screened for kids (B10, #133, #147):** four layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
   by `questionScreen.test.ts`). **The model is Claude Haiku 5.5** (`MODEL`,
-  in the block; #146): it thinks by default and thinking counts toward
+  in the block; #147): it thinks by default and thinking counts toward
   `max_tokens`, so each call leaves room (writer 16,000, checks 8,000 /
   4,000) and sets its effort (writer and blind check `medium`, explanation
   check `low`); it takes no `temperature` / `top_p` / `top_k` and no prefill,
@@ -637,7 +637,7 @@ zod, react-query. Add the package in the same change that first uses it.
   `runChecks` (shared, with a `CallModel` each caller makes from its own client,
   `modelCaller`), and a question that passes is marked `checked_version =
   RULES_VERSION` — new ones as they're saved, **the saved bank** by
-  `supabase/scripts/recheck-questions.ts` (#146; Deno, run by the owner with
+  `supabase/scripts/recheck-questions.ts` (#147; Deno, run by the owner with
   the service-role key — dry run first, `--apply` to act), which skips anything
   already checked under the current version; failures go to `review` with the
   reason in `questions.review_note` (0017), which the queue lists among the
@@ -652,7 +652,7 @@ zod, react-query. Add the package in the same change that first uses it.
   question back (`review`); either way the note says what was found. A check
   never puts a question back. Reports no check covered (the tab closed, over the
   cap) are swept by the recheck script's `--reported` run. **The owner hears
-  about it** (#146, `_shared/notify.ts`, inline in the function between
+  about it** (#147, `_shared/notify.ts`, inline in the function between
   `// --- notify:start` / `notify:end`, drift-checked by `notify.test.ts`): email
   (Resend: `RESEND_API_KEY` + `ALERT_EMAIL_TO`, optional `ALERT_EMAIL_FROM`),
   Slack (`ALERT_SLACK_WEBHOOK_URL`) and Discord (`ALERT_DISCORD_WEBHOOK_URL`) —
@@ -662,7 +662,7 @@ zod, react-query. Add the package in the same change that first uses it.
   scheduled job — see Commands) sends `digestAlert`, everything waiting, and
   nothing when nothing is. Messages carry the question and report counts, never
   a child or a family, and link to `APP_URL/?review`. A channel that refuses is
-  logged, never fails the check. **The owner decides in the app** (#146,
+  logged, never fails the check. **The owner decides in the app** (#147,
   migration 0019): a grown-up listed in `public.admins` (added in the SQL editor;
   nobody can read or write it through the API) sees 🛡️ Question review in 👪
   Grown-ups (`QuestionReviewPage`, `lib/review.ts`): what's waiting, held back
@@ -714,7 +714,7 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter, the `age` they were written
   for). The edge function mixes cached questions with fresh ones; the cached
-  ones come from `pick_cached_questions` (migration 0015, #134; 0017, #146):
+  ones come from `pick_cached_questions` (migration 0015, #134; 0017, #147):
   the whole ±2 level band at random, leaning to less-asked, only ones written
   for a child within a year of this one, either way (`AGE_SLACK`) — and one
   written for an older child only at or below this kid's level, since a level
@@ -778,12 +778,12 @@ python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, on
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
 
-# Recheck the saved question bank against today's rules (#146) — Deno, the project's service-role key
+# Recheck the saved question bank against today's rules (#147) — Deno, the project's service-role key
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts           # dry run
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails, mark what passes
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --reported --apply   # reports no check covered yet
 
-# Question review alerts and the admin page (#146) — once, by the owner
+# Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
 #        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
 #   2. Secrets (email via Resend; Slack and Discord optional):
@@ -884,7 +884,7 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-16 — Review alerts (email, Slack, Discord) and the admin review page (#146)
+### 2026-10-16 — Review alerts (email, Slack, Discord) and the admin review page (#147)
 The owner's follow-up: hear about questions that need review, and decide them
 in the app instead of the SQL editor.
 - **Alerts** (`_shared/notify.ts`, inline in the function, drift-tested): email
@@ -905,7 +905,7 @@ in the app instead of the SQL editor.
   eleven SQL tests and the bundle twice on Postgres 16. Looked at in headless
   Chromium at 375 and 1024 px: no sideways scroll, no errors.
 
-### 2026-10-16 — Checked once, and again on a report: Haiku, then Opus (#146)
+### 2026-10-16 — Checked once, and again on a report: Haiku, then Opus (#147)
 The owner's follow-up on PR #71: existing questions checked once, new ones on
 generation, and a report triggering a check by Haiku and then a stronger model.
 - **Once:** migration 0018 adds `checked_version` / `checked_at`; new questions
@@ -927,7 +927,7 @@ generation, and a report triggering a check by Haiku and then a stronger model.
   (each claim rule fails with its line removed); the harness 84/84. 1391 green;
   lint, build, `deno check` clean; ten SQL tests and the bundle twice on Postgres 16.
 
-### 2026-10-16 — Safer questions: Haiku 5.5, an explanation check, an age window, a bank recheck (#146)
+### 2026-10-16 — Safer questions: Haiku 5.5, an explanation check, an age window, a bank recheck (#147)
 The question prompt rewrite and the seven fixes from its `/saas-code-review`.
 - **Claude Haiku 5.5** writes and checks questions (was Haiku 4.5: newer and
   about a tenth of the price per token). It thinks by default and thinking

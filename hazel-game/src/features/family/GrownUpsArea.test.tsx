@@ -143,12 +143,12 @@ describe('GrownUpsArea (#124)', () => {
     expect(setParentPin).toHaveBeenCalledWith('9090');
   });
 
-  it('the game’s owner sees 🛡️ Question review; a family doesn’t (#146)', async () => {
+  it('the game’s owner sees 🛡️ Question review; a family doesn’t (#147)', async () => {
     await unlock();
     expect(screen.queryByRole('button', { name: '🛡️ Question review' })).not.toBeInTheDocument();
   });
 
-  it('an admin opens the review page from Grown-ups, and comes back (#146)', async () => {
+  it('an admin opens the review page from Grown-ups, and comes back (#147)', async () => {
     review.isAdmin.mockResolvedValue(true);
     await unlock();
     fireEvent.click(await screen.findByRole('button', { name: '🛡️ Question review' }));
@@ -157,7 +157,7 @@ describe('GrownUpsArea (#124)', () => {
     expect(await screen.findByText('Sam')).toBeInTheDocument();
   });
 
-  it('a review link (?review) opens the review page once Grown-ups is unlocked, never before (#146)', async () => {
+  it('a review link (?review) opens the review page once Grown-ups is unlocked, never before (#147)', async () => {
     useFamilyStore.setState({ reviewRequested: true });
     auth.signInWithPassword.mockResolvedValue({ error: null });
     render(<GrownUpsArea />);

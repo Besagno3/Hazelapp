@@ -43,7 +43,7 @@ describe('flagQuestion', () => {
     });
   });
 
-  it('asks the question service to check the reported question, without waiting for it (#146)', async () => {
+  it('asks the question service to check the reported question, without waiting for it (#147)', async () => {
     insertMock.mockResolvedValue({ error: null });
     let finishCheck: (v: unknown) => void = () => {};
     invokeMock.mockReturnValue(new Promise((resolve) => (finishCheck = resolve)));
@@ -57,7 +57,7 @@ describe('flagQuestion', () => {
     finishCheck({ data: { checked: true }, error: null });
   });
 
-  it('a check that fails to start never fails the report (#146)', async () => {
+  it('a check that fails to start never fails the report (#147)', async () => {
     insertMock.mockResolvedValue({ error: null });
     invokeMock.mockRejectedValue(new Error('network down'));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -67,7 +67,7 @@ describe('flagQuestion', () => {
     warn.mockRestore();
   });
 
-  it('no check is asked for when the report itself fails (#146)', async () => {
+  it('no check is asked for when the report itself fails (#147)', async () => {
     insertMock.mockResolvedValue({ error: { message: 'permission denied', code: '42501' } });
     await expect(flagQuestion('q-1', 'difficulty')).rejects.toThrow();
     expect(invokeMock).not.toHaveBeenCalled();

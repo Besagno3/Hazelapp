@@ -31,7 +31,7 @@ beforeEach(() => {
 
 const card = (text: string) => screen.getByText(text).closest('li') as HTMLElement;
 
-describe('QuestionReviewPage (#146)', () => {
+describe('QuestionReviewPage (#147)', () => {
   it('lists what’s waiting: held back first, with the answer, the reports in words and the checks’ notes', async () => {
     render(<QuestionReviewPage onBack={onBack} />);
     expect(await screen.findByText('2 questions waiting')).toBeInTheDocument();

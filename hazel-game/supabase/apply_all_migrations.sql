@@ -1241,7 +1241,7 @@ on conflict (version) do nothing;
 -- ============================================================================
 -- 0017_question_age_window.sql
 -- ============================================================================
--- Migration 0017 (#146): saved questions are reused within a year of the age
+-- Migration 0017 (#147): saved questions are reused within a year of the age
 -- they were written for, both ways, and the review queue shows questions held
 -- back without a report (the bank recheck's).
 --
@@ -1392,7 +1392,7 @@ on conflict (version) do nothing;
 -- ============================================================================
 -- 0018_question_checks.sql
 -- ============================================================================
--- Migration 0018 (#146): every question is checked once, and a family's report
+-- Migration 0018 (#147): every question is checked once, and a family's report
 -- checks it again.
 --
 -- 1) questions.checked_version / checked_at: the rules version a question was
@@ -1491,7 +1491,7 @@ on conflict (version) do nothing;
 -- ============================================================================
 -- 0019_admin_review.sql
 -- ============================================================================
--- Migration 0019 (#146): the game's owner reviews questions in the app.
+-- Migration 0019 (#147): the game's owner reviews questions in the app.
 --
 -- Until now the review queue and review_question() (0016) were reachable only
 -- from the SQL editor (service role). The app gets an admin page, so:

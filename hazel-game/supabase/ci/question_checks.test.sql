@@ -1,4 +1,4 @@
--- CI test for migration 0018 (#146): a report claims a question for one check —
+-- CI test for migration 0018 (#147): a report claims a question for one check —
 -- only the reporting family's report since the last check counts, retired
 -- questions never, and a family over its daily cap waits; the sweep (no
 -- family) takes any unchecked report with no cap; pending_report_checks lists

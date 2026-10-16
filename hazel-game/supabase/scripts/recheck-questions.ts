@@ -1,7 +1,7 @@
-// Checks the saved question bank against today's rules, once (#146).
+// Checks the saved question bank against today's rules, once (#147).
 // ----------------------------------------------------------------------------
 // The bank is reused for every child, and most questions a kid sees come from
-// it. Questions saved before the rules (#133, #146) only ever passed the word
+// it. Questions saved before the rules (#133, #147) only ever passed the word
 // filter. This runs each one through the checks a new question gets — the
 // screen, the blind check and the explanation check, the same prompts as the
 // question service (`_shared/questionScreen.ts`) — once: a question that

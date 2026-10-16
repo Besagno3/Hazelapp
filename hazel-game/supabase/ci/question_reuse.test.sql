@@ -202,7 +202,7 @@ begin
     'a question marked shown is held back from that kid';
 end $$;
 
--- Who may call what (the picker's signature since 0017, #146).
+-- Who may call what (the picker's signature since 0017, #147).
 do $$
 begin
   assert not has_function_privilege('anon',

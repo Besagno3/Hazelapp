@@ -179,7 +179,7 @@ export async function flagQuestion(questionId: string, reason?: FlagReason): Pro
     .insert({ question_id: questionId, profile_id, reason: reason ?? null });
   if (error) throw new Error(`Couldn't flag question — ${errorMessage(error)}`);
 
-  // A report gets the question checked again (#146): Claude Haiku, then a
+  // A report gets the question checked again (#147): Claude Haiku, then a
   // stronger model if Haiku finds nothing. Not awaited — the child shouldn't
   // wait, and a check that never starts (the tab closed) is picked up later by
   // the owner's recheck script (`--reported`).

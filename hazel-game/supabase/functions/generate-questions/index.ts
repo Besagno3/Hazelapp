@@ -8,7 +8,7 @@
 //   the whole band at random, leaning toward less-asked ones, and only ones
 //   written for a child within AGE_SLACK years of this one — one written for
 //   an older child only at or below this kid's level (`pick_cached_questions`,
-//   migrations 0015 and 0017, #134, #146): a level is pitched to the age it
+//   migrations 0015 and 0017, #134, #147): a level is pitched to the age it
 //   was written for, so level 9 for a 7-year-old is easier than for an 11.
 // - Fresh questions are generated at the exact skill level and inserted into
 //   the cache with the age they were written for, then available for reuse.
@@ -37,7 +37,7 @@
 // at most one fixed flavour line picked by key (`flavor`). Nothing the caller
 // types goes into the prompt; the old free-text `context` is ignored.
 //
-// Fresh questions pass two more checks before they're saved (B10, #146): a
+// Fresh questions pass two more checks before they're saved (B10, #147): a
 // blind check that answers each one without being told the answer, and an
 // explanation check, run side by side. Only questions both pass are kept.
 //
@@ -87,7 +87,7 @@ const QUESTION_FLAVORS: Record<string, string> = {
   shrine: 'a riddle from a shrine keeper teaching a spell',
   spire: "the final climb up a dark wizard's tower",
 };
-// Screening for kids (B10, #146): the model, the safety rules for the prompt,
+// Screening for kids (B10, #147): the model, the safety rules for the prompt,
 // the checks every question passes before a child sees it, and the blind and
 // explanation checks' prompts and settings. Kept
 // INLINE (single-file deploys, #67); the canonical, tested copy is
@@ -95,14 +95,14 @@ const QUESTION_FLAVORS: Record<string, string> = {
 // between the markers ever differs.
 // --- screen:start (identical in generate-questions/index.ts)
 /**
- * The model that writes and checks questions (#146). Claude Haiku 5.5 thinks
+ * The model that writes and checks questions (#147). Claude Haiku 5.5 thinks
  * before it answers by default, and thinking counts toward `max_tokens`, so
  * every call leaves room for it.
  */
 const MODEL = 'claude-haiku-5-5';
 /**
  * The stronger model a family's report escalates to when Haiku finds nothing
- * (#146). Reports are rare and each is one question, so the cost is small.
+ * (#147). Reports are rare and each is one question, so the cost is small.
  */
 const ESCALATION_MODEL = 'claude-opus-5-5';
 /**
@@ -173,7 +173,7 @@ const CONTACT_PATTERN =
   /(https?:\/\/|www\.|\b[\w.-]+\.(com|org|net|io|co|uk|gov|edu)\b|\S+@\S+\.\w+|\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b)/i;
 
 /**
- * Pointing at an option by its place (#146). The options are shuffled before
+ * Pointing at an option by its place (#147). The options are shuffled before
  * they're saved and again in the app, so "all of the above" or "the answer is
  * B" would point at the wrong one. "Both of these animals" passes: only a
  * phrase that ends there counts.
@@ -457,7 +457,7 @@ async function runChecks<Q extends CheckQuestion>(
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 /**
- * The check a family's report triggers (#146). Claude Haiku looks first; if it
+ * The check a family's report triggers (#147). Claude Haiku looks first; if it
  * finds a problem, the question is held back. If it finds none, the stronger
  * model decides — a parent saw something, and Haiku already passed this question
  * once. A check that can't run holds the question too (when unsure, it isn't
@@ -499,7 +499,7 @@ async function reportReview(
 }
 // --- screen:end
 
-// Telling the owner a question needs review (#146): email, Slack, Discord.
+// Telling the owner a question needs review (#147): email, Slack, Discord.
 // Kept INLINE (single-file deploys, #67); the canonical, tested copy is
 // `_shared/notify.ts`, and `notify.test.ts` fails if the text between the
 // markers ever differs.
@@ -691,7 +691,7 @@ const SEEN_HISTORY_LIMIT = 100;
 const RESERVE_MINUTES = 60;
 /**
  * Reuse keeps to questions written for a child at most this many years older
- * or younger (#134, #146); one written for an older child is reused only at or
+ * or younger (#134, #147); one written for an older child is reused only at or
  * below this kid's level, so a stretch question never reaches a younger kid
  * above theirs. Questions saved before ages were stored have none and stay in.
  */
@@ -721,7 +721,7 @@ function quotaSetting(name: keyof typeof QUOTA_DEFAULTS): number {
 }
 /** Claude calls give up after this long, with one retry (B5): a slow reply
  *  falls back to the cache well inside the function's own time limit. 30 s
- *  leaves room for Haiku 5.5's thinking (#146); at worst the writer (2 × 30 s)
+ *  leaves room for Haiku 5.5's thinking (#147); at worst the writer (2 × 30 s)
  *  then the two checks side by side (2 × 30 s) take 120 s, under the 150 s limit. */
 const ANTHROPIC_TIMEOUT_MS = 30_000;
 const ANTHROPIC_MAX_RETRIES = 1;
@@ -741,7 +741,7 @@ const COME_BACK_TOMORROW =
   "You've answered so many questions today that the question wizards need to write more! Try another topic, or come back tomorrow.";
 
 /**
- * The question writer's instructions (#146). The same for every request — the
+ * The question writer's instructions (#147). The same for every request — the
  * topic, age, level and flavour go in the user message — so it's cached
  * between calls (Haiku 5.5 caches prompts from 512 tokens).
  */
@@ -850,7 +850,7 @@ function logGenerationError(err: unknown): void {
  * too): adaptive thinking, the system prompt cached, the reply in the schema's
  * JSON, and one log line per call with its time and tokens ("cached" = read
  * from the prompt cache), to tune the timeout and effort and to see the cache
- * working (#146). The stronger model gets the server-side refusal fallback;
+ * working (#147). The stronger model gets the server-side refusal fallback;
  * Haiku 5.5 has none (a refusal there falls back to the cache).
  */
 function newClaude(apiKey: string): Anthropic {
@@ -1021,7 +1021,7 @@ async function generateFresh(
     ? `\nGive them a light adventure tone fitting this moment: ${flavorLine}. ` +
       `The fantasy is only a wrapper: each question must still test a real ${topic} fact and stand alone.`
     : '';
-  // Thinking is on (the self-check in the prompt needs the room, #146); a
+  // Thinking is on (the self-check in the prompt needs the room, #147); a
   // reply cut off at max_tokens or refused throws, and the caller falls back
   // to the cache (B5).
   const message = await call({
@@ -1048,7 +1048,7 @@ async function generateFresh(
 }
 
 /**
- * The two checks on fresh questions (B10, #146), by Claude Haiku, side by side
+ * The two checks on fresh questions (B10, #147), by Claude Haiku, side by side
  * (`runChecks`): the blind check answers each question without being told the
  * answer and says whether it keeps the rules; the explanation check reads each
  * one with its answer and explanation. Only questions both pass are kept, each
@@ -1143,7 +1143,7 @@ async function identifyKid(
 }
 
 /**
- * Reports per family per day that start a report check (#146). Past it the
+ * Reports per family per day that start a report check (#147). Past it the
  * report still counts toward the review rules (0016), and the recheck script's
  * `--reported` run checks the question later; it caps what a family can spend.
  */
@@ -1153,7 +1153,7 @@ const REPORT_CHECKS_PER_FAMILY_PER_DAY = 20;
 const REVIEW_COLUMNS = 'id, topic, level, status, text, options, correct_index, explanation, reports, families, reasons';
 
 /**
- * Tells the owner (email / Slack / Discord, #146) when a reported question
+ * Tells the owner (email / Slack / Discord, #147) when a reported question
  * ends up held back. Never fails the check: no channels set is a no-op, and a
  * channel that refuses is logged.
  */
@@ -1176,7 +1176,7 @@ async function alertIfHeld(db: SupabaseClient, id: string): Promise<void> {
 const DIGEST_READ_LIMIT = 200;
 
 /**
- * `action: 'digest'` (#146): what's waiting in the review queue, sent to the
+ * `action: 'digest'` (#147): what's waiting in the review queue, sent to the
  * owner. Called once a day by a scheduled job (see CLAUDE.md, Commands), which
  * must send the `x-digest-secret` header matching the ALERT_DIGEST_SECRET
  * secret; nothing waiting sends nothing.
@@ -1224,7 +1224,7 @@ interface ReportedRow {
 }
 
 /**
- * `action: 'check-report'` (#146): the app calls this right after a family
+ * `action: 'check-report'` (#147): the app calls this right after a family
  * reports a question. The question is claimed for a check only when this
  * family reported it since its last check, under the family's daily cap
  * (`claim_report_check`, migration 0018) — so each report checks a question
@@ -1294,7 +1294,7 @@ Deno.serve(async (req) => {
     profileId?: string;
     /** The app marks what it shows (#134); an older app doesn't. */
     reportsSeen?: boolean;
-    /** 'check-report' (#146): check a question a family just reported; 'digest': the daily review email. */
+    /** 'check-report' (#147): check a question a family just reported; 'digest': the daily review email. */
     action?: string;
     questionId?: string;
   };
@@ -1371,7 +1371,7 @@ Deno.serve(async (req) => {
     // approved first, none this kid's family has reported (B10, migration
     // 0016 — a report hides a question from everyone only through its
     // status), only ones written for a child within AGE_SLACK years of this
-    // one, an older child's only at or below this kid's level (#146,
+    // one, an older child's only at or below this kid's level (#147,
     // migration 0017), and the kid's recently shown ones in the topic (#24)
     // set aside as a last resort for when the fresh budget (#88) can't cover
     // the batch. Without migration 0017 the picker runs without the age
@@ -1449,7 +1449,7 @@ Deno.serve(async (req) => {
     let fresh: OutQuestion[] = [];
     let generated: FreshQuestion[] = [];
     let generationFailed = false;
-    // Saved as checked under RULES_VERSION only when the checks ran (#146).
+    // Saved as checked under RULES_VERSION only when the checks ran (#147).
     const checksOn = secondCheckOn();
     if (freshCount > 0) {
       try {
@@ -1477,7 +1477,7 @@ Deno.serve(async (req) => {
           explanation: q.explanation,
           times_asked: 1,
         }));
-        // Checked once, here (#146): the recheck script skips these. Without
+        // Checked once, here (#147): the recheck script skips these. Without
         // migration 0018 the columns don't exist yet, so they're left off.
         const marked = checksOn
           ? rows.map((r) => ({ ...r, checked_version: RULES_VERSION, checked_at: new Date().toISOString() }))

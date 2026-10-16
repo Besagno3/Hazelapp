@@ -72,7 +72,7 @@ jobs:
       # --no-config / --node-modules-dir=none: resolve npm: imports the way the
       # Supabase runtime does, not through the app's package.json.
       - run: deno check --no-config --node-modules-dir=none generate-questions/index.ts
-      # The bank recheck (#146) shares the function's prompts and checks.
+      # The bank recheck (#147) shares the function's prompts and checks.
       - run: deno check --no-config --node-modules-dir=none ../scripts/recheck-questions.ts
 
   migrations:

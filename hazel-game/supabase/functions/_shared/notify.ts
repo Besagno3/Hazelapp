@@ -1,5 +1,5 @@
 /**
- * Telling the game's owner a question needs review (#146): by email (Resend),
+ * Telling the game's owner a question needs review (#147): by email (Resend),
  * Slack and/or Discord — every channel whose secrets are set. The canonical,
  * tested copy of the block between the markers below; generate-questions keeps
  * an identical copy INLINE (single-file deploys, #67), and

@@ -9,7 +9,7 @@ beforeEach(() => {
   rpcMock.mockReset();
 });
 
-describe('the owner’s question review (#146)', () => {
+describe('the owner’s question review (#147)', () => {
   it('isAdmin asks the database, and any failure is a no', async () => {
     rpcMock.mockResolvedValue({ data: true, error: null });
     expect(await isAdmin()).toBe(true);

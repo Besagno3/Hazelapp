@@ -1,4 +1,4 @@
--- Migration 0018 (#146): every question is checked once, and a family's report
+-- Migration 0018 (#147): every question is checked once, and a family's report
 -- checks it again.
 --
 -- 1) questions.checked_version / checked_at: the rules version a question was
