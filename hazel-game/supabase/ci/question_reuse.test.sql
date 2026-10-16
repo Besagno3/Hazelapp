@@ -202,17 +202,17 @@ begin
     'a question marked shown is held back from that kid';
 end $$;
 
--- Who may call what.
+-- Who may call what (the picker's signature since 0017, #146).
 do $$
 begin
   assert not has_function_privilege('anon',
-    'public.pick_cached_questions(text,integer,integer,integer,uuid,integer,interval,integer)', 'execute'),
+    'public.pick_cached_questions(text,integer,integer,integer,uuid,integer,interval,integer,integer,integer,integer)', 'execute'),
     'anon must not read the bank';
   assert not has_function_privilege('authenticated',
-    'public.pick_cached_questions(text,integer,integer,integer,uuid,integer,interval,integer)', 'execute'),
+    'public.pick_cached_questions(text,integer,integer,integer,uuid,integer,interval,integer,integer,integer,integer)', 'execute'),
     'a signed-in client must not read the bank';
   assert has_function_privilege('service_role',
-    'public.pick_cached_questions(text,integer,integer,integer,uuid,integer,interval,integer)', 'execute'),
+    'public.pick_cached_questions(text,integer,integer,integer,uuid,integer,interval,integer,integer,integer,integer)', 'execute'),
     'the edge function reads the bank';
   assert not has_function_privilege('anon', 'public.mark_questions_seen(uuid,uuid[])', 'execute'),
     'anon must not mark questions seen';

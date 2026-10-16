@@ -580,7 +580,7 @@ zod, react-query. Add the package in the same change that first uses it.
   twice and runs the SQL tests.
 - **CI** (`.github/workflows/ci.yml`, #81 + #88): job `test` = lint + bundle
   check + tests + build; `edge-function` = `deno check`
-  of the edge function; `migrations` applies every migration to a plain
+  of the edge function and the bank recheck script; `migrations` applies every migration to a plain
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
   `supabase/ci/*.test.sql`. A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.
@@ -597,25 +597,48 @@ zod, react-query. Add the package in the same change that first uses it.
   birth date (`ageFrom`, clamped 3–18; the caller's `age` is ignored) and at
   most one flavour line chosen by key (`flavor`, `QUESTION_FLAVORS`); the old
   free-text `context` is ignored. **Claude failing never reaches a kid** (B5):
-  the client times out after 20 s with one retry, a reply that didn't stop at
+  the client times out after 30 s with one retry (20 s before Haiku 5.5's
+  thinking, #146), a reply that didn't stop at
   `end_turn` (cut off, refused) counts as a failure, and the batch is filled
   from the cache (unseen first, then seen); only with nothing to give does
   the kid see a friendly "try again" (503) or, when today's budget is spent,
   "come back tomorrow" (429). Raw errors go to the log, never to the reply.
-- **Questions are screened for kids (B10, #133):** three layers in the
+- **Questions are screened for kids (B10, #133, #146):** four layers in the
   function, canonical in `_shared/questionScreen.ts` (an identical inline copy
   between `// --- screen:start` / `screen:end` markers, word-for-word checked
-  by `questionScreen.test.ts`): `CONTENT_RULES` in the writer's system prompt
-  (no violence, scary or sad topics, religion, politics, living or
-  controversial people, romance, medical or body-weight topics, brands,
-  links; facts only); `screenQuestion` on every fresh *and* saved question
-  (four different non-empty options, length caps, no links / emails / phone
-  numbers, a blocked-word list); and a **blind second check** — one more
-  call answers each fresh question without the answer and says whether it
-  keeps the rules (`checkFresh`, `keepChecked`): only those it agrees with are
-  served, and a failed or mismatched check keeps none (the cache fills in).
-  It asks for a third more questions than it needs to cover drops; secret
-  `QUESTION_SECOND_CHECK=off` turns the check off. **Reports** (`FlagButton`,
+  by `questionScreen.test.ts`). **The model is Claude Haiku 5.5** (`MODEL`,
+  in the block; #146): it thinks by default and thinking counts toward
+  `max_tokens`, so each call leaves room (writer 16,000, checks 8,000 /
+  4,000) and sets its effort (writer and blind check `medium`, explanation
+  check `low`); it takes no `temperature` / `top_p` / `top_k` and no prefill,
+  and a reply is read by block type (it opens with thinking blocks,
+  `replyJson`). (1) `CONTENT_RULES` — ten numbered safety rules plus fact
+  rules — in the writer's system prompt, which also pitches the level to the
+  child's age (1–3 easy for this age … 9–10 for the strongest, up to two years
+  ahead in ideas) and asks it to check its own work; every part of a question
+  is held to them, wrong options and the explanation too. (2) `screenQuestion`
+  on every fresh *and* saved question (four different non-empty options,
+  length caps, no links / emails / phone numbers, a blocked-word list, and
+  nothing pointing at an option by its place — "all of the above", "the
+  answer is B", lettered options — since the options get shuffled; a letter
+  that IS an option's text, like a music note, passes). (3) A **blind check**
+  answers each fresh question without the answer and says whether it keeps
+  the rules (`keepChecked`). (4) An **explanation check** reads each one with
+  its right answer and explanation (`keepExplained`) — the blind check never
+  sees the explanation, which would give the answer away. (3) and (4) run side
+  by side (`checkFresh`); only questions both pass are served, and a failed or
+  mismatched check keeps none (the cache fills in). The three prompts are the
+  same for every child (the age goes in the user message) and carry
+  `cache_control`, so they're cached (Haiku 5.5 caches from 512 tokens; Haiku
+  4.5 needed 4,096, so the old marker did nothing). Each call logs its time
+  and tokens (`logCall`). It asks for a third more questions than it needs to
+  cover drops; secret `QUESTION_SECOND_CHECK=off` turns both checks off.
+  **The saved bank** is rechecked by `supabase/scripts/recheck-questions.ts`
+  (#146; Deno, run by the owner with the service-role key — dry run first,
+  `--apply` to act): the same screen and checks on every active question not
+  yet reviewed; failures go to `review` with the reason in
+  `questions.review_note` (migration 0017), which the queue lists among the
+  reasons. **Reports** (`FlagButton`,
   on every question screen through `QuestionCard`, "Not OK for kids" first)
   hide a question from the reporting family; for everyone it's held back only
   through `questions.status` (migration 0016: `active` / `review` / `retired`
@@ -658,10 +681,13 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Question cache:** generated questions are stored in a Supabase `questions`
   table (level-tagged, `times_asked` counter, the `age` they were written
   for). The edge function mixes cached questions with fresh ones; the cached
-  ones come from `pick_cached_questions` (migration 0015, #134): the whole ±2
-  level band at random, leaning to less-asked, none written for a child more
-  than a year older (`AGE_SLACK`; old rows have no age and stay in), none
-  flagged. **Seen = shown (#134):** the app tells the server what was on
+  ones come from `pick_cached_questions` (migration 0015, #134; 0017, #146):
+  the whole ±2 level band at random, leaning to less-asked, only ones written
+  for a child within a year of this one, either way (`AGE_SLACK`) — and one
+  written for an older child only at or below this kid's level, since a level
+  is pitched to the age it was written for (old rows have no age and stay
+  in) — none flagged. Without 0017 the function retries the picker without
+  the age window's lower edge (logged). **Seen = shown (#134):** the app tells the server what was on
   screen (`markSeen`, `lib/seen.ts`, from `QuestionCard` and `QuizRound`, as
   `mark_questions_seen`); what the function hands over is only held back for
   an hour (`question_views.shown = false`), so prefetches don't fill a kid's
@@ -718,6 +744,10 @@ python3 tools/assets/build.py reef     # Taleshore II: the Story Reef, Inkwell C
 python3 tools/assets/build.py cay      # Shelby, Sandpiper Cay's hermit crab, only (#75 item 14i)
 python3 tools/assets/build.py intro    # the sign-in screen's intro music only (#120)
 python3 tools/assets/build.py heroes   # the five heroes only (Valor, Bastion, Talon, Kira, Selene)
+
+# Recheck the saved question bank against today's rules (#146) — Deno, the project's service-role key
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts           # dry run
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails
 ```
 
 ## Error handling
@@ -803,6 +833,40 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — Safer questions: Haiku 5.5, an explanation check, an age window, a bank recheck (#146)
+The question prompt rewrite and the seven fixes from its `/saas-code-review`.
+- **Claude Haiku 5.5** writes and checks questions (was Haiku 4.5: newer and
+  about a tenth of the price per token). It thinks by default and thinking
+  counts toward `max_tokens`, so the writer gets 16,000 (was 4,096) and the
+  checks 8,000 / 4,000 (the check had 1,024 — it would have been cut off and
+  every fresh question dropped); effort is set per call; timeout 30 s (was 20).
+- **New prompts:** ten numbered safety rules for every part of a question,
+  wrong options and explanation included (privacy, nothing a child could copy,
+  stereotypes, disputed or changing facts, facts true in one country only);
+  the writer pitches the level to the child's age with examples by age and
+  checks its own work; the blind check fails a question two options could
+  answer; both checks ignore instructions inside the questions.
+- **An explanation check** (the blind check never saw the explanation), side
+  by side with the blind check; both must pass. Their prompts are the same for
+  every child, so all three prompts are cached now.
+- **Nothing points at an option by its place** (`screenQuestion`): "all of
+  the above", "the answer is B", lettered options — the options get shuffled.
+- **History and geography** steer away from conquest, slavery, disputed
+  borders and country counts.
+- **Reuse keeps to the age** (migration 0017): within a year either way, an
+  older child's question only at or below the kid's level; without 0017 the
+  function retries the old picker.
+- **The bank recheck** (`supabase/scripts/recheck-questions.ts`): the same
+  checks over the saved bank, failures to `review` with a `review_note`, which
+  the queue now lists even with no reports.
+- ⚠️ Deploy: apply 0017, run the recheck (dry run, then `--apply`), then
+  `supabase functions deploy generate-questions`.
+- **Tests:** questionScreen.test (rewritten, 37), `question_age_window.test.sql`
+  (each rule fails with its line removed); a local harness ran the function and
+  the script against stand-in Supabase and Claude (52/52). 1383 green; lint,
+  build, `deno check` (both) clean; migrations and the bundle twice on
+  Postgres 16 with all nine SQL tests.
 
 ### 2026-10-16 — 16c review round 4: the Gardener asks even when you're done (#75 item 16c, #145j)
 The last round. Fresh code (2 low, 3 nits) and UX (1 medium, 6 low, 3 nits)
