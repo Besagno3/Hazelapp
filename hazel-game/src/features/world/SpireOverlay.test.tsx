@@ -269,6 +269,30 @@ describe('the Spire is fairer: gentler levels, an easier climb after each fall (
     expect(flags()).toEqual(before);
   });
 
+  it('a kid at level 10 gets every floor a level lower after a fall, Umbra\'s too (B4 review round 2)', async () => {
+    const { ALL_TOPICS } = await import('../../content/topics');
+    useProfileStore.setState({
+      profile: {
+        id: 'kid',
+        birthYear: 2014,
+        birthMonth: 1,
+        skillLevels: Object.fromEntries(ALL_TOPICS.map((t) => [t, 10])),
+        xp: 0,
+        powerUps: {},
+        currentStreak: 0,
+        longestStreak: 0,
+        lastPlayedOn: null,
+      },
+    });
+    start({ 'spire-falls-1': true });
+    render(<SpireOverlay hudSlot={null} />);
+    await climb();
+    const asked = vi.mocked(fetchQuestions).mock.calls.map((c) => (c as unknown as [string, number, number])[2]);
+    // Every floor and all seven of Umbra's topics: 10 on a first climb, 9 now (it was 10 again past floor 1).
+    expect(asked.length).toBe(SPIRE_FLOORS.reduce((n, f) => n + f.topics.length, 0));
+    expect(new Set(asked)).toEqual(new Set([9]));
+  }, 20000);
+
   it('clearing the Spire forgets the falls; Act IV\'s spire-cleared is set as ever', async () => {
     start({ 'spire-falls-1': true, 'spire-falls-2': true });
     render(<SpireOverlay hudSlot={null} />);

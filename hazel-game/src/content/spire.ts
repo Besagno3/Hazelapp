@@ -276,12 +276,14 @@ export function spireCandles(falls: number): number {
 }
 
 /**
- * A floor's question level: the kid's own level for the topic (`base`), plus
- * the floor's bonus, less one per fall — kept to 1–10. The floors and Umbra's
- * challenge both ask at it.
+ * A floor's question level: the kid's own level for the topic (`base`) plus
+ * the floor's bonus, kept to 1–10 — then one less per fall, never below 1.
+ * The fall comes off after the top is cut, so a kid near level 10 still gets
+ * every floor a level lower after a fall (B4 review round 2). The floors and
+ * Umbra's challenge both ask at it.
  */
 export function spireQuestionLevel(base: number, floor: SpireFloor, falls: number): number {
-  return clampLevel(base + floor.levelBonus - fallsCapped(falls));
+  return clampLevel(clampLevel(base + floor.levelBonus) - fallsCapped(falls));
 }
 
 /** Said after the intro on a climb after a fall (≤ 30 words); none on a fresh climb. */

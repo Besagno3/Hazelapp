@@ -74,6 +74,22 @@ describe('Spire climb (#55)', () => {
     expect([0, 1, 2, 3].map((n) => spireQuestionLevel(6, boss, n))).toEqual([9, 8, 7, 7]);
   });
 
+  it('a fall asks every floor a level lower for any kid, up to level 10 (B4 review round 2)', () => {
+    // A level-8+ kid's floors ran past 10, and the cut at 10 ate the fall:
+    // Umbra asked 10 again after a fall (and a level-9 kid's after two).
+    const boss = SPIRE_FLOORS[SPIRE_FLOORS.length - 1];
+    expect([0, 1, 2].map((n) => spireQuestionLevel(10, boss, n))).toEqual([10, 9, 8]);
+    expect([0, 1, 2].map((n) => spireQuestionLevel(9, boss, n))).toEqual([10, 9, 8]);
+    for (let base = 1; base <= 10; base++) {
+      for (const f of SPIRE_FLOORS) {
+        for (const n of [1, 2]) {
+          const before = spireQuestionLevel(base, f, n - 1);
+          expect(spireQuestionLevel(base, f, n), `level ${base}, ${f.name}, fall ${n}`).toBe(Math.max(1, before - 1));
+        }
+      }
+    }
+  });
+
   it('falls are save flags: counted, capped at two, forgotten on a clear (B4, #150)', () => {
     expect(SPIRE_FALL_FLAGS).toEqual(['spire-falls-1', 'spire-falls-2']);
     expect(spireFalls(undefined)).toBe(0);

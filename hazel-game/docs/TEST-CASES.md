@@ -1239,6 +1239,8 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1351 | C | ✅ | SpireOverlay | leaving on purpose a candle down (one lost on the first seal, then 🚪 Leave the Spire → 🚪 Leave → read on): the climb closes and no flag changes — no `spire-falls-1` (SpireOverlay.test; fails if `leave` records a fall) |
 | TC-1352 | U | ✅ | spire | past the cap a fall writes nothing: `flagsAfterSpireFall` with both flags gives them back unchanged, and the real climb lost with two falls leaves the save's flags as they were (spire.test, SpireOverlay.test; both fail if a third fall writes a stray flag) |
 | TC-1353 | M | ✅ | Spire | the real app (Supabase stubbed, `bench … hud` with both fall flags) at 320×568, 360×640, 375×667, 740×360 and 1024×768: six candles in the HUD row, nothing overlaps, no sideways scroll, the map on screen |
+| TC-1354 | U | ✅ | spire | for every kid level 1–10, every floor and each fall, a fall asks one level lower than the climb before (never below 1): a level-10 kid's Umbra asks 10, then 9, then 8; a level-9 kid's 10, 9, 8 (spire.test; fails when the fall comes off before the cut at 10) |
+| TC-1355 | C | ✅ | SpireOverlay | a kid at level 10 in every topic, back after one fall, climbs the real Spire to the top: every floor's and all seven of Umbra's topics are asked at 9 (SpireOverlay.test; fails with the old rule, which asked 10 past floor 1) |
 
 ## Regression cases (tied to ISSUES.md)
 

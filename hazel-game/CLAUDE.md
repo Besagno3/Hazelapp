@@ -806,6 +806,19 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-16 — B4 review round 2: a fall helps kids near level 10 too (#150)
+A fresh `/saas-code-review` (1 medium; nothing else held up). Fixed: the
+level a fall takes off was cut by the 1–10 limit, so a kid whose level plus
+the floor's bonus ran past 10 got the same riddles after a fall — Umbra
+asked 10 again for a level-8 kid after one fall, and for a level-9 kid after
+both. `spireQuestionLevel` now cuts the climb at 10 first and takes the fall
+off after, so every floor asks one level lower per fall for any kid (never
+below 1); a first climb is unchanged. Tests: spire.test (every level, floor
+and fall) and SpireOverlay.test (a level-10 kid's whole climb after a fall,
+Umbra's seven topics too, all at 9) — both fail on the old rule. Decided by
+the owner: leaving the Spire, even after losing a candle, is not a fall
+(TC-1351 keeps it). 1382 green, lint and build clean.
+
 ### 2026-10-16 — B4 review round 1: leaving isn't a fall, no stray flags (#150)
 A fresh `/saas-code-review` (3 low, 1 nit; nothing high or medium): the fall
 rules, the floors' question loading and the candle state held up. Fixed:
