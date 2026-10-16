@@ -231,9 +231,9 @@ describe("Act IV so far (#75 items 16a–16d)", () => {
       "Win Aster's Key",
       // The descent (#75 item 16d): three echoes, then the bottom.
       'Open the great door',
-      'Get past the Thicket Echo',
-      'Get past the Tide Echo',
-      'Get past the Clockwork Echo',
+      'Beat the Thicket Echo',
+      'Beat the Tide Echo',
+      'Beat the Clockwork Echo',
       "Reach the Root's Heart",
     ]);
     for (const leg of act4) expect(walkable(leg), leg.goal.title).toBe(true);
@@ -249,6 +249,10 @@ describe("Act IV so far (#75 items 16a–16d)", () => {
   it('Young Wick stands somewhere, and her memory is her own 🚩 (16b)', () => {
     expect(npcHome(ZONES, 'memory-young-wick')).not.toBeNull();
     expect(act4.find((l) => l.goal.doneFlag === stepFlag('name-young-wick'))!.goal.npc).toBe('memory-young-wick');
+  });
+  it('"Open the great door" walks right up to the door (16d review round 4)', () => {
+    const door = act4.find((l) => l.goal.title === 'Open the great door')!;
+    expect(door.target).toEqual({ zoneId: 'nameless-hall', cell: ZONES['nameless-hall'].keyGate });
   });
   it('the stairs down are walked only once the fog over them has lifted', () => {
     const down = act4[1];

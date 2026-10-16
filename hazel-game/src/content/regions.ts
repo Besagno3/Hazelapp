@@ -168,7 +168,7 @@ export function defeatTip(enemy: Pick<BattleEnemy, 'name' | 'tier' | 'eased'> & 
   }
   if (enemy.eased !== undefined) return null;
   // A boss isn't a critter (16d review round 3: an echo deep in the Deep Root).
-  if (enemy.isBoss) return "Bosses hit hard! Rest up, then try again — you'll get it.";
+  if (enemy.isBoss) return 'Bosses hit hard! When one gathers power, 🛡️ Guard — then try again!';
   return 'Critters with ! marks hit hard. Keep at it — after a couple of tries, they go easier on you!';
 }
 

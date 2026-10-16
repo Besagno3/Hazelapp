@@ -110,6 +110,9 @@ function BoatPiece({ front, reduceMotion }: { front: boolean; reduceMotion: bool
   );
 }
 
+const GROUND_SHADOW = 'drop-shadow(0 14px 10px rgba(0,0,0,0.45))';
+const GHOST_GLOW = 'drop-shadow(0 0 10px rgba(216,200,255,0.7))';
+
 /**
  * The combatants on the pseudo-3D ground plane: enemy left, hero + the active
  * companion right. Every motion comes from `fx` (`useBattleFx().stage`) and the
@@ -133,6 +136,7 @@ export function BattleStage({
   charging,
   won,
   afloat = false,
+  ghost = false,
 }: {
   fx: StageFx;
   /** Measured to fit dives to the screen (`useBattleFx` reads them in event handlers). */
@@ -155,6 +159,8 @@ export function BattleStage({
   won: boolean;
   /** A battle at sea (#75 item 14d): the hero and companion stand in Marlow's boat. */
   afloat?: boolean;
+  /** An echo (#75 item 16d review round 4): a pale glow, no ground shadow, so it reads as a ghost. */
+  ghost?: boolean;
 }) {
   const { reduceMotion } = fx;
   const bob = (y: number, duration: number) =>
@@ -181,8 +187,10 @@ export function BattleStage({
           className={isBoss ? 'text-[7rem] leading-none' : 'text-8xl leading-none'}
           style={{
             filter: charging
-              ? 'drop-shadow(0 0 12px rgba(255,90,60,0.9)) drop-shadow(0 14px 10px rgba(0,0,0,0.45))'
-              : 'drop-shadow(0 14px 10px rgba(0,0,0,0.45))',
+              ? `drop-shadow(0 0 12px rgba(255,90,60,0.9)) ${ghost ? GHOST_GLOW : GROUND_SHADOW}`
+              : ghost
+                ? GHOST_GLOW
+                : GROUND_SHADOW,
           }}
         >
           {/* knocked back a step whenever a blow lands */}

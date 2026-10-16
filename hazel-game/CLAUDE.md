@@ -381,8 +381,8 @@ zod, react-query. Add the package in the same change that first uses it.
   the deepest root and the stairs beside it.
   **The Deep Root** (#75 item 16d): seven floors down (`deep-root`, `from:
   'nameless-hall'`), echoes of three wardens (`role: 'echo'`) on B2, B4 and
-  B6, Umbra's taunt once a floor (`DESCENT_TAUNTS`), Glim's Nook on B4 (a
-  defeat on B4–B7 wakes you there), the Root's Heart at the bottom
+  B6, Umbra's taunt once a floor (`DESCENT_TAUNTS`), Glimmer's Nook on B1 and
+  Glim's Nook on B4 (a defeat on B1–B3 / B4–B7 wakes you there), the Root's Heart at the bottom
   (`root-heart-reached`); the 🚩's `boss` goal kind.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
@@ -809,6 +809,16 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — 16d review round 4: Glimmer's Nook, one Aster, beat the echoes (#75 item 16d, #146k)
+The last round. Fresh code (1 medium, 6 low, 4 nits) and UX (1 high, 4
+medium, 6 low, 3 nits) reviews, all fixed: Glimmer's Nook on B1 — a defeat on
+B1–B3 wakes you there, not back at the Door; one sleeper in a giant Root's
+Heart, and how to get home; Glim's repeat line, Lumen's tips (who tucks you
+up, Guard against bosses), Aurora and Sprout once the door is open, a kinder
+B2 taunt, the Gardener's offer; "Beat the … Echo"; routes that keep their
+first hop and name the floor; the door leg walks to the door; echoes glow in
+battle. 1385 green.
 
 ### 2026-10-16 — 16d review round 3: short ways down, one B1, a glowworm (#75 item 16d, #146j)
 Fresh code (2 medium, 1 low, 2 nits) and UX (6 medium, 5 low, 4 nits)

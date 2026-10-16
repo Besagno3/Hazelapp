@@ -283,7 +283,8 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
   if (echo) {
     return {
       kind: 'boss',
-      title: `Get past ${midSentence(ENEMY_DEFS[echo.boss].name)}`,
+      // "Beat", not "Get past": there's no way round (16d review round 4).
+      title: `Beat ${midSentence(ENEMY_DEFS[echo.boss].name)}`,
       why: echo.why,
       inside: echo.inside,
       zoneId: echo.zoneId,
@@ -817,13 +818,21 @@ export function goalDirections(
   const deep = (z: ZoneId) => dungeonFloor(z)?.dungeon.id === 'deep-root';
   if ((deep(goal.zoneId) || goal.zoneId === 'nameless-hall') && here !== 'nameless-hall' && !deep(here)) {
     const below = goal.zoneId === 'nameless-hall' ? [] : (routeSteps(zones, 'nameless-hall', goal.zoneId, undefined, flags) ?? []);
+    const end = goal.zoneId === 'nameless-hall' ? 'keep going down to the Nameless Hall' : `keep going down the Nameless Hall's stairs to ${placeName(zones[goal.zoneId])}`;
     if (here !== 'dreamroot-door' && zoneTier(here) !== zoneTier('nameless-hall')) {
       const toDoor = routeSteps(zones, here, 'dreamroot-door', at, flags, aboard) ?? [];
-      return sentence([...toDoor, goal.zoneId === 'nameless-hall' ? 'keep going down to the Nameless Hall' : "keep going down to the Nameless Hall's stairs"]);
+      // From far off (Taleshore: ~45 words, 16d review round 4), just where to head for.
+      const start = toDoor.length > 2 ? ['head for the Crystal Spire on Dawnreach, and take the stairs down to the Dream Root Door'] : toDoor;
+      return sentence([...start, end]);
     }
-    const through = (routeTo(zones, here, 'nameless-hall') ?? []).slice(1).map((h) => placeName(zones[h.from]));
+    // From a side place (Old Lumina Village, the First Classroom) its own way to
+    // the old Field first, then the run of south paths as one (16d review round 4).
+    const route = routeTo(zones, here, 'nameless-hall') ?? [];
+    const fieldAt = here === 'dreamroot-door' ? -1 : route.findIndex((h) => h.from === 'memory-field');
+    const lead = fieldAt > 0 ? (routeSteps(zones, here, 'memory-field', at, flags) ?? []) : [];
+    const through = route.slice(fieldAt > 0 ? fieldAt + 1 : 1).map((h) => placeName(zones[h.from]));
     const head = through.length ? `head down through ${through.join(' and ')} to the Nameless Hall` : 'head down to the Nameless Hall';
-    return sentence([head, ...below]);
+    return sentence([...lead, head, ...below]);
   }
   const steps = routeSteps(zones, here, goal.zoneId, at, flags, aboard) ?? [];
   // On Ember, the sea is flown over, not sailed (#75 item 15b).
@@ -984,9 +993,9 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = "In Aster's Garden, the weeds mend themselves. Hit them hard — and rest at the Lamplight Rest first!";
   } else if ((goal.kind === 'visit' && goal.doneFlag === HALL_GATE_FLAG) || (goal.kind === 'boss' && goal.boss === DEEP_ROOT_ECHOES[0].boss)) {
     // Who looks after you depends on how far down (16d review round 3).
-    tip = 'Buy potions in Lumina Village first — nobody sells them below the Spire! Up top, Keeper Aurora looks after you if you lose; further down, Glim the Glowworm does.';
+    tip = 'Buy potions in Lumina Village first — nobody sells them below the Spire! Lose down the Deep Root, and a glowworm tucks you up: Glimmer on B1, Glim on B4.';
   } else if (goal.kind === 'boss') {
-    tip = 'Lose a battle down here, and Glim the Glowworm tucks you up in her nook, halfway down the Deep Root. You can try again from there!';
+    tip = 'Lose on B1 to B3, and Glimmer the Glowworm tucks you up on B1. From the Tide Hollow (B4) down, her sister Glim does. When a boss gathers power, 🛡️ Guard!';
   } else if (goal.kind === 'visit' && goal.doneFlag === ROOT_HEART_REACHED) {
     tip = "Nothing fights at the Root's Heart — it's a quiet place. There's a save crystal there, too.";
   } else if (goal.kind === 'key' && !goal.crystal) {

@@ -1,4 +1,4 @@
-import { HUB_ZONE, ZONES, gateIdAt, innWakeCell, npcPresent, type TravelMode, type ZoneDef, type ZoneId } from '../content/zones';
+import { HUB_ZONE, ZONES, gateFlag, gateIdAt, innWakeCell, npcPresent, type TravelMode, type ZoneDef, type ZoneId } from '../content/zones';
 import { NPC_DEFS } from '../content/npcs';
 import { ENEMY_DEFS, fiendFor } from '../content/enemies';
 import { GATE_KEYS, bossDefeated, bossFlag, holdsKeysFor, keyFlag } from '../content/keys';
@@ -72,6 +72,11 @@ export function goalTarget(g: Objective): { zoneId: ZoneId; cell: Cell | null } 
     const home = npc ? npcHome(ZONES, npc) : null;
     if (!home) throw new Error(`nobody to talk to in ${g.zoneId}`);
     return { zoneId: home.zoneId, cell: { x: home.x, y: home.y } };
+  }
+  // Opening a key gate (the Nameless Hall's great door, #75 item 16d review round 4): walk up to it.
+  if (g.kind === 'visit' && g.doneFlag && !g.npc) {
+    const kg = ZONES[g.zoneId!].keyGate;
+    if (kg && g.doneFlag === gateFlag(gateIdAt(g.zoneId!, ZONES[g.zoneId!].map, kg.x, kg.y))) return { zoneId: g.zoneId!, cell: { x: kg.x, y: kg.y } };
   }
   // Arriving is enough — or arriving sets the flag (Act IV's panels on the Spire's grounds, #75 item 16a).
   if (g.kind === 'sail' || g.kind === 'fly' || (g.kind === 'visit' && (!g.doneFlag || !g.npc))) return { zoneId: g.zoneId!, cell: null };

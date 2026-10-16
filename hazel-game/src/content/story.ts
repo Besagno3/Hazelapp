@@ -957,7 +957,7 @@ export const DESCENT_TAUNTS: Partial<Record<ZoneId, StoryPanel[]>> = {
     { emoji: '🌑', text: 'A voice booms up the roots: "So! The little spark found the stairs. Turn back! Nothing down here wants to be remembered!"' },
   ],
   'deep-root-2': [
-    { emoji: '🌑', text: 'The voice again: "These thorns are full of doubts. Every one of them is yours. Do you still think you know the answers?"' },
+    { emoji: '🌑', text: 'The voice again: "These thorns are full of questions nobody answered. Turn back, little spark — they\'ll tangle you up!"' },
   ],
   'deep-root-3': [
     { emoji: '🌑', text: 'Water drips everywhere. The voice is a little quieter now: "Why do you keep coming? Nobody ever came looking for ME."' },

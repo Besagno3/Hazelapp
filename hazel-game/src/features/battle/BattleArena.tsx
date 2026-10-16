@@ -1159,6 +1159,7 @@ export default function BattleArena() {
         charging={charging}
         won={turn.kind === 'victory'}
         afloat={enemy.habitat === 'sea'}
+        ghost={enemy.role === 'echo'}
       />
 
       {/* Bottom box: commands / question / message / results */}

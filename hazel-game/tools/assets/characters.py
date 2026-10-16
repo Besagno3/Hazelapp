@@ -4763,9 +4763,10 @@ NPCS: list[Char] = [
     Char('hall-plaque-daisy', '🌼', 'nameless_stone', H(color='#d8d0c0', plaque=True, daisy=True, glow='#fff2b0')),
     Char('hall-deep-root', '🕳️', 'hall_root', H(bark='#6a4630', glow='#b89aff'), boss=True),
     # ── Act IV: the Deep Root (#75 item 16d) ──
-    Char('root-heart', '💜', 'root_heart', H(bark='#5a3a4a', glow='#d88aff'), boss=True),
+    Char('root-heart', '💜', 'root_heart', H(bark='#5a3a4a', glow='#d88aff'), boss=True, giant=True),
     # Glim the Glowworm, who keeps a nook on B4 (16d review round 2).
     Char('root-glim', '🐛', 'glowworm', H(color='#9ac85a', glow_color='#ffe680')),
+    Char('root-glimmer', '🐛', 'glowworm', H(color='#7ac8a8', glow_color='#c8f0ff')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

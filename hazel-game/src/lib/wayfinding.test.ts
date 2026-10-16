@@ -153,7 +153,7 @@ describe('nextObjective', () => {
     expect(nextObjective(keyWon)).toMatchObject({ kind: 'visit', zoneId: 'nameless-hall', title: 'Open the great door' });
     const hall = ZONES['nameless-hall'];
     const doorOpen = { ...keyWon, [gateFlag(gateIdAt('nameless-hall', hall.map, hall.keyGate!.x, hall.keyGate!.y))]: true };
-    expect(nextObjective(doorOpen)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-2', boss: 'echo-thicket-warden', title: 'Get past the Thicket Echo' });
+    expect(nextObjective(doorOpen)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-2', boss: 'echo-thicket-warden', title: 'Beat the Thicket Echo' });
     const b2 = { ...doorOpen, [bossFlag('echo-thicket-warden')]: true };
     expect(nextObjective(b2)).toMatchObject({ kind: 'boss', zoneId: 'deep-root-4', boss: 'echo-tide-colossus' });
     const b4 = { ...b2, [bossFlag('echo-tide-colossus')]: true };
@@ -683,7 +683,7 @@ describe("the Nameless Hall's 🚩 (16c review round 2, #75 item 16d)", () => {
     expect(goalDirections(ZONES, nextObjective(open), 'nameless-hall', undefined, open)).toMatch(/^Take the stairs down two floors/);
     // From up top, the way stops at the Dream Root Door (16d review round 2: it ran ~50 words).
     const far = goalDirections(ZONES, nextObjective(open), 'lumina-village', undefined, open);
-    expect(far).toMatch(/Dream Root Door, then keep going down to the Nameless Hall's stairs\.$/);
+    expect(far).toMatch(/Dream Root Door, then keep going down the Nameless Hall's stairs to the Hall of Thorns\.$/);
     // From the Door, the paths south read as one (16d review round 3: ~37 words).
     const fromDoor = goalDirections(ZONES, nextObjective(open), 'dreamroot-door', undefined, open);
     expect(fromDoor).toMatch(/^Head down through Old Lumina Field and Aster's Garden to the Nameless Hall, then take the stairs down two floors/);

@@ -98,8 +98,6 @@ export function floorTitle(zones: Record<ZoneId, ZoneDef>, zoneId: ZoneId): stri
   if (at.dungeon.floors.length === 1) return zones[zoneId].name;
   const floor = floorLabel(at.dungeon.goes, at.index);
   const name = zones[zoneId].name;
-  // "Dream Root Door · B1" — a floor named after its dungeon needs it only once.
-  if (name !== at.dungeon.name && name.startsWith(`${at.dungeon.name} `)) return `${name} · ${floor}`;
   const label = `${at.dungeon.name} · ${floor}`;
   return name === at.dungeon.name ? label : `${label} — ${name}`;
 }

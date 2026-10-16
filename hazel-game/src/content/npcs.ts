@@ -13,6 +13,8 @@ import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA
 const DEEP_ROOT_ENTERED = descentSeenFlag('deep-root-1');
 /** Set once Glim the Glowworm has said hello, in her nook on B4 (16d review round 3). */
 const MET_GLIM = 'met-glim';
+/** Set once Glimmer, Glim's sister on B1, has said hello (16d review round 4). */
+const MET_GLIMMER = 'met-glimmer';
 
 /** 4 → "Four" (up to ten — the Hall's plaques). */
 function numberWord(n: number): string {
@@ -2679,6 +2681,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: keyFlag('asters-key'),
         unlessFlag: [HALL_GATE_FLAG, DEEP_ROOT_ENTERED, ROOT_HEART_REACHED],
       },
+      { text: 'The great door is open? Then the stairs down are just past it, beside the deepest root.', ifFlag: HALL_GATE_FLAG, unlessFlag: [DEEP_ROOT_ENTERED, ROOT_HEART_REACHED] },
       { text: 'Back from the Deep Root? Rest a while.', ifFlag: DEEP_ROOT_ENTERED, unlessFlag: ROOT_HEART_REACHED },
       { text: 'You found where the humming comes from? Then she is close. Rest, little one.', ifFlag: ROOT_HEART_REACHED },
     ],
@@ -2695,7 +2698,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: "He keeps Aster's Key on his belt. Why? He says some questions take years to bloom. Why do they?", unlessFlag: keyFlag('asters-key') },
       // Down the Deep Root (#75 item 16d): its first floor's panel says you've been (16d review round 1).
       // Every state has a line (16d review round 2: with the root seen but B1 not, Sprout said nothing).
-      { text: "Why are you smiling? …Oh! You have Aster's Key! Why not go through the great door in the Nameless Hall, past the gap?", ifFlag: keyFlag('asters-key'), unlessFlag: [HALL_ROOT_SEEN, DEEP_ROOT_ENTERED, ROOT_HEART_REACHED] },
+      { text: "Why are you smiling? …Oh! You have Aster's Key! Why not go through the great door in the Nameless Hall, past the gap?", ifFlag: keyFlag('asters-key'), unlessFlag: [HALL_ROOT_SEEN, HALL_GATE_FLAG, DEEP_ROOT_ENTERED, ROOT_HEART_REACHED] },
+      { text: 'Why is the great door open now? Why are there stairs behind it? Where do they go?', ifFlag: HALL_GATE_FLAG, unlessFlag: [HALL_ROOT_SEEN, DEEP_ROOT_ENTERED, ROOT_HEART_REACHED] },
       { text: 'Why does the old root hum? Why is it lonely? Will you find out why?', ifFlag: [keyFlag('asters-key'), HALL_ROOT_SEEN], unlessFlag: ROOT_HEART_REACHED },
       { text: 'Why are there stairs under the Nameless Hall? Why do they go down so far? What hums at the bottom?', ifFlag: DEEP_ROOT_ENTERED, unlessFlag: [HALL_ROOT_SEEN, ROOT_HEART_REACHED] },
       { text: "You went ALL the way down? Why didn't you take me? …Why is it purple down there?", ifFlag: ROOT_HEART_REACHED },
@@ -2784,8 +2788,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     prop: true,
     lines: [
       'Every root in Lumina starts right here, wrapped round this warm purple glow.',
-      'Inside the glow, someone is curled up, humming in her sleep. Is it Aster? It must be… And someone else is watching from the dark.',
-      { text: '(Not yet. Come back soon: the way to her will open. 🏠 Return takes you home.)', setFlag: ROOT_HEART_REACHED },
+      // One figure, not two (16d review round 4: Umbra *was* Aster, STORY-4X §1).
+      'Inside the glow, someone is curled up, humming in her sleep. Is it Aster? Her shadow is huge and dark — and it is shivering.',
+      { text: '(Not yet. Come back soon: the way to her will open. 🏠 Return takes you home.)', ifFlag: fieldSpellFlag('return'), setFlag: ROOT_HEART_REACHED },
+      { text: '(Not yet. Come back soon: the way to her will open. The stairs go back up.)', unlessFlag: fieldSpellFlag('return'), setFlag: ROOT_HEART_REACHED },
     ],
   },
   // Glim's Nook on B4 (16d review round 2): a glowworm who tucks up beaten heroes.
@@ -2799,11 +2805,26 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     // her hello fits a hero she has just tucked up, too.
     lines: [
       { text: "Hello down there! I'm Glim. My light is small, but it's warm.", unlessFlag: MET_GLIM },
-      { text: "If a battle down here goes badly, I'll find you and tuck you up in my nook. No need to climb all the way back!", unlessFlag: MET_GLIM, setFlag: MET_GLIM },
-      { text: 'Feeling better? My light kept you warm. You can do it!', ifFlag: MET_GLIM },
+      { text: "Whenever a battle down here goes badly, I'll tuck you up in my nook — no need to climb all the way back!", unlessFlag: MET_GLIM, setFlag: MET_GLIM },
+      { text: "Back again? My light's right here whenever you need it. You can do it!", ifFlag: MET_GLIM },
       { text: 'Careful past the gap! An echo of the Tide Colossus rises out of the water there.', unlessFlag: bossFlag('echo-tide-colossus') },
     ],
     ambient: ['✨', 'glow…', 'hello?'],
+  },
+  // Glimmer's Nook on B1 (16d review round 4): Glim's sister, before the first echo.
+  'root-glimmer': {
+    id: 'root-glimmer',
+    name: 'Glimmer the Glowworm',
+    sprite: '🐛',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      { text: "Hello! I'm Glimmer. My sister Glim lives further down, past the water.", unlessFlag: MET_GLIMMER },
+      { text: "Whenever a battle up here goes badly, I'll tuck you up in my nook. Down past the Tide Hollow, Glim will.", unlessFlag: MET_GLIMMER, setFlag: MET_GLIMMER },
+      { text: "Back again? My light's right here whenever you need it. You can do it!", ifFlag: MET_GLIMMER },
+      { text: 'Careful on the next floor! An echo of the Thicket Warden stands in the gap in the thorns.', unlessFlag: bossFlag('echo-thicket-warden') },
+    ],
+    ambient: ['✨', 'glow…', 'hello!'],
   },
   'root-knot': {
     id: 'root-knot',

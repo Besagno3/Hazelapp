@@ -3317,7 +3317,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'hall-plaque-2', x: 16, y: 3 },
       { defId: 'hall-plaque-3', x: 4, y: 6 },
       { defId: 'hall-plaque-daisy', x: 16, y: 6 },
-      { defId: 'hall-deep-root', x: 13, y: 11 },
+      { defId: 'hall-deep-root', x: 12, y: 11 },
     ],
     enemies: [],
     // Aster's Key, won from the Gardener, opens it (#58's key gates).
@@ -3326,7 +3326,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 9, y: 0, to: 'asters-garden', spawnX: 9, spawnY: 12 },
       { x: 10, y: 0, to: 'asters-garden', spawnX: 10, spawnY: 12 },
       // Down the deepest root (#75 item 16d): the Deep Root's first floor.
-      // One tile off the door's path, so you pass the root on the way (16d review round 3).
+      // The stairs, with the deep root right beside them (16d review rounds 3–4).
       { x: 11, y: 11, to: 'deep-root-1', spawnX: 10, spawnY: 2 },
     ],
     shelterIn: 'dreamroot-door',
@@ -3346,12 +3346,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       '#.##.....,......##...#',
       '#.##............##.,.#',
       '#....................#',
-      '#..####.......####...#',
-      '#..#..........,..#...#',
-      '#..#..C..........#...#',
-      '#..####.......####...#',
+      '#.WWWWWWW.....####...#',
+      '#.WZFFFBW.....,..#...#',
+      '#.WTFFFFW........#...#',
+      '#.WWWDWWW.....####...#',
       '#....................#',
-      '#..,.............,...#',
+      '#..,C............,...#',
       '#....................#',
       '#...........>........#',
       '######################',
@@ -3361,9 +3361,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     solidEmoji: '🌳',
     decoEmoji: '🍄',
     spawn: { x: 10, y: 2 },
-    npcs: [],
+    // Glimmer's Nook (16d review round 4): Glim's sister's burrow, before the
+    // first echo — a defeat on B1–B3 wakes you here, not five screens up.
+    buildings: [{ id: 'glimmer-nook', name: "Glimmer's Nook", x: 2, y: 5, w: 7, h: 4, roof: 'dusk', style: 'root', sign: 'house' }],
+    shelter: { building: 'glimmer-nook', host: 'Glimmer the Glowworm' },
+    npcs: [{ defId: 'root-glimmer', x: 5, y: 6 }],
     enemies: [
-      { defId: 'faded-echo', x: 5, y: 10 },
+      { defId: 'faded-echo', x: 8, y: 11 },
       { defId: 'lost-sock-golem', x: 14, y: 3 },
       { defId: 'misplaced-key', x: 17, y: 10 },
     ],
@@ -3371,7 +3375,6 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 10, y: 1, to: 'nameless-hall', spawnX: 10, spawnY: 10 },
       { x: 12, y: 12, to: 'deep-root-2', spawnX: 3, spawnY: 1 },
     ],
-    shelterIn: 'dreamroot-door',
   },
   'deep-root-2': {
     id: 'deep-root-2',
@@ -3410,7 +3413,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 2, y: 1, to: 'deep-root-1', spawnX: 12, spawnY: 11 },
       { x: 19, y: 12, to: 'deep-root-3', spawnX: 18, spawnY: 1 },
     ],
-    shelterIn: 'dreamroot-door',
+    shelterIn: 'deep-root-1',
   },
   'deep-root-3': {
     id: 'deep-root-3',
@@ -3448,7 +3451,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { x: 19, y: 1, to: 'deep-root-2', spawnX: 18, spawnY: 12 },
       { x: 2, y: 12, to: 'deep-root-4', spawnX: 3, spawnY: 1 },
     ],
-    shelterIn: 'dreamroot-door',
+    shelterIn: 'deep-root-1',
   },
   'deep-root-4': {
     id: 'deep-root-4',

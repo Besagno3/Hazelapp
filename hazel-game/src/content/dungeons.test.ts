@@ -235,7 +235,11 @@ describe("Glim's Nook (16d review round 2)", () => {
       expect(wakeAfterDefeat({ lastRest: null, zoneId: z }).zoneId, z).toBe('deep-root-4');
       expect(wakeShelter({ zoneId: z })?.line, z).toMatch(/Glim the Glowworm/);
     }
-    for (const z of ['deep-root-1', 'deep-root-2', 'deep-root-3'] as const) expect(wakeAfterDefeat({ lastRest: null, zoneId: z }).zoneId, z).toBe('dreamroot-door');
+    // …and on B1–B3 in Glimmer's Nook on B1 (16d review round 4: the Door was a long, dangerous walk back).
+    for (const z of ['deep-root-1', 'deep-root-2', 'deep-root-3'] as const) {
+      expect(wakeAfterDefeat({ lastRest: null, zoneId: z }).zoneId, z).toBe('deep-root-1');
+      expect(wakeShelter({ zoneId: z })?.line, z).toMatch(/Glimmer the Glowworm/);
+    }
     const b4 = ZONES['deep-root-4'];
     const pos = wakeAfterDefeat({ lastRest: null, zoneId: 'deep-root-4' }).pos!;
     const wake = { x: Math.floor(pos.x / 32), y: Math.floor(pos.y / 32) };
