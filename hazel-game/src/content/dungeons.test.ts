@@ -8,7 +8,7 @@ import {
   floorTitle,
   stairsChars,
 } from './dungeons';
-import { HALL_GATE_FLAG, STAIRS_CHARS, ZONES, tileAt, type ZoneDef } from './zones';
+import { HALL_GATE_FLAG, STAIRS_CHARS, ZONES, npcPresent, tileAt, type ZoneDef } from './zones';
 import { wakeAfterDefeat, wakeShelter } from '../lib/save';
 import { reach, touches } from '../lib/reach';
 import { GATE_KEYS, keyFlag } from './keys';
@@ -16,7 +16,7 @@ import { SPIRE_FLOORS, spireFloorTitle } from './spire';
 import type { ZoneId } from '../types';
 import { DESCENT_TAUNTS, descentSeenFlag } from './story';
 import { NPC_DEFS, lineText, visibleLines } from './npcs';
-import { HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED } from './questFlags';
+import { HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, UMBRA_NAMED } from './questFlags';
 import { QUESTS } from './quests';
 
 const allZones = Object.values(ZONES);
@@ -191,11 +191,16 @@ describe('the Deep Root (#75 item 16d)', () => {
   it("Umbra's taunt plays on every floor of it, and nowhere else", () => {
     expect(Object.keys(DESCENT_TAUNTS).sort()).toEqual([...d.floors].sort());
   });
-  it("the Root's Heart's last line sets root-heart-reached", () => {
-    const lines = NPC_DEFS['root-heart'].lines;
-    const last = lines.at(-1)!;
+  it("the Root's Heart's first talk sets root-heart-reached, and its shadow stands up (#75 item 16e)", () => {
+    const first = visibleLines(NPC_DEFS['root-heart'].lines, {});
+    const last = first.at(-1)!;
     expect(typeof last === 'object' && last.setFlag).toBe(ROOT_HEART_REACHED);
     expect(ZONES[d.floors.at(-1)!].npcs.some((n) => n.defId === 'root-heart')).toBe(true);
+    // Umbra stands in front of the Heart from then until her name is said.
+    const umbra = ZONES['deep-root-7'].npcs.find((n) => n.defId === 'umbra-remembered')!;
+    expect(npcPresent(umbra, {})).toBe(false);
+    expect(npcPresent(umbra, { [ROOT_HEART_REACHED]: true })).toBe(true);
+    expect(npcPresent(umbra, { [ROOT_HEART_REACHED]: true, [UMBRA_NAMED]: true })).toBe(false);
   });
   it("no critter down it is one a quest asks you to beat (16d review round 1: the Gardener's weeds stood on B2, B4, B5)", () => {
     const wanted = new Set(QUESTS.flatMap((q) => q.steps.flatMap((st) => st.defeats ?? [])));

@@ -981,3 +981,58 @@ export const DESCENT_TAUNTS: Partial<Record<ZoneId, StoryPanel[]>> = {
 export function descentSeenFlag(zoneId: ZoneId): string {
   return `descent-seen:${zoneId}`;
 }
+
+// --- The Name (#75 item 16e) -------------------------------------------------
+
+/** Set once the name panels and the post-credits have played. */
+export const NAME_SEEN = 'name-seen';
+
+/**
+ * The name said out loud at the Root's Heart (STORY-4X §6): the question, the
+ * answer, the unravelling into 🌼. Warm, never scary — she is saved by being
+ * remembered, not by strength.
+ */
+export function namePanels(heroName: string): StoryPanel[] {
+  return [
+    {
+      emoji: '🌑',
+      text: '"Aster," you say. The whole Deep Root goes still. Even the humming stops.',
+    },
+    {
+      emoji: '🌑',
+      text: 'Umbra stares at you. "Aster…" he whispers, trying it out. "Aster. That was… that was ME."',
+    },
+    {
+      emoji: '✨',
+      text: 'The shadow loosens like a knot coming undone. Bits of dark float up and turn into little lights.',
+    },
+    {
+      emoji: '🌼',
+      text: 'Where Umbra stood, a woman with golden hair blinks in the glow. A daisy is tucked behind her ear.',
+    },
+    {
+      emoji: '🌼',
+      text: `"Everyone stopped asking me things," Aster says softly. "So I forgot who I was. But you remembered, ${heroName}. Thank you."`,
+    },
+    {
+      emoji: '💛',
+      text: "The Root's Heart turns from purple to gold. High above, every root in Lumina glows warm — all the way up to the Spire.",
+    },
+  ];
+}
+
+/** After the name: Aster at home again (the post-credits, STORY-4X §6). */
+export const POST_CREDITS_PANELS: StoryPanel[] = [
+  {
+    emoji: '🏫',
+    text: 'Some days later, in the First Classroom, a teacher with a daisy in her hair rings the Lesson Bell. It doesn\'t even apologize.',
+  },
+  {
+    emoji: '🧚',
+    text: '"Ask me anything!" Aster tells her class. Wisp sits on her shoulder, giggling at every single "why?".',
+  },
+  {
+    emoji: '🏛️',
+    text: 'On Remembrance Hill, Keeper Mnem carves the last name. The Hall of Names has no blank plaques now. Aster waits there to thank you.',
+  },
+];

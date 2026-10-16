@@ -8,6 +8,7 @@ import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { ZONES, innOf } from '../../content/zones';
 import ShrineTrial from './ShrineTrial';
+import NameFinale from './NameFinale';
 import { shuffleAnswers } from '../../lib/questions';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
@@ -29,6 +30,7 @@ const SERVICE_LABEL: Record<ServiceType, string> = {
   library: 'Library',
   sage: 'Sage',
   trial: 'Shrine trial',
+  name: 'Umbra Remembered',
 };
 
 export default function ServiceOverlay({
@@ -50,6 +52,7 @@ export default function ServiceOverlay({
         {service === 'library' && <Library />}
         {service === 'sage' && <Sage npcId={npcId} />}
         {service === 'trial' && <ShrineTrial npcId={npcId} />}
+        {service === 'name' && <NameFinale />}
         <button
           onClick={() => sendFlow({ type: 'CLOSE' })}
           className="mt-5 w-full bg-white/15 hover:bg-white/25 font-semibold rounded-lg py-2 text-sm"

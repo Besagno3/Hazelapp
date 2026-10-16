@@ -130,7 +130,7 @@ describe('Umbra, the final boss', () => {
     for (const [id, def] of Object.entries(SPRITES)) {
       if (id === 'umbra') continue;
       // The Root's Heart is a place, not a character: as big as he is (16d review round 4).
-      if (id === 'root-heart') {
+      if (id.startsWith('root-heart')) {
         expect(umbra.world!.frameW).toBeGreaterThanOrEqual(def.world!.frameW);
         continue;
       }

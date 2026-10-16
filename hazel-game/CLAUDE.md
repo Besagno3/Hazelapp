@@ -384,6 +384,11 @@ zod, react-query. Add the package in the same change that first uses it.
   B6, Umbra's taunt once a floor (`DESCENT_TAUNTS`), Glimmer's Nook on B1 and
   Glim's Nook on B4 (a defeat on B1–B3 / B4–B7 wakes you there), the Root's Heart at the bottom
   (`root-heart-reached`); the 🚩's `boss` goal kind.
+  **The Name** (#75 item 16e): Umbra Remembered steps out of the Root's
+  Heart (role `finale` → service `name`, `NameFinale`): the Spire's question
+  gauntlet (`lib/gauntlet.ts`, `Candles`) of five topics, then "What was my
+  name?" — "Aster" sets `umbra-named` (`namePanels`, `POST_CREDITS_PANELS`);
+  Sage Aster stands in the Hall of Names after.
   **The sea** (#75 item 14): travel modes are `foot` / `boat`
   (`lib/travel.ts`: `passable`, `canLand`, `BOAT_SPEED` 1.5×). The boat
   sails open sea ('~') only and goes ashore at a beach (':') or a dock ('|',
@@ -715,6 +720,7 @@ python3 tools/assets/build.py roost    # the Dragon's Roost: its tiles and the r
 python3 tools/assets/build.py taleshore # Taleshore + Port Lantern: tiles, the harbor sheet, the harbor icon, its people and quest board (#75 item 15c)
 python3 tools/assets/build.py isles    # Taleshore I: Driftwood Shallows, the Wayfinder Isles, Gale Atoll — tiles, the kite sheet, icons, critters, warden, people (#75 item 15d)
 python3 tools/assets/build.py chart    # Chartmaker's Rest: tiles, the chart sheet, its icon, its people (#75 item 15h)
+python3 tools/assets/build.py name      # the Name: the gold Root's Heart and Sage Aster only (#75 item 16e)
 python3 tools/assets/build.py descent   # the Deep Root: seven floors' tiles, critters, the echoes, the Root's Heart (#75 item 16d)
 python3 tools/assets/build.py garden    # Aster's Garden + the Nameless Hall: two zones' tiles, critters, the Gardener, plaques, the deep root (#75 item 16c)
 python3 tools/assets/build.py lumina    # Lumina-That-Was: three zones' tiles, the school sheet, its critters and people (#75 item 16b)
@@ -809,6 +815,23 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — The Name: Umbra Remembered at the Root's Heart (#75 item 16e, #147)
+Roadmap sub-item 16e (branch stacked on 16d's).
+- **Umbra Remembered** steps out of the Root's Heart once it's reached (role
+  `finale` → service `name`, `NameFinale`): five questions from five topics at
+  the hero's level +2, three candles (a miss snuffs one; the last sends you up
+  to Glim's Nook, healed), then "What was my name?" — a wrong name costs
+  nothing, "Aster" sets `umbra-named` and pays 600 XP once.
+- **The Spire's gauntlet, shared:** `lib/gauntlet.ts` (`loadGauntlet`,
+  `candleLine`, `shuffle`) and `components/Candles.tsx`; `SpireOverlay` uses them.
+- **`namePanels(heroName)`** (6) and the post-credits (3), `name-seen`.
+- **After:** a gold Heart, Sage Aster in the Hall of Names, Mnem, Aurora and
+  Sprout notice; the 🚩's "Say her name to Umbra", then Explore; Lumen's plan
+  and tip.
+- **Art:** `python3 tools/assets/build.py name`.
+- **Tests:** +14 (finale, gauntlet, NameFinale, WorldScreen.ending, dungeons,
+  wayfinding, journey); 1399 green, lint and tsc clean.
 
 ### 2026-10-16 — 16d review round 4: Glimmer's Nook, one Aster, beat the echoes (#75 item 16d, #146k)
 The last round. Fresh code (1 medium, 6 low, 4 nits) and UX (1 high, 4

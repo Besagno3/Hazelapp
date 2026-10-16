@@ -5,7 +5,8 @@ import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import ModalLayer from '../../components/ModalLayer';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
-import { fetchQuestions } from '../../lib/questions';
+import { candleLine, loadGauntlet } from '../../lib/gauntlet';
+import { Candles } from '../../components/Candles';
 import { errorMessage } from '../../lib/errors';
 import { clampLevel, playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
@@ -213,23 +214,14 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   function loadFloor(i: number) {
     const f = SPIRE_FLOORS[i];
     setPhase({ kind: 'loading' });
-    const perTopic = Math.ceil(f.questions / f.topics.length);
     // Each topic asks at the player's own question level for it (the age
-    // baseline if they haven't played it yet), plus the floor's climb.
+    // baseline if they haven't played it yet), plus the floor's climb. Every
+    // seal (and every step of Umbra's challenge) needs a question — a short
+    // batch would leave a seal that can never break (`loadGauntlet` refuses it).
     const levelFor = (t: Topic) => clampLevel(skillLevelFor(profile?.skillLevels ?? {}, t, age) + f.levelBonus + 1);
-    Promise.all(
-      f.topics.map((t) =>
-        fetchQuestions(t, age, levelFor(t), perTopic, 'spire'),
-      ),
-    )
-      .then((batches) => {
-        const pool = shuffle(batches.flat());
-        // Every seal (and every step of Umbra's challenge) needs a question —
-        // a short batch would leave a seal that can never break.
-        if (pool.length < f.questions) {
-          throw new Error(`only ${pool.length} of ${f.questions} riddles came back for this floor.`);
-        }
-        setQuestions(pool.slice(0, f.questions));
+    loadGauntlet({ topics: f.topics, count: f.questions, age, levelFor, flavor: 'spire' })
+      .then((pool) => {
+        setQuestions(pool);
         setPhase(
           f.isBoss
             ? {
@@ -268,7 +260,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     }
     setPhase({
       kind: 'message',
-      text: `A candle snuffs out — the dark creeps closer. ${remaining} light${remaining === 1 ? '' : 's'} left!`,
+      text: candleLine(remaining),
       next: then,
     });
   }
@@ -351,15 +343,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
 
   if (!save) return null;
 
-  const candles = (
-    <span title="Candle-lights" className="text-sm whitespace-nowrap" role="img" aria-label={`${lives} of ${SPIRE_LIVES} candle-lights left`}>
-      {Array.from({ length: SPIRE_LIVES }).map((_, i) => (
-        <span key={i} aria-hidden className={i < lives ? '' : 'opacity-25 grayscale'}>
-          🕯️
-        </span>
-      ))}
-    </span>
-  );
+  const candles = <Candles lit={lives} total={SPIRE_LIVES} />;
 
   // Exploring: just a slim HUD over the map — the world stays playable.
   if (phase.kind === 'explore' && floor) {
@@ -617,14 +601,4 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
       </motion.div>
     </ModalLayer>
   );
-}
-
-/** Fisher-Yates — fair shuffle of the floor's combined question pool. */
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }

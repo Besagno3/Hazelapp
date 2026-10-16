@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import WorldCanvas, { type Travel } from './WorldCanvas';
@@ -80,6 +80,9 @@ import {
   ACT4_PANELS,
   ACT4_SEEN,
   WISP_FACE_PANELS,
+  NAME_SEEN,
+  POST_CREDITS_PANELS,
+  namePanels,
   WISP_FACE_SEEN,
   ACT3_PANELS,
   ACT3_SEEN,
@@ -94,7 +97,7 @@ import {
 import { canFlyOver } from '../../lib/travel';
 import { HALL_DEDICATED } from '../../content/spells';
 import { activeEscort, arrivalFlags, escortsAway, escortsBackLines } from '../../content/quests';
-import { BLANK_CHART_HELD, NAME_LEARNED, POSY_WALK, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
+import { BLANK_CHART_HELD, NAME_LEARNED, POSY_WALK, UMBRA_NAMED, escortsBack, stepFlag, withoutEscorts } from '../../content/questFlags';
 import { FIRST_VOYAGE_SEEN, GREAT_FOGBANK, boatOnReturn, boatSpot } from '../../content/boat';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import LevelBadge from '../../components/LevelBadge';
@@ -314,6 +317,11 @@ export default function WorldScreen() {
     zoneId === 'crystal-spire' && flags[BLANK_CHART_HELD] === true && flags[CHART_SEEN] === true && !flags[ACT4_SEEN] && overlay !== 'spire';
   // Say Her Name (#75 item 16a): Wisp's new face, as Wisp's talk closes.
   const wispFaceDue = flags[NAME_LEARNED] === true && !flags[WISP_FACE_SEEN] && overlay === null;
+  // The Name (#75 item 16e): the name said, then the post-credits — as the finale closes.
+  const nameDue = flags[UMBRA_NAMED] === true && !flags[NAME_SEEN] && overlay === null;
+  // One list for the whole story (a new one each render would start it over).
+  const heroName = avatar?.name ?? '';
+  const nameScene = useMemo(() => [...namePanels(heroName), ...POST_CREDITS_PANELS], [heroName]);
 
   const activeScene:
     | 'spireVictory'
@@ -340,6 +348,7 @@ export default function WorldScreen() {
     | 'chart'
     | 'act4'
     | 'wispFace'
+    | 'name'
     | null = spireVictoryDue
     ? 'spireVictory'
     : introDue
@@ -388,7 +397,9 @@ export default function WorldScreen() {
                                       ? 'act4'
                                       : wispFaceDue
                                         ? 'wispFace'
-                                        : null;
+                                        : nameDue
+                                          ? 'name'
+                                          : null;
   const cutscene = activeScene !== null;
 
   // 🐉 Fly / 🛬 Land is offered (#75 item 15b): over an overworld map once
@@ -448,7 +459,7 @@ export default function WorldScreen() {
   }, [zoneId]);
 
   useEffect(() => {
-    if (activeScene === 'ending' || activeScene === 'spireVictory')
+    if (activeScene === 'ending' || activeScene === 'spireVictory' || activeScene === 'name')
       confetti({ particleCount: 320, spread: 130, origin: { y: 0.4 }, disableForReducedMotion: true });
     else if (activeScene === 'crystal')
       confetti({ particleCount: 160, spread: 100, origin: { y: 0.4 }, disableForReducedMotion: true });
@@ -936,6 +947,13 @@ export default function WorldScreen() {
       )}
       {activeScene === 'act4' && (
         <StoryPanels panels={ACT4_PANELS} doneLabel="🌳 Look below" onDone={() => setFlag(ACT4_SEEN)} />
+      )}
+      {activeScene === 'name' && (
+        <StoryPanels
+          panels={nameScene}
+          doneLabel="🌼 Thank you, Aster"
+          onDone={() => setFlag(NAME_SEEN)}
+        />
       )}
       {activeScene === 'wispFace' && (
         <StoryPanels panels={WISP_FACE_PANELS} doneLabel="🌼 Aster!" onDone={() => setFlag(WISP_FACE_SEEN)} />

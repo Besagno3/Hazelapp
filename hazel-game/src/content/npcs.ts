@@ -4,7 +4,7 @@ import { fieldSpellFlag } from './fieldSpells';
 import { bossFlag, keyFlag } from './keys';
 import { BOAT_MENDED } from './boat';
 import { handedOverFlag, questOfferedFlag } from './quests';
-import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
+import { BELL_QUEST, BELL_SLATES, BLANK_CHART_HELD, BLANK_CHART_QUEST, CODA_QUEST, HALL_ROOT_SEEN, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, JUNO_CAME, JUNO_QUEST, RESO_QUEST, RESO_STONES, SHUSH_QUEST, YARN_QUEST, YARN_STONES, POSY_QUEST, POSY_SAILED, POSY_WALK, escortWalkingFlag, questDoneFlag, stepFlag } from './questFlags';
 import { actCrystals, crystalFlag } from './topics';
 import { HALL_DEDICATED } from './spells';
 import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, HALL_CALLED, MET_GALE, MET_ROOT_AURORA, WISP_STIRRING, descentSeenFlag } from './story';
@@ -44,8 +44,11 @@ export type DialogueLine =
       setFlag?: string;
     };
 
-/** `keeper`: a shrine keeper, who teaches a field spell by a short trial (#75 item 9). */
-export type NpcRole = 'villager' | 'sage' | 'merchant' | 'innkeeper' | 'librarian' | 'keeper';
+/**
+ * `keeper`: a shrine keeper, who teaches a field spell by a short trial (#75 item 9).
+ * `finale`: Umbra Remembered, whose questions end at the name (#75 item 16e).
+ */
+export type NpcRole = 'villager' | 'sage' | 'merchant' | 'innkeeper' | 'librarian' | 'keeper' | 'finale';
 
 export interface WorldNpcDef {
   id: string;
@@ -168,6 +171,7 @@ export const ROLE_SERVICE: Partial<Record<NpcRole, ServiceType>> = {
   innkeeper: 'inn',
   librarian: 'library',
   keeper: 'trial',
+  finale: 'name',
 };
 
 export const NPC_DEFS: Record<string, WorldNpcDef> = {
@@ -1473,6 +1477,22 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     ambient: ['*hums at the sky*', 'Clear skies tonight?', '🌙'],
   },
   // ── Act II: Remembrance Hill (#75 item 14e) ──
+  // The Name (#75 item 16e): Aster, home in the Hall of Names once her name is
+  // said — a Sage of the Hall, beside Keeper Mnem.
+  'hall-aster': {
+    id: 'hall-aster',
+    name: 'Sage Aster',
+    sprite: '🌼',
+    role: 'villager',
+    stationary: true,
+    lines: [
+      { text: "There you are! I hoped you'd come. I'm Aster — the very first Sage. Thanks to you, I remember that now.", unlessFlag: 'met-hall-aster', setFlag: 'met-hall-aster' },
+      { text: 'I used to answer every question in Lumina. Then the questions got hard, and people stopped asking… and I stopped being me.', unlessFlag: 'met-hall-aster' },
+      'Never stop asking "why?", little spark. A question is just a door that hasn\'t opened yet.',
+      'Keeper Mnem carved my name himself. He polishes it every morning. Twice, when he thinks nobody\'s looking.',
+    ],
+    ambient: ['🌼', 'Ask me anything!', 'Why? Why not!'],
+  },
   'hill-keeper': {
     id: 'hill-keeper',
     name: 'Keeper Mnem',
@@ -1503,7 +1523,9 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       // Plants the first Sage, for Wick's and Lumen's breadcrumbs.
       { text: 'These plaques are still blank — even the very first Sage\'s. Names nobody remembers… yet.', unlessFlag: crystalFlag('words') },
       { text: "The crystal said \"she\"? Then the first blank plaque belongs to a SHE. Still no name… yet.", ifFlag: crystalFlag('words'), unlessFlag: NAME_LEARNED },
-      { text: 'Aster. I shall carve it on the first plaque myself — and polish it every single day.', ifFlag: NAME_LEARNED },
+      { text: 'Aster. I shall carve it on the first plaque myself — and polish it every single day.', ifFlag: NAME_LEARNED, unlessFlag: UMBRA_NAMED },
+      // The Name (#75 item 16e): no blank plaques now.
+      { text: 'I carved it myself: ASTER, on the first plaque. Not one plaque in this Hall is blank now. Not ONE!', ifFlag: UMBRA_NAMED },
       // The dedication (#75 item 14i): Memory's plaque lights itself, and Mnem
       // calls you in — the panels play as his talk closes (WorldScreen).
       {
@@ -2683,7 +2705,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       { text: 'The great door is open? Then the stairs down are just past it, beside the deepest root.', ifFlag: HALL_GATE_FLAG, unlessFlag: [DEEP_ROOT_ENTERED, ROOT_HEART_REACHED] },
       { text: 'Back from the Deep Root? Rest a while.', ifFlag: DEEP_ROOT_ENTERED, unlessFlag: ROOT_HEART_REACHED },
-      { text: 'You found where the humming comes from? Then she is close. Rest, little one.', ifFlag: ROOT_HEART_REACHED },
+      { text: 'You found where the humming comes from? Then she is close. Rest, little one.', ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
+      { text: 'Every lamp down here burns gold now. You said her name, didn\'t you? Thank you, little one.', ifFlag: UMBRA_NAMED },
     ],
   },
   // --- Aster's Garden + the Nameless Hall (#75 item 16c) ---------------------
@@ -2702,7 +2725,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'Why is the great door open now? Why are there stairs behind it? Where do they go?', ifFlag: HALL_GATE_FLAG, unlessFlag: [HALL_ROOT_SEEN, DEEP_ROOT_ENTERED, ROOT_HEART_REACHED] },
       { text: 'Why does the old root hum? Why is it lonely? Will you find out why?', ifFlag: [keyFlag('asters-key'), HALL_ROOT_SEEN], unlessFlag: ROOT_HEART_REACHED },
       { text: 'Why are there stairs under the Nameless Hall? Why do they go down so far? What hums at the bottom?', ifFlag: DEEP_ROOT_ENTERED, unlessFlag: [HALL_ROOT_SEEN, ROOT_HEART_REACHED] },
-      { text: "You went ALL the way down? Why didn't you take me? …Why is it purple down there?", ifFlag: ROOT_HEART_REACHED },
+      { text: "You went ALL the way down? Why didn't you take me? …Why is it purple down there?", ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
+      { text: 'Why is everything glowing gold? Why is the Gardener crying happy tears? …Was it you? WHY was it you?', ifFlag: UMBRA_NAMED },
     ],
     ambient: ['why?', 'why?!', '…why?'],
   },
@@ -2777,8 +2801,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       { text: 'Far, far below, something hums a tune with no words. It sounds lonely. The stairs go all the way down.', setFlag: HALL_ROOT_SEEN },
     ],
   },
-  // The Root's Heart (#75 item 16d): the bottom of the Deep Root. Who hums
-  // there waits for 16e; reaching it sets ROOT_HEART_REACHED.
+  // The Root's Heart (#75 item 16d): the bottom of the Deep Root. Reaching it
+  // sets ROOT_HEART_REACHED, and the shadow inside stands up (#75 item 16e).
   'root-heart': {
     id: 'root-heart',
     name: "The Root's Heart",
@@ -2786,12 +2810,36 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     prop: true,
+    // Gold once her name is said (16e).
+    face: { flag: UMBRA_NAMED, spriteId: 'root-heart-gold', sprite: '💛' },
     lines: [
-      'Every root in Lumina starts right here, wrapped round this warm purple glow.',
+      { text: 'Every root in Lumina starts right here, wrapped round this warm purple glow.', unlessFlag: ROOT_HEART_REACHED },
       // One figure, not two (16d review round 4: Umbra *was* Aster, STORY-4X §1).
-      'Inside the glow, someone is curled up, humming in her sleep. Is it Aster? Her shadow is huge and dark — and it is shivering.',
-      { text: '(Not yet. Come back soon: the way to her will open. 🏠 Return takes you home.)', ifFlag: fieldSpellFlag('return'), setFlag: ROOT_HEART_REACHED },
-      { text: '(Not yet. Come back soon: the way to her will open. The stairs go back up.)', unlessFlag: fieldSpellFlag('return'), setFlag: ROOT_HEART_REACHED },
+      {
+        text: 'Inside the glow, someone is curled up, humming in her sleep. Is it Aster? Her shadow is huge and dark — and it is shivering.',
+        unlessFlag: ROOT_HEART_REACHED,
+      },
+      { text: 'The humming stops. The great dark shadow uncurls, steps out of the glow… and turns to look at you.', unlessFlag: ROOT_HEART_REACHED, setFlag: ROOT_HEART_REACHED },
+      { text: 'The glow is empty now. Its shadow stands just in front of it, waiting for you.', ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
+      { text: "The Root's Heart glows gold. Someone has left a daisy on it. 🌼", ifFlag: UMBRA_NAMED },
+      { text: "Aster has gone up to the Hall of Names on Remembrance Hill. 🏠 Return takes you there in no time.", ifFlag: [UMBRA_NAMED, fieldSpellFlag('return')] },
+      { text: 'Aster has gone up to the Hall of Names on Remembrance Hill. The stairs go back up.', ifFlag: UMBRA_NAMED, unlessFlag: fieldSpellFlag('return') },
+    ],
+  },
+  // Umbra Remembered (#75 item 16e): the shadow of the Root's Heart. Never
+  // fought to zero — his questions end at "What was my name?" (`NameFinale`).
+  'umbra-remembered': {
+    id: 'umbra-remembered',
+    name: 'Umbra',
+    sprite: '🌑',
+    spriteId: 'umbra',
+    role: 'finale',
+    stationary: true,
+    lines: [
+      { text: '"So. The little spark came all the way down." His voice is not loud any more. Just tired.', unlessFlag: 'met-umbra-remembered', setFlag: 'met-umbra-remembered' },
+      { text: '"I have been Umbra for so long. Before that I was… someone. I can\'t remember who."', unlessFlag: 'met-umbra-remembered' },
+      { text: '"Back again, little spark? Good. I don\'t like waiting alone."', ifFlag: 'met-umbra-remembered' },
+      '"Answer my questions. Then I will ask you the only one I have left."',
     ],
   },
   // Glim's Nook on B4 (16d review round 2): a glowworm who tucks up beaten heroes.

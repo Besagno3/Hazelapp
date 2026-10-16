@@ -4767,6 +4767,9 @@ NPCS: list[Char] = [
     # Glim the Glowworm, who keeps a nook on B4 (16d review round 2).
     Char('root-glim', '🐛', 'glowworm', H(color='#9ac85a', glow_color='#ffe680')),
     Char('root-glimmer', '🐛', 'glowworm', H(color='#7ac8a8', glow_color='#c8f0ff')),
+    # The Name (#75 item 16e): the Root's Heart turned gold, and Aster herself — grown up, golden-haired, a daisy.
+    Char('root-heart-gold', '💛', 'root_heart', H(bark='#7a5a3a', glow='#ffd84a'), boss=True, giant=True),
+    Char('hall-aster', '🌼', 'humanoid', H(hair='long', hair_color='#e0a030', hat='flower', flower='#ffffff', flower_r=3.4, outfit='#fff4d0', trim='#f0c040', robe=True, cape='#f8d870', item='staff', item_color='#ffe680')),
 ]
 # NPCs are world-only — except the ones who can join the party as battle
 # companions (content/companion.ts), who need a battle sheet too.

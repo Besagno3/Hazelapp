@@ -4,7 +4,7 @@ import { reach, touches } from './reach';
 import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
-import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST } from '../content/questFlags';
+import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED } from '../content/questFlags';
 import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance, dungeonFloor } from '../content/dungeons';
@@ -302,6 +302,18 @@ function actFourAfterName(flags: Record<string, boolean>): Objective | null {
       npc: 'root-heart',
     };
   }
+  // The Name (#75 item 16e): her shadow waits in front of the Heart.
+  if (!flags[UMBRA_NAMED]) {
+    return {
+      kind: 'visit',
+      title: 'Say her name to Umbra',
+      why: "Umbra waits at the Root's Heart with one last question. The five memories gave you the answer!",
+      inside: 'Walk up to Umbra, in front of the glowing heart.',
+      zoneId: 'deep-root-7',
+      doneFlag: UMBRA_NAMED,
+      npc: 'umbra-remembered',
+    };
+  }
   return null;
 }
 
@@ -500,11 +512,12 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
       return {
         kind: 'explore',
         title: flags[NAME_LEARNED] ? 'Explore Lumina' : flags[MET_GALE] ? 'Explore Taleshore' : 'Explore Lumina',
+        // After the name (#75 item 16e) — and the side quests of Lumina-That-Was, if any are left.
         why: flags[NAME_LEARNED]
-          ? `You remembered the first Sage's name: Aster! She is waiting at the Root's Heart — the way to her will open soon. ${
+          ? `You said her name, and Aster is home! Visit her in the Hall of Names on Remembrance Hill. ${
               flags[questDoneFlag({ id: BELL_QUEST })] && flags[questDoneFlag({ id: DOG_QUEST })] && flags[questDoneFlag({ id: GARDEN_QUEST })]
-                ? 'Until then, hunt for secrets ✨ and help everyone you meet.'
-                : 'Until then, help the folk of Lumina-That-Was!'
+                ? 'Then hunt for secrets ✨ and help everyone you meet.'
+                : 'Then help the folk of Lumina-That-Was!'
             }`
           : canFly(flags)
           ? 'Ember can fly! Soar anywhere over Lumina, hunt for secrets ✨ and help everyone you meet.'
@@ -925,6 +938,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `Down and down! ${capitalize(midSentence(ENEMY_DEFS[goal.boss!].name))} guards a deeper floor of the Deep Root. You can beat it!`;
   } else if (goal.kind === 'visit' && goal.doneFlag === ROOT_HEART_REACHED) {
     plan = "No more echoes! The Root's Heart is at the very bottom of the Deep Root. Go and see who has been humming down there.";
+  } else if (goal.kind === 'visit' && goal.doneFlag === UMBRA_NAMED) {
+    plan = "Umbra was never a monster — he was Aster, forgotten. He'll ask you questions, then one more: his name. You know it. Say it!";
   } else if (goal.kind === 'key' && goal.key) {
     const keeper = `${midSentence(goal.key.bossName)} in ${place(goal.key.fromZone)}`;
     plan =
@@ -962,8 +977,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     plan = `${shining} crystals shine now — and Ember can fly! Ride her up to the Dragon's Roost, the peak just east of our village. No path climbs it, but wings don't need one.`;
   } else if (goal.kind === 'fly' && goal.zoneId === 'port-lantern') {
     plan = "No boat gets past the Great Fogbank — but Ember can fly over it! Fly east over the Silver Shallows to Taleshore, and find Port Lantern, its harbor town.";
-  } else if (flags[NAME_LEARNED]) {
-    plan = `Aster. ASTER! I knew that name once. Thank you for finding it again. She is waiting at the Root's Heart — the way to her will open soon.`;
+  } else if (flags[UMBRA_NAMED]) {
+    plan = 'Aster is home! I went up to the Hall of Names to see her, and she asked ME a question. I loved it.';
   } else if (canFly(flags)) {
     plan = 'Five crystals shine now, and Ember can fly! Soar over Lumina, and help everyone you meet.';
   } else if (actComplete(flags, 2)) {
@@ -998,6 +1013,8 @@ export function mentorTips(zones: Record<ZoneId, ZoneDef>, flags: Record<string,
     tip = 'Lose on B1 to B3, and Glimmer the Glowworm tucks you up on B1. From the Tide Hollow (B4) down, her sister Glim does. When a boss gathers power, 🛡️ Guard!';
   } else if (goal.kind === 'visit' && goal.doneFlag === ROOT_HEART_REACHED) {
     tip = "Nothing fights at the Root's Heart — it's a quiet place. There's a save crystal there, too.";
+  } else if (goal.kind === 'visit' && goal.doneFlag === UMBRA_NAMED) {
+    tip = "A wrong answer snuffs one of your three candles. Run out, and Glim tucks you up in her nook — then just go back down and try again!";
   } else if (goal.kind === 'key' && !goal.crystal) {
     tip = "Critters with a purple !!! hit very hard. Rest at an inn first — and Trader Knack's Forget-Me-Knot gives you a second try at a wrong answer!";
   } else if (goal.kind === 'visit' && goal.doneFlag === ACT4_SEEN) {

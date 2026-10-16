@@ -394,4 +394,27 @@ describe('the Nameless Hall (#75 item 16c)', () => {
     render(<WorldScreen />);
     expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
   });
+
+  it('the Name (#75 item 16e): her name said, then the post-credits — once', () => {
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: {
+        ...defaultSave(),
+        avatarId: 'a3',
+        zoneId: 'deep-root-7',
+        flags: { ...umbraBeaten(), [story.SPIRE_VICTORY_SEEN]: true, [story.ACT2_SEEN]: true, [story.descentSeenFlag('deep-root-7')]: true, 'umbra-named': true },
+      },
+      flush: vi.fn(async () => {}),
+    });
+    const { unmount } = render(<WorldScreen />);
+    expect(screen.getByText(/"Aster," you say/)).toBeInTheDocument();
+    // Six panels of the name, then three of the post-credits (the words are checked in story.test).
+    readOn(story.namePanels('').length + story.POST_CREDITS_PANELS.length - 1);
+    fireEvent.click(screen.getByRole('button', { name: '🌼 Thank you, Aster' }));
+    expect(useSaveStore.getState().save!.flags[story.NAME_SEEN]).toBe(true);
+    unmount();
+    render(<WorldScreen />);
+    expect(screen.queryByRole('dialog', { name: 'Story' })).toBeNull();
+  });
 });

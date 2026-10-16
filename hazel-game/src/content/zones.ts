@@ -9,7 +9,7 @@ import taleshoreTmj from './maps/taleshore.tmj?raw';
 import legendTsj from './maps/legend.tsj?raw';
 import type { DangerTier } from './regions';
 import { ACT2_SEEN, ACT4_SEEN, FLIGHT_FLAG } from './story';
-import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, NAME_LEARNED, POSY_QUEST, POSY_SAILED, POSY_WALK, RESO_STONES, YARN_STONES, questDoneFlag, stepFlag } from './questFlags';
+import { JUNO_CAME, JUNO_QUEST, JUNO_WALK, NAME_LEARNED, POSY_QUEST, POSY_SAILED, POSY_WALK, RESO_STONES, ROOT_HEART_REACHED, UMBRA_NAMED, YARN_STONES, questDoneFlag, stepFlag } from './questFlags';
 
 /**
  * Every zone id in Lumina — the single source of truth (Wave 0.3). Adding a
@@ -1940,6 +1940,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     npcs: [
       { defId: 'hill-keeper', x: 16, y: 18 },
+      // Aster, home once her name is said (#75 item 16e).
+      { defId: 'hall-aster', x: 13, y: 18, ifFlag: UMBRA_NAMED },
       // Posy leaves the Hill for Foglight Marsh while her walk is on (#75 item 14g), and comes home after.
       // She stays until the hero has been to the Marsh since she asked (#75 item 14g).
       { defId: 'hill-posy', x: 14, y: 23, unlessFlag: POSY_SAILED },
@@ -3598,8 +3600,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     solidEmoji: '🌳',
     decoEmoji: '🍄',
     spawn: { x: 3, y: 1 },
-    npcs: [{ defId: 'root-heart', x: 10, y: 6 }],
-    // The bottom: the Root's Heart — safe, a save crystal; she is waiting (16e).
+    npcs: [
+      { defId: 'root-heart', x: 10, y: 6 },
+      // Her shadow stands up once the Heart is reached, until her name is said (#75 item 16e).
+      { defId: 'umbra-remembered', x: 10, y: 8, ifFlag: ROOT_HEART_REACHED, unlessFlag: UMBRA_NAMED },
+    ],
+    // The bottom: the Root's Heart — safe, a save crystal.
     enemies: [],
     exits: [
       { x: 2, y: 1, to: 'deep-root-6', spawnX: 18, spawnY: 12 },
