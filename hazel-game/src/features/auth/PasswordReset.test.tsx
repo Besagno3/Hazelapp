@@ -14,7 +14,7 @@ const { default: AuthPage } = await import('./AuthPage');
 const { default: ResetPasswordPage } = await import('./ResetPasswordPage');
 const { isRecoveryUrl } = await import('./useAuthInit');
 const { useAuthStore } = await import('../../store/authStore');
-const { CONSENT_VERSION } = await import('../../content/family');
+const { CONSENT_VERSION, MIN_PASSWORD_LENGTH } = await import('../../content/family');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,10 +37,10 @@ describe('AuthPage — forgot password', () => {
     auth.resetPasswordForEmail.mockResolvedValue({ error: null });
     render(<AuthPage />);
     fireEvent.click(screen.getByText('Forgot password?'));
-    expect(screen.queryByPlaceholderText('Password')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'kid@example.com' } });
+    expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'kid@example.com' } });
     fireEvent.click(screen.getByText('Send reset link'));
-    await screen.findByText(/If that email has an account/);
+    expect(await screen.findByText(/If that email has an account/)).toHaveClass('text-green-700');
     expect(auth.resetPasswordForEmail).toHaveBeenCalledWith('kid@example.com', {
       redirectTo: window.location.origin + window.location.pathname,
     });
@@ -50,7 +50,7 @@ describe('AuthPage — forgot password', () => {
     auth.resetPasswordForEmail.mockResolvedValue({ error: { message: 'Too many requests' } });
     render(<AuthPage />);
     fireEvent.click(screen.getByText('Forgot password?'));
-    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'kid@example.com' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'kid@example.com' } });
     fireEvent.click(screen.getByText('Send reset link'));
     await screen.findByText('Too many requests');
   });
@@ -59,8 +59,8 @@ describe('AuthPage — forgot password', () => {
 describe('AuthPage — a grown-up signs up (#124)', () => {
   function signUpWith(email: string, password: string) {
     fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
-    fireEvent.change(screen.getByPlaceholderText("Grown-up's email"), { target: { value: email } });
-    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: password } });
+    fireEvent.change(screen.getByLabelText("Grown-up's email"), { target: { value: email } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: password } });
   }
 
   it('asks no birth date, and needs the grown-up to agree first', () => {
@@ -78,11 +78,107 @@ describe('AuthPage — a grown-up signs up (#124)', () => {
     signUpWith('mum@example.com', 'dragonfire');
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByText('Create family account'));
-    await screen.findByText(/check your email/);
+    await screen.findByRole('heading', { name: 'Check your inbox' });
     expect(auth.signUp).toHaveBeenCalledWith({
       email: 'mum@example.com',
       password: 'dragonfire',
       options: { data: { consent_version: CONSENT_VERSION } },
+    });
+  });
+
+  it('says the password rule up front, and the field holds to it', () => {
+    render(<AuthPage />);
+    fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
+    const field = screen.getByLabelText('Password');
+    expect(field).toHaveAccessibleDescription(`At least ${MIN_PASSWORD_LENGTH} characters.`);
+    expect(field).toHaveAttribute('minlength', String(MIN_PASSWORD_LENGTH));
+    // Sign in takes whatever password the account already has.
+    fireEvent.click(screen.getByText('Already have an account? Sign in'));
+    expect(screen.getByLabelText('Password')).not.toHaveAttribute('minlength');
+    expect(screen.queryByText(/At least \d+ characters/)).not.toBeInTheDocument();
+  });
+
+  it('shows its messages in a live region, in colours that are easy to read', () => {
+    render(<AuthPage />);
+    const region = screen.getByRole('status');
+    expect(region).toBeEmptyDOMElement();
+    signUpWith('mum@example.com', 'dragonfire');
+    fireEvent.click(screen.getByText('Create family account'));
+    expect(region).toHaveTextContent(/tick the box/);
+    expect(screen.getByText(/tick the box/)).toHaveClass('text-red-700');
+  });
+
+  it('then says which inbox to check, and goes back to sign in with the email kept', async () => {
+    auth.signUp.mockResolvedValue({ data: { session: null }, error: null });
+    render(<AuthPage />);
+    signUpWith('mum@example.com', 'dragonfire');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByText('Create family account'));
+    const heading = await screen.findByRole('heading', { name: 'Check your inbox' });
+    expect(heading).toHaveFocus();
+    expect(screen.getByText('mum@example.com')).toBeInTheDocument();
+    expect(screen.getByText(/spam or junk/)).toBeInTheDocument();
+    // The form is gone until they go back.
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to sign in' }));
+    expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toHaveValue('mum@example.com');
+    expect(screen.getByLabelText('Email')).toHaveFocus();
+  });
+});
+
+describe('AuthPage — signing in before confirming', () => {
+  function signIn() {
+    render(<AuthPage />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'mum@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'dragonfire' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+  }
+
+  it('says to tap the link, naming the email, instead of a raw error', async () => {
+    auth.signInWithPassword.mockResolvedValue({
+      error: { code: 'email_not_confirmed', message: 'Email not confirmed', name: 'AuthApiError' },
+    });
+    signIn();
+    const message = await screen.findByText(/Please confirm your email first/);
+    expect(message).toHaveTextContent('tap the link we sent to mum@example.com');
+    expect(message).not.toHaveTextContent('[email_not_confirmed]');
+  });
+
+  it('spots it by its message too (older Supabase replies carry no code)', async () => {
+    auth.signInWithPassword.mockResolvedValue({ error: { message: 'Email not confirmed' } });
+    signIn();
+    await screen.findByText(/Please confirm your email first/);
+  });
+
+  it('shows any other error as it is', async () => {
+    auth.signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } });
+    signIn();
+    await screen.findByText('Invalid login credentials');
+  });
+});
+
+describe('AuthPage — opened from the public site (#146)', () => {
+  function at(address: string, test: () => void) {
+    window.history.replaceState(null, '', address);
+    try { test(); } finally { window.history.replaceState(null, '', '/'); }
+  }
+
+  it('?signup opens on the sign-up form, and leaves the address', () => {
+    at('/play/?signup&keep=1#top', () => {
+      render(<AuthPage />);
+      expect(screen.getByRole('button', { name: 'Create family account' })).toBeInTheDocument();
+      expect(screen.getByLabelText("Grown-up's email")).toBeInTheDocument();
+      // Only ?signup goes: anything else in the address stays.
+      expect(window.location.pathname + window.location.search + window.location.hash).toBe('/play/?keep=1#top');
+    });
+  });
+
+  it('without it, opens on Sign in', () => {
+    at('/play/', () => {
+      render(<AuthPage />);
+      expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
+      expect(screen.getByText('New here? Grown-ups sign up')).toBeInTheDocument();
     });
   });
 });
@@ -90,7 +186,7 @@ describe('AuthPage — a grown-up signs up (#124)', () => {
 describe('show password (#123)', () => {
   it('sign in and sign up each have an eye; switching between them hides the password again', () => {
     render(<AuthPage />);
-    const field = () => screen.getByPlaceholderText('Password') as HTMLInputElement;
+    const field = () => screen.getByLabelText('Password') as HTMLInputElement;
     fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
     expect(field().type).toBe('text');
     fireEvent.click(screen.getByText('New here? Grown-ups sign up'));

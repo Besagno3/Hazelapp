@@ -46,6 +46,13 @@ export const KID_BIRTH_YEARS = Array.from({ length: 16 }, (_, i) => new Date().g
 export const CONSENT_VERSION = '2026-10-draft';
 
 /**
+ * The shortest password the sign-up and reset forms take: Supabase Auth's
+ * default minimum. Keep it equal to the project's setting (Auth → Providers →
+ * Email); the server checks it too.
+ */
+export const MIN_PASSWORD_LENGTH = 6;
+
+/**
  * DRAFT, not yet reviewed by a lawyer (#124). Shown with a "Draft" badge
  * while this is true; replace the text, set a new CONSENT_VERSION and turn
  * this off before the game is offered to other families. Words in
@@ -89,7 +96,9 @@ export const PRIVACY_NOTICE: { heading: string; body: string }[] = [
     heading: 'How long we keep it',
     body:
       "A child's information is kept while they are on your account. Removing a child in the " +
-      'Grown-ups area deletes their information straight away. [RETENTION PERIOD for backups ' +
+      'Grown-ups area deletes their information straight away, except a note of how many new ' +
+      "questions were written for them that day — without their name — which is kept for one " +
+      "day so your family's daily question limit still works. [RETENTION PERIOD for backups " +
       'and closed accounts.]',
   },
   {

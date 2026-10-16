@@ -22,8 +22,9 @@ export const TOPIC_PROMPTS = {
   nature: 'animals, plants, habitats, weather, the human body, the living world.',
   space: 'planets, stars, moons, the solar system, astronauts, rockets, the night sky.',
   history:
-    'ancient civilizations, everyday life long ago, famous inventions and inventors, explorers, great buildings, the measurement of time — never wars, battles, disasters or religion.',
-  geography: 'maps, countries, continents, oceans, rivers, mountains, landmarks, compass directions.',
+    'ancient civilizations, everyday life long ago, famous inventions and inventors, explorers and the journeys they made, great buildings, the measurement of time — never wars, battles, conquest, slavery, disasters or religion.',
+  geography:
+    'maps, countries, continents, oceans, rivers, mountains, landmarks, compass directions — never disputed borders, territories or capitals, or how many countries there are.',
   words: 'reading, spelling, rhymes, word meanings, opposites, stories, grammar basics.',
   music: 'rhythm, instruments, notes, songs, famous composers, how sound works.',
 } as const;

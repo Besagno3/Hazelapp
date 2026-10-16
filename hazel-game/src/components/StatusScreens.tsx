@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FUN_FACTS, GENERIC_FACTS } from '../lib/funFacts';
 import type { Topic } from '../types';
+import type { OutdatedReason } from '../store/saveStore';
 
 const FACT_ROTATION_MS = 4000;
 
@@ -53,6 +54,31 @@ export function LoadingScreen({
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+/**
+ * The save stopped because a newer one exists, and a refresh loads it: the
+ * game was updated (#101i — a newer version saved it), or the player played
+ * on in another tab or on another device (#151).
+ */
+export function OutdatedScreen({ reason, onRefresh }: { reason: OutdatedReason | null; onRefresh: () => void }) {
+  return reason === 'elsewhere' ? (
+    <ErrorScreen
+      emoji="🧭"
+      title="Your adventure moved on!"
+      message="You played on in another tab or on another device. Refresh the page to carry on from your newest save."
+      retryLabel="🔄 Refresh"
+      onRetry={onRefresh}
+    />
+  ) : (
+    <ErrorScreen
+      emoji="✨"
+      title="Hazel Quest has been updated!"
+      message="Your adventure was saved by the new version. Refresh the page to keep playing — nothing is lost."
+      retryLabel="🔄 Refresh"
+      onRetry={onRefresh}
+    />
   );
 }
 
