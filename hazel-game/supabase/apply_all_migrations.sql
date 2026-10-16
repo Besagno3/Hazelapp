@@ -1260,9 +1260,11 @@ on conflict (version) do nothing;
 --     the spend used to be written only after Claude answered, seconds later,
 --     so calls in flight at once (brothers and sisters, a burst) all saw the
 --     same budget left and could each spend it;
---   * a removed kid's rows are deleted once a day old — they count for a day
---     and no longer (removing a child deletes their information, the privacy
---     notice says).
+--   * removing a kid deletes at once their rows no budget needs (over a day
+--     old, or nothing spent — review round 2: they used to wait for the next
+--     request anywhere); the rest are deleted once a day old — they count for
+--     a day and no longer (removing a child deletes their information, the
+--     privacy notice says).
 
 -- 1) Who the request was for, kept when the kid goes.
 alter table public.question_requests
@@ -1279,6 +1281,31 @@ create index if not exists question_requests_unlinked_time_idx
   on public.question_requests (requested_at) where profile_id is null;
 -- The clean-up runs in begin_question_request, as the service role.
 grant delete on public.question_requests to service_role;
+
+-- Removing a kid deletes at once what no budget needs any more: their rows
+-- over a day old, and any that spent nothing (review round 2). What they spent
+-- today stays, unlinked, until the clean-up below. Security definer: a
+-- grown-up removes a kid through the API, and no client role may touch
+-- question_requests.
+create or replace function public.profiles_forget_requests()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  delete from public.question_requests
+   where profile_id = old.id
+     and (fresh_count = 0 or requested_at <= now() - interval '1 day');
+  return old;
+end;
+$$;
+revoke execute on function public.profiles_forget_requests() from public, anon, authenticated;
+
+drop trigger if exists profiles_forget_requests on public.profiles;
+create trigger profiles_forget_requests
+  before delete on public.profiles
+  for each row execute function public.profiles_forget_requests();
 
 -- Requests already logged: fill in their grown-up where the kid is still here.
 update public.question_requests r

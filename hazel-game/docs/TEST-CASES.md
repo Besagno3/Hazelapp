@@ -4,7 +4,7 @@ Test cases for current and planned behavior. **Update before every commit** —
 write cases for whatever you just built.
 
 Status: ⬜ not written · 🟦 written, not passing · ✅ automated & passing
-Type: U = unit · C = component · E = end-to-end · M = manual
+Type: U = unit · C = component · I = integration (SQL tests on Postgres, the edge function against a stand-in) · E = end-to-end · M = manual
 
 Run the suite with `npm test` (`npm run test:watch` / `test:ui` while developing).
 
@@ -1231,19 +1231,23 @@ Numbered from TC-640 so item 13's cases (built in parallel) can keep theirs.
 | TC-1328 | I | ✅ | quota | no family cap passed (a four-argument call, an older function): the kid's own budget only (family_budget.test.sql, quota.test.sql) |
 | TC-1329 | I | ✅ | quota | remove the kid who spent and add a new one: the spent row stays, unlinked, with its grown-up; the new kid gets only what's left of the family's day, and the project still counts it — fails with 0014's cascade put back (family_budget.test.sql) |
 | TC-1330 | I | ✅ | quota | a day later the family's budget is whole again; removing the grown-up's login leaves no request with their id (family_budget.test.sql) |
-| TC-1331 | I | ✅ | quota | only the service role may call `begin_question_request(uuid, int, int, int, int)` (family_budget.test.sql, quota.test.sql) |
+| TC-1331 | I | ✅ | quota | only the service role may call `begin_question_request(uuid, int, int, int, int, int)` (family_budget.test.sql, quota.test.sql) |
 | TC-1332 | I | ✅ | function | run locally against a stand-in: the quota call carries `p_fresh_per_family: 400` beside the per-kid 200; with 0018 missing (PGRST202) it calls again per kid, logs "FAMILY BUDGET UNAVAILABLE" and still serves fresh questions; failing both ways it never calls Claude |
 | TC-1333 | M | ⬜ | quota | after deploy, on the real project: two kids in one family play until the second sees "come back tomorrow" (or the cache) at the family's cap; `question_requests` rows carry `parent_id` |
 | TC-1371 | I | ✅ | quota | review round 1 — calls in flight hold their share: per kid 10, family 15, each call wants 6, none has recorded what it made: the kid gets 6 then 4, the brother 5 then 0, and the family's rows hold exactly 15 (the PR's first version gave every call its full allowance — 4 calls, 40 questions) (family_budget.test.sql) |
 | TC-1372 | I | ✅ | quota | the project's last 3 fresh questions are held for the call that got them: a call right behind it, from another family, gets 0 (family_budget.test.sql) — fails with the hold taken out |
 | TC-1373 | I | ✅ | quota | recording what a call really made (2 of 6) frees the rest for the family's next call; a call that wants 0 holds 0; a call without `p_fresh_wanted` (an older caller) holds nothing, as before (family_budget.test.sql) |
-| TC-1374 | I | ✅ | quota | two psql sessions, two kids of one family, calls overlapping: the second waits for the first's family lock, then sees its hold (10 then 5 against a cap of 15) — manual, on Postgres 16 |
+| TC-1374 | M | ✅ | quota | two psql sessions, two kids of one family, calls overlapping: the second waits for the first's family lock, then sees its hold (10 then 5 against a cap of 15) — manual, on Postgres 16 |
 | TC-1375 | I | ✅ | quota | a removed kid's request rows go once a day old; their rows from today stay (they still count), and a kid still on the account keeps old rows (family_budget.test.sql) — fails with the clean-up taken out |
 | TC-1376 | I | ✅ | quota | rows logged before 0018 without a grown-up get theirs when the migration is (re-)applied over them; the re-run keeps the grants and leaves one `begin_question_request` (family_budget.test.sql, `\ir` of the migration) — fails with the backfill taken out |
-| TC-1377 | I | ✅ | quota | a project that applied the PR's first 0018 (five arguments) and then this one ends with only the six-argument function; a five-argument named call (that draft's edge function) still works — manual, on Postgres 16 |
+| TC-1377 | M | ✅ | quota | a project that applied the PR's first 0018 (five arguments) and then this one ends with only the six-argument function; a five-argument named call (that draft's edge function) still works — manual, on Postgres 16 |
 | TC-1378 | I | ✅ | function | run locally against a stand-in: the quota call sends `p_fresh_wanted` = the batch size; Claude failing sets the held 5 back to 0; a rich cache records the 1 it made; making exactly what was held writes nothing; without 0018 nothing is held and what's made is written as before |
 | TC-1379 | U | ✅ | privacy | the privacy notice says a removed child's count of new questions is kept, without their name, for one day, and migration 0018 deletes it once a day old (`family.test.ts`) — fails on the old wording |
 | TC-1380 | M | ⬜ | quota | after deploy, on the real project: a kid's `question_requests` row shows the batch held while questions load and what was made once they arrive; a removed kid's rows are gone a day later |
+| TC-1391 | I | ✅ | privacy | review round 2 — the grown-up removes a kid (through `authenticated`, as the app does): with no request in between, their row from 40 days ago and the ones that spent nothing are gone; the 4 they spent today stay, unlinked, against the family; a brother's rows are untouched (family_budget.test.sql) — fails without the trigger, without `security definer` (permission denied) and without the nothing-spent rule |
+| TC-1392 | U | ✅ | privacy | migration 0018 has the `before delete` trigger on `profiles` that deletes a removed kid's no-longer-needed requests at once (`family.test.ts`) — fails with the trigger taken out |
+| TC-1393 | I | ✅ | function | review round 2, run locally against a stand-in: an error after the quota check and before Claude (an unreadable picker reply) → a friendly 500 and the hold of 5 set back to 0; Claude made 3 of 5, then an error (an unreadable cache-insert reply) → the row records 3; made all 5 held → no write; without 0018 an error before Claude writes nothing and one after Claude made 3 records the 3 (it was left at 0) — 7 checks, 3 fail on round 1's version; round 1's 9 checks still pass |
+| TC-1394 | M | ⬜ | privacy | after deploy, on the real project: remove a kid who played today and on earlier days — `select requested_at, fresh_count from question_requests where profile_id is null and parent_id = '<the grown-up>'` lists only today's requests that made something |
 
 ## Regression cases (tied to ISSUES.md)
 

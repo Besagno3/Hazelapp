@@ -588,12 +588,13 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Question-generator access (#88):** `generate-questions` requires a signed-in
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
   per-player calls/minute (429 over it) + per-player, per-family (migration
-  0018, B9: the kid's grown-up; a removed kid's requests stay, unlinked, for a
-  day, so what they spent still counts) and project-wide daily budgets of
-  *fresh* Claude questions. Each call's allowance is **held** on its request
-  row (`p_fresh_wanted`, the batch size) until the function writes what it
-  really made, so calls in flight at once can't each spend the same budget.
-  Over budget it serves the cache
+  0018, B9: the kid's grown-up; removing a kid deletes their requests at once
+  except today's spend, which stays, unlinked, for a day so it still counts —
+  `profiles_forget_requests`) and project-wide daily budgets of *fresh*
+  Claude questions. Each call's allowance is **held** on its request row
+  (`p_fresh_wanted`, the batch size) until the function writes what it really
+  made — an error partway writes what Claude made before it — so calls in
+  flight at once can't each spend the same budget. Over budget it serves the cache
   (seen questions as a last resort). **The kid's id is required** (400
   without it) and the quota check **fails closed**: if it errors, the call is
   served from the cache only, never from Claude (Act I launch review B9,
@@ -809,6 +810,41 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-16 — B9 review round 2: a removed kid's requests go at once, a crash gives back its hold (#152)
+A fresh `/saas-code-review` of PR #67 (1 medium, 2 low), all fixed:
+- **A removed kid's requests weren't deleted "straight away" (medium):**
+  removing a kid unlinked every request row they'd ever made (its time, its
+  count, the grown-up's id), and only the next question request *anywhere*
+  deleted the ones over a day old — hours later in a quiet spell — while the
+  day's rows kept every request's time, spent or not (the draft notice says
+  only a count is kept). That next request also deleted the whole history
+  inside its quota check, under its family's lock. Now a `before delete`
+  trigger on `profiles` (`profiles_forget_requests`, security definer like
+  0016's) deletes at once the kid's rows no budget needs — over a day old, or
+  nothing spent; today's spend stays, unlinked, and goes once a day old.
+- **A crash kept the hold for the day (low):** an error thrown between the
+  quota check and the usage write reached the catch-all with the whole batch
+  still held — up to 15 fresh questions charged to the kid, the family and
+  the project for 24 h for a call that served nothing (a crash loop could
+  spend the project's day). The catch-all now writes what Claude made before
+  the error (`made`) in the hold's place — never less, so never an unlimited
+  bill; without 0018 (nothing held) it now records that spend too, which
+  was left at 0.
+- **TEST-CASES types (low):** "I" (#133's rows use it too) is in the legend
+  as integration; the two manual psql runs (TC-1374, TC-1377) are M; TC-1331
+  names the six-argument function.
+- **Tests:** `family_budget.test.sql` (the grown-up removes a kid through
+  `authenticated`: the 40-day-old row and the ones that spent nothing go at
+  once, today's 4 stay, a brother's rows are untouched — fails without the
+  trigger, without `security definer` and without the nothing-spent rule);
+  `family.test.ts` (+1); the function against a stand-in (7 checks; 3 fail on
+  round 1's version; round 1's 9 still pass). 1372 tests green, lint + build
+  clean, all 9 SQL tests, the migrations in order and the bundle twice pass
+  on Postgres 16, `deno check` clean.
+- Open: a removed kid's spend from today goes at the first question request
+  after it's a day old (there's no scheduled job), so in a quiet project it
+  can outlast the notice's "one day".
 
 ### 2026-10-16 — B9 review round 1: calls in flight hold their share, a removed kid's count goes after a day (#152)
 `/saas-code-review` of PR #67 (2 medium, 1 low), all fixed:

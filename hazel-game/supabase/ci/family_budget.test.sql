@@ -182,4 +182,42 @@ begin
 end $$;
 reset role;
 
+-- Review round 2. Removing a kid deletes at once what no budget needs — their
+-- rows over a day old and those that spent nothing — with no request in
+-- between; what they spent today stays, unlinked. Grown-up E removes the kid
+-- through the API (authenticated), as the app does.
+insert into auth.users (id, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000000e3', '{"birth_year": 2015, "birth_month": 5}');
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e3', true);
+insert into public.profiles (id, display_name, icon, birth_year, birth_month)
+  values ('00000000-0000-0000-0000-00000000e302', 'Ivy', 'fox', 2018, 4);
+reset role;
+insert into public.question_requests (profile_id, parent_id, requested_at, fresh_count) values
+  ('00000000-0000-0000-0000-00000000e302', '00000000-0000-0000-0000-0000000000e3', now() - interval '40 days', 6),
+  ('00000000-0000-0000-0000-00000000e302', '00000000-0000-0000-0000-0000000000e3', now() - interval '3 days', 0),
+  ('00000000-0000-0000-0000-00000000e302', '00000000-0000-0000-0000-0000000000e3', now() - interval '2 hours', 0),
+  ('00000000-0000-0000-0000-00000000e302', '00000000-0000-0000-0000-0000000000e3', now() - interval '1 hour', 4),
+  -- Her brother's (the old-app first kid), untouched by her removal.
+  ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-0000000000e3', now() - interval '40 days', 3),
+  ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-0000000000e3', now() - interval '2 hours', 0);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e3', true);
+delete from public.profiles where id = '00000000-0000-0000-0000-00000000e302';
+reset role;
+do $$
+declare
+  e_parent constant uuid := '00000000-0000-0000-0000-0000000000e3';
+begin
+  assert (select count(*) from public.question_requests where parent_id = e_parent and profile_id is null) = 1,
+    format('only today''s spend is kept for the day, got %s rows',
+           (select count(*) from public.question_requests where parent_id = e_parent and profile_id is null));
+  assert exists (select 1 from public.question_requests
+                  where parent_id = e_parent and profile_id is null and fresh_count = 4
+                    and requested_at > now() - interval '1 day'),
+    'the 4 she spent today still count against the family';
+  assert (select count(*) from public.question_requests where profile_id = e_parent) = 2,
+    'her brother''s rows are untouched';
+end $$;
+
 rollback;

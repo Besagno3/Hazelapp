@@ -657,6 +657,10 @@ Deno.serve(async (req) => {
   // calls in flight at once can't each spend the same budget; step 4a puts
   // what was really made in its place.
   let held = 0;
+  // How many fresh questions Claude has made for this call so far: if anything
+  // throws on the way, the catch below charges this in place of the hold, so a
+  // crash doesn't eat the kid's budget for the day (B9 review round 2).
+  let made = 0;
   {
     const perKid = {
       p_profile: profileId,
@@ -778,6 +782,7 @@ Deno.serve(async (req) => {
         generationFailed = true;
         logGenerationError(err);
       }
+      made = generated.length;
 
       if (db && generated.length > 0) {
         const rows = generated.map((q) => ({
@@ -837,13 +842,14 @@ Deno.serve(async (req) => {
     // 4a. Charge the fresh questions to the caller's daily budget (#88): what
     //     was made replaces what the quota check held (B9) — less when the
     //     cache covered more or Claude fell short. (An unexpected error before
-    //     here leaves the hold standing: never an unlimited bill.)
+    //     here is charged what Claude made, in the catch below.)
     if (requestId !== null && fresh.length !== held) {
       const { error: usageErr } = await db
         .from('question_requests')
         .update({ fresh_count: fresh.length })
         .eq('id', requestId);
       if (usageErr) console.error('usage update failed:', usageErr.message);
+      else held = fresh.length;
     }
 
     // 5. Sprinkle reused + fresh together randomly.
@@ -888,6 +894,15 @@ Deno.serve(async (req) => {
     // Claude's own failures are handled above; this is anything else. The
     // details go to the log, never to a kid's screen (S6).
     console.error('Unexpected error serving questions:', err);
+    // Don't leave the hold standing for the day (B9 review round 2): charge
+    // what Claude made before the error — never less, so never an unlimited bill.
+    if (requestId !== null && made !== held) {
+      const { error: usageErr } = await db
+        .from('question_requests')
+        .update({ fresh_count: made })
+        .eq('id', requestId);
+      if (usageErr) console.error('usage update failed:', usageErr.message);
+    }
     return json({ error: 'Unexpected server error', detail: TRY_LATER }, 500);
   }
 });

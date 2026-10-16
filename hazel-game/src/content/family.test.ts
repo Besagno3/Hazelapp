@@ -12,6 +12,13 @@ describe('the privacy notice and a removed child (B9, #152)', () => {
     );
   });
 
+  it('removing a kid deletes at once the rows no budget needs (review round 2)', () => {
+    expect(migration0018).toMatch(
+      /delete from public\.question_requests\s+where profile_id = old\.id\s+and \(fresh_count = 0 or requested_at <= now\(\) - interval '1 day'\)/,
+    );
+    expect(migration0018).toMatch(/create trigger profiles_forget_requests\s+before delete on public\.profiles/);
+  });
+
   it('the notice says that count is kept, without the child’s name, for one day', () => {
     expect(keep).toMatch(/Removing a child in the Grown-ups area deletes their information straight away/);
     expect(keep).toMatch(/without their name/);
