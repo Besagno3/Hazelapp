@@ -955,6 +955,17 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-17 — The kids' page plays the opening intro (#146m)
+The owner wants one opening soundtrack — the intro that swells to a climax
+— on the public page, the sign-in screen and the setup screens. The game
+already played `intro` from sign-in through consent, the first kid, kid
+setup, Who's playing? and Grown-ups (`musicScreen`, #120 / #124); the kids'
+page played the title theme (#146k). It now plays `intro.mp3` too, at the
+game's music volume (0.4). A new page can't pick up mid-track, so opening
+the game starts the intro again on its first tap.
+Choose your hero plays the intro too (`trackForScreen('avatar')` →
+`intro`, the owner's pick); the Training Grounds keep the title theme.
+
 ### 2026-10-17 — Sound on the kids' page (#146k)
 The public kids' page had no sound. `site/assets/site.js` now plays the
 game's title music (`audio/16bit/music/title.mp3`, looped, 35%) from the

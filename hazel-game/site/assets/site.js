@@ -18,24 +18,26 @@
   };
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // ---------- sound: the game's title music and sound effects ----------
+  // ---------- sound: the game's opening music and sound effects ----------
   //
-  // On by default, like the game. Browsers hold sound until the first tap or
-  // key, so the music starts then. The speaker button turns it all off (or
+  // The music is the game's opening intro (soft ripples that swell to a
+  // climax): the same track its sign-in and setup screens play, so the site
+  // and the way in sound like one opening. On by default, like the game.
+  // Browsers hold sound until the first tap or key, so the music starts then. The speaker button turns it all off (or
   // on), and the choice is remembered on this device. Kids' page only.
 
   const sound = (() => {
     const off = { sfx() {} };
     if (!document.body.classList.contains('kids')) return off;
     const KEY = 'hq-site-sound';
-    const MUSIC_VOLUME = 0.35;
+    const MUSIC_VOLUME = 0.4; // the game's default music volume
     const SFX_VOLUME = 0.6;
     const read = () => { try { return localStorage.getItem(KEY) !== 'off'; } catch { return true; } };
     const save = (v) => { try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch { /* private mode */ } };
 
     let on = read();
     let started = false; // the browser has let the music play
-    const music = new Audio('audio/16bit/music/title.mp3');
+    const music = new Audio('audio/16bit/music/intro.mp3');
     music.loop = true;
     music.preload = 'none';
     music.volume = MUSIC_VOLUME;
