@@ -955,6 +955,12 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-17 — Story overview by act (docs only)
+New `docs/STORY-OVERVIEW.md`, reviewed with the owner: the overarching message,
+each act's message and key beats (warm-up, Acts I–IV, the epilogue), the early
+hooks for young kids and what keeps them playing act to act, and the open
+questions to confirm. Written from `story.ts`, `STORY.md` and `STORY-4X.md`.
+
 ### 2026-10-17 — Critter cards on the kids' page (#146l)
 Tapping a critter or boss in "Meet the critters" / "Beat the bosses" did
 nothing but a hurt wiggle. It now opens a card (a modal `<dialog>`, the
