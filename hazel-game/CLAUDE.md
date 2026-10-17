@@ -984,6 +984,11 @@ in) — then `moreQuestions` asks for the rest as before and the pool grows
 when they arrive (the battle goes round what it has meanwhile). Bench with a
 15 s question server: on screen in 25 ms. Tests: questions.test (+6),
 useBattleQuestions.test (new, 2); 1577 green.
+### 2026-10-17 — Story overview by act (docs only)
+New `docs/STORY-OVERVIEW.md`, reviewed with the owner: the overarching message,
+each act's message and key beats (warm-up, Acts I–IV, the epilogue), the early
+hooks for young kids and what keeps them playing act to act, and the open
+questions to confirm. Written from `story.ts`, `STORY.md` and `STORY-4X.md`.
 
 ### 2026-10-17 — Critter cards on the kids' page (#146l)
 Tapping a critter or boss in "Meet the critters" / "Beat the bosses" did
