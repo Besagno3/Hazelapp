@@ -955,6 +955,20 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-17 — Sound on the kids' page (#146k)
+The public kids' page had no sound. `site/assets/site.js` now plays the
+game's title music (`audio/16bit/music/title.mp3`, looped, 35%) from the
+first tap or key, and its sound effects on the page's taps: a hero's attack,
+Ember's stages (roar for the dragon), a critter's hit, the try-it battle
+(`correct` / `attack` / `impact` on a right answer, `wrong` / `enemyAttack` /
+`hit` on a wrong one, `victory` on a win, `select` on Next) and Ember's
+corner buddy (`shatter` and `levelup` as the egg hatches). A 🔊 / 🔇 button
+(`.sound-btn`, fixed top left, 48 px, `aria-pressed`) turns it off or on,
+remembered on the device (`hq-site-sound`); a tap on it before anything has
+played starts the music instead of muting it. Music pauses while the tab is
+hidden. On by default, like the game (#120); kids' page only. Checked in
+headless Chromium on the `build:web` output (TC-1462).
+
 ### 2026-10-16 — Merge main (ages 6 to 18, #156) into the 16f branch (#157)
 `main` took ISSUES **#156** and TC-1451–1456 for the wider age range while 16f
 waited, so 16f moved **#156 → #157** and its test cases **TC-1451–1455 →

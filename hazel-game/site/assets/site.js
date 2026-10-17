@@ -18,6 +18,94 @@
   };
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // ---------- sound: the game's title music and sound effects ----------
+  //
+  // On by default, like the game. Browsers hold sound until the first tap or
+  // key, so the music starts then. The speaker button turns it all off (or
+  // on), and the choice is remembered on this device. Kids' page only.
+
+  const sound = (() => {
+    const off = { sfx() {} };
+    if (!document.body.classList.contains('kids')) return off;
+    const KEY = 'hq-site-sound';
+    const MUSIC_VOLUME = 0.35;
+    const SFX_VOLUME = 0.6;
+    const read = () => { try { return localStorage.getItem(KEY) !== 'off'; } catch { return true; } };
+    const save = (v) => { try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch { /* private mode */ } };
+
+    let on = read();
+    let started = false; // the browser has let the music play
+    const music = new Audio('audio/16bit/music/title.mp3');
+    music.loop = true;
+    music.preload = 'none';
+    music.volume = MUSIC_VOLUME;
+    const effects = new Map();
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-navy btn-sm sound-btn';
+    const icon = document.createElement('span');
+    icon.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.className = 'sr-only';
+    btn.append(icon, label);
+    const show = () => {
+      // Pressed = sound on. Until the first tap it's on but silent, so it
+      // still shows the speaker: tapping it starts the music.
+      icon.textContent = on ? '🔊' : '🔇';
+      label.textContent = 'Sound';
+      btn.setAttribute('aria-pressed', String(on));
+      btn.title = on ? 'Sound on — tap to turn it off' : 'Sound off — tap to turn it on';
+    };
+    document.body.append(btn);
+    show();
+
+    const startMusic = () => {
+      if (!on || document.hidden) return;
+      music.play().then(() => { started = true; }).catch(() => { /* still blocked: next tap */ });
+    };
+    const stopMusic = () => music.pause();
+
+    // The first tap or key anywhere starts the music (not the speaker
+    // button's own tap, which decides for itself below).
+    const unlock = (e) => {
+      if (started || btn.contains(e.target)) return;
+      startMusic();
+    };
+    document.addEventListener('pointerdown', unlock, true);
+    document.addEventListener('keydown', unlock, true);
+
+    btn.addEventListener('click', () => {
+      // Sound is on but hasn't been heard yet: this tap starts it.
+      if (on && !started) { startMusic(); return; }
+      on = !on;
+      save(on);
+      show();
+      if (on) startMusic(); else stopMusic();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopMusic();
+      else if (on && started) startMusic();
+    });
+
+    return {
+      sfx(name) {
+        if (!on) return;
+        let base = effects.get(name);
+        if (!base) {
+          base = new Audio(`audio/16bit/sfx/${name}.mp3`);
+          base.volume = SFX_VOLUME;
+          effects.set(name, base);
+        }
+        // A copy each time, so quick taps overlap instead of cutting off.
+        const a = base.cloneNode();
+        a.volume = SFX_VOLUME;
+        a.play().catch(() => {});
+      },
+    };
+  })();
+
   // ---------- sprites ----------
 
   const sprites = new Map();
@@ -125,7 +213,11 @@
 
   document.querySelectorAll('[data-play-anim]').forEach((btn) => {
     const spr = btn.querySelector('.spr');
-    btn.addEventListener('click', () => play(spr, btn.dataset.playAnim));
+    const SFX = { attack: 'attack', hurt: 'hit', cheer: 'select', breath: 'roar' };
+    btn.addEventListener('click', () => {
+      play(spr, btn.dataset.playAnim);
+      sound.sfx(SFX[btn.dataset.playAnim] || 'select');
+    });
   });
 
   document.querySelectorAll('.critter-btn').forEach((btn) => {
@@ -133,6 +225,7 @@
     let timer = 0;
     btn.addEventListener('click', () => {
       play(spr, 'hurt');
+      sound.sfx('hit');
       document.querySelectorAll('.critter-btn.named').forEach((b) => b !== btn && b.classList.remove('named'));
       btn.classList.add('named');
       clearTimeout(timer);
@@ -266,15 +359,18 @@
       const right = all.find((b) => b.dataset.right);
       if (btn === right) {
         btn.classList.add('right');
+        sound.sfx('correct');
         all.filter((b) => b !== btn).forEach((b) => b.classList.add('dim'));
         hero.classList.add('lunge-left');
         play(heroSpr, 'attack');
+        sound.sfx('attack');
         await wait(260);
         const dmg = HITS[hits];
         hits += 1;
         hp = Math.max(0, hp - dmg);
         restart(foe, 'shake');
         play(foeSpr, 'hurt');
+        sound.sfx('impact');
         floatText(`-${dmg}`, foe, 'hit');
         foeHp.style.width = `${(hp / FOE_HP) * 100}%`;
         await wait(240);
@@ -282,6 +378,7 @@
         if (hits >= HITS.length) {
           won = true;
           play(buddySpr, 'cheer');
+          sound.sfx('victory');
           await wait(300);
           foe.classList.add('faint');
           const banner = document.createElement('p');
@@ -297,10 +394,13 @@
       } else {
         btn.classList.add('wrong');
         right.classList.add('right');
+        sound.sfx('wrong');
         foe.classList.add('lunge-right');
         play(foeSpr, 'attack');
+        sound.sfx('enemyAttack');
         await wait(260);
         play(heroSpr, 'hurt');
+        sound.sfx('hit');
         restart(hero, 'shake');
         heroLife = Math.max(10, heroLife - 6);
         heroHp.style.width = `${heroLife}%`;
@@ -316,6 +416,7 @@
     }
 
     next.addEventListener('click', () => {
+      sound.sfx('select');
       if (won) {
         won = false;
         foeIdx += 1;
@@ -389,12 +490,14 @@
       hop();
       if (stage === 'ember-egg') {
         taps += 1;
-        if (taps < 5) { speak(taps === 4 ? '*crack*' : '*wobble*'); return; }
+        if (taps < 5) { speak(taps === 4 ? '*crack*' : '*wobble*'); sound.sfx(taps === 4 ? 'shatter' : 'select'); return; }
         hatched = true;
+        sound.sfx('levelup');
         update();
         speak('You found a secret!');
         return;
       }
+      sound.sfx(stage === 'ember-dragon' || stage === 'ember-radiant' ? 'roar' : 'select');
       const lines = LINES[stage] || ['Rawr!'];
       speak(lines[Math.floor(Math.random() * lines.length)]);
     });
