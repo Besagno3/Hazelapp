@@ -4,7 +4,7 @@ Two static pages for Hazel Quest, outside the game app:
 
 | Page | For | What's on it |
 |---|---|---|
-| `index.html` | kids | a title screen with Kira and Ember walking, a playable demo battle, the five heroes, Ember's five stages, six real places, 36 critters, 6 bosses and Umbra's silhouette, a short grown-ups box, Play |
+| `index.html` | kids | a title screen with Kira and Ember walking, a playable demo battle, the five heroes, Ember's five stages, six real places, 36 critters, 6 bosses and Umbra's silhouette, a short grown-ups box, Play; the game's title music and sound effects from the first tap, with a 🔊 button to turn them off (remembered on the device) |
 | `grown-ups.html` | parents, carers, teachers | the idea, a real gameplay clip, how a session goes, the ten subjects, how it stays encouraging, how it's kept safe, how questions are made and checked, what's collected, family controls, FAQ |
 
 Plain HTML, CSS and JS (`assets/site.css`, `assets/site.js`), no framework.

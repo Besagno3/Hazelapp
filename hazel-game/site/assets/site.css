@@ -601,3 +601,16 @@ body.gu { background: var(--sky-pale); }
 .gu-cta .scene { display: flex; align-items: flex-end; gap: 4px; }
 .gu-cta .note { color: #d9d4ff; }
 @media (max-width: 480px) { .btn-big { white-space: normal; text-align: center; } }
+
+/* ---------- the speaker button (kids' page) ---------- */
+
+.sound-btn {
+  position: fixed;
+  left: calc(12px + env(safe-area-inset-left, 0px));
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  z-index: 25;
+  width: 48px;
+  padding: 0;
+  font-size: 1.4rem;
+}
+.sound-btn[aria-pressed='false'] { background: var(--muted); }
