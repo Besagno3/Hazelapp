@@ -6,7 +6,7 @@ import QuestionCard from '../../components/QuestionCard';
 import LevelBadge from '../../components/LevelBadge';
 import StreakBadge from '../../components/StreakBadge';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
-import { useGeneratedQuestions } from '../../hooks/useGeneratedQuestions';
+import { useBattleQuestions } from '../../hooks/useBattleQuestions';
 import { fetchQuestions, shuffleAnswers, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { sfx, stopMusic, type SfxName } from '../../lib/audio';
 import { bankRamp, playerAge, clampLevel, skillLevelFor } from '../../lib/age';
@@ -263,7 +263,7 @@ export default function BattleArena() {
   // Radiant Ember breathes starfire (#75 item 15g review round 4).
   const fireballSprite = resolveSprite(ember === 'radiant' ? 'fx-starfire' : 'fx-fireball', ember === 'radiant' ? '🌟' : '🔥');
 
-  const { questions, loading, error, reload } = useGeneratedQuestions(
+  const { questions, loading, error, reload } = useBattleQuestions(
     topic,
     BATTLE_QUESTION_COUNT,
     enemy ? clampLevel(enemy.level - mercy.levelDrop) : undefined,

@@ -13,8 +13,8 @@ const q: Question = {
 
 // The battle's question pool; a test may swap it (#153: starter questions).
 const pool = { questions: [q] };
-vi.mock('../../hooks/useGeneratedQuestions', () => ({
-  useGeneratedQuestions: () => ({ questions: pool.questions, loading: false, error: null, reload: () => {} }),
+vi.mock('../../hooks/useBattleQuestions', () => ({
+  useBattleQuestions: () => ({ questions: pool.questions, loading: false, error: null, reload: () => {} }),
 }));
 // The spell pool never arrives unless a test hands one over (Time Ripple, #75 item 14h).
 const fetchQuestionsMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>(() => new Promise(() => {})));

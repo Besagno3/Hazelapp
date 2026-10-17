@@ -197,6 +197,69 @@ export async function fetchQuestions(
   return [...have, ...starterQuestions(topic, skillLevel, count - have.length).map((q) => shuffleAnswers(q))];
 }
 
+// --- A battle that starts at once (#158) ------------------------------------
+// A battle used to wait for its whole batch, and when the bank was short the
+// server asked Claude for the rest: 15–20 seconds of "… approaches". Now it
+// starts on saved questions (`quickQuestions`: the zone's look-ahead, or a
+// saved-questions-only request — no Claude call) and the rest arrive while
+// the kid plays (`moreQuestions`).
+
+/** Questions a battle needs before it can start. */
+export const BATTLE_START_COUNT = 3;
+/** How long a battle waits for the saved questions before starting on starters. */
+export const QUICK_WAIT_MS = 3000;
+
+const after = (ms: number) => new Promise<Question[]>((resolve) => setTimeout(() => resolve([]), ms));
+
+/**
+ * Saved questions to start on, quickly: the warmed look-ahead if one is
+ * waiting, else a saved-questions-only request (never Claude). Never fewer
+ * than `start` — the starter questions fill in when the bank is thin, slow
+ * (`waitMs`) or down — and maybe the whole `count` when the bank has them.
+ */
+export async function quickQuestions(
+  topic: Topic,
+  age: number,
+  skillLevel: number,
+  count: number,
+  { start = BATTLE_START_COUNT, waitMs = QUICK_WAIT_MS }: { start?: number; waitMs?: number } = {},
+): Promise<Question[]> {
+  const key = cacheKey(topic, skillLevel, count);
+  const pre = prefetched.get(key);
+  if (pre) prefetched.delete(key); // consume once
+  const source = pre ?? invokeGenerate(topic, age, skillLevel, count, undefined, true);
+  const have = (await Promise.race([source.catch(() => [] as Question[]), after(waitMs)])).slice(0, count);
+  if (have.length >= start) return have;
+  return [...have, ...starterQuestions(topic, skillLevel, start - have.length).map((q) => shuffleAnswers(q))];
+}
+
+/**
+ * The rest of a batch, for a pool that started with `have`: up to `count` in
+ * all, asked of the server as usual (Claude may write them), none repeating
+ * what's there. What the server can't give comes from the starter questions,
+ * so the pool still ends up full. Never fails.
+ */
+export async function moreQuestions(
+  topic: Topic,
+  age: number,
+  skillLevel: number,
+  count: number,
+  have: Question[],
+): Promise<Question[]> {
+  const missing = count - have.length;
+  if (missing <= 0) return [];
+  const ids = new Set(have.map((q) => q.id));
+  const fresh = (await fromServer(topic, age, skillLevel, missing)).filter((q) => !ids.has(q.id)).slice(0, missing);
+  fresh.forEach((q) => ids.add(q.id));
+  const short = missing - fresh.length;
+  if (short <= 0) return fresh;
+  const starters = starterQuestions(topic, skillLevel, count + short)
+    .filter((q) => !ids.has(q.id))
+    .slice(0, short)
+    .map((q) => shuffleAnswers(q));
+  return [...fresh, ...starters];
+}
+
 /**
  * Whether a question is in the server's question bank — not a starter
  * question (B5), nor one that failed to cache ("fresh-…").

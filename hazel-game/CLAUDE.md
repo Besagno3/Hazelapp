@@ -955,6 +955,18 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-17 — Battles start at once (#158)
+Bumping a critter showed "… approaches" for 15–20 s: `BattleArena` waited for
+all 9 questions, and the server asked Claude for whatever the bank lacked
+before answering. New `useBattleQuestions` (replacing `useGeneratedQuestions`
+in the battle) starts on saved questions — `quickQuestions` takes the zone's
+saved-only look-ahead, or makes a saved-only request (never Claude, at most
+`QUICK_WAIT_MS` = 3 s), and needs only `BATTLE_START_COUNT` = 3 (starters fill
+in) — then `moreQuestions` asks for the rest as before and the pool grows
+when they arrive (the battle goes round what it has meanwhile). Bench with a
+15 s question server: on screen in 25 ms. Tests: questions.test (+6),
+useBattleQuestions.test (new, 2); 1577 green.
+
 ### 2026-10-17 — Critter cards on the kids' page (#146l)
 Tapping a critter or boss in "Meet the critters" / "Beat the bosses" did
 nothing but a hurt wiggle. It now opens a card (a modal `<dialog>`, the
