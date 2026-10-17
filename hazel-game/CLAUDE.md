@@ -955,6 +955,35 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-17 — #158 review fixes: an encounter flash, spells ready at once (#158a)
+`/saas-code-review` + `/saas-ux-review` of #158; the owner said fix all and
+keep the 3 s worst case. New `BattleIntro` (`features/battle/`, timing and
+words in `intro.ts`): two white flashes, dark bars sweep in over the battle's
+backdrop, the foe pops up — "⚔️ … appears!" / "☠️ … blocks your path!" —
+about 1 s (0.4 s fade under reduced motion), played while the first
+questions load and held on the foe if they're still coming (no spinner).
+The opening lines and callouts wait for it. The spell pool loads like the
+battle's (`useBattleQuestions(…, 'spell')`), so 📖 Spells is ready with the
+battle. `quickQuestions` returns `{ questions, late }`: a saved batch that
+loses the 3 s race is added when it lands, and `useBattleQuestions` asks for
+the rest after it. A thin bank fills to `BATTLE_START_FILL` (6) with
+starters; `moreQuestions` asks the bank for whatever starters only filled
+in. `nextQuestion` and spells read the pools from refs (a move asked from an
+earlier render sees new questions). The battle's error screen is gone (it
+couldn't show). Tests +10; 1587 green, lint + tsc clean; `bench … battle`
+4/5 (320 px pre-existing, #158b).
+
+### 2026-10-17 — Battles start at once (#158)
+Bumping a critter showed "… approaches" for 15–20 s: `BattleArena` waited for
+all 9 questions, and the server asked Claude for whatever the bank lacked
+before answering. New `useBattleQuestions` (replacing `useGeneratedQuestions`
+in the battle) starts on saved questions — `quickQuestions` takes the zone's
+saved-only look-ahead, or makes a saved-only request (never Claude, at most
+`QUICK_WAIT_MS` = 3 s), and needs only `BATTLE_START_COUNT` = 3 (starters fill
+in) — then `moreQuestions` asks for the rest as before and the pool grows
+when they arrive (the battle goes round what it has meanwhile). Bench with a
+15 s question server: on screen in 25 ms. Tests: questions.test (+6),
+useBattleQuestions.test (new, 2); 1577 green.
 ### 2026-10-17 — Story overview by act (docs only)
 New `docs/STORY-OVERVIEW.md`, reviewed with the owner: the overarching message,
 each act's message and key beats (warm-up, Acts I–IV, the epilogue), the early

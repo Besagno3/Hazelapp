@@ -12,11 +12,32 @@ const q: Question = {
 };
 
 // The battle's question pool; a test may swap it (#153: starter questions).
+// The spell pool (flavour 'spell') never arrives unless a test hands one over.
 const pool = { questions: [q] };
-vi.mock('../../hooks/useGeneratedQuestions', () => ({
-  useGeneratedQuestions: () => ({ questions: pool.questions, loading: false, error: null, reload: () => {} }),
+const spellPool = { questions: [] as Question[] };
+vi.mock('../../hooks/useBattleQuestions', () => ({
+  useBattleQuestions: (_t: unknown, _c: unknown, _l: unknown, flavor?: string) => ({
+    questions: flavor === 'spell' ? spellPool.questions : pool.questions,
+    loading: false,
+    error: null,
+    reload: () => {},
+  }),
 }));
-// The spell pool never arrives unless a test hands one over (Time Ripple, #75 item 14h).
+// The encounter flash is over at once here (BattleIntro.test plays it), unless
+// a test holds it to see what waits for it.
+const intro = { hold: false };
+vi.mock('./BattleIntro', async () => {
+  const { useEffect } = await import('react');
+  return {
+    BattleIntro: ({ onDone }: { onDone: () => void }) => {
+      useEffect(() => {
+        if (!intro.hold) onDone();
+      }, [onDone]);
+      return <button onClick={onDone}>end the flash</button>;
+    },
+  };
+});
+// The speed boost's harder pool (#97) never arrives unless a test hands one over.
 const fetchQuestionsMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>(() => new Promise(() => {})));
 vi.mock('../../lib/questions', async (orig) => ({
   ...(await orig<typeof import('../../lib/questions')>()),
@@ -51,6 +72,8 @@ const enemy = {
 
 beforeEach(() => {
   pool.questions = [q];
+  spellPool.questions = [];
+  intro.hold = false;
   useSaveStore.setState({
     userId: null,
     save: { ...defaultSave(), avatarId: 'a1', items: { ...defaultSave().items, potion: 1 } },
@@ -327,6 +350,36 @@ describe('what beating a boss does follows its role (#75 item 14c)', () => {
   });
 });
 
+describe('the encounter flash and a pool that grows (#158 review)', () => {
+  it('nothing starts behind the flash: the command menu and a Fiend\'s monologue wait for it', () => {
+    intro.hold = true;
+    useBattleStore.getState().start({ ...enemy, id: 'null-fiend', instanceId: 'nf', name: 'The Null Fiend', isBoss: true, role: 'fiend' } as BattleEnemy, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByText('Attack')).toBeNull();
+    expect(screen.queryByText(/tap to continue/)).toBeNull();
+    fireEvent.click(screen.getByText('end the flash'));
+    expect(screen.getByText(/tap to continue/)).toBeInTheDocument();
+  });
+
+  it('questions that arrive mid-fight are asked next, in order', () => {
+    const q2: Question = { ...q, id: 'q2', text: 'What is 3 + 1?' };
+    const { rerender } = render(<BattleArena />);
+    fireEvent.click(screen.getByText('Attack'));
+    expect(screen.getByText('What is 2 + 2?')).toBeInTheDocument();
+    pool.questions = [q, q2];
+    rerender(<BattleArena />);
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    // The enemy's turn asks the next question: the one that just arrived.
+    for (let i = 0; i < 5 && !screen.queryByText('What is 3 + 1?'); i++) {
+      const next = screen.queryByText(/tap to continue/);
+      if (next) fireEvent.click(next);
+      else if (screen.queryByText('Attack')) fireEvent.click(screen.getByText('Attack'));
+    }
+    expect(screen.getByText('What is 3 + 1?')).toBeInTheDocument();
+  });
+});
+
 describe('signature abilities in battle', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -519,7 +572,7 @@ describe('the Sunken Archive in battle (#75 item 14h)', () => {
   });
 
   it("Sage Chronicle's Time Ripple lands a strike and the enemy loses its next turn", async () => {
-    fetchQuestionsMock.mockResolvedValue([q, q, q, q]);
+    spellPool.questions = [q, q, q, q];
     useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1', sages: ['history'] } });
     useBattleStore.getState().start(enemy, 60, 100);
     useBattleStore.setState({ charge: 3 });

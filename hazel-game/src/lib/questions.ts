@@ -197,6 +197,97 @@ export async function fetchQuestions(
   return [...have, ...starterQuestions(topic, skillLevel, count - have.length).map((q) => shuffleAnswers(q))];
 }
 
+// --- A battle that starts at once (#158) ------------------------------------
+// A battle used to wait for its whole batch, and when the bank was short the
+// server asked Claude for the rest: 15–20 seconds of "… approaches". Now it
+// starts on saved questions (`quickQuestions`: the zone's look-ahead, or a
+// saved-questions-only request — no Claude call) and the rest arrive while
+// the kid plays (`moreQuestions`).
+
+/** Questions a battle needs before it can start. */
+export const BATTLE_START_COUNT = 3;
+/** With fewer saved questions than that, starter questions fill the pool to this many, so a quick kid isn't going round three while the rest load. */
+export const BATTLE_START_FILL = 6;
+/** How long a battle waits for the saved questions before starting on starters. */
+export const QUICK_WAIT_MS = 3000;
+
+/** Resolves with null after `ms` — the "too slow" side of a race. */
+export const waitFor = (ms: number) => new Promise<null>((resolve) => setTimeout(() => resolve(null), ms));
+
+/** The questions a battle starts on, and any saved ones that came too late to start with. */
+export interface QuickStart {
+  questions: Question[];
+  /**
+   * The saved batch that lost the race against `waitMs`, when it arrives
+   * (already handed over by the server, so it's used rather than wasted);
+   * none when it was in time.
+   */
+  late: Promise<Question[]>;
+}
+
+export interface QuickOptions {
+  start?: number;
+  fill?: number;
+  waitMs?: number;
+  flavor?: FlavorId;
+}
+
+/**
+ * Saved questions to start on, quickly: the warmed look-ahead if one is
+ * waiting, else a saved-questions-only request (never Claude) for the whole
+ * `count`. Never fewer than `start` — with fewer saved ones (a thin bank, a
+ * slow or failed request, `waitMs`), starter questions fill the pool to
+ * `fill` — and maybe the whole `count` when the bank has them.
+ */
+export async function quickQuestions(
+  topic: Topic,
+  age: number,
+  skillLevel: number,
+  count: number,
+  { start = BATTLE_START_COUNT, fill = BATTLE_START_FILL, waitMs = QUICK_WAIT_MS, flavor }: QuickOptions = {},
+): Promise<QuickStart> {
+  const key = cacheKey(topic, skillLevel, count, flavor);
+  const pre = prefetched.get(key);
+  if (pre) prefetched.delete(key); // consume once
+  const source = (pre ?? invokeGenerate(topic, age, skillLevel, count, flavor, true)).catch(() => [] as Question[]);
+  const got = await Promise.race([source, waitFor(waitMs)]);
+  const saved = (got ?? []).slice(0, count);
+  const late = got === null ? source.then((qs) => qs.slice(0, count)) : Promise.resolve([] as Question[]);
+  if (saved.length >= start) return { questions: saved, late };
+  const fillTo = Math.min(count, Math.max(start, fill));
+  const starters = starterQuestions(topic, skillLevel, fillTo - saved.length).map((q) => shuffleAnswers(q));
+  return { questions: [...saved, ...starters], late };
+}
+
+/**
+ * The rest of a batch, for a pool that started with `have`: enough bank
+ * questions to make `count` (starter questions in `have` don't count — they
+ * only filled in), asked of the server as usual (Claude may write them), none
+ * repeating what's there. What the server can't give comes from the starter
+ * questions, so the pool still ends up full. Never fails.
+ */
+export async function moreQuestions(
+  topic: Topic,
+  age: number,
+  skillLevel: number,
+  count: number,
+  have: Question[],
+  flavor?: FlavorId,
+): Promise<Question[]> {
+  const missing = count - have.filter((q) => !isStarterId(q.id)).length;
+  if (missing <= 0) return [];
+  const ids = new Set(have.map((q) => q.id));
+  const fresh = (await fromServer(topic, age, skillLevel, missing, flavor)).filter((q) => !ids.has(q.id)).slice(0, missing);
+  fresh.forEach((q) => ids.add(q.id));
+  const short = count - have.length - fresh.length;
+  if (short <= 0) return fresh;
+  const starters = starterQuestions(topic, skillLevel, count + short)
+    .filter((q) => !ids.has(q.id))
+    .slice(0, short)
+    .map((q) => shuffleAnswers(q));
+  return [...fresh, ...starters];
+}
+
 /**
  * Whether a question is in the server's question bank — not a starter
  * question (B5), nor one that failed to cache ("fresh-…").
