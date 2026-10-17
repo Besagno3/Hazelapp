@@ -220,16 +220,106 @@
     });
   });
 
+  // ---------- a critter's card: who it is, where it lives, its story ----------
+  //
+  // Names, subjects, homes and traits match the game (src/content/enemies.ts,
+  // the zones they roam); the stories are written for this page.
+
+  const TRAITS = {
+    trickster: '🪶 Tricky: Hint Feathers don’t work on it.',
+    shielded: '🛡️ Shielded: your first hit only cracks its shell.',
+    healer: '💚 Healer: it mends itself when it’s hurt.',
+    swift: '⚡ Swift: it always moves first.',
+    sea: '⛵ Lives at sea: you meet it from Marlow’s boat.',
+  };
+  const CRITTERS = {
+    'sum-slime': { kind: 'a wobbly blue slime', topic: 'Math', home: 'Numbria', story: 'When it’s cross it splits in two, and when it’s happy it joins back up. Nobody has ever seen it finish adding itself.' },
+    'count-bat': { kind: 'a counting bat', topic: 'Math', home: 'Numbria', story: 'It hangs upside down counting everything it sees: icicles, snowflakes, sleepy heroes. It always loses count at 99.' },
+    'sir-sumsalot': { kind: 'a tiny math dragon', topic: 'Math', home: 'Numbria', story: 'He knighted himself with a pencil. He guards the snowy hills and challenges every traveller to a duel of sums.' },
+    'pirate-parrot': { kind: 'a pirate parrot', topic: 'Math', home: 'Numbria', traits: ['trickster'], story: 'It sailed to Numbria looking for treasure and found numbers instead. Now it squawks the digits of pi at anyone who’ll listen.' },
+    'spore-puff': { kind: 'a puffy mushroom', topic: 'Science', home: 'Verdara', story: 'Every time it sneezes, a cloud of spores drifts off and grows new mushrooms. Half of Verdara’s forest is its family.' },
+    'static-jelly': { kind: 'a crackly jellyfish', topic: 'Science', home: 'Verdara', story: 'It floats through the forest air instead of the sea, buzzing with static. Get too close and your hair stands on end.' },
+    'comet-crab': { kind: 'a crab with a comet’s tail', topic: 'Science', home: 'Verdara', story: 'It fell from the sky as a glowing pebble and grew legs. On dark nights its tail still shines.' },
+    'fizzlet': { kind: 'a bubbly potion sprite', topic: 'Science', home: 'Verdara', story: 'It escaped from an experiment and never stopped fizzing. Its favourite snack is baking soda with a splash of vinegar.' },
+    'bolt-mouse': { kind: 'an electric mouse', topic: 'Engineering', home: 'Gearfall Canyon', story: 'It nibbles copper wire like cheese, and every squeak lets off a tiny spark.' },
+    'pulley-spider': { kind: 'a clockwork spider', topic: 'Engineering', home: 'Gearfall Canyon', story: 'It spins ropes and pulleys instead of webs, and can lift a boulder with one leg.' },
+    'piston-boar': { kind: 'a steam-powered boar', topic: 'Engineering', home: 'Gearfall Canyon', story: 'It charges on pistons and puffs steam from its snout, then has to stop and catch its breath.' },
+    'doodle-imp': { kind: 'a doodle come to life', topic: 'Creativity', home: 'Chromaria', story: 'Someone drew it in the corner of a sketchbook, and it climbed right out. It scribbles on anything left lying around.' },
+    'off-key-bird': { kind: 'a bird that sings out of tune', topic: 'Creativity', home: 'Chromaria', story: 'It practises every morning, and every morning it’s a little bit wrong. It’s very proud of itself anyway.' },
+    'pixel-witch': { kind: 'a pixel-painting witch', topic: 'Creativity', home: 'Chromaria', traits: ['trickster'], story: 'She paints in tiny squares and casts her spells in tiny squares too. She can make a feather vanish right out of your hand.' },
+    'dog-knight': { kind: 'a dog in shining armour', topic: 'Creativity', home: 'Chromaria', traits: ['healer'], story: 'He guards Chromaria’s statues and licks his own scrapes better. Secretly, he’d rather play fetch.' },
+    'mossback-cub': { kind: 'a mossy bear cub', topic: 'Nature & Animals', home: 'the Whispering Woods', story: 'Moss grows on its back, so birds land on it thinking it’s a log. It doesn’t mind the company.' },
+    'thornhare': { kind: 'a prickly hare', topic: 'Nature & Animals', home: 'the Whispering Woods', story: 'Its fur is soft but its ears are thorny, so it can hop through brambles that stop everyone else.' },
+    'grumblebee': { kind: 'a grumpy bee', topic: 'Nature & Animals', home: 'the Whispering Woods', story: 'It grumbles about everything: the weather, the flowers, you. It still makes the sweetest honey in the woods.' },
+    'dart-frog': { kind: 'a bright little frog', topic: 'Nature & Animals', home: 'the Whispering Woods', story: 'Its bright colours say “don’t touch!” It darts between lily pads faster than you can blink.' },
+    'oak-owl': { kind: 'a wise old owl', topic: 'Nature & Animals', home: 'the Whispering Woods', traits: ['trickster'], story: 'It has lived in the same oak for a hundred years, and it answers every question with another question.' },
+    'tide-sprite': { kind: 'a little wave spirit', topic: 'Space', home: 'Starfall Coast', story: 'It rides the tide in and out, giggling, while the moon pulls it along like a kite.' },
+    'moon-moth': { kind: 'a glowing moth', topic: 'Space', home: 'Starfall Coast', traits: ['healer'], story: 'It sips moonlight instead of nectar. When it’s hurt, it glows brighter and heals itself.' },
+    'orbit-otter': { kind: 'a stargazing otter', topic: 'Space', home: 'Starfall Coast', story: 'It floats on its back all night watching the planets go round. It knows every star by name.' },
+    'eclipse-fox': { kind: 'a fox of sun and shadow', topic: 'Space', home: 'Starfall Coast', traits: ['shielded'], story: 'Half its fur is as bright as the sun and half as dark as night. It hides behind a shield of shadow.' },
+    'hourglass-imp': { kind: 'an imp made of glass and sand', topic: 'Time & History', home: 'the Clockwork Depths', story: 'It flips itself over whenever it gets bored. Time runs a little strange around it.' },
+    'knight-mare': { kind: 'a clockwork knight’s horse', topic: 'Time & History', home: 'the Clockwork Depths', story: 'A knight’s horse from long ago, still trotting the Gear Halls in rusty armour, looking for its rider.' },
+    'bubble-puffer': { kind: 'a puffer fish', topic: 'Nature & Animals', home: 'the Silver Shallows', traits: ['sea'], story: 'It puffs up into a spiky ball whenever it’s startled, which is nearly all the time.' },
+    'inkling': { kind: 'a small octopus', topic: 'Nature & Animals', home: 'the Silver Shallows', traits: ['sea', 'trickster'], story: 'It squirts ink to hide, then giggles from inside the cloud.' },
+    'starfix': { kind: 'a sea star', topic: 'Nature & Animals', home: 'the Silver Shallows', traits: ['sea', 'healer'], story: 'Lose an arm? Starfix just grows a new one. It’s a real sea-star trick.' },
+    'hollow-acorn': { kind: 'an acorn with an empty middle', topic: 'Time & History', home: 'Eldergrove', traits: ['shielded'], story: 'It fell from one of Eldergrove’s oldest trees and forgot which one. Its shell is as hard as stone.' },
+    'bog-lantern': { kind: 'a floating flame spirit', topic: 'Time & History', home: 'Foglight Marsh', traits: ['trickster'], story: 'It glows over the marsh like a lantern, hoping travellers will follow it the wrong way.' },
+    'quill-imp': { kind: 'an imp with a feather quill', topic: 'Time & History', home: 'the Sunken Archive', traits: ['swift'], story: 'It zips between the bookshelves rewriting the endings of stories it doesn’t like.' },
+    'latitude-cat': { kind: 'a map-loving cat', topic: 'Maps & Places', home: 'the Wayfinder Isles', traits: ['trickster'], story: 'It naps on maps and always knows which way is north, but it won’t tell you.' },
+    'zephyr-pup': { kind: 'a puppy made of wind', topic: 'Maps & Places', home: 'Gale Atoll', story: 'It chases its own breeze round and round the atoll. Its bark sounds like a whistle.' },
+    'squall-chick': { kind: 'a stormy little chick', topic: 'Maps & Places', home: 'Gale Atoll', traits: ['swift'], story: 'It hatched in a thunderstorm and has been in a hurry ever since.' },
+    'drum-crab': { kind: 'a drumming crab', topic: 'Music', home: 'Songstone Cliffs', story: 'It drums on its own shell to keep the cliffs’ songs in time. It never misses a beat.' },
+    // Bosses
+    'null-fiend': { kind: 'a Fiend: one of the big bosses', topic: 'Math', home: 'Numbria', story: 'It stole the Crystal of Numbers and wants every sum in Lumina to come out zero. Beat it to bring the crystal home.' },
+    'smog-fiend': { kind: 'a Fiend: one of the big bosses', topic: 'Science', home: 'Verdara', story: 'A cloud of grey smog that hid the Crystal of Nature and choked Verdara’s flowers. Clear it away and the forest can breathe.' },
+    'thicket-warden': { kind: 'a warden: one of the big bosses', topic: 'Nature & Animals', home: 'the Whispering Woods', story: 'A giant stag of branches who guards the Verdant Key. Win it, and the gate to Verdara opens.' },
+    'tide-colossus': { kind: 'a warden: one of the big bosses', topic: 'Space', home: 'Starfall Coast', story: 'A whale as big as a hill, wearing a crown of stars. It guards the Prism Key, which opens the way into Chromaria.' },
+    'clockwork-titan': { kind: 'a warden: one of the big bosses', topic: 'Time & History', home: 'deep in the Clockwork Depths', story: 'A huge machine that has guarded the Gearwright Key for a thousand years. It still ticks in its sleep.' },
+    'riddle-leviathan': { kind: 'a warden: one of the big bosses', topic: 'Words & Stories', home: 'Inkwell Cove', story: 'A sea serpent that rises from a pool of ink and speaks only in riddles. Answer well to win the Second Chorus Key.' },
+  };
+
+  const card = document.createElement('dialog');
+  card.className = 'critter-card window';
+  card.setAttribute('aria-labelledby', 'critter-card-name');
+  card.innerHTML = `
+    <button class="card-close" type="button" aria-label="Close">✕</button>
+    <div class="card-art"><span class="spr" data-spr="sum-slime" data-anim="idle"></span></div>
+    <h3 class="card-name" id="critter-card-name"></h3>
+    <p class="card-kind"></p>
+    <ul class="card-traits"></ul>
+    <p class="card-story"></p>`;
+  document.body.append(card);
+  const cardSpr = card.querySelector('.spr');
+  register(cardSpr);
+  card.querySelector('.card-close').addEventListener('click', () => card.close());
+  // A tap on the dim backdrop (outside the card) closes it too.
+  card.addEventListener('click', (e) => { if (e.target === card) card.close(); });
+
+  function showCard(id, name) {
+    const c = CRITTERS[id];
+    if (!c) return;
+    setSheet(cardSpr, id);
+    card.querySelector('.card-name').textContent = name;
+    card.querySelector('.card-kind').textContent = c.kind.charAt(0).toUpperCase() + c.kind.slice(1);
+    const where = c.home.startsWith('deep') ? c.home : `in ${c.home}`;
+    const facts = [`🏠 Lives ${where}`, `❓ Asks ${c.topic} questions`, ...(c.traits || []).map((t) => TRAITS[t])];
+    card.querySelector('.card-traits').replaceChildren(...facts.map((text) => {
+      const li = document.createElement('li');
+      li.textContent = text;
+      return li;
+    }));
+    card.querySelector('.card-story').textContent = c.story;
+    if (!card.open) card.showModal();
+    play(cardSpr, 'attack');
+  }
+
   document.querySelectorAll('.critter-btn').forEach((btn) => {
     const spr = btn.querySelector('.spr');
-    let timer = 0;
+    btn.setAttribute('aria-haspopup', 'dialog');
     btn.addEventListener('click', () => {
       play(spr, 'hurt');
       sound.sfx('hit');
-      document.querySelectorAll('.critter-btn.named').forEach((b) => b !== btn && b.classList.remove('named'));
-      btn.classList.add('named');
-      clearTimeout(timer);
-      timer = setTimeout(() => btn.classList.remove('named'), 1800);
+      showCard(spr.dataset.spr, btn.getAttribute('aria-label'));
     });
   });
 
