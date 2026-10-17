@@ -19,7 +19,7 @@ vi.mock('./supabase', () => ({
 }));
 
 // Import AFTER the mock is registered.
-import { fetchQuestions, flagQuestion, inQuestionBank, moreQuestions, prefetchQuestions, quickQuestions, shuffleAnswers } from './questions';
+import { BATTLE_QUESTION_COUNT, fetchQuestions, flagQuestion, inQuestionBank, moreQuestions, prefetchQuestions, quickQuestions, shuffleAnswers } from './questions';
 import { useFamilyStore } from '../store/familyStore';
 
 beforeEach(() => {
@@ -326,37 +326,60 @@ describe('a battle that starts at once (#158)', () => {
   it('starts on the warmed saved questions without asking the server again', async () => {
     invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(4) }, error: null });
     prefetchQuestions('nature', 9, 5, 9, undefined, { cacheOnly: true });
-    const first = await quickQuestions('nature', 9, 5, 9);
-    expect(first.map((q) => q.id)).toEqual(['q-0', 'q-1', 'q-2', 'q-3']);
+    const { questions, late } = await quickQuestions('nature', 9, 5, 9);
+    expect(questions.map((q) => q.id)).toEqual(['q-0', 'q-1', 'q-2', 'q-3']);
+    expect(await late).toEqual([]);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the zone's look-ahead exactly as WorldScreen warms it (review fix: the keys must match)", async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(9) }, error: null });
+    // WorldScreen's call, word for word: no flavour, saved questions only.
+    prefetchQuestions('math', 9, 4, BATTLE_QUESTION_COUNT, undefined, { cacheOnly: true });
+    const { questions } = await quickQuestions('math', 9, 4, BATTLE_QUESTION_COUNT);
+    expect(questions).toHaveLength(9);
     expect(invokeMock).toHaveBeenCalledTimes(1);
   });
 
   it('with nothing warmed, asks for saved questions only — never a Claude call', async () => {
     invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(9) }, error: null });
-    const first = await quickQuestions('space', 9, 4, 9);
-    expect(first).toHaveLength(9);
+    const { questions } = await quickQuestions('space', 9, 4, 9);
+    expect(questions).toHaveLength(9);
     expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'space', count: 9, cacheOnly: true });
   });
 
-  it('never starts on fewer than three: the starter questions fill a thin bank', async () => {
-    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(1) }, error: null });
-    const first = await quickQuestions('math', 9, 4, 9);
-    expect(first.map((q) => q.id.slice(0, 2))).toEqual(['q-', 'st', 'st']);
+  it('a spell pool asks with its flavour', async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(4) }, error: null });
+    await quickQuestions('space', 9, 7, 4, { flavor: 'spell' });
+    expect(invokeMock.mock.calls[0][1].body).toMatchObject({ count: 4, cacheOnly: true, flavor: 'spell' });
   });
 
-  it('starts on starter questions when the bank is down or slow', async () => {
+  it('with fewer than three saved, starter questions fill the pool to six', async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(1) }, error: null });
+    const { questions } = await quickQuestions('math', 9, 4, 9);
+    expect(questions.map((q) => q.id.slice(0, 2))).toEqual(['q-', 'st', 'st', 'st', 'st', 'st']);
+    // Never past the batch: a spell pool of four fills to four.
+    invokeMock.mockResolvedValueOnce({ data: { questions: [] }, error: null });
+    expect((await quickQuestions('math', 9, 4, 4)).questions).toHaveLength(4);
+  });
+
+  it('starts on starter questions when the bank is down or slow — and a slow batch still arrives (review fix)', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     invokeMock.mockResolvedValueOnce({ data: null, error: new Error('Failed to fetch') });
-    expect((await quickQuestions('math', 9, 4, 9)).every((q) => q.id.startsWith('starter-'))).toBe(true);
+    expect((await quickQuestions('math', 9, 4, 9)).questions.every((q) => q.id.startsWith('starter-'))).toBe(true);
 
     vi.useFakeTimers();
     try {
-      invokeMock.mockReturnValueOnce(new Promise(() => {})); // never answers
+      let answer!: (v: unknown) => void;
+      invokeMock.mockReturnValueOnce(new Promise((r) => (answer = r)));
       const slow = quickQuestions('math', 9, 4, 9, { waitMs: 3000 });
       await vi.advanceTimersByTimeAsync(3000);
-      const first = await slow;
-      expect(first).toHaveLength(3);
-      expect(first.every((q) => q.id.startsWith('starter-'))).toBe(true);
+      const { questions, late } = await slow;
+      expect(questions).toHaveLength(6);
+      expect(questions.every((q) => q.id.startsWith('starter-'))).toBe(true);
+      // The server already handed this batch over: it isn't thrown away.
+      answer({ data: { questions: apiBatch(5) }, error: null });
+      expect((await late).map((q) => q.id)).toEqual(['q-0', 'q-1', 'q-2', 'q-3', 'q-4']);
     } finally {
       vi.useRealTimers();
       warn.mockRestore();
@@ -367,26 +390,36 @@ describe('a battle that starts at once (#158)', () => {
     const have = apiBatch(3).map((q) => ({ ...q, topic: 'nature' as const }));
     // The server hands back one the battle already has, as a seen question.
     invokeMock.mockResolvedValueOnce({ data: { questions: [...apiBatch(1), ...apiBatch(6, 10)] }, error: null });
-    const rest = await moreQuestions('nature', 9, 5, 9, have);
+    const rest = await moreQuestions('nature', 9, 5, 9, have, 'spell');
     const body = invokeMock.mock.calls[0][1].body;
-    expect(body).toMatchObject({ count: 6 });
+    expect(body).toMatchObject({ count: 6, flavor: 'spell' });
     expect(body).not.toHaveProperty('cacheOnly');
     expect(rest).toHaveLength(6);
     expect(rest.map((q) => q.id)).not.toContain('q-0');
   });
 
+  it('starter questions that only filled in are asked for again from the bank', async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: [] }, error: null });
+    const { questions: first } = await quickQuestions('math', 9, 4, 9);
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(9) }, error: null });
+    const rest = await moreQuestions('math', 9, 4, 9, first);
+    expect(invokeMock.mock.calls[1][1].body).toMatchObject({ count: 9 });
+    expect(rest).toHaveLength(9);
+  });
+
   it('what the server cannot give comes from starters, none already in the pool; a full pool asks nothing', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     invokeMock.mockResolvedValueOnce({ data: null, error: new Error('questions_unavailable') });
-    const first = await quickQuestions('math', 9, 2, 9, { start: 3 }).catch(() => []);
+    const { questions: first } = await quickQuestions('math', 9, 2, 9);
     invokeMock.mockReset();
     invokeMock.mockResolvedValueOnce({ data: null, error: new Error('questions_unavailable') });
     const rest = await moreQuestions('math', 9, 2, 9, first);
-    expect(rest).toHaveLength(6);
+    expect(first.length + rest.length).toBe(9);
     expect(new Set([...first, ...rest].map((q) => q.id)).size).toBe(9);
 
     invokeMock.mockReset();
-    expect(await moreQuestions('math', 9, 2, 3, first)).toEqual([]);
+    const bank = apiBatch(3).map((q) => ({ ...q, topic: 'math' as const }));
+    expect(await moreQuestions('math', 9, 2, 3, bank)).toEqual([]);
     expect(invokeMock).not.toHaveBeenCalled();
     warn.mockRestore();
   });

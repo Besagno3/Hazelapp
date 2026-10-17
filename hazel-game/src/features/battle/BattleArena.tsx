@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import LevelBadge from '../../components/LevelBadge';
 import StreakBadge from '../../components/StreakBadge';
-import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
+import { BattleIntro } from './BattleIntro';
 import { useBattleQuestions } from '../../hooks/useBattleQuestions';
 import { fetchQuestions, shuffleAnswers, BATTLE_QUESTION_COUNT } from '../../lib/questions';
 import { sfx, stopMusic, type SfxName } from '../../lib/audio';
@@ -97,6 +97,8 @@ import { IMPACT_MS, useBattleFx } from './useBattleFx';
 
 /** Kira's Counter Strike sets off this long after the enemy's blow lands. */
 const COUNTER_DELAY_MS = 280;
+/** Super-hard questions warmed for spells and Pair Attacks. */
+const SPELL_POOL_COUNT = 4;
 
 /** Wall-clock ms for answer timing (module-level so it's never called during render). */
 const nowMs = () => performance.now();
@@ -263,19 +265,40 @@ export default function BattleArena() {
   // Radiant Ember breathes starfire (#75 item 15g review round 4).
   const fireballSprite = resolveSprite(ember === 'radiant' ? 'fx-starfire' : 'fx-fireball', ember === 'radiant' ? '🌟' : '🔥');
 
-  const { questions, loading, error, reload } = useBattleQuestions(
+  // Never fails (#158): the starter questions cover anything the server can't give.
+  const { questions, loading } = useBattleQuestions(
     topic,
     BATTLE_QUESTION_COUNT,
     enemy ? clampLevel(enemy.level - mercy.levelDrop) : undefined,
   );
+  // The super-hard pool (level + SPELL_LEVEL_BONUS) shared by spells + Pair
+  // Attacks, loaded the same way: saved questions first, so spells are ready
+  // with the battle, and the rest as they come (#158 review). Every hero knows
+  // at least Mend, so it always loads.
+  const { questions: spellQs } = useBattleQuestions(
+    topic,
+    SPELL_POOL_COUNT,
+    enemy ? clampLevel(enemy.level + SPELL_LEVEL_BONUS - mercy.levelDrop) : undefined,
+    'spell',
+  );
+  // The encounter flash plays while the first questions load (#158 review);
+  // nothing in the battle starts until both are done.
+  const [introDone, setIntroDone] = useState(false);
+  const finishIntro = useCallback(() => setIntroDone(true), []);
+  const waiting = loading || !introDone;
+  // The pool and where the battle is in it, read when a question is asked:
+  // a move often asks from a callback made a render earlier, before the pool
+  // grew (#158 review) — the refs always hold the latest.
+  const poolRef = useRef(questions);
+  poolRef.current = questions;
+  const qIndexRef = useRef(0);
 
   const fx = useBattleFx();
   const { float, showBanner, later } = fx;
   const [turn, setTurn] = useState<Turn>({ kind: 'command' });
-  const [qIndex, setQIndex] = useState(0);
-  // Super-hard question pool (level + SPELL_LEVEL_BONUS) shared by spells + Pair Attacks.
-  const [spellQs, setSpellQs] = useState<Question[]>([]);
-  const [spellIdx, setSpellIdx] = useState(0);
+  const spellPoolRef = useRef(spellQs);
+  spellPoolRef.current = spellQs;
+  const spellIdxRef = useRef(0);
   const [answers, setAnswers] = useState<boolean[]>([]);
   // The answers that move the saved skill level: bank questions only (#153).
   // Starter questions repeat — six a band — so knowing them isn't a new level.
@@ -315,34 +338,12 @@ export default function BattleArena() {
   const [shownHp, setShownHp] = useState<{ p: number; e: number } | null>(null);
   const shownSeq = useRef(0);
 
-  // Warm the super-hard spell-tier pool (level + SPELL_LEVEL_BONUS). Every
-  // hero knows at least Mend, so this always loads; spells stay castable.
-  useEffect(() => {
-    if (!enemy) return;
-    let active = true;
-    fetchQuestions(
-      topic,
-      age,
-      clampLevel(enemy.level + SPELL_LEVEL_BONUS - mercy.levelDrop),
-      4,
-      'spell',
-    )
-      .then((qs) => active && setSpellQs(qs))
-      .catch(() => {
-        /* Spells stay unavailable; basic commands are unaffected. */
-      });
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enemy?.instanceId]);
-
   // Start-of-battle callout, once the question LoadingScreen clears (the
   // banner only renders in the battle UI): the archetype twist, so it's never
   // a gotcha.
   const calloutShownFor = useRef<string | null>(null);
   useEffect(() => {
-    if (loading || !enemy || calloutShownFor.current === enemy.instanceId) return;
+    if (waiting || !enemy || calloutShownFor.current === enemy.instanceId) return;
     calloutShownFor.current = enemy.instanceId;
     // The hero type's opening perk, shown as the fight opens (short: it floats over the hero).
     const opening = heroOpening(style);
@@ -367,7 +368,7 @@ export default function BattleArena() {
       later(() => showBanner(callout, Math.max(3000, toastMs(callout))), 250);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enemy?.instanceId, loading]);
+  }, [enemy?.instanceId, waiting]);
 
   // Before the first command, tap-to-continue lines nothing can hurry past: a
   // Fiend's monologue (#37 story pass), then what "!" marks mean the first
@@ -376,7 +377,7 @@ export default function BattleArena() {
   // once its line is on screen.
   const openingDone = useRef(false);
   useEffect(() => {
-    if (loading || !enemy || openingDone.current) return;
+    if (waiting || !enemy || openingDone.current) return;
     openingDone.current = true;
     const tier = enemy.tier ?? BASE_TIER;
     const { toughMet, meetTough } = useBattleStore.getState();
@@ -402,7 +403,7 @@ export default function BattleArena() {
     // `enemyTurn` (a swift critter's first move) is made afresh each render; the
     // opening runs once a battle, so the one from this render is the one wanted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, enemy, keyBoss, mercyDrop]);
+  }, [waiting, enemy, keyBoss, mercyDrop]);
 
   // Battle entered without an encounter (e.g. stale reload) — bail out.
   const invalid = !enemy || !save || !avatar;
@@ -410,19 +411,18 @@ export default function BattleArena() {
     if (invalid) sendFlow({ type: 'BATTLE_END', result: 'lose' });
   }, [invalid]);
   if (invalid) return null;
-  if (loading) return <LoadingScreen label={`${enemy.name} approaches…`} topic={topic} />;
-  if (error) {
+  // The encounter flash, held on the foe's name if the first questions are
+  // still on their way (at most QUICK_WAIT_MS in all) — no spinner flash.
+  if (waiting)
     return (
-      <ErrorScreen
-        message={error}
-        onRetry={reload}
-        onBack={() => {
-          sendFlow({ type: 'BATTLE_END', result: 'lose' });
-          endBattle();
-        }}
+      <BattleIntro
+        name={enemy.name}
+        sprite={enemySprite}
+        isBoss={enemy.isBoss}
+        backdrop={battleBackdrop(enemy.zoneId, enemy.habitat)}
+        onDone={finishIntro}
       />
     );
-  }
 
   const viewPlayerHp = shownHp?.p ?? playerHp;
   const viewEnemyHp = shownHp?.e ?? enemyHp;
@@ -435,8 +435,9 @@ export default function BattleArena() {
     // After a speed boost, draw from the harder pool once it has arrived.
     const bp = boostPool.current;
     if (bp.qs.length > 0) return shuffleAnswers(bp.qs[bp.i++ % bp.qs.length]);
-    const q = questions[qIndex % questions.length];
-    setQIndex((i) => i + 1);
+    const pool = poolRef.current;
+    const q = pool[qIndexRef.current % pool.length];
+    qIndexRef.current += 1;
     return shuffleAnswers(q);
   };
   /** The level this battle's regular questions are asked at (before any speed boost). */
@@ -525,8 +526,9 @@ export default function BattleArena() {
   }
   /** The next super-hard question (spells + Pair Attacks share the pool). */
   function nextSpellQuestion() {
-    const q = spellQs[spellIdx % spellQs.length];
-    setSpellIdx((i) => i + 1);
+    const pool = spellPoolRef.current;
+    const q = pool[spellIdxRef.current % pool.length];
+    spellIdxRef.current += 1;
     return q;
   }
   function startPair(pair: PairAttack) {

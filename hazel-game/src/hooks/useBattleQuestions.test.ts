@@ -5,7 +5,14 @@ import type { Question } from '../types';
 const q = (id: string): Question => ({ id, topic: 'math', level: 4, text: id, options: ['a', 'b', 'c', 'd'], correctIndex: 0 });
 
 const { quick, more } = vi.hoisted(() => ({ quick: vi.fn(), more: vi.fn() }));
-vi.mock('../lib/questions', () => ({ quickQuestions: quick, moreQuestions: more }));
+vi.mock('../lib/questions', () => ({
+  quickQuestions: quick,
+  moreQuestions: more,
+  QUICK_WAIT_MS: 3000,
+  waitFor: (ms: number) => new Promise((resolve) => setTimeout(() => resolve(null), ms)),
+}));
+/** A quick start with nothing coming late. */
+const started = (qs: Question[]) => ({ questions: qs, late: Promise.resolve([]) });
 
 import { useBattleQuestions } from './useBattleQuestions';
 
@@ -16,7 +23,7 @@ beforeEach(() => {
 
 describe('useBattleQuestions (#158)', () => {
   it('starts on the first saved questions, then adds the rest when they arrive', async () => {
-    quick.mockResolvedValue([q('s1'), q('s2'), q('s3')]);
+    quick.mockResolvedValue(started([q('s1'), q('s2'), q('s3')]));
     let finish!: (qs: Question[]) => void;
     more.mockReturnValue(new Promise<Question[]>((resolve) => (finish = resolve)));
 
@@ -25,7 +32,7 @@ describe('useBattleQuestions (#158)', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     // The battle is on with three, while the rest are still being written.
     expect(result.current.questions.map((x) => x.id)).toEqual(['s1', 's2', 's3']);
-    expect(more).toHaveBeenCalledWith('math', expect.any(Number), 4, 9, [q('s1'), q('s2'), q('s3')]);
+    expect(more).toHaveBeenCalledWith('math', expect.any(Number), 4, 9, [q('s1'), q('s2'), q('s3')], undefined);
 
     await act(async () => finish([q('n1'), q('n2'), q('n3'), q('n4'), q('n5'), q('n6')]));
     expect(result.current.questions.map((x) => x.id)).toEqual(['s1', 's2', 's3', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6']);
@@ -34,7 +41,7 @@ describe('useBattleQuestions (#158)', () => {
   });
 
   it('a late batch for an earlier fight is dropped', async () => {
-    quick.mockResolvedValueOnce([q('a1'), q('a2'), q('a3')]).mockResolvedValueOnce([q('b1'), q('b2'), q('b3')]);
+    quick.mockResolvedValueOnce(started([q('a1'), q('a2'), q('a3')])).mockResolvedValueOnce(started([q('b1'), q('b2'), q('b3')]));
     let finishA!: (qs: Question[]) => void;
     more.mockReturnValueOnce(new Promise<Question[]>((resolve) => (finishA = resolve))).mockResolvedValueOnce([]);
 
@@ -44,5 +51,29 @@ describe('useBattleQuestions (#158)', () => {
     await waitFor(() => expect(result.current.questions[0]?.id).toBe('b1'));
     await act(async () => finishA([q('late')]));
     expect(result.current.questions.map((x) => x.id)).toEqual(['b1', 'b2', 'b3']);
+  });
+
+  it('a saved batch too slow to start with is still used, and the rest are asked for after it (review fix)', async () => {
+    let land!: (qs: Question[]) => void;
+    quick.mockResolvedValue({ questions: [q('st1'), q('st2'), q('st3')], late: new Promise<Question[]>((r) => (land = r)) });
+    more.mockResolvedValue([q('n1')]);
+
+    const { result } = renderHook(() => useBattleQuestions('math', 9, 4));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(more).not.toHaveBeenCalled();
+    await act(async () => land([q('s1'), q('st2'), q('s2')]));
+    await waitFor(() => expect(more).toHaveBeenCalled());
+    // The late saved ones join (none twice), and the rest are asked for knowing about them.
+    expect(more.mock.calls[0][4].map((x: Question) => x.id)).toEqual(['st1', 'st2', 'st3', 's1', 's2']);
+    await waitFor(() => expect(result.current.questions.map((x) => x.id)).toEqual(['st1', 'st2', 'st3', 's1', 's2', 'n1']));
+  });
+
+  it('passes the flavour on, for the spell pool', async () => {
+    quick.mockResolvedValue(started([q('x1')]));
+    more.mockResolvedValue([]);
+    renderHook(() => useBattleQuestions('math', 4, 7, 'spell'));
+    await waitFor(() => expect(more).toHaveBeenCalled());
+    expect(quick).toHaveBeenCalledWith('math', expect.any(Number), 7, 4, { flavor: 'spell' });
+    expect(more.mock.calls[0][5]).toBe('spell');
   });
 });
