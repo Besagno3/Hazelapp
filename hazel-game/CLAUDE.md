@@ -955,6 +955,15 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-17 — Critter cards on the kids' page (#146l)
+Tapping a critter or boss in "Meet the critters" / "Beat the bosses" did
+nothing but a hurt wiggle. It now opens a card (a modal `<dialog>`, the
+game's navy window): the critter's sprite attacking, its name, what it is,
+🏠 where it lives, ❓ the subject it asks, its traits (🪶 tricky, 🛡️
+shielded, 💚 healer, ⚡ swift, ⛵ at sea) and a short story. Data in
+`CRITTERS` (`site/assets/site.js`) — names, homes, subjects and traits from
+the game, stories new. ✕, Esc or a tap outside closes it; focus returns to
+the critter. Checked at 390, 320 and 1280 px (TC-1463).
 ### 2026-10-17 — The kids' page plays the opening intro (#146m)
 The owner wants one opening soundtrack — the intro that swells to a climax
 — on the public page, the sign-in screen and the setup screens. The game
