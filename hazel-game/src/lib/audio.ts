@@ -393,11 +393,13 @@ export function trackForScreen(
   sea: SeaArea | null = null,
 ): MusicTrack | null {
   switch (screen) {
+    // The opening intro plays from sign-in through the family setup and on
+    // Choose your hero (#146m); the Training Grounds keep the title theme.
     case 'auth':
+    case 'avatar':
       return 'intro';
     case 'topics':
     case 'quiz':
-    case 'avatar':
       return 'title';
     case 'world':
       return sea ? SEA_TRACK[sea] : ZONE_KIND_TRACK[zoneKind];

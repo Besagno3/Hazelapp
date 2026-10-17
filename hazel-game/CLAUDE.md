@@ -963,6 +963,8 @@ setup, Who's playing? and Grown-ups (`musicScreen`, #120 / #124); the kids'
 page played the title theme (#146k). It now plays `intro.mp3` too, at the
 game's music volume (0.4). A new page can't pick up mid-track, so opening
 the game starts the intro again on its first tap.
+Choose your hero plays the intro too (`trackForScreen('avatar')` →
+`intro`, the owner's pick); the Training Grounds keep the title theme.
 
 ### 2026-10-17 — Sound on the kids' page (#146k)
 The public kids' page had no sound. `site/assets/site.js` now plays the
