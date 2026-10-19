@@ -50,6 +50,12 @@ export function TypeBurst({
     const id = window.setTimeout(() => setReady(true), readyMs);
     return () => clearTimeout(id);
   }, [readyMs]);
+  // The card takes focus as it appears (review round 3: an untimed burst never settles, so ▶ Go!
+  // was never focused and focus sat on the page) — a plain box, so Space is the word's.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    box.current?.focus({ preventScroll: true });
+  }, []);
   const settled = useRef(false);
   const settle = (done: boolean) => {
     if (settled.current) return;
@@ -60,14 +66,15 @@ export function TypeBurst({
   const run = useTypingRun({ text: word, holdRule, active: state === 'typing', onEvent, onDone: () => settle(true) });
   const nudge = state === 'typing' && run.last ? nudgeText(run.last.event, run.anchors, word[run.progress.index] ?? '', run.last.capsLock) : null;
   return (
-    <div className="mt-3 rounded-xl border-2 border-amber-300 bg-indigo-950 text-white p-3" data-testid="type-burst">
+    <div ref={box} tabIndex={-1} className="mt-3 rounded-xl border-2 border-amber-300 bg-indigo-950 text-white p-3 outline-none" data-testid="type-burst">
       {timed ? (
         <DefendTimer
           durationMs={durationMs}
-          stopped={state !== 'typing'}
-          paused={!ready}
+          // Only a typed word stops it "in time"; run out, it says "Time's up" (review round 3).
+          stopped={state === 'done'}
+          ready={ready}
           onExpire={() => settle(false)}
-          label={ready ? label : <>{label} <span className="normal-case tracking-normal text-white/80">Ready…</span></>}
+          label={label}
           what="to type"
         />
       ) : (
@@ -80,7 +87,8 @@ export function TypeBurst({
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />
       </div>
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
-        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{run.target ? keyName(run.target) : ''}</span>)}
+        {/* Before the first key a screen reader hears the whole task (review round 3), then just the next key's name. */}
+        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{!run.last ? `Type: ${word}.` : run.target ? keyName(run.target) : ''}</span>)}
       </p>
       {/* The keyboard stays once the word is done, dimmed, so the card keeps its height and ▶ Go! doesn't jump (review round 2). */}
       <div className={state === 'typing' ? '' : 'opacity-40'}>

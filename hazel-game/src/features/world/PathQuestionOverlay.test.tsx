@@ -235,6 +235,19 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     expect(useSaveStore.getState().save!.openedChests).toEqual([lockedChest.id]);
   });
 
+  it('the lock unfolded, then the riddle answered right: the carry-on button takes focus as ever (review round 3)', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
+    // The lock reads its whole sentence to a screen reader before the first key.
+    expect(screen.getByTestId('scribe-lock')).toHaveTextContent(`Type: ${pangramFor(lockedChest.id)}.`);
+    fireEvent.click(await screen.findByText('Right'));
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    const onward = screen.getByRole('button', { name: /pops open/ });
+    await waitFor(() => expect(document.activeElement).toBe(onward));
+  });
+
   it('no lock without a keyboard, before the capitals lesson, or on a chest that has none', async () => {
     useSaveStore.setState({ save: { ...defaultSave(), flags: capitals } });
     const { unmount } = render(<PathQuestionOverlay target={lockedChest} />);

@@ -34,10 +34,16 @@ describe('TypeBurst (#159 item 2)', () => {
     vi.useFakeTimers();
     const onResult = vi.fn();
     render(<TypeBurst word="bat" holdRule={false} onResult={onResult} />);
+    // The card holds focus from the start (review round 3), and reads the whole task first.
+    expect(document.activeElement).toBe(screen.getByTestId('type-burst'));
+    expect(screen.getByRole('status')).toHaveTextContent('Type: bat.');
     act(() => {
       vi.advanceTimersByTime(BURST_MS + 200);
     });
     expect(onResult).toHaveBeenCalledWith(false);
+    // The clock says so (review round 3: it said "In time").
+    expect(screen.getByRole('timer')).toHaveTextContent(/Time's up/);
+    expect(screen.getByRole('timer')).not.toHaveTextContent(/In time/);
     expect(screen.getByRole('status')).toHaveTextContent(/Time's up/);
     type('bat');
     expect(onResult).toHaveBeenCalledTimes(1);

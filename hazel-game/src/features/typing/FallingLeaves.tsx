@@ -32,6 +32,10 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
   const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set());
   const [nudge, setNudge] = useState<string | null>(null);
   const [reached, setReached] = useState<number[]>([]);
+  const field = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (phase === 'playing') field.current?.focus({ preventScroll: true });
+  }, [phase]);
   const stateRef = useRef(state);
   const heldRef = useRef<Set<string>>(new Set());
   // The letters that can fall (by the lessons cleared); the clock's effect reads them through a ref.
@@ -152,6 +156,14 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
   if (phase === 'intro' || phase === 'over') {
     const done = phase === 'over';
     const accuracy = Math.round(leavesAccuracy(state) * 100);
+    const nextMilestone = LEAF_MILESTONES.find((m) => flags[leavesFlag(m)] !== true && !reached.includes(m));
+    // Why the round ended (review round 3): the ground, the clock, or ⏹.
+    const ended =
+      state.missed >= LEAVES_TUNING.maxMissed
+        ? `${LEAVES_TUNING.maxMissed} leaves landed.`
+        : state.elapsedMs >= LEAVES_TUNING.roundMs
+          ? "Time's up!"
+          : 'Stopped early.';
     const letters = pool.map((k) => k.ch).join(' ');
     return (
       <div className="text-center">
@@ -162,6 +174,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
         {done ? (
           <>
             <p className="text-sm text-white/80 mb-1" role="status">
+              {ended}{' '}
               You caught <span className="font-bold text-amber-300">{state.caught}</span> {state.caught === 1 ? 'leaf' : 'leaves'}, and {accuracy}% of your keys were right.
               {accuracy === 100 && state.caught > 0 ? ' Not one wrong key!' : ''}
             </p>
@@ -171,8 +184,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
               </p>
             ))}
             <p className="text-xs text-white/60 mt-1 mb-4">
-              Next: {LEAF_MILESTONES.find((m) => flags[leavesFlag(m)] !== true && !reached.includes(m)) ?? 'every leaf badge is yours'}
-              {typeof LEAF_MILESTONES.find((m) => flags[leavesFlag(m)] !== true && !reached.includes(m)) === 'number' ? ' leaves in one round.' : '!'}
+              {nextMilestone === undefined ? 'Every milestone caught — now it\'s just for fun!' : `Next: ${nextMilestone} leaves in one round.`}
             </p>
           </>
         ) : (
@@ -182,7 +194,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
               on the ground and the round ends."
             </p>
             <p className="text-xs text-white/60 mb-1">
-              Today's letters: <span className="font-mono text-white/80">{letters}</span>
+              Your letters so far: <span className="font-mono text-white/80">{letters}</span> — more with each lesson.
             </p>
             <p className="text-xs text-white/60 mb-4">
               {holdRule ? 'Keep your other hand on its bump key. ' : ''}10, 25 or 50 in one round: ⭐ {LEAVES_XP} XP each, once.
@@ -204,10 +216,11 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
   const lowest = lowestLeaf(state);
   const secondsLeft = Math.max(0, Math.ceil((LEAVES_TUNING.roundMs - state.elapsedMs) / 1000));
   return (
-    <div>
+    // The round takes focus as it starts (review round 3: ▶ Play unmounted and focus fell to the page).
+    <div ref={field} tabIndex={-1} className="outline-none">
       <div className="flex items-center justify-between gap-2 mb-2 text-sm">
         <h2 className="text-lg font-extrabold">🍂 Falling Leaves</h2>
-        <span className="text-xs text-white/80">
+        <span className="text-xs text-white/80" data-testid="leaf-tally">
           Caught <span className="font-bold text-amber-300">{state.caught}</span> · Missed{' '}
           <span className="font-bold">
             {state.missed}/{LEAVES_TUNING.maxMissed}
@@ -229,7 +242,8 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
               // The leaf that counts — the lowest — wears a white ring, so the kid needn't look down at the keyboard to tell.
               leaf.id === lowest?.id && 'ring-4 ring-white scale-110 z-10',
             )}
-            style={{ left: `${leaf.x}%`, top: `${leaf.y * 100}%`, transform: `translate(-50%, -50%) rotate(${(leaf.id % 2 ? 1 : -1) * leaf.y * 40}deg)` }}
+            // A gentle tilt (review round 3: at 40° a b, d, p or q was hard to match to an upright key).
+            style={{ left: `${leaf.x}%`, top: `${leaf.y * 100}%`, transform: `translate(-50%, -50%) rotate(${(leaf.id % 2 ? 1 : -1) * leaf.y * 15}deg)` }}
           >
             {leaf.ch}
           </span>
@@ -238,7 +252,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
       </div>
       {/* Always mounted and this tall (a nudge never shoves the keyboard); a screen reader hears each nudge, else the lowest leaf's key. */}
       <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem]">
-        {nudge ?? <span className="sr-only">{lowest ? `Lowest leaf: ${keyName(lowest.code)}` : ''}</span>}
+        {nudge ?? <span className="sr-only">{`Caught ${state.caught}, missed ${state.missed}.${lowest ? ` Lowest leaf: ${keyName(lowest.code)}` : ''}`}</span>}
       </p>
       <KeyboardDiagram compact target={lowest?.code ?? null} anchors={lowest && holdRule ? anchorsFor(lowest.ch) : []} held={held} />
       <button onClick={() => setPhase('over')} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">

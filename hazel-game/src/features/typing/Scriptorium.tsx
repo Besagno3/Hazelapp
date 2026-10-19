@@ -1,17 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
-import {
-  SCRIPTORIUM_OPENS_AFTER,
-  SCRIPTORIUM_XP,
-  TYPING_LESSONS,
-  pageFlag,
-  pagesCopied,
-  scriptoriumOpen,
-  scriptoriumPages,
-  typingLessonsCleared,
-  typingStars,
-  type ScriptoriumPage,
-} from '../../content/typing';
+import { LINE_HOLD_MS, SCRIPTORIUM_OPENS_AFTER, SCRIPTORIUM_XP, TYPING_LESSONS, pageFlag, pagesCopied, scriptoriumOpen, scriptoriumPages, type ScriptoriumPage, typingLessonsCleared, typingStars } from '../../content/typing';
 import { typingAccuracy, type TypingProgress } from '../../lib/typing';
 import { sfx } from '../../lib/audio';
 import { useKeyboardStore } from '../../store/keyboardStore';
@@ -40,6 +29,9 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
   const [line, setLine] = useState(0);
   const [tally, setTally] = useState({ hits: 0, misses: 0 });
   const [result, setResult] = useState<{ accuracy: number; paid: boolean } | null>(null);
+  // A finished line stays a beat before the next (review round 3), as in a lesson.
+  const hold = useRef<number | null>(null);
+  useEffect(() => () => window.clearTimeout(hold.current ?? undefined), []);
 
   if (!keyboard) return <KeyboardGate title="The Scriptorium" onBack={onBack} />;
 
@@ -57,7 +49,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
     const total = { hits: tally.hits + p.hits, misses: tally.misses + p.misses };
     setTally(total);
     if (active && line + 1 < active.lines.length) {
-      setLine(line + 1);
+      hold.current = window.setTimeout(() => setLine(line + 1), LINE_HOLD_MS);
       return;
     }
     const flag = pageFlag(active!.id);
@@ -160,6 +152,14 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
           ) : (
             'A true fact. Copy it out, every letter and dot.'
           )}
+        </p>
+        {/* The whole passage, the line being copied bright, the lines done green (review round 3: one line at a time hid the sense). */}
+        <p className="text-xs leading-relaxed text-white/50 mb-2" aria-hidden="true" data-testid="passage">
+          {active.lines.map((l, i) => (
+            <span key={i} className={i === line ? 'text-white font-semibold' : i < line ? 'text-emerald-300/80' : undefined}>
+              {l}{' '}
+            </span>
+          ))}
         </p>
         <LineRun key={line} text={active.lines[line]} holdRule={holdRule} onDone={lineDone} />
         <button onClick={() => setActive(null)} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">

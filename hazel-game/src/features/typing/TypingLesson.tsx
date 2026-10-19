@@ -1,19 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
-import {
-  TYPING_BADGE_ID,
-  TYPING_LESSONS,
-  TYPING_LESSON_XP,
-  typingLessonFlag,
-  typingStars,
-  type TypingLesson as LessonDef,
-} from '../../content/typing';
+import { LINE_HOLD_MS, TYPING_BADGE_ID, TYPING_LESSONS, TYPING_LESSON_XP, type TypingLesson as LessonDef, typingLessonFlag, typingStars } from '../../content/typing';
 import { nudgeText, typingAccuracy, type TypingProgress } from '../../lib/typing';
 import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { KeyboardDiagram } from './KeyboardDiagram';
-import { keyName, wrongKey } from './hints';
+import { keyName, spellLine, wrongKey } from './hints';
 import { TypingLine } from './TypingLine';
 import { useTypingRun } from './useTypingRun';
 
@@ -33,11 +26,15 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
   const [tally, setTally] = useState({ hits: 0, misses: 0 });
   const [result, setResult] = useState<{ accuracy: number; paid: boolean; badge: boolean } | null>(null);
 
+  // A finished line stays a beat, all green, before the next (review round 3: it vanished on its
+  // last key, and a kid typing in rhythm pressed into the new line). Keys in the beat do nothing.
+  const hold = useRef<number | null>(null);
+  useEffect(() => () => window.clearTimeout(hold.current ?? undefined), []);
   function lineDone(p: TypingProgress) {
     const total = { hits: tally.hits + p.hits, misses: tally.misses + p.misses };
     setTally(total);
     if (line + 1 < lesson.lines.length) {
-      setLine(line + 1);
+      hold.current = window.setTimeout(() => setLine(line + 1), LINE_HOLD_MS);
       return;
     }
     // The lesson is cleared the moment the last line ends (leaving now keeps it).
@@ -61,7 +58,7 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
   const announce = result
     ? `Lesson cleared! ${stars} of 3 stars. ${Math.round(result.accuracy * 100)} percent of your keys were right.${result.paid ? ` ${TYPING_LESSON_XP} XP.` : ''}`
     : started
-      ? `Line ${line + 1} of ${lesson.lines.length}: ${lesson.lines[line]}`
+      ? `Line ${line + 1} of ${lesson.lines.length}: ${spellLine(lesson.lines[line])}`
       : `${lesson.title}. ${lesson.teaches}`;
   const live = (
     <p key="live" className="sr-only" role="status">
@@ -156,8 +153,30 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
 }
 
 /** One line of a lesson (or a scriptorium page), with the keyboard and hands under it. */
-export function LineRun({ text, holdRule, onDone }: { text: string; holdRule: boolean; onDone: (p: TypingProgress) => void }) {
-  const run = useTypingRun({ text, holdRule, onDone });
+export function LineRun({
+  text,
+  holdRule,
+  onDone,
+  announce = false,
+  compact = false,
+}: {
+  text: string;
+  holdRule: boolean;
+  onDone: (p: TypingProgress) => void;
+  /** Read the whole line to a screen reader as it appears (a chest's lock, a letter — review round 3); the lessons' own live line does it for them. */
+  announce?: boolean;
+  /** The keyboard without the hands (a chest's lock, where the riddle below must stay in view). */
+  compact?: boolean;
+}) {
+  const run = useTypingRun({
+    text,
+    holdRule,
+    // A brighter tick as the line ends (review round 3: the last key sounded like any other).
+    onDone: (p) => {
+      sfx('correct');
+      onDone(p);
+    },
+  });
   const nudge = run.last ? nudgeText(run.last.event, run.anchors, text[run.progress.index] ?? '', run.last.capsLock) : null;
   // The line takes focus as it appears (review round 2: the Start button unmounted and focus fell to the page) —
   // a plain box, so Space is the line's, never a button's.
@@ -173,10 +192,10 @@ export function LineRun({ text, holdRule, onDone }: { text: string; holdRule: bo
       {/* Always mounted and always this tall, so a nudge never shoves the keyboard (review round 1); a
           screen reader hears each nudge, and between nudges just the next key's name (round 2: a whole
           sentence a key was forty sentences a line) — the full words are the keyboard's own label. */}
-      <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem]">
-        {nudge ?? <span className="sr-only">{run.target ? keyName(run.target) : ''}</span>}
+      <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem] [@media(max-width:639px)]:min-h-[3rem]">
+        {nudge ?? <span className="sr-only">{announce && !run.last ? `Type: ${text}.` : run.target ? keyName(run.target) : ''}</span>}
       </p>
-      <KeyboardDiagram target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />
+      <KeyboardDiagram compact={compact} target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />
     </div>
   );
 }

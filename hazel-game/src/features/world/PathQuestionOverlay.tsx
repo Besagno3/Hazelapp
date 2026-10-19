@@ -147,7 +147,8 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       // A new question (after "Ask me another" or Try again) pulls focus back in (15e round 4).
       focusKey={requestKey}
       label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? riddleWords(target.id).label : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
-      <div className="min-h-full flex flex-col items-center justify-center">
+      {/* Padded top and bottom (review round 3): with the lock unfolded the column overflows, and the heading sat on the HUD band. */}
+      <div className="min-h-full flex flex-col items-center justify-center py-8">
         <motion.h2
           initial={{ y: -16, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -178,7 +179,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
             </div>
             {lockShown && (
               <div className="mt-2">
-                <LineRun text={pangramFor(target.id)} holdRule={save?.typingAnchor ?? true} onDone={openByLock} />
+                <LineRun text={pangramFor(target.id)} holdRule={save?.typingAnchor ?? true} onDone={openByLock} announce compact />
               </div>
             )}
           </div>
@@ -228,8 +229,9 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
             hints={hints}
             onUseHint={spendHint}
             onAnswered={onAnswered}
-            // Not while the lock is up (review round 2): a Space typed for the pangram would click the focused button and close the chest.
-            focusContinue={!lockShown}
+            // Not while the lock is up (review round 2): a Space typed for the pangram would click the focused button and close
+            // the chest. Once the riddle is solved the lock is gone, and the carry-on button takes focus as ever (round 3).
+            focusContinue={!(scribeLock && lockShown)}
             continueLabel={solved ? `✨ ${successText}` : missed ? '🔄 Ask me another!' : 'Hmm… I’ll come back!'}
             // A tale-stone asks again on the spot (15e round 3) — no walking back up to it.
             onContinue={() => {

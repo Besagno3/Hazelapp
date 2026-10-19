@@ -47,7 +47,7 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
     expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
     fireEvent.keyDown(window, { code: 'KeyA', key: 'a' });
     expect(screen.getByText('🍂 Play')).toBeInTheDocument();
-    expect(screen.getByText(/Today's letters/)).toHaveTextContent('f j');
+    expect(screen.getByText(/Your letters so far/)).toHaveTextContent('f j');
     act(() => {
       useSaveStore.setState({ save: { ...useSaveStore.getState().save!, flags: {} } });
     });
@@ -69,13 +69,13 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/No leaf says "a"/);
     catchLowest();
     expect(leaves()).toHaveLength(0);
-    expect(screen.getByText('Caught', { exact: false })).toHaveTextContent('Caught 1');
+    expect(screen.getByTestId('leaf-tally')).toHaveTextContent('Caught 1');
     // Left alone, leaves keep coming and landing: the third on the ground ends
     // the round, long before the clock would.
     tick(leafPace(1).spawnMs);
     expect(leaves().length).toBeGreaterThan(0);
     tick(leafPace(1).fallMs);
-    expect(screen.getByText('Missed', { exact: false })).toHaveTextContent(`Missed 1/${LEAVES_TUNING.maxMissed}`);
+    expect(screen.getByTestId('leaf-tally')).toHaveTextContent(`Missed 1/${LEAVES_TUNING.maxMissed}`);
     tick(LEAVES_TUNING.roundMs / 2);
     expect(screen.getByText('The leaves have settled!')).toBeInTheDocument();
     expect(screen.getByText(/You caught/)).toHaveTextContent('1 leaf');
@@ -91,7 +91,7 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
       tick(leafPace(i).spawnMs);
       catchLowest();
     }
-    expect(screen.getByText('Caught', { exact: false })).toHaveTextContent('Caught 10');
+    expect(screen.getByTestId('leaf-tally')).toHaveTextContent('Caught 10');
     fireEvent.click(screen.getByText('⏹ Stop the round'));
     expect(screen.getByText(/10 in one round/)).toBeInTheDocument();
     expect(addXp).toHaveBeenCalledTimes(1);
@@ -123,13 +123,16 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
         fireEvent.keyDown(window, { code, key: ch.toUpperCase(), modifierCapsLock: true });
         fireEvent.keyUp(window, { code, key: ch.toUpperCase() });
         expect(screen.getByRole('status')).toHaveTextContent(/Caps Lock is on/);
-        expect(screen.getByText('Caught', { exact: false })).toHaveTextContent('Caught 3');
+        expect(screen.getByTestId('leaf-tally')).toHaveTextContent('Caught 3');
       }
       catchLowest();
     }
-    expect(screen.getByText('Caught', { exact: false })).toHaveTextContent('Caught 25');
+    expect(screen.getByTestId('leaf-tally')).toHaveTextContent('Caught 25');
+    // A screen reader hears the count with the lowest leaf (review round 3).
+    expect(screen.getByRole('status')).toHaveTextContent(/Caught 25, missed 0\./);
     fireEvent.click(screen.getByText('⏹ Stop the round'));
     expect(screen.getByText(/25 in one round/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/Stopped early\./);
     expect(addXp).toHaveBeenCalledTimes(1);
     expect(addXp).toHaveBeenCalledWith(LEAVES_XP * 2);
     expect(useSaveStore.getState().save!.flags[leavesFlag(10)]).toBe(true);

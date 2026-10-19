@@ -7,8 +7,6 @@ import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import TypingLesson from './TypingLesson';
 
-/** Below this age the lessons suggest going slow (small hands reach less far). */
-
 /**
  * Librarian Sage's typing lessons (#159), inside the Library's panel: a real
  * keyboard first (touch typing can't be learned on glass), then the lessons

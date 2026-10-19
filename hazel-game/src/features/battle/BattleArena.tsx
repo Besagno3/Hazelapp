@@ -642,7 +642,10 @@ export default function BattleArena() {
    * nothing — the answer already counted.
    */
   function scribeDone(mode: 'attack' | 'block', ok: boolean) {
-    setScribeSettled((n) => n + 1);
+    // ▶ Go! takes focus as the word settles — after a beat when the clock ran out (review round 3:
+    // a kid still typing "count bat" sent their Space to the button).
+    if (ok) setScribeSettled((n) => n + 1);
+    else later(() => setScribeSettled((n) => n + 1), 600);
     if (!ok) return;
     sfx('streak');
     if (mode === 'attack') {
@@ -1363,7 +1366,7 @@ export default function BattleArena() {
               holdRule={save.typingAnchor}
               durationMs={age < LITTLE_HANDS_AGE ? SONG_LITTLE_MS : SONG_MS}
               timed={typingClock}
-              label={`💢 ${turn.move} is coming — ${songFor(enemy.id)!.prompt}`}
+              label={`💢 ${turn.move} — ${songFor(enemy.id)!.prompt}`}
               doneText={songFor(enemy.id)!.done}
               lateText={songFor(enemy.id)!.late}
               onEvent={(e) => {

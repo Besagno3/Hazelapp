@@ -318,6 +318,8 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {!choosing && picked === null && (
           <button
             // Not focused beside a pen-pal offer (review round 2): a held Enter skipped the one-time ask, as it would a quest's choice.
+            // A new node there (round 3): the same button, kept across lines, kept the focus a keyboard kid had given it.
+            key={isLast && canWrite ? 'offer' : 'next'}
             autoFocus={!(isLast && canWrite)}
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"

@@ -128,6 +128,8 @@ export function useTypingRun({
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', release);
+      // A key still down as the run ends would stay "held" on the dimmed keyboard (review round 3).
+      release();
     };
   }, [active, holdRule, release]);
 

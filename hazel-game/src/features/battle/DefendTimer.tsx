@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { sfx } from '../../lib/audio';
 
-/** Seconds left at which the countdown turns red and starts ticking — at most, for a short clock, a third of it (review round 2: a 6 s race was red from its first second). */
-const URGENT_SECONDS = 5;
-const TICK_SECONDS = 3;
-const urgentAt = (durationMs: number) => Math.min(URGENT_SECONDS, Math.max(1, Math.floor(durationMs / 3000)));
-const tickAt = (durationMs: number) => Math.min(TICK_SECONDS, urgentAt(durationMs));
+import { tickAt, urgentAt } from './urgency';
 
 /**
  * Countdown for a defend question: answer before it runs out or the enemy's
@@ -13,7 +9,10 @@ const tickAt = (durationMs: number) => Math.min(TICK_SECONDS, urgentAt(durationM
  * left and a shrinking bar; turns red for the last few seconds and soft-ticks
  * for the last three. Stops the moment `stopped` is set (an answer was picked).
  * `paused` holds it where it is (a Forget-Me-Knot's second try, #75 item 14e):
- * no ticking, no running out, until it's answered.
+ * no ticking, no running out, until it's answered. `ready={false}` is a beat
+ * before it starts (a name race's "Ready…", #159 review round 3) — the bar
+ * full, nothing counting yet. Left running to the end it says "⏰ Time's up"
+ * (round 3: a typed word's clock stayed on screen, and it said "In time").
  *
  * Time only runs while the page is visible — switching tabs or locking the
  * phone pauses it, so a kid can't lose a turn to something off-screen.
@@ -25,11 +24,14 @@ export function DefendTimer({
   onExpire,
   label,
   paused = false,
+  ready = true,
   what = 'to block',
 }: {
   durationMs: number;
   stopped: boolean;
   paused?: boolean;
+  /** False for a beat before the clock starts: "Ready…". */
+  ready?: boolean;
   onExpire: () => void;
   label: ReactNode;
   /** What the seconds are for, read aloud: "to block" (default), "to type" (a ✍️ scribe burst, #159). */
@@ -42,7 +44,7 @@ export function DefendTimer({
     onExpireRef.current = onExpire;
   });
 
-  const held = stopped || paused;
+  const held = stopped || paused || !ready;
   useEffect(() => {
     if (held) return;
     let last = performance.now();
@@ -67,13 +69,25 @@ export function DefendTimer({
     if (!held && secs > 0 && secs <= tickAt(durationMs)) sfx('select');
   }, [secs, held, durationMs]);
 
-  const urgent = !held && secs <= urgentAt(durationMs);
+  const timedOut = !held && left <= 0;
+  const urgent = !held && !timedOut && secs <= urgentAt(durationMs);
   const pct = (left / durationMs) * 100;
+  const doneWord = what === 'to type' ? 'Typed in time' : 'Answered in time';
   return (
     <div
       className="mb-2"
       role="timer"
-      aria-label={stopped ? 'Answered in time' : paused ? 'Timer paused — take your time' : `${secs} seconds left ${what}`}
+      aria-label={
+        stopped
+          ? doneWord
+          : paused
+            ? 'Timer paused — take your time'
+            : !ready
+              ? `Get ready — ${secs} seconds ${what}`
+              : timedOut
+                ? "Time's up"
+                : `${secs} seconds left ${what}`
+      }
     >
       <div className="flex items-center justify-between gap-2 text-white font-bold text-sm uppercase tracking-widest">
         <span className="min-w-0">{label}</span>
@@ -83,17 +97,19 @@ export function DefendTimer({
               ? 'bg-emerald-500/30 text-emerald-100'
               : paused
                 ? 'bg-violet-500/40 text-violet-50'
-                : urgent
-                  ? 'bg-red-500/40 text-red-100 motion-safe:animate-pulse'
-                  : 'bg-white/20'
+                : timedOut
+                  ? 'bg-white/20 text-white/80'
+                  : urgent
+                    ? 'bg-red-500/40 text-red-100 motion-safe:animate-pulse'
+                    : 'bg-white/20'
           }`}
         >
-          {stopped ? '✓ In time!' : paused ? '⏸ Paused' : `⏳ ${secs}s`}
+          {stopped ? '✓ In time!' : paused ? '⏸ Paused' : !ready ? 'Ready…' : timedOut ? "⏰ Time's up" : `⏳ ${secs}s`}
         </span>
       </div>
       <div className="mt-1 h-2 rounded-full bg-black/30 overflow-hidden">
         <div
-          className={`h-full rounded-full ${stopped ? 'bg-emerald-400' : paused ? 'bg-violet-300' : urgent ? 'bg-red-400' : 'bg-amber-300'}`}
+          className={`h-full rounded-full ${stopped ? 'bg-emerald-400' : paused ? 'bg-violet-300' : timedOut ? 'bg-white/30' : urgent ? 'bg-red-400' : 'bg-amber-300'}`}
           style={{ width: `${pct}%`, transition: 'width 100ms linear' }}
         />
       </div>

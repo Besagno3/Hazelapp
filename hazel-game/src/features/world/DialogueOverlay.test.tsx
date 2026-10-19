@@ -293,6 +293,18 @@ describe("a line in the kid's own hand: pen-pal replies (#159 item 9)", async ()
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 
+  it('a kid who reads on with Enter finds nothing focused beside the offer (review round 3)', () => {
+    useKeyboardStore.getState().reset();
+    useKeyboardStore.getState().seen();
+    atTheLibrarian(capitals);
+    render(<DialogueOverlay npcId="hub-librarian" />);
+    const next = screen.getByText('▼ Next');
+    expect(document.activeElement).toBe(next);
+    fireEvent.click(next);
+    expect(screen.getByText('✍️ Add a line of my own')).toBeInTheDocument();
+    expect(document.activeElement?.tagName).not.toBe('BUTTON');
+  });
+
   it('no offer without a keyboard or before the capitals lesson; "Maybe not" goes back to the letter', () => {
     useKeyboardStore.getState().reset();
     atTheLibrarian(capitals);

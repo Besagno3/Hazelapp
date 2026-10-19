@@ -563,8 +563,15 @@ zod, react-query. Add the package in the same change that first uses it.
   nudges) and which key to flash (`wrongKey`). The clocks on the bursts and
   the song wait for every letter's lesson (`lettersLearned`, lesson 11
   `LETTERS_LESSON`) and the player's countdown setting; `TypeBurst`'s
-  `readyMs` holds the clock a beat ("Ready…"); `LITTLE_HANDS_AGE` (8) lengthens
-  the race and the song; a name's hyphen types as a space (`plainName`).
+  `readyMs` holds the clock a beat (`DefendTimer`'s `ready`: "Ready…", and
+  run out it says "⏰ Time's up"; urgency the last 5 s on a clock of 10 s and
+  over, a third of a shorter one — `features/battle/urgency.ts`);
+  `LITTLE_HANDS_AGE` (8) lengthens the race and the song; a name's hyphen
+  types as a space (`plainName`). A finished lesson or desk line stays
+  `LINE_HOLD_MS` before the next; `LineRun`'s `announce` reads the line to a
+  screen reader where no lesson live line does (the chest's lock, the letter)
+  and `compact` drops the hands; `spellLine` spells drill lines ("F F F, J J
+  J"); `TypeBurst` and `LineRun` take focus as they appear.
   **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
   (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
   scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
@@ -1038,6 +1045,32 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing review round 3: a clock that says time's up, lines that linger, a screen reader told the task (#159)
+The last of the three rounds: fresh code (1 high, 1 medium, 4 low, 3 nits)
+and UX (4 medium, 4 low, 7 lows, 2 nits) reviewers over 55 fresh screenshots;
+all fixed, two design questions left to the owner (ISSUES #159).
+- **Code:** a burst, race or song that ran out showed a green "✓ In time!"
+  (the timer now has a "⏰ Time's up" state; `TypeBurst` stops it only on a
+  typed word); with the lock unfolded a riddle answered right left focus on
+  the page; the race's "Ready…" beat was drawn as the Knot's "⏸ Paused"
+  (`DefendTimer` `ready`); an untimed burst never focused ▶ Go! (the burst
+  takes focus on mount); the leaves round left focus on the page; round 2's
+  urgency rule had shortened 10–14 s defend clocks for kids 13+ (the third
+  applies below 10 s only, `features/battle/urgency.ts`); a key down as a run
+  ended stayed "held"; "Typed in time"; leftovers of the `LITTLE_HANDS_AGE`
+  move.
+- **UX:** every typing moment outside the Library reads "Type: …" to a screen
+  reader before the first key (`LineRun` `announce`); a finished lesson or
+  desk line stays `LINE_HOLD_MS` all green with a brighter tick; the pen-pal
+  offer can't be Enter-ed past by a kid who advanced with Enter; the chest's
+  heading clears the HUD band and its lock is compact; honest leaves copy and
+  a result that says why the round ended; ▶ Go! waits a beat after a word
+  runs out; gentler leaf tilt; the desk shows the whole passage; drill lines
+  spelled for a screen reader (`spellLine`); the leaves count read aloud; a
+  shorter song label.
+- Tests: +13 (TC-1504, TC-1505); 1694 green, lint + tsc clean; `bench …
+  typing` rerun.
 
 ### 2026-10-19 — Touch typing review round 2: clocks that wait, focus that follows, names that type (#159)
 Round 2 of three: fresh code (2 medium, 5 low, 2 nits) and UX (2 high, 7

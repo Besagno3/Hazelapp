@@ -1,0 +1,60 @@
+import { describe, it, expect, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { useTypingRun } from './useTypingRun';
+import { useKeyboardStore } from '../../store/keyboardStore';
+
+function Probe({ text, active = true }: { text: string; active?: boolean }) {
+  const run = useTypingRun({ text, holdRule: false, active });
+  return (
+    <div>
+      <input aria-label="field" />
+      <button>Carry on</button>
+      <output data-testid="index">{run.progress.index}</output>
+      <output data-testid="held">{[...run.held].join(',')}</output>
+    </div>
+  );
+}
+
+afterEach(() => {
+  cleanup();
+  useKeyboardStore.getState().reset();
+});
+
+describe('useTypingRun (#159 review rounds 2–3)', () => {
+  it('a focused text field keeps its keys: nothing typed, nothing prevented', () => {
+    render(<Probe text="fj" />);
+    const field = screen.getByLabelText('field');
+    field.focus();
+    const notPrevented = fireEvent.keyDown(field, { code: 'KeyF', key: 'f' });
+    expect(notPrevented).toBe(true);
+    expect(screen.getByTestId('index')).toHaveTextContent('0');
+    field.blur();
+    fireEvent.keyDown(window, { code: 'KeyF', key: 'f' });
+    expect(screen.getByTestId('index')).toHaveTextContent('1');
+  });
+
+  it("a Space the line takes off a focused button is taken on keyup too; a button's own Space is not", () => {
+    render(<Probe text="a b" />);
+    const button = screen.getByRole('button');
+    button.focus();
+    // The line wants "a": Space is the button's, down and up.
+    expect(fireEvent.keyDown(button, { code: 'Space', key: ' ' })).toBe(true);
+    expect(fireEvent.keyUp(button, { code: 'Space', key: ' ' })).toBe(true);
+    fireEvent.keyDown(window, { code: 'KeyA', key: 'a' });
+    fireEvent.keyUp(window, { code: 'KeyA', key: 'a' });
+    // Now the line wants a space: both halves are the line's.
+    expect(fireEvent.keyDown(button, { code: 'Space', key: ' ' })).toBe(false);
+    expect(fireEvent.keyUp(button, { code: 'Space', key: ' ' })).toBe(false);
+    expect(screen.getByTestId('index')).toHaveTextContent('2');
+    // The next keyup is ordinary again.
+    expect(fireEvent.keyUp(button, { code: 'Space', key: ' ' })).toBe(true);
+  });
+
+  it('a key still down when the run ends is let go of', () => {
+    const { rerender } = render(<Probe text="fj" />);
+    fireEvent.keyDown(window, { code: 'KeyJ', key: 'j' });
+    expect(screen.getByTestId('held')).toHaveTextContent('KeyJ');
+    rerender(<Probe text="fj" active={false} />);
+    expect(screen.getByTestId('held')).toHaveTextContent('');
+  });
+});

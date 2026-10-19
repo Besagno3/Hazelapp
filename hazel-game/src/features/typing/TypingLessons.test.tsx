@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
 
@@ -8,7 +8,8 @@ const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { useKeyboardStore } = await import('../../store/keyboardStore');
 const { defaultSave } = await import('../../lib/save');
-const { TYPING_BADGE_ID, TYPING_LESSONS, TYPING_LESSON_XP, anchorsFor, charKey, typingLessonFlag } = await import('../../content/typing');
+const { LINE_HOLD_MS, TYPING_BADGE_ID, TYPING_LESSONS, TYPING_LESSON_XP, anchorsFor, charKey, typingLessonFlag } = await import('../../content/typing');
+afterEach(() => vi.useRealTimers());
 
 const addXp = vi.fn();
 beforeEach(() => {
@@ -28,8 +29,13 @@ function pressChar(ch: string, hold = true) {
   if (anchor) fireEvent.keyUp(window, { code: anchor, key: anchor.startsWith('Shift') ? 'Shift' : anchor === 'KeyF' ? 'f' : 'j' });
 }
 
+/** Types a line, then waits out the beat it stays on screen (review round 3). */
 function typeLine(line: string, hold = true) {
+  if (!vi.isFakeTimers()) vi.useFakeTimers();
   for (const ch of line) pressChar(ch, hold);
+  act(() => {
+    vi.advanceTimersByTime(LINE_HOLD_MS + 10);
+  });
 }
 
 const flags = () => useSaveStore.getState().save!.flags;

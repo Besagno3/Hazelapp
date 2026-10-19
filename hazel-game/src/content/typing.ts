@@ -396,14 +396,14 @@ export const NAME_RACE_LITTLE_MS = 12_000;
 export const RACE_READY_MS = 1_200;
 /** Under this age the clocks run longer and the lessons list suggests going slow. */
 export const LITTLE_HANDS_AGE = 8;
+/** How long a finished lesson or desk line stays, all green, before the next (review round 3: it vanished on its last key). */
+export const LINE_HOLD_MS = 400;
 /**
  * The lesson that completes the letters. The race waits for it (review round
  * 1: on F and J alone it read as a punishment), and until then the bursts and
  * the song run with no clock (review round 2).
  */
 export const LETTERS_LESSON = 'bottom-cxz';
-/** @deprecated name kept for the race; `lettersLearned` is the rule. */
-export const NAME_RACE_OPENS_AFTER = LETTERS_LESSON;
 
 /** Whether every letter's lesson is cleared. */
 export function lettersLearned(flags: Record<string, boolean>): boolean {

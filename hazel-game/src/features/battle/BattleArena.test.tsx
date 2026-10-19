@@ -755,7 +755,7 @@ function unlockTyping(hold = false, lessons = 1) {
   const cleared = Object.fromEntries(TYPING_LESSONS.slice(0, lessons).map((l) => [typingLessonFlag(l.id), true]));
   useSaveStore.setState({ save: { ...save, typingAnchor: hold, flags: { ...save.flags, ...cleared } } });
 }
-/** Lessons through the one that completes the letters (`NAME_RACE_OPENS_AFTER`). */
+/** Lessons through the one that completes the letters (`LETTERS_LESSON`): the clocks and the race open after it. */
 const ALL_LETTERS = TYPING_LESSONS.findIndex((l) => l.id === 'bottom-cxz') + 1;
 
 /** Type the burst's word (read off the card: the arena picks it at random). */
@@ -887,6 +887,25 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
     expect(screen.getByTestId('type-burst')).toHaveTextContent(/No clock/);
     expect(screen.getByTestId('type-burst')).toHaveTextContent(/Type it for a harder hit/);
     expect(screen.queryByRole('timer')).toBeNull();
+  });
+
+  it('a word that runs out hands ▶ Go! the focus only after a beat (review round 3); a typed one at once', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(document.activeElement).toBe(screen.getByTestId('type-burst'));
+    act(() => {
+      vi.advanceTimersByTime(BURST_MS + 200);
+    });
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Time's up/);
+    const go = screen.getByText('▶ Go!');
+    expect(document.activeElement).not.toBe(go);
+    act(() => {
+      vi.advanceTimersByTime(700);
+    });
+    expect(document.activeElement).toBe(go);
   });
 
   it('with the defend countdown off, the burst has no clock and the word still counts (review round 1)', () => {
@@ -1216,7 +1235,7 @@ describe('the song that breaks the hush (#159 item 6)', () => {
     unlockTyping(false, ALL_LETTERS);
     toTheWindUp();
     const box = screen.getByTestId('hush-song');
-    expect(box).toHaveTextContent(/Great Shush is coming/);
+    expect(box).toHaveTextContent(/Great Shush — sing to break it!/);
     expect(screen.getByLabelText(`Type: ${song.lines[0]}`)).toBeInTheDocument();
     expect(screen.queryByText(/gathering power…/)).toBeNull();
     // A kid who can't type the line can let it come (review round 1) — the button is there with the clock on.

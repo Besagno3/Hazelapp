@@ -1,4 +1,4 @@
-import { KEY_BY_CODE, type Finger } from '../../content/typing';
+import { KEY_BY_CODE, charKey, type Finger } from '../../content/typing';
 
 /**
  * Words for keys and fingers (#159), shared by the diagram, the lines and the
@@ -32,6 +32,38 @@ export function keyName(code: string): string {
   const key = KEY_BY_CODE[code];
   if (!key) return code;
   return KEY_NAMES[code] ?? key.label;
+}
+
+/** Two-letter words a drill line may hold; anything else that short is spelled. */
+const SHORT_WORDS = new Set(['a', 'i', 'to', 'is', 'as', 'at', 'an', 'in', 'it', 'on', 'of', 'or', 'us', 'up', 'do', 'go', 'no', 'so', 'be', 'we', 'he', 'me', 'my', 'by', 'if', 'am', 'oh', 'ok']);
+
+/** A drill token ("fjf", "ddd", "ei", "a;") is spelled; a word is said as it is. */
+function isDrill(token: string): boolean {
+  const letters = token.toLowerCase();
+  if (SHORT_WORDS.has(letters)) return false;
+  if (!/[aeiouy]/.test(letters)) return true;
+  if (/^(.)\1+$/.test(letters)) return true;
+  return letters.length <= 2;
+}
+
+/**
+ * A line as a screen reader should say it (review round 3): "fff jjj" is
+ * "F F F, J J J", not a pseudo-word; "sad lad dad" stays as it is.
+ */
+export function spellLine(text: string): string {
+  return text
+    .split(' ')
+    .map((token) => {
+      if (!token) return '';
+      if (!isDrill(token)) return token;
+      return [...token]
+        .map((ch) => {
+          const key = charKey(ch);
+          return key ? keyName(key.key.code) : ch;
+        })
+        .join(' ');
+    })
+    .join(', ');
 }
 
 /** "the F key", "the space bar", "the right Shift", "the comma key". */
