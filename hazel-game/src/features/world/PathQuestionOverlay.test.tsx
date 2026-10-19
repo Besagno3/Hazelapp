@@ -13,10 +13,13 @@ const riddle: Question = {
   explanation: 'Because it did.',
 };
 // The question served; a test may swap in a starter one (#153).
-const served: { q: Question | null } = { q: riddle };
+const served: { q: Question | null; fail?: Error } = { q: riddle };
 vi.mock('../../lib/questions', async (orig) => ({
   ...(await orig<typeof import('../../lib/questions')>()),
-  fetchQuestions: async () => (served.q ? [served.q] : []),
+  fetchQuestions: async () => {
+    if (served.fail) throw served.fail;
+    return served.q ? [served.q] : [];
+  },
 }));
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
 const sendFlow = vi.fn();
@@ -44,6 +47,7 @@ const YARN_ASKED = { 'quest:yarn-tale:offered': true };
 
 beforeEach(() => {
   served.q = riddle;
+  served.fail = undefined;
   sendFlow.mockClear();
   withFlags({});
 });
@@ -208,5 +212,24 @@ describe('PathQuestionOverlay — Escape is "Later" or "Walk away" while one is 
     expect(await screen.findByRole('button', { name: 'Walk away' })).toBeInTheDocument();
     escape();
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+});
+
+describe('PathQuestionOverlay — a question that fails to load (#130 S6)', () => {
+  it('says so in plain words with Try again and Walk away — the raw error goes to the console', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      served.fail = new Error('Edge Function returned a non-2xx status code');
+      render(<PathQuestionOverlay target={plainChest} />);
+      expect(await screen.findByText('The question didn\'t load. Tap "Try again".')).toBeInTheDocument();
+      expect(screen.queryByText(/non-2xx|Edge Function/)).toBeNull();
+      expect(screen.getByRole('button', { name: 'Walk away' })).toBeInTheDocument();
+      expect(warn).toHaveBeenCalledWith('Path question failed:', 'Edge Function returned a non-2xx status code');
+      served.fail = undefined;
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(await screen.findByText('Which came first?')).toBeInTheDocument();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

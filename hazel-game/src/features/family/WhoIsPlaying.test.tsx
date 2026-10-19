@@ -1,15 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import type { Kid } from '../../types';
+import type { PinVerdict } from '../../lib/pinLock';
 
 const { default: WhoIsPlaying } = await import('./WhoIsPlaying');
 const { useFamilyStore } = await import('../../store/familyStore');
+const { forgetAllLocks } = await import('../../lib/pinLock');
 
 const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
 const kit: Kid = { id: 'kid-kit', name: 'Kit', icon: 'panda', hasPin: true, birthYear: 2019, birthMonth: 8 };
 const choose = vi.fn();
 const setGrownUpsOpen = vi.fn();
-const checkKidPin = vi.fn(async (_id: string, pin: string) => pin === '4821');
+const verdict = (ok: boolean, triesLeft = 4, waitSeconds = 0): PinVerdict => ({ ok, triesLeft, waitSeconds, limited: true });
+const checkKidPin = vi.fn(async (_id: string, pin: string) => verdict(pin === '4821'));
 
 async function type(pin: string) {
   for (const d of pin) await act(async () => fireEvent.click(screen.getByRole('button', { name: d })));
@@ -18,6 +21,11 @@ async function type(pin: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   useFamilyStore.setState({ kids: [sam, kit], choose, setGrownUpsOpen, checkKidPin });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  forgetAllLocks();
 });
 
 describe('WhoIsPlaying (#124)', () => {
@@ -37,6 +45,28 @@ describe('WhoIsPlaying (#124)', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/Not quite/);
     await type('4821');
     expect(choose).toHaveBeenCalledWith('kid-sam');
+  });
+
+  it('a locked PIN (#124c): the kind line, a countdown, a hint for grown-ups — and only for that kid', async () => {
+    vi.useFakeTimers();
+    checkKidPin.mockResolvedValueOnce(verdict(false, 0, 300));
+    render(<WhoIsPlaying />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
+    await type('1111');
+    expect(screen.getByRole('status')).toHaveTextContent('Too many tries — ask a grown-up, or wait 5 minutes.');
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 5:00');
+    expect(screen.getByText(/giving them a new PIN in 👪 Grown-ups unlocks it/)).toBeInTheDocument();
+    await type('4821');
+    expect(checkKidPin).toHaveBeenCalledTimes(1);
+    expect(choose).not.toHaveBeenCalled();
+
+    // Back to the tiles and in again: Sam's pad remembers; Kit's is open.
+    fireEvent.click(screen.getByRole('button', { name: /not me/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent(/Try again in 5:00/);
+    fireEvent.click(screen.getByRole('button', { name: /not me/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Kit' }));
+    expect(screen.queryByTestId('pin-lock')).toBeNull();
   });
 
   it("\"That's not me\" goes back to the tiles", () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import type { Kid } from '../../types';
+import type { PinVerdict } from '../../lib/pinLock';
 
 const auth = vi.hoisted(() => ({
   signInWithPassword: vi.fn(),
@@ -19,12 +20,14 @@ const { default: GrownUpsArea } = await import('./GrownUpsArea');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { calcAge } = await import('../../lib/age');
+const { forgetAllLocks } = await import('../../lib/pinLock');
 
 const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
 const old: Kid = { id: 'kid-old', name: null, icon: null, hasPin: false, birthYear: 2015, birthMonth: 1 };
 const removeKid = vi.fn(async () => {});
 const setGrownUpsOpen = vi.fn();
-const checkParentPin = vi.fn(async (pin: string) => pin === '9090');
+const verdict = (ok: boolean, triesLeft = 4, waitSeconds = 0): PinVerdict => ({ ok, triesLeft, waitSeconds, limited: true });
+const checkParentPin = vi.fn(async (pin: string) => verdict(pin === '9090'));
 const setParentPin = vi.fn(async () => {});
 
 async function type(pin: string) {
@@ -50,6 +53,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  forgetAllLocks();
 });
 
 async function unlock() {
@@ -167,6 +171,24 @@ describe('GrownUpsArea (#124)', () => {
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Use my grown-up PIN instead' }));
     await type('9090');
+    expect(await screen.findByText('Sam')).toBeInTheDocument();
+  });
+
+  it('a locked grown-up PIN (#124c) says to use the password or wait — and the password still opens it', async () => {
+    vi.useFakeTimers();
+    useFamilyStore.setState({ hasParentPin: true });
+    checkParentPin.mockResolvedValueOnce(verdict(false, 0, 60));
+    render(<GrownUpsArea />);
+    await type('1111');
+    expect(screen.getByRole('status')).toHaveTextContent('Too many tries. Use your password instead, or wait 1 minute.');
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 1:00');
+    await type('9090');
+    expect(checkParentPin).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+    auth.signInWithPassword.mockResolvedValue({ error: null });
+    fireEvent.click(screen.getByRole('button', { name: 'Use my password instead' }));
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
     expect(await screen.findByText('Sam')).toBeInTheDocument();
   });
 

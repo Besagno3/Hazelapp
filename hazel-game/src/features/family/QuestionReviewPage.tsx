@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { errorMessage } from '../../lib/errors';
-import { fetchReviewQueue, reasonLabel, reviewQuestion, type ReviewDecision, type ReviewItem } from '../../lib/review';
+import { plainErrorOr } from '../../lib/familyErrors';
+import { fetchReviewQueue, NOT_AN_ADMIN, reasonLabel, reviewQuestion, type ReviewDecision, type ReviewItem } from '../../lib/review';
 import { cn } from '../../lib/utils';
 import FamilyCard from './FamilyCard';
 
@@ -11,6 +12,12 @@ const DONE: Record<ReviewDecision, string> = {
 };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** Plain words for the page (#130 S6): "only the owner" as it is, else the trouble or `fallback`; the raw error is logged. */
+function reviewTrouble(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message === NOT_AN_ADMIN) return NOT_AN_ADMIN;
+  return plainErrorOr(err, fallback);
+}
 
 /**
  * 🛡️ Question review (#147): the owner's admin page, inside 👪 Grown-ups.
@@ -36,7 +43,8 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
         if (live) setItems(list);
       },
       (err) => {
-        if (live) setLoadError(errorMessage(err));
+        console.warn('Loading the review queue failed:', errorMessage(err));
+        if (live) setLoadError(reviewTrouble(err, `Couldn't load the review queue just now. Tap "Try again".`));
       },
     );
     return () => {
@@ -59,7 +67,8 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
       setItems((list) => (list ?? []).filter((i) => i.id !== item.id));
       setNotice(`${DONE[decision]}: "${item.text}"`);
     } catch (err) {
-      setItemError({ id: item.id, message: errorMessage(err) });
+      console.warn('Saving a review decision failed:', errorMessage(err));
+      setItemError({ id: item.id, message: reviewTrouble(err, "Couldn't save that just now. Please try again.") });
     } finally {
       setBusyId(null);
     }

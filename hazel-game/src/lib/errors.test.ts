@@ -7,6 +7,7 @@ import {
   isExpiredLink,
   NETWORK_MESSAGE,
   OFFLINE_MESSAGE,
+  questionErrorMessage,
   SEND_FAILED_MESSAGE,
   SIGNED_OUT_MESSAGE,
   TROUBLE_MESSAGE,
@@ -69,6 +70,43 @@ describe('friendlyMessage (#130 S6)', () => {
     try {
       expect(friendlyMessage(new Error('anything'))).toBe(OFFLINE_MESSAGE);
       expect(authErrorMessage({ code: 'invalid_credentials', message: 'Invalid login credentials' })).toBe(OFFLINE_MESSAGE);
+    } finally {
+      online.mockRestore();
+    }
+  });
+});
+
+describe('questionErrorMessage (#130 S6): a kid’s screen whose questions didn’t come', () => {
+  it('says the questions didn’t load and names the button — never the error’s own text', () => {
+    const err = new Error('only 3 of 5 riddles came back for this floor.');
+    expect(questionErrorMessage(err)).toBe('The questions didn\'t load. Tap "Try again".');
+    expect(questionErrorMessage({ message: 'relation "questions" does not exist', code: '42P01' })).toBe('The questions didn\'t load. Tap "Try again".');
+    expect(questionErrorMessage(null)).toBe('The questions didn\'t load. Tap "Try again".');
+    // …while the logs keep the whole story.
+    expect(errorMessage(err)).toContain('only 3 of 5 riddles');
+  });
+
+  it('names what the screen calls its questions and its own retry button', () => {
+    expect(questionErrorMessage(new Error('x'), { what: 'question' })).toBe('The question didn\'t load. Tap "Try again".');
+    expect(questionErrorMessage(new Error('x'), { what: 'riddles', retry: 'Try the stair again' })).toBe(
+      'The riddles didn\'t load. Tap "Try the stair again".',
+    );
+  });
+
+  it('a server’s trouble (a 5xx, an HTML error page) is still just "didn’t load" — nothing a kid can fix', () => {
+    expect(questionErrorMessage({ message: 'Internal Server Error', status: 500 })).toBe('The questions didn\'t load. Tap "Try again".');
+    expect(questionErrorMessage(new SyntaxError('Unexpected token \'<\', "<!DOCTYPE "... is not valid JSON'))).toBe(
+      'The questions didn\'t load. Tap "Try again".',
+    );
+  });
+
+  it('says when the connection is the trouble, and what to tap after', () => {
+    expect(questionErrorMessage(new TypeError('Failed to fetch'), { retry: 'Try the stair again' })).toBe(
+      'We couldn\'t reach Hazel Quest. Check your internet, then tap "Try the stair again".',
+    );
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      expect(questionErrorMessage(new Error('anything'))).toBe('You\'re offline. Check your internet, then tap "Try again".');
     } finally {
       online.mockRestore();
     }

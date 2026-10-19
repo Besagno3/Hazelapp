@@ -14,7 +14,7 @@ import {
 } from '../../content/fieldSpells';
 import { fetchQuestions } from '../../lib/questions';
 import { isStarterId } from '../../content/starterQuestions';
-import { errorMessage } from '../../lib/errors';
+import { errorMessage, questionErrorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
@@ -125,7 +125,12 @@ function TrialRun({ spell, onLearned }: { spell: FieldSpell; onLearned: () => vo
         if (!active) return;
         setFetched({ key: requestKey, questions: qs, error: qs.length === 0 ? 'No questions arrived — try again.' : null });
       })
-      .catch((e) => active && setFetched({ key: requestKey, questions: [], error: errorMessage(e) }));
+      .catch((e) => {
+        if (!active) return;
+        // Plain words for the kid; the whole error for whoever fixes it (#130 S6).
+        console.warn('Shrine trial questions failed:', errorMessage(e));
+        setFetched({ key: requestKey, questions: [], error: questionErrorMessage(e) });
+      });
     return () => {
       active = false;
     };

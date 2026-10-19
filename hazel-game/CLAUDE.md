@@ -97,12 +97,18 @@ zod, react-query. Add the package in the same change that first uses it.
   picks, in order: consent (`ConsentPage`) → 👪 Grown-ups if open
   (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password:
   add / change / remove kids, set the grown-up PIN, the privacy notice,
-  Sign out) → the first kid (`FirstKidPage`) → any kid without a PIN
+  Sign out, **Close account** — `CloseAccount`, the `delete-account` edge
+  function, password + DELETE, #124b) → the first kid (`FirstKidPage`) → any kid without a PIN
   (`KidSetupPage`) → "Who's playing?" (`WhoIsPlaying`: a kid's tile, then
   their 4-digit PIN on `PinPad`). **PINs are hashed in the database**
   (migration 0014: `kid_pins` / `parent_pins`, readable by no client; set and
-  checked only by `set_/check_kid_pin`, `set_/check_parent_pin`); the app
-  only sees `has_pin`. Picking a kid (`choose`) loads *their* profile and
+  checked only by `set_/check_kid_pin`, `set_/check_parent_pin` — and
+  **limited** (migration 0022, #124c): `try_kid_pin` / `try_parent_pin` count
+  wrong tries; 5 in a row lock the PIN for 1, 5, 15, then 60 minutes; the
+  right PIN, a new PIN or a day without a wrong try starts over; `PinPad`
+  says how long and counts it down, `lib/pinLock.ts`); the app only sees
+  `has_pin`. The grown-up PIN / password gate is a lock in the UI only —
+  grown-up actions need just the family's session (#165). Picking a kid (`choose`) loads *their* profile and
   save, keyed by the kid's id; the kid playing in a tab survives a reload
   (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
   taps in the world's top bar) replaces Sign out. The active kid's id goes to
@@ -642,10 +648,19 @@ zod, react-query. Add the package in the same change that first uses it.
   twice and runs the SQL tests.
 - **CI** (`.github/workflows/ci.yml`, #81 + #88): job `test` = lint + bundle
   check + tests + `build:web` (what Vercel serves, #146); `edge-function` = `deno check`
-  of the edge function and the bank recheck script; `migrations` applies every migration to a plain
+  of both edge functions (generate-questions, delete-account) and the bank recheck script; `migrations` applies every migration to a plain
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
   `supabase/ci/*.test.sql`. A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.
+- **Closing an account (#124b):** `delete-account` (single file;
+  `_shared/closeAccount.ts` canonical, drift-checked by `closeAccount.test.ts`)
+  checks the caller's token (`auth.getUser`), the confirm word and the password
+  (it signs in again on a throwaway client), runs `delete_family` (migration
+  0023, service role only — the whole family in one transaction; today's spent
+  question budget stays without a name, #152) and `auth.admin.deleteUser`;
+  refusals are JSON `{error, detail}` codes the app words itself
+  (`lib/closeAccount.ts`). Deploy: `supabase functions deploy delete-account`
+  (no secrets beyond the injected `SUPABASE_*`).
 - **Question-generator access (#88):** `generate-questions` requires a signed-in
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
   per-player calls/minute (429 over it) + per-player, per-family (migration
@@ -874,6 +889,9 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails, mark what passes
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --reported --apply   # reports no check covered yet
 
+# Close an account (#124b) — after applying 0023
+supabase functions deploy delete-account   # no secrets beyond the injected SUPABASE_* ones
+
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
 #        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
@@ -899,7 +917,7 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   and log `errorMessage` beside it (#130 S6). Pass the screen so the words
   name its own controls — `authErrorMessage(err, { where: 'gate' | 'sign-up'
   | 'reset' … })`; `authRetryAfter` / `isExpiredLink` sit beside it. Some
-  older screens still show `errorMessage`; move them over when touched.
+  screen that still shows `errorMessage` is a bug (#130 S6).
   `where` is `'sign-in' | 'sign-up' | 'gate' | 'reset' | 'forgot' | 'resend' |
   'link'`: an unmapped error says what didn't happen there; a dead sign-in
   (JWT / refresh token / session) is `SIGNED_OUT_MESSAGE`; a non-JSON error
@@ -907,6 +925,11 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   refusal's wait down with `useRetryWait` (`features/auth/`); live error lines
   use `useLiveMessage` (keyed, so a repeat is read out); buttons wait with
   `aria-disabled`, never `disabled`, so the keyboard keeps its place (#159).
+  Where a screen's questions didn't come, `questionErrorMessage(err, { what,
+  retry })`; family screens use `plainErrorOr(err, fallback)`
+  (`lib/familyErrors.ts`). No screen shows `errorMessage` now — the crash
+  screen's folded details and the menu's cloud-save `title`s are on purpose
+  (#130 S6).
 - For `supabase.functions.invoke` failures, use `resolveErrorMessage` (async)
   so the edge function's real `{error, detail}` body surfaces.
 - `ErrorBoundary` (`src/components/`) catches uncaught render errors and
@@ -942,7 +965,9 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   copy is canonical for the app; `topicPrompts.test.ts` (`?raw`) fails if the
   function's inline copy drifts from it. The question flavours work the same
   way (`_shared/flavors.ts`, `questionFlavors.test.ts`, #131), and so does the
-  kids' screen (`_shared/questionScreen.ts`, `questionScreen.test.ts`, #133).
+  kids' screen (`_shared/questionScreen.ts`, `questionScreen.test.ts`, #133)
+  and closing an account (`_shared/closeAccount.ts`, `closeAccount.test.ts`,
+  #124b).
 
 ---
 
@@ -999,6 +1024,32 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Safe to share: PIN guesses limited, a grown-up can close the account, every screen says it plainly (#124b, #124c, #130 S6)
+A kid's 4-digit PIN could be guessed without limit by anyone holding the
+family's session, and closing an account meant emailing us. **Migration
+0022** counts wrong tries in the database: `try_kid_pin` / `try_parent_pin`
+lock a PIN after 5 wrong in a row — 1 minute, then 5, then 15, then an hour
+each time — refuse even the right PIN while locked (uncounted), and start
+over on the right PIN, a new PIN (how a grown-up unlocks a kid) or a quiet
+day; only the caller's own PINs count, and `check_kid_pin` /
+`check_parent_pin` keep their signatures for old tabs. `PinPad` says it
+plainly — "Too many tries — ask a grown-up, or wait 5 minutes." (the gate:
+"Use your password instead") — counts the wait down, remembers it for the
+tab (`lib/pinLock.ts`) and takes no digits meanwhile. **Close account**, at
+the bottom of 👪 Grown-ups, lists exactly what goes, asks for the account's
+password (never the grown-up PIN) and DELETE, and calls the new single-file
+`delete-account` edge function (token and password checked there,
+`delete_family` in migration 0023, then the login deleted with the service
+role); the sign-in page then says "Your account and all its data are gone."
+The family screens and `App`'s family error say plain words
+(`plainErrorOr`, `familyLoadMessage`), and the world's question screens and
+🚩 Report too (`questionErrorMessage`: "The Spire shudders! The riddles
+didn't load. Tap "Try the stair again"."). Tests: `pin_limits.test.sql` and
+`close_account.test.sql`, a 30-call burst counts exactly 5, the function
+against a stand-in Supabase 20/20; 1805 → 1856 green, lint, `tsc -b`,
+`deno check` of both functions, all 23 migrations + 15 SQL tests on
+Postgres 16. Logged: #165 (the grown-ups gate is a UI lock only).
 
 ### 2026-10-19 — #159 review round 2: saving is never a fight, the boat a walk away, Escape that always lands, sign-in words for every case
 Second `/saas-code-review` + `/saas-ux-review` pass over the whole PR (16

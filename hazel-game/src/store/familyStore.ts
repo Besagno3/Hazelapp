@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { errorMessage } from '../lib/errors';
+import { errorMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE } from '../lib/errors';
+import { plainErrorOr } from '../lib/familyErrors';
+import { forgetLock, functionMissing, GROWN_UP_LOCK, kidLockKey, pinVerdict, type PinVerdict } from '../lib/pinLock';
+import { noteAccountClosed, requestCloseAccount } from '../lib/closeAccount';
 import { saveKey } from '../lib/save';
 import { profileKey } from '../lib/profile';
 import { CONSENT_VERSION } from '../content/family';
@@ -44,10 +47,50 @@ function toRow(k: KidInput) {
   };
 }
 
-/** Set a kid's PIN (the database hashes it and checks the kid is the caller's). */
+/**
+ * A Supabase error as a thrown `Error` that keeps its `code`, `details`,
+ * `hint` and `status`: a screen shows `friendlyMessage(err)` (the words
+ * alone) and logs `errorMessage(err)` (all of it) — #130 S6.
+ */
+function asError(err: unknown, fallback = "That didn't save — try again."): Error {
+  if (err instanceof Error) return err;
+  if (typeof err !== 'object' || err === null) return new Error(typeof err === 'string' && err ? err : fallback);
+  const o = err as Record<string, unknown>;
+  const e = new Error(typeof o.message === 'string' && o.message ? o.message : fallback);
+  for (const k of ['code', 'details', 'hint', 'status', 'name'] as const) {
+    if (o[k] !== undefined && o[k] !== null) Object.assign(e, { [k]: o[k] });
+  }
+  return e;
+}
+
+/** The family didn't load: plain words for the screen (`App`'s error screen has "Try again"). */
+export function familyLoadMessage(err: unknown): string {
+  const words = plainErrorOr(err, `We couldn't open your family just now. Tap "Try again" — your players and their games are safe.`);
+  if (words === OFFLINE_MESSAGE) return `You're offline. Check your internet connection, then tap "Try again".`;
+  if (words === NETWORK_MESSAGE) return `We couldn't reach Hazel Quest. Check your internet connection, then tap "Try again".`;
+  return words;
+}
+
+/** Set a kid's PIN (the database hashes it and checks the kid is the caller's). A new PIN unlocks a locked one. */
 async function setKidPin(id: string, pin: string): Promise<void> {
   const { error } = await supabase.rpc('set_kid_pin', { p_kid: id, p_pin: pin });
-  if (error) throw new Error(errorMessage(error));
+  if (error) throw asError(error);
+  forgetLock(kidLockKey(id));
+}
+
+/**
+ * Try a PIN through the database's count (`try_*`, migration 0022, #124c);
+ * before that migration is applied, the old unlimited check (`check_*`) so
+ * kids can still get in.
+ */
+async function tryPin(tryFn: string, checkFn: string, args: Record<string, string>): Promise<PinVerdict> {
+  const tried = await supabase.rpc(tryFn, args);
+  if (!tried.error) return pinVerdict(tried.data);
+  if (!functionMissing(tried.error)) throw asError(tried.error);
+  console.warn(`${tryFn} is missing (is migration 0022 applied?) — checking without a limit:`, errorMessage(tried.error));
+  const checked = await supabase.rpc(checkFn, args);
+  if (checked.error) throw asError(checked.error);
+  return pinVerdict(checked.data === true);
 }
 
 /** The kid playing in this tab, kept across a reload (not across tabs or sign-outs). */
@@ -107,12 +150,19 @@ interface FamilyStore {
   /** Add a kid (and their PIN); throws with a message to show. */
   addKid: (input: KidInput) => Promise<Kid>;
   updateKid: (id: string, input: KidInput) => Promise<void>;
-  /** Whether `pin` is this kid's PIN (checked by the database). */
-  checkKidPin: (id: string, pin: string) => Promise<boolean>;
+  /** Whether `pin` is this kid's PIN, and the database's count (#124c: locked, tries left). */
+  checkKidPin: (id: string, pin: string) => Promise<PinVerdict>;
   setParentPin: (pin: string) => Promise<void>;
-  checkParentPin: (pin: string) => Promise<boolean>;
+  checkParentPin: (pin: string) => Promise<PinVerdict>;
   /** Remove a kid and everything they own, for good. */
   removeKid: (id: string) => Promise<void>;
+  /**
+   * Close the whole account (#124b): the `delete-account` function checks the
+   * password again and deletes the family and the login; then this device's
+   * copies go and the grown-up is signed out (the sign-in page says so).
+   * Throws with the function's refusal (`CloseAccountFailure`).
+   */
+  closeAccount: (password: string) => Promise<void>;
   /** Start playing as a kid: loads their profile and save. */
   choose: (id: string) => void;
   /** Save, put the game away and go back to "Who's playing?". */
@@ -143,7 +193,9 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     if (get().userId !== userId) return; // signed out meanwhile
     const failed = parent.error ?? kids.error;
     if (failed) {
-      set({ status: 'error', error: errorMessage(failed) });
+      // Plain words on the error screen, the whole error in the console (#130 S6).
+      console.warn('Loading the family failed:', errorMessage(failed));
+      set({ status: 'error', error: familyLoadMessage(failed) });
       return;
     }
     const list = ((kids.data ?? []) as KidRow[]).map(fromRow);
@@ -156,13 +208,13 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
 
   agree: async () => {
     const { error } = await supabase.rpc('record_consent', { p_version: CONSENT_VERSION });
-    if (error) throw new Error(errorMessage(error));
+    if (error) throw asError(error);
     set({ consentAt: new Date().toISOString() });
   },
 
   addKid: async (input) => {
     const { data, error } = await supabase.from('profiles').insert(toRow(input)).select(KID_COLUMNS).single();
-    if (error || !data) throw new Error(errorMessage(error ?? "The new player didn't save — try again."));
+    if (error || !data) throw asError(error, "The new player didn't save — try again.");
     const kid = fromRow(data as KidRow);
     set((s) => ({ kids: [...s.kids, kid] }));
     // Listed first: if the PIN fails, "finish setting up" asks for it again.
@@ -177,7 +229,7 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
       .from('profiles')
       .update({ ...toRow(input), updated_at: new Date().toISOString() })
       .eq('id', id);
-    if (error) throw new Error(errorMessage(error));
+    if (error) throw asError(error);
     if (input.pin) await setKidPin(id, input.pin);
     const row = toRow(input);
     set((s) => ({
@@ -189,28 +241,21 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     }));
   },
 
-  checkKidPin: async (id, pin) => {
-    const { data, error } = await supabase.rpc('check_kid_pin', { p_kid: id, p_pin: pin });
-    if (error) throw new Error(errorMessage(error));
-    return data === true;
-  },
+  checkKidPin: (id, pin) => tryPin('try_kid_pin', 'check_kid_pin', { p_kid: id, p_pin: pin }),
 
   setParentPin: async (pin) => {
     const { error } = await supabase.rpc('set_parent_pin', { p_pin: pin });
-    if (error) throw new Error(errorMessage(error));
+    if (error) throw asError(error);
+    forgetLock(GROWN_UP_LOCK);
     set({ hasParentPin: true });
   },
 
-  checkParentPin: async (pin) => {
-    const { data, error } = await supabase.rpc('check_parent_pin', { p_pin: pin });
-    if (error) throw new Error(errorMessage(error));
-    return data === true;
-  },
+  checkParentPin: (pin) => tryPin('try_parent_pin', 'check_parent_pin', { p_pin: pin }),
 
   removeKid: async (id) => {
     // Their save, seen questions and flags go with them (on delete cascade).
     const { error } = await supabase.from('profiles').delete().eq('id', id);
-    if (error) throw new Error(errorMessage(error));
+    if (error) throw asError(error);
     set((s) => ({ kids: s.kids.filter((k) => k.id !== id) }));
     // …and so do the copies on this device.
     try {
@@ -219,6 +264,25 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     } catch {
       // Storage unavailable — nothing was kept here.
     }
+  },
+
+  closeAccount: async (password) => {
+    const { userId, kids } = get();
+    await requestCloseAccount(password);
+    // Gone on the server: the copies on this device go too.
+    try {
+      for (const k of kids) {
+        localStorage.removeItem(saveKey(k.id));
+        localStorage.removeItem(profileKey(k.id));
+      }
+    } catch {
+      // Storage unavailable — nothing was kept here.
+    }
+    if (userId) writeActive(userId, null);
+    noteAccountClosed();
+    // The login is gone, so there's nothing to tell the server: sign out here.
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) console.warn('Signing out after closing the account:', errorMessage(error));
   },
 
   choose: (id) => {

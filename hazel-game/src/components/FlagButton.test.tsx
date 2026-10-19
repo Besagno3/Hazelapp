@@ -41,15 +41,26 @@ describe('FlagButton', () => {
     expect(flagQuestionMock).toHaveBeenCalledWith('q-42', 'wrong_answer');
   });
 
-  it('surfaces the underlying error when the flag insert fails', async () => {
-    flagQuestionMock.mockRejectedValue(new Error('permission denied'));
-    render(<FlagButton questionId="q-1" />);
-    fireEvent.click(screen.getByRole('button', { name: /report this question/i }));
-    fireEvent.click(screen.getByRole('button', { name: /doesn.t make sense/i }));
+  it('a failed report says so in plain words and keeps the reasons up to try again — the raw error goes to the console (#130 S6)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      flagQuestionMock.mockRejectedValue(new Error("Couldn't flag question — permission denied for table question_flags [42501]"));
+      render(<FlagButton questionId="q-1" />);
+      fireEvent.click(screen.getByRole('button', { name: /report this question/i }));
+      fireEvent.click(screen.getByRole('button', { name: /doesn.t make sense/i }));
 
-    await waitFor(() => {
-      expect(screen.getByText(/permission denied/i)).toBeInTheDocument();
-    });
+      await waitFor(() => {
+        expect(screen.getByText("Your report didn't send. Tap a reason to try again.")).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/permission denied|42501/)).toBeNull();
+      expect(warn).toHaveBeenCalledWith('Reporting a question failed:', expect.stringContaining('permission denied'));
+      // The reasons are still there, so one more tap tries again.
+      flagQuestionMock.mockResolvedValue(undefined);
+      fireEvent.click(screen.getByRole('button', { name: /doesn.t make sense/i }));
+      await waitFor(() => expect(screen.getByText(/reported/i)).toBeInTheDocument());
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('shows nothing for a question that isn’t in the bank — a report couldn’t reach anyone (#153)', () => {

@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import { fetchQuestions } from '../../lib/questions';
 import { isStarterId } from '../../content/starterQuestions';
-import { errorMessage } from '../../lib/errors';
+import { errorMessage, questionErrorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
@@ -72,7 +72,12 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
           error: qs.length === 0 ? 'No question arrived — try again.' : null,
         });
       })
-      .catch((e) => active && setFetched({ key: requestKey, question: null, error: errorMessage(e) }));
+      .catch((e) => {
+        if (!active) return;
+        // Plain words for the kid; the whole error for whoever fixes it (#130 S6).
+        console.warn('Path question failed:', errorMessage(e));
+        setFetched({ key: requestKey, question: null, error: questionErrorMessage(e, { what: 'question' }) });
+      });
     return () => {
       active = false;
     };

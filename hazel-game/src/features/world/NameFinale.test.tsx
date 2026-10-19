@@ -126,6 +126,29 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
     expect(screen.getByText('"What was my name?"')).toBeInTheDocument();
   });
 
+  it('questions that fail to load say so in plain words, with Try again — the raw error goes to the console (#130 S6)', async () => {
+    const { fetchQuestions } = await import('../../lib/questions');
+    const asked = vi.mocked(fetchQuestions).getMockImplementation()!;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      // Every topic comes back empty: the gauntlet is short, and its own words ("only 0 of 5…") stay off screen.
+      vi.mocked(fetchQuestions).mockImplementation(async () => []);
+      start({ [NAME_LEARNED]: true });
+      render(<NameFinale />);
+      await act(() => new Promise((r) => setTimeout(r, 260)));
+      fireEvent.click(screen.getByRole('button', { name: /Answer it|Try again/ }));
+      expect(await screen.findByText('The Root shivers! The questions didn\'t load. Tap "Try again".')).toBeInTheDocument();
+      expect(screen.queryByText(/riddles came back/)).toBeNull();
+      expect(warn).toHaveBeenCalledWith('Name finale questions failed:', expect.stringContaining('riddles came back'));
+      vi.mocked(fetchQuestions).mockImplementation(asked);
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(await screen.findByText(`The shadow's question 1/${NAME_QUESTIONS}`)).toBeInTheDocument();
+    } finally {
+      vi.mocked(fetchQuestions).mockImplementation(asked);
+      warn.mockRestore();
+    }
+  });
+
   it('starter questions pay no XP, like the Spire (#153): only the reward', async () => {
     const { fetchQuestions } = await import('../../lib/questions');
     vi.mocked(fetchQuestions).mockImplementation(async (topic, _age, level, count) =>

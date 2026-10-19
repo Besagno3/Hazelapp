@@ -98,6 +98,22 @@ describe('ShrineTrial (#75 item 9)', () => {
     expect(fetchQuestions).toHaveBeenCalledTimes(2);
   });
 
+  it('questions that fail to load say so in plain words, with Try again — the raw error goes to the console (#130 S6)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      fetchQuestions.mockRejectedValueOnce(new Error('relation "questions" does not exist'));
+      render(<ShrineTrial npcId="wayfarer-keeper" />);
+      fireEvent.click(screen.getByText('🕯️ Begin the trial'));
+      expect(await screen.findByText('The questions didn\'t load. Tap "Try again".')).toBeInTheDocument();
+      expect(screen.queryByText(/relation|does not exist/)).toBeNull();
+      expect(warn).toHaveBeenCalledWith('Shrine trial questions failed:', 'relation "questions" does not exist');
+      fireEvent.click(screen.getByText('Try again'));
+      expect(await screen.findByText('Star riddle 0?')).toBeInTheDocument();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('a hero who knows the spell is reminded how to cast it — no trial', () => {
     useSaveStore.setState({ save: { ...defaultSave(), flags: { [fieldSpellFlag('glow')]: true } } });
     render(<ShrineTrial npcId="shrine-keeper" />);

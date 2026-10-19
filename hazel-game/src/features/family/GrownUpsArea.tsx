@@ -6,8 +6,10 @@ import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
 import { useAuthStore } from '../../store/authStore';
 import { useFamilyStore } from '../../store/familyStore';
 import { isAdmin } from '../../lib/review';
+import { GROWN_UP_LOCK, grownUpLockedText } from '../../lib/pinLock';
 import PasswordInput from '../../components/PasswordInput';
 import { useRetryWait, waitWords } from '../auth/useRetryWait';
+import CloseAccountPage, { CloseAccountSection } from './CloseAccount';
 import FamilyCard from './FamilyCard';
 import KidForm from './KidForm';
 import PinPad from './PinPad';
@@ -25,10 +27,11 @@ const primaryClass =
 
 /**
  * 👪 Grown-ups (#124): add, change and remove kids, set the grown-up PIN, see
- * the privacy notice, and sign out — and, for the game's owner, 🛡️ Question
- * review (#147). Opens only with the grown-up's own PIN (if they've set one)
- * or their password, so a kid can't remove a sibling, sign the family out or
- * release a question.
+ * the privacy notice, sign out and close the whole account (#124b) — and, for
+ * the game's owner, 🛡️ Question review (#147). Opens only with the grown-up's
+ * own PIN (if they've set one; the database limits guesses, #124c) or their
+ * password, so a kid can't remove a sibling, sign the family out or release a
+ * question. Closing the account asks for the password again, never the PIN.
  */
 export default function GrownUpsArea() {
   const [unlocked, setUnlocked] = useState(false);
@@ -98,10 +101,12 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
       <FamilyCard title="👪 Grown-ups" subtitle="Type your grown-up PIN.">
         <PinPad
           onSubmit={async (pin) => {
-            const right = await checkParentPin(pin);
-            if (right) onUnlock();
-            return right;
+            const verdict = await checkParentPin(pin);
+            if (verdict.ok) onUnlock();
+            return verdict;
           }}
+          lockKey={GROWN_UP_LOCK}
+          lockedText={grownUpLockedText}
         />
         <button onClick={() => setUsePassword(true)} className={`${linkClass} text-gray-500`}>
           Use my password instead
@@ -165,6 +170,7 @@ function GrownUpsHome() {
   /** Which kid is being changed ('new' = adding one). */
   const [editing, setEditing] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Kid | null>(null);
+  const [closing, setClosing] = useState(false);
   // Arrived from a review alert's link: straight to the review page.
   const [reviewing, setReviewing] = useState(() => useFamilyStore.getState().reviewRequested);
   const [admin, setAdmin] = useState(false);
@@ -209,6 +215,8 @@ function GrownUpsHome() {
   }
 
   if (removing) return <RemoveKid kid={removing} onDone={() => setRemoving(null)} />;
+
+  if (closing) return <CloseAccountPage onCancel={() => setClosing(false)} />;
 
   return (
     <FamilyCard wide title="👪 Grown-ups">
@@ -273,6 +281,7 @@ function GrownUpsHome() {
       >
         Sign out
       </button>
+      <CloseAccountSection onOpen={() => setClosing(true)} />
     </FamilyCard>
   );
 }

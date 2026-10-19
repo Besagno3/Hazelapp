@@ -9,6 +9,7 @@ import { cn } from '../../lib/utils';
 import { useRetryWait, waitWords } from './useRetryWait';
 import { useLiveMessage } from './useLiveMessage';
 import { dropLinkError, linkErrorFrom } from './linkError';
+import { takeAccountClosedNotice } from '../../lib/closeAccount';
 
 /** Supabase refused a sign-in because the email link hasn't been tapped yet. */
 function notConfirmed(err: { code?: string; message?: string }): boolean {
@@ -46,7 +47,8 @@ export default function AuthPage() {
   const [linkError] = useState(() => linkErrorFrom(window.location));
   // Keyed per message, so the same words said twice are read out twice.
   const [error, setError] = useLiveMessage(linkError ? authErrorMessage(linkError, { where: 'link' }) : null);
-  const [notice, setNotice] = useState<string | null>(null);
+  // Just closed the account from 👪 Grown-ups (#124b): say so, once.
+  const [notice, setNotice] = useState<string | null>(() => takeAccountClosedNotice());
   const [loading, setLoading] = useState(false);
   // The address a confirmation link went to: "Check your inbox" replaces the form.
   const [sentTo, setSentTo] = useState<string | null>(null);

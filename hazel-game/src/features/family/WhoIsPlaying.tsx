@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { kidIcon } from '../../content/family';
 import { useFamilyStore } from '../../store/familyStore';
+import { kidLockKey } from '../../lib/pinLock';
 import FamilyCard from './FamilyCard';
 import PinPad from './PinPad';
 import type { Kid } from '../../types';
 
 /**
  * "Who's playing?" (#124): each kid taps their own tile, then types their
- * 4-digit PIN. Grown-ups manage the family from 👪 Grown-ups, behind their
- * own PIN or password.
+ * 4-digit PIN (5 wrong in a row and the database rests it, #124c — a
+ * grown-up setting a new PIN unlocks it). Grown-ups manage the family from
+ * 👪 Grown-ups, behind their own PIN or password.
  */
 export default function WhoIsPlaying() {
   const kids = useFamilyStore((s) => s.kids);
@@ -22,11 +24,13 @@ export default function WhoIsPlaying() {
       <FamilyCard title={`Hi, ${asking.name ?? 'Player'}!`} subtitle="Type your PIN.">
         <PinPad
           onSubmit={async (pin) => {
-            const right = await checkKidPin(asking.id, pin);
-            if (right) choose(asking.id);
-            return right;
+            const verdict = await checkKidPin(asking.id, pin);
+            if (verdict.ok) choose(asking.id);
+            return verdict;
           }}
           wrongText="Not quite — try again! Forgot it? A grown-up can change it in 👪 Grown-ups."
+          lockKey={kidLockKey(asking.id)}
+          lockedHelp="Grown-ups: giving them a new PIN in 👪 Grown-ups unlocks it straight away."
         />
         <button onClick={() => setAsking(null)} className="mt-1 w-full text-center text-sm text-purple-600 hover:underline">
           ← That's not me

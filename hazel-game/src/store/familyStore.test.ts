@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 // A fake Supabase query builder: records each call chain and resolves with
 // whatever `answer(table, ops)` returns.
@@ -23,9 +24,14 @@ const db = vi.hoisted(() => {
   const rpc = vi.fn(async () => ({ data: null, error: null }));
   return { chains, answer, from, rpc };
 });
-vi.mock('../lib/supabase', () => ({ supabase: { from: db.from, rpc: db.rpc } }));
+const auth = vi.hoisted(() => ({ signOut: vi.fn(async () => ({ error: null })) }));
+const functions = vi.hoisted(() => ({ invoke: vi.fn() }));
+vi.mock('../lib/supabase', () => ({ supabase: { from: db.from, rpc: db.rpc, auth, functions } }));
 
-const { useFamilyStore, familyScreen } = await import('./familyStore');
+const { useFamilyStore, familyScreen, familyLoadMessage } = await import('./familyStore');
+const { forgetAllLocks, GROWN_UP_LOCK, kidLockKey, lockLeft, rememberLock } = await import('../lib/pinLock');
+const { takeAccountClosedNotice } = await import('../lib/closeAccount');
+const { NETWORK_MESSAGE, SIGNED_OUT_MESSAGE } = await import('../lib/errors');
 const { useProfileStore } = await import('./profileStore');
 const { useSaveStore } = await import('./saveStore');
 const { CONSENT_VERSION } = await import('../content/family');
@@ -117,13 +123,29 @@ describe('useFamilyStore', () => {
     expect(useFamilyStore.getState().consentAt).toBeNull();
   });
 
-  it('load: a failed read is an error to retry, not an empty family', async () => {
+  it('load: a failed read is an error to retry, in plain words — the raw error goes to the console', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     db.answer.mockImplementation((table) =>
-      table === 'profiles' ? { data: null, error: { message: 'permission denied' } } : { data: { consent_at: 'x' }, error: null },
+      table === 'profiles'
+        ? { data: null, error: { message: 'permission denied for table profiles', code: '42501' } }
+        : { data: { consent_at: 'x' }, error: null },
     );
     await useFamilyStore.getState().load('grown-up-1');
     expect(useFamilyStore.getState().status).toBe('error');
-    expect(useFamilyStore.getState().error).toMatch(/permission denied/);
+    expect(useFamilyStore.getState().error).toBe(
+      `We couldn't open your family just now. Tap "Try again" — your players and their games are safe.`,
+    );
+    expect(warn).toHaveBeenCalledWith('Loading the family failed:', 'permission denied for table profiles [42501]');
+    warn.mockRestore();
+  });
+
+  it('familyLoadMessage: the connection, a run-out sign-in, else a plain line', () => {
+    expect(familyLoadMessage({ message: 'TypeError: Failed to fetch' })).toBe(
+      `We couldn't reach Hazel Quest. Check your internet connection, then tap "Try again".`,
+    );
+    expect(familyLoadMessage({ message: 'JWT expired', code: 'PGRST301' })).toBe(SIGNED_OUT_MESSAGE);
+    expect(familyLoadMessage({ message: 'relation "parents" does not exist', code: '42P01' })).toMatch(/^We couldn't open your family/);
+    expect(familyLoadMessage({ message: 'x' })).not.toBe(NETWORK_MESSAGE);
   });
 
   it('choose: plays as that kid — their profile (seeded with their birth date) and save load', () => {
@@ -207,18 +229,84 @@ describe('useFamilyStore', () => {
     expect(useFamilyStore.getState().kids[0]).toMatchObject({ name: 'Ada B', hasPin: true });
   });
 
-  it('PINs are checked by the database: a kid\'s, and the grown-up\'s (which can also be set)', async () => {
-    db.rpc.mockResolvedValueOnce({ data: true, error: null } as never);
-    expect(await useFamilyStore.getState().checkKidPin('kid-sam', '4821')).toBe(true);
-    expect(db.rpc).toHaveBeenLastCalledWith('check_kid_pin', { p_kid: 'kid-sam', p_pin: '4821' });
-    db.rpc.mockResolvedValueOnce({ data: false, error: null } as never);
-    expect(await useFamilyStore.getState().checkParentPin('0000')).toBe(false);
-    expect(db.rpc).toHaveBeenLastCalledWith('check_parent_pin', { p_pin: '0000' });
+  it('PINs are checked by the database\'s count (#124c): a kid\'s, and the grown-up\'s (which can also be set)', async () => {
+    db.rpc.mockResolvedValueOnce({ data: { ok: true, tries_left: 5, wait_seconds: 0 }, error: null } as never);
+    expect(await useFamilyStore.getState().checkKidPin('kid-sam', '4821')).toEqual({ ok: true, triesLeft: 5, waitSeconds: 0, limited: true });
+    expect(db.rpc).toHaveBeenLastCalledWith('try_kid_pin', { p_kid: 'kid-sam', p_pin: '4821' });
+    db.rpc.mockResolvedValueOnce({ data: { ok: false, tries_left: 0, wait_seconds: 60 }, error: null } as never);
+    expect(await useFamilyStore.getState().checkParentPin('0000')).toMatchObject({ ok: false, waitSeconds: 60 });
+    expect(db.rpc).toHaveBeenLastCalledWith('try_parent_pin', { p_pin: '0000' });
     await useFamilyStore.getState().setParentPin('9090');
     expect(db.rpc).toHaveBeenLastCalledWith('set_parent_pin', { p_pin: '9090' });
     expect(useFamilyStore.getState().hasParentPin).toBe(true);
-    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'offline' } } as never);
-    await expect(useFamilyStore.getState().checkKidPin('kid-sam', '1111')).rejects.toThrow(/offline/);
+    // The code and details stay on the error for the console; the screen shows the words.
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'offline', code: 'X1', details: 'more' } } as never);
+    const err = await useFamilyStore.getState().checkKidPin('kid-sam', '1111').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).toMatchObject({ message: 'offline', code: 'X1', details: 'more' });
+  });
+
+  it('before migration 0022 (no try_* yet) kids still get in, through the old check', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    db.rpc
+      .mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.try_kid_pin' } } as never)
+      .mockResolvedValueOnce({ data: true, error: null } as never);
+    expect(await useFamilyStore.getState().checkKidPin('kid-sam', '4821')).toEqual({ ok: true, triesLeft: null, waitSeconds: 0, limited: false });
+    expect(db.rpc).toHaveBeenLastCalledWith('check_kid_pin', { p_kid: 'kid-sam', p_pin: '4821' });
+    db.rpc
+      .mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.try_parent_pin' } } as never)
+      .mockResolvedValueOnce({ data: false, error: null } as never);
+    expect(await useFamilyStore.getState().checkParentPin('0000')).toMatchObject({ ok: false, limited: false });
+    expect(db.rpc).toHaveBeenLastCalledWith('check_parent_pin', { p_pin: '0000' });
+    // Any other error isn't a missing migration: no unlimited fallback.
+    db.rpc.mockClear();
+    db.rpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'permission denied' } } as never);
+    await expect(useFamilyStore.getState().checkKidPin('kid-sam', '1')).rejects.toThrow(/permission denied/);
+    expect(db.rpc).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('a new PIN forgets a lock this tab remembered (the database unlocks it too)', async () => {
+    useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [{ id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 }] });
+    rememberLock(kidLockKey('kid-sam'), 300);
+    rememberLock(GROWN_UP_LOCK, 60);
+    db.answer.mockImplementation(() => ({ data: null, error: null }));
+    await useFamilyStore.getState().updateKid('kid-sam', { name: 'Sam', icon: 'fox', pin: '1234', birthYear: 2017, birthMonth: 3 });
+    expect(lockLeft(kidLockKey('kid-sam'))).toBe(0);
+    await useFamilyStore.getState().setParentPin('9090');
+    expect(lockLeft(GROWN_UP_LOCK)).toBe(0);
+    forgetAllLocks();
+  });
+
+  it('closeAccount (#124b): the function closes it, then this device forgets the family and signs out', async () => {
+    family('2026-10-10', [SAM, KIT]);
+    await useFamilyStore.getState().load('grown-up-1');
+    localStorage.setItem('hazel-save-kid-sam', '{}');
+    localStorage.setItem('hazel-profile-kid-kit', '{}');
+    sessionStorage.setItem('hazel-active-kid-grown-up-1', 'kid-sam');
+    functions.invoke.mockResolvedValueOnce({ data: { ok: true, kids: 2 }, error: null });
+    await useFamilyStore.getState().closeAccount('hunter22');
+    expect(functions.invoke).toHaveBeenCalledWith('delete-account', { body: { password: 'hunter22', confirm: 'DELETE' } });
+    expect(localStorage.getItem('hazel-save-kid-sam')).toBeNull();
+    expect(localStorage.getItem('hazel-profile-kid-kit')).toBeNull();
+    expect(sessionStorage.getItem('hazel-active-kid-grown-up-1')).toBeNull();
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(takeAccountClosedNotice()).toBe('Your account and all its data are gone.');
+  });
+
+  it('closeAccount: a refusal keeps everything and signs nobody out', async () => {
+    family('2026-10-10', [SAM]);
+    await useFamilyStore.getState().load('grown-up-1');
+    localStorage.setItem('hazel-save-kid-sam', '{}');
+    auth.signOut.mockClear();
+    functions.invoke.mockResolvedValueOnce({
+      data: null,
+      error: new FunctionsHttpError(new Response(JSON.stringify({ error: 'wrong_password' }), { status: 403 })),
+    });
+    await expect(useFamilyStore.getState().closeAccount('nope')).rejects.toMatchObject({ code: 'wrong_password' });
+    expect(localStorage.getItem('hazel-save-kid-sam')).toBe('{}');
+    expect(auth.signOut).not.toHaveBeenCalled();
+    expect(takeAccountClosedNotice()).toBeNull();
   });
 
   it("removeKid: deletes the kid and the copies of their game on this device", async () => {

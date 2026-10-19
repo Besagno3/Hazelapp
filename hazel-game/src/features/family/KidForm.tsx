@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { errorMessage } from '../../lib/errors';
+import { plainErrorOr } from '../../lib/familyErrors';
 import { isPin, KID_BIRTH_YEARS, KID_ICONS, MAX_KID_NAME, PIN_LENGTH } from '../../content/family';
 import PasswordInput from '../../components/PasswordInput';
 import PicturePicker from './PicturePicker';
@@ -9,6 +10,20 @@ const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
+
+/**
+ * Why a kid didn't save, in words a grown-up can act on (#130 S6): the
+ * database's own refusals (8 players, the PIN's shape, the nickname's length),
+ * the connection's trouble, else a plain "didn't save" — never the raw error,
+ * which goes to the console.
+ */
+function kidSaveMessage(err: unknown): string {
+  const raw = errorMessage(err);
+  if (/kid_limit/.test(raw)) return 'A family can have up to 8 players. Remove one in 👪 Grown-ups to make room.';
+  if (/pin_format/.test(raw)) return `Their PIN is ${PIN_LENGTH} numbers.`;
+  if (/display_name_length/.test(raw)) return `A nickname is 1 to ${MAX_KID_NAME} letters.`;
+  return plainErrorOr(err, "That didn't save just now. Please try again.");
+}
 
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
@@ -43,6 +58,8 @@ export default function KidForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // The button is aria-disabled while it saves: a tap or Enter then stops here.
+    if (saving) return;
     setError(null);
     const trimmed = name.trim();
     if (!trimmed) return setError('Give them a nickname.');
@@ -53,7 +70,9 @@ export default function KidForm({
     try {
       await onSubmit({ name: trimmed, icon, pin: pin || undefined, birthYear: Number(year), birthMonth: Number(month) });
     } catch (err) {
-      setError(errorMessage(err));
+      // Plain words on screen, the whole error in the console (#130 S6).
+      console.warn('Saving a player failed:', errorMessage(err));
+      setError(kidSaveMessage(err));
     } finally {
       setSaving(false);
     }
@@ -110,11 +129,14 @@ export default function KidForm({
           They type it to open their adventure — tell them! Keep it different from your own.
         </p>
       </div>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {/* Always there, so a screen reader hears each message as it appears. */}
+      <div role="status" className="text-sm text-red-700">
+        {error && <p>{error}</p>}
+      </div>
       <button
         type="submit"
-        disabled={saving}
-        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
+        aria-disabled={saving}
+        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-purple-600"
       >
         {saving ? 'Saving…' : submitLabel}
       </button>

@@ -6,6 +6,12 @@ interface FlagButtonProps {
   questionId: string;
 }
 
+/**
+ * What a kid reads when a report didn't go through (#130 S6): the reasons stay
+ * open, so another tap tries again. The error itself goes to the console.
+ */
+const REPORT_FAILED = "Your report didn't send. Tap a reason to try again.";
+
 const REASONS: { id: FlagReason; label: string }[] = [
   // First: a question no child should see (B10) — it's held back at once.
   { id: 'not_for_kids', label: 'Not OK for kids' },
@@ -41,7 +47,8 @@ export default function FlagButton({ questionId }: FlagButtonProps) {
       setFlagged(true);
       setOpen(false);
     } catch (e) {
-      setError(errorMessage(e));
+      console.warn('Reporting a question failed:', errorMessage(e));
+      setError(REPORT_FAILED);
     } finally {
       setSubmitting(false);
     }

@@ -66,11 +66,41 @@ describe('KidForm (#124)', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Sam', pin: undefined })));
   });
 
-  it('shows why a save failed', async () => {
-    render(<KidForm submitLabel="Add player" onSubmit={async () => Promise.reject(new Error('Offline'))} />);
+  it('shows why a save failed in plain words — the raw error goes to the console (#130 S6)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSubmit = vi.fn(async (): Promise<void> => Promise.reject(new Error('Failed to fetch')));
+    render(<KidForm submitLabel="Add player" onSubmit={onSubmit} />);
     fill();
     fireEvent.click(screen.getByRole('button', { name: 'Add player' }));
-    expect(await screen.findByText('Offline')).toBeInTheDocument();
+    expect(await screen.findByText("We couldn't reach Hazel Quest. Check your internet connection, then try again.")).toBeInTheDocument();
+    // The database's own refusals, in words a grown-up can act on.
+    const said = async (err: unknown, words: string) => {
+      onSubmit.mockRejectedValueOnce(err);
+      fireEvent.click(screen.getByRole('button', { name: 'Add player' }));
+      expect(await screen.findByText(words)).toBeInTheDocument();
+    };
+    await said(Object.assign(new Error('kid_limit: a family account can have up to 8 players'), { code: 'P0001' }), 'A family can have up to 8 players. Remove one in 👪 Grown-ups to make room.');
+    await said({ message: 'new row violates check constraint "profiles_display_name_length"', code: '23514' }, 'A nickname is 1 to 20 letters.');
+    await said({ message: 'permission denied for table profiles', code: '42501' }, "That didn't save just now. Please try again.");
+    expect(screen.queryByText(/42501|permission denied|kid_limit/)).toBeNull();
+    expect(warn).toHaveBeenCalledWith('Saving a player failed:', 'permission denied for table profiles [42501]');
+    warn.mockRestore();
+  });
+
+  it('Save waits with aria-disabled while it saves, and saves once', async () => {
+    let done: () => void = () => {};
+    const onSubmit = vi.fn(() => new Promise<void>((r) => (done = r)));
+    render(<KidForm submitLabel="Add player" onSubmit={onSubmit} />);
+    fill();
+    const save = screen.getByRole('button', { name: 'Add player' });
+    fireEvent.click(save);
+    expect(save).toHaveTextContent('Saving…');
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    expect(save).not.toBeDisabled();
+    fireEvent.click(save);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    done();
+    await waitFor(() => expect(save).toHaveAttribute('aria-disabled', 'false'));
   });
 
   it('changing a kid starts from what they have — an older birth year included', () => {
