@@ -9,6 +9,8 @@ import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { ZONES, innOf } from '../../content/zones';
 import ShrineTrial from './ShrineTrial';
 import NameFinale from './NameFinale';
+import TypingLessons from '../typing/TypingLessons';
+import { TYPING_LESSONS, typingLessonsCleared } from '../../content/typing';
 import { shuffleAnswers } from '../../lib/questions';
 import { isStarterId } from '../../content/starterQuestions';
 import { useSaveStore } from '../../store/saveStore';
@@ -166,10 +168,15 @@ function Inn() {
 
 function Library() {
   const library = useSaveStore((s) => s.save?.library ?? []);
+  const flags = useSaveStore((s) => s.save?.flags ?? {});
   const update = useSaveStore((s) => s.update);
   const addXp = useProfileStore((s) => s.addXp);
   const [active, setActive] = useState<LibraryEntry | null>(null);
   const [solved, setSolved] = useState(false);
+  // Librarian Sage's typing lessons (#159) live in the Library too.
+  const [typing, setTyping] = useState(false);
+  if (typing) return <TypingLessons onBack={() => setTyping(false)} />;
+  const typed = typingLessonsCleared(flags);
 
   function finish() {
     if (active && solved) {
@@ -208,6 +215,21 @@ function Library() {
   return (
     <div>
       <h2 className="text-xl font-extrabold mb-1">📚 The Library</h2>
+      <button
+        onClick={() => setTyping(true)}
+        className="w-full text-left flex items-center gap-3 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 rounded-xl p-3 mb-4 text-sm transition min-h-11"
+      >
+        <span className="text-2xl" aria-hidden="true">
+          ⌨️
+        </span>
+        <span className="flex-1">
+          <span className="font-bold text-amber-200">Typing lessons</span>
+          <span className="block text-xs text-white/70">
+            Learn to type like a scribe — ten fingers, eyes on the page.
+            {typed > 0 ? ` ${typed} of ${TYPING_LESSONS.length} cleared.` : ''}
+          </span>
+        </span>
+      </button>
       <p className="text-sm text-white/80 mb-4">
         Questions that once stumped you. Beat one for +{LIBRARY_XP} XP!
       </p>

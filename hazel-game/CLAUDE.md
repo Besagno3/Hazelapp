@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`, `keyboardStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
@@ -532,6 +532,30 @@ zod, react-query. Add the package in the same change that first uses it.
   inn (`normalizeSave`). `StoryPanels` ignores a tap until the panel on
   screen has faded in, and it and `WakeFade` make the rest of the page
   `inert` while they're up (`hooks/useInertOutside`).
+- **Touch typing (#159, `features/typing/`, `content/typing.ts`, `lib/typing.ts`):**
+  Librarian Sage teaches it inside the Library's panel (📚 Library → ⌨️
+  Typing lessons): `TYPING_LESSONS`, 13 in the classic order (the home row
+  from the bump keys out, the top row, the bottom row, capitals with the other
+  hand's Shift, true-fact sentences), each open once the one before is
+  cleared (`typing:<id>` flags, `typingLessonOpen`), `TYPING_LESSON_XP` the
+  first time, the ✍️ Scribe's Quill badge (`TYPING_BADGE_ID`) for all of them.
+  Keys are known by their PHYSICAL code (`KEYBOARD_ROWS`, `KEY_BY_CODE`: the
+  standard finger for each) and matched by what they type (`charKey`);
+  `useTypingRun` listens on `window` (keydown/keyup, the keys held, Space and
+  characters `preventDefault`ed) and steps the pure `stepTyping`
+  (`lib/typing.ts`): typed / done / wrong (a miss) / hold / caps (nudges, not
+  misses) / none. **The home-row hold** (`anchorsFor`): the other hand holds
+  its bump key — J for a left-hand letter, F for a right-hand one — or its
+  Shift for a capital; nothing for the space bar; never Shift for a letter
+  (Windows' FilterKeys / Sticky Keys). A per-player save setting,
+  `SaveData.typingAnchor` (additive, on by default; 📜 Menu → ⌨️ Typing and
+  the lessons list). `KeyboardDiagram` draws the keyboard and two hands
+  (target gold, anchor blue, the finger lit); `TypingLine` the line.
+  `keyboardStore` (`watchKeyboard` in `App`) remembers the first press from a
+  physical keyboard this session (`fromPhysicalKeyboard`: a glass keyboard
+  names no code); the lessons ask for one first. New lessons go in
+  `TYPING_LESSONS` — `typing.test` checks a drill uses only keys taught by
+  then.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -954,6 +978,28 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing I: Librarian Sage's typing lessons (#159)
+The owner and their brother: kids don't type any more, so the game teaches
+it. First of three: the lessons.
+- **In the Library** (📚 Library → ⌨️ Typing lessons, `features/typing/`):
+  13 lessons in the classic order — F J, D K, S L, A ;, E I, R U, T O, G H,
+  the corners, V N M B, C X Z , ., capitals with the other hand's Shift,
+  then true-fact sentences — each open once the one before is cleared
+  (`typing:<id>` flags), 30 XP the first time, 1–3 stars for accuracy, the
+  ✍️ Scribe's Quill badge for all 13. Librarian Sage's lines name them.
+- **The keyboard and the hands** (`KeyboardDiagram`): drawn from the
+  physical key map (`content/typing.ts`, the standard finger for every
+  key); the key to press glows gold, the finger for it lights on the hand.
+- **The home-row hold** (the owner's safeguard): the other hand must hold
+  its bump key — J for a left-hand letter, F for a right-hand one — or the
+  other Shift for a capital. A letter without it is a nudge, never a miss;
+  Caps Lock gets its own. Switched per player (`typingAnchor`, 📜 Menu →
+  ⌨️ Typing and the lessons list); under 8 the list suggests going slow.
+- **A real keyboard first:** `keyboardStore` / `watchKeyboard`; the lessons'
+  gate explains on a phone. Keys never leave the browser.
+- Tests: +47 (`content/typing.test`, `lib/typing.test`, `keyboardStore.test`,
+  `TypingLessons.test`, `save.test`); lint + tsc clean. Follow-ups #159.
 
 ### 2026-10-17 — #158 review fixes: an encounter flash, spells ready at once (#158a)
 `/saas-code-review` + `/saas-ux-review` of #158; the owner said fix all and

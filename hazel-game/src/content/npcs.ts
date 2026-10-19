@@ -335,6 +335,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: ACT2_SEEN,
       },
       'Every question you ever missed waits in my library. Beat it here, and it makes you stronger!',
+      // Touch typing (#159): the lessons are inside the Library.
+      'I teach typing too — ten fingers, home row, no peeking at the keys! Find ⌨️ Typing lessons in my Library.',
       // The Pen-Pal Papers (#75 item 15f round 3): Sage remembers Shush.
       { text: "Shush's letters always smell of candle wax. I've started my next one already!", ifFlag: questDoneFlag({ id: SHUSH_QUEST }) },
     ],
